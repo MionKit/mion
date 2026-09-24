@@ -193,7 +193,7 @@ junk. Checks the value oracles **O1–O7**, **O18**, **O21** and **O22–O25** (
 what an "unknown key" is: the `{checkUnknowns: true}` validator and its error
 twin (whose `expected: 'never'` entries are the unknown-key report),
 `removeUnknownKeys` (`ruk`, the public strip), and the JSON decoder's
-`strategy: 'strip'` pre-pass (`ukuw`). Each has its own emitter and its own arm
+`strategy: 'clone'` rebuild (`rjs`). Each has its own emitter and its own arm
 per position, and they have drifted apart more than once, always at a position
 one walk did not reach (a class member of a union was the last, found by hand).
 O18 and O22–O25 hold them against each other rather than against a hand-written
@@ -207,15 +207,15 @@ each is non-zero, so a green run cannot be green because nothing was planted.
 Two documented gaps the oracles work around rather than fail on: a union with
 object members has no `removeUnknownKeys` at all (**RUK001** — the emitter cannot
 know which arm to rebuild), so O24 skips those targets, O18 only checks that the
-strict validator never accepts what `validate` rejects, and O25 covers the strip
+strict validator never accepts what `validate` rejects, and O25 covers the decoder
 side of a union instead; and O25 plants blindly on the wire, so it is skipped
 for any target carrying an index signature, where a planted key IS declared.
 
 ### `roundtrip/` — every codec strategy must agree
 
 Generates one random **serialisable** type, compiles _all_ of its codecs at once
-— the four JSON encoder strategies (`clone`/`mutate`/`direct`/`compact`) each
-paired with its decoder (`strip`/`preserve`/`strip`/`compact`), plus the binary
+— the three JSON encoder strategies (`clone`/`mutate`/`compact`) each
+paired with its same-named decoder, the `rjs` restore over the clone wire, plus the binary
 codec — then sends one generated value through every lane and cross-checks them.
 
 Oracle IDs (`roundtripOracle.ts`): **RT-VALIDATE** (both input and output

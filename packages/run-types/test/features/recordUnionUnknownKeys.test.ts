@@ -12,7 +12,7 @@ type PlainObject = {a: string};
 
 /** The codec families asked about one type, built at a real call site so each marker resolves. */
 interface Probe {
-  decodeStrip: (wire: string) => unknown;
+  decodeClone: (wire: string) => unknown;
   validate: (value: unknown) => boolean;
   strict: (value: unknown) => boolean;
   /** Keys declared by ANY member, or every key once a member is a record. */
@@ -24,7 +24,7 @@ interface Probe {
 interface Row {
   label: string;
   value: Record<string, unknown>;
-  /** What the stripping decoder returns; equal to `value` when nothing was stripped. */
+  /** What the clone decoder returns; equal to `value` when nothing was stripped. */
   decoded: Record<string, unknown>;
   validate: boolean;
   /** `validate` and no key outside `pooledKeys`. */
@@ -41,8 +41,8 @@ function outsidePool(probe: Probe, value: unknown): string[] {
 
 function checkRows(probe: Probe, rows: Row[]): void {
   for (const row of rows) {
-    const decoded = probe.decodeStrip(JSON.stringify(row.value));
-    expect(decoded, `${row.label} decoder {strategy: 'strip'}`).toEqual(row.decoded);
+    const decoded = probe.decodeClone(JSON.stringify(row.value));
+    expect(decoded, `${row.label} decoder {strategy: 'clone'}`).toEqual(row.decoded);
     expect(probe.validate(decoded), `${row.label} validate`).toBe(row.validate);
     const twoStep = probe.validate(decoded) && outsidePool(probe, decoded).length === 0;
     expect(twoStep, `${row.label} validate + pooled key check`).toBe(row.twoStep);
@@ -53,7 +53,7 @@ function checkRows(probe: Probe, rows: Row[]): void {
 describe('a union with a Record member', () => {
   it('{a: string} | Record<string, number> — no decoder strips and the two-step check says yes', () => {
     const probe: Probe = {
-      decodeStrip: createJsonDecoderFn<ObjectOrNumbers>(undefined, {strategy: 'strip'}) as Probe['decodeStrip'],
+      decodeClone: createJsonDecoderFn<ObjectOrNumbers>(undefined, {strategy: 'clone'}) as Probe['decodeClone'],
       validate: createValidateFn<ObjectOrNumbers>() as Probe['validate'],
       strict: createValidateFn<ObjectOrNumbers>(undefined, {checkUnknowns: true}) as Probe['strict'],
       pooledKeys: 'every key',
@@ -88,7 +88,7 @@ describe('a union with a Record member', () => {
 
   it('{a: string} | Record<string, string> — the record can hold the extra key, so keeping it is correct', () => {
     const probe: Probe = {
-      decodeStrip: createJsonDecoderFn<ObjectOrStrings>(undefined, {strategy: 'strip'}) as Probe['decodeStrip'],
+      decodeClone: createJsonDecoderFn<ObjectOrStrings>(undefined, {strategy: 'clone'}) as Probe['decodeClone'],
       validate: createValidateFn<ObjectOrStrings>() as Probe['validate'],
       strict: createValidateFn<ObjectOrStrings>(undefined, {checkUnknowns: true}) as Probe['strict'],
       pooledKeys: 'every key',
@@ -127,9 +127,9 @@ describe('a union with a Record member', () => {
 });
 
 describe('the same shapes without a Record member, where the codecs do their job', () => {
-  it('{a: string} | {b: number} — the decoder strips and the two-step check refuses', () => {
+  it('{a: string} | {b: number} — the decoder drops the key, so the two-step check sees a clean value', () => {
     const probe: Probe = {
-      decodeStrip: createJsonDecoderFn<TwoObjects>(undefined, {strategy: 'strip'}) as Probe['decodeStrip'],
+      decodeClone: createJsonDecoderFn<TwoObjects>(undefined, {strategy: 'clone'}) as Probe['decodeClone'],
       validate: createValidateFn<TwoObjects>() as Probe['validate'],
       strict: createValidateFn<TwoObjects>(undefined, {checkUnknowns: true}) as Probe['strict'],
       pooledKeys: ['a', 'b'],
@@ -142,10 +142,10 @@ describe('the same shapes without a Record member, where the codecs do their job
         value: {a: 'x', evil: 'garbage'},
         decoded: {a: 'x'},
         validate: true,
-        twoStep: false,
+        twoStep: true,
         strict: false,
       },
-      {label: 'extra number key', value: {a: 'x', evil: 1}, decoded: {a: 'x'}, validate: true, twoStep: false, strict: false},
+      {label: 'extra number key', value: {a: 'x', evil: 1}, decoded: {a: 'x'}, validate: true, twoStep: true, strict: false},
       {label: 'matching no member', value: {p: 1, q: 2}, decoded: {}, validate: false, twoStep: false, strict: false},
       {label: 'empty object', value: {}, decoded: {}, validate: false, twoStep: false, strict: false},
     ]);
@@ -154,7 +154,7 @@ describe('the same shapes without a Record member, where the codecs do their job
 
   it('{a: string} — the plain object baseline', () => {
     const probe: Probe = {
-      decodeStrip: createJsonDecoderFn<PlainObject>(undefined, {strategy: 'strip'}) as Probe['decodeStrip'],
+      decodeClone: createJsonDecoderFn<PlainObject>(undefined, {strategy: 'clone'}) as Probe['decodeClone'],
       validate: createValidateFn<PlainObject>() as Probe['validate'],
       strict: createValidateFn<PlainObject>(undefined, {checkUnknowns: true}) as Probe['strict'],
       pooledKeys: ['a'],
@@ -167,10 +167,10 @@ describe('the same shapes without a Record member, where the codecs do their job
         value: {a: 'x', evil: 'garbage'},
         decoded: {a: 'x'},
         validate: true,
-        twoStep: false,
+        twoStep: true,
         strict: false,
       },
-      {label: 'extra number key', value: {a: 'x', evil: 1}, decoded: {a: 'x'}, validate: true, twoStep: false, strict: false},
+      {label: 'extra number key', value: {a: 'x', evil: 1}, decoded: {a: 'x'}, validate: true, twoStep: true, strict: false},
       {label: 'wrong shape', value: {p: 1, q: 2}, decoded: {}, validate: false, twoStep: false, strict: false},
       {label: 'empty object', value: {}, decoded: {}, validate: false, twoStep: false, strict: false},
     ]);

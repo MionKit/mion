@@ -24,8 +24,8 @@ const valid = {
 describe('JSON restore arms rebuild only from the wire form', () => {
   const validate = createValidateFn<Wire>();
   const decoders = [
-    createJsonDecoderFn<Wire>(undefined, {strategy: 'strip'}),
-    createJsonDecoderFn<Wire>(undefined, {strategy: 'preserve'}),
+    createJsonDecoderFn<Wire>(undefined, {strategy: 'clone'}),
+    createJsonDecoderFn<Wire>(undefined, {strategy: 'mutate'}),
   ];
 
   const cases: Array<[keyof Wire, unknown]> = [

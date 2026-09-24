@@ -36,12 +36,11 @@ export interface CompiledSecurity {
   rootKeys: Record<string, string>;
   validate?: (value: unknown) => boolean;
   jsonEncode?: (value: unknown) => string | undefined;
-  /** The encoders that rebuild an object from its keys (safe / direct /
-   *  compact), for the prototype oracle over decoded values. **/
+  /** The encoders that rebuild an object from its keys (clone / compact), for the prototype oracle over decoded values. **/
   jsonEncoders: Record<string, (value: unknown) => string | undefined>;
   /** The exact-shape clone, another key-driven rebuild. **/
   clone?: (value: unknown) => unknown;
-  /** strip / preserve / compact decoders that wired. **/
+  /** clone / mutate / compact decoders that wired. **/
   decoders: Record<string, (text: string) => unknown>;
   binaryEncode?: (value: unknown) => Uint8Array;
   binaryDecode?: (input: unknown) => unknown;
@@ -62,11 +61,10 @@ ${decls}
 type T = ${rootExpr};
 createValidateFn<T>();
 createJsonEncoderFn<T>(undefined, {strategy: 'clone'});
-createJsonEncoderFn<T>(undefined, {strategy: 'direct'});
 createJsonEncoderFn<T>(undefined, {strategy: 'compact'});
 createRemoveUnknownKeysFn<T>();
-createJsonDecoderFn<T>(undefined, {strategy: 'strip'});
-createJsonDecoderFn<T>(undefined, {strategy: 'preserve'});
+createJsonDecoderFn<T>(undefined, {strategy: 'clone'});
+createJsonDecoderFn<T>(undefined, {strategy: 'mutate'});
 createJsonDecoderFn<T>(undefined, {strategy: 'compact'});
 createBinaryEncoderFn<T>();
 createBinaryDecoderFn<T>();
@@ -137,8 +135,7 @@ export async function compileSecurity(client: ResolverClient, gen: GeneratedType
   );
   const jsonEncoders: CompiledSecurity['jsonEncoders'] = {};
   for (const [name, tag] of [
-    ['safe', 'jeCL'],
-    ['direct', 'jeDI'],
+    ['clone', 'jeCL'],
     ['compact', 'jeCO'],
   ] as const) {
     const encode = attempt(`encode:${name}`, () =>
@@ -153,8 +150,8 @@ export async function compileSecurity(client: ResolverClient, gen: GeneratedType
   );
   const decoders: CompiledSecurity['decoders'] = {};
   for (const [name, tag] of [
-    ['strip', 'jdST'],
-    ['preserve', 'jdPR'],
+    ['clone', 'jdCL'],
+    ['mutate', 'jdMU'],
     ['compact', 'jdCO'],
   ] as const) {
     const decode = wireDecoder(byTag[tag]);

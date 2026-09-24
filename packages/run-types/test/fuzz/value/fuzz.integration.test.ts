@@ -188,7 +188,7 @@ const targets: FuzzTarget[] = [];
 // An array and a tuple are atomic members of the flat union layout, so neither of these unions has
 // an object member at all, and every gate keyed on that handed the value through without compiling
 // the member. The object one level down is where the key hides. The tuple target covers the other
-// half of the same hole: the strip pre-pass used to no-op at a tuple node outright.
+// half of the same hole: the unknown-key walks used to no-op at a tuple node outright.
 {
   const schema = RT.union([RT.array(RT.object({a: TF.string()})), TF.number()]);
   targets.push({
@@ -502,37 +502,31 @@ describe('fuzz / integration — oracle sweep over compiled functions', () => {
   });
 
   // O25's anti-vacuity half. The oracle says "planting undeclared keys on the
-  // wire does not change what the strip decoder returns", which a decoder that
+  // wire does not change what the clone decoder returns", which a decoder that
   // returned nothing at all would also satisfy. This pins that the plant really
-  // reaches the wire: the `preserve` decoder hands the key back, the `strip`
-  // decoder blanks it, and the declared data survives both.
-  it('O25 reference: a planted wire key is kept by preserve and blanked by strip', () => {
+  // reaches the wire: the `mutate` decoder hands the key back, the `clone`
+  // decoder drops it, and the declared data survives both.
+  it('O25 reference: a planted wire key is kept by mutate and dropped by clone', () => {
     const schema = RT.object({id: TF.number(), meta: RT.object({count: TF.number()})});
-    const strip = createJsonDecoderFn(schema, {strategy: 'strip'});
-    const preserve = createJsonDecoderFn(schema, {strategy: 'preserve'});
+    const clone = createJsonDecoderFn(schema, {strategy: 'clone'});
+    const mutate = createJsonDecoderFn(schema, {strategy: 'mutate'});
     const wire = '{"id":1,"meta":{"count":2,"__fz_uk_wire":"fz"},"__fz_uk_wire":"fz"}';
-    const preserved = preserve(wire) as Record<string, unknown>;
-    expect(preserved.__fz_uk_wire).toBe('fz');
-    expect((preserved.meta as Record<string, unknown>).__fz_uk_wire).toBe('fz');
-    const stripped = strip(wire) as Record<string, unknown>;
-    expect(stripped.__fz_uk_wire).toBeUndefined();
-    expect((stripped.meta as Record<string, unknown>).__fz_uk_wire).toBeUndefined();
-    expect(stripped.id).toBe(1);
-    expect((stripped.meta as Record<string, unknown>).count).toBe(2);
+    const kept = mutate(wire) as Record<string, unknown>;
+    expect(kept.__fz_uk_wire).toBe('fz');
+    expect((kept.meta as Record<string, unknown>).__fz_uk_wire).toBe('fz');
+    expect(clone(wire)).toStrictEqual({id: 1, meta: {count: 2}});
   });
 
   // The wire oracles' judge admits every survivor inside a union once the planted wire fails
   // validation, and the blind plant always fails it on TupleWithRecordSlot (a string lands in the
-  // record of numbers). So the strip of the object slot beside the record slot is pinned here, on
-  // a wire that is valid apart from the planted keys: the object slot comes back stripped by both
-  // decoders and the record slot keeps its key.
+  // record of numbers). So the object slot beside the record slot is pinned here, on a wire that is
+  // valid apart from the planted keys: the object slot drops its key and the record slot keeps it.
   it('O25/O26 reference: the object slot beside a record slot is stripped, the record slot is kept', () => {
     const schema = RT.union([RT.tuple({required: [RT.object({a: TF.string()}), RT.record(TF.number())]}), TF.number()]);
     const wire = '[{"a":"x","__fz_uk_wire":"fz"},{"k":1,"__fz_uk_wire":2}]';
-    const stripped = createJsonDecoderFn(schema, {strategy: 'strip'})(wire) as Record<string, unknown>[];
-    expect(stripped[0].__fz_uk_wire).toBeUndefined();
-    expect(stripped[0].a).toBe('x');
-    expect(stripped[1]).toStrictEqual({k: 1, __fz_uk_wire: 2});
+    const decoded = createJsonDecoderFn(schema, {strategy: 'clone'})(wire) as Record<string, unknown>[];
+    expect(decoded[0]).toStrictEqual({a: 'x'});
+    expect(decoded[1]).toStrictEqual({k: 1, __fz_uk_wire: 2});
     const restored = recoverRestoreSafe(schema)(JSON.parse(wire)) as Record<string, unknown>[];
     expect(Object.hasOwn(restored[0], '__fz_uk_wire')).toBe(false);
     expect(restored[0].a).toBe('x');

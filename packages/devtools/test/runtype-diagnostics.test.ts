@@ -4,7 +4,7 @@
 //
 //   1. Root-position throw sites (Never, NonSerializable, function at
 //      root, array element non-serializable) surface per-family
-//      prefixed codes (PJ001, SJ001, TB001, …) — not generic codes —
+//      prefixed codes (PJ001, PJS001, TB001, …) — not generic codes —
 //      so users can grep their build log by family.
 //   2. Each diagnostic carries the marker call site (file:line:col),
 //      not just the type-declaration site, so the warning is
@@ -52,13 +52,13 @@ export const _ = createJsonEncoderFn<never>(undefined, {strategy: 'mutate'});
     });
   });
 
-  register('emits per-family codes — SJ001 / TB001 / PJ001 — for same root throw', async () => {
+  register('emits per-family codes — PJS001 / TB001 / PJ001 — for same root throw', async () => {
     // All three families are demand-driven: seed pj via createJsonEncoderFn(mutate),
-    // sj via createJsonEncoderFn(direct), and tb via createBinaryEncoderFn.
+    // pjs via the default clone encoder, and tb via createBinaryEncoderFn.
     const sources = {
       'never-multi.ts': `import {createJsonEncoderFn, createBinaryEncoderFn} from '@mionjs/run-types';
 export const _ = createJsonEncoderFn<never>(undefined, {strategy: 'mutate'});
-export const _s = createJsonEncoderFn<never>(undefined, {strategy: 'direct'});
+export const _s = createJsonEncoderFn<never>();
 export const _b = createBinaryEncoderFn<never>();
 `,
     };
@@ -68,7 +68,7 @@ export const _b = createBinaryEncoderFn<never>();
       });
       const codes = new Set(runtypeDiagsOf(response).map((d) => d.code));
       expect(codes, [...codes].join(',')).toContain('PJ001');
-      expect(codes).toContain('SJ001');
+      expect(codes).toContain('PJS001');
       expect(codes).toContain('TB001');
     });
   });
@@ -137,15 +137,13 @@ export const _ = createValidateFn<Date | symbol>();
     });
   });
 
-  register('emits per-family union-drop warnings (PJS014 / SJ014 / RJ014) under JSON encode/decode', async () => {
+  register('emits per-family union-drop warnings (PJS014 / RJ014) under JSON encode/decode', async () => {
     // Each demand-driven family walks the union and emits its own per-family
     // …014 prefix so users can grep the drop by family, like the root-throw
-    // codes. Seed pjs via the default clone encode, sj via the direct strategy,
-    // and rj via the decoder.
+    // codes. Seed pjs via the default clone encode and rj via the decoder.
     const sources = {
       'union-drop-json.ts': `import {createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
 export const _e = createJsonEncoderFn<Date | symbol>();
-export const _s = createJsonEncoderFn<Date | symbol>(undefined, {strategy: 'direct'});
 export const _d = createJsonDecoderFn<Date | symbol>();
 `,
     };
@@ -156,7 +154,6 @@ export const _d = createJsonDecoderFn<Date | symbol>();
       const drops = runtypeDiagsOf(response).filter((d) => d.code.endsWith('014'));
       const codes = new Set(drops.map((d) => d.code));
       expect(codes, [...codes].join(',')).toContain('PJS014');
-      expect(codes).toContain('SJ014');
       expect(codes).toContain('RJ014');
       // Every …014 is a Warning, never an Error.
       for (const d of drops) expect(d.severity).toBe(Severity.Warning);
@@ -245,19 +242,18 @@ export const _ = createValidateFn<unknown>();
   // Tuple slots are structural — a function or symbol slot can't be
   // silently dropped without changing the tuple's length / shape on the
   // wire. The serialization families (prepareForJson, prepareForJsonSafe,
-  // restoreFromJsonMutate, stringifyJson, toBinary, fromBinary) propagate the
+  // restoreFromJsonMutate, toBinary, fromBinary) propagate the
   // CodeNS upward so the renderer emits an alwaysThrow factory keyed on
   // the leaf's per-family code. Regression coverage for the array-style
   // short-circuits we removed in the tuple emits.
 
   register('propagates function-typed tuple slot as alwaysThrow under prepareForJson', async () => {
-    // pj/pjs/rj/sj are demand-driven: seed pj via createJsonEncoderFn(mutate), pjs
-    // via the default clone (shape-derived strip), sj via direct, and rj via createJsonDecoderFn.
+    // pj/pjs/rj are demand-driven: seed pj via createJsonEncoderFn(mutate), pjs
+    // via the default clone, and rj via createJsonDecoderFn.
     const sources = {
       'fn-tuple.ts': `import {createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
 export const _ = createJsonEncoderFn<[number, () => void]>(undefined, {strategy: 'mutate'});
 export const _s = createJsonEncoderFn<[number, () => void]>();
-export const _d = createJsonEncoderFn<[number, () => void]>(undefined, {strategy: 'direct'});
 export const _r = createJsonDecoderFn<[number, () => void]>();
 `,
     };
@@ -266,12 +262,10 @@ export const _r = createJsonDecoderFn<[number, () => void]>();
         includeEntryModules: true,
       });
       const codes = new Set(runtypeDiagsOf(response).map((d) => d.code));
-      // One per-family error code per emitter — PJ003 / PJS003 /
-      // RJ003 / SJ003 — all on the same function-root leaf.
+      // One per-family error code per emitter, PJ003 / PJS003 / RJ003, all on the same function-root leaf.
       expect(codes, [...codes].join(',')).toContain('PJ003');
       expect(codes).toContain('PJS003');
       expect(codes).toContain('RJ003');
-      expect(codes).toContain('SJ003');
       // Entry modules must wire the tuple's prepareForJson entry as
       // alwaysThrow so calling `createJsonEncoderFn<[number, () => void]>()`
       // throws at the first lookup. The fully rendered throw message rides
@@ -355,7 +349,7 @@ export const _d = createJsonDecoderFn<[number, () => void]>(undefined, {strategy
       ).toHaveLength(0);
       const codes = new Set(runtypeDiagsOf(response).map((d) => d.code));
       // Compact encode (cj) mirrors clone (pjs); compact decode (cjr) mirrors
-      // preserve (rj) — same function-root code the sibling strategies emit.
+      // mutate (rj) — same function-root code the sibling strategies emit.
       expect(codes, [...codes].join(',')).toContain('PJS003');
       expect(codes).toContain('RJ003');
       // The compact composite entry must wire the tuple as an alwaysThrow, so

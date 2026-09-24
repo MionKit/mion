@@ -1,7 +1,7 @@
 // All-strategy round-trip driver — generate a random SERIALISABLE type
 // (DATA_GEN_OPTIONS), compile EVERY codec strategy for it (roundtripHarness),
 // generate one conforming data-only value (shapeValue), and round-trip it
-// through clone / mutate / direct / compact / binary, checking the oracle agrees
+// through clone / mutate / compact / binary, checking the oracle agrees
 // (roundtripOracle).
 //
 // Scope: this lane is ADDITIVE to typeFuzzRunner. Resolver/emit robustness

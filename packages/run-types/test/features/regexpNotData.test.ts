@@ -48,7 +48,6 @@ describe('RegExp is not data', () => {
     const encoders = {
       clone: createJsonEncoderFn<Rule>(undefined, {strategy: 'clone'}),
       mutate: createJsonEncoderFn<Rule>(undefined, {strategy: 'mutate'}),
-      direct: createJsonEncoderFn<Rule>(undefined, {strategy: 'direct'}),
       compact: createJsonEncoderFn<Rule>(undefined, {strategy: 'compact'}),
     };
     for (const [strategy, encode] of Object.entries(encoders)) {

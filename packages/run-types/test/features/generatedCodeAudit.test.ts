@@ -90,12 +90,11 @@ createGetValidationErrorsFn<Corpus>();
 const encoders = {
   clone: createJsonEncoderFn<Corpus>(undefined, {strategy: 'clone'}),
   mutate: createJsonEncoderFn<Corpus>(undefined, {strategy: 'mutate'}),
-  direct: createJsonEncoderFn<Corpus>(undefined, {strategy: 'direct'}),
   compact: createJsonEncoderFn<Corpus>(undefined, {strategy: 'compact'}),
 };
 const decoders = {
-  strip: createJsonDecoderFn<Corpus>(undefined, {strategy: 'strip'}),
-  preserve: createJsonDecoderFn<Corpus>(undefined, {strategy: 'preserve'}),
+  clone: createJsonDecoderFn<Corpus>(undefined, {strategy: 'clone'}),
+  mutate: createJsonDecoderFn<Corpus>(undefined, {strategy: 'mutate'}),
   compact: createJsonDecoderFn<Corpus>(undefined, {strategy: 'compact'}),
 };
 const toBinary = createBinaryEncoderFn<Corpus>();
@@ -115,7 +114,7 @@ const errUnion = {
   decode: createJsonDecoderFn<ErrUnion>(),
 };
 createJsonEncoderFn<ErrUnion>(undefined, {strategy: 'mutate'});
-createJsonEncoderFn<ErrUnion>(undefined, {strategy: 'direct'});
+createJsonEncoderFn<ErrUnion>(undefined, {strategy: 'compact'});
 createBinaryEncoderFn<ErrUnion>();
 createBinaryDecoderFn<ErrUnion>();
 createValidateFn<ErrUnion>();
@@ -161,7 +160,7 @@ describe('generated-code corpus scan (hand-written nasty corpus)', () => {
     const bodies = emittedBodies();
     const families = new Set(bodies.map((b) => b.family));
     expect(bodies.length).toBeGreaterThan(20);
-    for (const family of ['val', 'verr', 'pjs', 'sj', 'cj', 'jdST', 'jdPR', 'jdCO', 'tb', 'fb', 'ruk', 'vst', 'vest']) {
+    for (const family of ['val', 'verr', 'pjs', 'rjs', 'cj', 'jdCL', 'jdMU', 'jdCO', 'tb', 'fb', 'ruk', 'vst', 'vest']) {
       expect(families, `family ${family} must be in the corpus`).toContain(family);
     }
   });
@@ -199,7 +198,7 @@ describe('generated-code corpus scan (hand-written nasty corpus)', () => {
     expect(validate(value())).toBe(true);
     for (const [name, encode] of Object.entries(encoders)) {
       const text = encode(structuredClone(value())) as string;
-      const decode = name === 'compact' ? decoders.compact : decoders.strip;
+      const decode = name === 'compact' ? decoders.compact : decoders.clone;
       expect(decode(text), name).toEqual(value());
     }
     expect(fromBinary(toBinary(value()))).toEqual(value());

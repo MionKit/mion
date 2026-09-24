@@ -78,14 +78,14 @@ describe('getFnHash — unit (resolves the version-independent fnHash per family
   });
 
   test('JSON encoder / decoder resolve their strategies (default when omitted)', () => {
-    // Omitting the strategy yields the family default (clone / strip).
+    // Omitting the strategy yields the family default (clone).
     expect(getFnHash('jsonEncoder')).toBe(getFnHash('jsonEncoder', {strategy: 'clone'}));
     expect(getFnHash('jsonEncoder', {strategy: 'clone'})).toBe('tx9T');
     expect(getFnHash('jsonEncoder', {strategy: 'mutate'})).toBe('l3Wy');
-    expect(getFnHash('jsonEncoder', {strategy: 'direct'})).toBe('Bm08');
     expect(getFnHash('jsonEncoder', {strategy: 'compact'})).toBe('FL2w');
-    expect(getFnHash('jsonDecoder')).toBe(getFnHash('jsonDecoder', {strategy: 'strip'}));
-    expect(getFnHash('jsonDecoder', {strategy: 'preserve'})).toBe('kpI8');
+    expect(getFnHash('jsonDecoder')).toBe(getFnHash('jsonDecoder', {strategy: 'clone'}));
+    expect(getFnHash('jsonDecoder', {strategy: 'clone'})).toBe('xXCs');
+    expect(getFnHash('jsonDecoder', {strategy: 'mutate'})).toBe('TqQA');
     expect(getFnHash('jsonDecoder', {strategy: 'compact'})).toBe('hoBv');
   });
 

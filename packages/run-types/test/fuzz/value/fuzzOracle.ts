@@ -48,7 +48,7 @@ export interface FuzzTarget {
   divergesFromComposition?: true;
   /** `never` lets any `RemoveUnknownKeysFn<T>` be assigned (contravariant parameter); the oracle casts back. **/
   clone?: (value: never) => unknown;
-  /** The STRIPPING restore (`rjs`, mion's `clone` decoder), via a marker wrapper: it has no createX factory.
+  /** The `clone` decoder's restore (`rjs`), via a marker wrapper: it has no createX factory.
    *  O26 holds it to an undeclared wire key coming back GONE, not blanked. **/
   restoreFromJsonClone?: (value: unknown) => unknown;
   jsonEncode?: (value: unknown) => string | undefined;
@@ -88,11 +88,11 @@ export interface FuzzTarget {
 //   O24 unknown-strip   the paths the unknown-key report names are exactly the
 //                       keys removeUnknownKeys drops
 //   O25 wire-strip      keys planted into EVERY plain object of the encoded
-//                       wire do not change what the `strip` decoder returns,
+//                       wire do not change what the `clone` decoder returns,
 //                       except where the type admits them (an index signature,
 //                       a union member the planted wire no longer matches)
 //   O26 wire-delete     keys planted on the encoded wire are GONE from what the
-//                       stripping decoder returns, unless the type admits them
+//                       `rjs` restore returns, unless the type admits them
 //   O27 walker-reach    run-level: every target whose type carries a keyed
 //                       shape offered the walker a position
 // O15–O17 are the cloning oracles (test/fuzz/cloning/cloneOracle.ts):
@@ -546,12 +546,8 @@ function survivingPlantedKeys(
   return out;
 }
 
-/** O26 — the STRIPPING decoder deletes an undeclared wire key rather than blanking it.
- *
- *  O25's subject is the default `strip` composite, which sets an undeclared key to `undefined` and
- *  leaves it in place, so that oracle normalises both sides before comparing. `rjs` rebuilds each
- *  object from the declared shape instead, so the key is genuinely gone, and normalising here would
- *  hide a regression back to blanking.
+/** O26 — the `rjs` restore deletes an undeclared wire key rather than blanking it: it rebuilds each
+ *  object from the declared shape, so the key is genuinely gone.
  *
  *  It plants on the WIRE, which is what makes it reach where the type walker cannot: `plantWireKeys`
  *  consults no type, so it writes into every plain object, a union arm's payload and an array
@@ -583,13 +579,7 @@ export function checkWireStripDeletes(target: FuzzTarget, value: unknown, ctx: C
   try {
     restored = restoreFromJsonClone(JSON.parse(JSON.stringify(planted)));
   } catch (err) {
-    return violation(
-      'O26',
-      target,
-      ctx,
-      `the stripping decoder threw on a wire carrying undeclared keys: ${errMsg(err)}`,
-      planted
-    );
+    return violation('O26', target, ctx, `the rjs restore threw on a wire carrying undeclared keys: ${errMsg(err)}`, planted);
   }
   const wireInvalid = !validates(target, restored);
   const kept = survivingPlantedKeys(restored).filter((path) => !wireKeyAdmitted(target.schema, path, wireInvalid));
@@ -598,21 +588,17 @@ export function checkWireStripDeletes(target: FuzzTarget, value: unknown, ctx: C
       'O26',
       target,
       ctx,
-      `the stripping decoder left ${kept.length} undeclared wire key(s): [${kept.map(pathKey).join(', ')}]`,
+      `the rjs restore left ${kept.length} undeclared wire key(s): [${kept.map(pathKey).join(', ')}]`,
       restored
     );
   return null;
 }
 
-/** O25 — the decoder's `strip` pre-pass is blind to undeclared wire keys.
+/** O25 — the default `clone` decoder is blind to undeclared wire keys.
  *
- *  The one family with no public factory: `ukuw` runs inside the
- *  `strategy: 'strip'` decoder, before the restore walks the declared shape.
- *  Reaching it means going through the decoder, so the property is
- *  metamorphic rather than direct: plant a key into every plain object on the
- *  ENCODED WIRE and the strip decoder must return the same value it returned
- *  without them. A position the pre-pass does not reach leaves the key in the
- *  output and the two answers differ.
+ *  Metamorphic: plant a key into every plain object on the ENCODED WIRE and the
+ *  decoder must return the same value it returned without them. A position the
+ *  rebuild does not reach leaves the key in the output and the two answers differ.
  *
  *  The plant is blind, so the judgement sits on the decoded side: a planted key
  *  at a position the type admits (an index signature declares every key, and a
@@ -623,8 +609,8 @@ export function checkWireStripDeletes(target: FuzzTarget, value: unknown, ctx: C
  *  more.
  *
  *  The anti-vacuity half is a deterministic test rather than a check here:
- *  the `preserve` decoder keeps an undeclared wire key, so a plant really did
- *  reach the wire. It cannot be a per-value check because preserve CANNOT
+ *  the `mutate` decoder keeps an undeclared wire key, so a plant really did
+ *  reach the wire. It cannot be a per-value check because mutate CANNOT
  *  keep one on a registered class arm, since that instance is rebuilt from the
  *  type, never from the keys on the wire. **/
 export function checkWireStripBlind(target: FuzzTarget, value: unknown, ctx: CheckCtx): Violation | null {
@@ -650,13 +636,10 @@ export function checkWireStripBlind(target: FuzzTarget, value: unknown, ctx: Che
   let strippedClean: unknown;
   let strippedPlanted: unknown;
   try {
-    // The pre-pass BLANKS an undeclared key (sets it to undefined) rather
-    // than deleting it, so the comparison drops undefined-valued own keys on
-    // both sides. A decoder that left the VALUE in place is still caught.
     const decodedPlanted = jsonDecode(planted);
     const wireInvalid = !validates(target, decodedPlanted);
-    strippedClean = withoutBlankedKeys(withoutAdmittedPlantedKeys(target, jsonDecode(wire), wireInvalid));
-    strippedPlanted = withoutBlankedKeys(withoutAdmittedPlantedKeys(target, decodedPlanted, wireInvalid));
+    strippedClean = withoutAdmittedPlantedKeys(target, jsonDecode(wire), wireInvalid);
+    strippedPlanted = withoutAdmittedPlantedKeys(target, decodedPlanted, wireInvalid);
   } catch (err) {
     return violation('O25', target, ctx, `a decoder threw on a wire carrying undeclared keys: ${errMsg(err)}`, planted);
   }
@@ -666,16 +649,10 @@ export function checkWireStripBlind(target: FuzzTarget, value: unknown, ctx: Che
       'O25',
       target,
       ctx,
-      `the strip decoder did not blank ${plantedCount} undeclared wire key(s): got ${snapshot(strippedPlanted)} instead of ${snapshot(strippedClean)}`,
+      `the clone decoder did not drop ${plantedCount} undeclared wire key(s): got ${snapshot(strippedPlanted)} instead of ${snapshot(strippedClean)}`,
       planted
     );
   return null;
-}
-
-/** A copy with every undefined-valued own key removed, so a key the strip
- *  pre-pass blanked reads the same as one it never wrote. **/
-function withoutBlankedKeys(value: unknown): unknown {
-  return withoutKeys(value, (_key, entry) => entry === undefined);
 }
 
 /** A copy with every planted key the type admits removed: a correct decoder keeps it, so it must

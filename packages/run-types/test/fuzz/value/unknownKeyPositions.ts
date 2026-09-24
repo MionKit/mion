@@ -10,7 +10,7 @@
 //   vst / vest  the `{checkUnknowns: true}` validators (vest's `expected: 'never'`
 //               entries are the unknown-key report)
 //   ruk   createRemoveUnknownKeysFn      (the public strip)
-//   ukuw  the JSON decoder's `strategy: 'strip'` pre-pass
+//   rjs   the JSON decoder's `strategy: 'clone'` rebuild
 //
 // They have drifted apart more than once, always the same way: a position the
 // shared merged-allowlist walk did not reach. So this walker's job is reach,

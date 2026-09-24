@@ -77,8 +77,8 @@ export const SRC_OVERLAY: Readonly<Record<string, string>> = (() => {
   return overlay;
 })();
 
-const ENCODER_TAGS = new Set(['jeCL', 'jeMU', 'jeDI']);
-const DECODER_TAGS = new Set(['jdST', 'jdPR']);
+const ENCODER_TAGS = new Set(['jeCL', 'jeMU']);
+const DECODER_TAGS = new Set(['jdCL', 'jdMU']);
 
 export type WiredFns = {
   validate?: (v: unknown) => boolean;

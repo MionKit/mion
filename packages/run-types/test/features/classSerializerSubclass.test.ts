@@ -123,7 +123,7 @@ describe('classSerializer / a base class and its subclass declared in one union'
     expect(createGetValidationErrorsFn(sample, {checkUnknowns: true})(new BaseErr('x'))).toEqual([]);
   });
 
-  it("static — the decoder's default 'strip' drops a stray key inside the union like at the root", () => {
+  it("static — the decoder's default 'clone' drops a stray key inside the union like at the root", () => {
     registerBase();
     registerSub();
     const wire = createJsonEncoderFn<BaseFirst>(undefined, {strategy: 'mutate'})(Object.assign(auth(), {bogus: 1})) as string;
@@ -140,7 +140,7 @@ describe('classSerializer / a base class and its subclass declared in one union'
 
   it('static — a wire object never smuggles __proto__ onto the rebuilt instance', () => {
     registerBase();
-    const decode = createJsonDecoderFn<BaseErr>(undefined, {strategy: 'preserve'});
+    const decode = createJsonDecoderFn<BaseErr>(undefined, {strategy: 'mutate'});
     const back = decode('{"type":"x","__proto__":{"polluted":true}}') as BaseErr & {polluted?: boolean};
     expect(back).toBeInstanceOf(BaseErr);
     expect(back.polluted).toBeUndefined();

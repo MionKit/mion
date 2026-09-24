@@ -1,6 +1,6 @@
 // An object that mixes a named property with an index signature of a different VALUE type must not
 // apply the index value's transform to the named property: `{p0: number; [k: number]: bigint}` keeps
-// p0 a number across every wire, JSON and binary. Every JSON walk (mutate, restore, direct) skips a
+// p0 a number across every wire, JSON and binary. Every JSON walk (mutate, restore) skips a
 // key the type declares by name, because such a key carries its own transform.
 // G1 is the shared repro id for this shape, also used by the fuzz repro list and the Go codegen tests.
 import {describe, it, expect} from 'vitest';
@@ -15,13 +15,12 @@ describe('G1 index signature does not corrupt a named sibling property', () => {
     // The strategy is read at build time, so each one is spelled at its own call site; a variable
     // resolves to no strategy and the call falls back to the default.
     const pairs = [
-      ['clone', createJsonEncoderFn<A>(undefined, {strategy: 'clone'}), createJsonDecoderFn<A>(undefined, {strategy: 'strip'})],
+      ['clone', createJsonEncoderFn<A>(undefined, {strategy: 'clone'}), createJsonDecoderFn<A>(undefined, {strategy: 'clone'})],
       [
         'mutate',
         createJsonEncoderFn<A>(undefined, {strategy: 'mutate'}),
-        createJsonDecoderFn<A>(undefined, {strategy: 'preserve'}),
+        createJsonDecoderFn<A>(undefined, {strategy: 'mutate'}),
       ],
-      ['direct', createJsonEncoderFn<A>(undefined, {strategy: 'direct'}), createJsonDecoderFn<A>(undefined, {strategy: 'strip'})],
     ] as const;
     for (const [enc, encode, decode] of pairs) {
       const out = decode(encode(make())!) as A;

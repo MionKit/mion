@@ -57,7 +57,7 @@ describe('binarySizeEstimate on the compiled fn cache entry', () => {
 
   it('is absent on every other family', () => {
     createValidateFn<SizedUser>();
-    for (const familyTag of ['val', 'pj', 'rj', 'sj']) {
+    for (const familyTag of ['val', 'pj', 'rj', 'rjs']) {
       for (const entry of entriesOfFamily(familyTag)) {
         expect(entry.binarySizeEstimate, `${familyTag} entry ${entry.key} must not carry an estimate`).toBeUndefined();
       }

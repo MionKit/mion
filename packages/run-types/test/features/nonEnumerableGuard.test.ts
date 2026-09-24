@@ -1,8 +1,8 @@
 // Runtime-enumerability guard for global-inherited + `@nonEnumerable` props. A guarded
 // property's by-name write is gated on a runtime own-enumerability check
 // (`Object.prototype.propertyIsEnumerable`, JSON.stringify semantics) in the
-// families that build output by name (prepareForJsonSafe / stringifyJson /
-// compactForJson / toBinary). The guard invariant is GUARDED ⇒ OPTIONAL-in-type,
+// families that build output by name (prepareForJsonSafe / compactForJson /
+// toBinary). The guard invariant is GUARDED ⇒ OPTIONAL-in-type,
 // so DataOnly<T> is sound by construction: a member is guarded only when the
 // type already permits its absence. A `@nonEnumerable` tag therefore takes effect
 // only on an OPTIONAL property; on a required one it is a no-op (the NE lint rule
@@ -45,17 +45,12 @@ const STRATEGY_PAIRS = [
   {
     name: 'clone',
     encode: createJsonEncoderFn<Doc>(undefined, {strategy: 'clone'}),
-    decode: createJsonDecoderFn<Doc>(undefined, {strategy: 'strip'}),
+    decode: createJsonDecoderFn<Doc>(undefined, {strategy: 'clone'}),
   },
   {
     name: 'mutate',
     encode: createJsonEncoderFn<Doc>(undefined, {strategy: 'mutate'}),
-    decode: createJsonDecoderFn<Doc>(undefined, {strategy: 'preserve'}),
-  },
-  {
-    name: 'direct',
-    encode: createJsonEncoderFn<Doc>(undefined, {strategy: 'direct'}),
-    decode: createJsonDecoderFn<Doc>(undefined, {strategy: 'strip'}),
+    decode: createJsonDecoderFn<Doc>(undefined, {strategy: 'mutate'}),
   },
   {
     name: 'compact',

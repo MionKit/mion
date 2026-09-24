@@ -9,9 +9,8 @@
 // cache simply never receives the pj/rj entry for a noop shape. When EVERY
 // binding elides, the composite itself arrives as the noop SHORT-FORM tuple
 // (isNoop=true, no body) and the runtime registers native JSON.stringify /
-// JSON.parse as its fn; a partially-live composite (strip's ukuw half) keeps
-// its real body with the dead half gone. Shapes that DO need a transform keep
-// their primitive entries, registered with isNoop=false.
+// JSON.parse as its fn. Shapes that DO need a transform keep their
+// primitive entries, registered with isNoop=false.
 //
 // The entry lookups filter on `familyTag` (the tuple's exact emitting family)
 // rather than `fnID`: composites HOST on the primitive's fnID (`jeMU` carries
@@ -58,7 +57,7 @@ function rjEntry(id: string) {
 
 // pj / rj are demand-scoped: each `T` inspected below must also be passed to
 // the matching JSON factory at a call site the scanner can see —
-// createJsonEncoderFn(mutate) demands `pj`, createJsonDecoderFn (default strip)
+// createJsonEncoderFn(mutate) demands `pj`, createJsonDecoderFn(mutate)
 // demands `rj`. Whether the demanded primitive then LOADS at runtime depends
 // on the composite keeping its binding — that's the contract under test.
 describe('json noop markers (00JsonOnly.spec.ts port)', () => {
@@ -66,9 +65,9 @@ describe('json noop markers (00JsonOnly.spec.ts port)', () => {
     const noopId = getRunTypeId<NoJsonENCDECRequired>();
     const encId = getRunTypeId<SonENCDECRequired>();
     createJsonEncoderFn<NoJsonENCDECRequired>(undefined, {strategy: 'mutate'});
-    createJsonDecoderFn<NoJsonENCDECRequired>();
+    createJsonDecoderFn<NoJsonENCDECRequired>(undefined, {strategy: 'mutate'});
     createJsonEncoderFn<SonENCDECRequired>(undefined, {strategy: 'mutate'});
-    createJsonDecoderFn<SonENCDECRequired>();
+    createJsonDecoderFn<SonENCDECRequired>(undefined, {strategy: 'mutate'});
 
     // Noop shapes: the composites elided their pj/rj bindings, so the
     // primitive entries never load — stronger than the isNoop flag.
@@ -82,9 +81,9 @@ describe('json noop markers (00JsonOnly.spec.ts port)', () => {
     const noopId = getRunTypeId<TupleNoJsonENCDECRequired>();
     const encId = getRunTypeId<TupleSonENCDECRequired>();
     createJsonEncoderFn<TupleNoJsonENCDECRequired>(undefined, {strategy: 'mutate'});
-    createJsonDecoderFn<TupleNoJsonENCDECRequired>();
+    createJsonDecoderFn<TupleNoJsonENCDECRequired>(undefined, {strategy: 'mutate'});
     createJsonEncoderFn<TupleSonENCDECRequired>(undefined, {strategy: 'mutate'});
-    createJsonDecoderFn<TupleSonENCDECRequired>();
+    createJsonDecoderFn<TupleSonENCDECRequired>(undefined, {strategy: 'mutate'});
 
     expect(pjEntry(noopId)).toBeUndefined();
     expect(rjEntry(noopId)).toBeUndefined();
@@ -101,12 +100,12 @@ describe('json noop markers (00JsonOnly.spec.ts port)', () => {
     // unparsed string. The end-to-end calls below are the behavioral pin.
     const noopId = getRunTypeId<NoJsonENCDECRequired>();
     const enc = createJsonEncoderFn<NoJsonENCDECRequired>(undefined, {strategy: 'mutate'});
-    const dec = createJsonDecoderFn<NoJsonENCDECRequired>(undefined, {strategy: 'preserve'});
+    const dec = createJsonDecoderFn<NoJsonENCDECRequired>(undefined, {strategy: 'mutate'});
 
     const encoderEntry = entryByFamily('jeMU', noopId);
     expect(encoderEntry?.isNoop).toBe(true);
     expect(encoderEntry?.code).toBeUndefined();
-    const decoderEntry = entryByFamily('jdPR', noopId);
+    const decoderEntry = entryByFamily('jdMU', noopId);
     expect(decoderEntry?.isNoop).toBe(true);
     expect(decoderEntry?.code).toBeUndefined();
 
@@ -116,19 +115,19 @@ describe('json noop markers (00JsonOnly.spec.ts port)', () => {
     // Transform-carrying control: the composite keeps a real body.
     const encId = getRunTypeId<SonENCDECRequired>();
     createJsonEncoderFn<SonENCDECRequired>(undefined, {strategy: 'mutate'});
-    createJsonDecoderFn<SonENCDECRequired>(undefined, {strategy: 'preserve'});
+    createJsonDecoderFn<SonENCDECRequired>(undefined, {strategy: 'mutate'});
     expect(entryByFamily('jeMU', encId)?.isNoop).toBe(false);
-    expect(entryByFamily('jdPR', encId)?.isNoop).toBe(false);
+    expect(entryByFamily('jdMU', encId)?.isNoop).toBe(false);
   });
 
-  it('strip decoder keeps its live ukuw half for object shapes', () => {
-    // Default strip over an object is NEVER the collapsed short-form: rj
-    // elides but unknownKeysToUndefinedWire does real work, so the composite
-    // keeps `return ukuwFn(JSON.parse(s))` — and stripping still happens.
+  it('clone decoder stays live for object shapes, so undeclared keys are still dropped', () => {
+    // The default clone rebuilds the declared shape, which is real work even when no value needs a transform.
     const noopId = getRunTypeId<NoJsonENCDECRequired>();
     const dec = createJsonDecoderFn<NoJsonENCDECRequired>();
-    expect(entryByFamily('jdST', noopId)?.isNoop).toBe(false);
-    expect(dec('{"a":1,"b":"x","extra":2}')).toEqual({a: 1, b: 'x', extra: undefined});
+    expect(entryByFamily('jdCL', noopId)?.isNoop).toBe(false);
+    const back = dec('{"a":1,"b":"x","extra":2}');
+    expect(back).toStrictEqual({a: 1, b: 'x'});
+    expect('extra' in back).toBe(false);
   });
 
   it('atomic union — pj AND rj both collapse when no member needs the wrap', () => {
@@ -148,9 +147,9 @@ describe('json noop markers (00JsonOnly.spec.ts port)', () => {
     const noopId = getRunTypeId<AtomicNoEncRequired>();
     const encId = getRunTypeId<AtomicEncRequired>();
     createJsonEncoderFn<AtomicNoEncRequired>(undefined, {strategy: 'mutate'});
-    createJsonDecoderFn<AtomicNoEncRequired>();
+    createJsonDecoderFn<AtomicNoEncRequired>(undefined, {strategy: 'mutate'});
     createJsonEncoderFn<AtomicEncRequired>(undefined, {strategy: 'mutate'});
-    createJsonDecoderFn<AtomicEncRequired>();
+    createJsonDecoderFn<AtomicEncRequired>(undefined, {strategy: 'mutate'});
 
     expect(pjEntry(noopId)).toBeUndefined();
     expect(rjEntry(noopId)).toBeUndefined();

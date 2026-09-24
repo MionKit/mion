@@ -1,5 +1,5 @@
 // `getRTFunction` recovering compiled fns from ONE `InjectTypeFnArgs` marker, the road mion takes per route.
-// Covers `'pjs'`, `'rj'`, `'cj'` / `'cjr'` and `'sj'` in both call shapes, paired to resolve the SAME compiled fn
+// Covers `'pjs'`, `'rj'`, `'rjs'` and `'cj'` / `'cjr'` in both call shapes, paired to resolve the SAME compiled fn
 // (runtime twin of Go's TestAtomic_FormEquivalence).
 
 import {describe, test, expect} from 'vitest';
@@ -24,10 +24,7 @@ function recoverCompactEncode<T>(_val?: T, id?: InjectTypeFnArgs<T, 'compactForJ
 function recoverCompactDecode<T>(_val?: T, id?: InjectTypeFnArgs<T, 'compactFromJson'>) {
   return getRTFunction<'compactFromJson'>(id);
 }
-function recoverDirectStringify<T>(_val?: T, id?: InjectTypeFnArgs<T, 'stringifyJson'>) {
-  return getRTFunction<'stringifyJson'>(id);
-}
-function recoverStripRestore<T>(_val?: T, id?: InjectTypeFnArgs<T, 'restoreFromJsonClone'>) {
+function recoverCloneRestore<T>(_val?: T, id?: InjectTypeFnArgs<T, 'restoreFromJsonClone'>) {
   return getRTFunction<'restoreFromJsonClone'>(id);
 }
 
@@ -130,20 +127,9 @@ describe('getRTFunction — recover JSON value-level primitives via an InjectTyp
     expect(restored.name).toBe('dee');
   });
 
-  test('direct stringify (sj) recovers a value -> JSON string function', () => {
-    const stringify = recoverDirectStringify<Payload>();
-    const value: Payload = {id: 8n, when: new Date('2026-06-06T06:06:06.000Z'), name: 'fay'};
-    const wire = stringify(value);
-    expect(typeof wire).toBe('string');
-    const parsed = JSON.parse(wire as string) as {id: string; name: string};
-    // bigint rides the wire as a JSON string; the name is verbatim.
-    expect(parsed.id).toBe('8');
-    expect(parsed.name).toBe('fay');
-  });
-
-  test('static form recovers the strip restore (rjs), which drops undeclared keys', () => {
+  test('static form recovers the clone restore (rjs), which drops undeclared keys', () => {
     const prepare = recoverClonePrepare<Payload>();
-    const restore = recoverStripRestore<Payload>();
+    const restore = recoverCloneRestore<Payload>();
 
     const value: Payload = {id: 42n, when: new Date('2020-01-02T03:04:05.000Z'), name: 'ada'};
     // An undeclared key put on the WIRE, the way a caller that is not mion can:
@@ -162,7 +148,7 @@ describe('getRTFunction — recover JSON value-level primitives via an InjectTyp
   test('reflection form (T inferred from a value) resolves the same strip restore', () => {
     const seed: Payload = {id: 7n, when: new Date('2021-05-06T07:08:09.000Z'), name: 'bob'};
     const prepare = recoverClonePrepare(seed);
-    const restore = recoverStripRestore(seed);
+    const restore = recoverCloneRestore(seed);
 
     const wire = {...(JSON.parse(JSON.stringify(prepare(seed))) as object), extra: 'nope'};
     const restored = restore(wire) as Payload & {extra?: string};
@@ -171,17 +157,17 @@ describe('getRTFunction — recover JSON value-level primitives via an InjectTyp
     expect('extra' in restored).toBe(false);
   });
 
-  test('both call shapes of the strip restore resolve to the SAME compiled fn', () => {
+  test('both call shapes of the clone restore resolve to the SAME compiled fn', () => {
     const seed: Payload = {id: 5n, when: new Date('2025-05-05T05:05:05.000Z'), name: 'eve'};
-    const fromStatic = recoverStripRestore<Payload>();
-    const fromValue = recoverStripRestore(seed);
+    const fromStatic = recoverCloneRestore<Payload>();
+    const fromValue = recoverCloneRestore(seed);
     expect(fromStatic).toBe(fromValue);
   });
 
-  test('the strip restore leaves a declared key alone even when its value needs no transform', () => {
+  test('the clone restore leaves a declared key alone even when its value needs no transform', () => {
     // The rebuild copies every declared slot, transform or not; a slot left out of
     // the copy would be a declared key DELETED, which is the opposite of the point.
-    const restore = recoverStripRestore<Payload>();
+    const restore = recoverCloneRestore<Payload>();
     const restored = restore({id: '9', when: '2020-01-02T03:04:05.000Z', name: 'zoe', extra: 1}) as Payload;
     expect(restored.name).toBe('zoe');
     expect(restored.id).toBe(9n);

@@ -1,7 +1,7 @@
 // The all-strategy round-trip oracle.
 //
 // One conforming, data-only value is generated per random type and run through
-// every wired lane (clone / mutate / direct / compact / binary). The invariants:
+// every wired lane (clone / mutate / compact / rebuild / binary). The invariants:
 //
 //   RT-VALIDATE   both ends validate: validate(value) and validate(roundtrip)
 //                 are both true.
@@ -19,7 +19,7 @@
 //   RT-FAILAGREE  serialize-vs-alwaysThrow agreement: a type one lane refuses,
 //                 every lane refuses.
 //   RT-NATIVE     trusted source: for a JSON-safe value the keyed encoders
-//                 (clone / mutate / direct) emit JSON that NATIVE JSON.parse
+//                 (clone / mutate) emit JSON that NATIVE JSON.parse
 //                 reads back to the same value — an encoder check independent of
 //                 our own decoders.
 //   RT-THROW      no lane throws an uncontrolled error on a valid value.

@@ -59,8 +59,8 @@ registerClassSerializer(Box, {serialize: (box) => ({value: box.value})});
 
 describe('a `__proto__` wire key is refused by the decoders on both roads', () => {
   const decoders = {
-    strip: createJsonDecoderFn<Stamps>(undefined, {strategy: 'strip'}),
-    preserve: createJsonDecoderFn<Stamps>(undefined, {strategy: 'preserve'}),
+    clone: createJsonDecoderFn<Stamps>(undefined, {strategy: 'clone'}),
+    mutate: createJsonDecoderFn<Stamps>(undefined, {strategy: 'mutate'}),
     compact: createJsonDecoderFn<Stamps>(undefined, {strategy: 'compact'}),
   };
   const decodeBag = createJsonDecoderFn<Bag>();
@@ -89,7 +89,7 @@ describe('a `__proto__` wire key is refused by the decoders on both roads', () =
   });
 
   it('the valid wires still decode', () => {
-    expect(decoders.preserve('{"a":"2024-01-01T00:00:00.000Z"}')).toEqual({a: new Date('2024-01-01T00:00:00.000Z')});
+    expect(decoders.mutate('{"a":"2024-01-01T00:00:00.000Z"}')).toEqual({a: new Date('2024-01-01T00:00:00.000Z')});
     expect(decodeBag('{"a":1}')).toEqual({a: 1});
     expect(decodeBinary(createBinaryEncoderFn<Counts>()({a: 1}))).toEqual({a: 1});
   });
@@ -104,14 +104,13 @@ describe('`prototype` and `constructor` are ordinary wire keys a record carries'
   const expected = {name: 'Leo', constructor: 'builder', prototype: 'draft'};
 
   const decoders = {
-    strip: createJsonDecoderFn<Fields>(undefined, {strategy: 'strip'}),
-    preserve: createJsonDecoderFn<Fields>(undefined, {strategy: 'preserve'}),
+    clone: createJsonDecoderFn<Fields>(undefined, {strategy: 'clone'}),
+    mutate: createJsonDecoderFn<Fields>(undefined, {strategy: 'mutate'}),
     compact: createJsonDecoderFn<Fields>(undefined, {strategy: 'compact'}),
   };
   const encoders = {
     clone: createJsonEncoderFn<Fields>(undefined, {strategy: 'clone'}),
     mutate: createJsonEncoderFn<Fields>(undefined, {strategy: 'mutate'}),
-    direct: createJsonEncoderFn<Fields>(undefined, {strategy: 'direct'}),
     compact: createJsonEncoderFn<Fields>(undefined, {strategy: 'compact'}),
   };
 
@@ -147,7 +146,7 @@ describe('`prototype` and `constructor` are ordinary wire keys a record carries'
   });
 
   it('a Record of values that need a transform carries them as well', () => {
-    const decode = createJsonDecoderFn<Stamps>(undefined, {strategy: 'preserve'});
+    const decode = createJsonDecoderFn<Stamps>(undefined, {strategy: 'mutate'});
     const out = decode('{"constructor":"2024-01-01T00:00:00.000Z","prototype":"2024-06-01T00:00:00.000Z"}');
     expect(out.constructor).toBeInstanceOf(Date);
     expect(out.prototype).toBeInstanceOf(Date);
@@ -226,18 +225,16 @@ describe('a declared `prototype` or `constructor` member is ordinary', () => {
     const optionalEncoders = {
       clone: createJsonEncoderFn<Optionals>(undefined, {strategy: 'clone'}),
       mutate: createJsonEncoderFn<Optionals>(undefined, {strategy: 'mutate'}),
-      direct: createJsonEncoderFn<Optionals>(undefined, {strategy: 'direct'}),
       compact: createJsonEncoderFn<Optionals>(undefined, {strategy: 'compact'}),
     };
     const decoders = {
-      clone: createJsonDecoderFn<Optionals>(undefined, {strategy: 'preserve'}),
-      mutate: createJsonDecoderFn<Optionals>(undefined, {strategy: 'preserve'}),
-      direct: createJsonDecoderFn<Optionals>(undefined, {strategy: 'preserve'}),
+      clone: createJsonDecoderFn<Optionals>(undefined, {strategy: 'clone'}),
+      mutate: createJsonDecoderFn<Optionals>(undefined, {strategy: 'mutate'}),
       compact: createJsonDecoderFn<Optionals>(undefined, {strategy: 'compact'}),
     };
     // Checked by round trip, because `compact` writes a positional array where
     // an absent optional is a null placeholder rather than a missing key.
-    for (const strategy of ['clone', 'mutate', 'direct', 'compact'] as const) {
+    for (const strategy of ['clone', 'mutate', 'compact'] as const) {
       const text = optionalEncoders[strategy]({ok: 1}) as string;
       expect(text, strategy).not.toContain('function');
       expect(decoders[strategy](text), strategy).toEqual({ok: 1});
@@ -251,7 +248,7 @@ describe('a declared `prototype` or `constructor` member is ordinary', () => {
   });
 });
 
-describe('the rebuilding encoders and the cloner skip a `__proto__` wire key; the in-place ones carry it to a wire the decoders refuse', () => {
+describe('the rebuilding encoders and the cloner skip a `__proto__` wire key; the in-place one carries it to a wire the decoders refuse', () => {
   const poisoned = () => JSON.parse('{"a":1,"__proto__":{"admin":true}}') as Counts;
   // A Record whose values the in-place encoder must rewrite (a bigint has no
   // JSON form), so every strategy walks the keys.
@@ -264,7 +261,6 @@ describe('the rebuilding encoders and the cloner skip a `__proto__` wire key; th
   const ledgerEncoders = {
     clone: createJsonEncoderFn<Ledger>(undefined, {strategy: 'clone'}),
     mutate: createJsonEncoderFn<Ledger>(undefined, {strategy: 'mutate'}),
-    direct: createJsonEncoderFn<Ledger>(undefined, {strategy: 'direct'}),
     compact: createJsonEncoderFn<Ledger>(undefined, {strategy: 'compact'}),
   };
 
@@ -277,15 +273,11 @@ describe('the rebuilding encoders and the cloner skip a `__proto__` wire key; th
     }
   });
 
-  it('the in-place JSON encoders carry the key through, and the decoders refuse that wire', () => {
-    // `mutate` rewrites values on the object you passed and `direct` prints it:
-    // neither writes a key onto another object, so neither pays a compare per
-    // key. The receiving decoder is the guard.
-    for (const strategy of ['mutate', 'direct'] as const) {
-      const text = ledgerEncoders[strategy](poisonedLedger()) as string;
-      expect(Object.keys(JSON.parse(text)), strategy).toContain('__proto__');
-      expect(() => createJsonDecoderFn<Ledger>()(text), strategy).toThrow(message('__proto__'));
-    }
+  it('the in-place JSON encoder carries the key through, and the decoder refuses that wire', () => {
+    // `mutate` rewrites values on the object you passed and writes no key onto another object, so it pays no per-key compare; the receiving decoder is the guard.
+    const text = ledgerEncoders.mutate(poisonedLedger()) as string;
+    expect(Object.keys(JSON.parse(text))).toContain('__proto__');
+    expect(() => createJsonDecoderFn<Ledger>()(text)).toThrow(message('__proto__'));
   });
 
   it('the rebuilding encoders leave it out even when the values need no transform', () => {
@@ -335,10 +327,9 @@ describe('Map keys and Set members are values, never property names', () => {
     const bagEncoders = {
       clone: createJsonEncoderFn<Bags>(undefined, {strategy: 'clone'}),
       mutate: createJsonEncoderFn<Bags>(undefined, {strategy: 'mutate'}),
-      direct: createJsonEncoderFn<Bags>(undefined, {strategy: 'direct'}),
     };
-    const decode = createJsonDecoderFn<Bags>(undefined, {strategy: 'preserve'});
-    for (const strategy of ['clone', 'mutate', 'direct'] as const) {
+    const decode = createJsonDecoderFn<Bags>(undefined, {strategy: 'mutate'});
+    for (const strategy of ['clone', 'mutate'] as const) {
       const out = decode(bagEncoders[strategy](value()) as string);
       expect(out, strategy).toEqual(value());
       expect(Object.getPrototypeOf(out)).toBe(Object.prototype);
@@ -362,10 +353,10 @@ describe('Map keys and Set members are values, never property names', () => {
 describe('class deserialization sets the declared properties only, never the keys on the wire', () => {
   it('an undeclared key on the body never lands on the instance, whatever the strategy', () => {
     const boxDecoders = {
-      strip: createJsonDecoderFn<Box>(undefined, {strategy: 'strip'}),
-      preserve: createJsonDecoderFn<Box>(undefined, {strategy: 'preserve'}),
+      clone: createJsonDecoderFn<Box>(undefined, {strategy: 'clone'}),
+      mutate: createJsonDecoderFn<Box>(undefined, {strategy: 'mutate'}),
     };
-    for (const strategy of ['strip', 'preserve'] as const) {
+    for (const strategy of ['clone', 'mutate'] as const) {
       const out = boxDecoders[strategy]('{"value":4,"extra":9}') as Box & Record<string, unknown>;
       expect(out, strategy).toBeInstanceOf(Box);
       expect(out.value, strategy).toBe(4);
