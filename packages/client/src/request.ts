@@ -45,6 +45,8 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddlewareReques
   response: Response | undefined;
   /** bounds the stale-metadata relearn below to one attempt per request */
   private purgedStaleMetadata = false;
+  /** bounds the resend after a build-version mismatch to one per request: a call that still fails is reported */
+  private retriedAfterMismatch = false;
   /** ids this request asked the server to confirm after a build-version mismatch */
   private verifying: string[] | undefined;
 
@@ -181,7 +183,10 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddlewareReques
         delete deserialized[MION_ROUTES.methodsMetadata];
       }
       // Only a FAILED call is repeated: it already ran server-side, and repeating a successful mutation would run it twice.
-      if (mismatch && callFailed && !this.signal?.aborted) return this.retryWithProperSerialization();
+      if (mismatch && callFailed && !this.retriedAfterMismatch && !this.signal?.aborted) {
+        this.retriedAfterMismatch = true;
+        return this.retryWithProperSerialization();
+      }
 
       if (!this.signal?.aborted && callFailed) {
         if (isOptimistic) return this.retryWithProperSerialization();

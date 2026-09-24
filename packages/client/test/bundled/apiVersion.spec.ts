@@ -70,6 +70,20 @@ describe('the api version a bundled client compares', () => {
     expect(isBundledMethod('sayHello')).toBe(true);
   });
 
+  // A call the server refuses on validation, from a server on another version, is resent once and then reported
+  it('resends a failed call once after a mismatch, never in a loop', async () => {
+    const {routes, middlewares} = initClient<TestServerApi>({baseURL, validateParams: false});
+    const watch = serveVersion('someOtherAp');
+    try {
+      const [result, error] = await routes.sayHello({name: 1} as any).call(withAuth(middlewares));
+      expect(result).toBeUndefined();
+      expect(error).toMatchObject({type: 'validation-error'});
+      expect(watch.calls()).toBe(2);
+    } finally {
+      watch.restore();
+    }
+  });
+
   it('asks about a route once after a mismatch, riding a call it was making anyway', async () => {
     const {routes, middlewares} = initClient<TestServerApi>({baseURL});
     const watch = serveVersion('someOtherAp');
