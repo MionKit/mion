@@ -46,36 +46,21 @@ export function createVerifySubRequest(methodIds: string[]): SubRequest<any> {
 }
 
 /** Compares every `clientRowView` field: this side holds both full rows. */
-/** Under `syncRoutes` a type-changed row stays: replacing it would let a call built on old types pass the sync check. */
-export function verifyMethodRows(baseURL: string, asked: string[], data: SerializableMethodsData, keepTypeChanges = false): void {
+export function verifyMethodRows(baseURL: string, asked: string[], data: SerializableMethodsData): void {
   const verified = verifiedBy(baseURL);
   for (const id of asked) verified.add(id);
   // Only the asked ids: comparing the middleware riding along would report a route this call never uses.
   const stale = asked.filter((id) => !rowsAgree(getMethod(id), data.methods[id] as MethodWithOptions | undefined));
-  const replaced = keepTypeChanges ? stale.filter((id) => sameTypes(getMethod(id), data.methods[id])) : stale;
-  if (!replaced.length) return;
+  if (!stale.length) return;
   // The bundled shelf wins over the fetched one, so the rows it replaces have to go first
-  dropBundledMethods(replaced);
-  installMethodRows(data, replaced);
-  stashApiVersionError(staleRoutesError(replaced));
-}
-
-function sameTypes(held: MethodWithOptions | undefined, served: MethodWithOptions | undefined): boolean {
-  if (!held || !served) return false;
-  return (
-    held.paramsJitHash === served.paramsJitHash &&
-    held.returnJitHash === served.returnJitHash &&
-    held.headersParam?.jitHash === served.headersParam?.jitHash
-  );
+  dropBundledMethods(stale);
+  installMethodRows(data, stale);
+  stashApiVersionError(staleRoutesError(stale));
 }
 
 /** A row missing on either end counts as a difference: the bundle never had it, or the server dropped it. */
-function rowsAgree(held: MethodWithOptions | undefined, served: MethodWithOptions | undefined): boolean {
-  return !!held && !!served && clientRowsAgree(held, served);
-}
-
-export function clientRowsAgree(held: MethodWithOptions, served: MethodWithOptions): boolean {
-  return sameValue(clientRowView(held), clientRowView(served));
+export function rowsAgree(held: MethodWithOptions | undefined, served: MethodWithOptions | undefined): boolean {
+  return !!held && !!served && sameValue(clientRowView(held), clientRowView(served));
 }
 
 /** Plain JSON-shaped values only; key order never matters. */

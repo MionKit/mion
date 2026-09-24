@@ -188,8 +188,7 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddlewareReques
       const mismatch = noteServerApiVersion(this.options.baseURL, this.response.headers.get(BUILD_VERSION_HEADER));
       const rows = this.verifying && metadataRowsOf(deserialized[MION_ROUTES.methodsMetadata]);
       if (rows?.methods) {
-        const keepTypeChanges = sendsSyncIds(this.options.baseURL);
-        (await loadMetadataFromServer()).verifyMethodRows(this.options.baseURL, this.verifying!, rows, keepTypeChanges);
+        (await loadMetadataFromServer()).verifyMethodRows(this.options.baseURL, this.verifying!, rows);
         delete deserialized[MION_ROUTES.methodsMetadata];
       }
       // Only a FAILED call is repeated: it already ran server-side, and repeating a successful mutation would run it twice.

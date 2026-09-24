@@ -30,7 +30,7 @@ const LANE_MARKERS = ['indexedDB', 'mion:client', 'requestIdleCallback'];
 const LANE_CODE_MARKERS = ['indexedDB', 'requestIdleCallback'];
 
 /** Names only the version-mismatch recovery puts in an artifact; the check itself is in every build. */
-const RECOVERY_MARKERS = ['api-version-mismatch', 'rowsAgree', 'clientRowsAgree'];
+const RECOVERY_MARKERS = ['api-version-mismatch', 'rowsAgree', 'staleRoutesError'];
 
 /** Names only the bundled-API REGISTRATION puts in an artifact; the light half is in every build. */
 const BUNDLED_API_MARKERS = ['bundle-api-invalid-payload', 'bundledMethodToCacheEntry'];
