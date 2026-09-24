@@ -418,35 +418,6 @@ func fnBodyOf(module string) string {
 	return module
 }
 
-// findEntryWithAll returns the entry containing every one of the given
-// substrings.
-func findEntryWithAll(modules map[string]string, needles []string) (string, bool) {
-	for _, name := range sortedEntryNames(modules) {
-		if moduleHasAll(modules[name], needles) {
-			return name, true
-		}
-	}
-	return "", false
-}
-
-func moduleHasAll(haystack string, needles []string) bool {
-	for _, needle := range needles {
-		if !strings.Contains(haystack, needle) {
-			return false
-		}
-	}
-	return true
-}
-
-func moduleHasAny(haystack string, needles []string) bool {
-	for _, needle := range needles {
-		if strings.Contains(haystack, needle) {
-			return true
-		}
-	}
-	return false
-}
-
 // The validator and its error twin must agree at every node about WHETHER a key
 // check is emitted. They ask one shared predicate (emitsUnknownKeyCheck) rather
 // than each spelling the conditions out, and this pins that: for every shape
