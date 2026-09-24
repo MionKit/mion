@@ -59,14 +59,18 @@ const (
 	// `[...Routes]` argument names. The batches extractor splices it in, so no scanCall case.
 	KindInjectBatchId
 	// KindInjectApiMetadata (InjectApiMetadata<Api, Id>) brands the trailing parameter of a client
-	// dispatch point (`.call()`, `.prefill()`, `.typeErrors()`, a batch's `.call()`) and, without an
-	// Id, of `initClient`. The apimeta lane reads the API type and the route id off the alias's type
-	// arguments and fills the slot with an import of the generated metadata module. No scanCall case.
+	// dispatch point (`.call()`, `.prefill()`, `.typeErrors()`, a batch's `.call()`). The apimeta lane
+	// reads the API type and the route id off the alias's type arguments and fills the slot with an
+	// import of the generated metadata module. No scanCall case.
 	KindInjectApiMetadata
 	// KindInjectBuildVersion (InjectBuildVersion<Api>) rides the trailing parameter of `initRoutes` and
 	// `initClient`: a hash over the compiled ids of every method the Api declares, so both ends of one API
 	// agree and a changed route type disagrees. No scanCall case, the apiversion extractor splices it in.
 	KindInjectBuildVersion
+	// KindInjectRouterOptions (InjectRouterOptions<Api>) rides the trailing parameter of `initClient`: the router
+	// options the Api carries under its ROUTER_OPTIONS key that a client acts on, as an object literal. No scanCall
+	// case, the apiversion extractor splices it in beside the build version.
+	KindInjectRouterOptions
 	// KindPureFnId (PureFnId<ID>) brands the VALUE a pure-fn registrar returns, not an injection (no
 	// scanCall case): it is what lets a build recognise an id handed to a `CompTimeArgs<PureFnId>`
 	// lookup when the value comes from a call or from a `.d.ts` with no initializer to read.
@@ -109,6 +113,9 @@ const DefaultInjectApiMetadataName = "InjectApiMetadata"
 // DefaultInjectBuildVersionName is the symbol name of the API build version injection marker.
 const DefaultInjectBuildVersionName = "InjectBuildVersion"
 
+// DefaultInjectRouterOptionsName is the symbol name of the client's router options injection marker.
+const DefaultInjectRouterOptionsName = "InjectRouterOptions"
+
 // DefaultModule is the package the marker types must be declared in.
 const DefaultModule = "@mionjs/run-types"
 
@@ -140,6 +147,7 @@ const (
 	BrandInjectBatchId       = "__rtInjectBatchIdBrand"
 	BrandInjectApiMetadata   = "__rtInjectApiMetadataBrand"
 	BrandInjectBuildVersion  = "__rtInjectBuildVersionBrand"
+	BrandInjectRouterOptions = "__rtInjectRouterOptionsBrand"
 	BrandPureFnId            = "__rtPureFnIdBrand"
 )
 
@@ -157,6 +165,7 @@ func DefaultSpecs() []Spec {
 		{Name: DefaultInjectBatchIdName, Module: DefaultModule, Kind: KindInjectBatchId, BrandProperty: BrandInjectBatchId},
 		{Name: DefaultInjectApiMetadataName, Module: DefaultModule, Kind: KindInjectApiMetadata, BrandProperty: BrandInjectApiMetadata},
 		{Name: DefaultInjectBuildVersionName, Module: DefaultModule, Kind: KindInjectBuildVersion, BrandProperty: BrandInjectBuildVersion},
+		{Name: DefaultInjectRouterOptionsName, Module: DefaultModule, Kind: KindInjectRouterOptions, BrandProperty: BrandInjectRouterOptions},
 		{Name: DefaultPureFnIdName, Module: DefaultModule, Kind: KindPureFnId, BrandProperty: BrandPureFnId},
 		// CompTimeHints is an identity alias with no phantom brand, so detection is syntactic instead
 		// (the comptimeargs node check) and BrandProperty stays empty.

@@ -40,7 +40,16 @@ type Tree struct {
 	Methods []*Method
 	ById    map[string]*Method
 	Checker *checker.Checker
+	// RouterOptions is the options type `initRoutes` puts under the ROUTER_OPTIONS key; nil on a bare PublicApi.
+	RouterOptions *checker.Type
 }
+
+// A symbol-keyed member's name starts with tsgo's internal prefix (never a valid identifier); the options key is
+// the `unique symbol` @mionjs/core declares as ROUTER_OPTIONS.
+const (
+	symbolKeyPrefix     = "\xFE@"
+	routerOptionsPrefix = symbolKeyPrefix + "ROUTER_OPTIONS@"
+)
 
 // Ids returns the sorted ids of every method in the tree.
 func (tree *Tree) Ids() []string {
@@ -92,6 +101,12 @@ func (walker *treeWalker) level(levelType *checker.Type, pointer []string, nestL
 	}
 	entries := make([]levelEntry, 0, len(properties))
 	for _, property := range properties {
+		if strings.HasPrefix(property.Name, symbolKeyPrefix) {
+			if nestLevel == 0 && strings.HasPrefix(property.Name, routerOptionsPrefix) {
+				walker.tree.RouterOptions = walker.typeChecker.GetNonNullableType(walker.typeChecker.GetTypeOfSymbol(property))
+			}
+			continue
+		}
 		propertyType := walker.typeChecker.GetTypeOfSymbol(property)
 		memberPointer := append(append([]string(nil), pointer...), property.Name)
 		id := strings.Join(memberPointer, "/")
@@ -202,6 +217,24 @@ func (walker *treeWalker) compiledType(typesType *checker.Type, name string) *ch
 	}
 	return fieldType
 }
+
+// ReadRouterOptions reads the literal router options a client acts on; nil when the tree carries none.
+func (tree *Tree) ReadRouterOptions() map[string]any {
+	if tree.RouterOptions == nil {
+		return nil
+	}
+	options, _ := readOptions(tree.Checker, tree.RouterOptions, "")
+	out := map[string]any{}
+	for _, name := range ClientRouterOptions {
+		if value, ok := options[name]; ok {
+			out[name] = value
+		}
+	}
+	return out
+}
+
+// ClientRouterOptions are the router options a client build injects at `initClient`.
+var ClientRouterOptions = []string{"syncRoutes"}
 
 // readOptions copies a resolved options literal type into JSON-shaped values: `undefined` becomes an absent
 // key (the runtime object drops it too) and the `parser` pair a nested object. A value that is not a
