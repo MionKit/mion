@@ -2,7 +2,7 @@
 // Both call shapes are exercised, per the CLAUDE.md marker-coverage rule.
 
 import {describe, test, expect} from 'vitest';
-import {createPrepareForJsonFn, createRestoreFromJsonFn, createStringifyJsonFn, type InjectTypeFnArgs} from '@mionjs/run-types';
+import {createPrepareForJsonFn, createRestoreFromJsonFn, type InjectTypeFnArgs} from '@mionjs/run-types';
 import {getRTFunction} from '@mionjs/run-types/runtime';
 
 type Payload = {id: bigint; when: Date; tags: Map<string, number>; name: string};
@@ -23,9 +23,6 @@ function markerClonePrepare<T>(_val?: T, id?: InjectTypeFnArgs<T, 'prepareForJso
 }
 function markerCloneRestore<T>(_val?: T, id?: InjectTypeFnArgs<T, 'restoreFromJsonClone'>) {
   return getRTFunction<'restoreFromJsonClone'>(id);
-}
-function markerStringify<T>(_val?: T, id?: InjectTypeFnArgs<T, 'stringifyJson'>) {
-  return getRTFunction<'stringifyJson'>(id);
 }
 
 describe('createPrepareForJsonFn + createRestoreFromJsonFn — the clone pair round-trips', () => {
@@ -80,29 +77,5 @@ describe('createPrepareForJsonFn + createRestoreFromJsonFn — the clone pair ro
     const fromStatic = createPrepareForJsonFn<Payload>();
     const fromValue = createPrepareForJsonFn(value);
     expect(fromStatic).toBe(fromValue);
-  });
-});
-
-describe('createStringifyJsonFn — one pass to a JSON string', () => {
-  test('its string parses back to what the clone prepare produced', () => {
-    const stringify = createStringifyJsonFn<Payload>();
-    const prepare = createPrepareForJsonFn<Payload>();
-
-    const value = payload();
-    expect(JSON.parse(stringify(value)!)).toEqual(JSON.parse(JSON.stringify(prepare(payload()))));
-  });
-
-  test('undeclared properties never reach the string', () => {
-    type Declared = {a: string};
-    const stringify = createStringifyJsonFn<Declared>();
-    expect(stringify({a: 'x', extra: 1} as Declared)).toBe('{"a":"x"}');
-  });
-
-  test('it hands back the same compiled fn the marker road resolves', () => {
-    expect(createStringifyJsonFn<Payload>()).toBe(markerStringify<Payload>());
-  });
-
-  test('both marker call shapes resolve the same compiled fn', () => {
-    expect(createStringifyJsonFn<Payload>()).toBe(createStringifyJsonFn(payload()));
   });
 });

@@ -472,32 +472,32 @@ describe('where the check sits, and where it stops', () => {
 
 describe('the key families cannot all agree, and this is the line', () => {
   // Codecs pool every member's keys (all keys once a record joins); answering per branch would mean validating in each.
-  // The strip decoder stands in for the pooled families below.
+  // The clone decoder stands in for the pooled families below.
   it('the pooled answer admits a sibling key that the matched branch rejects', () => {
     const validate = createValidateFn<Pet>();
-    const stripDecode = createJsonDecoderFn<Pet>(undefined, {strategy: 'strip'});
+    const cloneDecode = createJsonDecoderFn<Pet>(undefined, {strategy: 'clone'});
     const unionKeys = createValidateFn<Pet>(undefined, {checkUnionUnknowns: true});
     const mixed = {kind: 'cat', meows: true, barks: 3};
     expect(validate(mixed)).toBe(true);
-    expect(stripDecode(JSON.stringify(mixed))).toStrictEqual(mixed);
+    expect(cloneDecode(JSON.stringify(mixed))).toStrictEqual(mixed);
     expect(unionKeys(mixed)).toBe(false);
   });
 
   it('a key belonging to NO member is rejected by both, and that must never drift', () => {
-    const stripDecode = createJsonDecoderFn<Pet>(undefined, {strategy: 'strip'});
+    const cloneDecode = createJsonDecoderFn<Pet>(undefined, {strategy: 'clone'});
     const unionKeys = createValidateFn<Pet>(undefined, {checkUnionUnknowns: true});
     const stray = {kind: 'cat', meows: true, zzz: 9};
-    const stripped = stripDecode(JSON.stringify(stray)) as Record<string, unknown>;
+    const stripped = cloneDecode(JSON.stringify(stray)) as Record<string, unknown>;
     expect(stripped.zzz).toBeUndefined();
     expect(stripped).toEqual({kind: 'cat', meows: true});
     expect(unionKeys(stray)).toBe(false);
   });
 
   it('a record member blinds the pooled families for the whole subtree', () => {
-    const stripDecode = createJsonDecoderFn<ObjectOrNumbers>(undefined, {strategy: 'strip'});
+    const cloneDecode = createJsonDecoderFn<ObjectOrNumbers>(undefined, {strategy: 'clone'});
     const unionKeys = createValidateFn<ObjectOrNumbers>(undefined, {checkUnionUnknowns: true});
     const value = {a: 'x', evil: 'garbage'};
-    expect(stripDecode(JSON.stringify(value))).toStrictEqual(value);
+    expect(cloneDecode(JSON.stringify(value))).toStrictEqual(value);
     expect(unionKeys(value)).toBe(false);
   });
 });

@@ -29,7 +29,7 @@ type TwelveFamilyMarker = InjectTypeFnArgs<
   'validateStrict',
   'removeUnknownKeys',
   'validationErrorsStrict',
-  'stringifyJson',
+  'restoreFromJsonClone',
   'formatTransform',
   'toBinary',
   'fromBinary',

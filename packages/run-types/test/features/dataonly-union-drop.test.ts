@@ -109,7 +109,7 @@ describe('DataOnly collapse-to-never / empty still throws', () => {
       return encode({x: buf, y: 1} as HasNativeUnion);
     }).toThrow();
     expect(() => {
-      const encode = createJsonEncoderFn<HasNativeUnion>(undefined, {strategy: 'direct'});
+      const encode = createJsonEncoderFn<HasNativeUnion>(undefined, {strategy: 'compact'});
       return encode({x: buf, y: 1} as HasNativeUnion);
     }).toThrow();
     expect(() => {

@@ -43,27 +43,14 @@ describe('fuzzer regressions — index signatures & union dispatch', () => {
     ]);
   });
 
-  // The single-pass `direct` strategy built an all-optional object's wire with a
-  // skip-commas flag set once before the prop loop; a nested-object value child
-  // cleared that shared flag, so a later sibling baked in a trailing comma and
-  // produced invalid JSON. The flag is now re-established per property.
-  test('direct strategy emits valid JSON for an all-optional object with a nested object + index signature', () => {
-    type Shape = {a?: {inner: number}; b?: string; [k: string]: unknown};
-    const encode = createJsonEncoderFn<Shape>(undefined, {strategy: 'direct'});
-    const value: Shape = {a: {inner: 1}, b: 'x'};
-    const wire = encode(value) as string;
-    expect(() => JSON.parse(wire)).not.toThrow();
-    expect(JSON.parse(wire)).toMatchObject({a: {inner: 1}, b: 'x'});
-  });
-
-  // The strip decoder's index-signature for-in sweep used to run on the NAMED
+  // The decoder's index-signature for-in sweep used to run on the NAMED
   // sibling props too. For a named prop whose decoded value is a string (a
   // RegExp on the wire), `for…in` over that string enumerated its character
   // indices, which both corrupted the prop and (on a long value) overflowed the
   // unknown-keys cap with "Too many unknown keys". The sweep now skips siblings.
   // (The original repro used a RegExp prop; a RegExp is no longer data, and a
   // Date is the same string-on-the-wire shape.)
-  test('strip decoder round-trips an object mixing a named Date prop with an index signature', () => {
+  test('the default decoder round-trips an object mixing a named Date prop with an index signature', () => {
     type T = {placed: Date; [k: number]: {a: number}};
     const encode = createJsonEncoderFn<T>();
     const decode = createJsonDecoderFn<T>();
@@ -86,13 +73,12 @@ describe('fuzzer regressions — index signatures & union dispatch', () => {
     // Every strategy is spelled at its own call site: the build reads it as a literal, so a variable
     // resolves to no strategy and the call falls back instead of compiling the one named.
     const pairs = [
-      ['clone', createJsonEncoderFn<T>(undefined, {strategy: 'clone'}), createJsonDecoderFn<T>(undefined, {strategy: 'strip'})],
+      ['clone', createJsonEncoderFn<T>(undefined, {strategy: 'clone'}), createJsonDecoderFn<T>(undefined, {strategy: 'clone'})],
       [
         'mutate',
         createJsonEncoderFn<T>(undefined, {strategy: 'mutate'}),
-        createJsonDecoderFn<T>(undefined, {strategy: 'preserve'}),
+        createJsonDecoderFn<T>(undefined, {strategy: 'mutate'}),
       ],
-      ['direct', createJsonEncoderFn<T>(undefined, {strategy: 'direct'}), createJsonDecoderFn<T>(undefined, {strategy: 'strip'})],
       [
         'compact',
         createJsonEncoderFn<T>(undefined, {strategy: 'compact'}),
@@ -114,7 +100,7 @@ describe('fuzzer regressions — index signatures & union dispatch', () => {
   // undefined}` matched the Record candidate while the round-tripped `{}` matched
   // an EARLIER all-optional object candidate (`{p0?: Set<…>}`, whose loose-check
   // accepts the empty object) — a different sub-index, so
-  // encode(decode(encode(v))) !== encode(v) on clone / mutate / direct / compact.
+  // encode(decode(encode(v))) !== encode(v) on clone / mutate / compact.
   // The data was always correct (both wires decode to `{}`); only the wire drifted.
   // Binary stayed stable (its Record codec keeps undefined keys, so the value
   // never changes shape). The encoders now select each candidate by the union
@@ -131,16 +117,14 @@ describe('fuzzer regressions — index signatures & union dispatch', () => {
 
     const cloneEnc = createJsonEncoderFn<DiscOverlap>(undefined, {strategy: 'clone'});
     const mutateEnc = createJsonEncoderFn<DiscOverlap>(undefined, {strategy: 'mutate'});
-    const directEnc = createJsonEncoderFn<DiscOverlap>(undefined, {strategy: 'direct'});
     const compactEnc = createJsonEncoderFn<DiscOverlap>(undefined, {strategy: 'compact'});
-    const stripDec = createJsonDecoderFn<DiscOverlap>(undefined, {strategy: 'strip'});
-    const preserveDec = createJsonDecoderFn<DiscOverlap>(undefined, {strategy: 'preserve'});
+    const cloneDec = createJsonDecoderFn<DiscOverlap>(undefined, {strategy: 'clone'});
+    const mutateDec = createJsonDecoderFn<DiscOverlap>(undefined, {strategy: 'mutate'});
     const compactDec = createJsonDecoderFn<DiscOverlap>(undefined, {strategy: 'compact'});
 
     const lanes = [
-      {label: 'clone', encode: cloneEnc, decode: stripDec},
-      {label: 'mutate', encode: mutateEnc, decode: preserveDec},
-      {label: 'direct', encode: directEnc, decode: stripDec},
+      {label: 'clone', encode: cloneEnc, decode: cloneDec},
+      {label: 'mutate', encode: mutateEnc, decode: mutateDec},
       {label: 'compact', encode: compactEnc, decode: compactDec},
     ];
 

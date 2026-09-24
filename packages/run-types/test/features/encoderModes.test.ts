@@ -1,18 +1,16 @@
 // The strategy matrix: every JSON encoder and decoder strategy on one value, and what each does
-// with a key the type does not declare. Pairs with decoderSafeMode.test.ts, which covers the wire
-// pre-pass in depth.
+// with a key the type does not declare. Pairs with decoderSafeMode.test.ts, which covers union
+// payloads in depth.
 //
 //   encode    family                     undeclared key
 //   clone     pjs (prepareForJsonSafe)   dropped (the clone is built from the declared shape)
 //   mutate    pj  (prepareForJson)       kept (transforms in place, so it writes no new object)
-//   direct    sj  (stringifyJson)        dropped (writes the declared members straight out)
 //   compact   cj  (compactForJson)       no key names on the wire at all
 //
 //   decode    family                     undeclared wire key
-//   strip     ukuw + rj                  BLANKED: still an own key, set to undefined
-//   preserve  rj                         kept, with its value
-//   compact   cjr (compactFromJson)      deleted (rebuilt from positions)
-//   rjs       restoreFromJsonClone        deleted (rebuilt from the declared shape)
+//   clone     rjs (restoreFromJsonClone) absent (rebuilt from the declared shape)
+//   mutate    rj  (restoreFromJson)      kept, with its value
+//   compact   cjr (compactFromJson)      absent (rebuilt from positions)
 //
 // The strategy is read at build time, so it has to be a literal at the call site; a variable
 // resolves to no strategy and the call falls back to the default.
@@ -23,9 +21,8 @@ import {getRTFunction} from '@mionjs/run-types/runtime';
 
 type Sample = {a: string; n: bigint};
 
-// `rjs` is what mion's `clone` route decodes with. It has no createX factory, so it is recovered
-// through a marker, the shape a framework wrapper uses.
-function cloneDecoder<T>(id?: InjectTypeFnArgs<T, 'restoreFromJsonClone'>) {
+// The bare `rjs` restore, recovered through a marker the way a framework wrapper reaches it.
+function cloneRestore<T>(id?: InjectTypeFnArgs<T, 'restoreFromJsonClone'>) {
   return getRTFunction<'restoreFromJsonClone'>(id);
 }
 
@@ -62,18 +59,6 @@ describe('encoder modes — mutate strategy', () => {
   });
 });
 
-describe('encoder modes — direct strategy', () => {
-  it('direct: no mutation, always strips extras', () => {
-    const encode = createJsonEncoderFn<Sample>(undefined, {strategy: 'direct'});
-    const input = {a: 'hi', n: 5n, evil: 'gone'} as Sample & {evil: string};
-    const wire = encode(input)!;
-    expect(JSON.parse(wire)).toEqual({a: 'hi', n: '5'});
-    // input untouched — single-pass stringify walks the type, not v
-    expect((input as Record<string, unknown>).evil).toBe('gone');
-    expect(input.n).toBe(5n);
-  });
-});
-
 describe('encoder modes — round-trip with matching decoder', () => {
   // Every encoder shape should produce wire output that round-trips
   // through the safe decoder.
@@ -85,11 +70,9 @@ describe('encoder modes — round-trip with matching decoder', () => {
     expect(back).toEqual({a: 'hi', n: 5n});
   });
 
-  it('mutate+preserve round-trips with extras surviving the decode', () => {
+  it('mutate+mutate round-trips with extras surviving the decode', () => {
     const encode = createJsonEncoderFn<Sample>(undefined, {strategy: 'mutate'});
-    // The default 'strip' decoder blanks an undeclared key rather than deleting it; 'preserve'
-    // keeps it with its value.
-    const decode = createJsonDecoderFn<Sample>(undefined, {strategy: 'preserve'});
+    const decode = createJsonDecoderFn<Sample>(undefined, {strategy: 'mutate'});
     const input = {a: 'hi', n: 5n, surplus: 'x'} as Sample & {surplus: string};
     const wire = encode(input)!;
     const back = decode(wire) as Record<string, unknown>;
@@ -119,21 +102,26 @@ describe('encoder modes — compact strategy', () => {
 describe('decoder modes — what an undeclared wire key becomes', () => {
   const wire = '{"a":"hi","n":"5","evil":1}';
 
-  it('strip blanks it: the key stays, its value is undefined', () => {
-    const back = createJsonDecoderFn<Sample>(undefined, {strategy: 'strip'})(wire) as Record<string, unknown>;
-    expect(Object.hasOwn(back, 'evil')).toBe(true);
-    expect(back.evil).toBeUndefined();
+  it('clone (default) drops it: the key is absent', () => {
+    const back = createJsonDecoderFn<Sample>()(wire) as Record<string, unknown>;
+    expect('evil' in back).toBe(false);
     expect(back.n).toBe(5n);
   });
 
-  it('preserve keeps it with its value', () => {
-    const back = createJsonDecoderFn<Sample>(undefined, {strategy: 'preserve'})(wire) as Record<string, unknown>;
+  it('clone (explicit) drops it the same way', () => {
+    const back = createJsonDecoderFn<Sample>(undefined, {strategy: 'clone'})(wire) as Record<string, unknown>;
+    expect('evil' in back).toBe(false);
+    expect(back.n).toBe(5n);
+  });
+
+  it('mutate keeps it with its value', () => {
+    const back = createJsonDecoderFn<Sample>(undefined, {strategy: 'mutate'})(wire) as Record<string, unknown>;
     expect(back.evil).toBe(1);
     expect(back.n).toBe(5n);
   });
 
-  it('the clone decoder deletes it', () => {
-    const back = cloneDecoder<Sample>()(JSON.parse(wire)) as Record<string, unknown>;
+  it('the bare clone restore drops it too', () => {
+    const back = cloneRestore<Sample>()(JSON.parse(wire)) as Record<string, unknown>;
     expect(Object.hasOwn(back, 'evil')).toBe(false);
     expect(back.n).toBe(5n);
   });

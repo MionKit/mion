@@ -32,15 +32,15 @@ function bombAt(field: keyof WithArrays): string {
 }
 
 describe('JSON decoders never loop over a non-array length', () => {
-  const strip = createJsonDecoderFn<WithArrays>(undefined, {strategy: 'strip'});
-  const preserve = createJsonDecoderFn<WithArrays>(undefined, {strategy: 'preserve'});
+  const clone = createJsonDecoderFn<WithArrays>(undefined, {strategy: 'clone'});
+  const mutate = createJsonDecoderFn<WithArrays>(undefined, {strategy: 'mutate'});
   const compact = createJsonDecoderFn<WithArrays>(undefined, {strategy: 'compact'});
   const validate = createValidateFn<WithArrays>();
 
   for (const field of ['nums', 'dates', 'rest', 'lookup', 'bag'] as const) {
     it(`{"length": 1e9} at '${field}' returns or throws within milliseconds, and never validates`, () => {
       const text = bombAt(field);
-      for (const decode of [strip, preserve]) {
+      for (const decode of [clone, mutate]) {
         const started = performance.now();
         let value: unknown;
         let threw = false;
@@ -77,7 +77,7 @@ describe('JSON decoders never loop over a non-array length', () => {
       lookup: [['k', '2024-01-01T00:00:00.000Z']],
       bag: ['5'],
     });
-    const value = preserve(wire) as WithArrays;
+    const value = mutate(wire) as WithArrays;
     expect(value.nums).toEqual([1, 2]);
     expect(value.dates[0]).toBeInstanceOf(Date);
     expect(value.rest).toEqual(['a', 1, 2]);

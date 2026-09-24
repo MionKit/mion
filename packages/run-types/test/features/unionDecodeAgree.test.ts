@@ -42,10 +42,9 @@ describe('every union decode answers the same', () => {
       wide: {a: 'x', evil: 1},
       fns: () => ({
         cloneEncoder: createJsonEncoderFn<TwoObjects>(undefined, {strategy: 'clone'}),
-        directEncoder: createJsonEncoderFn<TwoObjects>(undefined, {strategy: 'direct'}),
         compactEncoder: createJsonEncoderFn<TwoObjects>(undefined, {strategy: 'compact'}),
         cloneDecoder: cloneDecoder<TwoObjects>(),
-        stripDecoder: createJsonDecoderFn<TwoObjects>(undefined, {strategy: 'strip'}),
+        cloneJsonDecoder: createJsonDecoderFn<TwoObjects>(undefined, {strategy: 'clone'}),
         compactDecoder: createJsonDecoderFn<TwoObjects>(undefined, {strategy: 'compact'}),
         mutateDecoder: mutateDecoder<TwoObjects>(),
       }),
@@ -56,10 +55,9 @@ describe('every union decode answers the same', () => {
       wide: {k: 1, a: 'x', evil: 1},
       fns: () => ({
         cloneEncoder: createJsonEncoderFn<Discriminated>(undefined, {strategy: 'clone'}),
-        directEncoder: createJsonEncoderFn<Discriminated>(undefined, {strategy: 'direct'}),
         compactEncoder: createJsonEncoderFn<Discriminated>(undefined, {strategy: 'compact'}),
         cloneDecoder: cloneDecoder<Discriminated>(),
-        stripDecoder: createJsonDecoderFn<Discriminated>(undefined, {strategy: 'strip'}),
+        cloneJsonDecoder: createJsonDecoderFn<Discriminated>(undefined, {strategy: 'clone'}),
         compactDecoder: createJsonDecoderFn<Discriminated>(undefined, {strategy: 'compact'}),
         mutateDecoder: mutateDecoder<Discriminated>(),
       }),
@@ -70,10 +68,9 @@ describe('every union decode answers the same', () => {
       wide: {a: 'x', evil: 1},
       fns: () => ({
         cloneEncoder: createJsonEncoderFn<ObjectOrPrimitive>(undefined, {strategy: 'clone'}),
-        directEncoder: createJsonEncoderFn<ObjectOrPrimitive>(undefined, {strategy: 'direct'}),
         compactEncoder: createJsonEncoderFn<ObjectOrPrimitive>(undefined, {strategy: 'compact'}),
         cloneDecoder: cloneDecoder<ObjectOrPrimitive>(),
-        stripDecoder: createJsonDecoderFn<ObjectOrPrimitive>(undefined, {strategy: 'strip'}),
+        cloneJsonDecoder: createJsonDecoderFn<ObjectOrPrimitive>(undefined, {strategy: 'clone'}),
         compactDecoder: createJsonDecoderFn<ObjectOrPrimitive>(undefined, {strategy: 'compact'}),
         mutateDecoder: mutateDecoder<ObjectOrPrimitive>(),
       }),
@@ -86,10 +83,9 @@ describe('every union decode answers the same', () => {
       wide: [{a: 'x', evil: 1}],
       fns: () => ({
         cloneEncoder: createJsonEncoderFn<ObjectInsideArray>(undefined, {strategy: 'clone'}),
-        directEncoder: createJsonEncoderFn<ObjectInsideArray>(undefined, {strategy: 'direct'}),
         compactEncoder: createJsonEncoderFn<ObjectInsideArray>(undefined, {strategy: 'compact'}),
         cloneDecoder: cloneDecoder<ObjectInsideArray>(),
-        stripDecoder: createJsonDecoderFn<ObjectInsideArray>(undefined, {strategy: 'strip'}),
+        cloneJsonDecoder: createJsonDecoderFn<ObjectInsideArray>(undefined, {strategy: 'clone'}),
         compactDecoder: createJsonDecoderFn<ObjectInsideArray>(undefined, {strategy: 'compact'}),
         mutateDecoder: mutateDecoder<ObjectInsideArray>(),
       }),
@@ -101,10 +97,9 @@ describe('every union decode answers the same', () => {
       wide: {a: 'x', evil: 1},
       fns: () => ({
         cloneEncoder: createJsonEncoderFn<Enveloped>(undefined, {strategy: 'clone'}),
-        directEncoder: createJsonEncoderFn<Enveloped>(undefined, {strategy: 'direct'}),
         compactEncoder: createJsonEncoderFn<Enveloped>(undefined, {strategy: 'compact'}),
         cloneDecoder: cloneDecoder<Enveloped>(),
-        stripDecoder: createJsonDecoderFn<Enveloped>(undefined, {strategy: 'strip'}),
+        cloneJsonDecoder: createJsonDecoderFn<Enveloped>(undefined, {strategy: 'clone'}),
         compactDecoder: createJsonDecoderFn<Enveloped>(undefined, {strategy: 'compact'}),
         mutateDecoder: mutateDecoder<Enveloped>(),
       }),
@@ -137,13 +132,12 @@ describe('every union decode answers the same', () => {
 
   const PAIRS = [
     ['cloneEncoder', 'cloneDecoder'],
-    ['cloneEncoder', 'stripDecoder'],
-    ['directEncoder', 'stripDecoder'],
+    ['cloneEncoder', 'cloneJsonDecoder'],
     ['compactEncoder', 'compactDecoder'],
   ] as const;
 
   for (const [name, row] of Object.entries(rows)) {
-    it(`deletes or blanks an undeclared key planted on the wire: ${name}`, () => {
+    it(`deletes an undeclared key planted on the wire: ${name}`, () => {
       const fns = row.fns();
       for (const [encKey, decKey] of PAIRS) {
         const wire = JSON.parse(fns[encKey](structuredClone(row.value)) as string);
@@ -154,23 +148,13 @@ describe('every union decode answers the same', () => {
           expect(JSON.stringify(wire), `${encKey} wrote keys but nothing was planted`).not.toContain('":');
           continue;
         }
-        const out = fns[decKey](JSON.stringify(wire));
-        if (decKey !== 'stripDecoder') {
-          expect(out, `${encKey} -> ${decKey}`).toStrictEqual(row.clean);
-          continue;
-        }
-        // The strip decoder blanks rather than deletes, its contract: the key stays own, set to undefined.
-        const host = firstObject(out)!;
-        expect(Object.hasOwn(host, 'evil'), `${encKey} -> ${decKey} keeps the key`).toBe(true);
-        expect(host.evil, `${encKey} -> ${decKey} blanks the key`).toBeUndefined();
-        // toEqual skips undefined-valued own keys, so this compares everything but the blank.
-        expect(out, `${encKey} -> ${decKey}`).toEqual(row.clean);
+        expect(fns[decKey](JSON.stringify(wire)), `${encKey} -> ${decKey}`).toStrictEqual(row.clean);
       }
     });
 
     it(`drops an undeclared key on encode: ${name}`, () => {
       const fns = row.fns();
-      for (const encKey of ['cloneEncoder', 'directEncoder', 'compactEncoder'] as const) {
+      for (const encKey of ['cloneEncoder', 'compactEncoder'] as const) {
         const clean = fns[encKey](structuredClone(row.value)) as string;
         expect(JSON.parse(fns[encKey](structuredClone(row.wide)) as string), encKey).toStrictEqual(JSON.parse(clean));
       }
@@ -196,7 +180,7 @@ describe('every union decode answers the same', () => {
     });
   }
 
-  // An index-signature member declares every key union-wide: no family, encoders included, may drop or blank `evil`.
+  // An index-signature member declares every key union-wide: no family, encoders included, may drop `evil`.
   // Which member a key belongs to is validation's question, not a decoder's.
   it('keeps every key when a member carries an index signature', () => {
     const wide = {a: 'x', evil: 1};
@@ -204,13 +188,11 @@ describe('every union decode answers the same', () => {
     // Each strategy is spelled at its own call site: the build reads it as a literal, and a variable
     // resolves to no strategy and falls back silently.
     const clone = createJsonEncoderFn<IndexSignatureMember>(undefined, {strategy: 'clone'})(structuredClone(wide)) as string;
-    const direct = createJsonEncoderFn<IndexSignatureMember>(undefined, {strategy: 'direct'})(structuredClone(wide)) as string;
     const compact = createJsonEncoderFn<IndexSignatureMember>(undefined, {strategy: 'compact'})(structuredClone(wide)) as string;
     expect(JSON.parse(clone), 'clone').toStrictEqual(wide);
-    expect(JSON.parse(direct), 'direct').toStrictEqual(wide);
     expect(JSON.parse(compact), 'compact').toStrictEqual(wide);
     expect(cloneDecoder<IndexSignatureMember>()(wire), 'rjs').toStrictEqual(wide);
-    expect(createJsonDecoderFn<IndexSignatureMember>(undefined, {strategy: 'strip'})(wire), 'strip').toStrictEqual(wide);
+    expect(createJsonDecoderFn<IndexSignatureMember>(undefined, {strategy: 'clone'})(wire), 'clone decoder').toStrictEqual(wide);
     expect(createJsonDecoderFn<IndexSignatureMember>(undefined, {strategy: 'compact'})(wire), 'compact').toStrictEqual(wide);
   });
 
@@ -235,9 +217,9 @@ describe('every union decode answers the same', () => {
   it('every decoder refuses a bare object where the envelope is expected', () => {
     expectSameRefusal({
       cloneDecoder: () => cloneDecoder<Enveloped>()('{"a":"x"}'),
-      stripDecoder: () => createJsonDecoderFn<Enveloped>(undefined, {strategy: 'strip'})('{"a":"x"}'),
+      cloneJsonDecoder: () => createJsonDecoderFn<Enveloped>(undefined, {strategy: 'clone'})('{"a":"x"}'),
       compactDecoder: () => createJsonDecoderFn<Enveloped>(undefined, {strategy: 'compact'})('{"a":"x"}'),
-      preserveDecoder: () => createJsonDecoderFn<Enveloped>(undefined, {strategy: 'preserve'})('{"a":"x"}'),
+      mutateJsonDecoder: () => createJsonDecoderFn<Enveloped>(undefined, {strategy: 'mutate'})('{"a":"x"}'),
       mutateDecoder: () => mutateDecoder<Enveloped>()('{"a":"x"}'),
     });
   });
@@ -247,7 +229,7 @@ describe('every union decode answers the same', () => {
   it('every decoder refuses an index that names no member', () => {
     expectSameRefusal({
       cloneDecoder: () => cloneDecoder<Enveloped>()('[99,{"a":"x"}]'),
-      stripDecoder: () => createJsonDecoderFn<Enveloped>(undefined, {strategy: 'strip'})('[99,{"a":"x"}]'),
+      cloneJsonDecoder: () => createJsonDecoderFn<Enveloped>(undefined, {strategy: 'clone'})('[99,{"a":"x"}]'),
       compactDecoder: () => createJsonDecoderFn<Enveloped>(undefined, {strategy: 'compact'})('[99,{"a":"x"}]'),
       mutateDecoder: () => mutateDecoder<Enveloped>()('[99,{"a":"x"}]'),
     });
@@ -257,7 +239,7 @@ describe('every union decode answers the same', () => {
   // above was bought by making every union walk its members.
   it('leaves a union of primitives alone', () => {
     type Primitives = string | number;
-    expect(createJsonDecoderFn<Primitives>(undefined, {strategy: 'strip'})('"hi"')).toBe('hi');
+    expect(createJsonDecoderFn<Primitives>(undefined, {strategy: 'clone'})('"hi"')).toBe('hi');
     expect(createJsonDecoderFn<Primitives>(undefined, {strategy: 'compact'})('"hi"')).toBe('hi');
     expect(cloneDecoder<Primitives>()('"hi"')).toBe('hi');
     expect(createJsonEncoderFn<Primitives>(undefined, {strategy: 'compact'})('hi')).toBe('"hi"');

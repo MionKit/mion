@@ -28,9 +28,9 @@ describe('family routing (compiler diagnostics grouped by Go prefix family, name
     expect(ruleOf({code: 'VL011', severity: Severity.Warning})).toBe('validate-skipped-member');
     expect(ruleOf({code: 'VE001', severity: Severity.Error})).toBe('validate-non-serializable');
     expect(ruleOf({code: 'VE020', severity: Severity.Warning})).toBe('validate-skipped-member');
-    // json folds PJ / PJS / RJ / SJ / JCP.
-    expect(ruleOf({code: 'SJ001', severity: Severity.Error})).toBe('json-non-serializable');
-    expect(ruleOf({code: 'SJ011', severity: Severity.Warning})).toBe('json-skipped-member');
+    // json folds PJ / PJS / RJ / JCP.
+    expect(ruleOf({code: 'PJ001', severity: Severity.Error})).toBe('json-non-serializable');
+    expect(ruleOf({code: 'PJ011', severity: Severity.Warning})).toBe('json-skipped-member');
     expect(ruleOf({code: 'JCP001', severity: Severity.Error})).toBe('json-non-serializable');
     // binary folds TB / FB.
     expect(ruleOf({code: 'TB001', severity: Severity.Error})).toBe('binary-non-serializable');

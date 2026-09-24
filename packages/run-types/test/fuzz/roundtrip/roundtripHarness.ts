@@ -1,12 +1,12 @@
 // All-strategy round-trip harness — like the type/ harness, but the rendered
-// fixture emits EVERY JSON codec strategy (clone / mutate / direct / compact)
-// alongside binary, so one random type drives all six serialization lanes at
+// fixture emits EVERY JSON codec strategy (clone / mutate / compact)
+// alongside binary, so one random type drives all five serialization lanes at
 // once and the oracle can check they agree.
 //
 //   render `.ts` source (named decls + `type T = …` + one call site per codec)
 //     → ResolverClient (serve --sources ops) setSources + scanFiles
 //     → entryModules → evalEntryModules (execute into positional tuples)
-//     → classify fn sites BY TUPLE TAG (jeCL/jeMU/jeDI/jeCO, jdST/jdPR/jdCO,
+//     → classify fn sites BY TUPLE TAG (jeCL/jeMU/jeCO, jdCL/jdMU/jdCO,
 //       tb/fb, val) rather than by family — the strategy lives in the tag
 //     → wire one REAL factory per codec by passing its tuple as the injected id.
 //
@@ -36,20 +36,16 @@ const FIXTURE = 'g.ts';
 
 /** One serialization lane the oracle round-trips. Each JSON lane pairs an
  *  encoder strategy with the decoder strategy that reads its wire:
- *    clone   → strip    (shape-derived keyed JSON)
- *    mutate  → preserve (in-place keyed JSON, the extras-preserving pair)
- *    direct  → strip    (single-pass keyed JSON; shares the strip decoder)
+ *    clone   → clone    (shape-derived keyed JSON, rebuilt from the declared shape)
+ *    mutate  → mutate   (in-place keyed JSON, the extras-preserving pair)
  *    compact → compact  (positional-array wire)
- *  `rebuild` reads the same clone wire with the rjs primitive, the decoder that
- *  rebuilds every object from the declared shape instead of walking it in place.
- *  It rides this oracle for one reason: a rebuild that DROPS a declared member
- *  still returns a plausible object, and only comparing thousands of shapes
- *  against the clone reference wire catches that.
+ *  `rebuild` reads the same clone wire with the rjs primitive recovered through a
+ *  marker, the route a framework wrapper takes instead of the decoder factory.
  *  binary is the byte wire. **/
-export type LaneId = 'clone' | 'mutate' | 'direct' | 'compact' | 'rebuild' | 'binary';
+export type LaneId = 'clone' | 'mutate' | 'compact' | 'rebuild' | 'binary';
 
-export const JSON_LANES: readonly LaneId[] = ['clone', 'mutate', 'direct', 'compact', 'rebuild'];
-export const ALL_LANES: readonly LaneId[] = ['clone', 'mutate', 'direct', 'compact', 'rebuild', 'binary'];
+export const JSON_LANES: readonly LaneId[] = ['clone', 'mutate', 'compact', 'rebuild'];
+export const ALL_LANES: readonly LaneId[] = ['clone', 'mutate', 'compact', 'rebuild', 'binary'];
 
 /** A wired codec: encode returns a JSON string (or undefined for an undefined
  *  root) on the JSON lanes, a Uint8Array on the binary lane. **/
@@ -82,8 +78,8 @@ export interface CompiledCodecs {
 // One createX call site per codec strategy. Options is the SECOND positional
 // arg (`createJsonEncoderFn<T>(undefined, {strategy})`) — passing it first makes
 // it the value and silently defaults to clone. The Go side reads the strategy
-// literal straight from the AST, so the tags resolve to jeCL/jeMU/jeDI/jeCO and
-// jdST/jdPR/jdCO regardless of the inline d.ts overlay.
+// literal straight from the AST, so the tags resolve to jeCL/jeMU/jeCO and
+// jdCL/jdMU/jdCO regardless of the inline d.ts overlay.
 export function renderFixture(gen: GeneratedType): string {
   const {decls, rootExpr} = renderGenerated(gen);
   return `import {
@@ -99,10 +95,9 @@ type T = ${rootExpr};
 createValidateFn<T>();
 createJsonEncoderFn<T>(undefined, {strategy: 'clone'});
 createJsonEncoderFn<T>(undefined, {strategy: 'mutate'});
-createJsonEncoderFn<T>(undefined, {strategy: 'direct'});
 createJsonEncoderFn<T>(undefined, {strategy: 'compact'});
-createJsonDecoderFn<T>(undefined, {strategy: 'strip'});
-createJsonDecoderFn<T>(undefined, {strategy: 'preserve'});
+createJsonDecoderFn<T>(undefined, {strategy: 'clone'});
+createJsonDecoderFn<T>(undefined, {strategy: 'mutate'});
 createJsonDecoderFn<T>(undefined, {strategy: 'compact'});
 // rjs has no createX factory: a framework reaches it by naming the fnKey in its own
 // marker, which is exactly what mion's route helper does for the clone strategy.
@@ -174,19 +169,17 @@ export async function compileCodecs(client: ResolverClient, gen: GeneratedType):
   return {...partial, validate, codecs, wireErrors};
 }
 
-/** The fn-site tags each lane wires: the strip decoder reads both keyed wires, and rebuild reads the
- *  clone wire with the rjs primitive. **/
+/** The fn-site tags each lane wires: rebuild reads the clone wire with the rjs primitive. **/
 const LANE_TAGS: Record<LaneId, {encode: string; decode: string}> = {
-  clone: {encode: 'jeCL', decode: 'jdST'},
-  mutate: {encode: 'jeMU', decode: 'jdPR'},
-  direct: {encode: 'jeDI', decode: 'jdST'},
+  clone: {encode: 'jeCL', decode: 'jdCL'},
+  mutate: {encode: 'jeMU', decode: 'jdMU'},
   compact: {encode: 'jeCO', decode: 'jdCO'},
   rebuild: {encode: 'jeCL', decode: 'rjs'},
   binary: {encode: 'tb', decode: 'fb'},
 };
 
-// Index fn-site tuples by their slot-0 family tag (jeCL/jeMU/jeDI/jeCO, jdST/
-// jdPR/jdCO, tb/fb, val). Each tag appears at most once in this fixture.
+// Index fn-site tuples by their slot-0 family tag (jeCL/jeMU/jeCO, jdCL/
+// jdMU/jdCO, tb/fb, val). Each tag appears at most once in this fixture.
 export function classifyByTag(fnSites: Site[], tuples: Record<string, readonly unknown[]>): Record<string, readonly unknown[]> {
   const out: Record<string, readonly unknown[]> = {};
   for (const site of fnSites) {

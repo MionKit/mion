@@ -1,5 +1,5 @@
 // All-strategy round-trip end-to-end: generate random SERIALISABLE types, compile
-// EVERY JSON codec strategy (clone / mutate / direct / compact) plus binary for
+// EVERY JSON codec strategy (clone / mutate / compact) plus binary for
 // the same type, round-trip one conforming value through all of them, and check
 // they agree (round-trip identity, both-ends validate, cross-strategy agreement,
 // wire stability, native-JSON cross-check).

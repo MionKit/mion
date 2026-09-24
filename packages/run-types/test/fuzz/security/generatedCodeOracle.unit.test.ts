@@ -74,14 +74,14 @@ describe('generated-code oracles fire on broken bodies (negative controls)', () 
     expect(oracles("function f(v){v = typeof v === 'string' ? new Date(v) : v;return v}", 'rj')).toEqual([]);
     expect(oracles('function f(v){v = BigInt(v);return v}', 'cjr')).toEqual(['GC-GUARD']);
     expect(oracles('function f(v){if (reBigWire.test(v)) v = BigInt(v);return v}', 'cjr')).toEqual([]);
-    expect(oracles('function f(v){v = new Set(v);return v}', 'jdST')).toEqual(['GC-GUARD']);
-    expect(oracles('function f(v){v = Array.isArray(v) ? new Set(v) : v;return v}', 'jdST')).toEqual([]);
-    expect(oracles('function f(v){const dec0 = v[0]; v = v[1];return v}', 'jdPR')).toEqual(['GC-GUARD']);
+    expect(oracles('function f(v){v = new Set(v);return v}', 'jdCL')).toEqual(['GC-GUARD']);
+    expect(oracles('function f(v){v = Array.isArray(v) ? new Set(v) : v;return v}', 'jdCL')).toEqual([]);
+    expect(oracles('function f(v){const dec0 = v[0]; v = v[1];return v}', 'jdMU')).toEqual(['GC-GUARD']);
     expect(
-      oracles('function f(v){if (Array.isArray(v) && v.length === 2) {const dec0 = v[0]; v = v[1];}return v}', 'jdPR')
+      oracles('function f(v){if (Array.isArray(v) && v.length === 2) {const dec0 = v[0]; v = v[1];}return v}', 'jdMU')
     ).toEqual([]);
     // a tuple member read is not an unwrap
-    expect(oracles('function f(v){const v1 = v[1]; v[1] = v1;return v}', 'jdPR')).toEqual([]);
+    expect(oracles('function f(v){const v1 = v[1]; v[1] = v1;return v}', 'jdMU')).toEqual([]);
     // the guard has to be on the SAME variable
     expect(
       oracles("function f(v){const v0 = v.a; v0 = typeof v === 'string' ? 1 : 2; v.a = new Date(v0);return v}", 'rj')

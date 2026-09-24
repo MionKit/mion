@@ -14,7 +14,7 @@ describe('familyMeta', () => {
 
   it('names no tag the generated map does not know', () => {
     const known = new Set(Object.keys(FAMILY_TAG_TO_FN_KEY));
-    // The JSON-composite tags (jeCL, jdST, …) borrow a host family's metadata and are not in the map.
+    // The JSON-composite tags (jeCL, jdCL, …) borrow a host family's metadata and are not in the map.
     const stray = Object.keys(familyMeta).filter((tag) => !known.has(tag) && tag.length <= 4 && !/[A-Z]/.test(tag));
     expect(stray, `familyMeta rows for tags no entry can carry: ${stray.join(', ')}`).toEqual([]);
   });

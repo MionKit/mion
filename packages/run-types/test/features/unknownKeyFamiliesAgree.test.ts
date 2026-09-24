@@ -1,6 +1,6 @@
 // Every family that answers "which keys are not declared by this type" held against the others, on
 // one value per shape. They are emitted separately, per kind, in four different Go files, and a
-// family that stops reaching a position faces UNTRUSTED input (the strip decoder is what a server
+// family that stops reaching a position faces UNTRUSTED input (the clone decoder is what a server
 // runs on a caller's payload) with nothing downstream to catch it: `validate` accepts undeclared
 // keys on an object literal by design.
 //
@@ -40,7 +40,7 @@ interface Row {
   reported: (string | number)[];
   /** The strict errors form names a union at the root: the key is only undeclared relative to a branch. **/
   union?: true;
-  /** The value every deleting family must produce; the strip decoder blanks the key instead. **/
+  /** The value every deleting family must produce. **/
   clean: unknown;
   /** Set for a union with object members: `removeUnknownKeys` refuses it, not knowing which member to rebuild. **/
   cloneRefuses?: true;
@@ -50,9 +50,8 @@ interface Row {
     validateStrict: (value: unknown) => boolean;
     /** Held back unbuilt: a refusing row throws at factory creation, not on the call. **/
     makeRemoveUnknownKeys: () => (value: never) => unknown;
-    stripDecoder: JsonDecoderFn;
+    cloneJsonDecoder: JsonDecoderFn;
     cloneEncoder: JsonEncoderFn;
-    directEncoder: JsonEncoderFn;
   };
 }
 
@@ -81,9 +80,8 @@ describe('every unknown-key family agrees', () => {
         errorsStrict: createGetValidationErrorsFn<Inner>(undefined, {checkUnknowns: true}),
         validateStrict: createValidateFn<Inner>(undefined, {checkUnknowns: true}),
         makeRemoveUnknownKeys: () => createRemoveUnknownKeysFn<Inner>(),
-        stripDecoder: createJsonDecoderFn<Inner>(undefined, {strategy: 'strip'}),
+        cloneJsonDecoder: createJsonDecoderFn<Inner>(undefined, {strategy: 'clone'}),
         cloneEncoder: createJsonEncoderFn<Inner>(undefined, {strategy: 'clone'}),
-        directEncoder: createJsonEncoderFn<Inner>(undefined, {strategy: 'direct'}),
       }),
     },
     'object inside an array': {
@@ -94,9 +92,8 @@ describe('every unknown-key family agrees', () => {
         errorsStrict: createGetValidationErrorsFn<Inner[]>(undefined, {checkUnknowns: true}),
         validateStrict: createValidateFn<Inner[]>(undefined, {checkUnknowns: true}),
         makeRemoveUnknownKeys: () => createRemoveUnknownKeysFn<Inner[]>(),
-        stripDecoder: createJsonDecoderFn<Inner[]>(undefined, {strategy: 'strip'}),
+        cloneJsonDecoder: createJsonDecoderFn<Inner[]>(undefined, {strategy: 'clone'}),
         cloneEncoder: createJsonEncoderFn<Inner[]>(undefined, {strategy: 'clone'}),
-        directEncoder: createJsonEncoderFn<Inner[]>(undefined, {strategy: 'direct'}),
       }),
     },
     'object in a tuple slot': {
@@ -107,9 +104,8 @@ describe('every unknown-key family agrees', () => {
         errorsStrict: createGetValidationErrorsFn<[Inner, number]>(undefined, {checkUnknowns: true}),
         validateStrict: createValidateFn<[Inner, number]>(undefined, {checkUnknowns: true}),
         makeRemoveUnknownKeys: () => createRemoveUnknownKeysFn<[Inner, number]>(),
-        stripDecoder: createJsonDecoderFn<[Inner, number]>(undefined, {strategy: 'strip'}),
+        cloneJsonDecoder: createJsonDecoderFn<[Inner, number]>(undefined, {strategy: 'clone'}),
         cloneEncoder: createJsonEncoderFn<[Inner, number]>(undefined, {strategy: 'clone'}),
-        directEncoder: createJsonEncoderFn<[Inner, number]>(undefined, {strategy: 'direct'}),
       }),
     },
     'object in a tuple slot one property deep': {
@@ -120,9 +116,8 @@ describe('every unknown-key family agrees', () => {
         errorsStrict: createGetValidationErrorsFn<{t: [Inner, number]}>(undefined, {checkUnknowns: true}),
         validateStrict: createValidateFn<{t: [Inner, number]}>(undefined, {checkUnknowns: true}),
         makeRemoveUnknownKeys: () => createRemoveUnknownKeysFn<{t: [Inner, number]}>(),
-        stripDecoder: createJsonDecoderFn<{t: [Inner, number]}>(undefined, {strategy: 'strip'}),
+        cloneJsonDecoder: createJsonDecoderFn<{t: [Inner, number]}>(undefined, {strategy: 'clone'}),
         cloneEncoder: createJsonEncoderFn<{t: [Inner, number]}>(undefined, {strategy: 'clone'}),
-        directEncoder: createJsonEncoderFn<{t: [Inner, number]}>(undefined, {strategy: 'direct'}),
       }),
     },
     // An array is an ATOMIC member of the flat union layout, so this union has no object members at
@@ -136,9 +131,8 @@ describe('every unknown-key family agrees', () => {
         errorsStrict: createGetValidationErrorsFn<Inner[] | number>(undefined, {checkUnknowns: true}),
         validateStrict: createValidateFn<Inner[] | number>(undefined, {checkUnknowns: true}),
         makeRemoveUnknownKeys: () => createRemoveUnknownKeysFn<Inner[] | number>(),
-        stripDecoder: createJsonDecoderFn<Inner[] | number>(undefined, {strategy: 'strip'}),
+        cloneJsonDecoder: createJsonDecoderFn<Inner[] | number>(undefined, {strategy: 'clone'}),
         cloneEncoder: createJsonEncoderFn<Inner[] | number>(undefined, {strategy: 'clone'}),
-        directEncoder: createJsonEncoderFn<Inner[] | number>(undefined, {strategy: 'direct'}),
       }),
     },
     'object inside the tuple member of a union': {
@@ -150,9 +144,8 @@ describe('every unknown-key family agrees', () => {
         errorsStrict: createGetValidationErrorsFn<[Inner, number] | string>(undefined, {checkUnknowns: true}),
         validateStrict: createValidateFn<[Inner, number] | string>(undefined, {checkUnknowns: true}),
         makeRemoveUnknownKeys: () => createRemoveUnknownKeysFn<[Inner, number] | string>(),
-        stripDecoder: createJsonDecoderFn<[Inner, number] | string>(undefined, {strategy: 'strip'}),
+        cloneJsonDecoder: createJsonDecoderFn<[Inner, number] | string>(undefined, {strategy: 'clone'}),
         cloneEncoder: createJsonEncoderFn<[Inner, number] | string>(undefined, {strategy: 'clone'}),
-        directEncoder: createJsonEncoderFn<[Inner, number] | string>(undefined, {strategy: 'direct'}),
       }),
     },
     // The plain case the rows above route around: both members are object literals, so the key is
@@ -168,15 +161,14 @@ describe('every unknown-key family agrees', () => {
         validateStrict: createValidateFn<TwoObjects>(undefined, {checkUnknowns: true}),
         // @mion-downgrade-error RUK001
         makeRemoveUnknownKeys: () => createRemoveUnknownKeysFn<TwoObjects>(),
-        stripDecoder: createJsonDecoderFn<TwoObjects>(undefined, {strategy: 'strip'}),
+        cloneJsonDecoder: createJsonDecoderFn<TwoObjects>(undefined, {strategy: 'clone'}),
         cloneEncoder: createJsonEncoderFn<TwoObjects>(undefined, {strategy: 'clone'}),
-        directEncoder: createJsonEncoderFn<TwoObjects>(undefined, {strategy: 'direct'}),
       }),
     },
   } satisfies Record<string, Row>;
 
   for (const [name, row] of Object.entries<Row>(rows)) {
-    it(`reports, deletes or blanks an undeclared key ${name}`, () => {
+    it(`reports or deletes an undeclared key ${name}`, () => {
       const fns = row.fns();
       const parse = () => JSON.parse(row.wire);
 
@@ -189,14 +181,10 @@ describe('every unknown-key family agrees', () => {
         expect(fns.makeRemoveUnknownKeys()(parse() as never), 'removeUnknownKeys').toStrictEqual(row.clean);
       }
       expect(JSON.parse(fns.cloneEncoder(parse()) as string), "encoder {strategy: 'clone'}").toStrictEqual(row.clean);
-      expect(JSON.parse(fns.directEncoder(parse()) as string), "encoder {strategy: 'direct'}").toStrictEqual(row.clean);
-      // The strip decoder blanks rather than deletes, its contract: the key stays own, set to undefined.
-      const stripped = fns.stripDecoder(row.wire);
-      const host = atPath(stripped, row.reported.slice(0, -1)) as Record<string, unknown>;
-      expect(Object.hasOwn(host, 'evil'), "decoder {strategy: 'strip'} keeps the key").toBe(true);
-      expect(host.evil, "decoder {strategy: 'strip'} blanks the key").toBeUndefined();
-      // toEqual skips undefined-valued own keys, so this compares everything but the blank.
-      expect(stripped, "decoder {strategy: 'strip'}").toEqual(row.clean);
+      const decoded = fns.cloneJsonDecoder(row.wire);
+      const host = atPath(decoded, row.reported.slice(0, -1)) as Record<string, unknown>;
+      expect('evil' in host, "decoder {strategy: 'clone'} drops the key").toBe(false);
+      expect(decoded, "decoder {strategy: 'clone'}").toStrictEqual(row.clean);
     });
   }
 
@@ -214,10 +202,8 @@ describe('every unknown-key family agrees', () => {
     expect(createValidateFn<Counts>(undefined, {checkUnknowns: true})(parse()), 'validate {checkUnknowns: true}').toBe(true);
     expect(createRemoveUnknownKeysFn<Counts>()(parse()), 'removeUnknownKeys').toStrictEqual(all);
     const cloneEncoded = createJsonEncoderFn<Counts>(undefined, {strategy: 'clone'})(parse()) as string;
-    const directEncoded = createJsonEncoderFn<Counts>(undefined, {strategy: 'direct'})(parse()) as string;
     expect(JSON.parse(cloneEncoded), "encoder {strategy: 'clone'}").toStrictEqual(all);
-    expect(JSON.parse(directEncoded), "encoder {strategy: 'direct'}").toStrictEqual(all);
-    expect(createJsonDecoderFn<Counts>(undefined, {strategy: 'strip'})(wire), "decoder {strategy: 'strip'}").toStrictEqual(all);
+    expect(createJsonDecoderFn<Counts>(undefined, {strategy: 'clone'})(wire), "decoder {strategy: 'clone'}").toStrictEqual(all);
   });
 
   // No codec can tell a stray key from one the record member declares, so every key stays.
@@ -236,10 +222,8 @@ describe('every unknown-key family agrees', () => {
       /RUK001/
     );
     const cloneEncoded = createJsonEncoderFn<CountsOrInner>(undefined, {strategy: 'clone'})(parse()) as string;
-    const directEncoded = createJsonEncoderFn<CountsOrInner>(undefined, {strategy: 'direct'})(parse()) as string;
     expect(JSON.parse(cloneEncoded), "encoder {strategy: 'clone'}").toStrictEqual(all);
-    expect(JSON.parse(directEncoded), "encoder {strategy: 'direct'}").toStrictEqual(all);
-    expect(createJsonDecoderFn<CountsOrInner>(undefined, {strategy: 'strip'})(wire), "decoder {strategy: 'strip'}").toStrictEqual(
+    expect(createJsonDecoderFn<CountsOrInner>(undefined, {strategy: 'clone'})(wire), "decoder {strategy: 'clone'}").toStrictEqual(
       all
     );
   });
@@ -249,7 +233,7 @@ describe('every unknown-key family agrees', () => {
     const wire = '{"a":"x","evil":1}';
     const parse = () => JSON.parse(wire) as CountsOrInner;
 
-    expect(createJsonDecoderFn<CountsOrInner>(undefined, {strategy: 'strip'})(wire), 'no key is undeclared').toStrictEqual({
+    expect(createJsonDecoderFn<CountsOrInner>(undefined, {strategy: 'clone'})(wire), 'no key is undeclared').toStrictEqual({
       a: 'x',
       evil: 1,
     });
@@ -269,12 +253,10 @@ describe('every unknown-key family agrees', () => {
     expect(undeclaredOnPet(parse()), 'pooled list').toEqual([]);
 
     const cloneEncoded = createJsonEncoderFn<Pet>(undefined, {strategy: 'clone'})(parse()) as string;
-    const directEncoded = createJsonEncoderFn<Pet>(undefined, {strategy: 'direct'})(parse()) as string;
     const compactWire = createJsonEncoderFn<Pet>(undefined, {strategy: 'compact'})(parse()) as string;
     expect(JSON.parse(cloneEncoded), "encoder {strategy: 'clone'}").toStrictEqual(all);
-    expect(JSON.parse(directEncoded), "encoder {strategy: 'direct'}").toStrictEqual(all);
     expect(createJsonDecoderFn<Pet>(undefined, {strategy: 'compact'})(compactWire), 'compact round trip').toStrictEqual(all);
-    expect(createJsonDecoderFn<Pet>(undefined, {strategy: 'strip'})(wire), "decoder {strategy: 'strip'}").toStrictEqual(all);
+    expect(createJsonDecoderFn<Pet>(undefined, {strategy: 'clone'})(wire), "decoder {strategy: 'clone'}").toStrictEqual(all);
     expect(cloneDecoder<Pet>()(parse()), 'rjs, the clone route decoder').toStrictEqual(all);
 
     // The only family that reads the matched branch rather than the pooled list.
@@ -290,17 +272,11 @@ describe('every unknown-key family agrees', () => {
     expect(undeclaredOnPet(parse()), 'pooled list').toEqual(['zzz']);
 
     const cloneEncoded = createJsonEncoderFn<Pet>(undefined, {strategy: 'clone'})(parse()) as string;
-    const directEncoded = createJsonEncoderFn<Pet>(undefined, {strategy: 'direct'})(parse()) as string;
     const compactWire = createJsonEncoderFn<Pet>(undefined, {strategy: 'compact'})(parse()) as string;
     expect(JSON.parse(cloneEncoded), "encoder {strategy: 'clone'}").toStrictEqual(clean);
-    expect(JSON.parse(directEncoded), "encoder {strategy: 'direct'}").toStrictEqual(clean);
     expect(createJsonDecoderFn<Pet>(undefined, {strategy: 'compact'})(compactWire), 'compact round trip').toStrictEqual(clean);
     expect(cloneDecoder<Pet>()(parse()), 'rjs, the clone route decoder').toStrictEqual(clean);
-    // The strip decoder blanks rather than deletes, so the key is still own with no value.
-    const stripped = createJsonDecoderFn<Pet>(undefined, {strategy: 'strip'})(wire) as Record<string, unknown>;
-    expect(Object.hasOwn(stripped, 'zzz'), "decoder {strategy: 'strip'} keeps the key").toBe(true);
-    expect(stripped.zzz, "decoder {strategy: 'strip'} blanks the key").toBeUndefined();
-    expect(stripped, "decoder {strategy: 'strip'}").toEqual(clean);
+    expect(createJsonDecoderFn<Pet>(undefined, {strategy: 'clone'})(wire), "decoder {strategy: 'clone'}").toStrictEqual(clean);
 
     expect(createValidateFn<Pet>(undefined, {checkUnknowns: true})(parse()), 'validate {checkUnknowns: true}').toBe(false);
   });
@@ -310,7 +286,7 @@ describe('every unknown-key family agrees', () => {
   it('leaves a union of primitives alone', () => {
     expect(createValidateFn<string | number>(undefined, {checkUnknowns: true})('hello')).toBe(true);
     expect(createGetValidationErrorsFn<string | number>(undefined, {checkUnknowns: true})('hello')).toEqual([]);
-    expect(createJsonDecoderFn<string | number>(undefined, {strategy: 'strip'})('"hello"')).toBe('hello');
+    expect(createJsonDecoderFn<string | number>(undefined, {strategy: 'clone'})('"hello"')).toBe('hello');
   });
 
   // The strict validator answers the right VERDICT for a union but a blunt path: it detects by

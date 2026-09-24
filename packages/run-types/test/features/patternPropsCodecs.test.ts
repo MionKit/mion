@@ -28,7 +28,6 @@ describe('patternProperties values round-trip through every codec', () => {
   const pairs = [
     ['clone', createJsonEncoderFn<Stamped>(undefined, {strategy: 'clone'}), createJsonDecoderFn<Stamped>()],
     ['mutate', createJsonEncoderFn<Stamped>(undefined, {strategy: 'mutate'}), createJsonDecoderFn<Stamped>()],
-    ['direct', createJsonEncoderFn<Stamped>(undefined, {strategy: 'direct'}), createJsonDecoderFn<Stamped>()],
     [
       'compact',
       createJsonEncoderFn<Stamped>(undefined, {strategy: 'compact'}),

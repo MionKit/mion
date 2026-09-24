@@ -25,8 +25,6 @@ describe('symbol literal at a root', () => {
     expect(() => createJsonEncoderFn<SymLiteral>()).toThrow();
     // @mion-downgrade-error PJ005
     expect(() => createJsonEncoderFn<SymLiteral>(undefined, {strategy: 'mutate'})).toThrow();
-    // @mion-downgrade-error SJ005
-    expect(() => createJsonEncoderFn<SymLiteral>(undefined, {strategy: 'direct'})).toThrow();
     // @mion-downgrade-error RJ005
     expect(() => createJsonDecoderFn<SymLiteral>()).toThrow();
   });
@@ -63,7 +61,7 @@ describe('symbol literal at a property', () => {
     const encoded = [
       createJsonEncoderFn<HasSymLiteral>(undefined, {strategy: 'mutate'})({...value}),
       createJsonEncoderFn<HasSymLiteral>(undefined, {strategy: 'clone'})({...value}),
-      createJsonEncoderFn<HasSymLiteral>(undefined, {strategy: 'direct'})({...value}),
+      createJsonEncoderFn<HasSymLiteral>(undefined, {strategy: 'compact'})({...value}),
     ];
     for (const json of encoded) {
       expect(json).not.toContain('Symbol');

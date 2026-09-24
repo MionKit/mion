@@ -36,8 +36,8 @@ const otherIndex = dateIndex === 0 ? 1 : 0;
 
 const validate = createValidateFn<Wire>();
 const decoders = {
-  strip: createJsonDecoderFn<Wire>(undefined, {strategy: 'strip'}),
-  preserve: createJsonDecoderFn<Wire>(undefined, {strategy: 'preserve'}),
+  clone: createJsonDecoderFn<Wire>(undefined, {strategy: 'clone'}),
+  mutate: createJsonDecoderFn<Wire>(undefined, {strategy: 'mutate'}),
 };
 
 // [field, bad content, what a plain decoder does with it]
