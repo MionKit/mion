@@ -33,7 +33,7 @@ export interface MethodMetadata {
   headersParam?: HeadersMetaData;
   /** Information about headers returned by the method, used by HeadersFn and when any other middleware returns headers */
   headersReturn?: HeadersMetaData;
-  /** Build-time type id of the handler's params and return together; a synced call sends the route's */
+  /** Type id of the handler's `[params, return]` pair; a synced call sends the route's */
   syncId?: string;
   /** Array of middleware IDs associated with this method, only available for route methods */
   middlewareIds?: string[];

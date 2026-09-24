@@ -110,7 +110,7 @@ export async function expectEveryMethodMatchesTheServer(baseURL: string): Promis
   for (const id of ids) {
     const bundled = getMethod(id)!;
     const server = served.methods[id];
-    // the view holds syncId, so this also proves both builds gave the method the same sync id
+    // the view holds syncId, so this also proves both builds agree on it
     expect(server.syncId, id).toBeTruthy();
     expect(clientRowView(bundled), id).toEqual(clientRowView(server));
     const parser = clientRowView(server).parser as {params: ParserStrategy; return: ParserStrategy};

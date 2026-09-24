@@ -709,9 +709,8 @@ declare const pair: [[id: number], {id: number; name: string}];
 export const valueId = getRunTypeId(pair);
 `
 
-// TestApiGen_BundledRowCarriesTheSyncIdOfItsParamsReturnPair: a bundled method's syncId is the id of its
-// `types.sync` pair, the id both getRunTypeId forms name for that pair, which is what a server helper's
-// syncId slot gets; a method whose router declares no pair carries none.
+// TestApiGen_BundledRowCarriesTheSyncIdOfItsParamsReturnPair: both getRunTypeId forms name it, as a server's syncId slot does.
+// A method whose router declares no pair carries none.
 func TestApiGen_BundledRowCarriesTheSyncIdOfItsParamsReturnPair(t *testing.T) {
 	genDir := t.TempDir()
 	r := setupApi(t, apiSources(apiSyncClientTS), genDir, constants.BundleApiBundled, "")

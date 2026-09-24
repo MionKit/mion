@@ -37,7 +37,7 @@ function initApi(options: RouterOptionsInput, buildVersion = 'abc123') {
     calls.push('hello');
     return `Hello ${name}`;
   });
-  // other types than hello's: the sync id is made from the types alone
+  // types unlike hello's, or the two share a sync id
   const bye = mion.route((ctx, name: string, polite?: boolean): string => {
     calls.push('bye');
     return `Bye ${name}`;

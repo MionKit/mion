@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Route sync ids, read off the rows this client holds. Kept out of the fetched lane: a bundled client sends them too.
+// Kept out of the fetched lane: a bundled client sends route sync ids too.
 
 import {MION_ROUTES, RpcError, isRpcError} from '@mionjs/core';
 import type {InjectRouterOptions} from '@mionjs/run-types';
@@ -36,7 +36,7 @@ export function resetSyncRoutes(): void {
   syncServers.clear();
 }
 
-/** One id per route in call order; '' where a row or its id is missing, which the server answers with the rows. */
+/** The server answers an '' id with the rows. */
 export function routeSyncIds(routeIds: string[]): string[] {
   return routeIds.map((id) => getMethod(id)?.syncId ?? '');
 }

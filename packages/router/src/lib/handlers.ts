@@ -41,8 +41,7 @@ export const route: RouteHelper<RouterOptionsInput> = (
   rtFns: {paramsFns, returnFns, paramsId, returnId, isAsyncId, syncId},
 });
 
-/** `route()` with `isMutation` pinned. Typed as the same helper, so both keep the marker signature
- *  the scanner reads at the call site. */
+/** Typed as the same helper as `route()`, so both keep the marker signature the scanner reads at the call site. */
 function routeWithMutation<M extends boolean>(isMutation: M): RouteHelper<RouterOptionsInput, M> {
   return (handler, opts, paramsFns, returnFns, paramsId, returnId, isAsyncId, syncId) => ({
     type: HandlerType.route,
