@@ -94,6 +94,23 @@ func TestApiVersion_DerivedFromTheTypesAlone(t *testing.T) {
 	}
 }
 
+// TestApiVersion_RouterPackageOwnFilesAreTrusted: the router's own sources and tests import it by relative path, so
+// no file spells `@mionjs/router`; the package that owns them still makes the program a server.
+func TestApiVersion_RouterPackageOwnFilesAreTrusted(t *testing.T) {
+	routerSource := strings.Replace(versionRouterDTS, "declare module '@mionjs/router' {", "", 1)
+	routerSource = strings.Replace(routerSource, "export function createMionRouter", "export declare function createMionRouter", 1)
+	routerSource = routerSource[:strings.LastIndex(routerSource, "}")]
+	routes := strings.Replace(apiServerRoutesTS(1, false), "from '@mionjs/router'", "from '../src/router'", 1)
+	server := setupApi(t, map[string]string{
+		"package.json":   `{"name": "@mionjs/router"}`,
+		"src/router.ts":  routerSource,
+		"test/routes.ts": routes,
+	}, t.TempDir(), "", "")
+	if version := transformedVersion(t, server, "test/routes.ts"); version == "" {
+		t.Fatal("the router package's own routes got no version")
+	}
+}
+
 // TestApiVersion_UntrustedClientGetsNone: a client reading the API neither through api.tsConfig nor through the
 // router resolved those types under its own settings, so its ids may differ with nothing wrong; it injects nothing.
 func TestApiVersion_UntrustedClientGetsNone(t *testing.T) {
