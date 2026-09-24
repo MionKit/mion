@@ -7,17 +7,10 @@
 
 // The `parser` option end to end: what the build compiles, what the runtime resolves, the framing, and each wire.
 import {describe, it, expect, beforeEach} from 'vitest';
-import {
-  createMionRouter,
-  resetRouter,
-  getAnyExecutable,
-  getRouteExecutable,
-  getRouteExecutionChain,
-  getMiddlewareExecutable,
-} from '../src/router.ts';
+import {createMionRouter, resetRouter, getAnyExecutable, getRouteExecutable, getMiddlewareExecutable} from '../src/router.ts';
 import {dispatchRoute} from '../src/dispatch.ts';
 import {headersFromRecord} from '../src/lib/headers.ts';
-import {JIT_FUNCTION_IDS, MION_ROUTES, SerializerModes, type ParserOption} from '@mionjs/core';
+import {JIT_FUNCTION_IDS, MION_ROUTES, type ParserOption} from '@mionjs/core';
 import type {RemoteMethod} from '../src/types/remoteMethods.ts';
 
 interface Pet {
