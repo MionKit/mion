@@ -46,5 +46,5 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
   The `method: 'PUT'` default is removed.
 - `getRoutePath` in `@mionjs/core` takes `Pick<CoreRouterOptions, 'basePath' | 'suffix'>`, the only fields
   it reads, so the client options still fit.
-- Test in `packages/client/test/types.spec.ts`: both options are type errors and absent from the defaults.
+- No new test: the options no longer exist, so there is nothing to test. The existing client suite covers the change.
 - Docs: no website page mentions either option, so no page changes.
