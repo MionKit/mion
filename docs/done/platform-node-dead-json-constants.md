@@ -1,7 +1,7 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-09-24
 ---
 
@@ -36,3 +36,18 @@ None, because no page names these constants.
 - The unused constants are gone and nothing breaks.
 - `pnpm test` and `pnpm run typecheck` pass; label the PR `pre-publish-e2e` (exports change).
 - The simplify-comments pass ran on every touched source file, committed on its own.
+
+## Plan (approved 2026-09-24)
+
+A scan of every `export const` in `packages/core/src/constants.ts` and each `packages/platform-*/src/constants.ts`
+against the whole repo found these with no user:
+
+- `platform-node`: `CONTENT_TYPE_HEADER_NAME`, `ACCEPT_JSON`, `JSON_CONTENT_TYPE`, `JSON_TYPE_HEADER`. Remove.
+- `core`: `MIME_TYPES` (constants.ts). Remove.
+- `core`: `UNSAFE_PROPERTY_NAMES` (utils.ts). Remove, and move its doc comment onto `isUnsafePropertyName`, which
+  hard-codes the same three names.
+- The `*_MAX_BODY_SIZE_CAP` constants in aws / cloudflare / gcloud / vercel are used by their own default options, so
+  they stay.
+
+Tests: `isUnsafePropertyName` had none, and after the list goes it is the only home of the three names, so
+`packages/core/test/utils.spec.ts` pins it. A barrel test in each package pins that the removed names stay gone.
