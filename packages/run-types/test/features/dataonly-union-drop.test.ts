@@ -24,6 +24,9 @@ interface HasNativeUnion {
   y: number;
 }
 
+// A function-member arm (`f0: () => number`) shares its prop name with a surviving `f0?: string`.
+type Reduced = {kind: 't0'; f1: string} | {kind: 't1'; f0?: string} | {kind: 't2'; f0: () => number};
+
 describe('DataOnly union-member drop', () => {
   test('Date | symbol — symbol arm dropped, validates as Date', () => {
     const isit = createValidateFn<Date | symbol>();
@@ -59,6 +62,13 @@ describe('DataOnly union-member drop', () => {
     const enc = createJsonEncoderFn<(Date | symbol)[]>();
     const dec = createJsonDecoderFn<(Date | symbol)[]>();
     expect(dec(enc(arr) as string)).toEqual(arr);
+  });
+
+  test('json twin drops the member symmetrically', () => {
+    const enc = createJsonEncoderFn<Reduced>();
+    const dec = createJsonDecoderFn<Reduced>();
+    const back = dec(enc({kind: 't2', f0: () => 1})!);
+    expect(back).toEqual({kind: 't2'});
   });
 });
 
