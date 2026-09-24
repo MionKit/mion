@@ -5,9 +5,9 @@ description: Review a PR or branch against this repo's rules in a fresh reviewer
 
 # review-pr
 
-Judge a change the way this repo judges one. **The review always runs in a `pr-reviewer` subagent**, never in the session that asked for it. That session runs the two simplify passes first, spawns the reviewer, carries the checklist to the user, and afterwards decides what to fix.
+Judge a change the way this repo judges one. **The review always runs in a `pr-reviewer` subagent**, never in the session that asked for it. That session runs the two simplify passes first, spawns the reviewer, carries the checklist to the user, fans the approved groups out to one agent each, and afterwards decides what to fix.
 
-The split exists for one reason: the author's memory of why a line exists is exactly what talks a real finding out of a report. A reviewer that never wrote the code cannot make that mistake. So the reviewer reads the diff, builds the checklist and verifies the findings in a context that knows nothing but what is on disk.
+The split exists for one reason: the author's memory of why a line exists is exactly what talks a real finding out of a report. A reviewer that never wrote the code cannot make that mistake. So the reviewer reads the diff, builds the checklist and verifies the findings in a context that knows nothing but what is on disk. For the same reason each checklist group is checked by its own agent: a group that cannot see another group's work cannot talk its finding away.
 
 **Documentation and comments are not the reviewer's job.** The `docs-simplifier` and `comments-simplifier` agents own them, each with its own rulebook and its own fresh context, and they run before the review so their edits are in the diff the reviewer reads. The reviewer skips both.
 
@@ -15,8 +15,8 @@ The review produces a **findings report**, never edits.
 
 This document has two halves. Read the one you are:
 
-- **[Calling session](#calling-session)** - you were asked to review something. Four steps, and none of them is reviewing.
-- **[Reviewer](#reviewer)** - you are the `pr-reviewer` agent. The whole method.
+- **[Calling session](#calling-session)** - you were asked to review something. Six steps, and none of them is reviewing.
+- **[Reviewer](#reviewer)** - you are a `pr-reviewer` agent, in one of three roles: the checklist builder, a group checker, or the merger.
 
 ---
 
@@ -45,7 +45,7 @@ Then do what those skills require of a caller, because neither agent commits its
 
 Only then spawn the reviewer. Reviewing before this leaves the reviewer judging prose that is about to change.
 
-### 2. Spawn the reviewer
+### 2. Spawn the checklist reviewer
 
 One agent, `subagent_type: pr-reviewer`, with the target and nothing else:
 
@@ -67,12 +67,38 @@ Then ask with AskUserQuestion: run it as is, add items, or drop a group. This is
 Send the answer back to the **same** agent with SendMessage, so it continues with its context intact:
 
 ```
-Approved. Run the checklist.
+Approved. Return the final checklist, one block per group.
 ```
 
-or the amendments in the user's words. A fresh Agent call would start over and rebuild the list.
+or the amendments in the user's words. A fresh Agent call would start over and rebuild the list. The agent folds in the amendments and returns the final checklist: the pinned merge-base, the intent, and one block per group. A user addition that fits no group comes back as its own group, `U`.
 
-### 4. Triage the report
+### 4. Fan the groups out, one agent each
+
+Spawn one `pr-reviewer` agent per group in the final checklist, all in **one message** so they run at once. Copy each group's block **verbatim**; copying is not editing. Nothing else goes in: no summary of the change, and no other group's items.
+
+```
+Check group <X> of the approved checklist for <the target>.
+Follow the review-pr skill, the reviewer's half, role "Group checker".
+Merge base: <sha>
+Intent: <the intent paragraph, verbatim>
+Items:
+<the group's block, verbatim>
+```
+
+Each returns its answers and its verified findings. Relay nothing yet.
+
+### 5. Send the group reports to the merger
+
+Send every group report, whole and unedited, back to the **checklist reviewer** with SendMessage:
+
+```
+Group reports follow. Merge them into the report, step 7.
+<every report, one after another>
+```
+
+It merges duplicates across groups and writes the one report. It is the merger because it built the list and already knows the change; the group agents do not.
+
+### 6. Triage the report
 
 The reviewer reports everything that survived verification. **Relay all of it to the user.** You filter fixes, never findings: a finding the user never sees is one they can never decide about, and summarising the list hides findings just as effectively as deleting them.
 
@@ -92,18 +118,19 @@ Fixes are a separate step, after the user picks them. Reviewing and fixing in on
 - **Do not review.** Not before spawning, not to double-check a finding, not "just the diff stat". Checking a simplifier's rewrite against the code is not reviewing: it is the caller's job, and it is about facts, not style.
 - **Do not build or edit the checklist yourself.** Amendments come from the user and go to the reviewer verbatim.
 - **Do not drop a finding** because it is small, because you disagree, or because the report is long. That is the user's call.
-- **Do not start a second reviewer** to continue after the checklist. SendMessage to the first one.
+- **Do not start a new checklist reviewer** for the amendments or the merge. SendMessage to the first one; the group agents are the only other reviewers.
+- **Do not trim a group's block** when you fan it out, and do not hand one agent two groups.
 
 ---
 
 ## Reviewer
 
-You are the `pr-reviewer` agent. You read, you judge, you report. You never edit, commit, or run tests.
+You are a `pr-reviewer` agent. You read, you judge, you report. You never edit, commit, or run tests.
 
-The review runs in two halves:
+The review runs in two halves, split over three roles. Your prompt says which one you are:
 
-1. **Agree what to check.** Build one filtered list from the diff: the rules in the CLAUDE.md files that govern the changed files, plus the general engineering checks those files do not cover. Hand it back for approval.
-2. **Check it.** Work the approved list one group at a time, verify what you find, and answer against the list, item by item.
+1. **Agree what to check.** The **checklist builder** builds one filtered list from the diff: the rules in the CLAUDE.md files that govern the changed files, plus the general engineering checks those files do not cover. It hands the list back for approval (steps 1 to 4).
+2. **Check it.** One **group checker** per group works that group's items, verifies what it finds, and answers item by item (steps 5 and 6). The checklist builder, resumed as the **merger**, then turns the group reports into one report (step 7).
 
 Why the list comes first: a review with no agreed scope reads as opinion, and nobody can tell what it skipped. An approved list makes the review auditable, lets the user add or drop items before the work happens, and gives every finding a number to point at.
 
@@ -115,13 +142,13 @@ Missing documentation is deliberately not a finding here. Documentation written 
 
 ### The arc
 
-1. **Scope** the change. One script does it.
-2. **Frame** it: read the spec and the PR description, write the intent.
-3. **Build** the review list, filtered to what this diff actually contains.
-4. **Hand it back** and wait for approval.
-5. **Work the groups**, one at a time.
-6. **Verify** every finding against the diff.
-7. **Report** against the list.
+1. **Scope** the change. One script does it. *(checklist builder)*
+2. **Frame** it: read the spec and the PR description, write the intent. *(checklist builder)*
+3. **Build** the review list, filtered to what this diff actually contains. *(checklist builder)*
+4. **Hand it back**, wait for approval, return the final list by group. *(checklist builder)*
+5. **Check your group.** *(group checker)*
+6. **Verify** every finding against the diff. *(group checker)*
+7. **Merge and report** against the list. *(merger)*
 
 ### Step 1 - Scope
 
@@ -209,20 +236,17 @@ whoever is allowed to edit that page.
 
 End your turn with the checklist as your whole message: the intent, every item with its id and source, the per-file rule counts, the groups you dropped and why ("no C group, the diff adds no comments"), and a closing line saying you are waiting for approval before you check anything.
 
-The caller relays it to the user and sends back either an approval or amendments. Fold in what comes back and carry on from step 5. If the amendment is structural, re-show the changed part before you start.
+The caller relays it to the user and sends back either an approval or amendments. Fold in what comes back: place a user addition in the group it belongs to, or in its own group `U` when it fits none, and keep the user's words in the item. Then end your turn with the **final checklist**: the pinned merge-base, the intent, and one block per group, each block holding only that group's items with their ids and sources. The caller copies each block to its own group checker.
 
-Do not start checking while you wait. Steps 1 to 3 are reading and listing; step 4 is a full stop.
+You never check items yourself. Steps 1 to 3 are reading and listing; step 4 is a full stop, and your next job is step 7.
 
-### Step 5 - Work the groups, one at a time
+### Step 5 - Check your group (group checker)
 
-[groups.md](groups.md) holds the method for each group: what to read first, how to judge, and what a fail has to carry. Work the surviving groups in that file's order, and finish a group completely before opening the next one.
+You get one group: its items, the merge-base and the intent. You did not build the list and you cannot see the other groups; that is the point. Read the diff (`git diff <merge-base>..HEAD`, area by area on a large change) and the spec if one is in it, then read your group's section of [groups.md](groups.md): what to read first, how to judge, and what a fail has to carry. A user group `U` has no section there: judge its items against the diff with the general rules below.
 
-One group at a time is the rule, not a suggestion. The groups used to run as separate agents that could not see each other's work, and doing them in one context loses that. What replaces it is discipline:
-
-- **Check a group's items in order, and nothing else.** An item from another group is that group's turn, not this one's.
-- **Answer every item before moving on**: pass, fail, or not applicable. An item you skipped to come back to is an item that goes missing.
-- **Never soften an earlier group's finding with a later group's context.** If group A called a new file unnecessary and group B then shows its tests are thorough, that is two facts, not a retraction.
-- **Re-read the rule per group.** For any item tagged `[repo: <file>]`, open that file and read the current wording before judging, then quote what you read. Your paraphrase on the checklist is a pointer, not the rule.
+- **Check your items in order, and nothing else.** An item from another group is another agent's job.
+- **Answer every item**: pass, fail, or not applicable. An item you skipped to come back to is an item that goes missing.
+- **Re-read the rule.** For any item tagged `[repo: <file>]`, open that file and read the current wording before judging, then quote what you read. The checklist paraphrase is a pointer, not the rule.
 
 Record each answer as you go, in this shape:
 
@@ -247,10 +271,16 @@ Nothing reaches the report unverified, including your own findings from an hour 
 - **The rule is real.** A repo-rule finding must quote the line it breaks, and you confirm that line exists. If it does not, drop it or relabel it as taste.
 - **The simpler option is really simpler.** Does it remove more lines than it adds, and keep the behaviour? If you cannot show that, drop it.
 - **It is in scope.** The change under review is the diff. A problem in untouched code is not this PR's finding; report it off-list and say so.
-- **Merge duplicates, and only duplicates.** The T and A groups overlap by design, so the SAME finding at the SAME place often arrives twice: one entry, best evidence. Two findings that merely sit in one file, or come from one item, are two findings and stay two.
-- **Count what survived.** Before writing the report, list every finding that passed verification, group by group, and count them. That count is what the report must contain. An item that reported several findings contributes several.
+- **Count what survived.** List every finding that passed verification and count them. An item that reported several findings contributes several.
 
-### Step 7 - Report
+End your turn with every item's answer, in the shape above, then the count. That message is your whole report; the merger turns it and the other groups' into one.
+
+### Step 7 - Merge and report (merger)
+
+You are the checklist builder again, now holding every group's report. You do not re-check items, and you do not re-judge a group's answer with another group's context: if group A called a new file unnecessary and group B shows its tests are thorough, that is two facts, not a retraction.
+
+- **Merge duplicates, and only duplicates.** The T and A groups overlap by design, so the SAME finding at the SAME place often arrives twice: one entry, best evidence, both ids. Two findings that merely sit in one file, or come from one item, are two findings and stay two.
+- **Count.** Add up the groups' counts and subtract only the merged duplicates. That number is what the report must contain.
 
 Answer the list. Order by severity, not by group.
 
@@ -294,7 +324,7 @@ Your final message is the report, nothing else. The caller decides what happens 
 
 ### What the reviewer must NOT do
 
-- **Do not start checking before the checklist is approved.** Steps 1 to 3 are reading and listing.
+- **Do not check items as the checklist builder**, and do not check another group's items as a group checker.
 - **Do not edit code.** This skill reviews. Fixes happen after the user picks them, as their own step.
 - **Do not filter the findings.** Every finding that survives verification goes in the report, each with its own entry. Summarising the list IS filtering it.
 - **Do not run tests, builds or lint, and never report a test result you did not produce.** This review reads. The host is often not bootstrapped, and "tests pass" from an unbuilt host is a false claim. Reporting that a behaviour has no test is fine and expected.
@@ -314,6 +344,7 @@ Your final message is the report, nothing else. The caller decides what happens 
 - **The checklist is the deliverable of the first half.** If it is vague ("check the types are sensible"), the check will be vague too. Each item should be checkable against a line of the diff.
 - **A long report is not a failure mode; a short one hiding findings is.** The pressure to tidy peaks exactly when the groups did their job and came back with a lot. Twenty entries the user skims in a minute beat twelve they trust and act on, because the eight you cut are the ones nobody ever sees again. Every finding that survives verification is already worth a line: that is what surviving verification means.
 - **The second finding under one item is the one that goes missing.** An item that reports two things reads as one thing by the time it reaches the report. Count per FINDING, never per item.
-- **The middle groups are where fatigue shows.** One context runs all of them now, and the ones in the middle get the tired pass. If a group answers every item `pass` in a few lines, you skimmed it: go back.
+- **A group that passes everything in a few lines skimmed.** Each group checker has one group and a fresh context, so there is no excuse: go back and read.
+- **The merger is where findings go missing.** It holds many reports at once and the pressure to tidy is highest there. Merge only true duplicates, and check the count.
 - **"But this feature has no docs" is not a finding.** It is the most tempting one to write and it is the one this review deliberately does not make. Leave it.
 - **New file, low bar to question it.** Ask what it would cost to put the code in the file that already owns that job. Often nothing.
