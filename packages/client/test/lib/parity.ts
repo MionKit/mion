@@ -11,7 +11,7 @@
 import {expect} from 'vitest';
 import {parseAst} from 'vite';
 import {MION_ROUTES, clientRowView, getJitFnHashes, getRoutePath, routeSyncId} from '@mionjs/core';
-import type {MethodWithOptions, ParserStrategy, SerializableMethodsData} from '@mionjs/core';
+import type {ParserStrategy, SerializableMethodsData} from '@mionjs/core';
 import {getRTUtils} from '@mionjs/run-types/runtime';
 import type {InjectApiMetadata} from '@mionjs/run-types';
 import type {TestServerApi} from '@mionjs/test-server';
@@ -96,12 +96,6 @@ function expectSameFunctions(hash: string, served: SerializableMethodsData['deps
   for (const dependency of server.rtDependencies ?? []) expectSameFunctions(dependency, served, seen);
 }
 
-function parserOf(row: MethodWithOptions): {params: ParserStrategy; return: ParserStrategy} {
-  const parser = row.options.parser as unknown;
-  if (typeof parser === 'string') return {params: parser as ParserStrategy, return: parser as ParserStrategy};
-  return parser as {params: ParserStrategy; return: ParserStrategy};
-}
-
 export async function expectEveryMethodMatchesTheServer(baseURL: string): Promise<void> {
   resetClientCaches();
   resetBundledApi();
@@ -122,7 +116,7 @@ export async function expectEveryMethodMatchesTheServer(baseURL: string): Promis
       expect(fromServer, id).toBeDefined();
       expect(routeSyncId(bundled, getMethod), id).toBe(fromServer);
     }
-    const parser = parserOf(server);
+    const parser = clientRowView(server).parser as {params: ParserStrategy; return: ParserStrategy};
     const hashes = [
       ...Object.values(getJitFnHashes(server.paramsJitHash, parser.params)),
       ...Object.values(getJitFnHashes(server.returnJitHash, parser.return)),
