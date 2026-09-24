@@ -35,6 +35,7 @@
   "ignorePatterns": [
     "node_modules/**",
     "ts-go-runtypes/**",
+    "tools/**",
     "**/dist/**",
     "**/.dist/**",
     "**/coverage/**",

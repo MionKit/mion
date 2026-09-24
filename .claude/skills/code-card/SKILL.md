@@ -5,13 +5,13 @@ description: Make a shareable PNG of a code snippet (an editor window in the mio
 
 # code-card
 
-The app lives in [packages/code-card/](../../../packages/code-card/). You write a small markdown card; the app colours the code (Shiki) and saves a 2400px-wide PNG through the repo's playwright-cli.
+The app lives in [tools/code-card/](../../../tools/code-card/). You write a small markdown card; the app colours the code (Shiki) and saves a 2400px-wide PNG through the repo's playwright-cli.
 
 ## The flow
 
 1. **Ask first, with AskUserQuestion: keep this card in git?**
-   - Yes: `pnpm miondevx card new <name>` puts it in `packages/code-card/cards/`. Commit the `.md` AND the `.png`.
-   - No: `pnpm miondevx card new <name> --tmp` puts it in `packages/code-card/tmp/`, which git ignores.
+   - Yes: `pnpm miondevx card new <name>` puts it in `tools/code-card/cards/`. Commit the `.md` AND the `.png`.
+   - No: `pnpm miondevx card new <name> --tmp` puts it in `tools/code-card/tmp/`, which git ignores.
    Names are lowercase letters, digits and dashes.
 2. **Fill the card file** the command printed (format below).
 3. **Render it:** `pnpm miondevx card shot <name>`. The PNG lands next to the card (`--out <dir>` to move it).

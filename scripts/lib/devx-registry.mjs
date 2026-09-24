@@ -357,7 +357,7 @@ export const AREAS = {
     ...noBuild,
     ...bareHelp,
     commands: [
-      {name: 'new', args: '<name>', summary: 'scaffold a card in packages/code-card/cards/', flags: [['--tmp', 'in tmp/ instead (git ignores it)']]},
+      {name: 'new', args: '<name>', summary: 'scaffold a card in tools/code-card/cards/', flags: [['--tmp', 'in tmp/ instead (git ignores it)']]},
       {
         name: 'shot',
         args: '<name|path…>',
@@ -376,6 +376,7 @@ export const AREAS = {
           ['--browser <path>', "the Chromium binary (default: Playwright's own)"],
         ],
       },
+      {name: 'test', summary: 'type check + tests of tools/code-card (no CI lane runs them)'},
     ],
   },
   env: {

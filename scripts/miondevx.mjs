@@ -514,14 +514,15 @@ async function runContainer(args) {
   main(args);
 }
 
-// ── card: shareable code images (packages/code-card/) ────────────────────────
+// ── card: shareable code images (tools/code-card/) ────────────────────────
 // A child process, never an import: the app has its own deps (shiki, playwright-cli) and .ts sources.
 function runCard(args) {
   const [sub, ...rest] = args;
   if (!lookup('card', sub)) die(usage('card'), 2);
-  if (sub === 'new') return proxy('node', ['packages/code-card/src/new.ts', ...rest]);
-  if (sub === 'shot') return proxy('node', ['packages/code-card/src/shoot.ts', ...rest]);
-  if (sub === 'serve') return proxy('node', ['packages/code-card/src/server.ts', ...rest]);
+  if (sub === 'new') return proxy('node', ['tools/code-card/src/new.ts', ...rest]);
+  if (sub === 'shot') return proxy('node', ['tools/code-card/src/shoot.ts', ...rest]);
+  if (sub === 'serve') return proxy('node', ['tools/code-card/src/server.ts', ...rest]);
+  if (sub === 'test') return proxy('pnpm', ['--filter', '@mionjs/code-card', 'run', 'test']);
   die(usage('card'), 2);
 }
 

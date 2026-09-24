@@ -105,7 +105,7 @@ export function createCardServer({browser, cardPaths = {}}: CardServerOptions = 
 export function main(argv: string[]): void {
   const {port, browser} = parseServeArgs(argv);
   const server = createCardServer({browser});
-  server.listen(port, () => console.log(`code cards on http://localhost:${port}/ (cards from packages/code-card/)`));
+  server.listen(port, () => console.log(`code cards on http://localhost:${port}/ (cards from tools/code-card/)`));
   const stop = () => server.close(() => process.exit(0));
   process.on('SIGINT', stop);
   process.on('SIGTERM', stop);
