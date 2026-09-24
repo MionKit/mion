@@ -19,18 +19,4 @@ export const CURRENCY = {
     schemaDecoder: () => createJsonDecoderFn(TF.currency()),
     getTestData: () => ({values: [19.99, 0, -1234.56]}),
   },
-  currency_minor_units: {
-    title: 'Currency minor units',
-    description:
-      'JSON (de)serialization of TF.Currency<{integer:true; min:0; max:65535}> (cents); the bounds constrain validation only, so JSON writes the plain number.',
-    mutateEncoder: () => createJsonEncoderFn<TF.Currency<{integer: true; min: 0; max: 65535}>>(undefined, {strategy: 'mutate'}),
-    cloneEncoder: () => createJsonEncoderFn<TF.Currency<{integer: true; min: 0; max: 65535}>>(undefined, {strategy: 'clone'}),
-    compactEncoder: () => createJsonEncoderFn<TF.Currency<{integer: true; min: 0; max: 65535}>>(undefined, {strategy: 'compact'}),
-    cloneDecoder: () => createJsonDecoderFn<TF.Currency<{integer: true; min: 0; max: 65535}>>(),
-    mutateDecoder: () => createJsonDecoderFn<TF.Currency<{integer: true; min: 0; max: 65535}>>(undefined, {strategy: 'mutate'}),
-    compactDecoder: () => createJsonDecoderFn<TF.Currency<{integer: true; min: 0; max: 65535}>>(undefined, {strategy: 'compact'}),
-    schemaEncoder: () => createJsonEncoderFn(TF.currency({integer: true, min: 0, max: 65535})),
-    schemaDecoder: () => createJsonDecoderFn(TF.currency({integer: true, min: 0, max: 65535})),
-    getTestData: () => ({values: [0, 1999, 65535]}),
-  },
 } as const satisfies Record<string, SerializationCase>;

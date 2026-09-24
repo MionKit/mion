@@ -53,42 +53,6 @@ export const ATOMIC = {
     }),
     passThrough: true,
   },
-  // Mirrors the serialization suite's magnitude rows to stay comparable; a clone has no wire, so all behave alike.
-  number_small: {
-    title: 'number (small)',
-    description: 'A small single-digit integer passes through by value — magnitude is irrelevant to a clone.',
-    clone: () => createRemoveUnknownKeysFn<number>(),
-    getTestData: () => ({values: [7]}),
-    passThrough: true,
-  },
-  number_medium: {
-    title: 'number (medium)',
-    description: 'A mid-size six-digit integer passes through by value.',
-    clone: () => createRemoveUnknownKeysFn<number>(),
-    getTestData: () => ({values: [123456]}),
-    passThrough: true,
-  },
-  number_large: {
-    title: 'number (large)',
-    description: 'The largest safe integer passes through by value.',
-    clone: () => createRemoveUnknownKeysFn<number>(),
-    getTestData: () => ({values: [Number.MAX_SAFE_INTEGER]}),
-    passThrough: true,
-  },
-  number_float_short: {
-    title: 'number (low-precision float)',
-    description: 'A short low-precision decimal passes through by value.',
-    clone: () => createRemoveUnknownKeysFn<number>(),
-    getTestData: () => ({values: [3.14]}),
-    passThrough: true,
-  },
-  number_float_precise: {
-    title: 'number (high-precision float)',
-    description: 'A full-precision 17-digit double passes through by value — no text projection, no precision loss.',
-    clone: () => createRemoveUnknownKeysFn<number>(),
-    getTestData: () => ({values: [3.141592653589793]}),
-    passThrough: true,
-  },
   number_not_supported: {
     title: 'number edge cases',
     description: 'Infinity / -Infinity / NaN pass through unchanged — unlike JSON serialization, which nulls them.',

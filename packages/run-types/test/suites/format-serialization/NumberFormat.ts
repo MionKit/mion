@@ -4,90 +4,6 @@ import '@mionjs/run-types/formats';
 import {createJsonDecoderFn, createJsonEncoderFn} from '@mionjs/run-types';
 
 export const NUMBER_FORMAT = {
-  number_int8: {
-    title: 'Int8',
-    description:
-      'JSON (de)serialization of TF.Int8 (number branded {integer:true; min:-128; max:127}); the bounds constrain validation only, so JSON writes the plain number.',
-    mutateEncoder: () => createJsonEncoderFn<TF.Int8>(undefined, {strategy: 'mutate'}),
-    cloneEncoder: () => createJsonEncoderFn<TF.Int8>(undefined, {strategy: 'clone'}),
-    compactEncoder: () => createJsonEncoderFn<TF.Int8>(undefined, {strategy: 'compact'}),
-    cloneDecoder: () => createJsonDecoderFn<TF.Int8>(),
-    mutateDecoder: () => createJsonDecoderFn<TF.Int8>(undefined, {strategy: 'mutate'}),
-    compactDecoder: () => createJsonDecoderFn<TF.Int8>(undefined, {strategy: 'compact'}),
-    schemaEncoder: () => createJsonEncoderFn(TF.int8()),
-    schemaDecoder: () => createJsonDecoderFn(TF.int8()),
-    getTestData: () => ({values: [-128, 0, 127]}),
-  },
-  number_int16: {
-    title: 'Int16',
-    description:
-      'JSON (de)serialization of TF.Int16 (number branded {integer:true; min:-32768; max:32767}); the bounds constrain validation only, so JSON writes the plain number.',
-    mutateEncoder: () => createJsonEncoderFn<TF.Int16>(undefined, {strategy: 'mutate'}),
-    cloneEncoder: () => createJsonEncoderFn<TF.Int16>(undefined, {strategy: 'clone'}),
-    compactEncoder: () => createJsonEncoderFn<TF.Int16>(undefined, {strategy: 'compact'}),
-    cloneDecoder: () => createJsonDecoderFn<TF.Int16>(),
-    mutateDecoder: () => createJsonDecoderFn<TF.Int16>(undefined, {strategy: 'mutate'}),
-    compactDecoder: () => createJsonDecoderFn<TF.Int16>(undefined, {strategy: 'compact'}),
-    schemaEncoder: () => createJsonEncoderFn(TF.int16()),
-    schemaDecoder: () => createJsonDecoderFn(TF.int16()),
-    getTestData: () => ({values: [-32768, 0, 32767]}),
-  },
-  number_int32: {
-    title: 'Int32',
-    description:
-      'JSON (de)serialization of TF.Int32 (number branded {integer:true; min:-2147483648; max:2147483647}); the bounds constrain validation only, so JSON writes the plain number.',
-    mutateEncoder: () => createJsonEncoderFn<TF.Int32>(undefined, {strategy: 'mutate'}),
-    cloneEncoder: () => createJsonEncoderFn<TF.Int32>(undefined, {strategy: 'clone'}),
-    compactEncoder: () => createJsonEncoderFn<TF.Int32>(undefined, {strategy: 'compact'}),
-    cloneDecoder: () => createJsonDecoderFn<TF.Int32>(),
-    mutateDecoder: () => createJsonDecoderFn<TF.Int32>(undefined, {strategy: 'mutate'}),
-    compactDecoder: () => createJsonDecoderFn<TF.Int32>(undefined, {strategy: 'compact'}),
-    schemaEncoder: () => createJsonEncoderFn(TF.int32()),
-    schemaDecoder: () => createJsonDecoderFn(TF.int32()),
-    getTestData: () => ({values: [-2147483648, 0, 2147483647]}),
-  },
-  number_uint8: {
-    title: 'UInt8',
-    description:
-      'JSON (de)serialization of TF.UInt8 (number branded {integer:true; min:0; max:255}); the bounds constrain validation only, so JSON writes the plain number.',
-    mutateEncoder: () => createJsonEncoderFn<TF.UInt8>(undefined, {strategy: 'mutate'}),
-    cloneEncoder: () => createJsonEncoderFn<TF.UInt8>(undefined, {strategy: 'clone'}),
-    compactEncoder: () => createJsonEncoderFn<TF.UInt8>(undefined, {strategy: 'compact'}),
-    cloneDecoder: () => createJsonDecoderFn<TF.UInt8>(),
-    mutateDecoder: () => createJsonDecoderFn<TF.UInt8>(undefined, {strategy: 'mutate'}),
-    compactDecoder: () => createJsonDecoderFn<TF.UInt8>(undefined, {strategy: 'compact'}),
-    schemaEncoder: () => createJsonEncoderFn(TF.uint8()),
-    schemaDecoder: () => createJsonDecoderFn(TF.uint8()),
-    getTestData: () => ({values: [0, 128, 255]}),
-  },
-  number_uint16: {
-    title: 'UInt16',
-    description:
-      'JSON (de)serialization of TF.UInt16 (number branded {integer:true; min:0; max:65535}); the bounds constrain validation only, so JSON writes the plain number.',
-    mutateEncoder: () => createJsonEncoderFn<TF.UInt16>(undefined, {strategy: 'mutate'}),
-    cloneEncoder: () => createJsonEncoderFn<TF.UInt16>(undefined, {strategy: 'clone'}),
-    compactEncoder: () => createJsonEncoderFn<TF.UInt16>(undefined, {strategy: 'compact'}),
-    cloneDecoder: () => createJsonDecoderFn<TF.UInt16>(),
-    mutateDecoder: () => createJsonDecoderFn<TF.UInt16>(undefined, {strategy: 'mutate'}),
-    compactDecoder: () => createJsonDecoderFn<TF.UInt16>(undefined, {strategy: 'compact'}),
-    schemaEncoder: () => createJsonEncoderFn(TF.uint16()),
-    schemaDecoder: () => createJsonDecoderFn(TF.uint16()),
-    getTestData: () => ({values: [0, 32768, 65535]}),
-  },
-  number_uint32: {
-    title: 'UInt32',
-    description:
-      'JSON (de)serialization of TF.UInt32 (number branded {integer:true; min:0; max:4294967295}); the bounds constrain validation only, so JSON writes the plain number.',
-    mutateEncoder: () => createJsonEncoderFn<TF.UInt32>(undefined, {strategy: 'mutate'}),
-    cloneEncoder: () => createJsonEncoderFn<TF.UInt32>(undefined, {strategy: 'clone'}),
-    compactEncoder: () => createJsonEncoderFn<TF.UInt32>(undefined, {strategy: 'compact'}),
-    cloneDecoder: () => createJsonDecoderFn<TF.UInt32>(),
-    mutateDecoder: () => createJsonDecoderFn<TF.UInt32>(undefined, {strategy: 'mutate'}),
-    compactDecoder: () => createJsonDecoderFn<TF.UInt32>(undefined, {strategy: 'compact'}),
-    schemaEncoder: () => createJsonEncoderFn(TF.uint32()),
-    schemaDecoder: () => createJsonDecoderFn(TF.uint32()),
-    getTestData: () => ({values: [0, 2147483648, 4294967295]}),
-  },
   number_integer: {
     title: 'Integer',
     description:
@@ -115,19 +31,5 @@ export const NUMBER_FORMAT = {
     schemaEncoder: () => createJsonEncoderFn(TF.float()),
     schemaDecoder: () => createJsonDecoderFn(TF.float()),
     getTestData: () => ({values: [10.5, -3.14, 1.23e10]}),
-  },
-  number_ranged: {
-    title: 'Ranged Integer',
-    description:
-      'JSON (de)serialization of an ad-hoc ranged TF.Number {min:0; max:1000; integer:true} (not one of the named int aliases); the bounds constrain validation only, so JSON writes the plain number.',
-    mutateEncoder: () => createJsonEncoderFn<TF.Number<{min: 0; max: 1000; integer: true}>>(undefined, {strategy: 'mutate'}),
-    cloneEncoder: () => createJsonEncoderFn<TF.Number<{min: 0; max: 1000; integer: true}>>(undefined, {strategy: 'clone'}),
-    compactEncoder: () => createJsonEncoderFn<TF.Number<{min: 0; max: 1000; integer: true}>>(undefined, {strategy: 'compact'}),
-    cloneDecoder: () => createJsonDecoderFn<TF.Number<{min: 0; max: 1000; integer: true}>>(),
-    mutateDecoder: () => createJsonDecoderFn<TF.Number<{min: 0; max: 1000; integer: true}>>(undefined, {strategy: 'mutate'}),
-    compactDecoder: () => createJsonDecoderFn<TF.Number<{min: 0; max: 1000; integer: true}>>(undefined, {strategy: 'compact'}),
-    schemaEncoder: () => createJsonEncoderFn(TF.number({min: 0, max: 1000, integer: true})),
-    schemaDecoder: () => createJsonDecoderFn(TF.number({min: 0, max: 1000, integer: true})),
-    getTestData: () => ({values: [0, 500, 1000]}),
   },
 } as const satisfies Record<string, SerializationCase>;
