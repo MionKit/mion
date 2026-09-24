@@ -34,7 +34,7 @@ export const defaultClientRouteOptions = {
 };
 
 // Internal mion routes that should not be exposed to clients
-const mionInternalRoutes = Object.values(MION_ROUTES) as string[];
+export const mionInternalRouteIds: ReadonlySet<string> = new Set(Object.values(MION_ROUTES));
 
 /** With getAllRemoteMethods, answers with every public method instead of the given ids.
  * @mion:route
@@ -55,7 +55,7 @@ function mionGetRemoteMethodsDataById(
   const shouldReturnAll = getAllRemoteMethods && getTotalExecutables() <= maxMethods;
   const idsToReturn = shouldReturnAll
     ? getAllExecutablesIds().filter(
-        (id) => !mionInternalRoutes.includes(id) && isPublicExecutable(getAnyExecutable(id) as RemoteMethod)
+        (id) => !mionInternalRouteIds.has(id) && isPublicExecutable(getAnyExecutable(id) as RemoteMethod)
       )
     : methodsIds;
   idsToReturn.forEach((id) => addRequiredRemoteMethodsToResponse(id, resp, errorData));
@@ -90,7 +90,7 @@ export function getMethodsDataFor(ids: string[]): SerializableMethodsData {
 function addRequiredRemoteMethodsToResponse(id: string, resp: SerializableMethodsData, errorData: AnyObject): void {
   const {methods, deps, purFnDeps} = resp;
   if (methods[id]) return;
-  if (mionInternalRoutes.includes(id)) return;
+  if (mionInternalRouteIds.has(id)) return;
   const executable = getMiddlewareExecutable(id) || getRouteExecutable(id);
   if (!executable) {
     errorData[id] = `Remote Method ${id} not found`;
