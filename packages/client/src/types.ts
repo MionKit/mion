@@ -88,9 +88,8 @@ export interface ClientOptions {
    *  with `sanitizeParams`. Defaults to true. The server sanitizes those routes regardless, so
    *  turning this off only changes what the client validates and sends, never what the handler gets. */
   sanitizeParams: boolean;
-  /** How the FIRST call of a route goes out: `optimistic` sends the params before the metadata is
-   *  known, on the plain wire forms every server decoder accepts, and retries with the route's real
-   *  encoder on an error. The server always answers in JSON, whatever this option says. */
+  /** `optimistic` sends a route's first call before its metadata is known, retrying with the real encoder on error.
+   *  The server always answers in JSON, whatever this option says. */
   serializer: SerializerMode;
   /** Where the client keeps what it learned about the remote methods, so a later visit does not have
    *  to ask again. `indexeddb` (the default) uses the browser's own database, `memory` keeps it for

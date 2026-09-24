@@ -429,13 +429,11 @@ function recursiveCreateExecutionChain(
       ...postMiddlewares,
     ];
     const methods = [...startMiddlewares, ...levelMethods, ...endMiddlewares];
-    // an internal error route (thrownErrors, platformError) is never called by a client, so it takes
-    // the platform's number rather than the tiny one its own no-params tuple derives
+    // internal error routes are never client-called: platform's size, not their no-params tuple's tiny one
     const maxBodySize = mionInternalRoutes.includes(routeMethod.id)
       ? routeMethod.options.maxBodySize
       : resolveChainMaxBodySize(methods, routeMethod, routerOptions);
-    // the resolved number is what the route publishes in its metadata; undefined means the
-    // platform's, filled in when the metadata is read (the adapter has started by then)
+    // published in the metadata; undefined means the platform's, filled in when the metadata is read
     if (maxBodySize !== undefined) routeMethod.options.maxBodySize = maxBodySize;
     const executionChain: MethodsExecutionChain = {
       routeIndex: startMiddlewares.length + preMiddlewares.length + props.preLevelMiddlewares.length,
@@ -462,8 +460,7 @@ function recursiveCreateExecutionChain(
   return props;
 }
 
-/** The thrower goes first, so the dispatcher's own rule skips every later member that does not declare
- *  `alwaysRun`. Nothing is declared, so the request takes the platform adapter's number. */
+/** The thrower goes first so the dispatcher skips every later non-`alwaysRun` member; body size is the platform's. */
 function buildNotFoundChains(): void {
   notFoundChains.clear();
   const throwers = [

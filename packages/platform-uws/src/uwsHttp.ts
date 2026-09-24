@@ -284,17 +284,17 @@ function statusLine(statusCode: number): string {
 }
 
 function reply(res: HttpResponse, state: {aborted: boolean}, mionResp: MionResponse) {
-  // The client is gone and uWS freed the response — touching it would crash.
+  // uWS freed the response when the client left; touching it would crash
   if (state.aborted) return;
 
   // serialized BEFORE the cork: uWS warns a cork buffer must not be held across event loop iterations
   const payload = JSON.stringify(mionResp.body);
 
-  // cork batches status + headers + body into one syscall; headers are write-only in uWS and must all precede end().
-  // content-length is skipped: uWS writes its own from the end() payload, and a duplicate header corrupts the response.
+  // cork makes one syscall; uWS headers are write-only and must all precede end().
+  // content-length is skipped: uWS writes its own, and a duplicate corrupts the response.
   res.cork(() => {
     res.writeStatus(statusLine(mionResp.statusCode));
-    // uWS writes header values unchecked, so a CR or LF a handler echoed from the request would be header injection: dropped
+    // uWS writes headers unchecked, so an echoed CR or LF would be header injection: dropped
     forEachHeader(mionResp.headers, (name, value) => {
       if (name !== 'content-length' && isHeaderSafe(name) && isHeaderSafe(value)) res.writeHeader(name, value);
     });

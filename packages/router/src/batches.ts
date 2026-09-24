@@ -203,8 +203,7 @@ export function getBatchExecutionChain(
   return executionChain;
 }
 
-/** Merges the member chains (paths already transformed) deduplicating by id, the router's start and end
- *  middlewares kept at the two ends and each mapping step inserted between its source and target route. */
+/** Takes already-transformed paths; each mapping step goes between its source and target route. */
 function buildMergedExecutionChain(entry: BatchEntry, transformedPaths: string[]): MethodsExecutionChain {
   const seenIds = new Set<string>();
   const middleMethods: RemoteMethod[] = [];
@@ -241,10 +240,10 @@ function buildMergedExecutionChain(entry: BatchEntry, transformedPaths: string[]
   if (entry.mappings.length > 0) insertMappingMethods(entry, middleMethods);
 
   const methods = [...startMiddlewares, ...middleMethods, ...endMiddlewares];
-  // The entry's own number IS the declared one for a batch: it is the sum its members resolved to.
+  // A batch declares the sum its members resolved to
   const declaredBodySize = resolveBatchMaxBodySize(entry, memberChains);
   return {
-    // the first route's index: where the first route handler sits in the merged methods
+    // where the first route handler sits in the merged methods
     routeIndex: firstRouteIndex,
     methods,
     // cached per member-path list, so one chain answers every endpoint path that reaches it

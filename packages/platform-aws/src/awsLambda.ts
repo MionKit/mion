@@ -104,11 +104,11 @@ function buildQueryString(params: APIGatewayEvent['queryStringParameters']): str
 }
 
 function reply(routeResponse: MionResponse, headers: MionHeaders): APIGatewayProxyResult {
-  // AWS manages content-length automatically, so no need to set header unlike node
+  // AWS sets content-length itself, unlike node
   const singleHeaders: Record<string, string> = {};
   const multiHeaders: Record<string, string[]> = {};
   let multiHeaderCount = 0;
-  // entries() directly: Array.from built a second array on top of the Map the iterator already makes
+  // not Array.from: it would copy the Map into a second array
   for (const [name, value] of headers.entries()) {
     if (Array.isArray(value)) {
       multiHeaders[name] = value;
@@ -121,7 +121,7 @@ function reply(routeResponse: MionResponse, headers: MionHeaders): APIGatewayPro
   const responseBody = JSON.stringify(routeResponse.body);
   singleHeaders['content-type'] = 'application/json; charset=utf-8';
 
-  // the body is always text, so `isBase64Encoded` stays at API Gateway's default (false)
+  // the body is always text, so `isBase64Encoded` keeps its default (false)
   const resp: APIGatewayProxyResult = {
     statusCode: routeResponse.statusCode,
     headers: singleHeaders,

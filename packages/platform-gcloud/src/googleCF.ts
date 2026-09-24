@@ -128,7 +128,7 @@ function reply(mionResp: MionResponse, resp: Response): void {
   resp.status(mionResp.statusCode);
   const jsonString = JSON.stringify(mionResp.body);
   resp.set('content-type', 'application/json; charset=utf-8');
-  // Buffer.byteLength counts the bytes end() writes, without a full copy of the response first
+  // byteLength measures without copying the response into a Buffer
   resp.set('content-length', `${Buffer.byteLength(jsonString, 'utf8')}`);
   resp.end(jsonString, 'utf8');
 }

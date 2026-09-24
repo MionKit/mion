@@ -241,7 +241,7 @@ function fatalFail(httpResponse: ServerResponse, respHeaders: MionHeaders, error
 function reply(httpResp: ServerResponse, mionResp: MionResponse) {
   httpResp.statusCode = mionResp.statusCode;
   const jsonString = JSON.stringify(mionResp.body);
-  // Buffer.byteLength counts the bytes end() is about to write, without a copy of the whole response first
+  // byteLength measures without copying the response into a Buffer
   httpResp.setHeader('content-length', Buffer.byteLength(jsonString, 'utf8'));
   httpResp.end(jsonString, 'utf8');
 }

@@ -28,10 +28,7 @@ export function resolveExecutionChain(path: string, urlQuery: string | undefined
   return getExecutionChain(path, transformedPath, urlQuery, rawRequest, opts);
 }
 
-/** Builds the CallContext of an already-resolved request, with the body when there is one.
- *  `path` and `urlQuery` are the REQUEST's own: a registered route chain carries its own path and
- *  that one wins, but mion's not-found chains and a merged batch chain each answer for many paths,
- *  so those take what the request brought. */
+/** `path` and `urlQuery` are the request's; a route chain's own path wins, not-found and batch chains use the request's. */
 export function createContextFromChain(
   chain: MethodsExecutionChain,
   path: string,
@@ -45,8 +42,7 @@ export function createContextFromChain(
     headers: reqHeaders,
     rawBody: reqRawBody,
     bodyType: reqBodyType ?? getRequestBodyType(reqRawBody),
-    // The parse replaces this wholesale, so a fresh object per request was thrown away unread. Shared and
-    // FROZEN: a write before the parse would be a silent cross-request leak, and is now a throw.
+    // Shared and FROZEN: the parse replaces it, and a write before the parse would leak across requests
     body: EMPTY_BODY,
     thrownErrors: undefined,
   } as MionRequest;
@@ -66,8 +62,7 @@ export function createContextFromChain(
     executionChain: chain,
     maxBodySize: chain.maxBodySize,
     readsBody: chain.readsBody,
-    // Eager: a lazy accessor measured 2x the heap and 6% less throughput at 1 KB, because defineProperty
-    // pushes every context into V8's dictionary mode.
+    // Eager: a lazy defineProperty puts contexts in V8 dictionary mode (2x heap, 6% less throughput at 1 KB)
     shared: contextDataFactory ? contextDataFactory() : {},
     urlQuery,
     batchId: chain.batchId,

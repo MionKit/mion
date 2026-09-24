@@ -87,9 +87,7 @@ async function runExecutionChain(
   opts: RouterOptions
 ): Promise<MionResponse> {
   const {response, request, executionChain} = context;
-  // A router whose methods are all synchronous has no promise anywhere, so awaiting each step cannot
-  // change a result and only costs a promise frame; `alwaysAwait: false` opts a mixed router into the
-  // same per-step rule. Settled when the routes were registered, so this is one read, not a recomputation.
+  // False for an all-sync router or `alwaysAwait: false`: awaiting a sync step only costs a promise frame
   const alwaysAwait = getAlwaysAwait();
   const executionList = executionChain.methods;
   const executionCount = executionList.length;
@@ -98,18 +96,15 @@ async function runExecutionChain(
     if (response.hasErrors && !executable.alwaysRun) continue;
 
     try {
-      // runRawMiddleware, runHeadersMiddleware & runRouteOrMiddleware must always accept the same parameters in the same order
-      // methodCaller is resolved when the method is registered, so the loop never has to pick one
-      // `isAsync` is decided by the type checker at the call site, not by inspecting the value, so a
-      // plain function returning a promise still awaits and a proven-sync chain costs no promise frames.
+      // runRawMiddleware, runHeadersMiddleware & runRouteOrMiddleware must take the same params in the same order
+      // methodCaller is resolved at registration, so the loop never picks one
+      // `isAsync` comes from the type checker, so a plain function returning a promise still awaits
       let result;
       if (alwaysAwait || executable.isAsync) {
         result = await executable.methodCaller(context, executable, request, response, opts, rawRequest, rawResponse);
       } else {
         result = executable.methodCaller(context, executable, request, response, opts, rawRequest, rawResponse);
-        // Backstop for a method whose declared type lied or is missing: an un-awaited promise would be
-        // serialized into the body as the answer. Paid ONCE per method, on its first run; one caught here
-        // is marked async for good, so every later request awaits it.
+        // Backstop for a wrong or missing declared type, else the promise is serialized as the answer
         if (executable.asyncChecked !== true) {
           executable.asyncChecked = true;
           if (result !== null && typeof result === 'object' && typeof result.then === 'function') {
@@ -119,30 +114,25 @@ async function runExecutionChain(
         }
       }
 
-      // A handler that declares a value and answers undefined is exactly the bug validateReturn is turned on for.
+      // Declaring a value and answering undefined is the bug validateReturn exists to catch
       if (result === undefined) {
         if (executable.options.validateReturn && executable.hasReturnData) validateReturnOrThrow(result, executable);
         continue;
       }
-      // ONE read answers "is this a mion error" for every branch below: the brand is an own property on
-      // every TypedError/RpcError/FatalError and on every copy that came off the wire.
+      // One brand read serves every branch below: it is an own property on every mion error, wire copies too
       // `null` is a valid answer and reading a property off it throws, so it is excluded first
       const isMionError = result !== null && result['mion@isΣrrθr'] === true;
       if (!executable.hasReturnData) {
-        // a raw middleware has no declared return type, so a returned error is undeclared: it halts and
-        // travels in @thrownErrors like a thrown one (its body slot is never serialized)
+        // a raw middleware declares no return, so a returned error is undeclared and halts like a thrown one
         if (isMionError || isNativeError(result)) recordUndeclaredError(context, executable.id, result);
         continue;
       }
       if (isMionError) {
-        // a returned FatalError ends the chain but stays in its own typed slot below; it is a declared
-        // answer, so without a statusCode of its own it reads as an application error, never unexpected.
-        // A plain RpcError is declared too: it stays in its slot and the chain keeps running.
+        // a returned FatalError is declared: it ends the chain but keeps its slot, defaulting to an application error.
+        // A plain RpcError stays in its slot and the chain keeps running.
         if (result.isFatal === true) markResponseFailed(context, result, StatusCodes.APPLICATION_ERROR);
       }
-      // An Error mion cannot represent is a bug, not data: without this it would be serialized into the
-      // body and served as a SUCCESSFUL answer. Carrying no brand it has no typed slot, so it takes the
-      // thrown path instead.
+      // A brandless Error is a bug with no typed slot; in the body it would be served as a SUCCESSFUL answer
       else if (isNativeError(result)) {
         recordUndeclaredError(context, executable.id, result);
         continue; // like a thrown one: it belongs in @thrownErrors, never in the body
