@@ -1,5 +1,5 @@
-// Fails on a stale or wrong `@mion-downgrade-error` / `@mion-expect-error` in packages/. The main oxlint config
-// ignores test/ and examples/, where nearly all live, and a whole-tree pass takes minutes.
+// Lints `@mion-downgrade-error` / `@mion-expect-error` comments in packages/: the main oxlint config ignores
+// test/ and examples/, where nearly all live, and a whole-tree pass takes minutes.
 import {join} from 'node:path';
 import {REPO_ROOT} from '../lib/env.mjs';
 import {capture, die, green, reportCliError, run} from '../lib/proc.mjs';
@@ -7,7 +7,7 @@ import {capture, die, green, reportCliError, run} from '../lib/proc.mjs';
 const DIRECTIVE = '@mion-(downgrade|expect)-error';
 const CONFIG = join(REPO_ROOT, 'scripts/core/oxlint-directives.json');
 
-// Tracked files only, so build output and node_modules never count.
+// Tracked files only: build output and node_modules never count.
 export function directiveFiles(repoRoot = REPO_ROOT) {
   const listed = capture('git', ['grep', '-l', '-z', '-E', DIRECTIVE, '--', 'packages/*.ts'], {cwd: repoRoot});
   // git grep exits 1 when nothing matches.
