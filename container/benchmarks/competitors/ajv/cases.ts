@@ -184,52 +184,6 @@ export const cases: CompetitorCases = {
   'ATOMIC.symbol': NOT_SUPPORTED, // no symbol type in JSON Schema; factoryThrows
   'ATOMIC.undefined': NOT_SUPPORTED, // no undefined type in JSON Schema
   'ATOMIC.void': NOT_SUPPORTED, // no undefined/void type in JSON Schema
-  'ATOMIC.literal_2_noLiterals': {
-    build: () => {
-      const ajv = new Ajv({strict: false, allowUnionTypes: true});
-      addFormats(ajv, {mode: 'full'});
-      const validate = ajv.compile({type: 'number'});
-      return (value: unknown) => validate(value) === true;
-    },
-    buildErrors: () => {
-      const ajv = new Ajv({strict: false, allowUnionTypes: true, allErrors: true});
-      addFormats(ajv, {mode: 'full'});
-      const validate = ajv.compile({type: 'number'});
-      return (value: unknown) => validate(value) === true;
-    },
-    samples: {invalid: ['4', null]},
-  }, // override: degrades to number; ajv accepts NaN/Infinity — drop them from invalid
-  'ATOMIC.literal_a_noLiterals': {
-    build: () => {
-      const ajv = new Ajv({strict: false, allowUnionTypes: true});
-      addFormats(ajv, {mode: 'full'});
-      const validate = ajv.compile({type: 'string'});
-      return (value: unknown) => validate(value) === true;
-    },
-    buildErrors: () => {
-      const ajv = new Ajv({strict: false, allowUnionTypes: true, allErrors: true});
-      addFormats(ajv, {mode: 'full'});
-      const validate = ajv.compile({type: 'string'});
-      return (value: unknown) => validate(value) === true;
-    },
-  },
-  'ATOMIC.literal_regexp_noLiterals': NOT_SUPPORTED, // degrades to RegExp; no RegExp instance type in JSON Schema
-  'ATOMIC.literal_true_noLiterals': {
-    build: () => {
-      const ajv = new Ajv({strict: false, allowUnionTypes: true});
-      addFormats(ajv, {mode: 'full'});
-      const validate = ajv.compile({type: 'boolean'});
-      return (value: unknown) => validate(value) === true;
-    },
-    buildErrors: () => {
-      const ajv = new Ajv({strict: false, allowUnionTypes: true, allErrors: true});
-      addFormats(ajv, {mode: 'full'});
-      const validate = ajv.compile({type: 'boolean'});
-      return (value: unknown) => validate(value) === true;
-    },
-  },
-  'ATOMIC.literal_1n_noLiterals': NOT_SUPPORTED, // degrades to bigint; no bigint type in JSON Schema
-  'ATOMIC.literal_symbol_noLiterals': NOT_SUPPORTED, // degrades to symbol; no symbol type in JSON Schema; factoryThrows
   'ATOMIC.unknown': {
     build: () => {
       const ajv = new Ajv({strict: false, allowUnionTypes: true});
@@ -355,7 +309,6 @@ export const cases: CompetitorCases = {
       return (value: unknown) => validate(value) === true;
     },
   },
-  'ARRAY.string_array_noIsArrayCheck': NOT_SUPPORTED, // RunTypes-specific noIsArrayCheck option; no JSON Schema equivalent
   'ARRAY.object_array': {
     build: () => {
       const ajv = new Ajv({strict: false, allowUnionTypes: true});

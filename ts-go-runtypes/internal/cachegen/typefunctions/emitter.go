@@ -389,7 +389,7 @@ const (
 //
 // A plain variant is ROOT-SCOPED: the walker keeps the family's plain inner prefix, so a child that goes
 // external is dep-called at its PLAIN entry and loses the option there. That is right for an option
-// describing the root's call shape (validate's noIsArrayCheck drops a guard the caller already ran) and
+// describing the root's call shape and
 // wrong for one describing the VALUE: hasUnknownKeys's runsAfterValidation is as true of `v.address` as of `v`.
 //
 // A propagating variant gets the family treatment: the inner prefix becomes the variant's own fnHash, so

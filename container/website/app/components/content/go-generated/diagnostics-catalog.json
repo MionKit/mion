@@ -334,28 +334,6 @@
       "example": null
     },
     {
-      "code": "MKR004",
-      "subsystem": "markers",
-      "level": "warning",
-      "severity": "warning",
-      "headline": "`noLiterals: true` has no effect here: the type argument doesn't resolve to literal values.",
-      "detail": "The `noLiterals` validate option skips the exact-value check that literal\ntypes (`'admin'`, `42`, `true`) compile to. This call's type argument\nresolves to a non-literal type, so there is no literal check to skip and\nthe option is a silent no-op.\n\nFix: drop the option:\n-  const isRole = createValidateFn<string>({noLiterals: true});\n+  const isRole = createValidateFn<string>();\n\nOr, if you meant to relax a literal union, point the option at the type\nthat actually carries the literals:\n  const isRole = createValidateFn<'admin' | 'user'>({noLiterals: true});",
-      "summary": null,
-      "fix": null,
-      "example": null
-    },
-    {
-      "code": "MKR005",
-      "subsystem": "markers",
-      "level": "warning",
-      "severity": "warning",
-      "headline": "`noIsArrayCheck: true` has no effect here: the type argument is not an array type.",
-      "detail": "The `noIsArrayCheck` validate option skips the `Array.isArray` guard that\narray types compile to. This call's type argument resolves to a non-array\ntype, so there is no guard to skip and the option is a silent no-op.\n\nFix: drop the option:\n-  const isUser = createValidateFn<User>({noIsArrayCheck: true});\n+  const isUser = createValidateFn<User>();\n\nOr point it at the array type you meant:\n  const isUsers = createValidateFn<User[]>({noIsArrayCheck: true});",
-      "summary": null,
-      "fix": null,
-      "example": null
-    },
-    {
       "code": "MKR006",
       "subsystem": "markers",
       "level": "warning",

@@ -14,13 +14,8 @@
 //    strategy) on the case's samples — identical wire output ⇒ same resolved
 //    runtype.
 //
-// Compile options (`noLiterals` / `noIsArrayCheck`) are folded into the cached
-// factory's variant key, so an option-bearing type-first form converges only with
-// a schema form that passes the SAME options — e.g. `createValidateFn<2>(…,
-// {noLiterals: true})` resolves the `itNL_<literal-2 id>` variant, matched by
-// `createValidateFn(RT.literal(2), {noLiterals: true})`, NOT by plain `RT.number()`.
-// The validation cases mirror their options on the schema thunk, so no special
-// casing is needed here.
+// Compile options (e.g. `numberMode`) fold into the cached factory's variant key, so an
+// option-bearing type-first form converges only with a schema form passing the SAME options.
 
 import {expect} from 'vitest';
 import type {Thunk, ValidationCase} from '../suites/validation/types.ts';

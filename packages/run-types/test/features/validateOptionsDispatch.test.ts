@@ -1,25 +1,9 @@
-// ValidateOptions variant dispatch — the JS-side guarantees that lock in the
-// "creating the same type with different ValidateOptions works" contract:
-//
-//   1. The structural type id is a function of T only. Passing options
-//      never changes the id (`getRunTypeId<T>()` returns the same value
-//      regardless of options the caller passes elsewhere for the same T).
-//   2. Each `(family, options-tuple)` pair dispatches to a DISTINCT
-//      cached factory — different variant cache keys (`val_<id>` vs
-//      `itNL_<id>` vs `valNA_<id>` vs `itNLA_<id>`).
-//   3. The variant body actually changes behaviour: the `noLiterals`
-//      variant accepts the base kind beyond the exact literal; the
-//      `noIsArrayCheck` variant skips the leading `Array.isArray` guard.
-//   4. Schema-form (`createValidateFn`) converges with marker-form for
-//      the same `T + options` — both resolve the same `<fnHash>_<typeId>`
-//      cache key and get a factory that exhibits the same behaviour.
-//
-// Style mirrors the existing reference-identity guards in
-// `tupleStructuralId.test.ts` and the id-integrity suite —
-// `.toBe` is a cache-identity check, `.not.toBe` is a cache-distinct
-// check. Behavioural assertions backstop the dispatch — they catch
-// the case where the JS variant key lookup misses and silently falls
-// back to the identity validator.
+// ValidateOptions variant dispatch, the JS-side guarantees behind "the same type with different ValidateOptions works":
+//   1. The structural type id is a function of T only; options never change it.
+//   2. Each (family, options) pair dispatches to a DISTINCT cached factory.
+//   3. The variant body changes behaviour (numberMode picks the base number check).
+//   4. Schema form converges with marker form for the same T + options.
+// `.toBe` is a cache-identity check, `.not.toBe` a cache-distinct one; behavioural asserts catch a missed variant lookup.
 
 import * as TF from '@mionjs/run-types/formats';
 import {describe, expect, it} from 'vitest';
@@ -34,79 +18,25 @@ describe('ValidateOptions — type-id stays structural across option combination
     expect(staticId).toBe(reflectId);
   });
 
-  it('string[] id is identical whether referenced bare or via a noIsArrayCheck call site', () => {
-    const bareId: string = getRunTypeId<string[]>();
-    // Build the variant factory at this call site too — its sole job is
-    // to prove the id-emitting marker doesn't fold options into the id.
-    const variantFactory = createValidateFn<string[]>(undefined, {noIsArrayCheck: true});
+  it('number[] id is identical whether referenced bare or via a numberMode call site', () => {
+    const bareId: string = getRunTypeId<number[]>();
+    // Builds the variant at this call site only to prove the id marker does not fold options into the id.
+    const variantFactory = createValidateFn<number[]>(undefined, {numberMode: 'typeof'});
     expect(variantFactory).toBeTypeOf('function');
-    const afterId: string = getRunTypeId<string[]>();
+    const afterId: string = getRunTypeId<number[]>();
     expect(afterId).toBe(bareId);
   });
 });
 
 describe('ValidateOptions — different option tuples dispatch to distinct cached factories', () => {
-  it("`createValidateFn<'a'>()` and `createValidateFn<'a'>(undefined, {noLiterals: true})` are different cached fns", () => {
-    expect(createValidateFn<'a'>()).not.toBe(createValidateFn<'a'>(undefined, {noLiterals: true}));
-  });
-
-  it('`createValidateFn<string[]>()` and `createValidateFn<string[]>(undefined, {noIsArrayCheck: true})` are different cached fns', () => {
-    expect(createValidateFn<string[]>()).not.toBe(createValidateFn<string[]>(undefined, {noIsArrayCheck: true}));
+  it("`createValidateFn<number[]>()` and `createValidateFn<number[]>(undefined, {numberMode: 'typeof'})` are different cached fns", () => {
+    expect(createValidateFn<number[]>()).not.toBe(createValidateFn<number[]>(undefined, {numberMode: 'typeof'}));
   });
 
   it('the same T with the same options resolves to ONE cached factory', () => {
-    expect(createValidateFn<string[]>(undefined, {noIsArrayCheck: true})).toBe(
-      createValidateFn<string[]>(undefined, {noIsArrayCheck: true})
+    expect(createValidateFn<number[]>(undefined, {numberMode: 'notNaN'})).toBe(
+      createValidateFn<number[]>(undefined, {numberMode: 'notNaN'})
     );
-  });
-});
-
-describe('ValidateOptions — variant bodies actually differ in behaviour', () => {
-  it("plain `'a'` rejects `'b'`; `noLiterals` variant accepts every string", () => {
-    const plain = createValidateFn<'a'>();
-    const variant = createValidateFn<'a'>(undefined, {noLiterals: true});
-    expect(plain('a')).toBe(true);
-    expect(plain('b')).toBe(false);
-    expect(variant('a')).toBe(true);
-    expect(variant('b')).toBe(true);
-    expect(variant(42)).toBe(false);
-  });
-
-  it('plain `string[]` rejects a non-array; `noIsArrayCheck` variant lets non-array values past the guard', () => {
-    const plain = createValidateFn<string[]>();
-    const variant = createValidateFn<string[]>(undefined, {noIsArrayCheck: true});
-    // Plain validator rejects 42 (typeof !== array).
-    expect(plain(42)).toBe(false);
-    // Variant strips the Array.isArray guard — 42 has no .length, the
-    // for-loop body never enters, so the validator passes. Mirrors the
-    // documented trade-off (Array.ts:570-573).
-    expect(variant(42)).toBe(true);
-    // Both still walk elements when an array is supplied.
-    expect(plain(['x'])).toBe(true);
-    expect(variant(['x'])).toBe(true);
-    expect(plain([42])).toBe(false);
-    expect(variant([42])).toBe(false);
-  });
-});
-
-describe('ValidateOptions — getValidationErrors variant parity with validate', () => {
-  it('`noLiterals` variant of getValidationErrors uses the base-kind label', () => {
-    const errors = createGetValidationErrorsFn<'a'>(undefined, {noLiterals: true});
-    // `noLiterals` accepts any string — including the non-matching 'b' —
-    // so the expected error array is empty.
-    expect(errors('b')).toEqual([]);
-    // A non-string still fails, with the base-kind label `string`.
-    const out = errors(42);
-    expect(out).toHaveLength(1);
-    expect(out[0]).toMatchObject({path: [], expected: 'string'});
-  });
-
-  it('`noIsArrayCheck` variant of getValidationErrors skips the top-level array guard', () => {
-    const errors = createGetValidationErrorsFn<string[]>(undefined, {noIsArrayCheck: true});
-    // Non-array input: no top-level error, no inner element loop runs.
-    expect(errors(42)).toEqual([]);
-    // Array with a bad element: the element check still fires.
-    expect(errors([42])[0]).toMatchObject({path: [0], expected: 'string'});
   });
 });
 
@@ -118,23 +48,21 @@ describe('ValidateOptions — schema-form ⇄ marker-form convergence', () => {
     expect(schema([42])).toBe(false);
   });
 
-  it('schema-form `noIsArrayCheck` variant skips the guard, just like the marker form', () => {
-    const marker = createValidateFn<string[]>(undefined, {noIsArrayCheck: true});
-    const schema = createValidateFn(RT.array(TF.string()), {noIsArrayCheck: true});
-    // Both let a non-array slip past the guard…
-    expect(marker(42)).toBe(true);
-    expect(schema(42)).toBe(true);
-    // …but still reject a bad element.
-    expect(marker([42])).toBe(false);
-    expect(schema([42])).toBe(false);
+  it('schema-form numberMode variant accepts NaN elements, just like the marker form', () => {
+    const marker = createValidateFn<number[]>(undefined, {numberMode: 'typeof'});
+    const schema = createValidateFn(RT.array(TF.number()), {numberMode: 'typeof'});
+    expect(marker([NaN])).toBe(true);
+    expect(schema([NaN])).toBe(true);
+    expect(marker(['x'])).toBe(false);
+    expect(schema(['x'])).toBe(false);
   });
 
-  it('schema-form `noIsArrayCheck` variant agrees with marker-form on getValidationErrors output', () => {
-    const marker = createGetValidationErrorsFn<string[]>(undefined, {noIsArrayCheck: true});
-    const schema = createGetValidationErrorsFn(RT.array(TF.string()), {noIsArrayCheck: true});
-    expect(marker(42)).toEqual([]);
-    expect(schema(42)).toEqual([]);
-    expect(marker([42])).toEqual(schema([42]));
+  it('schema-form numberMode variant agrees with marker-form on getValidationErrors output', () => {
+    const marker = createGetValidationErrorsFn<number[]>(undefined, {numberMode: 'typeof'});
+    const schema = createGetValidationErrorsFn(RT.array(TF.number()), {numberMode: 'typeof'});
+    expect(marker([NaN])).toEqual([]);
+    expect(schema([NaN])).toEqual([]);
+    expect(marker(['x'])).toEqual(schema(['x']));
   });
 });
 
@@ -186,40 +114,6 @@ describe('ValidateOptions — numberMode selects the base number check', () => {
     expect(errFinite(NaN)[0]).toMatchObject({path: [], expected: 'number'});
     expect(errTypeof(NaN)).toEqual([]);
   });
-
-  it('numberMode combines with noLiterals on a numeric literal (distinct factories, typeof base)', () => {
-    type Three = 3;
-    const plain = createValidateFn<Three>();
-    const noLit = createValidateFn<Three>(undefined, {noLiterals: true});
-    const noLitTypeof = createValidateFn<Three>(undefined, {noLiterals: true, numberMode: 'typeof'});
-    expect(plain).not.toBe(noLit);
-    expect(noLit).not.toBe(noLitTypeof);
-    // plain: exactly 3; noLiterals: any finite number; +typeof: any number incl NaN.
-    expect(plain(3)).toBe(true);
-    expect(plain(4)).toBe(false);
-    expect(noLit(4)).toBe(true);
-    expect(noLit(NaN)).toBe(false);
-    expect(noLitTypeof(NaN)).toBe(true);
-  });
-});
-
-describe('ValidateOptions — combined variants build the multi-letter suffix', () => {
-  it('`{noLiterals: true, noIsArrayCheck: true}` resolves to a factory distinct from each single-option variant', () => {
-    type T = readonly 'x'[];
-    const plain = createValidateFn<T>();
-    const nlOnly = createValidateFn<T>(undefined, {noLiterals: true});
-    const naOnly = createValidateFn<T>(undefined, {noIsArrayCheck: true});
-    const both = createValidateFn<T>(undefined, {noLiterals: true, noIsArrayCheck: true});
-    // All four are distinct cache entries — proves the variant suffix
-    // is constructed from both options together (`NLA`), not collapsed
-    // to one of the singles.
-    expect(plain).not.toBe(nlOnly);
-    expect(plain).not.toBe(naOnly);
-    expect(plain).not.toBe(both);
-    expect(nlOnly).not.toBe(naOnly);
-    expect(nlOnly).not.toBe(both);
-    expect(naOnly).not.toBe(both);
-  });
 });
 
 describe('ValidateOptions — numberMode reaches format-annotated numbers (Float and friends)', () => {
@@ -265,7 +159,6 @@ describe('ValidateOptions — numberMode reaches format-annotated numbers (Float
 describe('ValidateOptions — a union error function agrees with its own validator', () => {
   type LiteralUnion = {a: 'x'} | {b: number};
   type NumberUnion = {n: number} | {s: string};
-  type ArrayUnion = string[] | {b: number};
 
   // The contract, checked value by value: an empty error list exactly when the
   // paired validator says true.
@@ -280,16 +173,6 @@ describe('ValidateOptions — a union error function agrees with its own validat
 
   it('plain: union errors agree with the plain validator', () => {
     expectAgreement(createValidateFn<LiteralUnion>(), createGetValidationErrorsFn<LiteralUnion>(), literalValues);
-  });
-
-  it('noLiterals: `{a: "zzz"}` validates, so the report must be empty', () => {
-    const validate = createValidateFn<LiteralUnion>(undefined, {noLiterals: true});
-    const errors = createGetValidationErrorsFn<LiteralUnion>(undefined, {noLiterals: true});
-    // The repro: plain rejects the off-literal, noLiterals accepts it.
-    expect(createValidateFn<LiteralUnion>()({a: 'zzz'})).toBe(false);
-    expect(validate({a: 'zzz'})).toBe(true);
-    expect(errors({a: 'zzz'})).toEqual([]);
-    expectAgreement(validate, errors, literalValues);
   });
 
   it('numberMode typeof: `{n: NaN}` validates, so the report must be empty', () => {
@@ -309,29 +192,14 @@ describe('ValidateOptions — a union error function agrees with its own validat
     expectAgreement(validate, errors, numberValues);
   });
 
-  it('noIsArrayCheck: the union arm that skips the array guard agrees too', () => {
-    const validate = createValidateFn<ArrayUnion>(undefined, {noIsArrayCheck: true});
-    const errors = createGetValidationErrorsFn<ArrayUnion>(undefined, {noIsArrayCheck: true});
-    expectAgreement(validate, errors, [['x'], [42], {b: 1}, {b: 'x'}, 42, 'nope']);
-  });
-
-  it('combined options: noLiterals + numberMode resolve one shared variant', () => {
-    const options = {noLiterals: true, numberMode: 'typeof'} as const;
-    const validate = createValidateFn<LiteralUnion>(undefined, options);
-    const errors = createGetValidationErrorsFn<LiteralUnion>(undefined, options);
-    expect(validate({a: 'zzz'})).toBe(true);
-    expect(validate({b: NaN})).toBe(true);
-    expectAgreement(validate, errors, literalValues);
-  });
-
   it('marker coverage: the value-first call shape agrees the same way', () => {
-    const sample: LiteralUnion = {a: 'x'};
-    const validate = createValidateFn(sample, {noLiterals: true});
-    const errors = createGetValidationErrorsFn(sample, {noLiterals: true});
-    expect(validate({a: 'zzz'})).toBe(true);
-    expect(errors({a: 'zzz'})).toEqual([]);
-    expectAgreement(validate, errors, literalValues);
-    // The options never fold into the id — static and value-first agree.
-    expect(getRunTypeId<LiteralUnion>()).toBe(getRunTypeId(sample));
+    const sample: NumberUnion = {n: 1};
+    const validate = createValidateFn(sample, {numberMode: 'typeof'});
+    const errors = createGetValidationErrorsFn(sample, {numberMode: 'typeof'});
+    expect(validate({n: NaN})).toBe(true);
+    expect(errors({n: NaN})).toEqual([]);
+    expectAgreement(validate, errors, numberValues);
+    // The options never fold into the id, so static and value-first agree.
+    expect(getRunTypeId<NumberUnion>()).toBe(getRunTypeId(sample));
   });
 });

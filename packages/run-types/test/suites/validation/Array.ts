@@ -602,55 +602,6 @@ export const ARRAY = {
     ],
   },
 
-  string_array_noIsArrayCheck: {
-    title: 'noIsArrayCheck array',
-    description:
-      '`{noIsArrayCheck: true}` strips the `Array.isArray` guard, producing a distinctly-hashed validator that only walks elements.',
-    validateNotes: [
-      'With `{noIsArrayCheck: true}`, the `Array.isArray` guard is stripped — non-array inputs may slip through.',
-      'Use only when the caller has already verified the value is an array; the validator trusts the shape and only walks elements.',
-    ],
-    validate: () => createValidateFn<string[]>(undefined, {noIsArrayCheck: true}),
-    standardSchema: () => createStandardSchema<string[]>(undefined, {noIsArrayCheck: true}),
-    validateDataOnly: () => createValidateFn<DataOnly<string[]>>(undefined, {noIsArrayCheck: true}),
-    deserializeValidate: () => deserializeValidate<string[]>(undefined, {noIsArrayCheck: true}),
-    validateReflect: () => {
-      const v: string[] = [];
-      return createValidateFn(v, {noIsArrayCheck: true});
-    },
-    deserializeValidateReflect: () => {
-      const v: string[] = [];
-      return deserializeValidate(v, {noIsArrayCheck: true});
-    },
-    validateSchema: () => createValidateFn(RT.array(TF.string()), {noIsArrayCheck: true}),
-    getValidationErrors: () => createGetValidationErrorsFn<string[]>(undefined, {noIsArrayCheck: true}),
-    getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<string[]>>(undefined, {noIsArrayCheck: true}),
-    deserializeGetValidationErrors: () => deserializeGetValidationErrors<string[]>(undefined, {noIsArrayCheck: true}),
-    getValidationErrorsReflect: () => {
-      const v: string[] = [];
-      return createGetValidationErrorsFn(v, {noIsArrayCheck: true});
-    },
-    deserializeGetValidationErrorsReflect: () => {
-      const v: string[] = [];
-      return deserializeGetValidationErrors(v, {noIsArrayCheck: true});
-    },
-    getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.array(TF.string()), {noIsArrayCheck: true}),
-    mockType: () => createMockDataFn<string[]>(undefined, undefined),
-    mockTypeReflect: () => {
-      const v: string[] = [];
-      return createMockDataFn(v);
-    },
-    getSamples: () => ({
-      valid: [[], ['hello']],
-      // Without the guard, non-array inputs may not be rejected by
-      // the validator (the documented trade-off — the caller has
-      // pre-verified arrayness). Only sample inputs that the loop
-      // itself catches.
-      invalid: [[42]],
-    }),
-    getExpectedErrors: () => [[{path: [0], expected: 'string'}]],
-  },
-
   // ---- DEFERRED — sample payloads carried for future activation ----
 
   object_array: {

@@ -413,13 +413,11 @@ func (ValidationErrorsEmitter) emitKindDefault(rt *reflection.RunType, ctx *Emit
 
 	case reflection.KindArray:
 		// The child path literal is the loop counter var, so element errors carry [..., i0] in their access path.
-		// Two collapse paths: an empty child with noIsArrayCheck evaporates, an empty child without it leaves the array guard alone.
 		if rt.Child == nil {
 			return RTCode{Code: "", Type: CodeS}
 		}
 		// A non-serializable element (symbol / function) comes back CodeNS with the element as the leaf: alwaysThrow at the root,
 		// absorbed at a property (T3, matching validate.go's array arm).
-		noIsArrayCheck := ctx.HasVariantOption("noIsArrayCheck")
 		iVar := ctx.NextLocalVar("i")
 		ctx.SetChildAccessor(v + "[" + iVar + "]")
 		ctx.SetChildPathLiteral(iVar)
@@ -431,18 +429,12 @@ func (ValidationErrorsEmitter) emitKindDefault(rt *reflection.RunType, ctx *Emit
 		}
 		// A child with no body (a KindAny element) reduces to the bare array guard or a noop.
 		if childRT.Code == "" {
-			if noIsArrayCheck {
-				return RTCode{Code: "", Type: CodeS}
-			}
 			return RTCode{
 				Code: "if (!Array.isArray(" + v + ")) " + callRTErr(ctx, "array", ""),
 				Type: CodeS,
 			}
 		}
 		itemsCode := "for (let " + iVar + " = 0; " + iVar + " < " + v + ".length; " + iVar + "++) {" + childRT.Code + "}"
-		if noIsArrayCheck {
-			return RTCode{Code: itemsCode, Type: CodeS}
-		}
 		return RTCode{
 			Code: "if (!Array.isArray(" + v + ")) {" + callRTErr(ctx, "array", "") + "} else {" + itemsCode + "}",
 			Type: CodeS,
@@ -485,56 +477,18 @@ func callRTErr(ctx *EmitContext, expected string, extra string) string {
 }
 
 // emitLiteralValidationErrors wraps emitLiteral's boolean expression in `if (!(<expr>)) <error>`.
-// Under the noLiterals variant both the predicate and the `expected` label drop to the base kind, so the user sees the same
-// notion of "expected" from this factory and from validate.
 func emitLiteralValidationErrors(rt *reflection.RunType, ctx *EmitContext) RTCode {
-	noLiterals := ctx.HasVariantOption("noLiterals")
-	var validateExpr RTCode
-	if noLiterals {
-		validateExpr = emitLiteralBaseKind(rt, ctx.Vλl, ctx.NumberMode())
-	} else {
-		validateExpr = emitLiteral(rt, ctx.Vλl)
-	}
-	// emitLiteralBaseKind returns CodeNS for the symbol-literal arm, so the renderer emits an alwaysThrow factory at the root,
-	// matching the plain KindSymbol behaviour.
+	validateExpr := emitLiteral(rt, ctx.Vλl)
 	if validateExpr.Type == CodeNS {
 		return RTCode{Code: "", Type: CodeNS}
 	}
 	if validateExpr.Code == "" {
 		return RTCode{Code: "", Type: CodeS}
 	}
-	expectedLabel := "literal"
-	if noLiterals {
-		expectedLabel = literalBaseKindLabel(rt)
-	}
 	return RTCode{
-		Code: "if (!(" + validateExpr.Code + ")) " + callRTErr(ctx, expectedLabel, ""),
+		Code: "if (!(" + validateExpr.Code + ")) " + callRTErr(ctx, "literal", ""),
 		Type: CodeS,
 	}
-}
-
-// literalBaseKindLabel returns the `expected` label that pairs with the `noLiterals` body: the base atomic kind's name, so
-// the reported type reads consistently with the shape that was validated.
-func literalBaseKindLabel(rt *reflection.RunType) string {
-	flagSet := make(map[string]bool, len(rt.Flags))
-	for _, flag := range rt.Flags {
-		flagSet[flag] = true
-	}
-	if flagSet["bigint"] {
-		return "bigint"
-	}
-	if flagSet["symbol"] {
-		return "symbol"
-	}
-	switch rt.Literal.(type) {
-	case bool:
-		return "boolean"
-	case int64, float64:
-		return "number"
-	case string:
-		return "string"
-	}
-	return "literal"
 }
 
 // emitObjectValidationErrors builds the object-shape statement: a `typeof === 'object' && !== null` guard (or
@@ -926,7 +880,7 @@ func emitTemplateLiteralValidationErrors(rt *reflection.RunType, ctx *EmitContex
 }
 
 // emitUnionValidationErrors delegates to the union's boolean validator: a union failure is ONE error, never a per-arm breakdown.
-// The delegate is resolved under THIS WALKER'S VARIANT, not the plain one: a `{noLiterals}` / `{numberMode}` error function
+// The delegate is resolved under THIS WALKER'S VARIANT, not the plain one: a `{numberMode}` error function
 // must ask the validator the caller actually holds, or it reports `{expected:'union'}` for a value its own createValidateFn
 // accepts. Walker-scoped is the right scope; a union the walker does NOT inline is dep-called and resolves the plain hash.
 // registerRTLookup records a CROSS-family edge rather than a walker.RTDependencies entry, because the dangling-dep cascade
@@ -936,7 +890,7 @@ func emitUnionValidationErrors(rt *reflection.RunType, ctx *EmitContext, v strin
 	// Under {checkUnknowns: true} the plain validator accepts a value carrying an undeclared key, so delegating to it made the
 	// strict error function report NOTHING for a value its own validator rejects. Pointing at validateStrict makes the two agree
 	// by construction. CrossFamilyVariantHash then keys the operation under the walker's own variant, so a strict site carrying
-	// `noLiterals` reaches the validateStrict entry compiled with `noLiterals`, not either default.
+	// `numberMode` reaches the validateStrict entry compiled with `numberMode`, not either default.
 	checkOp := "validate"
 	switch {
 	case ctx.ChecksUnknownKeys():

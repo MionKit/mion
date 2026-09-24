@@ -339,9 +339,6 @@ func (cache *Cache) computerFor(typeChecker *checker.Checker) *typeid.Computer {
 }
 
 // SerializeAtomicKind registers (or reuses) a synthetic entry for an atomic ReflectionKind without the type checker.
-// The `noLiterals` resolver path uses it to redirect a unique-symbol literal to the canonical `symbol` kind, since
-// tsgo's `getBaseTypeOfLiteralType` doesn't handle TypeFlagsUniqueESSymbol (see internal/compiler/resolver/scan.go).
-// Today only `KindSymbol` needs this escape hatch.
 func (cache *Cache) SerializeAtomicKind(kind reflection.ReflectionKind) string {
 	structural := strconv.Itoa(int(kind)) + ":atomic"
 	if id, ok := cache.byStructural[structural]; ok {

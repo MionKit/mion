@@ -108,7 +108,7 @@ func innerPrefix(settings constants.CacheModuleSettings) string {
 }
 
 // variantKey is an entry's cache key: `<plainFhash>_<id>` for the plain variant, `<variantFhash>_<id>` otherwise.
-// The variant fhash folds the option NAMES in: FnHashFor(validate, [noIsArrayCheck]) keys that variant of validate.
+// The variant fhash folds the option NAMES in: FnHashFor(validate, [numberTypeof]) keys that variant of validate.
 func variantKey(settings constants.CacheModuleSettings, suffix string, options []string, id string, rejectCircular bool) string {
 	op := familyOp(settings)
 	if suffix == "" && !rejectCircular {

@@ -173,46 +173,6 @@ export const cases: CompetitorCases = {
       return (value: unknown) => getErrors(value).length === 0;
     },
   },
-  'ATOMIC.literal_2_noLiterals': {
-    build: () => createValidateFn<2>(undefined, {noLiterals: true}),
-    buildErrors: () => {
-      const getErrors = createGetValidationErrorsFn<2>(undefined, {noLiterals: true});
-      return (value: unknown) => getErrors(value).length === 0;
-    },
-  },
-  'ATOMIC.literal_a_noLiterals': {
-    build: () => createValidateFn<'a'>(undefined, {noLiterals: true}),
-    buildErrors: () => {
-      const getErrors = createGetValidationErrorsFn<'a'>(undefined, {noLiterals: true});
-      return (value: unknown) => getErrors(value).length === 0;
-    },
-  },
-  'ATOMIC.literal_regexp_noLiterals': {
-    build: () => {
-      const reg = /abc/i;
-      return createValidateFn<typeof reg>(undefined, {noLiterals: true});
-    },
-    buildErrors: () => {
-      const reg = /abc/i;
-      const getErrors = createGetValidationErrorsFn<typeof reg>(undefined, {noLiterals: true});
-      return (value: unknown) => getErrors(value).length === 0;
-    },
-  },
-  'ATOMIC.literal_true_noLiterals': {
-    build: () => createValidateFn<true>(undefined, {noLiterals: true}),
-    buildErrors: () => {
-      const getErrors = createGetValidationErrorsFn<true>(undefined, {noLiterals: true});
-      return (value: unknown) => getErrors(value).length === 0;
-    },
-  },
-  'ATOMIC.literal_1n_noLiterals': {
-    build: () => createValidateFn<1n>(undefined, {noLiterals: true}),
-    buildErrors: () => {
-      const getErrors = createGetValidationErrorsFn<1n>(undefined, {noLiterals: true});
-      return (value: unknown) => getErrors(value).length === 0;
-    },
-  },
-  'ATOMIC.literal_symbol_noLiterals': NOT_SUPPORTED, // factoryThrows
   'ATOMIC.unknown': {
     build: () => createValidateFn<unknown>(),
     buildErrors: () => {
@@ -296,13 +256,6 @@ export const cases: CompetitorCases = {
     build: () => createValidateFn<string[][][]>(),
     buildErrors: () => {
       const getErrors = createGetValidationErrorsFn<string[][][]>();
-      return (value: unknown) => getErrors(value).length === 0;
-    },
-  },
-  'ARRAY.string_array_noIsArrayCheck': {
-    build: () => createValidateFn<string[]>(undefined, {noIsArrayCheck: true}),
-    buildErrors: () => {
-      const getErrors = createGetValidationErrorsFn<string[]>(undefined, {noIsArrayCheck: true});
       return (value: unknown) => getErrors(value).length === 0;
     },
   },

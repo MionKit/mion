@@ -191,68 +191,6 @@ export const cases: CompetitorCases = {
     },
   },
   'ATOMIC.void': NOT_SUPPORTED, // typia transform emits invalid JS `(void) => true` for the void type
-  // noLiterals degrades a literal to its base type; typia validates that base type directly.
-  'ATOMIC.literal_2_noLiterals': {
-    build: () => {
-      const check = typia.createIs<number>();
-      return (v) => check(v);
-    },
-    buildErrors: () => {
-      const val = typia.createValidate<number>();
-      return (v) => val(v).success;
-    },
-    samples: {invalid: ['4', null]},
-  }, // override: degrades to number (mirrors the other *_noLiterals base-type mappings); typia accepts NaN/Infinity so invalid drops them
-  'ATOMIC.literal_a_noLiterals': {
-    build: () => {
-      const check = typia.createIs<string>();
-      return (v) => check(v);
-    },
-    buildErrors: () => {
-      const val = typia.createValidate<string>();
-      return (v) => val(v).success;
-    },
-  },
-  'ATOMIC.literal_regexp_noLiterals': {
-    build: () => {
-      const check = typia.createIs<RegExp>();
-      return (v) => check(v);
-    },
-    buildErrors: () => {
-      const val = typia.createValidate<RegExp>();
-      return (v) => val(v).success;
-    },
-  },
-  'ATOMIC.literal_true_noLiterals': {
-    build: () => {
-      const check = typia.createIs<boolean>();
-      return (v) => check(v);
-    },
-    buildErrors: () => {
-      const val = typia.createValidate<boolean>();
-      return (v) => val(v).success;
-    },
-  },
-  'ATOMIC.literal_1n_noLiterals': {
-    build: () => {
-      const check = typia.createIs<bigint>();
-      return (v) => check(v);
-    },
-    buildErrors: () => {
-      const val = typia.createValidate<bigint>();
-      return (v) => val(v).success;
-    },
-  },
-  'ATOMIC.literal_symbol_noLiterals': {
-    build: () => {
-      const check = typia.createIs<symbol>();
-      return (v) => check(v);
-    },
-    buildErrors: () => {
-      const val = typia.createValidate<symbol>();
-      return (v) => val(v).success;
-    },
-  },
   'ATOMIC.unknown': {
     build: () => {
       const check = typia.createIs<unknown>();
@@ -374,16 +312,6 @@ export const cases: CompetitorCases = {
     },
     buildErrors: () => {
       const val = typia.createValidate<string[][][]>();
-      return (v) => val(v).success;
-    },
-  },
-  'ARRAY.string_array_noIsArrayCheck': {
-    build: () => {
-      const check = typia.createIs<string[]>();
-      return (v) => check(v);
-    },
-    buildErrors: () => {
-      const val = typia.createValidate<string[]>();
       return (v) => val(v).success;
     },
   },

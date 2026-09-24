@@ -142,37 +142,6 @@ export const ATOMIC = {
       };
     },
   },
-  literal_2_noLiterals: {
-    title: 'Numeric literal with noLiterals (degrades to number)',
-    description: 'degrades to number — Number.isFinite check',
-    getSamples: () => ({valid: [4, 0, -1], invalid: ['4', Infinity, NaN, null]}),
-  },
-  literal_a_noLiterals: {
-    title: 'String literal with noLiterals (degrades to string)',
-    description: 'degrades to string — typeof check',
-    getSamples: () => ({valid: ['c', ''], invalid: [1, null, undefined, true]}),
-  },
-  literal_regexp_noLiterals: {
-    title: 'RegExp literal with noLiterals (degrades to RegExp)',
-    description: 'degrades to RegExp — instanceof check',
-    getSamples: () => ({valid: [/otherReg/, new RegExp('foo')], invalid: ['otherReg', null, undefined, {}]}),
-  },
-  literal_true_noLiterals: {
-    title: 'Boolean literal with noLiterals (degrades to boolean)',
-    description: 'degrades to boolean — typeof check',
-    getSamples: () => ({valid: [false, true], invalid: [1, 0, 'true', null, undefined]}),
-  },
-  literal_1n_noLiterals: {
-    title: 'BigInt literal with noLiterals (degrades to bigint)',
-    description: 'degrades to bigint — typeof check',
-    getSamples: () => ({valid: [3n, 0n, 1n], invalid: [3, null, undefined, 1, '1n']}),
-  },
-  literal_symbol_noLiterals: {
-    title: 'Symbol literal with noLiterals (degrades to symbol)',
-    description: 'degrades to bare symbol — unsupported at root',
-    factoryThrows: true,
-    getSamples: () => ({valid: [], invalid: []}),
-  },
   unknown: {
     title: 'Unknown type — every value passes',
     getSamples: () => ({

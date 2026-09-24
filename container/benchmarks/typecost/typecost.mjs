@@ -204,13 +204,7 @@ function baseline(key, probePath, text) {
 
 function measure(form, baselineKey, probePath, baselineText, probeText, fallbackText) {
   let result = compile(probePath, probeText);
-  // The probe assigns the case's first valid SAMPLE; some forms intentionally
-  // accept a broader value set than their static type — ts-go's `noLiterals` (the
-  // type stays the literal `2`, but any number validates) and the serializable-only
-  // contract (a function/method member is dropped, so the data sample omits it) —
-  // so the sample need not satisfy T. On such a *value* error, retry WITHOUT the
-  // value to measure pure type-resolution cost. A genuine *type* error (missing
-  // name, excessively-deep instantiation) still fails the retry and surfaces.
+  // The serializable-only contract drops function members from samples, so on a value error retry declare-only; a type error still fails.
   if (result.errors.length && fallbackText && fallbackText !== probeText) {
     const retry = compile(probePath, fallbackText);
     if (!retry.errors.length) result = retry;
