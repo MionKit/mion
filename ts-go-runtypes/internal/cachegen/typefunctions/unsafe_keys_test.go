@@ -67,7 +67,7 @@ func TestUnsafeKeys_EveryIndexSignatureLoopIsGuarded(t *testing.T) {
 		}
 	}
 	// The in-place encoders stay guard-free on purpose (see the file comment).
-	for _, fam := range []string{"prepareForJsonMutate", "stringifyJson", "toBinary"} {
+	for _, fam := range []string{"prepareForJsonMutate", "toBinary"} {
 		out := renderModule(t, recordDump(), fam)
 		if strings.Contains(out, "k0.length === 9") {
 			t.Errorf("[%s] an in-place encoder must not pay the prototype-name compare per key; got:\n%s", fam, out)

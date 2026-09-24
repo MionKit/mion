@@ -153,8 +153,6 @@ export {
   type RestoreFromJsonFn,
   type RestoreFromJsonOptions,
   type JsonValueStrategy,
-  createStringifyJsonFn,
-  type StringifyJsonFn,
 } from './createRTFunctions.ts';
 
 // Binary I/O re-exported from a dedicated module so bundlers can drop the

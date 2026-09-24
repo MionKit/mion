@@ -9,13 +9,12 @@ export const RECORDS = {
     description:
       'Root `{[key: string]: string}` dynamic-key record of string values where JSON and binary round-trip every key/value pair (and empty objects) as a plain object with no per-value transform on the atomic string values.',
     serializeNotes:
-      'The index signature admits every key, so strip and preserve decode identically — there are no undeclared keys to drop.',
+      'The index signature admits every key, so the clone and mutate decoders decode identically — there are no undeclared keys to drop.',
     mutateEncoder: () => createJsonEncoderFn<{[key: string]: string}>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<{[key: string]: string}>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<{[key: string]: string}>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<{[key: string]: string}>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<{[key: string]: string}>(),
-    preserveDecoder: () => createJsonDecoderFn<{[key: string]: string}>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<{[key: string]: string}>(),
+    mutateDecoder: () => createJsonDecoderFn<{[key: string]: string}>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<{[key: string]: string}>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<{[key: string]: string}>(),
     binaryDecoder: () => createBinaryDecoderFn<{[key: string]: string}>(),
@@ -30,13 +29,12 @@ export const RECORDS = {
     description:
       'Root `{a: string; [key: string]: string}` with a declared `a` plus a string-valued index signature where JSON and binary round-trip the declared property alongside any number of dynamic string keys, with samples covering the `a`-only shape and one with an extra `b` key.',
     serializeNotes:
-      'The index signature admits every key, so strip and preserve decode identically — dynamic keys are never treated as undeclared.',
+      'The index signature admits every key, so the clone and mutate decoders decode identically — dynamic keys are never treated as undeclared.',
     mutateEncoder: () => createJsonEncoderFn<{a: string; [key: string]: string}>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<{a: string; [key: string]: string}>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<{a: string; [key: string]: string}>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<{a: string; [key: string]: string}>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<{a: string; [key: string]: string}>(),
-    preserveDecoder: () => createJsonDecoderFn<{a: string; [key: string]: string}>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<{a: string; [key: string]: string}>(),
+    mutateDecoder: () => createJsonDecoderFn<{a: string; [key: string]: string}>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<{a: string; [key: string]: string}>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<{a: string; [key: string]: string}>(),
     binaryDecoder: () => createBinaryDecoderFn<{a: string; [key: string]: string}>(),
@@ -51,18 +49,16 @@ export const RECORDS = {
     description:
       'Root `{a: string; b: number; [key: string]: string | number}` with declared `a`/`b` plus a `string | number` index signature where JSON and binary round-trip the declared props alongside dynamic keys whose per-value union is resolved structurally on encode and decode.',
     serializeNotes:
-      'The index signature admits every key, so strip and preserve decode identically — dynamic string-or-number keys are never dropped.',
+      'The index signature admits every key, so the clone and mutate decoders decode identically — dynamic string-or-number keys are never dropped.',
     mutateEncoder: () =>
       createJsonEncoderFn<{a: string; b: number; [key: string]: string | number}>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () =>
       createJsonEncoderFn<{a: string; b: number; [key: string]: string | number}>(undefined, {strategy: 'clone'}),
-    directEncoder: () =>
-      createJsonEncoderFn<{a: string; b: number; [key: string]: string | number}>(undefined, {strategy: 'direct'}),
     compactEncoder: () =>
       createJsonEncoderFn<{a: string; b: number; [key: string]: string | number}>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<{a: string; b: number; [key: string]: string | number}>(),
-    preserveDecoder: () =>
-      createJsonDecoderFn<{a: string; b: number; [key: string]: string | number}>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<{a: string; b: number; [key: string]: string | number}>(),
+    mutateDecoder: () =>
+      createJsonDecoderFn<{a: string; b: number; [key: string]: string | number}>(undefined, {strategy: 'mutate'}),
     compactDecoder: () =>
       createJsonDecoderFn<{a: string; b: number; [key: string]: string | number}>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<{a: string; b: number; [key: string]: string | number}>(),
@@ -97,13 +93,11 @@ export const RECORDS = {
       createJsonEncoderFn<{[key: string]: string; [key: number]: string; [abc: symbol]: Date}>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () =>
       createJsonEncoderFn<{[key: string]: string; [key: number]: string; [abc: symbol]: Date}>(undefined, {strategy: 'clone'}),
-    directEncoder: () =>
-      createJsonEncoderFn<{[key: string]: string; [key: number]: string; [abc: symbol]: Date}>(undefined, {strategy: 'direct'}),
     compactEncoder: () =>
       createJsonEncoderFn<{[key: string]: string; [key: number]: string; [abc: symbol]: Date}>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<{[key: string]: string; [key: number]: string; [abc: symbol]: Date}>(),
-    preserveDecoder: () =>
-      createJsonDecoderFn<{[key: string]: string; [key: number]: string; [abc: symbol]: Date}>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<{[key: string]: string; [key: number]: string; [abc: symbol]: Date}>(),
+    mutateDecoder: () =>
+      createJsonDecoderFn<{[key: string]: string; [key: number]: string; [abc: symbol]: Date}>(undefined, {strategy: 'mutate'}),
     compactDecoder: () =>
       createJsonDecoderFn<{[key: string]: string; [key: number]: string; [abc: symbol]: Date}>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<{[key: string]: string; [key: number]: string; [abc: symbol]: Date}>(),
@@ -143,13 +137,12 @@ export const RECORDS = {
     description:
       'Root `{[key: string]: {[key: string]: number}}` record whose values are themselves string-keyed number records, where JSON and binary round-trip both levels of dynamic keys as nested plain objects with no per-value transform on the atomic number values.',
     serializeNotes:
-      'Both index signatures admit every key at their level, so strip and preserve decode identically — no key is undeclared.',
+      'Both index signatures admit every key at their level, so the clone and mutate decoders decode identically — no key is undeclared.',
     mutateEncoder: () => createJsonEncoderFn<{[key: string]: {[key: string]: number}}>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<{[key: string]: {[key: string]: number}}>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<{[key: string]: {[key: string]: number}}>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<{[key: string]: {[key: string]: number}}>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<{[key: string]: {[key: string]: number}}>(),
-    preserveDecoder: () => createJsonDecoderFn<{[key: string]: {[key: string]: number}}>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<{[key: string]: {[key: string]: number}}>(),
+    mutateDecoder: () => createJsonDecoderFn<{[key: string]: {[key: string]: number}}>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<{[key: string]: {[key: string]: number}}>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<{[key: string]: {[key: string]: number}}>(),
     binaryDecoder: () => createBinaryDecoderFn<{[key: string]: {[key: string]: number}}>(),
@@ -164,13 +157,12 @@ export const RECORDS = {
     description:
       'Root `{[key: string]: {[key: string]: Date}}` record of string-keyed records whose innermost values are `Date`, where JSON and binary round-trip both levels of dynamic keys with each `Date` becoming an ISO string on encode and rebuilt via `new Date(...)` on decode.',
     serializeNotes:
-      'Innermost Date values serialize via their ISO string and restore with new Date(...); both index signatures admit every key, so strip and preserve decode identically.',
+      'Innermost Date values serialize via their ISO string and restore with new Date(...); both index signatures admit every key, so the clone and mutate decoders decode identically.',
     mutateEncoder: () => createJsonEncoderFn<{[key: string]: {[key: string]: Date}}>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<{[key: string]: {[key: string]: Date}}>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<{[key: string]: {[key: string]: Date}}>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<{[key: string]: {[key: string]: Date}}>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<{[key: string]: {[key: string]: Date}}>(),
-    preserveDecoder: () => createJsonDecoderFn<{[key: string]: {[key: string]: Date}}>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<{[key: string]: {[key: string]: Date}}>(),
+    mutateDecoder: () => createJsonDecoderFn<{[key: string]: {[key: string]: Date}}>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<{[key: string]: {[key: string]: Date}}>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<{[key: string]: {[key: string]: Date}}>(),
     binaryDecoder: () => createBinaryDecoderFn<{[key: string]: {[key: string]: Date}}>(),
@@ -195,14 +187,13 @@ export const RECORDS = {
       'Root `{[key: string]: bigint}` dynamic-key record of bigint values where JSON serializes each value as a decimal string (not natively JSON-encodable) and restores it with `BigInt(...)`, binary encodes the values natively, and keys round-trip as plain object keys.',
     serializeNotes: [
       'bigint values serialize as decimal strings and restore via BigInt(...); JSON cannot encode bigint directly.',
-      'The index signature admits every key, so strip and preserve decode identically.',
+      'The index signature admits every key, so the clone and mutate decoders decode identically.',
     ],
     mutateEncoder: () => createJsonEncoderFn<{[key: string]: bigint}>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<{[key: string]: bigint}>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<{[key: string]: bigint}>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<{[key: string]: bigint}>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<{[key: string]: bigint}>(),
-    preserveDecoder: () => createJsonDecoderFn<{[key: string]: bigint}>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<{[key: string]: bigint}>(),
+    mutateDecoder: () => createJsonDecoderFn<{[key: string]: bigint}>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<{[key: string]: bigint}>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<{[key: string]: bigint}>(),
     binaryDecoder: () => createBinaryDecoderFn<{[key: string]: bigint}>(),
@@ -222,15 +213,13 @@ export const RECORDS = {
     description:
       'Root object `{b: string; c: {...}}` where the nested `c` carries a declared `a` plus a string-valued index signature, so JSON and binary round-trip the fixed root shape while the nested `c` admits arbitrary dynamic string keys alongside `a`.',
     serializeNotes:
-      'Only the nested `c` has an index signature, so its dynamic keys survive strip and preserve identically; the root has a fixed declared shape.',
+      'Only the nested `c` has an index signature, so its dynamic keys survive the clone and mutate decoders identically; the root has a fixed declared shape.',
     mutateEncoder: () => createJsonEncoderFn<{b: string; c: {a: string; [key: string]: string}}>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<{b: string; c: {a: string; [key: string]: string}}>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<{b: string; c: {a: string; [key: string]: string}}>(undefined, {strategy: 'direct'}),
     compactEncoder: () =>
       createJsonEncoderFn<{b: string; c: {a: string; [key: string]: string}}>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<{b: string; c: {a: string; [key: string]: string}}>(),
-    preserveDecoder: () =>
-      createJsonDecoderFn<{b: string; c: {a: string; [key: string]: string}}>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<{b: string; c: {a: string; [key: string]: string}}>(),
+    mutateDecoder: () => createJsonDecoderFn<{b: string; c: {a: string; [key: string]: string}}>(undefined, {strategy: 'mutate'}),
     compactDecoder: () =>
       createJsonDecoderFn<{b: string; c: {a: string; [key: string]: string}}>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<{b: string; c: {a: string; [key: string]: string}}>(),

@@ -5,13 +5,13 @@ express their cases as `SerializationCase` records (the type lives in
 [`types.ts`](./types.ts); format-serialization re-exports it). Each `*.ts` file exports a
 group of cases; the sibling `*.test.ts` runs every case through the shared round-trip
 adapters in [`../../util/serializationAsserts.ts`](../../util/serializationAsserts.ts)
-(mutate / clone / direct / compact × strip / preserve, plus binary + the value-first
+(mutate / clone on both sides, compact × compact, plus binary + the value-first
 `schema` variants).
 
 ## ⚠️ Every thunk is self-contained — define ALL types INLINE
 
 A `SerializationCase` is a bag of THUNKS: `mutateEncoder` / `cloneEncoder` /
-`directEncoder` / `compactEncoder` / `stripDecoder` / `preserveDecoder` /
+`compactEncoder` / `cloneDecoder` / `mutateDecoder` /
 `compactDecoder` / `binaryEncoder` / `binaryDecoder` / the `schema*` variants / and
 `getTestData`. **Every type a thunk needs (interfaces, classes, `TF.*` format types,
 type aliases) MUST be declared INSIDE that thunk — never at module scope.** The

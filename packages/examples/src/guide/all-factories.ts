@@ -7,7 +7,6 @@ import {
   createJsonDecoderFn,
   createPrepareForJsonFn,
   createRestoreFromJsonFn,
-  createStringifyJsonFn,
   createBinaryEncoderFn,
   createBinaryDecoderFn,
   createBinarySizerFn,
@@ -39,7 +38,7 @@ const cleanUser = createFormatTransformFn<User>();
 
 // JSON as a string
 const encodeUser = createJsonEncoderFn<User>(undefined, {strategy: 'clone'});
-const decodeUser = createJsonDecoderFn<User>(undefined, {strategy: 'strip'});
+const decodeUser = createJsonDecoderFn<User>(undefined, {strategy: 'clone'});
 
 // JSON as a value when you own the envelope; pair the same strategy on both sides
 const prepareUser = createPrepareForJsonFn<User>();
@@ -56,9 +55,6 @@ const compactUser = createPrepareForJsonFn<User>(undefined, {
 const uncompactUser = createRestoreFromJsonFn<User>(undefined, {
   strategy: 'compact',
 });
-
-// no strategy to pick
-const stringifyUser = createStringifyJsonFn<User>();
 
 // binary
 const toBinary = createBinaryEncoderFn<User>();
@@ -88,7 +84,6 @@ export {
   decodeUser,
   prepareUser,
   restoreUser,
-  stringifyUser,
   toBinary,
   fromBinary,
   binarySize,

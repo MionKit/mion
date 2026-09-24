@@ -201,14 +201,9 @@ func joinSemicolons(parts ...string) string {
 
 // unknownKeysObjectGuard is the precondition of every OBJECT-node unknown-keys emit: elsewhere a key scan throws
 // (`v.address` on null) or invents keys (`for in` over a string or array). Guarded out, the node does nothing: the
-// shape is validationErrors' job. emitUnionUnknownKeysMerged gates on the same predicate.
+// shape is validationErrors' job.
 func unknownKeysObjectGuard(v string) string {
 	return "typeof " + v + " === 'object' && " + v + " !== null && !Array.isArray(" + v + ")"
-}
-
-// unknownKeysArrayGuard is the same precondition for an ARRAY / TUPLE node, whose descent reads `v.length` and `v[i]`.
-func unknownKeysArrayGuard(v string) string {
-	return "Array.isArray(" + v + ")"
 }
 
 func guardStatement(guard, body string) string {
@@ -304,7 +299,7 @@ func collectSiblingNamedKeys(rt *reflection.RunType, ctx *EmitContext) []string 
 
 // siblingNamedSkipCode returns the line an index-signature for-in loop opens with so a sibling named property is skipped.
 // Returns "" when the parent object emit published no sibling-names set for this idxSig.
-// Uses the published Set for O(1) membership, which the unknownKeysToUndefined consumer already builds.
+// Uses the published Set for O(1) membership.
 func siblingNamedSkipCode(idxSig *reflection.RunType, ctx *EmitContext, prop string) string {
 	if idxSig == nil {
 		return ""
@@ -380,36 +375,8 @@ func siblingPatternSkipCode(idxSig *reflection.RunType, ctx *EmitContext, prop s
 	return "if (" + predicateKey + "(" + prop + ")) continue;"
 }
 
-// unknownKeysChildrenCode joins each non-static, non-function child's CodeS emit with `;`.
-func unknownKeysChildrenCode(rt *reflection.RunType, ctx *EmitContext) string {
-	var parts []string
-	for _, child := range rt.Children {
-		resolved := ctx.ResolveRef(child)
-		if resolved == nil {
-			continue
-		}
-		if resolved.IsStatic {
-			continue
-		}
-		if reflection.IsUnsafePropertyName(resolved.Name) {
-			continue
-		}
-		if isFunctionLikeKind(resolved.Kind) {
-			continue
-		}
-		childRT := ctx.CompileChild(child, CodeS)
-		if childRT.Type == CodeNS {
-			continue
-		}
-		if childRT.Code != "" {
-			parts = append(parts, childRT.Code)
-		}
-	}
-	return strings.Join(parts, ";")
-}
-
 // unknownKeysSupports gates the renderer's top-level loop for EVERY unknown-keys family emitter
-// (has / strip / errors / toUndefined / stripUnknownKeysWire): they differ in what they emit per kind, never in which kinds they accept.
+// (has / strip / errors): they differ in what they emit per kind, never in which kinds they accept.
 // Same set as the prepareForJsonMutate / validationErrors emitters; atomic kinds emit an empty body that each family's
 // Finalize folds to its noop shape.
 func unknownKeysSupports(rt *reflection.RunType) bool {
@@ -459,29 +426,6 @@ func unknownKeysSupports(rt *reflection.RunType) bool {
 		return true
 	}
 	return false
-}
-
-// emitTupleUnknownKeysRecurse is the shared tuple arm for every family that reports or removes undeclared keys.
-// One Array.isArray guard wraps the slot recursion, so an absent or wrong-shaped value never reaches a slot read.
-func emitTupleUnknownKeysRecurse(rt *reflection.RunType, ctx *EmitContext) RTCode {
-	if len(rt.Children) == 0 {
-		return RTCode{Code: "", Type: CodeS}
-	}
-	var parts []string
-	for _, child := range rt.Children {
-		childRT := ctx.CompileChild(child, CodeS)
-		if childRT.Type == CodeNS {
-			continue
-		}
-		if childRT.Code != "" {
-			parts = append(parts, childRT.Code)
-		}
-	}
-	if len(parts) == 0 {
-		return RTCode{Code: "", Type: CodeS}
-	}
-	body := guardStatement(unknownKeysArrayGuard(ctx.Vλl), strings.Join(parts, ";"))
-	return RTCode{Code: body, Type: CodeS}
 }
 
 // objectCallSignatureChild returns the node's call-signature child, or nil; a shape that has one is a Function with

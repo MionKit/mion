@@ -4,12 +4,10 @@
 import {describe, it} from 'vitest';
 import {REALWORLD} from './Realworld.ts';
 import {
-  assertMutatePreserveRoundTrip,
-  assertMutateStripRoundTrip,
-  assertClonePreserveRoundTrip,
-  assertCloneStripRoundTrip,
-  assertDirectPreserveRoundTrip,
-  assertDirectStripRoundTrip,
+  assertMutateMutateRoundTrip,
+  assertMutateCloneRoundTrip,
+  assertCloneMutateRoundTrip,
+  assertCloneCloneRoundTrip,
   assertCompactRoundTrip,
   assertBinaryRoundTrip,
   assertSchemaJsonRoundTrip,
@@ -18,12 +16,10 @@ import {
 
 describe('format-serialization / Realworld', () => {
   for (const c of Object.values(REALWORLD)) {
-    it(`mutate - preserve - ${c.title}`, () => assertMutatePreserveRoundTrip(c));
-    it(`mutate - strip - ${c.title}`, () => assertMutateStripRoundTrip(c));
-    it(`clone - preserve - ${c.title}`, () => assertClonePreserveRoundTrip(c));
-    it(`clone - strip - ${c.title}`, () => assertCloneStripRoundTrip(c));
-    it(`direct - preserve - ${c.title}`, () => assertDirectPreserveRoundTrip(c));
-    it(`direct - strip - ${c.title}`, () => assertDirectStripRoundTrip(c));
+    it(`mutate - mutate - ${c.title}`, () => assertMutateMutateRoundTrip(c));
+    it(`mutate - clone - ${c.title}`, () => assertMutateCloneRoundTrip(c));
+    it(`clone - mutate - ${c.title}`, () => assertCloneMutateRoundTrip(c));
+    it(`clone - clone - ${c.title}`, () => assertCloneCloneRoundTrip(c));
     it(`compact - ${c.title}`, () => assertCompactRoundTrip(c));
     it(`binary - ${c.title}`, () => assertBinaryRoundTrip(c));
     it(`schema - json - ${c.title}`, () => assertSchemaJsonRoundTrip(c));

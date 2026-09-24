@@ -47,11 +47,6 @@ func TestPatternKey_EncodersCopyANonMatchingKey(t *testing.T) {
 			t.Errorf("[removeUnknownKeys/%s] a key matching no pattern must be dropped, not shared by reference; got:\n%s", id, entry)
 		}
 	}
-	// The direct road writes it the way native JSON would, after the pattern arm.
-	direct := familyEntry(t, fixture, "stringifyJson", "rec")
-	if !strings.Contains(direct, "if (reIdx0.test(k0)) {if (v[k0] !== undefined) ls0.push(JSON.stringify(k0) + ':' + v[k0]); continue;}const s0 = JSON.stringify(v[k0]); if (s0 !== undefined) ls0.push(JSON.stringify(k0) + ':' + s0);") {
-		t.Errorf("[stringifyJson] a key matching no pattern must be written as native JSON writes it; got:\n%s", direct)
-	}
 	// A bare pattern signature at the root copies it too.
 	root := familyEntry(t, fixture, "prepareForJsonClone", "idx")
 	if !strings.Contains(root, "if (!reIdx0.test(k0)) {_r[k0] = v[k0]; continue;}") {
@@ -59,51 +54,17 @@ func TestPatternKey_EncodersCopyANonMatchingKey(t *testing.T) {
 	}
 }
 
-// The strip pre-pass (uku through its wire variant) and the mutate decoders leave a non-matching
-// key alone: only the value arm is gated by the pattern, and an atomic value has nothing to sweep.
+// The decoders leave a non-matching key alone: only the value arm is gated by the pattern.
 func TestPatternKey_DecodersLeaveANonMatchingKeyAlone(t *testing.T) {
-	num := &reflection.RunType{ID: "num", Kind: reflection.KindNumber}
 	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
 	propA := &reflection.RunType{ID: "pa", Kind: reflection.KindProperty, Name: "a", IsSafeName: true, Child: makeRef("str")}
 	inner := &reflection.RunType{ID: "inner", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pa")}}
-	atomic := patternRecordFixture("num", num)
 	keyed := patternRecordFixture("inner", str, propA, inner)
 
-	blanking := familyEntry(t, atomic, "stripUnknownKeysWire", "rec")
-	if strings.Contains(blanking, "= undefined") || !strings.Contains(blanking, ",,true") {
-		t.Errorf("[stripUnknownKeysWire] a pattern over atomic values has nothing to blank; got:\n%s", blanking)
-	}
-	gated := familyEntry(t, keyed, "stripUnknownKeysWire", "rec")
-	if !strings.Contains(gated, "if (!reIdx0.test(k0)) continue;") || strings.Contains(gated, "v[k0] = undefined") {
-		t.Errorf("[stripUnknownKeysWire] the pattern must gate the value arm only; got:\n%s", gated)
-	}
 	for _, family := range []string{"restoreFromJsonMutate", "compactFromJson", "restoreFromJsonClone"} {
 		entry := familyEntry(t, keyed, family, "rec")
 		if !strings.Contains(entry, "if (!reIdx0.test(k0)) continue;") || strings.Contains(entry, "= undefined") || strings.Contains(entry, "delete ") {
 			t.Errorf("[%s] a key matching no pattern must be left as is; got:\n%s", family, entry)
 		}
-	}
-}
-
-// An object runs ONE key sweep for all its index signatures under the direct encoder: the string
-// and number halves of a split key used to sweep once each and write every key twice, and a plain
-// signature beside a pattern one did the same.
-func TestStringifyJson_OneSweepForEveryIndexSignature(t *testing.T) {
-	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
-	num := &reflection.RunType{ID: "num", Kind: reflection.KindNumber}
-	byString := &reflection.RunType{ID: "idxS", Kind: reflection.KindIndexSignature, Index: makeRef("str"), Child: makeRef("num")}
-	byNumber := &reflection.RunType{ID: "idxN", Kind: reflection.KindIndexSignature, Index: makeRef("num"), Child: makeRef("num")}
-	split := &reflection.RunType{ID: "rec", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("idxS"), makeRef("idxN")}}
-	// The entry line carries the code string and its closure twin, so the sweeps are counted on the
-	// code string alone.
-	codeString := func(entry string) string { return entry[:strings.Index(entry, "function g_")] }
-	entry := codeString(familyEntry(t, []*reflection.RunType{str, num, byString, byNumber, split}, "stringifyJson", "rec"))
-	if strings.Count(entry, "for (const") != 1 || !strings.Contains(entry, "'{'+[ctxFn0(v)].filter(Boolean).join(',')+'}'") {
-		t.Errorf("a split key must sweep once; got:\n%s", entry)
-	}
-	plusPattern := &reflection.RunType{ID: "rec", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("idxS"), makeRef("idx")}}
-	entry = codeString(familyEntry(t, append([]*reflection.RunType{str, num, byString, plusPattern}, templateKeyIndex("idx", "d_", "num")...), "stringifyJson", "rec"))
-	if strings.Count(entry, "for (const") != 1 || strings.Contains(entry, "reIdx0") {
-		t.Errorf("a plain signature admits every key, so the pattern one after it adds no arm; got:\n%s", entry)
 	}
 }

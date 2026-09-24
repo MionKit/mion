@@ -12,10 +12,9 @@ export const TUPLES = {
       'Per-slot wire transforms: Date↔ISO string and bigint↔decimal string; the decoder restores each slot from its scalar form.',
     mutateEncoder: () => createJsonEncoderFn<[Date, number, string, null, string[], bigint]>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<[Date, number, string, null, string[], bigint]>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<[Date, number, string, null, string[], bigint]>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<[Date, number, string, null, string[], bigint]>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<[Date, number, string, null, string[], bigint]>(),
-    preserveDecoder: () => createJsonDecoderFn<[Date, number, string, null, string[], bigint]>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<[Date, number, string, null, string[], bigint]>(),
+    mutateDecoder: () => createJsonDecoderFn<[Date, number, string, null, string[], bigint]>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<[Date, number, string, null, string[], bigint]>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<[Date, number, string, null, string[], bigint]>(),
     binaryDecoder: () => createBinaryDecoderFn<[Date, number, string, null, string[], bigint]>(),
@@ -47,10 +46,9 @@ export const TUPLES = {
       'Samples cover the optional bigint slot both present (exercising the bigint-to-decimal-string transform in a tuple slot) and absent; all round-trip with no shape asymmetry.',
     mutateEncoder: () => createJsonEncoderFn<[number, bigint?, boolean?, number?]>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<[number, bigint?, boolean?, number?]>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<[number, bigint?, boolean?, number?]>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<[number, bigint?, boolean?, number?]>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<[number, bigint?, boolean?, number?]>(),
-    preserveDecoder: () => createJsonDecoderFn<[number, bigint?, boolean?, number?]>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<[number, bigint?, boolean?, number?]>(),
+    mutateDecoder: () => createJsonDecoderFn<[number, bigint?, boolean?, number?]>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<[number, bigint?, boolean?, number?]>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<[number, bigint?, boolean?, number?]>(),
     binaryDecoder: () => createBinaryDecoderFn<[number, bigint?, boolean?, number?]>(),
@@ -78,10 +76,9 @@ export const TUPLES = {
       'Rest bigint elements serialize to decimal strings on the JSON wire and rebuild to bigints on decode; samples cover the rest segment populated and empty.',
     mutateEncoder: () => createJsonEncoderFn<[number, ...bigint[]]>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<[number, ...bigint[]]>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<[number, ...bigint[]]>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<[number, ...bigint[]]>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<[number, ...bigint[]]>(),
-    preserveDecoder: () => createJsonDecoderFn<[number, ...bigint[]]>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<[number, ...bigint[]]>(),
+    mutateDecoder: () => createJsonDecoderFn<[number, ...bigint[]]>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<[number, ...bigint[]]>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<[number, ...bigint[]]>(),
     binaryDecoder: () => createBinaryDecoderFn<[number, ...bigint[]]>(),
@@ -98,10 +95,9 @@ export const TUPLES = {
       'The clone strategy shared an all-literal tuple by reference, so `JSON.stringify` threw on the raw bigints; the per-slot transform now applies on every strategy.',
     mutateEncoder: () => createJsonEncoderFn<[1n, 2n]>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<[1n, 2n]>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<[1n, 2n]>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<[1n, 2n]>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<[1n, 2n]>(),
-    preserveDecoder: () => createJsonDecoderFn<[1n, 2n]>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<[1n, 2n]>(),
+    mutateDecoder: () => createJsonDecoderFn<[1n, 2n]>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<[1n, 2n]>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<[1n, 2n]>(),
     binaryDecoder: () => createBinaryDecoderFn<[1n, 2n]>(),
@@ -119,14 +115,12 @@ export const TUPLES = {
     mutateEncoder: () => createJsonEncoderFn<[number, () => any]>(undefined, {strategy: 'mutate'}),
     // @mion-downgrade-error PJS003
     cloneEncoder: () => createJsonEncoderFn<[number, () => any]>(undefined, {strategy: 'clone'}),
-    // @mion-downgrade-error SJ003
-    directEncoder: () => createJsonEncoderFn<[number, () => any]>(undefined, {strategy: 'direct'}),
     // @mion-downgrade-error PJS003
     compactEncoder: () => createJsonEncoderFn<[number, () => any]>(undefined, {strategy: 'compact'}),
     // @mion-downgrade-error RJ003
-    stripDecoder: () => createJsonDecoderFn<[number, () => any]>(),
+    cloneDecoder: () => createJsonDecoderFn<[number, () => any]>(),
     // @mion-downgrade-error RJ003
-    preserveDecoder: () => createJsonDecoderFn<[number, () => any]>(undefined, {strategy: 'preserve'}),
+    mutateDecoder: () => createJsonDecoderFn<[number, () => any]>(undefined, {strategy: 'mutate'}),
     // @mion-downgrade-error RJ003
     compactDecoder: () => createJsonDecoderFn<[number, () => any]>(undefined, {strategy: 'compact'}),
     // @mion-downgrade-error TB003
@@ -161,21 +155,17 @@ export const TUPLES = {
       type TupleCircular = [Date, number, string, null, string[], bigint, TupleCircular?];
       return createJsonEncoderFn<TupleCircular>(undefined, {strategy: 'clone'});
     },
-    directEncoder: () => {
-      type TupleCircular = [Date, number, string, null, string[], bigint, TupleCircular?];
-      return createJsonEncoderFn<TupleCircular>(undefined, {strategy: 'direct'});
-    },
     compactEncoder: () => {
       type TupleCircular = [Date, number, string, null, string[], bigint, TupleCircular?];
       return createJsonEncoderFn<TupleCircular>(undefined, {strategy: 'compact'});
     },
-    stripDecoder: () => {
+    cloneDecoder: () => {
       type TupleCircular = [Date, number, string, null, string[], bigint, TupleCircular?];
       return createJsonDecoderFn<TupleCircular>();
     },
-    preserveDecoder: () => {
+    mutateDecoder: () => {
       type TupleCircular = [Date, number, string, null, string[], bigint, TupleCircular?];
-      return createJsonDecoderFn<TupleCircular>(undefined, {strategy: 'preserve'});
+      return createJsonDecoderFn<TupleCircular>(undefined, {strategy: 'mutate'});
     },
     compactDecoder: () => {
       type TupleCircular = [Date, number, string, null, string[], bigint, TupleCircular?];
@@ -238,13 +228,6 @@ export const TUPLES = {
       }
       return createJsonEncoderFn<ICircularTuple>(undefined, {strategy: 'clone'});
     },
-    directEncoder: () => {
-      interface ICircularTuple {
-        name: string;
-        parent?: [string, ICircularTuple];
-      }
-      return createJsonEncoderFn<ICircularTuple>(undefined, {strategy: 'direct'});
-    },
     compactEncoder: () => {
       interface ICircularTuple {
         name: string;
@@ -252,19 +235,19 @@ export const TUPLES = {
       }
       return createJsonEncoderFn<ICircularTuple>(undefined, {strategy: 'compact'});
     },
-    stripDecoder: () => {
+    cloneDecoder: () => {
       interface ICircularTuple {
         name: string;
         parent?: [string, ICircularTuple];
       }
       return createJsonDecoderFn<ICircularTuple>();
     },
-    preserveDecoder: () => {
+    mutateDecoder: () => {
       interface ICircularTuple {
         name: string;
         parent?: [string, ICircularTuple];
       }
-      return createJsonDecoderFn<ICircularTuple>(undefined, {strategy: 'preserve'});
+      return createJsonDecoderFn<ICircularTuple>(undefined, {strategy: 'mutate'});
     },
     compactDecoder: () => {
       interface ICircularTuple {

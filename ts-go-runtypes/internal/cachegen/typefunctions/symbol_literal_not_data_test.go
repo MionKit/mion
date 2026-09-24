@@ -24,7 +24,7 @@ func mkSymLit() *reflection.RunType {
 }
 
 var symLitSerdeFamilies = []string{
-	"prepareForJsonMutate", "prepareForJsonClone", "stringifyJson",
+	"prepareForJsonMutate", "prepareForJsonClone",
 	"restoreFromJsonMutate", "restoreFromJsonClone", "toBinary", "fromBinary",
 }
 

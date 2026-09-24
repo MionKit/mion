@@ -85,24 +85,10 @@ export const OPERATIONS: readonly Operation[] = [
     label: 'createJsonEncoderFn',
     blurb: 'Encode in place, keeping unknown keys.',
     detail:
-      'Transforms leaves in place with no clone allocation, so it is the fastest option — but it mutates the object you pass in and keeps undeclared keys on the wire. When no special encoding is needed, it is equivalent to a direct JSON.stringify.',
+      'Transforms leaves in place with no clone allocation, so it is the fastest option — but it mutates the object you pass in and keeps undeclared keys on the wire. When no special encoding is needed, it is equivalent to a plain JSON.stringify.',
     needsInput: true,
     varName: 'toJson',
     options: "{strategy: 'mutate'}",
-  },
-  {
-    key: 'jsonEncoderDirect',
-    factory: 'createJsonEncoderFn',
-    kind: 'encode',
-    group: 'JSON encode',
-    menuLabel: 'json enc direct',
-    label: 'createJsonEncoderFn',
-    blurb: 'Single-pass encode straight to a string.',
-    detail:
-      'Serialises in one pass with no clone and no mutation, always stripping undeclared keys. Allocation-free, a touch slower on deeply nested shapes.',
-    needsInput: true,
-    varName: 'toJson',
-    options: "{strategy: 'direct'}",
   },
   {
     key: 'jsonEncoderCompact',
@@ -119,7 +105,7 @@ export const OPERATIONS: readonly Operation[] = [
     options: "{strategy: 'compact'}",
   },
   {
-    key: 'jsonDecoderStrip',
+    key: 'jsonDecoderClone',
     factory: 'createJsonDecoderFn',
     kind: 'jsonRoundtrip',
     group: 'JSON decode',
@@ -127,14 +113,14 @@ export const OPERATIONS: readonly Operation[] = [
     label: 'createJsonDecoderFn',
     blurb: 'Decode JSON, dropping undeclared keys.',
     detail:
-      'Parses the JSON and removes any key not declared in the type before rebuilding the value (undeclared keys become undefined). This is the default strategy. Your input is encoded first (mutate strategy, so extra keys reach the wire) and then decoded, so the full round trip is visible.',
+      'Parses the JSON and rebuilds the value from the type, so any key the type does not declare is dropped. This is the default strategy. Your input is encoded first (mutate strategy, so extra keys reach the wire) and then decoded, so the full round trip is visible.',
     needsInput: true,
     varName: 'fromJson',
-    options: "{strategy: 'strip'}",
+    options: "{strategy: 'clone'}",
     encodeOptions: "{strategy: 'mutate'}",
   },
   {
-    key: 'jsonDecoderPreserve',
+    key: 'jsonDecoderMutate',
     factory: 'createJsonDecoderFn',
     kind: 'jsonRoundtrip',
     group: 'JSON decode',
@@ -145,7 +131,7 @@ export const OPERATIONS: readonly Operation[] = [
       'Parses the JSON and passes undeclared keys through untouched. Compare with the default: the same encoded wire keeps its extra keys here.',
     needsInput: true,
     varName: 'fromJson',
-    options: "{strategy: 'preserve'}",
+    options: "{strategy: 'mutate'}",
     encodeOptions: "{strategy: 'mutate'}",
   },
   {

@@ -123,7 +123,7 @@ func (RestoreFromJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ C
 		return RTCode{Code: "", Type: CodeNS}
 
 	case reflection.KindUnion:
-		// Decodes the flat-union wire shape of emitUnionPrepareForJsonFlat / emitUnionStringifyJsonFlat (union_flat.go).
+		// Decodes the flat-union wire shape of emitUnionPrepareForJsonFlat (union_flat.go).
 		return emitUnionRestoreFromJsonFlat(rt, ctx, v)
 
 	case reflection.KindIntersection:

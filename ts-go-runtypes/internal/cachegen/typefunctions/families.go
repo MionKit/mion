@@ -28,8 +28,6 @@ var Families = []FamilySpec{
 	// must deep-equal v. Unions emit the flat wire shape (see union_flat.go).
 	family("prepareForJsonMutate", PrepareForJsonEmitter{}),
 	family("restoreFromJsonMutate", RestoreFromJsonEmitter{}),
-	// Single-pass serialiser straight from the type: never mutates v, strips extras by construction.
-	family("stringifyJson", StringifyJsonEmitter{}),
 	// The non-mutating prepareForJson sibling: strips undeclared properties and returns a new value.
 	family("prepareForJsonClone", PrepareForJsonCloneEmitter{}),
 	// The DECODE mirror of prepareForJsonClone: rebuilds each object from the declared shape, so an undeclared
@@ -40,7 +38,6 @@ var Families = []FamilySpec{
 	family("compactForJson", CompactForJsonEmitter{}),
 	family("compactFromJson", CompactFromJsonEmitter{}),
 	// No public mutating strip: removeUnknownKeys is 3-24x faster and avoids the delete-induced dictionary-mode deopt.
-	family("stripUnknownKeysWire", StripUnknownKeysWireEmitter{}),
 	// A deep clone of the DECLARED shape: unknown keys dropped by construction, nothing mutable shared with
 	// the input (only immutables and opaque handles pass through).
 	family("removeUnknownKeys", RemoveUnknownKeysEmitter{}),

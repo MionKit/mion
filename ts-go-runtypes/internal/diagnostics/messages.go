@@ -376,22 +376,6 @@ var messagesByCode = map[string]message{
 		Headline: "Type `{0}` can never be decoded from JSON: the generated function will always fail.",
 		Detail:   "Every `symbol` value carries a unique runtime identity (`Symbol() !==\nSymbol()` even with the same description). That identity disappears the\nmoment it's serialised, and two symbols can't be compared across realms,\nworkers, or process boundaries. A validator that asserts \"this is a\nsymbol\" gives a false sense of safety: the value can't actually\nround-trip.\n\nFix: use a stable string key (often a literal union):\n  -  type Status = symbol;\n+  type Status = 'pending' | 'active' | 'done';",
 	},
-	"SJ001": {
-		Headline: "Type `{0}` can never be stringified to JSON: the generated function will always fail.",
-		Detail:   "`never` is the empty type: no value can ever inhabit it. A field\ntyped `never` cannot carry a runtime value, so there is nothing to\nencode/decode/validate.\n\nFix: use `unknown` if you really want to accept any value:\n  interface User {\n-   tag: never;\n+   tag: unknown;  // narrow before use\n  }\n\nFix: pick a concrete type matching your real data:\n  interface User {\n-   tag: never;\n+   tag: 'pending' | 'active' | 'done';\n  }",
-	},
-	"SJ002": {
-		Headline: "Type `{0}` can never be stringified to JSON: the generated function will always fail.",
-		Detail:   "A standard-library class carries runtime state that does not survive a JSON\nor binary round-trip: its instance identity is lost the moment it is\nserialised, so at a root position there is nothing left to work with.\n\nA few have an agreed data form and ARE supported: `Date`, `Map`,\n`Set` and the Temporal types. Everything else the standard library declares\n(`URL`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, the typed arrays and\n`Buffer`) has none, and is refused here rather than guessed at.\n\nFix: describe the data form yourself and convert at the boundary:\n  // for URL:\n  const data = yourUrl.href;             // string\n  // for typed arrays:\n  const data = Array.from(yourBuffer);   // number[]\n\nFix: change the field type to a shape made of data:\n  interface User {\n-   home: URL;\n+   home: string;\n  }",
-	},
-	"SJ003": {
-		Headline: "Type `{0}` can never be stringified to JSON: the generated function will always fail.",
-		Detail:   "Functions have no value form to serialise: their closure, prototype,\nand bound state aren't representable in JSON or binary.\n\nFix: drop the function from your type, or replace it with the data the\nfunction would produce:\n  interface User {\n-   getName: () => string;\n+   name: string;\n  }",
-	},
-	"SJ005": {
-		Headline: "Type `{0}` can never be stringified to JSON: the generated function will always fail.",
-		Detail:   "Every `symbol` value carries a unique runtime identity (`Symbol() !==\nSymbol()` even with the same description). That identity disappears the\nmoment it's serialised, and two symbols can't be compared across realms,\nworkers, or process boundaries. A validator that asserts \"this is a\nsymbol\" gives a false sense of safety: the value can't actually\nround-trip.\n\nFix: use a stable string key (often a literal union):\n  -  type Status = symbol;\n+  type Status = 'pending' | 'active' | 'done';",
-	},
 	"TB001": {
 		Headline: "Type `{0}` can never be serialised to binary: the generated function will always fail.",
 		Detail:   "`never` is the empty type: no value can ever inhabit it. A field\ntyped `never` cannot carry a runtime value, so there is nothing to\nencode/decode/validate.\n\nFix: use `unknown` if you really want to accept any value:\n  interface User {\n-   tag: never;\n+   tag: unknown;  // narrow before use\n  }\n\nFix: pick a concrete type matching your real data:\n  interface User {\n-   tag: never;\n+   tag: 'pending' | 'active' | 'done';\n  }",
@@ -460,10 +444,6 @@ var messagesByCode = map[string]message{
 		Headline: "Property `{0}` is a function: `restoreFromJsonMutate` does not handle function values, so this property is silently not decoded.",
 		Detail:   "`restoreFromJsonMutate` works on JSON-shaped data; functions don't survive JSON, so\nthe emitter drops them. The rest of the object's behaviour is unaffected.\n\nThis is by design, see the \"one contract: serializable data only\"\nsection in CLAUDE.md. If you need a stricter checker that fails on\nmissing/extra function-typed members, watch the project roadmap.",
 	},
-	"SJ010": {
-		Headline: "Property `{0}` is a function: `stringifyJson` does not handle function values, so this property is silently not stringified.",
-		Detail:   "`stringifyJson` works on JSON-shaped data; functions don't survive JSON, so\nthe emitter drops them. The rest of the object's behaviour is unaffected.\n\nThis is by design, see the \"one contract: serializable data only\"\nsection in CLAUDE.md. If you need a stricter checker that fails on\nmissing/extra function-typed members, watch the project roadmap.",
-	},
 	"TB010": {
 		Headline: "Property `{0}` is a function: `toBinary` does not handle function values, so this property is silently not serialised.",
 		Detail:   "`toBinary` works on JSON-shaped data; functions don't survive JSON, so\nthe emitter drops them. The rest of the object's behaviour is unaffected.\n\nThis is by design, see the \"one contract: serializable data only\"\nsection in CLAUDE.md. If you need a stricter checker that fails on\nmissing/extra function-typed members, watch the project roadmap.",
@@ -496,10 +476,6 @@ var messagesByCode = map[string]message{
 		Headline: "Static member `{0}` is not part of instance data: `removeUnknownKeys` skips it.",
 		Detail:   "Statics live on the class, not the instance; the clone rebuilds instance\ndata only.",
 	},
-	"UKW010": {
-		Headline: "Property `{0}` is a function: `stripUnknownKeysWire` does not handle function values, so this property is silently not cleared.",
-		Detail:   "`stripUnknownKeysWire` works on JSON-shaped data; functions don't survive JSON, so\nthe emitter drops them. The rest of the object's behaviour is unaffected.\n\nThis is by design, see the \"one contract: serializable data only\"\nsection in CLAUDE.md. If you need a stricter checker that fails on\nmissing/extra function-typed members, watch the project roadmap.",
-	},
 	"JCP001": {
 		Headline: "Internal error: JSON composite `{0}` references primitive entry `{1}` (type `{2}`) which was never rendered; please file an issue.",
 	},
@@ -522,10 +498,6 @@ var messagesByCode = map[string]message{
 	"RJ011": {
 		Headline: "Method `{0}` is silently not decoded by `restoreFromJsonMutate`: methods aren't data.",
 		Detail:   "Class and object methods aren't part of the serialisable shape, so\n`restoreFromJsonMutate` excludes them. The rest of the type still works.\n\nIf you wanted the method's return value validated/serialised, expose it\nas a data property instead.",
-	},
-	"SJ011": {
-		Headline: "Method `{0}` is silently not stringified by `stringifyJson`: methods aren't data.",
-		Detail:   "Class and object methods aren't part of the serialisable shape, so\n`stringifyJson` excludes them. The rest of the type still works.\n\nIf you wanted the method's return value validated/serialised, expose it\nas a data property instead.",
 	},
 	"TB011": {
 		Headline: "Method `{0}` is silently not serialised by `toBinary`: methods aren't data.",
@@ -555,10 +527,6 @@ var messagesByCode = map[string]message{
 		Headline: "Static member `{0}` is silently not decoded by `restoreFromJsonMutate`: statics aren't part of instance data.",
 		Detail:   "Class static members live on the class, not on individual instances.\n`restoreFromJsonMutate` operates on instance shape, so statics are excluded.",
 	},
-	"SJ012": {
-		Headline: "Static member `{0}` is silently not stringified by `stringifyJson`: statics aren't part of instance data.",
-		Detail:   "Class static members live on the class, not on individual instances.\n`stringifyJson` operates on instance shape, so statics are excluded.",
-	},
 	"TB012": {
 		Headline: "Static member `{0}` is silently not serialised by `toBinary`: statics aren't part of instance data.",
 		Detail:   "Class static members live on the class, not on individual instances.\n`toBinary` operates on instance shape, so statics are excluded.",
@@ -587,10 +555,6 @@ var messagesByCode = map[string]message{
 		Headline: "Symbol-keyed property `{0}` is silently not decoded by `restoreFromJsonMutate`: symbol keys aren't JSON-representable.",
 		Detail:   "JSON only supports string keys; symbol-keyed properties are dropped\nfrom the serialised form. `restoreFromJsonMutate` follows the same rule.\n\nFix: use a string key:\n  -  [Symbol.for('id')]: string;\n+  id: string;",
 	},
-	"SJ013": {
-		Headline: "Symbol-keyed property `{0}` is silently not stringified by `stringifyJson`: symbol keys aren't JSON-representable.",
-		Detail:   "JSON only supports string keys; symbol-keyed properties are dropped\nfrom the serialised form. `stringifyJson` follows the same rule.\n\nFix: use a string key:\n  -  [Symbol.for('id')]: string;\n+  id: string;",
-	},
 	"TB013": {
 		Headline: "Symbol-keyed property `{0}` is silently not serialised by `toBinary`: symbol keys aren't JSON-representable.",
 		Detail:   "JSON only supports string keys; symbol-keyed properties are dropped\nfrom the serialised form. `toBinary` follows the same rule.\n\nFix: use a string key:\n  -  [Symbol.for('id')]: string;\n+  id: string;",
@@ -614,10 +578,6 @@ var messagesByCode = map[string]message{
 	"RJ014": {
 		Headline: "Union member(s) of type `{0}` can't be represented as data: `restoreFromJsonMutate` drops them, so the union is decoded as its remaining members.",
 		Detail:   "A union projects to its serialisable members only: `DataOnly<Date | symbol>`\nis `Date`. The dropped member(s) ({0}) carry no JSON-shaped value (symbol,\nfunction, Promise, or a non-serialisable built-in like `Map` / `Set` /\ntyped arrays), so `restoreFromJsonMutate` decoded only the members that remain.\n\nThis is by design, see the \"one contract: serializable data only\"\nsection in CLAUDE.md. If EVERY member of the union is non-serialisable the\nprojection is `never`, and `restoreFromJsonMutate` throws at build time instead.",
-	},
-	"SJ014": {
-		Headline: "Union member(s) of type `{0}` can't be represented as data: `stringifyJson` drops them, so the union is stringified as its remaining members.",
-		Detail:   "A union projects to its serialisable members only: `DataOnly<Date | symbol>`\nis `Date`. The dropped member(s) ({0}) carry no JSON-shaped value (symbol,\nfunction, Promise, or a non-serialisable built-in like `Map` / `Set` /\ntyped arrays), so `stringifyJson` stringified only the members that remain.\n\nThis is by design, see the \"one contract: serializable data only\"\nsection in CLAUDE.md. If EVERY member of the union is non-serialisable the\nprojection is `never`, and `stringifyJson` throws at build time instead.",
 	},
 	"TB014": {
 		Headline: "Union member(s) of type `{0}` can't be represented as data: `toBinary` drops them, so the union is serialised as its remaining members.",
@@ -646,10 +606,6 @@ var messagesByCode = map[string]message{
 	"RJ015": {
 		Headline: "Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): `restoreFromJsonMutate` drops it, so this property is silently not decoded.",
 		Detail:   "`restoreFromJsonMutate` works on JSON-shaped data. A property whose value is a symbol,\na Promise, or a non-serialisable built-in (a typed array, `ArrayBuffer`, or any other\nstandard-library class such as `URL` or `Intl.DateTimeFormat`) carries\nno JSON-shaped value, so it is dropped: `DataOnly<{ {0}: symbol }>` is `{}`.\nThe rest of the object's behaviour is unaffected.\n\nNote the difference from a property that is only STRUCTURALLY unserialisable\n(`{0}: symbol[]` or `{0}: Map<string, symbol>`), which CANNOT be safely\ndropped (DataOnly keeps it as `never[]`): there `restoreFromJsonMutate` throws at build\ntime instead.\n\nThis is by design, see the \"one contract: serializable data only\"\nsection in CLAUDE.md.",
-	},
-	"SJ015": {
-		Headline: "Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): `stringifyJson` drops it, so this property is silently not stringified.",
-		Detail:   "`stringifyJson` works on JSON-shaped data. A property whose value is a symbol,\na Promise, or a non-serialisable built-in (a typed array, `ArrayBuffer`, or any other\nstandard-library class such as `URL` or `Intl.DateTimeFormat`) carries\nno JSON-shaped value, so it is dropped: `DataOnly<{ {0}: symbol }>` is `{}`.\nThe rest of the object's behaviour is unaffected.\n\nNote the difference from a property that is only STRUCTURALLY unserialisable\n(`{0}: symbol[]` or `{0}: Map<string, symbol>`), which CANNOT be safely\ndropped (DataOnly keeps it as `never[]`): there `stringifyJson` throws at build\ntime instead.\n\nThis is by design, see the \"one contract: serializable data only\"\nsection in CLAUDE.md.",
 	},
 	"TB015": {
 		Headline: "Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): `toBinary` drops it, so this property is silently not serialised.",

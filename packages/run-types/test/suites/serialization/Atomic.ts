@@ -11,10 +11,9 @@ export const ATOMIC = {
     serializeNotes: 'Binary encodes UTF-8 with a length prefix, so byte size is variable (no fixed-size assertion).',
     mutateEncoder: () => createJsonEncoderFn<string>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<string>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<string>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<string>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<string>(),
-    preserveDecoder: () => createJsonDecoderFn<string>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<string>(),
+    mutateDecoder: () => createJsonDecoderFn<string>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<string>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<string>(),
     binaryDecoder: () => createBinaryDecoderFn<string>(),
@@ -31,10 +30,9 @@ export const ATOMIC = {
     serializeNotes: 'Binary writes every number as float64, so all values encode to a fixed 8 bytes regardless of magnitude.',
     mutateEncoder: () => createJsonEncoderFn<number>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<number>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<number>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<number>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<number>(),
-    preserveDecoder: () => createJsonDecoderFn<number>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<number>(),
+    mutateDecoder: () => createJsonDecoderFn<number>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<number>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<number>(),
     binaryDecoder: () => createBinaryDecoderFn<number>(),
@@ -75,10 +73,9 @@ export const ATOMIC = {
     serializeNotes: 'JSON writes "7" as 1 byte; binary writes a fixed 8-byte float64. Small numbers favour JSON on payload.',
     mutateEncoder: () => createJsonEncoderFn<number>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<number>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<number>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<number>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<number>(),
-    preserveDecoder: () => createJsonDecoderFn<number>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<number>(),
+    mutateDecoder: () => createJsonDecoderFn<number>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<number>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<number>(),
     binaryDecoder: () => createBinaryDecoderFn<number>(),
@@ -96,10 +93,9 @@ export const ATOMIC = {
       'JSON writes "123456" as 6 bytes; binary writes a fixed 8-byte float64. Around six to eight digits the two are about even.',
     mutateEncoder: () => createJsonEncoderFn<number>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<number>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<number>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<number>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<number>(),
-    preserveDecoder: () => createJsonDecoderFn<number>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<number>(),
+    mutateDecoder: () => createJsonDecoderFn<number>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<number>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<number>(),
     binaryDecoder: () => createBinaryDecoderFn<number>(),
@@ -118,10 +114,9 @@ export const ATOMIC = {
       'JSON writes Number.MAX_SAFE_INTEGER as 16 bytes; binary writes a fixed 8-byte float64. Large numbers favour binary on payload.',
     mutateEncoder: () => createJsonEncoderFn<number>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<number>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<number>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<number>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<number>(),
-    preserveDecoder: () => createJsonDecoderFn<number>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<number>(),
+    mutateDecoder: () => createJsonDecoderFn<number>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<number>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<number>(),
     binaryDecoder: () => createBinaryDecoderFn<number>(),
@@ -140,10 +135,9 @@ export const ATOMIC = {
       'JSON writes "3.14" as 4 bytes; binary writes a fixed 8-byte float64. Low-precision floats favour JSON on payload.',
     mutateEncoder: () => createJsonEncoderFn<number>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<number>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<number>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<number>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<number>(),
-    preserveDecoder: () => createJsonDecoderFn<number>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<number>(),
+    mutateDecoder: () => createJsonDecoderFn<number>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<number>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<number>(),
     binaryDecoder: () => createBinaryDecoderFn<number>(),
@@ -162,10 +156,9 @@ export const ATOMIC = {
       'JSON writes the 17-digit decimal as 17 bytes; binary writes a fixed 8-byte float64. High-precision floats favour binary on payload.',
     mutateEncoder: () => createJsonEncoderFn<number>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<number>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<number>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<number>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<number>(),
-    preserveDecoder: () => createJsonDecoderFn<number>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<number>(),
+    mutateDecoder: () => createJsonDecoderFn<number>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<number>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<number>(),
     binaryDecoder: () => createBinaryDecoderFn<number>(),
@@ -180,16 +173,14 @@ export const ATOMIC = {
     title: 'number edge cases',
     description: 'Infinity / NaN are not supported by all protocols and do not survive JSON encoding, becoming null on restore.',
     serializeNotes: [
-      'JSON.stringify maps Infinity / -Infinity / NaN to null, so the strip / clone / mutate paths restore null.',
+      'JSON.stringify maps Infinity / -Infinity / NaN to null, so the clone / mutate paths restore null.',
       'Binary writes float64, which preserves Infinity / -Infinity / NaN natively, so binary uses a separate test-data override.',
-      'Direct path: stringifyJson uses String(v) at root, emitting the literal "Infinity" which JSON.parse rejects — safeAdapterStringifyJsonNotParseable opts into the loose "throw or non-equal" semantic.',
     ],
     mutateEncoder: () => createJsonEncoderFn<number>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<number>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<number>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<number>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<number>(),
-    preserveDecoder: () => createJsonDecoderFn<number>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<number>(),
+    mutateDecoder: () => createJsonDecoderFn<number>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<number>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<number>(),
     binaryDecoder: () => createBinaryDecoderFn<number>(),
@@ -208,12 +199,6 @@ export const ATOMIC = {
       // After JSON.stringify(Infinity) === 'null', restore yields null.
       deserializedValues: [null, null, null],
     }),
-    // Safe-path adapter: stringifyJson at root uses `String(v)`
-    // (ref: stringifyJson.ts:97). `String(Infinity) === "Infinity"`
-    // which is not valid JSON — JSON.parse throws. The flag opts the
-    // safe adapter into the loose "throw OR non-equal" semantic
-    // for this case.
-    safeAdapterStringifyJsonNotParseable: true,
   },
   regexp: {
     title: 'regexp',
@@ -225,14 +210,12 @@ export const ATOMIC = {
     mutateEncoder: () => createJsonEncoderFn<RegExp>(undefined, {strategy: 'mutate'}),
     // @mion-downgrade-error PJS002
     cloneEncoder: () => createJsonEncoderFn<RegExp>(undefined, {strategy: 'clone'}),
-    // @mion-downgrade-error SJ002
-    directEncoder: () => createJsonEncoderFn<RegExp>(undefined, {strategy: 'direct'}),
     // @mion-downgrade-error PJS002
     compactEncoder: () => createJsonEncoderFn<RegExp>(undefined, {strategy: 'compact'}),
     // @mion-downgrade-error RJ002
-    stripDecoder: () => createJsonDecoderFn<RegExp>(),
+    cloneDecoder: () => createJsonDecoderFn<RegExp>(),
     // @mion-downgrade-error RJ002
-    preserveDecoder: () => createJsonDecoderFn<RegExp>(undefined, {strategy: 'preserve'}),
+    mutateDecoder: () => createJsonDecoderFn<RegExp>(undefined, {strategy: 'mutate'}),
     // @mion-downgrade-error RJ002
     compactDecoder: () => createJsonDecoderFn<RegExp>(undefined, {strategy: 'compact'}),
     // @mion-downgrade-error TB002
@@ -260,10 +243,9 @@ export const ATOMIC = {
     ],
     mutateEncoder: () => createJsonEncoderFn<bigint>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<bigint>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<bigint>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<bigint>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<bigint>(),
-    preserveDecoder: () => createJsonDecoderFn<bigint>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<bigint>(),
+    mutateDecoder: () => createJsonDecoderFn<bigint>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<bigint>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<bigint>(),
     binaryDecoder: () => createBinaryDecoderFn<bigint>(),
@@ -280,10 +262,9 @@ export const ATOMIC = {
     description: 'Root `boolean` round-trips identically across JSON and binary; no transform is needed.',
     mutateEncoder: () => createJsonEncoderFn<boolean>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<boolean>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<boolean>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<boolean>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<boolean>(),
-    preserveDecoder: () => createJsonDecoderFn<boolean>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<boolean>(),
+    mutateDecoder: () => createJsonDecoderFn<boolean>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<boolean>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<boolean>(),
     binaryDecoder: () => createBinaryDecoderFn<boolean>(),
@@ -301,10 +282,9 @@ export const ATOMIC = {
       'With no static type, `any` round-trips whatever JSON.stringify produces — the adapter only asserts a non-undefined string, not deep equality.',
     mutateEncoder: () => createJsonEncoderFn<any>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<any>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<any>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<any>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<any>(),
-    preserveDecoder: () => createJsonDecoderFn<any>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<any>(),
+    mutateDecoder: () => createJsonDecoderFn<any>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<any>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<any>(),
     binaryDecoder: () => createBinaryDecoderFn<any>(),
@@ -323,10 +303,9 @@ export const ATOMIC = {
       'Because the static type is `any`, no Date/BigInt transform fires; undefined and bigint do not survive JSON, so the round-trip is best-effort (string-only assertion) rather than deep-equal.',
     mutateEncoder: () => createJsonEncoderFn<any>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<any>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<any>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<any>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<any>(),
-    preserveDecoder: () => createJsonDecoderFn<any>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<any>(),
+    mutateDecoder: () => createJsonDecoderFn<any>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<any>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<any>(),
     binaryDecoder: () => createBinaryDecoderFn<any>(),
@@ -342,10 +321,9 @@ export const ATOMIC = {
     description: 'Root `null` literal round-trips identically across JSON and binary.',
     mutateEncoder: () => createJsonEncoderFn<null>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<null>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<null>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<null>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<null>(),
-    preserveDecoder: () => createJsonDecoderFn<null>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<null>(),
+    mutateDecoder: () => createJsonDecoderFn<null>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<null>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<null>(),
     binaryDecoder: () => createBinaryDecoderFn<null>(),
@@ -362,10 +340,9 @@ export const ATOMIC = {
       'JSON has no undefined, so the parsed value may arrive as null or missing; decode force-rebinds it back to undefined. Binary writes a marker byte and reconstructs undefined directly.',
     mutateEncoder: () => createJsonEncoderFn<undefined>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<undefined>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<undefined>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<undefined>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<undefined>(),
-    preserveDecoder: () => createJsonDecoderFn<undefined>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<undefined>(),
+    mutateDecoder: () => createJsonDecoderFn<undefined>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<undefined>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<undefined>(),
     binaryDecoder: () => createBinaryDecoderFn<undefined>(),
@@ -382,10 +359,9 @@ export const ATOMIC = {
       'JSON serializes Date to an ISO string and revives it with `new Date(...)`; binary stores the epoch as a fixed 8-byte float64 of `getTime()`.',
     mutateEncoder: () => createJsonEncoderFn<Date>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<Date>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<Date>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<Date>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<Date>(),
-    preserveDecoder: () => createJsonDecoderFn<Date>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<Date>(),
+    mutateDecoder: () => createJsonDecoderFn<Date>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<Date>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<Date>(),
     binaryDecoder: () => createBinaryDecoderFn<Date>(),
@@ -433,14 +409,6 @@ export const ATOMIC = {
       }
       return createJsonEncoderFn<Color>(undefined, {strategy: 'clone'});
     },
-    directEncoder: () => {
-      enum Color {
-        Red = 'red',
-        Green = 'green',
-        Blue = 'blue',
-      }
-      return createJsonEncoderFn<Color>(undefined, {strategy: 'direct'});
-    },
     compactEncoder: () => {
       enum Color {
         Red = 'red',
@@ -449,7 +417,7 @@ export const ATOMIC = {
       }
       return createJsonEncoderFn<Color>(undefined, {strategy: 'compact'});
     },
-    stripDecoder: () => {
+    cloneDecoder: () => {
       enum Color {
         Red = 'red',
         Green = 'green',
@@ -457,13 +425,13 @@ export const ATOMIC = {
       }
       return createJsonDecoderFn<Color>();
     },
-    preserveDecoder: () => {
+    mutateDecoder: () => {
       enum Color {
         Red = 'red',
         Green = 'green',
         Blue = 'blue',
       }
-      return createJsonDecoderFn<Color>(undefined, {strategy: 'preserve'});
+      return createJsonDecoderFn<Color>(undefined, {strategy: 'mutate'});
     },
     compactDecoder: () => {
       enum Color {
@@ -512,14 +480,12 @@ export const ATOMIC = {
     mutateEncoder: () => createJsonEncoderFn<symbol>(undefined, {strategy: 'mutate'}),
     // @mion-downgrade-error PJS005
     cloneEncoder: () => createJsonEncoderFn<symbol>(undefined, {strategy: 'clone'}),
-    // @mion-downgrade-error SJ005
-    directEncoder: () => createJsonEncoderFn<symbol>(undefined, {strategy: 'direct'}),
     // @mion-downgrade-error PJS005
     compactEncoder: () => createJsonEncoderFn<symbol>(undefined, {strategy: 'compact'}),
     // @mion-downgrade-error RJ005
-    stripDecoder: () => createJsonDecoderFn<symbol>(),
+    cloneDecoder: () => createJsonDecoderFn<symbol>(),
     // @mion-downgrade-error RJ005
-    preserveDecoder: () => createJsonDecoderFn<symbol>(undefined, {strategy: 'preserve'}),
+    mutateDecoder: () => createJsonDecoderFn<symbol>(undefined, {strategy: 'mutate'}),
     // @mion-downgrade-error RJ005
     compactDecoder: () => createJsonDecoderFn<symbol>(undefined, {strategy: 'compact'}),
     // @mion-downgrade-error TB006
@@ -549,10 +515,9 @@ export const ATOMIC = {
     ],
     mutateEncoder: () => createJsonEncoderFn<object>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<object>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<object>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<object>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<object>(),
-    preserveDecoder: () => createJsonDecoderFn<object>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<object>(),
+    mutateDecoder: () => createJsonDecoderFn<object>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<object>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<object>(),
     binaryDecoder: () => createBinaryDecoderFn<object>(),
@@ -572,10 +537,9 @@ export const ATOMIC = {
       'JSON has no undefined, so the parsed value may arrive as null or missing and decode force-rebinds it to undefined; binary writes a marker byte and reconstructs undefined.',
     mutateEncoder: () => createJsonEncoderFn<void>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<void>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<void>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<void>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<void>(),
-    preserveDecoder: () => createJsonDecoderFn<void>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<void>(),
+    mutateDecoder: () => createJsonDecoderFn<void>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<void>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<void>(),
     binaryDecoder: () => createBinaryDecoderFn<void>(),
@@ -592,14 +556,12 @@ export const ATOMIC = {
     mutateEncoder: () => createJsonEncoderFn<never>(undefined, {strategy: 'mutate'}),
     // @mion-downgrade-error PJS001
     cloneEncoder: () => createJsonEncoderFn<never>(undefined, {strategy: 'clone'}),
-    // @mion-downgrade-error SJ001
-    directEncoder: () => createJsonEncoderFn<never>(undefined, {strategy: 'direct'}),
     // @mion-downgrade-error PJS001
     compactEncoder: () => createJsonEncoderFn<never>(undefined, {strategy: 'compact'}),
     // @mion-downgrade-error RJ001
-    stripDecoder: () => createJsonDecoderFn<never>(),
+    cloneDecoder: () => createJsonDecoderFn<never>(),
     // @mion-downgrade-error RJ001
-    preserveDecoder: () => createJsonDecoderFn<never>(undefined, {strategy: 'preserve'}),
+    mutateDecoder: () => createJsonDecoderFn<never>(undefined, {strategy: 'mutate'}),
     // @mion-downgrade-error RJ001
     compactDecoder: () => createJsonDecoderFn<never>(undefined, {strategy: 'compact'}),
     // @mion-downgrade-error TB001
@@ -624,10 +586,9 @@ export const ATOMIC = {
     description: 'A string-literal type round-trips identically across JSON and binary as a plain string.',
     mutateEncoder: () => createJsonEncoderFn<'hello'>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<'hello'>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<'hello'>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<'hello'>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<'hello'>(),
-    preserveDecoder: () => createJsonDecoderFn<'hello'>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<'hello'>(),
+    mutateDecoder: () => createJsonDecoderFn<'hello'>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<'hello'>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<'hello'>(),
     binaryDecoder: () => createBinaryDecoderFn<'hello'>(),
@@ -642,10 +603,9 @@ export const ATOMIC = {
     description: 'A number-literal type round-trips identically across JSON and binary as a plain number.',
     mutateEncoder: () => createJsonEncoderFn<42>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<42>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<42>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<42>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<42>(),
-    preserveDecoder: () => createJsonDecoderFn<42>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<42>(),
+    mutateDecoder: () => createJsonDecoderFn<42>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<42>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<42>(),
     binaryDecoder: () => createBinaryDecoderFn<42>(),
@@ -663,10 +623,9 @@ export const ATOMIC = {
       'The clone strategy used to pass a bigint literal through untouched, so `JSON.stringify` threw on it; the literal now carries the transform its non-literal sibling carries.',
     mutateEncoder: () => createJsonEncoderFn<1n>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<1n>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<1n>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<1n>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<1n>(),
-    preserveDecoder: () => createJsonDecoderFn<1n>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<1n>(),
+    mutateDecoder: () => createJsonDecoderFn<1n>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<1n>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<1n>(),
     binaryDecoder: () => createBinaryDecoderFn<1n>(),
@@ -681,10 +640,9 @@ export const ATOMIC = {
     description: 'A boolean-literal type round-trips identically across JSON and binary as a plain boolean.',
     mutateEncoder: () => createJsonEncoderFn<true>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<true>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<true>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<true>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<true>(),
-    preserveDecoder: () => createJsonDecoderFn<true>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<true>(),
+    mutateDecoder: () => createJsonDecoderFn<true>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<true>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<true>(),
     binaryDecoder: () => createBinaryDecoderFn<true>(),
@@ -710,25 +668,20 @@ export const ATOMIC = {
       // @mion-downgrade-error PJS005
       return createJsonEncoderFn<typeof sym>(undefined, {strategy: 'clone'});
     },
-    directEncoder: () => {
-      const sym = Symbol('hello');
-      // @mion-downgrade-error SJ005
-      return createJsonEncoderFn<typeof sym>(undefined, {strategy: 'direct'});
-    },
     compactEncoder: () => {
       const sym = Symbol('hello');
       // @mion-downgrade-error PJS005
       return createJsonEncoderFn<typeof sym>(undefined, {strategy: 'compact'});
     },
-    stripDecoder: () => {
+    cloneDecoder: () => {
       const sym = Symbol('hello');
       // @mion-downgrade-error RJ005
       return createJsonDecoderFn<typeof sym>();
     },
-    preserveDecoder: () => {
+    mutateDecoder: () => {
       const sym = Symbol('hello');
       // @mion-downgrade-error RJ005
-      return createJsonDecoderFn<typeof sym>(undefined, {strategy: 'preserve'});
+      return createJsonDecoderFn<typeof sym>(undefined, {strategy: 'mutate'});
     },
     compactDecoder: () => {
       const sym = Symbol('hello');

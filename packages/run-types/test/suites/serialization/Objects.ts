@@ -32,17 +32,6 @@ export const OBJECTS = {
         "weird prop name \n?>'\\\t\r": string;
         optionalString?: string;
       }>(undefined, {strategy: 'clone'}),
-    directEncoder: () =>
-      createJsonEncoderFn<{
-        startDate: Date;
-        quantity: number;
-        name: string;
-        nullValue: null;
-        big: bigint;
-        stringArray: string[];
-        "weird prop name \n?>'\\\t\r": string;
-        optionalString?: string;
-      }>(undefined, {strategy: 'direct'}),
     compactEncoder: () =>
       createJsonEncoderFn<{
         startDate: Date;
@@ -54,7 +43,7 @@ export const OBJECTS = {
         "weird prop name \n?>'\\\t\r": string;
         optionalString?: string;
       }>(undefined, {strategy: 'compact'}),
-    stripDecoder: () =>
+    cloneDecoder: () =>
       createJsonDecoderFn<{
         startDate: Date;
         quantity: number;
@@ -65,7 +54,7 @@ export const OBJECTS = {
         "weird prop name \n?>'\\\t\r": string;
         optionalString?: string;
       }>(),
-    preserveDecoder: () =>
+    mutateDecoder: () =>
       createJsonDecoderFn<{
         startDate: Date;
         quantity: number;
@@ -75,7 +64,7 @@ export const OBJECTS = {
         stringArray: string[];
         "weird prop name \n?>'\\\t\r": string;
         optionalString?: string;
-      }>(undefined, {strategy: 'preserve'}),
+      }>(undefined, {strategy: 'mutate'}),
     compactDecoder: () =>
       createJsonDecoderFn<{
         startDate: Date;
@@ -201,17 +190,6 @@ export const OBJECTS = {
         };
       return createJsonEncoderFn<ManyOptional>(undefined, {strategy: 'clone'});
     },
-    directEncoder: () => {
-      type N = number;
-      // prettier-ignore
-      type ManyOptional = {
-          a0?: N; a1?: N; a2?: N; a3?: N; a4?: N; a5?: N; a6?: N; a7?: N;
-          a8?: N; a9?: N; a10?: N; a11?: N; a12?: N; a13?: N; a14?: N; a15?: N;
-          b0?: N; b1?: N; b2?: N; b3?: N; b4?: N; b5?: N; b6?: N; b7?: N;
-          b8?: N; b9?: N; b10?: N; b11?: N; b12?: N; b13?: N; b14?: N; b15?: N;
-        };
-      return createJsonEncoderFn<ManyOptional>(undefined, {strategy: 'direct'});
-    },
     compactEncoder: () => {
       type N = number;
       // prettier-ignore
@@ -223,7 +201,7 @@ export const OBJECTS = {
         };
       return createJsonEncoderFn<ManyOptional>(undefined, {strategy: 'compact'});
     },
-    stripDecoder: () => {
+    cloneDecoder: () => {
       type N = number;
       // prettier-ignore
       type ManyOptional = {
@@ -234,7 +212,7 @@ export const OBJECTS = {
         };
       return createJsonDecoderFn<ManyOptional>();
     },
-    preserveDecoder: () => {
+    mutateDecoder: () => {
       type N = number;
       // prettier-ignore
       type ManyOptional = {
@@ -243,7 +221,7 @@ export const OBJECTS = {
           b0?: N; b1?: N; b2?: N; b3?: N; b4?: N; b5?: N; b6?: N; b7?: N;
           b8?: N; b9?: N; b10?: N; b11?: N; b12?: N; b13?: N; b14?: N; b15?: N;
         };
-      return createJsonDecoderFn<ManyOptional>(undefined, {strategy: 'preserve'});
+      return createJsonDecoderFn<ManyOptional>(undefined, {strategy: 'mutate'});
     },
     compactDecoder: () => {
       type N = number;
@@ -482,24 +460,6 @@ export const OBJECTS = {
       }
       return createJsonEncoderFn<MySerializableClass>(undefined, {strategy: 'clone'});
     },
-    directEncoder: () => {
-      class MySerializableClass {
-        name: string;
-        surname: string;
-        id: number;
-        startDate: Date;
-        constructor() {
-          this.name = 'John';
-          this.surname = 'Doe';
-          this.id = 0;
-          this.startDate = new Date('2000-08-06T02:13:00.000Z');
-        }
-        getFullName() {
-          return `${this.name} ${this.surname}`;
-        }
-      }
-      return createJsonEncoderFn<MySerializableClass>(undefined, {strategy: 'direct'});
-    },
     compactEncoder: () => {
       class MySerializableClass {
         name: string;
@@ -518,7 +478,7 @@ export const OBJECTS = {
       }
       return createJsonEncoderFn<MySerializableClass>(undefined, {strategy: 'compact'});
     },
-    stripDecoder: () => {
+    cloneDecoder: () => {
       class MySerializableClass {
         name: string;
         surname: string;
@@ -536,7 +496,7 @@ export const OBJECTS = {
       }
       return createJsonDecoderFn<MySerializableClass>();
     },
-    preserveDecoder: () => {
+    mutateDecoder: () => {
       class MySerializableClass {
         name: string;
         surname: string;
@@ -552,7 +512,7 @@ export const OBJECTS = {
           return `${this.name} ${this.surname}`;
         }
       }
-      return createJsonDecoderFn<MySerializableClass>(undefined, {strategy: 'preserve'});
+      return createJsonDecoderFn<MySerializableClass>(undefined, {strategy: 'mutate'});
     },
     compactDecoder: () => {
       class MySerializableClass {
@@ -725,15 +685,6 @@ export const OBJECTS = {
       }
       return createJsonEncoderFn<ExtendedClass>(undefined, {strategy: 'clone'});
     },
-    directEncoder: () => {
-      class BaseClass {
-        baseProp: string = 'base';
-      }
-      class ExtendedClass extends BaseClass {
-        extendedProp: string = 'extended';
-      }
-      return createJsonEncoderFn<ExtendedClass>(undefined, {strategy: 'direct'});
-    },
     compactEncoder: () => {
       class BaseClass {
         baseProp: string = 'base';
@@ -743,7 +694,7 @@ export const OBJECTS = {
       }
       return createJsonEncoderFn<ExtendedClass>(undefined, {strategy: 'compact'});
     },
-    stripDecoder: () => {
+    cloneDecoder: () => {
       class BaseClass {
         baseProp: string = 'base';
       }
@@ -752,14 +703,14 @@ export const OBJECTS = {
       }
       return createJsonDecoderFn<ExtendedClass>();
     },
-    preserveDecoder: () => {
+    mutateDecoder: () => {
       class BaseClass {
         baseProp: string = 'base';
       }
       class ExtendedClass extends BaseClass {
         extendedProp: string = 'extended';
       }
-      return createJsonDecoderFn<ExtendedClass>(undefined, {strategy: 'preserve'});
+      return createJsonDecoderFn<ExtendedClass>(undefined, {strategy: 'mutate'});
     },
     compactDecoder: () => {
       class BaseClass {
@@ -870,20 +821,6 @@ export const OBJECTS = {
       }
       return createJsonEncoderFn<NonSerializableClass>(undefined, {strategy: 'clone'});
     },
-    directEncoder: () => {
-      class NonSerializableClass {
-        constructor(
-          public name: string,
-          public surname: string,
-          public id: number,
-          public startDate: Date
-        ) {}
-        getFullName() {
-          return `${this.name} ${this.surname}`;
-        }
-      }
-      return createJsonEncoderFn<NonSerializableClass>(undefined, {strategy: 'direct'});
-    },
     compactEncoder: () => {
       class NonSerializableClass {
         constructor(
@@ -898,7 +835,7 @@ export const OBJECTS = {
       }
       return createJsonEncoderFn<NonSerializableClass>(undefined, {strategy: 'compact'});
     },
-    stripDecoder: () => {
+    cloneDecoder: () => {
       class NonSerializableClass {
         constructor(
           public name: string,
@@ -912,7 +849,7 @@ export const OBJECTS = {
       }
       return createJsonDecoderFn<NonSerializableClass>();
     },
-    preserveDecoder: () => {
+    mutateDecoder: () => {
       class NonSerializableClass {
         constructor(
           public name: string,
@@ -924,7 +861,7 @@ export const OBJECTS = {
           return `${this.name} ${this.surname}`;
         }
       }
-      return createJsonDecoderFn<NonSerializableClass>(undefined, {strategy: 'preserve'});
+      return createJsonDecoderFn<NonSerializableClass>(undefined, {strategy: 'mutate'});
     },
     compactDecoder: () => {
       class NonSerializableClass {
@@ -1048,10 +985,9 @@ export const OBJECTS = {
     serializeNotes: 'An undefined-valued property is omitted on the wire and absent after the round-trip.',
     mutateEncoder: () => createJsonEncoderFn<{a: string; b: number; c: undefined}>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<{a: string; b: number; c: undefined}>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<{a: string; b: number; c: undefined}>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<{a: string; b: number; c: undefined}>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<{a: string; b: number; c: undefined}>(),
-    preserveDecoder: () => createJsonDecoderFn<{a: string; b: number; c: undefined}>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<{a: string; b: number; c: undefined}>(),
+    mutateDecoder: () => createJsonDecoderFn<{a: string; b: number; c: undefined}>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<{a: string; b: number; c: undefined}>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<{a: string; b: number; c: undefined}>(),
     binaryDecoder: () => createBinaryDecoderFn<{a: string; b: number; c: undefined}>(),
@@ -1071,10 +1007,9 @@ export const OBJECTS = {
       'An object whose props are all required and all extra-proof takes a key-count fastpath that returns the input unchanged; a bigint literal is not extra-proof, so this shape builds the clone and applies the transform.',
     mutateEncoder: () => createJsonEncoderFn<{a: 1n; b: 2n}>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<{a: 1n; b: 2n}>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<{a: 1n; b: 2n}>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<{a: 1n; b: 2n}>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<{a: 1n; b: 2n}>(),
-    preserveDecoder: () => createJsonDecoderFn<{a: 1n; b: 2n}>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<{a: 1n; b: 2n}>(),
+    mutateDecoder: () => createJsonDecoderFn<{a: 1n; b: 2n}>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<{a: 1n; b: 2n}>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<{a: 1n; b: 2n}>(),
     binaryDecoder: () => createBinaryDecoderFn<{a: 1n; b: 2n}>(),
@@ -1090,10 +1025,9 @@ export const OBJECTS = {
       'Object with a required string followed by an optional string whose samples cover the optional prop present and absent, checking each round-trips without reordering or dropping the required field.',
     mutateEncoder: () => createJsonEncoderFn<{a: string; b?: string}>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<{a: string; b?: string}>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<{a: string; b?: string}>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<{a: string; b?: string}>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<{a: string; b?: string}>(),
-    preserveDecoder: () => createJsonDecoderFn<{a: string; b?: string}>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<{a: string; b?: string}>(),
+    mutateDecoder: () => createJsonDecoderFn<{a: string; b?: string}>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<{a: string; b?: string}>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<{a: string; b?: string}>(),
     binaryDecoder: () => createBinaryDecoderFn<{a: string; b?: string}>(),
@@ -1109,10 +1043,9 @@ export const OBJECTS = {
       'Object where every property is an optional string, with samples covering both present, one present, and the empty object to verify a fully-optional shape round-trips with any subset of keys.',
     mutateEncoder: () => createJsonEncoderFn<{a?: string; b?: string}>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<{a?: string; b?: string}>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<{a?: string; b?: string}>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<{a?: string; b?: string}>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<{a?: string; b?: string}>(),
-    preserveDecoder: () => createJsonDecoderFn<{a?: string; b?: string}>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<{a?: string; b?: string}>(),
+    mutateDecoder: () => createJsonDecoderFn<{a?: string; b?: string}>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<{a?: string; b?: string}>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<{a?: string; b?: string}>(),
     binaryDecoder: () => createBinaryDecoderFn<{a?: string; b?: string}>(),
@@ -1127,8 +1060,8 @@ export const OBJECTS = {
     description:
       'Canonical baseline for the unsafe `prepareForJson + JSON.stringify` path where declared children get transformed while structural extras (top-level and nested-in-declared-composites) pass through unchanged, mirroring the `03JsonObjects.spec.ts` strip-extras case whose strip expectation is commented out, with the safe `stripUnknownKeys` divergence exercised in EXTRA_PARAMS.',
     serializeNotes: [
-      'Strategy split: `mutate` walks declared children only and lets `JSON.stringify` pass undeclared extras through, so `getTestData` round-trips them unchanged; `clone` and `direct` are shape-derived and strip extras pre-serialise, so `getTestDataForStringify` restores the declared-only shape (`deserializedValues` drops the extras).',
-      'Decode split: the `preserve` decoder passes undeclared keys through to the restored value, while the default `strip` decoder nukes them to `undefined`.',
+      'Strategy split: `mutate` walks declared children only and lets `JSON.stringify` pass undeclared extras through, so `getTestData` round-trips them unchanged; `clone` is shape-derived and strips extras pre-serialise, so `getTestDataForStringify` restores the declared-only shape (`deserializedValues` drops the extras).',
+      'Decode split: the `mutate` decoder passes undeclared keys through to the restored value, while the default `clone` decoder drops them.',
     ],
     mutateEncoder: () =>
       createJsonEncoderFn<{
@@ -1156,19 +1089,6 @@ export const OBJECTS = {
         deep: {a: string; b: number};
         '?other weird p': {c: string; d: number};
       }>(undefined, {strategy: 'clone'}),
-    directEncoder: () =>
-      createJsonEncoderFn<{
-        startDate: Date;
-        quantity: number;
-        name: string;
-        nullValue: null;
-        stringArray: string[];
-        bigInt: bigint;
-        optionalString?: string;
-        "weird prop name \n?>'\\\t\r": string;
-        deep: {a: string; b: number};
-        '?other weird p': {c: string; d: number};
-      }>(undefined, {strategy: 'direct'}),
     compactEncoder: () =>
       createJsonEncoderFn<{
         startDate: Date;
@@ -1182,7 +1102,7 @@ export const OBJECTS = {
         deep: {a: string; b: number};
         '?other weird p': {c: string; d: number};
       }>(undefined, {strategy: 'compact'}),
-    stripDecoder: () =>
+    cloneDecoder: () =>
       createJsonDecoderFn<{
         startDate: Date;
         quantity: number;
@@ -1195,7 +1115,7 @@ export const OBJECTS = {
         deep: {a: string; b: number};
         '?other weird p': {c: string; d: number};
       }>(),
-    preserveDecoder: () =>
+    mutateDecoder: () =>
       createJsonDecoderFn<{
         startDate: Date;
         quantity: number;
@@ -1207,7 +1127,7 @@ export const OBJECTS = {
         "weird prop name \n?>'\\\t\r": string;
         deep: {a: string; b: number};
         '?other weird p': {c: string; d: number};
-      }>(undefined, {strategy: 'preserve'}),
+      }>(undefined, {strategy: 'mutate'}),
     compactDecoder: () =>
       createJsonDecoderFn<{
         startDate: Date;
@@ -1377,13 +1297,6 @@ export const OBJECTS = {
       }
       return createJsonEncoderFn<ICircular>(undefined, {strategy: 'clone'});
     },
-    directEncoder: () => {
-      interface ICircular {
-        name: string;
-        child?: ICircular;
-      }
-      return createJsonEncoderFn<ICircular>(undefined, {strategy: 'direct'});
-    },
     compactEncoder: () => {
       interface ICircular {
         name: string;
@@ -1391,19 +1304,19 @@ export const OBJECTS = {
       }
       return createJsonEncoderFn<ICircular>(undefined, {strategy: 'compact'});
     },
-    stripDecoder: () => {
+    cloneDecoder: () => {
       interface ICircular {
         name: string;
         child?: ICircular;
       }
       return createJsonDecoderFn<ICircular>();
     },
-    preserveDecoder: () => {
+    mutateDecoder: () => {
       interface ICircular {
         name: string;
         child?: ICircular;
       }
-      return createJsonDecoderFn<ICircular>(undefined, {strategy: 'preserve'});
+      return createJsonDecoderFn<ICircular>(undefined, {strategy: 'mutate'});
     },
     compactDecoder: () => {
       interface ICircular {
@@ -1464,13 +1377,6 @@ export const OBJECTS = {
       }
       return createJsonEncoderFn<ICircularArray>(undefined, {strategy: 'clone'});
     },
-    directEncoder: () => {
-      interface ICircularArray {
-        name: string;
-        children?: ICircularArray[];
-      }
-      return createJsonEncoderFn<ICircularArray>(undefined, {strategy: 'direct'});
-    },
     compactEncoder: () => {
       interface ICircularArray {
         name: string;
@@ -1478,19 +1384,19 @@ export const OBJECTS = {
       }
       return createJsonEncoderFn<ICircularArray>(undefined, {strategy: 'compact'});
     },
-    stripDecoder: () => {
+    cloneDecoder: () => {
       interface ICircularArray {
         name: string;
         children?: ICircularArray[];
       }
       return createJsonDecoderFn<ICircularArray>();
     },
-    preserveDecoder: () => {
+    mutateDecoder: () => {
       interface ICircularArray {
         name: string;
         children?: ICircularArray[];
       }
-      return createJsonDecoderFn<ICircularArray>(undefined, {strategy: 'preserve'});
+      return createJsonDecoderFn<ICircularArray>(undefined, {strategy: 'mutate'});
     },
     compactDecoder: () => {
       interface ICircularArray {
@@ -1563,17 +1469,6 @@ export const OBJECTS = {
       }
       return createJsonEncoderFn<ICircularDeep>(undefined, {strategy: 'clone'});
     },
-    directEncoder: () => {
-      interface ICircularDeep {
-        name: string;
-        big: bigint;
-        embedded: {
-          hello: string;
-          child?: ICircularDeep;
-        };
-      }
-      return createJsonEncoderFn<ICircularDeep>(undefined, {strategy: 'direct'});
-    },
     compactEncoder: () => {
       interface ICircularDeep {
         name: string;
@@ -1585,7 +1480,7 @@ export const OBJECTS = {
       }
       return createJsonEncoderFn<ICircularDeep>(undefined, {strategy: 'compact'});
     },
-    stripDecoder: () => {
+    cloneDecoder: () => {
       interface ICircularDeep {
         name: string;
         big: bigint;
@@ -1596,7 +1491,7 @@ export const OBJECTS = {
       }
       return createJsonDecoderFn<ICircularDeep>();
     },
-    preserveDecoder: () => {
+    mutateDecoder: () => {
       interface ICircularDeep {
         name: string;
         big: bigint;
@@ -1605,7 +1500,7 @@ export const OBJECTS = {
           child?: ICircularDeep;
         };
       }
-      return createJsonDecoderFn<ICircularDeep>(undefined, {strategy: 'preserve'});
+      return createJsonDecoderFn<ICircularDeep>(undefined, {strategy: 'mutate'});
     },
     compactDecoder: () => {
       interface ICircularDeep {
@@ -1704,18 +1599,6 @@ export const OBJECTS = {
       }
       return createJsonEncoderFn<RootNotCircular>(undefined, {strategy: 'clone'});
     },
-    directEncoder: () => {
-      interface ICircularDeep {
-        name: string;
-        big: bigint;
-        embedded: {hello: string; child?: ICircularDeep};
-      }
-      interface RootNotCircular {
-        isRoot: true;
-        ciChild: ICircularDeep;
-      }
-      return createJsonEncoderFn<RootNotCircular>(undefined, {strategy: 'direct'});
-    },
     compactEncoder: () => {
       interface ICircularDeep {
         name: string;
@@ -1728,7 +1611,7 @@ export const OBJECTS = {
       }
       return createJsonEncoderFn<RootNotCircular>(undefined, {strategy: 'compact'});
     },
-    stripDecoder: () => {
+    cloneDecoder: () => {
       interface ICircularDeep {
         name: string;
         big: bigint;
@@ -1740,7 +1623,7 @@ export const OBJECTS = {
       }
       return createJsonDecoderFn<RootNotCircular>();
     },
-    preserveDecoder: () => {
+    mutateDecoder: () => {
       interface ICircularDeep {
         name: string;
         big: bigint;
@@ -1750,7 +1633,7 @@ export const OBJECTS = {
         isRoot: true;
         ciChild: ICircularDeep;
       }
-      return createJsonDecoderFn<RootNotCircular>(undefined, {strategy: 'preserve'});
+      return createJsonDecoderFn<RootNotCircular>(undefined, {strategy: 'mutate'});
     },
     compactDecoder: () => {
       interface ICircularDeep {
@@ -1877,27 +1760,6 @@ export const OBJECTS = {
       }
       return createJsonEncoderFn<RootCircular>(undefined, {strategy: 'clone'});
     },
-    directEncoder: () => {
-      interface ICircularDeep {
-        name: string;
-        big: bigint;
-        embedded: {hello: string; child?: ICircularDeep};
-      }
-      interface ICircularDate {
-        date: Date;
-        month: number;
-        year: number;
-        embedded?: ICircularDate;
-        deep?: ICircularDeep;
-      }
-      interface RootCircular {
-        isRoot: true;
-        ciChild: ICircularDeep;
-        ciRoort?: RootCircular;
-        ciDate: ICircularDate;
-      }
-      return createJsonEncoderFn<RootCircular>(undefined, {strategy: 'direct'});
-    },
     compactEncoder: () => {
       interface ICircularDeep {
         name: string;
@@ -1919,7 +1781,7 @@ export const OBJECTS = {
       }
       return createJsonEncoderFn<RootCircular>(undefined, {strategy: 'compact'});
     },
-    stripDecoder: () => {
+    cloneDecoder: () => {
       interface ICircularDeep {
         name: string;
         big: bigint;
@@ -1940,7 +1802,7 @@ export const OBJECTS = {
       }
       return createJsonDecoderFn<RootCircular>();
     },
-    preserveDecoder: () => {
+    mutateDecoder: () => {
       interface ICircularDeep {
         name: string;
         big: bigint;
@@ -1959,7 +1821,7 @@ export const OBJECTS = {
         ciRoort?: RootCircular;
         ciDate: ICircularDate;
       }
-      return createJsonDecoderFn<RootCircular>(undefined, {strategy: 'preserve'});
+      return createJsonDecoderFn<RootCircular>(undefined, {strategy: 'mutate'});
     },
     compactDecoder: () => {
       interface ICircularDeep {
@@ -2162,13 +2024,6 @@ export const OBJECTS = {
       }
       return createJsonEncoderFn<ObjectWithMethods>(undefined, {strategy: 'clone'});
     },
-    directEncoder: () => {
-      interface ObjectWithMethods {
-        name: string;
-        methodProp: () => any;
-      }
-      return createJsonEncoderFn<ObjectWithMethods>(undefined, {strategy: 'direct'});
-    },
     compactEncoder: () => {
       interface ObjectWithMethods {
         name: string;
@@ -2176,19 +2031,19 @@ export const OBJECTS = {
       }
       return createJsonEncoderFn<ObjectWithMethods>(undefined, {strategy: 'compact'});
     },
-    stripDecoder: () => {
+    cloneDecoder: () => {
       interface ObjectWithMethods {
         name: string;
         methodProp: () => any;
       }
       return createJsonDecoderFn<ObjectWithMethods>();
     },
-    preserveDecoder: () => {
+    mutateDecoder: () => {
       interface ObjectWithMethods {
         name: string;
         methodProp: () => any;
       }
-      return createJsonDecoderFn<ObjectWithMethods>(undefined, {strategy: 'preserve'});
+      return createJsonDecoderFn<ObjectWithMethods>(undefined, {strategy: 'mutate'});
     },
     compactDecoder: () => {
       interface ObjectWithMethods {
@@ -2269,21 +2124,6 @@ export const OBJECTS = {
       registerClassSerializer(Ledger, {deserialize: (d) => new Ledger(d.owner, d.opened, d.balance, d.tags)});
       return createJsonEncoderFn<Ledger>(undefined, {strategy: 'clone'});
     },
-    directEncoder: () => {
-      class Ledger {
-        constructor(
-          public owner: string,
-          public opened: Date,
-          public balance: bigint,
-          public tags: string[]
-        ) {}
-        summary(): string {
-          return `${this.owner}:${this.balance}`;
-        }
-      }
-      registerClassSerializer(Ledger, {deserialize: (d) => new Ledger(d.owner, d.opened, d.balance, d.tags)});
-      return createJsonEncoderFn<Ledger>(undefined, {strategy: 'direct'});
-    },
     compactEncoder: () => {
       class Ledger {
         constructor(
@@ -2299,7 +2139,7 @@ export const OBJECTS = {
       registerClassSerializer(Ledger, {deserialize: (d) => new Ledger(d.owner, d.opened, d.balance, d.tags)});
       return createJsonEncoderFn<Ledger>(undefined, {strategy: 'compact'});
     },
-    stripDecoder: () => {
+    cloneDecoder: () => {
       class Ledger {
         constructor(
           public owner: string,
@@ -2314,7 +2154,7 @@ export const OBJECTS = {
       registerClassSerializer(Ledger, {deserialize: (d) => new Ledger(d.owner, d.opened, d.balance, d.tags)});
       return createJsonDecoderFn<Ledger>();
     },
-    preserveDecoder: () => {
+    mutateDecoder: () => {
       class Ledger {
         constructor(
           public owner: string,
@@ -2327,7 +2167,7 @@ export const OBJECTS = {
         }
       }
       registerClassSerializer(Ledger, {deserialize: (d) => new Ledger(d.owner, d.opened, d.balance, d.tags)});
-      return createJsonDecoderFn<Ledger>(undefined, {strategy: 'preserve'});
+      return createJsonDecoderFn<Ledger>(undefined, {strategy: 'mutate'});
     },
     compactDecoder: () => {
       class Ledger {
@@ -2428,19 +2268,6 @@ export const OBJECTS = {
       registerClassSerializer(Vertex, {deserialize: (d) => new Vertex(d.x, d.y)});
       return createJsonEncoderFn<{name: string; origin: Vertex}>(undefined, {strategy: 'clone'});
     },
-    directEncoder: () => {
-      class Vertex {
-        constructor(
-          public x: number,
-          public y: number
-        ) {}
-        norm(): number {
-          return Math.hypot(this.x, this.y);
-        }
-      }
-      registerClassSerializer(Vertex, {deserialize: (d) => new Vertex(d.x, d.y)});
-      return createJsonEncoderFn<{name: string; origin: Vertex}>(undefined, {strategy: 'direct'});
-    },
     compactEncoder: () => {
       class Vertex {
         constructor(
@@ -2454,7 +2281,7 @@ export const OBJECTS = {
       registerClassSerializer(Vertex, {deserialize: (d) => new Vertex(d.x, d.y)});
       return createJsonEncoderFn<{name: string; origin: Vertex}>(undefined, {strategy: 'compact'});
     },
-    stripDecoder: () => {
+    cloneDecoder: () => {
       class Vertex {
         constructor(
           public x: number,
@@ -2467,7 +2294,7 @@ export const OBJECTS = {
       registerClassSerializer(Vertex, {deserialize: (d) => new Vertex(d.x, d.y)});
       return createJsonDecoderFn<{name: string; origin: Vertex}>();
     },
-    preserveDecoder: () => {
+    mutateDecoder: () => {
       class Vertex {
         constructor(
           public x: number,
@@ -2478,7 +2305,7 @@ export const OBJECTS = {
         }
       }
       registerClassSerializer(Vertex, {deserialize: (d) => new Vertex(d.x, d.y)});
-      return createJsonDecoderFn<{name: string; origin: Vertex}>(undefined, {strategy: 'preserve'});
+      return createJsonDecoderFn<{name: string; origin: Vertex}>(undefined, {strategy: 'mutate'});
     },
     compactDecoder: () => {
       class Vertex {

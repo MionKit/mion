@@ -1237,90 +1237,6 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     detail:
       "Declared members are never dropped (only UNDECLARED keys are; that is the\nstrip guarantee). A value the emitter cannot rebuild passes through by\nreference instead: the clone's property points at the SAME handle as the\ninput's, so mutations through it are visible on both sides. Register\n`overrideRemoveUnknownKeys<T>()` if this type needs custom copying.",
   },
-  SJ001: {
-    headline: 'Type `{0}` can never be stringified to JSON: the generated function will always fail.',
-    level: 'runtimeError',
-    severity: 'error',
-    family: 'runtype',
-    detail:
-      "`never` is the empty type: no value can ever inhabit it. A field\ntyped `never` cannot carry a runtime value, so there is nothing to\nencode/decode/validate.\n\nFix: use `unknown` if you really want to accept any value:\n  interface User {\n-   tag: never;\n+   tag: unknown;  // narrow before use\n  }\n\nFix: pick a concrete type matching your real data:\n  interface User {\n-   tag: never;\n+   tag: 'pending' | 'active' | 'done';\n  }",
-  },
-  SJ002: {
-    headline: 'Type `{0}` can never be stringified to JSON: the generated function will always fail.',
-    level: 'runtimeError',
-    severity: 'error',
-    family: 'runtype',
-    detail:
-      'A standard-library class carries runtime state that does not survive a JSON\nor binary round-trip: its instance identity is lost the moment it is\nserialised, so at a root position there is nothing left to work with.\n\nA few have an agreed data form and ARE supported: `Date`, `Map`,\n`Set` and the Temporal types. Everything else the standard library declares\n(`URL`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, the typed arrays and\n`Buffer`) has none, and is refused here rather than guessed at.\n\nFix: describe the data form yourself and convert at the boundary:\n  // for URL:\n  const data = yourUrl.href;             // string\n  // for typed arrays:\n  const data = Array.from(yourBuffer);   // number[]\n\nFix: change the field type to a shape made of data:\n  interface User {\n-   home: URL;\n+   home: string;\n  }',
-  },
-  SJ003: {
-    headline: 'Type `{0}` can never be stringified to JSON: the generated function will always fail.',
-    level: 'runtimeError',
-    severity: 'error',
-    family: 'runtype',
-    detail:
-      "Functions have no value form to serialise: their closure, prototype,\nand bound state aren't representable in JSON or binary.\n\nFix: drop the function from your type, or replace it with the data the\nfunction would produce:\n  interface User {\n-   getName: () => string;\n+   name: string;\n  }",
-  },
-  SJ005: {
-    headline: 'Type `{0}` can never be stringified to JSON: the generated function will always fail.',
-    level: 'runtimeError',
-    severity: 'error',
-    family: 'runtype',
-    detail:
-      "Every `symbol` value carries a unique runtime identity (`Symbol() !==\nSymbol()` even with the same description). That identity disappears the\nmoment it's serialised, and two symbols can't be compared across realms,\nworkers, or process boundaries. A validator that asserts \"this is a\nsymbol\" gives a false sense of safety: the value can't actually\nround-trip.\n\nFix: use a stable string key (often a literal union):\n  -  type Status = symbol;\n+  type Status = 'pending' | 'active' | 'done';",
-  },
-  SJ010: {
-    headline:
-      'Property `{0}` is a function: `stringifyJson` does not handle function values, so this property is silently not stringified.',
-    level: 'warning',
-    severity: 'warning',
-    family: 'runtype',
-    detail:
-      '`stringifyJson` works on JSON-shaped data; functions don\'t survive JSON, so\nthe emitter drops them. The rest of the object\'s behaviour is unaffected.\n\nThis is by design, see the "one contract: serializable data only"\nsection in CLAUDE.md. If you need a stricter checker that fails on\nmissing/extra function-typed members, watch the project roadmap.',
-  },
-  SJ011: {
-    headline: "Method `{0}` is silently not stringified by `stringifyJson`: methods aren't data.",
-    level: 'warning',
-    severity: 'warning',
-    family: 'runtype',
-    detail:
-      "Class and object methods aren't part of the serialisable shape, so\n`stringifyJson` excludes them. The rest of the type still works.\n\nIf you wanted the method's return value validated/serialised, expose it\nas a data property instead.",
-  },
-  SJ012: {
-    headline: "Static member `{0}` is silently not stringified by `stringifyJson`: statics aren't part of instance data.",
-    level: 'warning',
-    severity: 'warning',
-    family: 'runtype',
-    detail:
-      'Class static members live on the class, not on individual instances.\n`stringifyJson` operates on instance shape, so statics are excluded.',
-  },
-  SJ013: {
-    headline:
-      "Symbol-keyed property `{0}` is silently not stringified by `stringifyJson`: symbol keys aren't JSON-representable.",
-    level: 'warning',
-    severity: 'warning',
-    family: 'runtype',
-    detail:
-      "JSON only supports string keys; symbol-keyed properties are dropped\nfrom the serialised form. `stringifyJson` follows the same rule.\n\nFix: use a string key:\n  -  [Symbol.for('id')]: string;\n+  id: string;",
-  },
-  SJ014: {
-    headline:
-      "Union member(s) of type `{0}` can't be represented as data: `stringifyJson` drops them, so the union is stringified as its remaining members.",
-    level: 'warning',
-    severity: 'warning',
-    family: 'runtype',
-    detail:
-      'A union projects to its serialisable members only: `DataOnly<Date | symbol>`\nis `Date`. The dropped member(s) ({0}) carry no JSON-shaped value (symbol,\nfunction, Promise, or a non-serialisable built-in like `Map` / `Set` /\ntyped arrays), so `stringifyJson` stringified only the members that remain.\n\nThis is by design, see the "one contract: serializable data only"\nsection in CLAUDE.md. If EVERY member of the union is non-serialisable the\nprojection is `never`, and `stringifyJson` throws at build time instead.',
-  },
-  SJ015: {
-    headline:
-      'Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): `stringifyJson` drops it, so this property is silently not stringified.',
-    level: 'warning',
-    severity: 'warning',
-    family: 'runtype',
-    detail:
-      '`stringifyJson` works on JSON-shaped data. A property whose value is a symbol,\na Promise, or a non-serialisable built-in (a typed array, `ArrayBuffer`, or any other\nstandard-library class such as `URL` or `Intl.DateTimeFormat`) carries\nno JSON-shaped value, so it is dropped: `DataOnly<{ {0}: symbol }>` is `{}`.\nThe rest of the object\'s behaviour is unaffected.\n\nNote the difference from a property that is only STRUCTURALLY unserialisable\n(`{0}: symbol[]` or `{0}: Map<string, symbol>`), which CANNOT be safely\ndropped (DataOnly keeps it as `never[]`): there `stringifyJson` throws at build\ntime instead.\n\nThis is by design, see the "one contract: serializable data only"\nsection in CLAUDE.md.',
-  },
   TB001: {
     headline: 'Type `{0}` can never be serialised to binary: the generated function will always fail.',
     level: 'runtimeError',
@@ -1412,15 +1328,6 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     family: 'marker',
     detail:
       'mion reads types through TypeScript\'s lib definitions, so it\ncan only validate `Temporal.*` types when the Temporal namespace is loaded.\nWith the lib missing, `{0}` silently degrades to `any` and the validator\nbecomes a no-op that accepts everything, almost never what you intended.\n\nFix: add "ESNext.Temporal" to your tsconfig:\n  {\n    "compilerOptions": {\n      "lib": ["ES2023", "ESNext.Temporal"]\n    }\n  }',
-  },
-  UKW010: {
-    headline:
-      'Property `{0}` is a function: `stripUnknownKeysWire` does not handle function values, so this property is silently not cleared.',
-    level: 'warning',
-    severity: 'warning',
-    family: 'runtype',
-    detail:
-      '`stripUnknownKeysWire` works on JSON-shaped data; functions don\'t survive JSON, so\nthe emitter drops them. The rest of the object\'s behaviour is unaffected.\n\nThis is by design, see the "one contract: serializable data only"\nsection in CLAUDE.md. If you need a stricter checker that fails on\nmissing/extra function-typed members, watch the project roadmap.',
   },
   UPN001: {
     headline: 'Property `{0}` can never be data and is dropped: the rest of the type still works.',

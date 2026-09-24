@@ -75,18 +75,6 @@ func TestPrepareForJsonCloneModule_StrippedMergedPropGuardsPresence(t *testing.T
 	}
 }
 
-// TestStringifyJsonModule_StrippedMergedPropDropsForeignValue — the direct
-// (single-pass) encoder MUST extend the drop condition so a foreign-typed
-// value emits no fragment for the merged prop. (G4)
-func TestStringifyJsonModule_StrippedMergedPropDropsForeignValue(t *testing.T) {
-	dump := protocol.Dump{RunTypes: buildStrippedMergedPropUnionFixture(reflection.KindSymbol)}
-	out := renderModule(t, dump, "stringifyJson")
-
-	if !strings.Contains(out, "|| !(") {
-		t.Errorf("expected `|| !(` drop guard on the stripped-sibling merged prop; got:\n%s", out)
-	}
-}
-
 // TestToBinaryModule_StrippedMergedPropDropsForeignValue — the binary
 // encoder MUST guard the optional-prop bit so a value from the stripped
 // member leaves the bit UNSET (decode skips it), instead of setting the bit

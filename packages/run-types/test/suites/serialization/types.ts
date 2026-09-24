@@ -22,41 +22,25 @@ export interface SerializationCase {
    *  suite (the field name IS the strategy):
    *  - `cloneEncoder` — strategy 'clone' (shape-derived clone, strips extras; default).
    *  - `mutateEncoder` — strategy 'mutate' (mutate in place, preserves extras).
-   *  - `directEncoder` — strategy 'direct' (single-pass, always strips).
    *  - `compactEncoder` — strategy 'compact' (declared object props as a
    *    positional array, no key names on the wire; strips extras like clone).
    *    Pairs ONLY with `compactDecoder` (the positional wire can't be read by the
-   *    key-based strip/preserve decoders).
-   *  Decoder pairing: every strip/direct encoder pairs with `stripDecoder`;
-   *  `mutateEncoder` (preserve) pairs with `preserveDecoder` — the only path
-   *  that preserves undeclared keys through the round-trip. **/
+   *    key-based clone/mutate decoders).
+   *  `mutateEncoder` + `mutateDecoder` is the only pairing that keeps
+   *  undeclared keys through the round-trip. **/
   cloneEncoder: () => JsonEncoderFn;
-  directEncoder: () => JsonEncoderFn;
   mutateEncoder: () => JsonEncoderFn;
   compactEncoder: () => JsonEncoderFn;
 
-  /** Direct-mode only: when set, the case's input produces a JSON string
-   *  that is not parseable by `JSON.parse` — e.g. number-at-root with
-   *  `Infinity` (`String(Infinity)` = `"Infinity"`). Mirrors the
-   *  number-not-supported spec, which accepts either a throw OR
-   *  a non-matching round-trip as a "value not supported by JSON"
-   *  signal. Only the `direct + *` pairings consult this flag (direct
-   *  uses single-pass `stringifyJson` which emits the unparseable
-   *  literal). The mutate / clone paths all
-   *  route through `JSON.stringify` where `JSON.stringify(Infinity)`
-   *  returns `"null"` (not a throw) and `deserializedValues` already
-   *  handles the round-trip. **/
-  safeAdapterStringifyJsonNotParseable?: boolean;
-
-  /** Decoder thunks. `stripDecoder` builds `createJsonDecoderFn<T>()`
-   *  (default strategy 'strip': undeclared keys become `undefined` via
-   *  ukuWire before restoreFromJsonMutate). `preserveDecoder` builds
-   *  `createJsonDecoderFn<T>(undefined, {strategy: 'preserve'})` —
+  /** Decoder thunks. `cloneDecoder` builds `createJsonDecoderFn<T>()`
+   *  (default strategy 'clone': rebuilt from the declared shape, so undeclared
+   *  keys are dropped). `mutateDecoder` builds
+   *  `createJsonDecoderFn<T>(undefined, {strategy: 'mutate'})` —
    *  undeclared keys on the parsed value pass through to the restored
    *  result untouched. The round-trip adapter pairs each encoder
    *  shape with its corresponding decoder. **/
-  stripDecoder: () => JsonDecoderFn;
-  preserveDecoder: () => JsonDecoderFn;
+  cloneDecoder: () => JsonDecoderFn;
+  mutateDecoder: () => JsonDecoderFn;
 
   /** Decoder for the `compact` (positional-array) wire — `createJsonDecoderFn<T>(undefined,
    *  {strategy: 'compact'})`. Rebuilds the keyed object from positions. Pairs ONLY
@@ -83,18 +67,14 @@ export interface SerializationCase {
 
   /** Optional override consumed by the **clone** (shape-derived, strips)
    *  path adapter (`prepareForJsonSafe + JSON.stringify` /
-   *  `JSON.parse + stripUnknownKeys + restoreFromJsonMutate`).
+   *  `JSON.parse + restoreFromJsonClone`).
    *
    *  Provide only when the clone path produces a different observable
    *  than the mutate path — typically when an input carries extras
    *  that are stripped pre-serialise (so `deserializedValues`
    *  reflects the cleaned shape). For ~90% of cases (no extras,
    *  identical behaviour between paths) leave this unset; the clone
-   *  adapter falls back to `getTestData`.
-   *
-   *  Mirrors the split between the jsonSpec (prepareForJson +
-   *  JSON.stringify) and stringifySpec (stringifyJson) test
-   *  helpers. **/
+   *  adapter falls back to `getTestData`. **/
   getTestDataForStringify?: () => {values: unknown[]; deserializedValues?: unknown[]};
 
   /** Broad types (any / unknown / object) where the round-trip is
@@ -173,7 +153,7 @@ export interface SerializationCase {
    *  the type-first `<T>` form. The model is duplicated across the four BY DESIGN —
    *  every thunk stays self-contained + single-purpose (benchmarking, code
    *  extraction, doc-gen). The JSON pair uses the default strategy (clone
-   *  encoder / strip decoder), mirroring `cloneEncoder` / `stripDecoder`.
+   *  encoder / clone decoder), mirroring `cloneEncoder` / `cloneDecoder`.
    *  REQUIRED on every case: supply a thunk, or the `'not-supported'` sentinel
    *  when no `RT.*` builder can express the type (note the reason in
    *  `serializeNotes`). **/

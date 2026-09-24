@@ -40,7 +40,7 @@ func buildBaseSubclassUnionFixture() protocol.Dump {
 
 func TestUnionClassMembers_ExactConstructorOnly(t *testing.T) {
 	dump := buildBaseSubclassUnionFixture()
-	for _, fam := range []string{"prepareForJsonMutate", "prepareForJsonClone", "stringifyJson", "toBinary"} {
+	for _, fam := range []string{"prepareForJsonMutate", "prepareForJsonClone", "toBinary"} {
 		out := renderModule(t, dump, fam)
 		exactBase := strings.Index(out, "v?.constructor === cix_bas.cls")
 		exactFatal := strings.Index(out, "v?.constructor === cix_fat.cls")

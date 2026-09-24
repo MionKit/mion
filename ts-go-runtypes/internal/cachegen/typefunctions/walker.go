@@ -123,16 +123,11 @@ type Walker struct {
 	// prefix. A flat per-prefix counter is enough because each Emit allocates a
 	// fixed number of names once.
 	localVarCounters map[string]int
-	// sjSkipCommas is the stringifyJson "suppress the trailing comma" bit a parent
-	// frame sets before each child property emit. It must NOT live in ContextItems:
-	// every value there is emitted verbatim as a prologue line, so a flag stored
-	// there leaks stray `;` / `1;` statements into factories.
-	sjSkipCommas bool
 	// suppressInlineReserve tells the toBinary scalar arms to emit the RAW inline
 	// write WITHOUT its own `Ser.ensureCapacity?.(n)` reserve: a fixed-width array
 	// sets it so the loop body stays a tight raw write and the array reserves the
-	// whole element block once, then clears it. Never a ContextItems value, for the
-	// same reason as sjSkipCommas.
+	// whole element block once, then clears it. Never a ContextItems value: every
+	// value there is emitted verbatim as a prologue line.
 	suppressInlineReserve bool
 	// Code is the assembled function body, the most recent root-level emitted code;
 	// Finalize normalises it on exit.
@@ -215,7 +210,6 @@ const (
 	factNoopCompactFromJson
 	factNoopToBinary
 	factNoopRemoveUnknownKeys
-	factNoopStripUnknownKeysWire
 	factRestoreKeyGuard
 	factCount
 )
@@ -609,8 +603,8 @@ func (w *Walker) dispatch(rt *reflection.RunType, expectedCType CodeType) RTCode
 		// identity bodies: the cycle re-entry dispatches here, the predicate
 		// proves it noop, and the surrounding code folds away. Gated on
 		// NoopComposeAround, NOT the universal NoopTypePredicate, because empty
-		// code only composes for value-transform families (stringifyJson needs
-		// the child's JSON fragment, fromBinary its byte reads).
+		// code only composes for value-transform families (fromBinary needs
+		// its byte reads).
 		// An override child skips the gate: the override body is the user's
 		// contract, not the structural identity the predicate proves.
 		if !overrideChild && !w.disableNoopElision {

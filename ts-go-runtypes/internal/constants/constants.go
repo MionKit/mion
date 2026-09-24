@@ -69,11 +69,6 @@ var CacheModules = CacheModuleGroup{
 		VarPrefix: "g_rj_",
 		Tag:       "rj",
 	},
-	"stringifyJson": {
-		Name:      "stringifyJsonModule",
-		VarPrefix: "g_sj_",
-		Tag:       "sj",
-	},
 	"prepareForJsonClone": {
 		Name:      "prepareForJsonCloneModule",
 		VarPrefix: "g_pjs_",
@@ -98,11 +93,6 @@ var CacheModules = CacheModuleGroup{
 		Name:      "removeUnknownKeysModule",
 		VarPrefix: "g_ruk_",
 		Tag:       "ruk",
-	},
-	"stripUnknownKeysWire": {
-		Name:      "stripUnknownKeysWireModule",
-		VarPrefix: "g_ukuw_",
-		Tag:       "ukuw",
 	},
 	"toBinary": {
 		Name:      "toBinaryModule",
@@ -147,13 +137,12 @@ var CacheModules = CacheModuleGroup{
 // jsonCompositeTags maps "op|strategy" → tag; JsonCompositeByTag reverses it so the composite emitter recovers
 // (operation, strategy) from a demand's tag.
 var jsonCompositeTags = map[string]string{
-	"jsonEncoder|clone":    "jeCL",
-	"jsonEncoder|mutate":   "jeMU",
-	"jsonEncoder|direct":   "jeDI",
-	"jsonEncoder|compact":  "jeCO",
-	"jsonDecoder|strip":    "jdST",
-	"jsonDecoder|preserve": "jdPR",
-	"jsonDecoder|compact":  "jdCO",
+	"jsonEncoder|clone":   "jeCL",
+	"jsonEncoder|mutate":  "jeMU",
+	"jsonEncoder|compact": "jeCO",
+	"jsonDecoder|clone":   "jdCL",
+	"jsonDecoder|mutate":  "jdMU",
+	"jsonDecoder|compact": "jdCO",
 }
 
 // JsonComposite identifies one JSON composite family: the operation name (jsonEncoder / jsonDecoder) and its
@@ -324,17 +313,16 @@ func ValidateVariantSuffix(names []string) string {
 // composes different primitives (cj vs cjr). Shared by the scanner (emit) and the emitter (demand), both of which
 // hold the operation. Go-only, not mirrored to TS.
 var JsonStrategyFamilies = map[string][]string{
-	"jsonEncoder|direct": {"sj"},
 	// `clone` is shape-derived (prepareForJsonClone builds a new value from the declared shape), so it strips
 	// undeclared keys by construction: no separate strip pass or strip variant is needed.
 	"jsonEncoder|clone":  {"pjs"},
 	"jsonEncoder|mutate": {"pj"},
 	// `compact` emits declared object props as a positional array (no key names);
 	// cj is the encode walk, cjr the decode walk.
-	"jsonEncoder|compact":  {"cj"},
-	"jsonDecoder|strip":    {"rj", "ukuw"},
-	"jsonDecoder|preserve": {"rj"},
-	"jsonDecoder|compact":  {"cjr"},
+	"jsonEncoder|compact": {"cj"},
+	"jsonDecoder|clone":   {"rjs"},
+	"jsonDecoder|mutate":  {"rj"},
+	"jsonDecoder|compact": {"cjr"},
 }
 
 // Per-entry virtual module settings (mirrored to TS via gen-ts-constants). Every cache entry — runtype node,

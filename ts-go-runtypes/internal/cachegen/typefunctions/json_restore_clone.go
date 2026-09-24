@@ -254,8 +254,7 @@ func emitUnionRestoreFromJsonClone(rt *reflection.RunType, ctx *EmitContext, v s
 
 // emitUnionRestoreFromJsonCloneLayout is the twin of emitUnionPrepareForJsonCloneLayout: compact hands it the widened
 // layout its safe encode already writes with.
-// A member carrying an index signature declares every key from the union's point of view (the carve-out in
-// unknownkeys_union.go), so the object branch restores in place like rj instead of rebuilding and keeps every key.
+// A member carrying an index signature declares every key from the union's point of view, so the object branch restores in place like rj instead of rebuilding and keeps every key.
 func emitUnionRestoreFromJsonCloneLayout(rt *reflection.RunType, ctx *EmitContext, v string, layout FlatLayout) RTCode {
 	if len(layout.AtomicMembers) == 0 && len(layout.ObjectMembers) == 0 {
 		return RTCode{Code: "", Type: CodeS}

@@ -461,7 +461,7 @@ func TestFindTsRuntypesPlugin_KeepsOtherPluginsOut(t *testing.T) {
 func TestRemovedPluginKeys(t *testing.T) {
 	for _, removedKey := range []struct{ key, value, replacement string }{
 		{"failOnError", "false", "downgradeErrors"},
-		{"parse", `{"strategy": "strip"}`, "createJsonDecoderFn"},
+		{"parse", `{"strategy": "clone"}`, "createJsonDecoderFn"},
 	} {
 		dir := t.TempDir()
 		writeTestFile(t, filepath.Join(dir, "tsconfig.json"),

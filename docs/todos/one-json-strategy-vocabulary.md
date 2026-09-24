@@ -77,3 +77,48 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
   `pre-publish-e2e` labels.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched
   source file, each committed on its own.
+
+## Plan (approved 2026-09-24)
+
+### Go (ts-go-runtypes)
+- `operations/operations.go`: encoder strategies `clone|mutate|compact`; decoder `DefaultStrategy: "clone"`, strategies `clone|mutate|compact`; delete the `stringifyJson` and `stripUnknownKeysWire` rows; fix the Doc strings.
+- `constants/constants.go`: drop `stringifyJson` / `stripUnknownKeysWire` modules, `jeDI`, `jdST`, `jdPR`; add `jsonDecoder|clone` → `jdCL` `{"rjs"}` and `jsonDecoder|mutate` → `jdMU` `{"rj"}` (mirrors `jeCL` / `jeMU`). Host tags: clone decoder borrows `rjs`, mutate borrows `rj`.
+- `typefunctions/json_composite.go`: tag lists, remove `direct` arm, decoder arms become clone (`rjs`) and mutate (`rj`).
+- Delete `json_stringify.go`, `strip_unknown_keys_wire.go`, `unknownkeys_to_undefined.go`, and the code left with no caller: stringify helpers in `union_flat.go`, `wrapStringifyWithClassSerializer`, `sjSkipCommas`, `isNoopForStringifyJson`, the UKU/UKW noop specs + walker facts, `JsonWireFormat` + the wire branch of `emitNativeIterableUnknownKeys`, `mapSetAlwaysNoop`. Family registrations in `families.go`, resolver `dispatch.go`, `protocol.go` `AddedStringifyJson` / `AddedStripUnknownKeysWire` (+ TS mirror in devtools `protocol.ts` / `resolver-client.ts`).
+- Diagnostics: remove SJ001–SJ015, UKU010, UKW010 codes, messages, group lists, `alwaysthrow_message.go` entries.
+- Go tests: delete cases that only test removed code; retarget shared cases (direct → clone, strip → clone, preserve → mutate, jdST/jdPR → jdCL/jdMU).
+- Regenerate with `pnpm miondevx core codegen all` (fnHashes, core jit ids, devtools constants + diag catalog, website catalogs); decoder `defaultVariant` becomes `clone`.
+
+### TypeScript
+- `run-types/src/createRTFunctions.ts`: `JsonEncoderStrategy` / `JsonDecoderStrategy` become `JsonValueStrategy`-shaped (`clone|mutate|compact`), docs updated; delete `createStringifyJsonFn`, `StringifyJsonFn`, the `stringifyJson` key in `RTFunctionByKey`; fix stale comments. `index.ts` exports, `runtypes/types.ts`, `runtypes/entryTuple.ts` familyMeta (`sj`, `ukuw`, `jeDI`, `jdST`, `jdPR` → `jdCL`/`jdMU`), `markers.ts`, `overrideRTFunctions.ts` comments.
+- `standard/jsonSchemaDoc.ts`: strategy sets without `direct`, error message matches the set.
+- `core/src/runtypes/mionAdapter.ts` comment (jdST → jdCL).
+
+### Tests (Vitest + Go)
+- Serialization harness: drop `directEncoder`, rename `stripDecoder` → `cloneDecoder`, `preserveDecoder` → `mutateDecoder` across `suites/serialization/**`, `format-serialization/**`, `types.ts`, `serializationAsserts.ts` (pairings become clone×clone, clone×mutate, mutate×clone, mutate×mutate, compact×compact; direct pairings + `stringifyJsonMayBeUnparseable` / `safeAdapterStringifyJsonNotParseable` go), `deserializeRTFunctions.ts`, the suite `CLAUDE.md`. Done by a script, then reviewed.
+- Delete `createStringifyJson.test.ts`; retarget direct/strip/preserve rows in the feature tests listed by the map (encoderModes, unknownKeyFamiliesAgree, unionDecodeAgree, prototypeKeys, getFnHash new hashes, jsonSchemaClosedness, decoderSafeMode, stripInsideMapSet, …). Keep the root `undefined`/`void` `"[null]"` envelope round-trip tests.
+- No tests for the removed options (nothing asserting `'direct'` / `'strip'` / `'preserve'` are rejected). Tests for removed code are deleted, not rewritten into "it is gone" checks. Round-trip of each pair stays covered by the renamed harness pairings.
+- Fix found on the path: `test/suites/overrides/JsonValueFns.ts` imports `createStripUnknownKeysFn`, which no longer exists (two PRs crossed on main). Its case becomes "JSON encoder/decoder compile for the overridden type, clone and mutate".
+- Fuzz harnesses (roundtrip, security, type, value, generatedCodeOracle) and README: drop the `direct` lane, tags jdST/jdPR → jdCL/jdMU.
+- devtools `runtype-diagnostics.test.ts` / `eslint/routing.test.ts`: SJ cases go (or retarget to an equivalent prepare code if the test is about routing, not SJ itself).
+- Go: `go -C ts-go-runtypes test ./internal/... ./cmd/...`.
+
+### Other callers
+- Examples: `json-strategies.ts`, `all-factories.ts`, `all-factories-markers.ts`, `markers-comptime.ts`.
+- `container/pre-publish-e2e/apps/shared/src/json.ts` (drop encodeDirect).
+- Website playground `app/playground/operations.ts` / `engine.ts` comment; bench-data scripts `gen-serialization.mjs` / `columns.mjs` (drop direct column, decoders renamed).
+- Untouched on purpose: mion's `SerializerModes.stringifyJson` body mode (same name, unrelated).
+
+### Docs
+`container/website/content/02.runtypes/02.guide/05.json-serialization.md`: merge "Pick an Encoder Strategy" and "Pick a Decoder Strategy" into one strategy section with one table (the table above in plain words); remove the `createStringifyJsonFn` row. Check `10.compiler-markers.md` / `11.all-compiled-functions.md` still render right with the edited examples.
+
+### Fuzzing
+Not a new feature; existing roundtrip fuzz lanes keep covering each strategy pair. No new fuzz suite.
+
+### Finish / verification
+1. Rebuild (`pnpm run check:builds`, devtools dist), `pnpm miondevx core codegen all --check`.
+2. `pnpm test` (or `pnpm run test:ci`), Go tests, `pnpm run typecheck`, `pnpm run lint`, `pnpm run format`, `pnpm exec vitest run website-links`.
+3. grep: no `direct` strategy, `stringifyJson` family, `createStringifyJsonFn`, `ukuw`, `'strip'`, `'preserve'` left.
+4. Append this plan to the spec, reconcile, `git mv` to `docs/done/`.
+5. docs-simplifier + comments-simplifier subagents in parallel, each committed on its own.
+6. Push, open PR with `website` + `pre-publish-e2e` labels.

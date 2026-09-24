@@ -17,7 +17,6 @@ import type {
   RemoveUnknownKeysFn,
   PrepareForJsonFn,
   RestoreFromJsonFn,
-  StringifyJsonFn,
 } from '../createRTFunctions.ts';
 import type {ToBinaryFn, FromBinaryFn} from '../createRTFBinary.ts';
 
@@ -156,7 +155,7 @@ export interface CompiledFnData {
   readonly typeName: string;
   /** The operation family (`it`, `te`, `pj`, `rj`, …). */
   readonly fnID: string;
-  /** The tuple's slot-0 family tag (`pj`, `jeMU`, `jdST`, …). Unlike `fnID`, which composites HOST on (`jeMU`
+  /** The tuple's slot-0 family tag (`pj`, `jeMU`, `jdCL`, …). Unlike `fnID`, which composites HOST on (`jeMU`
    *  carries fnID `pj`), this is the exact emitting family, so consumers can tell primitive from composite. */
   readonly familyTag?: string;
   readonly rtFnHash: string;
@@ -209,12 +208,9 @@ export type InitializedTypeFn<Fn extends AnyFn = AnyFn> = CompiledTypeFn<Fn> &
 export type ValidateRTFn = CompiledTypeFn<ValidateFn>;
 export type GetValidationErrorsRTFn = CompiledTypeFn<GetValidationErrorsFn>;
 export type RemoveUnknownKeysRTFn = CompiledTypeFn<RemoveUnknownKeysFn>;
-// ukuw is decoder-internal (the `strip` decode strategy's pre-pass): an in-place value mutator.
-export type UnknownKeysToUndefinedWireRTFn = CompiledTypeFn<(value: unknown) => unknown>;
 export type PrepareForJsonRTFn = CompiledTypeFn<PrepareForJsonFn>;
 export type PrepareForJsonSafeRTFn = CompiledTypeFn<PrepareForJsonFn>;
 export type RestoreFromJsonRTFn = CompiledTypeFn<RestoreFromJsonFn>;
-export type StringifyJsonRTFn = CompiledTypeFn<StringifyJsonFn>;
 export type ToBinaryRTFn = CompiledTypeFn<ToBinaryFn>;
 export type FromBinaryRTFn = CompiledTypeFn<FromBinaryFn>;
 

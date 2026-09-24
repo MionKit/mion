@@ -4,7 +4,6 @@ import {it, expect} from 'vitest';
 import {
   createPrepareForJsonFn,
   createRestoreFromJsonFn,
-  createStringifyJsonFn,
   createJsonEncoderFn,
   createJsonDecoderFn,
   overrideJsonEncoder,
@@ -52,14 +51,9 @@ export function registerJsonValueFnsCase(): void {
     expect(roundTrip(mutatePrepare, mutateRestore, {inner: target()})).toEqual(value);
   });
 
-  it('JsonValueFns — stringify and the strip decoder compile for the overridden type', () => {
-    expect(JSON.parse(createStringifyJsonFn<JsonValueTarget>()(target()) as string)).toEqual({
-      __brand: 'jsonValueOverride',
-      id: '7',
-      when: '2020-01-02T03:04:05.000Z',
-    });
+  it('JsonValueFns — the default decoder drops undeclared keys around the overridden type', () => {
     const wire = JSON.stringify({
-      inner: {...JSON.parse(createStringifyJsonFn<JsonValueTarget>()(target()) as string), extra: 1},
+      inner: {...(createPrepareForJsonFn<JsonValueTarget>()(target()) as object), extra: 1},
       extra: 2,
     });
     const decoded = createJsonDecoderFn<JsonValueParent>()(wire) as unknown as {

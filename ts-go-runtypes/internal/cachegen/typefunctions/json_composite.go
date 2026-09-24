@@ -31,11 +31,11 @@ type jsonCompositeFamily struct {
 var (
 	jsonEncoderFamily = jsonCompositeFamily{
 		opName: "jsonEncoder",
-		tags:   []string{"jeCL", "jeMU", "jeDI", "jeCO"},
+		tags:   []string{"jeCL", "jeMU", "jeCO"},
 	}
 	jsonDecoderFamily = jsonCompositeFamily{
 		opName: "jsonDecoder",
-		tags:   []string{"jdST", "jdPR", "jdCO"},
+		tags:   []string{"jdCL", "jdMU", "jdCO"},
 	}
 )
 
@@ -238,7 +238,7 @@ func rootNeedsDataOnlyWrap(runType *reflection.RunType) bool {
 // jsonCompositeBody returns (contextLines, innerFnDeclaration) for a composite strategy; the inner function is named
 // after the entry key so stack traces identify it, and the body binds each LIVE primitive's fn directly.
 // An identity primitive elides, passing its expression through unwrapped, which is byte for byte what the family noop fn
-// computes (identity for pj/pjs/rj/ukuw; for sj the elided form is native JSON.stringify, the family noop itself).
+// computes (identity for pj/pjs/rj/rjs).
 func jsonCompositeBody(composite constants.JsonComposite, id string, entryKey string, isLive func(primOp string) bool, wrapRoot bool, circularSkeletonJS string) (contextLines string, innerFn string) {
 	// The direct `.fn` read always resolves: a noop primitive registers with the family noop fn pre-set (entryTuple.ts
 	// familyMeta), getRT materializes before returning, and demand renders an entry for every primitive a composite wraps.
@@ -269,19 +269,6 @@ func jsonCompositeBody(composite constants.JsonComposite, id string, entryKey st
 	switch composite.OpName {
 	case "jsonEncoder":
 		switch composite.Strategy {
-		case "direct":
-			if isLive("stringifyJson") {
-				resolve("sjFn", "stringifyJson")
-				if wrapRoot {
-					// sjFn(v) is the JS value `undefined` here, so re-stringify it inside the array to yield "[null]".
-					body = "return JSON.stringify([sjFn(v)]);"
-				} else {
-					body = "return sjFn(v);"
-				}
-			} else {
-				// sj's family noop IS native JSON.stringify, so the elided form inlines it instead of unwrapping to bare `v`.
-				body = "return JSON.stringify(" + arrayWrap("v") + ");"
-			}
 		case "clone":
 			// prepareForJsonClone builds a NEW value from the declared shape, so undeclared keys are dropped with no strip pass.
 			body = "return JSON.stringify(" + arrayWrap(wrap("pjsFn", "prepareForJsonClone", "v")) + ");"
@@ -302,10 +289,11 @@ func jsonCompositeBody(composite constants.JsonComposite, id string, entryKey st
 		innerFn = "function " + entryKey + "(v){" + body + "}"
 	case "jsonDecoder":
 		switch composite.Strategy {
-		case "preserve":
+		case "clone":
+			// restoreFromJsonClone rebuilds from the declared shape, so undeclared keys are dropped with no strip pass.
+			body = "return " + wrap("rjsFn", "restoreFromJsonClone", "JSON.parse(s)") + ";"
+		case "mutate":
 			body = "return " + wrap("rjFn", "restoreFromJsonMutate", "JSON.parse(s)") + ";"
-		case "strip":
-			body = "return " + wrap("rjFn", "restoreFromJsonMutate", wrap("ukuwFn", "stripUnknownKeysWire", "JSON.parse(s)")) + ";"
 		case "compact":
 			// Inverse of compactForJson: rebuild the keyed object from the positional array JSON.parse produced.
 			body = "return " + wrap("cjrFn", "compactFromJson", "JSON.parse(s)") + ";"

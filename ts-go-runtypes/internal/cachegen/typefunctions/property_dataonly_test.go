@@ -55,7 +55,7 @@ func objFactoryIsAlwaysThrow(rendered string) bool {
 // allSerdeFamilies — validate + validationErrors + the six serialization families.
 var allSerdeFamilies = []string{
 	"validate", "validationErrors", "prepareForJsonMutate", "prepareForJsonClone",
-	"stringifyJson", "restoreFromJsonMutate", "restoreFromJsonClone", "toBinary", "fromBinary",
+	"restoreFromJsonMutate", "restoreFromJsonClone", "toBinary", "fromBinary",
 }
 
 // nonSerPropDropCodes maps each family to its …015 directly-stripped-property
@@ -65,7 +65,6 @@ var nonSerPropDropCodes = map[string]string{
 	"validationErrors":      diagnostics.CodeVENonSerializablePropDrop,
 	"prepareForJsonMutate":  diagnostics.CodePJNonSerializablePropDrop,
 	"prepareForJsonClone":   diagnostics.CodePJSNonSerializablePropDrop,
-	"stringifyJson":         diagnostics.CodeSJNonSerializablePropDrop,
 	"restoreFromJsonMutate": diagnostics.CodeRJNonSerializablePropDrop,
 	"restoreFromJsonClone":  diagnostics.CodeRJNonSerializablePropDrop,
 	"toBinary":              diagnostics.CodeTBNonSerializablePropDrop,
@@ -80,7 +79,6 @@ var symbolRootCodes = map[string]string{
 	"validationErrors":      diagnostics.CodeVESymbolRoot,
 	"prepareForJsonMutate":  diagnostics.CodePJSymbolRoot,
 	"prepareForJsonClone":   diagnostics.CodePJSSymbolRoot,
-	"stringifyJson":         diagnostics.CodeSJSymbolRoot,
 	"restoreFromJsonMutate": diagnostics.CodeRJSymbolRoot,
 	"restoreFromJsonClone":  diagnostics.CodeRJSymbolRoot,
 	"toBinary":              diagnostics.CodeTBSymbolRoot,
@@ -94,7 +92,6 @@ var functionPropDropCodes = map[string]string{
 	"validationErrors":      diagnostics.CodeVEFunctionPropDropped,
 	"prepareForJsonMutate":  diagnostics.CodePJFunctionPropDropped,
 	"prepareForJsonClone":   diagnostics.CodePJSFunctionPropDropped,
-	"stringifyJson":         diagnostics.CodeSJFunctionPropDropped,
 	"restoreFromJsonMutate": diagnostics.CodeRJFunctionPropDropped,
 	"restoreFromJsonClone":  diagnostics.CodeRJFunctionPropDropped,
 	"toBinary":              diagnostics.CodeTBFunctionPropDropped,

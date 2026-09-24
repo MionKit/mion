@@ -200,8 +200,7 @@ func unionEntry(t *testing.T, module, family string) string {
 // TestAtomicOnlyUnion_StripsInsideItsMembers — `{c: string}[] | string` carries no merged object
 // branch, so the union looks like a pass-through. It is not: an ARRAY is an atomic member, and the
 // objects inside it can carry keys the type never declared. Both ends of `clone` must walk into the
-// member and rebuild those objects, and `direct` must too since it reads the same gate. Validation
-// does not cover this — undeclared keys on an object literal are accepted by design.
+// member and rebuild those objects. Validation does not cover this — undeclared keys on an object literal are accepted by design.
 func TestAtomicOnlyUnion_StripsInsideItsMembers(t *testing.T) {
 	dump := protocol.Dump{RunTypes: buildArrayOfObjectsOrStringFixture()}
 
@@ -214,11 +213,6 @@ func TestAtomicOnlyUnion_StripsInsideItsMembers(t *testing.T) {
 	restoreSafe := unionEntry(t, renderModuleDefault(t, dump, "restoreFromJsonClone"), "restoreFromJsonClone")
 	if !strings.Contains(restoreSafe, "r0.c = ") {
 		t.Errorf("clone decode must rebuild the array's elements from the declared shape; got:\n%s", restoreSafe)
-	}
-	// The direct encoder shares the gate, so it walks too.
-	direct := unionEntry(t, renderModuleDefault(t, dump, "stringifyJson"), "stringifyJson")
-	if !strings.Contains(direct, `"c":`) {
-		t.Errorf("direct encode must write the declared members, not stringify the raw value; got:\n%s", direct)
 	}
 	// The mutate pair is the control: it keeps undeclared keys on purpose, both ways, so its entry
 	// stays the noop short form (a trailing `,,true` and no body at all).
@@ -293,7 +287,7 @@ func TestCarveOutUnion_EveryFamilyKeepsUndeclaredKeys(t *testing.T) {
 		return strings.ReplaceAll(unionEntry(t, renderModuleDefault(t, protocol.Dump{RunTypes: fixture}, family), family), `\'`, "'")
 	}
 	bare := buildRecordNumberUnionFixture()
-	for family, want := range map[string]string{"prepareForJsonClone": "return v;", "compactForJson": "return v;", "stringifyJson": "return JSON.stringify(v);"} {
+	for family, want := range map[string]string{"prepareForJsonClone": "return v;", "compactForJson": "return v;"} {
 		got := entry(bare, family)
 		if !strings.Contains(got, want) || strings.Contains(got, "v.a") {
 			t.Errorf("[%s] the object member must be encoded as is, got:\n%s", family, got)
@@ -312,10 +306,6 @@ func TestCarveOutUnion_EveryFamilyKeepsUndeclaredKeys(t *testing.T) {
 		if !strings.Contains(got, "_r[k1] = v[k1];") || !strings.Contains(got, "_r['a'] = v.a.toISOString();") || !strings.Contains(got, "return [-1, ctxFn1(v)]") {
 			t.Errorf("[%s] the object member must copy every own key and rewrite only the Date, got:\n%s", family, got)
 		}
-	}
-	direct := entry(dated, "stringifyJson")
-	if !strings.Contains(direct, "ls1.push(JSON.stringify(k1) + ':' + s0)") || !strings.Contains(direct, `ls1.push('"a":'+'"'+v.a.toJSON()+'"')`) {
-		t.Errorf("[stringifyJson] the object member must write every own key and only the Date through its own arm, got:\n%s", direct)
 	}
 	for _, family := range []string{"restoreFromJsonClone", "compactFromJson"} {
 		got := entry(dated, family)

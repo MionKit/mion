@@ -115,34 +115,6 @@ func wrapSafeWithClassSerializer(rt *reflection.RunType, ctx *EmitContext, v str
 	return RTCode{Code: body, Type: CodeRB}
 }
 
-// wrapStringifyWithClassSerializer wraps the structural stringifyJson body (`sj`, a JSON string fragment)
-// in a runtime registry branch:
-//
-//	if (cs_<id> && cs_<id>.serialize) return JSON.stringify(cs_<id>.serialize(v)); <structural>
-//
-// Anonymous classes return the structural body unchanged. CodeNS propagates.
-func wrapStringifyWithClassSerializer(rt *reflection.RunType, ctx *EmitContext, v string, structural RTCode) RTCode {
-	if structural.Type == CodeNS {
-		return structural
-	}
-	className := userClassName(rt)
-	if className == "" {
-		return structural
-	}
-	csVar, decl := classSerializerLookup(ctx, rt.ID, className)
-	structuralReturn := structural.Code
-	if structural.Type != CodeRB {
-		expr := structural.Code
-		if expr == "" {
-			// Defensive: an object emit always returns at least `'{}'`.
-			expr = "JSON.stringify(" + v + ")"
-		}
-		structuralReturn = "return " + expr
-	}
-	body := decl + ";if (" + csVar + " && " + csVar + ".serialize) return JSON.stringify(" + csVar + ".serialize(" + v + ")); " + structuralReturn
-	return RTCode{Code: body, Type: CodeRB}
-}
-
 // wrapRestoreWithClassSerializer wraps the structural restoreFromJsonMutate body (`rj`, rebinds `v`) in a
 // runtime registry branch:
 //

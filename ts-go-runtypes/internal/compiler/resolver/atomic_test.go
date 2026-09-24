@@ -1080,14 +1080,14 @@ func TestResolver_EncoderOptionsShareTypeID(t *testing.T) {
   export type InjectTypeFnArgs<T, Fn extends string> = string & {readonly __rtInjectTypeFnArgsBrand?: T; readonly __rtInjectTypeFnArgsFn?: Fn};
   export type CompTimeArgs<T> = T & {readonly __rtCompTimeArgsBrand?: never};
   export type CompTimeFnArgs<T> = T & {readonly __rtCompTimeFnArgsBrand?: never};
-  export type JsonEncoderOptions = {strategy?: 'clone' | 'mutate' | 'direct'};
+  export type JsonEncoderOptions = {strategy?: 'clone' | 'mutate' | 'compact'};
   export function createJsonEncoderFn<T>(val?: T, options?: CompTimeFnArgs<JsonEncoderOptions>, id?: InjectTypeFnArgs<T, 'jsonEncoder'>): (v: unknown) => string | undefined;
 }
 `
 	const code = `import {createJsonEncoderFn} from '@mionjs/run-types';
 createJsonEncoderFn<string>();
 createJsonEncoderFn<string>(undefined, {strategy: 'mutate'});
-createJsonEncoderFn<string>(undefined, {strategy: 'direct'});
+createJsonEncoderFn<string>(undefined, {strategy: 'compact'});
 `
 	r := setupInline(t, map[string]string{"runtypes.d.ts": dts, "call.ts": code})
 	resp := r.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"call.ts"}})
@@ -1116,7 +1116,7 @@ createJsonEncoderFn<string>(undefined, {strategy: 'direct'});
 	// operations.FnHashFor (NOT a hardcoded hash) so the test stays correct
 	// across version-isolated hashes.
 	encoderOp, _ := operations.ByName("jsonEncoder")
-	for _, strategy := range []string{"clone", "mutate", "direct"} {
+	for _, strategy := range []string{"clone", "mutate", "compact"} {
 		want := operations.FnHashFor(encoderOp, nil, strategy, false)
 		if !fnIDs[want] {
 			t.Errorf("expected a site with fnId %q (jsonEncoder/%s), got %v", want, strategy, fnIDs)
@@ -1200,7 +1200,7 @@ func TestResolver_CompTimeArgs_UnionBrandFallback(t *testing.T) {
 	const dts = `declare module '@mionjs/run-types' {
   export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
   export type CompTimeArgs<T> = T & {readonly __rtCompTimeArgsBrand?: never};
-  export type JsonEncoderOptions = {strategy?: 'clone' | 'mutate'; stripExtras?: boolean} | {strategy: 'direct'};
+  export type JsonEncoderOptions = {strategy?: 'clone' | 'mutate'; stripExtras?: boolean} | {strategy: 'compact'};
   export function createJsonEncoderFn<T>(val?: T, options?: CompTimeArgs<JsonEncoderOptions>, id?: InjectRunTypeId<T>): (v: unknown) => string | undefined;
 }
 `

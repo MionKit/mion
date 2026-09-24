@@ -160,32 +160,6 @@ func (RestoreFromJsonCloneEmitter) DiagCodeForLeaf(leaf *reflection.RunType) str
 	return restoreFromJsonRootCodes.codeFor(leaf)
 }
 
-var stringifyJsonCodes = map[DiagSlot]string{
-	SlotNeverRoot:                  diagnostics.CodeSJNeverRoot,
-	SlotNonSerializableRoot:        diagnostics.CodeSJNonSerializableRoot,
-	SlotFunctionRoot:               diagnostics.CodeSJFunctionRoot,
-	SlotFunctionPropDropped:        diagnostics.CodeSJFunctionPropDropped,
-	SlotMethodDropped:              diagnostics.CodeSJMethodDropped,
-	SlotStaticDropped:              diagnostics.CodeSJStaticDropped,
-	SlotSymbolKeyedDropped:         diagnostics.CodeSJSymbolKeyedDropped,
-	SlotUnionMemberDropped:         diagnostics.CodeSJUnionMemberDropped,
-	SlotNonSerializablePropDropped: diagnostics.CodeSJNonSerializablePropDrop,
-	SlotUnsafeNamePropDropped:      diagnostics.CodeUnsafePropertyName,
-}
-
-func (StringifyJsonEmitter) DiagCodeFor(slot DiagSlot) string { return stringifyJsonCodes[slot] }
-
-var stringifyJsonRootCodes = rootCodeMap{
-	never:           diagnostics.CodeSJNeverRoot,
-	nonSerializable: diagnostics.CodeSJNonSerializableRoot,
-	function:        diagnostics.CodeSJFunctionRoot,
-	symbol:          diagnostics.CodeSJSymbolRoot,
-}
-
-func (StringifyJsonEmitter) DiagCodeForLeaf(leaf *reflection.RunType) string {
-	return stringifyJsonRootCodes.codeFor(leaf)
-}
-
 var toBinaryCodes = map[DiagSlot]string{
 	SlotNeverRoot:                  diagnostics.CodeTBNeverRoot,
 	SlotNonSerializableRoot:        diagnostics.CodeTBNonSerializableRoot,
@@ -312,12 +286,4 @@ var removeUnknownKeysRootCodes = rootCodeMap{
 	nonSerializable: "", // shared by reference — nothing key-tracked to strip
 	function:        diagnostics.CodeRUKFunctionRoot,
 	symbol:          "", // symbols pass through by reference
-}
-
-var stripUnknownKeysWireCodes = map[DiagSlot]string{
-	SlotFunctionPropDropped: diagnostics.CodeUKWFunctionPropDropped,
-}
-
-func (StripUnknownKeysWireEmitter) DiagCodeFor(slot DiagSlot) string {
-	return stripUnknownKeysWireCodes[slot]
 }

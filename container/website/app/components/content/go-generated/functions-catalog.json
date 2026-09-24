@@ -30,26 +30,25 @@
     },
     {
       "name": "jsonDecoder",
-      "call": "createJsonDecoderFn<T>(undefined, {strategy: 'strip' | 'preserve' | 'compact'})",
+      "call": "createJsonDecoderFn<T>(undefined, {strategy: 'clone' | 'mutate' | 'compact'})",
       "doc": "Turns a JSON string back into a typed value. The strategy decides whether undeclared properties survive.",
       "factory": "createJsonDecoderFn",
       "options": "strategy",
       "variants": [
-        "strip",
-        "preserve",
+        "clone",
+        "mutate",
         "compact"
       ]
     },
     {
       "name": "jsonEncoder",
-      "call": "createJsonEncoderFn<T>(undefined, {strategy: 'clone' | 'mutate' | 'direct' | 'compact'})",
-      "doc": "Turns a value into a JSON string. The strategy picks how: build a new value, transform in place, write the string in one pass, or use the compact positional wire.",
+      "call": "createJsonEncoderFn<T>(undefined, {strategy: 'clone' | 'mutate' | 'compact'})",
+      "doc": "Turns a value into a JSON string. The strategy picks how: build a new value, transform in place, or use the compact positional wire.",
       "factory": "createJsonEncoderFn",
       "options": "strategy",
       "variants": [
         "clone",
         "mutate",
-        "direct",
         "compact"
       ],
       "rejectCircularRefs": true
@@ -95,13 +94,6 @@
       "tag": "rj",
       "doc": "Turns a JSON-safe value back into the typed shape in place, keeping undeclared properties.",
       "factory": "createRestoreFromJsonFn"
-    },
-    {
-      "name": "stringifyJson",
-      "call": "createStringifyJsonFn<T>()",
-      "tag": "sj",
-      "doc": "Writes a value straight to a JSON string in one pass, with no intermediate value.",
-      "factory": "createStringifyJsonFn"
     },
     {
       "name": "toBinary",

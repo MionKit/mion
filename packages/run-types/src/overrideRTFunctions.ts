@@ -48,7 +48,7 @@ function overrideImpl(_pureFn: unknown, id?: unknown): void {
 
 // The cast restores the generic <T> + the `PureFunction` / `InjectTypeFnArgs` brands the Go scanner
 // reads at call sites; <T> is erased before execution. One twin per PUBLIC operation — the internal
-// primitives (pj / pjs / rj / sj / ukuw) are not user-overridable.
+// primitives (pj / pjs / rj / rjs / cj / cjr) are not user-overridable.
 
 export const overrideValidate = overrideImpl as unknown as <T>(
   fn: PureFunction<ValidateFn<T>>,

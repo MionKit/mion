@@ -43,9 +43,9 @@ func TestParallelRender_EquivalentToSerial(t *testing.T) {
 
 	// Sanity: the validate family and at least one other demanded family must
 	// have produced entries (the fixture demands createValidateFn +
-	// createJsonDecoderFn, whose strip strategy seeds restoreFromJsonMutate).
-	if !hasFamilyEntry(parallelResponse, "validate") || !hasFamilyEntry(parallelResponse, "restoreFromJsonMutate") {
-		t.Fatalf("expected validate + restoreFromJsonMutate entries to render")
+	// createJsonDecoderFn, whose default clone strategy seeds restoreFromJsonClone).
+	if !hasFamilyEntry(parallelResponse, "validate") || !hasFamilyEntry(parallelResponse, "restoreFromJsonClone") {
+		t.Fatalf("expected validate + restoreFromJsonClone entries to render")
 	}
 
 	serialJSON := responseJSON(t, serialResponse)

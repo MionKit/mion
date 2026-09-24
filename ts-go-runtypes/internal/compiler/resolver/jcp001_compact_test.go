@@ -12,7 +12,7 @@ import (
 // slot, array element, record value, callable object) must render an
 // alwaysThrow primitive entry with the SAME per-family diagnostic its sibling
 // strategy emits — cj mirrors prepareForJsonClone (clone → PJS*), cjr mirrors
-// restoreFromJsonMutate (preserve → RJ*) — NOT silently skip the primitive and leave
+// restoreFromJsonMutate (mutate → RJ*) — NOT silently skip the primitive and leave
 // the compact composite binding a never-rendered entry (the JCP001 internal
 // breach). Before the fix the compact emitters implemented neither
 // DiagCodeProvider nor LeafDiagCodeProvider, so an unsupported leaf produced an
@@ -26,7 +26,7 @@ type jcp001CompactCase struct {
 	name    string
 	shape   string
 	encoder string // expected encoder root code (clone == compact)
-	decoder string // expected decoder root code (preserve/strip == compact)
+	decoder string // expected decoder root code (mutate == compact)
 }
 
 var jcp001CompactCases = []jcp001CompactCase{
@@ -74,7 +74,7 @@ func containsCode(codes []string, want string) bool {
 }
 
 // TestJCP001_CompactMatchesSibling pins that compact encode/decode surface the
-// same alwaysThrow root code as clone/preserve and never trip JCP001.
+// same alwaysThrow root code as clone/mutate and never trip JCP001.
 func TestJCP001_CompactMatchesSibling(t *testing.T) {
 	for _, tc := range jcp001CompactCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -88,14 +88,14 @@ func TestJCP001_CompactMatchesSibling(t *testing.T) {
 				t.Errorf("compact encoder should surface %s (matching clone), got %v", tc.encoder, compactEnc)
 			}
 
-			// Decoder: compact (cjr) must match preserve (rj).
-			preserveCodes := runtypeCodes(t, tc.shape, "createJsonDecoderFn", "preserve")
+			// Decoder: compact (cjr) must match mutate (rj).
+			mutateCodes := runtypeCodes(t, tc.shape, "createJsonDecoderFn", "mutate")
 			compactDec := runtypeCodes(t, tc.shape, "createJsonDecoderFn", "compact")
-			if !containsCode(preserveCodes, tc.decoder) {
-				t.Fatalf("preserve decoder should surface %s, got %v", tc.decoder, preserveCodes)
+			if !containsCode(mutateCodes, tc.decoder) {
+				t.Fatalf("mutate decoder should surface %s, got %v", tc.decoder, mutateCodes)
 			}
 			if !containsCode(compactDec, tc.decoder) {
-				t.Errorf("compact decoder should surface %s (matching preserve), got %v", tc.decoder, compactDec)
+				t.Errorf("compact decoder should surface %s (matching mutate), got %v", tc.decoder, compactDec)
 			}
 		})
 	}
