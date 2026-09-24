@@ -8,6 +8,7 @@
 import {describe, it, expect, beforeEach} from 'vitest';
 import {RpcError, resetRoutesCache} from '@mionjs/core';
 import type {MethodWithOptions} from '@mionjs/core';
+import type {ClientOptions} from '../../src/types.ts';
 import {
   learnSyncRoutes,
   resetSyncRoutes,
@@ -48,7 +49,9 @@ describe('client route sync ids', () => {
   });
 
   it("sends each route's own id from its row, and '' for a row without one or no row", () => {
-    installMethodRows({methods: {users: row('users', 'aB3dE9x'), older: row('older')}, deps: {}, purFnDeps: {}});
+    installMethodRows({methods: {users: row('users', 'aB3dE9x'), older: row('older')}, deps: {}, purFnDeps: {}}, {
+      baseURL: 'http://x',
+    } as ClientOptions);
     expect(routeSyncIds(['users', 'older', 'unknown'])).toEqual(['aB3dE9x', '', '']);
   });
 

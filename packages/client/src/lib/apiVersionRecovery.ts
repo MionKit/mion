@@ -9,9 +9,9 @@
 
 import {RpcError, MION_ROUTES} from '@mionjs/core';
 import type {MethodWithOptions, SerializableMethodsData} from '@mionjs/core';
-import type {SubRequest} from '../types.ts';
+import type {ClientOptions, SubRequest} from '../types.ts';
 import {stashApiVersionError} from './apiBuildVersion.ts';
-import {dropBundledMethods, getMethod} from './methods.ts';
+import {getMethod, isBundledMethod} from './methods.ts';
 import {installMethodRows} from './clientMethodsMetadata.ts';
 
 /** Ids each baseURL confirmed: a route is checked once per server, on its first use after the mismatch. */
@@ -45,17 +45,18 @@ export function createVerifySubRequest(methodIds: string[]): SubRequest<any> {
   } as SubRequest<any>;
 }
 
-/** Compares each asked route's `syncId` with the server's: this side holds both rows. */
-export function verifyMethodRows(baseURL: string, asked: string[], data: SerializableMethodsData): void {
-  const verified = verifiedBy(baseURL);
+/** Compares each asked route's `syncId` with the server's: this side holds both rows. A fetched row is a
+ *  cache, so it is refreshed and saved; a bundled one is what this code was built against, so it is reported. */
+export function verifyMethodRows(options: ClientOptions, asked: string[], data: SerializableMethodsData): void {
+  const verified = verifiedBy(options.baseURL);
   for (const id of asked) verified.add(id);
   // Only the asked ids: comparing the middleware riding along would report a route this call never uses.
   const stale = asked.filter((id) => !rowsAgree(getMethod(id), data.methods[id] as MethodWithOptions | undefined));
   if (!stale.length) return;
-  // The bundled shelf wins over the fetched one, so the rows it replaces have to go first
-  dropBundledMethods(stale);
-  installMethodRows(data, stale);
-  stashApiVersionError(staleRoutesError(stale));
+  const fetched = stale.filter((id) => !isBundledMethod(id));
+  if (fetched.length) installMethodRows(data, options, fetched);
+  const bundled = stale.filter((id) => isBundledMethod(id));
+  if (bundled.length) stashApiVersionError(staleRoutesError(bundled));
 }
 
 /** Sync id only: it covers the types and wire formats; a row or id missing on either end never agrees. */
@@ -69,6 +70,6 @@ function staleRoutesError(stale: string[]): RpcError<'api-version-mismatch'> {
     publicMessage:
       `This mion client carries routes compiled against an older version of the API: the server answers with a ` +
       `different build version, and ${stale.map((id) => `"${id}"`).join(', ')} no longer matches what it declares. ` +
-      `The client replaced them with the server's own. Rebuild the client against the current API.`,
+      `Reload the app or rebuild the client against the current API.`,
   });
 }
