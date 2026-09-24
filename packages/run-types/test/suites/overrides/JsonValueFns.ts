@@ -1,5 +1,4 @@
-// A type whose JSON encoder and decoder are overridden must still get its value-level JSON functions,
-// directly and nested inside another type: a route or a caller asks for them without the composite.
+// A JSON override must not drop a type's value-level JSON functions, direct or nested: callers ask for them by name.
 
 import {it, expect} from 'vitest';
 import {

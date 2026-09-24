@@ -9,8 +9,7 @@ type Demand struct {
 	VariantSuffix string
 	Options       []string
 	FnHash        string
-	// RejectCircular marks a CircularGuarded family's armed variant (`{rejectCircularRefs: true}`), the entries the emitter renders the
-	// inline guard for. It rides on the root / composite demand only, never on the JSON primitives a composite wraps.
+	// RejectCircular marks the armed `{rejectCircularRefs: true}` variant, guarded inline; never on a JSON primitive.
 	RejectCircular bool
 	// ComposedBy names the JSON composite operation a primitive demand exists for; empty for a direct demand.
 	ComposedBy string
