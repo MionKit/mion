@@ -10,7 +10,7 @@ export const CARDS_DIR = join(PACKAGE_DIR, 'cards');
 export const TMP_DIR = join(PACKAGE_DIR, 'tmp');
 export const THEME = 'tokyo-night';
 export const PAGE_WIDTH = 1200;
-// The code's own left + right padding inside the window, in template.html.
+// The left + right padding of `.win pre` in template.html.
 const CODE_INSET = 64;
 // A JetBrains Mono character is 0.6em wide.
 const CHAR_WIDTH_EM = 0.6;
@@ -35,7 +35,6 @@ export type Card = {
   code: string;
 };
 
-// How many code characters fit on one line of the window.
 export const maxColumns = (padding: number, codeSize: number) =>
   Math.floor((PAGE_WIDTH - 2 * padding - CODE_INSET) / (CHAR_WIDTH_EM * codeSize));
 
@@ -88,7 +87,7 @@ export function validateCard(input: unknown, source = 'card'): Card {
     const numeric = NUMBER_KEYS.includes(key) && typeof value === 'number';
     if (typeof value !== 'string' && !numeric) throw cardError(source, `"${key}" must be a string`);
   }
-  // The loop above let only strings, and numbers for the NUMBER_KEYS, through.
+  // The loop let only strings, and numbers for NUMBER_KEYS, through.
   const sizes = fields as Partial<Record<string, string | number>>;
   const padding = parseSize(sizes.padding, 'padding', DEFAULT_PADDING, PADDING_RANGE, source);
   const codeSize = parseSize(sizes.codeSize, 'codeSize', DEFAULT_CODE_SIZE, CODE_SIZE_RANGE, source);
@@ -120,7 +119,6 @@ export function validateCard(input: unknown, source = 'card'): Card {
   };
 }
 
-// A whole number of px inside the range; the card may leave it out.
 function parseSize(
   value: string | number | undefined,
   key: string,
