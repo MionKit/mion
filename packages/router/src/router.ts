@@ -28,14 +28,7 @@ import {
   isAnyMiddlewareDef,
   isPublicExecutable,
 } from './types/guards.ts';
-import {
-  HandlerType,
-  isTestEnv,
-  resetRoutesCache,
-  getOrCreateGlobal,
-  resolveParser,
-  DEFAULT_MAX_BODY_SIZE,
-} from '@mionjs/core';
+import {HandlerType, isTestEnv, resetRoutesCache, getOrCreateGlobal, resolveParser, DEFAULT_MAX_BODY_SIZE} from '@mionjs/core';
 import {getRawMethodReflection, getHandlerReflection, assertCompiledParser} from './lib/reflection.ts';
 import {resolveChainMaxBodySize} from './lib/bodyLimit.ts';
 import {callerForType} from './dispatch.ts';
