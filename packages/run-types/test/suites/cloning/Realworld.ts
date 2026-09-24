@@ -1,13 +1,7 @@
-// cloning / Realworld — real-world shapes through the deep-clone contract.
-// `payload` is a payload-shaped composition exercising every arm at once
-// (nested object, array, Map, Date), the intended validate-then-clone
-// pipeline shape; the generic asserts prove the clone shares no mutable
-// reference with the input at ANY depth — which is exactly the guarantee
-// that makes mutating the clone safe. The remaining cases mirror the
-// serialization suite's realworld DTOs (the SAME relational / CMS / API /
-// form shapes the realworld benchmark runs) case-for-case, so the cloning
-// table lines up with serialization; their samples carry
-// no undeclared keys, so only `payload` needs `expected`.
+// Real-world shapes through the deep-clone contract. `payload` mixes every arm (nested object, array, Map, Date),
+// the validate-then-clone pipeline shape; the asserts prove the clone shares no mutable reference at any depth,
+// the guarantee that makes mutating it safe. The other cases mirror the serialization suite's realworld DTOs
+// case-for-case; their samples carry no undeclared keys, so only `payload` needs `expected`.
 
 import {createRemoveUnknownKeysFn} from '@mionjs/run-types';
 import type {CloningCase} from './types.ts';
