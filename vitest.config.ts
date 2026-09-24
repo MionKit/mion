@@ -65,7 +65,7 @@ export default defineConfig({
       // Type-instantiation cost budgets for the model pipeline (private, never
       // published) — a pure in-process compile measurement, no plugins.
       'packages/type-budget/vitest.config.ts',
-      // Shareable code images (private, never published): card parsing, the HTML render and the preview server.
+      // Shareable code images (private, never published).
       'packages/code-card/vitest.config.ts',
     ],
     // Teardown-only sweep removing every .mion genDir under packages/ after the

@@ -1,4 +1,4 @@
-// The preview server's routes. The PNG route needs a browser, so it is covered by hand with `miondevx card serve`.
+// The PNG route needs a browser, so it is covered by hand with `miondevx card serve`.
 import type {AddressInfo} from 'node:net';
 import {join} from 'node:path';
 import {afterAll, beforeAll, describe, expect, it} from 'vitest';

@@ -1,5 +1,4 @@
-// `miondevx card shot`: render cards to PNG through the repo's playwright-cli.
-// The CLI only opens http pages, so the cards are served by the preview server for the shot.
+// `miondevx card shot`: playwright-cli only opens http pages, so the cards go through the preview server.
 
 import {spawn} from 'node:child_process';
 import {existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync} from 'node:fs';
@@ -64,7 +63,7 @@ function runCli(session: string, cwd: string, args: string[]): Promise<{status: 
   });
 }
 
-// One browser session for all targets; the CLI reports failures in its output, not always in its exit code.
+// The CLI reports some failures only in its output, not in its exit code.
 export async function shootUrls(targets: ShotTarget[], {browser}: {browser?: string} = {}): Promise<void> {
   const workDir = mkdtempSync(join(tmpdir(), 'code-card-'));
   const configPath = join(workDir, 'cli.config.json');
@@ -102,7 +101,7 @@ export async function main(argv: string[]): Promise<void> {
     : options.cards.map(resolveCardPath);
   if (!paths.length) throw new Error('no cards to render');
   for (const path of paths) loadCard(path);
-  // The server knows the cards for this run as card-0, card-1…, whatever folder they live in.
+  // Aliased so a card from any folder is served, not only cards/ and tmp/.
   const cardPaths = Object.fromEntries(paths.map((path, i) => [`card-${i}`, path]));
   const server = createCardServer({cardPaths});
   await new Promise<void>((done) => server.listen(0, '127.0.0.1', done));

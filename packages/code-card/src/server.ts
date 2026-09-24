@@ -1,5 +1,4 @@
-// `miondevx card serve`: preview cards in a browser and download their PNGs.
-// Cards are re-read on every request, so an edit shows on refresh.
+// `miondevx card serve`: cards are re-read on every request, so an edit shows on refresh.
 
 import {existsSync, mkdtempSync, readFileSync, readdirSync, rmSync} from 'node:fs';
 import {createServer, type IncomingMessage, type Server} from 'node:http';

@@ -1,5 +1,4 @@
-// A code card is a markdown file: flat `key: value` frontmatter plus ONE fenced code
-// block. This module parses and checks it, and renders it to a self-contained HTML page.
+// A code card is a markdown file: flat `key: value` frontmatter plus ONE fenced code block.
 
 import {existsSync, readFileSync} from 'node:fs';
 import {dirname, join, resolve} from 'node:path';
@@ -96,7 +95,6 @@ export function validateCard(input: unknown, source = 'card'): Card {
   };
 }
 
-// "12", "12-13" or "3,7-8" -> the 1-based line numbers, sorted.
 export function parseHighlight(spec: string, lineCount: number, source = 'card'): number[] {
   const picked = new Set<number>();
   for (const part of spec
@@ -116,7 +114,6 @@ export function parseHighlight(spec: string, lineCount: number, source = 'card')
 export const escapeHtml = (text: string) =>
   text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
-// `*text*` in the title is painted with the accent gradient.
 export const titleHtml = (title: string) => escapeHtml(title).replace(/\*([^*]+)\*/g, '<span class="accent">$1</span>');
 
 let fontFacesCache: string | undefined;
@@ -162,7 +159,6 @@ export async function renderCardHtml(card: Card, {zoom = 1}: RenderOptions = {})
   );
 }
 
-// A card name looks in cards/ then tmp/; anything with a slash or .md is a path.
 export function resolveCardPath(nameOrPath: string): string {
   if (nameOrPath.endsWith('.md') || nameOrPath.includes('/')) {
     const path = resolve(nameOrPath);
