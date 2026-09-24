@@ -37,9 +37,7 @@ export function toBase64Url(str: string): string {
 
 /** The names a ROUTE may not have: a route id is an object key on both ends of the wire and a method name on the
  *  client's proxy. Wider than the resolver's `reflection.UnsafePropertyNames`, which governs DATA keys, where only
- *  `__proto__` is a hazard. */
-export const UNSAFE_PROPERTY_NAMES = ['__proto__', 'prototype', 'constructor'] as const;
-
+ *  `__proto__` is a hazard. Checks `__proto__`, `prototype` and `constructor`. */
 export function isUnsafePropertyName(name: string): boolean {
   // length first, so a name of any other length costs one integer compare and no string compare
   const length = name.length;

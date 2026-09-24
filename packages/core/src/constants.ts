@@ -47,10 +47,6 @@ export const MION_ROUTES = {
   thrownErrors: '@thrownErrors',
 } as const;
 
-export const MIME_TYPES = {
-  json: 'application/json',
-} as const;
-
 /** Kept for HTTP backwards compatibility only: in a mion app the error type, a human readable code, is what matters. */
 export const StatusCodes = {
   /** Any error in the server that is not related to the application, ie: server not ready, etc... */
