@@ -1,7 +1,7 @@
 ---
 type: chore
 spec: guidelines
-status: ready
+status: done
 created: 2026-09-24
 ---
 
@@ -82,7 +82,7 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
 
 ### Go (ts-go-runtypes)
 - `operations/operations.go`: encoder strategies `clone|mutate|compact`; decoder `DefaultStrategy: "clone"`, strategies `clone|mutate|compact`; delete the `stringifyJson` and `stripUnknownKeysWire` rows; fix the Doc strings.
-- `constants/constants.go`: drop `stringifyJson` / `stripUnknownKeysWire` modules, `jeDI`, `jdST`, `jdPR`; add `jsonDecoder|clone` → `jdCL` `{"rjs"}` and `jsonDecoder|mutate` → `jdMU` `{"rj"}` (mirrors `jeCL` / `jeMU`). Host tags: clone decoder borrows `rjs`, mutate borrows `rj`.
+- `constants/constants.go`: drop `stringifyJson` / `stripUnknownKeysWire` modules, `jeDI`, `jdST`, `jdPR`; add `jsonDecoder|clone` → `jdCL` `{"rjs"}` and `jsonDecoder|mutate` → `jdMU` `{"rj"}` (mirrors `jeCL` / `jeMU`). Host tags unchanged: every decoder composite still borrows `rj` metadata (like every encoder borrows `pj`); `rj` and `rjs` share the same value-shaped identity entry.
 - `typefunctions/json_composite.go`: tag lists, remove `direct` arm, decoder arms become clone (`rjs`) and mutate (`rj`).
 - Delete `json_stringify.go`, `strip_unknown_keys_wire.go`, `unknownkeys_to_undefined.go`, and the code left with no caller: stringify helpers in `union_flat.go`, `wrapStringifyWithClassSerializer`, `sjSkipCommas`, `isNoopForStringifyJson`, the UKU/UKW noop specs + walker facts, `JsonWireFormat` + the wire branch of `emitNativeIterableUnknownKeys`, `mapSetAlwaysNoop`. Family registrations in `families.go`, resolver `dispatch.go`, `protocol.go` `AddedStringifyJson` / `AddedStripUnknownKeysWire` (+ TS mirror in devtools `protocol.ts` / `resolver-client.ts`).
 - Diagnostics: remove SJ001–SJ015, UKU010, UKW010 codes, messages, group lists, `alwaysthrow_message.go` entries.
@@ -122,3 +122,15 @@ Not a new feature; existing roundtrip fuzz lanes keep covering each strategy pai
 4. Append this plan to the spec, reconcile, `git mv` to `docs/done/`.
 5. docs-simplifier + comments-simplifier subagents in parallel, each committed on its own.
 6. Push, open PR with `website` + `pre-publish-e2e` labels.
+
+## What shipped (reconciled)
+
+Built as planned, with these differences:
+
+- Host tags were left as they were (decoder composites borrow `rj`), see the Go section above.
+- Also removed, found on the way: the always-true `reportsPatternKey` flag in `noop_types.go`, the stale `addedUnknownKeysToUndefinedWire` flag in the devtools protocol mirror, and the `SJ` / `UKU` / `UKW` rows in devtools `lint/diagnosticRouting.ts`.
+- `test/suites/overrides/JsonValueFns.ts` imported the already-removed `createStripUnknownKeysFn`; its stringify / strip-keys case covered only removed functions and was deleted.
+- `features/stripInsideMapSet.test.ts` became `cloneDecodeInsideMapSet.test.ts`: it now checks the clone decoder drops undeclared keys inside Map values and Set members.
+- A few Go and devtools tests needed a third valid strategy and now use `compact` where they used `direct`; the SJ diagnostic cases now use the clone encoder's PJS codes.
+- Outside the spec: the website playground ops, the serialization bench columns (`direct` column gone, decoders paired by strategy) and the pre-publish e2e JSON check were updated.
+- Maintainer request in the same PR, own commit: removed 13 Go helpers that `staticcheck -checks U1000` showed nothing called, already unused on main.
