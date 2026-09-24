@@ -29,10 +29,7 @@ export function expectedEngineBranch(): EngineBranch {
   return currentRuntime() === 'bun' ? 'jsc' : 'v8';
 }
 
-/** Observe which counter is live by watching whether a strict check reaches
- *  `Object.keys`. Uses the real emitted `checkUnknowns` validator, so this is the
- *  shipped code path and not a reimplementation of it: a strict check on an
- *  all-required object is what routes through countEnumKeys. */
+/** Watches whether the shipped strict validator on an all-required object (countEnumKeys) reaches `Object.keys`. */
 export function detectEngineBranch(): EngineBranch {
   interface Probe {
     a: number;
@@ -41,8 +38,7 @@ export function detectEngineBranch(): EngineBranch {
   const validateStrict = createValidateFn<Probe>(undefined, {checkUnknowns: true});
   const value: Probe = {a: 1, b: 'x'};
 
-  // Warm the factory so materialisation (which is where the branch is decided)
-  // happens OUTSIDE the window we are watching.
+  // Materialisation picks the branch, so it must happen outside the watched window.
   validateStrict(value);
 
   const originalKeys = Object.keys;

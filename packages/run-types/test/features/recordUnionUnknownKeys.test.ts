@@ -1,8 +1,6 @@
-// A union carrying a Record member switches the unknown-key families OFF for the whole union: the value might match the
-// record, where every key is declared, and no codec can tell which member it matched, so the stripping decoders stop
-// stripping and a pooled key check (every key declared by ANY member) finds nothing. That breaks a two-step
-// validate-then-pooled-key-check: both halves say yes and an undeclared key reaches the handler. The strict validator
-// closes it (the `strict` column); unionUnknownKeys.test.ts owns the validators, this file pins the CODEC half.
+// A Record member turns the unknown-key codecs OFF for the whole union (any key may be the record's), so a
+// validate-then-pooled-key-check lets an undeclared key reach the handler; the `strict` column closes it.
+// This file pins the CODEC half; unionUnknownKeys.test.ts owns the validators.
 
 import {describe, expect, it} from 'vitest';
 import {createJsonDecoderFn, createJsonEncoderFn, createValidateFn} from '../../src/index.ts';
@@ -16,9 +14,8 @@ type PlainObject = {a: string};
 interface Probe {
   decodeStrip: (wire: string) => unknown;
   validate: (value: unknown) => boolean;
-  /** `createValidateFn<T>(undefined, {checkUnknowns: true})`. */
   strict: (value: unknown) => boolean;
-  /** Reference for the pooled allowlist: the keys declared by ANY member, or every key once a member is a record. */
+  /** Keys declared by ANY member, or every key once a member is a record. */
   pooledKeys: readonly string[] | 'every key';
   encodeClone: (value: any) => unknown;
 }
@@ -30,9 +27,9 @@ interface Row {
   /** What the stripping decoder returns; equal to `value` when nothing was stripped. */
   decoded: Record<string, unknown>;
   validate: boolean;
-  /** `validate` and no key outside the pooled allowlist, the two-step answer. */
+  /** `validate` and no key outside `pooledKeys`. */
   twoStep: boolean;
-  /** The strict validator's answer on `value`, which judges the matched member alone. */
+  /** Judges the matched member alone. */
   strict: boolean;
 }
 

@@ -1,12 +1,5 @@
-// End-to-end tests for the `{checkUnknowns: true}` fused validators — one
-// compiled function that checks properties AND undeclared keys in a single walk.
-//
-// The load-bearing test here is the PARITY suite: whatever shape is thrown at it,
-// the fused validator must agree with the plain validator plus an in-test walk
-// over the keys the type declares. The nested-named-type
-// case is the one that would silently regress if the feature were built as a
-// compile-time VARIANT instead of its own family, since a variant only reaches
-// the root object.
+// The load-bearing suite is PARITY: the fused validator must agree with the plain one plus an in-test key walk.
+// The nested-named-type case catches a rebuild as a compile-time VARIANT, which would only reach the root object.
 
 import {describe, expect, it} from 'vitest';
 import {createGetValidationErrorsFn, createValidateFn} from '@mionjs/run-types';
@@ -98,10 +91,7 @@ describe('checkUnknowns — createGetValidationErrorsFn', () => {
   });
 });
 
-// Error ORDER is deliberate: one walk cannot group every type error ahead of
-// every unknown-key error. The fused report interleaves
-// per node, in walk order. Pinned here so a future change to the emit has to
-// decide the order on purpose rather than drift into it.
+// One walk cannot group errors by kind, so they interleave per node; pinned so a new order is a decision.
 describe('checkUnknowns — error order', () => {
   it('interleaves per node in walk order rather than grouping by kind', () => {
     type Inner = {x: string};
@@ -120,8 +110,6 @@ describe('checkUnknowns — error order', () => {
   });
 });
 
-// Every case below is checked against a reference (the plain validator plus an
-// in-test key walk) rather than a hand-written expectation per value.
 describe('checkUnknowns — parity with the plain validator plus a key walk', () => {
   type Address = {street: string; city: string};
   type Person = {name: string; age: number; address: Address; tags?: string[]};
@@ -135,9 +123,7 @@ describe('checkUnknowns — parity with the plain validator plus a key walk', ()
   const errorsStrict = createGetValidationErrorsFn<Person>(undefined, {checkUnknowns: true});
   const typeErrors = createGetValidationErrorsFn<Person>();
 
-  // Values the object guard ADMITS (`typeof v === 'object' && v !== null`).
-  // An array, Map or Date here is a shape error only: an array's indexes are
-  // never reported as undeclared keys, the shape error already names the problem.
+  // Admitted by the object guard; an array, Map or Date is a shape error only, its indexes never undeclared keys.
   const objectCorpus: unknown[] = [
     {name: 'Ada', age: 36, address: {street: 'A', city: 'B'}},
     {name: 'Ada', age: 36, address: {street: 'A', city: 'B'}, tags: ['x']},
@@ -153,8 +139,7 @@ describe('checkUnknowns — parity with the plain validator plus a key walk', ()
     new Date(),
   ];
 
-  // Values the object guard REJECTS: they carry no undeclared keys, so both
-  // oracles below cover them too.
+  // Rejected by the object guard: no undeclared keys, so both oracles cover them.
   const primitiveCorpus: unknown[] = [null, undefined, 'a string', 42];
 
   it.each([...objectCorpus, ...primitiveCorpus].map((value, index) => [index, value] as const))(
@@ -164,9 +149,7 @@ describe('checkUnknowns — parity with the plain validator plus a key walk', ()
     }
   );
 
-  // Compared as SETS: the fused walk interleaves entries where the reference
-  // groups them (see the error-order suite above), so membership is the shared
-  // contract, not sequence.
+  // Compared as SETS: the fused walk interleaves entries the reference groups.
   it.each([...objectCorpus, ...primitiveCorpus].map((value, index) => [index, value] as const))(
     'error report matches verr + the key walk as a set — case %i',
     (_index, value) => {
@@ -272,10 +255,7 @@ describe('checkUnknowns — arrays', () => {
 //   vst_Cat: (… v.kind==='cat' && typeof v.meows==='boolean' && cntEK(v) === 2)
 //   vst_Dog: (… v.kind==='dog' && Number.isFinite(v.barks)   && cntEK(v) === 2)
 //
-// A codec cannot do that: it never validates, so it cannot know which member
-// matched, and instead pools every member's property names into one merged
-// allowlist. The two DISAGREE on a value carrying another member's key; the
-// fused validator is the one that follows the branch `isType` actually matched.
+// A codec never validates, so it pools every member's keys; the two DISAGREE on another member's key.
 
 interface Cat {
   kind: 'cat';
@@ -340,9 +320,7 @@ describe('checkUnknowns — unions of named interfaces', () => {
     expect(isShape({shape: 'circle', r: 1, base: 2})).toBe(false);
   });
 
-  // DELIBERATE DIVERGENCE, pinned so it stays a decision rather than becoming a
-  // surprise. The merged allowlist accepts a cat carrying `barks`; the fused
-  // validator does not, because it follows the branch that matched.
+  // DELIBERATE DIVERGENCE: the fused validator follows the matched branch, the merged allowlist does not.
   it('is STRICTER than validate + the merged allowlist on a mixed-member value', () => {
     const loose = createValidateFn<Pet>();
     const mergedKeys: DeclaredKeys = {kind: null, meows: null, barks: null};

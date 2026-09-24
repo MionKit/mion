@@ -115,7 +115,7 @@ describe('classSerializer / a base class and its subclass declared in one union'
     expect(createValidateFn(sample, {checkUnknowns: true})(stray)).toBe(false);
     expect(createValidateFn<AuthErr>(undefined, {checkUnknowns: true})(stray)).toBe(false);
     expect(createValidateFn(authSample, {checkUnknowns: true})(stray)).toBe(false);
-    // A union reports the undeclared key at its own root: the key is only undeclared relative to a branch.
+    // A union reports at its own root: the key is only undeclared relative to a branch.
     expect(paths(createGetValidationErrorsFn(sample, {checkUnknowns: true})(stray))).toEqual(['']);
     expect(paths(createGetValidationErrorsFn<AuthErr>(undefined, {checkUnknowns: true})(stray))).toEqual(['bogus']);
     expect(paths(createGetValidationErrorsFn(authSample, {checkUnknowns: true})(stray))).toEqual(['bogus']);

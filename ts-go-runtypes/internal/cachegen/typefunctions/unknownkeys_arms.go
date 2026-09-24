@@ -7,8 +7,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// Recursion arms of the unknownKeysToUndefined family and its wire twin: at a property, array, tupleMember or
-// native-iterable position they only recurse into children, the per-key snippet being the index-signature arm's job.
+// Recursion arms of unknownKeysToUndefined and its wire twin; the per-key snippet is the index-signature arm's job.
 
 func emitPropertyUnknownKeys(rt *reflection.RunType, ctx *EmitContext) RTCode {
 	if rt.Child == nil {

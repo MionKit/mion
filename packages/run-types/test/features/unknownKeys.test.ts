@@ -1,6 +1,5 @@
-// Undeclared keys by POSITION, through the `{checkUnknowns: true}` validators: every place a key can hide, and every
-// value shape the check must stay quiet on. checkUnknowns.test.ts owns the option's contract; removeUnknownKeys has
-// its own suite in test/suites/cloning/.
+// Undeclared keys by POSITION through `{checkUnknowns: true}`, plus the value shapes it must stay quiet on.
+// checkUnknowns.test.ts owns the option's contract; removeUnknownKeys lives in test/suites/cloning/.
 
 import {describe, expect, it} from 'vitest';
 import {createGetValidationErrorsFn, createValidateFn, getRunType} from '@mionjs/run-types';
@@ -40,8 +39,8 @@ describe('checkUnknowns — basics', () => {
   });
 });
 
-// A NAMED nested type compiles to its OWN cache entry and is reached by a call, where an anonymous one is inlined.
-// All-required shapes take the O(1) key-count compare; the parent must dep-call the strict child, not the plain one.
+// A NAMED nested type is its own cache entry, reached by a call: the parent must dep-call the strict child.
+// All-required, so these shapes take the O(1) key-count compare.
 interface Address {
   street: string;
   city: string;
@@ -77,7 +76,7 @@ describe('checkUnknowns — named nested types', () => {
   });
 });
 
-// A union answers per branch: every nested object inside the matched member carries its own key check.
+// Every nested object inside the matched member carries its own key check.
 interface NestedInner {
   x: number;
 }
@@ -91,7 +90,7 @@ interface WrapPlain {
 }
 type WrapUnion = WrapNested | WrapPlain;
 
-// `data` is `{x: number}` on one branch and `{y: number}` on the other, so a pooled allowlist cannot descend into it.
+// `data` differs per branch, so a pooled allowlist cannot descend into it.
 interface AmbA {
   tag: 'a';
   data: {x: number};
@@ -154,8 +153,7 @@ describe('checkUnknowns — Map and Set', () => {
   });
 });
 
-// A value that is not the declared shape carries no "declared vs undeclared key" question: the strict report must be
-// exactly the plain report, one shape error and no invented `{expected: 'never'}` per character or index, and never throw.
+// Off-shape, the strict report equals the plain one: no invented `{expected: 'never'}` per character, and no throw.
 describe('checkUnknowns — a value the schema does not admit', () => {
   interface Nested {
     street: string;
@@ -210,7 +208,7 @@ describe('checkUnknowns — a value the schema does not admit', () => {
     ]);
   });
 
-  // Both call shapes of the factory resolve to the same compiled entry, so the guard has to hold for both.
+  // Both call shapes resolve to the same compiled entry, so the guard must hold for both.
   it('(static form) reports only the shape error on a rejected value', () => {
     expect(createGetValidationErrorsFn<Shape>(undefined, {checkUnknowns: true})(null)).toEqual([
       {path: [], expected: 'objectLiteral'},
@@ -226,7 +224,7 @@ describe('checkUnknowns — a value the schema does not admit', () => {
   });
 });
 
-// Container roots read `v.length`, `v[0]` or iterate the value, all of which throw on null / undefined.
+// Container roots read `v.length` / `v[0]` or iterate, which throws on null / undefined.
 describe('checkUnknowns — a container root the value does not match', () => {
   interface Item {
     a: string;

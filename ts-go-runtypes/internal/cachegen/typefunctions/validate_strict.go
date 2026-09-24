@@ -2,51 +2,17 @@ package typefunctions
 
 import "github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 
-// The FUSED validator families behind `{checkUnknowns: true}` on createValidateFn / createGetValidationErrorsFn.
-//
-// The fused families emit ONE function whose object-ish arms carry the property checks AND the unknown-key check, so a
-// single walk answers "valid AND free of undeclared keys".
-//
-// Each strict emitter EMBEDS its plain twin and overrides nothing: the fused body is the plain body with one extra term
-// at the object-ish nodes, so the difference is spliced inside the shared emitObjectValidate / emitObjectValidationErrors
-// arms, gated on ctx.ChecksUnknownKeys(). One switch to maintain, not two that can drift.
-//
-// Those two arms are the ONLY splice points, and that is not an oversight:
-//
-//   - An index-signature shape declares every key matching the index, so "undeclared" has no meaning there.
-//   - A Map or Set holds entries, not properties. Nothing to check.
-//   - A UNION has no keys of its own; its members do, and each compiles through this same emitter, so every arm carries
-//     its own check. That is what makes the fused validator answer per BRANCH.
-//
-// The one place a union needs a word is the error family, which delegates its verdict to a validator: emitUnionValidationErrors
-// picks the STRICT validator under this family, or it would report nothing for a value its own validator rejects.
-//
-// # Unions answer per branch
-//
-// The fused validator inherits validate's OR chain, so each arm carries ITS OWN key check and nothing is pooled across
-// members: `{kind:'cat', meows:true, barks:3}` is rejected because the matching `cat` arm does not declare `barks`.
-// Pinned by test in checkUnknowns.test.ts.
-//
-// Why a FAMILY and not a ValidateOptions variant: a variant is root-scoped (a named nested type would dep-call the PLAIN
-// entry and lose the check), is never disk-cached and skips user overrides. A family renders its whole transitive subtree
-// with the same emitter, so strict mode needs no propagation plumbing: it rides the emitter identity.
-//
-// # The object guard is emitted ONCE, and the key check adds none of its own
-//
-// The key check is spliced after the property checks in the same expression, so validation has already run when it does.
-// The guard the validator emits as its leading term is the only one, and the key check contributes no array term.
-// Pinned by TestCheckUnknowns_ValidatorKeyCheckAddsNoGuard.
-//
-// # Arrays are out of scope, deliberately
-//
-// An ARRAY node emits no key check, only the traversal of its elements: a JSON array cannot carry undeclared object
-// properties, its enumerable keys ARE its elements. Each element's own object arm still carries its own check.
-// What is NOT a supported question is an array reaching an OBJECT node, which a pathological schema can arrange
-// (`[1, 2]` structurally satisfies `{length: number}`). The key check runs on it, and the two fused families can then answer
-// differently, because the validator compares key COUNTS while the error form names keys and `length` is not enumerable on
-// an array. The validator adds no guard against it on purpose: the guard that would is the object guard, which validation
-// already made unnecessary, and paying for it on every object in every codebase to define an answer for a shape nobody
-// writes is the wrong trade. The behaviour there is undefined and documented as such.
+// The FUSED validator families behind `{checkUnknowns: true}`: one function, one walk, "valid AND no undeclared keys".
+// Each strict emitter embeds its plain twin; the key check is spliced only into emitObjectValidate /
+// emitObjectValidationErrors, gated on ctx.ChecksUnknownKeys(), so there is one switch, not two that can drift.
+// Index signatures, Maps and Sets take no check. A union has no keys of its own: each member arm carries its own check,
+// so `{kind:'cat', meows:true, barks:3}` fails on the `cat` arm (pinned in checkUnknowns.test.ts), and
+// emitUnionValidationErrors must pick the STRICT validator or it reports nothing for a value its validator rejects.
+// A FAMILY, not a ValidateOptions variant: a variant is root-scoped (a named nested type would dep-call the PLAIN entry),
+// never disk-cached, and skips user overrides. The key check runs after the property checks, so the validator's leading
+// guard is the only one (TestCheckUnknowns_ValidatorKeyCheckAddsNoGuard). Arrays take no key check, their elements do.
+// An array reaching an OBJECT node (`[1, 2]` satisfies `{length: number}`) is undefined: the two families may disagree
+// (key count vs key names, `length` is not enumerable), and guarding it would cost every object for a shape nobody writes.
 
 // StrictUnknownKeys marks a family whose emitted body folds the unknown-key check into its own walk.
 // The shared emit arms ask EmitContext.ChecksUnknownKeys whether to splice the check; the walker's Emitter IS the family,
@@ -61,10 +27,8 @@ type ValidateStrictEmitter struct{ ValidateEmitter }
 
 func (ValidateStrictEmitter) ChecksUnknownKeys() {}
 
-// ValidationErrorsStrictEmitter is `validationErrors` plus one `{expected:'never'}` entry per undeclared key, recorded at
-// the node that owns the key.
-// The errors interleave in walk order like every other error family, so an unknown-key error sits beside the type errors
-// of the same object rather than after all of them. Pinned by test.
+// ValidationErrorsStrictEmitter is `validationErrors` plus one `{expected:'never'}` per undeclared key at its owning node,
+// interleaved in walk order beside that object's type errors. Pinned by test.
 type ValidationErrorsStrictEmitter struct{ ValidationErrorsEmitter }
 
 func (ValidationErrorsStrictEmitter) ChecksUnknownKeys() {}
@@ -97,18 +61,11 @@ func nodeTakesUnknownKeyCheck(rt *reflection.RunType, ctx *EmitContext, callSigC
 	return len(rtNames) > 0 || len(allNames) > 0
 }
 
-// strictObjectKeyAssertion returns the expression asserting the object at ctx.Vλl carries NO undeclared keys.
-// It decides nothing about WHETHER a check belongs here, emitsUnknownKeyCheck owns that, and it answers only for THIS
-// node: children compile through the same strict emitter and splice their own check.
-//
-// PLACEMENT the caller must honour: this expression goes LAST in the object's `&&` chain, after the per-property checks.
-// Two things follow:
-//
-//   - The O(1) key-count compare is sound at EVERY depth. It is valid only once every declared prop is known present
-//     (otherwise `{a,b,x}` against declared `{a,b,c}` slips through and a merely-missing prop false-positives), and here
-//     the props were just verified in the same expression, so the precondition holds by construction.
-//   - The object guard is redundant, hence keepObjectCheck=false: `typeof v === 'object' && v !== null` already ran as the
-//     leading term of this chain (or, under a union, as the arm's shared guard).
+// strictObjectKeyAssertion returns the expression asserting the object at ctx.Vλl carries NO undeclared keys; whether a
+// check belongs here is emitsUnknownKeyCheck's call, and children splice their own.
+// It must go LAST in the object's `&&` chain, after the property checks. Then every declared prop is known present, so
+// the O(1) key count is sound at any depth (else `{a,b,x}` passes for `{a,b,c}`), and the leading object guard
+// (or a union arm's) already ran.
 func strictObjectKeyAssertion(rt *reflection.RunType, ctx *EmitContext) string {
 	if n, ok := countFastPathN(rt, ctx); ok {
 		return emitCountKeys(ctx, ctx.Vλl, n)

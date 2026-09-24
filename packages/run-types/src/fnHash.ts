@@ -10,9 +10,7 @@
 
 import {FN_HASHES, VALIDATE_OPTION_LETTERS, type FnHashEntry} from './go-generated/fnHashes.generated.ts';
 
-/** The Fn tokens getFnHash accepts — the InjectTypeFnArgs Fn keys for every
- *  createX factory and JSON value-level primitive (`val`, `verr`, `tb`, `fb`,
- *  `jsonEncoder`, `jsonDecoder`, `ruk`, `pjs`, `cj`, …). */
+/** The InjectTypeFnArgs Fn keys of every createX factory and JSON value-level primitive (`val`, `ruk`, `pjs`, …). */
 export type FnHashKey = keyof typeof FN_HASHES;
 
 /** The createX factory's own compile-time bag; `strategy` picks a JSON variant, options foreign to the family are ignored. */

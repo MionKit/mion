@@ -471,9 +471,8 @@ describe('where the check sits, and where it stops', () => {
 // ---------------------------------------------------------------- Group D: why the families disagree
 
 describe('the key families cannot all agree, and this is the line', () => {
-  // Every stripping codec answers "declared by NO member": it never validates, so it pools every member's names, and a
-  // record member makes that pool everything. Asking it the other question, "is any key undeclared by the member that
-  // MATCHED", means validating inside every codec. The strip decoder stands in for the pooled families below.
+  // Codecs pool every member's keys (all keys once a record joins); answering per branch would mean validating in each.
+  // The strip decoder stands in for the pooled families below.
   it('the pooled answer admits a sibling key that the matched branch rejects', () => {
     const validate = createValidateFn<Pet>();
     const stripDecode = createJsonDecoderFn<Pet>(undefined, {strategy: 'strip'});

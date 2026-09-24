@@ -297,10 +297,8 @@ func (ctx *EmitContext) emitDepCall(childID, argsExpr, assignTo string) string {
 	return call
 }
 
-// emitPathTrackedDepCall wraps a dependency call in the `pth.push(...) , <call> , pth.splice(-N)` envelope
-// when static path segments are pending, so the child's errors carry the right access-path prefix. Used by
-// the validationErrors families, and returned as a comma-expression so the caller can
-// drop it into an expression or a statement slot without restructuring.
+// emitPathTrackedDepCall wraps a dep call in `pth.push(...) , <call> , pth.splice(-N)` while static path segments
+// are pending, so the child's errors get the path prefix. A comma-expression fits an expression or a statement slot.
 func (ctx *EmitContext) emitPathTrackedDepCall(childID string) string {
 	pthArg := ctx.ArgName("pλth")
 	errArg := ctx.ArgName("εrr")

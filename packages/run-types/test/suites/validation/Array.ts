@@ -60,7 +60,6 @@ export const ARRAY = {
     },
     getSamples: () => ({
       valid: [[], ['hello', 'world']],
-      // In `['hello', 'world', {hello: 'world'}]` the object element fails the string check, so the whole array fails.
       invalid: ['hello', ['hello', 2], ['hello', 'world', {hello: 'world'}], null, undefined, [42], [null]],
     }),
     getExpectedErrors: () => [

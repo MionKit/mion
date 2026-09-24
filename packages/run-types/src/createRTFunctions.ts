@@ -28,38 +28,13 @@ export interface ValidateOptions {
   /** A value with a reference cycle fails: `createValidateFn` returns false, `createGetValidationErrorsFn`
    *  records `{expected: 'circular'}`. COMPILE-TIME: forks the fnHash into a distinct entry with the check baked in. **/
   rejectCircularRefs?: boolean;
-  /** Folds the unknown-key check INTO the validator, so one compiled function answers "matches `T`
-   *  and carries no undeclared properties":
-   *
-   *  ```ts
-   *  const isUserStrict = createValidateFn<User>(undefined, {checkUnknowns: true});
-   *  ```
-   *
-   *  Each object is visited once, and the key check sits AFTER that object's property checks, so every
-   *  declared property is known present and an all-required shape can use a key-COUNT compare instead
-   *  of scanning the key list, at every depth, nested named types included.
-   *
-   *  On `createGetValidationErrorsFn` each undeclared key adds one `{expected: 'never'}` entry,
-   *  interleaved per node with the type errors.
-   *
-   *  Shapes with an index signature take no check: any key matching the index IS declared. An array
-   *  takes none either: `[1, 2]` really is a `{length: number}`, and the shape error already names the
-   *  problem once. To REMOVE undeclared keys rather than reject them, use `createRemoveUnknownKeysFn`.
-   *
-   *  UNIONS ANSWER PER BRANCH: each member arm carries its own key check, so a key another member
-   *  declares is still undeclared on the branch that matched:
-   *
-   *  ```ts
-   *  type Pet = {kind: 'cat'; meows: boolean} | {kind: 'dog'; barks: number};
-   *  isPetStrict({kind: 'cat', meows: true, barks: 3}); // false — barks is not declared on Cat
-   *  ```
-   *
-   *  The error form follows the same verdict: for a union it reports `{path: [], expected: 'union'}`,
-   *  since the offending key is only undeclared relative to a branch.
-   *
-   *  COMPILE-TIME, but unlike the other options here it selects a different compiled FAMILY rather
-   *  than a variant of this one, so `getFnHash('validate', {checkUnknowns: true})` is NOT its cache
-   *  key: resolve `getFnHash('validateStrict')`, or `'validationErrorsStrict'` for the errors form. **/
+  /** Folds the unknown-key check INTO the validator: one walk answers "matches `T`, no undeclared keys".
+   *  The key check runs after each object's property checks, so all-required shapes use a key COUNT at any depth.
+   *  The errors form adds one `{expected: 'never'}` per undeclared key, interleaved per node with the type errors.
+   *  Index-signature shapes (every key is declared) and arrays take no check; `createRemoveUnknownKeysFn` strips instead.
+   *  Unions answer PER MATCHED BRANCH: a cat carrying a dog's `barks` fails, reported as `{path: [], expected: 'union'}`.
+   *  COMPILE-TIME, and a different FAMILY: its cache key is `getFnHash('validateStrict')` / `'validationErrorsStrict'`.
+   *  **/
   checkUnknowns?: boolean;
   /** The narrow half of `checkUnknowns`: checks keys on UNION MEMBER ARMS only. Default `false`.
    *
@@ -312,8 +287,7 @@ export const createGetValidationErrorsFn = createTypeFnArgsFunction<GetValidatio
     id?: InjectTypeFnArgs<T, 'validationErrors'>
   ) => GetValidationErrorsFn<FormatErrorsOf<T>>);
 
-// `ValidateOptions` stays exclusive to `createValidateFn` / `createGetValidationErrorsFn`. The leaf families take no
-// options: a slot there would let callers pass values the Go emitter silently ignores.
+// Leaf families take no options: a slot would let callers pass values the Go emitter silently ignores.
 
 /** Returns a new value with only the declared keys (Dates, Maps, Sets, prototypes kept); never mutates the input. **/
 export const createRemoveUnknownKeysFn = createRTFunction<RemoveUnknownKeysFn>(

@@ -62,7 +62,7 @@ export const getUnknownKeysFromArray = registerPureFnFactory(function () {
 }, getUnknownKeysFromArrayId);
 
 export const countEnumKeys = registerPureFnFactory(function () {
-  // Backs the `runsAfterValidation` key-count fast path: after validation an all-required object is clean iff its
+  // Backs the `checkUnknowns` key-count fast path: after validation an all-required object is clean iff its
   // key count equals the declared prop count.
   // Which counter is fastest inverts by engine: for-in on V8 (~19 vs ~25 ns/op), `Object.keys` on JavaScriptCore (~16 vs ~25).
   // The factory runs ONCE at materialisation inside the target runtime, so the engine test is paid once and the counter stays branch-free.

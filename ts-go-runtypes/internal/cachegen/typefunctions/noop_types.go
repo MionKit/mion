@@ -1152,8 +1152,7 @@ func unknownKeysNoopObject(rt *reflection.RunType, ctx *EmitContext, spec unknow
 	return true
 }
 
-// unknownKeysNoopIndexSignature mirrors the shared index-signature arm: an atomic value has nothing to recurse into
-// and every key is known.
+// unknownKeysNoopIndexSignature mirrors the index-signature arm: over an atomic value every key is known.
 func unknownKeysNoopIndexSignature(rt *reflection.RunType, ctx *EmitContext, spec unknownKeysNoopSpec, visited map[string]struct{}) bool {
 	if rt.Child == nil || isSymbolKeyedIndexSig(rt, ctx) {
 		return true

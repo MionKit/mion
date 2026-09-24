@@ -238,10 +238,8 @@ func TestUnionUnknownKeys_WireFormatRoundTripsRawStripsBareV(t *testing.T) {
 // Pins the fix for the stripMutate/Unions failures (uku ran ungated on
 // the raw runtime value).
 func TestUnionUnknownKeys_NonWireGatesOnPlainObject(t *testing.T) {
-	// bigint prop ⇒ the object member is non-JSON-compatible ⇒ the union
-	// envelopes, so the JsonWireFormat sub-assertion below still sees the
-	// `[-1, merged]` wrapper gate. The non-wire strip assertions hold
-	// regardless of compatibility.
+	// The bigint prop makes the union envelope, so the wire sub-assertion sees the `[-1, merged]` gate.
+	// The non-wire strip assertions hold regardless.
 	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
 	big := &reflection.RunType{ID: "big", Kind: reflection.KindBigInt}
 	arr := &reflection.RunType{ID: "arr", Kind: reflection.KindArray, Child: makeRef("str")}

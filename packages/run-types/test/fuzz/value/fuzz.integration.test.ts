@@ -51,7 +51,7 @@ const targets: FuzzTarget[] = [];
   targets.push({
     title: 'UnionOfObjects',
     schema,
-    // The fused validator follows the branch that matched. O18 checks the half that must still hold.
+    // The fused validator follows the matched branch; O18 checks only that it is never looser.
     divergesFromComposition: true,
     mock: createMockDataFn(schema),
     validate: createValidateFn(schema),

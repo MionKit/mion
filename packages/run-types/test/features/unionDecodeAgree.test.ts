@@ -196,9 +196,8 @@ describe('every union decode answers the same', () => {
     });
   }
 
-  // An index-signature member declares every key for the WHOLE union: nothing on the value is
-  // undeclared, so no family may drop or blank `evil`, the encoders included. Which member
-  // a key belongs to is validation's question, not a decoder's.
+  // An index-signature member declares every key union-wide: no family, encoders included, may drop or blank `evil`.
+  // Which member a key belongs to is validation's question, not a decoder's.
   it('keeps every key when a member carries an index signature', () => {
     const wide = {a: 'x', evil: 1};
     const wire = JSON.stringify(wide);

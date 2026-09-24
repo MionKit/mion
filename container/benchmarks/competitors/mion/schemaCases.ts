@@ -746,7 +746,6 @@ export const schemaCases: CompetitorCases = {
   'JSON_SCHEMA.multiple_of': () => createValidateFn(TF.number({multipleOf: 5})),
 
   // ── STRICT ──
-  // The builder door's strict validators: `checkUnknowns` validates and rejects undeclared keys in one walk.
   'STRICT.flat_required': () =>
     createValidateFn(
       RT.object({

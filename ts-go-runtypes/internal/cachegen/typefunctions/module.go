@@ -195,8 +195,7 @@ func CollectFamilyEntries(dump protocol.Dump, settings constants.CacheModuleSett
 		return rendered.deps, true
 	}
 
-	// enqueueChildren strips the inner prefix off each dep hash so the worklist can resolve the child via refTable.
-	// Variants are root-scoped, so every child renders plain.
+	// Strip the inner prefix so refTable resolves the child; variants are root-scoped, so every child renders plain.
 	queued := make(map[string]bool)
 	var childQueue []string
 	enqueueChildren := func(deps []string) {
@@ -362,8 +361,8 @@ func renderEntryWithDeps(runType *reflection.RunType, settings constants.CacheMo
 	factoryName := variantFactoryName(settings, variantSuffix, variantOptions, runType.ID, rejectCircular)
 	innerName := variantKey(settings, variantSuffix, variantOptions, runType.ID, rejectCircular)
 
-	// Only the plain entry disk-caches. An option variant is one cheap extra root and stays session-rendered. The armed
-	// circular variant shares the PLAIN basename with a different body, so it must never read or write that cache.
+	// An option variant is one cheap extra root, so it stays session-rendered.
+	// The armed circular variant shares the PLAIN basename with a different body, so it must never touch that cache.
 	cacheTag := settings.Tag
 	diskCacheable := !rejectCircular && variantSuffix == ""
 	if diskCacheable {
