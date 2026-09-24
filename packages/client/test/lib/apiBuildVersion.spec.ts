@@ -54,6 +54,7 @@ describe('a stale fetched row', () => {
         type: 1,
         paramsJitHash,
         returnJitHash: 'r',
+        syncId: `s-${paramsJitHash}`,
         pointer: ['sum'],
         nestLevel: 0,
         isAsync: false,
@@ -75,21 +76,20 @@ describe('rowsAgree', () => {
     hasReturnData: true,
     paramsJitHash: 'p',
     returnJitHash: 'r',
+    syncId: 'abc1234',
     pointer: ['users', 'get'],
     nestLevel: 1,
-    options: {parser: {params: 'json', return: 'clone'}, isMutation: false},
+    options: {parser: {params: 'clone', return: 'clone'}, isMutation: false},
   } as unknown as MethodWithOptions;
 
-  it('ignores key order and the fields a client never acts on', () => {
-    const reordered = {
-      ...row,
-      isAsync: true,
-      options: {isMutation: false, parser: {return: 'clone', params: 'json'}},
-    } as unknown as MethodWithOptions;
-    expect(rowsAgree(row, reordered)).toBe(true);
+  it('decides on the sync id alone: any other field may differ', () => {
+    const other = {...row, isAsync: true, paramNames: ['id'], options: {isMutation: true}} as unknown as MethodWithOptions;
+    expect(rowsAgree(row, other)).toBe(true);
   });
 
-  it('tells apart a row whose GET/POST choice changed', () => {
-    expect(rowsAgree(row, {...row, options: {...row.options, isMutation: true}})).toBe(false);
+  it('tells apart a different sync id, and a row or id missing on either end', () => {
+    expect(rowsAgree(row, {...row, syncId: 'xyz9876'})).toBe(false);
+    expect(rowsAgree(row, undefined)).toBe(false);
+    expect(rowsAgree({...row, syncId: undefined}, {...row, syncId: undefined})).toBe(false);
   });
 });

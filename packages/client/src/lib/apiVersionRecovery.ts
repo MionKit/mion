@@ -7,7 +7,7 @@
 
 // Rides the `#metadata-from-server` chunk: like the fetch, it runs only when the bundle comes up short.
 
-import {RpcError, MION_ROUTES, clientRowView} from '@mionjs/core';
+import {RpcError, MION_ROUTES} from '@mionjs/core';
 import type {MethodWithOptions, SerializableMethodsData} from '@mionjs/core';
 import type {SubRequest} from '../types.ts';
 import {stashApiVersionError} from './apiBuildVersion.ts';
@@ -45,7 +45,7 @@ export function createVerifySubRequest(methodIds: string[]): SubRequest<any> {
   } as SubRequest<any>;
 }
 
-/** Compares every `clientRowView` field: this side holds both full rows. */
+/** Compares each asked route's `syncId` with the server's: this side holds both rows. */
 export function verifyMethodRows(baseURL: string, asked: string[], data: SerializableMethodsData): void {
   const verified = verifiedBy(baseURL);
   for (const id of asked) verified.add(id);
@@ -58,20 +58,10 @@ export function verifyMethodRows(baseURL: string, asked: string[], data: Seriali
   stashApiVersionError(staleRoutesError(stale));
 }
 
-/** A row missing on either end counts as a difference: the bundle never had it, or the server dropped it. */
+/** The sync id alone decides: it covers the types and the wire format, all a safe call depends on.
+ *  A row or id missing on either end counts as a difference: the bundle never had it, or the server dropped it. */
 export function rowsAgree(held: MethodWithOptions | undefined, served: MethodWithOptions | undefined): boolean {
-  return !!held && !!served && sameValue(clientRowView(held), clientRowView(served));
-}
-
-/** Plain JSON-shaped values only; key order never matters. */
-function sameValue(held: unknown, served: unknown): boolean {
-  if (held === served) return true;
-  if (typeof held !== 'object' || typeof served !== 'object' || !held || !served) return false;
-  if (Array.isArray(held) !== Array.isArray(served)) return false;
-  const heldKeys = Object.keys(held).filter((key) => held[key] !== undefined);
-  const servedKeys = Object.keys(served).filter((key) => served[key] !== undefined);
-  if (heldKeys.length !== servedKeys.length) return false;
-  return heldKeys.every((key) => sameValue(held[key], served[key]));
+  return !!held?.syncId && held.syncId === served?.syncId;
 }
 
 function staleRoutesError(stale: string[]): RpcError<'api-version-mismatch'> {
