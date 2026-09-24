@@ -6,10 +6,10 @@
  * ######## */
 
 import type {ResponseBody} from '@mionjs/router';
-import {type MethodWithJitFns, RpcError, isRpcError, MION_ROUTES, HandlerType, type SerializerMode} from '@mionjs/core';
+import {type MethodWithJitFns, RpcError, isRpcError, MION_ROUTES, HandlerType} from '@mionjs/core';
 import type {MionClientRequest} from '../request.ts';
 import {metadataCacheHooks} from './metadataFromServerLoader.ts';
-import {hasMethod, useMethodFns} from './methods.ts';
+import {useMethodFns} from './methods.ts';
 import {hasHeadersSubsetParam} from './headers.ts';
 import {ClientOptions} from '../types.ts';
 
@@ -24,23 +24,10 @@ export interface SerializedRequest {
 
 // ################################## SERIALIZE ##################################
 
-export function serializeRequestBody(req: MionClientRequest<any, any>): SerializedRequest {
-  const serializerMode = getSerializerMode(req);
-  switch (serializerMode) {
-    case 'json':
-    case 'stringifyJson':
-      return {
-        body: serializeJsonBody(req),
-        contentType: 'application/json; charset=utf-8',
-      };
-    case 'optimistic':
-      return {
-        body: serializeJSonBodyOptimistic(req),
-        contentType: 'application/json; charset=utf-8',
-      };
-    default:
-      throw new Error(`Invalid serializer mode ${String(serializerMode)}`);
-  }
+/** `optimistic` is the first call of a route whose metadata is still being fetched: plain JSON, no compiled encoders. */
+export function serializeRequestBody(req: MionClientRequest<any, any>, optimistic = false): SerializedRequest {
+  const body = optimistic ? serializeJSonBodyOptimistic(req) : serializeJsonBody(req);
+  return {body, contentType: 'application/json; charset=utf-8'};
 }
 
 function serializeJsonBody(req: MionClientRequest<any, any>): string {
@@ -201,18 +188,6 @@ function extractThrownErrors(parsedBody: any): {
     thrownErrors[id] = isRpcError(value) ? new RpcError<string>(value) : (value as RpcError<string>);
   });
   return {thrownErrors};
-}
-
-/** How this call goes out: `optimistic` only while the `optimistic` option is set and a route's metadata
- *  is still missing, otherwise the JSON string the encoders write. The WIRE itself is the server's choice. */
-function getSerializerMode(req: MionClientRequest<any, any>): SerializerMode {
-  if (req.options.serializer === 'optimistic') {
-    const subRequestIds = Object.keys(req.subRequestList);
-    const allCached = subRequestIds.every((id) => hasMethod(id));
-    if (allCached) return 'stringifyJson';
-    return 'optimistic';
-  }
-  return 'stringifyJson';
 }
 
 function getParamsWithoutHeadersSubset(params: any[]): any[] {

@@ -25,7 +25,7 @@ import {
   toBase64Url,
   BUILD_VERSION_HEADER,
 } from '@mionjs/core';
-import type {SerializerMode, SerializableMethodsData} from '@mionjs/core';
+import type {SerializableMethodsData} from '@mionjs/core';
 import {getRoutePath} from '@mionjs/core';
 import {hasApiVersionMismatch, noteServerApiVersion} from './lib/apiBuildVersion.ts';
 import {getMethod, hasMethod} from './lib/methods.ts';
@@ -78,10 +78,10 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddlewareReques
       this.onError(this.signal.reason ?? new DOMException('This operation was aborted', 'AbortError'), 'Request aborted', errors);
       return Promise.reject(errors);
     }
-    return this.makeCall(this.options.serializer);
+    return this.makeCall();
   }
 
-  private async makeCall(originalSerializer: SerializerMode, skipOptimistic?: boolean): Promise<ResponseBody> {
+  private async makeCall(skipOptimistic?: boolean): Promise<ResponseBody> {
     const errors: RequestErrors = new Map();
     const subRequestIds = Object.keys(this.subRequestList);
     let allCached = subRequestIds.every((id) => hasMethod(id));
@@ -106,7 +106,6 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddlewareReques
       // Optimistic sends plain wire forms; what a decoder cannot read errors, and the retry sends the real encoder.
       isOptimistic = !allCached && !skipOptimistic;
       if (isOptimistic) {
-        (this.options as any).serializer = 'optimistic';
         // The chain is unknown until the metadata arrives, but a middleware's scope is its pointer, so the
         // route pointer alone says which prefills belong; missing one costs the retry, an extra one is ignored.
         this.restoreScopedPrefilledMiddlewares();
@@ -114,7 +113,6 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddlewareReques
         const missingIds = Object.keys(this.subRequestList).filter((id) => !hasMethod(id));
         this.addSubRequest((await loadMetadataFromServer()).createMetadataSubRequest(missingIds));
       } else {
-        (this.options as any).serializer = originalSerializer;
         // After a version mismatch each route is confirmed once, on its first use, riding this request.
         if (hasApiVersionMismatch()) {
           const lane = await loadMetadataFromServer();
@@ -139,12 +137,12 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddlewareReques
     try {
       let serialized: ReturnType<typeof serializeRequestBody>;
       try {
-        serialized = serializeRequestBody(this);
+        serialized = serializeRequestBody(this, isOptimistic);
       } catch (serializeError) {
         if (isOptimistic) {
           // JSON.stringify failed, fall back to standard and fetch the metadata.
           delete this.subRequestList[MION_ROUTES.methodsMetadata];
-          return this.makeCall(originalSerializer, true);
+          return this.makeCall(true);
         }
         throw serializeError;
       }
@@ -184,16 +182,16 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddlewareReques
         delete deserialized[MION_ROUTES.methodsMetadata];
       }
       // Only a FAILED call is repeated: it already ran server-side, and repeating a successful mutation would run it twice.
-      if (mismatch && callFailed && !this.signal?.aborted) return this.retryWithProperSerialization(originalSerializer);
+      if (mismatch && callFailed && !this.signal?.aborted) return this.retryWithProperSerialization();
 
       if (!this.signal?.aborted && callFailed) {
-        if (isOptimistic) return this.retryWithProperSerialization(originalSerializer);
+        if (isOptimistic) return this.retryWithProperSerialization();
         // Stored metadata can predate the server's current build and nothing else would correct it.
         const cache = metadataCacheHooks();
         if (cache && !this.purgedStaleMetadata && subRequestIds.some((id) => cache.wasHydratedFromCache(id, this.options))) {
           this.purgedStaleMetadata = true;
           await cache.purgeHydratedMetadata(subRequestIds, this.options);
-          return this.retryWithProperSerialization(originalSerializer);
+          return this.retryWithProperSerialization();
         }
       }
 
@@ -220,7 +218,7 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddlewareReques
     return Object.values(deserialized).some(isRetryError) || Object.values(thrownErrors).some(isRetryError);
   }
 
-  private async retryWithProperSerialization(originalSerializer: SerializerMode): Promise<ResponseBody> {
+  private async retryWithProperSerialization(): Promise<ResponseBody> {
     delete this.subRequestList[MION_ROUTES.methodsMetadata];
     this.thrownErrorIds.clear();
     Object.values(this.subRequestList).forEach((sr) => {
@@ -228,7 +226,7 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddlewareReques
       sr.resolvedValue = undefined;
       sr.error = undefined;
     });
-    return this.makeCall(originalSerializer);
+    return this.makeCall();
   }
 
   async validateParams(subReqList?: SubRequest<any>[]): Promise<RunTypeError[]> {
