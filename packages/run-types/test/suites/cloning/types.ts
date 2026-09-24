@@ -1,4 +1,4 @@
-/** Cloning-suite case, shaped like the serialization suite's so it also feeds the docs export and benchmarks.
+/** Cloning-suite case, shaped like the serialization suite's.
  *  Only primitives and opaque values (functions, handles, `any`) pass through; those cases set `passThrough`. **/
 
 /** Erases `T` once: strictFunctionTypes rejects `RemoveUnknownKeysFn<T>` where the `<unknown>` form is expected. **/
