@@ -182,7 +182,6 @@ const (
 const (
 	CodeHUKFunctionPropDropped = "HUK010"
 	CodeUKEFunctionPropDropped = "UKE010"
-	CodeUKUFunctionPropDropped = "UKU010"
 	CodeUKWFunctionPropDropped = "UKW010"
 )
 
@@ -244,7 +243,7 @@ func init() {
 		CodeSJFunctionPropDropped, CodeSJMethodDropped, CodeSJStaticDropped, CodeSJSymbolKeyedDropped, CodeSJUnionMemberDropped, CodeSJNonSerializablePropDrop,
 		CodeTBFunctionPropDropped, CodeTBMethodDropped, CodeTBStaticDropped, CodeTBSymbolKeyedDropped, CodeTBUnionMemberDropped, CodeTBNonSerializablePropDrop,
 		CodeFBFunctionPropDropped, CodeFBMethodDropped, CodeFBStaticDropped, CodeFBSymbolKeyedDropped, CodeFBUnionMemberDropped, CodeFBNonSerializablePropDrop,
-		CodeHUKFunctionPropDropped, CodeUKEFunctionPropDropped, CodeUKUFunctionPropDropped, CodeUKWFunctionPropDropped,
+		CodeHUKFunctionPropDropped, CodeUKEFunctionPropDropped, CodeUKWFunctionPropDropped,
 		CodeRUKFunctionPropDropped, CodeRUKMethodDropped, CodeRUKStaticDropped, CodeRUKNonSerializablePropDrop,
 	} {
 		register(Definition{Code: code, Family: FamilyRunType, Level: LevelWarning, Scope: ScopeGraph, Title: "RunType child-position member dropped"})
