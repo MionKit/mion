@@ -106,10 +106,9 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddlewareReques
       // Optimistic sends plain wire forms; what a decoder cannot read errors, and the retry sends the real encoder.
       isOptimistic = !allCached && !skipOptimistic;
       if (isOptimistic) {
-        // The chain is unknown until the metadata arrives, but a middleware's scope is its pointer, so the
-        // route pointer alone says which prefills belong; missing one costs the retry, an extra one is ignored.
+        // No chain before metadata, so the route pointer picks prefills by scope; a missed one costs the retry, an extra is ignored.
         this.restoreScopedPrefilledMiddlewares();
-        // Only ids the client lacks: storing the server's copy over a BUNDLED method lets a later purge drop it for good.
+        // Storing the server's copy over a BUNDLED method would let a later purge drop it for good.
         const missingIds = Object.keys(this.subRequestList).filter((id) => !hasMethod(id));
         this.addSubRequest((await loadMetadataFromServer()).createMetadataSubRequest(missingIds));
       } else {
@@ -140,7 +139,7 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddlewareReques
         serialized = serializeRequestBody(this, isOptimistic);
       } catch (serializeError) {
         if (isOptimistic) {
-          // JSON.stringify failed, fall back to standard and fetch the metadata.
+          // Plain JSON.stringify failed; the standard path fetches metadata first.
           delete this.subRequestList[MION_ROUTES.methodsMetadata];
           return this.makeCall(true);
         }

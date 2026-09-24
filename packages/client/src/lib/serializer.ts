@@ -24,7 +24,7 @@ export interface SerializedRequest {
 
 // ################################## SERIALIZE ##################################
 
-/** `optimistic` is the first call of a route whose metadata is still being fetched: plain JSON, no compiled encoders. */
+/** `optimistic`: the route's metadata is still being fetched, so no compiled encoders exist yet. */
 export function serializeRequestBody(req: MionClientRequest<any, any>, optimistic = false): SerializedRequest {
   const body = optimistic ? serializeJSonBodyOptimistic(req) : serializeJsonBody(req);
   return {body, contentType: 'application/json; charset=utf-8'};
