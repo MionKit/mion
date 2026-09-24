@@ -437,27 +437,12 @@ function checkMockBehaviour(compiled: CompiledType, seed: number, out: Violation
   }
   const base = {target: compiled.title, seed, phase: 'valid' as const, value: snapshot(value)};
 
-  // Probe each encoder: does it serialize, alwaysThrow (controlled), or throw
-  // uncontrolled (a bug)?
-  const json = probeEncode(target.jsonEncode!, value);
-  const compact = probeEncode(target.compactEncode!, value);
-  if (json.uncontrolled) out.push({oracle: 'O7', message: `jsonEncode threw an uncontrolled error: ${json.error}`, ...base});
-  if (compact.uncontrolled)
-    out.push({oracle: 'O7', message: `compactEncode threw an uncontrolled error: ${compact.error}`, ...base});
-
-  // O14: the serialize-vs-fail rule is the same for every strategy.
-  if (json.ok !== compact.ok) {
-    out.push({
-      oracle: 'O14',
-      message: `serialization strategies disagree: jsonEncode ${json.ok ? 'serialized' : 'alwaysThrew'} but compactEncode ${compact.ok ? 'serialized' : 'alwaysThrew'}`,
-      ...base,
-    });
-    return;
-  }
+  const serialized = probeStrategies(target, value, base, out);
+  if (serialized === undefined) return;
 
   // Collapse: both encoders alwaysThrow. The contract says a collapse must carry
   // an Error-severity diagnostic (fail ⇒ error).
-  if (!json.ok) {
+  if (!serialized) {
     if (compiled.errorDiagnostics.length === 0)
       out.push({oracle: 'O10', message: 'both encoders alwaysThrow but no Error-severity diagnostic was emitted', ...base});
     return;
@@ -473,6 +458,25 @@ function checkMockBehaviour(compiled: CompiledType, seed: number, out: Violation
   push(out, checkJsonStable(target, value, ctx)); // O5 + O7 (JSON wire-stable)
   // O12: compact collapses a present `null` optional to absent by design.
   if (!compactNullRisk(compiled.gen)) push(out, checkCrossWire(target, value, ctx));
+}
+
+type ViolationBase = Omit<Violation, 'oracle' | 'message'>;
+
+/** O7 + O14: both encoders must agree on serialize-vs-alwaysThrow. Returns whether both serialized, or undefined when
+ *  they disagree (O14 pushed). **/
+export function probeStrategies(target: FuzzTarget, value: unknown, base: ViolationBase, out: Violation[]): boolean | undefined {
+  const json = probeEncode(target.jsonEncode as (value: unknown) => unknown, value);
+  const compact = probeEncode(target.compactEncode as (value: unknown) => unknown, value);
+  if (json.uncontrolled) out.push({oracle: 'O7', message: `jsonEncode threw an uncontrolled error: ${json.error}`, ...base});
+  if (compact.uncontrolled)
+    out.push({oracle: 'O7', message: `compactEncode threw an uncontrolled error: ${compact.error}`, ...base});
+  if (json.ok === compact.ok) return json.ok;
+  out.push({
+    oracle: 'O14',
+    message: `serialization strategies disagree: jsonEncode ${json.ok ? 'serialized' : 'alwaysThrew'} but compactEncode ${compact.ok ? 'serialized' : 'alwaysThrew'}`,
+    ...base,
+  });
+  return undefined;
 }
 
 interface EncodeProbe {

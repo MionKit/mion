@@ -780,8 +780,7 @@ export function checkCrossWire(target: FuzzTarget, value: unknown, ctx: CheckCtx
     jsonWire = target.jsonEncode(value);
     if (jsonWire === undefined) return null; // undefined root — nothing to compare
     const compactWire = target.compactEncode(deepCloneForRoundTrip(value));
-    if (compactWire === undefined) return null;
-    viaCompactWire = target.jsonEncode(target.compactDecode(compactWire));
+    viaCompactWire = compactWire === undefined ? undefined : target.jsonEncode(target.compactDecode(compactWire));
   } catch {
     return null; // encode/decode throws are O5/O7's job, not double-counted here
   }
