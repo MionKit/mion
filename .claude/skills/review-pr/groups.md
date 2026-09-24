@@ -1,7 +1,7 @@
 # The groups
 
-How to work each group of the approved checklist. You run them yourself, in this
-file's order, one at a time, finishing a group before you open the next.
+How to work each group of the approved checklist. Each group runs in its own
+agent, so read the section for your group, plus the two general sections.
 
 **A group never restates a repo rule.** The items carry what to check, and a
 repo item names the file it came from so you read the current text. Rules
@@ -18,9 +18,8 @@ reviewer asking for more pages undoes that.
 
 Diff range (use exactly this, nothing else):  git diff <MERGE_BASE>..HEAD
 
-Take only this group's items. Check them in order. Answer every one before you
-open the next group: pass, fail, or not applicable, in the shape step 5 of the
-skill gives.
+Take only this group's items. Check them in order. Answer every one: pass, fail,
+or not applicable, in the shape step 5 of the skill gives.
 
 For any item tagged `[repo: <file>]`, open that file and read the rule in its
 current wording before judging, then quote what you read. Your paraphrase on the
