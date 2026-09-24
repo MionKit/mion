@@ -68,4 +68,8 @@ export interface RouterOptions<Req = any, ContextData extends Record<string, any
    *  the client's check off.
    *  @default true */
   apiVersionCheck: boolean;
+  /** Every call must carry the sync id of each route it calls (the route and its middlewares' type ids); a call
+   *  whose ids differ is refused before any handler runs. A BUILD-TIME literal: the client build reads it.
+   *  @default false */
+  syncRoutes: boolean;
 }

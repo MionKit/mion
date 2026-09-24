@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {HandlerType} from '@mionjs/core';
+import {HandlerType, MION_ROUTES} from '@mionjs/core';
 import type {RemoteMethod, RouteMethod} from '../types/remoteMethods.ts';
 import type {RouterOptions} from '../types/general.ts';
 
@@ -31,6 +31,8 @@ export function resolveChainMaxBodySize(methods: RemoteMethod[], route: RouteMet
   let total = 2; // the braces
   let slots = 0;
   for (const method of methods) {
+    // present only to send the version header: a client sends no sync ids unless the check is on
+    if (method.id === MION_ROUTES.syncRoutes && !opts.syncRoutes) continue;
     const bytes = memberBodyBytes(method);
     if (bytes === null) continue;
     if (bytes === undefined) return undefined;

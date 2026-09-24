@@ -80,6 +80,13 @@ function mionMethodsMetadata(
   return mionGetRemoteMethodsDataById(ctx, methodsIds, getAllRemoteMethods);
 }
 
+/** The rows of the given methods and of their chains; an unknown id is left out. */
+export function getMethodsDataFor(ids: string[]): SerializableMethodsData {
+  const resp: SerializableMethodsData = {methods: {}, deps: {}, purFnDeps: {}};
+  ids.forEach((id) => addRequiredRemoteMethodsToResponse(id, resp, {}));
+  return resp;
+}
+
 function addRequiredRemoteMethodsToResponse(id: string, resp: SerializableMethodsData, errorData: AnyObject): void {
   const {methods, deps, purFnDeps} = resp;
   if (methods[id]) return;
