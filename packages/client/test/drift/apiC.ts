@@ -32,6 +32,10 @@ const routes = {
     count('fetched');
     return value - 1;
   }),
+  fetchedChanged: mion.route((ctx, value: number): string => {
+    count('fetchedChanged');
+    return `B${value}`;
+  }),
   secured: {
     token: mion.middleware((ctx, token: number): void => undefined),
     data: mion.route((): string => {
