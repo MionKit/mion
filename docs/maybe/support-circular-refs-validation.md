@@ -15,7 +15,7 @@ the semantics + design so the discussion isn't lost.
 `{rejectCircularRefs: true}` treats a reference cycle as a **violation**
 (validate → `false`, verr → `{expected: 'circular'}`). That is the right
 verdict under the library's validate contract (serializable data only — a
-cyclic value can never round-trip through JSON/binary), but it is the wrong
+cyclic value can never round-trip through JSON), but it is the wrong
 tool for validating a legitimately cyclic **in-memory** graph that conforms to
 a recursive `T`.
 
@@ -43,7 +43,7 @@ encoders, which can never represent a cycle):
 **Counter-argument (the demand question):** all of these are in-memory values,
 typically produced by typed code or by a deserializer that already enforced a
 schema. The untrusted-wire case — the library's core use case — can never
-deliver a cycle (JSON/binary cannot encode one). So the option would serve a
+deliver a cycle (JSON cannot encode one). So the option would serve a
 narrow trusted-boundary niche. This is why the spec is parked.
 
 ## Why `rejectCircularRefs` stays on validate/verr regardless

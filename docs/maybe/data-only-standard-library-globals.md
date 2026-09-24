@@ -53,11 +53,11 @@ Worth considering alongside them, even though they declare no `toJSON`:
   what `@mionjs/core` already does with `RpcError` / `TypedError` before adding anything, since
   the framework has its own answer here and two answers would be worse than one.
 
-Deliberately NOT in this todo: the binary family. That has its own, see
-[binary-as-opt-in-data.md](binary-as-opt-in-data.md).
+Deliberately NOT in this todo: the binary family (`Buffer`, the typed arrays, `ArrayBuffer`,
+`DataView`). Its only JSON forms, base64 or a number array, change the shape, so it stays non-data.
 
 Also worth deciding once, as policy rather than per type: whether a supported lib type needs an
-explicit opt-in like the binary one will, or whether an exact round trip is enough to make it
+explicit opt-in, or whether an exact round trip is enough to make it
 data by default. `Date` and `Map` set the precedent for "by default".
 
 The implementer plans the details: which types make the cut, in what order, how each is

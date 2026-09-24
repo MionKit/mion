@@ -67,7 +67,7 @@ blur: 150px
       :::::div{class="home-pitch"}
       ## RunTypes<br>One type, many functions
 
-      Your validator already knows the exact shape of your data. RunTypes turns that same knowledge into validation, JSON and binary serialization, mock data and reflection, generated at build time straight from your TypeScript types. No schemas, no drift.
+      Your validator already knows the exact shape of your data. RunTypes turns that same knowledge into validation, JSON serialization, mock data and reflection, generated at build time straight from your TypeScript types. No schemas, no drift.
 
         ::::::div{class="home-links"}
           :::::::u-button
@@ -132,7 +132,7 @@ blur: 150px
       :::::div{class="home-pitch"}
       ## Tested to the highest standard
 
-      Every function mion generates for you is tested, and so is the build step that writes them. The suite covers validation, JSON, binary serialization, mock data and reflection, on every type shape we could think of.
+      Every function mion generates for you is tested, and so is the build step that writes them. The suite covers validation, JSON serialization, mock data and reflection, on every type shape we could think of.
       :::::
 
       :home-test-tiles

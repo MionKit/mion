@@ -65,7 +65,7 @@ The header's `type` orients this: a `fix` or `feature` always needs tests, a `do
 **Fuzzing — for features, judge candidacy, then propose.** RunTypes has a real property-test harness (`packages/run-types/test/fuzz/`, run via `pnpm miondevx core fuzz <suite>`), and many features here have a cheap correctness oracle that makes fuzzing pay off. Quickly gut-check the feature for one:
 - **round-trip** (an encode/decode or serialize/parse pair should return the value),
 - **do-it-twice / determinism** (same input, same output — a seeded mock-data generator is a textbook determinism-fuzz candidate),
-- **compare-to-a-trusted-source** (one implementation checked against another, the way the binary codec oracles the JSON codec),
+- **compare-to-a-trusted-source** (one implementation checked against another, the way a slow reference interpreter oracles the compiled clone),
 - **reject-bad-input** (malformed input is always rejected, never mis-accepted).
 
 If the feature has one of these, **propose fuzzing with AskUserQuestion and get a yes before baking it into the plan** — do not add it unilaterally, and do not design the fuzzer here. Hand the actual design off to the **fuzzy-testing** skill, which drives the discovery properly. If nothing gives a cheap oracle, say so and move on; talking a feature out of fuzzing is a fine outcome.

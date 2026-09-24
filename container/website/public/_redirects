@@ -14,8 +14,12 @@
 /devtools/pure-functions  /runtypes/guide/pure-functions  301
 /devtools/*      /rpc/devtools/:splat      301
 /platforms/*     /rpc/platforms/:splat     301
-/articles/*      /runtypes/articles/:splat      301
-/rpc/articles/*  /runtypes/articles/:splat      301
+# Binary serialization was removed (2026-09): its guide, the articles section and the formats benchmark.
+/articles/*           /runtypes/guide/serialization  301
+/rpc/articles/*       /runtypes/guide/serialization  301
+/runtypes/articles/*  /runtypes/guide/serialization  301
+/runtypes/guide/binary-serialization         /runtypes/guide/serialization       301
+/benchmarks/runtypes/serialization-formats  /benchmarks/runtypes/serialization  301
 # Each subsite root redirects to its home page, a docs page inside the sidebar
 # (app/pages/<id>/index.vue does the same for the app router).
 /rpc         /rpc/introduction/about-mion-rpc              301
