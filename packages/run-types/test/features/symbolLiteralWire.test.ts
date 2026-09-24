@@ -42,7 +42,6 @@ describe('symbol literal at a root', () => {
   });
 
   test('the validator still checks it by description', () => {
-    // @mion-downgrade-error VL002
     const isit = createValidateFn<SymLiteral>();
     expect(isit(sym)).toBe(true);
     expect(isit(Symbol('nice'))).toBe(false);

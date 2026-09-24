@@ -557,12 +557,10 @@ export const ATOMIC = {
     ],
     validate: () => {
       const sym = Symbol('hello');
-      // @mion-downgrade-error VL002
       return createValidateFn<typeof sym>();
     },
     standardSchema: () => {
       const sym = Symbol('hello');
-      // @mion-downgrade-error VE002 VL002
       return createStandardSchema<typeof sym>();
     },
     validateDataOnly: () => {
@@ -574,24 +572,20 @@ export const ATOMIC = {
     validateSchema: 'not-supported',
     deserializeValidate: () => {
       const sym = Symbol('hello');
-      // @mion-downgrade-error VL002
       return deserializeValidate<typeof sym>();
     },
     validateReflect: () => {
       const sym = Symbol('hello');
       const v: typeof sym = sym;
-      // @mion-downgrade-error VL002
       return createValidateFn(v);
     },
     deserializeValidateReflect: () => {
       const sym = Symbol('hello');
       const v: typeof sym = sym;
-      // @mion-downgrade-error VL002
       return deserializeValidate(v);
     },
     getValidationErrors: () => {
       const sym = Symbol('hello');
-      // @mion-downgrade-error VE002
       return createGetValidationErrorsFn<typeof sym>();
     },
     getValidationErrorsDataOnly: () => {
@@ -601,19 +595,16 @@ export const ATOMIC = {
     getValidationErrorsSchema: 'not-supported',
     deserializeGetValidationErrors: () => {
       const sym = Symbol('hello');
-      // @mion-downgrade-error VE002
       return deserializeGetValidationErrors<typeof sym>();
     },
     getValidationErrorsReflect: () => {
       const sym = Symbol('hello');
       const v: typeof sym = sym;
-      // @mion-downgrade-error VE002
       return createGetValidationErrorsFn(v);
     },
     deserializeGetValidationErrorsReflect: () => {
       const sym = Symbol('hello');
       const v: typeof sym = sym;
-      // @mion-downgrade-error VE002
       return deserializeGetValidationErrors(v);
     },
     mockType: () => {
