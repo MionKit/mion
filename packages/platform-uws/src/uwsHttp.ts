@@ -287,17 +287,6 @@ function reply(res: HttpResponse, state: {aborted: boolean}, mionResp: MionRespo
   // The client is gone and uWS freed the response — touching it would crash.
   if (state.aborted) return;
 
-  // an unknown serializer swaps in the fatal response BEFORE corking: uWS ignores a second writeStatus inside one cork
-  const bodyType = mionResp.serializer;
-  if (bodyType !== SerializerModes.json) {
-    const error = new FatalError({
-      publicMessage: 'unknown-mion-response-format',
-      type: 'unknown-error',
-      errorData: {bodyType},
-    });
-    mionResp = getRouterFatalErrorResponse(error, mionResp.headers);
-  }
-
   // serialized BEFORE the cork: uWS warns a cork buffer must not be held across event loop iterations
   const payload = JSON.stringify(mionResp.body);
 

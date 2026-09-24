@@ -89,9 +89,7 @@ function rejectOversizedBody(rawBody: RawRequestBody, maxBodySize: number): void
 export function serializeResponseBody(context: CallContext, opts: RouterOptions): MayReturnError {
   const response = context.response as Mutable<MionResponse>;
   const respBody: AnyObject = response.body;
-  const bodyType = context.response.serializer;
-  if (bodyType !== SerializerModes.json) throw new Error(`Invalid body type ${context.request.bodyType}`);
-  // prepareForJson mutates response.body in place, so rawBody stays unset and the adapter stringifies
+  // prepareForJson mutates response.body in place and the adapter stringifies it
   response.headers.set('content-type', 'application/json; charset=utf-8');
   prepareBodyForJson(context, context.executionChain.methods, respBody);
 }

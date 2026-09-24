@@ -1,4 +1,4 @@
-import {RpcError, FatalError, MION_ROUTES, Mutable, StatusCodes, SerializerModes, markFatal} from '@mionjs/core';
+import {RpcError, FatalError, MION_ROUTES, Mutable, StatusCodes, markFatal} from '@mionjs/core';
 import type {CallContext, MionHeaders, MionRequest, MionResponse, ResponseBody} from '../types/context.ts';
 
 /** The mion response for an error raised before or outside the router, for any adapter layer (node/http,
@@ -18,8 +18,6 @@ export function getRouterFatalErrorResponse(returnErr: RpcError<string>, respHea
     fatalError: returnErr,
     headers: respHeaders,
     body,
-    rawBody: '',
-    serializer: SerializerModes.json,
   };
   return response;
 }

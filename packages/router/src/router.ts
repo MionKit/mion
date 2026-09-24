@@ -35,7 +35,6 @@ import {
   getOrCreateGlobal,
   resolveParser,
   DEFAULT_MAX_BODY_SIZE,
-  SerializerModes,
   BUILD_VERSION_HEADER,
 } from '@mionjs/core';
 import {getRawMethodReflection, getHandlerReflection, assertCompiledParser} from './lib/reflection.ts';
@@ -441,7 +440,6 @@ function recursiveCreateExecutionChain(
     const executionChain: MethodsExecutionChain = {
       routeIndex: startMiddlewares.length + preMiddlewares.length + props.preLevelMiddlewares.length,
       methods,
-      serializer: SerializerModes.json,
       path,
       declaredBodySize: maxBodySize,
       maxBodySize: maxBodySize ?? platformMaxBodySize,
@@ -477,7 +475,6 @@ function buildNotFoundChains(): void {
     notFoundChains.set(id, {
       routeIndex: -1, // there is no route in this chain
       methods,
-      serializer: SerializerModes.json,
       // a shared chain answers for many paths, so the request brings its own
       path: undefined,
       declaredBodySize: undefined,

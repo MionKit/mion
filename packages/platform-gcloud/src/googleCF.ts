@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RpcError, FatalError, SerializerModes} from '@mionjs/core';
+import {SerializerModes} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
 import {
   dispatchWithContext,
@@ -20,7 +20,7 @@ import {
   setPlatformConfig,
   getResponseDefaults,
 } from '@mionjs/router';
-import type {MionHeaders, MionResponse} from '@mionjs/router';
+import type {MionResponse} from '@mionjs/router';
 import {Request, Response} from 'express';
 import {DEFAULT_GOOGLE_CF_OPTIONS} from './constants.ts';
 import {GoogleCFOptions} from './types.ts';
@@ -126,29 +126,9 @@ function rejectOversizedRequest(rawRequest: Request, rawBody: unknown, maxBodySi
 
 function reply(mionResp: MionResponse, resp: Response): void {
   resp.status(mionResp.statusCode);
-  const bodyType = mionResp.serializer;
-  switch (bodyType) {
-    // Buffer.byteLength counts the bytes end() writes, without a full copy of the response first
-    case SerializerModes.json: {
-      const jsonString = JSON.stringify(mionResp.body);
-      resp.set('content-type', 'application/json; charset=utf-8');
-      resp.set('content-length', `${Buffer.byteLength(jsonString, 'utf8')}`);
-      resp.end(jsonString, 'utf8');
-      break;
-    }
-    default: {
-      const error = new FatalError({
-        publicMessage: 'unknown-mion-response-format',
-        type: 'unknown-error',
-        errorData: {bodyType},
-      });
-      unexpectedFail(resp, mionResp.headers, error);
-    }
-  }
-}
-
-function unexpectedFail(resp: Response, respHeaders: MionHeaders, error: RpcError<string>) {
-  if (resp.writableEnded) return;
-  const routeResponse = getRouterFatalErrorResponse(error, respHeaders);
-  reply(routeResponse, resp);
+  const jsonString = JSON.stringify(mionResp.body);
+  resp.set('content-type', 'application/json; charset=utf-8');
+  // Buffer.byteLength counts the bytes end() writes, without a full copy of the response first
+  resp.set('content-length', `${Buffer.byteLength(jsonString, 'utf8')}`);
+  resp.end(jsonString, 'utf8');
 }

@@ -78,7 +78,6 @@ const ENVELOPE_KEYS = new Set(['mion@isΣrrθr', 'type', 'publicMessage', 'error
 export const REQUEST_BUDGET_MS = 1500;
 
 function responseText(response: MionResponse): string {
-  if (response.serializer === SerializerModes.stringifyJson) return String(response.rawBody ?? '');
   return JSON.stringify(response.body);
 }
 

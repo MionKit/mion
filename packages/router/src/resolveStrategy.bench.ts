@@ -96,8 +96,6 @@ function fillContext(ctx: CallContext, reqHeaders: MionHeaders, respHeaders: Mio
     fatalError: undefined,
     headers: respHeaders,
     body: {},
-    rawBody: '',
-    serializer: SerializerModes.json,
   };
   mutable.shared = getRouterOptions().contextDataFactory?.() ?? {};
   return ctx;
@@ -121,8 +119,6 @@ function buildContextFromChain(
       fatalError: undefined,
       headers: respHeaders,
       body: {},
-      rawBody: '',
-      serializer: SerializerModes.json,
     },
     executionChain: chain,
     maxBodySize: chain.maxBodySize,

@@ -28,12 +28,9 @@ export interface ResolvedParser {
   params: ParserStrategy;
   return: ReturnParserStrategy;
 }
-// A route response is always a JSON-safe value the adapter stringifies; `stringifyJson` covers the
-// REQUEST body and the client's own wire.
-
 // NOT the `parser` strategy: these name how the BODY is framed on the wire, same word, different concept.
 export const SerializerModes = {
-  /** the body is a JSON-safe value; the platform adapter runs JSON.stringify */
+  /** the request body is an object the host already parsed */
   json: 1,
   /** the body is a JSON string: every request body, and what the client sends */
   stringifyJson: 3,

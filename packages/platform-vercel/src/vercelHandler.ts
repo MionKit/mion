@@ -24,7 +24,7 @@ import {DEFAULT_VERCEL_OPTIONS} from './constants.ts';
 import type {VercelHandlerOptions} from './types.ts';
 import {SerializerModes} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
-import {RpcError, FatalError} from '@mionjs/core';
+import {RpcError} from '@mionjs/core';
 
 // ############# PRIVATE STATE #############
 
@@ -109,21 +109,5 @@ function fatalFail(err: RpcError<string>, responseHeaders: any): Response {
 }
 
 function reply(mionResp: MionResponse, responseHeaders: any): Response {
-  const bodyType = mionResp.serializer;
-  switch (bodyType) {
-    case SerializerModes.json: {
-      return Response.json(mionResp.body, {
-        status: mionResp.statusCode,
-        headers: responseHeaders,
-      });
-    }
-    default: {
-      const error = new FatalError({
-        publicMessage: 'unknown-mion-response-format',
-        type: 'unknown-error',
-        errorData: {bodyType},
-      });
-      return fatalFail(error, responseHeaders);
-    }
-  }
+  return Response.json(mionResp.body, {status: mionResp.statusCode, headers: responseHeaders});
 }

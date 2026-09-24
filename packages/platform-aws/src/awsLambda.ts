@@ -118,9 +118,6 @@ function reply(routeResponse: MionResponse, headers: MionHeaders): APIGatewayPro
     singleHeaders[name] = value;
   }
 
-  const bodyType = routeResponse.serializer;
-
-  if (bodyType !== SerializerModes.json) throw new Error(`Unknown body type: ${bodyType}`);
   const responseBody = JSON.stringify(routeResponse.body);
   singleHeaders['content-type'] = 'application/json; charset=utf-8';
 

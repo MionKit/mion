@@ -93,7 +93,6 @@ async function runExecutionChain(
   const alwaysAwait = getAlwaysAwait();
   const executionList = executionChain.methods;
   const executionCount = executionList.length;
-  (response as Mutable<MionResponse>).serializer = executionChain.serializer;
   for (let i = 0; i < executionCount; i++) {
     const executable = executionList[i];
     if (response.hasErrors && !executable.alwaysRun) continue;
