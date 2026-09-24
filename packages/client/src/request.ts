@@ -149,7 +149,6 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddlewareReques
         if (isOptimistic) {
           // Plain JSON.stringify failed; the standard path fetches metadata first.
           delete this.subRequestList[MION_ROUTES.methodsMetadata];
-          delete this.subRequestList[MION_ROUTES.syncRoutes];
           return this.makeCall(true);
         }
         throw serializeError;

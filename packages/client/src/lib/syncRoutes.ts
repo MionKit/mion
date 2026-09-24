@@ -9,11 +9,11 @@
 
 import {MION_ROUTES, RpcError, isRpcError, routeSyncId} from '@mionjs/core';
 import type {InjectRouterOptions} from '@mionjs/run-types';
-import type {RouteSyncErrorData} from '@mionjs/router';
+import type {RouteSyncError, RouteSyncErrorData} from '@mionjs/router';
 import type {SubRequest} from '../types.ts';
 import {getMethod} from './methods.ts';
 
-export type RouteSyncRefusal = RpcError<'route-types-mismatch' | 'route-sync-required', RouteSyncErrorData>;
+export type RouteSyncRefusal = RpcError<RouteSyncError['type'], RouteSyncErrorData>;
 
 /** baseURLs that check sync ids: told by the build, or learned from a refusal. */
 const syncServers = new Set<string>();
