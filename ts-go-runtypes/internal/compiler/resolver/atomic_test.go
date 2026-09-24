@@ -1134,12 +1134,12 @@ func TestResolver_CompTimeArgs_NonLiteralDiagnostic(t *testing.T) {
 	const dts = `declare module '@mionjs/run-types' {
   export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
   export type CompTimeArgs<T> = T & {readonly __rtCompTimeArgsBrand?: never};
-  export interface ValidateOptions {noLiterals?: boolean; noIsArrayCheck?: boolean}
+  export interface ValidateOptions {numberMode?: 'isFinite' | 'typeof' | 'notNaN'}
   export function createValidateFn<T>(val?: T, options?: CompTimeArgs<ValidateOptions>, id?: InjectRunTypeId<T>): (v: unknown) => boolean;
 }
 `
 	const code = `import {createValidateFn} from '@mionjs/run-types';
-declare function getOptions(): {noLiterals: true};
+declare function getOptions(): {numberMode: 'typeof'};
 createValidateFn<string>(undefined, getOptions());
 `
 	r := setupInline(t, map[string]string{"runtypes.d.ts": dts, "call.ts": code})
@@ -1166,22 +1166,18 @@ createValidateFn<string>(undefined, getOptions());
 
 // TestResolver_CompTimeArgs_LiteralAccepted pins the positive case for
 // CompTimeArgs<T>: a direct object literal at the call site must pass
-// the CompTimeArgs gate (no CTA001/002/003 violations). Unrelated
-// marker codes (e.g. MKR004 fires when `{noLiterals: true}` lands on
-// a non-literal type — by design) are filtered out so this test stays
-// focused on its subject. The fixture uses a literal type for the
-// noLiterals call so MKR004 doesn't fire here; non-literal call sites
-// are covered by TestResolver_ValidateOptions_NoLiteralsNoop.
+// the CompTimeArgs gate (no CTA001/002/003 violations). Non-CTA marker
+// codes are filtered out so this test stays focused on its subject.
 func TestResolver_CompTimeArgs_LiteralAccepted(t *testing.T) {
 	const dts = `declare module '@mionjs/run-types' {
   export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
   export type CompTimeArgs<T> = T & {readonly __rtCompTimeArgsBrand?: never};
-  export interface ValidateOptions {noLiterals?: boolean; noIsArrayCheck?: boolean}
+  export interface ValidateOptions {numberMode?: 'isFinite' | 'typeof' | 'notNaN'}
   export function createValidateFn<T>(val?: T, options?: CompTimeArgs<ValidateOptions>, id?: InjectRunTypeId<T>): (v: unknown) => boolean;
 }
 `
 	const code = `import {createValidateFn} from '@mionjs/run-types';
-createValidateFn<'a'>(undefined, {noLiterals: true});
+createValidateFn<number>(undefined, {numberMode: 'typeof'});
 createValidateFn<string>(undefined, {});
 `
 	r := setupInline(t, map[string]string{"runtypes.d.ts": dts, "call.ts": code})
@@ -1239,12 +1235,12 @@ func TestResolver_CompTimeArgs_ConstChainAccepted(t *testing.T) {
 	const dts = `declare module '@mionjs/run-types' {
   export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
   export type CompTimeArgs<T> = T & {readonly __rtCompTimeArgsBrand?: never};
-  export interface ValidateOptions {noLiterals?: boolean; noIsArrayCheck?: boolean}
+  export interface ValidateOptions {numberMode?: 'isFinite' | 'typeof' | 'notNaN'}
   export function createValidateFn<T>(val?: T, options?: CompTimeArgs<ValidateOptions>, id?: InjectRunTypeId<T>): (v: unknown) => boolean;
 }
 `
 	const code = `import {createValidateFn} from '@mionjs/run-types';
-const opts = {noLiterals: true as const};
+const opts = {numberMode: 'typeof' as const};
 createValidateFn<string>(undefined, opts);
 `
 	r := setupInline(t, map[string]string{"runtypes.d.ts": dts, "call.ts": code})
@@ -1430,12 +1426,12 @@ func TestResolver_TrailingInjectionStillEmitsSite(t *testing.T) {
 	const dts = `declare module '@mionjs/run-types' {
   export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
   export type CompTimeArgs<T> = T & {readonly __rtCompTimeArgsBrand?: never};
-  export interface ValidateOptions {noLiterals?: boolean}
+  export interface ValidateOptions {numberMode?: 'isFinite' | 'typeof' | 'notNaN'}
   export function createValidateFn<T>(val?: T, options?: CompTimeArgs<ValidateOptions>, id?: InjectRunTypeId<T>): (v: unknown) => boolean;
 }
 `
 	const code = `import {createValidateFn} from '@mionjs/run-types';
-declare function getOptions(): {noLiterals: true};
+declare function getOptions(): {numberMode: 'typeof'};
 createValidateFn<string>(undefined, getOptions());
 `
 	r := setupInline(t, map[string]string{"runtypes.d.ts": dts, "call.ts": code})
@@ -1457,26 +1453,24 @@ createValidateFn<string>(undefined, getOptions());
 
 // TestResolver_ValidateOptions_DoNotChangeID is the ValidateOptions refactor
 // guard: for the same TS type T, the resolved Site.ID must be IDENTICAL
-// across every option combination. The marker scanner used to fold
-// `noLiterals` / `noIsArrayCheck` into the typeid (via type-swap for
-// literals + `SerializeArrayWithFlags` for arrays) — both paths are
-// gone now, replaced by per-call-site `Site.Options` that drive the
-// emitter's variant fan-out under the SAME structural id.
+// across every option value. Options never fold into the typeid; they
+// ride per-call-site `Site.Options` that drive the emitter's variant
+// fan-out under the SAME structural id.
 //
 // Covers three flavours of T:
-//   - literal `'a'`   ± `noLiterals`
-//   - array  `string[]` ± `noIsArrayCheck`
-//   - composite `{tag: 'a'; list: string[]}` with both options
+//   - atomic `number`     ± `numberMode: 'typeof'`
+//   - array  `number[]`   ± `numberMode: 'notNaN'`
+//   - composite `{tag: 'a'; list: number[]}` with both values
 //
 // Each case asserts that every call site for the same T produces the
 // same `Site.ID`. The Site.Options field carries the option tuple
-// (sorted, name-keyed) — the emitter consumes it to materialise the
-// variant factory keyed `<tag><variantSuffix>_<id>`.
+// (sorted, name-keyed) the emitter consumes to materialise the variant
+// factory keyed `<variant-fnHash>_<id>`.
 func TestResolver_ValidateOptions_DoNotChangeID(t *testing.T) {
 	const dts = `declare module '@mionjs/run-types' {
   export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
   export type CompTimeArgs<T> = T & {readonly __rtCompTimeArgsBrand?: never};
-  export interface ValidateOptions {noLiterals?: boolean; noIsArrayCheck?: boolean}
+  export interface ValidateOptions {numberMode?: 'isFinite' | 'typeof' | 'notNaN'}
   export function createValidateFn<T>(val?: T, options?: CompTimeArgs<ValidateOptions>, id?: InjectRunTypeId<T>): (v: unknown) => boolean;
 }
 `
@@ -1485,33 +1479,33 @@ func TestResolver_ValidateOptions_DoNotChangeID(t *testing.T) {
 		code string
 	}{
 		{
-			name: "literal 'a' ± noLiterals",
+			name: "number ± numberMode typeof",
 			code: `import {createValidateFn} from '@mionjs/run-types';
-createValidateFn<'a'>();
-createValidateFn<'a'>(undefined, {noLiterals: true});
-const v: 'a' = 'a';
+createValidateFn<number>();
+createValidateFn<number>(undefined, {numberMode: 'typeof'});
+const v: number = 1;
 createValidateFn(v);
-createValidateFn(v, {noLiterals: true});
+createValidateFn(v, {numberMode: 'typeof'});
 `,
 		},
 		{
-			name: "array string[] ± noIsArrayCheck",
+			name: "array number[] ± numberMode notNaN",
 			code: `import {createValidateFn} from '@mionjs/run-types';
-createValidateFn<string[]>();
-createValidateFn<string[]>(undefined, {noIsArrayCheck: true});
-const v: string[] = [];
+createValidateFn<number[]>();
+createValidateFn<number[]>(undefined, {numberMode: 'notNaN'});
+const v: number[] = [];
 createValidateFn(v);
-createValidateFn(v, {noIsArrayCheck: true});
+createValidateFn(v, {numberMode: 'notNaN'});
 `,
 		},
 		{
-			name: "composite with nested literal AND array + both options",
+			name: "composite with nested literal AND array + both numberMode values",
 			code: `import {createValidateFn} from '@mionjs/run-types';
-type Composite = {tag: 'a'; list: string[]};
+type Composite = {tag: 'a'; list: number[]};
 createValidateFn<Composite>();
-createValidateFn<Composite>(undefined, {noLiterals: true});
-createValidateFn<Composite>(undefined, {noIsArrayCheck: true});
-createValidateFn<Composite>(undefined, {noLiterals: true, noIsArrayCheck: true});
+createValidateFn<Composite>(undefined, {numberMode: 'typeof'});
+createValidateFn<Composite>(undefined, {numberMode: 'notNaN'});
+createValidateFn<Composite>(undefined, {numberMode: 'isFinite'});
 `,
 		},
 	}
@@ -1535,47 +1529,6 @@ createValidateFn<Composite>(undefined, {noLiterals: true, noIsArrayCheck: true})
 	}
 }
 
-// TestResolver_ValidateOptions_NoLiteralsNoop pins the build-time
-// Warning emitted when an option lands on a type where it has no
-// effect (e.g. `{noLiterals: true}` on plain `string`,
-// `{noIsArrayCheck: true}` on an object literal). The variant factory
-// is still materialised (always-emit invariant — the JS side can't
-// tell whether an option is meaningful for a given T), so the
-// diagnostic is the only build-time signal.
-func TestResolver_ValidateOptions_NoLiteralsNoop(t *testing.T) {
-	const dts = `declare module '@mionjs/run-types' {
-  export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
-  export type CompTimeArgs<T> = T & {readonly __rtCompTimeArgsBrand?: never};
-  export interface ValidateOptions {noLiterals?: boolean; noIsArrayCheck?: boolean}
-  export function createValidateFn<T>(val?: T, options?: CompTimeArgs<ValidateOptions>, id?: InjectRunTypeId<T>): (v: unknown) => boolean;
-}
-`
-	const code = `import {createValidateFn} from '@mionjs/run-types';
-createValidateFn<string>(undefined, {noLiterals: true});
-createValidateFn<{a: string}>(undefined, {noIsArrayCheck: true});
-`
-	r := setupInline(t, map[string]string{"runtypes.d.ts": dts, "call.ts": code})
-	resp := r.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"call.ts"}})
-	if resp.Error != "" {
-		t.Fatalf("scanFiles: %s", resp.Error)
-	}
-	var nl, na bool
-	for _, d := range resp.Diagnostics {
-		switch d.Code {
-		case diagnostics.CodeValidateOptionsNoLiteralsNoop:
-			nl = true
-		case diagnostics.CodeValidateOptionsNoArrayNoop:
-			na = true
-		}
-	}
-	if !nl {
-		t.Errorf("expected %s for {noLiterals:true} on non-literal type, got: %+v", diagnostics.CodeValidateOptionsNoLiteralsNoop, resp.Diagnostics)
-	}
-	if !na {
-		t.Errorf("expected %s for {noIsArrayCheck:true} on non-array type, got: %+v", diagnostics.CodeValidateOptionsNoArrayNoop, resp.Diagnostics)
-	}
-}
-
 // TestResolver_SchemaForm_ConvergesAndObservesOptions pins the schema-form
 // path AFTER the CompTimeRunType ref-tracing was removed: the value-first schema
 // form is now an ordinary `createValidateFn` OVERLOAD taking a `RunType<T>` first arg
@@ -1592,7 +1545,7 @@ func TestResolver_SchemaForm_ConvergesAndObservesOptions(t *testing.T) {
   export type InjectTypeFnArgs<T, Fn extends string> = string & {readonly __rtInjectTypeFnArgsBrand?: T; readonly __rtInjectTypeFnArgsFn?: Fn};
   export type CompTimeArgs<T> = T & {readonly __rtCompTimeArgsBrand?: never};
   export type CompTimeFnArgs<T> = T & {readonly __rtCompTimeFnArgsBrand?: never};
-  export interface ValidateOptions {noLiterals?: boolean; noIsArrayCheck?: boolean}
+  export interface ValidateOptions {numberMode?: 'isFinite' | 'typeof' | 'notNaN'}
   export interface RunType<T = unknown> {id: string; readonly __rtType?: {t: T}}
   export function createValidateFn<T>(schema: RunType<T>, options?: CompTimeFnArgs<ValidateOptions>, id?: InjectTypeFnArgs<T, 'validate'>): (v: unknown) => boolean;
   export function createValidateFn<T>(val?: T, options?: CompTimeFnArgs<ValidateOptions>, id?: InjectTypeFnArgs<T, 'validate'>): (v: unknown) => boolean;
@@ -1603,7 +1556,7 @@ func TestResolver_SchemaForm_ConvergesAndObservesOptions(t *testing.T) {
 	const code = `import {createValidateFn, array, string} from '@mionjs/run-types';
 createValidateFn<string[]>();
 createValidateFn(array(string()));
-createValidateFn(array(string()), {noIsArrayCheck: true});
+createValidateFn(array(string()), {numberMode: 'typeof'});
 `
 	r := setupInline(t, map[string]string{"runtypes.d.ts": dts, "call.ts": code})
 	resp := r.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"call.ts"}})
@@ -1625,44 +1578,50 @@ createValidateFn(array(string()), {noIsArrayCheck: true});
 		}
 	}
 	// The options bag rides the schema-overload call's own slot, folded into
-	// the injected FnId — now the opaque validate variant fnHash for the
-	// noIsArrayCheck option set (NOT the readable `valNA` token). Assert equality
+	// the injected FnId, the opaque validate variant fnHash for the
+	// numberTypeof option set (NOT a readable `valNT` token). Assert equality
 	// to operations.FnHashFor so the test stays correct across versions.
 	validateOp, _ := operations.ByName("validate")
-	wantVariant := operations.FnHashFor(validateOp, []string{"noIsArrayCheck"}, "", false)
+	wantVariant := operations.FnHashFor(validateOp, []string{"numberTypeof"}, "", false)
 	variant := resp.Sites[2]
 	if variant.FnId != wantVariant {
-		t.Errorf("schema-form options not observed: Site[2].FnId = %q, want %q (validate/noIsArrayCheck)", variant.FnId, wantVariant)
+		t.Errorf("schema-form options not observed: Site[2].FnId = %q, want %q (validate/numberTypeof)", variant.FnId, wantVariant)
 	}
 }
 
 // TestResolver_ValidateOptions_AsConstExtracted pins the wrapper-unwrap
-// asymmetry fix: `{noLiterals: true} as const` passes the options slot's
+// asymmetry fix: `{numberMode: 'typeof'} as const` passes the options slot's
 // CompTimeArgs validation (which unwraps `as`/parens/`satisfies`), so the
-// option EXTRACTION must read it too — before the fix the extractor saw
-// the AsExpression node, silently read zero options, and the MKR004 noop
-// warning below never fired.
+// option EXTRACTION must read it too, forking the injected FnId to the variant.
 func TestResolver_ValidateOptions_AsConstExtracted(t *testing.T) {
 	const dts = `declare module '@mionjs/run-types' {
-  export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
-  export type CompTimeArgs<T> = T & {readonly __rtCompTimeArgsBrand?: never};
-  export interface ValidateOptions {noLiterals?: boolean; noIsArrayCheck?: boolean}
-  export function createValidateFn<T>(val?: T, options?: CompTimeArgs<ValidateOptions>, id?: InjectRunTypeId<T>): (v: unknown) => boolean;
+  export type InjectTypeFnArgs<T, Fn extends string> = string & {readonly __rtInjectTypeFnArgsBrand?: T; readonly __rtInjectTypeFnArgsFn?: Fn};
+  export type CompTimeFnArgs<T> = T & {readonly __rtCompTimeFnArgsBrand?: never};
+  export interface ValidateOptions {numberMode?: 'isFinite' | 'typeof' | 'notNaN'}
+  export function createValidateFn<T>(val?: T, options?: CompTimeFnArgs<ValidateOptions>, id?: InjectTypeFnArgs<T, 'validate'>): (v: unknown) => boolean;
 }
 `
 	const code = `import {createValidateFn} from '@mionjs/run-types';
-createValidateFn<string>(undefined, {noLiterals: true} as const);
+createValidateFn<number>(undefined, {numberMode: 'typeof'} as const);
+const n: number = 1;
+createValidateFn(n, {numberMode: 'typeof'} as const);
 `
 	r := setupInline(t, map[string]string{"runtypes.d.ts": dts, "call.ts": code})
 	resp := r.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"call.ts"}})
 	if resp.Error != "" {
 		t.Fatalf("scanFiles: %s", resp.Error)
 	}
-	for _, d := range resp.Diagnostics {
-		if d.Code == diagnostics.CodeValidateOptionsNoLiteralsNoop {
-			return
+	if len(resp.Sites) != 2 {
+		t.Fatalf("expected 2 Sites, got %d: %+v", len(resp.Sites), resp.Sites)
+	}
+	validateOp, _ := operations.ByName("validate")
+	want := operations.FnHashFor(validateOp, []string{"numberTypeof"}, "", false)
+	for i, site := range resp.Sites {
+		if site.FnId != want {
+			t.Errorf("Site[%d].FnId = %q, want %q (option must be extracted through the as-const wrapper)", i, site.FnId, want)
 		}
 	}
-	t.Fatalf("expected %s for as-const {noLiterals:true} on a non-literal type (option must be extracted through the wrapper), got: %+v",
-		diagnostics.CodeValidateOptionsNoLiteralsNoop, resp.Diagnostics)
+	if resp.Sites[0].ID != resp.Sites[1].ID {
+		t.Errorf("static and reflect forms must share one id: %q vs %q", resp.Sites[0].ID, resp.Sites[1].ID)
+	}
 }

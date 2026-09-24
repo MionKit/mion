@@ -157,16 +157,16 @@ export const errorsOf = createGetValidationErrorsFn<User>(undefined, {checkUnkno
 // what a combined call site must resolve to.
 func TestCheckUnknowns_ComposesWithValidateOptions(t *testing.T) {
 	modules := scanEntryModules(t, `import {createValidateFn} from '@mionjs/run-types';
-interface User {a: 'x'}
-export const isUser = createValidateFn<User>(undefined, {checkUnknowns: true, noLiterals: true});
+interface User {a: number}
+export const isUser = createValidateFn<User>(undefined, {checkUnknowns: true, numberMode: 'typeof'});
 `)
 	op, ok := operations.ByName("validateStrict")
 	if !ok {
 		t.Fatalf("validateStrict operation missing from the registry")
 	}
-	want := operations.FnHashFor(op, []string{"noLiterals"}, "", false) + "_"
+	want := operations.FnHashFor(op, []string{"numberTypeof"}, "", false) + "_"
 	if _, found := findEntryWith(modules, want); !found {
-		t.Fatalf("no noLiterals variant of the fused family emitted\nmodules: %v", keys(modules))
+		t.Fatalf("no numberTypeof variant of the fused family emitted\nmodules: %v", keys(modules))
 	}
 }
 

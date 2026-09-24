@@ -154,7 +154,7 @@ const patternDTS = `declare module '@mionjs/run-types' {
   export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
   export type CompTimeFnArgs<T> = T & {readonly __rtCompTimeFnArgsBrand?: never};
   export type InjectTypeFnArgs<T, F1 extends string> = string & {readonly __rtInjectTypeFnArgsBrand?: T; readonly __rtInjectTypeFnArgsFns?: [F1]};
-  export interface ValidateOptions {noLiterals?: boolean}
+  export interface ValidateOptions {numberMode?: 'isFinite' | 'typeof' | 'notNaN'}
   export function getRunTypeId<T>(value?: T, id?: InjectRunTypeId<T>): InjectRunTypeId<T>;
   export function createValidateFn<T>(val?: T, options?: CompTimeFnArgs<ValidateOptions>, id?: InjectTypeFnArgs<T, 'validate'>): (v: unknown) => boolean;
 }

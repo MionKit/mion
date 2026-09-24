@@ -7,12 +7,12 @@ import (
 )
 
 // expectedCanonicalKeyCount is a canary: when it trips, an operation changed, so re-confirm the collision guard holds.
-// 45: 12 AxisNone ops, huk's 2 subsets, val + verr 12 each (L × A × 3 numberModes), jsonEncoder 4 + jsonDecoder 3.
-// +29: each CircularGuarded op adds one armed key per plain variant (val 12, verr 12, tb 1, jsonEncoder 4).
-// +48 each: vst / vest (`checkUnknowns`) and vuk / veuk (`checkUnionUnknowns`), 24 keys apiece like val / verr.
+// 27: 12 AxisNone ops, huk's 2 subsets, val + verr 3 each (3 numberModes), jsonEncoder 4 + jsonDecoder 3.
+// +11: each CircularGuarded op adds one armed key per plain variant (val 3, verr 3, tb 1, jsonEncoder 4).
+// +12 each: vst / vest (`checkUnknowns`) and vuk / veuk (`checkUnionUnknowns`), 6 keys apiece like val / verr.
 // vst / vest are what forced FnHashLen 3 → 4 (see fnhash.go).
 // +1: restoreFromJsonClone (rjs), the stripping decode mirror of prepareForJsonClone.
-const expectedCanonicalKeyCount = 45 + 29 + 1 + 1 + 48 + 48 + 1 // +1: the jsonSchema (jsc) document operation; +1: the classSerializerReg (csr) name card
+const expectedCanonicalKeyCount = 27 + 11 + 1 + 1 + 12 + 12 + 1 // +1: the jsonSchema (jsc) document operation; +1: the classSerializerReg (csr) name card
 
 func TestFnHashCollisionFree(t *testing.T) {
 	// Runs at init too, but assert here so the failure is a test, not a panic.
@@ -38,8 +38,8 @@ func TestFnHashCollisionFree(t *testing.T) {
 
 func TestFnHashDeterministic(t *testing.T) {
 	validate, _ := ByName("validate")
-	a := FnHashFor(validate, []string{"noLiterals"}, "", false)
-	b := FnHashFor(validate, []string{"noLiterals"}, "", false)
+	a := FnHashFor(validate, []string{"numberTypeof"}, "", false)
+	b := FnHashFor(validate, []string{"numberTypeof"}, "", false)
 	if a != b {
 		t.Fatalf("FnHashFor not deterministic: %q vs %q", a, b)
 	}
@@ -47,12 +47,13 @@ func TestFnHashDeterministic(t *testing.T) {
 
 func TestCanonicalOptionOrderIndependent(t *testing.T) {
 	validate, _ := ByName("validate")
-	forward := Canonical(validate, []string{"noLiterals", "noIsArrayCheck"}, "", false)
-	reverse := Canonical(validate, []string{"noIsArrayCheck", "noLiterals"}, "", false)
+	// Not a valid call-site set (both share one Group); it only checks the suffix ignores input order.
+	forward := Canonical(validate, []string{"numberTypeof", "numberNotNaN"}, "", false)
+	reverse := Canonical(validate, []string{"numberNotNaN", "numberTypeof"}, "", false)
 	if forward != reverse {
 		t.Fatalf("Canonical is option-order-dependent: %q vs %q", forward, reverse)
 	}
-	if FnHashFor(validate, []string{"noLiterals", "noIsArrayCheck"}, "", false) != FnHashFor(validate, []string{"noIsArrayCheck", "noLiterals"}, "", false) {
+	if FnHashFor(validate, []string{"numberTypeof", "numberNotNaN"}, "", false) != FnHashFor(validate, []string{"numberNotNaN", "numberTypeof"}, "", false) {
 		t.Fatal("FnHashFor is option-order-dependent")
 	}
 }
@@ -60,9 +61,10 @@ func TestCanonicalOptionOrderIndependent(t *testing.T) {
 func TestCanonicalDistinguishesOptionSets(t *testing.T) {
 	validate, _ := ByName("validate")
 	plain := FnHashFor(validate, nil, "", false)
-	noLiterals := FnHashFor(validate, []string{"noLiterals"}, "", false)
-	if plain == noLiterals {
-		t.Fatal("plain and noLiterals validate must hash differently")
+	typeofMode := FnHashFor(validate, []string{"numberTypeof"}, "", false)
+	notNaNMode := FnHashFor(validate, []string{"numberNotNaN"}, "", false)
+	if plain == typeofMode || plain == notNaNMode || typeofMode == notNaNMode {
+		t.Fatal("plain, numberTypeof and numberNotNaN validate must all hash differently")
 	}
 }
 
@@ -85,7 +87,7 @@ func TestRejectCircularForksHash(t *testing.T) {
 		}
 	}
 	forks("validate", validate, nil, "")
-	forks("validate|NL", validate, []string{"noLiterals"}, "")
+	forks("validate|NT", validate, []string{"numberTypeof"}, "")
 	forks("validationErrors", verr, nil, "")
 	forks("toBinary", toBinary, nil, "")
 	forks("jsonEncoder|clone", jsonEncoder, nil, "clone")

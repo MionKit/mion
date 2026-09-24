@@ -380,59 +380,6 @@ func TestValidateModule_NestedArrayDependencyCall(t *testing.T) {
 	}
 }
 
-// TestValidateModule_ArrayNoIsArrayCheck — when a createValidateFn site requests the
-// `noIsArrayCheck` ValidateOptions variant for an array runtype, the
-// emitter fans out an extra `valNA_<id>` factory whose body omits the
-// leading `if (!Array.isArray(v)) return false;` guard. A plain
-// createValidateFn site still emits the guarded `val_<id>` factory. Mirrors
-// the `comp.opts.noIsArrayCheck` branch in array.ts:emitIsType. (`it` is
-// demand-scoped: the scanner attaches each site's structured Demand, so the
-// plain `it` entry and the `NA` variant ride distinct SiteDemand entries —
-// not the legacy Site.Options back-compat fan-out.)
-func TestValidateModule_ArrayNoIsArrayCheck(t *testing.T) {
-	dump := protocol.Dump{
-		RunTypes: []*reflection.RunType{
-			{
-				ID:    "an1",
-				Kind:  reflection.KindArray,
-				Child: &reflection.RunType{ID: "str", Kind: reflection.KindString},
-			},
-		},
-		Sites: []protocol.Site{
-			// Plain createValidateFn<T[]>() — demands the guarded `val_an1`.
-			{File: "call.ts", Pos: 0, ID: "an1", Demand: []protocol.SiteDemand{{FamilyTag: "val"}}},
-			// createValidateFn<T[]>(undefined, {noIsArrayCheck: true}) — demands
-			// the `valNA_an1` variant whose body omits the Array.isArray guard.
-			{File: "call.ts", Pos: 40, ID: "an1", Demand: []protocol.SiteDemand{{FamilyTag: "val", VariantSuffix: "NA", Options: []string{"noIsArrayCheck"}}}},
-		},
-	}
-	out := renderToString(t, dump)
-	plainKey := valKey("an1")
-	variantKeyNA := itVariantKey([]string{"noIsArrayCheck"}, "an1")
-	// Plain `<itHash>_an1` factory MUST keep the guard — the variant key
-	// dispatch is the only path that strips it.
-	if !strings.Contains(out, plainKey) {
-		t.Errorf("plain validate entry must be emitted, got:\n%s", out)
-	}
-	// The noIsArrayCheck-variant factory MUST exist alongside the plain one.
-	if !strings.Contains(out, variantKeyNA) {
-		t.Errorf("variant validate entry %q must be emitted, got:\n%s", variantKeyNA, out)
-	}
-	// The variant body has the for-loop but no Array.isArray guard.
-	// The plain body has both. Find the variant's `init(...)` line and
-	// assert the guard is absent from it.
-	variantLine := extractInitLine(out, variantKeyNA)
-	if variantLine == "" {
-		t.Fatalf("no init('%s', …) line found in:\n%s", variantKeyNA, out)
-	}
-	if strings.Contains(variantLine, "Array.isArray") {
-		t.Errorf("valNA variant must omit `Array.isArray(…)` guard, got:\n%s", variantLine)
-	}
-	if !strings.Contains(variantLine, "for (let i0 = 0;") {
-		t.Errorf("valNA variant must still emit element loop, got:\n%s", variantLine)
-	}
-}
-
 // extractInitLine returns the substring of `out` corresponding to the
 // `init('<key>', …);` call for the given cache key. Returns "" when
 // no such call is present.

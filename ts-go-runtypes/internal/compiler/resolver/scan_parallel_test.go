@@ -34,7 +34,7 @@ func parallelFixtureLarge() string {
 // parallelFixtureSources is the shared multi-file fixture set: enough
 // files to spread across the 4-checker pool, covering objects, unions
 // (discriminated + mixed), a large object, cross-file structural dedup,
-// diagnostics (MKR001/MKR003/MKR004/CTA), enums/templates/tuples,
+// diagnostics (MKR001/MKR003/CTA), an option variant, enums/templates/tuples,
 // reflect-form annotation honoring, and classes/builtins.
 func parallelFixtureSources() map[string]string {
 	return map[string]string{
@@ -78,8 +78,8 @@ export const idReflect = getRunTypeId(a);
 export function wrap<T>() { return createValidateFn<T>(); }
 function make() { return {a: 1}; }
 export const viaCall = createValidateFn(make());
-export const noopOpt = createValidateFn<string>(undefined, {noLiterals: true});
-const opts = {noLiterals: true};
+export const optVariant = createValidateFn<number>(undefined, {numberMode: 'typeof'});
+const opts = {rejectCircularRefs: true};
 export const nonLiteral = createValidateFn<string>(undefined, opts);
 const made: {a: number} = {a: 2};
 export const reflected = getRunTypeId(made);

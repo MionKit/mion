@@ -16,7 +16,7 @@ import (
 const numberModeDTS = `declare module '@mionjs/run-types' {
   export type InjectTypeFnArgs<T, Fn extends string> = string & {readonly __rtInjectTypeFnArgsBrand?: T; readonly __rtInjectTypeFnArgsFn?: Fn};
   export type CompTimeFnArgs<T> = T & {readonly __rtCompTimeFnArgsBrand?: never};
-  export interface ValidateOptions {noLiterals?: boolean; noIsArrayCheck?: boolean; numberMode?: 'isFinite' | 'typeof' | 'notNaN'}
+  export interface ValidateOptions {rejectCircularRefs?: boolean; numberMode?: 'isFinite' | 'typeof' | 'notNaN'}
   export function createValidateFn<T>(val?: T, options?: CompTimeFnArgs<ValidateOptions>, id?: InjectTypeFnArgs<T, 'validate'>): (v: unknown) => boolean;
 }
 `
@@ -71,13 +71,13 @@ createValidateFn(v, {numberMode: 'typeof'});
 
 // TestNumberMode_GlobalDefaultPerFieldMerge is the load-bearing merge test: a
 // project-wide validate.numberMode default fills in ONLY the numberMode field of
-// each call site, per field. A site that sets noLiterals keeps it AND inherits
+// each call site, per field. A site that sets rejectCircularRefs keeps it AND inherits
 // the global numberMode; a site that sets its own numberMode overrides the
 // default for that field (including an explicit 'isFinite' that opts back out).
 func TestNumberMode_GlobalDefaultPerFieldMerge(t *testing.T) {
 	const code = `import {createValidateFn} from '@mionjs/run-types';
 createValidateFn<number>();
-createValidateFn<number[]>(undefined, {noLiterals: true});
+createValidateFn<number[]>(undefined, {rejectCircularRefs: true});
 createValidateFn<number>(undefined, {numberMode: 'isFinite'});
 createValidateFn<number>(undefined, {numberMode: 'notNaN'});
 `
@@ -92,9 +92,10 @@ createValidateFn<number>(undefined, {numberMode: 'notNaN'});
 	if len(resp.Sites) != 4 {
 		t.Fatalf("expected 4 Sites, got %d: %+v", len(resp.Sites), resp.Sites)
 	}
+	validateOp, _ := operations.ByName("validate")
 	want := []string{
-		wantValFnId(t, "numberTypeof"),               // global default fills in
-		wantValFnId(t, "noLiterals", "numberTypeof"), // site's noLiterals preserved + global numberMode
+		wantValFnId(t, "numberTypeof"),                                       // global default fills in
+		operations.FnHashFor(validateOp, []string{"numberTypeof"}, "", true), // site's rejectCircularRefs preserved + global numberMode
 		wantValFnId(t),                 // explicit isFinite opts back out of the global default
 		wantValFnId(t, "numberNotNaN"), // per-site override wins over the global default
 	}

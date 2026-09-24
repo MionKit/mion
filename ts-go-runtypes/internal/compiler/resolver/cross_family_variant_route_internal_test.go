@@ -18,7 +18,7 @@ func TestFamilyByFnHash_RoutesValidateVariants(t *testing.T) {
 	if !ok {
 		t.Fatal("no `validate` operation in the registry")
 	}
-	for _, options := range [][]string{nil, {"noLiterals"}, {"numberTypeof"}, {"noLiterals", "noIsArrayCheck"}} {
+	for _, options := range [][]string{nil, {"numberTypeof"}, {"numberNotNaN"}} {
 		hash := operations.FnHashFor(validate, options, "", false)
 		target, routed := familyByFnHash[hash]
 		if !routed {

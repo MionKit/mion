@@ -1,10 +1,10 @@
 {
   "file": "a.ts",
-  "code": "const v = createValidateFn<Foo>({\n  noLiterals: true,\n},);\n",
+  "code": "const v = createValidateFn<Foo>({\n  numberMode: 'typeof',\n},);\n",
   "sites": [
     {
       "file": "a.ts",
-      "pos": 56,
+      "pos": 60,
       "id": "Foo5678",
       "paramIndex": 1,
       "argsCount": 1,
@@ -13,16 +13,16 @@
     }
   ],
   "replacements": [],
-  "expectedCode": "import {__rt_val_Foo5678} from 'rtmod:/val_Foo5678.js';\nconst v = createValidateFn<Foo>({\n  noLiterals: true,\n},__rt_val_Foo5678);\n",
+  "expectedCode": "import {__rt_val_Foo5678} from 'rtmod:/val_Foo5678.js';\nconst v = createValidateFn<Foo>({\n  numberMode: 'typeof',\n},__rt_val_Foo5678);\n",
   "expectedMap": {
     "version": 3,
     "sources": [
       "a.ts"
     ],
     "sourcesContent": [
-      "const v = createValidateFn<Foo>({\n  noLiterals: true,\n},);\n"
+      "const v = createValidateFn<Foo>({\n  numberMode: 'typeof',\n},);\n"
     ],
     "names": [],
-    "mappings": ";AAAA,KAAK,CAAC,CAAC,CAAC,CAAC,CAAC,gBAAgB,CAAC,GAAG,CAAC,CAAC;AAChC,CAAC,CAAC,UAAU,CAAC,CAAC,IAAI;AAClB,CAAC,iBAAC,CAAC;"
+    "mappings": ";AAAA,KAAK,CAAC,CAAC,CAAC,CAAC,CAAC,gBAAgB,CAAC,GAAG,CAAC,CAAC;AAChC,CAAC,CAAC,UAAU,CAAC,CAAC,CAAC,MAAM,CAAC;AACtB,CAAC,iBAAC,CAAC;"
   }
 }

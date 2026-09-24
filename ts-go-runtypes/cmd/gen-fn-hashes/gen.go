@@ -200,7 +200,7 @@ func Generate() string {
 	out.WriteString("   *  when options.rejectCircularRefs is set on such a family. */\n")
 	out.WriteString("  readonly circularGuarded?: true;\n")
 	out.WriteString("  /** Variant token → fnHash. Token is '' for option-less families, the validate\n")
-	out.WriteString("   *  variant suffix ('', 'NL', 'NA', 'NLA'), the hasUnknownKeys variant suffix\n")
+	out.WriteString("   *  variant suffix ('', 'NT', 'NM'), the hasUnknownKeys variant suffix\n")
 	out.WriteString("   *  ('', 'OV'), or the JSON strategy name — each optionally with a trailing\n")
 	out.WriteString("   *  'C' for the rejectCircularRefs fork on a CircularGuarded family. */\n")
 	out.WriteString("  readonly variants: Readonly<Record<string, string>>;\n")
