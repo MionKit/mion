@@ -12,8 +12,7 @@ export interface Account {
 export const isAccount = createValidateFn<Account>();
 export const accountErrors = createGetValidationErrorsFn<Account>();
 
-// A build-time option literal routes the call to a specialized validator arm —
-// exercises the CompTimeArgs path (nothing is read at runtime).
+// Exercises the CompTimeArgs path: the option literal is read at build time, never at runtime.
 export const isAccountStrict = createValidateFn<Account>(undefined, {checkUnknowns: true});
 
 export function checkValidation(): CheckResult[] {

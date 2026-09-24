@@ -1,21 +1,6 @@
-// id-integrity assertions — verify that the value-first schema authoring path
-// and the type-first path resolve to the SAME runtype (hence the same structural
-// type id) for every case, reusing each case's EXISTING thunks (no new per-case
-// data). Two reuse mechanisms, one per suite family:
-//
-//  - validators (validate / getValidationErrors): `createValidateFn` returns the CACHED
-//    factory for a structural id, so reference identity (`toBe`) between the
-//    schema-form factory and the type-form factory IS a same-id assertion — the
-//    proven `.toBe` cached-factory idiom, generalised here to every case. Same
-//    id ⇒ same cached runtype.
-//  - serializers (json / binary encoders): the encoder is a fresh closure each
-//    call, so identity doesn't apply; instead assert the schema-form encoder
-//    produces byte-identical output to the type-form encoder (same default
-//    strategy) on the case's samples — identical wire output ⇒ same resolved
-//    runtype.
-//
-// Compile options (e.g. `numberMode`) fold into the cached factory's variant key, so an
-// option-bearing type-first form converges only with a schema form passing the SAME options.
+// Asserts the schema form and the type-first form of every case resolve the SAME runtype, reusing each case's thunks.
+// Validators compare cached factories with `toBe`; encoders are fresh closures, so they compare output on the samples.
+// Compile options (e.g. `numberMode`) fold into the variant key, so a schema form converges only with the SAME options.
 
 import {expect} from 'vitest';
 import type {Thunk, ValidationCase} from '../suites/validation/types.ts';

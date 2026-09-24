@@ -7,12 +7,8 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
-// The per-call `{rejectCircularRefs: true}` option is now a COMPILE-TIME option:
-// it forks the injected fnHash (like `numberMode`), so an armed validator and a
-// plain one for the same type resolve to DISTINCT compiled entries, the armed
-// one baking the inline cycle guard into its body. It is orthogonal to the other
-// ValidateOptions, so `numberMode` and `numberMode + rejectCircularRefs` also
-// fork.
+// `{rejectCircularRefs: true}` forks the injected fnHash: the armed validator is a DISTINCT entry with the cycle guard baked in.
+// It is orthogonal to the other ValidateOptions, so `numberMode` and `numberMode + rejectCircularRefs` fork too.
 func TestRejectCircularRefsForksFnHash(t *testing.T) {
 	const src = `import {createValidateFn} from '@mionjs/run-types';
 interface Node {size: number; next?: Node}

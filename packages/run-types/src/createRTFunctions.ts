@@ -25,10 +25,8 @@ import type {ToBinaryFn, FromBinaryFn} from './createRTFBinary.ts';
  *  Go-side marker scanner reads the values at build time and routes the call to a per-option variant
  *  of the validator factory (same structural type id, distinct function id). **/
 export interface ValidateOptions {
-  /** Arms the circular-reference guard for THIS validator: a value containing a reference cycle
-   *  makes `createValidateFn` return false and `createGetValidationErrorsFn` record a
-   *  `{expected: 'circular'}` entry. COMPILE-TIME (like `numberMode`): it forks the injected fnHash,
-   *  so the armed validator is a distinct entry that bakes the cycle check into its body. **/
+  /** A value with a reference cycle fails: `createValidateFn` returns false, `createGetValidationErrorsFn`
+   *  records `{expected: 'circular'}`. COMPILE-TIME: forks the fnHash into a distinct entry with the check baked in. **/
   rejectCircularRefs?: boolean;
   /** Folds the unknown-key check INTO the validator, so one compiled function answers "matches `T`
    *  and carries no undeclared properties". Replaces the two-call form:
@@ -98,12 +96,9 @@ export interface ValidateOptions {
    *  variant, so resolve `getFnHash('validateUnionKeys')`, or `'validationErrorsUnionKeys'` for the
    *  errors form. **/
   checkUnionUnknowns?: boolean;
-  /** How the emitted validator checks a `number`, to align with other libraries when migrating.
-   *  `'isFinite'` (default) uses `Number.isFinite`, rejecting `NaN` / `Infinity` / `-Infinity`;
-   *  `'typeof'` accepts the non-finite values (matches ajv / typia / JSON Schema); `'notNaN'`
-   *  rejects `NaN` but accepts `Infinity`. COMPILE-TIME (like `rejectCircularRefs`): it forks the injected
-   *  fnHash. The `validate.numberMode` plugin / tsconfig option sets the project default; a per-call
-   *  value overrides it. **/
+  /** How a `number` is checked, to match other libraries: `'isFinite'` (default) rejects `NaN` / `±Infinity`,
+   *  `'typeof'` accepts them (as ajv / typia / JSON Schema do), `'notNaN'` rejects only `NaN`.
+   *  COMPILE-TIME: forks the fnHash; the `validate.numberMode` plugin / tsconfig option sets the project default, a per-call value overrides it. **/
   numberMode?: 'isFinite' | 'typeof' | 'notNaN';
 }
 

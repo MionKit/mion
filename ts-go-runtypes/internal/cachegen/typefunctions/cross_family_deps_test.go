@@ -18,10 +18,7 @@ import (
 // emitter uses so they stay correct across binary versions.
 func valKey(id string) string { return operations.PlainHash("validate") + "_" + id }
 
-// itVariantKey returns the validate cache key for the ValidateOptions variant
-// identified by `optionNames` — `<variant-fnHash>_<id>` (e.g. the numberTypeof
-// variant). Mirrors variantKey for the validate family without depending on the
-// CacheModuleSettings plumbing.
+// itVariantKey mirrors variantKey for a validate option variant (e.g. numberTypeof), minus the CacheModuleSettings plumbing.
 func itVariantKey(optionNames []string, id string) string {
 	itOp, _ := operations.ByName("validate")
 	return operations.FnHashFor(itOp, optionNames, "", false) + "_" + id

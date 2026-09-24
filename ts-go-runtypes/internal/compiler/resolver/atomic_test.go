@@ -1164,10 +1164,7 @@ createValidateFn<string>(undefined, getOptions());
 	}
 }
 
-// TestResolver_CompTimeArgs_LiteralAccepted pins the positive case for
-// CompTimeArgs<T>: a direct object literal at the call site must pass
-// the CompTimeArgs gate (no CTA001/002/003 violations). Non-CTA marker
-// codes are filtered out so this test stays focused on its subject.
+// TestResolver_CompTimeArgs_LiteralAccepted pins that a direct object literal passes the CompTimeArgs gate (no CTA0xx).
 func TestResolver_CompTimeArgs_LiteralAccepted(t *testing.T) {
 	const dts = `declare module '@mionjs/run-types' {
   export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
@@ -1451,21 +1448,8 @@ createValidateFn<string>(undefined, getOptions());
 	}
 }
 
-// TestResolver_ValidateOptions_DoNotChangeID is the ValidateOptions refactor
-// guard: for the same TS type T, the resolved Site.ID must be IDENTICAL
-// across every option value. Options never fold into the typeid; they
-// ride per-call-site `Site.Options` that drive the emitter's variant
-// fan-out under the SAME structural id.
-//
-// Covers three flavours of T:
-//   - atomic `number`     ± `numberMode: 'typeof'`
-//   - array  `number[]`   ± `numberMode: 'notNaN'`
-//   - composite `{tag: 'a'; list: number[]}` with both values
-//
-// Each case asserts that every call site for the same T produces the
-// same `Site.ID`. The Site.Options field carries the option tuple
-// (sorted, name-keyed) the emitter consumes to materialise the variant
-// factory keyed `<variant-fnHash>_<id>`.
+// TestResolver_ValidateOptions_DoNotChangeID pins that options never fold into the typeid: one T, one Site.ID.
+// Options ride per-site `Site.Options`, which the emitter fans out into `<variant-fnHash>_<id>` factories.
 func TestResolver_ValidateOptions_DoNotChangeID(t *testing.T) {
 	const dts = `declare module '@mionjs/run-types' {
   export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
@@ -1577,10 +1561,7 @@ createValidateFn(array(string()), {numberMode: 'typeof'});
 			t.Errorf("Site[%d] has Pos 0 — every surviving Site must drive a real rewrite", i)
 		}
 	}
-	// The options bag rides the schema-overload call's own slot, folded into
-	// the injected FnId, the opaque validate variant fnHash for the
-	// numberTypeof option set (NOT a readable `valNT` token). Assert equality
-	// to operations.FnHashFor so the test stays correct across versions.
+	// Options fork the FnId to the opaque variant fnHash; FnHashFor derives it so the test survives version bumps.
 	validateOp, _ := operations.ByName("validate")
 	wantVariant := operations.FnHashFor(validateOp, []string{"numberTypeof"}, "", false)
 	variant := resp.Sites[2]
@@ -1589,10 +1570,7 @@ createValidateFn(array(string()), {numberMode: 'typeof'});
 	}
 }
 
-// TestResolver_ValidateOptions_AsConstExtracted pins the wrapper-unwrap
-// asymmetry fix: `{numberMode: 'typeof'} as const` passes the options slot's
-// CompTimeArgs validation (which unwraps `as`/parens/`satisfies`), so the
-// option EXTRACTION must read it too, forking the injected FnId to the variant.
+// TestResolver_ValidateOptions_AsConstExtracted pins that option extraction unwraps `as const`, as CompTimeArgs validation does.
 func TestResolver_ValidateOptions_AsConstExtracted(t *testing.T) {
 	const dts = `declare module '@mionjs/run-types' {
   export type InjectTypeFnArgs<T, Fn extends string> = string & {readonly __rtInjectTypeFnArgsBrand?: T; readonly __rtInjectTypeFnArgsFn?: Fn};

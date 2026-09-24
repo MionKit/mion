@@ -204,7 +204,7 @@ function baseline(key, probePath, text) {
 
 function measure(form, baselineKey, probePath, baselineText, probeText, fallbackText) {
   let result = compile(probePath, probeText);
-  // The serializable-only contract drops function members from samples, so on a value error retry declare-only; a type error still fails.
+  // Samples omit function members (serializable-only), so a value error retries declare-only; a type error still fails.
   if (result.errors.length && fallbackText && fallbackText !== probeText) {
     const retry = compile(probePath, fallbackText);
     if (!retry.errors.length) result = retry;

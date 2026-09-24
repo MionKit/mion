@@ -471,9 +471,8 @@ func (ValidateEmitter) emitKindDefault(rt *reflection.RunType, ctx *EmitContext,
 		return emitLiteral(rt, v)
 
 	case reflection.KindArray:
-		// An array element is a positional (non-property) slot, so a CodeNS element propagates to the root and the renderer emits
-		// an alwaysThrow factory (T3), consistent with tuple slots and union members. As a *property* child the parent absorbs it
-		// instead and drops the property with a Warning.
+		// A CodeNS element is a positional slot, so it makes the root alwaysThrow (T3), like tuple slots and union members.
+		// A CodeNS property child is absorbed instead, the parent dropping it with a Warning.
 		if rt.Child == nil {
 			return RTCode{Code: "", Type: CodeE}
 		}
@@ -484,7 +483,6 @@ func (ValidateEmitter) emitKindDefault(rt *reflection.RunType, ctx *EmitContext,
 		// Reset the accessor so a later sibling push starts from the parent's Vλl rather than the stale subscript.
 		ctx.SetChildAccessor("")
 		if childRT.Type == CodeNS {
-			// Element type can't be validated → array can't be validated → propagate upward.
 			return RTCode{Code: "", Type: CodeNS}
 		}
 		if childRT.Code == "" {
