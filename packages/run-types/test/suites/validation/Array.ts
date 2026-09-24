@@ -60,10 +60,7 @@ export const ARRAY = {
     },
     getSamples: () => ({
       valid: [[], ['hello', 'world']],
-      // The mixed-types invalid `['hello', 'world', {hello: 'world'}]`
-      // is the carry-over from the "simple array hasUnknownKeys on
-      // array with non objects" block — the object element fails the
-      // string check, so the whole array fails validate.
+      // In `['hello', 'world', {hello: 'world'}]` the object element fails the string check, so the whole array fails.
       invalid: ['hello', ['hello', 2], ['hello', 'world', {hello: 'world'}], null, undefined, [42], [null]],
     }),
     getExpectedErrors: () => [

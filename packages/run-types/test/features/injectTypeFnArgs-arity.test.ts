@@ -13,9 +13,9 @@ type SixFamilyMarker = InjectTypeFnArgs<
   'validationErrors',
   'jsonDecoder',
   'jsonEncoder',
-  'hasUnknownKeys',
+  'validateStrict',
   'removeUnknownKeys',
-  'unknownKeyErrors'
+  'validationErrorsStrict'
 >;
 
 // A twelve-family alias pins the current F12 cap boundary (all distinct). It is
@@ -26,9 +26,9 @@ type TwelveFamilyMarker = InjectTypeFnArgs<
   'validationErrors',
   'jsonDecoder',
   'jsonEncoder',
-  'hasUnknownKeys',
+  'validateStrict',
   'removeUnknownKeys',
-  'unknownKeyErrors',
+  'validationErrorsStrict',
   'stringifyJson',
   'formatTransform',
   'toBinary',

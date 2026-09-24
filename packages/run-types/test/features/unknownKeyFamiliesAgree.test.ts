@@ -13,16 +13,13 @@ import {describe, expect, it} from 'vitest';
 import {
   createRemoveUnknownKeysFn,
   createGetValidationErrorsFn,
-  createHasUnknownKeysFn,
   createJsonDecoderFn,
   createJsonEncoderFn,
-  createUnknownKeyErrorsFn,
   createValidateFn,
-  type HasUnknownKeysFn,
+  type GetValidationErrorsFn,
   type InjectTypeFnArgs,
   type JsonDecoderFn,
   type JsonEncoderFn,
-  type UnknownKeyErrorsFn,
 } from '../../src/index.ts';
 import {getRTFunction} from '../../src/runtime/index.ts';
 
@@ -39,15 +36,16 @@ type CountsOrInner = Counts | Inner;
 interface Row {
   /** The wire the caller sent, with one undeclared `evil` key planted. **/
   wire: string;
-  /** The path `unknownKeyErrors` must report for that key. **/
+  /** The path of that key, which the strict errors form reports unless the row is a union. **/
   reported: (string | number)[];
+  /** Set for a union: the strict errors form names the union at the root, since the key is only undeclared relative to a branch. **/
+  union?: true;
   /** The value every deleting family must produce; the strip decoder blanks the key instead. **/
   clean: unknown;
   /** Set for a union with object members: `removeUnknownKeys` refuses it, not knowing which member to rebuild. **/
   cloneRefuses?: true;
   fns: () => {
-    hasUnknownKeys: HasUnknownKeysFn;
-    unknownKeyErrors: UnknownKeyErrorsFn;
+    errorsStrict: GetValidationErrorsFn;
     /** `T` varies per row and `ValidateFn<T>` / `RemoveUnknownKeysFn<T>` depend on it, so these are typed loosely. **/
     validateStrict: (value: unknown) => boolean;
     /** Held back unbuilt: a refusing row throws at factory creation, not on the call. **/
@@ -69,6 +67,10 @@ function cloneDecoder<T>(id?: InjectTypeFnArgs<T, 'restoreFromJsonClone'>) {
   return getRTFunction<'restoreFromJsonClone'>(id);
 }
 
+/** Reference for the pooled allowlist the codecs read on `Pet`: keys declared by ANY member. **/
+const PET_KEYS = new Set(['kind', 'meows', 'barks']);
+const undeclaredOnPet = (value: Pet) => Object.keys(value).filter((key) => !PET_KEYS.has(key));
+
 describe('every unknown-key family agrees', () => {
   const rows = {
     'flat object': {
@@ -76,8 +78,7 @@ describe('every unknown-key family agrees', () => {
       reported: ['evil'],
       clean: {a: 'x'},
       fns: () => ({
-        hasUnknownKeys: createHasUnknownKeysFn<Inner>(),
-        unknownKeyErrors: createUnknownKeyErrorsFn<Inner>(),
+        errorsStrict: createGetValidationErrorsFn<Inner>(undefined, {checkUnknowns: true}),
         validateStrict: createValidateFn<Inner>(undefined, {checkUnknowns: true}),
         makeRemoveUnknownKeys: () => createRemoveUnknownKeysFn<Inner>(),
         stripDecoder: createJsonDecoderFn<Inner>(undefined, {strategy: 'strip'}),
@@ -90,8 +91,7 @@ describe('every unknown-key family agrees', () => {
       reported: [0, 'evil'],
       clean: [{a: 'x'}],
       fns: () => ({
-        hasUnknownKeys: createHasUnknownKeysFn<Inner[]>(),
-        unknownKeyErrors: createUnknownKeyErrorsFn<Inner[]>(),
+        errorsStrict: createGetValidationErrorsFn<Inner[]>(undefined, {checkUnknowns: true}),
         validateStrict: createValidateFn<Inner[]>(undefined, {checkUnknowns: true}),
         makeRemoveUnknownKeys: () => createRemoveUnknownKeysFn<Inner[]>(),
         stripDecoder: createJsonDecoderFn<Inner[]>(undefined, {strategy: 'strip'}),
@@ -104,8 +104,7 @@ describe('every unknown-key family agrees', () => {
       reported: [0, 'evil'],
       clean: [{a: 'x'}, 2],
       fns: () => ({
-        hasUnknownKeys: createHasUnknownKeysFn<[Inner, number]>(),
-        unknownKeyErrors: createUnknownKeyErrorsFn<[Inner, number]>(),
+        errorsStrict: createGetValidationErrorsFn<[Inner, number]>(undefined, {checkUnknowns: true}),
         validateStrict: createValidateFn<[Inner, number]>(undefined, {checkUnknowns: true}),
         makeRemoveUnknownKeys: () => createRemoveUnknownKeysFn<[Inner, number]>(),
         stripDecoder: createJsonDecoderFn<[Inner, number]>(undefined, {strategy: 'strip'}),
@@ -118,8 +117,7 @@ describe('every unknown-key family agrees', () => {
       reported: ['t', 0, 'evil'],
       clean: {t: [{a: 'x'}, 2]},
       fns: () => ({
-        hasUnknownKeys: createHasUnknownKeysFn<{t: [Inner, number]}>(),
-        unknownKeyErrors: createUnknownKeyErrorsFn<{t: [Inner, number]}>(),
+        errorsStrict: createGetValidationErrorsFn<{t: [Inner, number]}>(undefined, {checkUnknowns: true}),
         validateStrict: createValidateFn<{t: [Inner, number]}>(undefined, {checkUnknowns: true}),
         makeRemoveUnknownKeys: () => createRemoveUnknownKeysFn<{t: [Inner, number]}>(),
         stripDecoder: createJsonDecoderFn<{t: [Inner, number]}>(undefined, {strategy: 'strip'}),
@@ -133,9 +131,9 @@ describe('every unknown-key family agrees', () => {
       wire: '[{"a":"x","evil":1}]',
       reported: [0, 'evil'],
       clean: [{a: 'x'}],
+      union: true,
       fns: () => ({
-        hasUnknownKeys: createHasUnknownKeysFn<Inner[] | number>(),
-        unknownKeyErrors: createUnknownKeyErrorsFn<Inner[] | number>(),
+        errorsStrict: createGetValidationErrorsFn<Inner[] | number>(undefined, {checkUnknowns: true}),
         validateStrict: createValidateFn<Inner[] | number>(undefined, {checkUnknowns: true}),
         makeRemoveUnknownKeys: () => createRemoveUnknownKeysFn<Inner[] | number>(),
         stripDecoder: createJsonDecoderFn<Inner[] | number>(undefined, {strategy: 'strip'}),
@@ -147,9 +145,9 @@ describe('every unknown-key family agrees', () => {
       wire: '[{"a":"x","evil":1},2]',
       reported: [0, 'evil'],
       clean: [{a: 'x'}, 2],
+      union: true,
       fns: () => ({
-        hasUnknownKeys: createHasUnknownKeysFn<[Inner, number] | string>(),
-        unknownKeyErrors: createUnknownKeyErrorsFn<[Inner, number] | string>(),
+        errorsStrict: createGetValidationErrorsFn<[Inner, number] | string>(undefined, {checkUnknowns: true}),
         validateStrict: createValidateFn<[Inner, number] | string>(undefined, {checkUnknowns: true}),
         makeRemoveUnknownKeys: () => createRemoveUnknownKeysFn<[Inner, number] | string>(),
         stripDecoder: createJsonDecoderFn<[Inner, number] | string>(undefined, {strategy: 'strip'}),
@@ -164,9 +162,9 @@ describe('every unknown-key family agrees', () => {
       reported: ['evil'],
       clean: {a: 'x'},
       cloneRefuses: true,
+      union: true,
       fns: () => ({
-        hasUnknownKeys: createHasUnknownKeysFn<TwoObjects>(),
-        unknownKeyErrors: createUnknownKeyErrorsFn<TwoObjects>(),
+        errorsStrict: createGetValidationErrorsFn<TwoObjects>(undefined, {checkUnknowns: true}),
         validateStrict: createValidateFn<TwoObjects>(undefined, {checkUnknowns: true}),
         // @mion-downgrade-error RUK001
         makeRemoveUnknownKeys: () => createRemoveUnknownKeysFn<TwoObjects>(),
@@ -182,11 +180,8 @@ describe('every unknown-key family agrees', () => {
       const fns = row.fns();
       const parse = () => JSON.parse(row.wire);
 
-      expect(fns.hasUnknownKeys(parse()), 'hasUnknownKeys').toBe(true);
-      expect(
-        fns.unknownKeyErrors(parse()).map((error) => error.path),
-        'unknownKeyErrors'
-      ).toEqual([row.reported]);
+      const expectedErrors = row.union ? [{expected: 'union', path: []}] : [{expected: 'never', path: row.reported}];
+      expect(fns.errorsStrict(parse()), 'validation errors {checkUnknowns: true}').toEqual(expectedErrors);
       expect(fns.validateStrict(parse()), 'validate {checkUnknowns: true}').toBe(false);
       if (row.cloneRefuses) {
         expect(fns.makeRemoveUnknownKeys, 'removeUnknownKeys refuses an object-bearing union').toThrow(/RUK001/);
@@ -212,8 +207,10 @@ describe('every unknown-key family agrees', () => {
     const parse = () => JSON.parse(wire) as Counts;
     const all = {a: 1, evil: 2};
 
-    expect(createHasUnknownKeysFn<Counts>()(parse()), 'hasUnknownKeys').toBe(false);
-    expect(createUnknownKeyErrorsFn<Counts>()(parse()), 'unknownKeyErrors').toEqual([]);
+    expect(
+      createGetValidationErrorsFn<Counts>(undefined, {checkUnknowns: true})(parse()),
+      'validation errors {checkUnknowns: true}'
+    ).toEqual([]);
     expect(createValidateFn<Counts>(undefined, {checkUnknowns: true})(parse()), 'validate {checkUnknowns: true}').toBe(true);
     expect(createRemoveUnknownKeysFn<Counts>()(parse()), 'removeUnknownKeys').toStrictEqual(all);
     const cloneEncoded = createJsonEncoderFn<Counts>(undefined, {strategy: 'clone'})(parse()) as string;
@@ -225,17 +222,13 @@ describe('every unknown-key family agrees', () => {
 
   // A union with an index-signature member: no codec can tell a stray key on the object member from
   // a key the record member declares, so every key stays, on a value that only the object member
-  // matches. The unknown-key families and the strict validator are asked different questions here
-  // and both answer correctly: no key is undeclared, since the record member declares every key,
-  // and no member matches the value strictly, since the record refuses the string `a` and the
+  // matches. The strict validator still refuses it: the record refuses the string `a` and the
   // object literal refuses the extra key.
   it('keeps every key of a union whose member carries an index signature', () => {
     const wire = '{"a":"x","evil":1}';
     const parse = () => JSON.parse(wire) as CountsOrInner;
     const all = {a: 'x', evil: 1};
 
-    expect(createHasUnknownKeysFn<CountsOrInner>()(parse()), 'hasUnknownKeys').toBe(false);
-    expect(createUnknownKeyErrorsFn<CountsOrInner>()(parse()), 'unknownKeyErrors').toEqual([]);
     expect(createValidateFn<CountsOrInner>()(parse()), 'validate').toBe(true);
     expect(createValidateFn<CountsOrInner>(undefined, {checkUnknowns: true})(parse()), 'validate {checkUnknowns: true}').toBe(
       false
@@ -253,51 +246,37 @@ describe('every unknown-key family agrees', () => {
     );
   });
 
-  // "Is any key undeclared" and "does this value match the type" are different questions, and on a
-  // union with a record member they get different answers for the same value. Neither is wrong: no
-  // key is undeclared because the record member declares every key, and no member matches strictly
-  // because the record refuses the string `a` while the object literal refuses the extra key.
+  // "Is any key undeclared" and "does this value match the type" are different questions. No key is
+  // undeclared because the record member declares every key, so the stripping roads keep them all;
+  // no member matches strictly because the record refuses the string `a` while the object literal
+  // refuses the extra key.
   it('an undeclared key and a shape mismatch are different questions', () => {
-    const parse = () => JSON.parse('{"a":"x","evil":1}') as CountsOrInner;
+    const wire = '{"a":"x","evil":1}';
+    const parse = () => JSON.parse(wire) as CountsOrInner;
 
-    expect(createHasUnknownKeysFn<CountsOrInner>()(parse()), 'no key is undeclared').toBe(false);
-    expect(createUnknownKeyErrorsFn<CountsOrInner>()(parse()), 'so nothing is reported').toEqual([]);
+    expect(createJsonDecoderFn<CountsOrInner>(undefined, {strategy: 'strip'})(wire), 'no key is undeclared').toStrictEqual({
+      a: 'x',
+      evil: 1,
+    });
     expect(createValidateFn<CountsOrInner>()(parse()), 'the value matches a member loosely').toBe(true);
     expect(createValidateFn<CountsOrInner>(undefined, {checkUnknowns: true})(parse()), 'no member matches it strictly').toBe(
       false
     );
   });
 
-  // Following the unknown-key check with a plain validate is NOT the same as the fused strict
-  // validator, on this shape. The two-step accepts, because each step passes on its own question;
-  // the fused one refuses, because it asks whether a member matches strictly and none does. The
-  // two-step form composes them in the other order, so the two roads answer differently here.
-  it('checking unknown keys then validating is not the same as the fused strict validator', () => {
-    const parse = () => JSON.parse('{"a":"x","evil":1}') as CountsOrInner;
-    const validate = createValidateFn<CountsOrInner>();
-    const hasUnknownKeys = createHasUnknownKeysFn<CountsOrInner>();
-    const fused = createValidateFn<CountsOrInner>(undefined, {checkUnknowns: true});
-
-    const twoStepAccepts = validate(parse()) && !hasUnknownKeys(parse());
-    expect(twoStepAccepts, 'validate then unknown-key check').toBe(true);
-    expect(fused(parse()), 'fused strict validator').toBe(false);
-  });
-
   // A DISCRIMINATED union, where the members declare different keys. Every codec pools the members'
-  // key names into one list and keeps anything on it, which is the same list `hasUnknownKeys` reads.
-  // So a cat carrying `barks` survives every road and `hasUnknownKeys` reports nothing: the codecs
-  // and the standalone check give one answer.
+  // key names into one list and keeps anything on it, the list `undeclaredOnPet` spells out by hand.
+  // So a cat carrying `barks` survives every road: the codecs and the pooled list give one answer.
   //
   // The fused strict validator is the one that answers differently, and on purpose: it inherits
   // validate's branch chain, so it asks whether the MATCHED member declares the key. No codec can
   // ask that, since a codec never validates and so never learns which member matched.
-  it('keeps a key belonging to ANOTHER member of a union, the same answer hasUnknownKeys gives', () => {
+  it('keeps a key belonging to ANOTHER member of a union, the same answer the pooled list gives', () => {
     const wire = '{"kind":"cat","meows":true,"barks":3}';
     const parse = () => JSON.parse(wire) as Pet;
     const all = {kind: 'cat', meows: true, barks: 3};
 
-    expect(createHasUnknownKeysFn<Pet>()(parse()), 'hasUnknownKeys').toBe(false);
-    expect(createUnknownKeyErrorsFn<Pet>()(parse()), 'unknownKeyErrors').toEqual([]);
+    expect(undeclaredOnPet(parse()), 'pooled list').toEqual([]);
 
     const cloneEncoded = createJsonEncoderFn<Pet>(undefined, {strategy: 'clone'})(parse()) as string;
     const directEncoded = createJsonEncoderFn<Pet>(undefined, {strategy: 'direct'})(parse()) as string;
@@ -313,15 +292,14 @@ describe('every unknown-key family agrees', () => {
   });
 
   // Same union, same positions, a key NO member declares. Now the pooled list does not carry it, so
-  // every stripping road drops it and `hasUnknownKeys` reports it. This is the half that must never
-  // drift: a key belonging to nothing is undeclared on every road.
+  // every stripping road drops it. This is the half that must never drift: a key belonging to
+  // nothing is undeclared on every road.
   it('drops a key belonging to NO member of a union, on every road that strips', () => {
     const wire = '{"kind":"cat","meows":true,"zzz":9}';
     const parse = () => JSON.parse(wire) as Pet;
     const clean = {kind: 'cat', meows: true};
 
-    expect(createHasUnknownKeysFn<Pet>()(parse()), 'hasUnknownKeys').toBe(true);
-    expect(createUnknownKeyErrorsFn<Pet>()(parse()), 'unknownKeyErrors').toEqual([{expected: 'never', path: ['zzz']}]);
+    expect(undeclaredOnPet(parse()), 'pooled list').toEqual(['zzz']);
 
     const cloneEncoded = createJsonEncoderFn<Pet>(undefined, {strategy: 'clone'})(parse()) as string;
     const directEncoded = createJsonEncoderFn<Pet>(undefined, {strategy: 'direct'})(parse()) as string;
@@ -342,8 +320,8 @@ describe('every unknown-key family agrees', () => {
   // The other direction: a union carrying nothing keyed must stay compiled away, so the fix above
   // cannot have bought its coverage by making every union walk its members.
   it('leaves a union of primitives alone', () => {
-    expect(createHasUnknownKeysFn<string | number>()('hello')).toBe(false);
-    expect(createUnknownKeyErrorsFn<string | number>()('hello')).toEqual([]);
+    expect(createValidateFn<string | number>(undefined, {checkUnknowns: true})('hello')).toBe(true);
+    expect(createGetValidationErrorsFn<string | number>(undefined, {checkUnknowns: true})('hello')).toEqual([]);
     expect(createJsonDecoderFn<string | number>(undefined, {strategy: 'strip'})('"hello"')).toBe('hello');
   });
 

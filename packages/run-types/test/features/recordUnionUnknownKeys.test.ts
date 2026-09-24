@@ -1,11 +1,11 @@
 // A union carrying a Record member switches the unknown-key families OFF for the whole union: the value might match the
 // record, where every key is declared, and no codec can tell which member it matched, so the stripping decoders stop
-// stripping and `hasUnknownKeys` answers false. That breaks the two-step validate-then-pooled-key-check the router used
-// to run: both halves say yes and an undeclared key reaches the handler. The validators that close it are the subject of
-// unionUnknownKeys.test.ts; this file pins the CODEC half, the reason the hole exists at all.
+// stripping and a pooled key check (every key declared by ANY member) finds nothing. That breaks a two-step
+// validate-then-pooled-key-check: both halves say yes and an undeclared key reaches the handler. The strict validator
+// closes it (the `strict` column); unionUnknownKeys.test.ts owns the validators, this file pins the CODEC half.
 
 import {describe, expect, it} from 'vitest';
-import {createHasUnknownKeysFn, createJsonDecoderFn, createJsonEncoderFn, createValidateFn} from '../../src/index.ts';
+import {createJsonDecoderFn, createJsonEncoderFn, createValidateFn} from '../../src/index.ts';
 
 type ObjectOrNumbers = {a: string} | Record<string, number>;
 type ObjectOrStrings = {a: string} | Record<string, string>;
@@ -16,7 +16,10 @@ type PlainObject = {a: string};
 interface Probe {
   decodeStrip: (wire: string) => unknown;
   validate: (value: unknown) => boolean;
-  hasUnknownKeys: (value: unknown) => boolean;
+  /** `createValidateFn<T>(undefined, {checkUnknowns: true})`. */
+  strict: (value: unknown) => boolean;
+  /** Reference for the pooled allowlist: the keys declared by ANY member, or every key once a member is a record. */
+  pooledKeys: readonly string[] | 'every key';
   encodeClone: (value: any) => unknown;
 }
 
@@ -27,8 +30,16 @@ interface Row {
   /** What the stripping decoder returns; equal to `value` when nothing was stripped. */
   decoded: Record<string, unknown>;
   validate: boolean;
-  /** `validate && !hasUnknownKeys`, the two-step answer the router used to run. */
+  /** `validate` and no key outside the pooled allowlist, the two-step answer. */
   twoStep: boolean;
+  /** The strict validator's answer on `value`, which judges the matched member alone. */
+  strict: boolean;
+}
+
+function outsidePool(probe: Probe, value: unknown): string[] {
+  const {pooledKeys} = probe;
+  if (pooledKeys === 'every key') return [];
+  return Object.keys(value as object).filter((key) => !pooledKeys.includes(key));
 }
 
 function checkRows(probe: Probe, rows: Row[]): void {
@@ -36,8 +47,9 @@ function checkRows(probe: Probe, rows: Row[]): void {
     const decoded = probe.decodeStrip(JSON.stringify(row.value));
     expect(decoded, `${row.label} decoder {strategy: 'strip'}`).toEqual(row.decoded);
     expect(probe.validate(decoded), `${row.label} validate`).toBe(row.validate);
-    const twoStep = probe.validate(decoded) && !probe.hasUnknownKeys(decoded);
-    expect(twoStep, `${row.label} validate + hasUnknownKeys`).toBe(row.twoStep);
+    const twoStep = probe.validate(decoded) && outsidePool(probe, decoded).length === 0;
+    expect(twoStep, `${row.label} validate + pooled key check`).toBe(row.twoStep);
+    expect(probe.strict(row.value), `${row.label} validate {checkUnknowns: true}`).toBe(row.strict);
   }
 }
 
@@ -46,11 +58,12 @@ describe('a union with a Record member', () => {
     const probe: Probe = {
       decodeStrip: createJsonDecoderFn<ObjectOrNumbers>(undefined, {strategy: 'strip'}) as Probe['decodeStrip'],
       validate: createValidateFn<ObjectOrNumbers>() as Probe['validate'],
-      hasUnknownKeys: createHasUnknownKeysFn<ObjectOrNumbers>() as Probe['hasUnknownKeys'],
+      strict: createValidateFn<ObjectOrNumbers>(undefined, {checkUnknowns: true}) as Probe['strict'],
+      pooledKeys: 'every key',
       encodeClone: createJsonEncoderFn<ObjectOrNumbers>(undefined, {strategy: 'clone'}) as Probe['encodeClone'],
     };
     checkRows(probe, [
-      {label: 'clean object member', value: {a: 'x'}, decoded: {a: 'x'}, validate: true, twoStep: true},
+      {label: 'clean object member', value: {a: 'x'}, decoded: {a: 'x'}, validate: true, twoStep: true, strict: true},
       // A string value no record member could hold, so the value matches NO member. The two-step answer takes it.
       {
         label: 'extra key the record cannot hold',
@@ -58,6 +71,7 @@ describe('a union with a Record member', () => {
         decoded: {a: 'x', evil: 'garbage'},
         validate: true,
         twoStep: true,
+        strict: false,
       },
       // A number value the record COULD hold, but then `a` would have to be a number too.
       {
@@ -66,9 +80,10 @@ describe('a union with a Record member', () => {
         decoded: {a: 'x', evil: 1},
         validate: true,
         twoStep: true,
+        strict: false,
       },
-      {label: 'clean record member', value: {p: 1, q: 2}, decoded: {p: 1, q: 2}, validate: true, twoStep: true},
-      {label: 'empty object', value: {}, decoded: {}, validate: true, twoStep: true},
+      {label: 'clean record member', value: {p: 1, q: 2}, decoded: {p: 1, q: 2}, validate: true, twoStep: true, strict: true},
+      {label: 'empty object', value: {}, decoded: {}, validate: true, twoStep: true, strict: true},
     ]);
     // The encoder keeps the key too, so a handler RETURNING this type writes every own property to the wire.
     expect(probe.encodeClone({a: 'public', passwordHash: 'SECRET'})).toBe('{"a":"public","passwordHash":"SECRET"}');
@@ -78,11 +93,12 @@ describe('a union with a Record member', () => {
     const probe: Probe = {
       decodeStrip: createJsonDecoderFn<ObjectOrStrings>(undefined, {strategy: 'strip'}) as Probe['decodeStrip'],
       validate: createValidateFn<ObjectOrStrings>() as Probe['validate'],
-      hasUnknownKeys: createHasUnknownKeysFn<ObjectOrStrings>() as Probe['hasUnknownKeys'],
+      strict: createValidateFn<ObjectOrStrings>(undefined, {checkUnknowns: true}) as Probe['strict'],
+      pooledKeys: 'every key',
       encodeClone: createJsonEncoderFn<ObjectOrStrings>(undefined, {strategy: 'clone'}) as Probe['encodeClone'],
     };
     checkRows(probe, [
-      {label: 'clean object member', value: {a: 'x'}, decoded: {a: 'x'}, validate: true, twoStep: true},
+      {label: 'clean object member', value: {a: 'x'}, decoded: {a: 'x'}, validate: true, twoStep: true, strict: true},
       // Genuinely a Record<string, string>, so every family is right to keep the key.
       {
         label: 'extra key the record holds',
@@ -90,6 +106,7 @@ describe('a union with a Record member', () => {
         decoded: {a: 'x', evil: 'garbage'},
         validate: true,
         twoStep: true,
+        strict: true,
       },
       {
         label: 'extra key the record cannot hold',
@@ -97,9 +114,17 @@ describe('a union with a Record member', () => {
         decoded: {a: 'x', evil: 1},
         validate: true,
         twoStep: true,
+        strict: false,
       },
-      {label: 'numbers, matching no member', value: {p: 1, q: 2}, decoded: {p: 1, q: 2}, validate: false, twoStep: false},
-      {label: 'empty object', value: {}, decoded: {}, validate: true, twoStep: true},
+      {
+        label: 'numbers, matching no member',
+        value: {p: 1, q: 2},
+        decoded: {p: 1, q: 2},
+        validate: false,
+        twoStep: false,
+        strict: false,
+      },
+      {label: 'empty object', value: {}, decoded: {}, validate: true, twoStep: true, strict: true},
     ]);
   });
 });
@@ -109,15 +134,23 @@ describe('the same shapes without a Record member, where the codecs do their job
     const probe: Probe = {
       decodeStrip: createJsonDecoderFn<TwoObjects>(undefined, {strategy: 'strip'}) as Probe['decodeStrip'],
       validate: createValidateFn<TwoObjects>() as Probe['validate'],
-      hasUnknownKeys: createHasUnknownKeysFn<TwoObjects>() as Probe['hasUnknownKeys'],
+      strict: createValidateFn<TwoObjects>(undefined, {checkUnknowns: true}) as Probe['strict'],
+      pooledKeys: ['a', 'b'],
       encodeClone: createJsonEncoderFn<TwoObjects>(undefined, {strategy: 'clone'}) as Probe['encodeClone'],
     };
     checkRows(probe, [
-      {label: 'clean object member', value: {a: 'x'}, decoded: {a: 'x'}, validate: true, twoStep: true},
-      {label: 'extra string key', value: {a: 'x', evil: 'garbage'}, decoded: {a: 'x'}, validate: true, twoStep: false},
-      {label: 'extra number key', value: {a: 'x', evil: 1}, decoded: {a: 'x'}, validate: true, twoStep: false},
-      {label: 'matching no member', value: {p: 1, q: 2}, decoded: {}, validate: false, twoStep: false},
-      {label: 'empty object', value: {}, decoded: {}, validate: false, twoStep: false},
+      {label: 'clean object member', value: {a: 'x'}, decoded: {a: 'x'}, validate: true, twoStep: true, strict: true},
+      {
+        label: 'extra string key',
+        value: {a: 'x', evil: 'garbage'},
+        decoded: {a: 'x'},
+        validate: true,
+        twoStep: false,
+        strict: false,
+      },
+      {label: 'extra number key', value: {a: 'x', evil: 1}, decoded: {a: 'x'}, validate: true, twoStep: false, strict: false},
+      {label: 'matching no member', value: {p: 1, q: 2}, decoded: {}, validate: false, twoStep: false, strict: false},
+      {label: 'empty object', value: {}, decoded: {}, validate: false, twoStep: false, strict: false},
     ]);
     expect(probe.encodeClone({a: 'public', passwordHash: 'SECRET'})).toBe('{"a":"public"}');
   });
@@ -126,15 +159,23 @@ describe('the same shapes without a Record member, where the codecs do their job
     const probe: Probe = {
       decodeStrip: createJsonDecoderFn<PlainObject>(undefined, {strategy: 'strip'}) as Probe['decodeStrip'],
       validate: createValidateFn<PlainObject>() as Probe['validate'],
-      hasUnknownKeys: createHasUnknownKeysFn<PlainObject>() as Probe['hasUnknownKeys'],
+      strict: createValidateFn<PlainObject>(undefined, {checkUnknowns: true}) as Probe['strict'],
+      pooledKeys: ['a'],
       encodeClone: createJsonEncoderFn<PlainObject>(undefined, {strategy: 'clone'}) as Probe['encodeClone'],
     };
     checkRows(probe, [
-      {label: 'clean value', value: {a: 'x'}, decoded: {a: 'x'}, validate: true, twoStep: true},
-      {label: 'extra string key', value: {a: 'x', evil: 'garbage'}, decoded: {a: 'x'}, validate: true, twoStep: false},
-      {label: 'extra number key', value: {a: 'x', evil: 1}, decoded: {a: 'x'}, validate: true, twoStep: false},
-      {label: 'wrong shape', value: {p: 1, q: 2}, decoded: {}, validate: false, twoStep: false},
-      {label: 'empty object', value: {}, decoded: {}, validate: false, twoStep: false},
+      {label: 'clean value', value: {a: 'x'}, decoded: {a: 'x'}, validate: true, twoStep: true, strict: true},
+      {
+        label: 'extra string key',
+        value: {a: 'x', evil: 'garbage'},
+        decoded: {a: 'x'},
+        validate: true,
+        twoStep: false,
+        strict: false,
+      },
+      {label: 'extra number key', value: {a: 'x', evil: 1}, decoded: {a: 'x'}, validate: true, twoStep: false, strict: false},
+      {label: 'wrong shape', value: {p: 1, q: 2}, decoded: {}, validate: false, twoStep: false, strict: false},
+      {label: 'empty object', value: {}, decoded: {}, validate: false, twoStep: false, strict: false},
     ]);
     expect(probe.encodeClone({a: 'public', passwordHash: 'SECRET'})).toBe('{"a":"public"}');
   });

@@ -1,16 +1,16 @@
 // End-to-end tests for the `{checkUnknowns: true}` fused validators — one
-// compiled function that checks properties AND undeclared keys in a single walk,
-// replacing `isT(v) && !hasUnknownKeys(v)`.
+// compiled function that checks properties AND undeclared keys in a single walk.
 //
 // The load-bearing test here is the PARITY suite: whatever shape is thrown at it,
-// the fused validator must agree with the two-call composition it replaces. That
-// is the contract users are trading their two calls for. The nested-named-type
+// the fused validator must agree with the plain validator plus an in-test walk
+// over the keys the type declares. The nested-named-type
 // case is the one that would silently regress if the feature were built as a
 // compile-time VARIANT instead of its own family, since a variant only reaches
 // the root object.
 
 import {describe, expect, it} from 'vitest';
-import {createGetValidationErrorsFn, createHasUnknownKeysFn, createUnknownKeyErrorsFn, createValidateFn} from '@mionjs/run-types';
+import {createGetValidationErrorsFn, createValidateFn} from '@mionjs/run-types';
+import {undeclaredKeyErrors, type DeclaredKeys} from '../suites/strict-validation/Strict.ts';
 
 describe('checkUnknowns — createValidateFn', () => {
   it('accepts a value with exactly the declared keys', () => {
@@ -98,9 +98,8 @@ describe('checkUnknowns — createGetValidationErrorsFn', () => {
   });
 });
 
-// Error ORDER is a deliberate, documented divergence from the two-call form:
-// `verr(v).concat(uke(v))` groups every type error ahead of every unknown-key
-// error, but one walk cannot produce that grouping. The fused report interleaves
+// Error ORDER is deliberate: one walk cannot group every type error ahead of
+// every unknown-key error. The fused report interleaves
 // per node, in walk order. Pinned here so a future change to the emit has to
 // decide the order on purpose rather than drift into it.
 describe('checkUnknowns — error order', () => {
@@ -121,31 +120,24 @@ describe('checkUnknowns — error order', () => {
   });
 });
 
-// The contract users are trading their two calls for. Every case below is
-// checked against the composition it replaces rather than against a hand-written
-// expectation, so the two can never drift apart silently.
-describe('checkUnknowns — parity with the two-call composition', () => {
+// Every case below is checked against a reference (the plain validator plus an
+// in-test key walk) rather than a hand-written expectation per value.
+describe('checkUnknowns — parity with the plain validator plus a key walk', () => {
   type Address = {street: string; city: string};
   type Person = {name: string; age: number; address: Address; tags?: string[]};
 
   const isPersonStrict = createValidateFn<Person>(undefined, {checkUnknowns: true});
   const isPerson = createValidateFn<Person>();
-  // The FAST variant: that is the composition the fused form replaces. Both get
-  // to assume validation already ran, so neither emits a shape guard. The blind
-  // variant does, which makes it answer differently for an array. The `&&` below
-  // short-circuits, so this only ever runs on a value that passed validate,
-  // which is its precondition.
-  const hasUnknown = createHasUnknownKeysFn<Person>(undefined, {runsAfterValidation: true});
+  const personKeys: DeclaredKeys = {name: null, age: null, address: {street: null, city: null}, tags: null};
+  const keyErrors = (value: unknown) => undeclaredKeyErrors(value, personKeys);
+  const hasUnknown = (value: unknown) => keyErrors(value).length > 0;
 
   const errorsStrict = createGetValidationErrorsFn<Person>(undefined, {checkUnknowns: true});
   const typeErrors = createGetValidationErrorsFn<Person>();
-  const keyErrors = createUnknownKeyErrorsFn<Person>();
 
   // Values the object guard ADMITS (`typeof v === 'object' && v !== null`).
-  // Arrays, Maps and Dates belong here, not with the primitives: they pass that
-  // gate for a required-prop shape, so their own enumerable keys really are
-  // undeclared ones. `[{name: 'Ada'}]` carrying a `'0'` key is a genuine
-  // `{expected: 'never'}` entry, not a false positive.
+  // An array, Map or Date here is a shape error only: an array's indexes are
+  // never reported as undeclared keys, the shape error already names the problem.
   const objectCorpus: unknown[] = [
     {name: 'Ada', age: 36, address: {street: 'A', city: 'B'}},
     {name: 'Ada', age: 36, address: {street: 'A', city: 'B'}, tags: ['x']},
@@ -161,11 +153,8 @@ describe('checkUnknowns — parity with the two-call composition', () => {
     new Date(),
   ];
 
-  // Values the object guard REJECTS. Since the unknown-keys families gained
-  // their own shape guard (they now answer [] / false for a value the schema
-  // does not admit, rather than throwing or inventing one entry per character
-  // index), the ERROR composition is well-defined over these too — so they ride
-  // both oracles below rather than only the boolean one.
+  // Values the object guard REJECTS: they carry no undeclared keys, so both
+  // oracles below cover them too.
   const primitiveCorpus: unknown[] = [null, undefined, 'a string', 42];
 
   it.each([...objectCorpus, ...primitiveCorpus].map((value, index) => [index, value] as const))(
@@ -175,17 +164,11 @@ describe('checkUnknowns — parity with the two-call composition', () => {
     }
   );
 
-  // Compared as SETS: the fused walk interleaves entries where the two-call form
+  // Compared as SETS: the fused walk interleaves entries where the reference
   // groups them (see the error-order suite above), so membership is the shared
   // contract, not sequence.
-  //
-  // This oracle used to be restricted to guard-admitted values, because
-  // `createUnknownKeyErrorsFn` descended into declared properties with nothing
-  // asserting shape — it threw on `null` and returned one bogus
-  // `{expected: 'never'}` per character index on a string. That is fixed, so the
-  // reference is defined over every input and the corpus is whole again.
   it.each([...objectCorpus, ...primitiveCorpus].map((value, index) => [index, value] as const))(
-    'error report matches verr + uke as a set — case %i',
+    'error report matches verr + the key walk as a set — case %i',
     (_index, value) => {
       const fused = errorsStrict(value);
       const composed = [...typeErrors(value), ...keyErrors(value)];
@@ -289,13 +272,10 @@ describe('checkUnknowns — arrays', () => {
 //   vst_Cat: (… v.kind==='cat' && typeof v.meows==='boolean' && cntEK(v) === 2)
 //   vst_Dog: (… v.kind==='dog' && Number.isFinite(v.barks)   && cntEK(v) === 2)
 //
-// The standalone `hasUnknownKeys` cannot do that — it never validates, so it
-// cannot know which member matched — and instead pools every member's property
-// names into one merged allowlist. That is a deliberate trade-off (one flat loop
-// instead of a per-member walk on every call), which means the two DISAGREE on a
-// value carrying another member's key. The disagreement is pinned below rather
-// than smoothed over: the fused validator is the one that follows the branch
-// `isType` actually matched.
+// A codec cannot do that: it never validates, so it cannot know which member
+// matched, and instead pools every member's property names into one merged
+// allowlist. The two DISAGREE on a value carrying another member's key; the
+// fused validator is the one that follows the branch `isType` actually matched.
 
 interface Cat {
   kind: 'cat';
@@ -361,12 +341,12 @@ describe('checkUnknowns — unions of named interfaces', () => {
   });
 
   // DELIBERATE DIVERGENCE, pinned so it stays a decision rather than becoming a
-  // surprise. `hasUnknownKeys` pools every member's keys, so it accepts a cat
-  // carrying `barks`; the fused validator does not, because it follows the
-  // branch that matched. Anywhere the two must agree, use the fused one.
-  it('is STRICTER than validate + hasUnknownKeys on a mixed-member value', () => {
+  // surprise. The merged allowlist accepts a cat carrying `barks`; the fused
+  // validator does not, because it follows the branch that matched.
+  it('is STRICTER than validate + the merged allowlist on a mixed-member value', () => {
     const loose = createValidateFn<Pet>();
-    const hasUnknown = createHasUnknownKeysFn<Pet>();
+    const mergedKeys: DeclaredKeys = {kind: null, meows: null, barks: null};
+    const hasUnknown = (value: unknown) => undeclaredKeyErrors(value, mergedKeys).length > 0;
     const mixed = {kind: 'cat', meows: true, barks: 3};
 
     expect(loose(mixed) && !hasUnknown(mixed)).toBe(true); // the merged allowlist admits it

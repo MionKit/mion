@@ -12,9 +12,7 @@ import {
   type ValidateOptions,
   type ValidateFn,
   type GetValidationErrorsFn,
-  type HasUnknownKeysFn,
   type RemoveUnknownKeysFn,
-  type UnknownKeyErrorsFn,
   // The JSON value-level primitive fn shapes are public again (recoverable via
   // getRTFunction), so the deserialize twins that exercise the per-primitive
   // `entry.code` round-trip type against the published aliases.
@@ -87,7 +85,6 @@ function deserializeRTFunction<F extends AnyFn>(fnName: string, identityFn: F): 
 
 const identityValueFn = (v: unknown) => v;
 const getValidationErrorsIdentity: GetValidationErrorsFn = () => [];
-const unknownKeyErrorsIdentity: UnknownKeyErrorsFn = () => [];
 const stringifyJsonIdentity: StringifyJsonFn = (v) => JSON.stringify(v);
 
 // The trailing `as unknown as <T>(...) => Fn` cast restores the generic <T>
@@ -118,23 +115,11 @@ export const deserializeGetValidationErrors = deserializeRTFunctionWithOptions<G
 ) => GetValidationErrorsFn) &
   (<T>(val?: T, options?: ValidateOptions, id?: InjectTypeFnArgs<T, 'validationErrors'>) => GetValidationErrorsFn);
 
-export const deserializeHasUnknownKeys = deserializeRTFunction<HasUnknownKeysFn>(
-  'deserializeHasUnknownKeys',
-  () => false
-) as unknown as (<T>(runType: RunType<T>, id?: InjectTypeFnArgs<T, 'hasUnknownKeys'>) => HasUnknownKeysFn) &
-  (<T>(val?: T, id?: InjectTypeFnArgs<T, 'hasUnknownKeys'>) => HasUnknownKeysFn);
-
 export const deserializeRemoveUnknownKeys = deserializeRTFunction<RemoveUnknownKeysFn>(
   'deserializeRemoveUnknownKeys',
   identityValueFn
 ) as unknown as (<T>(runType: RunType<T>, id?: InjectTypeFnArgs<T, 'removeUnknownKeys'>) => RemoveUnknownKeysFn) &
   (<T>(val?: T, id?: InjectTypeFnArgs<T, 'removeUnknownKeys'>) => RemoveUnknownKeysFn);
-
-export const deserializeUnknownKeyErrors = deserializeRTFunction<UnknownKeyErrorsFn>(
-  'deserializeUnknownKeyErrors',
-  unknownKeyErrorsIdentity
-) as unknown as (<T>(runType: RunType<T>, id?: InjectTypeFnArgs<T, 'unknownKeyErrors'>) => UnknownKeyErrorsFn) &
-  (<T>(val?: T, id?: InjectTypeFnArgs<T, 'unknownKeyErrors'>) => UnknownKeyErrorsFn);
 
 export const deserializePrepareForJson = deserializeRTFunction<PrepareForJsonFn>(
   'deserializePrepareForJson',

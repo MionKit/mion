@@ -15,12 +15,7 @@
 
 import {describe, test, expect} from 'vitest';
 import {FN_HASHES} from '../../src/go-generated/fnHashes.generated.ts';
-import {
-  type InjectTypeFnArgs,
-  type CompTimeFnArgs,
-  type ValidateOptions,
-  type HasUnknownKeysCompileOptions,
-} from '@mionjs/run-types';
+import {type InjectTypeFnArgs, type CompTimeFnArgs, type ValidateOptions} from '@mionjs/run-types';
 import {getFnHash} from '@mionjs/run-types/runtime';
 import {entryTupleKey, isEntryTuple, FN_HASH_LEN} from '../../src/runtypes/entryTuple.ts';
 
@@ -57,13 +52,6 @@ function grabJsonDec<T>(_val?: T, id?: InjectTypeFnArgs<T, 'jsonDecoder'>) {
   return id;
 }
 function grabPjs<T>(_val?: T, id?: InjectTypeFnArgs<T, 'prepareForJsonClone'>) {
-  return id;
-}
-function grabHukOpts<T>(
-  _val?: T,
-  _opts?: CompTimeFnArgs<HasUnknownKeysCompileOptions>,
-  id?: InjectTypeFnArgs<T, 'hasUnknownKeys'>
-) {
   return id;
 }
 
@@ -109,13 +97,6 @@ describe('getFnHash — unit (resolves the version-independent fnHash per family
     expect(getFnHash('removeUnknownKeys', {numberMode: 'typeof'})).toBe('C85b');
   });
 
-  test('hasUnknownKeys resolves its runsAfterValidation variant', () => {
-    expect(getFnHash('hasUnknownKeys')).toBe('GsPX');
-    expect(getFnHash('hasUnknownKeys', {runsAfterValidation: true})).toBe('be7V');
-    // Foreign options don't select a huk variant.
-    expect(getFnHash('hasUnknownKeys', {numberMode: 'typeof'})).toBe('GsPX');
-  });
-
   test('throws on an unknown fnKey or a nonexistent variant', () => {
     expect(() => getFnHash('nope')).toThrow(/unknown fnKey/);
     expect(() => getFnHash('jsonEncoder', {strategy: 'bogus'})).toThrow(/no .* variant/);
@@ -148,16 +129,6 @@ describe('getFnHash — matches the plugin-injected fnHash (table ⟷ live binar
     expect(getFnHash('validate', {numberMode: 'notNaN'})).toBe(injectedNotNaN);
     // Explicit 'isFinite' is the default → collapses to the plain injected hash.
     expect(getFnHash('validate', {numberMode: 'isFinite'})).toBe(injectedPlain);
-  });
-
-  test('hasUnknownKeys runsAfterValidation variant equals its injected fnHash', () => {
-    // Same invariant as the validate options: the plugin injects a DIFFERENT
-    // hash for the runsAfterValidation variant, and getFnHash tracks it.
-    const injectedPlain = injectedHash(grabHukOpts<Payload>());
-    const injectedRav = injectedHash(grabHukOpts<Payload>(undefined, {runsAfterValidation: true}));
-    expect(injectedRav).not.toBe(injectedPlain);
-    expect(getFnHash('hasUnknownKeys')).toBe(injectedPlain);
-    expect(getFnHash('hasUnknownKeys', {runsAfterValidation: true})).toBe(injectedRav);
   });
 
   test('reflection call shape agrees with the static form (both marker shapes)', () => {

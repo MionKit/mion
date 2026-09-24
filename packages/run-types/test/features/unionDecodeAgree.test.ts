@@ -10,7 +10,7 @@
 // One row per union shape, every encode and decode function on the same value.
 
 import {describe, expect, it} from 'vitest';
-import {createHasUnknownKeysFn, createJsonDecoderFn, createJsonEncoderFn, type InjectTypeFnArgs} from '../../src/index.ts';
+import {createJsonDecoderFn, createJsonEncoderFn, type InjectTypeFnArgs} from '../../src/index.ts';
 import {getRTFunction} from '../../src/runtime/index.ts';
 
 // mion's `clone` strategy decodes with `rjs`, which has no createX factory: it is recovered through
@@ -197,7 +197,7 @@ describe('every union decode answers the same', () => {
   }
 
   // An index-signature member declares every key for the WHOLE union: nothing on the value is
-  // undeclared, so no family may drop, blank or report `evil`, the encoders included. Which member
+  // undeclared, so no family may drop or blank `evil`, the encoders included. Which member
   // a key belongs to is validation's question, not a decoder's.
   it('keeps every key when a member carries an index signature', () => {
     const wide = {a: 'x', evil: 1};
@@ -213,7 +213,6 @@ describe('every union decode answers the same', () => {
     expect(cloneDecoder<IndexSignatureMember>()(wire), 'rjs').toStrictEqual(wide);
     expect(createJsonDecoderFn<IndexSignatureMember>(undefined, {strategy: 'strip'})(wire), 'strip').toStrictEqual(wide);
     expect(createJsonDecoderFn<IndexSignatureMember>(undefined, {strategy: 'compact'})(wire), 'compact').toStrictEqual(wide);
-    expect(createHasUnknownKeysFn<IndexSignatureMember>()(wide), 'hasUnknownKeys').toBe(false);
   });
 
   // Every attempt must throw a plain Error carrying the SAME message. The message itself is not
