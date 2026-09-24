@@ -91,6 +91,10 @@ describe('Create routes should', () => {
       id: 'mionDeserializeRequest',
       type: HandlerType.rawMiddleware,
     },
+    mionSyncRoutes: {
+      id: 'mion@syncRoutes',
+      type: HandlerType.middleware,
+    },
     mionMethodsMetadata: {
       id: 'mion@methodsMetadata',
       type: HandlerType.middleware,
@@ -104,6 +108,8 @@ describe('Create routes should', () => {
   function addDefaultExecutables(exec: any[]) {
     return [
       expect.objectContaining({...defaultExecutables.mionDeserializeRequest}),
+      // the build injects a version into initRoutes, so the middleware that sends it is in every chain
+      expect.objectContaining({...defaultExecutables.mionSyncRoutes}),
       ...exec,
       expect.objectContaining({...defaultExecutables.mionMethodsMetadata}),
       expect.objectContaining({...defaultExecutables.mionSerializeResponse}),
@@ -116,7 +122,7 @@ describe('Create routes should', () => {
     mion.initRoutes(routes);
 
     expect(geRoutesSize()).toEqual(7); // includes +2 mion Error routes (thrownErrors, platformError)
-    expect(getMiddlewaresSize()).toEqual(6);
+    expect(getMiddlewaresSize()).toEqual(7);
 
     expect(getRouteExecutionChain('/users/getUser')?.methods).toEqual(
       addDefaultExecutables([
@@ -225,7 +231,7 @@ describe('Create routes should', () => {
     createMionRouter({basePath: 'api/v1', suffix: '.json'}).initRoutes(routes);
 
     expect(geRoutesSize()).toEqual(7); // includes +2 mion Error routes (thrownErrors, platformError)
-    expect(getMiddlewaresSize()).toEqual(6);
+    expect(getMiddlewaresSize()).toEqual(7);
 
     expect(getRouteExecutionChain('/api/v1/users/getUser.json')).toBeTruthy();
     expect(getRouteExecutionChain('/api/v1/users/setUser.json')).toBeTruthy();
