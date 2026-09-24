@@ -142,8 +142,12 @@ describe('every soak lane carries a quick budget (the per-PR tier)', () => {
 });
 
 describe('ci.yml runs every lane at its quick budget on every PR', () => {
-  it('js-lint runs exactly the time-boxed lanes at --quick, in one invocation', () => {
+  it('go-fuzz runs exactly the time-boxed lanes at --quick, in one invocation', () => {
     const step = ciStep('Time-boxed fuzz lanes at quick budgets');
+    const at = ci.indexOf('- name: Time-boxed fuzz lanes at quick budgets');
+    expect(at).toBeGreaterThan(ci.indexOf('\n  go-fuzz:\n'));
+    expect(at).toBeLessThan(ci.indexOf('\n  js-lint:\n'));
+    expect(step).toContain("if: fromJSON(needs.lanes.outputs.lanes)['js-fuzz'].run");
     const command = /pnpm miondevx core fuzz ([a-z0-9 ]+) --quick/.exec(step);
     if (!command) throw new Error('ci.yml: the time-boxed quick step no longer runs `miondevx core fuzz … --quick`');
     expect(command[1].trim().split(' ').sort()).toEqual(timeBoxedLanes);
