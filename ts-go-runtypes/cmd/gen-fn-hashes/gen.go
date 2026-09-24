@@ -83,28 +83,6 @@ type fnHashEntry struct {
 // operations.circularCanonicalSuffix. getFnHash appends the same letter.
 const circularVariantLetter = "C"
 
-// optionSubsets returns the power set of an option table's NAMES — every subset
-// a call site can request. Mirrors operations.optionSubsets (kept local so the
-// generator doesn't need an exported view of that internal helper). Shared by
-// the validateOptions and hasUnknownKeysOptions axes.
-func optionSubsets(table []constants.ValidateOption) [][]string {
-	names := make([]string, 0, len(table))
-	for _, opt := range table {
-		names = append(names, opt.Name)
-	}
-	subsets := make([][]string, 0, 1<<len(names))
-	for mask := 0; mask < (1 << len(names)); mask++ {
-		var subset []string
-		for i, name := range names {
-			if mask&(1<<i) != 0 {
-				subset = append(subset, name)
-			}
-		}
-		subsets = append(subsets, subset)
-	}
-	return subsets
-}
-
 // collectEntries walks the operation registry and computes every (fnKey, variant
 // token) → fnHash the runtime getFnHash resolver can be asked for. Skips any
 // operation with no FnKey (none exist today, but the guard keeps the table keyed
@@ -133,11 +111,11 @@ func collectEntries() []fnHashEntry {
 		for _, rejectCircular := range circularForks {
 			switch op.Axis {
 			case operations.AxisValidateOptions:
-				for _, subset := range optionSubsets(constants.ValidateOptions) {
+				for _, subset := range constants.OptionSubsets(constants.ValidateOptions) {
 					addVariant(constants.ValidateVariantSuffix(subset), rejectCircular, operations.FnHashFor(op, subset, "", rejectCircular))
 				}
 			case operations.AxisHasUnknownKeysOptions:
-				for _, subset := range optionSubsets(constants.HasUnknownKeysOptions) {
+				for _, subset := range constants.OptionSubsets(constants.HasUnknownKeysOptions) {
 					addVariant(constants.HasUnknownKeysVariantSuffix(subset), rejectCircular, operations.FnHashFor(op, subset, "", rejectCircular))
 				}
 			case operations.AxisJsonStrategy:
