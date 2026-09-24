@@ -6,14 +6,14 @@
  * ######## */
 
 import {describe, it, expect, beforeEach} from 'vitest';
-import {createMionRouter, resetRouter, getRouteExecutable} from '../src/router.ts';
-import {dispatchRoute} from '../src/dispatch.ts';
-import {headersFromRecord} from '../src/lib/headers.ts';
-import {registerBatches} from '../src/batches.ts';
+import {createMionRouter, resetRouter, getRouteExecutable} from '../../src/router.ts';
+import {dispatchRoute} from '../../src/dispatch.ts';
+import {headersFromRecord} from '../../src/lib/headers.ts';
+import {registerBatches} from '../../src/batches.ts';
 import {BUILD_VERSION_HEADER, MION_BATCH_PATH, MION_ROUTES, routeSyncId, RpcError} from '@mionjs/core';
 import type {SerializableMethodsData} from '@mionjs/core';
-import type {RouterOptionsInput} from '../src/types/mionRouter.ts';
-import type {RouteSyncErrorData} from '../src/routes/syncRoutes.routes.ts';
+import type {RouterOptionsInput} from '../../src/types/mionRouter.ts';
+import type {RouteSyncErrorData} from '../../src/routes/syncRoutes.routes.ts';
 
 function dispatch(path: string, body: unknown, urlQuery?: string) {
   const headers = headersFromRecord({});
@@ -21,12 +21,11 @@ function dispatch(path: string, body: unknown, urlQuery?: string) {
   return dispatchRoute(path, raw, headers, headersFromRecord({}), {headers, body: raw}, {}, undefined, urlQuery);
 }
 
-/** The middleware declares a union, so its answer is encoded as an `[index, value]` envelope. */
+/** `RouteSyncError | void` is still a union to the encoder, so the answer is an `[index, value]` envelope. */
 function syncSlot(response: Awaited<ReturnType<typeof dispatch>>): RpcError<string> | undefined {
   const slot = response.body[MION_ROUTES.syncRoutes] as unknown;
   return (Array.isArray(slot) ? slot[1] : slot) as RpcError<string> | undefined;
 }
-
 let calls: string[];
 
 function initApi(options: RouterOptionsInput, buildVersion = 'abc123') {
