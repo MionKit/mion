@@ -28,6 +28,7 @@ export * from './src/constants.ts';
 export * from './src/parser.ts';
 export * from './src/errors.ts';
 export * from './src/routerUtils.ts';
+export * from './src/routeSync.ts';
 export * from './src/utils.ts';
 export * from './src/headers.ts';
 // mion <-> mion adapter (marker payloads -> the reflection shapes the router consumes)

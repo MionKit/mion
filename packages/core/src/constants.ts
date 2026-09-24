@@ -45,7 +45,13 @@ export const MION_ROUTES = {
   batchNotFound: 'mion@batchNotFound',
   /** Not a route: the key untyped thrown errors are stored under, declared here to reuse the router's serialization. */
   thrownErrors: '@thrownErrors',
+  /** Start middleware that sends the API version header and, under `syncRoutes`, checks each route's sync id */
+  syncRoutes: 'mion@syncRoutes',
 } as const;
+
+/** Type-only key the API type carries the router options under; the build reads it off `initClient`'s API type.
+ *  A symbol, so it never widens a route map's string keys. Never read at runtime. */
+export declare const ROUTER_OPTIONS: unique symbol;
 
 /** Kept for HTTP backwards compatibility only: in a mion app the error type, a human readable code, is what matters. */
 export const StatusCodes = {
