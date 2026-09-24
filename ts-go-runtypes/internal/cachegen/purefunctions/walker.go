@@ -519,18 +519,3 @@ func (ctx *resolveCtx) siteID(sourceFile *ast.SourceFile, call *ast.Node) string
 func siteFromNode(sourceFile *ast.SourceFile, node *ast.Node) diagnostics.Site {
 	return textpos.NodeSite(sourceFile.FileName(), sourceFile, node)
 }
-
-// siteFromFile reproduces a site from a previously-captured file and pos pair.
-func siteFromFile(sourceFile *ast.SourceFile, pos int) diagnostics.Site {
-	if sourceFile == nil {
-		return diagnostics.Site{}
-	}
-	line, col := textpos.LineCol(sourceFile, pos)
-	return diagnostics.Site{
-		FilePath:  sourceFile.FileName(),
-		StartLine: line,
-		StartCol:  col,
-		EndLine:   line,
-		EndCol:    col,
-	}
-}

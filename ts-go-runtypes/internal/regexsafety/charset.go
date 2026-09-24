@@ -74,10 +74,6 @@ func (s *charSet) addSet(other *charSet) {
 	s.ranges = append(s.ranges, other.ranges...)
 }
 
-func (s *charSet) isEmpty() bool {
-	return s.opaque == "" && len(s.ranges) == 0
-}
-
 // negated returns the complement over the whole code point space; an opaque atom has no complement, so it negates to itself.
 func (s *charSet) negated() *charSet {
 	if s.opaque != "" {
