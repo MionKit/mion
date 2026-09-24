@@ -26,17 +26,17 @@
         {
           "step": 4,
           "label": "mion route api",
-          "delta": 523,
-          "budget": 525
+          "delta": 547,
+          "budget": 547
         },
         {
           "step": 5,
           "label": "initClient",
-          "delta": 3048,
-          "budget": 3048
+          "delta": 3076,
+          "budget": 3076
         }
       ],
-      "total": 5717
+      "total": 5769
     },
     {
       "name": "type-only",
@@ -62,17 +62,17 @@
         {
           "step": 4,
           "label": "mion route api",
-          "delta": 500,
-          "budget": 502
+          "delta": 524,
+          "budget": 524
         },
         {
           "step": 5,
           "label": "initClient",
-          "delta": 3102,
-          "budget": 3102
+          "delta": 3130,
+          "budget": 3130
         }
       ],
-      "total": 4296
+      "total": 4348
     },
     {
       "name": "builder",
@@ -98,17 +98,17 @@
         {
           "step": 4,
           "label": "mion route api",
-          "delta": 496,
-          "budget": 498
+          "delta": 520,
+          "budget": 520
         },
         {
           "step": 5,
           "label": "initClient",
-          "delta": 3342,
-          "budget": 3342
+          "delta": 3370,
+          "budget": 3370
         }
       ],
-      "total": 5037
+      "total": 5089
     }
   ]
 }
