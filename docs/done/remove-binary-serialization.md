@@ -143,11 +143,12 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
 
 Everything above, with these choices made during the build:
 
-- `UNSAFE_PROPERTY_NAME_MESSAGE` moved to `packages/run-types/src/runtypes/unsafeKeys.ts`, still exported from the package root for the router.
+- `UNSAFE_PROPERTY_NAME_MESSAGE` is now declared in `packages/run-types/src/index.ts`, still exported from the package root for the router.
 - Fuzz oracles: O6 dropped. O12 and O14 were ported, not dropped: O12 checks `jsonEncode(compactDecode(compactEncode v)) == jsonEncode(v)` (skipping types whose optional can hold a present `null`), O14 checks the clone and compact encoders agree on serialize vs throw. The SB-* and GC-COUNT oracles went with the binary lane.
 - Tests that covered the value-first call shape only through binary were moved to the JSON factories, so both marker call shapes stay covered.
 - Go tests that proved a cross-family rule through binary now prove it through the JSON families (a `bigint` member keeps the union from being a no-op).
 - `gen-serialization.mjs` now runs one fixed suite (no `--suite` flag); `docs/WEBSITE-DOCGEN.md` updated to match.
 - Redirects added in `container/website/public/_redirects` for the deleted guide page, the articles section and the serialization-formats benchmark page.
 - About page: the mocking card now spans the full row, since it lost its binary neighbour.
+- `fuzz-lane-contracts.test.ts` needed no edit: it reads the lane list from the `FUZZ` registry in `scripts/miondevx.mjs`.
 - pre-publish-e2e: 13 feature families became 12 (`build-outputs.test.mjs`), and the family header numbers now follow the list order.
