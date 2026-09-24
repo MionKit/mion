@@ -194,7 +194,7 @@ workflows pick the lane up automatically (they derive their matrices from
 The two budget shapes CANNOT be scheduled the same way:
 
 - **Time-boxed** lanes (`MION_FUZZ_*_SOAK_MS`: value, types, nondata, roundtrip,
-  size, cloning) fuzz until a wall clock runs out. Under CPU contention they
+  size, cloning, elision, jsonsize and the `sec*` lanes) fuzz until a wall clock runs out. Under CPU contention they
   silently buy LESS coverage in the same wall clock, so they must never run
   concurrently with each other.
 - **Count-based** lanes (sequences / iterations: enrich, i18n, typemod, race,
@@ -204,7 +204,7 @@ The two budget shapes CANNOT be scheduled the same way:
 `miondevx` enforces this rather than trusting you to remember it: a multi-lane
 invocation containing a time-boxed lane runs the files sequentially
 (`--no-file-parallelism`) and says so. The soak workflows give every lane its
-own runner, and ci.yml splits the two kinds across its two jobs for the same
+own runner, and ci.yml runs the two kinds as separate steps for the same
 reason.
 
 Note that `MION_FUZZ_ITER` drives BOTH convert lanes, so exporting it in a shell
@@ -245,9 +245,9 @@ door over those same commands, not a gate (`race` is the one lane it gates,
 since nothing else sets `MION_FUZZ_RACE=1`).
 
 Every lane runs on EVERY PR at its quick budget, in
-[ci.yml](../.github/workflows/ci.yml): the count-based lanes ride the `go tests
-+ fuzz` job's sweep, the time-boxed ones run in one sequential batch on the `js
-tests + lint` runner, and the Go sweeps widen via `MION_FUZZ_ITER`. Seeds stay
+[ci.yml](../.github/workflows/ci.yml), all in the `go tests + fuzz` job: the
+count-based lanes ride its parallel sweep, the time-boxed ones run after it in
+one sequential batch, and the Go sweeps widen via `MION_FUZZ_ITER`. Seeds stay
 version-derived there (no `MION_FUZZ_SEED`), so a red lane belongs to that PR and
 replays locally with the command the failing step names. The point is that a
 finding lands while the change that caused it is still in review, instead of
@@ -279,8 +279,8 @@ pnpm miondevx core fuzz unit
 # the race test and both Go sweeps (builds binary + plugin first)
 pnpm miondevx core fuzz all
 
-# what CI runs per PR: the six time-boxed lanes, one sequential batch
-pnpm miondevx core fuzz cloning nondata roundtrip size types value --quick
+# what CI runs per PR: the time-boxed lanes, one sequential batch
+pnpm miondevx core fuzz cloning elision jsonsize nondata roundtrip secbinary secformat secgen sechttp secjson size types value --quick
 
 # autonomous soak: fuzz for 60s, log every finding (set MION_FUZZ_SEED to replay)
 pnpm miondevx core fuzz value --soak
