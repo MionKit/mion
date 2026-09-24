@@ -20,13 +20,16 @@ reacted after a response, and only for the whole API.
 A server option, `syncRoutes` (default off). With it on, every call carries one short id per route; the server
 compares them before anything runs.
 
-- **The route sync id** (`routeSyncId`, `packages/core/src/routeSync.ts`): FNV-1a over
-  `id:paramsJitHash:returnJitHash:headersParam.jitHash` of the route and of every public middleware declared in the
-  routes tree for it (its `middlewareIds`, in chain order), as 6 base64url chars. A public middleware is one with
-  params or return data; a global one added with `addStartMiddlewares` / `addEndMiddlewares` is not in the API type,
-  so no client build can know it and it stays out. Both ends read those fields off `getReflectionFromMarkers` over the same
-  build-injected ids. The type ids fold in the mion version, so a different mion version blocks too, on purpose
-  (different compiled functions).
+- **The sync id is route metadata, made at build time**: every handler (route and middleware alike) gets a
+  `syncId`, the build's type id of its `[params, return]` pair. The server gets it through a trailing
+  `InjectRunTypeId<[HandlerParams<H>, HandlerReturn<H>]>` slot on `mion.route()` / `mion.middleware()` /
+  `mion.headersFn()` (`packages/router/src/types/mionRouter.ts`), read by `getReflectionFromMarkers` into the row. A
+  bundled client gets the same id from the API walk, which reads the pair off `types.sync` on the public API type
+  (`HandlerMethodTypes`) and writes it into the row as a plain string. A fetched client reads it off the server's
+  row. Nothing is computed at runtime: a client sends its route's `syncId`, the server compares it with its own.
+  Only the route's id is compared; a changed middleware is answered by its own validation. The type ids fold in the
+  mion version, so a different mion version blocks too, on purpose (different compiled functions). The marker type
+  has to be written directly in the helper signature: an alias over it hides the marker's name from the build.
 - **One middleware does it all**: `mion@syncRoutes` (`packages/router/src/routes/syncRoutes.routes.ts`), a typed
   start middleware right after `mionDeserializeRequest`, `alwaysRun`, pinned `clone` parser. It sets
   `x-build-version` on the response when `apiVersionCheck` is on (the header left `globalResponseHeaders`, so the
@@ -68,19 +71,21 @@ compares them before anything runs.
 
 ## Tests
 
-- core: `routeSyncId` golden values and which fields move it; `clientRowView` normalising.
-- router: `syncRoutes.spec.ts` (header on route and not-found chains, refusals run no handler, batches, mion routes
-  never checked); route-level `middlewareIds`.
-- Go: `InjectRouterOptions` injection and walk skip; every client checked against its server.
+- core: `clientRowView` normalising, `syncId` included.
+- router: `syncRoutes.spec.ts` (every handler row carries its build `syncId`, header on route and not-found chains,
+  refusals run no handler, batches, mion routes never checked); route-level `middlewareIds`; the helper payload
+  and served rows pin `syncId`.
+- Go: `InjectRouterOptions` injection and walk skip; every client checked against its server; a bundled row carries
+  the id both `getRunTypeId` forms name for its `[params, return]` pair, and none without one.
 - client: the per-server state, the row replacement, the bounded resend, the options key kept out of the route
   types, the sync helpers.
 - Parity in the bundled and mixed lanes (`test/lib/parity.ts`): one dispatch point naming every test-server method
-  id; rows alike through `clientRowView`, route sync ids alike, every compiled function a row reaches alike as a
+  id; rows alike through `clientRowView` (so every method's `syncId` alike), every compiled function a row reaches alike as a
   syntax tree.
 - `test/mixed/routeDrift.spec.ts`: one file holds the routes a mixed client was built against and the routes the
   server moved on to; the server runs in the test process and the router is reset between the two. Unchanged routes
-  and options-only changes run; a changed params type, a changed return type and a changed middleware in a route's
-  chain are refused with no handler run; a fetched route's first call is refused once and resent; a fetched route
+  and options-only changes run; a changed params type and a changed return type are refused with no handler run; a
+  changed middleware is answered by its own validation; a fetched route's first call is refused once and resent; a fetched route
   whose saved row predates the server is relearned, never looped.
 
 ## Docs
@@ -93,5 +98,5 @@ client overview's features table.
 The approved design, from an investigation of four options (client sends ids every call; client sends a token and
 ids once per server version; server hands over its ids on a token miss; server sends ids after running): after
 review the user chose ids on every call under a server flag, as short as possible, with a mismatch a hard stop and
-no retry, the flag carried once on the API type, the id covering the route and its middlewares, one middleware
+no retry, the flag carried once on the API type, one middleware
 doing the header and the check from standard mion pieces, and tests proving both builds mint the same ids.
