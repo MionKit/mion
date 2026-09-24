@@ -5,17 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Vitest globalSetup of the bundled and mixed lanes: their test server, one process per lane.
-//
-// Each lane is its own program (its own tsconfig, genDir and `bundleApi` value), and its server has
-// to come from THAT program: it is the batch source the lane's resolver compiles the lane's batches
-// into. The fetched lane starts its server in vitest's main process, but the router's registries are
-// process-wide globals (single-instance state), so a second lane cannot start another server there,
-// and the specs' cache resets rule out the worker too (a server sharing the client's process would
-// share the caches the specs wipe, and nothing would ever be fetched or bundled). So each lane forks
-// serverChild.mjs, which opens a vite server over the lane's own config, imports the test-server
-// entry through it and listens on a free port; the port reaches the specs through vitest's provide /
-// inject.
+// Vitest globalSetup of the bundled and mixed lanes: one forked test server per lane, built from THAT lane's
+// program (the batch source its resolver compiles into). Not vitest's main process: the router's registries are
+// process-wide and the fetched lane already holds them. Not the worker: it would share the caches the specs wipe.
 import {fileURLToPath} from 'node:url';
 import type {TestProject} from 'vitest/node';
 import {forkServer, type ServerProcess} from './serverProcess.ts';

@@ -16,7 +16,6 @@ export interface ServerProcess {
 /** How long a server may take to come up: a vite server plus a resolver session. */
 const START_TIMEOUT_MS = 180_000;
 
-/** Forks serverChild.mjs with its arguments and resolves once the server listens. */
 export async function forkServer(label: string, args: string[]): Promise<ServerProcess> {
   const entry = fileURLToPath(new URL('./serverChild.mjs', import.meta.url));
   // execArgv: [] because a test worker runs under `--conditions source`, which would make node load raw TypeScript

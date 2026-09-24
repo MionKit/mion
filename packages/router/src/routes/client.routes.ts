@@ -33,7 +33,7 @@ export const defaultClientRouteOptions = {
   getAllRemoteMethodsMaxNumber: 100,
 };
 
-// Internal mion routes that should not be exposed to clients
+// mion's own routes, never exposed to clients
 export const mionInternalRouteIds: ReadonlySet<string> = new Set(Object.values(MION_ROUTES));
 
 /** With getAllRemoteMethods, answers with every public method instead of the given ids.
