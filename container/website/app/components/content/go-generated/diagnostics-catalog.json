@@ -24,7 +24,7 @@
     {
       "key": "unknown-keys",
       "label": "Unknown keys",
-      "description": "From removeUnknownKeys and the rest of that family."
+      "description": "From removeUnknownKeys."
     },
     {
       "key": "formats",

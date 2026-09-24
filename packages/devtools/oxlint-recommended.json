@@ -17,7 +17,6 @@
     "runtypes/binary-skipped-member": "warn",
     "runtypes/clone-unsupported-type": "error",
     "runtypes/clone-shared-reference": "warn",
-    "runtypes/unknown-keys": "warn",
     "runtypes/format": "error",
     "runtypes/invalid-override": "error",
     "runtypes/override-side-effect": "warn",

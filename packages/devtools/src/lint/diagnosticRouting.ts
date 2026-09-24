@@ -25,7 +25,6 @@ export type RuleName =
   | 'binary-skipped-member'
   | 'clone-unsupported-type'
   | 'clone-shared-reference'
-  | 'unknown-keys'
   | 'format'
   | 'invalid-override'
   | 'override-side-effect'
@@ -173,14 +172,6 @@ export const RULE_SPECS: readonly RuleSpec[] = [
     gate: 'compiler',
     description:
       'A property the clone cannot rebuild (a function, symbol, or non-serializable built-in), so it stays pointing at the same value as the original — changes through it are visible on both copies',
-  },
-  {
-    name: 'unknown-keys',
-    namespace: 'runtypes',
-    default: 'warn',
-    gate: 'compiler',
-    description:
-      'A property the `strip` JSON decoder skips when it clears unknown keys, such as a function member; the rest of the object is still cleared',
   },
   {
     name: 'format',
