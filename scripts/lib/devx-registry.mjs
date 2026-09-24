@@ -91,6 +91,15 @@ export const AREAS = {
         build: (args) => !hasFlag(args, '--check', '--list'),
       },
       {
+        name: 'test-pr',
+        summary: 'vitest over only the packages a branch changed, plus every package that depends on them',
+        flags: [
+          ['--base <ref>', 'diff from its merge-base with HEAD (default origin/main); commits only'],
+          ['--list', 'print the plan and stop'],
+        ],
+        build: (args) => !hasFlag(args, '--list'),
+      },
+      {
         name: 'test-bun',
         summary: "platform-bun's bun:test suites, gated so a swallowed file cannot read as green (what test:bun runs)",
       },
