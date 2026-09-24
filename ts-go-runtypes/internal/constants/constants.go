@@ -254,8 +254,7 @@ var ValidateOptions = []ValidateOption{
 	{Name: numberModeNotNaNName, Letter: "M", Group: NumberModeOption},
 }
 
-// OptionSubsets returns every option-name subset of table a call site can request: the power set minus any subset
-// holding two entries of the same Group.
+// OptionSubsets returns the power set of table's names, minus any subset holding two entries of one Group.
 func OptionSubsets(table []ValidateOption) [][]string {
 	subsets := make([][]string, 0, 1<<len(table))
 	for mask := 0; mask < (1 << len(table)); mask++ {
