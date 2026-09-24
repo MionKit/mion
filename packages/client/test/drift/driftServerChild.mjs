@@ -5,9 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// One drift server in its own process: the router is one per process, and each server is its own program
-// (tsconfig.drift-<name>.json), so its ids are what that program's build mints. Plain JavaScript on purpose:
-// nothing has to transform this file for it to run.
+// One drift server per process: the router is one per process, and each server is its own program
+// (tsconfig.drift-<name>.json) minting its own ids. Plain JavaScript so nothing has to transform it.
 import {createServer, createServerModuleRunner} from 'vite';
 import {mionVitePlugin} from '@mionjs/devtools/vite';
 import {fileURLToPath} from 'node:url';

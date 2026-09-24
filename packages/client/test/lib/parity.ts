@@ -102,7 +102,6 @@ function parserOf(row: MethodWithOptions): {params: ParserStrategy; return: Pars
   return parser as {params: ParserStrategy; return: ParserStrategy};
 }
 
-/** Bundles every method of the test server and checks each against the server's own answer. */
 export async function expectEveryMethodMatchesTheServer(baseURL: string): Promise<void> {
   resetClientCaches();
   resetBundledApi();

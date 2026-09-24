@@ -59,8 +59,7 @@ export type PublicApi<Type extends Routes> = Prettify<{
         : never;
 }>;
 
-/** The API `initRoutes` returns: the public methods plus, under a symbol key, the router options exactly as passed to
- *  `createMionRouter`, so a client build reads them off the one type it is given. Type-only: never set at runtime. */
+/** Carries the router options under a symbol key so a client build reads them off this one type; type-only. */
 export type ApiWithOptions<Type extends Routes, O> = PublicApi<Type> & {readonly [ROUTER_OPTIONS]?: O};
 
 // type-remote-api-start

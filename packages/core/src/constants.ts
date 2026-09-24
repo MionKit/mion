@@ -49,8 +49,7 @@ export const MION_ROUTES = {
   syncRoutes: 'mion@syncRoutes',
 } as const;
 
-/** Type-only key the API type carries the router options under; the build reads it off `initClient`'s API type.
- *  A symbol, so it never widens a route map's string keys. Never read at runtime. */
+/** Type-only key the build reads the router options under; a symbol so it never widens a route map's string keys. */
 export declare const ROUTER_OPTIONS: unique symbol;
 
 /** Kept for HTTP backwards compatibility only: in a mion app the error type, a human readable code, is what matters. */

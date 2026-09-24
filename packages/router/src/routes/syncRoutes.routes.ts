@@ -14,7 +14,7 @@ import type {MiddlewaresCollection} from '../types/publicMethods.ts';
 import type {RemoteMethod} from '../types/remoteMethods.ts';
 import type {CallContext} from '../types/context.ts';
 
-/** One error type for both refusals: a union of two `FatalError`s is one class to the encoder, which cannot tell them apart. */
+/** One type for both refusals: the encoder cannot tell two `FatalError`s in a union apart. */
 export type RouteSyncError = FatalError<'route-types-mismatch' | 'route-sync-required', RouteSyncErrorData>;
 
 export interface RouteSyncErrorData {

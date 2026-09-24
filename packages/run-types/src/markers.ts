@@ -268,11 +268,8 @@ export type InjectBuildVersion<Api> = string & {
   readonly __rtInjectBuildVersionBrand?: Api;
 };
 
-/**
- * Router options injection marker on the parameter after `buildVersion` in `initClient`: the build reads the
- * router options the API type carries (under @mionjs/core's `ROUTER_OPTIONS` key, set by `initRoutes`) and fills
- * the slot with the ones a client acts on, as an object literal. Same trust rule as `InjectBuildVersion`.
- */
+/** `initClient`'s router options slot: the build fills it with the options a client acts on, as an object literal,
+ *  read off the API type's `ROUTER_OPTIONS` key. Same trust rule as `InjectBuildVersion`. */
 export type InjectRouterOptions<Api> = {readonly syncRoutes?: boolean} & {
   readonly __rtInjectRouterOptionsBrand?: Api;
 };

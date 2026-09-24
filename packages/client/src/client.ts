@@ -34,9 +34,8 @@ import {setInjectedRouterOptions} from './lib/syncRoutes.ts';
 import {registerBundledApi, takeBundledApiError} from '#bundled-api';
 import {metadataCacheHooks} from './lib/metadataFromServerLoader.ts';
 
-/** Under the build's `bundleApi` option the metadata and compiled functions of every route are injected
- * at the call sites, so the client never asks the server; that module comes from the build, not this call.
- * `buildVersion` and `routerOptions` are filled by the build from the API type, never by hand. */
+/** Under `bundleApi` the build injects every route's metadata and functions, so the client never asks the server.
+ *  The build fills `buildVersion` and `routerOptions` from the API type, never by hand. */
 export function initClient<RM extends RemoteApi>(
   options: InitClientOptions,
   buildVersion?: InjectBuildVersion<RM>,

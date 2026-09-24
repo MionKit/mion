@@ -69,7 +69,7 @@ describe('subrequest types carry the route id and the API', () => {
       .parameter(1)
       .toEqualTypeOf<InjectApiMetadata<TestServerApi, 'sayHello' | 'utils/sumTwo'> | undefined>();
     expectTypeOf<ApiOf<[typeof hello]>>().toEqualTypeOf<TestServerApi>();
-    // The lane arrives as a module the build writes; the version and router options slots are the build's too
+    // The lane is a module the build writes; the version and router options slots are the build's too
     expectTypeOf(initClient<TestServerApi>).parameters.toEqualTypeOf<
       [InitClientOptions, (InjectBuildVersion<TestServerApi> | undefined)?, (InjectRouterOptions<TestServerApi> | undefined)?]
     >();

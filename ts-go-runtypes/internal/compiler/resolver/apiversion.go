@@ -72,7 +72,7 @@ func (sess *Session) apiVersions(files []string) (routes, client string, diags [
 	if routes == "" {
 		return routes, client, nil
 	}
-	// every client against the server, whatever the file order: comparing as the walk goes let a later client hide an earlier one
+	// after the walk: comparing as it goes let a later client hide an earlier one
 	for _, site := range clients {
 		if site.version != routes {
 			diags = append(diags, diagnostics.New(diagnostics.CodeApiMetaVersionMismatch, site.diagSite, site.version, routes))
@@ -108,7 +108,7 @@ func (sess *Session) apiVersionSitesIn(sourceFile *ast.SourceFile, versions map[
 }
 
 // apiVersionSiteOf reads one call; a slot the caller already filled holds a forwarded value, never ours.
-// `initClient` also takes the router options the API type carries, spliced in the same text after the version.
+// `initClient`'s router options are spliced into the same text, after the version.
 func (sess *Session) apiVersionSiteOf(sourceFile *ast.SourceFile, call *ast.Node, versions map[*checker.Type]apiVersionValue) (apiVersionSite, bool) {
 	callExpr := call.AsCallExpression()
 	if callExpr == nil || callExpr.Arguments == nil {

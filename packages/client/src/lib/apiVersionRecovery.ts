@@ -14,7 +14,7 @@ import {stashApiVersionError} from './apiBuildVersion.ts';
 import {dropBundledMethods, getMethod} from './methods.ts';
 import {installMethodRows} from './clientMethodsMetadata.ts';
 
-/** Ids each server (baseURL) has confirmed: each route is checked once per server, on its first use after the mismatch. */
+/** Ids each baseURL confirmed: a route is checked once per server, on its first use after the mismatch. */
 const verifiedIds = new Map<string, Set<string>>();
 
 function verifiedBy(baseURL: string): Set<string> {
@@ -45,9 +45,8 @@ export function createVerifySubRequest(methodIds: string[]): SubRequest<any> {
   } as SubRequest<any>;
 }
 
-/** Compares every field a client acts on (`clientRowView`): this side holds both full rows. */
-/** Under `syncRoutes` (`keepTypeChanges`) a row whose types changed is kept: replacing it would make its sync id
- *  match the server's while this client's code still expects the old types, so the call must be refused instead. */
+/** Compares every `clientRowView` field: this side holds both full rows. */
+/** Under `syncRoutes` a type-changed row stays: replacing it would let a call built on old types pass the sync check. */
 export function verifyMethodRows(baseURL: string, asked: string[], data: SerializableMethodsData, keepTypeChanges = false): void {
   const verified = verifiedBy(baseURL);
   for (const id of asked) verified.add(id);
@@ -75,7 +74,6 @@ function rowsAgree(held: MethodWithOptions | undefined, served: MethodWithOption
   return !!held && !!served && clientRowsAgree(held, served);
 }
 
-/** Whether two rows read alike to a client, field by field over `clientRowView`. */
 export function clientRowsAgree(held: MethodWithOptions, served: MethodWithOptions): boolean {
   return sameValue(clientRowView(held), clientRowView(served));
 }
