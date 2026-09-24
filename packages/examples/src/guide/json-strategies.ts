@@ -8,7 +8,7 @@ interface Item {
 // internalNote is not declared in Item
 const item = {name: 'pen', price: 5n, internalNote: 'do not send'} as Item;
 
-// start-encoders
+// start-strategies
 const encodeClone = createJsonEncoderFn<Item>(); // same as {strategy: 'clone'}
 encodeClone(item); // {"name":"pen","price":"5"}   item is unchanged
 
@@ -19,9 +19,7 @@ encodeCompact(item); // ["pen","5"]   item is unchanged
 
 const encodeMutate = createJsonEncoderFn<Item>(undefined, {strategy: 'mutate'});
 encodeMutate(item); // {"name":"pen","price":"5","internalNote":"do not send"}   item.price is now '5'
-// end-encoders
 
-// start-decoders
 const body = '{"name":"pen","price":"5","isAdmin":true}';
 
 const decodeClone = createJsonDecoderFn<Item>(); // same as {strategy: 'clone'}
@@ -36,4 +34,4 @@ const decodeCompact = createJsonDecoderFn<Item>(undefined, {
   strategy: 'compact',
 });
 decodeCompact('["pen","5"]'); // {name: 'pen', price: 5n}
-// end-decoders
+// end-strategies
