@@ -43,8 +43,8 @@ export interface CloneFuzzTarget {
   mock: () => unknown;
   validate: (value: unknown) => boolean;
   hasUnknownKeys?: (value: unknown) => boolean;
-  /** The compiled `createCloneExactShapeFn<T>()` under test. `any` parameter:
-   *  `CloneExactShapeFn<T>` is T-narrowed and strictFunctionTypes rejects it
+  /** The compiled `createRemoveUnknownKeysFn<T>()` under test. `any` parameter:
+   *  `RemoveUnknownKeysFn<T>` is T-narrowed and strictFunctionTypes rejects it
    *  where `(value: unknown) => unknown` is expected (contravariance) — same
    *  erasure the cloning suite's `AnyCloneFn` does. **/
   clone: (value: any) => unknown;

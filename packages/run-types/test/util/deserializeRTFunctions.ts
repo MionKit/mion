@@ -13,7 +13,7 @@ import {
   type ValidateFn,
   type GetValidationErrorsFn,
   type HasUnknownKeysFn,
-  type CloneExactShapeFn,
+  type RemoveUnknownKeysFn,
   type UnknownKeyErrorsFn,
   // The JSON value-level primitive fn shapes are public again (recoverable via
   // getRTFunction), so the deserialize twins that exercise the per-primitive
@@ -124,11 +124,11 @@ export const deserializeHasUnknownKeys = deserializeRTFunction<HasUnknownKeysFn>
 ) as unknown as (<T>(runType: RunType<T>, id?: InjectTypeFnArgs<T, 'hasUnknownKeys'>) => HasUnknownKeysFn) &
   (<T>(val?: T, id?: InjectTypeFnArgs<T, 'hasUnknownKeys'>) => HasUnknownKeysFn);
 
-export const deserializeCloneExactShape = deserializeRTFunction<CloneExactShapeFn>(
-  'deserializeCloneExactShape',
+export const deserializeRemoveUnknownKeys = deserializeRTFunction<RemoveUnknownKeysFn>(
+  'deserializeRemoveUnknownKeys',
   identityValueFn
-) as unknown as (<T>(runType: RunType<T>, id?: InjectTypeFnArgs<T, 'cloneExactShape'>) => CloneExactShapeFn) &
-  (<T>(val?: T, id?: InjectTypeFnArgs<T, 'cloneExactShape'>) => CloneExactShapeFn);
+) as unknown as (<T>(runType: RunType<T>, id?: InjectTypeFnArgs<T, 'removeUnknownKeys'>) => RemoveUnknownKeysFn) &
+  (<T>(val?: T, id?: InjectTypeFnArgs<T, 'removeUnknownKeys'>) => RemoveUnknownKeysFn);
 
 export const deserializeUnknownKeyErrors = deserializeRTFunction<UnknownKeyErrorsFn>(
   'deserializeUnknownKeyErrors',

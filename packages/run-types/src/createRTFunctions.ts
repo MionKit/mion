@@ -211,9 +211,9 @@ export interface HasUnknownKeysCompileOptions {
 export type HasUnknownKeysFn = (value: unknown, options?: HasUnknownKeysOptions) => boolean;
 
 /** Deep clone of the DECLARED shape: undeclared keys drop, the input is untouched, every object is fresh (prototype kept).
- *  Primitives, RegExps and values it cannot rebuild (`any`, functions) are shared; CES010/CES015 flag the latter.
- *  `overrideCloneExactShape<T>()` is the escape hatch for custom copying. **/
-export type CloneExactShapeFn<T = unknown> = (value: T) => T;
+ *  Primitives, RegExps and values it cannot rebuild (`any`, functions) are shared; RUK010/RUK015 flag the latter.
+ *  `overrideRemoveUnknownKeys<T>()` is the escape hatch for custom copying. **/
+export type RemoveUnknownKeysFn<T = unknown> = (value: T) => T;
 
 /** Validator returned by `createUnknownKeyErrorsFn<T>()`. Each unknown key produces one
  *  `{path, expected: 'never'}` entry.
@@ -338,7 +338,7 @@ function createTypeFnArgsFunction<F extends AnyFn>(
 }
 
 /** Returns the compiled closure for a leaf family that takes no options: the injected entry tuple
- *  sits at slot 1, and slot 0 may be a value-first schema (`createCloneExactShapeFn(rt)`) whose
+ *  sits at slot 1, and slot 0 may be a value-first schema (`createRemoveUnknownKeysFn(rt)`) whose
  *  `.id` overrides the injected typeId. **/
 function createRTFunction<F extends AnyFn>(fnName: string, identityFn: F): (val?: unknown, args?: unknown) => F {
   return (val, args) => resolveTupleEntry(fnName, identityFn, val, args);
@@ -407,11 +407,13 @@ export const createHasUnknownKeysFn = createTypeFnArgsFunction<HasUnknownKeysFn>
     id?: InjectTypeFnArgs<T, 'hasUnknownKeys'>
   ) => HasUnknownKeysFn);
 
-export const createCloneExactShapeFn = createRTFunction<CloneExactShapeFn>(
-  'createCloneExactShapeFn',
+/** Returns a NEW value holding only the declared keys, keeping Dates, Maps, Sets, bigints and class
+ *  prototypes; it never changes the input. **/
+export const createRemoveUnknownKeysFn = createRTFunction<RemoveUnknownKeysFn>(
+  'createRemoveUnknownKeysFn',
   identityValueFn
-) as unknown as (<T>(runType: RunType<T>, id?: InjectTypeFnArgs<T, 'cloneExactShape'>) => CloneExactShapeFn<T>) &
-  (<T>(val?: T, id?: InjectTypeFnArgs<T, 'cloneExactShape'>) => CloneExactShapeFn<T>);
+) as unknown as (<T>(runType: RunType<T>, id?: InjectTypeFnArgs<T, 'removeUnknownKeys'>) => RemoveUnknownKeysFn<T>) &
+  (<T>(val?: T, id?: InjectTypeFnArgs<T, 'removeUnknownKeys'>) => RemoveUnknownKeysFn<T>);
 
 export const createUnknownKeyErrorsFn = createRTFunction<UnknownKeyErrorsFn>(
   'createUnknownKeyErrorsFn',
@@ -467,15 +469,6 @@ export const createStringifyJsonFn = createRTFunction<StringifyJsonFn>('createSt
   id?: InjectTypeFnArgs<T, 'stringifyJson'>
 ) => StringifyJsonFn<T>) &
   (<T>(val?: T, id?: InjectTypeFnArgs<T, 'stringifyJson'>) => StringifyJsonFn<T>);
-
-/** Sets every undeclared property on incoming JSON to `undefined`, so a later restore walks
- *  only what the type declares. BLANKS rather than rebuilds, which is what keeps it cheap on
- *  a whole payload. Not `createCloneExactShapeFn<T>()`, which copies a live value. **/
-export const createStripUnknownKeysFn = createRTFunction<RestoreFromJsonFn>(
-  'createStripUnknownKeysFn',
-  identityValueFn
-) as unknown as (<T>(runType: RunType<T>, id?: InjectTypeFnArgs<T, 'stripUnknownKeysWire'>) => RestoreFromJsonFn<T>) &
-  (<T>(val?: T, id?: InjectTypeFnArgs<T, 'stripUnknownKeysWire'>) => RestoreFromJsonFn<T>);
 
 // createFormatTransformFn returns a `(value) => transformedValue` for `T`. Identity
 // fallback covers both noop-format types and the no-plugin case.
@@ -574,7 +567,7 @@ export interface RTFunctionByKey {
   validationErrorsUnionKeys: GetValidationErrorsFn;
   // Unknown-keys group.
   hasUnknownKeys: HasUnknownKeysFn;
-  cloneExactShape: CloneExactShapeFn;
+  removeUnknownKeys: RemoveUnknownKeysFn;
   unknownKeyErrors: UnknownKeyErrorsFn;
   // Format transform.
   formatTransform: FormatTransformFn<unknown>;
@@ -590,7 +583,6 @@ export interface RTFunctionByKey {
   restoreFromJsonMutate: RestoreFromJsonFn; // restores in place, keeps undeclared keys
   restoreFromJsonClone: RestoreFromJsonFn; // rebuilds the declared shape, so undeclared keys are dropped
   stringifyJson: StringifyJsonFn; // single pass, value -> JSON string
-  stripUnknownKeysWire: RestoreFromJsonFn; // the strip decoder's wire pre-pass
   compactForJson: PrepareForJsonFn; // compact encode (positional wire)
   compactFromJson: RestoreFromJsonFn; // compact decode
 }

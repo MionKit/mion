@@ -7,7 +7,7 @@ import {
   createJsonEncoderFn,
   createBinaryEncoderFn,
   createBinaryDecoderFn,
-  createCloneExactShapeFn,
+  createRemoveUnknownKeysFn,
 } from '@mionjs/run-types';
 import {ResolverClient} from '../../../../devtools/src/core/resolver-client.ts';
 import {MARKER_PACKAGE_OVERLAY, evalEntryModules, instantiateRunTypes} from '../../../../devtools/test/helpers/inline.ts';
@@ -56,7 +56,7 @@ export function renderSecurityFixture(gen: GeneratedType): string {
   createJsonDecoderFn,
   createBinaryEncoderFn,
   createBinaryDecoderFn,
-  createCloneExactShapeFn,
+  createRemoveUnknownKeysFn,
 } from '@mionjs/run-types';
 ${decls}
 type T = ${rootExpr};
@@ -64,7 +64,7 @@ createValidateFn<T>();
 createJsonEncoderFn<T>(undefined, {strategy: 'clone'});
 createJsonEncoderFn<T>(undefined, {strategy: 'direct'});
 createJsonEncoderFn<T>(undefined, {strategy: 'compact'});
-createCloneExactShapeFn<T>();
+createRemoveUnknownKeysFn<T>();
 createJsonDecoderFn<T>(undefined, {strategy: 'strip'});
 createJsonDecoderFn<T>(undefined, {strategy: 'preserve'});
 createJsonDecoderFn<T>(undefined, {strategy: 'compact'});
@@ -149,7 +149,7 @@ export async function compileSecurity(client: ResolverClient, gen: GeneratedType
     if (encode) jsonEncoders[name] = encode;
   }
   const clone = attempt('clone', () =>
-    byTag.ces ? (createCloneExactShapeFn(undefined, byTag.ces as never) as (v: unknown) => unknown) : undefined
+    byTag.ruk ? (createRemoveUnknownKeysFn(undefined, byTag.ruk as never) as (v: unknown) => unknown) : undefined
   );
   const decoders: CompiledSecurity['decoders'] = {};
   for (const [name, tag] of [

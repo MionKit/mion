@@ -1,12 +1,12 @@
 // cloning / LargeObjects — large shapes stressing the per-field rebuild
 // cost: a 30-prop wide interface, five levels of nested arrays, and three
 // union roots. The unions are object-bearing, which the clone pipeline
-// rejects by design (CES001 alwaysThrow at factory creation — without
+// rejects by design (RUK001 alwaysThrow at factory creation — without
 // runtime arm discrimination the emitter cannot know WHICH declared shape
 // to rebuild). Supported cases keep values identical to the serialization
 // suite and double as mild perf smoke tests.
 
-import {createCloneExactShapeFn} from '@mionjs/run-types';
+import {createRemoveUnknownKeysFn} from '@mionjs/run-types';
 import type {CloningCase} from './types.ts';
 
 interface WideRecord {
@@ -164,7 +164,7 @@ export const LARGE_OBJECTS = {
     title: 'Wide Interface',
     description:
       'A single interface with 30+ properties spanning scalars, Date, bigint, and a nested meta object rebuilds field by field, exercising the per-property walk cost without any union dispatch.',
-    clone: () => createCloneExactShapeFn<WideRecord>(),
+    clone: () => createRemoveUnknownKeysFn<WideRecord>(),
     getTestData: () => {
       const seed = 1;
       const record: WideRecord = {
@@ -205,9 +205,9 @@ export const LARGE_OBJECTS = {
   object_union_5: {
     title: 'Object Union',
     description:
-      'Five-member discriminated union of large event shapes — object-bearing unions are unsupported for cloning, so the factory throws CES001 at creation.',
-    // @mion-downgrade-error CES001
-    clone: () => createCloneExactShapeFn<LargeObjectUnion>(),
+      'Five-member discriminated union of large event shapes — object-bearing unions are unsupported for cloning, so the factory throws RUK001 at creation.',
+    // @mion-downgrade-error RUK001
+    clone: () => createRemoveUnknownKeysFn<LargeObjectUnion>(),
     getTestData: () => ({
       values: [
         {
@@ -262,9 +262,9 @@ export const LARGE_OBJECTS = {
   mixed_union_atomic_and_large_objects: {
     title: 'Mixed Union',
     description:
-      'A string | number | ProductEvent | UserEvent union mixes atomic members with two large object arms — still object-bearing, so the factory throws CES001 at creation.',
-    // @mion-downgrade-error CES001
-    clone: () => createCloneExactShapeFn<MixedLargeUnion>(),
+      'A string | number | ProductEvent | UserEvent union mixes atomic members with two large object arms — still object-bearing, so the factory throws RUK001 at creation.',
+    // @mion-downgrade-error RUK001
+    clone: () => createRemoveUnknownKeysFn<MixedLargeUnion>(),
     getTestData: () => ({
       values: [
         'just a string',
@@ -295,7 +295,7 @@ export const LARGE_OBJECTS = {
     title: 'Deep Nested',
     description:
       'Walks five levels of nested arrays of objects, rebuilding fresh objects and arrays at every level to amplify per-property overhead.',
-    clone: () => createCloneExactShapeFn<DeepNestedLevel1>(),
+    clone: () => createRemoveUnknownKeysFn<DeepNestedLevel1>(),
     getTestData: () => {
       const leaf: DeepNestedLeaf = {id: 1, value: 'leaf', when: new Date('2024-01-01T00:00:00.000Z')};
       const level5: DeepNestedLevel5 = {name: 'l5', leaves: [leaf, leaf, leaf]};
@@ -309,8 +309,8 @@ export const LARGE_OBJECTS = {
   large_class_union: {
     title: 'Large Class Union',
     description:
-      'Three-member union of large class instances — classes are object members too, so the clone factory throws CES001 at creation.',
-    clone: () => createCloneExactShapeFn<LargeClassUnion>(),
+      'Three-member union of large class instances — classes are object members too, so the clone factory throws RUK001 at creation.',
+    clone: () => createRemoveUnknownKeysFn<LargeClassUnion>(),
     getTestData: () => {
       const a = new LargeClassA();
       a.kind = 'classA';

@@ -164,7 +164,7 @@ export const RULE_SPECS: readonly RuleSpec[] = [
     default: 'error',
     gate: 'compiler',
     description:
-      'A type cloneExactShape cannot clone safely: a union of objects (the clone cannot tell which shape to rebuild) or a callable root. A clone that guessed could keep unknown keys, so the build stops instead',
+      'A type removeUnknownKeys cannot clone safely: a union of objects (the clone cannot tell which shape to rebuild) or a callable root. A clone that guessed could keep unknown keys, so the build stops instead',
   },
   {
     name: 'clone-shared-reference',
@@ -348,7 +348,7 @@ const PREFIX_TO_FAMILY: Record<string, FamilyRules> = {
   JCP: {primary: 'json-non-serializable'},
   TB: {primary: 'binary-non-serializable', warn: 'binary-skipped-member'},
   FB: {primary: 'binary-non-serializable', warn: 'binary-skipped-member'},
-  CES: {primary: 'clone-unsupported-type', warn: 'clone-shared-reference'},
+  RUK: {primary: 'clone-unsupported-type', warn: 'clone-shared-reference'},
   HUK: {primary: 'unknown-keys'},
   UKE: {primary: 'unknown-keys'},
   UKU: {primary: 'unknown-keys'},

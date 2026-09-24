@@ -293,30 +293,32 @@ var hasUnknownKeysCodes = map[DiagSlot]string{
 
 func (HasUnknownKeysEmitter) DiagCodeFor(slot DiagSlot) string { return hasUnknownKeysCodes[slot] }
 
-var cloneExactShapeCodes = map[DiagSlot]string{
-	SlotFunctionPropDropped:        diagnostics.CodeCESFunctionPropDropped,
-	SlotMethodDropped:              diagnostics.CodeCESMethodDropped,
-	SlotStaticDropped:              diagnostics.CodeCESStaticDropped,
-	SlotNonSerializablePropDropped: diagnostics.CodeCESNonSerializablePropDrop,
+var removeUnknownKeysCodes = map[DiagSlot]string{
+	SlotFunctionPropDropped:        diagnostics.CodeRUKFunctionPropDropped,
+	SlotMethodDropped:              diagnostics.CodeRUKMethodDropped,
+	SlotStaticDropped:              diagnostics.CodeRUKStaticDropped,
+	SlotNonSerializablePropDropped: diagnostics.CodeRUKNonSerializablePropDrop,
 	SlotUnsafeNamePropDropped:      diagnostics.CodeUnsafePropertyName,
 }
 
-func (CloneExactShapeEmitter) DiagCodeFor(slot DiagSlot) string { return cloneExactShapeCodes[slot] }
-
-// DiagCodeForLeaf — two ces-specific arms beyond the shared rootCodeMap: a UNION, which has no runtime arm
-// discrimination, so the build fails rather than ship a clone that silently kept unknown keys, and a callable
-// interface, routed through the function code by callableLeafSubstitute.
-func (CloneExactShapeEmitter) DiagCodeForLeaf(leaf *reflection.RunType) string {
-	if leaf != nil && leaf.Kind == reflection.KindUnion {
-		return diagnostics.CodeCESUnionRoot
-	}
-	return cloneExactShapeRootCodes.codeFor(leaf)
+func (RemoveUnknownKeysEmitter) DiagCodeFor(slot DiagSlot) string {
+	return removeUnknownKeysCodes[slot]
 }
 
-var cloneExactShapeRootCodes = rootCodeMap{
+// DiagCodeForLeaf — two ruk-specific arms beyond the shared rootCodeMap: a UNION, which has no runtime arm
+// discrimination, so the build fails rather than ship a clone that silently kept unknown keys, and a callable
+// interface, routed through the function code by callableLeafSubstitute.
+func (RemoveUnknownKeysEmitter) DiagCodeForLeaf(leaf *reflection.RunType) string {
+	if leaf != nil && leaf.Kind == reflection.KindUnion {
+		return diagnostics.CodeRUKUnionRoot
+	}
+	return removeUnknownKeysRootCodes.codeFor(leaf)
+}
+
+var removeUnknownKeysRootCodes = rootCodeMap{
 	never:           "", // never is a noop arm (unknown-keys family parity)
 	nonSerializable: "", // shared by reference — nothing key-tracked to strip
-	function:        diagnostics.CodeCESFunctionRoot,
+	function:        diagnostics.CodeRUKFunctionRoot,
 	symbol:          "", // symbols pass through by reference
 }
 

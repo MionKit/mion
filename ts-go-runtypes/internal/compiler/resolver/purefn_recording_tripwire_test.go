@@ -35,7 +35,7 @@ import (
 // body for it.
 const tripwireCorpus = `import {
   createValidateFn, createGetValidationErrorsFn, createHasUnknownKeysFn,
-  createCloneExactShapeFn, createUnknownKeyErrorsFn, createFormatTransformFn,
+  createRemoveUnknownKeysFn, createUnknownKeyErrorsFn, createFormatTransformFn,
   createJsonEncoderFn, createJsonDecoderFn, createBinaryEncoderFn, createBinaryDecoderFn,
 } from '@mionjs/run-types';
 type TypeFormat<Base, Name extends string, Params> = Base & {
@@ -52,7 +52,7 @@ export const e = createGetValidationErrorsFn<Obj>();
 export const ef = createGetValidationErrorsFn<WithFmt>();
 export const en = createGetValidationErrorsFn<Nested>();
 export const h = createHasUnknownKeysFn<Obj>();
-export const cl = createCloneExactShapeFn<Obj>();
+export const cl = createRemoveUnknownKeysFn<Obj>();
 export const uke = createUnknownKeyErrorsFn<Obj>();
 export const ft = createFormatTransformFn<WithFmt>();
 export const je = createJsonEncoderFn<WithFmt>();

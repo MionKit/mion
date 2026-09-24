@@ -29,7 +29,7 @@ export default defineConfig({
       // several lines, and convert collapses the whole type argument onto one,
       // which drops the comment that was inside it. Naming the code here is the
       // only place left to say it; the hand-written tree names nothing.
-      downgradeErrors: ['CES001'],
+      downgradeErrors: ['RUK001'],
     }),
   ],
   test: {

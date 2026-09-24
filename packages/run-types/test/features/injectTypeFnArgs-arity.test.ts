@@ -14,7 +14,7 @@ type SixFamilyMarker = InjectTypeFnArgs<
   'jsonDecoder',
   'jsonEncoder',
   'hasUnknownKeys',
-  'cloneExactShape',
+  'removeUnknownKeys',
   'unknownKeyErrors'
 >;
 
@@ -27,7 +27,7 @@ type TwelveFamilyMarker = InjectTypeFnArgs<
   'jsonDecoder',
   'jsonEncoder',
   'hasUnknownKeys',
-  'cloneExactShape',
+  'removeUnknownKeys',
   'unknownKeyErrors',
   'stringifyJson',
   'formatTransform',

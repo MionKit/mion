@@ -21,7 +21,7 @@ import type {
   ValidateFn,
   GetValidationErrorsFn,
   HasUnknownKeysFn,
-  CloneExactShapeFn,
+  RemoveUnknownKeysFn,
   UnknownKeyErrorsFn,
   FormatTransformFn,
   JsonEncoderFn,
@@ -67,9 +67,9 @@ export const overrideHasUnknownKeys = overrideImpl as unknown as <T>(
   id?: InjectTypeFnArgs<T, 'hasUnknownKeys'>
 ) => void;
 
-export const overrideCloneExactShape = overrideImpl as unknown as <T>(
-  fn: PureFunction<CloneExactShapeFn<T>>,
-  id?: InjectTypeFnArgs<T, 'cloneExactShape'>
+export const overrideRemoveUnknownKeys = overrideImpl as unknown as <T>(
+  fn: PureFunction<RemoveUnknownKeysFn<T>>,
+  id?: InjectTypeFnArgs<T, 'removeUnknownKeys'>
 ) => void;
 
 export const overrideUnknownKeyErrors = overrideImpl as unknown as <T>(

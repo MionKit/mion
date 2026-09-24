@@ -3,7 +3,7 @@
 //   - hasUnknownKeys: boolean predicate (plain + runsAfterValidation variant)
 //   - unknownKeyErrors: accumulate errors with path tracking
 //
-// cloneExactShape (the clone-based replacement for the removed mutating
+// removeUnknownKeys (the clone-based replacement for the removed mutating
 // stripUnknownKeys / unknownKeysToUndefined) has its own full suite at
 // test/suites/cloning/.
 
@@ -228,8 +228,8 @@ describe('nested unknown-keys cases (hasUnknownKeys)', () => {
 //
 // For a union `{a: string} | {b: number}` the declared key set is the UNION
 // of every object member's declared property names. hasUnknownKeys and
-// unknownKeyErrors flag/report anything outside that set. (cloneExactShape's
-// union stance — per-member dispatch for atomic unions, CES001 for
+// unknownKeyErrors flag/report anything outside that set. (removeUnknownKeys's
+// union stance — per-member dispatch for atomic unions, RUK001 for
 // object-bearing ones — is pinned in test/suites/cloning/Unions.ts.)
 
 describe('union types — has/keyErrors merged allowlist', () => {

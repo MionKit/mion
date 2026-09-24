@@ -4,7 +4,7 @@
 // beside named properties. Case keys mirror serialization/Records.ts;
 // cloning-only cases are appended at the end of the map.
 
-import {createCloneExactShapeFn} from '@mionjs/run-types';
+import {createRemoveUnknownKeysFn} from '@mionjs/run-types';
 import type {CloningCase} from './types.ts';
 
 // Identity-stable symbol keys: the twice-called getTestData builder must
@@ -18,14 +18,14 @@ export const RECORDS = {
     title: 'Index property',
     description:
       'Root `{[key: string]: string}` dynamic-key record clones every key/value pair (and the empty object) onto a fresh plain object, the atomic string values passing by value.',
-    clone: () => createCloneExactShapeFn<{[key: string]: string}>(),
+    clone: () => createRemoveUnknownKeysFn<{[key: string]: string}>(),
     getTestData: () => ({values: [{key1: 'value1', key2: 'value2'}, {}]}),
   },
   index_property_and_prop: {
     title: 'Property and index',
     description:
       'Root `{a: string; [key: string]: string}` clones the declared `a` alongside any number of dynamic string keys — named and signature-matched keys are both declared shape.',
-    clone: () => createCloneExactShapeFn<{a: string; [key: string]: string}>(),
+    clone: () => createRemoveUnknownKeysFn<{a: string; [key: string]: string}>(),
     getTestData: () => ({values: [{a: 'helloA'}, {a: 'helloA', b: 'helloB'}]}),
   },
   index_property_extra: {
@@ -34,7 +34,7 @@ export const RECORDS = {
       'Root `{a: string; b: number; [key: string]: string | number}` clones declared props and dynamic keys alike, the atomic string-or-number values passing by value.',
     cloneNotes:
       'The `string | number` index value is an atomic-only union — it clones fine; only object-bearing unions make the clone factory throw.',
-    clone: () => createCloneExactShapeFn<{a: string; b: number; [key: string]: string | number}>(),
+    clone: () => createRemoveUnknownKeysFn<{a: string; b: number; [key: string]: string | number}>(),
     getTestData: () => ({values: [{key1: 'value1', key2: 'value2', a: 'extra1', b: 123}]}),
   },
   multiple_index_props: {
@@ -43,7 +43,7 @@ export const RECORDS = {
       'Root `{[key: string]: string; [key: number]: string; [abc: symbol]: Date}` clones string- and number-keyed entries onto the fresh object while symbol-keyed entries fall outside the string-keyed data projection and drop.',
     cloneNotes:
       'Symbol-keyed entries are dropped from the clone (expected reflects it), mirroring how serialization omits them on the wire; numeric keys are stored as string property keys and copy as such.',
-    clone: () => createCloneExactShapeFn<{[key: string]: string; [key: number]: string; [abc: symbol]: Date}>(),
+    clone: () => createRemoveUnknownKeysFn<{[key: string]: string; [key: number]: string; [abc: symbol]: Date}>(),
     getTestData: () => {
       const objWithSymbolKeys = {
         key1: 'value1',
@@ -69,14 +69,14 @@ export const RECORDS = {
     title: 'Nested index',
     description:
       'Root `{[key: string]: {[key: string]: number}}` deep-clones both levels of dynamic keys with a fresh object per level, the atomic number values passing by value.',
-    clone: () => createCloneExactShapeFn<{[key: string]: {[key: string]: number}}>(),
+    clone: () => createRemoveUnknownKeysFn<{[key: string]: {[key: string]: number}}>(),
     getTestData: () => ({values: [{key1: {nestedKey1: 1, nestedKey2: 2}}]}),
   },
   index_property_nested_date: {
     title: 'Nested Date index',
     description:
       'Root `{[key: string]: {[key: string]: Date}}` deep-clones both levels of dynamic keys and rebuilds each innermost `Date` as a fresh equal instance.',
-    clone: () => createCloneExactShapeFn<{[key: string]: {[key: string]: Date}}>(),
+    clone: () => createRemoveUnknownKeysFn<{[key: string]: {[key: string]: Date}}>(),
     getTestData: () => ({
       values: [
         {
@@ -92,7 +92,7 @@ export const RECORDS = {
     title: 'Bigint index',
     description:
       'Root `{[key: string]: bigint}` copies every dynamic key onto a fresh object, the bigint primitives passing by value with no decimal-string round-trip.',
-    clone: () => createCloneExactShapeFn<{[key: string]: bigint}>(),
+    clone: () => createRemoveUnknownKeysFn<{[key: string]: bigint}>(),
     getTestData: () => ({
       values: [
         {key1: 1n, key2: 2n},
@@ -104,19 +104,19 @@ export const RECORDS = {
     title: 'Non-root index',
     description:
       'Root `{b: string; c: {...}}` with the index signature only on the nested `c` clones the fixed root shape plus every dynamic nested key beside the declared `a`.',
-    clone: () => createCloneExactShapeFn<{b: string; c: {a: string; [key: string]: string}}>(),
+    clone: () => createRemoveUnknownKeysFn<{b: string; c: {a: string; [key: string]: string}}>(),
     getTestData: () => ({values: [{b: 'hello', c: {a: 'world', c: 'world'}}]}),
   },
   atomicValues: {
     title: 'record of atomics',
     description: 'An index signature over atomic values copies every key onto a fresh object.',
-    clone: () => createCloneExactShapeFn<{[key: string]: number}>(),
+    clone: () => createRemoveUnknownKeysFn<{[key: string]: number}>(),
     getTestData: () => ({values: [{a: 1, b: 2, anyOther: 3}]}),
   },
   objectValues: {
     title: 'record of objects',
     description: 'An index signature over object values copies every key, exact-shape-cloning each value (their extras drop).',
-    clone: () => createCloneExactShapeFn<{[key: string]: {a: string}}>(),
+    clone: () => createRemoveUnknownKeysFn<{[key: string]: {a: string}}>(),
     getTestData: () => ({
       values: [{k1: {a: 'x', extra: 1}, k2: {a: 'y'}}],
       expected: [{k1: {a: 'x'}, k2: {a: 'y'}}],
@@ -127,7 +127,7 @@ export const RECORDS = {
     description: 'Named properties and signature-matched keys are BOTH declared shape — the clone copies both.',
     cloneNotes:
       'Regression guard: an early emit filtered atomic index signatures as "non-contributing", which silently dropped every signature-matched key from the clone.',
-    clone: () => createCloneExactShapeFn<{name: string; [key: string]: string}>(),
+    clone: () => createRemoveUnknownKeysFn<{name: string; [key: string]: string}>(),
     getTestData: () => ({values: [{name: 'ada', role: 'admin', team: 'core'}]}),
   },
 } satisfies Record<string, CloningCase>;

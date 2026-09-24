@@ -2,7 +2,7 @@
 //
 // Where `mutateToInvalid` corrupts a valid mock so `validate<T>` must reject
 // it, this module decorates a valid mock with undeclared keys so the value
-// STAYS valid while `createCloneExactShapeFn<T>` must strip every one of them.
+// STAYS valid while `createRemoveUnknownKeysFn<T>` must strip every one of them.
 // The tandem tree walk collects PLAIN-OBJECT positions — ObjectLiteral /
 // Class<SubKindNone> nodes WITHOUT index signatures — then injects 1–3
 // `__fz_extra_<n>` keys with random primitive values at randomly chosen

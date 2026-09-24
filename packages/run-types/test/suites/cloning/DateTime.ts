@@ -9,7 +9,7 @@
 // Temporal is the runtime global (Node >= 26); types resolve from the
 // TS lib as in the validation / serialization DateTime groups.
 
-import {createCloneExactShapeFn} from '@mionjs/run-types';
+import {createRemoveUnknownKeysFn} from '@mionjs/run-types';
 import type {CloningCase} from './types.ts';
 
 const T = (globalThis as {Temporal: typeof Temporal}).Temporal;
@@ -18,7 +18,7 @@ export const DATETIME = {
   date: {
     title: 'Date',
     description: 'Dates are mutable (setTime & friends) — the clone always re-wraps: fresh instance, same instant.',
-    clone: () => createCloneExactShapeFn<Date>(),
+    clone: () => createRemoveUnknownKeysFn<Date>(),
     // Span whole-second, sub-second ms precision, the Unix epoch (getTime 0),
     // and a pre-1970 (negative epoch) date.
     getTestData: () => ({
@@ -33,7 +33,7 @@ export const DATETIME = {
   dateInObject: {
     title: 'Date property',
     description: 'A Date inside a rebuilt object is itself re-wrapped — mutating `clone.at` never touches the input.',
-    clone: () => createCloneExactShapeFn<{at: Date; note: string}>(),
+    clone: () => createRemoveUnknownKeysFn<{at: Date; note: string}>(),
     getTestData: () => ({
       values: [{at: new Date('2021-05-06T07:08:09.000Z'), note: 'n', extra: 1}],
       expected: [{at: new Date('2021-05-06T07:08:09.000Z'), note: 'n'}],
@@ -44,13 +44,13 @@ export const DATETIME = {
     description: 'Re-materialized via `Temporal.Instant.from(v)` — fresh identity, same exact point on the timeline.',
     cloneNotes:
       'Temporal objects are immutable, so sharing would be safe — but `clone(x) !== x` holds everywhere so identity-based test assertions never surprise.',
-    clone: () => createCloneExactShapeFn<Temporal.Instant>(),
+    clone: () => createRemoveUnknownKeysFn<Temporal.Instant>(),
     getTestData: () => ({values: [T.Instant.from('2020-01-15T10:30:00Z'), T.Instant.fromEpochMilliseconds(0)]}),
   },
   temporalZonedDateTime: {
     title: 'Temporal.ZonedDateTime',
     description: 'Re-materialized via `Temporal.ZonedDateTime.from(v)`, time zone and calendar preserved.',
-    clone: () => createCloneExactShapeFn<Temporal.ZonedDateTime>(),
+    clone: () => createRemoveUnknownKeysFn<Temporal.ZonedDateTime>(),
     getTestData: () => ({
       values: [
         T.ZonedDateTime.from('2020-01-15T10:30:00+01:00[Europe/Madrid]'),
@@ -61,37 +61,37 @@ export const DATETIME = {
   temporalPlainDate: {
     title: 'Temporal.PlainDate',
     description: 'Re-materialized via `Temporal.PlainDate.from(v)`.',
-    clone: () => createCloneExactShapeFn<Temporal.PlainDate>(),
+    clone: () => createRemoveUnknownKeysFn<Temporal.PlainDate>(),
     getTestData: () => ({values: [T.PlainDate.from('2021-05-06'), T.PlainDate.from('1999-01-01')]}),
   },
   temporalPlainDateTime: {
     title: 'Temporal.PlainDateTime',
     description: 'Re-materialized via `Temporal.PlainDateTime.from(v)`.',
-    clone: () => createCloneExactShapeFn<Temporal.PlainDateTime>(),
+    clone: () => createRemoveUnknownKeysFn<Temporal.PlainDateTime>(),
     getTestData: () => ({values: [T.PlainDateTime.from('2021-05-06T07:08:09')]}),
   },
   temporalPlainTime: {
     title: 'Temporal.PlainTime',
     description: 'Re-materialized via `Temporal.PlainTime.from(v)`.',
-    clone: () => createCloneExactShapeFn<Temporal.PlainTime>(),
+    clone: () => createRemoveUnknownKeysFn<Temporal.PlainTime>(),
     getTestData: () => ({values: [T.PlainTime.from('07:08:09'), T.PlainTime.from('00:00:00')]}),
   },
   temporalPlainYearMonth: {
     title: 'Temporal.PlainYearMonth',
     description: 'Re-materialized via `Temporal.PlainYearMonth.from(v)`.',
-    clone: () => createCloneExactShapeFn<Temporal.PlainYearMonth>(),
+    clone: () => createRemoveUnknownKeysFn<Temporal.PlainYearMonth>(),
     getTestData: () => ({values: [T.PlainYearMonth.from('2021-05')]}),
   },
   temporalPlainMonthDay: {
     title: 'Temporal.PlainMonthDay',
     description: 'Re-materialized via `Temporal.PlainMonthDay.from(v)`.',
-    clone: () => createCloneExactShapeFn<Temporal.PlainMonthDay>(),
+    clone: () => createRemoveUnknownKeysFn<Temporal.PlainMonthDay>(),
     getTestData: () => ({values: [T.PlainMonthDay.from('05-06')]}),
   },
   temporalDuration: {
     title: 'Temporal.Duration',
     description: 'Re-materialized via `Temporal.Duration.from(v)`.',
-    clone: () => createCloneExactShapeFn<Temporal.Duration>(),
+    clone: () => createRemoveUnknownKeysFn<Temporal.Duration>(),
     getTestData: () => ({
       values: [T.Duration.from({hours: 2, minutes: 30}), T.Duration.from('P1Y2M10DT2H30M'), T.Duration.from('PT0S')],
     }),

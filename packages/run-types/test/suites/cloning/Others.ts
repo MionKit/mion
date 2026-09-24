@@ -7,7 +7,7 @@
 // wrong, not just slow.
 
 import {expect} from 'vitest';
-import {createCloneExactShapeFn} from '@mionjs/run-types';
+import {createRemoveUnknownKeysFn} from '@mionjs/run-types';
 import type {CloningCase} from './types.ts';
 
 // Identity-stable opaque handles (shared by reference across the twice-called
@@ -32,7 +32,7 @@ export const OTHERS = {
     description: 'A root `Promise<string>` is an opaque handle with no data shape to rebuild — it passes through by reference.',
     cloneNotes:
       'Divergence from the serializers: they render a root Promise as an alwaysThrow factory, while the value-level clone shares the handle — copying a pending Promise would be wrong, not just slow.',
-    clone: () => createCloneExactShapeFn<Promise<string>>(),
+    clone: () => createRemoveUnknownKeysFn<Promise<string>>(),
     getTestData: () => ({values: [rootPromise]}),
     passThrough: true,
   },
@@ -41,7 +41,7 @@ export const OTHERS = {
     description: 'A root `Int8Array` is an opaque native handle — it passes through by reference.',
     cloneNotes:
       'Divergence from the serializers: they render a root Int8Array as an alwaysThrow factory, while the value-level clone shares the handle (no declared data shape to rebuild).',
-    clone: () => createCloneExactShapeFn<Int8Array>(),
+    clone: () => createRemoveUnknownKeysFn<Int8Array>(),
     getTestData: () => ({values: [new Int8Array([1, 2, 3])]}),
     passThrough: true,
   },
@@ -50,8 +50,8 @@ export const OTHERS = {
     description:
       'A declared `Int8Array`-typed member is KEPT on the clone, shared by reference — opaque handles cannot be rebuilt, and declared members are never dropped.',
     cloneNotes:
-      'The build emits a CES015 advisory naming the shared member; writes through the shared handle are visible on both sides (overrideCloneExactShape is the escape hatch).',
-    clone: () => createCloneExactShapeFn<{a: Int8Array}>(),
+      'The build emits a RUK015 advisory naming the shared member; writes through the shared handle are visible on both sides (overrideRemoveUnknownKeys is the escape hatch).',
+    clone: () => createRemoveUnknownKeysFn<{a: Int8Array}>(),
     getTestData: () => ({values: [{a: typedA}]}),
   },
   non_serializable_array: {
@@ -60,7 +60,7 @@ export const OTHERS = {
       'An `Int8Array[]` root clones to a fresh array (containers are never shared); the opaque elements ride along by reference.',
     cloneNotes:
       'Divergence from the serializers: a non-serializable element position alwaysThrows there, while the clone slices a fresh container and shares the opaque element handles.',
-    clone: () => createCloneExactShapeFn<Int8Array[]>(),
+    clone: () => createRemoveUnknownKeysFn<Int8Array[]>(),
     // The isolation walker excludes opaque handles (typed arrays share by
     // contract), so real samples are expressible: fresh outer array, shared
     // Int8Array elements.
@@ -72,13 +72,13 @@ export const OTHERS = {
       'A tuple with an `Int8Array` slot clones to a fresh array (tuples ride arrays); the opaque slot value rides along by reference.',
     cloneNotes:
       'Divergence from the serializers: a non-serializable tuple slot alwaysThrows there, while the clone slices a fresh container and shares the opaque slot handle.',
-    clone: () => createCloneExactShapeFn<[Int8Array]>(),
+    clone: () => createRemoveUnknownKeysFn<[Int8Array]>(),
     getTestData: () => ({values: [[typedA]]}),
   },
   regexp: {
     title: 'RegExp',
     description: 'A RegExp is not data (DataOnly strips it), so the clone shares the very same instance, like a function.',
-    clone: () => createCloneExactShapeFn<{re: RegExp}>(),
+    clone: () => createRemoveUnknownKeysFn<{re: RegExp}>(),
     getTestData: () => ({values: [{re: advancedRegExp()}]}),
     verifyClone: (out, input) => {
       const re = (out as {re: RegExp}).re;
@@ -89,7 +89,7 @@ export const OTHERS = {
   regexpRoot: {
     title: 'RegExp root',
     description: 'A root RegExp passes through by reference.',
-    clone: () => createCloneExactShapeFn<RegExp>(),
+    clone: () => createRemoveUnknownKeysFn<RegExp>(),
     getTestData: () => ({values: [/xy+z/im]}),
     passThrough: true,
   },

@@ -105,9 +105,9 @@ describe('getFnHash — unit (resolves the version-independent fnHash per family
   test('option-less families resolve to a single hash (options ignored)', () => {
     expect(getFnHash('toBinary')).toBe('jDpZ');
     expect(getFnHash('fromBinary')).toBe('rR8x');
-    expect(getFnHash('cloneExactShape')).toBe('SYRo');
+    expect(getFnHash('removeUnknownKeys')).toBe('C85b');
     // A family with no option axis ignores any options bag rather than throwing.
-    expect(getFnHash('cloneExactShape', {noLiterals: true})).toBe('SYRo');
+    expect(getFnHash('removeUnknownKeys', {noLiterals: true})).toBe('C85b');
   });
 
   test('hasUnknownKeys resolves its runsAfterValidation variant', () => {

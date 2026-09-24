@@ -1,4 +1,4 @@
-// Reference interpreter for `createCloneExactShapeFn<T>()` — the executable
+// Reference interpreter for `createRemoveUnknownKeysFn<T>()` — the executable
 // oracle the clone fuzz compares the COMPILED clone against (O15).
 //
 // A naive, obviously-correct walk of the reflected RunType graph that mirrors
@@ -29,7 +29,7 @@
 //     RegExp → shared by reference (not data, like a function). Temporal →
 //     fresh via the static `from()`.
 //   - Union: OBJECT-bearing unions are out of scope (the compiled factory is
-//     a CES001 alwaysThrow — the corpus must exclude them; this walk throws
+//     a RUK001 alwaysThrow — the corpus must exclude them; this walk throws
 //     loudly if one slips in). Atomic unions dispatch structurally: an
 //     array/Date/Map/Set value matching a member gets that member's
 //     clone, everything else passes through. The corpus keeps at most one
@@ -153,7 +153,7 @@ function cloneNode(rawNode: RunType, value: unknown, table: RefTable): unknown {
 
     case kind.indexSignature:
       // Bare index-signature root (root reach-in) — the object arm normally
-      // consumes sigs; mirror emitIndexSignatureCloneExactShape.
+      // consumes sigs; mirror emitIndexSignatureRemoveUnknownKeys.
       return cloneShapedObject({...node, children: [node]} as RunType, value, false, table);
 
     case kind.union:
@@ -185,7 +185,7 @@ function isOpaqueValueType(node: RunType): boolean {
   return false;
 }
 
-/** ObjectLiteral / Class<None> rebuild (mirrors emitObjectCloneExactShape). **/
+/** ObjectLiteral / Class<None> rebuild (mirrors emitObjectRemoveUnknownKeys). **/
 function cloneShapedObject(node: RunType, value: unknown, asClass: boolean, table: RefTable): unknown {
   const source = value as Record<string | number, unknown>;
   interface PropPlan {
@@ -332,7 +332,7 @@ function cloneSet(node: RunType, value: Set<unknown>, table: RefTable): Set<unkn
   return out;
 }
 
-/** Atomic-union dispatch (mirrors emitUnionCloneExactShape): first member
+/** Atomic-union dispatch (mirrors emitUnionRemoveUnknownKeys): first member
  *  whose structural family matches the value gets its clone; immutable and
  *  opaque members fall through to the `return v` tail. **/
 function cloneUnion(node: RunType, value: unknown, table: RefTable): unknown {
@@ -341,7 +341,7 @@ function cloneUnion(node: RunType, value: unknown, table: RefTable): unknown {
     if (member.notSupported) continue; // DataOnly-stripped member — never dispatched
     const memberKind = member.kind as number;
     if (memberKind === kind.objectLiteral || memberKind === kind.intersection) {
-      throw new Error('referenceClone: object-bearing unions are out of scope (compiled factory is a CES001 alwaysThrow)');
+      throw new Error('referenceClone: object-bearing unions are out of scope (compiled factory is a RUK001 alwaysThrow)');
     }
     if ((memberKind === kind.array || memberKind === kind.tuple) && Array.isArray(value)) {
       return cloneNode(member, value, table);

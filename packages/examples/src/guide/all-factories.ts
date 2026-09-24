@@ -3,14 +3,13 @@ import {
   createGetValidationErrorsFn,
   createHasUnknownKeysFn,
   createUnknownKeyErrorsFn,
-  createCloneExactShapeFn,
+  createRemoveUnknownKeysFn,
   createFormatTransformFn,
   createJsonEncoderFn,
   createJsonDecoderFn,
   createPrepareForJsonFn,
   createRestoreFromJsonFn,
   createStringifyJsonFn,
-  createStripUnknownKeysFn,
   createBinaryEncoderFn,
   createBinaryDecoderFn,
   createBinarySizerFn,
@@ -39,7 +38,7 @@ const userErrorsUnionKeys = createGetValidationErrorsFn<User>(undefined, {
 
 const userHasExtras = createHasUnknownKeysFn<User>();
 const userExtraErrors = createUnknownKeyErrorsFn<User>();
-const cloneUser = createCloneExactShapeFn<User>();
+const removeUserExtras = createRemoveUnknownKeysFn<User>();
 const cleanUser = createFormatTransformFn<User>();
 
 // JSON as a string
@@ -64,7 +63,6 @@ const uncompactUser = createRestoreFromJsonFn<User>(undefined, {
 
 // no strategy to pick
 const stringifyUser = createStringifyJsonFn<User>();
-const stripUserExtras = createStripUnknownKeysFn<User>();
 
 // binary
 const toBinary = createBinaryEncoderFn<User>();
@@ -90,14 +88,13 @@ export {
   uncompactUser,
   userHasExtras,
   userExtraErrors,
-  cloneUser,
+  removeUserExtras,
   cleanUser,
   encodeUser,
   decodeUser,
   prepareUser,
   restoreUser,
   stringifyUser,
-  stripUserExtras,
   toBinary,
   fromBinary,
   binarySize,

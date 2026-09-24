@@ -12,7 +12,7 @@
 //   4. prototype preservation: an object-typed root keeps the input root's
 //      prototype (covers `instanceof` for classes, Date, Map/Set, Temporal),
 //   5. pass-through cases (`passThrough`) assert `clone(x) === x` instead of
-//      2–4, and `factoryThrows` cases assert the CES001 alwaysThrow.
+//      2–4, and `factoryThrows` cases assert the RUK001 alwaysThrow.
 
 import {expect} from 'vitest';
 import type {CloningCase} from '../suites/cloning/types.ts';
@@ -80,7 +80,7 @@ export function assertNoSharedMutableRefs(input: unknown, out: unknown): void {
 /** The universal per-case assertion — see the module doc for the checklist. **/
 export function assertCloneCase(c: CloningCase): void {
   if (c.factoryThrows) {
-    expect(() => c.clone()).toThrow(/CES001/);
+    expect(() => c.clone()).toThrow(/RUK001/);
     return;
   }
   const clone = c.clone();

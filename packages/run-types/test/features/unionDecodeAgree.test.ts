@@ -34,8 +34,8 @@ type Enveloped = {a: string} | Date;
 type IndexSignatureMember = Record<string, number> | {a: string};
 
 describe('every union decode answers the same', () => {
-  // `cloneExactShape` is deliberately absent: it refuses a union with object members outright
-  // (CES001), because a clone from the declared shape needs to know which arm matched. It is the one
+  // `removeUnknownKeys` is deliberately absent: it refuses a union with object members outright
+  // (RUK001), because a clone from the declared shape needs to know which arm matched. It is the one
   // family allowed to answer "cannot", and it must keep saying so rather than quietly agreeing.
   const rows = {
     'two object members, bare wire': {

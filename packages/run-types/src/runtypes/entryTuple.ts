@@ -399,7 +399,7 @@ export const familyMeta: Record<string, FamilyMeta> = {
     defaultParamValues: (): CompiledFnArgs => ({vλl: '', θpts: '{}'}),
     noop: noopFalse,
   },
-  ces: valueShaped('ces', noopIdentity),
+  ruk: valueShaped('ruk', noopIdentity),
   uke: errorShaped('uke'),
   ukuw: valueShaped('ukuw', noopIdentity),
   // Name card: its typeName slot carries the build-time class name registerClassSerializer's name lane keys on.

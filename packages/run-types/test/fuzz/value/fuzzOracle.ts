@@ -72,7 +72,7 @@ export interface FuzzTarget {
    *  so does `unknownKeyErrors`, so the two are comparable on any value. **/
   hasUnknownKeysBlind?: (value: unknown) => boolean;
   unknownKeyErrors?: (value: unknown) => RTValidationError[];
-  /** `CloneExactShapeFn<T>` is `(value: T) => T`, so its parameter is `T`, not
+  /** `RemoveUnknownKeysFn<T>` is `(value: T) => T`, so its parameter is `T`, not
    *  `unknown`. Spelling the parameter `never` here is what lets a target of
    *  any shape be assigned (parameters are contravariant); the oracle casts
    *  the value back at the one call site. **/
@@ -114,7 +114,7 @@ export interface FuzzTarget {
 //                       exactly that path; at an index-signature carve-out it
 //                       is reported by neither; a clean value is clean
 //   O24 unknown-strip   the paths unknownKeyErrors reports are exactly the
-//                       keys cloneExactShape drops
+//                       keys removeUnknownKeys drops
 //   O25 wire-strip      keys planted into EVERY plain object of the encoded
 //                       wire do not change what the `strip` decoder returns,
 //                       except where the type admits them (an index signature,
@@ -447,9 +447,9 @@ export function checkUnknownKeysPlanted(
 }
 
 /** O24 — the report and the strip agree on WHICH keys: every path
- *  `unknownKeyErrors` names is a key `cloneExactShape` drops, and vice versa.
+ *  `unknownKeyErrors` names is a key `removeUnknownKeys` drops, and vice versa.
  *
- *  `cloneExactShape` is the public strip (it replaced the mutating
+ *  `removeUnknownKeys` is the public strip (it replaced the mutating
  *  `unknownKeysToUndefined`), and it walks the type with its own emitter. A
  *  position one of them reaches and the other does not shows up here as a key
  *  in one list and not the other — which is exactly the drift, made visible
@@ -461,7 +461,7 @@ export function checkUnknownKeysPlanted(
  *  one.
  *
  *  A union with object members has no clone at all (the emitter refuses it,
- *  CES001: it cannot know which declared shape to rebuild), so those targets
+ *  RUK001: it cannot know which declared shape to rebuild), so those targets
  *  supply no `clone` and this oracle skips them. O25 is what covers the strip
  *  side of a union. **/
 export function checkUnknownKeysStripAgree(target: FuzzTarget, value: unknown, ctx: CheckCtx): Violation | null {
@@ -473,14 +473,14 @@ export function checkUnknownKeysStripAgree(target: FuzzTarget, value: unknown, c
     reported = reportedPaths(unknownKeyErrors(value));
     dropped = droppedKeyPaths(value, clone(value as never)).sort();
   } catch (err) {
-    return violation('O24', target, ctx, `unknownKeyErrors or cloneExactShape threw: ${errMsg(err)}`, value);
+    return violation('O24', target, ctx, `unknownKeyErrors or removeUnknownKeys threw: ${errMsg(err)}`, value);
   }
   if (!isDeepStrictEqual(reported, dropped)) {
     return violation(
       'O24',
       target,
       ctx,
-      `unknownKeyErrors reports [${reported.join(', ')}] but cloneExactShape drops [${dropped.join(', ')}]`,
+      `unknownKeyErrors reports [${reported.join(', ')}] but removeUnknownKeys drops [${dropped.join(', ')}]`,
       value
     );
   }

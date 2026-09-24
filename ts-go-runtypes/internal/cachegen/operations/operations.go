@@ -81,7 +81,7 @@ var registry = []Operation{
 
 	// Option-less leaf families.
 	{Name: "unknownKeyErrors", Doc: "Returns one error per undeclared property, with the path to each one.", Factory: "createUnknownKeyErrorsFn", FamilyTag: "uke", Axis: AxisNone, Public: true, FnKey: "unknownKeyErrors"},
-	{Name: "cloneExactShape", Doc: "Copies a value keeping only the properties the type declares.", Factory: "createCloneExactShapeFn", FamilyTag: "ces", Axis: AxisNone, Public: true, FnKey: "cloneExactShape"},
+	{Name: "removeUnknownKeys", Doc: "Copies a value keeping only the properties the type declares.", Factory: "createRemoveUnknownKeysFn", FamilyTag: "ruk", Axis: AxisNone, Public: true, FnKey: "removeUnknownKeys"},
 	{Name: "formatTransform", Doc: "Applies the type's format rules to a value, for example trimming a string or clamping a number.", Factory: "createFormatTransformFn", FamilyTag: "fmt", Axis: AxisNone, Public: true, FnKey: "formatTransform"},
 	{Name: "toBinary", Doc: "Writes a value to the compact binary wire format.", Factory: "createBinaryEncoderFn", FamilyTag: "tb", Axis: AxisNone, Public: true, FnKey: "toBinary", CircularGuarded: true},
 	{Name: "fromBinary", Doc: "Reads a value back from the binary wire format.", Factory: "createBinaryDecoderFn", FamilyTag: "fb", Axis: AxisNone, Public: true, FnKey: "fromBinary"},
@@ -119,7 +119,7 @@ var registry = []Operation{
 	{Name: "restoreFromJsonMutate", Doc: "Turns a JSON-safe value back into the typed shape in place, keeping undeclared properties.", Factory: "createRestoreFromJsonFn", FamilyTag: "rj", Axis: AxisNone, Public: true, FnKey: "restoreFromJsonMutate", CallOptions: "{strategy: 'mutate'}"},
 	{Name: "restoreFromJsonClone", Doc: "Rebuilds the typed shape from a JSON-safe value, so undeclared properties are dropped.", Factory: "createRestoreFromJsonFn", FamilyTag: "rjs", Axis: AxisNone, Public: true, FnKey: "restoreFromJsonClone"},
 	{Name: "stringifyJson", Doc: "Writes a value straight to a JSON string in one pass, with no intermediate value.", Factory: "createStringifyJsonFn", FamilyTag: "sj", Axis: AxisNone, Public: true, FnKey: "stringifyJson"},
-	{Name: "stripUnknownKeysWire", Doc: "Blanks undeclared properties on incoming JSON before it is restored.", Factory: "createStripUnknownKeysFn", FamilyTag: "ukuw", Axis: AxisNone, Public: true, FnKey: "stripUnknownKeysWire"},
+	{Name: "stripUnknownKeysWire", Doc: "Blanks undeclared properties on incoming JSON before it is restored.", FamilyTag: "ukuw", Axis: AxisNone, Public: false, FnKey: "stripUnknownKeysWire"},
 	// compactForJson / compactFromJson are the positional-tuple round-trip pair the `compact` strategy composes.
 	{Name: "compactForJson", Doc: "Builds a value whose objects are positional arrays, so property names never reach the wire.", Factory: "createPrepareForJsonFn", FamilyTag: "cj", Axis: AxisNone, Public: true, FnKey: "compactForJson", CallOptions: "{strategy: 'compact'}"},
 	{Name: "compactFromJson", Doc: "Rebuilds a keyed object from the positional array the compact encoder wrote.", Factory: "createRestoreFromJsonFn", FamilyTag: "cjr", Axis: AxisNone, Public: true, FnKey: "compactFromJson", CallOptions: "{strategy: 'compact'}"},

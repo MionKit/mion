@@ -1,8 +1,8 @@
 // Family 7 — Unknown-keys. Mirrors guide/unknown-keys-*.ts. The three
-// undeclared-key handlers: has / cloneExactShape / errors. (The mutating
-// strip / toUndefined factories were removed in 0.10.0 — cloneExactShape is
+// undeclared-key handlers: has / removeUnknownKeys / errors. (The mutating
+// strip / toUndefined factories were removed in 0.10.0 — removeUnknownKeys is
 // the non-mutating replacement.)
-import {createCloneExactShapeFn, createHasUnknownKeysFn, createUnknownKeyErrorsFn} from '@mionjs/run-types';
+import {createRemoveUnknownKeysFn, createHasUnknownKeysFn, createUnknownKeyErrorsFn} from '@mionjs/run-types';
 import {type CheckResult, ok} from './check';
 
 interface User {
@@ -11,14 +11,14 @@ interface User {
 }
 
 export const hasExtra = createHasUnknownKeysFn<User>();
-export const cloneExact = createCloneExactShapeFn<User>();
+export const removeExtras = createRemoveUnknownKeysFn<User>();
 export const extraKeyErrors = createUnknownKeyErrorsFn<User>();
 
 export function checkUnknownKeys(): CheckResult[] {
   const clean = {id: 1, name: 'Ada'};
   const dirty = {id: 1, name: 'Ada', admin: true, token: 'secret'};
 
-  const cloned = cloneExact(dirty) as Record<string, unknown>;
+  const cloned = removeExtras(dirty) as Record<string, unknown>;
   const errs = extraKeyErrors(dirty);
 
   return [

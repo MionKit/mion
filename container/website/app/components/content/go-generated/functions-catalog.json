@@ -1,13 +1,6 @@
 {
   "functions": [
     {
-      "name": "cloneExactShape",
-      "call": "createCloneExactShapeFn<T>()",
-      "tag": "ces",
-      "doc": "Copies a value keeping only the properties the type declares.",
-      "factory": "createCloneExactShapeFn"
-    },
-    {
       "name": "compactForJson",
       "call": "createPrepareForJsonFn<T>(undefined, {strategy: 'compact'})",
       "tag": "cj",
@@ -91,6 +84,13 @@
       "factory": "createPrepareForJsonFn"
     },
     {
+      "name": "removeUnknownKeys",
+      "call": "createRemoveUnknownKeysFn<T>()",
+      "tag": "ruk",
+      "doc": "Copies a value keeping only the properties the type declares.",
+      "factory": "createRemoveUnknownKeysFn"
+    },
+    {
       "name": "restoreFromJsonClone",
       "call": "createRestoreFromJsonFn<T>()",
       "tag": "rjs",
@@ -110,13 +110,6 @@
       "tag": "sj",
       "doc": "Writes a value straight to a JSON string in one pass, with no intermediate value.",
       "factory": "createStringifyJsonFn"
-    },
-    {
-      "name": "stripUnknownKeysWire",
-      "call": "createStripUnknownKeysFn<T>()",
-      "tag": "ukuw",
-      "doc": "Blanks undeclared properties on incoming JSON before it is restored.",
-      "factory": "createStripUnknownKeysFn"
     },
     {
       "name": "toBinary",

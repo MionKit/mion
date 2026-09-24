@@ -327,7 +327,7 @@ func emitObjectPrepareForJsonClone(rt *reflection.RunType, ctx *EmitContext, v s
 // property under its transform plus every OTHER key of v under the first matching index signature's
 // transform. A key matching no pattern is copied as is when copyPatternMiss is set (the encoders:
 // an index signature is open, a non-matching key is validation's to refuse) and dropped otherwise
-// (cloneExactShape: a by-reference copy would break `clone(x) !== x`).
+// (removeUnknownKeys: a by-reference copy would break `clone(x) !== x`).
 // The for-in loop skips declared keys, whose assignments come AFTER and would otherwise be
 // overridden by raw index-sig values.
 func buildSafeIndexSignatureObject(v string, props []safePropEmit, skipNames []string, indexSigs []*reflection.RunType, copyPatternMiss bool, ctx *EmitContext) RTCode {

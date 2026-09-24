@@ -9,7 +9,7 @@
 // table lines up with serialization and the benchmark; their samples carry
 // no undeclared keys, so only `payload` needs `expected`.
 
-import {createCloneExactShapeFn} from '@mionjs/run-types';
+import {createRemoveUnknownKeysFn} from '@mionjs/run-types';
 import type {CloningCase} from './types.ts';
 
 export interface Payload {
@@ -104,7 +104,7 @@ export const REALWORLD = {
     title: 'API payload',
     description:
       'A realistic parse-output shape: nested object, tags array, Map index, Date stamp. Every mutable position of the clone is a fresh identity, so downstream code can mutate freely.',
-    clone: () => createCloneExactShapeFn<Payload>(),
+    clone: () => createRemoveUnknownKeysFn<Payload>(),
     getTestData: () => ({
       values: [makePayload(false), makePayload(true)],
       expected: [makePayload(false), makePayload(false)],
@@ -114,14 +114,14 @@ export const REALWORLD = {
     title: 'User',
     description:
       'A relational user record — roles array and scalar fields rebuild onto a fresh object sharing nothing with the input.',
-    clone: () => createCloneExactShapeFn<User>(),
+    clone: () => createRemoveUnknownKeysFn<User>(),
     getTestData: () => ({values: [sampleUser(), sampleUser({age: 30, roles: ['admin', 'editor']})]}),
   },
   order: {
     title: 'Order',
     description:
       'A nested order — customer ref, line-item array, shipping address and optional note all clone with fresh identities at every depth.',
-    clone: () => createCloneExactShapeFn<Order>(),
+    clone: () => createRemoveUnknownKeysFn<Order>(),
     getTestData: () => {
       const ok = makeOrder();
       return {values: [ok, {...ok, note: 'gift', status: 'shipped' as const}]};
@@ -131,7 +131,7 @@ export const REALWORLD = {
     title: 'Blog post',
     description:
       'A CMS post — tags array, inline author and nested meta counters rebuild fresh, so mutating the clone never touches the input.',
-    clone: () => createCloneExactShapeFn<BlogPost>(),
+    clone: () => createRemoveUnknownKeysFn<BlogPost>(),
     getTestData: () => {
       const ok = makeBlogPost();
       return {values: [ok, {...ok, publishedAt: '2024-01-02'}]};
@@ -141,7 +141,7 @@ export const REALWORLD = {
     title: 'Product',
     description:
       'A catalog product — the categories array clones fresh and the optional nested dimensions object rebuilds when present, stays absent when absent.',
-    clone: () => createCloneExactShapeFn<Product>(),
+    clone: () => createRemoveUnknownKeysFn<Product>(),
     getTestData: () => {
       const ok = makeProduct();
       return {values: [ok, {...ok, dimensions: {width: 1, height: 2, depth: 3}}]};
@@ -150,7 +150,7 @@ export const REALWORLD = {
   productPage: {
     title: 'Product page',
     description: 'A paginated API response — every product in `data` rebuilds element-by-element alongside fresh page metadata.',
-    clone: () => createCloneExactShapeFn<ProductPage>(),
+    clone: () => createRemoveUnknownKeysFn<ProductPage>(),
     getTestData: () => {
       const ok: ProductPage = {data: [makeProduct()], page: 1, pageSize: 20, total: 1, hasMore: false};
       return {values: [ok, {data: [], page: 2, pageSize: 20, total: 0, hasMore: false}]};
@@ -160,7 +160,7 @@ export const REALWORLD = {
     title: 'Registration form',
     description:
       'A signup form — the nested profile (with its optional age) rebuilds fresh and the `acceptedTerms: true` literal carries through by value.',
-    clone: () => createCloneExactShapeFn<RegistrationForm>(),
+    clone: () => createRemoveUnknownKeysFn<RegistrationForm>(),
     getTestData: () => {
       const ok = makeRegistrationForm();
       return {values: [ok, {...ok, profile: {...ok.profile, age: 30}}]};

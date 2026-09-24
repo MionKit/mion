@@ -108,56 +108,6 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     detail:
       "The build appends the table's import to every module that calls\n`createMionRouter` from `@mionjs/router`, following aliases, namespace imports\nand local barrels through the type checker. It cannot see a call made behind a\ndeclaration file (a wrapper shipped by another package), and this program\nnames `@mionjs/router` without any such direct call.\n\nFix: in the module that creates the router, add\n  import './<genDir>/rpc/batches.generated.js';\n(relative to that module), or call `createMionRouter` from a source file of this\nprogram.",
   },
-  CES001: {
-    headline:
-      '`cloneExactShape` does not support unions with object members: the emitter cannot know which declared shape to rebuild at runtime.',
-    level: 'runtimeError',
-    severity: 'error',
-    family: 'runtype',
-    detail:
-      'A clone built from the declared shape needs to know WHICH union arm the\nruntime value matches; v1 has no arm discrimination, and silently keeping\nunknown keys would defeat the strip guarantee, so the build fails instead.\n\nWorkarounds: narrow the value to one arm before cloning (one\n`createCloneExactShapeFn<Arm>()` per arm), or restructure the union into a\nsingle object with optional properties.',
-  },
-  CES003: {
-    headline: '`cloneExactShape` cannot clone a function-typed value.',
-    level: 'runtimeError',
-    severity: 'error',
-    family: 'runtype',
-    detail:
-      "Functions aren't data: there is no declared shape to rebuild. Function-typed\nPROPERTIES are dropped from the clone (CES010/CES011); a function at the root\nor a propagating position fails the build.",
-  },
-  CES010: {
-    headline:
-      'Property `{0}` is a function: `cloneExactShape` cannot rebuild it, so it is kept on the clone, SHARED BY REFERENCE.',
-    level: 'warning',
-    severity: 'warning',
-    family: 'runtype',
-    detail:
-      "Declared members are never dropped (only UNDECLARED keys are; that is the\nstrip guarantee). Functions cannot be rebuilt from a declared shape, so the\nclone's property points at the SAME function as the input's. Class METHODS\ndiffer: they ride the shared prototype and are not copied as own props\n(CES011).",
-  },
-  CES011: {
-    headline: "Method `{0}` is not copied onto the clone's own properties: methods ride the prototype.",
-    level: 'warning',
-    severity: 'warning',
-    family: 'runtype',
-    detail:
-      'For a plain class instance the clone preserves the PROTOTYPE\n(`Object.create(Object.getPrototypeOf(v))`), so methods keep working via the\nprototype chain; they are simply not copied as own properties. For object\nliterals a method-typed member is omitted like any function value.',
-  },
-  CES012: {
-    headline: 'Static member `{0}` is not part of instance data: `cloneExactShape` skips it.',
-    level: 'warning',
-    severity: 'warning',
-    family: 'runtype',
-    detail: 'Statics live on the class, not the instance; the clone rebuilds instance\ndata only.',
-  },
-  CES015: {
-    headline:
-      'Property `{0}` has a value type `cloneExactShape` cannot rebuild (symbol, Promise, or a non-serialisable built-in): it is kept on the clone, SHARED BY REFERENCE.',
-    level: 'warning',
-    severity: 'warning',
-    family: 'runtype',
-    detail:
-      "Declared members are never dropped (only UNDECLARED keys are; that is the\nstrip guarantee). A value the emitter cannot rebuild passes through by\nreference instead: the clone's property points at the SAME handle as the\ninput's, so mutations through it are visible on both sides. Register\n`overrideCloneExactShape<T>()` if this type needs custom copying.",
-  },
   CFG001: {
     headline:
       'Project tsconfig failed to load ({0}): the build, the linter, and the CLI all read this config, so nothing can run until it loads.',
@@ -1261,6 +1211,56 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     family: 'runtype',
     detail:
       '`restoreFromJsonMutate` works on JSON-shaped data. A property whose value is a symbol,\na Promise, or a non-serialisable built-in (a typed array, `ArrayBuffer`, or any other\nstandard-library class such as `URL` or `Intl.DateTimeFormat`) carries\nno JSON-shaped value, so it is dropped: `DataOnly<{ {0}: symbol }>` is `{}`.\nThe rest of the object\'s behaviour is unaffected.\n\nNote the difference from a property that is only STRUCTURALLY unserialisable\n(`{0}: symbol[]` or `{0}: Map<string, symbol>`), which CANNOT be safely\ndropped (DataOnly keeps it as `never[]`): there `restoreFromJsonMutate` throws at build\ntime instead.\n\nThis is by design, see the "one contract: serializable data only"\nsection in CLAUDE.md.',
+  },
+  RUK001: {
+    headline:
+      '`removeUnknownKeys` does not support unions with object members: the emitter cannot know which declared shape to rebuild at runtime.',
+    level: 'runtimeError',
+    severity: 'error',
+    family: 'runtype',
+    detail:
+      'A clone built from the declared shape needs to know WHICH union arm the\nruntime value matches; v1 has no arm discrimination, and silently keeping\nunknown keys would defeat the strip guarantee, so the build fails instead.\n\nWorkarounds: narrow the value to one arm before cloning (one\n`createRemoveUnknownKeysFn<Arm>()` per arm), or restructure the union into a\nsingle object with optional properties.',
+  },
+  RUK003: {
+    headline: '`removeUnknownKeys` cannot clone a function-typed value.',
+    level: 'runtimeError',
+    severity: 'error',
+    family: 'runtype',
+    detail:
+      "Functions aren't data: there is no declared shape to rebuild. Function-typed\nPROPERTIES are dropped from the clone (RUK010/RUK011); a function at the root\nor a propagating position fails the build.",
+  },
+  RUK010: {
+    headline:
+      'Property `{0}` is a function: `removeUnknownKeys` cannot rebuild it, so it is kept on the clone, SHARED BY REFERENCE.',
+    level: 'warning',
+    severity: 'warning',
+    family: 'runtype',
+    detail:
+      "Declared members are never dropped (only UNDECLARED keys are; that is the\nstrip guarantee). Functions cannot be rebuilt from a declared shape, so the\nclone's property points at the SAME function as the input's. Class METHODS\ndiffer: they ride the shared prototype and are not copied as own props\n(RUK011).",
+  },
+  RUK011: {
+    headline: "Method `{0}` is not copied onto the clone's own properties: methods ride the prototype.",
+    level: 'warning',
+    severity: 'warning',
+    family: 'runtype',
+    detail:
+      'For a plain class instance the clone preserves the PROTOTYPE\n(`Object.create(Object.getPrototypeOf(v))`), so methods keep working via the\nprototype chain; they are simply not copied as own properties. For object\nliterals a method-typed member is omitted like any function value.',
+  },
+  RUK012: {
+    headline: 'Static member `{0}` is not part of instance data: `removeUnknownKeys` skips it.',
+    level: 'warning',
+    severity: 'warning',
+    family: 'runtype',
+    detail: 'Statics live on the class, not the instance; the clone rebuilds instance\ndata only.',
+  },
+  RUK015: {
+    headline:
+      'Property `{0}` has a value type `removeUnknownKeys` cannot rebuild (symbol, Promise, or a non-serialisable built-in): it is kept on the clone, SHARED BY REFERENCE.',
+    level: 'warning',
+    severity: 'warning',
+    family: 'runtype',
+    detail:
+      "Declared members are never dropped (only UNDECLARED keys are; that is the\nstrip guarantee). A value the emitter cannot rebuild passes through by\nreference instead: the clone's property points at the SAME handle as the\ninput's, so mutations through it are visible on both sides. Register\n`overrideRemoveUnknownKeys<T>()` if this type needs custom copying.",
   },
   SJ001: {
     headline: 'Type `{0}` can never be stringified to JSON: the generated function will always fail.',

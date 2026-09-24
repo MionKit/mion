@@ -29,7 +29,6 @@ export interface FnHashEntry {
 
 export const FN_HASHES = {
   classSerializerReg: {axis: 'none', variants: {'': 'fGyS'}},
-  cloneExactShape: {axis: 'none', variants: {'': 'SYRo'}},
   compactForJson: {axis: 'none', variants: {'': 'rpEK'}},
   compactFromJson: {axis: 'none', variants: {'': 'FFsn'}},
   formatTransform: {axis: 'none', variants: {'': 'mzca'}},
@@ -54,6 +53,7 @@ export const FN_HASHES = {
   jsonSchema: {axis: 'none', variants: {'': 'VwiH'}},
   prepareForJsonClone: {axis: 'none', variants: {'': 'A0Qb'}},
   prepareForJsonMutate: {axis: 'none', variants: {'': 'AwYs'}},
+  removeUnknownKeys: {axis: 'none', variants: {'': 'C85b'}},
   restoreFromJsonClone: {axis: 'none', variants: {'': 'Ky89'}},
   restoreFromJsonMutate: {axis: 'none', variants: {'': 'w8ie'}},
   stringifyJson: {axis: 'none', variants: {'': 'i4VX'}},
@@ -297,7 +297,6 @@ export const FN_HASHES = {
  *  the tag it finds needs this to speak one vocabulary again. Composite JSON
  *  families emit per-strategy tags and are not listed. */
 export const FAMILY_TAG_TO_FN_KEY = {
-  ces: 'cloneExactShape',
   cj: 'compactForJson',
   cjr: 'compactFromJson',
   csr: 'classSerializerReg',
@@ -309,6 +308,7 @@ export const FAMILY_TAG_TO_FN_KEY = {
   pjs: 'prepareForJsonClone',
   rj: 'restoreFromJsonMutate',
   rjs: 'restoreFromJsonClone',
+  ruk: 'removeUnknownKeys',
   sj: 'stringifyJson',
   tb: 'toBinary',
   uke: 'unknownKeyErrors',

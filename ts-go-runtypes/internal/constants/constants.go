@@ -99,10 +99,10 @@ var CacheModules = CacheModuleGroup{
 		VarPrefix: "g_huk_",
 		Tag:       "huk",
 	},
-	"cloneExactShape": {
-		Name:      "cloneExactShapeModule",
-		VarPrefix: "g_ces_",
-		Tag:       "ces",
+	"removeUnknownKeys": {
+		Name:      "removeUnknownKeysModule",
+		VarPrefix: "g_ruk_",
+		Tag:       "ruk",
 	},
 	"unknownKeyErrors": {
 		Name:      "unknownKeyErrorsModule",

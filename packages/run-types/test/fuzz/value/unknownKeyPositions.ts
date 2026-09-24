@@ -9,7 +9,7 @@
 //
 //   huk   createHasUnknownKeysFn
 //   uke   createUnknownKeyErrorsFn
-//   ces   createCloneExactShapeFn      (the public strip)
+//   ruk   createRemoveUnknownKeysFn      (the public strip)
 //   ukuw  the JSON decoder's `strategy: 'strip'` pre-pass
 //   vst / vest  the `{checkUnknowns: true}` validators, which reuse huk / uke
 //

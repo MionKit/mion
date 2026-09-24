@@ -41,7 +41,7 @@ var Families = []FamilySpec{
 	family("compactForJson", CompactForJsonEmitter{}),
 	family("compactFromJson", CompactFromJsonEmitter{}),
 	// The unknown-keys group: boolean probe, error accumulator, decoder-internal wire-aware to-undefined.
-	// The public mutators (stripUnknownKeys / unknownKeysToUndefined) gave way to cloneExactShape, measured
+	// The public mutators (stripUnknownKeys / unknownKeysToUndefined) gave way to removeUnknownKeys, measured
 	// 3-24x faster and free of the delete-induced dictionary-mode deopt; the to-undefined EMITTER stays
 	// (unknownkeys_to_undefined.go) because the wire variant delegates to it.
 	family("hasUnknownKeys", HasUnknownKeysEmitter{}),
@@ -49,7 +49,7 @@ var Families = []FamilySpec{
 	family("stripUnknownKeysWire", StripUnknownKeysWireEmitter{}),
 	// A deep clone of the DECLARED shape: unknown keys dropped by construction, nothing mutable shared with
 	// the input (only immutables and opaque handles pass through).
-	family("cloneExactShape", CloneExactShapeEmitter{}),
+	family("removeUnknownKeys", RemoveUnknownKeysEmitter{}),
 	// DataViewSerializer (little-endian) round-trip pair; unions emit the flat-prop wire shape (union_flat_binary.go).
 	family("toBinary", ToBinaryEmitter{}),
 	family("fromBinary", FromBinaryEmitter{}),

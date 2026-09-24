@@ -559,17 +559,17 @@ func TestNoopType_ToBinary(t *testing.T) {
 	}
 }
 
-// TestNoopType_CloneExactShape pins the family's dedicated isolation-aware
+// TestNoopType_RemoveUnknownKeys pins the family's dedicated isolation-aware
 // predicate: identity only for fully immutable/opaque subtrees. Any mutable
 // position — object, class, Date, RegExp, array, tuple, Map/Set, index
 // signature — forces a live clone body (sharing it would leak mutable state
 // between input and "clone").
-func TestNoopType_CloneExactShape(t *testing.T) {
+func TestNoopType_RemoveUnknownKeys(t *testing.T) {
 	ctx, types := noopPredicateTypes(t)
 	rows := map[string]bool{
 		"str":       true,  // immutable primitive
 		"big":       true,  // immutable primitive
-		"fn":        true,  // opaque — passthrough, overrideCloneExactShape is the escape hatch
+		"fn":        true,  // opaque — passthrough, overrideRemoveUnknownKeys is the escape hatch
 		"uAt":       true,  // string | number — every member immutable
 		"dat":       false, // Date is mutable (setTime) — re-wrapped
 		"mp":        false, // Map is a mutable container — always fresh
@@ -579,14 +579,14 @@ func TestNoopType_CloneExactShape(t *testing.T) {
 		"objFn":     false, // declared shape {} — clone is a fresh {}
 		"recA":      false, // index-signature object — fresh copy walk
 		"uDat":      false, // string | Date — Date member needs a dispatch arm
-		"uObj":      false, // object-bearing union — CES001 alwaysThrow, never identity
+		"uObj":      false, // object-bearing union — RUK001 alwaysThrow, never identity
 		"ncls":      false, // class instances rebuild (prototype-preserving)
 		"tupObj":    false,
 	}
 	for id, want := range rows {
 		t.Run(id, func(t *testing.T) {
-			if got := isNoopForCloneExactShape(types[id], ctx); got != want {
-				t.Errorf("isNoopForCloneExactShape(%s) = %v, want %v", id, got, want)
+			if got := isNoopForRemoveUnknownKeys(types[id], ctx); got != want {
+				t.Errorf("isNoopForRemoveUnknownKeys(%s) = %v, want %v", id, got, want)
 			}
 		})
 	}

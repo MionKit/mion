@@ -85,7 +85,7 @@ export const encode = createJsonEncoderFn<RegExp>(undefined, {strategy: 'mutate'
 // Probe: a root validator over the same node another site drops as a property.
 func TestDiag_RegExpRootValidatorBesideAPropertyDrop(t *testing.T) {
 	for _, leaf := range []string{"RegExp", "symbol"} {
-		code := `import {createValidateFn, createJsonEncoderFn, createJsonDecoderFn, createBinaryEncoderFn, createBinaryDecoderFn, createCloneExactShapeFn} from '@mionjs/run-types';
+		code := `import {createValidateFn, createJsonEncoderFn, createJsonDecoderFn, createBinaryEncoderFn, createBinaryDecoderFn, createRemoveUnknownKeysFn} from '@mionjs/run-types';
 import {createMockDataFn} from '@mionjs/run-types/mocking';
 interface Rule {name: string; match: ` + leaf + `}
 export const isLeaf = createValidateFn<` + leaf + `>();
@@ -97,7 +97,7 @@ export const encodeK = createJsonEncoderFn<Rule>(undefined, {strategy: 'compact'
 export const decode = createJsonDecoderFn<Rule>();
 export const tb = createBinaryEncoderFn<Rule>();
 export const fb = createBinaryDecoderFn<Rule>();
-export const clone = createCloneExactShapeFn<Rule>();
+export const clone = createRemoveUnknownKeysFn<Rule>();
 export const mock = createMockDataFn<Rule>();
 `
 		resolverSession := setupInline(t, map[string]string{"r.ts": code})

@@ -7,59 +7,59 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// CloneExactShapeEmitter is a PROPER deep clone of the DECLARED shape, and the clone-based replacement for
+// RemoveUnknownKeysEmitter is a PROPER deep clone of the DECLARED shape, and the clone-based replacement for
 // the removed mutating strip family (stripUnknownKeys / unknownKeysToUndefined).
 // Isolation guarantee: the result is a fresh value of exactly the declared shape, built from the type and
 // never from `{...v}`, the input is never mutated, and `clone(x) !== x` holds for EVERY object-typed
 // position (test code relies on fresh identities). Two groups pass through by reference: PRIMITIVES, which
 // compare by value, and OPAQUE values the type system gives no shape for (`any` / `unknown` / bare
 // `object`, functions, symbols, promises, RegExps, non-serializable natives), where copying a resource
-// handle is usually WRONG rather than just slow; `overrideCloneExactShape<T>()` is the escape hatch for
+// handle is usually WRONG rather than just slow; `overrideRemoveUnknownKeys<T>()` is the escape hatch for
 // custom copying. Everything else is freshly allocated: objects and class instances rebuild (classes keep
 // their prototype), arrays and tuples copy, Map/Set re-materialize, Dates re-wrap, Temporal objects
 // re-materialize through their static `from()`.
 // Deliberately NO key-count gates and NO reuse shortcuts on the rebuild paths: measured on V8, checking
 // `Object.keys(x).length === N` to skip a small-object rebuild costs MORE than the rebuild itself
 // (1.6x slower for a 7+3-prop shape).
-type CloneExactShapeEmitter struct{}
+type RemoveUnknownKeysEmitter struct{}
 
-func (CloneExactShapeEmitter) Args() []ArgSpec {
+func (RemoveUnknownKeysEmitter) Args() []ArgSpec {
 	return []ArgSpec{{Key: "vλl", Name: "v", Default: ""}}
 }
 
 // Supports mirrors the unknown-keys family gate, this being a member of it: functions / symbols /
 // promises are supported as opaque passthrough, NOT rejected the way the JSON serializers reject them.
-func (CloneExactShapeEmitter) Supports(rt *reflection.RunType) bool {
+func (RemoveUnknownKeysEmitter) Supports(rt *reflection.RunType) bool {
 	return unknownKeysSupports(rt)
 }
 
-func (CloneExactShapeEmitter) IsRTInlined(ctx *InlineContext) bool {
+func (RemoveUnknownKeysEmitter) IsRTInlined(ctx *InlineContext) bool {
 	return DefaultIsRTInlined(ctx)
 }
 
 // IsNoopType: identity is sound exactly when the whole reachable subtree is immutable or opaque, where
 // sharing is observationally equivalent to copying; any mutable position forces a live clone body.
-func (CloneExactShapeEmitter) IsNoopType(rt *reflection.RunType, ctx *EmitContext) bool {
-	return isNoopForCloneExactShape(rt, ctx)
+func (RemoveUnknownKeysEmitter) IsNoopType(rt *reflection.RunType, ctx *EmitContext) bool {
+	return isNoopForRemoveUnknownKeys(rt, ctx)
 }
 
 // NoopChildComposesAround: an immutable/opaque child is shared by reference, so the accessor IS its clone
 // and empty code composes correctly.
-func (CloneExactShapeEmitter) NoopChildComposesAround() {}
+func (RemoveUnknownKeysEmitter) NoopChildComposesAround() {}
 
-func (CloneExactShapeEmitter) ReturnName() string {
+func (RemoveUnknownKeysEmitter) ReturnName() string {
 	return "v"
 }
 
 // EmitDependencyCall is an expression, never a mutation statement: the child factory RETURNS the cloned
 // value and the parent composes it into an expression slot, mirroring PrepareForJsonCloneEmitter.
-func (CloneExactShapeEmitter) EmitDependencyCall(rt *reflection.RunType, childID string, ctx *EmitContext) string {
+func (RemoveUnknownKeysEmitter) EmitDependencyCall(rt *reflection.RunType, childID string, ctx *EmitContext) string {
 	return ctx.emitDepCall(childID, ctx.Vλl, "")
 }
 
 // Finalize collapses an empty or identity body to `return v` plus isNoop, so the JS-side noop fastpath
 // short-circuits dispatch.
-func (CloneExactShapeEmitter) Finalize(raw string) (string, bool) {
+func (RemoveUnknownKeysEmitter) Finalize(raw string) (string, bool) {
 	code := normaliseWhitespace(raw)
 	if code == "" || code == "return v" {
 		return "return v", true
@@ -70,7 +70,7 @@ func (CloneExactShapeEmitter) Finalize(raw string) (string, bool) {
 // Emit arms return CodeE (an expression evaluating to the clone), CodeRB (a self-returning block) or empty
 // CodeS (immutable/opaque passthrough).
 // Composition rule as in prepareForJsonClone: an empty child emit means the child's clone IS its accessor.
-func (CloneExactShapeEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ CodeType) RTCode {
+func (RemoveUnknownKeysEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ CodeType) RTCode {
 	if rt == nil {
 		return RTCode{Code: "", Type: CodeS}
 	}
@@ -78,16 +78,16 @@ func (CloneExactShapeEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ C
 	switch rt.Kind {
 
 	case reflection.KindObjectLiteral:
-		return emitObjectCloneExactShape(rt, ctx, v, false)
+		return emitObjectRemoveUnknownKeys(rt, ctx, v, false)
 
 	case reflection.KindClass:
 		switch rt.SubKind {
 		case reflection.SubKindNone:
 			// Prototype-preserving rebuild so `instanceof` survives; a custom serializer registration is a
 			// JSON-wire concern and does not apply to a value-level clone.
-			return emitObjectCloneExactShape(rt, ctx, v, true)
+			return emitObjectRemoveUnknownKeys(rt, ctx, v, true)
 		case reflection.SubKindMap, reflection.SubKindSet:
-			return emitNativeIterableCloneExactShape(rt, ctx, v)
+			return emitNativeIterableRemoveUnknownKeys(rt, ctx, v)
 		case reflection.SubKindDate:
 			// Dates are mutable (setTime & friends), so always re-wrap.
 			return RTCode{Code: "new Date(" + v + ".getTime())", Type: CodeE}
@@ -105,17 +105,17 @@ func (CloneExactShapeEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ C
 		return RTCode{Code: "", Type: CodeS}
 
 	case reflection.KindArray:
-		return emitArrayCloneExactShape(rt, ctx, v)
+		return emitArrayRemoveUnknownKeys(rt, ctx, v)
 
 	case reflection.KindTuple:
-		return emitTupleCloneExactShape(rt, ctx, v)
+		return emitTupleRemoveUnknownKeys(rt, ctx, v)
 
 	case reflection.KindIndexSignature:
 		// Bare index-signature dispatch (root reach-in); the object arm normally consumes sigs itself.
-		return emitIndexSignatureCloneExactShape(rt, ctx, v)
+		return emitIndexSignatureRemoveUnknownKeys(rt, ctx, v)
 
 	case reflection.KindUnion:
-		return emitUnionCloneExactShape(rt, ctx)
+		return emitUnionRemoveUnknownKeys(rt, ctx)
 
 	// Immutable kinds (primitives, enums, literals, template literals, bigints, with no `.toString()`:
 	// this is a value-level clone, not a JSON projection) and opaque kinds are shared by reference.
@@ -124,13 +124,13 @@ func (CloneExactShapeEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ C
 	}
 }
 
-// emitObjectCloneExactShape builds the declared-shape clone of an object literal / plain class instance.
+// emitObjectRemoveUnknownKeys builds the declared-shape clone of an object literal / plain class instance.
 // Mirrors emitObjectPrepareForJsonClone's property collection (static/method drops, DataOnly-stripped
 // drops, enumerability guards) WITHOUT its Approach 3 fastpath: the clone is always built, measured
 // cheaper than gating for small objects (see the emitter doc comment).
 // asClass selects the prototype-preserving accumulator form, so a class instance keeps its prototype chain
 // and `instanceof` holds; plain objects use the forms from buildSafeObjectClone.
-func emitObjectCloneExactShape(rt *reflection.RunType, ctx *EmitContext, v string, asClass bool) RTCode {
+func emitObjectRemoveUnknownKeys(rt *reflection.RunType, ctx *EmitContext, v string, asClass bool) RTCode {
 	// A callable interface is function-like (DataOnly = never), the same NS stance as the JSON families,
 	// whose diag maps it to the function code.
 	if objectHasCallSignature(rt, ctx) {
@@ -231,7 +231,7 @@ func emitObjectCloneExactShape(rt *reflection.RunType, ctx *EmitContext, v strin
 	}
 
 	if asClass {
-		return buildClassCloneExactShape(v, props)
+		return buildClassRemoveUnknownKeys(v, props)
 	}
 
 	clone := buildSafeObjectClone(props, ctx)
@@ -243,8 +243,8 @@ func emitObjectCloneExactShape(rt *reflection.RunType, ctx *EmitContext, v strin
 }
 
 // opaqueValueSlot classifies a property-value type the clone cannot rebuild: function kinds to
-// SlotFunctionPropDropped (CES010), symbol / Promise / non-serializable natives to
-// SlotNonSerializablePropDropped (CES015); both are kept and shared by reference.
+// SlotFunctionPropDropped (RUK010), symbol / Promise / non-serializable natives to
+// SlotNonSerializablePropDropped (RUK015); both are kept and shared by reference.
 // ok=false for every clonable kind, which flows through safeChildExpr as usual.
 func opaqueValueSlot(resolved *reflection.RunType) (DiagSlot, bool) {
 	if resolved == nil {
@@ -270,11 +270,11 @@ func opaqueValueSlot(resolved *reflection.RunType) (DiagSlot, bool) {
 	return "", false
 }
 
-// buildClassCloneExactShape assembles the prototype-preserving accumulator for a plain class instance:
+// buildClassRemoveUnknownKeys assembles the prototype-preserving accumulator for a plain class instance:
 // the fresh object shares the input's prototype, so methods and `instanceof` keep working, while own
 // enumerable data is rebuilt from the declared shape and undeclared own keys are dropped.
 // Prototype accessors are an accepted edge: assignment goes through a setter when one exists.
-func buildClassCloneExactShape(v string, props []safePropEmit) RTCode {
+func buildClassRemoveUnknownKeys(v string, props []safePropEmit) RTCode {
 	var b strings.Builder
 	b.WriteString("const _r = Object.create(Object.getPrototypeOf(")
 	b.WriteString(v)
@@ -306,9 +306,9 @@ func buildClassCloneExactShape(v string, props []safePropEmit) RTCode {
 	return RTCode{Code: b.String(), Type: CodeRB}
 }
 
-// emitArrayCloneExactShape: arrays are mutable containers, so the clone is ALWAYS a fresh array.
+// emitArrayRemoveUnknownKeys: arrays are mutable containers, so the clone is ALWAYS a fresh array.
 // `.slice()` when the element clones to itself, a deep clone in that case, `.map(clone)` otherwise.
-func emitArrayCloneExactShape(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
+func emitArrayRemoveUnknownKeys(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	if rt.Child == nil {
 		return RTCode{Code: v + ".slice()", Type: CodeE}
 	}
@@ -323,10 +323,10 @@ func emitArrayCloneExactShape(rt *reflection.RunType, ctx *EmitContext, v string
 	return RTCode{Code: v + ".map(function(" + elemVar + "){return " + expr + "})", Type: CodeE}
 }
 
-// emitTupleCloneExactShape: tuples are arrays, hence mutable, so always fresh, `.slice()` when every slot
+// emitTupleRemoveUnknownKeys: tuples are arrays, hence mutable, so always fresh, `.slice()` when every slot
 // clones to itself and a positional rebuild otherwise.
 // Optional members preserve `undefined`, a value-level clone having no JSON `null` placeholder concern.
-func emitTupleCloneExactShape(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
+func emitTupleRemoveUnknownKeys(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	if len(rt.Children) == 0 {
 		return RTCode{Code: v + ".slice()", Type: CodeE}
 	}
@@ -388,9 +388,9 @@ func emitTupleCloneExactShape(rt *reflection.RunType, ctx *EmitContext, v string
 	return RTCode{Code: literal, Type: CodeE}
 }
 
-// emitIndexSignatureCloneExactShape handles a bare index signature at a non-object position (root
+// emitIndexSignatureRemoveUnknownKeys handles a bare index signature at a non-object position (root
 // reach-in): symbol-keyed / function-valued sigs pass through, everything else does the fresh copy walk.
-func emitIndexSignatureCloneExactShape(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
+func emitIndexSignatureRemoveUnknownKeys(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	if rt.Child == nil || isSymbolKeyedIndexSig(rt, ctx) {
 		return RTCode{Code: "", Type: CodeS}
 	}
@@ -401,12 +401,12 @@ func emitIndexSignatureCloneExactShape(rt *reflection.RunType, ctx *EmitContext,
 	return buildSafeIndexSignatureObject(v, nil, nil, []*reflection.RunType{rt}, false, ctx)
 }
 
-// emitUnionCloneExactShape leaves a union with OBJECT members unsupported (CodeNS, so CES001 alwaysThrow):
+// emitUnionRemoveUnknownKeys leaves a union with OBJECT members unsupported (CodeNS, so RUK001 alwaysThrow):
 // without runtime arm discrimination the emitter cannot know WHICH declared shape to rebuild, and a clone
 // that silently kept unknown keys would be a security bug.
 // In an atomic-member union, a member whose clone is non-identity takes a structural-guard arm and fully
 // immutable/opaque members fall through to `return v`, so an all-immutable union is a passthrough.
-func emitUnionCloneExactShape(rt *reflection.RunType, ctx *EmitContext) RTCode {
+func emitUnionRemoveUnknownKeys(rt *reflection.RunType, ctx *EmitContext) RTCode {
 	layout := buildFlatLayout(rt, ctx)
 	if len(layout.ObjectMembers) > 0 {
 		return RTCode{Code: "", Type: CodeNS}
@@ -437,10 +437,10 @@ func emitUnionCloneExactShape(rt *reflection.RunType, ctx *EmitContext) RTCode {
 	return RTCode{Code: strings.Join(clauses, " ") + " return " + v, Type: CodeRB}
 }
 
-// emitNativeIterableCloneExactShape: Map / Set are mutable containers, so ALWAYS a fresh instance.
+// emitNativeIterableRemoveUnknownKeys: Map / Set are mutable containers, so ALWAYS a fresh instance.
 // The constructor copy suffices when every inner type clones to itself; otherwise entries rebuild with
 // per-entry exact-shape clones.
-func emitNativeIterableCloneExactShape(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
+func emitNativeIterableRemoveUnknownKeys(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	isMap := rt.SubKind == reflection.SubKindMap
 	ctor := "Set"
 	if isMap {
@@ -480,34 +480,34 @@ func emitNativeIterableCloneExactShape(rt *reflection.RunType, ctx *EmitContext,
 	}
 }
 
-// isNoopForCloneExactShape is the family's noop predicate: identity is sound iff EVERY reachable position
+// isNoopForRemoveUnknownKeys is the family's noop predicate: identity is sound iff EVERY reachable position
 // is immutable or opaque. It mirrors the Emit arms one-for-one, since a mutable position missed here would
 // have the runtime noop fastpath hand back a shared mutable value; a RegExp is shared like in the Emit arm,
 // its state never being data. Memoized on the walker's facts table like the other family predicates.
-func isNoopForCloneExactShape(rt *reflection.RunType, ctx *EmitContext) bool {
+func isNoopForRemoveUnknownKeys(rt *reflection.RunType, ctx *EmitContext) bool {
 	rt = ctx.ResolveRef(rt)
 	if rt == nil {
 		return false
 	}
 	if rt.ID != "" {
-		if verdict, known := ctx.walker.factsLookup(factNoopCloneExactShape, rt.ID); known {
+		if verdict, known := ctx.walker.factsLookup(factNoopRemoveUnknownKeys, rt.ID); known {
 			return verdict
 		}
 	}
-	result := cloneExactShapeNoopRecursive(rt, ctx, make(map[string]struct{}))
+	result := removeUnknownKeysNoopRecursive(rt, ctx, make(map[string]struct{}))
 	if rt.ID != "" {
-		ctx.walker.factsStore(factNoopCloneExactShape, rt.ID, result)
+		ctx.walker.factsStore(factNoopRemoveUnknownKeys, rt.ID, result)
 	}
 	return result
 }
 
-func cloneExactShapeNoopRecursive(rt *reflection.RunType, ctx *EmitContext, visited map[string]struct{}) bool {
+func removeUnknownKeysNoopRecursive(rt *reflection.RunType, ctx *EmitContext, visited map[string]struct{}) bool {
 	rt = ctx.ResolveRef(rt)
 	if rt == nil {
 		return true
 	}
 	if rt.ID != "" {
-		if verdict, known := ctx.walker.factsLookup(factNoopCloneExactShape, rt.ID); known {
+		if verdict, known := ctx.walker.factsLookup(factNoopRemoveUnknownKeys, rt.ID); known {
 			return verdict
 		}
 		if _, seen := visited[rt.ID]; seen {
@@ -544,13 +544,13 @@ func cloneExactShapeNoopRecursive(rt *reflection.RunType, ctx *EmitContext, visi
 		if resolved == nil || isFunctionLikeKind(resolved.Kind) || resolved.IsStatic {
 			return true
 		}
-		return cloneExactShapeNoopRecursive(resolved, ctx, visited)
+		return removeUnknownKeysNoopRecursive(resolved, ctx, visited)
 
 	case reflection.KindTupleMember:
 		if rt.Child == nil {
 			return true
 		}
-		return cloneExactShapeNoopRecursive(ctx.ResolveRef(rt.Child), ctx, visited)
+		return removeUnknownKeysNoopRecursive(ctx.ResolveRef(rt.Child), ctx, visited)
 
 	case reflection.KindUnion:
 		// An object-bearing union is unsupported, so never noop; an atomic union is identity iff every member is.
@@ -562,7 +562,7 @@ func cloneExactShapeNoopRecursive(rt *reflection.RunType, ctx *EmitContext, visi
 			if m.Resolved == nil {
 				continue
 			}
-			if !cloneExactShapeNoopRecursive(m.Resolved, ctx, visited) {
+			if !removeUnknownKeysNoopRecursive(m.Resolved, ctx, visited) {
 				return false
 			}
 		}
