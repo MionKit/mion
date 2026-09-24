@@ -1002,13 +1002,11 @@ func toBinaryNoopObjectChildren(rt *reflection.RunType, ctx *EmitContext, visite
 	return true
 }
 
-// unknownKeysNoopSpec parameterises the shared unknown-keys predicate across the family variants, which
-// differ in what they DO at a node and, in one spot, in WHETHER a node emits at all.
+// unknownKeysNoopSpec parameterises the shared unknown-keys predicate; family verdicts differ in one spot only.
 type unknownKeysNoopSpec struct {
 	// fact is the family's own memo lane (verdicts differ per family).
 	fact factKind
-	// reportsPatternKey marks the reporting families, which sweep a pattern key whatever the value type (a key
-	// matching no pattern is reported); the wire strip family sweeps by value type like a plain key.
+	// reportsPatternKey: reporting families sweep a pattern key whatever its value type (a non-matching key is reported).
 	reportsPatternKey bool
 }
 

@@ -603,8 +603,7 @@ func TestNoopType_RemoveUnknownKeys(t *testing.T) {
 	}
 }
 
-// TestNoopType_UnknownKeys pins the shared arm table across the unknown-keys families plus the one per-family
-// divergence: the reporting families sweep a pattern key whatever its value type.
+// TestNoopType_UnknownKeys pins the shared arm table; only reporting families sweep a pattern key of any value type.
 func TestNoopType_UnknownKeys(t *testing.T) {
 	ctx, types := noopPredicateTypes(t)
 	specs := map[string]unknownKeysNoopSpec{
@@ -624,8 +623,7 @@ func TestNoopType_UnknownKeys(t *testing.T) {
 		{"objCompat", same(false)}, // named props → the parent allowlist probe
 		{"objFn", same(false)},     // function-typed props still count as declared names
 		{"recA", same(true)},       // index sig over atomic values — every key is "known"
-		// A pattern key over atomic values: the reporting families report a key matching no pattern
-		// (real code); ukuw leaves it alone, so nothing to sweep, as for recA.
+		// Pattern key over atomic values: huk/uke report a non-matching key, ukuw leaves it alone as for recA.
 		{"recP", map[string]bool{"huk": false, "uke": false, "ukuw": true}},
 		{"arrStr", same(true)},
 		{"arrCO", same(false)}, // array of keyed objects
@@ -634,10 +632,9 @@ func TestNoopType_UnknownKeys(t *testing.T) {
 		// An ARRAY is an atomic member of the flat layout, so this union has no merged props at
 		// all; the object inside the array is still swept (unionAtomicMemberDescent).
 		{"uArrObjStr", same(false)},
-		// Every family recurses into a tuple slot. ukuw used to no-op here, which is what
-		// let `strategy: 'strip'` hand undeclared keys in a tuple slot straight to a handler.
+		// A ukuw no-op here once let `strategy: 'strip'` hand undeclared tuple-slot keys to a handler.
 		{"tupObj", same(false)},
-		// Every family recurses into a Map value / Set member, ukuw included: its wire arm walks the parsed array.
+		// ukuw recurses too: its wire arm walks the parsed array.
 		{"mpObj", same(false)},
 		{"stObj", same(false)},
 		{"mpStr", same(true)},
@@ -654,8 +651,7 @@ func TestNoopType_UnknownKeys(t *testing.T) {
 	}
 }
 
-// TestNoopType_EveryFamilyHasPredicate: a registered family without IsNoopType never gets its noop children
-// elided and silently falls back to the root shape check, which is how the strip decoder's predicate went unwired.
+// TestNoopType_EveryFamilyHasPredicate: without IsNoopType a family silently never elides its noop children.
 func TestNoopType_EveryFamilyHasPredicate(t *testing.T) {
 	for _, spec := range Families {
 		if _, ok := spec.Emitter.(NoopTypePredicate); !ok {
