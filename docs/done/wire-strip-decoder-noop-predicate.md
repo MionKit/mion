@@ -1,7 +1,7 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-09-24
 ---
 
@@ -43,3 +43,11 @@ Wire it. `stripUnknownKeysWire` is a registered family, and the predicate contra
 - Remove what stays dead: `unknownKeysToUndefinedNoopSpec`, `factNoopUnknownKeysToUndefined`, and the `UnknownKeysToUndefinedEmitter` `Supports` / `IsNoopType` / `NoopChildComposesAround` / `DiagCodeFor` methods, plus the `UKU010` code only that `DiagCodeFor` could emit (regenerate the catalogs).
 - Tests: `TestNoopType_UnknownKeys` drops the `uku` column and gains Map/Set rows; a new test asserts every registered family implements `NoopTypePredicate`; the resolver corpus (`TestNoopPredicateAgreement`) now compares `stripUnknownKeysWire`.
 - Docs: none (internal). Fuzzing: not a feature.
+
+## What shipped
+
+- `StripUnknownKeysWireEmitter` implements `IsNoopType` + `NoopChildComposesAround`; `mapSetAlwaysNoop` is gone, so a Map value or Set member holding a keyed object is never elided.
+- Dead pieces removed: `unknownKeysToUndefinedNoopSpec`, `factNoopUnknownKeysToUndefined`, the `UnknownKeysToUndefinedEmitter` `Supports` / `IsNoopType` / `NoopChildComposesAround` / `DiagCodeFor` methods, and the `UKU010` code (catalogs regenerated).
+- Beyond the plan: the new `TestNoopType_EveryFamilyHasPredicate` guard also caught `jsonSchema` and `classSerializerReg`, which now answer `IsNoopType` with a plain `false` (they never render an identity body). `TestNoopPredicate_SoundAgainstEmitters` now reads `typefunctions.Families` instead of a hand-kept list that had drifted (it missed the strict and union-key validators), and gains `Map<string, Compat>` / `Set<Compat>` samples; putting the old Map/Set rule back makes it fail as UNSOUND.
+- `deadcode ./cmd/...` lists nothing in this area except `NoopPredicateAgreement`, the corpus-test surface.
+- Not touched: the "five-family" wording in `unknownkeys_has.go` / `unknownkeys_errors.go`, whose files the unknown-key reporter removal deletes.
