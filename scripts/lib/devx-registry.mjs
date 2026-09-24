@@ -13,7 +13,7 @@
 //            the sub = decided per call; absent = builds (the safe default)
 //   commands nested verbs (bench servers <verb>) with the same row shape
 // An area sets `bareHelp: true` when its no-sub form only prints its help (core,
-// website, container, release), as opposed to being a real run (bench, env);
+// website, container, release, card), as opposed to being a real run (bench, env);
 // such an area never builds on a bare call.
 //
 // Plain module, no side effects: the tests import it directly.
@@ -350,6 +350,32 @@ export const AREAS = {
       {name: 'pull', args: '[target]', summary: 'pull one image, or ALL SEVEN'},
       {name: 'lock', summary: 'refresh the image lock file'},
       {name: 'clean', args: '[target]', summary: 'remove one image, or ALL SEVEN'},
+    ],
+  },
+  card: {
+    summary: 'shareable code images: a snippet in an editor window, rendered to PNG',
+    ...noBuild,
+    ...bareHelp,
+    commands: [
+      {name: 'new', args: '<name>', summary: 'scaffold a card in packages/code-card/cards/', flags: [['--tmp', 'in tmp/ instead (git ignores it)']]},
+      {
+        name: 'shot',
+        args: '<name|path…>',
+        summary: 'render cards to PNG (2400px wide), next to each card by default',
+        flags: [
+          ['--all', 'every card in cards/'],
+          ['--out <dir>', 'write the PNGs there'],
+          ['--browser <path>', "the Chromium binary (default: Playwright's own)"],
+        ],
+      },
+      {
+        name: 'serve',
+        summary: 'preview service: a card list, live pages and PNG downloads',
+        flags: [
+          ['--port <n>', 'port (default 4400)'],
+          ['--browser <path>', "the Chromium binary (default: Playwright's own)"],
+        ],
+      },
     ],
   },
   env: {

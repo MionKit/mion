@@ -146,14 +146,14 @@ describe('devx registry — the build gate', () => {
     expect(needsEngine('release', [])).toBe(false);
   });
 
-  it('a bare area prints its help when it is not a run: core, website, container, release, never bench or env', () => {
-    for (const name of ['core', 'website', 'container', 'release']) expect(bareShowsHelp(name, []), name).toBe(true);
+  it('a bare area prints its help when it is not a run: core, website, container, release, card, never bench or env', () => {
+    for (const name of ['core', 'website', 'container', 'release', 'card']) expect(bareShowsHelp(name, []), name).toBe(true);
     for (const name of ['bench', 'env']) expect(bareShowsHelp(name, []), name).toBe(false);
     for (const name of Object.keys(areas)) expect(bareShowsHelp(name, ['--help']), name).toBe(false);
     expect(bareShowsHelp('core', ['build'])).toBe(false);
     expect(bareShowsHelp('verify', [])).toBe(false);
     expect(bareShowsHelp('bogus', [])).toBe(false);
-    for (const name of ['core', 'website', 'container', 'release']) expect(areas[name].bareHelp, name).toBe(true);
+    for (const name of ['core', 'website', 'container', 'release', 'card']) expect(areas[name].bareHelp, name).toBe(true);
   });
 
   // The e2e lanes run in CI on a checkout with no Go submodule, consuming the
@@ -299,8 +299,9 @@ describe('devx registry — the entry file dispatches exactly the registered com
     for (const match of entry.matchAll(/sub === '([a-z-]+)'/g)) expect(registered.has(match[1]), match[1]).toBe(true);
   });
 
-  it('every registered core / website / release command is reachable from its dispatcher', () => {
+  it('every registered core / website / release / card command is reachable from its dispatcher', () => {
     for (const command of commandNames('core') as string[]) expect(entry, `core ${command}`).toContain(`sub === '${command}'`);
+    for (const command of commandNames('card') as string[]) expect(entry, `card ${command}`).toContain(`sub === '${command}'`);
     for (const command of commandNames('website') as string[])
       expect(entry, `website ${command}`).toContain(`sub === '${command}'`);
     for (const command of commandNames('release') as string[]) {

@@ -1,0 +1,134 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>{{pageTitle}}</title>
+    <style>
+      {{fontFaces}}
+      /* mion olive from container/website/sites/rpc/theme.css, on a neutral grey */
+      :root {
+        --bg-from: #2a2b2e;
+        --bg-mid: #1c1d20;
+        --bg-to: #161719;
+        --glow: #79af43;
+        --accent: #79af43;
+        --accent-mid: #8aa85e;
+        --accent-light: #bdd09d;
+        --title: #ffffff;
+        --text-muted: #a1a1aa;
+        --text-footer: #d4d4d8;
+        --code-bg: #1a1b26;
+        --bar-bg: #16161e;
+        --file-name: #7a82a8;
+      }
+      * {
+        margin: 0;
+        box-sizing: border-box;
+      }
+      body {
+        zoom: {{zoom}};
+        width: 1200px;
+        margin: 0;
+        font-family: Inter, sans-serif;
+        background: var(--bg-to);
+      }
+      .stage {
+        padding: 64px 72px 56px;
+        background:
+          radial-gradient(700px 420px at 6% 0%, color-mix(in srgb, var(--glow) 20%, transparent), transparent 60%),
+          radial-gradient(700px 420px at 100% 100%, color-mix(in srgb, var(--glow) 13%, transparent), transparent 60%),
+          linear-gradient(135deg, var(--bg-from), var(--bg-mid) 55%, var(--bg-to));
+      }
+      h1 {
+        color: var(--title);
+        font-size: 44px;
+        font-weight: 800;
+        letter-spacing: -1px;
+        line-height: 1.1;
+      }
+      h1 .accent {
+        background: linear-gradient(90deg, var(--accent-light), var(--accent));
+        -webkit-background-clip: text;
+        color: transparent;
+      }
+      .sub {
+        color: var(--text-muted);
+        font-size: 20px;
+        margin-top: 12px;
+        font-weight: 500;
+      }
+      .win {
+        margin-top: 36px;
+        background: var(--code-bg);
+        border-radius: 16px;
+        box-shadow:
+          0 30px 80px #0009,
+          0 0 0 1px #ffffff14;
+        overflow: hidden;
+      }
+      .bar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 16px 20px;
+        background: var(--bar-bg);
+        border-bottom: 1px solid #ffffff0d;
+      }
+      .dot {
+        width: 13px;
+        height: 13px;
+        border-radius: 50%;
+      }
+      .file {
+        margin-left: 14px;
+        color: var(--file-name);
+        font: 500 15px 'JetBrains Mono', monospace;
+      }
+      .win pre {
+        font: 400 20px/1.7 'JetBrains Mono', 'Noto Color Emoji', monospace;
+        padding: 28px 32px 32px;
+        white-space: pre;
+        background: transparent !important;
+      }
+      .win pre .line.hl {
+        display: inline-block;
+        background: color-mix(in srgb, var(--accent-mid) 12%, transparent);
+        border-left: 3px solid var(--accent-mid);
+        margin-left: -32px;
+        padding-left: 29px;
+        width: calc(100% + 64px);
+      }
+      .foot {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 24px;
+        margin-top: 32px;
+        color: var(--text-footer);
+        font-size: 18px;
+        font-weight: 600;
+      }
+      .badge {
+        font: 500 17px 'JetBrains Mono', monospace;
+        color: #e8edd9;
+        background: color-mix(in srgb, var(--accent) 20%, transparent);
+        padding: 6px 12px;
+        border-radius: 8px;
+        margin-left: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="stage">
+      <h1>{{title}}</h1>
+      {{subtitle}}
+      <div class="win">
+        <div class="bar">
+          <i class="dot" style="background: #ff5f57"></i><i class="dot" style="background: #febc2e"></i><i class="dot" style="background: #28c840"></i>{{file}}
+        </div>
+        {{code}}
+      </div>
+      {{foot}}
+    </div>
+  </body>
+</html>

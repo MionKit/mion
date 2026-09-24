@@ -1,6 +1,6 @@
 import {defineConfig} from 'vitest/config';
 
-// Root vitest config — the 5 runtypes projects + the 16 mion projects run from
+// Root vitest config — the 5 runtypes projects + the 20 mion-side projects run from
 // one root, and this list is the SINGLE SOURCE OF TRUTH for which projects exist:
 // `test:ci` batches them with --project filters (scripts/core/test-batches.mjs), and
 // `pnpm run check:test-batches` fails if a project added here belongs to no batch.
@@ -65,6 +65,8 @@ export default defineConfig({
       // Type-instantiation cost budgets for the model pipeline (private, never
       // published) — a pure in-process compile measurement, no plugins.
       'packages/type-budget/vitest.config.ts',
+      // Shareable code images (private, never published): card parsing, the HTML render and the preview server.
+      'packages/code-card/vitest.config.ts',
     ],
     // Teardown-only sweep removing every .mion genDir under packages/ after the
     // run. Belt-and-braces with each project's own teardown, and the only cleanup
