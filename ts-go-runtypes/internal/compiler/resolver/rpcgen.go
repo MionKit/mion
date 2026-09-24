@@ -19,6 +19,7 @@ import (
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefunctions"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/entrymodules"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/requestbatch"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/routerinit"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
@@ -355,17 +356,29 @@ func (sess *Session) hasBatches() bool {
 
 // importsRouter is the cheap text signal separating a server, which may create its router through a
 // wrapper the detector cannot see, from a client, which is never a misconfiguration. Memoised per Program.
+// The router's own files import it by relative path, so a file the router package owns counts too.
 func (sess *Session) importsRouter() bool {
 	if sess.importsRouterMemo != nil {
 		return *sess.importsRouterMemo
 	}
 	imports := false
 	if sess.Program != nil && sess.Program.TS != nil {
+		ownerByDir := map[string]string{}
 		for _, sourceFile := range sess.Program.TS.SourceFiles() {
 			if sourceFile == nil || sourceFile.IsDeclarationFile || strings.Contains(sourceFile.FileName(), "/node_modules/") {
 				continue
 			}
 			if strings.Contains(sourceFile.Text(), routerinit.RouterModule) {
+				imports = true
+				break
+			}
+			dir := filepath.Dir(sourceFile.FileName())
+			owner, seen := ownerByDir[dir]
+			if !seen {
+				owner, _ = marker.PackageOfFile(sourceFile.FileName(), sess.Program.FS)
+				ownerByDir[dir] = owner
+			}
+			if owner == routerinit.RouterModule {
 				imports = true
 				break
 			}
