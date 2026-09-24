@@ -33,9 +33,6 @@ func (PrepareForJsonEmitter) IsNoopType(rt *reflection.RunType, ctx *EmitContext
 	return isNoopForPrepareJson(rt, ctx)
 }
 
-// NoopChildComposesAround — a slot the transform leaves alone adds nothing to the mutate walk.
-func (PrepareForJsonEmitter) NoopChildComposesAround() {}
-
 // ReturnName is `v`: prepareForJson mutates or rebinds the input value, then returns it.
 func (PrepareForJsonEmitter) ReturnName() string {
 	return "v"

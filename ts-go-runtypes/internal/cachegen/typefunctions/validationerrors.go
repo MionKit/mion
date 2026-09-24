@@ -47,9 +47,6 @@ func (ValidationErrorsEmitter) IsNoopType(rt *reflection.RunType, ctx *EmitConte
 	return isNoopForValidationErrors(rt, ctx)
 }
 
-// NoopChildComposesAround — a child that never records an error contributes nothing, so empty code composes correctly.
-func (ValidationErrorsEmitter) NoopChildComposesAround() {}
-
 // ReturnName is `er`: this family accumulates into the third arg and returns it, where validate returns the first arg (`v`).
 func (ValidationErrorsEmitter) ReturnName() string {
 	return "er"

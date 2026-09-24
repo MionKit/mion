@@ -17,7 +17,7 @@ import "github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 // StrictUnknownKeys marks a family whose emitted body folds the unknown-key check into its own walk.
 // The shared emit arms ask EmitContext.ChecksUnknownKeys whether to splice the check; the walker's Emitter IS the family,
 // so the root and every child entry it renders get the same verdict.
-// A marker method with an empty body, like NoopChildComposesAround: asserting it claims the body rejects undeclared keys.
+// A marker method with an empty body: implementing it claims the body rejects undeclared keys.
 type StrictUnknownKeys interface {
 	ChecksUnknownKeys()
 }

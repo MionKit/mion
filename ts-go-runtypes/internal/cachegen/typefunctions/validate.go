@@ -108,9 +108,6 @@ func (ValidateEmitter) IsNoopType(rt *reflection.RunType, ctx *EmitContext) bool
 	return isNoopForValidate(rt, ctx)
 }
 
-// NoopChildComposesAround — a validate term that always passes contributes nothing to the parent's `&&` chain.
-func (ValidateEmitter) NoopChildComposesAround() {}
-
 // ReturnName is `v`: CodeE / CodeRB bodies carry their own return, so this is only the statement-shape fallback.
 func (ValidateEmitter) ReturnName() string {
 	return "v"

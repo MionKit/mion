@@ -33,10 +33,6 @@ func (RemoveUnknownKeysEmitter) IsNoopType(rt *reflection.RunType, ctx *EmitCont
 	return isNoopForRemoveUnknownKeys(rt, ctx)
 }
 
-// NoopChildComposesAround: an immutable/opaque child is shared by reference, so the accessor IS its clone
-// and empty code composes correctly.
-func (RemoveUnknownKeysEmitter) NoopChildComposesAround() {}
-
 func (RemoveUnknownKeysEmitter) ReturnName() string {
 	return "v"
 }

@@ -49,9 +49,6 @@ func (CompactFromJsonEmitter) IsNoopType(rt *reflection.RunType, ctx *EmitContex
 	return isNoopForCompactFromJson(rt, ctx)
 }
 
-// NoopChildComposesAround — an identity child slot passes through unchanged, as in restoreFromJsonMutate.
-func (CompactFromJsonEmitter) NoopChildComposesAround() {}
-
 // Emit mirrors RestoreFromJsonEmitter.Emit; only the object-literal and plain-class arms do the positional rebuild.
 func (CompactFromJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ CodeType) RTCode {
 	if rt == nil {

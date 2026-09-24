@@ -38,9 +38,6 @@ func (PrepareForJsonCloneEmitter) IsNoopType(rt *reflection.RunType, ctx *EmitCo
 	return isNoopForPrepareJsonSafe(rt, ctx)
 }
 
-// NoopChildComposesAround — an extra-proof child slot is shared by reference, so empty code composes.
-func (PrepareForJsonCloneEmitter) NoopChildComposesAround() {}
-
 // ReturnName is `v` for the walker's tail-wrap, but most clone emits return CodeE or CodeRB and
 // never use it; a noop body takes Finalize's `return v` path instead.
 func (PrepareForJsonCloneEmitter) ReturnName() string {
