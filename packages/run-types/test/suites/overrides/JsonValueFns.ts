@@ -52,11 +52,22 @@ export function registerJsonValueFnsCase(): void {
     expect(roundTrip(mutatePrepare, mutateRestore, {inner: target()})).toEqual(value);
   });
 
-  it('JsonValueFns — stringify compiles for the overridden type', () => {
+  it('JsonValueFns — stringify and the strip decoder compile for the overridden type', () => {
     expect(JSON.parse(createStringifyJsonFn<JsonValueTarget>()(target()) as string)).toEqual({
       __brand: 'jsonValueOverride',
       id: '7',
       when: '2020-01-02T03:04:05.000Z',
     });
+    const wire = JSON.stringify({
+      inner: {...JSON.parse(createStringifyJsonFn<JsonValueTarget>()(target()) as string), extra: 1},
+      extra: 2,
+    });
+    const decoded = createJsonDecoderFn<JsonValueParent>()(wire) as unknown as {
+      inner: JsonValueTarget & {extra?: number};
+      extra?: number;
+    };
+    expect(decoded.extra).toBeUndefined();
+    expect(decoded.inner.extra).toBeUndefined();
+    expect(decoded.inner.id).toBe(7n);
   });
 }
