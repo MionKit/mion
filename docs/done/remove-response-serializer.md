@@ -50,6 +50,12 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
 - Adapters: every `reply` now writes `JSON.stringify(response.body)` (or `Response.json`) with no switch. The unused fatal-fallback helpers and imports left behind went too (gcloud `unexpectedFail`).
 - Router: dropped `MionResponse.serializer`, `MionResponse.rawBody`, `RawResponseBody`, `MethodsExecutionChain.serializer`, the copy in `dispatch.ts`, the check in `serializeResponseBody`, and every place that set them (`callContext.ts`, `dispatchError.ts`, `router.ts`, `batches.ts`, `resolveStrategy.bench.ts`).
 - Request side unchanged: `getRequestBodyType` already picks `stringifyJson` for a string and `json` for a parsed object, and the gcloud tests cover both.
-- `SerializerModes` keeps all three values: `json` (parsed request body, client `'json'` mode), `stringifyJson` (string request body), `optimistic` (client). Only its comments changed. The client's `'json'` value stays.
+- `SerializerModes` keeps `json` (a request body the host already parsed) and `stringifyJson` (a string request body); `optimistic` is gone.
 - Tests: removed the assertions on the dead fields (router `parser`, `fatalDispatch`, `client.routes`, `serializer.routes` specs) and the fuzz runner's `rawBody` branch. No adapter test asserted the unknown-format branch.
 - Docs: none. The request-and-response page imports `MionResponse` straight from the source, so it updates by itself.
+
+## Follow-up in the same PR: the client `serializer` option (approved 2026-09-24)
+
+- The option did nothing: `request.ts` overwrote it on every call from one rule, "is every method's metadata cached?", and wrote the result onto the shared options object.
+- Removed `ClientOptions.serializer`, its default and `SerializerModes.optimistic`. The client sends optimistically only when it must fetch metadata (no bundle, or a method missing from a mixed bundle); `serializeRequestBody(req, optimistic)` takes that as a per-call flag.
+- Breaking for anyone passing `serializer` to `initClient`; no behavior change. The client tests that passed `serializer: 'optimistic'` now run on the defaults and still go optimistic.
