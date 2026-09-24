@@ -20,6 +20,8 @@
         --code-bg: #1a1b26;
         --bar-bg: #16161e;
         --file-name: #7a82a8;
+        --page-padding: {{padding}};
+        --code-size: {{codeSize}};
       }
       * {
         margin: 0;
@@ -27,13 +29,13 @@
       }
       body {
         zoom: {{zoom}};
-        width: 1200px;
+        width: {{pageWidth}}px;
         margin: 0;
         font-family: Inter, sans-serif;
         background: var(--bg-to);
       }
       .stage {
-        padding: 64px 72px 56px;
+        padding: var(--page-padding);
         background:
           radial-gradient(700px 420px at 6% 0%, color-mix(in srgb, var(--glow) 20%, transparent), transparent 60%),
           radial-gradient(700px 420px at 100% 100%, color-mix(in srgb, var(--glow) 13%, transparent), transparent 60%),
@@ -85,18 +87,24 @@
         font: 500 15px 'JetBrains Mono', monospace;
       }
       .win pre {
-        font: 400 20px/1.7 'JetBrains Mono', 'Noto Color Emoji', monospace;
+        font: 400 var(--code-size) / 1.7 'JetBrains Mono', 'Noto Color Emoji', monospace;
         padding: 28px 32px 32px;
         white-space: pre;
         background: transparent !important;
       }
+      /* A column of rows: whitespace between them is dropped, so every row, emoji or not, is one full band. */
+      .win pre code {
+        display: flex;
+        flex-direction: column;
+      }
+      .win pre .line {
+        min-height: calc(var(--code-size) * 1.7);
+      }
       .win pre .line.hl {
-        display: inline-block;
         background: color-mix(in srgb, var(--accent-mid) 12%, transparent);
         border-left: 3px solid var(--accent-mid);
-        margin-left: -32px;
+        margin: 0 -32px;
         padding-left: 29px;
-        width: calc(100% + 64px);
       }
       .foot {
         display: flex;

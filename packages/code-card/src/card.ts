@@ -9,9 +9,17 @@ export const PACKAGE_DIR = join(dirname(fileURLToPath(import.meta.url)), '..');
 export const CARDS_DIR = join(PACKAGE_DIR, 'cards');
 export const TMP_DIR = join(PACKAGE_DIR, 'tmp');
 export const THEME = 'tokyo-night';
-// 20px JetBrains Mono in the 1200px window fits about 82 columns.
-export const MAX_COLUMNS = 80;
-export const CARD_KEYS = ['title', 'subtitle', 'file', 'highlight', 'footer', 'badge'] as const;
+export const PAGE_WIDTH = 1200;
+// The code's own left + right padding inside the window, in template.html.
+const CODE_INSET = 64;
+// A JetBrains Mono character is 0.6em wide.
+const CHAR_WIDTH_EM = 0.6;
+export const DEFAULT_PADDING = 40;
+export const DEFAULT_CODE_SIZE = 22;
+export const PADDING_RANGE = [0, 120] as const;
+export const CODE_SIZE_RANGE = [12, 32] as const;
+export const CARD_KEYS = ['title', 'subtitle', 'file', 'highlight', 'footer', 'badge', 'padding', 'codeSize'] as const;
+const NUMBER_KEYS = ['padding', 'codeSize'];
 export const CARD_NAME = /^[a-z0-9][a-z0-9-]*$/;
 
 export type Card = {
@@ -22,8 +30,14 @@ export type Card = {
   badge: string;
   lang: string;
   highlight: number[];
+  padding: number;
+  codeSize: number;
   code: string;
 };
+
+// How many code characters fit on one line of the window.
+export const maxColumns = (padding: number, codeSize: number) =>
+  Math.floor((PAGE_WIDTH - 2 * padding - CODE_INSET) / (CHAR_WIDTH_EM * codeSize));
 
 export type RenderOptions = {zoom?: number};
 
@@ -71,8 +85,14 @@ export function validateCard(input: unknown, source = 'card'): Card {
   const known: string[] = [...CARD_KEYS, 'lang', 'code'];
   for (const [key, value] of Object.entries(fields)) {
     if (!known.includes(key)) throw cardError(source, `unknown key "${key}" (known: ${CARD_KEYS.join(', ')})`);
-    if (typeof value !== 'string') throw cardError(source, `"${key}" must be a string`);
+    const numeric = NUMBER_KEYS.includes(key) && typeof value === 'number';
+    if (typeof value !== 'string' && !numeric) throw cardError(source, `"${key}" must be a string`);
   }
+  // The loop above let only strings, and numbers for the NUMBER_KEYS, through.
+  const sizes = fields as Partial<Record<string, string | number>>;
+  const padding = parseSize(sizes.padding, 'padding', DEFAULT_PADDING, PADDING_RANGE, source);
+  const codeSize = parseSize(sizes.codeSize, 'codeSize', DEFAULT_CODE_SIZE, CODE_SIZE_RANGE, source);
+  const columnLimit = maxColumns(padding, codeSize);
   const text = fields as Partial<Record<string, string>>;
   if (!text.title?.trim()) throw cardError(source, 'missing title');
   if (!text.code?.trim()) throw cardError(source, 'the code block is empty');
@@ -80,8 +100,11 @@ export function validateCard(input: unknown, source = 'card'): Card {
   const codeLines = code.split('\n');
   codeLines.forEach((line, i) => {
     const columns = [...line].length;
-    if (columns > MAX_COLUMNS)
-      throw cardError(source, `code line ${i + 1} is ${columns} columns, the window fits ${MAX_COLUMNS}`);
+    if (columns > columnLimit)
+      throw cardError(
+        source,
+        `code line ${i + 1} is ${columns} columns, the window fits ${columnLimit} (lower codeSize or padding for more)`
+      );
   });
   return {
     title: text.title.trim(),
@@ -91,8 +114,25 @@ export function validateCard(input: unknown, source = 'card'): Card {
     badge: text.badge?.trim() ?? '',
     lang: text.lang?.trim() || 'ts',
     highlight: parseHighlight(text.highlight ?? '', codeLines.length, source),
+    padding,
+    codeSize,
     code,
   };
+}
+
+// A whole number of px inside the range; the card may leave it out.
+function parseSize(
+  value: string | number | undefined,
+  key: string,
+  fallback: number,
+  [min, max]: readonly [number, number],
+  source: string
+): number {
+  if (value === undefined || value === '') return fallback;
+  const size = typeof value === 'number' ? value : Number(value.trim().replace(/px$/, ''));
+  if (!Number.isInteger(size) || size < min || size > max)
+    throw cardError(source, `"${key}" must be a whole number of px from ${min} to ${max}, got "${value}"`);
+  return size;
 }
 
 export function parseHighlight(spec: string, lineCount: number, source = 'card'): number[] {
@@ -146,6 +186,9 @@ export async function renderCardHtml(card: Card, {zoom = 1}: RenderOptions = {})
     fontFaces: fontFaces(),
     // The screenshot tool saves at CSS pixels, so a sharp 2x PNG means zooming the page itself.
     zoom: String(zoom),
+    pageWidth: String(PAGE_WIDTH),
+    padding: `${card.padding}px`,
+    codeSize: `${card.codeSize}px`,
     title: titleHtml(card.title),
     subtitle: card.subtitle ? `<div class="sub">${escapeHtml(card.subtitle)}</div>` : '',
     file: card.file ? `<span class="file">${escapeHtml(card.file)}</span>` : '',

@@ -46,9 +46,11 @@ import { match } from '@mionjs/run-types';
 | `highlight` | no | Lines to mark: `3`, `11-12` or `3,7-8`. Line 1 is the first line INSIDE the code block. |
 | `footer` | no | A short line under the window. |
 | `badge` | no | A small pill at the bottom right, usually the package name. |
+| `padding` | no | Space between the image edge and the content, in px. Default `40`, from `0` to `120`. |
+| `codeSize` | no | Code font size, in px. Default `22`, from `12` to `32`. |
 | fence language | no | Picks the colouring: `ts` (default), `js`, `json`, `bash`, `go`… |
 
-The app refuses a card with an unknown key, a bad highlight range, or a code line over 80 columns (the window is fixed at that width). Its error names the problem.
+The app refuses a card with an unknown key, a bad highlight range, a size out of range, or a code line too long for the window. The defaults fit 80 columns; a smaller `codeSize` or `padding` fits more. The error names the problem and the limit.
 
 ## Rules for good cards
 

@@ -6,7 +6,9 @@ import {beforeAll, describe, expect, it} from 'vitest';
 import {
   CARDS_DIR,
   PACKAGE_DIR,
-  MAX_COLUMNS,
+  DEFAULT_CODE_SIZE,
+  DEFAULT_PADDING,
+  maxColumns,
   parseCard,
   parseHighlight,
   renderCardHtml,
@@ -42,6 +44,8 @@ describe('code card: parseCard', () => {
       badge: '@mionjs/run-types',
       lang: 'ts',
       highlight: [2, 3],
+      padding: DEFAULT_PADDING,
+      codeSize: DEFAULT_CODE_SIZE,
       code: "const a = 1;\nconst b = 'two';\nconst c = <T>(value: T) => value;",
     });
   });
@@ -76,8 +80,8 @@ describe('code card: parseCard', () => {
     ['an unknown key', '---\ntitle: Hi\ncolour: red\n---\n```ts\nx;\n```', 'unknown key "colour"'],
     [
       'a line too wide',
-      `---\ntitle: Hi\n---\n\`\`\`ts\n${'x'.repeat(MAX_COLUMNS + 1)}\n\`\`\``,
-      `the window fits ${MAX_COLUMNS}`,
+      `---\ntitle: Hi\n---\n\`\`\`ts\n${'x'.repeat(maxColumns(DEFAULT_PADDING, DEFAULT_CODE_SIZE) + 1)}\n\`\`\``,
+      `the window fits ${maxColumns(DEFAULT_PADDING, DEFAULT_CODE_SIZE)}`,
     ],
   ])('fails on %s', (_, markdown, message) => {
     expect(() => parseCard(markdown, 'demo.md')).toThrow(message);
@@ -85,7 +89,9 @@ describe('code card: parseCard', () => {
   });
 
   it('counts an emoji as one column', () => {
-    expect(() => parseCard(`---\ntitle: Hi\n---\n\`\`\`ts\n${'👋'.repeat(MAX_COLUMNS)}\n\`\`\``)).not.toThrow();
+    expect(() =>
+      parseCard(`---\ntitle: Hi\n---\n\`\`\`ts\n${'👋'.repeat(maxColumns(DEFAULT_PADDING, DEFAULT_CODE_SIZE))}\n\`\`\``)
+    ).not.toThrow();
   });
 });
 
@@ -98,6 +104,50 @@ describe('code card: parseHighlight', () => {
 
   it.each(['0', '6', '3-2', 'a', '1-', '2..3'])('rejects "%s"', (spec) => {
     expect(() => parseHighlight(spec, 5)).toThrow(/highlight/);
+  });
+});
+
+describe('code card: padding and codeSize', () => {
+  const sized = (front: string, code = 'x;') => parseCard(`---\ntitle: Hi\n${front}\n---\n\`\`\`ts\n${code}\n\`\`\``);
+
+  it('defaults to 40px padding and 22px code, which fits 80 columns', () => {
+    expect(sized('')).toMatchObject({padding: 40, codeSize: 22});
+    expect(maxColumns(DEFAULT_PADDING, DEFAULT_CODE_SIZE)).toBe(80);
+  });
+
+  it('reads whole px values, with or without "px"', () => {
+    expect(sized('padding: 24\ncodeSize: 26px')).toMatchObject({padding: 24, codeSize: 26});
+  });
+
+  it('fits more columns with less padding or smaller code, fewer with bigger code', () => {
+    expect(maxColumns(0, 22)).toBeGreaterThan(80);
+    expect(maxColumns(40, 16)).toBeGreaterThan(80);
+    expect(maxColumns(40, 30)).toBeLessThan(80);
+    const line = 'x'.repeat(70);
+    expect(() => sized('codeSize: 30', line)).toThrow('the window fits 58 (lower codeSize or padding for more)');
+    expect(() => sized('codeSize: 16', 'x'.repeat(100))).not.toThrow();
+  });
+
+  it.each([
+    ['padding: -1', 'from 0 to 120'],
+    ['padding: 121', 'from 0 to 120'],
+    ['codeSize: 11', 'from 12 to 32'],
+    ['codeSize: 22.5', 'whole number'],
+    ['codeSize: big', 'whole number'],
+  ])('rejects %s', (front, message) => {
+    expect(() => sized(front)).toThrow(message);
+  });
+
+  it('takes numbers from JSON, but not other types', () => {
+    expect(validateCard({title: 'Hi', code: 'x;', padding: 10, codeSize: 18})).toMatchObject({padding: 10, codeSize: 18});
+    expect(() => validateCard({title: 'Hi', code: 'x;', padding: true})).toThrow('"padding" must be a string');
+    expect(() => validateCard({title: 'Hi', code: 'x;', title2: 1})).toThrow('unknown key');
+  });
+
+  it('writes both into the page', async () => {
+    const html = await renderCardHtml(sized('padding: 24\ncodeSize: 26'));
+    expect(html).toContain('--page-padding: 24px;');
+    expect(html).toContain('--code-size: 26px;');
   });
 });
 

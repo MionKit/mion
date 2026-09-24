@@ -1,5 +1,6 @@
 import {describe, expect, it} from 'vitest';
-import {ZOOM, cliConfig, cliFailure, parseShotArgs} from '../src/shoot.ts';
+import {existsSync} from 'node:fs';
+import {ZOOM, cliConfig, cliFailure, cliScript, parseShotArgs} from '../src/shoot.ts';
 
 describe('code card: shot', () => {
   it('names or --all, plus --out and --browser', () => {
@@ -38,5 +39,9 @@ describe('code card: shot', () => {
     const report = '### Error\nError: ".stage" does not match any elements.';
     expect(cliFailure(report)).toBe('".stage" does not match any elements.');
     expect(cliFailure('  something else  ')).toBe('something else');
+  });
+
+  it('finds the root playwright-cli from the package', () => {
+    expect(existsSync(cliScript())).toBe(true);
   });
 });
