@@ -239,10 +239,7 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddlewareReques
   }
 
   /** No handler ran, so resending is safe; different ids are final when any refused row is bundled. */
-  private async handleSyncRefusal(
-    refusal: RouteSyncRefusal,
-    errors: RequestErrors
-  ): Promise<ResponseBody> {
+  private async handleSyncRefusal(refusal: RouteSyncRefusal, errors: RequestErrors): Promise<ResponseBody> {
     if (!this.signal?.aborted) {
       // A fetched row is a cache of the server's and can be relearned; a bundled one needs a new build.
       const refusedIds = refusal.errorData?.routeIds ?? this.getRouteIds();
