@@ -112,6 +112,8 @@ type apiMethodEntry struct {
 	paramsId  string
 	returnId  string
 	headersId string
+	// syncId is the id of the method's `[params, return]` pair, the one the server's syncId slot gets; "" without one.
+	syncId string
 	// fn sites demand the families, reflection sites the runtype facades; both stamped before rendering.
 	paramsFns  protocol.Site
 	returnFns  protocol.Site
@@ -477,6 +479,9 @@ func (sess *Session) newApiMethodEntry(owner *checker.Checker, method *apimeta.M
 	entry := &apiMethodEntry{method: method}
 	entry.paramsId = sess.cache.AssignIDUnder(owner, method.Params)
 	entry.returnId = sess.cache.AssignIDUnder(owner, method.Return)
+	if method.Sync != nil {
+		entry.syncId = sess.cache.AssignIDUnder(owner, method.Sync)
+	}
 	paramsStrategy, returnStrategy := parserStrategies(method.Options)
 	paramsKeys := parseMode(paramsStrategy).paramsMarkerKeys()
 	returnKeys := parseMode(returnStrategy).returnMarkerKeys()
@@ -628,6 +633,10 @@ func renderApiMethodModule(basename string, entry *apiMethodEntry) string {
 		", returnId: " + sourcerewrite.SlotBinding(entry.returnRef)
 	if entry.headersId != "" {
 		rtFns += ", headersFns: " + sourcerewrite.SlotBinding(entry.headersFns) + ", headersId: " + sourcerewrite.SlotBinding(entry.headersRef)
+	}
+	// the bare id, not a binding: a client only compares it, so its runtype is never loaded
+	if entry.syncId != "" {
+		rtFns += ", syncId: " + encodeJSON(entry.syncId)
 	}
 	rtFns += "}"
 	encoded := encodeJSON(row)

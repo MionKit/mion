@@ -5,17 +5,18 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Kept out of routeSync.ts, which every client loads: only version recovery and the parity tests read this.
+// Kept out of the eager client chunk: only version recovery and the parity tests read this.
 
 import type {MethodMetadata, MethodWithOptions} from './types/method.types.ts';
 
-/** Every row field a client acts on, normalised so both ends compare alike; only the sync id fields block a call. */
+/** Every row field a client acts on, normalised so both ends compare alike; only `syncId` blocks a call. */
 export function clientRowView(row: MethodWithOptions) {
   const parser = row.options?.parser as unknown;
   return {
     type: row.type,
     paramsJitHash: row.paramsJitHash,
     returnJitHash: row.returnJitHash,
+    syncId: row.syncId,
     paramsCount: row.paramsCount ?? 0,
     hasReturnData: row.hasReturnData,
     headersParam: headersView(row.headersParam),

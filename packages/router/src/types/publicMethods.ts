@@ -80,6 +80,8 @@ export interface MethodTypes {
   /** a headers middleware's HeadersSubset parameter, `never` for every other method */
   headers: unknown;
   isAsync: boolean;
+  /** params and return together, the type the build's sync id is made from */
+  sync: unknown;
 }
 
 /** The MethodTypes of a route or plain middleware handler. An interface over `H` on purpose: its
@@ -90,6 +92,7 @@ export interface HandlerMethodTypes<H extends Handler> {
   return: HandlerReturn<H>;
   headers: never;
   isAsync: HandlerIsAsync<H>;
+  sync: [HandlerParams<H>, HandlerReturn<H>];
 }
 
 /** The MethodTypes of a headers middleware handler: params after its HeadersSubset, which rides `headers`. */
@@ -98,6 +101,7 @@ export interface HeadersHandlerMethodTypes<H extends HeaderHandler> {
   return: HandlerReturn<H>;
   headers: HeaderHandlerHeaders<H>;
   isAsync: HandlerIsAsync<H>;
+  sync: [HeaderHandlerParams<H>, HandlerReturn<H>];
 }
 
 /** Public Route: the same handler without the context parameter */

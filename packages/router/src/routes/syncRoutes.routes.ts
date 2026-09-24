@@ -5,10 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {BUILD_VERSION_HEADER, FatalError, MION_ROUTES, routeSyncId} from '@mionjs/core';
+import {BUILD_VERSION_HEADER, FatalError, MION_ROUTES} from '@mionjs/core';
 import type {SerializableMethodsData} from '@mionjs/core';
 import {middleware} from '../lib/handlers.ts';
-import {getMiddlewareExecutable, getRouteExecutable, getRouterOptions} from '../router.ts';
+import {getRouteExecutable, getRouterOptions} from '../router.ts';
 import {getMethodsDataFor, mionInternalRouteIds} from './client.routes.ts';
 import type {MiddlewaresCollection} from '../types/publicMethods.ts';
 import type {RemoteMethod} from '../types/remoteMethods.ts';
@@ -25,7 +25,6 @@ export interface RouteSyncErrorData {
 }
 
 let serverBuildVersion: string | undefined;
-const syncIds = new WeakMap<RemoteMethod, string>();
 
 /** Called by initRouter with the version the build injected into `initRoutes`. */
 export function setServerBuildVersion(version: string | undefined): void {
@@ -48,7 +47,7 @@ function checkRouteSyncIds(ctx: CallContext, routeSyncIds: string[] | undefined)
   for (let i = 0; i < routes.length; i++) {
     const sent = routeSyncIds?.[i];
     if (!sent) missing = true;
-    else if (sent !== getServerSyncId(routes[i])) mismatched.push(routes[i].id);
+    else if (sent !== routes[i].syncId) mismatched.push(routes[i].id);
   }
   if (mismatched.length) {
     return new FatalError<'route-types-mismatch', RouteSyncErrorData>({
@@ -75,15 +74,6 @@ function getCalledRoutes(ctx: CallContext): RemoteMethod[] {
   const route = executionChain.methods[executionChain.routeIndex];
   if (!route || mionInternalRouteIds.has(route.id)) return [];
   return [route];
-}
-
-function getServerSyncId(route: RemoteMethod): string | undefined {
-  let id = syncIds.get(route);
-  if (id === undefined) {
-    id = routeSyncId(route, (middlewareId) => getMiddlewareExecutable(middlewareId) as RemoteMethod | undefined);
-    if (id !== undefined) syncIds.set(route, id);
-  }
-  return id;
 }
 
 export const mionSyncMiddlewares = {

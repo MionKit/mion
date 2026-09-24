@@ -75,6 +75,8 @@ export interface RtMarkerPayload {
   /** Id of a build-time `true`/`false` literal: whether the handler answers with a promise.
    *  `returnId` is the AWAITED type, so it cannot answer this. */
   isAsyncId?: string;
+  /** Id of the handler's `[params, return]` pair: the one id a client and the server compare under `syncRoutes`. */
+  syncId?: string;
   /** headers middlewares only: fns + id for the handler's HeadersSubset param */
   headersFns?: unknown;
   headersId?: string;
@@ -104,6 +106,7 @@ export interface RtMethodReflection {
   paramsJsonMaxBytes?: number;
   headersParam?: RtHeadersReflection;
   headersReturn?: RtHeadersReflection;
+  syncId?: string;
 }
 
 const identity = (value: unknown) => value;
@@ -333,6 +336,7 @@ export function getReflectionFromMarkers(
     hasReturnData: runTypeHasData(returnRunType),
     isAsync: resolveIsAsync(rtFns.isAsyncId, handler),
   };
+  if (rtFns.syncId !== undefined) reflection.syncId = resolveInjectedTypeId(rtFns.syncId, `${methodId}#sync`);
   // the size maxima sit on the reflection ROOT rows the markers already inject: one property read, no walk
   if (typeof paramsRunType?.jsonMaxBytes === 'number') reflection.paramsJsonMaxBytes = paramsRunType.jsonMaxBytes;
   // any handler returning a HeadersSubset (directly or in a union) sets response headers, so the declared

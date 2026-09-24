@@ -86,6 +86,7 @@ export function getSerializableMethod(executable: RemoteMethod): MethodWithOptio
         ? {...executable.options, maxBodySize: getPlatformMaxBodySize()}
         : executable.options,
   };
+  if (executable.syncId) newRemoteMethod.syncId = executable.syncId;
   if (executable.headersParam) newRemoteMethod.headersParam = executable.headersParam;
   // the client rebuilds a returned HeadersSubset from these names, so they must ride the wire
   if (executable.headersReturn) {
