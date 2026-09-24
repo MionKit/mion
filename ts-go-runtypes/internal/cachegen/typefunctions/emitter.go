@@ -298,8 +298,8 @@ func (ctx *EmitContext) emitDepCall(childID, argsExpr, assignTo string) string {
 }
 
 // emitPathTrackedDepCall wraps a dependency call in the `pth.push(...) , <call> , pth.splice(-N)` envelope
-// when static path segments are pending, so the child's errors carry the right access-path prefix. Shared by
-// the validationErrors and unknownKeyErrors families, and returned as a comma-expression so the caller can
+// when static path segments are pending, so the child's errors carry the right access-path prefix. Used by
+// the validationErrors families, and returned as a comma-expression so the caller can
 // drop it into an expression or a statement slot without restructuring.
 func (ctx *EmitContext) emitPathTrackedDepCall(childID string) string {
 	pthArg := ctx.ArgName("pλth")
@@ -383,29 +383,6 @@ const (
 	// Advisory slots.
 	SlotRootAnyUnknown DiagSlot = "root-any-unknown"
 )
-
-// VariantPropagator is the optional capability an emitter implements when its compile-time option variant
-// changes the body of EVERY node in the subtree, not just the root's.
-//
-// A plain variant is ROOT-SCOPED: the walker keeps the plain inner prefix, so an external child is dep-called at its PLAIN
-// entry. Right for an option on the root's call shape, wrong for one on the VALUE: runsAfterValidation holds for `v.address` too.
-//
-// A propagating variant gets the family treatment: the inner prefix becomes the variant's own fnHash, so
-// children render and are dep-called as variant entries; the collector carries the option set down the child
-// worklist; entries disk-cache under their own basename; and a user override still redirects.
-type VariantPropagator interface {
-	PropagatesVariant(options []string) bool
-}
-
-// propagatesVariant reports whether this (emitter, option set) renders the
-// whole subtree under the variant rather than only the root.
-func propagatesVariant(emitter Emitter, options []string) bool {
-	if len(options) == 0 {
-		return false
-	}
-	propagator, ok := emitter.(VariantPropagator)
-	return ok && propagator.PropagatesVariant(options)
-}
 
 // DiagCodeProvider is the optional capability for per-family diagnostic codes at child-position
 // silent-skip sites; returning "" for a slot disables emission there.

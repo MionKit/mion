@@ -42,8 +42,6 @@ func canonicalAxisKey(op Operation, optionNames []string, strategy string) strin
 	switch op.Axis {
 	case AxisValidateOptions:
 		return op.Name + "|" + constants.ValidateVariantSuffix(optionNames)
-	case AxisHasUnknownKeysOptions:
-		return op.Name + "|" + constants.HasUnknownKeysVariantSuffix(optionNames)
 	case AxisJsonStrategy:
 		if strategy == "" {
 			strategy = op.DefaultStrategy
@@ -119,10 +117,6 @@ func AllFnVariants() []FnVariant {
 			switch op.Axis {
 			case AxisValidateOptions:
 				for _, subset := range constants.OptionSubsets(constants.ValidateOptions) {
-					add(op, subset, "", rejectCircular)
-				}
-			case AxisHasUnknownKeysOptions:
-				for _, subset := range constants.OptionSubsets(constants.HasUnknownKeysOptions) {
 					add(op, subset, "", rejectCircular)
 				}
 			case AxisJsonStrategy:

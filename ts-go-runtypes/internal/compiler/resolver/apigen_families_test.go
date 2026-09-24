@@ -10,7 +10,7 @@ import (
 // off a marker. apiFnSite SKIPS a key it cannot resolve, so a typo in a parseModes row would quietly drop a compiled
 // function from every generated API method instead of failing anything.
 func TestApiGen_EveryHardcodedFamilyResolves(t *testing.T) {
-	keys := []string{"validate", "validationErrors", "hasUnknownKeys", "unknownKeyErrors", "formatTransform"}
+	keys := []string{"validate", "validationErrors", "formatTransform"}
 	for _, row := range parseModes {
 		keys = append(keys, row.validate, row.validationErrors, row.encode, row.decode)
 	}

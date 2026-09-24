@@ -11,7 +11,7 @@
 import * as TF from '@mionjs/run-types/formats';
 import type * as TFT from '@mionjs/run-types/formats/temporal';
 import * as RT from '@mionjs/run-types/builders';
-import {createValidateFn, createGetValidationErrorsFn, createHasUnknownKeysFn, registerFormatPattern} from '@mionjs/run-types';
+import {createValidateFn, createGetValidationErrorsFn, registerFormatPattern} from '@mionjs/run-types';
 import {NOT_SUPPORTED, type CompetitorCases} from '../../shared/harness/types.ts';
 
 // Custom string-format patterns the STRING_FORMAT.pattern_* cases reference —
@@ -2738,11 +2738,9 @@ export const cases: CompetitorCases = {
   },
 
   // ── STRICT ──
-  // The strict path: validate THEN reject undeclared keys. `runsAfterValidation`
-  // is what makes the emitter swap the key-array scan for the `cntEK(v) !== N`
-  // count check, so these are the only cases in the suite that reach
-  // countEnumKeys — the per-engine counter. The `&&` short-circuit is what
-  // makes the option sound: hasUnknownKeys only ever sees values validate accepted.
+  // The strict path: `checkUnknowns` validates AND rejects undeclared keys in one walk. On all-required
+  // nodes the emitter swaps the key-array scan for the `cntEK(v) === N` count check, so these are the
+  // only cases in the suite that reach countEnumKeys, the per-engine counter.
   'STRICT.flat_required': {
     build: () => {
       interface StrictFlat {
@@ -2750,9 +2748,7 @@ export const cases: CompetitorCases = {
         name: string;
         active: boolean;
       }
-      const validate = createValidateFn<StrictFlat>();
-      const hasUnknownKeys = createHasUnknownKeysFn<StrictFlat>(undefined, {runsAfterValidation: true});
-      return (value: unknown) => validate(value) && !hasUnknownKeys(value);
+      return createValidateFn<StrictFlat>(undefined, {checkUnknowns: true});
     },
     buildErrors: () => {
       interface StrictFlat {
@@ -2760,9 +2756,8 @@ export const cases: CompetitorCases = {
         name: string;
         active: boolean;
       }
-      const getErrors = createGetValidationErrorsFn<StrictFlat>();
-      const hasUnknownKeys = createHasUnknownKeysFn<StrictFlat>(undefined, {runsAfterValidation: true});
-      return (value: unknown) => getErrors(value).length === 0 && !hasUnknownKeys(value);
+      const getErrors = createGetValidationErrorsFn<StrictFlat>(undefined, {checkUnknowns: true});
+      return (value: unknown) => getErrors(value).length === 0;
     },
   },
   'STRICT.nested_required': {
@@ -2771,18 +2766,15 @@ export const cases: CompetitorCases = {
         name: string;
         inner: {x: number; y: string};
       }
-      const validate = createValidateFn<StrictNested>();
-      const hasUnknownKeys = createHasUnknownKeysFn<StrictNested>(undefined, {runsAfterValidation: true});
-      return (value: unknown) => validate(value) && !hasUnknownKeys(value);
+      return createValidateFn<StrictNested>(undefined, {checkUnknowns: true});
     },
     buildErrors: () => {
       interface StrictNested {
         name: string;
         inner: {x: number; y: string};
       }
-      const getErrors = createGetValidationErrorsFn<StrictNested>();
-      const hasUnknownKeys = createHasUnknownKeysFn<StrictNested>(undefined, {runsAfterValidation: true});
-      return (value: unknown) => getErrors(value).length === 0 && !hasUnknownKeys(value);
+      const getErrors = createGetValidationErrorsFn<StrictNested>(undefined, {checkUnknowns: true});
+      return (value: unknown) => getErrors(value).length === 0;
     },
   },
   'STRICT.moltar_dto': {
@@ -2796,9 +2788,7 @@ export const cases: CompetitorCases = {
         boolean: boolean;
         deeplyNested: {foo: string; num: number; bool: boolean};
       }
-      const validate = createValidateFn<StrictMoltarDto>();
-      const hasUnknownKeys = createHasUnknownKeysFn<StrictMoltarDto>(undefined, {runsAfterValidation: true});
-      return (value: unknown) => validate(value) && !hasUnknownKeys(value);
+      return createValidateFn<StrictMoltarDto>(undefined, {checkUnknowns: true});
     },
     buildErrors: () => {
       interface StrictMoltarDto {
@@ -2810,14 +2800,12 @@ export const cases: CompetitorCases = {
         boolean: boolean;
         deeplyNested: {foo: string; num: number; bool: boolean};
       }
-      const getErrors = createGetValidationErrorsFn<StrictMoltarDto>();
-      const hasUnknownKeys = createHasUnknownKeysFn<StrictMoltarDto>(undefined, {runsAfterValidation: true});
-      return (value: unknown) => getErrors(value).length === 0 && !hasUnknownKeys(value);
+      const getErrors = createGetValidationErrorsFn<StrictMoltarDto>(undefined, {checkUnknowns: true});
+      return (value: unknown) => getErrors(value).length === 0;
     },
   },
-  // The one case here carrying an OPTIONAL key. `runsAfterValidation` still applies —
-  // the all-required nodes inside (customer, the item, shipping) keep the count check,
-  // the root drops to the key-array scan. Both answer identically.
+  // The one case here carrying an OPTIONAL key: the all-required nodes inside (customer, the item,
+  // shipping) keep the count check, the root drops to the key-array scan.
   'STRICT.realworld_order': {
     build: () => {
       interface StrictOrder {
@@ -2829,9 +2817,7 @@ export const cases: CompetitorCases = {
         total: number;
         note?: string;
       }
-      const validate = createValidateFn<StrictOrder>();
-      const hasUnknownKeys = createHasUnknownKeysFn<StrictOrder>(undefined, {runsAfterValidation: true});
-      return (value: unknown) => validate(value) && !hasUnknownKeys(value);
+      return createValidateFn<StrictOrder>(undefined, {checkUnknowns: true});
     },
     buildErrors: () => {
       interface StrictOrder {
@@ -2843,9 +2829,8 @@ export const cases: CompetitorCases = {
         total: number;
         note?: string;
       }
-      const getErrors = createGetValidationErrorsFn<StrictOrder>();
-      const hasUnknownKeys = createHasUnknownKeysFn<StrictOrder>(undefined, {runsAfterValidation: true});
-      return (value: unknown) => getErrors(value).length === 0 && !hasUnknownKeys(value);
+      const getErrors = createGetValidationErrorsFn<StrictOrder>(undefined, {checkUnknowns: true});
+      return (value: unknown) => getErrors(value).length === 0;
     },
   },
 };

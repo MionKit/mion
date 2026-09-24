@@ -32,8 +32,6 @@ func optionsLabel(op operations.Operation) string {
 	switch op.Axis {
 	case operations.AxisValidateOptions:
 		return "ValidateOptions"
-	case operations.AxisHasUnknownKeysOptions:
-		return "HasUnknownKeysOptions"
 	case operations.AxisJsonStrategy:
 		return "strategy"
 	default:

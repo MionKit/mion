@@ -4,9 +4,8 @@ import "github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 
 // The FUSED validator families behind `{checkUnknowns: true}` on createValidateFn / createGetValidationErrorsFn.
 //
-// Strict validation used to cost two compiled functions run back to back, `isUser(v) && !hasUnknownKeys(v)`, which walks
-// the value twice and visits every nested object twice. The fused families emit ONE function whose object-ish arms carry
-// the property checks AND the unknown-key check, so a single walk answers "valid AND free of undeclared keys".
+// The fused families emit ONE function whose object-ish arms carry the property checks AND the unknown-key check, so a
+// single walk answers "valid AND free of undeclared keys".
 //
 // Each strict emitter EMBEDS its plain twin and overrides nothing: the fused body is the plain body with one extra term
 // at the object-ish nodes, so the difference is spliced inside the shared emitObjectValidate / emitObjectValidationErrors
@@ -22,28 +21,20 @@ import "github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 // The one place a union needs a word is the error family, which delegates its verdict to a validator: emitUnionValidationErrors
 // picks the STRICT validator under this family, or it would report nothing for a value its own validator rejects.
 //
-// # Unions answer per branch, and that is a deliberate divergence
+// # Unions answer per branch
 //
-// hasUnknownKeys never validates, so it cannot know which member matched: it pools every member's property names into one
-// merged allowlist. The fused validator inherits validate's OR chain, so each arm carries ITS OWN key check and nothing is
-// pooled. The two therefore DISAGREE on a value carrying another member's key: `{kind:'cat', meows:true, barks:3}` is
-// admitted by the merged allowlist and rejected by the fused validator, which follows the branch that matched. The fused
-// answer tracks `isType`, so it is the one that ships; a key belonging to NO member is rejected by both, and THAT part must
-// never drift. Pinned by test in checkUnknowns.test.ts.
+// The fused validator inherits validate's OR chain, so each arm carries ITS OWN key check and nothing is pooled across
+// members: `{kind:'cat', meows:true, barks:3}` is rejected because the matching `cat` arm does not declare `barks`.
+// Pinned by test in checkUnknowns.test.ts.
 //
 // Why a FAMILY and not a ValidateOptions variant: a variant is root-scoped (a named nested type would dep-call the PLAIN
 // entry and lose the check), is never disk-cached and skips user overrides. A family renders its whole transitive subtree
 // with the same emitter, so strict mode needs no propagation plumbing: it rides the emitter identity.
 //
-// Fusion works at all because the per-node meaning is uniform: hasUnknownKeys composes with `||` and validate with `&&`,
-// and fusing on the CONJUNCTION inverts the `||` into the `&&` chain, so a child still returns one boolean.
-//
 // # The object guard is emitted ONCE, and the key check adds none of its own
 //
-// Standalone hasUnknownKeys runs blind and carries the whole guard before it dares scan keys; its `runsAfterValidation`
-// variant drops all of it, because the caller promised validate already ran. The fused families ARE that composition in one
-// pass, and get the promise for free, since the key check is spliced after the property checks in the same expression. So
-// the guard the validator already emits as its leading term is the only one, and the key check contributes no array term.
+// The key check is spliced after the property checks in the same expression, so validation has already run when it does.
+// The guard the validator emits as its leading term is the only one, and the key check contributes no array term.
 // Pinned by TestCheckUnknowns_ValidatorKeyCheckAddsNoGuard.
 //
 // # Arrays are out of scope, deliberately
@@ -72,9 +63,8 @@ func (ValidateStrictEmitter) ChecksUnknownKeys() {}
 
 // ValidationErrorsStrictEmitter is `validationErrors` plus one `{expected:'never'}` entry per undeclared key, recorded at
 // the node that owns the key.
-// Error ORDER differs from the two-call form on purpose: `verr(v).concat(uke(v))` groups every type error ahead of every
-// unknown-key error, which one walk cannot produce, so the fused errors interleave in walk order like every other error
-// family. Pinned by test.
+// The errors interleave in walk order like every other error family, so an unknown-key error sits beside the type errors
+// of the same object rather than after all of them. Pinned by test.
 type ValidationErrorsStrictEmitter struct{ ValidationErrorsEmitter }
 
 func (ValidationErrorsStrictEmitter) ChecksUnknownKeys() {}
@@ -98,7 +88,6 @@ func nodeTakesUnknownKeyCheck(rt *reflection.RunType, ctx *EmitContext, callSigC
 		return false
 	}
 	// An index signature makes every key matching it declared, so there is no parent-level "unknown" to test.
-	// Same suppression emitInterfaceHasUnknownKeys applies on `hasIndex`.
 	if objectHasIndexSignatureChild(rt, ctx) {
 		return false
 	}
@@ -113,19 +102,18 @@ func nodeTakesUnknownKeyCheck(rt *reflection.RunType, ctx *EmitContext, callSigC
 // node: children compile through the same strict emitter and splice their own check.
 //
 // PLACEMENT the caller must honour: this expression goes LAST in the object's `&&` chain, after the per-property checks.
-// Two things follow, and both are why fusing beats calling hasUnknownKeys separately:
+// Two things follow:
 //
-//   - The O(1) key-count compare becomes sound at EVERY depth. It is valid only once every declared prop is known present
-//     (otherwise `{a,b,x}` against declared `{a,b,c}` slips through and a merely-missing prop false-positives), which a
-//     standalone caller can only promise at the root via `runsAfterValidation`. Here the props were just verified in the
-//     same expression, so the precondition holds by construction.
+//   - The O(1) key-count compare is sound at EVERY depth. It is valid only once every declared prop is known present
+//     (otherwise `{a,b,x}` against declared `{a,b,c}` slips through and a merely-missing prop false-positives), and here
+//     the props were just verified in the same expression, so the precondition holds by construction.
 //   - The object guard is redundant, hence keepObjectCheck=false: `typeof v === 'object' && v !== null` already ran as the
 //     leading term of this chain (or, under a union, as the arm's shared guard).
 func strictObjectKeyAssertion(rt *reflection.RunType, ctx *EmitContext) string {
 	if n, ok := countFastPathN(rt, ctx); ok {
-		return emitCountKeys(ctx, ctx.Vλl, n, true)
+		return emitCountKeys(ctx, ctx.Vλl, n)
 	}
 	// Ineligible for the count compare (optional props or non-RT children): fall back to the key-array scan, negated into
 	// the chain. Non-empty by now, since emitsUnknownKeyCheck already rejected the shapes whose scan returns "".
-	return "!(" + callCheckUnknownPropertiesForHas(rt, ctx, false, false) + ")"
+	return "!(" + callCheckUnknownPropertiesForHas(rt, ctx, false) + ")"
 }

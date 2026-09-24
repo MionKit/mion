@@ -9,7 +9,7 @@
 // re-pins on a version bump. The runtime cache key is `<fnHash>_<typeId>`;
 // its typeId half (injected by the plugin) still carries the version.
 
-export type FnHashAxis = 'none' | 'validateOptions' | 'jsonStrategy' | 'hasUnknownKeysOptions';
+export type FnHashAxis = 'none' | 'validateOptions' | 'jsonStrategy';
 
 export interface FnHashEntry {
   readonly axis: FnHashAxis;
@@ -21,9 +21,9 @@ export interface FnHashEntry {
    *  when options.rejectCircularRefs is set on such a family. */
   readonly circularGuarded?: true;
   /** Variant token → fnHash. Token is '' for option-less families, the validate
-   *  variant suffix ('', 'NT', 'NM'), the hasUnknownKeys variant suffix
-   *  ('', 'OV'), or the JSON strategy name — each optionally with a trailing
-   *  'C' for the rejectCircularRefs fork on a CircularGuarded family. */
+   *  variant suffix ('', 'NT', 'NM'), or the JSON strategy name — each
+   *  optionally with a trailing 'C' for the rejectCircularRefs fork on a
+   *  CircularGuarded family. */
   readonly variants: Readonly<Record<string, string>>;
 }
 
@@ -33,7 +33,6 @@ export const FN_HASHES = {
   compactFromJson: {axis: 'none', variants: {'': 'FFsn'}},
   formatTransform: {axis: 'none', variants: {'': 'mzca'}},
   fromBinary: {axis: 'none', variants: {'': 'rR8x'}},
-  hasUnknownKeys: {axis: 'hasUnknownKeysOptions', variants: {'': 'GsPX', OV: 'be7V'}},
   jsonDecoder: {axis: 'jsonStrategy', defaultVariant: 'strip', variants: {compact: 'hoBv', preserve: 'kpI8', strip: 'Ajic'}},
   jsonEncoder: {
     axis: 'jsonStrategy',
@@ -59,7 +58,6 @@ export const FN_HASHES = {
   stringifyJson: {axis: 'none', variants: {'': 'i4VX'}},
   stripUnknownKeysWire: {axis: 'none', variants: {'': 'q9zA'}},
   toBinary: {axis: 'none', circularGuarded: true, variants: {'': 'jDpZ', C: 'rutq'}},
-  unknownKeyErrors: {axis: 'none', variants: {'': 'r8yS'}},
   validate: {
     axis: 'validateOptions',
     circularGuarded: true,
@@ -104,7 +102,6 @@ export const FAMILY_TAG_TO_FN_KEY = {
   csr: 'classSerializerReg',
   fb: 'fromBinary',
   fmt: 'formatTransform',
-  huk: 'hasUnknownKeys',
   jsc: 'jsonSchema',
   pj: 'prepareForJsonMutate',
   pjs: 'prepareForJsonClone',
@@ -113,7 +110,6 @@ export const FAMILY_TAG_TO_FN_KEY = {
   ruk: 'removeUnknownKeys',
   sj: 'stringifyJson',
   tb: 'toBinary',
-  uke: 'unknownKeyErrors',
   ukuw: 'stripUnknownKeysWire',
   val: 'validate',
   verr: 'validationErrors',
@@ -130,10 +126,3 @@ export const VALIDATE_OPTION_LETTERS = [
   ['numberTypeof', 'T'],
   ['numberNotNaN', 'M'],
 ] as const satisfies ReadonlyArray<readonly [string, string]>;
-
-/** HasUnknownKeysOptions name → single-letter token, in Go declaration order
- *  (constants.HasUnknownKeysOptions). The hasUnknownKeys variant suffix is 'O'
- *  followed by the letters of the present options concatenated in THIS order. */
-export const HAS_UNKNOWN_KEYS_OPTION_LETTERS = [['runsAfterValidation', 'V']] as const satisfies ReadonlyArray<
-  readonly [string, string]
->;

@@ -10,41 +10,30 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// objectKeysContext holds an object's known-key arrays (RT children and ALL children) and their closure variable names.
+// objectKeysContext holds an object's known-key array (RT children) and its closure variable name.
 type objectKeysContext struct {
 	keysName         string   // variable name in closure scope for the RT-children key array
-	allKeysName      string   // variable name in closure scope for the ALL-children key array
 	rtChildrenNames  []string // sorted unique RT-children property names
 	allChildrenNames []string // sorted unique ALL-children property names
-	hasNonRTChildren bool     // true when RT children is a strict subset of ALL children
 }
 
-// addObjectPropsToContext registers an object's known-key arrays in the closure prologue, once per unique RunType.
+// addObjectPropsToContext registers an object's known-key array in the closure prologue, once per unique RunType.
 func addObjectPropsToContext(rt *reflection.RunType, ctx *EmitContext) objectKeysContext {
 	rtNames, allNames := collectObjectChildNames(rt, ctx)
 
 	rtChildrenNames := dedupSortStrings(rtNames)
 	allChildrenNames := dedupSortStrings(allNames)
 
-	hasNonRTChildren := !sameStringSet(rtChildrenNames, allChildrenNames)
-
 	// The RunType ID is the hash, so the same canonical object reuses one context-item key across emit calls.
 	keysName := "k_" + rt.ID
-	allKeysName := "kA_" + rt.ID
-
 	if !ctx.HasContextItem(keysName) {
 		ctx.SetContextItem(keysName, "const "+keysName+" = "+arrayToJSLiteral(rtChildrenNames))
-	}
-	if hasNonRTChildren && !ctx.HasContextItem(allKeysName) {
-		ctx.SetContextItem(allKeysName, "const "+allKeysName+" = "+arrayToJSLiteral(allChildrenNames))
 	}
 
 	return objectKeysContext{
 		keysName:         keysName,
-		allKeysName:      allKeysName,
 		rtChildrenNames:  rtChildrenNames,
 		allChildrenNames: allChildrenNames,
-		hasNonRTChildren: hasNonRTChildren,
 	}
 }
 
@@ -144,38 +133,23 @@ func objectHasIndexSignatureChild(rt *reflection.RunType, ctx *EmitContext) bool
 
 // callCheckUnknownPropertiesForHas emits the expression that is `true` when the value has a key outside the known-keys array.
 // returnKeys=true returns the array of unknown keys instead, for the strip / error / undefined emitters.
-// keepObjectCheck wraps the boolean form in the object guard; `runsAfterValidation` drops it, and returnKeys never guards.
-func callCheckUnknownPropertiesForHas(rt *reflection.RunType, ctx *EmitContext, returnKeys bool, keepObjectCheck bool) string {
+// It never guards: every caller already runs under an object guard.
+func callCheckUnknownPropertiesForHas(rt *reflection.RunType, ctx *EmitContext, returnKeys bool) string {
 	keysCtx := addObjectPropsToContext(rt, ctx)
 	if len(keysCtx.rtChildrenNames) == 0 && len(keysCtx.allChildrenNames) == 0 {
 		return ""
 	}
-	v := ctx.Vλl
-	conditional := keysCtx.keysName
-	if keysCtx.hasNonRTChildren {
-		// The `checkNonRTProps` runtime option folds every declared key, non-RT ones included, into the known set.
-		optsArg := ctx.ArgName("θpts")
-		if optsArg != "" {
-			conditional = optsArg + ".checkNonRTProps ? " + keysCtx.allKeysName + " : " + keysCtx.keysName
-		}
-	}
 	if returnKeys {
 		fnVar := ctx.UsePureFn(purefnids.GetUnknownKeysFromArray)
-		return fnVar + "(" + v + ", " + conditional + ")"
+		return fnVar + "(" + ctx.Vλl + ", " + keysCtx.keysName + ")"
 	}
 	fnVar := ctx.UsePureFn(purefnids.HasUnknownKeysFromArray)
-	call := fnVar + "(" + v + ", " + conditional + ")"
-	if !keepObjectCheck {
-		// runsAfterValidation: validation already proved a non-null object, and a for-in over undefined iterates zero times anyway.
-		return call
-	}
-	// The pure fn expects an object, so non-object inputs must not reach it.
-	return objectGuard(v, call)
+	return fnVar + "(" + ctx.Vλl + ", " + keysCtx.keysName + ")"
 }
 
-// countFastPathN reports the declared prop count N for the `runsAfterValidation` key-count fast path, and whether the node is eligible:
+// countFastPathN reports the declared prop count N for the fused validators' key-count fast path, and whether the node is eligible:
 //
-//   - every RT child is REQUIRED, so validation proves all N present and `countEnumKeys(v) !== N` separates clean from dirty,
+//   - every RT child is REQUIRED, so validation proves all N present and `countEnumKeys(v) === N` separates clean from dirty,
 //   - no index-signature child (the caller suppresses the parent check entirely for those), and
 //   - RT children equal ALL children: non-RT props are never validated, so the count would mean nothing.
 //
@@ -211,53 +185,13 @@ func countFastPathN(rt *reflection.RunType, ctx *EmitContext) (int, bool) {
 	return len(rtChildren), true
 }
 
-// emitCountKeys emits the key-count expression `cntEK(v) === N` (or `!==`) and registers the countEnumKeys pure fn.
+// emitCountKeys emits the key-count expression `cntEK(v) === N` and registers the countEnumKeys pure fn.
 //
 // Which counter countEnumKeys picks is per engine (for-in on V8, Object.keys on JavaScriptCore), and both forms are
 // pinned to answer identically for every input, so the emitter does not care (packages/run-types/src/runtypes/pure-fns-utils.ts).
-// `match` picks the direction: hasUnknownKeys wants the negative `!==`, the fused validators AND-chain the positive `===`.
-func emitCountKeys(ctx *EmitContext, v string, n int, match bool) string {
+func emitCountKeys(ctx *EmitContext, v string, n int) string {
 	fnVar := ctx.UsePureFn(purefnids.CountEnumKeys)
-	comparison := " !== "
-	if match {
-		comparison = " === "
-	}
-	return fnVar + "(" + v + ")" + comparison + strconv.Itoa(n)
-}
-
-// collectObjectHasUnknownKeysChildren returns the per-child hasUnknownKeys expressions plus whether an index-signature
-// child was seen, so the object emit can stitch parent and children together with `||`.
-func collectObjectHasUnknownKeysChildren(rt *reflection.RunType, ctx *EmitContext) ([]string, bool) {
-	var parts []string
-	hasIndex := false
-	for _, child := range rt.Children {
-		resolved := ctx.ResolveRef(child)
-		if resolved == nil {
-			continue
-		}
-		if resolved.Kind == reflection.KindIndexSignature {
-			hasIndex = true
-		}
-		if resolved.IsStatic {
-			continue
-		}
-		if reflection.IsUnsafePropertyName(resolved.Name) {
-			continue
-		}
-		if isFunctionLikeKind(resolved.Kind) {
-			continue
-		}
-		childRT := ctx.CompileChild(child, CodeE)
-		if childRT.Type == CodeNS {
-			// NS normally propagates upward; for unknown-keys it counts as no contribution instead.
-			continue
-		}
-		if childRT.Code == "" {
-			continue
-		}
-		parts = append(parts, childRT.Code)
-	}
-	return parts, hasIndex
+	return fnVar + "(" + v + ") === " + strconv.Itoa(n)
 }
 
 // joinSemicolons joins non-empty strings with `;`, dropping the empty ones.
@@ -271,22 +205,11 @@ func joinSemicolons(parts ...string) string {
 	return strings.Join(nonEmpty, ";")
 }
 
-// joinOr joins JS expressions with ` || `, parenthesised past one so precedence holds when the result is nested.
-func joinOr(parts []string) string {
-	if len(parts) == 0 {
-		return ""
-	}
-	if len(parts) == 1 {
-		return parts[0]
-	}
-	return "(" + strings.Join(parts, " || ") + ")"
-}
-
 // unknownKeysObjectGuard is the shape precondition every OBJECT-node unknown-keys emit runs under.
 // A key scan only means "declared vs undeclared" on a plain object: elsewhere the descent throws (`v.address` on null)
 // or invents keys, since `for (const k in v)` walks a string's character indices and an array's element indices.
-// Guarded out, the node reports its family's neutral answer; reporting the SHAPE is validationErrors' job, which keeps
-// `[...verr(v), ...uke(v)]` free of duplicate shape errors. Same predicate emitUnionUnknownKeysMerged gates on.
+// Guarded out, the node does nothing; reporting the SHAPE is validationErrors' job. Same predicate
+// emitUnionUnknownKeysMerged gates on.
 func unknownKeysObjectGuard(v string) string {
 	return "typeof " + v + " === 'object' && " + v + " !== null && !Array.isArray(" + v + ")"
 }
@@ -298,15 +221,6 @@ func unknownKeysArrayGuard(v string) string {
 
 func guardStatement(guard, body string) string {
 	return "if (" + guard + ") {" + body + "}"
-}
-
-// trimWhitespace also drops every trailing semicolon, so Finalize can recognise an "essentially empty" body.
-func trimWhitespace(code string) string {
-	out := strings.TrimSpace(code)
-	for strings.HasSuffix(out, ";") {
-		out = strings.TrimSpace(out[:len(out)-1])
-	}
-	return out
 }
 
 // siblingNamedKeysCtxKey names the context item holding the parent object's sibling-named-prop set for `idxSig`.
@@ -475,7 +389,6 @@ func siblingPatternSkipCode(idxSig *reflection.RunType, ctx *EmitContext, prop s
 }
 
 // unknownKeysChildrenCode joins each non-static, non-function child's CodeS emit with `;`.
-// Shared by the strip / unknownKeyErrors / unknownKeysToUndefined object emits, whose child loop is identical.
 func unknownKeysChildrenCode(rt *reflection.RunType, ctx *EmitContext) string {
 	var parts []string
 	for _, child := range rt.Children {

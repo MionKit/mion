@@ -24,7 +24,7 @@
     {
       "key": "unknown-keys",
       "label": "Unknown keys",
-      "description": "From hasUnknownKeys, removeUnknownKeys, and the rest of that family."
+      "description": "From removeUnknownKeys and the rest of that family."
     },
     {
       "key": "formats",
@@ -1357,17 +1357,6 @@
       "example": "import {createValidateFn} from '@mionjs/run-types';\ninterface Settings { ok: number; __proto__: string }\nexport const isSettings = createValidateFn<Settings>();"
     },
     {
-      "code": "HUK010",
-      "subsystem": "unknown-keys",
-      "level": "warning",
-      "severity": "warning",
-      "headline": "Property `{0}` is a function: `hasUnknownKeys` does not handle function values, so this property is silently not checked.",
-      "detail": "`hasUnknownKeys` works on JSON-shaped data; functions don't survive JSON, so\nthe emitter drops them. The rest of the object's behaviour is unaffected.\n\nThis is by design, see the \"one contract: serializable data only\"\nsection in CLAUDE.md. If you need a stricter checker that fails on\nmissing/extra function-typed members, watch the project roadmap.",
-      "summary": null,
-      "fix": null,
-      "example": null
-    },
-    {
       "code": "RUK001",
       "subsystem": "unknown-keys",
       "level": "runtimeError",
@@ -1429,17 +1418,6 @@
       "severity": "warning",
       "headline": "Property `{0}` has a value type `removeUnknownKeys` cannot rebuild (symbol, Promise, or a non-serialisable built-in): it is kept on the clone, SHARED BY REFERENCE.",
       "detail": "Declared members are never dropped (only UNDECLARED keys are; that is the\nstrip guarantee). A value the emitter cannot rebuild passes through by\nreference instead: the clone's property points at the SAME handle as the\ninput's, so mutations through it are visible on both sides. Register\n`overrideRemoveUnknownKeys<T>()` if this type needs custom copying.",
-      "summary": null,
-      "fix": null,
-      "example": null
-    },
-    {
-      "code": "UKE010",
-      "subsystem": "unknown-keys",
-      "level": "warning",
-      "severity": "warning",
-      "headline": "Property `{0}` is a function: `unknownKeyErrors` does not handle function values, so this property is silently not checked.",
-      "detail": "`unknownKeyErrors` works on JSON-shaped data; functions don't survive JSON, so\nthe emitter drops them. The rest of the object's behaviour is unaffected.\n\nThis is by design, see the \"one contract: serializable data only\"\nsection in CLAUDE.md. If you need a stricter checker that fails on\nmissing/extra function-typed members, watch the project roadmap.",
       "summary": null,
       "fix": null,
       "example": null

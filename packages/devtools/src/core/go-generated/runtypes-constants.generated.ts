@@ -14,7 +14,6 @@ export const CACHE_MODULES = {
   compactFromJson: {name: 'compactFromJsonModule', varPrefix: 'g_cjr_', tag: 'cjr'},
   formatTransform: {name: 'formatTransformModule', varPrefix: 'g_fmt_', tag: 'fmt'},
   fromBinary: {name: 'fromBinaryModule', varPrefix: 'g_fb_', tag: 'fb'},
-  hasUnknownKeys: {name: 'hasUnknownKeysModule', varPrefix: 'g_huk_', tag: 'huk'},
   jsonSchema: {name: 'jsonSchemaModule', varPrefix: 'g_jsc_', tag: 'jsc'},
   prepareForJsonClone: {name: 'prepareForJsonCloneModule', varPrefix: 'g_pjs_', tag: 'pjs'},
   prepareForJsonMutate: {name: 'prepareForJsonMutateModule', varPrefix: 'g_pj_', tag: 'pj'},
@@ -26,7 +25,6 @@ export const CACHE_MODULES = {
   stringifyJson: {name: 'stringifyJsonModule', varPrefix: 'g_sj_', tag: 'sj'},
   stripUnknownKeysWire: {name: 'stripUnknownKeysWireModule', varPrefix: 'g_ukuw_', tag: 'ukuw'},
   toBinary: {name: 'toBinaryModule', varPrefix: 'g_tb_', tag: 'tb'},
-  unknownKeyErrors: {name: 'unknownKeyErrorsModule', varPrefix: 'g_uke_', tag: 'uke'},
   validate: {name: 'validateModule', varPrefix: 'g_val_', tag: 'val'},
   validateStrict: {name: 'validateStrictModule', varPrefix: 'g_vst_', tag: 'vst'},
   validateUnionKeys: {name: 'validateUnionKeysModule', varPrefix: 'g_vuk_', tag: 'vuk'},
@@ -50,9 +48,6 @@ export const FORMATTRANSFORM_TAG = 'fmt';
 export const FROMBINARY_VAR_PREFIX = 'g_fb_';
 export const FROMBINARY_MODULE_NAME = 'fromBinaryModule';
 export const FROMBINARY_TAG = 'fb';
-export const HASUNKNOWNKEYS_VAR_PREFIX = 'g_huk_';
-export const HASUNKNOWNKEYS_MODULE_NAME = 'hasUnknownKeysModule';
-export const HASUNKNOWNKEYS_TAG = 'huk';
 export const JSONSCHEMA_VAR_PREFIX = 'g_jsc_';
 export const JSONSCHEMA_MODULE_NAME = 'jsonSchemaModule';
 export const JSONSCHEMA_TAG = 'jsc';
@@ -86,9 +81,6 @@ export const STRIPUNKNOWNKEYSWIRE_TAG = 'ukuw';
 export const TOBINARY_VAR_PREFIX = 'g_tb_';
 export const TOBINARY_MODULE_NAME = 'toBinaryModule';
 export const TOBINARY_TAG = 'tb';
-export const UNKNOWNKEYERRORS_VAR_PREFIX = 'g_uke_';
-export const UNKNOWNKEYERRORS_MODULE_NAME = 'unknownKeyErrorsModule';
-export const UNKNOWNKEYERRORS_TAG = 'uke';
 export const VALIDATE_VAR_PREFIX = 'g_val_';
 export const VALIDATE_MODULE_NAME = 'validateModule';
 export const VALIDATE_TAG = 'val';

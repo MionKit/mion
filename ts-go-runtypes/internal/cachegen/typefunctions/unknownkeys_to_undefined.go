@@ -38,14 +38,14 @@ func (UnknownKeysToUndefinedEmitter) Emit(rt *reflection.RunType, ctx *EmitConte
 		}
 		return RTCode{Code: "", Type: CodeS}
 	case reflection.KindProperty, reflection.KindPropertySignature:
-		return emitPropertyUnknownKeys(rt, ctx, false)
+		return emitPropertyUnknownKeys(rt, ctx)
 	case reflection.KindArray:
-		return emitArrayUnknownKeys(rt, ctx, false)
+		return emitArrayUnknownKeys(rt, ctx)
 	case reflection.KindTuple:
 		// Runs on a caller's payload, not on our encoder's output, so a tuple slot is swept too.
 		return emitTupleUnknownKeysRecurse(rt, ctx)
 	case reflection.KindTupleMember:
-		return emitTupleMemberUnknownKeys(rt, ctx, false)
+		return emitTupleMemberUnknownKeys(rt, ctx)
 	case reflection.KindIndexSignature:
 		return emitIndexSignatureUnknownKeysToUndefined(rt, ctx)
 	case reflection.KindUnion:
@@ -73,7 +73,7 @@ func emitObjectUnknownKeysToUndefined(rt *reflection.RunType, ctx *EmitContext) 
 	v := ctx.Vλl
 	var parentCode string
 	if !hasIndex {
-		unknownValue := callCheckUnknownPropertiesForHas(rt, ctx, true, false)
+		unknownValue := callCheckUnknownPropertiesForHas(rt, ctx, true)
 		if unknownValue != "" {
 			unknownVar := ctx.NextLocalVar("unk")
 			keyVar := ctx.NextLocalVar("ky")
@@ -154,6 +154,5 @@ func emitUnionUnknownKeysToUndefined(rt *reflection.RunType, ctx *EmitContext) R
 		Snippet: func(_ *EmitContext, accessor, keyVar string) string {
 			return accessor + "[" + keyVar + "] = undefined"
 		},
-		CodeShape: CodeS,
 	})
 }

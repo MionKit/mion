@@ -179,7 +179,7 @@ export const d = describeType<{a: number}>();
     const sources = {
       'four-fn.ts': `import type {InjectTypeFnArgs} from '@mionjs/run-types';
 type Handler = (ctx: unknown, ...rest: any[]) => unknown;
-function route<H extends Handler>(handler: H, fns?: InjectTypeFnArgs<Parameters<H>, 'validationErrors', 'hasUnknownKeys', 'removeUnknownKeys', 'unknownKeyErrors'>) {
+function route<H extends Handler>(handler: H, fns?: InjectTypeFnArgs<Parameters<H>, 'validationErrors', 'formatTransform', 'removeUnknownKeys', 'jsonSchema'>) {
   return {handler, fns};
 }
 export const r = route((ctx: unknown, name: string) => name.length);
@@ -257,7 +257,7 @@ export const r = route((ctx: unknown, name: string) => name.length);
     // behave alike. A stale family name is not a property of the call shape.
     const sources = {
       'shapes.ts': `import type {InjectTypeFnArgs} from '@mionjs/run-types';
-declare function createThing<T>(val?: T, id?: InjectTypeFnArgs<T, 'huk'>): unknown;
+declare function createThing<T>(val?: T, id?: InjectTypeFnArgs<T, 'ruk'>): unknown;
 export const fromType = createThing<{id: number}>();
 const value = {id: 1};
 export const fromValue = createThing(value);
@@ -269,8 +269,8 @@ export const fromValue = createThing(value);
       // One per call site, and both name the same family.
       expect(diagnostics).toHaveLength(2);
       for (const diagnostic of diagnostics) {
-        expect(diagnostic.args?.[0]).toBe('huk');
-        expect(diagnostic.args?.[1]).toContain('hasUnknownKeys');
+        expect(diagnostic.args?.[0]).toBe('ruk');
+        expect(diagnostic.args?.[1]).toContain('removeUnknownKeys');
       }
     });
   });
@@ -283,7 +283,7 @@ export const fromValue = createThing(value);
 type Handler = (ctx: unknown, ...rest: any[]) => unknown;
 function route<H extends Handler>(
   handler: H,
-  fns?: InjectTypeFnArgs<Parameters<H>, 'validate', 'validationErrors', 'hasUnknownKeys', 'unknownKeyErrors', 'formatTransform', 'prepareForJsonClone', 'restoreFromJsonClone'>
+  fns?: InjectTypeFnArgs<Parameters<H>, 'validate', 'validationErrors', 'removeUnknownKeys', 'jsonSchema', 'formatTransform', 'prepareForJsonClone', 'restoreFromJsonClone'>
 ) {
   return {handler, fns};
 }
@@ -301,7 +301,7 @@ export const r = route((ctx: unknown, name: string) => name.length);
     const sources = {
       'dup-fn.ts': `import type {InjectTypeFnArgs} from '@mionjs/run-types';
 type Handler = (ctx: unknown, ...rest: any[]) => unknown;
-function route<H extends Handler>(handler: H, fns?: InjectTypeFnArgs<Parameters<H>, 'hasUnknownKeys', 'validationErrors', 'jsonDecoder', 'validationErrors'>) {
+function route<H extends Handler>(handler: H, fns?: InjectTypeFnArgs<Parameters<H>, 'formatTransform', 'validationErrors', 'jsonDecoder', 'validationErrors'>) {
   return {handler, fns};
 }
 export const r = route((ctx: unknown, name: string) => name.length);

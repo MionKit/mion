@@ -18,8 +18,6 @@ const (
 	AxisValidateOptions
 	// AxisJsonStrategy is refined by the JSON strategy token; the operation is composite, one emitted entry per strategy.
 	AxisJsonStrategy
-	// AxisHasUnknownKeysOptions is refined by the HasUnknownKeysOptions bag (hasUnknownKeys's `runsAfterValidation`).
-	AxisHasUnknownKeysOptions
 )
 
 // Operation describes one renderable RT operation.
@@ -76,11 +74,7 @@ var registry = []Operation{
 	{Name: "validateUnionKeys", Doc: "Answers whether a value matches the type AND carries no property the matched union member leaves undeclared.", Factory: "createValidateFn", FamilyTag: "vuk", Axis: AxisValidateOptions, Public: true, FnKey: "validateUnionKeys", CircularGuarded: true, CallOptions: "{checkUnionUnknowns: true}"},
 	{Name: "validationErrorsUnionKeys", Doc: "Returns the reasons a value does not match, counting a property the matched union member leaves undeclared.", Factory: "createGetValidationErrorsFn", FamilyTag: "veuk", Axis: AxisValidateOptions, Public: true, FnKey: "validationErrorsUnionKeys", CircularGuarded: true, CallOptions: "{checkUnionUnknowns: true}"},
 
-	// hasUnknownKeys: the standalone predicate, the right tool when the caller already holds a validated value.
-	{Name: "hasUnknownKeys", Doc: "Answers whether a value carries any property the type does not declare.", Factory: "createHasUnknownKeysFn", FamilyTag: "huk", Axis: AxisHasUnknownKeysOptions, Public: true, FnKey: "hasUnknownKeys"},
-
 	// Option-less leaf families.
-	{Name: "unknownKeyErrors", Doc: "Returns one error per undeclared property, with the path to each one.", Factory: "createUnknownKeyErrorsFn", FamilyTag: "uke", Axis: AxisNone, Public: true, FnKey: "unknownKeyErrors"},
 	{Name: "removeUnknownKeys", Doc: "Copies a value keeping only the properties the type declares.", Factory: "createRemoveUnknownKeysFn", FamilyTag: "ruk", Axis: AxisNone, Public: true, FnKey: "removeUnknownKeys"},
 	{Name: "formatTransform", Doc: "Applies the type's format rules to a value, for example trimming a string or clamping a number.", Factory: "createFormatTransformFn", FamilyTag: "fmt", Axis: AxisNone, Public: true, FnKey: "formatTransform"},
 	{Name: "toBinary", Doc: "Writes a value to the compact binary wire format.", Factory: "createBinaryEncoderFn", FamilyTag: "tb", Axis: AxisNone, Public: true, FnKey: "toBinary", CircularGuarded: true},

@@ -29,48 +29,33 @@ export interface ValidateOptions {
    *  records `{expected: 'circular'}`. COMPILE-TIME: forks the fnHash into a distinct entry with the check baked in. **/
   rejectCircularRefs?: boolean;
   /** Folds the unknown-key check INTO the validator, so one compiled function answers "matches `T`
-   *  and carries no undeclared properties". Replaces the two-call form:
+   *  and carries no undeclared properties":
    *
    *  ```ts
-   *  // before: two compiled fns, two walks of the value
-   *  isUser(v) && !hasExtraKeys(v)
-   *  // after: one fn, one walk
    *  const isUserStrict = createValidateFn<User>(undefined, {checkUnknowns: true});
    *  ```
    *
-   *  Faster than chaining: each object is visited once, and the key check sits AFTER that object's
-   *  property checks, so every declared property is known present and an all-required shape can use
-   *  a key-COUNT compare instead of scanning the key list. The two-call form can only assume that at
-   *  the top level (see `HasUnknownKeysCompileOptions.runsAfterValidation`); here it holds at every
-   *  depth, nested named types included.
+   *  Each object is visited once, and the key check sits AFTER that object's property checks, so every
+   *  declared property is known present and an all-required shape can use a key-COUNT compare instead
+   *  of scanning the key list, at every depth, nested named types included.
    *
-   *  On `createGetValidationErrorsFn` each undeclared key adds one `{expected: 'never'}` entry, the
-   *  same `createUnknownKeyErrorsFn` produces. NOTE the ORDER differs from concatenating the two
-   *  calls: those group every type error ahead of every unknown-key error, while a single walk
-   *  interleaves them per node.
+   *  On `createGetValidationErrorsFn` each undeclared key adds one `{expected: 'never'}` entry,
+   *  interleaved per node with the type errors.
    *
    *  Shapes with an index signature take no check: any key matching the index IS declared. An array
-   *  takes none either, matching what `createHasUnknownKeysFn` answers for one: `[1, 2]` really is a
-   *  `{length: number}`, and the shape error already names the problem once.
-   *  `createHasUnknownKeysFn` remains the tool for a value you have already validated.
+   *  takes none either: `[1, 2]` really is a `{length: number}`, and the shape error already names the
+   *  problem once. To REMOVE undeclared keys rather than reject them, use `createRemoveUnknownKeysFn`.
    *
-   *  UNIONS ANSWER PER BRANCH, the one place the fused form does not equal
-   *  `isT(v) && !hasUnknownKeys(v)`: `createHasUnknownKeysFn` never validates, so it cannot know
-   *  which member matched and pools every member's property names into one allowlist, while the
-   *  fused validator follows the branch that matched:
+   *  UNIONS ANSWER PER BRANCH: each member arm carries its own key check, so a key another member
+   *  declares is still undeclared on the branch that matched:
    *
    *  ```ts
    *  type Pet = {kind: 'cat'; meows: boolean} | {kind: 'dog'; barks: number};
-   *  const mixed = {kind: 'cat', meows: true, barks: 3};
-   *
-   *  isPet(mixed) && !hasUnknown(mixed); // true  — barks is declared somewhere
-   *  isPetStrict(mixed); // false — barks is not declared on Cat
+   *  isPetStrict({kind: 'cat', meows: true, barks: 3}); // false — barks is not declared on Cat
    *  ```
    *
-   *  A key belonging to NO member is rejected by both. The fused answer is the stricter one and the
-   *  one that tracks the branch, so prefer it wherever the two must agree. The error form follows
-   *  the same verdict: for a union it reports `{path: [], expected: 'union'}`, since the offending
-   *  key is only undeclared relative to a branch.
+   *  The error form follows the same verdict: for a union it reports `{path: [], expected: 'union'}`,
+   *  since the offending key is only undeclared relative to a branch.
    *
    *  COMPILE-TIME, but unlike the other options here it selects a different compiled FAMILY rather
    *  than a variant of this one, so `getFnHash('validate', {checkUnknowns: true})` is NOT its cache
@@ -170,54 +155,9 @@ export type GetValidationErrorsFn<Format extends TypeFormatError = TypeFormatErr
   errors?: RTValidationError[]
 ) => RTValidationError<Format>[];
 
-/** Options bag for HasUnknownKeysFn. When `checkNonRTProps` is true the
- *  known-keys list expands to include children the RT skipped. **/
-export interface HasUnknownKeysOptions {
-  checkNonRTProps?: boolean;
-}
-
-/** COMPILE-TIME options for `createHasUnknownKeysFn<T>(val?, options?, id?)` — baked into the
- *  emitted variant at build time (like `ValidateOptions`), never read at runtime.
- *
- *  `runsAfterValidation` declares the caller's precondition that every value passed to the returned
- *  predicate already PASSED this type's `validate`. That makes two emit optimisations sound: the
- *  per-object `typeof` guards are dropped, and all-required object nodes replace the O(props×keys)
- *  key-array scan with a key-count compare (`countEnumKeys(v) !== N`) — measured ~3x on a 7-prop
- *  shape and ~13x at 30 props (Node 26). The claim is about the VALUE, not the root call, so it
- *  holds at every depth: a NAMED nested type (`{address: Address}`) gets the same treatment an
- *  inline one does. Shapes the count check can't decide — optional props, index signatures, non-RT
- *  children — keep the scan, guardless. Standalone the count check is WRONG in both directions
- *  (`{a,b,x}` vs declared `{a,b,c}` slips through; `{a,b}` false-positives on a merely-missing
- *  prop), which is why this is an explicit opt-in: calling the variant on non-validated input is
- *  undefined behavior. Count checks assume JSON-like own-enumerable data — validated props living
- *  on a prototype can fool them. **/
-export interface HasUnknownKeysCompileOptions {
-  runsAfterValidation?: boolean;
-}
-
-/** Predicate returned by `createHasUnknownKeysFn<T>()`. **/
-export type HasUnknownKeysFn = (value: unknown, options?: HasUnknownKeysOptions) => boolean;
-
 /** Deep copy of the declared shape; RegExps and values it cannot rebuild (`any`, functions: RUK010/RUK015) are shared.
  *  `overrideRemoveUnknownKeys<T>()` is the escape hatch for custom copying. **/
 export type RemoveUnknownKeysFn<T = unknown> = (value: T) => T;
-
-/** Validator returned by `createUnknownKeyErrorsFn<T>()`. Each unknown key produces one
- *  `{path, expected: 'never'}` entry.
- *
- *  Reports UNDECLARED KEYS ONLY, never shape. A value the schema does not admit at all — `null`,
- *  `undefined`, a primitive, an array where an object is declared, and the same at any nested
- *  position — has no undeclared keys to report, so it yields `[]` rather than throwing or inventing
- *  one entry per character / index; `createHasUnknownKeysFn` answers `false` on the same values.
- *  Shape is `createGetValidationErrorsFn`'s job, which is what lets the two compose into a strict
- *  report (`[...typeErrors(v), ...keyErrors(v)]`) with the shape reported exactly once. (The one
- *  exception is `createHasUnknownKeysFn`'s `runsAfterValidation`, whose contract is that the caller
- *  already validated the value; it drops the guards deliberately.) **/
-export type UnknownKeyErrorsFn = (
-  value: unknown,
-  path?: RTValidationErrorPathSegment[],
-  errors?: RTValidationError[]
-) => RTValidationError[];
 
 /** Reduces a type to the plain runtime value the format transform operates on: TypeFormat brands
  *  collapse to their base (string formats → `string`), nested objects / arrays recurse. The brand is
@@ -339,7 +279,6 @@ function createRTFunction<F extends AnyFn>(fnName: string, identityFn: F): (val?
 
 const identityValueFn = (v: unknown) => v;
 const getValidationErrorsIdentity: GetValidationErrorsFn<never> = () => [];
-const unknownKeyErrorsIdentity: UnknownKeyErrorsFn = () => [];
 
 // Two overloads, run-type form FIRST: TS resolves intersected call signatures top-to-bottom, and a
 // `RunType<T>` arg must be tried before the `val?: T` reflection form, which would otherwise absorb
@@ -373,24 +312,8 @@ export const createGetValidationErrorsFn = createTypeFnArgsFunction<GetValidatio
     id?: InjectTypeFnArgs<T, 'validationErrors'>
   ) => GetValidationErrorsFn<FormatErrorsOf<T>>);
 
-// `ValidateOptions` stays exclusive to `createValidateFn` / `createGetValidationErrorsFn`;
-// `createHasUnknownKeysFn` carries its OWN bag (`HasUnknownKeysCompileOptions`, @slot1, baked into
-// the variant fnHash the same way). The remaining leaf families take no options — a slot there would
-// let callers pass values the Go emitter silently ignores.
-
-export const createHasUnknownKeysFn = createTypeFnArgsFunction<HasUnknownKeysFn>(
-  'createHasUnknownKeysFn',
-  () => false
-) as unknown as (<T>(
-  runType: RunType<T>,
-  options?: CompTimeFnArgs<HasUnknownKeysCompileOptions>,
-  id?: InjectTypeFnArgs<T, 'hasUnknownKeys'>
-) => HasUnknownKeysFn) &
-  (<T>(
-    val?: T,
-    options?: CompTimeFnArgs<HasUnknownKeysCompileOptions>,
-    id?: InjectTypeFnArgs<T, 'hasUnknownKeys'>
-  ) => HasUnknownKeysFn);
+// `ValidateOptions` stays exclusive to `createValidateFn` / `createGetValidationErrorsFn`. The leaf families take no
+// options: a slot there would let callers pass values the Go emitter silently ignores.
 
 /** Returns a new value with only the declared keys (Dates, Maps, Sets, prototypes kept); never mutates the input. **/
 export const createRemoveUnknownKeysFn = createRTFunction<RemoveUnknownKeysFn>(
@@ -398,12 +321,6 @@ export const createRemoveUnknownKeysFn = createRTFunction<RemoveUnknownKeysFn>(
   identityValueFn
 ) as unknown as (<T>(runType: RunType<T>, id?: InjectTypeFnArgs<T, 'removeUnknownKeys'>) => RemoveUnknownKeysFn<T>) &
   (<T>(val?: T, id?: InjectTypeFnArgs<T, 'removeUnknownKeys'>) => RemoveUnknownKeysFn<T>);
-
-export const createUnknownKeyErrorsFn = createRTFunction<UnknownKeyErrorsFn>(
-  'createUnknownKeyErrorsFn',
-  unknownKeyErrorsIdentity
-) as unknown as (<T>(runType: RunType<T>, id?: InjectTypeFnArgs<T, 'unknownKeyErrors'>) => UnknownKeyErrorsFn) &
-  (<T>(val?: T, id?: InjectTypeFnArgs<T, 'unknownKeyErrors'>) => UnknownKeyErrorsFn);
 
 // =============================================================================
 // The VALUE-level JSON transforms, no string step: for a framework that parses ONE envelope per
@@ -550,9 +467,7 @@ export interface RTFunctionByKey {
   validateUnionKeys: ValidateFn;
   validationErrorsUnionKeys: GetValidationErrorsFn;
   // Unknown-keys group.
-  hasUnknownKeys: HasUnknownKeysFn;
   removeUnknownKeys: RemoveUnknownKeysFn;
-  unknownKeyErrors: UnknownKeyErrorsFn;
   // Format transform.
   formatTransform: FormatTransformFn<unknown>;
   // JSON string I/O.

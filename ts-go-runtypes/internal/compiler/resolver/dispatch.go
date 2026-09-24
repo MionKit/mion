@@ -260,8 +260,6 @@ func variantSuffixFor(variant operations.FnVariant) string {
 	switch variant.Op.Axis {
 	case operations.AxisValidateOptions:
 		return constants.ValidateVariantSuffix(variant.Options)
-	case operations.AxisHasUnknownKeysOptions:
-		return constants.HasUnknownKeysVariantSuffix(variant.Options)
 	default:
 		return ""
 	}

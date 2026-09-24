@@ -6,7 +6,7 @@ import (
 )
 
 func TestOptionSubsetsTakeOneValuePerGroup(t *testing.T) {
-	for _, table := range [][]ValidateOption{ValidateOptions, HasUnknownKeysOptions} {
+	for _, table := range [][]ValidateOption{ValidateOptions} {
 		groupOf := map[string]string{}
 		for _, opt := range table {
 			groupOf[opt.Name] = opt.Group
@@ -28,9 +28,6 @@ func TestOptionSubsetsDropOnlyImpossibleCombinations(t *testing.T) {
 	// T and M are the two non-default numberMode values, so plain, T and M are the only 3 subsets.
 	if got := len(OptionSubsets(ValidateOptions)); got != 3 {
 		t.Errorf("ValidateOptions subsets = %d, want 3", got)
-	}
-	if got := len(OptionSubsets(HasUnknownKeysOptions)); got != 2 {
-		t.Errorf("HasUnknownKeysOptions subsets = %d, want 2", got)
 	}
 	for _, subset := range OptionSubsets(ValidateOptions) {
 		if suffix := ValidateVariantSuffix(subset); strings.Contains(suffix, "T") && strings.Contains(suffix, "M") {

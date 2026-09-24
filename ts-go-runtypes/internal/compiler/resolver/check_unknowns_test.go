@@ -254,16 +254,9 @@ export const isUser = createValidateFn<User>();
 }
 
 // The fused validators run their key check INSIDE their own object guard, so
-// they must not also pull in the one the standalone unknown-keys families carry.
-//
-// Both halves already avoid it — validate passes keepObjectCheck=false to
-// callCheckUnknownPropertiesForHas, and the fused error arm calls
-// emitParentUnknownKeyErrors directly rather than emitObjectUnknownKeyErrors,
-// whose body IS guarded (that family has nothing above it asserting shape). But
-// that is a property of where the shared helper's boundary happens to fall, not
-// something the type system enforces: moving the guard down into the helper, or
-// pointing the fused arm at the family arm, would silently emit the guard twice
-// on every object node. Cheap to pin, easy to regress.
+// the key check must not add a second one. Moving a guard down into the shared
+// helpers would silently emit it twice on every object node. Cheap to pin, easy
+// to regress.
 func TestCheckUnknowns_DoesNotDoubleGuardObjects(t *testing.T) {
 	for _, row := range []struct{ label, factory, opName string }{
 		{"validate", "createValidateFn", "validateStrict"},
@@ -366,9 +359,7 @@ export const isCallable = createValidateFn<Callable>(undefined, {checkUnknowns: 
 
 // THE KEY CHECK ADDS NO SHAPE GUARD OF ITS OWN.
 //
-// The blind hasUnknownKeys carries the whole object guard — `typeof`,
-// `!== null`, `!Array.isArray` — because nothing above it has established
-// anything. The fused validator needs none of it: `typeof` / `!== null` are
+// The fused validator needs no object guard beyond its own: `typeof` / `!== null` are
 // already its leading term, and an array is already stopped by the property
 // check (an array has no `a`) or, on a shape with no required property, by the
 // `[object Object]` brand guard emitObjectValidate adds for exactly that reason.
@@ -416,37 +407,6 @@ export const tErrors = createGetValidationErrorsFn<T>(undefined, {checkUnknowns:
 	}
 }
 
-// The flag the fused families inherit for free: with runsAfterValidation the
-// standalone predicate emits NO object guard at all, because the caller promised
-// the value already passed validate. Pinned against the blind form, which must
-// keep every part of it.
-func TestCheckUnknowns_RunsAfterValidationEmitsNoObjectGuard(t *testing.T) {
-	modules := scanEntryModules(t, `import {createHasUnknownKeysFn} from '@mionjs/run-types';
-interface T {a: string; b: number}
-export const blind = createHasUnknownKeysFn<T>();
-export const fast = createHasUnknownKeysFn<T>(undefined, {runsAfterValidation: true});
-`)
-	guardParts := []string{objectGuardNeedle, "v !== null", `!Array.isArray(v)`}
-
-	// The blind predicate has nothing above it establishing anything, so it
-	// carries the whole guard.
-	blind, ok := findEntryWithAll(modules, guardParts)
-	if !ok {
-		t.Fatalf("the blind hasUnknownKeys entry lost its object guard\nmodules: %v", keys(modules))
-	}
-
-	// The variant is a separate entry keyed by its variant hash, and carries no
-	// part of the guard: the caller promised validate ran, and validate is what
-	// rejects an array for an object shape.
-	fast, ok := findEntryWithout(modules, blind, "huk", guardParts)
-	if !ok {
-		t.Fatalf("no guardless runsAfterValidation entry emitted\nmodules: %v", keys(modules))
-	}
-	if !strings.Contains(modules[fast], purefnids.CountEnumKeys) {
-		t.Errorf("the runsAfterValidation entry is not the key-count fast path:\n%s", modules[fast])
-	}
-}
-
 // objectGuardNeedle is the guard as it appears INSIDE an emitted module, where
 // the body is a JS string literal and its quotes are backslash-escaped.
 const objectGuardNeedle = `typeof v === \'object\'`
@@ -466,24 +426,6 @@ func fnBodyOf(module string) string {
 func findEntryWithAll(modules map[string]string, needles []string) (string, bool) {
 	for _, name := range sortedEntryNames(modules) {
 		if moduleHasAll(modules[name], needles) {
-			return name, true
-		}
-	}
-	return "", false
-}
-
-// findEntryWithout returns an entry of the given family tag, other than
-// `exclude`, containing NONE of the given substrings.
-func findEntryWithout(modules map[string]string, exclude string, familyTag string, needles []string) (string, bool) {
-	for _, name := range sortedEntryNames(modules) {
-		if name == exclude {
-			continue
-		}
-		module := modules[name]
-		if !strings.Contains(module, "['"+familyTag+"'") {
-			continue
-		}
-		if !moduleHasAll(module, needles) && !moduleHasAny(module, needles) {
 			return name, true
 		}
 	}

@@ -507,15 +507,6 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     detail:
       'The mirror imports a type name its source file no longer declares (the\ntype was renamed or removed). The reconcile turns its consts into\n`@rtOrphan` carcasses so your authored values survive.\n\nFix: re-run the reconcile against the current source, then prune any\ncarcasses that should not come back:\n  mion enrich <source.ts> <Type> --update\n  mion enrich --prune',
   },
-  HUK010: {
-    headline:
-      'Property `{0}` is a function: `hasUnknownKeys` does not handle function values, so this property is silently not checked.',
-    level: 'warning',
-    severity: 'warning',
-    family: 'runtype',
-    detail:
-      '`hasUnknownKeys` works on JSON-shaped data; functions don\'t survive JSON, so\nthe emitter drops them. The rest of the object\'s behaviour is unaffected.\n\nThis is by design, see the "one contract: serializable data only"\nsection in CLAUDE.md. If you need a stricter checker that fails on\nmissing/extra function-typed members, watch the project roadmap.',
-  },
   JCP001: {
     headline:
       'Internal error: JSON composite `{0}` references primitive entry `{1}` (type `{2}`) which was never rendered; please file an issue.',
@@ -1421,15 +1412,6 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     family: 'marker',
     detail:
       'mion reads types through TypeScript\'s lib definitions, so it\ncan only validate `Temporal.*` types when the Temporal namespace is loaded.\nWith the lib missing, `{0}` silently degrades to `any` and the validator\nbecomes a no-op that accepts everything, almost never what you intended.\n\nFix: add "ESNext.Temporal" to your tsconfig:\n  {\n    "compilerOptions": {\n      "lib": ["ES2023", "ESNext.Temporal"]\n    }\n  }',
-  },
-  UKE010: {
-    headline:
-      'Property `{0}` is a function: `unknownKeyErrors` does not handle function values, so this property is silently not checked.',
-    level: 'warning',
-    severity: 'warning',
-    family: 'runtype',
-    detail:
-      '`unknownKeyErrors` works on JSON-shaped data; functions don\'t survive JSON, so\nthe emitter drops them. The rest of the object\'s behaviour is unaffected.\n\nThis is by design, see the "one contract: serializable data only"\nsection in CLAUDE.md. If you need a stricter checker that fails on\nmissing/extra function-typed members, watch the project roadmap.',
   },
   UKW010: {
     headline:

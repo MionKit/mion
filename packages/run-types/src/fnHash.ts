@@ -8,16 +8,11 @@
 // map that used to churn on every version bump. Values come from the Go-generated fnHashes table
 // (source of truth: operations.FnHashFor); nothing is hashed at runtime.
 
-import {
-  FN_HASHES,
-  HAS_UNKNOWN_KEYS_OPTION_LETTERS,
-  VALIDATE_OPTION_LETTERS,
-  type FnHashEntry,
-} from './go-generated/fnHashes.generated.ts';
+import {FN_HASHES, VALIDATE_OPTION_LETTERS, type FnHashEntry} from './go-generated/fnHashes.generated.ts';
 
 /** The Fn tokens getFnHash accepts — the InjectTypeFnArgs Fn keys for every
  *  createX factory and JSON value-level primitive (`val`, `verr`, `tb`, `fb`,
- *  `jsonEncoder`, `jsonDecoder`, `huk`, `pjs`, `cj`, …). */
+ *  `jsonEncoder`, `jsonDecoder`, `ruk`, `pjs`, `cj`, …). */
 export type FnHashKey = keyof typeof FN_HASHES;
 
 /** The createX factory's own compile-time bag; `strategy` picks a JSON variant, options foreign to the family are ignored. */
@@ -27,7 +22,6 @@ export interface FnHashOptions {
    *  as canonical option names (numberTypeof / numberNotNaN) in the variant token. */
   numberMode?: string;
   strategy?: string;
-  runsAfterValidation?: boolean;
   /** Arms the circular-reference guard — forks a CircularGuarded family's fnHash
    *  (validate / validationErrors / toBinary / jsonEncoder) by appending the 'C'
    *  variant token. Ignored for non-guarded families. */
@@ -57,21 +51,6 @@ function validateVariantToken(options: FnHashOptions | undefined): string {
   return hit ? suffix : '';
 }
 
-// Mirror of Go constants.HasUnknownKeysVariantSuffix: 'O' + the letters of the
-// present options in declaration order, or '' when none is set.
-function hasUnknownKeysVariantToken(options: FnHashOptions | undefined): string {
-  if (!options) return '';
-  let suffix = 'O';
-  let hit = false;
-  for (const [name, letter] of HAS_UNKNOWN_KEYS_OPTION_LETTERS) {
-    if (options[name as 'runsAfterValidation']) {
-      suffix += letter;
-      hit = true;
-    }
-  }
-  return hit ? suffix : '';
-}
-
 /** Resolve the version-independent fnHash for a function family (+ options).
  *  Throws on an unknown fnKey or an option combination with no matching variant
  *  (e.g. an unknown JSON `strategy`). Accepts any string so a framework can pass
@@ -82,7 +61,6 @@ export function getFnHash(fnKey: FnHashKey | (string & {}), options?: FnHashOpti
   let token = '';
   if (entry.axis === 'validateOptions') token = validateVariantToken(options);
   else if (entry.axis === 'jsonStrategy') token = options?.strategy ?? entry.defaultVariant ?? '';
-  else if (entry.axis === 'hasUnknownKeysOptions') token = hasUnknownKeysVariantToken(options);
   // Mirror of Go's circularCanonicalSuffix: the armed variant's token is the base token plus 'C'.
   if (entry.circularGuarded && options?.rejectCircularRefs) token += 'C';
   const hash = entry.variants[token];

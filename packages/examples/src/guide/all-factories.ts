@@ -1,8 +1,6 @@
 import {
   createValidateFn,
   createGetValidationErrorsFn,
-  createHasUnknownKeysFn,
-  createUnknownKeyErrorsFn,
   createRemoveUnknownKeysFn,
   createFormatTransformFn,
   createJsonEncoderFn,
@@ -36,8 +34,6 @@ const userErrorsUnionKeys = createGetValidationErrorsFn<User>(undefined, {
   checkUnionUnknowns: true,
 });
 
-const userHasExtras = createHasUnknownKeysFn<User>();
-const userExtraErrors = createUnknownKeyErrorsFn<User>();
 const removeUserExtras = createRemoveUnknownKeysFn<User>();
 const cleanUser = createFormatTransformFn<User>();
 
@@ -86,8 +82,6 @@ export {
   restoreUserMutate,
   compactUser,
   uncompactUser,
-  userHasExtras,
-  userExtraErrors,
   removeUserExtras,
   cleanUser,
   encodeUser,

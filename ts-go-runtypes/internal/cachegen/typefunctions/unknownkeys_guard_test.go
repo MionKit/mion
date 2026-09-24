@@ -16,21 +16,7 @@ import (
 // its body under a shape guard, and the family answers neutrally when the
 // guard rejects. These tests pin the guard in the emitted source; the
 // behaviour it buys is pinned end-to-end in
-// packages/run-types/test/features/unknownKeys.test.ts.
-
-// ukeKey returns the plain unknownKeyErrors cache key for a type id.
-func ukeKey(id string) string { return operations.PlainHash("unknownKeyErrors") + "_" + id }
-
-// renderUkeToString collects the unknownKeyErrors family for a dump.
-func renderUkeToString(t *testing.T, dump protocol.Dump) string {
-	t.Helper()
-	return joinEntries(t, FamilyByKey("unknownKeyErrors").Collect(dump, RenderOpts{EmitMode: "both"}, nil))
-}
-
-// ukeSite builds one createUnknownKeyErrorsFn call site.
-func ukeSite(pos int, id string) protocol.Site {
-	return protocol.Site{File: "call.ts", Pos: pos, ID: id, Demand: []protocol.SiteDemand{{FamilyTag: "uke"}}}
-}
+// packages/run-types/test/features/unknownKeyFamiliesAgree.test.ts.
 
 // ukuwKey returns the plain stripUnknownKeysWire cache key for a type id.
 func ukuwKey(id string) string { return operations.PlainHash("stripUnknownKeysWire") + "_" + id }
@@ -82,15 +68,15 @@ func buildGuardFixture() []*reflection.RunType {
 	}
 }
 
-// TestUnknownKeyErrors_ObjectNodeCarriesShapeGuard — the object body runs only
+// TestUnknownKeysWire_ObjectNodeCarriesShapeGuard — the object body runs only
 // for a non-null, non-array object, at the root AND at the inlined child.
-func TestUnknownKeyErrors_ObjectNodeCarriesShapeGuard(t *testing.T) {
-	dump := protocol.Dump{RunTypes: buildGuardFixture(), Sites: []protocol.Site{ukeSite(0, "inline")}}
-	out := renderUkeToString(t, dump)
+func TestUnknownKeysWire_ObjectNodeCarriesShapeGuard(t *testing.T) {
+	dump := protocol.Dump{RunTypes: buildGuardFixture(), Sites: []protocol.Site{ukuwSite(0, "inline")}}
+	out := renderUkuwToString(t, dump)
 
-	line := extractInitLine(out, ukeKey("inline"))
+	line := extractInitLine(out, ukuwKey("inline"))
 	if line == "" {
-		t.Fatalf("no unknownKeyErrors entry in:\n%s", out)
+		t.Fatalf("no stripUnknownKeysWire entry in:\n%s", out)
 	}
 	// Two object nodes (root + inlined child) → two guards.
 	if got := strings.Count(line, "!== null && !Array.isArray("); got < 2 {
@@ -98,49 +84,28 @@ func TestUnknownKeyErrors_ObjectNodeCarriesShapeGuard(t *testing.T) {
 	}
 	// The guard must be the FIRST thing the body does — a key scan ahead of
 	// it would already have walked a string's character indices.
-	if !strings.HasPrefix(bodyAfter(line, "(v,pth=[],er=[]){"), "if (typeof v === ") {
+	if !strings.HasPrefix(bodyAfter(line, "(v){"), "if (typeof v === ") {
 		t.Errorf("the shape guard must open the body, got:\n%s", line)
 	}
 }
 
-// TestUnknownKeyErrors_ContainerRootsCarryShapeGuard — an array or tuple root
+// TestUnknownKeysWire_ContainerRootsCarryShapeGuard — an array or tuple root
 // reads `v.length` / `v[0]`, so its descent is guarded by Array.isArray.
-func TestUnknownKeyErrors_ContainerRootsCarryShapeGuard(t *testing.T) {
+func TestUnknownKeysWire_ContainerRootsCarryShapeGuard(t *testing.T) {
 	dump := protocol.Dump{
 		RunTypes: buildGuardFixture(),
-		Sites:    []protocol.Site{ukeSite(0, "arr"), ukeSite(40, "tup")},
+		Sites:    []protocol.Site{ukuwSite(0, "arr"), ukuwSite(40, "tup")},
 	}
-	out := renderUkeToString(t, dump)
+	out := renderUkuwToString(t, dump)
 
 	for _, id := range []string{"arr", "tup"} {
-		line := extractInitLine(out, ukeKey(id))
+		line := extractInitLine(out, ukuwKey(id))
 		if line == "" {
-			t.Fatalf("no unknownKeyErrors entry for %q in:\n%s", id, out)
+			t.Fatalf("no stripUnknownKeysWire entry for %q in:\n%s", id, out)
 		}
 		if !strings.Contains(line, "Array.isArray(v)") {
 			t.Errorf("%q root must guard its element descent with Array.isArray, got:\n%s", id, line)
 		}
-	}
-}
-
-// TestHasUnknownKeys_ObjectNodeCarriesShapeGuard — the `||` chain does not
-// short-circuit the child descent away, so the plain predicate guards the whole
-// chain. The runsAfterValidation variant stays guardless by contract (pinned in
-// unknownkeys_has_variant_test.go).
-func TestHasUnknownKeys_ObjectNodeCarriesShapeGuard(t *testing.T) {
-	dump := protocol.Dump{RunTypes: buildGuardFixture(), Sites: []protocol.Site{hukSite(0, "inline", nil)}}
-	out := renderHukToString(t, dump)
-
-	line := extractInitLine(out, hukKey("inline"))
-	if line == "" {
-		t.Fatalf("no hasUnknownKeys entry in:\n%s", out)
-	}
-	if got := strings.Count(line, "!== null && !Array.isArray("); got < 2 {
-		t.Errorf("expected a shape guard at both object depths, got %d in:\n%s", got, line)
-	}
-	// The guard opens the chain, so `v.inner` is never read against null.
-	if !strings.HasPrefix(bodyAfter(line, "(v,opts={}){"), "return (typeof v === ") {
-		t.Errorf("the shape guard must open the OR chain, got:\n%s", line)
 	}
 }
 

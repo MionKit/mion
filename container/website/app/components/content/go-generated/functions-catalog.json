@@ -29,14 +29,6 @@
       "factory": "createBinaryDecoderFn"
     },
     {
-      "name": "hasUnknownKeys",
-      "call": "createHasUnknownKeysFn<T>()",
-      "tag": "huk",
-      "doc": "Answers whether a value carries any property the type does not declare.",
-      "factory": "createHasUnknownKeysFn",
-      "options": "HasUnknownKeysOptions"
-    },
-    {
       "name": "jsonDecoder",
       "call": "createJsonDecoderFn<T>(undefined, {strategy: 'strip' | 'preserve' | 'compact'})",
       "doc": "Turns a JSON string back into a typed value. The strategy decides whether undeclared properties survive.",
@@ -118,13 +110,6 @@
       "doc": "Writes a value to the compact binary wire format.",
       "factory": "createBinaryEncoderFn",
       "rejectCircularRefs": true
-    },
-    {
-      "name": "unknownKeyErrors",
-      "call": "createUnknownKeyErrorsFn<T>()",
-      "tag": "uke",
-      "doc": "Returns one error per undeclared property, with the path to each one.",
-      "factory": "createUnknownKeyErrorsFn"
     },
     {
       "name": "validate",
