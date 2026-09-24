@@ -133,4 +133,5 @@ Built as planned, with these differences:
 - `features/stripInsideMapSet.test.ts` became `cloneDecodeInsideMapSet.test.ts`: it now checks the clone decoder drops undeclared keys inside Map values and Set members.
 - A few Go and devtools tests needed a third valid strategy and now use `compact` where they used `direct`; the SJ diagnostic cases now use the clone encoder's PJS codes.
 - Outside the spec: the website playground ops, the serialization bench columns (`direct` column gone, decoders paired by strategy) and the pre-publish e2e JSON check were updated.
-- Maintainer request in the same PR, own commit: removed 13 Go helpers that `staticcheck -checks U1000` showed nothing called, already unused on main.
+- Maintainer request in the same PR, own commits: removed 16 Go helpers that `staticcheck -checks U1000` showed nothing called, already unused on main.
+- After main removed `hasUnknownKeys` / `unknownKeyErrors`, the union and recursion arms of the unknown-keys emitters (`unknownkeys_union.go`, `unknownkeys_arms.go`) and the unknown-keys noop predicate served only the removed decoder pre-pass, so they were deleted too.
