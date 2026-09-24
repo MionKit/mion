@@ -71,7 +71,7 @@ export function projectName(text) {
   return name ? name[1] : undefined;
 }
 
-// Every project the root config pulls in, as {name, configPath}, in declaration order.
+// Every project the root config pulls in, in declaration order.
 export function readProjects(repoRoot = REPO_ROOT) {
   const paths = projectConfigPaths(readFileSync(join(repoRoot, ROOT_CONFIG), 'utf8'));
   return paths.map((configPath) => {

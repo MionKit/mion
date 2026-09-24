@@ -128,9 +128,8 @@ export function laneHashes(ref = 'HEAD', {cwd = REPO_ROOT} = {}) {
 // that this content passed, which is why a marker proven on another branch counts.
 export const greenKey = (lane, hash) => `mion-lane-green-${lane}-${hash}`;
 
-// A narrower marker a pull request may accept for a lane: `core test-pr` runs only the
-// packages a PR touched and saves `js-pr`. A push to main never accepts it, so main
-// still runs the full suite once after the merge.
+// Narrower markers only a pull request accepts: `core test-pr` saves js-pr for its partial run.
+// A push to main never accepts them, so main still runs the full suite once after the merge.
 export const PR_PROOF = {js: 'js-pr'};
 
 // Decide the asked-for lanes. Every unknown resolves to RUN: an unreadable or

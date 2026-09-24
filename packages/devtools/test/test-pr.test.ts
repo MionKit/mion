@@ -1,5 +1,4 @@
-// Contract tests for `miondevx core test-pr`: the branch diff, the package graph
-// (manifest + relative-path edges), the dependents walk and the project selection.
+// Contract tests for `miondevx core test-pr`.
 
 import {describe, it, expect, beforeAll, afterAll} from 'vitest';
 import {execFileSync, spawnSync} from 'node:child_process';
@@ -34,7 +33,7 @@ const graph = (edges: Record<string, string[]>): Graph =>
   new Map(Object.entries(edges).map(([dir, deps]) => [dir, {dir, name: `@x/${dir}`, deps: new Set(deps)}]));
 const sorted = (keys: Iterable<string>): string[] => [...keys].sort();
 
-// A throwaway git repo: `a` <- `b` (devDependency) <- `c` (relative import only), plus `d` alone.
+// `a` <- `b` (devDependency) <- `c` (relative import only), plus `d` alone.
 const fixture = (): string => {
   const root = mkdtempSync(join(tmpdir(), 'test-pr-'));
   const write = (path: string, text: string) => {

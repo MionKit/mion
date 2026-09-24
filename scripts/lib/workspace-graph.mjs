@@ -1,8 +1,5 @@
-// workspace-graph.mjs — which workspace packages depend on which, for `core test-pr`.
-// Two edge sources: every workspace name in the four package.json dep fields
-// (devDependencies included, unlike publish-order.mjs, since tests run on dev deps),
-// and relative string paths that reach into a sibling package, which many tests use
-// (`../../test-server/build/x.js`) and no manifest records.
+// For `core test-pr`. Edges count devDependencies (unlike publish-order.mjs, tests run on them), and relative
+// paths tests use to reach a sibling package (`../../test-server/build/x.js`), which no manifest records.
 import {existsSync, readFileSync, readdirSync} from 'node:fs';
 import {dirname, join, sep} from 'node:path';
 import {REPO_ROOT} from './env.mjs';
@@ -12,7 +9,7 @@ const DEP_FIELDS = ['dependencies', 'devDependencies', 'peerDependencies', 'opti
 const SCANNED = /\.(?:[mc]?[jt]s|json)$/;
 const RELATIVE_STRING = /(['"`])(\.\.?\/[^'"`\n]*)\1/g;
 
-// Map<dir, {dir, name, deps: Set<dir>}> over packages/*, manifest edges only.
+// Manifest edges only.
 export function readWorkspacePackages(repoRoot = REPO_ROOT) {
   const packagesDir = join(repoRoot, 'packages');
   const packages = new Map();
@@ -35,13 +32,12 @@ export function readWorkspacePackages(repoRoot = REPO_ROOT) {
   return packages;
 }
 
-// The workspace package dir a repo-relative path sits in, or undefined.
 export const packageOf = (repoPath, packages) => {
   const [top, dir] = repoPath.split('/');
   return top === 'packages' && packages.has(dir) ? dir : undefined;
 };
 
-// Sibling packages one file's relative string literals point into. Pure (takes the text).
+// Pure (takes the text).
 export function pathTargets(repoPath, text, packages) {
   const self = packageOf(repoPath, packages);
   const targets = new Set();
@@ -53,7 +49,6 @@ export function pathTargets(repoPath, text, packages) {
   return targets;
 }
 
-// Adds the relative-path edges, reading every tracked source/config file of each package.
 export function addPathEdges(packages, repoRoot = REPO_ROOT) {
   const listed = capture('git', ['ls-files', '-z', '--', 'packages/'], {cwd: repoRoot, maxBuffer: 256 * 1024 * 1024});
   if (listed.status !== 0) die(`git ls-files failed: ${listed.stderr.trim()}`);
@@ -68,11 +63,9 @@ export function addPathEdges(packages, repoRoot = REPO_ROOT) {
   return packages;
 }
 
-// The full graph: manifest edges plus relative-path edges.
 export const readWorkspaceGraph = (repoRoot = REPO_ROOT) => addPathEdges(readWorkspacePackages(repoRoot), repoRoot);
 
-// Map<dir, via>: the changed packages (via = null) plus every package that depends on
-// one, where via is the dependency that pulled it in. The visited map ends cycles.
+// Map<dir, via>: via is the dep that pulled the package in (null if changed); the visited map ends cycles.
 export function affectedClosure(changedDirs, packages) {
   const dependents = new Map([...packages.keys()].map((dir) => [dir, []]));
   for (const pkg of packages.values()) for (const dep of pkg.deps) dependents.get(dep)?.push(pkg.dir);
