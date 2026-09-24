@@ -1,0 +1,17 @@
+{
+  "$schema": "../../node_modules/oxlint/configuration_schema.json",
+  "categories": {
+    "correctness": "off"
+  },
+  "options": {
+    "typeAware": true
+  },
+  "plugins": [],
+  "jsPlugins": [
+    "../../packages/devtools/dist/lint/index.js"
+  ],
+  "rules": {
+    "runtypes/invalid-downgrade-error": "error",
+    "runtypes/invalid-expect-error": "error"
+  }
+}
