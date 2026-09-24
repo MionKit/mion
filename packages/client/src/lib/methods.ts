@@ -57,11 +57,6 @@ export function setFetchedMethods(methods: FetchedMethods): void {
   fetchedMethods = methods;
 }
 
-/** Drops the build-compiled rows for these ids, so the fetched shelf answers for them instead. */
-export function dropBundledMethods(ids: string[]): void {
-  for (const id of ids) bundledMethods.delete(id);
-}
-
 /** Empties the bundled shelf. Tests only: the fetched shelf stays wired, the lane module evaluates once. */
 export function resetBundledMethods(): void {
   bundledMethods.clear();

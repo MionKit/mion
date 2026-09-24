@@ -155,14 +155,17 @@ describe('a client built against routes the server has since changed', () => {
       ['params', 'paramsChanged', () => reloadClient().routes.paramsChanged('Ana').call()],
       ['return', 'returnChanged', () => reloadClient().routes.returnChanged('Ana').call()],
       ['wire format', 'parserChanged', () => reloadClient().routes.parserChanged('Ana').call()],
-    ] as const)('refuses a route whose %s changed, with no resend and no handler run', async (_, id, call) => {
-      const before = handlerCalls[id];
-      const refused = await counted(call);
-      expect(refused.value[0]).toBeUndefined();
-      expect(refused.value[2]).toMatchObject({type: 'route-types-mismatch', errorData: {routeIds: [id]}});
-      expect(refused.fetches).toBe(1);
-      expect(handlerCalls[id]).toBe(before);
-    });
+    ] as [string, string, () => Promise<readonly unknown[]>][])(
+      'refuses a bundled route whose %s changed: nothing to relearn, so no resend and no handler run',
+      async (_, id, call) => {
+        const before = handlerCalls[id];
+        const refused = await counted(call);
+        expect(refused.value[0]).toBeUndefined();
+        expect(refused.value[2]).toMatchObject({type: 'route-types-mismatch', errorData: {routeIds: [id]}});
+        expect(refused.fetches).toBe(1);
+        expect(handlerCalls[id]).toBe(before);
+      }
+    );
 
     it("checks the route only: a changed middleware is answered by the middleware's own validation", async () => {
       const before = handlerCalls['secured/data'];
@@ -178,6 +181,27 @@ describe('a client built against routes the server has since changed', () => {
       expect(relearned.value[0]).toBe('3');
       expect(relearned.value[2]).toBeUndefined();
       // refused for the stale id, refused again with no row, then sent with the fresh id
+      expect(relearned.fetches).toBe(3);
+      // and saved: the next page load sends the fresh id straight away
+      await flushMetadataCache();
+      const afterReload = await counted(() => callWide(reloadClient().routes.stored(3)));
+      expect(afterReload.value[0]).toBe('3');
+      expect(afterReload.fetches).toBe(1);
+    });
+
+    it('relearns a row this page fetched before the server changed it', async () => {
+      await resetMetadataStore();
+      serve(oldRoutes, 'old');
+      const {routes} = reloadClient();
+      await callWide(routes.stored(3));
+      const learned = routesCache.getMetadata('stored')!;
+      serve(newRoutes, 'new');
+      // this process's router writes its own rows into the client's table: put back what the page learned
+      routesCache.setMetadata('stored', learned);
+
+      const relearned = await counted(() => callWide(routes.stored(3)));
+      expect(relearned.value[0]).toBe('3');
+      expect(relearned.value[2]).toBeUndefined();
       expect(relearned.fetches).toBe(3);
     });
   });

@@ -94,7 +94,7 @@ describe('the api version a mixed client compares', () => {
     }
   });
 
-  it('replaces a row the server no longer agrees with and reports it once', async () => {
+  it('keeps a bundled row the server no longer agrees with, and reports it once', async () => {
     const {routes, middlewares} = initClient<TestServerApi>({baseURL});
     // The lane server IS this build's server, so forge the difference on the wire; only the sync id decides.
     const watch = serveVersion('someOtherAp', (methods) => {
@@ -106,8 +106,8 @@ describe('the api version a mixed client compares', () => {
       expect(result).toBe('Hello John Doe');
       expect(undeclared?.type).toBe('api-version-mismatch');
       expect(undeclared?.publicMessage).toContain('sayHello');
-      // the stale build-compiled row is gone, the server's took its place
-      expect(isBundledMethod('sayHello')).toBe(false);
+      // the code calling it was built against it: nothing to swap in, only to report
+      expect(isBundledMethod('sayHello')).toBe(true);
 
       // reported once: a later call carries no second copy of the same news
       const [, , stillUndeclared] = await routes.sayHello(user).call(withAuth(middlewares));

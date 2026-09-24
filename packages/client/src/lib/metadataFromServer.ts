@@ -15,6 +15,7 @@ import '@mionjs/run-types/formats';
 export {
   createMetadataSubRequest,
   extractAndProcessMetadata,
+  forgetFetchedMetadata,
   hydrateMetadataCache,
   installMethodRows,
   purgeHydratedMetadata,

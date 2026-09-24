@@ -28,7 +28,7 @@ import {
 import type {SerializableMethodsData} from '@mionjs/core';
 import {getRoutePath} from '@mionjs/core';
 import {hasApiVersionMismatch, noteServerApiVersion} from './lib/apiBuildVersion.ts';
-import {getMethod, hasMethod} from './lib/methods.ts';
+import {getMethod, hasMethod, isBundledMethod} from './lib/methods.ts';
 import {loadMetadataFromServer, metadataCacheHooks} from './lib/metadataFromServerLoader.ts';
 import {validateSubRequests} from './lib/validation.ts';
 import {createSyncSubRequest, learnSyncRoutes, sendsSyncIds, syncRefusalOf} from './lib/syncRoutes.ts';
@@ -187,7 +187,7 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddlewareReques
       const mismatch = noteServerApiVersion(this.options.baseURL, this.response.headers.get(BUILD_VERSION_HEADER));
       const rows = this.verifying && metadataRowsOf(deserialized[MION_ROUTES.methodsMetadata]);
       if (rows?.methods) {
-        (await loadMetadataFromServer()).verifyMethodRows(this.options.baseURL, this.verifying!, rows);
+        (await loadMetadataFromServer()).verifyMethodRows(this.options, this.verifying!, rows);
         delete deserialized[MION_ROUTES.methodsMetadata];
       }
       // Only a FAILED call is repeated: it already ran server-side, and repeating a successful mutation would run it twice.
@@ -244,19 +244,20 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddlewareReques
     errors: RequestErrors
   ): Promise<ResponseBody> {
     if (!this.signal?.aborted) {
-      // a row restored from the store can predate the server: relearning it is the one thing a resend can fix
+      // A fetched row is a cache of the server's, so relearning it is the one thing a resend can fix.
+      // A bundled one is what this code was built against: nothing to relearn, the app needs a new build.
       const refusedIds = refusal.errorData?.routeIds ?? this.getRouteIds();
-      const cache = metadataCacheHooks();
-      if (cache && !this.purgedStaleMetadata && refusedIds.some((id) => cache.wasHydratedFromCache(id, this.options))) {
+      const refetchable = refusal.type === 'route-types-mismatch' && !refusedIds.some((id) => isBundledMethod(id));
+      if (refetchable && !this.purgedStaleMetadata) {
         this.purgedStaleMetadata = true;
-        await cache.purgeHydratedMetadata(refusedIds, this.options);
+        await (await loadMetadataFromServer()).forgetFetchedMetadata(refusedIds, this.options);
         return this.retryWithProperSerialization();
       }
       if (refusal.type === 'route-sync-required' && !this.resentWithSyncIds) {
         this.resentWithSyncIds = true;
         learnSyncRoutes(this.options.baseURL);
         const rows = refusal.errorData?.metadata;
-        if (rows?.methods) (await loadMetadataFromServer()).installMethodRows(rows, Object.keys(rows.methods));
+        if (rows?.methods) (await loadMetadataFromServer()).installMethodRows(rows, this.options, Object.keys(rows.methods));
         return this.retryWithProperSerialization();
       }
     }
