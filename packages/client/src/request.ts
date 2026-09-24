@@ -238,8 +238,7 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddlewareReques
     return syncRefusalOf(answer);
   }
 
-  /** Missing ids are resent once with the refusal's rows; no handler ran, so resending is safe.
-   *  Different ids are reported: the code expects other types, and no resend fixes that. */
+  /** No handler ran, so resending is safe; different ids are final unless a held row came from the store. */
   private async handleSyncRefusal(
     refusal: RouteSyncRefusal,
     errors: RequestErrors

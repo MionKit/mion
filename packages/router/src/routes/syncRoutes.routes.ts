@@ -68,7 +68,7 @@ function checkRouteSyncIds(ctx: CallContext, routeSyncIds: string[] | undefined)
   }
 }
 
-/** The routes a call runs, in call order; mion's own routes (metadata, errors) are never checked. */
+/** The routes a call runs, in call order; a single call to one of mion's own routes (metadata, errors) is never checked. */
 function getCalledRoutes(ctx: CallContext): RemoteMethod[] {
   if (ctx.batchRouteIds) return ctx.batchRouteIds.map((id) => getRouteExecutable(id) as RemoteMethod);
   const {executionChain} = ctx;

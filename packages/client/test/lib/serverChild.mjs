@@ -6,8 +6,7 @@
  * ######## */
 
 // One test server per process, forked by serverProcess.ts: the router is one per process, and the server must come
-// from the program the caller names (a lane's vitest config, or a tsconfig of its own). Plain JavaScript on purpose:
-// nothing has to transform this file for it to run.
+// from the program the caller names (a lane's vitest config, or a tsconfig). Plain JavaScript so nothing transforms it.
 import {createServer, createServerModuleRunner} from 'vite';
 import {mionVitePlugin} from '@mionjs/devtools/vite';
 import {parseArgs} from 'node:util';
