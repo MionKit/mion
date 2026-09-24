@@ -452,7 +452,6 @@ export const parent = createJsonEncoderFn<{inner: Target}>();
 	}
 }
 
-// The compact encoder's primitive is pruned like the other strategies' when only the overridden composite asks.
 func TestOverride_JsonEncoderCompactPrunesPrimitive(t *testing.T) {
 	resp := scanOverrideJsonValue(t, `import {createJsonEncoderFn, overrideJsonEncoder} from '@mionjs/run-types';
 type Target = {id: bigint};

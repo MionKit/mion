@@ -5,8 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// A route compiles the value-level JSON functions by name, so a JSON encoder / decoder override on its param type
-// must not take them away.
+// A route compiles the value-level JSON functions by name, so a JSON override on its param type must not drop them.
 import {describe, it, expect, beforeEach} from 'vitest';
 import {overrideJsonEncoder, overrideJsonDecoder} from '@mionjs/run-types';
 import {createMionRouter, resetRouter, getRouteExecutable} from '../src/router.ts';

@@ -184,10 +184,7 @@ func CollectFamilyEntries(dump protocol.Dump, settings constants.CacheModuleSett
 
 	graph := make(entrymodules.Graph, len(dump.RunTypes))
 
-	// renderEntry compiles one (RunType, variant) into the graph and returns its
-	// same-family child deps; idempotent via the graph dedup. A composite may
-	// reach an unsupported child, whose CodeNS propagates up and drops the
-	// factory — see codetype.go's CodeNS contract.
+	// renderEntry is idempotent via graph dedup; an unsupported child's CodeNS drops the factory (see codetype.go).
 	renderEntry := func(runType *reflection.RunType, suffix string, options []string, rejectCircular bool) ([]string, bool) {
 		if runType == nil || !emitter.Supports(runType) {
 			return nil, false
@@ -196,12 +193,8 @@ func CollectFamilyEntries(dump protocol.Dump, settings constants.CacheModuleSett
 		if existing, exists := graph[entryID]; exists {
 			return existing.Deps, true
 		}
-		// A custom fn registered for this (family, type) replaces the structural
-		// body with a cfn redirect. The root-scoped option variants and the armed
-		// circular-guard variant change behaviour one override fn can't express,
-		// so they fall through to structural emit. A PROPAGATING variant honours
-		// it: its option refines HOW the answer is computed, and dropping the
-		// redirect would lose the override at every nested type the variant reaches.
+		// Root-scoped option variants and the armed variant change behaviour an override can't express, so emit structurally.
+		// A propagating variant keeps the redirect, or every nested type it reaches would lose the override.
 		if !rejectCircular && (suffix == "" || propagatesVariant(emitter, options)) {
 			if cfnID := overrideHashForTag(runType, settings.Tag); cfnID != "" {
 				graph.Add(buildRedirectEntry(entryID, settings.Tag, runType, cfnID, opts))
@@ -217,11 +210,8 @@ func CollectFamilyEntries(dump protocol.Dump, settings constants.CacheModuleSett
 			Kind:      entrymodules.KindTypeFn,
 			FamilyTag: settings.Tag,
 			ArgsText:  rendered.argsText,
-			// Same-family deps are HARD (the body calls `<dep>.fn(…)` unconditionally,
-			// so absence cascades); cross-family and pure-fn edges are SOFT (guarded
-			// with `?.fn(…) ?? true`, or registered by the deps thunk before the
-			// body's `utl.getPureFn(...)` runs). Both ride SoftDeps so the module
-			// imports them and its deps thunk binds them.
+			// Same-family deps are hard: the body calls them unconditionally, so absence cascades.
+			// Cross-family and pure-fn deps are soft (`?.fn(…) ?? true`, or registered first); SoftDeps still imports and binds them.
 			Deps:     append([]string(nil), rendered.deps...),
 			SoftDeps: append(append([]string(nil), rendered.crossFamilyDeps...), rendered.pureFnDeps...),
 			IsNoop:   rendered.isNoop,
@@ -253,13 +243,9 @@ func CollectFamilyEntries(dump protocol.Dump, settings constants.CacheModuleSett
 	}
 
 	if len(dump.Sites) > 0 || len(extraRoots) > 0 {
-		// Demand-driven: a type only passed to getRunTypeId, or to another
-		// family's createX, leaves no entry here. Children of a root-scoped
-		// variant are plain entries (the variant only changes the root body);
-		// children of a propagating variant carry the same option set.
+		// Demand-driven: a type only passed to getRunTypeId, or to another family's createX, leaves no entry here.
 		demand := collectFamilyDemand(dump.Sites, settings.Tag)
-		// Go map iteration is randomized; sorted roots keep walk order, and with
-		// it disk-cache write and diagnostics order, stable across runs.
+		// Sorted roots keep walk, disk-cache write and diagnostics order stable across runs.
 		rootIDs := make([]string, 0, len(demand))
 		for rootID := range demand {
 			rootIDs = append(rootIDs, rootID)
@@ -279,8 +265,7 @@ func CollectFamilyEntries(dump protocol.Dump, settings constants.CacheModuleSett
 				return !demands[i].RejectCircular && demands[j].RejectCircular
 			})
 			for _, demanded := range demands {
-				// A primitive only an overridden composite asked for is dead: the redirect calls no primitive, and
-				// for a type the structural emitter cannot handle it would alwaysThrow on the type the user overrode.
+				// The redirect calls no primitive, and structural emit could alwaysThrow on the very type the user overrode.
 				if composedByOverride(root, demanded.ComposedBy) {
 					continue
 				}
@@ -289,8 +274,7 @@ func CollectFamilyEntries(dump protocol.Dump, settings constants.CacheModuleSett
 				}
 			}
 		}
-		// Treated exactly like worklist roots so their transitive same-family
-		// closure is pulled too, and sorted for the same determinism reason.
+		// Extra roots pull their same-family closure like demand roots; sorted for the same determinism.
 		sortedExtra := append([]ExtraRoot(nil), extraRoots...)
 		sort.Slice(sortedExtra, func(i, j int) bool {
 			if sortedExtra[i].ID != sortedExtra[j].ID {
@@ -324,8 +308,7 @@ func CollectFamilyEntries(dump protocol.Dump, settings constants.CacheModuleSett
 			}
 		}
 	} else {
-		// Back-compat / unit-test path: no call-site demand for this family. The
-		// resolver-level cascade prunes any parent whose child kind is unsupported.
+		// Unit-test path with no call-site demand; the resolver-level cascade prunes parents of unsupported children.
 		for _, runType := range dump.RunTypes {
 			if runType == nil || !emitter.Supports(runType) {
 				continue
@@ -337,12 +320,10 @@ func CollectFamilyEntries(dump protocol.Dump, settings constants.CacheModuleSett
 	return graph
 }
 
-// collectFamilyDemand groups, per structural runtype id, the distinct variant demands familyTag gets from call sites.
-// Dedup is by variant suffix, so the same type requested with the same options at N call sites yields one entry.
+// collectFamilyDemand groups familyTag's demands per runtype id, deduped so N identical sites yield one entry.
 func collectFamilyDemand(sites []protocol.Site, familyTag string) map[string][]protocol.SiteDemand {
 	bySuffix := make(map[string]map[string]protocol.SiteDemand)
-	// RejectCircular is folded in, or the armed entry collapses into the plain one
-	// (they share an empty VariantSuffix) and loses its guard.
+	// Armed and plain share a suffix, so fold RejectCircular in or the armed entry loses its guard.
 	dedupKey := func(demanded protocol.SiteDemand) string {
 		if demanded.RejectCircular {
 			return demanded.VariantSuffix + "~C"
@@ -361,7 +342,7 @@ func collectFamilyDemand(sites []protocol.Site, familyTag string) map[string][]p
 				bySuffix[site.ID] = make(map[string]protocol.SiteDemand)
 			}
 			key := dedupKey(demanded)
-			// A direct demand wins over a composite one, so the primitive renders for the caller that asked by name.
+			// A direct demand, or two different composites, clears ComposedBy, so the primitive still renders.
 			if existing, exists := bySuffix[site.ID][key]; exists && (existing.ComposedBy == "" || existing.ComposedBy != demanded.ComposedBy) {
 				demanded.ComposedBy = ""
 			}

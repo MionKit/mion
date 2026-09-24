@@ -284,9 +284,7 @@ type SiteDemand struct {
 	VariantSuffix string   `json:"variant,omitempty"`
 	Options       []string `json:"options,omitempty"`
 	FnHash        string   `json:"fnHash,omitempty"`
-	// RejectCircular flags the armed `{rejectCircularRefs: true}` fork of a CircularGuarded family (validate /
-	// validationErrors / toBinary / jsonEncoder): the emitter renders the inline circular-reference guard for
-	// exactly these entries, and it never rides a JSON primitive demand.
+	// RejectCircular flags the armed `{rejectCircularRefs: true}` fork the emitter guards inline; never on a JSON primitive.
 	RejectCircular bool `json:"rejectCircular,omitempty"`
 	// ComposedBy names the JSON composite operation a primitive demand exists for; empty for a direct demand.
 	ComposedBy string `json:"composedBy,omitempty"`
