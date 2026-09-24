@@ -360,10 +360,7 @@ func (key *downgradeErrorsKey) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// removedPluginKeys maps a retired tsconfig key to the message that tells the
-// reader what to write instead. A removed key still decodes (it is simply not
-// in the struct any more), so without this it would fall out as a generic
-// "unknown key" warning and the reader would have to guess the replacement.
+// removedPluginKeys names each retired key's replacement, which a generic "unknown key" warning leaves to guessing.
 var removedPluginKeys = map[string]string{
 	"failOnError": "`failOnError` was removed. Use `downgradeErrors`:\n" +
 		"    failOnError: false  ->  downgradeErrors: \"*\"\n" +

@@ -354,8 +354,7 @@ func (sess *Session) hasBatches() bool {
 	return *sess.hasBatchesMemo
 }
 
-// importsRouter is the cheap text signal separating a server, which may create its router through a
-// wrapper the detector cannot see, from a client, which is never a misconfiguration. Memoised per Program.
+// importsRouter tells a server, whose router may hide behind a wrapper, from a client (never a misconfiguration).
 // The router's own files import it by relative path, so a file the router package owns counts too.
 func (sess *Session) importsRouter() bool {
 	if sess.importsRouterMemo != nil {

@@ -457,8 +457,7 @@ func TestFindTsRuntypesPlugin_KeepsOtherPluginsOut(t *testing.T) {
 	}
 }
 
-// TestRemovedPluginKeys pins that a retired key is reported with the
-// replacement rather than as a bare "unknown key".
+// TestRemovedPluginKeys: a retired key reports its replacement, not a bare "unknown key".
 func TestRemovedPluginKeys(t *testing.T) {
 	for _, removedKey := range []struct{ key, value, replacement string }{
 		{"failOnError", "false", "downgradeErrors"},
