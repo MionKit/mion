@@ -23,6 +23,9 @@ import {stripSourceCondition} from '../../../scripts/lib/publish-manifest.mjs';
 import {testsPerFile, swallowedFiles} from '../../../scripts/core/test-bun.mjs';
 // @ts-expect-error — a plain .mjs repo script, no types.
 import * as coverage from '../../../scripts/core/typecheck-coverage.mjs';
+// @ts-expect-error — a plain .mjs repo script, no types.
+import {directiveFiles} from '../../../scripts/core/lint-directives.mjs';
+import {ALL_RULE_NAMES} from '../src/lint/diagnosticRouting.ts';
 
 interface RegistryEntry {
   name: string;
@@ -308,6 +311,26 @@ describe('no file outside docs/todos and docs/done names a todo or done spec', (
   it('a bare directory mention is not a reference', () => {
     const text = 'specs live under docs/todos/ and move to docs/done/ when shipped';
     expect(specReferenceOffenders([{file: 'CLAUDE.md', text}])).toEqual([]);
+  });
+});
+
+describe('lint:directives reaches the directive comments the main lint ignores', () => {
+  it(
+    'lists the tracked test and example files that carry one, and nothing built',
+    () => {
+      const files: string[] = directiveFiles(REPO_ROOT);
+      expect(files).toContain('packages/run-types/test/suites/validation/Atomic.ts');
+      expect(files).toContain('packages/examples/src/guide/disabling-errors.ts');
+      expect(files.filter((file) => !/^packages\/.+\.ts$/.test(file) || /\/(dist|node_modules)\//.test(file))).toEqual([]);
+    },
+    WHOLE_TREE_TIMEOUT
+  );
+
+  it('turns on only rules the plugin defines', () => {
+    const config = JSON.parse(readFileSync(join(REPO_ROOT, 'scripts/core/oxlint-directives.json'), 'utf8'));
+    const rules = Object.keys(config.rules).map((rule) => rule.replace(/^runtypes\//, ''));
+    expect(rules.sort()).toEqual(['invalid-downgrade-error', 'invalid-expect-error']);
+    for (const rule of rules) expect(ALL_RULE_NAMES).toContain(rule);
   });
 });
 
