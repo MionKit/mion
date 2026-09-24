@@ -80,7 +80,7 @@ export function checkRoundtrip(compiled: CompiledCodecs, value: unknown, seed: n
   interface LaneRun {
     id: LaneId;
     codec: WiredCodec;
-    wire?: unknown;
+    wire?: string;
     refused: boolean;
     undefinedRoot: boolean;
   }
@@ -115,7 +115,7 @@ export function checkRoundtrip(compiled: CompiledCodecs, value: unknown, seed: n
   // refused / produced an undefined root — RT-AGREE then no-ops.
   const cloneRun = runs.find((r) => r.id === 'clone' && !r.refused && !r.undefinedRoot);
   const cloneCodec = compiled.codecs.clone;
-  const refWire = cloneRun?.wire as string | undefined;
+  const refWire = cloneRun?.wire;
 
   // Native ground truth for RT-NATIVE (JSON-safe values only).
   const nativeSafe = jsonRoundTripSafe(value);
@@ -129,8 +129,8 @@ export function checkRoundtrip(compiled: CompiledCodecs, value: unknown, seed: n
   }
 
   for (const run of runs) {
-    if (run.refused || run.undefinedRoot) continue;
     const {id, codec, wire} = run;
+    if (run.refused || wire === undefined) continue;
 
     // Decode the lane's wire.
     let decoded: unknown;
@@ -162,7 +162,7 @@ export function checkRoundtrip(compiled: CompiledCodecs, value: unknown, seed: n
     // ORIGINAL value, so this also catches a lane that drops or reshapes data).
     if (cloneCodec && refWire !== undefined) {
       try {
-        const viaClone = cloneCodec.encode(deepCloneForRoundTrip(decoded)) as string | undefined;
+        const viaClone = cloneCodec.encode(deepCloneForRoundTrip(decoded));
         // Compare STRUCTURALLY, not as raw strings: the clone wire is always
         // valid JSON, and object key order legitimately differs between lanes,
         // which is not a data disagreement. deepEq on the parsed wires is

@@ -32,6 +32,7 @@ import {
 import {Severity, type Diagnostic, type Site} from '../../../../devtools/src/core/protocol.ts';
 import {readFileSync, readdirSync} from 'node:fs';
 import {renderGenerated, describeType, type GeneratedType} from '../core/typeGen.ts';
+import type {FuzzTarget} from '../value/fuzzOracle.ts';
 
 export {hasBinary, BIN};
 
@@ -70,18 +71,10 @@ export const SRC_OVERLAY: Readonly<Record<string, string>> = (() => {
 const ENCODER_TAGS = new Set(['jeCL', 'jeMU']);
 const DECODER_TAGS = new Set(['jdCL', 'jdMU']);
 
-export type WiredFns = {
-  validate?: (v: unknown) => boolean;
-  getValidationErrors?: (v: unknown) => unknown[];
-  jsonEncode?: (v: unknown) => string | undefined;
-  jsonDecode?: (s: string) => unknown;
-  compactEncode?: (v: unknown) => string | undefined;
-  compactDecode?: (s: string) => unknown;
-  /** The REAL product mock for this type, with nonDataTypes on so a value
-   *  carries the stripped members. Not part of FN_KEYS — it's the value source
-   *  for the behaviour tier, not a serialization factory the oracles police. **/
-  mock?: () => unknown;
-};
+/** `mock` is the REAL product mock (nonDataTypes on), the behaviour tier's value source, so it is not in FN_KEYS. **/
+export type WiredFns = Partial<
+  Pick<FuzzTarget, 'validate' | 'getValidationErrors' | 'jsonEncode' | 'jsonDecode' | 'compactEncode' | 'compactDecode' | 'mock'>
+>;
 
 export interface CompiledType {
   gen: GeneratedType;
