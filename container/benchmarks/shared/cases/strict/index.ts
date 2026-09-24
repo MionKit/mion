@@ -2,7 +2,7 @@
 // carries no keys the type does not declare.
 //
 // Why this group exists as its own suite rather than a flag on the others: it is
-// the ONLY group that reaches the `runsAfterValidation` key-count fast path, and
+// the ONLY group that reaches the `checkUnknowns` key-count fast path, and
 // therefore the only one that exercises `countEnumKeys` — the pure fn that
 // picks a different counter per JavaScript engine (`for-in` on V8, a
 // prototype-guarded `Object.keys` on JavaScriptCore). Without these cases the
@@ -22,22 +22,19 @@
 // ONE deliberate exception, so nobody "fixes" it later. The test suite also
 // carries union_discriminated, union_open and array_shaped. Those three do NOT
 // belong here, because the libraries do not answer the same thing about them:
-// closedness over a union is per-branch in zod and TypeBox but a merged
-// allowlist in the composition this group measures, and the libraries disagree
-// again on whether an array satisfies an object shape. Benchmarking a case the
+// closedness over a union is per-branch in some libraries and a merged
+// allowlist in others, and the libraries disagree again on whether an array
+// satisfies an object shape. Benchmarking a case the
 // lanes answer differently would compare unlike things and hide a wrong answer
 // behind a fast number. They are correctness cases, not comparison cases.
 //
-// STRICT MEANS NO UNDECLARED KEYS. It does NOT mean all-required. Every case here
-// composes `validate(v) && !hasUnknownKeys(v)`, which is what a cross-library
-// comparison needs — the competitors express closedness that way too. RunTypes
-// now also has a single-function form (`{checkUnknowns: true}`), measured
-// separately rather than here, so this group keeps comparing like for like.
+// STRICT MEANS NO UNDECLARED KEYS. It does NOT mean all-required. The RunTypes
+// lanes run the `{checkUnknowns: true}` validator, one function and one walk.
 // What an optional property DOES change is which code path runs, and this group
 // covers both on purpose:
 //   - flat_required / nested_required / moltar_dto are all-required with no index
 //     signature, the exact eligibility `countFastPathN` demands before it emits the
-//     `cntEK(v) !== N` count check. Keep them that way or the per-engine counter loses
+//     `cntEK(v) === N` count check. Keep them that way or the per-engine counter loses
 //     its only coverage.
 //   - realworld_order carries an optional key, so it drops to the key-array scan. That
 //     is the point: it is the realistic shape, and the scan is what most real DTOs get.

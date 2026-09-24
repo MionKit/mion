@@ -40,8 +40,6 @@ var Families = []FamilySpec{
 	family("compactForJson", CompactForJsonEmitter{}),
 	family("compactFromJson", CompactFromJsonEmitter{}),
 	// No public mutating strip: removeUnknownKeys is 3-24x faster and avoids the delete-induced dictionary-mode deopt.
-	family("hasUnknownKeys", HasUnknownKeysEmitter{}),
-	family("unknownKeyErrors", UnknownKeyErrorsEmitter{}),
 	family("stripUnknownKeysWire", StripUnknownKeysWireEmitter{}),
 	// A deep clone of the DECLARED shape: unknown keys dropped by construction, nothing mutable shared with
 	// the input (only immutables and opaque handles pass through).

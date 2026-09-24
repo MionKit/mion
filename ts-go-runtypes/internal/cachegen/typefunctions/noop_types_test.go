@@ -603,12 +603,10 @@ func TestNoopType_RemoveUnknownKeys(t *testing.T) {
 	}
 }
 
-// TestNoopType_UnknownKeys pins the shared arm table; only reporting families sweep a pattern key of any value type.
+// TestNoopType_UnknownKeys pins the shared arm table of the strip decoder's pre-pass.
 func TestNoopType_UnknownKeys(t *testing.T) {
 	ctx, types := noopPredicateTypes(t)
 	specs := map[string]unknownKeysNoopSpec{
-		"huk":  hasUnknownKeysNoopSpec,
-		"uke":  unknownKeyErrorsNoopSpec,
 		"ukuw": stripUnknownKeysWireSpec,
 	}
 	type row struct {
@@ -616,15 +614,15 @@ func TestNoopType_UnknownKeys(t *testing.T) {
 		want map[string]bool
 	}
 	same := func(want bool) map[string]bool {
-		return map[string]bool{"huk": want, "uke": want, "ukuw": want}
+		return map[string]bool{"ukuw": want}
 	}
 	rows := []row{
 		{"str", same(true)},
 		{"objCompat", same(false)}, // named props → the parent allowlist probe
 		{"objFn", same(false)},     // function-typed props still count as declared names
 		{"recA", same(true)},       // index sig over atomic values — every key is "known"
-		// Pattern key over atomic values: huk/uke report a non-matching key, ukuw leaves it alone as for recA.
-		{"recP", map[string]bool{"huk": false, "uke": false, "ukuw": true}},
+		// A pattern key over atomic values: a key matching no pattern is left alone, as for recA.
+		{"recP", same(true)},
 		{"arrStr", same(true)},
 		{"arrCO", same(false)}, // array of keyed objects
 		{"uAt", same(true)},    // atomic-only union — nothing to sweep

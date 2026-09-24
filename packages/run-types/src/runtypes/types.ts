@@ -14,9 +14,7 @@ import type {FormatAnnotation} from './formatAnnotation.ts';
 import type {
   ValidateFn,
   GetValidationErrorsFn,
-  HasUnknownKeysFn,
   RemoveUnknownKeysFn,
-  UnknownKeyErrorsFn,
   PrepareForJsonFn,
   RestoreFromJsonFn,
   StringifyJsonFn,
@@ -214,9 +212,7 @@ export type InitializedTypeFn<Fn extends AnyFn = AnyFn> = CompiledTypeFn<Fn> &
 
 export type ValidateRTFn = CompiledTypeFn<ValidateFn>;
 export type GetValidationErrorsRTFn = CompiledTypeFn<GetValidationErrorsFn>;
-export type HasUnknownKeysRTFn = CompiledTypeFn<HasUnknownKeysFn>;
 export type RemoveUnknownKeysRTFn = CompiledTypeFn<RemoveUnknownKeysFn>;
-export type UnknownKeyErrorsRTFn = CompiledTypeFn<UnknownKeyErrorsFn>;
 // ukuw is decoder-internal (the `strip` decode strategy's pre-pass): an in-place value mutator.
 export type UnknownKeysToUndefinedWireRTFn = CompiledTypeFn<(value: unknown) => unknown>;
 export type PrepareForJsonRTFn = CompiledTypeFn<PrepareForJsonFn>;

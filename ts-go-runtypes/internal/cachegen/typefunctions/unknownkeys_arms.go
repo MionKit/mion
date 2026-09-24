@@ -7,11 +7,10 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// Recursion arms shared by the strip, unknownKeysToUndefined and unknownKeyErrors families: at a property, array,
-// tupleMember or native-iterable position they only recurse into children, the per-key snippet being the
-// index-signature arm's job. `trackPath` is the one difference, set by the error family for its per-error address.
+// Recursion arms of the unknownKeysToUndefined family and its wire twin: at a property, array, tupleMember or
+// native-iterable position they only recurse into children, the per-key snippet being the index-signature arm's job.
 
-func emitPropertyUnknownKeys(rt *reflection.RunType, ctx *EmitContext, trackPath bool) RTCode {
+func emitPropertyUnknownKeys(rt *reflection.RunType, ctx *EmitContext) RTCode {
 	if rt.Child == nil {
 		return RTCode{Code: "", Type: CodeS}
 	}
@@ -31,14 +30,8 @@ func emitPropertyUnknownKeys(rt *reflection.RunType, ctx *EmitContext, trackPath
 	v := ctx.Vλl
 	accessor := propertyAccessor(v, rt.Name, rt.IsSafeName)
 	ctx.SetChildAccessor(accessor)
-	if trackPath {
-		ctx.SetChildPathLiteral(quoteJS(rt.Name))
-	}
 	childRT := ctx.CompileChild(rt.Child, CodeS)
 	ctx.SetChildAccessor("")
-	if trackPath {
-		ctx.SetChildPathLiteral("")
-	}
 	if childRT.Type == CodeNS {
 		return RTCode{Code: "", Type: CodeNS}
 	}
@@ -51,7 +44,7 @@ func emitPropertyUnknownKeys(rt *reflection.RunType, ctx *EmitContext, trackPath
 	return childRT
 }
 
-func emitArrayUnknownKeys(rt *reflection.RunType, ctx *EmitContext, trackPath bool) RTCode {
+func emitArrayUnknownKeys(rt *reflection.RunType, ctx *EmitContext) RTCode {
 	if rt.Child == nil {
 		return RTCode{Code: "", Type: CodeS}
 	}
@@ -65,14 +58,8 @@ func emitArrayUnknownKeys(rt *reflection.RunType, ctx *EmitContext, trackPath bo
 	v := ctx.Vλl
 	iVar := ctx.NextLocalVar("i")
 	ctx.SetChildAccessor(v + "[" + iVar + "]")
-	if trackPath {
-		ctx.SetChildPathLiteral(iVar)
-	}
 	childRT := ctx.CompileChild(rt.Child, CodeS)
 	ctx.SetChildAccessor("")
-	if trackPath {
-		ctx.SetChildPathLiteral("")
-	}
 	if childRT.Type == CodeNS {
 		return RTCode{Code: "", Type: CodeNS}
 	}
@@ -85,7 +72,7 @@ func emitArrayUnknownKeys(rt *reflection.RunType, ctx *EmitContext, trackPath bo
 	return RTCode{Code: body, Type: CodeS}
 }
 
-func emitTupleMemberUnknownKeys(rt *reflection.RunType, ctx *EmitContext, trackPath bool) RTCode {
+func emitTupleMemberUnknownKeys(rt *reflection.RunType, ctx *EmitContext) RTCode {
 	if rt.Child == nil {
 		return RTCode{Code: "", Type: CodeS}
 	}
@@ -100,14 +87,8 @@ func emitTupleMemberUnknownKeys(rt *reflection.RunType, ctx *EmitContext, trackP
 	if isRestTupleMember(rt) {
 		iVar := ctx.NextLocalVar("i")
 		ctx.SetChildAccessor(v + "[" + iVar + "]")
-		if trackPath {
-			ctx.SetChildPathLiteral(iVar)
-		}
 		childRT := ctx.CompileChild(rt.Child, CodeS)
 		ctx.SetChildAccessor("")
-		if trackPath {
-			ctx.SetChildPathLiteral("")
-		}
 		if childRT.Type == CodeNS {
 			return RTCode{Code: "", Type: CodeNS}
 		}
@@ -120,14 +101,8 @@ func emitTupleMemberUnknownKeys(rt *reflection.RunType, ctx *EmitContext, trackP
 	idxLit := positionStr(rt)
 	accessor := v + "[" + idxLit + "]"
 	ctx.SetChildAccessor(accessor)
-	if trackPath {
-		ctx.SetChildPathLiteral(idxLit)
-	}
 	childRT := ctx.CompileChild(rt.Child, CodeS)
 	ctx.SetChildAccessor("")
-	if trackPath {
-		ctx.SetChildPathLiteral("")
-	}
 	if childRT.Type == CodeNS {
 		return RTCode{Code: "", Type: CodeNS}
 	}

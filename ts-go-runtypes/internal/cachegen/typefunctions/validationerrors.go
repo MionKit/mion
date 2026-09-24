@@ -581,11 +581,10 @@ func emitObjectValidationErrors(rt *reflection.RunType, ctx *EmitContext, v stri
 		expected = "function"
 	}
 
-	// Fused (`checkUnknowns`) family only: undeclared keys reported as `{path, expected: 'never'}` from the SAME helper the
-	// standalone unknownKeyErrors family uses, so both produce identical entries. It runs AFTER the per-property errors, inside
-	// the `else`, where the value is known to be a non-null object.
-	// This is where the fused error ORDER diverges from `verr(v).concat(uke(v))`: one walk interleaves the entries per node,
-	// matching every other error family. WHETHER to emit is emitsUnknownKeyCheck's call, the same one emitObjectValidate makes.
+	// Fused (`checkUnknowns`) family only: undeclared keys reported as `{path, expected: 'never'}`. It runs AFTER the
+	// per-property errors, inside the `else`, where the value is known to be a non-null object, so one walk interleaves the
+	// entries per node like every other error family. WHETHER to emit is emitsUnknownKeyCheck's call, the same one
+	// emitObjectValidate makes.
 	unknownKeyErrors := ""
 	if emitsUnknownKeyCheck(rt, ctx, callSigChild) {
 		// Arrays excluded HERE and nowhere else in this family. emitObjectValidate's `&&` chain short-circuits on a failed property

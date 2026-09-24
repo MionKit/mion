@@ -180,7 +180,7 @@ export const RULE_SPECS: readonly RuleSpec[] = [
     default: 'warn',
     gate: 'compiler',
     description:
-      'A property the unknown-keys helpers (hasUnknownKeys, unknownKeyErrors, unknownKeysToUndefined) silently skip, such as a function member — the check covers the rest of the object',
+      'A property the unknown-keys helpers (removeUnknownKeys, unknownKeysToUndefined) silently skip, such as a function member — the check covers the rest of the object',
   },
   {
     name: 'format',
@@ -349,8 +349,6 @@ const PREFIX_TO_FAMILY: Record<string, FamilyRules> = {
   TB: {primary: 'binary-non-serializable', warn: 'binary-skipped-member'},
   FB: {primary: 'binary-non-serializable', warn: 'binary-skipped-member'},
   RUK: {primary: 'clone-unsupported-type', warn: 'clone-shared-reference'},
-  HUK: {primary: 'unknown-keys'},
-  UKE: {primary: 'unknown-keys'},
   UKU: {primary: 'unknown-keys'},
   UKW: {primary: 'unknown-keys'},
   FMT: {primary: 'format'},

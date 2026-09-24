@@ -28,14 +28,14 @@ import (
 // `pureFnDependencies` slot.
 
 // tripwireCorpus exercises the built-in-referencing families across a spread of
-// shapes: plain objects (validationErrors → @mionjs/run-types/src/runtypes/pure-fns-utils#newRunTypeErr; the unknown-keys
-// group → @mionjs/run-types/src/runtypes/pure-fns-utils#hasUnknownKeysFromArray / @mionjs/run-types/src/runtypes/pure-fns-utils#getUnknownKeysFromArray) and
+// shapes: plain objects (validationErrors → @mionjs/run-types/src/runtypes/pure-fns-utils#newRunTypeErr; the checkUnknowns
+// validators → @mionjs/run-types/src/runtypes/pure-fns-utils#hasUnknownKeysFromArray / @mionjs/run-types/src/runtypes/pure-fns-utils#getUnknownKeysFromArray) and
 // format-branded strings (the format validators → @mionjs/run-types/src/formats/string/string-formats-pure-fns#isUUID). Each
 // createX<T>() call site demands its family so the resolver renders a real live
 // body for it.
 const tripwireCorpus = `import {
-  createValidateFn, createGetValidationErrorsFn, createHasUnknownKeysFn,
-  createRemoveUnknownKeysFn, createUnknownKeyErrorsFn, createFormatTransformFn,
+  createValidateFn, createGetValidationErrorsFn,
+  createRemoveUnknownKeysFn, createFormatTransformFn,
   createJsonEncoderFn, createJsonDecoderFn, createBinaryEncoderFn, createBinaryDecoderFn,
 } from '@mionjs/run-types';
 type TypeFormat<Base, Name extends string, Params> = Base & {
@@ -51,9 +51,9 @@ export const vn = createValidateFn<Nested>();
 export const e = createGetValidationErrorsFn<Obj>();
 export const ef = createGetValidationErrorsFn<WithFmt>();
 export const en = createGetValidationErrorsFn<Nested>();
-export const h = createHasUnknownKeysFn<Obj>();
+export const vs = createValidateFn<Obj>(undefined, {checkUnknowns: true});
 export const cl = createRemoveUnknownKeysFn<Obj>();
-export const uke = createUnknownKeyErrorsFn<Obj>();
+export const es = createGetValidationErrorsFn<Obj>(undefined, {checkUnknowns: true});
 export const ft = createFormatTransformFn<WithFmt>();
 export const je = createJsonEncoderFn<WithFmt>();
 export const jd = createJsonDecoderFn<WithFmt>();

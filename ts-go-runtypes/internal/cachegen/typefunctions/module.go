@@ -117,35 +117,12 @@ func variantKey(settings constants.CacheModuleSettings, suffix string, options [
 	return operations.FnHashFor(op, options, "", rejectCircular) + "_" + id
 }
 
-// childDemand is one item on the child worklist: the child's bare type hash plus the variant it renders under.
-// The suffix is empty for every family whose variants are root-scoped, which is all of them but a VariantPropagator.
-type childDemand struct {
-	hash    string
-	suffix  string
-	options []string
-}
-
 // ExtraRoot is one (type id, variant) the cross-family fixpoint asks a family to render beyond its call-site demand.
 // The variant fields are empty for a plain edge and carry the referring walker's options when the edge names a variant.
 type ExtraRoot struct {
 	ID            string
 	VariantSuffix string
 	Options       []string
-}
-
-// entryInnerPrefix is the namespace an entry's CHILD dep calls are keyed under: the family's plain prefix for a plain
-// or root-scoped-variant entry, and the variant's own `<variantFhash>_` for a propagating one, whose whole subtree follows.
-func entryInnerPrefix(settings constants.CacheModuleSettings, emitter Emitter, plainPrefix string, suffix string, options []string, rejectCircular bool) string {
-	if suffix == "" || rejectCircular || !propagatesVariant(emitter, options) {
-		return plainPrefix
-	}
-	return operations.FnHashFor(familyOp(settings), options, "", false) + "_"
-}
-
-// entryCacheTag is an entry's disk-cache basename, `<tag>` plus the variant suffix.
-// Distinct basenames are what let a propagating variant be cached at all: it renders a whole subtree.
-func entryCacheTag(settings constants.CacheModuleSettings, suffix string) string {
-	return settings.Tag + suffix
 }
 
 // variantFactoryName is variantKey with a `g_` prefix, which keeps the factory and cache-key shapes in lockstep.
@@ -193,15 +170,14 @@ func CollectFamilyEntries(dump protocol.Dump, settings constants.CacheModuleSett
 		if existing, exists := graph[entryID]; exists {
 			return existing.Deps, true
 		}
-		// Root-scoped option variants and the armed variant change behaviour an override can't express, so emit structurally.
-		// A propagating variant keeps the redirect, or every nested type it reaches would lose the override.
-		if !rejectCircular && (suffix == "" || propagatesVariant(emitter, options)) {
+		// Option variants and the armed variant change behaviour an override can't express, so emit structurally.
+		if !rejectCircular && suffix == "" {
 			if cfnID := overrideHashForTag(runType, settings.Tag); cfnID != "" {
 				graph.Add(buildRedirectEntry(entryID, settings.Tag, runType, cfnID, opts))
 				return nil, true // a redirect has no same-family child deps
 			}
 		}
-		rendered := renderEntryWithDeps(runType, settings, emitter, entryInnerPrefix(settings, emitter, innerPrefix, suffix, options, rejectCircular), refTable, opts, suffix, options, rejectCircular)
+		rendered := renderEntryWithDeps(runType, settings, emitter, innerPrefix, refTable, opts, suffix, options, rejectCircular)
 		if rendered.argsText == "" {
 			return nil, false
 		}
@@ -219,26 +195,19 @@ func CollectFamilyEntries(dump protocol.Dump, settings constants.CacheModuleSett
 		return rendered.deps, true
 	}
 
-	// enqueueChildren strips the entry's inner prefix off each dep hash so the
-	// worklist can resolve the child via refTable. A root-scoped variant queues
-	// plain children; a propagating one passes its own option set down, so the
-	// child renders under the suffix its dep call names.
+	// enqueueChildren strips the inner prefix off each dep hash so the worklist can resolve the child via refTable.
+	// Variants are root-scoped, so every child renders plain.
 	queued := make(map[string]bool)
-	var childQueue []childDemand
-	enqueueChildren := func(deps []string, suffix string, options []string, rejectCircular bool) {
-		childSuffix, childOptions := "", []string(nil)
-		if propagatesVariant(emitter, options) {
-			childSuffix, childOptions = suffix, options
-		}
-		prefix := entryInnerPrefix(settings, emitter, innerPrefix, suffix, options, rejectCircular)
+	var childQueue []string
+	enqueueChildren := func(deps []string) {
 		for _, dep := range deps {
-			childHash := strings.TrimPrefix(dep, prefix)
-			key := childSuffix + "\x00" + childHash
+			childHash := strings.TrimPrefix(dep, innerPrefix)
+			key := "\x00" + childHash
 			if childHash == dep || queued[key] {
 				continue
 			}
 			queued[key] = true
-			childQueue = append(childQueue, childDemand{hash: childHash, suffix: childSuffix, options: childOptions})
+			childQueue = append(childQueue, childHash)
 		}
 	}
 
@@ -270,7 +239,7 @@ func CollectFamilyEntries(dump protocol.Dump, settings constants.CacheModuleSett
 					continue
 				}
 				if deps, ok := renderEntry(root, demanded.VariantSuffix, demanded.Options, demanded.RejectCircular); ok {
-					enqueueChildren(deps, demanded.VariantSuffix, demanded.Options, demanded.RejectCircular)
+					enqueueChildren(deps)
 				}
 			}
 		}
@@ -293,18 +262,18 @@ func CollectFamilyEntries(dump protocol.Dump, settings constants.CacheModuleSett
 				continue
 			}
 			if deps, ok := renderEntry(root, extra.VariantSuffix, extra.Options, false); ok {
-				enqueueChildren(deps, extra.VariantSuffix, extra.Options, false)
+				enqueueChildren(deps)
 			}
 		}
 		for len(childQueue) > 0 {
-			demanded := childQueue[len(childQueue)-1]
+			childHash := childQueue[len(childQueue)-1]
 			childQueue = childQueue[:len(childQueue)-1]
-			child := refTable[demanded.hash]
+			child := refTable[childHash]
 			if child == nil {
 				continue
 			}
-			if deps, ok := renderEntry(child, demanded.suffix, demanded.options, false); ok {
-				enqueueChildren(deps, demanded.suffix, demanded.options, false)
+			if deps, ok := renderEntry(child, "", nil, false); ok {
+				enqueueChildren(deps)
 			}
 		}
 	} else {
@@ -393,14 +362,10 @@ func renderEntryWithDeps(runType *reflection.RunType, settings constants.CacheMo
 	factoryName := variantFactoryName(settings, variantSuffix, variantOptions, runType.ID, rejectCircular)
 	innerName := variantKey(settings, variantSuffix, variantOptions, runType.ID, rejectCircular)
 
-	// The plain entry always disk-caches, and so does a PROPAGATING variant: it
-	// renders the whole transitive subtree, and its entries live under their own
-	// basename so they never collide with the plain body. A root-scoped option
-	// variant is one cheap extra root and stays session-rendered. The armed
-	// circular variant shares the PLAIN basename with a different body, so it must
-	// never read or write that cache.
-	cacheTag := entryCacheTag(settings, variantSuffix)
-	diskCacheable := !rejectCircular && (variantSuffix == "" || propagatesVariant(emitter, variantOptions))
+	// Only the plain entry disk-caches. An option variant is one cheap extra root and stays session-rendered. The armed
+	// circular variant shares the PLAIN basename with a different body, so it must never read or write that cache.
+	cacheTag := settings.Tag
+	diskCacheable := !rejectCircular && variantSuffix == ""
 	if diskCacheable {
 		if cached, ok := tryReadCachedEntry(runType, settings, cacheTag, innerPrefix, opts); ok {
 			// The walker never runs, but CrossFamilyRefs and IsNoop were
@@ -420,8 +385,7 @@ func renderEntryWithDeps(runType *reflection.RunType, settings constants.CacheMo
 	walker.inlineCtx.InlineAllInternal = opts.InlineMode.AllInternal()
 	walker.RefTable = refTable
 	walker.facts = opts.Facts
-	// InnerPrefix namespaces child cache keys consistently with the tuple's key
-	// slot (innerName below); entryInnerPrefix picks it per variant.
+	// InnerPrefix namespaces child cache keys consistently with the tuple's key slot (innerName below).
 	walker.InnerPrefix = innerPrefix
 	walker.OverrideOpKey = overrideOpKeyForTag(settings.Tag)
 	if len(variantOptions) > 0 {

@@ -20,9 +20,7 @@ import type {DataOnly} from './runtypes/dataOnly.ts';
 import type {
   ValidateFn,
   GetValidationErrorsFn,
-  HasUnknownKeysFn,
   RemoveUnknownKeysFn,
-  UnknownKeyErrorsFn,
   FormatTransformFn,
   JsonEncoderFn,
   JsonDecoderFn,
@@ -62,19 +60,9 @@ export const overrideGetValidationErrors = overrideImpl as unknown as <T>(
   id?: InjectTypeFnArgs<T, 'validationErrors'>
 ) => void;
 
-export const overrideHasUnknownKeys = overrideImpl as unknown as <T>(
-  fn: PureFunction<HasUnknownKeysFn>,
-  id?: InjectTypeFnArgs<T, 'hasUnknownKeys'>
-) => void;
-
 export const overrideRemoveUnknownKeys = overrideImpl as unknown as <T>(
   fn: PureFunction<RemoveUnknownKeysFn<T>>,
   id?: InjectTypeFnArgs<T, 'removeUnknownKeys'>
-) => void;
-
-export const overrideUnknownKeyErrors = overrideImpl as unknown as <T>(
-  fn: PureFunction<UnknownKeyErrorsFn>,
-  id?: InjectTypeFnArgs<T, 'unknownKeyErrors'>
 ) => void;
 
 export const overrideFormatTransform = overrideImpl as unknown as <T>(

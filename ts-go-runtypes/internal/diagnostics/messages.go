@@ -472,10 +472,6 @@ var messagesByCode = map[string]message{
 		Headline: "Property `{0}` is a function: `fromBinary` does not handle function values, so this property is silently not deserialised.",
 		Detail:   "`fromBinary` works on JSON-shaped data; functions don't survive JSON, so\nthe emitter drops them. The rest of the object's behaviour is unaffected.\n\nThis is by design, see the \"one contract: serializable data only\"\nsection in CLAUDE.md. If you need a stricter checker that fails on\nmissing/extra function-typed members, watch the project roadmap.",
 	},
-	"HUK010": {
-		Headline: "Property `{0}` is a function: `hasUnknownKeys` does not handle function values, so this property is silently not checked.",
-		Detail:   "`hasUnknownKeys` works on JSON-shaped data; functions don't survive JSON, so\nthe emitter drops them. The rest of the object's behaviour is unaffected.\n\nThis is by design, see the \"one contract: serializable data only\"\nsection in CLAUDE.md. If you need a stricter checker that fails on\nmissing/extra function-typed members, watch the project roadmap.",
-	},
 	"RUK001": {
 		Headline: "`removeUnknownKeys` does not support unions with object members: the emitter cannot know which declared shape to rebuild at runtime.",
 		Detail:   "A clone built from the declared shape needs to know WHICH union arm the\nruntime value matches; v1 has no arm discrimination, and silently keeping\nunknown keys would defeat the strip guarantee, so the build fails instead.\n\nWorkarounds: narrow the value to one arm before cloning (one\n`createRemoveUnknownKeysFn<Arm>()` per arm), or restructure the union into a\nsingle object with optional properties.",
@@ -499,10 +495,6 @@ var messagesByCode = map[string]message{
 	"RUK012": {
 		Headline: "Static member `{0}` is not part of instance data: `removeUnknownKeys` skips it.",
 		Detail:   "Statics live on the class, not the instance; the clone rebuilds instance\ndata only.",
-	},
-	"UKE010": {
-		Headline: "Property `{0}` is a function: `unknownKeyErrors` does not handle function values, so this property is silently not checked.",
-		Detail:   "`unknownKeyErrors` works on JSON-shaped data; functions don't survive JSON, so\nthe emitter drops them. The rest of the object's behaviour is unaffected.\n\nThis is by design, see the \"one contract: serializable data only\"\nsection in CLAUDE.md. If you need a stricter checker that fails on\nmissing/extra function-typed members, watch the project roadmap.",
 	},
 	"UKW010": {
 		Headline: "Property `{0}` is a function: `stripUnknownKeysWire` does not handle function values, so this property is silently not cleared.",

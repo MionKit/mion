@@ -214,9 +214,7 @@ const (
 	factNoopFormatTransform
 	factNoopCompactFromJson
 	factNoopToBinary
-	factNoopHasUnknownKeys
 	factNoopRemoveUnknownKeys
-	factNoopUnknownKeyErrors
 	factNoopStripUnknownKeysWire
 	factRestoreKeyGuard
 	factCount

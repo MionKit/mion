@@ -1002,17 +1002,13 @@ func toBinaryNoopObjectChildren(rt *reflection.RunType, ctx *EmitContext, visite
 	return true
 }
 
-// unknownKeysNoopSpec parameterises the shared unknown-keys predicate; family verdicts differ in one spot only.
+// unknownKeysNoopSpec parameterises the shared unknown-keys predicate per family.
 type unknownKeysNoopSpec struct {
 	// fact is the family's own memo lane (verdicts differ per family).
 	fact factKind
-	// reportsPatternKey: reporting families sweep a pattern key whatever its value type (a non-matching key is reported).
-	reportsPatternKey bool
 }
 
 var (
-	hasUnknownKeysNoopSpec   = unknownKeysNoopSpec{fact: factNoopHasUnknownKeys, reportsPatternKey: true}
-	unknownKeyErrorsNoopSpec = unknownKeysNoopSpec{fact: factNoopUnknownKeyErrors, reportsPatternKey: true}
 	stripUnknownKeysWireSpec = unknownKeysNoopSpec{fact: factNoopStripUnknownKeysWire}
 )
 
@@ -1156,8 +1152,8 @@ func unknownKeysNoopObject(rt *reflection.RunType, ctx *EmitContext, spec unknow
 	return true
 }
 
-// unknownKeysNoopIndexSignature mirrors the shared index-signature arm: a template-literal key pattern always
-// sweeps for a reporting family; otherwise an atomic value has nothing to recurse into and every key is known.
+// unknownKeysNoopIndexSignature mirrors the shared index-signature arm: an atomic value has nothing to recurse into
+// and every key is known.
 func unknownKeysNoopIndexSignature(rt *reflection.RunType, ctx *EmitContext, spec unknownKeysNoopSpec, visited map[string]struct{}) bool {
 	if rt.Child == nil || isSymbolKeyedIndexSig(rt, ctx) {
 		return true
@@ -1165,14 +1161,6 @@ func unknownKeysNoopIndexSignature(rt *reflection.RunType, ctx *EmitContext, spe
 	resolved := ctx.ResolveRef(rt.Child)
 	if resolved == nil || isFunctionLikeKind(resolved.Kind) {
 		return true
-	}
-	if spec.reportsPatternKey && rt.Index != nil {
-		indexResolved := ctx.ResolveRef(rt.Index)
-		if indexResolved != nil && indexResolved.Kind == reflection.KindTemplateLiteral {
-			if _, ok := buildTemplateLiteralRegex(indexResolved); ok {
-				return false
-			}
-		}
 	}
 	if reflection.FamilyOf(resolved.Kind) == reflection.FamilyAtomic {
 		return true

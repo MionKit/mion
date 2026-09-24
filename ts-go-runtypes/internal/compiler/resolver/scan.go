@@ -962,9 +962,6 @@ func computeSiteFn(typeChecker *checker.Checker, fnKey string, options validateO
 		strategy = extractStrategyOption(typeChecker, call, lastIndex, argsCount)
 	case operations.AxisValidateOptions:
 		optionNames = options.Names()
-	case operations.AxisHasUnknownKeysOptions:
-		// Read in place rather than through the shared validateOptions bag, like the JSON strategy.
-		optionNames = extractHasUnknownKeysOptions(typeChecker, call, lastIndex, argsCount).Names()
 	}
 	// The circular guard folds into the fnHash on every axis, so it is read per family, not from one option bag.
 	// Circularity is unknown until commitPending, so an armed acyclic type gets a harmless duplicate entry.
@@ -1374,54 +1371,6 @@ func extractValidateOptions(typeChecker *checker.Checker, call *ast.Node, lastIn
 		case ast.KindFalseKeyword:
 			// Last-write-wins: an explicit `false` disables an option a spread turned on, and is a no-op
 			// on an absent key.
-			delete(opts.enabled, name)
-		}
-	})
-	return opts
-}
-
-// hasUnknownKeysOptions mirrors validateOptions for createHasUnknownKeysFn's compile-time options bag,
-// table-driven off constants.HasUnknownKeysOptions.
-type hasUnknownKeysOptions struct {
-	enabled map[string]bool
-}
-
-// Names returns the enabled option NAMES in constants.HasUnknownKeysOptions declaration order.
-func (opts hasUnknownKeysOptions) Names() []string {
-	if len(opts.enabled) == 0 {
-		return nil
-	}
-	names := make([]string, 0, len(opts.enabled))
-	for _, opt := range constants.HasUnknownKeysOptions {
-		if opts.enabled[opt.Name] {
-			names = append(names, opt.Name)
-		}
-	}
-	return names
-}
-
-// extractHasUnknownKeysOptions reads the literal `<option>: true` properties at the options slot for every option
-// declared in constants.HasUnknownKeysOptions, with extractValidateOptions's literal/spread/last-write-wins rules.
-func extractHasUnknownKeysOptions(typeChecker *checker.Checker, call *ast.Node, lastIndex, argsCount int) hasUnknownKeysOptions {
-	var opts hasUnknownKeysOptions
-	eachOptionProperty(typeChecker, call, lastIndex, argsCount, func(name string, initializer *ast.Node) {
-		known := false
-		for _, option := range constants.HasUnknownKeysOptions {
-			if option.Name == name {
-				known = true
-				break
-			}
-		}
-		if !known {
-			return
-		}
-		switch initializer.Kind {
-		case ast.KindTrueKeyword:
-			if opts.enabled == nil {
-				opts.enabled = make(map[string]bool, len(constants.HasUnknownKeysOptions))
-			}
-			opts.enabled[name] = true
-		case ast.KindFalseKeyword:
 			delete(opts.enabled, name)
 		}
 	})

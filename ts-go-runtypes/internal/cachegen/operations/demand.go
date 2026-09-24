@@ -40,13 +40,6 @@ func DemandForOp(op Operation, optionNames []string, strategy string, rejectCirc
 			FnHash:         FnHashFor(op, optionNames, "", armed),
 			RejectCircular: armed,
 		}}
-	case AxisHasUnknownKeysOptions:
-		return []Demand{{
-			FamilyTag:     op.FamilyTag,
-			VariantSuffix: constants.HasUnknownKeysVariantSuffix(optionNames),
-			Options:       optionNames,
-			FnHash:        FnHashFor(op, optionNames, "", false),
-		}}
 	case AxisJsonStrategy:
 		if strategy == "" {
 			strategy = op.DefaultStrategy

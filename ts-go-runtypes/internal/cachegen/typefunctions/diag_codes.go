@@ -287,12 +287,6 @@ func (ValidationErrorsEmitter) DiagCodeForLeaf(leaf *reflection.RunType) string 
 	return validationErrorsRootCodes.codeFor(leaf)
 }
 
-var hasUnknownKeysCodes = map[DiagSlot]string{
-	SlotFunctionPropDropped: diagnostics.CodeHUKFunctionPropDropped,
-}
-
-func (HasUnknownKeysEmitter) DiagCodeFor(slot DiagSlot) string { return hasUnknownKeysCodes[slot] }
-
 var removeUnknownKeysCodes = map[DiagSlot]string{
 	SlotFunctionPropDropped:        diagnostics.CodeRUKFunctionPropDropped,
 	SlotMethodDropped:              diagnostics.CodeRUKMethodDropped,
@@ -319,12 +313,6 @@ var removeUnknownKeysRootCodes = rootCodeMap{
 	function:        diagnostics.CodeRUKFunctionRoot,
 	symbol:          "", // symbols pass through by reference
 }
-
-var unknownKeyErrorsCodes = map[DiagSlot]string{
-	SlotFunctionPropDropped: diagnostics.CodeUKEFunctionPropDropped,
-}
-
-func (UnknownKeyErrorsEmitter) DiagCodeFor(slot DiagSlot) string { return unknownKeyErrorsCodes[slot] }
 
 var stripUnknownKeysWireCodes = map[DiagSlot]string{
 	SlotFunctionPropDropped: diagnostics.CodeUKWFunctionPropDropped,

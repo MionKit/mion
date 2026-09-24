@@ -24,7 +24,7 @@ func emitSourcesFor(t *testing.T, typeName string) *protocol.Response {
 }
 
 // emitSourcesForFn scans `<fnName><Temporal.<typeName>>()` requesting entry
-// modules. Demand-driven families (tb/fb/huk/…) only emit when the call
+// modules. Demand-driven families (tb/fb/ruk/…) only emit when the call
 // site demands them, so the caller picks the createX whose fnId maps to the
 // family under assertion (binary→createBinaryEncoderFn/createBinaryDecoderFn).
 func emitSourcesForFn(t *testing.T, fnName, typeName string) *protocol.Response {

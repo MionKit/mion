@@ -94,20 +94,10 @@ var CacheModules = CacheModuleGroup{
 		VarPrefix: "g_rjs_",
 		Tag:       "rjs",
 	},
-	"hasUnknownKeys": {
-		Name:      "hasUnknownKeysModule",
-		VarPrefix: "g_huk_",
-		Tag:       "huk",
-	},
 	"removeUnknownKeys": {
 		Name:      "removeUnknownKeysModule",
 		VarPrefix: "g_ruk_",
 		Tag:       "ruk",
-	},
-	"unknownKeyErrors": {
-		Name:      "unknownKeyErrorsModule",
-		VarPrefix: "g_uke_",
-		Tag:       "uke",
 	},
 	"stripUnknownKeysWire": {
 		Name:      "stripUnknownKeysWireModule",
@@ -318,47 +308,6 @@ func ValidateVariantSuffix(names []string) string {
 	suffix := "N"
 	hit := false
 	for _, opt := range ValidateOptions {
-		if present[opt.Name] {
-			suffix += opt.Letter
-			hit = true
-		}
-	}
-	if !hit {
-		return ""
-	}
-	return suffix
-}
-
-// HasUnknownKeysOptions is the ordered registry of supported `HasUnknownKeysOptions` keys, the compile-time
-// options bag of `createHasUnknownKeysFn<T>(val?, options?, id?)`. Same contract as ValidateOptions above:
-// declaration order is load-bearing for the variant suffix, and the same steps apply when adding an option.
-//
-// `runsAfterValidation` declares the caller's precondition that the value already PASSED this type's validate,
-// every required prop present, which makes the emitter's key-count fast path sound (`cnt(v) !== N` exactly
-// separates clean from dirty) and lets it drop the per-object typeof guards. Calling the variant on non-validated
-// input is undefined behavior.
-//
-// Unlike every ValidateOptions entry this one describes the VALUE rather than the root call, so it PROPAGATES:
-// the emitter renders the whole subtree under the variant (typefunctions.VariantPropagator) instead of dep-calling
-// plain child entries, which is what gets a named nested type the same fast path an inline one has.
-var HasUnknownKeysOptions = []ValidateOption{
-	{Name: "runsAfterValidation", Letter: "V"},
-}
-
-// HasUnknownKeysVariantSuffix returns the canonical variant suffix for a list of hasUnknownKeys option NAMES (a
-// subset of `HasUnknownKeysOptions[*].Name`), mirroring ValidateVariantSuffix with its own lead letter: `O`
-// ("options") plus the present letters in declaration order, so `["runsAfterValidation"]` → `"OV"`.
-func HasUnknownKeysVariantSuffix(names []string) string {
-	if len(names) == 0 {
-		return ""
-	}
-	present := make(map[string]bool, len(names))
-	for _, name := range names {
-		present[name] = true
-	}
-	suffix := "O"
-	hit := false
-	for _, opt := range HasUnknownKeysOptions {
 		if present[opt.Name] {
 			suffix += opt.Letter
 			hit = true

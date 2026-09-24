@@ -9,7 +9,7 @@
 
 import * as TF from '@mionjs/run-types/formats';
 import * as TFT from '@mionjs/run-types/formats/temporal';
-import {createValidateFn, createHasUnknownKeysFn} from '@mionjs/run-types';
+import {createValidateFn} from '@mionjs/run-types';
 import * as RT from '@mionjs/run-types/builders';
 import {NOT_SUPPORTED, type CompetitorCases} from '../../shared/harness/types.ts';
 
@@ -746,56 +746,26 @@ export const schemaCases: CompetitorCases = {
   'JSON_SCHEMA.multiple_of': () => createValidateFn(TF.number({multipleOf: 5})),
 
   // ── STRICT ──
-  // The builder door's strict pair. The run-type is built TWICE on purpose: each
-  // factory reads its own call site at build time, so a shared local would have
-  // nothing for the second one to read.
-  'STRICT.flat_required': () => {
-    const validate = createValidateFn(
-      RT.object({
-        id: TF.number(),
-        name: TF.string(),
-        active: RT.boolean(),
-      })
-    );
-    const hasUnknownKeys = createHasUnknownKeysFn(
+  // The builder door's strict validators: `checkUnknowns` validates and rejects undeclared keys in one walk.
+  'STRICT.flat_required': () =>
+    createValidateFn(
       RT.object({
         id: TF.number(),
         name: TF.string(),
         active: RT.boolean(),
       }),
-      {runsAfterValidation: true}
-    );
-    return (value: unknown) => validate(value) && !hasUnknownKeys(value);
-  },
-  'STRICT.nested_required': () => {
-    const validate = createValidateFn(
-      RT.object({
-        name: TF.string(),
-        inner: RT.object({x: TF.number(), y: TF.string()}),
-      })
-    );
-    const hasUnknownKeys = createHasUnknownKeysFn(
+      {checkUnknowns: true}
+    ),
+  'STRICT.nested_required': () =>
+    createValidateFn(
       RT.object({
         name: TF.string(),
         inner: RT.object({x: TF.number(), y: TF.string()}),
       }),
-      {runsAfterValidation: true}
-    );
-    return (value: unknown) => validate(value) && !hasUnknownKeys(value);
-  },
-  'STRICT.moltar_dto': () => {
-    const validate = createValidateFn(
-      RT.object({
-        number: TF.number(),
-        negNumber: TF.number(),
-        maxNumber: TF.number(),
-        string: TF.string(),
-        longString: TF.string(),
-        boolean: RT.boolean(),
-        deeplyNested: RT.object({foo: TF.string(), num: TF.number(), bool: RT.boolean()}),
-      })
-    );
-    const hasUnknownKeys = createHasUnknownKeysFn(
+      {checkUnknowns: true}
+    ),
+  'STRICT.moltar_dto': () =>
+    createValidateFn(
       RT.object({
         number: TF.number(),
         negNumber: TF.number(),
@@ -805,35 +775,10 @@ export const schemaCases: CompetitorCases = {
         boolean: RT.boolean(),
         deeplyNested: RT.object({foo: TF.string(), num: TF.number(), bool: RT.boolean()}),
       }),
-      {runsAfterValidation: true}
-    );
-    return (value: unknown) => validate(value) && !hasUnknownKeys(value);
-  },
-  'STRICT.realworld_order': () => {
-    const validate = createValidateFn(
-      RT.object({
-        id: TF.string(),
-        customer: RT.object({id: TF.number(), email: TF.string()}),
-        items: RT.array(RT.object({sku: TF.string(), name: TF.string(), qty: TF.number(), price: TF.number()})),
-        shipping: RT.object({
-          street: TF.string(),
-          city: TF.string(),
-          state: TF.string(),
-          zip: TF.string(),
-          country: TF.string(),
-        }),
-        status: RT.union([
-          RT.literal('pending'),
-          RT.literal('paid'),
-          RT.literal('shipped'),
-          RT.literal('delivered'),
-          RT.literal('cancelled'),
-        ]),
-        total: TF.number(),
-        note: RT.optional(TF.string()),
-      })
-    );
-    const hasUnknownKeys = createHasUnknownKeysFn(
+      {checkUnknowns: true}
+    ),
+  'STRICT.realworld_order': () =>
+    createValidateFn(
       RT.object({
         id: TF.string(),
         customer: RT.object({id: TF.number(), email: TF.string()}),
@@ -855,8 +800,6 @@ export const schemaCases: CompetitorCases = {
         total: TF.number(),
         note: RT.optional(TF.string()),
       }),
-      {runsAfterValidation: true}
-    );
-    return (value: unknown) => validate(value) && !hasUnknownKeys(value);
-  },
+      {checkUnknowns: true}
+    ),
 };

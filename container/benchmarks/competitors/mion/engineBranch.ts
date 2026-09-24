@@ -13,7 +13,7 @@
 // misconfigured runtime instead of quietly reporting numbers that mean something
 // other than what the table claims.
 
-import {createHasUnknownKeysFn, createValidateFn} from '@mionjs/run-types';
+import {createValidateFn} from '@mionjs/run-types';
 
 /** 'jsc' = the Object.keys counter (JavaScriptCore / Bun), 'v8' = the for-in counter. */
 export type EngineBranch = 'jsc' | 'v8';
@@ -30,23 +30,20 @@ export function expectedEngineBranch(): EngineBranch {
 }
 
 /** Observe which counter is live by watching whether a strict check reaches
- *  `Object.keys`. Uses the real emitted validator + the real
- *  `runsAfterValidation` predicate, so this is the shipped code path and not a
- *  reimplementation of it — a strict check on an all-required object is what
- *  routes through countEnumKeys. */
+ *  `Object.keys`. Uses the real emitted `checkUnknowns` validator, so this is the
+ *  shipped code path and not a reimplementation of it: a strict check on an
+ *  all-required object is what routes through countEnumKeys. */
 export function detectEngineBranch(): EngineBranch {
   interface Probe {
     a: number;
     b: string;
   }
-  const validate = createValidateFn<Probe>();
-  const hasUnknownKeys = createHasUnknownKeysFn<Probe>(undefined, {runsAfterValidation: true});
+  const validateStrict = createValidateFn<Probe>(undefined, {checkUnknowns: true});
   const value: Probe = {a: 1, b: 'x'};
 
-  // Warm the factories so materialisation (which is where the branch is decided)
+  // Warm the factory so materialisation (which is where the branch is decided)
   // happens OUTSIDE the window we are watching.
-  validate(value);
-  hasUnknownKeys(value);
+  validateStrict(value);
 
   const originalKeys = Object.keys;
   let objectKeysCalls = 0;
@@ -55,7 +52,7 @@ export function detectEngineBranch(): EngineBranch {
     return originalKeys(obj);
   }) as typeof Object.keys;
   try {
-    hasUnknownKeys(value);
+    validateStrict(value);
   } finally {
     Object.keys = originalKeys;
   }

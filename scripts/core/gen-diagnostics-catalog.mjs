@@ -57,8 +57,8 @@ const SUBSYSTEMS = [
   {
     key: 'unknown-keys',
     label: 'Unknown keys',
-    description: 'From hasUnknownKeys, removeUnknownKeys, and the rest of that family.',
-    prefixes: ['HUK', 'RUK', 'UKE', 'UKU', 'UKW'],
+    description: 'From removeUnknownKeys and the rest of that family.',
+    prefixes: ['RUK', 'UKU', 'UKW'],
   },
   {
     key: 'formats',

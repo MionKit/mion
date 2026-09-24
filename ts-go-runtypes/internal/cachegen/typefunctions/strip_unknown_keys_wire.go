@@ -54,7 +54,6 @@ func (StripUnknownKeysWireEmitter) Emit(rt *reflection.RunType, ctx *EmitContext
 			Snippet: func(_ *EmitContext, accessor, keyVar string) string {
 				return accessor + "[" + keyVar + "] = undefined"
 			},
-			CodeShape:      CodeS,
 			JsonWireFormat: true,
 		})
 	}

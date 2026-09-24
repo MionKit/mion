@@ -60,8 +60,6 @@ func axisToken(axis operations.Axis) string {
 		return "validateOptions"
 	case operations.AxisJsonStrategy:
 		return "jsonStrategy"
-	case operations.AxisHasUnknownKeysOptions:
-		return "hasUnknownKeysOptions"
 	default:
 		return "none"
 	}
@@ -113,10 +111,6 @@ func collectEntries() []fnHashEntry {
 			case operations.AxisValidateOptions:
 				for _, subset := range constants.OptionSubsets(constants.ValidateOptions) {
 					addVariant(constants.ValidateVariantSuffix(subset), rejectCircular, operations.FnHashFor(op, subset, "", rejectCircular))
-				}
-			case operations.AxisHasUnknownKeysOptions:
-				for _, subset := range constants.OptionSubsets(constants.HasUnknownKeysOptions) {
-					addVariant(constants.HasUnknownKeysVariantSuffix(subset), rejectCircular, operations.FnHashFor(op, subset, "", rejectCircular))
 				}
 			case operations.AxisJsonStrategy:
 				entry.defaultVariant = op.DefaultStrategy
@@ -188,7 +182,7 @@ func Generate() string {
 	out.WriteString("// its typeId half (injected by the plugin) still carries the version.\n")
 	out.WriteString("\n")
 
-	out.WriteString("export type FnHashAxis = 'none' | 'validateOptions' | 'jsonStrategy' | 'hasUnknownKeysOptions';\n")
+	out.WriteString("export type FnHashAxis = 'none' | 'validateOptions' | 'jsonStrategy';\n")
 	out.WriteString("\n")
 	out.WriteString("export interface FnHashEntry {\n")
 	out.WriteString("  readonly axis: FnHashAxis;\n")
@@ -200,9 +194,9 @@ func Generate() string {
 	out.WriteString("   *  when options.rejectCircularRefs is set on such a family. */\n")
 	out.WriteString("  readonly circularGuarded?: true;\n")
 	out.WriteString("  /** Variant token → fnHash. Token is '' for option-less families, the validate\n")
-	out.WriteString("   *  variant suffix ('', 'NT', 'NM'), the hasUnknownKeys variant suffix\n")
-	out.WriteString("   *  ('', 'OV'), or the JSON strategy name — each optionally with a trailing\n")
-	out.WriteString("   *  'C' for the rejectCircularRefs fork on a CircularGuarded family. */\n")
+	out.WriteString("   *  variant suffix ('', 'NT', 'NM'), or the JSON strategy name — each\n")
+	out.WriteString("   *  optionally with a trailing 'C' for the rejectCircularRefs fork on a\n")
+	out.WriteString("   *  CircularGuarded family. */\n")
 	out.WriteString("  readonly variants: Readonly<Record<string, string>>;\n")
 	out.WriteString("}\n")
 	out.WriteString("\n")
@@ -240,16 +234,6 @@ func Generate() string {
 	out.WriteString(" *  the letters of the present options concatenated in THIS order. */\n")
 	out.WriteString("export const VALIDATE_OPTION_LETTERS = [\n")
 	for _, opt := range constants.ValidateOptions {
-		out.WriteString(fmt.Sprintf("  [%s, %s],\n", jsStr(opt.Name), jsStr(opt.Letter)))
-	}
-	out.WriteString("] as const satisfies ReadonlyArray<readonly [string, string]>;\n")
-	out.WriteString("\n")
-
-	out.WriteString("/** HasUnknownKeysOptions name → single-letter token, in Go declaration order\n")
-	out.WriteString(" *  (constants.HasUnknownKeysOptions). The hasUnknownKeys variant suffix is 'O'\n")
-	out.WriteString(" *  followed by the letters of the present options concatenated in THIS order. */\n")
-	out.WriteString("export const HAS_UNKNOWN_KEYS_OPTION_LETTERS = [\n")
-	for _, opt := range constants.HasUnknownKeysOptions {
 		out.WriteString(fmt.Sprintf("  [%s, %s],\n", jsStr(opt.Name), jsStr(opt.Letter)))
 	}
 	out.WriteString("] as const satisfies ReadonlyArray<readonly [string, string]>;\n")
