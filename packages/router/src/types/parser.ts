@@ -71,7 +71,7 @@ type LiteralParser<Parser> = Parser extends string ? SingleLiteral<Parser> : {[K
 // Fn keys are MION_FN_KEYS in @mionjs/core; the payload is projected by family tag, so order does not matter.
 // 'formatTransform' is PARAMS-only: a RETURN is written by the handler, never a caller.
 
-/** How a strategy writes a value on the wire: every JSON strategy but `compact` writes the same JSON. */
+/** Only `compact` changes the wire format; every other JSON strategy writes the same JSON. */
 export type WireFormat<Strategy> = Strategy extends 'compact' ? 'compact' : 'json';
 
 /** The injection slots of a route / middleware call, in declaration order. */
@@ -93,8 +93,8 @@ export type MarkerSlots<Params, Return, RouteOpts, RouterOpts> = [
   >,
   paramsId: InjectRunTypeId<Params>,
   returnId: InjectRunTypeId<Return>,
-  // what a route's sync id is made of: its types and each direction's wire format, all a safe call depends on.
-  // Written out, never an alias: the build walks an alias's arguments, and the router options can hold any type.
+  // Types plus each direction's wire format: all a safe call depends on.
+  // Written out, never an alias: the build walks an alias's arguments, and router options can hold any type.
   syncId: InjectRunTypeId<
     [Params, Return, WireFormat<ParamsStrategy<RouteOpts, RouterOpts>>, WireFormat<ReturnStrategy<RouteOpts, RouterOpts>>]
   >,

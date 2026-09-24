@@ -96,8 +96,7 @@ describe('the api version a mixed client compares', () => {
 
   it('replaces a row the server no longer agrees with and reports it once', async () => {
     const {routes, middlewares} = initClient<TestServerApi>({baseURL});
-    // The lane server IS this build's server, so a real difference has to be forged on the wire: the sync id
-    // alone decides whether a row still agrees.
+    // The lane server IS this build's server, so forge the difference on the wire; only the sync id decides.
     const watch = serveVersion('someOtherAp', (methods) => {
       if (methods.sayHello) methods.sayHello.syncId = 'changed';
     });

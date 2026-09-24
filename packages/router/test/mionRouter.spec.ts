@@ -272,7 +272,7 @@ describe('PublicApi resolved options', () => {
       return: string;
       headers: never;
       isAsync: false;
-      // the sync id's type: a `compact` direction writes other bytes than the JSON strategies
+      // `compact` writes other bytes than the JSON strategies
       sync: [[n: number], string, 'compact', 'compact'];
     }>();
     expectTypeOf<NonNullable<Api['mf']['types']>['params']>().toEqualTypeOf<[s: string]>();
