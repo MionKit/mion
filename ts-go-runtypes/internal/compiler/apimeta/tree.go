@@ -224,7 +224,7 @@ func (tree *Tree) ReadRouterOptions() map[string]any {
 	}
 	options, _ := readOptions(tree.Checker, tree.RouterOptions, "")
 	out := map[string]any{}
-	for _, name := range ClientRouterOptions {
+	for _, name := range clientRouterOptions {
 		if value, ok := options[name]; ok {
 			out[name] = value
 		}
@@ -232,8 +232,8 @@ func (tree *Tree) ReadRouterOptions() map[string]any {
 	return out
 }
 
-// ClientRouterOptions are the router options a client build injects at `initClient`.
-var ClientRouterOptions = []string{"syncRoutes"}
+// clientRouterOptions are the router options a client build injects at `initClient`.
+var clientRouterOptions = []string{"syncRoutes"}
 
 // readOptions copies a resolved options literal type into JSON-shaped values: `undefined` becomes an absent
 // key (the runtime object drops it too) and the `parser` pair a nested object. A value that is not a
