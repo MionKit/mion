@@ -19,6 +19,7 @@ import {resetBundledApi} from '../../src/lib/bundledApi.ts';
 import {getMethod, isBundledMethod} from '../../src/lib/methods.ts';
 import {flushMetadataCache, extractAndProcessMetadata} from '../../src/lib/clientMethodsMetadata.ts';
 import {MemoryMetadataStore, resetMetadataStore, setMetadataStoreForTesting} from '../../src/lib/metadataStore.ts';
+import {expectEveryMethodMatchesTheServer} from '../lib/parity.ts';
 
 // this lane's own test server, started by test/lib/laneServer.ts
 const baseURL = inject('laneServerBaseURL');
@@ -138,5 +139,11 @@ describe('a client built with bundleApi: mixed', () => {
       options
     );
     expect(getMethod('utils/sumTwo')?.paramsJitHash).toBe(bundled!.paramsJitHash);
+  });
+});
+
+describe('parity: what the bundle registers equals what the server answers', () => {
+  it('every method of the test server: rows, route sync ids and compiled code', async () => {
+    await expectEveryMethodMatchesTheServer(baseURL);
   });
 });

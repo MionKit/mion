@@ -19,6 +19,7 @@ import {bundledMethodIds, getMethod, isBundledMethod, useMethodFns} from '../../
 import {isMetadataFromServerLoaded} from '../../src/lib/metadataFromServerLoader.ts';
 import type {InjectedApiMetadata} from '../../src/types.ts';
 import {MemoryMetadataStore, resetMetadataStore, setMetadataStoreForTesting} from '../../src/lib/metadataStore.ts';
+import {expectEveryMethodMatchesTheServer} from '../lib/parity.ts';
 
 // this lane's own test server, started by test/lib/laneServer.ts
 const baseURL = inject('laneServerBaseURL');
@@ -214,77 +215,16 @@ describe('a client built with bundleApi: bundled', () => {
   });
 });
 
-/** The metadata fields the server answers with, in the shape `getSerializableMethod` writes. */
-function serializable(method: MethodWithOptions | undefined): Record<string, unknown> | undefined {
-  if (!method) return undefined;
-  const {type, id, nestLevel, isAsync, hasReturnData, paramsJitHash, returnJitHash, pointer, paramsCount, paramNames, options} =
-    method;
-  const out: Record<string, unknown> = {
-    type,
-    id,
-    nestLevel,
-    isAsync,
-    hasReturnData,
-    paramsJitHash,
-    returnJitHash,
-    pointer,
-    paramsCount,
-    paramNames,
-    options,
-  };
-  if (method.headersParam)
-    out.headersParam = {headerNames: method.headersParam.headerNames, jitHash: method.headersParam.jitHash};
-  if (method.headersReturn)
-    out.headersReturn = {headerNames: method.headersReturn.headerNames, jitHash: method.headersReturn.jitHash};
-  if (method.middlewareIds) out.middlewareIds = method.middlewareIds;
-  return JSON.parse(JSON.stringify(out));
-}
-
-/** Drops the one field a bundle cannot know: the request limit the server settles for a chain that
- *  declares none (its types times the router factor, else the platform adapter's number) exists
- *  only at the server's registration. A limit a route declares itself stays and must match. */
-function withoutSettledLimit(row: Record<string, unknown> | undefined, bundled: Record<string, unknown> | undefined) {
-  if (!row || !bundled) return row;
-  const options = {...(row.options as Record<string, unknown>)};
-  const bundledOptions = bundled.options as Record<string, unknown>;
-  if (bundledOptions.maxBodySize === undefined) delete options.maxBodySize;
-  return {...row, options};
-}
-
 describe('parity: what the bundle registers equals what the server answers', () => {
-  it('method by method, jit hashes included', async () => {
+  it('every method of the test server: rows, route sync ids and compiled code', async () => {
+    await expectEveryMethodMatchesTheServer(baseURL);
+  });
+
+  it('a bundled entry carries no params byte ceiling: that is the server request limit', async () => {
     resetClientCaches();
     resetBundledApi();
     const {routes, middlewares} = initClient<TestServerApi>({baseURL});
-    // touch every dispatch point this file has, so their bundles are registered
-    const auth = middlewares.auth(new HeadersSubset({Authorization: 'XWYZ-TOKEN'}));
-    await routes.sayHello(user).call({middlewares: {auth}});
     await routes.utils.sumTwo(1).call(withAuth(middlewares));
-    await routes.compact.addNumbers(1, 2).call(withAuth(middlewares));
-    await routes.getRequestInfo('x').call(withAuth(middlewares));
-    await routes.respondHeaders('x').call(withAuth(middlewares));
-    await batch([routes.sayHello(user), routes.utils.sumTwo(1)]).call(withAuth(middlewares));
-
-    const url = new URL(getRoutePath([MION_ROUTES.methodsMetadataById], {basePath: '', suffix: ''} as never), baseURL);
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({[MION_ROUTES.methodsMetadataById]: [[], true]}),
-    });
-    expect(response.ok).toBe(true);
-    const body = (await response.json()) as Record<string, unknown>;
-    const envelope = body[MION_ROUTES.methodsMetadataById];
-    const answer = (Array.isArray(envelope) ? envelope[1] : envelope) as {methods: Record<string, MethodWithOptions>};
-
-    const bundledIds = bundledMethodIds();
-    expect(bundledIds).toEqual(
-      expect.arrayContaining(['sayHello', 'auth', 'utils/sumTwo', 'compact/addNumbers', 'getRequestInfo', 'respondHeaders'])
-    );
-    for (const id of bundledIds) {
-      const bundled = serializable(getMethod(id));
-      expect(bundled, id).toEqual(withoutSettledLimit(serializable(answer.methods[id]), bundled));
-    }
-    // the params byte ceiling is the server's request limit, so a bundled entry carries no more of it
     expect(useMethodFns('utils/sumTwo')).toBeDefined();
     expect(useMethodFns('utils/sumTwo')).not.toHaveProperty('paramsJsonMaxBytes');
   });
