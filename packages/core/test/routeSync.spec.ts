@@ -57,7 +57,7 @@ describe('routeSyncId', () => {
   });
 
   it('an empty chain equals no chain', () => {
-    const {middlewareIds: _, ...bare} = route;
+    const bare: RouteSyncFields = {id: route.id, paramsJitHash: route.paramsJitHash, returnJitHash: route.returnJitHash};
     expect(routeSyncId({...bare, middlewareIds: []}, getRow)).toBe(routeSyncId(bare, getRow));
   });
 
