@@ -70,17 +70,17 @@ const pluginSpec =
   PLUGIN_ENTRY.startsWith('.') || path.isAbsolute(PLUGIN_ENTRY) ? url.pathToFileURL(path.resolve(PLUGIN_ENTRY)).href : PLUGIN_ENTRY;
 const runtypesPlugin = (await import(pluginSpec)).default;
 
-const SUITE_CFG = {dir: 'serialization', exportConst: 'SERIALIZATION_SPEC', bench: 'serialization', label: 'Serialization'};
+const SUITE = 'serialization';
 
-const SUITE_DIR = path.join(PACKAGE_ROOT, 'test/suites', SUITE_CFG.dir);
+const SUITE_DIR = path.join(PACKAGE_ROOT, 'test/suites', SUITE);
 // Repo-relative home of the same suite, for the chart's "cases on GitHub" link. It is
 // spelled out because SUITE_DIR is not it: in the benchmark image the suite is mounted
 // under the marker package, nowhere near packages/run-types.
-const SUITE_REPO_DIR = path.posix.join('packages/run-types/test/suites', SUITE_CFG.dir);
+const SUITE_REPO_DIR = path.posix.join('packages/run-types/test/suites', SUITE);
 const caseSource = (group) => path.posix.join(SUITE_REPO_DIR, sourceFileIn(SUITE_DIR, group));
 const SUITE_PATH = path.join(SUITE_DIR, 'index.ts');
 const BIN = process.env.MION_VALIDATION_BENCH_BIN ?? path.join(REPO_ROOT, 'mion-bin/mion');
-const OUT_DIR = path.join(OUT_BASE, SUITE_CFG.bench);
+const OUT_DIR = path.join(OUT_BASE, SUITE);
 
 // The round-trips shown as columns. `enc`/`dec` name the SerializationCase thunk
 // fields; `native` synthesises JSON.stringify/parse (no thunk). Order = column order.
@@ -184,7 +184,7 @@ async function loadSuiteWithPlugin() {
   });
   try {
     const mod = await server.ssrLoadModule(SUITE_PATH);
-    return mod[SUITE_CFG.exportConst];
+    return mod.SERIALIZATION_SPEC;
   } finally {
     await server.close();
   }
@@ -312,10 +312,7 @@ function isJsonSafe(samples) {
 
 function byteLengthOf(encoded) {
   if (encoded == null) return null;
-  if (typeof encoded === 'string') return Buffer.byteLength(encoded, 'utf8');
-  if (encoded.byteLength != null) return encoded.byteLength; // ArrayBuffer / TypedArray / Buffer
-  if (encoded.length != null) return encoded.length;
-  return null;
+  return Buffer.byteLength(encoded, 'utf8');
 }
 
 function pickIters(sample) {
@@ -439,7 +436,7 @@ async function main() {
 
   const t0 = performance.now();
   const suite = await loadSuiteWithPlugin();
-  process.stdout.write(`loaded ${SUITE_CFG.exportConst} via vite + runtypes plugin (${ms(t0)})\n`);
+  process.stdout.write(`loaded SERIALIZATION_SPEC via vite + runtypes plugin (${ms(t0)})\n`);
 
   const tExtract = performance.now();
   const bodies = runGoExtractor(Object.keys(suite));
@@ -512,8 +509,8 @@ async function main() {
   progressEnd();
 
   const index = {
-    bench: SUITE_CFG.bench,
-    label: SUITE_CFG.label,
+    bench: SUITE,
+    label: 'Serialization',
     showStrategy: false,
     competitors: ROUNDTRIPS.map((rt) => rt.key),
     columnNotes: columnNotes(),
@@ -549,8 +546,8 @@ async function main() {
   fs.writeFileSync(path.join(OUT_DIR, 'index.json'), JSON.stringify(index));
 
   process.stdout.write(
-    `${SUITE_CFG.bench}: ${benched} cases benched, ${skipped} skipped (factoryThrows / unsupported) → ` +
-      `container/website/public/bench-data/${SUITE_CFG.bench}/ (total ${ms(t0)})\n`
+    `${SUITE}: ${benched} cases benched, ${skipped} skipped (factoryThrows / unsupported) → ` +
+      `container/website/public/bench-data/${SUITE}/ (total ${ms(t0)})\n`
   );
 }
 

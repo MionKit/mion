@@ -769,17 +769,12 @@ function buildCompiletimeBench() {
 // cmd_website_bench runs that stage first, so its index.json already exists here to stamp.
 function stampSerializationMeta() {
   const meta = metaBlock();
-  if (!meta) return 0;
-  let stamped = 0;
-  for (const bench of ['serialization']) {
-    const indexFile = path.join(OUT_ROOT, bench, 'index.json');
-    if (!fs.existsSync(indexFile)) continue;
-    const index = JSON.parse(fs.readFileSync(indexFile, 'utf8'));
-    index.meta = meta;
-    fs.writeFileSync(indexFile, JSON.stringify(index));
-    stamped++;
-  }
-  return stamped;
+  const indexFile = path.join(OUT_ROOT, 'serialization', 'index.json');
+  if (!meta || !fs.existsSync(indexFile)) return false;
+  const index = JSON.parse(fs.readFileSync(indexFile, 'utf8'));
+  index.meta = meta;
+  fs.writeFileSync(indexFile, JSON.stringify(index));
+  return true;
 }
 
 if (process.argv[1] && process.argv[1].endsWith('gen-docs.mjs')) {
@@ -791,6 +786,6 @@ if (process.argv[1] && process.argv[1].endsWith('gen-docs.mjs')) {
   process.stdout.write(`compiletime bench: ${c} cases → container/website/public/bench-data/compiletime/\n`);
   const a = buildAlignmentBench();
   process.stdout.write(`alignment bench: ${a} cases → container/website/public/bench-data/alignment/\n`);
-  const sm = stampSerializationMeta();
-  process.stdout.write(`serialization meta: stamped ${sm} index(es) → container/website/public/bench-data/serialization/\n`);
+  const stampNote = stampSerializationMeta() ? 'stamped' : 'skipped (no env.json or index.json yet)';
+  process.stdout.write(`serialization meta: ${stampNote} → container/website/public/bench-data/serialization/index.json\n`);
 }
