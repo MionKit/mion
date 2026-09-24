@@ -43,11 +43,11 @@ All under [`packages/run-types/test/fuzz/`](../packages/run-types/test/fuzz/):
 | `roundtrip/roundtripOracle.ts` + `roundtripRunner.ts` | The all-strategy round-trip lane (`RT-*` oracles): every codec strategy for one generated serialisable type. |
 | `binary/sizeOracle.ts` + `sizeFuzzRunner.ts` | The binary size-estimate lane (`O-SIZE-*`): in-bounds values must not resize the cold buffer, oversized ones must. |
 | `binary/binaryEncoderResize.test.ts` | Pinned regression for the first finding. |
-| `cloning/referenceClone.ts` | The clone ORACLE MODEL — a naive reference interpreter of `createCloneExactShapeFn<T>` over the reflected RunType graph; what the compiled clone is compared against (O15). |
+| `cloning/referenceClone.ts` | The clone ORACLE MODEL — a naive reference interpreter of `createRemoveUnknownKeysFn<T>` over the reflected RunType graph; what the compiled clone is compared against (O15). |
 | `cloning/extrasValue.ts` | The extras mutator — injects undeclared `__fz_extra_<n>` keys at provably-sound plain-object positions (validate stays true, a correct clone must strip them). Same one-directional soundness contract as `invalidValue.ts`. |
 | `cloning/cloneOracle.ts` | The cloning oracle layer: `CloneFuzzTarget` + the O15–O17 checks, a local Temporal-aware `deepEqual`, and the shared-mutable-reference walker. |
 | `cloning/cloneFuzzRunner.ts` | The cloning driver: `runCloneFuzz` / `runCloneFuzzForDuration` — valid / extras / junk streams per seed. |
-| `cloning/cloneFuzz.integration.test.ts` | The cloning end-to-end sweep over REAL compiled `createCloneExactShapeFn` factories, plus the CES001 throw-corpus and the cyclic-value pin. |
+| `cloning/cloneFuzz.integration.test.ts` | The cloning end-to-end sweep over REAL compiled `createRemoveUnknownKeysFn` factories, plus the RUK001 throw-corpus and the cyclic-value pin. |
 | `enrich/enrichModel.ts`, `i18nModel.ts`, `typeModFuzzRunner.ts` | The model-based enrichment lanes: random command sequences against the real CLI, checked by the `R*` / `T*` / `NL RC CB P` rule sets. |
 | `**/*.unit.test.ts` | Offline unit tests (no Go binary) over hand-built `RunType` graphs + the generator / value / budget layers. |
 
@@ -131,7 +131,7 @@ validation functions disagreeing is almost always a bug.
 
 ### The cloning oracles — a reference interpreter as the model
 
-`createCloneExactShapeFn<T>()` has no wire to round-trip, so its strong oracle
+`createRemoveUnknownKeysFn<T>()` has no wire to round-trip, so its strong oracle
 is a **model**: [`cloning/referenceClone.ts`](../packages/run-types/test/fuzz/cloning/referenceClone.ts)
 is a naive, obviously-correct interpreter of the clone contract over the same
 reflected RunType graph the mock walker reads — declared members rebuild,
@@ -151,7 +151,7 @@ internals, or index-signature objects). O17 then checks the clone comes out
 `hasUnknownKeys`-clean.
 
 Two contract edges ride along as pinned tests rather than fuzz streams:
-object-bearing unions are a **throw-corpus** (the factory must be a CES001
+object-bearing unions are a **throw-corpus** (the factory must be a RUK001
 alwaysThrow — there is no sound way to pick which declared shape to rebuild),
 and a cyclic VALUE is pinned to its accepted failure mode (RangeError stack
 overflow — values are trees by contract; there is deliberately no cycle
@@ -302,7 +302,7 @@ Adding a target: in `value/fuzz.integration.test.ts`, build a concretely-typed
 type**, so the schema must be a concrete `const` — never a generic `RunType`
 parameter passed through a helper (that injects the `unknown` runtype). The
 cloning corpus shows the other supported spelling: a type argument
-(`createCloneExactShapeFn<T>()` + `getRunType<T>()`), which needs no `const` at
+(`createRemoveUnknownKeysFn<T>()` + `getRunType<T>()`), which needs no `const` at
 all and is the more common form now.
 
 ## Findings
