@@ -161,8 +161,7 @@ function fatalFail(err: RpcError<string>, responseHeaders: any): Response {
 
 function reply(
   mionResp: MionResponse,
-  // TODO: fix issue with Native Bun Headers type messing with Node Headers type
-  // responseHeaders: Headers,
+  // any: Bun's native Headers type clashes with Node's
   responseHeaders: any
 ): Response {
   return Response.json(mionResp.body, {status: mionResp.statusCode, headers: responseHeaders});

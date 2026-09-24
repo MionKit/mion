@@ -93,30 +93,19 @@ export type HeadersMiddlewareOptions = MiddlewareOptions;
 export type RawMiddlewareOptions = Partial<Pick<RawMethod['options'], 'description' | 'alwaysRun'>>;
 
 export interface MethodsExecutionChain {
-  /** Where the route sits in `methods`. -1 on mion's own not-found chains, which answer without a
-   *  route, so anything reading `methods[routeIndex]` must exclude them (both readers do today: the
-   *  maxBodySize cap walks the flat router, which never holds one, and the body parser returns early
-   *  on `readsBody`). */
+  /** -1 on routeless not-found chains; a `methods[routeIndex]` reader must skip them (maxBodySize cap, body parser do). */
   routeIndex: number;
   methods: RemoteMethod[];
-  /** The path this chain is registered at, which IS the transformed path a request resolves to:
-   *  the lookup is a Map hit on that exact string. Undefined on the two kinds that answer for many
-   *  paths, mion's not-found chains and a merged batch chain (cached per member-path list, so one
-   *  object serves every endpoint path that reaches it); those take the request's own path. */
+  /** The exact transformed path, the Map key a request resolves by.
+   *  Undefined on not-found and merged batch chains, which serve many paths and take the request's. */
   path?: string;
-  /** Id of the batch this chain runs, and its route ids in call order. Constant per merged chain,
-   *  so they ride here rather than being copied per request. */
+  /** Batch id and route ids in call order; constant per merged chain, so kept here, not copied per request. */
   batchId?: string;
   batchRouteIds?: string[];
-  /** What the route option or the members' params types settled, in bytes. Undefined when the
-   *  types could not say. Registration detail, read only by the platform cap: a request reads
-   *  `maxBodySize`. */
+  /** Bytes the route option or params types settled, undefined if they could not; read only by the platform cap. */
   declaredBodySize?: number;
-  /** The number a request is actually read against: `declaredBodySize`, else the platform
-   *  adapter's. Folded here rather than resolved per request, and refreshed whenever either input
-   *  moves, so resolving a request reads one field and allocates nothing to carry it. */
+  /** What a request is read against: `declaredBodySize`, else the adapter's; refreshed when either moves. */
   maxBodySize: number;
-  /** False only for mion's own not-found chains (an unknown path, an unknown batch id): the request
-   *  has no route to feed, so the adapter never reads its body and the router never parses it. */
+  /** False only on not-found chains: no route to feed, so neither the adapter reads the body nor the router parses it. */
   readsBody: boolean;
 }

@@ -1,8 +1,7 @@
 import {RpcError, FatalError, MION_ROUTES, Mutable, StatusCodes, markFatal} from '@mionjs/core';
 import type {CallContext, MionHeaders, MionRequest, MionResponse, ResponseBody} from '../types/context.ts';
 
-/** The mion response for an error raised before or outside the router, for any adapter layer (node/http,
- *  aws/lambda, bun). It travels in `@thrownErrors` under the platformError key, like a route error. */
+/** The response for an error raised outside the router by any adapter; it goes in `@thrownErrors` like a route error. */
 
 export function getRouterFatalErrorResponse(returnErr: RpcError<string>, respHeaders: MionHeaders): MionResponse {
   // a platform error ends the request before any handler runs, so it is fatal by definition
