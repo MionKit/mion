@@ -25,9 +25,9 @@ func TestOptionSubsetsTakeOneValuePerGroup(t *testing.T) {
 }
 
 func TestOptionSubsetsDropOnlyImpossibleCombinations(t *testing.T) {
-	// L and A are free, T and M are the two non-default numberMode values: 2*2*3 possible subsets.
-	if got := len(OptionSubsets(ValidateOptions)); got != 12 {
-		t.Errorf("ValidateOptions subsets = %d, want 12", got)
+	// T and M are the two non-default numberMode values, so plain, T and M are the only 3 subsets.
+	if got := len(OptionSubsets(ValidateOptions)); got != 3 {
+		t.Errorf("ValidateOptions subsets = %d, want 3", got)
 	}
 	if got := len(OptionSubsets(HasUnknownKeysOptions)); got != 2 {
 		t.Errorf("HasUnknownKeysOptions subsets = %d, want 2", got)

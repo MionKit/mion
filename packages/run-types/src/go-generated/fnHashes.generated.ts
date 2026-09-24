@@ -21,7 +21,7 @@ export interface FnHashEntry {
    *  when options.rejectCircularRefs is set on such a family. */
   readonly circularGuarded?: true;
   /** Variant token → fnHash. Token is '' for option-less families, the validate
-   *  variant suffix ('', 'NL', 'NA', 'NLA'), the hasUnknownKeys variant suffix
+   *  variant suffix ('', 'NT', 'NM'), the hasUnknownKeys variant suffix
    *  ('', 'OV'), or the JSON strategy name — each optionally with a trailing
    *  'C' for the rejectCircularRefs fork on a CircularGuarded family. */
   readonly variants: Readonly<Record<string, string>>;

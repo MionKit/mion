@@ -727,7 +727,7 @@ func (state scanState) analyzeTrailingInjection(file string, call *ast.Node, cal
 		options.enable(canonicalName)
 	}
 	// The structural id stays a pure function of the resolved TS type: `ValidateOptions` does NOT fold into it,
-	// it folds into the injected fnId's variant suffix below (`itNL`, `valNA`), and the emitter renders one
+	// it folds into the injected fnId's variant suffix below (`valNT`, `valNM`), and the emitter renders one
 	// factory per (typeid, fnId) pair under that variant cache key. Same invariant the encoder / decoder
 	// strategies honour; see createRTFunctions.ts's `createJsonEncoderFn` dispatch and constants.ValidateVariantSuffix.
 	// RegExp has no literal type in TS (`/abc/i` widens to `RegExp` even under `as const`), so `typeof /abc/i`,
@@ -1332,7 +1332,7 @@ func (opts validateOptions) Any() bool { return len(opts.enabled) > 0 }
 func (opts validateOptions) Has(name string) bool { return opts.enabled[name] }
 
 // Names returns the enabled option NAMES in constants.ValidateOptions declaration order, which is the variant
-// cache-key suffix order (`itNL`, `valNA`).
+// cache-key suffix order (`valNT`, `valNM`).
 func (opts validateOptions) Names() []string {
 	if len(opts.enabled) == 0 {
 		return nil

@@ -112,7 +112,7 @@ var primaryCases = []fixtureCase{
 	}},
 	// 4. trailing-comma — trailingComma:true; argsCount 1 but list already ends
 	//    with a comma, so no leading comma is injected.
-	{"trailing_comma", "a.ts", "const v = createValidateFn<Foo>({\n  noLiterals: true,\n},);\n", func(code string) ([]protocol.Site, []protocol.Replacement) {
+	{"trailing_comma", "a.ts", "const v = createValidateFn<Foo>({\n  numberMode: 'typeof',\n},);\n", func(code string) ([]protocol.Site, []protocol.Replacement) {
 		s := site(byteIndexOf(code, ")", 0), "Foo5678")
 		s.ArgsCount = 1
 		s.FnId = "val"

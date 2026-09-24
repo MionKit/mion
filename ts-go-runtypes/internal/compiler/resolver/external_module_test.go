@@ -31,9 +31,7 @@ func scanExternal(t *testing.T, files map[string]string) protocol.Response {
 	return resp
 }
 
-// gateCodes returns the hard marker GATES (CTA0xx / PFNxxx) raised, ignoring the
-// advisory MKR no-op warnings (`noLiterals`/`noIsArrayCheck` are no-ops on some
-// types and fire MKR004/MKR005 independently of what these tests assert).
+// gateCodes returns the hard marker GATES (CTA0xx / PFNxxx) raised, ignoring advisory MKR warnings.
 func gateCodes(resp protocol.Response) []string {
 	var codes []string
 	for _, d := range resp.Diagnostics {
@@ -103,13 +101,13 @@ export const inlineJson = createJsonEncoderFn<{name: string; age: number}>();
 // imported `const` preset (declared `as const`) selects the same fn variant as
 // the inlined and the spread-merged equivalents.
 func TestExternalModule_WholeConstOptionBag(t *testing.T) {
-	const opts = `export const strict = {noLiterals: true, noIsArrayCheck: true} as const;`
+	const opts = `export const strict = {numberMode: 'typeof', rejectCircularRefs: true} as const;`
 	const code = `import {createValidateFn} from '@mionjs/run-types';
 import {strict} from './opts';
-export const whole = createValidateFn<string>(undefined, strict);
-export const spread = createValidateFn<string>(undefined, {...strict});
-export const inline = createValidateFn<string>(undefined, {noLiterals: true, noIsArrayCheck: true});
-export const none = createValidateFn<string>();
+export const whole = createValidateFn<number>(undefined, strict);
+export const spread = createValidateFn<number>(undefined, {...strict});
+export const inline = createValidateFn<number>(undefined, {numberMode: 'typeof', rejectCircularRefs: true});
+export const none = createValidateFn<number>();
 `
 	resp := scanExternal(t, map[string]string{"opts.ts": opts, "call.ts": code})
 	if codes := gateCodes(resp); len(codes) != 0 {
@@ -136,11 +134,11 @@ export const none = createValidateFn<string>();
 func TestExternalModule_WidenedConstRejected(t *testing.T) {
 	cases := map[string]map[string]string{
 		"same-module": {"call.ts": `import {createValidateFn} from '@mionjs/run-types';
-const loose = {noLiterals: true};
+const loose = {rejectCircularRefs: true};
 export const bad = createValidateFn<string>(undefined, loose);
 `},
 		"cross-module": {
-			"opts.ts": `export const loose = {noLiterals: true};`,
+			"opts.ts": `export const loose = {rejectCircularRefs: true};`,
 			"call.ts": `import {createValidateFn} from '@mionjs/run-types';
 import {loose} from './opts';
 export const bad = createValidateFn<string>(undefined, loose);

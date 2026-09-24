@@ -14,7 +14,7 @@ const standardSchemaDTS = `declare module '@mionjs/run-types' {
   export type InjectTypeFnArgs<T, F1 extends string, F2 extends string = never, F3 extends string = never> = string & {readonly __rtInjectTypeFnArgsBrand?: T; readonly __rtInjectTypeFnArgsFns?: [F1, F2, F3]};
   export type CompTimeArgs<T> = T & {readonly __rtCompTimeArgsBrand?: never};
   export type CompTimeFnArgs<T> = T & {readonly __rtCompTimeFnArgsBrand?: never};
-  export interface ValidateOptions {noLiterals?: boolean; noIsArrayCheck?: boolean}
+  export interface ValidateOptions {numberMode?: 'isFinite' | 'typeof' | 'notNaN'}
   export function createValidateFn<T>(val?: T, options?: CompTimeFnArgs<ValidateOptions>, id?: InjectTypeFnArgs<T, 'validate'>): (v: unknown) => boolean;
   export function createStandardSchema<T>(val?: T, options?: CompTimeFnArgs<ValidateOptions>, ids?: InjectTypeFnArgs<T, 'validate', 'validationErrors'>): {'~standard': {version: 1; vendor: string; validate: (v: unknown) => unknown}};
 }

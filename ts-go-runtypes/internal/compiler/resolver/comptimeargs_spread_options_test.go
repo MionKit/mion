@@ -29,10 +29,10 @@ func scanFnIds(t *testing.T, code string) []string {
 // validator that ignores the requested options).
 func TestSpreadOptions_ValidateMergeEquivalent(t *testing.T) {
 	const code = `import {createValidateFn} from '@mionjs/run-types';
-const strict = {noLiterals: true, noIsArrayCheck: true} as const;
-export const spread = createValidateFn<string>(undefined, {...strict});
-export const inline = createValidateFn<string>(undefined, {noLiterals: true, noIsArrayCheck: true});
-export const none = createValidateFn<string>();
+const strict = {numberMode: 'typeof', rejectCircularRefs: true} as const;
+export const spread = createValidateFn<number>(undefined, {...strict});
+export const inline = createValidateFn<number>(undefined, {numberMode: 'typeof', rejectCircularRefs: true});
+export const none = createValidateFn<number>();
 `
 	fnIds := scanFnIds(t, code)
 	if len(fnIds) != 3 {
@@ -48,26 +48,30 @@ export const none = createValidateFn<string>();
 }
 
 // TestSpreadOptions_ValidateOverrideOrder pins last-write-wins: an inline
-// `noLiterals: false` after `{...strict}` (which sets it true) disables the
-// option, so the variant matches the inlined `{noIsArrayCheck: true}` — NOT
-// the both-options variant.
+// option after `{...strict}` replaces the spread-in value, for both the
+// `numberMode` enum and the `rejectCircularRefs` boolean.
 func TestSpreadOptions_ValidateOverrideOrder(t *testing.T) {
 	const code = `import {createValidateFn} from '@mionjs/run-types';
-const strict = {noLiterals: true, noIsArrayCheck: true} as const;
-export const overridden = createValidateFn<string>(undefined, {...strict, noLiterals: false});
-export const onlyArray = createValidateFn<string>(undefined, {noIsArrayCheck: true});
-export const both = createValidateFn<string>(undefined, {noLiterals: true, noIsArrayCheck: true});
+const strict = {numberMode: 'typeof', rejectCircularRefs: true} as const;
+export const modeOverridden = createValidateFn<number>(undefined, {...strict, numberMode: 'notNaN'});
+export const notNaNCircular = createValidateFn<number>(undefined, {numberMode: 'notNaN', rejectCircularRefs: true});
+export const circularOff = createValidateFn<number>(undefined, {...strict, rejectCircularRefs: false});
+export const onlyTypeof = createValidateFn<number>(undefined, {numberMode: 'typeof'});
+export const both = createValidateFn<number>(undefined, {numberMode: 'typeof', rejectCircularRefs: true});
 `
 	fnIds := scanFnIds(t, code)
-	if len(fnIds) != 3 {
-		t.Fatalf("expected 3 sites, got %d: %v", len(fnIds), fnIds)
+	if len(fnIds) != 5 {
+		t.Fatalf("expected 5 sites, got %d: %v", len(fnIds), fnIds)
 	}
-	overridden, onlyArray, both := fnIds[0], fnIds[1], fnIds[2]
-	if overridden != onlyArray {
-		t.Errorf("inline `noLiterals: false` must override the spread-in `true`: overridden FnId=%q, onlyArray FnId=%q", overridden, onlyArray)
+	modeOverridden, notNaNCircular, circularOff, onlyTypeof, both := fnIds[0], fnIds[1], fnIds[2], fnIds[3], fnIds[4]
+	if modeOverridden != notNaNCircular {
+		t.Errorf("inline `numberMode: 'notNaN'` must override the spread-in 'typeof': got %q, want %q", modeOverridden, notNaNCircular)
 	}
-	if overridden == both {
-		t.Errorf("override not honored: overridden FnId=%q equals the both-options variant", overridden)
+	if circularOff != onlyTypeof {
+		t.Errorf("inline `rejectCircularRefs: false` must override the spread-in `true`: got %q, want %q", circularOff, onlyTypeof)
+	}
+	if modeOverridden == both || circularOff == both {
+		t.Errorf("override not honored: an overridden FnId equals the spread-only variant %q", both)
 	}
 }
 
@@ -102,11 +106,11 @@ export const inlineDirect = createJsonEncoderFn<{x: number}>(undefined, {strateg
 // reader: an options preset imported from another module merges like a
 // same-module one (the trace follows import aliases).
 func TestSpreadOptions_CrossModuleFragment(t *testing.T) {
-	const optsModule = `export const strict = {noLiterals: true, noIsArrayCheck: true} as const;`
+	const optsModule = `export const strict = {numberMode: 'typeof', rejectCircularRefs: true} as const;`
 	const code = `import {createValidateFn} from '@mionjs/run-types';
 import {strict} from './opts';
-export const spread = createValidateFn<string>(undefined, {...strict});
-export const inline = createValidateFn<string>(undefined, {noLiterals: true, noIsArrayCheck: true});
+export const spread = createValidateFn<number>(undefined, {...strict});
+export const inline = createValidateFn<number>(undefined, {numberMode: 'typeof', rejectCircularRefs: true});
 `
 	r := setupInline(t, map[string]string{"opts.ts": optsModule, "call.ts": code})
 	resp := r.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"call.ts"}})
