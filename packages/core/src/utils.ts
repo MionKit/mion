@@ -35,9 +35,7 @@ export function toBase64Url(str: string): string {
   return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-/** The names a ROUTE may not have: a route id is an object key on both ends of the wire and a method name on the
- *  client's proxy. Wider than the resolver's `reflection.UnsafePropertyNames`, which governs DATA keys, where only
- *  `__proto__` is a hazard. Checks `__proto__`, `prototype` and `constructor`. */
+/** Route ids are object keys and client proxy methods, so this is wider than the data-key `reflection.UnsafePropertyNames`. */
 export function isUnsafePropertyName(name: string): boolean {
   // length first, so a name of any other length costs one integer compare and no string compare
   const length = name.length;
