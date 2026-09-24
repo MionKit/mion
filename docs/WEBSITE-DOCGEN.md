@@ -44,8 +44,7 @@ refuses to ship a page whose benchmark would render empty.
 | Validation                          | `validation`            | `gen-docs.mjs` (from `pnpm miondevx bench`)          |
 | Validation Formats                  | `validation-formats`    | `gen-docs.mjs`                                  |
 | Validation Errors (+ Formats)       | `validation` / `validation-formats`, `metric="validationErrors"` | `gen-docs.mjs` |
-| Serialization                       | `serialization`         | `gen-serialization.mjs --suite serialization`   |
-| Serialization Formats               | `serialization-formats` | `gen-serialization.mjs --suite format-serialization` |
+| Serialization                       | `serialization`         | `gen-serialization.mjs`                         |
 | Type Checking                       | `typecost`              | `gen-docs.mjs` (from `pnpm miondevx bench typecost`) |
 
 Two pages can share one dataset: the validation and validation-errors pages read the same
@@ -89,9 +88,9 @@ container/benchmarks/**  ──run in container──▶  container/benchmarks/r
    competitor's per-case source out of `container/benchmarks/competitors/<lib>/cases.ts`
    through a TS-compiler-API parse for the hover panel.
 3. **[gen-serialization.mjs](../scripts/website/bench-data/gen-serialization.mjs)** runs
-   **inside** the container (Node 26, native Temporal) and writes the `serialization` +
-   `serialization-formats` datasets directly. `gen-docs.mjs` afterwards stamps the shared
-   run-environment meta onto them so every page shows the same "measured on …" banner.
+   **inside** the container (Node 26, native Temporal) and writes the `serialization`
+   dataset directly. `gen-docs.mjs` afterwards stamps the shared
+   run-environment meta onto it so every page shows the same "measured on …" banner.
 4. **[embed-panel-highlights.mjs](../container/website/scripts/embed-panel-highlights.mjs)**
    runs at `nuxt generate` time and bakes Shiki HTML into each `<case>.json`, because a
    static deploy has no `/api/highlight` server.

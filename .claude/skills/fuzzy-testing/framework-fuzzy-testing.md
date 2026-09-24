@@ -195,10 +195,10 @@ const ok = target.validate(value);
 const noErrors = target.getValidationErrors(value).length === 0;
 if (ok !== noErrors) fail('O4', `validate=${ok} but errors disagree`);
 
-// RunTypes O12 (real): the JSON and binary wires must agree on the same value.
-const jsonWire = target.jsonEncode(value);
-const viaBinary = target.jsonEncode(target.binaryDecode(target.binaryEncode(value)));
-if (jsonWire !== viaBinary) fail('O12', 'JSON and binary wires disagree');
+// RunTypes O15 (real): the compiled clone must match a slow reference interpreter.
+const out = target.clone(value);
+const reference = referenceClone(target.schema, value);
+if (!deepEqual(out, reference)) fail('O15', 'clone diverges from the reference interpreter');
 ```
 
 **⑥ Change the input in a known way, and the output changes the way you predicted**
@@ -275,7 +275,7 @@ uses the **wire image** (not value equality) so a benign representation differen
 never fires falsely:
 
 ```ts
-// fuzzOracle.ts O5/O6 compare encode∘decode∘encode, NOT value equality —
+// fuzzOracle.ts O5 compares encode∘decode∘encode, NOT value equality —
 // sidesteps the optional-`undefined`-key vs dropped-key mismatch (a false positive).
 // invalidValue.ts only corrupts where `proven` is true; never under union/any/index-sig.
 ```
@@ -459,8 +459,6 @@ export interface FuzzTarget {
   getValidationErrors: (v: unknown) => unknown[];
   jsonEncode?: (v: unknown) => string | undefined;
   jsonDecode?: (s: string) => unknown;
-  binaryEncode?: (v: unknown) => ArrayBuffer;
-  binaryDecode?: (b: ArrayBuffer) => unknown;
 }
 // each check*(target, value, ctx) → Violation | null   ← one rule, one function
 ```
@@ -553,10 +551,10 @@ Pick the tactic by the **shape of the check you already have**:
 
 | The example asserts…                             | Lift it to…                                                        | Real pair in this repo                                                                                  |
 | ------------------------------------------------ | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
-| a **relation** already (round-trip, idempotence) | the same relation over an input maker — _trivial_                  | `assertBinaryRoundTrip` (serializationAsserts.ts:205) → `checkBinaryStable` (fuzzOracle.ts:187)         |
+| a **relation** already (round-trip, idempotence) | the same relation over an input maker — _trivial_                  | `assertCloneCloneRoundTrip` (serializationAsserts.ts) → `checkJsonStable` (fuzzOracle.ts)               |
 | **true/false** on a hand-picked good/bad value   | two input makers + the **consistency invariant**                   | `assertGetValidationErrorsContract` (validationAsserts.ts:492) → `checkErrorsAgree` (fuzzOracle.ts:131) |
 | a **constant you can recompute** (`toBe(5)`)     | a **reference rule** (differential) or a predicted-change relation | —                                                                                                       |
-| a **hardcoded regression** ("this once broke")   | **fuzz the neighbourhood** of that hazard                          | `binaryEncoderResize.test.ts` (50 small encodes + 1 big) → varied-length mocks                          |
+| a **hardcoded regression** ("this once broke")   | **fuzz the neighbourhood** of that hazard                          | —                                                                                                       |
 
 The round-trip case is the gift: `expect(decode(encode(x))).toEqual(x)` is _already_
 the rule — swap the literal `x` for `createMockDataFn<T>()` and you are done. The
@@ -574,7 +572,7 @@ fuzzOracle.ts:94/106/131).
 
 The lift is cheap because the rule wants to live in **one place, called from both
 lanes**. The repo's `test/util/*Asserts.ts` files **are** the shared rule layer seen
-from the example side: `assertValidateStatic`, `assertBinaryRoundTrip`, … each encode
+from the example side: `assertValidateStatic`, `assertCloneCloneRoundTrip`, … each encode
 one rule, and a shared normaliser (`normalizeForComparison` / `deepCloneForRoundTrip`,
 equalsHelpers.ts:39) is imported by **both** `serializationAsserts.ts:11` and
 `idIntegrityAsserts.ts:28`.

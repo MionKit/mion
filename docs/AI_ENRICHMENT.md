@@ -35,7 +35,7 @@
 
 ## Why this is a new artifact class
 
-Everything RunTypes emits today — validators, JSON/binary codecs, the reflection
+Everything RunTypes emits today — validators, JSON codecs, the reflection
 bundle — is a **pure function of the type**: deterministic, regenerated every
 build, never committed, correct by construction. There is no "sync" problem
 because there is nothing to keep in sync; the artifact *is* the type, recomputed.
@@ -54,7 +54,7 @@ All of it lives only as regenerated files under the gitignored
 
 So these are **satellite artifacts keyed by a type**: authored once, committed,
 and validated against the type forever after. They are *not* a code-emit family
-like `validate`/`json`/`binary` — there is no runtime codegen and nothing on the
+like `validate`/`json` — there is no runtime codegen and nothing on the
 hot Vite path. The compiler's only jobs are (1) **`enrich`** — emit a committed
 skeleton from the live type, and (2) **`enrich --no-emit`** — validate the authored literal
 against the live type. Consumers reach the result through an ordinary committed
@@ -1053,7 +1053,7 @@ production graph. No special registration-gating mechanism required.
   bound, always carry the raw param value and stop overloading `val` with messages.
   A small, localized change to the format-error emit in
   [`ts-go-runtypes/internal/cachegen/typefunctions/formats/emit.go`](../ts-go-runtypes/internal/cachegen/typefunctions/formats/emit.go).
-- **No new emit family.** Unlike `validate`/`json`/`binary`, this feature adds **no**
+- **No new emit family.** Unlike `validate`/`json`, this feature adds **no**
   runtime codegen and nothing on the hot Vite path. The `enrich` skeleton emitter is a
   one-shot CLI walk; there is no per-build emitter, no id-routing, and no registry.
   Keep it out of the `operations` / `typefns.Families` registries.
