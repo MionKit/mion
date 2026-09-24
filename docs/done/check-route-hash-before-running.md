@@ -58,6 +58,12 @@ compares them before anything runs.
 - **Version recovery compares `syncId` only** (`rowsAgree`, `packages/client/src/lib/apiVersionRecovery.ts`). The
   parity tests still compare every row field a client acts on, through `packages/client/test/lib/clientRowView.ts`;
   `isAsync` is out of it (the dispatcher flips it at runtime).
+- **Bundled rows are never recovered, fetched rows always are.** A bundled row is what the calling code was built
+  against, so a mismatch is final: the sync check's `route-types-mismatch` is not resent, and version recovery
+  reports `api-version-mismatch` without swapping the row. A fetched row is a cache of the server's, restored from
+  the store or learned on this page alike: a `route-types-mismatch` forgets it (memory, store and any queued write,
+  `forgetFetchedMetadata`) and resends once, and version recovery replaces it and saves it. Rows the server hands
+  over in a `route-sync-required` refusal are saved too (`installMethodRows` persists).
 
 ## Related fixes that shipped with it
 
@@ -85,10 +91,12 @@ compares them before anything runs.
   syntax tree.
 - `test/mixed/routeDrift.spec.ts`: one file holds the routes a mixed client was built against and the routes the
   server moved on to; the server runs in the test process and the router is reset between the two. Unchanged routes
-  and options-only changes run; a changed params type, return type or switch to the compact parser is refused with
-  no handler run; a
-  changed middleware is answered by its own validation; a fetched route's first call is refused once and resent; a fetched route
-  whose saved row predates the server is relearned, never looped.
+  and options-only changes run; a bundled route whose params type, return type or wire format changed is refused
+  with no resend and no handler run; a changed middleware is answered by its own validation; a fetched route's first
+  call is refused once and resent; a fetched row, saved on an earlier page or learned on this one, that predates the
+  server is relearned and saved, never looped.
+- `test/lib/apiBuildVersion.spec.ts`: version recovery refreshes and saves a fetched row, keeps and reports a bundled
+  one; `forgetFetchedMetadata` clears memory, the store and a queued write, and leaves a bundled row alone.
 
 ## Docs
 
