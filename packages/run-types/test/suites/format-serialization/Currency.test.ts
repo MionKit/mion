@@ -1,5 +1,4 @@
-// format-serialization / Currency — every CURRENCY case run through every JSON
-// encoder × decoder pairing, exactly like
+// format-serialization / Currency — every CURRENCY case through every JSON encoder × decoder pairing, like
 // NumberFormat: the brand must never change what goes on the wire.
 import {describe, it} from 'vitest';
 import {CURRENCY} from './Currency.ts';

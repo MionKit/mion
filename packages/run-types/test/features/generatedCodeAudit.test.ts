@@ -4,7 +4,8 @@
 // line terminator, unicode, a leading digit, a space) plus a marker planted so
 // that any text escaping its quotes is visible in the program text. Every
 // family is compiled, every emitted body in this file's cache is run through
-// the generated-code oracles, and the nasty values still round-trip. The secgen fuzz lane runs the same oracles over generated types.
+// the generated-code oracles, and the nasty values still round-trip.
+// The secgen fuzz lane runs them over generated types.
 
 import {describe, expect, it} from 'vitest';
 import {

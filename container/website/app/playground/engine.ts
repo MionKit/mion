@@ -316,13 +316,8 @@ export interface CacheModule {
   code: string;
 }
 
-// generatedCache returns the generated cache modules for this factory + type,
-// one entry per family module the resolver emits (ModuleMode allSingle = one per
-// family tag). A single-function type is one module; a JSON codec is a few
-// (the composite + the primitives it looks up at runtime), which import each
-// other: the UI labels each with its module name and keeps the imports so the
-// cross-module structure is visible. For reflection (getRunType) it is the single
-// runtype data bundle.
+// One module per family tag (allSingle); a JSON codec spans several, and their imports stay so the UI shows the links.
+// For reflection (getRunType) it is the single runtype data bundle.
 export async function generatedCache(
   factory: string,
   userCode: string,

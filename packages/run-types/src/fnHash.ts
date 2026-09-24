@@ -20,9 +20,7 @@ export interface FnHashOptions {
    *  as canonical option names (numberTypeof / numberNotNaN) in the variant token. */
   numberMode?: string;
   strategy?: string;
-  /** Arms the circular-reference guard — forks a CircularGuarded family's fnHash
-   *  (validate / validationErrors / jsonEncoder) by appending the 'C'
-   *  variant token. Ignored for non-guarded families. */
+  /** Adds the 'C' fnHash token on CircularGuarded families (validate / validationErrors / jsonEncoder) only. */
   rejectCircularRefs?: boolean;
 }
 

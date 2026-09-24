@@ -765,13 +765,8 @@ function buildCompiletimeBench() {
   return cases.length;
 }
 
-// The serialization dataset is produced separately by
-// gen-serialization-bench.mjs (inside the Node 26 container, where results/env.json
-// is not mounted), so unlike the benches built here it ships without the run-
-// environment meta - and its page renders no "measured on ..." banner. Stamp the
-// SAME metaBlock onto its already-written index.json so EVERY benchmark page is
-// consistent. cmd_website_bench runs the serialization stage before this script, so
-// the file exists by now; no-op when the dataset (or env.json) is absent.
+// gen-serialization.mjs runs in a container without results/env.json, so its page would lack the "measured on" banner.
+// cmd_website_bench runs that stage first, so its index.json already exists here to stamp.
 function stampSerializationMeta() {
   const meta = metaBlock();
   if (!meta) return 0;

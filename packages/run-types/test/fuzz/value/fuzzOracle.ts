@@ -770,15 +770,8 @@ export function checkJsonStable(target: FuzzTarget, value: unknown, ctx: CheckCt
   return null;
 }
 
-/** O12 — the clone and compact JSON wires must agree on the same DataOnly
- *  value. Both are normalised through `jsonEncode`, so representation
- *  differences between the wires don't register as a mismatch:
- *  `jsonEncode(compactDecode(compactEncode v))` must equal `jsonEncode(v)`.
- *  Needs no projection oracle: a divergence means one wire lost or reshaped
- *  data the other kept. Throws are left to O5/O7. The caller skips a type
- *  whose optional property can hold a present `null` (compact collapses it to
- *  absent by design). Differing text falls through to a structural compare, so
- *  key order alone is never a violation. **/
+/** O12 — jsonEncode(compactDecode(compactEncode v)) must equal jsonEncode(v), structurally, so key order is free.
+ *  The caller skips types whose optional can hold a present `null`: compact collapses it to absent by design. **/
 export function checkCrossWire(target: FuzzTarget, value: unknown, ctx: CheckCtx): Violation | null {
   if (!target.jsonEncode || !target.compactEncode || !target.compactDecode) return null;
   let jsonWire: string | undefined;

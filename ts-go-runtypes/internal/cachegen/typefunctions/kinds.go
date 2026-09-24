@@ -44,12 +44,9 @@ func objectHasCallSignature(rt *reflection.RunType, ctx *EmitContext) bool {
 	return false
 }
 
-// callableLeafSubstitute maps an unsupported leaf to the RunType whose kind drives the per-family diag code:
-// a callable interface (objectLiteral with a KindCallSignature child) answers that call signature, so
-// DiagCodeForLeaf emits the family's FUNCTION code and an alwaysThrow entry instead of "", which would
-// silently skip the entry and leave a dangling same-family dependency (a KindMissing stub a JSON composite
-// binds with an unguarded `utl.getRT(key).fn`). A nil refTable or an
-// unresolvable ref falls back to the leaf, keeping the silent skip as the unknown-future-kind safety net.
+// callableLeafSubstitute swaps a callable interface for its call signature so DiagCodeForLeaf yields a FUNCTION code.
+// A "" code silently skips the entry: a JSON composite binds that dangling dep with an unguarded `utl.getRT(key).fn`.
+// A nil refTable or unresolvable ref returns the leaf, keeping the silent skip as the unknown-future-kind safety net.
 func callableLeafSubstitute(leaf *reflection.RunType, refTable map[string]*reflection.RunType) *reflection.RunType {
 	if leaf == nil || leaf.Kind != reflection.KindObjectLiteral {
 		return leaf

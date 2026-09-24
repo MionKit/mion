@@ -9,8 +9,7 @@ import (
 )
 
 // numberFormatEmitter implements the format named "numberFormat", FormatNumber<P> in `@mionjs/run-types/formats`.
-// `float` is a generation and presentation tag like isCurrency, never a failable constraint: an IEEE float legally
-// holds whole values (2.0), so validation never rejects them. It steers mock generation toward fractional samples.
+// `float`, like isCurrency, only steers mocks and never fails validation: a float legally holds whole values (2.0).
 type numberFormatEmitter struct{}
 
 // numberFormatName is the canonical FormatAnnotation.name the JS-side FormatNumber alias brands under.

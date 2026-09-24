@@ -420,12 +420,7 @@ func renderEntryWithDeps(runType *reflection.RunType, settings constants.CacheMo
 		// safety net for unknown future kinds, whose runtime cache miss
 		// createXxx<T>'s identity fallback catches via the KindMissing stub.
 		if leafProvider, ok := emitter.(LeafDiagCodeProvider); ok && walker.UnsupportedLeaf != nil {
-			// A callable interface latches the OBJECTLITERAL as the unsupported
-			// leaf, and DiagCodeForLeaf maps only the function-ish kinds, so it
-			// would resolve to "" and the entry would be SILENTLY SKIPPED — leaving
-			// a dangling dep that a JSON composite binds with an unguarded
-			// getRT(key).fn. Substitute the
-			// call-signature child so it renders as an alwaysThrow, like a bare function.
+			// A callable interface would be silently skipped (see callableLeafSubstitute); render it as an alwaysThrow.
 			diagLeaf := callableLeafSubstitute(walker.UnsupportedLeaf, walker.RefTable)
 			if diagCode := leafProvider.DiagCodeForLeaf(diagLeaf); diagCode != "" {
 				kindLabel := leafKindLabel(diagLeaf)
@@ -898,12 +893,8 @@ func boolJS(b bool) string {
 	return "false"
 }
 
-// fnEntryArgHoles maps a tail slot index to the rendered values that read back IDENTICALLY as a JS array hole
-// once the JS side zips the tuple and re-derives the entry. Holing such a value drops its literal bytes even
-// when the slot is INTERIOR: a later non-default slot (the live factory) would otherwise block the trailing
-// trim and leave `undefined,false,[],[]` spelled out. Slots absent from the map (the cache key, typeName) are
-// never holed. Indices match the full entry tail
-// (0 key, 1 typeName, 2 code, 3 isNoop, 4 rtDependencies, 5 pureFnDependencies, 6 createRTFn, 7 alwaysThrowMessage).
+// fnEntryArgHoles maps an entry tail slot (0 key, 1 typeName, never holed) to values that read back as a JS array hole.
+// Interior slots are holed too, or a later non-default one (the live factory) leaves `undefined,false,[],[]` spelled out.
 var fnEntryArgHoles = map[int][]string{
 	2: {"undefined"},       // code — derived from createRTFn in functions mode
 	3: {"false"},           // isNoop — a hole reads as not-noop
@@ -913,9 +904,8 @@ var fnEntryArgHoles = map[int][]string{
 	7: {"undefined"},       // alwaysThrowMessage — a hole reads as no-throw
 }
 
-// holeifyArgs replaces every hole-equivalent slot (see fnEntryArgHoles) with a JS array hole (""), then drops
-// the trailing run of holes. INTERIOR defaults are holed in place, so a trailing non-default slot still lands
-// at its fixed index. The runtime tolerates a hole at every one of these slots.
+// holeifyArgs holes defaults in place, so a later non-default slot keeps its index, then trims the trailing holes.
+// The runtime tolerates a hole at every one of these slots.
 func holeifyArgs(args []string) []string {
 	out := append([]string(nil), args...)
 	for i := range out {

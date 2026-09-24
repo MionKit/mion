@@ -148,8 +148,7 @@ const DEFAULT_BANDWIDTH_MBPS = 100;
 // far fewer cycles + iterations, so numbers are noisy but every panel still renders.
 const QUICK = process.env.MION_VALIDATION_BENCH_QUICK === '1';
 
-// Workload knobs. Modest vs the suite exporter — every case runs 4 round-trips ×
-// (encode + decode), so keep each measurement cheap but stable.
+// Kept modest: every case runs 4 round-trips × (encode + decode).
 const OPS_CYCLES = QUICK ? 2 : 8;
 const OPS_ITERS = QUICK ? 100 : 800;
 const OPS_WARMUP = QUICK ? 10 : 50;
@@ -329,8 +328,7 @@ function pickIters(sample) {
   return OPS_ITERS;
 }
 
-// Fresh sample list for a case (each call rebuilds the values so encode-in-place
-// mutation never leaks across pool entries).
+// Rebuilt on every call so encode-in-place mutation never leaks across pool entries.
 function jsonValues(caseObj) {
   return (caseObj.getTestDataForStringify ?? caseObj.getTestData)().values;
 }

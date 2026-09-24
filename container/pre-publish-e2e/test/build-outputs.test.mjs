@@ -13,8 +13,7 @@ import {fileURLToPath} from 'node:url';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const APPS = path.join(HERE, '..', 'apps');
 
-// build-vite runs the full matrix (12 families); each light smoke runs the lean
-// minimal subset.
+// build-vite runs all 12 families; each light smoke runs the lean subset.
 const HEAVY = 'build-vite';
 const SMOKES = ['smoke-esbuild', 'smoke-rollup', 'smoke-rolldown', 'smoke-webpack', 'smoke-rspack', 'smoke-source', 'smoke-types-in-src', 'smoke-bun'];
 

@@ -107,24 +107,15 @@ export const _ = createValidateFn<{a: string}>();
 	}
 }
 
-// TestDemandScope_ItSeededByCrossFamilyUnion — the cross-family proof: a
-// file that ONLY serializes a NON-merging union (conflicting shared prop whose
-// bigint member needs a transform, so the JSON union encoder discriminates
-// members via the per-member validate validators) and NEVER calls
-// createValidateFn MUST still emit val_ entries — the union members — because
-// the prepareForJsonClone entry's cross-family module deps name them and the
-// resolver's fixpoint renders them. Without that the union round-trip silently
-// corrupts (missing val_<member> ⇒ `?? true` ⇒ first member always matches).
+// TestDemandScope_ItSeededByCrossFamilyUnion: a serialize-only non-merging union still emits its members' val_ entries.
+// Without them the round-trip silently corrupts: a missing val_<member> reads `?? true`, so the first member matches.
 func TestDemandScope_ItSeededByCrossFamilyUnion(t *testing.T) {
 	resp := scopeScan(t, `import {createJsonEncoderFn} from '@mionjs/run-types';
 export const _ = createJsonEncoderFn<{a: {n: bigint}} | {a: {s: string}}>();
 `)
-	// Sanity: the clone family IS demanded by createJsonEncoderFn.
 	if !hasFamilyEntry(resp, "prepareForJsonClone") {
 		t.Fatalf("createJsonEncoderFn must emit pjs entries, got none")
 	}
-	// The proof: no createValidateFn site, yet the union's per-member val entries
-	// are rendered from the prepareForJsonClone entry's cross-family edges.
 	if !hasFamilyEntry(resp, "validate") {
 		t.Fatalf("cross-family fixpoint broken: a createJsonEncoderFn-only union file must still emit val member entries, got keys: %v", familyEntryKeys(resp, "prepareForJsonClone"))
 	}

@@ -14,13 +14,10 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// JSON composite codegen: `createJsonEncoderFn<T>()` / `createJsonDecoderFn<T>()` are the only RT families whose runtime
-// work is COMPOSED from several primitives selected by a compile-time `strategy`. Composing here, one Go-emitted entry
-// per (typeId, strategy) wrapping the primitives with native JSON, lets the TS side collapse to the same
-// `resolveTupleEntry` lookup as every other family.
-// A composite is keyed by the strategy's composite fnHash and looks its primitives up by THEIR fnHash
-// (`operations.PlainHash(primOp)+"_"+id`); its module Deps name exactly those entries, so the import closure pulls the
-// primitives and their transitive child factories. Composites do NOT walk types and emit no cross-family edges.
+// The JSON codecs are the only families COMPOSED from primitives by a compile-time `strategy`; one entry per (typeId,
+// strategy) keeps the TS side on the same `resolveTupleEntry` lookup as every other family.
+// Keyed by the composite fnHash, it finds primitives by THEIR fnHash; Deps name exactly those so imports pull them in.
+// Composites do NOT walk types and emit no cross-family edges.
 type jsonCompositeFamily struct {
 	// opName is the composite operation ("jsonEncoder" / "jsonDecoder").
 	opName string

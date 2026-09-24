@@ -145,11 +145,7 @@ export function assertCompactRoundTrip(c: SerializationCase): void {
 }
 
 // ---------- value-first SCHEMA round-trips -------------------------
-// The schema thunks (`schemaEncoder` / `schemaDecoder`) build their `RT.*`
-// model inline and feed it through the factory's value-first overload. This
-// helper pairs them for a representative round-trip — proving the value-first
-// path resolves a working factory — without re-testing every strategy (those
-// are covered type-first).
+// One round-trip proves the value-first overload resolves a working factory; every strategy is covered type-first.
 
 /** No-op when either schema thunk is omitted or 'not-supported'. **/
 export function assertSchemaJsonRoundTrip(c: SerializationCase): void {

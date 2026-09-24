@@ -156,8 +156,7 @@ export {
   type JsonValueStrategy,
 } from './createRTFunctions.ts';
 
-// Per-type custom function overrides — the WRITE side of the createX routing. Declared after
-// createRTFunctions so the Fn aliases it exports are initialized first.
+// The write side of createX routing; declared after createRTFunctions so its Fn aliases initialize first.
 export {
   overrideValidate,
   overrideGetValidationErrors,
@@ -207,11 +206,8 @@ export {
   type JsonSchemaDocFn,
 } from './standard/jsonSchemaDoc.ts';
 
-// Circular-reference guard for the live-object families (validate / getValidationErrors /
-// jsonEncode). Armed per call with the COMPILE-TIME option
-// `{rejectCircularRefs: true}`; there is no global toggle, it forks the factory's fnHash like any
-// other compile flag. The encoders throw this error on a cycle; validate returns false and
-// getValidationErrors records a `{expected: 'circular'}` issue.
+// Armed only by the compile-time `{rejectCircularRefs: true}`, which forks the fnHash; there is no global toggle.
+// On a cycle the encoders throw this, validate returns false and getValidationErrors records `{expected: 'circular'}`.
 export {CircularReferenceError, type CircularPath} from './runtypes/circular.ts';
 
 // Prefix of the error every decoder throws for a prototype-named key; the router matches on it.

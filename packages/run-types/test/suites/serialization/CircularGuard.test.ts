@@ -1,7 +1,5 @@
-// serialization / CircularGuard — every circular-guard case run through the
-// JSON encoder. The guard is armed per-call via `{rejectCircularRefs:
-// true}` inside each thunk; a cyclic value throws CircularReferenceError, an
-// acyclic control encodes without throwing.
+// serialization / CircularGuard — each thunk arms `{rejectCircularRefs: true}`; a cyclic value throws
+// CircularReferenceError, an acyclic control encodes.
 import {describe, it} from 'vitest';
 import {CIRCULAR_GUARD} from './CircularGuard.ts';
 import {assertCircularJsonEncode} from '../../util/circularGuardAsserts.ts';

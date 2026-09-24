@@ -8,9 +8,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// UnsafeKeyMessage prefixes the one message every decoder throws for a wire
-// key named in reflection.UnsafePropertyNames (the runtime's
-// UNSAFE_PROPERTY_NAME_MESSAGE carries the same text).
+// UnsafeKeyMessage prefixes the error for an UnsafePropertyNames wire key; JS UNSAFE_PROPERTY_NAME_MESSAGE must match.
 const UnsafeKeyMessage = "[mion] Unsafe property name: "
 
 // unsafeKeyCheck renders the JS condition true for a wire key no decoder, validator or rebuilding encoder
@@ -42,9 +40,8 @@ func unsafeKeyThrow(keyVar string) string {
 	return "if (" + unsafeKeyCheck(keyVar) + ") throw new Error(" + quoteJS(UnsafeKeyMessage) + " + " + keyVar + ");"
 }
 
-// unsafeKeySkip: the rebuild rule, an encoder or clone writing wire keys onto a fresh object leaves it out.
-// The in-place encoders (mutate, stringify) carry no guard on purpose: they never write a key onto an
-// object, and the receiving decoder refuses it, so a compare per key would buy nothing.
+// unsafeKeySkip leaves an unsafe wire key out of a freshly rebuilt object.
+// The in-place encoders (mutate, stringify) have no guard on purpose: they write no key, and the decoder refuses it.
 func unsafeKeySkip(keyVar string) string {
 	return "if (" + unsafeKeyCheck(keyVar) + ") continue;"
 }

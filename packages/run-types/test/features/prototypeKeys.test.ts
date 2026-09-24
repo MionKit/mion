@@ -265,8 +265,7 @@ describe('the rebuilding encoders and the cloner skip a `__proto__` wire key; th
 });
 
 describe('Map keys and Set members are values, never property names', () => {
-  // `new Map([['__proto__', 1]])` stores a plain string key: nothing walks a
-  // prototype chain to read it, so all three names are ordinary data here.
+  // A Map key never walks a prototype chain, so all three names are ordinary data here.
   // A Record nested inside a Map value still refuses `__proto__`.
   const NAMES = ['__proto__', 'prototype', 'constructor'] as const;
   interface Bags {

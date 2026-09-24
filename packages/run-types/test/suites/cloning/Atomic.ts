@@ -53,10 +53,7 @@ export const ATOMIC = {
     }),
     passThrough: true,
   },
-  // Magnitude-split number cases: in the serialization suite these isolate
-  // each magnitude's JSON size. A value-level clone has no wire, so every
-  // magnitude behaves identically — keys and values are mirrored anyway to keep
-  // the two suites row-for-row comparable.
+  // Mirrors the serialization suite's magnitude rows to stay comparable; a clone has no wire, so all behave alike.
   number_small: {
     title: 'number (small)',
     description: 'A small single-digit integer passes through by value — magnitude is irrelevant to a clone.',

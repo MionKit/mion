@@ -1,4 +1,4 @@
-// Family 12 — Custom function overrides + custom pure functions.
+// Family 11 — Custom function overrides + custom pure functions.
 //   - overrideValidate<T>(fn) makes createValidateFn<T>() return the custom
 //     (stricter) function instead of the generated one.
 //   - registerPureFnFactory registers a self-contained helper the build inlines

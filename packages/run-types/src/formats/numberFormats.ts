@@ -1,6 +1,5 @@
-// Number-format TYPE aliases; validation, serialization and
-// mocking are emitted elsewhere. `TypeFormat` IS imported as a value (not `import type`): the
-// value-level import keeps each brand alias's reflection metadata reachable for tsgo.
+// Number-format TYPE aliases; validation, serialization and mocking are emitted elsewhere. `TypeFormat` is a value
+// import (not `import type`) so each brand alias's reflection metadata stays reachable for tsgo.
 // (ref: packages/type-formats/src/number/{numberFormat.runtype.ts,defaultNumberFormats.ts}).
 
 import {TypeFormat} from '../runtypes/typeFormat.ts';
@@ -12,9 +11,7 @@ import {presetBuilder} from '../runtypes/builderCore.ts';
 // in Go: a lower bound is inclusive (`min`) OR exclusive (`gt`), never both, likewise the upper bound.
 export interface NumberParams {
   integer?: boolean;
-  /** Generation/presentation tag, NEVER a failable constraint (a float legally holds whole values
-   *  like 2.0): steers mocks toward fractional samples.
-   *  Mutually exclusive with `integer`. */
+  /** Steers mocks toward fractional samples, never a constraint (2.0 is a float); exclusive with `integer`. */
   float?: boolean;
   min?: number;
   max?: number;
@@ -54,7 +51,6 @@ export type Number<P extends NumberParams = {}, BrandName extends string = never
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export type Currency<P extends NumberParams = {}, BrandName extends string = never> = Number<P & {isCurrency: true}, BrandName>;
 
-// The fixed-width int formats SET the min/max of their width (Int8 → -128..127, UInt16 → 0..65535, …).
 export type Integer = Number<{integer: true}>;
 export type Float = Number<{float: true}>;
 export type Positive = Number<{min: 0}>;

@@ -13,8 +13,7 @@ const (
 	// an override module that did not render in the entry graph, whose `utl.usePureFn` body would
 	// otherwise throw at runtime. Should never fire in normal operation.
 	CodeOverrideMissingCfn = "OVR002"
-	// CodeOverrideValidateCrossFamily warns that `validate` is a shared cross-family dependency, so
-	// overriding it also changes how JSON decoders narrow unions containing the type.
+	// CodeOverrideValidateCrossFamily warns that overriding `validate` also changes how JSON decoders narrow unions.
 	CodeOverrideValidateCrossFamily = "OVR010"
 )
 

@@ -4,10 +4,8 @@
 // client hands over the CLASS (no name string, no namespace), `serialize` is
 // optional (default: structural, same as any interface), and `deserialize` is
 // optional for a zero-arg class (default: `Object.assign(new cls(), data)`).
-// A registered class rebuilds a REAL instance (`instanceof`, methods live)
-// through the JSON family (createJsonEncoderFn / createJsonDecoderFn, default
-// options); an UNREGISTERED class round-trips structurally to a plain object
-// (no throw).
+// A registered class rebuilds a REAL instance (`instanceof`, methods live) through the default JSON codec;
+// an UNREGISTERED class round-trips structurally to a plain object (no throw).
 //
 // The registry is keyed by the class's TYPE ID (the plugin fills the trailing
 // InjectTypeFnArgs<T, 'classSerializerReg'> slot with the name-card entry tuple, whose key

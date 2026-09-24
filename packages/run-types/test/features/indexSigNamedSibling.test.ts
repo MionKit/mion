@@ -27,7 +27,6 @@ describe('G1 index signature does not corrupt a named sibling property', () => {
       expect(out[9], `[json/${enc}] index value 9`).toBe(11n);
     }
 
-    // The default strategy decodes to the original value.
     const viaJson = createJsonDecoderFn<A>()(createJsonEncoderFn<A>()(make())!);
     expect(viaJson).toEqual(make());
   });

@@ -372,10 +372,8 @@ export function createJsonDecoderFn<T>(
 // getRTFunction — recover ANY family's compiled fn from an injected marker tuple
 // =============================================================================
 
-/** Maps each `InjectTypeFnArgs` fnKey to the runtime function shape `getRTFunction` returns for it,
- *  so a wrapper resolves any family by naming the SAME fnKey it put in the marker. Families whose fn
- *  is generic in `T` (`validate` / `jsonDecoder` / `formatTransform`) resolve to the
- *  base `T = unknown`; use the dedicated `createX<T>()` factory to keep `T` on the returned fn. **/
+/** Fn shape per `InjectTypeFnArgs` fnKey, so a wrapper resolves a family by the fnKey it put in the marker.
+ *  Generic families (`validate` / `jsonDecoder` / `formatTransform`) get `T = unknown`; `createX<T>()` keeps `T`. **/
 export interface RTFunctionByKey {
   // Validators.
   validate: ValidateFn;

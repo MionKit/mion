@@ -8,15 +8,10 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
-// temporal_emit_test.go asserts each RT-fn family emits the right code for a
-// Temporal type: validate (instanceof), restore (Temporal.X.from), stringify
-// (toJSON). One representative type per
-// assertion keeps it fast; the scan test already covers all 8 detect.
+// Each RT-fn family emits the right Temporal code: validate (instanceof), restore (Temporal.X.from), stringify (toJSON).
+// One type per assertion keeps it fast; the scan test already covers all 8.
 
-// emitSourcesFor scans createValidateFn<Temporal.<typeName>>() requesting entry
-// modules, and returns the response. Use this for families seeded by the
-// always-emit `it` path (validate / JSON / runType); demand-driven families
-// must be seeded via emitSourcesForFn with the matching createX call.
+// emitSourcesFor seeds via createValidateFn, which demands `it`; other families need emitSourcesForFn with their createX.
 func emitSourcesFor(t *testing.T, typeName string) *protocol.Response {
 	t.Helper()
 	return emitSourcesForFn(t, "createValidateFn", typeName)

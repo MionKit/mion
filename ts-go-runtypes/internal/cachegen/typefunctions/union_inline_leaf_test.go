@@ -176,10 +176,7 @@ func TestUnionInlineLeaf_ObjectMembersStayCrossFamily(t *testing.T) {
 // cross-family `val_<uuid>?.fn(` reference and getRT prologue. Guards against
 // the format check being silently dropped.
 //
-// Uses `UUID | bigint` on the JSON encoder: the bigint member needs a
-// transform, so the union keeps its guard chain (a `UUID | number` union is
-// JSON-identity and collapses). The bigint check inlines (`typeof v ===
-// 'bigint'`) but the branded uuid keeps its cross-family edge.
+// Uses `UUID | bigint`: the bigint transform keeps the guard chain, where a JSON-identity `UUID | number` would collapse.
 func TestUnionInlineLeaf_FormatMemberStaysCrossFamily(t *testing.T) {
 	uuid := &reflection.RunType{ID: "uid", Kind: reflection.KindString, TypeName: "UUID", FormatAnnotation: &reflection.FormatAnnotation{Name: "uuid"}}
 	num := &reflection.RunType{ID: "num", Kind: reflection.KindBigInt}
@@ -194,7 +191,6 @@ func TestUnionInlineLeaf_FormatMemberStaysCrossFamily(t *testing.T) {
 
 	out := joinEntries(t, FamilyByKey("prepareForJsonMutate").Collect(dump, RenderOpts{EmitMode: "both"}, nil))
 
-	// The non-branded bigint member inlines.
 	if !strings.Contains(out, "typeof v === 'bigint'") {
 		t.Errorf("expected the leaf bigint member to inline `typeof v === 'bigint'`; got:\n%s", out)
 	}
@@ -212,7 +208,6 @@ func TestUnionInlineLeaf_FormatMemberStaysCrossFamily(t *testing.T) {
 	if !containsStr(rendered.crossFamilyDeps, uidKey) {
 		t.Errorf("format-branded member MUST record a CrossFamilyDeps edge %q; got %v", uidKey, rendered.crossFamilyDeps)
 	}
-	// The inlined bigint member records NO cross-family edge.
 	if containsStr(rendered.crossFamilyDeps, valKey("num")) {
 		t.Errorf("inlined bigint member must NOT record a CrossFamilyDeps edge; got %v", rendered.crossFamilyDeps)
 	}
