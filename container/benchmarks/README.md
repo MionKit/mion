@@ -260,13 +260,12 @@ schema→type form — including ts-go's own value-first schema form. Adding a
 competitor automatically extends typecost; it is a separate command, never gating
 the runtime benches.
 
-**Value forcing vs. broader accepted sets.** A few forms intentionally accept a
-wider value set than their *static* type — ts-go's `noLiterals` option (the type
-stays the literal `2`, but any number validates) and the serializable-only
-validate contract (a function/method member is dropped, so the data sample omits
-it). For those the chosen sample need not satisfy `T`, so the probe falls back to
-**declare-only** (`let x!: T`) and measures pure type-resolution cost. A genuine
-type error (a name the type can't resolve, an excessively-deep instantiation —
+**Value forcing vs. broader accepted sets.** Some forms intentionally accept a
+wider value set than their *static* type: the serializable-only validate contract
+drops a function/method member, so the data sample omits it. For those the
+chosen sample need not satisfy `T`, so the probe falls back to **declare-only**
+(`let x!: T`) and measures pure type-resolution cost. A genuine type error (a
+name the type can't resolve, an excessively-deep instantiation —
 e.g. typebox on a circular tuple) still fails and reports `err`, excluded from
 totals; the full `err` detail (case · form · first TS message) prints after the
 table.

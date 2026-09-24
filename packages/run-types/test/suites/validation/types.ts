@@ -178,9 +178,7 @@ export interface ValidationCase {
    *  its value-first schema form and type-first form are KNOWN not to resolve the
    *  same structural id, by design. Reserved for cases where convergence is
    *  genuinely impossible — leave UNSET for cases that should converge so a
-   *  regression surfaces as a failure. (Note: option cases like `noLiterals` /
-   *  `noIsArrayCheck` are NOT divergent — they converge once the schema thunk
-   *  mirrors the same option, e.g. `createValidateFn(RT.literal(2), {noLiterals: true})`.) **/
+   *  regression surfaces as a failure. **/
   idDivergent?: boolean;
 
   /** Opt a case out of the DataOnly-equivalence suite

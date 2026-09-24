@@ -11,14 +11,12 @@ import (
 	"github.com/microsoft/typescript-go/shim/tspath"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/operations"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefunctions"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/runtype/typeid"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/builders"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/comptimeargs"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/textpos"
 )
 
@@ -718,26 +716,9 @@ func (state scanState) analyzeTrailingInjection(file string, call *ast.Node, cal
 		}
 	}
 	options := extractValidateOptions(state.scanChecker, call, lastIndex, argsCount)
-	// Warn when an option is requested but provably has no effect on the resolved type. The emitter still
-	// produces the variant factory (always-emit invariant), so the call site keeps working and this warning is
-	// the only signal the option is redundant.
-	if options.Any() {
-		resolvedKind := typeid.KindOf(state.scanChecker, typeArgument)
-		if options.Has("noLiterals") && resolvedKind != reflection.KindLiteral {
-			if diagnostic, ok := state.sess.noopValidateOptionDiag(file, call, lastIndex, argsCount, diagnostics.CodeValidateOptionsNoLiteralsNoop); ok {
-				diags = append(diags, diagnostic)
-			}
-		}
-		if options.Has("noIsArrayCheck") && resolvedKind != reflection.KindArray {
-			if diagnostic, ok := state.sess.noopValidateOptionDiag(file, call, lastIndex, argsCount, diagnostics.CodeValidateOptionsNoArrayNoop); ok {
-				diags = append(diags, diagnostic)
-			}
-		}
-	}
 	// numberMode merges per field, the site's own value winning over the project-wide default. Only this field
 	// is taken from the global defaults. isFinite, the default and any unrecognized value, adds no variant
-	// name, so plain keys stay stable. AFTER the noop-diagnostic block, so a global default never makes
-	// options.Any() fire those warnings.
+	// name, so plain keys stay stable.
 	effectiveNumberMode := options.numberMode
 	if effectiveNumberMode == "" {
 		effectiveNumberMode = state.sess.opts.ValidateDefaults.NumberMode
@@ -967,7 +948,7 @@ func computeSiteFn(typeChecker *checker.Checker, fnKey string, options validateO
 		return "", nil, []diagnostics.Diagnostic{unresolvedFnNameDiagnostic(file, call, fnKey)}
 	}
 	// Both options swap the OPERATION, not a variant: a variant is root-scoped and would miss named nested types.
-	// Downstream is unchanged, so both still take noLiterals / numberMode / rejectCircularRefs.
+	// Downstream is unchanged, so both still take numberMode / rejectCircularRefs.
 	checkUnknowns := extractBoolValidateOption(typeChecker, call, lastIndex, argsCount, "checkUnknowns")
 	checkUnionUnknowns := extractBoolValidateOption(typeChecker, call, lastIndex, argsCount, "checkUnionUnknowns")
 	if selected, swapped := validatorFamilyOperation(op, checkUnknowns, checkUnionUnknowns); swapped {
@@ -1524,20 +1505,6 @@ func (state scanState) isPureFnID(argumentNode *ast.Node) bool {
 	}
 	kind, _, matched := marker.DetectAny(state.scanChecker, argType, state.sess.marker)
 	return matched && kind == marker.KindPureFnId
-}
-
-// noopValidateOptionDiag builds the no-op ValidateOption warning (MKR004 / MKR005) anchored at the options-literal
-// node when present, else at the whole call. Purely advisory: the option survives downstream (always-emit invariant).
-func (sess *Session) noopValidateOptionDiag(file string, call *ast.Node, lastIndex, argsCount int, code string) (diagnostics.Diagnostic, bool) {
-	sourceFile := ast.GetSourceFileOfNode(call)
-	if sourceFile == nil {
-		return diagnostics.Diagnostic{}, false
-	}
-	anchor := call
-	if optionsNode := optionsArgumentAt(call, lastIndex, argsCount); optionsNode != nil {
-		anchor = optionsNode
-	}
-	return diagnostics.New(code, textpos.NodeSite(file, sourceFile, anchor)), true
 }
 
 // comptimeArgsPolicy returns the two predicates comptimeargs.CheckLiteral asks the resolver for, both judged on

@@ -100,19 +100,6 @@ export const ARRAY = {
       invalid: [[[['a', 2]]], [['a']], ['a'], null, undefined, [[[null]]], [[[42]]]],
     }),
   },
-  string_array_noIsArrayCheck: {
-    title: 'Array with noIsArrayCheck (Array.isArray guard stripped)',
-    description:
-      'noIsArrayCheck strips the Array.isArray guard; hashes distinctly from plain string_array — same samples, different validator',
-    getSamples: () => ({
-      valid: [[], ['hello']],
-      // Without the guard, non-array inputs may not be rejected by
-      // the validator (the documented trade-off — the caller has
-      // pre-verified arrayness). Only sample inputs that the loop
-      // itself catches.
-      invalid: [[42]],
-    }),
-  },
   object_array: {
     title: 'Array of object literals',
     description:

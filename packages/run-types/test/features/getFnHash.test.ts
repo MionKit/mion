@@ -73,21 +73,20 @@ describe('getFnHash — unit (resolves the version-independent fnHash per family
   test('validate / validationErrors resolve their option variants', () => {
     // Plain form and every option subset resolve to distinct, stable hashes.
     expect(getFnHash('validate')).toBe('Eq2V');
-    expect(getFnHash('validate', {noLiterals: true})).toBe('swyy');
-    expect(getFnHash('validate', {noIsArrayCheck: true})).toBe('KAWX');
-    expect(getFnHash('validate', {noLiterals: true, noIsArrayCheck: true})).toBe('o2vR');
-    // Option order is irrelevant (mirrors the Go declaration-order suffix).
-    expect(getFnHash('validate', {noIsArrayCheck: true, noLiterals: true})).toBe('o2vR');
     expect(getFnHash('validationErrors')).toBe('swxg');
-    expect(getFnHash('validationErrors', {noLiterals: true, noIsArrayCheck: true})).toBe('xJVW');
     // numberMode is an enum, not a boolean: its two non-default values ride as
     // distinct variant letters, and 'isFinite' (default) collapses to the plain.
     expect(getFnHash('validate', {numberMode: 'isFinite'})).toBe('Eq2V');
     expect(getFnHash('validate', {numberMode: 'typeof'})).toBe('WOvb');
     expect(getFnHash('validate', {numberMode: 'notNaN'})).toBe('PHIy');
     expect(getFnHash('validationErrors', {numberMode: 'typeof'})).toBe('aZak');
-    // numberMode composes with the boolean options (declaration-order suffix NLT).
-    expect(getFnHash('validate', {noLiterals: true, numberMode: 'typeof'})).toBe('t5vX');
+    // numberMode composes with the circular fork (base token + 'C').
+    expect(getFnHash('validate', {rejectCircularRefs: true})).toBe('VpZY');
+    expect(getFnHash('validate', {numberMode: 'typeof', rejectCircularRefs: true})).toBe('Tq25');
+  });
+
+  test('validate variant table holds only the numberMode and circular variants', () => {
+    expect(Object.keys(FN_HASHES.validate.variants).sort()).toEqual(['', 'C', 'NM', 'NMC', 'NT', 'NTC']);
   });
 
   test('JSON encoder / decoder resolve their strategies (default when omitted)', () => {
@@ -107,14 +106,14 @@ describe('getFnHash — unit (resolves the version-independent fnHash per family
     expect(getFnHash('fromBinary')).toBe('rR8x');
     expect(getFnHash('removeUnknownKeys')).toBe('C85b');
     // A family with no option axis ignores any options bag rather than throwing.
-    expect(getFnHash('removeUnknownKeys', {noLiterals: true})).toBe('C85b');
+    expect(getFnHash('removeUnknownKeys', {numberMode: 'typeof'})).toBe('C85b');
   });
 
   test('hasUnknownKeys resolves its runsAfterValidation variant', () => {
     expect(getFnHash('hasUnknownKeys')).toBe('GsPX');
     expect(getFnHash('hasUnknownKeys', {runsAfterValidation: true})).toBe('be7V');
     // Foreign options don't select a huk variant.
-    expect(getFnHash('hasUnknownKeys', {noLiterals: true})).toBe('GsPX');
+    expect(getFnHash('hasUnknownKeys', {numberMode: 'typeof'})).toBe('GsPX');
   });
 
   test('throws on an unknown fnKey or a nonexistent variant', () => {
@@ -134,16 +133,6 @@ describe('getFnHash — matches the plugin-injected fnHash (table ⟷ live binar
     expect(getFnHash('jsonEncoder')).toBe(injectedHash(grabJsonEnc<Payload>()));
     expect(getFnHash('jsonDecoder')).toBe(injectedHash(grabJsonDec<Payload>()));
     expect(getFnHash('prepareForJsonClone')).toBe(injectedHash(grabPjs<Payload>()));
-  });
-
-  test('validate option variant equals its injected fnHash', () => {
-    // The whole point of "options beyond the family": the plugin injects a
-    // DIFFERENT hash for a noLiterals validator, and getFnHash tracks it.
-    const injectedPlain = injectedHash(grabValOpts<Payload>());
-    const injectedNoLiterals = injectedHash(grabValOpts<Payload>(undefined, {noLiterals: true}));
-    expect(injectedNoLiterals).not.toBe(injectedPlain);
-    expect(getFnHash('validate')).toBe(injectedPlain);
-    expect(getFnHash('validate', {noLiterals: true})).toBe(injectedNoLiterals);
   });
 
   test('validate numberMode variant equals its injected fnHash', () => {

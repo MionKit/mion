@@ -230,68 +230,6 @@ export const cases: CompetitorCases = {
       };
     },
   },
-  'ATOMIC.literal_2_noLiterals': {
-    build: () => {
-      const schema = Type.Number();
-      const check = TypeCompiler.Compile(schema);
-      return (value: unknown) => check.Check(value);
-    },
-    buildErrors: () => {
-      const schema = Type.Number();
-      const check = TypeCompiler.Compile(schema);
-      return (value: unknown) => {
-        for (const _ of check.Errors(value)) return false;
-        return true;
-      };
-    },
-  },
-  'ATOMIC.literal_a_noLiterals': {
-    build: () => {
-      const schema = Type.String();
-      const check = TypeCompiler.Compile(schema);
-      return (value: unknown) => check.Check(value);
-    },
-    buildErrors: () => {
-      const schema = Type.String();
-      const check = TypeCompiler.Compile(schema);
-      return (value: unknown) => {
-        for (const _ of check.Errors(value)) return false;
-        return true;
-      };
-    },
-  },
-  'ATOMIC.literal_regexp_noLiterals': NOT_SUPPORTED, // no RegExp instance type in TypeBox
-  'ATOMIC.literal_true_noLiterals': {
-    build: () => {
-      const schema = Type.Boolean();
-      const check = TypeCompiler.Compile(schema);
-      return (value: unknown) => check.Check(value);
-    },
-    buildErrors: () => {
-      const schema = Type.Boolean();
-      const check = TypeCompiler.Compile(schema);
-      return (value: unknown) => {
-        for (const _ of check.Errors(value)) return false;
-        return true;
-      };
-    },
-  },
-  'ATOMIC.literal_1n_noLiterals': {
-    build: () => {
-      const schema = Type.BigInt();
-      const check = TypeCompiler.Compile(schema);
-      return (value: unknown) => check.Check(value);
-    },
-    buildErrors: () => {
-      const schema = Type.BigInt();
-      const check = TypeCompiler.Compile(schema);
-      return (value: unknown) => {
-        for (const _ of check.Errors(value)) return false;
-        return true;
-      };
-    },
-  },
-  'ATOMIC.literal_symbol_noLiterals': NOT_SUPPORTED, // factoryThrows — symbol unsupported
   'ATOMIC.unknown': {
     build: () => {
       const schema = Type.Unknown();
@@ -460,7 +398,6 @@ export const cases: CompetitorCases = {
       };
     },
   },
-  'ARRAY.string_array_noIsArrayCheck': NOT_SUPPORTED, // semantics require accepting non-arrays
   'ARRAY.object_array': {
     build: () => {
       const schema = Type.Array(Type.Object({a: Type.String()}));

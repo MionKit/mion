@@ -27,7 +27,7 @@ export type InjectTypeFnArgs<T, F1 extends string, F2 extends string = never, F3
 };
 export declare function getRunTypeId<T>(value?: T, id?: InjectRunTypeId<T>): InjectRunTypeId<T>;
 export interface ValidateOptions {
-  noLiterals?: boolean;
+  numberMode?: 'isFinite' | 'typeof' | 'notNaN';
 }
 export declare function createValidateFn<T>(
   val?: T,

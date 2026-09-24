@@ -142,44 +142,6 @@ export const cases: CompetitorCases = {
       return (value: unknown) => schema.safeParse(value).success;
     },
   },
-  // noLiterals cases: literal degrades to its base type
-  'ATOMIC.literal_2_noLiterals': {
-    buildErrors: () => {
-      const schema = z.number();
-      return (value: unknown) => schema.safeParse(value).success;
-    },
-  },
-  'ATOMIC.literal_a_noLiterals': {
-    buildErrors: () => {
-      const schema = z.string();
-      return (value: unknown) => schema.safeParse(value).success;
-    },
-  },
-  'ATOMIC.literal_regexp_noLiterals': {
-    buildErrors: () => {
-      const schema = z.instanceof(RegExp);
-      return (value: unknown) => schema.safeParse(value).success;
-    },
-  },
-  'ATOMIC.literal_true_noLiterals': {
-    buildErrors: () => {
-      const schema = z.boolean();
-      return (value: unknown) => schema.safeParse(value).success;
-    },
-  },
-  'ATOMIC.literal_1n_noLiterals': {
-    buildErrors: () => {
-      const schema = z.bigint();
-      return (value: unknown) => schema.safeParse(value).success;
-    },
-  },
-  // literal_symbol_noLiterals: degrades to bare symbol — factoryThrows=true in shared but empty valid/invalid; z.symbol() passes vacuously
-  'ATOMIC.literal_symbol_noLiterals': {
-    buildErrors: () => {
-      const schema = z.symbol();
-      return (value: unknown) => schema.safeParse(value).success;
-    },
-  },
   'ATOMIC.unknown': {
     buildErrors: () => {
       const schema = z.unknown();
@@ -251,13 +213,6 @@ export const cases: CompetitorCases = {
   'ARRAY.string_array_3d': {
     buildErrors: () => {
       const schema = z.array(z.array(z.array(z.string())));
-      return (value: unknown) => schema.safeParse(value).success;
-    },
-  },
-  // string_array_noIsArrayCheck: same samples as string_array but no non-array invalid entries — z.array(z.string()) matches
-  'ARRAY.string_array_noIsArrayCheck': {
-    buildErrors: () => {
-      const schema = z.array(z.string());
       return (value: unknown) => schema.safeParse(value).success;
     },
   },

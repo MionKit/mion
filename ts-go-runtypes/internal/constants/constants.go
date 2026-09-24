@@ -211,8 +211,8 @@ func JsonCompositeByTag(tag string) (JsonComposite, bool) {
 // property name with the single letter that builds the variant suffix of the canonical key the fnHash is derived
 // from. One table drives both the scanner's option extraction and the emitter's variant fan-out.
 type ValidateOption struct {
-	Name   string // JS property name, e.g. "noLiterals"
-	Letter string // single uppercase letter appended to the variant suffix, e.g. "L"
+	Name   string // JS property name, e.g. "numberTypeof"
+	Letter string // single uppercase letter appended to the variant suffix, e.g. "T"
 	Group  string // entries sharing a non-empty Group are values of one option, so a call site sets at most one
 }
 
@@ -248,8 +248,6 @@ const (
 // A string-enum option (see numberMode above) instead maps each non-default value to a canonical name here and is
 // read by a dedicated scanner arm.
 var ValidateOptions = []ValidateOption{
-	{Name: "noLiterals", Letter: "L"},
-	{Name: "noIsArrayCheck", Letter: "A"},
 	{Name: numberModeTypeofName, Letter: "T", Group: NumberModeOption},
 	{Name: numberModeNotNaNName, Letter: "M", Group: NumberModeOption},
 }
@@ -309,7 +307,7 @@ func NumberModeFromOptions(has func(string) bool) string {
 
 // ValidateVariantSuffix returns the canonical variant suffix for a sorted list of option NAMES (a subset of
 // `ValidateOptions[*].Name`): `N` ("No") plus the letters in `ValidateOptions` declaration order, so
-// `["noLiterals", "noIsArrayCheck"]` → `"NLA"`. Empty input gives an empty suffix (the plain key). Unknown names
+// `["numberTypeof"]` → `"NT"`. Empty input gives an empty suffix (the plain key). Unknown names
 // are silently skipped, so the scanner / emitter must validate ahead of time.
 func ValidateVariantSuffix(names []string) string {
 	if len(names) == 0 {

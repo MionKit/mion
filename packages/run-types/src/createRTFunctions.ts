@@ -25,16 +25,9 @@ import type {ToBinaryFn, FromBinaryFn} from './createRTFBinary.ts';
  *  Go-side marker scanner reads the values at build time and routes the call to a per-option variant
  *  of the validator factory (same structural type id, distinct function id). **/
 export interface ValidateOptions {
-  /** Literal validators degrade to their base-type check
-   *  (`literal 'a'` → any string, `literal 2` → any finite number). **/
-  noLiterals?: boolean;
-  /** Skip the leading `Array.isArray(v)` guard on array validators.
-   *  The variant cache key changes (e.g. `val_<id>` → `valNA_<id>`) so
-   *  the same type id can serve both the guarded and unguarded factory. **/
-  noIsArrayCheck?: boolean;
   /** Arms the circular-reference guard for THIS validator: a value containing a reference cycle
    *  makes `createValidateFn` return false and `createGetValidationErrorsFn` record a
-   *  `{expected: 'circular'}` entry. COMPILE-TIME (like `noLiterals`): it forks the injected fnHash,
+   *  `{expected: 'circular'}` entry. COMPILE-TIME (like `numberMode`): it forks the injected fnHash,
    *  so the armed validator is a distinct entry that bakes the cycle check into its body. **/
   rejectCircularRefs?: boolean;
   /** Folds the unknown-key check INTO the validator, so one compiled function answers "matches `T`
@@ -108,7 +101,7 @@ export interface ValidateOptions {
   /** How the emitted validator checks a `number`, to align with other libraries when migrating.
    *  `'isFinite'` (default) uses `Number.isFinite`, rejecting `NaN` / `Infinity` / `-Infinity`;
    *  `'typeof'` accepts the non-finite values (matches ajv / typia / JSON Schema); `'notNaN'`
-   *  rejects `NaN` but accepts `Infinity`. COMPILE-TIME (like `noLiterals`): it forks the injected
+   *  rejects `NaN` but accepts `Infinity`. COMPILE-TIME (like `rejectCircularRefs`): it forks the injected
    *  fnHash. The `validate.numberMode` plugin / tsconfig option sets the project default; a per-call
    *  value overrides it. **/
   numberMode?: 'isFinite' | 'typeof' | 'notNaN';

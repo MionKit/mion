@@ -307,8 +307,7 @@ func (ToBinaryEmitter) Finalize(raw string) (string, bool) {
 	return code, false
 }
 
-// emitLiteralToBinary writes nothing: the decoder restores the literal from the RunType definition, and
-// the protocol RunType carries no noLiterals option to dispatch on.
+// emitLiteralToBinary writes nothing: the decoder restores the literal from the RunType definition.
 func emitLiteralToBinary(rt *reflection.RunType, v string, ser string) RTCode {
 	_ = v
 	_ = ser

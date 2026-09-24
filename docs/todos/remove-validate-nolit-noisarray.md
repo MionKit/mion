@@ -41,3 +41,11 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
 - No `noLiterals` / `noIsArrayCheck` (or their `L` / `A` variant letters) remain in source, generated tables, tests, benchmarks, examples or docs.
 - `pnpm test`, `go -C ts-go-runtypes test ./internal/... ./cmd/...` and `pnpm run typecheck` pass.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source file, each committed on its own.
+
+## Plan (approved 2026-09-24)
+
+- Go: drop the `L` / `A` rows from `constants.ValidateOptions`; drop the `noLiterals` literal arm (and `emitLiteralBaseKind` / `literalBaseKindLabel`) and the `noIsArrayCheck` array arm from `validate.go` / `validationerrors.go`; drop the scanner's no-op warning block and `noopValidateOptionDiag`; delete `MKR004` / `MKR005` with their messages (MKR codes already have gaps, so no renumbering).
+- TS: drop both fields from `ValidateOptions` and `FnHashOptions`; regenerate `fnHashes.generated.ts` and the two diagnostic catalogs. The kept variant keys (`NT`, `NM`, `C` forks) keep their hashes.
+- Tests: delete cases that only exist for the two options; where one served as a generic "some variant option", switch it to `numberMode`.
+- Benchmarks: drop the 7 cases from the shared case lists and every competitor; the pre-publish e2e app's build-time options check now uses `checkUnknowns`.
+- Docs: drop both rows from the options table on the validation page; examples switch to `numberMode` / `checkUnknowns`.

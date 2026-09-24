@@ -652,22 +652,6 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     detail:
       "The build can only compute an id for a concrete type (`User`,\n`{name: string}`, etc.). A type parameter like `T` is abstract: it\ntakes a different value at each call site of the surrounding function,\nso a single id can't represent it.\n\nFix: inline the marker at each concrete call site:\n  function isUser(value: unknown) {\n    return createValidateFn<User>()(value);\n  }\n\nFix: accept a pre-computed id from the caller:\n  function makeChecker<T>(id: InjectRunTypeId<T>) {\n    return createValidateFn<T>(id);\n  }\n  const isUser = makeChecker<User>(getRunTypeId<User>());",
   },
-  MKR004: {
-    headline: "`noLiterals: true` has no effect here: the type argument doesn't resolve to literal values.",
-    level: 'warning',
-    severity: 'warning',
-    family: 'marker',
-    detail:
-      "The `noLiterals` validate option skips the exact-value check that literal\ntypes (`'admin'`, `42`, `true`) compile to. This call's type argument\nresolves to a non-literal type, so there is no literal check to skip and\nthe option is a silent no-op.\n\nFix: drop the option:\n-  const isRole = createValidateFn<string>({noLiterals: true});\n+  const isRole = createValidateFn<string>();\n\nOr, if you meant to relax a literal union, point the option at the type\nthat actually carries the literals:\n  const isRole = createValidateFn<'admin' | 'user'>({noLiterals: true});",
-  },
-  MKR005: {
-    headline: '`noIsArrayCheck: true` has no effect here: the type argument is not an array type.',
-    level: 'warning',
-    severity: 'warning',
-    family: 'marker',
-    detail:
-      "The `noIsArrayCheck` validate option skips the `Array.isArray` guard that\narray types compile to. This call's type argument resolves to a non-array\ntype, so there is no guard to skip and the option is a silent no-op.\n\nFix: drop the option:\n-  const isUser = createValidateFn<User>({noIsArrayCheck: true});\n+  const isUser = createValidateFn<User>();\n\nOr point it at the array type you meant:\n  const isUsers = createValidateFn<User[]>({noIsArrayCheck: true});",
-  },
   MKR006: {
     headline: '`InjectTypeFnArgs` names the function family `{0}` more than once; remove the duplicate key.',
     level: 'warning',

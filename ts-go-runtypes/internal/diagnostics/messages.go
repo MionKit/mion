@@ -212,14 +212,6 @@ var messagesByCode = map[string]message{
 		Headline: "Marker call is inside a generic function: the type argument is unresolved, so no id can be computed at build time.",
 		Detail:   "The build can only compute an id for a concrete type (`User`,\n`{name: string}`, etc.). A type parameter like `T` is abstract: it\ntakes a different value at each call site of the surrounding function,\nso a single id can't represent it.\n\nFix: inline the marker at each concrete call site:\n  function isUser(value: unknown) {\n    return createValidateFn<User>()(value);\n  }\n\nFix: accept a pre-computed id from the caller:\n  function makeChecker<T>(id: InjectRunTypeId<T>) {\n    return createValidateFn<T>(id);\n  }\n  const isUser = makeChecker<User>(getRunTypeId<User>());",
 	},
-	"MKR004": {
-		Headline: "`noLiterals: true` has no effect here: the type argument doesn't resolve to literal values.",
-		Detail:   "The `noLiterals` validate option skips the exact-value check that literal\ntypes (`'admin'`, `42`, `true`) compile to. This call's type argument\nresolves to a non-literal type, so there is no literal check to skip and\nthe option is a silent no-op.\n\nFix: drop the option:\n-  const isRole = createValidateFn<string>({noLiterals: true});\n+  const isRole = createValidateFn<string>();\n\nOr, if you meant to relax a literal union, point the option at the type\nthat actually carries the literals:\n  const isRole = createValidateFn<'admin' | 'user'>({noLiterals: true});",
-	},
-	"MKR005": {
-		Headline: "`noIsArrayCheck: true` has no effect here: the type argument is not an array type.",
-		Detail:   "The `noIsArrayCheck` validate option skips the `Array.isArray` guard that\narray types compile to. This call's type argument resolves to a non-array\ntype, so there is no guard to skip and the option is a silent no-op.\n\nFix: drop the option:\n-  const isUser = createValidateFn<User>({noIsArrayCheck: true});\n+  const isUser = createValidateFn<User>();\n\nOr point it at the array type you meant:\n  const isUsers = createValidateFn<User[]>({noIsArrayCheck: true});",
-	},
 	"MKR006": {
 		Headline: "`InjectTypeFnArgs` names the function family `{0}` more than once; remove the duplicate key.",
 		Detail:   "An `InjectTypeFnArgs<T, …>` marker names each function family it needs for\n`T` once, in declaration order; the build injects one entry-module tuple\nper name and the wrapper forwards each to its factory. Naming a family\ntwice would inject a redundant identical tuple with no consumer, so it is\nalmost always a copy-paste slip and the build stops.\n\nFix: name each family at most once:\n-  id?: InjectTypeFnArgs<T, 'validationErrors', 'jsonDecoder', 'validationErrors'>;\n+  id?: InjectTypeFnArgs<T, 'validationErrors', 'jsonDecoder', 'jsonEncoder'>;",

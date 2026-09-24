@@ -468,11 +468,6 @@ func (ValidateEmitter) emitKindDefault(rt *reflection.RunType, ctx *EmitContext,
 		return RTCode{Code: "(" + strings.Join(parts, " || ") + ")", Type: CodeE}
 
 	case reflection.KindLiteral:
-		// With the noLiterals ValidateOption set, the literal degrades to its base-kind check, so the user can validate a wider
-		// runtime shape without changing the type id.
-		if ctx.HasVariantOption("noLiterals") {
-			return emitLiteralBaseKind(rt, v, ctx.NumberMode())
-		}
 		return emitLiteral(rt, v)
 
 	case reflection.KindArray:
@@ -482,7 +477,6 @@ func (ValidateEmitter) emitKindDefault(rt *reflection.RunType, ctx *EmitContext,
 		if rt.Child == nil {
 			return RTCode{Code: "", Type: CodeE}
 		}
-		noIsArrayCheck := ctx.HasVariantOption("noIsArrayCheck")
 		iVar := ctx.NextLocalVar("i")
 		resVar := ctx.NextLocalVar("res")
 		ctx.SetChildAccessor(v + "[" + iVar + "]")
@@ -494,17 +488,12 @@ func (ValidateEmitter) emitKindDefault(rt *reflection.RunType, ctx *EmitContext,
 			return RTCode{Code: "", Type: CodeNS}
 		}
 		if childRT.Code == "" {
-			if noIsArrayCheck {
-				return RTCode{Code: "", Type: CodeE}
-			}
 			return RTCode{Code: "Array.isArray(" + v + ")", Type: CodeE}
 		}
 		var body strings.Builder
-		if !noIsArrayCheck {
-			body.WriteString("if (!Array.isArray(")
-			body.WriteString(v)
-			body.WriteString(")) return false;\n")
-		}
+		body.WriteString("if (!Array.isArray(")
+		body.WriteString(v)
+		body.WriteString(")) return false;\n")
 		body.WriteString("for (let ")
 		body.WriteString(iVar)
 		body.WriteString(" = 0; ")
@@ -1291,35 +1280,6 @@ func emitLiteral(rt *reflection.RunType, v string) RTCode {
 		panic(fmt.Sprintf("typefns: validate literal emit: %v", err))
 	}
 	return RTCode{Code: v + " === " + lit, Type: CodeE}
-}
-
-// emitLiteralBaseKind emits the BASE-kind validator the `noLiterals` variant produces. The variant pairs with the canonical
-// literal type id (no swap on the resolver side), so one `T = 'a'` serves both `v === 'a'` and `typeof v === 'string'`.
-// The base kind comes from the `rt.Flags` markers, or from the Go-side type of `rt.Literal` when no marker is set.
-func emitLiteralBaseKind(rt *reflection.RunType, v, numberMode string) RTCode {
-	flagSet := make(map[string]bool, len(rt.Flags))
-	for _, flag := range rt.Flags {
-		flagSet[flag] = true
-	}
-	if flagSet["bigint"] {
-		return RTCode{Code: "typeof " + v + " === 'bigint'", Type: CodeE}
-	}
-	if flagSet["symbol"] {
-		// Mirrors the plain KindSymbol arm: a bare `typeof v === 'symbol'` is misleading, so the unsupported sentinel propagates to
-		// an alwaysThrow factory at the root.
-		return RTCode{Code: "", Type: CodeNS}
-	}
-	switch rt.Literal.(type) {
-	case bool:
-		return RTCode{Code: "typeof " + v + " === 'boolean'", Type: CodeE}
-	case int64, float64:
-		return RTCode{Code: numberBaseCheck(numberMode, v), Type: CodeE}
-	case string:
-		return RTCode{Code: "typeof " + v + " === 'string'", Type: CodeE}
-	}
-	// Unknown literal encoding — fall back to the literal-exact check so the variant body still validates something; the
-	// scan-time no-op diagnostic should catch this case first.
-	return emitLiteral(rt, v)
 }
 
 // jsLiteralFromAny renders a primitive literal. BigInt and symbol literals have their own paths in emitLiteral because their

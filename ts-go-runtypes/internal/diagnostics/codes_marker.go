@@ -9,10 +9,8 @@ package diagnostics
 // ships a validator that accepts everything: LevelRuntimeError (MKR007, MKR012, MKR013, and
 // TMP001 / CFG002 elsewhere).
 const (
-	CodeMarkerFunctionCallArg         = "MKR001"
-	CodeMarkerFreeTypeParameter       = "MKR003"
-	CodeValidateOptionsNoLiteralsNoop = "MKR004"
-	CodeValidateOptionsNoArrayNoop    = "MKR005"
+	CodeMarkerFunctionCallArg   = "MKR001"
+	CodeMarkerFreeTypeParameter = "MKR003"
 	// CodeMarkerDuplicateFnKey: LevelWarning, because the scan DEDUPES the repeated key and emits the
 	// site normally, so what ships is correct and only the source has a copy-paste slip.
 	CodeMarkerDuplicateFnKey          = "MKR006"
@@ -115,8 +113,6 @@ func init() {
 	for _, definition := range []Definition{
 		{Code: CodeMarkerFunctionCallArg, Family: FamilyMarker, Level: LevelWarning, Scope: ScopeNotSource, Title: "Marker invokes a function just to read its return type"},
 		{Code: CodeMarkerFreeTypeParameter, Family: FamilyMarker, Level: LevelError, Scope: ScopeRoot, Title: "Marker call inside a generic function: type argument is unresolved"},
-		{Code: CodeValidateOptionsNoLiteralsNoop, Family: FamilyMarker, Level: LevelWarning, Scope: ScopeNotSource, Title: "`ValidateOptions.noLiterals` has no effect on this type: the option is a no-op"},
-		{Code: CodeValidateOptionsNoArrayNoop, Family: FamilyMarker, Level: LevelWarning, Scope: ScopeNotSource, Title: "`ValidateOptions.noIsArrayCheck` has no effect on this type: the option is a no-op"},
 		{Code: CodeMarkerDuplicateFnKey, Family: FamilyMarker, Level: LevelWarning, Scope: ScopeNotSource, Title: "`InjectTypeFnArgs` names the same function family more than once"},
 		{Code: CodeMarkerAnyFromUnresolvedImport, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeGraph, Title: "Marker type resolved to `any`: an import in this file failed to resolve"},
 		{Code: CodeStructuralIdDepthExceeded, Family: FamilyMarker, Level: LevelError, Scope: ScopeGraph, Title: "Type is too deeply nested: structural-id computation hit its depth cap"},

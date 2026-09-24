@@ -21,13 +21,11 @@ import {
 export type FnHashKey = keyof typeof FN_HASHES;
 
 /** Compile-time options that refine a family's fnHash — the SAME bag the createX
- *  factory takes. `noLiterals` / `noIsArrayCheck` select validate /
- *  validationErrors variants; `strategy` selects a JSON encoder / decoder
+ *  factory takes. `numberMode` selects a validate /
+ *  validationErrors variant; `strategy` selects a JSON encoder / decoder
  *  variant. Options that don't apply to the resolved family are ignored (an
  *  option-less family has one fnHash regardless). */
 export interface FnHashOptions {
-  noLiterals?: boolean;
-  noIsArrayCheck?: boolean;
   /** Selects the base `number` kind check (validate / validationErrors):
    *  'isFinite' (default) / 'typeof' / 'notNaN'. The two non-default values ride
    *  as canonical option names (numberTypeof / numberNotNaN) in the variant token. */
@@ -57,8 +55,7 @@ function validateVariantToken(options: FnHashOptions | undefined): string {
   let suffix = 'N';
   let hit = false;
   for (const [name, letter] of VALIDATE_OPTION_LETTERS) {
-    const present = name === numberModeName || options[name as 'noLiterals' | 'noIsArrayCheck'];
-    if (present) {
+    if (name === numberModeName) {
       suffix += letter;
       hit = true;
     }

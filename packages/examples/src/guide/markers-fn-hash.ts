@@ -5,7 +5,7 @@ import {getFnHash} from '@mionjs/run-types/runtime';
 const validateId = getFnHash('validate');
 
 // options that change the generated function change its id too
-const looseValidateId = getFnHash('validate', {noLiterals: true});
+const typeofValidateId = getFnHash('validate', {numberMode: 'typeof'});
 
 // each JSON encoder strategy is its own function
 const encodeMutateId = getFnHash('jsonEncoder', {strategy: 'mutate'});
@@ -15,4 +15,4 @@ type User = {id: number; name: string};
 const userTypeId = getRunTypeId<User>();
 const userValidatorKey = `${validateId}_${userTypeId}`;
 
-export {validateId, looseValidateId, encodeMutateId, userValidatorKey};
+export {validateId, typeofValidateId, encodeMutateId, userValidatorKey};

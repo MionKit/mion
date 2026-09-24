@@ -41,12 +41,6 @@ export const schemaCases: CompetitorCases = {
   'ATOMIC.symbol': NOT_SUPPORTED, // factoryThrows
   'ATOMIC.undefined': () => createValidateFn(RT.literal(undefined)),
   'ATOMIC.void': () => createValidateFn(RT.void()),
-  'ATOMIC.literal_2_noLiterals': () => createValidateFn(RT.literal(2), {noLiterals: true}),
-  'ATOMIC.literal_a_noLiterals': () => createValidateFn(RT.literal('a'), {noLiterals: true}),
-  'ATOMIC.literal_regexp_noLiterals': () => createValidateFn(RT.regexp(), {noLiterals: true}),
-  'ATOMIC.literal_true_noLiterals': () => createValidateFn(RT.literal(true), {noLiterals: true}),
-  'ATOMIC.literal_1n_noLiterals': () => createValidateFn(RT.literal(1n), {noLiterals: true}),
-  'ATOMIC.literal_symbol_noLiterals': NOT_SUPPORTED, // factoryThrows
   'ATOMIC.unknown': () => createValidateFn(RT.unknown()),
 
   // ── ARRAY ──
@@ -61,7 +55,6 @@ export const schemaCases: CompetitorCases = {
   'ARRAY.array_generic': () => createValidateFn(RT.array(TF.string())),
   'ARRAY.string_array_2d': () => createValidateFn(RT.array(RT.array(TF.string()))),
   'ARRAY.string_array_3d': () => createValidateFn(RT.array(RT.array(RT.array(TF.string())))),
-  'ARRAY.string_array_noIsArrayCheck': () => createValidateFn(RT.array(TF.string()), {noIsArrayCheck: true}),
   'ARRAY.object_array': () => createValidateFn(RT.array(RT.object({a: TF.string()}))),
   'ARRAY.union_array': () => createValidateFn(RT.array(RT.union([TF.string(), TF.number()]))),
   'ARRAY.tuple_array': () => createValidateFn(RT.array(RT.tuple({required: [TF.string(), TF.number()]}))),
