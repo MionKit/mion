@@ -1,9 +1,9 @@
 {
-  // The drift lane's client program: the client sources, the shared test helpers, the drift spec and server A,
-  // the API the client is built against. Kept apart from tsconfig.json, whose program holds the test server:
-  // two APIs in one program report two build versions (MET007).
+  // The drift lane's client program: the client sources, the drift spec and server A, the API the client is
+  // built against. No test server anywhere in it (tsconfig.json holds that one): two APIs in one program report
+  // two build versions (MET007), so the shared test helpers that name TestServerApi stay out too.
   "extends": "./tsconfig.json",
   "compilerOptions": {"rootDir": "../..", "customConditions": ["source"]},
-  "include": ["src/**/*.ts", "test/lib/**/*.ts", "test/drift/**/*.ts"],
-  "exclude": ["node_modules", ".dist", "test/lib/**/*.spec.ts", "test/drift/apiB.ts", "test/drift/apiC.ts"]
+  "include": ["src/**/*.ts", "test/lib/testUtils.ts", "test/drift/**/*.ts"],
+  "exclude": ["node_modules", ".dist", "test/drift/apiB.ts", "test/drift/apiC.ts"]
 }
