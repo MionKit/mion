@@ -21,7 +21,6 @@
     "fresh-start": "pnpm run clean && rimraf node_modules"
   },
   "dependencies": {
-    "@playwright/cli": "0.1.13",
     "shiki": "4.4.3"
   }
 }

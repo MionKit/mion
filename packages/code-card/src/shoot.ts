@@ -8,7 +8,7 @@ import {tmpdir} from 'node:os';
 import {basename, dirname, join, resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {parseArgs} from 'node:util';
-import {CARDS_DIR, loadCard, resolveCardPath} from './card.ts';
+import {CARDS_DIR, PAGE_WIDTH, loadCard, resolveCardPath} from './card.ts';
 import {createCardServer} from './server.ts';
 
 export const SHOT_USAGE = 'usage: miondevx card shot <name|path…> | --all  [--out <dir>] [--browser <path>]';
@@ -34,12 +34,13 @@ export function cliConfig(browser?: string) {
     browser: {
       browserName: 'chromium',
       launchOptions: {headless: true, chromiumSandbox: false, ...(browser ? {executablePath: browser} : {})},
-      contextOptions: {viewport: {width: 1200 * ZOOM, height: 800 * ZOOM}},
+      contextOptions: {viewport: {width: PAGE_WIDTH * ZOOM, height: 800 * ZOOM}},
     },
   };
 }
 
-const cliScript = () => createRequire(import.meta.url).resolve('@playwright/cli/playwright-cli.js');
+// The root package.json's @playwright/cli, shared with the website-browser skill.
+export const cliScript = () => createRequire(import.meta.url).resolve('@playwright/cli/playwright-cli.js');
 
 // The CLI prints a stack trace or a markdown report; keep the lines that say what went wrong.
 export function cliFailure(output: string): string {

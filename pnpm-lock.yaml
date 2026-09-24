@@ -133,9 +133,6 @@ importers:
 
   packages/code-card:
     dependencies:
-      '@playwright/cli':
-        specifier: 0.1.13
-        version: 0.1.13
       shiki:
         specifier: 4.4.3
         version: 4.4.3
