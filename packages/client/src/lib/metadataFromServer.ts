@@ -16,6 +16,7 @@ export {
   createMetadataSubRequest,
   extractAndProcessMetadata,
   hydrateMetadataCache,
+  installMethodRows,
   purgeHydratedMetadata,
   takeMetadataCacheError,
   wasHydratedFromCache,

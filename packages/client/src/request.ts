@@ -31,6 +31,8 @@ import {hasApiVersionMismatch, noteServerApiVersion} from './lib/apiBuildVersion
 import {getMethod, hasMethod} from './lib/methods.ts';
 import {loadMetadataFromServer, metadataCacheHooks} from './lib/metadataFromServerLoader.ts';
 import {validateSubRequests} from './lib/validation.ts';
+import {createSyncSubRequest, learnSyncRoutes, sendsSyncIds, syncRefusalOf} from './lib/syncRoutes.ts';
+import type {RouteSyncRefusal} from './lib/syncRoutes.ts';
 import {sanitizeSubRequests} from './lib/sanitize.ts';
 import {serializeRequestBody, deserializeResponseBody} from './lib/serializer.ts';
 import {MAX_GET_URL_LENGTH, CLIENT_REQUEST_ERROR_ID} from './constants.ts';
@@ -49,6 +51,8 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddlewareReques
   private retriedAfterMismatch = false;
   /** ids this request asked the server to confirm after a build-version mismatch */
   private verifying: string[] | undefined;
+  /** bounds the resend after a `route-sync-required` refusal to one per request */
+  private resentWithSyncIds = false;
 
   constructor(
     public readonly options: ClientOptions,
@@ -129,6 +133,8 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddlewareReques
         sanitizeSubRequests(subRequestIds, this);
         validateSubRequests(subRequestIds, this, errors);
         if (errors.size) return Promise.reject(errors);
+        // an optimistic call has no rows to compute ids from: the server refuses it and sends them
+        if (sendsSyncIds(this.options.baseURL)) this.addSubRequest(createSyncSubRequest(this.getRouteIds()));
       }
     } catch (error: any) {
       this.onError(error, 'Error preparing request', errors);
@@ -143,6 +149,7 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddlewareReques
         if (isOptimistic) {
           // Plain JSON.stringify failed; the standard path fetches metadata first.
           delete this.subRequestList[MION_ROUTES.methodsMetadata];
+          delete this.subRequestList[MION_ROUTES.syncRoutes];
           return this.makeCall(true);
         }
         throw serializeError;
@@ -173,13 +180,16 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddlewareReques
       }
       const deserialized = await deserializeResponseBody(this.response, this.options, !!this.verifying);
       if (this.handlePlatformError(deserialized, errors)) return Promise.reject(errors);
+      const syncRefusal = this.takeSyncRefusal(deserialized);
+      if (syncRefusal) return this.handleSyncRefusal(syncRefusal, errors);
 
       const callFailed = this.shouldRetryWithProperSerialization(deserialized);
       // A client carrying build-compiled routes replaces them when the server's version differs.
       const mismatch = noteServerApiVersion(this.options.baseURL, this.response.headers.get(BUILD_VERSION_HEADER));
       const rows = this.verifying && metadataRowsOf(deserialized[MION_ROUTES.methodsMetadata]);
       if (rows?.methods) {
-        (await loadMetadataFromServer()).verifyMethodRows(this.options.baseURL, this.verifying!, rows);
+        const keepTypeChanges = sendsSyncIds(this.options.baseURL);
+        (await loadMetadataFromServer()).verifyMethodRows(this.options.baseURL, this.verifying!, rows, keepTypeChanges);
         delete deserialized[MION_ROUTES.methodsMetadata];
       }
       // Only a FAILED call is repeated: it already ran server-side, and repeating a successful mutation would run it twice.
@@ -222,8 +232,35 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddlewareReques
     return Object.values(deserialized).some(isRetryError) || Object.values(thrownErrors).some(isRetryError);
   }
 
+  /** The server answered the sync slot only when it refused the call; the slot is never a middleware result. */
+  private takeSyncRefusal(deserialized: ResponseBody): RouteSyncRefusal | undefined {
+    const answer = deserialized[MION_ROUTES.syncRoutes];
+    delete deserialized[MION_ROUTES.syncRoutes];
+    delete this.subRequestList[MION_ROUTES.syncRoutes];
+    return syncRefusalOf(answer);
+  }
+
+  /** Missing ids are resent once with the rows the refusal carries; different ids are the app's to report,
+   *  its code was written against other types, so nothing a resend could fix. Either way no handler ran. */
+  private async handleSyncRefusal(
+    refusal: RouteSyncRefusal,
+    errors: RequestErrors
+  ): Promise<ResponseBody> {
+    if (refusal.type === 'route-sync-required' && !this.resentWithSyncIds && !this.signal?.aborted) {
+      this.resentWithSyncIds = true;
+      learnSyncRoutes(this.options.baseURL);
+      const rows = refusal.errorData?.metadata;
+      if (rows?.methods) (await loadMetadataFromServer()).installMethodRows(rows);
+      return this.retryWithProperSerialization();
+    }
+    Object.values(this.subRequestList).forEach((subRequest) => (subRequest.isResolved = true));
+    this.setUndeclaredError(MION_ROUTES.syncRoutes, refusal, errors);
+    return Promise.reject(errors);
+  }
+
   private async retryWithProperSerialization(): Promise<ResponseBody> {
     delete this.subRequestList[MION_ROUTES.methodsMetadata];
+    delete this.subRequestList[MION_ROUTES.syncRoutes];
     this.thrownErrorIds.clear();
     Object.values(this.subRequestList).forEach((sr) => {
       sr.isResolved = false;

@@ -21,7 +21,7 @@ import {
   BatchResult,
 } from './types.ts';
 import type {RemoteApi} from '@mionjs/router';
-import type {InjectBuildVersion} from '@mionjs/run-types';
+import type {InjectBuildVersion, InjectRouterOptions} from '@mionjs/run-types';
 import {RpcError} from '@mionjs/core';
 import {getRouterItemId} from '@mionjs/core';
 import {MionClientRequest} from './request.ts';
@@ -30,16 +30,20 @@ import {HandlersRegistry} from './lib/handlersRegistry.ts';
 import {MionSubRequest} from './subRequest.ts';
 import {getBundleApiMode} from './lib/bundleApiMode.ts';
 import {setApiBuildVersion, takeApiVersionError} from './lib/apiBuildVersion.ts';
+import {setInjectedRouterOptions} from './lib/syncRoutes.ts';
 import {registerBundledApi, takeBundledApiError} from '#bundled-api';
 import {metadataCacheHooks} from './lib/metadataFromServerLoader.ts';
 
 /** Under the build's `bundleApi` option the metadata and compiled functions of every route are injected
- * at the call sites, so the client never asks the server; that module comes from the build, not this call. */
+ * at the call sites, so the client never asks the server; that module comes from the build, not this call.
+ * `buildVersion` and `routerOptions` are filled by the build from the API type, never by hand. */
 export function initClient<RM extends RemoteApi>(
   options: InitClientOptions,
-  buildVersion?: InjectBuildVersion<RM>
+  buildVersion?: InjectBuildVersion<RM>,
+  routerOptions?: InjectRouterOptions<RM>
 ): {client: MionClient; routes: ClientRoutes<RM>; middlewares: ClientMiddlewares<RM>} {
   setApiBuildVersion(buildVersion);
+  setInjectedRouterOptions(options.baseURL, routerOptions);
   const clientOptions = {...DEFAULT_PREFILL_OPTIONS, ...options};
   const client = new MionClient(clientOptions);
   const rootProxy = new MethodProxy([], client, clientOptions);

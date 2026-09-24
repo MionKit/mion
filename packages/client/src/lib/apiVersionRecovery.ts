@@ -46,16 +46,28 @@ export function createVerifySubRequest(methodIds: string[]): SubRequest<any> {
 }
 
 /** Compares every field the build version hashes, `options` included: this side holds both full rows. */
-export function verifyMethodRows(baseURL: string, asked: string[], data: SerializableMethodsData): void {
+/** Under `syncRoutes` (`keepTypeChanges`) a row whose types changed is kept: replacing it would make its sync id
+ *  match the server's while this client's code still expects the old types, so the call must be refused instead. */
+export function verifyMethodRows(baseURL: string, asked: string[], data: SerializableMethodsData, keepTypeChanges = false): void {
   const verified = verifiedBy(baseURL);
   for (const id of asked) verified.add(id);
   // Only the asked ids: comparing the middleware riding along would report a route this call never uses.
   const stale = asked.filter((id) => !rowsAgree(getMethod(id), data.methods[id] as MethodWithOptions | undefined));
-  if (!stale.length) return;
+  const replaced = keepTypeChanges ? stale.filter((id) => sameTypes(getMethod(id), data.methods[id])) : stale;
+  if (!replaced.length) return;
   // The bundled shelf wins over the fetched one, so the rows it replaces have to go first
-  dropBundledMethods(stale);
-  installMethodRows(data, stale);
-  stashApiVersionError(staleRoutesError(stale));
+  dropBundledMethods(replaced);
+  installMethodRows(data, replaced);
+  stashApiVersionError(staleRoutesError(replaced));
+}
+
+function sameTypes(held: MethodWithOptions | undefined, served: MethodWithOptions | undefined): boolean {
+  if (!held || !served) return false;
+  return (
+    held.paramsJitHash === served.paramsJitHash &&
+    held.returnJitHash === served.returnJitHash &&
+    held.headersParam?.jitHash === served.headersParam?.jitHash
+  );
 }
 
 /** A row missing on either end counts as a difference: the bundle never had it, or the server dropped it. */
