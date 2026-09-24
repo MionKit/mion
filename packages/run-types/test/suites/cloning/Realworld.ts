@@ -6,7 +6,7 @@
 // that makes mutating the clone safe. The remaining cases mirror the
 // serialization suite's realworld DTOs (the SAME relational / CMS / API /
 // form shapes the realworld benchmark runs) case-for-case, so the cloning
-// table lines up with serialization and the benchmark; their samples carry
+// table lines up with serialization; their samples carry
 // no undeclared keys, so only `payload` needs `expected`.
 
 import {createRemoveUnknownKeysFn} from '@mionjs/run-types';
