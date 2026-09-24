@@ -50,9 +50,7 @@ export function isRawExecutable(entry: RemoteMethod): entry is RawMethod {
   return entry.type === HandlerType.rawMiddleware;
 }
 
-/** What the metadata route hands out: every route (routes ARE the public API) plus every middleware taking
- *  params or headers or returning data, since the client must encode the call and decode the answer. A raw
- *  middleware, or one with neither params nor return data, never touches the wire. NOT access control. */
+/** What the metadata route exposes: whatever the client must encode or decode. NOT access control. */
 export function isPublicExecutable(executable: RemoteMethod): boolean {
   if (executable.type === HandlerType.rawMiddleware) return false;
   if (executable.type === HandlerType.route) return true;

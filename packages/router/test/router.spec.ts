@@ -401,7 +401,7 @@ describe('Create routes should', () => {
     const authMiddleware = getMiddlewareExecutable('auth');
     expect(authMiddleware).toBeDefined();
     expect(authMiddleware!.type).toEqual(HandlerType.headersMiddleware);
-    // Headers Functions should be public because they have headerNames, even if they have no return data or body params
+    // headerNames alone make it public
     expect(isPublicExecutable(authMiddleware!)).toBe(true);
   });
 });

@@ -299,7 +299,7 @@ export function isPrivateDefinition(entry: RouterEntry, id: string): entry is Pr
     if (!executable) throw new Error(`Route or Middleware ${id} not found. Please check you have called mion.initRoutes first.`);
     return !isPublicExecutable(executable);
   } catch {
-    // error thrown because entry is a Routes object and does not have any handler
+    // a Routes object has no handler, so no executable is found
     return false;
   }
 }
