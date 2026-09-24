@@ -1,6 +1,4 @@
-// branch-diff.mjs — the files a branch changed since it left its base, sorted into
-// the packages they belong to, for `core test-pr`. Commits only: the working tree
-// never counts, so a local run and the CI run give the same answer.
+// For `core test-pr`. Commits only: the working tree never counts, so a local run and CI agree.
 import {FEEDS_NOTHING, matches} from '../ci/lanes.mjs';
 import {REPO_ROOT} from './env.mjs';
 import {capture, die} from './proc.mjs';
@@ -12,8 +10,7 @@ const git = (args, cwd) => {
   return result.stdout;
 };
 
-// {mergeBase, files}: every path touched between the merge-base and HEAD. --no-renames
-// lists both ends of a move, so a file moved between packages marks both.
+// --no-renames lists both ends of a move, so a file moved between packages marks both.
 export function changedFiles(base, {cwd = REPO_ROOT} = {}) {
   const verified = capture('git', ['rev-parse', '--verify', '--quiet', `${base}^{commit}`], {cwd});
   if (verified.status !== 0) die(`unknown base '${base}' (fetch it first, e.g. \`git fetch origin main\`)`);
@@ -22,8 +19,7 @@ export function changedFiles(base, {cwd = REPO_ROOT} = {}) {
   return {mergeBase, files};
 }
 
-// {packages, global, ignored}: package dirs with a changed file, paths that force the
-// full suite (anything outside a workspace package), and paths that feed no test.
+// `global` paths sit outside every workspace package and force the full suite.
 export function classifyPaths(files, packages) {
   const changed = new Set();
   const global = [];

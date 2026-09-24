@@ -1,12 +1,5 @@
-// test-pr.mjs — `pnpm miondevx core test-pr`: vitest over only the packages a branch
-// changed plus every package that depends on them, in ONE vitest process (one
-// startup, unlike test-batches). Any change outside packages/ that can feed a test
-// (the Go tree, root configs, scripts/, container/, CI files) runs the full suite.
-//
-// Usage (via `pnpm miondevx core test-pr …`, or `node scripts/core/test-pr.mjs …`):
-//   test-pr [--base <ref>]   diff from the merge-base of <ref> (default origin/main) and HEAD
-//   test-pr --list           print the plan, run nothing
-// Every other arg passes to vitest.
+// `core test-pr`: the changed packages plus their dependents in ONE vitest process (one startup, unlike test-batches).
+// A change outside packages/ that is not in FEEDS_NOTHING (docs and the like) runs the full suite.
 import {REPO_ROOT} from '../lib/env.mjs';
 import {changedFiles, classifyPaths} from '../lib/branch-diff.mjs';
 import {affectedClosure, readWorkspaceGraph} from '../lib/workspace-graph.mjs';
@@ -16,10 +9,10 @@ import {readProjects} from './test-batches.mjs';
 const DEFAULT_BASE = 'origin/main';
 const SHOWN = 8;
 
-// The package dir a root-listed project config sits in (`packages/<dir>/…`).
+// Root-listed project configs sit at `packages/<dir>/…`.
 const projectPackage = (configPath) => configPath.split('/')[1];
 
-// Pure: what to run for these changed files. `projects` is readProjects()'s output.
+// Pure; `projects` is readProjects()'s output.
 export function buildPlan({files, packages, projects}) {
   const {packages: changed, global, ignored} = classifyPaths(files, packages);
   if (global.length > 0) return {full: true, global, ignored, changed, affected: new Map(), projects: [], untested: []};
@@ -69,7 +62,7 @@ export function main(argv = []) {
   if (plan.full) return runOrThrow('pnpm', ['exec', 'vitest', 'run', ...passThrough], {failMessage: 'core test-pr: the full suite failed'});
   if (plan.projects.length === 0) return note('test-pr: nothing to test');
   const projectFlags = plan.projects.flatMap((project) => ['--project', project]);
-  // A caller's --exclude can empty a selected project (test-router-fuzz is all test/fuzz/).
+  // An --exclude can empty a selected project (test-router-fuzz is all test/fuzz/).
   runOrThrow('pnpm', ['exec', 'vitest', 'run', ...projectFlags, '--passWithNoTests', ...passThrough], {failMessage: 'core test-pr: the affected projects failed'});
 }
 

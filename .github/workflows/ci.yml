@@ -220,7 +220,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           submodules: recursive
-          # HEAD^1 of the PR merge commit is the base tip the JS suite step diffs against.
+          # The JS suite step diffs against HEAD^1, the PR merge commit's base tip.
           fetch-depth: 2
       - uses: ./.github/actions/bootstrap
       # bun is NOT a workspace dependency — the devtools Bun adapter's tests
@@ -281,10 +281,8 @@ jobs:
       # need different module resolution, so they are separate programs.
       - name: Typecheck the mion examples
         run: pnpm run check-types-examples
-      # On a pull request HEAD is GitHub's merge commit, so HEAD^1 is the base tip and
-      # test-pr runs only the packages the PR changed plus their dependents. That run
-      # saves the narrower js-pr marker, which a push to main never accepts, so main
-      # still runs the full suite once after the merge.
+      # On a pull request HEAD is GitHub's merge commit, so HEAD^1 is the base tip test-pr diffs against.
+      # Its js-pr marker is accepted on pull requests only, so main still runs the full suite after the merge.
       - name: JS suite (everything except test/fuzz)
         id: suite
         run: |

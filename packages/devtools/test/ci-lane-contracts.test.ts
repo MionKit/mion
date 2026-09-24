@@ -100,7 +100,7 @@ describe('the lane table', () => {
     expect(decide(['js'], {hashes, greenKeys: [greenKey('js', 'def')]}).js.run).toBe(true);
   });
 
-  // A PR's partial run (core test-pr) must never let the push to main skip the full suite.
+  // A PR's partial run must never let the push to main skip the full suite.
   it('a partial js-pr marker skips a pull request only, never a push', () => {
     const hashes = {js: 'abc'};
     const greenKeys = [greenKey('js-pr', 'abc')];

@@ -58,6 +58,6 @@ runs:
         # the limit is generous because a marker missed off the end just re-runs a
         # lane: wasteful, never wrong.
         gh cache list --key mion-lane-green- --limit 200 --json key --jq '.[].key' > lane-green-keys.txt || : > lane-green-keys.txt
-        # A pull request also accepts the narrower PR markers (PR_PROOF in lanes.mjs); a push to main never does.
+        # Only a pull request accepts the narrower PR markers (PR_PROOF in lanes.mjs).
         node scripts/ci/lanes.mjs --decide $LANES --green-keys lane-green-keys.txt --github ${{ github.event_name == 'pull_request' && '--pr' || '' }}
         rm -f lane-green-keys.txt
