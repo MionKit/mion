@@ -48,3 +48,14 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
 - `createStripUnknownKeysFn` is gone from the public API; `createRemoveUnknownKeysFn` is the clone-based function; no `cloneExactShape` / `CloneExactShape` name remains in source, generated tables, tests, examples or docs.
 - `pnpm test`, `go -C ts-go-runtypes test ./internal/... ./cmd/...` and `pnpm run typecheck` pass.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source file, each committed on its own.
+
+## Plan (approved 2026-09-24)
+
+What shipped:
+
+- `createStripUnknownKeysFn` is gone. The `stripUnknownKeysWire` (`ukuw`) operation is now `Public: false` with no `Factory` (same as `classSerializerReg`), and its `RTFunctionByKey` entry is gone, so no marker type names it. The Go family and the `strip` decoder's use of it are unchanged.
+- The clone family is renamed end to end: `createRemoveUnknownKeysFn`, `RemoveUnknownKeysFn`, `RemoveUnknownKeysRTFn`, `overrideRemoveUnknownKeys`, marker key `removeUnknownKeys`, Go `RemoveUnknownKeysEmitter` in `typefunctions/remove_unknown_keys.go`, protocol flag `addedRemoveUnknownKeys`.
+- The family tag `ces` became `ruk` (var prefix `g_ruk_`), and the diagnostic codes `CES001`..`CES015` became `RUK001`..`RUK015`, so no short form of the old name stays. Neither collided with an existing tag, fnKey or code prefix. The diagnostics catalog groups `RUK` with the other unknown-key codes.
+- Generated tables regenerated with `pnpm miondevx core codegen`; the pinned plain hash in `getFnHash.test.ts` moved with the family name.
+- Tests: the blanking-factory tests in `jsonValueFactories.test.ts` and `getRTFunctionRecovery.test.ts` and the Go `TestStringifyAndStripFactories_ReachTheirOwnFamily` case were cut down to the surviving factories. Test dirs keep the `cloning` name, which still describes what they check.
+- Docs: the validation guide table row and the "Removing Unknown Keys" section say it returns a new value and never changes the input; the JSON page lost the old row; both lint pages use the new family name. Example `clone-exact-shape.ts` became `remove-unknown-keys.ts`.
