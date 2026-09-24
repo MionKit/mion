@@ -35,8 +35,8 @@ Land Go and JS together: the JS side passes `--parse-strategy` to the binary, an
 - `internal/compiler/resolver/scan.go`: delete the `op.Name == "parse"` block (`:981-993`) and `parseStrategyOperation` (`:1262-1285`); drop the `defaultParseStrategy` parameter of `computeSiteFn` (`:963`) and its two callers (`:776`, `:875`); fix comments at `:995` and `:1294`. KEEP `extractStrategyOption` (json strategy routing uses it).
 - `resolver.go:128-129, 148-153`: delete `Options.ParseDefaults` and the `ParseDefaults` type.
 - `internal/constants/constants.go:62-77`: delete the three `CacheModules` entries; `:246-256`: delete the `ParseStrategy*` consts.
-- `cmd/mion/main.go`: delete `--parse-strategy` (usage `:68`, field `:152`, flag `:201-202`, copy `:332`, check `:361-366`, `ParseDefaults` `:465`). `buildconfig.go:36, 61, 93, 164-167` and `config.go:139-141, 193-204`: delete the `parse` tsconfig key and its type.
-- Tests: delete `resolver/parse_test.go`. Before deleting `resolver/parse_strategy_default_test.go`, move its `wantParseFnId` helper (`:24-31`) into `json_value_strategy_test.go` under a neutral name (it is called at `:108`), and fix that file's comments at `:10`, `:94`.
+- `cmd/mion/main.go`: delete `--parse-strategy` (usage `:68`, field `:152`, flag `:201-202`, copy `:332`, check `:361-366`, `ParseDefaults` `:465`). `buildconfig.go:36, 61, 93, 164-167` and `config.go:139-141, 193-204`: delete the `parse` tsconfig key and its type, and add `parse` to `removedPluginKeys` so a project still setting it is told the replacement (pinned in `TestRemovedPluginKeys`).
+- Tests: delete `resolver/parse_test.go` and `resolver/parse_strategy_default_test.go`. Its `wantParseFnId` helper was the one thing another file used (`json_value_strategy_test.go`), which now calls the existing `leafFnHash` instead; fix that file's comments at `:10`, `:94`.
 - KEEP: `apigen.go` `parserStrategies` / `parseModes` (router body parser, unrelated), `AxisJsonStrategy`, `ValidateDefaults`, the strip / unknown-key emitters.
 
 ### 2. Regenerate the Go mirrors (never hand-edit)
@@ -91,7 +91,8 @@ In the mixed files, drop the parse cases where the decoder cases in the same fil
 | `fuzz/security/securityHarness.ts`, `jsonDecodeRunner.ts` | remove the `parse` fixture, field and wiring (the `verr` compile only existed for parse) |
 | `fuzz/security/securityOracle.ts`, `securityOracle.unit.test.ts` | remove the SJ-PARSE oracle and its tests, and the parse arm of SJ-REJECT; SJ-REJECT / SJ-PROTO / SJ-TOTAL stay on the decoders. `checkJsonDecode` no longer takes the re-parsed `tree` (only parse read it) |
 | `fuzz/value/fuzzOracle.ts`, `fuzzRunner.ts`, `fuzz.integration.test.ts` | remove oracles O19 and O20, the 12 `parse:` lines, and `restoreFromJsonMutate` (only O19 read it) with its pin test; keep the other ids unchanged, O5 still covers the JSON round trip |
-| `fuzz/security/jsonDecodeFuzz.integration.test.ts`, `attackDictionary.ts`, `treeMutations.ts` | comment and title wording only |
+| `fuzz/security/jsonDecodeFuzz.integration.test.ts`, `attackDictionary.ts` | comment and title wording only |
+| `fuzz/security/treeMutations.ts`, `positions.unit.test.ts` | drop `TreeAttack.tree` (only parse read it); the positions test re-parses `attack.text` instead |
 
 No new tests: this removes a feature. The guard is that `grep -rniE "createParseFn|RTParseError|ParseMismatch|parseStrategy|parse-strategy|'prs'|prsf|prss"` over `packages/ ts-go-runtypes/{cmd,internal} container/website` returns nothing, and every suite below passes.
 
@@ -120,4 +121,7 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
 
 ## What shipped
 
-Everything above, plus one related fix: `pnpm miondevx core codegen` used to run only the FIRST target it was given and silently skip the rest, so step 2's four-target command regenerated one file. It now runs every named target and refuses an unknown one, pinned in `packages/devtools/test/devx-registry.test.ts`.
+Everything above, plus two related fixes, each with its own test:
+
+- `pnpm miondevx core codegen` used to run only the FIRST target it was given and silently skip the rest, so step 2's four-target command regenerated one file. It now runs every named target and refuses an unknown one, `all` included, pinned in `packages/devtools/test/devx-registry.test.ts`.
+- The resolver decides a program is a server (so `initRoutes` gets its build version) by a text search for `@mionjs/router`. The router's own sources and tests import it by relative path, so they only passed because two run-types comments this change deleted happened to contain that text; `packages/router/test/globalHeaders.spec.ts` then failed. A file the `@mionjs/router` package owns now counts too (`importsRouter` in `resolver/rpcgen.go`), pinned by `TestApiVersion_RouterPackageOwnFilesAreTrusted`.
