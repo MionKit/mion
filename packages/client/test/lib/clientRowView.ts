@@ -5,11 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Kept out of the eager client chunk: only version recovery and the parity tests read this.
+import type {MethodMetadata, MethodWithOptions} from '@mionjs/core';
 
-import type {MethodMetadata, MethodWithOptions} from './types/method.types.ts';
-
-/** Every row field a client acts on, normalised so both ends compare alike; only `syncId` blocks a call. */
+/** Every row field a client acts on, normalised so the parity tests compare a bundled row with the server's alike. */
 export function clientRowView(row: MethodWithOptions) {
   const parser = row.options?.parser as unknown;
   return {

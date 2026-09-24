@@ -10,7 +10,7 @@
 
 import {expect} from 'vitest';
 import {parseAst} from 'vite';
-import {MION_ROUTES, clientRowView, getJitFnHashes, getRoutePath} from '@mionjs/core';
+import {MION_ROUTES, getJitFnHashes, getRoutePath} from '@mionjs/core';
 import type {ParserStrategy, SerializableMethodsData} from '@mionjs/core';
 import {getRTUtils} from '@mionjs/run-types/runtime';
 import type {InjectApiMetadata} from '@mionjs/run-types';
@@ -20,6 +20,7 @@ import {resetBundledApi} from '../../src/lib/bundledApi.ts';
 import {bundledMethodIds, getMethod} from '../../src/lib/methods.ts';
 import type {InjectedApiMetadata} from '../../src/types.ts';
 import {resetClientCaches} from './testUtils.ts';
+import {clientRowView} from './clientRowView.ts';
 
 /** Every method id of an API, nested keys joined with `/`. */
 export type MethodIds<Api, Prefix extends string = ''> = {

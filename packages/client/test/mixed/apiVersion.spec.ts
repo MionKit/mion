@@ -96,10 +96,10 @@ describe('the api version a mixed client compares', () => {
 
   it('replaces a row the server no longer agrees with and reports it once', async () => {
     const {routes, middlewares} = initClient<TestServerApi>({baseURL});
-    // The lane server IS this build's server, so a real difference has to be forged on the wire: `isMutation`
-    // moves the build version while both jit hashes stay put, the case the hashes alone cannot see.
+    // The lane server IS this build's server, so a real difference has to be forged on the wire: the sync id
+    // alone decides whether a row still agrees.
     const watch = serveVersion('someOtherAp', (methods) => {
-      if (methods.sayHello) methods.sayHello.options = {...methods.sayHello.options, isMutation: true};
+      if (methods.sayHello) methods.sayHello.syncId = 'changed';
     });
     try {
       await routes.sayHello(user).call(withAuth(middlewares));
