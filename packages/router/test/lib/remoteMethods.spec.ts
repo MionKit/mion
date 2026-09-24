@@ -190,7 +190,7 @@ describe('Public Methods should', () => {
     // The error-shaped families are the regression: they carry three slots, and the removed
     // `toWireArgs` workaround collapsed them to one — `{vλl: 'v'}` — injecting an identifier
     // where a default expression belongs.
-    const errorShaped = entries.filter((e) => e.familyTag === 'verr' || e.familyTag === 'veuk' || e.familyTag === 'uke');
+    const errorShaped = entries.filter((e) => e.familyTag === 'verr' || e.familyTag === 'veuk');
     expect(errorShaped.length).toBeGreaterThan(0);
     errorShaped.forEach((entry) => {
       expect(entry.defaultParamValues).toEqual({vλl: '', pλth: '[]', εrr: '[]'});

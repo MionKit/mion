@@ -143,7 +143,7 @@ export type RunTypesCache = Record<string, RunType>;
 
 export type AnyFn = (...args: any[]) => any;
 
-/** One emitted-function parameter table, keyed by CONCEPTUAL SLOT (`vλl`, `pλth`, `εrr`, `θpts`, `sεr`, `dεs`) —
+/** One emitted-function parameter table, keyed by CONCEPTUAL SLOT (`vλl`, `pλth`, `εrr`, `sεr`, `dεs`) —
  *  the Go-side mirror of `typefunctions.ArgSpec`. ⚠️ Every value is a JS-SOURCE FRAGMENT, never a runtime value:
  *  `args` holds identifiers, `defaultParamValues` holds default EXPRESSIONS (`''` for no default), and both are
  *  spliced back into a signature when a consumer rebuilds the function via `new Function(...)`. That is what

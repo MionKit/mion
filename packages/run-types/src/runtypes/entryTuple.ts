@@ -352,7 +352,6 @@ interface FamilyMeta {
 }
 
 const noopTrue = () => true;
-const noopFalse = () => false;
 const noopIdentity = (v: unknown) => v;
 const noopErrors = (_v: unknown, _pth: unknown, er: unknown) => er || [];
 const noopStringify = (v: unknown) => JSON.stringify(v);
@@ -393,14 +392,7 @@ export const familyMeta: Record<string, FamilyMeta> = {
   cjr: valueShaped('cjr', noopIdentity),
   // rjs: the strip restore, value-shaped identity like rj.
   rjs: valueShaped('rjs', noopIdentity),
-  huk: {
-    fnID: 'huk',
-    args: () => ({vλl: 'v', θpts: 'opts'}) as CompiledFnArgs,
-    defaultParamValues: (): CompiledFnArgs => ({vλl: '', θpts: '{}'}),
-    noop: noopFalse,
-  },
   ruk: valueShaped('ruk', noopIdentity),
-  uke: errorShaped('uke'),
   ukuw: valueShaped('ukuw', noopIdentity),
   // Name card: its typeName slot carries the build-time class name registerClassSerializer's name lane keys on.
   csr: valueShaped('csr', noopIdentity),
