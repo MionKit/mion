@@ -15,7 +15,7 @@
 //                           root keeps the input root's prototype
 //     O17 clone-consistency validate(clone(v)) is true, clone(clone(v))
 //                           deep-equals clone(v), and (extras stream) the
-//                           `{checkUnknowns: true}` validator accepts clone(v)
+//                           strict validator accepts clone(v)
 //
 //   ROBUSTNESS (junk stream)
 //     clone's contract does NOT cover non-conforming input — it may return
@@ -32,10 +32,8 @@ import type {RunType} from '../../../src/runtypes/types.ts';
 import {snapshot, type Violation} from '../value/fuzzOracle.ts';
 import {referenceClone} from './referenceClone.ts';
 
-/** One target under clone fuzz: the schema drives mock/extras generation and
- *  the reference interpreter; validate gates conformance; validateStrict (the
- *  `{checkUnknowns: true}` validator) is the optional extras cross-check. The test file builds these so the Vite
- *  plugin can rewrite the `createX<T>()` call sites. **/
+/** validate gates conformance; the optional validateStrict (`{checkUnknowns: true}`) cross-checks the extras stream.
+ *  Built in the test file so the Vite plugin can rewrite the `createX<T>()` call sites. **/
 export interface CloneFuzzTarget {
   title: string;
   /** Runtype tree — mock/extras generation + the reference interpreter. **/

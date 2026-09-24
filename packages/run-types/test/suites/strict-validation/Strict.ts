@@ -5,34 +5,16 @@ import {
   type RTValidationError,
 } from '@mionjs/run-types';
 
-// STRICT VALIDATION — the `{checkUnknowns: true}` path: a value is accepted only
-// if it validates AND carries no keys the type does not declare.
-//
-// The shapes mirror container/benchmarks/shared/cases/strict/index.ts case for
-// case, so the suite table and the benchmark table line up and neither can drift
-// into testing something the other does not measure. The benchmark tree is
-// marker-free by design (competitors consume it), so the thunks live here.
-//
-// Each case carries the fused functions, the plain validators, and the keys the
-// type declares. The plain report plus `undeclaredKeyErrors` over those keys is
-// an independent reference for the fused report, so every assertion is a
-// comparison rather than a hand-written expectation per sample.
-//
-// COVERAGE THAT MUST NOT BE LOST — the two emit paths:
-//   - flat_required / nested_required / moltar_dto are all-required with no index
-//     signature, which is exactly what countFastPathN demands before it emits the
-//     O(1) `cntEK(v) === N` compare. Making any of them optional moves the case to
-//     the other path and leaves the count check uncovered here.
-//   - realworld_order carries an optional key, so it drops to the key-array scan.
-//     That is the realistic shape and the path most real DTOs get.
+// `{checkUnknowns: true}` cases mirroring container/benchmarks/shared/cases/strict/index.ts case for case; the thunks
+// live here because that tree stays marker-free for competitors. Each case carries an independent reference: the plain
+// report plus `undeclaredKeyErrors` over its declared keys. flat_required / nested_required / moltar_dto must stay
+// all-required with no index signature, or countFastPathN's `cntEK(v) === N` compare loses coverage; realworld_order's
+// optional key covers the key-array scan.
 
-/** The keys a type declares, for the in-test reference: `null` is a leaf, a nested
- *  object declares its own keys, and a one-element array declares its element. **/
+/** `null` is a leaf; a one-element array declares its element. **/
 export type DeclaredKeys = {readonly [key: string]: DeclaredKeys | null} | readonly [DeclaredKeys];
 
-/** Reference report: one `{expected: 'never'}` per key `declared` leaves out, at any
- *  depth. A non-object, or an array where an object is declared, has no undeclared
- *  keys; its shape is the plain report's business. **/
+/** One `{expected: 'never'}` per undeclared key at any depth; a shape mismatch is the plain report's business. **/
 export function undeclaredKeyErrors(value: unknown, declared: DeclaredKeys, path: (string | number)[] = []): RTValidationError[] {
   if (Array.isArray(declared)) {
     if (!Array.isArray(value)) return [];
@@ -49,10 +31,7 @@ export function undeclaredKeyErrors(value: unknown, declared: DeclaredKeys, path
   return errors;
 }
 
-/** One strict case: the samples, the fused functions, and the reference pieces
- *  they are checked against. Deliberately NOT the heavyweight ValidationCase
- *  contract: a compile-time flag has no mock / schema / value-first variants to
- *  cover, and requiring those thunks here would be noise rather than coverage. */
+/** Not the heavyweight ValidationCase: a compile-time flag has no mock / schema / value-first variants to cover. */
 export interface StrictCase {
   title: string;
   description: string;
@@ -68,14 +47,10 @@ export interface StrictCase {
   /** The plain validators: the type half of the reference. */
   validate: () => (value: unknown) => boolean;
   errors: () => GetValidationErrorsFn;
-  /** The keys `T` declares, the undeclared-key half of the reference. For a
-   *  union it is the merged allowlist: every key ANY member declares. */
+  /** The undeclared-key half of the reference; for a union, every key ANY member declares. */
   declaredKeys: DeclaredKeys;
-  /** Set where the fused answer deliberately differs from the reference, so the
-   *  parity assertions are replaced by an explicit divergence assertion rather
-   *  than silently relaxed. Unions are the only such shape: the merged allowlist
-   *  cannot tell which member a value matched, while the fused validator
-   *  inherits validate's OR chain and answers per branch. */
+  /** Unions only: the fused validator answers per branch, which the merged allowlist cannot.
+   *  Swaps the parity assertions for an explicit divergence check rather than relaxing them. */
   divergesFromReference?: true;
 }
 

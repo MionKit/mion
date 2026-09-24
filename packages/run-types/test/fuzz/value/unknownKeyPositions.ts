@@ -54,10 +54,8 @@ const sub = RunTypeSubKind;
 export type UnknownKeyPositionKind = 'flagged' | 'carveOut';
 
 export interface UnknownKeyPosition {
-  /** The container's path, spelled the way the unknown-key report spells it: a
-   *  string for an object key, a number for an array / tuple index, and a
-   *  `{key, failed}` segment for a Map / Set entry. The reported path of the
-   *  planted key is this path plus the key name. **/
+  /** The container's path in report spelling: a string key, a number index, or a `{key, failed}` Map / Set entry.
+   *  The planted key's reported path is this plus the key name. **/
   path: RTValidationErrorPathSegment[];
   kind: UnknownKeyPositionKind;
 }
@@ -278,8 +276,7 @@ function walk(node: RunType, value: unknown, path: RTValidationErrorPathSegment[
     const subKind = node.subKind as number | undefined;
     const args = (node.arguments ?? []) as RunType[];
     if (subKind === sub.map && value instanceof Map) {
-      // `key` is the entry's iteration index and `failed` says which side —
-      // exactly what the unknown-key report pushes for a Map entry.
+      // `key` is the iteration index and `failed` the side, as the unknown-key report pushes for a Map entry.
       const keyType = args[0]?.child;
       const valueType = args[1]?.child;
       let index = 0;

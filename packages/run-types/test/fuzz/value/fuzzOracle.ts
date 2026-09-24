@@ -39,16 +39,12 @@ export interface FuzzTarget {
   mock: () => unknown;
   validate: (value: unknown) => boolean;
   getValidationErrors: (value: unknown) => unknown[];
-  /** The `{checkUnknowns: true}` fused validator. O18 holds it against `validate` plus `clone`. **/
+  /** O18 holds it against `validate` plus `clone`. **/
   validateStrict?: (value: unknown) => boolean;
-  /** The strict ERROR twin. O21 holds it against `validateStrict`: a caller that
-   *  gets a rejection and then asks why must never be handed an empty list. Its
-   *  `expected: 'never'` entries are the unknown-key report O22–O24 check. **/
+  /** O21: a `validateStrict` rejection never comes with an empty list; its `'never'` entries feed O22–O24. **/
   errorsStrict?: (value: unknown) => unknown[];
-  /** Set on a target whose fused validator deliberately answers differently from
-   *  the strip. Unions are the only such shape: the fused form follows the branch
-   *  that matched, the strip may keep a key another member declares. O18 then
-   *  checks the half that must still hold, the fused form is never LOOSER. **/
+  /** Unions only: the fused form follows the matched branch while the strip may keep another member's key.
+   *  O18 then checks only that the fused form is never LOOSER. **/
   divergesFromComposition?: true;
   /** `never` lets any `RemoveUnknownKeysFn<T>` be assigned (contravariant parameter); the oracle casts back. **/
   clone?: (value: never) => unknown;
@@ -227,15 +223,9 @@ export function checkErrorsAgree(target: FuzzTarget, value: unknown, ctx: CheckC
   return null;
 }
 
-/** O18 — the fused `{checkUnknowns: true}` validator accepts exactly when
- *  `validate(v)` does and `removeUnknownKeys` drops nothing from `v`.
- *
- *  The strip is a separate emitter, so a node kind whose fused arm forgot to
- *  splice the key check (or spliced it where the shape declares no keys) shows
- *  up as a disagreement. The strip's contract covers conforming values only, so
- *  it runs only after `validate(v)`; without a strip (object unions) the check
- *  keeps the half that needs none: the fused form never accepts what `validate`
- *  rejects. A throw from the fused validator is a violation, not a skip. **/
+/** O18: the fused validator accepts exactly when `validate(v)` does and `removeUnknownKeys` drops nothing.
+ *  The strip is its own emitter, so a fused arm missing its key check shows as a disagreement; a throw is a violation.
+ *  The strip runs only on values `validate` accepts; without one (object unions) fused must still never accept more. **/
 export function checkFusedAgree(target: FuzzTarget, value: unknown, ctx: CheckCtx): Violation | null {
   const {validateStrict, clone} = target;
   if (!validateStrict) return null;
@@ -338,7 +328,7 @@ export function checkStrictSelfAgree(target: FuzzTarget, value: unknown, ctx: Ch
 // nobody thought of still gets an answer that has to agree.
 // =============================================================================
 
-/** The paths of the strict report entries expecting `expected`, as comparable strings. **/
+/** Sorted `pathKey`s of the report entries expecting `expected`. **/
 function reportedPaths(errors: readonly unknown[], expected: 'never' | 'union'): string[] {
   return (errors as RTValidationError[])
     .filter((error) => error.expected === expected)
@@ -351,14 +341,8 @@ function isUnderPath(path: string, ancestor: string): boolean {
   return ancestor === '' || path === ancestor || path.startsWith(`${ancestor}.`);
 }
 
-/** O22 — on a value `validate` accepts, the strict error twin reports ONLY
- *  unknown-key entries: `expected: 'never'` at the key, or `expected: 'union'`
- *  at a union that rejects the value because no branch accepts its keys.
- *
- *  The type check is already settled for such a value, so anything else the
- *  strict twin reports is its key arm mislabelling an entry, or its type arm
- *  disagreeing with the plain family. O21 already ties the report's emptiness
- *  to the fused validator, so the two together pin both sides. **/
+/** O22: on a value `validate` accepts, the strict twin reports ONLY `'never'` keys or `'union'` nodes rejecting keys.
+ *  Anything else is a mislabelled key entry or a type arm disagreeing with the plain family; O21 pins emptiness. **/
 export function checkUnknownKeysSelfAgree(target: FuzzTarget, value: unknown, ctx: CheckCtx): Violation | null {
   const {errorsStrict} = target;
   if (!errorsStrict) return null;
@@ -389,14 +373,9 @@ export function checkUnknownKeysSelfAgree(target: FuzzTarget, value: unknown, ct
   return null;
 }
 
-/** O23 — the planted key gets the answer its position owes.
- *
- *  The absolute half of the agreement, and the one that catches a position ALL
- *  of them miss. A key planted where keys are declared by name must be reported
- *  at exactly that path and rejected by the strict validator; a key planted into
- *  an index-signature object adds no unknown-key entry and leaves the strict
- *  validator agreeing with `validate`, because every key there IS declared. `clean` is the same value without the plant, so the comparison is
- *  a difference rather than an absolute. **/
+/** O23: the planted key gets the answer its position owes, which catches a position every family misses.
+ *  A named-key plant is reported at exactly its path and strict-rejected; an index-signature plant changes neither.
+ *  `clean` is the value without the plant, so the comparison is a difference, not an absolute. **/
 export function checkUnknownKeysPlanted(
   target: FuzzTarget,
   planted: PlantedUnknownKey,
@@ -423,14 +402,13 @@ export function checkUnknownKeysPlanted(
     return violation('O23', target, ctx, `a checkUnknowns family threw on the planted value: ${errMsg(err)}`, planted.value);
   }
   const plantedPath = pathKey(planted.path);
-  // A union answers per branch, so a key inside it is reported as the union failing at the union's own path,
-  // which a union that already failed on the clean value (a subclass instance's own field) leaves unchanged.
+  // Inside a union the key reports as the union failing at its path, already there if `clean` failed (a subclass field).
   const unionAbove = (union: string) => union !== plantedPath && isUnderPath(plantedPath, union);
   const reportedByUnion =
     planted.kind === 'flagged' &&
     added.length === 0 &&
     (addedUnions.length === 1 ? unionAbove(addedUnions[0]) : addedUnions.length === 0 && [...unionsBefore].some(unionAbove));
-  // A carve-out plant that breaks the value type fails its union as a type error, not an unknown key.
+  // Gated on `validate`: a carve-out plant breaking the value type fails its union as a type error.
   if (!reportedByUnion && addedUnions.length > 0 && plainPlanted) {
     return violation(
       'O23',
@@ -529,10 +507,8 @@ export function unreachedKeyedTargets(targets: FuzzTarget[], positionsByTarget: 
     .map((target) => target.title);
 }
 
-/** The path of every planted key still present as an OWN key, spelled the way the unknown-key report
- *  spells a path so `wireKeyAdmitted` can walk the type along it. `Object.hasOwn`
- *  semantics rather than a value check on purpose: a key set to `undefined` is still there, and
- *  telling those two apart is O26's whole job. **/
+/** Paths of planted keys still present as OWN keys, in report spelling so `wireKeyAdmitted` can walk them.
+ *  `Object.hasOwn`, not a value check: a key set to `undefined` is still there, and telling those apart is O26's job. **/
 function survivingPlantedKeys(
   value: unknown,
   path: RTValidationErrorPathSegment[] = [],
@@ -720,8 +696,7 @@ function validates(target: FuzzTarget, value: unknown): boolean {
   }
 }
 
-/** A copy with every own key `drop` names removed, `path` being the key's full path in
- *  unknown-key report spelling. Natives are kept as they are; Maps, Sets and arrays are walked. **/
+/** Copy minus the own keys `drop` names (`path` in report spelling); natives kept as is, Maps/Sets/arrays walked. **/
 function withoutKeys(
   value: unknown,
   drop: (key: string, entry: unknown, path: RTValidationErrorPathSegment[]) => boolean,

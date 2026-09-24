@@ -442,7 +442,7 @@ const targets: CloneFuzzTarget[] = [];
     // reference contract is exercised (default mocks skip non-data members).
     mock: createMockDataFn<FnProp>(undefined, {mock: {nonDataTypes: true}}),
     validate: createValidateFn<FnProp>(),
-    // The clone keeps function members (RUK010), which the strict validator rejects as undeclared; drop the declared one.
+    // The clone keeps function members (RUK010), which the strict validator rejects; drop the declared one first.
     validateStrict: (value) => {
       const {onClick: _onClick, ...data} = value as FnProp;
       return strictFnProp(data);

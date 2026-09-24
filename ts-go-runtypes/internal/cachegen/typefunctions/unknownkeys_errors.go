@@ -19,14 +19,10 @@ func callUnknownKeyErr(ctx *EmitContext, extra string) string {
 	return key + "(" + strings.Join(args, ",") + ")"
 }
 
-// emitParentUnknownKeyErrors pushes one `{path, expected: 'never'}` per undeclared key of an object node.
-// Returns "" when the node needs none: an index signature makes every matching key declared, and a shape with no
-// declared names has nothing to compare against.
-// Used by the FUSED `validationErrorsStrict` family.
-//
-// ⚠️ THE CALLER OWNS THE OBJECT GUARD, so do not move it in here: the fused family already sits inside
-// emitObjectValidationErrors' own guard, and a second one would emit on every object node of every
-// `{checkUnknowns: true}` validator. Same reasoning as `keepObjectCheck=false` on the validate side.
+// emitParentUnknownKeyErrors pushes one `{path, expected: 'never'}` per undeclared key for `validationErrorsStrict`;
+// "" when an index signature declares every key or the shape declares no names.
+// ⚠️ THE CALLER OWNS THE OBJECT GUARD: the fused family already sits inside emitObjectValidationErrors' guard, and a
+// second one would emit on every object node, which strictObjectKeyAssertion also avoids on validate.
 // Pinned by TestCheckUnknowns_DoesNotDoubleGuardObjects.
 func emitParentUnknownKeyErrors(rt *reflection.RunType, ctx *EmitContext) string {
 	if objectHasIndexSignatureChild(rt, ctx) {

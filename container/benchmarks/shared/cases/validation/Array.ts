@@ -5,8 +5,6 @@ export const ARRAY = {
     title: 'Array of strings',
     getSamples: () => ({
       valid: [[], ['hello', 'world']],
-      // The mixed-types invalid `['hello', 'world', {hello: 'world'}]`:
-      // the object element fails the string check, so the whole array fails validate.
       invalid: ['hello', ['hello', 2], ['hello', 'world', {hello: 'world'}], null, undefined, [42], [null]],
     }),
   },

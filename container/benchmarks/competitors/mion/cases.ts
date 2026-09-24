@@ -2738,9 +2738,7 @@ export const cases: CompetitorCases = {
   },
 
   // ── STRICT ──
-  // The strict path: `checkUnknowns` validates AND rejects undeclared keys in one walk. On all-required
-  // nodes the emitter swaps the key-array scan for the `cntEK(v) === N` count check, so these are the
-  // only cases in the suite that reach countEnumKeys, the per-engine counter.
+  // The only cases reaching countEnumKeys, the per-engine counter: all-required nodes get `cntEK(v) === N`.
   'STRICT.flat_required': {
     build: () => {
       interface StrictFlat {
@@ -2804,8 +2802,7 @@ export const cases: CompetitorCases = {
       return (value: unknown) => getErrors(value).length === 0;
     },
   },
-  // The one case here carrying an OPTIONAL key: the all-required nodes inside (customer, the item,
-  // shipping) keep the count check, the root drops to the key-array scan.
+  // The optional `note` drops the root to the key-array scan; the all-required nested nodes keep the count check.
   'STRICT.realworld_order': {
     build: () => {
       interface StrictOrder {

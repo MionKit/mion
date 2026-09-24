@@ -253,10 +253,7 @@ export const isUser = createValidateFn<User>();
 	}
 }
 
-// The fused validators run their key check INSIDE their own object guard, so
-// the key check must not add a second one. Moving a guard down into the shared
-// helpers would silently emit it twice on every object node. Cheap to pin, easy
-// to regress.
+// The fused validators check keys INSIDE their own object guard; a guard moved into the shared helpers would emit twice.
 func TestCheckUnknowns_DoesNotDoubleGuardObjects(t *testing.T) {
 	for _, row := range []struct{ label, factory, opName string }{
 		{"validate", "createValidateFn", "validateStrict"},

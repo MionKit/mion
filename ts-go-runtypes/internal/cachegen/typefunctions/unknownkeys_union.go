@@ -7,12 +7,9 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// unknownkeys_union.go owns the union arm of the unknown-keys families (toUndefined and its wire twin), consolidating
-// "what counts as a declared key on a union" onto FlatLayout's MergedProps. The allowlist is LOOSE: the declared key set
-// is the union of every object member's property names, so a key only member A declares still counts as declared. That
-// matches the flat encoder's structural identity and avoids a per-member validate walk on every cleanup call. When ANY
-// member carries an index signature the emit is a no-op for the WHOLE family: the value might match that member, where
-// every key is declared via the pattern, and the merged allowlist would strip valid keys.
+// unknownkeys_union.go owns the union arm of unknownKeysToUndefined and its wire twin, on FlatLayout's MergedProps.
+// The allowlist is LOOSE (every object member's names), matching the flat encoder and sparing a per-member validate.
+// An index-signature member makes the whole family a no-op, or the merged allowlist would strip keys it declares.
 
 // UnknownKeysOpts parameterises the per-family behaviour of emitUnionUnknownKeysMerged.
 type UnknownKeysOpts struct {

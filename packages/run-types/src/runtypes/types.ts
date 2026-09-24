@@ -143,12 +143,8 @@ export type RunTypesCache = Record<string, RunType>;
 
 export type AnyFn = (...args: any[]) => any;
 
-/** One emitted-function parameter table, keyed by CONCEPTUAL SLOT (`vλl`, `pλth`, `εrr`, `sεr`, `dεs`) —
- *  the Go-side mirror of `typefunctions.ArgSpec`. ⚠️ Every value is a JS-SOURCE FRAGMENT, never a runtime value:
- *  `args` holds identifiers, `defaultParamValues` holds default EXPRESSIONS (`''` for no default), and both are
- *  spliced back into a signature when a consumer rebuilds the function via `new Function(...)`. That is what
- *  keeps `CompiledFnData` JSON-serializable with NO conversion step — put a real `undefined` / `[]` / `{}` in
- *  here and `JSON.stringify` emits invalid JSON (`"vλl":undefined`) for a required slot. **/
+/** Slot (`vλl`, `pλth`, `εrr`, …) → a JS-SOURCE fragment spliced into `new Function(...)`; mirrors Go's `ArgSpec`.
+ *  ⚠️ Never a runtime value: a real `undefined` / `[]` / `{}` here makes `CompiledFnData` invalid JSON. **/
 export type CompiledFnArgs = {
   /** The value parameter — present in every family. */
   vλl: string;

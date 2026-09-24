@@ -1,6 +1,6 @@
-// Feeds valid mocks, extras-decorated mocks (also checked by the checkUnknowns validator) and type-blind junk (robustness only)
-// into each target's compiled clone. A seeded `Math.random` makes a violation replay from its `seed`; no test
-// framework or I/O, so it also runs as a standalone soak (runCloneFuzzForDuration).
+// Feeds valid mocks, extras mocks (also strict-validated) and junk (robustness only) into each compiled clone.
+// A seeded `Math.random` replays a violation from its `seed`; no framework or I/O, so it also runs as a soak
+// (runCloneFuzzForDuration).
 
 import {withSeededRandom} from '../core/seededRng.ts';
 import {type CrashRecord} from '../core/crashGuard.ts';

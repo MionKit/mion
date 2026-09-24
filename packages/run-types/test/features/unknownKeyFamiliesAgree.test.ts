@@ -36,9 +36,9 @@ type CountsOrInner = Counts | Inner;
 interface Row {
   /** The wire the caller sent, with one undeclared `evil` key planted. **/
   wire: string;
-  /** The path of that key, which the strict errors form reports unless the row is a union. **/
+  /** Reported by the strict errors form unless the row is a union. **/
   reported: (string | number)[];
-  /** Set for a union: the strict errors form names the union at the root, since the key is only undeclared relative to a branch. **/
+  /** The strict errors form names a union at the root: the key is only undeclared relative to a branch. **/
   union?: true;
   /** The value every deleting family must produce; the strip decoder blanks the key instead. **/
   clean: unknown;
@@ -67,7 +67,7 @@ function cloneDecoder<T>(id?: InjectTypeFnArgs<T, 'restoreFromJsonClone'>) {
   return getRTFunction<'restoreFromJsonClone'>(id);
 }
 
-/** Reference for the pooled allowlist the codecs read on `Pet`: keys declared by ANY member. **/
+/** The pooled allowlist the codecs read on `Pet`. **/
 const PET_KEYS = new Set(['kind', 'meows', 'barks']);
 const undeclaredOnPet = (value: Pet) => Object.keys(value).filter((key) => !PET_KEYS.has(key));
 
@@ -220,10 +220,8 @@ describe('every unknown-key family agrees', () => {
     expect(createJsonDecoderFn<Counts>(undefined, {strategy: 'strip'})(wire), "decoder {strategy: 'strip'}").toStrictEqual(all);
   });
 
-  // A union with an index-signature member: no codec can tell a stray key on the object member from
-  // a key the record member declares, so every key stays, on a value that only the object member
-  // matches. The strict validator still refuses it: the record refuses the string `a` and the
-  // object literal refuses the extra key.
+  // No codec can tell a stray key from one the record member declares, so every key stays.
+  // The strict validator refuses it: the record rejects the string `a`, the object literal the extra key.
   it('keeps every key of a union whose member carries an index signature', () => {
     const wire = '{"a":"x","evil":1}';
     const parse = () => JSON.parse(wire) as CountsOrInner;
@@ -246,10 +244,7 @@ describe('every unknown-key family agrees', () => {
     );
   });
 
-  // "Is any key undeclared" and "does this value match the type" are different questions. No key is
-  // undeclared because the record member declares every key, so the stripping roads keep them all;
-  // no member matches strictly because the record refuses the string `a` while the object literal
-  // refuses the extra key.
+  // No key is undeclared (the record declares all), yet no member matches strictly: the record rejects `a`, the literal `evil`.
   it('an undeclared key and a shape mismatch are different questions', () => {
     const wire = '{"a":"x","evil":1}';
     const parse = () => JSON.parse(wire) as CountsOrInner;
@@ -264,13 +259,8 @@ describe('every unknown-key family agrees', () => {
     );
   });
 
-  // A DISCRIMINATED union, where the members declare different keys. Every codec pools the members'
-  // key names into one list and keeps anything on it, the list `undeclaredOnPet` spells out by hand.
-  // So a cat carrying `barks` survives every road: the codecs and the pooled list give one answer.
-  //
-  // The fused strict validator is the one that answers differently, and on purpose: it inherits
-  // validate's branch chain, so it asks whether the MATCHED member declares the key. No codec can
-  // ask that, since a codec never validates and so never learns which member matched.
+  // Every codec pools the members' keys (as `undeclaredOnPet` does by hand), so a cat carrying `barks` survives.
+  // Only the strict validator asks the MATCHED member; a codec never validates, so it never learns which one matched.
   it('keeps a key belonging to ANOTHER member of a union, the same answer the pooled list gives', () => {
     const wire = '{"kind":"cat","meows":true,"barks":3}';
     const parse = () => JSON.parse(wire) as Pet;
@@ -291,9 +281,7 @@ describe('every unknown-key family agrees', () => {
     expect(createValidateFn<Pet>(undefined, {checkUnknowns: true})(parse()), 'validate {checkUnknowns: true}').toBe(false);
   });
 
-  // Same union, same positions, a key NO member declares. Now the pooled list does not carry it, so
-  // every stripping road drops it. This is the half that must never drift: a key belonging to
-  // nothing is undeclared on every road.
+  // A key NO member declares is undeclared on every road: the half that must never drift.
   it('drops a key belonging to NO member of a union, on every road that strips', () => {
     const wire = '{"kind":"cat","meows":true,"zzz":9}';
     const parse = () => JSON.parse(wire) as Pet;

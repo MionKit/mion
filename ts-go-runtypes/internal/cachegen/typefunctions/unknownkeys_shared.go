@@ -147,13 +147,9 @@ func callCheckUnknownPropertiesForHas(rt *reflection.RunType, ctx *EmitContext, 
 	return fnVar + "(" + ctx.Vλl + ", " + keysCtx.keysName + ")"
 }
 
-// countFastPathN reports the declared prop count N for the fused validators' key-count fast path, and whether the node is eligible:
-//
-//   - every RT child is REQUIRED, so validation proves all N present and `countEnumKeys(v) === N` separates clean from dirty,
-//   - no index-signature child (the caller suppresses the parent check entirely for those), and
-//   - RT children equal ALL children: non-RT props are never validated, so the count would mean nothing.
-//
-// Registers NOTHING in the closure prologue: the fast path needs no key arrays.
+// countFastPathN returns N and whether the fused validators' `countEnumKeys(v) === N` fast path is sound here: every RT
+// child REQUIRED (validation proved all N present), no index-signature child, and RT children equal ALL children
+// (non-RT props are never validated). It registers nothing in the closure prologue.
 func countFastPathN(rt *reflection.RunType, ctx *EmitContext) (int, bool) {
 	rtNames, allNames := collectObjectChildNames(rt, ctx)
 	rtChildren := dedupSortStrings(rtNames)
@@ -185,10 +181,8 @@ func countFastPathN(rt *reflection.RunType, ctx *EmitContext) (int, bool) {
 	return len(rtChildren), true
 }
 
-// emitCountKeys emits the key-count expression `cntEK(v) === N` and registers the countEnumKeys pure fn.
-//
-// Which counter countEnumKeys picks is per engine (for-in on V8, Object.keys on JavaScriptCore), and both forms are
-// pinned to answer identically for every input, so the emitter does not care (packages/run-types/src/runtypes/pure-fns-utils.ts).
+// emitCountKeys emits `cntEK(v) === N`; countEnumKeys picks its counter per engine, both pinned to answer identically
+// (packages/run-types/src/runtypes/pure-fns-utils.ts).
 func emitCountKeys(ctx *EmitContext, v string, n int) string {
 	fnVar := ctx.UsePureFn(purefnids.CountEnumKeys)
 	return fnVar + "(" + v + ") === " + strconv.Itoa(n)
@@ -205,11 +199,9 @@ func joinSemicolons(parts ...string) string {
 	return strings.Join(nonEmpty, ";")
 }
 
-// unknownKeysObjectGuard is the shape precondition every OBJECT-node unknown-keys emit runs under.
-// A key scan only means "declared vs undeclared" on a plain object: elsewhere the descent throws (`v.address` on null)
-// or invents keys, since `for (const k in v)` walks a string's character indices and an array's element indices.
-// Guarded out, the node does nothing; reporting the SHAPE is validationErrors' job. Same predicate
-// emitUnionUnknownKeysMerged gates on.
+// unknownKeysObjectGuard is the precondition of every OBJECT-node unknown-keys emit: elsewhere a key scan throws
+// (`v.address` on null) or invents keys (`for in` over a string or array). Guarded out, the node does nothing: the
+// shape is validationErrors' job. emitUnionUnknownKeysMerged gates on the same predicate.
 func unknownKeysObjectGuard(v string) string {
 	return "typeof " + v + " === 'object' && " + v + " !== null && !Array.isArray(" + v + ")"
 }
