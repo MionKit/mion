@@ -288,6 +288,8 @@ type SiteDemand struct {
 	// validationErrors / toBinary / jsonEncoder): the emitter renders the inline circular-reference guard for
 	// exactly these entries, and it never rides a JSON primitive demand.
 	RejectCircular bool `json:"rejectCircular,omitempty"`
+	// ComposedBy names the JSON composite operation a primitive demand exists for; empty for a direct demand.
+	ComposedBy string `json:"composedBy,omitempty"`
 }
 
 // EnrichFile is one computed mirror file returned by OpEnrich: absolute Path, the desired Content the caller

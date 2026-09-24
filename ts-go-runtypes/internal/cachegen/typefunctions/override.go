@@ -22,28 +22,9 @@ func overrideOpKeyForTag(tag string) string {
 	return op.Name
 }
 
-// primitiveCompositeOpKey maps a JSON-composite PRIMITIVE family tag to the composite operation op key that
-// owns it. An overridden composite redirect references no primitives, so that type's primitive entry is dead,
-// and for a type the structural emitter cannot handle it would alwaysThrow on the very type the user
-// overrode to avoid. The set is closed (the operation registry's collision guard pins it).
-func primitiveCompositeOpKey(tag string) string {
-	switch tag {
-	case "pj", "pjs", "sj":
-		return "jsonEncoder"
-	case "rj", "ukuw":
-		return "jsonDecoder"
-	}
-	return ""
-}
-
-// compositeOverriddenForPrimitive reports whether the JSON composite op OWNING this primitive family is
-// overridden, in which case the primitive entry is skipped: the composite redirect names no primitives.
-func compositeOverriddenForPrimitive(runType *reflection.RunType, primitiveTag string) bool {
-	if runType == nil || len(runType.Overrides) == 0 {
-		return false
-	}
-	opKey := primitiveCompositeOpKey(primitiveTag)
-	return opKey != "" && runType.Overrides[opKey] != ""
+// composedByOverride reports whether a primitive demand exists only for a JSON composite this type overrides.
+func composedByOverride(runType *reflection.RunType, composedBy string) bool {
+	return composedBy != "" && runType != nil && runType.Overrides[composedBy] != ""
 }
 
 // overrideHashForTag returns the cfn body hash an override registered for this (family tag, type).

@@ -196,13 +196,6 @@ func CollectFamilyEntries(dump protocol.Dump, settings constants.CacheModuleSett
 		if existing, exists := graph[entryID]; exists {
 			return existing.Deps, true
 		}
-		// A JSON primitive is dead weight when the type's composite is overridden
-		// (the redirect references no primitives), and for a type the structural
-		// emitter cannot handle it would alwaysThrow on the very type the user
-		// overrode. Safe: the primitives are internal-only, demanded by composites.
-		if compositeOverriddenForPrimitive(runType, settings.Tag) {
-			return nil, false
-		}
 		// A custom fn registered for this (family, type) replaces the structural
 		// body with a cfn redirect. The root-scoped option variants and the armed
 		// circular-guard variant change behaviour one override fn can't express,
@@ -286,6 +279,11 @@ func CollectFamilyEntries(dump protocol.Dump, settings constants.CacheModuleSett
 				return !demands[i].RejectCircular && demands[j].RejectCircular
 			})
 			for _, demanded := range demands {
+				// A primitive only an overridden composite asked for is dead: the redirect calls no primitive, and
+				// for a type the structural emitter cannot handle it would alwaysThrow on the type the user overrode.
+				if composedByOverride(root, demanded.ComposedBy) {
+					continue
+				}
 				if deps, ok := renderEntry(root, demanded.VariantSuffix, demanded.Options, demanded.RejectCircular); ok {
 					enqueueChildren(deps, demanded.VariantSuffix, demanded.Options, demanded.RejectCircular)
 				}
@@ -362,7 +360,12 @@ func collectFamilyDemand(sites []protocol.Site, familyTag string) map[string][]p
 			if bySuffix[site.ID] == nil {
 				bySuffix[site.ID] = make(map[string]protocol.SiteDemand)
 			}
-			bySuffix[site.ID][dedupKey(demanded)] = demanded
+			key := dedupKey(demanded)
+			// A direct demand wins over a composite one, so the primitive renders for the caller that asked by name.
+			if existing, exists := bySuffix[site.ID][key]; exists && (existing.ComposedBy == "" || existing.ComposedBy != demanded.ComposedBy) {
+				demanded.ComposedBy = ""
+			}
+			bySuffix[site.ID][key] = demanded
 		}
 	}
 	out := make(map[string][]protocol.SiteDemand, len(bySuffix))
