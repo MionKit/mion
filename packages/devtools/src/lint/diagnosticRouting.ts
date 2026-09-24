@@ -180,7 +180,7 @@ export const RULE_SPECS: readonly RuleSpec[] = [
     default: 'warn',
     gate: 'compiler',
     description:
-      'A property the unknown-keys helpers (removeUnknownKeys, unknownKeysToUndefined) silently skip, such as a function member — the check covers the rest of the object',
+      'A property the `strip` JSON decoder skips when it clears unknown keys, such as a function member; the rest of the object is still cleared',
   },
   {
     name: 'format',
