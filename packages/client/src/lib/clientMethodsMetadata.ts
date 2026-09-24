@@ -437,8 +437,10 @@ export function createMetadataSubRequest(methodIds: string[]): SubRequest<any> {
   };
 }
 
-/** In-memory only: the store is keyed by route id, so a row from a disagreeing server would outlive this page. */
-export function installMethodRows(serializableMethodsData: SerializableMethodsData): void {
+/** In-memory only: the store is keyed by route id, so a row from a disagreeing server would outlive this page.
+ *  The fetched shelf keeps a row it already holds, so the ids in `replaceIds` are dropped first. */
+export function installMethodRows(serializableMethodsData: SerializableMethodsData, replaceIds: string[] = []): void {
+  for (const id of replaceIds) routesCache.removeMetadata(id);
   addToCaches(serializableMethodsData);
 }
 
