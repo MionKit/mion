@@ -11,7 +11,7 @@
 import {describe, it, expect, beforeAll, afterAll} from 'vitest';
 import {createServer, type Server} from 'node:http';
 import {routesCache} from '@mionjs/core';
-import {createMionRouter, resetRouter, addStartMiddlewares} from '@mionjs/router';
+import {createMionRouter, resetRouter} from '@mionjs/router';
 import type {ApiWithOptions, MionRouter} from '@mionjs/router';
 import {httpRequestHandler} from '@mionjs/platform-node';
 import {initClient} from '../../src/client.ts';
@@ -69,8 +69,6 @@ let fetches = 0;
 function serve(routes: typeof oldRoutes | typeof newRoutes, version: string) {
   resetRouter();
   const mion = createMionRouter(options);
-  // a global middleware with params is not in the API type, so it never stops a synced call
-  addStartMiddlewares({requestTag: mion.middleware((ctx, tag?: string): void => undefined)}, false);
   mion.initRoutes(routes(mion), version);
 }
 
@@ -162,11 +160,12 @@ describe('a client built against routes the server has since changed', () => {
       expect(handlerCalls[id]).toBe(before);
     });
 
-    it('refuses a route whose own middleware changed, though the route itself did not', async () => {
+    it("checks the route only: a changed middleware is answered by the middleware's own validation", async () => {
       const before = handlerCalls['secured/data'];
       const {routes, middlewares} = reloadClient();
-      const [, , undeclared] = await routes.secured.data().call({middlewares: {token: middlewares.secured.token('t')}});
-      expect(undeclared).toMatchObject({type: 'route-types-mismatch', errorData: {routeIds: ['secured/data']}});
+      const result = await routes.secured.data().call({middlewares: {token: middlewares.secured.token('t')}});
+      expect(result[2]?.type).not.toBe('route-types-mismatch');
+      expect(result[4]?.token).toMatchObject({type: 'validation-error'});
       expect(handlerCalls['secured/data']).toBe(before);
     });
 

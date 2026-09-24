@@ -30,6 +30,8 @@ type Method struct {
 	Params  *checker.Type
 	Return  *checker.Type
 	Headers *checker.Type
+	// Sync is the `[params, return]` pair the server's syncId slot names; nil from a router that declares none.
+	Sync    *checker.Type
 	IsAsync bool
 	// MiddlewareIds is the route's public middleware chain in execution order; nil for a middleware.
 	MiddlewareIds []string
@@ -191,6 +193,7 @@ func (walker *treeWalker) method(memberType *checker.Type, id string, pointer []
 			return nil, "`" + id + "` is a headers middleware without a compiled HeadersSubset type"
 		}
 	}
+	method.Sync = walker.compiledType(typesType, "sync")
 	isAsync := typeChecker.GetTypeOfPropertyOfType(typesType, "isAsync")
 	if isAsync == nil || checker.Type_flags(isAsync)&checker.TypeFlagsBooleanLiteral == 0 {
 		return nil, "`" + id + "` does not say whether its handler is async; bundleApi needs the API's PublicApi type"

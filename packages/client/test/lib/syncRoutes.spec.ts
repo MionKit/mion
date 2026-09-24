@@ -6,7 +6,7 @@
  * ######## */
 
 import {describe, it, expect, beforeEach} from 'vitest';
-import {RpcError, routeSyncId, resetRoutesCache} from '@mionjs/core';
+import {RpcError, resetRoutesCache} from '@mionjs/core';
 import type {MethodWithOptions} from '@mionjs/core';
 import {
   learnSyncRoutes,
@@ -18,18 +18,18 @@ import {
 } from '../../src/lib/syncRoutes.ts';
 import {installMethodRows} from '../../src/lib/clientMethodsMetadata.ts';
 
-const row = (id: string, middlewareIds?: string[]) =>
+const row = (id: string, syncId?: string) =>
   ({
     id,
     type: 1,
     paramsJitHash: `p-${id}`,
     returnJitHash: `r-${id}`,
+    syncId,
     pointer: [id],
     nestLevel: 0,
     isAsync: false,
     hasReturnData: true,
     options: {},
-    middlewareIds,
   }) as unknown as MethodWithOptions;
 
 describe('client route sync ids', () => {
@@ -47,16 +47,9 @@ describe('client route sync ids', () => {
     expect(sendsSyncIds('http://learned')).toBe(true);
   });
 
-  it('computes one id per route from the rows held, and leaves a route with a missing chain row empty', () => {
-    installMethodRows({
-      methods: {auth: row('auth'), users: row('users', ['auth']), orphan: row('orphan', ['gone'])},
-      deps: {},
-      purFnDeps: {},
-    });
-    const [users, orphan, unknown] = routeSyncIds(['users', 'orphan', 'unknown']);
-    expect(users).toBe(routeSyncId(row('users', ['auth']), (id) => (id === 'auth' ? row('auth') : undefined)));
-    expect(orphan).toBe('');
-    expect(unknown).toBe('');
+  it("sends each route's own id from its row, and '' for a row without one or no row", () => {
+    installMethodRows({methods: {users: row('users', 'aB3dE9x'), older: row('older')}, deps: {}, purFnDeps: {}});
+    expect(routeSyncIds(['users', 'older', 'unknown'])).toEqual(['aB3dE9x', '', '']);
   });
 
   it('reads a refusal out of its union envelope, and nothing else', () => {

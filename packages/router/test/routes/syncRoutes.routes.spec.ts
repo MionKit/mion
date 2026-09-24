@@ -10,7 +10,7 @@ import {createMionRouter, resetRouter, getRouteExecutable} from '../../src/route
 import {dispatchRoute} from '../../src/dispatch.ts';
 import {headersFromRecord} from '../../src/lib/headers.ts';
 import {registerBatches} from '../../src/batches.ts';
-import {BUILD_VERSION_HEADER, MION_BATCH_PATH, MION_ROUTES, routeSyncId, RpcError} from '@mionjs/core';
+import {BUILD_VERSION_HEADER, MION_BATCH_PATH, MION_ROUTES, RpcError} from '@mionjs/core';
 import type {SerializableMethodsData} from '@mionjs/core';
 import type {RouterOptionsInput} from '../../src/types/mionRouter.ts';
 import type {RouteSyncErrorData} from '../../src/routes/syncRoutes.routes.ts';
@@ -37,16 +37,17 @@ function initApi(options: RouterOptionsInput, buildVersion = 'abc123') {
     calls.push('hello');
     return `Hello ${name}`;
   });
-  const bye = mion.route((ctx, name: string): string => {
+  // other types than hello's: the sync id is made from the types alone
+  const bye = mion.route((ctx, name: string, polite?: boolean): string => {
     calls.push('bye');
     return `Bye ${name}`;
   });
   mion.initRoutes({auth, hello, bye}, buildVersion);
 }
 
-/** What a client holding the server's rows computes. */
+/** What a client holding the server's rows sends. */
 function syncIdFromRows(id: string, data: SerializableMethodsData): string | undefined {
-  return routeSyncId(data.methods[id], (middlewareId) => data.methods[middlewareId]);
+  return data.methods[id].syncId;
 }
 
 describe('mion@syncRoutes', () => {
@@ -110,11 +111,20 @@ describe('mion@syncRoutes', () => {
       expect(response.body.hello).toBeUndefined();
     });
 
-    it('runs a call whose id the client computed from those rows', async () => {
+    it('sends every handler with the sync id the build gave it', async () => {
+      initApi({syncRoutes: true});
+      const refused = await dispatch('/hello', {auth: ['t'], hello: ['Ana']});
+      const rows = (syncSlot(refused)!.errorData as RouteSyncErrorData).metadata!;
+      expect(rows.methods.hello.syncId).toBe(getRouteExecutable('hello')!.syncId);
+      expect(rows.methods.hello.syncId).toBeTruthy();
+      expect(rows.methods.auth.syncId).toBeTruthy();
+      expect(rows.methods.auth.syncId).not.toBe(rows.methods.hello.syncId);
+    });
+
+    it('runs a call whose id the client read from those rows', async () => {
       initApi({syncRoutes: true});
       const refused = await dispatch('/hello', {auth: ['t'], hello: ['Ana']});
       const syncId = syncIdFromRows('hello', (syncSlot(refused)!.errorData as RouteSyncErrorData).metadata!);
-      expect(syncId).toMatch(/^[A-Za-z0-9_-]{6}$/);
       const response = await dispatch('/hello', {[MION_ROUTES.syncRoutes]: [[syncId]], auth: ['t'], hello: ['Ana']});
       expect(response.body.hello).toBe('Hello Ana');
       expect(calls).toEqual(['auth:t', 'hello']);
@@ -137,14 +147,14 @@ describe('mion@syncRoutes', () => {
     it('checks one id per route of a batch, in call order', async () => {
       initApi({syncRoutes: true});
       registerBatches({pair: {routes: ['hello', 'bye']}});
-      const refused = await dispatch(MION_BATCH_PATH, {auth: ['t'], hello: ['Ana'], bye: ['Ana']}, 'id=pair');
+      const refused = await dispatch(MION_BATCH_PATH, {auth: ['t'], hello: ['Ana'], bye: ['Ana', true]}, 'id=pair');
       const rows = (syncSlot(refused)!.errorData as RouteSyncErrorData).metadata!;
       expect(Object.keys(rows.methods).sort()).toEqual(['auth', 'bye', 'hello']);
       const ids = [syncIdFromRows('hello', rows), syncIdFromRows('bye', rows)];
 
       const swapped = await dispatch(
         MION_BATCH_PATH,
-        {[MION_ROUTES.syncRoutes]: [[ids[1], ids[0]]], hello: ['Ana'], bye: ['Ana']},
+        {[MION_ROUTES.syncRoutes]: [[ids[1], ids[0]]], hello: ['Ana'], bye: ['Ana', true]},
         'id=pair'
       );
       expect(syncSlot(swapped)).toMatchObject({type: 'route-types-mismatch', errorData: {routeIds: ['hello', 'bye']}});

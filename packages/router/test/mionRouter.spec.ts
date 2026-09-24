@@ -42,6 +42,8 @@ const expectedRtFns = {
   returnId: expect.anything(),
   // the build-time answer to "does this handler return a promise" (see HandlerIsAsync)
   isAsyncId: expect.anything(),
+  // the build's id of the [params, return] pair, compared under syncRoutes
+  syncId: expect.anything(),
 };
 
 describe('createMionRouter helpers', () => {

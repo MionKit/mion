@@ -25,21 +25,30 @@ import type {
 // in step. `RouterOptionsInput` is the widest options shape; `createMionRouter` narrows each helper to
 // its own `O` so a declaration reads the factory's options.
 
-export const route: RouteHelper<RouterOptionsInput> = (handler, opts, paramsFns, returnFns, paramsId, returnId, isAsyncId) => ({
+export const route: RouteHelper<RouterOptionsInput> = (
+  handler,
+  opts,
+  paramsFns,
+  returnFns,
+  paramsId,
+  returnId,
+  isAsyncId,
+  syncId
+) => ({
   type: HandlerType.route,
   handler,
   options: opts,
-  rtFns: {paramsFns, returnFns, paramsId, returnId, isAsyncId},
+  rtFns: {paramsFns, returnFns, paramsId, returnId, isAsyncId, syncId},
 });
 
 /** `route()` with `isMutation` pinned. Typed as the same helper, so both keep the marker signature
  *  the scanner reads at the call site. */
 function routeWithMutation<M extends boolean>(isMutation: M): RouteHelper<RouterOptionsInput, M> {
-  return (handler, opts, paramsFns, returnFns, paramsId, returnId, isAsyncId) => ({
+  return (handler, opts, paramsFns, returnFns, paramsId, returnId, isAsyncId, syncId) => ({
     type: HandlerType.route,
     handler,
     options: {...opts, isMutation} as PinnedMutation<typeof opts & object, M>,
-    rtFns: {paramsFns, returnFns, paramsId, returnId, isAsyncId},
+    rtFns: {paramsFns, returnFns, paramsId, returnId, isAsyncId, syncId},
   });
 }
 
@@ -55,12 +64,13 @@ export const middleware: MiddlewareHelper<RouterOptionsInput> = (
   returnFns,
   paramsId,
   returnId,
-  isAsyncId
+  isAsyncId,
+  syncId
 ) => ({
   type: HandlerType.middleware,
   handler,
   options: opts,
-  rtFns: {paramsFns, returnFns, paramsId, returnId, isAsyncId},
+  rtFns: {paramsFns, returnFns, paramsId, returnId, isAsyncId, syncId},
 });
 
 export const headersFn: HeadersFnHelper<RouterOptionsInput> = (
@@ -72,12 +82,13 @@ export const headersFn: HeadersFnHelper<RouterOptionsInput> = (
   headersId,
   paramsId,
   returnId,
-  isAsyncId
+  isAsyncId,
+  syncId
 ) => ({
   type: HandlerType.headersMiddleware,
   handler,
   options: opts,
-  rtFns: {paramsFns, returnFns, paramsId, returnId, isAsyncId, headersFns, headersId},
+  rtFns: {paramsFns, returnFns, paramsId, returnId, isAsyncId, syncId, headersFns, headersId},
 });
 
 export const rawMiddleware: RawMiddlewareHelper<RouterOptionsInput> = (handler, opts) => ({

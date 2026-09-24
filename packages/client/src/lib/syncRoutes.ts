@@ -5,9 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Route sync ids, computed from the rows this client holds. Kept out of the fetched lane: a bundled client sends them too.
+// Route sync ids, read off the rows this client holds. Kept out of the fetched lane: a bundled client sends them too.
 
-import {MION_ROUTES, RpcError, isRpcError, routeSyncId} from '@mionjs/core';
+import {MION_ROUTES, RpcError, isRpcError} from '@mionjs/core';
 import type {InjectRouterOptions} from '@mionjs/run-types';
 import type {RouteSyncError, RouteSyncErrorData} from '@mionjs/router';
 import type {SubRequest} from '../types.ts';
@@ -36,12 +36,9 @@ export function resetSyncRoutes(): void {
   syncServers.clear();
 }
 
-/** One id per route in call order; '' where a row is missing, which the server answers with the rows. */
+/** One id per route in call order; '' where a row or its id is missing, which the server answers with the rows. */
 export function routeSyncIds(routeIds: string[]): string[] {
-  return routeIds.map((id) => {
-    const row = getMethod(id);
-    return (row && routeSyncId(row, getMethod)) || '';
-  });
+  return routeIds.map((id) => getMethod(id)?.syncId ?? '');
 }
 
 export function createSyncSubRequest(routeIds: string[]): SubRequest<any> {

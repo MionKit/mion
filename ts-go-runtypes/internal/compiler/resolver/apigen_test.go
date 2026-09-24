@@ -60,7 +60,7 @@ type RouteOpts = {alwaysRun: false; validateParams: true; validateReturn: false;
 export type Api = {
   auth: {type: 3; handler: (h: Headers) => Promise<void>; options: MfOpts; types?: {params: []; return: void; headers: Headers; isAsync: false}};
   users: {
-    getById: {type: 1; handler: (id: number) => Promise<{id: number; name: string}>; options: RouteOpts; types?: {params: [id: number]; return: {id: number; name: string}; headers: never; isAsync: true}};
+    getById: {type: 1; handler: (id: number) => Promise<{id: number; name: string}>; options: RouteOpts; types?: {params: [id: number]; return: {id: number; name: string}; headers: never; isAsync: true; sync: [[id: number], {id: number; name: string}]}};
     audit: {type: 2; handler: (why: string) => Promise<void>; options: MfOpts; types?: {params: [why: string]; return: void; headers: never; isAsync: false}};
     remove: {type: 1; handler: (id: number) => Promise<boolean>; options: RouteOpts; types?: {params: [id: number]; return: boolean; headers: never; isAsync: false}};
   };
@@ -695,6 +695,44 @@ func TestApiGen_MarkerFormsAgreeWithTheBundledParamsId(t *testing.T) {
 	}
 	if paramsId := readManifest(t, genDir).Methods["users/getById"].ParamsId; paramsId != staticForm {
 		t.Fatalf("the bundled route's paramsId %q must be the id both marker forms name, %q", paramsId, staticForm)
+	}
+}
+
+const apiSyncClientTS = `import {initClient} from '@mionjs/client';
+import {getRunTypeId} from '@mionjs/run-types';
+import type {Api} from './api.ts';
+export const {routes} = initClient<Api>({baseURL: 'http://x'});
+export const a = routes.users.getById(1).call();
+export const b = routes.sum(1, 2).call();
+export const staticId = getRunTypeId<[[id: number], {id: number; name: string}]>();
+declare const pair: [[id: number], {id: number; name: string}];
+export const valueId = getRunTypeId(pair);
+`
+
+// TestApiGen_BundledRowCarriesTheSyncIdOfItsParamsReturnPair: a bundled method's syncId is the id of its
+// `types.sync` pair, the id both getRunTypeId forms name for that pair, which is what a server helper's
+// syncId slot gets; a method whose router declares no pair carries none.
+func TestApiGen_BundledRowCarriesTheSyncIdOfItsParamsReturnPair(t *testing.T) {
+	genDir := t.TempDir()
+	r := setupApi(t, apiSources(apiSyncClientTS), genDir, constants.BundleApiBundled, "")
+	tr := r.Dispatch(protocol.Request{Op: protocol.OpTransform, Files: []string{"client.ts"}})
+	if tr.Error != "" {
+		t.Fatalf("transform: %s", tr.Error)
+	}
+	code := tr.Transformed["client.ts"].Code
+	staticForm := injectedId(t, code, "staticId")
+	if valueForm := injectedId(t, code, "valueId"); valueForm != staticForm {
+		t.Fatalf("the two getRunTypeId forms must resolve to one id, got %q and %q", staticForm, valueForm)
+	}
+	if gen := r.Dispatch(protocol.Request{Op: protocol.OpGenerate}); gen.Error != "" {
+		t.Fatalf("generate: %s", gen.Error)
+	}
+	apiDir := filepath.Join(genDir, constants.ApiModuleDir)
+	if getById := readGenerated(t, apiDir, "m/users/getById.js"); !strings.Contains(getById, `syncId: "`+staticForm+`"`) {
+		t.Fatalf("users/getById must carry syncId %q:\n%s", staticForm, getById)
+	}
+	if sum := readGenerated(t, apiDir, "m/sum.js"); strings.Contains(sum, "syncId") {
+		t.Fatalf("sum declares no pair and must carry no syncId:\n%s", sum)
 	}
 }
 

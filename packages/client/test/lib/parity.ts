@@ -10,7 +10,7 @@
 
 import {expect} from 'vitest';
 import {parseAst} from 'vite';
-import {MION_ROUTES, clientRowView, getJitFnHashes, getRoutePath, routeSyncId} from '@mionjs/core';
+import {MION_ROUTES, clientRowView, getJitFnHashes, getRoutePath} from '@mionjs/core';
 import type {ParserStrategy, SerializableMethodsData} from '@mionjs/core';
 import {getRTUtils} from '@mionjs/run-types/runtime';
 import type {InjectApiMetadata} from '@mionjs/run-types';
@@ -110,12 +110,9 @@ export async function expectEveryMethodMatchesTheServer(baseURL: string): Promis
   for (const id of ids) {
     const bundled = getMethod(id)!;
     const server = served.methods[id];
+    // the view holds syncId, so this also proves both builds gave the method the same sync id
+    expect(server.syncId, id).toBeTruthy();
     expect(clientRowView(bundled), id).toEqual(clientRowView(server));
-    if (server.type === 1) {
-      const fromServer = routeSyncId(server, (middlewareId) => served.methods[middlewareId]);
-      expect(fromServer, id).toBeDefined();
-      expect(routeSyncId(bundled, getMethod), id).toBe(fromServer);
-    }
     const parser = clientRowView(server).parser as {params: ParserStrategy; return: ParserStrategy};
     const hashes = [
       ...Object.values(getJitFnHashes(server.paramsJitHash, parser.params)),
