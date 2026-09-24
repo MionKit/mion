@@ -338,8 +338,7 @@ export interface Response {
   // Acknowledgement for ops that return no data (setSources / reset).
   ok?: true;
   added?: RunType[];
-  // "Did this scan change anything?" signals: addedRunTypes when the scan interned new RunTypes, addedPureFns
-  // for any new pure-fn entry (an edited body arrives as a new id). Either one regenerates the cache modules.
+  // Either added* flag regenerates the cache modules; an edited pure-fn body arrives as a new id.
   addedRunTypes?: boolean;
   addedPureFns?: boolean;
   sites?: Site[];

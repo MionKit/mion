@@ -638,8 +638,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		// fires with just the changed sites. nil when the report is off, so a normal HMR scan pays nothing.
 		response.PureFnSites = sess.pureFnReportForEntries(pureFnEntries)
 		response.BatchSites = sess.batchReportForSites(batchSites)
-		// The full added-node payload is attached only on request: the Vite plugin and the bench client read
-		// just the added* booleans, so marshalling every new RunType graph on every scan is wire waste.
+		// Opt-in: the plugin and bench client read only the added* booleans, so every scan's RunType graphs are wire waste.
 		if request.IncludeRunTypes {
 			response.Added = added
 		}

@@ -1,5 +1,4 @@
-// The resolver's Response JSON keys (Go MarshalJSON + its added-flag table) must match the TS Response mirror,
-// or a renamed field silently reads as undefined on the TS side.
+// Go's Response keys (MarshalJSON + responseAddedFlags) must match the TS mirror, or a renamed field reads undefined.
 import {readFileSync} from 'node:fs';
 import {join} from 'node:path';
 import {describe, expect, it} from 'vitest';

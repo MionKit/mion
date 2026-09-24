@@ -1,5 +1,4 @@
-// The "did this scan change anything?" signals on a scanFiles response. The plugin regenerates the cache modules
-// off addedRunTypes / addedPureFns, so a wrong signal means stale runtime state or needless regeneration.
+// The plugin regenerates cache modules off these signals: a wrong one means stale runtime state or wasted work.
 
 import {describe, expect, it} from 'vitest';
 import {hasBinary, withInlineSources} from './helpers/inline.ts';
@@ -34,9 +33,7 @@ getRunTypeId<string>();
       async ({client}) => {
         // Prime the cache.
         await client.scanFiles(['idempotent.ts']);
-        // Re-scan the same content. Structural dedup hits; no new
-        // entries get interned. pureFn extraction yields the same
-        // (empty) set, so its delta is false too.
+        // Structural dedup interns nothing new and the pure-fn set stays empty, so neither delta fires.
         const second = await client.scanFiles(['idempotent.ts']);
         expect(second.addedRunTypes).toBeFalsy();
         expect(second.addedPureFns).toBeFalsy();
