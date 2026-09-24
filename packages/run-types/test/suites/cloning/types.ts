@@ -1,4 +1,4 @@
-/** One case in the cloning suite (`createCloneExactShapeFn<T>()`). Mirrors the
+/** One case in the cloning suite (`createRemoveUnknownKeysFn<T>()`). Mirrors the
  *  serialization suite's case shape: declarative data + marker-based thunks,
  *  so the same cases feed the vitest runners, the website docs export, and
  *  benchmarks.
@@ -10,9 +10,9 @@
  *  unshaped values (functions, resource handles, `any`/`unknown`) pass
  *  through — those cases set `passThrough`. **/
 
-/** Case-file thunk return: `createCloneExactShapeFn<T>()` returns the
- *  T-narrowed `CloneExactShapeFn<T>`, which strictFunctionTypes won't accept
- *  where `CloneExactShapeFn<unknown>` is expected (contravariant parameter).
+/** Case-file thunk return: `createRemoveUnknownKeysFn<T>()` returns the
+ *  T-narrowed `RemoveUnknownKeysFn<T>`, which strictFunctionTypes won't accept
+ *  where `RemoveUnknownKeysFn<unknown>` is expected (contravariant parameter).
  *  The suite erases `T` at the case boundary instead of casting per case. **/
 export type AnyCloneFn = (value: any) => any;
 
@@ -26,7 +26,7 @@ export interface CloningCase {
   cloneNotes?: string | string[];
 
   /** Clone-fn thunk. Full type setup inline
-   *  (`() => createCloneExactShapeFn<T>()`) so the marker plugin injects the
+   *  (`() => createRemoveUnknownKeysFn<T>()`) so the marker plugin injects the
    *  runtype hash at the call site. **/
   clone: () => AnyCloneFn;
 
@@ -44,8 +44,8 @@ export interface CloningCase {
    *  assertion flips from "shares nothing mutable" to `clone(x) === x`. **/
   passThrough?: boolean;
 
-  /** When `createCloneExactShapeFn<T>()` is rendered as an alwaysThrow cache
-   *  entry by the Go pipeline (object-bearing unions, CES001). Tests assert
+  /** When `createRemoveUnknownKeysFn<T>()` is rendered as an alwaysThrow cache
+   *  entry by the Go pipeline (object-bearing unions, RUK001). Tests assert
    *  the throw at the thunk-invocation site. **/
   factoryThrows?: boolean;
 

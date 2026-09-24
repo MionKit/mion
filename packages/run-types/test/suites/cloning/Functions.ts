@@ -6,7 +6,7 @@
 // shared inside its fresh container — unlike the serializers, which render
 // every one of those factories as alwaysThrow.
 
-import {createCloneExactShapeFn} from '@mionjs/run-types';
+import {createRemoveUnknownKeysFn} from '@mionjs/run-types';
 import type {CloningCase} from './types.ts';
 
 // Module-level consts so both getTestData() calls return the SAME reference
@@ -25,7 +25,7 @@ export const FUNCTIONS = {
       function fnNoOptional(a: number, b: boolean, c: string): Date {
         return new Date(a);
       }
-      return createCloneExactShapeFn<Parameters<typeof fnNoOptional>>();
+      return createRemoveUnknownKeysFn<Parameters<typeof fnNoOptional>>();
     },
     getTestData: () => ({
       values: [
@@ -44,7 +44,7 @@ export const FUNCTIONS = {
         void b;
         return 1n;
       }
-      return createCloneExactShapeFn<Parameters<typeof fnOptionalParams>>();
+      return createRemoveUnknownKeysFn<Parameters<typeof fnOptionalParams>>();
     },
     getTestData: () => {
       const d = new Date('2000-08-06T02:13:00.000Z');
@@ -61,7 +61,7 @@ export const FUNCTIONS = {
         void c;
         return new Date(0);
       }
-      return createCloneExactShapeFn<ReturnType<typeof fnOptionalParam>>();
+      return createRemoveUnknownKeysFn<ReturnType<typeof fnOptionalParam>>();
     },
     getTestData: () => ({values: [new Date('2000-08-06T02:13:00.000Z')]}),
   },
@@ -76,7 +76,7 @@ export const FUNCTIONS = {
         void b;
         return new Date(0);
       }
-      return createCloneExactShapeFn<Parameters<typeof fnRestParams>>();
+      return createRemoveUnknownKeysFn<Parameters<typeof fnRestParams>>();
     },
     getTestData: () => ({
       values: [
@@ -95,7 +95,7 @@ export const FUNCTIONS = {
         void b;
         return 1n;
       }
-      return createCloneExactShapeFn<Parameters<typeof fnOptionalParams>>();
+      return createRemoveUnknownKeysFn<Parameters<typeof fnOptionalParams>>();
     },
     getTestData: () => {
       const d = new Date('2000-08-06T02:13:00.000Z');
@@ -111,7 +111,7 @@ export const FUNCTIONS = {
         void b;
         return 1n;
       }
-      return createCloneExactShapeFn<ReturnType<typeof fnOptionalParams>>();
+      return createRemoveUnknownKeysFn<ReturnType<typeof fnOptionalParams>>();
     },
     getTestData: () => ({values: [1n]}),
     passThrough: true,
@@ -125,7 +125,7 @@ export const FUNCTIONS = {
         void rest;
         return new Date(0);
       }
-      return createCloneExactShapeFn<Parameters<typeof fnOnlyRestParams>>();
+      return createRemoveUnknownKeysFn<Parameters<typeof fnOnlyRestParams>>();
     },
     getTestData: () => ({values: [[3, 2, 1], []]}),
   },
@@ -142,7 +142,7 @@ export const FUNCTIONS = {
         void c;
         return new Date(0);
       }
-      return createCloneExactShapeFn<Parameters<typeof fnWithCallback>>();
+      return createRemoveUnknownKeysFn<Parameters<typeof fnWithCallback>>();
     },
     getTestData: () => ({
       values: [
@@ -163,7 +163,7 @@ export const FUNCTIONS = {
         void c;
         return Promise.resolve(new Date(0));
       }
-      return createCloneExactShapeFn<ReturnType<typeof fnReturnsPromise>>();
+      return createRemoveUnknownKeysFn<ReturnType<typeof fnReturnsPromise>>();
     },
     getTestData: () => ({values: [opaquePromise]}),
     passThrough: true,
@@ -181,7 +181,7 @@ export const FUNCTIONS = {
         void c;
         return () => new Date(0);
       }
-      return createCloneExactShapeFn<ReturnType<typeof fnReturnsFunction>>();
+      return createRemoveUnknownKeysFn<ReturnType<typeof fnReturnsFunction>>();
     },
     getTestData: () => ({values: [opaqueDateFn]}),
     passThrough: true,
@@ -191,15 +191,15 @@ export const FUNCTIONS = {
     description:
       'Parameters of a call-signature interface resolve to the fixed-length tuple [number, boolean], which clones as a fresh array of by-value scalars.',
     cloneNotes:
-      'Parameters<> slices the callable interface into plain data; the callable interface ITSELF (an object type with a call signature) is function-like and throws at factory creation (CES003).',
-    clone: () => createCloneExactShapeFn<Parameters<{(a: number, b: boolean): string}>>(),
+      'Parameters<> slices the callable interface into plain data; the callable interface ITSELF (an object type with a call signature) is function-like and throws at factory creation (RUK003).',
+    clone: () => createRemoveUnknownKeysFn<Parameters<{(a: number, b: boolean): string}>>(),
     getTestData: () => ({values: [[3, true]]}),
   },
   call_signature_return: {
     title: 'Call signature return',
     description:
       'The return type of a call-signature interface resolves to a root string, a primitive that passes through by value.',
-    clone: () => createCloneExactShapeFn<ReturnType<{(a: number, b: boolean): string}>>(),
+    clone: () => createRemoveUnknownKeysFn<ReturnType<{(a: number, b: boolean): string}>>(),
     getTestData: () => ({values: ['result']}),
     passThrough: true,
   },

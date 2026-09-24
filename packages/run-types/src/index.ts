@@ -136,8 +136,8 @@ export {
   type HasUnknownKeysFn,
   type HasUnknownKeysOptions,
   type HasUnknownKeysCompileOptions,
-  createCloneExactShapeFn,
-  type CloneExactShapeFn,
+  createRemoveUnknownKeysFn,
+  type RemoveUnknownKeysFn,
   createUnknownKeyErrorsFn,
   type UnknownKeyErrorsFn,
   createFormatTransformFn,
@@ -161,7 +161,6 @@ export {
   type JsonValueStrategy,
   createStringifyJsonFn,
   type StringifyJsonFn,
-  createStripUnknownKeysFn,
 } from './createRTFunctions.ts';
 
 // Binary I/O re-exported from a dedicated module so bundlers can drop the
@@ -187,7 +186,7 @@ export {
   overrideValidate,
   overrideGetValidationErrors,
   overrideHasUnknownKeys,
-  overrideCloneExactShape,
+  overrideRemoveUnknownKeys,
   overrideUnknownKeyErrors,
   overrideFormatTransform,
   overrideBinaryEncoder,

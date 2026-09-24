@@ -186,17 +186,17 @@ const (
 	CodeUKWFunctionPropDropped = "UKW010"
 )
 
-// cloneExactShape family: the clone-based strip. Object-bearing unions and callable roots fail,
+// removeUnknownKeys family: the clone-based strip. Object-bearing unions and callable roots fail,
 // because a strip that silently does not strip is a security bug, not a fallback. Declared members
 // are never dropped: a value the emitter cannot rebuild is kept and SHARED BY REFERENCE, with these
 // advisories naming it.
 const (
-	CodeCESUnionRoot               = "CES001"
-	CodeCESFunctionRoot            = "CES003"
-	CodeCESFunctionPropDropped     = "CES010"
-	CodeCESMethodDropped           = "CES011"
-	CodeCESStaticDropped           = "CES012"
-	CodeCESNonSerializablePropDrop = "CES015"
+	CodeRUKUnionRoot               = "RUK001"
+	CodeRUKFunctionRoot            = "RUK003"
+	CodeRUKFunctionPropDropped     = "RUK010"
+	CodeRUKMethodDropped           = "RUK011"
+	CodeRUKStaticDropped           = "RUK012"
+	CodeRUKNonSerializablePropDrop = "RUK015"
 )
 
 // Unsafe property name (UPN), one warning for every family: a declared `__proto__` member is
@@ -221,7 +221,7 @@ func init() {
 		CodeSJNeverRoot, CodeSJNonSerializableRoot, CodeSJFunctionRoot, CodeSJSymbolRoot,
 		CodeTBNeverRoot, CodeTBNonSerializableRoot, CodeTBFunctionRoot, CodeTBSymbolRoot,
 		CodeFBNeverRoot, CodeFBNonSerializableRoot, CodeFBFunctionRoot, CodeFBSymbolRoot,
-		CodeCESUnionRoot, CodeCESFunctionRoot,
+		CodeRUKUnionRoot, CodeRUKFunctionRoot,
 	} {
 		register(Definition{Code: code, Family: FamilyRunType, Level: LevelRuntimeError, Scope: ScopeRoot, Title: "RunType root-position error"})
 	}
@@ -247,7 +247,7 @@ func init() {
 		CodeTBFunctionPropDropped, CodeTBMethodDropped, CodeTBStaticDropped, CodeTBSymbolKeyedDropped, CodeTBUnionMemberDropped, CodeTBNonSerializablePropDrop,
 		CodeFBFunctionPropDropped, CodeFBMethodDropped, CodeFBStaticDropped, CodeFBSymbolKeyedDropped, CodeFBUnionMemberDropped, CodeFBNonSerializablePropDrop,
 		CodeHUKFunctionPropDropped, CodeUKEFunctionPropDropped, CodeUKUFunctionPropDropped, CodeUKWFunctionPropDropped,
-		CodeCESFunctionPropDropped, CodeCESMethodDropped, CodeCESStaticDropped, CodeCESNonSerializablePropDrop,
+		CodeRUKFunctionPropDropped, CodeRUKMethodDropped, CodeRUKStaticDropped, CodeRUKNonSerializablePropDrop,
 	} {
 		register(Definition{Code: code, Family: FamilyRunType, Level: LevelWarning, Scope: ScopeGraph, Title: "RunType child-position member dropped"})
 	}

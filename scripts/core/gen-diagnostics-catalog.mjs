@@ -57,8 +57,8 @@ const SUBSYSTEMS = [
   {
     key: 'unknown-keys',
     label: 'Unknown keys',
-    description: 'From hasUnknownKeys, cloneExactShape, and the rest of that family.',
-    prefixes: ['HUK', 'CES', 'UKE', 'UKU', 'UKW'],
+    description: 'From hasUnknownKeys, removeUnknownKeys, and the rest of that family.',
+    prefixes: ['HUK', 'RUK', 'UKE', 'UKU', 'UKW'],
   },
   {
     key: 'formats',

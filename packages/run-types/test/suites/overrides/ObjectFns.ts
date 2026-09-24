@@ -1,6 +1,6 @@
 // Fixture for the object-shaped function families the validation / serialization
 // suites don't exercise standalone: the unknown-keys group (hasUnknownKeys /
-// cloneExactShape / unknownKeyErrors) and formatTransform. A unique branded
+// removeUnknownKeys / unknownKeyErrors) and formatTransform. A unique branded
 // type per family declares its override at module scope;
 // `registerObjectFnsCase` registers the it()s (called from the single suite
 // runner, overrides.test.ts). These families don't fit the OverrideCase shape
@@ -10,8 +10,8 @@ import {it, expect} from 'vitest';
 import {
   createHasUnknownKeysFn,
   overrideHasUnknownKeys,
-  createCloneExactShapeFn,
-  overrideCloneExactShape,
+  createRemoveUnknownKeysFn,
+  overrideRemoveUnknownKeys,
   createUnknownKeyErrorsFn,
   overrideUnknownKeyErrors,
   createFormatTransformFn,
@@ -22,7 +22,7 @@ type HukTarget = {readonly __brand: 'hukOverride'; a: number};
 overrideHasUnknownKeys<HukTarget>((v) => (v as {x?: number}).x === 1);
 
 type CesTarget = {readonly __brand: 'cesOverride'; a: number};
-overrideCloneExactShape<CesTarget>(() => ({cloned: true}) as never);
+overrideRemoveUnknownKeys<CesTarget>(() => ({cloned: true}) as never);
 
 type UkeTarget = {readonly __brand: 'ukeOverride'; a: number};
 overrideUnknownKeyErrors<UkeTarget>((value, path, errors) => {
@@ -42,8 +42,8 @@ export function registerObjectFnsCase(): void {
     expect(huk({x: 2} as never)).toBe(false);
   });
 
-  it('ObjectFns — cloneExactShape', () => {
-    const out = createCloneExactShapeFn<CesTarget>()({a: 1} as never) as unknown as {cloned?: boolean};
+  it('ObjectFns — removeUnknownKeys', () => {
+    const out = createRemoveUnknownKeysFn<CesTarget>()({a: 1} as never) as unknown as {cloned?: boolean};
     expect(out.cloned).toBe(true);
   });
 

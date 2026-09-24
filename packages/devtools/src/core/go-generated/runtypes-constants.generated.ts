@@ -10,7 +10,6 @@ export interface CacheModuleSettings {
 
 export const CACHE_MODULES = {
   classSerializerReg: {name: 'classSerializerRegModule', varPrefix: 'g_csr_', tag: 'csr'},
-  cloneExactShape: {name: 'cloneExactShapeModule', varPrefix: 'g_ces_', tag: 'ces'},
   compactForJson: {name: 'compactForJsonModule', varPrefix: 'g_cj_', tag: 'cj'},
   compactFromJson: {name: 'compactFromJsonModule', varPrefix: 'g_cjr_', tag: 'cjr'},
   formatTransform: {name: 'formatTransformModule', varPrefix: 'g_fmt_', tag: 'fmt'},
@@ -20,6 +19,7 @@ export const CACHE_MODULES = {
   prepareForJsonClone: {name: 'prepareForJsonCloneModule', varPrefix: 'g_pjs_', tag: 'pjs'},
   prepareForJsonMutate: {name: 'prepareForJsonMutateModule', varPrefix: 'g_pj_', tag: 'pj'},
   pureFns: {name: 'pureFnsModule', varPrefix: '', tag: ''},
+  removeUnknownKeys: {name: 'removeUnknownKeysModule', varPrefix: 'g_ruk_', tag: 'ruk'},
   restoreFromJsonClone: {name: 'restoreFromJsonCloneModule', varPrefix: 'g_rjs_', tag: 'rjs'},
   restoreFromJsonMutate: {name: 'restoreFromJsonMutateModule', varPrefix: 'g_rj_', tag: 'rj'},
   runTypes: {name: 'runTypesModule', varPrefix: 't_', tag: 't'},
@@ -38,9 +38,6 @@ export const CACHE_MODULES = {
 export const CLASSSERIALIZERREG_VAR_PREFIX = 'g_csr_';
 export const CLASSSERIALIZERREG_MODULE_NAME = 'classSerializerRegModule';
 export const CLASSSERIALIZERREG_TAG = 'csr';
-export const CLONEEXACTSHAPE_VAR_PREFIX = 'g_ces_';
-export const CLONEEXACTSHAPE_MODULE_NAME = 'cloneExactShapeModule';
-export const CLONEEXACTSHAPE_TAG = 'ces';
 export const COMPACTFORJSON_VAR_PREFIX = 'g_cj_';
 export const COMPACTFORJSON_MODULE_NAME = 'compactForJsonModule';
 export const COMPACTFORJSON_TAG = 'cj';
@@ -68,6 +65,9 @@ export const PREPAREFORJSONMUTATE_TAG = 'pj';
 export const PUREFNS_VAR_PREFIX = '';
 export const PUREFNS_MODULE_NAME = 'pureFnsModule';
 export const PUREFNS_TAG = '';
+export const REMOVEUNKNOWNKEYS_VAR_PREFIX = 'g_ruk_';
+export const REMOVEUNKNOWNKEYS_MODULE_NAME = 'removeUnknownKeysModule';
+export const REMOVEUNKNOWNKEYS_TAG = 'ruk';
 export const RESTOREFROMJSONCLONE_VAR_PREFIX = 'g_rjs_';
 export const RESTOREFROMJSONCLONE_MODULE_NAME = 'restoreFromJsonCloneModule';
 export const RESTOREFROMJSONCLONE_TAG = 'rjs';

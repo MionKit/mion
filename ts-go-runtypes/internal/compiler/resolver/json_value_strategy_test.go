@@ -75,17 +75,14 @@ export const restore = createRestoreFromJsonFn<User>(undefined, {strategy: '`+ro
 	}
 }
 
-// The option-less pair reaches its own family with no options slot to read.
-func TestStringifyAndStripFactories_ReachTheirOwnFamily(t *testing.T) {
-	modules := scanEntryModules(t, `import {createStringifyJsonFn, createStripUnknownKeysFn} from '@mionjs/run-types';
+// The option-less stringify factory reaches its own family with no options slot to read.
+func TestStringifyFactory_ReachesItsOwnFamily(t *testing.T) {
+	modules := scanEntryModules(t, `import {createStringifyJsonFn} from '@mionjs/run-types';
 interface User {id: number; name: string}
 export const stringify = createStringifyJsonFn<User>();
-export const strip = createStripUnknownKeysFn<User>();
 `)
-	for _, want := range []string{"stringifyJson", "stripUnknownKeysWire"} {
-		if _, ok := findEntryWith(modules, familyPrefix(t, want)); !ok {
-			t.Fatalf("no %s entry emitted\nmodules: %v", want, keys(modules))
-		}
+	if _, ok := findEntryWith(modules, familyPrefix(t, "stringifyJson")); !ok {
+		t.Fatalf("no stringifyJson entry emitted\nmodules: %v", keys(modules))
 	}
 }
 

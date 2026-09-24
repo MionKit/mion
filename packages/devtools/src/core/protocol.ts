@@ -352,7 +352,7 @@ export interface Response {
   addedPrepareForJsonSafe?: boolean;
   // Siblings of addedValidate for the unknown-keys family.
   addedHasUnknownKeys?: boolean;
-  addedCloneExactShape?: boolean;
+  addedRemoveUnknownKeys?: boolean;
   addedUnknownKeyErrors?: boolean;
   addedUnknownKeysToUndefinedWire?: boolean;
   // Siblings of addedValidate for the binary serializer pair.

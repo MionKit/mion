@@ -9,7 +9,6 @@
  *  getFnHash call because that call pulls FN_HASHES, the whole variant table, into every browser
  *  bundle. Only the plain variant is here: a route never asks for an option-forked one. */
 export const JIT_FUNCTION_IDS = {
-  cloneExactShape: 'SYRo',
   compactForJson: 'rpEK',
   compactFromJson: 'FFsn',
   formatTransform: 'mzca',
@@ -18,10 +17,10 @@ export const JIT_FUNCTION_IDS = {
   jsonSchema: 'VwiH',
   prepareForJsonClone: 'A0Qb',
   prepareForJsonMutate: 'AwYs',
+  removeUnknownKeys: 'C85b',
   restoreFromJsonClone: 'Ky89',
   restoreFromJsonMutate: 'w8ie',
   stringifyJson: 'i4VX',
-  stripUnknownKeysWire: 'q9zA',
   toBinary: 'jDpZ',
   unknownKeyErrors: 'r8yS',
   validate: 'Eq2V',

@@ -11,7 +11,7 @@ import type {FormattedObject} from '@mionjs/run-types/formats';
 import {
   createBinaryDecoderFn,
   createBinaryEncoderFn,
-  createCloneExactShapeFn,
+  createRemoveUnknownKeysFn,
   createJsonDecoderFn,
   createJsonEncoderFn,
   createValidateFn,
@@ -55,8 +55,8 @@ describe('patternProperties values round-trip through every codec', () => {
     expect(decoded.name).toBe('log');
   });
 
-  it('cloneExactShape: the ^d_ Date is a fresh Date, not the same reference', () => {
-    const clone = createCloneExactShapeFn<Stamped>();
+  it('removeUnknownKeys: the ^d_ Date is a fresh Date, not the same reference', () => {
+    const clone = createRemoveUnknownKeysFn<Stamped>();
     const value = sample();
     const copy = clone(value) as Stamped;
     expect(copy.d_created).toBeInstanceOf(Date);

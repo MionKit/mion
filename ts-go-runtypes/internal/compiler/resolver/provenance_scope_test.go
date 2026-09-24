@@ -9,7 +9,7 @@ package resolver_test
 //     Provenance is inherited down the type graph (so a child-position warning
 //     reaches the site that pulled the member in), and a root code riding that
 //     inheritance landed on every site that merely CONTAINED the type.
-//   - FAMILY. A finding belongs to one family's entry (CES001 to the exact-shape
+//   - FAMILY. A finding belongs to one family's entry (RUK001 to the exact-shape
 //     clone, PJ001 to the JSON encoder). Provenance keyed by type id alone told
 //     every site that named the type about every other family's finding.
 //
@@ -111,18 +111,18 @@ func TestProvenanceScope_FamilyCodeSkipsSitesDemandingAnotherFamily(t *testing.T
 import type {Shape} from './shared.ts';
 export const isShape = createValidateFn<Shape>();
 `,
-		"b.ts": `import {createCloneExactShapeFn} from '@mionjs/run-types';
+		"b.ts": `import {createRemoveUnknownKeysFn} from '@mionjs/run-types';
 import type {Shape} from './shared.ts';
-export const clone = createCloneExactShapeFn<Shape>();
+export const clone = createRemoveUnknownKeysFn<Shape>();
 `,
 	})
-	sites := diagSitesFor(response, diagnostics.CodeCESUnionRoot)
+	sites := diagSitesFor(response, diagnostics.CodeRUKUnionRoot)
 	if len(sites) == 0 {
-		t.Fatalf("%s must report at the clone site; diagnostics=%v", diagnostics.CodeCESUnionRoot, codesOf(response))
+		t.Fatalf("%s must report at the clone site; diagnostics=%v", diagnostics.CodeRUKUnionRoot, codesOf(response))
 	}
 	for _, site := range sites {
 		if site != "b.ts" {
-			t.Errorf("%s reported at %s, which demanded no clone: sites=%v", diagnostics.CodeCESUnionRoot, site, sites)
+			t.Errorf("%s reported at %s, which demanded no clone: sites=%v", diagnostics.CodeRUKUnionRoot, site, sites)
 		}
 	}
 }
@@ -137,9 +137,9 @@ func TestProvenanceScope_StaticIdSiteHearsNoFamilyFinding(t *testing.T) {
 export type Shape = {a: string} | {b: number};
 export const id = getRunTypeId<Shape>();
 `,
-		"b.ts": `import {createCloneExactShapeFn} from '@mionjs/run-types';
+		"b.ts": `import {createRemoveUnknownKeysFn} from '@mionjs/run-types';
 import type {Shape} from './a.ts';
-export const clone = createCloneExactShapeFn<Shape>();
+export const clone = createRemoveUnknownKeysFn<Shape>();
 `,
 	})
 	assertOnlyCloneSiteReports(t, response)
@@ -152,9 +152,9 @@ export type Shape = {a: string} | {b: number};
 const sample: Shape = {a: 'x'};
 export const id = getRunTypeId(sample);
 `,
-		"b.ts": `import {createCloneExactShapeFn} from '@mionjs/run-types';
+		"b.ts": `import {createRemoveUnknownKeysFn} from '@mionjs/run-types';
 import type {Shape} from './a.ts';
-export const clone = createCloneExactShapeFn<Shape>();
+export const clone = createRemoveUnknownKeysFn<Shape>();
 `,
 	})
 	assertOnlyCloneSiteReports(t, response)
@@ -162,13 +162,13 @@ export const clone = createCloneExactShapeFn<Shape>();
 
 func assertOnlyCloneSiteReports(t *testing.T, response protocol.Response) {
 	t.Helper()
-	sites := diagSitesFor(response, diagnostics.CodeCESUnionRoot)
+	sites := diagSitesFor(response, diagnostics.CodeRUKUnionRoot)
 	if len(sites) == 0 {
-		t.Fatalf("%s must report at the clone site; diagnostics=%v", diagnostics.CodeCESUnionRoot, codesOf(response))
+		t.Fatalf("%s must report at the clone site; diagnostics=%v", diagnostics.CodeRUKUnionRoot, codesOf(response))
 	}
 	for _, site := range sites {
 		if site != "b.ts" {
-			t.Errorf("%s reported at %s, which only asked for an id: sites=%v", diagnostics.CodeCESUnionRoot, site, sites)
+			t.Errorf("%s reported at %s, which only asked for an id: sites=%v", diagnostics.CodeRUKUnionRoot, site, sites)
 		}
 	}
 }

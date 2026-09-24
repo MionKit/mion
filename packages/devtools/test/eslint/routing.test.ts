@@ -36,8 +36,8 @@ describe('family routing (compiler diagnostics grouped by Go prefix family, name
     expect(ruleOf({code: 'TB001', severity: Severity.Error})).toBe('binary-non-serializable');
     expect(ruleOf({code: 'FB011', severity: Severity.Warning})).toBe('binary-skipped-member');
     // clone keeps-by-reference rather than skipping.
-    expect(ruleOf({code: 'CES001', severity: Severity.Error})).toBe('clone-unsupported-type');
-    expect(ruleOf({code: 'CES010', severity: Severity.Warning})).toBe('clone-shared-reference');
+    expect(ruleOf({code: 'RUK001', severity: Severity.Error})).toBe('clone-unsupported-type');
+    expect(ruleOf({code: 'RUK010', severity: Severity.Warning})).toBe('clone-shared-reference');
     // single-tier families keep one rule at their own default.
     expect(ruleOf({code: 'PFE9012', family: Family.PureFn, severity: Severity.Error})).toBe('pure-functions');
     expect(ruleOf({code: 'FMT001', severity: Severity.Error})).toBe('format');

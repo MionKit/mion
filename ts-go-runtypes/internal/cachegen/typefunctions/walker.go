@@ -215,7 +215,7 @@ const (
 	factNoopCompactFromJson
 	factNoopToBinary
 	factNoopHasUnknownKeys
-	factNoopCloneExactShape
+	factNoopRemoveUnknownKeys
 	factNoopUnknownKeyErrors
 	factNoopUnknownKeysToUndefined
 	factNoopStripUnknownKeysWire

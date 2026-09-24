@@ -7,7 +7,7 @@
 // at the end of the map.
 
 import {expect} from 'vitest';
-import {createCloneExactShapeFn} from '@mionjs/run-types';
+import {createRemoveUnknownKeysFn} from '@mionjs/run-types';
 import type {CloningCase} from './types.ts';
 
 // Class cases clone prototype-preservingly, so each class must be a single
@@ -103,7 +103,7 @@ export const OBJECTS = {
     description:
       'Object literal mixing a Date field, bigint, number, string, null, a string array, a weird-named key, and an optional string — every declared prop deep-clones with a fresh Date and array, and the absent optional stays absent.',
     clone: () =>
-      createCloneExactShapeFn<{
+      createRemoveUnknownKeysFn<{
         startDate: Date;
         quantity: number;
         name: string;
@@ -140,7 +140,7 @@ export const OBJECTS = {
           b0?: N; b1?: N; b2?: N; b3?: N; b4?: N; b5?: N; b6?: N; b7?: N;
           b8?: N; b9?: N; b10?: N; b11?: N; b12?: N; b13?: N; b14?: N; b15?: N;
         };
-      return createCloneExactShapeFn<ManyOptional>();
+      return createRemoveUnknownKeysFn<ManyOptional>();
     },
     getTestData: () => ({
       values: [{a0: 0, a1: 1, b0: 16, a8: 8, b7: 23, b15: 31}, {a0: 0, b8: 24}, {}],
@@ -150,7 +150,7 @@ export const OBJECTS = {
     title: 'Class',
     description:
       'Class instance rebuilds prototype-preservingly — `instanceof` holds and getFullName() still works on the clone — unlike serialization, which decays it to a plain object.',
-    clone: () => createCloneExactShapeFn<MySerializableClass>(),
+    clone: () => createRemoveUnknownKeysFn<MySerializableClass>(),
     getTestData: () => ({values: [new MySerializableClass()]}),
     verifyClone: (out) => {
       expect(out).toBeInstanceOf(MySerializableClass);
@@ -161,7 +161,7 @@ export const OBJECTS = {
     title: 'Extended class',
     description:
       'Subclass instance clones with its own extendedProp and the inherited baseProp both copied, and the prototype chain preserved so `instanceof ExtendedClass` holds.',
-    clone: () => createCloneExactShapeFn<ExtendedClass>(),
+    clone: () => createRemoveUnknownKeysFn<ExtendedClass>(),
     getTestData: () => ({values: [new ExtendedClass()]}),
     verifyClone: (out) => {
       expect(out).toBeInstanceOf(ExtendedClass);
@@ -171,7 +171,7 @@ export const OBJECTS = {
     title: 'Non-serializable class',
     description:
       '"Non-serializable" only on the wire: the clone rebuilds a real instance on the preserved prototype, keeping the data fields (including the startDate Date) and the working getFullName() method.',
-    clone: () => createCloneExactShapeFn<NonSerializableClass>(),
+    clone: () => createRemoveUnknownKeysFn<NonSerializableClass>(),
     getTestData: () => ({
       values: [new NonSerializableClass('John', 'Doe', 0, new Date('2000-08-06T02:13:00.000Z'))],
     }),
@@ -186,21 +186,21 @@ export const OBJECTS = {
       'A declared `undefined`-typed property is plain data for the clone: the `c` key is copied with its `undefined` value rather than dropped.',
     cloneNotes:
       'Serialization omits the undefined-valued key on the wire and it is absent after the round-trip; the clone has no wire and keeps the declared key present with value `undefined`.',
-    clone: () => createCloneExactShapeFn<{a: string; b: number; c: undefined}>(),
+    clone: () => createRemoveUnknownKeysFn<{a: string; b: number; c: undefined}>(),
     getTestData: () => ({values: [{a: 'hello', b: 42, c: undefined}]}),
   },
   optional_properties_order: {
     title: 'Optional props order',
     description:
       'Required `a` plus optional `b` clone with the optional present in one sample and absent in the other; the absent key is never materialized on the clone.',
-    clone: () => createCloneExactShapeFn<{a: string; b?: string}>(),
+    clone: () => createRemoveUnknownKeysFn<{a: string; b?: string}>(),
     getTestData: () => ({values: [{a: 'helloA', b: 'helloB'}, {a: 'helloA'}]}),
   },
   all_optional_fields: {
     title: 'All optional fields',
     description:
       'A fully-optional shape clones any subset of keys — both present, one present, and the empty object — copying exactly the keys that exist.',
-    clone: () => createCloneExactShapeFn<{a?: string; b?: string}>(),
+    clone: () => createRemoveUnknownKeysFn<{a?: string; b?: string}>(),
     getTestData: () => ({values: [{a: 'helloA', b: 'helloB'}, {a: 'helloA'}, {}]}),
   },
   extras_passthrough_unsafe: {
@@ -210,7 +210,7 @@ export const OBJECTS = {
     cloneNotes:
       "The serialization suite's mutate strategy lets these extras ride through `JSON.stringify`; the exact-shape clone rebuilds from the declared shape, so the same input comes out extras-free.",
     clone: () =>
-      createCloneExactShapeFn<{
+      createRemoveUnknownKeysFn<{
         startDate: Date;
         quantity: number;
         name: string;
@@ -261,7 +261,7 @@ export const OBJECTS = {
         name: string;
         child?: ICircular;
       }
-      return createCloneExactShapeFn<ICircular>();
+      return createRemoveUnknownKeysFn<ICircular>();
     },
     getTestData: () => ({
       values: [{name: 'leaf'}, {name: 'hello', child: {name: 'world'}}, {name: 'a', child: {name: 'b', child: {name: 'c'}}}],
@@ -276,7 +276,7 @@ export const OBJECTS = {
         name: string;
         children?: ICircularArray[];
       }
-      return createCloneExactShapeFn<ICircularArray>();
+      return createRemoveUnknownKeysFn<ICircularArray>();
     },
     getTestData: () => ({
       values: [
@@ -298,7 +298,7 @@ export const OBJECTS = {
           child?: ICircularDeep;
         };
       }
-      return createCloneExactShapeFn<ICircularDeep>();
+      return createRemoveUnknownKeysFn<ICircularDeep>();
     },
     getTestData: () => ({
       values: [
@@ -325,7 +325,7 @@ export const OBJECTS = {
         isRoot: true;
         ciChild: ICircularDeep;
       }
-      return createCloneExactShapeFn<RootNotCircular>();
+      return createRemoveUnknownKeysFn<RootNotCircular>();
     },
     getTestData: () => ({
       values: [
@@ -364,7 +364,7 @@ export const OBJECTS = {
         ciRoort?: RootCircular;
         ciDate: ICircularDate;
       }
-      return createCloneExactShapeFn<RootCircular>();
+      return createRemoveUnknownKeysFn<RootCircular>();
     },
     getTestData: () => {
       interface ICircularDeep {
@@ -417,13 +417,13 @@ export const OBJECTS = {
     description:
       'A declared function-typed property is KEPT on the clone, shared by reference — functions cannot be rebuilt, and declared members are never dropped (only undeclared keys are).',
     cloneNotes:
-      'The build emits a CES010 advisory naming the shared member; serializers drop it on the wire instead. Class METHODS differ — they ride the shared prototype (CES011).',
+      'The build emits a RUK010 advisory naming the shared member; serializers drop it on the wire instead. Class METHODS differ — they ride the shared prototype (RUK011).',
     clone: () => {
       interface ObjectWithMethods {
         name: string;
         methodProp: () => any;
       }
-      return createCloneExactShapeFn<ObjectWithMethods>();
+      return createRemoveUnknownKeysFn<ObjectWithMethods>();
     },
     getTestData: () => ({values: [{name: 'John', methodProp}]}),
   },
@@ -433,7 +433,7 @@ export const OBJECTS = {
       'The `Ledger` instance rebuilds prototype-preservingly with a fresh Date and tags array and its bigint copied by value — no serializer registry involved.',
     cloneNotes:
       'The class serializer registry is serialization-only machinery: cloning reconstructs a real instance directly from the preserved prototype, so no registration is needed.',
-    clone: () => createCloneExactShapeFn<Ledger>(),
+    clone: () => createRemoveUnknownKeysFn<Ledger>(),
     getTestData: () => ({
       values: [
         new Ledger('alice', new Date('2023-06-01T00:00:00.000Z'), 10000000000000000000n, ['x', 'y']),
@@ -448,7 +448,7 @@ export const OBJECTS = {
     title: 'Object holding a registered class property',
     description:
       'A class instance nested as `origin` inside a plain object rebuilds prototype-preservingly in place — the container and the `Vertex` both get fresh identities.',
-    clone: () => createCloneExactShapeFn<{name: string; origin: Vertex}>(),
+    clone: () => createRemoveUnknownKeysFn<{name: string; origin: Vertex}>(),
     getTestData: () => ({
       values: [
         {name: 'triangle', origin: new Vertex(3, 4)},
@@ -462,7 +462,7 @@ export const OBJECTS = {
   flat: {
     title: 'flat object',
     description: 'A flat all-required object rebuilds; undeclared keys are dropped by construction and the input keeps them.',
-    clone: () => createCloneExactShapeFn<{a: string; b: number}>(),
+    clone: () => createRemoveUnknownKeysFn<{a: string; b: number}>(),
     getTestData: () => ({
       values: [
         {a: 'x', b: 1},
@@ -478,7 +478,7 @@ export const OBJECTS = {
     title: 'frozen input',
     description: 'A frozen input clones fine — the input is never written, and the clone is a fresh unfrozen object.',
     cloneNotes: 'The removed delete-based strip could never handle frozen inputs (strict-mode TypeError).',
-    clone: () => createCloneExactShapeFn<{a: string}>(),
+    clone: () => createRemoveUnknownKeysFn<{a: string}>(),
     getTestData: () => ({
       values: [Object.freeze({a: 'x', extra: 1})],
       expected: [{a: 'x'}],
@@ -490,7 +490,7 @@ export const OBJECTS = {
   optionalAbsent: {
     title: 'absent optional property',
     description: 'An absent optional stays ABSENT on the clone (no `key: undefined` placeholder).',
-    clone: () => createCloneExactShapeFn<{a: string; b?: number}>(),
+    clone: () => createRemoveUnknownKeysFn<{a: string; b?: number}>(),
     getTestData: () => ({
       values: [
         {a: 'x', extra: 9},
@@ -505,7 +505,7 @@ export const OBJECTS = {
   nested: {
     title: 'nested object',
     description: 'Nested objects rebuild with fresh identities at every level; nested extras drop, the input keeps them.',
-    clone: () => createCloneExactShapeFn<User>(),
+    clone: () => createRemoveUnknownKeysFn<User>(),
     getTestData: () => ({
       values: [{name: 'jane', address: {street: '10', city: 'sf', extra: true}}],
       expected: [{name: 'jane', address: {street: '10', city: 'sf'}}],
@@ -517,7 +517,7 @@ export const OBJECTS = {
       'A plain class instance rebuilds via `Object.create(Object.getPrototypeOf(v))` + declared-prop assigns: `instanceof` holds, prototype methods work, own extras drop, and the constructor never runs.',
     cloneNotes:
       'Methods are not copied as own properties — they ride the shared class prototype, exactly like any two `new Point()` instances.',
-    clone: () => createCloneExactShapeFn<Point>(),
+    clone: () => createRemoveUnknownKeysFn<Point>(),
     getTestData: () => ({
       values: [makePoint(3, 4, true)],
       expected: [makePoint(3, 4)],

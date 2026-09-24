@@ -21,7 +21,7 @@ import {describe, expect, it, expectTypeOf} from 'vitest';
 import {
   createBinaryDecoderFn,
   createBinaryEncoderFn,
-  createCloneExactShapeFn,
+  createRemoveUnknownKeysFn,
   createJsonDecoderFn,
   createJsonEncoderFn,
   createValidateFn,
@@ -141,7 +141,7 @@ describe('`prototype` and `constructor` are ordinary wire keys a record carries'
   it('validate accepts them, and the exact-shape clone keeps them', () => {
     const value = JSON.parse(wire) as Fields;
     expect(createValidateFn<Fields>()(value)).toBe(true);
-    const cloned = createCloneExactShapeFn<Fields>()(value) as Record<string, unknown>;
+    const cloned = createRemoveUnknownKeysFn<Fields>()(value) as Record<string, unknown>;
     expect(cloned).toEqual(expected);
     expect(Object.getPrototypeOf(cloned)).toBe(Object.prototype);
   });
@@ -305,7 +305,7 @@ describe('the rebuilding encoders and the cloner skip a `__proto__` wire key; th
   });
 
   it('the exact-shape clone keeps a plain prototype and no inherited admin', () => {
-    const clone = createCloneExactShapeFn<Counts>();
+    const clone = createRemoveUnknownKeysFn<Counts>();
     const out = clone(poisoned()) as Record<string, unknown>;
     expect(Object.getPrototypeOf(out)).toBe(Object.prototype);
     expect(Object.keys(out)).toEqual(['a']);

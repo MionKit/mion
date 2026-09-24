@@ -4,7 +4,7 @@
 // each family also has its own createX factory.
 //
 // Coverage for that marker road: `'pjs'` (clone prepare), `'rj'` (restore), `'cj'` / `'cjr'`
-// (compact encode / decode), `'sj'` (direct stringify) and `'ukuw'` (strip wire pre-pass).
+// (compact encode / decode) and `'sj'` (direct stringify).
 // Per the CLAUDE.md marker-coverage rule both call shapes are exercised, with one paired test
 // asserting they resolve the SAME compiled fn (runtime analog of the Go-side
 // TestAtomic_FormEquivalence hash check).
@@ -33,9 +33,6 @@ function recoverCompactDecode<T>(_val?: T, id?: InjectTypeFnArgs<T, 'compactFrom
 }
 function recoverDirectStringify<T>(_val?: T, id?: InjectTypeFnArgs<T, 'stringifyJson'>) {
   return getRTFunction<'stringifyJson'>(id);
-}
-function recoverStripWire<T>(_val?: T, id?: InjectTypeFnArgs<T, 'stripUnknownKeysWire'>) {
-  return getRTFunction<'stripUnknownKeysWire'>(id);
 }
 function recoverStripRestore<T>(_val?: T, id?: InjectTypeFnArgs<T, 'restoreFromJsonClone'>) {
   return getRTFunction<'restoreFromJsonClone'>(id);
@@ -196,16 +193,5 @@ describe('getRTFunction — recover JSON value-level primitives via an InjectTyp
     expect(restored.name).toBe('zoe');
     expect(restored.id).toBe(9n);
     expect(Object.keys(restored).sort()).toEqual(['id', 'name', 'when']);
-  });
-
-  test('the strip wire pre-pass (ukuw) is recoverable via the marker', () => {
-    // ukuw is an internal decoder helper with subtle wire semantics; the point
-    // here is only that "all functions" are reachable through getRTFunction, so
-    // assert it resolves to a callable fn (static + reflection forms alike).
-    const strip = recoverStripWire<Payload>();
-    const seed: Payload = {id: 3n, when: new Date('2027-07-07T07:07:07.000Z'), name: 'gil'};
-    const stripReflected = recoverStripWire(seed);
-    expect(typeof strip).toBe('function');
-    expect(typeof stripReflected).toBe('function');
   });
 });

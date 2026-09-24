@@ -31,8 +31,8 @@ export type InjectRunTypeId<T> = string & {
  * family's entry-module tuple, resolved by the one `createX`.
  *
  * `Fn` also names the JSON value-level families (the `prepareForJson` / `restoreFromJson` Mutate and
- * Clone pairs, where Clone rebuilds the declared shape, plus `'stringifyJson'`,
- * `'stripUnknownKeysWire'` and `'compactForJson'`/`'compactFromJson'`). ONE marker can carry several
+ * Clone pairs, where Clone rebuilds the declared shape, plus `'stringifyJson'`
+ * and `'compactForJson'`/`'compactFromJson'`). ONE marker can carry several
  * at once, recovered with `getRTFunction<'prepareForJsonClone'>(fns?.[i])` keyed by the SAME fnKey;
  * a single one is simpler through its own `createPrepareForJsonFn`.
  *

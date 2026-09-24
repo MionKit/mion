@@ -259,7 +259,7 @@ export interface ScanFilesResult {
   addedStringifyJson?: boolean;
   addedPrepareForJsonSafe?: boolean;
   addedHasUnknownKeys?: boolean;
-  addedCloneExactShape?: boolean;
+  addedRemoveUnknownKeys?: boolean;
   addedUnknownKeyErrors?: boolean;
   addedUnknownKeysToUndefinedWire?: boolean;
   addedToBinary?: boolean;
@@ -383,7 +383,7 @@ abstract class ResolverClientBase implements ResolverConnection {
       addedStringifyJson: resp.addedStringifyJson,
       addedPrepareForJsonSafe: resp.addedPrepareForJsonSafe,
       addedHasUnknownKeys: resp.addedHasUnknownKeys,
-      addedCloneExactShape: resp.addedCloneExactShape,
+      addedRemoveUnknownKeys: resp.addedRemoveUnknownKeys,
       addedUnknownKeyErrors: resp.addedUnknownKeyErrors,
       addedUnknownKeysToUndefinedWire: resp.addedUnknownKeysToUndefinedWire,
       addedToBinary: resp.addedToBinary,

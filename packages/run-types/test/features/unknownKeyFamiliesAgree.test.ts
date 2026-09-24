@@ -11,7 +11,7 @@
 
 import {describe, expect, it} from 'vitest';
 import {
-  createCloneExactShapeFn,
+  createRemoveUnknownKeysFn,
   createGetValidationErrorsFn,
   createHasUnknownKeysFn,
   createJsonDecoderFn,
@@ -43,17 +43,17 @@ interface Row {
   reported: (string | number)[];
   /** The value every deleting family must produce; the strip decoder blanks the key instead. **/
   clean: unknown;
-  /** Set when `cloneExactShape` refuses the shape outright, which it does for a union carrying
+  /** Set when `removeUnknownKeys` refuses the shape outright, which it does for a union carrying
    *  object members: rebuilding from the declared shape needs to know which member matched. **/
   cloneRefuses?: true;
   fns: () => {
     hasUnknownKeys: HasUnknownKeysFn;
     unknownKeyErrors: UnknownKeyErrorsFn;
-    /** `ValidateFn<T>` narrows to `T` and `CloneExactShapeFn<T>` takes `T`; `T` varies per row, so
+    /** `ValidateFn<T>` narrows to `T` and `RemoveUnknownKeysFn<T>` takes `T`; `T` varies per row, so
      *  these two are spelled by what every row can supply. **/
     validateStrict: (value: unknown) => boolean;
     /** Held back unbuilt: a refusing row throws at factory creation, not on the call. **/
-    makeCloneExactShape: () => (value: never) => unknown;
+    makeRemoveUnknownKeys: () => (value: never) => unknown;
     stripDecoder: JsonDecoderFn;
     cloneEncoder: JsonEncoderFn;
     directEncoder: JsonEncoderFn;
@@ -81,7 +81,7 @@ describe('every unknown-key family agrees', () => {
         hasUnknownKeys: createHasUnknownKeysFn<Inner>(),
         unknownKeyErrors: createUnknownKeyErrorsFn<Inner>(),
         validateStrict: createValidateFn<Inner>(undefined, {checkUnknowns: true}),
-        makeCloneExactShape: () => createCloneExactShapeFn<Inner>(),
+        makeRemoveUnknownKeys: () => createRemoveUnknownKeysFn<Inner>(),
         stripDecoder: createJsonDecoderFn<Inner>(undefined, {strategy: 'strip'}),
         cloneEncoder: createJsonEncoderFn<Inner>(undefined, {strategy: 'clone'}),
         directEncoder: createJsonEncoderFn<Inner>(undefined, {strategy: 'direct'}),
@@ -95,7 +95,7 @@ describe('every unknown-key family agrees', () => {
         hasUnknownKeys: createHasUnknownKeysFn<Inner[]>(),
         unknownKeyErrors: createUnknownKeyErrorsFn<Inner[]>(),
         validateStrict: createValidateFn<Inner[]>(undefined, {checkUnknowns: true}),
-        makeCloneExactShape: () => createCloneExactShapeFn<Inner[]>(),
+        makeRemoveUnknownKeys: () => createRemoveUnknownKeysFn<Inner[]>(),
         stripDecoder: createJsonDecoderFn<Inner[]>(undefined, {strategy: 'strip'}),
         cloneEncoder: createJsonEncoderFn<Inner[]>(undefined, {strategy: 'clone'}),
         directEncoder: createJsonEncoderFn<Inner[]>(undefined, {strategy: 'direct'}),
@@ -109,7 +109,7 @@ describe('every unknown-key family agrees', () => {
         hasUnknownKeys: createHasUnknownKeysFn<[Inner, number]>(),
         unknownKeyErrors: createUnknownKeyErrorsFn<[Inner, number]>(),
         validateStrict: createValidateFn<[Inner, number]>(undefined, {checkUnknowns: true}),
-        makeCloneExactShape: () => createCloneExactShapeFn<[Inner, number]>(),
+        makeRemoveUnknownKeys: () => createRemoveUnknownKeysFn<[Inner, number]>(),
         stripDecoder: createJsonDecoderFn<[Inner, number]>(undefined, {strategy: 'strip'}),
         cloneEncoder: createJsonEncoderFn<[Inner, number]>(undefined, {strategy: 'clone'}),
         directEncoder: createJsonEncoderFn<[Inner, number]>(undefined, {strategy: 'direct'}),
@@ -123,7 +123,7 @@ describe('every unknown-key family agrees', () => {
         hasUnknownKeys: createHasUnknownKeysFn<{t: [Inner, number]}>(),
         unknownKeyErrors: createUnknownKeyErrorsFn<{t: [Inner, number]}>(),
         validateStrict: createValidateFn<{t: [Inner, number]}>(undefined, {checkUnknowns: true}),
-        makeCloneExactShape: () => createCloneExactShapeFn<{t: [Inner, number]}>(),
+        makeRemoveUnknownKeys: () => createRemoveUnknownKeysFn<{t: [Inner, number]}>(),
         stripDecoder: createJsonDecoderFn<{t: [Inner, number]}>(undefined, {strategy: 'strip'}),
         cloneEncoder: createJsonEncoderFn<{t: [Inner, number]}>(undefined, {strategy: 'clone'}),
         directEncoder: createJsonEncoderFn<{t: [Inner, number]}>(undefined, {strategy: 'direct'}),
@@ -139,7 +139,7 @@ describe('every unknown-key family agrees', () => {
         hasUnknownKeys: createHasUnknownKeysFn<Inner[] | number>(),
         unknownKeyErrors: createUnknownKeyErrorsFn<Inner[] | number>(),
         validateStrict: createValidateFn<Inner[] | number>(undefined, {checkUnknowns: true}),
-        makeCloneExactShape: () => createCloneExactShapeFn<Inner[] | number>(),
+        makeRemoveUnknownKeys: () => createRemoveUnknownKeysFn<Inner[] | number>(),
         stripDecoder: createJsonDecoderFn<Inner[] | number>(undefined, {strategy: 'strip'}),
         cloneEncoder: createJsonEncoderFn<Inner[] | number>(undefined, {strategy: 'clone'}),
         directEncoder: createJsonEncoderFn<Inner[] | number>(undefined, {strategy: 'direct'}),
@@ -153,7 +153,7 @@ describe('every unknown-key family agrees', () => {
         hasUnknownKeys: createHasUnknownKeysFn<[Inner, number] | string>(),
         unknownKeyErrors: createUnknownKeyErrorsFn<[Inner, number] | string>(),
         validateStrict: createValidateFn<[Inner, number] | string>(undefined, {checkUnknowns: true}),
-        makeCloneExactShape: () => createCloneExactShapeFn<[Inner, number] | string>(),
+        makeRemoveUnknownKeys: () => createRemoveUnknownKeysFn<[Inner, number] | string>(),
         stripDecoder: createJsonDecoderFn<[Inner, number] | string>(undefined, {strategy: 'strip'}),
         cloneEncoder: createJsonEncoderFn<[Inner, number] | string>(undefined, {strategy: 'clone'}),
         directEncoder: createJsonEncoderFn<[Inner, number] | string>(undefined, {strategy: 'direct'}),
@@ -170,8 +170,8 @@ describe('every unknown-key family agrees', () => {
         hasUnknownKeys: createHasUnknownKeysFn<TwoObjects>(),
         unknownKeyErrors: createUnknownKeyErrorsFn<TwoObjects>(),
         validateStrict: createValidateFn<TwoObjects>(undefined, {checkUnknowns: true}),
-        // @mion-downgrade-error CES001
-        makeCloneExactShape: () => createCloneExactShapeFn<TwoObjects>(),
+        // @mion-downgrade-error RUK001
+        makeRemoveUnknownKeys: () => createRemoveUnknownKeysFn<TwoObjects>(),
         stripDecoder: createJsonDecoderFn<TwoObjects>(undefined, {strategy: 'strip'}),
         cloneEncoder: createJsonEncoderFn<TwoObjects>(undefined, {strategy: 'clone'}),
         directEncoder: createJsonEncoderFn<TwoObjects>(undefined, {strategy: 'direct'}),
@@ -191,9 +191,9 @@ describe('every unknown-key family agrees', () => {
       ).toEqual([row.reported]);
       expect(fns.validateStrict(parse()), 'validate {checkUnknowns: true}').toBe(false);
       if (row.cloneRefuses) {
-        expect(fns.makeCloneExactShape, 'cloneExactShape refuses an object-bearing union').toThrow(/CES001/);
+        expect(fns.makeRemoveUnknownKeys, 'removeUnknownKeys refuses an object-bearing union').toThrow(/RUK001/);
       } else {
-        expect(fns.makeCloneExactShape()(parse() as never), 'cloneExactShape').toStrictEqual(row.clean);
+        expect(fns.makeRemoveUnknownKeys()(parse() as never), 'removeUnknownKeys').toStrictEqual(row.clean);
       }
       expect(JSON.parse(fns.cloneEncoder(parse()) as string), "encoder {strategy: 'clone'}").toStrictEqual(row.clean);
       expect(JSON.parse(fns.directEncoder(parse()) as string), "encoder {strategy: 'direct'}").toStrictEqual(row.clean);
@@ -217,7 +217,7 @@ describe('every unknown-key family agrees', () => {
     expect(createHasUnknownKeysFn<Counts>()(parse()), 'hasUnknownKeys').toBe(false);
     expect(createUnknownKeyErrorsFn<Counts>()(parse()), 'unknownKeyErrors').toEqual([]);
     expect(createValidateFn<Counts>(undefined, {checkUnknowns: true})(parse()), 'validate {checkUnknowns: true}').toBe(true);
-    expect(createCloneExactShapeFn<Counts>()(parse()), 'cloneExactShape').toStrictEqual(all);
+    expect(createRemoveUnknownKeysFn<Counts>()(parse()), 'removeUnknownKeys').toStrictEqual(all);
     const cloneEncoded = createJsonEncoderFn<Counts>(undefined, {strategy: 'clone'})(parse()) as string;
     const directEncoded = createJsonEncoderFn<Counts>(undefined, {strategy: 'direct'})(parse()) as string;
     expect(JSON.parse(cloneEncoded), "encoder {strategy: 'clone'}").toStrictEqual(all);
@@ -242,8 +242,10 @@ describe('every unknown-key family agrees', () => {
     expect(createValidateFn<CountsOrInner>(undefined, {checkUnknowns: true})(parse()), 'validate {checkUnknowns: true}').toBe(
       false
     );
-    // @mion-downgrade-error CES001
-    expect(() => createCloneExactShapeFn<CountsOrInner>(), 'cloneExactShape refuses an object-bearing union').toThrow(/CES001/);
+    // @mion-downgrade-error RUK001
+    expect(() => createRemoveUnknownKeysFn<CountsOrInner>(), 'removeUnknownKeys refuses an object-bearing union').toThrow(
+      /RUK001/
+    );
     const cloneEncoded = createJsonEncoderFn<CountsOrInner>(undefined, {strategy: 'clone'})(parse()) as string;
     const directEncoded = createJsonEncoderFn<CountsOrInner>(undefined, {strategy: 'direct'})(parse()) as string;
     expect(JSON.parse(cloneEncoded), "encoder {strategy: 'clone'}").toStrictEqual(all);

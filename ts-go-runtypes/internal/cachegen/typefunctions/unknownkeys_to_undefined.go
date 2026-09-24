@@ -7,7 +7,7 @@ import (
 )
 
 // UnknownKeysToUndefinedEmitter is INTERNAL-ONLY: the public unknownKeysToUndefined family was removed in favour of
-// cloneExactShape, and this now exists only as the delegate StripUnknownKeysWireEmitter wraps.
+// removeUnknownKeys, and this now exists only as the delegate StripUnknownKeysWireEmitter wraps.
 // It sets every unknown property to undefined rather than deleting it, which is the right call on a freshly-parsed,
 // exclusively-owned wire value.
 type UnknownKeysToUndefinedEmitter struct{}

@@ -179,7 +179,7 @@ export const d = describeType<{a: number}>();
     const sources = {
       'four-fn.ts': `import type {InjectTypeFnArgs} from '@mionjs/run-types';
 type Handler = (ctx: unknown, ...rest: any[]) => unknown;
-function route<H extends Handler>(handler: H, fns?: InjectTypeFnArgs<Parameters<H>, 'validationErrors', 'hasUnknownKeys', 'cloneExactShape', 'unknownKeyErrors'>) {
+function route<H extends Handler>(handler: H, fns?: InjectTypeFnArgs<Parameters<H>, 'validationErrors', 'hasUnknownKeys', 'removeUnknownKeys', 'unknownKeyErrors'>) {
   return {handler, fns};
 }
 export const r = route((ctx: unknown, name: string) => name.length);

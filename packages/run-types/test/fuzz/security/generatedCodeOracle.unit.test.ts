@@ -61,7 +61,7 @@ describe('generated-code oracles fire on broken bodies (negative controls)', () 
       )
     ).toEqual(['GC-COUNT']);
     // The same text is not a binary decoder's problem in another family.
-    expect(oracles('function f(v){const n = v.length;v = new Array(n);return v}', 'ces')).toEqual([]);
+    expect(oracles('function f(v){const n = v.length;v = new Array(n);return v}', 'ruk')).toEqual([]);
   });
 
   it('GC-REGEXP fires when a RegExp is built from anything but a double-quoted literal', () => {
@@ -87,7 +87,7 @@ describe('generated-code oracles fire on broken bodies (negative controls)', () 
       oracles("function f(v){const v0 = v.a; v0 = typeof v === 'string' ? 1 : 2; v.a = new Date(v0);return v}", 'rj')
     ).toEqual(['GC-GUARD']);
     // the same text is not a JSON decoder's problem in another family
-    expect(oracles('function f(v){v = new Date(v);return v}', 'ces')).toEqual([]);
+    expect(oracles('function f(v){v = new Date(v);return v}', 'ruk')).toEqual([]);
   });
 
   it('GC-ACCESS fires when a property access spells a quote or a digit after the dot', () => {

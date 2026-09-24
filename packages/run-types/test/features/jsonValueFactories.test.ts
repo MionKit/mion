@@ -1,17 +1,11 @@
-// End-to-end acceptance test for the four value-level JSON factories. They compile the same
+// End-to-end acceptance test for the three value-level JSON factories. They compile the same
 // families a marker reaches by fnKey, so the last test in each group asserts the two roads hand
 // back the SAME compiled function; without it the factory road could drift unnoticed.
 // Per the CLAUDE.md marker-coverage rule both call shapes are exercised, with one paired test
 // asserting they resolve the same compiled fn.
 
 import {describe, test, expect} from 'vitest';
-import {
-  createPrepareForJsonFn,
-  createRestoreFromJsonFn,
-  createStringifyJsonFn,
-  createStripUnknownKeysFn,
-  type InjectTypeFnArgs,
-} from '@mionjs/run-types';
+import {createPrepareForJsonFn, createRestoreFromJsonFn, createStringifyJsonFn, type InjectTypeFnArgs} from '@mionjs/run-types';
 import {getRTFunction} from '@mionjs/run-types/runtime';
 
 type Payload = {id: bigint; when: Date; tags: Map<string, number>; name: string};
@@ -35,9 +29,6 @@ function markerCloneRestore<T>(_val?: T, id?: InjectTypeFnArgs<T, 'restoreFromJs
 }
 function markerStringify<T>(_val?: T, id?: InjectTypeFnArgs<T, 'stringifyJson'>) {
   return getRTFunction<'stringifyJson'>(id);
-}
-function markerStripWire<T>(_val?: T, id?: InjectTypeFnArgs<T, 'stripUnknownKeysWire'>) {
-  return getRTFunction<'stripUnknownKeysWire'>(id);
 }
 
 describe('createPrepareForJsonFn + createRestoreFromJsonFn — the clone pair round-trips', () => {
@@ -116,26 +107,5 @@ describe('createStringifyJsonFn — one pass to a JSON string', () => {
 
   test('both marker call shapes resolve the same compiled fn', () => {
     expect(createStringifyJsonFn<Payload>()).toBe(createStringifyJsonFn(payload()));
-  });
-});
-
-describe('createStripUnknownKeysFn — blanks rather than rebuilds', () => {
-  test('an undeclared property is set to undefined, not removed', () => {
-    type Declared = {a: string};
-    const strip = createStripUnknownKeysFn<Declared>();
-
-    const blanked = strip({a: 'x', extra: 1}) as Record<string, unknown>;
-    expect(blanked.a).toBe('x');
-    expect(blanked.extra).toBeUndefined();
-    // The distinction from createCloneExactShapeFn: the key survives, its value does not.
-    expect(Object.keys(blanked)).toContain('extra');
-  });
-
-  test('it hands back the same compiled fn the marker road resolves', () => {
-    expect(createStripUnknownKeysFn<Payload>()).toBe(markerStripWire<Payload>());
-  });
-
-  test('both marker call shapes resolve the same compiled fn', () => {
-    expect(createStripUnknownKeysFn<Payload>()).toBe(createStripUnknownKeysFn(payload()));
   });
 });

@@ -154,11 +154,11 @@ type Response struct {
 	// AddedPrepareForJsonClone mirrors AddedPrepareForJson for the safe-encode family: the non-mutating sibling
 	// that strips undeclared properties into a new value, decoded by RestoreFromJson (identical wire format).
 	AddedPrepareForJsonClone bool `json:"addedPrepareForJsonClone,omitempty"`
-	// AddedHasUnknownKeys / AddedUnknownKeyErrors / AddedCloneExactShape mirror AddedValidate for the
+	// AddedHasUnknownKeys / AddedUnknownKeyErrors / AddedRemoveUnknownKeys mirror AddedValidate for the
 	// unknown-keys family.
-	AddedHasUnknownKeys   bool `json:"addedHasUnknownKeys,omitempty"`
-	AddedUnknownKeyErrors bool `json:"addedUnknownKeyErrors,omitempty"`
-	AddedCloneExactShape  bool `json:"addedCloneExactShape,omitempty"`
+	AddedHasUnknownKeys    bool `json:"addedHasUnknownKeys,omitempty"`
+	AddedUnknownKeyErrors  bool `json:"addedUnknownKeyErrors,omitempty"`
+	AddedRemoveUnknownKeys bool `json:"addedRemoveUnknownKeys,omitempty"`
 	// AddedStripUnknownKeysWire — the decoder-internal ukuWire family (the `strip` decode strategy's pre-pass).
 	AddedStripUnknownKeysWire bool `json:"addedStripUnknownKeysWire,omitempty"`
 	// AddedToBinary / AddedFromBinary mirror AddedPrepareForJson for the binary serializer pair.
@@ -470,7 +470,7 @@ var responseAddedFlags = []struct {
 	{"addedPrepareForJsonClone", func(response *Response) bool { return response.AddedPrepareForJsonClone }},
 	{"addedHasUnknownKeys", func(response *Response) bool { return response.AddedHasUnknownKeys }},
 	{"addedUnknownKeyErrors", func(response *Response) bool { return response.AddedUnknownKeyErrors }},
-	{"addedCloneExactShape", func(response *Response) bool { return response.AddedCloneExactShape }},
+	{"addedRemoveUnknownKeys", func(response *Response) bool { return response.AddedRemoveUnknownKeys }},
 	{"addedStripUnknownKeysWire", func(response *Response) bool { return response.AddedStripUnknownKeysWire }},
 	{"addedToBinary", func(response *Response) bool { return response.AddedToBinary }},
 	{"addedFromBinary", func(response *Response) bool { return response.AddedFromBinary }},

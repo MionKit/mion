@@ -30,7 +30,7 @@ func patternRecordFixture(valueID string, values ...*reflection.RunType) []*refl
 
 // A template-literal index signature is open on every codec road, exactly like a plain one: the
 // pattern selects the value transform for the keys it matches and a key matching no pattern is
-// carried as is. Validation is the only place that refuses it. cloneExactShape is neither an
+// carried as is. Validation is the only place that refuses it. removeUnknownKeys is neither an
 // encoder nor a decoder: its clone must never share a value with its input, so it keeps dropping
 // a key matching no pattern.
 func TestPatternKey_EncodersCopyANonMatchingKey(t *testing.T) {
@@ -45,9 +45,9 @@ func TestPatternKey_EncodersCopyANonMatchingKey(t *testing.T) {
 		}
 	}
 	for _, id := range []string{"rec", "idx"} {
-		entry := familyEntry(t, fixture, "cloneExactShape", id)
+		entry := familyEntry(t, fixture, "removeUnknownKeys", id)
 		if !strings.Contains(entry, "if (reIdx0.test(k0)) { _r[k0] = v[k0]; continue; }}") || strings.Contains(entry, "continue; }_r[k0]") {
-			t.Errorf("[cloneExactShape/%s] a key matching no pattern must be dropped, not shared by reference; got:\n%s", id, entry)
+			t.Errorf("[removeUnknownKeys/%s] a key matching no pattern must be dropped, not shared by reference; got:\n%s", id, entry)
 		}
 	}
 	// The direct road writes it the way native JSON would, after the pattern arm.

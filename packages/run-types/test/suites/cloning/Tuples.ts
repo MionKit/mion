@@ -5,7 +5,7 @@
 // through by reference inside the fresh tuple, and circular tuples clone
 // recursively.
 
-import {createCloneExactShapeFn} from '@mionjs/run-types';
+import {createRemoveUnknownKeysFn} from '@mionjs/run-types';
 import type {CloningCase} from './types.ts';
 
 // Module-level const so both getTestData() calls return the SAME reference
@@ -18,7 +18,7 @@ export const TUPLES = {
     title: 'tuple',
     description:
       'Fixed-length mixed tuple [Date, number, string, null, string[], bigint] rebuilds positionally — the Date and string[] slots clone fresh, while number, string, null and bigint copy by value.',
-    clone: () => createCloneExactShapeFn<[Date, number, string, null, string[], bigint]>(),
+    clone: () => createRemoveUnknownKeysFn<[Date, number, string, null, string[], bigint]>(),
     getTestData: () => ({
       values: [[new Date('2000-08-06T02:13:00.000Z'), 123, 'hello', null, ['a', 'b', 'c'], BigInt(123)]],
     }),
@@ -27,7 +27,7 @@ export const TUPLES = {
     title: 'tuple with optionals',
     description:
       'Tuple [number, bigint?, boolean?, number?] clones fresh with optional slots kept value-level: present values copy and `undefined` slots stay `undefined` (no JSON `null` placeholder).',
-    clone: () => createCloneExactShapeFn<[number, bigint?, boolean?, number?]>(),
+    clone: () => createRemoveUnknownKeysFn<[number, bigint?, boolean?, number?]>(),
     getTestData: () => ({
       values: [
         [3, undefined, true, 4],
@@ -40,14 +40,14 @@ export const TUPLES = {
     title: 'tuple rest',
     description:
       'Tuple [number, ...bigint[]] clones the fixed slot and every rest bigint by value into a fresh array, covering the rest segment populated and empty.',
-    clone: () => createCloneExactShapeFn<[number, ...bigint[]]>(),
+    clone: () => createRemoveUnknownKeysFn<[number, ...bigint[]]>(),
     getTestData: () => ({values: [[34567, 1n, 2n, 3n], [3]]}),
   },
   tuple_with_non_serializable: {
     title: 'tuple non-serializable slot',
     description:
       'Unlike serialization, a function-typed tuple slot does not throw — the function is opaque and passes through by reference inside the fresh tuple.',
-    clone: () => createCloneExactShapeFn<[number, () => any]>(),
+    clone: () => createRemoveUnknownKeysFn<[number, () => any]>(),
     getTestData: () => ({values: [[123, opaqueFn]]}),
   },
   tuple_circular: {
@@ -56,7 +56,7 @@ export const TUPLES = {
       'Self-referential tuple [Date, number, string, null, string[], bigint, TupleCircular?] clones recursively — fresh containers at every level, with the terminating optional slot staying `undefined`.',
     clone: () => {
       type TupleCircular = [Date, number, string, null, string[], bigint, TupleCircular?];
-      return createCloneExactShapeFn<TupleCircular>();
+      return createRemoveUnknownKeysFn<TupleCircular>();
     },
     getTestData: () => {
       type TupleCircular = [Date, number, string, null, string[], bigint, TupleCircular?];
@@ -90,7 +90,7 @@ export const TUPLES = {
         name: string;
         parent?: [string, ICircularTuple];
       }
-      return createCloneExactShapeFn<ICircularTuple>();
+      return createRemoveUnknownKeysFn<ICircularTuple>();
     },
     getTestData: () => {
       interface ICircularTuple {
@@ -105,13 +105,13 @@ export const TUPLES = {
   atomicSlots: {
     title: 'tuple of atomics',
     description: 'All-immutable slots copy via `.slice()` — fresh array, same values.',
-    clone: () => createCloneExactShapeFn<[string, number]>(),
+    clone: () => createRemoveUnknownKeysFn<[string, number]>(),
     getTestData: () => ({values: [['x', 1]]}),
   },
   objectSlot: {
     title: 'tuple with an object slot',
     description: 'A shaped slot forces the positional rebuild; the slot clones fresh and its extras drop.',
-    clone: () => createCloneExactShapeFn<[string, {a: number}]>(),
+    clone: () => createRemoveUnknownKeysFn<[string, {a: number}]>(),
     getTestData: () => ({
       values: [['x', {a: 1, extra: 9}]],
       expected: [['x', {a: 1}]],

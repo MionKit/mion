@@ -10,7 +10,7 @@ import {describe, expect, expectTypeOf, it} from 'vitest';
 import {
   createBinaryDecoderFn,
   createBinaryEncoderFn,
-  createCloneExactShapeFn,
+  createRemoveUnknownKeysFn,
   createJsonDecoderFn,
   createJsonEncoderFn,
   createValidateFn,
@@ -66,7 +66,7 @@ describe('RegExp is not data', () => {
   });
 
   it('the exact-shape clone shares the RegExp by reference', () => {
-    const clone = createCloneExactShapeFn<Rule>();
+    const clone = createRemoveUnknownKeysFn<Rule>();
     const value: Rule = {name: 'x', match: /a/};
     const out = clone(value);
     expect(out).not.toBe(value);

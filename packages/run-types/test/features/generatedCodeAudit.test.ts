@@ -11,7 +11,7 @@ import {describe, expect, it} from 'vitest';
 import {
   createBinaryDecoderFn,
   createBinaryEncoderFn,
-  createCloneExactShapeFn,
+  createRemoveUnknownKeysFn,
   createGetValidationErrorsFn,
   createHasUnknownKeysFn,
   createJsonDecoderFn,
@@ -101,7 +101,7 @@ const decoders = {
 };
 const toBinary = createBinaryEncoderFn<Corpus>();
 const fromBinary = createBinaryDecoderFn<Corpus>();
-const clone = createCloneExactShapeFn<Corpus>();
+const clone = createRemoveUnknownKeysFn<Corpus>();
 createHasUnknownKeysFn<Corpus>();
 createJsonSchemaFn<Corpus>();
 createMockDataFn<Corpus>();
@@ -161,7 +161,7 @@ describe('generated-code corpus scan (hand-written nasty corpus)', () => {
     const bodies = emittedBodies();
     const families = new Set(bodies.map((b) => b.family));
     expect(bodies.length).toBeGreaterThan(20);
-    for (const family of ['val', 'verr', 'pjs', 'sj', 'cj', 'jdST', 'jdPR', 'jdCO', 'tb', 'fb', 'ces']) {
+    for (const family of ['val', 'verr', 'pjs', 'sj', 'cj', 'jdST', 'jdPR', 'jdCO', 'tb', 'fb', 'ruk']) {
       expect(families, `family ${family} must be in the corpus`).toContain(family);
     }
   });
