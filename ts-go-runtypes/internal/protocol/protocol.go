@@ -114,7 +114,7 @@ type Metrics struct {
 	SetSourcesMs float64 `json:"setSourcesMs,omitempty"`
 	MarkerScanMs float64 `json:"markerScanMs,omitempty"`
 	PureFnsMs    float64 `json:"pureFnsMs,omitempty"`
-	// PrepMs is the per-dispatch response prep: added-flag passes, provenance line/col conversion, ref-table build.
+	// PrepMs is the per-dispatch response prep: provenance line/col conversion, ref-table build.
 	PrepMs       float64            `json:"prepMs,omitempty"`
 	ScopedDumpMs float64            `json:"scopedDumpMs,omitempty"`
 	RenderMs     map[string]float64 `json:"renderMs,omitempty"`
@@ -140,32 +140,6 @@ type Response struct {
 	// AddedRunTypes is true when this scanFiles interned at least one new RunType; handleHotUpdate reads it to
 	// decide whether the runTypes cache module needs invalidating after a user-file change.
 	AddedRunTypes bool `json:"addedRunTypes,omitempty"`
-	// AddedValidate is true when a newly-interned RunType renders a validate entry. Set per emitter, independently
-	// of AddedRunTypes, so cache-by-cache invalidation stays surgical.
-	AddedValidate bool `json:"addedValidate,omitempty"`
-	// AddedValidationErrors mirrors AddedValidate for the ValidationErrors emitter.
-	AddedValidationErrors bool `json:"addedValidationErrors,omitempty"`
-	// AddedPrepareForJson / AddedRestoreFromJson mirror AddedValidate for the JSON serializer pair.
-	AddedPrepareForJson  bool `json:"addedPrepareForJson,omitempty"`
-	AddedRestoreFromJson bool `json:"addedRestoreFromJson,omitempty"`
-	// AddedStringifyJson mirrors AddedPrepareForJson for stringifyJson, the single-pass JSON.stringify that walks
-	// the type rather than `v`.
-	AddedStringifyJson bool `json:"addedStringifyJson,omitempty"`
-	// AddedPrepareForJsonClone mirrors AddedPrepareForJson for the safe-encode family: the non-mutating sibling
-	// that strips undeclared properties into a new value, decoded by RestoreFromJson (identical wire format).
-	AddedPrepareForJsonClone bool `json:"addedPrepareForJsonClone,omitempty"`
-	// AddedHasUnknownKeys / AddedUnknownKeyErrors / AddedRemoveUnknownKeys mirror AddedValidate for unknown keys.
-	AddedHasUnknownKeys    bool `json:"addedHasUnknownKeys,omitempty"`
-	AddedUnknownKeyErrors  bool `json:"addedUnknownKeyErrors,omitempty"`
-	AddedRemoveUnknownKeys bool `json:"addedRemoveUnknownKeys,omitempty"`
-	// AddedStripUnknownKeysWire — the decoder-internal ukuWire family (the `strip` decode strategy's pre-pass).
-	AddedStripUnknownKeysWire bool `json:"addedStripUnknownKeysWire,omitempty"`
-	// AddedToBinary / AddedFromBinary mirror AddedPrepareForJson for the binary serializer pair.
-	AddedToBinary   bool `json:"addedToBinary,omitempty"`
-	AddedFromBinary bool `json:"addedFromBinary,omitempty"`
-	// AddedFormatTransform mirrors AddedValidate for the `format` transform emitter: a newly-interned RunType
-	// carrying a value-transforming format (string transform, domain/ip/url lowercasing).
-	AddedFormatTransform bool `json:"addedFormatTransform,omitempty"`
 	// AddedPureFns is true when the scan introduced or modified a pure-fn entry, checked against the resolver's
 	// session-wide bodyHash index.
 	AddedPureFns bool          `json:"addedPureFns,omitempty"`
@@ -454,26 +428,12 @@ func (dump Dump) WriteJSON(writer io.Writer) error {
 	return encoder.Encode(dump)
 }
 
-// responseAddedFlags is the wire definition of the per-family added-flag Response fields. Hand-written on
-// purpose: the wire keys are NOT derivable from constants.CacheModules, and this table IS the wire contract.
+// responseAddedFlags is the wire definition of the added-flag Response fields; this table IS the wire contract.
 var responseAddedFlags = []struct {
 	key string
 	get func(*Response) bool
 }{
 	{"addedRunTypes", func(response *Response) bool { return response.AddedRunTypes }},
-	{"addedValidate", func(response *Response) bool { return response.AddedValidate }},
-	{"addedValidationErrors", func(response *Response) bool { return response.AddedValidationErrors }},
-	{"addedPrepareForJson", func(response *Response) bool { return response.AddedPrepareForJson }},
-	{"addedRestoreFromJson", func(response *Response) bool { return response.AddedRestoreFromJson }},
-	{"addedStringifyJson", func(response *Response) bool { return response.AddedStringifyJson }},
-	{"addedPrepareForJsonClone", func(response *Response) bool { return response.AddedPrepareForJsonClone }},
-	{"addedHasUnknownKeys", func(response *Response) bool { return response.AddedHasUnknownKeys }},
-	{"addedUnknownKeyErrors", func(response *Response) bool { return response.AddedUnknownKeyErrors }},
-	{"addedRemoveUnknownKeys", func(response *Response) bool { return response.AddedRemoveUnknownKeys }},
-	{"addedStripUnknownKeysWire", func(response *Response) bool { return response.AddedStripUnknownKeysWire }},
-	{"addedToBinary", func(response *Response) bool { return response.AddedToBinary }},
-	{"addedFromBinary", func(response *Response) bool { return response.AddedFromBinary }},
-	{"addedFormatTransform", func(response *Response) bool { return response.AddedFormatTransform }},
 	{"addedPureFns", func(response *Response) bool { return response.AddedPureFns }},
 }
 

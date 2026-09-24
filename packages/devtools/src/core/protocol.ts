@@ -338,28 +338,9 @@ export interface Response {
   // Acknowledgement for ops that return no data (setSources / reset).
   ok?: true;
   added?: RunType[];
-  // Per-cache "did this scan change anything?" signals for the Vite plugin's handleHotUpdate:
-  // addedRunTypes when the scan interned new RunTypes, addedValidate when the Validate emitter
-  // supports one of them, addedPureFns for any new pure-fn entry (an edited body arrives as a new id).
+  // "Did this scan change anything?" signals: addedRunTypes when the scan interned new RunTypes, addedPureFns
+  // for any new pure-fn entry (an edited body arrives as a new id). Either one regenerates the cache modules.
   addedRunTypes?: boolean;
-  addedValidate?: boolean;
-  // Sibling of addedValidate for emitTypeErrors: the validationErrors cache module needs invalidating.
-  addedValidationErrors?: boolean;
-  // Siblings of addedValidate for the JSON serializer pair; the Vite plugin invalidates each cache module off its own flag.
-  addedPrepareForJson?: boolean;
-  addedRestoreFromJson?: boolean;
-  addedStringifyJson?: boolean;
-  addedPrepareForJsonSafe?: boolean;
-  // Siblings of addedValidate for the unknown-keys family.
-  addedHasUnknownKeys?: boolean;
-  addedRemoveUnknownKeys?: boolean;
-  addedUnknownKeyErrors?: boolean;
-  addedUnknownKeysToUndefinedWire?: boolean;
-  // Siblings of addedValidate for the binary serializer pair.
-  addedToBinary?: boolean;
-  addedFromBinary?: boolean;
-  // Sibling of addedValidate for the `format` transform family: a newly-interned RunType carries a value-transforming format.
-  addedFormatTransform?: boolean;
   addedPureFns?: boolean;
   sites?: Site[];
   // The byte-range rewrites the Go transform applies alongside Sites during OpTransform: one per accepted
