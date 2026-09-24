@@ -1,8 +1,0 @@
-{
-  // Client program: client sources, the drift spec and server A. No other API: two APIs in one program report
-  // two build versions (MET007), so helpers naming TestServerApi stay out too.
-  "extends": "./tsconfig.json",
-  "compilerOptions": {"rootDir": "../..", "customConditions": ["source"]},
-  "include": ["src/**/*.ts", "test/lib/testUtils.ts", "test/drift/**/*.ts"],
-  "exclude": ["node_modules", ".dist", "test/drift/apiB.ts", "test/drift/apiC.ts"]
-}

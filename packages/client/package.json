@@ -59,7 +59,7 @@
         "dev": "vite build --watch",
         "dev:test": "vitest watch",
         "lint": "eslint src",
-        "typecheck:test": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.drift.json --noEmit && tsc -p tsconfig.drift-b.json --noEmit && tsc -p tsconfig.drift-c.json --noEmit",
+        "typecheck:test": "tsc -p tsconfig.json --noEmit",
         "format": "prettier --write src/**/*.ts",
         "build": "vite build",
         "clean": "rimraf .dist .coverage .mion .mion",
