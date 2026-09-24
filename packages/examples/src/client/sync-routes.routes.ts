@@ -1,6 +1,5 @@
 import {createMionRouter, Routes} from '@mionjs/router';
 
-// every call must prove it was built against this server's route types
 const mion = createMionRouter({syncRoutes: true});
 
 const routes = {
@@ -9,5 +8,5 @@ const routes = {
 
 const myApi = mion.initRoutes(routes);
 
-// the client build reads syncRoutes off this type, so the client needs no option of its own
+// the client build reads syncRoutes from this type, so the client needs no option
 export type MyApi = typeof myApi;
