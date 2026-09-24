@@ -368,6 +368,7 @@ var removedPluginKeys = map[string]string{
 	"failOnError": "`failOnError` was removed. Use `downgradeErrors`:\n" +
 		"    failOnError: false  ->  downgradeErrors: \"*\"\n" +
 		"    failOnError: true   ->  the default, drop the key",
+	"parse": "`parse` was removed with createParseFn. Decode with createJsonDecoderFn, then check with createValidateFn; drop the key.",
 }
 
 // findTsRuntypesPlugin scans compilerOptions.plugins[] for the entry whose
