@@ -91,7 +91,7 @@ export const LANES = {
 // Prefix match, so a trailing slash means a directory and a bare name means that
 // file. A bare name is a prefix on purpose: 'packages/drizzle-orm' picks up the
 // four sibling dialect packages without naming each one.
-const matches = (path, prefixes) => prefixes.some((prefix) => path.startsWith(prefix));
+export const matches = (path, prefixes) => prefixes.some((prefix) => path.startsWith(prefix));
 
 // A tracked path that matches no lane and no FEEDS_NOTHING entry is an unknown
 // risk: it joins EVERY lane's hash, so adding a directory re-runs everything

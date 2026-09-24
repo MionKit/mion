@@ -86,9 +86,12 @@ Some of what it drops is expensive to regenerate (the playground WASM needs a co
 ```bash
 go -C ts-go-runtypes test ./internal/...        # Go suite
 pnpm test                                       # all JS packages (Vitest projects)
+pnpm miondevx core test-pr [--base <ref>]       # only what the branch changed + its dependents
 pnpm --filter @mionjs/devtools test         # single package
 pnpm --filter @mionjs/run-types test      # the other
 ```
+
+`core test-pr` diffs the branch's commits against its merge-base with `--base` (default `origin/main`), then runs vitest on the changed packages plus every package that depends on them. A dependency is a workspace name in any `package.json` dep field, or a relative path from one package's files into another's. A change outside `packages/` (other than docs) runs the full suite. `--list` prints the plan without running it. CI runs it on every pull request; a push to `main` still runs the full suite.
 
 JS plugin tests in [packages/devtools/test/](packages/devtools/test/) spawn the Go binary — `pretest` rebuilds it. For the edit/see-tests loop, `pnpm run check:builds` then `pnpm exec vitest` (watch mode) keeps the binary fresh; `pnpm test` is the one-shot pass.
 
@@ -533,6 +536,7 @@ the flags.
 
 ```bash
 pnpm test                        # build if stale, then the whole JS suite
+pnpm miondevx core test-pr [--base <ref>] [--list]   # vitest over only what the branch changed + its dependents
 pnpm miondevx core build              # build the resolver + dev dists if stale
 pnpm miondevx core fuzz <lane…> [--quick|--soak]   # unit|value|types|nondata|roundtrip|size|cloning|enrich|i18n|typemod|race|sidecar|patterngen|convert|convertcli|all
 pnpm miondevx core fuzz-lanes         # the soak lane list as JSON (the soak workflows' matrix source)

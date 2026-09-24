@@ -71,15 +71,18 @@ export function projectName(text) {
   return name ? name[1] : undefined;
 }
 
-// Every project name the root config pulls in, in declaration order.
-export function readProjectNames(repoRoot = REPO_ROOT) {
+// Every project the root config pulls in, as {name, configPath}, in declaration order.
+export function readProjects(repoRoot = REPO_ROOT) {
   const paths = projectConfigPaths(readFileSync(join(repoRoot, ROOT_CONFIG), 'utf8'));
-  return paths.map((path) => {
-    const name = projectName(readFileSync(join(repoRoot, path), 'utf8'));
-    if (!name) die(`core test-batches: ${path} declares no vitest project \`name\` — batches address projects by name`);
-    return name;
+  return paths.map((configPath) => {
+    const name = projectName(readFileSync(join(repoRoot, configPath), 'utf8'));
+    if (!name) die(`core test-batches: ${configPath} declares no vitest project \`name\` — batches address projects by name`);
+    return {name, configPath};
   });
 }
+
+// Every project name the root config pulls in, in declaration order.
+export const readProjectNames = (repoRoot = REPO_ROOT) => readProjects(repoRoot).map((project) => project.name);
 
 // The config-to-batches contract, as three disjoint drift lists. Pure (takes the
 // project names) so the test can drive it without touching the real config.

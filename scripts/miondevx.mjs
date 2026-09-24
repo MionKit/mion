@@ -310,6 +310,8 @@ function runCore(args) {
   // --check / --list are pure file reads: the registry row keeps them build-free.
   if (sub === 'test-batches') return proxy('node', ['scripts/core/test-batches.mjs', ...rest]);
   if (sub === 'test-bun') return proxy('node', ['scripts/core/test-bun.mjs', ...rest]);
+  // --list is a pure git + file read: the registry row keeps it build-free.
+  if (sub === 'test-pr') return proxy('node', ['scripts/core/test-pr.mjs', ...rest]);
   if (sub === 'typecheck-coverage') return proxy('node', ['scripts/core/typecheck-coverage.mjs', ...rest]);
   // A pure git read, so the registry row keeps it build-free; CI runs the same script from ./.github/actions/ci-lanes.
   if (sub === 'lanes') return proxy('node', ['scripts/ci/lanes.mjs', ...rest]);
