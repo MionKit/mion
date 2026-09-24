@@ -9,13 +9,13 @@ import {AnyObject, RpcError, MION_ROUTES, SerializableMethodsData} from '@mionjs
 import {
   getMiddlewareExecutable,
   getRouteExecutable,
-  hasClientMetadata,
   getRouterOptions,
   getTotalExecutables,
   getAllExecutablesIds,
   getAnyExecutable,
 } from '../router.ts';
 import {middleware, route} from '../lib/handlers.ts';
+import {isPublicExecutable} from '../types/guards.ts';
 import {callerForType} from '../dispatch.ts';
 import {HandlerType} from '@mionjs/core';
 import {getBatchIds} from '../batches.ts';
@@ -55,7 +55,7 @@ function mionGetRemoteMethodsDataById(
   const shouldReturnAll = getAllRemoteMethods && getTotalExecutables() <= maxMethods;
   const idsToReturn = shouldReturnAll
     ? getAllExecutablesIds().filter(
-        (id) => !mionInternalRoutes.includes(id) && hasClientMetadata(getAnyExecutable(id) as RemoteMethod)
+        (id) => !mionInternalRoutes.includes(id) && isPublicExecutable(getAnyExecutable(id) as RemoteMethod)
       )
     : methodsIds;
   idsToReturn.forEach((id) => addRequiredRemoteMethodsToResponse(id, resp, errorData));
@@ -89,7 +89,7 @@ function addRequiredRemoteMethodsToResponse(id: string, resp: SerializableMethod
     errorData[id] = `Remote Method ${id} not found`;
     return;
   }
-  if (!hasClientMetadata(executable)) return;
+  if (!isPublicExecutable(executable)) return;
   const method = getSerializableMethod(executable as RemoteMethod);
   methods[id] = method;
   method.middlewareIds?.forEach((middlewareId) => addRequiredRemoteMethodsToResponse(middlewareId, resp, errorData));

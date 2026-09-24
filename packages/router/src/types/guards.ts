@@ -39,27 +39,26 @@ export function isRoute(entry: RouterEntry): entry is Route {
   return entry.type === HandlerType.route;
 }
 
-export function isRoutes(entry: RouterEntry | Routes): entry is Route {
+export function isRoutes(entry: RouterEntry | Routes): entry is Routes {
   return typeof entry === 'object';
 }
 
 export function isExecutable(entry: RemoteMethod | {pathPointer: string[]}): entry is RemoteMethod {
-  return (
-    typeof (entry as RemoteMethod)?.id === 'string' &&
-    ((entry as any).routes === 'undefined' || typeof (entry as RemoteMethod).handler === 'function')
-  );
+  return typeof (entry as RemoteMethod)?.id === 'string' && typeof (entry as RemoteMethod).handler === 'function';
 }
 export function isRawExecutable(entry: RemoteMethod): entry is RawMethod {
   return entry.type === HandlerType.rawMiddleware;
 }
 
-export function isPublicExecutable(entry: RemoteMethod): entry is RemoteMethod {
-  return (
-    entry.hasReturnData ||
-    entry.type === HandlerType.route ||
-    !!entry.paramsCount ||
-    !!(entry as HeadersMethod).headersParam?.headerNames?.length
-  );
+/** What the metadata route hands out: every route (routes ARE the public API) plus every middleware taking
+ *  params or headers or returning data, since the client must encode the call and decode the answer. A raw
+ *  middleware, or one with neither params nor return data, never touches the wire. NOT access control. */
+export function isPublicExecutable(executable: RemoteMethod): boolean {
+  if (executable.type === HandlerType.rawMiddleware) return false;
+  if (executable.type === HandlerType.route) return true;
+  const hasPublicParams = !!executable.paramsCount;
+  const hasHeaderParams = !!(executable as HeadersMethod).headersParam?.headerNames?.length;
+  return hasPublicParams || hasHeaderParams || executable.hasReturnData;
 }
 
 export function isHeaderExecutable(entry: RemoteMethod): entry is HeadersMethod {

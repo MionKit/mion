@@ -297,22 +297,11 @@ export function isPrivateDefinition(entry: RouterEntry, id: string): entry is Pr
   try {
     const executable = getMiddlewareExecutable(id) || getRouteExecutable(id);
     if (!executable) throw new Error(`Route or Middleware ${id} not found. Please check you have called mion.initRoutes first.`);
-    return !hasClientMetadata(executable);
+    return !isPublicExecutable(executable);
   } catch {
     // error thrown because entry is a Routes object and does not have any handler
     return false;
   }
-}
-
-/** What the metadata route hands out: every route (routes ARE the public API) plus every middleware taking
- *  params or headers or returning data, since the client must encode the call and decode the answer. A raw
- *  middleware, or one with neither params nor return data, never touches the wire. NOT access control. */
-export function hasClientMetadata(executable: RemoteMethod): boolean {
-  if (executable.type === HandlerType.rawMiddleware) return false;
-  if (executable.type === HandlerType.route) return true;
-  const hasPublicParams = !!executable.paramsCount;
-  const hasHeaderParams = !!(executable as HeadersMethod).headersParam?.headerNames?.length;
-  return hasPublicParams || hasHeaderParams || executable.hasReturnData;
 }
 
 export function getTotalExecutables(): number {
