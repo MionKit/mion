@@ -48,8 +48,7 @@ export interface FuzzTarget {
   divergesFromComposition?: true;
   /** `never` lets any `RemoveUnknownKeysFn<T>` be assigned (contravariant parameter); the oracle casts back. **/
   clone?: (value: never) => unknown;
-  /** The `clone` decoder's restore (`rjs`), via a marker wrapper: it has no createX factory.
-   *  O26 holds it to an undeclared wire key coming back GONE, not blanked. **/
+  /** `rjs` via a marker wrapper, since it has no createX factory; O26 needs an undeclared key GONE, not blanked. **/
   restoreFromJsonClone?: (value: unknown) => unknown;
   jsonEncode?: (value: unknown) => string | undefined;
   jsonDecode?: (serialized: string) => unknown;
@@ -57,9 +56,7 @@ export interface FuzzTarget {
   binaryDecode?: (buffer: Uint8Array) => unknown;
 }
 
-// O1–O7 are the value oracles (Phase 1 + Phase 2 Tier B). TR1–TR4 are the
-// Phase 2 Tier-A resolver/emit oracles — they police the type-generation
-// pipeline itself rather than a runtime value:
+// O1–O7 are the value oracles. TR1–TR4 police the type-generation pipeline itself rather than a runtime value:
 //   TR1 resolver-clean   no crash + no Error-severity diagnostics for a
 //                        well-formed generated type
 //   TR2 sites-complete   every emitted createX<T>() resolved to a site id
@@ -87,12 +84,10 @@ export interface FuzzTarget {
 //                       at an index-signature carve-out it changes neither
 //   O24 unknown-strip   the paths the unknown-key report names are exactly the
 //                       keys removeUnknownKeys drops
-//   O25 wire-strip      keys planted into EVERY plain object of the encoded
-//                       wire do not change what the `clone` decoder returns,
-//                       except where the type admits them (an index signature,
-//                       a union member the planted wire no longer matches)
-//   O26 wire-delete     keys planted on the encoded wire are GONE from what the
-//                       `rjs` restore returns, unless the type admits them
+//   O25 wire-strip      keys planted on the encoded wire do not change what the
+//                       `clone` decoder returns, unless the type admits them
+//   O26 wire-delete     keys planted on the encoded wire are GONE from what
+//                       `rjs` returns, unless the type admits them
 //   O27 walker-reach    run-level: every target whose type carries a keyed
 //                       shape offered the walker a position
 // O15–O17 are the cloning oracles (test/fuzz/cloning/cloneOracle.ts):
@@ -546,17 +541,9 @@ function survivingPlantedKeys(
   return out;
 }
 
-/** O26 — the `rjs` restore deletes an undeclared wire key rather than blanking it: it rebuilds each
- *  object from the declared shape, so the key is genuinely gone.
- *
- *  It plants on the WIRE, which is what makes it reach where the type walker cannot: `plantWireKeys`
- *  consults no type, so it writes into every plain object, a union arm's payload and an array
- *  element included. The judgement comes after the decode: every planted key that survives is held
- *  against the type by `wireKeyAdmitted`, and only a survivor at a position the type does not admit
- *  is a violation. An index signature DECLARES every key, so a survivor there is a decoder doing
- *  its job; and a planted string inside a record of numbers makes the wire invalid, which a union
- *  arm may then leave alone for validate to refuse, so on such a wire a survivor inside a union is
- *  admitted too. **/
+/** O26: the `rjs` restore deletes an undeclared wire key rather than blanking it. The plant goes on the WIRE, into
+ *  every plain object, reaching where the type walker cannot; `wireKeyAdmitted` then judges each survivor. An index
+ *  signature declares every key, and a union arm may leave an invalid wire for validate, so survivors there pass. **/
 export function checkWireStripDeletes(target: FuzzTarget, value: unknown, ctx: CheckCtx): Violation | null {
   const {jsonEncode, restoreFromJsonClone} = target;
   if (!jsonEncode || !restoreFromJsonClone) return null;
@@ -594,25 +581,9 @@ export function checkWireStripDeletes(target: FuzzTarget, value: unknown, ctx: C
   return null;
 }
 
-/** O25 — the default `clone` decoder is blind to undeclared wire keys.
- *
- *  Metamorphic: plant a key into every plain object on the ENCODED WIRE and the
- *  decoder must return the same value it returned without them. A position the
- *  rebuild does not reach leaves the key in the output and the two answers differ.
- *
- *  The plant is blind, so the judgement sits on the decoded side: a planted key
- *  at a position the type admits (an index signature declares every key, and a
- *  union arm leaves a value its member no longer validates alone) is one a
- *  correct decoder keeps, so it is removed from both sides before they are
- *  compared. A root that is itself an index-signature object admits every key
- *  the plant wrote, so the comparison there is the same-value check and nothing
- *  more.
- *
- *  The anti-vacuity half is a deterministic test rather than a check here:
- *  the `mutate` decoder keeps an undeclared wire key, so a plant really did
- *  reach the wire. It cannot be a per-value check because mutate CANNOT
- *  keep one on a registered class arm, since that instance is rebuilt from the
- *  type, never from the keys on the wire. **/
+/** O25: keys planted into every plain object of the encoded wire must not change what the `clone` decoder returns.
+ *  Keys the type admits (index signature, a union arm the wire no longer validates) are removed from both sides first.
+ *  Anti-vacuity is a separate test: mutate cannot keep a key on a class arm, which is rebuilt from the type. **/
 export function checkWireStripBlind(target: FuzzTarget, value: unknown, ctx: CheckCtx): Violation | null {
   const {jsonEncode, jsonDecode} = target;
   if (!jsonEncode || !jsonDecode) return null;

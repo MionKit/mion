@@ -1,7 +1,3 @@
-// serialization / Realworld — every REALWORLD case run through every JSON encoder ×
-// decoder pairing (mutate/clone × mutate/clone, plus compact), the binary round-trip, and
-// the value-first schema variants. One it() per pairing, delegating to the shared
-// helpers in util/serializationAsserts.ts.
 import {describe, it} from 'vitest';
 import {REALWORLD} from './Realworld.ts';
 import {

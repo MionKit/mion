@@ -235,10 +235,8 @@ func rootNeedsDataOnlyWrap(runType *reflection.RunType) bool {
 	return false
 }
 
-// jsonCompositeBody returns (contextLines, innerFnDeclaration) for a composite strategy; the inner function is named
-// after the entry key so stack traces identify it, and the body binds each LIVE primitive's fn directly.
-// An identity primitive elides, passing its expression through unwrapped, which is byte for byte what the family noop fn
-// computes (identity for pj/pjs/rj/rjs).
+// jsonCompositeBody names the inner fn after the entry key so stack traces identify it.
+// An identity primitive elides, matching its family noop fn byte for byte (identity for pj/pjs/rj/rjs).
 func jsonCompositeBody(composite constants.JsonComposite, id string, entryKey string, isLive func(primOp string) bool, wrapRoot bool, circularSkeletonJS string) (contextLines string, innerFn string) {
 	// The direct `.fn` read always resolves: a noop primitive registers with the family noop fn pre-set (entryTuple.ts
 	// familyMeta), getRT materializes before returning, and demand renders an entry for every primitive a composite wraps.

@@ -142,18 +142,11 @@ type Related struct {
 	Message string `json:"message"`
 }
 
-// Diagnostic is the single wire shape for everything the Go binary emits; Code is the stable
-// identifier (PFE9001, MKR001, VL010, PJ001, …).
-//
-// The user-facing message is NOT on the wire: templates live JS-side in
-// packages/devtools/src/core/diagnosticCatalog.ts and the plugin resolves Code+Args at format
-// time, while Args ships 0-2 substitution values (a property name, a type argument label).
-// Runtime alwaysThrow text is the exception: since cache format v10 Go renders it whole at build time.
-// Level rides the wire next to Severity because the fatal-versus-emitted split
-// is what the downgrade and suppression rules key on, and a build-halt decision
-// must not depend on the GENERATED front-end catalog being in sync: a locally
-// built binary can run ahead of it. Severity stays for the label and the lint
-// tier.
+// Diagnostic is the single wire shape for everything the Go binary emits; Code is the stable id (PJ001, MKR001, …).
+// Messages are NOT on the wire: templates live in packages/devtools/src/core/diagnosticCatalog.ts and Args carries
+// 0-2 values; runtime alwaysThrow text is the exception, rendered whole by Go. Level rides beside Severity because
+// downgrade and suppression key on it, and a halt decision must not trust the generated front-end catalog, which a
+// locally built binary can run ahead of. Severity stays for the label and the lint tier.
 type Diagnostic struct {
 	Code     string    `json:"code"`
 	Family   Family    `json:"family"`

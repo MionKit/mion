@@ -1,12 +1,5 @@
-// All-strategy round-trip end-to-end: generate random SERIALISABLE types, compile
-// EVERY JSON codec strategy (clone / mutate / compact) plus binary for
-// the same type, round-trip one conforming value through all of them, and check
-// they agree (round-trip identity, both-ends validate, cross-strategy agreement,
-// wire stability, native-JSON cross-check).
-//
-// Needs the Go binary (spawned by the runner's ResolverClient); skipped when it
-// isn't built. The runner owns the resolver process and restarts it if a
-// pathological type ever wedges it.
+// Random serialisable types round-tripped through every JSON strategy plus binary, checked by roundtripOracle.
+// Skipped when the Go binary is not built; the runner restarts the resolver if a pathological type wedges it.
 
 import {describe, it, expect} from 'vitest';
 import {hasBinary} from './roundtripHarness.ts';

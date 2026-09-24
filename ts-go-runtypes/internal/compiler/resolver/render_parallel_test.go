@@ -41,9 +41,7 @@ func TestParallelRender_EquivalentToSerial(t *testing.T) {
 	serialResponse := serial.Dispatch(scanAllRequest(files))
 	parallelResponse := parallel.Dispatch(scanAllRequest(files))
 
-	// Sanity: the validate family and at least one other demanded family must
-	// have produced entries (the fixture demands createValidateFn +
-	// createJsonDecoderFn, whose default clone strategy seeds restoreFromJsonClone).
+	// The fixture demands createJsonDecoderFn, whose default clone strategy seeds restoreFromJsonClone.
 	if !hasFamilyEntry(parallelResponse, "validate") || !hasFamilyEntry(parallelResponse, "restoreFromJsonClone") {
 		t.Fatalf("expected validate + restoreFromJsonClone entries to render")
 	}

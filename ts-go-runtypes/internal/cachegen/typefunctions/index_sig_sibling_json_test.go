@@ -8,15 +8,8 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// G1: an object that mixes a named property with an index signature whose VALUE
-// type differs (e.g. `{p0: number; [k: number]: bigint}`) must NOT apply the
-// index value's transform to the named property. The JSON families walk every
-// own key with a for-in loop, so the loop has to skip declared sibling keys (the
-// named prop owns its own transform / decode). Binary already does this (F1);
-// the clone (prepareForJsonClone) path always did via its declared-key skip. This
-// pins the mutate (prepareForJson) and restore (restoreFromJsonMutate) walks,
-// which previously corrupted the named prop on the wire round-trip (a `number`
-// becoming a `bigint`).
+// G1: `{p0: number; [k: number]: bigint}` must not apply the index transform to p0. The mutate walks loop own keys
+// with for-in, so they must skip declared sibling keys; clone and binary (F1) already do.
 
 func mixedIndexSigObject() protocol.Dump {
 	num := &reflection.RunType{ID: "num", Kind: reflection.KindNumber}
@@ -30,8 +23,7 @@ func mixedIndexSigObject() protocol.Dump {
 
 func TestG1_JsonIndexSigSkipsSiblingNamedProp(t *testing.T) {
 	dump := mixedIndexSigObject()
-	// prepareForJson / restoreFromJsonMutate both walk own keys with a
-	// for-in; each must guard the index loop with the sibling-named Set skip.
+	// Each must guard its index loop with the sibling-named Set skip.
 	for _, fam := range []string{"prepareForJsonMutate", "restoreFromJsonMutate"} {
 		out := renderModule(t, dump, fam)
 		if !strings.Contains(out, "siblingNamed_idx.has(") {

@@ -389,7 +389,7 @@ export const familyMeta: Record<string, FamilyMeta> = {
   // compact strategy: cj builds the positional array, cjr rebuilds the keyed object.
   cj: valueShaped('cj', noopIdentity),
   cjr: valueShaped('cjr', noopIdentity),
-  // rjs: the clone restore, value-shaped identity like rj.
+  // rjs is the clone restore.
   rjs: valueShaped('rjs', noopIdentity),
   ruk: valueShaped('ruk', noopIdentity),
   // Name card: its typeName slot carries the build-time class name registerClassSerializer's name lane keys on.

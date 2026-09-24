@@ -297,9 +297,7 @@ func collectSiblingNamedKeys(rt *reflection.RunType, ctx *EmitContext) []string 
 	return dedupSortStrings(siblingNames)
 }
 
-// siblingNamedSkipCode returns the line an index-signature for-in loop opens with so a sibling named property is skipped.
-// Returns "" when the parent object emit published no sibling-names set for this idxSig.
-// Uses the published Set for O(1) membership.
+// siblingNamedSkipCode returns the for-in line that skips a sibling named prop, or "" when the parent published no set.
 func siblingNamedSkipCode(idxSig *reflection.RunType, ctx *EmitContext, prop string) string {
 	if idxSig == nil {
 		return ""
@@ -375,10 +373,8 @@ func siblingPatternSkipCode(idxSig *reflection.RunType, ctx *EmitContext, prop s
 	return "if (" + predicateKey + "(" + prop + ")) continue;"
 }
 
-// unknownKeysSupports gates the renderer's top-level loop for EVERY unknown-keys family emitter
-// (has / strip / errors): they differ in what they emit per kind, never in which kinds they accept.
-// Same set as the prepareForJsonMutate / validationErrors emitters; atomic kinds emit an empty body that each family's
-// Finalize folds to its noop shape.
+// unknownKeysSupports gates removeUnknownKeys, the same set as pj / validationErrors; atomic kinds emit an empty
+// body that Finalize folds to the noop shape.
 func unknownKeysSupports(rt *reflection.RunType) bool {
 	if rt == nil {
 		return false

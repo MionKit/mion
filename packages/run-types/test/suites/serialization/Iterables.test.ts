@@ -1,6 +1,3 @@
-// serialization / Iterables — every ITERABLES case run through every JSON encoder × decoder pairing
-// (8 combinations) and the binary round-trip. One `it()` per pairing, each delegating to its
-// shared helper in util/serializationAsserts.ts.
 import {describe, it} from 'vitest';
 import {ITERABLES} from './Iterables.ts';
 import {

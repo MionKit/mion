@@ -30,9 +30,7 @@ export type InjectRunTypeId<T> = string & {
  * SINGLE function (the common case) — `InjectTypeFnArgs<T, 'validate'>`: the injected value is the
  * family's entry-module tuple, resolved by the one `createX`.
  *
- * `Fn` also names the JSON value families (`prepareForJson` / `restoreFromJson` Mutate and Clone,
- * `'compactForJson'` / `'compactFromJson'`). Several on one marker recover via
- * `getRTFunction<'prepareForJsonClone'>(fns?.[i])`, keyed by the SAME fnKey.
+ * JSON value families (`prepareForJsonClone`, `compactFromJson`, …) recover via `getRTFunction<Key>(fns?.[i])`.
  *
  * MULTIPLE functions — `InjectTypeFnArgs<T, 'validationErrors', 'jsonDecoder', 'jsonEncoder'>`, as a
  * framework wrapper such as mion's `route()` asks for: the injected value is an ARRAY of

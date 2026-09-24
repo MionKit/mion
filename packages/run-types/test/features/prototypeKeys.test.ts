@@ -274,7 +274,7 @@ describe('the rebuilding encoders and the cloner skip a `__proto__` wire key; th
   });
 
   it('the in-place JSON encoder carries the key through, and the decoder refuses that wire', () => {
-    // `mutate` rewrites values on the object you passed and writes no key onto another object, so it pays no per-key compare; the receiving decoder is the guard.
+    // `mutate` writes no key onto a new object, so it skips the per-key compare; the receiving decoder is the guard.
     const text = ledgerEncoders.mutate(poisonedLedger()) as string;
     expect(Object.keys(JSON.parse(text))).toContain('__proto__');
     expect(() => createJsonDecoderFn<Ledger>()(text)).toThrow(message('__proto__'));

@@ -89,15 +89,10 @@ export const _ = createJsonEncoderFn<() => void>(undefined, {strategy: 'mutate'}
 	}
 }
 
-// TestDiag_PerFamilyPrefix_DistinctCodes pins the per-family prefix
-// scheme. The same logical throw (Never at root) under different
-// emitters surfaces as distinct codes — PJS001 for prepareForJsonClone,
-// TB001 for toBinary, etc. — so users reading their build log can
-// see which RT family produced the diagnostic without parsing
-// message text.
+// TestDiag_PerFamilyPrefix_NeverAtRoot_DistinctCodes: the same throw gets a distinct code per family (PJS001, TB001),
+// so a build log names the family without parsing messages.
 func TestDiag_PerFamilyPrefix_NeverAtRoot_DistinctCodes(t *testing.T) {
-	// All three families are demand-driven now: seed pj via createJsonEncoderFn(mutate),
-	// pjs via createJsonEncoderFn(clone), and tb via its own createBinaryEncoderFn.
+	// Demand-driven families: mutate seeds pj, clone seeds pjs, the binary encoder seeds tb.
 	const code = `import {createJsonEncoderFn, createBinaryEncoderFn} from '@mionjs/run-types';
 export const _ = createJsonEncoderFn<never>(undefined, {strategy: 'mutate'});
 export const _s = createJsonEncoderFn<never>(undefined, {strategy: 'clone'});
@@ -209,8 +204,7 @@ export const _ = createJsonEncoderFn<User>(undefined, {strategy: 'mutate'});
 // KindSymbol — `getRunTypeId<symbol>()` produces an alwaysThrow factory
 // (or its per-family equivalent code) across every RT family.
 func TestDiag_SymbolUnsupported_PerFamily(t *testing.T) {
-	// validate seeds `it` (all-emit); pj/pjs/tb are demand-driven, so seed pj via
-	// createJsonEncoderFn(mutate), pjs via createJsonEncoderFn(clone), tb via createBinaryEncoderFn.
+	// validate seeds `it`; pj / pjs / tb are demand-driven, seeded by mutate, clone and the binary encoder.
 	const code = `import {createValidateFn, createJsonEncoderFn, createBinaryEncoderFn} from '@mionjs/run-types';
 export const _ = createValidateFn<symbol>();
 export const _p = createJsonEncoderFn<symbol>(undefined, {strategy: 'mutate'});

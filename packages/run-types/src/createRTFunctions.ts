@@ -166,32 +166,20 @@ export type JsonEncoderFn = (value: unknown) => string | undefined;
 /** Parse function returned by `createJsonDecoderFn<T>()`. **/
 export type JsonDecoderFn<T = unknown> = (serialized: string) => T;
 
-/** Caller-controlled `strategy` for every JSON entry point: `createPrepareForJsonFn<T>()`,
- *  `createRestoreFromJsonFn<T>()`, `createJsonEncoderFn<T>()` and `createJsonDecoderFn<T>()`.
- *  A pair must name the SAME word on both sides.
- *
- *  - `'clone'` (default): build a NEW value from the declared shape, dropping undeclared
- *    properties in both directions.
- *  - `'mutate'`: transform in place, allocating nothing and keeping undeclared properties.
- *  - `'compact'`: the positional wire — objects become arrays, so property names never
- *    reach the wire.
- *
- *  COMPILE-TIME: each value selects a different compiled family, so an unrecognised one
- *  takes `'clone'` rather than failing. **/
+/** JSON `strategy` for every JSON entry point; an encode / decode pair must name the SAME word.
+ *  `'clone'` (default) builds a new value from the declared shape, dropping undeclared keys; `'mutate'` works in
+ *  place and keeps them; `'compact'` writes objects as positional arrays. An unrecognised word compiles as `'clone'`. **/
 export type JsonValueStrategy = 'clone' | 'mutate' | 'compact';
 export type PrepareForJsonOptions = {strategy?: JsonValueStrategy};
 export type RestoreFromJsonOptions = {strategy?: JsonValueStrategy};
 
-/** `createJsonEncoderFn<T>()` strategy: `JSON.stringify` over the matching prepare step.
- *  `'compact'` is shape-coupled like the binary codec: an absent optional rides a `null` placeholder,
- *  so a `T | null` optional cannot tell a present `null` from an absent value. **/
+/** `'compact'` writes an absent optional as `null`, so a `T | null` optional cannot tell `null` from absent. **/
 export type JsonEncoderStrategy = JsonValueStrategy;
 // Both options are COMPILE-TIME (see ValidateOptions.rejectCircularRefs): `strategy`
 // selects the composite, and `rejectCircularRefs` forks it into an armed variant
 // whose body throws a CircularReferenceError on a reference cycle.
 export type JsonEncoderOptions = {strategy?: JsonEncoderStrategy; rejectCircularRefs?: boolean};
 
-/** `createJsonDecoderFn<T>()` strategy: the matching restore step over `JSON.parse`. **/
 export type JsonDecoderStrategy = JsonValueStrategy;
 export type JsonDecoderOptions = {strategy?: JsonDecoderStrategy};
 
@@ -326,18 +314,13 @@ export const createFormatTransformFn = createRTFunction<FormatTransformFn<unknow
   (<T>(val?: T, id?: InjectTypeFnArgs<T, 'formatTransform'>) => FormatTransformFn<T>);
 
 // =============================================================================
-// JSON encode / decode — the only two public JSON entry functions.
-//
-// Composition lives in the Go backend: the plugin emits one composite cache entry per
-// (typeId, strategy), keyed by the strategy's opaque composite fnHash, wrapping the underlying RT
-// primitives (the prepare / restore / compact pairs) with native JSON. So both factories collapse to the same pure `resolveTupleEntry` lookup
-// as binary, with no runtime strategy branching and no per-primitive `lookupRTFn` composition.
+// JSON encode / decode: Go emits one composite entry per (typeId, strategy), so nothing branches on strategy at runtime.
 // =============================================================================
 
 const jsonStringifyFallback: JsonEncoderFn = (v) => JSON.stringify(v);
 const jsonParseFallback: JsonDecoderFn = (s) => JSON.parse(s);
 
-/** Returns a JSON encoder for `T`. Default `strategy: 'clone'`; see `JsonEncoderStrategy` for the
+/** Returns a JSON encoder for `T`. Default `strategy: 'clone'`; see `JsonValueStrategy` for the
  *  full matrix. Accepts a value-first schema (`createJsonEncoderFn(rt)`) or the value/static form.
  *  The plugin injects a `[typeId, fnId]` tuple at the trailing marker slot where `fnId` IS the
  *  composite fnHash the backend computed from the comptime-resolved `strategy`, and the runtime
@@ -362,11 +345,7 @@ export function createJsonEncoderFn<T>(
   return resolveTupleEntry<JsonEncoderFn>('createJsonEncoderFn', jsonStringifyFallback, valOrSchema, id);
 }
 
-/** Returns a JSON decoder for `T`. Default `strategy: 'clone'`: the value is rebuilt from the
- *  declared shape, so undeclared properties are dropped. Accepts a value-first schema
- *  (`createJsonDecoderFn(rt)`) or the value/static form. As with the encoder, the trailing marker
- *  slot carries the `[typeId, fnId]` tuple whose `fnId` is the composite fnHash, resolved directly;
- *  the `JSON.parse` fallback covers the no-plugin case. **/
+/** Returns a JSON decoder for `T`; the default `'clone'` rebuilds the declared shape, dropping undeclared keys. **/
 export function createJsonDecoderFn<T>(
   runType: RunType<T>,
   options?: CompTimeFnArgs<JsonDecoderOptions>,
@@ -434,21 +413,9 @@ export interface RTFunctionByKey {
  *  via `getRTFunction`. **/
 export type RTFunctionKey = keyof RTFunctionByKey;
 
-/** Recovers the compiled RT function for `T` from an injected `InjectTypeFnArgs` tuple, keyed by the
- *  SAME fnKey the marker names — the generic, family-agnostic counterpart of the `createX`
- *  factories, resolving every family including the value-level JSON set. A framework wrapper with
- *  its OWN `InjectTypeFnArgs<T, Fn>` marker parameter (e.g. mion's `route()`) forwards the injected
- *  slot here instead of calling one factory per function. The type parameter is the fnKey
- *  (`getRTFunction<'prepareForJsonClone'>(fns?.[0])`), so the return type comes from
- *  `RTFunctionByKey`.
- *
- *  Registers the tuple's dependency closure, then returns `entry.fn` by the tuple's key (the fnHash
- *  already encodes the exact function). Degrade paths mirror `resolveEntryTupleFn`: a missing-stub
- *  tuple / key miss on a registered runtype returns `fallback` (default identity `(v) => v`, correct
- *  for every value-shaped primitive), and no tuple at
- *  all (plugin inactive) throws with the actionable hint. It never applies the circular-reference
- *  guard — that stays with the encoder/validator factories, and a framework owning its own envelope
- *  guards at the encoder level. **/
+/** Recovers any family's compiled fn from an injected `InjectTypeFnArgs` tuple, keyed by the fnKey the marker names.
+ *  A key miss returns `fallback` (identity by default, right for every value-shaped primitive); no tuple throws.
+ *  Never applies the circular-reference guard, which stays with the encoder and validator factories. **/
 export function getRTFunction<K extends RTFunctionKey>(injected: unknown, fallback?: RTFunctionByKey[K]): RTFunctionByKey[K] {
   const identityFn = (fallback ?? ((value: unknown) => value)) as AnyFn;
   return resolveEntryTupleFn('getRTFunction', identityFn, undefined, injected) as RTFunctionByKey[K];

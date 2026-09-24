@@ -155,8 +155,7 @@ export interface CompiledFnData {
   readonly typeName: string;
   /** The operation family (`it`, `te`, `pj`, `rj`, …). */
   readonly fnID: string;
-  /** The tuple's slot-0 family tag (`pj`, `jeMU`, `jdCL`, …). Unlike `fnID`, which composites HOST on (`jeMU`
-   *  carries fnID `pj`), this is the exact emitting family, so consumers can tell primitive from composite. */
+  /** The exact slot-0 emitting family (`pj`, `jeMU`, …); unlike `fnID`, a composite keeps its own tag. */
   readonly familyTag?: string;
   readonly rtFnHash: string;
   /** Slot → the JS IDENTIFIER it takes in the emitted signature (`{vλl: 'v', pλth: 'pth', εrr: 'er'}` →

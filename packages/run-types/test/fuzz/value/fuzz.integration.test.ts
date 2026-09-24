@@ -185,10 +185,8 @@ const targets: FuzzTarget[] = [];
 }
 
 // --- target: an object hiding inside an ATOMIC member ---
-// An array and a tuple are atomic members of the flat union layout, so neither of these unions has
-// an object member at all, and every gate keyed on that handed the value through without compiling
-// the member. The object one level down is where the key hides. The tuple target covers the other
-// half of the same hole: the unknown-key walks used to no-op at a tuple node outright.
+// Arrays and tuples are atomic in the flat union layout, so a gate keyed on object members misses the object inside.
+// The tuple target also covers unknown-key walks that no-op at a tuple node.
 {
   const schema = RT.union([RT.array(RT.object({a: TF.string()})), TF.number()]);
   targets.push({
@@ -501,11 +499,7 @@ describe('fuzz / integration — oracle sweep over compiled functions', () => {
     expect(unreachedKeyedTargets(targets, report.unknownKeys.positionsByTarget)).toEqual([]);
   });
 
-  // O25's anti-vacuity half. The oracle says "planting undeclared keys on the
-  // wire does not change what the clone decoder returns", which a decoder that
-  // returned nothing at all would also satisfy. This pins that the plant really
-  // reaches the wire: the `mutate` decoder hands the key back, the `clone`
-  // decoder drops it, and the declared data survives both.
+  // O25's anti-vacuity half: a decoder returning nothing would also pass O25, so pin that the plant reaches the wire.
   it('O25 reference: a planted wire key is kept by mutate and dropped by clone', () => {
     const schema = RT.object({id: TF.number(), meta: RT.object({count: TF.number()})});
     const clone = createJsonDecoderFn(schema, {strategy: 'clone'});
@@ -517,10 +511,8 @@ describe('fuzz / integration — oracle sweep over compiled functions', () => {
     expect(clone(wire)).toStrictEqual({id: 1, meta: {count: 2}});
   });
 
-  // The wire oracles' judge admits every survivor inside a union once the planted wire fails
-  // validation, and the blind plant always fails it on TupleWithRecordSlot (a string lands in the
-  // record of numbers). So the object slot beside the record slot is pinned here, on a wire that is
-  // valid apart from the planted keys: the object slot drops its key and the record slot keeps it.
+  // The blind plant always invalidates TupleWithRecordSlot (a string in a record of numbers), so the judge admits every
+  // union survivor there; this wire stays valid apart from the planted keys.
   it('O25/O26 reference: the object slot beside a record slot is stripped, the record slot is kept', () => {
     const schema = RT.union([RT.tuple({required: [RT.object({a: TF.string()}), RT.record(TF.number())]}), TF.number()]);
     const wire = '[{"a":"x","__fz_uk_wire":"fz"},{"k":1,"__fz_uk_wire":2}]';

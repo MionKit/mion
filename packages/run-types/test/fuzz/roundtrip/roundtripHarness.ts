@@ -1,19 +1,6 @@
-// All-strategy round-trip harness — like the type/ harness, but the rendered
-// fixture emits EVERY JSON codec strategy (clone / mutate / compact)
-// alongside binary, so one random type drives all five serialization lanes at
-// once and the oracle can check they agree.
-//
-//   render `.ts` source (named decls + `type T = …` + one call site per codec)
-//     → ResolverClient (serve --sources ops) setSources + scanFiles
-//     → entryModules → evalEntryModules (execute into positional tuples)
-//     → classify fn sites BY TUPLE TAG (jeCL/jeMU/jeCO, jdCL/jdMU/jdCO,
-//       tb/fb, val) rather than by family — the strategy lives in the tag
-//     → wire one REAL factory per codec by passing its tuple as the injected id.
-//
-// The default type/ harness keeps a fixed 6-site fixture (one default JSON
-// encoder + decoder) and a shared classifier; it can't emit the strategy
-// variants, so this lane forks the fixture + classifier while reusing the
-// resolver client (openClient) and the low-level eval helpers.
+// Like the type/ harness, but the fixture emits every JSON strategy plus binary, so one random type drives every lane.
+// Fn sites are classified BY TUPLE TAG, since the strategy lives in the tag. The type/ harness's fixed 6-site fixture
+// cannot emit the variants, so this forks its fixture and classifier but reuses openClient and the eval helpers.
 
 import path from 'node:path';
 import {
@@ -34,14 +21,8 @@ export {hasBinary, BIN, openClient};
 
 const FIXTURE = 'g.ts';
 
-/** One serialization lane the oracle round-trips. Each JSON lane pairs an
- *  encoder strategy with the decoder strategy that reads its wire:
- *    clone   → clone    (shape-derived keyed JSON, rebuilt from the declared shape)
- *    mutate  → mutate   (in-place keyed JSON, the extras-preserving pair)
- *    compact → compact  (positional-array wire)
- *  `rebuild` reads the same clone wire with the rjs primitive recovered through a
- *  marker, the route a framework wrapper takes instead of the decoder factory.
- *  binary is the byte wire. **/
+/** Each JSON lane decodes with its encoder's strategy; `rebuild` reads the clone wire with the rjs primitive
+ *  recovered through a marker, the route a framework wrapper takes. **/
 export type LaneId = 'clone' | 'mutate' | 'compact' | 'rebuild' | 'binary';
 
 export const JSON_LANES: readonly LaneId[] = ['clone', 'mutate', 'compact', 'rebuild'];
@@ -75,11 +56,8 @@ export interface CompiledCodecs {
   wireErrors: Partial<Record<LaneId | 'validate', string>>;
 }
 
-// One createX call site per codec strategy. Options is the SECOND positional
-// arg (`createJsonEncoderFn<T>(undefined, {strategy})`) — passing it first makes
-// it the value and silently defaults to clone. The Go side reads the strategy
-// literal straight from the AST, so the tags resolve to jeCL/jeMU/jeCO and
-// jdCL/jdMU/jdCO regardless of the inline d.ts overlay.
+// Options must be the SECOND arg: passed first it becomes the value and silently defaults to clone.
+// Go reads the strategy literal from the AST, so the tags resolve regardless of the inline d.ts overlay.
 export function renderFixture(gen: GeneratedType): string {
   const {decls, rootExpr} = renderGenerated(gen);
   return `import {
@@ -169,7 +147,6 @@ export async function compileCodecs(client: ResolverClient, gen: GeneratedType):
   return {...partial, validate, codecs, wireErrors};
 }
 
-/** The fn-site tags each lane wires: rebuild reads the clone wire with the rjs primitive. **/
 const LANE_TAGS: Record<LaneId, {encode: string; decode: string}> = {
   clone: {encode: 'jeCL', decode: 'jdCL'},
   mutate: {encode: 'jeMU', decode: 'jdMU'},
@@ -178,8 +155,7 @@ const LANE_TAGS: Record<LaneId, {encode: string; decode: string}> = {
   binary: {encode: 'tb', decode: 'fb'},
 };
 
-// Index fn-site tuples by their slot-0 family tag (jeCL/jeMU/jeCO, jdCL/
-// jdMU/jdCO, tb/fb, val). Each tag appears at most once in this fixture.
+// Each slot-0 tag appears at most once in this fixture.
 export function classifyByTag(fnSites: Site[], tuples: Record<string, readonly unknown[]>): Record<string, readonly unknown[]> {
   const out: Record<string, readonly unknown[]> = {};
   for (const site of fnSites) {

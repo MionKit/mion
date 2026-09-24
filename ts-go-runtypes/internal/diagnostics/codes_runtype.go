@@ -1,12 +1,7 @@
 package diagnostics
 
-// RunType RT-compiler codes, one prefix per family so a build log says which family produced a
-// finding without reading the message (PJ010 is "prepareForJson dropped a member", VL010 the
-// validate twin).
-//
-// Numeric suffix convention within each family:
-//   001-009: root-position errors (the rendered factory throws on call)
-//   010+: child-position warnings (silent skips made visible)
+// RunType compiler codes, one prefix per family so a build log names the family (PJ010: prepareForJson dropped a
+// member). Suffix 001-009: root errors, the factory throws on call; 010+: child-position warnings for silent skips.
 
 // validate family.
 const (

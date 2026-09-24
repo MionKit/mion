@@ -1,37 +1,9 @@
 #!/usr/bin/env node
-// Generates the SERIALIZATION benchmark dataset the docs website renders, under
-// container/website/public/bench-data/serialization/:
-//
-//   index.json          — { bench, label, competitors (= round-trips), metrics,
-//                           bandwidthsMbps, sections: [{ key, label,
-//                           cases: [{ key, title, jsonSafe, results }] }] }
-//   <case>.json         — { competitors: [{ name, source }] }  (lazy hover)
-//
-// Unlike the validation/typecost benches there are NO competitor libraries: the
-// "columns" are mion's own round-trips plus a native-JSON baseline, all
-// measured in-process from the SERIALIZATION test suite. So this is built like
-// the suite exporters (load the suite through Vite + the runtypes plugin, time
-// the real generated encoders/decoders), NOT like container/benchmarks/ (no podman, no
-// per-competitor isolation).
-//
-// Five round-trips per case (the "competitors" the table shows). Each one's
-// reader-facing blurb lives on its ROUNDTRIPS entry and ships as index.columnNotes,
-// which is what hovering that column's table header reveals:
-//   clone              cloneEncoder  + cloneDecoder      (strategy 'clone', default)
-//   mutate             mutateEncoder + mutateDecoder     (strategy 'mutate')
-//   compact            compactEncoder + compactDecoder   (strategy 'compact', positional array)
-//   binary             binaryEncoder + binaryDecoder
-//   native JSON        JSON.stringify + JSON.parse       (baseline, JSON-safe cases only)
-//
-// Three metric groups (one stacked table each on the page):
-//   roundtrip  derived client-side = 1/(t_encode + t_network(bytes) + t_decode)
-//   encdec     encode ops/sec (headline) + decode ops/sec (secondary)
-//   payload    bytes on the wire (lower is better)
-//
-// Round-trip is NOT stored — the page derives it from encdec + payload at the
-// selected link speed, so the bandwidth selector needs no re-generation. We ship
-// the raw measurements (encode ops/sec, decode ops/sec, bytes); the network term
-// is bytes * 8 / (Mbps * 1e6).
+// Generates the SERIALIZATION benchmark dataset the docs site renders, under container/website/public/bench-data/.
+// The columns are mion's own round-trips (ROUNDTRIPS) plus a native-JSON baseline, timed in-process through Vite +
+// the runtypes plugin, NOT like container/benchmarks/ (no podman, no per-competitor isolation). Round-trip time is
+// not stored: the page derives it from encode/decode ops and bytes at the selected link speed (bytes * 8 / (Mbps * 1e6)),
+// so the bandwidth selector needs no re-generation.
 
 import {spawnSync} from 'node:child_process';
 import fs from 'node:fs';

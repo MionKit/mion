@@ -89,17 +89,13 @@ var registry = []Operation{
 	// per-strategy tag in constants.CacheModules.
 	{
 		Name: "jsonEncoder", Doc: "Turns a value into a JSON string. The strategy picks how: build a new value, transform in place, or use the compact positional wire.", Factory: "createJsonEncoderFn", Axis: AxisJsonStrategy, Public: true, FnKey: "jsonEncoder", CircularGuarded: true,
-		// `clone` is shape-derived: it builds a NEW value from the declared shape (never `{...v}`), so it is stripped by construction
-		// and a separate strip variant would be redundant. `mutate` transforms in place, keeping undeclared keys and allocating nothing.
-		// `compact` writes declared props as a positional array, no key names on the wire, strips extras like `clone`, and pairs
-		// with the `compact` decoder.
+		// `clone` strips by construction, so no strip variant exists; `compact` pairs only with the `compact` decoder.
 		DefaultStrategy: "clone",
 		Strategies:      []string{"clone", "mutate", "compact"},
 	},
 	{
 		Name: "jsonDecoder", Doc: "Turns a JSON string back into a typed value. The strategy decides whether undeclared properties survive.", Factory: "createJsonDecoderFn", Axis: AxisJsonStrategy, Public: true, FnKey: "jsonDecoder",
-		// Same words as the encoder: `clone` rebuilds from the declared shape, `mutate` restores in place keeping undeclared keys,
-		// `compact` rebuilds the declared object from the positional-array wire.
+		// The encoder's words: only `mutate` keeps undeclared keys, and `compact` reads only the positional wire.
 		DefaultStrategy: "clone",
 		Strategies:      []string{"clone", "mutate", "compact"},
 	},

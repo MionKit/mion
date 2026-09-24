@@ -78,8 +78,7 @@ describe('serialization / record-union JSON encoding (regression)', () => {
   });
 
   it('safe decoder still strips undeclared keys on a bare (un-enveloped) union wire', () => {
-    // The envelope elision must not weaken decoder safety: the default (clone)
-    // decoder still drops keys the union never declared.
+    // Eliding the envelope must not weaken the default clone decoder: it still drops undeclared keys.
     const dec = createJsonDecoderFn<{a: string} | {b: number}>();
     const dirty = JSON.stringify({a: 'hi', evil: 'sneaky'});
     const back = dec(dirty) as Record<string, unknown>;
