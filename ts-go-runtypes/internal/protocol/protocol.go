@@ -137,11 +137,9 @@ type Response struct {
 	HasID bool                  `json:"-"`
 	OK    bool                  `json:"-"`
 	Added []*reflection.RunType `json:"added,omitempty"`
-	// AddedRunTypes is true when this scanFiles interned at least one new RunType; handleHotUpdate reads it to
-	// decide whether the runTypes cache module needs invalidating after a user-file change.
+	// AddedRunTypes is true when this scan interned a new RunType; the plugin then regenerates the cache modules.
 	AddedRunTypes bool `json:"addedRunTypes,omitempty"`
-	// AddedPureFns is true when the scan introduced or modified a pure-fn entry, checked against the resolver's
-	// session-wide bodyHash index.
+	// AddedPureFns is true when the scan added or changed a pure-fn entry, per the session-wide bodyHash index.
 	AddedPureFns bool          `json:"addedPureFns,omitempty"`
 	Sites        []Site        `json:"sites,omitempty"`
 	Replacements []Replacement `json:"replacements,omitempty"`
@@ -428,7 +426,7 @@ func (dump Dump) WriteJSON(writer io.Writer) error {
 	return encoder.Encode(dump)
 }
 
-// responseAddedFlags is the wire definition of the added-flag Response fields; this table IS the wire contract.
+// responseAddedFlags is the wire contract for the added-flag Response fields.
 var responseAddedFlags = []struct {
 	key string
 	get func(*Response) bool
