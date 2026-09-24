@@ -1,8 +1,5 @@
-// End-to-end acceptance test for the three value-level JSON factories. They compile the same
-// families a marker reaches by fnKey, so the last test in each group asserts the two roads hand
-// back the SAME compiled function; without it the factory road could drift unnoticed.
-// Per the CLAUDE.md marker-coverage rule both call shapes are exercised, with one paired test
-// asserting they resolve the same compiled fn.
+// The value-level JSON factories must return the SAME compiled fn a marker reaches by fnKey, or they drift unnoticed.
+// Both call shapes are exercised, per the CLAUDE.md marker-coverage rule.
 
 import {describe, test, expect} from 'vitest';
 import {createPrepareForJsonFn, createRestoreFromJsonFn, createStringifyJsonFn, type InjectTypeFnArgs} from '@mionjs/run-types';

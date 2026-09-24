@@ -1,12 +1,5 @@
-// cloning / Unions — atomic unions dispatch per member (mutable members get
-// an instanceof/Array.isArray arm; immutable members fall through by value).
-// Object-bearing unions are unsupported by design: without runtime arm
-// discrimination the emitter cannot know WHICH declared shape to rebuild,
-// and a clone that silently kept unknown keys would be a security bug — the
-// factory throws at creation (RUK001) and the build surfaces the error.
-// Mirrors the serialization suite's UNIONS keys: the serializers resolve
-// object arms on the flat wire, so the same unions that round-trip there
-// are exactly the ones that throw here — narrow to one arm before cloning.
+// cloning / Unions: object-bearing unions throw at creation (RUK001), since with no arm discrimination a clone
+// could keep unknown keys. Mirrors the serialization suite's UNIONS keys: what round-trips there throws here.
 
 import {createRemoveUnknownKeysFn} from '@mionjs/run-types';
 import type {CloningCase} from './types.ts';

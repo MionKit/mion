@@ -72,10 +72,7 @@ export interface FuzzTarget {
    *  so does `unknownKeyErrors`, so the two are comparable on any value. **/
   hasUnknownKeysBlind?: (value: unknown) => boolean;
   unknownKeyErrors?: (value: unknown) => RTValidationError[];
-  /** `RemoveUnknownKeysFn<T>` is `(value: T) => T`, so its parameter is `T`, not
-   *  `unknown`. Spelling the parameter `never` here is what lets a target of
-   *  any shape be assigned (parameters are contravariant); the oracle casts
-   *  the value back at the one call site. **/
+  /** `never` lets any `RemoveUnknownKeysFn<T>` be assigned (contravariant parameter); the oracle casts back. **/
   clone?: (value: never) => unknown;
   /** The STRIPPING restore (`rjs`, mion's `clone` decoder), via a marker wrapper: it has no createX factory.
    *  O26 holds it to an undeclared wire key coming back GONE, not blanked. **/
@@ -446,24 +443,9 @@ export function checkUnknownKeysPlanted(
   return null;
 }
 
-/** O24 — the report and the strip agree on WHICH keys: every path
- *  `unknownKeyErrors` names is a key `removeUnknownKeys` drops, and vice versa.
- *
- *  `removeUnknownKeys` is the public strip (it replaced the mutating
- *  `unknownKeysToUndefined`), and it walks the type with its own emitter. A
- *  position one of them reaches and the other does not shows up here as a key
- *  in one list and not the other — which is exactly the drift, made visible
- *  without anyone having to guess where it is.
- *
- *  Keys whose value is `undefined` are left out of the diff: a declared
- *  optional carrying an explicit `undefined` is allowed to come back absent
- *  from a clone, and that is a presence question rather than a declaredness
- *  one.
- *
- *  A union with object members has no clone at all (the emitter refuses it,
- *  RUK001: it cannot know which declared shape to rebuild), so those targets
- *  supply no `clone` and this oracle skips them. O25 is what covers the strip
- *  side of a union. **/
+/** O24: `unknownKeyErrors` paths and the keys `removeUnknownKeys` drops must match; each has its own emitter.
+ *  Keys holding `undefined` are skipped: an explicit optional `undefined` may come back absent from a clone.
+ *  Object unions have no clone (RUK001), so they are skipped here and O25 covers them. **/
 export function checkUnknownKeysStripAgree(target: FuzzTarget, value: unknown, ctx: CheckCtx): Violation | null {
   const {unknownKeyErrors, clone} = target;
   if (!unknownKeyErrors || !clone) return null;

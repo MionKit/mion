@@ -75,7 +75,7 @@ export const restore = createRestoreFromJsonFn<User>(undefined, {strategy: '`+ro
 	}
 }
 
-// The option-less stringify factory reaches its own family with no options slot to read.
+// No options slot to read: the factory alone must select its family.
 func TestStringifyFactory_ReachesItsOwnFamily(t *testing.T) {
 	modules := scanEntryModules(t, `import {createStringifyJsonFn} from '@mionjs/run-types';
 interface User {id: number; name: string}

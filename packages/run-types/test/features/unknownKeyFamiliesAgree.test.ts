@@ -43,14 +43,12 @@ interface Row {
   reported: (string | number)[];
   /** The value every deleting family must produce; the strip decoder blanks the key instead. **/
   clean: unknown;
-  /** Set when `removeUnknownKeys` refuses the shape outright, which it does for a union carrying
-   *  object members: rebuilding from the declared shape needs to know which member matched. **/
+  /** Set for a union with object members: `removeUnknownKeys` refuses it, not knowing which member to rebuild. **/
   cloneRefuses?: true;
   fns: () => {
     hasUnknownKeys: HasUnknownKeysFn;
     unknownKeyErrors: UnknownKeyErrorsFn;
-    /** `ValidateFn<T>` narrows to `T` and `RemoveUnknownKeysFn<T>` takes `T`; `T` varies per row, so
-     *  these two are spelled by what every row can supply. **/
+    /** `T` varies per row and `ValidateFn<T>` / `RemoveUnknownKeysFn<T>` depend on it, so these are typed loosely. **/
     validateStrict: (value: unknown) => boolean;
     /** Held back unbuilt: a refusing row throws at factory creation, not on the call. **/
     makeRemoveUnknownKeys: () => (value: never) => unknown;

@@ -1,11 +1,6 @@
-// cloning / Atomic — atomic roots, mirroring the serialization suite's case
-// keys row-for-row. Most rows are the pass-through categories of the isolation
-// contract: primitives compare by value (a "fresh" primitive is meaningless —
-// `'a' !== 'a'` cannot be made true), and opaque values the type system gives
-// no shape for cannot be rebuilt (copying a resource handle would be wrong,
-// not just slow — `overrideRemoveUnknownKeys<T>()` is the escape hatch). The
-// stateful object atom is the exception: `Date` clones fresh (a `RegExp` is
-// not data and is shared by reference).
+// cloning / Atomic mirrors the serialization suite's keys. Most rows pass through: primitives compare by value, and
+// copying an opaque handle would be wrong (`overrideRemoveUnknownKeys<T>()` is the escape hatch).
+// `Date` clones fresh; a `RegExp` is not data and is shared.
 
 import {createRemoveUnknownKeysFn} from '@mionjs/run-types';
 import type {AnyCloneFn, CloningCase} from './types.ts';

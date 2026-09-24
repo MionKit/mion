@@ -1,13 +1,6 @@
-// End-to-end acceptance test for `getRTFunction`, the generic resolver that recovers the
-// compiled fn for `T` from an injected `InjectTypeFnArgs<T, Fn>` tuple. It is the road a
-// framework wrapper (mion) takes to pull several compiled fns for a route out of ONE marker;
-// each family also has its own createX factory.
-//
-// Coverage for that marker road: `'pjs'` (clone prepare), `'rj'` (restore), `'cj'` / `'cjr'`
-// (compact encode / decode) and `'sj'` (direct stringify).
-// Per the CLAUDE.md marker-coverage rule both call shapes are exercised, with one paired test
-// asserting they resolve the SAME compiled fn (runtime analog of the Go-side
-// TestAtomic_FormEquivalence hash check).
+// `getRTFunction` recovering compiled fns from ONE `InjectTypeFnArgs` marker, the road mion takes per route.
+// Covers `'pjs'`, `'rj'`, `'cj'` / `'cjr'` and `'sj'` in both call shapes, paired to resolve the SAME compiled fn
+// (runtime twin of Go's TestAtomic_FormEquivalence).
 
 import {describe, test, expect} from 'vitest';
 import {type InjectTypeFnArgs} from '@mionjs/run-types';

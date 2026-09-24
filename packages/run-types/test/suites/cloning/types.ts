@@ -1,19 +1,7 @@
-/** One case in the cloning suite (`createRemoveUnknownKeysFn<T>()`). Mirrors the
- *  serialization suite's case shape: declarative data + marker-based thunks,
- *  so the same cases feed the vitest runners, the website docs export, and
- *  benchmarks.
- *
- *  The contract under test — a proper deep clone of the DECLARED shape:
- *  undeclared keys dropped by construction, the input never mutated, and
- *  `clone(x) !== x` for every object-typed position (prototype preserved).
- *  Only primitives (compare by value; freshness is meaningless) and opaque
- *  unshaped values (functions, resource handles, `any`/`unknown`) pass
- *  through — those cases set `passThrough`. **/
+/** Cloning-suite case, shaped like the serialization suite's so it also feeds the docs export and benchmarks.
+ *  Only primitives and opaque values (functions, handles, `any`) pass through; those cases set `passThrough`. **/
 
-/** Case-file thunk return: `createRemoveUnknownKeysFn<T>()` returns the
- *  T-narrowed `RemoveUnknownKeysFn<T>`, which strictFunctionTypes won't accept
- *  where `RemoveUnknownKeysFn<unknown>` is expected (contravariant parameter).
- *  The suite erases `T` at the case boundary instead of casting per case. **/
+/** Erases `T` once: strictFunctionTypes rejects `RemoveUnknownKeysFn<T>` where the `<unknown>` form is expected. **/
 export type AnyCloneFn = (value: any) => any;
 
 export interface CloningCase {
@@ -25,9 +13,7 @@ export interface CloningCase {
    *  categories, union dispatch, prototype preservation, … **/
   cloneNotes?: string | string[];
 
-  /** Clone-fn thunk. Full type setup inline
-   *  (`() => createRemoveUnknownKeysFn<T>()`) so the marker plugin injects the
-   *  runtype hash at the call site. **/
+  /** Inline `() => createRemoveUnknownKeysFn<T>()` so the plugin injects the runtype at the call site. **/
   clone: () => AnyCloneFn;
 
   /** Sample inputs. The builder MUST be deterministic — the asserts call it
@@ -44,9 +30,7 @@ export interface CloningCase {
    *  assertion flips from "shares nothing mutable" to `clone(x) === x`. **/
   passThrough?: boolean;
 
-  /** When `createRemoveUnknownKeysFn<T>()` is rendered as an alwaysThrow cache
-   *  entry by the Go pipeline (object-bearing unions, RUK001). Tests assert
-   *  the throw at the thunk-invocation site. **/
+  /** The factory is an alwaysThrow (object-bearing unions, RUK001); tests assert the throw when calling the thunk. **/
   factoryThrows?: boolean;
 
   /** Optional extra assertions for behavior the generic checks can't express

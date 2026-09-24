@@ -1,7 +1,4 @@
-// Family 7 — Unknown-keys. Mirrors guide/unknown-keys-*.ts. The three
-// undeclared-key handlers: has / removeUnknownKeys / errors. (The mutating
-// strip / toUndefined factories were removed in 0.10.0 — removeUnknownKeys is
-// the non-mutating replacement.)
+// Family 7, unknown keys. Mirrors guide/unknown-keys-*.ts.
 import {createRemoveUnknownKeysFn, createHasUnknownKeysFn, createUnknownKeyErrorsFn} from '@mionjs/run-types';
 import {type CheckResult, ok} from './check';
 

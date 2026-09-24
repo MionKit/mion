@@ -40,10 +40,7 @@ var Families = []FamilySpec{
 	// Non-mutating clone on encode, keyed-object rebuild on decode. See json_compact.go / json_compact_restore.go.
 	family("compactForJson", CompactForJsonEmitter{}),
 	family("compactFromJson", CompactFromJsonEmitter{}),
-	// The unknown-keys group: boolean probe, error accumulator, decoder-internal wire-aware to-undefined.
-	// The public mutators (stripUnknownKeys / unknownKeysToUndefined) gave way to removeUnknownKeys, measured
-	// 3-24x faster and free of the delete-induced dictionary-mode deopt; the to-undefined EMITTER stays
-	// (unknownkeys_to_undefined.go) because the wire variant delegates to it.
+	// No public mutating strip: removeUnknownKeys is 3-24x faster and avoids the delete-induced dictionary-mode deopt.
 	family("hasUnknownKeys", HasUnknownKeysEmitter{}),
 	family("unknownKeyErrors", UnknownKeyErrorsEmitter{}),
 	family("stripUnknownKeysWire", StripUnknownKeysWireEmitter{}),

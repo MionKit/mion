@@ -1,9 +1,5 @@
-// cloning / UtilityTypes — mapped/derived types resolve structurally and
-// clone like plain objects: Awaited/Required/Partial/Pick/Omit/Record reach
-// the emitter as their resolved shapes (fresh containers, re-wrapped Dates,
-// absent optionals stay absent). Exclude/Extract keep whatever union they
-// resolve to — primitive-member unions pass through by value, object-bearing
-// unions throw at factory creation (RUK001).
+// cloning / UtilityTypes: utility types reach the emitter as their resolved shapes; an Exclude/Extract that
+// resolves to an object-bearing union throws at creation (RUK001).
 
 import {createRemoveUnknownKeysFn} from '@mionjs/run-types';
 import type {CloningCase} from './types.ts';

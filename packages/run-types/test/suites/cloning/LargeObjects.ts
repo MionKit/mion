@@ -1,10 +1,5 @@
-// cloning / LargeObjects — large shapes stressing the per-field rebuild
-// cost: a 30-prop wide interface, five levels of nested arrays, and three
-// union roots. The unions are object-bearing, which the clone pipeline
-// rejects by design (RUK001 alwaysThrow at factory creation — without
-// runtime arm discrimination the emitter cannot know WHICH declared shape
-// to rebuild). Supported cases keep values identical to the serialization
-// suite and double as mild perf smoke tests.
+// cloning / LargeObjects: values identical to the serialization suite, doubling as perf smoke tests.
+// The union roots are object-bearing, so their factories throw at creation (RUK001).
 
 import {createRemoveUnknownKeysFn} from '@mionjs/run-types';
 import type {CloningCase} from './types.ts';

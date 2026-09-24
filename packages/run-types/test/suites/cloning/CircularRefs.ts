@@ -1,11 +1,5 @@
-// cloning / CircularRefs — circular TYPES with TREE values. Dep-call
-// recursion rebuilds every level fresh, so self-referential shapes clone
-// correctly as long as the value is acyclic: ACTUAL cyclic values (a node
-// pointing back at an ancestor) are out of the clone contract — the emitted
-// clone would recurse — and every sample below is a finite tree. Mirrors
-// the serialization suite's CIRCULAR_REFS keys; circular UNIONS with object
-// members are the exception and throw at factory creation (RUK001, see
-// Unions.ts).
+// cloning / CircularRefs: circular TYPES with TREE values only, since a cyclic value would make the clone recurse.
+// Mirrors the serialization suite's CIRCULAR_REFS keys; circular object unions throw at creation (RUK001, Unions.ts).
 
 import {createRemoveUnknownKeysFn} from '@mionjs/run-types';
 import type {CloningCase} from './types.ts';

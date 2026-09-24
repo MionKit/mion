@@ -1,23 +1,7 @@
-// Metamorphic EXTRAS generation — the clone-fuzz twin of invalidValue.ts.
-//
-// Where `mutateToInvalid` corrupts a valid mock so `validate<T>` must reject
-// it, this module decorates a valid mock with undeclared keys so the value
-// STAYS valid while `createRemoveUnknownKeysFn<T>` must strip every one of them.
-// The tandem tree walk collects PLAIN-OBJECT positions — ObjectLiteral /
-// Class<SubKindNone> nodes WITHOUT index signatures — then injects 1–3
-// `__fz_extra_<n>` keys with random primitive values at randomly chosen
-// positions of a deep copy of the mock.
-//
-// SOUNDNESS CONTRACT (one-directional, mirrors invalidValue.ts): when
-// `mutateWithExtras` returns a value, `validate<T>` on it MUST still be
-// `true` AND a correct exact-shape clone MUST drop every injected key. A
-// false negative (returning null when an injection was possible) only costs
-// coverage; a false positive produces a spurious oracle failure. The walker
-// is therefore deliberately conservative — it never descends through
-// `union` (a sibling arm could make the extra load-bearing), Map/Set
-// internals (entries are not keyed positions), or index-signature objects
-// (a sig would make the injected key DECLARED shape: kept by the clone, and
-// type-checked by validate — both oracle directions would break).
+// Adds 1-3 undeclared `__fz_extra_<n>` keys to a valid mock: it must stay valid while the clone strips every one
+// (the clone-fuzz twin of invalidValue.ts). A missed injection only costs coverage but a wrong one fails an oracle,
+// so the walk never enters a union (a sibling arm could declare the key), Map/Set internals, or an index-signature
+// object (the key would be declared).
 
 import type {RunType} from '../../../src/runtypes/types.ts';
 import {RunTypeKind, RunTypeSubKind} from '../../../src/go-generated/runTypeKind.generated.ts';

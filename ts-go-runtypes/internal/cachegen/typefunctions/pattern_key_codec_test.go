@@ -28,11 +28,8 @@ func patternRecordFixture(valueID string, values ...*reflection.RunType) []*refl
 	return append(append(values, templateKeyIndex("idx", "d_", valueID)...), rec)
 }
 
-// A template-literal index signature is open on every codec road, exactly like a plain one: the
-// pattern selects the value transform for the keys it matches and a key matching no pattern is
-// carried as is. Validation is the only place that refuses it. removeUnknownKeys is neither an
-// encoder nor a decoder: its clone must never share a value with its input, so it keeps dropping
-// a key matching no pattern.
+// A template-literal index signature is open on every codec road; only validation refuses a key matching no pattern.
+// removeUnknownKeys still drops that key: its clone must never share a value with its input.
 func TestPatternKey_EncodersCopyANonMatchingKey(t *testing.T) {
 	num := &reflection.RunType{ID: "num", Kind: reflection.KindNumber}
 	fixture := patternRecordFixture("num", num)

@@ -6,10 +6,8 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// UnknownKeysToUndefinedEmitter is INTERNAL-ONLY: the public unknownKeysToUndefined family was removed in favour of
-// removeUnknownKeys, and this now exists only as the delegate StripUnknownKeysWireEmitter wraps.
-// It sets every unknown property to undefined rather than deleting it, which is the right call on a freshly-parsed,
-// exclusively-owned wire value.
+// UnknownKeysToUndefinedEmitter exists only as the delegate StripUnknownKeysWireEmitter wraps.
+// It blanks unknown keys rather than deleting them, safe on a freshly parsed, exclusively owned wire value.
 type UnknownKeysToUndefinedEmitter struct{}
 
 func (UnknownKeysToUndefinedEmitter) Args() []ArgSpec {

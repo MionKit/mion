@@ -1,15 +1,6 @@
-// Autonomous clone-fuzz driver. Feeds three streams of data into every
-// target's compiled `createRemoveUnknownKeysFn<T>()` and collects oracle
-// violations:
-//
-//   valid    createMockDataFn<T>()             → O15, O16, O17
-//   extras   mutateWithExtras(valid)         → O15, O16, O17 (+ hasUnknownKeys)
-//   junk     randomJunk() (type-blind)       → robustness only
-//
-// Every iteration runs under a seeded `Math.random` (withSeededRandom), so a
-// reported violation replays exactly from its `seed`. `runCloneFuzz` is pure
-// data in / report out — no test framework, no I/O — so it runs both inside
-// Vitest and as a standalone long-running soak (see runCloneFuzzForDuration).
+// Feeds valid mocks, extras-decorated mocks (also checked by hasUnknownKeys) and type-blind junk (robustness only)
+// into each target's compiled clone. A seeded `Math.random` makes a violation replay from its `seed`; no test
+// framework or I/O, so it also runs as a standalone soak (runCloneFuzzForDuration).
 
 import {withSeededRandom} from '../core/seededRng.ts';
 import {type CrashRecord} from '../core/crashGuard.ts';

@@ -1,11 +1,4 @@
-// End-to-end tests for the unknown-keys predicates:
-//
-//   - hasUnknownKeys: boolean predicate (plain + runsAfterValidation variant)
-//   - unknownKeyErrors: accumulate errors with path tracking
-//
-// removeUnknownKeys (the clone-based replacement for the removed mutating
-// stripUnknownKeys / unknownKeysToUndefined) has its own full suite at
-// test/suites/cloning/.
+// hasUnknownKeys and unknownKeyErrors end to end; removeUnknownKeys has its own suite in test/suites/cloning/.
 
 import {describe, expect, it} from 'vitest';
 import {createGetValidationErrorsFn, createHasUnknownKeysFn, createUnknownKeyErrorsFn, createValidateFn} from '@mionjs/run-types';
@@ -226,11 +219,8 @@ describe('nested unknown-keys cases (hasUnknownKeys)', () => {
 // Union types — the merged-allowlist semantic (has / keyErrors)
 // ============================================================================
 //
-// For a union `{a: string} | {b: number}` the declared key set is the UNION
-// of every object member's declared property names. hasUnknownKeys and
-// unknownKeyErrors flag/report anything outside that set. (removeUnknownKeys's
-// union stance — per-member dispatch for atomic unions, RUK001 for
-// object-bearing ones — is pinned in test/suites/cloning/Unions.ts.)
+// A union's declared key set is the UNION of every object member's keys.
+// removeUnknownKeys' union stance is pinned in test/suites/cloning/Unions.ts.
 
 describe('union types — has/keyErrors merged allowlist', () => {
   type Disjoint = {a: string} | {b: number};
