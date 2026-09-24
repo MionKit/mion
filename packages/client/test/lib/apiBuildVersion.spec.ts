@@ -17,7 +17,7 @@ import {installMethodRows} from '../../src/lib/clientMethodsMetadata.ts';
 import {getMethod} from '../../src/lib/methods.ts';
 import {resetRoutesCache} from '@mionjs/core';
 import type {MethodWithOptions} from '@mionjs/core';
-import {unverifiedIds, verifyMethodRows, resetApiVersionRecovery, clientRowsAgree} from '../../src/lib/apiVersionRecovery.ts';
+import {unverifiedIds, verifyMethodRows, resetApiVersionRecovery, rowsAgree} from '../../src/lib/apiVersionRecovery.ts';
 
 describe('a version mismatch belongs to the server that answered', () => {
   beforeEach(() => {
@@ -67,7 +67,7 @@ describe('a stale fetched row', () => {
   });
 });
 
-describe('clientRowsAgree', () => {
+describe('rowsAgree', () => {
   const row = {
     type: 1,
     id: 'users/get',
@@ -86,10 +86,10 @@ describe('clientRowsAgree', () => {
       isAsync: true,
       options: {isMutation: false, parser: {return: 'clone', params: 'json'}},
     } as unknown as MethodWithOptions;
-    expect(clientRowsAgree(row, reordered)).toBe(true);
+    expect(rowsAgree(row, reordered)).toBe(true);
   });
 
   it('tells apart a row whose GET/POST choice changed', () => {
-    expect(clientRowsAgree(row, {...row, options: {...row.options, isMutation: true}})).toBe(false);
+    expect(rowsAgree(row, {...row, options: {...row.options, isMutation: true}})).toBe(false);
   });
 });
