@@ -250,21 +250,8 @@ export interface ScanFilesResult {
   runTypes?: RunType[];
   entryModules?: Record<string, string>;
   diagnostics?: import('./protocol.ts').Diagnostic[];
-  // Per-cache HMR signals; see Response.addedRunTypes etc in protocol.ts.
+  // Regenerate signals; see Response.addedRunTypes in protocol.ts.
   addedRunTypes?: boolean;
-  addedValidate?: boolean;
-  addedValidationErrors?: boolean;
-  addedPrepareForJson?: boolean;
-  addedRestoreFromJson?: boolean;
-  addedStringifyJson?: boolean;
-  addedPrepareForJsonSafe?: boolean;
-  addedHasUnknownKeys?: boolean;
-  addedRemoveUnknownKeys?: boolean;
-  addedUnknownKeyErrors?: boolean;
-  addedUnknownKeysToUndefinedWire?: boolean;
-  addedToBinary?: boolean;
-  addedFromBinary?: boolean;
-  addedFormatTransform?: boolean;
   addedPureFns?: boolean;
   // Pure-fn build report DELTA for the rescanned files, present only when the resolver's report is enabled;
   // the plugin's update-lane callback source.
@@ -376,19 +363,6 @@ abstract class ResolverClientBase implements ResolverConnection {
       entryModules: resp.entryModules,
       diagnostics: resp.diagnostics,
       addedRunTypes: resp.addedRunTypes,
-      addedValidate: resp.addedValidate,
-      addedValidationErrors: resp.addedValidationErrors,
-      addedPrepareForJson: resp.addedPrepareForJson,
-      addedRestoreFromJson: resp.addedRestoreFromJson,
-      addedStringifyJson: resp.addedStringifyJson,
-      addedPrepareForJsonSafe: resp.addedPrepareForJsonSafe,
-      addedHasUnknownKeys: resp.addedHasUnknownKeys,
-      addedRemoveUnknownKeys: resp.addedRemoveUnknownKeys,
-      addedUnknownKeyErrors: resp.addedUnknownKeyErrors,
-      addedUnknownKeysToUndefinedWire: resp.addedUnknownKeysToUndefinedWire,
-      addedToBinary: resp.addedToBinary,
-      addedFromBinary: resp.addedFromBinary,
-      addedFormatTransform: resp.addedFormatTransform,
       addedPureFns: resp.addedPureFns,
       pureFnSites: resp.pureFnSites,
       batchSites: resp.batchSites,

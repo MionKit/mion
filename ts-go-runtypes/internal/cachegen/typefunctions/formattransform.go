@@ -32,18 +32,6 @@ func (FormatTransformEmitter) Supports(rt *reflection.RunType) bool {
 	return true
 }
 
-// AnyFormatTransformSupported reports whether at least one runtype in the slice carries a VALUE-TRANSFORMING
-// format. Unlike Supports, it gates the resolver's AddedFormatTransform HMR signal, so the format cache is
-// invalidated only for schemas that really use a transform.
-func AnyFormatTransformSupported(runTypes []*reflection.RunType) bool {
-	for _, rt := range runTypes {
-		if nodeFormatTransform(rt, "v") != "" {
-			return true
-		}
-	}
-	return false
-}
-
 func (FormatTransformEmitter) IsRTInlined(ctx *InlineContext) bool {
 	return DefaultIsRTInlined(ctx)
 }
@@ -118,8 +106,7 @@ func nodeFormatTransform(rt *reflection.RunType, v string) string {
 	if !ok {
 		return ""
 	}
-	// A nil ctx is safe here and at the AnyFormatTransformSupported scan site: these transformers depend only
-	// on their params, never on the EmitContext.
+	// A nil ctx is safe: these transformers depend only on their params, never on the EmitContext.
 	return transformer.EmitFormatTransform(rt.FormatAnnotation, v, nil)
 }
 

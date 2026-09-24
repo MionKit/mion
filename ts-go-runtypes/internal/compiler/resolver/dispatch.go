@@ -25,62 +25,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
-
-// familyAddedFlag wires one family's per-scan added-flag: the Supports probe plus the Response setter.
-// pureFns / runTypes are absent because their flags come from the extractor / cache delta directly.
-type familyAddedFlag struct {
-	key          string
-	anySupported func(runTypes []*reflection.RunType) bool
-	setAdded     func(response *protocol.Response, added bool)
-}
-
-// familyAddedFlags is the per-family added-flag wiring the Vite plugin's scan-change signals consume.
-// Probe order is cosmetic: each row runs one shallow Supports pass over the scan's added nodes.
-var familyAddedFlags = []familyAddedFlag{
-	{key: "validationErrors",
-		anySupported: typefunctions.FamilyByKey("validationErrors").AnySupported,
-		setAdded:     func(response *protocol.Response, added bool) { response.AddedValidationErrors = added }},
-	{key: "prepareForJsonMutate",
-		anySupported: typefunctions.FamilyByKey("prepareForJsonMutate").AnySupported,
-		setAdded:     func(response *protocol.Response, added bool) { response.AddedPrepareForJson = added }},
-	{key: "restoreFromJsonMutate",
-		anySupported: typefunctions.FamilyByKey("restoreFromJsonMutate").AnySupported,
-		setAdded:     func(response *protocol.Response, added bool) { response.AddedRestoreFromJson = added }},
-	{key: "stringifyJson",
-		anySupported: typefunctions.FamilyByKey("stringifyJson").AnySupported,
-		setAdded:     func(response *protocol.Response, added bool) { response.AddedStringifyJson = added }},
-	{key: "prepareForJsonClone",
-		anySupported: typefunctions.FamilyByKey("prepareForJsonClone").AnySupported,
-		setAdded:     func(response *protocol.Response, added bool) { response.AddedPrepareForJsonClone = added }},
-	{key: "hasUnknownKeys",
-		anySupported: typefunctions.FamilyByKey("hasUnknownKeys").AnySupported,
-		setAdded:     func(response *protocol.Response, added bool) { response.AddedHasUnknownKeys = added }},
-	{key: "removeUnknownKeys",
-		anySupported: typefunctions.FamilyByKey("removeUnknownKeys").AnySupported,
-		setAdded:     func(response *protocol.Response, added bool) { response.AddedRemoveUnknownKeys = added }},
-	{key: "unknownKeyErrors",
-		anySupported: typefunctions.FamilyByKey("unknownKeyErrors").AnySupported,
-		setAdded:     func(response *protocol.Response, added bool) { response.AddedUnknownKeyErrors = added }},
-	{key: "stripUnknownKeysWire",
-		anySupported: typefunctions.FamilyByKey("stripUnknownKeysWire").AnySupported,
-		setAdded:     func(response *protocol.Response, added bool) { response.AddedStripUnknownKeysWire = added }},
-	{key: "toBinary",
-		anySupported: typefunctions.FamilyByKey("toBinary").AnySupported,
-		setAdded:     func(response *protocol.Response, added bool) { response.AddedToBinary = added }},
-	{key: "fromBinary",
-		anySupported: typefunctions.FamilyByKey("fromBinary").AnySupported,
-		setAdded:     func(response *protocol.Response, added bool) { response.AddedFromBinary = added }},
-	// NOT the registry generic: FormatTransformEmitter.Supports is true for everything (identity is a valid
-	// transform), so the added-flag gates on an actual value-transforming format instead.
-	{key: "formatTransform",
-		anySupported: typefunctions.AnyFormatTransformSupported,
-		setAdded:     func(response *protocol.Response, added bool) { response.AddedFormatTransform = added }},
-	{key: "validate",
-		anySupported: typefunctions.FamilyByKey("validate").AnySupported,
-		setAdded:     func(response *protocol.Response, added bool) { response.AddedValidate = added }},
-}
 
 // Dispatch routes a request to the correct handler, adding the Metrics block when the request asks for it.
 // Every op returns through here, which is why the response's diagnostics are deduped at this ONE choke point: the
@@ -693,10 +638,6 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		// fires with just the changed sites. nil when the report is off, so a normal HMR scan pays nothing.
 		response.PureFnSites = sess.pureFnReportForEntries(pureFnEntries)
 		response.BatchSites = sess.batchReportForSites(batchSites)
-		// One shallow Supports pass per family; the addedRunTypes short-circuit skips them all on a no-change scan.
-		for _, family := range familyAddedFlags {
-			family.setAdded(&response, addedRunTypes && family.anySupported(added))
-		}
 		// The full added-node payload is attached only on request: the Vite plugin and the bench client read
 		// just the added* booleans, so marshalling every new RunType graph on every scan is wire waste.
 		if request.IncludeRunTypes {
@@ -954,8 +895,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		allReplacements := append(append(append(append([]protocol.Replacement(nil), pureFnReplacements...), batchReplacements...), apiReplacements...), sess.collectOverrideReplacements(request.Files)...)
 		allReplacements = append(allReplacements, sess.routerInitReplacements(request.Files)...)
 		sites = sess.stampSiteModules(sites)
-		added := sess.cache.Added(before)
-		addedRunTypes := len(added) > 0
+		addedRunTypes := len(sess.cache.Added(before)) > 0
 		// Sites and replacements come back flat across all requested files, so partition them by File. Source
 		// text comes from the Program: those are the authoritative bytes Site.Pos offsets index.
 		transformed := make(map[string]protocol.TransformResult, len(request.Files))
@@ -1033,9 +973,6 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 			AddedRunTypes: addedRunTypes,
 			AddedPureFns:  addedPureFns,
 			Diagnostics:   combinedDiagnostics,
-		}
-		for _, family := range familyAddedFlags {
-			family.setAdded(&response, addedRunTypes && family.anySupported(added))
 		}
 		return response
 	default:

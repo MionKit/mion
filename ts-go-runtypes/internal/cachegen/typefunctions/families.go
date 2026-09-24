@@ -4,7 +4,6 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/entrymodules"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
 // FamilySpec is one type-walking cache family: its constants.CacheModules key (== the wire CacheKind
@@ -89,14 +88,4 @@ func FamilyByKey(key string) FamilySpec {
 // (type-id, variant) roots beyond the family's own call-site demand, the resolver's cross-family fixpoint path.
 func (spec FamilySpec) Collect(dump protocol.Dump, opts RenderOpts, extraRoots []ExtraRoot) entrymodules.Graph {
 	return CollectFamilyEntries(dump, spec.Settings, spec.Emitter, innerPrefix(spec.Settings), opts, extraRoots)
-}
-
-// AnySupported reports whether at least one runtype in the slice has a supported emit arm in this family.
-func (spec FamilySpec) AnySupported(runTypes []*reflection.RunType) bool {
-	for _, runType := range runTypes {
-		if spec.Emitter.Supports(runType) {
-			return true
-		}
-	}
-	return false
 }

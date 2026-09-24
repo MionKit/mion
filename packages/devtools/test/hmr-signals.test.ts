@@ -1,17 +1,5 @@
-// Verifies the per-cache "did this scan change anything?" signals the Go
-// daemon emits on a scanFiles response. The Vite plugin's
-// handleHotUpdate reads these to decide which cache modules to
-// invalidate on a user-file change; if the signals are wrong we either
-// over-invalidate (cheap but noisy) or under-invalidate (stale runtime
-// state, which is the bug HMR is supposed to prevent).
-//
-// Three scenarios:
-//   1. Fresh scan of a file that introduces a new RunType
-//      → addedRunTypes=true, addedValidate=true (KindString is supported).
-//   2. Re-scan of the same source content with no changes
-//      → all three signals false (cache hits, no deltas).
-//   3. Adding a `registerPureFnFactory` call to a file
-//      → addedPureFns=true.
+// The "did this scan change anything?" signals on a scanFiles response. The plugin regenerates the cache modules
+// off addedRunTypes / addedPureFns, so a wrong signal means stale runtime state or needless regeneration.
 
 import {describe, expect, it} from 'vitest';
 import {hasBinary, withInlineSources} from './helpers/inline.ts';
@@ -19,7 +7,7 @@ import {hasBinary, withInlineSources} from './helpers/inline.ts';
 describe('@mionjs/devtools / HMR signals on scanFiles', () => {
   const register = hasBinary() ? it : it.skip;
 
-  register('first scan that introduces a new RunType sets addedRunTypes + addedValidate', async () => {
+  register('first scan that introduces a new RunType sets addedRunTypes', async () => {
     const sources = {
       'fresh.ts': `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<string>();
@@ -30,13 +18,12 @@ getRunTypeId<string>();
       async ({client}) => {
         const response = await client.scanFiles(['fresh.ts']);
         expect(response.addedRunTypes).toBe(true);
-        expect(response.addedValidate).toBe(true);
       },
       {reset: true}
     );
   });
 
-  register('idempotent re-scan reports no deltas across all three signals', async () => {
+  register('idempotent re-scan reports no deltas on either signal', async () => {
     const sources = {
       'idempotent.ts': `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<string>();
@@ -52,7 +39,6 @@ getRunTypeId<string>();
         // (empty) set, so its delta is false too.
         const second = await client.scanFiles(['idempotent.ts']);
         expect(second.addedRunTypes).toBeFalsy();
-        expect(second.addedValidate).toBeFalsy();
         expect(second.addedPureFns).toBeFalsy();
       },
       {reset: true}
