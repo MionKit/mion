@@ -200,7 +200,7 @@ export function getRouterItemId(itemPointer: string[]) {
   return itemPointer.join(ROUTER_ITEM_SEPARATOR_CHAR);
 }
 
-export function getRoutePath(pathPointer: string[], routerOptions: CoreRouterOptions) {
+export function getRoutePath(pathPointer: string[], routerOptions: Pick<CoreRouterOptions, 'basePath' | 'suffix'>) {
   const pathId = getRouterItemId(pathPointer);
   const basePath = routerOptions.basePath.startsWith(ROUTE_PATH_ROOT)
     ? routerOptions.basePath

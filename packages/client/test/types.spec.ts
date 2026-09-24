@@ -8,7 +8,8 @@
 import {describe, it, expect, expectTypeOf} from 'vitest';
 import {initClient} from '../src/client.ts';
 import {batch} from '../src/batch.ts';
-import type {ApiOf, InitClientOptions, MiddlewareSubRequest, RouteSubRequest} from '../src/types.ts';
+import {DEFAULT_PREFILL_OPTIONS} from '../src/constants.ts';
+import type {ApiOf, ClientFetchOptions, InitClientOptions, MiddlewareSubRequest, RouteSubRequest} from '../src/types.ts';
 import type {TestServerApi} from '@mionjs/test-server';
 import type {InjectApiMetadata, InjectBuildVersion} from '@mionjs/run-types';
 import {HeadersSubset} from '@mionjs/core';
@@ -77,5 +78,17 @@ describe('subrequest types carry the route id and the API', () => {
     const anyMiddleware: MiddlewareSubRequest<any> = middlewares.auth(new HeadersSubset({Authorization: 'x'}));
     expectTypeOf(anyRoute.id).toEqualTypeOf<string>();
     expectTypeOf(anyMiddleware.id).toEqualTypeOf<string>();
+  });
+});
+
+describe('client options', () => {
+  it('has no settings the client would ignore', () => {
+    // @ts-expect-error the client picks GET or POST itself
+    initClient<TestServerApi>({baseURL: 'http://localhost:0', fetchOptions: {method: 'PUT'}});
+    // @ts-expect-error error ids are a router setting
+    initClient<TestServerApi>({baseURL: 'http://localhost:0', autoGenerateErrorId: true});
+    expectTypeOf<InitClientOptions['fetchOptions']>().toEqualTypeOf<ClientFetchOptions | undefined>();
+    expect(DEFAULT_PREFILL_OPTIONS.fetchOptions).not.toHaveProperty('method');
+    expect(DEFAULT_PREFILL_OPTIONS).not.toHaveProperty('autoGenerateErrorId');
   });
 });
