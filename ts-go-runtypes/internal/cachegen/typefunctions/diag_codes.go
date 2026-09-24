@@ -326,14 +326,6 @@ var unknownKeyErrorsCodes = map[DiagSlot]string{
 
 func (UnknownKeyErrorsEmitter) DiagCodeFor(slot DiagSlot) string { return unknownKeyErrorsCodes[slot] }
 
-var unknownKeysToUndefinedCodes = map[DiagSlot]string{
-	SlotFunctionPropDropped: diagnostics.CodeUKUFunctionPropDropped,
-}
-
-func (UnknownKeysToUndefinedEmitter) DiagCodeFor(slot DiagSlot) string {
-	return unknownKeysToUndefinedCodes[slot]
-}
-
 var stripUnknownKeysWireCodes = map[DiagSlot]string{
 	SlotFunctionPropDropped: diagnostics.CodeUKWFunctionPropDropped,
 }

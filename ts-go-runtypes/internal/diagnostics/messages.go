@@ -512,10 +512,6 @@ var messagesByCode = map[string]message{
 		Headline: "Property `{0}` is a function: `unknownKeyErrors` does not handle function values, so this property is silently not checked.",
 		Detail:   "`unknownKeyErrors` works on JSON-shaped data; functions don't survive JSON, so\nthe emitter drops them. The rest of the object's behaviour is unaffected.\n\nThis is by design, see the \"one contract: serializable data only\"\nsection in CLAUDE.md. If you need a stricter checker that fails on\nmissing/extra function-typed members, watch the project roadmap.",
 	},
-	"UKU010": {
-		Headline: "Property `{0}` is a function: `unknownKeysToUndefined` does not handle function values, so this property is silently not cleared.",
-		Detail:   "`unknownKeysToUndefined` works on JSON-shaped data; functions don't survive JSON, so\nthe emitter drops them. The rest of the object's behaviour is unaffected.\n\nThis is by design, see the \"one contract: serializable data only\"\nsection in CLAUDE.md. If you need a stricter checker that fails on\nmissing/extra function-typed members, watch the project roadmap.",
-	},
 	"UKW010": {
 		Headline: "Property `{0}` is a function: `stripUnknownKeysWire` does not handle function values, so this property is silently not cleared.",
 		Detail:   "`stripUnknownKeysWire` works on JSON-shaped data; functions don't survive JSON, so\nthe emitter drops them. The rest of the object's behaviour is unaffected.\n\nThis is by design, see the \"one contract: serializable data only\"\nsection in CLAUDE.md. If you need a stricter checker that fails on\nmissing/extra function-typed members, watch the project roadmap.",
