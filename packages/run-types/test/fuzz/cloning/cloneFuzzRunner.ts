@@ -1,4 +1,4 @@
-// Feeds valid mocks, extras-decorated mocks (also checked by hasUnknownKeys) and type-blind junk (robustness only)
+// Feeds valid mocks, extras-decorated mocks (also checked by the checkUnknowns validator) and type-blind junk (robustness only)
 // into each target's compiled clone. A seeded `Math.random` makes a violation replay from its `seed`; no test
 // framework or I/O, so it also runs as a standalone soak (runCloneFuzzForDuration).
 

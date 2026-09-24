@@ -190,21 +190,24 @@ junk. Checks the value oracles **O1–O7**, **O18**, **O21** and **O22–O25** (
   validator with no binary.
 
 **Why the unknown-key lane exists.** Several generated functions each decide
-what an "unknown key" is — `hasUnknownKeys` (`huk`), `unknownKeyErrors`
-(`uke`), `removeUnknownKeys` (`ruk`, the public strip that replaced the removed
-`unknownKeysToUndefined`), the JSON decoder's `strategy: 'strip'` pre-pass
-(`ukuw`), and the `{checkUnknowns: true}` validators that reuse the first two.
-Each has its own emitter and its own arm per position, and they have drifted
-apart more than once, always at a position the shared merged-allowlist walk did
-not reach (a class member of a union was the last, found by hand). O22–O25 hold
-them against each other rather than against a hand-written answer, so a
-position nobody thought of still gets an answer that has to agree. The report
+what an "unknown key" is: the `{checkUnknowns: true}` validator and its error
+twin (whose `expected: 'never'` entries are the unknown-key report),
+`removeUnknownKeys` (`ruk`, the public strip), and the JSON decoder's
+`strategy: 'strip'` pre-pass (`ukuw`). Each has its own emitter and its own arm
+per position, and they have drifted apart more than once, always at a position
+one walk did not reach (a class member of a union was the last, found by hand).
+O18 and O22–O25 hold them against each other rather than against a hand-written
+answer, so a position nobody thought of still gets an answer that has to agree.
+A union answers per branch, so an undeclared key inside one is reported as the
+union failing (`expected: 'union'` at the union's path) rather than at the key;
+O22–O24 accept that entry in place of the key's own. The report
 carries `unknownKeys.{flagged, carveOut, wire}` counters and the test asserts
 each is non-zero, so a green run cannot be green because nothing was planted.
 
 Two documented gaps the oracles work around rather than fail on: a union with
 object members has no `removeUnknownKeys` at all (**RUK001** — the emitter cannot
-know which arm to rebuild), so O24 skips those targets and O25 covers the strip
+know which arm to rebuild), so O24 skips those targets, O18 only checks that the
+strict validator never accepts what `validate` rejects, and O25 covers the strip
 side of a union instead; and O25 plants blindly on the wire, so it is skipped
 for any target carrying an index signature, where a planted key IS declared.
 
@@ -316,7 +319,8 @@ strip every one), and type-blind **junk** for robustness only.
   **O16** clone-isolation (the input still deep-equals its pre-clone snapshot,
   the clone shares no mutable object reference with it, and an object-typed
   root keeps the input root's prototype), **O17** clone-consistency
-  (`validate(clone(v))` holds and `clone(clone(v))` is stable).
+  (`validate(clone(v))` holds, `clone(clone(v))` is stable, and on the extras
+  stream the `{checkUnknowns: true}` validator accepts `clone(v)`).
 - `referenceClone.ts` — the reference interpreter: mirrors the Go emitter's
   per-kind arms in
   [`remove_unknown_keys.go`](../../../../ts-go-runtypes/internal/cachegen/typefunctions/remove_unknown_keys.go)
@@ -692,7 +696,7 @@ Grouped by mode.
 | Mode                      | IDs                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | value / type (value tier) | **O1** valid-accepted · **O2** invalid-rejected · **O3** validate-total · **O4** errors-agree · **O5** json-stable · **O6** binary-stable · **O7** encode-total · **O10** refusal-has-reason · **O12** json↔binary agree · **O14** encoders-agree-on-serialisability                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| value / unknown keys      | **O18** fused-agree · **O21** strict-self-agree · **O22** hasUnknownKeys is true exactly when unknownKeyErrors is non-empty · **O23** a key planted at a flagged position is reported at exactly that path, and at an index-signature carve-out by nobody · **O24** the paths unknownKeyErrors reports are exactly the keys removeUnknownKeys drops · **O25** undeclared keys planted on the encoded wire do not change what the `strip` decoder returns                                                                                                                                                                                                                                             |
+| value / unknown keys      | **O18** fused-agree · **O21** strict-self-agree · **O22** on a value validate accepts, the strict error twin reports only unknown-key entries · **O23** a key planted at a flagged position is reported at exactly that path (or by its enclosing union) and rejected by the strict validator, and at an index-signature carve-out by nobody · **O24** the paths the unknown-key report names are exactly the keys removeUnknownKeys drops · **O25** undeclared keys planted on the encoded wire do not change what the `strip` decoder returns                                                                                                                                                      |
 | type (build tier)         | **TR1** resolver-clean · **TR2** every-site-resolved · **TR3** every-module-evaluates · **TR4** every-factory-materialises                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | roundtrip                 | **RT-VALIDATE** · **RT-AGREE** · **RT-STABLE** · **RT-FAILAGREE** · **RT-NATIVE** · **RT-THROW**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | binary size               | **O-SIZE-NOGROW** · **O-SIZE-ROUNDTRIP** · **O-SIZE-GREW**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |

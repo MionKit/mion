@@ -14,8 +14,8 @@
 //                           reference with the input, and an object-typed
 //                           root keeps the input root's prototype
 //     O17 clone-consistency validate(clone(v)) is true, clone(clone(v))
-//                           deep-equals clone(v), and (extras stream)
-//                           hasUnknownKeys(clone(v)) is false
+//                           deep-equals clone(v), and (extras stream) the
+//                           `{checkUnknowns: true}` validator accepts clone(v)
 //
 //   ROBUSTNESS (junk stream)
 //     clone's contract does NOT cover non-conforming input — it may return
@@ -33,8 +33,8 @@ import {snapshot, type Violation} from '../value/fuzzOracle.ts';
 import {referenceClone} from './referenceClone.ts';
 
 /** One target under clone fuzz: the schema drives mock/extras generation and
- *  the reference interpreter; validate gates conformance; hasUnknownKeys is
- *  the optional extras cross-check. The test file builds these so the Vite
+ *  the reference interpreter; validate gates conformance; validateStrict (the
+ *  `{checkUnknowns: true}` validator) is the optional extras cross-check. The test file builds these so the Vite
  *  plugin can rewrite the `createX<T>()` call sites. **/
 export interface CloneFuzzTarget {
   title: string;
@@ -42,7 +42,7 @@ export interface CloneFuzzTarget {
   schema: RunType;
   mock: () => unknown;
   validate: (value: unknown) => boolean;
-  hasUnknownKeys?: (value: unknown) => boolean;
+  validateStrict?: (value: unknown) => boolean;
   /** `any`: strictFunctionTypes rejects the T-narrowed `RemoveUnknownKeysFn<T>` where `unknown` is expected. **/
   clone: (value: any) => unknown;
 }
@@ -168,13 +168,14 @@ export function checkCloneConsistency(
   } catch (err) {
     return violation('O17', target, ctx, `clone threw on its own output: ${errMsg(err)}`, out);
   }
-  if (options.expectNoUnknownKeys && target.hasUnknownKeys) {
+  // validate(out) passed above, so a strict rejection can only be an unknown key the clone kept.
+  if (options.expectNoUnknownKeys && target.validateStrict) {
     try {
-      if (target.hasUnknownKeys(out) !== false) {
-        return violation('O17', target, ctx, 'hasUnknownKeys still finds unknown keys on the clone of an extras value', out);
+      if (target.validateStrict(out) !== true) {
+        return violation('O17', target, ctx, 'checkUnknowns validator still rejects the clone of an extras value', out);
       }
     } catch (err) {
-      return violation('O17', target, ctx, `hasUnknownKeys threw on a clone: ${errMsg(err)}`, out);
+      return violation('O17', target, ctx, `checkUnknowns validator threw on a clone: ${errMsg(err)}`, out);
     }
   }
   return null;

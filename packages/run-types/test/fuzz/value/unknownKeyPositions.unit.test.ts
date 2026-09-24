@@ -56,7 +56,7 @@ describe('fuzz / collectUnknownKeyPositions', () => {
     expect(keys(tuple(str(), obj(prop('n', num()))), ['a', {n: 1}])).toEqual(['1:flagged']);
   });
 
-  it('finds a Map key, a Map value and a Set member, spelled the way unknownKeyErrors spells them', () => {
+  it('finds a Map key, a Map value and a Set member, spelled the way the unknown-key report spells them', () => {
     const mapSchema = mapOf(obj(prop('k', str())), obj(prop('v', num())));
     const map = new Map([[{k: 'a'}, {v: 1}]]);
     expect(keys(mapSchema, map)).toEqual(['mapKey[0]:flagged', 'mapValue[0]:flagged']);
