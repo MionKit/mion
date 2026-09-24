@@ -14,7 +14,6 @@ export const DEFAULT_STORAGE_ENGINE: StorageEngine = 'indexeddb';
 export const DEFAULT_PREFILL_OPTIONS: ClientOptions = {
   baseURL: '',
   fetchOptions: {
-    method: 'PUT',
     headers: {'Content-Type': 'application/json'},
   },
   /** Prefix for all routes, i.e: api/v1 */
@@ -23,7 +22,6 @@ export const DEFAULT_PREFILL_OPTIONS: ClientOptions = {
   suffix: '',
   validateParams: true,
   sanitizeParams: true,
-  autoGenerateErrorId: false,
   /** Default first-call mode: fetch the metadata first, then encode with the route's own strategy */
   serializer: 'stringifyJson',
   /** Where the client keeps what it learned about the remote methods */

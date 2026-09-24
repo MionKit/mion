@@ -6,7 +6,7 @@
  * ######## */
 
 import {HandlerType, RpcError} from '@mionjs/core';
-import type {CoreRouterOptions, InputFromRef, Prettify, RunTypeError, SerializerMode, ValidationError} from '@mionjs/core';
+import type {InputFromRef, Prettify, RunTypeError, SerializerMode, ValidationError} from '@mionjs/core';
 import type {PublicHeadersFn, PublicMiddleware, RemoteApi, PublicRoute} from '@mionjs/router';
 import type {InjectApiMetadata} from '@mionjs/run-types';
 import type {TypedEvent} from './lib/typedEvent.ts';
@@ -70,15 +70,17 @@ export type BatchRouteErrors<Routes extends RouteSubRequest<any>[]> = {
 };
 // type-batch-route-errors-end
 
-export interface ClientOptions extends CoreRouterOptions {
+/** The request picks its own method, body and abort signal, so fetchOptions cannot set them. */
+export type ClientFetchOptions = Omit<RequestInit, 'method' | 'body' | 'signal'>;
+
+export interface ClientOptions {
   /** Base URL of the server, i.e: http://localhost:3000 */
   baseURL: string;
   /** basePath for all routes, i.e: api/v1 */
   basePath: string;
   /** suffix for all routes, i.e: .json */
   suffix: string;
-  autoGenerateErrorId: boolean;
-  fetchOptions: RequestInit;
+  fetchOptions: ClientFetchOptions;
   /** enable automatic parameter validation, defaults to true */
   validateParams: boolean;
   /** Apply a route's declared format transforms (trim / case / replace / stripSeparators) to its

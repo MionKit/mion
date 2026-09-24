@@ -37,7 +37,6 @@ const options: ClientOptions = {
   suffix: '',
   validateParams: true,
   sanitizeParams: true,
-  autoGenerateErrorId: false,
   serializer: 'stringifyJson',
   storageEngine: 'indexeddb',
 };
