@@ -412,7 +412,7 @@ export const lookup = (area, sub) => (AREAS[area]?.commands ?? []).find((row) =>
 // The usage line for an area, built from the rows so it cannot disagree with them.
 export const usage = (area) => `usage: ${CLI} ${area} <${commandNames(area).join('|')}>  (run \`pnpm ${CLI} ${area} --help\` for the flags)`;
 
-// Every positional word is a codegen target, not just the first; none, or `all`, means every one.
+// Every positional word is a codegen target, not just the first.
 export const codegenTargets = (args, known) => {
   const words = args.filter((arg) => !arg.startsWith('-'));
   const names = words.length === 0 || words.includes('all') ? known : words;

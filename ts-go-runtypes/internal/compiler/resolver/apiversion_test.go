@@ -94,8 +94,7 @@ func TestApiVersion_DerivedFromTheTypesAlone(t *testing.T) {
 	}
 }
 
-// TestApiVersion_RouterPackageOwnFilesAreTrusted: the router's own sources and tests import it by relative path, so
-// no file spells `@mionjs/router`; the package that owns them still makes the program a server.
+// TestApiVersion_RouterPackageOwnFilesAreTrusted: no file spells `@mionjs/router`, yet the owning package makes a server.
 func TestApiVersion_RouterPackageOwnFilesAreTrusted(t *testing.T) {
 	routerSource := strings.Replace(versionRouterDTS, "declare module '@mionjs/router' {", "", 1)
 	routerSource = strings.Replace(routerSource, "export function createMionRouter", "export declare function createMionRouter", 1)
