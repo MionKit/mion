@@ -243,7 +243,7 @@ const (
 // To add a new boolean option:
 //  1. Append an entry here — the scanner's extraction is table-driven off this registry.
 //  2. Add the field to `ValidateOptions` in packages/run-types/src/createRTFunctions.ts.
-//  3. Teach the emitters to honour it, plus any per-option scanner semantics (a noop-option diagnostic in analyzeCall).
+//  3. Teach the emitters to honour it, plus any per-option scanner semantics.
 //
 // A string-enum option (see numberMode above) instead maps each non-default value to a canonical name here and is
 // read by a dedicated scanner arm.
@@ -305,10 +305,8 @@ func NumberModeFromOptions(has func(string) bool) string {
 	}
 }
 
-// ValidateVariantSuffix returns the canonical variant suffix for a sorted list of option NAMES (a subset of
-// `ValidateOptions[*].Name`): `N` ("No") plus the letters in `ValidateOptions` declaration order, so
-// `["numberTypeof"]` → `"NT"`. Empty input gives an empty suffix (the plain key). Unknown names
-// are silently skipped, so the scanner / emitter must validate ahead of time.
+// ValidateVariantSuffix returns `N` plus the option letters in `ValidateOptions` declaration order (`["numberTypeof"]` → `"NT"`).
+// Unknown names are silently skipped, so the scanner / emitter must validate ahead of time.
 func ValidateVariantSuffix(names []string) string {
 	if len(names) == 0 {
 		return ""

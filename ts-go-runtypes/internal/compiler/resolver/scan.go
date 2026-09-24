@@ -716,9 +716,8 @@ func (state scanState) analyzeTrailingInjection(file string, call *ast.Node, cal
 		}
 	}
 	options := extractValidateOptions(state.scanChecker, call, lastIndex, argsCount)
-	// numberMode merges per field, the site's own value winning over the project-wide default. Only this field
-	// is taken from the global defaults. isFinite, the default and any unrecognized value, adds no variant
-	// name, so plain keys stay stable.
+	// numberMode is the one field merged from the project-wide defaults, the site's own value winning.
+	// isFinite, the default and any unrecognized value, adds no variant name, so plain keys stay stable.
 	effectiveNumberMode := options.numberMode
 	if effectiveNumberMode == "" {
 		effectiveNumberMode = state.sess.opts.ValidateDefaults.NumberMode
@@ -726,10 +725,8 @@ func (state scanState) analyzeTrailingInjection(file string, call *ast.Node, cal
 	if canonicalName := constants.NumberModeOptionName(effectiveNumberMode); canonicalName != "" {
 		options.enable(canonicalName)
 	}
-	// The structural id stays a pure function of the resolved TS type: `ValidateOptions` does NOT fold into it,
-	// it folds into the injected fnId's variant suffix below (`valNT`, `valNM`), and the emitter renders one
-	// factory per (typeid, fnId) pair under that variant cache key. Same invariant the encoder / decoder
-	// strategies honour; see createRTFunctions.ts's `createJsonEncoderFn` dispatch and constants.ValidateVariantSuffix.
+	// ValidateOptions never fold into the structural id, only into the fnId's variant suffix (`NT`, `NM`): one factory per
+	// (typeid, fnId). The JSON strategies keep the same invariant; see `createJsonEncoderFn` and constants.ValidateVariantSuffix.
 	// RegExp has no literal type in TS (`/abc/i` widens to `RegExp` even under `as const`), so `typeof /abc/i`,
 	// `typeof /xyz/` and `RegExp` all resolve to the same KindRegexp id.
 	//
@@ -1331,8 +1328,7 @@ func (opts validateOptions) Any() bool { return len(opts.enabled) > 0 }
 // Has reports whether the named option was set to a literal `true`.
 func (opts validateOptions) Has(name string) bool { return opts.enabled[name] }
 
-// Names returns the enabled option NAMES in constants.ValidateOptions declaration order, which is the variant
-// cache-key suffix order (`valNT`, `valNM`).
+// Names returns the enabled option NAMES in constants.ValidateOptions declaration order, the variant suffix order.
 func (opts validateOptions) Names() []string {
 	if len(opts.enabled) == 0 {
 		return nil

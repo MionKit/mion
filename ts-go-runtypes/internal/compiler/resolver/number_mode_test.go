@@ -69,11 +69,8 @@ createValidateFn(v, {numberMode: 'typeof'});
 	}
 }
 
-// TestNumberMode_GlobalDefaultPerFieldMerge is the load-bearing merge test: a
-// project-wide validate.numberMode default fills in ONLY the numberMode field of
-// each call site, per field. A site that sets rejectCircularRefs keeps it AND inherits
-// the global numberMode; a site that sets its own numberMode overrides the
-// default for that field (including an explicit 'isFinite' that opts back out).
+// TestNumberMode_GlobalDefaultPerFieldMerge pins that the validate.numberMode default fills in ONLY each site's numberMode field.
+// A site's other options stay; its own numberMode, even an explicit 'isFinite', overrides the default.
 func TestNumberMode_GlobalDefaultPerFieldMerge(t *testing.T) {
 	const code = `import {createValidateFn} from '@mionjs/run-types';
 createValidateFn<number>();

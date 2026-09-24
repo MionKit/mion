@@ -20,11 +20,7 @@ import {
  *  `jsonEncoder`, `jsonDecoder`, `huk`, `pjs`, `cj`, …). */
 export type FnHashKey = keyof typeof FN_HASHES;
 
-/** Compile-time options that refine a family's fnHash — the SAME bag the createX
- *  factory takes. `numberMode` selects a validate /
- *  validationErrors variant; `strategy` selects a JSON encoder / decoder
- *  variant. Options that don't apply to the resolved family are ignored (an
- *  option-less family has one fnHash regardless). */
+/** The createX factory's own compile-time bag; `strategy` picks a JSON variant, options foreign to the family are ignored. */
 export interface FnHashOptions {
   /** Selects the base `number` kind check (validate / validationErrors):
    *  'isFinite' (default) / 'typeof' / 'notNaN'. The two non-default values ride
@@ -46,9 +42,7 @@ function numberModeOptionName(mode: string | undefined): string {
   return '';
 }
 
-// Mirror of Go constants.ValidateVariantSuffix: 'N' + the letters of the present options in
-// declaration order, or '' when none is set. The letter table is generated from the Go source, so
-// only this assembly is hand-written, and fnHash.test.ts pins it against the generated hashes.
+// Mirror of Go constants.ValidateVariantSuffix; only this assembly is hand-written, getFnHash.test.ts pins it.
 function validateVariantToken(options: FnHashOptions | undefined): string {
   if (!options) return '';
   const numberModeName = numberModeOptionName(options.numberMode);

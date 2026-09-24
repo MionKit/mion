@@ -1,9 +1,5 @@
-// ValidateOptions variant dispatch, the JS-side guarantees behind "the same type with different ValidateOptions works":
-//   1. The structural type id is a function of T only; options never change it.
-//   2. Each (family, options) pair dispatches to a DISTINCT cached factory.
-//   3. The variant body changes behaviour (numberMode picks the base number check).
-//   4. Schema form converges with marker form for the same T + options.
-// `.toBe` is a cache-identity check, `.not.toBe` a cache-distinct one; behavioural asserts catch a missed variant lookup.
+// JS-side guarantees behind "the same type with different ValidateOptions works".
+// `.toBe` checks cache identity, `.not.toBe` cache distinctness; behavioural asserts catch a missed variant lookup.
 
 import * as TF from '@mionjs/run-types/formats';
 import {describe, expect, it} from 'vitest';
@@ -20,7 +16,7 @@ describe('ValidateOptions — type-id stays structural across option combination
 
   it('number[] id is identical whether referenced bare or via a numberMode call site', () => {
     const bareId: string = getRunTypeId<number[]>();
-    // Builds the variant at this call site only to prove the id marker does not fold options into the id.
+    // Built only to prove the id marker does not fold options into the id.
     const variantFactory = createValidateFn<number[]>(undefined, {numberMode: 'typeof'});
     expect(variantFactory).toBeTypeOf('function');
     const afterId: string = getRunTypeId<number[]>();

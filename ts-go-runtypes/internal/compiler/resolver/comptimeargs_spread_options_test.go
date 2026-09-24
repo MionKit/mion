@@ -47,9 +47,7 @@ export const none = createValidateFn<number>();
 	}
 }
 
-// TestSpreadOptions_ValidateOverrideOrder pins last-write-wins: an inline
-// option after `{...strict}` replaces the spread-in value, for both the
-// `numberMode` enum and the `rejectCircularRefs` boolean.
+// TestSpreadOptions_ValidateOverrideOrder pins last-write-wins after `{...strict}`, for an enum and a boolean option.
 func TestSpreadOptions_ValidateOverrideOrder(t *testing.T) {
 	const code = `import {createValidateFn} from '@mionjs/run-types';
 const strict = {numberMode: 'typeof', rejectCircularRefs: true} as const;

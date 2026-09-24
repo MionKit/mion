@@ -387,10 +387,8 @@ const (
 // VariantPropagator is the optional capability an emitter implements when its compile-time option variant
 // changes the body of EVERY node in the subtree, not just the root's.
 //
-// A plain variant is ROOT-SCOPED: the walker keeps the family's plain inner prefix, so a child that goes
-// external is dep-called at its PLAIN entry and loses the option there. That is right for an option
-// describing the root's call shape and
-// wrong for one describing the VALUE: hasUnknownKeys's runsAfterValidation is as true of `v.address` as of `v`.
+// A plain variant is ROOT-SCOPED: the walker keeps the plain inner prefix, so an external child is dep-called at its PLAIN
+// entry. Right for an option on the root's call shape, wrong for one on the VALUE: runsAfterValidation holds for `v.address` too.
 //
 // A propagating variant gets the family treatment: the inner prefix becomes the variant's own fnHash, so
 // children render and are dep-called as variant entries; the collector carries the option set down the child

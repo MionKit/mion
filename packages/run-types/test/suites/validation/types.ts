@@ -174,11 +174,8 @@ export interface ValidationCase {
    *  flag is set — the test stops at the throw assertion. **/
   factoryThrows?: boolean;
 
-  /** Opt a case out of the id-integrity suite (`assertValidatorIdIntegrity`):
-   *  its value-first schema form and type-first form are KNOWN not to resolve the
-   *  same structural id, by design. Reserved for cases where convergence is
-   *  genuinely impossible — leave UNSET for cases that should converge so a
-   *  regression surfaces as a failure. **/
+  /** Opts out of `assertValidatorIdIntegrity`: schema and type forms can never share an id, by design.
+   *  Leave UNSET wherever they should converge, so a regression fails. **/
   idDivergent?: boolean;
 
   /** Opt a case out of the DataOnly-equivalence suite

@@ -31,11 +31,8 @@ func parallelFixtureLarge() string {
 	return sb.String()
 }
 
-// parallelFixtureSources is the shared multi-file fixture set: enough
-// files to spread across the 4-checker pool, covering objects, unions
-// (discriminated + mixed), a large object, cross-file structural dedup,
-// diagnostics (MKR001/MKR003/CTA), an option variant, enums/templates/tuples,
-// reflect-form annotation honoring, and classes/builtins.
+// parallelFixtureSources spreads across the 4-checker pool: objects, unions, a large object, cross-file dedup, diagnostics
+// (MKR001/MKR003/CTA), an option variant, enums/templates/tuples, reflect-form annotations, classes/builtins.
 func parallelFixtureSources() map[string]string {
 	return map[string]string{
 		"a_objects.ts": `import {createValidateFn, createGetValidationErrorsFn, getRunTypeId} from '@mionjs/run-types';

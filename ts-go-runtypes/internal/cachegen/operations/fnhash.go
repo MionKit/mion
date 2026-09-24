@@ -22,10 +22,8 @@ func fnHashSalt(canonicalKey string) string {
 	return "op|" + canonicalKey
 }
 
-// circularCanonicalSuffix is appended to a CircularGuarded operation's canonical key when `rejectCircularRefs` is armed. It is
-// ORTHOGONAL to every axis, folding into all four guarded families uniformly, so an armed and a plain factory for the same T hash to
-// distinct entries (pay-for-use, like numberMode). The JS mirror (fnHash.ts / fnHashes.generated.ts) spells the same fork "C": the two
-// strings differ but each resolves to the same hash value, so they never need to match byte-for-byte.
+// circularCanonicalSuffix forks every CircularGuarded family's key when `rejectCircularRefs` is armed, orthogonal to every axis.
+// The JS mirror (fnHash.ts / fnHashes.generated.ts) spells the fork "C"; both resolve to the same hash, so the strings need not match.
 const circularCanonicalSuffix = "~C"
 
 // Canonical returns the deterministic, property-order-independent hash input for an operation plus its call-site compile-time args.

@@ -110,8 +110,7 @@ var primaryCases = []fixtureCase{
 		s.FnIds = []string{"val", "verr"}
 		return []protocol.Site{s}, nil
 	}},
-	// 4. trailing-comma — trailingComma:true; argsCount 1 but list already ends
-	//    with a comma, so no leading comma is injected.
+	// 4. trailing-comma: the list already ends with a comma, so no leading comma is injected.
 	{"trailing_comma", "a.ts", "const v = createValidateFn<Foo>({\n  numberMode: 'typeof',\n},);\n", func(code string) ([]protocol.Site, []protocol.Replacement) {
 		s := site(byteIndexOf(code, ")", 0), "Foo5678")
 		s.ArgsCount = 1

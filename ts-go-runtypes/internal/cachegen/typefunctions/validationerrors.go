@@ -416,8 +416,7 @@ func (ValidationErrorsEmitter) emitKindDefault(rt *reflection.RunType, ctx *Emit
 		if rt.Child == nil {
 			return RTCode{Code: "", Type: CodeS}
 		}
-		// A non-serializable element (symbol / function) comes back CodeNS with the element as the leaf: alwaysThrow at the root,
-		// absorbed at a property (T3, matching validate.go's array arm).
+		// A symbol / function element comes back CodeNS: alwaysThrow at the root, absorbed at a property (T3, as in validate.go).
 		iVar := ctx.NextLocalVar("i")
 		ctx.SetChildAccessor(v + "[" + iVar + "]")
 		ctx.SetChildPathLiteral(iVar)
@@ -427,7 +426,7 @@ func (ValidationErrorsEmitter) emitKindDefault(rt *reflection.RunType, ctx *Emit
 		if childRT.Type == CodeNS {
 			return RTCode{Code: "", Type: CodeNS}
 		}
-		// A child with no body (a KindAny element) reduces to the bare array guard or a noop.
+		// A child with no body (a KindAny element) reduces to the bare array guard.
 		if childRT.Code == "" {
 			return RTCode{
 				Code: "if (!Array.isArray(" + v + ")) " + callRTErr(ctx, "array", ""),
@@ -880,17 +879,13 @@ func emitTemplateLiteralValidationErrors(rt *reflection.RunType, ctx *EmitContex
 }
 
 // emitUnionValidationErrors delegates to the union's boolean validator: a union failure is ONE error, never a per-arm breakdown.
-// The delegate is resolved under THIS WALKER'S VARIANT, not the plain one: a `{numberMode}` error function
-// must ask the validator the caller actually holds, or it reports `{expected:'union'}` for a value its own createValidateFn
-// accepts. Walker-scoped is the right scope; a union the walker does NOT inline is dep-called and resolves the plain hash.
-// registerRTLookup records a CROSS-family edge rather than a walker.RTDependencies entry, because the dangling-dep cascade
-// in module.go is per-fn and a validationErrors entry cannot satisfy a validate dep ref. The resolver's cross-family fixpoint
-// (dispatch.go) renders the named entry, variant included, so a variant delegate needs no demand plumbing here.
+// The delegate takes THIS WALKER'S variant, else a `{numberMode}` error function rejects a value its own validator accepts.
+// A union the walker does NOT inline is dep-called and resolves the plain hash.
+// registerRTLookup records a CROSS-family edge: module.go's per-fn dangling-dep cascade cannot satisfy a validate dep ref.
+// dispatch.go's cross-family fixpoint renders the entry, variant included, so no demand plumbing is needed here.
 func emitUnionValidationErrors(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
-	// Under {checkUnknowns: true} the plain validator accepts a value carrying an undeclared key, so delegating to it made the
-	// strict error function report NOTHING for a value its own validator rejects. Pointing at validateStrict makes the two agree
-	// by construction. CrossFamilyVariantHash then keys the operation under the walker's own variant, so a strict site carrying
-	// `numberMode` reaches the validateStrict entry compiled with `numberMode`, not either default.
+	// Under checkUnknowns the plain validator accepts an undeclared key, so the strict error function must ask validateStrict.
+	// CrossFamilyVariantHash keys it under the walker's variant, so a strict `numberMode` site reaches the matching entry.
 	checkOp := "validate"
 	switch {
 	case ctx.ChecksUnknownKeys():
