@@ -56,8 +56,6 @@ export function createContextFromChain(
     fatalError: undefined,
     headers: respHeaders,
     body: {},
-    rawBody: '',
-    serializer: SerializerModes.json,
   } as MionResponse;
   const contextDataFactory = getRouterOptions().contextDataFactory;
 

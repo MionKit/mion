@@ -165,21 +165,5 @@ function reply(
   // responseHeaders: Headers,
   responseHeaders: any
 ): Response {
-  const bodyType = mionResp.serializer;
-  switch (bodyType) {
-    case SerializerModes.json: {
-      return Response.json(mionResp.body, {
-        status: mionResp.statusCode,
-        headers: responseHeaders,
-      });
-    }
-    default: {
-      const error = new FatalError({
-        publicMessage: 'unknown-mion-response-format',
-        type: 'unknown-error',
-        errorData: {bodyType},
-      });
-      return fatalFail(error, responseHeaders);
-    }
-  }
+  return Response.json(mionResp.body, {status: mionResp.statusCode, headers: responseHeaders});
 }

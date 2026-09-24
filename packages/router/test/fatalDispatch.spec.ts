@@ -42,8 +42,6 @@ describe('fatal dispatch', () => {
       new FatalError({statusCode: StatusCodes.UNEXPECTED_ERROR, type: 'unknown-error', publicMessage: 'nope'}),
       headersFromRecord({})
     );
-    expect(response.serializer).toBe(SerializerModes.json);
-    expect(response.rawBody).toBe('');
     expect(JSON.parse(JSON.stringify(response.body))['@thrownErrors']).toBeDefined();
   });
 

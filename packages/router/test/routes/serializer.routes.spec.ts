@@ -69,11 +69,6 @@ function getNewJsonContext(path: string, body: any) {
   const reqHeaders = headersFromRecord({auth: 'token'});
   const respHeaders = headersFromRecord({});
   const context = createCallContext(path, undefined, {}, reqHeaders, respHeaders, rawBody);
-  // Set bodyType from ExecutionChain (as done in runExecutionChain)
-  const executionChain = getRouteExecutionChain(path)!;
-  if (executionChain) {
-    (context.response as Mutable<MionResponse>).serializer = executionChain.serializer;
-  }
   return context;
 }
 
@@ -144,7 +139,6 @@ describe('serialize Response Body with the mutate encoder (json framing)', () =>
     const context = getNewJsonContext('/users/updateUser', {});
     const response = context.response as Mutable<MionResponse>;
     response.body = {'users/updateUser': {name: 'John', age: 30, lastActivity}};
-    expect(context.response.serializer).toEqual(SerializerModes.json);
     void serializeResponseBody(context, opts);
     expect(response.body).toEqual({
       'users/updateUser': {name: 'John', age: 30, lastActivity},
@@ -153,7 +147,6 @@ describe('serialize Response Body with the mutate encoder (json framing)', () =>
     expect(jsonString).toEqual(
       '{"users/updateUser":{"name":"John","age":30,"lastActivity":"' + lastActivity.toISOString() + '"}}'
     );
-    expect(response.rawBody).toEqual('');
   });
 
   it('should prepare response.body for platform adapter JSON.stringify for "sayHello" route', async () => {
@@ -162,12 +155,10 @@ describe('serialize Response Body with the mutate encoder (json framing)', () =>
     const context = getNewJsonContext('/sayHello', {});
     const response = context.response as Mutable<MionResponse>;
     response.body = {sayHello: 'Hello, Jack!'};
-    expect(context.response.serializer).toEqual(SerializerModes.json);
     void serializeResponseBody(context, opts);
     expect(response.body).toEqual({sayHello: 'Hello, Jack!'});
     const jsonString = JSON.stringify(response.body);
     expect(jsonString).toEqual('{"sayHello":"Hello, Jack!"}');
-    expect(response.rawBody).toEqual('');
   });
 
   it('should correctly prepare complex objects for platform adapter JSON.stringify', async () => {
@@ -183,7 +174,6 @@ describe('serialize Response Body with the mutate encoder (json framing)', () =>
         extra: {a: 1, b: 2, c: 3, d: 4, e: 5, f: 6, g: 7, h: 8, i: 9, j: 10},
       },
     };
-    expect(context.response.serializer).toEqual(SerializerModes.json);
     void serializeResponseBody(context, opts);
     expect(response.body).toEqual({
       'users/updateUser': {
@@ -203,7 +193,6 @@ describe('serialize Response Body with the mutate encoder (json framing)', () =>
         extra: {a: 1, b: 2, c: 3, d: 4, e: 5, f: 6, g: 7, h: 8, i: 9, j: 10},
       },
     });
-    expect(response.rawBody).toEqual('');
   });
 
   it('should handle routes with void return (no return data)', async () => {
@@ -214,8 +203,6 @@ describe('serialize Response Body with the mutate encoder (json framing)', () =>
     response.body = {auth: undefined, logs: undefined};
     void serializeResponseBody(context, opts);
     expect(response.body).toEqual({auth: undefined, logs: undefined});
-    // For serialize: 'json' (body type SerializerMode.json), rawBody remains empty - platform adapter does JSON.stringify
-    expect(response.rawBody).toEqual('');
   });
 });
 

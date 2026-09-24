@@ -196,27 +196,6 @@ describe('parser strategies at the router level', () => {
     });
   });
 
-  // Framing does not vary: a route hands the adapter a JSON-safe value whatever its strategy, and
-  // `stringifyJson` is left for the REQUEST body and the client's own wire.
-  describe('every chain frames its response as json', () => {
-    const defaultRoute = mion.route((ctx, p: Pet): Pet => p);
-    const mutateRoute = mion.route((ctx, p: Pet): Pet => p, {parser: {return: 'mutate'}});
-    const compactRoute = mion.route((ctx, p: Pet): Pet => p, {parser: 'compact'});
-    const mutateMiddleware = mion.middleware((ctx): string => 'stamp', {parser: {return: 'mutate'}});
-
-    it('whatever the route strategy', () => {
-      mion.initRoutes({defaultRoute, mutateRoute, compactRoute});
-      expect(getRouteExecutionChain('/defaultRoute')!.serializer).toBe(SerializerModes.json);
-      expect(getRouteExecutionChain('/mutateRoute')!.serializer).toBe(SerializerModes.json);
-      expect(getRouteExecutionChain('/compactRoute')!.serializer).toBe(SerializerModes.json);
-    });
-
-    it('and whatever a middleware in the chain returns', () => {
-      mion.initRoutes({mutateMiddleware, defaultRoute});
-      expect(getRouteExecutionChain('/defaultRoute')!.serializer).toBe(SerializerModes.json);
-    });
-  });
-
   describe('the wire of each strategy through dispatch', () => {
     const compactRoute = mion.route((ctx, p: Pet, note: string): Pet => ({...p, name: `${p.name}:${note}`}), {
       parser: 'compact',
@@ -238,7 +217,6 @@ describe('parser strategies at the router level', () => {
       const response = await dispatchJson('compactRoute', wire);
       expect(response.hasErrors).toBe(false);
       // the compact return is positional too, the platform stringifies it as is
-      expect(response.serializer).toBe(SerializerModes.json);
       const encodedReturn = response.body.compactRoute as unknown[];
       expect(Array.isArray(encodedReturn)).toBe(true);
       const decode = getRouteExecutable('compactRoute')!.returnJitFns.json.decode.fn;

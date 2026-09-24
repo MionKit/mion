@@ -240,22 +240,8 @@ function fatalFail(httpResponse: ServerResponse, respHeaders: MionHeaders, error
 
 function reply(httpResp: ServerResponse, mionResp: MionResponse) {
   httpResp.statusCode = mionResp.statusCode;
-  const bodyType = mionResp.serializer;
-  switch (bodyType) {
-    // Buffer.byteLength counts the bytes end() is about to write, without a copy of the whole response first
-    case SerializerModes.json: {
-      const jsonString = JSON.stringify(mionResp.body);
-      httpResp.setHeader('content-length', Buffer.byteLength(jsonString, 'utf8'));
-      httpResp.end(jsonString, 'utf8');
-      break;
-    }
-    default: {
-      const error = new FatalError({
-        publicMessage: 'unknown-mion-response-format',
-        type: 'unknown-error',
-        errorData: {bodyType},
-      });
-      fatalFail(httpResp, mionResp.headers, error);
-    }
-  }
+  const jsonString = JSON.stringify(mionResp.body);
+  // Buffer.byteLength counts the bytes end() is about to write, without a copy of the whole response first
+  httpResp.setHeader('content-length', Buffer.byteLength(jsonString, 'utf8'));
+  httpResp.end(jsonString, 'utf8');
 }

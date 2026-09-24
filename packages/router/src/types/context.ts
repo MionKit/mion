@@ -38,8 +38,6 @@ export interface CallContext<ContextData extends Record<string, any> = any> {
 
 /** Request body as the adapter hands it over: a JSON string, or an object a host already parsed */
 export type RawRequestBody = string | AnyObject;
-/** The object form is a pre-serialized response */
-export type RawResponseBody = string | AnyObject;
 
 // type-mion-request-start
 /** Router's own request object, do not confuse with the underlying raw request */
@@ -61,8 +59,6 @@ export interface MionRequest {
 export interface MionResponse {
   readonly statusCode: number;
   readonly headers: Readonly<MionHeaders>;
-  readonly rawBody: RawResponseBody;
-  readonly serializer: SerializerCode;
   /** The router response data, never to be modified by hand */
   readonly body: Readonly<ResponseBody>;
   /** true once something ended the execution chain: a thrown error or a returned FatalError */

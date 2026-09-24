@@ -429,7 +429,6 @@ describe('the methodsMetadata middleware answers on the json framing every chain
       body: JSON.stringify({sayHello: ['World'], [MION_ROUTES.methodsMetadata]: [['sayHello']]}),
     };
     const response = await dispatchRoute('/sayHello', request.body, request.headers, headersFromRecord({}), request, {});
-    expect(response.serializer).toBe(SerializerModes.json);
     expect(response.body.sayHello).toBe('Hello, World!');
     const metadata = unwrap(response.body[MION_ROUTES.methodsMetadata]) as SerializableMethodsData;
     expect(metadata.methods).toHaveProperty('sayHello');
@@ -499,7 +498,6 @@ describe('the methodsMetadata middleware answers on the json framing every chain
     };
     const response = await dispatchRoute('/sayHello', request.body, request.headers, headersFromRecord({}), request, {});
 
-    expect(response.serializer).toBe(SerializerModes.json);
     expect(response.body.sayHello).toBe('Hello, World!');
   });
 });

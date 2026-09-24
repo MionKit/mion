@@ -1,13 +1,6 @@
 // ####### Executables #######
 
-import type {
-  ParserOption,
-  HeadersMethodWithJitFns,
-  MethodWithJitFns,
-  RemoteMethodOpts,
-  RouteOnlyOptions,
-  SerializerCode,
-} from '@mionjs/core'; // do not import type only
+import type {ParserOption, HeadersMethodWithJitFns, MethodWithJitFns, RemoteMethodOpts, RouteOnlyOptions} from '@mionjs/core'; // do not import type only
 import type {AnyHandler, Handler, HeaderHandler, RawMiddlewareHandler} from './handlers.ts'; // do not import type only
 import {HandlerType} from '@mionjs/core'; // do not import type only
 
@@ -106,8 +99,6 @@ export interface MethodsExecutionChain {
    *  on `readsBody`). */
   routeIndex: number;
   methods: RemoteMethod[];
-  /** Precalculated serializer code for the route's response body type */
-  serializer: SerializerCode;
   /** The path this chain is registered at, which IS the transformed path a request resolves to:
    *  the lookup is a Map hit on that exact string. Undefined on the two kinds that answer for many
    *  paths, mion's not-found chains and a merged batch chain (cached per member-path list, so one
