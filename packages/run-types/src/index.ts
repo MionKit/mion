@@ -210,5 +210,5 @@ export {
 // On a cycle the encoders throw this, validate returns false and getValidationErrors records `{expected: 'circular'}`.
 export {CircularReferenceError, type CircularPath} from './runtypes/circular.ts';
 
-// Prefix of the error every decoder throws for a prototype-named key; the router matches on it.
-export {UNSAFE_PROPERTY_NAME_MESSAGE} from './runtypes/unsafeKeys.ts';
+// Prefix of every decoder's prototype-named-key error; the router matches on it and Go's UnsafeKeyMessage must match.
+export const UNSAFE_PROPERTY_NAME_MESSAGE = '[mion] Unsafe property name: ';
