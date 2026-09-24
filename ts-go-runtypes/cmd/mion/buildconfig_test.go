@@ -460,19 +460,24 @@ func TestFindTsRuntypesPlugin_KeepsOtherPluginsOut(t *testing.T) {
 // TestRemovedPluginKeys pins that a retired key is reported with the
 // replacement rather than as a bare "unknown key".
 func TestRemovedPluginKeys(t *testing.T) {
-	dir := t.TempDir()
-	writeTestFile(t, filepath.Join(dir, "tsconfig.json"),
-		`{ "compilerOptions": { "plugins": [ { "name": "mion", "failOnError": false } ] } }`)
-	unknown := unknownPluginKeys(dir, "tsconfig.json")
-	if len(unknown) != 1 || unknown[0] != "failOnError" {
-		t.Fatalf("failOnError is no longer a key, so it surfaces: %v", unknown)
-	}
-	message, removed := removedPluginKeys["failOnError"]
-	if !removed {
-		t.Fatal("failOnError needs a migration message, not a generic warning")
-	}
-	if !strings.Contains(message, "downgradeErrors") {
-		t.Errorf("the message must name the replacement, got %q", message)
+	for _, removedKey := range []struct{ key, value, replacement string }{
+		{"failOnError", "false", "downgradeErrors"},
+		{"parse", `{"strategy": "strip"}`, "createJsonDecoderFn"},
+	} {
+		dir := t.TempDir()
+		writeTestFile(t, filepath.Join(dir, "tsconfig.json"),
+			`{ "compilerOptions": { "plugins": [ { "name": "mion", "`+removedKey.key+`": `+removedKey.value+` } ] } }`)
+		unknown := unknownPluginKeys(dir, "tsconfig.json")
+		if len(unknown) != 1 || unknown[0] != removedKey.key {
+			t.Fatalf("%s is no longer a key, so it surfaces: %v", removedKey.key, unknown)
+		}
+		message, removed := removedPluginKeys[removedKey.key]
+		if !removed {
+			t.Fatalf("%s needs a migration message, not a generic warning", removedKey.key)
+		}
+		if !strings.Contains(message, removedKey.replacement) {
+			t.Errorf("the %s message must name the replacement, got %q", removedKey.key, message)
+		}
 	}
 }
 
