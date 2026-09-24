@@ -15,7 +15,10 @@ import {initClient} from '../../src/client.ts';
 import type {RouteSubRequest} from '../../src/types.ts';
 import {resetBundledApi} from '../../src/lib/bundledApi.ts';
 import {resetSyncRoutes} from '../../src/lib/syncRoutes.ts';
-import {resetApiVersionState} from '../lib/apiVersionUtils.ts';
+import {resetApiBuildVersion} from '../../src/lib/apiBuildVersion.ts';
+import {resetApiVersionRecovery} from '../../src/lib/apiVersionRecovery.ts';
+import {resetMetadataStore} from '../../src/lib/metadataStore.ts';
+import {resetClientCaches} from '../lib/testUtils.ts';
 import {freePort, startDriftServer, type DriftServerName} from './driftServer.ts';
 
 type DriftApi = typeof api;
@@ -26,9 +29,11 @@ const realFetch = globalThis.fetch;
 let fetches = 0;
 
 /** A page reload: nothing in memory survives, the stored metadata does. */
-async function reloadClient() {
-  await resetApiVersionState();
+function reloadClient() {
+  resetClientCaches();
   resetBundledApi();
+  resetApiBuildVersion();
+  resetApiVersionRecovery();
   resetSyncRoutes();
   return initClient<DriftApi>({baseURL: `http://localhost:${port}`, storageEngine: 'memory'});
 }
@@ -49,7 +54,7 @@ type Expect = 'runs' | 'refused';
 async function phase(server: DriftServerName, expected: {changed: Expect; secured: Expect}) {
   await stopServer?.();
   stopServer = await startDriftServer(server, port);
-  const {routes, middlewares} = await reloadClient();
+  const {routes, middlewares} = reloadClient();
 
   const same = await counted(() => routes.same(1).call());
   expect(same.value[0]).toBe(2);
@@ -91,6 +96,7 @@ async function phase(server: DriftServerName, expected: {changed: Expect; secure
 
 describe('a client built against server A while the server behind its address changes', () => {
   beforeAll(async () => {
+    await resetMetadataStore();
     port = await freePort();
     globalThis.fetch = ((...args: Parameters<typeof fetch>) => {
       fetches++;
@@ -126,9 +132,8 @@ describe('a client built against server A while the server behind its address ch
   it('the fetched route of a first visit costs one refused request, then runs', async () => {
     await stopServer?.();
     stopServer = await startDriftServer('a', port);
-    const {routes} = await reloadClient();
-    const {resetMetadataStore} = await import('../../src/lib/metadataStore.ts');
     await resetMetadataStore();
+    const {routes} = reloadClient();
     const first = await counted(() => callWide(routes.fetched(3)));
     expect(first.value[0]).toBe(2);
     expect(first.fetches).toBe(2);
