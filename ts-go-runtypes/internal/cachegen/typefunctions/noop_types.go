@@ -38,13 +38,6 @@ type NoopTypePredicate interface {
 	IsNoopType(rt *reflection.RunType, ctx *EmitContext) bool
 }
 
-// NoopComposeAround marks families whose noop child may compile to EMPTY code, sound only when noop means untouched.
-type NoopComposeAround interface {
-	NoopTypePredicate
-	// NoopChildComposesAround is a marker method: implementing it claims empty code composes correctly here.
-	NoopChildComposesAround()
-}
-
 // jsonNoopMode selects the encode (prepareForJson) or decode (restoreFromJsonMutate) arm table of the shared
 // JSON-transform predicate. The two diverge exactly where the emitters do: Date / Temporal are noop on encode
 // (native toJSON) but rebuild on decode, `undefined` is noop on encode but force-rebinds on decode, and a

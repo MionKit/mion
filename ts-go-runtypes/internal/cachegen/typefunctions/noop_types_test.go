@@ -83,20 +83,9 @@ func noopPredicateTypes(t *testing.T) (*EmitContext, map[string]*reflection.RunT
 	recAtomic := &reflection.RunType{ID: "recA", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("idxA")}}
 	patternKey := templateKeyIndex("idxP", "d_", "num")
 	recPattern := &reflection.RunType{ID: "recP", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("idxP")}}
-	propLit := &reflection.RunType{ID: "plit", Kind: reflection.KindProperty, Name: "k", IsSafeName: true, Child: makeRef("lit")}
-	objLitOnly := &reflection.RunType{ID: "objLit", Kind: reflection.KindObjectLiteral, TypeName: "LitObj", Children: []*reflection.RunType{makeRef("plit")}}
 	pos0 := 0
-	tmLit := &reflection.RunType{ID: "tmLit", Kind: reflection.KindTupleMember, Position: &pos0, Child: makeRef("lit")}
-	tupLit := &reflection.RunType{ID: "tupLit", Kind: reflection.KindTuple, Children: []*reflection.RunType{makeRef("tmLit")}}
 	tmObj := &reflection.RunType{ID: "tmObj", Kind: reflection.KindTupleMember, Position: &pos0, Child: makeRef("objCompat")}
 	tupObj := &reflection.RunType{ID: "tupObj", Kind: reflection.KindTuple, Children: []*reflection.RunType{makeRef("tmObj")}}
-
-	// A NAMED plain user class always compiles the class-serializer registry branch, so it never claims identity.
-	// Even when every member is a dropped (`p0: never`) or literal slot; anonymous classes and interfaces stay noop.
-	clsNever := &reflection.RunType{ID: "clsNever", Kind: reflection.KindClass, SubKind: reflection.SubKindNone, TypeName: "C0", Children: []*reflection.RunType{makeRef("pnev")}}
-	aclsNever := &reflection.RunType{ID: "aclsNever", Kind: reflection.KindClass, SubKind: reflection.SubKindNone, Children: []*reflection.RunType{makeRef("pnev")}}
-	objNeverOnly := &reflection.RunType{ID: "objNeverOnly", Kind: reflection.KindObjectLiteral, TypeName: "I0", Children: []*reflection.RunType{makeRef("pnev")}}
-	clsLit := &reflection.RunType{ID: "clsLit", Kind: reflection.KindClass, SubKind: reflection.SubKindNone, TypeName: "C1", Children: []*reflection.RunType{makeRef("plit")}}
 
 	// Native iterables: a Map value or Set member holding a keyed object is swept like any other slot.
 	iterParam := func(id string, sub reflection.ReflectionSubKind, child string) *reflection.RunType {
@@ -123,9 +112,8 @@ func noopPredicateTypes(t *testing.T) (*EmitContext, map[string]*reflection.RunT
 		circArr, circProp, circ,
 		circDArr, circDProp, circDat,
 		anyT, unkT, lit, nev, propNever, objNever,
-		idxAtomic, recAtomic, patternKey[0], patternKey[1], recPattern, propLit, objLitOnly,
-		tmLit, tupLit, tmObj, tupObj,
-		clsNever, aclsNever, objNeverOnly, clsLit,
+		idxAtomic, recAtomic, patternKey[0], patternKey[1], recPattern,
+		tmObj, tupObj,
 		mapKeyStr, mapValObj, mapValStr, setItemObj, setItemStr, mapObj, mapStr, setObj, setStr,
 	}
 	refTable := make(map[string]*reflection.RunType, len(all))

@@ -48,9 +48,6 @@ func (RestoreFromJsonCloneEmitter) IsNoopType(rt *reflection.RunType, ctx *EmitC
 	return isNoopForRestoreJsonSafe(rt, ctx)
 }
 
-// NoopChildComposesAround: an identity child slot passes through unchanged; empty code composes correctly.
-func (RestoreFromJsonCloneEmitter) NoopChildComposesAround() {}
-
 // Emit is RestoreFromJsonEmitter.Emit with the diverging arms in front; every
 // other kind is delegated so the two cannot drift.
 func (RestoreFromJsonCloneEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, codeType CodeType) RTCode {

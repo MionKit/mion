@@ -32,9 +32,6 @@ func (RestoreFromJsonEmitter) IsNoopType(rt *reflection.RunType, ctx *EmitContex
 	return isNoopForRestoreJson(rt, ctx)
 }
 
-// NoopChildComposesAround — a value slot that round-trips raw needs no rebuild; empty code composes correctly.
-func (RestoreFromJsonEmitter) NoopChildComposesAround() {}
-
 // ReturnName is `v`: restoreFromJsonMutate rebinds v and returns the reconstructed value.
 func (RestoreFromJsonEmitter) ReturnName() string {
 	return "v"

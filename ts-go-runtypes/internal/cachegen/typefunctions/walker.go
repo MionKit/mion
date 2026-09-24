@@ -587,10 +587,9 @@ func (w *Walker) dispatch(rt *reflection.RunType, expectedCType CodeType) RTCode
 			return RTCode{Code: "", Type: expectedCType}
 		}
 		// A child proven to be the family identity composes as empty code, which also folds circular identity bodies.
-		// Gated on NoopComposeAround, not NoopTypePredicate: only an opted-in family may skip a noop child.
 		// An override child skips the gate: its body is the user's contract, not the structural identity.
 		if !overrideChild && !w.disableNoopElision {
-			if predicate, ok := w.Emitter.(NoopComposeAround); ok {
+			if predicate, ok := w.Emitter.(NoopTypePredicate); ok {
 				emitCtx := w.getEmitContext(w.Vλl)
 				childIsNoop := predicate.IsNoopType(rt, emitCtx)
 				w.putEmitContext(emitCtx)

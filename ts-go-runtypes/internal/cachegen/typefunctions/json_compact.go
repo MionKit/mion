@@ -54,9 +54,6 @@ func (CompactForJsonEmitter) IsNoopType(rt *reflection.RunType, ctx *EmitContext
 	return isNoopForPrepareJsonSafe(rt, ctx)
 }
 
-// NoopChildComposesAround — cj shares pjs's rule, an elided child slot is shared by reference.
-func (CompactForJsonEmitter) NoopChildComposesAround() {}
-
 // Emit mirrors PrepareForJsonCloneEmitter.Emit; only the object-literal and plain-class arms go positional.
 func (CompactForJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ CodeType) RTCode {
 	if rt == nil {
