@@ -11,7 +11,7 @@ import {presetBuilder} from '../runtypes/builderCore.ts';
 // in Go: a lower bound is inclusive (`min`) OR exclusive (`gt`), never both, likewise the upper bound.
 export interface NumberParams {
   integer?: boolean;
-  /** Steers mocks toward fractional samples, never a constraint (2.0 is a float); exclusive with `integer`. */
+  /** Steers mocks toward fractional samples, NEVER a failable constraint (2.0 is a float); exclusive with `integer`. */
   float?: boolean;
   min?: number;
   max?: number;
