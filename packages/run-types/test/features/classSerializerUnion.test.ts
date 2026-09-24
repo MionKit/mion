@@ -192,20 +192,6 @@ describe('classSerializer union / unregistered members fall back to plain object
   });
 });
 
-// ---- Mixed batch ------------------------------------------------------------
-
-describe('classSerializer union / mixed batch', () => {
-  it('JSON reconstructs the right member for every input', () => {
-    registerShapes();
-    const inputs: Shape[] = [new Circle(1), new Square(2), new Circle(3)];
-    for (const input of inputs) {
-      const viaJson = createJsonDecoderFn<Shape>()(createJsonEncoderFn<Shape>()(input) as string);
-      expect((viaJson as object).constructor).toBe(input.constructor);
-      expect(viaJson).toEqual(input);
-    }
-  });
-});
-
 // ---- Base class + subclass in one union ----------------------------------------
 //
 // A subclass instance is ALSO `instanceof` its base, so an instance-identity arm

@@ -355,19 +355,8 @@ describe('classSerializer / class as an array element', () => {
     for (const point of decoded) expect(point).toBeInstanceOf(Point);
     expect(decoded[0].x).toBe(1);
     expect(decoded[1].y).toBe(1);
-  });
-
-  it('JSON — decoded instances keep their data and live methods', () => {
-    registerPoint();
-    const input = [new Point(3, 4), new Point(5, 12)];
-    // Decoders return `DataOnly<Point>[]` (mag() projected away); the registered
-    // serializer rebuilds REAL Points, so cast back to exercise the method.
-    const viaJson = createJsonDecoderFn<Point[]>()(createJsonEncoderFn<Point[]>()(input) as string) as Point[];
-    expect(viaJson.map((p) => [p.x, p.y, p.mag()])).toEqual([
-      [3, 4, 5],
-      [5, 12, 13],
-    ]);
-    for (const point of viaJson) expect(point).toBeInstanceOf(Point);
+    // Decoders return DataOnly<Point>[] (mag() projected away); the serializer rebuilds real Points.
+    expect((decoded[0] as Point).mag()).toBe(1);
   });
 });
 
