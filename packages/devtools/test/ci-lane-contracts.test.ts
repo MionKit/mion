@@ -99,6 +99,34 @@ describe('the lane table', () => {
     // a marker for a DIFFERENT hash never counts
     expect(decide(['js'], {hashes, greenKeys: [greenKey('js', 'def')]}).js.run).toBe(true);
   });
+
+  // A PR's partial run (core test-pr) must never let the push to main skip the full suite.
+  it('a partial js-pr marker skips a pull request only, never a push', () => {
+    const hashes = {js: 'abc'};
+    const greenKeys = [greenKey('js-pr', 'abc')];
+    expect(decide(['js'], {hashes, greenKeys, pr: true}).js.run).toBe(false);
+    expect(decide(['js'], {hashes, greenKeys}).js.run).toBe(true);
+    expect(decide(['js'], {hashes, greenKeys: [greenKey('js-pr', 'def')], pr: true}).js.run).toBe(true);
+  });
+
+  it('ci-lanes passes --pr only on a pull_request event', () => {
+    expect(read('.github/actions/ci-lanes/action.yml')).toContain(
+      "--github ${{ github.event_name == 'pull_request' && '--pr' || '' }}"
+    );
+  });
+
+  it('js-lint saves the full js marker only for a full run, and js-pr for a partial one', () => {
+    const ci = read('.github/workflows/ci.yml');
+    const suite = ci.slice(ci.indexOf('- name: JS suite (everything except test/fuzz)'));
+    expect(suite).toMatch(/scope=partial"[^\n]*\n\s+pnpm miondevx core test-pr --base HEAD\^1/);
+    expect(suite).toMatch(/scope=full"[^\n]*\n\s+pnpm exec vitest run/);
+    expect(ci).toMatch(
+      /if: success\(\) && steps\.suite\.outputs\.scope == 'full'\n\s+uses: \.\/\.github\/actions\/save-lane-green\n\s+with:\n\s+lane: js\n/
+    );
+    expect(ci).toMatch(
+      /if: success\(\) && steps\.suite\.outputs\.scope == 'partial'\n\s+uses: \.\/\.github\/actions\/save-lane-green\n\s+with:\n\s+lane: js-pr\n/
+    );
+  });
 });
 
 // The ignore list is only safe because nothing gated reads those paths. The three

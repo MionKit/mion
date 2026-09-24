@@ -128,15 +128,21 @@ export function laneHashes(ref = 'HEAD', {cwd = REPO_ROOT} = {}) {
 // that this content passed, which is why a marker proven on another branch counts.
 export const greenKey = (lane, hash) => `mion-lane-green-${lane}-${hash}`;
 
+// A narrower marker a pull request may accept for a lane: `core test-pr` runs only the
+// packages a PR touched and saves `js-pr`. A push to main never accepts it, so main
+// still runs the full suite once after the merge.
+export const PR_PROOF = {js: 'js-pr'};
+
 // Decide the asked-for lanes. Every unknown resolves to RUN: an unreadable or
 // empty key list (a fork pull request has no token) skips nothing.
-export function decide(wanted, {hashes, greenKeys = []}) {
+export function decide(wanted, {hashes, greenKeys = [], pr = false}) {
   const green = new Set(greenKeys);
   const lanes = {};
   for (const name of wanted) {
     const hash = hashes[name];
     if (!hash) die(`no such lane: ${name} (known lanes: ${Object.keys(LANES).join(', ')})`);
-    const run = !green.has(greenKey(name, hash));
+    const prProof = pr && PR_PROOF[name] !== undefined && green.has(greenKey(PR_PROOF[name], hash));
+    const run = !green.has(greenKey(name, hash)) && !prProof;
     lanes[name] = {run, hash, reason: run ? 'inputs not proven green yet' : 'these exact inputs already passed'};
   }
   return lanes;
@@ -169,7 +175,7 @@ export function main(args) {
   } catch {
     note(`could not read ${keyFile}, so every lane runs`);
   }
-  const lanes = decide(wanted, {hashes, greenKeys});
+  const lanes = decide(wanted, {hashes, greenKeys, pr: args.includes('--pr')});
   for (const [name, lane] of Object.entries(lanes)) note(`${name.padEnd(9)} ${lane.run ? 'RUN ' : 'skip'}  ${lane.reason}`);
   if (!args.includes('--github')) return console.log(JSON.stringify(lanes, null, 2));
 
