@@ -5,7 +5,7 @@
 // Template-literal-keyed index signatures are excluded: the reference interpreter does not model them yet.
 
 import {describe, it, expect} from 'vitest';
-import {createRemoveUnknownKeysFn, createHasUnknownKeysFn, createValidateFn} from '@mionjs/run-types';
+import {createRemoveUnknownKeysFn, createValidateFn} from '@mionjs/run-types';
 import {getRunType} from '@mionjs/run-types';
 import {createMockDataFn} from '@mionjs/run-types/mocking';
 import {runCloneFuzz, runCloneFuzzForDuration} from './cloneFuzzRunner.ts';
@@ -56,7 +56,7 @@ const targets: CloneFuzzTarget[] = [];
     schema: getRunType<FlatUser>(),
     mock: createMockDataFn<FlatUser>(),
     validate: createValidateFn<FlatUser>(),
-    hasUnknownKeys: createHasUnknownKeysFn<FlatUser>(),
+    validateStrict: createValidateFn<FlatUser>(undefined, {checkUnknowns: true}),
     clone: createRemoveUnknownKeysFn<FlatUser>(),
   });
 }
@@ -72,7 +72,7 @@ const targets: CloneFuzzTarget[] = [];
     schema: getRunType<Nested>(),
     mock: createMockDataFn<Nested>(),
     validate: createValidateFn<Nested>(),
-    hasUnknownKeys: createHasUnknownKeysFn<Nested>(),
+    validateStrict: createValidateFn<Nested>(undefined, {checkUnknowns: true}),
     clone: createRemoveUnknownKeysFn<Nested>(),
   });
 }
@@ -89,7 +89,7 @@ const targets: CloneFuzzTarget[] = [];
     schema: getRunType<OptionalProps>(),
     mock: createMockDataFn<OptionalProps>(),
     validate: createValidateFn<OptionalProps>(),
-    hasUnknownKeys: createHasUnknownKeysFn<OptionalProps>(),
+    validateStrict: createValidateFn<OptionalProps>(undefined, {checkUnknowns: true}),
     clone: createRemoveUnknownKeysFn<OptionalProps>(),
   });
 }
@@ -105,7 +105,7 @@ const targets: CloneFuzzTarget[] = [];
     schema: getRunType<UndefinedProp>(),
     mock: createMockDataFn<UndefinedProp>(),
     validate: createValidateFn<UndefinedProp>(),
-    hasUnknownKeys: createHasUnknownKeysFn<UndefinedProp>(),
+    validateStrict: createValidateFn<UndefinedProp>(undefined, {checkUnknowns: true}),
     clone: createRemoveUnknownKeysFn<UndefinedProp>(),
   });
 }
@@ -121,7 +121,7 @@ const targets: CloneFuzzTarget[] = [];
     // `Object.create(Object.getPrototypeOf(v))` rebuild path is exercised.
     mock: () => Object.assign(new CloneFuzzLedger(), mockPlain()),
     validate: createValidateFn<CloneFuzzLedger>(),
-    hasUnknownKeys: createHasUnknownKeysFn<CloneFuzzLedger>(),
+    validateStrict: createValidateFn<CloneFuzzLedger>(undefined, {checkUnknowns: true}),
     clone: createRemoveUnknownKeysFn<CloneFuzzLedger>(),
   });
 }
@@ -133,7 +133,7 @@ const targets: CloneFuzzTarget[] = [];
     schema: getRunType<string[]>(),
     mock: createMockDataFn<string[]>(),
     validate: createValidateFn<string[]>(),
-    hasUnknownKeys: createHasUnknownKeysFn<string[]>(),
+    validateStrict: createValidateFn<string[]>(undefined, {checkUnknowns: true}),
     clone: createRemoveUnknownKeysFn<string[]>(),
   });
 }
@@ -149,7 +149,7 @@ const targets: CloneFuzzTarget[] = [];
     schema: getRunType<ArrayItem[]>(),
     mock: createMockDataFn<ArrayItem[]>(),
     validate: createValidateFn<ArrayItem[]>(),
-    hasUnknownKeys: createHasUnknownKeysFn<ArrayItem[]>(),
+    validateStrict: createValidateFn<ArrayItem[]>(undefined, {checkUnknowns: true}),
     clone: createRemoveUnknownKeysFn<ArrayItem[]>(),
   });
 }
@@ -162,7 +162,7 @@ const targets: CloneFuzzTarget[] = [];
     schema: getRunType<TupleOptional>(),
     mock: createMockDataFn<TupleOptional>(),
     validate: createValidateFn<TupleOptional>(),
-    hasUnknownKeys: createHasUnknownKeysFn<TupleOptional>(),
+    validateStrict: createValidateFn<TupleOptional>(undefined, {checkUnknowns: true}),
     clone: createRemoveUnknownKeysFn<TupleOptional>(),
   });
 }
@@ -175,7 +175,7 @@ const targets: CloneFuzzTarget[] = [];
     schema: getRunType<TupleRest>(),
     mock: createMockDataFn<TupleRest>(),
     validate: createValidateFn<TupleRest>(),
-    hasUnknownKeys: createHasUnknownKeysFn<TupleRest>(),
+    validateStrict: createValidateFn<TupleRest>(undefined, {checkUnknowns: true}),
     clone: createRemoveUnknownKeysFn<TupleRest>(),
   });
 }
@@ -188,7 +188,7 @@ const targets: CloneFuzzTarget[] = [];
     schema: getRunType<TupleDateObject>(),
     mock: createMockDataFn<TupleDateObject>(),
     validate: createValidateFn<TupleDateObject>(),
-    hasUnknownKeys: createHasUnknownKeysFn<TupleDateObject>(),
+    validateStrict: createValidateFn<TupleDateObject>(undefined, {checkUnknowns: true}),
     clone: createRemoveUnknownKeysFn<TupleDateObject>(),
   });
 }
@@ -201,7 +201,7 @@ const targets: CloneFuzzTarget[] = [];
     schema: getRunType<MapAtomic>(),
     mock: createMockDataFn<MapAtomic>(),
     validate: createValidateFn<MapAtomic>(),
-    hasUnknownKeys: createHasUnknownKeysFn<MapAtomic>(),
+    validateStrict: createValidateFn<MapAtomic>(undefined, {checkUnknowns: true}),
     clone: createRemoveUnknownKeysFn<MapAtomic>(),
   });
 }
@@ -214,7 +214,7 @@ const targets: CloneFuzzTarget[] = [];
     schema: getRunType<MapObject>(),
     mock: createMockDataFn<MapObject>(),
     validate: createValidateFn<MapObject>(),
-    hasUnknownKeys: createHasUnknownKeysFn<MapObject>(),
+    validateStrict: createValidateFn<MapObject>(undefined, {checkUnknowns: true}),
     clone: createRemoveUnknownKeysFn<MapObject>(),
   });
 }
@@ -227,7 +227,7 @@ const targets: CloneFuzzTarget[] = [];
     schema: getRunType<SetAtomic>(),
     mock: createMockDataFn<SetAtomic>(),
     validate: createValidateFn<SetAtomic>(),
-    hasUnknownKeys: createHasUnknownKeysFn<SetAtomic>(),
+    validateStrict: createValidateFn<SetAtomic>(undefined, {checkUnknowns: true}),
     clone: createRemoveUnknownKeysFn<SetAtomic>(),
   });
 }
@@ -240,7 +240,7 @@ const targets: CloneFuzzTarget[] = [];
     schema: getRunType<SetObject>(),
     mock: createMockDataFn<SetObject>(),
     validate: createValidateFn<SetObject>(),
-    hasUnknownKeys: createHasUnknownKeysFn<SetObject>(),
+    validateStrict: createValidateFn<SetObject>(undefined, {checkUnknowns: true}),
     clone: createRemoveUnknownKeysFn<SetObject>(),
   });
 }
@@ -257,7 +257,7 @@ const targets: CloneFuzzTarget[] = [];
     schema: getRunType<DateTemporal>(),
     mock: createMockDataFn<DateTemporal>(),
     validate: createValidateFn<DateTemporal>(),
-    hasUnknownKeys: createHasUnknownKeysFn<DateTemporal>(),
+    validateStrict: createValidateFn<DateTemporal>(undefined, {checkUnknowns: true}),
     clone: createRemoveUnknownKeysFn<DateTemporal>(),
   });
 }
@@ -273,7 +273,7 @@ const targets: CloneFuzzTarget[] = [];
     schema: getRunType<RegExpProp>(),
     mock: createMockDataFn<RegExpProp>(undefined, {mock: {nonDataTypes: true}}),
     validate: createValidateFn<RegExpProp>(),
-    hasUnknownKeys: createHasUnknownKeysFn<RegExpProp>(),
+    validateStrict: createValidateFn<RegExpProp>(undefined, {checkUnknowns: true}),
     clone: createRemoveUnknownKeysFn<RegExpProp>(),
   });
 }
@@ -286,7 +286,7 @@ const targets: CloneFuzzTarget[] = [];
     schema: getRunType<RecordAtomic>(),
     mock: createMockDataFn<RecordAtomic>(),
     validate: createValidateFn<RecordAtomic>(),
-    hasUnknownKeys: createHasUnknownKeysFn<RecordAtomic>(),
+    validateStrict: createValidateFn<RecordAtomic>(undefined, {checkUnknowns: true}),
     clone: createRemoveUnknownKeysFn<RecordAtomic>(),
   });
 }
@@ -302,7 +302,7 @@ const targets: CloneFuzzTarget[] = [];
     schema: getRunType<RecordObject>(),
     mock: createMockDataFn<RecordObject>(),
     validate: createValidateFn<RecordObject>(),
-    hasUnknownKeys: createHasUnknownKeysFn<RecordObject>(),
+    validateStrict: createValidateFn<RecordObject>(undefined, {checkUnknowns: true}),
     clone: createRemoveUnknownKeysFn<RecordObject>(),
   });
 }
@@ -318,7 +318,7 @@ const targets: CloneFuzzTarget[] = [];
     schema: getRunType<LiteralUnionField>(),
     mock: createMockDataFn<LiteralUnionField>(),
     validate: createValidateFn<LiteralUnionField>(),
-    hasUnknownKeys: createHasUnknownKeysFn<LiteralUnionField>(),
+    validateStrict: createValidateFn<LiteralUnionField>(undefined, {checkUnknowns: true}),
     clone: createRemoveUnknownKeysFn<LiteralUnionField>(),
   });
 }
@@ -334,7 +334,7 @@ const targets: CloneFuzzTarget[] = [];
     schema: getRunType<UnionDateNull>(),
     mock: createMockDataFn<UnionDateNull>(),
     validate: createValidateFn<UnionDateNull>(),
-    hasUnknownKeys: createHasUnknownKeysFn<UnionDateNull>(),
+    validateStrict: createValidateFn<UnionDateNull>(undefined, {checkUnknowns: true}),
     clone: createRemoveUnknownKeysFn<UnionDateNull>(),
   });
 }
@@ -349,7 +349,7 @@ const targets: CloneFuzzTarget[] = [];
     schema: getRunType<UnionArrayOrNumber>(),
     mock: createMockDataFn<UnionArrayOrNumber>(),
     validate: createValidateFn<UnionArrayOrNumber>(),
-    hasUnknownKeys: createHasUnknownKeysFn<UnionArrayOrNumber>(),
+    validateStrict: createValidateFn<UnionArrayOrNumber>(undefined, {checkUnknowns: true}),
     clone: createRemoveUnknownKeysFn<UnionArrayOrNumber>(),
   });
 }
@@ -362,7 +362,7 @@ const targets: CloneFuzzTarget[] = [];
     schema: getRunType<AtomicUnionRoot>(),
     mock: createMockDataFn<AtomicUnionRoot>(),
     validate: createValidateFn<AtomicUnionRoot>(),
-    hasUnknownKeys: createHasUnknownKeysFn<AtomicUnionRoot>(),
+    validateStrict: createValidateFn<AtomicUnionRoot>(undefined, {checkUnknowns: true}),
     clone: createRemoveUnknownKeysFn<AtomicUnionRoot>(),
   });
 }
@@ -378,7 +378,7 @@ const targets: CloneFuzzTarget[] = [];
     schema: getRunType<UnionMixedNatives>(),
     mock: createMockDataFn<UnionMixedNatives>(),
     validate: createValidateFn<UnionMixedNatives>(),
-    hasUnknownKeys: createHasUnknownKeysFn<UnionMixedNatives>(),
+    validateStrict: createValidateFn<UnionMixedNatives>(undefined, {checkUnknowns: true}),
     clone: createRemoveUnknownKeysFn<UnionMixedNatives>(),
   });
 }
@@ -393,7 +393,7 @@ const targets: CloneFuzzTarget[] = [];
     schema: getRunType<CircTree>(),
     mock: createMockDataFn<CircTree>(),
     validate: createValidateFn<CircTree>(),
-    hasUnknownKeys: createHasUnknownKeysFn<CircTree>(),
+    validateStrict: createValidateFn<CircTree>(undefined, {checkUnknowns: true}),
     clone: createRemoveUnknownKeysFn<CircTree>(),
   });
 }
@@ -405,7 +405,7 @@ const targets: CloneFuzzTarget[] = [];
     schema: getRunType<CircPartA>(),
     mock: createMockDataFn<CircPartA>(),
     validate: createValidateFn<CircPartA>(),
-    hasUnknownKeys: createHasUnknownKeysFn<CircPartA>(),
+    validateStrict: createValidateFn<CircPartA>(undefined, {checkUnknowns: true}),
     clone: createRemoveUnknownKeysFn<CircPartA>(),
   });
 }
@@ -423,7 +423,7 @@ const targets: CloneFuzzTarget[] = [];
     schema: getRunType<DeepComposite>(),
     mock: createMockDataFn<DeepComposite>(),
     validate: createValidateFn<DeepComposite>(),
-    hasUnknownKeys: createHasUnknownKeysFn<DeepComposite>(),
+    validateStrict: createValidateFn<DeepComposite>(undefined, {checkUnknowns: true}),
     clone: createRemoveUnknownKeysFn<DeepComposite>(),
   });
 }
@@ -434,7 +434,7 @@ const targets: CloneFuzzTarget[] = [];
     name: string;
     onClick: () => void;
   }
-  const hasUnknownKeysFn = createHasUnknownKeysFn<FnProp>();
+  const strictFnProp = createValidateFn<Omit<FnProp, 'onClick'>>(undefined, {checkUnknowns: true});
   targets.push({
     title: 'FnProp',
     schema: getRunType<FnProp>(),
@@ -442,8 +442,11 @@ const targets: CloneFuzzTarget[] = [];
     // reference contract is exercised (default mocks skip non-data members).
     mock: createMockDataFn<FnProp>(undefined, {mock: {nonDataTypes: true}}),
     validate: createValidateFn<FnProp>(),
-    // The clone keeps function members (RUK010) that hasUnknownKeys skips by default; checkNonRTProps aligns them.
-    hasUnknownKeys: (value) => hasUnknownKeysFn(value, {checkNonRTProps: true}),
+    // The clone keeps function members (RUK010), which the strict validator rejects as undeclared; drop the declared one.
+    validateStrict: (value) => {
+      const {onClick: _onClick, ...data} = value as FnProp;
+      return strictFnProp(data);
+    },
     clone: createRemoveUnknownKeysFn<FnProp>(),
   });
 }
@@ -460,7 +463,7 @@ const targets: CloneFuzzTarget[] = [];
     schema: getRunType<BigintSymbol>(),
     mock: createMockDataFn<BigintSymbol>(),
     validate: createValidateFn<BigintSymbol>(),
-    hasUnknownKeys: createHasUnknownKeysFn<BigintSymbol>(),
+    validateStrict: createValidateFn<BigintSymbol>(undefined, {checkUnknowns: true}),
     clone: createRemoveUnknownKeysFn<BigintSymbol>(),
   });
 }

@@ -7,11 +7,10 @@
 // The families this feeds are the ones that decide what an "unknown key" is,
 // each with its own Go emitter and its own arm per position:
 //
-//   huk   createHasUnknownKeysFn
-//   uke   createUnknownKeyErrorsFn
+//   vst / vest  the `{checkUnknowns: true}` validators (vest's `expected: 'never'`
+//               entries are the unknown-key report)
 //   ruk   createRemoveUnknownKeysFn      (the public strip)
 //   ukuw  the JSON decoder's `strategy: 'strip'` pre-pass
-//   vst / vest  the `{checkUnknowns: true}` validators, which reuse huk / uke
 //
 // They have drifted apart more than once, always the same way: a position the
 // shared merged-allowlist walk did not reach. So this walker's job is reach,
@@ -55,7 +54,7 @@ const sub = RunTypeSubKind;
 export type UnknownKeyPositionKind = 'flagged' | 'carveOut';
 
 export interface UnknownKeyPosition {
-  /** The container's path, spelled the way `unknownKeyErrors` spells it: a
+  /** The container's path, spelled the way the unknown-key report spells it: a
    *  string for an object key, a number for an array / tuple index, and a
    *  `{key, failed}` segment for a Map / Set entry. The reported path of the
    *  planted key is this path plus the key name. **/
@@ -280,7 +279,7 @@ function walk(node: RunType, value: unknown, path: RTValidationErrorPathSegment[
     const args = (node.arguments ?? []) as RunType[];
     if (subKind === sub.map && value instanceof Map) {
       // `key` is the entry's iteration index and `failed` says which side —
-      // exactly what unknownKeyErrors pushes for a Map entry.
+      // exactly what the unknown-key report pushes for a Map entry.
       const keyType = args[0]?.child;
       const valueType = args[1]?.child;
       let index = 0;
@@ -324,7 +323,7 @@ export function plantUnknownKey(runType: RunType, value: unknown, rng: () => num
 }
 
 /** The wire oracles' judge: true when the container holding a SURVIVING planted key declares every
- *  key, so a correct decoder keeps it. `path` is the survivor's full path the way `unknownKeyErrors`
+ *  key, so a correct decoder keeps it. `path` is the survivor's full path the way the unknown-key report
  *  spells it, key name last. Lenient on purpose: at a union every member that could hold the next
  *  segment is a candidate, and `any`, `unknown`, a bare `object` or a ref admits whatever sits
  *  below it. A false "admitted" only costs coverage; a false "not admitted" fails on correct code.
