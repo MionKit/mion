@@ -1,15 +1,7 @@
-// Runtime-enumerability guard for global-inherited + `@nonEnumerable` props. A guarded
-// property's by-name write is gated on a runtime own-enumerability check
-// (`Object.prototype.propertyIsEnumerable`, JSON.stringify semantics) in the
-// families that build output by name (prepareForJsonSafe / compactForJson /
-// toBinary). The guard invariant is GUARDED ⇒ OPTIONAL-in-type,
-// so DataOnly<T> is sound by construction: a member is guarded only when the
-// type already permits its absence. A `@nonEnumerable` tag therefore takes effect
-// only on an OPTIONAL property; on a required one it is a no-op (the NE lint rule
-// flags that). Guarded props are optional to validators / the decode presence
-// path.
-//
-// (Marker coverage rule: both getRunTypeId call shapes, converging + hash-equal.)
+// Families that write output by name (prepareForJsonSafe / compactForJson / toBinary) gate a guarded prop
+// (global-inherited or `@nonEnumerable`) on `propertyIsEnumerable`. Guarded implies optional, so DataOnly<T> stays
+// sound: `@nonEnumerable` on a required prop is a no-op the NE lint rule flags. Both getRunTypeId call shapes are
+// covered, per the marker coverage rule.
 
 import {describe, expect, it} from 'vitest';
 import {

@@ -1,11 +1,5 @@
-// The closedness stamp: `libraryOptions.encoderStrategy` derives
-// `additionalProperties` from the paired JSON encoder's wire policy. A `clone`
-// pairing never emits undeclared keys, so every KEYED object node in
-// the document closes with `additionalProperties: false`; `mutate` preserves
-// extras and leaves the document open; `compact` writes positional arrays the
-// keyed document does not describe, so it refuses. There is deliberately NO
-// independent additionalProperties param — the strategy is the single source
-// of the key policy, so the document can never contradict the codec.
+// `libraryOptions.encoderStrategy` sets `additionalProperties`: `clone` closes every keyed object node, `mutate` leaves
+// it open, `compact` refuses (positional arrays). No separate option exists, so the document cannot contradict the codec.
 
 import {describe, expect, it} from 'vitest';
 import {createJsonSchemaFn, createStandardSchema} from '@mionjs/run-types';

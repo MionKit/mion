@@ -36,9 +36,7 @@ func TestRootWrap_UndefinedVoidEncodersWrap(t *testing.T) {
 	}
 }
 
-// Decoders are deliberately unchanged: the restore primitive for undefined/void
-// yields undefined for ANY parsed input — the wrapped document round-trips with
-// no decode-side unwrap.
+// Decoders stay unchanged: the undefined/void restore yields undefined for ANY parsed input, so no unwrap is needed.
 func TestRootWrap_UndefinedDecodersUnchanged(t *testing.T) {
 	for tag, restoreCall := range map[string]string{"jdCL": "rjsFn(", "jdMU": "rjFn("} {
 		body := compositeBodyForKind(t, reflection.KindUndefined, tag)

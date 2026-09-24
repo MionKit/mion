@@ -1,13 +1,7 @@
-// Every family that answers "which keys are not declared by this type" held against the others, on
-// one value per shape. They are emitted separately, per kind, in four different Go files, and a
-// family that stops reaching a position faces UNTRUSTED input (the clone decoder is what a server
-// runs on a caller's payload) with nothing downstream to catch it: `validate` accepts undeclared
-// keys on an object literal by design.
-//
-// The value fuzz owns the random half of this. This suite owns the shapes: one row per position an
-// undeclared key can hide in, every family asserted on the same value, so a family that stops
-// agreeing names itself. A shape whose index signature declares every key answers the other way
-// round, so it gets its own test below rather than a row.
+// Every "which keys are undeclared" family held against the others, one row per position a key can hide in. They
+// are emitted in four Go files, and one that stops reaching a position faces untrusted input (the clone decoder runs
+// on a caller's payload) with nothing downstream: `validate` accepts undeclared keys by design. The value fuzz owns
+// the random half; an index signature that declares every key answers the other way, so it gets its own test.
 
 import {describe, expect, it} from 'vitest';
 import {

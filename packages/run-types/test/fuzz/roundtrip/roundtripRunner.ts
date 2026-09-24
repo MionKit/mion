@@ -1,15 +1,6 @@
-// All-strategy round-trip driver — generate a random SERIALISABLE type
-// (DATA_GEN_OPTIONS), compile EVERY codec strategy for it (roundtripHarness),
-// generate one conforming data-only value (shapeValue), and round-trip it
-// through clone / mutate / compact / binary, checking the oracle agrees
-// (roundtripOracle).
-//
-// Scope: this lane is ADDITIVE to typeFuzzRunner. Resolver/emit robustness
-// (TR1–TR4) and the wild non-serialisable space are policed there; here we only
-// exercise the all-strategy serialization matrix on clean serialisable types, so
-// non-serialisable / error-diagnostic / recursive / floored types are skipped
-// rather than reported. Each iteration seeds the type AND its value from one
-// number, so a reported violation replays exactly.
+// All-strategy round-trip driver, additive to typeFuzzRunner: that one polices resolver robustness (TR1–TR4) and
+// non-serialisable types, so here those are skipped, not reported. One seed drives the type AND its value, so a
+// violation replays exactly.
 
 import {mixSeed, withSeededRandom} from '../core/seededRng.ts';
 import {runFuzzLoop} from '../core/runLoop.ts';

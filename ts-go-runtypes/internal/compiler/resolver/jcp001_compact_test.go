@@ -7,17 +7,9 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
-// JCP001 regression — the `compact` JSON strategy over a type whose
-// unserializable leaf (function / symbol) sits at a PROPAGATING position (tuple
-// slot, array element, record value, callable object) must render an
-// alwaysThrow primitive entry with the SAME per-family diagnostic its sibling
-// strategy emits — cj mirrors prepareForJsonClone (clone → PJS*), cjr mirrors
-// restoreFromJsonMutate (mutate → RJ*) — NOT silently skip the primitive and leave
-// the compact composite binding a never-rendered entry (the JCP001 internal
-// breach). Before the fix the compact emitters implemented neither
-// DiagCodeProvider nor LeafDiagCodeProvider, so an unsupported leaf produced an
-// empty entry the composite still bound (`utl.getRT(cj_<id>).fn` on a module
-// that never registered).
+// JCP001: `compact` over a function / symbol leaf at a propagating position (tuple slot, array element, record value,
+// callable object) must render an alwaysThrow with its sibling's code (cj as clone → PJS*, cjr as mutate → RJ*),
+// never an empty entry the composite still binds.
 
 // jcp001CompactCase pairs a type shape with the root code its
 // unserializable-leaf position should surface (identical across the compact and

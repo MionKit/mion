@@ -43,13 +43,7 @@ describe('fuzzer regressions — index signatures & union dispatch', () => {
     ]);
   });
 
-  // The decoder's index-signature for-in sweep used to run on the NAMED
-  // sibling props too. For a named prop whose decoded value is a string (a
-  // RegExp on the wire), `for…in` over that string enumerated its character
-  // indices, which both corrupted the prop and (on a long value) overflowed the
-  // unknown-keys cap with "Too many unknown keys". The sweep now skips siblings.
-  // (The original repro used a RegExp prop; a RegExp is no longer data, and a
-  // Date is the same string-on-the-wire shape.)
+  // The index-signature sweep must skip named siblings: `for…in` over a Date's wire string walks its characters.
   test('the default decoder round-trips an object mixing a named Date prop with an index signature', () => {
     type T = {placed: Date; [k: number]: {a: number}};
     const encode = createJsonEncoderFn<T>();
@@ -91,21 +85,8 @@ describe('fuzzer regressions — index signatures & union dispatch', () => {
     }
   });
 
-  // A discriminated union whose object members share a merged property with
-  // structurally-overlapping candidate shapes used to produce a non-byte-stable
-  // JSON wire. Here member `t3`'s `f0` is `Record<string, undefined>`: a value
-  // `{k0: undefined}` serializes to `{}` because JSON drops undefined entries.
-  // The merged-prop sub-dispatch re-classified each prop value independently
-  // (first-match validate over the candidate list), so the original `{k0:
-  // undefined}` matched the Record candidate while the round-tripped `{}` matched
-  // an EARLIER all-optional object candidate (`{p0?: Set<…>}`, whose loose-check
-  // accepts the empty object) — a different sub-index, so
-  // encode(decode(encode(v))) !== encode(v) on clone / mutate / compact.
-  // The data was always correct (both wires decode to `{}`); only the wire drifted.
-  // Binary stayed stable (its Record codec keeps undefined keys, so the value
-  // never changes shape). The encoders now select each candidate by the union
-  // discriminant (`kind`), which survives the round-trip, so the sub-index — and
-  // the whole wire — is byte-stable. Lower priority than data bugs: wire only.
+  // `{k0: undefined}` encodes as `{}`, which first-match dispatch re-classifies as the earlier `{p0?: Set<…>}` member.
+  // The encoders pick the candidate by the `kind` discriminant instead, so the JSON wire stays byte-stable.
   test('discriminated union with overlapping merged-prop shapes keeps a byte-stable JSON wire', () => {
     type DiscOverlap = {kind: 't0'; f0: {p0?: Set<number>}} | {kind: 't3'; f0?: Record<string, undefined>};
 

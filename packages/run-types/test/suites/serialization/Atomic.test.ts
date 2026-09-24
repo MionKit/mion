@@ -1,6 +1,3 @@
-// serialization / Atomic — every ATOMIC case run through every JSON encoder × decoder pairing
-// (8 combinations) and the binary round-trip. One `it()` per pairing, each delegating to its
-// shared helper in util/serializationAsserts.ts.
 import {describe, it} from 'vitest';
 import {ATOMIC} from './Atomic.ts';
 import {

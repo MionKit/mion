@@ -1,5 +1,4 @@
-// The default (`clone`) JSON decoder rebuilds a union value from its members' declared keys, so an
-// undeclared key on the wire is dropped at a union node too, whether or not the wire is enveloped.
+// The default `clone` decoder drops an undeclared key at a union node too, enveloped wire or not.
 
 import {describe, expect, it} from 'vitest';
 import {createJsonDecoderFn, createJsonEncoderFn} from '@mionjs/run-types';
@@ -8,7 +7,7 @@ describe('the clone decoder drops undeclared keys at union nodes', () => {
   type Disjoint = {a: string} | {b: number};
 
   it('drops undeclared keys from a hand-written union payload', () => {
-    // Both members are JSON-compatible, so the wire is the bare object with no envelope.
+    // Both members are JSON-compatible, so the wire has no envelope.
     const wire = JSON.stringify({a: 'hi', evil: 'sneaky'});
     const decode = createJsonDecoderFn<Disjoint>();
     const restored = decode(wire);
@@ -36,7 +35,7 @@ describe('the clone decoder drops undeclared keys at union nodes', () => {
   });
 
   it('atomic-only union: the decoder is identity on the raw atomic wire', () => {
-    // Every member is JSON-natural, so the wire has no envelope to peel.
+    // Every member is JSON-natural, so the wire has no envelope.
     const decode = createJsonDecoderFn<string | number>();
     expect(decode('"hi"')).toBe('hi');
     expect(decode('42')).toBe(42);

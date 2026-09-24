@@ -1,6 +1,3 @@
-// serialization / UtilityTypes — every UTILITY_TYPES case run through every JSON encoder × decoder pairing
-// (8 combinations) and the binary round-trip. One `it()` per pairing, each delegating to its
-// shared helper in util/serializationAsserts.ts.
 import {describe, it} from 'vitest';
 import {UTILITY_TYPES} from './UtilityTypes.ts';
 import {

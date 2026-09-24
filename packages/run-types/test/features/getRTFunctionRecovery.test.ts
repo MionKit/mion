@@ -1,6 +1,5 @@
-// `getRTFunction` recovering compiled fns from ONE `InjectTypeFnArgs` marker, the road mion takes per route.
-// Covers `'pjs'`, `'rj'`, `'rjs'` and `'cj'` / `'cjr'` in both call shapes, paired to resolve the SAME compiled fn
-// (runtime twin of Go's TestAtomic_FormEquivalence).
+// `getRTFunction` recovering pjs, rj, rjs, cj and cjr from ONE marker, the road mion takes per route.
+// Both call shapes resolve the SAME compiled fn (runtime twin of Go's TestAtomic_FormEquivalence).
 
 import {describe, test, expect} from 'vitest';
 import {type InjectTypeFnArgs} from '@mionjs/run-types';

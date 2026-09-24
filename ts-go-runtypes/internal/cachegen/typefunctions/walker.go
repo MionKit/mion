@@ -123,11 +123,8 @@ type Walker struct {
 	// prefix. A flat per-prefix counter is enough because each Emit allocates a
 	// fixed number of names once.
 	localVarCounters map[string]int
-	// suppressInlineReserve tells the toBinary scalar arms to emit the RAW inline
-	// write WITHOUT its own `Ser.ensureCapacity?.(n)` reserve: a fixed-width array
-	// sets it so the loop body stays a tight raw write and the array reserves the
-	// whole element block once, then clears it. Never a ContextItems value: every
-	// value there is emitted verbatim as a prologue line.
+	// suppressInlineReserve drops the toBinary scalar arms' own reserve: a fixed-width array reserves the block once.
+	// Never a ContextItems value: every value there is emitted verbatim as a prologue line.
 	suppressInlineReserve bool
 	// Code is the assembled function body, the most recent root-level emitted code;
 	// Finalize normalises it on exit.
@@ -596,17 +593,9 @@ func (w *Walker) dispatch(rt *reflection.RunType, expectedCType CodeType) RTCode
 		if !w.Emitter.Supports(rt) {
 			return RTCode{Code: "", Type: expectedCType}
 		}
-		// Noop gate: when the predicate proves the child's entry would be the
-		// family identity, the import, the `utl.getRT` line and the per-call
-		// indirection all do nothing, so compose around it with empty code like
-		// the unsupported case above. This is also what collapses circular
-		// identity bodies: the cycle re-entry dispatches here, the predicate
-		// proves it noop, and the surrounding code folds away. Gated on
-		// NoopComposeAround, NOT the universal NoopTypePredicate, because empty
-		// code only composes for value-transform families (fromBinary needs
-		// its byte reads).
-		// An override child skips the gate: the override body is the user's
-		// contract, not the structural identity the predicate proves.
+		// A child proven to be the family identity composes as empty code, which also folds circular identity bodies.
+		// Gated on NoopComposeAround, not NoopTypePredicate: fromBinary needs its byte reads.
+		// An override child skips the gate: its body is the user's contract, not the structural identity.
 		if !overrideChild && !w.disableNoopElision {
 			if predicate, ok := w.Emitter.(NoopComposeAround); ok {
 				emitCtx := w.getEmitContext(w.Vλl)

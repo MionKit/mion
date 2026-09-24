@@ -38,10 +38,8 @@ type NoopTypePredicate interface {
 	IsNoopType(rt *reflection.RunType, ctx *EmitContext) bool
 }
 
-// NoopComposeAround marks the families whose predicate may feed the walker's dispatch-time noop gate, which
-// replaces a noop child's dep call with EMPTY code: sound only where a noop child means leaving the value,
-// error list or byte stream untouched. fromBinary must stay OFF the gate: its parent advances positionally,
-// so a skipped child decode desynchronizes every later read.
+// NoopComposeAround marks families whose noop child may compile to EMPTY code, sound only when noop means untouched.
+// fromBinary must stay off: its parent reads positionally, so a skipped child decode desyncs every later read.
 type NoopComposeAround interface {
 	NoopTypePredicate
 	// NoopChildComposesAround is a marker method: implementing it claims empty code composes correctly here.

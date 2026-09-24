@@ -1,6 +1,5 @@
-// The `clone` decoder rebuilds every object from its declared shape, so an undeclared key is dropped
-// at every level, inside Map values and Set members too (on the wire a Map is an array of pairs and a
-// Set an array of items). An own `__proto__` key is the case that matters: it must never survive.
+// The `clone` decoder drops undeclared keys at every level, Map values and Set members included.
+// An own `__proto__` key is the case that matters: it must never survive.
 
 import {describe, expect, it} from 'vitest';
 import {createJsonDecoderFn} from '@mionjs/run-types';

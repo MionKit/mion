@@ -7,8 +7,7 @@ import (
 	"testing"
 )
 
-// intPtr / boolPtr build the pointer fields of a tsRuntypesPlugin —
-// a present key vs the nil "absent" the merge must leave alone.
+// intPtr / boolPtr set a present key; nil is the absent key the merge must leave alone.
 func intPtr(v int) *int    { return &v }
 func boolPtr(v bool) *bool { return &v }
 

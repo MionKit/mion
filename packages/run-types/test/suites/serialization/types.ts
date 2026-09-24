@@ -18,27 +18,12 @@ export interface SerializationCase {
    *  round-trip behavior. Single point → string; several → array. */
   serializeNotes?: string | string[];
 
-  /** Encoder thunks — one per `createJsonEncoderFn` strategy exercised by the
-   *  suite (the field name IS the strategy):
-   *  - `cloneEncoder` — strategy 'clone' (shape-derived clone, strips extras; default).
-   *  - `mutateEncoder` — strategy 'mutate' (mutate in place, preserves extras).
-   *  - `compactEncoder` — strategy 'compact' (declared object props as a
-   *    positional array, no key names on the wire; strips extras like clone).
-   *    Pairs ONLY with `compactDecoder` (the positional wire can't be read by the
-   *    key-based clone/mutate decoders).
-   *  `mutateEncoder` + `mutateDecoder` is the only pairing that keeps
-   *  undeclared keys through the round-trip. **/
+  /** One thunk per strategy, named for it; only `mutateEncoder` + `mutateDecoder` keeps undeclared keys. **/
   cloneEncoder: () => JsonEncoderFn;
   mutateEncoder: () => JsonEncoderFn;
   compactEncoder: () => JsonEncoderFn;
 
-  /** Decoder thunks. `cloneDecoder` builds `createJsonDecoderFn<T>()`
-   *  (default strategy 'clone': rebuilt from the declared shape, so undeclared
-   *  keys are dropped). `mutateDecoder` builds
-   *  `createJsonDecoderFn<T>(undefined, {strategy: 'mutate'})` —
-   *  undeclared keys on the parsed value pass through to the restored
-   *  result untouched. The round-trip adapter pairs each encoder
-   *  shape with its corresponding decoder. **/
+  /** `cloneDecoder` drops undeclared keys; `mutateDecoder` passes them through untouched. **/
   cloneDecoder: () => JsonDecoderFn;
   mutateDecoder: () => JsonDecoderFn;
 
@@ -65,16 +50,7 @@ export interface SerializationCase {
    *  Mirrors the `getTestData` shape. **/
   getTestData: () => {values: unknown[]; deserializedValues?: unknown[]};
 
-  /** Optional override consumed by the **clone** (shape-derived, strips)
-   *  path adapter (`prepareForJsonSafe + JSON.stringify` /
-   *  `JSON.parse + restoreFromJsonClone`).
-   *
-   *  Provide only when the clone path produces a different observable
-   *  than the mutate path — typically when an input carries extras
-   *  that are stripped pre-serialise (so `deserializedValues`
-   *  reflects the cleaned shape). For ~90% of cases (no extras,
-   *  identical behaviour between paths) leave this unset; the clone
-   *  adapter falls back to `getTestData`. **/
+  /** Test data for the paths that strip extras; set only when stripping changes the result. **/
   getTestDataForStringify?: () => {values: unknown[]; deserializedValues?: unknown[]};
 
   /** Broad types (any / unknown / object) where the round-trip is
@@ -147,16 +123,9 @@ export interface SerializationCase {
    *  (string-fallback bigint, objects, arrays). **/
   getBinaryByteSizes?: () => number[];
 
-  /** Value-first schema variants. Each builds its `RT.*` model inline and
-   *  passes it to ONE factory via the value-first overload (`createJsonEncoderFn(rt)`),
-   *  proving the value-first authoring path resolves the same compiled factory as
-   *  the type-first `<T>` form. The model is duplicated across the four BY DESIGN —
-   *  every thunk stays self-contained + single-purpose (benchmarking, code
-   *  extraction, doc-gen). The JSON pair uses the default strategy (clone
-   *  encoder / clone decoder), mirroring `cloneEncoder` / `cloneDecoder`.
-   *  REQUIRED on every case: supply a thunk, or the `'not-supported'` sentinel
-   *  when no `RT.*` builder can express the type (note the reason in
-   *  `serializeNotes`). **/
+  /** Value-first variants (`createJsonEncoderFn(rt)`), the JSON pair on the default clone strategy. Each thunk builds
+   *  its `RT.*` model inline BY DESIGN, staying self-contained for benchmarks, code extraction and doc-gen.
+   *  REQUIRED: a thunk, or `'not-supported'` when no `RT.*` builder can express it (say why in `serializeNotes`). **/
   schemaEncoder: SchemaThunk<JsonEncoderFn>;
   schemaDecoder: SchemaThunk<JsonDecoderFn>;
   schemaBinaryEncoder: SchemaThunk<BinaryEncoderFn>;

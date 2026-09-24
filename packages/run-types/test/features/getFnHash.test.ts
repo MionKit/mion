@@ -78,7 +78,6 @@ describe('getFnHash — unit (resolves the version-independent fnHash per family
   });
 
   test('JSON encoder / decoder resolve their strategies (default when omitted)', () => {
-    // Omitting the strategy yields the family default (clone).
     expect(getFnHash('jsonEncoder')).toBe(getFnHash('jsonEncoder', {strategy: 'clone'}));
     expect(getFnHash('jsonEncoder', {strategy: 'clone'})).toBe('tx9T');
     expect(getFnHash('jsonEncoder', {strategy: 'mutate'})).toBe('l3Wy');

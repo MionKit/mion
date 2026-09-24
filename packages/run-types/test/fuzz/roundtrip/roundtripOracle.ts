@@ -1,35 +1,13 @@
-// The all-strategy round-trip oracle.
-//
-// One conforming, data-only value is generated per random type and run through
-// every wired lane (clone / mutate / compact / rebuild / binary). The invariants:
-//
-//   RT-VALIDATE   both ends validate: validate(value) and validate(roundtrip)
-//                 are both true.
-//   RT-AGREE      round-trip identity + cross-strategy agreement: re-encoding
-//                 each lane's decoded value through the canonical CLONE encoder
-//                 reproduces the clone wire of the ORIGINAL value — every lane
-//                 round-trips to the same DataOnly value (the O12 cross-wire
-//                 pattern, generalised to all lanes). This is how round-trip
-//                 identity (todo invariant 1) is expressed: a WIRE comparison,
-//                 not a raw deep-equal of the decoded value, since JSON
-//                 representation normalisation (dropped `undefined`, vanished
-//                 optionals, -0 → 0) is correct but not structurally identical.
-//   RT-STABLE     wire stability: encode(decode(encode v)) == encode(v) on the
-//                 lane's own wire (string for JSON, bytes for binary).
-//   RT-FAILAGREE  serialize-vs-alwaysThrow agreement: a type one lane refuses,
-//                 every lane refuses.
-//   RT-NATIVE     trusted source: for a JSON-safe value the keyed encoders
-//                 (clone / mutate) emit JSON that NATIVE JSON.parse
-//                 reads back to the same value — an encoder check independent of
-//                 our own decoders.
+// The all-strategy round-trip oracle: one conforming data-only value per random type, run through every lane.
+//   RT-VALIDATE   validate(value) and validate(roundtrip) are both true.
+//   RT-AGREE      each lane's decoded value re-encodes through CLONE to the original's clone wire; a wire compare,
+//                 as JSON normalisation (dropped undefined, vanished optionals, -0 → 0) is not deep-equal.
+//   RT-STABLE     encode(decode(encode v)) == encode(v) on the lane's own wire.
+//   RT-FAILAGREE  a type one lane refuses, every lane refuses.
+//   RT-NATIVE     native JSON.parse reads the keyed encoders' output back to the same JSON-safe value.
 //   RT-THROW      no lane throws an uncontrolled error on a valid value.
-//
-// Per-codec exceptions handled (see JsonEncoderStrategy docs):
-//   - compact collapses a present `null` in an OPTIONAL field to absent, so the
-//     lane is skipped for types whose optionals can be null (compactNullRisk).
-//   - mutate mutates its input in place, so every lane encodes a fresh clone.
-//   - native JSON drops bigint / Date / Map / Set / undefined / symbol, so the
-//     RT-NATIVE check only runs on JSON-safe values (jsonRoundTripSafe).
+// compact collapses a present `null` optional to absent (skipped via compactNullRisk); mutate works in place, so every
+// lane encodes a fresh clone; RT-NATIVE runs only on JSON-safe values (jsonRoundTripSafe).
 
 import {normalizeForComparison, deepCloneForRoundTrip} from '../../util/equalsHelpers.ts';
 import type {Decl, GeneratedType, PropShape, TypeShape} from '../core/typeGen.ts';

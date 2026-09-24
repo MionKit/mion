@@ -111,9 +111,7 @@ describeIf('playground engine (WASM, live execution)', () => {
     expect(res.decoded).toMatchObject({id: 1, name: 'ada'});
   });
 
-  // The JSON strategy variants ride the comptime `{strategy: '…'}` literal the
-  // engine appends at the call site — so each must resolve to a DISTINCT compiled
-  // function. clone strips undeclared keys; mutate keeps them on the wire.
+  // Each strategy literal the engine appends at the call site must resolve to a DISTINCT compiled function.
   it('json encode strategies differ (clone strips, mutate preserves unknown keys)', async () => {
     const messy = {id: 1, name: 'ada', tags: ['x'], active: true, secret: 'shh'};
     const clone = await run('jsonEncoderClone', TYPE, {...messy});

@@ -1,7 +1,5 @@
-// The clone restore (`rjs`, what mion's `clone` strategy decodes with) rebuilds every object from
-// the declared shape. These are the shapes where "declared" is not a plain property list: an index
-// signature, a Map value and a registered class. Both marker call shapes per shape, paired, the
-// way the marker coverage rule asks.
+// The clone restore (`rjs`) on shapes where "declared" is not a plain property list: an index signature, a Map value
+// and a registered class, each in both marker call shapes as the marker coverage rule asks.
 
 import {describe, expect, it} from 'vitest';
 import {createJsonDecoderFn, createJsonEncoderFn, createValidateFn, type InjectTypeFnArgs} from '../../src/index.ts';
@@ -105,10 +103,8 @@ describe('a pattern index signature is open on every road', () => {
   });
 });
 
-// An object runs ONE key sweep for all its index signatures. TypeScript splits `Record<string |
-// number, V>` into a string half and a number half, and an encoder that swept once per half would
-// write every key twice. A round trip cannot catch that: JSON.parse keeps the last of two
-// equal keys, so only the wire string shows it.
+// TypeScript splits `Record<string | number, V>` in two halves; a sweep per half would write every key twice.
+// Only the wire string shows it: JSON.parse keeps the last of two equal keys.
 describe('a split key sweeps once', () => {
   type Split = {[key: string]: string; [key: number]: string};
   const value = {a: 'x', 1: 'y'} as unknown as Split;

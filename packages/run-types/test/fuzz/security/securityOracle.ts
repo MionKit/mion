@@ -216,7 +216,7 @@ export function sameBytes(a: Uint8Array, b: Uint8Array): boolean {
 export interface JsonProbe {
   decoders: Record<string, (text: string) => unknown>;
   validate: (value: unknown) => boolean;
-  /** The encoders that rebuild an object from its keys (clone / compact), run over every decoded value: none may write a prototype-named key back onto the wire. **/
+  /** Clone / compact encoders run over every decoded value: none may write a prototype-named key back onto the wire. **/
   encoders?: Record<string, (value: unknown) => string | undefined>;
   /** The exact-shape clone, run over every decoded value: it rebuilds from
    *  keys too, so a swap there is an SJ-PROTO finding. **/

@@ -1,21 +1,7 @@
-// Ports the three ad-hoc noop-marker tests from
-// `00JsonOnly.spec.ts` (ref: packages/run-types/src/rtCompilers/json/jsonSpec/).
-//
-// Verifies the renderer's treatment of trivially JSON-safe shapes, which is
-// now STRONGER than the `isNoop: true` marker: the noop verdict is decided
-// semantically over the type graph (typefns/noop_types.go), and the JSON
-// composites ELIDE identity primitives outright — no binding, no import, no
-// module load. So where the reference asserts `entry.isNoop === true`, our runtime
-// cache simply never receives the pj/rj entry for a noop shape. When EVERY
-// binding elides, the composite itself arrives as the noop SHORT-FORM tuple
-// (isNoop=true, no body) and the runtime registers native JSON.stringify /
-// JSON.parse as its fn. Shapes that DO need a transform keep their
-// primitive entries, registered with isNoop=false.
-//
-// The entry lookups filter on `familyTag` (the tuple's exact emitting family)
-// rather than `fnID`: composites HOST on the primitive's fnID (`jeMU` carries
-// fnID 'pj'), so an fnID scan would match the composite once the primitive
-// stops loading — the exact ambiguity that masked this contract before.
+// The JSON composites elide identity primitives (noop_types.go decides), so a noop shape never loads its pj / rj
+// entry; when every binding elides, the composite is the noop short-form tuple backed by native JSON. Lookups filter
+// on `familyTag`, not `fnID`: a composite hosts on its primitive's fnID (`jeMU` carries 'pj'), so an fnID scan would
+// match the composite once the primitive stops loading.
 
 import {describe, expect, it} from 'vitest';
 import {createJsonDecoderFn, createJsonEncoderFn, getRunTypeId} from '@mionjs/run-types';
@@ -55,11 +41,8 @@ function rjEntry(id: string) {
   return entryByFamily('rj', id);
 }
 
-// pj / rj are demand-scoped: each `T` inspected below must also be passed to
-// the matching JSON factory at a call site the scanner can see —
-// createJsonEncoderFn(mutate) demands `pj`, createJsonDecoderFn(mutate)
-// demands `rj`. Whether the demanded primitive then LOADS at runtime depends
-// on the composite keeping its binding — that's the contract under test.
+// pj / rj are demand-scoped: each `T` below also needs a mutate encoder / decoder call the scanner can see.
+// Whether the primitive then LOADS depends on the composite keeping its binding, the contract under test.
 describe('json noop markers (00JsonOnly.spec.ts port)', () => {
   it('interface json encode/decode should be marked as noop when there are no actions required', () => {
     const noopId = getRunTypeId<NoJsonENCDECRequired>();

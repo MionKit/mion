@@ -1,19 +1,6 @@
-// The strategy matrix: every JSON encoder and decoder strategy on one value, and what each does
-// with a key the type does not declare. Pairs with decoderSafeMode.test.ts, which covers union
-// payloads in depth.
-//
-//   encode    family                     undeclared key
-//   clone     pjs (prepareForJsonSafe)   dropped (the clone is built from the declared shape)
-//   mutate    pj  (prepareForJson)       kept (transforms in place, so it writes no new object)
-//   compact   cj  (compactForJson)       no key names on the wire at all
-//
-//   decode    family                     undeclared wire key
-//   clone     rjs (restoreFromJsonClone) absent (rebuilt from the declared shape)
-//   mutate    rj  (restoreFromJson)      kept, with its value
-//   compact   cjr (compactFromJson)      absent (rebuilt from positions)
-//
-// The strategy is read at build time, so it has to be a literal at the call site; a variable
-// resolves to no strategy and the call falls back to the default.
+// Every JSON strategy on one value with an undeclared key: clone (pjs / rjs) drops it, mutate (pj / rj) keeps it,
+// compact (cj / cjr) writes no key names. The strategy is read at build time, so it must be a literal at the call
+// site; a variable falls back to the default. Union payloads live in decoderSafeMode.test.ts.
 
 import {describe, expect, it} from 'vitest';
 import {createJsonEncoderFn, createJsonDecoderFn, type InjectTypeFnArgs} from '@mionjs/run-types';
@@ -21,7 +8,7 @@ import {getRTFunction} from '@mionjs/run-types/runtime';
 
 type Sample = {a: string; n: bigint};
 
-// The bare `rjs` restore, recovered through a marker the way a framework wrapper reaches it.
+// Recovered through a marker, the way a framework wrapper reaches it.
 function cloneRestore<T>(id?: InjectTypeFnArgs<T, 'restoreFromJsonClone'>) {
   return getRTFunction<'restoreFromJsonClone'>(id);
 }

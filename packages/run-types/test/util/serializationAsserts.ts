@@ -1,10 +1,4 @@
-// Shared assertion helpers for the serialization adapters. Extracted so
-// the atomic/collection serialization adapters and the format
-// serialization adapters run the exact same round-trip logic against
-// the `SerializationCase` shape — every JSON encoder × decoder pairing
-// (clone / mutate on both sides, plus compact × compact) and the binary round-trip —
-// with no copy-pasted assertion bodies. Each pairing is its own exported
-// helper so the per-subgroup test files declare one `it()` per pairing.
+// One helper per JSON pairing plus binary, shared by the serialization and format-serialization suites.
 
 import {expect} from 'vitest';
 import type {SchemaThunk, SerializationCase} from '../suites/serialization/types.ts';
@@ -35,27 +29,14 @@ type JsonEncoderKey = 'mutateEncoder' | 'cloneEncoder' | 'compactEncoder';
 type JsonDecoderKey = 'mutateDecoder' | 'cloneDecoder' | 'compactDecoder';
 
 interface JsonRoundTripOpts {
-  /** Assert input is unchanged after encode. True for non-mutating
-   *  encoders (clone, compact). Skipped automatically when
-   *  `structuredClone` refuses the input (cycles, symbols, …). **/
+  /** Skipped when `structuredClone` refuses the input (cycles, symbols, …). **/
   assertNoMutation: boolean;
-  /** Honour `c.jsonStringifyThrows`. True for mutate — it preserves extras
-   *  and routes through `JSON.stringify`, which throws on bigint extras.
-   *  False for clone (shape-derived, extras dropped before stringify). **/
+  /** Honour `c.jsonStringifyThrows`: mutate keeps extras, so `JSON.stringify` throws on a bigint extra. **/
   jsonStringifyMayThrow: boolean;
-  /** When true, resolve test data as `getTestDataForStringify ?? getTestData`.
-   *  When false, always use `getTestData` (extras-preserving paths). Only
-   *  the one end-to-end preserving pairing — mutate+mutate — uses raw
-   *  `getTestData`; every other pairing strips extras somewhere in the
-   *  pipeline. **/
+  /** False only for mutate + mutate, the one pairing that strips extras nowhere. **/
   useStringifyTestData: boolean;
 }
 
-// Shared encode→parse→decode loop. Each JSON helper below is
-// a thin wrapper over this function, supplying the pairing-specific
-// thunk keys + opts. Keeps the per-pairing surface small (one named
-// exported helper, matching the helper-per-function form introduced in
-// commit 8c95ad7) while sharing the contract handling.
 function jsonRoundTrip(
   c: SerializationCase,
   encKey: JsonEncoderKey,
@@ -118,8 +99,7 @@ function jsonRoundTrip(
 
 // ---------- JSON pairings (encoder × decoder) -------------------
 
-/** mutate encoder + mutate decoder — only pairing where extras survive
- *  end-to-end (encoder keeps them via prepareForJson, decoder keeps them). **/
+/** The only pairing where undeclared keys survive end to end. **/
 export function assertMutateMutateRoundTrip(c: SerializationCase): void {
   jsonRoundTrip(c, 'mutateEncoder', 'mutateDecoder', 'mutate', 'mutate', {
     assertNoMutation: false,
@@ -128,8 +108,7 @@ export function assertMutateMutateRoundTrip(c: SerializationCase): void {
   });
 }
 
-/** mutate encoder + clone decoder — encoder preserves extras, decoder
- *  drops them. Uses the stringify test data (decoded shape is cleaned). **/
+/** The encoder keeps extras and the decoder drops them. **/
 export function assertMutateCloneRoundTrip(c: SerializationCase): void {
   jsonRoundTrip(c, 'mutateEncoder', 'cloneDecoder', 'mutate', 'clone', {
     assertNoMutation: false,
@@ -138,9 +117,7 @@ export function assertMutateCloneRoundTrip(c: SerializationCase): void {
   });
 }
 
-/** clone encoder + mutate decoder — clone is shape-derived so it strips
- *  extras at encode (the mutate decoder then has nothing extra to keep).
- *  Non-mutating. **/
+/** clone strips extras at encode, so the mutate decoder has nothing extra to keep. **/
 export function assertCloneMutateRoundTrip(c: SerializationCase): void {
   jsonRoundTrip(c, 'cloneEncoder', 'mutateDecoder', 'clone', 'mutate', {
     assertNoMutation: true,
@@ -149,8 +126,7 @@ export function assertCloneMutateRoundTrip(c: SerializationCase): void {
   });
 }
 
-/** clone encoder + clone decoder — non-mutating, extras stripped at both
- *  ends. The default serialization pair. **/
+/** The default pair, extras stripped at both ends. **/
 export function assertCloneCloneRoundTrip(c: SerializationCase): void {
   jsonRoundTrip(c, 'cloneEncoder', 'cloneDecoder', 'clone', 'clone', {
     assertNoMutation: true,
@@ -159,11 +135,7 @@ export function assertCloneCloneRoundTrip(c: SerializationCase): void {
   });
 }
 
-/** compact encoder + compact decoder — the positional-array wire (declared
- *  object props by position, no key names). The only correct pairing for the
- *  compact strategy: the positional payload can't be read by the key-based
- *  clone/mutate decoders. Shape-derived like clone (non-mutating, strips
- *  undeclared keys by construction), so it uses the stringify test data. **/
+/** The only decoder that reads the positional wire; like clone it strips undeclared keys. **/
 export function assertCompactRoundTrip(c: SerializationCase): void {
   jsonRoundTrip(c, 'compactEncoder', 'compactDecoder', 'compact', 'compact', {
     assertNoMutation: true,
@@ -224,9 +196,7 @@ export function assertBinaryRoundTrip(c: SerializationCase): void {
 // representative round-trip — proving the value-first path resolves a working
 // factory — without re-testing every strategy (those are covered type-first).
 
-/** Value-first JSON round-trip — pairs `schemaEncoder` (default clone) +
- *  `schemaDecoder` (default clone) and asserts a deep-equal round-trip on the
- *  case's samples. No-op when either thunk is omitted or 'not-supported'. **/
+/** No-op when either schema thunk is omitted or 'not-supported'. **/
 export function assertSchemaJsonRoundTrip(c: SerializationCase): void {
   const encThunk = resolveSchemaThunk(c.schemaEncoder);
   const decThunk = resolveSchemaThunk(c.schemaDecoder);

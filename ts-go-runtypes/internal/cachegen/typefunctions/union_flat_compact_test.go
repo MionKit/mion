@@ -197,10 +197,8 @@ func unionEntry(t *testing.T, module, family string) string {
 	return line
 }
 
-// TestAtomicOnlyUnion_StripsInsideItsMembers — `{c: string}[] | string` carries no merged object
-// branch, so the union looks like a pass-through. It is not: an ARRAY is an atomic member, and the
-// objects inside it can carry keys the type never declared. Both ends of `clone` must walk into the
-// member and rebuild those objects. Validation does not cover this — undeclared keys on an object literal are accepted by design.
+// TestAtomicOnlyUnion_StripsInsideItsMembers: `{c: string}[] | string` looks like a pass-through, but both ends of
+// `clone` must rebuild the objects inside the atomic array member; validation accepts undeclared keys by design.
 func TestAtomicOnlyUnion_StripsInsideItsMembers(t *testing.T) {
 	dump := protocol.Dump{RunTypes: buildArrayOfObjectsOrStringFixture()}
 

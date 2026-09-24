@@ -16,9 +16,8 @@ import (
 // plugin can actually reach (rewrite-injected bindings + their transitive
 // import closure) leave the resolver.
 
-// TestPrune_ElidedPrimitivesNotEmitted — the default clone decoder composes only rjs: over a
-// plain DTO rjs is live (it rebuilds the declared shape), so it and the jdCL composite stay emitted
-// and the undemanded rj never appears.
+// TestPrune_ElidedPrimitivesNotEmitted: the default clone decoder composes only rjs, live over a plain DTO, so rjs and
+// jdCL stay emitted and the undemanded rj never appears.
 func TestPrune_ElidedPrimitivesNotEmitted(t *testing.T) {
 	resp := scopeScan(t, `import {createJsonDecoderFn} from '@mionjs/run-types';
 type PlainDTO = {a: string; b?: number};
@@ -60,12 +59,8 @@ func compositeEntryKeys(t *testing.T, resp protocol.Response, opName, strategy s
 	return keys
 }
 
-// TestPrune_CollapsedCompositeShortFormEmitted — when EVERY primitive of a
-// composite elides, the composite itself is the noop short-form: the mutate
-// encoder and mutate decoder of a plain JSON-compatible DTO ship one tiny
-// tuple each (`'<TypeName>',,true` tail, no factory, no imports), the runtime
-// substitutes native JSON.stringify / JSON.parse, and the orphaned pj / rj
-// primitives are pruned.
+// TestPrune_CollapsedCompositeShortFormEmitted: when every primitive elides, the mutate encoder / decoder of a plain
+// DTO ship the noop short-form tuple (no factory, no imports) and the orphaned pj / rj primitives are pruned.
 func TestPrune_CollapsedCompositeShortFormEmitted(t *testing.T) {
 	resp := scopeScan(t, `import {createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
 type PlainDTO = {a: string; b?: number};

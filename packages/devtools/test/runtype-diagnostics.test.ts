@@ -1,22 +1,6 @@
-// End-to-end acceptance test for the runtype RT-compiler diagnostics
-// added in Phase 2 / Phase 3 of the centralised diag catalog. Drives the
-// Go binary over inline sources and verifies:
-//
-//   1. Root-position throw sites (Never, NonSerializable, function at
-//      root, array element non-serializable) surface per-family
-//      prefixed codes (PJ001, PJS001, TB001, …) — not generic codes —
-//      so users can grep their build log by family.
-//   2. Each diagnostic carries the marker call site (file:line:col),
-//      not just the type-declaration site, so the warning is
-//      actionable for the user.
-//   3. Child-position silent-skip diagnostics (function-typed
-//      properties, methods, static fields) surface with the per-family
-//      prefix and the member name in the message.
-//   4. Multiple marker calls referencing the same RT ID get one
-//      diagnostic each (per user direction: dedup is one-per-call-site,
-//      not one-per-typeid).
-//   5. The diagnostic wire format flows through to formatTscDiagnostic
-//      in the canonical $tsc problem-matcher line shape.
+// End-to-end check of the runtype diagnostics over inline sources: root throws get per-family codes (PJ001,
+// PJS001, TB001) so a build log greps by family, each points at the marker call site, child skips name the member,
+// dedup is one per call site (not per type id), and the output renders as a $tsc problem-matcher line.
 
 import {describe, expect, it} from 'vitest';
 import {formatTscDiagnostic} from '../src/index.ts';
@@ -53,8 +37,7 @@ export const _ = createJsonEncoderFn<never>(undefined, {strategy: 'mutate'});
   });
 
   register('emits per-family codes — PJS001 / TB001 / PJ001 — for same root throw', async () => {
-    // All three families are demand-driven: seed pj via createJsonEncoderFn(mutate),
-    // pjs via the default clone encoder, and tb via createBinaryEncoderFn.
+    // Demand-driven families: mutate seeds pj, the default clone seeds pjs, the binary encoder seeds tb.
     const sources = {
       'never-multi.ts': `import {createJsonEncoderFn, createBinaryEncoderFn} from '@mionjs/run-types';
 export const _ = createJsonEncoderFn<never>(undefined, {strategy: 'mutate'});
@@ -138,9 +121,7 @@ export const _ = createValidateFn<Date | symbol>();
   });
 
   register('emits per-family union-drop warnings (PJS014 / RJ014) under JSON encode/decode', async () => {
-    // Each demand-driven family walks the union and emits its own per-family
-    // …014 prefix so users can grep the drop by family, like the root-throw
-    // codes. Seed pjs via the default clone encode and rj via the decoder.
+    // Each family reports its own …014 so a build log greps the drop by family; clone seeds pjs, the decoder rj.
     const sources = {
       'union-drop-json.ts': `import {createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
 export const _e = createJsonEncoderFn<Date | symbol>();
@@ -239,17 +220,10 @@ export const _ = createValidateFn<unknown>();
     });
   });
 
-  // Tuple slots are structural — a function or symbol slot can't be
-  // silently dropped without changing the tuple's length / shape on the
-  // wire. The serialization families (prepareForJson, prepareForJsonSafe,
-  // restoreFromJsonMutate, toBinary, fromBinary) propagate the
-  // CodeNS upward so the renderer emits an alwaysThrow factory keyed on
-  // the leaf's per-family code. Regression coverage for the array-style
-  // short-circuits we removed in the tuple emits.
+  // A function or symbol tuple slot cannot drop without reshaping the wire, so the tuple throws with the leaf's code.
 
   register('propagates function-typed tuple slot as alwaysThrow under prepareForJson', async () => {
-    // pj/pjs/rj are demand-driven: seed pj via createJsonEncoderFn(mutate), pjs
-    // via the default clone, and rj via createJsonDecoderFn.
+    // Demand-driven families: mutate seeds pj, the default clone seeds pjs, the decoder seeds rj.
     const sources = {
       'fn-tuple.ts': `import {createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
 export const _ = createJsonEncoderFn<[number, () => void]>(undefined, {strategy: 'mutate'});
@@ -262,14 +236,11 @@ export const _r = createJsonDecoderFn<[number, () => void]>();
         includeEntryModules: true,
       });
       const codes = new Set(runtypeDiagsOf(response).map((d) => d.code));
-      // One per-family error code per emitter, PJ003 / PJS003 / RJ003, all on the same function-root leaf.
+      // Each emitter reports its own code for the same function-root leaf.
       expect(codes, [...codes].join(',')).toContain('PJ003');
       expect(codes).toContain('PJS003');
       expect(codes).toContain('RJ003');
-      // Entry modules must wire the tuple's prepareForJson entry as
-      // alwaysThrow so calling `createJsonEncoderFn<[number, () => void]>()`
-      // throws at the first lookup. The fully rendered throw message rides
-      // the tuple's final positional slot — verify it for the tuple entry.
+      // The tuple entry is an alwaysThrow with its rendered message in the last positional slot.
       const allModules = Object.values(response.entryModules ?? {}).join('\n');
       expect(allModules).toMatch(
         /'[A-Za-z0-9]+_[A-Za-z0-9]+','tuple',,,,,,'\[PJ003\] Type `Function` can never be encoded to JSON/
@@ -348,12 +319,10 @@ export const _d = createJsonDecoderFn<[number, () => void]>(undefined, {strategy
         JSON.stringify(diags, null, 2)
       ).toHaveLength(0);
       const codes = new Set(runtypeDiagsOf(response).map((d) => d.code));
-      // Compact encode (cj) mirrors clone (pjs); compact decode (cjr) mirrors
-      // mutate (rj) — same function-root code the sibling strategies emit.
+      // Compact reuses the sibling codes: encode as clone (pjs), decode as mutate (rj).
       expect(codes, [...codes].join(',')).toContain('PJS003');
       expect(codes).toContain('RJ003');
-      // The compact composite entry must wire the tuple as an alwaysThrow, so
-      // calling it throws at first lookup rather than crashing on an undefined fn.
+      // An alwaysThrow, so calling it throws at first lookup instead of crashing on an undefined fn.
       const allModules = Object.values(response.entryModules ?? {}).join('\n');
       expect(allModules).toMatch(/'\[PJS003\] Type `Function` can never be encoded to JSON/);
     });

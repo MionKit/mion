@@ -43,9 +43,7 @@ function isPortable(options?: StandardJSONSchemaOptions): boolean {
   return options?.libraryOptions?.portable === true;
 }
 
-// Only `clone`'s keyed wire NEVER carries undeclared keys (it builds the value from the declared shape);
-// `mutate` preserves extras. Closedness is DERIVED from this: there is deliberately no independent
-// additionalProperties param to contradict it.
+// Closedness follows the strategy (only `clone` drops undeclared keys); no additionalProperties option may contradict it.
 const ENCODER_STRATEGIES = new Set<JsonEncoderStrategy>(['clone', 'mutate', 'compact']);
 
 /** `'compact'` throws: its wire is positional arrays, which this keyed document does not describe. **/

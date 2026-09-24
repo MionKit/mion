@@ -96,8 +96,7 @@ func (ctx *EmitContext) AsExpression(code RTCode) RTCode {
 	return ctx.walker.wrapAsCtxFn(code)
 }
 
-// IsRoot reports whether the current Emit call is at the RT function's outermost frame, for emitters whose
-// output shape depends on it.
+// IsRoot reports whether the current Emit call is at the RT function's outermost frame.
 func (ctx *EmitContext) IsRoot() bool {
 	return ctx.walker != nil && len(ctx.walker.Stack) == 1
 }

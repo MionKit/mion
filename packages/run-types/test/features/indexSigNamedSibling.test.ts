@@ -1,7 +1,4 @@
-// An object that mixes a named property with an index signature of a different VALUE type must not
-// apply the index value's transform to the named property: `{p0: number; [k: number]: bigint}` keeps
-// p0 a number across every wire, JSON and binary. Every JSON walk (mutate, restore) skips a
-// key the type declares by name, because such a key carries its own transform.
+// A key declared by name carries its own transform, so no walk may apply the index signature's to it.
 // G1 is the shared repro id for this shape, also used by the fuzz repro list and the Go codegen tests.
 import {describe, it, expect} from 'vitest';
 import {createJsonEncoderFn, createJsonDecoderFn, createBinaryEncoderFn, createBinaryDecoderFn} from '@mionjs/run-types';

@@ -336,8 +336,7 @@ func TestJsonComposite_ElidesNoopPrimitives(t *testing.T) {
 	jdCLKey := operations.FnHashFor(mustOp(t, "jsonDecoder"), nil, "clone", false) + "_obj1"
 	jeMUKey := operations.FnHashFor(mustOp(t, "jsonEncoder"), nil, "mutate", false) + "_obj1"
 
-	// jdMU: rj noop → every binding elided → the noop short form; no body,
-	// no factory, no deps. The bare JSON.parse moved into the runtime noop.
+	// jdMU: an rj noop elides every binding, so the entry is the noop short form backed by the runtime's JSON.parse.
 	entry := render("jdMU", noopGraph)
 	if entry.ArgsText != "'"+jdMUKey+"','objectLiteral',,true" {
 		t.Errorf("jdMU with noop rj must collapse to the noop short form:\n%s", entry.ArgsText)
