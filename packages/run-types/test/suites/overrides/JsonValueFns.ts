@@ -5,7 +5,7 @@ import {
   createPrepareForJsonFn,
   createRestoreFromJsonFn,
   createStringifyJsonFn,
-  createStripUnknownKeysFn,
+  createRemoveUnknownKeysFn,
   createJsonEncoderFn,
   createJsonDecoderFn,
   overrideJsonEncoder,
@@ -53,15 +53,13 @@ export function registerJsonValueFnsCase(): void {
     expect(roundTrip(mutatePrepare, mutateRestore, {inner: target()})).toEqual(value);
   });
 
-  it('JsonValueFns — stringify and strip-unknown-keys compile for the overridden type', () => {
+  it('JsonValueFns — stringify and remove-unknown-keys compile for the overridden type', () => {
     expect(JSON.parse(createStringifyJsonFn<JsonValueTarget>()(target()) as string)).toEqual({
       __brand: 'jsonValueOverride',
       id: '7',
       when: '2020-01-02T03:04:05.000Z',
     });
-    const wire = createStripUnknownKeysFn<JsonValueTarget>()({id: '7', when: 'x', extra: 1} as never) as unknown as {
-      extra?: number;
-    };
-    expect(wire.extra).toBeUndefined();
+    const clean = createRemoveUnknownKeysFn<JsonValueTarget>()({...target(), extra: 1} as JsonValueTarget);
+    expect(clean).toEqual(target());
   });
 }
