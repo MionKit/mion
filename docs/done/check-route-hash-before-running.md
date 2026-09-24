@@ -77,10 +77,11 @@ compares them before anything runs.
 - Parity in the bundled and mixed lanes (`test/lib/parity.ts`): one dispatch point naming every test-server method
   id; rows alike through `clientRowView`, route sync ids alike, every compiled function a row reaches alike as a
   syntax tree.
-- `client-drift` lane: a mixed client built against server A; servers A, B, C, A on one port with the stored
-  metadata kept across reloads. Unchanged routes and options-only changes run; a changed params type, a changed
-  return type and a changed middleware in a route's chain are refused with no handler run; a fetched route's first
-  call is refused once and resent; a fetched route whose saved row predates the server is relearned, never looped.
+- `test/mixed/routeDrift.spec.ts`: one file holds the routes a mixed client was built against and the routes the
+  server moved on to; the server runs in the test process and the router is reset between the two. Unchanged routes
+  and options-only changes run; a changed params type, a changed return type and a changed middleware in a route's
+  chain are refused with no handler run; a fetched route's first call is refused once and resent; a fetched route
+  whose saved row predates the server is relearned, never looped.
 
 ## Docs
 

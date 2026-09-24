@@ -20,8 +20,6 @@
   "exclude": [
     "node_modules",
     ".dist",
-    "vite.config.ts",
-    // the drift lane's own programs (tsconfig.drift*.json): its servers each call initRoutes
-    "test/drift"
+    "vite.config.ts"
   ]
 }

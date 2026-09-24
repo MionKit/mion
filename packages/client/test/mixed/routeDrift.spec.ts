@@ -1,0 +1,181 @@
+/* ########
+ * 2026 mion
+ * Author: Ma-jerez
+ * License: MIT
+ * The software is provided "as is", without warranty of any kind.
+ * ######## */
+
+// A client built against `oldRoutes` calls a server that moved on to `newRoutes`, under `syncRoutes`.
+// Both route sets live here and the server runs in this process: the router is reset between the two.
+
+import {describe, it, expect, beforeAll, afterAll} from 'vitest';
+import {createServer, type Server} from 'node:http';
+import {routesCache} from '@mionjs/core';
+import {createMionRouter, resetRouter, addStartMiddlewares} from '@mionjs/router';
+import type {ApiWithOptions, MionRouter} from '@mionjs/router';
+import {httpRequestHandler} from '@mionjs/platform-node';
+import {initClient} from '../../src/client.ts';
+import type {RouteSubRequest} from '../../src/types.ts';
+import {resetBundledApi} from '../../src/lib/bundledApi.ts';
+import {resetSyncRoutes} from '../../src/lib/syncRoutes.ts';
+import {resetApiBuildVersion} from '../../src/lib/apiBuildVersion.ts';
+import {resetApiVersionRecovery} from '../../src/lib/apiVersionRecovery.ts';
+import {resetMetadataStore} from '../../src/lib/metadataStore.ts';
+import {flushMetadataCache, resetMetadataCacheState} from '../../src/lib/clientMethodsMetadata.ts';
+
+const options = {syncRoutes: true, skipClientRoutes: false} as const;
+type Mion = MionRouter<typeof options>;
+
+/** How many times each handler ran: a refused call leaves its count alone. */
+const handlerCalls: Record<string, number> = {};
+const count = (id: string) => (handlerCalls[id] = (handlerCalls[id] ?? 0) + 1);
+
+/** What the client was built against. */
+const oldRoutes = (mion: Mion) => ({
+  same: mion.route((ctx, value: number): number => (count('same'), value + 1)),
+  paramsChanged: mion.route((ctx, name: string): string => (count('paramsChanged'), name)),
+  returnChanged: mion.route((ctx, name: string): string => (count('returnChanged'), name)),
+  optionsChanged: mion.query((ctx, value: number): number => (count('optionsChanged'), value)),
+  stored: mion.route((ctx, value: number): number => (count('stored'), value)),
+  secured: {
+    token: mion.middleware((ctx, token: string): void => undefined),
+    data: mion.route((): string => (count('secured/data'), 'secret')),
+  },
+});
+
+/** What the server runs now: each route differs from the old one in one way, or not at all. */
+const newRoutes = (mion: Mion) => ({
+  same: mion.route((ctx, value: number): number => (count('same'), value + 1)),
+  paramsChanged: mion.route((ctx, name: string, age: number): string => (count('paramsChanged'), `${name} ${age}`)),
+  returnChanged: mion.route((ctx, name: string): number => (count('returnChanged'), name.length)),
+  // query to mutation: GET becomes POST, the types stay
+  optionsChanged: mion.mutation((ctx, value: number): number => (count('optionsChanged'), value * 2)),
+  stored: mion.route((ctx, value: number): string => (count('stored'), `${value}`)),
+  added: mion.route((): string => 'new'),
+  secured: {
+    token: mion.middleware((ctx, token: number): void => undefined),
+    data: mion.route((): string => (count('secured/data'), 'secret')),
+  },
+});
+
+type OldApi = ApiWithOptions<ReturnType<typeof oldRoutes>, typeof options>;
+
+let server: Server;
+let baseURL: string;
+const realFetch = globalThis.fetch;
+let fetches = 0;
+
+/** Explicit versions keep these two APIs out of the lane's own version check (MET007), which is one API per program. */
+function serve(routes: typeof oldRoutes | typeof newRoutes, version: string) {
+  resetRouter();
+  const mion = createMionRouter(options);
+  // a global middleware with params is not in the API type, so it never stops a synced call
+  addStartMiddlewares({requestTag: mion.middleware((ctx, tag?: string): void => undefined)}, false);
+  mion.initRoutes(routes(mion), version);
+}
+
+/** A page reload: no row in memory survives, the stored ones do. Compiled functions stay: the server shares them here. */
+function reloadClient() {
+  for (const id of Object.keys(routesCache.getCache())) routesCache.removeMetadata(id);
+  resetMetadataCacheState();
+  resetBundledApi();
+  resetApiBuildVersion();
+  resetApiVersionRecovery();
+  resetSyncRoutes();
+  // what the build injects for OldApi, spelled out for the same reason as in `serve`
+  return initClient<OldApi>({baseURL, storageEngine: 'memory'}, 'old', {syncRoutes: true});
+}
+
+/** A call site the build cannot see, so its route is fetched rather than bundled. */
+function callWide(subRequest: RouteSubRequest<any>) {
+  return subRequest.call();
+}
+
+async function counted<T>(run: () => Promise<T>): Promise<{value: T; fetches: number}> {
+  const before = fetches;
+  const value = await run();
+  return {value, fetches: fetches - before};
+}
+
+describe('a client built against routes the server has since changed', () => {
+  beforeAll(async () => {
+    await resetMetadataStore();
+    serve(oldRoutes, 'old');
+    server = createServer(httpRequestHandler);
+    await new Promise<void>((done) => server.listen(0, done));
+    baseURL = `http://localhost:${(server.address() as {port: number}).port}`;
+    globalThis.fetch = ((...args: Parameters<typeof fetch>) => (fetches++, realFetch(...args))) as typeof fetch;
+  });
+
+  afterAll(async () => {
+    globalThis.fetch = realFetch;
+    server.closeAllConnections();
+    await new Promise<void>((done) => server.close(() => done()));
+    resetRouter();
+    await resetMetadataStore();
+  });
+
+  describe('while the server runs the same routes', () => {
+    it('sends the ids with the first call: the build told the client to', async () => {
+      const same = await counted(() => reloadClient().routes.same(1).call());
+      expect(same.value[0]).toBe(2);
+      expect(same.fetches).toBe(1);
+    });
+
+    it("refuses a fetched route's first call once, for its ids, then sends them", async () => {
+      const {routes} = reloadClient();
+      const first = await counted(() => callWide(routes.stored(3)));
+      expect(first.value[0]).toBe(3);
+      expect(first.fetches).toBe(2);
+      const second = await counted(() => callWide(routes.stored(3)));
+      expect(second.fetches).toBe(1);
+      // kept for the reload after the server changes
+      await flushMetadataCache();
+    });
+  });
+
+  describe('after the server changed its routes', () => {
+    beforeAll(() => serve(newRoutes, 'new'));
+
+    it('runs an unchanged route in one request', async () => {
+      const same = await counted(() => reloadClient().routes.same(1).call());
+      expect(same.value[0]).toBe(2);
+      expect(same.fetches).toBe(1);
+    });
+
+    it('runs a route whose options changed, and ignores a route the server added', async () => {
+      const [value, , undeclared] = await reloadClient().routes.optionsChanged(2).call();
+      expect(value).toBe(4);
+      expect(undeclared).toBeUndefined();
+    });
+
+    // one literal call site each, so the build bundles the old row for it
+    it.each([
+      ['params', 'paramsChanged', () => reloadClient().routes.paramsChanged('Ana').call()],
+      ['return', 'returnChanged', () => reloadClient().routes.returnChanged('Ana').call()],
+    ] as const)('refuses a route whose %s type changed, with no resend and no handler run', async (_, id, call) => {
+      const before = handlerCalls[id];
+      const refused = await counted(call);
+      expect(refused.value[0]).toBeUndefined();
+      expect(refused.value[2]).toMatchObject({type: 'route-types-mismatch', errorData: {routeIds: [id]}});
+      expect(refused.fetches).toBe(1);
+      expect(handlerCalls[id]).toBe(before);
+    });
+
+    it('refuses a route whose own middleware changed, though the route itself did not', async () => {
+      const before = handlerCalls['secured/data'];
+      const {routes, middlewares} = reloadClient();
+      const [, , undeclared] = await routes.secured.data().call({middlewares: {token: middlewares.secured.token('t')}});
+      expect(undeclared).toMatchObject({type: 'route-types-mismatch', errorData: {routeIds: ['secured/data']}});
+      expect(handlerCalls['secured/data']).toBe(before);
+    });
+
+    it('relearns a saved row older than the server instead of refusing it on every reload', async () => {
+      const relearned = await counted(() => callWide(reloadClient().routes.stored(3)));
+      expect(relearned.value[0]).toBe('3');
+      expect(relearned.value[2]).toBeUndefined();
+      // refused for the stale id, refused again with no row, then sent with the fresh id
+      expect(relearned.fetches).toBe(3);
+    });
+  });
+});
