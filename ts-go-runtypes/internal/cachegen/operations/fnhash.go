@@ -120,11 +120,11 @@ func AllFnVariants() []FnVariant {
 		for _, rejectCircular := range circularVariants {
 			switch op.Axis {
 			case AxisValidateOptions:
-				for _, subset := range optionSubsets(constants.ValidateOptions) {
+				for _, subset := range constants.OptionSubsets(constants.ValidateOptions) {
 					add(op, subset, "", rejectCircular)
 				}
 			case AxisHasUnknownKeysOptions:
-				for _, subset := range optionSubsets(constants.HasUnknownKeysOptions) {
+				for _, subset := range constants.OptionSubsets(constants.HasUnknownKeysOptions) {
 					add(op, subset, "", rejectCircular)
 				}
 			case AxisJsonStrategy:
@@ -163,25 +163,6 @@ func allCanonicalKeys() []string {
 		keys = append(keys, Canonical(variant.Op, variant.Options, variant.Strategy, variant.RejectCircular))
 	}
 	return keys
-}
-
-// optionSubsets returns the power set of an option table's names, so the collision guard covers every variant a call site can request.
-func optionSubsets(table []constants.ValidateOption) [][]string {
-	names := make([]string, 0, len(table))
-	for _, opt := range table {
-		names = append(names, opt.Name)
-	}
-	subsets := make([][]string, 0, 1<<len(names))
-	for mask := 0; mask < (1 << len(names)); mask++ {
-		var subset []string
-		for i, name := range names {
-			if mask&(1<<i) != 0 {
-				subset = append(subset, name)
-			}
-		}
-		subsets = append(subsets, subset)
-	}
-	return subsets
 }
 
 // mustBeCollisionFree panics when two distinct canonical keys hash alike at FnHashLen; it runs at package init, so every build trips it.

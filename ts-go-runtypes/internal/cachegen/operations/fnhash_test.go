@@ -6,25 +6,25 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 )
 
-// expectedCanonicalKeyCount is a canary. Base set = 53: 12 AxisNone ops × 1,
-// huk's 2 HasUnknownKeysOptions subsets, val+verr's 16 ValidateOptions subsets
-// each (32; 4 options — noLiterals, noIsArrayCheck, numberTypeof, numberNotNaN —
-// → 2^4), jsonEncoder's 4 + jsonDecoder's 3 strategies (7). On top, the four
+// expectedCanonicalKeyCount is a canary. Base set = 45: 12 AxisNone ops × 1,
+// huk's 2 HasUnknownKeysOptions subsets, val+verr's 12 ValidateOptions subsets
+// each (24; noLiterals × noIsArrayCheck × numberMode's 3 values → 2·2·3),
+// jsonEncoder's 4 + jsonDecoder's 3 strategies (7). On top, the four
 // CircularGuarded ops fork on rejectCircular, ADDING one armed key per plain
-// variant: val +16, verr +16, tb +1, jsonEncoder +4 = +37. If this trips, an
+// variant: val +12, verr +12, tb +1, jsonEncoder +4 = +29. If this trips, an
 // operation (or the circular fork) changed without updating the count (and you
 // should re-confirm the collision guard still holds).
 //
-// +64: the fused validators vst / vest (the `{checkUnknowns: true}` families).
-// Each carries the SAME shape as its plain twin — 16 ValidateOptions subsets plus
-// 16 armed rejectCircular forks — so 32 keys apiece. Adding them is what forced
+// +48: the fused validators vst / vest (the `{checkUnknowns: true}` families).
+// Each carries the SAME shape as its plain twin — 12 ValidateOptions subsets plus
+// 12 armed rejectCircular forks — so 24 keys apiece. Adding them is what forced
 // FnHashLen 3 → 4 (see fnhash.go).
 //
-// +64: the union-scoped validators vuk / veuk (the `{checkUnionUnknowns: true}`
-// families), the same 32 keys apiece for the same reason.
+// +48: the union-scoped validators vuk / veuk (the `{checkUnionUnknowns: true}`
+// families), the same 24 keys apiece for the same reason.
 //
 // +1: restoreFromJsonClone (rjs), the stripping decode mirror of prepareForJsonClone.
-const expectedCanonicalKeyCount = 53 + 37 + 1 + 1 + 64 + 64 + 1 // +1: the jsonSchema (jsc) document operation; +1: the classSerializerReg (csr) name card
+const expectedCanonicalKeyCount = 45 + 29 + 1 + 1 + 48 + 48 + 1 // +1: the jsonSchema (jsc) document operation; +1: the classSerializerReg (csr) name card
 
 func TestFnHashCollisionFree(t *testing.T) {
 	// Runs at init too, but assert here so the failure is a test, not a panic.

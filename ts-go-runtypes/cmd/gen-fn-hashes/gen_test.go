@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -75,6 +76,24 @@ func TestJitFnIdsMatchTheFullTable(t *testing.T) {
 	for _, row := range plainVariantHashes() {
 		if plain[row[0]] != row[1] {
 			t.Errorf("%s: narrow table says %q, the full table's plain variant is %q", row[0], row[1], plain[row[0]])
+		}
+	}
+}
+
+// numberMode is one option, so no validate variant token may carry both its T and M letters.
+func TestFnHashesTableHasNoImpossibleNumberModes(t *testing.T) {
+	committed, err := os.ReadFile(fnHashesOutputPath())
+	if err != nil {
+		t.Fatalf("read %s: %v", fnHashesOutputPath(), err)
+	}
+	if match := regexp.MustCompile(`\bN[A-Z]*T[A-Z]*M[A-Z]*:`).FindString(string(committed)); match != "" {
+		t.Errorf("committed table lists impossible variant %q, regenerate via `pnpm miondevx core codegen fnhashes`", match)
+	}
+	for _, entry := range collectEntries() {
+		for token := range entry.variants {
+			if strings.Contains(token, "T") && strings.Contains(token, "M") {
+				t.Errorf("fnKey %q emits impossible variant %q", entry.fnKey, token)
+			}
 		}
 	}
 }

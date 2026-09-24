@@ -213,6 +213,7 @@ func JsonCompositeByTag(tag string) (JsonComposite, bool) {
 type ValidateOption struct {
 	Name   string // JS property name, e.g. "noLiterals"
 	Letter string // single uppercase letter appended to the variant suffix, e.g. "L"
+	Group  string // entries sharing a non-empty Group are values of one option, so a call site sets at most one
 }
 
 // numberMode (the `ValidateOptions.numberMode` string enum) selects the emitted base `number` check so validators
@@ -249,8 +250,36 @@ const (
 var ValidateOptions = []ValidateOption{
 	{Name: "noLiterals", Letter: "L"},
 	{Name: "noIsArrayCheck", Letter: "A"},
-	{Name: numberModeTypeofName, Letter: "T"},
-	{Name: numberModeNotNaNName, Letter: "M"},
+	{Name: numberModeTypeofName, Letter: "T", Group: NumberModeOption},
+	{Name: numberModeNotNaNName, Letter: "M", Group: NumberModeOption},
+}
+
+// OptionSubsets returns every option-name subset of table a call site can request: the power set minus any subset
+// holding two entries of the same Group.
+func OptionSubsets(table []ValidateOption) [][]string {
+	subsets := make([][]string, 0, 1<<len(table))
+	for mask := 0; mask < (1 << len(table)); mask++ {
+		var subset []string
+		groups := map[string]bool{}
+		possible := true
+		for i, opt := range table {
+			if mask&(1<<i) == 0 {
+				continue
+			}
+			if opt.Group != "" {
+				if groups[opt.Group] {
+					possible = false
+					break
+				}
+				groups[opt.Group] = true
+			}
+			subset = append(subset, opt.Name)
+		}
+		if possible {
+			subsets = append(subsets, subset)
+		}
+	}
+	return subsets
 }
 
 // NumberModeOptionName maps a numberMode value to its canonical variant option name (a ValidateOptions member),
