@@ -19,7 +19,6 @@ import {
   RouteOnlyOptions,
   RemoteMethodOpts,
   CoreRouterOptions,
-  SerializerModes,
   DEFAULT_MAX_BODY_SIZE,
 } from '@mionjs/core';
 import {Routes} from '../../src/types/general.ts';

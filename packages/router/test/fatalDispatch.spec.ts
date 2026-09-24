@@ -24,7 +24,7 @@ import {createMionRouter, resetRouter} from '../src/router.ts';
 import {dispatchRoute} from '../src/dispatch.ts';
 import type {CallContext, MionHeaders} from '../src/types/context.ts';
 import type {Routes} from '../src/types/general.ts';
-import {HeadersSubset, RpcError, FatalError, MION_ROUTES, StatusCodes, isFatalError, SerializerModes} from '@mionjs/core';
+import {HeadersSubset, RpcError, FatalError, MION_ROUTES, StatusCodes, isFatalError} from '@mionjs/core';
 import {headersFromRecord} from '../src/lib/headers.ts';
 import {getRouterFatalErrorResponse} from '../src/lib/dispatchError.ts';
 
