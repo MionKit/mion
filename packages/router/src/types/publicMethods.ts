@@ -80,7 +80,7 @@ export interface MethodTypes {
   /** a headers middleware's HeadersSubset parameter, `never` for every other method */
   headers: unknown;
   isAsync: boolean;
-  /** params and return together, the type the build's sync id is made from */
+  /** `[params, return]`, the type the build's sync id is made from */
   sync: unknown;
 }
 
