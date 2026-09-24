@@ -6,10 +6,8 @@ name: ci
 # The heavy work is split across TWO balanced jobs on their own runners. The Go
 # suite is lighter than the full JS/vitest suite, so ALL the JS fuzz work rides
 # the Go runner to even the two out:
-#   go-fuzz — Go suite (gofmt/vet/test) + the count-based JS fuzz sweep + race
-#             + the time-boxed fuzz lanes, soaked sequentially
-#   js-lint — check-format + lint/typecheck + the code-import and examples gates
-#             + the rest of the JS suite + platform-bun's bun:test suites
+#   go-fuzz — Go suite (gofmt/vet/test) + count-based JS fuzz sweep + race + time-boxed lanes (sequential)
+#   js-lint — check-format + lint/typecheck + code-import and examples gates + rest of the JS suite + bun:test
 # Both are CONTENT-GATED via the `lanes` job, same mechanism as `smoke`. Each lane
 # declares the paths that feed it (scripts/ci/lanes.mjs), hashes exactly those paths
 # in the tree under test, and runs unless a marker says that hash already passed. So
@@ -117,9 +115,7 @@ jobs:
         run: node scripts/ci/check-tree.mjs
 
   # ── go-fuzz: Go suite + every JS fuzz lane ────────────────────────────────
-  # The Go suite (vet + test) is the wall floor here; all the JS fuzz lanes
-  # (the JS heavyweight) ride along on this otherwise-Go-bound runner to
-  # balance it against js-lint, at their quick budgets.
+  # The JS fuzz lanes ride this Go-bound runner to balance it against js-lint; the Go suite is the wall floor.
   go-fuzz:
     name: go tests + fuzz
     needs: lanes
@@ -169,8 +165,7 @@ jobs:
         run: go test ./internal/... ./cmd/...
       # The count-based JS fuzz lanes at their QUICK budgets (fixed coverage, so
       # vitest's file parallelism only costs wall clock), plus the fuzz-adjacent
-      # regression/smoke/unit tests in the same tree. The time-boxed lanes are
-      # excluded — the step after the race soaks those sequentially.
+      # regression/smoke/unit tests in the same tree. Time-boxed lanes are excluded; a later step soaks them.
       # The env values mirror the registry's quick blocks; values, exclude list
       # and the trailing slash on `test/fuzz/` (it keeps the devtools
       # fuzz-lane-contracts test out of this slice) are pinned by that same test.
@@ -191,14 +186,9 @@ jobs:
       - name: Concurrent CLI race fuzz (MION_FUZZ_RACE gate)
         if: fromJSON(needs.lanes.outputs.lanes)['js-fuzz'].run
         run: pnpm miondevx core fuzz race --quick
-      # The TIME-BOXED fuzz lanes at their quick budgets (10s of fuzzing each;
-      # the release soak gives them 60s). ONE invocation: miondevx pays vitest's
-      # startup once and, because the set contains time-boxed lanes, runs the
-      # files sequentially itself — contention would silently cut their coverage
-      # (see the FUZZ registry note in scripts/miondevx.mjs). A step of its own
-      # keeps them off the parallel sweep above. Their files are excluded from
-      # that sweep so nothing double-runs (pinned by fuzz-lane-contracts.test.ts),
-      # and a red lane replays locally with this exact command.
+      # 10s of fuzzing each (60s at release). One call pays vitest's startup once; miondevx runs the files in sequence.
+      # Contention would silently cut their coverage (FUZZ registry note in scripts/miondevx.mjs), hence their own step.
+      # The sweep excludes these files (pinned by fuzz-lane-contracts.test.ts); a red lane replays with this command.
       - name: Time-boxed fuzz lanes at quick budgets
         if: fromJSON(needs.lanes.outputs.lanes)['js-fuzz'].run
         run: pnpm miondevx core fuzz cloning elision jsonsize nondata roundtrip secbinary secformat secgen sechttp secjson size types value --quick
@@ -220,8 +210,7 @@ jobs:
           hash: ${{ fromJSON(needs.lanes.outputs.lanes)['js-fuzz'].hash }}
 
   # ── js-lint: the rest of the JS suite + lint/typecheck/format ─────────────
-  # Everything except the fuzz tree runs here, plus the static checks.
-  # Together with go-fuzz this is a complete, disjoint partition of the JS suite.
+  # Everything but the fuzz tree, plus the static checks; with go-fuzz, a complete disjoint partition of the JS suite.
   js-lint:
     name: js tests + lint
     needs: lanes
