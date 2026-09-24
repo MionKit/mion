@@ -45,7 +45,7 @@ export function deserializeRequestBody(context: CallContext): MayReturnError {
       parsedBody = context.request.rawBody;
       break;
     default:
-      throw new Error(`Invalid body type ${context.request.bodyType}`);
+      throw new Error(`Invalid body type ${String(context.request.bodyType)}`);
   }
   if (Array.isArray(parsedBody)) {
     // an array body is a single route call, rebuilt as a body: /route1 [p1, p2] => {route1: [p1, p2]}
