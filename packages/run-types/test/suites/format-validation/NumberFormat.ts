@@ -230,7 +230,7 @@ export const NUMBER_FORMAT = {
   number_float: {
     title: 'Float',
     description:
-      'numberFormat with the `float` tag: a generation/presentation annotation (fractional mocks, float64 binary packing), NEVER a failable constraint.',
+      'numberFormat with the `float` tag: a generation/presentation annotation (fractional mocks), NEVER a failable constraint.',
     validateNotes: [
       'Every finite number passes, whole values (1, 0, -2) included - a float legally holds 2.0. The tag steers mock generation toward fractional samples; `float` and `integer` stay mutually exclusive as params.',
     ],
@@ -436,9 +436,9 @@ export const NUMBER_FORMAT = {
   },
   number_int8: {
     title: 'Int8',
-    description: 'numberFormat preset for the integer-only signed 8-bit range [-128, 127] that selects 1-byte binary packing.',
+    description: 'numberFormat preset for the integer-only signed 8-bit range [-128, 127].',
     validateNotes:
-      'Inclusive bounds min -128 / max 127, integer required: 128 fails `max`, -129 fails `min`, 1.5 fails `integer`. The fixed min/max drive the 1-byte binary packing optimization.',
+      'Inclusive bounds min -128 / max 127, integer required: 128 fails `max`, -129 fails `min`, 1.5 fails `integer`.',
     validate: () => createValidateFn<TF.Int8>(),
     standardSchema: () => createStandardSchema<TF.Int8>(),
     validateReflect: () => {
@@ -478,9 +478,8 @@ export const NUMBER_FORMAT = {
   },
   number_uint8: {
     title: 'UInt8',
-    description: 'numberFormat preset for the integer-only unsigned 8-bit range [0, 255] that selects 1-byte binary packing.',
-    validateNotes:
-      'Inclusive bounds min 0 / max 255, integer required: 256 fails `max`, -1 fails `min`. The fixed min/max drive the 1-byte binary packing optimization.',
+    description: 'numberFormat preset for the integer-only unsigned 8-bit range [0, 255].',
+    validateNotes: 'Inclusive bounds min 0 / max 255, integer required: 256 fails `max`, -1 fails `min`.',
     validate: () => createValidateFn<TF.UInt8>(),
     standardSchema: () => createStandardSchema<TF.UInt8>(),
     validateReflect: () => {

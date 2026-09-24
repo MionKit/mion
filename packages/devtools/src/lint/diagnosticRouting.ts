@@ -21,8 +21,6 @@ export type RuleName =
   | 'validate-skipped-member'
   | 'json-non-serializable'
   | 'json-skipped-member'
-  | 'binary-non-serializable'
-  | 'binary-skipped-member'
   | 'clone-unsupported-type'
   | 'clone-shared-reference'
   | 'format'
@@ -142,22 +140,6 @@ export const RULE_SPECS: readonly RuleSpec[] = [
       'A property the JSON encoder and decoder silently leave out (a function, method, static, or symbol member) — the rest of the object round-trips normally',
   },
   {
-    name: 'binary-non-serializable',
-    namespace: 'runtypes',
-    default: 'error',
-    gate: 'compiler',
-    description:
-      'A type that can never be serialised to or deserialised from binary (a function, symbol, never, or a non-serializable built-in like WeakMap at a root position) — the generated function will always fail',
-  },
-  {
-    name: 'binary-skipped-member',
-    namespace: 'runtypes',
-    default: 'warn',
-    gate: 'compiler',
-    description:
-      'A property the binary encoder and decoder silently leave out (a function, method, static, or symbol member) — the rest of the object round-trips normally',
-  },
-  {
     name: 'clone-unsupported-type',
     namespace: 'runtypes',
     default: 'error',
@@ -195,7 +177,7 @@ export const RULE_SPECS: readonly RuleSpec[] = [
     default: 'warn',
     gate: 'compiler',
     description:
-      'A validate override on a type whose JSON and binary union decoders also run validation internally — the override changes their behaviour too, which may be intended but is worth knowing',
+      'A validate override on a type whose JSON union decoders also run validation internally — the override changes their behaviour too, which may be intended but is worth knowing',
   },
   {
     name: 'non-enumerable',
@@ -315,7 +297,7 @@ interface FamilyRules {
 }
 
 // PREFIX_TO_FAMILY maps a compiler code's letter prefix to its family rules, at PRODUCT-family granularity: the
-// JSON prefixes share the json rules, the two binary halves share binary, validate absorbs validationErrors, and
+// JSON prefixes share the json rules, validate absorbs validationErrors, and
 // the marker-scanner prefixes share the marker rules. Enrichment (FT/MD/GE) and mion route (MRT) codes route by
 // concern instead (enrichFamily, mionRouteFamily), so they are absent here.
 const PREFIX_TO_FAMILY: Record<string, FamilyRules> = {
@@ -336,8 +318,6 @@ const PREFIX_TO_FAMILY: Record<string, FamilyRules> = {
   PJS: {primary: 'json-non-serializable', warn: 'json-skipped-member'},
   RJ: {primary: 'json-non-serializable', warn: 'json-skipped-member'},
   JCP: {primary: 'json-non-serializable'},
-  TB: {primary: 'binary-non-serializable', warn: 'binary-skipped-member'},
-  FB: {primary: 'binary-non-serializable', warn: 'binary-skipped-member'},
   RUK: {primary: 'clone-unsupported-type', warn: 'clone-shared-reference'},
   FMT: {primary: 'format'},
   OVR: {primary: 'invalid-override', warn: 'override-side-effect'},

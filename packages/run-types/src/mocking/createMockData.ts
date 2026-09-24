@@ -14,8 +14,6 @@ import type {RunType} from '../runtypes/types.ts';
 import type {CompTimeHints, InjectRunTypeId} from '../index.ts';
 import {mockRunType} from './mockType.ts';
 import {mockRunTypeInvalid} from './mockInvalid.ts';
-import {mockRunTypeOversized} from './mockOversized.ts';
-import {applyInBoundsSizing} from './binarySize.ts';
 import {MockRandom, nativeMockRandom} from './mockRandom.ts';
 import {defaultMockOptions} from './constants.mock.ts';
 import type {MockDataNode, MockOptions, MockTypeFn, RunTypeMockOptions, DeepPartial} from './mockTypes.ts';
@@ -67,12 +65,7 @@ export function createMockDataFn<T>(
     // Promise resolver, which closes over `merged`). A fresh seeded instance each call ⇒ the same seed always
     // reproduces the same value; no seed reuses the stateless native instance.
     mockOpts.random = mockOpts.seed === undefined ? nativeMockRandom : new MockRandom(mockOpts.seed);
-    // Steer generation to FIT the binary cold-start estimate only when asked; `undefined` leaves the generator untouched.
-    // `false` (oversized) starts from the same in-bounds value and inflates ONE position past the estimate's cap,
-    // so the overflow is that position's alone.
-    if (mockOpts.respectBinarySize !== undefined) applyInBoundsSizing(mockOpts);
     if (mockOpts.invalid) return mockRunTypeInvalid(runType, merged, []) as T;
-    if (mockOpts.respectBinarySize === false) return mockRunTypeOversized(runType, merged, []) as T;
     return mockRunType(runType, merged, []) as T;
   }) as MockTypeFn<T>;
 }

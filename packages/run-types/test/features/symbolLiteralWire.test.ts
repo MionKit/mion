@@ -3,13 +3,7 @@
 // property, alwaysThrow at a root); the validator keeps its in-memory description check.
 
 import {describe, test, expect} from 'vitest';
-import {
-  createValidateFn,
-  createJsonEncoderFn,
-  createJsonDecoderFn,
-  createBinaryEncoderFn,
-  createBinaryDecoderFn,
-} from '@mionjs/run-types';
+import {createValidateFn, createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
 
 const sym = Symbol('hello');
 type SymLiteral = typeof sym;
@@ -27,13 +21,6 @@ describe('symbol literal at a root', () => {
     expect(() => createJsonEncoderFn<SymLiteral>(undefined, {strategy: 'mutate'})).toThrow();
     // @mion-downgrade-error RJ005
     expect(() => createJsonDecoderFn<SymLiteral>()).toThrow();
-  });
-
-  test('binary refuses it too', () => {
-    // @mion-downgrade-error TB006
-    expect(() => createBinaryEncoderFn<SymLiteral>()).toThrow();
-    // @mion-downgrade-error FB006
-    expect(() => createBinaryDecoderFn<SymLiteral>()).toThrow();
   });
 
   test('an array of one has no encodable element', () => {
@@ -72,12 +59,6 @@ describe('symbol literal at a property', () => {
   // DataOnly<HasSymLiteral> has no `tag`, so reading it is a compile error: type and runtime agree.
   test('a decoded object has no tag at all', () => {
     const decoded = createJsonDecoderFn<HasSymLiteral>()(createJsonEncoderFn<HasSymLiteral>()({tag: sym, name: 'a'}) as string);
-    expect(decoded).toEqual({name: 'a'});
-    expect('tag' in decoded).toBe(false);
-  });
-
-  test('binary drops it the same way', () => {
-    const decoded = createBinaryDecoderFn<HasSymLiteral>()(createBinaryEncoderFn<HasSymLiteral>()({tag: sym, name: 'a'}));
     expect(decoded).toEqual({name: 'a'});
     expect('tag' in decoded).toBe(false);
   });

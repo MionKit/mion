@@ -36,7 +36,7 @@ import (
 const tripwireCorpus = `import {
   createValidateFn, createGetValidationErrorsFn,
   createRemoveUnknownKeysFn, createFormatTransformFn,
-  createJsonEncoderFn, createJsonDecoderFn, createBinaryEncoderFn, createBinaryDecoderFn,
+  createJsonEncoderFn, createJsonDecoderFn,
 } from '@mionjs/run-types';
 type TypeFormat<Base, Name extends string, Params> = Base & {
   readonly __rtFormatName?: Name;
@@ -57,8 +57,6 @@ export const es = createGetValidationErrorsFn<Obj>(undefined, {checkUnknowns: tr
 export const ft = createFormatTransformFn<WithFmt>();
 export const je = createJsonEncoderFn<WithFmt>();
 export const jd = createJsonDecoderFn<WithFmt>();
-export const be = createBinaryEncoderFn<WithFmt>();
-export const bd = createBinaryDecoderFn<WithFmt>();
 `
 
 // emittedPureFnRe matches a `getPureFn`/`usePureFn` call in an emitted body. The

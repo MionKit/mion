@@ -2,8 +2,6 @@ import type * as TF from '@mionjs/run-types/formats';
 import {
   createValidateFn,
   createGetValidationErrorsFn,
-  createBinaryEncoderFn,
-  createBinaryDecoderFn,
   createStandardSchema,
 } from '@mionjs/run-types';
 import {createMockDataFn} from '@mionjs/run-types/mocking';
@@ -36,14 +34,6 @@ const orderErrors = createGetValidationErrorsFn<Order>();
 orderErrors({...order, total: 'free'}); // [{path: ['total'], expected: 'number'}]
 // end-validate
 
-// start-binary
-const toBytes = createBinaryEncoderFn<Order>();
-const fromBytes = createBinaryDecoderFn<Order>();
-
-const bytes = toBytes(order); // a Uint8Array, smaller than JSON
-const order2 = fromBytes(bytes); // back to a typed object
-// end-binary
-
 // start-mock
 const mockOrder = createMockDataFn<Order>();
 const fake = mockOrder(); // a valid, randomized Order for your tests
@@ -57,4 +47,4 @@ orderSchema['~standard'].validate(order); // {value: order}
 orderSchema['~standard'].validate({}); // {issues: [{message, path}, …]}
 // end-standard
 
-export {order, order2, fake, orderSchema};
+export {order, fake, orderSchema};

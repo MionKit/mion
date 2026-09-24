@@ -10,7 +10,7 @@ import (
 )
 
 // overrideOpKeyForTag maps a simple (non-composite) family tag to the operation NAME RunType.Overrides is
-// keyed by ("val" → "validate", "tb" → "toBinary", …). The NAME, not the marker token: the name is the
+// keyed by ("val" → "validate", "fmt" → "formatTransform", …). The NAME, not the marker token: the name is the
 // hash-side identity, so the public marker vocabulary can be renamed without moving an overridden type.
 // Returns "" for a tag with no public operation (an internal primitive, never user-overridable), which skips
 // the override check. Composite JSON tags resolve their op key in json_composite.go.

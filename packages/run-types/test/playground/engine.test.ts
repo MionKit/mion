@@ -144,13 +144,6 @@ describeIf('playground engine (WASM, live execution)', () => {
     expect(clone.decoded).toMatchObject({id: 1, name: 'ada'});
   });
 
-  it('createBinaryEncoderFn/Decoder round-trips a value', async () => {
-    const res = await run('binaryDecoder', TYPE, VALID);
-    if (res.kind !== 'binaryRoundtrip') throw new Error('expected binaryRoundtrip result');
-    expect(res.byteLength).toBeGreaterThan(0);
-    expect(res.decoded).toMatchObject({id: 1, name: 'ada'});
-  });
-
   it('getRunType resolves the RunType graph', async () => {
     const res = await run('graph', TYPE);
     if (res.kind !== 'graph') throw new Error('expected graph result');

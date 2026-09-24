@@ -179,7 +179,7 @@ jobs:
           MION_FUZZ_ITER: '10'
         run: >-
           pnpm exec vitest run test/fuzz/
-          --exclude '**/test/fuzz/{value/fuzz,type/typeFuzz,type/nonDataTypeFuzz,cloning/cloneFuzz,roundtrip/allStrategyRoundtrip,binary/binarySizeEstimate,type/jsonSizeBound,elision/elisionFuzz,security/binaryDecodeFuzz,security/jsonDecodeFuzz,security/formatPatternFuzz,security/generatedCodeFuzz,security/httpFuzz}.integration.test.ts'
+          --exclude '**/test/fuzz/{value/fuzz,type/typeFuzz,type/nonDataTypeFuzz,cloning/cloneFuzz,roundtrip/allStrategyRoundtrip,type/jsonSizeBound,elision/elisionFuzz,security/jsonDecodeFuzz,security/formatPatternFuzz,security/generatedCodeFuzz,security/httpFuzz}.integration.test.ts'
       # enrichRace self-skips unless MION_FUZZ_RACE=1 (scripts audit §3.4); the
       # sweep above never sets it, so the concurrency coverage rides here at the
       # race lane's quick budget (miondevx sets MION_FUZZ_RACE=1 itself).
@@ -191,7 +191,7 @@ jobs:
       # The sweep excludes these files (pinned by fuzz-lane-contracts.test.ts); a red lane replays with this command.
       - name: Time-boxed fuzz lanes at quick budgets
         if: fromJSON(needs.lanes.outputs.lanes)['js-fuzz'].run
-        run: pnpm miondevx core fuzz cloning elision jsonsize nondata roundtrip secbinary secformat secgen sechttp secjson size types value --quick
+        run: pnpm miondevx core fuzz cloning elision jsonsize nondata roundtrip secformat secgen sechttp secjson types value --quick
 
       # One marker per HALF, each written only when that half actually ran and
       # passed. A half that was skipped proved nothing, so it must not claim a

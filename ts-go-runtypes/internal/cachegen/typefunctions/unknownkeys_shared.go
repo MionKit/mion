@@ -274,7 +274,7 @@ func stringListParam(raw any) []string {
 // It keys on the NAME whatever the per-family emit does with the value: a DataOnly-stripped prop (`p0: ArrayBuffer`) is dropped
 // from the projection but its key must still be skipped, or the index loop copies it back in (G6).
 // Function-like children are stripped the same way, so they are in too: leaving them out ran the index signature's own value
-// encoder over a function (an uncontrolled TypeError in binary, the function's source text in JSON).
+// encoder over a function (the function's source text in JSON).
 // Statics stay out: they are not own enumerable keys, so no for-in ever reaches them.
 // Shared by publishSiblingNamedKeysForIndexSig and the clone path's buildSafeIndexSignatureObject.
 func collectSiblingNamedKeys(rt *reflection.RunType, ctx *EmitContext) []string {

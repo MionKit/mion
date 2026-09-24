@@ -1,5 +1,5 @@
 // End-to-end check of the runtype diagnostics over inline sources: root throws get per-family codes (PJ001,
-// PJS001, TB001) so a build log greps by family, each points at the marker call site, child skips name the member,
+// PJS001) so a build log greps by family, each points at the marker call site, child skips name the member,
 // dedup is one per call site (not per type id), and the output renders as a $tsc problem-matcher line.
 
 import {describe, expect, it} from 'vitest';
@@ -36,13 +36,12 @@ export const _ = createJsonEncoderFn<never>(undefined, {strategy: 'mutate'});
     });
   });
 
-  register('emits per-family codes — PJS001 / TB001 / PJ001 — for same root throw', async () => {
-    // Demand-driven families: mutate seeds pj, the default clone seeds pjs, the binary encoder seeds tb.
+  register('emits per-family codes — PJS001 / PJ001 — for same root throw', async () => {
+    // Demand-driven families: mutate seeds pj, the default clone seeds pjs.
     const sources = {
-      'never-multi.ts': `import {createJsonEncoderFn, createBinaryEncoderFn} from '@mionjs/run-types';
+      'never-multi.ts': `import {createJsonEncoderFn} from '@mionjs/run-types';
 export const _ = createJsonEncoderFn<never>(undefined, {strategy: 'mutate'});
 export const _s = createJsonEncoderFn<never>();
-export const _b = createBinaryEncoderFn<never>();
 `,
     };
     await withInlineSources(sources, async ({client}) => {
@@ -52,7 +51,6 @@ export const _b = createBinaryEncoderFn<never>();
       const codes = new Set(runtypeDiagsOf(response).map((d) => d.code));
       expect(codes, [...codes].join(',')).toContain('PJ001');
       expect(codes).toContain('PJS001');
-      expect(codes).toContain('TB001');
     });
   });
 
@@ -248,38 +246,14 @@ export const _r = createJsonDecoderFn<[number, () => void]>();
     });
   });
 
-  register('propagates function-typed tuple slot as alwaysThrow under toBinary / fromBinary', async () => {
-    // tb/fb are demand-driven, so seed each via the matching binary createX.
-    const sources = {
-      'fn-tuple-bin.ts': `import {createBinaryEncoderFn, createBinaryDecoderFn} from '@mionjs/run-types';
-export const _e = createBinaryEncoderFn<[string, () => number]>();
-export const _d = createBinaryDecoderFn<[string, () => number]>();
-`,
-    };
-    await withInlineSources(sources, async ({client}) => {
-      const response = await client.scanFiles(Object.keys(sources), {
-        includeEntryModules: true,
-      });
-      const codes = new Set(runtypeDiagsOf(response).map((d) => d.code));
-      expect(codes).toContain('TB003');
-      expect(codes).toContain('FB003');
-      // Entry key is the opaque `<fnHash>_<id>`, matched generically.
-      const allModules = Object.values(response.entryModules ?? {}).join('\n');
-      expect(allModules).toMatch(
-        /'[A-Za-z0-9]+_[A-Za-z0-9]+','tuple',,,,,,'\[TB003\] Type `Function` can never be serialised to binary/
-      );
-    });
-  });
-
   register('propagates symbol-typed tuple slot as alwaysThrow under prepareForJson', async () => {
     // Symbol in a tuple slot wasn't covered by the explicit
     // isFunctionLikeKind short-circuit — it took the natural CompileChild
     // path even before the fix. This test pins that behavior so a future
     // optimisation can't silently regress it.
     const sources = {
-      'sym-tuple.ts': `import {createJsonEncoderFn, createBinaryEncoderFn} from '@mionjs/run-types';
+      'sym-tuple.ts': `import {createJsonEncoderFn} from '@mionjs/run-types';
 export const _ = createJsonEncoderFn<[number, symbol]>(undefined, {strategy: 'mutate'});
-export const _b = createBinaryEncoderFn<[number, symbol]>();
 `,
     };
     await withInlineSources(sources, async ({client}) => {
@@ -288,7 +262,6 @@ export const _b = createBinaryEncoderFn<[number, symbol]>();
       });
       const codes = new Set(runtypeDiagsOf(response).map((d) => d.code));
       expect(codes).toContain('PJ005');
-      expect(codes).toContain('TB006');
     });
   });
 

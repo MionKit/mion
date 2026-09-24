@@ -111,9 +111,7 @@ export const CURRENCY = {
     title: 'Currency in integer minor units',
     description:
       'Currency stored as integer minor units (cents) with a uint16 range; validation mirrors the equivalent Number brand.',
-    validateNotes: [
-      'Non-integers fail on `integer`; values above 65535 fail on `max`; negatives fail on `min`. The [0, 65535] bounds also drive the 2-byte binary packing (see the format-serialization suite).',
-    ],
+    validateNotes: ['Non-integers fail on `integer`; values above 65535 fail on `max`; negatives fail on `min`.'],
     validate: () => createValidateFn<TF.Currency<{integer: true; min: 0; max: 65535}>>(),
     standardSchema: () => createStandardSchema<TF.Currency<{integer: true; min: 0; max: 65535}>>(),
     validateReflect: () => {

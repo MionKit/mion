@@ -19,14 +19,12 @@ func mkRegexp() *reflection.RunType {
 	return &reflection.RunType{ID: "re", Kind: reflection.KindRegexp}
 }
 
-var serdeFamilies = []string{"prepareForJsonMutate", "prepareForJsonClone", "restoreFromJsonMutate", "toBinary", "fromBinary"}
+var serdeFamilies = []string{"prepareForJsonMutate", "prepareForJsonClone", "restoreFromJsonMutate"}
 
 var regexpRootCodes = map[string]string{
 	"prepareForJsonMutate":  diagnostics.CodePJNonSerializableRoot,
 	"prepareForJsonClone":   diagnostics.CodePJSNonSerializableRoot,
 	"restoreFromJsonMutate": diagnostics.CodeRJNonSerializableRoot,
-	"toBinary":              diagnostics.CodeTBNonSerializableRoot,
-	"fromBinary":            diagnostics.CodeFBNonSerializableRoot,
 }
 
 func TestRegexp_PropertyDropsLikeAFunction(t *testing.T) {
@@ -94,7 +92,6 @@ func TestRegexp_UnionMemberDrops(t *testing.T) {
 	dump := protocol.Dump{RunTypes: []*reflection.RunType{date, mkRegexp(), union}}
 	for fam, code := range map[string]string{
 		"prepareForJsonMutate": diagnostics.CodePJUnionMemberDropped,
-		"toBinary":             diagnostics.CodeTBUnionMemberDropped,
 	} {
 		out, sink := renderWithDiag(t, dump, fam, "uni")
 		if strings.Contains(out, "_uni','union',,,,,,'") {

@@ -125,19 +125,15 @@ type tsRuntypesPlugin struct {
 	//
 	// It replaced the boolean `failOnError`; see removedPluginKeys.
 	DowngradeErrors downgradeErrorsKey `json:"downgradeErrors"`
-	// BinarySizing groups the binary `dynamic` strategy's cold-start
-	// buffer-estimate knobs under one `binarySizing` object (like `i18n`). A nil
-	// object (absent key) keeps every binary default.
-	BinarySizing *binarySizingPluginConfig `json:"binarySizing"`
 	// Validate groups project-wide defaults for the per-call-site ValidateOptions
-	// bag under one `validate` object (like `binarySizing`). A nil object (absent key)
+	// bag under one `validate` object (like `i18n`). A nil object (absent key)
 	// keeps every validator on its built-in default. Merged per field into each
 	// validate / validationErrors call site by the scanner (site value wins per
 	// field); folds into each entry's fnHash variant, so it is NOT a disk
 	// fingerprint input.
 	Validate *validatePluginConfig `json:"validate"`
 	// Markers groups the marker-package gate under one `markers` object (like
-	// `binarySizing`). It answers "which packages am I willing to accept the
+	// `validate`). It answers "which packages am I willing to accept the
 	// marker types from?", so a library can declare `InjectRunTypeId` and
 	// friends itself instead of depending on mion purely for types. A nil
 	// object (absent key) keeps the built-in gate: markers count only when
@@ -159,21 +155,6 @@ type tsRuntypesPlugin struct {
 type markersPluginConfig struct {
 	Packages     []string `json:"packages"`
 	CheckPackage *bool    `json:"checkPackage"`
-}
-
-// binarySizingPluginConfig is the `binarySizing` object under the mion
-// plugin entry:
-//
-//	{ "bias": 0.8, "items": 100, "stringBytes": 32, "maxBytes": 65536 }
-//
-// bias (0..1) tunes how generous the first buffer is; items / stringBytes are
-// the assumed magnitudes for unbounded collections and strings; maxBytes caps
-// the estimate. Pointers so an absent key falls through to the binary default.
-type binarySizingPluginConfig struct {
-	Bias        *float64 `json:"bias"`
-	Items       *int     `json:"items"`
-	StringBytes *int     `json:"stringBytes"`
-	MaxBytes    *int     `json:"maxBytes"`
 }
 
 // validatePluginConfig is the `validate` object under the mion plugin

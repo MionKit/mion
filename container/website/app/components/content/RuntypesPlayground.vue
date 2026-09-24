@@ -13,7 +13,7 @@ withDefaults(
   defineProps<{
     // Initial TypeScript snippet (must define `MyType`). Omitted -> the stage's own seed type.
     type?: string;
-    // Initial build function: validate | errors | jsonEncoder* | jsonDecoder* | binary* | graph.
+    // Initial build function: validate | errors | jsonEncoder* | jsonDecoder* | graph.
     operation?: string;
     // Initial JS input for the chosen function.
     input?: string;

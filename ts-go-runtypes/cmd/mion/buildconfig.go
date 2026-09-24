@@ -15,52 +15,44 @@ import (
 // tell an explicit `--single-threaded=false` from an absent flag, so tsconfig
 // only fills the gaps the command line left.
 type buildFlags struct {
-	set                     map[string]bool
-	hashLength              int
-	singleThreaded          bool
-	noSingleThreaded        bool
-	noParallelScan          bool
-	noParallelRender        bool
-	genDir                  string
-	emitMode                string
-	inlineMode              string
-	moduleMode              string
-	pureFnReportWire        bool
-	pureFnReportFile        bool
-	jsonMaxBytes            bool
-	binarySizingBias        float64
-	binarySizingItems       int
-	binarySizingStringBytes int
-	binarySizingMaxBytes    int
-	numberMode              string
-	patternSampleCount      int
-	patternSampleRetries    int
-	markerPackages          string
-	noMarkerPackageCheck    bool
+	set                  map[string]bool
+	hashLength           int
+	singleThreaded       bool
+	noSingleThreaded     bool
+	noParallelScan       bool
+	noParallelRender     bool
+	genDir               string
+	emitMode             string
+	inlineMode           string
+	moduleMode           string
+	pureFnReportWire     bool
+	pureFnReportFile     bool
+	jsonMaxBytes         bool
+	numberMode           string
+	patternSampleCount   int
+	patternSampleRetries int
+	markerPackages       string
+	noMarkerPackageCheck bool
 }
 
 // buildOptions is the merged build configuration the resolver consumes.
 type buildOptions struct {
-	hashLength              int
-	singleThreaded          bool
-	disableParallelScan     bool
-	disableParallelRender   bool
-	genDir                  string
-	emitMode                string
-	inlineMode              string
-	moduleMode              string
-	pureFnReportWire        bool
-	pureFnReportFile        bool
-	jsonMaxBytes            bool
-	binarySizingBias        float64
-	binarySizingItems       int
-	binarySizingStringBytes int
-	binarySizingMaxBytes    int
-	numberMode              string
-	patternSampleCount      int
-	patternSampleRetries    int
-	markerPackages          []string
-	skipMarkerPackageCheck  bool
+	hashLength             int
+	singleThreaded         bool
+	disableParallelScan    bool
+	disableParallelRender  bool
+	genDir                 string
+	emitMode               string
+	inlineMode             string
+	moduleMode             string
+	pureFnReportWire       bool
+	pureFnReportFile       bool
+	jsonMaxBytes           bool
+	numberMode             string
+	patternSampleCount     int
+	patternSampleRetries   int
+	markerPackages         []string
+	skipMarkerPackageCheck bool
 }
 
 // mergeBuildOptions resolves the build config: an explicit flag, then the tsconfig plugin entry, then the default.
@@ -68,21 +60,17 @@ type buildOptions struct {
 func mergeBuildOptions(flags buildFlags, plugin tsRuntypesPlugin, absCwd string) buildOptions {
 	// Each flag's default is the binary default, so an unset flag already holds it; tsconfig fills in only then.
 	out := buildOptions{
-		hashLength:              flags.hashLength,
-		singleThreaded:          flags.singleThreaded,
-		emitMode:                flags.emitMode,
-		inlineMode:              flags.inlineMode,
-		moduleMode:              flags.moduleMode,
-		pureFnReportWire:        flags.pureFnReportWire,
-		pureFnReportFile:        flags.pureFnReportFile,
-		jsonMaxBytes:            flags.jsonMaxBytes,
-		binarySizingBias:        flags.binarySizingBias,
-		binarySizingItems:       flags.binarySizingItems,
-		binarySizingStringBytes: flags.binarySizingStringBytes,
-		binarySizingMaxBytes:    flags.binarySizingMaxBytes,
-		numberMode:              flags.numberMode,
-		patternSampleCount:      flags.patternSampleCount,
-		patternSampleRetries:    flags.patternSampleRetries,
+		hashLength:           flags.hashLength,
+		singleThreaded:       flags.singleThreaded,
+		emitMode:             flags.emitMode,
+		inlineMode:           flags.inlineMode,
+		moduleMode:           flags.moduleMode,
+		pureFnReportWire:     flags.pureFnReportWire,
+		pureFnReportFile:     flags.pureFnReportFile,
+		jsonMaxBytes:         flags.jsonMaxBytes,
+		numberMode:           flags.numberMode,
+		patternSampleCount:   flags.patternSampleCount,
+		patternSampleRetries: flags.patternSampleRetries,
 	}
 
 	if !flags.set["emit-mode"] && strings.TrimSpace(plugin.EmitMode) != "" {
@@ -118,21 +106,6 @@ func mergeBuildOptions(flags buildFlags, plugin tsRuntypesPlugin, absCwd string)
 	}
 	if !flags.set["json-max-bytes"] && plugin.JSONMaxBytes != nil {
 		out.jsonMaxBytes = *plugin.JSONMaxBytes
-	}
-
-	if sizing := plugin.BinarySizing; sizing != nil {
-		if !flags.set["binary-sizing-bias"] && sizing.Bias != nil {
-			out.binarySizingBias = *sizing.Bias
-		}
-		if !flags.set["binary-sizing-items"] && sizing.Items != nil {
-			out.binarySizingItems = *sizing.Items
-		}
-		if !flags.set["binary-sizing-string-bytes"] && sizing.StringBytes != nil {
-			out.binarySizingStringBytes = *sizing.StringBytes
-		}
-		if !flags.set["binary-sizing-max-bytes"] && sizing.MaxBytes != nil {
-			out.binarySizingMaxBytes = *sizing.MaxBytes
-		}
 	}
 
 	if !flags.set["number-mode"] && plugin.Validate != nil && strings.TrimSpace(plugin.Validate.NumberMode) != "" {

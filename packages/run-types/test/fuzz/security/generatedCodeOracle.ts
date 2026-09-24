@@ -15,10 +15,6 @@
 //               regex literal: type-derived text stays quoted.
 //   GC-REBUILD  every loop that writes wire keys onto a fresh object carries
 //               the prototype-name guard, and nothing calls Object.assign.
-//   GC-COUNT    a binary decoder never allocates or loops on a raw length:
-//               every `new Array(n)` and every counted loop reads its bound
-//               through desCount / desCountU32, and desLength is never called
-//               bare.
 //   GC-REGEXP   every `new RegExp(` in emitted code takes a build-time
 //               double-quoted literal; nothing builds a RegExp from a wire
 //               value.
@@ -57,7 +53,6 @@ export type GeneratedCodeOracleId =
   | 'GC-TEXT'
   | 'GC-INJECT'
   | 'GC-REBUILD'
-  | 'GC-COUNT'
   | 'GC-REGEXP'
   | 'GC-ACCESS'
   | 'GC-GUARD'
@@ -66,7 +61,7 @@ export type GeneratedCodeOracleId =
 export interface EmittedBody {
   /** The cache key (`<fnHash>_<typeId>`) or the entry-module basename. **/
   key: string;
-  /** The family tag the entry was emitted for (`val`, `fb`, `jdCL`, …). **/
+  /** The family tag the entry was emitted for (`val`, `jdCL`, …). **/
   family: string;
   code: string;
 }
@@ -143,26 +138,6 @@ export function checkGeneratedCode(body: EmittedBody, markers: readonly string[]
         'GC-REBUILD',
         `the loop over '${keyVar}' writes wire keys onto ${[...targets].join(', ')} without the prototype-name guard`
       );
-  }
-
-  // GC-COUNT (binary decoders only)
-  if (body.family === 'fb') {
-    if (code.includes('.desLength()')) push('GC-COUNT', 'desLength() read bare: a count must go through desCount / desCountU32');
-    for (const match of code.matchAll(/new Array\((\w+)\)/g)) {
-      const lenVar = match[1];
-      if (!new RegExp(`const ${lenVar} = \\w+\\.desCount\\(`).test(code)) {
-        push('GC-COUNT', `new Array(${lenVar}) is not bounded by desCount`);
-      }
-    }
-    for (const match of code.matchAll(/for \(let (\w+) = [^;]+; \1 < ([^;]+);/g)) {
-      const bound = match[2].trim();
-      if (/^\w+\.length$/.test(bound) || /^\d+$/.test(bound)) continue;
-      const boundVar = bound.replace(/^\w+ \+ /, '');
-      if (!/^\w+$/.test(boundVar)) continue;
-      if (!new RegExp(`const ${boundVar} = \\w+\\.desCount(U32)?\\(`).test(code)) {
-        push('GC-COUNT', `the loop bound '${bound}' is not read through desCount / desCountU32`);
-      }
-    }
   }
 
   // GC-REGEXP

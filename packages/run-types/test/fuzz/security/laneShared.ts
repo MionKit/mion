@@ -90,8 +90,7 @@ export interface SecurityReport extends LaneStats {
   runs: number;
   seed: number;
   violations: SecurityViolation[];
-  /** Hard failures: the crash guard's records plus, for the binary lane, the
-   *  worker host's out-of-memory / hang records. **/
+  /** Hard failures: the crash guard's records. **/
   crashes: CrashRecord[];
   slowestIterationMs?: number;
   slowestIterationRound?: number;

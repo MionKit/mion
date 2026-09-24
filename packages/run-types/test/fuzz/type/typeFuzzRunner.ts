@@ -31,8 +31,8 @@ import {isValidTypeScript} from './tsValidate.ts';
 import {randomJunk} from '../value/fuzzRunner.ts';
 import type {ResolverClient} from '../../../../devtools/src/core/resolver-client.ts';
 import type {RunType} from '../../../src/runtypes/types.ts';
+import {compactNullRisk} from '../roundtrip/roundtripOracle.ts';
 import {
-  checkBinaryStable,
   checkCrossWire,
   checkErrorsAgree,
   checkInvalidRejected,
@@ -56,8 +56,8 @@ const FN_KEYS: (keyof WiredFns)[] = [
   'getValidationErrors',
   'jsonEncode',
   'jsonDecode',
-  'binaryEncode',
-  'binaryDecode',
+  'compactEncode',
+  'compactDecode',
 ];
 
 export interface TypeFuzzOptions {
@@ -342,7 +342,6 @@ function runValueOracles(compiled: CompiledType, target: FuzzTarget, valid: unkn
   push(out, checkValidateTotal(target, valid, validCtx));
   push(out, checkErrorsAgree(target, valid, validCtx));
   push(out, checkJsonStable(target, valid, validCtx));
-  push(out, checkBinaryStable(target, valid, validCtx));
 
   if (compiled.warningDiagnostics.length === 0) {
     const corrupted = corruptValue(compiled.gen, valid);
@@ -441,16 +440,17 @@ function checkMockBehaviour(compiled: CompiledType, seed: number, out: Violation
   // Probe each encoder: does it serialize, alwaysThrow (controlled), or throw
   // uncontrolled (a bug)?
   const json = probeEncode(target.jsonEncode!, value);
-  const bin = probeEncode(target.binaryEncode!, value);
+  const compact = probeEncode(target.compactEncode!, value);
   if (json.uncontrolled) out.push({oracle: 'O7', message: `jsonEncode threw an uncontrolled error: ${json.error}`, ...base});
-  if (bin.uncontrolled) out.push({oracle: 'O7', message: `binaryEncode threw an uncontrolled error: ${bin.error}`, ...base});
+  if (compact.uncontrolled)
+    out.push({oracle: 'O7', message: `compactEncode threw an uncontrolled error: ${compact.error}`, ...base});
 
-  // O14 — JSON and binary must AGREE on serialize-vs-fail (the rule is the same
-  // for every serialization family).
-  if (json.ok !== bin.ok) {
+  // O14 — the clone and compact encoders must AGREE on serialize-vs-fail (the
+  // rule is the same for every strategy).
+  if (json.ok !== compact.ok) {
     out.push({
       oracle: 'O14',
-      message: `serialization families disagree: jsonEncode ${json.ok ? 'serialized' : 'alwaysThrew'} but binaryEncode ${bin.ok ? 'serialized' : 'alwaysThrew'}`,
+      message: `serialization strategies disagree: jsonEncode ${json.ok ? 'serialized' : 'alwaysThrew'} but compactEncode ${compact.ok ? 'serialized' : 'alwaysThrew'}`,
       ...base,
     });
     return;
@@ -472,8 +472,8 @@ function checkMockBehaviour(compiled: CompiledType, seed: number, out: Violation
   push(out, checkValidateTotal(target, value, ctx)); // O3
   push(out, checkErrorsAgree(target, value, ctx)); // O4
   push(out, checkJsonStable(target, value, ctx)); // O5 + O7 (JSON wire-stable)
-  push(out, checkBinaryStable(target, value, ctx)); // O6 + O7 (binary byte-stable)
-  push(out, checkCrossWire(target, value, ctx)); // O12 (wires agree on the value)
+  // O12: compact collapses a present `null` optional to absent by design.
+  if (!compactNullRisk(compiled.gen)) push(out, checkCrossWire(target, value, ctx));
 }
 
 interface EncodeProbe {
@@ -496,7 +496,8 @@ function probeEncode(fn: (v: unknown) => unknown, value: unknown): EncodeProbe {
 
 function asFuzzTarget(compiled: CompiledType): FuzzTarget | null {
   const w = compiled.wired;
-  if (!w.validate || !w.getValidationErrors || !w.jsonEncode || !w.jsonDecode || !w.binaryEncode || !w.binaryDecode) return null;
+  if (!w.validate || !w.getValidationErrors || !w.jsonEncode || !w.jsonDecode || !w.compactEncode || !w.compactDecode)
+    return null;
   return {
     title: compiled.title,
     schema: {kind: 0} as RunType,
@@ -505,8 +506,8 @@ function asFuzzTarget(compiled: CompiledType): FuzzTarget | null {
     getValidationErrors: w.getValidationErrors,
     jsonEncode: w.jsonEncode,
     jsonDecode: w.jsonDecode,
-    binaryEncode: w.binaryEncode,
-    binaryDecode: w.binaryDecode,
+    compactEncode: w.compactEncode,
+    compactDecode: w.compactDecode,
   };
 }
 

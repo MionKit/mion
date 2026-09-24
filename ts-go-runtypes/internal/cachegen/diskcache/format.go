@@ -48,7 +48,7 @@ type ChildRef struct {
 }
 
 // CrossFamilyRef captures one cross-family dependency the cached body reaches: a namespaced hash with a FOREIGN family prefix, such as
-// `val_<memberHash>` inside a `tb` / `pj` entry discriminating a union member. Stored decomposed so the reader both revalidates against
+// `val_<memberHash>` inside a `pj` / `pjs` entry discriminating a union member. Stored decomposed so the reader both revalidates against
 // hash drift (like ChildRef) and rebuilds the namespaced dep on a hit; the prefix is explicit, not assumed `val_`, so any family round-trips.
 type CrossFamilyRef struct {
 	// Prefix is the namespaced family prefix: everything up to and including the first `_` (e.g. "val_").

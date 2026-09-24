@@ -275,7 +275,7 @@ export const BIGINT_FORMAT = {
   },
   bigint_int64: {
     title: 'Int64',
-    description: 'bigintFormat preset for the signed 64-bit range [-2^63, 2^63-1] that selects 8-byte binary packing.',
+    description: 'bigintFormat preset for the signed 64-bit range [-2^63, 2^63-1].',
     validateNotes: [
       'Inclusive bounds min -9223372036854775808n / max 9223372036854775807n; one past either end (2^63 / -(2^63)-1) fails on `max` / `min` respectively.',
     ],
@@ -320,7 +320,7 @@ export const BIGINT_FORMAT = {
   },
   bigint_uint64: {
     title: 'UInt64',
-    description: 'bigintFormat preset for the unsigned 64-bit range [0, 2^64-1] that selects 8-byte binary packing.',
+    description: 'bigintFormat preset for the unsigned 64-bit range [0, 2^64-1].',
     validateNotes: ['Inclusive bounds min 0n / max 18446744073709551615n; 2^64 fails `max` and -1n fails `min`.'],
     validate: () => createValidateFn<TF.BigUInt64>(),
     standardSchema: () => createStandardSchema<TF.BigUInt64>(),

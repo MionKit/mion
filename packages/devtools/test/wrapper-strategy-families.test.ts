@@ -81,8 +81,6 @@ const FAMILY_BY_HASH: Record<string, string> = Object.fromEntries(
       'restoreFromJsonMutate',
       'restoreFromJsonClone',
       'compactFromJson',
-      'toBinary',
-      'fromBinary',
     ] as const
   ).map((key) => [getFnHash(key), key])
 );
@@ -139,24 +137,6 @@ export const r = mion.route(${HANDLER}, {parser: 'compact'});
     const {params, ret} = routeSites(response.sites, 'compact.ts');
     expect(familiesOf(params)).toEqual(['validate', 'validationErrors', 'compactForJson', 'compactFromJson']);
     expect(familiesOf(ret)).toEqual(['validate', 'validationErrors', 'compactForJson', 'compactFromJson']);
-  });
-
-  // The router has no binary wire: no strategy resolves the tb/fb families, so a route never
-  // compiles the binary pair however its parser is written.
-  register('no strategy compiles tb/fb', async () => {
-    const response = await scan({
-      'no-binary.ts': `import {createRouter} from './factory';
-const mion = createRouter();
-export const compact = mion.route(${HANDLER}, {parser: 'compact'});
-export const mutated = mion.route(${HANDLER}, {parser: 'mutate'});
-export const mixed = mion.route(${HANDLER}, {parser: {params: 'clone', return: 'mutate'}});
-`,
-    });
-    expect(markerDiagsOf(response)).toEqual([]);
-    for (const site of response.sites) {
-      expect(familiesOf(site)).not.toContain('tb');
-      expect(familiesOf(site)).not.toContain('fb');
-    }
   });
 
   register('the factory literal is the router-wide default; a route literal overrides one direction', async () => {

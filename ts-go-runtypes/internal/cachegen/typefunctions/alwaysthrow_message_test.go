@@ -13,7 +13,6 @@ func TestRootThrowHeadline_PerFamily(t *testing.T) {
 	}{
 		{diagnostics.CodePJNeverRoot, "Never", "Type `Never` can never be encoded to JSON — the generated function will always fail."},
 		{diagnostics.CodeRJSymbolRoot, "Symbol", "Type `Symbol` can never be decoded from JSON — the generated function will always fail."},
-		{diagnostics.CodeTBNonSerializableRoot, "Map", "Type `Map` can never be serialised to binary — the generated function will always fail."},
 		{diagnostics.CodeVLSymbolRoot, "Symbol", "Type `Symbol` can never be validated — the generated function will always fail."},
 	}
 	for _, c := range cases {
@@ -33,8 +32,6 @@ func TestRootThrowWording_CoversEveryAlwaysThrowCode(t *testing.T) {
 		diagnostics.CodePJNeverRoot, diagnostics.CodePJNonSerializableRoot, diagnostics.CodePJFunctionRoot, diagnostics.CodePJSymbolRoot,
 		diagnostics.CodePJSNeverRoot, diagnostics.CodePJSNonSerializableRoot, diagnostics.CodePJSFunctionRoot, diagnostics.CodePJSSymbolRoot,
 		diagnostics.CodeRJNeverRoot, diagnostics.CodeRJNonSerializableRoot, diagnostics.CodeRJFunctionRoot, diagnostics.CodeRJSymbolRoot,
-		diagnostics.CodeTBNeverRoot, diagnostics.CodeTBNonSerializableRoot, diagnostics.CodeTBFunctionRoot, diagnostics.CodeTBSymbolRoot,
-		diagnostics.CodeFBNeverRoot, diagnostics.CodeFBNonSerializableRoot, diagnostics.CodeFBFunctionRoot, diagnostics.CodeFBSymbolRoot,
 	} {
 		if _, ok := rootThrowWording[code]; !ok {
 			t.Errorf("root-throw code %q has no throw wording", code)
@@ -43,8 +40,8 @@ func TestRootThrowWording_CoversEveryAlwaysThrowCode(t *testing.T) {
 }
 
 func TestBuildAlwaysThrowMessage_WithProvenance(t *testing.T) {
-	msg := buildAlwaysThrowMessage(diagnostics.CodeTBFunctionRoot, "Function", []diagnostics.Site{{FilePath: "src/a.ts", StartLine: 7, StartCol: 3}})
-	if !strings.HasPrefix(msg, "[TB003] Type `Function` can never be serialised to binary — the generated function will always fail.") {
+	msg := buildAlwaysThrowMessage(diagnostics.CodePJFunctionRoot, "Function", []diagnostics.Site{{FilePath: "src/a.ts", StartLine: 7, StartCol: 3}})
+	if !strings.HasPrefix(msg, "[PJ003] Type `Function` can never be encoded to JSON — the generated function will always fail.") {
 		t.Errorf("unexpected message prefix: %q", msg)
 	}
 	if !strings.Contains(msg, "(at src/a.ts:7:3)") {

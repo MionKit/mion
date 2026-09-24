@@ -13,8 +13,6 @@
     "runtypes/validate-skipped-member": "warn",
     "runtypes/json-non-serializable": "error",
     "runtypes/json-skipped-member": "warn",
-    "runtypes/binary-non-serializable": "error",
-    "runtypes/binary-skipped-member": "warn",
     "runtypes/clone-unsupported-type": "error",
     "runtypes/clone-shared-reference": "warn",
     "runtypes/format": "error",

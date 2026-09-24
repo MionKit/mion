@@ -8,8 +8,6 @@
 
 import {describe, expect, expectTypeOf, it} from 'vitest';
 import {
-  createBinaryDecoderFn,
-  createBinaryEncoderFn,
   createRemoveUnknownKeysFn,
   createJsonDecoderFn,
   createJsonEncoderFn,
@@ -56,12 +54,6 @@ describe('RegExp is not data', () => {
     }
     const decode = createJsonDecoderFn<Rule>();
     expect(decode('{"name":"x"}')).toEqual({name: 'x'});
-  });
-
-  it('the binary codec drops the property', () => {
-    const encode = createBinaryEncoderFn<Rule>();
-    const decode = createBinaryDecoderFn<Rule>();
-    expect(decode(encode({name: 'x', match: /a/}))).toEqual({name: 'x'});
   });
 
   it('the exact-shape clone shares the RegExp by reference', () => {

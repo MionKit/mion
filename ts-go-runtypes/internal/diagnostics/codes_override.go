@@ -14,7 +14,7 @@ const (
 	// otherwise throw at runtime. Should never fire in normal operation.
 	CodeOverrideMissingCfn = "OVR002"
 	// CodeOverrideValidateCrossFamily warns that `validate` is a shared cross-family dependency, so
-	// overriding it also changes how JSON / binary decoders narrow unions containing the type.
+	// overriding it also changes how JSON decoders narrow unions containing the type.
 	CodeOverrideValidateCrossFamily = "OVR010"
 )
 
@@ -38,6 +38,6 @@ func init() {
 		Family: FamilyMarker,
 		Level:  LevelWarning,
 		Scope:  ScopeNotSource,
-		Title:  "validate override also affects JSON/binary union decoders for this type",
+		Title:  "validate override also affects JSON union decoders for this type",
 	})
 }

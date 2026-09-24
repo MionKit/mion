@@ -1,4 +1,4 @@
-import type {GetValidationErrorsFn, JsonEncoderFn, JsonDecoderFn, BinaryEncoderFn, BinaryDecoderFn} from '@mionjs/run-types';
+import type {GetValidationErrorsFn, JsonEncoderFn, JsonDecoderFn} from '@mionjs/run-types';
 
 /** One type-family case in the overrides suite. Mirrors the validation /
  *  serialization suites' shape: self-contained thunks that build the compiled
@@ -29,9 +29,4 @@ export interface OverrideCase {
   jsonDecoder: () => JsonDecoderFn;
   jsonValue: unknown;
   jsonString: string;
-
-  /** binary — the override encoder + decoder round-trip `binaryValue`. */
-  binaryEncoder: () => BinaryEncoderFn;
-  binaryDecoder: () => BinaryDecoderFn;
-  binaryValue: unknown;
 }

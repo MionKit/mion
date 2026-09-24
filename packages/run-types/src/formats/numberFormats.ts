@@ -1,4 +1,4 @@
-// Number-format TYPE aliases; validation, serialization (incl. the int8/16/32 binary packing) and
+// Number-format TYPE aliases; validation, serialization and
 // mocking are emitted elsewhere. `TypeFormat` IS imported as a value (not `import type`): the
 // value-level import keeps each brand alias's reflection metadata reachable for tsgo.
 // (ref: packages/type-formats/src/number/{numberFormat.runtype.ts,defaultNumberFormats.ts}).
@@ -13,7 +13,7 @@ import {presetBuilder} from '../runtypes/builderCore.ts';
 export interface NumberParams {
   integer?: boolean;
   /** Generation/presentation tag, NEVER a failable constraint (a float legally holds whole values
-   *  like 2.0): steers mocks toward fractional samples, keeps binary packing on the float64 arm.
+   *  like 2.0): steers mocks toward fractional samples.
    *  Mutually exclusive with `integer`. */
   float?: boolean;
   min?: number;
@@ -54,8 +54,7 @@ export type Number<P extends NumberParams = {}, BrandName extends string = never
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export type Currency<P extends NumberParams = {}, BrandName extends string = never> = Number<P & {isCurrency: true}, BrandName>;
 
-// The fixed-width int formats SET the min/max that drive the binary packing optimization
-// (Int8 → 1 byte, UInt16 → 2 bytes, …).
+// The fixed-width int formats SET the min/max of their width (Int8 → -128..127, UInt16 → 0..65535, …).
 export type Integer = Number<{integer: true}>;
 export type Float = Number<{float: true}>;
 export type Positive = Number<{min: 0}>;

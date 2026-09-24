@@ -13,7 +13,7 @@ import {fileURLToPath} from 'node:url';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const APPS = path.join(HERE, '..', 'apps');
 
-// build-vite runs the full matrix (13 families); each light smoke runs the lean
+// build-vite runs the full matrix (12 families); each light smoke runs the lean
 // minimal subset.
 const HEAVY = 'build-vite';
 const SMOKES = ['smoke-esbuild', 'smoke-rollup', 'smoke-rolldown', 'smoke-webpack', 'smoke-rspack', 'smoke-source', 'smoke-types-in-src', 'smoke-bun'];
@@ -30,7 +30,7 @@ test('build-vite: full feature matrix passes after the Vite-on-Rolldown build', 
   const report = mod.selfCheck();
   const detail = report.failures.map((failure) => `[${failure.family}] ${failure.name}${failure.detail ? ` — ${failure.detail}` : ''}`).join('\n');
   assert.ok(report.ok, `build-vite selfCheck failed (${report.passed}/${report.total}):\n${detail}`);
-  assert.equal(report.families, 13, 'build-vite must exercise all 13 feature families');
+  assert.equal(report.families, 12, 'build-vite must exercise all 12 feature families');
   assert.ok(report.total >= 50, `expected a substantial matrix, got ${report.total} checks`);
 });
 

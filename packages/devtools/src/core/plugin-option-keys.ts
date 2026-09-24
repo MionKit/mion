@@ -11,7 +11,6 @@ const PLUGIN_OPTION_KEY_TABLE = {
   bundleApi: true,
   genDir: true,
   emitMode: true,
-  binarySizing: true,
   validate: true,
   parallelScan: true,
   parallelRender: true,

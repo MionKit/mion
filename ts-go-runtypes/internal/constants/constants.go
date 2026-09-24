@@ -94,16 +94,6 @@ var CacheModules = CacheModuleGroup{
 		VarPrefix: "g_ruk_",
 		Tag:       "ruk",
 	},
-	"toBinary": {
-		Name:      "toBinaryModule",
-		VarPrefix: "g_tb_",
-		Tag:       "tb",
-	},
-	"fromBinary": {
-		Name:      "fromBinaryModule",
-		VarPrefix: "g_fb_",
-		Tag:       "fb",
-	},
 	"formatTransform": {
 		Name:      "formatTransformModule",
 		VarPrefix: "g_fmt_",
@@ -497,25 +487,6 @@ func (mode InlineMode) AllInternal() bool { return mode == InlineModeAllInternal
 func (mode InlineMode) Valid() bool {
 	return mode == InlineModeDefault || mode == InlineModeAllInternal || mode == ""
 }
-
-// Binary size-estimate defaults. The compiler walks each binary-encoder type at build time and bakes a
-// buffer-size estimate into the `tb` entry, which the runtime `dynamic` strategy uses as the cold-start buffer
-// size (instead of the flat defaultBufferSize fallback) until per-key history warms up. Each is overridable by a
-// CLI flag / plugin option, and all four fold into the disk fingerprint so a config change re-derives every estimate.
-const (
-	// DefaultSizeBias weights the estimate between a type's minimum and (capped) maximum footprint:
-	// estimate = min + bias·(cappedMax − min), 0 tightest (most grows) and 1 most generous (most slack).
-	// 0.8 leans generous so a cold encode rarely has to grow.
-	DefaultSizeBias = 0.8
-	// DefaultSizeItems is the assumed element count for an unbounded collection (array / Map / Set / index
-	// signature), a typical paginated page.
-	DefaultSizeItems = 100
-	// DefaultSizeStringBytes is the assumed UTF-8 byte length of an unbounded string (no maxLength format bound).
-	DefaultSizeStringBytes = 32
-	// DefaultSizeMaxBytes caps a single type's estimate, so a huge declared bound (maxLength<10_000_000>) never
-	// seeds a multi-MB cold buffer.
-	DefaultSizeMaxBytes = 64 * 1024
-)
 
 // Pattern mockSample auto-generation defaults. A format pattern with no declared mockSamples gets them generated
 // at build time by the JS engine, deterministic per pattern; both knobs are overridable by a CLI flag / plugin

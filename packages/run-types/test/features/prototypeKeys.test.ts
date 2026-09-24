@@ -19,32 +19,15 @@
 
 import {describe, expect, it, expectTypeOf} from 'vitest';
 import {
-  createBinaryDecoderFn,
-  createBinaryEncoderFn,
   createRemoveUnknownKeysFn,
   createJsonDecoderFn,
   createJsonEncoderFn,
   createValidateFn,
-  BinaryDecodeError,
   type DataOnly,
 } from '@mionjs/run-types';
 import {registerClassSerializer} from '@mionjs/run-types/runtime';
 
 const message = (key: string) => `[mion] Unsafe property name: ${key}`;
-
-function varint(value: number): number[] {
-  const out: number[] = [];
-  let rest = value;
-  do {
-    let byte = rest % 128;
-    rest = Math.floor(rest / 128);
-    if (rest > 0) byte |= 0x80;
-    out.push(byte);
-  } while (rest > 0);
-  return out;
-}
-const utf8 = (text: string) => [...new TextEncoder().encode(text)];
-const bytes = (...parts: Array<number | number[]>) => Uint8Array.from(parts.flat());
 
 type Bag = Record<string, unknown>;
 type Counts = Record<string, number>;
@@ -57,7 +40,7 @@ class Box {
 }
 registerClassSerializer(Box, {serialize: (box) => ({value: box.value})});
 
-describe('a `__proto__` wire key is refused by the decoders on both roads', () => {
+describe('a `__proto__` wire key is refused by the decoders', () => {
   const decoders = {
     clone: createJsonDecoderFn<Stamps>(undefined, {strategy: 'clone'}),
     mutate: createJsonDecoderFn<Stamps>(undefined, {strategy: 'mutate'}),
@@ -65,7 +48,6 @@ describe('a `__proto__` wire key is refused by the decoders on both roads', () =
   };
   const decodeBag = createJsonDecoderFn<Bag>();
   const validateBag = createValidateFn<Bag>();
-  const decodeBinary = createBinaryDecoderFn<Counts>();
   const wire = `{"a":"2024-01-01T00:00:00.000Z","__proto__":{"admin":true}}`;
 
   it(`the JSON decoders that walk the keys throw '${message('__proto__')}'`, () => {
@@ -81,17 +63,9 @@ describe('a `__proto__` wire key is refused by the decoders on both roads', () =
     expect(validateBag(JSON.parse(bagWire))).toBe(false);
   });
 
-  it('the binary decoder throws BinaryDecodeError on the key', () => {
-    // Index-signature wire: uint32 entry count, then (key, float64) pairs.
-    const buffer = bytes([1, 0, 0, 0], varint('__proto__'.length), utf8('__proto__'), new Array(8).fill(0));
-    expect(() => decodeBinary(buffer)).toThrow(BinaryDecodeError);
-    expect(() => decodeBinary(buffer)).toThrow(message('__proto__'));
-  });
-
   it('the valid wires still decode', () => {
     expect(decoders.mutate('{"a":"2024-01-01T00:00:00.000Z"}')).toEqual({a: new Date('2024-01-01T00:00:00.000Z')});
     expect(decodeBag('{"a":1}')).toEqual({a: 1});
-    expect(decodeBinary(createBinaryEncoderFn<Counts>()({a: 1}))).toEqual({a: 1});
   });
 });
 
@@ -129,12 +103,6 @@ describe('`prototype` and `constructor` are ordinary wire keys a record carries'
       expect(Object.keys(JSON.parse(text)).sort(), name).toEqual(['constructor', 'name', 'prototype']);
       expect(decode(text), name).toEqual(expected);
     }
-  });
-
-  it('the binary road round-trips them too', () => {
-    const out = createBinaryDecoderFn<Fields>()(createBinaryEncoderFn<Fields>()({...expected}));
-    expect(out).toEqual(expected);
-    expect(Object.getPrototypeOf(out)).toBe(Object.prototype);
   });
 
   it('validate accepts them, and the exact-shape clone keeps them', () => {
@@ -175,10 +143,6 @@ describe('a declared `__proto__` member is dropped, and the rest of the type wor
     expect(isWire({ok: 'nope'})).toBe(false);
   });
 
-  it('the binary road round-trips the surviving members', () => {
-    expect(createBinaryDecoderFn<Wire>()(createBinaryEncoderFn<Wire>()({...value}))).toEqual({ok: 1});
-  });
-
   it('DataOnly drops the key too, so the type matches what the runtime does', () => {
     expectTypeOf<DataOnly<Wire>>().toEqualTypeOf<{ok: number}>();
   });
@@ -197,10 +161,9 @@ describe('a declared `prototype` or `constructor` member is ordinary', () => {
   }
   const settings: Settings = {ok: 1, prototype: 'draft', constructor: 'builder'};
 
-  it('both members round-trip on both roads', () => {
+  it('both members round-trip', () => {
     const text = createJsonEncoderFn<Settings>()({...settings}) as string;
     expect(createJsonDecoderFn<Settings>()(text)).toEqual(settings);
-    expect(createBinaryDecoderFn<Settings>()(createBinaryEncoderFn<Settings>()({...settings}))).toEqual(settings);
     expect(createValidateFn<Settings>()(JSON.parse(text))).toBe(true);
   });
 
@@ -239,8 +202,6 @@ describe('a declared `prototype` or `constructor` member is ordinary', () => {
       expect(text, strategy).not.toContain('function');
       expect(decoders[strategy](text), strategy).toEqual({ok: 1});
     }
-    const decoded = createBinaryDecoderFn<Optionals>()(createBinaryEncoderFn<Optionals>()({ok: 1}));
-    expect(Object.prototype.hasOwnProperty.call(decoded, 'constructor')).toBe(false);
   });
 
   it('DataOnly keeps both members', () => {
@@ -290,12 +251,6 @@ describe('the rebuilding encoders and the cloner skip a `__proto__` wire key; th
     }
   });
 
-  it('the binary encoder carries the key, and the binary decoder refuses the frame', () => {
-    const encode = createBinaryEncoderFn<Counts>();
-    const decode = createBinaryDecoderFn<Counts>();
-    expect(() => decode(encode(poisoned()))).toThrow(BinaryDecodeError);
-  });
-
   it('the exact-shape clone keeps a plain prototype and no inherited admin', () => {
     const clone = createRemoveUnknownKeysFn<Counts>();
     const out = clone(poisoned()) as Record<string, unknown>;
@@ -311,8 +266,8 @@ describe('the rebuilding encoders and the cloner skip a `__proto__` wire key; th
 
 describe('Map keys and Set members are values, never property names', () => {
   // `new Map([['__proto__', 1]])` stores a plain string key: nothing walks a
-  // prototype chain to read it, so all three names are ordinary data here on
-  // both roads. A Record nested inside a Map value still refuses `__proto__`.
+  // prototype chain to read it, so all three names are ordinary data here.
+  // A Record nested inside a Map value still refuses `__proto__`.
   const NAMES = ['__proto__', 'prototype', 'constructor'] as const;
   interface Bags {
     counts: Map<string, number>;
@@ -335,11 +290,6 @@ describe('Map keys and Set members are values, never property names', () => {
       expect(Object.getPrototypeOf(out)).toBe(Object.prototype);
       expect(createValidateFn<Bags>()(out)).toBe(true);
     }
-  });
-
-  it('round-trip through binary the same way', () => {
-    const out = createBinaryDecoderFn<Bags>()(createBinaryEncoderFn<Bags>()(value()));
-    expect(out).toEqual(value());
   });
 
   it('a Record inside a Map value still refuses `__proto__` and carries the other two', () => {
@@ -372,18 +322,6 @@ describe('class deserialization sets the declared properties only, never the key
     expect(out.value).toBe(1);
     expect(out.admin).toBeUndefined();
     expect(Object.prototype.hasOwnProperty.call(out, 'constructor')).toBe(false);
-  });
-
-  it('a binary frame written by a custom serializer cannot swap it either', () => {
-    // A registered `serialize` writes one JSON string frame on the binary wire:
-    // varint length, then the text.
-    const decode = createBinaryDecoderFn<Box>();
-    const text = '{"value":2,"__proto__":{"admin":true}}';
-    const out = decode(bytes(varint(text.length), utf8(text))) as Box & Record<string, unknown>;
-    expect(Object.getPrototypeOf(out)).toBe(Box.prototype);
-    expect(out.value).toBe(2);
-    expect(out.admin).toBeUndefined();
-    expect(decode(createBinaryEncoderFn<Box>()(Object.assign(new Box(), {value: 3}))).value).toBe(3);
   });
 });
 

@@ -38,7 +38,7 @@ func TestOverrideStructuralKey_DeterministicAndSorted(t *testing.T) {
 // of every overridden type (and of every type that contains one). A key that is
 // a family tag or a retired short token means that contract slipped.
 func TestOverrideStructuralKey_SpeaksOperationNames(t *testing.T) {
-	for _, name := range []string{"validate", "validationErrors", "jsonEncoder", "toBinary"} {
+	for _, name := range []string{"validate", "validationErrors", "jsonEncoder", "formatTransform"} {
 		key := typeid.OverrideStructuralKey(map[string]string{name: "h"})
 		if want := "|cfn:" + name + ":h"; key != want {
 			t.Errorf("OverrideStructuralKey(%q) = %q, want %q", name, key, want)
@@ -46,7 +46,7 @@ func TestOverrideStructuralKey_SpeaksOperationNames(t *testing.T) {
 	}
 	// The two vocabularies must stay apart: a short family tag is not an
 	// operation name, so it can never be a legitimate override key.
-	for _, tag := range []string{"val", "verr", "tb", "pjs"} {
+	for _, tag := range []string{"val", "verr", "fmt", "pjs"} {
 		if _, known := operations.ByName(tag); known {
 			t.Errorf("family tag %q resolves as an operation name; the two vocabularies have merged", tag)
 		}

@@ -12,9 +12,6 @@ import type {JSONShape} from './runtypes/jsonShape.ts';
 // from here, and both sides are `import type`.
 import type {FormatErrorsOf} from './runtypes/formatErrors.ts';
 import type {CompTimeFnArgs, InjectTypeFnArgs} from './index.ts';
-// Type-only — the binary primitive fn shapes complete the getRTFunction key map.
-// createRTFBinary never imports back, so this is a one-way (erased) type edge.
-import type {ToBinaryFn, FromBinaryFn} from './createRTFBinary.ts';
 
 // =============================================================================
 // Type definitions
@@ -377,7 +374,7 @@ export function createJsonDecoderFn<T>(
 
 /** Maps each `InjectTypeFnArgs` fnKey to the runtime function shape `getRTFunction` returns for it,
  *  so a wrapper resolves any family by naming the SAME fnKey it put in the marker. Families whose fn
- *  is generic in `T` (`validate` / `jsonDecoder` / `formatTransform` / `fromBinary`) resolve to the
+ *  is generic in `T` (`validate` / `jsonDecoder` / `formatTransform`) resolve to the
  *  base `T = unknown`; use the dedicated `createX<T>()` factory to keep `T` on the returned fn. **/
 export interface RTFunctionByKey {
   // Validators.
@@ -397,9 +394,6 @@ export interface RTFunctionByKey {
   // JSON string I/O.
   jsonEncoder: JsonEncoderFn;
   jsonDecoder: JsonDecoderFn;
-  // Binary I/O primitives (serializer/deserializer-threaded).
-  toBinary: ToBinaryFn;
-  fromBinary: FromBinaryFn;
   // JSON value-level primitives, also reachable through their own createX factories above.
   prepareForJsonMutate: PrepareForJsonFn; // transforms in place, keeps undeclared keys
   prepareForJsonClone: PrepareForJsonFn; // builds a new value from the declared shape

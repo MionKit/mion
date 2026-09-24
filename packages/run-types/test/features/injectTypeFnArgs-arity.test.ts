@@ -31,8 +31,8 @@ type TwelveFamilyMarker = InjectTypeFnArgs<
   'validationErrorsStrict',
   'restoreFromJsonClone',
   'formatTransform',
-  'toBinary',
-  'fromBinary',
+  'compactForJson',
+  'compactFromJson',
   'prepareForJsonMutate'
 >;
 

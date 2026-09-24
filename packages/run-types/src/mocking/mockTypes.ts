@@ -62,17 +62,6 @@ export interface MockOptions {
    *  candidate: `1` corrupts a leaf, `0` replaces the whole root, values in between spread the break across all
    *  depths (a mid value can replace a whole nested object with a non-object). Default `0.85`, usually a deep field. **/
   invalidLeafProbability?: number;
-  /** Steer generation against the binary cold-start size estimate (`createBinaryEncoderFn`'s `dynamic` strategy):
-   *    - `true`: the value fits the COLD BUFFER, so encoding never resizes. Bounds target the per-write reserve
-   *      (a string reserves `5 + 3*length`), not the wire size.
-   *    - `false`: an in-bounds value with one unbounded position (string / bigint, else array) inflated past
-   *      `sizeMaxBytes`, the cap every estimate stays under, forcing a grow.
-   *    - `undefined` (default): no size-specific behaviour.
-   *  Bounds are read from `binarySizingOptions`. **/
-  respectBinarySize?: boolean;
-  /** Mirrors the resolver's `--size-*` options / the Go `SizeEstimateConfig`; omitted fields fall back to the
-   *  binary defaults (bias 0.8, items 100, stringBytes 32, maxBytes 65536). **/
-  binarySizingOptions?: BinarySizingOptions;
   /** Draw credit-card mocks from the published gateway sandbox numbers (`4111111111111111`, ...) instead of
    *  generating a fresh one. Off by default; turn it on when the mocked data reaches a real gateway sandbox,
    *  which rejects anything else. **/
@@ -85,15 +74,6 @@ export interface MockOptions {
    *  `createMockDataFn` from `seed` and carried here so it threads through the walker.
    *  Absent ⇒ the mock path falls back to the shared native instance. **/
   random?: MockRandom;
-}
-
-/** Mirrors the resolver's `--binary-sizing-bias` / `-items` / `-string-bytes` / `-max-bytes` options and the Go
- *  `constants.DefaultSize*`; used by `respectBinarySize`. **/
-export interface BinarySizingOptions {
-  sizeBias?: number;
-  sizeItems?: number;
-  sizeStringBytes?: number;
-  sizeMaxBytes?: number;
 }
 
 /** Loose runtime view of a `MockNode` (../enrich/mockData.ts), read structurally by the walker and typed

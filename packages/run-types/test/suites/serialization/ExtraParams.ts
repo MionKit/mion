@@ -1,5 +1,5 @@
 import * as TF from '@mionjs/run-types/formats';
-import {createBinaryDecoderFn, createBinaryEncoderFn, createJsonDecoderFn, createJsonEncoderFn} from '@mionjs/run-types';
+import {createJsonDecoderFn, createJsonEncoderFn} from '@mionjs/run-types';
 import * as RT from '@mionjs/run-types/builders';
 import type {SerializationCase} from './types.ts';
 
@@ -14,12 +14,8 @@ export const EXTRA_PARAMS = {
     cloneDecoder: () => createJsonDecoderFn<{declared: string}>(),
     mutateDecoder: () => createJsonDecoderFn<{declared: string}>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<{declared: string}>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<{declared: string}>(),
-    binaryDecoder: () => createBinaryDecoderFn<{declared: string}>(),
     schemaEncoder: () => createJsonEncoderFn(RT.object({declared: TF.string()})),
     schemaDecoder: () => createJsonDecoderFn(RT.object({declared: TF.string()})),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(RT.object({declared: TF.string()})),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(RT.object({declared: TF.string()})),
     getTestData: () => ({
       values: [{declared: 'x', extra: 'hello'}],
       // Unsafe: extra preserved through round-trip.
@@ -40,12 +36,8 @@ export const EXTRA_PARAMS = {
     cloneDecoder: () => createJsonDecoderFn<{declared: string}>(),
     mutateDecoder: () => createJsonDecoderFn<{declared: string}>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<{declared: string}>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<{declared: string}>(),
-    binaryDecoder: () => createBinaryDecoderFn<{declared: string}>(),
     schemaEncoder: () => createJsonEncoderFn(RT.object({declared: TF.string()})),
     schemaDecoder: () => createJsonDecoderFn(RT.object({declared: TF.string()})),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(RT.object({declared: TF.string()})),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(RT.object({declared: TF.string()})),
     jsonStringifyThrows: true,
     getTestData: () => ({values: [{declared: 'x', extra: 123n}]}),
     getTestDataForStringify: () => ({
@@ -64,12 +56,8 @@ export const EXTRA_PARAMS = {
     cloneDecoder: () => createJsonDecoderFn<{declared: string}>(),
     mutateDecoder: () => createJsonDecoderFn<{declared: string}>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<{declared: string}>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<{declared: string}>(),
-    binaryDecoder: () => createBinaryDecoderFn<{declared: string}>(),
     schemaEncoder: () => createJsonEncoderFn(RT.object({declared: TF.string()})),
     schemaDecoder: () => createJsonDecoderFn(RT.object({declared: TF.string()})),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(RT.object({declared: TF.string()})),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(RT.object({declared: TF.string()})),
     getTestData: () => ({
       values: [{declared: 'x', sym: Symbol('extra')}],
       // JSON.stringify drops the symbol — restored shape has no `sym`.
@@ -88,12 +76,8 @@ export const EXTRA_PARAMS = {
     cloneDecoder: () => createJsonDecoderFn<{declared: string}>(),
     mutateDecoder: () => createJsonDecoderFn<{declared: string}>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<{declared: string}>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<{declared: string}>(),
-    binaryDecoder: () => createBinaryDecoderFn<{declared: string}>(),
     schemaEncoder: () => createJsonEncoderFn(RT.object({declared: TF.string()})),
     schemaDecoder: () => createJsonDecoderFn(RT.object({declared: TF.string()})),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(RT.object({declared: TF.string()})),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(RT.object({declared: TF.string()})),
     getTestData: () => ({
       values: [{declared: 'x', fn: () => 0}],
       deserializedValues: [{declared: 'x'}],
@@ -111,12 +95,8 @@ export const EXTRA_PARAMS = {
     cloneDecoder: () => createJsonDecoderFn<{declared: string}[] | number>(),
     mutateDecoder: () => createJsonDecoderFn<{declared: string}[] | number>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<{declared: string}[] | number>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<{declared: string}[] | number>(),
-    binaryDecoder: () => createBinaryDecoderFn<{declared: string}[] | number>(),
     schemaEncoder: () => createJsonEncoderFn(RT.union([RT.array(RT.object({declared: TF.string()})), TF.number()])),
     schemaDecoder: () => createJsonDecoderFn(RT.union([RT.array(RT.object({declared: TF.string()})), TF.number()])),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(RT.union([RT.array(RT.object({declared: TF.string()})), TF.number()])),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(RT.union([RT.array(RT.object({declared: TF.string()})), TF.number()])),
     getTestData: () => ({
       values: [[{declared: 'x', extra: 'hello'}]],
       // Unsafe: extra preserved through round-trip.
@@ -137,12 +117,8 @@ export const EXTRA_PARAMS = {
     cloneDecoder: () => createJsonDecoderFn<[{declared: string}, number]>(),
     mutateDecoder: () => createJsonDecoderFn<[{declared: string}, number]>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<[{declared: string}, number]>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<[{declared: string}, number]>(),
-    binaryDecoder: () => createBinaryDecoderFn<[{declared: string}, number]>(),
     schemaEncoder: () => createJsonEncoderFn(RT.tuple({required: [RT.object({declared: TF.string()}), TF.number()]})),
     schemaDecoder: () => createJsonDecoderFn(RT.tuple({required: [RT.object({declared: TF.string()}), TF.number()]})),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(RT.tuple({required: [RT.object({declared: TF.string()}), TF.number()]})),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(RT.tuple({required: [RT.object({declared: TF.string()}), TF.number()]})),
     getTestData: () => ({
       values: [[{declared: 'x', extra: 'hello'}, 2]],
       // Unsafe: extra preserved through round-trip.
@@ -163,12 +139,8 @@ export const EXTRA_PARAMS = {
     cloneDecoder: () => createJsonDecoderFn<{outer: {declared: string}}>(),
     mutateDecoder: () => createJsonDecoderFn<{outer: {declared: string}}>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<{outer: {declared: string}}>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<{outer: {declared: string}}>(),
-    binaryDecoder: () => createBinaryDecoderFn<{outer: {declared: string}}>(),
     schemaEncoder: () => createJsonEncoderFn(RT.object({outer: RT.object({declared: TF.string()})})),
     schemaDecoder: () => createJsonDecoderFn(RT.object({outer: RT.object({declared: TF.string()})})),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(RT.object({outer: RT.object({declared: TF.string()})})),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(RT.object({outer: RT.object({declared: TF.string()})})),
     getTestData: () => ({
       values: [{outer: {declared: 'x', extra: 'y'}}],
       // Unsafe: nested extra preserved.

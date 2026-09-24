@@ -1,4 +1,4 @@
-// Families that write output by name (prepareForJsonSafe / compactForJson / toBinary) gate a guarded prop
+// Families that write output by name (prepareForJsonSafe / compactForJson) gate a guarded prop
 // (global-inherited or `@nonEnumerable`) on `propertyIsEnumerable`. Guarded implies optional, so DataOnly<T> stays
 // sound: `@nonEnumerable` on a required prop is a no-op the NE lint rule flags. Both getRunTypeId call shapes are
 // covered, per the marker coverage rule.
@@ -9,8 +9,6 @@ import {
   createGetValidationErrorsFn,
   createJsonEncoderFn,
   createJsonDecoderFn,
-  createBinaryEncoderFn,
-  createBinaryDecoderFn,
   getRunTypeId,
   type RunType,
 } from '@mionjs/run-types';
@@ -63,13 +61,6 @@ describe('@nonEnumerable guard on an optional prop — JSON strategies', () => {
       expect(shown.secret).toBe('shhh');
     });
   }
-
-  it('binary round-trip honors the guard both ways', () => {
-    const encode = createBinaryEncoderFn<Doc>();
-    const decode = createBinaryDecoderFn<Doc>();
-    expect((decode(encode(withSecret(false))) as Record<string, unknown>).secret).toBeUndefined();
-    expect((decode(encode(withSecret(true))) as Record<string, unknown>).secret).toBe('shhh');
-  });
 
   it('validators treat the guarded prop as optional; DataOnly-safe', () => {
     const isDoc = createValidateFn<Doc>();

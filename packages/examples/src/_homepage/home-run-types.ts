@@ -1,8 +1,4 @@
-import {
-  createValidateFn,
-  createJsonEncoderFn,
-  createBinaryEncoderFn,
-} from '@mionjs/run-types';
+import {createValidateFn, createJsonEncoderFn} from '@mionjs/run-types';
 import {createMockDataFn} from '@mionjs/run-types/mocking';
 interface User {
   id: string;
@@ -14,7 +10,6 @@ interface User {
 
 const isUser = createValidateFn<User>();
 const encodeUser = createJsonEncoderFn<User>();
-const toBinaryUser = createBinaryEncoderFn<User>();
 const mockUser = createMockDataFn<User>();
 
 // @annotate: Generate mock data - respects type structure

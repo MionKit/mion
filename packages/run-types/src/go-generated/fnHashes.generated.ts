@@ -15,8 +15,8 @@ export interface FnHashEntry {
   readonly axis: FnHashAxis;
   /** jsonStrategy only: the strategy token applied when options omit `strategy`. */
   readonly defaultVariant?: string;
-  /** CircularGuarded families (validate / validationErrors / toBinary /
-   *  jsonEncoder) fork on the rejectCircularRefs compile option: each base
+  /** CircularGuarded families (validate / validationErrors / jsonEncoder)
+   *  fork on the rejectCircularRefs compile option: each base
    *  variant token also has a 'C'-suffixed armed twin. getFnHash appends 'C'
    *  when options.rejectCircularRefs is set on such a family. */
   readonly circularGuarded?: true;
@@ -32,7 +32,6 @@ export const FN_HASHES = {
   compactForJson: {axis: 'none', variants: {'': 'rpEK'}},
   compactFromJson: {axis: 'none', variants: {'': 'FFsn'}},
   formatTransform: {axis: 'none', variants: {'': 'mzca'}},
-  fromBinary: {axis: 'none', variants: {'': 'rR8x'}},
   jsonDecoder: {axis: 'jsonStrategy', defaultVariant: 'clone', variants: {clone: 'xXCs', compact: 'hoBv', mutate: 'TqQA'}},
   jsonEncoder: {
     axis: 'jsonStrategy',
@@ -46,7 +45,6 @@ export const FN_HASHES = {
   removeUnknownKeys: {axis: 'none', variants: {'': 'C85b'}},
   restoreFromJsonClone: {axis: 'none', variants: {'': 'Ky89'}},
   restoreFromJsonMutate: {axis: 'none', variants: {'': 'w8ie'}},
-  toBinary: {axis: 'none', circularGuarded: true, variants: {'': 'jDpZ', C: 'rutq'}},
   validate: {
     axis: 'validateOptions',
     circularGuarded: true,
@@ -89,7 +87,6 @@ export const FAMILY_TAG_TO_FN_KEY = {
   cj: 'compactForJson',
   cjr: 'compactFromJson',
   csr: 'classSerializerReg',
-  fb: 'fromBinary',
   fmt: 'formatTransform',
   jsc: 'jsonSchema',
   pj: 'prepareForJsonMutate',
@@ -97,7 +94,6 @@ export const FAMILY_TAG_TO_FN_KEY = {
   rj: 'restoreFromJsonMutate',
   rjs: 'restoreFromJsonClone',
   ruk: 'removeUnknownKeys',
-  tb: 'toBinary',
   val: 'validate',
   verr: 'validationErrors',
   vest: 'validationErrorsStrict',

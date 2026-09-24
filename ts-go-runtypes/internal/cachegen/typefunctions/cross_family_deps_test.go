@@ -15,7 +15,7 @@ import (
 // produces for a same-family / cross-family validate lookup. Slice 4 replaced the
 // readable `val_` tag prefix with the opaque, version-isolated fnHash from the
 // operation registry; tests derive the expected key through the same helper the
-// emitter uses so they stay correct across binary versions.
+// emitter uses so they stay correct across resolver versions.
 func valKey(id string) string { return operations.PlainHash("validate") + "_" + id }
 
 // itVariantKey mirrors variantKey for a validate option variant (e.g. numberTypeof), minus the CacheModuleSettings plumbing.
@@ -63,8 +63,8 @@ func containsStr(haystack []string, needle string) bool {
 // validate validators of the two candidate OBJECT types — emitting
 // `val_<inner1ID>` / `val_<inner2ID>` cross-family lookups (a synthesized
 // sub-union over the property). This is the union shape that exercises the
-// cross-family `registerRTLookup("val_<member>")` path in BOTH the
-// prepareForJson and toBinary encoders (a clean discriminated union of plain
+// cross-family `registerRTLookup("val_<member>")` path in the
+// prepareForJson encoder (a clean discriminated union of plain
 // objects instead merges into a single `[-1, v]` branch and emits no
 // per-member dispatch on the JSON side). Returns the run-types and the union
 // root id. Ids `big`/`dat` are retained as the two inner-object ids so the
@@ -129,13 +129,6 @@ func assertUnionCrossFamily(t *testing.T, emitter Emitter, settings constants.Ca
 // (empty here) same-family RTDependencies.
 func TestCrossFamilyDeps_UnionPrepareForJson(t *testing.T) {
 	assertUnionCrossFamily(t, PrepareForJsonEmitter{}, constants.CacheModules["prepareForJsonMutate"])
-}
-
-// TestCrossFamilyDeps_UnionToBinary — same as the prepareForJson sibling but
-// for the toBinary encoder, which also discriminates the conflicting slot via
-// the candidate validate validators.
-func TestCrossFamilyDeps_UnionToBinary(t *testing.T) {
-	assertUnionCrossFamily(t, ToBinaryEmitter{}, constants.CacheModules["toBinary"])
 }
 
 // TestCrossFamilyDeps_ValidateSameFamilyOnly — a plain object with a nested
@@ -233,11 +226,11 @@ func TestRecordCrossFamilyDep_DedupAndPrefixGate(t *testing.T) {
 	// Cross-family — recorded, and deduped on repeat.
 	w.recordCrossFamilyDep("val_a")
 	w.recordCrossFamilyDep("val_a")
-	w.recordCrossFamilyDep("tb_b")
+	w.recordCrossFamilyDep("rj_b")
 
 	got := append([]string(nil), w.CrossFamilyDeps...)
 	sort.Strings(got)
-	want := []string{"tb_b", "val_a"} // sorted: tb_ < val_
+	want := []string{"rj_b", "val_a"} // sorted: rj_ < val_
 	if strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Fatalf("expected cross-family deps %v, got %v", want, w.CrossFamilyDeps)
 	}

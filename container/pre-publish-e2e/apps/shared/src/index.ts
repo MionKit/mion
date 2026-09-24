@@ -10,7 +10,6 @@ export * from './validation';
 export * from './type-builders';
 export * from './reflection';
 export * from './json';
-export * from './binary';
 export * from './serialization-edge';
 export * from './unknown-keys';
 export * from './formats';
@@ -24,7 +23,6 @@ import {checkValidation} from './validation';
 import {checkTypeBuilders} from './type-builders';
 import {checkReflection} from './reflection';
 import {checkJson} from './json';
-import {checkBinary} from './binary';
 import {checkSerializationEdge} from './serialization-edge';
 import {checkUnknownKeys} from './unknown-keys';
 import {checkFormats} from './formats';
@@ -34,13 +32,12 @@ import {checkStandardSchema} from './standard-schema';
 import {checkOverrides} from './overrides';
 import {checkEnrichment} from './enrichment';
 
-// The 13 feature families (enrichment is family 11). Order mirrors the spec table.
+// The 12 feature families (enrichment is family 10). Order mirrors the spec table.
 const FAMILIES: {family: string; run: () => CheckResult[]}[] = [
   {family: 'validation', run: checkValidation},
   {family: 'type-builders', run: checkTypeBuilders},
   {family: 'reflection', run: checkReflection},
   {family: 'json', run: checkJson},
-  {family: 'binary', run: checkBinary},
   {family: 'serialization-edge', run: checkSerializationEdge},
   {family: 'unknown-keys', run: checkUnknownKeys},
   {family: 'formats', run: checkFormats},

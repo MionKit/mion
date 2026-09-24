@@ -1,4 +1,4 @@
-// Family 10 — Mocking. Mirrors guide/mocking-*.ts + custom-mocking-function.ts.
+// Family 9 — Mocking. Mirrors guide/mocking-*.ts + custom-mocking-function.ts.
 // createMockDataFn output passes createValidateFn for the same T; options + formats
 // are honored; a custom per-kind mock generator is registered.
 import {createValidateFn, RunTypeKind, type FormatAnnotation} from '@mionjs/run-types';

@@ -18,7 +18,6 @@ import type {
   PrepareForJsonFn,
   RestoreFromJsonFn,
 } from '../createRTFunctions.ts';
-import type {ToBinaryFn, FromBinaryFn} from '../createRTFBinary.ts';
 
 // ########################################### Pure functions #########################################
 
@@ -179,10 +178,6 @@ export interface CompiledFnData {
    *  factory: the Go compiler reached an unsupported leaf and rendered the message at build time, and the JS
    *  side throws it verbatim with no diagnostic catalog of its own. Undefined for normal and noop entries. */
   readonly alwaysThrowMessage?: string;
-  /** `tb` (binary-encoder) entries only: the cold-start buffer-size estimate in bytes, emitted only for an
-   *  un-varianted `toBinary` entry. `createBinaryEncoderFn`'s `dynamic` strategy seeds the buffer with it so a
-   *  cold encode is sized to the type instead of the flat `defaultBufferSize`. **/
-  readonly binarySizeEstimate?: number;
 }
 
 export interface CompiledTypeFn<Fn extends AnyFn = AnyFn> extends CompiledFnData {
@@ -210,8 +205,6 @@ export type RemoveUnknownKeysRTFn = CompiledTypeFn<RemoveUnknownKeysFn>;
 export type PrepareForJsonRTFn = CompiledTypeFn<PrepareForJsonFn>;
 export type PrepareForJsonSafeRTFn = CompiledTypeFn<PrepareForJsonFn>;
 export type RestoreFromJsonRTFn = CompiledTypeFn<RestoreFromJsonFn>;
-export type ToBinaryRTFn = CompiledTypeFn<ToBinaryFn>;
-export type FromBinaryRTFn = CompiledTypeFn<FromBinaryFn>;
 
 export type TypesFunctionsCache = Record<string, CompiledTypeFn>;
 /** Flat pure-function cache keyed by pure-fn id. */

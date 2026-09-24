@@ -52,10 +52,10 @@ func objFactoryIsAlwaysThrow(rendered string) bool {
 	return strings.Contains(rendered, "_obj','objectLiteral',,,,,,'")
 }
 
-// allSerdeFamilies — validate + validationErrors + the six serialization families.
+// allSerdeFamilies — validate + validationErrors + the four JSON serialization families.
 var allSerdeFamilies = []string{
 	"validate", "validationErrors", "prepareForJsonMutate", "prepareForJsonClone",
-	"restoreFromJsonMutate", "restoreFromJsonClone", "toBinary", "fromBinary",
+	"restoreFromJsonMutate", "restoreFromJsonClone",
 }
 
 // nonSerPropDropCodes maps each family to its …015 directly-stripped-property
@@ -67,8 +67,6 @@ var nonSerPropDropCodes = map[string]string{
 	"prepareForJsonClone":   diagnostics.CodePJSNonSerializablePropDrop,
 	"restoreFromJsonMutate": diagnostics.CodeRJNonSerializablePropDrop,
 	"restoreFromJsonClone":  diagnostics.CodeRJNonSerializablePropDrop,
-	"toBinary":              diagnostics.CodeTBNonSerializablePropDrop,
-	"fromBinary":            diagnostics.CodeFBNonSerializablePropDrop,
 }
 
 // symbolRootCodes maps each family to the symbol root-position Error its
@@ -81,8 +79,6 @@ var symbolRootCodes = map[string]string{
 	"prepareForJsonClone":   diagnostics.CodePJSSymbolRoot,
 	"restoreFromJsonMutate": diagnostics.CodeRJSymbolRoot,
 	"restoreFromJsonClone":  diagnostics.CodeRJSymbolRoot,
-	"toBinary":              diagnostics.CodeTBSymbolRoot,
-	"fromBinary":            diagnostics.CodeFBSymbolRoot,
 }
 
 // functionPropDropCodes maps each family to its …010 function-valued-property
@@ -94,8 +90,6 @@ var functionPropDropCodes = map[string]string{
 	"prepareForJsonClone":   diagnostics.CodePJSFunctionPropDropped,
 	"restoreFromJsonMutate": diagnostics.CodeRJFunctionPropDropped,
 	"restoreFromJsonClone":  diagnostics.CodeRJFunctionPropDropped,
-	"toBinary":              diagnostics.CodeTBFunctionPropDropped,
-	"fromBinary":            diagnostics.CodeFBFunctionPropDropped,
 }
 
 // A directly-stripped property value (symbol / Promise / non-serializable native)

@@ -40,7 +40,7 @@ export const SUBSITES = [
     path: '/runtypes',
     home: '/runtypes/introduction/about-mion-runtypes',
     icon: 'i-lucide-braces',
-    description: 'Validation, JSON and binary serialization, mock data and reflection, generated from your TypeScript types.',
+    description: 'Validation, JSON serialization, mock data and reflection, generated from your TypeScript types.',
   },
   {
     id: 'benchmarks',

@@ -524,9 +524,8 @@ function buildVerdict(rtVals: (number | null)[], get: (i: number) => {enc?: numb
   if (!index.value) return [];
   const rtRanks = ranksFor(rtVals, false);
   const ingredients = index.value.competitors.map((_c, i) => get(i));
-  // 0 bytes is a REAL, valid (and best) payload, not "absent": a binary literal bakes
-  // its single possible value into the compiled fn, so nothing rides the wire. Include
-  // it so it wins the "fewest bytes" cue (>= 0, matching ranksFor's lower-better path).
+  // 0 bytes is a REAL, valid (and best) payload, not "absent": include it so it wins the
+  // "fewest bytes" cue (>= 0, matching ranksFor's lower-better path).
   const present = ingredients.map((g) => g.bytes).filter((v): v is number => typeof v === 'number' && v >= 0);
   const byteMin = present.length ? Math.min(...present) : NaN;
   return ingredients.map(({enc, dec, bytes}, i) => {

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/diskcache"
@@ -84,11 +83,6 @@ type RenderOpts struct {
 	// Facts memoizes the canonical-node subtree predicates across every collect of
 	// one dispatch. See FactsTable.
 	Facts *FactsTable
-	// SizeEstimate parameterises the buffer-size estimate baked into every `tb`
-	// entry, the runtime `dynamic` strategy's cold-start size. Zero-value fields
-	// fall back to constants.DefaultSize*. Folded into the disk fingerprint so a
-	// config change re-derives every estimate.
-	SizeEstimate SizeEstimateConfig
 }
 
 // familyOp recovers the operation emitting entries under a cache-module's family Tag; panics on an unknown tag.
@@ -430,7 +424,7 @@ func renderEntryWithDeps(runType *reflection.RunType, settings constants.CacheMo
 			// leaf, and DiagCodeForLeaf maps only the function-ish kinds, so it
 			// would resolve to "" and the entry would be SILENTLY SKIPPED — leaving
 			// a dangling dep that a JSON composite binds with an unguarded
-			// getRT(key).fn, or a binary site can't resolve. Substitute the
+			// getRT(key).fn. Substitute the
 			// call-signature child so it renders as an alwaysThrow, like a bare function.
 			diagLeaf := callableLeafSubstitute(walker.UnsupportedLeaf, walker.RefTable)
 			if diagCode := leafProvider.DiagCodeForLeaf(diagLeaf); diagCode != "" {
@@ -517,14 +511,7 @@ func renderEntryWithDeps(runType *reflection.RunType, settings constants.CacheMo
 		pureFnDepsJS(walker.PureFnDependencies),
 		createRTFnArg,
 	}
-	var args []string
-	if estimate := binaryColdStartEstimate(settings, variantSuffix, runType, refTable, opts.SizeEstimate); estimate > 0 {
-		// holeifyArgs empties the default interior slots while KEEPING the
-		// estimate at its fixed index: holes preserve positions.
-		args = holeifyArgs(append(tail, "undefined", strconv.Itoa(estimate))) // slot 10 alwaysThrowMessage, slot 11 estimate
-	} else {
-		args = holeifyArgs(tail)
-	}
+	args := holeifyArgs(tail)
 	deps := append([]string(nil), walker.RTDependencies...)
 	crossFamilyDeps := append([]string(nil), walker.CrossFamilyDeps...)
 	// Only the live path reaches here (noop / alwaysThrow entries and cache hits
@@ -913,9 +900,9 @@ func boolJS(b bool) string {
 
 // fnEntryArgHoles maps a tail slot index to the rendered values that read back IDENTICALLY as a JS array hole
 // once the JS side zips the tuple and re-derives the entry. Holing such a value drops its literal bytes even
-// when the slot is INTERIOR: a later non-default slot (the live factory, the `tb` size estimate) would
-// otherwise block the trailing trim and leave `undefined,false,[],[]` spelled out. Slots absent from the map
-// (the cache key, typeName, the tb size estimate) are never holed. Indices match the full entry tail
+// when the slot is INTERIOR: a later non-default slot (the live factory) would otherwise block the trailing
+// trim and leave `undefined,false,[],[]` spelled out. Slots absent from the map (the cache key, typeName) are
+// never holed. Indices match the full entry tail
 // (0 key, 1 typeName, 2 code, 3 isNoop, 4 rtDependencies, 5 pureFnDependencies, 6 createRTFn, 7 alwaysThrowMessage).
 var fnEntryArgHoles = map[int][]string{
 	2: {"undefined"},       // code — derived from createRTFn in functions mode
@@ -927,8 +914,8 @@ var fnEntryArgHoles = map[int][]string{
 }
 
 // holeifyArgs replaces every hole-equivalent slot (see fnEntryArgHoles) with a JS array hole (""), then drops
-// the trailing run of holes. INTERIOR defaults are holed in place, so a trailing non-default slot (the tb
-// estimate) still lands at its fixed index. The runtime tolerates a hole at every one of these slots.
+// the trailing run of holes. INTERIOR defaults are holed in place, so a trailing non-default slot still lands
+// at its fixed index. The runtime tolerates a hole at every one of these slots.
 func holeifyArgs(args []string) []string {
 	out := append([]string(nil), args...)
 	for i := range out {

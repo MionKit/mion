@@ -13,11 +13,11 @@ import (
 // key is never data, so no value of the type could carry it. A Warning, not an
 // Error: the rest of the type still serializes and validates.
 func TestDiag_DeclaredUnsafePropertyNameDropsTheMember(t *testing.T) {
-	const code = `import {createValidateFn, createJsonEncoderFn, createBinaryDecoderFn} from '@mionjs/run-types';
+	const code = `import {createValidateFn, createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
 interface Settings {ok: number; '__proto__': string}
 export const isSettings = createValidateFn<Settings>();
 export const encode = createJsonEncoderFn<Settings>(undefined, {strategy: 'clone'});
-export const decode = createBinaryDecoderFn<Settings>();
+export const decode = createJsonDecoderFn<Settings>();
 `
 	resolverSession := setupInline(t, map[string]string{"u.ts": code})
 	response := resolverSession.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"u.ts"}, IncludeEntryModules: true})
@@ -52,11 +52,11 @@ export const decode = createBinaryDecoderFn<Settings>();
 // an inherited member.
 func TestDiag_PrototypeAndConstructorCompileCleanly(t *testing.T) {
 	for _, name := range []string{"prototype", "constructor"} {
-		code := `import {createValidateFn, createJsonEncoderFn, createBinaryDecoderFn} from '@mionjs/run-types';
+		code := `import {createValidateFn, createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
 interface Settings {ok: number; '` + name + `': string}
 export const isSettings = createValidateFn<Settings>();
 export const encode = createJsonEncoderFn<Settings>(undefined, {strategy: 'clone'});
-export const decode = createBinaryDecoderFn<Settings>();
+export const decode = createJsonDecoderFn<Settings>();
 `
 		resolverSession := setupInline(t, map[string]string{"c.ts": code})
 		response := resolverSession.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"c.ts"}, IncludeEntryModules: true})

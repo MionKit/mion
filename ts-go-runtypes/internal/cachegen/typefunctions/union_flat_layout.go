@@ -23,7 +23,6 @@ type FlatLayout struct {
 	// AtomicNeedsTuple is the all-or-nothing wrap flag, the negation of roundTripsRaw.
 	// True iff some member carries a transform: the union wraps `[armIndex, value]` (atomic) or `[-1, merged]` (object).
 	// False when every member is JSON-compatible: no envelope, identity decode.
-	// Governs the JSON emitters only; binary always writes its discriminant.
 	AtomicNeedsTuple bool
 	// HasDiscriminant is true iff the object members share one required, plain-literal discriminant property.
 	// The merged-prop sub-dispatch then picks a candidate by discriminant VALUE (see FlatPropCandidate.DiscValues).
@@ -277,7 +276,6 @@ func (layout FlatLayout) atomicEncodeDispatch(v string, ctx *EmitContext) (prolo
 // extra-proof: JSON preserves the shape and the decoder is identity, so the JSON encoders collapse to a
 // straight pass-through instead of a per-member validate-and-return-unchanged chain.
 // Literal members are JSON-identity, so this covers `'a' | 'b' | 'c'`, `true | false`, `'a' | 2 | string`.
-// Binary is unaffected: it keeps the compact per-member discriminant.
 func (layout FlatLayout) atomicOnlyJsonIdentity() bool {
 	return len(layout.ObjectMembers) == 0 && !layout.AtomicNeedsTuple && layout.AtomicsExtraProof
 }
@@ -326,7 +324,7 @@ func (layout FlatLayout) hasIndexSignatureMember(ctx *EmitContext) bool {
 // undeclared keys), only the wrap is dropped. That is the record-union optimisation, e.g.
 // `Record<string, number> | {type: string; isTypeError: true}` round-tripping as the bare object.
 // Strictly broader than atomicOnlyJsonIdentity, which also requires zero object members.
-// Drives AtomicNeedsTuple as its negation. Binary is unaffected: union_flat_binary.go ignores that flag.
+// Drives AtomicNeedsTuple as its negation.
 func (layout FlatLayout) roundTripsRaw(ctx *EmitContext) bool {
 	for _, m := range layout.AtomicMembers {
 		if !isJsonCompatible(m.Resolved, ctx) {

@@ -32,9 +32,6 @@ describe('family routing (compiler diagnostics grouped by Go prefix family, name
     expect(ruleOf({code: 'PJ001', severity: Severity.Error})).toBe('json-non-serializable');
     expect(ruleOf({code: 'PJ011', severity: Severity.Warning})).toBe('json-skipped-member');
     expect(ruleOf({code: 'JCP001', severity: Severity.Error})).toBe('json-non-serializable');
-    // binary folds TB / FB.
-    expect(ruleOf({code: 'TB001', severity: Severity.Error})).toBe('binary-non-serializable');
-    expect(ruleOf({code: 'FB011', severity: Severity.Warning})).toBe('binary-skipped-member');
     // clone keeps-by-reference rather than skipping.
     expect(ruleOf({code: 'RUK001', severity: Severity.Error})).toBe('clone-unsupported-type');
     expect(ruleOf({code: 'RUK010', severity: Severity.Warning})).toBe('clone-shared-reference');

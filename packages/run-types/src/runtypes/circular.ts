@@ -1,4 +1,4 @@
-// Circular-reference support for the live-object families (validate / getValidationErrors / jsonEncode / binaryEncode).
+// Circular-reference support for the live-object families (validate / getValidationErrors / jsonEncode).
 // The guard itself is a COMPILE-TIME option (`{rejectCircularRefs: true}`) baked into the armed factory body by the Go emitter,
 // which walks the value via the `findCycle` pure fn (see circular-pure-fns.ts) and applies the family's reaction.
 // This module keeps only the always-static pieces: the error class the encoders throw, the path formatter, and the CircularPath type.

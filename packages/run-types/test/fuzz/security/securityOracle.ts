@@ -1,23 +1,5 @@
 // The security oracles: what must hold for EVERY input, hostile or not.
 //
-//   Binary decoder (secbinary lane)
-//     SB-THROWS     a decode returns or throws an Error, never a non-Error or
-//                   garbage. (No wrapper by design: the failing arm's error.)
-//     SB-BOUNDS     when a decode returns, the deserializer's index never sits
-//                   past the end of the buffer (a silent short read).
-//     SB-TOTAL      `validate(decoded)` returns a boolean without throwing, and
-//                   a value it accepts re-encodes without throwing.
-//     SB-REJECT     bytes marked `expect: 'reject'` never decode into a value
-//                   `validate` accepts.
-//     SB-TIME       one decode stays under a budget scaled by input length.
-//     SB-ISOLATION  after an attack, the valid wire still decodes to the same
-//                   bytes (no cross-decode state poisoning).
-//     SB-OOM        the heap cap tripped, or a step never returned (recorded by
-//                   the worker host as a crash with the step seed).
-//     SB-PROTO      a returned value has a sane prototype at every object
-//                   position and no inherited enumerable keys (the class
-//                   deserializer's JSON frame is the binary road's own key path).
-//
 //   JSON decoders (secjson lane)
 //     SJ-REJECT     an `expect: 'reject'` payload never decodes into a value `validate` accepts.
 //     SJ-PROTO      a returned value has a sane prototype at every object
@@ -34,18 +16,8 @@
 //     SF-TOTAL      returns a boolean, never throws.
 //     SF-TIME       one call under the budget.
 //     SF-PATTERN-TIME  the same for each registered pattern regex.
-//
-// Erasable TypeScript only: the worker thread loads this file natively.
 
 export type SecurityOracleId =
-  | 'SB-THROWS'
-  | 'SB-BOUNDS'
-  | 'SB-TOTAL'
-  | 'SB-REJECT'
-  | 'SB-TIME'
-  | 'SB-ISOLATION'
-  | 'SB-OOM'
-  | 'SB-PROTO'
   | 'SJ-REJECT'
   | 'SJ-PROTO'
   | 'SJ-GLOBAL'
@@ -78,11 +50,6 @@ export const FORMAT_BUDGET_MS = 250;
 
 const MAX_INPUT_RENDER = 160;
 
-export function renderBytes(bytes: Uint8Array): string {
-  const head = Array.from(bytes.subarray(0, 48), (byte) => byte.toString(16).padStart(2, '0')).join(' ');
-  return `${bytes.length} bytes: ${head}${bytes.length > 48 ? ' …' : ''}`;
-}
-
 export function renderValue(value: unknown): string {
   let text: string;
   try {
@@ -99,116 +66,9 @@ export function errMsg(err: unknown): string {
   return err instanceof Error ? `${err.name}: ${err.message}` : `non-Error throw: ${String(err)}`;
 }
 
-export interface BinaryDecodeProbe {
-  /** Runs the compiled decoder over a FRESH deserializer for `bytes` and
-   *  reports where its index ended. **/
-  decode: (bytes: Uint8Array) => {value: unknown; index: number; byteLength: number};
-  validate: (value: unknown) => boolean;
-  encode: (value: unknown) => Uint8Array;
-}
-
 interface Ctx {
   target: string;
   seed: number;
-}
-
-export interface BinaryStepResult {
-  violations: SecurityViolation[];
-  /** 'returned' | the error name, for the report's throw histogram. **/
-  outcome: string;
-}
-
-/** Run every binary oracle over one attack. **/
-export function checkBinaryDecode(
-  probe: BinaryDecodeProbe,
-  attack: {id: string; expect: 'reject' | 'any'; bytes: Uint8Array},
-  ctx: Ctx
-): BinaryStepResult {
-  const violations: SecurityViolation[] = [];
-  const input = renderBytes(attack.bytes);
-  const push = (oracle: SecurityOracleId, message: string): void => {
-    violations.push({oracle, attack: attack.id, target: ctx.target, seed: ctx.seed, message, input});
-  };
-
-  const started = now();
-  let decoded: {value: unknown; index: number; byteLength: number} | undefined;
-  let outcome = 'returned';
-  try {
-    decoded = probe.decode(attack.bytes);
-  } catch (err) {
-    if (!(err instanceof Error)) push('SB-THROWS', `decode threw a non-Error: ${String(err)}`);
-    outcome = err instanceof Error ? err.name : 'non-Error';
-  }
-  const elapsed = now() - started;
-  const budget = decodeBudgetMs(attack.bytes.length);
-  if (elapsed > budget) push('SB-TIME', `decode took ${elapsed.toFixed(1)}ms (budget ${budget.toFixed(0)}ms)`);
-  if (!decoded) return {violations, outcome};
-
-  if (decoded.index > decoded.byteLength) {
-    push(
-      'SB-BOUNDS',
-      `decode returned with index ${decoded.index} past the ${decoded.byteLength}-byte buffer: ${renderValue(decoded.value)}`
-    );
-  }
-  checkPrototypes(decoded.value, 'binary', attack.id, ctx, violations, input, 'SB-PROTO');
-
-  let accepted: boolean | undefined;
-  try {
-    accepted = probe.validate(decoded.value);
-    if (typeof accepted !== 'boolean')
-      push('SB-TOTAL', `validate returned a non-boolean (${typeof accepted}) on the decoded value`);
-  } catch (err) {
-    push('SB-TOTAL', `validate threw on the decoded value: ${errMsg(err)}`);
-  }
-  if (accepted === true) {
-    if (attack.expect === 'reject')
-      push('SB-REJECT', `bytes that cannot encode the type decoded into a value validate accepts: ${renderValue(decoded.value)}`);
-    try {
-      probe.encode(decoded.value);
-    } catch (err) {
-      push('SB-TOTAL', `re-encoding an accepted decoded value threw: ${errMsg(err)}`);
-    }
-  }
-  return {violations, outcome};
-}
-
-/** SB-ISOLATION: the valid wire must still round-trip byte for byte. **/
-export function checkIsolation(
-  probe: BinaryDecodeProbe,
-  validWire: Uint8Array,
-  attackId: string,
-  ctx: Ctx
-): SecurityViolation | null {
-  try {
-    const decoded = probe.decode(validWire);
-    const again = probe.encode(decoded.value);
-    if (!sameBytes(again, validWire)) {
-      return {
-        oracle: 'SB-ISOLATION',
-        attack: attackId,
-        target: ctx.target,
-        seed: ctx.seed,
-        message: `after the attack the valid wire no longer round-trips: ${renderBytes(again)} vs ${renderBytes(validWire)}`,
-        input: renderBytes(validWire),
-      };
-    }
-  } catch (err) {
-    return {
-      oracle: 'SB-ISOLATION',
-      attack: attackId,
-      target: ctx.target,
-      seed: ctx.seed,
-      message: `after the attack the valid wire no longer decodes: ${errMsg(err)}`,
-      input: renderBytes(validWire),
-    };
-  }
-  return null;
-}
-
-export function sameBytes(a: Uint8Array, b: Uint8Array): boolean {
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
-  return true;
 }
 
 // ---- JSON side --------------------------------------------------------------
@@ -395,22 +255,21 @@ export function findUnsafeKey(value: unknown, seen: Set<unknown>, depth: number)
   return null;
 }
 
-/** SJ-PROTO (or SB-PROTO on the binary road) over one returned value: every
- *  object position has a sane prototype (Object.prototype, null, a builtin, or
- *  a real class prototype) and no inherited enumerable keys. **/
+/** SJ-PROTO over one returned value: every object position has a sane
+ *  prototype (Object.prototype, null, a builtin, or a real class prototype)
+ *  and no inherited enumerable keys. **/
 export function checkPrototypes(
   value: unknown,
   producer: string,
   attackId: string,
   ctx: Ctx,
   out: SecurityViolation[],
-  input: string,
-  oracle: 'SJ-PROTO' | 'SB-PROTO' = 'SJ-PROTO'
+  input: string
 ): void {
   const problem = findPrototypeProblem(value, new Set(), 0);
   if (problem)
     out.push({
-      oracle,
+      oracle: 'SJ-PROTO',
       attack: attackId,
       target: ctx.target,
       seed: ctx.seed,

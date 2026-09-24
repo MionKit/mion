@@ -8,7 +8,6 @@
 //     O1 valid-accepted     validate(mock)            === true
 //     O2 invalid-rejected   validate(corrupted-mock)  === false
 //     O5 json-stable        encode(decode(encode v))  === encode(v)
-//     O6 binary-stable      same, over the binary wire
 //
 //   CONSISTENCY (two functions must agree)
 //     O4 errors-agree       validate(x)  ⇔  getValidationErrors(x).length === 0
@@ -52,8 +51,9 @@ export interface FuzzTarget {
   restoreFromJsonClone?: (value: unknown) => unknown;
   jsonEncode?: (value: unknown) => string | undefined;
   jsonDecode?: (serialized: string) => unknown;
-  binaryEncode?: (value: unknown) => Uint8Array;
-  binaryDecode?: (buffer: Uint8Array) => unknown;
+  /** The compact-strategy JSON codec, O12's second opinion on the clone wire. **/
+  compactEncode?: (value: unknown) => string | undefined;
+  compactDecode?: (serialized: string) => unknown;
 }
 
 // O1–O7 are the value oracles. TR1–TR4 police the type-generation pipeline itself rather than a runtime value:
@@ -63,10 +63,10 @@ export interface FuzzTarget {
 //   TR3 emit-valid       every demanded entry module evaluates (the emitted
 //                        factory code is valid JS) with no dangling refs
 //   TR4 wire-ok          the real createX factories materialise from the tuples
-//   O12 cross-wire      jsonEncode(binaryDecode(binaryEncode v)) === jsonEncode(v)
-//                       — the JSON and binary wires must agree on the same
+//   O12 cross-wire      jsonEncode(compactDecode(compactEncode v)) === jsonEncode(v)
+//                       — the clone and compact wires must agree on the same
 //                       DataOnly value (model-free: no projection oracle needed)
-//   O14 family-agree    every serialization family agrees serialize-vs-fail
+//   O14 family-agree    the clone and compact encoders agree serialize-vs-fail
 //   O18 fused-agree     the `{checkUnknowns: true}` validator accepts exactly
 //                       when `validate(v)` does and removeUnknownKeys drops nothing
 //   O21 strict-self     the `{checkUnknowns: true}` validator and its error twin
@@ -100,7 +100,6 @@ export type OracleId =
   | 'O3'
   | 'O4'
   | 'O5'
-  | 'O6'
   | 'O7'
   | 'O10'
   | 'O12'
@@ -771,62 +770,34 @@ export function checkJsonStable(target: FuzzTarget, value: unknown, ctx: CheckCt
   return null;
 }
 
-/** O6 — binary round-trip is stable on the wire (byte-for-byte). **/
-export function checkBinaryStable(target: FuzzTarget, value: unknown, ctx: CheckCtx): Violation | null {
-  if (!target.binaryEncode || !target.binaryDecode) return null;
-  let wire1: Uint8Array;
-  try {
-    wire1 = target.binaryEncode(value);
-  } catch (err) {
-    return violation('O7', target, ctx, `binaryEncode threw on a valid mock: ${errMsg(err)}`, value);
-  }
-  try {
-    const wire2 = target.binaryEncode(target.binaryDecode(wire1));
-    if (!isDeepStrictEqual(wire1, wire2)) {
-      return violation('O6', target, ctx, 'binary round-trip is not byte-stable', value);
-    }
-  } catch (err) {
-    return violation('O6', target, ctx, `binary decode/re-encode threw on valid data: ${errMsg(err)}`, value);
-  }
-  return null;
-}
-
-/** O12 — the JSON and binary wires must agree on the same DataOnly value. We
- *  normalise BOTH through `jsonEncode` (so optional-`undefined` vs dropped-key
- *  representation differences between the wires don't register as a mismatch):
- *  `jsonEncode(binaryDecode(binaryEncode v))` must equal `jsonEncode(v)`. Needs
- *  no projection oracle — a divergence means one wire lost or reshaped data the
- *  other kept. Throws are left to O5/O6/O7.
- *
- *  Textual equality is the fast path, not the contract. O5 compares the wire
- *  TEXT on purpose (it sidesteps the optional-`undefined` vs dropped-key
- *  mismatch), which is sound there because both its wires come out of the same
- *  encoder and so carry the same key order. Across wires that does not hold:
- *  the binary layout partitions an object's properties into required-then-
- *  optional (the presence bitmap depends on that split), so binaryDecode
- *  rebuilds in LAYOUT order while jsonEncode emits DECLARATION order. Any type
- *  declaring an optional property before a required one therefore round-trips
- *  to the same value spelled with a different key order — `{p0?, p1}` comes back
- *  as `{p1, p0}`. That is by design, and key order carries no meaning in JSON,
- *  so differing text falls through to a structural comparison and only a real
- *  value difference is a violation. **/
+/** O12 — the clone and compact JSON wires must agree on the same DataOnly
+ *  value. Both are normalised through `jsonEncode`, so representation
+ *  differences between the wires don't register as a mismatch:
+ *  `jsonEncode(compactDecode(compactEncode v))` must equal `jsonEncode(v)`.
+ *  Needs no projection oracle: a divergence means one wire lost or reshaped
+ *  data the other kept. Throws are left to O5/O7. The caller skips a type
+ *  whose optional property can hold a present `null` (compact collapses it to
+ *  absent by design). Differing text falls through to a structural compare, so
+ *  key order alone is never a violation. **/
 export function checkCrossWire(target: FuzzTarget, value: unknown, ctx: CheckCtx): Violation | null {
-  if (!target.jsonEncode || !target.binaryEncode || !target.binaryDecode) return null;
+  if (!target.jsonEncode || !target.compactEncode || !target.compactDecode) return null;
   let jsonWire: string | undefined;
-  let viaBinaryWire: string | undefined;
+  let viaCompactWire: string | undefined;
   try {
     jsonWire = target.jsonEncode(value);
     if (jsonWire === undefined) return null; // undefined root — nothing to compare
-    viaBinaryWire = target.jsonEncode(target.binaryDecode(target.binaryEncode(value)));
+    const compactWire = target.compactEncode(deepCloneForRoundTrip(value));
+    if (compactWire === undefined) return null;
+    viaCompactWire = target.jsonEncode(target.compactDecode(compactWire));
   } catch {
-    return null; // encode/decode throws are O5/O6/O7's job, not double-counted here
+    return null; // encode/decode throws are O5/O7's job, not double-counted here
   }
-  if (jsonWire !== viaBinaryWire && !sameJsonValue(jsonWire, viaBinaryWire)) {
+  if (jsonWire !== viaCompactWire && !sameJsonValue(jsonWire, viaCompactWire)) {
     return violation(
       'O12',
       target,
       ctx,
-      `JSON and binary wires disagree on the decoded value:\n  json       =${cut(jsonWire)}\n  via-binary =${cut(String(viaBinaryWire))}`,
+      `clone and compact wires disagree on the decoded value:\n  json        =${cut(jsonWire)}\n  via-compact =${cut(String(viaCompactWire))}`,
       value
     );
   }

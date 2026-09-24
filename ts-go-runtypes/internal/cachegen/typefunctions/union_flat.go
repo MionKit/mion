@@ -35,30 +35,10 @@ func flatUnionDecodeErrorVar(ctx *EmitContext) string {
 	return name
 }
 
-// flatUnionDecodeBinaryErrorVar is the binary-decode counterpart: the wire
-// carries a discriminator, not a JSON index, so the message says so.
-func flatUnionDecodeBinaryErrorVar(ctx *EmitContext) string {
-	name := "fuDecBinErr"
-	if !ctx.HasContextItem(name) {
-		ctx.SetContextItem(name, "const "+name+" = '[mion] Can not binary decode union: invalid union discriminator '")
-	}
-	return name
-}
-
 // unionDecodeThrow is the cold-branch throw of a union decoder; the message and the index that matched no
 // member are concatenated only when the throw fires.
 func unionDecodeThrow(errVar, indexVar string) string {
 	return " else { throw new Error(" + errVar + " + " + indexVar + ") }"
-}
-
-// flatUnionEncodeBinaryErrorVar is the binary-encode counterpart of
-// flatUnionEncodeErrorVar — the binary encoder must not reuse the JSON message.
-func flatUnionEncodeBinaryErrorVar(ctx *EmitContext) string {
-	name := "fuEncBinErr"
-	if !ctx.HasContextItem(name) {
-		ctx.SetContextItem(name, "const "+name+" = '[mion] Can not binary encode union: item does not belong to the union'")
-	}
-	return name
 }
 
 // discCandidateGuard returns the JS boolean that selects `cand` by the union discriminant value.

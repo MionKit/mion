@@ -7,10 +7,6 @@ import {
   overrideJsonEncoder,
   createJsonDecoderFn,
   overrideJsonDecoder,
-  createBinaryEncoderFn,
-  overrideBinaryEncoder,
-  createBinaryDecoderFn,
-  overrideBinaryDecoder,
 } from '@mionjs/run-types';
 import type {OverrideCase} from './types.ts';
 
@@ -25,11 +21,6 @@ overrideGetValidationErrors<TupleTarget>((value, path, errors) => {
 });
 overrideJsonEncoder<TupleTarget>((v) => 'OVR' + JSON.stringify(v));
 overrideJsonDecoder<TupleTarget>((serialized) => JSON.parse((serialized as string).slice(3)) as never);
-overrideBinaryEncoder<TupleTarget>((value, Ser) => {
-  Ser.serString(JSON.stringify(value));
-  return Ser;
-});
-overrideBinaryDecoder<TupleTarget>((ret, Des) => JSON.parse(Des.desString()) as never);
 
 export const TUPLE_OVERRIDE: OverrideCase = {
   title: 'Tuples',
@@ -41,7 +32,4 @@ export const TUPLE_OVERRIDE: OverrideCase = {
   jsonDecoder: () => createJsonDecoderFn<TupleTarget>(),
   jsonValue: ['tupleOverride', 1, 'x'],
   jsonString: 'OVR' + JSON.stringify(['tupleOverride', 1, 'x']),
-  binaryEncoder: () => createBinaryEncoderFn<TupleTarget>(),
-  binaryDecoder: () => createBinaryDecoderFn<TupleTarget>(),
-  binaryValue: ['tupleOverride', 3, 'y'],
 };

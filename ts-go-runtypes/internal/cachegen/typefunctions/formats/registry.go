@@ -94,34 +94,6 @@ type FormatTransformer interface {
 	EmitFormatTransform(annotation *reflection.FormatAnnotation, vλl string, ctx EmitContext) string
 }
 
-// BinaryEncoder is an OPTIONAL Emitter capability for formats that pack into fewer bytes than the base-kind
-// serializer (the numeric int8/16/32 ladder, the bigint 64-bit path), mirroring the emitToBinary override.
-// Returns a JS STATEMENT writing `vλl` into the serializer `ser` and advancing `ser.index`, or "" to fall
-// back to the host's base KindNumber / KindBigInt arm.
-type BinaryEncoder interface {
-	EmitToBinary(annotation *reflection.FormatAnnotation, vλl, ser string, ctx EmitContext) string
-}
-
-// BinaryDecoder is the read-side sibling of BinaryEncoder (the emitFromBinary override): a JS EXPRESSION
-// reading the next value from `des` and advancing `des.index`, wrapped by the host as `ret = <expr>`, or "".
-// MUST stay byte-symmetric with the same format's EmitToBinary; the round-trip is the only test of either half.
-type BinaryDecoder interface {
-	EmitFromBinary(annotation *reflection.FormatAnnotation, des string, ctx EmitContext) string
-}
-
-// BinarySizeHint reports a format's on-wire byte footprint; the zero value falls back to the base-kind width.
-type BinarySizeHint struct {
-	// Fixed is the exact wire width in bytes, zero when the format does not pack to a constant size.
-	Fixed int
-}
-
-// BinarySizer is an OPTIONAL Emitter capability mirroring BinaryEncoder, so the compile-time estimator seeds
-// the `dynamic` cold-start buffer from the SAME min/max logic EmitToBinary uses and the two cannot drift.
-// A format with no fixed width doesn't implement it and the estimator uses the base-kind width.
-type BinarySizer interface {
-	BinarySize(annotation *reflection.FormatAnnotation) BinarySizeHint
-}
-
 var (
 	registryMu sync.RWMutex
 	registry   = map[registryKey]Emitter{}

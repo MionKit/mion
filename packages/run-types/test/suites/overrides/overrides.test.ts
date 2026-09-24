@@ -1,9 +1,9 @@
 // Single runner for the whole overrides suite. The cases live in per-type-family
 // fixtures (Atomic.ts, Interface.ts, …) — each declares a unique branded type and
 // its module-scope overrides; importing them here registers those overrides. One
-// case per type family runs all five universal families (validate,
-// getValidationErrors, jsonEncoder, jsonDecoder, binary round-trip) via the
-// shared assert helpers; ObjectFns adds the object-only families.
+// case per type family runs all four universal families (validate,
+// getValidationErrors, jsonEncoder, jsonDecoder) via the shared assert helpers;
+// ObjectFns adds the object-only families.
 
 import {describe} from 'vitest';
 import {ATOMIC_OVERRIDE} from './Atomic.ts';

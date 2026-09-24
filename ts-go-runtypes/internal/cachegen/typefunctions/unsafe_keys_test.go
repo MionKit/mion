@@ -66,17 +66,9 @@ func TestUnsafeKeys_EveryIndexSignatureLoopIsGuarded(t *testing.T) {
 			t.Errorf("[%s] index-signature loop lacks the prototype-name guard %q; got:\n%s", fam, want, out)
 		}
 	}
-	// The in-place encoders stay guard-free on purpose (see the file comment).
-	for _, fam := range []string{"prepareForJsonMutate", "toBinary"} {
-		out := renderModule(t, recordDump(), fam)
-		if strings.Contains(out, "k0.length === 9") {
-			t.Errorf("[%s] an in-place encoder must not pay the prototype-name compare per key; got:\n%s", fam, out)
-		}
-	}
-	// The binary decoder reads dynamic keys through desSafePropName, which
-	// carries the same guard in the runtime.
-	if out := renderModule(t, recordDump(), "fromBinary"); !strings.Contains(out, ".desSafePropName()") {
-		t.Errorf("[fromBinary] dynamic keys must be read through desSafePropName; got:\n%s", out)
+	// The in-place encoder stays guard-free on purpose (see the file comment).
+	if out := renderModule(t, recordDump(), "prepareForJsonMutate"); strings.Contains(out, "k0.length === 9") {
+		t.Errorf("[prepareForJsonMutate] an in-place encoder must not pay the prototype-name compare per key; got:\n%s", out)
 	}
 }
 
@@ -156,15 +148,6 @@ func TestUnsafeKeys_DeclaredConstructorUsesTheOwnEnumerabilityTest(t *testing.T)
 	guard := propertyIsEnumerableGuard("v", "constructor")
 	for _, fam := range allSerdeFamilies {
 		out := renderModule(t, bigintProp("constructor", true), fam)
-		// fromBinary is the one family with nothing to guard: presence rides the
-		// wire bitmap rather than a read off the object, and the write it makes
-		// (`ret.constructor = …`) is an own key on a fresh object.
-		if fam == "fromBinary" {
-			if strings.Contains(out, guard) {
-				t.Errorf("[%s] presence rides the wire bitmap, so the own-key test is pure cost; got:\n%s", fam, out)
-			}
-			continue
-		}
 		if !strings.Contains(out, guard) {
 			t.Errorf("[%s] an optional `constructor` must test presence with %s; got:\n%s", fam, guard, out)
 		}
@@ -216,7 +199,7 @@ func TestUnsafeKeys_DeclaredUnsafeNameOneContainerDeeperStillDrops(t *testing.T)
 		wrapperProp := &reflection.RunType{ID: "pw", Kind: reflection.KindPropertySignature, Name: "inner", IsSafeName: true, Child: makeRef(root.ID)}
 		outer := &reflection.RunType{ID: "outer", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pw")}}
 		dump := protocol.Dump{RunTypes: append(append([]*reflection.RunType{}, shared...), root, wrapperProp, outer)}
-		for _, fam := range []string{"validate", "restoreFromJsonMutate", "fromBinary"} {
+		for _, fam := range []string{"validate", "restoreFromJsonMutate"} {
 			out := renderModule(t, dump, fam)
 			if strings.Contains(out, "[UPN001]") {
 				t.Errorf("[%s/%s] a member one %s deeper drops, it never throws the root; got:\n%s", fam, label, label, out)

@@ -39,12 +39,6 @@ function grabValOpts<T>(_val?: T, _opts?: CompTimeFnArgs<ValidateOptions>, id?: 
 function grabVerr<T>(_val?: T, id?: InjectTypeFnArgs<T, 'validationErrors'>) {
   return id;
 }
-function grabTb<T>(_val?: T, id?: InjectTypeFnArgs<T, 'toBinary'>) {
-  return id;
-}
-function grabFb<T>(_val?: T, id?: InjectTypeFnArgs<T, 'fromBinary'>) {
-  return id;
-}
 function grabJsonEnc<T>(_val?: T, id?: InjectTypeFnArgs<T, 'jsonEncoder'>) {
   return id;
 }
@@ -89,8 +83,6 @@ describe('getFnHash — unit (resolves the version-independent fnHash per family
   });
 
   test('option-less families resolve to a single hash (options ignored)', () => {
-    expect(getFnHash('toBinary')).toBe('jDpZ');
-    expect(getFnHash('fromBinary')).toBe('rR8x');
     expect(getFnHash('removeUnknownKeys')).toBe('C85b');
     // A family with no option axis ignores any options bag rather than throwing.
     expect(getFnHash('removeUnknownKeys', {numberMode: 'typeof'})).toBe('C85b');
@@ -108,8 +100,6 @@ describe('getFnHash — matches the plugin-injected fnHash (table ⟷ live binar
   test('default variant of each family equals its injected fnHash', () => {
     expect(getFnHash('validate')).toBe(injectedHash(grabVal<Payload>()));
     expect(getFnHash('validationErrors')).toBe(injectedHash(grabVerr<Payload>()));
-    expect(getFnHash('toBinary')).toBe(injectedHash(grabTb<Payload>()));
-    expect(getFnHash('fromBinary')).toBe(injectedHash(grabFb<Payload>()));
     expect(getFnHash('jsonEncoder')).toBe(injectedHash(grabJsonEnc<Payload>()));
     expect(getFnHash('jsonDecoder')).toBe(injectedHash(grabJsonDec<Payload>()));
     expect(getFnHash('prepareForJsonClone')).toBe(injectedHash(grabPjs<Payload>()));

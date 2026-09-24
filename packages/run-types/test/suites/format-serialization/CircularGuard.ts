@@ -4,7 +4,7 @@
 // cases. Minimal coverage: one cyclic case + one acyclic DAG control.
 
 import type * as TF from '@mionjs/run-types/formats';
-import {createBinaryEncoderFn, createJsonEncoderFn} from '@mionjs/run-types';
+import {createJsonEncoderFn} from '@mionjs/run-types';
 import '@mionjs/run-types/formats';
 import type {CircularGuardSerializationCase} from '../../util/circularGuardAsserts.ts';
 
@@ -19,13 +19,6 @@ export const CIRCULAR_GUARD = {
         next?: Node;
       }
       return createJsonEncoderFn<Node>(undefined, {rejectCircularRefs: true});
-    },
-    binaryEncoder: () => {
-      interface Node {
-        id: TF.UUIDv4;
-        next?: Node;
-      }
-      return createBinaryEncoderFn<Node>(undefined, {rejectCircularRefs: true});
     },
     getValue: () => {
       const node: {id: string; next?: unknown} = {id: UUID_V4};
@@ -43,13 +36,6 @@ export const CIRCULAR_GUARD = {
         children: Node[];
       }
       return createJsonEncoderFn<Node>(undefined, {rejectCircularRefs: true});
-    },
-    binaryEncoder: () => {
-      interface Node {
-        id: TF.UUIDv4;
-        children: Node[];
-      }
-      return createBinaryEncoderFn<Node>(undefined, {rejectCircularRefs: true});
     },
     getValue: () => {
       const shared = {id: UUID_V4, children: [] as unknown[]};

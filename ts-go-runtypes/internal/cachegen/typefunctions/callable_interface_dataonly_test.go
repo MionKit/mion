@@ -35,7 +35,7 @@ func TestCallableInterface_FunctionLikeAtRoot(t *testing.T) {
 
 	// Every serializer treats a root callable interface as function-like →
 	// alwaysThrow (no real `_cal(` factory body).
-	for _, fam := range []string{"prepareForJsonMutate", "prepareForJsonClone", "restoreFromJsonMutate", "restoreFromJsonClone", "toBinary", "fromBinary"} {
+	for _, fam := range []string{"prepareForJsonMutate", "prepareForJsonClone", "restoreFromJsonMutate", "restoreFromJsonClone"} {
 		out := renderModule(t, dump, fam)
 		if strings.Contains(out, "_cal(") {
 			t.Errorf("[%s] a root callable interface should alwaysThrow (function-like), not render an object factory; got:\n%s", fam, out)
@@ -59,7 +59,7 @@ func TestCallableInterface_PropertyDoesNotFailObject(t *testing.T) {
 	outer := &reflection.RunType{ID: "obj", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("px"), makeRef("py")}}
 	dump := protocol.Dump{RunTypes: append(append([]*reflection.RunType{mkStr()}, parts...), propX, propY, outer)}
 
-	for _, fam := range []string{"validate", "prepareForJsonMutate", "prepareForJsonClone", "restoreFromJsonMutate", "restoreFromJsonClone", "toBinary", "fromBinary"} {
+	for _, fam := range []string{"validate", "prepareForJsonMutate", "prepareForJsonClone", "restoreFromJsonMutate", "restoreFromJsonClone"} {
 		out := renderModule(t, dump, fam)
 		// alwaysThrow renders the object entry as `_obj','<kind>',,,,,,'<message>'`
 		// (typeName then five holes, then a quoted `Cannot …` message); a dropped
@@ -75,16 +75,13 @@ func TestCallableInterface_PropertyDoesNotFailObject(t *testing.T) {
 // silently skipped. The serializers latch the callable OBJECTLITERAL as the
 // unsupported leaf; without callableLeafSubstitute the diag code resolved to ""
 // and the entry vanished, leaving a dangling dependency that the JSON composite
-// later bound with an unguarded `getRT(key).fn` (runtime `reading 'fn'`) and a
-// binary site couldn't resolve ("no id injected"). The function code in the
+// later bound with an unguarded `getRT(key).fn` (runtime `reading 'fn'`). The function code in the
 // rendered module is the proof the entry is now present + controlled.
 func TestF2b_CallableInArrayElementAlwaysThrows(t *testing.T) {
 	functionRootCodes := map[string]string{
 		"prepareForJsonMutate":  "PJ003",
 		"prepareForJsonClone":   "PJS003",
 		"restoreFromJsonMutate": "RJ003",
-		"toBinary":              "TB003",
-		"fromBinary":            "FB003",
 	}
 	parts := callableInterface("cal", true)
 	arr := &reflection.RunType{ID: "arr", Kind: reflection.KindArray, Child: makeRef("cal")}

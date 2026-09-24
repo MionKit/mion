@@ -11,12 +11,11 @@ import (
 // per-family …015 Warning (the object still validates and serialises), and no
 // root Error fires: the same contract a `URL` property has.
 func TestDiag_RegExpPropertyDropsLikeAFunction(t *testing.T) {
-	const code = `import {createValidateFn, createJsonEncoderFn, createJsonDecoderFn, createBinaryEncoderFn} from '@mionjs/run-types';
+	const code = `import {createValidateFn, createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
 interface Rule {name: string; match: RegExp}
 export const isRule = createValidateFn<Rule>();
 export const encode = createJsonEncoderFn<Rule>(undefined, {strategy: 'clone'});
 export const decode = createJsonDecoderFn<Rule>();
-export const toBytes = createBinaryEncoderFn<Rule>();
 `
 	resolverSession := setupInline(t, map[string]string{"r.ts": code})
 	response := resolverSession.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"r.ts"}, IncludeEntryModules: true})
@@ -33,7 +32,6 @@ export const toBytes = createBinaryEncoderFn<Rule>();
 		diagnostics.CodeVLNonSerializablePropDrop,
 		diagnostics.CodePJSNonSerializablePropDrop,
 		diagnostics.CodeRJNonSerializablePropDrop,
-		diagnostics.CodeTBNonSerializablePropDrop,
 	} {
 		drop, ok := seen[expected]
 		if !ok {
@@ -85,7 +83,7 @@ export const encode = createJsonEncoderFn<RegExp>(undefined, {strategy: 'mutate'
 // Probe: a root validator over the same node another site drops as a property.
 func TestDiag_RegExpRootValidatorBesideAPropertyDrop(t *testing.T) {
 	for _, leaf := range []string{"RegExp", "symbol"} {
-		code := `import {createValidateFn, createJsonEncoderFn, createJsonDecoderFn, createBinaryEncoderFn, createBinaryDecoderFn, createRemoveUnknownKeysFn} from '@mionjs/run-types';
+		code := `import {createValidateFn, createJsonEncoderFn, createJsonDecoderFn, createRemoveUnknownKeysFn} from '@mionjs/run-types';
 import {createMockDataFn} from '@mionjs/run-types/mocking';
 interface Rule {name: string; match: ` + leaf + `}
 export const isLeaf = createValidateFn<` + leaf + `>();
@@ -94,8 +92,6 @@ export const encodeM = createJsonEncoderFn<Rule>(undefined, {strategy: 'mutate'}
 export const encodeC = createJsonEncoderFn<Rule>(undefined, {strategy: 'clone'});
 export const encodeK = createJsonEncoderFn<Rule>(undefined, {strategy: 'compact'});
 export const decode = createJsonDecoderFn<Rule>();
-export const tb = createBinaryEncoderFn<Rule>();
-export const fb = createBinaryDecoderFn<Rule>();
 export const clone = createRemoveUnknownKeysFn<Rule>();
 export const mock = createMockDataFn<Rule>();
 `

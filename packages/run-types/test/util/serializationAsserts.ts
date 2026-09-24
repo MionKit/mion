@@ -1,4 +1,4 @@
-// One helper per JSON pairing plus binary, shared by the serialization and format-serialization suites.
+// One helper per JSON pairing, shared by the serialization and format-serialization suites.
 
 import {expect} from 'vitest';
 import type {SchemaThunk, SerializationCase} from '../suites/serialization/types.ts';
@@ -144,57 +144,12 @@ export function assertCompactRoundTrip(c: SerializationCase): void {
   });
 }
 
-// ---------- BINARY round-trip -------------------------------------
-
-/** Drives a case through `binaryEncoder` → `binaryDecoder` and asserts
- *  the decoded value deep-equals the original (or the per-case
- *  `deserializedValues` override when the round-trip is asymmetric).
- *  Requires `binaryEncoder` + `binaryDecoder` thunks to be present. **/
-export function assertBinaryRoundTrip(c: SerializationCase): void {
-  const encThunk = resolveSchemaThunk(c.binaryEncoder);
-  const decThunk = resolveSchemaThunk(c.binaryDecoder);
-  if (!encThunk || !decThunk) return; // 'not-supported' → binary opted out for this case
-
-  const factoryThrows = c.binaryFactoryThrows ?? c.factoryThrows ?? false;
-  if (factoryThrows) {
-    expect(() => encThunk(), `${c.title}: binaryEncoder factory must throw`).toThrow();
-    expect(() => decThunk(), `${c.title}: binaryDecoder factory must throw`).toThrow();
-    return;
-  }
-
-  const bestEffort = c.roundTripBestEffort ?? false;
-  const encode = encThunk();
-  const decode = decThunk();
-  const testDataThunk = c.getBinaryTestData ?? c.getTestDataForStringify ?? c.getTestData;
-  const {values, deserializedValues} = testDataThunk();
-  const byteSizes = c.getBinaryByteSizes?.();
-
-  values.forEach((reference, i) => {
-    const input = deepCloneForRoundTrip(reference);
-    let buf;
-    try {
-      buf = encode(input);
-    } catch (e) {
-      if (bestEffort) return;
-      throw e;
-    }
-    if (bestEffort) return;
-    if (byteSizes && byteSizes[i] !== undefined) {
-      expect(buf.byteLength, `${c.title}: values[${i}] encoded byte length`).toBe(byteSizes[i]);
-    }
-    const restored = decode(buf);
-    const expectedReference = deserializedValues !== undefined ? deserializedValues[i] : reference;
-    const {actual, expected} = normalizeForComparison(restored, expectedReference);
-    expect(actual, `${c.title}: values[${i}] binary round-trip should match expected reference`).toEqual(expected);
-  });
-}
-
 // ---------- value-first SCHEMA round-trips -------------------------
-// The schema thunks (`schemaEncoder` / `schemaDecoder` / `schemaBinaryEncoder`
-// / `schemaBinaryDecoder`) build their `RT.*` model inline and feed it through
-// the factory's value-first overload. These two helpers pair them for a
-// representative round-trip — proving the value-first path resolves a working
-// factory — without re-testing every strategy (those are covered type-first).
+// The schema thunks (`schemaEncoder` / `schemaDecoder`) build their `RT.*`
+// model inline and feed it through the factory's value-first overload. This
+// helper pairs them for a representative round-trip — proving the value-first
+// path resolves a working factory — without re-testing every strategy (those
+// are covered type-first).
 
 /** No-op when either schema thunk is omitted or 'not-supported'. **/
 export function assertSchemaJsonRoundTrip(c: SerializationCase): void {
@@ -229,42 +184,5 @@ export function assertSchemaJsonRoundTrip(c: SerializationCase): void {
     const expectedReference = deserializedValues !== undefined ? deserializedValues[i] : reference;
     const {actual, expected} = normalizeForComparison(restored, expectedReference);
     expect(actual, `${c.title} [schema/json]: values[${i}] round-trip should match expected reference`).toEqual(expected);
-  });
-}
-
-/** Value-first binary round-trip — pairs `schemaBinaryEncoder` +
- *  `schemaBinaryDecoder`. No-op when either thunk is omitted or 'not-supported'. **/
-export function assertSchemaBinaryRoundTrip(c: SerializationCase): void {
-  const encThunk = resolveSchemaThunk(c.schemaBinaryEncoder);
-  const decThunk = resolveSchemaThunk(c.schemaBinaryDecoder);
-  if (!encThunk || !decThunk) return;
-
-  const factoryThrows = c.binaryFactoryThrows ?? c.factoryThrows ?? false;
-  if (factoryThrows) {
-    expect(() => encThunk(), `${c.title} [schema/binary]: schemaBinaryEncoder factory must throw`).toThrow();
-    expect(() => decThunk(), `${c.title} [schema/binary]: schemaBinaryDecoder factory must throw`).toThrow();
-    return;
-  }
-
-  const bestEffort = c.roundTripBestEffort ?? false;
-  const encode = encThunk();
-  const decode = decThunk();
-  const testDataThunk = c.getBinaryTestData ?? c.getTestDataForStringify ?? c.getTestData;
-  const {values, deserializedValues} = testDataThunk();
-
-  values.forEach((reference, i) => {
-    const input = deepCloneForRoundTrip(reference);
-    let buf;
-    try {
-      buf = encode(input);
-    } catch (e) {
-      if (bestEffort) return;
-      throw e;
-    }
-    if (bestEffort) return;
-    const restored = decode(buf);
-    const expectedReference = deserializedValues !== undefined ? deserializedValues[i] : reference;
-    const {actual, expected} = normalizeForComparison(restored, expectedReference);
-    expect(actual, `${c.title} [schema/binary]: values[${i}] round-trip should match expected reference`).toEqual(expected);
   });
 }

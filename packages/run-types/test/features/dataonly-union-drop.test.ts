@@ -11,14 +11,7 @@
 // merged-prop unions in the same scan — see json_compat.go's isJsonCompatible.
 
 import {describe, test, expect} from 'vitest';
-import {
-  createValidateFn,
-  createGetValidationErrorsFn,
-  createJsonEncoderFn,
-  createJsonDecoderFn,
-  createBinaryEncoderFn,
-  createBinaryDecoderFn,
-} from '@mionjs/run-types';
+import {createValidateFn, createGetValidationErrorsFn, createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
 
 // A NAMED all-stripped union — externalized as its own cache entry (the name
 // rule), so it is reached through the walker's dispatch gate rather than being
@@ -39,10 +32,9 @@ describe('DataOnly union-member drop', () => {
     expect(isit(123)).toBe(false);
   });
 
-  test('Date | symbol — JSON + binary round-trip the surviving Date', () => {
+  test('Date | symbol — JSON round-trips the surviving Date', () => {
     const d = new Date('2020-01-01T00:00:00.000Z');
     expect(createJsonDecoderFn<Date | symbol>()(createJsonEncoderFn<Date | symbol>()(d) as string)).toEqual(d);
-    expect(createBinaryDecoderFn<Date | symbol>()(createBinaryEncoderFn<Date | symbol>()(d))).toEqual(d);
   });
 
   test('string | bigint | symbol — drops symbol, keeps string | bigint', () => {
@@ -110,10 +102,6 @@ describe('DataOnly collapse-to-never / empty still throws', () => {
     }).toThrow();
     expect(() => {
       const encode = createJsonEncoderFn<HasNativeUnion>(undefined, {strategy: 'compact'});
-      return encode({x: buf, y: 1} as HasNativeUnion);
-    }).toThrow();
-    expect(() => {
-      const encode = createBinaryEncoderFn<HasNativeUnion>();
       return encode({x: buf, y: 1} as HasNativeUnion);
     }).toThrow();
   });

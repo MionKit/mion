@@ -8,7 +8,6 @@
 
 export const TSCONFIG_PLUGIN_KEYS = [
   'apiTsconfig',
-  'binarySizing',
   'bundleApi',
   'clientTsconfig',
   'downgradeErrors',

@@ -44,8 +44,7 @@ func unionEntryWorks(rendered string) bool {
 	return strings.Contains(rendered, "_uni(v){")
 }
 
-// jsonFamilies are the flat-union families that share buildFlatLayout; binary
-// (toBinary/fromBinary) shares it too and is covered by the same change.
+// jsonFamilies are the flat-union families that share buildFlatLayout.
 var jsonFamilies = []string{"validate", "prepareForJsonMutate", "prepareForJsonClone", "restoreFromJsonMutate"}
 
 func TestDataOnlyUnion_DropsStrippedMember(t *testing.T) {
@@ -118,8 +117,6 @@ var dropWarnFamilies = map[string]string{
 	"prepareForJsonMutate":  diagnostics.CodePJUnionMemberDropped,
 	"prepareForJsonClone":   diagnostics.CodePJSUnionMemberDropped,
 	"restoreFromJsonMutate": diagnostics.CodeRJUnionMemberDropped,
-	"toBinary":              diagnostics.CodeTBUnionMemberDropped,
-	"fromBinary":            diagnostics.CodeFBUnionMemberDropped,
 }
 
 func findCode(sink []diagnostics.Diagnostic, code string) (diagnostics.Diagnostic, bool) {
@@ -215,10 +212,9 @@ func TestDataOnlyUnion_ObjectMemberStrippedProp(t *testing.T) {
 	}
 	dump := protocol.Dump{RunTypes: []*reflection.RunType{date, sym, propB, obj, union}}
 
-	for _, fam := range []string{"validate", "prepareForJsonMutate", "prepareForJsonClone", "restoreFromJsonMutate", "toBinary", "fromBinary"} {
+	for _, fam := range []string{"validate", "prepareForJsonMutate", "prepareForJsonClone", "restoreFromJsonMutate"} {
 		out := renderModule(t, dump, fam)
-		// A real union factory (`<hash>_uni(…){`) — family-agnostic, since binary
-		// encode/decode bodies take `(v,Ser)` / `(ret,Des)` not just `(v)`. An
+		// A real union factory (`<hash>_uni(…){`) — family-agnostic. An
 		// alwaysThrow union has no `_uni(` function definition at all.
 		if !strings.Contains(out, "_uni(") {
 			t.Errorf("[%s] `Date | {b: symbol}` should drop the symbol prop and serialize, not alwaysThrow; got:\n%s", fam, out)

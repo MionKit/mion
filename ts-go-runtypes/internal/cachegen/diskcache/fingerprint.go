@@ -22,12 +22,6 @@ type FingerprintInputs struct {
 	// InlineMode mirrors typefns.RenderOpts.InlineMode; the modes emit different bodies AND different entry sets (allInternal absorbs
 	// unnamed compounds into their parents), so they must never share cache entries.
 	InlineMode string
-	// SizeBias / SizeItems / SizeStringBytes / SizeMaxBytes mirror RenderOpts.SizeEstimate; they change the size literal baked into
-	// every `tb` entry's argsText, so every cached binary entry has to be re-derived when one moves.
-	SizeBias        float64
-	SizeItems       int
-	SizeStringBytes int
-	SizeMaxBytes    int
 	// PatternSampleCount / PatternSampleRetries drive mockSample auto-generation; the samples land in emitted formatAnnotations but
 	// never in typeIDs (generation is post-intern), so only the fingerprint can re-derive the entries a sample-less pattern reaches.
 	PatternSampleCount   int
@@ -51,9 +45,10 @@ type FingerprintInputs struct {
 // v10 added the mockSample auto-generation knobs, whose values shape the samples baked into emitted formatAnnotations.
 // v11 added the binary identity, so a rebuilt DEV binary with changed emitters stops serving the previous build's function bodies.
 // v12 added the JSONMaxBytes switch.
+// v13 dropped the binary size-estimate inputs with the binary families.
 func Fingerprint(inputs FingerprintInputs) string {
 	var sb strings.Builder
-	sb.WriteString("v12\n")
+	sb.WriteString("v13\n")
 	sb.WriteString(inputs.BinaryVersion)
 	sb.WriteByte('\n')
 	sb.WriteString(inputs.BinaryStamp)
@@ -63,14 +58,6 @@ func Fingerprint(inputs FingerprintInputs) string {
 	sb.WriteString(inputs.EmitMode)
 	sb.WriteByte('\n')
 	sb.WriteString(inputs.InlineMode)
-	sb.WriteByte('\n')
-	sb.WriteString(strconv.FormatFloat(inputs.SizeBias, 'g', -1, 64))
-	sb.WriteByte('\n')
-	sb.WriteString(strconv.Itoa(inputs.SizeItems))
-	sb.WriteByte('\n')
-	sb.WriteString(strconv.Itoa(inputs.SizeStringBytes))
-	sb.WriteByte('\n')
-	sb.WriteString(strconv.Itoa(inputs.SizeMaxBytes))
 	sb.WriteByte('\n')
 	sb.WriteString(strconv.Itoa(inputs.PatternSampleCount))
 	sb.WriteByte('\n')

@@ -67,13 +67,6 @@ describe('nonData mock smoke', () => {
         expect(wire1).toBeDefined();
         const wire2 = enc(dec(wire1!));
         expect(wire2).toBe(wire1);
-
-        // Binary: byte-stable round-trip too.
-        const benc = compiled.wired.binaryEncode!;
-        const bdec = compiled.wired.binaryDecode!;
-        const b1 = benc(value);
-        const b2 = benc(bdec(benc(value)));
-        expect([...b2]).toEqual([...b1]);
       })
       .finally(() => client.close());
   });
