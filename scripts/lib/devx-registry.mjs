@@ -416,7 +416,7 @@ export const usage = (area) => `usage: ${CLI} ${area} <${commandNames(area).join
 export const codegenTargets = (args, known) => {
   const words = args.filter((arg) => !arg.startsWith('-'));
   const names = words.length === 0 || words.includes('all') ? known : words;
-  return {names, unknown: names.filter((name) => !known.includes(name))};
+  return {names, unknown: words.filter((word) => word !== 'all' && !known.includes(word))};
 };
 
 // A bare area word (`miondevx website`, nothing after it) prints that area's help
