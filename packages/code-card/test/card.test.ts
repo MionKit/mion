@@ -1,9 +1,11 @@
 // Taking the PNG needs a browser, so it is covered by hand with `miondevx card shot`.
 import {readdirSync, readFileSync} from 'node:fs';
 import {join} from 'node:path';
+import {getFileInfo} from 'prettier';
 import {beforeAll, describe, expect, it} from 'vitest';
 import {
   CARDS_DIR,
+  PACKAGE_DIR,
   MAX_COLUMNS,
   parseCard,
   parseHighlight,
@@ -155,6 +157,13 @@ describe('code card: renderCardHtml', () => {
 });
 
 describe('code card: kept cards', () => {
+  // `pnpm run format` runs Prettier over packages/**/*.md, and it would reflow the code inside a card.
+  it('Prettier leaves card files alone', async () => {
+    const ignorePath = join(PACKAGE_DIR, '../../.prettierignore');
+    expect((await getFileInfo(join(CARDS_DIR, 'typed-match.md'), {ignorePath})).ignored).toBe(true);
+    expect((await getFileInfo(join(PACKAGE_DIR, 'README.md'), {ignorePath})).ignored).toBe(false);
+  });
+
   it('every kept card parses and is found by its name', () => {
     const names = readdirSync(CARDS_DIR)
       .filter((file) => file.endsWith('.md'))
