@@ -6,9 +6,9 @@
  * ######## */
 
 // The one definition both ends hash under `syncRoutes`: the server over its executables, the client over the rows it
-// holds. Anything a client acts on but that never blocks a call is listed apart, for the parity tests.
+// holds. What else a client reads off a row is listed in clientRowView.ts.
 
-import type {MethodMetadata, MethodWithOptions} from './types/method.types.ts';
+import type {MethodMetadata} from './types/method.types.ts';
 
 /** The fields a route's sync id is made of: a method's id and the type ids of what it takes and returns. */
 export type RouteSyncFields = Pick<MethodMetadata, 'id' | 'paramsJitHash' | 'returnJitHash' | 'middlewareIds'> & {
@@ -52,29 +52,4 @@ function toSyncId(hash: number): string {
     hash >>>= 6;
   }
   return id;
-}
-
-/** Every row field a client acts on (only the sync id fields ever block a call), normalised so both ends compare alike:
- *  `null` reads as `undefined`, an empty `middlewareIds` as absent, a missing `paramsCount` as 0, and a single `parser`
- *  name as the same name for both directions. */
-export function clientRowView(row: MethodWithOptions) {
-  const parser = row.options?.parser as unknown;
-  return {
-    type: row.type,
-    paramsJitHash: row.paramsJitHash,
-    returnJitHash: row.returnJitHash,
-    paramsCount: row.paramsCount ?? 0,
-    hasReturnData: row.hasReturnData,
-    headersParam: headersView(row.headersParam),
-    headersReturn: headersView(row.headersReturn),
-    middlewareIds: row.middlewareIds?.length ? row.middlewareIds : undefined,
-    parser: typeof parser === 'string' ? {params: parser, return: parser} : (parser ?? undefined),
-    isMutation: row.options?.isMutation ?? undefined,
-    sanitizeParams: row.options?.sanitizeParams ?? undefined,
-  };
-}
-
-function headersView(headers: MethodMetadata['headersParam'] | null | undefined) {
-  if (!headers) return undefined;
-  return {headerNames: headers.headerNames, jitHash: headers.jitHash};
 }

@@ -17,7 +17,7 @@ import {installMethodRows} from '../../src/lib/clientMethodsMetadata.ts';
 import {getMethod} from '../../src/lib/methods.ts';
 import {resetRoutesCache} from '@mionjs/core';
 import type {MethodWithOptions} from '@mionjs/core';
-import {unverifiedIds, verifyMethodRows, resetApiVersionRecovery} from '../../src/lib/apiVersionRecovery.ts';
+import {unverifiedIds, verifyMethodRows, resetApiVersionRecovery, clientRowsAgree} from '../../src/lib/apiVersionRecovery.ts';
 
 describe('a version mismatch belongs to the server that answered', () => {
   beforeEach(() => {
@@ -64,5 +64,32 @@ describe('a stale fetched row', () => {
     verifyMethodRows('http://one', ['sum'], {methods: {sum: row('new')}, deps: {}, purFnDeps: {}});
     expect(getMethod('sum')?.paramsJitHash).toBe('new');
     expect(takeApiVersionError()?.type).toBe('api-version-mismatch');
+  });
+});
+
+describe('clientRowsAgree', () => {
+  const row = {
+    type: 1,
+    id: 'users/get',
+    isAsync: false,
+    hasReturnData: true,
+    paramsJitHash: 'p',
+    returnJitHash: 'r',
+    pointer: ['users', 'get'],
+    nestLevel: 1,
+    options: {parser: {params: 'json', return: 'clone'}, isMutation: false},
+  } as unknown as MethodWithOptions;
+
+  it('ignores key order and the fields a client never acts on', () => {
+    const reordered = {
+      ...row,
+      isAsync: true,
+      options: {isMutation: false, parser: {return: 'clone', params: 'json'}},
+    } as unknown as MethodWithOptions;
+    expect(clientRowsAgree(row, reordered)).toBe(true);
+  });
+
+  it('tells apart a row whose GET/POST choice changed', () => {
+    expect(clientRowsAgree(row, {...row, options: {...row.options, isMutation: true}})).toBe(false);
   });
 });

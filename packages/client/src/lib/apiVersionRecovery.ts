@@ -7,7 +7,7 @@
 
 // Rides the `#metadata-from-server` chunk: like the fetch, it runs only when the bundle comes up short.
 
-import {RpcError, MION_ROUTES} from '@mionjs/core';
+import {RpcError, MION_ROUTES, clientRowView} from '@mionjs/core';
 import type {MethodWithOptions, SerializableMethodsData} from '@mionjs/core';
 import type {SubRequest} from '../types.ts';
 import {stashApiVersionError} from './apiBuildVersion.ts';
@@ -45,7 +45,7 @@ export function createVerifySubRequest(methodIds: string[]): SubRequest<any> {
   } as SubRequest<any>;
 }
 
-/** Compares every field the build version hashes, `options` included: this side holds both full rows. */
+/** Compares every field a client acts on (`clientRowView`): this side holds both full rows. */
 /** Under `syncRoutes` (`keepTypeChanges`) a row whose types changed is kept: replacing it would make its sync id
  *  match the server's while this client's code still expects the old types, so the call must be refused instead. */
 export function verifyMethodRows(baseURL: string, asked: string[], data: SerializableMethodsData, keepTypeChanges = false): void {
@@ -71,41 +71,24 @@ function sameTypes(held: MethodWithOptions | undefined, served: MethodWithOption
 }
 
 /** A row missing on either end counts as a difference: the bundle never had it, or the server dropped it. */
-function rowsAgree(bundled: MethodWithOptions | undefined, served: MethodWithOptions | undefined): boolean {
-  if (!bundled || !served) return false;
-  return (
-    bundled.type === served.type &&
-    bundled.isAsync === served.isAsync &&
-    bundled.hasReturnData === served.hasReturnData &&
-    bundled.paramsJitHash === served.paramsJitHash &&
-    bundled.returnJitHash === served.returnJitHash &&
-    bundled.paramsCount === served.paramsCount &&
-    bundled.headersParam?.jitHash === served.headersParam?.jitHash &&
-    bundled.headersReturn?.jitHash === served.headersReturn?.jitHash &&
-    same(bundled.paramNames, served.paramNames) &&
-    same(bundled.middlewareIds, served.middlewareIds) &&
-    optionsAgree(bundled.options, served.options)
-  );
+function rowsAgree(held: MethodWithOptions | undefined, served: MethodWithOptions | undefined): boolean {
+  return !!held && !!served && clientRowsAgree(held, served);
 }
 
-/** Ordered lists on both ends, so a plain stringify compares them. */
-function same(bundled: unknown, served: unknown): boolean {
-  return bundled === served || JSON.stringify(bundled) === JSON.stringify(served);
+/** Whether two rows read alike to a client, field by field over `clientRowView`. */
+export function clientRowsAgree(held: MethodWithOptions, served: MethodWithOptions): boolean {
+  return sameValue(clientRowView(held), clientRowView(served));
 }
 
-/** The options a client acts on: the server fills in the rest, so comparing those reports a false difference. */
-const COMPARED_OPTIONS = ['isMutation', 'parser', 'validateParams', 'validateReturn'] as const;
-
-type ComparedOptions = Partial<Pick<MethodWithOptions['options'], (typeof COMPARED_OPTIONS)[number]>>;
-
-function optionsAgree(bundled: ComparedOptions | undefined, served: ComparedOptions | undefined): boolean {
-  return COMPARED_OPTIONS.every((name) => same(parserShape(bundled?.[name]), parserShape(served?.[name])));
-}
-
-/** `parser` is written either as one name or as a name per direction, so both spellings compare alike. */
-function parserShape(value: unknown): unknown {
-  if (typeof value !== 'string') return value;
-  return {params: value, return: value};
+/** Plain JSON-shaped values only; key order never matters. */
+function sameValue(held: unknown, served: unknown): boolean {
+  if (held === served) return true;
+  if (typeof held !== 'object' || typeof served !== 'object' || !held || !served) return false;
+  if (Array.isArray(held) !== Array.isArray(served)) return false;
+  const heldKeys = Object.keys(held).filter((key) => held[key] !== undefined);
+  const servedKeys = Object.keys(served).filter((key) => served[key] !== undefined);
+  if (heldKeys.length !== servedKeys.length) return false;
+  return heldKeys.every((key) => sameValue(held[key], served[key]));
 }
 
 function staleRoutesError(stale: string[]): RpcError<'api-version-mismatch'> {
