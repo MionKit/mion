@@ -515,8 +515,7 @@ async function runContainer(args) {
 }
 
 // ── card: shareable code images (packages/code-card/) ────────────────────────
-// A child process, never an import: the app has its own dependencies (shiki, playwright-cli),
-// and Node runs its .ts sources directly.
+// A child process, never an import: the app has its own deps (shiki, playwright-cli) and .ts sources.
 function runCard(args) {
   const [sub, ...rest] = args;
   if (!lookup('card', sub)) die(usage('card'), 2);

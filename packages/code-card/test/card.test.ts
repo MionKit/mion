@@ -1,5 +1,4 @@
-// The card file format and the HTML render. Taking the PNG needs a browser, so it is covered by hand
-// with `miondevx card shot`.
+// Taking the PNG needs a browser, so it is covered by hand with `miondevx card shot`.
 import {readdirSync, readFileSync} from 'node:fs';
 import {join} from 'node:path';
 import {beforeAll, describe, expect, it} from 'vitest';
