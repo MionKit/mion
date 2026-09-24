@@ -443,7 +443,8 @@ function recursiveCreateExecutionChain(
       maxBodySize: maxBodySize ?? platformMaxBodySize,
       readsBody: true,
     };
-    const middlewareIds = getPublicMiddlewareIds(methods);
+    // route-level only: a global start/end middleware is not in the API type, so a built client never lists it
+    const middlewareIds = getPublicMiddlewareIds(levelMethods);
     // add middleware deps, so can be serialized with the router
     if (middlewareIds.length) routeMethod.middlewareIds = middlewareIds;
     flatRouter.set(path, executionChain);
