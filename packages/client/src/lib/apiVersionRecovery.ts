@@ -54,7 +54,7 @@ export function verifyMethodRows(baseURL: string, asked: string[], data: Seriali
   if (!stale.length) return;
   // The bundled shelf wins over the fetched one, so the rows it replaces have to go first
   dropBundledMethods(stale);
-  installMethodRows(data);
+  installMethodRows(data, stale);
   stashApiVersionError(staleRoutesError(stale));
 }
 
