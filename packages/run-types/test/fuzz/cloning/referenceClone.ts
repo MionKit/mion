@@ -1,43 +1,7 @@
-// Reference interpreter for `createRemoveUnknownKeysFn<T>()` — the executable
-// oracle the clone fuzz compares the COMPILED clone against (O15).
-//
-// A naive, obviously-correct walk of the reflected RunType graph that mirrors
-// the Go emitter's per-kind arms one-for-one
-// (ts-go-runtypes/internal/cachegen/typefunctions/clone_exact_shape.go),
-// trading all of its output-shape decisions for the dumbest possible
-// implementation. No caching, no fastpaths, no code generation — when the
-// compiled clone and this walk disagree on a conforming value, one of them is
-// wrong, and this one is short enough to eyeball.
-//
-// The contract mirrored here:
-//   - primitives / enums / literals / template literals / bigint / null /
-//     undefined / never / any / unknown / bare object, plus the OPAQUE kinds
-//     (symbol, function kinds, Promise, non-serializable natives) → returned
-//     AS-IS (pass by reference).
-//   - ObjectLiteral / Class<SubKindNone> → fresh object rebuilt from the
-//     DECLARED members only (classes keep their prototype via
-//     `Object.create(Object.getPrototypeOf(v))`). Declared members are NEVER
-//     dropped: an opaque-valued member is kept, shared by reference. Class
-//     METHODS ride the shared prototype and are not copied; object-literal
-//     method members are own props and copy by reference. Static members are
-//     skipped. Absent optionals stay absent (`v[name] === undefined` skips).
-//     Index signatures copy every non-declared key with the sig's value
-//     clone applied; everything undeclared is dropped by construction.
-//   - Array → per-element recursion. Tuple → per-slot recursion truncated to
-//     `value.length`; a rest tail recurses per element.
-//   - Map / Set → fresh instance, per-entry recursion. Date → re-wrap.
-//     RegExp → shared by reference (not data, like a function). Temporal →
-//     fresh via the static `from()`.
-//   - Union: OBJECT-bearing unions are out of scope (the compiled factory is
-//     a RUK001 alwaysThrow — the corpus must exclude them; this walk throws
-//     loudly if one slips in). Atomic unions dispatch structurally: an
-//     array/Date/Map/Set value matching a member gets that member's
-//     clone, everything else passes through. The corpus keeps at most one
-//     member per structural family so this dispatch is unambiguous.
-//
-// Pure module: no vitest imports, no I/O. Runs only on values that PASSED
-// `validate<T>` (the oracle gates on it), so the walk asserts shape instead
-// of defensively guarding — a crash here is a signal, not a hazard.
+// Reference interpreter for `createRemoveUnknownKeysFn<T>()`, the oracle the clone fuzz compares against (O15).
+// A naive walk mirroring the Go emitter's arms one-for-one, short enough to eyeball:
+// ts-go-runtypes/internal/cachegen/typefunctions/remove_unknown_keys.go. Object-bearing unions throw here (the
+// factory is a RUK001 alwaysThrow). It only sees values that passed `validate<T>`, so a crash is a signal.
 
 import type {RunType} from '../../../src/runtypes/types.ts';
 import {RunTypeKind, RunTypeSubKind} from '../../../src/go-generated/runTypeKind.generated.ts';
@@ -152,8 +116,7 @@ function cloneNode(rawNode: RunType, value: unknown, table: RefTable): unknown {
       return cloneTuple(node, value as unknown[], table);
 
     case kind.indexSignature:
-      // Bare index-signature root (root reach-in) — the object arm normally
-      // consumes sigs; mirror emitIndexSignatureRemoveUnknownKeys.
+      // Bare index-signature root; mirrors emitIndexSignatureRemoveUnknownKeys.
       return cloneShapedObject({...node, children: [node]} as RunType, value, false, table);
 
     case kind.union:
@@ -185,7 +148,7 @@ function isOpaqueValueType(node: RunType): boolean {
   return false;
 }
 
-/** ObjectLiteral / Class<None> rebuild (mirrors emitObjectRemoveUnknownKeys). **/
+/** Mirrors emitObjectRemoveUnknownKeys. **/
 function cloneShapedObject(node: RunType, value: unknown, asClass: boolean, table: RefTable): unknown {
   const source = value as Record<string | number, unknown>;
   interface PropPlan {
@@ -332,9 +295,7 @@ function cloneSet(node: RunType, value: Set<unknown>, table: RefTable): Set<unkn
   return out;
 }
 
-/** Atomic-union dispatch (mirrors emitUnionRemoveUnknownKeys): first member
- *  whose structural family matches the value gets its clone; immutable and
- *  opaque members fall through to the `return v` tail. **/
+/** Mirrors emitUnionRemoveUnknownKeys: the first member whose structural family matches clones it. **/
 function cloneUnion(node: RunType, value: unknown, table: RefTable): unknown {
   for (const child of (node.children ?? []) as RunType[]) {
     const member = resolve(child, table);

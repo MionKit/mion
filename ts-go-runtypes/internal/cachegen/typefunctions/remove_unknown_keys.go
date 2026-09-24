@@ -7,20 +7,10 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// RemoveUnknownKeysEmitter is a PROPER deep clone of the DECLARED shape, and the clone-based replacement for
-// the removed mutating strip family (stripUnknownKeys / unknownKeysToUndefined).
-// Isolation guarantee: the result is a fresh value of exactly the declared shape, built from the type and
-// never from `{...v}`, the input is never mutated, and `clone(x) !== x` holds for EVERY object-typed
-// position (test code relies on fresh identities). Two groups pass through by reference: PRIMITIVES, which
-// compare by value, and OPAQUE values the type system gives no shape for (`any` / `unknown` / bare
-// `object`, functions, symbols, promises, RegExps, non-serializable natives), where copying a resource
-// handle is usually WRONG rather than just slow; `overrideRemoveUnknownKeys<T>()` is the escape hatch for
-// custom copying. Everything else is freshly allocated: objects and class instances rebuild (classes keep
-// their prototype), arrays and tuples copy, Map/Set re-materialize, Dates re-wrap, Temporal objects
-// re-materialize through their static `from()`.
-// Deliberately NO key-count gates and NO reuse shortcuts on the rebuild paths: measured on V8, checking
-// `Object.keys(x).length === N` to skip a small-object rebuild costs MORE than the rebuild itself
-// (1.6x slower for a 7+3-prop shape).
+// RemoveUnknownKeysEmitter rebuilds the declared shape from the type, never `{...v}`: `clone(x) !== x` at every object.
+// Primitives and opaque values (any, functions, symbols, RegExps, natives) are shared: copying a handle is wrong.
+// `overrideRemoveUnknownKeys<T>()` is the escape hatch for custom copying.
+// No key-count gate: on V8, `Object.keys(x).length === N` costs more than the rebuild (1.6x slower).
 type RemoveUnknownKeysEmitter struct{}
 
 func (RemoveUnknownKeysEmitter) Args() []ArgSpec {
@@ -124,12 +114,7 @@ func (RemoveUnknownKeysEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _
 	}
 }
 
-// emitObjectRemoveUnknownKeys builds the declared-shape clone of an object literal / plain class instance.
-// Mirrors emitObjectPrepareForJsonClone's property collection (static/method drops, DataOnly-stripped
-// drops, enumerability guards) WITHOUT its Approach 3 fastpath: the clone is always built, measured
-// cheaper than gating for small objects (see the emitter doc comment).
-// asClass selects the prototype-preserving accumulator form, so a class instance keeps its prototype chain
-// and `instanceof` holds; plain objects use the forms from buildSafeObjectClone.
+// emitObjectRemoveUnknownKeys mirrors emitObjectPrepareForJsonClone's property collection, minus its fastpath.
 func emitObjectRemoveUnknownKeys(rt *reflection.RunType, ctx *EmitContext, v string, asClass bool) RTCode {
 	// A callable interface is function-like (DataOnly = never), the same NS stance as the JSON families,
 	// whose diag maps it to the function code.
@@ -242,10 +227,7 @@ func emitObjectRemoveUnknownKeys(rt *reflection.RunType, ctx *EmitContext, v str
 	return RTCode{Code: "return " + clone.Code, Type: CodeRB}
 }
 
-// opaqueValueSlot classifies a property-value type the clone cannot rebuild: function kinds to
-// SlotFunctionPropDropped (RUK010), symbol / Promise / non-serializable natives to
-// SlotNonSerializablePropDropped (RUK015); both are kept and shared by reference.
-// ok=false for every clonable kind, which flows through safeChildExpr as usual.
+// opaqueValueSlot picks the warning (RUK010 / RUK015) for a value the clone cannot rebuild and so shares.
 func opaqueValueSlot(resolved *reflection.RunType) (DiagSlot, bool) {
 	if resolved == nil {
 		return "", false
@@ -270,10 +252,7 @@ func opaqueValueSlot(resolved *reflection.RunType) (DiagSlot, bool) {
 	return "", false
 }
 
-// buildClassRemoveUnknownKeys assembles the prototype-preserving accumulator for a plain class instance:
-// the fresh object shares the input's prototype, so methods and `instanceof` keep working, while own
-// enumerable data is rebuilt from the declared shape and undeclared own keys are dropped.
-// Prototype accessors are an accepted edge: assignment goes through a setter when one exists.
+// buildClassRemoveUnknownKeys keeps the input's prototype; accepted edge: a prototype setter runs on assignment.
 func buildClassRemoveUnknownKeys(v string, props []safePropEmit) RTCode {
 	var b strings.Builder
 	b.WriteString("const _r = Object.create(Object.getPrototypeOf(")
@@ -306,8 +285,7 @@ func buildClassRemoveUnknownKeys(v string, props []safePropEmit) RTCode {
 	return RTCode{Code: b.String(), Type: CodeRB}
 }
 
-// emitArrayRemoveUnknownKeys: arrays are mutable containers, so the clone is ALWAYS a fresh array.
-// `.slice()` when the element clones to itself, a deep clone in that case, `.map(clone)` otherwise.
+// emitArrayRemoveUnknownKeys always returns a fresh array, even when elements clone to themselves: arrays are mutable.
 func emitArrayRemoveUnknownKeys(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	if rt.Child == nil {
 		return RTCode{Code: v + ".slice()", Type: CodeE}
@@ -323,9 +301,7 @@ func emitArrayRemoveUnknownKeys(rt *reflection.RunType, ctx *EmitContext, v stri
 	return RTCode{Code: v + ".map(function(" + elemVar + "){return " + expr + "})", Type: CodeE}
 }
 
-// emitTupleRemoveUnknownKeys: tuples are arrays, hence mutable, so always fresh, `.slice()` when every slot
-// clones to itself and a positional rebuild otherwise.
-// Optional members preserve `undefined`, a value-level clone having no JSON `null` placeholder concern.
+// emitTupleRemoveUnknownKeys always returns a fresh array; optional slots keep `undefined`, no JSON `null` placeholder.
 func emitTupleRemoveUnknownKeys(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	if len(rt.Children) == 0 {
 		return RTCode{Code: v + ".slice()", Type: CodeE}
@@ -388,8 +364,7 @@ func emitTupleRemoveUnknownKeys(rt *reflection.RunType, ctx *EmitContext, v stri
 	return RTCode{Code: literal, Type: CodeE}
 }
 
-// emitIndexSignatureRemoveUnknownKeys handles a bare index signature at a non-object position (root
-// reach-in): symbol-keyed / function-valued sigs pass through, everything else does the fresh copy walk.
+// emitIndexSignatureRemoveUnknownKeys covers a bare index signature outside an object (root reach-in).
 func emitIndexSignatureRemoveUnknownKeys(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	if rt.Child == nil || isSymbolKeyedIndexSig(rt, ctx) {
 		return RTCode{Code: "", Type: CodeS}
@@ -401,11 +376,7 @@ func emitIndexSignatureRemoveUnknownKeys(rt *reflection.RunType, ctx *EmitContex
 	return buildSafeIndexSignatureObject(v, nil, nil, []*reflection.RunType{rt}, false, ctx)
 }
 
-// emitUnionRemoveUnknownKeys leaves a union with OBJECT members unsupported (CodeNS, so RUK001 alwaysThrow):
-// without runtime arm discrimination the emitter cannot know WHICH declared shape to rebuild, and a clone
-// that silently kept unknown keys would be a security bug.
-// In an atomic-member union, a member whose clone is non-identity takes a structural-guard arm and fully
-// immutable/opaque members fall through to `return v`, so an all-immutable union is a passthrough.
+// emitUnionRemoveUnknownKeys refuses object members (RUK001): with no arm discrimination it could keep unknown keys.
 func emitUnionRemoveUnknownKeys(rt *reflection.RunType, ctx *EmitContext) RTCode {
 	layout := buildFlatLayout(rt, ctx)
 	if len(layout.ObjectMembers) > 0 {
@@ -437,9 +408,7 @@ func emitUnionRemoveUnknownKeys(rt *reflection.RunType, ctx *EmitContext) RTCode
 	return RTCode{Code: strings.Join(clauses, " ") + " return " + v, Type: CodeRB}
 }
 
-// emitNativeIterableRemoveUnknownKeys: Map / Set are mutable containers, so ALWAYS a fresh instance.
-// The constructor copy suffices when every inner type clones to itself; otherwise entries rebuild with
-// per-entry exact-shape clones.
+// emitNativeIterableRemoveUnknownKeys always returns a fresh Map / Set: both are mutable.
 func emitNativeIterableRemoveUnknownKeys(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	isMap := rt.SubKind == reflection.SubKindMap
 	ctor := "Set"
@@ -480,10 +449,7 @@ func emitNativeIterableRemoveUnknownKeys(rt *reflection.RunType, ctx *EmitContex
 	}
 }
 
-// isNoopForRemoveUnknownKeys is the family's noop predicate: identity is sound iff EVERY reachable position
-// is immutable or opaque. It mirrors the Emit arms one-for-one, since a mutable position missed here would
-// have the runtime noop fastpath hand back a shared mutable value; a RegExp is shared like in the Emit arm,
-// its state never being data. Memoized on the walker's facts table like the other family predicates.
+// isNoopForRemoveUnknownKeys must mirror the Emit arms, or the noop fastpath shares a mutable position.
 func isNoopForRemoveUnknownKeys(rt *reflection.RunType, ctx *EmitContext) bool {
 	rt = ctx.ResolveRef(rt)
 	if rt == nil {

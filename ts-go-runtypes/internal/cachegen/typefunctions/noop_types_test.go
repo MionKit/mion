@@ -559,11 +559,7 @@ func TestNoopType_ToBinary(t *testing.T) {
 	}
 }
 
-// TestNoopType_RemoveUnknownKeys pins the family's dedicated isolation-aware
-// predicate: identity only for fully immutable/opaque subtrees. Any mutable
-// position — object, class, Date, RegExp, array, tuple, Map/Set, index
-// signature — forces a live clone body (sharing it would leak mutable state
-// between input and "clone").
+// TestNoopType_RemoveUnknownKeys: any mutable position forces a live clone body, or input and clone share state.
 func TestNoopType_RemoveUnknownKeys(t *testing.T) {
 	ctx, types := noopPredicateTypes(t)
 	rows := map[string]bool{

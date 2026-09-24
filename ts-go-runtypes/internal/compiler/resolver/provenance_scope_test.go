@@ -1,20 +1,9 @@
 package resolver_test
 
-// provenance_scope_test.go pins WHICH call sites a runtype finding is reported
-// at. Two axes decide it, and both used to be ignored, so one deliberate
-// alwaysThrow type made thousands of healthy call sites report that the
-// function they built always fails:
-//
-//   - DEPTH. A ScopeRoot code is about the type at the ROOT of a marker call.
-//     Provenance is inherited down the type graph (so a child-position warning
-//     reaches the site that pulled the member in), and a root code riding that
-//     inheritance landed on every site that merely CONTAINED the type.
-//   - FAMILY. A finding belongs to one family's entry (RUK001 to the exact-shape
-//     clone, PJ001 to the JSON encoder). Provenance keyed by type id alone told
-//     every site that named the type about every other family's finding.
-//
-// The two "one level deeper" / "one family over" twins below are the detectors
-// CLAUDE.md asks for: same trigger, moved off the position the code is about.
+// Pins WHICH call sites a runtype finding reports at. DEPTH: a ScopeRoot code reports only where the type is a
+// marker's root, though provenance is inherited down the graph. FAMILY: a finding reports only on its own family's
+// entry (RUK001 on removeUnknownKeys, PJ001 on the JSON encoder). The "one level deeper" / "one family over" twins
+// are the detectors CLAUDE.md asks for: same trigger, moved off the position the code is about.
 
 import (
 	"strings"

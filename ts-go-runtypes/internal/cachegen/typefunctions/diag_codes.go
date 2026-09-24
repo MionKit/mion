@@ -305,9 +305,7 @@ func (RemoveUnknownKeysEmitter) DiagCodeFor(slot DiagSlot) string {
 	return removeUnknownKeysCodes[slot]
 }
 
-// DiagCodeForLeaf — two ruk-specific arms beyond the shared rootCodeMap: a UNION, which has no runtime arm
-// discrimination, so the build fails rather than ship a clone that silently kept unknown keys, and a callable
-// interface, routed through the function code by callableLeafSubstitute.
+// DiagCodeForLeaf fails a union (no arm discrimination); callableLeafSubstitute routes a callable to the function code.
 func (RemoveUnknownKeysEmitter) DiagCodeForLeaf(leaf *reflection.RunType) string {
 	if leaf != nil && leaf.Kind == reflection.KindUnion {
 		return diagnostics.CodeRUKUnionRoot

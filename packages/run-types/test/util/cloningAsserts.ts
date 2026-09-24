@@ -1,18 +1,5 @@
-// Shared asserts for the cloning suite (test/suites/cloning). One universal
-// entry point — `assertCloneCase` — derives every check from the case data:
-//
-//   1. value equality: clone(input) deep-equals the input (or the case's
-//      `expected` shape when the input carries undeclared keys),
-//   2. non-mutation: after cloning, the input still deep-equals an untouched
-//      twin built by a second `getTestData()` call,
-//   3. isolation: the clone graph shares NO mutable object reference with the
-//      input graph (walks both sides: plain objects, class instances, arrays,
-//      Map/Set incl. keys/values, Date, RegExp, Temporal instances) — which
-//      also implies mutating the clone can never affect the input,
-//   4. prototype preservation: an object-typed root keeps the input root's
-//      prototype (covers `instanceof` for classes, Date, Map/Set, Temporal),
-//   5. pass-through cases (`passThrough`) assert `clone(x) === x` instead of
-//      2–4, and `factoryThrows` cases assert the RUK001 alwaysThrow.
+// `assertCloneCase` derives every check from the case data: value equality, input untouched, no shared mutable
+// reference, root prototype kept. `passThrough` asserts `clone(x) === x` instead, `factoryThrows` the RUK001 throw.
 
 import {expect} from 'vitest';
 import type {CloningCase} from '../suites/cloning/types.ts';

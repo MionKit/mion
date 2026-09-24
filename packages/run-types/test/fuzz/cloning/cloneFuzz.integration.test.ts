@@ -1,30 +1,8 @@
-// End-to-end clone fuzz: drives REAL compiled `createRemoveUnknownKeysFn<T>()`
-// functions through the cloning oracle harness (O15 reference-interpreter
-// agreement, O16 isolation, O17 consistency). Runs under the package vitest
-// config (with the Vite plugin + Go binary), so the createX call sites below
-// are rewritten with the resolved runtype id at compile time.
-//
-// IMPORTANT: the plugin resolves each createX call STATICALLY from its TYPE
-// ARGUMENT, so every factory is called as `createX<T>()` against a literal /
-// locally-declared type — never a generic `T` passed through a helper (that
-// would inject the `unknown` runtype). Hence the per-target inlining.
-//
-// Corpus rules (v1):
-//   - Atomic unions run the FULL oracle set; they keep AT MOST ONE member
-//     per structural family (array/Date/RegExp/Map/Set) so the reference
-//     dispatch is unambiguous.
-//   - OBJECT-BEARING unions are THROW-TARGETS: the compiled factory is a
-//     RUK001 alwaysThrow (documented contract), so they live in a separate
-//     corpus whose only oracle is the factory-creation throw — no value
-//     streams, no reference interpreter.
-//   - Circular TYPES are in, with TREE-shaped values (the mock recursion
-//     decay keeps them finite). Cyclic VALUES are outside the clone
-//     contract — no cycle detection anywhere, pinned by the RangeError test
-//     below.
-//   - The ONE exclusion: template-literal-keyed index signatures — the
-//     compiled sig arm gates keys behind the pattern regex, which the
-//     reference interpreter doesn't model yet (it throws loudly if one
-//     slips in). Documented follow-up in docs/FUZZING.md.
+// Clone fuzz over REAL compiled `createRemoveUnknownKeysFn<T>()` fns (O15-O17). Each factory is called as
+// `createX<T>()` on a concrete type, never a generic `T` through a helper, which would inject `unknown`.
+// Atomic unions keep at most one member per structural family so the reference dispatch is unambiguous; object
+// unions only assert the RUK001 throw; cyclic VALUES are outside the clone contract (the RangeError test).
+// Template-literal-keyed index signatures are excluded: the reference interpreter does not model them yet.
 
 import {describe, it, expect} from 'vitest';
 import {createRemoveUnknownKeysFn, createHasUnknownKeysFn, createValidateFn} from '@mionjs/run-types';
@@ -464,11 +442,7 @@ const targets: CloneFuzzTarget[] = [];
     // reference contract is exercised (default mocks skip non-data members).
     mock: createMockDataFn<FnProp>(undefined, {mock: {nonDataTypes: true}}),
     validate: createValidateFn<FnProp>(),
-    // Function-valued members are NOT in hasUnknownKeys' default known-keys
-    // list (the RT skips non-data members) while the clone KEEPS them
-    // (declared members are never dropped — RUK010). `checkNonRTProps`
-    // widens the key list to the full declared shape so the extras
-    // cross-check stays sound for this target.
+    // The clone keeps function members (RUK010) that hasUnknownKeys skips by default; checkNonRTProps aligns them.
     hasUnknownKeys: (value) => hasUnknownKeysFn(value, {checkNonRTProps: true}),
     clone: createRemoveUnknownKeysFn<FnProp>(),
   });
@@ -491,11 +465,7 @@ const targets: CloneFuzzTarget[] = [];
   });
 }
 
-// Object-bearing unions: without runtime arm discrimination the emitter
-// cannot know WHICH declared shape to rebuild, so the factory is a RUK001
-// alwaysThrow (a clone that silently kept unknown keys would be a security
-// bug). These are THROW-TARGETS: the only oracle is the factory-creation
-// throw — no value streams, no reference interpreter.
+// Object-bearing unions: the factory is a RUK001 alwaysThrow, so that throw is the only oracle.
 const throwTargets: Array<{title: string; createClone: () => unknown}> = [
   {
     title: 'DisjointObjectUnion',

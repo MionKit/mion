@@ -198,8 +198,7 @@ createDup<string>();
 		t.Errorf("MKR006 args = %v, want [validationErrors] (the first repeated family, not the first key)", dupDiag.Args)
 	}
 
-	// Injection still proceeds with the duplicate removed, first-occurrence order
-	// preserved: hasUnknownKeys, validationErrors, removeUnknownKeys (trailing duplicate dropped).
+	// Injection proceeds with the duplicate removed, first-occurrence order kept.
 	if len(resp.Sites) != 1 {
 		t.Fatalf("expected 1 site, got %d", len(resp.Sites))
 	}

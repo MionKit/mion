@@ -154,8 +154,7 @@ type Response struct {
 	// AddedPrepareForJsonClone mirrors AddedPrepareForJson for the safe-encode family: the non-mutating sibling
 	// that strips undeclared properties into a new value, decoded by RestoreFromJson (identical wire format).
 	AddedPrepareForJsonClone bool `json:"addedPrepareForJsonClone,omitempty"`
-	// AddedHasUnknownKeys / AddedUnknownKeyErrors / AddedRemoveUnknownKeys mirror AddedValidate for the
-	// unknown-keys family.
+	// AddedHasUnknownKeys / AddedUnknownKeyErrors / AddedRemoveUnknownKeys mirror AddedValidate for unknown keys.
 	AddedHasUnknownKeys    bool `json:"addedHasUnknownKeys,omitempty"`
 	AddedUnknownKeyErrors  bool `json:"addedUnknownKeyErrors,omitempty"`
 	AddedRemoveUnknownKeys bool `json:"addedRemoveUnknownKeys,omitempty"`

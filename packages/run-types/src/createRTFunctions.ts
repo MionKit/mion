@@ -210,8 +210,7 @@ export interface HasUnknownKeysCompileOptions {
 /** Predicate returned by `createHasUnknownKeysFn<T>()`. **/
 export type HasUnknownKeysFn = (value: unknown, options?: HasUnknownKeysOptions) => boolean;
 
-/** Deep clone of the DECLARED shape: undeclared keys drop, the input is untouched, every object is fresh (prototype kept).
- *  Primitives, RegExps and values it cannot rebuild (`any`, functions) are shared; RUK010/RUK015 flag the latter.
+/** Deep copy of the declared shape; RegExps and values it cannot rebuild (`any`, functions: RUK010/RUK015) are shared.
  *  `overrideRemoveUnknownKeys<T>()` is the escape hatch for custom copying. **/
 export type RemoveUnknownKeysFn<T = unknown> = (value: T) => T;
 
@@ -337,9 +336,7 @@ function createTypeFnArgsFunction<F extends AnyFn>(
   return (val, _options, args) => resolveTupleEntry(fnName, identityFn, val, args);
 }
 
-/** Returns the compiled closure for a leaf family that takes no options: the injected entry tuple
- *  sits at slot 1, and slot 0 may be a value-first schema (`createRemoveUnknownKeysFn(rt)`) whose
- *  `.id` overrides the injected typeId. **/
+/** Option-less family: the entry tuple sits at slot 1; a value-first schema at slot 0 overrides its typeId. **/
 function createRTFunction<F extends AnyFn>(fnName: string, identityFn: F): (val?: unknown, args?: unknown) => F {
   return (val, args) => resolveTupleEntry(fnName, identityFn, val, args);
 }
@@ -407,8 +404,7 @@ export const createHasUnknownKeysFn = createTypeFnArgsFunction<HasUnknownKeysFn>
     id?: InjectTypeFnArgs<T, 'hasUnknownKeys'>
   ) => HasUnknownKeysFn);
 
-/** Returns a NEW value holding only the declared keys, keeping Dates, Maps, Sets, bigints and class
- *  prototypes; it never changes the input. **/
+/** Returns a new value with only the declared keys (Dates, Maps, Sets, prototypes kept); never mutates the input. **/
 export const createRemoveUnknownKeysFn = createRTFunction<RemoveUnknownKeysFn>(
   'createRemoveUnknownKeysFn',
   identityValueFn

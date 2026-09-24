@@ -186,10 +186,8 @@ const (
 	CodeUKWFunctionPropDropped = "UKW010"
 )
 
-// removeUnknownKeys family: the clone-based strip. Object-bearing unions and callable roots fail,
-// because a strip that silently does not strip is a security bug, not a fallback. Declared members
-// are never dropped: a value the emitter cannot rebuild is kept and SHARED BY REFERENCE, with these
-// advisories naming it.
+// removeUnknownKeys: object unions and callable roots fail, since a strip that silently keeps keys is a security bug.
+// Declared members are never dropped: a value it cannot rebuild is shared by reference, and these warnings name it.
 const (
 	CodeRUKUnionRoot               = "RUK001"
 	CodeRUKFunctionRoot            = "RUK003"

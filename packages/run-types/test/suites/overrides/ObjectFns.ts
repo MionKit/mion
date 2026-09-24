@@ -1,10 +1,5 @@
-// Fixture for the object-shaped function families the validation / serialization
-// suites don't exercise standalone: the unknown-keys group (hasUnknownKeys /
-// removeUnknownKeys / unknownKeyErrors) and formatTransform. A unique branded
-// type per family declares its override at module scope;
-// `registerObjectFnsCase` registers the it()s (called from the single suite
-// runner, overrides.test.ts). These families don't fit the OverrideCase shape
-// (distinct signatures), so they live in their own registrar.
+// Override fixture for the unknown-keys group and formatTransform, which the other suites do not cover standalone.
+// Their distinct signatures do not fit OverrideCase, hence their own registrar (called from overrides.test.ts).
 
 import {it, expect} from 'vitest';
 import {
