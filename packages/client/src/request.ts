@@ -183,7 +183,7 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddlewareReques
       if (syncRefusal) return this.handleSyncRefusal(syncRefusal, errors);
 
       const callFailed = this.shouldRetryWithProperSerialization(deserialized);
-      // A client carrying build-compiled routes replaces them when the server's version differs.
+      // On a version mismatch, fetched rows are refreshed and bundled ones only reported.
       const mismatch = noteServerApiVersion(this.options.baseURL, this.response.headers.get(BUILD_VERSION_HEADER));
       const rows = this.verifying && metadataRowsOf(deserialized[MION_ROUTES.methodsMetadata]);
       if (rows?.methods) {
@@ -238,14 +238,13 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddlewareReques
     return syncRefusalOf(answer);
   }
 
-  /** No handler ran, so resending is safe; different ids are final unless a held row came from the store. */
+  /** No handler ran, so resending is safe; different ids are final when any refused row is bundled. */
   private async handleSyncRefusal(
     refusal: RouteSyncRefusal,
     errors: RequestErrors
   ): Promise<ResponseBody> {
     if (!this.signal?.aborted) {
-      // A fetched row is a cache of the server's, so relearning it is the one thing a resend can fix.
-      // A bundled one is what this code was built against: nothing to relearn, the app needs a new build.
+      // A fetched row is a cache of the server's and can be relearned; a bundled one needs a new build.
       const refusedIds = refusal.errorData?.routeIds ?? this.getRouteIds();
       const refetchable = refusal.type === 'route-types-mismatch' && !refusedIds.some((id) => isBundledMethod(id));
       if (refetchable && !this.purgedStaleMetadata) {

@@ -369,8 +369,7 @@ export function wasHydratedFromCache(id: string, options: ClientOptions): boolea
   return states.get(options.baseURL)?.hydratedIds.has(id) === true;
 }
 
-/** Drops restored metadata that turned out not to match the server any more, from memory and from
- *  the store, so the next call relearns it. */
+/** Drops restored rows the server no longer matches from memory and the store, so the next call relearns them. */
 export async function purgeHydratedMetadata(ids: string[], options: ClientOptions): Promise<void> {
   const state = states.get(options.baseURL);
   if (!state) return;
@@ -379,12 +378,12 @@ export async function purgeHydratedMetadata(ids: string[], options: ClientOption
   await dropStoredMethods(state, hydrated);
 }
 
-/** Drops fetched rows, restored or learned on this page, from memory, the store and any queued write, so the
- *  next call relearns them. A bundled row is never touched: the code calling it was built against it. */
+/** Forgets fetched rows from memory, the store and any queued write, so the next call relearns them.
+ *  A bundled row stays: the calling code was built against it. */
 export async function forgetFetchedMetadata(ids: string[], options: ClientOptions): Promise<void> {
   const fetchedIds = ids.filter((id) => !isBundledMethod(id));
   for (const id of fetchedIds) routesCache.removeMetadata(id);
-  // a write still queued would put the stale row back after the delete below
+  // a queued write would put the forgotten row back after the delete below
   for (const queued of writeQueue) {
     if (queued.options.baseURL !== options.baseURL) continue;
     for (const id of fetchedIds) delete queued.data.methods[id];
@@ -456,9 +455,8 @@ export function createMetadataSubRequest(methodIds: string[]): SubRequest<any> {
   };
 }
 
-/** Caches and saves rows the server answered with outside the metadata route; a stored row that later
- *  disagrees with its server is forgotten and relearned. The fetched shelf never overwrites a row, so
- *  `replaceIds` are dropped first. */
+/** Saves rows answered outside the metadata route: a stored row that later disagrees with its server is relearned.
+ *  `replaceIds` go first: the fetched shelf never overwrites a row. */
 export function installMethodRows(
   serializableMethodsData: SerializableMethodsData,
   options: ClientOptions,
