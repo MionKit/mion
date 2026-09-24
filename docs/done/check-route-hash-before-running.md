@@ -21,22 +21,28 @@ A server option, `syncRoutes` (default off). With it on, every call carries one 
 compares them before anything runs.
 
 - **The route sync id** (`routeSyncId`, `packages/core/src/routeSync.ts`): FNV-1a over
-  `id:paramsJitHash:returnJitHash:headersParam.jitHash` of the route and of every public middleware in its chain,
-  in chain order, as 6 base64url chars. Both ends read those fields off `getReflectionFromMarkers` over the same
+  `id:paramsJitHash:returnJitHash:headersParam.jitHash` of the route and of every public middleware declared in the
+  routes tree for it (its `middlewareIds`, in chain order), as 6 base64url chars. A public middleware is one with
+  params or return data; a global one added with `addStartMiddlewares` / `addEndMiddlewares` is not in the API type,
+  so no client build can know it and it stays out. Both ends read those fields off `getReflectionFromMarkers` over the same
   build-injected ids. The type ids fold in the mion version, so a different mion version blocks too, on purpose
   (different compiled functions).
 - **One middleware does it all**: `mion@syncRoutes` (`packages/router/src/routes/syncRoutes.routes.ts`), a typed
-  start middleware right after `mionDeserializeRequest`, `alwaysRun`, pinned `clone` parser. It returns
-  `x-build-version` as a typed `HeadersSubset` when `apiVersionCheck` is on (the header left
-  `globalResponseHeaders`, so the adapters no longer carry it), and under `syncRoutes`:
+  start middleware right after `mionDeserializeRequest`, `alwaysRun`, pinned `clone` parser. It sets
+  `x-build-version` on the response when `apiVersionCheck` is on (the header left `globalResponseHeaders`, so the
+  adapters no longer carry it; set rather than returned, so the answer is never an object-and-error union), and
+  under `syncRoutes` returns:
   - missing ids: `FatalError 'route-sync-required'` carrying the rows of the call's routes and chains;
   - a different id: `FatalError 'route-types-mismatch'` naming the routes.
-  One error type for both (`RouteSyncError`): the encoder cannot tell two `FatalError`s apart in one union.
+  One error type for both (`RouteSyncError`): the encoder cannot tell two `FatalError`s apart in one union. Its
+  return, `RouteSyncError | void`, is still an `[index, value]` envelope on the wire, like every middleware that
+  may return an error.
 - **The client** (`packages/client/src/lib/syncRoutes.ts`, `request.ts`): sends the ids in the body slot (no request
   header, so no CORS preflight, and it rides GET `?data=`) when the build injected `syncRoutes` at `initClient`, or
-  once a refusal taught it for that baseURL. `route-sync-required` installs the rows and resends once;
-  `route-types-mismatch` goes to slot 2 with no resend (the app should reload or ship a new build). The version
-  recovery keeps a row whose types changed, so replacing it cannot hide a mismatch.
+  once a refusal taught it for that baseURL. On either refusal a refused route whose row came from the store is
+  dropped once and relearned (a saved row can predate the server; without this, reloading the app hit the same
+  refusal forever). Otherwise `route-sync-required` installs the rows it carries, replacing fetched ones, and resends
+  once; `route-types-mismatch` goes to slot 2 with no resend (the app should reload or ship a new build).
 - **The flag reaches the client through the API type**: `initRoutes` returns `ApiWithOptions<R, O>`, the public API
   plus the router options exactly as passed to `createMionRouter`, under the `ROUTER_OPTIONS` unique symbol
   (`@mionjs/core`). The Go API walk skips that key (the build version is unchanged) and a new marker,
@@ -57,6 +63,8 @@ compares them before anything runs.
 - The mismatch resend had no bound: a call a changed server kept refusing was resent forever.
 - MET007 compared clients and servers as the walk went, so a later matching client hid an earlier one and the
   message often named the same version twice.
+- A resend kept the flag of an earlier attempt that asked to confirm rows, so the next answer's rows were set aside
+  instead of saved.
 
 ## Tests
 
@@ -72,7 +80,7 @@ compares them before anything runs.
 - `client-drift` lane: a mixed client built against server A; servers A, B, C, A on one port with the stored
   metadata kept across reloads. Unchanged routes and options-only changes run; a changed params type, a changed
   return type and a changed middleware in a route's chain are refused with no handler run; a fetched route's first
-  call is refused once and resent.
+  call is refused once and resent; a fetched route whose saved row predates the server is relearned, never looped.
 
 ## Docs
 
