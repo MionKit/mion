@@ -23,35 +23,20 @@ runs:
       shell: bash
       run: echo "sha=$(git -C ts-go-runtypes/third_party/tsgolint rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
-    # setup-go runs BEFORE the cache restore so the installed Go version can join
-    # the key below. It never touches GOCACHE itself (cache: false).
+    # Before the cache restore so the installed Go version can join its key; cache: false leaves GOCACHE to us.
     - uses: actions/setup-go@v6
       id: go
       with:
         go-version: '1.26'
         cache: false
 
-    # setup-go's built-in cache keys ONLY on go.sum, which never moves when the
-    # tsgolint submodule is bumped (every typescript-go dep comes in through a
-    # local `replace` path, not go.sum). That combination silently freezes the
-    # cache on the pre-bump objects and recompiles all of tsgo on every run after
-    # a bump. So we manage the cache ourselves and key it on the tsgolint pin,
-    # which also covers the nested typescript-go commit and the patch files (both
-    # live inside the tsgolint submodule). GOCACHE is content-addressed, so our
-    # internal/ + cmd/ code — which changes almost every PR — is a cheap
-    # recompile that reuses the cached tsgo objects.
-    #
-    # The INSTALLED Go version is in the key too: `go-version: '1.26'` floats to
-    # the newest patch, and every GOCACHE entry embeds the exact toolchain. Without
-    # it a patch release left the exact-key cache full of unusable objects, a
-    # full tsgo recompile (~2 min) in EVERY Go job, never healed because
-    # actions/cache skips the save on an exact-key hit. The restore-keys fallback
-    # stays inside the same Go version for the same reason.
-    #
-    # CACHE SALT (`v2`): GOCACHE action IDs also embed the ABSOLUTE source paths
-    # of locally-`replace`d packages (these builds run WITHOUT -trimpath). Bump
-    # the salt whenever the Go source tree moves, or old-path objects get restored
-    # that Go cannot reuse, with the same never-healing result.
+    # setup-go's cache keys only on go.sum, which a tsgolint bump never moves (tsgo deps come via local `replace`).
+    # So the key is the tsgolint pin, which also covers the nested typescript-go commit and the patches inside it.
+    # GOCACHE is content-addressed: our internal/ + cmd/ edits recompile cheaply on the cached tsgo objects.
+    # The installed Go version is in the key: '1.26' floats to the newest patch and each GOCACHE entry embeds it.
+    # An exact-key hit never re-saves, so a stale cache never heals (~2 min tsgo recompile in every Go job).
+    # restore-keys stays inside the same Go version for the same reason.
+    # CACHE SALT (`v2`): action IDs embed absolute `replace`d package paths (no -trimpath); bump on a Go tree move.
     - name: Restore Go build cache (keyed on Go + the tsgolint pin, not our sources)
       uses: actions/cache@v4
       with:
