@@ -24,4 +24,4 @@ packages/type-budget/reports
 packages/run-types/reports
 
 # Code cards: the code block is laid out by hand and IS the image; reformatting it moves the highlighted lines.
-packages/code-card/cards
+tools/code-card/cards

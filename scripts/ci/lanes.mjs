@@ -39,7 +39,7 @@ import {capture, die, note, reportCliError} from '../lib/proc.mjs';
 // tracked file, so while they lived in the js-lint suite, ignoring .claude/ or a
 // root doc here would have let an offending edit through unchecked. They now run
 // in the always-on gate job instead, ungated by anything.
-export const FEEDS_NOTHING = ['docs/', 'assets/', '.claude/', '.vscode/', '.husky/', '.git-blame-ignore-revs', 'CHANGELOG.md', 'CLAUDE.md', 'README.md', 'SETUP.md', 'LICENSE'];
+export const FEEDS_NOTHING = ['docs/', 'tools/', 'assets/', '.claude/', '.vscode/', '.husky/', '.git-blame-ignore-revs', 'CHANGELOG.md', 'CLAUDE.md', 'README.md', 'SETUP.md', 'LICENSE'];
 
 // Inputs EVERY lane hashes: the Go resolver, the lockfile, the workspace layout,
 // the repo-wide tool config and the toolchain the bootstrap action pins.

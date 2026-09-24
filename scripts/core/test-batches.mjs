@@ -2,7 +2,7 @@
 // plus the drift gate that keeps those batches covering every project.
 //
 // Why batches at all: a resolver process is ~200 MB, so one `vitest run` over all
-// 25 projects OOMs on a small host. Splitting the run into groups that each start
+// 24 projects OOMs on a small host. Splitting the run into groups that each start
 // and tear down on their own keeps the peak down.
 //
 // Why a gate: the batch list used to be hand-written into package.json with no tie
@@ -49,7 +49,7 @@ export const BATCHES = [
     projects: ['drizzle-root', 'drizzle-pg', 'drizzle-mysql', 'drizzle-sqlite', 'devtools', 'platform-aws', 'platform-gcloud'],
   },
   {name: 'mion-platforms', projects: ['platform-node', 'platform-vercel', 'platform-cloudflare', 'platform-uws', 'bin-uws']},
-  {name: 'mion-rest', projects: ['client', 'client-bundled', 'client-mixed', 'type-budget', 'code-card']},
+  {name: 'mion-rest', projects: ['client', 'client-bundled', 'client-mixed', 'type-budget']},
 ];
 
 // The project config paths listed under `test.projects` in the root vitest config.

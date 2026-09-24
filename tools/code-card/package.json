@@ -3,7 +3,7 @@
   "version": "0.12.2",
   "private": true,
   "type": "module",
-  "description": "Shareable code images: a snippet in an editor window, rendered to PNG (never published)",
+  "description": "Shareable code images: a snippet in an editor window, rendered to PNG (private dev tool, never published)",
   "author": "ma jerez",
   "homepage": "https://mion.io/",
   "license": "MIT",
@@ -15,8 +15,7 @@
     "url": "https://github.com/MionKit/mion/issues"
   },
   "scripts": {
-    "test": "vitest run",
-    "typecheck:test": "tsc -p tsconfig.json --noEmit",
+    "test": "tsc -p tsconfig.json --noEmit && vitest run",
     "clean": "rimraf .coverage tmp",
     "fresh-start": "pnpm run clean && rimraf node_modules"
   },

@@ -212,7 +212,7 @@ export function resolveCardPath(nameOrPath: string): string {
     const path = join(dir, `${nameOrPath}.md`);
     if (existsSync(path)) return path;
   }
-  throw new Error(`no card named "${nameOrPath}" in packages/code-card/cards/ or packages/code-card/tmp/`);
+  throw new Error(`no card named "${nameOrPath}" in tools/code-card/cards/ or tools/code-card/tmp/`);
 }
 
 export const loadCard = (path: string) => parseCard(readFileSync(path, 'utf8'), path);

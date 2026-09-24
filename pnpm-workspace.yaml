@@ -1,5 +1,7 @@
 packages:
   - 'packages/*'
+  # Private dev tools with their own deps; outside packages/ so no CI lane runs them.
+  - 'tools/*'
   # NOTE: the docs sites live in container/website/, whose deps are baked into the
   # tsrt-website image (container/website/_deps/), never into this lockfile.
   # The pre-publish e2e under container/pre-publish-e2e/ is outside the workspace
