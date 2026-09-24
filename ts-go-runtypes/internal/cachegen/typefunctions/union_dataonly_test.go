@@ -214,8 +214,7 @@ func TestDataOnlyUnion_ObjectMemberStrippedProp(t *testing.T) {
 
 	for _, fam := range []string{"validate", "prepareForJsonMutate", "prepareForJsonClone", "restoreFromJsonMutate"} {
 		out := renderModule(t, dump, fam)
-		// A real union factory (`<hash>_uni(…){`) — family-agnostic. An
-		// alwaysThrow union has no `_uni(` function definition at all.
+		// Only a real union factory defines `_uni(`; an alwaysThrow union has none.
 		if !strings.Contains(out, "_uni(") {
 			t.Errorf("[%s] `Date | {b: symbol}` should drop the symbol prop and serialize, not alwaysThrow; got:\n%s", fam, out)
 		}

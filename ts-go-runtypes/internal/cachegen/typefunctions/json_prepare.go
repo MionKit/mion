@@ -239,10 +239,8 @@ func indexSigValueID(rt *reflection.RunType, ctx *EmitContext) string {
 	return value.ID
 }
 
-// jsonStringifyLeaks reports whether `JSON.stringify` serializes a dropped value AS DATA (a plain
-// object) instead of omitting it: true for Promise and the non-serializable natives, false for
-// symbol / function / never. The mutate prepareForJson path serializes through the live object, so
-// it must `delete` the leaking kinds to match the data-only projection clone / direct already produce.
+// jsonStringifyLeaks: `JSON.stringify` writes a dropped Promise or non-serializable native as a plain object.
+// Mutate stringifies the live object, so it must `delete` these to match the clone / direct data-only projection.
 func jsonStringifyLeaks(resolved *reflection.RunType) bool {
 	if resolved == nil {
 		return false

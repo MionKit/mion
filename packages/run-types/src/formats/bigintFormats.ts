@@ -1,6 +1,5 @@
-// BigInt-format TYPE aliases; validation, serialization (the setBigInt64/setBigUint64 8-byte packing)
-// and mocking are emitted elsewhere. `TypeFormat` IS imported as a value (not `import type`): the
-// value-level import keeps each brand alias's reflection metadata reachable for tsgo.
+// BigInt-format TYPE aliases; validation, serialization and mocking are emitted elsewhere. `TypeFormat` is a value
+// import (not `import type`) so each brand alias's reflection metadata stays reachable for tsgo.
 // (ref: packages/type-formats/src/bigint/{bigIntFormat.runtype.ts,defaultBigNumberFormats.ts}).
 
 import {TypeFormat} from '../runtypes/typeFormat.ts';
@@ -35,7 +34,6 @@ export type BigInt<P extends BigIntParams = {}, BrandName extends string = never
   BrandName
 >;
 
-// BigInt64 / BigUInt64 SET the min/max of a signed / unsigned 64-bit integer.
 export type BigPositive = BigInt<{min: 0n}>;
 export type BigNegative = BigInt<{max: 0n}>;
 export type BigPositiveInt = BigInt<{min: 0n; multipleOf: 1n}>;

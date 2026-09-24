@@ -183,11 +183,8 @@ export const REALWORLD = {
       ],
     }),
   },
-  // A registered user class whose fields carry type-formats — proving the class
-  // serializer path composes with the format families (the Date rides its ISO arm
-  // INSIDE the class body) and reconstructs a real instance. Each thunk defines the class +
-  // registerClassSerializer INLINE (self-declaring); value-first schema is
-  // 'not-supported' (a class is not an `RT.*` model), so id-integrity skips it.
+  // Each thunk defines the class + registerClassSerializer INLINE (self-declaring).
+  // Value-first schema is 'not-supported' (a class is not an `RT.*` model), so id-integrity skips it.
   invoice_currency_and_date: {
     title: 'Class with a currency-format field + Date',
     description:

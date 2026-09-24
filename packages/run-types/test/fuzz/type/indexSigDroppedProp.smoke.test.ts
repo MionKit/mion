@@ -3,8 +3,7 @@
 // `p0`, but the clone JSON encoder's index for-in built its "skip declared
 // keys" set from the KEPT props only — so the dropped `p0` fell through and was
 // copied back into the clone (`{"p0":{}}`), while the other JSON families
-// dropped it. The skip set is now the full
-// declared-name set (kept + dropped), so every family drops `p0`.
+// dropped it. The skip set is now every declared name, so every family drops `p0`.
 import {describe, it, expect} from 'vitest';
 import {openClient, compileType, hasBinary} from './typeFuzzHarness.ts';
 import {typecheckGeneratedType} from './tsValidate.ts';

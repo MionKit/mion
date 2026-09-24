@@ -62,8 +62,7 @@ export interface CircularGuardSerializationCase {
   jsonEncoder: () => AnyJsonEncoderFn;
   /** Builds the runtime value under test — cyclic, or an acyclic control. */
   getValue: () => unknown;
-  /** `true` when the value cycles (the encoder throws `CircularReferenceError`);
-   *  `false` for an acyclic control (the encoder succeeds). */
+  /** Whether the value cycles, so the encoder throws `CircularReferenceError`. */
   expectThrows: boolean;
 }
 

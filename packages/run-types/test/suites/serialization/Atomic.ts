@@ -47,9 +47,7 @@ export const ATOMIC = {
       ],
     }),
   },
-  // Magnitude-split number cases: the base `number` case above mixes every
-  // magnitude into one row. JSON's size is the decimal-string length, so these
-  // single-value cases isolate each magnitude.
+  // One value per magnitude, since JSON's size is the decimal-string length and the `number` case mixes them.
   number_small: {
     title: 'number (small)',
     description: 'A small single-digit integer.',
@@ -266,9 +264,7 @@ export const ATOMIC = {
     compactDecoder: () => createJsonDecoderFn<Date>(undefined, {strategy: 'compact'}),
     schemaEncoder: () => createJsonEncoderFn(TF.date()),
     schemaDecoder: () => createJsonDecoderFn(TF.date()),
-    // Span whole-second, sub-second ms precision, the Unix epoch (getTime 0),
-    // and a pre-1970 (negative epoch) date — all must survive the ISO
-    // round-trip without precision loss.
+    // Sub-second ms, the Unix epoch and a pre-1970 date must all survive the ISO round-trip without precision loss.
     getTestData: () => ({
       values: [
         new Date('2000-08-06T02:13:00.000Z'),

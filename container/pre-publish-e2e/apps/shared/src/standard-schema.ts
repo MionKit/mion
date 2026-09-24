@@ -1,4 +1,4 @@
-// Family 11 — Standard Schema v1. Mirrors guide/standard-schema.ts. The
+// Family 10 — Standard Schema v1. Mirrors guide/standard-schema.ts. The
 // `~standard.validate` contract: good input → {value}, bad input → {issues}.
 import {createStandardSchema, runTypeErrorsToIssues, createGetValidationErrorsFn} from '@mionjs/run-types';
 import {type CheckResult, ok} from './check';

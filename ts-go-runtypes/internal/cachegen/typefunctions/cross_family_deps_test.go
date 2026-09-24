@@ -11,11 +11,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// valKey returns the validate cache key `<validate-fnHash>_<id>` the emitter now
-// produces for a same-family / cross-family validate lookup. Slice 4 replaced the
-// readable `val_` tag prefix with the opaque, version-isolated fnHash from the
-// operation registry; tests derive the expected key through the same helper the
-// emitter uses so they stay correct across resolver versions.
+// valKey is the validate key `<validate-fnHash>_<id>`, built with the emitter's helper to survive resolver versions.
 func valKey(id string) string { return operations.PlainHash("validate") + "_" + id }
 
 // itVariantKey mirrors variantKey for a validate option variant (e.g. numberTypeof), minus the CacheModuleSettings plumbing.

@@ -472,10 +472,8 @@ func (w *Walker) Compile() (innerFnDecl string, isNoop bool, isUnsupported bool)
 	return innerFnDecl, noop, false
 }
 
-// CircularGuardReactor is implemented by the walker-path CircularGuarded emitters (validate /
-// validationErrors). EmitCircularGuard returns the guard statement prepended to the body: on a
-// detected cycle it applies the family's policy, `return false` or a recorded `{expected:'circular'}` error. The JSON composites don't use the walker and inline their own guard
-// in json_composite.go.
+// CircularGuardReactor emits the cycle guard prepended to walker CircularGuarded bodies (validate / validationErrors).
+// On a cycle it returns false or records `{expected:'circular'}`; JSON composites inline theirs in json_composite.go.
 type CircularGuardReactor interface {
 	EmitCircularGuard(fcpAlias, skeletonConst string) string
 }

@@ -71,12 +71,8 @@ func noopPredicateTypes(t *testing.T) (*EmitContext, map[string]*reflection.RunT
 	circDProp := &reflection.RunType{ID: "circDD", Kind: reflection.KindProperty, Name: "d", IsSafeName: true, Optional: true, Child: makeRef("circDArr")}
 	circDat := &reflection.RunType{ID: "circDat", Kind: reflection.KindObjectLiteral, TypeName: "CircWithDate", IsCircular: true, Children: []*reflection.RunType{makeRef("pdat"), makeRef("circDD")}}
 
-	// Arms for the universal-predicate tables: any/unknown (validate /
-	// validationErrors), a primitive literal, a
-	// never-valued property (the DataOnly dropped-slot rule), an atomic-value
-	// record (unknown-keys index arm), a literal-only object + tuple,
-	// and an object-carrying tuple
-	// (every unknown-keys family recurses into its slots).
+	// Universal-predicate arms: any/unknown (validate / validationErrors), a never-valued prop (DataOnly dropped slot),
+	// an atomic record (unknown-keys index arm), and an object-carrying tuple (unknown-keys families recurse into slots).
 	anyT := &reflection.RunType{ID: "anyT", Kind: reflection.KindAny}
 	unkT := &reflection.RunType{ID: "unkT", Kind: reflection.KindUnknown}
 	lit := &reflection.RunType{ID: "lit", Kind: reflection.KindLiteral}
@@ -95,11 +91,8 @@ func noopPredicateTypes(t *testing.T) (*EmitContext, map[string]*reflection.RunT
 	tmObj := &reflection.RunType{ID: "tmObj", Kind: reflection.KindTupleMember, Position: &pos0, Child: makeRef("objCompat")}
 	tupObj := &reflection.RunType{ID: "tupObj", Kind: reflection.KindTuple, Children: []*reflection.RunType{makeRef("tmObj")}}
 
-	// Named-class registry-branch rule: a NAMED plain user class always
-	// compiles the class-serializer runtime registry branch, so it can never
-	// claim identity — even when every member is a dropped (`p0: never`) or
-	// literal slot.
-	// Anonymous classes and interface twins stay structural/noop.
+	// A NAMED plain user class always compiles the class-serializer registry branch, so it never claims identity.
+	// Even when every member is a dropped (`p0: never`) or literal slot; anonymous classes and interfaces stay noop.
 	clsNever := &reflection.RunType{ID: "clsNever", Kind: reflection.KindClass, SubKind: reflection.SubKindNone, TypeName: "C0", Children: []*reflection.RunType{makeRef("pnev")}}
 	aclsNever := &reflection.RunType{ID: "aclsNever", Kind: reflection.KindClass, SubKind: reflection.SubKindNone, Children: []*reflection.RunType{makeRef("pnev")}}
 	objNeverOnly := &reflection.RunType{ID: "objNeverOnly", Kind: reflection.KindObjectLiteral, TypeName: "I0", Children: []*reflection.RunType{makeRef("pnev")}}

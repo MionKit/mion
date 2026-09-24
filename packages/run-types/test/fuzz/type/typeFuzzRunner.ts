@@ -445,8 +445,7 @@ function checkMockBehaviour(compiled: CompiledType, seed: number, out: Violation
   if (compact.uncontrolled)
     out.push({oracle: 'O7', message: `compactEncode threw an uncontrolled error: ${compact.error}`, ...base});
 
-  // O14 — the clone and compact encoders must AGREE on serialize-vs-fail (the
-  // rule is the same for every strategy).
+  // O14: the serialize-vs-fail rule is the same for every strategy.
   if (json.ok !== compact.ok) {
     out.push({
       oracle: 'O14',

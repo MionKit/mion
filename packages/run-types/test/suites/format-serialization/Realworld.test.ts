@@ -1,5 +1,5 @@
-// format-serialization / Realworld — every REALWORLD case run through every JSON
-// encoder × decoder pairing and the value-first schema variants. One it() per pairing, delegating to util/serializationAsserts.ts.
+// format-serialization / Realworld — every REALWORLD case through every JSON encoder × decoder pairing and the
+// value-first schema variants, one it() per pairing (util/serializationAsserts.ts).
 import {describe, it} from 'vitest';
 import {REALWORLD} from './Realworld.ts';
 import {

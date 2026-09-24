@@ -270,13 +270,10 @@ func stringListParam(raw any) []string {
 	return dedupSortStrings(out)
 }
 
-// collectSiblingNamedKeys returns the deduped, sorted names an index-signature for-in loop must SKIP: every named non-static child.
-// It keys on the NAME whatever the per-family emit does with the value: a DataOnly-stripped prop (`p0: ArrayBuffer`) is dropped
-// from the projection but its key must still be skipped, or the index loop copies it back in (G6).
-// Function-like children are stripped the same way, so they are in too: leaving them out ran the index signature's own value
-// encoder over a function (the function's source text in JSON).
-// Statics stay out: they are not own enumerable keys, so no for-in ever reaches them.
-// Shared by publishSiblingNamedKeysForIndexSig and the clone path's buildSafeIndexSignatureObject.
+// collectSiblingNamedKeys lists the named non-static children an index-signature for-in must SKIP, by name alone.
+// A DataOnly-stripped prop (`p0: ArrayBuffer`) is in, or the index loop copies it back (G6).
+// Function-like children are in too, or the index encoder writes a function's source text into JSON.
+// Statics stay out: no for-in reaches them.
 func collectSiblingNamedKeys(rt *reflection.RunType, ctx *EmitContext) []string {
 	var siblingNames []string
 	for _, child := range rt.Children {

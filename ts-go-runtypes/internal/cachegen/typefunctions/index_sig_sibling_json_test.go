@@ -36,11 +36,8 @@ func TestG1_JsonIndexSigSkipsSiblingNamedProp(t *testing.T) {
 	}
 }
 
-// droppedPropIndexSigObject builds `{p0?: symbol; p1: boolean; [k: number]:
-// "red"}`. The `p0` value is DataOnly-stripped, so the projection drops it — but
-// its KEY must still be skipped by the index for-in, or the index arm copies it
-// back into the result (G6: the clone encoder kept `p0`, disagreeing with the
-// other families which dropped it).
+// droppedPropIndexSigObject builds `{p0?: symbol; p1: boolean; [k: number]: "red"}`.
+// `p0` is DataOnly-stripped, but the index for-in must still skip its KEY or copy it back in (G6).
 func droppedPropIndexSigObject() protocol.Dump {
 	sym := &reflection.RunType{ID: "sym", Kind: reflection.KindSymbol}
 	boolean := &reflection.RunType{ID: "bool", Kind: reflection.KindBoolean}
@@ -74,10 +71,7 @@ func TestG6_CloneIndexSigSkipsDroppedSiblingProp(t *testing.T) {
 	}
 }
 
-// TestG6_DecodersAndCloneSkipSameSiblingKeys — the for-in decoders skip the
-// dropped key via collectSiblingNamedKeys; pin that they agree with the clone on
-// the skip set so the clone can't drift back (the cross-wire disagreement that
-// surfaced G6).
+// TestG6_DecodersAndCloneSkipSameSiblingKeys pins the for-in decoders to the clone's skip set so it cannot drift back.
 func TestG6_DecodersAndCloneSkipSameSiblingKeys(t *testing.T) {
 	dump := droppedPropIndexSigObject()
 	for _, fam := range []string{"restoreFromJsonMutate", "compactFromJson"} {

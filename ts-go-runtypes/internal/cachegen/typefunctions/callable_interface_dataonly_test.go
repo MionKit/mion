@@ -70,13 +70,8 @@ func TestCallableInterface_PropertyDoesNotFailObject(t *testing.T) {
 	}
 }
 
-// F2b: a callable interface at a PROPAGATING position (array element) must
-// render a controlled alwaysThrow carrying the family's FUNCTION code, NOT be
-// silently skipped. The serializers latch the callable OBJECTLITERAL as the
-// unsupported leaf; without callableLeafSubstitute the diag code resolved to ""
-// and the entry vanished, leaving a dangling dependency that the JSON composite
-// later bound with an unguarded `getRT(key).fn` (runtime `reading 'fn'`). The function code in the
-// rendered module is the proof the entry is now present + controlled.
+// F2b: a callable interface in an array element must render an alwaysThrow with the family's FUNCTION code, not vanish.
+// A skipped entry left a dangling dep the JSON composite bound with an unguarded `getRT(key).fn` (`reading 'fn'`).
 func TestF2b_CallableInArrayElementAlwaysThrows(t *testing.T) {
 	functionRootCodes := map[string]string{
 		"prepareForJsonMutate":  "PJ003",

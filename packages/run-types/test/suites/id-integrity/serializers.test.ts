@@ -1,9 +1,6 @@
-// id-integrity / serializers — for EVERY serialization + format-serialization
-// case, assert the value-first schema encoder (`createJsonEncoderFn(RT.x())`)
-// produces output identical to the type-first encoder (`createJsonEncoderFn<T>()`)
-// on the case's samples. Identical wire output ⇒ both forms resolved the same runtype. Reuses
-// each case's existing schema + type-first encoder thunks — no per-case data
-// added. See util/idIntegrityAsserts.ts for the mechanism.
+// id-integrity / serializers — for EVERY serialization + format-serialization case, the value-first encoder
+// (`createJsonEncoderFn(RT.x())`) must match the type-first one on the samples: same wire ⇒ same runtype.
+// Reuses each case's thunks, no per-case data; see util/idIntegrityAsserts.ts.
 
 import {describe, it} from 'vitest';
 import {SERIALIZATION_SPEC} from '../serialization/index.ts';

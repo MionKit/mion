@@ -1,5 +1,4 @@
-// Currency serialization cases — isCurrency is presentation metadata, so the
-// wire behaviour is the plain number family's: JSON writes the plain number.
+// Currency serialization cases — isCurrency is presentation metadata, so JSON writes the plain number.
 import * as TF from '@mionjs/run-types/formats';
 import type {SerializationCase} from './types.ts';
 import '@mionjs/run-types/formats';

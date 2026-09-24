@@ -44,10 +44,7 @@ func TestBigIntValidate_EmitsBigintLiterals(t *testing.T) {
 	}
 }
 
-// TestNumberValidate_FloatIsAnnotationOnly pins that the `float` tag never
-// becomes a failable predicate: whole values (2.0) are legal floats, so a
-// float-only annotation emits NO validate condition and NO error statement
-// (the tag only steers mock generation).
+// TestNumberValidate_FloatIsAnnotationOnly: 2.0 is a legal float, so `float` emits no validate or error check.
 func TestNumberValidate_FloatIsAnnotationOnly(t *testing.T) {
 	emitter := numberFormatEmitter{}
 	floatOnly := annotation(numberFormatName, map[string]any{"float": true})
@@ -170,11 +167,7 @@ func TestValidateParams(t *testing.T) {
 	}
 }
 
-// TestNumberFormat_IsCurrencyEcho pins the isCurrency presentation param: it
-// adds NO validate predicate, but every emitted
-// validation error carries `isCurrency:true` inside its format payload — the
-// discriminator the friendly i18n renderer uses to render the violated bound
-// as money.
+// TestNumberFormat_IsCurrencyEcho: isCurrency adds no predicate; its errors carry it so i18n shows the bound as money.
 func TestNumberFormat_IsCurrencyEcho(t *testing.T) {
 	emitter := numberFormatEmitter{}
 	plain := map[string]any{"max": 100.0}
@@ -199,7 +192,6 @@ func TestNumberFormat_IsCurrencyEcho(t *testing.T) {
 		t.Errorf("plain number errors must not carry the flag: %q", without)
 	}
 
-	// No param invariant.
 	if msgs := emitter.ValidateParams(annotation(numberFormatName, currency)); len(msgs) != 0 {
 		t.Errorf("isCurrency has no param invariants; got %v", msgs)
 	}

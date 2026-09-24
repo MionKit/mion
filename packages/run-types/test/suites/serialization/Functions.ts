@@ -488,10 +488,7 @@ export const FUNCTIONS = {
       // @mion-downgrade-error RJ003
       return createJsonDecoderFn<Parameters<typeof fnWithCallback>>(undefined, {strategy: 'compact'});
     },
-    // Parameters<typeof fnWithCallback> resolves to a tuple ending
-    // in `() => null`. Function-typed tuple slots are unsupported in
-    // every family now (previously JSON silently dropped them); they render
-    // as alwaysThrow.
+    // The tuple ends in `() => null`; a function-typed slot renders as alwaysThrow in every family.
     // Function-typed tuple slot is non-serializable; no value-first builder.
     schemaEncoder: 'not-supported',
     schemaDecoder: 'not-supported',

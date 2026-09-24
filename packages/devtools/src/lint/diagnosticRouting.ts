@@ -296,10 +296,8 @@ interface FamilyRules {
   warn?: RuleName;
 }
 
-// PREFIX_TO_FAMILY maps a compiler code's letter prefix to its family rules, at PRODUCT-family granularity: the
-// JSON prefixes share the json rules, validate absorbs validationErrors, and
-// the marker-scanner prefixes share the marker rules. Enrichment (FT/MD/GE) and mion route (MRT) codes route by
-// concern instead (enrichFamily, mionRouteFamily), so they are absent here.
+// Product-family granularity: the JSON prefixes share rules, as do validate / validationErrors and the marker scanners.
+// Enrichment (FT/MD/GE) and mion route (MRT) codes route by concern (enrichFamily, mionRouteFamily), so they are absent.
 const PREFIX_TO_FAMILY: Record<string, FamilyRules> = {
   CFG: {primary: 'broken-tsconfig'},
   EXP: {primary: 'invalid-expect-error'},

@@ -32,7 +32,7 @@ import {checkStandardSchema} from './standard-schema';
 import {checkOverrides} from './overrides';
 import {checkEnrichment} from './enrichment';
 
-// The 12 feature families (enrichment is family 10). Order mirrors the spec table.
+// The 12 feature families (enrichment is family 12).
 const FAMILIES: {family: string; run: () => CheckResult[]}[] = [
   {family: 'validation', run: checkValidation},
   {family: 'type-builders', run: checkTypeBuilders},

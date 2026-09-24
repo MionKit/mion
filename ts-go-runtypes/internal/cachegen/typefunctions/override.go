@@ -9,11 +9,9 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// overrideOpKeyForTag maps a simple (non-composite) family tag to the operation NAME RunType.Overrides is
-// keyed by ("val" → "validate", "fmt" → "formatTransform", …). The NAME, not the marker token: the name is the
-// hash-side identity, so the public marker vocabulary can be renamed without moving an overridden type.
-// Returns "" for a tag with no public operation (an internal primitive, never user-overridable), which skips
-// the override check. Composite JSON tags resolve their op key in json_composite.go.
+// overrideOpKeyForTag maps a simple family tag to the op NAME RunType.Overrides is keyed by ("val" → "validate").
+// The name, not the marker token, is the hash identity, so marker renames never move an overridden type.
+// "" means an internal primitive and skips the check; composite JSON tags resolve in json_composite.go.
 func overrideOpKeyForTag(tag string) string {
 	op, ok := operations.ByFamilyTag(tag)
 	if !ok || !op.Public {

@@ -125,19 +125,11 @@ type tsRuntypesPlugin struct {
 	//
 	// It replaced the boolean `failOnError`; see removedPluginKeys.
 	DowngradeErrors downgradeErrorsKey `json:"downgradeErrors"`
-	// Validate groups project-wide defaults for the per-call-site ValidateOptions
-	// bag under one `validate` object (like `i18n`). A nil object (absent key)
-	// keeps every validator on its built-in default. Merged per field into each
-	// validate / validationErrors call site by the scanner (site value wins per
-	// field); folds into each entry's fnHash variant, so it is NOT a disk
-	// fingerprint input.
+	// Validate holds project-wide ValidateOptions defaults the scanner merges per field into each site (site wins).
+	// It folds into the fnHash variant, so it is NOT a disk fingerprint input; nil keeps the built-in defaults.
 	Validate *validatePluginConfig `json:"validate"`
-	// Markers groups the marker-package gate under one `markers` object (like
-	// `validate`). It answers "which packages am I willing to accept the
-	// marker types from?", so a library can declare `InjectRunTypeId` and
-	// friends itself instead of depending on mion purely for types. A nil
-	// object (absent key) keeps the built-in gate: markers count only when
-	// @mionjs/run-types declared them.
+	// Markers lists the packages allowed to declare marker types, so a library need not depend on mion just for them.
+	// Nil keeps the built-in gate: markers count only when @mionjs/run-types declared them.
 	Markers *markersPluginConfig `json:"markers"`
 }
 
