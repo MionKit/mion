@@ -70,6 +70,11 @@ func (JsonSchemaDocEmitter) EmitDependencyCall(rt *reflection.RunType, childID s
 	panic("typefns: the jsonSchema emitter never dep-calls (the document renders whole at the root)")
 }
 
+// IsNoopType — never a noop, the root always returns the rendered document.
+func (JsonSchemaDocEmitter) IsNoopType(_ *reflection.RunType, _ *EmitContext) bool {
+	return false
+}
+
 // Finalize — the body is always the single return statement; never a noop.
 func (JsonSchemaDocEmitter) Finalize(rawCode string) (string, bool) {
 	return rawCode, false

@@ -103,6 +103,20 @@ func noopPredicateTypes(t *testing.T) (*EmitContext, map[string]*reflection.RunT
 	objNeverOnly := &reflection.RunType{ID: "objNeverOnly", Kind: reflection.KindObjectLiteral, TypeName: "I0", Children: []*reflection.RunType{makeRef("pnev")}}
 	clsLit := &reflection.RunType{ID: "clsLit", Kind: reflection.KindClass, SubKind: reflection.SubKindNone, TypeName: "C1", Children: []*reflection.RunType{makeRef("plit")}}
 
+	// Native iterables: a Map value or Set member holding a keyed object is swept like any other slot.
+	iterParam := func(id string, sub reflection.ReflectionSubKind, child string) *reflection.RunType {
+		return &reflection.RunType{ID: id, Kind: reflection.KindParameter, SubKind: sub, Child: makeRef(child)}
+	}
+	mapKeyStr := iterParam("mkStr", reflection.SubKindMapKey, "str")
+	mapValObj := iterParam("mvObj", reflection.SubKindMapValue, "objCompat")
+	mapValStr := iterParam("mvStr", reflection.SubKindMapValue, "str")
+	setItemObj := iterParam("siObj", reflection.SubKindSetItem, "objCompat")
+	setItemStr := iterParam("siStr", reflection.SubKindSetItem, "str")
+	mapObj := &reflection.RunType{ID: "mpObj", Kind: reflection.KindClass, SubKind: reflection.SubKindMap, Arguments: []*reflection.RunType{makeRef("mkStr"), makeRef("mvObj")}}
+	mapStr := &reflection.RunType{ID: "mpStr", Kind: reflection.KindClass, SubKind: reflection.SubKindMap, Arguments: []*reflection.RunType{makeRef("mkStr"), makeRef("mvStr")}}
+	setObj := &reflection.RunType{ID: "stObj", Kind: reflection.KindClass, SubKind: reflection.SubKindSet, Arguments: []*reflection.RunType{makeRef("siObj")}}
+	setStr := &reflection.RunType{ID: "stStr", Kind: reflection.KindClass, SubKind: reflection.SubKindSet, Arguments: []*reflection.RunType{makeRef("siStr")}}
+
 	all := []*reflection.RunType{
 		str, num, undef, voidT, bigint, date, mapT, fn,
 		propA, propBig, propDate, propFn,
@@ -117,6 +131,7 @@ func noopPredicateTypes(t *testing.T) (*EmitContext, map[string]*reflection.RunT
 		idxAtomic, recAtomic, patternKey[0], patternKey[1], recPattern, propLit, objLitOnly,
 		tmLit, tupLit, tmObj, tupObj,
 		clsNever, aclsNever, objNeverOnly, clsLit,
+		mapKeyStr, mapValObj, mapValStr, setItemObj, setItemStr, mapObj, mapStr, setObj, setStr,
 	}
 	refTable := make(map[string]*reflection.RunType, len(all))
 	byID := make(map[string]*reflection.RunType, len(all))
@@ -588,15 +603,13 @@ func TestNoopType_RemoveUnknownKeys(t *testing.T) {
 	}
 }
 
-// TestNoopType_UnknownKeys pins the shared five-family arm table plus the two
-// per-family divergences: the reporting families sweep a pattern key whatever
-// its value type, and ukuw keeps the Map/Set arm noop on the wire side.
+// TestNoopType_UnknownKeys pins the shared arm table across the unknown-keys families plus the one per-family
+// divergence: the reporting families sweep a pattern key whatever its value type.
 func TestNoopType_UnknownKeys(t *testing.T) {
 	ctx, types := noopPredicateTypes(t)
 	specs := map[string]unknownKeysNoopSpec{
 		"huk":  hasUnknownKeysNoopSpec,
 		"uke":  unknownKeyErrorsNoopSpec,
-		"uku":  unknownKeysToUndefinedNoopSpec,
 		"ukuw": stripUnknownKeysWireSpec,
 	}
 	type row struct {
@@ -604,7 +617,7 @@ func TestNoopType_UnknownKeys(t *testing.T) {
 		want map[string]bool
 	}
 	same := func(want bool) map[string]bool {
-		return map[string]bool{"huk": want, "uke": want, "uku": want, "ukuw": want}
+		return map[string]bool{"huk": want, "uke": want, "ukuw": want}
 	}
 	rows := []row{
 		{"str", same(true)},
@@ -612,8 +625,8 @@ func TestNoopType_UnknownKeys(t *testing.T) {
 		{"objFn", same(false)},     // function-typed props still count as declared names
 		{"recA", same(true)},       // index sig over atomic values — every key is "known"
 		// A pattern key over atomic values: the reporting families report a key matching no pattern
-		// (real code); the to-undefined families leave it alone, so nothing to sweep, as for recA.
-		{"recP", map[string]bool{"huk": false, "uke": false, "uku": true, "ukuw": true}},
+		// (real code); ukuw leaves it alone, so nothing to sweep, as for recA.
+		{"recP", map[string]bool{"huk": false, "uke": false, "ukuw": true}},
 		{"arrStr", same(true)},
 		{"arrCO", same(false)}, // array of keyed objects
 		{"uAt", same(true)},    // atomic-only union — nothing to sweep
@@ -621,9 +634,14 @@ func TestNoopType_UnknownKeys(t *testing.T) {
 		// An ARRAY is an atomic member of the flat layout, so this union has no merged props at
 		// all; the object inside the array is still swept (unionAtomicMemberDescent).
 		{"uArrObjStr", same(false)},
-		// Every family recurses into a tuple slot. uku and ukuw used to no-op here, which is what
+		// Every family recurses into a tuple slot. ukuw used to no-op here, which is what
 		// let `strategy: 'strip'` hand undeclared keys in a tuple slot straight to a handler.
 		{"tupObj", same(false)},
+		// Every family recurses into a Map value / Set member, ukuw included: its wire arm walks the parsed array.
+		{"mpObj", same(false)},
+		{"stObj", same(false)},
+		{"mpStr", same(true)},
+		{"stStr", same(true)},
 	}
 	for _, r := range rows {
 		for familyTag, spec := range specs {
@@ -632,6 +650,16 @@ func TestNoopType_UnknownKeys(t *testing.T) {
 					t.Errorf("isNoopForUnknownKeys(%s, %s) = %v, want %v", r.id, familyTag, got, r.want[familyTag])
 				}
 			})
+		}
+	}
+}
+
+// TestNoopType_EveryFamilyHasPredicate: a registered family without IsNoopType never gets its noop children
+// elided and silently falls back to the root shape check, which is how the strip decoder's predicate went unwired.
+func TestNoopType_EveryFamilyHasPredicate(t *testing.T) {
+	for _, spec := range Families {
+		if _, ok := spec.Emitter.(NoopTypePredicate); !ok {
+			t.Errorf("family %s: emitter %T does not implement NoopTypePredicate", spec.Key, spec.Emitter)
 		}
 	}
 }

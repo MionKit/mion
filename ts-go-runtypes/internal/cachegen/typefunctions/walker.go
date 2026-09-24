@@ -217,7 +217,6 @@ const (
 	factNoopHasUnknownKeys
 	factNoopRemoveUnknownKeys
 	factNoopUnknownKeyErrors
-	factNoopUnknownKeysToUndefined
 	factNoopStripUnknownKeysWire
 	factRestoreKeyGuard
 	factCount
