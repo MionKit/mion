@@ -51,7 +51,12 @@ import {
 } from '@mionjs/core';
 import {setErrorOptions} from '@mionjs/core';
 import {getPublicApi, resetRemoteMethodsMetadata} from './lib/remoteMethods.ts';
-import {mionClientRoutes, mionClientMiddlewares, useOnDemandMetadataCaller} from './routes/client.routes.ts';
+import {
+  mionClientRoutes,
+  mionClientMiddlewares,
+  mionInternalRouteIds,
+  useOnDemandMetadataCaller,
+} from './routes/client.routes.ts';
 import {mionSyncMiddlewares, setServerBuildVersion} from './routes/syncRoutes.routes.ts';
 import {mionErrorsRoutes, notFoundMiddleware, batchNotFoundMiddleware} from './routes/errors.routes.ts';
 import {capBatchBodySizes, clearBatches, getMaxBatchBodySize, refreshBatchChainBodyLimits} from './batches.ts';
@@ -74,7 +79,6 @@ type RoutesWithId = {
 
 // ############# PRIVATE STATE #############
 
-const mionInternalRoutes = Object.values(MION_ROUTES) as string[];
 const flatRouter = getOrCreateGlobal('mion.router.flatRouter', () => new Map<string, MethodsExecutionChain>()); // Main Router
 /** mion's two not-found chains (an unknown path, an unknown batch id) are NOT routes and not in the
  *  router above: each is the global middleware behind a first member that throws, and is rebuilt on
@@ -437,7 +441,7 @@ function recursiveCreateExecutionChain(
     ];
     const methods = [...startMiddlewares, ...levelMethods, ...endMiddlewares];
     // internal error routes are never client-called: platform's size, not their no-params tuple's tiny one
-    const maxBodySize = mionInternalRoutes.includes(routeMethod.id)
+    const maxBodySize = mionInternalRouteIds.has(routeMethod.id)
       ? routeMethod.options.maxBodySize
       : resolveChainMaxBodySize(methods, routeMethod, routerOptions);
     // published in the metadata; undefined means the platform's, filled in when the metadata is read
@@ -626,7 +630,7 @@ function getPublicMiddlewareIds(methods: RemoteMethod[]): string[] {
     .filter((exec) => isPublicExecutable(exec))
     .map((exec) => getRouterItemId(exec.pointer))
     .filter((mfId) => {
-      if (mionInternalRoutes.includes(mfId)) return false;
+      if (mionInternalRouteIds.has(mfId)) return false;
       const exec = getMiddlewareExecutable(mfId);
       return exec && isPublicExecutable(exec);
     });

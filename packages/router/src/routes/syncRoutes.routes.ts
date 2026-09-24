@@ -5,11 +5,11 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {BUILD_VERSION_HEADER, FatalError, HeadersSubset, MION_ROUTES, routeSyncId} from '@mionjs/core';
+import {BUILD_VERSION_HEADER, FatalError, MION_ROUTES, routeSyncId} from '@mionjs/core';
 import type {SerializableMethodsData} from '@mionjs/core';
 import {middleware} from '../lib/handlers.ts';
-import {getMiddlewareExecutable, getRouterOptions} from '../router.ts';
-import {getMethodsDataFor} from './client.routes.ts';
+import {getMiddlewareExecutable, getRouteExecutable, getRouterOptions} from '../router.ts';
+import {getMethodsDataFor, mionInternalRouteIds} from './client.routes.ts';
 import type {MiddlewaresCollection} from '../types/publicMethods.ts';
 import type {RemoteMethod} from '../types/remoteMethods.ts';
 import type {CallContext} from '../types/context.ts';
@@ -26,7 +26,6 @@ export interface RouteSyncErrorData {
 
 let serverBuildVersion: string | undefined;
 const syncIds = new WeakMap<RemoteMethod, string>();
-const mionInternalRoutes = Object.values(MION_ROUTES) as string[];
 
 /** Called by initRouter with the version the build injected into `initRoutes`. */
 export function setServerBuildVersion(version: string | undefined): void {
@@ -34,17 +33,12 @@ export function setServerBuildVersion(version: string | undefined): void {
 }
 
 /** Sends the API version header and, under `syncRoutes`, refuses a call whose route sync ids are missing or differ. */
-function mionSyncRoutes(
-  ctx: CallContext,
-  routeSyncIds?: string[]
-): HeadersSubset<never, 'x-build-version'> | RouteSyncError | void {
+function mionSyncRoutes(ctx: CallContext, routeSyncIds?: string[]): RouteSyncError | void {
   const opts = getRouterOptions();
+  // set on the response, not returned: a header return beside the error would make the answer a union
+  if (opts.apiVersionCheck && serverBuildVersion) ctx.response.headers.set(BUILD_VERSION_HEADER, serverBuildVersion);
   // a failed chain (not found, a refused body) runs no route, so there is nothing to check
-  if (opts.syncRoutes && !ctx.response.hasErrors) {
-    const refusal = checkRouteSyncIds(ctx, routeSyncIds);
-    if (refusal) return refusal;
-  }
-  if (opts.apiVersionCheck && serverBuildVersion) return new HeadersSubset({[BUILD_VERSION_HEADER]: serverBuildVersion});
+  if (opts.syncRoutes && !ctx.response.hasErrors) return checkRouteSyncIds(ctx, routeSyncIds);
 }
 
 function checkRouteSyncIds(ctx: CallContext, routeSyncIds: string[] | undefined): RouteSyncError | void {
@@ -76,13 +70,10 @@ function checkRouteSyncIds(ctx: CallContext, routeSyncIds: string[] | undefined)
 
 /** The routes a call runs, in call order; mion's own routes (metadata, errors) are never checked. */
 function getCalledRoutes(ctx: CallContext): RemoteMethod[] {
+  if (ctx.batchRouteIds) return ctx.batchRouteIds.map((id) => getRouteExecutable(id) as RemoteMethod);
   const {executionChain} = ctx;
-  if (ctx.batchRouteIds) {
-    const ids = new Set(ctx.batchRouteIds);
-    return executionChain.methods.filter((method) => ids.has(method.id));
-  }
   const route = executionChain.methods[executionChain.routeIndex];
-  if (!route || mionInternalRoutes.includes(route.id)) return [];
+  if (!route || mionInternalRouteIds.has(route.id)) return [];
   return [route];
 }
 
