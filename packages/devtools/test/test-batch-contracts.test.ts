@@ -109,6 +109,7 @@ const LIGHT_PROJECTS = [
   'client',
   'client-bundled',
   'client-mixed',
+  'client-drift',
   'platform-aws',
   'platform-gcloud',
   'platform-node',

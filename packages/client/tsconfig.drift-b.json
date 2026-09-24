@@ -1,0 +1,7 @@
+{
+  // Server B of the drift lane, a program of its own: one initRoutes per program, and its ids are its own build's.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {"rootDir": "../..", "customConditions": ["source"]},
+  "include": ["test/drift/apiB.ts", "test/drift/driftShared.ts"],
+  "exclude": ["node_modules", ".dist"]
+}

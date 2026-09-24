@@ -267,7 +267,8 @@ export type ClientRoutes<
   Prefix extends string = '',
   Root extends RemoteApi = RA extends RemoteApi ? RA : RemoteApi,
 > = Prettify<{
-  [Property in keyof RA as RA[Property] extends NonClientRoute ? never : Property]: RA[Property] extends {
+  // string keys only: the API type `initRoutes` returns carries its router options under a symbol key
+  [Property in keyof RA & string as RA[Property] extends NonClientRoute ? never : Property]: RA[Property] extends {
     type: typeof HandlerType.route;
     handler: infer H extends PublicHandler;
   }
@@ -285,7 +286,7 @@ export type ClientMiddlewares<
   Prefix extends string = '',
   Root extends RemoteApi = RA extends RemoteApi ? RA : RemoteApi,
 > = Prettify<{
-  [Property in keyof RA as RA[Property] extends NonClientMiddleware ? never : Property]: RA[Property] extends {
+  [Property in keyof RA & string as RA[Property] extends NonClientMiddleware ? never : Property]: RA[Property] extends {
     type: typeof HandlerType.middleware | typeof HandlerType.headersMiddleware;
     handler: infer H extends PublicHandler;
   }

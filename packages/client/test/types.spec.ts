@@ -8,10 +8,18 @@
 import {describe, it, expect, expectTypeOf} from 'vitest';
 import {initClient} from '../src/client.ts';
 import {batch} from '../src/batch.ts';
-import type {ApiOf, InitClientOptions, MiddlewareSubRequest, RouteSubRequest} from '../src/types.ts';
+import type {
+  ApiOf,
+  ClientMiddlewares,
+  ClientRoutes,
+  InitClientOptions,
+  MiddlewareSubRequest,
+  RouteSubRequest,
+} from '../src/types.ts';
 import type {TestServerApi} from '@mionjs/test-server';
-import type {InjectApiMetadata, InjectBuildVersion} from '@mionjs/run-types';
+import type {InjectApiMetadata, InjectBuildVersion, InjectRouterOptions} from '@mionjs/run-types';
 import {HeadersSubset} from '@mionjs/core';
+import type {ROUTER_OPTIONS} from '@mionjs/core';
 
 // The route id rides the subrequest TYPE (the key path joined with `/`) next to the API, so it
 // survives destructuring and aliasing, and a build reads which route of which API a dispatch point
@@ -61,10 +69,16 @@ describe('subrequest types carry the route id and the API', () => {
       .parameter(1)
       .toEqualTypeOf<InjectApiMetadata<TestServerApi, 'sayHello' | 'utils/sumTwo'> | undefined>();
     expectTypeOf<ApiOf<[typeof hello]>>().toEqualTypeOf<TestServerApi>();
-    // The lane arrives as a module the build writes; the version slot is the build's too, never filled by a caller
+    // The lane arrives as a module the build writes; the version and router options slots are the build's too
     expectTypeOf(initClient<TestServerApi>).parameters.toEqualTypeOf<
-      [InitClientOptions, (InjectBuildVersion<TestServerApi> | undefined)?]
+      [InitClientOptions, (InjectBuildVersion<TestServerApi> | undefined)?, (InjectRouterOptions<TestServerApi> | undefined)?]
     >();
+  });
+
+  it('the router options key of the API type never reaches the routes or middlewares', () => {
+    type WithOptions = TestServerApi & {readonly [ROUTER_OPTIONS]?: {syncRoutes: true}};
+    expectTypeOf<keyof ClientRoutes<WithOptions>>().toEqualTypeOf<keyof ClientRoutes<TestServerApi>>();
+    expectTypeOf<keyof ClientMiddlewares<WithOptions>>().toEqualTypeOf<keyof ClientMiddlewares<TestServerApi>>();
   });
 
   it('a helper that erases the route name widens the id to string', () => {

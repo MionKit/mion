@@ -26,6 +26,9 @@ export default tseslint.config(
       '**/bun-preload.ts',
       '**/globalSetup.ts',
       'eslint.config.js',
+      // the drift lane's servers are programs of their own (tsconfig.drift-*.json), outside the package
+      // tsconfig the type-aware parser loads; oxlint still lints them
+      'packages/client/test/drift/**',
       // The runtypes packages are linted by oxlint, which owns the `runtypes/*`
       // rules for the whole repo; this config carries mion's own plugin rules
       // (strong-typed-routes and friends), which mean nothing over there.
