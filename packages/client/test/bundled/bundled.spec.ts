@@ -9,13 +9,13 @@
 // in with its call site and evaluates no code string; only a route the build never saw reaches the server.
 
 import {describe, it, expect, beforeEach, afterEach, inject, vi} from 'vitest';
-import {HeadersSubset, MION_ROUTES, getRoutePath, type MethodWithOptions} from '@mionjs/core';
+import {HeadersSubset, MION_ROUTES} from '@mionjs/core';
 import type {TestServerApi} from '@mionjs/test-server';
 import {initClient} from '../../src/client.ts';
 import {batch} from '../../src/batch.ts';
 import {resetClientCaches} from '../lib/testUtils.ts';
 import {resetBundledApi} from '../../src/lib/bundledApi.ts';
-import {bundledMethodIds, getMethod, isBundledMethod, useMethodFns} from '../../src/lib/methods.ts';
+import {getMethod, isBundledMethod, useMethodFns} from '../../src/lib/methods.ts';
 import {isMetadataFromServerLoaded} from '../../src/lib/metadataFromServerLoader.ts';
 import type {InjectedApiMetadata} from '../../src/types.ts';
 import {MemoryMetadataStore, resetMetadataStore, setMetadataStoreForTesting} from '../../src/lib/metadataStore.ts';
