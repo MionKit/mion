@@ -83,7 +83,7 @@ export interface SerializationCase {
 
   /** Optional override consumed by the **clone** (shape-derived, strips)
    *  path adapter (`prepareForJsonSafe + JSON.stringify` /
-   *  `JSON.parse + (stripUnknownKeys | unknownKeyErrors) + restoreFromJsonMutate`).
+   *  `JSON.parse + stripUnknownKeys + restoreFromJsonMutate`).
    *
    *  Provide only when the clone path produces a different observable
    *  than the mutate path — typically when an input carries extras

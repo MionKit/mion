@@ -13,7 +13,7 @@
 // route input share its validator with any other consumer of the same type.
 
 import {describe, it, expect} from 'vitest';
-import {createHasUnknownKeysFn, createValidateFn, getRunTypeId} from '@mionjs/run-types';
+import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
 // Note: Must use regular import (not `import type`) for reflection to work
 import {UUIDv4, Email, String as Text, Integer} from '@mionjs/run-types/formats';
 import type {InsertModel, SelectModel, UpdateModel} from '@mionjs/run-types';
@@ -73,9 +73,9 @@ describe('InsertModel — defaulted keys optional, generated keys gone', () => {
   });
 
   it('a generated key is flagged as unknown when sent', () => {
-    const hasUnknownKeys = createHasUnknownKeysFn<NewUserGeneratedId>();
-    expect(hasUnknownKeys({email: 'ann@example.com', name: 'ann', age: 30, id: uuid})).toBe(true);
-    expect(hasUnknownKeys({email: 'ann@example.com', name: 'ann', age: 30})).toBe(false);
+    const validateStrict = createValidateFn<NewUserGeneratedId>(undefined, {checkUnknowns: true});
+    expect(validateStrict({email: 'ann@example.com', name: 'ann', age: 30, id: uuid})).toBe(false);
+    expect(validateStrict({email: 'ann@example.com', name: 'ann', age: 30})).toBe(true);
   });
 });
 

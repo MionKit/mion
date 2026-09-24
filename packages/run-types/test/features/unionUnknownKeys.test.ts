@@ -5,7 +5,7 @@
 // the key families cannot all agree.
 
 import {describe, expect, it} from 'vitest';
-import {createHasUnknownKeysFn, createValidateFn, getRunTypeId} from '../../src/index.ts';
+import {createJsonDecoderFn, createValidateFn, getRunTypeId} from '../../src/index.ts';
 import {getFnHash, getRTFnCaches} from '@mionjs/run-types/runtime';
 import {entryCode} from '../../src/runtypes/rtUtils.ts';
 
@@ -471,32 +471,34 @@ describe('where the check sits, and where it stops', () => {
 // ---------------------------------------------------------------- Group D: why the families disagree
 
 describe('the key families cannot all agree, and this is the line', () => {
-  // hasUnknownKeys, unknownKeyErrors and every stripping codec answer "declared by NO member": they never validate, so
-  // they pool every member's names, and a record member makes that pool everything. Asking them the other question, "is
-  // any key undeclared by the member that MATCHED", means validating inside every codec.
+  // Every stripping codec answers "declared by NO member": it never validates, so it pools every member's names, and a
+  // record member makes that pool everything. Asking it the other question, "is any key undeclared by the member that
+  // MATCHED", means validating inside every codec. The strip decoder stands in for the pooled families below.
   it('the pooled answer admits a sibling key that the matched branch rejects', () => {
     const validate = createValidateFn<Pet>();
-    const hasUnknown = createHasUnknownKeysFn<Pet>();
+    const stripDecode = createJsonDecoderFn<Pet>(undefined, {strategy: 'strip'});
     const unionKeys = createValidateFn<Pet>(undefined, {checkUnionUnknowns: true});
     const mixed = {kind: 'cat', meows: true, barks: 3};
-    expect(validate(mixed) && !hasUnknown(mixed)).toBe(true);
+    expect(validate(mixed)).toBe(true);
+    expect(stripDecode(JSON.stringify(mixed))).toStrictEqual(mixed);
     expect(unionKeys(mixed)).toBe(false);
   });
 
   it('a key belonging to NO member is rejected by both, and that must never drift', () => {
-    const validate = createValidateFn<Pet>();
-    const hasUnknown = createHasUnknownKeysFn<Pet>();
+    const stripDecode = createJsonDecoderFn<Pet>(undefined, {strategy: 'strip'});
     const unionKeys = createValidateFn<Pet>(undefined, {checkUnionUnknowns: true});
     const stray = {kind: 'cat', meows: true, zzz: 9};
-    expect(validate(stray) && !hasUnknown(stray)).toBe(false);
+    const stripped = stripDecode(JSON.stringify(stray)) as Record<string, unknown>;
+    expect(stripped.zzz).toBeUndefined();
+    expect(stripped).toEqual({kind: 'cat', meows: true});
     expect(unionKeys(stray)).toBe(false);
   });
 
   it('a record member blinds the pooled families for the whole subtree', () => {
-    const hasUnknown = createHasUnknownKeysFn<ObjectOrNumbers>();
+    const stripDecode = createJsonDecoderFn<ObjectOrNumbers>(undefined, {strategy: 'strip'});
     const unionKeys = createValidateFn<ObjectOrNumbers>(undefined, {checkUnionUnknowns: true});
     const value = {a: 'x', evil: 'garbage'};
-    expect(hasUnknown(value)).toBe(false);
+    expect(stripDecode(JSON.stringify(value))).toStrictEqual(value);
     expect(unionKeys(value)).toBe(false);
   });
 });

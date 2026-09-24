@@ -24,8 +24,7 @@ import {
   createBinaryEncoderFn,
   createBinaryDecoderFn,
   createValidateFn,
-  createHasUnknownKeysFn,
-  createUnknownKeyErrorsFn,
+  createGetValidationErrorsFn,
 } from '@mionjs/run-types';
 import {registerClassSerializer} from '@mionjs/run-types/runtime';
 import {clearClassSerializers} from '../../src/runtypes/classSerializerRegistry.ts';
@@ -112,12 +111,16 @@ describe('classSerializer / a base class and its subclass declared in one union'
     expect(createValidateFn(sample)(auth())).toBe(true);
     expect(createValidateFn(sample)(new BaseErr('x'))).toBe(true);
     const stray = {type: 'x', scope: 'admin', retryAfter: 30, bogus: 1};
-    expect(createHasUnknownKeysFn(sample)(stray)).toBe(true);
-    expect(createHasUnknownKeysFn<AuthErr>()(stray)).toBe(true);
-    expect(paths(createUnknownKeyErrorsFn(sample)(stray))).toEqual(['bogus']);
-    expect(paths(createUnknownKeyErrorsFn<AuthErr>()(stray))).toEqual(['bogus']);
-    expect(createHasUnknownKeysFn(sample)(auth())).toBe(false);
-    expect(createUnknownKeyErrorsFn(sample)(new BaseErr('x'))).toEqual([]);
+    const authSample = auth();
+    expect(createValidateFn(sample, {checkUnknowns: true})(stray)).toBe(false);
+    expect(createValidateFn<AuthErr>(undefined, {checkUnknowns: true})(stray)).toBe(false);
+    expect(createValidateFn(authSample, {checkUnknowns: true})(stray)).toBe(false);
+    // A union reports the undeclared key at its own root: the key is only undeclared relative to a branch.
+    expect(paths(createGetValidationErrorsFn(sample, {checkUnknowns: true})(stray))).toEqual(['']);
+    expect(paths(createGetValidationErrorsFn<AuthErr>(undefined, {checkUnknowns: true})(stray))).toEqual(['bogus']);
+    expect(paths(createGetValidationErrorsFn(authSample, {checkUnknowns: true})(stray))).toEqual(['bogus']);
+    expect(createValidateFn(sample, {checkUnknowns: true})(auth())).toBe(true);
+    expect(createGetValidationErrorsFn(sample, {checkUnknowns: true})(new BaseErr('x'))).toEqual([]);
   });
 
   it("static — the decoder's default 'strip' drops a stray key inside the union like at the root", () => {

@@ -13,7 +13,6 @@ import {
   createBinaryEncoderFn,
   createRemoveUnknownKeysFn,
   createGetValidationErrorsFn,
-  createHasUnknownKeysFn,
   createJsonDecoderFn,
   createJsonEncoderFn,
   createJsonSchemaFn,
@@ -102,7 +101,8 @@ const decoders = {
 const toBinary = createBinaryEncoderFn<Corpus>();
 const fromBinary = createBinaryDecoderFn<Corpus>();
 const clone = createRemoveUnknownKeysFn<Corpus>();
-createHasUnknownKeysFn<Corpus>();
+createValidateFn<Corpus>(undefined, {checkUnknowns: true});
+createGetValidationErrorsFn<Corpus>(undefined, {checkUnknowns: true});
 createJsonSchemaFn<Corpus>();
 createMockDataFn<Corpus>();
 createValidateFn<Keyed>();
@@ -161,7 +161,7 @@ describe('generated-code corpus scan (hand-written nasty corpus)', () => {
     const bodies = emittedBodies();
     const families = new Set(bodies.map((b) => b.family));
     expect(bodies.length).toBeGreaterThan(20);
-    for (const family of ['val', 'verr', 'pjs', 'sj', 'cj', 'jdST', 'jdPR', 'jdCO', 'tb', 'fb', 'ruk']) {
+    for (const family of ['val', 'verr', 'pjs', 'sj', 'cj', 'jdST', 'jdPR', 'jdCO', 'tb', 'fb', 'ruk', 'vst', 'vest']) {
       expect(families, `family ${family} must be in the corpus`).toContain(family);
     }
   });
