@@ -27,7 +27,7 @@ func compositeBodyForKind(t *testing.T, kind reflection.ReflectionKind, tag stri
 // "[null]" instead of the bare JS value `undefined` (which JSON.parse rejects).
 func TestRootWrap_UndefinedVoidEncodersWrap(t *testing.T) {
 	for _, kind := range []reflection.ReflectionKind{reflection.KindUndefined, reflection.KindVoid} {
-		for _, tag := range []string{"jeCL", "jeMU", "jeDI"} {
+		for _, tag := range []string{"jeCL", "jeMU"} {
 			body := compositeBodyForKind(t, kind, tag)
 			if !strings.Contains(body, "JSON.stringify([") {
 				t.Errorf("kind=%d %s encoder must array-wrap (JSON.stringify([…])); got:\n%s", kind, tag, body)
@@ -36,14 +36,14 @@ func TestRootWrap_UndefinedVoidEncodersWrap(t *testing.T) {
 	}
 }
 
-// Decoders are deliberately unchanged: restoreFromJsonMutate for undefined/void is
-// `return v = undefined`, so it yields undefined for ANY parsed input — the
-// wrapped document round-trips with no decode-side unwrap.
+// Decoders are deliberately unchanged: the restore primitive for undefined/void
+// yields undefined for ANY parsed input — the wrapped document round-trips with
+// no decode-side unwrap.
 func TestRootWrap_UndefinedDecodersUnchanged(t *testing.T) {
-	for _, tag := range []string{"jdST", "jdPR"} {
+	for tag, restoreCall := range map[string]string{"jdCL": "rjsFn(", "jdMU": "rjFn("} {
 		body := compositeBodyForKind(t, reflection.KindUndefined, tag)
-		if !strings.Contains(body, "rjFn(") {
-			t.Errorf("%s decoder should still call restoreFromJsonMutate; got:\n%s", tag, body)
+		if !strings.Contains(body, restoreCall) {
+			t.Errorf("%s decoder should still call its restore primitive %q; got:\n%s", tag, restoreCall, body)
 		}
 		if strings.Contains(body, "[0]") {
 			t.Errorf("%s decoder should not need to unwrap [0]; got:\n%s", tag, body)

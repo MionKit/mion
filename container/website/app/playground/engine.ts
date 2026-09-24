@@ -314,7 +314,7 @@ export async function transformedSource(
 // A single generated cache module: the virtual-module specifier the transformed
 // file (or a sibling cache) imports, plus its `export const __rt_… = […]` source.
 export interface CacheModule {
-  name: string; // e.g. `rtmod:/fns/jdST.js`
+  name: string; // e.g. `rtmod:/fns/jdCL.js`
   code: string;
 }
 

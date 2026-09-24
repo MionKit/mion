@@ -23,11 +23,10 @@ type RecordUnion = Record<string, number> | {type: string; isTypeError: true};
 describe('serialization / record-union JSON encoding (regression)', () => {
   it('Record<string, number> | {type, isTypeError} → bare object, never enveloped', () => {
     const clone = createJsonEncoderFn<RecordUnion>();
-    const direct = createJsonEncoderFn<RecordUnion>(undefined, {strategy: 'direct'});
     const mutate = createJsonEncoderFn<RecordUnion>(undefined, {strategy: 'mutate'});
     const compact = createJsonEncoderFn<RecordUnion>(undefined, {strategy: 'compact'});
 
-    for (const enc of [clone, direct, mutate, compact]) {
+    for (const enc of [clone, mutate, compact]) {
       // Object arm — declared-shape order (type, isTypeError).
       expect(enc({type: 'oops', isTypeError: true})).toBe('{"type":"oops","isTypeError":true}');
       // Record arm — bare object, no wrapper.
@@ -57,10 +56,9 @@ describe('serialization / record-union JSON encoding (regression)', () => {
 
   it('pure object union {a: string} | {b: number} → bare object, no envelope', () => {
     const clone = createJsonEncoderFn<{a: string} | {b: number}>();
-    const direct = createJsonEncoderFn<{a: string} | {b: number}>(undefined, {strategy: 'direct'});
     const mutate = createJsonEncoderFn<{a: string} | {b: number}>(undefined, {strategy: 'mutate'});
 
-    for (const enc of [clone, direct, mutate]) {
+    for (const enc of [clone, mutate]) {
       expect(enc({a: 'hi'})).toBe('{"a":"hi"}');
       expect(enc({b: 7})).toBe('{"b":7}');
       expect(enc({a: 'hi'})).not.toMatch(TOP_ENVELOPE);
@@ -80,9 +78,8 @@ describe('serialization / record-union JSON encoding (regression)', () => {
   });
 
   it('safe decoder still strips undeclared keys on a bare (un-enveloped) union wire', () => {
-    // The envelope elision must not weaken decoder safety: the default (strip)
-    // decoder still nukes keys the union never declared, now off the bare
-    // merged object instead of the `[-1, …]` wrapper.
+    // The envelope elision must not weaken decoder safety: the default (clone)
+    // decoder still drops keys the union never declared.
     const dec = createJsonDecoderFn<{a: string} | {b: number}>();
     const dirty = JSON.stringify({a: 'hi', evil: 'sneaky'});
     const back = dec(dirty) as Record<string, unknown>;

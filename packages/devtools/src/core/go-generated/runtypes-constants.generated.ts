@@ -22,8 +22,6 @@ export const CACHE_MODULES = {
   restoreFromJsonClone: {name: 'restoreFromJsonCloneModule', varPrefix: 'g_rjs_', tag: 'rjs'},
   restoreFromJsonMutate: {name: 'restoreFromJsonMutateModule', varPrefix: 'g_rj_', tag: 'rj'},
   runTypes: {name: 'runTypesModule', varPrefix: 't_', tag: 't'},
-  stringifyJson: {name: 'stringifyJsonModule', varPrefix: 'g_sj_', tag: 'sj'},
-  stripUnknownKeysWire: {name: 'stripUnknownKeysWireModule', varPrefix: 'g_ukuw_', tag: 'ukuw'},
   toBinary: {name: 'toBinaryModule', varPrefix: 'g_tb_', tag: 'tb'},
   validate: {name: 'validateModule', varPrefix: 'g_val_', tag: 'val'},
   validateStrict: {name: 'validateStrictModule', varPrefix: 'g_vst_', tag: 'vst'},
@@ -72,12 +70,6 @@ export const RESTOREFROMJSONMUTATE_TAG = 'rj';
 export const RUNTYPES_VAR_PREFIX = 't_';
 export const RUNTYPES_MODULE_NAME = 'runTypesModule';
 export const RUNTYPES_TAG = 't';
-export const STRINGIFYJSON_VAR_PREFIX = 'g_sj_';
-export const STRINGIFYJSON_MODULE_NAME = 'stringifyJsonModule';
-export const STRINGIFYJSON_TAG = 'sj';
-export const STRIPUNKNOWNKEYSWIRE_VAR_PREFIX = 'g_ukuw_';
-export const STRIPUNKNOWNKEYSWIRE_MODULE_NAME = 'stripUnknownKeysWireModule';
-export const STRIPUNKNOWNKEYSWIRE_TAG = 'ukuw';
 export const TOBINARY_VAR_PREFIX = 'g_tb_';
 export const TOBINARY_MODULE_NAME = 'toBinaryModule';
 export const TOBINARY_TAG = 'tb';

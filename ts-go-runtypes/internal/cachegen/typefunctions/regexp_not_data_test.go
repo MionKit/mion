@@ -19,12 +19,11 @@ func mkRegexp() *reflection.RunType {
 	return &reflection.RunType{ID: "re", Kind: reflection.KindRegexp}
 }
 
-var serdeFamilies = []string{"prepareForJsonMutate", "prepareForJsonClone", "stringifyJson", "restoreFromJsonMutate", "toBinary", "fromBinary"}
+var serdeFamilies = []string{"prepareForJsonMutate", "prepareForJsonClone", "restoreFromJsonMutate", "toBinary", "fromBinary"}
 
 var regexpRootCodes = map[string]string{
 	"prepareForJsonMutate":  diagnostics.CodePJNonSerializableRoot,
 	"prepareForJsonClone":   diagnostics.CodePJSNonSerializableRoot,
-	"stringifyJson":         diagnostics.CodeSJNonSerializableRoot,
 	"restoreFromJsonMutate": diagnostics.CodeRJNonSerializableRoot,
 	"toBinary":              diagnostics.CodeTBNonSerializableRoot,
 	"fromBinary":            diagnostics.CodeFBNonSerializableRoot,

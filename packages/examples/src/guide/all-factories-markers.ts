@@ -9,8 +9,7 @@ function userCodec<T>(
     T,
     'validate',
     'prepareForJsonClone',
-    'restoreFromJsonClone',
-    'stringifyJson'
+    'restoreFromJsonClone'
   >
 ) {
   return {
@@ -18,7 +17,6 @@ function userCodec<T>(
     isValid: getRTFunction<'validate'>(fns?.[0]),
     prepare: getRTFunction<'prepareForJsonClone'>(fns?.[1]),
     restore: getRTFunction<'restoreFromJsonClone'>(fns?.[2]),
-    stringify: getRTFunction<'stringifyJson'>(fns?.[3]),
   };
 }
 

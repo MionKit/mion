@@ -26,8 +26,6 @@ func init() {
 		diagnostics.CodePJSNeverRoot, diagnostics.CodePJSNonSerializableRoot, diagnostics.CodePJSFunctionRoot, diagnostics.CodePJSSymbolRoot)
 	registerRootThrow("decoded", "from JSON",
 		diagnostics.CodeRJNeverRoot, diagnostics.CodeRJNonSerializableRoot, diagnostics.CodeRJFunctionRoot, diagnostics.CodeRJSymbolRoot)
-	registerRootThrow("stringified", "to JSON",
-		diagnostics.CodeSJNeverRoot, diagnostics.CodeSJNonSerializableRoot, diagnostics.CodeSJFunctionRoot, diagnostics.CodeSJSymbolRoot)
 	registerRootThrow("serialised", "to binary",
 		diagnostics.CodeTBNeverRoot, diagnostics.CodeTBNonSerializableRoot, diagnostics.CodeTBFunctionRoot, diagnostics.CodeTBSymbolRoot)
 	registerRootThrow("deserialised", "from binary",

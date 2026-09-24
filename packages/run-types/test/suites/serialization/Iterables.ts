@@ -11,10 +11,9 @@ export const ITERABLES = {
     serializeNotes: 'Set round-trips as a JSON array (insertion order preserved), rehydrated to a Set on decode.',
     mutateEncoder: () => createJsonEncoderFn<Set<string>>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<Set<string>>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<Set<string>>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<Set<string>>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<Set<string>>(),
-    preserveDecoder: () => createJsonDecoderFn<Set<string>>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<Set<string>>(),
+    mutateDecoder: () => createJsonDecoderFn<Set<string>>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<Set<string>>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<Set<string>>(),
     binaryDecoder: () => createBinaryDecoderFn<Set<string>>(),
@@ -31,10 +30,9 @@ export const ITERABLES = {
       'A Set builds its JSON array via `[...].join(",")` like a plain array, so a null / undefined element must emit the constant `"null"` rather than a bare value (which join would drop, shrinking the Set).',
     mutateEncoder: () => createJsonEncoderFn<Set<number | null>>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<Set<number | null>>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<Set<number | null>>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<Set<number | null>>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<Set<number | null>>(),
-    preserveDecoder: () => createJsonDecoderFn<Set<number | null>>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<Set<number | null>>(),
+    mutateDecoder: () => createJsonDecoderFn<Set<number | null>>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<Set<number | null>>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<Set<number | null>>(),
     binaryDecoder: () => createBinaryDecoderFn<Set<number | null>>(),
@@ -51,10 +49,9 @@ export const ITERABLES = {
       'A Set builds its JSON array via `[...].join(",")`, so a void / undefined element must emit the constant "null" rather than a bare value that join would coerce to empty and drop.',
     mutateEncoder: () => createJsonEncoderFn<Set<void>>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<Set<void>>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<Set<void>>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<Set<void>>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<Set<void>>(),
-    preserveDecoder: () => createJsonDecoderFn<Set<void>>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<Set<void>>(),
+    mutateDecoder: () => createJsonDecoderFn<Set<void>>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<Set<void>>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<Set<void>>(),
     binaryDecoder: () => createBinaryDecoderFn<Set<void>>(),
@@ -92,16 +89,6 @@ export const ITERABLES = {
       }
       return createJsonEncoderFn<Set<SmallObject>>(undefined, {strategy: 'clone'});
     },
-    directEncoder: () => {
-      interface SmallObject {
-        prop1: string;
-        prop2: number;
-        prop3: boolean;
-        prop4?: Date;
-        prop5?: bigint;
-      }
-      return createJsonEncoderFn<Set<SmallObject>>(undefined, {strategy: 'direct'});
-    },
     compactEncoder: () => {
       interface SmallObject {
         prop1: string;
@@ -112,7 +99,7 @@ export const ITERABLES = {
       }
       return createJsonEncoderFn<Set<SmallObject>>(undefined, {strategy: 'compact'});
     },
-    stripDecoder: () => {
+    cloneDecoder: () => {
       interface SmallObject {
         prop1: string;
         prop2: number;
@@ -122,7 +109,7 @@ export const ITERABLES = {
       }
       return createJsonDecoderFn<Set<SmallObject>>();
     },
-    preserveDecoder: () => {
+    mutateDecoder: () => {
       interface SmallObject {
         prop1: string;
         prop2: number;
@@ -130,7 +117,7 @@ export const ITERABLES = {
         prop4?: Date;
         prop5?: bigint;
       }
-      return createJsonDecoderFn<Set<SmallObject>>(undefined, {strategy: 'preserve'});
+      return createJsonDecoderFn<Set<SmallObject>>(undefined, {strategy: 'mutate'});
     },
     compactDecoder: () => {
       interface SmallObject {
@@ -252,15 +239,6 @@ export const ITERABLES = {
       }
       return createJsonEncoderFn<DeepWithSet>(undefined, {strategy: 'clone'});
     },
-    directEncoder: () => {
-      type Set1 = Set<{s: string; arr: number[]}>;
-      interface DeepWithSet {
-        a: string;
-        b: Set1;
-        c: Set1;
-      }
-      return createJsonEncoderFn<DeepWithSet>(undefined, {strategy: 'direct'});
-    },
     compactEncoder: () => {
       type Set1 = Set<{s: string; arr: number[]}>;
       interface DeepWithSet {
@@ -270,7 +248,7 @@ export const ITERABLES = {
       }
       return createJsonEncoderFn<DeepWithSet>(undefined, {strategy: 'compact'});
     },
-    stripDecoder: () => {
+    cloneDecoder: () => {
       type Set1 = Set<{s: string; arr: number[]}>;
       interface DeepWithSet {
         a: string;
@@ -279,14 +257,14 @@ export const ITERABLES = {
       }
       return createJsonDecoderFn<DeepWithSet>();
     },
-    preserveDecoder: () => {
+    mutateDecoder: () => {
       type Set1 = Set<{s: string; arr: number[]}>;
       interface DeepWithSet {
         a: string;
         b: Set1;
         c: Set1;
       }
-      return createJsonDecoderFn<DeepWithSet>(undefined, {strategy: 'preserve'});
+      return createJsonDecoderFn<DeepWithSet>(undefined, {strategy: 'mutate'});
     },
     compactDecoder: () => {
       type Set1 = Set<{s: string; arr: number[]}>;
@@ -367,10 +345,9 @@ export const ITERABLES = {
       'Map round-trips as a JSON array of [key, value] pairs (insertion order preserved), rehydrated to a Map on decode.',
     mutateEncoder: () => createJsonEncoderFn<Map<string, number>>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<Map<string, number>>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<Map<string, number>>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<Map<string, number>>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<Map<string, number>>(),
-    preserveDecoder: () => createJsonDecoderFn<Map<string, number>>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<Map<string, number>>(),
+    mutateDecoder: () => createJsonDecoderFn<Map<string, number>>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<Map<string, number>>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<Map<string, number>>(),
     binaryDecoder: () => createBinaryDecoderFn<Map<string, number>>(),
@@ -416,16 +393,6 @@ export const ITERABLES = {
       }
       return createJsonEncoderFn<Map<string, SmallObject>>(undefined, {strategy: 'clone'});
     },
-    directEncoder: () => {
-      interface SmallObject {
-        prop1: string;
-        prop2: number;
-        prop3: boolean;
-        prop4?: Date;
-        prop5?: bigint;
-      }
-      return createJsonEncoderFn<Map<string, SmallObject>>(undefined, {strategy: 'direct'});
-    },
     compactEncoder: () => {
       interface SmallObject {
         prop1: string;
@@ -436,7 +403,7 @@ export const ITERABLES = {
       }
       return createJsonEncoderFn<Map<string, SmallObject>>(undefined, {strategy: 'compact'});
     },
-    stripDecoder: () => {
+    cloneDecoder: () => {
       interface SmallObject {
         prop1: string;
         prop2: number;
@@ -446,7 +413,7 @@ export const ITERABLES = {
       }
       return createJsonDecoderFn<Map<string, SmallObject>>();
     },
-    preserveDecoder: () => {
+    mutateDecoder: () => {
       interface SmallObject {
         prop1: string;
         prop2: number;
@@ -454,7 +421,7 @@ export const ITERABLES = {
         prop4?: Date;
         prop5?: bigint;
       }
-      return createJsonDecoderFn<Map<string, SmallObject>>(undefined, {strategy: 'preserve'});
+      return createJsonDecoderFn<Map<string, SmallObject>>(undefined, {strategy: 'mutate'});
     },
     compactDecoder: () => {
       interface SmallObject {
@@ -585,16 +552,6 @@ export const ITERABLES = {
       }
       return createJsonEncoderFn<Map<SmallObject, number>>(undefined, {strategy: 'clone'});
     },
-    directEncoder: () => {
-      interface SmallObject {
-        prop1: string;
-        prop2: number;
-        prop3: boolean;
-        prop4?: Date;
-        prop5?: bigint;
-      }
-      return createJsonEncoderFn<Map<SmallObject, number>>(undefined, {strategy: 'direct'});
-    },
     compactEncoder: () => {
       interface SmallObject {
         prop1: string;
@@ -605,7 +562,7 @@ export const ITERABLES = {
       }
       return createJsonEncoderFn<Map<SmallObject, number>>(undefined, {strategy: 'compact'});
     },
-    stripDecoder: () => {
+    cloneDecoder: () => {
       interface SmallObject {
         prop1: string;
         prop2: number;
@@ -615,7 +572,7 @@ export const ITERABLES = {
       }
       return createJsonDecoderFn<Map<SmallObject, number>>();
     },
-    preserveDecoder: () => {
+    mutateDecoder: () => {
       interface SmallObject {
         prop1: string;
         prop2: number;
@@ -623,7 +580,7 @@ export const ITERABLES = {
         prop4?: Date;
         prop5?: bigint;
       }
-      return createJsonDecoderFn<Map<SmallObject, number>>(undefined, {strategy: 'preserve'});
+      return createJsonDecoderFn<Map<SmallObject, number>>(undefined, {strategy: 'mutate'});
     },
     compactDecoder: () => {
       interface SmallObject {
@@ -745,13 +702,6 @@ export const ITERABLES = {
       }
       return createJsonEncoderFn<DeepWithMap>(undefined, {strategy: 'clone'});
     },
-    directEncoder: () => {
-      interface DeepWithMap {
-        a: string;
-        b: Map<string, {sm: {s: string; arr: number[]}}>;
-      }
-      return createJsonEncoderFn<DeepWithMap>(undefined, {strategy: 'direct'});
-    },
     compactEncoder: () => {
       interface DeepWithMap {
         a: string;
@@ -759,19 +709,19 @@ export const ITERABLES = {
       }
       return createJsonEncoderFn<DeepWithMap>(undefined, {strategy: 'compact'});
     },
-    stripDecoder: () => {
+    cloneDecoder: () => {
       interface DeepWithMap {
         a: string;
         b: Map<string, {sm: {s: string; arr: number[]}}>;
       }
       return createJsonDecoderFn<DeepWithMap>();
     },
-    preserveDecoder: () => {
+    mutateDecoder: () => {
       interface DeepWithMap {
         a: string;
         b: Map<string, {sm: {s: string; arr: number[]}}>;
       }
-      return createJsonDecoderFn<DeepWithMap>(undefined, {strategy: 'preserve'});
+      return createJsonDecoderFn<DeepWithMap>(undefined, {strategy: 'mutate'});
     },
     compactDecoder: () => {
       interface DeepWithMap {
@@ -844,10 +794,9 @@ export const ITERABLES = {
     ],
     mutateEncoder: () => createJsonEncoderFn<Map<bigint, number>>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<Map<bigint, number>>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<Map<bigint, number>>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<Map<bigint, number>>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<Map<bigint, number>>(),
-    preserveDecoder: () => createJsonDecoderFn<Map<bigint, number>>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<Map<bigint, number>>(),
+    mutateDecoder: () => createJsonDecoderFn<Map<bigint, number>>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<Map<bigint, number>>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<Map<bigint, number>>(),
     binaryDecoder: () => createBinaryDecoderFn<Map<bigint, number>>(),
@@ -875,10 +824,9 @@ export const ITERABLES = {
     ],
     mutateEncoder: () => createJsonEncoderFn<Map<string, Date>>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<Map<string, Date>>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<Map<string, Date>>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<Map<string, Date>>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<Map<string, Date>>(),
-    preserveDecoder: () => createJsonDecoderFn<Map<string, Date>>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<Map<string, Date>>(),
+    mutateDecoder: () => createJsonDecoderFn<Map<string, Date>>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<Map<string, Date>>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<Map<string, Date>>(),
     binaryDecoder: () => createBinaryDecoderFn<Map<string, Date>>(),

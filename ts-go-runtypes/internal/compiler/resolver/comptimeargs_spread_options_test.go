@@ -81,22 +81,22 @@ func TestSpreadOptions_StrategyMergeAndOverride(t *testing.T) {
 const preset = {strategy: 'mutate'} as const;
 export const spread = createJsonEncoderFn<{x: number}>(undefined, {...preset});
 export const inlineMutate = createJsonEncoderFn<{x: number}>(undefined, {strategy: 'mutate'});
-export const overridden = createJsonEncoderFn<{x: number}>(undefined, {...preset, strategy: 'direct'});
-export const inlineDirect = createJsonEncoderFn<{x: number}>(undefined, {strategy: 'direct'});
+export const overridden = createJsonEncoderFn<{x: number}>(undefined, {...preset, strategy: 'compact'});
+export const inlineCompact = createJsonEncoderFn<{x: number}>(undefined, {strategy: 'compact'});
 `
 	fnIds := scanFnIds(t, code)
 	if len(fnIds) != 4 {
 		t.Fatalf("expected 4 sites, got %d: %v", len(fnIds), fnIds)
 	}
-	spread, inlineMutate, overridden, inlineDirect := fnIds[0], fnIds[1], fnIds[2], fnIds[3]
+	spread, inlineMutate, overridden, inlineCompact := fnIds[0], fnIds[1], fnIds[2], fnIds[3]
 	if spread != inlineMutate {
 		t.Errorf("spread preset strategy must match inline: spread FnId=%q, inlineMutate FnId=%q", spread, inlineMutate)
 	}
-	if overridden != inlineDirect {
-		t.Errorf("inline strategy must override the spread preset: overridden FnId=%q, inlineDirect FnId=%q", overridden, inlineDirect)
+	if overridden != inlineCompact {
+		t.Errorf("inline strategy must override the spread preset: overridden FnId=%q, inlineCompact FnId=%q", overridden, inlineCompact)
 	}
 	if spread == overridden {
-		t.Errorf("mutate and direct strategies must differ: both FnId=%q", spread)
+		t.Errorf("mutate and compact strategies must differ: both FnId=%q", spread)
 	}
 }
 

@@ -43,11 +43,10 @@ function isPortable(options?: StandardJSONSchemaOptions): boolean {
   return options?.libraryOptions?.portable === true;
 }
 
-// The encoder strategies whose keyed wire NEVER carries undeclared keys: `clone` builds the value from
-// the declared shape, `direct` walks it, while `mutate` preserves extras on the wire. Closedness is
-// DERIVED from this: there is deliberately no independent additionalProperties param to contradict it.
-const STRIPPING_ENCODER_STRATEGIES = new Set<JsonEncoderStrategy>(['clone', 'direct']);
-const ENCODER_STRATEGIES = new Set<JsonEncoderStrategy>(['clone', 'mutate', 'direct', 'compact']);
+// Only `clone`'s keyed wire NEVER carries undeclared keys (it builds the value from the declared shape);
+// `mutate` preserves extras. Closedness is DERIVED from this: there is deliberately no independent
+// additionalProperties param to contradict it.
+const ENCODER_STRATEGIES = new Set<JsonEncoderStrategy>(['clone', 'mutate', 'compact']);
 
 /** `'compact'` throws: its wire is positional arrays, which this keyed document does not describe. **/
 function encoderStrategyOf(options?: StandardJSONSchemaOptions): JsonEncoderStrategy | undefined {
@@ -55,7 +54,7 @@ function encoderStrategyOf(options?: StandardJSONSchemaOptions): JsonEncoderStra
   if (raw === undefined) return undefined;
   if (!ENCODER_STRATEGIES.has(raw as JsonEncoderStrategy)) {
     const shown = typeof raw === 'string' ? `'${raw}'` : `a ${typeof raw}`;
-    throw new RangeError(`unknown encoderStrategy ${shown} (expected 'clone' | 'mutate' | 'direct')`);
+    throw new RangeError(`unknown encoderStrategy ${shown} (expected 'clone' | 'mutate')`);
   }
   if (raw === 'compact') {
     throw new RangeError(
@@ -118,7 +117,7 @@ export function buildJsonSchemaConverter(docFn: JsonSchemaDocFn): StandardJSONSc
     // The stamp runs BEFORE the portable strip: additionalProperties is standard vocabulary, so a
     // portable closed document keeps it.
     const strategy = encoderStrategyOf(options);
-    if (strategy !== undefined && STRIPPING_ENCODER_STRATEGIES.has(strategy)) {
+    if (strategy === 'clone') {
       doc = closeDeclaredObjects(doc);
     }
     if (isPortable(options)) doc = stripDialect(doc);

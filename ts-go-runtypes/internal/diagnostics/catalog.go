@@ -143,7 +143,7 @@ type Related struct {
 }
 
 // Diagnostic is the single wire shape for everything the Go binary emits; Code is the stable
-// identifier (PFE9001, MKR001, VL010, SJ001, …).
+// identifier (PFE9001, MKR001, VL010, PJ001, …).
 //
 // The user-facing message is NOT on the wire: templates live JS-side in
 // packages/devtools/src/core/diagnosticCatalog.ts and the plugin resolves Code+Args at format

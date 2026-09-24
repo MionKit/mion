@@ -16,21 +16,17 @@ export const CIRCULAR_REFS = {
       type CircularObject = {name: string; child?: CircularObject};
       return createJsonEncoderFn<CircularObject>(undefined, {strategy: 'clone'});
     },
-    directEncoder: () => {
-      type CircularObject = {name: string; child?: CircularObject};
-      return createJsonEncoderFn<CircularObject>(undefined, {strategy: 'direct'});
-    },
     compactEncoder: () => {
       type CircularObject = {name: string; child?: CircularObject};
       return createJsonEncoderFn<CircularObject>(undefined, {strategy: 'compact'});
     },
-    stripDecoder: () => {
+    cloneDecoder: () => {
       type CircularObject = {name: string; child?: CircularObject};
       return createJsonDecoderFn<CircularObject>();
     },
-    preserveDecoder: () => {
+    mutateDecoder: () => {
       type CircularObject = {name: string; child?: CircularObject};
-      return createJsonDecoderFn<CircularObject>(undefined, {strategy: 'preserve'});
+      return createJsonDecoderFn<CircularObject>(undefined, {strategy: 'mutate'});
     },
     compactDecoder: () => {
       type CircularObject = {name: string; child?: CircularObject};
@@ -64,21 +60,17 @@ export const CIRCULAR_REFS = {
       type CuArray = (CuArray | Date | number | string)[];
       return createJsonEncoderFn<CuArray>(undefined, {strategy: 'clone'});
     },
-    directEncoder: () => {
-      type CuArray = (CuArray | Date | number | string)[];
-      return createJsonEncoderFn<CuArray>(undefined, {strategy: 'direct'});
-    },
     compactEncoder: () => {
       type CuArray = (CuArray | Date | number | string)[];
       return createJsonEncoderFn<CuArray>(undefined, {strategy: 'compact'});
     },
-    stripDecoder: () => {
+    cloneDecoder: () => {
       type CuArray = (CuArray | Date | number | string)[];
       return createJsonDecoderFn<CuArray>();
     },
-    preserveDecoder: () => {
+    mutateDecoder: () => {
       type CuArray = (CuArray | Date | number | string)[];
-      return createJsonDecoderFn<CuArray>(undefined, {strategy: 'preserve'});
+      return createJsonDecoderFn<CuArray>(undefined, {strategy: 'mutate'});
     },
     compactDecoder: () => {
       type CuArray = (CuArray | Date | number | string)[];
@@ -127,29 +119,23 @@ export const CIRCULAR_REFS = {
       }
       return createJsonEncoderFn<CircularTuple>(undefined, {strategy: 'clone'});
     },
-    directEncoder: () => {
-      interface CircularTuple {
-        list: [bigint, CircularTuple?];
-      }
-      return createJsonEncoderFn<CircularTuple>(undefined, {strategy: 'direct'});
-    },
     compactEncoder: () => {
       interface CircularTuple {
         list: [bigint, CircularTuple?];
       }
       return createJsonEncoderFn<CircularTuple>(undefined, {strategy: 'compact'});
     },
-    stripDecoder: () => {
+    cloneDecoder: () => {
       interface CircularTuple {
         list: [bigint, CircularTuple?];
       }
       return createJsonDecoderFn<CircularTuple>();
     },
-    preserveDecoder: () => {
+    mutateDecoder: () => {
       interface CircularTuple {
         list: [bigint, CircularTuple?];
       }
-      return createJsonDecoderFn<CircularTuple>(undefined, {strategy: 'preserve'});
+      return createJsonDecoderFn<CircularTuple>(undefined, {strategy: 'mutate'});
     },
     compactDecoder: () => {
       interface CircularTuple {
@@ -197,29 +183,23 @@ export const CIRCULAR_REFS = {
       }
       return createJsonEncoderFn<CircularIndex>(undefined, {strategy: 'clone'});
     },
-    directEncoder: () => {
-      interface CircularIndex {
-        index: {[key: string]: CircularIndex};
-      }
-      return createJsonEncoderFn<CircularIndex>(undefined, {strategy: 'direct'});
-    },
     compactEncoder: () => {
       interface CircularIndex {
         index: {[key: string]: CircularIndex};
       }
       return createJsonEncoderFn<CircularIndex>(undefined, {strategy: 'compact'});
     },
-    stripDecoder: () => {
+    cloneDecoder: () => {
       interface CircularIndex {
         index: {[key: string]: CircularIndex};
       }
       return createJsonDecoderFn<CircularIndex>();
     },
-    preserveDecoder: () => {
+    mutateDecoder: () => {
       interface CircularIndex {
         index: {[key: string]: CircularIndex};
       }
-      return createJsonDecoderFn<CircularIndex>(undefined, {strategy: 'preserve'});
+      return createJsonDecoderFn<CircularIndex>(undefined, {strategy: 'mutate'});
     },
     compactDecoder: () => {
       interface CircularIndex {
@@ -263,29 +243,23 @@ export const CIRCULAR_REFS = {
       }
       return createJsonEncoderFn<CircularDeep>(undefined, {strategy: 'clone'});
     },
-    directEncoder: () => {
-      interface CircularDeep {
-        deep1: {deep2: {deep3: {deep4?: CircularDeep}}};
-      }
-      return createJsonEncoderFn<CircularDeep>(undefined, {strategy: 'direct'});
-    },
     compactEncoder: () => {
       interface CircularDeep {
         deep1: {deep2: {deep3: {deep4?: CircularDeep}}};
       }
       return createJsonEncoderFn<CircularDeep>(undefined, {strategy: 'compact'});
     },
-    stripDecoder: () => {
+    cloneDecoder: () => {
       interface CircularDeep {
         deep1: {deep2: {deep3: {deep4?: CircularDeep}}};
       }
       return createJsonDecoderFn<CircularDeep>();
     },
-    preserveDecoder: () => {
+    mutateDecoder: () => {
       interface CircularDeep {
         deep1: {deep2: {deep3: {deep4?: CircularDeep}}};
       }
-      return createJsonDecoderFn<CircularDeep>(undefined, {strategy: 'preserve'});
+      return createJsonDecoderFn<CircularDeep>(undefined, {strategy: 'mutate'});
     },
     compactDecoder: () => {
       interface CircularDeep {
@@ -339,21 +313,17 @@ export const CIRCULAR_REFS = {
       type CircularTupleComplex = [bigint, CircularTupleComplex?];
       return createJsonEncoderFn<CircularTupleComplex>(undefined, {strategy: 'clone'});
     },
-    directEncoder: () => {
-      type CircularTupleComplex = [bigint, CircularTupleComplex?];
-      return createJsonEncoderFn<CircularTupleComplex>(undefined, {strategy: 'direct'});
-    },
     compactEncoder: () => {
       type CircularTupleComplex = [bigint, CircularTupleComplex?];
       return createJsonEncoderFn<CircularTupleComplex>(undefined, {strategy: 'compact'});
     },
-    stripDecoder: () => {
+    cloneDecoder: () => {
       type CircularTupleComplex = [bigint, CircularTupleComplex?];
       return createJsonDecoderFn<CircularTupleComplex>();
     },
-    preserveDecoder: () => {
+    mutateDecoder: () => {
       type CircularTupleComplex = [bigint, CircularTupleComplex?];
-      return createJsonDecoderFn<CircularTupleComplex>(undefined, {strategy: 'preserve'});
+      return createJsonDecoderFn<CircularTupleComplex>(undefined, {strategy: 'mutate'});
     },
     compactDecoder: () => {
       type CircularTupleComplex = [bigint, CircularTupleComplex?];
@@ -397,14 +367,6 @@ export const CIRCULAR_REFS = {
       };
       return createJsonEncoderFn<ObjCircularArr>(undefined, {strategy: 'clone'});
     },
-    directEncoder: () => {
-      type ObjCircularArr = {
-        a: string;
-        deep?: {b: string; c: number};
-        d?: ObjCircularArr[];
-      };
-      return createJsonEncoderFn<ObjCircularArr>(undefined, {strategy: 'direct'});
-    },
     compactEncoder: () => {
       type ObjCircularArr = {
         a: string;
@@ -413,7 +375,7 @@ export const CIRCULAR_REFS = {
       };
       return createJsonEncoderFn<ObjCircularArr>(undefined, {strategy: 'compact'});
     },
-    stripDecoder: () => {
+    cloneDecoder: () => {
       type ObjCircularArr = {
         a: string;
         deep?: {b: string; c: number};
@@ -421,13 +383,13 @@ export const CIRCULAR_REFS = {
       };
       return createJsonDecoderFn<ObjCircularArr>();
     },
-    preserveDecoder: () => {
+    mutateDecoder: () => {
       type ObjCircularArr = {
         a: string;
         deep?: {b: string; c: number};
         d?: ObjCircularArr[];
       };
-      return createJsonDecoderFn<ObjCircularArr>(undefined, {strategy: 'preserve'});
+      return createJsonDecoderFn<ObjCircularArr>(undefined, {strategy: 'mutate'});
     },
     compactDecoder: () => {
       type ObjCircularArr = {

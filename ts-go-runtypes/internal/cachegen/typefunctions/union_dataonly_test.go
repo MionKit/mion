@@ -46,7 +46,7 @@ func unionEntryWorks(rendered string) bool {
 
 // jsonFamilies are the flat-union families that share buildFlatLayout; binary
 // (toBinary/fromBinary) shares it too and is covered by the same change.
-var jsonFamilies = []string{"validate", "prepareForJsonMutate", "prepareForJsonClone", "stringifyJson", "restoreFromJsonMutate"}
+var jsonFamilies = []string{"validate", "prepareForJsonMutate", "prepareForJsonClone", "restoreFromJsonMutate"}
 
 func TestDataOnlyUnion_DropsStrippedMember(t *testing.T) {
 	dump := unionDump(mkDate(), mkSym())
@@ -75,13 +75,13 @@ func TestDataOnlyUnion_AllStrippedStillThrows(t *testing.T) {
 // Date | string | symbol must keep two members and reindex them gap-free
 // (Date=0, string=1); the dropped symbol must NOT leave a [2,…] arm.
 func TestDataOnlyUnion_ReindexesGapFree(t *testing.T) {
-	out := renderModule(t, unionDump(mkDate(), mkStr(), mkSym()), "stringifyJson")
-	for _, want := range []string{"'[0,'", "'[1,'"} {
+	out := renderModule(t, unionDump(mkDate(), mkStr(), mkSym()), "prepareForJsonMutate")
+	for _, want := range []string{"[0, v]", "[1, v]"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("expected wire index fragment %s in reindexed union; got:\n%s", want, out)
 		}
 	}
-	if strings.Contains(out, "'[2,'") {
+	if strings.Contains(out, "[2, v]") {
 		t.Errorf("dropped symbol (original index 2) must not leave a [2,…] arm; got:\n%s", out)
 	}
 }
@@ -117,7 +117,6 @@ var dropWarnFamilies = map[string]string{
 	"validate":              diagnostics.CodeVLUnionMemberDropped,
 	"prepareForJsonMutate":  diagnostics.CodePJUnionMemberDropped,
 	"prepareForJsonClone":   diagnostics.CodePJSUnionMemberDropped,
-	"stringifyJson":         diagnostics.CodeSJUnionMemberDropped,
 	"restoreFromJsonMutate": diagnostics.CodeRJUnionMemberDropped,
 	"toBinary":              diagnostics.CodeTBUnionMemberDropped,
 	"fromBinary":            diagnostics.CodeFBUnionMemberDropped,
@@ -191,7 +190,7 @@ func TestDataOnlyUnion_NestedInArray(t *testing.T) {
 	arr := &reflection.RunType{ID: "arr", Kind: reflection.KindArray, Child: makeRef("uni")}
 	dump := protocol.Dump{RunTypes: []*reflection.RunType{date, sym, union, arr}}
 
-	out := renderModule(t, dump, "stringifyJson")
+	out := renderModule(t, dump, "prepareForJsonMutate")
 	// The array entry must be a real factory (arr inner fn), not alwaysThrow.
 	if !strings.Contains(out, "_arr(v){") {
 		t.Errorf("(Date|symbol)[] should encode (element union drops symbol); got:\n%s", out)
@@ -216,7 +215,7 @@ func TestDataOnlyUnion_ObjectMemberStrippedProp(t *testing.T) {
 	}
 	dump := protocol.Dump{RunTypes: []*reflection.RunType{date, sym, propB, obj, union}}
 
-	for _, fam := range []string{"validate", "prepareForJsonMutate", "prepareForJsonClone", "stringifyJson", "restoreFromJsonMutate", "toBinary", "fromBinary"} {
+	for _, fam := range []string{"validate", "prepareForJsonMutate", "prepareForJsonClone", "restoreFromJsonMutate", "toBinary", "fromBinary"} {
 		out := renderModule(t, dump, fam)
 		// A real union factory (`<hash>_uni(…){`) — family-agnostic, since binary
 		// encode/decode bodies take `(v,Ser)` / `(ret,Des)` not just `(v)`. An

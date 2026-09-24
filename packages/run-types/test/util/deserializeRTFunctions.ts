@@ -18,7 +18,6 @@ import {
   // `entry.code` round-trip type against the published aliases.
   type PrepareForJsonFn,
   type RestoreFromJsonFn,
-  type StringifyJsonFn,
 } from '@mionjs/run-types';
 import {getRTUtils, isRunTypeValue, buildFactoryFromCode, entryCode} from '../../src/runtypes/rtUtils.ts';
 import {
@@ -85,7 +84,6 @@ function deserializeRTFunction<F extends AnyFn>(fnName: string, identityFn: F): 
 
 const identityValueFn = (v: unknown) => v;
 const getValidationErrorsIdentity: GetValidationErrorsFn = () => [];
-const stringifyJsonIdentity: StringifyJsonFn = (v) => JSON.stringify(v);
 
 // The trailing `as unknown as <T>(...) => Fn` cast restores the generic <T>
 // signature the Go-side marker scanner reads to identify call sites. The
@@ -132,9 +130,3 @@ export const deserializeRestoreFromJson = deserializeRTFunction<RestoreFromJsonF
   identityValueFn
 ) as unknown as (<T>(runType: RunType<T>, id?: InjectTypeFnArgs<T, 'restoreFromJsonMutate'>) => RestoreFromJsonFn) &
   (<T>(val?: T, id?: InjectTypeFnArgs<T, 'restoreFromJsonMutate'>) => RestoreFromJsonFn);
-
-export const deserializeStringifyJson = deserializeRTFunction<StringifyJsonFn>(
-  'deserializeStringifyJson',
-  stringifyJsonIdentity
-) as unknown as (<T>(runType: RunType<T>, id?: InjectTypeFnArgs<T, 'stringifyJson'>) => StringifyJsonFn) &
-  (<T>(val?: T, id?: InjectTypeFnArgs<T, 'stringifyJson'>) => StringifyJsonFn);

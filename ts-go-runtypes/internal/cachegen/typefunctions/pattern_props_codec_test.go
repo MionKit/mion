@@ -28,7 +28,7 @@ func patternPropsDump() protocol.Dump {
 func TestPatternProps_EveryCodecWalksTheMatchingKeys(t *testing.T) {
 	dump := patternPropsDump()
 	regex := `new RegExp("^d_")`
-	for _, fam := range []string{"prepareForJsonMutate", "prepareForJsonClone", "stringifyJson", "restoreFromJsonMutate", "restoreFromJsonClone", "compactForJson", "compactFromJson", "removeUnknownKeys", "toBinary", "fromBinary"} {
+	for _, fam := range []string{"prepareForJsonMutate", "prepareForJsonClone", "restoreFromJsonMutate", "restoreFromJsonClone", "compactForJson", "compactFromJson", "removeUnknownKeys", "toBinary", "fromBinary"} {
 		out := renderModule(t, dump, fam)
 		// The binary decoder reads the count the encoder wrote, so it filters
 		// nothing itself: its evidence is the key read of the pattern block.

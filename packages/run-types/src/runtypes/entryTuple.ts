@@ -385,15 +385,13 @@ export const familyMeta: Record<string, FamilyMeta> = {
   veuk: errorShaped('veuk'),
   pj: valueShaped('pj', noopIdentity),
   rj: valueShaped('rj', noopIdentity),
-  sj: valueShaped('sj', noopStringify),
   pjs: valueShaped('pjs', noopIdentity),
   // compact strategy: cj builds the positional array, cjr rebuilds the keyed object.
   cj: valueShaped('cj', noopIdentity),
   cjr: valueShaped('cjr', noopIdentity),
-  // rjs: the strip restore, value-shaped identity like rj.
+  // rjs: the clone restore, value-shaped identity like rj.
   rjs: valueShaped('rjs', noopIdentity),
   ruk: valueShaped('ruk', noopIdentity),
-  ukuw: valueShaped('ukuw', noopIdentity),
   // Name card: its typeName slot carries the build-time class name registerClassSerializer's name lane keys on.
   csr: valueShaped('csr', noopIdentity),
   tb: {
@@ -414,10 +412,9 @@ export const familyMeta: Record<string, FamilyMeta> = {
   // JSON composites: encoder tags host on pj metadata, decoder tags on rj, but their noop is native JSON.
   jeCL: valueShaped('pj', noopStringify),
   jeMU: valueShaped('pj', noopStringify),
-  jeDI: valueShaped('pj', noopStringify),
   jeCO: valueShaped('pj', noopStringify),
-  jdST: valueShaped('rj', noopParse),
-  jdPR: valueShaped('rj', noopParse),
+  jdCL: valueShaped('rj', noopParse),
+  jdMU: valueShaped('rj', noopParse),
   jdCO: valueShaped('rj', noopParse),
 };
 

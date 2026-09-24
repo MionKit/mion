@@ -91,16 +91,16 @@ export const _ = createJsonEncoderFn<() => void>(undefined, {strategy: 'mutate'}
 
 // TestDiag_PerFamilyPrefix_DistinctCodes pins the per-family prefix
 // scheme. The same logical throw (Never at root) under different
-// emitters surfaces as distinct codes — SJ001 for stringifyJson,
+// emitters surfaces as distinct codes — PJS001 for prepareForJsonClone,
 // TB001 for toBinary, etc. — so users reading their build log can
 // see which RT family produced the diagnostic without parsing
 // message text.
 func TestDiag_PerFamilyPrefix_NeverAtRoot_DistinctCodes(t *testing.T) {
 	// All three families are demand-driven now: seed pj via createJsonEncoderFn(mutate),
-	// sj via createJsonEncoderFn(direct), and tb via its own createBinaryEncoderFn.
+	// pjs via createJsonEncoderFn(clone), and tb via its own createBinaryEncoderFn.
 	const code = `import {createJsonEncoderFn, createBinaryEncoderFn} from '@mionjs/run-types';
 export const _ = createJsonEncoderFn<never>(undefined, {strategy: 'mutate'});
-export const _s = createJsonEncoderFn<never>(undefined, {strategy: 'direct'});
+export const _s = createJsonEncoderFn<never>(undefined, {strategy: 'clone'});
 export const _b = createBinaryEncoderFn<never>();
 `
 	r := setupInline(t, map[string]string{"n.ts": code})
@@ -116,7 +116,7 @@ export const _b = createBinaryEncoderFn<never>();
 	for _, d := range runtypeDiagsOf(resp.Diagnostics) {
 		codes[d.Code] = true
 	}
-	for _, expected := range []string{diagnostics.CodePJNeverRoot, diagnostics.CodeSJNeverRoot, diagnostics.CodeTBNeverRoot} {
+	for _, expected := range []string{diagnostics.CodePJNeverRoot, diagnostics.CodePJSNeverRoot, diagnostics.CodeTBNeverRoot} {
 		if !codes[expected] {
 			t.Errorf("expected diagnostic code %s in %v", expected, codes)
 		}
@@ -209,12 +209,12 @@ export const _ = createJsonEncoderFn<User>(undefined, {strategy: 'mutate'});
 // KindSymbol — `getRunTypeId<symbol>()` produces an alwaysThrow factory
 // (or its per-family equivalent code) across every RT family.
 func TestDiag_SymbolUnsupported_PerFamily(t *testing.T) {
-	// validate seeds `it` (all-emit); pj/sj/tb are demand-driven, so seed pj via
-	// createJsonEncoderFn(mutate), sj via createJsonEncoderFn(direct), tb via createBinaryEncoderFn.
+	// validate seeds `it` (all-emit); pj/pjs/tb are demand-driven, so seed pj via
+	// createJsonEncoderFn(mutate), pjs via createJsonEncoderFn(clone), tb via createBinaryEncoderFn.
 	const code = `import {createValidateFn, createJsonEncoderFn, createBinaryEncoderFn} from '@mionjs/run-types';
 export const _ = createValidateFn<symbol>();
 export const _p = createJsonEncoderFn<symbol>(undefined, {strategy: 'mutate'});
-export const _s = createJsonEncoderFn<symbol>(undefined, {strategy: 'direct'});
+export const _s = createJsonEncoderFn<symbol>(undefined, {strategy: 'clone'});
 export const _b = createBinaryEncoderFn<symbol>();
 `
 	r := setupInline(t, map[string]string{"s.ts": code})
@@ -231,7 +231,7 @@ export const _b = createBinaryEncoderFn<symbol>();
 		codes[d.Code] = true
 	}
 	// Each family emits its own Symbol-unsupported code.
-	for _, want := range []string{diagnostics.CodeVLSymbolRoot, diagnostics.CodePJSymbolRoot, diagnostics.CodeSJSymbolRoot, diagnostics.CodeTBSymbolRoot} {
+	for _, want := range []string{diagnostics.CodeVLSymbolRoot, diagnostics.CodePJSymbolRoot, diagnostics.CodePJSSymbolRoot, diagnostics.CodeTBSymbolRoot} {
 		if !codes[want] {
 			t.Errorf("expected diagnostic %s to fire for symbol at root, got %v", want, codes)
 		}

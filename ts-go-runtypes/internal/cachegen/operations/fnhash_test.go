@@ -122,13 +122,12 @@ func TestFnHash_StableAcrossVersions(t *testing.T) {
 
 func TestByFnKey(t *testing.T) {
 	cases := map[string]string{
-		"validate":             "validate",
-		"validationErrors":     "validationErrors",
-		"jsonEncoder":          "jsonEncoder",
-		"jsonDecoder":          "jsonDecoder",
-		"toBinary":             "toBinary",
-		"prepareForJsonClone":  "prepareForJsonClone",
-		"stripUnknownKeysWire": "stripUnknownKeysWire",
+		"validate":            "validate",
+		"validationErrors":    "validationErrors",
+		"jsonEncoder":         "jsonEncoder",
+		"jsonDecoder":         "jsonDecoder",
+		"toBinary":            "toBinary",
+		"prepareForJsonClone": "prepareForJsonClone",
 	}
 	for fnKey, wantName := range cases {
 		op, ok := ByFnKey(fnKey)
@@ -141,7 +140,7 @@ func TestByFnKey(t *testing.T) {
 		}
 	}
 	// Retired family tags must stay unreachable as FnKeys, so a stale `'verr'` is a build error (MKR014), not silence.
-	for _, retired := range []string{"val", "verr", "pj", "pjs", "rjs", "huk", "ukuw"} {
+	for _, retired := range []string{"val", "verr", "pj", "pjs", "rjs", "huk"} {
 		if _, ok := ByFnKey(retired); ok {
 			t.Errorf("retired family tag %q must not resolve as an FnKey", retired)
 		}
@@ -206,7 +205,6 @@ func TestSuggestFnKey(t *testing.T) {
 		"verr": "validationErrors",
 		"pjs":  "prepareForJsonClone",
 		"rjs":  "restoreFromJsonClone",
-		"ukuw": "stripUnknownKeysWire",
 	}
 	for tag, want := range retired {
 		if got := SuggestFnKey(tag); got != want {

@@ -70,7 +70,7 @@ func noopPredicateTypes(t *testing.T) (*EmitContext, map[string]*reflection.RunT
 	circDat := &reflection.RunType{ID: "circDat", Kind: reflection.KindObjectLiteral, TypeName: "CircWithDate", IsCircular: true, Children: []*reflection.RunType{makeRef("pdat"), makeRef("circDD")}}
 
 	// Arms for the universal-predicate tables: any/unknown (validate /
-	// validationErrors), a primitive literal (stringifyJson / toBinary), a
+	// validationErrors), a primitive literal (toBinary), a
 	// never-valued property (the DataOnly dropped-slot rule), an atomic-value
 	// record (unknown-keys index arm), a literal-only object + tuple
 	// (toBinary's write-nothing compositions), and an object-carrying tuple
@@ -311,7 +311,7 @@ func TestDispatchGate_ElidesNoopExternalChild(t *testing.T) {
 // noopStringify for je*, noopParse for jd*).
 func TestJsonComposite_ElidesNoopPrimitives(t *testing.T) {
 	rjKey := operations.PlainHash("restoreFromJsonMutate") + "_obj1"
-	ukuwKey := operations.PlainHash("stripUnknownKeysWire") + "_obj1"
+	rjsKey := operations.PlainHash("restoreFromJsonClone") + "_obj1"
 	pjKey := operations.PlainHash("prepareForJsonMutate") + "_obj1"
 	runType := &reflection.RunType{ID: "obj1", Kind: reflection.KindObjectLiteral}
 
@@ -329,35 +329,33 @@ func TestJsonComposite_ElidesNoopPrimitives(t *testing.T) {
 	}
 	noopGraph := entrymodules.Graph{}
 	noopGraph.Add(&entrymodules.Entry{Key: rjKey, Kind: entrymodules.KindTypeFn, FamilyTag: "rj", ArgsText: "'" + rjKey + "'", IsNoop: true})
+	noopGraph.Add(&entrymodules.Entry{Key: rjsKey, Kind: entrymodules.KindTypeFn, FamilyTag: "rjs", ArgsText: "'" + rjsKey + "'", IsNoop: true})
 	noopGraph.Add(&entrymodules.Entry{Key: pjKey, Kind: entrymodules.KindTypeFn, FamilyTag: "pj", ArgsText: "'" + pjKey + "'", IsNoop: true})
-	noopGraph.Add(&entrymodules.Entry{Key: ukuwKey, Kind: entrymodules.KindTypeFn, FamilyTag: "ukuw", ArgsText: "'" + ukuwKey + "'"})
 
-	jdPRKey := operations.FnHashFor(mustOp(t, "jsonDecoder"), nil, "preserve", false) + "_obj1"
+	jdMUKey := operations.FnHashFor(mustOp(t, "jsonDecoder"), nil, "mutate", false) + "_obj1"
+	jdCLKey := operations.FnHashFor(mustOp(t, "jsonDecoder"), nil, "clone", false) + "_obj1"
 	jeMUKey := operations.FnHashFor(mustOp(t, "jsonEncoder"), nil, "mutate", false) + "_obj1"
 
-	// jdPR: rj noop → every binding elided → the noop short form; no body,
+	// jdMU: rj noop → every binding elided → the noop short form; no body,
 	// no factory, no deps. The bare JSON.parse moved into the runtime noop.
-	entry := render("jdPR", noopGraph)
-	if entry.ArgsText != "'"+jdPRKey+"','objectLiteral',,true" {
-		t.Errorf("jdPR with noop rj must collapse to the noop short form:\n%s", entry.ArgsText)
+	entry := render("jdMU", noopGraph)
+	if entry.ArgsText != "'"+jdMUKey+"','objectLiteral',,true" {
+		t.Errorf("jdMU with noop rj must collapse to the noop short form:\n%s", entry.ArgsText)
 	}
 	if !entry.IsNoop {
-		t.Error("jdPR with noop rj must flag Entry.IsNoop")
+		t.Error("jdMU with noop rj must flag Entry.IsNoop")
 	}
 	if len(entry.SoftDeps) != 0 {
-		t.Errorf("jdPR with noop rj must carry no primitive deps, got %v", entry.SoftDeps)
+		t.Errorf("jdMU with noop rj must carry no primitive deps, got %v", entry.SoftDeps)
 	}
 
-	// jdST: rj noop + ukuw live → a real body keeping only the ukuw binding.
-	entry = render("jdST", noopGraph)
-	if !strings.Contains(entry.ArgsText, "return ukuwFn(JSON.parse(s));") || strings.Contains(entry.ArgsText, "rjFn") {
-		t.Errorf("jdST with noop rj must keep only the ukuw wrap:\n%s", entry.ArgsText)
+	// jdCL: rjs noop → the same noop short form.
+	entry = render("jdCL", noopGraph)
+	if entry.ArgsText != "'"+jdCLKey+"','objectLiteral',,true" {
+		t.Errorf("jdCL with noop rjs must collapse to the noop short form:\n%s", entry.ArgsText)
 	}
-	if entry.IsNoop {
-		t.Error("jdST with a live ukuw must not flag Entry.IsNoop")
-	}
-	if len(entry.SoftDeps) != 1 || entry.SoftDeps[0] != ukuwKey {
-		t.Errorf("jdST deps must name only the live ukuw primitive, got %v", entry.SoftDeps)
+	if !entry.IsNoop {
+		t.Error("jdCL with noop rjs must flag Entry.IsNoop")
 	}
 
 	// jeMU: pj noop → the noop short form (runtime noop is JSON.stringify).
@@ -372,15 +370,15 @@ func TestJsonComposite_ElidesNoopPrimitives(t *testing.T) {
 	// Control: a live (non-noop) rj keeps today's binding shape.
 	liveGraph := entrymodules.Graph{}
 	liveGraph.Add(&entrymodules.Entry{Key: rjKey, Kind: entrymodules.KindTypeFn, FamilyTag: "rj", ArgsText: "'" + rjKey + "'"})
-	entry = render("jdPR", liveGraph)
+	entry = render("jdMU", liveGraph)
 	if !strings.Contains(entry.ArgsText, "return rjFn(JSON.parse(s));") {
-		t.Errorf("jdPR with live rj must keep the binding:\n%s", entry.ArgsText)
+		t.Errorf("jdMU with live rj must keep the binding:\n%s", entry.ArgsText)
 	}
 	if entry.IsNoop {
-		t.Error("jdPR with a live rj must not flag Entry.IsNoop")
+		t.Error("jdMU with a live rj must not flag Entry.IsNoop")
 	}
 	if len(entry.SoftDeps) != 1 || entry.SoftDeps[0] != rjKey {
-		t.Errorf("jdPR deps must name the live rj primitive, got %v", entry.SoftDeps)
+		t.Errorf("jdMU deps must name the live rj primitive, got %v", entry.SoftDeps)
 	}
 }
 
@@ -415,32 +413,6 @@ func TestNoopType_ValidateAndValidationErrors(t *testing.T) {
 			}
 			if got := isNoopForValidationErrors(types[c.id], ctx); got != c.want {
 				t.Errorf("isNoopForValidationErrors(%s) = %v, want %v", c.id, got, c.want)
-			}
-		})
-	}
-}
-
-// TestNoopType_StringifyJsonRoot pins the sj root-only arm: native-delegation
-// roots only; String(v)-shaped and compound roots stay live.
-func TestNoopType_StringifyJsonRoot(t *testing.T) {
-	ctx, types := noopPredicateTypes(t)
-	cases := []struct {
-		id   string
-		want bool
-	}{
-		{"str", true},
-		{"anyT", true},
-		{"unkT", true},
-		{"lit", true},  // primitive literal — JSON.stringify delegation
-		{"num", false}, // String(v): NaN/Infinity diverge from native JSON
-		{"big", false}, // manual quoting
-		{"objCompat", false},
-		{"arrStr", false},
-	}
-	for _, c := range cases {
-		t.Run(c.id, func(t *testing.T) {
-			if got := isNoopForStringifyJson(types[c.id], ctx); got != c.want {
-				t.Errorf("isNoopForStringifyJson(%s) = %v, want %v", c.id, got, c.want)
 			}
 		})
 	}
@@ -603,52 +575,6 @@ func TestNoopType_RemoveUnknownKeys(t *testing.T) {
 	}
 }
 
-// TestNoopType_UnknownKeys pins the shared arm table of the strip decoder's pre-pass.
-func TestNoopType_UnknownKeys(t *testing.T) {
-	ctx, types := noopPredicateTypes(t)
-	specs := map[string]unknownKeysNoopSpec{
-		"ukuw": stripUnknownKeysWireSpec,
-	}
-	type row struct {
-		id   string
-		want map[string]bool
-	}
-	same := func(want bool) map[string]bool {
-		return map[string]bool{"ukuw": want}
-	}
-	rows := []row{
-		{"str", same(true)},
-		{"objCompat", same(false)}, // named props → the parent allowlist probe
-		{"objFn", same(false)},     // function-typed props still count as declared names
-		{"recA", same(true)},       // index sig over atomic values — every key is "known"
-		// A pattern key over atomic values: a key matching no pattern is left alone, as for recA.
-		{"recP", same(true)},
-		{"arrStr", same(true)},
-		{"arrCO", same(false)}, // array of keyed objects
-		{"uAt", same(true)},    // atomic-only union — nothing to sweep
-		{"uObj", same(false)},  // merged allowlist over the object members
-		// An ARRAY is an atomic member of the flat layout, so this union has no merged props at
-		// all; the object inside the array is still swept (unionAtomicMemberDescent).
-		{"uArrObjStr", same(false)},
-		// A ukuw no-op here once let `strategy: 'strip'` hand undeclared tuple-slot keys to a handler.
-		{"tupObj", same(false)},
-		// ukuw recurses too: its wire arm walks the parsed array.
-		{"mpObj", same(false)},
-		{"stObj", same(false)},
-		{"mpStr", same(true)},
-		{"stStr", same(true)},
-	}
-	for _, r := range rows {
-		for familyTag, spec := range specs {
-			t.Run(r.id+"/"+familyTag, func(t *testing.T) {
-				if got := isNoopForUnknownKeys(types[r.id], ctx, spec); got != r.want[familyTag] {
-					t.Errorf("isNoopForUnknownKeys(%s, %s) = %v, want %v", r.id, familyTag, got, r.want[familyTag])
-				}
-			})
-		}
-	}
-}
-
 // TestNoopType_EveryFamilyHasPredicate: without IsNoopType a family silently never elides its noop children.
 func TestNoopType_EveryFamilyHasPredicate(t *testing.T) {
 	for _, spec := range Families {
@@ -801,82 +727,6 @@ func TestDispatchGate_FormatIdentityChainCollapses(t *testing.T) {
 	}
 	if len(control.Deps) != 1 || control.Deps[0] != operations.PlainHash("formatTransform")+"_objTrim" {
 		t.Errorf("transforming named child must stay a dep call, got %v", control.Deps)
-	}
-}
-
-// TestStringifyJson_NativeRootCollapses pins the sj Finalize byte-match:
-// roots whose whole body is `return JSON.stringify(v)` (string / any-like
-// delegation arms) flag isNoop and emit the short form — the runtime noop IS
-// native JSON.stringify — while String(v)-shaped roots (number: NaN/Infinity
-// diverge under native stringify) and real compound bodies stay live.
-func TestStringifyJson_NativeRootCollapses(t *testing.T) {
-	_, types := noopPredicateTypes(t)
-	dump := dumpFor(types)
-	graph := FamilyByKey("stringifyJson").Collect(dump, RenderOpts{EmitMode: constants.EmitBoth}, nil)
-
-	strEntry := graph[operations.PlainHash("stringifyJson")+"_str"]
-	if strEntry == nil {
-		t.Fatal("no sj entry for str")
-	}
-	if !strEntry.IsNoop {
-		t.Errorf("sj string root must collapse to the native-stringify noop, got:\n%s", strEntry.ArgsText)
-	}
-
-	numEntry := graph[operations.PlainHash("stringifyJson")+"_num"]
-	if numEntry == nil {
-		t.Fatal("no sj entry for num")
-	}
-	if numEntry.IsNoop {
-		t.Error("sj number root (String(v) — diverges on NaN/Infinity) must stay live")
-	}
-	if !strings.Contains(numEntry.ArgsText, "return String(v)") {
-		t.Errorf("sj number root must keep the String(v) body:\n%s", numEntry.ArgsText)
-	}
-
-	objEntry := graph[operations.PlainHash("stringifyJson")+"_objCompat"]
-	if objEntry == nil {
-		t.Fatal("no sj entry for objCompat")
-	}
-	if objEntry.IsNoop {
-		t.Error("sj object root (declared-member concat, extras stripped) must stay live")
-	}
-}
-
-// TestJsonComposite_DirectStrategyTwoLayerCollapse: pre-change, jeDI over an
-// atomic string shipped TWO dead modules — an sj entry whose body was
-// `return JSON.stringify(v)` and the composite `return sjFn(v)` binding it.
-// The sj Finalize byte-match marks the primitive noop, the composite elides
-// the binding, and the whole thing collapses to one short-form tuple. The
-// object-root control keeps the delegation (sj really strips extras there).
-func TestJsonComposite_DirectStrategyTwoLayerCollapse(t *testing.T) {
-	_, types := noopPredicateTypes(t)
-	dump := dumpFor(types)
-	rendered := FamilyByKey("stringifyJson").Collect(dump, RenderOpts{EmitMode: constants.EmitBoth}, nil)
-	composite, ok := constants.JsonCompositeByTag("jeDI")
-	if !ok {
-		t.Fatal("unknown composite tag jeDI")
-	}
-
-	entry := collectJsonCompositeEntry(types["str"], "jeDI", composite, RenderOpts{EmitMode: constants.EmitBoth}, rendered, nil, false)
-	if entry == nil {
-		t.Fatal("no jeDI entry for str")
-	}
-	if !entry.IsNoop {
-		t.Errorf("jeDI over an atomic string must collapse to the noop short form, got:\n%s", entry.ArgsText)
-	}
-	if len(entry.SoftDeps) != 0 {
-		t.Errorf("collapsed jeDI must carry no primitive deps, got %v", entry.SoftDeps)
-	}
-
-	objEntry := collectJsonCompositeEntry(types["objCompat"], "jeDI", composite, RenderOpts{EmitMode: constants.EmitBoth}, rendered, nil, false)
-	if objEntry == nil {
-		t.Fatal("no jeDI entry for objCompat")
-	}
-	if objEntry.IsNoop {
-		t.Error("jeDI over an object must keep the live sj delegation")
-	}
-	if !strings.Contains(objEntry.ArgsText, "return sjFn(v);") {
-		t.Errorf("jeDI object body must bind the live sj primitive:\n%s", objEntry.ArgsText)
 	}
 }
 

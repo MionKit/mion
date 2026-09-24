@@ -106,26 +106,24 @@ describeIf('playground engine (WASM, live execution)', () => {
   });
 
   it('createJsonEncoderFn/Decoder round-trips a value', async () => {
-    const res = await run('jsonDecoderStrip', TYPE, {...VALID});
+    const res = await run('jsonDecoderClone', TYPE, {...VALID});
     if (res.kind !== 'jsonRoundtrip') throw new Error('expected jsonRoundtrip result');
     expect(res.decoded).toMatchObject({id: 1, name: 'ada'});
   });
 
   // The JSON strategy variants ride the comptime `{strategy: '…'}` literal the
   // engine appends at the call site — so each must resolve to a DISTINCT compiled
-  // function. clone/direct strip undeclared keys; mutate keeps them on the wire.
-  it('json encode strategies differ (clone/direct strip, mutate preserves unknown keys)', async () => {
+  // function. clone strips undeclared keys; mutate keeps them on the wire.
+  it('json encode strategies differ (clone strips, mutate preserves unknown keys)', async () => {
     const messy = {id: 1, name: 'ada', tags: ['x'], active: true, secret: 'shh'};
     const clone = await run('jsonEncoderClone', TYPE, {...messy});
     const mutate = await run('jsonEncoderMutate', TYPE, {...messy});
-    const direct = await run('jsonEncoderDirect', TYPE, {...messy});
-    if (clone.kind !== 'encode' || mutate.kind !== 'encode' || direct.kind !== 'encode') {
+    if (clone.kind !== 'encode' || mutate.kind !== 'encode') {
       throw new Error('expected encode result');
     }
     // The encoders return a serialized JSON string (not an object).
     expect(typeof clone.value).toBe('string');
     expect(JSON.parse(clone.value as string)).not.toHaveProperty('secret');
-    expect(JSON.parse(direct.value as string)).not.toHaveProperty('secret');
     expect(JSON.parse(mutate.value as string)).toHaveProperty('secret', 'shh');
   });
 
@@ -135,19 +133,17 @@ describeIf('playground engine (WASM, live execution)', () => {
     expect(Array.isArray(JSON.parse(res.value as string))).toBe(true);
   });
 
-  it('json decode strategies differ (preserve keeps unknown keys, strip nulls them out)', async () => {
+  it('json decode strategies differ (mutate keeps unknown keys, clone drops them)', async () => {
     const messy = {id: 1, name: 'ada', tags: ['x'], active: true, secret: 'shh'};
-    const preserve = await run('jsonDecoderPreserve', TYPE, {...messy});
-    const strip = await run('jsonDecoderStrip', TYPE, {...messy});
-    if (preserve.kind !== 'jsonRoundtrip' || strip.kind !== 'jsonRoundtrip') {
+    const mutate = await run('jsonDecoderMutate', TYPE, {...messy});
+    const clone = await run('jsonDecoderClone', TYPE, {...messy});
+    if (mutate.kind !== 'jsonRoundtrip' || clone.kind !== 'jsonRoundtrip') {
       throw new Error('expected jsonRoundtrip result');
     }
-    // preserve passes the undeclared key through; strip (the default) sets it to
-    // undefined (so it drops on re-serialization) — a clear behavioral split.
-    expect(preserve.decoded).toHaveProperty('secret', 'shh');
-    expect((strip.decoded as Record<string, unknown>).secret).toBeUndefined();
-    expect(preserve.decoded).toMatchObject({id: 1, name: 'ada'});
-    expect(strip.decoded).toMatchObject({id: 1, name: 'ada'});
+    expect(mutate.decoded).toHaveProperty('secret', 'shh');
+    expect(clone.decoded).not.toHaveProperty('secret');
+    expect(mutate.decoded).toMatchObject({id: 1, name: 'ada'});
+    expect(clone.decoded).toMatchObject({id: 1, name: 'ada'});
   });
 
   it('createBinaryEncoderFn/Decoder round-trips a value', async () => {

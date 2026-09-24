@@ -75,17 +75,6 @@ export const restore = createRestoreFromJsonFn<User>(undefined, {strategy: '`+ro
 	}
 }
 
-// No options slot to read: the factory alone must select its family.
-func TestStringifyFactory_ReachesItsOwnFamily(t *testing.T) {
-	modules := scanEntryModules(t, `import {createStringifyJsonFn} from '@mionjs/run-types';
-interface User {id: number; name: string}
-export const stringify = createStringifyJsonFn<User>();
-`)
-	if _, ok := findEntryWith(modules, familyPrefix(t, "stringifyJson")); !ok {
-		t.Fatalf("no stringifyJson entry emitted\nmodules: %v", keys(modules))
-	}
-}
-
 // An unrecognised strategy takes the default instead of failing the build, so the TS union is the real guard.
 func TestJsonValueFactories_UnrecognisedStrategyKeepsTheClone(t *testing.T) {
 	const code = `import {createPrepareForJsonFn, createRestoreFromJsonFn} from '@mionjs/run-types';

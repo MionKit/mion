@@ -97,8 +97,7 @@ func (ctx *EmitContext) AsExpression(code RTCode) RTCode {
 }
 
 // IsRoot reports whether the current Emit call is at the RT function's outermost frame, for emitters whose
-// output shape depends on it: stringifyJson's atomic number/null emits `String(v)` at root, so the fn
-// returns a JSON-parseable string, and bare `v` deeper, where the parent's `+` coerces.
+// output shape depends on it.
 func (ctx *EmitContext) IsRoot() bool {
 	return ctx.walker != nil && len(ctx.walker.Stack) == 1
 }

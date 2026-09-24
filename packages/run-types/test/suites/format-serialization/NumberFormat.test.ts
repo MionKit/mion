@@ -1,15 +1,13 @@
 // format-serialization / NumberFormat — every NUMBER_FORMAT case run through every JSON encoder × decoder pairing
-// (10 combinations) and the binary round-trip. One `it()` per pairing, each delegating to its
+// (8 combinations) and the binary round-trip. One `it()` per pairing, each delegating to its
 // shared helper in util/serializationAsserts.ts.
 import {describe, it} from 'vitest';
 import {NUMBER_FORMAT} from './NumberFormat.ts';
 import {
-  assertMutatePreserveRoundTrip,
-  assertMutateStripRoundTrip,
-  assertClonePreserveRoundTrip,
-  assertCloneStripRoundTrip,
-  assertDirectPreserveRoundTrip,
-  assertDirectStripRoundTrip,
+  assertMutateMutateRoundTrip,
+  assertMutateCloneRoundTrip,
+  assertCloneMutateRoundTrip,
+  assertCloneCloneRoundTrip,
   assertCompactRoundTrip,
   assertBinaryRoundTrip,
   assertSchemaJsonRoundTrip,
@@ -18,12 +16,10 @@ import {
 
 describe('format-serialization / NumberFormat', () => {
   for (const c of Object.values(NUMBER_FORMAT)) {
-    it(`mutate - preserve - ${c.title}`, () => assertMutatePreserveRoundTrip(c));
-    it(`mutate - strip - ${c.title}`, () => assertMutateStripRoundTrip(c));
-    it(`clone - preserve - ${c.title}`, () => assertClonePreserveRoundTrip(c));
-    it(`clone - strip - ${c.title}`, () => assertCloneStripRoundTrip(c));
-    it(`direct - preserve - ${c.title}`, () => assertDirectPreserveRoundTrip(c));
-    it(`direct - strip - ${c.title}`, () => assertDirectStripRoundTrip(c));
+    it(`mutate - mutate - ${c.title}`, () => assertMutateMutateRoundTrip(c));
+    it(`mutate - clone - ${c.title}`, () => assertMutateCloneRoundTrip(c));
+    it(`clone - mutate - ${c.title}`, () => assertCloneMutateRoundTrip(c));
+    it(`clone - clone - ${c.title}`, () => assertCloneCloneRoundTrip(c));
     it(`compact - ${c.title}`, () => assertCompactRoundTrip(c));
     it(`binary - ${c.title}`, () => assertBinaryRoundTrip(c));
     it(`schema - json - ${c.title}`, () => assertSchemaJsonRoundTrip(c));

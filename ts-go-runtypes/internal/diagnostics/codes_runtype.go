@@ -1,7 +1,7 @@
 package diagnostics
 
 // RunType RT-compiler codes, one prefix per family so a build log says which family produced a
-// finding without reading the message (SJ010 is "stringifyJson dropped a member", VL010 the
+// finding without reading the message (PJ010 is "prepareForJson dropped a member", VL010 the
 // validate twin).
 //
 // Numeric suffix convention within each family:
@@ -77,20 +77,6 @@ const (
 	CodeRJSymbolKeyedDropped      = "RJ013"
 	CodeRJUnionMemberDropped      = "RJ014"
 	CodeRJNonSerializablePropDrop = "RJ015"
-)
-
-// stringifyJson family.
-const (
-	CodeSJNeverRoot               = "SJ001"
-	CodeSJNonSerializableRoot     = "SJ002"
-	CodeSJFunctionRoot            = "SJ003"
-	CodeSJSymbolRoot              = "SJ005"
-	CodeSJFunctionPropDropped     = "SJ010"
-	CodeSJMethodDropped           = "SJ011"
-	CodeSJStaticDropped           = "SJ012"
-	CodeSJSymbolKeyedDropped      = "SJ013"
-	CodeSJUnionMemberDropped      = "SJ014"
-	CodeSJNonSerializablePropDrop = "SJ015"
 )
 
 // toBinary family.
@@ -178,11 +164,6 @@ const (
 	CodeFMTPatternUnsafe = "FMT008"
 )
 
-// Unknown-keys family: no root throws today; only child drops.
-const (
-	CodeUKWFunctionPropDropped = "UKW010"
-)
-
 // removeUnknownKeys: object unions and callable roots fail, since a strip that silently keeps keys is a security bug.
 // Declared members are never dropped: a value it cannot rebuild is shared by reference, and these warnings name it.
 const (
@@ -213,7 +194,6 @@ func init() {
 		CodePJNeverRoot, CodePJNonSerializableRoot, CodePJFunctionRoot, CodePJSymbolRoot,
 		CodePJSNeverRoot, CodePJSNonSerializableRoot, CodePJSFunctionRoot, CodePJSSymbolRoot,
 		CodeRJNeverRoot, CodeRJNonSerializableRoot, CodeRJFunctionRoot, CodeRJSymbolRoot,
-		CodeSJNeverRoot, CodeSJNonSerializableRoot, CodeSJFunctionRoot, CodeSJSymbolRoot,
 		CodeTBNeverRoot, CodeTBNonSerializableRoot, CodeTBFunctionRoot, CodeTBSymbolRoot,
 		CodeFBNeverRoot, CodeFBNonSerializableRoot, CodeFBFunctionRoot, CodeFBSymbolRoot,
 		CodeRUKUnionRoot, CodeRUKFunctionRoot,
@@ -238,10 +218,8 @@ func init() {
 		CodePJFunctionPropDropped, CodePJMethodDropped, CodePJStaticDropped, CodePJSymbolKeyedDropped, CodePJUnionMemberDropped, CodePJNonSerializablePropDrop,
 		CodePJSFunctionPropDropped, CodePJSMethodDropped, CodePJSStaticDropped, CodePJSSymbolKeyedDropped, CodePJSUnionMemberDropped, CodePJSNonSerializablePropDrop,
 		CodeRJFunctionPropDropped, CodeRJMethodDropped, CodeRJStaticDropped, CodeRJSymbolKeyedDropped, CodeRJUnionMemberDropped, CodeRJNonSerializablePropDrop,
-		CodeSJFunctionPropDropped, CodeSJMethodDropped, CodeSJStaticDropped, CodeSJSymbolKeyedDropped, CodeSJUnionMemberDropped, CodeSJNonSerializablePropDrop,
 		CodeTBFunctionPropDropped, CodeTBMethodDropped, CodeTBStaticDropped, CodeTBSymbolKeyedDropped, CodeTBUnionMemberDropped, CodeTBNonSerializablePropDrop,
 		CodeFBFunctionPropDropped, CodeFBMethodDropped, CodeFBStaticDropped, CodeFBSymbolKeyedDropped, CodeFBUnionMemberDropped, CodeFBNonSerializablePropDrop,
-		CodeUKWFunctionPropDropped,
 		CodeRUKFunctionPropDropped, CodeRUKMethodDropped, CodeRUKStaticDropped, CodeRUKNonSerializablePropDrop,
 	} {
 		register(Definition{Code: code, Family: FamilyRunType, Level: LevelWarning, Scope: ScopeGraph, Title: "RunType child-position member dropped"})

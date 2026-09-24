@@ -11,12 +11,10 @@ export const UTILITY_TYPES = {
     serializeNotes: 'The unwrapped `c` is a Date — ISO string over JSON (revived `new Date`), 8-byte float64 epoch over binary.',
     mutateEncoder: () => createJsonEncoderFn<Awaited<Promise<{a: string; b: number; c: Date}>>>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<Awaited<Promise<{a: string; b: number; c: Date}>>>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<Awaited<Promise<{a: string; b: number; c: Date}>>>(undefined, {strategy: 'direct'}),
     compactEncoder: () =>
       createJsonEncoderFn<Awaited<Promise<{a: string; b: number; c: Date}>>>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<Awaited<Promise<{a: string; b: number; c: Date}>>>(),
-    preserveDecoder: () =>
-      createJsonDecoderFn<Awaited<Promise<{a: string; b: number; c: Date}>>>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<Awaited<Promise<{a: string; b: number; c: Date}>>>(),
+    mutateDecoder: () => createJsonDecoderFn<Awaited<Promise<{a: string; b: number; c: Date}>>>(undefined, {strategy: 'mutate'}),
     compactDecoder: () =>
       createJsonDecoderFn<Awaited<Promise<{a: string; b: number; c: Date}>>>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<Awaited<Promise<{a: string; b: number; c: Date}>>>(),
@@ -36,10 +34,9 @@ export const UTILITY_TYPES = {
       "`Exclude<'name' | 'age' | number, 'age'>` removes the `'age'` member from the atomic union, resolving to `'name' | number`, which round-trips identically across JSON and binary.",
     mutateEncoder: () => createJsonEncoderFn<Exclude<'name' | 'age' | number, 'age'>>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<Exclude<'name' | 'age' | number, 'age'>>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<Exclude<'name' | 'age' | number, 'age'>>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<Exclude<'name' | 'age' | number, 'age'>>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<Exclude<'name' | 'age' | number, 'age'>>(),
-    preserveDecoder: () => createJsonDecoderFn<Exclude<'name' | 'age' | number, 'age'>>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<Exclude<'name' | 'age' | number, 'age'>>(),
+    mutateDecoder: () => createJsonDecoderFn<Exclude<'name' | 'age' | number, 'age'>>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<Exclude<'name' | 'age' | number, 'age'>>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<Exclude<'name' | 'age' | number, 'age'>>(),
     binaryDecoder: () => createBinaryDecoderFn<Exclude<'name' | 'age' | number, 'age'>>(),
@@ -71,13 +68,6 @@ export const UTILITY_TYPES = {
       type Shape = Circle | Square | Triangle;
       return createJsonEncoderFn<Exclude<Shape, Circle>>(undefined, {strategy: 'clone'});
     },
-    directEncoder: () => {
-      type Circle = {kind: 'circle'; radius: number};
-      type Square = {kind: 'square'; x: number};
-      type Triangle = {kind: 'triangle'; x: number; y: number};
-      type Shape = Circle | Square | Triangle;
-      return createJsonEncoderFn<Exclude<Shape, Circle>>(undefined, {strategy: 'direct'});
-    },
     compactEncoder: () => {
       type Circle = {kind: 'circle'; radius: number};
       type Square = {kind: 'square'; x: number};
@@ -85,19 +75,19 @@ export const UTILITY_TYPES = {
       type Shape = Circle | Square | Triangle;
       return createJsonEncoderFn<Exclude<Shape, Circle>>(undefined, {strategy: 'compact'});
     },
-    stripDecoder: () => {
+    cloneDecoder: () => {
       type Circle = {kind: 'circle'; radius: number};
       type Square = {kind: 'square'; x: number};
       type Triangle = {kind: 'triangle'; x: number; y: number};
       type Shape = Circle | Square | Triangle;
       return createJsonDecoderFn<Exclude<Shape, Circle>>();
     },
-    preserveDecoder: () => {
+    mutateDecoder: () => {
       type Circle = {kind: 'circle'; radius: number};
       type Square = {kind: 'square'; x: number};
       type Triangle = {kind: 'triangle'; x: number; y: number};
       type Shape = Circle | Square | Triangle;
-      return createJsonDecoderFn<Exclude<Shape, Circle>>(undefined, {strategy: 'preserve'});
+      return createJsonDecoderFn<Exclude<Shape, Circle>>(undefined, {strategy: 'mutate'});
     },
     compactDecoder: () => {
       type Circle = {kind: 'circle'; radius: number};
@@ -183,13 +173,11 @@ export const UTILITY_TYPES = {
       createJsonEncoderFn<Required<{name?: string; age?: number; createdAt?: Date}>>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () =>
       createJsonEncoderFn<Required<{name?: string; age?: number; createdAt?: Date}>>(undefined, {strategy: 'clone'}),
-    directEncoder: () =>
-      createJsonEncoderFn<Required<{name?: string; age?: number; createdAt?: Date}>>(undefined, {strategy: 'direct'}),
     compactEncoder: () =>
       createJsonEncoderFn<Required<{name?: string; age?: number; createdAt?: Date}>>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<Required<{name?: string; age?: number; createdAt?: Date}>>(),
-    preserveDecoder: () =>
-      createJsonDecoderFn<Required<{name?: string; age?: number; createdAt?: Date}>>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<Required<{name?: string; age?: number; createdAt?: Date}>>(),
+    mutateDecoder: () =>
+      createJsonDecoderFn<Required<{name?: string; age?: number; createdAt?: Date}>>(undefined, {strategy: 'mutate'}),
     compactDecoder: () =>
       createJsonDecoderFn<Required<{name?: string; age?: number; createdAt?: Date}>>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<Required<{name?: string; age?: number; createdAt?: Date}>>(),
@@ -222,13 +210,11 @@ export const UTILITY_TYPES = {
       createJsonEncoderFn<Extract<'name' | 'age' | 'createdAt', 'name' | 'createdAt'>>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () =>
       createJsonEncoderFn<Extract<'name' | 'age' | 'createdAt', 'name' | 'createdAt'>>(undefined, {strategy: 'clone'}),
-    directEncoder: () =>
-      createJsonEncoderFn<Extract<'name' | 'age' | 'createdAt', 'name' | 'createdAt'>>(undefined, {strategy: 'direct'}),
     compactEncoder: () =>
       createJsonEncoderFn<Extract<'name' | 'age' | 'createdAt', 'name' | 'createdAt'>>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<Extract<'name' | 'age' | 'createdAt', 'name' | 'createdAt'>>(),
-    preserveDecoder: () =>
-      createJsonDecoderFn<Extract<'name' | 'age' | 'createdAt', 'name' | 'createdAt'>>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<Extract<'name' | 'age' | 'createdAt', 'name' | 'createdAt'>>(),
+    mutateDecoder: () =>
+      createJsonDecoderFn<Extract<'name' | 'age' | 'createdAt', 'name' | 'createdAt'>>(undefined, {strategy: 'mutate'}),
     compactDecoder: () =>
       createJsonDecoderFn<Extract<'name' | 'age' | 'createdAt', 'name' | 'createdAt'>>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<Extract<'name' | 'age' | 'createdAt', 'name' | 'createdAt'>>(),
@@ -277,25 +263,20 @@ export const UTILITY_TYPES = {
       type ToExtract = {kind: 'square'; x: number} | {kind: 'triangle'; x: number; y: number};
       return createJsonEncoderFn<Extract<Shape, ToExtract>>(undefined, {strategy: 'clone'});
     },
-    directEncoder: () => {
-      type Shape = {kind: 'circle'; radius: number} | {kind: 'square'; x: number} | {kind: 'triangle'; x: number; y: number};
-      type ToExtract = {kind: 'square'; x: number} | {kind: 'triangle'; x: number; y: number};
-      return createJsonEncoderFn<Extract<Shape, ToExtract>>(undefined, {strategy: 'direct'});
-    },
     compactEncoder: () => {
       type Shape = {kind: 'circle'; radius: number} | {kind: 'square'; x: number} | {kind: 'triangle'; x: number; y: number};
       type ToExtract = {kind: 'square'; x: number} | {kind: 'triangle'; x: number; y: number};
       return createJsonEncoderFn<Extract<Shape, ToExtract>>(undefined, {strategy: 'compact'});
     },
-    stripDecoder: () => {
+    cloneDecoder: () => {
       type Shape = {kind: 'circle'; radius: number} | {kind: 'square'; x: number} | {kind: 'triangle'; x: number; y: number};
       type ToExtract = {kind: 'square'; x: number} | {kind: 'triangle'; x: number; y: number};
       return createJsonDecoderFn<Extract<Shape, ToExtract>>();
     },
-    preserveDecoder: () => {
+    mutateDecoder: () => {
       type Shape = {kind: 'circle'; radius: number} | {kind: 'square'; x: number} | {kind: 'triangle'; x: number; y: number};
       type ToExtract = {kind: 'square'; x: number} | {kind: 'triangle'; x: number; y: number};
-      return createJsonDecoderFn<Extract<Shape, ToExtract>>(undefined, {strategy: 'preserve'});
+      return createJsonDecoderFn<Extract<Shape, ToExtract>>(undefined, {strategy: 'mutate'});
     },
     compactDecoder: () => {
       type Shape = {kind: 'circle'; radius: number} | {kind: 'square'; x: number} | {kind: 'triangle'; x: number; y: number};
@@ -382,13 +363,11 @@ export const UTILITY_TYPES = {
       createJsonEncoderFn<Partial<{name: string; age: number; createdAt: Date}>>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () =>
       createJsonEncoderFn<Partial<{name: string; age: number; createdAt: Date}>>(undefined, {strategy: 'clone'}),
-    directEncoder: () =>
-      createJsonEncoderFn<Partial<{name: string; age: number; createdAt: Date}>>(undefined, {strategy: 'direct'}),
     compactEncoder: () =>
       createJsonEncoderFn<Partial<{name: string; age: number; createdAt: Date}>>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<Partial<{name: string; age: number; createdAt: Date}>>(),
-    preserveDecoder: () =>
-      createJsonDecoderFn<Partial<{name: string; age: number; createdAt: Date}>>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<Partial<{name: string; age: number; createdAt: Date}>>(),
+    mutateDecoder: () =>
+      createJsonDecoderFn<Partial<{name: string; age: number; createdAt: Date}>>(undefined, {strategy: 'mutate'}),
     compactDecoder: () =>
       createJsonDecoderFn<Partial<{name: string; age: number; createdAt: Date}>>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<Partial<{name: string; age: number; createdAt: Date}>>(),
@@ -418,19 +397,15 @@ export const UTILITY_TYPES = {
       createJsonEncoderFn<Pick<{name: string; age: number; createdAt: Date; email: string}, 'name' | 'createdAt'>>(undefined, {
         strategy: 'clone',
       }),
-    directEncoder: () =>
-      createJsonEncoderFn<Pick<{name: string; age: number; createdAt: Date; email: string}, 'name' | 'createdAt'>>(undefined, {
-        strategy: 'direct',
-      }),
     compactEncoder: () =>
       createJsonEncoderFn<Pick<{name: string; age: number; createdAt: Date; email: string}, 'name' | 'createdAt'>>(undefined, {
         strategy: 'compact',
       }),
-    stripDecoder: () =>
+    cloneDecoder: () =>
       createJsonDecoderFn<Pick<{name: string; age: number; createdAt: Date; email: string}, 'name' | 'createdAt'>>(),
-    preserveDecoder: () =>
+    mutateDecoder: () =>
       createJsonDecoderFn<Pick<{name: string; age: number; createdAt: Date; email: string}, 'name' | 'createdAt'>>(undefined, {
-        strategy: 'preserve',
+        strategy: 'mutate',
       }),
     compactDecoder: () =>
       createJsonDecoderFn<Pick<{name: string; age: number; createdAt: Date; email: string}, 'name' | 'createdAt'>>(undefined, {
@@ -472,18 +447,14 @@ export const UTILITY_TYPES = {
       createJsonEncoderFn<Omit<{name: string; age: number; createdAt: Date; email: string}, 'email'>>(undefined, {
         strategy: 'clone',
       }),
-    directEncoder: () =>
-      createJsonEncoderFn<Omit<{name: string; age: number; createdAt: Date; email: string}, 'email'>>(undefined, {
-        strategy: 'direct',
-      }),
     compactEncoder: () =>
       createJsonEncoderFn<Omit<{name: string; age: number; createdAt: Date; email: string}, 'email'>>(undefined, {
         strategy: 'compact',
       }),
-    stripDecoder: () => createJsonDecoderFn<Omit<{name: string; age: number; createdAt: Date; email: string}, 'email'>>(),
-    preserveDecoder: () =>
+    cloneDecoder: () => createJsonDecoderFn<Omit<{name: string; age: number; createdAt: Date; email: string}, 'email'>>(),
+    mutateDecoder: () =>
       createJsonDecoderFn<Omit<{name: string; age: number; createdAt: Date; email: string}, 'email'>>(undefined, {
-        strategy: 'preserve',
+        strategy: 'mutate',
       }),
     compactDecoder: () =>
       createJsonDecoderFn<Omit<{name: string; age: number; createdAt: Date; email: string}, 'email'>>(undefined, {
@@ -517,10 +488,9 @@ export const UTILITY_TYPES = {
       'Each index-signature value is a Date — ISO string over JSON (revived `new Date`), 8-byte float64 epoch over binary; keys pass through unchanged.',
     mutateEncoder: () => createJsonEncoderFn<Record<string, Date>>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<Record<string, Date>>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<Record<string, Date>>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<Record<string, Date>>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<Record<string, Date>>(),
-    preserveDecoder: () => createJsonDecoderFn<Record<string, Date>>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<Record<string, Date>>(),
+    mutateDecoder: () => createJsonDecoderFn<Record<string, Date>>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<Record<string, Date>>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<Record<string, Date>>(),
     binaryDecoder: () => createBinaryDecoderFn<Record<string, Date>>(),

@@ -31,7 +31,7 @@ export type InjectRunTypeId<T> = string & {
  * family's entry-module tuple, resolved by the one `createX`.
  *
  * `Fn` also names the JSON value families (`prepareForJson` / `restoreFromJson` Mutate and Clone,
- * `'stringifyJson'`, `'compactForJson'` / `'compactFromJson'`). Several on one marker recover via
+ * `'compactForJson'` / `'compactFromJson'`). Several on one marker recover via
  * `getRTFunction<'prepareForJsonClone'>(fns?.[i])`, keyed by the SAME fnKey.
  *
  * MULTIPLE functions — `InjectTypeFnArgs<T, 'validationErrors', 'jsonDecoder', 'jsonEncoder'>`, as a

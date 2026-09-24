@@ -19,7 +19,6 @@ export const JIT_FUNCTION_IDS = {
   removeUnknownKeys: 'C85b',
   restoreFromJsonClone: 'Ky89',
   restoreFromJsonMutate: 'w8ie',
-  stringifyJson: 'i4VX',
   toBinary: 'jDpZ',
   validate: 'Eq2V',
   validateStrict: 'fZHy',

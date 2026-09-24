@@ -10,10 +10,9 @@ export const ARRAYS = {
       'Root `string[]` round-trips identically across JSON and binary, with samples covering a populated array and the empty case.',
     mutateEncoder: () => createJsonEncoderFn<string[]>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<string[]>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<string[]>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<string[]>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<string[]>(),
-    preserveDecoder: () => createJsonDecoderFn<string[]>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<string[]>(),
+    mutateDecoder: () => createJsonDecoderFn<string[]>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<string[]>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<string[]>(),
     binaryDecoder: () => createBinaryDecoderFn<string[]>(),
@@ -31,10 +30,9 @@ export const ARRAYS = {
       'Per-element Date transform applies recursively over the array; the empty-array sample confirms no element work happens when there are no items.',
     mutateEncoder: () => createJsonEncoderFn<Date[]>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<Date[]>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<Date[]>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<Date[]>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<Date[]>(),
-    preserveDecoder: () => createJsonDecoderFn<Date[]>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<Date[]>(),
+    mutateDecoder: () => createJsonDecoderFn<Date[]>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<Date[]>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<Date[]>(),
     binaryDecoder: () => createBinaryDecoderFn<Date[]>(),
@@ -53,10 +51,9 @@ export const ARRAYS = {
       'The clone strategy shared a bigint-literal array by reference, so `JSON.stringify` threw on the raw bigints; the element transform now applies on every strategy.',
     mutateEncoder: () => createJsonEncoderFn<(1n | 2n)[]>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<(1n | 2n)[]>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<(1n | 2n)[]>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<(1n | 2n)[]>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<(1n | 2n)[]>(),
-    preserveDecoder: () => createJsonDecoderFn<(1n | 2n)[]>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<(1n | 2n)[]>(),
+    mutateDecoder: () => createJsonDecoderFn<(1n | 2n)[]>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<(1n | 2n)[]>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<(1n | 2n)[]>(),
     binaryDecoder: () => createBinaryDecoderFn<(1n | 2n)[]>(),
@@ -73,10 +70,9 @@ export const ARRAYS = {
       'JSON.stringify writes each undefined element as null (array holes/undefined become null, unlike object props which are dropped); decode restores them per the declared literal type.',
     mutateEncoder: () => createJsonEncoderFn<undefined[]>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<undefined[]>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<undefined[]>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<undefined[]>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<undefined[]>(),
-    preserveDecoder: () => createJsonDecoderFn<undefined[]>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<undefined[]>(),
+    mutateDecoder: () => createJsonDecoderFn<undefined[]>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<undefined[]>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<undefined[]>(),
     binaryDecoder: () => createBinaryDecoderFn<undefined[]>(),
@@ -89,14 +85,12 @@ export const ARRAYS = {
   null_in_array: {
     title: 'Null array elements',
     description: '`null[]` array slots serialize as the JSON `null` literal across every strategy.',
-    serializeNotes:
-      'A null element must emit the literal `null` on the wire: the single-pass `direct` strategy builds the array via `[...].join(",")`, which coerces a bare null to the empty string, so the element is emitted as the constant `"null"` to stay valid JSON.',
+    serializeNotes: 'A null element must emit the literal `null` on the wire.',
     mutateEncoder: () => createJsonEncoderFn<null[]>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<null[]>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<null[]>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<null[]>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<null[]>(),
-    preserveDecoder: () => createJsonDecoderFn<null[]>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<null[]>(),
+    mutateDecoder: () => createJsonDecoderFn<null[]>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<null[]>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<null[]>(),
     binaryDecoder: () => createBinaryDecoderFn<null[]>(),
@@ -109,14 +103,12 @@ export const ARRAYS = {
   nullable_number_array: {
     title: 'Nullable number array',
     description: '`(number | null)[]` round-trips a mix of numbers and nulls identically across every strategy.',
-    serializeNotes:
-      'The common nullable-element case: each null in the array must survive as the JSON `null` literal (it previously corrupted the `direct` wire to `[1,,2]`).',
+    serializeNotes: 'The common nullable-element case: each null in the array must survive as the JSON `null` literal.',
     mutateEncoder: () => createJsonEncoderFn<(number | null)[]>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<(number | null)[]>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<(number | null)[]>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<(number | null)[]>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<(number | null)[]>(),
-    preserveDecoder: () => createJsonDecoderFn<(number | null)[]>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<(number | null)[]>(),
+    mutateDecoder: () => createJsonDecoderFn<(number | null)[]>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<(number | null)[]>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<(number | null)[]>(),
     binaryDecoder: () => createBinaryDecoderFn<(number | null)[]>(),
@@ -130,13 +122,12 @@ export const ARRAYS = {
     title: 'Void array elements',
     description: '`void[]` array slots serialize as null across every strategy (same wire as undefined elements).',
     serializeNotes:
-      'void normalises to undefined, so a void element follows the undefined rule: emitted as the JSON null literal in an array slot (the single-pass direct strategy must emit the constant "null" so the `.join(",")` array build stays valid JSON).',
+      'void normalises to undefined, so a void element follows the undefined rule: emitted as the JSON null literal in an array slot.',
     mutateEncoder: () => createJsonEncoderFn<void[]>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<void[]>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<void[]>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<void[]>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<void[]>(),
-    preserveDecoder: () => createJsonDecoderFn<void[]>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<void[]>(),
+    mutateDecoder: () => createJsonDecoderFn<void[]>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<void[]>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<void[]>(),
     binaryDecoder: () => createBinaryDecoderFn<void[]>(),
@@ -152,10 +143,9 @@ export const ARRAYS = {
       'Nested `string[][]` round-trips identically across JSON and binary, with samples mixing ragged inner arrays alongside empty inner and outer arrays.',
     mutateEncoder: () => createJsonEncoderFn<string[][]>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<string[][]>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<string[][]>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<string[][]>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<string[][]>(),
-    preserveDecoder: () => createJsonDecoderFn<string[][]>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<string[][]>(),
+    mutateDecoder: () => createJsonDecoderFn<string[][]>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<string[][]>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<string[][]>(),
     binaryDecoder: () => createBinaryDecoderFn<string[][]>(),
@@ -173,14 +163,12 @@ export const ARRAYS = {
     mutateEncoder: () => createJsonEncoderFn<symbol[]>(undefined, {strategy: 'mutate'}),
     // @mion-downgrade-error PJS005
     cloneEncoder: () => createJsonEncoderFn<symbol[]>(undefined, {strategy: 'clone'}),
-    // @mion-downgrade-error SJ005
-    directEncoder: () => createJsonEncoderFn<symbol[]>(undefined, {strategy: 'direct'}),
     // @mion-downgrade-error PJS005
     compactEncoder: () => createJsonEncoderFn<symbol[]>(undefined, {strategy: 'compact'}),
     // @mion-downgrade-error RJ005
-    stripDecoder: () => createJsonDecoderFn<symbol[]>(),
+    cloneDecoder: () => createJsonDecoderFn<symbol[]>(),
     // @mion-downgrade-error RJ005
-    preserveDecoder: () => createJsonDecoderFn<symbol[]>(undefined, {strategy: 'preserve'}),
+    mutateDecoder: () => createJsonDecoderFn<symbol[]>(undefined, {strategy: 'mutate'}),
     // @mion-downgrade-error RJ005
     compactDecoder: () => createJsonDecoderFn<symbol[]>(undefined, {strategy: 'compact'}),
     // @mion-downgrade-error TB006
@@ -212,21 +200,17 @@ export const ARRAYS = {
       type CircularArray = CircularArray[];
       return createJsonEncoderFn<CircularArray>(undefined, {strategy: 'clone'});
     },
-    directEncoder: () => {
-      type CircularArray = CircularArray[];
-      return createJsonEncoderFn<CircularArray>(undefined, {strategy: 'direct'});
-    },
     compactEncoder: () => {
       type CircularArray = CircularArray[];
       return createJsonEncoderFn<CircularArray>(undefined, {strategy: 'compact'});
     },
-    stripDecoder: () => {
+    cloneDecoder: () => {
       type CircularArray = CircularArray[];
       return createJsonDecoderFn<CircularArray>();
     },
-    preserveDecoder: () => {
+    mutateDecoder: () => {
       type CircularArray = CircularArray[];
-      return createJsonDecoderFn<CircularArray>(undefined, {strategy: 'preserve'});
+      return createJsonDecoderFn<CircularArray>(undefined, {strategy: 'mutate'});
     },
     compactDecoder: () => {
       type CircularArray = CircularArray[];

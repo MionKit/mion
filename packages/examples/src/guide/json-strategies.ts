@@ -12,9 +12,6 @@ const item = {name: 'pen', price: 5n, internalNote: 'do not send'} as Item;
 const encodeClone = createJsonEncoderFn<Item>(); // same as {strategy: 'clone'}
 encodeClone(item); // {"name":"pen","price":"5"}   item is unchanged
 
-const encodeDirect = createJsonEncoderFn<Item>(undefined, {strategy: 'direct'});
-encodeDirect(item); // {"name":"pen","price":"5"}   item is unchanged
-
 const encodeCompact = createJsonEncoderFn<Item>(undefined, {
   strategy: 'compact',
 });
@@ -27,13 +24,13 @@ encodeMutate(item); // {"name":"pen","price":"5","internalNote":"do not send"}  
 // start-decoders
 const body = '{"name":"pen","price":"5","isAdmin":true}';
 
-const decodeStrip = createJsonDecoderFn<Item>(); // same as {strategy: 'strip'}
-decodeStrip(body); // {name: 'pen', price: 5n, isAdmin: undefined}
+const decodeClone = createJsonDecoderFn<Item>(); // same as {strategy: 'clone'}
+decodeClone(body); // {name: 'pen', price: 5n}
 
-const decodePreserve = createJsonDecoderFn<Item>(undefined, {
-  strategy: 'preserve',
+const decodeMutate = createJsonDecoderFn<Item>(undefined, {
+  strategy: 'mutate',
 });
-decodePreserve(body); // {name: 'pen', price: 5n, isAdmin: true}
+decodeMutate(body); // {name: 'pen', price: 5n, isAdmin: true}
 
 const decodeCompact = createJsonDecoderFn<Item>(undefined, {
   strategy: 'compact',

@@ -58,25 +58,10 @@ func TestTemporal_EmitValidate(t *testing.T) {
 }
 
 func TestTemporal_EmitRestoreFromJson(t *testing.T) {
-	// rj is demand-driven now: createJsonDecoderFn (default strip → [rj, ukuw]) seeds it.
+	// rjs is demand-driven: createJsonDecoderFn (default clone → [rjs]) seeds it.
 	resp := emitSourcesForFn(t, "createJsonDecoderFn", "PlainDate")
-	if !strings.Contains(familyEntrySources(*resp, "restoreFromJsonMutate"), "Temporal.PlainDate.from(") {
-		t.Fatalf("restoreFromJsonMutate missing Temporal.PlainDate.from:\n%s", familyEntrySources(*resp, "restoreFromJsonMutate"))
-	}
-}
-
-func TestTemporal_EmitStringifyJson(t *testing.T) {
-	// sj is demand-driven now: only createJsonEncoderFn(direct) → [sj] seeds it.
-	code := `import {createJsonEncoderFn} from '@mionjs/run-types';
-export const _ = createJsonEncoderFn<Temporal.Instant>(undefined, {strategy: 'direct'});
-`
-	r := setupInline(t, map[string]string{"a.ts": code})
-	resp := r.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"a.ts"}, IncludeEntryModules: true})
-	if resp.Error != "" {
-		t.Fatalf("scan Instant: %s", resp.Error)
-	}
-	if !strings.Contains(familyEntrySources(resp, "stringifyJson"), ".toJSON()") {
-		t.Fatalf("stringifyJson missing toJSON():\n%s", familyEntrySources(resp, "stringifyJson"))
+	if !strings.Contains(familyEntrySources(*resp, "restoreFromJsonClone"), "Temporal.PlainDate.from(") {
+		t.Fatalf("restoreFromJsonClone missing Temporal.PlainDate.from:\n%s", familyEntrySources(*resp, "restoreFromJsonClone"))
 	}
 }
 

@@ -34,14 +34,6 @@ export const REALWORLD = {
       }
       return createJsonEncoderFn<User>(undefined, {strategy: 'clone'});
     },
-    directEncoder: () => {
-      interface User {
-        id: TF.UUIDv4;
-        name: string;
-        email: TF.Email;
-      }
-      return createJsonEncoderFn<User>(undefined, {strategy: 'direct'});
-    },
     compactEncoder: () => {
       interface User {
         id: TF.UUIDv4;
@@ -50,7 +42,7 @@ export const REALWORLD = {
       }
       return createJsonEncoderFn<User>(undefined, {strategy: 'compact'});
     },
-    stripDecoder: () => {
+    cloneDecoder: () => {
       interface User {
         id: TF.UUIDv4;
         name: string;
@@ -58,13 +50,13 @@ export const REALWORLD = {
       }
       return createJsonDecoderFn<User>();
     },
-    preserveDecoder: () => {
+    mutateDecoder: () => {
       interface User {
         id: TF.UUIDv4;
         name: string;
         email: TF.Email;
       }
-      return createJsonDecoderFn<User>(undefined, {strategy: 'preserve'});
+      return createJsonDecoderFn<User>(undefined, {strategy: 'mutate'});
     },
     compactDecoder: () => {
       interface User {
@@ -130,16 +122,6 @@ export const REALWORLD = {
       }
       return createJsonEncoderFn<Order>(undefined, {strategy: 'clone'});
     },
-    directEncoder: () => {
-      interface Order {
-        id: TF.UUIDv4;
-        email: TF.Email;
-        total: number;
-        placedAt: Date;
-        status: 'pending' | 'paid' | 'shipped' | 'cancelled';
-      }
-      return createJsonEncoderFn<Order>(undefined, {strategy: 'direct'});
-    },
     compactEncoder: () => {
       interface Order {
         id: TF.UUIDv4;
@@ -150,7 +132,7 @@ export const REALWORLD = {
       }
       return createJsonEncoderFn<Order>(undefined, {strategy: 'compact'});
     },
-    stripDecoder: () => {
+    cloneDecoder: () => {
       interface Order {
         id: TF.UUIDv4;
         email: TF.Email;
@@ -160,7 +142,7 @@ export const REALWORLD = {
       }
       return createJsonDecoderFn<Order>();
     },
-    preserveDecoder: () => {
+    mutateDecoder: () => {
       interface Order {
         id: TF.UUIDv4;
         email: TF.Email;
@@ -168,7 +150,7 @@ export const REALWORLD = {
         placedAt: Date;
         status: 'pending' | 'paid' | 'shipped' | 'cancelled';
       }
-      return createJsonDecoderFn<Order>(undefined, {strategy: 'preserve'});
+      return createJsonDecoderFn<Order>(undefined, {strategy: 'mutate'});
     },
     compactDecoder: () => {
       interface Order {
@@ -300,20 +282,6 @@ export const REALWORLD = {
       registerClassSerializer(Invoice, {deserialize: (d) => new Invoice(d.ref, d.cents, d.issued)});
       return createJsonEncoderFn<Invoice>(undefined, {strategy: 'clone'});
     },
-    directEncoder: () => {
-      class Invoice {
-        constructor(
-          public ref: string,
-          public cents: TF.Currency<{integer: true; min: 0; max: 65535}>,
-          public issued: Date
-        ) {}
-        total(): number {
-          return this.cents / 100;
-        }
-      }
-      registerClassSerializer(Invoice, {deserialize: (d) => new Invoice(d.ref, d.cents, d.issued)});
-      return createJsonEncoderFn<Invoice>(undefined, {strategy: 'direct'});
-    },
     compactEncoder: () => {
       class Invoice {
         constructor(
@@ -328,7 +296,7 @@ export const REALWORLD = {
       registerClassSerializer(Invoice, {deserialize: (d) => new Invoice(d.ref, d.cents, d.issued)});
       return createJsonEncoderFn<Invoice>(undefined, {strategy: 'compact'});
     },
-    stripDecoder: () => {
+    cloneDecoder: () => {
       class Invoice {
         constructor(
           public ref: string,
@@ -342,7 +310,7 @@ export const REALWORLD = {
       registerClassSerializer(Invoice, {deserialize: (d) => new Invoice(d.ref, d.cents, d.issued)});
       return createJsonDecoderFn<Invoice>();
     },
-    preserveDecoder: () => {
+    mutateDecoder: () => {
       class Invoice {
         constructor(
           public ref: string,
@@ -354,7 +322,7 @@ export const REALWORLD = {
         }
       }
       registerClassSerializer(Invoice, {deserialize: (d) => new Invoice(d.ref, d.cents, d.issued)});
-      return createJsonDecoderFn<Invoice>(undefined, {strategy: 'preserve'});
+      return createJsonDecoderFn<Invoice>(undefined, {strategy: 'mutate'});
     },
     compactDecoder: () => {
       class Invoice {

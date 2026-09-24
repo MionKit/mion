@@ -92,7 +92,6 @@ export const isLeaf = createValidateFn<` + leaf + `>();
 export const isRule = createValidateFn<Rule>();
 export const encodeM = createJsonEncoderFn<Rule>(undefined, {strategy: 'mutate'});
 export const encodeC = createJsonEncoderFn<Rule>(undefined, {strategy: 'clone'});
-export const encodeD = createJsonEncoderFn<Rule>(undefined, {strategy: 'direct'});
 export const encodeK = createJsonEncoderFn<Rule>(undefined, {strategy: 'compact'});
 export const decode = createJsonDecoderFn<Rule>();
 export const tb = createBinaryEncoderFn<Rule>();

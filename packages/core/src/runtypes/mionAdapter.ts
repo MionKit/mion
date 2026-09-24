@@ -60,7 +60,7 @@ function byFnKey(injected: unknown[]): Partial<Record<FnHashKey, unknown>> {
     if (!Array.isArray(tuple)) continue;
     const tag = tuple[0];
     if (typeof tag !== 'string') continue;
-    // An unmapped tag is a composite (jeCL, jdST, …) or build skew; keyed as-is so the fail-closed
+    // An unmapped tag is a composite (jeCL, jdCL, …) or build skew; keyed as-is so the fail-closed
     // checks below report the payload they actually got.
     out[FAMILY_TAG_TO_FN_KEY[tag as keyof typeof FAMILY_TAG_TO_FN_KEY] ?? tag] = tuple;
   }

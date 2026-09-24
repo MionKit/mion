@@ -13,7 +13,6 @@ func TestRootThrowHeadline_PerFamily(t *testing.T) {
 	}{
 		{diagnostics.CodePJNeverRoot, "Never", "Type `Never` can never be encoded to JSON — the generated function will always fail."},
 		{diagnostics.CodeRJSymbolRoot, "Symbol", "Type `Symbol` can never be decoded from JSON — the generated function will always fail."},
-		{diagnostics.CodeSJFunctionRoot, "Function", "Type `Function` can never be stringified to JSON — the generated function will always fail."},
 		{diagnostics.CodeTBNonSerializableRoot, "Map", "Type `Map` can never be serialised to binary — the generated function will always fail."},
 		{diagnostics.CodeVLSymbolRoot, "Symbol", "Type `Symbol` can never be validated — the generated function will always fail."},
 	}
@@ -34,7 +33,6 @@ func TestRootThrowWording_CoversEveryAlwaysThrowCode(t *testing.T) {
 		diagnostics.CodePJNeverRoot, diagnostics.CodePJNonSerializableRoot, diagnostics.CodePJFunctionRoot, diagnostics.CodePJSymbolRoot,
 		diagnostics.CodePJSNeverRoot, diagnostics.CodePJSNonSerializableRoot, diagnostics.CodePJSFunctionRoot, diagnostics.CodePJSSymbolRoot,
 		diagnostics.CodeRJNeverRoot, diagnostics.CodeRJNonSerializableRoot, diagnostics.CodeRJFunctionRoot, diagnostics.CodeRJSymbolRoot,
-		diagnostics.CodeSJNeverRoot, diagnostics.CodeSJNonSerializableRoot, diagnostics.CodeSJFunctionRoot, diagnostics.CodeSJSymbolRoot,
 		diagnostics.CodeTBNeverRoot, diagnostics.CodeTBNonSerializableRoot, diagnostics.CodeTBFunctionRoot, diagnostics.CodeTBSymbolRoot,
 		diagnostics.CodeFBNeverRoot, diagnostics.CodeFBNonSerializableRoot, diagnostics.CodeFBFunctionRoot, diagnostics.CodeFBSymbolRoot,
 	} {

@@ -14,16 +14,13 @@
 // the real generated encoders/decoders), NOT like container/benchmarks/ (no podman, no
 // per-competitor isolation).
 //
-// Eight round-trips per case (the "competitors" the table shows). Each one's
+// Five round-trips per case (the "competitors" the table shows). Each one's
 // reader-facing blurb lives on its ROUNDTRIPS entry and ships as index.columnNotes,
 // which is what hovering that column's table header reveals:
-//   clone              cloneEncoder  + preserveDecoder   (strategy 'clone', default)
-//   mutate             mutateEncoder + preserveDecoder   (strategy 'mutate')
-//   direct             directEncoder + preserveDecoder   (strategy 'direct')
+//   clone              cloneEncoder  + cloneDecoder      (strategy 'clone', default)
+//   mutate             mutateEncoder + mutateDecoder     (strategy 'mutate')
 //   compact            compactEncoder + compactDecoder   (strategy 'compact', positional array)
 //   binary             binaryEncoder + binaryDecoder
-//   jsonSchema         the clone codec, authored from a JSON Schema document
-//   jsonSchema binary  the binary codec, authored from a JSON Schema document
 //   native JSON        JSON.stringify + JSON.parse       (baseline, JSON-safe cases only)
 //
 // Three metric groups (one stacked table each on the page):
@@ -137,23 +134,16 @@ const ROUNDTRIPS = [
   {
     key: 'clone',
     enc: 'cloneEncoder',
-    dec: 'preserveDecoder',
+    dec: 'cloneDecoder',
     kind: 'json',
     note: 'Default. Builds a fresh copy and drops any key the type does not declare.',
   },
   {
     key: 'mutate',
     enc: 'mutateEncoder',
-    dec: 'preserveDecoder',
+    dec: 'mutateDecoder',
     kind: 'json',
     note: 'Writes into the value you pass in and keeps the keys it does not declare.',
-  },
-  {
-    key: 'direct',
-    enc: 'directEncoder',
-    dec: 'preserveDecoder',
-    kind: 'json',
-    note: 'A single pass over the value, the least overhead of the JSON strategies.',
   },
   {
     key: 'compact',
@@ -196,10 +186,10 @@ function columnNotes() {
 const SOURCE_FIELDS = [
   'cloneEncoder',
   'mutateEncoder',
-  'directEncoder',
   'compactEncoder',
   'binaryEncoder',
-  'preserveDecoder',
+  'cloneDecoder',
+  'mutateDecoder',
   'compactDecoder',
   'binaryDecoder',
 ];

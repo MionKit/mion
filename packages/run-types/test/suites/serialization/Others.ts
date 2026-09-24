@@ -14,14 +14,12 @@ export const OTHERS = {
     mutateEncoder: () => createJsonEncoderFn<Promise<string>>(undefined, {strategy: 'mutate'}),
     // @mion-downgrade-error PJS002
     cloneEncoder: () => createJsonEncoderFn<Promise<string>>(undefined, {strategy: 'clone'}),
-    // @mion-downgrade-error SJ002
-    directEncoder: () => createJsonEncoderFn<Promise<string>>(undefined, {strategy: 'direct'}),
     // @mion-downgrade-error PJS002
     compactEncoder: () => createJsonEncoderFn<Promise<string>>(undefined, {strategy: 'compact'}),
     // @mion-downgrade-error RJ002
-    stripDecoder: () => createJsonDecoderFn<Promise<string>>(),
+    cloneDecoder: () => createJsonDecoderFn<Promise<string>>(),
     // @mion-downgrade-error RJ002
-    preserveDecoder: () => createJsonDecoderFn<Promise<string>>(undefined, {strategy: 'preserve'}),
+    mutateDecoder: () => createJsonDecoderFn<Promise<string>>(undefined, {strategy: 'mutate'}),
     // @mion-downgrade-error RJ002
     compactDecoder: () => createJsonDecoderFn<Promise<string>>(undefined, {strategy: 'compact'}),
     // @mion-downgrade-error TB002
@@ -46,14 +44,12 @@ export const OTHERS = {
     mutateEncoder: () => createJsonEncoderFn<Int8Array>(undefined, {strategy: 'mutate'}),
     // @mion-downgrade-error PJS002
     cloneEncoder: () => createJsonEncoderFn<Int8Array>(undefined, {strategy: 'clone'}),
-    // @mion-downgrade-error SJ002
-    directEncoder: () => createJsonEncoderFn<Int8Array>(undefined, {strategy: 'direct'}),
     // @mion-downgrade-error PJS002
     compactEncoder: () => createJsonEncoderFn<Int8Array>(undefined, {strategy: 'compact'}),
     // @mion-downgrade-error RJ002
-    stripDecoder: () => createJsonDecoderFn<Int8Array>(),
+    cloneDecoder: () => createJsonDecoderFn<Int8Array>(),
     // @mion-downgrade-error RJ002
-    preserveDecoder: () => createJsonDecoderFn<Int8Array>(undefined, {strategy: 'preserve'}),
+    mutateDecoder: () => createJsonDecoderFn<Int8Array>(undefined, {strategy: 'mutate'}),
     // @mion-downgrade-error RJ002
     compactDecoder: () => createJsonDecoderFn<Int8Array>(undefined, {strategy: 'compact'}),
     // @mion-downgrade-error TB002
@@ -73,15 +69,14 @@ export const OTHERS = {
     description:
       'An interface member of a directly non-serializable type (`Int8Array`) is DROPPED, matching `DataOnly<{a: Int8Array}>` = `{}`: every encoder serializes the remaining shape and the member round-trips away (a build-time …015 Warning flags the drop). This differs from a non-serializable ARRAY / TUPLE slot, which propagates and alwaysThrows.',
     serializeNotes: [
-      'The `a` member is directly DataOnly-stripped, so it is dropped from the serialized form across every strategy. The mutate path `delete`s it so `JSON.stringify` cannot leak the typed array as a plain object — its output matches clone / direct / binary.',
+      'The `a` member is directly DataOnly-stripped, so it is dropped from the serialized form across every strategy. The mutate path `delete`s it so `JSON.stringify` cannot leak the typed array as a plain object — its output matches clone / binary.',
       'No value-first builder can express the `Int8Array` member, so the schema variants stay not-supported.',
     ],
     mutateEncoder: () => createJsonEncoderFn<{a: Int8Array}>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<{a: Int8Array}>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<{a: Int8Array}>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<{a: Int8Array}>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<{a: Int8Array}>(),
-    preserveDecoder: () => createJsonDecoderFn<{a: Int8Array}>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<{a: Int8Array}>(),
+    mutateDecoder: () => createJsonDecoderFn<{a: Int8Array}>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<{a: Int8Array}>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<{a: Int8Array}>(),
     binaryDecoder: () => createBinaryDecoderFn<{a: Int8Array}>(),
@@ -101,10 +96,9 @@ export const OTHERS = {
       'No value-first builder can express the enclosing array, so all schema variants are not-supported and test data is empty.',
     mutateEncoder: () => createJsonEncoderFn<Int8Array[]>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<Int8Array[]>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<Int8Array[]>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<Int8Array[]>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<Int8Array[]>(),
-    preserveDecoder: () => createJsonDecoderFn<Int8Array[]>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<Int8Array[]>(),
+    mutateDecoder: () => createJsonDecoderFn<Int8Array[]>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<Int8Array[]>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<Int8Array[]>(),
     binaryDecoder: () => createBinaryDecoderFn<Int8Array[]>(),
@@ -124,10 +118,9 @@ export const OTHERS = {
       'No value-first builder can express the enclosing tuple, so all schema variants are not-supported and test data is empty.',
     mutateEncoder: () => createJsonEncoderFn<[Int8Array]>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<[Int8Array]>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<[Int8Array]>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<[Int8Array]>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<[Int8Array]>(),
-    preserveDecoder: () => createJsonDecoderFn<[Int8Array]>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<[Int8Array]>(),
+    mutateDecoder: () => createJsonDecoderFn<[Int8Array]>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<[Int8Array]>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<[Int8Array]>(),
     binaryDecoder: () => createBinaryDecoderFn<[Int8Array]>(),

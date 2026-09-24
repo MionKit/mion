@@ -88,32 +88,29 @@ var registry = []Operation{
 	// The composite JSON encoder / decoder (JsonStrategy axis): FamilyTag is empty, each strategy renders its own entry under a
 	// per-strategy tag in constants.CacheModules.
 	{
-		Name: "jsonEncoder", Doc: "Turns a value into a JSON string. The strategy picks how: build a new value, transform in place, write the string in one pass, or use the compact positional wire.", Factory: "createJsonEncoderFn", Axis: AxisJsonStrategy, Public: true, FnKey: "jsonEncoder", CircularGuarded: true,
+		Name: "jsonEncoder", Doc: "Turns a value into a JSON string. The strategy picks how: build a new value, transform in place, or use the compact positional wire.", Factory: "createJsonEncoderFn", Axis: AxisJsonStrategy, Public: true, FnKey: "jsonEncoder", CircularGuarded: true,
 		// `clone` is shape-derived: it builds a NEW value from the declared shape (never `{...v}`), so it is stripped by construction
 		// and a separate strip variant would be redundant. `mutate` transforms in place, keeping undeclared keys and allocating nothing.
-		// `direct` is the single-pass stringifyJson and always strips. `compact` writes declared props as a positional array, no key
-		// names on the wire, strips extras like `clone`, and pairs with the `compact` decoder.
+		// `compact` writes declared props as a positional array, no key names on the wire, strips extras like `clone`, and pairs
+		// with the `compact` decoder.
 		DefaultStrategy: "clone",
-		Strategies:      []string{"clone", "mutate", "direct", "compact"},
+		Strategies:      []string{"clone", "mutate", "compact"},
 	},
 	{
 		Name: "jsonDecoder", Doc: "Turns a JSON string back into a typed value. The strategy decides whether undeclared properties survive.", Factory: "createJsonDecoderFn", Axis: AxisJsonStrategy, Public: true, FnKey: "jsonDecoder",
-		// `compact` rebuilds the declared object from the positional-array wire, which the key-based strip / preserve decoders cannot read.
-		DefaultStrategy: "strip",
-		Strategies:      []string{"strip", "preserve", "compact"},
+		// Same words as the encoder: `clone` rebuilds from the declared shape, `mutate` restores in place keeping undeclared keys,
+		// `compact` rebuilds the declared object from the positional-array wire.
+		DefaultStrategy: "clone",
+		Strategies:      []string{"clone", "mutate", "compact"},
 	},
 
 	// JSON value-level primitives the composites wrap: one operation per prepare / restore `strategy`, picked by
 	// jsonValueStrategyOperation (resolver/scan.go); a framework's own marker reaches any by FnKey via getRTFunction.
 	// No runtime hashing: the resolver reads the plugin-injected plain fnHash.
-	//   - rjs (clone restore): mion's `clone` strategy decodes with it, no createJsonDecoderFn strategy composes it.
-	//   - sj: the `direct` encoder body. ukuw: the strip decoder's wire pre-pass.
 	{Name: "prepareForJsonMutate", Doc: "Turns a value into a JSON-safe value in place. Nothing is allocated and undeclared properties are kept.", Factory: "createPrepareForJsonFn", FamilyTag: "pj", Axis: AxisNone, Public: true, FnKey: "prepareForJsonMutate", CallOptions: "{strategy: 'mutate'}"},
 	{Name: "prepareForJsonClone", Doc: "Builds a new JSON-safe value from the declared shape, so undeclared properties are dropped.", Factory: "createPrepareForJsonFn", FamilyTag: "pjs", Axis: AxisNone, Public: true, FnKey: "prepareForJsonClone"},
 	{Name: "restoreFromJsonMutate", Doc: "Turns a JSON-safe value back into the typed shape in place, keeping undeclared properties.", Factory: "createRestoreFromJsonFn", FamilyTag: "rj", Axis: AxisNone, Public: true, FnKey: "restoreFromJsonMutate", CallOptions: "{strategy: 'mutate'}"},
 	{Name: "restoreFromJsonClone", Doc: "Rebuilds the typed shape from a JSON-safe value, so undeclared properties are dropped.", Factory: "createRestoreFromJsonFn", FamilyTag: "rjs", Axis: AxisNone, Public: true, FnKey: "restoreFromJsonClone"},
-	{Name: "stringifyJson", Doc: "Writes a value straight to a JSON string in one pass, with no intermediate value.", Factory: "createStringifyJsonFn", FamilyTag: "sj", Axis: AxisNone, Public: true, FnKey: "stringifyJson"},
-	{Name: "stripUnknownKeysWire", Doc: "Blanks undeclared properties on incoming JSON before it is restored.", FamilyTag: "ukuw", Axis: AxisNone, Public: false, FnKey: "stripUnknownKeysWire"},
 	// compactForJson / compactFromJson are the positional-tuple round-trip pair the `compact` strategy composes.
 	{Name: "compactForJson", Doc: "Builds a value whose objects are positional arrays, so property names never reach the wire.", Factory: "createPrepareForJsonFn", FamilyTag: "cj", Axis: AxisNone, Public: true, FnKey: "compactForJson", CallOptions: "{strategy: 'compact'}"},
 	{Name: "compactFromJson", Doc: "Rebuilds a keyed object from the positional array the compact encoder wrote.", Factory: "createRestoreFromJsonFn", FamilyTag: "cjr", Axis: AxisNone, Public: true, FnKey: "compactFromJson", CallOptions: "{strategy: 'compact'}"},
