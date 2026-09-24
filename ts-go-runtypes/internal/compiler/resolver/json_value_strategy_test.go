@@ -3,21 +3,10 @@ package resolver_test
 import (
 	"testing"
 
-	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/operations"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
 // Resolver coverage for the value-level JSON factories: their AxisNone `strategy` selects a whole FAMILY, not a variant.
-
-// wantPlainFnId is the plain (option-free) fnHash of a registered operation.
-func wantPlainFnId(t *testing.T, opName string) string {
-	t.Helper()
-	op, ok := operations.ByName(opName)
-	if !ok {
-		t.Fatalf("%s op not registered", opName)
-	}
-	return operations.FnHashFor(op, nil, "", false)
-}
 
 // jsonValueLooseDTS widens `strategy` to `string`: the only way a value the real union rejects
 // can reach the scanner.
@@ -114,7 +103,7 @@ createRestoreFromJsonFn<{a: string}>(undefined, {strategy: 'nonsense'});
 	if len(resp.Sites) != 2 {
 		t.Fatalf("expected 2 Sites, got %d: %+v", len(resp.Sites), resp.Sites)
 	}
-	want := []string{wantPlainFnId(t, "prepareForJsonClone"), wantPlainFnId(t, "restoreFromJsonClone")}
+	want := []string{leafFnHash(t, "prepareForJsonClone"), leafFnHash(t, "restoreFromJsonClone")}
 	for i, site := range resp.Sites {
 		if site.FnId != want[i] {
 			t.Errorf("Site[%d].FnId = %q, want the clone family %q", i, site.FnId, want[i])
