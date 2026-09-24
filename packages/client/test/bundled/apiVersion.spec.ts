@@ -122,7 +122,7 @@ describe('the api version a bundled client compares', () => {
       expect(result).toBe('Hello John Doe');
       expect(undeclared?.type).toBe('api-version-mismatch');
       expect(undeclared?.publicMessage).toContain('sayHello');
-      // the code calling it was built against it: nothing to swap in, only to report
+      // the calling code was built against it: reported, never swapped
       expect(isBundledMethod('sayHello')).toBe(true);
 
       // reported once: a later call carries no second copy of the same news

@@ -45,8 +45,7 @@ export function createVerifySubRequest(methodIds: string[]): SubRequest<any> {
   } as SubRequest<any>;
 }
 
-/** Compares each asked route's `syncId` with the server's: this side holds both rows. A fetched row is a
- *  cache, so it is refreshed and saved; a bundled one is what this code was built against, so it is reported. */
+/** A fetched row is a cache: replaced and saved. A bundled one is what the calling code was built against: reported. */
 export function verifyMethodRows(options: ClientOptions, asked: string[], data: SerializableMethodsData): void {
   const verified = verifiedBy(options.baseURL);
   for (const id of asked) verified.add(id);
