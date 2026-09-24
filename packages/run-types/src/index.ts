@@ -6,6 +6,7 @@ export {
   type InjectBatchId,
   type InjectApiMetadata,
   type InjectBuildVersion,
+  type InjectRouterOptions,
   type CompTimeArgs,
   type CompTimeFnArgs,
   type CompTimeHints,
