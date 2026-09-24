@@ -23,5 +23,5 @@ packages/type-budget/reports
 # (packages/run-types/test/types/builderCostReport.ts).
 packages/run-types/reports
 
-# Code cards: the code block is laid out by hand and IS the image; reformatting it moves the highlighted lines.
+# Code cards: the code block is laid out by hand; reformatting moves the highlighted lines.
 tools/code-card/cards
