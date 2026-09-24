@@ -40,7 +40,7 @@ const cleanUser = createFormatTransformFn<User>();
 const encodeUser = createJsonEncoderFn<User>(undefined, {strategy: 'clone'});
 const decodeUser = createJsonDecoderFn<User>(undefined, {strategy: 'clone'});
 
-// JSON as a value when you own the envelope; pair the same strategy on both sides
+// JSON as a value inside your own JSON; same strategy on both sides
 const prepareUser = createPrepareForJsonFn<User>();
 const restoreUser = createRestoreFromJsonFn<User>();
 const prepareUserMutate = createPrepareForJsonFn<User>(undefined, {
