@@ -56,23 +56,27 @@ func (sess *Session) apiVersionSites(files []string) []apiVersionSite {
 	return out
 }
 
-// apiVersions is what this program's own calls inject, plus the error when its client and its server disagree.
+// apiVersions is what this program's own calls inject, plus an error for every client that disagrees with its server.
 // A manifest reads its value from here, never recomputes it.
 func (sess *Session) apiVersions(files []string) (routes, client string, diags []diagnostics.Diagnostic) {
-	var mismatched *apiVersionSite
+	var clients []apiVersionSite
 	for _, site := range sess.apiVersionSites(files) {
 		switch site.callee {
 		case apimeta.InitRoutesName:
 			routes = site.version
 		case apimeta.InitClientName:
 			client = site.version
-		}
-		if routes != "" && client != "" && routes != client && mismatched == nil {
-			mismatched = &site
+			clients = append(clients, site)
 		}
 	}
-	if mismatched != nil {
-		diags = append(diags, diagnostics.New(diagnostics.CodeApiMetaVersionMismatch, mismatched.diagSite, client, routes))
+	if routes == "" {
+		return routes, client, nil
+	}
+	// every client against the server, whatever the file order: comparing as the walk goes let a later client hide an earlier one
+	for _, site := range clients {
+		if site.version != routes {
+			diags = append(diags, diagnostics.New(diagnostics.CodeApiMetaVersionMismatch, site.diagSite, site.version, routes))
+		}
 	}
 	return routes, client, diags
 }

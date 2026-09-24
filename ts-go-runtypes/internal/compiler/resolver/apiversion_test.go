@@ -262,3 +262,33 @@ func TestApiVersion_NoRouterOptionsWithoutALiteral(t *testing.T) {
 		}
 	}
 }
+
+// TestApiVersion_EveryClientIsCheckedAgainstTheServer: a matching client later in the program never hides an
+// earlier one that disagrees, and the error names the two versions that differ.
+func TestApiVersion_EveryClientIsCheckedAgainstTheServer(t *testing.T) {
+	badClient := strings.Replace(versionClientTS, "export const {routes} = initClient<Api>", "export const {routes: other} = initClient<Api>", 1)
+	sources := map[string]string{
+		"router.d.ts": optionsRouterDTS,
+		"client.d.ts": optionsClientDTS,
+		"routes.ts":   optionsRoutesTS(""),
+		"a-client.ts": badClient,
+		"b-client.ts": optionsClientTS,
+	}
+	session := setupApi(t, sources, t.TempDir(), "", "")
+	generated := session.Dispatch(protocol.Request{Op: protocol.OpGenerate})
+	if generated.Error != "" {
+		t.Fatalf("generate: %s", generated.Error)
+	}
+	var mismatches []diagnostics.Diagnostic
+	for _, diag := range generated.Diagnostics {
+		if diag.Code == diagnostics.CodeApiMetaVersionMismatch {
+			mismatches = append(mismatches, diag)
+		}
+	}
+	if len(mismatches) != 1 {
+		t.Fatalf("expected one mismatch for a-client.ts, got %v", mismatches)
+	}
+	if !strings.HasSuffix(mismatches[0].Site.FilePath, "a-client.ts") || mismatches[0].Args[0] == mismatches[0].Args[1] {
+		t.Fatalf("the error must point at a-client.ts and name two different versions, got %+v", mismatches[0])
+	}
+}
