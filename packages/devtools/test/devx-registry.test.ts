@@ -328,5 +328,6 @@ describe('devx registry — codegen targets', () => {
 
   it('reports an unknown name even after a known one', () => {
     expect(codegenTargets(['constants', 'nope'], known).unknown).toEqual(['nope']);
+    expect(codegenTargets(['all', 'nope'], known).unknown).toEqual(['nope']);
   });
 });
