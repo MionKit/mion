@@ -60,7 +60,7 @@ type RouteOpts = {alwaysRun: false; validateParams: true; validateReturn: false;
 export type Api = {
   auth: {type: 3; handler: (h: Headers) => Promise<void>; options: MfOpts; types?: {params: []; return: void; headers: Headers; isAsync: false}};
   users: {
-    getById: {type: 1; handler: (id: number) => Promise<{id: number; name: string}>; options: RouteOpts; types?: {params: [id: number]; return: {id: number; name: string}; headers: never; isAsync: true; sync: [[id: number], {id: number; name: string}]}};
+    getById: {type: 1; handler: (id: number) => Promise<{id: number; name: string}>; options: RouteOpts; types?: {params: [id: number]; return: {id: number; name: string}; headers: never; isAsync: true; sync: [[id: number], {id: number; name: string}, 'json', 'json']}};
     audit: {type: 2; handler: (why: string) => Promise<void>; options: MfOpts; types?: {params: [why: string]; return: void; headers: never; isAsync: false}};
     remove: {type: 1; handler: (id: number) => Promise<boolean>; options: RouteOpts; types?: {params: [id: number]; return: boolean; headers: never; isAsync: false}};
   };
@@ -704,8 +704,8 @@ import type {Api} from './api.ts';
 export const {routes} = initClient<Api>({baseURL: 'http://x'});
 export const a = routes.users.getById(1).call();
 export const b = routes.sum(1, 2).call();
-export const staticId = getRunTypeId<[[id: number], {id: number; name: string}]>();
-declare const pair: [[id: number], {id: number; name: string}];
+export const staticId = getRunTypeId<[[id: number], {id: number; name: string}, 'json', 'json']>();
+declare const pair: [[id: number], {id: number; name: string}, 'json', 'json'];
 export const valueId = getRunTypeId(pair);
 `
 

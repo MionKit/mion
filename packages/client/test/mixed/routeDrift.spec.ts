@@ -36,6 +36,7 @@ const oldRoutes = (mion: Mion) => ({
   paramsChanged: mion.route((ctx, name: string): string => (count('paramsChanged'), name)),
   returnChanged: mion.route((ctx, name: string): string => (count('returnChanged'), name)),
   optionsChanged: mion.query((ctx, value: number): number => (count('optionsChanged'), value)),
+  parserChanged: mion.route((ctx, name: string): {name: string} => (count('parserChanged'), {name})),
   stored: mion.route((ctx, value: number): number => (count('stored'), value)),
   secured: {
     token: mion.middleware((ctx, token: string): void => undefined),
@@ -50,6 +51,8 @@ const newRoutes = (mion: Mion) => ({
   returnChanged: mion.route((ctx, name: string): number => (count('returnChanged'), name.length)),
   // query to mutation: GET becomes POST, the types stay
   optionsChanged: mion.mutation((ctx, value: number): number => (count('optionsChanged'), value * 2)),
+  // same types, other bytes on the wire
+  parserChanged: mion.route((ctx, name: string): {name: string} => (count('parserChanged'), {name}), {parser: 'compact'}),
   stored: mion.route((ctx, value: number): string => (count('stored'), `${value}`)),
   added: mion.route((): string => 'new'),
   secured: {
@@ -151,7 +154,8 @@ describe('a client built against routes the server has since changed', () => {
     it.each([
       ['params', 'paramsChanged', () => reloadClient().routes.paramsChanged('Ana').call()],
       ['return', 'returnChanged', () => reloadClient().routes.returnChanged('Ana').call()],
-    ] as const)('refuses a route whose %s type changed, with no resend and no handler run', async (_, id, call) => {
+      ['wire format', 'parserChanged', () => reloadClient().routes.parserChanged('Ana').call()],
+    ] as const)('refuses a route whose %s changed, with no resend and no handler run', async (_, id, call) => {
       const before = handlerCalls[id];
       const refused = await counted(call);
       expect(refused.value[0]).toBeUndefined();

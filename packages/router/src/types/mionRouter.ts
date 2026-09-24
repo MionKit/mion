@@ -77,7 +77,7 @@ export interface RouteHelper<O extends RouterOptionsInput, M extends boolean | u
     paramsId?: RouteSlots<O, H, RO>[2],
     returnId?: RouteSlots<O, H, RO>[3],
     isAsyncId?: InjectRunTypeId<HandlerIsAsync<H>>,
-    syncId?: InjectRunTypeId<[HandlerParams<H>, HandlerReturn<H>]>
+    syncId?: RouteSlots<O, H, RO>[4]
   ): RouteDef<H, PinnedMutation<RO, M>, O>;
 }
 
@@ -94,7 +94,7 @@ export interface MiddlewareHelper<O extends RouterOptionsInput> {
     paramsId?: RouteSlots<O, H, RO>[2],
     returnId?: RouteSlots<O, H, RO>[3],
     isAsyncId?: InjectRunTypeId<HandlerIsAsync<H>>,
-    syncId?: InjectRunTypeId<[HandlerParams<H>, HandlerReturn<H>]>
+    syncId?: RouteSlots<O, H, RO>[4]
   ): MiddlewareDef<H, RO, O>;
 }
 
@@ -120,7 +120,7 @@ export interface HeadersFnHelper<O extends RouterOptionsInput> {
     paramsId?: HeadersRouteSlots<O, H, RO>[2],
     returnId?: HeadersRouteSlots<O, H, RO>[3],
     isAsyncId?: InjectRunTypeId<HandlerIsAsync<H>>,
-    syncId?: InjectRunTypeId<[HeaderHandlerParams<H>, HandlerReturn<H>]>
+    syncId?: HeadersRouteSlots<O, H, RO>[4]
   ): HeadersMiddlewareDef<H, RO, O>;
 }
 

@@ -8,6 +8,7 @@
 import type {ROUTER_OPTIONS} from '@mionjs/core';
 import type {Prettify, RpcError, MethodMetadata, RemoteMethodOpts} from '@mionjs/core';
 import type {ResolvedMiddlewareOptions, ResolvedRouteOptions} from './resolvedOptions.ts';
+import type {ParamsStrategy, ReturnStrategy, WireFormat} from './parser.ts';
 import type {CallContext} from './context.ts';
 import type {Routes} from './general.ts';
 import type {
@@ -49,11 +50,11 @@ export type PrivateDef = PrivateMiddlewareDef | RawMiddlewareDef;
 export type PublicApi<Type extends Routes> = Prettify<{
     [Property in keyof Type as Type[Property] extends PrivateDef ? never : Property]
     : Type[Property] extends {type: typeof HandlerType.route; handler: infer H extends Handler; options?: infer RO; routerOptions?: infer O}
-    ? PublicRoute<PublicHandler<H>, ResolvedRouteOptions<RO, O>, HandlerMethodTypes<H>>
+    ? PublicRoute<PublicHandler<H>, ResolvedRouteOptions<RO, O>, HandlerMethodTypes<H, RO, O>>
     : Type[Property] extends {type: typeof HandlerType.headersMiddleware; handler: infer H extends HeaderHandler; options?: infer RO; routerOptions?: infer O}
-    ? PublicHeadersFn<PublicHandler<H>, ResolvedMiddlewareOptions<RO, O>, HeadersHandlerMethodTypes<H>>
+    ? PublicHeadersFn<PublicHandler<H>, ResolvedMiddlewareOptions<RO, O>, HeadersHandlerMethodTypes<H, RO, O>>
     : Type[Property] extends {type: typeof HandlerType.middleware; handler: infer H extends Handler; options?: infer RO; routerOptions?: infer O}
-    ? PublicMiddleware<PublicHandler<H>, ResolvedMiddlewareOptions<RO, O>, HandlerMethodTypes<H>>
+    ? PublicMiddleware<PublicHandler<H>, ResolvedMiddlewareOptions<RO, O>, HandlerMethodTypes<H, RO, O>>
         : Type[Property] extends Routes // Routes & PureRoutes (recursion)
         ? PublicApi<Type[Property]>
         : never;
@@ -80,28 +81,28 @@ export interface MethodTypes {
   /** a headers middleware's HeadersSubset parameter, `never` for every other method */
   headers: unknown;
   isAsync: boolean;
-  /** `[params, return]`, the type the build's sync id is made from */
+  /** the type the build's sync id is made from: the syncId slot of MarkerSlots, written the same way */
   sync: unknown;
 }
 
 /** The MethodTypes of a route or plain middleware handler. An interface over `H` on purpose: its
  *  members resolve only when read, so an API type carrying it costs a client nothing until a build
  *  reads the compiled types off it. */
-export interface HandlerMethodTypes<H extends Handler> {
+export interface HandlerMethodTypes<H extends Handler, RO = unknown, O = unknown> {
   params: HandlerParams<H>;
   return: HandlerReturn<H>;
   headers: never;
   isAsync: HandlerIsAsync<H>;
-  sync: [HandlerParams<H>, HandlerReturn<H>];
+  sync: [HandlerParams<H>, HandlerReturn<H>, WireFormat<ParamsStrategy<RO, O>>, WireFormat<ReturnStrategy<RO, O>>];
 }
 
 /** The MethodTypes of a headers middleware handler: params after its HeadersSubset, which rides `headers`. */
-export interface HeadersHandlerMethodTypes<H extends HeaderHandler> {
+export interface HeadersHandlerMethodTypes<H extends HeaderHandler, RO = unknown, O = unknown> {
   params: HeaderHandlerParams<H>;
   return: HandlerReturn<H>;
   headers: HeaderHandlerHeaders<H>;
   isAsync: HandlerIsAsync<H>;
-  sync: [HeaderHandlerParams<H>, HandlerReturn<H>];
+  sync: [HeaderHandlerParams<H>, HandlerReturn<H>, WireFormat<ParamsStrategy<RO, O>>, WireFormat<ReturnStrategy<RO, O>>];
 }
 
 /** Public Route: the same handler without the context parameter */
