@@ -44,3 +44,12 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
 - Request bodies (string and pre-parsed) still work on every adapter.
 - `pnpm test`, `pnpm run test:bun` and `pnpm run typecheck` pass.
 - The simplify-docs pass ran on every touched page (if any) and the simplify-comments pass on every touched source file, each committed on its own.
+
+## Plan (approved 2026-09-24)
+
+- Adapters: every `reply` now writes `JSON.stringify(response.body)` (or `Response.json`) with no switch. The unused fatal-fallback helpers and imports left behind went too (gcloud `unexpectedFail`).
+- Router: dropped `MionResponse.serializer`, `MionResponse.rawBody`, `RawResponseBody`, `MethodsExecutionChain.serializer`, the copy in `dispatch.ts`, the check in `serializeResponseBody`, and every place that set them (`callContext.ts`, `dispatchError.ts`, `router.ts`, `batches.ts`, `resolveStrategy.bench.ts`).
+- Request side unchanged: `getRequestBodyType` already picks `stringifyJson` for a string and `json` for a parsed object, and the gcloud tests cover both.
+- `SerializerModes` keeps all three values: `json` (parsed request body, client `'json'` mode), `stringifyJson` (string request body), `optimistic` (client). Only its comments changed. The client's `'json'` value stays.
+- Tests: removed the assertions on the dead fields (router `parser`, `fatalDispatch`, `client.routes`, `serializer.routes` specs) and the fuzz runner's `rawBody` branch. No adapter test asserted the unknown-format branch.
+- Docs: none. The request-and-response page imports `MionResponse` straight from the source, so it updates by itself.
