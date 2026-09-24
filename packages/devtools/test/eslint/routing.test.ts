@@ -41,7 +41,6 @@ describe('family routing (compiler diagnostics grouped by Go prefix family, name
     // single-tier families keep one rule at their own default.
     expect(ruleOf({code: 'PFE9012', family: Family.PureFn, severity: Severity.Error})).toBe('pure-functions');
     expect(ruleOf({code: 'FMT001', severity: Severity.Error})).toBe('format');
-    expect(ruleOf({code: 'UKU010', severity: Severity.Warning})).toBe('unknown-keys');
     expect(ruleOf({code: 'NE001', severity: Severity.Error})).toBe('non-enumerable');
     // overrides mixes tiers.
     expect(ruleOf({code: 'OVR001', severity: Severity.Error})).toBe('invalid-override');

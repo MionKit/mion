@@ -52,13 +52,13 @@ const SUBSYSTEMS = [
     key: 'serialization',
     label: 'Serialization',
     description: 'From the JSON and binary families, plus how classes are handled.',
-    prefixes: ['PJ', 'PJS', 'RJ', 'SJ', 'TB', 'FB', 'CLS', 'JCP', 'NE', 'UPN'],
+    prefixes: ['PJ', 'PJS', 'RJ', 'TB', 'FB', 'CLS', 'JCP', 'NE', 'UPN'],
   },
   {
     key: 'unknown-keys',
     label: 'Unknown keys',
-    description: 'From removeUnknownKeys and the rest of that family.',
-    prefixes: ['RUK', 'UKU', 'UKW'],
+    description: 'From removeUnknownKeys.',
+    prefixes: ['RUK'],
   },
   {
     key: 'formats',
