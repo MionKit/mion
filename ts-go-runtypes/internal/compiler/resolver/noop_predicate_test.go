@@ -172,7 +172,7 @@ func TestNoopPredicate_SoundAgainstEmitters(t *testing.T) {
 			refTable[rt.ID] = rt
 		}
 	}
-	// Every registered family, so a newly added or newly wired predicate joins the corpus without a list to update.
+	// A newly wired predicate joins the corpus with no list to update.
 	emitters := make(map[string]typefunctions.Emitter, len(typefunctions.Families))
 	for _, spec := range typefunctions.Families {
 		emitters[spec.Key] = spec.Emitter

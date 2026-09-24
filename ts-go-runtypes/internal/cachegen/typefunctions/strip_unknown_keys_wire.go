@@ -23,12 +23,11 @@ func (StripUnknownKeysWireEmitter) IsRTInlined(ctx *InlineContext) bool {
 	return UnknownKeysToUndefinedEmitter{}.IsRTInlined(ctx)
 }
 
-// IsNoopType: see isNoopForUnknownKeys, the shared unknown-keys mirror.
 func (StripUnknownKeysWireEmitter) IsNoopType(rt *reflection.RunType, ctx *EmitContext) bool {
 	return isNoopForUnknownKeys(rt, ctx, stripUnknownKeysWireSpec)
 }
 
-// NoopChildComposesAround: a child with nothing to undefine mutates nothing, so empty code composes correctly.
+// NoopChildComposesAround: a child with nothing to undefine mutates nothing.
 func (StripUnknownKeysWireEmitter) NoopChildComposesAround() {}
 
 func (StripUnknownKeysWireEmitter) ReturnName() string {
