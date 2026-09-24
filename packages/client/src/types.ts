@@ -70,7 +70,7 @@ export type BatchRouteErrors<Routes extends RouteSubRequest<any>[]> = {
 };
 // type-batch-route-errors-end
 
-/** The request picks its own method, body and abort signal, so fetchOptions cannot set them. */
+/** The client sets method, body and signal on every request. */
 export type ClientFetchOptions = Omit<RequestInit, 'method' | 'body' | 'signal'>;
 
 export interface ClientOptions {
