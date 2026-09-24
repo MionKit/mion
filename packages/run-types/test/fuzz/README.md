@@ -319,7 +319,7 @@ strip every one), and type-blind **junk** for robustness only.
   (`validate(clone(v))` holds and `clone(clone(v))` is stable).
 - `referenceClone.ts` — the reference interpreter: mirrors the Go emitter's
   per-kind arms in
-  [`clone_exact_shape.go`](../../../../ts-go-runtypes/internal/cachegen/typefunctions/clone_exact_shape.go)
+  [`remove_unknown_keys.go`](../../../../ts-go-runtypes/internal/cachegen/typefunctions/remove_unknown_keys.go)
   one-for-one, trading every output-shape decision for the dumbest possible
   implementation (no caching, no fastpaths) so a disagreement is eyeballable.
 - `extrasValue.ts` — the clone-fuzz twin of `invalidValue.ts`: injects 1–3
