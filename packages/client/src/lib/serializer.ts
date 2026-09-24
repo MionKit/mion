@@ -39,7 +39,7 @@ function serializeJsonBody(req: MionClientRequest<any, any>): string {
     const subRequest = req.subRequestList[id];
     if (!subRequest) continue;
     let params = subRequest.params;
-    // Plain JSON IS the wire form of mion's own middlewares (they parse their params as a clone), and a client compiles none.
+    // mion's own middlewares take plain JSON (they parse params as a clone), and a client compiles none for them.
     if (id === MION_ROUTES.methodsMetadata || id === MION_ROUTES.syncRoutes) {
       props.push(`${JSON.stringify(id)}:${JSON.stringify(params)}`);
       continue;
@@ -149,7 +149,7 @@ async function deserializeJsonResponseBody(response: Response, options: ClientOp
       cache.extractAndProcessMetadata(MION_ROUTES.methodsMetadata, parsedBody, options);
       cache.extractAndProcessMetadata(MION_ROUTES.methodsMetadataById, parsedBody, options);
     }
-    // raw like the asked rows: a client holds no compiled functions for mion's own middleware
+    // raw like the asked rows: a client compiles nothing for mion's own middleware
     const syncAnswer = parsedBody[MION_ROUTES.syncRoutes];
     if (syncAnswer !== undefined) delete parsedBody[MION_ROUTES.syncRoutes];
     // kept out of the body, so the wire's returned-vs-thrown split survives

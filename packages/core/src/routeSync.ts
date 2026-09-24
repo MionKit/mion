@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The one definition both ends hash under `syncRoutes`: the server over its executables, the client over the rows it
-// holds. What else a client reads off a row is listed in clientRowView.ts.
+// The one sync id definition both ends hash: the server over its executables, the client over its rows.
+// What else a client reads off a row is in clientRowView.ts.
 
 import type {MethodMetadata} from './types/method.types.ts';
 

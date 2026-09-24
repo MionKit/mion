@@ -5,8 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Under the server's `syncRoutes` every call carries one sync id per route, computed from the rows this client
-// holds. Kept out of the fetched lane: a bundled client sends ids without ever loading it.
+// Route sync ids, computed from the rows this client holds. Kept out of the fetched lane: a bundled client sends them too.
 
 import {MION_ROUTES, RpcError, isRpcError, routeSyncId} from '@mionjs/core';
 import type {InjectRouterOptions} from '@mionjs/run-types';
@@ -16,7 +15,7 @@ import {getMethod} from './methods.ts';
 
 export type RouteSyncRefusal = RpcError<'route-types-mismatch' | 'route-sync-required', RouteSyncErrorData>;
 
-/** The servers (baseURLs) that check route sync ids: told by the build, or learned from a refusal. */
+/** baseURLs that check sync ids: told by the build, or learned from a refusal. */
 const syncServers = new Set<string>();
 
 /** Called by `initClient` with what the build read off the API type. */

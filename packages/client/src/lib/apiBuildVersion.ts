@@ -7,13 +7,13 @@
 
 // The version check rides every response, so it cannot be lazily loaded; what a mismatch then does lives in
 // apiVersionRecovery.ts, behind `#metadata-from-server`. Split from client.ts like bundleApiMode.ts: request.ts
-// must not pull the client in. The build version is the program's; a mismatch is kept per server (baseURL).
+// must not pull the client in. One build version per program, one mismatch per server.
 
 import type {RpcError} from '@mionjs/core';
 
 /** The API version this client was built against, injected at `initClient` by the build. */
 let apiBuildVersion: string | undefined;
-/** The servers (baseURLs) that answered with a version other than this build's. */
+/** baseURLs that answered with a version other than this build's. */
 const mismatchedServers = new Set<string>();
 let mismatchError: RpcError<'api-version-mismatch'> | undefined;
 
@@ -33,7 +33,7 @@ export function noteServerApiVersion(baseURL: string, serverVersion: string | un
   return true;
 }
 
-/** Whether the recovery module is worth loading for this server: nothing else in this file reaches it. */
+/** Whether the recovery module is worth loading: nothing else in this file reaches it. */
 export function hasApiVersionMismatch(baseURL: string): boolean {
   return mismatchedServers.has(baseURL);
 }

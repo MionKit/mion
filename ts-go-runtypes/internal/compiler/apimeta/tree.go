@@ -44,8 +44,7 @@ type Tree struct {
 	RouterOptions *checker.Type
 }
 
-// A symbol-keyed member's name starts with tsgo's internal prefix (never a valid identifier); the options key is
-// the `unique symbol` @mionjs/core declares as ROUTER_OPTIONS.
+// tsgo names a symbol-keyed member with this internal prefix; ROUTER_OPTIONS is @mionjs/core's `unique symbol`.
 const (
 	symbolKeyPrefix     = "\xFE@"
 	routerOptionsPrefix = symbolKeyPrefix + "ROUTER_OPTIONS@"

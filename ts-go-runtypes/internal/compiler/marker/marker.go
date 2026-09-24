@@ -58,18 +58,16 @@ const (
 	// the injected value is a deterministic `"b_<hash>"` id over the ORDERED route ids the sibling
 	// `[...Routes]` argument names. The batches extractor splices it in, so no scanCall case.
 	KindInjectBatchId
-	// KindInjectApiMetadata (InjectApiMetadata<Api, Id>) brands the trailing parameter of a client
-	// dispatch point (`.call()`, `.prefill()`, `.typeErrors()`, a batch's `.call()`). The apimeta lane
-	// reads the API type and the route id off the alias's type arguments and fills the slot with an
-	// import of the generated metadata module. No scanCall case.
+	// KindInjectApiMetadata (InjectApiMetadata<Api, Id>) brands the trailing parameter of a client dispatch point
+	// (`.call()`, `.prefill()`, `.typeErrors()`, a batch's `.call()`); the apimeta lane fills it with an import of the
+	// metadata module generated for that API and route id. No scanCall case.
 	KindInjectApiMetadata
 	// KindInjectBuildVersion (InjectBuildVersion<Api>) rides the trailing parameter of `initRoutes` and
 	// `initClient`: a hash over the compiled ids of every method the Api declares, so both ends of one API
 	// agree and a changed route type disagrees. No scanCall case, the apiversion extractor splices it in.
 	KindInjectBuildVersion
-	// KindInjectRouterOptions (InjectRouterOptions<Api>) rides the trailing parameter of `initClient`: the router
-	// options the Api carries under its ROUTER_OPTIONS key that a client acts on, as an object literal. No scanCall
-	// case, the apiversion extractor splices it in beside the build version.
+	// KindInjectRouterOptions (InjectRouterOptions<Api>) brands `initClient`'s trailing parameter: the client-read
+	// options under the Api's ROUTER_OPTIONS key, as an object literal. No scanCall case, apiversion splices it.
 	KindInjectRouterOptions
 	// KindPureFnId (PureFnId<ID>) brands the VALUE a pure-fn registrar returns, not an injection (no
 	// scanCall case): it is what lets a build recognise an id handed to a `CompTimeArgs<PureFnId>`

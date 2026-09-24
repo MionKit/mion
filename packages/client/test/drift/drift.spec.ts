@@ -5,9 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// One client built against server A, then servers A, B, C and A again on ONE port, the stored metadata kept
-// across page reloads. Every server runs with `syncRoutes`: a route whose types (or whose chain's types) changed
-// is refused before any handler runs, anything else runs.
+// One client built against A meets servers A, B, C, A on one port, its stored metadata kept across reloads.
+// Under `syncRoutes` a route whose own or chain types changed is refused before any handler runs; the rest run.
 
 import {describe, it, expect, beforeAll, afterAll, afterEach} from 'vitest';
 import type {api} from './apiA.ts';
@@ -78,7 +77,7 @@ async function phase(server: DriftServerName, expected: {changed: Expect; secure
   } else {
     expect(changed.value[0]).toBeUndefined();
     expect(changed.value[2]).toMatchObject({type: 'route-types-mismatch', errorData: {routeIds: ['changed']}});
-    // a different id is final: nothing is resent and no handler ran
+    // a different id is final: nothing is resent
     expect(changed.fetches).toBe(1);
     expect(calls?.changed).toBeUndefined();
   }

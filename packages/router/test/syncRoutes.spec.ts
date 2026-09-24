@@ -65,7 +65,7 @@ describe('mion@syncRoutes', () => {
       expect(notFound.headers.get(BUILD_VERSION_HEADER)).toBe('abc123');
     });
 
-    // No literal here: the build fills the slot from this file's own routes, so the whole pipeline answers in the JS suite.
+    // No literal: the build fills the slot from this file's routes, so the JS suite runs the whole pipeline.
     it('carries the version the build injects when the call leaves the slot empty', async () => {
       const mion = createMionRouter();
       const hello = mion.route((ctx, name: string): string => name);

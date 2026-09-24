@@ -225,8 +225,7 @@ func transformedCode(t *testing.T, session *resolver.Session, file string) strin
 	return response.Transformed[file].Code
 }
 
-// TestApiVersion_ClientGetsTheRouterOptionsItActsOn: the options key is skipped by the API walk (the version stays
-// the server's) and `syncRoutes` is spliced after the version; options a client never reads stay out.
+// TestApiVersion_ClientGetsTheRouterOptionsItActsOn: the API walk skips the options key, so the version stays the server's.
 func TestApiVersion_ClientGetsTheRouterOptionsItActsOn(t *testing.T) {
 	sources := map[string]string{
 		"router.d.ts": optionsRouterDTS,
@@ -246,7 +245,7 @@ func TestApiVersion_ClientGetsTheRouterOptionsItActsOn(t *testing.T) {
 	}
 }
 
-// TestApiVersion_NoRouterOptionsWithoutALiteral: a bare PublicApi, or a `syncRoutes` that is not a literal, injects the version alone.
+// TestApiVersion_NoRouterOptionsWithoutALiteral: a bare PublicApi or a non-literal `syncRoutes` injects the version alone.
 func TestApiVersion_NoRouterOptionsWithoutALiteral(t *testing.T) {
 	for _, routerOptions := range []string{"", "{syncRoutes: Math.random() > 1}"} {
 		sources := map[string]string{
@@ -263,8 +262,7 @@ func TestApiVersion_NoRouterOptionsWithoutALiteral(t *testing.T) {
 	}
 }
 
-// TestApiVersion_EveryClientIsCheckedAgainstTheServer: a matching client later in the program never hides an
-// earlier one that disagrees, and the error names the two versions that differ.
+// TestApiVersion_EveryClientIsCheckedAgainstTheServer: a later matching client never hides an earlier mismatch.
 func TestApiVersion_EveryClientIsCheckedAgainstTheServer(t *testing.T) {
 	badClient := strings.Replace(versionClientTS, "export const {routes} = initClient<Api>", "export const {routes: other} = initClient<Api>", 1)
 	sources := map[string]string{

@@ -267,7 +267,7 @@ export type ClientRoutes<
   Prefix extends string = '',
   Root extends RemoteApi = RA extends RemoteApi ? RA : RemoteApi,
 > = Prettify<{
-  // string keys only: the API type `initRoutes` returns carries its router options under a symbol key
+  // string keys only: skips the router options the API type carries under a symbol key
   [Property in keyof RA & string as RA[Property] extends NonClientRoute ? never : Property]: RA[Property] extends {
     type: typeof HandlerType.route;
     handler: infer H extends PublicHandler;

@@ -5,13 +5,11 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Apart from routeSync.ts, which every client loads: only the version recovery and the parity tests read this.
+// Kept out of routeSync.ts, which every client loads: only version recovery and the parity tests read this.
 
 import type {MethodMetadata, MethodWithOptions} from './types/method.types.ts';
 
-/** Every row field a client acts on (only the sync id fields ever block a call), normalised so both ends compare alike:
- *  `null` reads as `undefined`, an empty `middlewareIds` as absent, a missing `paramsCount` as 0, and a single `parser`
- *  name as the same name for both directions. */
+/** Every row field a client acts on, normalised so both ends compare alike; only the sync id fields block a call. */
 export function clientRowView(row: MethodWithOptions) {
   const parser = row.options?.parser as unknown;
   return {

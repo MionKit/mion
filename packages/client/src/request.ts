@@ -47,11 +47,11 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddlewareReques
   response: Response | undefined;
   /** bounds the stale-metadata relearn below to one attempt per request */
   private purgedStaleMetadata = false;
-  /** bounds the resend after a build-version mismatch to one per request: a call that still fails is reported */
+  /** one resend after a build-version mismatch; a second failure is reported */
   private retriedAfterMismatch = false;
   /** ids this request asked the server to confirm after a build-version mismatch */
   private verifying: string[] | undefined;
-  /** bounds the resend after a `route-sync-required` refusal to one per request */
+  /** one resend after a `route-sync-required` refusal */
   private resentWithSyncIds = false;
 
   constructor(
@@ -232,7 +232,7 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddlewareReques
     return Object.values(deserialized).some(isRetryError) || Object.values(thrownErrors).some(isRetryError);
   }
 
-  /** The server answered the sync slot only when it refused the call; the slot is never a middleware result. */
+  /** The sync slot is answered only on a refusal, never as a middleware result. */
   private takeSyncRefusal(deserialized: ResponseBody): RouteSyncRefusal | undefined {
     const answer = deserialized[MION_ROUTES.syncRoutes];
     delete deserialized[MION_ROUTES.syncRoutes];
@@ -240,8 +240,8 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddlewareReques
     return syncRefusalOf(answer);
   }
 
-  /** Missing ids are resent once with the rows the refusal carries; different ids are the app's to report,
-   *  its code was written against other types, so nothing a resend could fix. Either way no handler ran. */
+  /** Missing ids are resent once with the refusal's rows; no handler ran, so resending is safe.
+   *  Different ids are reported: the code expects other types, and no resend fixes that. */
   private async handleSyncRefusal(
     refusal: RouteSyncRefusal,
     errors: RequestErrors
