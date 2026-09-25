@@ -165,7 +165,12 @@ describe('a client built against routes the server has since changed', () => {
         const before = handlerCalls[id];
         const refused = await counted(call);
         expect(refused.value[0]).toBeUndefined();
-        expect(refused.value[2]).toMatchObject({type: 'route-types-mismatch', errorData: {routeIds: [id]}});
+        // a middleware's returned error: its own slot, never the undeclared one
+        expect((refused.value[4] as Record<string, unknown> | undefined)?.mionSyncRoutes).toMatchObject({
+          type: 'route-types-mismatch',
+          errorData: {routeIds: [id]},
+        });
+        expect(refused.value[2]).toBeUndefined();
         expect(refused.fetches).toBe(1);
         expect(handlerCalls[id]).toBe(before);
       }
@@ -176,7 +181,7 @@ describe('a client built against routes the server has since changed', () => {
       const {routes, middlewares} = reloadClient();
       middlewares.secured.token.onRequest((token) => token('t'));
       const result = await routes.secured.data().call();
-      expect(result[2]?.type).not.toBe('route-types-mismatch');
+      expect(result[4]?.mionSyncRoutes).toBeUndefined();
       expect(result[4]?.['secured/token']).toMatchObject({type: 'validation-error'});
       expect(handlerCalls['secured/data']).toBe(before);
     });
@@ -185,6 +190,7 @@ describe('a client built against routes the server has since changed', () => {
       const relearned = await counted(() => callWide(reloadClient().routes.stored(3)));
       expect(relearned.value[0]).toBe('3');
       expect(relearned.value[2]).toBeUndefined();
+      expect(relearned.value[4]?.mionSyncRoutes).toBeUndefined();
       // refused for the stale id, the fresh row fetched, then sent with the fresh id
       expect(relearned.fetches).toBe(3);
       // and saved: the next page load sends the fresh id straight away
@@ -207,6 +213,7 @@ describe('a client built against routes the server has since changed', () => {
       const relearned = await counted(() => callWide(routes.stored(3)));
       expect(relearned.value[0]).toBe('3');
       expect(relearned.value[2]).toBeUndefined();
+      expect(relearned.value[4]?.mionSyncRoutes).toBeUndefined();
       expect(relearned.fetches).toBe(3);
     });
   });

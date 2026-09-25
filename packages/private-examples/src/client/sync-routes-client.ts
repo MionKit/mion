@@ -10,9 +10,10 @@ useSyncRoutes(middlewares.mionSyncRoutes);
 // end-setup
 
 // start-mismatch
-const [greeting, , undeclared] = await routes.sayHello('Ana').call();
+const [greeting, , , , middlewareErrors] = await routes.sayHello('Ana').call();
 
 // the server's route types changed since this app was built
-if (undeclared?.type === 'route-types-mismatch') location.reload();
+if (middlewareErrors?.mionSyncRoutes?.type === 'route-types-mismatch')
+  location.reload();
 else console.log(greeting);
 // end-mismatch
