@@ -136,6 +136,7 @@ See [SETUP.md → Containerized apps](SETUP.md#containerized-apps-docs-website--
 ## Code style
 
 - No `I` prefix on interfaces; no `T` prefix on type parameters.
+- Shared types and interfaces live in the package's `types.ts`; only a type private to one file stays in that file.
 - `InjectRunTypeId` (capital T mid-word) — same casing as `RunType`.
 - Prefer type casting over assertions.
 - No `@param` / `@returns` in JSDoc; prefer one-liner comments and one-line `if`s.
