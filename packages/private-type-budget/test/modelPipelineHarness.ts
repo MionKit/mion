@@ -235,7 +235,12 @@ export const errorName: string | undefined = insertError?.name ?? updateError?.n
     // own generics consume the synthesized config. The chain total fell 13328
     // to 13077, which PIPELINE_TOTAL_BUDGET below now holds. Raising a step
     // budget is otherwise never the answer; see the header of the suite.
-    budget: 7852,
+    //
+    // 7852 -> 7857: a REVIEWED EXCEPTION. toDrizzle names each synthesized column by its db name
+    // (a type-road column's own, `string` for a builder column), one check per column; with the
+    // refined key flags landing in the same layer the two no longer fit. A one-conditional
+    // spelling measured 7877.
+    budget: 7857,
     body: `
 declare const db: PgDatabase<PgQueryResultHKT>;
 const dzUsers = toDrizzle(apiUsers);
@@ -464,8 +469,8 @@ export function measureConsumerLane(): ConsumerLaneResult {
  *
  *  13597 -> 13614: a REVIEWED EXCEPTION, refined columns keep their key flags for toDrizzle (steps 2 and 6, both in budget).
  *
- *  13614 -> 13614: REVIEWED EXCEPTION, toDrizzle names columns by db name, one check per column within step 6's budget. **/
-export const PIPELINE_TOTAL_BUDGET = 13614;
+ *  13614 -> 13628: REVIEWED EXCEPTION, toDrizzle names columns by db name, one check per column (step 6). **/
+export const PIPELINE_TOTAL_BUDGET = 13628;
 
 /** What a downstream consumer may pay to read the model types out of the
  *  emitted `.d.ts`. ONE-WAY DOWNWARD, same rule as the step budgets. The first

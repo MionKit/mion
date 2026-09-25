@@ -17,9 +17,9 @@ layer to another.
 | 3 | Infer* models | 573 | 578 | 2148 |
 | 4 | mion route api | 547 | 547 | 2695 |
 | 5 | initClient | 3076 | 3076 | 5771 |
-| 6 | db query (toDrizzle) | 7843 | 7852 | 13614 |
+| 6 | db query (toDrizzle) | 7857 | 7857 | 13628 |
 
-Total for the whole chain: **13614**, against a total budget of **13614**.
+Total for the whole chain: **13628**, against a total budget of **13628**.
 
 Every one of these is paid again on every keystroke. TypeScript memoises type
 instantiations within a single check, but each edit builds a new checker, so the
