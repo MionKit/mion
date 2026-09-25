@@ -9,11 +9,9 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// A parameter typed through a user alias over a marker (`type Slot<T> = InjectRunTypeId<T>`) loses the marker's
-// alias name, so it is matched by its brand property only. It must still inject the id of its real type argument,
-// never the id of `unknown`. Paired static / reflect tests per the marker test coverage rule.
+// A user alias over a marker (`type Slot<T> = InjectRunTypeId<T>`) matches by brand only, yet must inject the id
+// of T, never of `unknown`. Paired static / reflect tests per the marker test coverage rule.
 
-// scanSitesByPos scans one inline file and returns its sites in source order.
 func scanSitesByPos(t *testing.T, code string) []protocol.Site {
 	t.Helper()
 	r := setupInline(t, map[string]string{"a.ts": code})
@@ -69,8 +67,7 @@ export const unknownId = getRunTypeId(unknownValue);
 	assertWrappedMatchesDirect(t, sites)
 }
 
-// The router shape that surfaced the bug: a multi-parameter alias whose argument is built from its parameters.
-// Every call site got the same `unknown` id; different types must now get different ids.
+// The router's shape: a multi-parameter alias building its argument from its parameters once gave every site `unknown`.
 func TestMarkerAliasWrapped_TupleSlot_Static(t *testing.T) {
 	sites := scanSitesByPos(t, `import {getRunTypeId, type InjectRunTypeId} from '@mionjs/run-types';
 type Slot<P, R> = InjectRunTypeId<[P, R]>;
@@ -147,8 +144,7 @@ export const unknownId = getRunTypeId<unknown>();
 	}
 }
 
-// A project's own look-alike brand, declared by an untrusted package and wrapped in an alias, stays inert: the
-// brand property is read only when the trusted marker package declared it.
+// An untrusted package's look-alike brand, wrapped in an alias, stays inert: only a trusted brand is read.
 func TestMarkerAliasWrapped_UntrustedBrandStaysInert_Static(t *testing.T) {
 	got := markerPackageProgram(t, `import {getRunTypeId, type InjectRunTypeId} from '@my-org/runtypes-markers';
 type Slot<T> = InjectRunTypeId<T>;
