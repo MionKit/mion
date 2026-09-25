@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Script to find example files that are not referenced by any code-import in website docs.
- * Scans packages/examples/src for all TypeScript files and checks if they are used
+ * Scans packages/private-examples/src for all TypeScript files and checks if they are used
  * in any <code-import> tag in the content tree.
  *
  * Usage: node container/website/scripts/check-unused-examples.mts
@@ -15,7 +15,7 @@ import {join, resolve} from 'path';
 const MONOREPO_ROOT = process.env.MION_REPO_ROOT
   ? resolve(process.env.MION_REPO_ROOT)
   : resolve(import.meta.dirname, '../../..');
-const EXAMPLES_DIR = resolve(MONOREPO_ROOT, 'packages/examples/src');
+const EXAMPLES_DIR = resolve(MONOREPO_ROOT, 'packages/private-examples/src');
 // The one content tree; every subsite lives under it (content/<NN>.<id>/).
 const CONTENT_DIRS = [resolve(import.meta.dirname, '../content')];
 

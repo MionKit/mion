@@ -257,7 +257,7 @@ describe('published packages point at this repository', () => {
         'fatal',
         '--',
         'packages/client/src',
-        'packages/examples/src/client',
+        'packages/private-examples/src/client',
         'container/website/content/01.rpc/03.client',
         ':!*.spec.ts',
       ],
@@ -322,7 +322,7 @@ describe('lint:directives reaches the directive comments the main lint ignores',
     () => {
       const files: string[] = directiveFiles(REPO_ROOT);
       expect(files).toContain('packages/run-types/test/suites/validation/Atomic.ts');
-      expect(files).toContain('packages/examples/src/guide/disabling-errors.ts');
+      expect(files).toContain('packages/private-examples/src/guide/disabling-errors.ts');
       expect(files.filter((file) => !/^packages\/.+\.ts$/.test(file) || /\/(dist|node_modules)\//.test(file))).toEqual([]);
     },
     WHOLE_TREE_TIMEOUT
@@ -508,7 +508,7 @@ describe('.env.sample mirrors the env REGISTRY', () => {
 
 describe('twoslash VFS mounts the packages the examples import', () => {
   const TWOSLASH_API = join(REPO_ROOT, 'container/website/server/api/twoslash.post.ts');
-  const EXAMPLES_SRC = join(REPO_ROOT, 'packages/examples/src');
+  const EXAMPLES_SRC = join(REPO_ROOT, 'packages/private-examples/src');
 
   // Every `name:` in twoslash.post.ts's packageConfigs — the npm names it mounts
   // under /node_modules/<name>/ in the virtual file system.
@@ -1887,10 +1887,10 @@ describe('every package under packages/ runs a type check over everything it shi
   it('collects the projects from the package scripts and the root ones alike', () => {
     const own = {'typecheck:test': 'tsc -p tsconfig.json --noEmit', 'check-types': 'tsc --noEmit -p tsconfig.drizzle.json'};
     const root = {
-      typecheck: 'pnpm run typecheck:test && tsc -p packages/examples/tsconfig.runtypes.json',
+      typecheck: 'pnpm run typecheck:test && tsc -p packages/private-examples/tsconfig.runtypes.json',
       other: 'tsc -p packages/router/tsconfig.json',
     };
-    expect(coverage.projectsOf('examples', own, root)).toEqual([
+    expect(coverage.projectsOf('private-examples', own, root)).toEqual([
       'tsconfig.json',
       'tsconfig.drizzle.json',
       'tsconfig.runtypes.json',

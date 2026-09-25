@@ -8,7 +8,7 @@
 // By relative path, not by package name: globalSetup is loaded through vite's SSR module runner,
 // which resolves `@mionjs/test-server` without the `source` export condition the specs get and so
 // lands on the unbuilt `.dist` entry. The path names the same module the specs' types come from.
-import {startTestServer} from '../test-server/src/test-server.ts';
+import {startTestServer} from '../private-test-server/src/test-server.ts';
 import type {Server} from 'node:http';
 
 /** Port the in-process test server listens on for the client tests. */

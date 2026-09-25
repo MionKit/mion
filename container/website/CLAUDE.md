@@ -120,7 +120,7 @@ never in two of them. If a comment in the example says it, the paragraph does no
 
 ### Code examples
 
-- They live in `packages/examples/src/` and come in with `<code-import>` and markers, so
+- They live in `packages/private-examples/src/` and come in with `<code-import>` and markers, so
   the root typecheck catches drift.
 - Show only what the section explains: five to fifteen lines. No setup the reader does
   not need, no second feature.
@@ -246,29 +246,29 @@ In-container scripts (what the commands above ultimately run): `pnpm run dev`,
 ## Code Import component
 
 Prefer `<code-import>` over hand-written TypeScript fences: it pulls real files
-from `packages/examples/src/`, which are typechecked in CI (the mion half by the
+from `packages/private-examples/src/`, which are typechecked in CI (the mion half by the
 root `check-types-examples` script, the runtypes half by `typecheck`), so doc
 drift fails CI instead of rotting.
 
 - Processed server-side via the `content:file:beforeParse` hook in `nuxt.config.ts`.
 - Implementation: `server/utils/code-import.ts`.
 - Paths are relative to the monorepo root (not the website root).
-- In dev mode, a Vite plugin watches `packages/examples/src/` and triggers hot reload when examples change.
+- In dev mode, a Vite plugin watches `packages/private-examples/src/` and triggers hot reload when examples change.
 
 ### Usage
 
 ```md
 <!-- Import full file -->
-<code-import path="packages/examples/src/guide/ser-json-basics.ts" lang="ts" />
+<code-import path="packages/private-examples/src/guide/ser-json-basics.ts" lang="ts" />
 
 <!-- With tab title shown in code-group -->
-<code-import path="packages/examples/src/guide/ser-json-basics.ts" lang="ts [json.ts]" />
+<code-import path="packages/private-examples/src/guide/ser-json-basics.ts" lang="ts [json.ts]" />
 
 <!-- Import specific line range (lines="start,end") -->
-<code-import path="packages/examples/src/guide/ser-json-basics.ts" lang="ts" lines="1,10" />
+<code-import path="packages/private-examples/src/guide/ser-json-basics.ts" lang="ts" lines="1,10" />
 
 <!-- Import between comment markers (markers are stripped from output; preferred) -->
-<code-import path="packages/examples/src/guide/ser-json-basics.ts" lang="ts" commentStart="// start-basics" commentEnd="// end-basics" />
+<code-import path="packages/private-examples/src/guide/ser-json-basics.ts" lang="ts" commentStart="// start-basics" commentEnd="// end-basics" />
 ```
 
 ## Twoslash Code component
@@ -306,7 +306,7 @@ drift fails CI instead of rotting.
 ```md
 ::::twoslash-code
 ---
-path: packages/examples/src/_homepage/reflection.ts
+path: packages/private-examples/src/_homepage/reflection.ts
 title: reflection.ts
 ---
 ::::
@@ -324,7 +324,7 @@ title: reflection.ts
 
 ## Examples package
 
-- Located at `packages/examples/src/` — real, compilable TypeScript examples.
+- Located at `packages/private-examples/src/` — real, compilable TypeScript examples.
 - Private package, not published to npm; its build script is a noop.
 - Organized by topic: `_homepage/`, `introduction/`, `guide/`, `enrich/`, `suites/`.
 - Examples must compile: they import the public package names (`@mionjs/run-types`,
@@ -423,4 +423,4 @@ title: reflection.ts
 ## Server API endpoints
 
 - `POST /api/twoslash`: renders TypeScript code with Shiki/Twoslash, returns HTML.
-- `POST /api/read-file`: reads files from `packages/examples/` only (used by the twoslash component).
+- `POST /api/read-file`: reads files from `packages/private-examples/` only (used by the twoslash component).

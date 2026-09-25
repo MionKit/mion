@@ -64,7 +64,7 @@ The implementer plans the details. Decided shape and rules:
   ignored with `void`. The compiler already resolves route ids and handler types for the
   batch diagnostics (`BAT001`-style codes routed to lint), follow that road.
 - Types: `Result` / `BatchResult` in `packages/client/src/types.ts` stay for `callRaw()`; the
-  outcome types are new. Every client example under `packages/examples/src/client/` and the
+  outcome types are new. Every client example under `packages/private-examples/src/client/` and the
   client error-handling and batch pages under `container/website/content/01.rpc/03.client/`
   move to `call()` + `match`, with `callRaw()` shown once as the escape hatch.
 

@@ -44,7 +44,7 @@ Cross-package deps use the `workspace:*` protocol. All devDependencies live root
     Read [src/runtypes/next/CLAUDE.md](packages/devtools/src/runtypes/next/CLAUDE.md) first, it records invariants that look like cleanups but are not!
 - [@mionjs/bin-compiler](packages/bin-compiler/) — platform launcher, and the `mion` CLI command; `getExePath()` resolves the prebuilt resolver binary from per-platform `@mionjs/native-compiler-<os>-<arch>` optional deps.
   NEVER add a postinstall downloader, `ignoreScripts: true` blocks it. `constants.Version` is folded into typeID hashes; `constants.TsgoVersion` is metadata and NEVER enters the hash.
-- [examples](packages/examples/) — MERGED package of compilable TS example files (mion + runtypes) consumed by both docs sites' `<code-import>` blocks; the root `typecheck` compiles them, so doc drift fails CI.
+- [examples](packages/private-examples/) — MERGED package of compilable TS example files (mion + runtypes) consumed by both docs sites' `<code-import>` blocks; the root `typecheck` compiles them, so doc drift fails CI.
 
 The mion framework packages (`@mionjs/*`):
 
@@ -54,7 +54,7 @@ The mion framework packages (`@mionjs/*`):
 - [drizzle-orm](packages/drizzle-orm/) (`@mionjs/drizzle-orm`) — the dialect-agnostic slim recorder core (column/table/entry/sql recorders, flat Infer* models, refineTableType); never imports drizzle.
 - [drizzle-orm-pg-core](packages/drizzle-orm-pg-core/) / [-mysql-core](packages/drizzle-orm-mysql-core/) / [-sqlite-core](packages/drizzle-orm-sqlite-core/) — the per-dialect authoring surfaces: drizzle-identical builders/helpers that RECORD calls, with `toDrizzle` on the `./drizzle` subpath as the one drizzle-importing module (drizzle-orm is an optional peer). All four ride the drizzle version line instead of the lockstep train (the `versionLine` package.json marker) and republish only when their own published sources changed ([scripts/lib/drizzle-line.mjs](scripts/lib/drizzle-line.mjs)). Generator config: [drizzle-dialects.json](drizzle-dialects.json); the same run emits the import map `mion drizzle-migrate` rewrites with.
   Proven against real databases by the drizzle-e2e lane (below), which translates drizzle's own suites onto these packages and runs them.
-- `platform-aws|bun|cloudflare|gcloud|node|uws|vercel` — platform adapters. [test-server](packages/test-server/) — private e2e fixture server.
+- `platform-aws|bun|cloudflare|gcloud|node|uws|vercel` — platform adapters. [test-server](packages/private-test-server/) — private e2e fixture server.
 - [bin-uws](packages/bin-uws/) (`@mionjs/bin-uws`) — loader for the uWebSockets.js prebuilt binaries platform-uws runs on (sha256-verified on-demand fetch in dev via `pnpm miondevx core build uws`).
 - Every `@mionjs/*` dependency on `RunTypes/*` is `workspace:*`, so **the mion tests need the Go toolchain** exactly like the runtypes ones.
 
@@ -186,7 +186,7 @@ Before opening a PR, confirm the change is **PR ready** — never open one other
 - **A superseded spec is rewritten from scratch**, never cross-referenced. Delete the old one (or `git mv` it to [docs/done/](docs/done/) if part genuinely shipped). Never leave a link, a "supersedes" note, or a summary of the previous version.
 - **No other file ever names a `docs/todos/` or `docs/done/` document.** Not a doc, a skill, a workflow, a test, or a code comment: those specs get deleted eventually, so every such reference rots. Put the reasoning in the file that needs it. A spec may list the documents that could go stale once it merges, but that list lives inside the spec.
 - **Label the PR so the CI lanes it needs actually run.** The heavy lanes are opt-in per PR ([pr-heavy.yml](.github/workflows/pr-heavy.yml), [drizzle-e2e.yml](.github/workflows/drizzle-e2e.yml)). With no label they never run and GitHub still shows the PR green, so an unlabelled PR can merge untested:
-  - `website`: builds the docs site. Add it for [container/website/](container/website/) and for [packages/examples/](packages/examples/), whose files the pages import.
+  - `website`: builds the docs site. Add it for [container/website/](container/website/) and for [packages/private-examples/](packages/private-examples/), whose files the pages import.
   - `bench`: runs the validation benchmarks. Add it for [container/benchmarks/](container/benchmarks/) or their deps.
   - `pre-publish-e2e`: packs every package, publishes to a throwaway registry and runs the consumer lanes. Add it for package exports, `package.json` changes, public API renames, anything a consumer installs.
   - `drizzle-e2e`: runs drizzle's own suites against real databases. Add it for [packages/drizzle-orm/](packages/drizzle-orm/) and its dialect packages, or [container/drizzle-e2e/](container/drizzle-e2e/).
@@ -251,7 +251,7 @@ User-facing docs live in ONE content tree (Nuxt + Docus Markdown + MDC), [contai
 - **Never let a formatter or linter touch this tree.** Prettier reflows the `::` / `:::` MDC components into something Docus cannot parse, which is why `pnpm run format` excludes it. Never hand-format it either; writing and editing the components by hand is normal work.
 - **`index.md`** (the home page) gets the SIMPLEST wording on the site, and is exempt from nothing above. Short sentences, second person ("your types"), the concrete benefit first.
 - Updating examples when the API changes is REQUIRED, `index.md`'s included. Keep the edit scoped to the example.
-- **Prefer `<code-import>`** over hand-written fences for TypeScript examples. Import real files from [packages/examples/src/](packages/examples/src/), they compile under the root `typecheck` script so the type checker flags doc drift.
+- **Prefer `<code-import>`** over hand-written fences for TypeScript examples. Import real files from [packages/private-examples/src/](packages/private-examples/src/), they compile under the root `typecheck` script so the type checker flags doc drift.
   Hand-written fences are for bash/CLI, JSON config, output/tree listings, and deliberately partial or invalid fragments only.
 - **Broad style pass:** fan out one agent per `N.section/` dir, then verify em/en dashes are gone and the counts still match.
 

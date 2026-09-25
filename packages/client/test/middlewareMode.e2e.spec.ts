@@ -19,7 +19,7 @@ import {mionVitePlugin} from '@mionjs/devtools/vite';
 // isolation; this one is the integration the stubs cannot give: build-time type injection, router
 // registration, dispatch and serialization all running through vite's SSR pipeline.
 
-const TEST_SERVER_DIR = resolve(__dirname, '../../test-server');
+const TEST_SERVER_DIR = resolve(__dirname, '../../private-test-server');
 const START_SCRIPT = resolve(TEST_SERVER_DIR, 'src/test-server.ts');
 
 describe('mion API mounted in-process (middleware mode)', () => {

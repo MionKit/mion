@@ -15,7 +15,7 @@ import {fileURLToPath} from 'node:url';
 
 const configFile = process.argv[2];
 if (!configFile) throw new Error('usage: laneServerChild.mjs <vitest config file>');
-const entry = fileURLToPath(new URL('../../../test-server/src/test-server.ts', import.meta.url));
+const entry = fileURLToPath(new URL('../../../private-test-server/src/test-server.ts', import.meta.url));
 
 const vite = await createServer({
   configFile,

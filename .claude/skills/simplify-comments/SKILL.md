@@ -35,7 +35,7 @@ Never touch:
 - Directive comments: `//go:build`, `//go:generate`, `// @ts-`, `// @mion-`, `// eslint-`, `// oxlint-`, `// biome-`, `// ^?`, `// ^|`, `// @annotate`, `// start-` / `// end-` markers, `GC-GUARD`, and any other comment a tool reads.
 - License headers.
 - Generated files (`*.generated.*`, `go-generated/`), `third_party/`, `_deps/`, `testdata/`, `node_modules/`.
-- `packages/examples/`: those comments are documentation and belong to the simplify-docs pass.
+- `packages/private-examples/`: those comments are documentation and belong to the simplify-docs pass.
 - Anything that is not a comment. Code, strings, test names and JSON tags stay byte for byte.
 
 ## Per comment

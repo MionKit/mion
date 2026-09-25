@@ -46,12 +46,12 @@
         "lint": "pnpm run lint:oxlint && pnpm run lint:directives && pnpm run lint:eslint && pnpm run typecheck",
         "lint:oxlint": "oxlint",
         "lint:directives": "node scripts/core/lint-directives.mjs",
-        "lint:eslint": "eslint 'packages/{core,router,client,devtools,drizzle-orm,drizzle-orm-pg-core,drizzle-orm-mysql-core,drizzle-orm-sqlite-core,platform-aws,platform-bun,platform-cloudflare,platform-gcloud,platform-node,platform-uws,platform-vercel,test-server,test-router-fuzz,bin-uws}/**/*.ts'",
+        "lint:eslint": "eslint 'packages/{core,router,client,devtools,drizzle-orm,drizzle-orm-pg-core,drizzle-orm-mysql-core,drizzle-orm-sqlite-core,platform-aws,platform-bun,platform-cloudflare,platform-gcloud,platform-node,platform-uws,platform-vercel,private-test-server,private-test-router-fuzz,bin-uws}/**/*.ts'",
         "lint:spec": "eslint --fix packages/**/*.spec.ts",
         "lint-pre-committ": "eslint --quiet",
         "typecheck:test": "node scripts/core/typecheck-coverage.mjs --check && pnpm -r run typecheck:test",
         "pretypecheck": "pnpm run check:builds",
-        "typecheck": "pnpm run typecheck:test && tsc -p ts-go-runtypes/internal/testfixtures/tsconfig.json --noEmit && tsc -p ts-go-runtypes/internal/testfixtures/atomic/tsconfig.json --noEmit && tsc -p packages/examples/tsconfig.runtypes.json",
+        "typecheck": "pnpm run typecheck:test && tsc -p ts-go-runtypes/internal/testfixtures/tsconfig.json --noEmit && tsc -p ts-go-runtypes/internal/testfixtures/atomic/tsconfig.json --noEmit && tsc -p packages/private-examples/tsconfig.runtypes.json",
         "build": "pnpm -r run build",
         "clean": "node scripts/core/clean.mjs",
         "fresh-start": "pnpm run clean && pnpm install --frozen-lockfile",
@@ -70,7 +70,7 @@
         "**/*.ts": [
             "oxlint --no-error-on-unmatched-pattern"
         ],
-        "packages/{core,router,client,devtools,drizzle-orm,drizzle-orm-pg-core,drizzle-orm-mysql-core,drizzle-orm-sqlite-core,platform-aws,platform-bun,platform-cloudflare,platform-gcloud,platform-node,platform-uws,platform-vercel,test-server,test-router-fuzz,bin-uws}/**/!(*.spec|*.test|vite.config|vite.*.config|vitest.config).ts": [
+        "packages/{core,router,client,devtools,drizzle-orm,drizzle-orm-pg-core,drizzle-orm-mysql-core,drizzle-orm-sqlite-core,platform-aws,platform-bun,platform-cloudflare,platform-gcloud,platform-node,platform-uws,platform-vercel,private-test-server,private-test-router-fuzz,bin-uws}/**/!(*.spec|*.test|vite.config|vite.*.config|vitest.config).ts": [
             "pnpm run lint-pre-committ --"
         ]
     },

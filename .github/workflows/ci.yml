@@ -276,7 +276,7 @@ jobs:
       # it loud.
       - name: Code-import check
         run: pnpm run check-code-imports
-      # Source-resolution typecheck of the mion half of packages/examples. The
+      # Source-resolution typecheck of the mion half of packages/private-examples. The
       # runtypes half is compiled by `pnpm run lint`'s typecheck; the two halves
       # need different module resolution, so they are separate programs.
       - name: Typecheck the mion examples

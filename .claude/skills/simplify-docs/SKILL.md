@@ -34,7 +34,7 @@ You are given either a list of paths or "the branch". For the branch:
 
 ```bash
 MB=$(git merge-base origin/main HEAD)
-git diff --name-only $MB..HEAD -- container/website/content packages/examples/src
+git diff --name-only $MB..HEAD -- container/website/content packages/private-examples/src
 git diff $MB..HEAD -- <each page>          # which sections were added or changed
 ```
 

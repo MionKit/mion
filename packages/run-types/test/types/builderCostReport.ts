@@ -2,7 +2,7 @@
 // file for tooling and a Markdown table for humans.
 //
 // Both are COMMITTED on purpose, same reasoning as
-// packages/type-budget/test/report.ts: the budgets are hand-maintained, so a
+// packages/private-type-budget/test/report.ts: the budgets are hand-maintained, so a
 // report that moves without a budget moving is the signal that something changed
 // the cost, and it shows up in the pull request diff where a reviewer sees it.
 // It is also what makes "measured this family, found no win" a reviewable fact

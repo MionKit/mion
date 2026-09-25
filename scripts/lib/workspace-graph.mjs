@@ -1,5 +1,5 @@
 // For `core test-pr`. Edges count devDependencies (unlike publish-order.mjs, tests run on them), and relative
-// paths tests use to reach a sibling package (`../../test-server/build/x.js`), which no manifest records.
+// paths tests use to reach a sibling package (`../../private-test-server/build/x.js`), which no manifest records.
 import {existsSync, readFileSync, readdirSync} from 'node:fs';
 import {dirname, join, sep} from 'node:path';
 import {REPO_ROOT} from './env.mjs';

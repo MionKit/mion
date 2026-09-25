@@ -4,7 +4,7 @@ import * as fs from 'fs';
 
 /**
  * Provides clickable links for code-import path attributes in markdown files.
- * Matches: <code-import path="packages/examples/src/..." ... />
+ * Matches: <code-import path="packages/private-examples/src/..." ... />
  */
 class CodeImportLinkProvider implements vscode.DocumentLinkProvider {
     provideDocumentLinks(

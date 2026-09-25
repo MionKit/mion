@@ -14,7 +14,7 @@ export default tseslint.config(
       '**/__snapshots__/**',
       '**/.dist/**',
       '**/build/**',
-      'packages/examples/**',
+      'packages/private-examples/**',
       'scripts/**',
       '**/vite.config.ts',
       // per-target build configs (vite.edge.config.ts, vite.eslint.config.ts, …) sit
@@ -38,7 +38,7 @@ export default tseslint.config(
       'packages/run-types/**',
       'packages/bin-compiler/**',
       'packages/devtools/**',
-      'packages/go-be-sidecar/**',
+      'packages/private-go-be-sidecar/**',
       'container/**',
       'ts-go-runtypes/**',
       'docs/**',

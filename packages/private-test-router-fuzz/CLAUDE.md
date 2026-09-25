@@ -10,7 +10,7 @@ A sweep in [scripts/ci/check-tree.mjs](../../scripts/ci/check-tree.mjs) fails if
 
 ## The tsconfig has NO `references`, on purpose
 
-[tsconfig.json](tsconfig.json) is `composite: false`, `noEmit: true`, `rootDir: "../.."`, and it is NOT in the root tsconfig's references. That is what makes the suite's relative import of the run-types fuzz core legal (a composite project with `rootDir: "."` refuses a source file above its root, TS6059), and what makes a cycle impossible: nothing points here and this points nowhere. Same shape as `packages/type-budget`.
+[tsconfig.json](tsconfig.json) is `composite: false`, `noEmit: true`, `rootDir: "../.."`, and it is NOT in the root tsconfig's references. That is what makes the suite's relative import of the run-types fuzz core legal (a composite project with `rootDir: "."` refuses a source file above its root, TS6059), and what makes a cycle impossible: nothing points here and this points nowhere. Same shape as `packages/private-type-budget`.
 
 Never give this package a `references` array, and never make it composite.
 

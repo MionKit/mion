@@ -12,7 +12,7 @@ import {resolve} from 'path';
 import {MION_ROUTES, StatusCodes, type PublicRpcError} from '@mionjs/core';
 
 /** Path to the pre-built edge bundle (all deps inlined + AOT caches) */
-const EDGE_BUNDLE_PATH = resolve(__dirname, '../../test-server/build/test-server-edge.js');
+const EDGE_BUNDLE_PATH = resolve(__dirname, '../../private-test-server/build/test-server-edge.js');
 
 /** Serialized response from inside the EdgeVM (avoids cross-context issues) */
 interface EdgeResponse {

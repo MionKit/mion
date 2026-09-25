@@ -12,7 +12,7 @@ import {resolve} from 'path';
 import {MION_ROUTES, StatusCodes, type PublicRpcError} from '@mionjs/core';
 
 /** Path to the pre-built cloudflare bundle (all deps inlined + AOT caches) */
-const CLOUDFLARE_BUNDLE_PATH = resolve(__dirname, '../../test-server/build/test-server-cloudflare.js');
+const CLOUDFLARE_BUNDLE_PATH = resolve(__dirname, '../../private-test-server/build/test-server-cloudflare.js');
 
 /** Serialized response from Miniflare */
 interface WorkerResponse {

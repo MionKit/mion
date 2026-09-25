@@ -34,7 +34,7 @@ export default defineConfig({
       'packages/run-types/test/playground/vitest.config.ts',
       // The Go-resolver JS sidecar (private, never published) — pure unit
       // tests, no binary involved.
-      'packages/go-be-sidecar/vitest.config.ts',
+      'packages/private-go-be-sidecar/vitest.config.ts',
       // Mock-format-registry regression: its own project so the test file's
       // runtime import graph stays free of formats value imports (the marker
       // project above excludes it — import-graph isolation is the repro).
@@ -61,10 +61,10 @@ export default defineConfig({
       'packages/platform-cloudflare/vitest.config.ts',
       // Own package: the sechttp suite needs router, the node adapter and test-server at once, and
       // hosting it in any of the three closes a reference cycle.
-      'packages/test-router-fuzz/vitest.config.ts',
+      'packages/private-test-router-fuzz/vitest.config.ts',
       // Type-instantiation cost budgets for the model pipeline (private, never
       // published) — a pure in-process compile measurement, no plugins.
-      'packages/type-budget/vitest.config.ts',
+      'packages/private-type-budget/vitest.config.ts',
     ],
     // Teardown-only sweep removing every .mion genDir under packages/ after the
     // run. Belt-and-braces with each project's own teardown, and the only cleanup

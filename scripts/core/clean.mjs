@@ -39,7 +39,7 @@ const GROUPS = [
       // @mionjs/devtools emits its compiled eslint + vite-plugin entries here
       // (rebuilt by check:builds); test-server's edge/workers bundles too.
       'packages/devtools/build',
-      'packages/test-server/build',
+      'packages/private-test-server/build',
       'packages/**/*.tsbuildinfo',
       '.coverage',
       'coverage.txt',

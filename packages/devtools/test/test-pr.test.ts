@@ -181,9 +181,9 @@ describe('the real workspace', () => {
   });
 
   it('finds the links tests make by relative path only', () => {
-    expect(packages.get('platform-cloudflare')!.deps).toContain('test-server');
-    expect(packages.get('platform-vercel')!.deps).toContain('test-server');
-    expect(packages.get('run-types')!.deps).toContain('go-be-sidecar');
+    expect(packages.get('platform-cloudflare')!.deps).toContain('private-test-server');
+    expect(packages.get('platform-vercel')!.deps).toContain('private-test-server');
+    expect(packages.get('run-types')!.deps).toContain('private-go-be-sidecar');
     expect(packages.get('drizzle-orm-pg-core')!.deps).toContain('devtools');
   });
 

@@ -4,8 +4,8 @@ Every consumer's editor pays these numbers on every keystroke, so this file reco
 has been measured, to keep the next person from re-deriving it.
 
 **The live numbers are not here.** They are measured by
-[`packages/type-budget/test/typeRoad.compile.test.ts`](../type-budget/test/typeRoad.compile.test.ts)
-and written to [`reports/type-road.md`](../type-budget/reports/type-road.md) on every run,
+[`packages/private-type-budget/test/typeRoad.compile.test.ts`](../private-type-budget/test/typeRoad.compile.test.ts)
+and written to [`reports/type-road.md`](../private-type-budget/reports/type-road.md) on every run,
 with budgets that may only ever be lowered. This file is the reasoning: which designs were
 tried, which won, and why. A figure quoted below is a snapshot for the argument it makes,
 not a current value, and the very first section says what happens when someone treats one
@@ -386,10 +386,10 @@ above are the honest measurement, because both sides are real code.
 ## Reproducing
 
 Add a case to
-[`packages/type-budget/test/typeRoad.compile.test.ts`](../type-budget/test/typeRoad.compile.test.ts),
+[`packages/private-type-budget/test/typeRoad.compile.test.ts`](../private-type-budget/test/typeRoad.compile.test.ts),
 which already builds the measurer with `makeMeasurer` from
 [`packages/run-types/test/types/compileHarness.ts`](../run-types/test/types/compileHarness.ts)
-and a snippet path inside `packages/type-budget` so the workspace packages resolve. When
+and a snippet path inside `packages/private-type-budget` so the workspace packages resolve. When
 prototyping a design, put its machinery in its own PREAMBLE, so the baseline subtraction
 removes the machinery and what is left is what a user's table costs.
 

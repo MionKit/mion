@@ -114,7 +114,7 @@ Run the gate before calling it done:
 
 The last step before the change is PR ready, and it runs even when the docs change is one sentence. It is a subagent pass on purpose: this session knows why every sentence exists and will defend it, and that is exactly how the complex wording gets through. A fresh context reads the page the way its reader will.
 
-1. List what the branch touched: `git diff --name-only $(git merge-base origin/main HEAD)..HEAD -- container/website/content packages/examples/src`. Nothing listed means the step is a no-op; say so and stop here.
+1. List what the branch touched: `git diff --name-only $(git merge-base origin/main HEAD)..HEAD -- container/website/content packages/private-examples/src`. Nothing listed means the step is a no-op; say so and stop here.
 2. Spawn the agent with the Agent tool, `subagent_type: docs-simplifier`, and give it those paths (or "the branch"). Do not run the skill yourself, and do not tell the agent why a sentence is there. If the tool answers that the type is not found (agent definitions load at session start), spawn `general-purpose` instead with the body of `.claude/agents/docs-simplifier.md` as the prompt plus the instruction to read `.claude/skills/simplify-docs/SKILL.md` first; same paths, same rules.
 3. Read its report. For every rewrite, check the new sentence against the code: a simplification that dropped a condition, a code, a default or a limit is wrong, so restore the fact in plain words. Decide every **Left alone** and **Flagged** line yourself: rewrite it, keep it, or move the section.
 4. Re-run what the pass can break: `pnpm run typecheck` (the examples) and `pnpm exec vitest run website-links` (renamed anchors).
@@ -122,7 +122,7 @@ The last step before the change is PR ready, and it runs even when the docs chan
 
 ## Step 10 — Comment simplification (always, by a subagent)
 
-Same shape as step 9, for the comments in the code this change touched. Spawn it in the same message as step 9's agent so the two run at once; they never touch the same files (`packages/examples/` belongs to the docs pass, everything else to this one).
+Same shape as step 9, for the comments in the code this change touched. Spawn it in the same message as step 9's agent so the two run at once; they never touch the same files (`packages/private-examples/` belongs to the docs pass, everything else to this one).
 
 1. List what the branch touched: `git diff --name-only $(git merge-base origin/main HEAD)..HEAD -- '*.ts' '*.go' '*.mjs' '*.js' '*.vue'`. Nothing listed means the step is a no-op; say so.
 2. Spawn the agent with the Agent tool, `subagent_type: comments-simplifier`, and give it those paths (or "the branch"). Do not run the skill yourself, and do not tell the agent why a comment is there. If the type is not found (agent definitions load at session start), spawn `general-purpose` with the body of `.claude/agents/comments-simplifier.md` as the prompt plus the instruction to read `.claude/skills/simplify-comments/SKILL.md` first.

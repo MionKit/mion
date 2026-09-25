@@ -229,8 +229,8 @@ export function exampleWatcherPlugin(usePolling = process.env.CHOKIDAR_USEPOLLIN
       // Prevent duplicate watchers (configureServer is called for both client and server)
       if (watcherInstance) return
 
-      // All examples are centralized in packages/examples/src
-      const watchPath = resolve(packagesDir(MONOREPO_ROOT), 'examples', 'src')
+      // All examples are centralized in packages/private-examples/src
+      const watchPath = resolve(packagesDir(MONOREPO_ROOT), 'private-examples', 'src')
 
       console.log('\n👀 Watching example folders for changes...')
 
