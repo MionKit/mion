@@ -1,7 +1,7 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-09-25
 ---
 
@@ -57,3 +57,18 @@ The arrow case only throws when the arrow runs (here, when the foreign key is re
 
 - Both nested forms above get their ids, with Go tests and a devtools test, both `getRunTypeId` call shapes where a marker API is involved (Marker test coverage rule in `ts-go-runtypes/CLAUDE.md`).
 - The mode-parity corpus has a nested case.
+
+## Plan (approved 2026-09-25)
+
+**Cause.** Not the edit buffer. The scanner's nested-builder skip in `analyzeCall` (`ts-go-runtypes/internal/compiler/resolver/scan.go`) dropped the id of ANY marker call inside an injection marker's arguments, with only `getRunType` exempt. It was meant for value-first builders (`string()` inside `object({...})`), whose runtime falls back to its carrier without an id. Every other marker call (`tableFromType`, `getRunTypeId`, `createX`) needs its id.
+
+**Fix.** The skip now fires only for `builders.IsMarkerBuilderCall`: a call returning the marker package's `RunType<…>` (not `getRunType`) whose callee the marker package itself declares. A user wrapper returning `RunType<T>` keeps its id, since it may forward to `getRunType`. No TS-side change: the devtools only apply the Go edits.
+
+**Tests.**
+- Go `resolver/nested_marker_test.go`: nested directly, in an arrow, `createValidateFn`, a user `RunType` wrapper, and the paired `getRunTypeId` shapes (with id equivalence against a top-level call). `TestScan_GenuineNestedBuilderStillEnclosed` now uses the real marker builders.
+- Mode-parity corpus `packages/devtools/test/transform-modes.test.ts`: both `getRunTypeId` shapes nested directly and in an arrow.
+- Runtime `packages/run-types/test/features/nestedMarkerCalls.test.ts`: both `getRunTypeId` shapes and a `createValidateFn` nested in a non-builder marker.
+- The repro above as `packages/drizzle-orm-pg-core/test/nestedMarkerCalls.spec.ts`.
+
+**Docs.** None: no page describes the skip.
+
