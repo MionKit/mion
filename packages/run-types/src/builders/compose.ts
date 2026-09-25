@@ -354,10 +354,8 @@ export function func(
   return builderResult(id, {type: 'function', parameters, return: parts?.ret});
 }
 
-/** A callable-interface builder — a value that is BOTH callable AND carries data properties,
- *  `{(a: number): string; extra: string}`. The InferType is `Fn & Props` because TS can't express a
- *  call signature and mapped props in one object literal, but the scanner projects it as one, so it
- *  converges with the type-first callable interface. It is function-like, so validate refuses it at the root (VL003). **/
+/** InferType is `Fn & Props`: TS can't write a call signature plus mapped props in one object literal.
+ *  The scanner projects it as one, like the type-first callable interface; validate refuses it at the root (VL003). **/
 export function callable<Fn, Props>(
   fn: CompTimeArgs<RunType<Fn>>,
   iface: CompTimeArgs<RunType<Props>>,

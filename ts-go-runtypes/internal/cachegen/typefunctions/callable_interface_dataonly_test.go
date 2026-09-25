@@ -9,12 +9,8 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// F2: a callable interface (an object literal carrying a call signature) is
-// function-like everywhere — DataOnly strips it to `never`. Every family,
-// validate included, alwaysThrows at the root and drops it at a property,
-// exactly like a bare function. Before the fix
-// the serializers walked it as a plain object and serialized its data props,
-// disagreeing with validate (the cross-family inconsistency the fuzzer found).
+// F2: a callable interface (an object literal carrying a call signature) is function-like, so DataOnly strips it to
+// `never`. Every family, validate included, alwaysThrows at the root and drops it at a property, like a bare function.
 
 func callableInterface(id string, withProp bool) []*reflection.RunType {
 	csig := &reflection.RunType{ID: id + "_csig", Kind: reflection.KindCallSignature}

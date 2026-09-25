@@ -1002,8 +1002,8 @@ func escapeRegex(s string) string {
 	return b.String()
 }
 
-// emitObjectValidate emits the object-shape AND-chain for KindObjectLiteral / KindClass, including the callable branch (a
-// CallSignature child swaps the typeof guard from 'object' to 'function') and the all-optional array / native-object rejection.
+// emitObjectValidate emits the object-shape AND-chain for KindObjectLiteral / KindClass, with the all-optional array /
+// native-object rejection; a callable interface returns CodeNS.
 // Method-shaped and static children are dropped; a child that returns CodeNS propagates it and the whole factory is skipped.
 func emitObjectValidate(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	// A callable interface is function-like, which DataOnly strips at every position, the root included.
@@ -1034,7 +1034,6 @@ func emitObjectValidate(rt *reflection.RunType, ctx *EmitContext, v string) RTCo
 			hasIndexSig = true
 		}
 		if isFunctionLikeKind(resolved.Kind) {
-			// Method-shaped members directly on the shape are skipped.
 			ctx.EmitDiagnosticSlot(SlotMethodDropped, memberLabel(resolved))
 			continue
 		}
