@@ -13,10 +13,10 @@ Route sync becomes an isolated reusable middleware, explicit on both ends, inste
 ```ts
 // server
 import {mionSyncRoutes} from '@mionjs/router/middlewares';
-mion.initRoutes({...mionSyncRoutes, ...routes});
+mion.initRoutes({mionSyncRoutes, ...routes});
 // client
 import {useSyncRoutes} from '@mionjs/client/middlewares';
-useSyncRoutes(middlewares['mion@syncRoutes']);
+useSyncRoutes(middlewares.mionSyncRoutes);
 ```
 
 The sync code stays out of bundles that never use it, and a missing client half is caught by the build like any other middleware.
@@ -25,7 +25,7 @@ Needs the isolated reusable middleware shape first: the `@mionjs/client/middlewa
 
 ## Direction
 - Client side today: `packages/rpc-client/src/lib/syncRoutes.ts` (`createSyncSubRequest`, `sendsSyncIds`, `learnSyncRoutes`), wired by hand in `packages/rpc-client/src/dispatch.ts` (`makeCall`, `takeSyncRefusal`, `handleSyncRefusal`) and `packages/rpc-client/src/lib/serializer.ts:43`. All of it moves into `useSyncRoutes`, built on the public hooks: `onRequest` sends the sync ids, `onError` handles the refusal and resends with `ctx.retry()` (a refusal means no route ran, so retry is always allowed).
-- Server side: `packages/rpc-router/src/routes/syncRoutes.routes.ts`, added today by `addSyncRoutesMiddleware` in `packages/rpc-router/src/router.ts` when `syncRoutes` or `apiVersionCheck` is on. It becomes an entry the user spreads into the routes, exported from `@mionjs/router/middlewares`. Decide what the `syncRoutes` router option still does once the entry is explicit (and how the `apiVersionCheck` header keeps working), and what the build injects into `initClient` (`InjectRouterOptions`).
+- Server side: `packages/rpc-router/src/routes/syncRoutes.routes.ts`, added today by `addSyncRoutesMiddleware` in `packages/rpc-router/src/router.ts` when `syncRoutes` or `apiVersionCheck` is on. It becomes a middleware the user places first in the routes, exported from `@mionjs/router/middlewares`. Decide what the `syncRoutes` router option still does once the entry is explicit (and how the `apiVersionCheck` header keeps working), and what the build injects into `initClient` (`InjectRouterOptions`).
 - `RouteSyncError` / `RouteSyncErrorData` move to `@mionjs/core` so the client imports nothing from the router.
 - Delete the optional-params test fixture pair that stood in for real content (its server half in `packages/private-test-server/src/`, its `notes` route entry and index export, its client half in `packages/rpc-client/test/lib/`), and the test and parity lines that use it. Route sync's own pair is the first real content of both `./middlewares` entries.
 - The implementer plans the details.
@@ -45,7 +45,7 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
 ## Plan (approved 2026-09-25)
 
 ### Context
-Todo `docs/todos/route-sync-inside-onrequest.md` (type chore, spec guidelines). Today the router adds route sync by itself (`addSyncRoutesMiddleware`, `router.ts:238/270`) and the client hand-wires it in `dispatch.ts` (`makeCall:187`, `takeSyncRefusal`, `handleSyncRefusal`) and `serializer.ts:43,152-164`. Goal: one explicit pair, like any shared middleware:
+This spec (type chore, spec guidelines). Today the router adds route sync by itself (`addSyncRoutesMiddleware`, `router.ts:238/270`) and the client hand-wires it in `dispatch.ts` (`makeCall:187`, `takeSyncRefusal`, `handleSyncRefusal`) and `serializer.ts:43,152-164`. Goal: one explicit pair, like any shared middleware:
 
 ```ts
 import {mionSyncRoutes} from '@mionjs/router/middlewares';
@@ -113,10 +113,13 @@ Where the build diverged from the plan above, this section is the record.
 - **Version header** moved into `globalResponseHeaders` at `initRouter` (the option's own entry wins), so it is on every answer, 404s and mion's own routes included, with no chain member.
 - **Shared types:** `RouteSyncError`, `RouteSyncErrorData` and `SyncRoutesHandler` live on a types-only `@mionjs/core/middlewares` entry, off core's main barrel, and the router no longer re-exports them. A separate middlewares package was weighed and left for later: route sync needs router and client internals that are not public API yet.
 - **Removed:** the `syncRoutes` router option, `addSyncRoutesMiddleware`, the `bodyLimit.ts` special case, `ApiWithOptions` / `ROUTER_OPTIONS`, the `InjectRouterOptions` marker (run-types, Go `marker.go`, `apiversion.go`, `apimeta/tree.go`) and `initClient`'s third argument. The type budget dropped (step 4: 547 to 523, step 5: 3076 to 3052, total 13614 to 13566).
-- **Client:** `packages/rpc-client/src/middlewares/syncRoutes.ts`. `onRequest` sends one id per route (batch order). `onError('route-sync-required')` installs the rows it carries and retries. `onError('route-types-mismatch')` forgets and refetches the fetched rows, then retries; a bundled route, or a refused retry, rethrows so the refusal stays in the undeclared slot. Refetching inside the hook keeps one resend per call and the same fetch counts. `dispatch.ts` and `serializer.ts` hold no sync code.
+- **Client:** `packages/rpc-client/src/middlewares/syncRoutes.ts`. `onRequest` sends one id per route (batch order). `onError('route-sync-required')` installs the rows it carries and retries. `onError('route-types-mismatch')` forgets and refetches the fetched rows, then retries. Refetching inside the hook keeps one resend per call and the same fetch counts.
+- **Where a stopped call's refusal lands:** the middleware errors slot, under the middleware's key (`middlewareErrors.mionSyncRoutes`), like any error a middleware returns; it is no longer rethrown into the undeclared slot. A bundled route, a refusal naming no route, or a refused resend just leaves it there. `routeDrift.spec.ts` reads it from that slot now, the only assertion change there. `dispatch.ts` and `serializer.ts` hold no sync code.
 - **`onError` typing:** an error declared with several types (`RouteSyncError`) typed as `never` in a hook. `ErrorOfType<E, T>` in `packages/rpc-client/src/types.ts` fixes it for every middleware.
-- **MET009 is now an error** (`LevelRuntimeError`, still silenced by `@mion-expect-error`): a middleware the client never sets up stops a `bundleApi` build even when its params are optional. `packages/rpc-client/test/lib/parity.ts` now reads every optional-param middleware of the test server.
-- **Reserved names:** a root routes key naming one of mion's own start or end middlewares throws at `initRoutes` instead of silently reusing it.
+- **MET009 is now an error** (`LevelRuntimeError`, still silenced by `@mion-expect-error`): a middleware the client never sets up stops a `bundleApi` build even when its params are optional. It is recorded as a reviewed exception to the two-questions rule in `ts-go-runtypes/CLAUDE.md`. Its message still says what the middleware misses, not that the build stops: the level already says that. No devtools test was added: devtools halts on the level alone, which the MET008 case in `bundledApiBuild.spec.ts` already pins, so the Go test covers MET009. `packages/rpc-client/test/lib/parity.ts` now reads every optional-param middleware of the test server.
+- **Reserved names:** a root routes key naming one of mion's own start or end middlewares throws at `initRoutes` instead of silently reusing it (own keys only, so `toString` still works).
+- **The removed `syncRoutes` option throws** at `initRoutes`: next to any other option it still compiles, and ignoring it would silently turn the check off on upgrade.
+- **Drift guard:** `SyncRoutesHandler` stays in core; a router type test fails if it and the real handler ever differ.
 - **Fixture:** the optional-params stand-in middleware and its client half are deleted, along with every use.
-- **Tests:** router `test/middlewares/syncRoutes.spec.ts` (same checks; refusal rows now include the sync middleware's own row), `test/globalHeaders.spec.ts` (header), client `test/middlewares/syncRoutes.spec.ts`, `test/mixed/routeDrift.spec.ts` (same assertions), `test/bundleSplit.spec.ts` (a client that never installs it ships none of it, in every mode), `test/types.spec.ts`, Go `TestApiGen_ReportsMiddlewaresTheClientNeverSetsUp`.
+- **Tests:** router `test/middlewares/syncRoutes.spec.ts` (same checks; refusal rows now include the sync middleware's own row), `test/globalHeaders.spec.ts` (header), client `test/middlewares/syncRoutes.spec.ts`, `test/mixed/routeDrift.spec.ts` (same assertions), `test/bundleSplit.spec.ts` (a client that never installs it ships none of it, in every mode; the positive case builds the `./middlewares` entry rather than an app calling `useSyncRoutes`), `test/types.spec.ts`, Go `TestApiGen_ReportsMiddlewaresTheClientNeverSetsUp`.
 - **Docs:** `01.rpc/03.client/06.route-sync.md` setup and tips, one line in `05.bundled-api.md` and `00.client-overview.md`; examples `packages/private-examples/src/client/sync-routes*.ts`.

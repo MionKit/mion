@@ -8,12 +8,17 @@ created: 2026-09-24
 # Metadata Fetch as an Isolated Reusable Middleware
 
 ## Intent
-Fetching route metadata is a middleware on the server (`mion@methodsMetadata`), but the router adds it by itself and the client handles it in several files. It should become an isolated reusable middleware, explicit on both ends: a server entry from `@mionjs/router/middlewares` the user spreads into the routes, and a client installer from `@mionjs/client/middlewares` that receives the typed middleware.
+Fetching route metadata is a middleware on the server (`mion@methodsMetadata`), but the router adds it by itself and the client handles it in several files. It should become an isolated reusable middleware, explicit on both ends: a server middleware from `@mionjs/router/middlewares` the user places first in the routes under its own name, and a client installer from `@mionjs/client/middlewares` that receives it, the same shape route sync ships with:
 
-Last step of the client middleware chain: needs the isolated reusable middleware shape and route sync on it first.
+```ts
+mion.initRoutes({mionSyncRoutes, ...routes});
+useSyncRoutes(middlewares.mionSyncRoutes);
+```
+
+Last step of the client middleware chain: the isolated reusable middleware shape and route sync are both on it now.
 
 ## Direction
-- Scattered today: `packages/rpc-client/src/dispatch.ts` (`makeCall`'s optimistic and version-check branches, `retryWithProperSerialization`, `handleSyncRefusal`), `lib/serializer.ts` (~43, 142), `lib/clientMethodsMetadata.ts` (~451), `lib/apiVersionRecovery.ts` (~41), `lib/fetchRemoteMethodsMetadata.ts` (`mion@methodsMetadataById`).
+- Scattered today: `packages/rpc-client/src/dispatch.ts` (`makeCall`'s optimistic and version-check branches, `retryWithProperSerialization`), `lib/serializer.ts` (~43, 142), `lib/clientMethodsMetadata.ts` (~451), `lib/apiVersionRecovery.ts` (~41), `lib/fetchRemoteMethodsMetadata.ts` (`mion@methodsMetadataById`).
 - Keep the on-demand load of the fetched metadata code (dynamic import) working, and the bundled-API mode that needs no fetch.
 - A client with no metadata installer and a route that is not bundled must fail clearly: a build error, and a clear error on the first call at runtime.
 - The public hooks may not be enough (optimistic first call, serializer choice): decide which internal-only hooks the installer needs, and keep them out of the public type.
