@@ -1535,10 +1535,10 @@
     {
       "code": "MET009",
       "subsystem": "bundled-api",
-      "level": "warning",
-      "severity": "warning",
-      "headline": "The route `{1}` runs the middleware `{0}`, but this client never sets it up, so it always gets no params.",
-      "detail": "The middleware's params are all optional, so the call still works; the\nmiddleware just never receives anything from this client. The build looked for\nany read of `middlewares.{0}` in the client program (a hook, or the middleware\nhanded to an installer) and found none.\n\nFix: set it up with `middlewares.{0}.onRequest(...)` or its installer. If sending\nnothing is intended, add `// @mion-expect-error MET009` above this call.",
+      "level": "runtimeError",
+      "severity": "error",
+      "headline": "The route `{1}` runs the middleware `{0}`, but this client never sets it up, so the middleware never gets its params.",
+      "detail": "The middleware's params are all optional, so nothing fails on send, but the\nmiddleware never receives anything from this client. The build looked for\nany read of `middlewares.{0}` in the client program (a hook, or the middleware\nhanded to an installer) and found none.\n\nFix: set it up with `middlewares.{0}.onRequest(...)` or its installer. If sending\nnothing is intended, add `// @mion-expect-error MET009` above this call.",
       "summary": null,
       "fix": null,
       "example": null

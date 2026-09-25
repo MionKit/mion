@@ -10,7 +10,7 @@ package diagnostics
 // MET006 only leaves one bundled option unset: LevelWarning.
 // MET007 injects both versions and the call still runs, reporting a mismatch it should not: LevelRuntimeError.
 // MET008 bundles the call, which then fails the middleware's validation on every request: LevelRuntimeError.
-// MET009 bundles a call whose middleware just gets nothing: LevelWarning.
+// MET009 bundles a call whose middleware silently gets nothing, a lost half the author never sees: LevelRuntimeError.
 const (
 	// CodeApiMetaUnreadable: the API type a dispatch site names cannot be read as a mion PublicApi.
 	// Args: [0] what could not be read.
@@ -50,7 +50,7 @@ func init() {
 		{Code: CodeApiMetaOptionWidened, Family: FamilyMarker, Level: LevelWarning, Scope: ScopeNotSource, Title: "An option of a bundled method is not a literal on the API type, so the bundled metadata leaves it unset"},
 		{Code: CodeApiMetaVersionMismatch, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "A client and the API it is built against inject different build versions"},
 		{Code: CodeApiMetaMiddlewareNotSetUp, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "A called route runs a middleware that needs params, and the client never sets it up"},
-		{Code: CodeApiMetaOptionalMiddlewareNotSetUp, Family: FamilyMarker, Level: LevelWarning, Scope: ScopeNotSource, Title: "A called route runs a middleware with optional params, and the client never sets it up"},
+		{Code: CodeApiMetaOptionalMiddlewareNotSetUp, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "A called route runs a middleware with optional params, and the client never sets it up"},
 	} {
 		register(definition)
 	}

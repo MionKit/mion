@@ -102,7 +102,16 @@ export async function expectEveryMethodMatchesTheServer(baseURL: string): Promis
   resetBundledApi();
   const {client, middlewares} = initClient<TestServerApi>({baseURL});
   // nothing is sent, but the build still checks that every called route's middlewares are read
-  void [middlewares.notes.csrf, middlewares.notes.admin.csrf, middlewares.notes.echoTag];
+  void [
+    middlewares.notes.csrf,
+    middlewares.notes.admin.csrf,
+    middlewares.notes.audit,
+    middlewares.session,
+    middlewares.audit,
+    middlewares.utils.scopeTag,
+    middlewares.compact.stamp,
+    middlewares.compact.plainStamp,
+  ];
   client.useBundledApi(everyMethod.call() as InjectedApiMetadata);
   const served = await serverRows(baseURL);
   const ids = Object.keys(served.methods).sort();
