@@ -11,9 +11,8 @@ import {dispatchRoute} from '../../src/dispatch.ts';
 import {headersFromRecord} from '../../src/lib/headers.ts';
 import {registerBatches} from '../../src/batches.ts';
 import {BUILD_VERSION_HEADER, MION_BATCH_PATH, MION_ROUTES, RpcError} from '@mionjs/core';
-import type {SerializableMethodsData} from '@mionjs/core';
+import type {RouteSyncErrorData, SerializableMethodsData} from '@mionjs/core';
 import type {RouterOptionsInput} from '../../src/types/mionRouter.ts';
-import type {RouteSyncErrorData} from '../../src/routes/syncRoutes.routes.ts';
 
 function dispatch(path: string, body: unknown, urlQuery?: string) {
   const headers = headersFromRecord({});

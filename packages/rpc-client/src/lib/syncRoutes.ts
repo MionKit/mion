@@ -9,7 +9,7 @@
 
 import {MION_ROUTES, RpcError, isRpcError} from '@mionjs/core';
 import type {InjectRouterOptions} from '@mionjs/run-types';
-import type {RouteSyncError, RouteSyncErrorData} from '@mionjs/router';
+import type {RouteSyncError, RouteSyncErrorData} from '@mionjs/core';
 import type {SubRequest} from '../types.ts';
 import {getMethod} from './methods.ts';
 

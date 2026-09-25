@@ -9,7 +9,7 @@
 // makes and the bundler ignores cannot pass here.
 
 import {describe, it, expect, beforeAll, afterAll} from 'vitest';
-import {mkdtempSync, rmSync, writeFileSync} from 'node:fs';
+import {mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {build} from 'vite';
@@ -35,6 +35,16 @@ const RECOVERY_MARKERS = ['api-version-mismatch', 'rowsAgree', 'staleRoutesError
 /** Names only the bundled-API REGISTRATION puts in an artifact; the light half is in every build. */
 const BUNDLED_API_MARKERS = ['bundle-api-invalid-payload', 'bundledMethodToCacheEntry'];
 
+// An installer from the middlewares entry, used the way an app does.
+const MIDDLEWARES_APP = `import {initClient} from '${path.join(packageRoot, 'index.ts')}';
+import {useEchoTag} from '${path.join(packageRoot, 'middlewares.ts')}';
+const {middlewares} = initClient<any>({baseURL: 'http://localhost:3000'});
+useEchoTag(middlewares.echo, () => 'tag');
+`;
+
+/** Names only the router puts in an artifact. */
+const ROUTER_MARKERS = ['createMionRouter has already been called', 'mion router initialized'];
+
 /** Names only the mock generator and the built-in pattern table put in an artifact. */
 const MOCK_MARKERS = ['createMockDataFn', 'mockStringFormat', 'mockBoundedDateTime', 'registerMockingFunction'];
 const PATTERN_MARKERS = ['DOMAIN_PUNYCODE_PATTERN', 'RELATIVE_JSON_POINTER_PATTERN'];
@@ -44,13 +54,14 @@ let root: string;
 beforeAll(() => {
   root = mkdtempSync(path.join(tmpdir(), 'mion-client-bundle-split-'));
   writeFileSync(path.join(root, 'app.ts'), APP);
+  writeFileSync(path.join(root, 'middlewares-app.ts'), MIDDLEWARES_APP);
 });
 
 afterAll(() => rmSync(root, {recursive: true, force: true}));
 
 type Chunk = {type: string; code?: string; fileName: string; isEntry?: boolean; imports?: string[]};
 
-async function buildChunks(bundleApi?: 'bundled' | 'mixed'): Promise<Chunk[]> {
+async function buildChunks(bundleApi?: 'bundled' | 'mixed', entry = 'app.ts'): Promise<Chunk[]> {
   const result = await build({
     root,
     configFile: false,
@@ -65,7 +76,7 @@ async function buildChunks(bundleApi?: 'bundled' | 'mixed'): Promise<Chunk[]> {
     build: {
       write: false,
       minify: false,
-      lib: {entry: path.join(root, 'app.ts'), formats: ['es'], fileName: 'app'},
+      lib: {entry: path.join(root, entry), formats: ['es'], fileName: 'app'},
     },
   });
   const outputs = (Array.isArray(result) ? result : [result]) as {output: Chunk[]}[];
@@ -154,4 +165,17 @@ describe('the api version check', () => {
     expect(withRecovery).toHaveLength(1);
     for (const marker of LANE_CODE_MARKERS) expect(withRecovery[0].code ?? '', marker).toContain(marker);
   }, 240_000);
+});
+
+describe('the @mionjs/client/middlewares entry', () => {
+  it('ships its installers without any router code', async () => {
+    const code = (await buildChunks(undefined, 'middlewares-app.ts')).map((chunk) => chunk.code ?? '').join('\n');
+    expect(code).toContain('useEchoTag');
+    for (const marker of ROUTER_MARKERS) expect(code, marker).not.toContain(marker);
+  }, 240_000);
+
+  it('the router markers are real: they are in the router source', () => {
+    const routerSource = readFileSync(path.join(packageRoot, '../rpc-router/src/router.ts'), 'utf8');
+    for (const marker of ROUTER_MARKERS) expect(routerSource, marker).toContain(marker);
+  });
 });

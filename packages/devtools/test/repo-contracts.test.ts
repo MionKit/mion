@@ -1179,6 +1179,28 @@ describe('client published surface', () => {
   });
 });
 
+// mion's isolated reusable middlewares ship on their own entries: a client importing an installer
+// never pulls the router in, and neither main barrel grows with each middleware.
+describe('client and router publish their middlewares on a ./middlewares subpath', () => {
+  const PACKAGES = ['packages/rpc-client', 'packages/rpc-router'];
+
+  it('both declare the subpath and keep it off the main barrel', () => {
+    for (const dir of PACKAGES) {
+      const exports = JSON.parse(readFileSync(join(REPO_ROOT, dir, 'package.json'), 'utf8')).exports;
+      expect(exports['./middlewares']?.source, dir).toBe('./middlewares.ts');
+      expect(readFileSync(join(REPO_ROOT, dir, 'index.ts'), 'utf8'), dir).not.toMatch(/middlewares(\.ts)?['"]/);
+    }
+  });
+
+  it('the client installers import the router for types only', () => {
+    const dir = join(REPO_ROOT, 'packages/rpc-client/src/middlewares');
+    for (const file of readdirSync(dir)) {
+      const source = readFileSync(join(dir, file), 'utf8');
+      expect(source, file).not.toMatch(/^import\s+(?!type\b)[^;]*from\s+'@mionjs\/router/m);
+    }
+  });
+});
+
 // A cache reset belongs to a test run, never to a shipped bundle, and `export *` put these two on
 // the barrel every client imports.
 describe('core keeps test helpers off the barrel', () => {

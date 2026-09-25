@@ -12,6 +12,7 @@ import {initClient} from '../src/client.ts';
 import {batch} from '../src/batch.ts';
 import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
 import {useCsrf} from './lib/csrf.client.ts';
+import {useEchoTag} from '../middlewares.ts';
 
 const baseURL = TEST_SERVER_BASE_URL;
 const authHeaders = new HeadersSubset({Authorization: 'XWYZ-TOKEN'});
@@ -93,6 +94,23 @@ describe('isolated reusable middleware', () => {
       expect(result).toBeUndefined();
       expect(middlewareErrors?.['notes/csrf']?.type).toBe('csrf-expired');
       expect((await runs(client.routes)).saveNote).toBe(0);
+    });
+  });
+
+  describe('mion middlewares entry', () => {
+    it('a server entry from @mionjs/router/middlewares pairs with its client installer', async () => {
+      await installCsrf(client).useFreshToken();
+      const tags: string[] = [];
+      useEchoTag(
+        client.middlewares.notes['mion@echoTag'],
+        () => 'tag-1',
+        (tag) => tags.push(tag)
+      );
+      const [result, , undeclared, middlewareResults] = await client.routes.notes.getNote('a').call();
+      expect(undeclared).toBeUndefined();
+      expect(result).toBe('note a (1)');
+      expect(middlewareResults?.['notes/mion@echoTag']).toBe('tag-1');
+      expect(tags).toEqual(['tag-1']);
     });
   });
 
