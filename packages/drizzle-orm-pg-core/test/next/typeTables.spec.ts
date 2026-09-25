@@ -157,6 +157,12 @@ describe('next pg columns: same drizzle table on every road', () => {
     const selfType: object = tableFromType<Emps>({tables: {emps: () => selfType}});
     expect(project(toDrizzle(selfType as Emps))).toEqual(project(rawEmps));
   });
+  it('a reference to a missing column fails with an actionable error', () => {
+    type Typo = PgTable<'typo', {pid: Integer<{references: [{table: 'teams'; column: 'idd'}]}>}>;
+    const teamsType = tableFromType<Teams>();
+    const typo = toDrizzle(tableFromType<Typo>({tables: {teams: teamsType}}));
+    expect(() => dz.getTableConfig(typo).foreignKeys[0]!.reference()).toThrowError(/references no column "idd" in table "teams"/);
+  });
 });
 
 describe('next pg columns: one runtype id for builder and hand-written tables', () => {

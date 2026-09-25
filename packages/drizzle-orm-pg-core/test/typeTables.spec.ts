@@ -210,6 +210,13 @@ describe('pg type-defined tables — references and literal sql', () => {
     type Lonely = PgTable<'lonely', {pid: Integer<'pid', {references: [{table: 'nowhere'; column: 'id'}]}>}>;
     expect(() => tableFromType<Lonely>()).toThrowError(/references table "nowhere".*options/);
   });
+
+  it('a References column missing from its table fails with an actionable error', () => {
+    type Typo = PgTable<'typo', {pid: Integer<'pid', {references: [{table: 'parents'; column: 'idd'}]}>}>;
+    const parents = tableFromType<ParentsType>();
+    const typo = toDrizzle(tableFromType<Typo>({tables: {parents: parents as object}}));
+    expect(() => getTableConfig(typo).foreignKeys[0]!.reference()).toThrowError(/references no column "idd" in table "parents"/);
+  });
 });
 
 // Table-level extras: the extraConfig tuple road.
