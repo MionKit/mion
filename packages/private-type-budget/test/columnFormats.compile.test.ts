@@ -163,15 +163,15 @@ const plain = (count: number, named: boolean): ColSpec[] =>
   });
 
 /** A table declaration on one line, as `${prefix}T` (the table type). */
-function declare(line: Line, prefix: string, table: string, cols: ColSpec[]): string {
+function declare(line: Line, prefix: string, table: string, cols: ColSpec[], tableFn = 'pgTable', tableType = 'PgTable'): string {
   if (line === 'curBuilders')
-    return `const ${prefix}V = c.pgTable('${table}', {${cols.map((x) => `${x.key}: ${x.curB},`).join(' ')}});\ntype ${prefix}T = typeof ${prefix}V;`;
+    return `const ${prefix}V = c.${tableFn}('${table}', {${cols.map((x) => `${x.key}: ${x.curB},`).join(' ')}});\ntype ${prefix}T = typeof ${prefix}V;`;
   if (line === 'newBuilders')
-    return `const ${prefix}V = n.pgTable('${table}', {${cols.map((x) => `${x.key}: ${x.newB},`).join(' ')}});\ntype ${prefix}T = typeof ${prefix}V;`;
+    return `const ${prefix}V = n.${tableFn}('${table}', {${cols.map((x) => `${x.key}: ${x.newB},`).join(' ')}});\ntype ${prefix}T = typeof ${prefix}V;`;
   if (line === 'curTypes')
-    return `type ${prefix}T = c.PgTable<'${table}', {${cols.map((x) => `${x.key}: ${x.curT};`).join(' ')}}>;`;
+    return `type ${prefix}T = c.${tableType}<'${table}', {${cols.map((x) => `${x.key}: ${x.curT};`).join(' ')}}>;`;
   const names = cols.filter((x) => x.db !== undefined && x.db !== x.key).map((x) => `${x.key}: '${x.db}'`);
-  return `type ${prefix}T = n.PgTable<'${table}', {${cols.map((x) => `${x.key}: ${x.newT};`).join(' ')}}${names.length ? `, [], {${names.join('; ')}}` : ''}>;`;
+  return `type ${prefix}T = n.${tableType}<'${table}', {${cols.map((x) => `${x.key}: ${x.newT};`).join(' ')}}${names.length ? `, [], {${names.join('; ')}}` : ''}>;`;
 }
 const isCur = (line: Line) => line === 'curBuilders' || line === 'curTypes';
 const select = (line: Line, t: string) => `${isCur(line) ? 'CSelect' : 'NSelect'}<${t}>`;
@@ -298,6 +298,345 @@ export const ${p}u = db.update(${p}D).set({age: 31});`;
   },
 ];
 
+// ── mysql and sqlite: the same four lines over three shapes each ─────────────
+
+const dialectHeader = (dialect: 'mysql' | 'sqlite', db: string) => `
+import * as c from '@mionjs/drizzle-orm-${dialect}-core';
+import {toDrizzle as cToDrizzle} from '@mionjs/drizzle-orm-${dialect}-core/drizzle';
+import type {InferSelectModel as CSelect, InferInsertModel as CInsert} from '@mionjs/drizzle-orm';
+import * as n from '../../drizzle-orm-${dialect}-core/next/index.ts';
+import {toDrizzle as nToDrizzle} from '../../drizzle-orm-${dialect}-core/next/drizzle.ts';
+import type {InferSelectModel as NSelect, InferInsertModel as NInsert} from '../../drizzle-orm/next/models.ts';
+import {$type as n$type} from '../../drizzle-orm/next/index.ts';
+${db}
+export {};
+`;
+
+interface DialectBlock {
+  dialect: 'mysql' | 'sqlite';
+  measure: ReturnType<typeof makeMeasurer>;
+  shapes: Shape[];
+}
+
+const MYSQL_MIXED: ColSpec[] = [
+  col(
+    'id',
+    'id',
+    `c.serial('id').primaryKey()`,
+    `c.Serial<'id', {primaryKey: true}>`,
+    `n.Serial<{primaryKey: true}>`,
+    `n.serial('id', {primaryKey: true})`
+  ),
+  col(
+    'name',
+    'name',
+    `c.varchar('name', {length: 100}).notNull()`,
+    `c.Varchar<'name', {length: 100; notNull: true}>`,
+    `n.Varchar<{length: 100; notNull: true}>`,
+    `n.varchar('name', {length: 100, notNull: true})`
+  ),
+  col(
+    'age',
+    'age',
+    `c.int('age').notNull()`,
+    `c.Int<'age', {notNull: true}>`,
+    `n.Int<{notNull: true}>`,
+    `n.int('age', {notNull: true})`
+  ),
+  col(
+    'role',
+    'role',
+    `c.text('role', {enum: ['admin', 'user']}).notNull()`,
+    `c.Text<'role', {enum: ['admin', 'user']; notNull: true}>`,
+    `n.Text<{enum: ['admin', 'user']; notNull: true}>`,
+    `n.text('role', {enum: ['admin', 'user'], notNull: true})`
+  ),
+  col(
+    'createdAt',
+    'created_at',
+    `c.timestamp('created_at', {mode: 'date'}).notNull().defaultNow()`,
+    `c.Timestamp<'created_at', {mode: 'date'; notNull: true; defaultNow: true}>`,
+    `n.Timestamp<{mode: 'date'; notNull: true; defaultNow: true}>`,
+    `n.timestamp('created_at', {mode: 'date', notNull: true, defaultNow: true})`
+  ),
+];
+const MYSQL_WIDE: ColSpec[] = [
+  col(
+    'id',
+    'id',
+    `c.serial('id').primaryKey()`,
+    `c.Serial<'id', {primaryKey: true}>`,
+    `n.Serial<{primaryKey: true}>`,
+    `n.serial('id', {primaryKey: true})`
+  ),
+  MYSQL_MIXED[3],
+  col(
+    'seq',
+    'seq',
+    `c.int('seq', {unsigned: true}).notNull().autoincrement()`,
+    `c.Int<'seq', {unsigned: true; notNull: true; autoincrement: true}>`,
+    `n.Int<{unsigned: true; notNull: true; autoincrement: true}>`,
+    `n.int('seq', {unsigned: true, notNull: true, autoincrement: true})`
+  ),
+  col(
+    'payload',
+    'payload',
+    `c.json('payload').$type<{kind: string}>()`,
+    `c.Json<'payload', {$type: [{kind: string}]}>`,
+    `n.Json<{$type: [{kind: string}]}>`,
+    `n.json('payload', {$type: n$type<{kind: string}>()})`
+  ),
+  col(
+    'email',
+    'email',
+    `c.varchar('email', {length: 200}).unique('uq_email')`,
+    `c.Varchar<'email', {length: 200; unique: ['uq_email']}>`,
+    `n.Varchar<{length: 200; unique: ['uq_email']}>`,
+    `n.varchar('email', {length: 200, unique: ['uq_email']})`
+  ),
+  col(
+    'updatedAt',
+    'updated_at',
+    `c.timestamp('updated_at', {mode: 'date'}).notNull().defaultNow().onUpdateNow()`,
+    `c.Timestamp<'updated_at', {mode: 'date'; notNull: true; defaultNow: true; onUpdateNow: true}>`,
+    `n.Timestamp<{mode: 'date'; notNull: true; defaultNow: true; onUpdateNow: true}>`,
+    `n.timestamp('updated_at', {mode: 'date', notNull: true, defaultNow: true, onUpdateNow: true})`
+  ),
+  col(
+    'big',
+    'big',
+    `c.bigint('big', {mode: 'bigint', unsigned: true})`,
+    `c.Bigint<'big', {mode: 'bigint'; unsigned: true}>`,
+    `n.Bigint<{mode: 'bigint'; unsigned: true}>`,
+    `n.bigint('big', {mode: 'bigint', unsigned: true})`
+  ),
+];
+const SQLITE_MIXED: ColSpec[] = [
+  col(
+    'id',
+    'id',
+    `c.integer('id').primaryKey()`,
+    `c.Integer<'id', {primaryKey: true}>`,
+    `n.Integer<{primaryKey: true}>`,
+    `n.integer('id', {primaryKey: true})`
+  ),
+  col(
+    'name',
+    'name',
+    `c.text('name', {length: 100}).notNull()`,
+    `c.Text<'name', {length: 100; notNull: true}>`,
+    `n.Text<{length: 100; notNull: true}>`,
+    `n.text('name', {length: 100, notNull: true})`
+  ),
+  col(
+    'age',
+    'age',
+    `c.integer('age').notNull()`,
+    `c.Integer<'age', {notNull: true}>`,
+    `n.Integer<{notNull: true}>`,
+    `n.integer('age', {notNull: true})`
+  ),
+  col(
+    'role',
+    'role',
+    `c.text('role', {enum: ['admin', 'user']}).notNull()`,
+    `c.Text<'role', {enum: ['admin', 'user']; notNull: true}>`,
+    `n.Text<{enum: ['admin', 'user']; notNull: true}>`,
+    `n.text('role', {enum: ['admin', 'user'], notNull: true})`
+  ),
+  col(
+    'createdAt',
+    'created_at',
+    `c.integer('created_at', {mode: 'timestamp'}).notNull()`,
+    `c.Integer<'created_at', {mode: 'timestamp'; notNull: true}>`,
+    `n.Integer<{mode: 'timestamp'; notNull: true}>`,
+    `n.integer('created_at', {mode: 'timestamp', notNull: true})`
+  ),
+];
+const SQLITE_WIDE: ColSpec[] = [
+  col(
+    'id',
+    'id',
+    `c.integer('id').primaryKey({autoIncrement: true})`,
+    `c.Integer<'id', {primaryKey: [{autoIncrement: true}]}>`,
+    `n.Integer<{primaryKey: [{autoIncrement: true}]}>`,
+    `n.integer('id', {primaryKey: [{autoIncrement: true}]})`
+  ),
+  SQLITE_MIXED[3],
+  col(
+    'flag',
+    'flag',
+    `c.integer('flag', {mode: 'boolean'}).notNull().default(false)`,
+    `c.Integer<'flag', {mode: 'boolean'; notNull: true; default: [false]}>`,
+    `n.Integer<{mode: 'boolean'; notNull: true; default: [false]}>`,
+    `n.integer('flag', {mode: 'boolean', notNull: true, default: [false]})`
+  ),
+  col(
+    'payload',
+    'payload',
+    `c.text('payload', {mode: 'json'}).$type<{kind: string}>()`,
+    `c.Text<'payload', {mode: 'json'; $type: [{kind: string}]}>`,
+    `n.Text<{mode: 'json'; $type: [{kind: string}]}>`,
+    `n.text('payload', {mode: 'json', $type: n$type<{kind: string}>()})`
+  ),
+  col(
+    'email',
+    'email',
+    `c.text('email').unique('uq_email')`,
+    `c.Text<'email', {unique: ['uq_email']}>`,
+    `n.Text<{unique: ['uq_email']}>`,
+    `n.text('email', {unique: ['uq_email']})`
+  ),
+  col(
+    'amount',
+    'amount',
+    `c.real('amount').notNull()`,
+    `c.Real<'amount', {notNull: true}>`,
+    `n.Real<{notNull: true}>`,
+    `n.real('amount', {notNull: true})`
+  ),
+  col(
+    'big',
+    'big',
+    `c.blob('big', {mode: 'bigint'})`,
+    `c.Blob<'big', {mode: 'bigint'}>`,
+    `n.Blob<{mode: 'bigint'}>`,
+    `n.blob('big', {mode: 'bigint'})`
+  ),
+];
+
+const readRow = (p: string, reads: Array<[string, string]>) =>
+  `declare const ${p}row: ${p}Row;\n` +
+  reads.map(([key, type], i) => `export const ${p}${i}: ${type} = ${p}row.${key};`).join('\n');
+
+function dialectShapes(
+  tableFn: string,
+  tableType: string,
+  mixed: ColSpec[],
+  mixedReads: Array<[string, string]>,
+  wide: ColSpec[],
+  wideReads: Array<[string, string]>,
+  queries: (p: string) => string,
+  budgets: [Shape['budget'], Shape['budget'], Shape['budget']]
+): Shape[] {
+  const declareIn = (line: Line, p: string, table: string, cols: ColSpec[]) => declare(line, p, table, cols, tableFn, tableType);
+  return [
+    {
+      label: '5 mixed, select',
+      budget: budgets[0],
+      body: (line, p) =>
+        `${declareIn(line, p, 'users', mixed)}\ntype ${p}Row = ${select(line, `${p}T`)};\n${readRow(p, mixedReads)}`,
+    },
+    {
+      label: 'wide vocabulary, select',
+      budget: budgets[1],
+      body: (line, p) => `${declareIn(line, p, 'w', wide)}\ntype ${p}Row = ${select(line, `${p}T`)};\n${readRow(p, wideReads)}`,
+    },
+    {
+      label: 'toDrizzle + select / insert / update query',
+      budget: budgets[2],
+      body: (line, p) => {
+        const toDz = isCur(line) ? 'cToDrizzle' : 'nToDrizzle';
+        const source = line.endsWith('Builders') ? `${p}V` : `({} as ${p}T)`;
+        return `${declareIn(line, p, 'users', mixed)}\nconst ${p}D = ${toDz}(${source});\n${queries(p)}`;
+      },
+    },
+  ];
+}
+
+const DIALECT_BLOCKS: DialectBlock[] = [
+  {
+    dialect: 'mysql',
+    measure: makeMeasurer(
+      dialectHeader(
+        'mysql',
+        `import type {MySqlDatabase, MySqlQueryResultHKT, PreparedQueryHKTBase} from 'drizzle-orm/mysql-core';
+declare const db: MySqlDatabase<MySqlQueryResultHKT, PreparedQueryHKTBase>;`
+      ),
+      {options: RESOLVING_OPTIONS, snippetFile: SNIPPET_FILE, diagnosticsScope: 'snippet'}
+    ),
+    shapes: dialectShapes(
+      'mysqlTable',
+      'MysqlTable',
+      MYSQL_MIXED,
+      [
+        ['id', 'number'],
+        ['name', 'string'],
+        ['age', 'number'],
+        ['role', 'string'],
+        ['createdAt', 'Date'],
+      ],
+      MYSQL_WIDE,
+      [
+        ['id', 'number'],
+        ['role', 'string'],
+        ['seq', 'number'],
+        ['payload', '{kind: string} | null'],
+        ['email', 'string | null'],
+        ['updatedAt', 'Date'],
+        ['big', 'bigint | null'],
+      ],
+      (p) => `const ${p}Q = db.select().from(${p}D);
+declare const ${p}rows: Awaited<typeof ${p}Q>;
+export const ${p}n: string = ${p}rows[0]!.name;
+export const ${p}w: Date = ${p}rows[0]!.createdAt;
+const ${p}I = db.insert(${p}D).values({name: 'a', age: 21, role: 'user'}).$returningId();
+declare const ${p}ids: Awaited<typeof ${p}I>;
+export const ${p}id: number = ${p}ids[0]!.id;
+export const ${p}u = db.update(${p}D).set({age: 31});`,
+      [
+        {newTypes: 712, newBuilders: 1184},
+        {newTypes: 1040, newBuilders: 1773},
+        {newTypes: 8583, newBuilders: 9786},
+      ]
+    ),
+  },
+  {
+    dialect: 'sqlite',
+    measure: makeMeasurer(
+      dialectHeader(
+        'sqlite',
+        `import type {BaseSQLiteDatabase} from 'drizzle-orm/sqlite-core';
+declare const db: BaseSQLiteDatabase<'sync', unknown>;`
+      ),
+      {options: RESOLVING_OPTIONS, snippetFile: SNIPPET_FILE, diagnosticsScope: 'snippet'}
+    ),
+    shapes: dialectShapes(
+      'sqliteTable',
+      'SqliteTable',
+      SQLITE_MIXED,
+      [
+        ['id', 'number'],
+        ['name', 'string'],
+        ['age', 'number'],
+        ['role', 'string'],
+        ['createdAt', 'Date'],
+      ],
+      SQLITE_WIDE,
+      [
+        ['id', 'number'],
+        ['role', 'string'],
+        ['flag', 'boolean'],
+        ['payload', '{kind: string} | null'],
+        ['email', 'string | null'],
+        ['amount', 'number'],
+        ['big', 'bigint | null'],
+      ],
+      (p) => `const ${p}Q = db.select().from(${p}D);
+declare const ${p}rows: Awaited<typeof ${p}Q>;
+export const ${p}n: string = ${p}rows[0]!.name;
+export const ${p}w: Date = ${p}rows[0]!.createdAt;
+export const ${p}i = db.insert(${p}D).values({name: 'a', age: 21, role: 'user', createdAt: new Date()});
+export const ${p}u = db.update(${p}D).set({age: 31});`,
+      [
+        {newTypes: 658, newBuilders: 1058},
+        {newTypes: 977, newBuilders: 1631},
+        {newTypes: 7672, newBuilders: 8695},
+      ]
+    ),
+  },
+];
+
 const PREFIX: Record<Line, string> = {curBuilders: 'cb', curTypes: 'ct', newTypes: 'nt', newBuilders: 'nb'};
 const measured = new Map<string, Record<Line, number>>();
 
@@ -323,16 +662,20 @@ export type _Pins = [
 
 describe('column formats: shipped vs side-by-side columns, type-instantiation cost', () => {
   beforeAll(() => {
-    for (const shape of SHAPES) {
-      const row = {} as Record<Line, number>;
-      for (const line of LINES) {
-        const result = measure(shape.body(line, PREFIX[line]));
-        expect(result.errors, `"${shape.label}" / ${line} should type-check cleanly:\n  ${result.errors.join('\n  ')}`).toEqual(
-          []
-        );
-        row[line] = result.netInstantiations;
+    const blocks = [{dialect: 'pg', measure, shapes: SHAPES}, ...DIALECT_BLOCKS];
+    for (const block of blocks) {
+      for (const shape of block.shapes) {
+        const row = {} as Record<Line, number>;
+        for (const line of LINES) {
+          const result = block.measure(shape.body(line, PREFIX[line]));
+          expect(
+            result.errors,
+            `${block.dialect} "${shape.label}" / ${line} should type-check cleanly:\n  ${result.errors.join('\n  ')}`
+          ).toEqual([]);
+          row[line] = result.netInstantiations;
+        }
+        measured.set(`${block.dialect}: ${shape.label}`, row);
       }
-      measured.set(shape.label, row);
     }
   });
 
@@ -340,13 +683,25 @@ describe('column formats: shipped vs side-by-side columns, type-instantiation co
     writeColumnFormatsReport({
       typescript: ts.version,
       drizzleOrm: drizzleVersion,
-      rows: SHAPES.map((shape): ColumnFormatsRow => ({label: shape.label, ...measured.get(shape.label)!, budget: shape.budget})),
+      rows: [{dialect: 'pg', shapes: SHAPES}, ...DIALECT_BLOCKS].flatMap(({dialect, shapes}) =>
+        shapes.map(
+          (shape): ColumnFormatsRow => ({
+            dialect,
+            label: shape.label,
+            ...measured.get(`${dialect}: ${shape.label}`)!,
+            budget: shape.budget,
+          })
+        )
+      ),
     });
   });
 
-  for (const shape of SHAPES) {
-    it(`${shape.label}: the new lines stay within their budgets`, () => {
-      const row = measured.get(shape.label)!;
+  for (const {dialect, shapes} of [{dialect: 'pg', shapes: SHAPES}, ...DIALECT_BLOCKS]) {
+    for (const shape of shapes) budgetTest(dialect, shape);
+  }
+  function budgetTest(dialect: string, shape: Shape) {
+    it(`${dialect}: ${shape.label}: the new lines stay within their budgets`, () => {
+      const row = measured.get(`${dialect}: ${shape.label}`)!;
       expect(row.newTypes, `new types cost ${row.newTypes}, over ${shape.budget.newTypes}`).toBeLessThanOrEqual(
         shape.budget.newTypes
       );

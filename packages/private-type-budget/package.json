@@ -24,7 +24,9 @@
     "@mionjs/client": "workspace:*",
     "@mionjs/core": "workspace:*",
     "@mionjs/drizzle-orm": "workspace:*",
+    "@mionjs/drizzle-orm-mysql-core": "workspace:*",
     "@mionjs/drizzle-orm-pg-core": "workspace:*",
+    "@mionjs/drizzle-orm-sqlite-core": "workspace:*",
     "@mionjs/router": "workspace:*",
     "@mionjs/run-types": "workspace:*",
     "drizzle-orm": "0.45.2"

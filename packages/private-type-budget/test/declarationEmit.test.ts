@@ -149,8 +149,45 @@ const NEXT_CASES = [
   },
 ];
 
+// The same next/ cases per dialect: a builder table, a hand-written one, and the toDrizzle view.
+const dialectNextCases = (dialect: 'mysql' | 'sqlite', table: string, tableType: string, text: string, textType: string) => {
+  const header = `
+import type {NoProps, Writable} from '../../drizzle-orm/next/index';
+export type {NoProps, Writable};
+import {${table}, ${text}, int} from '../../drizzle-orm-${dialect}-core/next/index';
+import type {${tableType}, ${textType}, Int} from '../../drizzle-orm-${dialect}-core/next/index';
+import {toDrizzle} from '../../drizzle-orm-${dialect}-core/next/drizzle';
+import type {InferSelectModel} from '../../drizzle-orm/next/models';
+import {RpcError} from '@mionjs/core';
+import {createMionRouter} from '@mionjs/router';
+`;
+  const builderTable = `
+const users = ${table}('users', {
+  name: ${text}('user_name', {length: 100, notNull: true}),
+  age: int('age', {notNull: true}),
+});`;
+  return [
+    {
+      label: `next ${dialect}: builder table + router`,
+      source: `${header}${builderTable}\nexport type User = InferSelectModel<typeof users>;${routerOver('User')}\n`,
+    },
+    {
+      label: `next ${dialect}: hand-written table + router`,
+      source: `${header}type Users = ${tableType}<'users', {name: ${textType}<{length: 100; notNull: true}>; age: Int<{notNull: true}>}, [], {name: 'user_name'}>;\nexport type User = InferSelectModel<Users>;${routerOver('User')}\n`,
+    },
+    {
+      label: `next ${dialect}: the table and its toDrizzle view exported as consts`,
+      source: `${header}${builderTable}\nexport const usersTable = users;\nexport const usersDb = toDrizzle(users);\n`,
+    },
+  ];
+};
+const DIALECT_NEXT_CASES = [
+  ...dialectNextCases('mysql', 'mysqlTable', 'MysqlTable', 'varchar', 'Varchar'),
+  ...dialectNextCases('sqlite', 'sqliteTable', 'SqliteTable', 'text', 'Text'),
+];
+
 describe('declaration emit over slim drizzle tables', () => {
-  for (const {label, source} of [...CASES, ...NEXT_CASES]) {
+  for (const {label, source} of [...CASES, ...NEXT_CASES, ...DIALECT_NEXT_CASES]) {
     // The first case pays for parsing the whole resolved graph; later ones reuse
     // it. Comfortable on an idle machine, but the default 5s is not enough when
     // the rest of the suite is running alongside.

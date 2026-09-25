@@ -3,6 +3,7 @@
   "drizzleOrm": "0.45.2",
   "rows": [
     {
+      "dialect": "pg",
       "label": "5 mixed, select",
       "curBuilders": 570,
       "curTypes": 971,
@@ -14,6 +15,7 @@
       }
     },
     {
+      "dialect": "pg",
       "label": "5 mixed, select + insert",
       "curBuilders": 1036,
       "curTypes": 1437,
@@ -25,6 +27,7 @@
       }
     },
     {
+      "dialect": "pg",
       "label": "10 plain, db name per column",
       "curBuilders": 235,
       "curTypes": 798,
@@ -36,6 +39,7 @@
       }
     },
     {
+      "dialect": "pg",
       "label": "20 plain, db name per column",
       "curBuilders": 345,
       "curTypes": 1338,
@@ -47,6 +51,7 @@
       }
     },
     {
+      "dialect": "pg",
       "label": "40 plain, db name per column",
       "curBuilders": 565,
       "curTypes": 2418,
@@ -58,6 +63,7 @@
       }
     },
     {
+      "dialect": "pg",
       "label": "20 plain, nameless",
       "curBuilders": 325,
       "curTypes": 494,
@@ -69,6 +75,7 @@
       }
     },
     {
+      "dialect": "pg",
       "label": "wide vocabulary, select",
       "curBuilders": 676,
       "curTypes": 1175,
@@ -80,6 +87,7 @@
       }
     },
     {
+      "dialect": "pg",
       "label": "two tables, one reference",
       "curBuilders": 183,
       "curTypes": 387,
@@ -91,6 +99,7 @@
       }
     },
     {
+      "dialect": "pg",
       "label": "refineTableType, select",
       "curBuilders": 1341,
       "curTypes": 1768,
@@ -102,6 +111,7 @@
       }
     },
     {
+      "dialect": "pg",
       "label": "toDrizzle + select / insert / update query",
       "curBuilders": 8643,
       "curTypes": 9461,
@@ -110,6 +120,78 @@
       "budget": {
         "newTypes": 8956,
         "newBuilders": 10104
+      }
+    },
+    {
+      "dialect": "mysql",
+      "label": "5 mixed, select",
+      "curBuilders": 608,
+      "curTypes": 971,
+      "newTypes": 712,
+      "newBuilders": 1184,
+      "budget": {
+        "newTypes": 712,
+        "newBuilders": 1184
+      }
+    },
+    {
+      "dialect": "mysql",
+      "label": "wide vocabulary, select",
+      "curBuilders": 830,
+      "curTypes": 1341,
+      "newTypes": 1040,
+      "newBuilders": 1773,
+      "budget": {
+        "newTypes": 1040,
+        "newBuilders": 1773
+      }
+    },
+    {
+      "dialect": "mysql",
+      "label": "toDrizzle + select / insert / update query",
+      "curBuilders": 8324,
+      "curTypes": 9029,
+      "newTypes": 8583,
+      "newBuilders": 9786,
+      "budget": {
+        "newTypes": 8583,
+        "newBuilders": 9786
+      }
+    },
+    {
+      "dialect": "sqlite",
+      "label": "5 mixed, select",
+      "curBuilders": 517,
+      "curTypes": 1002,
+      "newTypes": 658,
+      "newBuilders": 1058,
+      "budget": {
+        "newTypes": 658,
+        "newBuilders": 1058
+      }
+    },
+    {
+      "dialect": "sqlite",
+      "label": "wide vocabulary, select",
+      "curBuilders": 735,
+      "curTypes": 1315,
+      "newTypes": 977,
+      "newBuilders": 1631,
+      "budget": {
+        "newTypes": 977,
+        "newBuilders": 1631
+      }
+    },
+    {
+      "dialect": "sqlite",
+      "label": "toDrizzle + select / insert / update query",
+      "curBuilders": 7471,
+      "curTypes": 7874,
+      "newTypes": 7672,
+      "newBuilders": 8695,
+      "budget": {
+        "newTypes": 7672,
+        "newBuilders": 8695
       }
     }
   ]
