@@ -23,3 +23,9 @@ None on the website, because users see only npm names. CLAUDE.md and SETUP.md li
 - Both dirs renamed, nothing points at an old path, npm names unchanged.
 - `pnpm test`, `pnpm run typecheck`, `pnpm run lint` pass; `pre-publish-e2e` label run passes.
 - The simplify-comments pass ran on every touched source file, committed on its own.
+
+## Plan — rename (approved 2026-09-25)
+- Folders only: npm names and vitest project names (`router`, `client`, `client-bundled`, `client-mixed`) stay, so `scripts/core/test-batches.mjs` needs no edit.
+- `docs/done/` keeps old paths as history; open `docs/todos/` and `docs/maybe/` specs are updated.
+- `git mv` both folders; rewrite `packages/router|client` paths, the `../router/` tsconfig hops, the root eslint and lint-staged globs, and the twoslash mount list; regenerate the lockfile with `pnpm install`.
+- Fix `scripts/release/e2e.mjs`, which guessed a folder from the npm name (`@mionjs/router` → `packages/router`): look the folder up in the workspace instead.
