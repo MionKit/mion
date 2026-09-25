@@ -12,11 +12,13 @@ export type {
   ColBaseFlag,
   ColSpecOf,
   Column,
-  ColumnName,
+  AnyNamedColumn,
+  NamedColumn,
+  PropsOf,
+  RuntimeModKeys,
   ColumnOwner,
   InsertKindOf,
   KeyFlagsOf,
-  Flat,
   Merge,
   NoProps,
   RefOf,
@@ -25,7 +27,9 @@ export type {
   ValueOf,
   Writable,
 } from './columns.ts';
-export {rtColNameKey, rtColOwnerKey, rtColSpecKey} from './columns.ts';
+export {$type, rtColOwnerKey, rtColSpecKey} from './columns.ts';
+export type {rtColNameKey, rtNamedColumnKey} from './columns.ts';
+export {recordColumn} from './recorder.ts';
 export type {
   AnyTable,
   AnyView,

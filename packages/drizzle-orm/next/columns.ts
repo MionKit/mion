@@ -12,8 +12,10 @@
 
 /** Sentinel key of the column spec: {fn, config, data, base}. */
 export const rtColSpecKey: unique symbol = Symbol('rtColSpec');
-/** Sentinel key of a builder column's explicit db name, lifted into the table's names map. */
-export const rtColNameKey: unique symbol = Symbol('rtColName');
+/** Type-only key of a named builder result's db name, lifted by the table into its names map. */
+export declare const rtColNameKey: unique symbol;
+/** Type-only key of a named builder result's column. */
+export declare const rtNamedColumnKey: unique symbol;
 /** Sentinel key of the owner metadata the cols() view adds, read only by references(). */
 export const rtColOwnerKey: unique symbol = Symbol('rtColOwner');
 
@@ -28,24 +30,63 @@ export type NoProps = Record<never, never>;
 export interface Column<Fn extends string, Props, Data, Base extends ColBaseFlag = never> {
   readonly [rtColSpecKey]?: {fn: Fn; config: Props; data: Data; base: Base};
 }
-/** A builder's explicit db name, lifted by the table into its names map. */
-export interface ColumnName<Name extends string | undefined> {
-  readonly [rtColNameKey]?: Name;
+/** What a builder called with a db name returns: the column, plus the name the table lifts into its
+ *  names map. A nameless builder returns the column itself. */
+export interface NamedColumn<Name extends string, C> {
+  readonly [rtColNameKey]: Name;
+  readonly [rtNamedColumnKey]: C;
 }
+export type AnyNamedColumn = NamedColumn<string, AnyColumn>;
 export type AnyColumn = {readonly [rtColSpecKey]?: {fn: string; config: any; data: any; base: any}};
 
 /** The spec payload of a column, `never` for a non-column. */
 export type ColSpecOf<C> = C extends {readonly [rtColSpecKey]?: infer Spec} ? NonNullable<Spec> : never;
 
-/** Chained props flattened into one object, so a table column equals its hand-written twin. */
-export type Flat<Props> = {[K in keyof Props]: Props[K]};
-/** One chained call merged into the props, flat so a builder column equals its hand-written twin. */
+/** Props merged, flat so the result equals a hand-written object. */
 export type Merge<Props, Mod> = {[K in keyof (Props & Mod)]: (Props & Mod)[K]};
 
 /** Strip `readonly` from a const-inferred config so it equals the hand-written object. */
 export type Writable<T> = {-readonly [K in keyof T]: T[K] extends readonly unknown[] ? MutableTuple<T[K]> : T[K]};
-// Its own alias: only a mapped type over a bare type parameter maps a tuple to a tuple.
-type MutableTuple<A> = {-readonly [I in keyof A]: A[I]};
+// Its own alias: only a mapped type over a bare type parameter maps a tuple to a tuple. One level of
+// object inside it is made writable too (`unique: ['uq', {nulls: 'distinct'}]`).
+type MutableTuple<A> = {
+  -readonly [I in keyof A]: A[I] extends (...args: never[]) => unknown
+    ? A[I]
+    : A[I] extends object
+      ? {-readonly [P in keyof A[I]]: A[I][P]}
+      : A[I];
+};
+
+// ── A builder's props object ─────────────────────────────────────────────────
+// Every key follows one rule, a no-argument modifier is `true` and a modifier with arguments is its
+// argument tuple, so the props a builder takes ARE the props its column type records. Only the keys
+// holding functions change on the way: a references() thunk records the {table, column} it points at,
+// a runtime callback records `true`, since no type can spell a function.
+
+/** The props keys that carry functions at run time. */
+export type RuntimeModKeys = 'references' | '$default' | '$defaultFn' | '$onUpdate' | '$onUpdateFn';
+type RefArgs<Args> = Args extends readonly [() => infer Target, infer Actions]
+  ? [RefOf<Target>, {-readonly [K in keyof Actions]: Actions[K]}]
+  : Args extends readonly [() => infer Target]
+    ? [RefOf<Target>]
+    : never;
+/** The props a column type records for the props a builder was called with. */
+export type PropsOf<C> = [keyof C & RuntimeModKeys] extends [never]
+  ? Writable<C>
+  : {
+      -readonly [K in keyof C]: K extends 'references'
+        ? RefArgs<C[K]>
+        : K extends RuntimeModKeys
+          ? true
+          : C[K] extends readonly unknown[]
+            ? MutableTuple<C[K]>
+            : C[K];
+    };
+
+/** `$type<T>()` in a builder's props: drizzle's `.$type<T>()`, recorded as `{$type: [T]}`. Type-only. */
+export function $type<T>(): [T] {
+  return [] as unknown as [T];
+}
 
 // ── Owner metadata, only on the cols() view ──────────────────────────────────
 

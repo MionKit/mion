@@ -128,8 +128,8 @@ import {createMionRouter} from '@mionjs/router';
 `;
 const nextTable = `
 const users = pgTable('users', {
-  name: varchar('user_name', {length: 100}).notNull(),
-  age: integer('age').notNull(),
+  name: varchar('user_name', {length: 100, notNull: true}),
+  age: integer('age', {notNull: true}),
 });`;
 const NEXT_CASES = [
   {

@@ -1,6 +1,6 @@
 // The side-by-side column system against the shipped one, over the REAL packages, in one run: every
 // shape is declared four ways (shipped builders, shipped type road, new hand-written types, new
-// builders) and read through the same models. The new lines live under each drizzle package's
+// builders, one call per column) and read through the same models. The new lines live under each drizzle package's
 // `next/` folder, which ships nothing, so their budgets are one-way downward like every other suite;
 // the shipped lines are the reference, measured here only to compare against.
 
@@ -25,7 +25,7 @@ import {refineTableType as cRefine, cols as cCols} from '@mionjs/drizzle-orm';
 import * as n from '../../drizzle-orm-pg-core/next/index.ts';
 import {toDrizzle as nToDrizzle} from '../../drizzle-orm-pg-core/next/drizzle.ts';
 import type {InferSelectModel as NSelect, InferInsertModel as NInsert} from '../../drizzle-orm/next/models.ts';
-import {refineTableType as nRefine, cols as nCols} from '../../drizzle-orm/next/index.ts';
+import {refineTableType as nRefine, cols as nCols, $type as n$type} from '../../drizzle-orm/next/index.ts';
 import type {PgDatabase, PgQueryResultHKT} from 'drizzle-orm/pg-core';
 declare const db: PgDatabase<PgQueryResultHKT>;
 export {};
@@ -63,7 +63,7 @@ const MIXED: ColSpec[] = [
     `c.uuid('id').primaryKey()`,
     `c.Uuid<'id', {primaryKey: true}>`,
     `n.Uuid<{primaryKey: true}>`,
-    `n.uuid('id').primaryKey()`
+    `n.uuid('id', {primaryKey: true})`
   ),
   col(
     'name',
@@ -71,7 +71,7 @@ const MIXED: ColSpec[] = [
     `c.varchar('name', {length: 100}).notNull()`,
     `c.Varchar<'name', {length: 100; notNull: true}>`,
     `n.Varchar<{length: 100; notNull: true}>`,
-    `n.varchar('name', {length: 100}).notNull()`
+    `n.varchar('name', {length: 100, notNull: true})`
   ),
   col(
     'age',
@@ -79,7 +79,7 @@ const MIXED: ColSpec[] = [
     `c.integer('age').notNull()`,
     `c.Integer<'age', {notNull: true}>`,
     `n.Integer<{notNull: true}>`,
-    `n.integer('age').notNull()`
+    `n.integer('age', {notNull: true})`
   ),
   col(
     'role',
@@ -87,7 +87,7 @@ const MIXED: ColSpec[] = [
     `c.text('role', {enum: ['admin', 'user']}).notNull()`,
     `c.Text<'role', {enum: ['admin', 'user']; notNull: true}>`,
     `n.Text<{enum: ['admin', 'user']; notNull: true}>`,
-    `n.text('role', {enum: ['admin', 'user']}).notNull()`
+    `n.text('role', {enum: ['admin', 'user'], notNull: true})`
   ),
   col(
     'createdAt',
@@ -95,7 +95,7 @@ const MIXED: ColSpec[] = [
     `c.timestamp('created_at', {mode: 'date'}).notNull().defaultNow()`,
     `c.Timestamp<'created_at', {mode: 'date'; notNull: true; defaultNow: true}>`,
     `n.Timestamp<{mode: 'date'; notNull: true; defaultNow: true}>`,
-    `n.timestamp('created_at', {mode: 'date'}).notNull().defaultNow()`
+    `n.timestamp('created_at', {mode: 'date', notNull: true, defaultNow: true})`
   ),
 ];
 const WIDE: ColSpec[] = [
@@ -105,7 +105,7 @@ const WIDE: ColSpec[] = [
     `c.serial('id').primaryKey()`,
     `c.Serial<'id', {primaryKey: true}>`,
     `n.Serial<{primaryKey: true}>`,
-    `n.serial('id').primaryKey()`
+    `n.serial('id', {primaryKey: true})`
   ),
   col(
     'role',
@@ -113,7 +113,7 @@ const WIDE: ColSpec[] = [
     `c.text('role', {enum: ['admin', 'user']}).notNull()`,
     `c.Text<'role', {enum: ['admin', 'user']; notNull: true}>`,
     `n.Text<{enum: ['admin', 'user']; notNull: true}>`,
-    `n.text('role', {enum: ['admin', 'user']}).notNull()`
+    `n.text('role', {enum: ['admin', 'user'], notNull: true})`
   ),
   col(
     'seq',
@@ -121,7 +121,7 @@ const WIDE: ColSpec[] = [
     `c.integer('seq').generatedAlwaysAsIdentity()`,
     `c.Integer<'seq', {generatedAlwaysAsIdentity: true}>`,
     `n.Integer<{generatedAlwaysAsIdentity: true}>`,
-    `n.integer('seq').generatedAlwaysAsIdentity()`
+    `n.integer('seq', {generatedAlwaysAsIdentity: true})`
   ),
   col(
     'tags',
@@ -129,7 +129,7 @@ const WIDE: ColSpec[] = [
     `c.text('tags').array().notNull()`,
     `c.Text<'tags', {array: true; notNull: true}>`,
     `n.Text<{array: true; notNull: true}>`,
-    `n.text('tags').array().notNull()`
+    `n.text('tags', {array: true, notNull: true})`
   ),
   col(
     'payload',
@@ -137,7 +137,7 @@ const WIDE: ColSpec[] = [
     `c.jsonb('payload').$type<{kind: string}>()`,
     `c.Jsonb<'payload', {$type: [{kind: string}]}>`,
     `n.Jsonb<{$type: [{kind: string}]}>`,
-    `n.jsonb('payload').$type<{kind: string}>()`
+    `n.jsonb('payload', {$type: n$type<{kind: string}>()})`
   ),
   col(
     'email',
@@ -145,7 +145,7 @@ const WIDE: ColSpec[] = [
     `c.text('email').unique('uq_email')`,
     `c.Text<'email', {unique: ['uq_email']}>`,
     `n.Text<{unique: ['uq_email']}>`,
-    `n.text('email').unique('uq_email')`
+    `n.text('email', {unique: ['uq_email']})`
   ),
   col(
     'createdAt',
@@ -153,7 +153,7 @@ const WIDE: ColSpec[] = [
     `c.timestamp('created_at', {mode: 'date'}).notNull().defaultNow()`,
     `c.Timestamp<'created_at', {mode: 'date'; notNull: true; defaultNow: true}>`,
     `n.Timestamp<{mode: 'date'; notNull: true; defaultNow: true}>`,
-    `n.timestamp('created_at', {mode: 'date'}).notNull().defaultNow()`
+    `n.timestamp('created_at', {mode: 'date', notNull: true, defaultNow: true})`
   ),
 ];
 const plain = (count: number, named: boolean): ColSpec[] =>
@@ -208,21 +208,21 @@ interface Shape {
 const SHAPES: Shape[] = [
   {
     label: '5 mixed, select',
-    budget: {newTypes: 539, newBuilders: 888},
+    budget: {newTypes: 539, newBuilders: 971},
     body: (line, p) => `${declare(line, p, 'users', MIXED)}\ntype ${p}Row = ${select(line, `${p}T`)};\n${readMixed(p)}`,
   },
   {
     label: '5 mixed, select + insert',
-    budget: {newTypes: 1132, newBuilders: 1691},
+    budget: {newTypes: 1132, newBuilders: 1638},
     body: (line, p) =>
       `${declare(line, p, 'users', MIXED)}\ntype ${p}Row = ${select(line, `${p}T`)};\ntype ${p}New = ${insert(line, `${p}T`)};\n${readMixed(p)}
 export const ${p}NewUser: ${p}New = {id: 'x' as never, name: 'a', age: 1, role: 'admin'};`,
   },
   ...(
     [
-      [10, {newTypes: 210, newBuilders: 409}],
-      [20, {newTypes: 300, newBuilders: 679}],
-      [40, {newTypes: 480, newBuilders: 1219}],
+      [10, {newTypes: 210, newBuilders: 364}],
+      [20, {newTypes: 300, newBuilders: 574}],
+      [40, {newTypes: 480, newBuilders: 994}],
     ] as const
   ).map(
     ([count, budget]): Shape => ({
@@ -234,26 +234,26 @@ export const ${p}NewUser: ${p}New = {id: 'x' as never, name: 'a', age: 1, role: 
   ),
   {
     label: '20 plain, nameless',
-    budget: {newTypes: 300, newBuilders: 461},
+    budget: {newTypes: 300, newBuilders: 532},
     body: (line, p) =>
       `${declare(line, p, 't', plain(20, false))}\ntype ${p}Row = ${select(line, `${p}T`)};\n${readPlain(p, 20)}`,
   },
   {
     label: 'wide vocabulary, select',
-    budget: {newTypes: 702, newBuilders: 1165},
+    budget: {newTypes: 702, newBuilders: 1293},
     body: (line, p) => `${declare(line, p, 'w', WIDE)}\ntype ${p}Row = ${select(line, `${p}T`)};\n${readWide(p)}`,
   },
   {
     label: 'two tables, one reference',
-    budget: {newTypes: 160, newBuilders: 414},
+    budget: {newTypes: 160, newBuilders: 461},
     body: (line, p) => {
       if (line === 'curBuilders')
         return `const ${p}A = c.pgTable('teams', {id: c.serial('id').primaryKey()});
 const ${p}B = c.pgTable('members', {id: c.serial('id').primaryKey(), teamId: c.integer('team_id').references(() => cCols(${p}A).id)});
 declare const ${p}row: CSelect<typeof ${p}B>; export const ${p}t: number | null = ${p}row.teamId;`;
       if (line === 'newBuilders')
-        return `const ${p}A = n.pgTable('teams', {id: n.serial('id').primaryKey()});
-const ${p}B = n.pgTable('members', {id: n.serial('id').primaryKey(), teamId: n.integer('team_id').references(() => nCols(${p}A).id)});
+        return `const ${p}A = n.pgTable('teams', {id: n.serial('id', {primaryKey: true})});
+const ${p}B = n.pgTable('members', {id: n.serial('id', {primaryKey: true}), teamId: n.integer('team_id', {references: [() => nCols(${p}A).id]})});
 declare const ${p}row: NSelect<typeof ${p}B>; export const ${p}t: number | null = ${p}row.teamId;`;
       if (line === 'curTypes')
         return `type ${p}A = c.PgTable<'teams', {id: c.Serial<'id', {primaryKey: true}>}>;
@@ -266,7 +266,7 @@ declare const ${p}row: NSelect<${p}B>; export const ${p}t: number | null = ${p}r
   },
   {
     label: 'refineTableType, select',
-    budget: {newTypes: 1277, newBuilders: 1694},
+    budget: {newTypes: 1277, newBuilders: 1729},
     body: (line, p) => {
       const refine = isCur(line) ? 'cRefine' : 'nRefine';
       const source = line.endsWith('Builders') ? `${p}V` : `({} as ${p}T)`;
@@ -277,7 +277,7 @@ type ${p}Row = ${select(line, `typeof ${p}R`)};\n${readMixed(p)}`;
   },
   {
     label: 'toDrizzle + select / insert / update query',
-    budget: {newTypes: 8812, newBuilders: 10130},
+    budget: {newTypes: 8812, newBuilders: 9915},
     body: (line, p) => {
       const toDz = isCur(line) ? 'cToDrizzle' : 'nToDrizzle';
       const source = line.endsWith('Builders') ? `${p}V` : `({} as ${p}T)`;

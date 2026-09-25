@@ -5,10 +5,11 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Side-by-side pg columns: a hand-written column type is one method-free Column, and every builder
-// points at exactly that Column, so a builder table and a hand-written table are one type. The
-// runtime is the shipped recorder, unchanged. Four builder kinds as in drizzle (common, +defaultNow,
-// +defaultRandom, +identity); `.array()` falls back to the common kind.
+// Side-by-side pg columns, single-call: a builder takes every setting in ONE props object and returns
+// exactly the column type the hand-written alias spells, so a builder column and a hand-written one
+// are one type. No chained modifiers: a column type carrying chain methods cannot be reflected (the
+// runtype id walks method return types, MKR009), and the props bag of each builder is what rejects a
+// modifier its kind does not have. The runtime is the shipped recorder, fed by ../../drizzle-orm/next/recorder.ts.
 
 import type {
   Date as RTDate,
@@ -21,25 +22,15 @@ import type {
   StringTime,
   UUID,
 } from '@mionjs/run-types/formats';
-import type {RtSql} from '../../drizzle-orm/src/recorder.ts';
-import {RtColumnRecorder, RtValueRecorder, rtValueKey} from '../../drizzle-orm/src/recorder.ts';
-
-/** Type-only: the column a builder builds (props flattened, no db name), what a builder table holds. */
-export declare const rtBuiltColumnKey: unique symbol;
-import type {
-  ColBaseFlag,
-  Column,
-  ColumnName,
-  ColumnOwner,
-  Flat,
-  NoProps,
-  RefOf,
-  Writable,
-} from '../../drizzle-orm/next/columns.ts';
+import {RtValueRecorder, rtValueKey} from '../../drizzle-orm/src/recorder.ts';
+import type {Column, ColBaseFlag, ColumnOwner, NamedColumn, NoProps, PropsOf} from '../../drizzle-orm/next/columns.ts';
+import {recordColumn} from '../../drizzle-orm/next/recorder.ts';
 import type {
   BigintData,
   BitData,
   CharData,
+  CustomTypeParams,
+  CustomTypeValues,
   GeometryData,
   IntervalConfig,
   LineData,
@@ -68,183 +59,54 @@ import type {
   TimeConfig,
   TimestampData,
   VarcharData,
-  CustomTypeParams,
-  CustomTypeValues,
 } from '../src/columns.ts';
 
-// ── The four builder kinds ───────────────────────────────────────────────────
-// Builders carry the chain, columns carry none: the runtype id walks method return types, so a column
-// whose methods return a new column per call never resolves (MKR009). Each kind spells its whole
-// chain and returns ITSELF: a shared chain returning the caller's kind through a lookup cost about 25
-// instantiations per call.
-/** How a chained call adds to the props. */
-type Mod<P, M> = P & M;
-type UniqueConfig = {nulls: 'distinct' | 'not distinct'};
+// ── What each builder kind's props take ──────────────────────────────────────
+// The hand-written bags, with the function-carrying keys taking their runtime shape.
+
+// Written out rather than derived (Omit of the hand-written bag): every builder call checks its props
+// against one of these, and a plain interface is the cheapest thing to check against.
+export interface PgColIn {
+  notNull?: true;
+  primaryKey?: true;
+  default?: readonly [unknown];
+  unique?: true | readonly [string] | readonly [string, {nulls: 'distinct' | 'not distinct'}];
+  generatedAlwaysAs?: readonly [unknown];
+  array?: true | readonly [number];
+  $type?: readonly [unknown];
+  references?: readonly [() => AnyOwner] | readonly [() => AnyOwner, ReferenceActions];
+  $default?: readonly [() => unknown];
+  $defaultFn?: readonly [() => unknown];
+  $onUpdate?: readonly [() => unknown];
+  $onUpdateFn?: readonly [() => unknown];
+}
+export interface PgDateIn extends PgColIn {
+  defaultNow?: true;
+}
+export interface PgUuidIn extends PgColIn {
+  defaultRandom?: true;
+}
+export interface PgIntIn extends PgColIn {
+  generatedAlwaysAsIdentity?: true | readonly [PgIdentityConfig];
+  generatedByDefaultAsIdentity?: true | readonly [PgIdentityConfig];
+}
 type AnyOwner = ColumnOwner<string, string>;
 
-/** The chain every pg column has. */
-export interface PgColumnBuilder<
-  Fn extends string,
-  P,
-  D,
-  B extends ColBaseFlag = never,
-  N extends string | undefined = undefined,
-> extends ColumnName<N> {
-  readonly [rtBuiltColumnKey]: Column<Fn, Flat<P>, D, B>;
-  notNull(): PgColumnBuilder<Fn, Mod<P, {notNull: true}>, D, B, N>;
-  default(value: RtSql): PgColumnBuilder<Fn, Mod<P, {default: [RtSql]}>, D, B, N>;
-  default<const V extends D>(value: V): PgColumnBuilder<Fn, Mod<P, {default: [Writable<V>]}>, D, B, N>;
-  $default(fn: () => D | RtSql): PgColumnBuilder<Fn, Mod<P, {$default: true}>, D, B, N>;
-  $defaultFn(fn: () => D | RtSql): PgColumnBuilder<Fn, Mod<P, {$defaultFn: true}>, D, B, N>;
-  $onUpdate(fn: () => D | RtSql): PgColumnBuilder<Fn, Mod<P, {$onUpdate: true}>, D, B, N>;
-  $onUpdateFn(fn: () => D | RtSql): PgColumnBuilder<Fn, Mod<P, {$onUpdateFn: true}>, D, B, N>;
-  primaryKey(): PgColumnBuilder<Fn, Mod<P, {primaryKey: true}>, D, B, N>;
-  unique(): PgColumnBuilder<Fn, Mod<P, {unique: true}>, D, B, N>;
-  unique<const Name extends string>(name: Name): PgColumnBuilder<Fn, Mod<P, {unique: [Name]}>, D, B, N>;
-  unique<const Name extends string, const C extends UniqueConfig>(
-    name: Name,
-    config: C
-  ): PgColumnBuilder<Fn, Mod<P, {unique: [Name, Writable<C>]}>, D, B, N>;
-  references<R extends AnyOwner>(ref: () => R): PgColumnBuilder<Fn, Mod<P, {references: [RefOf<R>]}>, D, B, N>;
-  references<R extends AnyOwner, const A extends ReferenceActions>(
-    ref: () => R,
-    actions: A
-  ): PgColumnBuilder<Fn, Mod<P, {references: [RefOf<R>, Writable<A>]}>, D, B, N>;
-  generatedAlwaysAs(as: RtSql | (() => RtSql)): PgColumnBuilder<Fn, Mod<P, {generatedAlwaysAs: [RtSql]}>, D, B, N>;
-  generatedAlwaysAs<const V extends D>(as: V): PgColumnBuilder<Fn, Mod<P, {generatedAlwaysAs: [Writable<V>]}>, D, B, N>;
-  array(): PgColumnBuilder<Fn, Mod<P, {array: true}>, D, B, N>;
-  array<const S extends number>(size: S): PgColumnBuilder<Fn, Mod<P, {array: [S]}>, D, B, N>;
-  $type<T>(): PgColumnBuilder<Fn, Mod<P, {$type: [T]}>, D, B, N>;
-}
-/** date / time / timestamp: + defaultNow(). */
-export interface PgDateColumnBuilder<
-  Fn extends string,
-  P,
-  D,
-  B extends ColBaseFlag = never,
-  N extends string | undefined = undefined,
-> extends ColumnName<N> {
-  readonly [rtBuiltColumnKey]: Column<Fn, Flat<P>, D, B>;
-  notNull(): PgDateColumnBuilder<Fn, Mod<P, {notNull: true}>, D, B, N>;
-  default(value: RtSql): PgDateColumnBuilder<Fn, Mod<P, {default: [RtSql]}>, D, B, N>;
-  default<const V extends D>(value: V): PgDateColumnBuilder<Fn, Mod<P, {default: [Writable<V>]}>, D, B, N>;
-  $default(fn: () => D | RtSql): PgDateColumnBuilder<Fn, Mod<P, {$default: true}>, D, B, N>;
-  $defaultFn(fn: () => D | RtSql): PgDateColumnBuilder<Fn, Mod<P, {$defaultFn: true}>, D, B, N>;
-  $onUpdate(fn: () => D | RtSql): PgDateColumnBuilder<Fn, Mod<P, {$onUpdate: true}>, D, B, N>;
-  $onUpdateFn(fn: () => D | RtSql): PgDateColumnBuilder<Fn, Mod<P, {$onUpdateFn: true}>, D, B, N>;
-  primaryKey(): PgDateColumnBuilder<Fn, Mod<P, {primaryKey: true}>, D, B, N>;
-  unique(): PgDateColumnBuilder<Fn, Mod<P, {unique: true}>, D, B, N>;
-  unique<const Name extends string>(name: Name): PgDateColumnBuilder<Fn, Mod<P, {unique: [Name]}>, D, B, N>;
-  unique<const Name extends string, const C extends UniqueConfig>(
-    name: Name,
-    config: C
-  ): PgDateColumnBuilder<Fn, Mod<P, {unique: [Name, Writable<C>]}>, D, B, N>;
-  references<R extends AnyOwner>(ref: () => R): PgDateColumnBuilder<Fn, Mod<P, {references: [RefOf<R>]}>, D, B, N>;
-  references<R extends AnyOwner, const A extends ReferenceActions>(
-    ref: () => R,
-    actions: A
-  ): PgDateColumnBuilder<Fn, Mod<P, {references: [RefOf<R>, Writable<A>]}>, D, B, N>;
-  generatedAlwaysAs(as: RtSql | (() => RtSql)): PgDateColumnBuilder<Fn, Mod<P, {generatedAlwaysAs: [RtSql]}>, D, B, N>;
-  generatedAlwaysAs<const V extends D>(as: V): PgDateColumnBuilder<Fn, Mod<P, {generatedAlwaysAs: [Writable<V>]}>, D, B, N>;
-  array(): PgColumnBuilder<Fn, Mod<P, {array: true}>, D, B, N>;
-  array<const S extends number>(size: S): PgColumnBuilder<Fn, Mod<P, {array: [S]}>, D, B, N>;
-  $type<T>(): PgDateColumnBuilder<Fn, Mod<P, {$type: [T]}>, D, B, N>;
-  defaultNow(): PgDateColumnBuilder<Fn, Mod<P, {defaultNow: true}>, D, B, N>;
-}
-/** uuid: + defaultRandom(). */
-export interface PgUuidColumnBuilder<
-  Fn extends string,
-  P,
-  D,
-  B extends ColBaseFlag = never,
-  N extends string | undefined = undefined,
-> extends ColumnName<N> {
-  readonly [rtBuiltColumnKey]: Column<Fn, Flat<P>, D, B>;
-  notNull(): PgUuidColumnBuilder<Fn, Mod<P, {notNull: true}>, D, B, N>;
-  default(value: RtSql): PgUuidColumnBuilder<Fn, Mod<P, {default: [RtSql]}>, D, B, N>;
-  default<const V extends D>(value: V): PgUuidColumnBuilder<Fn, Mod<P, {default: [Writable<V>]}>, D, B, N>;
-  $default(fn: () => D | RtSql): PgUuidColumnBuilder<Fn, Mod<P, {$default: true}>, D, B, N>;
-  $defaultFn(fn: () => D | RtSql): PgUuidColumnBuilder<Fn, Mod<P, {$defaultFn: true}>, D, B, N>;
-  $onUpdate(fn: () => D | RtSql): PgUuidColumnBuilder<Fn, Mod<P, {$onUpdate: true}>, D, B, N>;
-  $onUpdateFn(fn: () => D | RtSql): PgUuidColumnBuilder<Fn, Mod<P, {$onUpdateFn: true}>, D, B, N>;
-  primaryKey(): PgUuidColumnBuilder<Fn, Mod<P, {primaryKey: true}>, D, B, N>;
-  unique(): PgUuidColumnBuilder<Fn, Mod<P, {unique: true}>, D, B, N>;
-  unique<const Name extends string>(name: Name): PgUuidColumnBuilder<Fn, Mod<P, {unique: [Name]}>, D, B, N>;
-  unique<const Name extends string, const C extends UniqueConfig>(
-    name: Name,
-    config: C
-  ): PgUuidColumnBuilder<Fn, Mod<P, {unique: [Name, Writable<C>]}>, D, B, N>;
-  references<R extends AnyOwner>(ref: () => R): PgUuidColumnBuilder<Fn, Mod<P, {references: [RefOf<R>]}>, D, B, N>;
-  references<R extends AnyOwner, const A extends ReferenceActions>(
-    ref: () => R,
-    actions: A
-  ): PgUuidColumnBuilder<Fn, Mod<P, {references: [RefOf<R>, Writable<A>]}>, D, B, N>;
-  generatedAlwaysAs(as: RtSql | (() => RtSql)): PgUuidColumnBuilder<Fn, Mod<P, {generatedAlwaysAs: [RtSql]}>, D, B, N>;
-  generatedAlwaysAs<const V extends D>(as: V): PgUuidColumnBuilder<Fn, Mod<P, {generatedAlwaysAs: [Writable<V>]}>, D, B, N>;
-  array(): PgColumnBuilder<Fn, Mod<P, {array: true}>, D, B, N>;
-  array<const S extends number>(size: S): PgColumnBuilder<Fn, Mod<P, {array: [S]}>, D, B, N>;
-  $type<T>(): PgUuidColumnBuilder<Fn, Mod<P, {$type: [T]}>, D, B, N>;
-  defaultRandom(): PgUuidColumnBuilder<Fn, Mod<P, {defaultRandom: true}>, D, B, N>;
-}
-/** smallint / integer / bigint: + the identity modifiers. */
-export interface PgIntColumnBuilder<
-  Fn extends string,
-  P,
-  D,
-  B extends ColBaseFlag = never,
-  N extends string | undefined = undefined,
-> extends ColumnName<N> {
-  readonly [rtBuiltColumnKey]: Column<Fn, Flat<P>, D, B>;
-  notNull(): PgIntColumnBuilder<Fn, Mod<P, {notNull: true}>, D, B, N>;
-  default(value: RtSql): PgIntColumnBuilder<Fn, Mod<P, {default: [RtSql]}>, D, B, N>;
-  default<const V extends D>(value: V): PgIntColumnBuilder<Fn, Mod<P, {default: [Writable<V>]}>, D, B, N>;
-  $default(fn: () => D | RtSql): PgIntColumnBuilder<Fn, Mod<P, {$default: true}>, D, B, N>;
-  $defaultFn(fn: () => D | RtSql): PgIntColumnBuilder<Fn, Mod<P, {$defaultFn: true}>, D, B, N>;
-  $onUpdate(fn: () => D | RtSql): PgIntColumnBuilder<Fn, Mod<P, {$onUpdate: true}>, D, B, N>;
-  $onUpdateFn(fn: () => D | RtSql): PgIntColumnBuilder<Fn, Mod<P, {$onUpdateFn: true}>, D, B, N>;
-  primaryKey(): PgIntColumnBuilder<Fn, Mod<P, {primaryKey: true}>, D, B, N>;
-  unique(): PgIntColumnBuilder<Fn, Mod<P, {unique: true}>, D, B, N>;
-  unique<const Name extends string>(name: Name): PgIntColumnBuilder<Fn, Mod<P, {unique: [Name]}>, D, B, N>;
-  unique<const Name extends string, const C extends UniqueConfig>(
-    name: Name,
-    config: C
-  ): PgIntColumnBuilder<Fn, Mod<P, {unique: [Name, Writable<C>]}>, D, B, N>;
-  references<R extends AnyOwner>(ref: () => R): PgIntColumnBuilder<Fn, Mod<P, {references: [RefOf<R>]}>, D, B, N>;
-  references<R extends AnyOwner, const A extends ReferenceActions>(
-    ref: () => R,
-    actions: A
-  ): PgIntColumnBuilder<Fn, Mod<P, {references: [RefOf<R>, Writable<A>]}>, D, B, N>;
-  generatedAlwaysAs(as: RtSql | (() => RtSql)): PgIntColumnBuilder<Fn, Mod<P, {generatedAlwaysAs: [RtSql]}>, D, B, N>;
-  generatedAlwaysAs<const V extends D>(as: V): PgIntColumnBuilder<Fn, Mod<P, {generatedAlwaysAs: [Writable<V>]}>, D, B, N>;
-  array(): PgColumnBuilder<Fn, Mod<P, {array: true}>, D, B, N>;
-  array<const S extends number>(size: S): PgColumnBuilder<Fn, Mod<P, {array: [S]}>, D, B, N>;
-  $type<T>(): PgIntColumnBuilder<Fn, Mod<P, {$type: [T]}>, D, B, N>;
-  generatedAlwaysAsIdentity(): PgIntColumnBuilder<Fn, Mod<P, {generatedAlwaysAsIdentity: true}>, D, B, N>;
-  generatedAlwaysAsIdentity<const S extends PgIdentityConfig>(
-    sequence: S
-  ): PgIntColumnBuilder<Fn, Mod<P, {generatedAlwaysAsIdentity: [Writable<S>]}>, D, B, N>;
-  generatedByDefaultAsIdentity(): PgIntColumnBuilder<Fn, Mod<P, {generatedByDefaultAsIdentity: true}>, D, B, N>;
-  generatedByDefaultAsIdentity<const S extends PgIdentityConfig>(
-    sequence: S
-  ): PgIntColumnBuilder<Fn, Mod<P, {generatedByDefaultAsIdentity: [Writable<S>]}>, D, B, N>;
-}
-
-// ── Builder plumbing ─────────────────────────────────────────────────────────
+/** What a builder returns: the column, wrapped with its db name when it was called with one. */
+type Built<Fn extends string, C, D, B extends ColBaseFlag = never> = Column<Fn, PropsOf<C>, D, B>;
 
 function pgColumn(fnName: string, args: unknown[]): never {
-  return new RtColumnRecorder((context) => context.ns[fnName](...(args as never[]))) as never;
+  return recordColumn(args, (context, callArgs) => context.ns[fnName](...(callArgs as never[]))) as never;
 }
 
 // ── Hand-written aliases + builders ──────────────────────────────────────────
 
 export type Bigint<P extends PgBigIntConfig & PgIntColMods = PgBigIntConfig<'number'>> = Column<'bigint', P, BigintData<P>>;
-export function bigint<const C extends PgBigIntConfig>(
-  config: C
-): PgIntColumnBuilder<'bigint', Writable<C>, BigintData<C>, never, undefined>;
-export function bigint<N extends string, const C extends PgBigIntConfig>(
+export function bigint<const C extends PgBigIntConfig & PgIntIn>(props: C): Built<'bigint', C, BigintData<C>>;
+export function bigint<N extends string, const C extends PgBigIntConfig & PgIntIn>(
   name: N,
-  config: C
-): PgIntColumnBuilder<'bigint', Writable<C>, BigintData<C>, never, N>;
+  props: C
+): NamedColumn<N, Built<'bigint', C, BigintData<C>>>;
 export function bigint(...args: unknown[]) {
   return pgColumn('bigint', args);
 }
@@ -255,327 +117,346 @@ export type Bigserial<P extends PgBigIntConfig & PgColMods = PgBigIntConfig<'num
   BigintData<P>,
   'notNull' | 'hasDefault'
 >;
-export function bigserial<const C extends PgBigIntConfig>(
-  config: C
-): PgColumnBuilder<'bigserial', Writable<C>, BigintData<C>, 'notNull' | 'hasDefault', undefined>;
-export function bigserial<N extends string, const C extends PgBigIntConfig>(
+export function bigserial<const C extends PgBigIntConfig & PgColIn>(
+  props: C
+): Built<'bigserial', C, BigintData<C>, 'notNull' | 'hasDefault'>;
+export function bigserial<N extends string, const C extends PgBigIntConfig & PgColIn>(
   name: N,
-  config: C
-): PgColumnBuilder<'bigserial', Writable<C>, BigintData<C>, 'notNull' | 'hasDefault', N>;
+  props: C
+): NamedColumn<N, Built<'bigserial', C, BigintData<C>, 'notNull' | 'hasDefault'>>;
 export function bigserial(...args: unknown[]) {
   return pgColumn('bigserial', args);
 }
 
 export type Bit<P extends Partial<PgBitConfig> & PgColMods = NoProps> = Column<'bit', P, BitData<P>>;
-export function bit<const C extends PgBitConfig>(config: C): PgColumnBuilder<'bit', Writable<C>, BitData<C>, never, undefined>;
-export function bit<N extends string, const C extends PgBitConfig>(
+export function bit<const C extends PgBitConfig & PgColIn>(props: C): Built<'bit', C, BitData<C>>;
+export function bit<N extends string, const C extends PgBitConfig & PgColIn>(
   name: N,
-  config: C
-): PgColumnBuilder<'bit', Writable<C>, BitData<C>, never, N>;
+  props: C
+): NamedColumn<N, Built<'bit', C, BitData<C>>>;
 export function bit(...args: unknown[]) {
   return pgColumn('bit', args);
 }
 
 export type Boolean<P extends PgColMods = NoProps> = Column<'boolean', P, boolean>;
-export function boolean(): PgColumnBuilder<'boolean', NoProps, boolean, never, undefined>;
-export function boolean<N extends string>(name: N): PgColumnBuilder<'boolean', NoProps, boolean, never, N>;
+export function boolean(): Column<'boolean', NoProps, boolean>;
+export function boolean<const C extends PgColIn>(props: C): Built<'boolean', C, boolean>;
+export function boolean<N extends string>(name: N): NamedColumn<N, Column<'boolean', NoProps, boolean>>;
+export function boolean<N extends string, const C extends PgColIn>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'boolean', C, boolean>>;
 export function boolean(...args: unknown[]) {
   return pgColumn('boolean', args);
 }
 
 export type Char<P extends PgCharConfig & PgColMods = NoProps> = Column<'char', P, CharData<P>>;
-export function char(): PgColumnBuilder<'char', NoProps, Str, never, undefined>;
-export function char<const C extends PgCharConfig>(
-  config: C
-): PgColumnBuilder<'char', Writable<C>, CharData<C>, never, undefined>;
-export function char<N extends string>(name: N): PgColumnBuilder<'char', NoProps, Str, never, N>;
-export function char<N extends string, const C extends PgCharConfig>(
+export function char(): Column<'char', NoProps, Str>;
+export function char<const C extends PgCharConfig & PgColIn>(props: C): Built<'char', C, CharData<C>>;
+export function char<N extends string>(name: N): NamedColumn<N, Column<'char', NoProps, Str>>;
+export function char<N extends string, const C extends PgCharConfig & PgColIn>(
   name: N,
-  config: C
-): PgColumnBuilder<'char', Writable<C>, CharData<C>, never, N>;
+  props: C
+): NamedColumn<N, Built<'char', C, CharData<C>>>;
 export function char(...args: unknown[]) {
   return pgColumn('char', args);
 }
 
 export type Cidr<P extends PgColMods = NoProps> = Column<'cidr', P, string>;
-export function cidr(): PgColumnBuilder<'cidr', NoProps, string, never, undefined>;
-export function cidr<N extends string>(name: N): PgColumnBuilder<'cidr', NoProps, string, never, N>;
+export function cidr(): Column<'cidr', NoProps, string>;
+export function cidr<const C extends PgColIn>(props: C): Built<'cidr', C, string>;
+export function cidr<N extends string>(name: N): NamedColumn<N, Column<'cidr', NoProps, string>>;
+export function cidr<N extends string, const C extends PgColIn>(name: N, props: C): NamedColumn<N, Built<'cidr', C, string>>;
 export function cidr(...args: unknown[]) {
   return pgColumn('cidr', args);
 }
 
 export type PgDate<P extends PgDateConfig & PgDateColMods = NoProps> = Column<'date', P, PgDateData<P>>;
-export function date(): PgDateColumnBuilder<'date', NoProps, StringDate, never, undefined>;
-export function date<const C extends PgDateConfig>(
-  config: C
-): PgDateColumnBuilder<'date', Writable<C>, PgDateData<C>, never, undefined>;
-export function date<N extends string>(name: N): PgDateColumnBuilder<'date', NoProps, StringDate, never, N>;
-export function date<N extends string, const C extends PgDateConfig>(
+export function date(): Column<'date', NoProps, StringDate>;
+export function date<const C extends PgDateConfig & PgDateIn>(props: C): Built<'date', C, PgDateData<C>>;
+export function date<N extends string>(name: N): NamedColumn<N, Column<'date', NoProps, StringDate>>;
+export function date<N extends string, const C extends PgDateConfig & PgDateIn>(
   name: N,
-  config: C
-): PgDateColumnBuilder<'date', Writable<C>, PgDateData<C>, never, N>;
+  props: C
+): NamedColumn<N, Built<'date', C, PgDateData<C>>>;
 export function date(...args: unknown[]) {
   return pgColumn('date', args);
 }
 
-export type Numeric<P extends PgNumericConfig & PgColMods = NoProps> = Column<'numeric', P, NumericData<P>>;
-export function numeric(): PgColumnBuilder<'numeric', NoProps, string, never, undefined>;
-export function numeric<const C extends PgNumericConfig>(
-  config: C
-): PgColumnBuilder<'numeric', Writable<C>, NumericData<C>, never, undefined>;
-export function numeric<N extends string>(name: N): PgColumnBuilder<'numeric', NoProps, string, never, N>;
-export function numeric<N extends string, const C extends PgNumericConfig>(
-  name: N,
-  config: C
-): PgColumnBuilder<'numeric', Writable<C>, NumericData<C>, never, N>;
-export function numeric(...args: unknown[]) {
-  return pgColumn('numeric', args);
-}
-
 export type Decimal<P extends PgNumericConfig & PgColMods = NoProps> = Column<'decimal', P, NumericData<P>>;
-export function decimal(): PgColumnBuilder<'decimal', NoProps, string, never, undefined>;
-export function decimal<const C extends PgNumericConfig>(
-  config: C
-): PgColumnBuilder<'decimal', Writable<C>, NumericData<C>, never, undefined>;
-export function decimal<N extends string>(name: N): PgColumnBuilder<'decimal', NoProps, string, never, N>;
-export function decimal<N extends string, const C extends PgNumericConfig>(
+export function decimal(): Column<'decimal', NoProps, string>;
+export function decimal<const C extends PgNumericConfig & PgColIn>(props: C): Built<'decimal', C, NumericData<C>>;
+export function decimal<N extends string>(name: N): NamedColumn<N, Column<'decimal', NoProps, string>>;
+export function decimal<N extends string, const C extends PgNumericConfig & PgColIn>(
   name: N,
-  config: C
-): PgColumnBuilder<'decimal', Writable<C>, NumericData<C>, never, N>;
+  props: C
+): NamedColumn<N, Built<'decimal', C, NumericData<C>>>;
 export function decimal(...args: unknown[]) {
   return pgColumn('decimal', args);
 }
 
 export type DoublePrecision<P extends PgColMods = NoProps> = Column<'doublePrecision', P, Float>;
-export function doublePrecision(): PgColumnBuilder<'doublePrecision', NoProps, Float, never, undefined>;
-export function doublePrecision<N extends string>(name: N): PgColumnBuilder<'doublePrecision', NoProps, Float, never, N>;
+export function doublePrecision(): Column<'doublePrecision', NoProps, Float>;
+export function doublePrecision<const C extends PgColIn>(props: C): Built<'doublePrecision', C, Float>;
+export function doublePrecision<N extends string>(name: N): NamedColumn<N, Column<'doublePrecision', NoProps, Float>>;
+export function doublePrecision<N extends string, const C extends PgColIn>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'doublePrecision', C, Float>>;
 export function doublePrecision(...args: unknown[]) {
   return pgColumn('doublePrecision', args);
 }
 
 export type Geometry<P extends PgGeometryConfig & PgColMods = NoProps> = Column<'geometry', P, GeometryData<P>>;
-export function geometry(): PgColumnBuilder<'geometry', NoProps, [number, number], never, undefined>;
-export function geometry<const C extends PgGeometryConfig>(
-  config: C
-): PgColumnBuilder<'geometry', Writable<C>, GeometryData<C>, never, undefined>;
-export function geometry<N extends string>(name: N): PgColumnBuilder<'geometry', NoProps, [number, number], never, N>;
-export function geometry<N extends string, const C extends PgGeometryConfig>(
+export function geometry(): Column<'geometry', NoProps, [number, number]>;
+export function geometry<const C extends PgGeometryConfig & PgColIn>(props: C): Built<'geometry', C, GeometryData<C>>;
+export function geometry<N extends string>(name: N): NamedColumn<N, Column<'geometry', NoProps, [number, number]>>;
+export function geometry<N extends string, const C extends PgGeometryConfig & PgColIn>(
   name: N,
-  config: C
-): PgColumnBuilder<'geometry', Writable<C>, GeometryData<C>, never, N>;
+  props: C
+): NamedColumn<N, Built<'geometry', C, GeometryData<C>>>;
 export function geometry(...args: unknown[]) {
   return pgColumn('geometry', args);
 }
 
 export type Halfvec<P extends Partial<PgVectorConfig> & PgColMods = NoProps> = Column<'halfvec', P, number[]>;
-export function halfvec<const C extends PgVectorConfig>(
-  config: C
-): PgColumnBuilder<'halfvec', Writable<C>, number[], never, undefined>;
-export function halfvec<N extends string, const C extends PgVectorConfig>(
+export function halfvec<const C extends PgVectorConfig & PgColIn>(props: C): Built<'halfvec', C, number[]>;
+export function halfvec<N extends string, const C extends PgVectorConfig & PgColIn>(
   name: N,
-  config: C
-): PgColumnBuilder<'halfvec', Writable<C>, number[], never, N>;
+  props: C
+): NamedColumn<N, Built<'halfvec', C, number[]>>;
 export function halfvec(...args: unknown[]) {
   return pgColumn('halfvec', args);
 }
 
 export type Inet<P extends PgColMods = NoProps> = Column<'inet', P, IP>;
-export function inet(): PgColumnBuilder<'inet', NoProps, IP, never, undefined>;
-export function inet<N extends string>(name: N): PgColumnBuilder<'inet', NoProps, IP, never, N>;
+export function inet(): Column<'inet', NoProps, IP>;
+export function inet<const C extends PgColIn>(props: C): Built<'inet', C, IP>;
+export function inet<N extends string>(name: N): NamedColumn<N, Column<'inet', NoProps, IP>>;
+export function inet<N extends string, const C extends PgColIn>(name: N, props: C): NamedColumn<N, Built<'inet', C, IP>>;
 export function inet(...args: unknown[]) {
   return pgColumn('inet', args);
 }
 
 export type Integer<P extends PgIntColMods = NoProps> = Column<'integer', P, Int32>;
-export function integer(): PgIntColumnBuilder<'integer', NoProps, Int32, never, undefined>;
-export function integer<N extends string>(name: N): PgIntColumnBuilder<'integer', NoProps, Int32, never, N>;
+export function integer(): Column<'integer', NoProps, Int32>;
+export function integer<const C extends PgIntIn>(props: C): Built<'integer', C, Int32>;
+export function integer<N extends string>(name: N): NamedColumn<N, Column<'integer', NoProps, Int32>>;
+export function integer<N extends string, const C extends PgIntIn>(name: N, props: C): NamedColumn<N, Built<'integer', C, Int32>>;
 export function integer(...args: unknown[]) {
   return pgColumn('integer', args);
 }
 
 export type Interval<P extends IntervalConfig & PgColMods = NoProps> = Column<'interval', P, string>;
-export function interval(): PgColumnBuilder<'interval', NoProps, string, never, undefined>;
-export function interval<const C extends IntervalConfig>(
-  config: C
-): PgColumnBuilder<'interval', Writable<C>, string, never, undefined>;
-export function interval<N extends string>(name: N): PgColumnBuilder<'interval', NoProps, string, never, N>;
-export function interval<N extends string, const C extends IntervalConfig>(
+export function interval(): Column<'interval', NoProps, string>;
+export function interval<const C extends IntervalConfig & PgColIn>(props: C): Built<'interval', C, string>;
+export function interval<N extends string>(name: N): NamedColumn<N, Column<'interval', NoProps, string>>;
+export function interval<N extends string, const C extends IntervalConfig & PgColIn>(
   name: N,
-  config: C
-): PgColumnBuilder<'interval', Writable<C>, string, never, N>;
+  props: C
+): NamedColumn<N, Built<'interval', C, string>>;
 export function interval(...args: unknown[]) {
   return pgColumn('interval', args);
 }
 
 export type Json<P extends PgColMods = NoProps> = Column<'json', P, unknown>;
-export function json(): PgColumnBuilder<'json', NoProps, unknown, never, undefined>;
-export function json<N extends string>(name: N): PgColumnBuilder<'json', NoProps, unknown, never, N>;
+export function json(): Column<'json', NoProps, unknown>;
+export function json<const C extends PgColIn>(props: C): Built<'json', C, unknown>;
+export function json<N extends string>(name: N): NamedColumn<N, Column<'json', NoProps, unknown>>;
+export function json<N extends string, const C extends PgColIn>(name: N, props: C): NamedColumn<N, Built<'json', C, unknown>>;
 export function json(...args: unknown[]) {
   return pgColumn('json', args);
 }
 
 export type Jsonb<P extends PgColMods = NoProps> = Column<'jsonb', P, unknown>;
-export function jsonb(): PgColumnBuilder<'jsonb', NoProps, unknown, never, undefined>;
-export function jsonb<N extends string>(name: N): PgColumnBuilder<'jsonb', NoProps, unknown, never, N>;
+export function jsonb(): Column<'jsonb', NoProps, unknown>;
+export function jsonb<const C extends PgColIn>(props: C): Built<'jsonb', C, unknown>;
+export function jsonb<N extends string>(name: N): NamedColumn<N, Column<'jsonb', NoProps, unknown>>;
+export function jsonb<N extends string, const C extends PgColIn>(name: N, props: C): NamedColumn<N, Built<'jsonb', C, unknown>>;
 export function jsonb(...args: unknown[]) {
   return pgColumn('jsonb', args);
 }
 
 export type Line<P extends PgLineConfig & PgColMods = NoProps> = Column<'line', P, LineData<P>>;
-export function line(): PgColumnBuilder<'line', NoProps, [number, number, number], never, undefined>;
-export function line<const C extends PgLineConfig>(
-  config: C
-): PgColumnBuilder<'line', Writable<C>, LineData<C>, never, undefined>;
-export function line<N extends string>(name: N): PgColumnBuilder<'line', NoProps, [number, number, number], never, N>;
-export function line<N extends string, const C extends PgLineConfig>(
+export function line(): Column<'line', NoProps, [number, number, number]>;
+export function line<const C extends PgLineConfig & PgColIn>(props: C): Built<'line', C, LineData<C>>;
+export function line<N extends string>(name: N): NamedColumn<N, Column<'line', NoProps, [number, number, number]>>;
+export function line<N extends string, const C extends PgLineConfig & PgColIn>(
   name: N,
-  config: C
-): PgColumnBuilder<'line', Writable<C>, LineData<C>, never, N>;
+  props: C
+): NamedColumn<N, Built<'line', C, LineData<C>>>;
 export function line(...args: unknown[]) {
   return pgColumn('line', args);
 }
 
 export type Macaddr<P extends PgColMods = NoProps> = Column<'macaddr', P, string>;
-export function macaddr(): PgColumnBuilder<'macaddr', NoProps, string, never, undefined>;
-export function macaddr<N extends string>(name: N): PgColumnBuilder<'macaddr', NoProps, string, never, N>;
+export function macaddr(): Column<'macaddr', NoProps, string>;
+export function macaddr<const C extends PgColIn>(props: C): Built<'macaddr', C, string>;
+export function macaddr<N extends string>(name: N): NamedColumn<N, Column<'macaddr', NoProps, string>>;
+export function macaddr<N extends string, const C extends PgColIn>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'macaddr', C, string>>;
 export function macaddr(...args: unknown[]) {
   return pgColumn('macaddr', args);
 }
 
 export type Macaddr8<P extends PgColMods = NoProps> = Column<'macaddr8', P, string>;
-export function macaddr8(): PgColumnBuilder<'macaddr8', NoProps, string, never, undefined>;
-export function macaddr8<N extends string>(name: N): PgColumnBuilder<'macaddr8', NoProps, string, never, N>;
+export function macaddr8(): Column<'macaddr8', NoProps, string>;
+export function macaddr8<const C extends PgColIn>(props: C): Built<'macaddr8', C, string>;
+export function macaddr8<N extends string>(name: N): NamedColumn<N, Column<'macaddr8', NoProps, string>>;
+export function macaddr8<N extends string, const C extends PgColIn>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'macaddr8', C, string>>;
 export function macaddr8(...args: unknown[]) {
   return pgColumn('macaddr8', args);
 }
 
-export type Point<P extends PgPointConfig & PgColMods = NoProps> = Column<'point', P, PointData<P>>;
-export function point(): PgColumnBuilder<'point', NoProps, [number, number], never, undefined>;
-export function point<const C extends PgPointConfig>(
-  config: C
-): PgColumnBuilder<'point', Writable<C>, PointData<C>, never, undefined>;
-export function point<N extends string>(name: N): PgColumnBuilder<'point', NoProps, [number, number], never, N>;
-export function point<N extends string, const C extends PgPointConfig>(
+export type Numeric<P extends PgNumericConfig & PgColMods = NoProps> = Column<'numeric', P, NumericData<P>>;
+export function numeric(): Column<'numeric', NoProps, string>;
+export function numeric<const C extends PgNumericConfig & PgColIn>(props: C): Built<'numeric', C, NumericData<C>>;
+export function numeric<N extends string>(name: N): NamedColumn<N, Column<'numeric', NoProps, string>>;
+export function numeric<N extends string, const C extends PgNumericConfig & PgColIn>(
   name: N,
-  config: C
-): PgColumnBuilder<'point', Writable<C>, PointData<C>, never, N>;
+  props: C
+): NamedColumn<N, Built<'numeric', C, NumericData<C>>>;
+export function numeric(...args: unknown[]) {
+  return pgColumn('numeric', args);
+}
+
+export type Point<P extends PgPointConfig & PgColMods = NoProps> = Column<'point', P, PointData<P>>;
+export function point(): Column<'point', NoProps, [number, number]>;
+export function point<const C extends PgPointConfig & PgColIn>(props: C): Built<'point', C, PointData<C>>;
+export function point<N extends string>(name: N): NamedColumn<N, Column<'point', NoProps, [number, number]>>;
+export function point<N extends string, const C extends PgPointConfig & PgColIn>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'point', C, PointData<C>>>;
 export function point(...args: unknown[]) {
   return pgColumn('point', args);
 }
 
 export type Real<P extends PgColMods = NoProps> = Column<'real', P, Float>;
-export function real(): PgColumnBuilder<'real', NoProps, Float, never, undefined>;
-export function real<N extends string>(name: N): PgColumnBuilder<'real', NoProps, Float, never, N>;
+export function real(): Column<'real', NoProps, Float>;
+export function real<const C extends PgColIn>(props: C): Built<'real', C, Float>;
+export function real<N extends string>(name: N): NamedColumn<N, Column<'real', NoProps, Float>>;
+export function real<N extends string, const C extends PgColIn>(name: N, props: C): NamedColumn<N, Built<'real', C, Float>>;
 export function real(...args: unknown[]) {
   return pgColumn('real', args);
 }
 
 export type Serial<P extends PgColMods = NoProps> = Column<'serial', P, Int32, 'notNull' | 'hasDefault'>;
-export function serial(): PgColumnBuilder<'serial', NoProps, Int32, 'notNull' | 'hasDefault', undefined>;
-export function serial<N extends string>(name: N): PgColumnBuilder<'serial', NoProps, Int32, 'notNull' | 'hasDefault', N>;
+export function serial(): Column<'serial', NoProps, Int32, 'notNull' | 'hasDefault'>;
+export function serial<const C extends PgColIn>(props: C): Built<'serial', C, Int32, 'notNull' | 'hasDefault'>;
+export function serial<N extends string>(name: N): NamedColumn<N, Column<'serial', NoProps, Int32, 'notNull' | 'hasDefault'>>;
+export function serial<N extends string, const C extends PgColIn>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'serial', C, Int32, 'notNull' | 'hasDefault'>>;
 export function serial(...args: unknown[]) {
   return pgColumn('serial', args);
 }
 
 export type Smallint<P extends PgIntColMods = NoProps> = Column<'smallint', P, Int16>;
-export function smallint(): PgIntColumnBuilder<'smallint', NoProps, Int16, never, undefined>;
-export function smallint<N extends string>(name: N): PgIntColumnBuilder<'smallint', NoProps, Int16, never, N>;
+export function smallint(): Column<'smallint', NoProps, Int16>;
+export function smallint<const C extends PgIntIn>(props: C): Built<'smallint', C, Int16>;
+export function smallint<N extends string>(name: N): NamedColumn<N, Column<'smallint', NoProps, Int16>>;
+export function smallint<N extends string, const C extends PgIntIn>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'smallint', C, Int16>>;
 export function smallint(...args: unknown[]) {
   return pgColumn('smallint', args);
 }
 
 export type Smallserial<P extends PgColMods = NoProps> = Column<'smallserial', P, Int16, 'notNull' | 'hasDefault'>;
-export function smallserial(): PgColumnBuilder<'smallserial', NoProps, Int16, 'notNull' | 'hasDefault', undefined>;
+export function smallserial(): Column<'smallserial', NoProps, Int16, 'notNull' | 'hasDefault'>;
+export function smallserial<const C extends PgColIn>(props: C): Built<'smallserial', C, Int16, 'notNull' | 'hasDefault'>;
 export function smallserial<N extends string>(
   name: N
-): PgColumnBuilder<'smallserial', NoProps, Int16, 'notNull' | 'hasDefault', N>;
+): NamedColumn<N, Column<'smallserial', NoProps, Int16, 'notNull' | 'hasDefault'>>;
+export function smallserial<N extends string, const C extends PgColIn>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'smallserial', C, Int16, 'notNull' | 'hasDefault'>>;
 export function smallserial(...args: unknown[]) {
   return pgColumn('smallserial', args);
 }
 
 export type Sparsevec<P extends Partial<PgVectorConfig> & PgColMods = NoProps> = Column<'sparsevec', P, string>;
-export function sparsevec<const C extends PgVectorConfig>(
-  config: C
-): PgColumnBuilder<'sparsevec', Writable<C>, string, never, undefined>;
-export function sparsevec<N extends string, const C extends PgVectorConfig>(
+export function sparsevec<const C extends PgVectorConfig & PgColIn>(props: C): Built<'sparsevec', C, string>;
+export function sparsevec<N extends string, const C extends PgVectorConfig & PgColIn>(
   name: N,
-  config: C
-): PgColumnBuilder<'sparsevec', Writable<C>, string, never, N>;
+  props: C
+): NamedColumn<N, Built<'sparsevec', C, string>>;
 export function sparsevec(...args: unknown[]) {
   return pgColumn('sparsevec', args);
 }
 
 export type Text<P extends PgTextConfig & PgColMods = NoProps> = Column<'text', P, TextData<P>>;
-export function text(): PgColumnBuilder<'text', NoProps, Str, never, undefined>;
-export function text<const C extends PgTextConfig>(
-  config: C
-): PgColumnBuilder<'text', Writable<C>, TextData<C>, never, undefined>;
-export function text<N extends string>(name: N): PgColumnBuilder<'text', NoProps, Str, never, N>;
-export function text<N extends string, const C extends PgTextConfig>(
+export function text(): Column<'text', NoProps, Str>;
+export function text<const C extends PgTextConfig & PgColIn>(props: C): Built<'text', C, TextData<C>>;
+export function text<N extends string>(name: N): NamedColumn<N, Column<'text', NoProps, Str>>;
+export function text<N extends string, const C extends PgTextConfig & PgColIn>(
   name: N,
-  config: C
-): PgColumnBuilder<'text', Writable<C>, TextData<C>, never, N>;
+  props: C
+): NamedColumn<N, Built<'text', C, TextData<C>>>;
 export function text(...args: unknown[]) {
   return pgColumn('text', args);
 }
 
 export type Time<P extends TimeConfig & PgDateColMods = NoProps> = Column<'time', P, StringTime>;
-export function time(): PgDateColumnBuilder<'time', NoProps, StringTime, never, undefined>;
-export function time<const C extends TimeConfig>(
-  config: C
-): PgDateColumnBuilder<'time', Writable<C>, StringTime, never, undefined>;
-export function time<N extends string>(name: N): PgDateColumnBuilder<'time', NoProps, StringTime, never, N>;
-export function time<N extends string, const C extends TimeConfig>(
+export function time(): Column<'time', NoProps, StringTime>;
+export function time<const C extends TimeConfig & PgDateIn>(props: C): Built<'time', C, StringTime>;
+export function time<N extends string>(name: N): NamedColumn<N, Column<'time', NoProps, StringTime>>;
+export function time<N extends string, const C extends TimeConfig & PgDateIn>(
   name: N,
-  config: C
-): PgDateColumnBuilder<'time', Writable<C>, StringTime, never, N>;
+  props: C
+): NamedColumn<N, Built<'time', C, StringTime>>;
 export function time(...args: unknown[]) {
   return pgColumn('time', args);
 }
 
 export type Timestamp<P extends PgTimestampConfig & PgDateColMods = NoProps> = Column<'timestamp', P, TimestampData<P>>;
-export function timestamp(): PgDateColumnBuilder<'timestamp', NoProps, RTDate, never, undefined>;
-export function timestamp<const C extends PgTimestampConfig>(
-  config: C
-): PgDateColumnBuilder<'timestamp', Writable<C>, TimestampData<C>, never, undefined>;
-export function timestamp<N extends string>(name: N): PgDateColumnBuilder<'timestamp', NoProps, RTDate, never, N>;
-export function timestamp<N extends string, const C extends PgTimestampConfig>(
+export function timestamp(): Column<'timestamp', NoProps, RTDate>;
+export function timestamp<const C extends PgTimestampConfig & PgDateIn>(props: C): Built<'timestamp', C, TimestampData<C>>;
+export function timestamp<N extends string>(name: N): NamedColumn<N, Column<'timestamp', NoProps, RTDate>>;
+export function timestamp<N extends string, const C extends PgTimestampConfig & PgDateIn>(
   name: N,
-  config: C
-): PgDateColumnBuilder<'timestamp', Writable<C>, TimestampData<C>, never, N>;
+  props: C
+): NamedColumn<N, Built<'timestamp', C, TimestampData<C>>>;
 export function timestamp(...args: unknown[]) {
   return pgColumn('timestamp', args);
 }
 
 export type Uuid<P extends PgUuidColMods = NoProps> = Column<'uuid', P, UUID>;
-export function uuid(): PgUuidColumnBuilder<'uuid', NoProps, UUID, never, undefined>;
-export function uuid<N extends string>(name: N): PgUuidColumnBuilder<'uuid', NoProps, UUID, never, N>;
+export function uuid(): Column<'uuid', NoProps, UUID>;
+export function uuid<const C extends PgUuidIn>(props: C): Built<'uuid', C, UUID>;
+export function uuid<N extends string>(name: N): NamedColumn<N, Column<'uuid', NoProps, UUID>>;
+export function uuid<N extends string, const C extends PgUuidIn>(name: N, props: C): NamedColumn<N, Built<'uuid', C, UUID>>;
 export function uuid(...args: unknown[]) {
   return pgColumn('uuid', args);
 }
 
 export type Varchar<P extends PgVarcharConfig & PgColMods = NoProps> = Column<'varchar', P, VarcharData<P>>;
-export function varchar(): PgColumnBuilder<'varchar', NoProps, Str, never, undefined>;
-export function varchar<const C extends PgVarcharConfig>(
-  config: C
-): PgColumnBuilder<'varchar', Writable<C>, VarcharData<C>, never, undefined>;
-export function varchar<N extends string>(name: N): PgColumnBuilder<'varchar', NoProps, Str, never, N>;
-export function varchar<N extends string, const C extends PgVarcharConfig>(
+export function varchar(): Column<'varchar', NoProps, Str>;
+export function varchar<const C extends PgVarcharConfig & PgColIn>(props: C): Built<'varchar', C, VarcharData<C>>;
+export function varchar<N extends string>(name: N): NamedColumn<N, Column<'varchar', NoProps, Str>>;
+export function varchar<N extends string, const C extends PgVarcharConfig & PgColIn>(
   name: N,
-  config: C
-): PgColumnBuilder<'varchar', Writable<C>, VarcharData<C>, never, N>;
+  props: C
+): NamedColumn<N, Built<'varchar', C, VarcharData<C>>>;
 export function varchar(...args: unknown[]) {
   return pgColumn('varchar', args);
 }
 
 export type Vector<P extends Partial<PgVectorConfig> & PgColMods = NoProps> = Column<'vector', P, number[]>;
-export function vector<const C extends PgVectorConfig>(
-  config: C
-): PgColumnBuilder<'vector', Writable<C>, number[], never, undefined>;
-export function vector<N extends string, const C extends PgVectorConfig>(
+export function vector<const C extends PgVectorConfig & PgColIn>(props: C): Built<'vector', C, number[]>;
+export function vector<N extends string, const C extends PgVectorConfig & PgColIn>(
   name: N,
-  config: C
-): PgColumnBuilder<'vector', Writable<C>, number[], never, N>;
+  props: C
+): NamedColumn<N, Built<'vector', C, number[]>>;
 export function vector(...args: unknown[]) {
   return pgColumn('vector', args);
 }
@@ -592,14 +473,17 @@ export type CustomCol<Data, P extends PgColMods = NoProps> = Column<'custom', P,
 /** Drizzle's customType, recorded; the caller supplies the model type through T['data']. */
 export function customType<T extends CustomTypeValues>(params: CustomTypeParams<T>) {
   const custom = new RtValueRecorder('customType', [params]);
-  function factory(): PgColumnBuilder<'custom', NoProps, T['data'], never, undefined>;
-  function factory(config?: T['config']): PgColumnBuilder<'custom', NoProps, T['data'], never, undefined>;
-  function factory<N extends string>(name: N, config?: T['config']): PgColumnBuilder<'custom', NoProps, T['data'], never, N>;
+  function factory(): Column<'custom', NoProps, T['data']>;
+  function factory<const C extends PgColIn & T['config']>(props: C): Built<'custom', C, T['data']>;
+  function factory<N extends string>(name: N): NamedColumn<N, Column<'custom', NoProps, T['data']>>;
+  function factory<N extends string, const C extends PgColIn & T['config']>(
+    name: N,
+    props: C
+  ): NamedColumn<N, Built<'custom', C, T['data']>>;
   function factory(...args: unknown[]) {
-    return new RtColumnRecorder((context) => {
-      const drizzleFactory = custom.toDrizzleValue(context) as (...factoryArgs: unknown[]) => unknown;
-      return drizzleFactory(...args);
-    }) as never;
+    return recordColumn(args, (context, callArgs) =>
+      (custom.toDrizzleValue(context) as (...factoryArgs: unknown[]) => unknown)(...callArgs)
+    ) as never;
   }
   (factory as unknown as Record<symbol, unknown>)[rtValueKey] = custom;
   return factory;

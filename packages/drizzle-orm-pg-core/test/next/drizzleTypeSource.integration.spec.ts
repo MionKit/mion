@@ -6,7 +6,7 @@
  * ######## */
 
 // The side-by-side columns through the REAL resolver: each random table spec is rendered as source
-// twice, as a hand-written next/ table type and as next/ builders, in one fixture. Per spec:
+// twice, as a hand-written next/ table type and as single-call next/ builders, in one fixture. Per spec:
 //   1. the builder table and the hand-written table have ONE runtype id for their columns and one for
 //      their names map (a builder table's type records no extraConfig entries, as on the shipped road);
 //   2. the new select model reflects to the SAME id as the shipped type road's select model;
@@ -29,7 +29,7 @@ import {
   makeSpec,
   project,
   renderNextTableType,
-  renderTableBuilders,
+  renderTableSingleCall,
   renderTableType,
   typeRoadReduce,
   type Surface,
@@ -40,7 +40,7 @@ import {pgBuildTable} from '../../src/table.ts';
 import {toDrizzle} from '../../src/drizzle.ts';
 import {integer, pgTable} from '../../next/index.ts';
 
-const nextParent = pgTable(FUZZ_PARENT_NAME, {id: integer('id').primaryKey()});
+const nextParent = pgTable(FUZZ_PARENT_NAME, {id: integer('id', {primaryKey: true})});
 
 const REPO_ROOT = path.resolve(__dirname, '../../../..');
 const openClient = () => new ResolverClient(BIN, REPO_ROOT, '', {serverMode: true, emitMode: 'both'});
@@ -83,7 +83,7 @@ function renderFixture(rng: () => number, iteration: number): Rendered {
       (spec, i) =>
         `export type NFz${i} = ${renderNextTableType(spec, names[i], 'NX', 'DB')};\n` +
         `export type Fz${i} = ${renderTableType(spec, names[i], 'DB')};\n` +
-        `export const nbz${i} = ${renderTableBuilders(spec, names[i], 'NXV', 'fzParent')};`
+        `export const nbz${i} = ${renderTableSingleCall(spec, names[i], 'NXV', 'fzParent')};`
     )
     .join('\n');
   const probes = specs
@@ -106,7 +106,7 @@ function renderFixture(rng: () => number, iteration: number): Rendered {
     `import {cols} from '../drizzle-orm/next/index.ts';\n` +
     // The shipped helpers for the entries, the side-by-side builders over them.
     `const NXV = {...DBV, ...NXM};\n` +
-    `const fzParent = NXV.pgTable('${FUZZ_PARENT_NAME}', {id: NXV.integer('id').primaryKey()});\n` +
+    `const fzParent = NXV.pgTable('${FUZZ_PARENT_NAME}', {id: NXV.integer('id', {primaryKey: true})});\n` +
     `${decls}\ndeclare const fzValueProbe: NFz0['columns'];\n${probes}\ngetRunTypeId(fzValueProbe);\n` +
     // The whole hand-written table, last: the graph the reader rebuilds from.
     tableProbes(specs.length);

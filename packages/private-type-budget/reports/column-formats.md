@@ -15,13 +15,13 @@ only ever be lowered.
 
 | Shape | Shipped builders | Shipped types | New types (budget) | New builders (budget) |
 | ----- | ---------------: | ------------: | -----------------: | --------------------: |
-| 5 mixed, select | 570 | 971 | 539 (539) | 888 (888) |
-| 5 mixed, select + insert | 1036 | 1437 | 1132 (1132) | 1691 (1691) |
-| 10 plain, db name per column | 235 | 798 | 210 (210) | 409 (409) |
-| 20 plain, db name per column | 345 | 1338 | 300 (300) | 679 (679) |
-| 40 plain, db name per column | 565 | 2418 | 480 (480) | 1219 (1219) |
-| 20 plain, nameless | 325 | 494 | 300 (300) | 461 (461) |
-| wide vocabulary, select | 676 | 1175 | 702 (702) | 1165 (1165) |
-| two tables, one reference | 183 | 387 | 160 (160) | 414 (414) |
-| refineTableType, select | 1352 | 1752 | 1277 (1277) | 1694 (1694) |
-| toDrizzle + select / insert / update query | 8643 | 9461 | 8812 (8812) | 10130 (10130) |
+| 5 mixed, select | 570 | 971 | 539 (539) | 971 (971) |
+| 5 mixed, select + insert | 1036 | 1437 | 1132 (1132) | 1638 (1638) |
+| 10 plain, db name per column | 235 | 798 | 210 (210) | 364 (364) |
+| 20 plain, db name per column | 345 | 1338 | 300 (300) | 574 (574) |
+| 40 plain, db name per column | 565 | 2418 | 480 (480) | 994 (994) |
+| 20 plain, nameless | 325 | 494 | 300 (300) | 532 (532) |
+| wide vocabulary, select | 676 | 1175 | 702 (702) | 1293 (1293) |
+| two tables, one reference | 183 | 387 | 160 (160) | 461 (461) |
+| refineTableType, select | 1352 | 1752 | 1277 (1277) | 1729 (1729) |
+| toDrizzle + select / insert / update query | 8643 | 9461 | 8812 (8812) | 9915 (9915) |

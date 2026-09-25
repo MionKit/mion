@@ -112,11 +112,17 @@ export interface Surface {
   sql: (strings: TemplateStringsArray, ...values: unknown[]) => unknown;
   table: (name: string, columns: Record<string, unknown>, extra?: (t: Record<string, unknown>) => unknown[]) => unknown;
   parent: Record<string, unknown>;
+  /** Build each column in ONE call, settings and modifiers in one props object (the next/ builders). */
+  singleCall?: boolean;
 }
 
 export function buildTable(surface: Surface, spec: TableSpec, tableName: string): unknown {
   const columns: Record<string, unknown> = {};
   for (const columnSpec of spec.columns) {
+    if (surface.singleCall) {
+      columns[columnSpec.key] = singleCallColumn(surface, columnSpec);
+      continue;
+    }
     let column = surface.ns[columnSpec.fn](...(columnSpec.args as never[])) as Record<string, (...a: unknown[]) => unknown>;
     for (const mod of columnSpec.mods) column = mod.method === 'skip' ? column : (column[mod.method](...mod.args) as never);
     if (columnSpec.referencesParent) {
@@ -147,6 +153,16 @@ export function buildTable(surface: Surface, spec: TableSpec, tableName: string)
             return entry;
           });
   return surface.table(tableName, columns, extraConfig as never);
+}
+
+/** One column built in one call: the config keys, then each modifier as `true` or its argument tuple. */
+function singleCallColumn(surface: Surface, columnSpec: ColumnSpec): unknown {
+  const [name, config] = columnSpec.args as [string | undefined, Record<string, unknown> | undefined];
+  const props: Record<string, unknown> = {...config};
+  for (const mod of columnSpec.mods) if (mod.method !== 'skip') props[mod.method] = mod.args.length > 0 ? mod.args : true;
+  if (columnSpec.referencesParent) props.references = [() => surface.parent.id, {onDelete: 'cascade'}];
+  const args: unknown[] = name === undefined ? [props] : [name, props];
+  return surface.ns[columnSpec.fn](...(args as never[]));
 }
 
 // ── the oracle: getTableConfig projections must match ────────────────────────
@@ -372,6 +388,29 @@ export function renderTableBuilders(spec: TableSpec, tableName: string, namespac
     return `    ${namespace}.${extra.fn}('${extra.name}').on(${on}),`;
   });
   return `${base}, (t) => [\n${entries.join('\n')}\n  ])`;
+}
+
+/** Render one covered column as a single-call builder: `NS.varchar('c0', {length: 5, notNull: true})`. */
+function renderColumnSingleCall(column: ColumnSpec, namespace: string, parentConst: string): string {
+  const [name, config] = column.args as [string | undefined, Record<string, unknown> | undefined];
+  const props: string[] = Object.entries(config ?? {}).map(([key, value]) => `${key}: ${literalValueText(value)}`);
+  for (const mod of column.mods) {
+    props.push(`${mod.method}: ${mod.args.length > 0 ? `[${mod.args.map(literalValueText).join(', ')}]` : 'true'}`);
+  }
+  if (column.referencesParent)
+    props.push(`references: [() => cols(${parentConst}).id, ${literalValueText(FUZZ_REFERENCE_ACTIONS)}]`);
+  const args: string[] = [];
+  if (name !== undefined) args.push(literalValueText(name));
+  if (props.length > 0) args.push(`{${props.join(', ')}}`);
+  return `${namespace}.${column.fn}(${args.join(', ')})`;
+}
+
+/** Render a covered spec with single-call builders; the extras are rendered as renderTableBuilders does. */
+export function renderTableSingleCall(spec: TableSpec, tableName: string, namespace: string, parentConst: string): string {
+  const chained = renderTableBuilders(spec, tableName, namespace, parentConst);
+  const columns = spec.columns.map((column) => `  ${column.key}: ${renderColumnSingleCall(column, namespace, parentConst)},`);
+  const head = `${namespace}.pgTable('${tableName}', {\n${columns.join('\n')}\n}`;
+  return head + chained.slice(chained.indexOf('\n}') + 2);
 }
 
 /** Render a covered spec as `NS.PgTable<'name', {...}, [extras]>` type text. */

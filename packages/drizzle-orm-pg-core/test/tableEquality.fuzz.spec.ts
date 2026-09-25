@@ -53,13 +53,14 @@ const slimSurface: Surface = {
   table: (name, columns, extra) => slim.pgTable(name as never, columns as never, extra as never),
   parent: slimSurfaceParent as never,
 };
-// The side-by-side builders: the same call shapes, so the shipped helpers fill in the entries.
-const nextSurfaceParent = next.pgTable('fuzz_parents', {id: next.integer('id').primaryKey()});
+// The side-by-side builders take each column in one call; the shipped helpers fill in the entries.
+const nextSurfaceParent = next.pgTable('fuzz_parents', {id: next.integer('id', {primaryKey: true})});
 const nextSurface: Surface = {
   ns: {...slim, ...next} as never,
   sql: slimSql as never,
   table: (name, columns, extra) => next.pgTable(name as never, columns as never, extra as never),
   parent: nextSurfaceParent as never,
+  singleCall: true,
 };
 
 const rawSurface: Surface = {
