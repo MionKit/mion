@@ -9,15 +9,11 @@
 // Signature param NAMES are id-relevant (`parameters[].name` must be per-site
 // reliable), and TS call-signature syntax REQUIRES param names while `RT.func` brands an
 // unnamed positional expansion — so the two forms are informationally different
-// types now: distinct cache entries with IDENTICAL validator behavior. Both
-// facts are pinned below.
-//
-// `createValidateFn` returns the cached factory for a structural id, so `toBe`
-// (reference identity) is a same-id assertion (and `not.toBe` a distinct-id one).
+// types now: distinct type ids. A callable interface is not data, so validate refuses both forms at the root (VL003).
 
 import * as TF from '@mionjs/run-types/formats';
 import {describe, expect, it} from 'vitest';
-import {createValidateFn, type InferType} from '@mionjs/run-types';
+import {createValidateFn, getRunTypeId, type InferType} from '@mionjs/run-types';
 import * as RT from '@mionjs/run-types/builders';
 
 type CallableIface = {(a: number, b: boolean): string; extra: string};
@@ -25,29 +21,15 @@ type CallableIface = {(a: number, b: boolean): string; extra: string};
 describe('value-first callable builder', () => {
   const schema = RT.callable(RT.func({params: [TF.number(), RT.boolean()], ret: TF.string()}), RT.object({extra: TF.string()}));
 
-  it('is a DISTINCT cache entry from the named type-first callable interface, with identical behavior', () => {
-    const fromSchema = createValidateFn(schema);
-    const fromType = createValidateFn<CallableIface>();
-    // Param names are id-relevant; the named interface and the unnamed builder
-    // form must NOT share a canonical node (per-site parameters[].name).
-    expect(fromSchema).not.toBe(fromType);
-    // ... while validating identically (params are behaviour-neutral).
-    const fnWithExtra = Object.assign((_a: number, _b: boolean) => 'x', {extra: 'x'});
-    expect(fromSchema(fnWithExtra)).toBe(true);
-    expect(fromType(fnWithExtra)).toBe(true);
-    expect(fromSchema({extra: 'x'})).toBe(false);
-    expect(fromType({extra: 'x'})).toBe(false);
+  it('is a DISTINCT type id from the named type-first callable interface', () => {
+    expect(getRunTypeId(schema)).not.toBe(getRunTypeId<CallableIface>());
   });
 
-  it('validates a callable interface (function value PLUS data props)', () => {
-    const isCallable = createValidateFn(schema);
-    // The call-signature half is notSupported (functions aren't validated): the
-    // emitted validator checks `typeof === 'function'` PLUS the declared props.
-    const fnWithExtra = Object.assign((_a: number, _b: boolean) => 'x', {extra: 'x'});
-    expect(isCallable(fnWithExtra), 'function carrying extra').toBe(true);
-    expect(isCallable({extra: 'x'}), 'plain object is not a function').toBe(false);
-    const fnNoExtra = (_a: number, _b: boolean) => 'x';
-    expect(isCallable(fnNoExtra), 'function missing the required extra prop').toBe(false);
+  it('refuses a callable interface at the root, in both forms', () => {
+    // @mion-downgrade-error VL003
+    expect(() => createValidateFn(schema)).toThrow(/VL003/);
+    // @mion-downgrade-error VL003
+    expect(() => createValidateFn<CallableIface>()).toThrow(/VL003/);
   });
 
   it('InferType recovers the callable interface (assignment-equivalent)', () => {

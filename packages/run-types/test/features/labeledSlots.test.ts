@@ -61,12 +61,11 @@ describe('labeled slot builders', () => {
   it('func slot form converges with the written call signature — both getRunTypeId shapes', () => {
     const schema = RT.func({params: [RT.slot('event', TF.string()), RT.slot('retries', TF.number())], ret: RT.boolean()});
     expect(getRunTypeId(schema)).toBe(getRunTypeId<(event: string, retries: number) => boolean>());
-    const fromSchema = createValidateFn(schema);
-    const fromType = createValidateFn<(event: string, retries: number) => boolean>();
-    expect(fromSchema).toBe(fromType);
-    // Params are behaviour-neutral: a top-level function passes the typeof gate.
-    expect(fromSchema((_event: string, _retries: number) => true)).toBe(true);
-    expect(fromSchema('not a function')).toBe(false);
+    // A function is not data, so validate refuses both forms at the root.
+    // @mion-downgrade-error VL003
+    expect(() => createValidateFn(schema)).toThrow(/VL003/);
+    // @mion-downgrade-error VL003
+    expect(() => createValidateFn<(event: string, retries: number) => boolean>()).toThrow(/VL003/);
   });
 
   it('carries labels through the params-tuple form of func', () => {

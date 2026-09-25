@@ -11,7 +11,7 @@
 
 import * as TF from '@mionjs/run-types/formats';
 import {describe, expect, it} from 'vitest';
-import {createValidateFn, createGetValidationErrorsFn} from '@mionjs/run-types';
+import {createValidateFn, createGetValidationErrorsFn, getRunTypeId} from '@mionjs/run-types';
 import {
   array,
   tuple,
@@ -154,11 +154,12 @@ describe('leaf builders — literal / regexp', () => {
     expect(createValidateFn(literal(true))).toBe(createValidateFn<true>());
   });
 
-  it('regexp() validates RegExp instances and converges', () => {
-    const isRe = createValidateFn(regexp());
-    expect(isRe(/x/)).toBe(true);
-    expect(isRe('x')).toBe(false);
-    expect(isRe).toBe(createValidateFn<RegExp>());
+  it('regexp() converges with RegExp, and validate refuses it at the root', () => {
+    expect(getRunTypeId(regexp())).toBe(getRunTypeId<RegExp>());
+    // @mion-downgrade-error VL001
+    expect(() => createValidateFn(regexp())).toThrow(/VL001/);
+    // @mion-downgrade-error VL001
+    expect(() => createValidateFn<RegExp>()).toThrow(/VL001/);
   });
 });
 

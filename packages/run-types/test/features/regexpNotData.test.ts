@@ -2,9 +2,9 @@
 // run, so it never rides the wire: a `RegExp` property is dropped by every
 // codec like a function-valued one (with the same build Warning), `DataOnly`
 // strips it, a mock leaves it out unless `nonDataTypes` is on, and the clone
-// shares it by reference. `validate` still checks a RegExp by identity, so a
-// root `createValidateFn<RegExp>()` keeps working. The only regex that reaches
-// a validator is a `pattern` format, fixed at build time.
+// shares it by reference. At the root every family refuses it, validate
+// included (VL001). The only regex that reaches a validator is a `pattern`
+// format, fixed at build time.
 
 import {describe, expect, expectTypeOf, it} from 'vitest';
 import {
@@ -28,10 +28,9 @@ describe('RegExp is not data', () => {
     expectTypeOf<DataOnly<{items: RegExp[]}>>().toEqualTypeOf<{items: never[]}>();
   });
 
-  it('validate keeps checking a RegExp by identity at the root', () => {
-    const validate = createValidateFn<RegExp>();
-    expect(validate(/a/)).toBe(true);
-    expect(validate('/a/')).toBe(false);
+  it('validate refuses a RegExp at the root', () => {
+    // @mion-downgrade-error VL001
+    expect(() => createValidateFn<RegExp>()).toThrow(/VL001/);
   });
 
   it('validate ignores a RegExp property like a function-valued one', () => {
