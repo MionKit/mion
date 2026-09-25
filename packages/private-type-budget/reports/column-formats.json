@@ -7,10 +7,10 @@
       "curBuilders": 570,
       "curTypes": 971,
       "newTypes": 539,
-      "newBuilders": 910,
+      "newBuilders": 888,
       "budget": {
         "newTypes": 539,
-        "newBuilders": 910
+        "newBuilders": 888
       }
     },
     {
@@ -18,10 +18,10 @@
       "curBuilders": 1036,
       "curTypes": 1437,
       "newTypes": 1132,
-      "newBuilders": 1713,
+      "newBuilders": 1691,
       "budget": {
         "newTypes": 1132,
-        "newBuilders": 1713
+        "newBuilders": 1691
       }
     },
     {
@@ -29,10 +29,10 @@
       "curBuilders": 235,
       "curTypes": 798,
       "newTypes": 210,
-      "newBuilders": 431,
+      "newBuilders": 409,
       "budget": {
         "newTypes": 210,
-        "newBuilders": 431
+        "newBuilders": 409
       }
     },
     {
@@ -40,10 +40,10 @@
       "curBuilders": 345,
       "curTypes": 1338,
       "newTypes": 300,
-      "newBuilders": 701,
+      "newBuilders": 679,
       "budget": {
         "newTypes": 300,
-        "newBuilders": 701
+        "newBuilders": 679
       }
     },
     {
@@ -51,10 +51,10 @@
       "curBuilders": 565,
       "curTypes": 2418,
       "newTypes": 480,
-      "newBuilders": 1241,
+      "newBuilders": 1219,
       "budget": {
         "newTypes": 480,
-        "newBuilders": 1241
+        "newBuilders": 1219
       }
     },
     {
@@ -62,10 +62,10 @@
       "curBuilders": 325,
       "curTypes": 494,
       "newTypes": 300,
-      "newBuilders": 483,
+      "newBuilders": 461,
       "budget": {
         "newTypes": 300,
-        "newBuilders": 483
+        "newBuilders": 461
       }
     },
     {
@@ -73,10 +73,10 @@
       "curBuilders": 676,
       "curTypes": 1175,
       "newTypes": 702,
-      "newBuilders": 1187,
+      "newBuilders": 1165,
       "budget": {
         "newTypes": 702,
-        "newBuilders": 1187
+        "newBuilders": 1165
       }
     },
     {
@@ -84,10 +84,10 @@
       "curBuilders": 183,
       "curTypes": 387,
       "newTypes": 160,
-      "newBuilders": 449,
+      "newBuilders": 414,
       "budget": {
         "newTypes": 160,
-        "newBuilders": 449
+        "newBuilders": 414
       }
     },
     {
@@ -95,10 +95,10 @@
       "curBuilders": 1352,
       "curTypes": 1752,
       "newTypes": 1277,
-      "newBuilders": 1717,
+      "newBuilders": 1694,
       "budget": {
         "newTypes": 1277,
-        "newBuilders": 1717
+        "newBuilders": 1694
       }
     },
     {
@@ -106,10 +106,10 @@
       "curBuilders": 8643,
       "curTypes": 9461,
       "newTypes": 8812,
-      "newBuilders": 10084,
+      "newBuilders": 10130,
       "budget": {
         "newTypes": 8812,
-        "newBuilders": 10084
+        "newBuilders": 10130
       }
     }
   ]

@@ -216,3 +216,19 @@ describe('next pg columns: one column shape is one runtype entry', () => {
     );
   });
 });
+
+describe('next pg columns: builder tables reflect on their own', () => {
+  // A builder's chain methods are an endless walk for the runtype id (MKR009), so nothing a table or a
+  // view reflects may reach the builders, the type arguments of an alias included. Each probe here is
+  // reflected first, with no hand-written twin reflected before it.
+  const solo = pgTable('solo', {id: uuid('id').primaryKey().defaultRandom(), name: varchar('user_name', {length: 20}).notNull()});
+  const soloView = pgView('solo_view', {name: varchar('user_name', {length: 20}).notNull()}).existing();
+  it('a builder table with explicit db names', () => {
+    expect(getRunTypeId<typeof solo>()).toBeTruthy();
+    expect(getRunTypeId(solo)).toBe(getRunTypeId<typeof solo>());
+  });
+  it('a builder view', () => {
+    expect(getRunTypeId<typeof soloView>()).toBeTruthy();
+    expect(getRunTypeId(soloView)).toBe(getRunTypeId<typeof soloView>());
+  });
+});
