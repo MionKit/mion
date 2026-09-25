@@ -241,7 +241,7 @@ describe('private package folders start with private-', () => {
     expect(prefixed.map(({dir}) => dir)).toEqual([]);
   });
 
-  // Bun follows the root `@mionjs/*` alias and never falls back to node_modules, so a folder named unlike its package needs its own entry.
+  // Bun follows the root `@mionjs/*` alias with no node_modules fallback, so a renamed folder needs its own entry.
   it('the root tsconfig maps every @mionjs name to its own folder', () => {
     const paths = ts.readConfigFile(join(REPO_ROOT, 'tsconfig.json'), ts.sys.readFile).config.compilerOptions.paths;
     const aliasOf = (name: string) => paths[name]?.[0] ?? paths['@mionjs/*'][0].replace('*', name.slice('@mionjs/'.length));
