@@ -1,0 +1,116 @@
+{
+  "typescript": "6.0.3",
+  "drizzleOrm": "0.45.2",
+  "rows": [
+    {
+      "label": "5 mixed, select",
+      "curBuilders": 570,
+      "curTypes": 971,
+      "newTypes": 539,
+      "newBuilders": 910,
+      "budget": {
+        "newTypes": 539,
+        "newBuilders": 910
+      }
+    },
+    {
+      "label": "5 mixed, select + insert",
+      "curBuilders": 1036,
+      "curTypes": 1437,
+      "newTypes": 1147,
+      "newBuilders": 1743,
+      "budget": {
+        "newTypes": 1147,
+        "newBuilders": 1743
+      }
+    },
+    {
+      "label": "10 plain, db name per column",
+      "curBuilders": 235,
+      "curTypes": 798,
+      "newTypes": 210,
+      "newBuilders": 442,
+      "budget": {
+        "newTypes": 210,
+        "newBuilders": 442
+      }
+    },
+    {
+      "label": "20 plain, db name per column",
+      "curBuilders": 345,
+      "curTypes": 1338,
+      "newTypes": 300,
+      "newBuilders": 732,
+      "budget": {
+        "newTypes": 300,
+        "newBuilders": 732
+      }
+    },
+    {
+      "label": "40 plain, db name per column",
+      "curBuilders": 565,
+      "curTypes": 2418,
+      "newTypes": 480,
+      "newBuilders": 1312,
+      "budget": {
+        "newTypes": 480,
+        "newBuilders": 1312
+      }
+    },
+    {
+      "label": "20 plain, nameless",
+      "curBuilders": 325,
+      "curTypes": 494,
+      "newTypes": 300,
+      "newBuilders": 494,
+      "budget": {
+        "newTypes": 300,
+        "newBuilders": 494
+      }
+    },
+    {
+      "label": "wide vocabulary, select",
+      "curBuilders": 676,
+      "curTypes": 1175,
+      "newTypes": 702,
+      "newBuilders": 1192,
+      "budget": {
+        "newTypes": 702,
+        "newBuilders": 1192
+      }
+    },
+    {
+      "label": "two tables, one reference",
+      "curBuilders": 183,
+      "curTypes": 387,
+      "newTypes": 160,
+      "newBuilders": 435,
+      "budget": {
+        "newTypes": 160,
+        "newBuilders": 435
+      }
+    },
+    {
+      "label": "refineTableType, select",
+      "curBuilders": 1352,
+      "curTypes": 1752,
+      "newTypes": 1277,
+      "newBuilders": 1716,
+      "budget": {
+        "newTypes": 1277,
+        "newBuilders": 1716
+      }
+    },
+    {
+      "label": "toDrizzle + select / insert / update query",
+      "curBuilders": 8623,
+      "curTypes": 9288,
+      "newTypes": 8812,
+      "newBuilders": 10152,
+      "budget": {
+        "newTypes": 8812,
+        "newBuilders": 10152
+      }
+    }
+  ]
+}
