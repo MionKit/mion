@@ -229,7 +229,7 @@ export const errorName: string | undefined = insertError?.name ?? updateError?.n
     // `identity` (pg's .overridingSystemValue() re-admits an identity column to
     // an insert, and could not before) and the format-tag drop above.
     //
-    // 7850 -> 7852: a REVIEWED EXCEPTION, the only one in this file. Reading
+    // 7850 -> 7852: a REVIEWED EXCEPTION. Reading
     // the column brand payload once instead of once per flag made every layer
     // above cheaper and moved 2 instantiations into this one, where drizzle's
     // own generics consume the synthesized config. The chain total fell 13328
@@ -462,8 +462,7 @@ export function measureConsumerLane(): ConsumerLaneResult {
  *
  *  13560 -> 13597: the router options on the API type and initClient's options slot (steps 4 and 5).
  *
- *  13597 -> 13614: a REVIEWED EXCEPTION. A refined column keeps its key flags, or toDrizzle loses
- *  mysql's $returningId() keys and pg's identity (steps 2 and 6, each still within its own budget). **/
+ *  13597 -> 13614: a REVIEWED EXCEPTION, refined columns keep their key flags for toDrizzle (steps 2 and 6, both in budget). **/
 export const PIPELINE_TOTAL_BUDGET = 13614;
 
 /** What a downstream consumer may pay to read the model types out of the
