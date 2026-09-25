@@ -1,6 +1,5 @@
-// Offline unit tests for O12: the clone and compact wires must decode to the same value, where a key-order-only
-// difference is the same value (compact decode may rebuild keys in another order) and every real difference reports.
-// Found by the nondata soak lane (seed 0x90f3baf6, type `({2}&{3}&{3})`), which reported O12 on deep-equal wires.
+// Offline unit tests for O12: clone and compact wires must decode to the same value, key order aside (compact decode
+// may rebuild keys in another order). Found by the nondata soak lane flagging deep-equal wires (seed 0x90f3baf6).
 
 import {describe, it, expect} from 'vitest';
 import {checkCrossWire, type FuzzTarget} from './fuzzOracle.ts';
@@ -45,7 +44,7 @@ describe('O12 cross-wire — key order is not a value difference', () => {
     expect(checkCrossWire(target, undefined, ctx)).toBeNull();
   });
 
-  // The negative controls: every REAL divergence still reports, or the key-order relaxation would blind the oracle.
+  // Negative controls: without them the key-order relaxation could blind the oracle.
   it('reports a differing value', () => {
     const target = targetWith('{"p0":1,"p1":null}', '{"p1":null,"p0":2}');
     expect(checkCrossWire(target, {}, ctx)?.oracle).toBe('O12');

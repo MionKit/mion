@@ -14,10 +14,8 @@ import "github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 // An array reaching an OBJECT node (`[1, 2]` satisfies `{length: number}`) is undefined: the two families may disagree
 // (key count vs key names, `length` is not enumerable), and guarding it would cost every object for a shape nobody writes.
 
-// StrictUnknownKeys marks a family whose emitted body folds the unknown-key check into its own walk.
-// The shared emit arms ask EmitContext.ChecksUnknownKeys whether to splice the check; the walker's Emitter IS the family,
-// so the root and every child entry it renders get the same verdict.
-// A marker method with an empty body: implementing it claims the body rejects undeclared keys.
+// StrictUnknownKeys marks a family whose body folds the unknown-key check into its walk and rejects undeclared keys.
+// EmitContext.ChecksUnknownKeys reads it off the walker's Emitter, so the root and every child get the same verdict.
 type StrictUnknownKeys interface {
 	ChecksUnknownKeys()
 }

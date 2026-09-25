@@ -24,7 +24,7 @@ interface HasNativeUnion {
   y: number;
 }
 
-// A function-member arm (`f0: () => number`) shares its prop name with a surviving `f0?: string`.
+// The dropped function arm shares `f0` with a surviving `f0?: string`.
 type Reduced = {kind: 't0'; f1: string} | {kind: 't1'; f0?: string} | {kind: 't2'; f0: () => number};
 
 describe('DataOnly union-member drop', () => {

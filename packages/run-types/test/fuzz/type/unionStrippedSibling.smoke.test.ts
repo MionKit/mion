@@ -1,18 +1,7 @@
-// G3 / G4 regression: a discriminated union whose members share a property
-// NAME where one member's version is DataOnly-stripped (symbol / Promise /
-// non-serialisable native) and another's survives. The flat-union merge
-// collapses the prop to its surviving candidate, but a value belonging to the
-// STRIPPED member still carries the key at runtime — so the encode must guard
-// the surviving codec and DROP the key, not mis-apply the codec to a foreign
-// value.
-//
-//   - G4: `{kind:'t1'; f2: Date} | {kind:'t2'; f2: Uint8Array}`: a t2 value's `f2` is
-//     a Uint8Array; the Date codec used to run `f2.toISOString()` on it and crash.
-//   - G3: `f0` is `null?` | `Promise<string>` | `Set<number>`; JSON drops a t1 Promise and restores a t2 Set.
-//
-// Both shapes are valid TypeScript (typechecked below) — the bug is value-
-// level (the mock builds a value carrying the stripped member's prop), which
-// the TS-validity gate does not catch, so these are real findings.
+// G3 / G4 regression: when union members share a prop NAME and one member's type is DataOnly-stripped, the merge
+// keeps the surviving codec, yet a stripped member's value still carries the key, so encode must DROP it. G4: a t2
+// Uint8Array `f2` hit the t1 Date codec's `toISOString()` and crashed. G3: JSON must drop a t1 Promise `f0` and still
+// restore a t2 Set. The bug is value-level, so the TS-validity gate cannot catch it.
 import {describe, it, expect} from 'vitest';
 import {openClient, compileType, hasBinary} from './typeFuzzHarness.ts';
 import {typecheckGeneratedType} from './tsValidate.ts';
@@ -78,10 +67,8 @@ describe('flat-union merged prop with a DataOnly-stripped sibling', () => {
         expect(compiled.resolverError, compiled.resolverError).toBeUndefined();
         expect(compiled.evalError, compiled.evalError).toBeUndefined();
         const {jsonEncode, jsonDecode} = compiled.wired;
-        // A t1 value carries f0 as a Promise (the stripped member's type).
         const t1 = {kind: 't1', f0: Promise.resolve('x')};
         expect(jsonDecode!(jsonEncode!(t1)!)).toEqual({kind: 't1'});
-        // A t2 value's real Set still round-trips (restored as a Set).
         const t2 = {kind: 't2', f0: new Set([1, 2, 3])};
         expect(jsonDecode!(jsonEncode!(t2)!)).toEqual({kind: 't2', f0: new Set([1, 2, 3])});
       })

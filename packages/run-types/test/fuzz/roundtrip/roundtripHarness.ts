@@ -21,7 +21,7 @@ export type LaneId = 'clone' | 'mutate' | 'compact' | 'rebuild';
 
 export const ALL_LANES: readonly LaneId[] = ['clone', 'mutate', 'compact', 'rebuild'];
 
-/** A wired codec: encode returns a JSON string, or undefined for an undefined root. **/
+/** `encode` returns undefined only for an undefined root. **/
 export interface WiredCodec {
   encode: (value: unknown) => string | undefined;
   decode: (wire: string) => unknown;

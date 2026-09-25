@@ -7,11 +7,7 @@
 import {describe, it, expect} from 'vitest';
 import {typecheckSource} from './tsValidate.ts';
 
-// NOTE on the index-signature repros (G1): they use a NUMBER index. A
-// `[k: string]` index would force every named prop to the index value type
-// (TS2411); a named prop of a different type only compiles under `[k: number]`,
-// which constrains numeric-keyed props only. That is the valid form of the
-// "named prop mixed with an index of a different value type" shape.
+// The index-signature repros use `[k: number]`: a `[k: string]` index rejects a named prop of another type (TS2411).
 const VALID_REPROS: Record<string, string> = {
   'K2 union object member with a symbol prop': 'type T = Date | { b: symbol };',
   'F2/F2b callable interface (root + propagating)':

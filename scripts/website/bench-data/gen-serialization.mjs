@@ -73,9 +73,7 @@ const runtypesPlugin = (await import(pluginSpec)).default;
 const SUITE = 'serialization';
 
 const SUITE_DIR = path.join(PACKAGE_ROOT, 'test/suites', SUITE);
-// Repo-relative home of the same suite, for the chart's "cases on GitHub" link. It is
-// spelled out because SUITE_DIR is not it: in the benchmark image the suite is mounted
-// under the marker package, nowhere near packages/run-types.
+// Spelled out for the "cases on GitHub" link: in the benchmark image SUITE_DIR is mounted under the marker package.
 const SUITE_REPO_DIR = path.posix.join('packages/run-types/test/suites', SUITE);
 const caseSource = (group) => path.posix.join(SUITE_REPO_DIR, sourceFileIn(SUITE_DIR, group));
 const SUITE_PATH = path.join(SUITE_DIR, 'index.ts');

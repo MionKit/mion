@@ -111,8 +111,7 @@ export function checkRoundtrip(compiled: CompiledCodecs, value: unknown, seed: n
   }
   if (refusedCount === attempted) return; // all lanes refuse — nothing to round-trip
 
-  // Canonical reference wire (clone) for RT-AGREE. Undefined when the clone lane
-  // refused / produced an undefined root — RT-AGREE then no-ops.
+  // RT-AGREE's reference wire; when the clone lane refused or had an undefined root, RT-AGREE no-ops.
   const cloneRun = runs.find((r) => r.id === 'clone' && !r.refused && !r.undefinedRoot);
   const cloneCodec = compiled.codecs.clone;
   const refWire = cloneRun?.wire;
@@ -132,7 +131,6 @@ export function checkRoundtrip(compiled: CompiledCodecs, value: unknown, seed: n
     const {id, codec, wire} = run;
     if (run.refused || wire === undefined) continue;
 
-    // Decode the lane's wire.
     let decoded: unknown;
     try {
       decoded = codec.decode(wire);
@@ -163,10 +161,7 @@ export function checkRoundtrip(compiled: CompiledCodecs, value: unknown, seed: n
     if (cloneCodec && refWire !== undefined) {
       try {
         const viaClone = cloneCodec.encode(deepCloneForRoundTrip(decoded));
-        // Compare STRUCTURALLY, not as raw strings: the clone wire is always
-        // valid JSON, and object key order legitimately differs between lanes,
-        // which is not a data disagreement. deepEq on the parsed wires is
-        // order-insensitive for objects and order-sensitive for arrays.
+        // Compare parsed wires, not strings: object key order legitimately differs between lanes.
         if (viaClone === undefined || !cloneWiresAgree(viaClone, refWire)) {
           record(
             out,
