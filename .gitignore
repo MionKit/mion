@@ -197,8 +197,6 @@ packages/*/.uws-cache/
 # build artifact, covered by the repo-wide `.mion/` rule above. A leaked scaffold
 # under enriched/ once got swept into a commit, which `types/`'s own inner
 # .gitignore cannot prevent for the enriched/ half — hence wholesale.
-# Cross-bundler real-build test fixtures (created + cleaned per run).
-/packages/run-types/test/tmp-build-*/
 
 # playwright-cli session artifacts (snapshots, traces, screenshots)
 .playwright-cli/
