@@ -8,12 +8,13 @@
 // padding the non-marker gap with `undefined`. It also re-exercises the
 // zero-config gate — the consumer never names '@mionjs/run-types'.
 import {afterAll, beforeAll, describe, expect, it} from 'vitest';
+import os from 'node:os';
 import path from 'node:path';
 import fs from 'node:fs';
 import runtypesRollup from '../src/runtypes/rollup.ts';
 import {BIN, hasBinary, writeMarkerPackage} from './helpers/inline.ts';
 
-const FIXTURE_DIR = path.resolve(__dirname, 'tmp-wrapper-multi-slot');
+const FIXTURE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-wrapper-multi-slot-'));
 const WRAPPER = path.join(FIXTURE_DIR, 'wrapper.ts');
 const CONSUMER = path.join(FIXTURE_DIR, 'consumer.ts');
 const OUT_DIR = path.join(FIXTURE_DIR, '.mion');

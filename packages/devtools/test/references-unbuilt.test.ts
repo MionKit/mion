@@ -12,12 +12,13 @@
 // internal/compiler/program/references_test.go; this covers the plugin path
 // end-to-end through the shipped binary.
 import {afterAll, beforeAll, describe, expect, it} from 'vitest';
+import os from 'node:os';
 import path from 'node:path';
 import fs from 'node:fs';
 import runtypesRollup from '../src/runtypes/rollup.ts';
 import {BIN, hasBinary, writeMarkerPackage} from './helpers/inline.ts';
 
-const FIXTURE_DIR = path.resolve(__dirname, 'tmp-references-unbuilt');
+const FIXTURE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-references-unbuilt-'));
 const LIB_DIR = path.join(FIXTURE_DIR, 'lib');
 const MAIN_DIR = path.join(FIXTURE_DIR, 'main');
 const CONSUMER = path.join(MAIN_DIR, 'consumer.ts');

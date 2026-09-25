@@ -18,12 +18,13 @@
 // are currently NOT resolved inside the marker package's self-referential
 // program, while every consumer-shaped program resolves them fine.
 import {afterAll, beforeAll, describe, expect, it} from 'vitest';
+import os from 'node:os';
 import path from 'node:path';
 import fs from 'node:fs';
 import runtypesRollup from '../src/runtypes/rollup.ts';
 import {BIN, hasBinary, writeMarkerPackage} from './helpers/inline.ts';
 
-const FIXTURE_DIR = path.resolve(__dirname, 'tmp-wrapper-zero-config');
+const FIXTURE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-wrapper-zero-config-'));
 const WRAPPER = path.join(FIXTURE_DIR, 'wrapper.ts');
 const CONSUMER = path.join(FIXTURE_DIR, 'consumer.ts');
 const PLAIN = path.join(FIXTURE_DIR, 'plain.ts');
