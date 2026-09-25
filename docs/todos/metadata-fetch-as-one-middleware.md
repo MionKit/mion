@@ -13,7 +13,7 @@ Fetching route metadata is a middleware on the server (`mion@methodsMetadata`), 
 Last step of the client middleware chain: needs `onRequest` and route sync on `onRequest` first.
 
 ## Direction
-- Scattered today: `packages/client/src/request.ts` (~lines 151, 188, 210, 266), `lib/serializer.ts` (~43, 142), `lib/clientMethodsMetadata.ts` (~451), `lib/apiVersionRecovery.ts` (~41), `lib/fetchRemoteMethodsMetadata.ts` (`mion@methodsMetadataById`).
+- Scattered today: `packages/client/src/dispatch.ts` (`makeCall`'s optimistic and version-check branches, `retryWithProperSerialization`, `handleSyncRefusal`), `lib/serializer.ts` (~43, 142), `lib/clientMethodsMetadata.ts` (~451), `lib/apiVersionRecovery.ts` (~41), `lib/fetchRemoteMethodsMetadata.ts` (`mion@methodsMetadataById`).
 - Keep the on-demand load of the fetched metadata code (dynamic import) working, and the bundled-API mode that needs no fetch.
 - Decide whether the separate `methodsMetadataById` fetch folds into the same middleware.
 - The implementer plans the details.
@@ -24,6 +24,6 @@ Last step of the client middleware chain: needs `onRequest` and route sync on `o
 Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagent) over every page and example this change touched, review its report against the code, and commit it as its own commit.
 
 ## Done when
-- Metadata handling lives in one client middleware module, with no special cases left in `request.ts` / `serializer.ts`.
+- Metadata handling lives in one client middleware module, with no special cases left in `dispatch.ts` / `serializer.ts`.
 - Metadata cache, optimistic request, version recovery and bundled-API tests all pass, plus `pnpm test` and `pnpm run lint`.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source file, each committed on its own.

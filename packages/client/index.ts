@@ -16,7 +16,8 @@ export * from './src/lib/clientMethodsMetadata.ts';
 // setBundleApiMode: called by the module the build writes under <genDir>/api/, never by hand
 export {setBundleApiMode} from './src/lib/bundleApiMode.ts';
 export * from './src/lib/fetchRemoteMethodsMetadata.ts';
-export * from './src/request.ts';
+export * from './src/callContext.ts';
+export * from './src/dispatch.ts';
 export * from './src/client.ts';
 export * from './src/lib/typedEvent.ts';
 export * from './src/lib/handlersRegistry.ts';

@@ -7,7 +7,7 @@
 
 import {HandlerType} from '@mionjs/core';
 import {hasMethod, useMethodFns} from './methods.ts';
-import type {MionClientRequest} from '../request.ts';
+import type {CallContext} from '../types.ts';
 
 // A retry sanitizes the same params again, and a first-match `replace` must not run twice on them.
 const sanitizedParams = new WeakSet<any[]>();
@@ -15,10 +15,10 @@ const sanitizedParams = new WeakSet<any[]>();
 /** Applies a route's declared format transforms (trim / case / replace / stripSeparators) to its params once,
  * BEFORE local validation and serialization, so the client validates and sends what the server will see.
  * Never throws: a transform over wrong-shaped input is left for validation to report. */
-export function sanitizeSubRequests(subRequestIds: string[], req: MionClientRequest): void {
-  if (!req.options.sanitizeParams) return;
+export function sanitizeSubRequests(subRequestIds: string[], context: CallContext): void {
+  if (!context.options.sanitizeParams) return;
   for (const id of subRequestIds) {
-    const subRequest = req.subRequestList[id];
+    const subRequest = context.subRequestList[id];
     if (!subRequest || subRequest.isResolved || subRequest.error) continue;
     const params = subRequest.params;
     if (!Array.isArray(params) || sanitizedParams.has(params)) continue;

@@ -75,6 +75,23 @@ describe('middleware onRequest', () => {
     expect(contexts[0].subRequestList.sayHello.params).toEqual([user]);
   });
 
+  it('the context is plain data, with no methods and no retry state', async () => {
+    const {routes, middlewares} = newClient();
+    const contexts: CallContext[] = [];
+    middlewares.auth.onRequest((auth, context) => {
+      contexts.push(context);
+      auth(authHeaders);
+    });
+
+    const [greeting] = await routes.sayHello(user).call();
+    expect(greeting).toBe('Hello John Doe');
+    const context = contexts[0] as unknown as Record<string, unknown>;
+    expect(Object.getPrototypeOf(context)).toBe(Object.prototype);
+    expect(Object.values(context).filter((value) => typeof value === 'function')).toEqual([]);
+    const retryKeys = ['purgedStaleMetadata', 'retriedAfterMismatch', 'verifying', 'resentWithSyncIds', 'askedRequestHandlers'];
+    expect(retryKeys.filter((key) => key in context)).toEqual([]);
+  });
+
   it('runs once per batch, and the context lists the batch routes', async () => {
     // inline: the build reads a batch's routes only from the proxy initClient returns in this file
     const {client, routes, middlewares} = initClient<TestServerApi>({baseURL});

@@ -7,7 +7,7 @@
 
 import type {ResponseBody} from '@mionjs/router';
 import {type MethodWithJitFns, RpcError, isRpcError, MION_ROUTES, HandlerType} from '@mionjs/core';
-import type {MionClientRequest} from '../request.ts';
+import type {CallContext} from '../types.ts';
 import {metadataCacheHooks} from './metadataFromServerLoader.ts';
 import {useMethodFns} from './methods.ts';
 import {hasHeadersSubsetParam} from './headers.ts';
@@ -25,18 +25,18 @@ export interface SerializedRequest {
 // ################################## SERIALIZE ##################################
 
 /** `optimistic`: the route's metadata is still being fetched, so no compiled encoders exist yet. */
-export function serializeRequestBody(req: MionClientRequest, optimistic = false): SerializedRequest {
-  const body = optimistic ? serializeJSonBodyOptimistic(req) : serializeJsonBody(req);
+export function serializeRequestBody(context: CallContext, optimistic = false): SerializedRequest {
+  const body = optimistic ? serializeJSonBodyOptimistic(context) : serializeJsonBody(context);
   return {body, contentType: 'application/json; charset=utf-8'};
 }
 
-function serializeJsonBody(req: MionClientRequest): string {
+function serializeJsonBody(context: CallContext): string {
   const props: string[] = [];
-  const subRequestIds = Object.keys(req.subRequestList);
+  const subRequestIds = Object.keys(context.subRequestList);
 
   for (let i = 0; i < subRequestIds.length; i++) {
     const id = subRequestIds[i];
-    const subRequest = req.subRequestList[id];
+    const subRequest = context.subRequestList[id];
     if (!subRequest) continue;
     let params = subRequest.params;
     // mion's own middlewares take plain JSON (they parse params as a clone), and a client compiles none for them.
@@ -49,7 +49,7 @@ function serializeJsonBody(req: MionClientRequest): string {
       params = getParamsWithoutHeadersSubset(params);
     }
     try {
-      const jsonValue = stringifyHandlerParams(method, params, req.options.validateParams);
+      const jsonValue = stringifyHandlerParams(method, params, context.options.validateParams);
       if (!jsonValue) continue;
       props.push(`${JSON.stringify(id)}:${jsonValue}`);
     } catch (e: any) {
@@ -67,11 +67,11 @@ function serializeJsonBody(req: MionClientRequest): string {
 
 /** Serializes the body without compiled functions, on the plain wire forms every server decoder
  * accepts. A headers middleware's HeadersSubset goes out as HTTP headers, never in the body. */
-function serializeJSonBodyOptimistic(req: MionClientRequest): string {
+function serializeJSonBodyOptimistic(context: CallContext): string {
   const body: Record<string, any> = {};
-  const subRequestIds = Object.keys(req.subRequestList);
+  const subRequestIds = Object.keys(context.subRequestList);
   for (const id of subRequestIds) {
-    const subRequest = req.subRequestList[id];
+    const subRequest = context.subRequestList[id];
     if (!subRequest) continue;
     const params = hasHeadersSubsetParam(id, subRequest.params)
       ? getParamsWithoutHeadersSubset(subRequest.params)
