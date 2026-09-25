@@ -48,7 +48,7 @@ the implementing agent must, BEFORE writing any plan:
    envelopes, the client package) in this codebase.
 2. Analyze the crossws codebase/API (peers, hooks, pub/sub, resolve/upgrade flow).
 3. Investigate the interaction between routers and wsRoutes in routesFlow
-   (packages/router/src/routesFlow.ts and its spec): whether a root websocket dispatcher (or
+   (packages/rpc-router/src/routesFlow.ts and its spec): whether a root websocket dispatcher (or
    similar) would support routesFlow across both kinds of routes, or whether keeping them separate
    is the better shape — routesFlow must be taken into account in every proposed design.
 4. Propose a FEW alternative designs to the user (e.g. how a ws message maps to routes, what

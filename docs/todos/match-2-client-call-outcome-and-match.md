@@ -30,7 +30,7 @@ Server and client see the same union. The lazy path stays one line:
 
 `callRaw()` keeps the CURRENT 5-tuple, unchanged: `[result, error, undeclared,
 middlewareResults, middlewareErrors]`. The order is deliberate and documented in
-`packages/client/CLAUDE.md`; it stays the escape hatch for a call site that needs every
+`packages/rpc-client/CLAUDE.md`; it stays the escape hatch for a call site that needs every
 outcome at once, middleware slots included.
 
 ## Direction
@@ -42,13 +42,13 @@ The implementer plans the details. Decided shape and rules:
   (they get their data from `onRequest`), so these types must come from the route's middleware
   chain. A middleware error that did NOT stop the route is not in the outcome: the value is,
   and the middleware's own `onError` / `onResponse` hooks carry its outcome. `callRaw()` still exposes it in slot 4.
-- The dispatch rules pinned by `packages/client/src/errorDispatch.spec.ts` keep holding for
+- The dispatch rules pinned by `packages/rpc-client/src/errorDispatch.spec.ts` keep holding for
   `callRaw()`; the outcome union is derived from the same dispatch, not a second one.
 - `batch([...]).call()` resolves to ONE outcome per route, in order, each with the same union
   its single call would have. A request-level failure (timeout, abort, network) fills every
   slot with the same undeclared error; a middleware stopping the batch fills every
   slot with its typed error; a dependent route whose source failed already receives
-  `batch-mapping-source-failed` from the router (`packages/router/src/batches.ts`), undeclared.
+  `batch-mapping-source-failed` from the router (`packages/rpc-router/src/batches.ts`), undeclared.
   `batch(...).callRaw()` keeps today's `BatchResult` 5-tuple.
 - `matchAll(outcomes)` for the "all or nothing" reading: pure TypeScript, collapses to the
   first error in route order or the tuple of values, then hands that to the normal matcher
@@ -63,7 +63,7 @@ The implementer plans the details. Decided shape and rules:
   case, an awaited `.call()` must be matched, narrowed with `isRpcError`, or explicitly
   ignored with `void`. The compiler already resolves route ids and handler types for the
   batch diagnostics (`BAT001`-style codes routed to lint), follow that road.
-- Types: `Result` / `BatchResult` in `packages/client/src/types.ts` stay for `callRaw()`; the
+- Types: `Result` / `BatchResult` in `packages/rpc-client/src/types.ts` stay for `callRaw()`; the
   outcome types are new. Every client example under `packages/private-examples/src/client/` and the
   client error-handling and batch pages under `container/website/content/01.rpc/03.client/`
   move to `call()` + `match`, with `callRaw()` shown once as the escape hatch.
@@ -74,5 +74,5 @@ The implementer plans the details. Decided shape and rules:
   tuples; the dispatch contract suite passes against both.
 - `matchAll` exists with the slot-typed `catch`.
 - The client lint rule exists: a branch per declared error, and the silence case.
-- Examples and the website pages use the new default; `packages/client/CLAUDE.md` names
+- Examples and the website pages use the new default; `packages/rpc-client/CLAUDE.md` names
   `callRaw()` as the tuple's home.

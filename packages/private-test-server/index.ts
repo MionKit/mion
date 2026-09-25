@@ -14,7 +14,7 @@
  *
  * Importing this package never starts a server. A test project starts one IN ITS OWN PROCESS from
  * a vitest globalSetup: `const server = await startTestServer(port)`, closed again in `teardown`.
- * See packages/client/globalSetup.ts for an example.
+ * See packages/rpc-client/globalSetup.ts for an example.
  *
  * Set MION_TEST_SERVER_AUTO_START=true to make the entry start a server on import instead, which is
  * what the lanes that run it as a program of its own do.

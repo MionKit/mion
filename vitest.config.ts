@@ -40,12 +40,12 @@ export default defineConfig({
       'packages/run-types/test/mock-format-isolation/vitest.config.ts',
       // ── mion side ──
       'packages/core/vitest.config.ts',
-      'packages/router/vitest.config.ts',
-      'packages/client/vitest.config.ts',
+      'packages/rpc-router/vitest.config.ts',
+      'packages/rpc-client/vitest.config.ts',
       // The bundleApi lanes of the client: the same sources and test server, built with the
       // metadata bundled at the call sites ('bundled') or bundled with the fetch fallback ('mixed').
-      'packages/client/vitest.bundled.config.ts',
-      'packages/client/vitest.mixed.config.ts',
+      'packages/rpc-client/vitest.bundled.config.ts',
+      'packages/rpc-client/vitest.mixed.config.ts',
       'packages/platform-aws/vitest.config.ts',
       'packages/platform-gcloud/vitest.config.ts',
       'packages/platform-node/vitest.config.ts',

@@ -62,7 +62,7 @@ mion's router is lightweight and fast. Unlike traditional routers, it uses a Rem
 
 Apis are composed of routes and middleware, declared through the helpers `createMionRouter` returns. Routes are methods that can be called remotely from the client and have a specific url, while middleware are auxiliary methods that get executed before or after a route.
 
-To learn more about the router, refer to the [Router Documentation](./packages/router/).
+To learn more about the router, refer to the [Router Documentation](./packages/rpc-router/).
 
 ## Automatic Serialization & Validation
 

@@ -9,7 +9,7 @@ import (
 
 // tupleSlotApiSource declares the marker parameters as elements of a labelled
 // TUPLE the call signature indexes, which is how @mionjs/router writes them once
-// (MarkerSlots in packages/router/src/types/encoder.ts) and how every helper
+// (MarkerSlots in packages/rpc-router/src/types/encoder.ts) and how every helper
 // reads them. The distinction this pins is narrow and load-bearing: a type alias
 // wrapped DIRECTLY around a marker resolves to the marker's own type and loses
 // the alias the scanner matches on, while a tuple ELEMENT keeps it. Get that

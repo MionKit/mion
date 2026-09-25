@@ -198,7 +198,7 @@ Show the count per file so the coverage is visible:
 
 ```
 CLAUDE.md                        14 rules apply
-packages/router/CLAUDE.md         4 rules apply
+packages/rpc-router/CLAUDE.md         4 rules apply
 ts-go-runtypes/CLAUDE.md          2 rules apply   (Go files changed)
 ```
 

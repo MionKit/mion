@@ -19,7 +19,7 @@ That already breaks a shipped feature. A route returning a `HeadersSubset` is re
 the client:
 
 ```ts
-// packages/client/src/lib/headers.ts, reconstructHeadersSubsetFromResponse
+// packages/rpc-client/src/lib/headers.ts, reconstructHeadersSubsetFromResponse
 responseHeaders.get(name)
 ```
 
@@ -42,12 +42,12 @@ line: new router capability where there is no alternative, everything CORS-shape
 that ends a chain today is a failure:
 
 ```ts
-// packages/router/src/dispatch.ts:99
+// packages/rpc-router/src/dispatch.ts:99
 if (response.hasErrors && !executable.alwaysRun) continue;
 ```
 
 `hasErrors` is set by `markResponseFailed` or `recordUndeclaredError`
-(`packages/router/src/lib/dispatchError.ts:40` and `:62`), both of which carry an error and a failure
+(`packages/rpc-router/src/lib/dispatchError.ts:40` and `:62`), both of which carry an error and a failure
 status code. A preflight answer is a success with no body, so it needs a new way to say "answer now,
 skip the rest, nothing went wrong". That is the router capability this middleware needs. Two things
 to settle when designing it: what the flag lives on (`MionResponse` or the context), and what happens
@@ -66,7 +66,7 @@ export class HeadersSubset<Required extends string, Optional extends string = ne
 
 The router keeps those names per method (`headersParam` and `headersReturn.headerNames` on
 `MethodMetadata`, `packages/core/src/types/method.types.ts:33` and `:80`) and every executable is
-enumerable (`getAllExecutablesIds`, `packages/router/src/router.ts:294`). So the three lists CORS
+enumerable (`getAllExecutablesIds`, `packages/rpc-router/src/router.ts:294`). So the three lists CORS
 needs can be derived, not configured:
 
 | CORS header | Comes from |
@@ -88,13 +88,13 @@ before writing the middleware, since it changes a public type.
 response objects, so it can read anything the router does not expose:
 
 ```ts
-// packages/router/src/types/handlers.ts:32
+// packages/rpc-router/src/types/handlers.ts:32
 export type RawMiddlewareHandler<Context extends CallContext = any, RawReq = any, RawResp = any, ...>
   = (ctx: Context, request: RawReq, response: RawResp, opts: Opts) => MayReturnError;
 ```
 
 **The HTTP method is missing from the context, and probably should be added.** `MionRequest`
-(`packages/router/src/types/context.ts:46`) carries headers, the raw body and the parsed body, but
+(`packages/rpc-router/src/types/context.ts:46`) carries headers, the raw body and the parsed body, but
 not the method and not the URL. A raw middleware can dig the method out of the platform request, but
 each platform shapes that differently. Putting the method on `MionRequest` once, filled by each
 adapter, is the cleaner answer and makes this a normal middleware rather than a raw one. That decision

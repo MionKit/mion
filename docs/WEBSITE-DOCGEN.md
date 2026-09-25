@@ -233,7 +233,7 @@ installs it.
 
 - **Producer** — [gen-client-size.mjs](../scripts/website/gen-client-size.mjs), run
   as `pnpm miondevx website client-size`. It bundles
-  `packages/client/.dist/esm/index.js` with esbuild, minified, with **nothing
+  `packages/rpc-client/.dist/esm/index.js` with esbuild, minified, with **nothing
   external**, so `@mionjs/core` and whatever it pulls from `@mionjs/run-types` are
   inlined. The client's own dist externalises every `@mionjs/*`, so its size alone
   describes nothing a consumer downloads. Each emitted chunk is gzipped separately

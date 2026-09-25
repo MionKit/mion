@@ -549,7 +549,7 @@ type parseModeRow struct {
 	decode           string
 }
 
-// parseModes mirrors PARSE_MODES in core's constants.ts and the marker slots in packages/router/src/types/parser.ts.
+// parseModes mirrors PARSE_MODES in core's constants.ts and the marker slots in packages/rpc-router/src/types/parser.ts.
 // All three must name the same families or strategyFromFamilies matches no row on the bundled lane.
 // The validator follows the decoder: `clone` and `compact` rebuild the declared shape, so only a union can hide a key.
 // `mutateStrict` has a row like any other; the RETURN wire never reaches it because ReturnParserStrategy leaves it out.

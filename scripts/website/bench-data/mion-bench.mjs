@@ -44,8 +44,8 @@ const SWEEP_SIZES = SWEEP_SIZE_DEFS.map((size) => size.key);
 // app declares NO runtime dependency: every one of these is the live workspace source.
 const MION_PACKAGES = [
   ['packages/core', '@mionjs/core'],
-  ['packages/router', '@mionjs/router'],
-  ['packages/client', '@mionjs/client'],
+  ['packages/rpc-router', '@mionjs/router'],
+  ['packages/rpc-client', '@mionjs/client'],
   ['packages/devtools', '@mionjs/devtools'],
   ['packages/platform-node', '@mionjs/platform-node'],
   ['packages/platform-uws', '@mionjs/platform-uws'],

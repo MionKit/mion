@@ -15,7 +15,7 @@ import {die, note, reportCliError, warn} from '../lib/proc.mjs';
 
 const OUT_DIR = join(REPO_ROOT, 'container/website/app/data');
 const OUT_FILE = join(OUT_DIR, 'client-size.json');
-const CLIENT_ENTRY = join(REPO_ROOT, 'packages/client/.dist/esm/index.js');
+const CLIENT_ENTRY = join(REPO_ROOT, 'packages/rpc-client/.dist/esm/index.js');
 
 // Browser + esm so the exports maps resolve as a web app resolves them; splitting so the on-demand
 // metadata lane lands in its own chunk. tsconfigRaw is load-bearing: esbuild honours the root
