@@ -14,8 +14,7 @@ import {mionSyncRoutes} from '../../middlewares.ts';
 import {MION_BATCH_PATH, RpcError} from '@mionjs/core';
 import type {RouteSyncErrorData, SerializableMethodsData} from '@mionjs/core';
 
-/** The app picks the key; any name works. */
-const SYNC = 'syncRoutes';
+const SYNC = 'mionSyncRoutes';
 
 function dispatch(path: string, body: unknown, urlQuery?: string) {
   const headers = headersFromRecord({});
@@ -44,7 +43,7 @@ function initApi(withSync: boolean) {
     calls.push('bye');
     return `Bye ${name}`;
   });
-  mion.initRoutes(withSync ? {[SYNC]: mionSyncRoutes, auth, hello, bye} : {auth, hello, bye}, 'abc123');
+  mion.initRoutes(withSync ? {mionSyncRoutes, auth, hello, bye} : {auth, hello, bye}, 'abc123');
 }
 
 /** What a client holding the server's rows sends. */

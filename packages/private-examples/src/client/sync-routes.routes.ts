@@ -5,7 +5,7 @@ const mion = createMionRouter();
 
 const routes = {
   // first, so a stopped call runs nothing else
-  syncRoutes: mionSyncRoutes,
+  mionSyncRoutes,
   sayHello: mion.route((ctx, name: string): string => `Hello ${name}`),
 } satisfies Routes;
 
