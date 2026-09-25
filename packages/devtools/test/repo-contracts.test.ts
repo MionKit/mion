@@ -9,6 +9,8 @@ import {spawnSync} from 'node:child_process';
 import {isCompiledExecutable, miniflareCwdOffenders, specReferenceOffenders} from '../../../scripts/ci/check-tree.mjs';
 // @ts-expect-error — a plain .mjs repo script, no types.
 import {referenceCycles, referenceGraph, tsconfigReferenceCycles} from '../../../scripts/ci/check-tree.mjs';
+// @ts-expect-error — a plain .mjs repo script, no types.
+import {workspaceDependencyCycles, workspaceDependencyGraph} from '../../../scripts/ci/check-tree.mjs';
 import {readFileSync, existsSync, readdirSync, statSync, mkdirSync, mkdtempSync, writeFileSync, globSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {resolve, dirname, join, posix} from 'node:path';
@@ -348,6 +350,67 @@ describe('the tsconfig project-reference graph stays acyclic', () => {
 
   it('the real repo graph has no cycle', () => {
     expect(tsconfigReferenceCycles()).toEqual([]);
+  });
+});
+
+describe('the workspace package dependency graph stays acyclic', () => {
+  const manifest = (name: string, deps: Record<string, Record<string, string>> = {}) => JSON.stringify({name, ...deps});
+
+  it('reports a cycle that runs through devDependencies', () => {
+    const graph = workspaceDependencyGraph([
+      {file: 'packages/a/package.json', text: manifest('a', {devDependencies: {b: 'workspace:*'}})},
+      {file: 'packages/b/package.json', text: manifest('b', {devDependencies: {a: 'workspace:*'}})},
+    ]);
+    expect(referenceCycles(graph)).toEqual(['packages/a/package.json -> packages/b/package.json -> packages/a/package.json']);
+  });
+
+  it('ignores dependencies from outside the workspace', () => {
+    const graph = workspaceDependencyGraph([
+      {file: 'packages/a/package.json', text: manifest('a', {dependencies: {vite: '8.0.0'}})},
+    ]);
+    expect(graph).toEqual({'packages/a/package.json': []});
+  });
+
+  it('the real workspace has no cycle', () => {
+    expect(workspaceDependencyCycles()).toEqual([]);
+  });
+});
+
+// devtools does not depend on run-types (the other direction does), so none of its own code may import it.
+// Fixture sources inside strings are fine: they only need a marker package the compiler can match.
+describe('devtools code never imports @mionjs/run-types', () => {
+  const importedModules = (file: string): string[] => {
+    const source = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true);
+    const found: string[] = [];
+    const visit = (node: ts.Node): void => {
+      if (
+        (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
+        node.moduleSpecifier &&
+        ts.isStringLiteral(node.moduleSpecifier)
+      ) {
+        found.push(node.moduleSpecifier.text);
+      }
+      const isImportCall =
+        ts.isCallExpression(node) &&
+        (node.expression.kind === ts.SyntaxKind.ImportKeyword ||
+          (ts.isIdentifier(node.expression) && node.expression.text === 'require'));
+      if (isImportCall && node.arguments[0] && ts.isStringLiteral(node.arguments[0])) found.push(node.arguments[0].text);
+      ts.forEachChild(node, visit);
+    };
+    visit(source);
+    return found;
+  };
+
+  it('in src/, test/ and the vitest configs', () => {
+    const devtools = join(REPO_ROOT, 'packages/devtools');
+    const files = globSync(['src/**/*.ts', 'test/**/*.ts', 'vitest*.ts'], {cwd: devtools}).map((file) => join(devtools, file));
+    expect(files.length).toBeGreaterThan(100);
+    const offenders = files.flatMap((file) =>
+      importedModules(file)
+        .filter((specifier) => specifier.startsWith('@mionjs/run-types') || /(^|\/)run-types\//.test(specifier))
+        .map((specifier) => `${file.slice(REPO_ROOT.length + 1)}: ${specifier}`)
+    );
+    expect(offenders).toEqual([]);
   });
 });
 

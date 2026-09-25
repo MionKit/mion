@@ -217,11 +217,36 @@ export function tsconfigReferenceCycles() {
   return referenceCycles(graph);
 }
 
+const DEPENDENCY_FIELDS = ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies'];
+
+// Workspace package -> the workspace packages it depends on, from every dependency field. Pure over (path, text).
+export function workspaceDependencyGraph(manifests) {
+  const byName = new Map();
+  for (const {file, text} of manifests) byName.set(JSON.parse(text).name, file);
+  const graph = {};
+  for (const {file, text} of manifests) {
+    const manifest = JSON.parse(text);
+    const names = DEPENDENCY_FIELDS.flatMap((field) => Object.keys(manifest[field] ?? {}));
+    graph[file] = [...new Set(names.filter((name) => byName.has(name)).map((name) => byName.get(name)))];
+  }
+  return graph;
+}
+
+export function workspaceDependencyCycles() {
+  const files = capture('git', ['ls-files', '--', 'packages/*/package.json', 'tools/*/package.json'], {cwd: REPO_ROOT})
+    .stdout.trim()
+    .split('\n')
+    .filter(Boolean);
+  if (files.length < 2) die('found fewer than two workspace manifests, so the dependency walk stopped matching');
+  return referenceCycles(workspaceDependencyGraph(files.map((file) => ({file, text: readFileSync(join(REPO_ROOT, file), 'utf8')}))));
+}
+
 export const SWEEPS = [
   {name: 'no file outside docs/todos and docs/done names a spec', run: specReferences, fix: 'put the reasoning in the file that needs it; a spec gets deleted and the reference rots'},
   {name: 'no tracked file outside docs/ names the old repository', run: oldRepoReferences, fix: 'point it at MionKit/mion'},
   {name: 'no tracked source carries a literal NUL byte', run: nulBytes, fix: 'strip the NUL; git treats the file as binary and a rebase cannot merge it'},
   {name: 'no tracked file is a compiled executable', run: compiledExecutables, fix: 'git rm it and ignore the build output; a binary is rebuilt from source, never committed'},
+  {name: 'no workspace package dependency cycle', run: workspaceDependencyCycles, fix: 'pnpm guesses the build and test order around a cycle; test the package on the other end with its built files read by path instead (see packages/devtools/CLAUDE.md)'},
   {name: 'no tsconfig project reference cycle', run: tsconfigReferenceCycles, fix: 'tsc --build refuses the WHOLE graph with TS6202, so nothing builds; move the code needing the back-reference into the package it points at'},
   {name: 'no miniflare worker depends on the directory it was started from', run: miniflareCwdWorkers, fix: "pass modulesRoot beside scriptPath; without it miniflare names the module relative to process.cwd() and workerd refuses a `..` name"},
 ];
