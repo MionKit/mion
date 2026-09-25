@@ -146,6 +146,16 @@ export interface CallContext {
 }
 // type-call-context-end
 
+/** Plain data for one call; onRequest hooks receive this same object through the read-only CallContext view */
+export interface ClientCallContext extends CallContext {
+  readonly path: string;
+  readonly requestId: string;
+  readonly subRequestList: Record<string, SubRequest<any>>;
+  /** ids whose error is thrown/undeclared rather than a declared response */
+  readonly thrownErrorIds: Set<string>;
+  response: Response | undefined;
+}
+
 /** Utility type to force TypeScript to evaluate/resolve the type */
 type Simplify<T> = T extends any ? T : never;
 

@@ -8,6 +8,7 @@
 import type {ResponseBody} from '@mionjs/router';
 import type {
   BatchResult,
+  ClientCallContext,
   ClientOptions,
   MiddlewareSubRequest,
   RequestErrors,
@@ -19,7 +20,6 @@ import type {HandlersRegistry, RequestHandlerEntry} from './lib/handlersRegistry
 import type {RunTypeError, SerializableMethodsData} from '@mionjs/core';
 import {RpcError, isRpcError, MION_ROUTES, toBase64Url, BUILD_VERSION_HEADER, ROUTER_ITEM_SEPARATOR_CHAR} from '@mionjs/core';
 import {addSubRequest, createCallContext, getRouteIds, getRoutePointers} from './callContext.ts';
-import type {ClientCallContext} from './callContext.ts';
 import {hasApiVersionMismatch, noteServerApiVersion, takeApiVersionError} from './lib/apiBuildVersion.ts';
 import {getMethod, hasMethod, isBundledMethod} from './lib/methods.ts';
 import {loadMetadataFromServer, metadataCacheHooks} from './lib/metadataFromServerLoader.ts';

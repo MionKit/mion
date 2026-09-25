@@ -6,17 +6,7 @@
  * ######## */
 
 import {MION_BATCH_KEY, getRoutePath} from '@mionjs/core';
-import type {CallContext, ClientOptions, RouteSubRequest, SubRequest} from './types.ts';
-
-/** Plain data for one call; onRequest hooks receive this same object through the read-only CallContext view */
-export interface ClientCallContext extends CallContext {
-  readonly path: string;
-  readonly requestId: string;
-  readonly subRequestList: Record<string, SubRequest<any>>;
-  /** ids whose error is thrown/undeclared rather than a declared response */
-  readonly thrownErrorIds: Set<string>;
-  response: Response | undefined;
-}
+import type {ClientCallContext, ClientOptions, RouteSubRequest, SubRequest} from './types.ts';
 
 /** `batchId` is build-injected and only ends up in the batch path */
 export function createCallContext(
