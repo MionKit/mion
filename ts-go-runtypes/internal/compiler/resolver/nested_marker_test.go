@@ -6,8 +6,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
-// nestedMarkerDecls declares a library's own markers shaped like the drizzle pair: neither returns a RunType,
-// so neither is a builder the enclosing marker can reflect in its place.
+// nestedMarkerDecls mimics drizzle's marker pair, which return no RunType, so no enclosing marker can reflect them.
 const nestedMarkerDecls = `import {getRunTypeId, createValidateFn, type InjectRunTypeId, type RunType} from '@mionjs/run-types';
 type Parents = {id: number};
 type Children = {pid: number};
@@ -16,7 +15,6 @@ declare function toDrizzle<T>(options?: {tables?: Record<string, unknown>}, id?:
 declare function lookup<T>(id?: InjectRunTypeId<T>): RunType<T>;
 `
 
-// scanSites scans a.ts and fails on a scan error.
 func scanSites(t *testing.T, src string) []protocol.Site {
 	t.Helper()
 	r := setupInline(t, map[string]string{"a.ts": src})
@@ -27,8 +25,8 @@ func scanSites(t *testing.T, src string) []protocol.Site {
 	return resp.Sites
 }
 
-// TestScan_NestedMarkerCallKeepsItsId pins that a marker call anywhere inside another marker call's arguments
-// still gets its own id; the builder side is TestScan_GenuineNestedBuilderStillEnclosed.
+// TestScan_NestedMarkerCallKeepsItsId pins that a non-builder marker call nested in another keeps its id.
+// The builder side is TestScan_GenuineNestedBuilderStillEnclosed.
 func TestScan_NestedMarkerCallKeepsItsId(t *testing.T) {
 	cases := map[string]string{
 		"direct":             `export const c = toDrizzle<Children>({tables: {parents: tableFromType<Parents>()}});`,
@@ -43,7 +41,6 @@ func TestScan_NestedMarkerCallKeepsItsId(t *testing.T) {
 	}
 }
 
-// assertNestedSites checks the outer and the nested call each got their own resolved id.
 func assertNestedSites(t *testing.T, sites []protocol.Site) {
 	t.Helper()
 	if len(sites) != 2 {
@@ -59,7 +56,6 @@ func assertNestedSites(t *testing.T, sites []protocol.Site) {
 	}
 }
 
-// hasSiteID reports whether one of the sites carries id.
 func hasSiteID(sites []protocol.Site, id string) bool {
 	for _, site := range sites {
 		if site.ID == id {
@@ -69,13 +65,11 @@ func hasSiteID(sites []protocol.Site, id string) bool {
 	return false
 }
 
-// TestScan_NestedGetRunTypeId_Static pins the static shape nested in a marker call argument.
 func TestScan_NestedGetRunTypeId_Static(t *testing.T) {
 	assertNestedSites(t, scanSites(t, nestedMarkerDecls+`export const c = toDrizzle<Children>({tables: {parents: getRunTypeId<Parents>()}});`))
 }
 
-// TestScan_NestedGetRunTypeId_Reflect pins the value-first shape nested in a marker call argument, and that
-// both shapes resolve to the id a top-level getRunTypeId<Parents>() gets.
+// TestScan_NestedGetRunTypeId_Reflect also pins both nested shapes to the top-level getRunTypeId<Parents>() id.
 func TestScan_NestedGetRunTypeId_Reflect(t *testing.T) {
 	reflectSites := scanSites(t, nestedMarkerDecls+`const parent: Parents = {id: 1};
 export const c = toDrizzle<Children>({tables: {parents: getRunTypeId(parent)}});`)

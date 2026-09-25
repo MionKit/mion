@@ -520,12 +520,9 @@ func (state scanState) analyzeCall(file string, call *ast.Node) ([]pendingCall, 
 	if len(markers) == 0 {
 		return nil, diags
 	}
-	// NESTED-BUILDER SKIP: a marker-package builder nested inside another marker call (`string({...})` inside
-	// `object({...})`) is already reflected by the enclosing marker as a child, and without an id it returns a
-	// carrier the enclosing marker discards. Only injection markers count as enclosing; `optional(...)`, plain
-	// helpers and vitest's `expect` are transparent. Every OTHER nested marker call keeps its id: getRunType,
-	// getRunTypeId, createX and a library's own markers (`tableFromType<T>()` inside `toDrizzle<T>({...})`)
-	// throw "no id injected" without one.
+	// NESTED-BUILDER SKIP: the enclosing marker reflects a nested marker-package builder as a child, so it needs no id.
+	// Only injection markers enclose; `optional(...)`, plain helpers and vitest's `expect` are transparent.
+	// Every other nested marker call (getRunType, getRunTypeId, createX, tableFromType) throws "no id injected" without one.
 	if state.enclosedByInjectionMarker(call) &&
 		builders.IsMarkerBuilderCall(state.scanChecker, call, state.sess.marker) {
 		return nil, diags

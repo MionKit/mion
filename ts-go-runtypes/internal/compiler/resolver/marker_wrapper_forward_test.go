@@ -132,12 +132,7 @@ export const x = wrap(getRunTypeId(v)).toBe(getRunTypeId(v));`,
 	}
 }
 
-// TestScan_GenuineNestedBuilderStillEnclosed pins the OTHER side of the fix:
-// switching enclosedByInjectionMarker to the written-annotation check must NOT
-// stop skipping a marker-package builder nested inside a genuine enclosing marker.
-// `object({a: string()})` reflects the whole shape via the `object` call, whose
-// trailing slot is DECLARED `id?: InjectRunTypeId<…>`; the inner `string()` must
-// still be skipped (one site, for `object`, not two).
+// TestScan_GenuineNestedBuilderStillEnclosed pins that the written-annotation check still skips a nested builder.
 func TestScan_GenuineNestedBuilderStillEnclosed(t *testing.T) {
 	r := setupInline(t, map[string]string{
 		"a.ts": `import * as RT from '@mionjs/run-types/builders';
@@ -148,8 +143,6 @@ export const schema = RT.object({a: TF.string()});`,
 	if resp.Error != "" {
 		t.Fatalf("scan: %s", resp.Error)
 	}
-	// Only the enclosing object call emits a site; the nested string builder
-	// is reflected by it and skipped. (Two sites would mean the enclosing skip broke.)
 	if len(resp.Sites) != 1 {
 		t.Fatalf("expected exactly 1 site (nested builder skipped by the genuine enclosing marker), got %d: %+v", len(resp.Sites), resp.Sites)
 	}

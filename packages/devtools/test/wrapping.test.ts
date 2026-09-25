@@ -292,10 +292,7 @@ maskedWrapper('noop');
   );
 
   // ---- 17g: nested marker calls (value-first object/field pattern) ------
-  //
-  // Only a marker-package builder nested in another marker call is skipped:
-  // the enclosing marker reflects it. A user-declared marker nested the same
-  // way keeps its own id, since its runtime may need it.
+  // A nested marker-package builder is reflected by its enclosing marker; a nested user marker's runtime may need its id.
 
   runTest(
     '17g: user field markers nested inside an enclosing model marker keep their own sites',
