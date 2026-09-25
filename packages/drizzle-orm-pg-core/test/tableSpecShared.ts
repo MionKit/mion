@@ -275,7 +275,17 @@ function literalTypeText(value: unknown): string {
  *  no-arg call spells `true`, a call with arguments spells the args tuple. */
 export function renderColumnType(column: ColumnSpec, namespace: string): string {
   const typeName = TYPE_ROAD_FNS[column.fn];
-  const [name, config] = column.args as [string | undefined, Record<string, unknown> | undefined];
+  const [name] = column.args as [string | undefined];
+  const props = columnPropsText(column);
+  const typeArgs: string[] = [];
+  if (name !== undefined) typeArgs.push(literalTypeText(name));
+  if (props.length > 0) typeArgs.push(`{${props.join('; ')}}`);
+  return `${namespace}.${typeName}${typeArgs.length > 0 ? `<${typeArgs.join(', ')}>` : ''}`;
+}
+
+/** The props object members of a covered column: its config keys, then its modifier calls. */
+function columnPropsText(column: ColumnSpec): string[] {
+  const [, config] = column.args as [string | undefined, Record<string, unknown> | undefined];
   const props: string[] = [];
   if (config !== undefined) {
     for (const [key, value] of Object.entries(config)) props.push(`${key}: ${literalTypeText(value)}`);
@@ -288,10 +298,21 @@ export function renderColumnType(column: ColumnSpec, namespace: string): string 
     const target = `{table: '${FUZZ_PARENT_NAME}'; column: 'id'}`;
     props.push(`references: [${target}, ${literalTypeText(FUZZ_REFERENCE_ACTIONS)}]`);
   }
-  const typeArgs: string[] = [];
-  if (name !== undefined) typeArgs.push(literalTypeText(name));
-  if (props.length > 0) typeArgs.push(`{${props.join('; ')}}`);
-  return `${namespace}.${typeName}${typeArgs.length > 0 ? `<${typeArgs.join(', ')}>` : ''}`;
+  return props;
+}
+
+/** Render a covered spec in the side-by-side spelling: nameless column types (NX.Integer<{...}>),
+ *  the shipped TableEntry extras (from `entriesNamespace`), and the db names that differ from the key. */
+export function renderNextTableType(spec: TableSpec, tableName: string, namespace: string, entriesNamespace: string): string {
+  const columns = spec.columns.map((column) => {
+    const props = columnPropsText(column);
+    return `  ${column.key}: ${namespace}.${TYPE_ROAD_FNS[column.fn]}${props.length > 0 ? `<{${props.join('; ')}}>` : ''};`;
+  });
+  const names = spec.columns
+    .filter((column) => column.args[0] !== undefined && column.args[0] !== column.key)
+    .map((column) => `${column.key}: ${literalTypeText(column.args[0])}`);
+  const entries = spec.extras.map((extra) => `  ${renderEntryType(extra, spec, entriesNamespace)},`);
+  return `${namespace}.PgTable<'${tableName}', {\n${columns.join('\n')}\n}, [\n${entries.join('\n')}\n], {${names.join('; ')}}>`;
 }
 
 /** Render one covered extra as the canonical TableEntry spelling. */
@@ -327,7 +348,7 @@ export function renderColumnBuilders(column: ColumnSpec, namespace: string, pare
   let text = `${namespace}.${column.fn}(${column.args.map(literalValueText).join(', ')})`;
   for (const mod of column.mods) text += `.${mod.method}(${mod.args.map(literalValueText).join(', ')})`;
   if (column.referencesParent) {
-    text += `.references(() => ${parentConst}.id, ${literalValueText(FUZZ_REFERENCE_ACTIONS)})`;
+    text += `.references(() => cols(${parentConst}).id, ${literalValueText(FUZZ_REFERENCE_ACTIONS)})`;
   }
   return text;
 }
