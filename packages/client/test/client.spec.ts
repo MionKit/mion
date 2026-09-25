@@ -7,7 +7,7 @@
 
 import {describe, it, expect, beforeEach, vi} from 'vitest';
 import {initClient} from '../src/client.ts';
-import {isMiddlewareInScope} from '../src/request.ts';
+import {isMiddlewareInScope} from '../src/dispatch.ts';
 import type {ClientOptions, RouteSubRequest} from '../src/types.ts';
 import {purgeHydratedMetadata} from '../src/lib/clientMethodsMetadata.ts';
 import {getMetadataStore} from '../src/lib/metadataStore.ts';

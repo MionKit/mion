@@ -19,7 +19,7 @@ That already breaks a shipped feature. A route returning a `HeadersSubset` is re
 the client:
 
 ```ts
-// packages/client/src/request.ts:553
+// packages/client/src/lib/headers.ts, reconstructHeadersSubsetFromResponse
 responseHeaders.get(name)
 ```
 

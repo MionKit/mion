@@ -8,23 +8,22 @@
 import {RpcError} from '@mionjs/core';
 import {getMethod, useMethodFns} from './methods.ts';
 import type {RunTypeError} from '@mionjs/core';
-import {RequestErrors, SubRequest} from '../types.ts';
-import type {MionClientRequest} from '../request.ts';
+import type {CallContext, RequestErrors, SubRequest} from '../types.ts';
 
 export function validateSubRequests(
   subRequestIds: string[],
-  req: MionClientRequest,
+  context: CallContext,
   errors: RequestErrors,
   validateRouteMiddlewares = true
 ): void {
-  if (!req.options.validateParams) return;
+  if (!context.options.validateParams) return;
   subRequestIds.forEach((id) => {
-    const subRequest = req.subRequestList[id];
+    const subRequest = context.subRequestList[id];
     validateSubRequest(id, subRequest, errors);
     const methodMeta = getMethod(id);
     if (validateRouteMiddlewares && methodMeta?.middlewareIds?.length) {
       const validMiddlewareIds = methodMeta.middlewareIds.filter((middlewareId) => middlewareId != null);
-      validateSubRequests(validMiddlewareIds, req, errors, validateRouteMiddlewares);
+      validateSubRequests(validMiddlewareIds, context, errors, validateRouteMiddlewares);
     }
   });
   return;
