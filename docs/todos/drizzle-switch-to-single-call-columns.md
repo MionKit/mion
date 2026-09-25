@@ -1,19 +1,21 @@
 ---
 type: feature
 spec: full-plan
-status: ready
+status: blocked
 created: 2026-09-25
 ---
 
-# Switch the drizzle packages to the single-call column system
+# Switch all three drizzle dialects to the single-call column system
 
 ## Why this exists
 
-A second column system already lives beside the shipped one, measured and tested, in
-`packages/drizzle-orm/next/` and `packages/drizzle-orm-pg-core/next/` (pg only). The owner
-decided to switch to it, in its own change. This spec is that switch: the new system replaces
-the shipped column, table and builder types in all three dialects, and everything that relied
-on drizzle's chained call shape follows.
+A second column system lives beside the shipped one, measured and tested, in
+`packages/drizzle-orm/next/` and each dialect package's `next/`. pg has it now; the mysql and
+sqlite `next/` is built first, by its own change, and this switch waits for it. The owner decided
+to switch in two parts, and this spec is the second: the new system replaces the shipped column,
+table and builder types in all three dialects at once, and everything that relied on drizzle's
+chained call shape follows. It is one step because the core package, `mion convert` and
+`mion drizzle-migrate` serve every dialect.
 
 What the new system is, in one screen:
 
@@ -112,12 +114,17 @@ table name, for a self-reference.
   entries), the in-process fuzz (`tableEquality.fuzz.spec.ts`, surfaces 2 and 4), the resolver
   fuzz (`test/next/drizzleTypeSource.integration.spec.ts`), and the budget suites
   (`columnFormats.compile.test.ts`, `declarationEmit.test.ts`, `drizzleFreeAuthoring.test.ts`).
+- mysql and sqlite (once the side-by-side work lands): the same files and tests in their own
+  `next/` and `test/next/`, each with an in-process and a resolver fuzz, budget rows, and a mysql
+  `SynthConfig` that reads `isPrimaryKey` / `isAutoincrement` / `hasRuntimeDefault` from the key
+  flags for `$returningId()`.
 
 ## Plan
 
-1. **pg: replace, not add.** Move `next/` over `src/` in `drizzle-orm` and `drizzle-orm-pg-core`,
+1. **Replace, not add, in all three dialects at once.** Move `next/` over `src/` in `drizzle-orm`
+   and the three dialect packages,
    and delete what it replaces: `RtColumnBrand`, the key-flag brand types, `RtColType` /
-   `RtTypedColumn`, `TypedCols`, the four `RtPg*Column` kind interfaces, `PgColMods` bags as
+   `RtTypedColumn`, `TypedCols`, the dialects' kind interfaces (`RtPg*Column`, `RtMy*Column`, `RtSqlite*Column`), `PgColMods` bags as
    builder chains, the shipped models and refine, and `ColDbNameOf` (the new `ToDrizzleTable`
    reads the names map). No compatibility shim (repo convention). Export every helper type an
    inferred table names.
@@ -135,27 +142,21 @@ table name, for a self-reference.
    (`internal/convert/drizzle.go`, about lines 880-1007) already turns a chain into exactly this
    props object; reuse it, do not write a second one. A callback, a `sql` value or an
    interpolated template goes into the props as its argument tuple, unchanged.
-5. **mysql and sqlite.** Port the same shape. mysql: three builder bags (common,
-   `+autoincrement`, `+defaultNow`/`+onUpdateNow` on timestamps), no `array`, `mysqlEnum`,
-   serial's intrinsic `autoincrement` base flag, `$returningId()` reading the key flags from
-   props. sqlite: two bags, `primaryKey: [{autoIncrement: true}]`, and any primary key on
-   `integer` being the rowid (`primaryKeyHasDefault` base flag).
-6. **Gates that parse the source layout and will break**: `packages/drizzle-orm/test/modifierParity.ts`,
+5. **Gates that parse the source layout and will break**: `packages/drizzle-orm/test/modifierParity.ts`,
    `test/colMods.spec.ts`, each dialect's `test/manifest-coverage.spec.ts` and
    `test/completeness.spec.ts` (it diffs chain methods against drizzle's builder prototypes; it
    now diffs the props bag keys instead). Update `.claude/skills/drizzle-slim-schemas/`
    (SKILL.md and ARCHITECTURE.md) to the new sync points.
-7. **Budgets.** `typeRoad`, `modelPipeline` and `laneComparison` move. Each increase is a
+6. **Budgets.** `typeRoad`, `modelPipeline` and `laneComparison` move. Each increase is a
    reviewed exception commented where the budget lives. `columnFormats.compile.test.ts` loses
    its shipped columns (or keeps a frozen copy of them as the reference line, decide then).
-8. **Model cost.** Before accepting the builder-road increase, try precomputing flags on the
+7. **Model cost.** Before accepting the builder-road increase, try precomputing flags on the
    builder path only (the builder knows its props at the call), measured against today's
    builders; every earlier attempt is in `TYPE-COST.md`.
 
 ## Tests
 
-- Everything under `drizzle-orm-pg-core/test/next/` moves to the package tests and is repeated
-  for mysql and sqlite: type pins (builder column and table equal the hand-written ones, models
+- Everything under each dialect's `test/next/` moves to the package tests: type pins (builder column and table equal the hand-written ones, models
   equal the shipped models captured before the switch), runtime parity with raw drizzle, runtype
   id convergence in both `getRunTypeId` call shapes, reflection of builder tables on their own.
 - Go: convert round trips on the new shape, drizzle-migrate chain folding (every modifier, a
@@ -171,7 +172,9 @@ the one-call spelling. `00.drizzle-overview.md` loses the "same names, parameter
 chains" promise and gains the props rule; "Writing a Table as a Type" shows that a builder
 table is the table type; `03.constraints.md` "Referencing Another Table" shows
 `references: [() => tableRef(x, 'id')]` and `TableRef`; `07.migrate-an-existing-schema.md` shows the
-folded output. Update `packages/private-examples/src/drizzle/`. Run the simplify-docs pass.
+folded output. Update `packages/private-examples/src/drizzle/`.
+
+Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagent) over every page and example this change touched, review its report against the code, and commit it as its own commit.
 
 ## Out of scope
 
@@ -184,4 +187,6 @@ folded output. Update `packages/private-examples/src/drizzle/`. Run the simplify
 - drizzle-migrate folds chains; convert reads and writes the new shape.
 - All tests above pass, the drizzle-e2e lane passes (labels `drizzle-e2e` and
   `pre-publish-e2e`), budgets moved only as reviewed exceptions.
-- Docs updated and simplified.
+- Docs updated.
+- The simplify-docs pass ran on every touched page and the simplify-comments pass on every
+  touched source file, each committed on its own.
