@@ -119,8 +119,7 @@ type middlewareUse struct {
 	method  *apimeta.Method
 }
 
-// unsetMiddlewareDiags reports each chain middleware of a called route that the client program never reads
-// off `middlewares`: nothing sends its params. Once per middleware, at its first use.
+// unsetMiddlewareDiags reports, at first use, each chain middleware the client never reads: nothing sends its params.
 func (sess *Session) unsetMiddlewareDiags(order []string, uses map[string]middlewareUse) []diagnostics.Diagnostic {
 	if len(uses) == 0 {
 		return nil

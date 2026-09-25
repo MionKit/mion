@@ -5,8 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The client half of the test server's csrf middleware: an installer that gets the typed middleware,
-// wherever the app placed it, and imports only the server handler's type.
+// Client half of the test server's csrf middleware: works wherever the app placed it, imports only the handler's type.
 
 import type {csrf} from '@mionjs/test-server';
 import type {ClientMiddlewareOf} from '../../src/types.ts';

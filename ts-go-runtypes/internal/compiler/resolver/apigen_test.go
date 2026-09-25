@@ -67,8 +67,7 @@ export type Api = {
 };
 `
 
-// apiClientTS makes one route call, one typeErrors and a batch, and never calls users/remove. It sets up
-// both chain middlewares, so no MET008 fires.
+// apiClientTS makes a route call, a typeErrors and a batch, skips users/remove, and sets up both middlewares (no MET008).
 const apiClientTS = `import {initClient, batch} from '@mionjs/client';
 import type {Api} from './api.ts';
 export const {routes, middlewares} = initClient<Api>({baseURL: 'http://x'});
@@ -814,8 +813,7 @@ func generateMetDiags(t *testing.T, client string) []diagnostics.Diagnostic {
 	return metDiags(gen.Diagnostics)
 }
 
-// TestApiGen_ReportsMiddlewaresTheClientNeverSetsUp: a chain middleware of a called route that the client
-// never reads off `middlewares` is MET008 when it needs params and MET009 when they are all optional.
+// TestApiGen_ReportsMiddlewaresTheClientNeverSetsUp: MET008 when the middleware needs params, MET009 when all optional.
 func TestApiGen_ReportsMiddlewaresTheClientNeverSetsUp(t *testing.T) {
 	t.Run("required, never set up", func(t *testing.T) {
 		diags := generateMetDiags(t, `import {initClient} from '@mionjs/client';

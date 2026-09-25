@@ -154,7 +154,7 @@ describe('isolated reusable middleware', () => {
       expect((await runs(client.routes)).failNote).toBe(2);
     });
 
-    // A void route leaves no value, so any error in the response counts as a failed call and it is resent.
+    // A void route leaves no value, so any error in the response counts it as failed.
     it('a void mutation in a response carrying an error retries', async () => {
       await client.routes.notes.clearNote('a').call();
       expect(retries).toEqual([true, false]);

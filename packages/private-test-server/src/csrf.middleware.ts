@@ -5,15 +5,14 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The server half of an isolated reusable middleware: only the handler, placed in the routes like any
-// middleware. Its client half lives in another package and imports this file's types only.
+// Server half of an isolated reusable middleware; its client half (rpc-client test/lib) imports only its types.
 
 import {FatalError} from '@mionjs/core';
 import type {CallContext} from '@mionjs/router';
 
 let currentToken = 'fresh';
 
-/** The token a client must send; rotating it makes every copy a client holds stale */
+/** The token a client must send; rotating it makes every client's copy stale */
 export function getCsrfToken(): string {
   return currentToken;
 }

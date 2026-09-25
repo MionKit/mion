@@ -35,7 +35,6 @@ const RECOVERY_MARKERS = ['api-version-mismatch', 'rowsAgree', 'staleRoutesError
 /** Names only the bundled-API REGISTRATION puts in an artifact; the light half is in every build. */
 const BUNDLED_API_MARKERS = ['bundle-api-invalid-payload', 'bundledMethodToCacheEntry'];
 
-// An installer from the middlewares entry, used the way an app does.
 const MIDDLEWARES_APP = `import {initClient} from '${path.join(packageRoot, 'index.ts')}';
 import {useEchoTag} from '${path.join(packageRoot, 'middlewares.ts')}';
 const {middlewares} = initClient<any>({baseURL: 'http://localhost:3000'});

@@ -239,8 +239,7 @@ export type MiddlewareEvents<PH extends PublicHandler> = TypedEvent<
   Parameters<PH>
 >;
 
-/** A middleware on the client: hooks only, its params come from onRequest on every request. `Id` is type only:
- *  the build reads it to tell which middlewares the client sets up */
+/** Hooks only, params come from onRequest; `Id` is type only, the build reads it to see which are set up */
 export interface ClientMiddleware<PH extends PublicHandler, Id extends string = string> extends Pick<
   MiddlewareEvents<PH>,
   (typeof MIDDLEWARE_HOOKS)[number]
