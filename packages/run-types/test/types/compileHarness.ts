@@ -11,7 +11,7 @@
 // Two kinds of measurer are built on this. The default one is self-contained: a
 // sliced lib-only preamble, no module graph. The other resolves real modules
 // (`snippetFile` + `diagnosticsScope: 'snippet'`), for chains that only exist
-// across packages — see packages/type-budget/test/modelPipelineHarness.ts.
+// across packages — see packages/private-type-budget/test/modelPipelineHarness.ts.
 //
 // Lib SourceFiles are parsed once and reused across calls (so per-case cost is
 // dominated by the snippet); `netInstantiations` subtracts the constant

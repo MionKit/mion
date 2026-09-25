@@ -284,11 +284,11 @@ function loadPackageTypes(): Map<string, string> {
   }
 
   // Also load source files from examples package for relative imports
-  const examplesDir = join(packagesDir, 'examples', 'src')
+  const examplesDir = join(packagesDir, 'private-examples', 'src')
   const exampleFiles = findFiles(examplesDir, /\.ts$/)
 
   for (const srcFile of exampleFiles) {
-    // Get relative path from examples/src directory
+    // Get relative path from private-examples/src directory
     const relativePath = relative(examplesDir, srcFile)
     // Create virtual path that matches how files are imported
     // Files like user.ts can be found via ./user.ts
@@ -308,13 +308,13 @@ function loadPackageTypes(): Map<string, string> {
 }
 
 /**
- * Read code from a file path (only packages/examples allowed)
+ * Read code from a file path (only packages/private-examples allowed)
  * Prepends a comment with the file path and removes trailing newlines
  */
 function readCodeFromPath(path: string): string {
-  // Security: Only allow reading from packages/examples
-  if (!path.startsWith('packages/examples/')) {
-    throw new Error('Only files from packages/examples are allowed')
+  // Security: Only allow reading from packages/private-examples
+  if (!path.startsWith('packages/private-examples/')) {
+    throw new Error('Only files from packages/private-examples are allowed')
   }
 
   // Resolve under the configured repo root, confined to packages/.
@@ -394,13 +394,13 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // If we have a file path (e.g., packages/examples/src/enrich/friendly-user.ts)
+    // If we have a file path (e.g., packages/private-examples/src/enrich/friendly-user.ts)
     // Set up the extra files so relative imports work
-    // The file path after examples/src becomes the virtual path
+    // The file path after private-examples/src becomes the virtual path
     let extraFiles: Record<string, string> | undefined
-    if (filePath && filePath.includes('packages/examples/src/')) {
-      // Extract path after packages/examples/src/
-      const match = filePath.match(/packages\/examples\/src\/(.+)$/)
+    if (filePath && filePath.includes('packages/private-examples/src/')) {
+      // Extract path after packages/private-examples/src/
+      const match = filePath.match(/packages\/private-examples\/src\/(.+)$/)
       if (match) {
         const relativePath = match[1]
         // Get the directory of the current file

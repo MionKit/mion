@@ -41,7 +41,7 @@
     "**/coverage/**",
     "**/.coverage/**",
     "**/test/**",
-    "packages/examples/**",
+    "packages/private-examples/**",
     "packages/run-types/src/caches/**",
     "container/**",
     "docs/**",

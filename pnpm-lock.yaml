@@ -129,7 +129,7 @@ importers:
         version: link:../router
       '@mionjs/test-server':
         specifier: workspace:*
-        version: link:../test-server
+        version: link:../private-test-server
 
   packages/core:
     dependencies:
@@ -185,71 +185,6 @@ importers:
       '@mionjs/run-types':
         specifier: workspace:*
         version: link:../run-types
-
-  packages/examples:
-    dependencies:
-      '@mionjs/client':
-        specifier: workspace:*
-        version: link:../client
-      '@mionjs/core':
-        specifier: workspace:*
-        version: link:../core
-      '@mionjs/drizzle-orm':
-        specifier: workspace:*
-        version: link:../drizzle-orm
-      '@mionjs/drizzle-orm-mysql-core':
-        specifier: workspace:*
-        version: link:../drizzle-orm-mysql-core
-      '@mionjs/drizzle-orm-pg-core':
-        specifier: workspace:*
-        version: link:../drizzle-orm-pg-core
-      '@mionjs/drizzle-orm-sqlite-core':
-        specifier: workspace:*
-        version: link:../drizzle-orm-sqlite-core
-      '@mionjs/platform-aws':
-        specifier: workspace:*
-        version: link:../platform-aws
-      '@mionjs/platform-bun':
-        specifier: workspace:*
-        version: link:../platform-bun
-      '@mionjs/platform-cloudflare':
-        specifier: workspace:*
-        version: link:../platform-cloudflare
-      '@mionjs/platform-gcloud':
-        specifier: workspace:*
-        version: link:../platform-gcloud
-      '@mionjs/platform-node':
-        specifier: workspace:*
-        version: link:../platform-node
-      '@mionjs/platform-uws':
-        specifier: workspace:*
-        version: link:../platform-uws
-      '@mionjs/platform-vercel':
-        specifier: workspace:*
-        version: link:../platform-vercel
-      '@mionjs/router':
-        specifier: workspace:*
-        version: link:../router
-      '@mionjs/run-types':
-        specifier: workspace:*
-        version: link:../run-types
-      drizzle-orm:
-        specifier: 0.45.2
-        version: 0.45.2(bun-types@1.3.12)
-    devDependencies:
-      '@mionjs/devtools':
-        specifier: workspace:*
-        version: link:../devtools
-
-  packages/go-be-sidecar:
-    dependencies:
-      randexp:
-        specifier: 0.5.3
-        version: 0.5.3
-    devDependencies:
-      vite:
-        specifier: 8.0.16
-        version: 8.0.16(@types/node@26.1.0)(esbuild@0.28.1)(jiti@2.6.1)(yaml@2.9.0)
 
   packages/platform-aws:
     dependencies:
@@ -326,25 +261,72 @@ importers:
         specifier: workspace:*
         version: link:../router
 
-  packages/router:
+  packages/private-examples:
     dependencies:
+      '@mionjs/client':
+        specifier: workspace:*
+        version: link:../client
       '@mionjs/core':
         specifier: workspace:*
         version: link:../core
+      '@mionjs/drizzle-orm':
+        specifier: workspace:*
+        version: link:../drizzle-orm
+      '@mionjs/drizzle-orm-mysql-core':
+        specifier: workspace:*
+        version: link:../drizzle-orm-mysql-core
+      '@mionjs/drizzle-orm-pg-core':
+        specifier: workspace:*
+        version: link:../drizzle-orm-pg-core
+      '@mionjs/drizzle-orm-sqlite-core':
+        specifier: workspace:*
+        version: link:../drizzle-orm-sqlite-core
+      '@mionjs/platform-aws':
+        specifier: workspace:*
+        version: link:../platform-aws
+      '@mionjs/platform-bun':
+        specifier: workspace:*
+        version: link:../platform-bun
+      '@mionjs/platform-cloudflare':
+        specifier: workspace:*
+        version: link:../platform-cloudflare
+      '@mionjs/platform-gcloud':
+        specifier: workspace:*
+        version: link:../platform-gcloud
+      '@mionjs/platform-node':
+        specifier: workspace:*
+        version: link:../platform-node
+      '@mionjs/platform-uws':
+        specifier: workspace:*
+        version: link:../platform-uws
+      '@mionjs/platform-vercel':
+        specifier: workspace:*
+        version: link:../platform-vercel
+      '@mionjs/router':
+        specifier: workspace:*
+        version: link:../router
       '@mionjs/run-types':
         specifier: workspace:*
         version: link:../run-types
-
-  packages/run-types:
+      drizzle-orm:
+        specifier: 0.45.2
+        version: 0.45.2(bun-types@1.3.12)
     devDependencies:
-      '@mionjs/bin-compiler':
-        specifier: workspace:*
-        version: link:../bin-compiler
       '@mionjs/devtools':
         specifier: workspace:*
         version: link:../devtools
 
-  packages/test-router-fuzz:
+  packages/private-go-be-sidecar:
+    dependencies:
+      randexp:
+        specifier: 0.5.3
+        version: 0.5.3
+    devDependencies:
+      vite:
+        specifier: 8.0.16
+        version: 8.0.16(@types/node@26.1.0)(esbuild@0.28.1)(jiti@2.6.1)(yaml@2.9.0)
+
+  packages/private-test-router-fuzz:
     dependencies:
       '@mionjs/core':
         specifier: workspace:*
@@ -360,9 +342,9 @@ importers:
         version: link:../run-types
       '@mionjs/test-server':
         specifier: workspace:*
-        version: link:../test-server
+        version: link:../private-test-server
 
-  packages/test-server:
+  packages/private-test-server:
     dependencies:
       '@mionjs/core':
         specifier: workspace:*
@@ -395,7 +377,7 @@ importers:
         specifier: 0.45.2
         version: 0.45.2(bun-types@1.3.12)
 
-  packages/type-budget:
+  packages/private-type-budget:
     dependencies:
       '@mionjs/client':
         specifier: workspace:*
@@ -418,6 +400,24 @@ importers:
       drizzle-orm:
         specifier: 0.45.2
         version: 0.45.2(bun-types@1.3.12)
+
+  packages/router:
+    dependencies:
+      '@mionjs/core':
+        specifier: workspace:*
+        version: link:../core
+      '@mionjs/run-types':
+        specifier: workspace:*
+        version: link:../run-types
+
+  packages/run-types:
+    devDependencies:
+      '@mionjs/bin-compiler':
+        specifier: workspace:*
+        version: link:../bin-compiler
+      '@mionjs/devtools':
+        specifier: workspace:*
+        version: link:../devtools
 
   tools/code-card:
     dependencies:

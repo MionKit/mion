@@ -44,7 +44,7 @@
     {"path": "./packages/drizzle-orm/tsconfig.build.json"},
     {"path": "./packages/drizzle-orm-pg-core/tsconfig.build.json"},
     {"path": "./packages/drizzle-orm-sqlite-core/tsconfig.build.json"},
-    {"path": "./packages/test-server/tsconfig.build.json"},
+    {"path": "./packages/private-test-server/tsconfig.build.json"},
     {"path": "./packages/run-types/tsconfig.build.json"}
   ],
   "files": [],

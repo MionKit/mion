@@ -430,7 +430,7 @@ proves each check fires on broken text; `test/features/generatedCodeAudit.test.t
 runs the same checks over a hand-written nasty corpus in `pnpm test`.
 
 **`sechttp` — hostile requests at the mion router.** The one lane that lives
-outside this package, under `packages/test-router-fuzz/test/fuzz/security/`, on the same
+outside this package, under `packages/private-test-router-fuzz/test/fuzz/security/`, on the same
 core (`runFuzzLoop`, the seed policy, the crash guard). Two layers: seeded
 attacks through `dispatchRoute` in process (random paths including prototype
 names, JSON bodies mutated from valid ones, JSON text cut and flipped,

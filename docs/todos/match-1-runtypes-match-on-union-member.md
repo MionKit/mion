@@ -114,7 +114,7 @@ The implementer plans the details. Pointers verified at the time of writing:
 - An open error (`type: string`, the mion undeclared error) can never be a branch, so a
   chain that expects one always needs `otherwise`.
 - Docs: a new page under the runtypes site tree, plus an example file in
-  `packages/examples/src/` so the snippet typechecks. Fuzz candidate: the generated index
+  `packages/private-examples/src/` so the snippet typechecks. Fuzz candidate: the generated index
   must agree with running each member's validator in safe order (compare-to-trusted-source).
 
 ## Done when

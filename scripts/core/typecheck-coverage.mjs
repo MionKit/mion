@@ -20,7 +20,7 @@ export const EXEMPT = {};
 
 // Shipped files a project leaves out on purpose, each with the reason.
 export const NOT_CHECKED = {
-  'examples/src/run-types/comparison-typia.ts': 'compares against typia, which the workspace does not install',
+  'private-examples/src/run-types/comparison-typia.ts': 'compares against typia, which the workspace does not install',
 };
 
 // Takes the root so the contract test can drive it against the real tree or a fixture.

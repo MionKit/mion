@@ -42,14 +42,14 @@ blur: 150px
     ::::div{class="home-split home-split--code"}
       :::::twoslash-code
       ---
-      path: packages/examples/src/_homepage/home-rpc-server.ts
+      path: packages/private-examples/src/_homepage/home-rpc-server.ts
       title: server.ts
       ---
       :::::
 
       :::::twoslash-code
       ---
-      path: packages/examples/src/_homepage/home-rpc-client.ts
+      path: packages/private-examples/src/_homepage/home-rpc-client.ts
       title: client.ts
       ---
       :::::
@@ -84,7 +84,7 @@ blur: 150px
 
       :::::twoslash-code
       ---
-      path: packages/examples/src/_homepage/home-run-types.ts
+      path: packages/private-examples/src/_homepage/home-run-types.ts
       title: run-types.ts
       ---
       :::::

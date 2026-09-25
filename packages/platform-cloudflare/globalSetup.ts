@@ -8,7 +8,7 @@
 import {rm} from 'node:fs/promises';
 import {resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {buildTestBundle} from '../test-server/buildTestBundle.ts';
+import {buildTestBundle} from '../private-test-server/buildTestBundle.ts';
 
 /** Rebuilds the two workers bundles the miniflare specs load.
  *  `cloudflare` is the SERVICE worker (cloudflareHandler.workers.spec.ts);
@@ -25,6 +25,6 @@ export async function setup(): Promise<void> {
  *  (safe: all project teardowns run after the whole multi-project run finishes). */
 export async function teardown(): Promise<void> {
   const here = fileURLToPath(new URL('.', import.meta.url));
-  await rm(resolve(here, '../test-server/.mion-cloudflare'), {recursive: true, force: true});
-  await rm(resolve(here, '../test-server/.mion-cloudflare-storage'), {recursive: true, force: true});
+  await rm(resolve(here, '../private-test-server/.mion-cloudflare'), {recursive: true, force: true});
+  await rm(resolve(here, '../private-test-server/.mion-cloudflare-storage'), {recursive: true, force: true});
 }

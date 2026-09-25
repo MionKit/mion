@@ -38,10 +38,10 @@ const MOUNT_FILES = ['nuxt.config.ts', 'content.config.ts', 'tsconfig.json', 'es
 const TWOSLASH_EXTERNAL_DEPS = ['drizzle-orm'];
 
 // Repo context: the checkout that contains packages/ (first-party source + built
-// .d.ts). This repo carries packages/examples, so prefer it; only fall back to a
+// .d.ts). This repo carries packages/private-examples, so prefer it; only fall back to a
 // sibling ../mion checkout for a legacy split layout.
 function defaultRepoContext() {
-  if (existsSync(join(REPO_ROOT, 'packages/examples'))) return REPO_ROOT;
+  if (existsSync(join(REPO_ROOT, 'packages/private-examples'))) return REPO_ROOT;
   if (existsSync(join(REPO_ROOT, '../mion/packages'))) return realpathSync(join(REPO_ROOT, '..', 'mion'));
   return REPO_ROOT;
 }
@@ -375,13 +375,13 @@ function containerHttp(cfg, cname, path, body) {
 }
 
 // The example files the landing pages render through ::twoslash-code, in page order:
-// every `path: packages/examples/src/…` a content page names (the root landing and
+// every `path: packages/private-examples/src/…` a content page names (the root landing and
 // the subsite homes, which are the about pages).
 function homeTwoslashPaths() {
   const contentDir = join(WEBSITE_DIR, 'content');
   const pages = globSync('**/*.md', {cwd: contentDir}).sort();
   return pages.flatMap((page) =>
-    [...readFileSync(join(contentDir, page), 'utf8').matchAll(/^\s*path:\s*(packages\/examples\/src\/\S+\.ts)\s*$/gm)].map((match) => match[1])
+    [...readFileSync(join(contentDir, page), 'utf8').matchAll(/^\s*path:\s*(packages\/private-examples\/src\/\S+\.ts)\s*$/gm)].map((match) => match[1])
   );
 }
 
@@ -390,9 +390,9 @@ async function cmdVerifyDocs(cfg) {
   const cname = `${cfg.containerBase}-verify`;
   const timeoutS = Number(cfg.smokeTimeout || '120');
   // Pick a real example file from the mounted context for the endpoint checks.
-  const examples = globSync('**/*.ts', {cwd: join(cfg.repoContext, 'packages/examples/src')});
-  if (examples.length === 0) die(`site: no examples found under ${cfg.repoContext}/packages/examples/src - run 'rt website check' after building packages`);
-  const relpath = `packages/examples/src/${examples[0]}`;
+  const examples = globSync('**/*.ts', {cwd: join(cfg.repoContext, 'packages/private-examples/src')});
+  if (examples.length === 0) die(`site: no examples found under ${cfg.repoContext}/packages/private-examples/src - run 'rt website check' after building packages`);
+  const relpath = `packages/private-examples/src/${examples[0]}`;
   note(`verify-docs: example = ${relpath}`);
 
   rmContainer(cfg, cname);
@@ -442,7 +442,7 @@ async function cmdVerifyDocs(cfg) {
   if (postIncludes('/api/read-file', {path: relpath}, '"code"')) console.log(`  PASS  code read: ${relpath}`);
   else (console.error(`  FAIL  code read: ${relpath}`), (fails = 1));
   // 3. security boundary: a path escaping packages/ is rejected (403).
-  const code = containerHttp(cfg, cname, '/api/read-file', {path: 'packages/examples/../../package.json'})?.status ?? 0;
+  const code = containerHttp(cfg, cname, '/api/read-file', {path: 'packages/private-examples/../../package.json'})?.status ?? 0;
   if (code === 403) console.log('  PASS  security: out-of-packages path rejected (403)');
   else (console.error(`  FAIL  security: expected 403, got ${code}`), (fails = 1));
   // 4. homepage server-renders twoslash markup (full SSR path).

@@ -133,7 +133,7 @@ NO: the paragraph says what the example's comment says.
 ```md
 A line comment covers the line under it. A block comment before any code covers the whole file. Both raise VL002 because a symbol has no value to check.
 
-<code-import path="packages/examples/src/guide/disabling-errors.ts" lang="ts" />
+<code-import path="packages/private-examples/src/guide/disabling-errors.ts" lang="ts" />
 ```
 
 with the example carrying `// A symbol holds no value to check, so both of these raise VL002.`
@@ -143,5 +143,5 @@ YES: the fact lives once, where the reader meets it first.
 ```md
 Use `//` above a line to cover that line. Use `/* */` at the top of the file to cover the whole file.
 
-<code-import path="packages/examples/src/guide/disabling-errors.ts" lang="ts" />
+<code-import path="packages/private-examples/src/guide/disabling-errors.ts" lang="ts" />
 ```

@@ -113,7 +113,7 @@ packages/*/dist/
 packages/*/.dist/
 # test-server's edge/workers bundles ARE generated: the platform specs rebuild them in their
 # vitest globalSetup, so a committed copy could only ever be a stale one.
-packages/test-server/build/
+packages/private-test-server/build/
 .tmp
 tmp
 .nx

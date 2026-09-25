@@ -14,7 +14,7 @@ Follow the simplify-comments skill step by step: read the Code style rules and t
 Hard limits:
 
 - Change comment lines and nothing else. The guard in the skill's Verify step must print nothing.
-- Never touch a directive comment, a license header, a generated file, `third_party/`, `_deps/`, `testdata/` or `packages/examples/`.
+- Never touch a directive comment, a license header, a generated file, `third_party/`, `_deps/`, `testdata/` or `packages/private-examples/`.
 - Never add a comment. Never delete a reason, a constraint, an invariant or a trap.
 - Do not commit. Return the report; the caller reviews it against the code and commits.
 

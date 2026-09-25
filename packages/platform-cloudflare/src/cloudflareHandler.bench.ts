@@ -14,7 +14,7 @@ import {Miniflare} from 'miniflare';
 import {readFileSync} from 'fs';
 import {resolve} from 'path';
 
-const CLOUDFLARE_BUNDLE_PATH = resolve(__dirname, '../../test-server/build/test-server-cloudflare.js');
+const CLOUDFLARE_BUNDLE_PATH = resolve(__dirname, '../../private-test-server/build/test-server-cloudflare.js');
 
 const bundleCode = readFileSync(CLOUDFLARE_BUNDLE_PATH, 'utf-8');
 const mf = new Miniflare({

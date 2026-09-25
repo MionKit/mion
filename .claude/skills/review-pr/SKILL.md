@@ -31,11 +31,11 @@ Documentation and comments are reviewed by their own agents, not by the reviewer
 List what the branch touched:
 
 ```bash
-git diff --name-only $(git merge-base origin/main HEAD)..HEAD -- container/website/content packages/examples/src
+git diff --name-only $(git merge-base origin/main HEAD)..HEAD -- container/website/content packages/private-examples/src
 git diff --name-only $(git merge-base origin/main HEAD)..HEAD -- '*.ts' '*.go' '*.mjs' '*.js' '*.vue'
 ```
 
-Spawn both agents in **one message** so they run at once, `subagent_type: docs-simplifier` and `subagent_type: comments-simplifier`, each with its own list of paths. They never touch the same files: `packages/examples/` belongs to the docs pass, everything else to the comments pass. An empty list means that pass is a no-op; say so and skip it.
+Spawn both agents in **one message** so they run at once, `subagent_type: docs-simplifier` and `subagent_type: comments-simplifier`, each with its own list of paths. They never touch the same files: `packages/private-examples/` belongs to the docs pass, everything else to the comments pass. An empty list means that pass is a no-op; say so and skip it.
 
 Then do what those skills require of a caller, because neither agent commits its own work:
 
