@@ -411,12 +411,8 @@ function runRobustnessProbe(compiled: CompiledType, seed: number, out: Violation
   }
 }
 
-// --- Tier B (mock lane) — values from the REAL createMockDataFn (nonDataTypes on).
-// The serialize-vs-fail tier is read from the ACTUAL encoder behaviour, not the
-// resolver's diagnostics: the resolver over-reports Error-severity diagnostics
-// for non-serialisable positions inside DROPPED subtrees (e.g. a dropped
-// `Promise<Set<Float64Array>>` property), so a type can carry an Error and still
-// serialize. The encoder either works or `alwaysThrow`s — that's the ground truth.
+// --- Tier B (mock lane): values from the REAL createMockDataFn (nonDataTypes on).
+// Serialize-vs-fail comes from the encoders, not diagnostics: the resolver also reports Errors inside DROPPED subtrees.
 function checkMockBehaviour(compiled: CompiledType, seed: number, out: Violation[], stats: FuzzStats): void {
   const target = asFuzzTarget(compiled);
   const mock = compiled.wired.mock;
@@ -440,8 +436,7 @@ function checkMockBehaviour(compiled: CompiledType, seed: number, out: Violation
   const serialized = probeStrategies(target, value, base, out);
   if (serialized === undefined) return;
 
-  // Collapse: both encoders alwaysThrow. The contract says a collapse must carry
-  // an Error-severity diagnostic (fail ⇒ error).
+  // Both encoders alwaysThrow: a collapse must carry an Error-severity diagnostic.
   if (!serialized) {
     if (compiled.errorDiagnostics.length === 0)
       out.push({oracle: 'O10', message: 'both encoders alwaysThrow but no Error-severity diagnostic was emitted', ...base});
@@ -462,8 +457,7 @@ function checkMockBehaviour(compiled: CompiledType, seed: number, out: Violation
 
 type ViolationBase = Omit<Violation, 'oracle' | 'message'>;
 
-/** O7 + O14: both encoders must agree on serialize-vs-alwaysThrow. Returns whether both serialized, or undefined when
- *  they disagree (O14 pushed). **/
+/** O7 + O14: whether both encoders serialized, or undefined when they disagree (O14 pushed). **/
 export function probeStrategies(target: FuzzTarget, value: unknown, base: ViolationBase, out: Violation[]): boolean | undefined {
   const json = probeEncode(target.jsonEncode as (value: unknown) => unknown, value);
   const compact = probeEncode(target.compactEncode as (value: unknown) => unknown, value);

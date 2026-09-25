@@ -97,8 +97,6 @@ describe('compact strategy: union members holding nested objects', () => {
             const back = codec!.decode(codec!.encode(value) as string);
             expect(back, `${lane} round-trip`).toEqual(value);
             expect(compiled.validate!(back), `${lane} decoded value validates`).toBe(true);
-            // Cross-lane agreement: re-encoding the decoded value on the clone
-            // lane yields the clone wire of the original.
             expect(compiled.codecs.clone!.encode(back), `${lane} agrees with clone`).toBe(cloneWire);
           }
         }
