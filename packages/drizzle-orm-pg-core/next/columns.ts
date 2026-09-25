@@ -90,7 +90,7 @@ export interface PgColumnBuilder<
   B extends ColBaseFlag = never,
   N extends string | undefined = undefined,
 > extends ColumnName<N> {
-  readonly [rtBuiltColumnKey]?: Column<Fn, Flat<P>, D, B>;
+  readonly [rtBuiltColumnKey]: Column<Fn, Flat<P>, D, B>;
   notNull(): PgColumnBuilder<Fn, Mod<P, {notNull: true}>, D, B, N>;
   default(value: RtSql): PgColumnBuilder<Fn, Mod<P, {default: [RtSql]}>, D, B, N>;
   default<const V extends D>(value: V): PgColumnBuilder<Fn, Mod<P, {default: [Writable<V>]}>, D, B, N>;
@@ -124,7 +124,7 @@ export interface PgDateColumnBuilder<
   B extends ColBaseFlag = never,
   N extends string | undefined = undefined,
 > extends ColumnName<N> {
-  readonly [rtBuiltColumnKey]?: Column<Fn, Flat<P>, D, B>;
+  readonly [rtBuiltColumnKey]: Column<Fn, Flat<P>, D, B>;
   notNull(): PgDateColumnBuilder<Fn, Mod<P, {notNull: true}>, D, B, N>;
   default(value: RtSql): PgDateColumnBuilder<Fn, Mod<P, {default: [RtSql]}>, D, B, N>;
   default<const V extends D>(value: V): PgDateColumnBuilder<Fn, Mod<P, {default: [Writable<V>]}>, D, B, N>;
@@ -159,7 +159,7 @@ export interface PgUuidColumnBuilder<
   B extends ColBaseFlag = never,
   N extends string | undefined = undefined,
 > extends ColumnName<N> {
-  readonly [rtBuiltColumnKey]?: Column<Fn, Flat<P>, D, B>;
+  readonly [rtBuiltColumnKey]: Column<Fn, Flat<P>, D, B>;
   notNull(): PgUuidColumnBuilder<Fn, Mod<P, {notNull: true}>, D, B, N>;
   default(value: RtSql): PgUuidColumnBuilder<Fn, Mod<P, {default: [RtSql]}>, D, B, N>;
   default<const V extends D>(value: V): PgUuidColumnBuilder<Fn, Mod<P, {default: [Writable<V>]}>, D, B, N>;
@@ -194,7 +194,7 @@ export interface PgIntColumnBuilder<
   B extends ColBaseFlag = never,
   N extends string | undefined = undefined,
 > extends ColumnName<N> {
-  readonly [rtBuiltColumnKey]?: Column<Fn, Flat<P>, D, B>;
+  readonly [rtBuiltColumnKey]: Column<Fn, Flat<P>, D, B>;
   notNull(): PgIntColumnBuilder<Fn, Mod<P, {notNull: true}>, D, B, N>;
   default(value: RtSql): PgIntColumnBuilder<Fn, Mod<P, {default: [RtSql]}>, D, B, N>;
   default<const V extends D>(value: V): PgIntColumnBuilder<Fn, Mod<P, {default: [Writable<V>]}>, D, B, N>;
