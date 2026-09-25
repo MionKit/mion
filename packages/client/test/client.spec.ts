@@ -5,10 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {describe, it, expect, beforeEach, afterEach, vi} from 'vitest';
+import {describe, it, expect, beforeEach, vi} from 'vitest';
 import {initClient} from '../src/client.ts';
 import {isMiddlewareInScope} from '../src/request.ts';
-import {MiddlewareSubRequest, RouteSubRequest, type ClientOptions} from '../src/types.ts';
+import type {ClientOptions, RouteSubRequest} from '../src/types.ts';
 import {purgeHydratedMetadata} from '../src/lib/clientMethodsMetadata.ts';
 import {getMetadataStore} from '../src/lib/metadataStore.ts';
 import {isRpcError, HeadersSubset, MION_ROUTES, routesCache, resetRoutesCache} from '@mionjs/core';
@@ -28,92 +28,62 @@ describe('client', () => {
 
   const baseURL = TEST_SERVER_BASE_URL;
 
-  // prefilledMiddlewaresCache is per client, so each test's fresh client starts with an empty cache
+  // middleware hooks are per client, so each test's fresh client starts with none
 
   it('proxy to trap remote methods calls and return MethodRequest data', () => {
     const {routes, middlewares} = initClient<MyApi>({baseURL});
-    const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-    const expectedAuthSubRequest: RouteSubRequest<any> & MiddlewareSubRequest<any> = {
-      pointer: ['auth'],
-      id: 'auth',
-      isResolved: false,
-      params: [authHeaders],
-      call: expect.any(Function),
-      prefill: expect.any(Function),
-      removePrefill: expect.any(Function),
-      typeErrors: expect.any(Function),
-      events: expect.any(Function),
-      onError: expect.any(Function),
-      offError: expect.any(Function),
-      onSuccess: expect.any(Function),
-      offSuccess: expect.any(Function),
-    };
-
-    const expectedSayHelloSubRequest: RouteSubRequest<any> & MiddlewareSubRequest<any> = {
+    const expectedSayHelloSubRequest: RouteSubRequest<any> = {
       pointer: ['sayHello'],
       id: 'sayHello',
       isResolved: false,
       params: [someUser],
       call: expect.any(Function),
-      prefill: expect.any(Function),
-      removePrefill: expect.any(Function),
       typeErrors: expect.any(Function),
-      events: expect.any(Function),
-      onError: expect.any(Function),
-      offError: expect.any(Function),
-      onSuccess: expect.any(Function),
-      offSuccess: expect.any(Function),
     };
 
-    const expectedSumTwoSubRequest: RouteSubRequest<any> & MiddlewareSubRequest<any> = {
+    const expectedSumTwoSubRequest: RouteSubRequest<any> = {
       pointer: ['utils', 'sumTwo'],
       id: 'utils/sumTwo',
       isResolved: false,
       params: [2],
       call: expect.any(Function),
-      prefill: expect.any(Function),
-      removePrefill: expect.any(Function),
       typeErrors: expect.any(Function),
-      events: expect.any(Function),
-      onError: expect.any(Function),
-      offError: expect.any(Function),
-      onSuccess: expect.any(Function),
-      offSuccess: expect.any(Function),
     };
 
-    expect(middlewares.auth(authHeaders)).toEqual(expect.objectContaining(expectedAuthSubRequest));
-    expect(routes.sayHello(someUser)).toEqual(expect.objectContaining(expectedSayHelloSubRequest));
+    const sayHello = routes.sayHello(someUser);
+    expect(sayHello).toEqual(expect.objectContaining(expectedSayHelloSubRequest));
     expect(routes.utils.sumTwo(2)).toEqual(expect.objectContaining(expectedSumTwoSubRequest));
+    // a sub request carries no middleware hooks, those live on the middleware
+    for (const hook of ['events', 'onRequest', 'onResponse', 'onError', 'onSuccess']) {
+      expect(sayHello).not.toHaveProperty(hook);
+    }
+
+    // a middleware is hooks only
+    for (const hook of ['onRequest', 'offRequest', 'onResponse', 'offResponse', 'onError', 'offError']) {
+      expect(typeof (middlewares.auth as any)[hook]).toBe('function');
+    }
 
     // is a proxy so actually could trap any call even if does not exists in methods and is not strongly typed
     // note bellow code should not be used when using the client
-    const expectedUnknownSubRequest: RouteSubRequest<any> & MiddlewareSubRequest<any> = {
+    const expectedUnknownSubRequest: RouteSubRequest<any> = {
       pointer: ['abcd'],
       id: 'abcd',
       isResolved: false,
       params: [1, 'a'],
       call: expect.any(Function),
-      prefill: expect.any(Function),
-      removePrefill: expect.any(Function),
       typeErrors: expect.any(Function),
-      events: expect.any(Function),
-      onError: expect.any(Function),
-      offError: expect.any(Function),
-      onSuccess: expect.any(Function),
-      offSuccess: expect.any(Function),
     };
     expect((routes as any).abcd(1, 'a')).toEqual(expect.objectContaining(expectedUnknownSubRequest));
-    expect((middlewares as any).abcd(1, 'a')).toEqual(expect.objectContaining(expectedUnknownSubRequest));
+    expect(typeof (middlewares as any).abcd.onRequest).toBe('function');
   });
 
   it('make a route call and get a valid response', async () => {
     const {routes, middlewares} = initClient<MyApi>({baseURL});
     const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+    middlewares.auth.onRequest((auth) => auth(authHeaders));
 
-    const [greeting, error, fatal, middlewareResults] = await routes.sayHello(someUser).call({
-      middlewares: {auth: middlewares.auth(authHeaders)},
-    });
+    const [greeting, error, fatal, middlewareResults] = await routes.sayHello(someUser).call();
 
     expect(greeting).toEqual(`Hello John Doe`); // Test server returns: Hello ${user.name} ${user.surname}
     expect(error).toBeUndefined();
@@ -124,10 +94,9 @@ describe('client', () => {
   it('make a route call with middlewares', async () => {
     const {routes, middlewares} = initClient<MyApi>({baseURL});
     const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+    middlewares.auth.onRequest((auth) => auth(authHeaders));
 
-    const [greeting, routeError, fatal] = await routes.sayHello(someUser).call({
-      middlewares: {auth: middlewares.auth(authHeaders)},
-    });
+    const [greeting, routeError, fatal] = await routes.sayHello(someUser).call();
 
     expect(greeting).toEqual(`Hello John Doe`); // Test server returns: Hello ${user.name} ${user.surname}
     expect(routeError).toBeUndefined();
@@ -137,10 +106,9 @@ describe('client', () => {
   it('return error in result if a route call fails', async () => {
     const {routes, middlewares} = initClient<MyApi>({baseURL});
     const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+    middlewares.auth.onRequest((auth) => auth(authHeaders));
 
-    const [greeting, routeError] = await routes.alwaysFails(someUser).call({
-      middlewares: {auth: middlewares.auth(authHeaders)},
-    });
+    const [greeting, routeError] = await routes.alwaysFails(someUser).call();
 
     expect(greeting).toBeUndefined();
     expect(routeError).toBeDefined();
@@ -159,25 +127,22 @@ describe('client', () => {
     // This test mainly ensures the method exists and returns the expected type
   });
 
-  it('prefill and remove prefill from a request', async () => {
+  it('onRequest feeds a middleware on every call and offRequest stops it', async () => {
     const {routes, middlewares} = initClient<MyApi>({baseURL});
     const authHeaders = createAuthHeaders('ABYWZ-TOKEN');
 
-    const request = middlewares.auth(authHeaders);
-    request.prefill();
-    // note auth has been prefilled and is not required to be sent in the call
+    middlewares.auth.onRequest((auth) => auth(authHeaders));
 
     const [response, callError] = await routes.sayHello(someUser).call();
     expect(callError).toBeUndefined();
     expect(response).toEqual(`Hello John Doe`);
 
-    // same call should fail after removing the prefill
-
-    void request.removePrefill();
+    // same call should fail after removing the hook
+    middlewares.auth.offRequest();
 
     const [, routeError, fatal] = await routes.sayHello(someUser).call();
 
-    // After removing prefill, the auth middleware is not sent, so the server returns a headers
+    // After offRequest, the auth middleware is not sent, so the server returns a headers
     // validation error for auth. It is not the route's declared error, so it lands in the
     // undeclared slot, never in the route's typed error slot.
     expect(routeError).toBeUndefined();
@@ -187,31 +152,28 @@ describe('client', () => {
     expect(fatal?.publicMessage).toContain('auth');
   });
 
-  // ========== Result Pattern Tests (using call() with prefilled auth) ==========
+  // ========== Result Pattern Tests (using call() with an auth onRequest hook) ==========
 
   describe('Result pattern', () => {
     it('call() should return data on success', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-      // So call() works without passing middleware
-      middlewares.auth(authHeaders).prefill();
+      // So call() works without passing middleware params
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
 
       const [greeting, error] = await routes.sayHello(someUser).call();
 
       expect(greeting).toBe('Hello John Doe');
       expect(error).toBeUndefined();
-
-      // Clean up
-      void middlewares.auth(authHeaders).removePrefill();
     });
 
     it('call() should return error on failure', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-      // So call() works without passing middleware
-      middlewares.auth(authHeaders).prefill();
+      // So call() works without passing middleware params
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
 
       const [response, error] = await routes.alwaysFails(someUser).call();
 
@@ -219,17 +181,14 @@ describe('client', () => {
       expect(error).toBeDefined();
       expect(error?.type).toBe('unknown-error');
       expect(error?.publicMessage).toBe('Something fails');
-
-      // Clean up
-      void middlewares.auth(authHeaders).removePrefill();
     });
 
     it('call() should not throw even on error', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-      // So call() works without passing middleware
-      middlewares.auth(authHeaders).prefill();
+      // So call() works without passing middleware params
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
 
       // This should NOT throw
       let didThrow = false;
@@ -241,17 +200,14 @@ describe('client', () => {
       }
 
       expect(didThrow).toBe(false);
-
-      // Clean up
-      void middlewares.auth(authHeaders).removePrefill();
     });
 
     it('call() should return typed error that can be checked', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-      // So call() works without passing middleware
-      middlewares.auth(authHeaders).prefill();
+      // So call() works without passing middleware params
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
 
       const [response, error] = await routes.alwaysFails(someUser).call();
 
@@ -259,32 +215,28 @@ describe('client', () => {
       expect(error).toBeDefined();
       expect(error?.type).toBe('unknown-error');
       expect(response).toBeUndefined();
-
-      // Clean up
-      void middlewares.auth(authHeaders).removePrefill();
     });
   });
 
-  // ========== TypedEvent Middleware Success Handler Tests ==========
+  // ========== TypedEvent Middleware Response Handler Tests ==========
 
-  describe('TypedEvent onSuccess handlers', () => {
-    it('onSuccess should be called on every successful request', async () => {
+  describe('TypedEvent onResponse handlers', () => {
+    it('onResponse should be called on every successful request', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
       let successCallCount = 0;
       let receivedSessionInfo: any = null;
 
-      middlewares
-        .session('valid-token')
-        .prefill()
-        .onSuccess((sessionInfo) => {
+      middlewares.session
+        .onRequest((session) => session('valid-token'))
+        .onResponse((sessionInfo) => {
           successCallCount++;
           receivedSessionInfo = sessionInfo;
         });
 
-      // So call() works without passing middleware
-      middlewares.auth(authHeaders).prefill();
+      // So call() works without passing middleware params
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
 
       // Make first request
       await routes.sayHello(someUser).call();
@@ -293,81 +245,67 @@ describe('client', () => {
       expect(receivedSessionInfo.userId).toBe('user-123');
       expect(receivedSessionInfo.role).toBe('admin');
 
-      // Make second request - onSuccess should be called again
+      // Make second request - onResponse should be called again
       await routes.sayHello(someUser).call();
       expect(successCallCount).toBe(2);
-
-      // Clean up
-      await middlewares.session('valid-token').removePrefill();
-      await middlewares.auth(authHeaders).removePrefill();
     });
 
-    it('onSuccess should NOT be called when middleware fails', async () => {
+    it('onResponse should NOT be called when middleware fails', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
       let successCalled = false;
       let errorCalled = false;
 
-      // Prefill with expired token and register handlers
-      middlewares
-        .session('expired')
-        .prefill()
-        .onSuccess(() => {
+      // Feed an expired token and register handlers
+      middlewares.session
+        .onRequest((session) => session('expired'))
+        .onResponse(() => {
           successCalled = true;
         })
         .onError('session-expired', () => {
           errorCalled = true;
         });
 
-      // So call() works without passing middleware
-      middlewares.auth(authHeaders).prefill();
+      // So call() works without passing middleware params
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
 
       // Make request - should fail with session-expired
       await routes.sayHello(someUser).call();
 
       expect(successCalled).toBe(false);
       expect(errorCalled).toBe(true);
-
-      // Clean up
-      await middlewares.session('expired').removePrefill();
-      await middlewares.auth(authHeaders).removePrefill();
     });
 
-    it('offSuccess should remove success handler', async () => {
+    it('offResponse should remove the response handler', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
       let successCallCount = 0;
 
-      // Prefill and register onSuccess handler
-      const typedEvent = middlewares
-        .session('valid-token')
-        .prefill()
-        .onSuccess(() => {
+      // Feed the middleware and register its onResponse handler
+      const typedEvent = middlewares.session
+        .onRequest((session) => session('valid-token'))
+        .onResponse(() => {
           successCallCount++;
         });
 
-      // So call() works without passing middleware
-      middlewares.auth(authHeaders).prefill();
+      // So call() works without passing middleware params
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
 
       // First request - handler should be called
       await routes.sayHello(someUser).call();
       expect(successCallCount).toBe(1);
 
-      // Remove the success handler
-      typedEvent.offSuccess();
+      // Remove the response handler
+      typedEvent.offResponse();
 
       // Second request - handler should NOT be called
       await routes.sayHello(someUser).call();
       expect(successCallCount).toBe(1); // Still 1
-
-      // Clean up
-      await middlewares.session('valid-token').removePrefill();
-      await middlewares.auth(authHeaders).removePrefill();
     });
 
-    it('both onSuccess and onError can be registered on same TypedEvent', async () => {
+    it('both onResponse and onError can be registered on same TypedEvent', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
@@ -375,72 +313,66 @@ describe('client', () => {
       let errorCalled = false;
 
       // Register both handlers
-      middlewares
-        .session('valid-token')
-        .prefill()
-        .onSuccess(() => {
+      middlewares.session
+        .onRequest((session) => session('valid-token'))
+        .onResponse(() => {
           successCalled = true;
         })
         .onError('session-expired', () => {
           errorCalled = true;
         });
 
-      // So call() works without passing middleware
-      middlewares.auth(authHeaders).prefill();
+      // So call() works without passing middleware params
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
 
       // Make successful request
       await routes.sayHello(someUser).call();
 
       expect(successCalled).toBe(true);
       expect(errorCalled).toBe(false);
-
-      // Clean up
-      await middlewares.session('valid-token').removePrefill();
-      await middlewares.auth(authHeaders).removePrefill();
     });
 
-    it('removePrefill should clear both success and error handlers', async () => {
+    it('offRequest, offResponse and offError each remove only their own handler', async () => {
       const {middlewares} = initClient<MyApi>({baseURL});
 
-      // Register handlers
-      const typedEvent = middlewares
-        .session('valid-token')
-        .prefill()
-        .onSuccess(() => {
+      const typedEvent = middlewares.session
+        .onRequest((session) => session('valid-token'))
+        .onResponse(() => {
           // Handler registered
         })
         .onError('session-expired', () => {
           // Handler registered
         });
 
-      // Verify handlers are registered
-      expect(typedEvent.hasSuccessHandler()).toBe(true);
+      expect(typedEvent.hasRequestHandler()).toBe(true);
+      expect(typedEvent.hasResponseHandler()).toBe(true);
       expect(typedEvent.hasErrorHandler('session-expired')).toBe(true);
 
-      // Remove prefill (should clear handlers)
-      await middlewares.session('valid-token').removePrefill();
+      middlewares.session.offRequest();
+      expect(typedEvent.hasRequestHandler()).toBe(false);
+      expect(typedEvent.hasResponseHandler()).toBe(true);
+      expect(typedEvent.hasErrorHandler('session-expired')).toBe(true);
 
-      // Verify handlers are cleared
-      expect(typedEvent.hasSuccessHandler()).toBe(false);
+      middlewares.session.offResponse().offError('session-expired');
+      expect(typedEvent.hasResponseHandler()).toBe(false);
       expect(typedEvent.hasErrorHandler('session-expired')).toBe(false);
     });
 
-    it('call() with prefilled middlewares should return middlewareResults/middlewareErrors AND trigger TypedEvent handlers', async () => {
+    it('call() with onRequest hooks should return middlewareResults/middlewareErrors AND trigger TypedEvent handlers', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
       let typedEventSuccessCalled = false;
       let typedEventReceivedSession: any = null;
 
-      middlewares
-        .session('valid-token')
-        .prefill()
-        .onSuccess((sessionInfo) => {
+      middlewares.session
+        .onRequest((session) => session('valid-token'))
+        .onResponse((sessionInfo) => {
           typedEventSuccessCalled = true;
           typedEventReceivedSession = sessionInfo;
         });
 
-      middlewares.auth(authHeaders).prefill();
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
 
       // call() should return both route result AND middleware results in the 4-tuple
       const [greeting, routeError, fatal, middlewareResults] = await routes.sayHello(someUser).call();
@@ -450,35 +382,30 @@ describe('client', () => {
       expect(routeError).toBeUndefined();
       expect(fatal).toBeUndefined();
 
-      // Filled by the prefilled middleware
+      // Filled by the hook fed middleware
       expect(middlewareResults).toBeDefined();
 
       // TypedEvent handler should ALSO have been called
       expect(typedEventSuccessCalled).toBe(true);
       expect(typedEventReceivedSession).toBeDefined();
       expect(typedEventReceivedSession.userId).toBe('user-123');
-
-      // Clean up
-      await middlewares.session('valid-token').removePrefill();
-      await middlewares.auth(authHeaders).removePrefill();
     });
 
-    it('call() with prefilled middlewares should surface the middleware error in middlewareErrors AND trigger TypedEvent error handlers', async () => {
+    it('call() with onRequest hooks should surface the middleware error in middlewareErrors AND trigger TypedEvent error handlers', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
       let typedEventErrorCalled = false;
       let typedEventReceivedError: any = null;
 
-      middlewares
-        .session('expired')
-        .prefill()
+      middlewares.session
+        .onRequest((session) => session('expired'))
         .onError('session-expired', (error) => {
           typedEventErrorCalled = true;
           typedEventReceivedError = error;
         });
 
-      middlewares.auth(authHeaders).prefill();
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
 
       // a middleware's DECLARED error lands in the middlewareErrors record, never in the
       // route's typed slot and never in the undeclared slot
@@ -492,28 +419,23 @@ describe('client', () => {
       expect(typedEventErrorCalled).toBe(true);
       expect(typedEventReceivedError).toBeDefined();
       expect(typedEventReceivedError.type).toBe('session-expired');
-
-      // Clean up
-      await middlewares.session('expired').removePrefill();
-      await middlewares.auth(authHeaders).removePrefill();
     });
 
-    it('call() with prefilled middlewares should handle mixed results (middleware succeeds, route fails)', async () => {
+    it('call() with onRequest hooks should handle mixed results (middleware succeeds, route fails)', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
       let typedEventSuccessCalled = false;
       let typedEventReceivedSession: any = null;
 
-      middlewares
-        .session('valid-token')
-        .prefill()
-        .onSuccess((sessionInfo) => {
+      middlewares.session
+        .onRequest((session) => session('valid-token'))
+        .onResponse((sessionInfo) => {
           typedEventSuccessCalled = true;
           typedEventReceivedSession = sessionInfo;
         });
 
-      middlewares.auth(authHeaders).prefill();
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
 
       // The route always fails; its middleware still runs and succeeds
       const [result, routeError, fatal, middlewareResults] = await routes.alwaysFails(someUser).call();
@@ -532,23 +454,18 @@ describe('client', () => {
       expect(typedEventSuccessCalled).toBe(true);
       expect(typedEventReceivedSession).toBeDefined();
       expect(typedEventReceivedSession.userId).toBe('user-123');
-
-      // Clean up
-      await middlewares.session('valid-token').removePrefill();
-      await middlewares.auth(authHeaders).removePrefill();
     });
   });
 
-  // ========== call() with middlewares Tests ==========
+  // ========== call() with middlewares fed by onRequest ==========
 
-  describe('call() with middlewares API', () => {
-    it('call({middlewares}) should return route data on success', async () => {
+  describe('call() with middlewares fed by onRequest', () => {
+    it('call() should return route data on success', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
 
-      const [greeting, routeError, fatal, middlewareResults] = await routes.sayHello(someUser).call({
-        middlewares: {auth: middlewares.auth(authHeaders)},
-      });
+      const [greeting, routeError, fatal, middlewareResults] = await routes.sayHello(someUser).call();
 
       expect(greeting).toBe('Hello John Doe');
       expect(routeError).toBeUndefined();
@@ -556,47 +473,40 @@ describe('client', () => {
       expect(middlewareResults).toBeDefined();
     });
 
-    it('call({middlewares}) should return middleware data on success', async () => {
+    it('call() should return middleware data on success', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
+      middlewares.session.onRequest((session) => session('valid-token'));
 
-      const [greeting, routeError, fatal, middlewareResults] = await routes.sayHello(someUser).call({
-        middlewares: {
-          auth: middlewares.auth(authHeaders),
-          session: middlewares.session('valid-token'),
-        },
-      });
+      const [greeting, routeError, fatal, middlewareResults] = await routes.sayHello(someUser).call();
 
       expect(greeting).toBe('Hello John Doe');
       expect(routeError).toBeUndefined();
       expect(fatal).toBeUndefined();
       expect(middlewareResults?.session).toBeDefined();
-      expect(middlewareResults?.session?.userId).toBe('user-123');
+      expect((middlewareResults?.session as {userId: string} | undefined)?.userId).toBe('user-123');
     });
 
-    it('call({middlewares}) should return route error on failure', async () => {
+    it('call() should return route error on failure', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
 
-      const [greeting, routeError] = await routes.alwaysFails(someUser).call({
-        middlewares: {auth: middlewares.auth(authHeaders)},
-      });
+      const [greeting, routeError] = await routes.alwaysFails(someUser).call();
 
       expect(greeting).toBeUndefined();
       expect(routeError).toBeDefined();
       expect(routeError?.type).toBe('unknown-error');
     });
 
-    it('call({middlewares}) should surface a middleware failure in middlewareErrors under its name', async () => {
+    it('call() should surface a middleware failure in middlewareErrors under its id', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
+      middlewares.session.onRequest((session) => session('expired'));
 
-      const [, routeError, fatal, , middlewareErrors] = await routes.sayHello(someUser).call({
-        middlewares: {
-          auth: middlewares.auth(authHeaders),
-          session: middlewares.session('expired'), // This will fail
-        },
-      });
+      const [, routeError, fatal, , middlewareErrors] = await routes.sayHello(someUser).call();
 
       // A middleware's DECLARED error: its own slot in middlewareErrors, never the typed route slot,
       // and not fatal (it was declared by somebody)
@@ -606,15 +516,14 @@ describe('client', () => {
       expect(middlewareErrors?.auth).toBeUndefined();
     });
 
-    it('call({middlewares}) should never throw', async () => {
+    it('call() should never throw', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
 
       let didThrow = false;
       try {
-        const [, routeError] = await routes.alwaysFails(someUser).call({
-          middlewares: {auth: middlewares.auth(authHeaders)},
-        });
+        const [, routeError] = await routes.alwaysFails(someUser).call();
         // Should have error in result, not throw
         expect(routeError).toBeDefined();
       } catch {
@@ -624,17 +533,14 @@ describe('client', () => {
       expect(didThrow).toBe(false);
     });
 
-    it('call({middlewares}) should support partial success (route succeeds, middleware fails)', async () => {
+    it('call() should support partial success (route succeeds, middleware fails)', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
+      middlewares.session.onRequest((session) => session('expired'));
 
       // Session middleware with expired token will fail
-      const [result, routeError, fatal, , middlewareErrors] = await routes.sayHello(someUser).call({
-        middlewares: {
-          auth: middlewares.auth(authHeaders),
-          session: middlewares.session('expired'),
-        },
-      });
+      const [result, routeError, fatal, , middlewareErrors] = await routes.sayHello(someUser).call();
 
       // The middleware failure lands in its own middlewareErrors slot; whatever result the route
       // produced is preserved in slot 0 (never masked by another subrequest's error)
@@ -644,31 +550,25 @@ describe('client', () => {
       if (result !== undefined) expect(result).toBe('Hello John Doe');
     });
 
-    it('call({middlewares}) should return all middleware results', async () => {
+    it('call() should return all middleware results', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
+      middlewares.session.onRequest((session) => session('valid-token'));
 
-      const [, , , middlewareResults] = await routes.sayHello(someUser).call({
-        middlewares: {
-          auth: middlewares.auth(authHeaders),
-          session: middlewares.session('valid-token'),
-        },
-      });
+      const [, , , middlewareResults] = await routes.sayHello(someUser).call();
 
       expect(middlewareResults?.session).toBeDefined();
-      expect(middlewareResults?.session?.userId).toBe('user-123');
+      expect((middlewareResults?.session as {userId: string} | undefined)?.userId).toBe('user-123');
     });
 
-    it('call({middlewares}) should work with multiple middlewares', async () => {
+    it('call() should work with multiple middlewares', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
+      middlewares.session.onRequest((session) => session('valid-token'));
 
-      const [greeting, routeError, fatal, middlewareResults] = await routes.sayHello(someUser).call({
-        middlewares: {
-          auth: middlewares.auth(authHeaders),
-          session: middlewares.session('valid-token'),
-        },
-      });
+      const [greeting, routeError, fatal, middlewareResults] = await routes.sayHello(someUser).call();
 
       expect(greeting).toBe('Hello John Doe');
       expect(routeError).toBeUndefined();
@@ -676,13 +576,12 @@ describe('client', () => {
       expect(middlewareResults?.session).toBeDefined();
     });
 
-    it('call({middlewares}) result should have correct types', async () => {
+    it('call() result should have correct types', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
 
-      const [greeting, routeError] = await routes.sayHello(someUser).call({
-        middlewares: {auth: middlewares.auth(authHeaders)},
-      });
+      const [greeting, routeError] = await routes.sayHello(someUser).call();
 
       // Type checks - these should compile
       // Use variables to avoid conditional expects
@@ -697,13 +596,12 @@ describe('client', () => {
       expect(greetingValue === undefined || typeof greetingValue === 'string').toBe(true);
     });
 
-    it('call({middlewares}) should handle route that always fails', async () => {
+    it('call() should handle route that always fails', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
 
-      const [greeting, routeError] = await routes.alwaysFails(someUser).call({
-        middlewares: {auth: middlewares.auth(authHeaders)},
-      });
+      const [greeting, routeError] = await routes.alwaysFails(someUser).call();
 
       expect(greeting).toBeUndefined();
       expect(routeError).toBeDefined();
@@ -718,14 +616,13 @@ describe('client', () => {
     it('validation error for wrong param type lands in the typed route error slot', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
 
       // Send a string instead of a number to calculateAge route
       // We need to bypass TypeScript type checking to send wrong type
       const wrongParams = 'not-a-number' as unknown as number;
 
-      const [result, routeError, fatal] = await routes.calculateAge(wrongParams).call({
-        middlewares: {auth: middlewares.auth(authHeaders)},
-      });
+      const [result, routeError, fatal] = await routes.calculateAge(wrongParams).call();
 
       // ValidationError is part of the route's expected union: slot 1, not the undeclared slot
       expect(result).toBeUndefined();
@@ -737,13 +634,12 @@ describe('client', () => {
     it('validation error for wrong object structure lands in the typed route error slot', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
 
       // Send an object with wrong structure (missing surname)
       const wrongUser = {name: 'John'} as unknown as {name: string; surname: string};
 
-      const [result, routeError, fatal] = await routes.sayHello(wrongUser).call({
-        middlewares: {auth: middlewares.auth(authHeaders)},
-      });
+      const [result, routeError, fatal] = await routes.sayHello(wrongUser).call();
 
       expect(result).toBeUndefined();
       expect(routeError).toBeDefined();
@@ -751,11 +647,11 @@ describe('client', () => {
       expect(fatal).toBeUndefined();
     });
 
-    it('validation error lands in the typed route error slot for call() with prefilled middlewares', async () => {
+    it('validation error lands in the typed route error slot for call() with onRequest hooks', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-      middlewares.auth(authHeaders).prefill();
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
 
       // Send wrong param type
       const wrongParams = 'not-a-number' as unknown as number;
@@ -768,9 +664,6 @@ describe('client', () => {
       expect(fatal).toBeUndefined();
       // middleware results record is always present in the 4-tuple
       expect(middlewareResults).toBeDefined();
-
-      // Clean up
-      await middlewares.auth(authHeaders).removePrefill();
     });
   });
 
@@ -785,11 +678,7 @@ describe('client', () => {
       const client = initClient<MyApi>({baseURL});
       routes = client.routes;
       middlewares = client.middlewares;
-      middlewares.auth(authHeaders).prefill();
-    });
-
-    afterEach(async () => {
-      await middlewares.auth(authHeaders).removePrefill();
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
     });
 
     it('should successfully call route with valid UUID v4', async () => {
@@ -905,11 +794,7 @@ describe('client', () => {
       const client = initClient<MyApi>({baseURL});
       routes = client.routes;
       middlewares = client.middlewares;
-      middlewares.auth(authHeaders).prefill();
-    });
-
-    afterEach(async () => {
-      await middlewares.auth(authHeaders).removePrefill();
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
     });
 
     it('query() route should use GET and send data in URL query', async () => {
@@ -935,20 +820,18 @@ describe('client', () => {
       // mutation routes send body via POST/PUT, urlQuery may be undefined
     });
 
-    it('query() route should work with call({middlewares})', async () => {
-      const [result, error] = await routes.getRequestInfo('with middlewares').call({
-        middlewares: {auth: middlewares.auth(authHeaders)},
-      });
+    it('query() route should work after the onRequest hook is replaced', async () => {
+      middlewares.auth.onRequest((auth) => auth(createAuthHeaders('XWYZ-TOKEN')));
+      const [result, error] = await routes.getRequestInfo('with middlewares').call();
 
       expect(error).toBeUndefined();
       expect(result).toBeDefined();
       expect(result?.message).toBe('with middlewares');
     });
 
-    it('mutation() route should work with call({middlewares})', async () => {
-      const [result, error] = await routes.mutateRequestInfo('mutate with middlewares').call({
-        middlewares: {auth: middlewares.auth(authHeaders)},
-      });
+    it('mutation() route should work after the onRequest hook is replaced', async () => {
+      middlewares.auth.onRequest((auth) => auth(createAuthHeaders('XWYZ-TOKEN')));
+      const [result, error] = await routes.mutateRequestInfo('mutate with middlewares').call();
 
       expect(error).toBeUndefined();
       expect(result).toBeDefined();
@@ -957,29 +840,29 @@ describe('client', () => {
     });
   });
 
-  // ========== Optimistic Mode with Prefilled Middleware & Headers Tests ==========
+  // ========== Optimistic Mode with onRequest Hooks & Headers Tests ==========
 
-  describe('optimistic mode with prefilled middleware and headers', () => {
-    it('call() with prefilled auth headersFn should succeed in optimistic mode', async () => {
+  describe('optimistic mode with onRequest hooks and headers', () => {
+    it('call() with an auth headersFn onRequest hook should succeed in optimistic mode', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
-      middlewares.auth(authHeaders).prefill();
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
 
       const [greeting, error] = await routes.sayHello(someUser).call();
 
       expect(error).toBeUndefined();
       expect(greeting).toBe('Hello John Doe');
-
-      void middlewares.auth(authHeaders).removePrefill();
     });
 
-    it('call({middlewares}) with explicit auth headersFn should succeed in optimistic mode', async () => {
+    it('call() with an ASYNC auth onRequest hook should succeed in optimistic mode', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
-
-      const [greeting, error] = await routes.sayHello(someUser).call({
-        middlewares: {auth: middlewares.auth(authHeaders)},
+      middlewares.auth.onRequest(async (auth) => {
+        await Promise.resolve();
+        auth(authHeaders);
       });
+
+      const [greeting, error] = await routes.sayHello(someUser).call();
 
       expect(error).toBeUndefined();
       expect(greeting).toBe('Hello John Doe');
@@ -988,7 +871,7 @@ describe('client', () => {
     it('subsequent optimistic calls should use standard flow (metadata cached)', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
-      middlewares.auth(authHeaders).prefill();
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
 
       // First call — triggers optimistic flow
       const [greeting1, error1] = await routes.sayHello(someUser).call();
@@ -999,8 +882,6 @@ describe('client', () => {
       const [greeting2, error2] = await routes.sayHello(someUser).call();
       expect(error2).toBeUndefined();
       expect(greeting2).toBe('Hello John Doe');
-
-      void middlewares.auth(authHeaders).removePrefill();
     });
 
     it('call() without auth should fail in optimistic mode (auth required by server)', async () => {
@@ -1013,18 +894,17 @@ describe('client', () => {
       expect(isRpcError(fatal)).toBe(true);
     });
 
-    it('removing prefill should cause subsequent optimistic calls to fail', async () => {
+    it('offRequest should cause subsequent optimistic calls to fail', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
-      middlewares.auth(authHeaders).prefill();
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
 
       // First call should succeed
       const [greeting, error] = await routes.sayHello(someUser).call();
       expect(error).toBeUndefined();
       expect(greeting).toBe('Hello John Doe');
 
-      // Remove prefill
-      void middlewares.auth(authHeaders).removePrefill();
+      middlewares.auth.offRequest();
 
       // Call should now fail (no auth) -> the auth error lands in the undeclared slot
       const [, , fatal2] = await routes.sayHello(someUser).call();
@@ -1047,8 +927,7 @@ describe('client', () => {
       );
     }
 
-    /** Spies on fetch for one call and returns the calls it saw, the spy always restored. A prefill
-     * issues its own metadata fetch synchronously, before the spy exists, and call() waits for it. */
+    /** Spies on fetch for one call and returns the calls it saw, the spy always restored. */
     async function spyOnFetch(run: () => Promise<void>): Promise<{init: RequestInit; body: any}[]> {
       const fetchSpy = vi.spyOn(globalThis, 'fetch');
       try {
@@ -1062,10 +941,10 @@ describe('client', () => {
       }
     }
 
-    it('first optimistic call with a PREFILLED auth headersFn is one round trip (no retry)', async () => {
+    it('first optimistic call with an auth headersFn onRequest hook is one round trip (no retry)', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
-      middlewares.auth(authHeaders).prefill();
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
       // a scalar param, the simplest case of the optimistic path
       await forgetMetadata('calculateAge');
 
@@ -1078,22 +957,24 @@ describe('client', () => {
       expect(calls).toHaveLength(1);
       const [{init, body}] = calls;
       expect((init.headers as Record<string, string>).Authorization).toBe('XWYZ-TOKEN');
-      // the prefilled headers travel as HTTP headers only, never inside the body
+      // the hook fed headers travel as HTTP headers only, never inside the body
       expect(body.auth).toBeUndefined();
       expect(body.calculateAge).toEqual([1990]);
       // the metadata ask piggybacks on that single request
       expect(body[MION_ROUTES.methodsMetadata]).toBeDefined();
-
-      void middlewares.auth(authHeaders).removePrefill();
     });
 
-    it('first optimistic call with an EXPLICIT auth headersFn is one round trip (no retry)', async () => {
+    it('first optimistic call with an ASYNC auth onRequest hook is one round trip (no retry)', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+      middlewares.auth.onRequest(async (auth) => {
+        await Promise.resolve();
+        auth(authHeaders);
+      });
       await forgetMetadata('sayHello', 'auth');
 
       const calls = await spyOnFetch(async () => {
-        const [greeting, error] = await routes.sayHello(someUser).call({middlewares: {auth: middlewares.auth(authHeaders)}});
+        const [greeting, error] = await routes.sayHello(someUser).call();
         expect(error).toBeUndefined();
         expect(greeting).toBe('Hello John Doe');
       });
@@ -1104,11 +985,11 @@ describe('client', () => {
       expect(body.auth).toBeUndefined();
     });
 
-    it('every prefilled middleware rides along on the first optimistic call, and the ones in the chain resolve', async () => {
+    it('every onRequest hook in scope rides along on the first optimistic call, and the ones in the chain resolve', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
-      middlewares.auth(authHeaders).prefill();
-      middlewares.session('valid-token').prefill();
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
+      middlewares.session.onRequest((session) => session('valid-token'));
       await forgetMetadata('sayHello');
 
       const calls = await spyOnFetch(async () => {
@@ -1121,19 +1002,16 @@ describe('client', () => {
 
       expect(calls).toHaveLength(1);
       expect(calls[0].body.session).toEqual(['valid-token']);
-
-      void middlewares.session('valid-token').removePrefill();
-      void middlewares.auth(authHeaders).removePrefill();
     });
 
-    it('a SCOPED prefill rides along only on the first optimistic call of a route in its group', async () => {
+    it('a SCOPED onRequest hook rides along only on the first optimistic call of a route in its group', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
-      middlewares.auth(authHeaders).prefill();
-      middlewares.utils.scopeTag('tagged').prefill();
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
+      middlewares.utils.scopeTag.onRequest((scopeTag) => scopeTag('tagged'));
       await forgetMetadata('sayHello', 'utils/sumTwo');
 
-      // a top-level route: the utils-scoped prefill is not in its group, so it is never sent
+      // a top-level route: the utils-scoped middleware is not in its group, so it is never sent
       const topLevelCalls = await spyOnFetch(async () => {
         const [greeting, error, fatal, middlewareResults] = await routes.sayHello(someUser).call();
         expect(error).toBeUndefined();
@@ -1144,7 +1022,7 @@ describe('client', () => {
       expect(topLevelCalls).toHaveLength(1);
       expect(topLevelCalls[0].body['utils/scopeTag']).toBeUndefined();
 
-      // a route of the group: the scoped prefill and the top-level auth both ride along, one round trip
+      // a route of the group: the scoped middleware and the top-level auth both ride along, one round trip
       const scopedCalls = await spyOnFetch(async () => {
         const [sum, error, fatal, middlewareResults] = await routes.utils.sumTwo(5).call();
         expect(error).toBeUndefined();
@@ -1155,9 +1033,6 @@ describe('client', () => {
       expect(scopedCalls).toHaveLength(1);
       expect(scopedCalls[0].body['utils/scopeTag']).toEqual(['tagged']);
       expect((scopedCalls[0].init.headers as Record<string, string>).Authorization).toBe('XWYZ-TOKEN');
-
-      void middlewares.utils.scopeTag('tagged').removePrefill();
-      void middlewares.auth(authHeaders).removePrefill();
     });
 
     it('isMiddlewareInScope: a middleware covers its own group and the groups nested in it', () => {
@@ -1173,27 +1048,23 @@ describe('client', () => {
     it('optimistic mode with simple types should work without retry (no auth required route)', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
-      middlewares.auth(authHeaders).prefill();
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
 
       const [result, error] = await routes.calculateAge(1990).call();
 
       expect(error).toBeUndefined();
       expect(result).toBe(new Date().getFullYear() - 1990);
-
-      void middlewares.auth(authHeaders).removePrefill();
     });
 
-    it('optimistic mode with nested routes and prefilled auth', async () => {
+    it('optimistic mode with nested routes and an auth onRequest hook', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
-      middlewares.auth(authHeaders).prefill();
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
 
       const [result, error] = await routes.utils.sumTwo(5).call();
 
       expect(error).toBeUndefined();
       expect(result).toBe(7);
-
-      void middlewares.auth(authHeaders).removePrefill();
     });
   });
 
@@ -1218,9 +1089,10 @@ describe('client', () => {
 
     it('a scalar payload goes optimistic: ONE round trip carrying the metadata ask', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
       const fetchSpy = vi.spyOn(globalThis, 'fetch');
       try {
-        const [result, error] = await routes.calculateAge(1990).call({middlewares: {auth: middlewares.auth(authHeaders)}});
+        const [result, error] = await routes.calculateAge(1990).call();
         expect(error).toBeUndefined();
         expect(result).toBe(new Date().getFullYear() - 1990);
         const requests = requestsOf(fetchSpy);
@@ -1239,11 +1111,10 @@ describe('client', () => {
     // holds: the optimistic bet pays off on an entity sent to a route the client has never seen.
     it('an object payload goes optimistic on a compact route: ONE round trip, keyed on the wire', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
       const fetchSpy = vi.spyOn(globalThis, 'fetch');
       try {
-        const [text, error] = await routes.compact
-          .processSimpleUser({name: 'Ada', age: 36})
-          .call({middlewares: {auth: middlewares.auth(authHeaders)}});
+        const [text, error] = await routes.compact.processSimpleUser({name: 'Ada', age: 36}).call();
         expect(error).toBeUndefined();
         expect(text).toBe('User: Ada, Age: 36');
         const requests = requestsOf(fetchSpy);
@@ -1257,10 +1128,11 @@ describe('client', () => {
 
     it('a Date rides as ISO text in ONE round trip', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
       const date = new Date('2024-02-02T02:02:02.000Z');
       const fetchSpy = vi.spyOn(globalThis, 'fetch');
       try {
-        const [sameDate, error] = await routes.getSameDate(date).call({middlewares: {auth: middlewares.auth(authHeaders)}});
+        const [sameDate, error] = await routes.getSameDate(date).call();
         expect(error).toBeUndefined();
         expect(sameDate).toEqual(date);
         const requests = requestsOf(fetchSpy);
@@ -1273,13 +1145,14 @@ describe('client', () => {
 
     it('a Map rides as an array of entries in ONE round trip', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
       const map = new Map<string, number>([
         ['a', 1],
         ['b', 2],
       ]);
       const fetchSpy = vi.spyOn(globalThis, 'fetch');
       try {
-        const [sameMap, error] = await routes.getSameMap(map).call({middlewares: {auth: middlewares.auth(authHeaders)}});
+        const [sameMap, error] = await routes.getSameMap(map).call();
         expect(error).toBeUndefined();
         expect(sameMap).toEqual(map);
         const requests = requestsOf(fetchSpy);
@@ -1297,10 +1170,11 @@ describe('client', () => {
 
     it('a Set rides as an array in ONE round trip', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
       const set = new Set(['x', 'y']);
       const fetchSpy = vi.spyOn(globalThis, 'fetch');
       try {
-        const [sameSet, error] = await routes.getSameSet(set).call({middlewares: {auth: middlewares.auth(authHeaders)}});
+        const [sameSet, error] = await routes.getSameSet(set).call();
         expect(error).toBeUndefined();
         expect(sameSet).toEqual(set);
         const requests = requestsOf(fetchSpy);
@@ -1313,11 +1187,10 @@ describe('client', () => {
 
     it('a bigint rides as a whole-number string in ONE round trip', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
       const fetchSpy = vi.spyOn(globalThis, 'fetch');
       try {
-        const [value, error] = await routes
-          .getSameBigInt(9007199254740993n)
-          .call({middlewares: {auth: middlewares.auth(authHeaders)}});
+        const [value, error] = await routes.getSameBigInt(9007199254740993n).call();
         expect(error).toBeUndefined();
         expect(value).toBe(9007199254740993n);
         const requests = requestsOf(fetchSpy);
@@ -1333,11 +1206,10 @@ describe('client', () => {
     // server refuses the bare value rather than misreading it, so this is the retry case.
     it('a union needing the [index, value] envelope is refused and retried, never misread', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
       const fetchSpy = vi.spyOn(globalThis, 'fetch');
       try {
-        const [value, error] = await routes
-          .echoStringOrDate(new Date('2024-02-02T02:02:02.000Z'))
-          .call({middlewares: {auth: middlewares.auth(authHeaders)}});
+        const [value, error] = await routes.echoStringOrDate(new Date('2024-02-02T02:02:02.000Z')).call();
         expect(error).toBeUndefined();
         expect(value).toBe('2024-02-02T02:02:02.000Z');
         const requests = requestsOf(fetchSpy);
@@ -1352,11 +1224,10 @@ describe('client', () => {
 
     it('a compact route with scalar params still goes optimistic and decodes its positional answer', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
       const fetchSpy = vi.spyOn(globalThis, 'fetch');
       try {
-        const [user, error] = await routes.compact
-          .getSimpleUser('Ada', 36)
-          .call({middlewares: {auth: middlewares.auth(authHeaders)}});
+        const [user, error] = await routes.compact.getSimpleUser('Ada', 36).call();
         expect(error).toBeUndefined();
         expect(user).toEqual({name: 'Ada', age: 36});
         const requests = requestsOf(fetchSpy);
@@ -1375,14 +1246,12 @@ describe('client', () => {
     it('async route returning Promise<T> resolves through the client metadata-fetch path', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
-      middlewares.auth(authHeaders).prefill();
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
 
       const [result, error] = await routes.sleep(50).call();
 
       expect(error).toBeUndefined();
       expect(result).toBe(50);
-
-      void middlewares.auth(authHeaders).removePrefill();
     });
   });
 
@@ -1390,7 +1259,7 @@ describe('client', () => {
     it('already-aborted signal returns immediate error without network call', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
-      middlewares.auth(authHeaders).prefill();
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
 
       const signal = AbortSignal.abort();
       const [result, routeError, fatal] = await routes.sleep(5000).call({signal});
@@ -1398,14 +1267,12 @@ describe('client', () => {
       expect(routeError).toBeUndefined();
       expect(fatal).toBeDefined();
       expect(fatal!.type).toBe('request-aborted');
-
-      void middlewares.auth(authHeaders).removePrefill();
     });
 
     it('per-request abort signal cancels in-flight request', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
-      middlewares.auth(authHeaders).prefill();
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
 
       const controller = new AbortController();
       // sleep(5000) ensures the request is still in-flight when we abort
@@ -1418,14 +1285,12 @@ describe('client', () => {
       expect(fatal).toBeDefined();
       expect(isRpcError(fatal)).toBe(true);
       expect(fatal!.type).toBe('request-aborted');
-
-      void middlewares.auth(authHeaders).removePrefill();
     });
 
     it('per-request timeout produces request-timeout error', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
-      middlewares.auth(authHeaders).prefill();
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
 
       // sleep(5000) ensures the request outlasts the 100ms timeout
       const [result, routeError, fatal] = await routes.sleep(5000).call({timeout: 100});
@@ -1434,42 +1299,36 @@ describe('client', () => {
       expect(fatal).toBeDefined();
       expect(isRpcError(fatal)).toBe(true);
       expect(fatal!.type).toBe('request-timeout');
-
-      void middlewares.auth(authHeaders).removePrefill();
     });
 
     it('client-level default timeout applies to all requests', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL, timeout: 100});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
-      middlewares.auth(authHeaders).prefill();
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
 
       const [result, routeError, fatal] = await routes.sleep(5000).call();
       expect(result).toBeUndefined();
       expect(routeError).toBeUndefined();
       expect(fatal).toBeDefined();
       expect(fatal!.type).toBe('request-timeout');
-
-      void middlewares.auth(authHeaders).removePrefill();
     });
 
     it('per-request timeout overrides client-level default', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL, timeout: 30_000});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
-      middlewares.auth(authHeaders).prefill();
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
 
       // Client has 30s default, but per-request 100ms should take effect
       const [result, , fatal] = await routes.sleep(5000).call({timeout: 100});
       expect(result).toBeUndefined();
       expect(fatal).toBeDefined();
       expect(fatal!.type).toBe('request-timeout');
-
-      void middlewares.auth(authHeaders).removePrefill();
     });
 
     it('global client.abort() cancels all in-flight requests', async () => {
       const {client, routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
-      middlewares.auth(authHeaders).prefill();
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
 
       const p1 = routes.sleep(5000).call();
       const p2 = routes.sleep(5000).call();
@@ -1481,28 +1340,24 @@ describe('client', () => {
       expect(fatal1!.type).toBe('request-aborted');
       expect(fatal2).toBeDefined();
       expect(fatal2!.type).toBe('request-aborted');
-
-      void middlewares.auth(authHeaders).removePrefill();
     });
 
     it('new requests work normally after client.abort()', async () => {
       const {client, routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
-      middlewares.auth(authHeaders).prefill();
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
 
       client.abort();
 
       const [result, error] = await routes.sleep(50).call();
       expect(error).toBeUndefined();
       expect(result).toBe(50);
-
-      void middlewares.auth(authHeaders).removePrefill();
     });
 
     it('client.destroy() aborts in-flight requests', async () => {
       const {client, routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
-      middlewares.auth(authHeaders).prefill();
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
 
       const p1 = routes.sleep(5000).call();
       setTimeout(() => client.destroy(), 50);
@@ -1512,15 +1367,18 @@ describe('client', () => {
       expect(fatal!.type).toBe('request-aborted');
     });
 
-    it('cancellation works with middlewares in call setup', async () => {
+    it('cancellation works with an onRequest hook, which never runs for an aborted call', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+      let hookCalls = 0;
+      middlewares.auth.onRequest((auth) => {
+        hookCalls++;
+        auth(authHeaders);
+      });
 
       const signal = AbortSignal.abort();
-      const [result, routeError, fatal] = await routes.sleep(5000).call({
-        middlewares: {auth: middlewares.auth(authHeaders)},
-        signal,
-      });
+      const [result, routeError, fatal] = await routes.sleep(5000).call({signal});
+      expect(hookCalls).toBe(0);
       expect(result).toBeUndefined();
       expect(routeError).toBeUndefined();
       expect(fatal).toBeDefined();
@@ -1530,7 +1388,7 @@ describe('client', () => {
     it('cancellation works with batch', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
-      middlewares.auth(authHeaders).prefill();
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
 
       const {batch} = await import('../src/batch.ts');
       const signal = AbortSignal.abort();
@@ -1541,8 +1399,6 @@ describe('client', () => {
       expect(errors).toEqual([undefined, undefined]);
       expect(fatal).toBeDefined();
       expect(fatal!.type).toBe('request-aborted');
-
-      void middlewares.auth(authHeaders).removePrefill();
     });
   });
 
@@ -1562,7 +1418,7 @@ describe('client', () => {
     it('platform error appears in the undeclared slot on a single route call', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
-      middlewares.auth(authHeaders).prefill();
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
 
       const [result, routeError, fatal] = await routes.getRequestInfo(HUGE_PAYLOAD).call();
 
@@ -1571,14 +1427,12 @@ describe('client', () => {
       expect(fatal).toBeDefined();
       expect(isRpcError(fatal)).toBe(true);
       expect(fatal?.type).toBe('request-payload-too-large');
-
-      await middlewares.auth(authHeaders).removePrefill();
     });
 
     it('platform error in a batch is ONE fatal error, not one per route', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
-      middlewares.auth(authHeaders).prefill();
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
 
       const {batch} = await import('../src/batch.ts');
       // Mix the oversized-payload route with a normal one — the request-scoped platform error
@@ -1590,17 +1444,14 @@ describe('client', () => {
       expect(fatal).toBeDefined();
       expect(isRpcError(fatal)).toBe(true);
       expect(fatal?.type).toBe('request-payload-too-large');
-
-      await middlewares.auth(authHeaders).removePrefill();
     });
 
-    it('platform error is never keyed to a middleware when calling with explicit middlewares', async () => {
+    it('platform error is never keyed to a middleware fed by its onRequest hook', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
 
-      const [result, routeError, fatal, middlewareResults, middlewareErrors] = await routes.getRequestInfo(HUGE_PAYLOAD).call({
-        middlewares: {auth: middlewares.auth(authHeaders)},
-      });
+      const [result, routeError, fatal, middlewareResults, middlewareErrors] = await routes.getRequestInfo(HUGE_PAYLOAD).call();
 
       expect(result).toBeUndefined();
       expect(routeError).toBeUndefined();

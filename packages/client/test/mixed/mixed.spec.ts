@@ -25,14 +25,14 @@ import {expectEveryMethodMatchesTheServer} from '../lib/parity.ts';
 const baseURL = inject('laneServerBaseURL');
 
 /** Every route of the test server runs behind the root-level `auth` headers middleware. */
-function withAuth(middlewares: ReturnType<typeof initClient<TestServerApi>>['middlewares']) {
-  return {middlewares: {auth: middlewares.auth(new HeadersSubset({Authorization: 'XWYZ-TOKEN'}))}};
+function useAuth(middlewares: ReturnType<typeof initClient<TestServerApi>>['middlewares']): void {
+  middlewares.auth.onRequest((auth) => auth(new HeadersSubset({Authorization: 'XWYZ-TOKEN'})));
 }
 
 /** A helper typed with the wide subrequest: the build reports the widened id (MET004, a warning
  *  under mixed) and bundles nothing for the call inside, which the client then fetches. */
-function callThroughWideHelper(sub: RouteSubRequest<any>, setup: Parameters<RouteSubRequest<any>['call']>[0]) {
-  return sub.call(setup);
+function callThroughWideHelper(sub: RouteSubRequest<any>) {
+  return sub.call();
 }
 
 function watchFetch() {
@@ -76,9 +76,10 @@ describe('a client built with bundleApi: mixed', () => {
 
   it('uses the bundle for a route called through its own dispatch point', async () => {
     const {routes, middlewares} = initClient<TestServerApi>({baseURL});
+    useAuth(middlewares);
     const watch = watchFetch();
     try {
-      const [result] = await routes.utils.sumTwo(1).call(withAuth(middlewares));
+      const [result] = await routes.utils.sumTwo(1).call();
       expect(result).toBe(3);
       expect(watch.calls()).toBe(1);
       expect(watch.askedForMetadata()).toBe(false);
@@ -90,9 +91,10 @@ describe('a client built with bundleApi: mixed', () => {
 
   it('fetches a route the bundle lacks, and stores only what it fetched', async () => {
     const {routes, middlewares} = initClient<TestServerApi>({baseURL});
+    useAuth(middlewares);
     const watch = watchFetch();
     try {
-      const [result] = await callThroughWideHelper(routes.flow.getOrgLabel('acme'), withAuth(middlewares));
+      const [result] = await callThroughWideHelper(routes.flow.getOrgLabel('acme'));
       expect(result).toBe('[acme]');
       expect(watch.askedForMetadata()).toBe(true);
     } finally {
@@ -108,11 +110,12 @@ describe('a client built with bundleApi: mixed', () => {
 
   it("keeps a bundled middleware out of the store when it rides a fetched route's chain", async () => {
     const {routes, middlewares} = initClient<TestServerApi>({baseURL});
+    useAuth(middlewares);
     // a bundled dispatch point first, so the chain's auth middleware comes from the build
-    await routes.utils.sumTwo(1).call(withAuth(middlewares));
+    await routes.utils.sumTwo(1).call();
     expect(isBundledMethod('auth')).toBe(true);
     // then a route the bundle lacks; the server answers for its WHOLE chain, auth included
-    await callThroughWideHelper(routes.flow.getOrgLabel('acme'), withAuth(middlewares));
+    await callThroughWideHelper(routes.flow.getOrgLabel('acme'));
     await flushMetadataCache();
     const stored = (await store.readAll(baseURL)).map((record) => record.id);
     expect(stored).toContain('flow/getOrgLabel');
@@ -123,7 +126,8 @@ describe('a client built with bundleApi: mixed', () => {
 
   it('never lets a fetched answer replace a bundled entry', async () => {
     const {routes, middlewares} = initClient<TestServerApi>({baseURL});
-    await routes.utils.sumTwo(1).call(withAuth(middlewares));
+    useAuth(middlewares);
+    await routes.utils.sumTwo(1).call();
     const bundled = getMethod('utils/sumTwo');
     expect(bundled).toBeDefined();
     const options = {baseURL, basePath: '', suffix: '', storageEngine: 'memory'} as never;

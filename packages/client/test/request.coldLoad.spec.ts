@@ -31,8 +31,8 @@ const user = {name: 'John', surname: 'Doe'};
 
 /** sayHello runs behind the auth middleware, so every call here carries it. */
 function callSayHello(client: ReturnType<typeof initClient<TestServerApi>>) {
-  const auth = client.middlewares.auth(new HeadersSubset({Authorization: 'XWYZ-TOKEN'}));
-  return client.routes.sayHello(user).call({middlewares: {auth}});
+  client.middlewares.auth.onRequest((auth) => auth(new HeadersSubset({Authorization: 'XWYZ-TOKEN'})));
+  return client.routes.sayHello(user).call();
 }
 
 /** Records every request the client sends, and says which of them guessed the wire. */

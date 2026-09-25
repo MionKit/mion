@@ -25,11 +25,13 @@ describe('Compact encoder E2E', () => {
   const {routes, middlewares} = initClient<MyApi>({baseURL});
 
   beforeEach(() => {
-    middlewares.auth(authHeaders).prefill();
+    middlewares.auth.onRequest((auth) => auth(authHeaders));
   });
 
-  afterEach(async () => {
-    await middlewares.auth(authHeaders).removePrefill();
+  afterEach(() => {
+    middlewares.auth.offRequest();
+    middlewares.compact.stamp.offRequest();
+    middlewares.compact.plainStamp.offRequest();
   });
 
   it('scalars ride unchanged', async () => {
@@ -104,22 +106,21 @@ describe('Compact encoder E2E', () => {
   });
 
   it('a compact middleware in the chain takes and returns data on the compact wire', async () => {
-    const [user, error, , middlewareResults] = await routes.compact.getSimpleUser('Ada', 36).call({
-      middlewares: {auth: middlewares.auth(authHeaders), stamp: middlewares.compact.stamp('release')},
-    });
+    middlewares.compact.stamp.onRequest((stamp) => stamp('release'));
+    const [user, error, , middlewareResults] = await routes.compact.getSimpleUser('Ada', 36).call();
     expect(error).toBeUndefined();
     expect(user).toEqual({name: 'Ada', age: 36});
-    expect(middlewareResults?.stamp?.tag).toBe('release');
-    expect(middlewareResults?.stamp?.when).toBeInstanceOf(Date);
+    const stamp = middlewareResults?.['compact/stamp'] as {tag: string; when: Date} | undefined;
+    expect(stamp?.tag).toBe('release');
+    expect(stamp?.when).toBeInstanceOf(Date);
   });
 
   it('a plain middleware with no encoder of its own still rides a compact route', async () => {
-    const [user, error, fatal, middlewareResults] = await routes.compact.getSimpleUser('Ada', 36).call({
-      middlewares: {auth: middlewares.auth(authHeaders), plainStamp: middlewares.compact.plainStamp('kept')},
-    });
+    middlewares.compact.plainStamp.onRequest((plainStamp) => plainStamp('kept'));
+    const [user, error, fatal, middlewareResults] = await routes.compact.getSimpleUser('Ada', 36).call();
     expect(error).toBeUndefined();
     expect(fatal).toBeUndefined();
     expect(user).toEqual({name: 'Ada', age: 36});
-    expect(middlewareResults?.plainStamp).toEqual({note: 'kept'});
+    expect(middlewareResults?.['compact/plainStamp']).toEqual({note: 'kept'});
   });
 });

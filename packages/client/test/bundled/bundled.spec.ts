@@ -26,8 +26,8 @@ const baseURL = inject('laneServerBaseURL');
 const user = {name: 'John', surname: 'Doe'};
 
 /** Every route of the test server runs behind the root-level `auth` headers middleware. */
-function withAuth(middlewares: ReturnType<typeof initClient<TestServerApi>>['middlewares']) {
-  return {middlewares: {auth: middlewares.auth(new HeadersSubset({Authorization: 'XWYZ-TOKEN'}))}};
+function useAuth(middlewares: ReturnType<typeof initClient<TestServerApi>>['middlewares']): void {
+  middlewares.auth.onRequest((auth) => auth(new HeadersSubset({Authorization: 'XWYZ-TOKEN'})));
 }
 
 /** Records every request the client sends, and says which of them asked for metadata. */
@@ -81,8 +81,8 @@ describe('a client built with bundleApi: bundled', () => {
     const {routes, middlewares} = initClient<TestServerApi>({baseURL});
     const watch = watchFetch();
     try {
-      const auth = middlewares.auth(new HeadersSubset({Authorization: 'XWYZ-TOKEN'}));
-      const [result, error, fatal] = await routes.sayHello(user).call({middlewares: {auth}});
+      middlewares.auth.onRequest((auth) => auth(new HeadersSubset({Authorization: 'XWYZ-TOKEN'})));
+      const [result, error, fatal] = await routes.sayHello(user).call();
       expect(fatal).toBeUndefined();
       expect(error).toBeUndefined();
       expect(result).toBe('Hello John Doe');
@@ -91,7 +91,7 @@ describe('a client built with bundleApi: bundled', () => {
     } finally {
       watch.restore();
     }
-    // the route, its chain and the middleware the call named all came from the bundle
+    // the route, its chain and the middleware the hook fed all came from the bundle
     expect(isBundledMethod('sayHello')).toBe(true);
     expect(isBundledMethod('auth')).toBe(true);
     expect(getMethod('sayHello')?.middlewareIds).toContain('auth');
@@ -99,7 +99,8 @@ describe('a client built with bundleApi: bundled', () => {
 
   it('neither reads nor writes the metadata store', async () => {
     const {routes, middlewares} = initClient<TestServerApi>({baseURL});
-    const [result] = await routes.utils.sumTwo(40).call(withAuth(middlewares));
+    useAuth(middlewares);
+    const [result] = await routes.utils.sumTwo(40).call();
     expect(result).toBe(42);
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(store.readAll).not.toHaveBeenCalled();
@@ -108,25 +109,22 @@ describe('a client built with bundleApi: bundled', () => {
 
   it('never loads the code that asks the server how a route works', async () => {
     const {routes, middlewares} = initClient<TestServerApi>({baseURL});
-    await routes.utils.sumTwo(40).call(withAuth(middlewares));
+    useAuth(middlewares);
+    await routes.utils.sumTwo(40).call();
     await routes.compact.addNumbers(2, 3).typeErrors();
     expect(isMetadataFromServerLoaded()).toBe(false);
   });
 
   it('fetches a route the bundle lacks, loading the lane only then', async () => {
     const {client, middlewares} = initClient<TestServerApi>({baseURL});
+    useAuth(middlewares);
     expect(isMetadataFromServerLoaded()).toBe(false);
-    const [result, , undeclared] = await client.execute(
-      {
-        pointer: ['flow', 'getOrgLabel'],
-        id: 'flow/getOrgLabel',
-        isResolved: false,
-        params: ['acme'],
-      } as never,
-      undefined,
-      undefined,
-      withAuth(middlewares).middlewares
-    );
+    const [result, , undeclared] = await client.execute({
+      pointer: ['flow', 'getOrgLabel'],
+      id: 'flow/getOrgLabel',
+      isResolved: false,
+      params: ['acme'],
+    } as never);
     expect(undeclared).toBeUndefined();
     expect(result).toBeDefined();
     expect(isMetadataFromServerLoaded()).toBe(true);
@@ -135,13 +133,14 @@ describe('a client built with bundleApi: bundled', () => {
 
   it('runs with dynamic code disabled: the bundle carries live functions, never code strings', async () => {
     const {routes, middlewares} = initClient<TestServerApi>({baseURL});
+    useAuth(middlewares);
     const realFunction = globalThis.Function;
     const thrower = function () {
       throw new Error('new Function is disabled by the policy');
     } as unknown as FunctionConstructor;
     vi.stubGlobal('Function', thrower);
     try {
-      const [result, error] = await routes.compact.addNumbers(2, 3).call(withAuth(middlewares));
+      const [result, error] = await routes.compact.addNumbers(2, 3).call();
       expect(error).toBeUndefined();
       expect(result).toBe(5);
       // local validation runs the bundled validator too
@@ -152,13 +151,13 @@ describe('a client built with bundleApi: bundled', () => {
     }
   });
 
-  it('prefills a middleware and runs a batch from the bundle', async () => {
+  it('feeds a middleware from its onRequest hook and runs a batch from the bundle', async () => {
     const {routes, middlewares} = initClient<TestServerApi>({baseURL});
     const watch = watchFetch();
     try {
-      middlewares.auth(new HeadersSubset({Authorization: 'XWYZ-TOKEN'})).prefill();
+      middlewares.auth.onRequest((auth) => auth(new HeadersSubset({Authorization: 'XWYZ-TOKEN'})));
       const [results, errors, fatal] = await batch([routes.sayHello(user), routes.utils.sumTwo(1)]).call();
-      // the prefilled auth rode along, unnamed by the call
+      // the hook fed auth, unnamed by the call
       expect(fatal).toBeUndefined();
       expect(errors).toEqual([undefined, undefined]);
       expect(results).toEqual(['Hello John Doe', 3]);
@@ -170,7 +169,8 @@ describe('a client built with bundleApi: bundled', () => {
 
   it('sends a query route as GET, the bundled options say so', async () => {
     const {routes, middlewares} = initClient<TestServerApi>({baseURL});
-    const [result, error] = await routes.getRequestInfo('hello').call(withAuth(middlewares));
+    useAuth(middlewares);
+    const [result, error] = await routes.getRequestInfo('hello').call();
     expect(error).toBeUndefined();
     expect(result?.httpMethod).toBe('GET');
     expect(getMethod('getRequestInfo')?.options.isMutation).toBe(false);
@@ -178,7 +178,8 @@ describe('a client built with bundleApi: bundled', () => {
 
   it('gives a returned HeadersSubset back', async () => {
     const {routes, middlewares} = initClient<TestServerApi>({baseURL});
-    const [result, error] = await routes.respondHeaders('bundled').call(withAuth(middlewares));
+    useAuth(middlewares);
+    const [result, error] = await routes.respondHeaders('bundled').call();
     expect(error).toBeUndefined();
     expect(result).toBeInstanceOf(HeadersSubset);
     expect(result?.headers['x-mion-echo']).toBe('bundled');
@@ -186,18 +187,19 @@ describe('a client built with bundleApi: bundled', () => {
 
   it('reports a payload the build did not write in the undeclared slot, never by throwing', async () => {
     const {client, routes, middlewares} = initClient<TestServerApi>({baseURL});
+    useAuth(middlewares);
     // the cast stands in for the build, the only thing that fills this slot: the envelope is right and
     // the method row is not, as a `<genDir>/api/` tree from another @mionjs/devtools version would write it
     const stale = {methods: [{id: 'sayHello'}]} as unknown as InjectedApiMetadata;
     expect(() => client.useBundledApi(stale)).not.toThrow();
 
-    const [result, error, undeclared] = await routes.sayHello(user).call(withAuth(middlewares));
+    const [result, error, undeclared] = await routes.sayHello(user).call();
     expect(result).toBe('Hello John Doe');
     expect(error).toBeUndefined();
     expect(undeclared?.type).toBe('bundle-api-invalid-payload');
 
     // reported once, so it never displaces a real error on every later call
-    const [, , second] = await routes.sayHello(user).call(withAuth(middlewares));
+    const [, , second] = await routes.sayHello(user).call();
     expect(second).toBeUndefined();
   });
 
@@ -224,7 +226,8 @@ describe('parity: what the bundle registers equals what the server answers', () 
     resetClientCaches();
     resetBundledApi();
     const {routes, middlewares} = initClient<TestServerApi>({baseURL});
-    await routes.utils.sumTwo(1).call(withAuth(middlewares));
+    useAuth(middlewares);
+    await routes.utils.sumTwo(1).call();
     expect(useMethodFns('utils/sumTwo')).toBeDefined();
     expect(useMethodFns('utils/sumTwo')).not.toHaveProperty('paramsJsonMaxBytes');
   });
