@@ -28,6 +28,7 @@ import {pgBuildTable} from '../src/table.ts';
 import {toDrizzle} from '../src/drizzle.ts';
 import * as next from '../next/index.ts';
 import {buildRtTableFromGraph as buildNextTableFromGraph} from '../../drizzle-orm/next/fromType.ts';
+import {tableRef} from '../../drizzle-orm/next/table.ts';
 import {
   buildTable,
   buildView,
@@ -61,6 +62,7 @@ const nextSurface: Surface = {
   table: (name, columns, extra) => next.pgTable(name as never, columns as never, extra as never),
   parent: nextSurfaceParent as never,
   singleCall: true,
+  parentRef: () => tableRef(nextSurfaceParent, 'id'),
 };
 
 const rawSurface: Surface = {

@@ -114,7 +114,11 @@ export interface Surface {
   parent: Record<string, unknown>;
   /** Build each column in ONE call, settings and modifiers in one props object (the next/ builders). */
   singleCall?: boolean;
+  /** A reference to parent.id on this surface, when it is not the column itself (the next/ tableRef). */
+  parentRef?: () => unknown;
 }
+
+const parentRefOf = (surface: Surface): unknown => (surface.parentRef ? surface.parentRef() : surface.parent.id);
 
 export function buildTable(surface: Surface, spec: TableSpec, tableName: string): unknown {
   const columns: Record<string, unknown> = {};
@@ -142,7 +146,7 @@ export function buildTable(surface: Surface, spec: TableSpec, tableName: string)
               return surface.ns.foreignKey({
                 name: extra.name,
                 columns: [t[fkColumn.key]],
-                foreignColumns: [surface.parent.id],
+                foreignColumns: [parentRefOf(surface)],
               } as never);
             }
             let entry = surface.ns[extra.fn](extra.name as never) as Record<string, (...a: unknown[]) => unknown>;
@@ -160,7 +164,7 @@ function singleCallColumn(surface: Surface, columnSpec: ColumnSpec): unknown {
   const [name, config] = columnSpec.args as [string | undefined, Record<string, unknown> | undefined];
   const props: Record<string, unknown> = {...config};
   for (const mod of columnSpec.mods) if (mod.method !== 'skip') props[mod.method] = mod.args.length > 0 ? mod.args : true;
-  if (columnSpec.referencesParent) props.references = [() => surface.parent.id, {onDelete: 'cascade'}];
+  if (columnSpec.referencesParent) props.references = [() => parentRefOf(surface), {onDelete: 'cascade'}];
   const args: unknown[] = name === undefined ? [props] : [name, props];
   return surface.ns[columnSpec.fn](...(args as never[]));
 }
@@ -371,7 +375,13 @@ export function renderColumnBuilders(column: ColumnSpec, namespace: string, pare
 /** Render a covered spec as the BUILDERS form source, the twin of
  *  renderTableType. The two together are what lets a fuzz iteration prove the
  *  two roads land on ONE runtype id, rather than only on one drizzle table. */
-export function renderTableBuilders(spec: TableSpec, tableName: string, namespace: string, parentConst: string): string {
+export function renderTableBuilders(
+  spec: TableSpec,
+  tableName: string,
+  namespace: string,
+  parentConst: string,
+  parentRefText = `cols(${parentConst}).id`
+): string {
   const columns = spec.columns.map((column) => `  ${column.key}: ${renderColumnBuilders(column, namespace, parentConst)},`);
   const base = `${namespace}.pgTable('${tableName}', {\n${columns.join('\n')}\n}`;
   if (spec.extras.length === 0) return `${base})`;
@@ -380,7 +390,7 @@ export function renderTableBuilders(spec: TableSpec, tableName: string, namespac
       const fkColumn = spec.columns.find((column) => column.referencesParent)!;
       return (
         `    ${namespace}.foreignKey({name: '${extra.name}', ` +
-        `columns: [t.${fkColumn.key}], foreignColumns: [cols(${parentConst}).id]}),`
+        `columns: [t.${fkColumn.key}], foreignColumns: [${parentRefText}]}),`
       );
     }
     const on = (extra.onKeys ?? []).map((key) => `t.${key}`).join(', ');
@@ -397,7 +407,7 @@ function renderColumnSingleCall(column: ColumnSpec, namespace: string, parentCon
     props.push(`${mod.method}: ${mod.args.length > 0 ? `[${mod.args.map(literalValueText).join(', ')}]` : 'true'}`);
   }
   if (column.referencesParent)
-    props.push(`references: [() => cols(${parentConst}).id, ${literalValueText(FUZZ_REFERENCE_ACTIONS)}]`);
+    props.push(`references: [() => tableRef(${parentConst}, 'id'), ${literalValueText(FUZZ_REFERENCE_ACTIONS)}]`);
   const args: string[] = [];
   if (name !== undefined) args.push(literalValueText(name));
   if (props.length > 0) args.push(`{${props.join(', ')}}`);
@@ -406,7 +416,7 @@ function renderColumnSingleCall(column: ColumnSpec, namespace: string, parentCon
 
 /** Render a covered spec with single-call builders; the extras are rendered as renderTableBuilders does. */
 export function renderTableSingleCall(spec: TableSpec, tableName: string, namespace: string, parentConst: string): string {
-  const chained = renderTableBuilders(spec, tableName, namespace, parentConst);
+  const chained = renderTableBuilders(spec, tableName, namespace, parentConst, `tableRef(${parentConst}, 'id')`);
   const columns = spec.columns.map((column) => `  ${column.key}: ${renderColumnSingleCall(column, namespace, parentConst)},`);
   const head = `${namespace}.pgTable('${tableName}', {\n${columns.join('\n')}\n}`;
   return head + chained.slice(chained.indexOf('\n}') + 2);

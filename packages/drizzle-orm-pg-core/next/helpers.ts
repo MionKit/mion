@@ -11,6 +11,7 @@ import {foreignKey as shippedForeignKey, pgEnum as shippedPgEnum, type RtForeign
 import type {PgColIn} from './columns.ts';
 import type {Column, NamedColumn, PropsOf} from '../../drizzle-orm/next/columns.ts';
 import {recordColumn} from '../../drizzle-orm/next/recorder.ts';
+import {refColumn, type AnyTableRef} from '../../drizzle-orm/next/table.ts';
 import {RtColumnRecorder} from '../../drizzle-orm/src/recorder.ts';
 import type {AnyColumn, NoProps} from '../../drizzle-orm/next/columns.ts';
 
@@ -46,12 +47,14 @@ export function pgEnum(enumName: string, values: readonly string[] | Record<stri
   return Object.assign(factory, shipped);
 }
 
-/** foreignKey over the side-by-side columns: `cols(parent).id` carries no shipped column brand. */
+/** foreignKey over the side-by-side columns: another table's column is a tableRef(), this table's a `t.key`. */
 export interface PgForeignKeyConfig {
   name?: string;
   columns: [AnyColumn, ...AnyColumn[]];
-  foreignColumns: [AnyColumn, ...AnyColumn[]];
+  foreignColumns: [AnyColumn | AnyTableRef, ...Array<AnyColumn | AnyTableRef>];
 }
 export function foreignKey(config: PgForeignKeyConfig): RtForeignKeyEntry {
-  return shippedForeignKey(config as never);
+  const isRef = (column: object): boolean => typeof (column as Partial<AnyTableRef>).table === 'string';
+  const foreignColumns = config.foreignColumns.map((column) => (isRef(column) ? refColumn(column) : column));
+  return shippedForeignKey({...config, foreignColumns} as never);
 }

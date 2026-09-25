@@ -13,12 +13,13 @@ import {getRunType, getRunTypeId} from '@mionjs/run-types';
 import type {ReflectedNode} from '../../../drizzle-orm/src/fromType.ts';
 import type {InferInsertModel, InferSelectModel} from '../../../drizzle-orm/src/models.ts';
 import type * as next from '../../../drizzle-orm/next/index.ts';
-import {$type, cols, type SelfRef} from '../../../drizzle-orm/next/index.ts';
+import {$type, tableRef, type TableRef} from '../../../drizzle-orm/next/index.ts';
 import * as cur from '../../src/index.ts';
 import {cols as curCols} from '../../../drizzle-orm/src/table.ts';
 import {toDrizzle as curToDrizzle} from '../../src/drizzle.ts';
 import type {Integer, Jsonb, PgEnumCol, PgTable, Serial, Text, Timestamp, Uuid, Varchar} from '../../next/index.ts';
 import {
+  foreignKey,
   integer,
   jsonb,
   pgEnum,
@@ -104,12 +105,18 @@ const curWide = cur.pgTable('wide', {
 const teams = pgTable('teams', {id: serial({primaryKey: true})});
 const members = pgTable('members', {
   id: serial({primaryKey: true}),
-  teamId: integer('team_id', {references: [() => cols(teams).id, {onDelete: 'cascade'}]}),
+  teamId: integer('team_id', {references: [() => tableRef(teams, 'id'), {onDelete: 'cascade'}]}),
 });
 type Teams = PgTable<'teams', {id: Serial<{primaryKey: true}>}>;
 type Members = PgTable<
   'members',
   {id: Serial<{primaryKey: true}>; teamId: Integer<{references: [{table: 'teams'; column: 'id'}, {onDelete: 'cascade'}]}>},
+  [],
+  {teamId: 'team_id'}
+>;
+type MembersByRef = PgTable<
+  'members',
+  {id: Serial<{primaryKey: true}>; teamId: Integer<{references: [TableRef<Teams, 'id'>, {onDelete: 'cascade'}]}>},
   [],
   {teamId: 'team_id'}
 >;
@@ -121,7 +128,7 @@ const curMembers = cur.pgTable('members', {
 
 const emps = pgTable('emps', {
   id: serial({primaryKey: true}),
-  managerId: integer('manager_id', {references: [(): SelfRef<'emps', 'id'> => cols(emps).id]}),
+  managerId: integer('manager_id', {references: [(): TableRef<'emps', 'id'> => tableRef(emps, 'id')]}),
 });
 type Emps = PgTable<
   'emps',
@@ -145,7 +152,7 @@ describe('next pg columns: same drizzle table on every road', () => {
     expect(project(toDrizzle(tableFromType<Wide>()))).toEqual(project(curToDrizzle(curWide)));
     expect(toDrizzle<Users>()).toBe(toDrizzle(tableFromType<Users>()));
   });
-  it('references resolve through cols() on builders and through options.tables on types', () => {
+  it('references resolve through tableRef() on builders and through options.tables on types', () => {
     expect(project(toDrizzle(members))).toEqual(project(curToDrizzle(curMembers)));
     // Hoisted: a marker call nested in another marker call's arguments gets no id today.
     const teamsType = tableFromType<Teams>();
@@ -156,6 +163,19 @@ describe('next pg columns: same drizzle table on every road', () => {
     expect(project(toDrizzle(emps))).toEqual(project(rawEmps));
     const selfType: object = tableFromType<Emps>({tables: {emps: () => selfType}});
     expect(project(toDrizzle(selfType as Emps))).toEqual(project(rawEmps));
+  });
+  it('foreignKey takes a tableRef() for the other table', () => {
+    const withFk = pgTable('with_fk', {teamId: integer('team_id')}, (t) => [
+      foreignKey({name: 'fk_team', columns: [t.teamId as never], foreignColumns: [tableRef(teams, 'id')]}),
+    ]);
+    const curWithFk = cur.pgTable('with_fk', {teamId: cur.integer('team_id')}, (t) => [
+      cur.foreignKey({name: 'fk_team', columns: [t.teamId], foreignColumns: [curCols(curTeams).id]}),
+    ]);
+    expect(project(toDrizzle(withFk))).toEqual(project(curToDrizzle(curWithFk)));
+  });
+  it('a reference written without tableRef() fails with an actionable error', () => {
+    const loose = pgTable('loose', {teamId: integer({references: [() => ({table: 'teams', column: 'id'})]})});
+    expect(() => dz.getTableConfig(toDrizzle(loose)).foreignKeys[0]!.reference()).toThrowError(/tableRef\(table, column\)/);
   });
   it('a reference to a missing column fails with an actionable error', () => {
     type Typo = PgTable<'typo', {pid: Integer<{references: [{table: 'teams'; column: 'idd'}]}>}>;
@@ -172,6 +192,13 @@ describe('next pg columns: one runtype id for builder and hand-written tables', 
     expect(getRunTypeId<Users>()).toBe(getRunTypeId<typeof users>());
     expect(getRunTypeId<next.InferSelectModel<Users>>()).toBe(getRunTypeId<InferSelectModel<typeof curUsers>>());
     expect(getRunTypeId<next.InferInsertModel<Wide>>()).toBe(getRunTypeId<InferInsertModel<typeof curWide>>());
+  });
+  it('static form: a TableRef reference reflects as its plain {table, column}', () => {
+    expect(getRunTypeId<MembersByRef>()).toBe(getRunTypeId<Members>());
+    expect(getRunTypeId<MembersByRef>()).toBe(getRunTypeId<typeof members>());
+  });
+  it('reflection form: a TableRef reference reflects as its plain {table, column}', () => {
+    expect(getRunTypeId(members)).toBe(getRunTypeId<MembersByRef>());
   });
   it('reflection form: the table and its models share one id', () => {
     expect(getRunTypeId(users)).toBe(getRunTypeId<Users>());

@@ -414,6 +414,10 @@ Hand-written tables are cheaper than the shipped BUILDER road at every width. Ne
 cost more than shipped builders on narrow tables because the models derive flags from
 props where the shipped builders carry four ready booleans.
 
+References are `tableRef(teams, 'id')`, plain `{table, column}` data. Two tables with one
+reference: builders 423 (461 with the earlier `cols(teams).id`), a hand-written
+`TableRef<Teams, 'id'>` 212 against 160 for the bare object, for checking the column key.
+
 ### Why the shipped type road costs what it does, isolated
 
 Twenty plain integer columns on the shipped type road, select model consumed:

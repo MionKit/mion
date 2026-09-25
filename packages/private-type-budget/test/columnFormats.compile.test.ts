@@ -22,7 +22,8 @@ import {refineTableType as cRefine, cols as cCols} from '@mionjs/drizzle-orm';
 import * as n from '../../drizzle-orm-pg-core/next/index.ts';
 import {toDrizzle as nToDrizzle} from '../../drizzle-orm-pg-core/next/drizzle.ts';
 import type {InferSelectModel as NSelect, InferInsertModel as NInsert} from '../../drizzle-orm/next/models.ts';
-import {refineTableType as nRefine, cols as nCols, $type as n$type} from '../../drizzle-orm/next/index.ts';
+import {refineTableType as nRefine, tableRef as nTableRef, $type as n$type} from '../../drizzle-orm/next/index.ts';
+import type {TableRef as NTableRef} from '../../drizzle-orm/next/index.ts';
 import type {PgDatabase, PgQueryResultHKT} from 'drizzle-orm/pg-core';
 declare const db: PgDatabase<PgQueryResultHKT>;
 export {};
@@ -242,7 +243,8 @@ export const ${p}NewUser: ${p}New = {id: 'x' as never, name: 'a', age: 1, role: 
   },
   {
     label: 'two tables, one reference',
-    budget: {newTypes: 160, newBuilders: 461},
+    // 160 -> 212: a REVIEWED EXCEPTION, TableRef checks the column key and takes a name for self-references.
+    budget: {newTypes: 212, newBuilders: 423},
     body: (line, p) => {
       if (line === 'curBuilders')
         return `const ${p}A = c.pgTable('teams', {id: c.serial('id').primaryKey()});
@@ -250,14 +252,14 @@ const ${p}B = c.pgTable('members', {id: c.serial('id').primaryKey(), teamId: c.i
 declare const ${p}row: CSelect<typeof ${p}B>; export const ${p}t: number | null = ${p}row.teamId;`;
       if (line === 'newBuilders')
         return `const ${p}A = n.pgTable('teams', {id: n.serial('id', {primaryKey: true})});
-const ${p}B = n.pgTable('members', {id: n.serial('id', {primaryKey: true}), teamId: n.integer('team_id', {references: [() => nCols(${p}A).id]})});
+const ${p}B = n.pgTable('members', {id: n.serial('id', {primaryKey: true}), teamId: n.integer('team_id', {references: [() => nTableRef(${p}A, 'id')]})});
 declare const ${p}row: NSelect<typeof ${p}B>; export const ${p}t: number | null = ${p}row.teamId;`;
       if (line === 'curTypes')
         return `type ${p}A = c.PgTable<'teams', {id: c.Serial<'id', {primaryKey: true}>}>;
 type ${p}B = c.PgTable<'members', {id: c.Serial<'id', {primaryKey: true}>; teamId: c.Integer<'team_id', {references: [{table: 'teams'; column: 'id'}]}>}>;
 declare const ${p}row: CSelect<${p}B>; export const ${p}t: number | null = ${p}row.teamId;`;
       return `type ${p}A = n.PgTable<'teams', {id: n.Serial<{primaryKey: true}>}>;
-type ${p}B = n.PgTable<'members', {id: n.Serial<{primaryKey: true}>; teamId: n.Integer<{references: [{table: 'teams'; column: 'id'}]}>}, [], {teamId: 'team_id'}>;
+type ${p}B = n.PgTable<'members', {id: n.Serial<{primaryKey: true}>; teamId: n.Integer<{references: [NTableRef<${p}A, 'id'>]}>}, [], {teamId: 'team_id'}>;
 declare const ${p}row: NSelect<${p}B>; export const ${p}t: number | null = ${p}row.teamId;`;
     },
   },

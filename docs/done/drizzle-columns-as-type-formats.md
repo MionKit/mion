@@ -29,11 +29,12 @@ callbacks as their own piece of work. Both are separate specs.
 - **Builders take every setting in one call** (the owner's call, see below), spelled exactly as
   the hand-written props: `varchar('name', {length: 100, notNull: true})`. A builder returns the
   column type itself, or a `NamedColumn` wrapper when called with a db name, which `pgTable`
-  lifts into the names map. References are `[() => cols(t).id, actions]`, callbacks
+  lifts into the names map. References are `[() => tableRef(t, 'id'), actions]`, callbacks
   `[fn]`, a type override `$type<T>()`.
 - Models derive every flag from the raw props when read.
-- References read owner metadata that only the `cols()` view adds; `SelfRef<'t', 'id'>` types a
-  self-reference, which TypeScript cannot infer inside its own initializer (TS7022).
+- A reference is plain data, `{table, column}`. `tableRef(t, 'id')` returns it and checks the key;
+  `TableRef<T, 'id'>` spells it in a type, and `TableRef<'t', 'id'>` annotates a self-reference,
+  which TypeScript cannot infer inside its own initializer (TS7022).
 
 ### How it planned vs how it went
 

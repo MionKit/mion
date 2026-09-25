@@ -83,11 +83,11 @@
       "label": "two tables, one reference",
       "curBuilders": 183,
       "curTypes": 387,
-      "newTypes": 160,
-      "newBuilders": 461,
+      "newTypes": 212,
+      "newBuilders": 423,
       "budget": {
-        "newTypes": 160,
-        "newBuilders": 461
+        "newTypes": 212,
+        "newBuilders": 423
       }
     },
     {

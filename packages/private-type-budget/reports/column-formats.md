@@ -22,6 +22,6 @@ only ever be lowered.
 | 40 plain, db name per column | 565 | 2418 | 480 (480) | 994 (994) |
 | 20 plain, nameless | 325 | 494 | 300 (300) | 532 (532) |
 | wide vocabulary, select | 676 | 1175 | 702 (702) | 1293 (1293) |
-| two tables, one reference | 183 | 387 | 160 (160) | 461 (461) |
+| two tables, one reference | 183 | 387 | 212 (212) | 423 (423) |
 | refineTableType, select | 1341 | 1768 | 1277 (1277) | 1729 (1729) |
 | toDrizzle + select / insert / update query | 8643 | 9461 | 8812 (8812) | 9915 (9915) |

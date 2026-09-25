@@ -25,7 +25,7 @@ interface Column<Fn, Props, Data, Base> {readonly [rtColSpecKey]?: {fn: Fn; conf
 const users = pgTable('users', {
   id: uuid('id', {primaryKey: true, defaultRandom: true}),
   name: varchar('user_name', {length: 100, notNull: true, unique: ['uq_name']}),
-  teamId: integer('team_id', {references: [() => cols(teams).id, {onDelete: 'cascade'}]}),
+  teamId: integer('team_id', {references: [() => tableRef(teams, 'id'), {onDelete: 'cascade'}]}),
   slug: text({$defaultFn: [() => crypto.randomUUID()]}),   // the type records {$defaultFn: true}
   meta: jsonb({$type: $type<{tags: string[]}>()}),          // the type records {$type: [{tags: string[]}]}
 });
@@ -33,7 +33,7 @@ const users = pgTable('users', {
 type Users = PgTable<'users', {
   id: Uuid<{primaryKey: true; defaultRandom: true}>;
   name: Varchar<{length: 100; notNull: true; unique: ['uq_name']}>;
-  teamId: Integer<{references: [{table: 'teams'; column: 'id'}, {onDelete: 'cascade'}]}>;
+  teamId: Integer<{references: [TableRef<Teams, 'id'>, {onDelete: 'cascade'}]}>;  // = {table: 'teams'; column: 'id'}
   slug: Text<{$defaultFn: true}>;
   meta: Jsonb<{$type: [{tags: string[]}]}>;
 }, [], {name: 'user_name'; teamId: 'team_id'}>;
@@ -41,8 +41,9 @@ type Users = PgTable<'users', {
 
 The prop rule is the old modifier rule: a no-argument call is `true`, a call with arguments is
 its argument tuple. Only the keys that hold functions change on the way to the type: a
-`references` thunk records `{table, column}` (read off the `cols()` view's owner metadata), a
-runtime callback records `true`.
+`references` thunk records the `{table, column}` its `tableRef()` returns, a runtime callback
+records `true`. `TableRef<Teams, 'id'>` checks the column key; `TableRef<'emps', 'id'>` takes a
+table name, for a self-reference.
 
 ## What is already known (do not lose this)
 
@@ -97,8 +98,8 @@ runtime callback records `true`.
 
 ### What `next/` already has (pg)
 
-- `drizzle-orm/next/`: `Column`, `NamedColumn`, `PropsOf`, `$type`, `ColumnOwner` / `cols()` /
-  `SelfRef`, lazy flag derivation and the models, `refineTableType` (keeps every column fact,
+- `drizzle-orm/next/`: `Column`, `NamedColumn`, `PropsOf`, `$type`, `tableRef()` /
+  `TableRef`, lazy flag derivation and the models, `refineTableType` (keeps every column fact,
   key flags included), the `tableFromType` reader for the new reflected shape (`fromType.ts`),
   and `recordColumn` (`recorder.ts`), the runtime that splits a props object back into
   drizzle's config argument and the modifier calls, in the props' key order.
@@ -127,8 +128,8 @@ runtime callback records `true`.
    names from the table's `names` member, and `fn: 'enum'` / `'custom'` refused.
 3. **`mion convert`.** builders to type becomes a near rename of the props object (no chain
    walk); type to builders prints one call per column. References print
-   `[() => cols(x).id, actions]`; a self-reference keeps its `(): AnyRtColumn =>` style
-   annotation, now `(): SelfRef<'t', 'id'> =>`.
+   `[() => tableRef(x, 'id'), actions]`, and `TableRef<X, 'id'>` in a type; a self-reference
+   keeps its `(): AnyRtColumn =>` style annotation, now `(): TableRef<'t', 'id'> =>`.
 4. **`mion drizzle-migrate`** (`ts-go-runtypes/internal/drizzlemigrate/`) folds drizzle's
    chains into one call. The chain walker exists: convert's `columnFromChain`
    (`internal/convert/drizzle.go`, about lines 880-1007) already turns a chain into exactly this
@@ -169,7 +170,7 @@ runtime callback records `true`.
 the one-call spelling. `00.drizzle-overview.md` loses the "same names, parameters, modifier
 chains" promise and gains the props rule; "Writing a Table as a Type" shows that a builder
 table is the table type; `03.constraints.md` "Referencing Another Table" shows
-`references: [() => cols(x).id]` and `SelfRef`; `07.migrate-an-existing-schema.md` shows the
+`references: [() => tableRef(x, 'id')]` and `TableRef`; `07.migrate-an-existing-schema.md` shows the
 folded output. Update `packages/private-examples/src/drizzle/`. Run the simplify-docs pass.
 
 ## Out of scope

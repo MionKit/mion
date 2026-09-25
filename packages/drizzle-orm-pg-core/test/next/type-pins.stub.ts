@@ -19,7 +19,7 @@ import type {ColSpecOf, KeyFlagsOf, RefinedTable} from '../../../drizzle-orm/nex
 import type {InferSelectModel as DzInferSelectModel} from 'drizzle-orm';
 import type {ToDrizzleTable} from '../../next/drizzle.ts';
 import type * as next from '../../../drizzle-orm/next/models.ts';
-import {$type, cols, type SelfRef} from '../../../drizzle-orm/next/index.ts';
+import {$type, tableRef, type TableRef} from '../../../drizzle-orm/next/index.ts';
 import * as cur from '../../src/index.ts';
 import type {Integer, Jsonb, PgEnumCol, PgTable, PgView, Serial, Text, Timestamp, Uuid, Varchar} from '../../next/index.ts';
 import {integer, jsonb, pgEnum, pgTable, pgView, serial, text, timestamp, uuid, varchar} from '../../next/index.ts';
@@ -136,7 +136,7 @@ export type WidePins = [
 export const teams = pgTable('teams', {id: serial({primaryKey: true})});
 export const members = pgTable('members', {
   id: serial({primaryKey: true}),
-  teamId: integer('team_id', {references: [() => cols(teams).id, {onDelete: 'cascade'}]}),
+  teamId: integer('team_id', {references: [() => tableRef(teams, 'id'), {onDelete: 'cascade'}]}),
 });
 type Members = PgTable<
   'members',
@@ -146,11 +146,28 @@ type Members = PgTable<
 >;
 export const emps = pgTable('emps', {
   id: serial({primaryKey: true}),
-  managerId: integer({references: [(): SelfRef<'emps', 'id'> => cols(emps).id]}),
+  managerId: integer({references: [(): TableRef<'emps', 'id'> => tableRef(emps, 'id')]}),
 });
 type Emps = PgTable<'emps', {id: Serial<{primaryKey: true}>; managerId: Integer<{references: [{table: 'emps'; column: 'id'}]}>}>;
 
-export type RefPins = [Expect<Equal<typeof members, Members>>, Expect<Equal<typeof emps, Emps>>];
+type MembersByRef = PgTable<
+  'members',
+  {id: Serial<{primaryKey: true}>; teamId: Integer<{references: [TableRef<typeof teams, 'id'>, {onDelete: 'cascade'}]}>},
+  [],
+  {teamId: 'team_id'}
+>;
+type EmpsByRef = PgTable<'emps', {id: Serial<{primaryKey: true}>; managerId: Integer<{references: [TableRef<'emps', 'id'>]}>}>;
+
+export type RefPins = [
+  Expect<Equal<typeof members, Members>>,
+  Expect<Equal<typeof emps, Emps>>,
+  Expect<Equal<MembersByRef, Members>>,
+  Expect<Equal<EmpsByRef, Emps>>,
+];
+// @ts-expect-error TableRef checks the column exists
+export type BadRefColumn = TableRef<typeof teams, 'idd'>;
+// @ts-expect-error tableRef() checks the column exists
+tableRef(teams, 'idd');
 
 // ── views, enums ─────────────────────────────────────────────────────────────
 
@@ -192,5 +209,5 @@ export type DbNamePins = [
 export type BadMod = Varchar<{defaultNow: true}>;
 // @ts-expect-error only int kinds have identity
 varchar({generatedAlwaysAsIdentity: true});
-// @ts-expect-error a references() target must come through cols(), which records its table
+// @ts-expect-error a references() target must be a tableRef(), which records its table
 integer({references: [() => users]});

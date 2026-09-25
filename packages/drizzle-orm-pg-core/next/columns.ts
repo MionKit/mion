@@ -21,7 +21,8 @@ import type {
   UUID,
 } from '@mionjs/run-types/formats';
 import {RtValueRecorder, rtValueKey} from '../../drizzle-orm/src/recorder.ts';
-import type {Column, ColBaseFlag, ColumnOwner, NamedColumn, NoProps, PropsOf} from '../../drizzle-orm/next/columns.ts';
+import type {Column, ColBaseFlag, NamedColumn, NoProps, PropsOf} from '../../drizzle-orm/next/columns.ts';
+import type {AnyTableRef} from '../../drizzle-orm/next/table.ts';
 import {recordColumn} from '../../drizzle-orm/next/recorder.ts';
 import type {
   BigintData,
@@ -71,7 +72,7 @@ export interface PgColIn {
   generatedAlwaysAs?: readonly [unknown];
   array?: true | readonly [number];
   $type?: readonly [unknown];
-  references?: readonly [() => AnyOwner] | readonly [() => AnyOwner, ReferenceActions];
+  references?: readonly [() => AnyTableRef] | readonly [() => AnyTableRef, ReferenceActions];
   $default?: readonly [() => unknown];
   $defaultFn?: readonly [() => unknown];
   $onUpdate?: readonly [() => unknown];
@@ -87,7 +88,6 @@ export interface PgIntIn extends PgColIn {
   generatedAlwaysAsIdentity?: true | readonly [PgIdentityConfig];
   generatedByDefaultAsIdentity?: true | readonly [PgIdentityConfig];
 }
-type AnyOwner = ColumnOwner<string, string>;
 
 /** What a nameless builder returns; a named call wraps it in NamedColumn. */
 type Built<Fn extends string, C, D, B extends ColBaseFlag = never> = Column<Fn, PropsOf<C>, D, B>;

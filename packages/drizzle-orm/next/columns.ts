@@ -14,8 +14,6 @@ export const rtColSpecKey: unique symbol = Symbol('rtColSpec');
 export declare const rtColNameKey: unique symbol;
 /** Type-only key of a named builder result's column. */
 export declare const rtNamedColumnKey: unique symbol;
-/** Sentinel key of the owner metadata the cols() view adds, read only by references(). */
-export const rtColOwnerKey: unique symbol = Symbol('rtColOwner');
 
 /** The intrinsic flag names a builder may declare (serial-likes, sqlite rowid, mysql serial). */
 export type ColBaseFlag = 'notNull' | 'hasDefault' | 'primaryKeyHasDefault' | 'autoincrement';
@@ -54,14 +52,14 @@ type MutableTuple<A> = {
 
 // ── A builder's props object ─────────────────────────────────────────────────
 // A no-argument modifier is `true`, one with arguments its tuple, so builder props ARE the recorded props.
-// Only function keys change, since no type spells a function: references() records {table, column}, a callback `true`.
+// Only function keys change, since no type spells a function: references() records its TableRef, a callback `true`.
 
 /** The props keys that carry functions at run time. */
 export type RuntimeModKeys = 'references' | '$default' | '$defaultFn' | '$onUpdate' | '$onUpdateFn';
 type RefArgs<Args> = Args extends readonly [() => infer Target, infer Actions]
-  ? [RefOf<Target>, {-readonly [K in keyof Actions]: Actions[K]}]
+  ? [Target, {-readonly [K in keyof Actions]: Actions[K]}]
   : Args extends readonly [() => infer Target]
-    ? [RefOf<Target>]
+    ? [Target]
     : never;
 /** The props a column type records for the props a builder was called with. */
 export type PropsOf<C> = [keyof C & RuntimeModKeys] extends [never]
@@ -80,17 +78,6 @@ export type PropsOf<C> = [keyof C & RuntimeModKeys] extends [never]
 export function $type<T>(): [T] {
   return [] as unknown as [T];
 }
-
-// ── Owner metadata, only on the cols() view ──────────────────────────────────
-
-/** What cols(table) adds to each column, so `references(() => cols(teams).id)` records {table, column}. */
-export interface ColumnOwner<Table extends string, Key extends string> {
-  readonly [rtColOwnerKey]?: {table: Table; column: Key};
-}
-/** Return annotation for a self-reference, which TypeScript cannot infer inside its own initializer (TS7022). */
-export type SelfRef<Table extends string, Key extends string> = ColumnOwner<Table, Key>;
-/** The ColRef a references() target records. */
-export type RefOf<Target> = Target extends {readonly [rtColOwnerKey]?: infer Owner} ? NonNullable<Owner> : never;
 
 // ── Lazy flag derivation, read only by the models and ToDrizzleTable ─────────
 // Key tests intersect key unions: an Extract over keyof Props is a distributive conditional paid once per key.
