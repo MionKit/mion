@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Protocol types of mion's own shared middlewares, off the main barrel: `@mionjs/core/middlewares`.
+// Kept off the main barrel, published on `@mionjs/core/middlewares`.
 
 import type {FatalError} from '../errors.ts';
 import type {SerializableMethodsData} from './method.types.ts';
@@ -16,7 +16,7 @@ export type RouteSyncError = FatalError<'route-types-mismatch' | 'route-sync-req
 export interface RouteSyncErrorData {
   /** 'route-types-mismatch': the routes whose ids differ */
   routeIds?: string[];
-  /** 'route-sync-required': the rows of the called routes and their chains, so the client can compute the ids */
+  /** 'route-sync-required': rows of the called routes and their chains, for the client to compute the ids */
   metadata?: SerializableMethodsData;
 }
 
