@@ -1155,8 +1155,7 @@ describe('client published surface', () => {
   });
 
   it('no client source module is a test helper', () => {
-    // testUtils.ts lived under src/lib/: not *.spec.ts, so the build included it and the tarball
-    // carried a cache reset nothing else calls.
+    // The build excludes only *.spec.ts, so a test helper under src/ ships in the tarball (testUtils.ts once did).
     const strays = globSync('src/**/*{testUtils,testHelpers,mocks}*.ts', {cwd: join(REPO_ROOT, 'packages/rpc-client')});
     expect(strays).toEqual([]);
   });

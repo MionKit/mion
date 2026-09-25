@@ -109,14 +109,7 @@ function dirOfPackage(name) {
   return found.dir;
 }
 
-// The framework packages' version, read from the packages themselves rather than
-// version.json: they ride the same lockstep (bump-version.mjs stamps every
-// package.json), so the two agree, and reading the packages is what turns a
-// missed stamp into a loud failure here. Every public @mionjs/* must agree — a
-// split would make the install pins below resolve a version the registry never
-// served, which is a confusing 404 rather than an obvious mistake.
-// Per-package versions for the drizzle dialect packages (they may diverge by
-// patch, so no lockstep requirement — each installs at its own version).
+// Drizzle dialect packages may diverge by patch, so each installs at its own version.
 function readDrizzleVersions() {
   const versions = new Map();
   for (const name of DRIZZLE_CONSUMER_PACKAGES) {
@@ -128,6 +121,7 @@ function readDrizzleVersions() {
   return versions;
 }
 
+// Read from each package.json, not version.json, so a missed stamp fails here; a split would 404 the install pins.
 function readMionVersion() {
   const versions = new Map();
   for (const name of MION_CONSUMER_PACKAGES) {

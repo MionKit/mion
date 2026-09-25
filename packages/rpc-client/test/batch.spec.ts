@@ -359,8 +359,7 @@ describe('inputFrom e2e in batch', () => {
     expect(prefs).toEqual({id: 107, userId: 7, theme: 'light', lang: 'en'});
   });
 
-  // The build registers every inline mapper, so the unknown-mapper rejection cannot be written here.
-  // It is tested against the router in packages/rpc-router/test/batches.spec.ts.
+  // Unknown-mapper rejection lives in packages/rpc-router/test/batches.spec.ts: the build registers every inline mapper.
 });
 
 // ############# END-TO-END: every route shape the build reads #############

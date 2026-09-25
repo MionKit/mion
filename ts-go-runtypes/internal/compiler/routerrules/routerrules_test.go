@@ -12,13 +12,8 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 )
 
-// routerDts is the ambient stand-in for the `@mionjs/router` surface the rules
-// read. The SHAPE is what matters: three helper interfaces whose first argument
-// is the handler, and the two handler type aliases. It mirrors the real
-// packages/rpc-router/src/types/mionRouter.ts without the marker parameters, which
-// play no part in these rules. The package's OWN helper bodies are consts typed
-// by the same interfaces, which is why they need no separate entry in the
-// helperInterfaces table.
+// routerDts mirrors packages/rpc-router/src/types/mionRouter.ts minus the marker parameters, which these rules ignore.
+// The package's own helpers are consts typed by these interfaces, so helperInterfaces needs no entry for them.
 const routerDts = `declare module '@mionjs/router' {
   export interface CallContext { path: string }
   export interface HeadersSubset<K extends string> { headers: Record<K, string> }

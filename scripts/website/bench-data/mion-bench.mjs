@@ -40,8 +40,7 @@ const MION_BIN_PATH = '/mion-bench/apps/mion/bin/mion';
 
 const SWEEP_SIZES = SWEEP_SIZE_DEFS.map((size) => size.key);
 
-// The workspace packages a mion lane needs mounted into its node_modules. The mion
-// app declares NO runtime dependency: every one of these is the live workspace source.
+// Mounted into a mion lane's node_modules: the app declares no runtime dependency, so these are the live source.
 const MION_PACKAGES = [
   ['packages/core', '@mionjs/core'],
   ['packages/rpc-router', '@mionjs/router'],

@@ -17,9 +17,8 @@ const OUT_DIR = join(REPO_ROOT, 'container/website/app/data');
 const OUT_FILE = join(OUT_DIR, 'client-size.json');
 const CLIENT_ENTRY = join(REPO_ROOT, 'packages/rpc-client/.dist/esm/index.js');
 
-// Browser + esm so the exports maps resolve as a web app resolves them; splitting so the on-demand
-// metadata lane lands in its own chunk. tsconfigRaw is load-bearing: esbuild honours the root
-// tsconfig `paths`, which would silently measure the SOURCE tree instead of the published dist.
+// Browser + esm resolve exports as a web app does; splitting puts the on-demand metadata in its own chunk.
+// tsconfigRaw stops esbuild honouring the root tsconfig `paths`, which would measure the source, not the dist.
 function measureClient() {
   if (!existsSync(CLIENT_ENTRY)) throw new Error(`${CLIENT_ENTRY} is missing - build the dists first (pnpm run build)`);
   const built = buildSync({
