@@ -376,8 +376,8 @@ above are the honest measurement, because both sides are real code.
 
 ## Side by side: columns as type formats (the `next/` folders)
 
-A second column system lives beside the shipped one, in `packages/drizzle-orm/next/` and
-`packages/drizzle-orm-pg-core/next/`. Nothing ships from those folders. Its shape:
+A second column system lives beside the shipped one, in `packages/drizzle-orm/next/` and each
+dialect's `next/` (pg, mysql, sqlite). Nothing ships from those folders. Its shape:
 
 - A column type is `Column<Fn, Props, Data, Base>`: one optional spec sentinel holding the
   builder fn, the raw props (config keys and modifier calls in one object), the data and the
@@ -414,9 +414,49 @@ Hand-written tables are cheaper than the shipped BUILDER road at every width. Ne
 cost more than shipped builders on narrow tables because the models derive flags from
 props where the shipped builders carry four ready booleans.
 
+Since the stray-key check below, five mixed columns cost 683 hand-written and 1160 as builders;
+plain named columns did not move.
+
 References are `tableRef(teams, 'id')`, plain `{table, column}` data. Two tables with one
 reference: builders 423 (461 with the earlier `cols(teams).id`), a hand-written
 `TableRef<Teams, 'id'>` 212 against 160 for the bare object, for checking the column key.
+
+### Stray modifier keys
+
+A `const` type parameter gets no excess-property check, and a weak type only rejects an object
+sharing no key with it. So `varchar({length: 10, autoincrement: true})` and
+`Varchar<{length: 10; autoincrement: true}>` compiled, and the stray flag changed the models.
+Every builder and column type now constrains its props with `Only<P, Allowed>`, a homomorphic
+mapped type that turns each key outside `Allowed` into `never`. Budgets rose as a reviewed
+exception. Measured on pg, five mixed / 10 plain named, builders in the last column:
+
+| Variant                                                                       |     types |    builders | Verdict                                                                                      |
+| ----------------------------------------------------------------------------- | --------: | ----------: | -------------------------------------------------------------------------------------------- |
+| No check                                                                      |       539 |   971 / 364 | the stray key compiled                                                                       |
+| `Allowed & {[K in Exclude<keyof P, keyof Allowed>]: never}` on the constraint |       725 |  1242 / 703 | rejected: a name string is tried against the props overload first and `keyof string` is wide |
+| Homomorphic `Only` on the constraint                                          |       683 |  1160 / 819 | same trap on plain names                                                                     |
+| `props: C & Stray<C, Allowed>` on the argument, constraint unchanged          |       683 |  1427 / 466 | rejected: double the per-column cost                                                         |
+| Homomorphic `Only`, name overloads listed first                               |       683 |  1160 / 363 | kept                                                                                         |
+| Key remapping `as` / `Partial<Record<...>>` instead of homomorphic            | 743 / 694 | 1235 / 1206 | rejected                                                                                     |
+
+Overload order is part of the cost: a plain name must never reach the props overload.
+
+### mysql and sqlite
+
+Measured with the same four lines, three shapes each (the report has all rows):
+
+- **mysql**: five mixed 608 shipped builders, 971 shipped types, 712 new types, 1184 new builders;
+  `toDrizzle` plus select, `insert().$returningId()` and update 8324 / 9029 / 8583 / 9786. The
+  only real difference from pg: `toDrizzle` reads the primary-key, autoincrement and
+  runtime-default flags from the props (`KeyFlagsOf`), because `$returningId()` returns exactly
+  those keys. pg and sqlite keep them `false`.
+- **sqlite**: five mixed 517 / 1002 / 658 / 1058; `toDrizzle` plus three queries
+  7471 / 7874 / 7672 / 8695. `integer` and `int` carry the `primaryKeyHasDefault` base flag
+  (the rowid), and `primaryKey: [{autoIncrement: true}]` sets the default on any column.
+
+Both dialects follow pg's pattern: hand-written tables beat the shipped types everywhere, and
+new builders cost more than shipped builders on narrow tables, since models derive flags from
+props.
 
 ### Why the shipped type road costs what it does, isolated
 
