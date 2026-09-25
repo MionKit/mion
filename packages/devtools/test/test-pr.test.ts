@@ -189,7 +189,8 @@ describe('the real workspace', () => {
 
   it('a run-types change reaches the mion packages', () => {
     const affected = affectedClosure(['run-types'], packages) as Map<string, string | null>;
-    for (const dir of ['core', 'router', 'client', 'devtools', 'drizzle-orm-pg-core']) expect(affected.has(dir), dir).toBe(true);
+    for (const dir of ['core', 'rpc-router', 'rpc-client', 'devtools', 'drizzle-orm-pg-core'])
+      expect(affected.has(dir), dir).toBe(true);
   });
 
   it('`core test-pr --list` prints the plan and exits 0', () => {
