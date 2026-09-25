@@ -75,7 +75,7 @@ export interface RtMarkerPayload {
   /** Id of a build-time `true`/`false` literal: whether the handler answers with a promise.
    *  `returnId` is the AWAITED type, so it cannot answer this. */
   isAsyncId?: string;
-  /** Id of the handler's `[params, return]` pair, compared by client and server under `syncRoutes`. */
+  /** Id of the handler's `[params, return]` pair, compared by client and server by the route sync middleware. */
   syncId?: string;
   /** headers middlewares only: fns + id for the handler's HeadersSubset param */
   headersFns?: unknown;

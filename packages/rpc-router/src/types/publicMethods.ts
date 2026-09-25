@@ -5,7 +5,6 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {ROUTER_OPTIONS} from '@mionjs/core';
 import type {Prettify, RpcError, MethodMetadata, RemoteMethodOpts} from '@mionjs/core';
 import type {ResolvedMiddlewareOptions, ResolvedRouteOptions} from './resolvedOptions.ts';
 import type {ParamsStrategy, ReturnStrategy, WireFormat} from './parser.ts';
@@ -59,9 +58,6 @@ export type PublicApi<Type extends Routes> = Prettify<{
         ? PublicApi<Type[Property]>
         : never;
 }>;
-
-/** Carries the router options under a symbol key so a client build reads them off this one type; type-only. */
-export type ApiWithOptions<Type extends Routes, O> = PublicApi<Type> & {readonly [ROUTER_OPTIONS]?: O};
 
 // type-remote-api-start
 /** Same as PublicApi but with no type mapping, for when strong types are not required. */

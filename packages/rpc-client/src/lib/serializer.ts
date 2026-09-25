@@ -39,8 +39,8 @@ function serializeJsonBody(context: CallContext): string {
     const subRequest = context.subRequestList[id];
     if (!subRequest) continue;
     let params = subRequest.params;
-    // mion's own middlewares take plain JSON (they parse params as a clone), and a client compiles none for them.
-    if (id === MION_ROUTES.methodsMetadata || id === MION_ROUTES.syncRoutes) {
+    // mion's own middleware takes plain JSON (it parses params as a clone), and a client compiles none for it.
+    if (id === MION_ROUTES.methodsMetadata) {
       props.push(`${JSON.stringify(id)}:${JSON.stringify(params)}`);
       continue;
     }
@@ -148,9 +148,6 @@ async function deserializeJsonResponseBody(response: Response, options: ClientOp
       cache.extractAndProcessMetadata(MION_ROUTES.methodsMetadata, parsedBody, options);
       cache.extractAndProcessMetadata(MION_ROUTES.methodsMetadataById, parsedBody, options);
     }
-    // raw like the asked rows: a client compiles nothing for mion's own middleware
-    const syncAnswer = parsedBody[MION_ROUTES.syncRoutes];
-    if (syncAnswer !== undefined) delete parsedBody[MION_ROUTES.syncRoutes];
     // kept out of the body, so the wire's returned-vs-thrown split survives
     const {platformError, thrownErrors} = extractThrownErrors(parsedBody);
     if (platformError) return {[MION_ROUTES.platformError]: platformError};
@@ -161,7 +158,6 @@ async function deserializeJsonResponseBody(response: Response, options: ClientOp
     });
     if (thrownErrors) deserializedBody[MION_ROUTES.thrownErrors] = thrownErrors as any;
     if (askedRows !== undefined) deserializedBody[MION_ROUTES.methodsMetadata] = askedRows as any;
-    if (syncAnswer !== undefined) deserializedBody[MION_ROUTES.syncRoutes] = syncAnswer as any;
     return deserializedBody;
   } catch (err: any) {
     throw new RpcError({

@@ -41,6 +41,9 @@ const {middlewares} = initClient<any>({baseURL: 'http://localhost:3000'});
 export const app = {installers, middlewares};
 `;
 
+/** Names only the route sync installer puts in an artifact. */
+const SYNC_MARKERS = ['useSyncRoutes', 'routeSyncIds', 'route-sync-required', 'route-types-mismatch'];
+
 /** Names only the router puts in an artifact. */
 const ROUTER_MARKERS = ['createMionRouter has already been called', 'mion router initialized'];
 
@@ -172,8 +175,27 @@ describe('the @mionjs/client/middlewares entry', () => {
     for (const marker of ROUTER_MARKERS) expect(code, marker).not.toContain(marker);
   }, 240_000);
 
+  it('ships the route sync installer', async () => {
+    const code = (await buildChunks(undefined, 'middlewares-app.ts')).map((chunk) => chunk.code ?? '').join('\n');
+    for (const marker of SYNC_MARKERS) expect(code, marker).toContain(marker);
+  }, 240_000);
+
   it('the router markers are real: they are in the router source', () => {
     const routerSource = readFileSync(path.join(packageRoot, '../rpc-router/src/router.ts'), 'utf8');
     for (const marker of ROUTER_MARKERS) expect(routerSource, marker).toContain(marker);
+  });
+});
+
+describe('route sync', () => {
+  it('a client that never installs it ships none of it, in every mode', async () => {
+    for (const mode of [undefined, 'bundled', 'mixed'] as const) {
+      const code = await buildApp(mode);
+      for (const marker of SYNC_MARKERS) expect(code, `${mode}: ${marker}`).not.toContain(marker);
+    }
+  }, 360_000);
+
+  it('the sync markers are real: they are in the installer source', () => {
+    const source = readFileSync(path.join(packageRoot, 'src/middlewares/syncRoutes.ts'), 'utf8');
+    for (const marker of SYNC_MARKERS) expect(source, marker).toContain(marker);
   });
 });

@@ -1,7 +1,11 @@
 import {initClient} from '@mionjs/client';
+import {useSyncRoutes} from '@mionjs/client/middlewares';
 import type {MyApi} from './sync-routes.routes.ts';
 
-const {routes} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
+const {routes, middlewares} = initClient<MyApi>({
+  baseURL: 'http://localhost:3000',
+});
+useSyncRoutes(middlewares.syncRoutes);
 
 const [greeting, , undeclared] = await routes.sayHello('Ana').call();
 

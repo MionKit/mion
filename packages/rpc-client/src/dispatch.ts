@@ -22,11 +22,9 @@ import type {RunTypeError, SerializableMethodsData} from '@mionjs/core';
 import {RpcError, isRpcError, MION_ROUTES, toBase64Url, BUILD_VERSION_HEADER, ROUTER_ITEM_SEPARATOR_CHAR} from '@mionjs/core';
 import {addSubRequest, createCallContext, getRouteIds, getRoutePointers} from './callContext.ts';
 import {hasApiVersionMismatch, noteServerApiVersion, takeApiVersionError} from './lib/apiBuildVersion.ts';
-import {getMethod, hasMethod, isBundledMethod} from './lib/methods.ts';
+import {getMethod, hasMethod} from './lib/methods.ts';
 import {loadMetadataFromServer, metadataCacheHooks} from './lib/metadataFromServerLoader.ts';
 import {validateSubRequests} from './lib/validation.ts';
-import {createSyncSubRequest, learnSyncRoutes, sendsSyncIds, syncRefusalOf} from './lib/syncRoutes.ts';
-import type {RouteSyncRefusal} from './lib/syncRoutes.ts';
 import {sanitizeSubRequests} from './lib/sanitize.ts';
 import {serializeRequestBody, deserializeResponseBody} from './lib/serializer.ts';
 import {MAX_GET_URL_LENGTH, CLIENT_REQUEST_ERROR_ID} from './constants.ts';
@@ -43,8 +41,6 @@ interface DispatchState {
   retriedAfterMismatch: boolean;
   /** ids this call asked the server to confirm after a build-version mismatch */
   verifying: string[] | undefined;
-  /** one resend after a `route-sync-required` refusal */
-  resentWithSyncIds: boolean;
   /** middlewares whose onRequest already ran, so a retry never asks twice */
   readonly askedRequestHandlers: Set<string>;
   /** the current attempt reached fetch, so the server may have run its routes */
@@ -63,7 +59,6 @@ export async function dispatchCall(
     purgedStaleMetadata: false,
     retriedAfterMismatch: false,
     verifying: undefined,
-    resentWithSyncIds: false,
     askedRequestHandlers: new Set<string>(),
     sent: false,
   };
@@ -183,8 +178,6 @@ async function makeCall(state: DispatchState, skipOptimistic?: boolean): Promise
       sanitizeSubRequests(allIds, context);
       validateSubRequests(allIds, context, errors);
       if (errors.size) return Promise.reject(errors);
-      // an optimistic call has no rows to compute ids from: the server refuses it and sends them
-      if (sendsSyncIds(options.baseURL)) addSubRequest(context, createSyncSubRequest(getRouteIds(context)));
     }
   } catch (error: any) {
     onError(context, error, 'Error preparing request', errors);
@@ -232,8 +225,6 @@ async function makeCall(state: DispatchState, skipOptimistic?: boolean): Promise
     }
     const deserialized = await deserializeResponseBody(response, options, !!state.verifying);
     if (handlePlatformError(context, deserialized, errors)) return Promise.reject(errors);
-    const syncRefusal = takeSyncRefusal(context, deserialized);
-    if (syncRefusal) return handleSyncRefusal(state, syncRefusal, errors);
 
     const callFailed = shouldRetryWithProperSerialization(deserialized);
     // On a version mismatch, fetched rows are refreshed and bundled ones only reported.
@@ -283,43 +274,9 @@ function shouldRetryWithProperSerialization(deserialized: ResponseBody): boolean
   return Object.values(deserialized).some(isRetryError) || Object.values(thrownErrors).some(isRetryError);
 }
 
-/** The sync slot is answered only on a refusal, never as a middleware result. */
-function takeSyncRefusal(context: ClientCallContext, deserialized: ResponseBody): RouteSyncRefusal | undefined {
-  const answer = deserialized[MION_ROUTES.syncRoutes];
-  delete deserialized[MION_ROUTES.syncRoutes];
-  delete context.subRequestList[MION_ROUTES.syncRoutes];
-  return syncRefusalOf(answer);
-}
-
-/** No handler ran, so resending is safe; different ids are final when any refused row is bundled. */
-async function handleSyncRefusal(state: DispatchState, refusal: RouteSyncRefusal, errors: RequestErrors): Promise<ResponseBody> {
-  const {context} = state;
-  if (!context.signal?.aborted) {
-    // A fetched row is a cache of the server's and can be relearned; a bundled one needs a new build.
-    const refusedIds = refusal.errorData?.routeIds ?? getRouteIds(context);
-    const refetchable = refusal.type === 'route-types-mismatch' && !refusedIds.some((id) => isBundledMethod(id));
-    if (refetchable && !state.purgedStaleMetadata) {
-      state.purgedStaleMetadata = true;
-      await (await loadMetadataFromServer()).forgetFetchedMetadata(refusedIds, context.options);
-      return retryWithProperSerialization(state);
-    }
-    if (refusal.type === 'route-sync-required' && !state.resentWithSyncIds) {
-      state.resentWithSyncIds = true;
-      learnSyncRoutes(context.options.baseURL);
-      const rows = refusal.errorData?.metadata;
-      if (rows?.methods) (await loadMetadataFromServer()).installMethodRows(rows, context.options, Object.keys(rows.methods));
-      return retryWithProperSerialization(state);
-    }
-  }
-  Object.values(context.subRequestList).forEach((subRequest) => (subRequest.isResolved = true));
-  setUndeclaredError(context, MION_ROUTES.syncRoutes, refusal, errors);
-  return Promise.reject(errors);
-}
-
 async function retryWithProperSerialization(state: DispatchState): Promise<ResponseBody> {
   const {context} = state;
   delete context.subRequestList[MION_ROUTES.methodsMetadata];
-  delete context.subRequestList[MION_ROUTES.syncRoutes];
   // each attempt asks again: a stale flag would set the next answer's rows aside instead of caching them
   state.verifying = undefined;
   context.thrownErrorIds.clear();

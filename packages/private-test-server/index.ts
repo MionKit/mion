@@ -14,4 +14,3 @@
 // Re-export routes and types from test-server (safe to import)
 export * from './src/test-server.ts';
 export * from './src/csrf.middleware.ts';
-export * from './src/echoTag.middleware.ts';

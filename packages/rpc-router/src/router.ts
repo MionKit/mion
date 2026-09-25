@@ -14,7 +14,7 @@ import type {
   MiddlewareMethod,
   RouteMethod,
 } from './types/remoteMethods.ts';
-import type {ApiWithOptions, PublicApi, PrivateDef, MiddlewaresCollection} from './types/publicMethods.ts';
+import type {PublicApi, PrivateDef, MiddlewaresCollection} from './types/publicMethods.ts';
 import type {InjectBuildVersion} from '@mionjs/run-types';
 import type {HeadersMiddlewareDef, MiddlewareDef, RawMiddlewareDef} from './types/definitions.ts';
 import {DEFAULT_ROUTE_OPTIONS, MAX_ROUTE_NESTING} from './constants.ts';
@@ -28,7 +28,15 @@ import {
   isAnyMiddlewareDef,
   isPublicExecutable,
 } from './types/guards.ts';
-import {HandlerType, isTestEnv, resetRoutesCache, getOrCreateGlobal, resolveParser, DEFAULT_MAX_BODY_SIZE} from '@mionjs/core';
+import {
+  BUILD_VERSION_HEADER,
+  HandlerType,
+  isTestEnv,
+  resetRoutesCache,
+  getOrCreateGlobal,
+  resolveParser,
+  DEFAULT_MAX_BODY_SIZE,
+} from '@mionjs/core';
 import {getRawMethodReflection, getHandlerReflection, assertCompiledParser} from './lib/reflection.ts';
 import {resolveChainMaxBodySize} from './lib/bodyLimit.ts';
 import {callerForType} from './dispatch.ts';
@@ -50,7 +58,6 @@ import {
   mionInternalRouteIds,
   useOnDemandMetadataCaller,
 } from './routes/client.routes.ts';
-import {mionSyncMiddlewares, setServerBuildVersion} from './routes/syncRoutes.routes.ts';
 import {mionErrorsRoutes, notFoundMiddleware, batchNotFoundMiddleware} from './routes/errors.routes.ts';
 import {capBatchBodySizes, clearBatches, getMaxBatchBodySize, refreshBatchChainBodyLimits} from './batches.ts';
 import {headersFn, middleware, mutation, query, rawMiddleware, route} from './lib/handlers.ts';
@@ -219,12 +226,12 @@ export function createMionRouter<const O extends RouterOptionsInput = RouterOpti
     middleware: middleware as MiddlewareHelper<O>,
     headersFn: headersFn as HeadersFnHelper<O>,
     rawMiddleware: rawMiddleware as RawMiddlewareHelper<O>,
-    initRoutes<R extends Routes>(routes: R, buildVersion?: InjectBuildVersion<PublicApi<R>>): ApiWithOptions<R, O> {
+    initRoutes<R extends Routes>(routes: R, buildVersion?: InjectBuildVersion<PublicApi<R>>): PublicApi<R> {
       initRouter(options, buildVersion);
       const api = registerRoutes(routes);
       if (platformConfig) applyMaxBodySizeCap();
       refreshChainBodyLimits();
-      return api as ApiWithOptions<R, O>;
+      return api;
     },
   };
 }
@@ -233,9 +240,8 @@ export function createMionRouter<const O extends RouterOptionsInput = RouterOpti
 function initRouter(opts: RouterOptionsInput, buildVersion?: string): void {
   if (isRouterInitialized) throw new Error('Router has already been initialized');
   routerOptions = {...routerOptions, ...opts};
-  globalResponseHeaders = Object.freeze({...routerOptions.globalResponseHeaders});
-  setServerBuildVersion(buildVersion);
-  if (routerOptions.syncRoutes || (routerOptions.apiVersionCheck && buildVersion)) addSyncRoutesMiddleware();
+  const versionHeader = routerOptions.apiVersionCheck && buildVersion ? {[BUILD_VERSION_HEADER]: buildVersion} : undefined;
+  globalResponseHeaders = Object.freeze({...versionHeader, ...routerOptions.globalResponseHeaders});
   mergedResponseHeaders = new WeakMap();
   validateSharedDataFactory(routerOptions);
   Object.freeze(routerOptions);
@@ -264,14 +270,6 @@ function registerRoutes<R extends Routes>(routes: R): PublicApi<R> {
     return getPublicApi(routes);
   }
   return {} as PublicApi<R>;
-}
-
-/** Right after the request is parsed, so a refused call runs no user middleware that comes after it. */
-function addSyncRoutesMiddleware(): void {
-  const entries = Object.entries(startMiddlewaresDef);
-  const at = entries.findIndex(([key]) => key === 'mionDeserializeRequest') + 1;
-  entries.splice(at, 0, ...Object.entries(mionSyncMiddlewares));
-  startMiddlewaresDef = Object.fromEntries(entries);
 }
 
 /** Adds middlewares at the start of the ExecutionChain, before the existing start middlewares by default */
@@ -356,6 +354,9 @@ function recursiveFlatRoutes(
       throw new Error(`Invalid route: ${joinPath(...newPointer)}. '${MION_BATCH_KEY}' is a reserved mion route name.`);
 
     if (isAnyMiddlewareDef(item)) {
+      // a start or end middleware already owns this id, and would otherwise be silently reused in its place
+      if (nestLevel === 0 && (key in startMiddlewaresDef || key in endMiddlewaresDef))
+        throw new Error(`Invalid middleware: ${joinPath(...newPointer)}. '${key}' is a reserved mion middleware name.`);
       routeEntry = getExecutableFromAnyMiddleware(item, newPointer, nestLevel);
       if (middlewareNames.has(routeEntry.id))
         throw new Error(

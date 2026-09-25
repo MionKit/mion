@@ -68,8 +68,4 @@ export interface RouterOptions<Req = any, ContextData extends Record<string, any
    *  the client's check off.
    *  @default true */
   apiVersionCheck: boolean;
-  /** Refuse, before any handler runs, a call whose route sync ids (its chain's type ids) are missing or differ.
-   *  A BUILD-TIME literal: the client build reads it.
-   *  @default false */
-  syncRoutes: boolean;
 }

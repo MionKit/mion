@@ -181,13 +181,9 @@ func hasDiagCode(diags []diagnostics.Diagnostic, code string) bool {
 	return false
 }
 
-// The router options ride the API type `initRoutes` returns under a unique symbol, as @mionjs/core declares it.
-const optionsRouterDTS = `declare module '@mionjs/core' {
-  export declare const ROUTER_OPTIONS: unique symbol;
-}
-declare module '@mionjs/router' {
+// A router and client pair shaped like mion's, enough for the build to inject and compare versions.
+const optionsRouterDTS = `declare module '@mionjs/router' {
   import type {InjectBuildVersion} from '@mionjs/run-types';
-  import type {ROUTER_OPTIONS} from '@mionjs/core';
   type Handler = (...args: any[]) => any;
   type Opts = {alwaysRun: false; validateParams: true; validateReturn: false; description: undefined; parser: {params: 'clone'; return: 'clone'}; isMutation: undefined; sanitizeParams: undefined};
   export type PublicApi<R> = {
@@ -195,14 +191,14 @@ declare module '@mionjs/router' {
       ? {type: T; handler: H; options: Opts; types?: {params: Parameters<H>; return: Awaited<ReturnType<H>>; headers: never; isAsync: false}}
       : PublicApi<R[K]>;
   };
-  export interface MionRouter<O> { initRoutes<R>(routes: R, buildVersion?: InjectBuildVersion<PublicApi<R>>): PublicApi<R> & {readonly [ROUTER_OPTIONS]?: O} }
+  export interface MionRouter<O> { initRoutes<R>(routes: R, buildVersion?: InjectBuildVersion<PublicApi<R>>): PublicApi<R> }
   export function createMionRouter<const O>(opts?: O): MionRouter<O>;
 }
 `
 
 const optionsClientDTS = `declare module '@mionjs/client' {
-  import type {InjectBuildVersion, InjectRouterOptions} from '@mionjs/run-types';
-  export function initClient<RA>(o?: unknown, buildVersion?: InjectBuildVersion<RA>, routerOptions?: InjectRouterOptions<RA>): {routes: RA};
+  import type {InjectBuildVersion} from '@mionjs/run-types';
+  export function initClient<RA>(o?: unknown, buildVersion?: InjectBuildVersion<RA>): {routes: RA};
 }
 `
 
@@ -215,52 +211,6 @@ const optionsClientTS = `import {initClient} from '@mionjs/client';
 import type {api} from './routes.ts';
 export const {routes} = initClient<typeof api>({baseURL: 'http://x'});
 `
-
-func transformedCode(t *testing.T, session *resolver.Session, file string) string {
-	t.Helper()
-	response := session.Dispatch(protocol.Request{Op: protocol.OpTransform, Files: []string{file}})
-	if response.Error != "" {
-		t.Fatalf("transform %s: %s", file, response.Error)
-	}
-	return response.Transformed[file].Code
-}
-
-// TestApiVersion_ClientGetsTheRouterOptionsItActsOn: the API walk skips the options key, so the version stays the server's.
-func TestApiVersion_ClientGetsTheRouterOptionsItActsOn(t *testing.T) {
-	sources := map[string]string{
-		"router.d.ts": optionsRouterDTS,
-		"client.d.ts": optionsClientDTS,
-		"routes.ts":   optionsRoutesTS("{syncRoutes: true, basePath: 'api'}"),
-		"client.ts":   optionsClientTS,
-	}
-	session := setupApi(t, sources, t.TempDir(), "", "")
-	serverVersion := transformedVersion(t, session, "routes.ts")
-	if serverVersion == "" {
-		t.Fatal("the server's initRoutes call got no version")
-	}
-	code := transformedCode(t, session, "client.ts")
-	want := "initClient<typeof api>({baseURL: 'http://x'}, '" + serverVersion + `', {"syncRoutes":true})`
-	if !strings.Contains(code, want) {
-		t.Fatalf("expected %s in:\n%s", want, code)
-	}
-}
-
-// TestApiVersion_NoRouterOptionsWithoutALiteral: a bare PublicApi or a non-literal `syncRoutes` injects the version alone.
-func TestApiVersion_NoRouterOptionsWithoutALiteral(t *testing.T) {
-	for _, routerOptions := range []string{"", "{syncRoutes: Math.random() > 1}"} {
-		sources := map[string]string{
-			"router.d.ts": optionsRouterDTS,
-			"client.d.ts": optionsClientDTS,
-			"routes.ts":   optionsRoutesTS(routerOptions),
-			"client.ts":   optionsClientTS,
-		}
-		session := setupApi(t, sources, t.TempDir(), "", "")
-		code := transformedCode(t, session, "client.ts")
-		if strings.Contains(code, "syncRoutes") || !injectedVersion.MatchString(code) {
-			t.Fatalf("options %q: expected the version alone in:\n%s", routerOptions, code)
-		}
-	}
-}
 
 // TestApiVersion_EveryClientIsCheckedAgainstTheServer: a later matching client never hides an earlier mismatch.
 func TestApiVersion_EveryClientIsCheckedAgainstTheServer(t *testing.T) {
