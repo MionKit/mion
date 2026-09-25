@@ -15,11 +15,7 @@ import {build, type Rollup} from 'vite';
 import path from 'node:path';
 import fs from 'node:fs';
 import runtypes from '../src/runtypes/vite.ts';
-import {BIN, hasBinary} from './helpers/inline.ts';
-
-const PACKAGE_ROOT = path.resolve(__dirname, '../../run-types');
-// Fixtures live in the marker package's test/ tree so its tsconfig puts them in the Go resolver's Program.
-const FIXTURE_DIR = path.join(PACKAGE_ROOT, 'test', 'tmp-build-split');
+import {BIN, createMarkerProject, hasBinary} from './helpers/inline.ts';
 
 const FIXTURES: Record<string, string> = {
   'shared-type.ts': `export interface SharedThing {
@@ -50,26 +46,20 @@ describe('vite build / per-entry code splitting', () => {
   register(
     'shared entries dedupe into a shared chunk; entry-only entries stay per-entry',
     async () => {
-      fs.rmSync(FIXTURE_DIR, {recursive: true, force: true});
-      fs.mkdirSync(FIXTURE_DIR, {recursive: true});
+      const FIXTURE_DIR = createMarkerProject('rt-build-split-');
       for (const [name, source] of Object.entries(FIXTURES)) {
         fs.writeFileSync(path.join(FIXTURE_DIR, name), source);
       }
       try {
         const result = (await build({
-          root: PACKAGE_ROOT,
+          root: FIXTURE_DIR,
           logLevel: 'error',
-          resolve: {conditions: ['source']},
           plugins: [
             runtypes({
               binary: BIN,
-              cwd: PACKAGE_ROOT,
-              // tsconfig.json is incremental:false, so the RT disk cache is off and this build caches nothing.
+              cwd: FIXTURE_DIR,
               tsconfig: 'tsconfig.json',
-              // Isolated output root: a shared <PACKAGE_ROOT>/.mion lets the package's own vitest prune these fixtures.
               genDir: path.join(FIXTURE_DIR, '.mion'),
-              // The marker test program deliberately holds Error-severity types, same opt-out as its own vitest config.
-              downgradeErrors: '*',
             }) as never,
           ],
           build: {
@@ -80,6 +70,8 @@ describe('vite build / per-entry code splitting', () => {
                 a: path.join(FIXTURE_DIR, 'entry-a.ts'),
                 b: path.join(FIXTURE_DIR, 'entry-b.ts'),
               },
+              // The marker package is installed as types only; its runtime is never bundled here.
+              external: [/^@mionjs\/run-types/],
             },
           },
         })) as Rollup.RollupOutput;

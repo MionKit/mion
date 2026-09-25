@@ -83,7 +83,6 @@ const GROUPS = [
       // harvested batch manifests
       'packages/**/.mion',
       'packages/run-types/test/suites/enrich/.tmp',
-      'packages/run-types/test/tmp-build-*',
     ],
   },
 ];

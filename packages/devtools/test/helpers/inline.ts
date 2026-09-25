@@ -40,7 +40,8 @@ export type InlineSources = Record<string, string>;
 // No sources, because the tarball carries none. No hand-written stand-in to drift ("Real types,
 // never copies" in packages/run-types/test/fuzz/README.md). Read once per worker; the dist is
 // kept fresh by `pretest` → `check:builds`.
-const MARKER_PKG_DIR = path.resolve(ROOT, 'packages/run-types');
+// A relative literal on purpose: `core test-pr` reads it as the edge that reruns these tests when run-types changes.
+const MARKER_PKG_DIR = path.resolve(__dirname, '../../../run-types');
 const ARTIFACT_SEGMENT = `${path.sep}mion-pure-fns${path.sep}`;
 
 // The TS twin of scripts/lib/publish-manifest.mjs: every `source` key dropped, at any depth.
@@ -55,6 +56,11 @@ const withoutSource = (node: unknown): unknown => {
 };
 
 export const MARKER_PACKAGE_OVERLAY: Readonly<InlineSources> = (() => {
+  if (!fs.existsSync(path.join(MARKER_PKG_DIR, 'dist'))) {
+    throw new Error(
+      'packages/run-types/dist is missing: devtools tests read the built marker package, run `pnpm run check:builds` first'
+    );
+  }
   const files: InlineSources = {};
   const manifest = JSON.parse(fs.readFileSync(path.join(MARKER_PKG_DIR, 'package.json'), 'utf8')) as Record<string, unknown>;
   files['node_modules/@mionjs/run-types/package.json'] = JSON.stringify({...manifest, exports: withoutSource(manifest.exports)});
@@ -88,6 +94,20 @@ export function writeMarkerPackage(dir: string): void {
     fs.mkdirSync(path.dirname(abs), {recursive: true});
     fs.writeFileSync(abs, content);
   }
+}
+
+const MARKER_PROJECT_TSCONFIG = JSON.stringify({
+  compilerOptions: {target: 'ES2022', module: 'ESNext', moduleResolution: 'bundler', strict: true, skipLibCheck: true, types: []},
+  include: ['**/*.ts'],
+  exclude: ['node_modules'],
+});
+
+/** A fresh temp project with a tsconfig and the marker package installed, for suites that build on disk. **/
+export function createMarkerProject(prefix: string): string {
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), prefix)));
+  fs.writeFileSync(path.join(dir, 'tsconfig.json'), MARKER_PROJECT_TSCONFIG);
+  writeMarkerPackage(dir);
+  return dir;
 }
 
 // Shape of the daemon-response capture attached to `task.meta.mionRunTypes`.
