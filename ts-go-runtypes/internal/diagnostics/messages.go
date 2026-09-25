@@ -181,8 +181,8 @@ var messagesByCode = map[string]message{
 		Detail:   "A middleware gets its params from its `onRequest` hook on the client. The build\nlooked for any read of `middlewares.{0}` in the client program (a hook, or the\nmiddleware handed to an installer) and found none, so the call sends nothing\nand the middleware refuses it.\n\nFix: set the middleware up once, next to `initClient`:\n+  middlewares.{0}.onRequest((call) => call(...));\nOr pass it to the installer the middleware ships with.",
 	},
 	"MET009": {
-		Headline: "The route `{1}` runs the middleware `{0}`, but this client never sets it up, so it always gets no params.",
-		Detail:   "The middleware's params are all optional, so the call still works; the\nmiddleware just never receives anything from this client. The build looked for\nany read of `middlewares.{0}` in the client program (a hook, or the middleware\nhanded to an installer) and found none.\n\nFix: set it up with `middlewares.{0}.onRequest(...)` or its installer. If sending\nnothing is intended, add `// @mion-expect-error MET009` above this call.",
+		Headline: "The route `{1}` runs the middleware `{0}`, but this client never sets it up, so the middleware never gets its params.",
+		Detail:   "The middleware's params are all optional, so nothing fails on send, but the\nmiddleware never receives anything from this client. The build looked for\nany read of `middlewares.{0}` in the client program (a hook, or the middleware\nhanded to an installer) and found none.\n\nFix: set it up with `middlewares.{0}.onRequest(...)` or its installer. If sending\nnothing is intended, add `// @mion-expect-error MET009` above this call.",
 	},
 	"MRT001": {
 		Headline: "mion `{0}` handler has no return type annotation; write the type the handler answers with.",

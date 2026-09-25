@@ -875,8 +875,8 @@ export const a = routes.ping().call();
 		if len(diags) != 1 || diags[0].Code != diagnostics.CodeApiMetaOptionalMiddlewareNotSetUp || diags[0].Args[0] != "note" {
 			t.Fatalf("expected one MET009 for note, got %+v", diags)
 		}
-		if diags[0].Level != diagnostics.LevelWarning {
-			t.Errorf("MET009 is a warning, got level %v", diags[0].Level)
+		if diags[0].Level != diagnostics.LevelRuntimeError {
+			t.Errorf("MET009 stops the build, got level %v", diags[0].Level)
 		}
 	})
 
