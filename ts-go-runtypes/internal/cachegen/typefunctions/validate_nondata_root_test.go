@@ -95,3 +95,26 @@ func TestValidateNonDataRoot_AllNonDataUnionRefused(t *testing.T) {
 		t.Errorf("expected %s for the dropped function member; sink=%+v", diagnostics.CodeVLUnionMemberDropped, sink)
 	}
 }
+
+// DataOnly<[string, F]> is never: a non-data tuple slot refuses the whole tuple instead of expecting `undefined` there.
+func TestValidateNonDataRoot_TupleSlotRefused(t *testing.T) {
+	for _, root := range nonDataRoots() {
+		t.Run(root.name, func(t *testing.T) {
+			pos0, pos1 := 0, 1
+			first := &reflection.RunType{ID: "tm0", Kind: reflection.KindTupleMember, Position: &pos0, Child: makeRef("str")}
+			slot := &reflection.RunType{ID: "tm1", Kind: reflection.KindTupleMember, Position: &pos1, Child: makeRef(root.rootID)}
+			tuple := &reflection.RunType{ID: "tup", Kind: reflection.KindTuple, Children: []*reflection.RunType{makeRef("tm0"), makeRef("tm1")}}
+			runTypes := append([]*reflection.RunType{mkStr(), first, slot, tuple}, root.runTypes...)
+			if root.rootID == "cal" {
+				runTypes = append([]*reflection.RunType{first, slot, tuple}, root.runTypes...)
+			}
+			for fam, code := range map[string]string{"validate": root.vlCode, "validationErrors": root.veCode} {
+				out, sink := renderWithDiag(t, protocol.Dump{RunTypes: runTypes}, fam, "tup")
+				assertRootRefused(t, fam, "tup", "tuple", code, "", root.forbidden, out, sink)
+				if strings.Contains(out, "=== undefined") || strings.Contains(out, "!== undefined") {
+					t.Errorf("[%s] the slot must not fall back to an undefined check; got:\n%s", fam, out)
+				}
+			}
+		})
+	}
+}
