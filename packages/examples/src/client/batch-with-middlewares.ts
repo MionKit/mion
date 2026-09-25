@@ -7,7 +7,7 @@ const {routes, middlewares} = initClient<MyApi>({
 });
 
 const authHeaders = new HeadersSubset({Authorization: 'my-token'});
-// runs once per batch, like for a single call
+// runs once per batch
 middlewares.auth.onRequest((auth) => auth(authHeaders));
 
 const [
