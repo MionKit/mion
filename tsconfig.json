@@ -25,6 +25,13 @@
     "skipLibCheck": true,
     "rewriteRelativeImportExtensions": true,
     "paths": {
+      "@mionjs/router": ["./packages/rpc-router"],
+      "@mionjs/client": ["./packages/rpc-client"],
+      "@mionjs/examples": ["./packages/private-examples"],
+      "@mionjs/go-be-sidecar": ["./packages/private-go-be-sidecar"],
+      "@mionjs/test-router-fuzz": ["./packages/private-test-router-fuzz"],
+      "@mionjs/test-server": ["./packages/private-test-server"],
+      "@mionjs/type-budget": ["./packages/private-type-budget"],
       "@mionjs/*": ["./packages/*"]
     }
   },
