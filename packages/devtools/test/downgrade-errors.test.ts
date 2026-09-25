@@ -20,13 +20,14 @@
 // (Marker coverage rule: the healthy fixture pins BOTH getRunTypeId call
 // shapes resolving to one entry while the halt semantics are exercised.)
 import {afterAll, beforeAll, describe, expect, it} from 'vitest';
+import os from 'node:os';
 import path from 'node:path';
 import fs from 'node:fs';
 import runtypesRollup from '../src/runtypes/rollup.ts';
 import runtypesVite from '../src/runtypes/vite.ts';
 import {BIN, hasBinary, writeMarkerPackage} from './helpers/inline.ts';
 
-const FIXTURE_DIR = path.resolve(__dirname, 'tmp-downgrade-errors');
+const FIXTURE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-downgrade-errors-'));
 const OUT_DIR = path.join(FIXTURE_DIR, '.mion');
 
 const TSCONFIG_SRC = JSON.stringify({
