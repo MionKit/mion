@@ -1,7 +1,7 @@
 ---
 type: feature
 spec: full-plan
-status: ready
+status: done
 created: 2026-09-25
 ---
 
@@ -264,3 +264,38 @@ report are updated (see Measure).
 - Budgets and `TYPE-COST.md` updated; the shipped system and its budgets unchanged.
 - The simplify-comments pass ran on every touched source file, committed on its own (no page or
   example changes, so no simplify-docs pass).
+
+## What shipped (2026-09-25)
+
+Everything in the plan landed. Where it went beyond or differs from the plan:
+
+- **Core fixes (step 0):** the three error texts now name all three dialects; `refine.ts` uses `ColBaseFlag`.
+- **Stray modifier keys, found while building mysql, fixed in all three dialects.** A `const` type parameter gets
+  no excess-property check, so `varchar({length: 10, autoincrement: true})` and
+  `Varchar<{length: 10; autoincrement: true}>` compiled and the stray flag changed the models. Every builder and
+  column type now constrains its props with `Only<P, Allowed>` (`packages/drizzle-orm/next/columns.ts`), and each
+  builder lists its name overloads before its props overload, so a plain name never pays for the check. pg budgets
+  rose as a reviewed exception (five mixed: types 539 to 683, builders 971 to 1160; plain columns unchanged); every
+  variant measured is in `TYPE-COST.md` "Stray modifier keys". Pinned with `@ts-expect-error` in each dialect's
+  `test/next/type-pins.stub.ts`.
+- **A shipped bug, fixed in its own commit:** `RtColumnRecorder.generatedAlwaysAs` dropped its `{mode}` argument,
+  so a stored generated column reached drizzle as virtual on mysql and sqlite (shipped and next roads). Tests in
+  both packages' `test/index.spec.ts` and the sqlite next parity test.
+- **toDrizzle routing:** mysql and sqlite send any recorded value (table, view, schema handle, index entry) to the
+  shipped runtime and treat anything else as the marker form, so a standalone index entry is never mistaken for
+  marker options.
+- **mysql:** `mysqlEnum` lives in `helpers.ts` and is also in `mysqlColumnHelpers`; `mysqlTableCreator` and
+  `mysqlSchema` wrap the shipped recorders with resolved columns, so `toDrizzle(schema)` still works.
+- **sqlite:** `sqliteTableCreator` returns a named `SqliteTableCreatorFn` interface (an inferred one failed
+  declaration emit with TS4023); the `view` alias is kept.
+- **Nested marker calls:** the fix had landed, so `tableFromType<T>()` is used inline inside `toDrizzle({tables})`.
+- **Fuzz (step 3):** the dialect-free core is `packages/drizzle-orm/test/tableSpecCore.ts` (`specTools(dialect)`);
+  pg output is byte-identical over 300 seeds. Each dialect's `test/tableSpecShared.ts` holds its kinds, type names,
+  projection and views. In-process fuzz soaked at 2000 tables x 3 seeds per dialect; resolver fuzz at
+  `MION_FUZZ_ITER=40` x 3 seeds. Negative controls fired: a next recorder skipping `notNull`, the shipped recorder
+  dropping `unique`, the next reader ignoring db names, and `primaryKey` removed from the not-null rule.
+- **Measure (step 4):** `@mionjs/type-budget` now depends on the mysql and sqlite packages; the report has a
+  dialect column. mysql five mixed: 712 types / 1184 builders; sqlite: 658 / 1058.
+- **Drizzle-free authoring:** the sqlite case compiles with Node's types, because sqlite's blob buffer mode is
+  Node's `Buffer`, as drizzle types it.
+- The shipped road is unchanged: `drizzle-translate --to-types` reports 21 type errors before and after, both roads.
