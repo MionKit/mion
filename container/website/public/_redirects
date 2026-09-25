@@ -15,10 +15,12 @@
 /devtools/*      /rpc/devtools/:splat      301
 /platforms/*     /rpc/platforms/:splat     301
 # Binary serialization was removed (2026-09): its guide, the articles section and the formats benchmark.
+# The JSON serialization page then merged into the serialization page.
 /articles/*           /runtypes/guide/serialization  301
 /rpc/articles/*       /runtypes/guide/serialization  301
 /runtypes/articles/*  /runtypes/guide/serialization  301
 /runtypes/guide/binary-serialization         /runtypes/guide/serialization       301
+/runtypes/guide/json-serialization           /runtypes/guide/serialization       301
 /benchmarks/runtypes/serialization-formats  /benchmarks/runtypes/serialization  301
 # Each subsite root redirects to its home page, a docs page inside the sidebar
 # (app/pages/<id>/index.vue does the same for the app router).
