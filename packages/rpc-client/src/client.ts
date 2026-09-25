@@ -30,8 +30,7 @@ import {getBundleApiMode} from './lib/bundleApiMode.ts';
 import {setApiBuildVersion} from './lib/apiBuildVersion.ts';
 import {registerBundledApi} from '#bundled-api';
 
-/** Under `bundleApi` the build injects every route's metadata and functions, so the client never asks the server.
- *  The build fills `buildVersion` from the API type, never by hand. */
+/** Under `bundleApi` the client never asks the server for metadata; `buildVersion` is build-filled, never by hand. */
 export function initClient<RM extends RemoteApi>(
   options: InitClientOptions,
   buildVersion?: InjectBuildVersion<RM>
