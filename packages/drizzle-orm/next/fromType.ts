@@ -109,7 +109,7 @@ function buildColumn(
   consumedRuntime: Set<string>
 ): RtColumnRecorder {
   const spec = memberNamed(columnNode, '@rtColSpecKey')?.child;
-  if (!spec) fail(`column "${key}" carries no column spec, use the dialect column types (Varchar, Uuid, ...)`);
+  if (!spec) fail(`column "${key}" carries no column spec, use the dialect column types (Text, Integer, ...)`);
   const fnNode = plainMember(spec, 'fn')?.child;
   const fn = fnNode?.kind === KIND_LITERAL ? fnNode.literal : undefined;
   if (typeof fn !== 'string') fail(`column "${key}" spec has no builder fn literal`);
@@ -215,7 +215,8 @@ export function buildRtTableFromGraph(
   expectedDialect?: string
 ): object {
   const brandMember = memberNamed(graph, '@rtTableBrand');
-  if (!brandMember) fail('the reflected type is not a table, declare it with the dialect table type (PgTable<Name, Cols>, ...)');
+  if (!brandMember)
+    fail('the reflected type is not a table, declare it with the dialect table type (PgTable, MysqlTable or SqliteTable)');
   const reflectedDialect = brandMember.child?.kind === KIND_LITERAL ? brandMember.child.literal : undefined;
   if (expectedDialect !== undefined && typeof reflectedDialect === 'string' && reflectedDialect !== expectedDialect) {
     fail(`the reflected type is a ${reflectedDialect} table, rebuilt through the ${expectedDialect} package`);

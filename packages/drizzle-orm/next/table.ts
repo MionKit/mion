@@ -53,7 +53,8 @@ export function tableRef<T extends AnyTable, K extends keyof T['columns'] & stri
   column: K
 ): {table: T['name']; column: K} {
   const runtime = (table as unknown as Record<symbol, {name: string} | undefined>)[rtTableKey];
-  if (runtime === undefined) throw new Error('@mionjs/drizzle-orm: tableRef() takes a table built with pgTable()');
+  if (runtime === undefined)
+    throw new Error('@mionjs/drizzle-orm: tableRef() takes a table built with pgTable(), mysqlTable() or sqliteTable()');
   const ref = {table: runtime.name, column};
   Object.defineProperty(ref, rtRefTargetKey, {value: table});
   return ref as {table: T['name']; column: K};
