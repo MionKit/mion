@@ -457,7 +457,7 @@ describe('devtools code never imports @mionjs/run-types', () => {
     return found;
   };
 
-  // Tests running in parallel write fixtures that import run-types on purpose; a scan that saw them failed at random.
+  // Parallel tests write scratch fixtures that import run-types on purpose; scanning them failed at random.
   const isScratchDir = (name: string): boolean => name === 'node_modules' || /^\.?tmp($|[-_.])/.test(name);
   const runTypesImports = (root: string): string[] =>
     globSync(['src/**/*.ts', 'test/**/*.ts', 'vitest*.ts'], {cwd: root, exclude: isScratchDir}).flatMap((file) =>

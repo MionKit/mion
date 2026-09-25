@@ -352,10 +352,7 @@ const myAPI = getRunTypeId(routes);
     }
   }
 
-  // CLI round-trip via spawnSync — kept as a single test (one form is
-  // sufficient to verify the binary boundary). Uses runTest for the source
-  // hoist + skip gate; the body short-circuits to a raw spawnSync since this
-  // test bypasses the in-process ResolverClient entirely.
+  // One CLI test is enough for the binary boundary; runTest only supplies sources and the skip gate, no ResolverClient.
   runTest(
     "CLI --out-modules writes per-entry modules identical in shape to the plugin's output",
     {
