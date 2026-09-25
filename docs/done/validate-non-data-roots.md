@@ -21,7 +21,7 @@ Every `runtypes` test run printed 10 `DWN001` warnings ("unused `@mion-downgrade
 - Object properties and mixed unions still drop these members with the existing warnings.
 - The 10 comments stay, and now match real errors.
 - **Gate:** `pnpm run lint:directives` (part of `pnpm run lint`) runs the `runtypes/invalid-downgrade-error` and `runtypes/invalid-expect-error` rules at `error` on every tracked `packages/*.ts` file that carries a directive, since the main oxlint config ignores `test/` and `examples/`. A stale directive now fails lint.
-- Tests: Go root / array / tuple / union cases for all kinds in both families; the JS validation suites expect `factoryThrows`; the feature tests expect the throw. The benchmark cases for these roots are removed.
+- Tests: Go root / array / tuple / union cases for all kinds in both families; the JS validation suites expect `factoryThrows`; the feature tests expect the throw. In the benchmarks, mion marks these cases `NOT_SUPPORTED`; the other libraries keep running them.
 
 ## Docs
 
