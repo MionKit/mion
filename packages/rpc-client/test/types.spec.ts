@@ -21,7 +21,7 @@ import type {
 } from '../src/types.ts';
 import type {TestServerApi, csrf} from '@mionjs/test-server';
 import type {InjectApiMetadata, InjectBuildVersion} from '@mionjs/run-types';
-import type {RouteSyncError, SyncRoutesHandler} from '@mionjs/core';
+import type {RouteSyncError, SyncRoutesHandler} from '@mionjs/core/middlewares';
 import {HeadersSubset} from '@mionjs/core';
 
 // The route id rides the subrequest TYPE (the key path joined with `/`) next to the API, so it

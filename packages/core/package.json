@@ -32,6 +32,12 @@
             "types": "./.dist/esm/testing.d.ts",
             "require": "./.dist/cjs/testing.cjs",
             "default": "./.dist/esm/testing.js"
+        },
+        "./middlewares": {
+            "source": "./middlewares.ts",
+            "types": "./.dist/esm/middlewares.d.ts",
+            "require": "./.dist/cjs/middlewares.cjs",
+            "default": "./.dist/esm/middlewares.js"
         }
     },
     "directories": {

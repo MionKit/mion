@@ -1198,11 +1198,11 @@ describe('client published surface', () => {
   });
 });
 
-// Own entries, so an installer never pulls the router in and neither main barrel grows per middleware.
-describe('client and router publish their middlewares on a ./middlewares subpath', () => {
-  const PACKAGES = ['packages/rpc-client', 'packages/rpc-router'];
+// Own entries, so an installer never pulls the router in and no main barrel grows per middleware.
+describe('core, client and router publish their middlewares on a ./middlewares subpath', () => {
+  const PACKAGES = ['packages/core', 'packages/rpc-client', 'packages/rpc-router'];
 
-  it('both declare the subpath and keep it off the main barrel', () => {
+  it('each declares the subpath and keeps it off the main barrel', () => {
     for (const dir of PACKAGES) {
       const exports = JSON.parse(readFileSync(join(REPO_ROOT, dir, 'package.json'), 'utf8')).exports;
       expect(exports['./middlewares']?.source, dir).toBe('./middlewares.ts');

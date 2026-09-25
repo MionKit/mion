@@ -6,7 +6,7 @@
  * ######## */
 
 import {FatalError} from '@mionjs/core';
-import type {RouteSyncError, RouteSyncErrorData, SyncRoutesHandler} from '@mionjs/core';
+import type {RouteSyncError, RouteSyncErrorData, SyncRoutesHandler} from '@mionjs/core/middlewares';
 import {middleware} from '../lib/handlers.ts';
 import {getRouteExecutable} from '../router.ts';
 import {getMethodsDataFor} from '../routes/client.routes.ts';

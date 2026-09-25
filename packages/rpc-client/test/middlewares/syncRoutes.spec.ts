@@ -7,7 +7,8 @@
 
 import {describe, it, expect, beforeEach} from 'vitest';
 import {FatalError, resetRoutesCache} from '@mionjs/core';
-import type {MethodWithOptions, MethodWithOptsAndJitFns, RouteSyncError, SyncRoutesHandler} from '@mionjs/core';
+import type {MethodWithOptions, MethodWithOptsAndJitFns} from '@mionjs/core';
+import type {RouteSyncError, SyncRoutesHandler} from '@mionjs/core/middlewares';
 import type {CallContext, ClientMiddlewareOf, ClientOptions, MiddlewareContext} from '../../src/types.ts';
 import {useSyncRoutes} from '../../src/middlewares/syncRoutes.ts';
 import {installMethodRows} from '../../src/lib/clientMethodsMetadata.ts';

@@ -26,4 +26,3 @@ export * from './src/lib/queryBody.ts';
 export * from './src/lib/bodyReader.ts';
 export {mionErrorsRoutes} from './src/routes/errors.routes.ts';
 export * from './src/routes/mion.routes.ts';
-export type {RouteSyncError, RouteSyncErrorData} from '@mionjs/core';

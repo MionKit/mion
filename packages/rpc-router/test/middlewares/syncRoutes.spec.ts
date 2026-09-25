@@ -12,7 +12,8 @@ import {headersFromRecord} from '../../src/lib/headers.ts';
 import {registerBatches} from '../../src/batches.ts';
 import {mionSyncRoutes} from '../../middlewares.ts';
 import {MION_BATCH_PATH, RpcError} from '@mionjs/core';
-import type {RouteSyncErrorData, SerializableMethodsData} from '@mionjs/core';
+import type {SerializableMethodsData} from '@mionjs/core';
+import type {RouteSyncErrorData} from '@mionjs/core/middlewares';
 
 const SYNC = 'mionSyncRoutes';
 
