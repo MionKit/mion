@@ -69,6 +69,7 @@ The arrow case only throws when the arrow runs (here, when the foreign key is re
 - Mode-parity corpus `packages/devtools/test/transform-modes.test.ts`: both `getRunTypeId` shapes nested directly and in an arrow.
 - Runtime `packages/run-types/test/features/nestedMarkerCalls.test.ts`: both `getRunTypeId` shapes and a `createValidateFn` nested in a non-builder marker.
 - The repro above as `packages/drizzle-orm-pg-core/test/nestedMarkerCalls.spec.ts`.
+- `packages/devtools/test/wrapping.test.ts` 17g pinned the old skip with user-declared `model`/`field` markers. It now expects their 3 sites, and a new case pins real builders nested in `RT.object` to 1 site.
 
 **Docs.** None: no page describes the skip.
 
