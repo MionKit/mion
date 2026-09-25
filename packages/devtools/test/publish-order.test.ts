@@ -25,6 +25,7 @@ const {
   publishedPackages,
   readWorkspaceManifests,
   topOfTrain,
+  versionsOf,
 } = publishOrder;
 
 type Manifest = Record<string, unknown>;
@@ -117,6 +118,12 @@ describe('publish-order: the derived leaves-first order', () => {
     });
     expect(() => publishRank('@mionjs/a', manifests)).toThrow(/cycle/);
   });
+
+  it('reads versions by npm name, whatever the folder is called', () => {
+    const manifests = fakeWorkspace({'rpc-router': {name: '@mionjs/router', version: '2.0.0'}});
+    expect(versionsOf(['@mionjs/router'], manifests)).toEqual(new Map([['@mionjs/router', '2.0.0']]));
+    expect(() => versionsOf(['@mionjs/rpc-router'], manifests)).toThrow(/@mionjs\/rpc-router is not declared/);
+  });
 });
 
 describe('publish-order: the real workspace', () => {
@@ -156,5 +163,11 @@ describe('publish-order: the real workspace', () => {
     expect(lockstep.filter((name: string) => name.startsWith('@mionjs/drizzle-orm'))).toEqual([]);
     // The framework's top packages are what stage-approve waits on before the deploy.
     expect(topOfTrain(lockstep, manifests)).not.toContain('@mionjs/run-types');
+  });
+
+  it('finds the renamed rpc folders by npm name', () => {
+    const versions = versionsOf(['@mionjs/router', '@mionjs/client'], manifests);
+    expect(versions.get('@mionjs/router')).toBe(manifests.get('@mionjs/core').version);
+    expect(versions.get('@mionjs/client')).toBe(manifests.get('@mionjs/core').version);
   });
 });
