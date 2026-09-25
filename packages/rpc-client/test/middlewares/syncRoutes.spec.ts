@@ -9,7 +9,7 @@ import {describe, it, expect, beforeEach} from 'vitest';
 import {FatalError, resetRoutesCache} from '@mionjs/core';
 import type {MethodWithOptions, MethodWithOptsAndJitFns, RouteSyncError, SyncRoutesHandler} from '@mionjs/core';
 import type {CallContext, ClientMiddlewareOf, ClientOptions, MiddlewareContext} from '../../src/types.ts';
-import {routeSyncIds, useSyncRoutes} from '../../src/middlewares/syncRoutes.ts';
+import {useSyncRoutes} from '../../src/middlewares/syncRoutes.ts';
 import {installMethodRows} from '../../src/lib/clientMethodsMetadata.ts';
 import {hasMethod, resetBundledMethods, setBundledMethod} from '../../src/lib/methods.ts';
 
@@ -64,7 +64,8 @@ describe('useSyncRoutes', () => {
 
   it("sends each route's own id from its row, and '' for a row without one or no row", () => {
     installMethodRows({methods: {users: row('users', 'aB3dE9x'), older: row('older')}, deps: {}, purFnDeps: {}}, options);
-    expect(routeSyncIds(['users', 'older', 'unknown'])).toEqual(['aB3dE9x', '', '']);
+    const {sent} = installed();
+    expect(sent({batchSubRequests: [{id: 'users'}, {id: 'older'}, {id: 'unknown'}] as any})).toEqual(['aB3dE9x', '', '']);
   });
 
   it("sends the called route's id, and a batch's ids in the batch's order", () => {
