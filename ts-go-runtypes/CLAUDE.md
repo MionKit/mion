@@ -65,6 +65,7 @@ Three things that trip people up:
 
 - **Question 1 is per-SITE, not per-build.** Only `CFG001` stops a whole run. Every other fatal code leaves ONE thing unbuilt while the rest of the build proceeds. That is still "no output" for the thing the finding is about, and it is what makes standing it down meaningless: not halting buys a call that throws anyway.
 - **Read the emit path, not the intent.** The pure-fn family was documented as fatal as a block and is mostly not: only `PFE9005` withholds output, a purity violation compiles the offending body and ships it. Answer question 1 from what the code does.
+- **A middleware the client never sets up is a `LevelRuntimeError`, optional params included (`MET008`, `MET009`).** The call still sends, but the middleware never gets its client half, and one like route sync refuses every call without it.
 - **A permissive validator is only wrong when the type was not actually `any`.** A type the author wrote as `any` gets an accept-everything validator because that is what was asked for (`VL021` / `VE020` stay warnings). A type that BECAME `any` because a name, an import or a lib failed to resolve is a `LevelRuntimeError` (`MKR007`, `MKR013`, `TMP001`, `CFG002`); `detectSilentAnyInGraph` is what tells the two apart.
 
 `Completeness` is deliberately NOT a level: the unfilled-scaffold codes are warnings (a mirror with blank labels still runs), and that bit is what `enrich --require-complete` and the bundler's production enrichment gate promote. A gate keying on the level instead silently stops working.

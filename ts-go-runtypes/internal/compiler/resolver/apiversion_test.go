@@ -181,33 +181,13 @@ func hasDiagCode(diags []diagnostics.Diagnostic, code string) bool {
 	return false
 }
 
-// A router and client pair shaped like mion's, enough for the build to inject and compare versions.
-const optionsRouterDTS = `declare module '@mionjs/router' {
-  import type {InjectBuildVersion} from '@mionjs/run-types';
-  type Handler = (...args: any[]) => any;
-  type Opts = {alwaysRun: false; validateParams: true; validateReturn: false; description: undefined; parser: {params: 'clone'; return: 'clone'}; isMutation: undefined; sanitizeParams: undefined};
-  export type PublicApi<R> = {
-    [K in keyof R]: R[K] extends {type: infer T; handler: infer H extends Handler}
-      ? {type: T; handler: H; options: Opts; types?: {params: Parameters<H>; return: Awaited<ReturnType<H>>; headers: never; isAsync: false}}
-      : PublicApi<R[K]>;
-  };
-  export interface MionRouter<O> { initRoutes<R>(routes: R, buildVersion?: InjectBuildVersion<PublicApi<R>>): PublicApi<R> }
-  export function createMionRouter<const O>(opts?: O): MionRouter<O>;
-}
+// sumRoutesTS is one server routes file whose type the build reads; sumClientTS is a client typed with it.
+const sumRoutesTS = `import {createMionRouter} from '@mionjs/router';
+const mion = createMionRouter();
+export const api = mion.initRoutes({sum: {type: 1 as const, handler: (a: number, b: number): number => a + b}});
 `
 
-const optionsClientDTS = `declare module '@mionjs/client' {
-  import type {InjectBuildVersion} from '@mionjs/run-types';
-  export function initClient<RA>(o?: unknown, buildVersion?: InjectBuildVersion<RA>): {routes: RA};
-}
-`
-
-func optionsRoutesTS(routerOptions string) string {
-	return "import {createMionRouter} from '@mionjs/router';\nconst mion = createMionRouter(" + routerOptions + ");\n" +
-		"export const api = mion.initRoutes({sum: {type: 1 as const, handler: (a: number, b: number): number => a + b}});\n"
-}
-
-const optionsClientTS = `import {initClient} from '@mionjs/client';
+const sumClientTS = `import {initClient} from '@mionjs/client';
 import type {api} from './routes.ts';
 export const {routes} = initClient<typeof api>({baseURL: 'http://x'});
 `
@@ -216,11 +196,11 @@ export const {routes} = initClient<typeof api>({baseURL: 'http://x'});
 func TestApiVersion_EveryClientIsCheckedAgainstTheServer(t *testing.T) {
 	badClient := strings.Replace(versionClientTS, "export const {routes} = initClient<Api>", "export const {routes: other} = initClient<Api>", 1)
 	sources := map[string]string{
-		"router.d.ts": optionsRouterDTS,
-		"client.d.ts": optionsClientDTS,
-		"routes.ts":   optionsRoutesTS(""),
+		"router.d.ts": versionRouterDTS,
+		"client.d.ts": versionClientDTS,
+		"routes.ts":   sumRoutesTS,
 		"a-client.ts": badClient,
-		"b-client.ts": optionsClientTS,
+		"b-client.ts": sumClientTS,
 	}
 	session := setupApi(t, sources, t.TempDir(), "", "")
 	generated := session.Dispatch(protocol.Request{Op: protocol.OpGenerate})
