@@ -1,7 +1,7 @@
 ---
 type: feature
 spec: guidelines
-status: blocked
+status: ready
 created: 2026-09-03
 ---
 
@@ -15,12 +15,10 @@ real-world objects with many properties and repeats, and is zero on flat arrays 
 
 The payload benchmarks page is where that belongs: it is the page about payload size.
 
-## Blocked on
+## Starting point
 
-A router that can already serve a route over the compact wire, and a client that speaks it.
-That is a separate piece of work and it comes first. Until it exists there is nothing to
-measure here, because a compact lane is just a mion server started with a compact route
-option.
+The router already serves a route over the compact wire (`{parser: 'compact'}`) and the client
+speaks it, so a compact lane is a mion server started with that route option.
 
 ## Direction
 
