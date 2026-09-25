@@ -17,6 +17,7 @@
   "exclude": [
     "node_modules",
     "test",
+    "next",
     ".dist",
     "build",
     "*.config.ts",
