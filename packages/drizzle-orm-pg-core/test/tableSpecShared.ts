@@ -114,7 +114,7 @@ export interface Surface {
   parent: Record<string, unknown>;
   /** Build each column in ONE call, settings and modifiers in one props object (the next/ builders). */
   singleCall?: boolean;
-  /** A reference to parent.id on this surface, when it is not the column itself (the next/ tableRef). */
+  /** How this surface references parent.id, when not the column itself (the next/ tableRef). */
   parentRef?: () => unknown;
 }
 
@@ -372,9 +372,7 @@ export function renderColumnBuilders(column: ColumnSpec, namespace: string, pare
   return text;
 }
 
-/** Render a covered spec as the BUILDERS form source, the twin of
- *  renderTableType. The two together are what lets a fuzz iteration prove the
- *  two roads land on ONE runtype id, rather than only on one drizzle table. */
+/** Twin of renderTableType: together they let a fuzz iteration prove both roads share ONE runtype id. */
 export function renderTableBuilders(
   spec: TableSpec,
   tableName: string,
@@ -414,7 +412,7 @@ function renderColumnSingleCall(column: ColumnSpec, namespace: string, parentCon
   return `${namespace}.${column.fn}(${args.join(', ')})`;
 }
 
-/** Render a covered spec with single-call builders; the extras are rendered as renderTableBuilders does. */
+/** Render a covered spec with single-call builders, reusing renderTableBuilders' extras. */
 export function renderTableSingleCall(spec: TableSpec, tableName: string, namespace: string, parentConst: string): string {
   const chained = renderTableBuilders(spec, tableName, namespace, parentConst, `tableRef(${parentConst}, 'id')`);
   const columns = spec.columns.map((column) => `  ${column.key}: ${renderColumnSingleCall(column, namespace, parentConst)},`);

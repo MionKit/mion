@@ -47,7 +47,7 @@ export type AnyTableRef = {table: string; column: string};
 /** Hidden key of the live table behind a tableRef() value. */
 const rtRefTargetKey = Symbol('rtRefTarget');
 
-/** `tableRef(teams, 'id')`, for `references: [() => tableRef(teams, 'id')]` and foreignKey columns. */
+/** For `references: [() => tableRef(teams, 'id')]` and foreignKey's foreignColumns. */
 export function tableRef<T extends AnyTable, K extends keyof T['columns'] & string>(
   table: T,
   column: K
