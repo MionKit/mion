@@ -6,14 +6,14 @@
  * ######## */
 
 /**
- * Contract tests for the client error dispatch rules (docs spec: client-error-dispatch-contract).
+ * Contract tests for the client error dispatch rules.
  *
- * The result tuple is [result, error, fatal, middlewareResults, middlewareErrors]:
+ * The result tuple is [result, error, undeclared, middlewareResults, middlewareErrors]:
  * - R1 route returned its own declared error            -> slot 1 (that route's index in a flow)
  * - R2 param validation failed for a route              -> slot 1 (client- or server-side)
  * - R3 middleware declared error / validation error       -> slot 4 under its id AND its onError listener
- * - R4 anything thrown / undeclared, or an error for a  -> slot 2 (fatal) only, NO listener fires;
- *      middleware that was not part of the request           several fatals: first in execution order
+ * - R4 anything thrown / undeclared, or an error for a  -> slot 2 (undeclared) only, NO listener fires;
+ *      middleware that was not part of the request           several undeclared: first in execution order
  * - R5 route produced a result                          -> slot 0 keeps it, whatever else failed
  * - R6 an error the route did not declare               -> never appears in slot 1
  */
