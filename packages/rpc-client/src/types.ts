@@ -238,8 +238,14 @@ export type MiddlewareEvents<PH extends PublicHandler> = TypedEvent<
   Parameters<PH>
 >;
 
-/** A middleware on the client: hooks only, its params come from onRequest on every request */
-export type ClientMiddleware<PH extends PublicHandler> = Pick<MiddlewareEvents<PH>, (typeof MIDDLEWARE_HOOKS)[number]>;
+/** A middleware on the client: hooks only, its params come from onRequest on every request. `Id` is type only:
+ *  the build reads it to tell which middlewares the client sets up */
+/* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/no-empty-object-type */
+export interface ClientMiddleware<PH extends PublicHandler, Id extends string = string> extends Pick<
+  MiddlewareEvents<PH>,
+  (typeof MIDDLEWARE_HOOKS)[number]
+> {}
+/* eslint-enable @typescript-eslint/no-unused-vars, @typescript-eslint/no-empty-object-type */
 
 /** A middleware on the client, typed from its server handler, so an installer needs no router import */
 export type ClientMiddlewareOf<H extends (ctx: any, ...params: any[]) => any> = H extends (
@@ -281,15 +287,15 @@ export type ClientRoutes<
 /** What `ClientMiddlewares` leaves out: a route, and a group holding nothing but routes. */
 export type NonClientMiddleware = RouteLeaf | {[key: string]: RouteLeaf};
 
-export type ClientMiddlewares<RA> = Prettify<{
+export type ClientMiddlewares<RA, Prefix extends string = ''> = Prettify<{
   [Property in keyof RA & string as RA[Property] extends NonClientMiddleware ? never : Property]: RA[Property] extends {
     type: typeof HandlerType.middleware | typeof HandlerType.headersMiddleware;
     handler: infer H extends PublicHandler;
   }
-    ? ClientMiddleware<H>
+    ? ClientMiddleware<H, `${Prefix}${Property & string}`>
     : RA[Property] extends AnyLeaf
       ? never
-      : ClientMiddlewares<RA[Property]>;
+      : ClientMiddlewares<RA[Property], `${Prefix}${Property & string}/`>;
 }>;
 
 export type Cleaned<RMS extends RemoteApi> = {

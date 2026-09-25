@@ -31,8 +31,8 @@ const CLIENT_DTS = `declare module '@mionjs/client' {
     id: Id;
     call(setup?: unknown, apiMetadata?: InjectApiMetadata<RA, Id>): Promise<unknown>;
   }
-  export interface MiddlewareHooks<PH> {
-    onRequest(handler: (call: (...params: Parameters<PH>) => void) => void): MiddlewareHooks<PH>;
+  export interface ClientMiddleware<PH, Id extends string = string> {
+    onRequest(handler: (call: (...params: Parameters<PH>) => void) => void): ClientMiddleware<PH, Id>;
   }
   type Handler = (...args: any[]) => any;
   export type ClientRoutes<RA, Prefix extends string = '', Root = RA> = {
@@ -42,7 +42,7 @@ const CLIENT_DTS = `declare module '@mionjs/client' {
   };
   export type ClientMiddlewares<RA, Prefix extends string = '', Root = RA> = {
     [K in keyof RA as RA[K] extends {type: 2 | 3} ? K : RA[K] extends {type: number} ? never : K]: RA[K] extends {type: 2 | 3; handler: infer H extends Handler}
-      ? MiddlewareHooks<H>
+      ? ClientMiddleware<H, \`\${Prefix}\${K & string}\`>
       : ClientMiddlewares<RA[K], \`\${Prefix}\${K & string}/\`, Root>;
   };
   export function initClient<RA>(o?: unknown): {routes: ClientRoutes<RA>; middlewares: ClientMiddlewares<RA>};
@@ -114,11 +114,20 @@ register('bundled API through a real vite build', () => {
   afterEach(() => rmSync(root, {recursive: true, force: true}));
 
   /** Builds the fixture client through the real preset and returns the single emitted chunk. */
-  async function buildClient(bundleApi?: 'bundled' | 'mixed'): Promise<string> {
+  async function buildClient(bundleApi?: 'bundled' | 'mixed', warnings: string[] = []): Promise<string> {
     const result = await build({
       root,
       configFile: false,
       logLevel: 'silent',
+      customLogger: {
+        info: () => undefined,
+        warn: (message: string) => warnings.push(message),
+        warnOnce: (message: string) => warnings.push(message),
+        error: () => undefined,
+        clearScreen: () => undefined,
+        hasErrorLogged: () => false,
+        hasWarned: false,
+      },
       plugins: mionVitePlugin({
         runTypes: {tsConfig: path.join(root, 'tsconfig.json'), binary: BIN, genDir: path.join(root, '.mion')},
         bundleApi,
@@ -225,6 +234,13 @@ register('bundled API through a real vite build', () => {
     const auth = getById.methods[0];
     expect(auth.type).toBe(3);
     expect(Array.isArray(auth.rtFns.headersFns)).toBe(true);
+  });
+
+  it('fails the build when a called route runs a middleware the client never sets up (MET008)', async () => {
+    writeFileSync(path.join(root, 'src', 'a.ts'), CLIENT.replace(/^middlewares\.auth.*$/m, ''));
+    const warnings: string[] = [];
+    await expect(buildClient('bundled', warnings)).rejects.toThrow(/build halted/);
+    expect(warnings.join('\n')).toMatch(/MET008.*`auth`/);
   });
 
   it('writes nothing and injects nothing without the option', async () => {

@@ -176,6 +176,14 @@ var messagesByCode = map[string]message{
 		Headline: "This client injects the build version {0} but the API in the same program injects {1}; the client reports a version mismatch against its own server.",
 		Detail:   "Both `initClient` and `initRoutes` carry a build version derived from the routes\nthey are typed with. One program building both means one API, so the two values\nhave to agree; different values mean the type the client was given is not the\ntype the router registered.\n\nFix: type the client with the API the router returns:\n-  initClient<RemoteApi>({baseURL});\n+  initClient<PublicApi<typeof routes>>({baseURL});",
 	},
+	"MET008": {
+		Headline: "The route `{1}` runs the middleware `{0}`, which needs params, but this client never sets it up; every call to the route fails its validation.",
+		Detail:   "A middleware gets its params from its `onRequest` hook on the client. The build\nlooked for any read of `middlewares.{0}` in the client program (a hook, or the\nmiddleware handed to an installer) and found none, so the call sends nothing\nand the middleware refuses it.\n\nFix: set the middleware up once, next to `initClient`:\n+  middlewares.{0}.onRequest((call) => call(...));\nOr pass it to the installer the middleware ships with.",
+	},
+	"MET009": {
+		Headline: "The route `{1}` runs the middleware `{0}`, but this client never sets it up, so it always gets no params.",
+		Detail:   "The middleware's params are all optional, so the call still works; the\nmiddleware just never receives anything from this client. The build looked for\nany read of `middlewares.{0}` in the client program (a hook, or the middleware\nhanded to an installer) and found none.\n\nFix: set it up with `middlewares.{0}.onRequest(...)` or its installer. If sending\nnothing is intended, add `// @mion-expect-error MET009` above this call.",
+	},
 	"MRT001": {
 		Headline: "mion `{0}` handler has no return type annotation; write the type the handler answers with.",
 		Detail:   "mion compiles the handler's DECLARED types into the validation and\nserialization functions the route runs, and the client reads the same\ndeclaration to type the call site. An inferred return type leaves the build\nnothing to compile against.\n\nFix: annotate the return type:\n-  mion.route((ctx, name: string) => `hello ${name}`);\n+  mion.route((ctx, name: string): string => `hello ${name}`);",

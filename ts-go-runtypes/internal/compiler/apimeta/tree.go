@@ -4,6 +4,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/comptimeargs"
 )
@@ -35,6 +36,8 @@ type Method struct {
 	IsAsync bool
 	// MiddlewareIds is the route's public middleware chain in execution order; nil for a middleware.
 	MiddlewareIds []string
+	// NeedsParams is true when the client must send something: a required param, or a required header.
+	NeedsParams bool
 }
 
 // Tree is a walked PublicApi type: every public method in checker order, and the checker their type ids must be assigned under.
@@ -193,6 +196,7 @@ func (walker *treeWalker) method(memberType *checker.Type, id string, pointer []
 			return nil, "`" + id + "` is a headers middleware without a compiled HeadersSubset type"
 		}
 	}
+	method.NeedsParams = hasRequiredElement(method.Params) || walker.hasRequiredHeader(method.Headers)
 	method.Sync = walker.compiledType(typesType, "sync")
 	isAsync := typeChecker.GetTypeOfPropertyOfType(typesType, "isAsync")
 	if isAsync == nil || checker.Type_flags(isAsync)&checker.TypeFlagsBooleanLiteral == 0 {
@@ -205,6 +209,36 @@ func (walker *treeWalker) method(memberType *checker.Type, id string, pointer []
 	}
 	method.Options, method.WidenedOptions = readOptions(typeChecker, optionsType, "")
 	return method, ""
+}
+
+// hasRequiredElement reports whether a params tuple has an element a caller must pass.
+func hasRequiredElement(params *checker.Type) bool {
+	if params == nil || !params.IsTupleType() {
+		return false
+	}
+	for _, flags := range params.TargetTupleType().ElementFlags() {
+		if flags&checker.ElementFlagsRequired != 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// hasRequiredHeader reports whether a HeadersSubset type lists a header that is not optional.
+func (walker *treeWalker) hasRequiredHeader(headersType *checker.Type) bool {
+	if headersType == nil {
+		return false
+	}
+	headers := walker.typeChecker.GetTypeOfPropertyOfType(headersType, "headers")
+	if headers == nil {
+		return false
+	}
+	for _, property := range walker.typeChecker.GetPropertiesOfType(headers) {
+		if property.Flags&ast.SymbolFlagsOptional == 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // compiledType reads one MethodTypes field; nil when absent or not compiled (`unknown` on a RemoteApi,

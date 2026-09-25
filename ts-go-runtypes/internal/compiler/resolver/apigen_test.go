@@ -27,8 +27,8 @@ const apiClientDTS = `declare module '@mionjs/client' {
     call(setup?: unknown, apiMetadata?: InjectApiMetadata<RA, Id>): Promise<unknown>;
     typeErrors(apiMetadata?: InjectApiMetadata<RA, Id>): Promise<unknown>;
   }
-  export interface MiddlewareHooks<PH> {
-    onRequest(handler: (call: (...params: Parameters<PH>) => void) => void): MiddlewareHooks<PH>;
+  export interface ClientMiddleware<PH, Id extends string = string> {
+    onRequest(handler: (call: (...params: Parameters<PH>) => void) => void): ClientMiddleware<PH, Id>;
   }
   type Handler = (...args: any[]) => any;
   export type ClientRoutes<RA, Prefix extends string = '', Root = RA> = {
@@ -36,10 +36,10 @@ const apiClientDTS = `declare module '@mionjs/client' {
       ? (...params: Parameters<H>) => RouteSubRequest<H, ` + "`${Prefix}${K & string}`" + `, Root>
       : ClientRoutes<RA[K], ` + "`${Prefix}${K & string}/`" + `, Root>;
   };
-  export type ClientMiddlewares<RA, Prefix extends string = '', Root = RA> = {
+  export type ClientMiddlewares<RA, Prefix extends string = ''> = {
     [K in keyof RA as RA[K] extends {type: 2 | 3} ? K : RA[K] extends {type: number} ? never : K]: RA[K] extends {type: 2 | 3; handler: infer H extends Handler}
-      ? MiddlewareHooks<H>
-      : ClientMiddlewares<RA[K], ` + "`${Prefix}${K & string}/`" + `, Root>;
+      ? ClientMiddleware<H, ` + "`${Prefix}${K & string}`" + `>
+      : ClientMiddlewares<RA[K], ` + "`${Prefix}${K & string}/`" + `>;
   };
   export type ApiOf<Routes extends {id: string}[]> = Routes[number] extends RouteSubRequest<any, any, infer RA> ? RA : never;
   export interface BatchBuilder<Routes extends RouteSubRequest<any>[]> {
@@ -67,10 +67,13 @@ export type Api = {
 };
 `
 
-// apiClientTS makes one route call, one typeErrors and a batch, and never calls users/remove.
+// apiClientTS makes one route call, one typeErrors and a batch, and never calls users/remove. It sets up
+// both chain middlewares, so no MET008 fires.
 const apiClientTS = `import {initClient, batch} from '@mionjs/client';
 import type {Api} from './api.ts';
 export const {routes, middlewares} = initClient<Api>({baseURL: 'http://x'});
+middlewares.auth.onRequest((call) => call({headers: {authorization: 'x'}}));
+middlewares.users.audit.onRequest((call) => call('why'));
 export const a = routes.users.getById(1).call();
 export const b = routes.sum(3, 4).typeErrors();
 export const c = batch([routes.users.getById(2), routes.sum(1, 2)]).call();
@@ -361,7 +364,8 @@ export const a = routes.sum(1).call();
 	undeclared := setupApi(t, map[string]string{"client.d.ts": apiClientDTS, "api.ts": apiTypeTS, "client.ts": `import {initClient} from '@mionjs/client';
 import type {Api, RouteSubRequestOf} from './api.ts';
 import type {InjectApiMetadata} from '@mionjs/run-types';
-export const {routes} = initClient<Api>({baseURL: 'http://x'});
+export const {routes, middlewares} = initClient<Api>({baseURL: 'http://x'});
+middlewares.auth.onRequest((call) => call({headers: {authorization: 'x'}}));
 declare const ghost: {call(setup?: unknown, apiMetadata?: InjectApiMetadata<Api, 'users/ghost'>): Promise<unknown>};
 export const a = ghost.call();
 export const b = routes.sum(1, 2).call();
@@ -791,4 +795,102 @@ func TestApiGen_MirrorShipsBuiltInPureFnsAsFunctions(t *testing.T) {
 			t.Errorf("%s must ship a live factory and no code string:\n%s", file, source)
 		}
 	}
+}
+
+// optionalApiTS adds an API whose only middleware takes optional params, for MET009.
+const optionalApiTS = apiTypeTS + `export type OptionalApi = {
+  note: {type: 2; handler: (tag?: string) => Promise<void>; options: MfOpts; types?: {params: [tag?: string]; return: void; headers: never; isAsync: false}};
+  ping: {type: 1; handler: () => Promise<string>; options: RouteOpts; types?: {params: []; return: string; headers: never; isAsync: false; sync: [[], string, 'json', 'json']}};
+};
+`
+
+func generateMetDiags(t *testing.T, client string) []diagnostics.Diagnostic {
+	t.Helper()
+	sess := setupApi(t, map[string]string{"client.d.ts": apiClientDTS, "api.ts": optionalApiTS, "client.ts": client}, t.TempDir(), constants.BundleApiBundled, "")
+	gen := sess.Dispatch(protocol.Request{Op: protocol.OpGenerate})
+	if gen.Error != "" {
+		t.Fatalf("generate: %s", gen.Error)
+	}
+	return metDiags(gen.Diagnostics)
+}
+
+// TestApiGen_ReportsMiddlewaresTheClientNeverSetsUp: a chain middleware of a called route that the client
+// never reads off `middlewares` is MET008 when it needs params and MET009 when they are all optional.
+func TestApiGen_ReportsMiddlewaresTheClientNeverSetsUp(t *testing.T) {
+	t.Run("required, never set up", func(t *testing.T) {
+		diags := generateMetDiags(t, `import {initClient} from '@mionjs/client';
+import type {Api} from './api.ts';
+export const {routes, middlewares} = initClient<Api>({baseURL: 'http://x'});
+export const a = routes.users.getById(1).call();
+export const b = routes.users.getById(2).call();
+`)
+		if len(diags) != 2 {
+			t.Fatalf("expected MET008 for auth and users/audit, got %+v", diags)
+		}
+		for index, want := range []string{"auth", "users/audit"} {
+			diag := diags[index]
+			if diag.Code != diagnostics.CodeApiMetaMiddlewareNotSetUp || diag.Args[0] != want || diag.Args[1] != "users/getById" {
+				t.Errorf("diag %d: want MET008 for %s on users/getById, got %+v", index, want, diag)
+			}
+			if diag.Site.StartLine != 4 {
+				t.Errorf("diag %d: reported once, at the first call (line 4), got line %d", index, diag.Site.StartLine)
+			}
+		}
+	})
+
+	t.Run("set up through a hook, an installer or a destructured name", func(t *testing.T) {
+		diags := generateMetDiags(t, `import {initClient} from '@mionjs/client';
+import type {ClientMiddleware} from '@mionjs/client';
+import type {Api} from './api.ts';
+export const {routes, middlewares} = initClient<Api>({baseURL: 'http://x'});
+function installAudit(audit: ClientMiddleware<(why: string) => Promise<void>>) {
+  audit.onRequest((call) => call('why'));
+}
+installAudit(middlewares.users.audit);
+const {auth} = middlewares;
+auth.onRequest((call) => call({headers: {authorization: 'x'}}));
+export const a = routes.users.getById(1).call();
+`)
+		if len(diags) != 0 {
+			t.Fatalf("every middleware is set up, got %+v", diags)
+		}
+	})
+
+	t.Run("set up through a bracket read", func(t *testing.T) {
+		diags := generateMetDiags(t, `import {initClient} from '@mionjs/client';
+import type {Api} from './api.ts';
+export const {routes, middlewares} = initClient<Api>({baseURL: 'http://x'});
+middlewares['auth'].onRequest((call) => call({headers: {authorization: 'x'}}));
+export const a = routes.sum(1, 2).call();
+`)
+		if len(diags) != 0 {
+			t.Fatalf("auth is set up, got %+v", diags)
+		}
+	})
+
+	t.Run("optional, never set up", func(t *testing.T) {
+		diags := generateMetDiags(t, `import {initClient} from '@mionjs/client';
+import type {OptionalApi} from './api.ts';
+export const {routes, middlewares} = initClient<OptionalApi>({baseURL: 'http://x'});
+export const a = routes.ping().call();
+`)
+		if len(diags) != 1 || diags[0].Code != diagnostics.CodeApiMetaOptionalMiddlewareNotSetUp || diags[0].Args[0] != "note" {
+			t.Fatalf("expected one MET009 for note, got %+v", diags)
+		}
+		if diags[0].Level != diagnostics.LevelWarning {
+			t.Errorf("MET009 is a warning, got level %v", diags[0].Level)
+		}
+	})
+
+	t.Run("optional, silenced above the call", func(t *testing.T) {
+		diags := generateMetDiags(t, `import {initClient} from '@mionjs/client';
+import type {OptionalApi} from './api.ts';
+export const {routes, middlewares} = initClient<OptionalApi>({baseURL: 'http://x'});
+// @mion-expect-error MET009
+export const a = routes.ping().call();
+`)
+		if len(diags) != 0 {
+			t.Fatalf("the comment silences MET009, got %+v", diags)
+		}
+	})
 }
