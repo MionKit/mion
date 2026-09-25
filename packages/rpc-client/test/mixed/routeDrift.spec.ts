@@ -33,7 +33,7 @@ const count = (id: string) => (handlerCalls[id] = (handlerCalls[id] ?? 0) + 1);
 
 /** What the client was built against. */
 const oldRoutes = (mion: Mion) => ({
-  syncRoutes: mionSyncRoutes,
+  mionSyncRoutes,
   same: mion.route((ctx, value: number): number => (count('same'), value + 1)),
   paramsChanged: mion.route((ctx, name: string): string => (count('paramsChanged'), name)),
   returnChanged: mion.route((ctx, name: string): string => (count('returnChanged'), name)),
@@ -48,7 +48,7 @@ const oldRoutes = (mion: Mion) => ({
 
 /** What the server runs now: each route differs from the old one in one way, or not at all. */
 const newRoutes = (mion: Mion) => ({
-  syncRoutes: mionSyncRoutes,
+  mionSyncRoutes,
   same: mion.route((ctx, value: number): number => (count('same'), value + 1)),
   paramsChanged: mion.route((ctx, name: string, age: number): string => (count('paramsChanged'), `${name} ${age}`)),
   returnChanged: mion.route((ctx, name: string): number => (count('returnChanged'), name.length)),
@@ -87,7 +87,7 @@ function reloadClient() {
   resetApiVersionRecovery();
   // what the build injects for OldApi, spelled out for the same reason as in `serve`
   const client = initClient<OldApi>({baseURL, storageEngine: 'memory'}, 'old');
-  useSyncRoutes(client.middlewares.syncRoutes);
+  useSyncRoutes(client.middlewares.mionSyncRoutes);
   return client;
 }
 

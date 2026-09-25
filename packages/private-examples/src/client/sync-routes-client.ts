@@ -6,7 +6,7 @@ import type {MyApi} from './sync-routes.routes.ts';
 const {routes, middlewares} = initClient<MyApi>({
   baseURL: 'http://localhost:3000',
 });
-useSyncRoutes(middlewares.syncRoutes);
+useSyncRoutes(middlewares.mionSyncRoutes);
 // end-setup
 
 // start-mismatch
