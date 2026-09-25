@@ -230,6 +230,7 @@ export interface RouteSubRequest<
 /** A middleware's params for one request, built by the `call` its onRequest hook receives */
 export type MiddlewareSubRequest<PH extends PublicHandler, Id extends string = string> = SubRequest<PH, Id>;
 
+/* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/no-empty-object-type */
 // type-client-middleware-start
 /** The persistent hooks of a middleware, keyed by its id */
 export type MiddlewareEvents<PH extends PublicHandler> = TypedEvent<
@@ -240,12 +241,10 @@ export type MiddlewareEvents<PH extends PublicHandler> = TypedEvent<
 
 /** A middleware on the client: hooks only, its params come from onRequest on every request. `Id` is type only:
  *  the build reads it to tell which middlewares the client sets up */
-/* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/no-empty-object-type */
 export interface ClientMiddleware<PH extends PublicHandler, Id extends string = string> extends Pick<
   MiddlewareEvents<PH>,
   (typeof MIDDLEWARE_HOOKS)[number]
 > {}
-/* eslint-enable @typescript-eslint/no-unused-vars, @typescript-eslint/no-empty-object-type */
 
 /** A middleware on the client, typed from its server handler, so an installer needs no router import */
 export type ClientMiddlewareOf<H extends (ctx: any, ...params: any[]) => any> = H extends (
@@ -255,6 +254,7 @@ export type ClientMiddlewareOf<H extends (ctx: any, ...params: any[]) => any> = 
   ? ClientMiddleware<(...params: P) => Promise<Awaited<R>>>
   : never;
 // type-client-middleware-end
+/* eslint-enable @typescript-eslint/no-unused-vars, @typescript-eslint/no-empty-object-type */
 
 // The mapped types below tell a route, a middleware and a group apart by the `type` discriminant every public
 // method carries (a group carries none), never structurally: a PublicRoute's options and compiled types are
