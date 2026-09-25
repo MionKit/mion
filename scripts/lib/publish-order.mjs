@@ -46,7 +46,7 @@ export function readWorkspaceManifests(packagesDir = PACKAGES_DIR) {
   return manifests;
 }
 
-// Each name's version, looked up by npm name since a folder may be named differently (packages/rpc-router holds @mionjs/router).
+// Keyed by npm name, not folder: packages/rpc-router holds @mionjs/router.
 export function versionsOf(names, manifests = readWorkspaceManifests()) {
   return new Map(
     names.map((name) => {
