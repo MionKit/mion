@@ -12,9 +12,7 @@ import type {CallContext} from '../types.ts';
 // A retry sanitizes the same params again, and a first-match `replace` must not run twice on them.
 const sanitizedParams = new WeakSet<any[]>();
 
-/** Applies a route's declared format transforms (trim / case / replace / stripSeparators) to its params once,
- * BEFORE local validation and serialization, so the client validates and sends what the server will see.
- * Never throws: a transform over wrong-shaped input is left for validation to report. */
+/** Runs before validation and serialization, so the client sends what the server sees; never throws, validation reports bad input */
 export function sanitizeSubRequests(subRequestIds: string[], context: CallContext): void {
   if (!context.options.sanitizeParams) return;
   for (const id of subRequestIds) {

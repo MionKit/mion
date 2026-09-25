@@ -50,7 +50,6 @@ interface DispatchState {
 
 // ############# DISPATCH #############
 
-/** Sends the call, runs the middlewares' onResponse / onError hooks and builds the result tuple */
 export async function dispatchCall(
   context: ClientCallContext,
   handlersRegistry: HandlersRegistry
@@ -321,7 +320,7 @@ async function retryWithProperSerialization(state: DispatchState): Promise<Respo
   return makeCall(state);
 }
 
-/** A platform error is request-scoped: recorded once under CLIENT_REQUEST_ERROR_ID, not per subrequest */
+/** A platform error is request-scoped: one entry, not one per subrequest */
 function handlePlatformError(context: ClientCallContext, deserialized: ResponseBody, errors: RequestErrors): boolean {
   if (!(MION_ROUTES.platformError in deserialized)) return false;
   const platformError = deserialized[MION_ROUTES.platformError];
@@ -335,8 +334,7 @@ function setUndeclaredError(context: ClientCallContext, id: string, error: RpcEr
   context.thrownErrorIds.add(id);
 }
 
-/** Keeps the wire's split: body entries are declared responses, [MION_ROUTES.thrownErrors] ones unexpected.
- * 'validation-error' is thrown server-side but is by design part of every handler's expected union. */
+/** Body entries are declared, [MION_ROUTES.thrownErrors] unexpected; 'validation-error' is thrown yet always declared */
 function resolveSubRequests(
   context: ClientCallContext,
   deserialized: ResponseBody,
@@ -534,8 +532,7 @@ export function isMiddlewareInScope(middlewarePointer: string[], routePointer: s
 
 // ############# FETCH #############
 
-/** GET with the body as `?data=<base64url>` for a JSON query whose URL fits MAX_GET_URL_LENGTH.
- * POST for everything else: mutations, optimistic requests, batches, and a URL over the limit. */
+/** GET only for a JSON query whose URL fits MAX_GET_URL_LENGTH; mutations, optimistic calls and batches POST */
 function buildFetchOptions(
   url: URL,
   serialized: ReturnType<typeof serializeRequestBody>,
@@ -579,7 +576,6 @@ function metadataRowsOf(slot: unknown): SerializableMethodsData | undefined {
 
 // ############# RESULT #############
 
-/** Every subrequest that is not one of the call's routes */
 function getMiddlewareSubRequests(context: ClientCallContext): MiddlewareSubRequest<any>[] {
   const routeIds = new Set<string>();
   if (context.route) routeIds.add(context.route.id);
@@ -589,8 +585,7 @@ function getMiddlewareSubRequests(context: ClientCallContext): MiddlewareSubRequ
     .map(([, subRequest]) => subRequest as MiddlewareSubRequest<any>);
 }
 
-/** onError listeners are the typed channel: they fire only for a middleware's declared (returned) errors,
- * never for thrown/undeclared ones, which reach the unexpected slot only */
+/** onError fires only for a middleware's declared (returned) errors; thrown ones reach the undeclared slot only */
 function processMiddlewaresResponses(
   handlersRegistry: HandlersRegistry,
   middlewareSubRequests: MiddlewareSubRequest<any>[],
@@ -607,12 +602,7 @@ function processMiddlewaresResponses(
   }
 }
 
-/** The dispatch contract of [result, error, undeclared, middlewareResults, middlewareErrors]:
- * - slot 1: ONLY the route's own declared errors | ValidationError (a thrown route error does not qualify)
- * - slot 4: each middleware's DECLARED errors | ValidationError by id, one entry each, so several failures are kept
- * - slot 2: what NOBODY declared (a thrown route or middleware error, transport/platform/framework, an error for a
- *   middleware not part of this request); when several exist, the first in execution order (middlewares before the route)
- * - slot 0: the route result whatever else failed; no error ever crosses into another slot */
+/** Slot rules are pinned in test/errorDispatch.spec.ts; slot 2 takes the first undeclared error, middlewares first */
 function buildResult(
   context: ClientCallContext,
   middlewares: MiddlewareSubRequest<any>[],
@@ -664,7 +654,6 @@ function buildResult(
   }
 
   if (errors && undeclaredPart === undefined) {
-    // the route's own thrown/undeclared error
     for (const id of routeIds) {
       const routeThrownError = errors.get(id);
       if (routeThrownError && thrownErrorIds.has(id)) {
@@ -674,7 +663,7 @@ function buildResult(
     }
   }
   if (errors && undeclaredPart === undefined) {
-    // request-scoped errors (transport, platform, framework) and errors keyed to ids not part of this request
+    // request-scoped errors (transport, platform, framework) and ids outside this request
     for (const [id, error] of errors) {
       if (!processedIds.has(id)) {
         undeclaredPart = error;

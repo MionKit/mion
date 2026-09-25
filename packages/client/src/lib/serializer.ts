@@ -65,8 +65,7 @@ function serializeJsonBody(context: CallContext): string {
   return `{${props.join(',')}}`;
 }
 
-/** Serializes the body without compiled functions, on the plain wire forms every server decoder
- * accepts. A headers middleware's HeadersSubset goes out as HTTP headers, never in the body. */
+/** Plain wire forms every server decoder accepts; a HeadersSubset goes out as HTTP headers, never in the body */
 function serializeJSonBodyOptimistic(context: CallContext): string {
   const body: Record<string, any> = {};
   const subRequestIds = Object.keys(context.subRequestList);
