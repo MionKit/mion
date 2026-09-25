@@ -1,7 +1,7 @@
 ---
 type: chore
 spec: guidelines
-status: ready
+status: done
 created: 2026-09-24
 ---
 
@@ -29,3 +29,9 @@ None on the website, because users see only npm names. CLAUDE.md and SETUP.md li
 - `docs/done/` keeps old paths as history; open `docs/todos/` and `docs/maybe/` specs are updated.
 - `git mv` both folders; rewrite `packages/router|client` paths, the `../router/` tsconfig hops, the root eslint and lint-staged globs, and the twoslash mount list; regenerate the lockfile with `pnpm install`.
 - Fix `scripts/release/e2e.mjs`, which guessed a folder from the npm name (`@mionjs/router` → `packages/router`): look the folder up in the workspace instead.
+
+## What shipped
+- The folders are `packages/rpc-router` and `packages/rpc-client`. npm names and vitest project names are unchanged, so `scripts/core/test-batches.mjs` and `scripts/ci/lanes.mjs` needed no edit.
+- Paths fixed in `vitest.config.ts`, the root `tsconfig.json` references, the root `package.json` eslint and lint-staged globs, the `../router/` hops in the rpc-client and private-test-server tsconfigs, `scripts/website/gen-client-size.mjs`, `scripts/website/bench-data/mion-bench.mjs`, the twoslash mount list, the website `<code-import>` paths, Go and TS comments, CLAUDE.md files, README.md, the review-pr skill, and open todos. The lockfile moved with `pnpm install`.
+- `scripts/release/e2e.mjs` now finds a package folder by its npm name through `readWorkspacePackages()`; it used to guess `packages/router` from `@mionjs/router`.
+- `docs/done/` keeps the old paths as history. Fixture strings like `../client/tsconfig.json` in devtools tests and examples are made-up paths and stay.
