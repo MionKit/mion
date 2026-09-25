@@ -12,6 +12,44 @@ repo's own lint, always run the compiled JS.
   `pnpm --filter @mionjs/devtools run build` (or `pnpm run check:builds`).
 - The `devtools-core` suite imports source by relative path and needs no rebuild.
 
+## ⚠️ devtools never depends on run-types
+
+The dependency runs ONE way: `@mionjs/run-types` lists `@mionjs/devtools` as a dev dependency,
+because its own tests run through the devtools vite plugin. devtools lists nothing from
+run-types, in any `package.json` field. Adding it back makes a workspace cycle: pnpm warns on
+every install and has to guess which package builds and tests first.
+
+- **Nothing in `src/`, `test/` or the vitest configs imports `@mionjs/run-types`**, not even a
+  type. A test that checks run-types behaviour (a validator accepting or rejecting a value, a
+  mock matching its pattern) belongs in `packages/run-types/test`, written as plain TypeScript
+  like the rest of that suite.
+- **Fixture sources may name it.** A devtools test feeds the compiler a small project as text
+  and checks what comes out (rewrites, diagnostics, generated modules). The compiler only
+  matches markers declared in a package named `@mionjs/run-types`, so each fixture gets the
+  REAL built package: `MARKER_PACKAGE_OVERLAY` / `writeMarkerPackage` / `createMarkerProject`
+  in `test/helpers/inline.ts` copy `packages/run-types/dist` in by path. Never a hand-written
+  copy of the types, it would drift.
+- **A fixture that a bundler builds** installs the package as types only, so mark
+  `@mionjs/run-types` external (rollup, vite, esbuild) or alias it to a small stub file
+  (vite dev server). Build fixtures live in their own temp dir, never inside another package.
+
+Two guards fail CI when this breaks: `pnpm run check:tree` (no workspace dependency cycle, in
+`scripts/ci/check-tree.mjs`) and the "devtools code never imports @mionjs/run-types" case in
+`test/repo-contracts.test.ts`.
+
+### Build order
+
+The two builds do not need each other: run-types builds with the `mion` CLI from
+`@mionjs/bin-compiler`, devtools with `tsc`. The TESTS do:
+
+- run-types tests load the devtools vite plugin from `packages/devtools/dist`, so devtools
+  must be built first.
+- devtools tests copy `packages/run-types/dist` into their fixtures, so run-types must be
+  built first too.
+
+`pnpm run check:builds` builds both when stale, and every `pretest` hook runs it. A missing
+run-types dist fails the devtools suite with a message saying so.
+
 ## Scope
 
 The two devtools packages in one, so this package carries the whole build-time surface:
