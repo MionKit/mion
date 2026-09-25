@@ -8,7 +8,7 @@
 // A refined column keeps its fn, props and base, so every derived flag survives; only its format params change.
 
 import type {MergeFormat, RefinableParamsOf} from '@mionjs/run-types/formats';
-import type {Column, Merge, ValueOf} from './columns.ts';
+import type {ColBaseFlag, Column, Merge, ValueOf} from './columns.ts';
 import {rtColSpecKey} from './columns.ts';
 import type {AnyTable} from './table.ts';
 
@@ -27,13 +27,8 @@ export type TableRefinements<T extends AnyTable> = {
 type RefinedColumn<C, Params> =
   Parts<C> extends [infer Fn extends string, infer P, infer D, infer B extends string]
     ? P extends {$type: [infer Override]}
-      ? Column<
-          Fn,
-          Merge<P, {$type: [MergeFormat<Override, Params>]}>,
-          D,
-          B & ('notNull' | 'hasDefault' | 'primaryKeyHasDefault' | 'autoincrement')
-        >
-      : Column<Fn, P, MergeFormat<D, Params>, B & ('notNull' | 'hasDefault' | 'primaryKeyHasDefault' | 'autoincrement')>
+      ? Column<Fn, Merge<P, {$type: [MergeFormat<Override, Params>]}>, D, B & ColBaseFlag>
+      : Column<Fn, P, MergeFormat<D, Params>, B & ColBaseFlag>
     : never;
 type RefineCols<Cols, R> = {
   [K in keyof Cols]: K extends keyof R ? (R[K] extends object ? RefinedColumn<Cols[K], R[K]> : Cols[K]) : Cols[K];
