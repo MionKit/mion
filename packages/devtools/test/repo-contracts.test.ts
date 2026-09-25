@@ -225,6 +225,23 @@ describe('published packages ship a README', () => {
   }
 });
 
+describe('private package folders start with private-', () => {
+  const packagesDir = join(REPO_ROOT, 'packages');
+  const manifests = readdirSync(packagesDir)
+    .filter((dir) => existsSync(join(packagesDir, dir, 'package.json')))
+    .map((dir) => ({dir, manifest: JSON.parse(readFileSync(join(packagesDir, dir, 'package.json'), 'utf8'))}));
+
+  it('every private package folder has the prefix', () => {
+    const unprefixed = manifests.filter(({dir, manifest}) => manifest.private === true && !dir.startsWith('private-'));
+    expect(unprefixed.map(({dir}) => dir)).toEqual([]);
+  });
+
+  it('no published package folder has it', () => {
+    const prefixed = manifests.filter(({dir, manifest}) => manifest.private !== true && dir.startsWith('private-'));
+    expect(prefixed.map(({dir}) => dir)).toEqual([]);
+  });
+});
+
 const REPO_URL = 'https://github.com/MionKit/mion';
 
 describe('published packages point at this repository', () => {
