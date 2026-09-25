@@ -1,7 +1,7 @@
 ---
 type: chore
 spec: guidelines
-status: ready
+status: done
 created: 2026-09-25
 ---
 
@@ -28,3 +28,11 @@ None, because only code comments and a dead constant change.
 - The comments match the code, the orphan comment and the dead constant are gone.
 - `go -C ts-go-runtypes test ./internal/... ./cmd/...` passes and `gofmt` is clean.
 - The simplify-comments pass ran on every touched source file, committed on its own.
+
+## Plan (approved 2026-09-25)
+
+- `drizzle.go` header: references now say a table declared later is wrapped in a thunk; `backward` dropped from the CNV009 list.
+- `convert.go`: the `CodeDrizzleUnsupported` comment points at the list in `drizzle.go` instead of repeating it, so it cannot drift again.
+- `drizzle_test.go`: orphan `TestDrizzle_BackwardReferenceRefusal` comment deleted.
+- `sentinelColumn` deleted from `drizzle.go`.
+- No other text in the package says references refuse. No new test: comments and one unused constant only.
