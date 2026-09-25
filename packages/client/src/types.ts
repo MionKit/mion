@@ -125,8 +125,7 @@ export type ErrorHandler<E extends RpcError<string, any>> = (error: E) => void;
 export type ResponseHandler<S> = (result: S) => void;
 
 // type-request-handler-start
-/** Runs before every request that includes the middleware. Calling `call` sets this request's params;
- * not calling it sends the middleware nothing. Throwing or rejecting stops the request. */
+/** Runs before each request with the middleware; no `call` sends it nothing, a throw or rejection stops the request */
 export type RequestHandler<P extends any[] = any[]> = (
   call: (...params: P) => void,
   context: CallContext

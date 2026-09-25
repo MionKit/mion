@@ -107,7 +107,7 @@ export class MionClientRequest implements CallContext {
       // Optimistic sends plain wire forms; what a decoder cannot read errors, and the retry sends the real encoder.
       isOptimistic = !allCached && !skipOptimistic;
       if (isOptimistic) {
-        // No chain before metadata, so the route pointer picks middlewares by scope; a missed one costs the retry, an extra is ignored.
+        // No chain before metadata, so scope picks the middlewares; a missed one costs the retry, an extra is ignored.
         const running = this.runRequestHandlers(this.getScopedRequestHandlerIds());
         if (running) await running;
         if (this.signal?.aborted) {
@@ -502,7 +502,7 @@ function isPromiseLike(value: unknown): value is PromiseLike<void> {
   return !!value && typeof (value as PromiseLike<void>).then === 'function';
 }
 
-/** A thrown RpcError is kept as is; anything else is wrapped, and both land in the undeclared slot */
+/** Kept or wrapped, the error lands in the undeclared slot */
 function requestHandlerError(id: string, error: unknown): RpcError<string> {
   if (isRpcError(error)) return error;
   const message = error instanceof Error ? error.message : String(error);

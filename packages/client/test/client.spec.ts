@@ -54,7 +54,7 @@ describe('client', () => {
     const sayHello = routes.sayHello(someUser);
     expect(sayHello).toEqual(expect.objectContaining(expectedSayHelloSubRequest));
     expect(routes.utils.sumTwo(2)).toEqual(expect.objectContaining(expectedSumTwoSubRequest));
-    // a sub request carries no middleware hooks, those live on the middleware
+    // hooks live on the middleware, never on a sub request
     for (const hook of ['events', 'onRequest', 'onResponse', 'onError', 'onSuccess']) {
       expect(sayHello).not.toHaveProperty(hook);
     }
@@ -142,9 +142,7 @@ describe('client', () => {
 
     const [, routeError, fatal] = await routes.sayHello(someUser).call();
 
-    // After offRequest, the auth middleware is not sent, so the server returns a headers
-    // validation error for auth. It is not the route's declared error, so it lands in the
-    // undeclared slot, never in the route's typed error slot.
+    // The unsent auth fails the server's headers check, which the route never declared: undeclared slot
     expect(routeError).toBeUndefined();
     expect(fatal).toBeDefined();
     expect(isRpcError(fatal)).toBe(true);
@@ -159,7 +157,6 @@ describe('client', () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-      // So call() works without passing middleware params
       middlewares.auth.onRequest((auth) => auth(authHeaders));
 
       const [greeting, error] = await routes.sayHello(someUser).call();
@@ -172,7 +169,6 @@ describe('client', () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-      // So call() works without passing middleware params
       middlewares.auth.onRequest((auth) => auth(authHeaders));
 
       const [response, error] = await routes.alwaysFails(someUser).call();
@@ -187,7 +183,6 @@ describe('client', () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-      // So call() works without passing middleware params
       middlewares.auth.onRequest((auth) => auth(authHeaders));
 
       // This should NOT throw
@@ -206,7 +201,6 @@ describe('client', () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-      // So call() works without passing middleware params
       middlewares.auth.onRequest((auth) => auth(authHeaders));
 
       const [response, error] = await routes.alwaysFails(someUser).call();
@@ -235,7 +229,6 @@ describe('client', () => {
           receivedSessionInfo = sessionInfo;
         });
 
-      // So call() works without passing middleware params
       middlewares.auth.onRequest((auth) => auth(authHeaders));
 
       // Make first request
@@ -257,7 +250,6 @@ describe('client', () => {
       let successCalled = false;
       let errorCalled = false;
 
-      // Feed an expired token and register handlers
       middlewares.session
         .onRequest((session) => session('expired'))
         .onResponse(() => {
@@ -267,7 +259,6 @@ describe('client', () => {
           errorCalled = true;
         });
 
-      // So call() works without passing middleware params
       middlewares.auth.onRequest((auth) => auth(authHeaders));
 
       // Make request - should fail with session-expired
@@ -283,21 +274,18 @@ describe('client', () => {
 
       let successCallCount = 0;
 
-      // Feed the middleware and register its onResponse handler
       const typedEvent = middlewares.session
         .onRequest((session) => session('valid-token'))
         .onResponse(() => {
           successCallCount++;
         });
 
-      // So call() works without passing middleware params
       middlewares.auth.onRequest((auth) => auth(authHeaders));
 
       // First request - handler should be called
       await routes.sayHello(someUser).call();
       expect(successCallCount).toBe(1);
 
-      // Remove the response handler
       typedEvent.offResponse();
 
       // Second request - handler should NOT be called
@@ -322,7 +310,6 @@ describe('client', () => {
           errorCalled = true;
         });
 
-      // So call() works without passing middleware params
       middlewares.auth.onRequest((auth) => auth(authHeaders));
 
       // Make successful request
@@ -927,7 +914,6 @@ describe('client', () => {
       );
     }
 
-    /** Spies on fetch for one call and returns the calls it saw, the spy always restored. */
     async function spyOnFetch(run: () => Promise<void>): Promise<{init: RequestInit; body: any}[]> {
       const fetchSpy = vi.spyOn(globalThis, 'fetch');
       try {

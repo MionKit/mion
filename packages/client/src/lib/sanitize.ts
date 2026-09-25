@@ -9,8 +9,7 @@ import {HandlerType} from '@mionjs/core';
 import {hasMethod, useMethodFns} from './methods.ts';
 import type {MionClientRequest} from '../request.ts';
 
-// Keyed on the params ARRAY: a retry sanitizes the same subRequest again,
-// and a transform must not run twice on it (a first-match `replace` is not idempotent).
+// A retry sanitizes the same params again, and a first-match `replace` must not run twice on them.
 const sanitizedParams = new WeakSet<any[]>();
 
 /** Applies a route's declared format transforms (trim / case / replace / stripSeparators) to its params once,
