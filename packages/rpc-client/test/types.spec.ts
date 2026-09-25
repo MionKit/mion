@@ -12,12 +12,14 @@ import type {
   ApiOf,
   CallContext,
   ClientMiddleware,
+  ClientMiddlewareOf,
   ClientMiddlewares,
   ClientRoutes,
+  HookContext,
   InitClientOptions,
   RouteSubRequest,
 } from '../src/types.ts';
-import type {TestServerApi} from '@mionjs/test-server';
+import type {TestServerApi, csrf} from '@mionjs/test-server';
 import type {InjectApiMetadata, InjectBuildVersion, InjectRouterOptions} from '@mionjs/run-types';
 import {HeadersSubset} from '@mionjs/core';
 import type {ROUTER_OPTIONS} from '@mionjs/core';
@@ -99,5 +101,35 @@ describe('subrequest types carry the route id and the API', () => {
     const anyMiddleware: ClientMiddleware<any> = middlewares.auth;
     expectTypeOf(anyRoute.id).toEqualTypeOf<string>();
     expectTypeOf(anyMiddleware.onRequest).toBeFunction();
+  });
+});
+
+describe('isolated reusable middleware types', () => {
+  it('ClientMiddlewareOf types a middleware from its server handler, wherever it is placed', () => {
+    expectTypeOf(middlewares.notes.csrf).toEqualTypeOf<ClientMiddlewareOf<typeof csrf>>();
+    expectTypeOf(middlewares.notes.admin.csrf).toEqualTypeOf<ClientMiddlewareOf<typeof csrf>>();
+  });
+
+  it('checks the params the onRequest call sends', () => {
+    const installer = (middleware: ClientMiddlewareOf<typeof csrf>) => {
+      middleware.onRequest((call) => call('token'));
+      // @ts-expect-error the csrf token is a string
+      middleware.onRequest((call) => call(1));
+      // @ts-expect-error the csrf token is required
+      middleware.onRequest((call) => call());
+    };
+    expect(installer).toBeTypeOf('function');
+  });
+
+  it('gives onError and onResponse hooks the call with retry()', () => {
+    const installer = (middleware: ClientMiddlewareOf<typeof csrf>) =>
+      middleware.onError('csrf-expired', (error, context) => {
+        expectTypeOf(error.type).toEqualTypeOf<'csrf-expired'>();
+        expectTypeOf(context).toEqualTypeOf<HookContext>();
+        expectTypeOf(context.retry).returns.toEqualTypeOf<boolean>();
+      });
+    expect(installer).toBeTypeOf('function');
+    middlewares.session.onResponse((_session, context) => expectTypeOf(context).toMatchTypeOf<CallContext>());
+    middlewares.session.offResponse();
   });
 });

@@ -18,6 +18,7 @@ import {refineTableType} from '@mionjs/drizzle-orm';
 import type {InferInsertModel, InferSelectModel, InferUpdateModel} from '@mionjs/drizzle-orm';
 import {Number} from '@mionjs/run-types/formats';
 import {registerClassSerializer} from '@mionjs/run-types/runtime';
+import {csrf, getCsrfToken, rotateCsrfToken} from './csrf.middleware.ts';
 
 // ============ Router ============
 // Every route / middleware below comes from these helpers: plain closures, so destructuring keeps
@@ -198,6 +199,10 @@ export class ScopedAuthError extends RpcError<'not-authorized'> {
   }
 }
 registerClassSerializer(ScopedAuthError, {deserialize: (d) => new ScopedAuthError(d.scope, d.retryAfter)});
+
+// how many times each notes route ran, so a client test can prove a retry never ran a mutation twice
+type NoteRuns = {getNote: number; saveNote: number; touchNote: number; clearNote: number; failNote: number; adminNote: number};
+const noteRuns: NoteRuns = {getNote: 0, saveNote: 0, touchNote: 0, clearNote: 0, failNote: 0, adminNote: 0};
 
 const routes = {
   // ============ Shared middleware ============
@@ -431,6 +436,37 @@ const routes = {
     await new Promise((resolve) => setTimeout(resolve, ms));
     return ms;
   }),
+
+  // ============ Isolated reusable middleware (csrf.middleware.ts) ============
+  // Scoped to a group: at the root its required token would break every other route's tests.
+  csrfToken: query((): string => getCsrfToken()),
+  rotateCsrfToken: mutation((): string => rotateCsrfToken()),
+  noteRuns: query((): NoteRuns => ({...noteRuns})),
+  resetNoteRuns: mutation((): void => {
+    (Object.keys(noteRuns) as (keyof NoteRuns)[]).forEach((key) => (noteRuns[key] = 0));
+  }),
+  notes: {
+    csrf: middleware(csrf),
+    getNote: query((_ctx, id: string): string => `note ${id} (${++noteRuns.getNote})`),
+    saveNote: mutation((_ctx, text: string): string => `saved ${text} (${++noteRuns.saveNote})`),
+    touchNote: route((_ctx, id: string): string => `touched ${id} (${++noteRuns.touchNote})`),
+    clearNote: mutation((_ctx, _id: string): void => {
+      noteRuns.clearNote++;
+    }),
+    failNote: mutation((_ctx, _id: string): RpcError<'note-failed'> => {
+      noteRuns.failNote++;
+      return new RpcError({type: 'note-failed', publicMessage: 'The note could not be saved'});
+    }),
+    // the same middleware placed one group deeper
+    admin: {
+      csrf: middleware(csrf),
+      getNote: query((_ctx, id: string): string => `admin note ${id} (${++noteRuns.adminNote})`),
+    },
+    // runs AFTER the routes above: a declared error here arrives after the route already ran
+    audit: middleware((_ctx, flag?: boolean): void | RpcError<'audit-flagged'> => {
+      if (flag) return new RpcError({type: 'audit-flagged', publicMessage: 'Flagged by the audit'});
+    }),
+  },
 
   // ============ Compact routes (per-route compact encoder) ============
   compact: compactTestRoutes,

@@ -245,7 +245,10 @@ describe('middleware onRequest', () => {
       .onError('session-expired', onError);
 
     const [, , , results] = await routes.sayHello(user).call();
-    expect(onResponse).toHaveBeenCalledWith(expect.objectContaining({userId: 'user-123'}));
+    expect(onResponse).toHaveBeenCalledWith(
+      expect.objectContaining({userId: 'user-123'}),
+      expect.objectContaining({retry: expect.any(Function)})
+    );
     expect(results?.session).toEqual(expect.objectContaining({userId: 'user-123'}));
 
     token = 'expired';
