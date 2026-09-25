@@ -46,6 +46,16 @@ export function readWorkspaceManifests(packagesDir = PACKAGES_DIR) {
   return manifests;
 }
 
+// Each name's version, looked up by npm name since a folder may be named differently (packages/rpc-router holds @mionjs/router).
+export function versionsOf(names, manifests = readWorkspaceManifests()) {
+  return new Map(
+    names.map((name) => {
+      if (!manifests.has(name)) throw new Error(`${name} is not declared by any packages/*/package.json`);
+      return [name, manifests.get(name).version];
+    })
+  );
+}
+
 // Names of every package that goes to npm: non-private, versioned, both version
 // lines. The staging-time payloads are not workspace packages and are not listed.
 export function publishedPackages(manifests = readWorkspaceManifests()) {

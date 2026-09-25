@@ -41,7 +41,7 @@ import {requireEngine} from '../lib/engine.mjs';
 import {startRegistry, startToolchainContainer, stopRegistry, waitContainerHealthy} from '../container/image.mjs';
 import {capture, die, note, noteErr, reportCliError, run, runOrThrow, sleep, which} from '../lib/proc.mjs';
 import {describeReceipt, writeReceipt} from './receipt.mjs';
-import {readWorkspacePackages} from '../lib/workspace-graph.mjs';
+import {versionsOf} from '../lib/publish-order.mjs';
 
 const E2E_DIR = join(REPO_ROOT, 'container/pre-publish-e2e');
 const HOST_SMOKE_DIR = join(E2E_DIR, 'host-smoke');
@@ -102,34 +102,20 @@ function readVersion() {
   return JSON.parse(readFileSync(join(REPO_ROOT, 'version.json'), 'utf8')).version;
 }
 
-// Folder names differ from npm names (packages/rpc-router holds @mionjs/router), so look the folder up.
-function dirOfPackage(name) {
-  const found = [...readWorkspacePackages(REPO_ROOT).values()].find((pkg) => pkg.name === name);
-  if (!found) die(`e2e: ${name} is in a consumer set but no packages/*/package.json declares it`);
-  return found.dir;
+function consumerVersions(names) {
+  try {
+    return versionsOf(names);
+  } catch (err) {
+    die(`e2e: ${err.message}`);
+  }
 }
 
 // Drizzle dialect packages may diverge by patch, so each installs at its own version.
-function readDrizzleVersions() {
-  const versions = new Map();
-  for (const name of DRIZZLE_CONSUMER_PACKAGES) {
-    const dir = dirOfPackage(name);
-    const manifestFile = join(REPO_ROOT, 'packages', dir, 'package.json');
-    if (!existsSync(manifestFile)) die(`e2e: ${name} is in the drizzle consumer set but packages/${dir}/package.json is missing`);
-    versions.set(name, JSON.parse(readFileSync(manifestFile, 'utf8')).version);
-  }
-  return versions;
-}
+const readDrizzleVersions = () => consumerVersions(DRIZZLE_CONSUMER_PACKAGES);
 
 // Read from each package.json, not version.json, so a missed stamp fails here; a split would 404 the install pins.
 function readMionVersion() {
-  const versions = new Map();
-  for (const name of MION_CONSUMER_PACKAGES) {
-    const dir = dirOfPackage(name);
-    const manifestFile = join(REPO_ROOT, 'packages', dir, 'package.json');
-    if (!existsSync(manifestFile)) die(`e2e: ${name} is in the mion consumer set but packages/${dir}/package.json is missing`);
-    versions.set(name, JSON.parse(readFileSync(manifestFile, 'utf8')).version);
-  }
+  const versions = consumerVersions(MION_CONSUMER_PACKAGES);
   const distinct = [...new Set(versions.values())];
   if (distinct.length !== 1) {
     const detail = [...versions].map(([name, version]) => `${name}@${version}`).join(', ');
