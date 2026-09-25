@@ -149,9 +149,6 @@ importers:
       '@mionjs/bin-compiler':
         specifier: workspace:*
         version: link:../bin-compiler
-      '@mionjs/run-types':
-        specifier: workspace:*
-        version: link:../run-types
       vite:
         specifier: 8.0.16
         version: 8.0.16(@types/node@26.1.0)(esbuild@0.28.1)(jiti@2.6.1)(yaml@2.9.0)

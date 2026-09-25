@@ -104,6 +104,7 @@
   "scripts": {
     "build": "tsc --build tsconfig.build.json",
     "typecheck:test": "tsc -p tsconfig.json --noEmit",
+    "pretest": "node ../../scripts/miondevx.mjs core build --trust-stamp",
     "test": "vitest run",
     "dev:test": "vitest watch",
     "clean": "node ../../scripts/lib/rmrf.mjs dist .dist .coverage .mion tsconfig.build.tsbuildinfo tsconfig.tsbuildinfo",
@@ -128,7 +129,6 @@
   },
   "devDependencies": {
     "@mionjs/bin-compiler": "workspace:*",
-    "@mionjs/run-types": "workspace:*",
     "vite": "8.0.16"
   }
 }
