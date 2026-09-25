@@ -44,16 +44,19 @@ export type PgExtraConfigFn<Cols> = (
 
 type ColumnsArg<Cols> = Cols | ((helpers: PgColumnHelpers) => Cols);
 
+/** What pgTable returns: one alias, so a declaration file prints the builders record once. */
+export type PgBuilderTable<TName extends string, Cols> = PgTable<TName, LiftCols<Cols>, [], LiftNames<Cols>>;
+
 export function pgTable<TName extends string, Cols extends Record<string, AnyColumnBuilder>>(
   name: TName,
   columns: Cols,
   extraConfig?: PgExtraConfigFn<LiftCols<Cols>>
-): PgTable<TName, LiftCols<Cols>, [], LiftNames<Cols>>;
+): PgBuilderTable<TName, Cols>;
 export function pgTable<TName extends string, Cols extends Record<string, AnyColumnBuilder>>(
   name: TName,
   columns: (helpers: PgColumnHelpers) => Cols,
   extraConfig?: PgExtraConfigFn<LiftCols<Cols>>
-): PgTable<TName, LiftCols<Cols>, [], LiftNames<Cols>>;
+): PgBuilderTable<TName, Cols>;
 export function pgTable(name: string, columns: ColumnsArg<Record<string, unknown>>, extraConfig?: unknown) {
   const resolved = typeof columns === 'function' ? columns(pgColumnHelpers) : columns;
   return createRtTable(name, resolved, extraConfig as never, pgBuildTable);
