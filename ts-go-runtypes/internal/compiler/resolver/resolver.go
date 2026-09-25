@@ -187,6 +187,8 @@ type Session struct {
 	apiFileCache *apimeta.FileCache
 	// apiInitFileCache memoises which files call `initClient`, the modules the lane import is appended to.
 	apiInitFileCache *apimeta.InitFileCache
+	// apiMiddlewareReadsCache memoises which client middlewares each file reads, for MET008 / MET009.
+	apiMiddlewareReadsCache *apimeta.MiddlewareReadsCache
 	// hasBatchesMemo is the transform's switch for appending the batch import; reset with the Program (own-program
 	// case) and whenever the batch source is rebuilt.
 	// importsRouterMemo caches whether any own source file names `@mionjs/router` (see rpcgen.go); reset with the Program.
@@ -323,22 +325,23 @@ func New(prog *program.Program, opts Options) (*Session, error) {
 	})
 	cache.SetMarkerOptions(markerOpts)
 	sess := &Session{
-		Program:             prog,
-		cache:               cache,
-		checker:             typeChecker,
-		releaseLease:        releaseLease,
-		marker:              markerOpts,
-		opts:                opts,
-		pureFnKeys:          map[string]bool{},
-		scannedFiles:        map[string]struct{}{},
-		pureFnFileCache:     purefunctions.NewFileCache(),
-		pureFnIndex:         pureFnIndex,
-		batchFileCache:      requestbatch.NewFileCache(),
-		apiFileCache:        apimeta.NewFileCache(),
-		apiInitFileCache:    apimeta.NewInitFileCache(),
-		routerInitFileCache: routerinit.NewFileCache(),
-		verdictsByChecker:   map[*checker.Checker]map[*checker.Type]markerVerdict{},
-		rtStore:             newRTStore(opts, prog.IsIncremental()),
+		Program:                 prog,
+		cache:                   cache,
+		checker:                 typeChecker,
+		releaseLease:            releaseLease,
+		marker:                  markerOpts,
+		opts:                    opts,
+		pureFnKeys:              map[string]bool{},
+		scannedFiles:            map[string]struct{}{},
+		pureFnFileCache:         purefunctions.NewFileCache(),
+		pureFnIndex:             pureFnIndex,
+		batchFileCache:          requestbatch.NewFileCache(),
+		apiFileCache:            apimeta.NewFileCache(),
+		apiInitFileCache:        apimeta.NewInitFileCache(),
+		apiMiddlewareReadsCache: apimeta.NewMiddlewareReadsCache(),
+		routerInitFileCache:     routerinit.NewFileCache(),
+		verdictsByChecker:       map[*checker.Checker]map[*checker.Type]markerVerdict{},
+		rtStore:                 newRTStore(opts, prog.IsIncremental()),
 	}
 	sess.bindPureFnIndex()
 	return sess, nil
@@ -351,16 +354,17 @@ func NewServer(opts Options) *Session {
 		cache: runtype.NewCache(nil, runtype.Options{
 			HashLength: opts.HashLength,
 		}),
-		marker:              marker.WithDefaults(opts.Marker),
-		opts:                opts,
-		pureFnKeys:          map[string]bool{},
-		scannedFiles:        map[string]struct{}{},
-		pureFnFileCache:     purefunctions.NewFileCache(),
-		batchFileCache:      requestbatch.NewFileCache(),
-		apiFileCache:        apimeta.NewFileCache(),
-		apiInitFileCache:    apimeta.NewInitFileCache(),
-		routerInitFileCache: routerinit.NewFileCache(),
-		verdictsByChecker:   map[*checker.Checker]map[*checker.Type]markerVerdict{},
+		marker:                  marker.WithDefaults(opts.Marker),
+		opts:                    opts,
+		pureFnKeys:              map[string]bool{},
+		scannedFiles:            map[string]struct{}{},
+		pureFnFileCache:         purefunctions.NewFileCache(),
+		batchFileCache:          requestbatch.NewFileCache(),
+		apiFileCache:            apimeta.NewFileCache(),
+		apiInitFileCache:        apimeta.NewInitFileCache(),
+		apiMiddlewareReadsCache: apimeta.NewMiddlewareReadsCache(),
+		routerInitFileCache:     routerinit.NewFileCache(),
+		verdictsByChecker:       map[*checker.Checker]map[*checker.Type]markerVerdict{},
 		// No Program yet, and setSources always builds an inferred non-incremental one, so caching is override-only.
 		rtStore: newRTStore(opts, false),
 	}

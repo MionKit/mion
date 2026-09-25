@@ -542,6 +542,23 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     detail:
       'Both `initClient` and `initRoutes` carry a build version derived from the routes\nthey are typed with. One program building both means one API, so the two values\nhave to agree; different values mean the type the client was given is not the\ntype the router registered.\n\nFix: type the client with the API the router returns:\n-  initClient<RemoteApi>({baseURL});\n+  initClient<PublicApi<typeof routes>>({baseURL});',
   },
+  MET008: {
+    headline:
+      'The route `{1}` runs the middleware `{0}`, which needs params, but this client never sets it up; every call to the route fails its validation.',
+    level: 'runtimeError',
+    severity: 'error',
+    family: 'marker',
+    detail:
+      'A middleware gets its params from its `onRequest` hook on the client. The build\nlooked for any read of `middlewares.{0}` in the client program (a hook, or the\nmiddleware handed to an installer) and found none, so the call sends nothing\nand the middleware refuses it.\n\nFix: set the middleware up once, next to `initClient`:\n+  middlewares.{0}.onRequest((call) => call(...));\nOr pass it to the installer the middleware ships with.',
+  },
+  MET009: {
+    headline: 'The route `{1}` runs the middleware `{0}`, but this client never sets it up, so it always gets no params.',
+    level: 'warning',
+    severity: 'warning',
+    family: 'marker',
+    detail:
+      "The middleware's params are all optional, so the call still works; the\nmiddleware just never receives anything from this client. The build looked for\nany read of `middlewares.{0}` in the client program (a hook, or the middleware\nhanded to an installer) and found none.\n\nFix: set it up with `middlewares.{0}.onRequest(...)` or its installer. If sending\nnothing is intended, add `// @mion-expect-error MET009` above this call.",
+  },
   MKR001: {
     headline:
       '`{0}()` is being called at runtime just so the marker can read its return type: side effects, throws, or async work run for nothing.',

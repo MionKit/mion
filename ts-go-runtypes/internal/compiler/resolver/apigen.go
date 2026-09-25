@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -95,6 +96,11 @@ func (sess *Session) collectProgramApiSites() ([]apimeta.Site, []diagnostics.Dia
 	if !sess.apiLaneOn() || sess.Program == nil {
 		return nil, nil
 	}
+	return apimeta.ExtractFromProgramCached(sess.checker, sess.marker, sess.Program, sess.apiWalkFiles(), sess.apiFileCache, sess.opts.BundleApi)
+}
+
+// apiWalkFiles lists the program's non-declaration files, the ones the client lane reads.
+func (sess *Session) apiWalkFiles() []string {
 	sourceFiles := sess.Program.TS.SourceFiles()
 	walkFiles := make([]string, 0, len(sourceFiles))
 	for _, sourceFile := range sourceFiles {
@@ -103,7 +109,36 @@ func (sess *Session) collectProgramApiSites() ([]apimeta.Site, []diagnostics.Dia
 		}
 		walkFiles = append(walkFiles, sourceFile.FileName())
 	}
-	return apimeta.ExtractFromProgramCached(sess.checker, sess.marker, sess.Program, walkFiles, sess.apiFileCache, sess.opts.BundleApi)
+	return walkFiles
+}
+
+// middlewareUse is where a middleware is first needed: the first call to a route whose chain runs it.
+type middlewareUse struct {
+	site    apimeta.Site
+	routeId string
+	method  *apimeta.Method
+}
+
+// unsetMiddlewareDiags reports each chain middleware of a called route that the client program never reads
+// off `middlewares`: nothing sends its params. Once per middleware, at its first use.
+func (sess *Session) unsetMiddlewareDiags(order []string, uses map[string]middlewareUse) []diagnostics.Diagnostic {
+	if len(uses) == 0 {
+		return nil
+	}
+	reads := apimeta.MiddlewareReadsFromProgramCached(sess.checker, sess.marker, sess.Program, sess.apiWalkFiles(), sess.apiMiddlewareReadsCache)
+	var diags []diagnostics.Diagnostic
+	for _, id := range order {
+		use, ok := uses[id]
+		if !ok || reads[id] {
+			continue
+		}
+		code := diagnostics.CodeApiMetaOptionalMiddlewareNotSetUp
+		if use.method.NeedsParams {
+			code = diagnostics.CodeApiMetaMiddlewareNotSetUp
+		}
+		diags = append(diags, diagnostics.New(code, use.site.DiagSite(), id, use.routeId))
+	}
+	return diags
 }
 
 // apiMethodEntry is one selected method with the ids and synthetic sites its module renders from.
@@ -350,6 +385,7 @@ func (sess *Session) resolveApiBundle(sites []apimeta.Site) (*apiBundle, []diagn
 	var peerCandidates string
 	peerTried := false
 	widenedReported := map[string]bool{}
+	middlewareUses := map[string]middlewareUse{}
 	for _, site := range sites {
 		tree, ok := trees[site.ApiType]
 		if !ok {
@@ -386,6 +422,9 @@ func (sess *Session) resolveApiBundle(sites []apimeta.Site) (*apiBundle, []diagn
 		ids := make([]string, 0, len(methods))
 		for _, method := range methods {
 			ids = append(ids, method.Id)
+			if _, seen := middlewareUses[method.Id]; !seen && method.Type != apimeta.TypeRoute {
+				middlewareUses[method.Id] = middlewareUse{site: site, routeId: routeRunning(tree, site.Ids, method.Id), method: method}
+			}
 			if _, seen := bundle.methods[method.Id]; !seen {
 				entry := sess.newApiMethodEntry(tree.Checker, method)
 				bundle.methods[method.Id] = entry
@@ -406,7 +445,18 @@ func (sess *Session) resolveApiBundle(sites []apimeta.Site) (*apiBundle, []diagn
 		}
 		bundle.siteMethods[site.ModuleBasename()] = ids
 	}
+	diags = append(diags, sess.unsetMiddlewareDiags(bundle.order, middlewareUses)...)
 	return bundle, diags, nil
+}
+
+// routeRunning names the first route of a site whose chain runs the middleware.
+func routeRunning(tree *apimeta.Tree, routeIds []string, middlewareId string) string {
+	for _, routeId := range routeIds {
+		if route := tree.ById[routeId]; route != nil && slices.Contains(route.MiddlewareIds, middlewareId) {
+			return routeId
+		}
+	}
+	return routeIds[0]
 }
 
 // apiSourceTree returns the walked API of the ONE `initRoutes(...)` call in the `apiTsconfig` program
