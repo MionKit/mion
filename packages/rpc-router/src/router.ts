@@ -239,6 +239,11 @@ export function createMionRouter<const O extends RouterOptionsInput = RouterOpti
 /** Initializes the router options and the internal error / client routes. Once per app (`resetRouter()` clears it). */
 function initRouter(opts: RouterOptionsInput, buildVersion?: string): void {
   if (isRouterInitialized) throw new Error('Router has already been initialized');
+  // still compiles next to any other option, and ignoring it would silently turn the check off
+  if (Object.hasOwn(opts, 'syncRoutes'))
+    throw new Error(
+      "The syncRoutes option was removed: put mionSyncRoutes from '@mionjs/router/middlewares' first in your routes."
+    );
   routerOptions = {...routerOptions, ...opts};
   const versionHeader = routerOptions.apiVersionCheck && buildVersion ? {[BUILD_VERSION_HEADER]: buildVersion} : undefined;
   globalResponseHeaders = Object.freeze({...versionHeader, ...routerOptions.globalResponseHeaders});
@@ -355,7 +360,7 @@ function recursiveFlatRoutes(
 
     if (isAnyMiddlewareDef(item)) {
       // a start or end middleware already owns this id, and would otherwise be silently reused in its place
-      if (nestLevel === 0 && (key in startMiddlewaresDef || key in endMiddlewaresDef))
+      if (nestLevel === 0 && (Object.hasOwn(startMiddlewaresDef, key) || Object.hasOwn(endMiddlewaresDef, key)))
         throw new Error(`Invalid middleware: ${joinPath(...newPointer)}. '${key}' is a reserved mion middleware name.`);
       routeEntry = getExecutableFromAnyMiddleware(item, newPointer, nestLevel);
       if (middlewareNames.has(routeEntry.id))

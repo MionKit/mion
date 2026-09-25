@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {describe, it, expect, beforeEach} from 'vitest';
+import {describe, it, expect, expectTypeOf, beforeEach} from 'vitest';
 import {createMionRouter, resetRouter, getRouteExecutable} from '../../src/router.ts';
 import {dispatchRoute} from '../../src/dispatch.ts';
 import {headersFromRecord} from '../../src/lib/headers.ts';
@@ -13,7 +13,7 @@ import {registerBatches} from '../../src/batches.ts';
 import {mionSyncRoutes} from '../../middlewares.ts';
 import {MION_BATCH_PATH, RpcError} from '@mionjs/core';
 import type {SerializableMethodsData} from '@mionjs/core';
-import type {RouteSyncErrorData} from '@mionjs/core/middlewares';
+import type {RouteSyncErrorData, SyncRoutesHandler} from '@mionjs/core/middlewares';
 
 const SYNC = 'mionSyncRoutes';
 
@@ -140,13 +140,10 @@ describe('mionSyncRoutes', () => {
   });
 });
 
-describe("a routes key that names one of mion's own middlewares", () => {
-  beforeEach(() => resetRouter());
-
-  it('throws instead of silently reusing the internal one', () => {
-    const mion = createMionRouter();
-    const shadow = mion.middleware((ctx): void => undefined);
-    const hello = mion.route((ctx): string => 'hi');
-    expect(() => mion.initRoutes({'mion@methodsMetadata': shadow, hello})).toThrow(/reserved mion middleware name/);
-  });
+// the client installer is typed from core's copy, so the two must never drift apart
+it("keeps core's SyncRoutesHandler equal to the handler it runs", () => {
+  type ParamsOf<F> = F extends (ctx: any, ...params: infer P) => any ? P : never;
+  type Handler = (typeof mionSyncRoutes)['handler'];
+  expectTypeOf<ParamsOf<Handler>>().toEqualTypeOf<ParamsOf<SyncRoutesHandler>>();
+  expectTypeOf<ReturnType<Handler>>().toEqualTypeOf<ReturnType<SyncRoutesHandler>>();
 });

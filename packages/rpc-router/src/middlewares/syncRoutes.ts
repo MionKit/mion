@@ -9,7 +9,7 @@ import {FatalError} from '@mionjs/core';
 import type {RouteSyncError, RouteSyncErrorData, SyncRoutesHandler} from '@mionjs/core/middlewares';
 import {middleware} from '../lib/handlers.ts';
 import {getRouteExecutable} from '../router.ts';
-import {getMethodsDataFor} from '../routes/client.routes.ts';
+import {getMethodsDataFor, mionInternalRouteIds} from '../routes/client.routes.ts';
 import type {RemoteMethod} from '../types/remoteMethods.ts';
 import type {CallContext} from '../types/context.ts';
 
@@ -41,12 +41,13 @@ function syncRoutes(ctx: CallContext, routeSyncIds?: string[]): RouteSyncError |
   }
 }
 
-/** The routes a call runs, in call order. */
+/** The routes a call runs, in call order; mion's own routes (metadata, errors) are never checked. */
 function getCalledRoutes(ctx: CallContext): RemoteMethod[] {
   if (ctx.batchRouteIds) return ctx.batchRouteIds.map((id) => getRouteExecutable(id) as RemoteMethod);
   const {executionChain} = ctx;
   const route = executionChain.methods[executionChain.routeIndex];
-  return route ? [route] : [];
+  if (!route || mionInternalRouteIds.has(route.id)) return [];
+  return [route];
 }
 
 // Place it first in the routes so a refused call runs nothing else.
