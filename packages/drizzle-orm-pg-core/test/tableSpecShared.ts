@@ -393,6 +393,31 @@ function valueNode(value: unknown): ReflectedNode {
   return literalNode(value);
 }
 
+/** The extras tuple members of a covered spec, shared by both graph shapes. */
+function syntheticEntries(spec: TableSpec): ReflectedNode[] {
+  return spec.extras.map((extra) => {
+    if (extra.fn === 'foreignKey') {
+      const fkColumn = spec.columns.find((column) => column.referencesParent)!;
+      return objectNode({
+        'þ@rtEntrySpecKey': objectNode({
+          fn: literalNode('foreignKey'),
+          args: valueNode([
+            {name: extra.name, columns: [{col: fkColumn.key}], foreignColumns: [{table: FUZZ_PARENT_NAME, col: 'id'}]},
+          ]),
+          chain: objectNode({}),
+        }),
+      });
+    }
+    return objectNode({
+      'þ@rtEntrySpecKey': objectNode({
+        fn: literalNode(extra.fn),
+        args: valueNode([extra.name]),
+        chain: objectNode({on: valueNode((extra.onKeys ?? []).map((key) => ({col: key})))}),
+      }),
+    });
+  });
+}
+
 /** Build the synthetic reflected graph of a covered spec's type spelling. */
 export function syntheticTableGraph(spec: TableSpec, tableName: string): ReflectedNode {
   const columns: Record<string, ReflectedNode> = {};
@@ -415,33 +440,49 @@ export function syntheticTableGraph(spec: TableSpec, tableName: string): Reflect
       'þ@rtColModsKey': objectNode(mods),
     });
   }
-  const entries = spec.extras.map((extra) => {
-    if (extra.fn === 'foreignKey') {
-      const fkColumn = spec.columns.find((column) => column.referencesParent)!;
-      return objectNode({
-        'þ@rtEntrySpecKey': objectNode({
-          fn: literalNode('foreignKey'),
-          args: valueNode([
-            {name: extra.name, columns: [{col: fkColumn.key}], foreignColumns: [{table: FUZZ_PARENT_NAME, col: 'id'}]},
-          ]),
-          chain: objectNode({}),
-        }),
-      });
-    }
-    return objectNode({
-      'þ@rtEntrySpecKey': objectNode({
-        fn: literalNode(extra.fn),
-        args: valueNode([extra.name]),
-        chain: objectNode({on: valueNode((extra.onKeys ?? []).map((key) => ({col: key})))}),
-      }),
-    });
-  });
+  const entries = syntheticEntries(spec);
   // The table type IS its metadata, so name / columns / extras are the root's
   // own members and the brand is what marks the node as a table.
   const meta: Record<string, ReflectedNode> = {
     'þ@rtTableBrand': literalNode('pg'),
     name: literalNode(tableName),
     columns: objectNode(columns),
+  };
+  if (entries.length > 0) meta.extras = tupleNode(entries);
+  return objectNode(meta);
+}
+
+/** The same covered spec in the side-by-side column shape: one spec per column holding the config
+ *  and the modifier calls together and no db name; db names that differ from the key sit in the
+ *  table's `names` member. Mirrors what the resolver reflects for the next/ column types. */
+export function syntheticNextTableGraph(spec: TableSpec, tableName: string): ReflectedNode {
+  const columns: Record<string, ReflectedNode> = {};
+  const names: Record<string, ReflectedNode> = {};
+  for (const column of spec.columns) {
+    const [name, config] = column.args as [string | undefined, Record<string, unknown> | undefined];
+    if (name !== undefined && name !== column.key) names[column.key] = literalNode(name);
+    const props: Record<string, ReflectedNode> = {};
+    for (const [key, value] of Object.entries(config ?? {})) props[key] = valueNode(value);
+    for (const mod of column.mods)
+      props[mod.method] = mod.args.length > 0 ? tupleNode(mod.args.map(valueNode)) : literalNode(true);
+    if (column.referencesParent) {
+      props.references = tupleNode([valueNode({table: FUZZ_PARENT_NAME, column: 'id'}), valueNode(FUZZ_REFERENCE_ACTIONS)]);
+    }
+    columns[column.key] = objectNode({
+      'þ@rtColSpecKey': objectNode({
+        fn: literalNode(column.fn),
+        config: objectNode(props),
+        data: objectNode({}),
+        base: undefinedNode(),
+      }),
+    });
+  }
+  const entries = syntheticEntries(spec);
+  const meta: Record<string, ReflectedNode> = {
+    'þ@rtTableBrand': literalNode('pg'),
+    name: literalNode(tableName),
+    columns: objectNode(columns),
+    names: objectNode(names),
   };
   if (entries.length > 0) meta.extras = tupleNode(entries);
   return objectNode(meta);
