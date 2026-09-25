@@ -121,7 +121,7 @@ export type FailResponses<List extends SubRequest<any>[]> = {[P in keyof List]: 
 export type RequestErrors = Map<string, RpcError<string>>;
 
 /** The errors of `E` whose `type` can be `T`, including one error declared with several types */
-export type ErrorOfType<E extends RpcError<string, any>, T extends string> = E extends any
+export type ErrorOfType<E extends RpcError<string, any>, T extends E['type']> = E extends any
   ? T extends E['type']
     ? E
     : never
