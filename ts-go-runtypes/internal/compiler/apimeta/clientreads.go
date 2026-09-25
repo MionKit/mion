@@ -12,8 +12,7 @@ import (
 // ClientMiddlewareName is the client type every `middlewares.x` read has; its second type argument is the middleware id.
 const ClientMiddlewareName = "ClientMiddleware"
 
-// middlewaresText pre-filters files: a middleware is reached through the object `initClient` names `middlewares`.
-// A file that only receives one as a parameter needs no look, the file that read it already counted.
+// middlewaresText pre-filters files; one that only gets a middleware as a parameter can skip, its caller read it.
 const middlewaresText = "middlewares"
 
 // MiddlewareReadsCache memoizes per-file middleware reads for one Program. Not safe for concurrent use.
@@ -26,8 +25,7 @@ func NewMiddlewareReadsCache() *MiddlewareReadsCache {
 	return &MiddlewareReadsCache{reads: map[string][]string{}}
 }
 
-// MiddlewareReadsFromProgramCached returns the ids of every client middleware the files read, set up by a hook
-// or handed to an installer alike. The cache is optional (nil degrades to an uncached walk).
+// MiddlewareReadsFromProgramCached returns every middleware id the files read, hook or installer; the cache may be nil.
 func MiddlewareReadsFromProgramCached(typeChecker *checker.Checker, markerOpts marker.Options, lookup purefunctions.SourceFileLookup, files []string, cache *MiddlewareReadsCache) map[string]bool {
 	out := map[string]bool{}
 	for _, filePath := range files {

@@ -201,7 +201,7 @@ export class ScopedAuthError extends RpcError<'not-authorized'> {
 }
 registerClassSerializer(ScopedAuthError, {deserialize: (d) => new ScopedAuthError(d.scope, d.retryAfter)});
 
-// how many times each notes route ran, so a client test can prove a retry never ran a mutation twice
+// run count per notes route, so a client test can prove a retry never ran a mutation twice
 type NoteRuns = {getNote: number; saveNote: number; touchNote: number; clearNote: number; failNote: number; adminNote: number};
 const noteRuns: NoteRuns = {getNote: 0, saveNote: 0, touchNote: 0, clearNote: 0, failNote: 0, adminNote: 0};
 
@@ -459,12 +459,11 @@ const routes = {
       noteRuns.failNote++;
       return new RpcError({type: 'note-failed', publicMessage: 'The note could not be saved'});
     }),
-    // the same middleware placed one group deeper
     admin: {
       csrf: middleware(csrf),
       getNote: query((_ctx, id: string): string => `admin note ${id} (${++noteRuns.adminNote})`),
     },
-    // runs AFTER the routes above: a declared error here arrives after the route already ran
+    // runs AFTER the routes above, so its declared error arrives once the route already ran
     audit: middleware((_ctx, flag?: boolean): void | RpcError<'audit-flagged'> => {
       if (flag) return new RpcError({type: 'audit-flagged', publicMessage: 'Flagged by the audit'});
     }),

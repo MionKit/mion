@@ -11,7 +11,6 @@ import {middleware} from '../lib/handlers.ts';
 import type {MiddlewaresCollection} from '../types/publicMethods.ts';
 import type {CallContext} from '../types/context.ts';
 
-/** Answers the tag the client sent, an empty string when it sent none */
 export function echoTag(_ctx: CallContext, tag?: string): string {
   return tag ?? '';
 }

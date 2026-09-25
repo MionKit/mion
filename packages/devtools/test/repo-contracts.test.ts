@@ -1179,8 +1179,7 @@ describe('client published surface', () => {
   });
 });
 
-// mion's isolated reusable middlewares ship on their own entries: a client importing an installer
-// never pulls the router in, and neither main barrel grows with each middleware.
+// Own entries, so an installer never pulls the router in and neither main barrel grows per middleware.
 describe('client and router publish their middlewares on a ./middlewares subpath', () => {
   const PACKAGES = ['packages/rpc-client', 'packages/rpc-router'];
 

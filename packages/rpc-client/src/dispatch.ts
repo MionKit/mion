@@ -673,7 +673,7 @@ function isRetrySafe(state: DispatchState, errors: RequestErrors | undefined): b
   );
 }
 
-/** A route failed when it answered an error, or answered nothing in a response carrying any error */
+/** A void route answers nothing, so any error in the response counts it as failed */
 function routeSucceeded(context: ClientCallContext, routeId: string, errors: RequestErrors | undefined): boolean {
   if (errors?.has(routeId)) return false;
   if (context.subRequestList[routeId]?.resolvedValue !== undefined) return true;

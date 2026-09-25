@@ -33,12 +33,10 @@ const (
 	// build versions, so the client reports a mismatch against its own server. Args: [0] the client's
 	// version, [1] the server's.
 	CodeApiMetaVersionMismatch = "MET007"
-	// CodeApiMetaMiddlewareNotSetUp: a route the client calls runs a middleware that needs params, and the client
-	// program never reads that middleware off `middlewares`, so nothing sends them. Args: [0] the middleware
-	// id, [1] the route id. Reported at the first call to such a route.
+	// CodeApiMetaMiddlewareNotSetUp: a called route runs a middleware that needs params and the client never sets up.
+	// Args: [0] the middleware id, [1] the route id; reported at the first call to such a route.
 	CodeApiMetaMiddlewareNotSetUp = "MET008"
-	// CodeApiMetaOptionalMiddlewareNotSetUp: the same, for a middleware whose params are all optional.
-	// Args: [0] the middleware id, [1] the route id.
+	// CodeApiMetaOptionalMiddlewareNotSetUp: like MET008, for a middleware whose params are all optional. Same args.
 	CodeApiMetaOptionalMiddlewareNotSetUp = "MET009"
 )
 

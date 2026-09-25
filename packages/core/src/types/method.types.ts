@@ -92,7 +92,7 @@ export interface SerializableMethodsData {
   batches?: string[];
 }
 
-/** How mion@syncRoutes refuses a call; one type for both refusals, the encoder cannot tell two `FatalError`s in a union apart */
+/** One type for both mion@syncRoutes refusals: the encoder cannot tell two `FatalError`s in a union apart */
 export type RouteSyncError = FatalError<'route-types-mismatch' | 'route-sync-required', RouteSyncErrorData>;
 
 export interface RouteSyncErrorData {
