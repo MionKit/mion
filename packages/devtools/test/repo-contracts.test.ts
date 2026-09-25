@@ -240,6 +240,17 @@ describe('private package folders start with private-', () => {
     const prefixed = manifests.filter(({dir, manifest}) => manifest.private !== true && dir.startsWith('private-'));
     expect(prefixed.map(({dir}) => dir)).toEqual([]);
   });
+
+  // Bun follows the root `@mionjs/*` alias and never falls back to node_modules, so a folder named unlike its package needs its own entry.
+  it('the root tsconfig maps every @mionjs name to its own folder', () => {
+    const paths = ts.readConfigFile(join(REPO_ROOT, 'tsconfig.json'), ts.sys.readFile).config.compilerOptions.paths;
+    const aliasOf = (name: string) => paths[name]?.[0] ?? paths['@mionjs/*'][0].replace('*', name.slice('@mionjs/'.length));
+    const wrong = manifests
+      .filter(({manifest}) => manifest.name?.startsWith('@mionjs/'))
+      .filter(({dir, manifest}) => posix.normalize(aliasOf(manifest.name)) !== `packages/${dir}`)
+      .map(({manifest}) => manifest.name);
+    expect(wrong).toEqual([]);
+  });
 });
 
 const REPO_URL = 'https://github.com/MionKit/mion';
