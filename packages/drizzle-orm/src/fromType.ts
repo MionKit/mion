@@ -149,15 +149,14 @@ function readColumnSpec(columnNode: ReflectedNode, key: string): ColumnSpec {
   return {fn, name: nameValue, config};
 }
 
-/** Unwrap one options.tables entry. Called when the reference is USED, never at the bridge call, so
- *  a thunk pointing at a table declared later in the file resolves fine. */
-/** The column a References points at, read when drizzle asks for it: a thunked table exists only then. */
+/** Call only when drizzle asks for the column: a thunked table exists only then. */
 function refColumn(options: TableFromTypeOptions | undefined, key: string, ref: {table: string; column: string}): AnyRtColumn {
   const column = (tableDep(options, ref.table) as Record<string, AnyRtColumn | undefined>)[ref.column];
   if (column === undefined) fail(`column "${key}" references no column "${ref.column}" in table "${ref.table}"`);
   return column;
 }
 
+/** Called when the reference is used, never at the bridge call, so a thunk to a later-declared table resolves. */
 function tableDep(options: TableFromTypeOptions | undefined, name: string): object | undefined {
   const dep = options?.tables?.[name];
   return typeof dep === 'function' ? (dep as () => object)() : dep;
@@ -207,7 +206,7 @@ function applyMods(
           `column "${key}" references table "${ref.table}" — pass it via tableFromType options: {tables: {${ref.table}: ...}}`
         );
       }
-      // Resolved inside the callback, so a thunk is read when the reference is used, not here.
+      // Inside the callback, so a thunk is read when the reference is used.
       recorder.references(() => refColumn(options, key, ref), actions);
       continue;
     }

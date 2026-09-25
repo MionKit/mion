@@ -77,7 +77,7 @@ function literalValueOf(node: ReflectedNode, where: string): unknown {
   fail(`${where} is not a literal type (kind ${String(node.kind)}), only literal values can ride a column type`);
 }
 
-/** The column a References points at, read when drizzle asks for it: a thunked table exists only then. */
+/** Call only when drizzle asks for the column: a thunked table exists only then. */
 function refColumn(options: TableFromTypeOptions | undefined, key: string, ref: {table: string; column: string}): AnyRtColumn {
   const column = (tableDep(options, ref.table) as Record<string, AnyRtColumn | undefined>)[ref.column];
   if (column === undefined) fail(`column "${key}" references no column "${ref.column}" in table "${ref.table}"`);
