@@ -5,9 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// By relative path, not by package name: globalSetup is loaded through vite's SSR module runner,
-// which resolves `@mionjs/test-server` without the `source` export condition the specs get and so
-// lands on the unbuilt `.dist` entry. The path names the same module the specs' types come from.
+// Relative path: vite's SSR runner loads globalSetup without the `source` condition, so the package name hits `.dist`.
 import {startTestServer} from '../private-test-server/src/test-server.ts';
 import type {Server} from 'node:http';
 

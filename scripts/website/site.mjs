@@ -37,9 +37,7 @@ const MOUNT_FILES = ['nuxt.config.ts', 'content.config.ts', 'tsconfig.json', 'es
 // Must match `externalDeps` in container/website/server/api/twoslash.post.ts.
 const TWOSLASH_EXTERNAL_DEPS = ['drizzle-orm'];
 
-// Repo context: the checkout that contains packages/ (first-party source + built
-// .d.ts). This repo carries packages/private-examples, so prefer it; only fall back to a
-// sibling ../mion checkout for a legacy split layout.
+// The checkout holding packages/ (source + built .d.ts); a sibling ../mion is only a legacy split-layout fallback.
 function defaultRepoContext() {
   if (existsSync(join(REPO_ROOT, 'packages/private-examples'))) return REPO_ROOT;
   if (existsSync(join(REPO_ROOT, '../mion/packages'))) return realpathSync(join(REPO_ROOT, '..', 'mion'));
@@ -374,9 +372,7 @@ function containerHttp(cfg, cname, path, body) {
   return {status, body: result.stdout.slice(nl + 1)};
 }
 
-// The example files the landing pages render through ::twoslash-code, in page order:
-// every `path: packages/private-examples/src/…` a content page names (the root landing and
-// the subsite homes, which are the about pages).
+// Examples the landing pages render via ::twoslash-code, in page order (root landing plus the subsite about pages).
 function homeTwoslashPaths() {
   const contentDir = join(WEBSITE_DIR, 'content');
   const pages = globSync('**/*.md', {cwd: contentDir}).sort();

@@ -36,8 +36,7 @@ const GROUPS = [
       'packages/*/dist',
       'packages/*/.dist',
       'packages/*/.coverage',
-      // @mionjs/devtools emits its compiled eslint + vite-plugin entries here
-      // (rebuilt by check:builds); test-server's edge/workers bundles too.
+      // devtools' compiled eslint + vite-plugin entries (rebuilt by check:builds); test-server's edge/workers bundles.
       'packages/devtools/build',
       'packages/private-test-server/build',
       'packages/**/*.tsbuildinfo',

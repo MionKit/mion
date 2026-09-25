@@ -2,10 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 
-/**
- * Provides clickable links for code-import path attributes in markdown files.
- * Matches: <code-import path="packages/private-examples/src/..." ... />
- */
+/** Makes `<code-import path="...">` paths in markdown clickable. */
 class CodeImportLinkProvider implements vscode.DocumentLinkProvider {
     provideDocumentLinks(
         document: vscode.TextDocument,

@@ -1,16 +1,6 @@
-// Writes the builder / format call-site costs to committed artifacts: a JSON
-// file for tooling and a Markdown table for humans.
-//
-// Both are COMMITTED on purpose, same reasoning as
-// packages/private-type-budget/test/report.ts: the budgets are hand-maintained, so a
-// report that moves without a budget moving is the signal that something changed
-// the cost, and it shows up in the pull request diff where a reviewer sees it.
-// It is also what makes "measured this family, found no win" a reviewable fact
-// rather than a claim in a commit message.
-//
-// Nothing time-varying goes in (no timestamps, no durations): the counts are
-// deterministic under the exact-pinned `typescript`, so any diff at all means a
-// real change.
+// Writes builder / format call-site costs to a committed JSON file and Markdown table. Committed on purpose, as
+// in packages/private-type-budget/test/report.ts: budgets are hand-maintained, so a report moving without a budget
+// shows in the PR diff. Nothing time-varying goes in: counts are deterministic under the exact-pinned `typescript`.
 
 import {writeFileSync, mkdirSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';

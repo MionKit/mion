@@ -1,15 +1,5 @@
-// Generate the committed Go-side sidecar bundle from the private
-// @mionjs/go-be-sidecar workspace package.
-//
-// The package is the authoring home (TS source, vitest unit tests, lint +
-// format coverage); its vite library build emits ONE self-contained,
-// unminified ESM file. This script runs that build and copies the output —
-// with a generated-file header — to ts-go-runtypes/internal/jsengine/
-// sidecar.bundle.mjs, where plain //go:embed picks it up. The copy is
-// committed so `go build` / `go test` never need node tooling; the
-// `pnpm miondevx core codegen sidecar --check` lane git-diffs it against a
-// fresh build, the same drift discipline as every Go→TS mirror (pointed
-// the other way).
+// Copies @mionjs/go-be-sidecar's single-file vite build to ts-go-runtypes/internal/jsengine/sidecar.bundle.mjs
+// for go:embed. Committed so `go build` / `go test` never need node; `core codegen sidecar --check` diffs it.
 
 import {execFileSync} from 'node:child_process';
 import {readFileSync, writeFileSync} from 'node:fs';

@@ -28,9 +28,8 @@ describe('one program: client and API share this build', () => {
     const table = resolve(GEN_DIR, 'rpc', 'batches.generated.js');
     expect(existsSync(table)).toBe(true);
     expect(readFileSync(table, 'utf8')).toContain('replaceBatches');
-    // No batch transport is written into the API's package: this program is the batch source, and
-    // the API is a plain source dependency of it. (middlewareMode.e2e.spec.ts does put a `types/`
-    // tree there, from the vite server it builds around that package's OWN tsconfig.)
+    // This program is the batch source; the API is only a plain source dependency of it.
+    // middlewareMode.e2e.spec.ts does put a `types/` tree there, built from that package's OWN tsconfig.
     expect(existsSync(resolve(import.meta.dirname, '../../private-test-server/.mion/rpc'))).toBe(false);
   });
 
