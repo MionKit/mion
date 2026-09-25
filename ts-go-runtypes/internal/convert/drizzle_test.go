@@ -538,6 +538,38 @@ func TestDrizzle_ForwardReferenceThunk(t *testing.T) {
 	}
 }
 
+// TestDrizzle_SelfReferenceRoundTrip covers a table referencing itself, which drizzle spells with a
+// return annotation (TypeScript cannot infer a table from its own initializer). The type form points
+// the reference at a thunk of the table being declared, and the round trip is a byte fixpoint.
+func TestDrizzle_SelfReferenceRoundTrip(t *testing.T) {
+	source := drizzleHeader +
+		"export const emps = DZ.pgTable('emps', {\n" +
+		"  id: DZ.serial('id').primaryKey(),\n" +
+		"  managerId: DZ.integer('manager_id').references((): AnyRtColumn => emps.id),\n" +
+		"});\n"
+	typeForm, diags := convertDrizzleOne(t, source, convert.Options{Target: convert.TargetType})
+	expectNoDiags(t, diags)
+	if !strings.Contains(typeForm, "export const emps = DZ.tableFromType<Emps>({tables: {emps: () => emps}});") {
+		t.Fatalf("the self-reference did not ride a thunk:\n%s", typeForm)
+	}
+	if !strings.Contains(typeForm, "references: [{table: 'emps'; column: 'id'}]") {
+		t.Fatalf("the self-reference is missing from the column type:\n%s", typeForm)
+	}
+	buildersForm, diags := convertDrizzleOne(t, typeForm, convert.Options{Target: convert.TargetBuilders})
+	expectNoDiags(t, diags)
+	if !strings.Contains(buildersForm, "managerId: DZ.integer('manager_id').references((): AnyRtColumn => cols(emps).id),") {
+		t.Fatalf("the self-reference lost its return annotation (TS7022 in strict mode):\n%s", buildersForm)
+	}
+	if !strings.Contains(buildersForm, "import {type AnyRtColumn, cols} from '@mionjs/drizzle-orm';") {
+		t.Fatalf("the annotation's type is not imported:\n%s", buildersForm)
+	}
+	again, diags := convertDrizzleOne(t, buildersForm, convert.Options{Target: convert.TargetType})
+	expectNoDiags(t, diags)
+	if again != typeForm {
+		t.Fatalf("the self-reference is not a round-trip fixpoint:\nwant:\n%s\ngot:\n%s", typeForm, again)
+	}
+}
+
 // TestDrizzle_BackwardReferenceStaysPlain pins the other half: nothing about
 // the thunk leaks into a file whose reference target is already declared.
 func TestDrizzle_BackwardReferenceStaysPlain(t *testing.T) {
