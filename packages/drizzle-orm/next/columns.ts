@@ -115,13 +115,20 @@ export type SelectValueOf<Spec> = Spec extends {config: infer Props; data: infer
   ? SelectValue<Props, Data, Base>
   : never;
 
-/** How a column sits in an insert payload. */
+/** How a column sits in an insert payload. The primary-key default (sqlite's rowid, autoIncrement) is
+ *  only probed on a column that has a primary key. */
 export type InsertKind<Props, Base> = [keyof Props & ExcludedKeys] extends [never]
   ? [(keyof Props & NotNullKeys) | (Base & 'notNull')] extends [never]
     ? 'optional'
-    : IsHasDefault<Props, Base> extends true
-      ? 'optional'
-      : 'required'
+    : [(keyof Props & DefaultKeys) | (Base & 'hasDefault')] extends [never]
+      ? [keyof Props & 'primaryKey'] extends [never]
+        ? 'required'
+        : [Base & 'primaryKeyHasDefault'] extends [never]
+          ? Props extends {primaryKey: [{autoIncrement: true}]}
+            ? 'optional'
+            : 'required'
+          : 'optional'
+      : 'optional'
   : 'excluded';
 export type InsertKindOf<Spec> = Spec extends {config: infer Props; base: infer Base} ? InsertKind<Props, Base> : never;
 

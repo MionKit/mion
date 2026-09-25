@@ -32,9 +32,9 @@ export interface PgTableWithRLS<TName extends string, Cols, Extras extends reado
 export type AnyPgTable = PgTableWithRLS<string, Record<string, AnyColumn>, readonly object[], object>;
 
 /** The columns a builder table holds: each builder's Column, its db name moved into the names map. */
-export type LiftCols<Cols> = {[K in keyof Cols]: NonNullable<Cols[K][typeof rtBuiltColumnKey & keyof Cols[K]]>};
+export type LiftCols<Cols> = {[K in keyof Cols]: Cols[K][typeof rtBuiltColumnKey & keyof Cols[K]]};
 /** Any builder, the constraint of a builder columns record. */
-export type AnyColumnBuilder = {readonly [rtBuiltColumnKey]?: AnyColumn};
+export type AnyColumnBuilder = {readonly [rtBuiltColumnKey]: AnyColumn};
 
 /** The extraConfig view: index decorators, and the shipped column brand the shipped helpers take. */
 export type PgExtraConfigColumns<Cols> = {[K in keyof Cols]: Cols[K] & RtExtraColumn & AnyRtColumn};
