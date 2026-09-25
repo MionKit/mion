@@ -67,8 +67,7 @@ export type Api = {
 };
 `
 
-// apiClientTS is the client program: one route call, one typeErrors, a batch,
-// and a route (users/remove) the program never calls.
+// apiClientTS makes one route call, one typeErrors and a batch, and never calls users/remove.
 const apiClientTS = `import {initClient, batch} from '@mionjs/client';
 import type {Api} from './api.ts';
 export const {routes, middlewares} = initClient<Api>({baseURL: 'http://x'});

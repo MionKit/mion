@@ -104,7 +104,7 @@ export class MionClient {
     signal?: AbortSignal,
     timeout?: number
   ): Promise<any> {
-    // Capture the signal before any async work so abort() during an onRequest await is respected
+    // Before any await, so an abort() while onRequest runs is respected
     const composedSignal = this.composeSignal(signal, timeout);
     const request = new MionClientRequest(
       this.clientOptions,
@@ -267,7 +267,7 @@ class MethodProxy {
       return new MionSubRequest(this.parentProps, handlerId, argArray, this.client);
     },
 
-    // on the middlewares tree a hook name is a method of the middleware, so no middleware can be named after one
+    // On the middlewares tree hook names win, so no middleware can be named after one
     get: (_target: any, prop: string): any => {
       if (this.isMiddleware && middlewareHooks.has(prop)) return this.getEvents()[prop].bind(this.events);
       const existing = this.propsProxies[prop];

@@ -19,7 +19,6 @@ const baseURL = TEST_SERVER_BASE_URL;
 const user = {name: 'John', surname: 'Doe'};
 const authHeaders = new HeadersSubset({Authorization: 'XWYZ-TOKEN'});
 
-/** Spies on fetch for one run and returns what it sent, the spy always restored */
 async function spyOnFetch(run: () => Promise<void>): Promise<{init: RequestInit; body: any}[]> {
   const fetchSpy = vi.spyOn(globalThis, 'fetch');
   try {

@@ -58,9 +58,8 @@ const (
 	// the injected value is a deterministic `"b_<hash>"` id over the ORDERED route ids the sibling
 	// `[...Routes]` argument names. The batches extractor splices it in, so no scanCall case.
 	KindInjectBatchId
-	// KindInjectApiMetadata (InjectApiMetadata<Api, Id>) brands the trailing parameter of a client dispatch point
-	// (`.call()`, `.typeErrors()`, a batch's `.call()`); the apimeta lane fills it with an import of the
-	// metadata module generated for that API and route id. No scanCall case.
+	// KindInjectApiMetadata (InjectApiMetadata<Api, Id>) brands a client dispatch point's trailing parameter.
+	// The apimeta lane fills it with an import of the module generated for that API and route id; no scanCall case.
 	KindInjectApiMetadata
 	// KindInjectBuildVersion (InjectBuildVersion<Api>) rides the trailing parameter of `initRoutes` and
 	// `initClient`: a hash over the compiled ids of every method the Api declares, so both ends of one API
