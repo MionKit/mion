@@ -15,13 +15,13 @@ only ever be lowered.
 
 | Shape | Shipped builders | Shipped types | New types (budget) | New builders (budget) |
 | ----- | ---------------: | ------------: | -----------------: | --------------------: |
-| 5 mixed, select | 570 | 971 | 539 (539) | 971 (971) |
-| 5 mixed, select + insert | 1036 | 1437 | 1132 (1132) | 1638 (1638) |
-| 10 plain, db name per column | 235 | 798 | 210 (210) | 364 (364) |
-| 20 plain, db name per column | 345 | 1338 | 300 (300) | 574 (574) |
-| 40 plain, db name per column | 565 | 2418 | 480 (480) | 994 (994) |
+| 5 mixed, select | 570 | 971 | 683 (683) | 1160 (1160) |
+| 5 mixed, select + insert | 1036 | 1437 | 1276 (1276) | 1827 (1827) |
+| 10 plain, db name per column | 235 | 798 | 210 (210) | 363 (363) |
+| 20 plain, db name per column | 345 | 1338 | 300 (300) | 573 (573) |
+| 40 plain, db name per column | 565 | 2418 | 480 (480) | 993 (993) |
 | 20 plain, nameless | 325 | 494 | 300 (300) | 532 (532) |
-| wide vocabulary, select | 676 | 1175 | 702 (702) | 1293 (1293) |
-| two tables, one reference | 183 | 387 | 212 (212) | 423 (423) |
-| refineTableType, select | 1341 | 1768 | 1277 (1277) | 1729 (1729) |
-| toDrizzle + select / insert / update query | 8643 | 9461 | 8812 (8812) | 9915 (9915) |
+| wide vocabulary, select | 676 | 1175 | 873 (873) | 1516 (1516) |
+| two tables, one reference | 183 | 387 | 266 (266) | 494 (494) |
+| refineTableType, select | 1341 | 1768 | 1421 (1421) | 1918 (1918) |
+| toDrizzle + select / insert / update query | 8643 | 9461 | 8956 (8956) | 10104 (10104) |

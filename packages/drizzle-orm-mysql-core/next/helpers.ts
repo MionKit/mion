@@ -10,7 +10,7 @@
 import {foreignKey as shippedForeignKey, type RtMyForeignKeyEntry} from '../src/helpers.ts';
 import {mysqlEnum as shippedMysqlEnum} from '../src/columns.ts';
 import type {MysqlColIn} from './columns.ts';
-import type {AnyColumn, Column, NamedColumn, NoProps, PropsOf} from '../../drizzle-orm/next/columns.ts';
+import type {AnyColumn, Column, NamedColumn, NoProps, Only, PropsOf} from '../../drizzle-orm/next/columns.ts';
 import {recordColumn} from '../../drizzle-orm/next/recorder.ts';
 import {refColumn, type AnyTableRef} from '../../drizzle-orm/next/table.ts';
 import type {RtColumnRecorder} from '../../drizzle-orm/src/recorder.ts';
@@ -22,7 +22,7 @@ type NonArray<T> = T extends readonly unknown[] ? never : T;
 export function mysqlEnum<U extends string, T extends Readonly<[U, ...U[]]>>(
   values: T | Writable<T>
 ): Column<'enum', NoProps, T[number]>;
-export function mysqlEnum<U extends string, T extends Readonly<[U, ...U[]]>, const C extends MysqlColIn>(
+export function mysqlEnum<U extends string, T extends Readonly<[U, ...U[]]>, const C extends Only<C, MysqlColIn>>(
   values: T | Writable<T>,
   props: C
 ): Column<'enum', PropsOf<C>, T[number]>;
@@ -30,13 +30,14 @@ export function mysqlEnum<N extends string, U extends string, T extends Readonly
   name: N,
   values: T | Writable<T>
 ): NamedColumn<N, Column<'enum', NoProps, T[number]>>;
-export function mysqlEnum<N extends string, U extends string, T extends Readonly<[U, ...U[]]>, const C extends MysqlColIn>(
-  name: N,
-  values: T | Writable<T>,
-  props: C
-): NamedColumn<N, Column<'enum', PropsOf<C>, T[number]>>;
+export function mysqlEnum<
+  N extends string,
+  U extends string,
+  T extends Readonly<[U, ...U[]]>,
+  const C extends Only<C, MysqlColIn>,
+>(name: N, values: T | Writable<T>, props: C): NamedColumn<N, Column<'enum', PropsOf<C>, T[number]>>;
 export function mysqlEnum<E extends Record<string, string>>(enumObj: NonArray<E>): Column<'enum', NoProps, E[keyof E]>;
-export function mysqlEnum<E extends Record<string, string>, const C extends MysqlColIn>(
+export function mysqlEnum<E extends Record<string, string>, const C extends Only<C, MysqlColIn>>(
   enumObj: NonArray<E>,
   props: C
 ): Column<'enum', PropsOf<C>, E[keyof E]>;
@@ -44,7 +45,7 @@ export function mysqlEnum<N extends string, E extends Record<string, string>>(
   name: N,
   enumObj: NonArray<E>
 ): NamedColumn<N, Column<'enum', NoProps, E[keyof E]>>;
-export function mysqlEnum<N extends string, E extends Record<string, string>, const C extends MysqlColIn>(
+export function mysqlEnum<N extends string, E extends Record<string, string>, const C extends Only<C, MysqlColIn>>(
   name: N,
   enumObj: NonArray<E>,
   props: C

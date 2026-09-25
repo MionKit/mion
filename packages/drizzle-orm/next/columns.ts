@@ -18,6 +18,9 @@ export declare const rtNamedColumnKey: unique symbol;
 /** The intrinsic flag names a builder may declare (serial-likes, sqlite rowid, mysql serial). */
 export type ColBaseFlag = 'notNull' | 'hasDefault' | 'primaryKeyHasDefault' | 'autoincrement';
 
+/** A props constraint that also rejects stray keys: a `const` type parameter gets no excess-property check. */
+export type Only<P, Allowed> = {[K in keyof P]: K extends keyof Allowed ? Allowed[K] : never};
+
 /** Props of a column with no config and no modifier. */
 export type NoProps = Record<never, never>;
 
