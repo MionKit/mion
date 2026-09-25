@@ -1,5 +1,4 @@
-// Family 1 — Validation & errors. Mirrors packages/private-examples/src/guide/
-// validation-*.ts against the PUBLISHED @mionjs/run-types surface.
+// Family 1 (validation & errors): mirrors packages/private-examples/src/guide/validation-*.ts on the PUBLISHED package.
 import {createValidateFn, createGetValidationErrorsFn} from '@mionjs/run-types';
 import {type CheckResult, eq, ok} from './check';
 

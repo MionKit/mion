@@ -5,11 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The test server of one bundleApi lane, in its own process. Started by test/lib/laneServer.ts
-// with the lane's vitest config file as the only argument: a vite server over that config transforms
-// the test-server entry with the lane's own mion plugin, against the lane's own program, so the
-// server this process runs is the one the lane's resolver compiled (its batch table included).
-// Plain JavaScript on purpose: nothing has to transform this file for it to run.
+// One bundleApi lane's test server in its own process, started by laneServer.ts with the lane's vitest config:
+// vite transforms the entry with the lane's own plugin and program, so it runs what that resolver compiled
+// (batch table included). Plain JavaScript so nothing has to transform this file.
 import {createServer, createServerModuleRunner} from 'vite';
 import {fileURLToPath} from 'node:url';
 

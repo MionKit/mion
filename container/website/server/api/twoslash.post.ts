@@ -283,15 +283,13 @@ function loadPackageTypes(): Map<string, string> {
     if (existsSync(depManifest)) fsMap.set(`/node_modules/${dep}/package.json`, readFileSync(depManifest, 'utf-8'))
   }
 
-  // Also load source files from examples package for relative imports
+  // Example sources too, for relative imports between examples.
   const examplesDir = join(packagesDir, 'private-examples', 'src')
   const exampleFiles = findFiles(examplesDir, /\.ts$/)
 
   for (const srcFile of exampleFiles) {
-    // Get relative path from private-examples/src directory
     const relativePath = relative(examplesDir, srcFile)
-    // Create virtual path that matches how files are imported
-    // Files like user.ts can be found via ./user.ts
+    // The VFS path mirrors the path under src/, so ./user.ts resolves.
     const virtualPath = `/${relativePath}`
 
     try {
@@ -307,17 +305,12 @@ function loadPackageTypes(): Map<string, string> {
   return fsMap
 }
 
-/**
- * Read code from a file path (only packages/private-examples allowed)
- * Prepends a comment with the file path and removes trailing newlines
- */
 function readCodeFromPath(path: string): string {
-  // Security: Only allow reading from packages/private-examples
+  // Security: never serve files outside the examples folder.
   if (!path.startsWith('packages/private-examples/')) {
     throw new Error('Only files from packages/private-examples are allowed')
   }
 
-  // Resolve under the configured repo root, confined to packages/.
   const repoRoot = getRepoRoot(resolve(process.cwd(), '..'))
   const filePath = resolveInPackages(repoRoot, path)
 
@@ -330,7 +323,6 @@ function readCodeFromPath(path: string): string {
     throw new Error(`File not found: ${path}`)
   }
 
-  // Read file content, remove trailing newlines, add file path comment
   const content = readFileSync(filePath, 'utf-8').trimEnd()
   return `// ${path}\n${content}`
 }
@@ -394,25 +386,18 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // If we have a file path (e.g., packages/private-examples/src/enrich/friendly-user.ts)
-    // Set up the extra files so relative imports work
-    // The file path after private-examples/src becomes the virtual path
+    // The path after private-examples/src/ is the VFS path; its directory siblings go in so relative imports resolve.
     let extraFiles: Record<string, string> | undefined
     if (filePath && filePath.includes('packages/private-examples/src/')) {
-      // Extract path after packages/private-examples/src/
       const match = filePath.match(/packages\/private-examples\/src\/(.+)$/)
       if (match) {
         const relativePath = match[1]
-        // Get the directory of the current file
         const fileDir = relativePath.substring(0, relativePath.lastIndexOf('/'))
 
-        // Add all other files from the same directory as extra files
-        // so that relative imports like ./user.ts work
         extraFiles = {}
         const prefix = `/${fileDir}/`
         for (const [path, content] of fsMap.entries()) {
           if (path.startsWith(prefix) && !path.endsWith(relativePath)) {
-            // Convert /enrich/user.ts to ./user.ts style import
             const fileName = path.substring(prefix.length)
             extraFiles[`./${fileName}`] = content
           }

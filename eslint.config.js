@@ -17,8 +17,7 @@ export default tseslint.config(
       'packages/private-examples/**',
       'scripts/**',
       '**/vite.config.ts',
-      // per-target build configs (vite.edge.config.ts, vite.eslint.config.ts, …) sit
-      // outside every package tsconfig, so the type-aware parser cannot load them
+      // Per-target vite configs sit outside every package tsconfig, so the type-aware parser cannot load them.
       '**/vite.*.config.ts',
       '**/vitest.config.ts',
       '**/eslint.config.ts',
@@ -26,15 +25,8 @@ export default tseslint.config(
       '**/bun-preload.ts',
       '**/globalSetup.ts',
       'eslint.config.js',
-      // The runtypes packages are linted by oxlint, which owns the `runtypes/*`
-      // rules for the whole repo; this config carries mion's own plugin rules
-      // (strong-typed-routes and friends), which mean nothing over there.
-      //
-      // packages/devtools is on that side of the line since the two devtools
-      // packages merged: the bulk of it is the transform, and mion's own rules
-      // (route shapes) say nothing about plugin code. oxlint's ignorePatterns do
-      // not exclude it, so the mion half that used to be linted here is linted
-      // there instead rather than going uncovered.
+      // oxlint owns these and the `runtypes/*` rules; mion's route-shape rules here mean nothing over there.
+      // devtools is mostly transform code, and oxlint's ignorePatterns keep its mion half covered there.
       'packages/run-types/**',
       'packages/bin-compiler/**',
       'packages/devtools/**',

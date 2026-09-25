@@ -3,11 +3,7 @@ import { resolve } from 'path'
 import { existsSync } from 'fs'
 import { getRepoRoot, resolveInPackages } from '../utils/repo-root'
 
-/**
- * API endpoint to read a file from the repository.
- * Used by the TwoslashCode component to load code from file paths.
- * Only allows reading from packages/private-examples for security.
- */
+/** Serves packages/private-examples files to the TwoslashCode component. */
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
   const { path } = body
@@ -19,7 +15,7 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  // Security: Only allow reading from packages/private-examples
+  // Security: never serve files outside the examples folder.
   if (!path.startsWith('packages/private-examples/')) {
     throw createError({
       statusCode: 403,

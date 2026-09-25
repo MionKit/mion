@@ -1,24 +1,8 @@
-// Shared in-process TypeScript-compiler measurement core for the type-level
-// instantiation-budget tests (DataOnly, SubstituteSelf, …).
-//
-// `makeMeasurer(preamble)` returns a `measure(snippet)` that compiles
-// `preamble + snippet` through the real TypeScript compiler and reports the
-// type-check errors plus the compiler's `Instantiations` / `Types` counts (the
-// same numbers `tsc --extendedDiagnostics` prints). Asserting an absolute
-// instantiation ceiling turns a recursion / exponential-blowup regression into a
-// red test, and the number is data for tuning a type.
-//
-// Two kinds of measurer are built on this. The default one is self-contained: a
-// sliced lib-only preamble, no module graph. The other resolves real modules
-// (`snippetFile` + `diagnosticsScope: 'snippet'`), for chains that only exist
-// across packages — see packages/private-type-budget/test/modelPipelineHarness.ts.
-//
-// Lib SourceFiles are parsed once and reused across calls (so per-case cost is
-// dominated by the snippet); `netInstantiations` subtracts the constant
-// empty-snippet baseline (preamble + lib) so the figure isolates the snippet's
-// own cost. Compiled against `lib.es2023` ALONE — no DOM — to keep the baseline
-// (and bind time) low; the preambles only name es2023 types (+ any locally
-// declared stubs).
+// In-process measurement core for the instantiation-budget tests: the `Instantiations` / `Types` counts
+// `tsc --extendedDiagnostics` prints, so a recursion blowup fails a ceiling. The default measurer is lib-only;
+// cross-package chains resolve real modules (`snippetFile` + `diagnosticsScope: 'snippet'`), see
+// packages/private-type-budget/test/modelPipelineHarness.ts. Lib files are parsed once, `netInstantiations`
+// subtracts the empty-snippet baseline, and only `lib.es2023` loads (no DOM), so preambles name es2023 types only.
 
 import * as ts from 'typescript';
 

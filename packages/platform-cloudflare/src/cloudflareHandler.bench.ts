@@ -5,9 +5,8 @@
  * The software is provided "as is", without warranty of an kind.
  * ######## */
 
-// Throughput of the cloudflare handler under workerd (Miniflare, in process), against the prebuilt
-// test-server bundle the project's globalSetup rebuilds. Run with:
-//   pnpm exec vitest bench --project platform-cloudflare cloudflareHandler
+// Cloudflare handler throughput under in-process workerd, on the bundle globalSetup rebuilds.
+// Run: pnpm exec vitest bench --project platform-cloudflare cloudflareHandler
 
 import {bench, describe, afterAll} from 'vitest';
 import {Miniflare} from 'miniflare';

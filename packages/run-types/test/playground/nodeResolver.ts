@@ -29,10 +29,7 @@ const WASM_STAMP_FILE = '.wasm-stamp';
 export const WASM_PATH = `${CACHE}${WASM_FILE}`;
 export const WASM_EXEC_PATH = `${CACHE}${WASM_EXEC_FILE}`;
 export const WASM_STAMP_PATH = `${CACHE}${WASM_STAMP_FILE}`;
-// The sidecar hook (the playground's JS engine for pattern sample
-// generation). The vite build output is used directly when the staged
-// cache copy is absent, so a host that built the sidecar but never ran
-// build-playground still exercises the hook lane.
+// Falls back to the vite build output, so a host that never ran build-playground still exercises the hook.
 export const SIDECAR_HOOK_PATHS = [
   `${CACHE}sidecar-hook.js`,
   fileURLToPath(new URL('../../../private-go-be-sidecar/dist/sidecar-hook.js', import.meta.url)),

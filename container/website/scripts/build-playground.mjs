@@ -171,12 +171,8 @@ function buildSourcesIfStale() {
 
 // ── Sidecar hook: the playground's JS engine for pattern generation ──────────
 
-// The resolver WASM routes pattern validation + mockSample generation through
-// the __tsRunTypesJsEngine host hook when it is installed (jsengine/wasm.go).
-// The hook is the sidecar package's IIFE build (dist/sidecar-hook.js); loaded
-// as a classic script before the WASM instantiates, the playground generates
-// the SAME deterministic samples a native build does. Missing hook = the page
-// still works, generation degrades to the declare-mockSamples diagnostic.
+// The sidecar IIFE is the WASM's __tsRunTypesJsEngine hook (jsengine/wasm.go); loaded first, samples match native.
+// Without it the page still works, but generation degrades to the declare-mockSamples diagnostic.
 const SIDECAR_PKG_DIR = 'packages/private-go-be-sidecar';
 const SIDECAR_HOOK_BUILT = join(REPO_ROOT, SIDECAR_PKG_DIR, 'dist/sidecar-hook.js');
 

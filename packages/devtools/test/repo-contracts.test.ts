@@ -260,9 +260,8 @@ describe('published packages point at this repository', () => {
   }
 
   it("the client's undeclared slot is never called the fatal slot", () => {
-    // `FatalError` is a typed, declared halt; the result tuple's slot 2 holds what NOBODY declared.
-    // One word for two things reads wrong, so the slot is `undeclared` in code, examples and docs.
-    // The needle is a whole word: FatalError / fatalError / isFatalError are the server-side names.
+    // Slot 2 holds what NOBODY declared, unlike the declared `FatalError`, so it is `undeclared` everywhere.
+    // Whole word only: FatalError / fatalError / isFatalError are the server-side names.
     const res = spawnSync(
       'git',
       [

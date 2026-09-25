@@ -11,13 +11,8 @@ import {resolve} from 'node:path';
 import {createServer, type ViteDevServer} from 'vite';
 import {mionVitePlugin} from '@mionjs/devtools/vite';
 
-// End-to-end proof for the in-process API: the REAL test-server entry, transformed by
-// the REAL mion pipeline, loaded INSIDE a vite dev server and answering a real route over
-// HTTP, with no port of mion's own.
-//
-// devtools' own middlewareMode.spec.ts stubs the router/adapter to test the mount mechanism in
-// isolation; this one is the integration the stubs cannot give: build-time type injection, router
-// registration, dispatch and serialization all running through vite's SSR pipeline.
+// The REAL test-server entry through the REAL mion pipeline, served INSIDE a vite dev server with no port of its own.
+// devtools' middlewareMode.spec.ts stubs the router; this covers injection, dispatch and serialization via vite SSR.
 
 const TEST_SERVER_DIR = resolve(__dirname, '../../private-test-server');
 const START_SCRIPT = resolve(TEST_SERVER_DIR, 'src/test-server.ts');
