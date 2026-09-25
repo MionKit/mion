@@ -92,8 +92,8 @@
     },
     {
       "label": "refineTableType, select",
-      "curBuilders": 1352,
-      "curTypes": 1752,
+      "curBuilders": 1341,
+      "curTypes": 1768,
       "newTypes": 1277,
       "newBuilders": 1729,
       "budget": {

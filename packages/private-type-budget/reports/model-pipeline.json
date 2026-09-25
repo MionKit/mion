@@ -40,12 +40,12 @@
     {
       "step": 6,
       "label": "db query (toDrizzle)",
-      "delta": 7843,
-      "budget": 7852,
-      "cumulative": 13614
+      "delta": 7857,
+      "budget": 7857,
+      "cumulative": 13628
     }
   ],
-  "totalBudget": 13614,
+  "totalBudget": 13628,
   "consumer": {
     "budget": 1784,
     "netInstantiations": 1495,

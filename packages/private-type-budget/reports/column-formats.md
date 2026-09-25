@@ -23,5 +23,5 @@ only ever be lowered.
 | 20 plain, nameless | 325 | 494 | 300 (300) | 532 (532) |
 | wide vocabulary, select | 676 | 1175 | 702 (702) | 1293 (1293) |
 | two tables, one reference | 183 | 387 | 160 (160) | 461 (461) |
-| refineTableType, select | 1352 | 1752 | 1277 (1277) | 1729 (1729) |
+| refineTableType, select | 1341 | 1768 | 1277 (1277) | 1729 (1729) |
 | toDrizzle + select / insert / update query | 8643 | 9461 | 8812 (8812) | 9915 (9915) |
