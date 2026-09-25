@@ -386,9 +386,11 @@ A second column system lives beside the shipped one, in `packages/drizzle-orm/ne
 - Db names live on the table (`PgTable<Name, Cols, Extras, Names>`), listing only the columns
   whose db name differs from the key. `toDrizzle` puts them back, so only files that run
   queries pay for them.
-- Builders are a separate type (four kinds, as in drizzle) carrying the chain and a
-  type-only pointer to the `Column` they build. `pgTable` maps each builder to that column,
-  so a builder table IS its hand-written twin.
+- Builders take every setting in ONE props object, spelled exactly as the hand-written type
+  spells it (`varchar('name', {length: 100, notNull: true})`), and return the column type
+  itself. A builder called with a db name wraps the column with it, and `pgTable` lifts the
+  name into the table's names map. There are no chained modifiers (see the reflection
+  constraints below).
 - Models derive every flag from the raw props when read.
 
 The live numbers are in
@@ -406,10 +408,11 @@ in one run beside the shipped system. A snapshot, 2026-09-25:
 | refineTableType              |             1352 |          1752 |      1277 |         1694 |
 | toDrizzle + three queries    |             8643 |          9461 |      8812 |        10130 |
 
-Hand-written tables are now cheaper than the shipped BUILDER road at every width. New
-builders cost about 50% more than shipped builders: the declaration itself is close (434
-vs 391 for five mixed columns), the gap is the models deriving flags from props where the
-shipped builders carry four ready booleans.
+The table above is the last chained measurement. With single-call builders (attempts 11
+to 13) five mixed columns cost 971, forty plain named ones 994 and the query case 9915.
+Hand-written tables are cheaper than the shipped BUILDER road at every width. New builders
+cost more than shipped builders on narrow tables because the models derive flags from
+props where the shipped builders carry four ready booleans.
 
 ### Why the shipped type road costs what it does, isolated
 
@@ -438,6 +441,9 @@ derived once per column. That is why the new columns carry no name.
   when a builder table was reflected with no hand-written twin reflected first. `pgTable`
   and `pgView` spell both maps inline in their return type; the `.d.ts` then prints the
   resolved columns and no builder at all.
+- **Both point the same way: no chained modifiers.** With chains, a builder needs its own
+  type carrying the chain, plus a pointer to its column. Single-call builders have no
+  methods, so a builder's result is the column type and nothing reflected can spiral.
 
 ### Attempts, in order, with numbers
 

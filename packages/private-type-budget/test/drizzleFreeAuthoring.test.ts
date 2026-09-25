@@ -59,9 +59,9 @@ import {refineTableType} from '../../drizzle-orm/next/index.ts';
 import type {InferSelectModel, InferSelectViewModel, InferInsertModel, InferUpdateModel} from '../../drizzle-orm/next/index.ts';
 
 const users = pgTable('users', {
-  name: varchar('name', {length: 100}).notNull(),
-  age: integer('age').notNull(),
-  createdAt: timestamp('created_at', {mode: 'date'}).notNull().defaultNow(),
+  name: varchar('name', {length: 100, notNull: true}),
+  age: integer('age', {notNull: true}),
+  createdAt: timestamp('created_at', {mode: 'date', notNull: true, defaultNow: true}),
 }, (t) => [index('users_name_idx').on(t.name)]);
 const apiUsers = refineTableType(users, {name: {minLength: 10}, age: {min: 18}});
 type User = InferSelectModel<typeof apiUsers>;
@@ -69,7 +69,7 @@ export const newUser: InferInsertModel<typeof apiUsers> = {name: 'a-long-name', 
 export const patch: InferUpdateModel<typeof apiUsers> = {age: 30};
 declare const row: User;
 export const rowName: string = row.name;
-const activeUsers = pgView('active_users', {name: varchar('name', {length: 100}).notNull()}).as(sql\`select name from users\`);
+const activeUsers = pgView('active_users', {name: varchar('name', {length: 100, notNull: true})}).as(sql\`select name from users\`);
 export const activeName: string = (undefined as unknown as InferSelectViewModel<typeof activeUsers>).name;
 type UsersType = PgTable<'users', {name: Varchar<{length: 100; notNull: true}>; age: Integer<{notNull: true}>}>;
 export const handWritten: InferSelectModel<UsersType> = {name: row.name, age: 21} as never;

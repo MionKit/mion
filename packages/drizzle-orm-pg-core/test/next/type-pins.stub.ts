@@ -19,7 +19,7 @@ import type {ColSpecOf, KeyFlagsOf, RefinedTable} from '../../../drizzle-orm/nex
 import type {InferSelectModel as DzInferSelectModel} from 'drizzle-orm';
 import type {ToDrizzleTable} from '../../next/drizzle.ts';
 import type * as next from '../../../drizzle-orm/next/models.ts';
-import {cols, type SelfRef} from '../../../drizzle-orm/next/index.ts';
+import {$type, cols, type SelfRef} from '../../../drizzle-orm/next/index.ts';
 import * as cur from '../../src/index.ts';
 import type {Integer, Jsonb, PgEnumCol, PgTable, PgView, Serial, Text, Timestamp, Uuid, Varchar} from '../../next/index.ts';
 import {integer, jsonb, pgEnum, pgTable, pgView, serial, text, timestamp, uuid, varchar} from '../../next/index.ts';
@@ -30,11 +30,11 @@ type Expect<T extends true> = T;
 // ── narrow, nameless ─────────────────────────────────────────────────────────
 
 export const users = pgTable('users', {
-  id: uuid().primaryKey(),
-  name: varchar({length: 100}).notNull(),
-  age: integer().notNull(),
-  role: text({enum: ['admin', 'user']}).notNull(),
-  createdAt: timestamp({mode: 'date'}).notNull().defaultNow(),
+  id: uuid({primaryKey: true}),
+  name: varchar({length: 100, notNull: true}),
+  age: integer({notNull: true}),
+  role: text({enum: ['admin', 'user'], notNull: true}),
+  createdAt: timestamp({mode: 'date', notNull: true, defaultNow: true}),
 });
 type Users = PgTable<
   'users',
@@ -54,6 +54,14 @@ export const curUsers = cur.pgTable('users', {
   createdAt: cur.timestamp({mode: 'date'}).notNull().defaultNow(),
 });
 
+// With one call per column, a builder column IS the hand-written column, even outside a table.
+export const looseVarchar = varchar({length: 100, notNull: true, unique: ['uq_name', {nulls: 'not distinct'}]});
+export const looseInteger = integer({notNull: true, default: [21]});
+export type LoosePins = [
+  Expect<Equal<typeof looseVarchar, Varchar<{length: 100; notNull: true; unique: ['uq_name', {nulls: 'not distinct'}]}>>>,
+  Expect<Equal<typeof looseInteger, Integer<{notNull: true; default: [21]}>>>,
+];
+
 export type NarrowPins = [
   Expect<Equal<typeof users, Users>>,
   Expect<Equal<next.InferSelectModel<Users>, InferSelectModel<typeof curUsers>>>,
@@ -64,8 +72,8 @@ export type NarrowPins = [
 // ── explicit db names go to the table's names map ────────────────────────────
 
 export const named = pgTable('named', {
-  id: integer('id').primaryKey(),
-  createdAt: timestamp('created_at', {mode: 'date'}).notNull(),
+  id: integer('id', {primaryKey: true}),
+  createdAt: timestamp('created_at', {mode: 'date', notNull: true}),
 });
 type Named = PgTable<
   'named',
@@ -84,13 +92,13 @@ export type NamedPins = [
 // ── wide vocabulary ──────────────────────────────────────────────────────────
 
 export const wide = pgTable('w', {
-  id: serial('id').primaryKey(),
-  role: text('role', {enum: ['admin', 'user']}).notNull(),
-  seq: integer('seq').generatedAlwaysAsIdentity(),
-  tags: text('tags').array().notNull(),
-  payload: jsonb('payload').$type<{kind: string}>(),
-  email: text('email').unique('uq_email'),
-  createdAt: timestamp('created_at', {mode: 'date'}).notNull().defaultNow(),
+  id: serial('id', {primaryKey: true}),
+  role: text('role', {enum: ['admin', 'user'], notNull: true}),
+  seq: integer('seq', {generatedAlwaysAsIdentity: true}),
+  tags: text('tags', {array: true, notNull: true}),
+  payload: jsonb('payload', {$type: $type<{kind: string}>()}),
+  email: text('email', {unique: ['uq_email']}),
+  createdAt: timestamp('created_at', {mode: 'date', notNull: true, defaultNow: true}),
 });
 type Wide = PgTable<
   'w',
@@ -125,10 +133,10 @@ export type WidePins = [
 
 // ── references, across tables and to itself ──────────────────────────────────
 
-export const teams = pgTable('teams', {id: serial().primaryKey()});
+export const teams = pgTable('teams', {id: serial({primaryKey: true})});
 export const members = pgTable('members', {
-  id: serial().primaryKey(),
-  teamId: integer('team_id').references(() => cols(teams).id, {onDelete: 'cascade'}),
+  id: serial({primaryKey: true}),
+  teamId: integer('team_id', {references: [() => cols(teams).id, {onDelete: 'cascade'}]}),
 });
 type Members = PgTable<
   'members',
@@ -137,8 +145,8 @@ type Members = PgTable<
   {teamId: 'team_id'}
 >;
 export const emps = pgTable('emps', {
-  id: serial().primaryKey(),
-  managerId: integer().references((): SelfRef<'emps', 'id'> => cols(emps).id),
+  id: serial({primaryKey: true}),
+  managerId: integer({references: [(): SelfRef<'emps', 'id'> => cols(emps).id]}),
 });
 type Emps = PgTable<'emps', {id: Serial<{primaryKey: true}>; managerId: Integer<{references: [{table: 'emps'; column: 'id'}]}>}>;
 
@@ -146,11 +154,11 @@ export type RefPins = [Expect<Equal<typeof members, Members>>, Expect<Equal<type
 
 // ── views, enums ─────────────────────────────────────────────────────────────
 
-export const activeView = pgView('active', {name: varchar('user_name', {length: 10}).notNull()}).existing();
+export const activeView = pgView('active', {name: varchar('user_name', {length: 10, notNull: true})}).existing();
 type ActiveView = PgView<'active', {name: Varchar<{length: 10; notNull: true}>}, {name: 'user_name'}>;
 export const curActiveView = cur.pgView('active', {name: cur.varchar('user_name', {length: 10}).notNull()}).existing();
 export const mood = pgEnum('mood', ['sad', 'happy']);
-export const withEnum = pgTable('with_enum', {mood: mood().notNull()});
+export const withEnum = pgTable('with_enum', {mood: mood({notNull: true})});
 type WithEnum = PgTable<'with_enum', {mood: PgEnumCol<['sad', 'happy'], {notNull: true}>}>;
 
 export type ViewEnumPins = [
@@ -183,4 +191,6 @@ export type DbNamePins = [
 // @ts-expect-error varchar has no defaultNow
 export type BadMod = Varchar<{defaultNow: true}>;
 // @ts-expect-error only int kinds have identity
-varchar().generatedAlwaysAsIdentity();
+varchar({generatedAlwaysAsIdentity: true});
+// @ts-expect-error a references() target must come through cols(), which records its table
+integer({references: [() => users]});

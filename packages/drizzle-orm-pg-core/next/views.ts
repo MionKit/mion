@@ -13,10 +13,10 @@ import {RtViewBuilder} from '../../drizzle-orm/src/view.ts';
 import type {AnyColumn} from '../../drizzle-orm/next/columns.ts';
 import type {NoNames, RtViewMeta} from '../../drizzle-orm/next/table.ts';
 import {pgBuildMaterializedView, pgBuildView} from '../src/views.ts';
-import type {AnyColumnBuilder, NameOf} from './table.ts';
-import type {rtBuiltColumnKey} from './columns.ts';
+import type {rtColNameKey, rtNamedColumnKey} from '../../drizzle-orm/next/columns.ts';
 
-// Inline maps, never aliases over the builders: see pgTable in ./table.ts (MKR009).
+// Inline maps, never aliases over the builders record: see pgTable in ./table.ts.
+type NameOf<C> = C extends {readonly [rtColNameKey]: infer Name} ? Name : undefined;
 
 export interface PgView<TName extends string, Cols, Names = NoNames> extends RtViewMeta<TName, Cols, Names>, RtViewBrand<'pg'> {}
 export type AnyPgView = PgView<string, Record<string, AnyColumn>, object>;
@@ -35,22 +35,22 @@ export interface PgMaterializedViewBuilder<TName extends string, Cols, Names> {
   existing(): PgView<TName, Cols, Names>;
 }
 
-export function pgView<TName extends string, Cols extends Record<string, AnyColumnBuilder>>(
+export function pgView<TName extends string, Cols extends Record<string, object>>(
   name: TName,
   columns: Cols
 ): PgViewBuilder<
   TName,
-  {[K in keyof Cols]: Cols[K][typeof rtBuiltColumnKey & keyof Cols[K]]},
+  {[K in keyof Cols]: Cols[K] extends {readonly [rtNamedColumnKey]: infer C} ? C : Cols[K]},
   {[K in keyof Cols as NameOf<Cols[K]> extends string ? (NameOf<Cols[K]> extends K ? never : K) : never]: NameOf<Cols[K]>}
 > {
   return new RtViewBuilder(name, columns, pgBuildView) as never;
 }
-export function pgMaterializedView<TName extends string, Cols extends Record<string, AnyColumnBuilder>>(
+export function pgMaterializedView<TName extends string, Cols extends Record<string, object>>(
   name: TName,
   columns: Cols
 ): PgMaterializedViewBuilder<
   TName,
-  {[K in keyof Cols]: Cols[K][typeof rtBuiltColumnKey & keyof Cols[K]]},
+  {[K in keyof Cols]: Cols[K] extends {readonly [rtNamedColumnKey]: infer C} ? C : Cols[K]},
   {[K in keyof Cols as NameOf<Cols[K]> extends string ? (NameOf<Cols[K]> extends K ? never : K) : never]: NameOf<Cols[K]>}
 > {
   return new RtViewBuilder(name, columns, pgBuildMaterializedView) as never;

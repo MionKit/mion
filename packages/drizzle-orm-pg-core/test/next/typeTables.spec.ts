@@ -15,7 +15,7 @@ import {getRunType, getRunTypeId} from '@mionjs/run-types';
 import type {ReflectedNode} from '../../../drizzle-orm/src/fromType.ts';
 import type {InferInsertModel, InferSelectModel} from '../../../drizzle-orm/src/models.ts';
 import type * as next from '../../../drizzle-orm/next/index.ts';
-import {cols, type SelfRef} from '../../../drizzle-orm/next/index.ts';
+import {$type, cols, type SelfRef} from '../../../drizzle-orm/next/index.ts';
 import * as cur from '../../src/index.ts';
 import {cols as curCols} from '../../../drizzle-orm/src/table.ts';
 import {toDrizzle as curToDrizzle} from '../../src/drizzle.ts';
@@ -38,12 +38,12 @@ import {project, projectView} from '../tableSpecShared.ts';
 import {sql} from '../../../drizzle-orm/src/recorder.ts';
 
 const users = pgTable('users', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  name: varchar('name', {length: 100}).notNull(),
-  age: integer('age').notNull().default(21),
+  id: uuid('id', {primaryKey: true, defaultRandom: true}),
+  name: varchar('name', {length: 100, notNull: true}),
+  age: integer('age', {notNull: true, default: [21]}),
   bio: varchar('bio', {length: 500}),
   note: varchar(),
-  createdAt: timestamp('created_at', {mode: 'date'}).notNull().defaultNow(),
+  createdAt: timestamp('created_at', {mode: 'date', notNull: true, defaultNow: true}),
 });
 type Users = PgTable<
   'users',
@@ -76,12 +76,12 @@ const rawUsers = dz.pgTable('users', {
 });
 
 const wide = pgTable('wide', {
-  id: serial('id').primaryKey(),
-  role: text('role', {enum: ['free', 'pro']}).notNull(),
-  seq: integer('seq').generatedAlwaysAsIdentity(),
-  tags: text('tags').array().notNull(),
-  meta: jsonb('meta').$type<{tags: string[]}>().notNull(),
-  score: integer('score').unique('uq_score'),
+  id: serial('id', {primaryKey: true}),
+  role: text('role', {enum: ['free', 'pro'], notNull: true}),
+  seq: integer('seq', {generatedAlwaysAsIdentity: true}),
+  tags: text('tags', {array: true, notNull: true}),
+  meta: jsonb('meta', {$type: $type<{tags: string[]}>(), notNull: true}),
+  score: integer('score', {unique: ['uq_score']}),
 });
 type Wide = PgTable<
   'wide',
@@ -103,10 +103,10 @@ const curWide = cur.pgTable('wide', {
   score: cur.integer('score').unique('uq_score'),
 });
 
-const teams = pgTable('teams', {id: serial().primaryKey()});
+const teams = pgTable('teams', {id: serial({primaryKey: true})});
 const members = pgTable('members', {
-  id: serial().primaryKey(),
-  teamId: integer('team_id').references(() => cols(teams).id, {onDelete: 'cascade'}),
+  id: serial({primaryKey: true}),
+  teamId: integer('team_id', {references: [() => cols(teams).id, {onDelete: 'cascade'}]}),
 });
 type Teams = PgTable<'teams', {id: Serial<{primaryKey: true}>}>;
 type Members = PgTable<
@@ -122,8 +122,8 @@ const curMembers = cur.pgTable('members', {
 });
 
 const emps = pgTable('emps', {
-  id: serial().primaryKey(),
-  managerId: integer('manager_id').references((): SelfRef<'emps', 'id'> => cols(emps).id),
+  id: serial({primaryKey: true}),
+  managerId: integer('manager_id', {references: [(): SelfRef<'emps', 'id'> => cols(emps).id]}),
 });
 type Emps = PgTable<
   'emps',
@@ -178,7 +178,7 @@ describe('next pg columns: one runtype id for builder and hand-written tables', 
 
 describe('next pg columns: views and enums', () => {
   it('a view materializes the same drizzle view as the shipped builders', () => {
-    const view = pgView('active', {name: varchar('user_name', {length: 10}).notNull()}).as(sql`select user_name from users`);
+    const view = pgView('active', {name: varchar('user_name', {length: 10, notNull: true})}).as(sql`select user_name from users`);
     const curView = cur
       .pgView('active', {name: cur.varchar('user_name', {length: 10}).notNull()})
       .as(sql`select user_name from users`);
@@ -187,7 +187,7 @@ describe('next pg columns: views and enums', () => {
   it('an enum column materializes as the shipped one does', () => {
     const mood = pgEnum('mood', ['sad', 'happy']);
     const curMood = cur.pgEnum('mood', ['sad', 'happy']);
-    const table = pgTable('with_enum', {mood: mood().notNull()});
+    const table = pgTable('with_enum', {mood: mood({notNull: true})});
     const curTable = cur.pgTable('with_enum', {mood: curMood().notNull()});
     expect(project(toDrizzle(table))).toEqual(project(curToDrizzle(curTable)));
   });
@@ -221,8 +221,11 @@ describe('next pg columns: builder tables reflect on their own', () => {
   // A builder's chain methods are an endless walk for the runtype id (MKR009), so nothing a table or a
   // view reflects may reach the builders, the type arguments of an alias included. Each probe here is
   // reflected first, with no hand-written twin reflected before it.
-  const solo = pgTable('solo', {id: uuid('id').primaryKey().defaultRandom(), name: varchar('user_name', {length: 20}).notNull()});
-  const soloView = pgView('solo_view', {name: varchar('user_name', {length: 20}).notNull()}).existing();
+  const solo = pgTable('solo', {
+    id: uuid('id', {primaryKey: true, defaultRandom: true}),
+    name: varchar('user_name', {length: 20, notNull: true}),
+  });
+  const soloView = pgView('solo_view', {name: varchar('user_name', {length: 20, notNull: true})}).existing();
   it('a builder table with explicit db names', () => {
     expect(getRunTypeId<typeof solo>()).toBeTruthy();
     expect(getRunTypeId(solo)).toBe(getRunTypeId<typeof solo>());
