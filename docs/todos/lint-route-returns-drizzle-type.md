@@ -1,7 +1,7 @@
 ---
 type: feature
 spec: guidelines
-status: ready
+status: blocked
 created: 2026-09-25
 ---
 
@@ -37,10 +37,9 @@ The implementer plans the details. What was checked:
   package (`InferSelectModel` / `InferInsertModel` from `drizzle-orm`, `$inferSelect` /
   `$inferInsert`, a query result). A plain object with the same fields cannot be told apart and is
   not flagged. Decide whether nested members (an array of rows, a row inside an object) count.
-- **Warn by default, never affect the build.** The rule is on in the recommended config as `warn`.
-  It must be lint-only: the build never prints it and it never stops one. The lint notes say a
-  lint-only finding has no severity level yet; this rule is the first, so add that level (Go
-  catalog + wire + routing) and document it there. `RuleSpec.default` needs no `off` for this rule.
+- **Quiet by default, never affect the build.** Use the quiet-by-default mechanism the
+  diagnostics-levels investigation picks (a lower level than Warning, and a setting for which levels
+  the linter shows); this rule does not add a level of its own. Blocked until that lands.
 
 ## Docs
 
@@ -52,9 +51,8 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
 
 ## Done when
 
-- A route whose written return type is a drizzle type gets the warning in the linter and the editor,
-  and the build prints nothing for it; a route returning the mion model type gets nothing. Go tests
+- A route whose written return type is a drizzle type gets the finding in the linter and the editor
+  when its level is shown, and the build never stops for it; a route returning the mion model type gets nothing. Go tests
   for both, and a lint test through the plugin.
-- The lint-only level exists and is documented in `packages/devtools/src/lint/CLAUDE.md`.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched
   source file, each committed on its own.
