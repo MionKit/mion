@@ -1,22 +1,6 @@
-// A marker call NESTED inside another marker call's arguments.
-//
-// The scanner deliberately drops the id of a nested value-first builder: the
-// enclosing marker already reflects the whole shape, so `object({a: string()})`
-// inside `createValidateFn(…)` needs no id of its own — at runtime the nested
-// builder returns a carrier the enclosing marker consumes.
-//
-// `getRunType` is the one exception, and it used to be caught by that rule. It
-// returns a `RunType<T>` like every builder but does not BUILD one: it hands
-// the injected id to the runtime registry and returns what comes back. With the
-// id dropped it has nothing to look up and throws "no id injected" on the first
-// call. Nested is exactly where the converter emits it —
-// `createValidateFn(getRunType<Named>())` is what `--to builders` prints for a
-// call whose type argument names a converted declaration — so every such call
-// threw until the scanner exempted it.
-//
-// Every other marker call is not a builder either and keeps its id too:
-// getRunTypeId, createX and a library's own markers (drizzle's
-// `tableFromType<T>()` inside `toDrizzle<T>({...})`).
+// The scanner drops a nested marker-package builder's id, since the enclosing marker reflects the whole shape.
+// Every other nested marker call keeps its id, since it throws "no id injected" without one: getRunType (convert
+// emits `createValidateFn(getRunType<Named>())`), getRunTypeId, createX and library markers like drizzle's tableFromType.
 import {describe, expect, it} from 'vitest';
 import * as TF from '@mionjs/run-types/formats';
 import {type InferType, type InjectRunTypeId, createValidateFn, getRunTypeId} from '@mionjs/run-types';
@@ -27,7 +11,7 @@ const base64RT = TF.string({pattern: {source: '^[A-Za-z0-9+/]*$', flags: ''}});
 type Base64 = InferType<typeof base64RT>;
 type Point = {x: number; y: number};
 
-// A library-style marker that is not a builder: it only hands back its id and what it was given.
+// A library-style marker that is not a builder.
 function withId<T, V>(value: V, id?: InjectRunTypeId<T>): {id: string | undefined; value: V} {
   return {id: getRunTypeId<T>(undefined, id), value};
 }

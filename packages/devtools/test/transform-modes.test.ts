@@ -106,8 +106,7 @@ export const x = wrap(getRunTypeId<Q>()).toBe(getRunTypeId<Q>());
     }
   );
 
-  // A marker call nested in another marker call's arguments (not a builder) keeps its own id, directly and
-  // inside an arrow, in both wire modes. Marker rule: both call shapes.
+  // A nested non-builder marker call keeps its id in both wire modes; both call shapes per the marker rule.
   runTest(
     'nested static getRunTypeId<T>() keeps its injection (edits==go)',
     {

@@ -47,9 +47,8 @@ func IsIdLookupCall(typeChecker *checker.Checker, call *ast.Node, markerOpts mar
 	return symbol.Name == GetRunTypeName && markerOpts.DeclaredInMarkerPackage(symbol)
 }
 
-// IsMarkerBuilderCall reports a value-first builder the marker package itself declares, the only calls whose
-// runtime is known to fall back to its carrier without an id. A user wrapper returning `RunType<T>` may
-// forward to getRunType and throw, so it never qualifies.
+// IsMarkerBuilderCall reports a value-first builder the marker package declares, the only kind that runs without an id.
+// A user wrapper returning `RunType<T>` may forward to getRunType and throw, so it never qualifies.
 func IsMarkerBuilderCall(typeChecker *checker.Checker, call *ast.Node, markerOpts marker.Options) bool {
 	if !IsValueBuilderCall(typeChecker, call, markerOpts) {
 		return false

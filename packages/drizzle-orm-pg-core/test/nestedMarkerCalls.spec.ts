@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// A tableFromType<T>() nested inside toDrizzle<T>()'s options must get its own injected id.
+// A tableFromType<T>() nested in toDrizzle<T>() options must get its own id.
 
 import {describe, it, expect} from 'vitest';
 import {getTableConfig} from 'drizzle-orm/pg-core';
