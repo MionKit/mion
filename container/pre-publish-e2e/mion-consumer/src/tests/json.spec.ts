@@ -25,12 +25,8 @@ describe('JSON Serialization E2E', () => {
 
     it('proxy should trap remote method calls and return SubRequest data', () => {
         const {routes, middlewares} = initClient<MyApi>({baseURL});
-        const authHeaders = createAuthHeaders('XWYZ-TOKEN');
-
-        const authReq = middlewares.auth(authHeaders);
-        expect(authReq.pointer).toEqual(['auth']);
-        expect(authReq.id).toBe('auth');
-        expect(authReq.isResolved).toBe(false);
+        // a middleware is hooks only
+        expect(typeof middlewares.auth.onRequest).toBe('function');
 
         const helloReq = routes.sayHello(someUser);
         expect(helloReq.pointer).toEqual(['sayHello']);
@@ -41,13 +37,12 @@ describe('JSON Serialization E2E', () => {
         expect(sumReq.id).toBe('utils/sumTwo');
     });
 
-    it('call() with middlewares should return route data on success', async () => {
+    it('call() with an onRequest middleware should return route data on success', async () => {
         const {routes, middlewares} = initClient<MyApi>({baseURL});
         const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+        middlewares.auth.onRequest((auth) => auth(authHeaders));
 
-        const [greeting, routeError, fatal, middlewareResults, middlewareErrors] = await routes.sayHello(someUser).call({
-            middlewares: {auth: middlewares.auth(authHeaders)},
-        });
+        const [greeting, routeError, fatal, middlewareResults, middlewareErrors] = await routes.sayHello(someUser).call();
 
         expect(greeting).toBe('Hello John Doe');
         expect(routeError).toBeUndefined();
@@ -60,9 +55,8 @@ describe('JSON Serialization E2E', () => {
         const {routes, middlewares} = initClient<MyApi>({baseURL});
         const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-        const [result, routeError] = await routes.alwaysFails(someUser).call({
-            middlewares: {auth: middlewares.auth(authHeaders)},
-        });
+        middlewares.auth.onRequest((auth) => auth(authHeaders));
+        const [result, routeError] = await routes.alwaysFails(someUser).call();
 
         expect(result).toBeUndefined();
         expect(routeError).toBeDefined();
@@ -70,65 +64,60 @@ describe('JSON Serialization E2E', () => {
         expect(routeError?.publicMessage).toBe('Something fails');
     });
 
-    it('call() with prefilled auth should succeed', async () => {
+    it('call() with an async onRequest auth should succeed', async () => {
         const {routes, middlewares} = initClient<MyApi>({baseURL});
         const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-        middlewares.auth(authHeaders).prefill();
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        middlewares.auth.onRequest(async (auth) => {
+            await new Promise((resolve) => setTimeout(resolve, 10));
+            auth(authHeaders);
+        });
 
         const [greeting, error] = await routes.sayHello(someUser).call();
 
         expect(greeting).toBe('Hello John Doe');
         expect(error).toBeUndefined();
-
-        middlewares.auth(authHeaders).removePrefill();
     });
 
-    it('call() should fail after removePrefill', async () => {
+    it('call() should fail after offRequest', async () => {
         const {routes, middlewares} = initClient<MyApi>({baseURL});
         const authHeaders = createAuthHeaders('ABYWZ-TOKEN');
 
-        middlewares.auth(authHeaders).prefill();
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        middlewares.auth.onRequest((auth) => auth(authHeaders));
 
         const [response, callError] = await routes.sayHello(someUser).call();
         expect(callError).toBeUndefined();
         expect(response).toBe('Hello John Doe');
 
-        middlewares.auth(authHeaders).removePrefill();
+        middlewares.auth.offRequest();
 
-        // A missing prefilled middleware fails request-scoped, so it lands in the fatal slot.
+        // A middleware sent no data fails request-scoped, so it lands in the fatal slot.
         const [, , fatal] = await routes.sayHello(someUser).call();
         expect(fatal).toBeDefined();
         expect(isRpcError(fatal)).toBe(true);
     });
 
-    it('call() with middlewares should return session middleware data', async () => {
+    it('call() with onRequest middlewares should return session middleware data', async () => {
         const {routes, middlewares} = initClient<MyApi>({baseURL});
         const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-        const [greeting, routeError, fatal, middlewareResults, middlewareErrors] = await routes.sayHello(someUser).call({
-            middlewares: {
-                auth: middlewares.auth(authHeaders),
-                session: middlewares.session('valid-token'),
-            },
-        });
+        middlewares.auth.onRequest((auth) => auth(authHeaders));
+        middlewares.session.onRequest((session) => session('valid-token'));
+        const [greeting, routeError, fatal, middlewareResults, middlewareErrors] = await routes.sayHello(someUser).call();
 
         expect(greeting).toBe('Hello John Doe');
         expect(routeError).toBeUndefined();
         expect(fatal).toBeUndefined();
         expect(middlewareErrors?.auth).toBeUndefined();
         expect(middlewareResults?.session).toBeDefined();
-        expect(middlewareResults?.session?.userId).toBe('user-123');
+        expect((middlewareResults?.session as {userId?: string} | undefined)?.userId).toBe('user-123');
     });
 
     it('batch should execute multiple routes', async () => {
         const {routes, middlewares} = initClient<MyApi>({baseURL});
         const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-        middlewares.auth(authHeaders).prefill();
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        middlewares.auth.onRequest((auth) => auth(authHeaders));
 
         const [[greeting, age, sum], [greetingError, ageError, sumError]] = await batch([
             routes.sayHello(someUser),
@@ -142,16 +131,13 @@ describe('JSON Serialization E2E', () => {
         expect(greetingError).toBeUndefined();
         expect(ageError).toBeUndefined();
         expect(sumError).toBeUndefined();
-
-        middlewares.auth(authHeaders).removePrefill();
     });
 
     it('inputFrom should run a client-authored mapper on the server, mid-batch', async () => {
         const {routes, middlewares} = initClient<MyApi>({baseURL});
         const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-        middlewares.auth(authHeaders).prefill();
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        middlewares.auth.onRequest((auth) => auth(authHeaders));
 
         // The mapper body is authored HERE, in client flow code. The packaged mion vite plugin
         // extracts it at build time into the generated batch module, and the server executes it
@@ -168,7 +154,5 @@ describe('JSON Serialization E2E', () => {
         expect(customerData).toEqual({id: 7, name: 'Test Customer', preferenceId: 107});
         // 107 is odd -> 'light', userId = prefId - 100 = the original customer id
         expect(prefs).toEqual({id: 107, userId: 7, theme: 'light'});
-
-        middlewares.auth(authHeaders).removePrefill();
     });
 });

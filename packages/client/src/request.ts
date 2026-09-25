@@ -6,24 +6,18 @@
  * ######## */
 
 import type {ResponseBody} from '@mionjs/router';
-import {
-  ClientOptions,
-  MiddlewareSubRequest,
-  SubRequest,
-  RouteSubRequest,
-  RequestErrors,
-  PrefilledMiddlewaresCache,
-} from './types.ts';
+import type {CallContext, ClientOptions, SubRequest, RouteSubRequest, RequestErrors} from './types.ts';
+import type {HandlersRegistry, RequestHandlerEntry} from './lib/handlersRegistry.ts';
 import type {RunTypeError} from '@mionjs/core';
 import {
   RpcError,
   isRpcError,
   MION_ROUTES,
   MION_BATCH_KEY,
-  HandlerType,
   HeadersSubset,
   toBase64Url,
   BUILD_VERSION_HEADER,
+  ROUTER_ITEM_SEPARATOR_CHAR,
 } from '@mionjs/core';
 import type {SerializableMethodsData} from '@mionjs/core';
 import {getRoutePath} from '@mionjs/core';
@@ -38,7 +32,8 @@ import {serializeRequestBody, deserializeResponseBody} from './lib/serializer.ts
 import {MAX_GET_URL_LENGTH, CLIENT_REQUEST_ERROR_ID} from './constants.ts';
 import {headersToRecord, hasHeadersSubsetParam} from './lib/headers.ts';
 
-export class MionClientRequest<RR extends RouteSubRequest<any>, MiddlewareRequestsList extends MiddlewareSubRequest<any>[]> {
+/** Internal: user code only ever sees it through the read-only CallContext view */
+export class MionClientRequest implements CallContext {
   readonly path: string;
   readonly requestId: string;
   readonly subRequestList: {[key: string]: SubRequest<any>} = {};
@@ -53,12 +48,13 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddlewareReques
   private verifying: string[] | undefined;
   /** one resend after a `route-sync-required` refusal */
   private resentWithSyncIds = false;
+  /** middlewares whose onRequest already ran, so a retry never asks twice */
+  private readonly askedRequestHandlers = new Set<string>();
 
   constructor(
     public readonly options: ClientOptions,
-    private readonly prefilledMiddlewaresCache: PrefilledMiddlewaresCache,
-    public readonly route?: RR,
-    public readonly middlewares?: MiddlewareRequestsList,
+    private readonly handlersRegistry: HandlersRegistry,
+    public readonly route?: RouteSubRequest<any>,
     public readonly batchSubRequests?: RouteSubRequest<any>[],
     /** Build-injected id of the batch; the only thing the batch wire carries besides the body */
     public readonly batchId?: string,
@@ -75,7 +71,6 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddlewareReques
       this.requestId = route ? route.id : 'no-route';
       if (route) this.addSubRequest(route);
     }
-    if (middlewares) middlewares.forEach((middleware) => this.addSubRequest(middleware));
   }
 
   async call(): Promise<ResponseBody> {
@@ -112,8 +107,13 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddlewareReques
       // Optimistic sends plain wire forms; what a decoder cannot read errors, and the retry sends the real encoder.
       isOptimistic = !allCached && !skipOptimistic;
       if (isOptimistic) {
-        // No chain before metadata, so the route pointer picks prefills by scope; a missed one costs the retry, an extra is ignored.
-        this.restoreScopedPrefilledMiddlewares();
+        // No chain before metadata, so the route pointer picks middlewares by scope; a missed one costs the retry, an extra is ignored.
+        const running = this.runRequestHandlers(this.getScopedRequestHandlerIds());
+        if (running) await running;
+        if (this.signal?.aborted) {
+          this.onError(this.signal.reason, 'Request aborted', errors);
+          return Promise.reject(errors);
+        }
         // Storing the server's copy over a BUNDLED method would let a later purge drop it for good.
         const missingIds = Object.keys(this.subRequestList).filter((id) => !hasMethod(id));
         this.addSubRequest((await loadMetadataFromServer()).createMetadataSubRequest(missingIds));
@@ -128,10 +128,18 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddlewareReques
           }
         }
         await this.loadMethodsMetadata(subRequestIds, this.signal);
-        this.restorePrefilledMiddlewares(errors);
+        const chainIds = this.getChainMiddlewareIds(errors);
         if (errors.size) return Promise.reject(errors);
-        sanitizeSubRequests(subRequestIds, this);
-        validateSubRequests(subRequestIds, this, errors);
+        const running = this.runRequestHandlers(chainIds);
+        if (running) await running;
+        if (this.signal?.aborted) {
+          this.onError(this.signal.reason, 'Request aborted', errors);
+          return Promise.reject(errors);
+        }
+        const allIds = Object.keys(this.subRequestList);
+        await this.loadMethodsMetadata(allIds, this.signal);
+        sanitizeSubRequests(allIds, this);
+        validateSubRequests(allIds, this, errors);
         if (errors.size) return Promise.reject(errors);
         // an optimistic call has no rows to compute ids from: the server refuses it and sends them
         if (sendsSyncIds(this.options.baseURL)) this.addSubRequest(createSyncSubRequest(this.getRouteIds()));
@@ -293,34 +301,6 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddlewareReques
     }
   }
 
-  async prefill(subReqList?: SubRequest<any>[]): Promise<void> {
-    if (subReqList) subReqList.forEach((subRequest) => this.addSubRequest(subRequest));
-    const errors: RequestErrors = new Map();
-    try {
-      const subRequestIds = Object.keys(this.subRequestList);
-      await this.loadMethodsMetadata(subRequestIds);
-
-      sanitizeSubRequests(subRequestIds, this);
-      validateSubRequests(subRequestIds, this, errors, false);
-      if (errors.size) return Promise.reject(errors);
-
-      serializeRequestBody(this);
-
-      this.storePrefilledMiddlewares(errors);
-      if (errors.size) return Promise.reject(errors);
-
-      return;
-    } catch (error: any) {
-      this.onError(error, 'Error preparing request', errors);
-      return Promise.reject(errors);
-    }
-  }
-
-  async removePrefill(subRequests?: SubRequest<any>[]): Promise<void> {
-    if (subRequests) subRequests.forEach((subRequest) => this.addSubRequest(subRequest));
-    this.removePrefilledMiddlewares();
-  }
-
   addSubRequest(subRequest: SubRequest<any>) {
     if (subRequest.isResolved) throw new Error(`SubRequest ${subRequest.id} is already resolved`);
     this.subRequestList[subRequest.id] = subRequest;
@@ -429,9 +409,10 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddlewareReques
     return [this.requestId];
   }
 
-  /** Restores the prefilled middlewares the cached metadata lists in the route's chain (standard flow) */
-  private restorePrefilledMiddlewares(errors: RequestErrors): void {
+  /** The middlewares the cached metadata lists in the route's chain (standard flow) */
+  private getChainMiddlewareIds(errors: RequestErrors): string[] {
     const routeIds = new Set(this.getRouteIds());
+    const chainIds = new Set<string>();
     for (const routeId of routeIds) {
       const methodMeta = getMethod(routeId);
       if (!methodMeta) {
@@ -445,9 +426,9 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddlewareReques
         );
         continue;
       }
-      const missingIds = methodMeta.middlewareIds?.filter((id) => !!id && !routeIds.has(id)) || [];
-      missingIds.forEach((id) => this.restorePrefilledMiddleware(id));
+      methodMeta.middlewareIds?.forEach((id) => !!id && !routeIds.has(id) && chainIds.add(id));
     }
+    return [...chainIds];
   }
 
   /** The pointers of the route(s) this request calls, in the same order as getRouteIds() */
@@ -457,56 +438,53 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddlewareReques
   }
 
   /** Optimistic flow: the chain is not cached yet, but a middleware's group is part of its pointer */
-  private restoreScopedPrefilledMiddlewares(): void {
+  private getScopedRequestHandlerIds(): string[] {
     const routeIds = new Set(this.getRouteIds());
     const routePointers = this.getRoutePointers();
-    for (const [cacheKey, cachedSubRequest] of this.prefilledMiddlewaresCache) {
-      const id = cachedSubRequest.id;
-      // the cache is keyed by baseURL too: only this client's own prefills ride along
-      if (routeIds.has(id) || cacheKey !== this.getPrefilledMiddlewareCacheKey(id)) continue;
-      if (!routePointers.some((routePointer) => isMiddlewareInScope(cachedSubRequest.pointer, routePointer))) continue;
-      this.restorePrefilledMiddleware(id);
+    return this.handlersRegistry.getRequestHandlerIds().filter((id) => {
+      if (routeIds.has(id)) return false;
+      const middlewarePointer = id.split(ROUTER_ITEM_SEPARATOR_CHAR);
+      return routePointers.some((routePointer) => isMiddlewareInScope(middlewarePointer, routePointer));
+    });
+  }
+
+  /** Runs each middleware's onRequest once per request, in chain order; awaits only when one returns a promise */
+  private runRequestHandlers(ids: string[]): Promise<void> | void {
+    const pending: Promise<void>[] = [];
+    for (const id of ids) {
+      if (this.subRequestList[id] || this.askedRequestHandlers.has(id)) continue;
+      const entry = this.handlersRegistry.getRequestHandler(id);
+      if (!entry) continue;
+      this.askedRequestHandlers.add(id);
+      const running = this.runRequestHandler(id, entry);
+      if (running) pending.push(running);
     }
+    if (pending.length) return Promise.all(pending).then(() => undefined);
   }
 
-  private restorePrefilledMiddleware(id: string): void {
-    if (this.subRequestList[id]) return;
-    const cachedSubRequest = this.prefilledMiddlewaresCache.get(this.getPrefilledMiddlewareCacheKey(id));
-    if (!cachedSubRequest) return;
-    const clonedSubRequest: SubRequest<any> = {
-      ...cachedSubRequest,
-      isResolved: false,
-      resolvedValue: undefined,
-      error: undefined,
+  private runRequestHandler(id: string, entry: RequestHandlerEntry): Promise<void> | void {
+    let subRequest: SubRequest<any> | undefined;
+    let isOpen = true;
+    // the last call wins; a call after the handler finished belongs to no request
+    const call = (...params: any[]) => {
+      if (isOpen) subRequest = entry.createSubRequest(params);
     };
-    this.addSubRequest(clonedSubRequest);
-  }
-
-  private storePrefilledMiddlewares(errors: RequestErrors): void {
-    Object.keys(this.subRequestList).forEach((id) => {
-      const subRequest = this.subRequestList[id];
-      const methodMeta = getMethod(id);
-      if (!methodMeta) throw new Error(`Remote method ${id} not found.`);
-      if (methodMeta.type === HandlerType.route) {
-        errors.set(
-          id,
-          new RpcError({
-            type: 'routes-cant-be-prefilled',
-            publicMessage: `Remote method ${id} is a route and can't be prefilled.`,
-          })
-        );
-        return;
-      }
-      const cacheKey = this.getPrefilledMiddlewareCacheKey(id);
-      this.prefilledMiddlewaresCache.set(cacheKey, subRequest);
-    });
-  }
-
-  private removePrefilledMiddlewares(): void {
-    Object.keys(this.subRequestList).forEach((id) => {
-      const cacheKey = this.getPrefilledMiddlewareCacheKey(id);
-      this.prefilledMiddlewaresCache.delete(cacheKey);
-    });
+    const finish = () => {
+      isOpen = false;
+      if (subRequest) this.addSubRequest(subRequest);
+    };
+    const fail = (error: unknown): never => {
+      isOpen = false;
+      throw requestHandlerError(id, error);
+    };
+    let returned: void | Promise<void>;
+    try {
+      returned = entry.handler(call, this);
+    } catch (error) {
+      return fail(error);
+    }
+    if (!isPromiseLike(returned)) return finish();
+    return Promise.resolve(returned).then(finish, fail);
   }
 
   private isQueryRoute(): boolean {
@@ -515,10 +493,21 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddlewareReques
     // strict false value required for queries
     return meta?.options?.isMutation === false;
   }
+}
 
-  private getPrefilledMiddlewareCacheKey(id: string): string {
-    return `${this.options.baseURL}:${id}`;
-  }
+function isPromiseLike(value: unknown): value is PromiseLike<void> {
+  return !!value && typeof (value as PromiseLike<void>).then === 'function';
+}
+
+/** A thrown RpcError is kept as is; anything else is wrapped, and both land in the undeclared slot */
+function requestHandlerError(id: string, error: unknown): RpcError<string> {
+  if (isRpcError(error)) return error;
+  const message = error instanceof Error ? error.message : String(error);
+  return new RpcError({
+    type: 'middleware-on-request-failed',
+    publicMessage: `onRequest for middleware '${id}' failed: ${message}`,
+    originalError: error instanceof Error ? error : undefined,
+  });
 }
 
 /** A middleware's scope is its pointer minus the last segment; a route is in scope when its pointer starts with it */
@@ -566,7 +555,7 @@ function buildFetchOptions(
   };
 }
 
-function extractRequestHeaders(req: MionClientRequest<any, any>): Record<string, string> {
+function extractRequestHeaders(req: MionClientRequest): Record<string, string> {
   const headers: Record<string, string> = {};
   const subRequestIds = Object.keys(req.subRequestList);
 

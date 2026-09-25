@@ -27,9 +27,8 @@ const apiClientDTS = `declare module '@mionjs/client' {
     call(setup?: unknown, apiMetadata?: InjectApiMetadata<RA, Id>): Promise<unknown>;
     typeErrors(apiMetadata?: InjectApiMetadata<RA, Id>): Promise<unknown>;
   }
-  export interface MiddlewareSubRequest<PH, Id extends string = string, RA = any> {
-    id: Id;
-    prefill(apiMetadata?: InjectApiMetadata<RA, Id>): unknown;
+  export interface MiddlewareHooks<PH> {
+    onRequest(handler: (call: (...params: Parameters<PH>) => void) => void): MiddlewareHooks<PH>;
   }
   type Handler = (...args: any[]) => any;
   export type ClientRoutes<RA, Prefix extends string = '', Root = RA> = {
@@ -39,7 +38,7 @@ const apiClientDTS = `declare module '@mionjs/client' {
   };
   export type ClientMiddlewares<RA, Prefix extends string = '', Root = RA> = {
     [K in keyof RA as RA[K] extends {type: 2 | 3} ? K : RA[K] extends {type: number} ? never : K]: RA[K] extends {type: 2 | 3; handler: infer H extends Handler}
-      ? (...params: Parameters<H>) => MiddlewareSubRequest<H, ` + "`${Prefix}${K & string}`" + `, Root>
+      ? MiddlewareHooks<H>
       : ClientMiddlewares<RA[K], ` + "`${Prefix}${K & string}/`" + `, Root>;
   };
   export type ApiOf<Routes extends {id: string}[]> = Routes[number] extends RouteSubRequest<any, any, infer RA> ? RA : never;
@@ -68,13 +67,13 @@ export type Api = {
 };
 `
 
-// apiClientTS is the client program: one route call, one prefill, a batch,
+// apiClientTS is the client program: one route call, one typeErrors, a batch,
 // and a route (users/remove) the program never calls.
 const apiClientTS = `import {initClient, batch} from '@mionjs/client';
 import type {Api} from './api.ts';
 export const {routes, middlewares} = initClient<Api>({baseURL: 'http://x'});
 export const a = routes.users.getById(1).call();
-export const b = middlewares.auth({headers: {authorization: 'x'}}).prefill();
+export const b = routes.sum(3, 4).typeErrors();
 export const c = batch([routes.users.getById(2), routes.sum(1, 2)]).call();
 `
 
@@ -144,7 +143,7 @@ func TestApiGen_GenerateWritesUsedRoutesWithTheirChains(t *testing.T) {
 	apiDir := filepath.Join(genDir, constants.ApiModuleDir)
 	files := listGenerated(t, apiDir)
 	joined := strings.Join(files, "\n")
-	for _, want := range []string{"m/users/getById.js", "m/users/audit.js", "m/auth.js", "m/sum.js", "s/users/getById.js", "s/auth.js"} {
+	for _, want := range []string{"m/users/getById.js", "m/users/audit.js", "m/auth.js", "m/sum.js", "s/users/getById.js", "s/sum.js"} {
 		if !strings.Contains(joined, want) {
 			t.Errorf("missing %s in api/:\n%s", want, joined)
 		}
@@ -262,10 +261,10 @@ func TestApiGen_TransformInjectsLaneImportAndSiteBindings(t *testing.T) {
 	if !strings.Contains(code, ".call(undefined, __rt_s$2Fusers$2FgetById)") {
 		t.Errorf("the route call did not receive its binding:\n%s", code)
 	}
-	if !strings.Contains(code, ".prefill(__rt_s$2Fauth)") {
-		t.Errorf("the prefill did not receive its binding:\n%s", code)
+	if !strings.Contains(code, ".typeErrors(__rt_s$2Fsum)") {
+		t.Errorf("the typeErrors call did not receive its binding:\n%s", code)
 	}
-	if !strings.Contains(code, "from '") || !strings.Contains(code, "/api/s/users/getById.js'") || !strings.Contains(code, "/api/s/auth.js'") {
+	if !strings.Contains(code, "from '") || !strings.Contains(code, "/api/s/users/getById.js'") || !strings.Contains(code, "/api/s/sum.js'") {
 		t.Errorf("site module imports must be relative paths under <genDir>/api:\n%s", code)
 	}
 	if strings.Contains(code, "rtapi:/") {
@@ -324,7 +323,7 @@ export const a = routes.users.getById(1).call();
 		t.Fatalf("generate: %s", gen.Error)
 	}
 	after := strings.Join(listGenerated(t, apiDir), "\n")
-	if strings.Contains(after, "m/sum.js") || strings.Contains(after, "s/b_") || strings.Contains(after, "s/auth.js") {
+	if strings.Contains(after, "m/sum.js") || strings.Contains(after, "s/b_") || strings.Contains(after, "s/sum.js") {
 		t.Errorf("modules of dropped calls survived:\n%s", after)
 	}
 	if !strings.Contains(after, "m/users/getById.js") || !strings.Contains(after, "m/auth.js") {

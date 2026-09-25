@@ -10,7 +10,7 @@ import (
 // dispatchCalleeNames is a cheap pre-filter before resolving signatures, not the contract: the brand is.
 // A call under another name is never looked at, which the client package cannot produce (its dispatch
 // methods are interface members and cannot be renamed).
-var dispatchCalleeNames = []string{"call", "prefill", "typeErrors", "initClient"}
+var dispatchCalleeNames = []string{"call", "typeErrors", "initClient"}
 
 func isDispatchCalleeName(name string) bool {
 	for _, known := range dispatchCalleeNames {

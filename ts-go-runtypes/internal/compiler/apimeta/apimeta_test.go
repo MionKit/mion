@@ -30,10 +30,8 @@ const clientDts = `declare module '@mionjs/client' {
     call(setup?: unknown, apiMetadata?: InjectApiMetadata<RA, Id>): Promise<unknown>;
     typeErrors(apiMetadata?: InjectApiMetadata<RA, Id>): Promise<unknown>;
   }
-  export interface MiddlewareSubRequest<PH, Id extends string = string, RA = any> {
-    id: Id;
-    prefill(apiMetadata?: InjectApiMetadata<RA, Id>): unknown;
-    typeErrors(apiMetadata?: InjectApiMetadata<RA, Id>): Promise<unknown>;
+  export interface MiddlewareHooks<PH> {
+    onRequest(handler: (call: (...params: Parameters<PH>) => void) => void): MiddlewareHooks<PH>;
   }
   type Handler = (...args: any[]) => any;
   export type ClientRoutes<RA, Prefix extends string = '', Root = RA> = {
@@ -43,7 +41,7 @@ const clientDts = `declare module '@mionjs/client' {
   };
   export type ClientMiddlewares<RA, Prefix extends string = '', Root = RA> = {
     [K in keyof RA as RA[K] extends {type: 2 | 3} ? K : RA[K] extends {type: number} ? never : K]: RA[K] extends {type: 2 | 3; handler: infer H extends Handler}
-      ? (...params: Parameters<H>) => MiddlewareSubRequest<H, ` + "`${Prefix}${K & string}`" + `, Root>
+      ? MiddlewareHooks<H>
       : ClientMiddlewares<RA[K], ` + "`${Prefix}${K & string}/`" + `, Root>;
   };
   export type ApiOf<Routes extends {id: string}[]> = Routes[number] extends RouteSubRequest<any, any, infer RA> ? RA : never;
@@ -143,9 +141,9 @@ func TestExtract_EveryDispatchKindNamesItsRouteAndTheApi(t *testing.T) {
 	sites, diags := extractBody(t, `
 export const a = routes.users.getById(1).call();
 export const b = routes.users.getById(1).typeErrors();
-export const c = middlewares.auth({headers: {authorization: 'x'}}).prefill();
-export const d = middlewares.users.audit('why').typeErrors();
-export const e = routes.sum(1, 2).call({signal: undefined});
+export const c = routes.sum(1, 2).call({signal: undefined});
+// a middleware is hooks only, it carries no dispatch point
+export const d = middlewares.auth.onRequest((auth) => auth({headers: {authorization: 'x'}}));
 `, constants.BundleApiBundled)
 	if len(diags) != 0 {
 		t.Fatalf("unexpected diagnostics: %+v", diags)
@@ -154,8 +152,6 @@ export const e = routes.sum(1, 2).call({signal: undefined});
 	want := []struct{ callee, ids string }{
 		{"call", "users/getById"},
 		{"typeErrors", "users/getById"},
-		{"prefill", "auth"},
-		{"typeErrors", "users/audit"},
 		{"call", "sum"},
 	}
 	if len(got) != len(want) {
@@ -174,12 +170,12 @@ export const e = routes.sum(1, 2).call({signal: undefined});
 	}
 	// a call with no written argument pads the setup slot; one with the setup
 	// written pads nothing
-	if got[0].InjectPad != 1 || got[4].InjectPad != 0 {
-		t.Errorf("padding: call() %d (want 1), call(setup) %d (want 0)", got[0].InjectPad, got[4].InjectPad)
+	if got[0].InjectPad != 1 || got[2].InjectPad != 0 {
+		t.Errorf("padding: call() %d (want 1), call(setup) %d (want 0)", got[0].InjectPad, got[2].InjectPad)
 	}
-	// typeErrors / prefill carry the marker in slot 0
-	if got[1].InjectPad != 0 || got[2].InjectPad != 0 {
-		t.Errorf("typeErrors / prefill must pad nothing: %d %d", got[1].InjectPad, got[2].InjectPad)
+	// typeErrors carries the marker in slot 0
+	if got[1].InjectPad != 0 {
+		t.Errorf("typeErrors must pad nothing: %d", got[1].InjectPad)
 	}
 	for _, site := range sites {
 		if site.CalleeName == "initClient" {
@@ -259,9 +255,9 @@ export const a = routes.sum(1, 2).call(undefined, 'already' as any);
 
 func TestExtract_UnrelatedCallsAreNotSites(t *testing.T) {
 	sites, diags := extractBody(t, `
-const other = {call(): number { return 1; }, prefill(): void {}};
+const other = {call(): number { return 1; }, typeErrors(): void {}};
 export const a = other.call();
-export const b = other.prefill();
+export const b = other.typeErrors();
 `, constants.BundleApiBundled)
 	if len(diags) != 0 || len(sites) != 0 {
 		t.Fatalf("same-named methods without the brand must not match: %+v %+v", sites, diags)

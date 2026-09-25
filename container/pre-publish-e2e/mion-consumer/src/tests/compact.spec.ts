@@ -29,11 +29,11 @@ describe('Compact Serialization E2E', () => {
         const client = initClient<MyApi>({baseURL});
         routes = client.routes;
         middlewares = client.middlewares;
-        middlewares.auth(authHeaders).prefill();
+        middlewares.auth.onRequest((auth) => auth(authHeaders));
     });
 
-    afterEach(async () => {
-        await middlewares.auth(authHeaders).removePrefill();
+    afterEach(() => {
+        middlewares.auth.offRequest();
     });
 
     it('should serialize and deserialize string echo', async () => {
@@ -93,16 +93,13 @@ describe('Compact Serialization E2E', () => {
     });
 
     it('carries a plain middleware (no parser of its own) on the compact wire', async () => {
-        const [result, error, fatal, middlewaresResults] = await routes.compact.echo('test').call({
-            middlewares: {
-                auth: middlewares.auth(authHeaders),
-                compactSession: middlewares.compact.session('valid-token'),
-            },
-        });
+        middlewares.compact.session.onRequest((session) => session('valid-token'));
+        const [result, error, fatal, middlewaresResults] = await routes.compact.echo('test').call();
+        middlewares.compact.session.offRequest();
 
         expect(error).toBeUndefined();
         expect(fatal).toBeUndefined();
         expect(result).toBe('test');
-        expect(middlewaresResults?.compactSession).toEqual({valid: true, userId: 'user-123'});
+        expect(middlewaresResults?.['compact/session']).toEqual({valid: true, userId: 'user-123'});
     });
 });

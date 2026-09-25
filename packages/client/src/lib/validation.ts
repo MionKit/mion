@@ -13,7 +13,7 @@ import type {MionClientRequest} from '../request.ts';
 
 export function validateSubRequests(
   subRequestIds: string[],
-  req: MionClientRequest<any, any>,
+  req: MionClientRequest,
   errors: RequestErrors,
   validateRouteMiddlewares = true
 ): void {

@@ -10,7 +10,7 @@ const {routes, middlewares} = initClient<MyApi>({
 // - slot 1 (error) is the route's DECLARED errors | ValidationError - a CLOSED, strongly typed union
 // - slot 2 (undeclared) is anything NOBODY declared - an OPEN RpcError<string>. A returned FatalError
 //   is declared, so it lands in slot 1 or 4, never here
-// - slot 4 (middlewareErrors) is each middleware's DECLARED errors, strongly typed by name
+// - slot 4 (middlewareErrors) is each middleware's DECLARED errors, by middleware id
 const [user, error, undeclared] = await routes.users.getById('USER-123').call();
 
 // slot 2 is open: transport/framework codes narrow with NO cast
@@ -47,16 +47,17 @@ if (error?.type === 'user-not-found') console.log(error.errorData?.bogus);
 const lastFailure: UndeclaredError | undefined = undeclared;
 console.log(lastFailure?.publicMessage);
 
-// slot 4 is a typed record keyed by the names YOU passed - each middleware's declared errors narrow
-const [, , , , middlewareErrors] = await routes.users.getById('USER-123').call({
-  middlewares: {
-    auth: middlewares.auth({headers: {Authorization: 'Bearer token'}}, true),
-  },
-});
-if (middlewareErrors?.auth?.type === 'not-authorized') {
-  // errorData is strongly typed as NotAuthorizedData
-  console.log('auth failed:', middlewareErrors.auth.errorData?.reason);
-}
-// only the middleware names you passed exist on the record
-// @ts-expect-error -- no middleware named `bogus` was passed to this call
-console.log(middlewareErrors?.bogus);
+// a middleware's declared errors are strongly typed in its onError hook
+middlewares.auth
+  .onRequest((auth) => auth({headers: {Authorization: 'Bearer token'}}, true))
+  .onError('not-authorized', (authError) => {
+    // errorData is strongly typed as NotAuthorizedData
+    console.log('auth failed:', authError.errorData?.reason);
+  });
+
+// slot 4 keeps the same errors by middleware id, typed only as RpcError
+const [, , , , middlewareErrors] = await routes.users
+  .getById('USER-123')
+  .call();
+if (middlewareErrors?.auth)
+  console.log('auth failed:', middlewareErrors.auth.type);

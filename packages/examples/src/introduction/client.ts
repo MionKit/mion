@@ -6,8 +6,10 @@ const {routes, middlewares} = initClient<MyApi>({
   baseURL: 'http://localhost:3000',
 });
 
-// prefills the auth token for any future requests, kept in memory
-await middlewares.auth({headers: {Authorization: 'myToken-XYZ'}}).prefill();
+// sets the auth token before every request
+middlewares.auth.onRequest((auth) =>
+  auth({headers: {Authorization: 'myToken-XYZ'}})
+);
 
 const [hello] = await routes.users.sayHello(john).call();
 console.log(hello); // Hello John Doe

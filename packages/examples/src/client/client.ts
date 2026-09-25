@@ -9,16 +9,14 @@ const {routes, middlewares} = initClient<MyApi>({
   baseURL: 'http://localhost:3000',
 });
 
-// ========== Middleware with Typed Success Return and Error Handling ==========
-// prefills auth token for any future requests, value is stored in localStorage by default
-// Returns TypedEvent for registering persistent success and error handlers
+// ========== Middleware Hooks with Typed Success Return and Error Handling ==========
+// onRequest gives auth its params before every request that runs it
 // The auth middleware returns SessionInfo on success (when returnSession=true) or FatalError<'not-authorized', NotAuthorizedData>
 const authHeaders = new HeadersSubset({Authorization: 'Bearer myToken-XYZ'});
-middlewares
-  .auth(authHeaders, true) // returnSession=true to get SessionInfo back
-  .prefill()
-  // onSuccess receives the strongly typed SessionInfo (or void when returnSession=false)
-  .onSuccess((sessionInfo) => {
+middlewares.auth
+  .onRequest((auth) => auth(authHeaders, true)) // returnSession=true to get SessionInfo back
+  // onResponse receives the strongly typed SessionInfo (or void when returnSession=false)
+  .onResponse((sessionInfo) => {
     // Since we passed returnSession=true, we know sessionInfo is SessionInfo
     // TypeScript infers: sessionInfo is SessionInfo | void, so we narrow it
     if (!sessionInfo) return;
@@ -84,38 +82,26 @@ const [result, error3] = await routes.users.sayHello(john).call();
 // sayHello never has an error type, so we can use the result directly
 console.log(result); // Hello John Doe
 
-// ========== Example 5: Using call() to send per-request middleware data ==========
-// Use call({middlewares: {...}}) when you need to pass middleware data for a SINGLE request
-// Returns 5-tuple: [routeResult, routeError, undeclared, middlewareResults, middlewareErrors]
-
-// Create a middleware call with temporary credentials for this specific request
+// ========== Example 5: Per-request middleware data ==========
+// onRequest runs for every request, so it can pick the data per request from the context
 const tempAuthHeaders: HeadersSubset<'Authorization'> = {
   headers: {Authorization: 'Bearer temp-token-ABC'},
 };
-
-// onError handlers register without prefilling (persistent, keyed by the middleware id)
-const tempAuth = middlewares.auth(tempAuthHeaders, true);
-tempAuth.onError('not-authorized', (error) => {
-  // error.errorData is strongly typed as NotAuthorizedData!
-  if (error.errorData?.reason === 'expired-token') {
-    console.log('Temp token expired, requesting new one...');
-  }
+middlewares.auth.onRequest((auth, context) => {
+  const isOrderRequest = context.route?.id.startsWith('orders/');
+  auth(isOrderRequest ? tempAuthHeaders : authHeaders, true);
 });
 
-// call({middlewares: {...}}) takes a record of middleware and returns a typed 5-tuple
+// the result keeps each middleware's outcome by id, loosely typed; the typed hooks above are the main way
 const [user4, routeError4, fatal4, middlewareResults4, middlewareErrors4] =
-  await routes.users.getById('USER-123').call({
-    middlewares: {
-      auth: tempAuth,
-    },
-  });
+  await routes.users.getById('USER-123').call();
 // Check for route errors (the route's DECLARED errors | ValidationError)
 if (routeError4?.type === 'user-not-found') {
   console.log('User not found:', routeError4.errorData?.requestedId);
 }
-// Each middleware's DECLARED errors arrive by name, strongly typed - same data the handler above got
+// Each middleware's DECLARED errors arrive by id - the same errors the onError hooks got
 if (middlewareErrors4?.auth?.type === 'not-authorized') {
-  console.log('Auth failed:', middlewareErrors4.auth.errorData?.reason);
+  console.log('Auth failed:', middlewareErrors4.auth.publicMessage);
 }
 // Anything NOBODY declared (transport, platform, an undeclared throw) lands here, untyped
 if (fatal4) {
@@ -123,26 +109,7 @@ if (fatal4) {
 }
 // Access success data
 if (user4) console.log('Found user:', user4.name);
-if (middlewareResults4?.auth)
-  console.log('Authenticated as:', middlewareResults4.auth.userId);
-
-// ========== Example 6: Multiple middleware with call({middlewares: {...}}) ==========
-// Pass multiple middleware in the record - each gets its own typed result AND its own error slot
-const [user5, , , middlewareResults5, middlewareErrors5] = await routes.users
-  .getById('USER-123')
-  .call({
-    middlewares: {
-      auth: middlewares.auth(tempAuthHeaders),
-      // session: middlewares.session('session-token'), // If you have a session middleware
-    },
-  });
-// Handle each middleware's errors independently - nothing is dropped when several fail
-if (middlewareErrors5?.auth) {
-  console.log('Auth failed:', middlewareErrors5.auth.publicMessage);
-}
-// Access success data
-if (user5) console.log('User:', user5.name);
-console.log(middlewareResults5); // { auth: ... }
+console.log(middlewareResults4); // { auth: ... }
 
 // ========== Example 7: Using call() with async/await (recommended) ==========
 // call() returns 5-tuple: [routeResult, routeError, undeclared, middlewareResults, middlewareErrors]

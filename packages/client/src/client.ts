@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {DEFAULT_PREFILL_OPTIONS} from './constants.ts';
+import {DEFAULT_CLIENT_OPTIONS, MIDDLEWARE_HOOKS} from './constants.ts';
 import {
   BundleApiMode,
   ClientOptions,
@@ -27,6 +27,7 @@ import {getRouterItemId} from '@mionjs/core';
 import {MionClientRequest} from './request.ts';
 import type {RunTypeError} from '@mionjs/core';
 import {HandlersRegistry} from './lib/handlersRegistry.ts';
+import {TypedEvent} from './lib/typedEvent.ts';
 import {MionSubRequest} from './subRequest.ts';
 import {getBundleApiMode} from './lib/bundleApiMode.ts';
 import {setApiBuildVersion, takeApiVersionError} from './lib/apiBuildVersion.ts';
@@ -43,24 +44,17 @@ export function initClient<RM extends RemoteApi>(
 ): {client: MionClient; routes: ClientRoutes<RM>; middlewares: ClientMiddlewares<RM>} {
   setApiBuildVersion(buildVersion);
   setInjectedRouterOptions(options.baseURL, routerOptions);
-  const clientOptions = {...DEFAULT_PREFILL_OPTIONS, ...options};
+  const clientOptions = {...DEFAULT_CLIENT_OPTIONS, ...options};
   const client = new MionClient(clientOptions);
-  const rootProxy = new MethodProxy([], client, clientOptions);
   return {
     client,
-    routes: rootProxy.proxy as ClientRoutes<RM>,
-    middlewares: rootProxy.proxy as ClientMiddlewares<RM>,
+    routes: new MethodProxy([], client, false).proxy as ClientRoutes<RM>,
+    middlewares: new MethodProxy([], client, true).proxy as ClientMiddlewares<RM>,
   };
 }
 
 export class MionClient {
   readonly handlersRegistry = new HandlersRegistry();
-
-  /** prefilled middleware subrequests, keyed `baseURL:middlewareId` */
-  readonly prefilledMiddlewaresCache = new Map<string, SubRequest<any>>();
-
-  /** in-flight prefills, awaited before a request executes */
-  private pendingPrefills: Promise<void>[] = [];
 
   private globalAbortController = new AbortController();
   private get globalSignal(): AbortSignal {
@@ -97,73 +91,40 @@ export class MionClient {
     routeSubRequest?: RouteSubRequest<any>,
     batchSubRequests?: RouteSubRequest<any>[],
     batchId?: string,
-    middlewaresRecord?: Record<string, MiddlewareSubRequest<any>>,
     signal?: AbortSignal,
     timeout?: number
   ): Promise<any> {
-    return this.executeRequest(routeSubRequest, batchSubRequests, batchId, middlewaresRecord, signal, timeout);
+    return this.executeRequest(routeSubRequest, batchSubRequests, batchId, signal, timeout);
   }
 
-  private async executeRequest<Routes extends RouteSubRequest<any>[], H extends Record<string, MiddlewareSubRequest<any>>>(
+  private async executeRequest<Routes extends RouteSubRequest<any>[]>(
     routeSubRequest: RouteSubRequest<any> | undefined,
     batchSubRequests: Routes | undefined,
     batchId: string | undefined,
-    middlewaresRecord: H | undefined,
     signal?: AbortSignal,
     timeout?: number
   ): Promise<any> {
-    // Capture the signal before any async work so abort() during prefill await is respected
+    // Capture the signal before any async work so abort() during an onRequest await is respected
     const composedSignal = this.composeSignal(signal, timeout);
-
-    if (this.pendingPrefills.length > 0) await Promise.allSettled(this.pendingPrefills);
-
-    const middlewareSubRequests = middlewaresRecord ? Object.values(middlewaresRecord) : [];
     const request = new MionClientRequest(
       this.clientOptions,
-      this.prefilledMiddlewaresCache,
+      this.handlersRegistry,
       routeSubRequest,
-      middlewareSubRequests,
       batchSubRequests,
       batchId,
       composedSignal
     );
 
+    let errors: RequestErrors | undefined;
     try {
       await request.call();
-      const routeIds = this.getRouteIds(routeSubRequest, batchSubRequests);
-      const allMiddlewares = this.getAllMiddlewaresFromRequest(request, routeIds);
-      this.processMiddlewaresResponses(allMiddlewares, undefined, request.thrownErrorIds);
-      return this.buildResult(
-        routeSubRequest,
-        batchSubRequests,
-        this.mergeMiddlewares(middlewaresRecord, allMiddlewares),
-        undefined,
-        request.thrownErrorIds
-      );
-    } catch (errors: any) {
-      const routeIds = this.getRouteIds(routeSubRequest, batchSubRequests);
-      const allMiddlewares = this.getAllMiddlewaresFromRequest(request, routeIds);
-      this.processMiddlewaresResponses(allMiddlewares, errors, request.thrownErrorIds);
-      return this.buildResult(
-        routeSubRequest,
-        batchSubRequests,
-        this.mergeMiddlewares(middlewaresRecord, allMiddlewares),
-        errors,
-        request.thrownErrorIds
-      );
+    } catch (requestErrors: any) {
+      errors = requestErrors;
     }
-  }
-
-  /** A restored prefill is not in the record, so it is added under its id and its result is never dropped */
-  private mergeMiddlewares(
-    middlewaresRecord: Record<string, MiddlewareSubRequest<any>> | undefined,
-    allMiddlewares: MiddlewareSubRequest<any>[]
-  ): Record<string, MiddlewareSubRequest<any>> | MiddlewareSubRequest<any>[] {
-    if (!middlewaresRecord) return allMiddlewares;
-    const recordIds = new Set(Object.values(middlewaresRecord).map((middleware) => middleware.id));
-    const merged: Record<string, MiddlewareSubRequest<any>> = {...middlewaresRecord};
-    for (const middleware of allMiddlewares) if (!recordIds.has(middleware.id)) merged[middleware.id] = middleware;
-    return merged;
+    const routeIds = this.getRouteIds(routeSubRequest, batchSubRequests);
+    const middlewares = this.getAllMiddlewaresFromRequest(request, routeIds);
+    this.processMiddlewaresResponses(middlewares, errors, request.thrownErrorIds);
+    return this.buildResult(routeSubRequest, batchSubRequests, middlewares, errors, request.thrownErrorIds);
   }
 
   private getRouteIds(
@@ -176,10 +137,7 @@ export class MionClient {
     return routeIds;
   }
 
-  private getAllMiddlewaresFromRequest(
-    request: MionClientRequest<any, any>,
-    excludedIds: Set<string>
-  ): MiddlewareSubRequest<any>[] {
+  private getAllMiddlewaresFromRequest(request: MionClientRequest, excludedIds: Set<string>): MiddlewareSubRequest<any>[] {
     return Object.entries(request.subRequestList)
       .filter(([id]) => !excludedIds.has(id))
       .map(([, subRequest]) => subRequest as MiddlewareSubRequest<any>);
@@ -197,24 +155,24 @@ export class MionClient {
       if (middlewareError) {
         if (!thrownErrorIds.has(middleware.id)) this.handlersRegistry.executeHandler(middleware.id, middlewareError);
       } else if (middleware.resolvedValue !== undefined) {
-        this.handlersRegistry.executeSuccessHandler(middleware.id, middleware.resolvedValue);
+        this.handlersRegistry.executeResponseHandler(middleware.id, middleware.resolvedValue);
       }
     }
   }
 
   /** The dispatch contract of [result, error, undeclared, middlewareResults, middlewareErrors]:
    * - slot 1: ONLY the route's own declared errors | ValidationError (a thrown route error does not qualify)
-   * - slot 4: each middleware's DECLARED errors | ValidationError by name, one entry each, so several failures are kept
+   * - slot 4: each middleware's DECLARED errors | ValidationError by id, one entry each, so several failures are kept
    * - slot 2: what NOBODY declared (a thrown route or middleware error, transport/platform/framework, an error for a
    *   middleware not part of this request); when several exist, the first in execution order (middlewares before the route)
    * - slot 0: the route result whatever else failed; no error ever crosses into another slot */
-  private buildResult<Routes extends RouteSubRequest<any>[], H extends Record<string, MiddlewareSubRequest<any>>>(
+  private buildResult<Routes extends RouteSubRequest<any>[]>(
     routeSubRequest: RouteSubRequest<any> | undefined,
     batchSubRequests: Routes | undefined,
-    middlewares: H | MiddlewareSubRequest<any>[],
+    middlewares: MiddlewareSubRequest<any>[],
     errors: RequestErrors | undefined,
     thrownErrorIds: ReadonlySet<string>
-  ): BatchResult<Routes, H> | Result<any, any> {
+  ): BatchResult<Routes> | Result<any, any> {
     const middlewaresResults = {} as Record<string, any>;
     const processedIds = new Set<string>();
     const expectedErrorFor = (id: string): RpcError<string> | undefined => {
@@ -243,14 +201,11 @@ export class MionClient {
     }
     routeIds.forEach((id) => processedIds.add(id));
 
-    // middlewares can be a named record (from call({middlewares}) / batch) or an array (from executeCall)
     const middlewaresErrors = {} as Record<string, any>;
     let undeclaredPart: RpcError<string> | undefined;
-    const middlewareEntries: [string, MiddlewareSubRequest<any>][] = Array.isArray(middlewares)
-      ? middlewares.map((middleware) => [middleware.id, middleware])
-      : Object.entries(middlewares);
-    for (const [name, middleware] of middlewareEntries) {
-      processedIds.add(middleware.id);
+    for (const middleware of middlewares) {
+      const name = middleware.id;
+      processedIds.add(name);
       if (middleware.resolvedValue !== undefined) middlewaresResults[name] = middleware.resolvedValue;
       const middlewareError = errors?.get(middleware.id);
       if (!middlewareError) continue;
@@ -291,24 +246,8 @@ export class MionClient {
   }
 
   typeErrors<List extends SubRequest<any>[]>(...subRequest: List): Promise<RunTypeError[]> {
-    const request = new MionClientRequest(this.clientOptions, this.prefilledMiddlewaresCache);
+    const request = new MionClientRequest(this.clientOptions, this.handlersRegistry);
     return request.validateParams(subRequest);
-  }
-
-  prefill<List extends MiddlewareSubRequest<any>[]>(...subRequest: List): Promise<void> {
-    const request = new MionClientRequest(this.clientOptions, this.prefilledMiddlewaresCache);
-    const promise = request.prefill(subRequest);
-    this.pendingPrefills.push(promise);
-    void promise.finally(() => {
-      const index = this.pendingPrefills.indexOf(promise);
-      if (index >= 0) void this.pendingPrefills.splice(index, 1);
-    });
-    return promise;
-  }
-
-  removePrefill<List extends MiddlewareSubRequest<any>[]>(...subRequest: List): Promise<void> {
-    const request = new MionClientRequest(this.clientOptions, this.prefilledMiddlewaresCache);
-    return request.removePrefill(subRequest);
   }
 
   destroy(): void {
@@ -317,18 +256,23 @@ export class MionClient {
   }
 }
 
+const middlewareHooks = new Set<string>(MIDDLEWARE_HOOKS);
+
 class MethodProxy {
   propsProxies: Record<string, MethodProxy> = {};
+  private events?: TypedEvent<any, any>;
   handler = {
     apply: (_target: any, _thisArg: any, argArray?: any): RouteSubRequest<any> & MiddlewareSubRequest<any> => {
       const handlerId = getRouterItemId(this.parentProps);
       return new MionSubRequest(this.parentProps, handlerId, argArray, this.client);
     },
 
-    get: (_target: any, prop: string): typeof Proxy => {
+    // on the middlewares tree a hook name is a method of the middleware, so no middleware can be named after one
+    get: (_target: any, prop: string): any => {
+      if (this.isMiddleware && middlewareHooks.has(prop)) return this.getEvents()[prop].bind(this.events);
       const existing = this.propsProxies[prop];
       if (existing) return existing.proxy;
-      const newMethodProxy = new MethodProxy([...this.parentProps, prop], this.client, this.clientOptions);
+      const newMethodProxy = new MethodProxy([...this.parentProps, prop], this.client, this.isMiddleware);
       this.propsProxies[prop] = newMethodProxy;
       return newMethodProxy.proxy;
     },
@@ -339,9 +283,17 @@ class MethodProxy {
   constructor(
     public parentProps: string[],
     private client: MionClient,
-    private clientOptions: ClientOptions
+    private isMiddleware: boolean
   ) {
     const target = () => null;
     this.proxy = new Proxy(target, this.handler);
+  }
+
+  private getEvents(): TypedEvent<any, any> {
+    if (!this.events) {
+      const createSubRequest = (params: any[]) => this.handler.apply(null, null, params);
+      this.events = new TypedEvent(getRouterItemId(this.parentProps), this.client.handlersRegistry, createSubRequest);
+    }
+    return this.events;
   }
 }

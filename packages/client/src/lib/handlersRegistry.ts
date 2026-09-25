@@ -6,12 +6,19 @@
  * ######## */
 
 import type {RpcError} from '@mionjs/core';
-import type {ErrorHandler, SuccessHandler} from '../types.ts';
+import type {ErrorHandler, RequestHandler, ResponseHandler, SubRequest} from '../types.ts';
 
-/** Central registry for persistent middleware handlers (both success and error) */
+/** A request handler plus the middleware function that turns its params into a sub request */
+export interface RequestHandlerEntry {
+  handler: RequestHandler<any>;
+  createSubRequest: (params: any[]) => SubRequest<any>;
+}
+
+/** Central registry for persistent middleware handlers: request, response and error */
 export class HandlersRegistry {
   private errorHandlers: Map<string, Map<string, ErrorHandler<any>>> = new Map();
-  private successHandlers: Map<string, SuccessHandler<any>> = new Map();
+  private responseHandlers: Map<string, ResponseHandler<any>> = new Map();
+  private requestHandlers: Map<string, RequestHandlerEntry> = new Map();
 
   register(handlerId: string, errorType: string, handler: ErrorHandler<any>): void {
     let handlerMap = this.errorHandlers.get(handlerId);
@@ -46,40 +53,67 @@ export class HandlersRegistry {
     return true;
   }
 
-  registerSuccess(handlerId: string, handler: SuccessHandler<any>): void {
-    this.successHandlers.set(handlerId, handler);
+  registerResponse(handlerId: string, handler: ResponseHandler<any>): void {
+    this.responseHandlers.set(handlerId, handler);
   }
 
-  unregisterSuccess(handlerId: string): void {
-    this.successHandlers.delete(handlerId);
+  unregisterResponse(handlerId: string): void {
+    this.responseHandlers.delete(handlerId);
   }
 
-  hasSuccessHandler(handlerId: string): boolean {
-    return this.successHandlers.has(handlerId);
+  hasResponseHandler(handlerId: string): boolean {
+    return this.responseHandlers.has(handlerId);
   }
 
-  executeSuccessHandler(handlerId: string, result: any): boolean {
-    const handler = this.successHandlers.get(handlerId);
+  executeResponseHandler(handlerId: string, result: any): boolean {
+    const handler = this.responseHandlers.get(handlerId);
     if (!handler) return false;
 
     handler(result);
     return true;
   }
 
+  registerRequest(
+    handlerId: string,
+    handler: RequestHandler<any>,
+    createSubRequest: RequestHandlerEntry['createSubRequest']
+  ): void {
+    this.requestHandlers.set(handlerId, {handler, createSubRequest});
+  }
+
+  unregisterRequest(handlerId: string): void {
+    this.requestHandlers.delete(handlerId);
+  }
+
+  hasRequestHandler(handlerId: string): boolean {
+    return this.requestHandlers.has(handlerId);
+  }
+
+  getRequestHandler(handlerId: string): RequestHandlerEntry | undefined {
+    return this.requestHandlers.get(handlerId);
+  }
+
+  getRequestHandlerIds(): string[] {
+    return Array.from(this.requestHandlers.keys());
+  }
+
   clearHandlers(handlerId: string): void {
     this.errorHandlers.delete(handlerId);
-    this.successHandlers.delete(handlerId);
+    this.responseHandlers.delete(handlerId);
+    this.requestHandlers.delete(handlerId);
   }
 
   clearAll(): void {
     this.errorHandlers.clear();
-    this.successHandlers.clear();
+    this.responseHandlers.clear();
+    this.requestHandlers.clear();
   }
 
   getHandlerIds(): string[] {
     const errorIds = Array.from(this.errorHandlers.keys());
-    const successIds = Array.from(this.successHandlers.keys());
-    return [...new Set([...errorIds, ...successIds])];
+    const responseIds = Array.from(this.responseHandlers.keys());
+    const requestIds = Array.from(this.requestHandlers.keys());
+    return [...new Set([...errorIds, ...responseIds, ...requestIds])];
   }
 
   getErrorTypes(handlerId: string): string[] {

@@ -3,7 +3,7 @@ import {createMionRouter, Routes} from '@mionjs/router';
 
 const mion = createMionRouter();
 
-// returned on success, strongly typed in the client onSuccess handler
+// returned on success, strongly typed in the client onResponse hook
 export type SessionInfo = {userId: string; role: 'admin' | 'user'};
 export type NotAuthorizedData = {reason: 'missing-token' | 'invalid-token'};
 

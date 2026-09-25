@@ -6,18 +6,18 @@ const {routes, middlewares} = initClient<MyApi>({
   baseURL: 'http://localhost:3000',
 });
 
+middlewares.auth.onRequest((auth) =>
+  auth(new HeadersSubset({Authorization: 'myToken-XYZ'}))
+);
+
 const [user, error, undeclared, middlewareResults, middlewareErrors] =
-  await routes.users.getById('USER-123').call({
-    middlewares: {
-      auth: middlewares.auth(new HeadersSubset({Authorization: 'myToken-XYZ'})),
-    },
-  });
+  await routes.users.getById('USER-123').call();
 
 // the route's own declared errors
 if (error) console.log('route error:', error.type);
 // a timeout, a network drop, anything nobody declared
 if (undeclared) console.log('undeclared:', undeclared.type);
-// each middleware's declared errors and results, by name
+// each middleware's declared errors and results, by middleware id
 if (middlewareErrors?.auth)
   console.log('auth error:', middlewareErrors.auth.type);
 console.log(user?.name, middlewareResults);

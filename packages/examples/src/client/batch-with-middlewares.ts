@@ -7,6 +7,8 @@ const {routes, middlewares} = initClient<MyApi>({
 });
 
 const authHeaders = new HeadersSubset({Authorization: 'my-token'});
+// runs once per batch, like for a single call
+middlewares.auth.onRequest((auth) => auth(authHeaders));
 
 const [
   [sum, greeting],
@@ -14,11 +16,9 @@ const [
   undeclared,
   ,
   middlewareErrors,
-] = await batch([routes.utils.sum(5, 2), routes.sayHello('John')]).call({
-  middlewares: {auth: middlewares.auth(authHeaders)},
-});
+] = await batch([routes.utils.sum(5, 2), routes.sayHello('John')]).call();
 
-// declared middleware errors arrive by name, anything else once as undeclared
+// declared middleware errors arrive by id, anything else once as undeclared
 if (middlewareErrors?.auth)
   console.log('Auth failed:', middlewareErrors.auth.publicMessage);
 if (undeclared) console.log('Request failed:', undeclared.publicMessage);

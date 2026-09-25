@@ -11,7 +11,7 @@ import type {StorageEngine} from './lib/storage.ts';
 /** The engine the client uses when an app does not name one. */
 export const DEFAULT_STORAGE_ENGINE: StorageEngine = 'indexeddb';
 
-export const DEFAULT_PREFILL_OPTIONS: ClientOptions = {
+export const DEFAULT_CLIENT_OPTIONS: ClientOptions = {
   baseURL: '',
   fetchOptions: {
     headers: {'Content-Type': 'application/json'},
@@ -25,6 +25,9 @@ export const DEFAULT_PREFILL_OPTIONS: ClientOptions = {
   /** Where the client keeps what it learned about the remote methods */
   storageEngine: DEFAULT_STORAGE_ENGINE,
 };
+
+/** The hook names a middleware function answers; a sub request carries none of them */
+export const MIDDLEWARE_HOOKS = ['onRequest', 'offRequest', 'onResponse', 'offResponse', 'onError', 'offError'] as const;
 
 /** Maximum safe URL length for GET requests with ?data= query param */
 export const MAX_GET_URL_LENGTH = 4096;

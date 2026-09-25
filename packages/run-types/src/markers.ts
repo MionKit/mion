@@ -234,7 +234,7 @@ export type InjectBatchId<Routes> = string & {
 
 /**
  * API metadata injection marker for a mion client built with `bundleApi`. A client dispatch point
- * (`routes.x(...).call()`, `middlewares.y(...).prefill()`, `typeErrors()`, `batch([...]).call()`)
+ * (`routes.x(...).call()`, `routes.x(...).typeErrors()`, `batch([...]).call()`)
  * declares it as its trailing parameter, typed with the API and the id of the route it calls
  * (`call(setup?, apiMetadata?: InjectApiMetadata<Api, Id>)`). The build resolves that route (plus
  * every middleware in its chain) out of the API type, compiles the same validators and serializers the

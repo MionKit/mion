@@ -59,7 +59,7 @@ const (
 	// `[...Routes]` argument names. The batches extractor splices it in, so no scanCall case.
 	KindInjectBatchId
 	// KindInjectApiMetadata (InjectApiMetadata<Api, Id>) brands the trailing parameter of a client dispatch point
-	// (`.call()`, `.prefill()`, `.typeErrors()`, a batch's `.call()`); the apimeta lane fills it with an import of the
+	// (`.call()`, `.typeErrors()`, a batch's `.call()`); the apimeta lane fills it with an import of the
 	// metadata module generated for that API and route id. No scanCall case.
 	KindInjectApiMetadata
 	// KindInjectBuildVersion (InjectBuildVersion<Api>) rides the trailing parameter of `initRoutes` and
