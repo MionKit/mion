@@ -1,35 +1,28 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-09-24
 ---
 
-# Remove the stale `@mion-downgrade-error` comments in the run-types tests
+# Validate refuses every non-data type at the root
 
 ## Intent
 
-Every run of the `runtypes` vitest project (and the CI "js tests + lint" log) prints a wall of devtools warnings like:
+Every `runtypes` test run printed 10 `DWN001` warnings ("unused `@mion-downgrade-error`") over symbol-literal validators in `Atomic.ts` and `symbolLiteralWire.test.ts`. The comments were not stale by design. Their VL002 came from a `noLiterals` test that shared the same type, and removing that option took the error away by accident. Validate had been checking a symbol literal by its description at the root, which breaks the contract: validators check `DataOnly<T>`, and `DataOnly` turns every non-data type into `never`.
 
-```
-warning DWN001: Unused `@mion-downgrade-error VL002`: nothing was reported on the line below it, so the comment is stale and can be deleted.
-```
+## What shipped
 
-They drown real output, and a stale downgrade comment hides nothing now but would silently lower a future real error on that line. The output should be clean.
-
-## Direction
-
-- Known hits: `packages/run-types/test/suites/validation/Atomic.ts` lines 577, 583, 589, 594 (`VL002`) and 604, 610, 616 (`VE002`), and `packages/run-types/test/features/symbolLiteralWire.test.ts` line 45 (`VL002`). Collect the full list from a `pnpm exec vitest run --project runtypes` log, other projects too.
-- Those hits sit over unique-symbol literal validators, which are now supported (matched by description), so the likely answer is plain deletion. For each hit, confirm that: if a diagnostic that SHOULD still fire has stopped, that is a resolver regression to fix, and the comment stays.
-- Consider making DWN001 fail the test run (or a CI gate), so stale comments cannot pile up again.
-- The implementer investigates and plans the details.
+- **Validate and validationErrors refuse every non-data root** with an alwaysThrow factory and a RuntimeError, like a bare `symbol`:
+  - symbol literal (`typeof sym`): VL002 / VE002
+  - function, method, call signature, callable interface: new VL003 / VE003
+  - `Promise`, `RegExp`: VL001 / VE001
+- **The same refusal reaches the root from a propagating slot:** an array item, a tuple slot (a function slot no longer falls back to `=== undefined`), and a union made only of non-data members. validationErrors now throws for such a union too, instead of delegating to a validator that throws later.
+- Object properties and mixed unions still drop these members with the existing warnings.
+- The 10 comments stay, and now match real errors.
+- **Gate:** `pnpm run lint:directives` (part of `pnpm run lint`) runs the `runtypes/invalid-downgrade-error` and `runtypes/invalid-expect-error` rules at `error` on every tracked `packages/*.ts` file that carries a directive, since the main oxlint config ignores `test/` and `examples/`. A stale directive now fails lint.
+- Tests: Go root / array / tuple / union cases for all kinds in both families; the JS validation suites expect `factoryThrows`; the feature tests expect the throw. The benchmark cases for these roots are removed.
 
 ## Docs
 
-None, because this only changes test comments (and possibly a test gate), nothing a consumer sees.
-
-## Done when
-
-- A full `pnpm test` run prints no DWN001 warning.
-- Every removed comment was checked to be stale, not a regression.
-- The simplify-comments pass ran on every touched source file, committed on its own.
+The website already said a non-data root fails the build. The diagnostics catalog was regenerated for VL003 / VE003.
