@@ -288,6 +288,6 @@ describe('middleware onRequest', () => {
     // @ts-expect-error params are set only through onRequest
     middlewares.session('valid-token');
     expectTypeOf(middlewares.session).toHaveProperty('onResponse');
-    expectTypeOf(middlewares.session).not.toHaveProperty('prefill' as never);
+    expectTypeOf(middlewares.session).not.toHaveProperty('typeErrors' as never);
   });
 });

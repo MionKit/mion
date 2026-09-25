@@ -10,10 +10,11 @@ import {initClient} from '../src/client.ts';
 import {batch} from '../src/batch.ts';
 import type {
   ApiOf,
+  CallContext,
+  ClientMiddleware,
   ClientMiddlewares,
   ClientRoutes,
   InitClientOptions,
-  MiddlewareSubRequest,
   RouteSubRequest,
 } from '../src/types.ts';
 import type {TestServerApi} from '@mionjs/test-server';
@@ -28,7 +29,7 @@ import type {ROUTER_OPTIONS} from '@mionjs/core';
 const {routes, middlewares} = initClient<TestServerApi>({baseURL: 'http://localhost:0'});
 
 describe('subrequest types carry the route id and the API', () => {
-  it('names a top-level route, a nested route and a middleware by their key path', () => {
+  it('names a top-level route and a nested route by their key path', () => {
     const hello = routes.sayHello({name: 'a', surname: 'b'});
     expectTypeOf(hello).toEqualTypeOf<RouteSubRequest<TestServerApi['sayHello']['handler'], 'sayHello', TestServerApi>>();
     expectTypeOf(hello.id).toEqualTypeOf<'sayHello'>();
@@ -37,10 +38,20 @@ describe('subrequest types carry the route id and the API', () => {
     const sum = routes.utils.sumTwo(1);
     expectTypeOf(sum.id).toEqualTypeOf<'utils/sumTwo'>();
     expect(sum.id).toBe('utils/sumTwo');
+  });
 
-    const auth = middlewares.auth(new HeadersSubset({Authorization: 'x'}));
-    expectTypeOf(auth).toEqualTypeOf<MiddlewareSubRequest<TestServerApi['auth']['handler'], 'auth', TestServerApi>>();
-    expect(auth.id).toBe('auth');
+  it('types a middleware onRequest callback with the handler params', () => {
+    expectTypeOf(middlewares.auth).toEqualTypeOf<ClientMiddleware<TestServerApi['auth']['handler']>>();
+    middlewares.auth.onRequest((auth, context) => {
+      expectTypeOf(auth).parameters.toEqualTypeOf<Parameters<TestServerApi['auth']['handler']>>();
+      expectTypeOf(context).toEqualTypeOf<CallContext>();
+      auth(new HeadersSubset({Authorization: 'x'}));
+    });
+    middlewares.auth.offRequest();
+    // never run: the type check is the point
+    // @ts-expect-error a middleware is hooks only, it can not be called
+    const callMiddleware = () => middlewares.auth(new HeadersSubset({Authorization: 'x'}));
+    expect(typeof callMiddleware).toBe('function');
   });
 
   it('keeps the id through destructuring and aliasing', () => {
@@ -59,9 +70,6 @@ describe('subrequest types carry the route id and the API', () => {
     expectTypeOf<typeof hello.typeErrors>()
       .parameter(0)
       .toEqualTypeOf<InjectApiMetadata<TestServerApi, 'sayHello'> | undefined>();
-    const auth = middlewares.auth(new HeadersSubset({Authorization: 'x'}));
-    expect(auth.id).toBe('auth');
-    expectTypeOf<typeof auth.prefill>().parameter(0).toEqualTypeOf<InjectApiMetadata<TestServerApi, 'auth'> | undefined>();
     // a batch names every route it runs, as a union of ids
     const built = batch([hello, routes.utils.sumTwo(1)]);
     expect(typeof built.call).toBe('function');
@@ -88,8 +96,8 @@ describe('subrequest types carry the route id and the API', () => {
 
   it('existing wide uses still compile', () => {
     const anyRoute: RouteSubRequest<any> = routes.sayHello({name: 'a', surname: 'b'});
-    const anyMiddleware: MiddlewareSubRequest<any> = middlewares.auth(new HeadersSubset({Authorization: 'x'}));
+    const anyMiddleware: ClientMiddleware<any> = middlewares.auth;
     expectTypeOf(anyRoute.id).toEqualTypeOf<string>();
-    expectTypeOf(anyMiddleware.id).toEqualTypeOf<string>();
+    expectTypeOf(anyMiddleware.onRequest).toBeFunction();
   });
 });

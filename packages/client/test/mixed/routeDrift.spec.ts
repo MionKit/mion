@@ -170,9 +170,10 @@ describe('a client built against routes the server has since changed', () => {
     it("checks the route only: a changed middleware is answered by the middleware's own validation", async () => {
       const before = handlerCalls['secured/data'];
       const {routes, middlewares} = reloadClient();
-      const result = await routes.secured.data().call({middlewares: {token: middlewares.secured.token('t')}});
+      middlewares.secured.token.onRequest((token) => token('t'));
+      const result = await routes.secured.data().call();
       expect(result[2]?.type).not.toBe('route-types-mismatch');
-      expect(result[4]?.token).toMatchObject({type: 'validation-error'});
+      expect(result[4]?.['secured/token']).toMatchObject({type: 'validation-error'});
       expect(handlerCalls['secured/data']).toBe(before);
     });
 

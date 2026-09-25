@@ -19,8 +19,8 @@ import {resetApiVersionRecovery} from '../../src/lib/apiVersionRecovery.ts';
 import {resetMetadataStore} from '../../src/lib/metadataStore.ts';
 
 /** Every route of the test server runs behind the root-level `auth` headers middleware. */
-export function withAuth(middlewares: ReturnType<typeof initClient<TestServerApi>>['middlewares']) {
-  return {middlewares: {auth: middlewares.auth(new HeadersSubset({Authorization: 'XWYZ-TOKEN'}))}};
+export function useAuth(middlewares: ReturnType<typeof initClient<TestServerApi>>['middlewares']): void {
+  middlewares.auth.onRequest((auth) => auth(new HeadersSubset({Authorization: 'XWYZ-TOKEN'})));
 }
 
 export async function resetApiVersionState(): Promise<void> {

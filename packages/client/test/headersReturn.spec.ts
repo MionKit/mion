@@ -17,8 +17,8 @@ describe('a route returning a HeadersSubset', () => {
 
   it('gives the headers back on the fetched lane', async () => {
     const {routes, middlewares} = initClient<TestServerApi>({baseURL: TEST_SERVER_BASE_URL});
-    const auth = middlewares.auth(new HeadersSubset({Authorization: 'XWYZ-TOKEN'}));
-    const [result, error] = await routes.respondHeaders('fetched').call({middlewares: {auth}});
+    middlewares.auth.onRequest((auth) => auth(new HeadersSubset({Authorization: 'XWYZ-TOKEN'})));
+    const [result, error] = await routes.respondHeaders('fetched').call();
     expect(error).toBeUndefined();
     expect(result).toBeInstanceOf(HeadersSubset);
     expect(result?.headers['x-mion-echo']).toBe('fetched');
