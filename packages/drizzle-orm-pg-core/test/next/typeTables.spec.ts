@@ -11,7 +11,8 @@
 
 import {describe, it, expect} from 'vitest';
 import * as dz from 'drizzle-orm/pg-core';
-import {getRunTypeId} from '@mionjs/run-types';
+import {getRunType, getRunTypeId} from '@mionjs/run-types';
+import type {ReflectedNode} from '../../../drizzle-orm/src/fromType.ts';
 import type {InferInsertModel, InferSelectModel} from '../../../drizzle-orm/src/models.ts';
 import type * as next from '../../../drizzle-orm/next/index.ts';
 import {cols, type SelfRef} from '../../../drizzle-orm/next/index.ts';
@@ -193,5 +194,25 @@ describe('next pg columns: views and enums', () => {
   it('tableFromType refuses an enum column, whose runtime needs the enum handle', () => {
     type WithEnum = PgTable<'with_enum', {mood: PgEnumCol<['sad', 'happy'], {notNull: true}>}>;
     expect(() => tableFromType<WithEnum>()).toThrow(/enum column, which needs its runtime handle/);
+  });
+});
+
+describe('next pg columns: one column shape is one runtype entry', () => {
+  // The reason columns carry no db name: a shape reused across tables reflects to ONE node, where the
+  // shipped type road reflects one node per column name.
+  const columnId = (table: ReflectedNode, key: string) =>
+    table.children!.find((member) => member.name === 'columns')!.child!.children!.find((member) => member.name === key)!.child!
+      .id;
+  it('the same column in two tables reflects to one id', () => {
+    type Orders = PgTable<'orders', {total: Integer<{notNull: true}>}, [], {total: 'order_total'}>;
+    type Items = PgTable<'items', {qty: Integer<{notNull: true}>}>;
+    expect(columnId(getRunType<Orders>() as ReflectedNode, 'total')).toBe(columnId(getRunType<Items>() as ReflectedNode, 'qty'));
+  });
+  it('the shipped type road reflects one id per column name', () => {
+    type Orders = cur.PgTable<'orders', {total: cur.Integer<'order_total', {notNull: true}>}>;
+    type Items = cur.PgTable<'items', {qty: cur.Integer<'qty', {notNull: true}>}>;
+    expect(columnId(getRunType<Orders>() as ReflectedNode, 'total')).not.toBe(
+      columnId(getRunType<Items>() as ReflectedNode, 'qty')
+    );
   });
 });
