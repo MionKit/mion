@@ -206,21 +206,23 @@ interface Shape {
 const SHAPES: Shape[] = [
   {
     label: '5 mixed, select',
-    budget: {newTypes: 539, newBuilders: 971},
+    // 539 -> 683 and 971 -> 1160: a REVIEWED EXCEPTION, props reject stray modifier keys (Only<P, Allowed>, about 30 per configured column).
+    budget: {newTypes: 683, newBuilders: 1160},
     body: (line, p) => `${declare(line, p, 'users', MIXED)}\ntype ${p}Row = ${select(line, `${p}T`)};\n${readMixed(p)}`,
   },
   {
     label: '5 mixed, select + insert',
-    budget: {newTypes: 1132, newBuilders: 1638},
+    // 1132 -> 1276 and 1638 -> 1827: a REVIEWED EXCEPTION, props reject stray modifier keys.
+    budget: {newTypes: 1276, newBuilders: 1827},
     body: (line, p) =>
       `${declare(line, p, 'users', MIXED)}\ntype ${p}Row = ${select(line, `${p}T`)};\ntype ${p}New = ${insert(line, `${p}T`)};\n${readMixed(p)}
 export const ${p}NewUser: ${p}New = {id: 'x' as never, name: 'a', age: 1, role: 'admin'};`,
   },
   ...(
     [
-      [10, {newTypes: 210, newBuilders: 364}],
-      [20, {newTypes: 300, newBuilders: 574}],
-      [40, {newTypes: 480, newBuilders: 994}],
+      [10, {newTypes: 210, newBuilders: 363}],
+      [20, {newTypes: 300, newBuilders: 573}],
+      [40, {newTypes: 480, newBuilders: 993}],
     ] as const
   ).map(
     ([count, budget]): Shape => ({
@@ -238,13 +240,15 @@ export const ${p}NewUser: ${p}New = {id: 'x' as never, name: 'a', age: 1, role: 
   },
   {
     label: 'wide vocabulary, select',
-    budget: {newTypes: 702, newBuilders: 1293},
+    // 702 -> 873 and 1293 -> 1516: a REVIEWED EXCEPTION, props reject stray modifier keys.
+    budget: {newTypes: 873, newBuilders: 1516},
     body: (line, p) => `${declare(line, p, 'w', WIDE)}\ntype ${p}Row = ${select(line, `${p}T`)};\n${readWide(p)}`,
   },
   {
     label: 'two tables, one reference',
     // 160 -> 212: a REVIEWED EXCEPTION, TableRef checks the column key and takes a name for self-references.
-    budget: {newTypes: 212, newBuilders: 423},
+    // 212 -> 266 and 423 -> 494: a REVIEWED EXCEPTION, props reject stray modifier keys.
+    budget: {newTypes: 266, newBuilders: 494},
     body: (line, p) => {
       if (line === 'curBuilders')
         return `const ${p}A = c.pgTable('teams', {id: c.serial('id').primaryKey()});
@@ -265,7 +269,8 @@ declare const ${p}row: NSelect<${p}B>; export const ${p}t: number | null = ${p}r
   },
   {
     label: 'refineTableType, select',
-    budget: {newTypes: 1277, newBuilders: 1729},
+    // 1277 -> 1421 and 1729 -> 1918: a REVIEWED EXCEPTION, props reject stray modifier keys.
+    budget: {newTypes: 1421, newBuilders: 1918},
     body: (line, p) => {
       const refine = isCur(line) ? 'cRefine' : 'nRefine';
       const source = line.endsWith('Builders') ? `${p}V` : `({} as ${p}T)`;
@@ -276,7 +281,8 @@ type ${p}Row = ${select(line, `typeof ${p}R`)};\n${readMixed(p)}`;
   },
   {
     label: 'toDrizzle + select / insert / update query',
-    budget: {newTypes: 8812, newBuilders: 9915},
+    // 8812 -> 8956 and 9915 -> 10104: a REVIEWED EXCEPTION, props reject stray modifier keys.
+    budget: {newTypes: 8956, newBuilders: 10104},
     body: (line, p) => {
       const toDz = isCur(line) ? 'cToDrizzle' : 'nToDrizzle';
       const source = line.endsWith('Builders') ? `${p}V` : `({} as ${p}T)`;

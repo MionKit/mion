@@ -20,6 +20,7 @@ export type {
   KeyFlagsOf,
   Merge,
   NoProps,
+  Only,
   SelectValueOf,
   ValueOf,
   Writable,

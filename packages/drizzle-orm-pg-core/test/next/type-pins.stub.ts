@@ -211,3 +211,9 @@ export type BadMod = Varchar<{defaultNow: true}>;
 varchar({generatedAlwaysAsIdentity: true});
 // @ts-expect-error a references() target must be a tableRef(), which records its table
 integer({references: [() => users]});
+// @ts-expect-error a stray key is rejected beside valid ones too
+integer({notNull: true, defaultNow: true});
+// @ts-expect-error a stray key is rejected beside valid ones too
+export type BadStrayKey = Varchar<{length: 10; defaultNow: true}>;
+// @ts-expect-error a stray key is rejected in a named call too
+varchar('name', {length: 10, generatedAlwaysAsIdentity: true});
