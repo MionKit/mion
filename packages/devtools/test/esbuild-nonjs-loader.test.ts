@@ -62,14 +62,13 @@ describe('esbuild build / @mionjs/devtools/runtypes/esbuild entry', () => {
         // The .sql went through the text loader, so its contents are in the bundle
         // as a string rather than having been parsed as code.
         expect(bundle).toContain('CREATE TABLE');
-        // And the marker was still injected: an un-rewritten createValidateFn
-        // carries no id, so the id is the only proof the transform ran.
+        // An un-rewritten createValidateFn carries no id, so the id is the only proof the transform ran.
         expect(bundle).toMatch(/createValidateFn\([^)]*__rt_\w+\)/);
         expect(fs.existsSync(path.join(OUT_DIR, 'types'))).toBe(true);
       } finally {
         fs.rmSync(FIXTURE_DIR, {recursive: true, force: true});
       }
-      // The plugin spawns the resolver on buildStart, which can pass vitest's 5s default.
+      // Spawning the resolver on buildStart can pass vitest's 5s default.
     },
     120_000
   );

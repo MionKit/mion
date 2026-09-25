@@ -1,5 +1,4 @@
-// The patternSampleCount plugin option reaches the resolver: a pattern with no declared mockSamples gets a
-// generated pool of exactly that many samples in the emitted cache.
+// patternSampleCount reaches the resolver: a pattern with no mockSamples gets exactly that many generated samples.
 import {afterEach, beforeEach, describe, expect, it} from 'vitest';
 import path from 'node:path';
 import fs from 'node:fs';

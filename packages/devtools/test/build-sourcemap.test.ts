@@ -69,8 +69,7 @@ describe.each(['edits', 'go'] as const)('vite build / composite source map [tran
       const chunk = result.output.find((o): o is Rollup.OutputChunk => o.type === 'chunk' && o.isEntry);
       if (!chunk) throw new Error('no entry chunk emitted');
       if (!chunk.map) throw new Error('entry chunk carries no source map');
-      // The chunk bundles the fixture together with the generated modules — locate the fixture among the sources by
-      // its content (path spelling differs across Vite versions).
+      // Find the fixture by content: its path spelling differs across Vite versions.
       const fixtureSourceIndex = (chunk.map.sourcesContent ?? []).findIndex((content) => content === FIXTURE);
       if (fixtureSourceIndex < 0) throw new Error('fixture source missing from chunk map sourcesContent');
       return {chunk, mappedLines: decodeMappings(chunk.map.mappings), fixtureSourceIndex};
@@ -79,18 +78,9 @@ describe.each(['edits', 'go'] as const)('vite build / composite source map [tran
     }
   }
 
-  // expectMappedToOriginalLine asserts the composite map carries the marker
-  // call back to the fixture line that wrote it. Vite app builds run the
-  // bundler with `preserveEntrySignatures: false`, so the entry's exported
-  // NAMES are dropped and only the side-effectful marker calls survive — the
-  // assertion therefore keys on the surviving call expression
-  // (`generatedToken`). Several generated lines can contain that token, so
-  // the match requires a segment pointing at the FIXTURE source index AND the
-  // expected line — definition/diagnostic lines map to other sources and can't
-  // false-hit. NOTE: Rolldown (vite@8) inlines the single-use `const sample`
-  // straight into the reflection call, so its generated form is
-  // `getRunTypeId({ mapProp: "x" }, id)` — the reflection token keys on that
-  // inlined shape, not the original `getRunTypeId(sample)` text.
+  // Vite app builds (preserveEntrySignatures: false) drop entry export names, so match the surviving marker call.
+  // Several generated lines hold that token, so a hit needs the FIXTURE source index AND the expected line.
+  // Rolldown (vite@8) inlines `const sample`, so the reflection token is `getRunTypeId({ mapProp: "x" }, id)`.
   function expectMappedToOriginalLine(
     built: {chunk: Rollup.OutputChunk; mappedLines: MappingSegment[][]; fixtureSourceIndex: number},
     generatedToken: string,

@@ -24,9 +24,8 @@ import {writeMarkerPackage} from '../helpers/inline.ts';
 // module receives its compiled fn. (esbuild renders the injected `undefined` args as `void 0`.)
 const INJECTED = /createValidateFn\((?:undefined|void 0), (?:undefined|void 0), __rt_/;
 
-// Fixtures live under the package (gitignored `.tmp/`), not in the OS temp dir: `vue` must resolve
-// by walking up to node_modules. The marker package is written into each fixture, since devtools
-// does not depend on run-types.
+// Under the package's gitignored `.tmp/`, not the OS temp dir: `vue` must resolve by walking up to node_modules.
+// devtools does not depend on run-types, so each fixture gets the marker package written in.
 const FIXTURE_ROOT = path.resolve(fileURLToPath(new URL('../../.tmp', import.meta.url)));
 
 const TSCONFIG = JSON.stringify({
