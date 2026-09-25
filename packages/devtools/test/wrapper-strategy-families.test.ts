@@ -4,8 +4,8 @@
 // resolved signature, so a slot resolving to `never` injects nothing. Each case pins the exact
 // families a call compiles, proving the selection lives entirely in TypeScript types.
 import {describe, expect, it} from 'vitest';
-import {getFnHash} from '@mionjs/run-types/runtime';
 import {Family, type Diagnostic, type Site} from '../src/core/protocol.ts';
+import {CACHE_MODULES} from '../src/core/go-generated/runtypes-constants.generated.ts';
 import {hasBinary, withInlineSources} from './helpers/inline.ts';
 
 const register = hasBinary() ? it : it.skip;
@@ -69,25 +69,13 @@ const PRESET_SRC = `export const compactPreset = {parser: 'compact', description
 export const widenedPreset = {parser: 'compact'};
 `;
 
-// fn ids on the wire are the family fn hashes; map them back to the family key.
-const FAMILY_BY_HASH: Record<string, string> = Object.fromEntries(
-  (
-    [
-      'validate',
-      'validationErrors',
-      'prepareForJsonMutate',
-      'prepareForJsonClone',
-      'compactForJson',
-      'restoreFromJsonMutate',
-      'restoreFromJsonClone',
-      'compactFromJson',
-    ] as const
-  ).map((key) => [getFnHash(key), key])
-);
+// fn ids on the wire are opaque hashes; the site's demand list gives each one's family tag.
+const FAMILY_BY_TAG = new Map(Object.entries(CACHE_MODULES).map(([family, settings]) => [settings.tag as string, family]));
 
 function familiesOf(site: Site): string[] {
   const ids = site.fnIds ?? (site.fnId ? [site.fnId] : []);
-  return ids.map((id) => FAMILY_BY_HASH[id] ?? `?${id}`);
+  const tagByHash = new Map((site.demand ?? []).map((demand) => [demand.fnHash, demand.family]));
+  return ids.map((id) => FAMILY_BY_TAG.get(tagByHash.get(id) ?? '') ?? `?${id}`);
 }
 
 /** The two marker sites of one route call, keyed by slot: paramIndex 2 is paramsFns, 3 is returnFns,

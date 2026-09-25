@@ -17,7 +17,6 @@
 
 import {describe, expect, it} from 'vitest';
 import {formatTscDiagnostic} from '../src/index.ts';
-import {findCycleId} from '../../run-types/src/runtypes/pure-fn-ids.generated.ts';
 import {Family, Level, Severity, type Diagnostic} from '../src/core/protocol.ts';
 import {ResolverClient} from '../src/core/resolver-client.ts';
 import {BARE_CWD, BIN, hasBinary, withInlineSources, evalEntryModules, MARKER_PACKAGE_OVERLAY} from './helpers/inline.ts';
@@ -438,7 +437,12 @@ interface Node { next?: Node; val: number; }
 export const isNode = createValidateFn<Node>(undefined, {rejectCircularRefs: true});
 `,
   };
-  const FIND_CYCLE_ID = findCycleId;
+  // Read from the installed package's pure-fn index, the same place a consumer's compiler looks.
+  const FIND_CYCLE_ID = (
+    JSON.parse(MARKER_PACKAGE_OVERLAY['node_modules/@mionjs/run-types/dist/mion-pure-fns/index.json']) as {
+      pureFns: {id: string; bindingName: string}[];
+    }
+  ).pureFns.find((entry) => entry.bindingName === 'findCycle')!.id;
 
   /** Returns the ONE pure-fn entry a single-registration fixture produced, or
    *  the entry under `id` when the caller names one. Ids are body hashes, so a
