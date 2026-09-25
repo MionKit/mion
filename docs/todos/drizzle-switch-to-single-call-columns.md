@@ -53,11 +53,13 @@ table name, for a self-reference.
 
 | Shape | shipped builders | shipped types | new types | new builders |
 |---|---:|---:|---:|---:|
-| 5 mixed, select | 570 | 971 | 539 | 971 |
-| 5 mixed, select + insert | 1036 | 1437 | 1132 | 1638 |
-| 40 plain, db name per column | 565 | 2418 | 480 | 994 |
-| wide vocabulary | 676 | 1175 | 702 | 1293 |
-| refineTableType | 1352 | 1752 | 1277 | 1729 |
+| 5 mixed, select | 570 | 971 | 683 | 1160 |
+| 5 mixed, select + insert | 1036 | 1437 | 1276 | 1827 |
+| 40 plain, db name per column | 565 | 2418 | 480 | 993 |
+| wide vocabulary | 676 | 1175 | 873 | 1516 |
+| refineTableType | 1341 | 1768 | 1421 | 1918 |
+
+pg numbers, after the stray-key check (`Only<P, Allowed>`); mysql and sqlite have their own rows in the report.
 | toDrizzle + three queries | 8643 | 9461 | 8812 | 9915 |
 
 - Hand-written tables cost about what shipped builders cost, and 45 to 80% less than the
@@ -162,6 +164,9 @@ table name, for a self-reference.
 - Go: convert round trips on the new shape, drizzle-migrate chain folding (every modifier, a
   callback, a `sql` default, a self-reference), `go -C ts-go-runtypes test ./internal/... ./cmd/...`.
 - Both fuzzes for all three dialects, soaked (`MION_FUZZ_ITER=40`, several seeds).
+- Stray-key pins in every dialect: the shipped column types accept `Varchar<'v', {length: 10; autoincrement: true}>`
+  today (a weak-type check only rejects an object sharing no key); the `next/` ones reject it, and the switch must
+  keep that for every builder and column type.
 - The drizzle-e2e lane: drizzle's own suites translated by the new drizzle-migrate, for all five
   lanes.
 
