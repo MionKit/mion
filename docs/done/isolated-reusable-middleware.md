@@ -1,7 +1,7 @@
 ---
 type: feature
 spec: full-plan
-status: ready
+status: done
 created: 2026-09-25
 ---
 
@@ -101,3 +101,18 @@ Moving route sync and metadata to this pattern (their own todos). CORS middlewar
 - Fixture middleware pair works end to end, no client→router runtime import.
 - `pnpm test`, `go -C ts-go-runtypes test ./internal/... ./cmd/...` and `pnpm run lint` pass.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source file, each committed on its own.
+
+## What shipped (2026-09-25)
+
+Where the build diverged from the plan above, this section is the record.
+
+- **Installer type:** `ClientMiddlewareOf<typeof handler>`, not `ClientMiddleware<typeof handler>`. `ClientMiddleware<PH>` already takes the client side handler shape, so a second name converts the server handler (drops `ctx`). `rawMiddleware` has no client side and is skipped everywhere.
+- **`ClientMiddleware` gained a type-only `Id` argument** (`ClientMiddleware<PH, Id>`), filled by `ClientMiddlewares` with the key path, the same way `ClientRoutes` carries a route id. No runtime change; the build reads it.
+- **Retry rule, as built (`packages/rpc-client/src/dispatch.ts`, `isRetrySafe` / `routeSucceeded`):** a `query()` always retries. A `mutation()` or plain `route()` retries only when it did not succeed: the route answered an error, or it answered nothing in a response carrying any error. Nothing sent yet also allows it. A batch needs every route to pass. `retry()` returns `false` when refused. The route's position in its chain was considered (a new metadata field) and dropped: the rule above needs no metadata change. Known and pinned: a void mutation that ran, followed by an error from a later middleware, counts as failed and is resent.
+- **Hook plumbing:** `onResponse` / `onError` get `(value, context: HookContext)`; their return type is `unknown` so existing arrow hooks that return a value keep compiling. A promise is awaited. A hook that throws or rejects lands in `undeclared` as `middleware-hook-failed` and cancels any retry. A retry resets the call and runs every `onRequest` again (a refreshed token is sent), and hooks fire once per attempt.
+- **Build checks:** `MET008` (`LevelRuntimeError`) and `MET009` (`LevelWarning`) are anchored at the FIRST call to a route whose chain runs the middleware, not at `initClient`; `@mion-expect-error` on that line silences them. A middleware counts as set up when any file of the client program reads it off `middlewares` (dot, bracket, nested or destructured name); files that never spell `middlewares` are skipped. `Method.NeedsParams` in the Go tree marks a required param or a required header.
+- **Entry points:** `@mionjs/router/middlewares` and `@mionjs/client/middlewares`, pinned by `repo-contracts.test.ts` (declared, off the main barrels, client installers import the router for types only) and by a chunk test in `packages/rpc-client/test/bundleSplit.spec.ts`. Content is a placeholder pair, `mion@echoTag` / `useEchoTag`, used only by tests; route sync replaces it.
+- **`RouteSyncError` / `RouteSyncErrorData`** live in `@mionjs/core`; `@mionjs/router` still re-exports them.
+- **Fixture:** the server half is `packages/private-test-server/src/csrf.middleware.ts`, placed in a `notes` group (and once more in `notes.admin`), not at the root, where its required token would break every other route's tests. The client half is `packages/rpc-client/test/lib/csrf.client.ts`, because the test server does not depend on the client. Tests: `packages/rpc-client/test/isolatedMiddleware.spec.ts`, `types.spec.ts`, `packages/rpc-router/test/middlewares/echoTag.middleware.spec.ts`, Go `TestApiGen_ReportsMiddlewaresTheClientNeverSetsUp`, devtools `bundledApiBuild.spec.ts`.
+- **Docs:** existing pages only (per-middleware pages come later): the retry rule, a Reusable Middleware subsection and `HookContext` in `01.rpc/03.client/00.client-overview.md`, one paragraph in `01.rpc/02.server/02.middleware.md`, the example `packages/private-examples/src/client/client-middleware-installer.ts`. MET008 / MET009 reach the diagnostics catalog page through the generated catalog.
+
