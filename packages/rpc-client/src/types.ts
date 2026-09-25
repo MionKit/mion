@@ -120,6 +120,13 @@ export type FailResponse<MR extends SubRequest<any>> = Required<MR>['error'];
 export type FailResponses<List extends SubRequest<any>[]> = {[P in keyof List]: FailResponse<List[P]>};
 export type RequestErrors = Map<string, RpcError<string>>;
 
+/** The errors of `E` whose `type` can be `T`, including one error declared with several types */
+export type ErrorOfType<E extends RpcError<string, any>, T extends string> = E extends any
+  ? T extends E['type']
+    ? E
+    : never
+  : never;
+
 // type-middleware-context-start
 /** Runs after each declared error of the middleware; a returned promise is awaited, any other value ignored */
 export type ErrorHandler<E extends RpcError<string, any>> = (error: E, context: MiddlewareContext) => unknown;
