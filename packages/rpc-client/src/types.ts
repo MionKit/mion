@@ -120,9 +120,19 @@ export type FailResponse<MR extends SubRequest<any>> = Required<MR>['error'];
 export type FailResponses<List extends SubRequest<any>[]> = {[P in keyof List]: FailResponse<List[P]>};
 export type RequestErrors = Map<string, RpcError<string>>;
 
-export type ErrorHandler<E extends RpcError<string, any>> = (error: E) => void;
+// type-response-hooks-start
+/** Runs after each declared error of the middleware; a returned promise is awaited, any other value ignored */
+export type ErrorHandler<E extends RpcError<string, any>> = (error: E, context: HookContext) => unknown;
 
-export type ResponseHandler<S> = (result: S) => void;
+/** Runs after each successful result of the middleware; a returned promise is awaited, any other value ignored */
+export type ResponseHandler<S> = (result: S, context: HookContext) => unknown;
+
+/** The call an onResponse or onError hook runs for */
+export interface HookContext extends CallContext {
+  /** Sends the whole call again, once per middleware; false when that could run a mutation twice */
+  retry(): boolean;
+}
+// type-response-hooks-end
 
 // type-request-handler-start
 /** Runs before each request with the middleware; no `call` sends it nothing, a throw or rejection stops the request */
@@ -230,6 +240,14 @@ export type MiddlewareEvents<PH extends PublicHandler> = TypedEvent<
 
 /** A middleware on the client: hooks only, its params come from onRequest on every request */
 export type ClientMiddleware<PH extends PublicHandler> = Pick<MiddlewareEvents<PH>, (typeof MIDDLEWARE_HOOKS)[number]>;
+
+/** A middleware on the client, typed from its server handler, so an installer needs no router import */
+export type ClientMiddlewareOf<H extends (ctx: any, ...params: any[]) => any> = H extends (
+  ctx: any,
+  ...params: infer P
+) => infer R
+  ? ClientMiddleware<(...params: P) => Promise<Awaited<R>>>
+  : never;
 // type-client-middleware-end
 
 // The mapped types below tell a route, a middleware and a group apart by the `type` discriminant every public

@@ -10,6 +10,7 @@ import type {
   BatchResult,
   ClientCallContext,
   ClientOptions,
+  HookContext,
   MiddlewareSubRequest,
   RequestErrors,
   Result,
@@ -46,6 +47,8 @@ interface DispatchState {
   resentWithSyncIds: boolean;
   /** middlewares whose onRequest already ran, so a retry never asks twice */
   readonly askedRequestHandlers: Set<string>;
+  /** the current attempt reached fetch, so the server may have run its routes */
+  sent: boolean;
 }
 
 // ############# DISPATCH #############
@@ -62,16 +65,23 @@ export async function dispatchCall(
     verifying: undefined,
     resentWithSyncIds: false,
     askedRequestHandlers: new Set<string>(),
+    sent: false,
   };
-  let errors: RequestErrors | undefined;
-  try {
-    await runCall(state);
-  } catch (requestErrors: any) {
-    errors = requestErrors;
+  // a middleware whose hook asked for a retry never gets another one in this call
+  const retriedBy = new Set<string>();
+  for (;;) {
+    let errors: RequestErrors | undefined;
+    try {
+      await runCall(state);
+    } catch (requestErrors: any) {
+      errors = requestErrors;
+    }
+    const middlewares = getMiddlewareSubRequests(context);
+    const hooks = await runResponseHooks(state, middlewares, errors, retriedBy);
+    if (!hooks.retryIds.length) return buildResult(context, middlewares, hooks.errors);
+    hooks.retryIds.forEach((id) => retriedBy.add(id));
+    resetForHookRetry(state);
   }
-  const middlewares = getMiddlewareSubRequests(context);
-  processMiddlewaresResponses(handlersRegistry, middlewares, errors, context.thrownErrorIds);
-  return buildResult(context, middlewares, errors);
 }
 
 /** Validates params locally without sending anything */
@@ -206,6 +216,7 @@ async function makeCall(state: DispatchState, skipOptimistic?: boolean): Promise
       isQueryRoute(context),
       signal
     );
+    state.sent = true;
     response = await fetch(url, fetchOptions);
     context.response = response;
   } catch (error: any) {
@@ -507,8 +518,8 @@ function runRequestHandler(context: ClientCallContext, id: string, entry: Reques
   return Promise.resolve(returned).then(finish, fail);
 }
 
-function isPromiseLike(value: unknown): value is PromiseLike<void> {
-  return !!value && typeof (value as PromiseLike<void>).then === 'function';
+function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
+  return !!value && typeof (value as PromiseLike<unknown>).then === 'function';
 }
 
 /** Kept or wrapped, the error lands in the undeclared slot */
@@ -585,21 +596,118 @@ function getMiddlewareSubRequests(context: ClientCallContext): MiddlewareSubRequ
     .map(([, subRequest]) => subRequest as MiddlewareSubRequest<any>);
 }
 
+interface ResponseHooksOutcome {
+  errors: RequestErrors | undefined;
+  /** middlewares whose hook asked for a retry that was allowed */
+  retryIds: string[];
+}
+
 /** onError fires only for a middleware's declared (returned) errors; thrown ones reach the undeclared slot only */
-function processMiddlewaresResponses(
-  handlersRegistry: HandlersRegistry,
+async function runResponseHooks(
+  state: DispatchState,
   middlewareSubRequests: MiddlewareSubRequest<any>[],
   errors: RequestErrors | undefined,
-  thrownErrorIds: ReadonlySet<string>
-): void {
+  retriedBy: ReadonlySet<string>
+): Promise<ResponseHooksOutcome> {
+  const {context, handlersRegistry} = state;
+  const retryIds: string[] = [];
+  const pending: Promise<void>[] = [];
+  let retrySafe: boolean | undefined;
   for (const middleware of middlewareSubRequests) {
-    const middlewareError = errors?.get(middleware.id);
-    if (middlewareError) {
-      if (!thrownErrorIds.has(middleware.id)) handlersRegistry.executeHandler(middleware.id, middlewareError);
-    } else if (middleware.resolvedValue !== undefined) {
-      handlersRegistry.executeResponseHandler(middleware.id, middleware.resolvedValue);
+    const id = middleware.id;
+    const middlewareError = errors?.get(id);
+    const isErrorHook = !!middlewareError;
+    if (isErrorHook && context.thrownErrorIds.has(id)) continue;
+    if (!isErrorHook && middleware.resolvedValue === undefined) continue;
+    let isOpen = true;
+    const hookContext = Object.create(context, {
+      retry: {
+        value: (): boolean => {
+          if (!isOpen || retriedBy.has(id)) return false;
+          retrySafe ??= isRetrySafe(state, errors);
+          if (!retrySafe) return false;
+          if (!retryIds.includes(id)) retryIds.push(id);
+          return true;
+        },
+      },
+    }) as HookContext;
+    const hookName = isErrorHook ? 'onError' : 'onResponse';
+    const fail = (error: unknown) => {
+      isOpen = false;
+      errors ??= new Map();
+      if (!errors.has(CLIENT_REQUEST_ERROR_ID)) errors.set(CLIENT_REQUEST_ERROR_ID, hookError(hookName, id, error));
+    };
+    let returned: unknown;
+    try {
+      returned = isErrorHook
+        ? handlersRegistry.executeHandler(id, middlewareError, hookContext)
+        : handlersRegistry.executeResponseHandler(id, middleware.resolvedValue, hookContext);
+    } catch (error) {
+      fail(error);
+      continue;
     }
+    if (!isPromiseLike(returned)) {
+      isOpen = false;
+      continue;
+    }
+    pending.push(
+      Promise.resolve(returned).then(
+        () => {
+          isOpen = false;
+        },
+        (error) => fail(error)
+      )
+    );
   }
+  if (pending.length) await Promise.all(pending);
+  // a failed hook ends the call: its error is the answer, not a resend
+  if (errors?.has(CLIENT_REQUEST_ERROR_ID) && retryIds.length) retryIds.length = 0;
+  return {errors, retryIds};
+}
+
+/** Safe when nothing was sent, or when every route is a query or did not succeed */
+function isRetrySafe(state: DispatchState, errors: RequestErrors | undefined): boolean {
+  if (!state.sent) return true;
+  return getRouteIds(state.context).every(
+    (id) => getMethod(id)?.options?.isMutation === false || !routeSucceeded(state.context, id, errors)
+  );
+}
+
+/** A route failed when it answered an error, or answered nothing in a response carrying any error */
+function routeSucceeded(context: ClientCallContext, routeId: string, errors: RequestErrors | undefined): boolean {
+  if (errors?.has(routeId)) return false;
+  if (context.subRequestList[routeId]?.resolvedValue !== undefined) return true;
+  return !errors?.size;
+}
+
+/** Hook-driven retries ask every onRequest again: a hook usually retries because what it sends changed */
+function resetForHookRetry(state: DispatchState): void {
+  const {context} = state;
+  const routeIds = new Set(getRouteIds(context));
+  for (const id of Object.keys(context.subRequestList)) {
+    if (!routeIds.has(id)) delete context.subRequestList[id];
+  }
+  Object.values(context.subRequestList).forEach((sr) => {
+    sr.isResolved = false;
+    sr.resolvedValue = undefined;
+    sr.error = undefined;
+  });
+  context.thrownErrorIds.clear();
+  context.response = undefined;
+  state.askedRequestHandlers.clear();
+  state.verifying = undefined;
+  state.sent = false;
+}
+
+/** Kept or wrapped, the error lands in the undeclared slot */
+function hookError(hookName: string, id: string, error: unknown): RpcError<string> {
+  if (isRpcError(error)) return error;
+  const message = error instanceof Error ? error.message : String(error);
+  return new RpcError({
+    type: 'middleware-hook-failed',
+    publicMessage: `${hookName} for middleware '${id}' failed: ${message}`,
+    originalError: error instanceof Error ? error : undefined,
+  });
 }
 
 /** Slot rules are pinned in test/errorDispatch.spec.ts; slot 2 takes the first undeclared error, middlewares first */

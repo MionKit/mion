@@ -44,7 +44,7 @@ export class TypedEvent<S = void, E extends RpcError<string, any> = never, P ext
   }
 
   /** Register a persistent error handler for this middleware */
-  onError<T extends E['type']>(errorType: T, handler: (error: Extract<E, {type: T}>) => void): TypedEvent<S, E, P> {
+  onError<T extends E['type']>(errorType: T, handler: ErrorHandler<Extract<E, {type: T}>>): TypedEvent<S, E, P> {
     this.registry.register(this.handlerId, errorType, handler as ErrorHandler<any>);
     return this;
   }
