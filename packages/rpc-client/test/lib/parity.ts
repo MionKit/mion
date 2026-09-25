@@ -100,9 +100,9 @@ function expectSameFunctions(hash: string, served: SerializableMethodsData['deps
 export async function expectEveryMethodMatchesTheServer(baseURL: string): Promise<void> {
   resetClientCaches();
   resetBundledApi();
-  const {client} = initClient<TestServerApi>({baseURL});
-  // bundles every route and sends nothing, so no middleware needs setting up
-  // @mion-expect-error MET008
+  const {client, middlewares} = initClient<TestServerApi>({baseURL});
+  // nothing is sent, but the build still checks that every called route's middlewares are read
+  void [middlewares.notes.csrf, middlewares.notes.admin.csrf, middlewares.notes.echoTag];
   client.useBundledApi(everyMethod.call() as InjectedApiMetadata);
   const served = await serverRows(baseURL);
   const ids = Object.keys(served.methods).sort();

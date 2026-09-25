@@ -12,7 +12,7 @@ import {initClient} from '../src/client.ts';
 import {batch} from '../src/batch.ts';
 import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
 import {useCsrf} from './lib/csrf.client.ts';
-import {useEchoTag} from '../middlewares.ts';
+import {useEchoTag} from './lib/echoTag.client.ts';
 
 const baseURL = TEST_SERVER_BASE_URL;
 const authHeaders = new HeadersSubset({Authorization: 'XWYZ-TOKEN'});
@@ -97,19 +97,19 @@ describe('isolated reusable middleware', () => {
     });
   });
 
-  describe('mion middlewares entry', () => {
-    it('a server entry from @mionjs/router/middlewares pairs with its client installer', async () => {
+  describe('an installer for a middleware with optional params', () => {
+    it('sends its params and hands back the answer', async () => {
       await installCsrf(client).useFreshToken();
       const tags: string[] = [];
       useEchoTag(
-        client.middlewares.notes['mion@echoTag'],
+        client.middlewares.notes.echoTag,
         () => 'tag-1',
         (tag) => tags.push(tag)
       );
       const [result, , undeclared, middlewareResults] = await client.routes.notes.getNote('a').call();
       expect(undeclared).toBeUndefined();
       expect(result).toBe('note a (1)');
-      expect(middlewareResults?.['notes/mion@echoTag']).toBe('tag-1');
+      expect(middlewareResults?.['notes/echoTag']).toBe('tag-1');
       expect(tags).toEqual(['tag-1']);
     });
   });
@@ -181,7 +181,7 @@ describe('isolated reusable middleware', () => {
     });
   });
 
-  describe('hook failures', () => {
+  describe('middleware handler failures', () => {
     beforeEach(async () => {
       const token = await serverToken(client.routes);
       client.middlewares.notes.csrf.onRequest((call) => call(token));
@@ -194,7 +194,7 @@ describe('isolated reusable middleware', () => {
         throw new Error('boom');
       });
       const [, , undeclared] = await client.routes.notes.getNote('a').call();
-      expect(undeclared?.type).toBe('middleware-hook-failed');
+      expect(undeclared?.type).toBe('middleware-on-error-failed');
       expect(undeclared?.publicMessage).toContain("onError for middleware 'notes/audit' failed: boom");
       expect((await runs(client.routes)).getNote).toBe(1);
     });
@@ -208,7 +208,7 @@ describe('isolated reusable middleware', () => {
         });
       const [result, , undeclared] = await client.routes.notes.getNote('a').call();
       expect(result).toBe('note a (1)');
-      expect(undeclared?.type).toBe('middleware-hook-failed');
+      expect(undeclared?.type).toBe('middleware-on-response-failed');
       expect(undeclared?.publicMessage).toContain("onResponse for middleware 'session' failed: late boom");
     });
 

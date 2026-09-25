@@ -5,16 +5,14 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Placeholder that proves the `@mionjs/client/middlewares` entry works; route sync replaces it.
+// Client half of the test server's echoTag middleware, whose params are all optional.
 
-import type {ClientMiddlewareOf} from '../types.ts';
-
-/** The server handler's shape, repeated so the client never imports the router */
-type EchoTagHandler = (ctx: unknown, tag?: string) => string;
+import type {echoTag} from '@mionjs/test-server';
+import type {ClientMiddlewareOf} from '../../src/types.ts';
 
 /** Sends `getTag()` on every request that runs the middleware, and hands its answer to `onTag` */
 export function useEchoTag(
-  middleware: ClientMiddlewareOf<EchoTagHandler>,
+  middleware: ClientMiddlewareOf<typeof echoTag>,
   getTag: () => string | undefined,
   onTag?: (tag: string) => void
 ): void {

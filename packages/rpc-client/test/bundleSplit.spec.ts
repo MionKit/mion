@@ -36,9 +36,9 @@ const RECOVERY_MARKERS = ['api-version-mismatch', 'rowsAgree', 'staleRoutesError
 const BUNDLED_API_MARKERS = ['bundle-api-invalid-payload', 'bundledMethodToCacheEntry'];
 
 const MIDDLEWARES_APP = `import {initClient} from '${path.join(packageRoot, 'index.ts')}';
-import {useEchoTag} from '${path.join(packageRoot, 'middlewares.ts')}';
+import * as installers from '${path.join(packageRoot, 'middlewares.ts')}';
 const {middlewares} = initClient<any>({baseURL: 'http://localhost:3000'});
-useEchoTag(middlewares.echo, () => 'tag');
+export const app = {installers, middlewares};
 `;
 
 /** Names only the router puts in an artifact. */
@@ -169,7 +169,6 @@ describe('the api version check', () => {
 describe('the @mionjs/client/middlewares entry', () => {
   it('ships its installers without any router code', async () => {
     const code = (await buildChunks(undefined, 'middlewares-app.ts')).map((chunk) => chunk.code ?? '').join('\n');
-    expect(code).toContain('useEchoTag');
     for (const marker of ROUTER_MARKERS) expect(code, marker).not.toContain(marker);
   }, 240_000);
 

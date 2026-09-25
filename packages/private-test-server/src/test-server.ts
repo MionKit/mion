@@ -18,8 +18,8 @@ import {refineTableType} from '@mionjs/drizzle-orm';
 import type {InferInsertModel, InferSelectModel, InferUpdateModel} from '@mionjs/drizzle-orm';
 import {Number} from '@mionjs/run-types/formats';
 import {registerClassSerializer} from '@mionjs/run-types/runtime';
-import {mionEchoTag} from '@mionjs/router/middlewares';
 import {csrf, getCsrfToken, rotateCsrfToken} from './csrf.middleware.ts';
+import {echoTag} from './echoTag.middleware.ts';
 
 // ============ Router ============
 // Every route / middleware below comes from these helpers: plain closures, so destructuring keeps
@@ -447,7 +447,7 @@ const routes = {
     (Object.keys(noteRuns) as (keyof NoteRuns)[]).forEach((key) => (noteRuns[key] = 0));
   }),
   notes: {
-    ...mionEchoTag,
+    echoTag: middleware(echoTag),
     csrf: middleware(csrf),
     getNote: query((_ctx, id: string): string => `note ${id} (${++noteRuns.getNote})`),
     saveNote: mutation((_ctx, text: string): string => `saved ${text} (${++noteRuns.saveNote})`),

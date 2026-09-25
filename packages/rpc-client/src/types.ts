@@ -120,19 +120,19 @@ export type FailResponse<MR extends SubRequest<any>> = Required<MR>['error'];
 export type FailResponses<List extends SubRequest<any>[]> = {[P in keyof List]: FailResponse<List[P]>};
 export type RequestErrors = Map<string, RpcError<string>>;
 
-// type-response-hooks-start
+// type-middleware-context-start
 /** Runs after each declared error of the middleware; a returned promise is awaited, any other value ignored */
-export type ErrorHandler<E extends RpcError<string, any>> = (error: E, context: HookContext) => unknown;
+export type ErrorHandler<E extends RpcError<string, any>> = (error: E, context: MiddlewareContext) => unknown;
 
 /** Runs after each successful result of the middleware; a returned promise is awaited, any other value ignored */
-export type ResponseHandler<S> = (result: S, context: HookContext) => unknown;
+export type ResponseHandler<S> = (result: S, context: MiddlewareContext) => unknown;
 
 /** The call an onResponse or onError hook runs for */
-export interface HookContext extends CallContext {
+export interface MiddlewareContext extends CallContext {
   /** Sends the whole call again, once per middleware; false when that could run a mutation twice */
   retry(): boolean;
 }
-// type-response-hooks-end
+// type-middleware-context-end
 
 // type-request-handler-start
 /** Runs before each request with the middleware; no `call` sends it nothing, a throw or rejection stops the request */
