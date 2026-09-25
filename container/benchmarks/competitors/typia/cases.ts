@@ -126,7 +126,6 @@ export const cases: CompetitorCases = {
     },
   },
   'ATOMIC.literal_1n': NOT_SUPPORTED, // typia does not support bigint literal types (is<1n>() rejects the literal 1n)
-  'ATOMIC.literal_symbol': NOT_SUPPORTED, // we match a symbol by its description; typia can't constrain symbol identity/description
   'ATOMIC.never': NOT_SUPPORTED, // typia is<never>() accepts undefined
   'ATOMIC.null': {
     build: () => {
@@ -150,16 +149,6 @@ export const cases: CompetitorCases = {
     samples: {invalid: ['hello', null, undefined]},
   }, // override: typia number accepts NaN/Infinity; invalid set drops them
   'ATOMIC.object': NOT_SUPPORTED, // typia is<object>() rejects arrays; the suite treats [] as a valid object
-  'ATOMIC.regexp': {
-    build: () => {
-      const check = typia.createIs<RegExp>();
-      return (v) => check(v);
-    },
-    buildErrors: () => {
-      const val = typia.createValidate<RegExp>();
-      return (v) => val(v).success;
-    },
-  },
   'ATOMIC.string': {
     build: () => {
       const check = typia.createIs<string>();
@@ -255,16 +244,6 @@ export const cases: CompetitorCases = {
     },
     samples: {invalid: [['2024'], [42], null, undefined]},
   }, // override: typia Date element is instanceof (accepts Invalid Date); invalid drops [new Date('invalid')]
-  'ARRAY.regexp_array': {
-    build: () => {
-      const check = typia.createIs<RegExp[]>();
-      return (v) => check(v);
-    },
-    buildErrors: () => {
-      const val = typia.createValidate<RegExp[]>();
-      return (v) => val(v).success;
-    },
-  },
   'ARRAY.undefined_array': {
     build: () => {
       const check = typia.createIs<undefined[]>();
@@ -580,8 +559,6 @@ export const cases: CompetitorCases = {
       },
     };
   })(),
-  'OBJECT.function_top_level': NOT_SUPPORTED, // typia transform emits invalid JS for the void return position of () => void
-  'OBJECT.interface_callable': NOT_SUPPORTED, // typia does not validate a callable interface as a function-with-props; rejects the valid function value
   'OBJECT.interface_all_optional': NOT_SUPPORTED, // typia's all-optional object accepts Date/Map/Set/array instances; we reject them
   'OBJECT.class_simple': {
     build: () => {
@@ -1255,7 +1232,6 @@ export const cases: CompetitorCases = {
       return (v) => val(v).success;
     },
   },
-  'NATIVE.promise_string': NOT_SUPPORTED, // typia does not validate Promise<T> as a thenable; rejects a real Promise
   'NATIVE.awaited_promise': {
     build: () => {
       const check = typia.createIs<Awaited<Promise<string>>>();

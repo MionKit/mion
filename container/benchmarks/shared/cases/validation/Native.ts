@@ -36,21 +36,6 @@ export const NATIVE = {
       };
     },
   },
-  promise_string: {
-    title: 'Promise — thenable check, wrapped type not validated',
-    description:
-      "Promise validation is a thenable check — `typeof v === 'object' && v !== null && typeof v.then === 'function'`. The wrapped T cannot be validated synchronously (the promise hasn't resolved); callers use `Awaited<P>` for the resolved-value check (see `awaited_promise` below). prepareForJson/restoreFromJson throw at RT compile (ref: nodes/native/promise.ts).",
-    getSamples: () => {
-      const realPromise = Promise.resolve('x');
-      const thenable = {then: () => null};
-      // {then: 'not a function'} — fails the typeof === 'function' check
-      const fakeThenable = {then: 'not a function'};
-      return {
-        valid: [realPromise, thenable],
-        invalid: [null, 'string', 42, {}, [], undefined, true, fakeThenable],
-      };
-    },
-  },
   awaited_promise: {
     title: 'Awaited<Promise<T>> — resolves to the wrapped type',
     description:

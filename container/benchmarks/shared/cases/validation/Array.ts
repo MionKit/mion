@@ -38,13 +38,6 @@ export const ARRAY = {
       invalid: [['2024'], [42], [new Date('invalid')], null, undefined],
     }),
   },
-  regexp_array: {
-    title: 'Array of RegExps',
-    getSamples: () => ({
-      valid: [[], [/abc/, new RegExp('abc')]],
-      invalid: [['/abc/'], [42], null, undefined, [null], [{}]],
-    }),
-  },
   undefined_array: {
     title: 'Array of undefined values',
     description: 'from the serialization-suite ARRAYS.undefined_in_array',

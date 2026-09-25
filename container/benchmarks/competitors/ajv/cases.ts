@@ -121,7 +121,6 @@ export const cases: CompetitorCases = {
     },
   },
   'ATOMIC.literal_1n': NOT_SUPPORTED, // no bigint in JSON Schema
-  'ATOMIC.literal_symbol': NOT_SUPPORTED, // no symbol type in JSON Schema
   'ATOMIC.never': {
     build: () => {
       const ajv = new Ajv({strict: false, allowUnionTypes: true});
@@ -166,7 +165,6 @@ export const cases: CompetitorCases = {
     samples: {invalid: ['hello', null, undefined]},
   }, // override: ajv {type:number} accepts NaN/Infinity; drop them from invalid
   'ATOMIC.object': NOT_SUPPORTED, // TS object type includes arrays/Date/RegExp; ajv {type:'object'} rejects arrays
-  'ATOMIC.regexp': NOT_SUPPORTED, // no RegExp instance type in JSON Schema
   'ATOMIC.string': {
     build: () => {
       const ajv = new Ajv({strict: false, allowUnionTypes: true});
@@ -245,7 +243,6 @@ export const cases: CompetitorCases = {
   },
   'ARRAY.bigint_array': NOT_SUPPORTED, // no bigint type in JSON Schema
   'ARRAY.date_array': NOT_SUPPORTED, // no Date instance type in JSON Schema
-  'ARRAY.regexp_array': NOT_SUPPORTED, // no RegExp instance type in JSON Schema
   'ARRAY.undefined_array': NOT_SUPPORTED, // no undefined type in JSON Schema
   'ARRAY.null_array': {
     build: () => {
@@ -833,8 +830,6 @@ export const cases: CompetitorCases = {
       return (value: unknown) => validate(value) === true;
     },
   },
-  'OBJECT.function_top_level': NOT_SUPPORTED, // no function type in JSON Schema
-  'OBJECT.interface_callable': NOT_SUPPORTED, // callable interface (function with props); no function type in JSON Schema
   'OBJECT.interface_all_optional': NOT_SUPPORTED, // allOptionalCode guard rejects Date/Map/Set/RegExp; no JSON Schema equivalent for plain-object-only constraint
   'OBJECT.class_simple': NOT_SUPPORTED, // class has Date prop; no Date instance type in JSON Schema
   'OBJECT.rpc_error_class': {
@@ -1609,7 +1604,6 @@ export const cases: CompetitorCases = {
   // ── NATIVE ──
   'NATIVE.map_string_number': NOT_SUPPORTED, // no Map instance type in JSON Schema
   'NATIVE.set_string': NOT_SUPPORTED, // no Set instance type in JSON Schema
-  'NATIVE.promise_string': NOT_SUPPORTED, // no thenable/Promise instance type in JSON Schema
   'NATIVE.awaited_promise': {
     build: () => {
       const ajv = new Ajv({strict: false, allowUnionTypes: true});

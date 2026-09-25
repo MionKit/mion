@@ -31,12 +31,10 @@ export const schemaCases: CompetitorCases = {
   'ATOMIC.literal_a': () => createValidateFn(RT.literal('a')),
   'ATOMIC.literal_true': () => createValidateFn(RT.literal(true)),
   'ATOMIC.literal_1n': () => createValidateFn(RT.literal(1n)),
-  'ATOMIC.literal_symbol': NOT_SUPPORTED, // validateSchema not-supported
   'ATOMIC.never': () => createValidateFn(RT.never()),
   'ATOMIC.null': () => createValidateFn(RT.literal(null)),
   'ATOMIC.number': () => createValidateFn(TF.number()),
   'ATOMIC.object': NOT_SUPPORTED, // validateSchema not-supported
-  'ATOMIC.regexp': () => createValidateFn(RT.regexp()),
   'ATOMIC.string': () => createValidateFn(TF.string()),
   'ATOMIC.symbol': NOT_SUPPORTED, // factoryThrows
   'ATOMIC.undefined': () => createValidateFn(RT.literal(undefined)),
@@ -49,7 +47,6 @@ export const schemaCases: CompetitorCases = {
   'ARRAY.boolean_array': () => createValidateFn(RT.array(RT.boolean())),
   'ARRAY.bigint_array': () => createValidateFn(RT.array(TF.bigInt())),
   'ARRAY.date_array': () => createValidateFn(RT.array(TF.date())),
-  'ARRAY.regexp_array': () => createValidateFn(RT.array(RT.regexp())),
   'ARRAY.undefined_array': () => createValidateFn(RT.array(RT.literal(undefined))),
   'ARRAY.null_array': () => createValidateFn(RT.array(RT.literal(null))),
   'ARRAY.array_generic': () => createValidateFn(RT.array(TF.string())),
@@ -113,9 +110,6 @@ export const schemaCases: CompetitorCases = {
   'OBJECT.index_signature_date_value': () => createValidateFn(RT.record(RT.record(TF.date()))),
   'OBJECT.index_signature_non_root': () =>
     createValidateFn(RT.object({b: TF.string(), c: RT.intersection(RT.record(TF.string()), RT.object({a: TF.string()}))})),
-  'OBJECT.function_top_level': () => createValidateFn(RT.func()),
-  'OBJECT.interface_callable': () =>
-    createValidateFn(RT.callable(RT.func({params: [TF.number(), RT.boolean()], ret: TF.string()}), RT.object({extra: TF.string()}))),
   'OBJECT.interface_all_optional': () => createValidateFn(RT.object({a: RT.optional(TF.string()), b: RT.optional(TF.number())})),
   'OBJECT.class_simple': () => {
     class MySerializableClass {
@@ -301,7 +295,6 @@ export const schemaCases: CompetitorCases = {
   // ── NATIVE ──
   'NATIVE.map_string_number': () => createValidateFn(RT.map(TF.string(), TF.number())),
   'NATIVE.set_string': () => createValidateFn(RT.set(TF.string())),
-  'NATIVE.promise_string': () => createValidateFn(RT.promise(TF.string())),
   'NATIVE.awaited_promise': () => createValidateFn(TF.string()),
 
   // ── CIRCULAR ──
