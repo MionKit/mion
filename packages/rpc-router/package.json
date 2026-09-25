@@ -25,6 +25,12 @@
             "types": "./.dist/esm/index.d.ts",
             "require": "./.dist/cjs/index.cjs",
             "default": "./.dist/esm/index.js"
+        },
+        "./middlewares": {
+            "source": "./middlewares.ts",
+            "types": "./.dist/esm/middlewares.d.ts",
+            "require": "./.dist/cjs/middlewares.cjs",
+            "default": "./.dist/esm/middlewares.js"
         }
     },
     "directories": {

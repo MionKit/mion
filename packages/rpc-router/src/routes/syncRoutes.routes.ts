@@ -6,23 +6,13 @@
  * ######## */
 
 import {BUILD_VERSION_HEADER, FatalError, MION_ROUTES} from '@mionjs/core';
-import type {SerializableMethodsData} from '@mionjs/core';
+import type {RouteSyncError, RouteSyncErrorData} from '@mionjs/core';
 import {middleware} from '../lib/handlers.ts';
 import {getRouteExecutable, getRouterOptions} from '../router.ts';
 import {getMethodsDataFor, mionInternalRouteIds} from './client.routes.ts';
 import type {MiddlewaresCollection} from '../types/publicMethods.ts';
 import type {RemoteMethod} from '../types/remoteMethods.ts';
 import type {CallContext} from '../types/context.ts';
-
-/** One type for both refusals: the encoder cannot tell two `FatalError`s in a union apart. */
-export type RouteSyncError = FatalError<'route-types-mismatch' | 'route-sync-required', RouteSyncErrorData>;
-
-export interface RouteSyncErrorData {
-  /** 'route-types-mismatch': the routes whose ids differ */
-  routeIds?: string[];
-  /** 'route-sync-required': the rows of the called routes and their chains, so the client can compute the ids */
-  metadata?: SerializableMethodsData;
-}
 
 let serverBuildVersion: string | undefined;
 
