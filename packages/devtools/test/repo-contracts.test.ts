@@ -225,31 +225,38 @@ describe('published packages ship a README', () => {
   }
 });
 
-describe('private package folders start with private-', () => {
-  const packagesDir = join(REPO_ROOT, 'packages');
-  const manifests = readdirSync(packagesDir)
-    .filter((dir) => existsSync(join(packagesDir, dir, 'package.json')))
-    .map((dir) => ({dir, manifest: JSON.parse(readFileSync(join(packagesDir, dir, 'package.json'), 'utf8'))}));
+const PACKAGES_DIR = join(REPO_ROOT, 'packages');
+const WORKSPACE_MANIFESTS = readdirSync(PACKAGES_DIR)
+  .filter((dir) => existsSync(join(PACKAGES_DIR, dir, 'package.json')))
+  .map((dir) => ({dir, manifest: JSON.parse(readFileSync(join(PACKAGES_DIR, dir, 'package.json'), 'utf8'))}));
 
+describe('private package folders start with private-', () => {
   it('every private package folder has the prefix', () => {
-    const unprefixed = manifests.filter(({dir, manifest}) => manifest.private === true && !dir.startsWith('private-'));
+    const unprefixed = WORKSPACE_MANIFESTS.filter(({dir, manifest}) => manifest.private === true && !dir.startsWith('private-'));
     expect(unprefixed.map(({dir}) => dir)).toEqual([]);
   });
 
   it('no published package folder has it', () => {
-    const prefixed = manifests.filter(({dir, manifest}) => manifest.private !== true && dir.startsWith('private-'));
+    const prefixed = WORKSPACE_MANIFESTS.filter(({dir, manifest}) => manifest.private !== true && dir.startsWith('private-'));
     expect(prefixed.map(({dir}) => dir)).toEqual([]);
   });
+});
+
+describe('the root tsconfig maps every @mionjs name to its own folder', () => {
+  const paths = ts.readConfigFile(join(REPO_ROOT, 'tsconfig.json'), ts.sys.readFile).config.compilerOptions.paths;
 
   // Bun follows the root `@mionjs/*` alias with no node_modules fallback, so a renamed folder needs its own entry.
-  it('the root tsconfig maps every @mionjs name to its own folder', () => {
-    const paths = ts.readConfigFile(join(REPO_ROOT, 'tsconfig.json'), ts.sys.readFile).config.compilerOptions.paths;
+  it('every package resolves to its folder', () => {
     const aliasOf = (name: string) => paths[name]?.[0] ?? paths['@mionjs/*'][0].replace('*', name.slice('@mionjs/'.length));
-    const wrong = manifests
-      .filter(({manifest}) => manifest.name?.startsWith('@mionjs/'))
+    const wrong = WORKSPACE_MANIFESTS.filter(({manifest}) => manifest.name?.startsWith('@mionjs/'))
       .filter(({dir, manifest}) => posix.normalize(aliasOf(manifest.name)) !== `packages/${dir}`)
       .map(({manifest}) => manifest.name);
     expect(wrong).toEqual([]);
+  });
+
+  it('every explicit alias names a package that exists', () => {
+    const names = new Set(WORKSPACE_MANIFESTS.map(({manifest}) => manifest.name));
+    expect(Object.keys(paths).filter((key) => key !== '@mionjs/*' && !names.has(key))).toEqual([]);
   });
 });
 
