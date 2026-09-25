@@ -15,9 +15,8 @@ import type {MionRunTypesOptions} from '../../src/vite/mionVitePlugin.ts';
 import {writeMarkerPackage} from '../helpers/inline.ts';
 
 // The pattern-checking diagnostics exist to make a build fail CLOSED rather than ship a type whose
-// validator or mock generator is wrong. patternSidecar.spec.ts covers the success path; this file
-// covers the failure path, which cannot be expressed as an ordinary spec — a build that halts takes
-// the test run down with it. So each case runs its own vite build over a fixture in a subprocess-ish
+// validator or mock generator is wrong. This file covers the failure path, which cannot be expressed
+// as an ordinary spec — a build that halts takes the test run down with it. So each case runs its own vite build over a fixture in a subprocess-ish
 // isolation and asserts on the DIAGNOSTIC CODE, not on message text (upstream headlines interpolate
 // values and will drift).
 //
@@ -93,9 +92,7 @@ describe('build halts on pattern diagnostics', () => {
   }, 60_000);
 
   it('FMT005: generation disabled via patternSampleCount: 0', async () => {
-    // Same diagnostic reached the other way, and the counterpart to patternSidecar.spec.ts's
-    // "pool has exactly N entries": this proves the passthrough is live in the DISABLING
-    // direction too, on a pattern that generates fine at any non-zero count.
+    // Counterpart to pattern-sample-count.test.ts: the passthrough also disables, on a pattern fine at any count > 0.
     const result = await buildFixture('ok', {patternSampleCount: 0});
     expect(result.codes).toContain('FMT005');
     expect(result.ok).toBe(false);

@@ -219,7 +219,7 @@ export function tsconfigReferenceCycles() {
 
 const DEPENDENCY_FIELDS = ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies'];
 
-// Workspace package -> the workspace packages it depends on, from every dependency field. Pure over (path, text).
+// Manifest path -> the workspace manifest paths it depends on. Pure over (path, text).
 export function workspaceDependencyGraph(manifests) {
   const byName = new Map();
   for (const {file, text} of manifests) byName.set(JSON.parse(text).name, file);

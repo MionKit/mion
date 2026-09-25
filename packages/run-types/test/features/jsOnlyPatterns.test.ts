@@ -1,5 +1,4 @@
-// Patterns using JS-only regex features (backreferences, lookarounds) compile, validate and keep their declared
-// mockSamples: the build checks them with the same JS engine the emitted validator uses, not RE2.
+// JS-only regex features build: patterns are checked with the emitted validator's JS engine, not RE2.
 
 import {describe, expect, it} from 'vitest';
 import {createValidateFn, getRunType} from '@mionjs/run-types';

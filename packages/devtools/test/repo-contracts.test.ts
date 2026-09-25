@@ -376,8 +376,7 @@ describe('the workspace package dependency graph stays acyclic', () => {
   });
 });
 
-// devtools does not depend on run-types (the other direction does), so none of its own code may import it.
-// Fixture sources inside strings are fine: they only need a marker package the compiler can match.
+// devtools does not depend on run-types (the reverse does); fixture sources inside strings may still name it.
 describe('devtools code never imports @mionjs/run-types', () => {
   const importedModules = (file: string): string[] => {
     const source = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true);
