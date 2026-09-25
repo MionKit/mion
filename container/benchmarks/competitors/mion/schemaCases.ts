@@ -31,10 +31,12 @@ export const schemaCases: CompetitorCases = {
   'ATOMIC.literal_a': () => createValidateFn(RT.literal('a')),
   'ATOMIC.literal_true': () => createValidateFn(RT.literal(true)),
   'ATOMIC.literal_1n': () => createValidateFn(RT.literal(1n)),
+  'ATOMIC.literal_symbol': NOT_SUPPORTED, // factoryThrows (VL002): not data
   'ATOMIC.never': () => createValidateFn(RT.never()),
   'ATOMIC.null': () => createValidateFn(RT.literal(null)),
   'ATOMIC.number': () => createValidateFn(TF.number()),
   'ATOMIC.object': NOT_SUPPORTED, // validateSchema not-supported
+  'ATOMIC.regexp': NOT_SUPPORTED, // factoryThrows (VL001): not data
   'ATOMIC.string': () => createValidateFn(TF.string()),
   'ATOMIC.symbol': NOT_SUPPORTED, // factoryThrows
   'ATOMIC.undefined': () => createValidateFn(RT.literal(undefined)),
@@ -47,6 +49,7 @@ export const schemaCases: CompetitorCases = {
   'ARRAY.boolean_array': () => createValidateFn(RT.array(RT.boolean())),
   'ARRAY.bigint_array': () => createValidateFn(RT.array(TF.bigInt())),
   'ARRAY.date_array': () => createValidateFn(RT.array(TF.date())),
+  'ARRAY.regexp_array': NOT_SUPPORTED, // factoryThrows (VL001): not data
   'ARRAY.undefined_array': () => createValidateFn(RT.array(RT.literal(undefined))),
   'ARRAY.null_array': () => createValidateFn(RT.array(RT.literal(null))),
   'ARRAY.array_generic': () => createValidateFn(RT.array(TF.string())),
@@ -110,6 +113,8 @@ export const schemaCases: CompetitorCases = {
   'OBJECT.index_signature_date_value': () => createValidateFn(RT.record(RT.record(TF.date()))),
   'OBJECT.index_signature_non_root': () =>
     createValidateFn(RT.object({b: TF.string(), c: RT.intersection(RT.record(TF.string()), RT.object({a: TF.string()}))})),
+  'OBJECT.function_top_level': NOT_SUPPORTED, // factoryThrows (VL003): not data
+  'OBJECT.interface_callable': NOT_SUPPORTED, // factoryThrows (VL003): not data
   'OBJECT.interface_all_optional': () => createValidateFn(RT.object({a: RT.optional(TF.string()), b: RT.optional(TF.number())})),
   'OBJECT.class_simple': () => {
     class MySerializableClass {
@@ -171,6 +176,7 @@ export const schemaCases: CompetitorCases = {
   'TUPLE.tuple_multiple_trailing_optionals': () =>
     createValidateFn(RT.tuple({required: [TF.number()], optional: [TF.bigInt(), RT.boolean(), TF.number()]})),
   'TUPLE.tuple_named_labels': () => createValidateFn(RT.tuple({required: [TF.string(), TF.number()]})),
+  'TUPLE.tuple_with_non_serializable': NOT_SUPPORTED, // factoryThrows (VL003): not data
   'TUPLE.empty_tuple': () => createValidateFn(RT.tuple({})),
   'TUPLE.single_element_tuple': () => createValidateFn(RT.tuple({required: [TF.string()]})),
   'TUPLE.readonly_tuple': () => createValidateFn(RT.tuple({required: [TF.string(), TF.number()]})),
@@ -294,6 +300,7 @@ export const schemaCases: CompetitorCases = {
   // ── NATIVE ──
   'NATIVE.map_string_number': () => createValidateFn(RT.map(TF.string(), TF.number())),
   'NATIVE.set_string': () => createValidateFn(RT.set(TF.string())),
+  'NATIVE.promise_string': NOT_SUPPORTED, // factoryThrows (VL001): not data
   'NATIVE.awaited_promise': () => createValidateFn(TF.string()),
 
   // ── CIRCULAR ──
