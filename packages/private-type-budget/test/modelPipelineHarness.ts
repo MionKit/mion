@@ -462,7 +462,11 @@ export function measureConsumerLane(): ConsumerLaneResult {
  *
  *  13560 -> 13597: the router options on the API type and initClient's options slot (steps 4 and 5).
  *
- *  13597 -> 13614: a REVIEWED EXCEPTION, refined columns keep their key flags for toDrizzle (steps 2 and 6, both in budget). **/
+ *  13597 -> 13614: a REVIEWED EXCEPTION, refined columns keep their key flags for toDrizzle (steps 2 and 6, both in budget).
+ *
+ *  13614 -> 13614: a REVIEWED EXCEPTION. toDrizzle now names each synthesized column as drizzle does
+ *  (the db name, not the record key, which drizzle's InferSelectModel {dbColumnNames: true} reads),
+ *  one check per column in step 6. Step 6 stays inside its own budget. **/
 export const PIPELINE_TOTAL_BUDGET = 13614;
 
 /** What a downstream consumer may pay to read the model types out of the

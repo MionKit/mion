@@ -24,6 +24,8 @@ import type {
 import {refineTableType} from '@mionjs/drizzle-orm';
 import type {MySqlDatabase, MySqlQueryResultHKT, PreparedQueryHKTBase} from 'drizzle-orm/mysql-core';
 import {toDrizzle} from '../src/drizzle.ts';
+import type {ToDrizzleTable} from '../src/drizzle.ts';
+import type {InferSelectModel as DzInferSelectModel} from 'drizzle-orm';
 import type {ColDataOf, InferInsertModel, InferSelectModel, InferSelectViewModel, InferUpdateModel} from '@mionjs/drizzle-orm';
 import type {Bigint, Int, MysqlTable, Real, Text, Timestamp, Tinyint, Varchar, Year} from '../src/index.ts';
 import {
@@ -240,3 +242,17 @@ declare const myDb: MySqlDatabase<MySqlQueryResultHKT, PreparedQueryHKTBase>;
 export const returnedIds = myDb.insert(toDrizzle(keyedApi)).values({name: 'a'}).$returningId();
 type _refinedReturningId = Expect<Equal<Awaited<typeof returnedIds>, {id: number}[]>>;
 export type _RefinedKeyPins = [_refinedReturningId];
+
+// ── toDrizzle names a column as drizzle does ─────────────────────────────────
+// drizzle's own column `name` is the explicit db name, or the record key when nameless, and its
+// InferSelectModel with {dbColumnNames: true} keys the row by it. The type road knows the db name;
+// a builder column's type does not carry it, so it stays `string` rather than a wrong literal.
+
+type DbNamedType = MysqlTable<'db_named', {createdAt: Timestamp<'created_at'>; bare: Int}>;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- consumed as a type by the pins
+const dbNamedBuilders = mysqlTable('db_named', {createdAt: timestamp('created_at')});
+type _typeRoadDbNames = Expect<
+  Equal<keyof DzInferSelectModel<ToDrizzleTable<DbNamedType>, {dbColumnNames: true}>, 'created_at' | 'bare'>
+>;
+type _builderRoadName = Expect<Equal<ToDrizzleTable<typeof dbNamedBuilders>['createdAt']['_']['name'], string>>;
+export type _DbNamePins = [_typeRoadDbNames, _builderRoadName];

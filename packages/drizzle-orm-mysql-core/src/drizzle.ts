@@ -16,6 +16,7 @@ import {sql as dzSql} from 'drizzle-orm';
 import type {MySqlColumn, MySqlTableWithColumns, MySqlViewWithSelection} from 'drizzle-orm/mysql-core';
 import type {
   ColBrandOf,
+  ColDbNameOf,
   PlainDataOf,
   ColKeyFlags,
   ColKeyFlagsOf,
@@ -48,14 +49,14 @@ const context: DrizzleContext = {
 // isPrimaryKey / isAutoincrement / hasRuntimeDefault are NOT decorative here: drizzle's
 // `$returningId()` returns exactly the keys where isPrimaryKey and one of the other two are true,
 // so hardcoding them makes it infer `{}` instead of `{id: number}`.
-type SynthConfig<K extends string, TName extends string, Brand, Key extends ColKeyFlags> = Brand extends {
+type SynthConfig<Name extends string, TName extends string, Brand, Key extends ColKeyFlags> = Brand extends {
   data: infer Data;
   notNull: infer N extends boolean;
   hasDefault: infer H extends boolean;
   insertExcluded: infer X extends boolean;
 }
   ? {
-      name: K;
+      name: Name;
       tableName: TName;
       dataType: 'custom';
       columnType: 'RtColumn';
@@ -79,7 +80,7 @@ export type ToDrizzleTable<T extends AnyMysqlTable> = MySqlTableWithColumns<{
   dialect: 'mysql';
   columns: {
     [K in keyof ColsOf<T> & string]: MySqlColumn<
-      SynthConfig<K, TableNameOf<T>, ColBrandOf<ColsOf<T>[K]>, ColKeyFlagsOf<ColsOf<T>[K]>>
+      SynthConfig<ColDbNameOf<ColsOf<T>[K], K>, TableNameOf<T>, ColBrandOf<ColsOf<T>[K]>, ColKeyFlagsOf<ColsOf<T>[K]>>
     >;
   };
 }>;
@@ -91,7 +92,7 @@ export type ToDrizzleView<V extends AnyMysqlView> = MySqlViewWithSelection<
   boolean,
   {
     [K in keyof ViewColsOf<V> & string]: MySqlColumn<
-      SynthConfig<K, ViewNameOf<V>, ColBrandOf<ViewColsOf<V>[K]>, ColKeyFlagsOf<ViewColsOf<V>[K]>>
+      SynthConfig<ColDbNameOf<ViewColsOf<V>[K], K>, ViewNameOf<V>, ColBrandOf<ViewColsOf<V>[K]>, ColKeyFlagsOf<ViewColsOf<V>[K]>>
     >;
   }
 >;

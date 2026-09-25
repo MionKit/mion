@@ -15,11 +15,12 @@
 import type {BigInt as RTBigInt, Date as RTDate, Float, Integer as IntegerFormat, String as Str} from '@mionjs/run-types/formats';
 import type {DrizzleD1Database} from 'drizzle-orm/d1';
 import type {DrizzleSqliteDODatabase} from 'drizzle-orm/durable-sqlite';
+import type {InferSelectModel as DzInferSelectModel} from 'drizzle-orm';
 import type {ColDataOf, InferInsertModel, InferSelectModel, InferSelectViewModel, InferUpdateModel} from '@mionjs/drizzle-orm';
 import {refineTableType} from '@mionjs/drizzle-orm';
 import type {Blob, Int, Integer, Numeric, Real, SqliteTable, Text} from '../src/index.ts';
 import {blob, int, integer, numeric, real, sqliteTable, sqliteView, text} from '../src/index.ts';
-import {toDrizzle} from '../src/drizzle.ts';
+import {toDrizzle, type ToDrizzleTable} from '../src/drizzle.ts';
 
 /** Data a column type carries (the builder-equivalence probe: a column type IS
  *  the branded column now, so this reads the same brand off both roads). */
@@ -254,3 +255,17 @@ export const _cloudflarePins = [
   _doUpdateFromModel,
 ];
 export type _CloudflareTypePins = [_d1RowIsPlain, _d1DateIsPlain, _doRowIsPlain, _doDateIsPlain];
+
+// ── toDrizzle names a column as drizzle does ─────────────────────────────────
+// drizzle's own column `name` is the explicit db name, or the record key when nameless, and its
+// InferSelectModel with {dbColumnNames: true} keys the row by it. The type road knows the db name;
+// a builder column's type does not carry it, so it stays `string` rather than a wrong literal.
+
+type DbNamedType = SqliteTable<'db_named', {createdAt: Integer<'created_at'>; bare: Int}>;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- consumed as a type by the pins
+const dbNamedBuilders = sqliteTable('db_named', {createdAt: integer('created_at')});
+type _typeRoadDbNames = Expect<
+  Equal<keyof DzInferSelectModel<ToDrizzleTable<DbNamedType>, {dbColumnNames: true}>, 'created_at' | 'bare'>
+>;
+type _builderRoadName = Expect<Equal<ToDrizzleTable<typeof dbNamedBuilders>['createdAt']['_']['name'], string>>;
+export type _DbNamePins = [_typeRoadDbNames, _builderRoadName];

@@ -18,6 +18,7 @@ import {sql as dzSql} from 'drizzle-orm';
 import type {PgColumn, PgTableWithColumns, PgViewWithSelection} from 'drizzle-orm/pg-core';
 import type {
   ColBrandOf,
+  ColDbNameOf,
   PlainDataOf,
   ColKeyFlags,
   ColKeyFlagsOf,
@@ -53,14 +54,14 @@ const context: DrizzleContext = {
 // lets `.overridingSystemValue()` put it back, while a `generated` one stays out either way.
 // isPrimaryKey / isAutoincrement / hasRuntimeDefault stay fixed here: only mysql's `$returningId()`
 // reads them, and its twin synthesizes them.
-type SynthConfig<K extends string, TName extends string, Brand, Key extends ColKeyFlags> = Brand extends {
+type SynthConfig<Name extends string, TName extends string, Brand, Key extends ColKeyFlags> = Brand extends {
   data: infer Data;
   notNull: infer N extends boolean;
   hasDefault: infer H extends boolean;
   insertExcluded: infer X extends boolean;
 }
   ? {
-      name: K;
+      name: Name;
       tableName: TName;
       dataType: 'custom';
       columnType: 'RtColumn';
@@ -84,7 +85,7 @@ export type ToDrizzleTable<T extends AnyPgTable> = PgTableWithColumns<{
   dialect: 'pg';
   columns: {
     [K in keyof ColsOf<T> & string]: PgColumn<
-      SynthConfig<K, TableNameOf<T>, ColBrandOf<ColsOf<T>[K]>, ColKeyFlagsOf<ColsOf<T>[K]>>
+      SynthConfig<ColDbNameOf<ColsOf<T>[K], K>, TableNameOf<T>, ColBrandOf<ColsOf<T>[K]>, ColKeyFlagsOf<ColsOf<T>[K]>>
     >;
   };
 }>;
@@ -96,7 +97,7 @@ export type ToDrizzleView<V extends AnyPgView> = PgViewWithSelection<
   boolean,
   {
     [K in keyof ViewColsOf<V> & string]: PgColumn<
-      SynthConfig<K, ViewNameOf<V>, ColBrandOf<ViewColsOf<V>[K]>, ColKeyFlagsOf<ViewColsOf<V>[K]>>
+      SynthConfig<ColDbNameOf<ViewColsOf<V>[K], K>, ViewNameOf<V>, ColBrandOf<ViewColsOf<V>[K]>, ColKeyFlagsOf<ViewColsOf<V>[K]>>
     >;
   }
 >;

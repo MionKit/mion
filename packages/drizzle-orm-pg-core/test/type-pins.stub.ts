@@ -18,8 +18,8 @@ import type {ColDataOf, InferInsertModel, InferSelectModel, InferUpdateModel, Re
 import {refineTableType, sql} from '@mionjs/drizzle-orm';
 import type {InferSelectViewModel} from '@mionjs/drizzle-orm';
 import type {PgDatabase, PgQueryResultHKT} from 'drizzle-orm/pg-core';
-import {toDrizzle} from '../src/drizzle.ts';
-import type {ToDrizzleTable} from '../src/drizzle.ts';
+import {toDrizzle, type ToDrizzleTable} from '../src/drizzle.ts';
+import type {InferSelectModel as DzInferSelectModel} from 'drizzle-orm';
 import type {
   Bigint,
   Boolean as PgBoolean,
@@ -416,3 +416,17 @@ export const overridingRefined = db.insert(toDrizzle(identityApi)).overridingSys
 type TypedIdentityApi = RefinedTable<TwinWideType, {seq: {max: 1000}}>;
 type _refinedTypedIdentity = Expect<Equal<ToDrizzleTable<TypedIdentityApi>['seq']['_']['identity'], 'always'>>;
 export type _RefinedKeyPins = [_refinedIdentity, _refinedTypedIdentity];
+
+// ── toDrizzle names a column as drizzle does ─────────────────────────────────
+// drizzle's own column `name` is the explicit db name, or the record key when nameless, and its
+// InferSelectModel with {dbColumnNames: true} keys the row by it. The type road knows the db name;
+// a builder column's type does not carry it, so it stays `string` rather than a wrong literal.
+
+type DbNamedType = PgTable<'db_named', {createdAt: Timestamp<'created_at'>; bare: Integer}>;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- consumed as a type by the pins
+const dbNamedBuilders = pgTable('db_named', {createdAt: timestamp('created_at')});
+type _typeRoadDbNames = Expect<
+  Equal<keyof DzInferSelectModel<ToDrizzleTable<DbNamedType>, {dbColumnNames: true}>, 'created_at' | 'bare'>
+>;
+type _builderRoadName = Expect<Equal<ToDrizzleTable<typeof dbNamedBuilders>['createdAt']['_']['name'], string>>;
+export type _DbNamePins = [_typeRoadDbNames, _builderRoadName];
