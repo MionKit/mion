@@ -6,15 +6,16 @@ const {routes, middlewares} = initClient<MyApi>({
   baseURL: 'http://localhost:3000',
 });
 
+middlewares.auth.onRequest((auth) =>
+  auth(new HeadersSubset({Authorization: 'myToken-XYZ'}))
+);
+
 // [routeResult, routeError, undeclared, middlewareResults, middlewareErrors]
 // - error: the route's DECLARED errors | ValidationError (strongly typed, CLOSED union)
 // - undeclared: anything NOBODY declared - transport, platform, framework,
 //   an undeclared throw, or an error for a middleware that
 //   was not part of the request (OPEN RpcError<string>)
 // - middlewareErrors: each middleware's DECLARED errors, by middleware id
-middlewares.auth.onRequest((auth) =>
-  auth(new HeadersSubset({Authorization: 'myToken-XYZ'}))
-);
 const [user, error, undeclared, , middlewareErrors] = await routes.users
   .getById('USER-404')
   .call();

@@ -83,7 +83,7 @@ const [result, error3] = await routes.users.sayHello(john).call();
 console.log(result); // Hello John Doe
 
 // ========== Example 5: Per-request middleware data ==========
-// onRequest runs for every request, so it can pick the data per request from the context
+// the context lets onRequest pick the data per request
 const tempAuthHeaders: HeadersSubset<'Authorization'> = {
   headers: {Authorization: 'Bearer temp-token-ABC'},
 };
@@ -92,14 +92,14 @@ middlewares.auth.onRequest((auth, context) => {
   auth(isOrderRequest ? tempAuthHeaders : authHeaders, true);
 });
 
-// the result keeps each middleware's outcome by id, loosely typed; the typed hooks above are the main way
+// the tuple also keeps each middleware's outcome by id, loosely typed; prefer the typed hooks
 const [user4, routeError4, fatal4, middlewareResults4, middlewareErrors4] =
   await routes.users.getById('USER-123').call();
 // Check for route errors (the route's DECLARED errors | ValidationError)
 if (routeError4?.type === 'user-not-found') {
   console.log('User not found:', routeError4.errorData?.requestedId);
 }
-// Each middleware's DECLARED errors arrive by id - the same errors the onError hooks got
+// the same declared errors the onError hooks got, by id
 if (middlewareErrors4?.auth?.type === 'not-authorized') {
   console.log('Auth failed:', middlewareErrors4.auth.publicMessage);
 }
