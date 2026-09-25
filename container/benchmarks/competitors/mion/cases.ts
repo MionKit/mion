@@ -105,6 +105,7 @@ export const cases: CompetitorCases = {
       return (value: unknown) => getErrors(value).length === 0;
     },
   },
+  'ATOMIC.literal_symbol': NOT_SUPPORTED, // factoryThrows (VL002): not data
   'ATOMIC.never': {
     build: () => createValidateFn<never>(),
     buildErrors: () => {
@@ -133,6 +134,7 @@ export const cases: CompetitorCases = {
       return (value: unknown) => getErrors(value).length === 0;
     },
   },
+  'ATOMIC.regexp': NOT_SUPPORTED, // factoryThrows (VL001): not data
   'ATOMIC.string': {
     build: () => createValidateFn<string>(),
     buildErrors: () => {
@@ -199,6 +201,7 @@ export const cases: CompetitorCases = {
       return (value: unknown) => getErrors(value).length === 0;
     },
   },
+  'ARRAY.regexp_array': NOT_SUPPORTED, // factoryThrows (VL001): not data
   'ARRAY.undefined_array': {
     build: () => createValidateFn<undefined[]>(),
     buildErrors: () => {
@@ -451,6 +454,8 @@ export const cases: CompetitorCases = {
       return (value: unknown) => getErrors(value).length === 0;
     },
   },
+  'OBJECT.function_top_level': NOT_SUPPORTED, // factoryThrows (VL003): not data
+  'OBJECT.interface_callable': NOT_SUPPORTED, // factoryThrows (VL003): not data
   'OBJECT.interface_all_optional': {
     build: () => createValidateFn<{a?: string; b?: number}>(),
     buildErrors: () => {
@@ -685,6 +690,7 @@ export const cases: CompetitorCases = {
       return (value: unknown) => getErrors(value).length === 0;
     },
   },
+  'TUPLE.tuple_with_non_serializable': NOT_SUPPORTED, // factoryThrows (VL003): not data
   'TUPLE.empty_tuple': {
     build: () => createValidateFn<[]>(),
     buildErrors: () => {
@@ -1010,6 +1016,7 @@ export const cases: CompetitorCases = {
       return (value: unknown) => getErrors(value).length === 0;
     },
   },
+  'NATIVE.promise_string': NOT_SUPPORTED, // factoryThrows (VL001): not data
   'NATIVE.awaited_promise': {
     build: () => createValidateFn<Awaited<Promise<string>>>(),
     buildErrors: () => {

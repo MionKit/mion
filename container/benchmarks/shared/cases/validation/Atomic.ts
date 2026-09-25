@@ -60,6 +60,19 @@ export const ATOMIC = {
     title: 'BigInt literal type (only 1n)',
     getSamples: () => ({valid: [1n], invalid: [2n, 1, '1n', 0n, null]}),
   },
+  literal_symbol: {
+    title: 'Symbol literal type (matched by description)',
+    description: 'symbol identity via description match (reference semantics)',
+    getSamples: () => {
+      const sym = Symbol('hello');
+      return {
+        // identity by description per the reference semantics:
+        // emit is `typeof === 'symbol' && v.description === 'hello'`
+        valid: [sym, Symbol('hello')],
+        invalid: [Symbol('nice'), 'hello', null, undefined],
+      };
+    },
+  },
   never: {
     title: 'Never — no value passes',
     getSamples: () => ({
@@ -89,6 +102,13 @@ export const ATOMIC = {
     getSamples: () => ({
       valid: [{}, {a: 42, b: 'hello'}, [], new Date(), /abc/],
       invalid: [null, undefined, 42, 'hello', true, Symbol()],
+    }),
+  },
+  regexp: {
+    title: 'RegExp instance',
+    getSamples: () => ({
+      valid: [/abc/, new RegExp('abc')],
+      invalid: [undefined, 42, 'hello', null, '/abc/', {}],
     }),
   },
   string: {

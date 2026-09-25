@@ -80,6 +80,13 @@ export const cases: CompetitorCases = {
       return (value: unknown) => schema.safeParse(value).success;
     },
   },
+  // literal_symbol: match any symbol whose description === 'hello'
+  'ATOMIC.literal_symbol': {
+    buildErrors: () => {
+      const schema = z.custom((v) => typeof v === 'symbol' && v.description === 'hello');
+      return (value: unknown) => schema.safeParse(value).success;
+    },
+  },
   'ATOMIC.never': {
     buildErrors: () => {
       const schema = z.never();
@@ -102,6 +109,12 @@ export const cases: CompetitorCases = {
   'ATOMIC.object': {
     buildErrors: () => {
       const schema = z.custom((v) => typeof v === 'object' && v !== null);
+      return (value: unknown) => schema.safeParse(value).success;
+    },
+  },
+  'ATOMIC.regexp': {
+    buildErrors: () => {
+      const schema = z.instanceof(RegExp);
       return (value: unknown) => schema.safeParse(value).success;
     },
   },
@@ -164,6 +177,12 @@ export const cases: CompetitorCases = {
   'ARRAY.date_array': {
     buildErrors: () => {
       const schema = z.array(z.date());
+      return (value: unknown) => schema.safeParse(value).success;
+    },
+  },
+  'ARRAY.regexp_array': {
+    buildErrors: () => {
+      const schema = z.array(z.instanceof(RegExp));
       return (value: unknown) => schema.safeParse(value).success;
     },
   },
@@ -373,6 +392,20 @@ export const cases: CompetitorCases = {
       return (value: unknown) => schema.safeParse(value).success;
     },
   },
+  // function_top_level: any function (class counts too); z.function() only validates arity; use custom
+  'OBJECT.function_top_level': {
+    buildErrors: () => {
+      const schema = z.custom((v) => typeof v === 'function');
+      return (value: unknown) => schema.safeParse(value).success;
+    },
+  },
+  // interface_callable: function with extra prop — typeof function AND extra prop is string
+  'OBJECT.interface_callable': {
+    buildErrors: () => {
+      const schema = z.custom((v) => typeof v === 'function' && typeof (v as {extra?: unknown}).extra === 'string');
+      return (value: unknown) => schema.safeParse(value).success;
+    },
+  },
   // interface_all_optional: {a?:string, b?:number} — the same interface as mion, behind the
   // plain-object guard (plainObject above): z.object alone accepts Date/Map/Set/RegExp
   // instances, since its isObject only excludes arrays and null.
@@ -535,6 +568,13 @@ export const cases: CompetitorCases = {
   'TUPLE.tuple_named_labels': {
     buildErrors: () => {
       const schema = z.tuple([z.string(), z.number()]);
+      return (value: unknown) => schema.safeParse(value).success;
+    },
+  },
+  // tuple_with_non_serializable: function slot must be undefined — z.tuple with undefined at slot 1
+  'TUPLE.tuple_with_non_serializable': {
+    buildErrors: () => {
+      const schema = z.tuple([z.number(), z.undefined().optional()]);
       return (value: unknown) => schema.safeParse(value).success;
     },
   },
@@ -816,6 +856,13 @@ export const cases: CompetitorCases = {
   'NATIVE.set_string': {
     buildErrors: () => {
       const schema = z.set(z.string());
+      return (value: unknown) => schema.safeParse(value).success;
+    },
+  },
+  // promise_string: thenable check — any object with typeof .then === 'function'
+  'NATIVE.promise_string': {
+    buildErrors: () => {
+      const schema = z.custom((v) => typeof v === 'object' && v !== null && typeof (v as {then?: unknown}).then === 'function');
       return (value: unknown) => schema.safeParse(value).success;
     },
   },

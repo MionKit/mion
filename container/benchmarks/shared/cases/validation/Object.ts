@@ -223,6 +223,37 @@ export const OBJECT = {
       invalid: [{b: 'hello', c: {a: 'world', c: 123}}, {b: 'hello'}, {b: 'hello', c: 'not object'}, null],
     }),
   },
+  function_top_level: {
+    title: 'Function type at top level (any function passes)',
+    description: "FunctionRunType.emitIsType — `typeof v === 'function'`. Param-arity check is deferred.",
+    getSamples: () => ({
+      valid: [() => {}, function () {}, async () => {}, class {}],
+      invalid: [null, undefined, 42, 'function', {}, [], true],
+    }),
+  },
+  interface_callable: {
+    title: 'Callable interface (function plus data properties)',
+    description:
+      'interface.spec.ts "validate callable interface" — the emit detects a CallSignature child and switches the typeof guard from `object` to `function`, then AND-chains the remaining properties on top (JS functions can carry properties).',
+    getSamples: () => ({
+      valid: [
+        Object.assign(
+          function (_a: number, _b: boolean) {
+            return 'x';
+          },
+          {extra: 'x'}
+        ),
+      ],
+      invalid: [
+        {extra: 'x'}, // not a function
+        () => {}, // missing `extra` prop
+        Object.assign(() => {}, {extra: 42}), // extra wrong type
+        null,
+        undefined,
+        Object.assign(() => {}, {extra: null}), // extra wrong type (null)
+      ],
+    }),
+  },
   interface_all_optional: {
     title: 'Interface with every property optional (plain-object guard)',
     description:
