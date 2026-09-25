@@ -40,6 +40,11 @@ describe('toRunTypesOptions — the mapping both presets share', () => {
     expect(toRunTypesOptions({derivedPayloadLimits: true}).jsonMaxBytes).toBe(true);
   });
 
+  it('passes patternSampleCount through as given', () => {
+    expect(toRunTypesOptions({}).patternSampleCount).toBeUndefined();
+    expect(toRunTypesOptions({patternSampleCount: 7}).patternSampleCount).toBe(7);
+  });
+
   it('maps tsConfig onto the resolver tsconfig key and accepts the outDir alias', () => {
     expect(toRunTypesOptions({tsConfig: '/p/tsconfig.json'}).tsconfig).toBe('/p/tsconfig.json');
     expect(toRunTypesOptions({outDir: 'gen'}).genDir).toBe('gen');
