@@ -356,3 +356,11 @@ describe('sqlite slim surface — views equal hand-written drizzle', () => {
     expect(row.code).toBe('core');
   });
 });
+
+describe('generated columns', () => {
+  it('generatedAlwaysAs keeps its mode config', () => {
+    const table = sqliteTable('gen', {derived: text('derived').generatedAlwaysAs('x', {mode: 'stored'})});
+    const [column] = getTableConfig(toDrizzle(table) as never).columns;
+    expect(column.generated).toMatchObject({type: 'always', mode: 'stored'});
+  });
+});
