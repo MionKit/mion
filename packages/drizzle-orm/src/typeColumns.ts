@@ -185,8 +185,7 @@ export type EntryColRefs<Keys extends readonly string[]> = {[I in keyof Keys]: {
  *  error in the model types instead of vanishing. */
 export type ColSpecOf<C> = typeof rtColSpecKey extends keyof C ? NonNullable<C[typeof rtColSpecKey]> : never;
 
-/** The name drizzle gives a column: the type road's db name, the key when nameless. A builder column's
- *  type does not carry its db name, so it is `string` there rather than a wrong literal. */
+/** drizzle's column name: the type road's db name, else the key; `string` for a builder column, whose type lacks it. */
 export type ColDbNameOf<C, K extends string> = typeof rtColSpecKey extends keyof C
   ? NonNullable<C[typeof rtColSpecKey]> extends {name: infer Name}
     ? Name extends string

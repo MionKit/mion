@@ -382,9 +382,7 @@ describe('pg tables are typed to the pg package', () => {
   });
 });
 
-// A self-reference: drizzle's own style needs a return annotation, since TypeScript cannot infer a
-// table from its own initializer (TS7022). The type road points the reference at a thunk of the
-// table being built.
+// A self-reference needs a return annotation (TS7022); the type road points it at a thunk of the table being built.
 const empsBuilders = pgTable('emps', {
   id: serial('id').primaryKey(),
   managerId: integer('manager_id').references((): AnyRtColumn => cols(empsBuilders).id),

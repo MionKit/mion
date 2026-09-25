@@ -5,14 +5,12 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The runtime of a single-call builder: its props object split back into drizzle's config argument and
-// the modifier calls, recorded in the props' own key order on the shipped column recorder.
+// Splits a single-call builder's props into drizzle's config argument and modifier calls, replayed in key order.
 
 import {RtColumnRecorder, type DrizzleContext} from '../src/recorder.ts';
 import {isColModName} from '../src/typeColumns.ts';
 
-/** Record a column from a builder call `(name?, props?)`. `init` builds the drizzle builder from the
- *  config half; the modifier half is replayed on it. */
+/** Record a builder call `(name?, props?)`: `init` builds from the config half, the modifiers replay on it. */
 export function recordColumn(args: unknown[], init: (context: DrizzleContext, callArgs: unknown[]) => unknown): RtColumnRecorder {
   const [name, props] = (typeof args[0] === 'string' ? args : [undefined, args[0]]) as [
     string | undefined,

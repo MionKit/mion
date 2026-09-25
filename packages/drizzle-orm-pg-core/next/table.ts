@@ -5,8 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Side-by-side pg table: the same call shape as drizzle's pgTable, the shipped runtime, and a type
-// that holds the shared nameless columns plus a names map for the db names that differ from the key.
+// drizzle's pgTable call shape on the shipped runtime; the type holds shared nameless columns plus a names map.
 
 import type {AnyRtColumn, RtExtraColumn} from '../../drizzle-orm/src/recorder.ts';
 import type {RtTableBrand} from '../../drizzle-orm/src/table.ts';
@@ -31,9 +30,7 @@ export interface PgTableWithRLS<TName extends string, Cols, Extras extends reado
   extends RtTableMeta<TName, Cols, Extras, Names>, RtTableBrand<'pg'> {}
 export type AnyPgTable = PgTableWithRLS<string, Record<string, AnyColumn>, readonly object[], object>;
 
-// pgTable spells its column and names maps inline, never through an alias: the resolver serializes an
-// alias's type arguments, and an alias over the builder record would reflect what the builders
-// returned rather than the table's own columns.
+// Maps are inline, never an alias: the resolver serializes an alias's type arguments, the builders' results.
 /** A builders record's columns: each named result unwrapped to its column. */
 export type LiftCols<Cols> = {[K in keyof Cols]: Cols[K] extends {readonly [rtNamedColumnKey]: infer C} ? C : Cols[K]};
 type NameOf<C> = C extends {readonly [rtColNameKey]: infer Name} ? Name : undefined;

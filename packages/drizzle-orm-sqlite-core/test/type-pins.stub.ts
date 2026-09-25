@@ -257,9 +257,7 @@ export const _cloudflarePins = [
 export type _CloudflareTypePins = [_d1RowIsPlain, _d1DateIsPlain, _doRowIsPlain, _doDateIsPlain];
 
 // ── toDrizzle names a column as drizzle does ─────────────────────────────────
-// drizzle's own column `name` is the explicit db name, or the record key when nameless, and its
-// InferSelectModel with {dbColumnNames: true} keys the row by it. The type road knows the db name;
-// a builder column's type does not carry it, so it stays `string` rather than a wrong literal.
+// drizzle names a column by its db name, else its key; a builder column's type lacks the db name, so it is `string`.
 
 type DbNamedType = SqliteTable<'db_named', {createdAt: Integer<'created_at'>; bare: Int}>;
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- consumed as a type by the pins

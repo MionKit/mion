@@ -538,9 +538,7 @@ func TestDrizzle_ForwardReferenceThunk(t *testing.T) {
 	}
 }
 
-// TestDrizzle_SelfReferenceRoundTrip covers a table referencing itself, which drizzle spells with a
-// return annotation (TypeScript cannot infer a table from its own initializer). The type form points
-// the reference at a thunk of the table being declared, and the round trip is a byte fixpoint.
+// TestDrizzle_SelfReferenceRoundTrip pins that a self-reference keeps its return annotation (TS7022) over a round trip.
 func TestDrizzle_SelfReferenceRoundTrip(t *testing.T) {
 	source := drizzleHeader +
 		"export const emps = DZ.pgTable('emps', {\n" +

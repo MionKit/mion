@@ -5,11 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Side-by-side pg columns, single-call: a builder takes every setting in ONE props object and returns
-// exactly the column type the hand-written alias spells, so a builder column and a hand-written one
-// are one type. No chained modifiers: a column type carrying chain methods cannot be reflected (the
-// runtype id walks method return types, MKR009), and the props bag of each builder is what rejects a
-// modifier its kind does not have. The runtime is the shipped recorder, fed by ../../drizzle-orm/next/recorder.ts.
+// Single-call pg columns: a builder takes every setting in ONE props object and returns exactly the hand-written
+// alias's type. No chained modifiers: chain methods break reflection (the runtype id walks method return types,
+// MKR009), and each builder's props bag rejects a modifier its kind lacks.
 
 import type {
   Date as RTDate,
@@ -64,8 +62,7 @@ import type {
 // ── What each builder kind's props take ──────────────────────────────────────
 // The hand-written bags, with the function-carrying keys taking their runtime shape.
 
-// Written out rather than derived (Omit of the hand-written bag): every builder call checks its props
-// against one of these, and a plain interface is the cheapest thing to check against.
+// Written out, not an Omit of the hand-written bag: every builder call checks against one, and an interface is cheapest.
 export interface PgColIn {
   notNull?: true;
   primaryKey?: true;
@@ -92,7 +89,7 @@ export interface PgIntIn extends PgColIn {
 }
 type AnyOwner = ColumnOwner<string, string>;
 
-/** What a builder returns: the column, wrapped with its db name when it was called with one. */
+/** What a nameless builder returns; a named call wraps it in NamedColumn. */
 type Built<Fn extends string, C, D, B extends ColBaseFlag = never> = Column<Fn, PropsOf<C>, D, B>;
 
 function pgColumn(fnName: string, args: unknown[]): never {
@@ -462,8 +459,7 @@ export function vector(...args: unknown[]) {
 }
 
 // ── Enums and custom types ───────────────────────────────────────────────────
-// No type road: their runtime needs the enum handle or the customType callbacks, so tableFromType
-// refuses them. The column types exist so the models work.
+// No type road (the runtime needs the enum handle or customType callbacks); the types exist for the models.
 
 /** A pgEnum column: one shared type per value set. */
 export type PgEnumCol<Values extends readonly string[], P extends PgColMods = NoProps> = Column<'enum', P, Values[number]>;

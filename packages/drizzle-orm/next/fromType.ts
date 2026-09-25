@@ -5,9 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Side-by-side runtime bridge: rebuild a slim table from the reflected graph of a hand-written table.
-// Differs from ../src/fromType.ts in two places only: a column's modifier calls ride its spec's
-// config (split by colModNames), and the db names come from the table's `names` member.
+// Rebuilds a slim table from a reflected table type. Differs from ../src/fromType.ts only in that modifier
+// calls ride the spec's config (split by colModNames) and db names come from the table's `names` member.
 
 import {isColModName} from '../src/typeColumns.ts';
 import {RtColumnRecorder, RtEntryRecorder, sql} from '../src/recorder.ts';

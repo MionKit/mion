@@ -317,8 +317,7 @@ function columnPropsText(column: ColumnSpec): string[] {
   return props;
 }
 
-/** Render a covered spec in the side-by-side spelling: nameless column types (NX.Integer<{...}>),
- *  the shipped TableEntry extras (from `entriesNamespace`), and the db names that differ from the key. */
+/** Render a covered spec as next/ types: nameless columns, shipped TableEntry extras, names for differing db names. */
 export function renderNextTableType(spec: TableSpec, tableName: string, namespace: string, entriesNamespace: string): string {
   const columns = spec.columns.map((column) => {
     const props = columnPropsText(column);
@@ -512,9 +511,7 @@ export function syntheticTableGraph(spec: TableSpec, tableName: string): Reflect
   return objectNode(meta);
 }
 
-/** The same covered spec in the side-by-side column shape: one spec per column holding the config
- *  and the modifier calls together and no db name; db names that differ from the key sit in the
- *  table's `names` member. Mirrors what the resolver reflects for the next/ column types. */
+/** The spec as the resolver reflects next/ columns: config and modifiers in one spec, differing db names in `names`. */
 export function syntheticNextTableGraph(spec: TableSpec, tableName: string): ReflectedNode {
   const columns: Record<string, ReflectedNode> = {};
   const names: Record<string, ReflectedNode> = {};

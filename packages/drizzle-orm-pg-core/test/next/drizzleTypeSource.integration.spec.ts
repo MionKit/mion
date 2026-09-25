@@ -5,14 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The side-by-side columns through the REAL resolver: each random table spec is rendered as source
-// twice, as a hand-written next/ table type and as single-call next/ builders, in one fixture. Per spec:
-//   1. the builder table and the hand-written table have ONE runtype id for their columns and one for
-//      their names map (a builder table's type records no extraConfig entries, as on the shipped road);
-//   2. the new select model reflects to the SAME id as the shipped type road's select model;
-//   3. the reflected graph, rebuilt by the new reader, materializes the same drizzle table as raw drizzle.
-// The Marker rule pair rides along: the value probe's id equals the static probe's id.
-// Replay with MION_FUZZ_SEED; widen with MION_FUZZ_ITER.
+// next/ columns through the REAL resolver, each random spec as a hand-written type and as builders in one fixture.
+// Columns and names are compared, not whole tables: a builder table's type records no extraConfig entries.
+// The value probe is the Marker rule pair. Replay with MION_FUZZ_SEED; widen with MION_FUZZ_ITER.
 
 import path from 'node:path';
 import {describe, expect, it} from 'vitest';
@@ -20,7 +15,7 @@ import * as dzPg from 'drizzle-orm/pg-core';
 import {sql as dzSql} from 'drizzle-orm';
 import {mixSeed, mulberry32} from '../../../run-types/test/fuzz/core/seededRng.ts';
 import {entrySeed, parseSeed} from '../../../run-types/test/fuzz/core/fuzzPolicy.ts';
-// The LIGHT helpers, as the shipped twin of this lane uses: no marker call sites of their own.
+// The LIGHT helpers: no marker call sites of their own.
 import {evalEntryModules, instantiateRunTypes, BIN, hasBinary} from '../../../devtools/test/helpers/inline.ts';
 import {ResolverClient} from '../../../devtools/src/core/resolver-client.ts';
 import {

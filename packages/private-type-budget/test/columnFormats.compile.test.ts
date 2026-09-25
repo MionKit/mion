@@ -1,8 +1,5 @@
-// The side-by-side column system against the shipped one, over the REAL packages, in one run: every
-// shape is declared four ways (shipped builders, shipped type road, new hand-written types, new
-// builders, one call per column) and read through the same models. The new lines live under each drizzle package's
-// `next/` folder, which ships nothing, so their budgets are one-way downward like every other suite;
-// the shipped lines are the reference, measured here only to compare against.
+// next/ columns against the shipped ones over the REAL packages: each shape declared four ways, read through the
+// same models. Only the two next/ lines carry budgets (one-way downward); the shipped lines are the reference.
 
 import {describe, it, expect, beforeAll, afterAll} from 'vitest';
 import * as ts from 'typescript';
@@ -40,7 +37,7 @@ const LINES: Line[] = ['curBuilders', 'curTypes', 'newTypes', 'newBuilders'];
 
 interface ColSpec {
   key: string;
-  /** db name, when it differs from nothing (drizzle style names every column). */
+  /** The explicit db name; unset for a nameless column. */
   db?: string;
   curB: string;
   curT: string;
@@ -296,9 +293,7 @@ export const ${p}u = db.update(${p}D).set({age: 31});`;
 const PREFIX: Record<Line, string> = {curBuilders: 'cb', curTypes: 'ct', newTypes: 'nt', newBuilders: 'nb'};
 const measured = new Map<string, Record<Line, number>>();
 
-// Without these the numbers are meaningless: a broken import collapses every type to `any` and the
-// counts drop. The new builder table must BE the new hand-written table, and its models must be the
-// shipped models, on the mixed and the wide shapes.
+// Without these, a broken import collapses every type to `any` and the counts drop.
 const SHAPE_PINS = `
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 type Expect<T extends true> = T;
