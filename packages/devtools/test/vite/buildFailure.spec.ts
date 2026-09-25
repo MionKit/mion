@@ -5,12 +5,14 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {describe, expect, it} from 'vitest';
+import {afterAll, beforeAll, describe, expect, it} from 'vitest';
+import {rmSync} from 'node:fs';
 import {build, createLogger} from 'vite';
 import {resolve, dirname} from 'path';
 import {fileURLToPath} from 'url';
 import {mionVitePlugin} from '../../src/vite/mionVitePlugin.ts';
 import type {MionRunTypesOptions} from '../../src/vite/mionVitePlugin.ts';
+import {writeMarkerPackage} from '../helpers/inline.ts';
 
 // The pattern-checking diagnostics exist to make a build fail CLOSED rather than ship a type whose
 // validator or mock generator is wrong. patternSidecar.spec.ts covers the success path; this file
@@ -46,7 +48,13 @@ async function buildFixture(name: string, runTypes: Partial<MionRunTypesOptions>
       logLevel: 'silent',
       customLogger: logger,
       configFile: false,
-      build: {write: false, lib: {entry: resolve(dir, 'index.ts'), formats: ['es']}, minify: false},
+      build: {
+        write: false,
+        lib: {entry: resolve(dir, 'index.ts'), formats: ['es']},
+        minify: false,
+        // The marker package is installed as types only; its runtime is never bundled here.
+        rollupOptions: {external: [/^@mionjs\/run-types/]},
+      },
       plugins: [mionVitePlugin({runTypes: {tsConfig: resolve(dir, 'tsconfig.json'), ...runTypes}}) as never],
     });
   } catch (e) {
@@ -58,6 +66,10 @@ async function buildFixture(name: string, runTypes: Partial<MionRunTypesOptions>
 }
 
 describe('build halts on pattern diagnostics', () => {
+  // devtools does not depend on run-types, so the fixtures get the built marker package installed by hand.
+  beforeAll(() => writeMarkerPackage(FIXTURES));
+  afterAll(() => rmSync(resolve(FIXTURES, 'node_modules'), {recursive: true, force: true}));
+
   // Positive control FIRST: without it, "the build failed" proves nothing — a typo in a fixture
   // would fail the same way and every negative case below would pass for the wrong reason.
   it('builds a well-formed fixture cleanly', async () => {
