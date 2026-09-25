@@ -20,7 +20,7 @@ export function resetClientCaches() {
   resetMetadataCacheState();
 }
 
-/** A route's metadata row with just what the client reads to send and check it. */
+/** A metadata row with only the fields the client reads. */
 export function methodRow(id: string, syncId?: string, paramsJitHash = `p-${id}`, returnJitHash = `r-${id}`): MethodWithOptions {
   return {
     id,

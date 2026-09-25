@@ -181,7 +181,7 @@ func hasDiagCode(diags []diagnostics.Diagnostic, code string) bool {
 	return false
 }
 
-// sumRoutesTS is one server routes file whose type the build reads; sumClientTS is a client typed with it.
+// sumRoutesTS is the server; sumClientTS is the client that matches it.
 const sumRoutesTS = `import {createMionRouter} from '@mionjs/router';
 const mion = createMionRouter();
 export const api = mion.initRoutes({sum: {type: 1 as const, handler: (a: number, b: number): number => a + b}});
