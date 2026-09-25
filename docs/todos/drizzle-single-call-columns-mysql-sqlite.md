@@ -21,6 +21,71 @@ here, while nothing ships.
 Nothing here is published: `next/` sits beside `src/`, each package's `tsconfig.build.json`
 excludes it, and `scripts/lib/drizzle-line.mjs` counts only `src/` edits as a published change.
 
+## Use the pg version as the reference
+
+Build every mysql and sqlite file by copying its pg twin and changing only what the dialect needs.
+Read these first, in this order. They are the tested answer to most questions this spec leaves open.
+
+| pg file | What it holds | What changes for mysql / sqlite |
+|---|---|---|
+| `packages/drizzle-orm/next/columns.ts` | `Column`, `NamedColumn`, `PropsOf`, `Writable` / `MutableTuple`, `$type()`, the lazy flag rules (`IsNotNull`, `IsHasDefault`, `IsInsertExcluded`, `InsertKind`, `KeyFlagsOf`) | Nothing expected (shared core). Change it only if a dialect proves it wrong, with a pg pin showing pg is unaffected. |
+| `packages/drizzle-orm/next/table.ts` | `RtTableMeta<TName, Cols, Extras, Names>`, `DbNameOf`, `TableRef`, `tableRef()`, `refColumn()` | Only the pg wording in the `tableRef()` error. |
+| `packages/drizzle-orm/next/recorder.ts` | `recordColumn(args, init)`: splits props into drizzle's config argument and modifier calls (by `isColModName`), replays mods in key order, skips `$type`, resolves `references` through `refColumn` | Nothing expected. `autoincrement`, `onUpdateNow` are already mod names (`packages/drizzle-orm/src/typeColumns.ts`). |
+| `packages/drizzle-orm/next/fromType.ts` | `buildRtTableFromGraph`: rebuilds a slim table from a reflected hand-written type; refuses `enum` / `custom`; names from the table's `names` member | Only the pg wording in errors; the dialect is already a parameter. |
+| `packages/drizzle-orm/next/models.ts`, `refine.ts` | Select / insert / update models, `refineTableType` | Nothing expected. |
+| `packages/drizzle-orm-pg-core/next/columns.ts` | Input interfaces (`PgColIn`, `PgDateIn`, `PgUuidIn`, `PgIntIn`), `Built<Fn, C, D, B>`, `pgColumn()`, then one block per builder: the hand-written alias (`type Varchar<P extends Config & PgColMods = NoProps> = Column<'varchar', P, VarcharData<P>>`) and its overloads (`<const C extends Config & PgColIn>`); `customType`; `pgColumnHelpers` | The dialect's kinds, configs and data helpers (imported from its own `src/columns.ts`), its mod bags as the alias constraint (`MySqlColMods`, `SqliteColMods`...). |
+| `packages/drizzle-orm-pg-core/next/table.ts` | `PgTable` interface, `AnyPgTable`, `LiftCols`, `NameOf`, `pgTable` with INLINE column and names maps in its return type, `tableFromType` memoized per type id | Brand `'mysql'` / `'sqlite'`, `mysqlTableCreator` / `sqliteTableCreator`, `mysqlSchema`. No `enableRLS`. |
+| `packages/drizzle-orm-pg-core/next/views.ts` | `pgView` over the new columns, same inline maps | mysql view options (`algorithm`, `sqlSecurity`, `withCheckOption`). |
+| `packages/drizzle-orm-pg-core/next/helpers.ts` | `pgEnum` wrapping the shipped enum through `recordColumn`; `foreignKey` mapping `tableRef()` values to live columns | `mysqlEnum` the same way (its second argument is the values, then props). |
+| `packages/drizzle-orm-pg-core/next/drizzle.ts` | `SynthConfig` over the column spec, `ToDrizzleTable` / `ToDrizzleView` (db names from the names map), `toDrizzle` overloads including the marker form | mysql reads the three key flags (see below). |
+| `packages/drizzle-orm-pg-core/test/next/type-pins.stub.ts` | Every kind of pin this spec asks for, already written for pg | Copy the structure. |
+| `packages/drizzle-orm-pg-core/test/next/typeTables.spec.ts` | Runtime parity, `tableFromType`, runtype ids in both call shapes, references, errors | Copy the structure. |
+| `packages/drizzle-orm-pg-core/test/next/drizzleTypeSource.integration.spec.ts` | Resolver fuzz: a fixture with both spellings, ids compared through the real resolver | Copy; it needs the dialect's renderers. |
+| `packages/drizzle-orm-pg-core/test/tableEquality.fuzz.spec.ts`, `tableSpecShared.ts` | In-process fuzz, the `Surface` abstraction (`singleCall`, `parentRef`), spec generator, renderers, `project()` oracle | See step 3. |
+| `packages/private-type-budget/test/columnFormats.compile.test.ts`, `report.ts` (`writeColumnFormatsReport`) | The four-line cost comparison and its report | Add dialect blocks; the report writer may need a dialect column. |
+| `packages/drizzle-orm/TYPE-COST.md`, section "Side by side: columns as type formats" | Every design attempt with numbers, kept or rejected | Read before optimising anything. |
+
+## Lessons from building pg (read before coding)
+
+Each of these cost a debugging session on pg. They hold for every dialect.
+
+- **No chained modifiers, and no methods on a column type.** The runtype id walks method return
+  types; a chain that returns a new column type per call hits the 512-level depth cap as MKR009.
+- **No alias may carry the builders record as a type argument.** The resolver serializes an
+  aliased type's arguments, so `mysqlTable` / `sqliteTable` / the views must spell the column map
+  and the names map INLINE in their return type, exactly as `pgTable` does. `LiftCols` exists
+  only for the `extraConfig` parameter. It showed only when a builder table was reflected with no
+  hand-written twin reflected first, so test that case. To find which alias spirals, temporarily
+  print the walker's stack where it hits the cap (`classifySpiral` in the Go resolver), then revert.
+- **The table's record constraint is `Record<string, object>`.** A union of column shapes cost
+  663 against 386 for five columns.
+- **Builder props are written-out interfaces**, never `Omit<bag> & runtime keys`.
+- **Const config tuples go through `MutableTuple`** (a mapped type over a bare type parameter),
+  or an enum tuple stops being a tuple and a builder column stops equalling its twin.
+- **The props spelling rule:** a no-argument modifier is `true`, one with arguments is its
+  argument tuple (`default: [21]`, `unique: ['uq_name']`, `primaryKey: [{autoIncrement: true}]`).
+  Only function keys change in the type: `references: [() => tableRef(t, 'id'), actions]` records
+  `{table: 't'; column: 'id'}`, a callback `[fn]` records `true`, `$type: $type<T>()` records `[T]`.
+- **A self-reference needs a return annotation** (TS7022): `(): TableRef<'emps', 'id'> =>
+  tableRef(emps, 'id')`.
+- **A builder table's type records no `extraConfig` entries** (`Extras = []`). A builder table
+  equals its twin only when the twin has no extras; compare columns, names and models otherwise.
+- **A marker call nested inside another marker call's arguments gets no id** unless that fix has
+  landed on main by the time you start (check). Until then, hoist `tableFromType<T>()` to its own
+  line before passing it to `toDrizzle({tables: ...})`.
+- **Declaration emit** fails TS2883 for helper types an inferred table names while `next/` is not
+  exported; `packages/private-type-budget/test/declarationEmit.test.ts` imports them itself.
+  Capture the case's `.d.ts` by file name, not "the last one written".
+- **mysql `toDrizzle` flags.** pg (and sqlite) keep `isPrimaryKey`, `isAutoincrement`,
+  `hasRuntimeDefault` fixed to `false` on purpose; only mysql's `$returningId()` reads them. The
+  mysql `SynthConfig` takes them from `KeyFlagsOf<Spec>` (`packages/drizzle-orm/next/columns.ts`,
+  which already folds in the `autoincrement` base flag and `$default` / `$defaultFn`).
+- **Leave `src/` alone.** It is the shipped system and any edit republishes the package. A real
+  bug found there is fixed in its own commit with its own test, like the pg work did.
+- **Budgets only go down.** Any increase is a reviewed exception, commented where the budget
+  lives with the old and new number and the reason.
+- **Lint-staged runs on commit**: unused consts in a `*.stub.ts` fail eslint, so export them.
+
 ## Plan
 
 ### 0. Core fixes first (`packages/drizzle-orm/next/`)
@@ -43,6 +108,35 @@ excludes it, and `scripts/lib/drizzle-line.mjs` counts only `src/` edits as a pu
   and data helpers. The data type depends on `mode` and `unsigned`, which move from the overload
   generics onto the const props (`int({unsigned: true})` gives `UInt32`).
   `serial` carries base `'notNull' | 'hasDefault' | 'autoincrement'` (`src/columns.ts:488-496`).
+- The mysql builders to port, from `packages/drizzle-orm-mysql-core/src/columns.ts` (kind, config,
+  data; line numbers as of 2026-09-25):
+
+  | Builder | Line | Kind | Config | Data |
+  |---|---|---|---|---|
+  | `bigint` | 161 | int | `{mode, unsigned}`, required | `BigInt64` / `BigUInt64` / `Integer` by mode |
+  | `decimal` | 293 | int | `{mode?, precision, scale, unsigned}` | `Float`, `bigint` or `string` (default) |
+  | `double`, `float` | 318, 338 | int | `{precision, scale, unsigned}` | `Float` |
+  | `real` | 469 | int | `{precision, scale}` | `Float` |
+  | `int` | 358 | int | `{unsigned}` | `Int32` / `UInt32` |
+  | `mediumint`, `smallint`, `tinyint` | 413, 503, 576 | int | `{unsigned}` | bounded ints |
+  | `serial` | 488 | int | none | `PositiveInt`, base `'notNull' \| 'hasDefault' \| 'autoincrement'` |
+  | `binary`, `varbinary` | 190, 611 | common | `{length}` (varbinary required) | `string` |
+  | `boolean` | 205 | common | none | `boolean` |
+  | `char`, `varchar` | 216, 628 | common | `{length, enum}` (varchar required) | `Str` or the enum union |
+  | `date`, `datetime` | 248, 270 | common | `{mode}` / `{mode, fsp}` | `Date` / `StringDate` |
+  | `json` | 379 | common | none | `unknown` |
+  | `text`, `tinytext`, `mediumtext`, `longtext` | 390-609 | common | `{enum}` | `TextDataOf` |
+  | `time` | 538 | common | `{fsp}` | `StringTime` |
+  | `year` | 660 | common | none | bounded number |
+  | `timestamp` | 553 | timestamp | `{mode, fsp}` | `Date` / `StringDate` |
+  | `mysqlEnum` | 450 | common | tuple or enum object, with or without a name | the union |
+  | `customType` | 675 | | | |
+
+  The shipped chain kinds are `RtMyColumn` (67), `RtMyIntColumn` (82, adds `autoincrement`) and
+  `RtMyTimestampColumn` (101, adds `defaultNow`, `onUpdateNow`); the alias constraint bags are
+  `MySqlColMods` (134), `MySqlIntColMods` (144), `MySqlTimestampColMods` (148). `mysqlColumnHelpers`
+  is at 703. What mysql lacks from pg: `array`, identity, `defaultRandom`, `unique` with `nulls`,
+  RLS, materialized views.
 - `mysqlEnum(name?, values, props?)`: a `recordColumn` builder over the shipped one, with a type
   twin (the shipped one has none); `tableFromType` may keep refusing it, like pg's enum.
 - `customType`, as pg's.
@@ -64,6 +158,23 @@ excludes it, and `scripts/lib/drizzle-line.mjs` counts only `src/` edits as a pu
   Builders `blob`, `integer`, `int`, `numeric`, `real`, `text` with their modes
   (`integer({mode: 'timestamp'})` gives `Date`). `integer` and `int` carry base
   `'primaryKeyHasDefault'` (the rowid, `src/columns.ts:143,161`). `customType`.
+- The sqlite builders to port, from `packages/drizzle-orm-sqlite-core/src/columns.ts`:
+
+  | Builder | Line | Modes / config | Data | Base |
+  |---|---|---|---|---|
+  | `blob` | 112-126 | `buffer`, `json`, `bigint` | `Buffer`, `unknown`, `bigint` | |
+  | `integer` | 128-154 | `number`, `boolean`, `timestamp`, `timestamp_ms` | `Integer`, `boolean`, `Date` | `'primaryKeyHasDefault'` |
+  | `int` | 158-172 | same as `integer`, its own alias so it prints back as `int()` | same | `'primaryKeyHasDefault'` |
+  | `numeric` | 174-193 | `string` (default), `number`, `bigint` | | |
+  | `real` | 196-204 | | `Float` | |
+  | `text` | 206-252 | `json`, `enum`, `length` | `unknown`, the union, `Str<{maxLength}>` | |
+  | `customType` | 256-281 | | | |
+
+  The shipped kinds are `RtSqliteColumn` (34; `primaryKey({autoIncrement: true})` sets
+  hasDefault) and `RtSqliteIntColumn` (60; any primary key sets it, the rowid). One alias
+  constraint bag, `SqliteColMods` (87). `sqliteColumnHelpers` is at 284. Cloudflare D1 and durable
+  objects need nothing different at run time; their type pins are
+  `packages/drizzle-orm-sqlite-core/test/type-pins.stub.ts:198-251`.
 - `table.ts`, `views.ts`, `helpers.ts`, `drizzle.ts` as pg's, with `SqliteTable<TName, Cols,
   Extras, Names>`, `sqliteTableCreator`, `sqliteView`.
 - Add `"next"` to `packages/drizzle-orm-sqlite-core/tsconfig.build.json` `exclude`.
@@ -112,6 +223,19 @@ For each of mysql and sqlite, in `test/next/`, mirroring `drizzle-orm-pg-core/te
 - `packages/private-type-budget/test/declarationEmit.test.ts` and `drizzleFreeAuthoring.test.ts`:
   one next case per dialect.
 - `pnpm miondevx core drizzle-translate --to-types` stays green (shipped road untouched).
+
+## How to run
+
+- One dialect's tests: `pnpm exec vitest run --project drizzle-mysql` (or `drizzle-sqlite`,
+  `drizzle-pg`, `drizzle-root` for the core). Type costs: `--project type-budget`.
+- Type check: `pnpm run typecheck:test` inside each touched package (the `tsconfig.json` includes
+  `next/`, the build config excludes it).
+- The resolver fuzz needs the built binary (`pnpm run check:builds`); it skips without it, so
+  check it ran. Replay a fuzz failure with `MION_FUZZ_SEED`, widen with `MION_FUZZ_ITER`.
+- The shipped road must stay green: `pnpm miondevx core drizzle-translate --to-types` reports
+  the same type-error count before and after.
+- Before the PR: `pnpm run lint`, `pnpm run format`, and `pnpm run test:ci` (or `pnpm test`).
+  Label the PR `drizzle-e2e`.
 
 ## Fuzzing
 
