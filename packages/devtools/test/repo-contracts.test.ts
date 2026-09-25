@@ -1910,8 +1910,8 @@ describe('every package under packages/ runs a type check over everything it shi
       'tsconfig.drizzle.json',
       'tsconfig.runtypes.json',
     ]);
-    expect(coverage.projectsOf('router', {}, root)).toEqual(['tsconfig.json']);
-    expect(coverage.projectsOf('router', {build: 'vite build'}, {})).toEqual([]);
+    expect(coverage.projectsOf('rpc-router', {}, root)).toEqual(['tsconfig.json']);
+    expect(coverage.projectsOf('rpc-router', {build: 'vite build'}, {})).toEqual([]);
   });
 
   it('every deliberate omission still names a file that exists', () => {
