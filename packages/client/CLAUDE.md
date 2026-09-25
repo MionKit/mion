@@ -7,13 +7,13 @@
 the first two slots, `BatchResult`). Do not "tidy" the shape or the order: it encodes WHO
 can produce each error, and that is what makes slot 1 a closed, strongly typed union.
 
-| slot | holds                                                          | who produced it                                                                                                                                                                   |
-| ---- | -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0    | the route's value                                              | the route handler, whenever it ran and succeeded                                                                                                                                  |
-| 1    | the route's DECLARED errors + `ValidationError`                | the route (or its param validation), a CLOSED union                                                                                                                               |
-| 2    | `UndeclaredError`, an OPEN `RpcError<string>`                  | anything outside the declared contract: transport (timeout, abort, network), platform, framework, an undeclared throw, an error for a middleware that was not part of the request |
-| 3    | middleware results, by middleware id                           | each middleware sent with the request                                                                                                                                             |
-| 4    | each middleware's DECLARED errors + `ValidationError`, by id   | each middleware, one entry per id so several failures are never collapsed into one                                                                                                |
+| slot | holds                                                        | who produced it                                                                                                                                                                   |
+| ---- | ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0    | the route's value                                            | the route handler, whenever it ran and succeeded                                                                                                                                  |
+| 1    | the route's DECLARED errors + `ValidationError`              | the route (or its param validation), a CLOSED union                                                                                                                               |
+| 2    | `UndeclaredError`, an OPEN `RpcError<string>`                | anything outside the declared contract: transport (timeout, abort, network), platform, framework, an undeclared throw, an error for a middleware that was not part of the request |
+| 3    | middleware results, by middleware id                         | each middleware sent with the request                                                                                                                                             |
+| 4    | each middleware's DECLARED errors + `ValidationError`, by id | each middleware, one entry per id so several failures are never collapsed into one                                                                                                |
 
 Why `undeclared` sits BEFORE the middleware slots, which looks odd at first:
 
