@@ -1,7 +1,7 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-09-25
 ---
 
@@ -29,3 +29,10 @@ None, because this is a test-only change.
 
 - The contract test cannot see fixture files from a concurrent test, with a repeated `devtools-core` run green.
 - The simplify-comments pass ran on every touched source file, committed on its own.
+
+## What shipped (2026-09-25)
+
+Fixed in the same PR as the nested marker call fix, not in a separate session. Five devtools tests, not three, made their fixture dir inside `packages/devtools/test/`: the three wrapper tests plus `references-unbuilt.test.ts` and `downgrade-errors.test.ts`. Each now uses `fs.mkdtempSync(path.join(os.tmpdir(), 'rt-<name>-'))`. Nothing tied them to the package tree: every one copies the marker package in with `writeMarkerPackage`. The contract glob is unchanged. `rewrite.test.ts` still writes `.tmp-modules/` under `test/`, but only `.js` files, which the `*.ts` glob never matches.
+
+Proof: a `.ts` file importing `@mionjs/run-types` left under `test/tmp-*/` fails the contract test; two full `devtools-core` runs after the move were green.
+
