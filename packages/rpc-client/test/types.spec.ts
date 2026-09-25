@@ -15,7 +15,7 @@ import type {
   ClientMiddlewareOf,
   ClientMiddlewares,
   ClientRoutes,
-  HookContext,
+  MiddlewareContext,
   InitClientOptions,
   RouteSubRequest,
 } from '../src/types.ts';
@@ -125,7 +125,7 @@ describe('isolated reusable middleware types', () => {
     const installer = (middleware: ClientMiddlewareOf<typeof csrf>) =>
       middleware.onError('csrf-expired', (error, context) => {
         expectTypeOf(error.type).toEqualTypeOf<'csrf-expired'>();
-        expectTypeOf(context).toEqualTypeOf<HookContext>();
+        expectTypeOf(context).toEqualTypeOf<MiddlewareContext>();
         expectTypeOf(context.retry).returns.toEqualTypeOf<boolean>();
       });
     expect(installer).toBeTypeOf('function');

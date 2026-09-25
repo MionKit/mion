@@ -1193,8 +1193,10 @@ describe('client and router publish their middlewares on a ./middlewares subpath
 
   it('the client installers import the router for types only', () => {
     const dir = join(REPO_ROOT, 'packages/rpc-client/src/middlewares');
-    for (const file of readdirSync(dir)) {
-      const source = readFileSync(join(dir, file), 'utf8');
+    const files = [join(REPO_ROOT, 'packages/rpc-client/middlewares.ts')];
+    if (existsSync(dir)) files.push(...readdirSync(dir).map((file) => join(dir, file)));
+    for (const file of files) {
+      const source = readFileSync(file, 'utf8');
       expect(source, file).not.toMatch(/^import\s+(?!type\b)[^;]*from\s+'@mionjs\/router/m);
     }
   });

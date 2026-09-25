@@ -7,4 +7,5 @@
 
 // Server halves of mion's isolated reusable middlewares; each has a client installer in `@mionjs/client/middlewares`.
 
-export * from './src/middlewares/echoTag.middleware.ts';
+// Empty until mion's first middleware lands here.
+export {};

@@ -6,7 +6,7 @@
  * ######## */
 
 import type {RpcError} from '@mionjs/core';
-import type {ErrorHandler, HookContext, RequestHandler, ResponseHandler, SubRequest} from '../types.ts';
+import type {ErrorHandler, MiddlewareContext, RequestHandler, ResponseHandler, SubRequest} from '../types.ts';
 
 /** A request handler plus the middleware function that turns its params into a sub request */
 export interface RequestHandlerEntry {
@@ -42,7 +42,7 @@ export class HandlersRegistry {
     return handlerMap?.has(errorType) ?? false;
   }
 
-  executeHandler(handlerId: string, error: RpcError<string>, context: HookContext): unknown {
+  executeHandler(handlerId: string, error: RpcError<string>, context: MiddlewareContext): unknown {
     return this.errorHandlers.get(handlerId)?.get(error.type)?.(error, context);
   }
 
@@ -58,7 +58,7 @@ export class HandlersRegistry {
     return this.responseHandlers.has(handlerId);
   }
 
-  executeResponseHandler(handlerId: string, result: any, context: HookContext): unknown {
+  executeResponseHandler(handlerId: string, result: any, context: MiddlewareContext): unknown {
     return this.responseHandlers.get(handlerId)?.(result, context);
   }
 

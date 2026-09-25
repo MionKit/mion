@@ -10,7 +10,7 @@ import type {
   BatchResult,
   ClientCallContext,
   ClientOptions,
-  HookContext,
+  MiddlewareContext,
   MiddlewareSubRequest,
   RequestErrors,
   Result,
@@ -77,10 +77,10 @@ export async function dispatchCall(
       errors = requestErrors;
     }
     const middlewares = getMiddlewareSubRequests(context);
-    const hooks = await runResponseHooks(state, middlewares, errors, retriedBy);
+    const hooks = await runMiddlewareResponses(state, middlewares, errors, retriedBy);
     if (!hooks.retryIds.length) return buildResult(context, middlewares, hooks.errors);
     hooks.retryIds.forEach((id) => retriedBy.add(id));
-    resetForHookRetry(state);
+    resetForMiddlewareRetry(state);
   }
 }
 
@@ -596,52 +596,61 @@ function getMiddlewareSubRequests(context: ClientCallContext): MiddlewareSubRequ
     .map(([, subRequest]) => subRequest as MiddlewareSubRequest<any>);
 }
 
-interface ResponseHooksOutcome {
+interface MiddlewareResponsesOutcome {
   errors: RequestErrors | undefined;
   /** middlewares whose hook asked for a retry that was allowed */
   retryIds: string[];
 }
 
 /** onError fires only for a middleware's declared (returned) errors; thrown ones reach the undeclared slot only */
-async function runResponseHooks(
+async function runMiddlewareResponses(
   state: DispatchState,
   middlewareSubRequests: MiddlewareSubRequest<any>[],
   errors: RequestErrors | undefined,
   retriedBy: ReadonlySet<string>
-): Promise<ResponseHooksOutcome> {
+): Promise<MiddlewareResponsesOutcome> {
   const {context, handlersRegistry} = state;
   const retryIds: string[] = [];
   const pending: Promise<void>[] = [];
   let retrySafe: boolean | undefined;
+  /** Records the retry and says whether it will happen; the rule is worked out once per attempt */
+  const requestRetry = (id: string): boolean => {
+    if (retriedBy.has(id)) return false;
+    retrySafe ??= isRetrySafe(state, errors);
+    if (!retrySafe) return false;
+    if (!retryIds.includes(id)) retryIds.push(id);
+    return true;
+  };
+  // every middleware gets this context, with its own retry
+  const baseContext: MiddlewareContext = {
+    route: context.route,
+    batchSubRequests: context.batchSubRequests,
+    subRequestList: context.subRequestList,
+    options: context.options,
+    signal: context.signal,
+    retry: () => false,
+  };
   for (const middleware of middlewareSubRequests) {
     const id = middleware.id;
     const middlewareError = errors?.get(id);
-    const isErrorHook = !!middlewareError;
-    if (isErrorHook && context.thrownErrorIds.has(id)) continue;
-    if (!isErrorHook && middleware.resolvedValue === undefined) continue;
+    const isErrorHandler = !!middlewareError;
+    if (isErrorHandler && context.thrownErrorIds.has(id)) continue;
+    if (!isErrorHandler && middleware.resolvedValue === undefined) continue;
+    // a retry asked after the handler finished belongs to no attempt
     let isOpen = true;
-    const hookContext = Object.create(context, {
-      retry: {
-        value: (): boolean => {
-          if (!isOpen || retriedBy.has(id)) return false;
-          retrySafe ??= isRetrySafe(state, errors);
-          if (!retrySafe) return false;
-          if (!retryIds.includes(id)) retryIds.push(id);
-          return true;
-        },
-      },
-    }) as HookContext;
-    const hookName = isErrorHook ? 'onError' : 'onResponse';
+    const middlewareContext: MiddlewareContext = {...baseContext, retry: () => isOpen && requestRetry(id)};
+    const handlerName = isErrorHandler ? 'onError' : 'onResponse';
     const fail = (error: unknown) => {
       isOpen = false;
       errors ??= new Map();
-      if (!errors.has(CLIENT_REQUEST_ERROR_ID)) errors.set(CLIENT_REQUEST_ERROR_ID, hookError(hookName, id, error));
+      if (!errors.has(CLIENT_REQUEST_ERROR_ID))
+        errors.set(CLIENT_REQUEST_ERROR_ID, middlewareHandlerError(handlerName, id, error));
     };
     let returned: unknown;
     try {
-      returned = isErrorHook
-        ? handlersRegistry.executeHandler(id, middlewareError, hookContext)
-        : handlersRegistry.executeResponseHandler(id, middleware.resolvedValue, hookContext);
+      returned = isErrorHandler
+        ? handlersRegistry.executeHandler(id, middlewareError, middlewareContext)
+        : handlersRegistry.executeResponseHandler(id, middleware.resolvedValue, middlewareContext);
     } catch (error) {
       fail(error);
       continue;
@@ -660,7 +669,7 @@ async function runResponseHooks(
     );
   }
   if (pending.length) await Promise.all(pending);
-  // a failed hook ends the call: its error is the answer, not a resend
+  // a failed handler ends the call: its error is the answer, not a resend
   if (errors?.has(CLIENT_REQUEST_ERROR_ID) && retryIds.length) retryIds.length = 0;
   return {errors, retryIds};
 }
@@ -681,7 +690,7 @@ function routeSucceeded(context: ClientCallContext, routeId: string, errors: Req
 }
 
 /** Hook-driven retries ask every onRequest again: a hook usually retries because what it sends changed */
-function resetForHookRetry(state: DispatchState): void {
+function resetForMiddlewareRetry(state: DispatchState): void {
   const {context} = state;
   const routeIds = new Set(getRouteIds(context));
   for (const id of Object.keys(context.subRequestList)) {
@@ -700,12 +709,12 @@ function resetForHookRetry(state: DispatchState): void {
 }
 
 /** Kept or wrapped, the error lands in the undeclared slot */
-function hookError(hookName: string, id: string, error: unknown): RpcError<string> {
+function middlewareHandlerError(handlerName: 'onResponse' | 'onError', id: string, error: unknown): RpcError<string> {
   if (isRpcError(error)) return error;
   const message = error instanceof Error ? error.message : String(error);
   return new RpcError({
-    type: 'middleware-hook-failed',
-    publicMessage: `${hookName} for middleware '${id}' failed: ${message}`,
+    type: handlerName === 'onError' ? 'middleware-on-error-failed' : 'middleware-on-response-failed',
+    publicMessage: `${handlerName} for middleware '${id}' failed: ${message}`,
     originalError: error instanceof Error ? error : undefined,
   });
 }
