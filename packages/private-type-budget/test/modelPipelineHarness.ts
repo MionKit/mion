@@ -460,8 +460,11 @@ export function measureConsumerLane(): ConsumerLaneResult {
  *  12883 -> 13560: the API type carries the resolved options and the compiled
  *  types, and every subrequest its route id and API (steps 4 and 5 above).
  *
- *  13560 -> 13597: the router options on the API type and initClient's options slot (steps 4 and 5). **/
-export const PIPELINE_TOTAL_BUDGET = 13597;
+ *  13560 -> 13597: the router options on the API type and initClient's options slot (steps 4 and 5).
+ *
+ *  13597 -> 13614: a REVIEWED EXCEPTION. A refined column keeps its key flags, or toDrizzle loses
+ *  mysql's $returningId() keys and pg's identity (steps 2 and 6, each still within its own budget). **/
+export const PIPELINE_TOTAL_BUDGET = 13614;
 
 /** What a downstream consumer may pay to read the model types out of the
  *  emitted `.d.ts`. ONE-WAY DOWNWARD, same rule as the step budgets. The first

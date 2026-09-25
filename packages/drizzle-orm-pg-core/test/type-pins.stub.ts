@@ -19,6 +19,7 @@ import {refineTableType, sql} from '@mionjs/drizzle-orm';
 import type {InferSelectViewModel} from '@mionjs/drizzle-orm';
 import type {PgDatabase, PgQueryResultHKT} from 'drizzle-orm/pg-core';
 import {toDrizzle} from '../src/drizzle.ts';
+import type {ToDrizzleTable} from '../src/drizzle.ts';
 import type {
   Bigint,
   Boolean as PgBoolean,
@@ -402,3 +403,16 @@ export type _BagPins = [
   _noIdentityOnSerial,
   typeof noIdentityOnSerialBuilders,
 ];
+
+// A refined identity column keeps its key flags, so `.overridingSystemValue()` still re-admits it.
+const identityUsers = pgTable('identity_users', {
+  seq: integer('seq').generatedAlwaysAsIdentity(),
+  name: varchar('name', {length: 100}).notNull(),
+});
+const identityApi = refineTableType(identityUsers, {seq: {max: 1000}});
+type _refinedIdentity = Expect<Equal<ToDrizzleTable<typeof identityApi>['seq']['_']['identity'], 'always'>>;
+export const overridingRefined = db.insert(toDrizzle(identityApi)).overridingSystemValue().values({seq: 5, name: 'a'});
+// the same on the pure-type road
+type TypedIdentityApi = RefinedTable<TwinWideType, {seq: {max: 1000}}>;
+type _refinedTypedIdentity = Expect<Equal<ToDrizzleTable<TypedIdentityApi>['seq']['_']['identity'], 'always'>>;
+export type _RefinedKeyPins = [_refinedIdentity, _refinedTypedIdentity];

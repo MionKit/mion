@@ -14,7 +14,7 @@
         {
           "step": 2,
           "label": "refineTableType",
-          "delta": 1139,
+          "delta": 1141,
           "budget": 1141
         },
         {
@@ -36,7 +36,7 @@
           "budget": 3076
         }
       ],
-      "total": 5769
+      "total": 5771
     },
     {
       "name": "type-only",
