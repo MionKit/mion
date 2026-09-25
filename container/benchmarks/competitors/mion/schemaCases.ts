@@ -171,7 +171,6 @@ export const schemaCases: CompetitorCases = {
   'TUPLE.tuple_multiple_trailing_optionals': () =>
     createValidateFn(RT.tuple({required: [TF.number()], optional: [TF.bigInt(), RT.boolean(), TF.number()]})),
   'TUPLE.tuple_named_labels': () => createValidateFn(RT.tuple({required: [TF.string(), TF.number()]})),
-  'TUPLE.tuple_with_non_serializable': () => createValidateFn(RT.tuple({required: [TF.number(), RT.func({ret: RT.any()})]})),
   'TUPLE.empty_tuple': () => createValidateFn(RT.tuple({})),
   'TUPLE.single_element_tuple': () => createValidateFn(RT.tuple({required: [TF.string()]})),
   'TUPLE.readonly_tuple': () => createValidateFn(RT.tuple({required: [TF.string(), TF.number()]})),

@@ -1090,7 +1090,6 @@ export const cases: CompetitorCases = {
     },
     samples: {invalid: [[], ['Alice'], ['Alice', '30'], [30, 'Alice'], null, 'not array', undefined, [null, 30]]},
   }, // override: ajv {type:number} accepts NaN; drop ['Alice',NaN] from invalid
-  'TUPLE.tuple_with_non_serializable': NOT_SUPPORTED, // function slot must be === undefined; no undefined type in JSON Schema
   'TUPLE.empty_tuple': {
     build: () => {
       const ajv = new Ajv({strict: false, allowUnionTypes: true});

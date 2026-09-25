@@ -130,26 +130,6 @@ export const TUPLE = {
       invalid: [[], ['Alice'], ['Alice', '30'], [30, 'Alice'], null, 'not array', undefined, ['Alice', NaN], [null, 30]],
     }),
   },
-  tuple_with_non_serializable: {
-    title: 'Tuple with a function slot (must be undefined)',
-    description:
-      "the serialization-suite TUPLES.tuple_with_non_serializable. Function-typed tuple members emit `v[i] === undefined` per the non-serializable handling. The function slot must be absent or explicitly undefined; any other value (a real function, a string, …) fails.",
-    getSamples: () => ({
-      // `[3]` is valid — v[1] is undefined which satisfies the
-      // `v[1] === undefined` check the function slot emits.
-      valid: [[3, undefined], [3]],
-      invalid: [
-        [3, () => null],
-        [3, 42],
-        ['not number'],
-        'not array',
-        null,
-        undefined,
-        [3, null], // null is NOT undefined — strict `=== undefined` check
-        [NaN, undefined],
-      ],
-    }),
-  },
   empty_tuple: {
     title: 'Empty tuple `[]` (only the empty array passes)',
     description:
