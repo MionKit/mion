@@ -5,9 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Column types stay shared and nameless in a table; owner metadata exists only on the cols() view, for references().
+// Column types stay shared and nameless in a table; a reference names its target with a TableRef, never a column type.
 
-import type {AnyColumn, ColumnOwner} from './columns.ts';
+import {rtTableKey} from '../src/recorder.ts';
+import type {AnyColumn} from './columns.ts';
 
 /** A table's type: name, the shared column types, extras, and the db names that differ from the key. */
 export interface RtTableMeta<TName extends string, Cols, Extras extends readonly object[] = [], Names = NoNames> {
@@ -34,8 +35,35 @@ export interface RtViewMeta<TName extends string, Cols, Names = NoNames> {
 }
 export type AnyView = RtViewMeta<string, Record<string, AnyColumn>, object>;
 
-/** The columns of a table as a value, each carrying its owner for references(). Identity at run time. */
-export type ColsView<T extends AnyTable> = {[K in keyof T['columns'] & string]: T['columns'][K] & ColumnOwner<T['name'], K>};
-export function cols<T extends AnyTable>(table: T): ColsView<T> {
-  return table as unknown as ColsView<T>;
+/** A reference to one column of another table, as plain data. Takes a table name for a self-reference. */
+export type TableRef<T extends RefTable | string, K extends RefKeyOf<T>> = T extends string
+  ? {table: T; column: K}
+  : {table: (T & RefTable)['name']; column: K};
+// Only what the ref reads: checking a table against AnyTable walks all its columns.
+type RefTable = {name: string; columns: object};
+type RefKeyOf<T> = T extends string ? string : keyof (T & RefTable)['columns'] & string;
+export type AnyTableRef = {table: string; column: string};
+
+/** Hidden key of the live table behind a tableRef() value. */
+const rtRefTargetKey = Symbol('rtRefTarget');
+
+/** `tableRef(teams, 'id')`, for `references: [() => tableRef(teams, 'id')]` and foreignKey columns. */
+export function tableRef<T extends AnyTable, K extends keyof T['columns'] & string>(
+  table: T,
+  column: K
+): {table: T['name']; column: K} {
+  const runtime = (table as unknown as Record<symbol, {name: string} | undefined>)[rtTableKey];
+  if (runtime === undefined) throw new Error('@mionjs/drizzle-orm: tableRef() takes a table built with pgTable()');
+  const ref = {table: runtime.name, column};
+  Object.defineProperty(ref, rtRefTargetKey, {value: table});
+  return ref as {table: T['name']; column: K};
+}
+
+/** The live column a tableRef() value points at. */
+export function refColumn(ref: unknown): unknown {
+  const {column} = ref as AnyTableRef;
+  const table = (ref as Record<symbol, Record<string, unknown> | undefined>)[rtRefTargetKey];
+  if (table === undefined) throw new Error('@mionjs/drizzle-orm: a reference must be written with tableRef(table, column)');
+  if (table[column] === undefined) throw new Error(`@mionjs/drizzle-orm: tableRef() found no column "${column}"`);
+  return table[column];
 }

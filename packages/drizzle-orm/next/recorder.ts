@@ -9,6 +9,7 @@
 
 import {RtColumnRecorder, type DrizzleContext} from '../src/recorder.ts';
 import {isColModName} from '../src/typeColumns.ts';
+import {refColumn} from './table.ts';
 
 /** Record a builder call `(name?, props?)`: `init` builds from the config half, the modifiers replay on it. */
 export function recordColumn(args: unknown[], init: (context: DrizzleContext, callArgs: unknown[]) => unknown): RtColumnRecorder {
@@ -31,7 +32,10 @@ export function recordColumn(args: unknown[], init: (context: DrizzleContext, ca
     // Type-only in drizzle too: nothing to replay.
     if (method === '$type') continue;
     if (value === true) methods[method]();
-    else if (Array.isArray(value)) methods[method](...value);
+    else if (method === 'references' && Array.isArray(value)) {
+      const [target, ...actions] = value as [() => unknown, ...unknown[]];
+      methods[method](() => refColumn(target()), ...actions);
+    } else if (Array.isArray(value)) methods[method](...value);
     else throw new Error(`@mionjs/drizzle-orm: modifier "${method}" takes \`true\` or its argument tuple, got ${String(value)}`);
   }
   return recorder;

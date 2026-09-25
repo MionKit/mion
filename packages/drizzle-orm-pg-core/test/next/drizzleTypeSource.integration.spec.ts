@@ -97,8 +97,7 @@ function renderFixture(rng: () => number, iteration: number): Rendered {
     `import * as NXM from './next/index.ts';\n` +
     `import type {InferSelectModel as CSelect} from '@mionjs/drizzle-orm';\n` +
     `import type {InferSelectModel as NSelect} from '../drizzle-orm/next/models.ts';\n` +
-    // cols(): the owner view the new references() reads.
-    `import {cols} from '../drizzle-orm/next/index.ts';\n` +
+    `import {tableRef} from '../drizzle-orm/next/index.ts';\n` +
     // The shipped helpers for the entries, the side-by-side builders over them.
     `const NXV = {...DBV, ...NXM};\n` +
     `const fzParent = NXV.pgTable('${FUZZ_PARENT_NAME}', {id: NXV.integer('id', {primaryKey: true})});\n` +
