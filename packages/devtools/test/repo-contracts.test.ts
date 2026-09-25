@@ -457,16 +457,35 @@ describe('devtools code never imports @mionjs/run-types', () => {
     return found;
   };
 
+  // Tests running in parallel write fixtures that import run-types on purpose; a scan that saw them failed at random.
+  const isScratchDir = (name: string): boolean => name === 'node_modules' || /^\.?tmp($|[-_.])/.test(name);
+  const runTypesImports = (root: string): string[] =>
+    globSync(['src/**/*.ts', 'test/**/*.ts', 'vitest*.ts'], {cwd: root, exclude: isScratchDir}).flatMap((file) =>
+      importedModules(join(root, file))
+        .filter((specifier) => specifier.startsWith('@mionjs/run-types') || /(^|\/)run-types\//.test(specifier))
+        .map((specifier) => `${file}: ${specifier}`)
+    );
+
   it('in src/, test/ and the vitest configs', () => {
     const devtools = join(REPO_ROOT, 'packages/devtools');
-    const files = globSync(['src/**/*.ts', 'test/**/*.ts', 'vitest*.ts'], {cwd: devtools}).map((file) => join(devtools, file));
-    expect(files.length).toBeGreaterThan(100);
-    const offenders = files.flatMap((file) =>
-      importedModules(file)
-        .filter((specifier) => specifier.startsWith('@mionjs/run-types') || /(^|\/)run-types\//.test(specifier))
-        .map((specifier) => `${file.slice(REPO_ROOT.length + 1)}: ${specifier}`)
-    );
-    expect(offenders).toEqual([]);
+    expect(globSync(['src/**/*.ts', 'test/**/*.ts'], {cwd: devtools}).length).toBeGreaterThan(100);
+    expect(runTypesImports(devtools)).toEqual([]);
+  });
+
+  it('skips scratch fixture dirs but still reports a real test file', () => {
+    const root = mkdtempSync(join(tmpdir(), 'rt-import-contract-'));
+    const offending = `import {getRunTypeId} from '@mionjs/run-types';\n`;
+    for (const dir of ['test/tmp-fixture', 'test/.tmp-modules', 'test/tmp', 'test/nested/tmp_x', 'test/node_modules/pkg']) {
+      mkdirSync(join(root, dir), {recursive: true});
+      writeFileSync(join(root, dir, 'fixture.ts'), offending);
+    }
+    writeFileSync(join(root, 'test/real.test.ts'), offending);
+    mkdirSync(join(root, 'test/tmpl'), {recursive: true});
+    writeFileSync(join(root, 'test/tmpl/helper.ts'), offending);
+    expect(runTypesImports(root).sort()).toEqual([
+      'test/real.test.ts: @mionjs/run-types',
+      'test/tmpl/helper.ts: @mionjs/run-types',
+    ]);
   });
 });
 

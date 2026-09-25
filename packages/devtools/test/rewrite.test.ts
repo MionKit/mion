@@ -1,6 +1,7 @@
 import {describe, expect} from 'vitest';
 import path from 'node:path';
 import fs from 'node:fs';
+import os from 'node:os';
 import {spawnSync} from 'node:child_process';
 import {ReflectionKind, type RunType} from '../src/core/protocol.ts';
 import {
@@ -365,7 +366,7 @@ const myAPI = getRunTypeId(routes);
 `,
     },
     async (sources) => {
-      const tmpDir = path.join(__dirname, '.tmp-modules');
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-rewrite-modules-'));
       const handshake = JSON.stringify({sources: {...MARKER_PACKAGE_OVERLAY, 'router.ts': sources['router.ts']}}) + '\n';
       const request = JSON.stringify({op: 'scanFiles', files: ['router.ts']}) + '\n';
       const out = spawnSync(
