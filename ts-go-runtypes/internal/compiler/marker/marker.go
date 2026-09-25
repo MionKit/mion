@@ -260,10 +260,8 @@ func (opts Options) DeclaredInMarkerPackage(symbol *ast.Symbol) bool {
 	return DeclaredInAnyModule(symbol, opts.PackageSet(), opts.FS)
 }
 
-// DetectAny matches a parameter type against every configured marker spec, returning the matching
-// Kind and the brand's type argument. With a non-nil typeChecker, a failed alias-name match falls
-// back to the spec's BrandProperty: CompTimeArgs<A|B> distributes the intersection over the union,
-// and a user alias over a marker renames it, both dropping the alias name while the brand survives.
+// DetectAny returns the Kind and type argument of the marker paramType matches.
+// With a typeChecker it falls back to the brand property: a user alias or CompTimeArgs<A|B> drops the alias name.
 func DetectAny(typeChecker *checker.Checker, paramType *checker.Type, opts Options) (Kind, *checker.Type, bool) {
 	if paramType == nil {
 		return 0, nil, false
@@ -363,9 +361,8 @@ func matchedByBrand(typeChecker *checker.Checker, paramType *checker.Type, spec 
 	return hasBrandProperty(typeChecker, paramType, spec.BrandProperty)
 }
 
-// typeArgumentFromBrand recovers T of an injection marker whose alias name was lost to a user alias
-// (`type Slot<T> = InjectRunTypeId<T>`), from the type of its phantom brand property. nil unless the
-// trusted marker package declared that property, so a project's own look-alike brand stays inert.
+// typeArgumentFromBrand recovers T from the phantom brand when a user alias hid the marker's alias name.
+// nil unless the trusted marker package declared the brand, so a project's own look-alike stays inert.
 func typeArgumentFromBrand(typeChecker *checker.Checker, paramType *checker.Type, spec Spec, opts Options) *checker.Type {
 	if spec.Kind != KindInjectRunTypeId && spec.Kind != KindInjectTypeFnArgs {
 		return nil
@@ -373,8 +370,7 @@ func typeArgumentFromBrand(typeChecker *checker.Checker, paramType *checker.Type
 	return trustedBrandType(typeChecker, paramType, spec.BrandProperty, opts)
 }
 
-// trustedBrandType reads a brand property declared by the trusted marker package, without the
-// `undefined` its optional modifier adds (null and an exactOptionalPropertyTypes undefined survive).
+// trustedBrandType drops the `undefined` an optional brand adds; null and an exactOptionalPropertyTypes undefined survive.
 func trustedBrandType(typeChecker *checker.Checker, paramType *checker.Type, brandProperty string, opts Options) *checker.Type {
 	members := []*checker.Type{paramType}
 	if checker.Type_flags(paramType)&checker.TypeFlagsUnion != 0 {
@@ -442,9 +438,8 @@ func matchAliasSpec(tsType *checker.Type, spec Spec, opts Options) (*checker.Typ
 	return typeArguments[0], true
 }
 
-// FnKeysForInjectTypeFnArgs returns the string-literal Fn type-arguments (every argument after `T`)
-// of an InjectTypeFnArgs<T, F1, F2, …> alias, in declaration order — one fnId per named family at a
-// createX call site. ok is false when paramType is not that alias or no Fn argument is a literal.
+// FnKeysForInjectTypeFnArgs returns the literal Fn arguments of InjectTypeFnArgs<T, F1, …> in declaration order.
+// Each becomes one fnId at the createX call site.
 func FnKeysForInjectTypeFnArgs(typeChecker *checker.Checker, paramType *checker.Type, opts Options) ([]string, bool) {
 	if paramType == nil {
 		return nil, false
@@ -457,8 +452,7 @@ func FnKeysForInjectTypeFnArgs(typeChecker *checker.Checker, paramType *checker.
 	if keys, ok := fnKeysFromAlias(paramType, spec, opts); ok {
 		return keys, true
 	}
-	// An optional `id?:` parameter resolves to `InjectTypeFnArgs<…> | undefined`, so the alias rides
-	// on the non-undefined union member — mirror DetectAny's union-member walk to find it.
+	// An optional `id?:` resolves to `InjectTypeFnArgs<…> | undefined`: the alias sits on a member, as in DetectAny.
 	if checker.Type_flags(paramType)&checker.TypeFlagsUnion != 0 {
 		for _, member := range paramType.Types() {
 			if keys, ok := fnKeysFromAlias(member, spec, opts); ok {
@@ -469,8 +463,7 @@ func FnKeysForInjectTypeFnArgs(typeChecker *checker.Checker, paramType *checker.
 	return fnKeysFromBrand(typeChecker, paramType, opts)
 }
 
-// fnKeysFromBrand reads the Fn keys off the trusted `__rtInjectTypeFnArgsFns` tuple, for a marker
-// whose alias name was lost to a user alias.
+// fnKeysFromBrand reads the Fn keys off the brand tuple when a user alias hid the marker's alias name.
 func fnKeysFromBrand(typeChecker *checker.Checker, paramType *checker.Type, opts Options) ([]string, bool) {
 	if typeChecker == nil {
 		return nil, false
@@ -482,9 +475,7 @@ func fnKeysFromBrand(typeChecker *checker.Checker, paramType *checker.Type, opts
 	return stringLiterals(checker.Checker_getTypeArguments(typeChecker, fnsTuple))
 }
 
-// fnKeysFromAlias reads the Fn type-arguments of an InjectTypeFnArgs alias as string-literal values.
-// Non-literal slots (the `never`-defaulted F2/F3 when the caller supplied fewer keys) are skipped,
-// so one reader handles every arity. ok is false without at least one string-literal Fn argument.
+// fnKeysFromAlias reads the literal Fn type-arguments of an InjectTypeFnArgs alias, whatever its arity.
 func fnKeysFromAlias(tsType *checker.Type, spec Spec, opts Options) ([]string, bool) {
 	alias, ok := aliasForSpec(tsType, spec, opts)
 	if !ok {
@@ -497,8 +488,7 @@ func fnKeysFromAlias(tsType *checker.Type, spec Spec, opts Options) ([]string, b
 	return stringLiterals(typeArguments[1:])
 }
 
-// stringLiterals returns the string-literal values among fnTypes, skipping anything else (the
-// `never`-defaulted Fn slots). ok is false without at least one.
+// stringLiterals skips non-literals (the `never`-defaulted Fn slots when fewer keys are given); ok is false without one.
 func stringLiterals(fnTypes []*checker.Type) ([]string, bool) {
 	var keys []string
 	for _, fnType := range fnTypes {

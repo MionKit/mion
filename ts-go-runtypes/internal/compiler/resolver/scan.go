@@ -471,9 +471,8 @@ func (state scanState) analyzeCall(file string, call *ast.Node) ([]pendingCall, 
 		if !matched {
 			continue
 		}
-		// A nil typeArg on an INJECTION marker means the brand PROPERTY matched but an untrusted package declared
-		// it (a trusted brand yields its type even through a user alias), usually a near miss. The call still
-		// emits a site, but for `unknown` instead of the user's type, so say so. Free on the hot path.
+		// A nil typeArg on an injection marker means an untrusted package declared the brand, usually a near miss.
+		// The site still emits, but for `unknown` instead of the user's type, so say so.
 		if typeArg == nil && (kind == marker.KindInjectRunTypeId || kind == marker.KindInjectTypeFnArgs) {
 			if nearMissDiag, found := state.nearMissDiagnostic(file, call, paramType); found {
 				diags = append(diags, nearMissDiag)

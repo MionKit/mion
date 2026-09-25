@@ -162,9 +162,7 @@ const d = nameOf({kind: 'node', value: 42});
   );
 
   // ---- 17g: marker wrapped in a user alias -------------------------------
-  //
-  // `type Slot<T> = InjectRunTypeId<T>` hides the marker's alias name. The
-  // wrapped slot must still inject the id of T, never the id of `unknown`.
+  // `type Slot<T> = InjectRunTypeId<T>` hides the marker's alias name; the slot must still inject T, not `unknown`.
 
   runTest(
     '17g static: marker wrapped in a user alias injects the id of T',
