@@ -1,7 +1,7 @@
 ---
 type: chore
 spec: guidelines
-status: ready
+status: done
 created: 2026-09-25
 ---
 
@@ -34,3 +34,13 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
 - `lib/` helpers take the call context.
 - All client tests pass unchanged (client, bundled and mixed projects), plus `pnpm test` and `pnpm run lint`.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source file, each committed on its own.
+
+## Plan (approved 2026-09-25), as shipped
+- `packages/client/src/callContext.ts`: `ClientCallContext` (extends the public `CallContext` with `path`, `requestId`, a mutable `subRequestList`, `thrownErrorIds`, `response`), built as a plain object by `createCallContext`. Helpers are plain functions: `addSubRequest`, `getRouteIds`, `getRoutePointers`. `batchId` only feeds the batch `path`.
+- `packages/client/src/dispatch.ts`: `dispatchCall(context, handlersRegistry)` runs the call, the middleware `onResponse` / `onError` hooks and `buildResult`; `dispatchTypeErrors(options, subRequests)` replaces `validateParams`. The retry flags live in a per-call `DispatchState`, never on the context. `isMiddlewareInScope` moved here.
+- Header wire helpers (`extractRequestHeaders`, `reconstructHeadersSubsetFromResponse`) moved to `lib/headers.ts`.
+- `MionClient` keeps its name (it is the client instance; the proxy is `MethodProxy`). `execute` composes the signal, creates the context and calls `dispatchCall`; it no longer builds results.
+- `lib/serializer.ts`, `lib/validation.ts`, `lib/sanitize.ts` take the public `CallContext`.
+- `request.ts` is gone; `index.ts` exports the two new modules instead, so `MionClientRequest` left the public exports.
+- Tests: existing client tests unchanged except the `isMiddlewareInScope` import path. New test in `test/onRequest.spec.ts` pins the hook context as a plain object with no methods and no retry keys.
+- Public `CallContext` fields did not change, so no docs change.
