@@ -26,6 +26,8 @@ import {sql as slimSql, buildRtTableFromGraph} from '@mionjs/drizzle-orm';
 import * as slim from '../src/index.ts';
 import {pgBuildTable} from '../src/table.ts';
 import {toDrizzle} from '../src/drizzle.ts';
+import * as next from '../next/index.ts';
+import {buildRtTableFromGraph as buildNextTableFromGraph} from '../../drizzle-orm/next/fromType.ts';
 import {
   buildTable,
   buildView,
@@ -33,6 +35,7 @@ import {
   makeViewSpec,
   project,
   projectView,
+  syntheticNextTableGraph,
   syntheticTableGraph,
   typeRoadReduce,
   type Surface,
@@ -50,6 +53,15 @@ const slimSurface: Surface = {
   table: (name, columns, extra) => slim.pgTable(name as never, columns as never, extra as never),
   parent: slimSurfaceParent as never,
 };
+// The side-by-side builders: the same call shapes, so the shipped helpers fill in the entries.
+const nextSurfaceParent = next.pgTable('fuzz_parents', {id: next.integer('id').primaryKey()});
+const nextSurface: Surface = {
+  ns: {...slim, ...next} as never,
+  sql: slimSql as never,
+  table: (name, columns, extra) => next.pgTable(name as never, columns as never, extra as never),
+  parent: nextSurfaceParent as never,
+};
+
 const rawSurface: Surface = {
   ns: dzPg as never,
   sql: dzSql as never,
@@ -69,6 +81,10 @@ describe('pg slim surface — fuzz: toDrizzle equals raw drizzle for random tabl
       const detail = `iteration ${iteration}, seed ${seed} (set MION_FUZZ_SEED=${BASE_SEED} to replay)\nspec: ${JSON.stringify(spec)}`;
       const rawProjection = project(rawTable);
       expect(project(toDrizzle(slimTable as never)), detail).toEqual(rawProjection);
+      // Surface 2: the side-by-side builders over the same spec.
+      expect(project(toDrizzle(buildTable(nextSurface, spec, tableName) as never)), `next builders\n${detail}`).toEqual(
+        rawProjection
+      );
       // Surface 1b: a random manual VIEW over the same generated column kinds,
       // through the same compare-to-a-trusted-source oracle. Not `.existing()`
       // iterations embed the parent table, so reference resolution is
@@ -93,6 +109,14 @@ describe('pg slim surface — fuzz: toDrizzle equals raw drizzle for random tabl
         expect(project(toDrizzle(bridged as never)), `type-road surface\n${detail}\nreduced: ${JSON.stringify(reduced)}`).toEqual(
           project(rawReduced)
         );
+        // Surface 4: the side-by-side reader over the same spec in the new reflected shape.
+        const nextBridged = buildNextTableFromGraph(syntheticNextTableGraph(reduced, reducedName), pgBuildTable, {
+          tables: {fuzz_parents: nextSurfaceParent as object},
+        });
+        expect(
+          project(toDrizzle(nextBridged as never)),
+          `next type-road surface\n${detail}\nreduced: ${JSON.stringify(reduced)}`
+        ).toEqual(project(rawReduced));
       }
     }
     // The third surface must actually run — a generator drift that stops
