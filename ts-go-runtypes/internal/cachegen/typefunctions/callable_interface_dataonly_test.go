@@ -10,9 +10,9 @@ import (
 )
 
 // F2: a callable interface (an object literal carrying a call signature) is
-// function-like everywhere — DataOnly strips it to `never`. validate guards it
-// with `typeof === 'function'` at the ROOT; the serializers alwaysThrow at the
-// root and drop it at a property, exactly like a bare function. Before the fix
+// function-like everywhere — DataOnly strips it to `never`. Every family,
+// validate included, alwaysThrows at the root and drops it at a property,
+// exactly like a bare function. Before the fix
 // the serializers walked it as a plain object and serialized its data props,
 // disagreeing with validate (the cross-family inconsistency the fuzzer found).
 
@@ -42,9 +42,9 @@ func TestCallableInterface_FunctionLikeAtRoot(t *testing.T) {
 		}
 	}
 
-	// validate treats it as a function — same as a bare function at the root.
-	if out := renderModule(t, dump, "validate"); !strings.Contains(out, "=== 'function'") {
-		t.Errorf("validate of a root callable interface should use a typeof-function guard; got:\n%s", renderModule(t, dump, "validate"))
+	// validate refuses it like a bare function at the root.
+	if out := renderModule(t, dump, "validate"); strings.Contains(out, "=== 'function'") || !strings.Contains(out, "_cal','objectLiteral',,,,,,'") {
+		t.Errorf("validate of a root callable interface should alwaysThrow; got:\n%s", out)
 	}
 }
 

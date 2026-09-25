@@ -312,10 +312,8 @@ func (ValidationErrorsEmitter) emitKindDefault(rt *reflection.RunType, ctx *Emit
 		}
 
 	case reflection.KindRegexp:
-		return RTCode{
-			Code: "if (!(" + v + " instanceof RegExp)) " + callRTErr(ctx, "regexp", ""),
-			Type: CodeS,
-		}
+		// Refused like validate: DataOnly strips RegExp.
+		return RTCode{Code: "", Type: CodeNS}
 
 	case reflection.KindLiteral:
 		return emitLiteralValidationErrors(rt, ctx)
@@ -373,11 +371,8 @@ func (ValidationErrorsEmitter) emitKindDefault(rt *reflection.RunType, ctx *Emit
 		return RTCode{Code: "", Type: CodeNS}
 
 	case reflection.KindPromise:
-		// Thenable check; the wrapped T is not validated synchronously.
-		return RTCode{
-			Code: "if (!(typeof " + v + " === 'object' && " + v + " !== null && typeof " + v + ".then === 'function')) " + callRTErr(ctx, "promise", ""),
-			Type: CodeS,
-		}
+		// Refused like validate: DataOnly strips a thenable.
+		return RTCode{Code: "", Type: CodeNS}
 
 	case reflection.KindObjectLiteral:
 		return emitObjectValidationErrors(rt, ctx, v)
@@ -390,11 +385,8 @@ func (ValidationErrorsEmitter) emitKindDefault(rt *reflection.RunType, ctx *Emit
 
 	case reflection.KindFunction, reflection.KindMethod,
 		reflection.KindMethodSignature, reflection.KindCallSignature:
-		// Children (params, return) aren't validated here; the whole shape is treated as opaque-callable.
-		return RTCode{
-			Code: "if (typeof " + v + " !== 'function') " + callRTErr(ctx, rtTypeNameForKind(rt.Kind), ""),
-			Type: CodeS,
-		}
+		// Refused like validate: DataOnly strips every callable.
+		return RTCode{Code: "", Type: CodeNS}
 
 	case reflection.KindTuple:
 		return emitTupleValidationErrors(rt, ctx, v)
@@ -487,28 +479,15 @@ func emitLiteralValidationErrors(rt *reflection.RunType, ctx *EmitContext) RTCod
 	}
 }
 
-// emitObjectValidationErrors builds the object-shape statement: a `typeof === 'object' && !== null` guard (or
-// `typeof === 'function'` for a callable interface) that records one error on mismatch, else each child's own error statements.
+// emitObjectValidationErrors builds the object-shape statement: a `typeof === 'object' && !== null` guard that records one error
+// on mismatch, else each child's own error statements.
 // Children are filtered as in emitObjectValidate: static and method-shaped kinds dropped, a function-typed property dropped
 // through its own empty emit.
 // When nothing contributing is required, the guard gains the `[object Object]` brand clause so arrays / Date / Map / Set are
-// rejected rather than slipping through the bare `typeof === 'object'`. Suppressed for callable shapes (a Function, not an Object).
+// rejected rather than slipping through the bare `typeof === 'object'`.
 func emitObjectValidationErrors(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
-	var callSigChild *reflection.RunType
-	for _, child := range rt.Children {
-		resolved := ctx.ResolveRef(child)
-		if resolved == nil {
-			continue
-		}
-		if resolved.Kind == reflection.KindCallSignature {
-			callSigChild = child
-			break
-		}
-	}
-
-	// A callable interface at a NON-root position is function-like: CodeNS lets the parent handle it like any other
-	// function-valued child (matching validate and the serializers, F2). At the ROOT the typeof-function guard below applies.
-	if callSigChild != nil && !ctx.IsRoot() {
+	// Refused like validate: a callable interface is function-like at every position.
+	if objectCallSignatureChild(rt, ctx) != nil {
 		return RTCode{Code: "", Type: CodeNS}
 	}
 
@@ -557,16 +536,11 @@ func emitObjectValidationErrors(rt *reflection.RunType, ctx *EmitContext, v stri
 	}
 	childrenCode := strings.Join(childrenParts, ";")
 
-	var objectCheck string
-	if callSigChild != nil {
-		objectCheck = "typeof " + v + " === 'function'"
-	} else {
-		objectCheck = "typeof " + v + " === 'object' && " + v + " !== null"
-	}
+	objectCheck := "typeof " + v + " === 'object' && " + v + " !== null"
 	// Same guard, same condition as emitObjectValidate: without it a `{}` validator accepts `[]`, `new Date()` or `new Map()`,
 	// and an index-signature object accepts them too (a for-in enumerates nothing, so the per-key check is vacuous).
 	// The two families must answer alike or the createValidateFn / createGetValidationErrorsFn agreement breaks (fuzz oracle O4).
-	if callSigChild == nil && objectNeedsBrandGuard(hasContributingChild, allOptional, hasIndexSig, hasArrayProofRequiredProp) {
+	if objectNeedsBrandGuard(hasContributingChild, allOptional, hasIndexSig, hasArrayProofRequiredProp) {
 		objectCheck = objectCheck + " && !Array.isArray(" + v + ") && Object.prototype.toString.call(" + v + ") === '[object Object]'"
 	}
 
@@ -574,14 +548,11 @@ func emitObjectValidationErrors(rt *reflection.RunType, ctx *EmitContext, v stri
 	if rt.Kind == reflection.KindClass {
 		expected = "class"
 	}
-	if callSigChild != nil {
-		expected = "function"
-	}
 
 	// Runs AFTER the property errors, inside the `else` where `v` is a non-null object, so entries interleave per node.
 	// emitsUnknownKeyCheck decides, the same call emitObjectValidate makes.
 	unknownKeyErrors := ""
-	if emitsUnknownKeyCheck(rt, ctx, callSigChild) {
+	if emitsUnknownKeyCheck(rt, ctx, nil) {
 		// Arrays excluded HERE and nowhere else in this family. emitObjectValidate's `&&` chain short-circuits on a failed property
 		// check, so it never reaches the key scan on an array; this family reports everything instead of stopping at the first
 		// failure, and would list an array's indices as undeclared keys.
@@ -878,6 +849,10 @@ func emitTemplateLiteralValidationErrors(rt *reflection.RunType, ctx *EmitContex
 // registerRTLookup records a CROSS-family edge: module.go's per-fn dangling-dep cascade cannot satisfy a validate dep ref.
 // dispatch.go's cross-family fixpoint renders the entry, variant included, so no demand plumbing is needed here.
 func emitUnionValidationErrors(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
+	// DataOnly = never: compile one member so the walker latches its leaf and this family throws like validate.
+	if members := dataOnlyUnionMembers(rt, ctx); len(members) > 0 && isStrippedUnionMember(ctx.ResolveRef(members[0])) {
+		return ctx.CompileChild(members[0], CodeS)
+	}
 	// Under checkUnknowns the plain validator accepts an undeclared key, so the strict error function must ask validateStrict.
 	// CrossFamilyVariantHash keys it under the walker's variant, so a strict `numberMode` site reaches the matching entry.
 	checkOp := "validate"

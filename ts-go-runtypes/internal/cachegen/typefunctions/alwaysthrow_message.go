@@ -27,7 +27,8 @@ func init() {
 	registerRootThrow("decoded", "from JSON",
 		diagnostics.CodeRJNeverRoot, diagnostics.CodeRJNonSerializableRoot, diagnostics.CodeRJFunctionRoot, diagnostics.CodeRJSymbolRoot)
 	registerRootThrow("validated", "",
-		diagnostics.CodeVLNonSerializableRoot, diagnostics.CodeVLSymbolRoot, diagnostics.CodeVENonSerializableRoot, diagnostics.CodeVESymbolRoot)
+		diagnostics.CodeVLNonSerializableRoot, diagnostics.CodeVLSymbolRoot, diagnostics.CodeVLFunctionRoot,
+		diagnostics.CodeVENonSerializableRoot, diagnostics.CodeVESymbolRoot, diagnostics.CodeVEFunctionRoot)
 }
 
 // alwaysFailSuffix is the shared consequence clause: the type can NEVER work with this family.

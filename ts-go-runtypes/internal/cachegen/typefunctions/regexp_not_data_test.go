@@ -10,10 +10,9 @@ import (
 )
 
 // A RegExp value is not data: a pattern is code the receiver would run, so it
-// never rides the wire. Every serialization family treats it exactly like a
-// function-valued position — dropped at a property with the …015 Warning, an
-// alwaysThrow factory at a root — while validate / validationErrors keep the
-// `instanceof RegExp` check (a root `createValidateFn<RegExp>()` still works).
+// never rides the wire. Every family, validate included, treats it exactly like
+// a function-valued position — dropped at a property with the …015 Warning, an
+// alwaysThrow factory at a root.
 
 func mkRegexp() *reflection.RunType {
 	return &reflection.RunType{ID: "re", Kind: reflection.KindRegexp}
@@ -65,21 +64,6 @@ func TestRegexp_RootFailsEverySerializationFamily(t *testing.T) {
 		}
 		if len(got.Args) == 0 || got.Args[0] != "RegExp" {
 			t.Errorf("[%s] the diagnostic must name the kind `RegExp`; args=%v", fam, got.Args)
-		}
-	}
-}
-
-func TestRegexp_ValidateKeepsTheIdentityCheck(t *testing.T) {
-	for _, fam := range []string{"validate", "validationErrors"} {
-		dump := protocol.Dump{RunTypes: []*reflection.RunType{mkRegexp()}}
-		out, sink := renderWithDiag(t, dump, fam, "re")
-		if !strings.Contains(out, "instanceof RegExp") {
-			t.Errorf("[%s] a root RegExp must still validate by identity; got:\n%s", fam, out)
-		}
-		for _, d := range sink {
-			if d.Severity == diagnostics.SeverityError {
-				t.Errorf("[%s] a root RegExp must not fail the build for the validators, got %s", fam, d.Code)
-			}
 		}
 	}
 }
