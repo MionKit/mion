@@ -8,7 +8,6 @@
 // ########################################## METHODS METADATA ##########################################
 
 import {FnsDataCache, PureFnsDataCache, JitCompiledFunctions, ResolvedParser} from './general.types.ts';
-import type {FatalError} from '../errors.ts';
 
 /** Shared between client and server, with no dependency on the handler itself. */
 export interface MethodMetadata {
@@ -91,19 +90,6 @@ export interface SerializableMethodsData {
   /** Ids of the batches the server has registered, listed when all methods are requested */
   batches?: string[];
 }
-
-/** One type for both route sync refusals: the encoder cannot tell two `FatalError`s in a union apart */
-export type RouteSyncError = FatalError<'route-types-mismatch' | 'route-sync-required', RouteSyncErrorData>;
-
-export interface RouteSyncErrorData {
-  /** 'route-types-mismatch': the routes whose ids differ */
-  routeIds?: string[];
-  /** 'route-sync-required': the rows of the called routes and their chains, so the client can compute the ids */
-  metadata?: SerializableMethodsData;
-}
-
-/** The route sync middleware's handler, typed here so the client installer needs no router import */
-export type SyncRoutesHandler = (ctx: any, routeSyncIds?: string[]) => RouteSyncError | void;
 
 export interface HeadersMethodWithJitFns extends HeadersMetaData {
   jitFns: Pick<JitCompiledFunctions, 'isType' | 'typeErrors'>;

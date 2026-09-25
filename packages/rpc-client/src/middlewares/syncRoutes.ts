@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {SyncRoutesHandler} from '@mionjs/core';
+import type {SyncRoutesHandler} from '@mionjs/core/middlewares';
 import type {CallContext, ClientMiddlewareOf} from '../types.ts';
 import {getMethod, isBundledMethod} from '../lib/methods.ts';
 import {loadMetadataFromServer} from '../lib/metadataFromServerLoader.ts';
