@@ -13,8 +13,6 @@ import type {
   CallContext,
   ClientMiddleware,
   ClientMiddlewareOf,
-  ClientMiddlewares,
-  ClientRoutes,
   MiddlewareContext,
   InitClientOptions,
   RouteSubRequest,

@@ -88,7 +88,7 @@ describe('middleware onRequest', () => {
     const context = contexts[0] as unknown as Record<string, unknown>;
     expect(Object.getPrototypeOf(context)).toBe(Object.prototype);
     expect(Object.values(context).filter((value) => typeof value === 'function')).toEqual([]);
-    const retryKeys = ['purgedStaleMetadata', 'retriedAfterMismatch', 'verifying', 'resentWithSyncIds', 'askedRequestHandlers'];
+    const retryKeys = ['purgedStaleMetadata', 'retriedAfterMismatch', 'verifying', 'askedRequestHandlers'];
     expect(retryKeys.filter((key) => key in context)).toEqual([]);
   });
 

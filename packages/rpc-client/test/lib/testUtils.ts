@@ -6,6 +6,7 @@
  * ######## */
 
 import {routesCache} from '@mionjs/core';
+import type {MethodWithOptions} from '@mionjs/core';
 import {resetJitFnCaches, resetJitFunctionsCache} from '@mionjs/core/testing';
 import {resetMetadataCacheState} from '../../src/lib/clientMethodsMetadata.ts';
 
@@ -17,4 +18,20 @@ export function resetClientCaches() {
   resetJitFnCaches();
   resetJitFunctionsCache();
   resetMetadataCacheState();
+}
+
+/** A route's metadata row with just what the client reads to send and check it. */
+export function methodRow(id: string, syncId?: string, paramsJitHash = `p-${id}`, returnJitHash = `r-${id}`): MethodWithOptions {
+  return {
+    id,
+    type: 1,
+    paramsJitHash,
+    returnJitHash,
+    syncId,
+    pointer: [id],
+    nestLevel: 0,
+    isAsync: false,
+    hasReturnData: true,
+    options: {},
+  } as unknown as MethodWithOptions;
 }

@@ -24,6 +24,7 @@ import {getMethod, isBundledMethod, resetBundledMethods, setBundledMethod} from 
 import {resetRoutesCache} from '@mionjs/core';
 import type {MethodWithOptions, MethodWithOptsAndJitFns} from '@mionjs/core';
 import type {ClientOptions} from '../../src/types.ts';
+import {methodRow} from './testUtils.ts';
 import {unverifiedIds, verifyMethodRows, resetApiVersionRecovery, rowsAgree} from '../../src/lib/apiVersionRecovery.ts';
 
 describe('a version mismatch belongs to the server that answered', () => {
@@ -50,19 +51,7 @@ describe('a version mismatch belongs to the server that answered', () => {
 describe('a row the server no longer agrees with', () => {
   const options = {baseURL: 'http://one', storageEngine: 'memory'} as ClientOptions;
   let store: MemoryMetadataStore;
-  const row = (syncId: string) =>
-    ({
-      id: 'sum',
-      type: 1,
-      paramsJitHash: syncId,
-      returnJitHash: 'r',
-      syncId,
-      pointer: ['sum'],
-      nestLevel: 0,
-      isAsync: false,
-      hasReturnData: true,
-      options: {},
-    }) as unknown as MethodWithOptions;
+  const row = (syncId: string) => methodRow('sum', syncId, syncId, 'r');
   const storedSyncIds = async () =>
     (await store.readAll(options.baseURL))
       .filter((record) => record.kind === 'm')
