@@ -21,6 +21,9 @@ import type {
   StringDateTime,
   UInt8,
 } from '@mionjs/run-types/formats';
+import {refineTableType} from '@mionjs/drizzle-orm';
+import type {MySqlDatabase, MySqlQueryResultHKT, PreparedQueryHKTBase} from 'drizzle-orm/mysql-core';
+import {toDrizzle} from '../src/drizzle.ts';
 import type {ColDataOf, InferInsertModel, InferSelectModel, InferSelectViewModel, InferUpdateModel} from '@mionjs/drizzle-orm';
 import type {Bigint, Int, MysqlTable, Real, Text, Timestamp, Tinyint, Varchar, Year} from '../src/index.ts';
 import {
@@ -226,3 +229,14 @@ export type _BagPins = [
   _realAutoincrementConverges,
   _realAutoincrementOptional,
 ];
+
+// A refined serial primary key keeps its key flags, so `$returningId()` still returns it.
+const keyedUsers = mysqlTable('keyed_users', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', {length: 50}).notNull(),
+});
+const keyedApi = refineTableType(keyedUsers, {id: {max: 1000}});
+declare const myDb: MySqlDatabase<MySqlQueryResultHKT, PreparedQueryHKTBase>;
+export const returnedIds = myDb.insert(toDrizzle(keyedApi)).values({name: 'a'}).$returningId();
+type _refinedReturningId = Expect<Equal<Awaited<typeof returnedIds>, {id: number}[]>>;
+export type _RefinedKeyPins = [_refinedReturningId];

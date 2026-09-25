@@ -10,7 +10,8 @@
 // applied to the flat column brand instead of drizzle column configs (4365 net instantiations to ~380).
 
 import type {MergeFormat, RefinableParamsOf} from '@mionjs/run-types/formats';
-import type {ColBrandOf, ColDataOf, RtColumnBrand} from './recorder.ts';
+import type {rtColumnKey, rtColumnKeyFlagsKey} from './recorder.ts';
+import type {ColDataOf, RtColumnBrand} from './recorder.ts';
 import type {AnyRtTable, ColsOf} from './table.ts';
 
 /** Only format-carrying columns are refinable: a passthrough boolean/json/enum column refines to
@@ -27,19 +28,34 @@ export type RtRefinedColumn<
   InsertExcluded extends boolean,
 > = RtColumnBrand<Data, NotNull, HasDefault, InsertExcluded>;
 
-// RtColumnBrand spelled directly (not the RtRefinedColumn alias): one fewer alias instantiation per
-// refined column, and the three flags come off ONE payload read rather than one probe each.
-type RefinedBrand<Brand, Params> = Brand extends {
-  data: infer Data;
-  notNull: infer NotNull extends boolean;
-  hasDefault: infer HasDefault extends boolean;
-  insertExcluded: infer InsertExcluded extends boolean;
+// ONE conditional reads the brand payload and the key flags together; the key flags ride along
+// untouched, or toDrizzle loses mysql's $returningId() keys and pg's identity.
+type RefinedCol<Col, Params> = Col extends {
+  readonly [rtColumnKey]?: {
+    data: infer Data;
+    notNull: infer NotNull extends boolean;
+    hasDefault: infer HasDefault extends boolean;
+    insertExcluded: infer InsertExcluded extends boolean;
+  };
+  readonly [rtColumnKeyFlagsKey]?: infer Key;
 }
-  ? RtColumnBrand<MergeFormat<Data, Params>, NotNull, HasDefault, InsertExcluded>
+  ? RtRefinedKeyedColumn<MergeFormat<Data, Params>, NotNull, HasDefault, InsertExcluded, Key>
   : never;
 
+/** A refined column that keeps its key flags. */
+export interface RtRefinedKeyedColumn<
+  Data,
+  NotNull extends boolean,
+  HasDefault extends boolean,
+  InsertExcluded extends boolean,
+  Key,
+> {
+  readonly [rtColumnKey]?: {data: Data; notNull: NotNull; hasDefault: HasDefault; insertExcluded: InsertExcluded};
+  readonly [rtColumnKeyFlagsKey]?: Key;
+}
+
 type RefineCols<Cols, R> = {
-  [K in keyof Cols]: K extends keyof R ? (R[K] extends object ? RefinedBrand<ColBrandOf<Cols[K]>, R[K]> : Cols[K]) : Cols[K];
+  [K in keyof Cols]: K extends keyof R ? (R[K] extends object ? RefinedCol<Cols[K], R[K]> : Cols[K]) : Cols[K];
 };
 /** The same table retyped, the type road's refine: `RefinedTable<UsersTable, {name: {maxLength: 50}}>`.
  *  R is constrained, so a typo'd column or an unrefinable param is a compile error. */
