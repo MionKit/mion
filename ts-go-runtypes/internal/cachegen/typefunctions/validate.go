@@ -634,10 +634,7 @@ func emitTupleMemberValidate(rt *reflection.RunType, ctx *EmitContext, v string)
 		// Non-serializable child — emit `v[i] === undefined`.
 		return RTCode{Code: v + "[" + positionStr(rt) + "] === undefined", Type: CodeE}
 	}
-	if isFunctionLikeKind(resolved.Kind) {
-		// Function-typed tuple elements are non-serializable: the slot must be undefined.
-		return RTCode{Code: v + "[" + positionStr(rt) + "] === undefined", Type: CodeE}
-	}
+	// A non-data slot (a function included) compiles to CodeNS below: DataOnly makes the whole tuple never.
 	if isRestTupleMember(rt) {
 		// Mirrors RestParamsRunType: an array loop whose start index is the parent tuple's position.
 		iVar := ctx.NextLocalVar("i")

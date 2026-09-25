@@ -920,7 +920,7 @@ func emitTupleMemberValidationErrors(rt *reflection.RunType, ctx *EmitContext, v
 		return RTCode{Code: "", Type: CodeS}
 	}
 	resolved := ctx.ResolveRef(rt.Child)
-	if resolved == nil || isFunctionLikeKind(resolved.Kind) {
+	if resolved == nil {
 		// Non-serializable element — the slot must be undefined.
 		idxLit := positionStr(rt)
 		accessor := v + "[" + idxLit + "]"
