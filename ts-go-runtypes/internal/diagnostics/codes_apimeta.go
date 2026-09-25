@@ -10,7 +10,7 @@ package diagnostics
 // MET006 only leaves one bundled option unset: LevelWarning.
 // MET007 injects both versions and the call still runs, reporting a mismatch it should not: LevelRuntimeError.
 // MET008 bundles the call, which then fails the middleware's validation on every request: LevelRuntimeError.
-// MET009 bundles a call whose middleware silently gets nothing, a lost half the author never sees: LevelRuntimeError.
+// MET009 bundles a call whose middleware silently gets nothing: LevelRuntimeError.
 const (
 	// CodeApiMetaUnreadable: the API type a dispatch site names cannot be read as a mion PublicApi.
 	// Args: [0] what could not be read.

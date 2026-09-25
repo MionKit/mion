@@ -49,8 +49,8 @@ function getCalledRoutes(ctx: CallContext): RemoteMethod[] {
   return route ? [route] : [];
 }
 
-// Placed first in the routes (any key) so a refused call runs nothing else. A pinned parser, since the router-wide
-// one never reaches this helper at build time, and a fixed body share so chain limits stay type-derived.
+// Place it first in the routes (any key) so a refused call runs nothing else.
+// The router-wide parser never reaches this helper at build time; a fixed body share keeps chain limits type-derived.
 export const mionSyncRoutes = middleware(syncRoutes satisfies SyncRoutesHandler, {
   parser: {params: 'clone', return: 'clone'},
   maxBodySize: 1024,
