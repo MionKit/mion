@@ -520,15 +520,14 @@ func (state scanState) analyzeCall(file string, call *ast.Node) ([]pendingCall, 
 	if len(markers) == 0 {
 		return nil, diags
 	}
-	// NESTED-BUILDER SKIP: a value-first builder call nested inside another marker call (`string({...})` inside
-	// `object({...})`) is already reflected by the enclosing marker as a child, so its own id would be redundant
-	// and at runtime it returns a type-only carrier the enclosing marker discards. Only injection markers count
-	// as enclosing; `optional(...)`, plain helpers and vitest's `expect` are transparent.
-	// …EXCEPT the id-LOOKUP escape: `getRunType<T>()` returns a RunType without building one, it looks the id up
-	// in the runtime registry, so dropping its id leaves nothing to look up and it throws "no id injected" at
-	// the first call. Nested is exactly where convert emits it (`createValidateFn(getRunType<Named>())`).
+	// NESTED-BUILDER SKIP: a marker-package builder nested inside another marker call (`string({...})` inside
+	// `object({...})`) is already reflected by the enclosing marker as a child, and without an id it returns a
+	// carrier the enclosing marker discards. Only injection markers count as enclosing; `optional(...)`, plain
+	// helpers and vitest's `expect` are transparent. Every OTHER nested marker call keeps its id: getRunType,
+	// getRunTypeId, createX and a library's own markers (`tableFromType<T>()` inside `toDrizzle<T>({...})`)
+	// throw "no id injected" without one.
 	if state.enclosedByInjectionMarker(call) &&
-		!builders.IsIdLookupCall(state.scanChecker, call, state.sess.marker) {
+		builders.IsMarkerBuilderCall(state.scanChecker, call, state.sess.marker) {
 		return nil, diags
 	}
 	// EXPLICIT PASS-THROUGH: a marker parameter the caller already filled is a forwarded handle or explicit id,

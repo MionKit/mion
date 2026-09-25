@@ -47,6 +47,27 @@ func IsIdLookupCall(typeChecker *checker.Checker, call *ast.Node, markerOpts mar
 	return symbol.Name == GetRunTypeName && markerOpts.DeclaredInMarkerPackage(symbol)
 }
 
+// IsMarkerBuilderCall reports a value-first builder the marker package itself declares, the only calls whose
+// runtime is known to fall back to its carrier without an id. A user wrapper returning `RunType<T>` may
+// forward to getRunType and throw, so it never qualifies.
+func IsMarkerBuilderCall(typeChecker *checker.Checker, call *ast.Node, markerOpts marker.Options) bool {
+	if !IsValueBuilderCall(typeChecker, call, markerOpts) {
+		return false
+	}
+	callExpression := call.AsCallExpression()
+	if callExpression == nil || callExpression.Expression == nil {
+		return false
+	}
+	symbol := typeChecker.GetSymbolAtLocation(callExpression.Expression)
+	if symbol == nil {
+		return false
+	}
+	if target := checker.SkipAlias(symbol, typeChecker); target != nil {
+		symbol = target
+	}
+	return markerOpts.DeclaredInMarkerPackage(symbol)
+}
+
 // IsBuilderLeafCall reports whether call is a builder or a property-modifier call valid as a CompTimeArgs
 // leaf; a user-module call is neither, so dynamic construction is still rejected. Each accepted call
 // validates its own args on its own scan visit, so the leaf check STOPS here without recursing.

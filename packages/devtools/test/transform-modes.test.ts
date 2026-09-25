@@ -106,6 +106,50 @@ export const x = wrap(getRunTypeId<Q>()).toBe(getRunTypeId<Q>());
     }
   );
 
+  // A marker call nested in another marker call's arguments (not a builder) keeps its own id, directly and
+  // inside an arrow, in both wire modes. Marker rule: both call shapes.
+  runTest(
+    'nested static getRunTypeId<T>() keeps its injection (edits==go)',
+    {
+      'nested.ts': `import {getRunTypeId, type InjectRunTypeId} from '@mionjs/run-types';
+declare function outer<T>(options?: {tables?: Record<string, unknown>}, id?: InjectRunTypeId<T>): T;
+type P = {p: number};
+type C = {c: number};
+export const direct = outer<C>({tables: {p: getRunTypeId<P>()}});
+export const lazy = outer<C>({tables: {p: () => getRunTypeId<P>()}});
+`,
+    },
+    async (sources) => {
+      await withInlineSources(sources, async ({client}) => {
+        const {sites, applied} = await assertModeParity(client, 'nested.ts', sources['nested.ts']);
+        expect(sites).toHaveLength(4);
+        expect(applied.code.match(/getRunTypeId<P>\(undefined, __rt_[A-Za-z0-9]+\)/g) ?? []).toHaveLength(2);
+        expect(applied.code.match(/\}\}, __rt_[A-Za-z0-9]+\)/g) ?? []).toHaveLength(2);
+      });
+    }
+  );
+
+  runTest(
+    'nested reflect getRunTypeId(value) keeps its injection (edits==go)',
+    {
+      'nested-reflect.ts': `import {getRunTypeId, type InjectRunTypeId} from '@mionjs/run-types';
+declare function outer<T>(options?: {tables?: Record<string, unknown>}, id?: InjectRunTypeId<T>): T;
+type P = {p: number};
+type C = {c: number};
+const value: P = {p: 1};
+export const direct = outer<C>({tables: {p: getRunTypeId(value)}});
+export const lazy = outer<C>({tables: {p: () => getRunTypeId(value)}});
+`,
+    },
+    async (sources) => {
+      await withInlineSources(sources, async ({client}) => {
+        const {sites, applied} = await assertModeParity(client, 'nested-reflect.ts', sources['nested-reflect.ts']);
+        expect(sites).toHaveLength(4);
+        expect(applied.code.match(/getRunTypeId\(value, __rt_[A-Za-z0-9]+\)/g) ?? []).toHaveLength(2);
+      });
+    }
+  );
+
   // Multi-function marker (fnIds): array of bindings at one slot.
   runTest(
     'multi-fn createStandardSchema: edits mode reproduces go mode byte-for-byte',
