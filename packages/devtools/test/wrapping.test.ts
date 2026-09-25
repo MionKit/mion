@@ -291,16 +291,14 @@ maskedWrapper('noop');
     }
   );
 
-  // ---- 17g: nested-builder skip (value-first object/field pattern) -------
+  // ---- 17g: nested marker calls (value-first object/field pattern) ------
   //
-  // A marker call nested inside another marker call's argument (the value-first
-  // `object({field: leaf()})` shape) is reflected by the enclosing marker, so
-  // the nested call's own id is redundant. The scanner skips it — only the
-  // outer marker emits a site. The walk is transparent through the object
-  // literal between them.
+  // Only a marker-package builder nested in another marker call is skipped:
+  // the enclosing marker reflects it. A user-declared marker nested the same
+  // way keeps its own id, since its runtime may need it.
 
   runTest(
-    '17g: field markers nested inside an enclosing model marker are skipped — outer site only',
+    '17g: user field markers nested inside an enclosing model marker keep their own sites',
     {
       '17g.ts': `import {type InjectRunTypeId} from '@mionjs/run-types';
 function model<T>(v: T, id?: InjectRunTypeId<T>): T { void id; return v; }
@@ -314,8 +312,27 @@ export {m};
         sources,
         async ({client}) => {
           const {sites} = await rewrite('17g.ts', sources['17g.ts'], client);
-          // model(...) is the only top-level marker; the two nested field(...)
-          // calls are enclosed by it and skipped.
+          expect(sites.length).toBe(3);
+        },
+        {reset: true}
+      );
+    }
+  );
+
+  runTest(
+    '17g builders: marker-package builders nested inside an enclosing builder are skipped, outer site only',
+    {
+      '17g_builders.ts': `import * as RT from '@mionjs/run-types/builders';
+import * as TF from '@mionjs/run-types/formats';
+const m = RT.object({name: TF.string(), age: TF.number()});
+export {m};
+`,
+    },
+    async (sources) => {
+      await withInlineSources(
+        sources,
+        async ({client}) => {
+          const {sites} = await rewrite('17g_builders.ts', sources['17g_builders.ts'], client);
           expect(sites.length).toBe(1);
         },
         {reset: true}
