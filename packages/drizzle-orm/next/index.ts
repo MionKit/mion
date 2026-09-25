@@ -32,7 +32,6 @@ export type {
   ColsOf,
   ColsView,
   DbNameOf,
-  LiftNames,
   NamesOf,
   NoNames,
   RtTableMeta,

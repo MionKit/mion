@@ -10,7 +10,6 @@
 // on the cols() view, where references() reads it.
 
 import type {AnyColumn, ColumnOwner} from './columns.ts';
-import {rtColNameKey} from './columns.ts';
 
 /** A table's type: name, the shared column types, extras, and the db names that differ from the key. */
 export interface RtTableMeta<TName extends string, Cols, Extras extends readonly object[] = [], Names = NoNames> {
@@ -42,12 +41,3 @@ export type ColsView<T extends AnyTable> = {[K in keyof T['columns'] & string]: 
 export function cols<T extends AnyTable>(table: T): ColsView<T> {
   return table as unknown as ColsView<T>;
 }
-
-// ── Lifting builder names into the table ─────────────────────────────────────
-
-type NameOfCol<C> = C extends {readonly [rtColNameKey]?: infer Name} ? Name : undefined;
-/** The names map a builder table records: only db names that differ from the key. A mapped type, so it
- *  is resolved only when read, and it equals NoNames when every column is nameless or named as its key. */
-export type LiftNames<Cols> = {
-  [K in keyof Cols as NameOfCol<Cols[K]> extends string ? (NameOfCol<Cols[K]> extends K ? never : K) : never]: NameOfCol<Cols[K]>;
-};

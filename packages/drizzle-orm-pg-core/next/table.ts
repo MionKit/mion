@@ -12,9 +12,10 @@ import type {AnyRtColumn, RtExtraColumn} from '../../drizzle-orm/src/recorder.ts
 import type {RtTableBrand} from '../../drizzle-orm/src/table.ts';
 import {createRtTable} from '../../drizzle-orm/src/table.ts';
 import type {AnyColumn} from '../../drizzle-orm/next/columns.ts';
-import type {LiftNames, NoNames, RtTableMeta} from '../../drizzle-orm/next/table.ts';
+import type {NoNames, RtTableMeta} from '../../drizzle-orm/next/table.ts';
 import {pgColumnHelpers, type PgColumnHelpers} from './columns.ts';
 import type {rtBuiltColumnKey} from './columns.ts';
+import {rtColNameKey} from '../../drizzle-orm/next/columns.ts';
 import {pgBuildTable, type PgExtraConfigEntry} from '../src/table.ts';
 import type {InjectRunTypeId} from '@mionjs/run-types';
 import {getRunType} from '@mionjs/run-types';
@@ -31,8 +32,11 @@ export interface PgTableWithRLS<TName extends string, Cols, Extras extends reado
   extends RtTableMeta<TName, Cols, Extras, Names>, RtTableBrand<'pg'> {}
 export type AnyPgTable = PgTableWithRLS<string, Record<string, AnyColumn>, readonly object[], object>;
 
-/** The columns a builder table holds: each builder's Column, its db name moved into the names map. */
-export type LiftCols<Cols> = {[K in keyof Cols]: Cols[K][typeof rtBuiltColumnKey & keyof Cols[K]]};
+// pgTable spells its column and names maps inline, never through an alias: the resolver serializes an
+// alias's type arguments, and the builder record's chain methods are an endless walk for it (MKR009).
+// Inline, a declaration file also prints the resolved columns, not the builders.
+export type NameOf<C> = C extends {readonly [rtColNameKey]?: infer Name} ? Name : undefined;
+
 /** Any builder, the constraint of a builder columns record. */
 export type AnyColumnBuilder = {readonly [rtBuiltColumnKey]: AnyColumn};
 
@@ -44,19 +48,26 @@ export type PgExtraConfigFn<Cols> = (
 
 type ColumnsArg<Cols> = Cols | ((helpers: PgColumnHelpers) => Cols);
 
-/** What pgTable returns: one alias, so a declaration file prints the builders record once. */
-export type PgBuilderTable<TName extends string, Cols> = PgTable<TName, LiftCols<Cols>, [], LiftNames<Cols>>;
-
 export function pgTable<TName extends string, Cols extends Record<string, AnyColumnBuilder>>(
   name: TName,
   columns: Cols,
-  extraConfig?: PgExtraConfigFn<LiftCols<Cols>>
-): PgBuilderTable<TName, Cols>;
+  extraConfig?: PgExtraConfigFn<{[K in keyof Cols]: Cols[K][typeof rtBuiltColumnKey & keyof Cols[K]]}>
+): PgTable<
+  TName,
+  {[K in keyof Cols]: Cols[K][typeof rtBuiltColumnKey & keyof Cols[K]]},
+  [],
+  {[K in keyof Cols as NameOf<Cols[K]> extends string ? (NameOf<Cols[K]> extends K ? never : K) : never]: NameOf<Cols[K]>}
+>;
 export function pgTable<TName extends string, Cols extends Record<string, AnyColumnBuilder>>(
   name: TName,
   columns: (helpers: PgColumnHelpers) => Cols,
-  extraConfig?: PgExtraConfigFn<LiftCols<Cols>>
-): PgBuilderTable<TName, Cols>;
+  extraConfig?: PgExtraConfigFn<{[K in keyof Cols]: Cols[K][typeof rtBuiltColumnKey & keyof Cols[K]]}>
+): PgTable<
+  TName,
+  {[K in keyof Cols]: Cols[K][typeof rtBuiltColumnKey & keyof Cols[K]]},
+  [],
+  {[K in keyof Cols as NameOf<Cols[K]> extends string ? (NameOf<Cols[K]> extends K ? never : K) : never]: NameOf<Cols[K]>}
+>;
 export function pgTable(name: string, columns: ColumnsArg<Record<string, unknown>>, extraConfig?: unknown) {
   const resolved = typeof columns === 'function' ? columns(pgColumnHelpers) : columns;
   return createRtTable(name, resolved, extraConfig as never, pgBuildTable);

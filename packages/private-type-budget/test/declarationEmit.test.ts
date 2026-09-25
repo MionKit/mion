@@ -116,8 +116,8 @@ const CASES = [
 // extension, as a real declaration build resolves them. next/ is no package export, so the helper
 // types an inferred table names are imported here; once shipped, the package entry must export them.
 const NEXT_HEADER = `
-import type {LiftNames, NoProps, Writable} from '../../drizzle-orm/next/index';
-export type {LiftNames, NoProps, Writable};
+import type {NoProps, Writable} from '../../drizzle-orm/next/index';
+export type {NoProps, Writable};
 import {pgTable, varchar, integer} from '../../drizzle-orm-pg-core/next/index';
 import type {PgTable, Varchar, Integer} from '../../drizzle-orm-pg-core/next/index';
 import {toDrizzle} from '../../drizzle-orm-pg-core/next/drizzle';
@@ -176,10 +176,12 @@ describe('declaration emit over slim drizzle tables', () => {
     expect(ageOccurrences, `emitted declaration:\n${outcome.dts}`).toBe(1);
   });
 
-  it('next: the exported builder table prints its columns once, not twice', {timeout: 60_000}, () => {
+  // pgTable spells its maps inline, so the declaration prints each resolved column once and no builder.
+  it('next: the exported builder table prints its columns once and no builders', {timeout: 60_000}, () => {
     const outcome = emitDeclarations(`${NEXT_HEADER}${nextTable}\nexport const usersTable = users;\n`);
     expect(outcome.emitSkipped).toBe(false);
-    expect(outcome.dts.split('PgIntColumnBuilder').length - 1, `emitted declaration:\n${outcome.dts}`).toBe(1);
+    expect(outcome.dts, `emitted declaration:\n${outcome.dts}`).not.toContain('ColumnBuilder');
+    expect(outcome.dts.split('Column<"integer"').length - 1, `emitted declaration:\n${outcome.dts}`).toBe(1);
   });
 
   // Emit succeeding is not enough: the format metadata has to survive into the
