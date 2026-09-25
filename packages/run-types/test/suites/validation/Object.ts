@@ -1323,8 +1323,7 @@ export const OBJECT = {
     validate: () => createValidateFn<() => void>(),
     // @mion-downgrade-error VE003 VL003
     standardSchema: () => createStandardSchema<() => void>(),
-    // DataOnly<() => void> = never → an always-throw factory; the assert skips it
-    // (factoryThrows), but the thunk is declared so the contract holds.
+    // DataOnly<() => void> is never, so the assert skips it (factoryThrows); declared only for the contract.
     validateDataOnly: () => createValidateFn<DataOnly<() => void>>(),
     // @mion-downgrade-error VL003
     validateSchema: () => createValidateFn(RT.func()),
@@ -1387,8 +1386,7 @@ export const OBJECT = {
     validate: () => createValidateFn<{(a: number, b: boolean): string; extra: string}>(),
     // @mion-downgrade-error VE003 VL003
     standardSchema: () => createStandardSchema<{(a: number, b: boolean): string; extra: string}>(),
-    // DataOnly collapses the call signature away → never; assert skips it
-    // (factoryThrows), the thunk is declared to satisfy the contract.
+    // DataOnly of a callable is never, so the assert skips it (factoryThrows); declared only for the contract.
     validateDataOnly: () => createValidateFn<DataOnly<{(a: number, b: boolean): string; extra: string}>>(),
     validateSchema: () =>
       createValidateFn(

@@ -1,15 +1,6 @@
-// Value-first callable-interface builder — `RT.callable(func, object)` mixes a
-// call-signature schema with an interface's data properties to author a value
-// that is BOTH callable AND carries data props, e.g.
-// `{(a: number, b: boolean): string; extra: string}`. The mix is an intersection
-// (TS can't express a single object literal with a call signature + mapped props),
-// but the Go scanner projects it as an object literal carrying the call signature
-// + members. See src/builders/compose.ts.
-//
-// Signature param NAMES are id-relevant (`parameters[].name` must be per-site
-// reliable), and TS call-signature syntax REQUIRES param names while `RT.func` brands an
-// unnamed positional expansion — so the two forms are informationally different
-// types now: distinct type ids. A callable interface is not data, so validate refuses both forms at the root (VL003).
+// `RT.callable` is a TS intersection that the Go scanner projects as one object literal (see src/builders/compose.ts).
+// Param names are id-relevant and `RT.func` leaves them unnamed, so it gets a distinct id from the named interface.
+// A callable interface is not data, so validate refuses both forms at the root (VL003).
 
 import * as TF from '@mionjs/run-types/formats';
 import {describe, expect, it} from 'vitest';

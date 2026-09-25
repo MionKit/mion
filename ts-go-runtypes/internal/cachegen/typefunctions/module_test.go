@@ -532,7 +532,7 @@ func TestValidateModule_IndexSignatureEmitBody(t *testing.T) {
 	}
 }
 
-// TestValidateModule_FunctionTopLevelEmitBody — a free-standing function is non-data, so it renders an alwaysThrow VL003 factory.
+// TestValidateModule_FunctionTopLevelEmitBody: a non-data root function renders an alwaysThrow VL003 factory.
 func TestValidateModule_FunctionTopLevelEmitBody(t *testing.T) {
 	dump := protocol.Dump{RunTypes: []*reflection.RunType{{ID: "fn1", Kind: reflection.KindFunction}}}
 	out := renderToString(t, dump)

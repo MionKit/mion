@@ -1,10 +1,6 @@
-// Pins that a RegExp value is not data. A pattern is code the receiver would
-// run, so it never rides the wire: a `RegExp` property is dropped by every
-// codec like a function-valued one (with the same build Warning), `DataOnly`
-// strips it, a mock leaves it out unless `nonDataTypes` is on, and the clone
-// shares it by reference. At the root every family refuses it, validate
-// included (VL001). The only regex that reaches a validator is a `pattern`
-// format, fixed at build time.
+// A RegExp is not data: a pattern is code the receiver would run. Every codec drops a `RegExp` property like a
+// function (same build Warning), `DataOnly` strips it, a mock skips it unless `nonDataTypes` is on, the clone shares
+// it, and every family refuses it at the root (validate: VL001). Only a build-time `pattern` format reaches a validator.
 
 import {describe, expect, expectTypeOf, it} from 'vitest';
 import {

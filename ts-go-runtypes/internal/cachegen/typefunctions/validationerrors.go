@@ -479,12 +479,9 @@ func emitLiteralValidationErrors(rt *reflection.RunType, ctx *EmitContext) RTCod
 	}
 }
 
-// emitObjectValidationErrors builds the object-shape statement: a `typeof === 'object' && !== null` guard that records one error
-// on mismatch, else each child's own error statements.
+// emitObjectValidationErrors records one error when the object guard fails, else each child's own error statements.
 // Children are filtered as in emitObjectValidate: static and method-shaped kinds dropped, a function-typed property dropped
 // through its own empty emit.
-// When nothing contributing is required, the guard gains the `[object Object]` brand clause so arrays / Date / Map / Set are
-// rejected rather than slipping through the bare `typeof === 'object'`.
 func emitObjectValidationErrors(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	// Refused like validate: a callable interface is function-like at every position.
 	if objectCallSignatureChild(rt, ctx) != nil {

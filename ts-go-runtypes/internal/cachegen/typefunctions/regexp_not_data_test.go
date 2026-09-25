@@ -9,10 +9,8 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// A RegExp value is not data: a pattern is code the receiver would run, so it
-// never rides the wire. Every family, validate included, treats it exactly like
-// a function-valued position — dropped at a property with the …015 Warning, an
-// alwaysThrow factory at a root.
+// A RegExp is not data: a pattern is code the receiver would run. Every family, validate included, treats it like a
+// function: dropped at a property with the …015 Warning, an alwaysThrow factory at a root.
 
 func mkRegexp() *reflection.RunType {
 	return &reflection.RunType{ID: "re", Kind: reflection.KindRegexp}
