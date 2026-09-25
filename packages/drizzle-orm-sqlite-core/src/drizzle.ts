@@ -15,7 +15,16 @@
 import * as dzSqlite from 'drizzle-orm/sqlite-core';
 import {sql as dzSql} from 'drizzle-orm';
 import type {SQLiteColumn, SQLiteTableWithColumns, SQLiteViewWithSelection} from 'drizzle-orm/sqlite-core';
-import type {ColBrandOf, PlainDataOf, ColsOf, DrizzleContext, TableNameOf, ViewColsOf, ViewNameOf} from '@mionjs/drizzle-orm';
+import type {
+  ColBrandOf,
+  ColDbNameOf,
+  PlainDataOf,
+  ColsOf,
+  DrizzleContext,
+  TableNameOf,
+  ViewColsOf,
+  ViewNameOf,
+} from '@mionjs/drizzle-orm';
 import type {TableFromTypeOptions} from '@mionjs/drizzle-orm';
 import {
   isRtView,
@@ -36,14 +45,14 @@ const context: DrizzleContext = {
   sqlNs: dzSql as unknown as DrizzleContext['sqlNs'],
 };
 
-type SynthConfig<K extends string, TName extends string, Brand> = Brand extends {
+type SynthConfig<Name extends string, TName extends string, Brand> = Brand extends {
   data: infer Data;
   notNull: infer N extends boolean;
   hasDefault: infer H extends boolean;
   insertExcluded: infer X extends boolean;
 }
   ? {
-      name: K;
+      name: Name;
       tableName: TName;
       dataType: 'custom';
       columnType: 'RtColumn';
@@ -67,7 +76,9 @@ export type ToDrizzleTable<T extends AnySqliteTable> = SQLiteTableWithColumns<{
   schema: undefined;
   dialect: 'sqlite';
   columns: {
-    [K in keyof ColsOf<T> & string]: SQLiteColumn<SynthConfig<K, TableNameOf<T>, ColBrandOf<ColsOf<T>[K]>>>;
+    [K in keyof ColsOf<T> & string]: SQLiteColumn<
+      SynthConfig<ColDbNameOf<ColsOf<T>[K], K>, TableNameOf<T>, ColBrandOf<ColsOf<T>[K]>>
+    >;
   };
 }>;
 
@@ -77,7 +88,9 @@ export type ToDrizzleView<V extends AnySqliteView> = SQLiteViewWithSelection<
   ViewNameOf<V>,
   boolean,
   {
-    [K in keyof ViewColsOf<V> & string]: SQLiteColumn<SynthConfig<K, ViewNameOf<V>, ColBrandOf<ViewColsOf<V>[K]>>>;
+    [K in keyof ViewColsOf<V> & string]: SQLiteColumn<
+      SynthConfig<ColDbNameOf<ViewColsOf<V>[K], K>, ViewNameOf<V>, ColBrandOf<ViewColsOf<V>[K]>>
+    >;
   }
 >;
 

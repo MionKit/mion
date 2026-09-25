@@ -103,8 +103,8 @@
     },
     {
       "label": "toDrizzle + select / insert / update query",
-      "curBuilders": 8623,
-      "curTypes": 9288,
+      "curBuilders": 8643,
+      "curTypes": 9461,
       "newTypes": 8812,
       "newBuilders": 10152,
       "budget": {

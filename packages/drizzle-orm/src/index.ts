@@ -63,6 +63,7 @@ export type {
   AnyRtColType,
   ColBaseFlag,
   ColConfigArg,
+  ColDbNameOf,
   ColModName,
   ColMods,
   ColNameArg,

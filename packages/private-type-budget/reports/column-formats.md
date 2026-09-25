@@ -24,4 +24,4 @@ only ever be lowered.
 | wide vocabulary, select | 676 | 1175 | 702 (702) | 1192 (1192) |
 | two tables, one reference | 183 | 387 | 160 (160) | 435 (435) |
 | refineTableType, select | 1352 | 1752 | 1277 (1277) | 1716 (1716) |
-| toDrizzle + select / insert / update query | 8623 | 9288 | 8812 (8812) | 10152 (10152) |
+| toDrizzle + select / insert / update query | 8643 | 9461 | 8812 (8812) | 10152 (10152) |
