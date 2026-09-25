@@ -538,13 +538,6 @@ export const cases: CompetitorCases = {
       return (value: unknown) => schema.safeParse(value).success;
     },
   },
-  // tuple_with_non_serializable: function slot must be undefined — z.tuple with undefined at slot 1
-  'TUPLE.tuple_with_non_serializable': {
-    buildErrors: () => {
-      const schema = z.tuple([z.number(), z.undefined().optional()]);
-      return (value: unknown) => schema.safeParse(value).success;
-    },
-  },
   'TUPLE.empty_tuple': {
     buildErrors: () => {
       const schema = z.tuple([]);

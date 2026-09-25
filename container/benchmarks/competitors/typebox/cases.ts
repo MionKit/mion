@@ -1170,21 +1170,6 @@ export const cases: CompetitorCases = {
       };
     },
   },
-  'TUPLE.tuple_with_non_serializable': {
-    build: () => {
-      const schema = Type.Union([Type.Tuple([Type.Number()]), Type.Tuple([Type.Number(), Type.Undefined()])]);
-      const check = TypeCompiler.Compile(schema);
-      return (value: unknown) => check.Check(value);
-    },
-    buildErrors: () => {
-      const schema = Type.Union([Type.Tuple([Type.Number()]), Type.Tuple([Type.Number(), Type.Undefined()])]);
-      const check = TypeCompiler.Compile(schema);
-      return (value: unknown) => {
-        for (const _ of check.Errors(value)) return false;
-        return true;
-      };
-    },
-  },
   'TUPLE.empty_tuple': {
     build: () => {
       const schema = Type.Tuple([]);

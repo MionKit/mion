@@ -644,39 +644,44 @@ export const TUPLE = {
 
   tuple_with_non_serializable: {
     title: 'Function slot',
-    // The emitter keeps a function tuple slot as a `notSupported` node that
-    // validates `undefined`; DataOnly maps the slot to `never`, so the projected
-    // tuple `[string, never]` rejects the valid `[..., undefined]` samples.
-    dataOnlyDivergent: true,
-    description:
-      'A tuple whose function-typed slot emits `v[i] === undefined`, so it must be absent or explicitly undefined and any other value (a real function, a string) fails (the serialization-suite TUPLES.tuple_with_non_serializable).',
+    description: 'A function slot makes the whole tuple non-data, so the factory throws on first call.',
     validateNotes: [
-      'TS DIVERGENCE: A function-typed tuple slot must be MISSING or explicitly `undefined`. A real function FAILS the check.',
-      'This is the opposite of the object-property case (where function-typed props are skipped entirely): tuples enforce `=== undefined` because tuple position is structural.',
+      '`DataOnly<[number, () => any]>` is `never`: a non-data tuple slot refuses the whole tuple (VL003 / VE003), like an array item.',
     ],
+    // @mion-downgrade-error VL003
     validate: () => createValidateFn<[number, () => any]>(),
+    // @mion-downgrade-error VE003 VL003
     standardSchema: () => createStandardSchema<[number, () => any]>(),
     validateDataOnly: () => createValidateFn<DataOnly<[number, () => any]>>(),
+    // @mion-downgrade-error VL003
     validateSchema: () => createValidateFn(RT.tuple({required: [TF.number(), RT.func({ret: RT.any()})]})),
+    // @mion-downgrade-error VL003
     deserializeValidate: () => deserializeValidate<[number, () => any]>(),
     validateReflect: () => {
       const v: [number, () => any] = [3, () => null];
+      // @mion-downgrade-error VL003
       return createValidateFn(v);
     },
     deserializeValidateReflect: () => {
       const v: [number, () => any] = [3, () => null];
+      // @mion-downgrade-error VL003
       return deserializeValidate(v);
     },
+    // @mion-downgrade-error VE003
     getValidationErrors: () => createGetValidationErrorsFn<[number, () => any]>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<[number, () => any]>>(),
+    // @mion-downgrade-error VE003
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.tuple({required: [TF.number(), RT.func({ret: RT.any()})]})),
+    // @mion-downgrade-error VE003
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<[number, () => any]>(),
     getValidationErrorsReflect: () => {
       const v: [number, () => any] = [3, () => null];
+      // @mion-downgrade-error VE003
       return createGetValidationErrorsFn(v);
     },
     deserializeGetValidationErrorsReflect: () => {
       const v: [number, () => any] = [3, () => null];
+      // @mion-downgrade-error VE003
       return deserializeGetValidationErrors(v);
     },
     mockType: () => createMockDataFn<[number, () => any]>(),
@@ -684,31 +689,8 @@ export const TUPLE = {
       const v: [number, () => any] = [3, () => null];
       return createMockDataFn(v);
     },
-    getSamples: () => ({
-      // `[3]` is valid — v[1] is undefined which satisfies the
-      // `v[1] === undefined` check the function slot emits.
-      valid: [[3, undefined], [3]],
-      invalid: [
-        [3, () => null],
-        [3, 42],
-        ['not number'],
-        'not array',
-        null,
-        undefined,
-        [3, null], // null is NOT undefined — strict `=== undefined` check
-        [NaN, undefined],
-      ],
-    }),
-    getExpectedErrors: () => [
-      [{path: [1], expected: 'undefined'}],
-      [{path: [1], expected: 'undefined'}],
-      [{path: [0], expected: 'number'}],
-      [{path: [], expected: 'tuple'}],
-      [{path: [], expected: 'tuple'}],
-      [{path: [], expected: 'tuple'}],
-      [{path: [1], expected: 'undefined'}],
-      [{path: [0], expected: 'number'}],
-    ],
+    factoryThrows: true,
+    getSamples: () => ({valid: [], invalid: []}),
   },
 
   empty_tuple: {

@@ -685,13 +685,6 @@ export const cases: CompetitorCases = {
       return (value: unknown) => getErrors(value).length === 0;
     },
   },
-  'TUPLE.tuple_with_non_serializable': {
-    build: () => createValidateFn<[number, () => any]>(),
-    buildErrors: () => {
-      const getErrors = createGetValidationErrorsFn<[number, () => any]>();
-      return (value: unknown) => getErrors(value).length === 0;
-    },
-  },
   'TUPLE.empty_tuple': {
     build: () => createValidateFn<[]>(),
     buildErrors: () => {

@@ -825,7 +825,6 @@ export const cases: CompetitorCases = {
     },
     samples: {invalid: [[], ['Alice'], ['Alice', '30'], [30, 'Alice'], null, 'not array', undefined, [null, 30]]},
   }, // override: typia number slot accepts NaN; invalid drops ['Alice',NaN]
-  'TUPLE.tuple_with_non_serializable': NOT_SUPPORTED, // typia requires the function slot; we treat it as must-be-undefined (valid sample [3] omits it)
   'TUPLE.empty_tuple': {
     build: () => {
       const check = typia.createIs<[]>();
