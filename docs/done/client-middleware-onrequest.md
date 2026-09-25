@@ -1,7 +1,7 @@
 ---
 type: feature
 spec: guidelines
-status: ready
+status: done
 created: 2026-09-24
 ---
 
@@ -139,3 +139,13 @@ Not a candidate: this is request wiring, there is no round-trip or reference ora
 - `middlewares.auth` is hooks only (`onRequest` / `offRequest` / `onResponse` / `offResponse` / `onError` / `offError`). Calling it directly is a type error; the typed `call` inside `onRequest` is the only way to pass params. Middleware `typeErrors()` goes with it.
 - Replaces the earlier "per-call override" decision: there is no per-call middleware value any more. Per-call data comes from the `context` argument of `onRequest`.
 - Extra docs: the "Passing Data to Middleware" section of `00.client-overview.md`, and the examples `client-using-middlewares.ts`, `batch-with-middlewares.ts`, `cancellation-with-middlewares.ts`.
+
+## What shipped (2026-09-25)
+
+- `prefill()`, `removePrefill()` and `call({middlewares})` (route and batch) are gone. A middleware gets its params only from `middlewares.x.onRequest((call, context) => ...)`, sync or async. `middlewares.x` is hooks only: `onRequest` / `offRequest` / `onResponse` / `offResponse` / `onError` / `offError`. `onSuccess` became `onResponse`.
+- `call` is typed `(...params) => void`. Not calling it sends nothing; the last call wins; a call after the hook finished is ignored. Each hook runs once per request (a retry never asks again), for the middlewares in the route chain, or by group scope on a first optimistic call.
+- A hook that throws or rejects stops the request before any fetch. A thrown `RpcError` lands in `undeclared` as is; anything else becomes `middleware-on-request-failed`. `onError` listeners never see it.
+- The result keeps 5 slots. Slots 3 and 4 are keyed by middleware id and loosely typed.
+- **Naming decision:** `MionClientRequest` keeps its name; it is internal and carries retry state. User code sees it only as the new public read-only `CallContext` interface (`route`, `batchSubRequests`, `subRequestList`, `options`, `signal`), which the class implements.
+- **Found during the work and fixed here:** after a build-version mismatch, the verify subrequest was loaded and validated as a method once hooks had added middlewares. Only the call's own ids plus the hook-added ids are loaded and validated now.
+- The build no longer treats `.prefill()` as a dispatch point (`ts-go-runtypes/internal/compiler/apimeta/discover.go`); a route site already bundles its middleware chain.
