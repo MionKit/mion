@@ -33,7 +33,7 @@ export function useSyncRoutes(middleware: ClientMiddlewareOf<SyncRoutesHandler>)
   });
 }
 
-/** One id per called route, in the server's batch order; the server answers an '' id with the rows. */
+/** In the server's batch order; the server answers an '' id with the rows. */
 function routeSyncIds(context: CallContext): string[] {
   const routes = context.batchSubRequests?.length ? context.batchSubRequests : context.route ? [context.route] : [];
   return routes.map((route) => getMethod(route.id)?.syncId ?? '');
