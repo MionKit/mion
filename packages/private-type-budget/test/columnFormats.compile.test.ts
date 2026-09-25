@@ -208,21 +208,21 @@ interface Shape {
 const SHAPES: Shape[] = [
   {
     label: '5 mixed, select',
-    budget: {newTypes: 539, newBuilders: 910},
+    budget: {newTypes: 539, newBuilders: 922},
     body: (line, p) => `${declare(line, p, 'users', MIXED)}\ntype ${p}Row = ${select(line, `${p}T`)};\n${readMixed(p)}`,
   },
   {
     label: '5 mixed, select + insert',
-    budget: {newTypes: 1147, newBuilders: 1743},
+    budget: {newTypes: 1147, newBuilders: 1755},
     body: (line, p) =>
       `${declare(line, p, 'users', MIXED)}\ntype ${p}Row = ${select(line, `${p}T`)};\ntype ${p}New = ${insert(line, `${p}T`)};\n${readMixed(p)}
 export const ${p}NewUser: ${p}New = {id: 'x' as never, name: 'a', age: 1, role: 'admin'};`,
   },
   ...(
     [
-      [10, {newTypes: 210, newBuilders: 442}],
-      [20, {newTypes: 300, newBuilders: 732}],
-      [40, {newTypes: 480, newBuilders: 1312}],
+      [10, {newTypes: 210, newBuilders: 454}],
+      [20, {newTypes: 300, newBuilders: 744}],
+      [40, {newTypes: 480, newBuilders: 1324}],
     ] as const
   ).map(
     ([count, budget]): Shape => ({
@@ -234,18 +234,18 @@ export const ${p}NewUser: ${p}New = {id: 'x' as never, name: 'a', age: 1, role: 
   ),
   {
     label: '20 plain, nameless',
-    budget: {newTypes: 300, newBuilders: 494},
+    budget: {newTypes: 300, newBuilders: 506},
     body: (line, p) =>
       `${declare(line, p, 't', plain(20, false))}\ntype ${p}Row = ${select(line, `${p}T`)};\n${readPlain(p, 20)}`,
   },
   {
     label: 'wide vocabulary, select',
-    budget: {newTypes: 702, newBuilders: 1192},
+    budget: {newTypes: 702, newBuilders: 1204},
     body: (line, p) => `${declare(line, p, 'w', WIDE)}\ntype ${p}Row = ${select(line, `${p}T`)};\n${readWide(p)}`,
   },
   {
     label: 'two tables, one reference',
-    budget: {newTypes: 160, newBuilders: 435},
+    budget: {newTypes: 160, newBuilders: 457},
     body: (line, p) => {
       if (line === 'curBuilders')
         return `const ${p}A = c.pgTable('teams', {id: c.serial('id').primaryKey()});
@@ -266,7 +266,7 @@ declare const ${p}row: NSelect<${p}B>; export const ${p}t: number | null = ${p}r
   },
   {
     label: 'refineTableType, select',
-    budget: {newTypes: 1277, newBuilders: 1716},
+    budget: {newTypes: 1277, newBuilders: 1729},
     body: (line, p) => {
       const refine = isCur(line) ? 'cRefine' : 'nRefine';
       const source = line.endsWith('Builders') ? `${p}V` : `({} as ${p}T)`;
@@ -277,7 +277,7 @@ type ${p}Row = ${select(line, `typeof ${p}R`)};\n${readMixed(p)}`;
   },
   {
     label: 'toDrizzle + select / insert / update query',
-    budget: {newTypes: 8812, newBuilders: 10152},
+    budget: {newTypes: 8812, newBuilders: 10096},
     body: (line, p) => {
       const toDz = isCur(line) ? 'cToDrizzle' : 'nToDrizzle';
       const source = line.endsWith('Builders') ? `${p}V` : `({} as ${p}T)`;

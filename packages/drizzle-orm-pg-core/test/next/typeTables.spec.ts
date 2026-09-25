@@ -18,10 +18,23 @@ import {cols, type SelfRef} from '../../../drizzle-orm/next/index.ts';
 import * as cur from '../../src/index.ts';
 import {cols as curCols} from '../../../drizzle-orm/src/table.ts';
 import {toDrizzle as curToDrizzle} from '../../src/drizzle.ts';
-import type {Integer, Jsonb, PgTable, Serial, Text, Timestamp, Uuid, Varchar} from '../../next/index.ts';
-import {integer, jsonb, pgTable, serial, tableFromType, text, timestamp, uuid, varchar} from '../../next/index.ts';
+import type {Integer, Jsonb, PgEnumCol, PgTable, Serial, Text, Timestamp, Uuid, Varchar} from '../../next/index.ts';
+import {
+  integer,
+  jsonb,
+  pgEnum,
+  pgTable,
+  pgView,
+  serial,
+  tableFromType,
+  text,
+  timestamp,
+  uuid,
+  varchar,
+} from '../../next/index.ts';
 import {toDrizzle} from '../../next/drizzle.ts';
-import {project} from '../tableSpecShared.ts';
+import {project, projectView} from '../tableSpecShared.ts';
+import {sql} from '../../../drizzle-orm/src/recorder.ts';
 
 const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -159,5 +172,26 @@ describe('next pg columns: one runtype id for builder and hand-written tables', 
     expect(getRunTypeId(users)).toBe(getRunTypeId<Users>());
     const row = {} as next.InferSelectModel<typeof users>;
     expect(getRunTypeId(row)).toBe(getRunTypeId<InferSelectModel<typeof curUsers>>());
+  });
+});
+
+describe('next pg columns: views and enums', () => {
+  it('a view materializes the same drizzle view as the shipped builders', () => {
+    const view = pgView('active', {name: varchar('user_name', {length: 10}).notNull()}).as(sql`select user_name from users`);
+    const curView = cur
+      .pgView('active', {name: cur.varchar('user_name', {length: 10}).notNull()})
+      .as(sql`select user_name from users`);
+    expect(projectView(toDrizzle(view), false)).toEqual(projectView(curToDrizzle(curView), false));
+  });
+  it('an enum column materializes as the shipped one does', () => {
+    const mood = pgEnum('mood', ['sad', 'happy']);
+    const curMood = cur.pgEnum('mood', ['sad', 'happy']);
+    const table = pgTable('with_enum', {mood: mood().notNull()});
+    const curTable = cur.pgTable('with_enum', {mood: curMood().notNull()});
+    expect(project(toDrizzle(table))).toEqual(project(curToDrizzle(curTable)));
+  });
+  it('tableFromType refuses an enum column, whose runtime needs the enum handle', () => {
+    type WithEnum = PgTable<'with_enum', {mood: PgEnumCol<['sad', 'happy'], {notNull: true}>}>;
+    expect(() => tableFromType<WithEnum>()).toThrow(/enum column, which needs its runtime handle/);
   });
 });

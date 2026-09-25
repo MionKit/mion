@@ -8,12 +8,21 @@
 // Compile-time pins for the side-by-side pg columns (checked by tsc, not executed): a builder table
 // IS its hand-written twin, and its models equal the shipped system's models for the same table.
 
-import type {InferInsertModel, InferSelectModel, InferUpdateModel} from '../../../drizzle-orm/src/models.ts';
+import type {
+  InferInsertModel,
+  InferSelectModel,
+  InferSelectViewModel,
+  InferUpdateModel,
+} from '../../../drizzle-orm/src/models.ts';
+import type {RefinedTable as CurRefinedTable} from '../../../drizzle-orm/src/refine.ts';
+import type {ColSpecOf, KeyFlagsOf, RefinedTable} from '../../../drizzle-orm/next/index.ts';
+import type {InferSelectModel as DzInferSelectModel} from 'drizzle-orm';
+import type {ToDrizzleTable} from '../../next/drizzle.ts';
 import type * as next from '../../../drizzle-orm/next/models.ts';
 import {cols, type SelfRef} from '../../../drizzle-orm/next/index.ts';
 import * as cur from '../../src/index.ts';
-import type {Integer, Jsonb, PgTable, Serial, Text, Timestamp, Uuid, Varchar} from '../../next/index.ts';
-import {integer, jsonb, pgTable, serial, text, timestamp, uuid, varchar} from '../../next/index.ts';
+import type {Integer, Jsonb, PgEnumCol, PgTable, PgView, Serial, Text, Timestamp, Uuid, Varchar} from '../../next/index.ts';
+import {integer, jsonb, pgEnum, pgTable, pgView, serial, text, timestamp, uuid, varchar} from '../../next/index.ts';
 
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 type Expect<T extends true> = T;
@@ -134,6 +143,40 @@ export const emps = pgTable('emps', {
 type Emps = PgTable<'emps', {id: Serial<{primaryKey: true}>; managerId: Integer<{references: [{table: 'emps'; column: 'id'}]}>}>;
 
 export type RefPins = [Expect<Equal<typeof members, Members>>, Expect<Equal<typeof emps, Emps>>];
+
+// ── views, enums ─────────────────────────────────────────────────────────────
+
+export const activeView = pgView('active', {name: varchar('user_name', {length: 10}).notNull()}).existing();
+type ActiveView = PgView<'active', {name: Varchar<{length: 10; notNull: true}>}, {name: 'user_name'}>;
+export const curActiveView = cur.pgView('active', {name: cur.varchar('user_name', {length: 10}).notNull()}).existing();
+export const mood = pgEnum('mood', ['sad', 'happy']);
+export const withEnum = pgTable('with_enum', {mood: mood().notNull()});
+type WithEnum = PgTable<'with_enum', {mood: PgEnumCol<['sad', 'happy'], {notNull: true}>}>;
+
+export type ViewEnumPins = [
+  Expect<Equal<typeof activeView, ActiveView>>,
+  Expect<Equal<next.InferSelectViewModel<ActiveView>, InferSelectViewModel<typeof curActiveView>>>,
+  Expect<Equal<typeof withEnum, WithEnum>>,
+  Expect<Equal<next.InferSelectModel<WithEnum>, {mood: 'sad' | 'happy'}>>,
+];
+
+// ── refine keeps every column fact, key flags included ───────────────────────
+
+type RefinedUsers = RefinedTable<Users, {name: {maxLength: 50}}>;
+export type RefinePins = [
+  Expect<Equal<KeyFlagsOf<ColSpecOf<RefinedUsers['columns']['id']>>['primaryKey'], true>>,
+  Expect<Equal<next.InferSelectModel<RefinedUsers>, InferSelectModel<CurRefinedTable<typeof curUsers, {name: {maxLength: 50}}>>>>,
+  Expect<Equal<next.InferInsertModel<RefinedUsers>, InferInsertModel<CurRefinedTable<typeof curUsers, {name: {maxLength: 50}}>>>>,
+];
+
+// ── toDrizzle names columns as drizzle does, on BOTH roads ────────────────────
+// The names map is on the table, so a builder table gets its db names back too.
+
+export type DbNamePins = [
+  Expect<Equal<ToDrizzleTable<typeof named>['createdAt']['_']['name'], 'created_at'>>,
+  Expect<Equal<ToDrizzleTable<Named>['id']['_']['name'], 'id'>>,
+  Expect<Equal<keyof DzInferSelectModel<ToDrizzleTable<Named>, {dbColumnNames: true}>, 'id' | 'created_at'>>,
+];
 
 // ── wrong modifiers are rejected ─────────────────────────────────────────────
 

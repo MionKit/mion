@@ -49,6 +49,32 @@ type UsersType = PgTable<'users', {name: Varchar<'name', {length: 100; notNull: 
 export const handWritten: InferSelectModel<UsersType> = {name: row.name, age: 21} as never;
 `;
 
+// The side-by-side columns (each drizzle package's next/ folder) make the same promise.
+const NEXT_SOURCE = `
+import {pgTable, varchar, integer, timestamp, pgView} from '../../drizzle-orm-pg-core/next/index.ts';
+import type {Varchar, Integer, PgTable} from '../../drizzle-orm-pg-core/next/index.ts';
+import {index} from '@mionjs/drizzle-orm-pg-core';
+import {sql} from '@mionjs/drizzle-orm';
+import {refineTableType} from '../../drizzle-orm/next/index.ts';
+import type {InferSelectModel, InferSelectViewModel, InferInsertModel, InferUpdateModel} from '../../drizzle-orm/next/index.ts';
+
+const users = pgTable('users', {
+  name: varchar('name', {length: 100}).notNull(),
+  age: integer('age').notNull(),
+  createdAt: timestamp('created_at', {mode: 'date'}).notNull().defaultNow(),
+}, (t) => [index('users_name_idx').on(t.name)]);
+const apiUsers = refineTableType(users, {name: {minLength: 10}, age: {min: 18}});
+type User = InferSelectModel<typeof apiUsers>;
+export const newUser: InferInsertModel<typeof apiUsers> = {name: 'a-long-name', age: 21};
+export const patch: InferUpdateModel<typeof apiUsers> = {age: 30};
+declare const row: User;
+export const rowName: string = row.name;
+const activeUsers = pgView('active_users', {name: varchar('name', {length: 100}).notNull()}).as(sql\`select name from users\`);
+export const activeName: string = (undefined as unknown as InferSelectViewModel<typeof activeUsers>).name;
+type UsersType = PgTable<'users', {name: Varchar<{length: 100; notNull: true}>; age: Integer<{notNull: true}>}>;
+export const handWritten: InferSelectModel<UsersType> = {name: row.name, age: 21} as never;
+`;
+
 describe('slim authoring surface with drizzle-orm absent', () => {
   it('type-checks a schema + models module when drizzle-orm cannot resolve', {timeout: 60_000}, () => {
     const options: ts.CompilerOptions = {...RESOLVING_OPTIONS, noImplicitAny: true};
@@ -92,5 +118,29 @@ describe('slim authoring surface with drizzle-orm absent', () => {
             : hostToWrap.getSourceFile(candidate, ...rest),
       };
     }
+  });
+});
+
+/** Program-wide diagnostics of `source` compiled with every drizzle-orm path hidden. */
+function drizzleFreeErrors(source: string): string[] {
+  const options: ts.CompilerOptions = {...RESOLVING_OPTIONS, noImplicitAny: true};
+  const base = makeHost(options, new Map([[CASE_FILE, source]]));
+  const hidesDrizzle = (fileName: string) => /[\\/]drizzle-orm@|[\\/]node_modules[\\/]drizzle-orm[\\/]/.test(fileName);
+  const host: ts.CompilerHost = {
+    ...base,
+    fileExists: (fileName) => !hidesDrizzle(fileName) && base.fileExists(fileName),
+    readFile: (fileName) => (hidesDrizzle(fileName) ? undefined : base.readFile(fileName)),
+    getSourceFile: (fileName, ...rest) => (hidesDrizzle(fileName) ? undefined : base.getSourceFile(fileName, ...rest)),
+  };
+  const program = ts.createProgram([CASE_FILE], options, host);
+  return [...program.getSyntacticDiagnostics(), ...program.getSemanticDiagnostics()].map(
+    (d) => `${d.file?.fileName ?? ''} TS${d.code} ${ts.flattenDiagnosticMessageText(d.messageText, '\n')}`
+  );
+}
+
+describe('side-by-side columns with drizzle-orm absent', () => {
+  it('type-checks a next/ schema + models module when drizzle-orm cannot resolve', {timeout: 60_000}, () => {
+    const errors = drizzleFreeErrors(NEXT_SOURCE);
+    expect(errors, `the next/ authoring surface required drizzle-orm:\n  ${errors.join('\n  ')}`).toEqual([]);
   });
 });
