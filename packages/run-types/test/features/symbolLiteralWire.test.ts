@@ -1,6 +1,6 @@
 // A symbol literal is not data: a decoder can only hand back a fresh `Symbol(...)`, never the symbol
-// the type names. Every encoder and decoder refuses it like the bare `symbol` kind (dropped at a
-// property, alwaysThrow at a root); the validator keeps its in-memory description check.
+// the type names. Every family, the validator included, refuses it like the bare `symbol` kind
+// (dropped at a property, alwaysThrow at a root).
 
 import {describe, test, expect} from 'vitest';
 import {createValidateFn, createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
@@ -28,12 +28,9 @@ describe('symbol literal at a root', () => {
     expect(() => createJsonEncoderFn<SymLiteral[]>()).toThrow();
   });
 
-  test('the validator still checks it by description', () => {
+  test('the validator refuses it like a bare symbol', () => {
     // @mion-downgrade-error VL002
-    const isit = createValidateFn<SymLiteral>();
-    expect(isit(sym)).toBe(true);
-    expect(isit(Symbol('nice'))).toBe(false);
-    expect(isit('hello')).toBe(false);
+    expect(() => createValidateFn<SymLiteral>()).toThrow(/VL002/);
   });
 });
 

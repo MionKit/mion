@@ -547,13 +547,9 @@ export const ATOMIC = {
 
   literal_symbol: {
     title: 'Symbol literal',
-    // DataOnly<unique symbol> collapses to `never` (symbols are non-data), so
-    // createValidateFn<DataOnly<T>>() can't reproduce the symbol validator.
-    dataOnlyDivergent: true,
-    description:
-      'A symbol literal is matched by its `description` rather than unique-symbol identity, per the reference semantics.',
+    description: 'A symbol literal (`typeof sym`) is still a symbol, which is not data, so the factory throws on first call.',
     validateNotes: [
-      'TS DIVERGENCE: Symbol literal types are matched by `description`, not by unique-symbol identity. A different `Symbol("hello")` instance with the same description WILL satisfy the type. Strict TS treats each `typeof sym` as a unique-symbol referring to that exact value.',
+      'DataOnly strips every symbol, a named one included. The Go pipeline renders an alwaysThrow factory (VL002 / VE002), like the bare `symbol` case.',
     ],
     validate: () => {
       const sym = Symbol('hello');
@@ -625,21 +621,8 @@ export const ATOMIC = {
       const v: typeof sym = sym;
       return createMockDataFn(v);
     },
-    getSamples: () => {
-      const sym = Symbol('hello');
-      return {
-        // identity by description per the reference semantics:
-        // emit is `typeof === 'symbol' && v.description === 'hello'`
-        valid: [sym, Symbol('hello')],
-        invalid: [Symbol('nice'), 'hello', null, undefined],
-      };
-    },
-    getExpectedErrors: () => [
-      [{path: [], expected: 'literal'}],
-      [{path: [], expected: 'literal'}],
-      [{path: [], expected: 'literal'}],
-      [{path: [], expected: 'literal'}],
-    ],
+    factoryThrows: true,
+    getSamples: () => ({valid: [], invalid: []}),
   },
 
   never: {
@@ -861,30 +844,36 @@ export const ATOMIC = {
 
   regexp: {
     title: 'RegExp',
-    description: 'The `RegExp` builtin uses an `instanceof RegExp` check.',
+    description: 'A `RegExp` is not data, so the factory throws on first call.',
     validateNotes: [
-      'Must be an actual RegExp instance (`instanceof RegExp`). A string like `"/abc/"` does NOT satisfy.',
-      'The getValidationErrors and mockType REFLECT forms are not supported: a reflect value `const v: RegExp = /abc/` narrows to the literal-regex type `/abc/`, dispatching to the regexp-literal arm — getValidationErrors would then report `expected: "literal"` instead of `"regexp"`, and mockType would resolve a regexp-literal runtype. The validate reflect forms survive because the validator body coincides on the samples; only the kindname-reporting paths diverge.',
+      'DataOnly strips RegExp: a pattern is code, not data. The Go pipeline renders an alwaysThrow factory (VL001 / VE001). The only regex a validator runs is a `pattern` format.',
+      'The getValidationErrors and mockType REFLECT forms stay opted out: a reflect value `const v: RegExp = /abc/` narrows to the literal-regex type `/abc/`.',
     ],
+    // @mion-downgrade-error VL001
     validate: () => createValidateFn<RegExp>(),
+    // @mion-downgrade-error VE001 VL001
     standardSchema: () => createStandardSchema<RegExp>(),
-    // A RegExp is not data: DataOnly<RegExp> is never, so the DataOnly form is an
-    // always-throw factory and the id-integrity assert skips it (dataOnlyDivergent).
-    dataOnlyDivergent: true,
     validateDataOnly: () => createValidateFn<DataOnly<RegExp>>(),
+    // @mion-downgrade-error VL001
     validateSchema: () => createValidateFn(RT.regexp()),
+    // @mion-downgrade-error VL001
     deserializeValidate: () => deserializeValidate<RegExp>(),
     validateReflect: () => {
       const v: RegExp = /abc/;
+      // @mion-downgrade-error VL001
       return createValidateFn(v);
     },
     deserializeValidateReflect: () => {
       const v: RegExp = /abc/;
+      // @mion-downgrade-error VL001
       return deserializeValidate(v);
     },
+    // @mion-downgrade-error VE001
     getValidationErrors: () => createGetValidationErrorsFn<RegExp>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<RegExp>>(),
+    // @mion-downgrade-error VE001
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.regexp()),
+    // @mion-downgrade-error VE001
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<RegExp>(),
     // Reflect forms for the kindname-reporting paths are deliberately opted out
     // (see validateNotes): `const v: RegExp = /abc/` narrows to the literal-regex
@@ -895,18 +884,8 @@ export const ATOMIC = {
     mockType: () => createMockDataFn<RegExp>(),
     mockTypeExpect: 'skip',
     mockTypeReflect: 'not-supported',
-    getSamples: () => ({
-      valid: [/abc/, new RegExp('abc')],
-      invalid: [undefined, 42, 'hello', null, '/abc/', {}],
-    }),
-    getExpectedErrors: () => [
-      [{path: [], expected: 'regexp'}],
-      [{path: [], expected: 'regexp'}],
-      [{path: [], expected: 'regexp'}],
-      [{path: [], expected: 'regexp'}],
-      [{path: [], expected: 'regexp'}],
-      [{path: [], expected: 'regexp'}],
-    ],
+    factoryThrows: true,
+    getSamples: () => ({valid: [], invalid: []}),
   },
 
   string: {

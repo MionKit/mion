@@ -1315,40 +1315,46 @@ export const OBJECT = {
 
   function_top_level: {
     title: 'Top-level function',
-    description: "Function type at the root, validated with `typeof v === 'function'` so any function passes.",
+    description: 'A function is not data, so the factory throws on first call.',
     validateNotes: [
-      'TS DIVERGENCE: ANY function passes, regardless of signature — arrow functions, async functions, class declarations (typeof === "function") all satisfy `() => void`.',
-      'Parameter types and return type are NOT verified at runtime. If you need a specific call shape, validate at the call boundary.',
+      'DataOnly strips every callable. The Go pipeline renders an alwaysThrow factory (VL003 / VE003). Validate `Parameters<F>` or `Awaited<ReturnType<F>>` instead.',
     ],
-    // Root-level function type: DataOnly<() => void> collapses to `never`, which
-    // the emitter renders as an always-throw factory — the bare-`T` form instead
-    // emits a `typeof === 'function'` validator, so the ids cannot converge.
-    dataOnlyDivergent: true,
+    // @mion-downgrade-error VL003
     validate: () => createValidateFn<() => void>(),
+    // @mion-downgrade-error VE003 VL003
     standardSchema: () => createStandardSchema<() => void>(),
     // DataOnly<() => void> = never → an always-throw factory; the assert skips it
-    // (dataOnlyDivergent above), but the thunk is declared so the contract holds.
+    // (factoryThrows), but the thunk is declared so the contract holds.
     validateDataOnly: () => createValidateFn<DataOnly<() => void>>(),
+    // @mion-downgrade-error VL003
     validateSchema: () => createValidateFn(RT.func()),
+    // @mion-downgrade-error VL003
     deserializeValidate: () => deserializeValidate<() => void>(),
     validateReflect: () => {
       const v: () => void = () => {};
+      // @mion-downgrade-error VL003
       return createValidateFn(v);
     },
     deserializeValidateReflect: () => {
       const v: () => void = () => {};
+      // @mion-downgrade-error VL003
       return deserializeValidate(v);
     },
+    // @mion-downgrade-error VE003
     getValidationErrors: () => createGetValidationErrorsFn<() => void>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<() => void>>(),
+    // @mion-downgrade-error VE003
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.func()),
+    // @mion-downgrade-error VE003
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<() => void>(),
     getValidationErrorsReflect: () => {
       const v: () => void = () => {};
+      // @mion-downgrade-error VE003
       return createGetValidationErrorsFn(v);
     },
     deserializeGetValidationErrorsReflect: () => {
       const v: () => void = () => {};
+      // @mion-downgrade-error VE003
       return deserializeGetValidationErrors(v);
     },
     mockType: () => createMockDataFn<() => void>(),
@@ -1356,23 +1362,10 @@ export const OBJECT = {
       const v: () => void = () => {};
       return createMockDataFn(v);
     },
-    // Function kinds return `undefined` from the walker (the reference
-    // behaviour); the result can't satisfy `validate<() => void>` which
-    // checks `typeof === 'function'`. Mock still runs without error.
+    // Function kinds mock to `undefined`, which a validator could never check anyway.
     mockTypeExpect: 'skip',
-    getSamples: () => ({
-      valid: [() => {}, function () {}, async () => {}, class {}],
-      invalid: [null, undefined, 42, 'function', {}, [], true],
-    }),
-    getExpectedErrors: () => [
-      [{path: [], expected: 'function'}],
-      [{path: [], expected: 'function'}],
-      [{path: [], expected: 'function'}],
-      [{path: [], expected: 'function'}],
-      [{path: [], expected: 'function'}],
-      [{path: [], expected: 'function'}],
-      [{path: [], expected: 'function'}],
-    ],
+    factoryThrows: true,
+    getSamples: () => ({valid: [], invalid: []}),
   },
 
   // ---- DEFERRED — kept as data for future adapter activation ----
@@ -1380,29 +1373,29 @@ export const OBJECT = {
   interface_callable: {
     title: 'Callable interface',
     description:
-      'Interface with a call signature plus data properties, switching the typeof guard from `object` to `function` and AND-chaining the remaining properties.',
+      'An interface with a call signature is function-like, so the factory throws on first call, like a bare function.',
     validateNotes: [
-      'Callable interfaces require a function value (`typeof === "function"`) PLUS the declared data properties. JS functions can carry properties; this case validates both halves.',
+      'DataOnly strips a callable interface, data properties included. The Go pipeline renders an alwaysThrow factory (VL003 / VE003).',
     ],
-    // Callable interface: it has a call signature, so DataOnly<T> matches the
-    // `(...args) => any` branch and collapses to `never`, whereas the emitter
-    // validates it as a function-with-data-props. Ids cannot converge.
-    dataOnlyDivergent: true,
     // Signature param names are id-relevant (parameters[].name must be
     // per-site reliable), and TS call-signature syntax REQUIRES names, while the value-first
     // RT.func builder brands an unnamed positional expansion — the two forms
     // are informationally different types now. Behavior stays identical (the
     // schema thunks still run in the behavior suites).
     idDivergent: true,
+    // @mion-downgrade-error VL003
     validate: () => createValidateFn<{(a: number, b: boolean): string; extra: string}>(),
+    // @mion-downgrade-error VE003 VL003
     standardSchema: () => createStandardSchema<{(a: number, b: boolean): string; extra: string}>(),
     // DataOnly collapses the call signature away → never; assert skips it
-    // (dataOnlyDivergent), the thunk is declared to satisfy the contract.
+    // (factoryThrows), the thunk is declared to satisfy the contract.
     validateDataOnly: () => createValidateFn<DataOnly<{(a: number, b: boolean): string; extra: string}>>(),
     validateSchema: () =>
       createValidateFn(
         RT.callable(RT.func({params: [TF.number(), RT.boolean()], ret: TF.string()}), RT.object({extra: TF.string()}))
+        // @mion-downgrade-error VL003
       ),
+    // @mion-downgrade-error VL003
     deserializeValidate: () => deserializeValidate<{(a: number, b: boolean): string; extra: string}>(),
     validateReflect: () => {
       const v: {(a: number, b: boolean): string; extra: string} = Object.assign(
@@ -1411,6 +1404,7 @@ export const OBJECT = {
         },
         {extra: 'x'}
       );
+      // @mion-downgrade-error VL003
       return createValidateFn(v);
     },
     deserializeValidateReflect: () => {
@@ -1420,14 +1414,18 @@ export const OBJECT = {
         },
         {extra: 'x'}
       );
+      // @mion-downgrade-error VL003
       return deserializeValidate(v);
     },
+    // @mion-downgrade-error VE003
     getValidationErrors: () => createGetValidationErrorsFn<{(a: number, b: boolean): string; extra: string}>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<{(a: number, b: boolean): string; extra: string}>>(),
     getValidationErrorsSchema: () =>
       createGetValidationErrorsFn(
         RT.callable(RT.func({params: [TF.number(), RT.boolean()], ret: TF.string()}), RT.object({extra: TF.string()}))
+        // @mion-downgrade-error VE003
       ),
+    // @mion-downgrade-error VE003
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<{(a: number, b: boolean): string; extra: string}>(),
     getValidationErrorsReflect: () => {
       const v: {(a: number, b: boolean): string; extra: string} = Object.assign(
@@ -1436,6 +1434,7 @@ export const OBJECT = {
         },
         {extra: 'x'}
       );
+      // @mion-downgrade-error VE003
       return createGetValidationErrorsFn(v);
     },
     deserializeGetValidationErrorsReflect: () => {
@@ -1445,6 +1444,7 @@ export const OBJECT = {
         },
         {extra: 'x'}
       );
+      // @mion-downgrade-error VE003
       return deserializeGetValidationErrors(v);
     },
     mockType: () => createMockDataFn<{(a: number, b: boolean): string; extra: string}>(),
@@ -1457,42 +1457,10 @@ export const OBJECT = {
       );
       return createMockDataFn(v);
     },
-    // Callable interface — the runtype is a plain object literal
-    // with a CallSignature child, which the walker treats as a
-    // skipped method. The mock generates the data properties only,
-    // not the function-ness, so `validate` (which checks `typeof ===
-    // 'function'`) rejects the result.
+    // The mock generates the data properties only, not the function-ness.
     mockTypeExpect: 'skip',
-    getSamples: () => ({
-      valid: [
-        Object.assign(
-          function (_a: number, _b: boolean) {
-            return 'x';
-          },
-          {extra: 'x'}
-        ),
-      ],
-      invalid: [
-        {extra: 'x'}, // not a function
-        () => {}, // missing `extra` prop
-        Object.assign(() => {}, {extra: 42}), // extra wrong type
-        null,
-        undefined,
-        Object.assign(() => {}, {extra: null}), // extra wrong type (null)
-      ],
-    }),
-    // Callable interface emits `typeof v === 'function'` as the
-    // top-level guard (instead of object). Non-functions report
-    // `expected: 'function'`; functions that pass the guard fall
-    // through to per-property checks.
-    getExpectedErrors: () => [
-      [{path: [], expected: 'function'}],
-      [{path: ['extra'], expected: 'string'}],
-      [{path: ['extra'], expected: 'string'}],
-      [{path: [], expected: 'function'}],
-      [{path: [], expected: 'function'}],
-      [{path: ['extra'], expected: 'string'}],
-    ],
+    factoryThrows: true,
+    getSamples: () => ({valid: [], invalid: []}),
   },
 
   interface_all_optional: {

@@ -160,42 +160,44 @@ export const NATIVE = {
 
   promise_string: {
     title: 'Promise',
-    // `DataOnly` STRIPS Promise (a thenable is not data — see DataOnly in
-    // runtypes/types.ts), so `DataOnly<Promise<string>>` is `never` and the
-    // DataOnly validator collapses to an always-throw, diverging from the bare
-    // form's thenable check. (The matching emitter change — make `validate` itself
-    // drop Promise like symbol/method — is tracked separately; until then the
-    // bare `validate` still thenable-validates, so this stays divergent.)
-    dataOnlyDivergent: true,
-    description:
-      "A thenable check (`typeof v === 'object' && v !== null && typeof v.then === 'function'`); the wrapped value can't be validated synchronously.",
+    description: 'A `Promise` is not data, so the factory throws on first call.',
     validateNotes: [
-      'TS DIVERGENCE: Promise validation is a "thenable" check — any object with a `then: function` PASSES, even if it is not an actual `Promise` instance.',
-      'The wrapped type T is NOT validated — the promise has not resolved yet. Use `Awaited<P>` if you have the resolved value and want to validate it.',
+      'DataOnly strips every thenable. The Go pipeline renders an alwaysThrow factory (VL001 / VE001). Validate the resolved value with `Awaited<P>` instead.',
     ],
+    // @mion-downgrade-error VL001
     validate: () => createValidateFn<Promise<string>>(),
+    // @mion-downgrade-error VE001 VL001
     standardSchema: () => createStandardSchema<Promise<string>>(),
     validateDataOnly: () => createValidateFn<DataOnly<Promise<string>>>(),
+    // @mion-downgrade-error VL001
     validateSchema: () => createValidateFn(RT.promise(TF.string())),
+    // @mion-downgrade-error VL001
     deserializeValidate: () => deserializeValidate<Promise<string>>(),
     validateReflect: () => {
       const v: Promise<string> = Promise.resolve('x');
+      // @mion-downgrade-error VL001
       return createValidateFn(v);
     },
     deserializeValidateReflect: () => {
       const v: Promise<string> = Promise.resolve('x');
+      // @mion-downgrade-error VL001
       return deserializeValidate(v);
     },
+    // @mion-downgrade-error VE001
     getValidationErrors: () => createGetValidationErrorsFn<Promise<string>>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<Promise<string>>>(),
+    // @mion-downgrade-error VE001
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.promise(TF.string())),
+    // @mion-downgrade-error VE001
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<Promise<string>>(),
     getValidationErrorsReflect: () => {
       const v: Promise<string> = Promise.resolve('x');
+      // @mion-downgrade-error VE001
       return createGetValidationErrorsFn(v);
     },
     deserializeGetValidationErrorsReflect: () => {
       const v: Promise<string> = Promise.resolve('x');
+      // @mion-downgrade-error VE001
       return deserializeGetValidationErrors(v);
     },
     mockType: () => createMockDataFn<Promise<string>>(),
@@ -203,26 +205,8 @@ export const NATIVE = {
       const v: Promise<string> = Promise.resolve('x');
       return createMockDataFn(v);
     },
-    getSamples: () => {
-      const realPromise = Promise.resolve('x');
-      const thenable = {then: () => null};
-      // {then: 'not a function'} — fails the typeof === 'function' check
-      const fakeThenable = {then: 'not a function'};
-      return {
-        valid: [realPromise, thenable],
-        invalid: [null, 'string', 42, {}, [], undefined, true, fakeThenable],
-      };
-    },
-    getExpectedErrors: () => [
-      [{path: [], expected: 'promise'}],
-      [{path: [], expected: 'promise'}],
-      [{path: [], expected: 'promise'}],
-      [{path: [], expected: 'promise'}],
-      [{path: [], expected: 'promise'}],
-      [{path: [], expected: 'promise'}],
-      [{path: [], expected: 'promise'}],
-      [{path: [], expected: 'promise'}],
-    ],
+    factoryThrows: true,
+    getSamples: () => ({valid: [], invalid: []}),
   },
 
   awaited_promise: {

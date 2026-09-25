@@ -279,36 +279,42 @@ export const ARRAY = {
 
   regexp_array: {
     title: 'RegExp array',
-    description: 'Every element passes the atomic builtin-class RegExp check (`instanceof RegExp`); `[]` is valid.',
-    validateNotes: [
-      'A regex *source string* like `"/abc/"` is rejected — the element check is the nominal `instanceof RegExp`, not a string.',
-    ],
+    description: 'A `RegExp` element is not data, so the array factory throws on first call, like `symbol[]`.',
+    validateNotes: ['`DataOnly<RegExp[]>` is `never[]`: the element refusal reaches the root (VL001 / VE001).'],
+    // @mion-downgrade-error VL001
     validate: () => createValidateFn<RegExp[]>(),
+    // @mion-downgrade-error VE001 VL001
     standardSchema: () => createStandardSchema<RegExp[]>(),
-    // A RegExp is not data: DataOnly<RegExp> is never, so the DataOnly form is an
-    // always-throw factory and the id-integrity assert skips it (dataOnlyDivergent).
-    dataOnlyDivergent: true,
     validateDataOnly: () => createValidateFn<DataOnly<RegExp[]>>(),
+    // @mion-downgrade-error VL001
     validateSchema: () => createValidateFn(RT.array(RT.regexp())),
+    // @mion-downgrade-error VL001
     deserializeValidate: () => deserializeValidate<RegExp[]>(),
     validateReflect: () => {
       const v: RegExp[] = [];
+      // @mion-downgrade-error VL001
       return createValidateFn(v);
     },
     deserializeValidateReflect: () => {
       const v: RegExp[] = [];
+      // @mion-downgrade-error VL001
       return deserializeValidate(v);
     },
+    // @mion-downgrade-error VE001
     getValidationErrors: () => createGetValidationErrorsFn<RegExp[]>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<RegExp[]>>(),
+    // @mion-downgrade-error VE001
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.array(RT.regexp())),
+    // @mion-downgrade-error VE001
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<RegExp[]>(),
     getValidationErrorsReflect: () => {
       const v: RegExp[] = [];
+      // @mion-downgrade-error VE001
       return createGetValidationErrorsFn(v);
     },
     deserializeGetValidationErrorsReflect: () => {
       const v: RegExp[] = [];
+      // @mion-downgrade-error VE001
       return deserializeGetValidationErrors(v);
     },
     mockType: () => createMockDataFn<RegExp[]>(),
@@ -317,18 +323,8 @@ export const ARRAY = {
       return createMockDataFn(v);
     },
     mockTypeExpect: 'skip', // a RegExp is not data: the mock leaves it out
-    getSamples: () => ({
-      valid: [[], [/abc/, new RegExp('abc')]],
-      invalid: [['/abc/'], [42], null, undefined, [null], [{}]],
-    }),
-    getExpectedErrors: () => [
-      [{path: [0], expected: 'regexp'}],
-      [{path: [0], expected: 'regexp'}],
-      [{path: [], expected: 'array'}],
-      [{path: [], expected: 'array'}],
-      [{path: [0], expected: 'regexp'}],
-      [{path: [0], expected: 'regexp'}],
-    ],
+    factoryThrows: true,
+    getSamples: () => ({valid: [], invalid: []}),
   },
 
   undefined_array: {
