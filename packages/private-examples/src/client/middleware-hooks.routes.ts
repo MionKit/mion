@@ -8,7 +8,7 @@ const mion = createMionRouter();
 export type SessionInfo = {userId: string; role: 'admin' | 'user'};
 export type NotAuthorizedData = {reason: 'missing-token' | 'invalid-token'};
 
-// a plain handler, so a client installer can take its type (client-middleware-installer.ts)
+// a plain handler, so a client installer can take its type
 export function authHandler(
   ctx: CallContext,
   h: HeadersSubset<'Authorization'>
