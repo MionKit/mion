@@ -316,7 +316,7 @@ export function circular<Body>(
   return builderResult(id, {type: 'circular', child: body});
 }
 
-/** Validates the thenable shape only: a pending promise's value isn't available synchronously. **/
+/** A promise is not data: validate refuses it at the root (VL001) and drops it at a property. **/
 export function promise<V>(valueSchema: CompTimeArgs<RunType<V>>, id?: InjectRunTypeId<Promise<V>>): RunType<Promise<V>> {
   return builderResult(id, {type: 'promise', child: valueSchema});
 }
@@ -357,8 +357,7 @@ export function func(
 /** A callable-interface builder — a value that is BOTH callable AND carries data properties,
  *  `{(a: number): string; extra: string}`. The InferType is `Fn & Props` because TS can't express a
  *  call signature and mapped props in one object literal, but the scanner projects it as one, so it
- *  converges with the type-first callable interface. The function half isn't validated: the emitted
- *  validator checks `typeof === 'function'` PLUS the declared data properties. **/
+ *  converges with the type-first callable interface. It is function-like, so validate refuses it at the root (VL003). **/
 export function callable<Fn, Props>(
   fn: CompTimeArgs<RunType<Fn>>,
   iface: CompTimeArgs<RunType<Props>>,
