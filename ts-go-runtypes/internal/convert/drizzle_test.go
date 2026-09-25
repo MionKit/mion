@@ -504,10 +504,6 @@ func TestDrizzle_CapitalisedConstGetsTSuffix(t *testing.T) {
 	}
 }
 
-// TestDrizzle_BackwardReferenceRefusal pins the eager-tables-option guard: a
-// child table declared BEFORE its referenced parent is legal on the builders
-// road (the closure is lazy) but has no valid type form, so it refuses with
-// CNV009 and stays byte-untouched.
 // TestDrizzle_ForwardReferenceThunk covers the ordering drizzle's own schemas
 // are written in: `references: () => parents.id` is lazy, so the parent
 // routinely sits FURTHER DOWN the file. A bare value in the tables option would

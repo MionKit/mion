@@ -11,7 +11,7 @@ package convert
 // The emitted const uses the MARKER form, the devtools transform resolving the type argument; the
 // explicit `tableFromType(getRunType<T>(), options?)` escape hatch is still recognized, pairing
 // ignoring the value arguments, and stays as written once in the target form. References ride the
-// options object, evaluated eagerly, so a backward reference refuses with a reorder message. Both
+// options object, evaluated eagerly, so a table declared later in the file rides a thunk. Both
 // directions preserve the VALUE and the TYPE name, so every use keeps working, and the two halves
 // always print together.
 //
@@ -19,7 +19,7 @@ package convert
 // literals, type names follow the first-letter uppercase rule verified against the dialect module's
 // REAL exports, and the modifier vocabulary is whatever the builder's return type or the mods
 // sentinel carries. A table using constructs with no type spelling (interpolated sql, $type,
-// non-literal args, out-of-file or backward references) reports CNV009 and stays untouched.
+// non-literal args, out-of-file references) reports CNV009 and stays untouched.
 
 import (
 	"fmt"
@@ -42,7 +42,6 @@ const (
 	sentinelTable   = "@rtTableBrand"
 	sentinelColSpec = "@rtColSpecKey"
 	sentinelColMods = "@rtColModsKey"
-	sentinelColumn  = "@rtColumnKey"
 )
 
 // stripSentinelId reduces a late-bound member name to its stable form, mirroring
