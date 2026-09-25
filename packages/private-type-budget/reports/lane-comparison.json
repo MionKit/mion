@@ -63,13 +63,13 @@
           "step": 4,
           "label": "mion route api",
           "delta": 500,
-          "budget": 524
+          "budget": 500
         },
         {
           "step": 5,
           "label": "initClient",
           "delta": 3106,
-          "budget": 3130
+          "budget": 3106
         }
       ],
       "total": 4300
@@ -99,13 +99,13 @@
           "step": 4,
           "label": "mion route api",
           "delta": 496,
-          "budget": 520
+          "budget": 496
         },
         {
           "step": 5,
           "label": "initClient",
           "delta": 3346,
-          "budget": 3370
+          "budget": 3346
         }
       ],
       "total": 5041

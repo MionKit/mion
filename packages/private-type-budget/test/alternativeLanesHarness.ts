@@ -161,7 +161,8 @@ export const brandedWhen: Date = brandedRow.createdAt;
     // route api 386 -> 502 and initClient 2562 -> 3102: the API type carries the resolved options and the
     // compiled types, every subrequest its route id and API (see modelPipelineHarness).
     // route api 502 -> 524 and initClient 3102 -> 3130: the router options key and initClient's options slot.
-    ...withTailBudgets([393, 254, 524, 3130]),
+    // route api 524 -> 500 and initClient 3130 -> 3106: that key and that slot are gone again.
+    ...withTailBudgets([393, 254, 500, 3106]),
   ],
   // Written with the format aliases, so exact identity holds here.
   shapePins: `
@@ -207,7 +208,8 @@ export const brandedWhen: Date = brandedRow.createdAt;
     // route api 382 -> 498 and initClient 2778 -> 3342: the API type carries the resolved options and the
     // compiled types, every subrequest its route id and API (see modelPipelineHarness).
     // route api 498 -> 520 and initClient 3342 -> 3370: the router options key and initClient's options slot.
-    ...withTailBudgets([384, 262, 520, 3370]),
+    // route api 520 -> 496 and initClient 3370 -> 3346: that key and that slot are gone again.
+    ...withTailBudgets([384, 262, 496, 3346]),
   ],
   // The builders infer the brand with READONLY params and no alias, so the
   // spelling is not identical to `RTString<…>` even though the information is
