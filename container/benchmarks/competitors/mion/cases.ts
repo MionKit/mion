@@ -105,17 +105,6 @@ export const cases: CompetitorCases = {
       return (value: unknown) => getErrors(value).length === 0;
     },
   },
-  'ATOMIC.literal_symbol': {
-    build: () => {
-      const sym = Symbol('hello');
-      return createValidateFn<typeof sym>();
-    },
-    buildErrors: () => {
-      const sym = Symbol('hello');
-      const getErrors = createGetValidationErrorsFn<typeof sym>();
-      return (value: unknown) => getErrors(value).length === 0;
-    },
-  },
   'ATOMIC.never': {
     build: () => createValidateFn<never>(),
     buildErrors: () => {
@@ -141,13 +130,6 @@ export const cases: CompetitorCases = {
     build: () => createValidateFn<object>(),
     buildErrors: () => {
       const getErrors = createGetValidationErrorsFn<object>();
-      return (value: unknown) => getErrors(value).length === 0;
-    },
-  },
-  'ATOMIC.regexp': {
-    build: () => createValidateFn<RegExp>(),
-    buildErrors: () => {
-      const getErrors = createGetValidationErrorsFn<RegExp>();
       return (value: unknown) => getErrors(value).length === 0;
     },
   },
@@ -214,13 +196,6 @@ export const cases: CompetitorCases = {
     build: () => createValidateFn<Date[]>(),
     buildErrors: () => {
       const getErrors = createGetValidationErrorsFn<Date[]>();
-      return (value: unknown) => getErrors(value).length === 0;
-    },
-  },
-  'ARRAY.regexp_array': {
-    build: () => createValidateFn<RegExp[]>(),
-    buildErrors: () => {
-      const getErrors = createGetValidationErrorsFn<RegExp[]>();
       return (value: unknown) => getErrors(value).length === 0;
     },
   },
@@ -473,20 +448,6 @@ export const cases: CompetitorCases = {
         c: Obj1;
       }
       const getErrors = createGetValidationErrorsFn<Obj2>();
-      return (value: unknown) => getErrors(value).length === 0;
-    },
-  },
-  'OBJECT.function_top_level': {
-    build: () => createValidateFn<() => void>(),
-    buildErrors: () => {
-      const getErrors = createGetValidationErrorsFn<() => void>();
-      return (value: unknown) => getErrors(value).length === 0;
-    },
-  },
-  'OBJECT.interface_callable': {
-    build: () => createValidateFn<{(a: number, b: boolean): string; extra: string}>(),
-    buildErrors: () => {
-      const getErrors = createGetValidationErrorsFn<{(a: number, b: boolean): string; extra: string}>();
       return (value: unknown) => getErrors(value).length === 0;
     },
   },
@@ -1053,13 +1014,6 @@ export const cases: CompetitorCases = {
     build: () => createValidateFn<Set<string>>(),
     buildErrors: () => {
       const getErrors = createGetValidationErrorsFn<Set<string>>();
-      return (value: unknown) => getErrors(value).length === 0;
-    },
-  },
-  'NATIVE.promise_string': {
-    build: () => createValidateFn<Promise<string>>(),
-    buildErrors: () => {
-      const getErrors = createGetValidationErrorsFn<Promise<string>>();
       return (value: unknown) => getErrors(value).length === 0;
     },
   },

@@ -136,7 +136,6 @@ export const cases: CompetitorCases = {
     },
   },
   'ATOMIC.literal_1n': NOT_SUPPORTED, // TypeBox has no bigint literal type
-  'ATOMIC.literal_symbol': NOT_SUPPORTED, // TypeBox has no symbol literal type
   'ATOMIC.never': {
     build: () => {
       const schema = Type.Never();
@@ -183,7 +182,6 @@ export const cases: CompetitorCases = {
     },
   },
   'ATOMIC.object': NOT_SUPPORTED, // Type.Object({}) rejects arrays; no general 'object' type in TypeBox
-  'ATOMIC.regexp': NOT_SUPPORTED, // TypeBox RegExp validates string matches a pattern, not instanceof RegExp
   'ATOMIC.string': {
     build: () => {
       const schema = Type.String();
@@ -322,7 +320,6 @@ export const cases: CompetitorCases = {
       };
     },
   },
-  'ARRAY.regexp_array': NOT_SUPPORTED, // no RegExp instance type in TypeBox
   'ARRAY.undefined_array': {
     build: () => {
       const schema = Type.Array(Type.Undefined());
@@ -795,22 +792,6 @@ export const cases: CompetitorCases = {
       };
     },
   },
-  'OBJECT.function_top_level': {
-    build: () => {
-      const schema = Type.Function([], Type.Any());
-      const check = TypeCompiler.Compile(schema);
-      return (value: unknown) => check.Check(value);
-    },
-    buildErrors: () => {
-      const schema = Type.Function([], Type.Any());
-      const check = TypeCompiler.Compile(schema);
-      return (value: unknown) => {
-        for (const _ of check.Errors(value)) return false;
-        return true;
-      };
-    },
-  },
-  'OBJECT.interface_callable': NOT_SUPPORTED, // Intersect(Function, Object) compiles typeof 'object' check which rejects functions
   'OBJECT.interface_all_optional': {
     build: () => {
       const schema = Type.Object({a: Type.Optional(Type.String()), b: Type.Optional(Type.Number())});
@@ -1761,7 +1742,6 @@ export const cases: CompetitorCases = {
   // ── NATIVE ──
   'NATIVE.map_string_number': NOT_SUPPORTED, // no Map type in TypeBox
   'NATIVE.set_string': NOT_SUPPORTED, // no Set type in TypeBox
-  'NATIVE.promise_string': NOT_SUPPORTED, // no thenable/Promise type in TypeBox
   'NATIVE.awaited_promise': {
     build: () => {
       const schema = Type.String();
