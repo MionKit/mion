@@ -28,8 +28,7 @@ export type RtRefinedColumn<
   InsertExcluded extends boolean,
 > = RtColumnBrand<Data, NotNull, HasDefault, InsertExcluded>;
 
-// ONE conditional reads the brand payload and the key flags together; the key flags ride along
-// untouched, or toDrizzle loses mysql's $returningId() keys and pg's identity.
+// Key flags pass through, or toDrizzle loses mysql's $returningId() keys and pg's identity; one conditional reads both.
 type RefinedCol<Col, Params> = Col extends {
   readonly [rtColumnKey]?: {
     data: infer Data;
@@ -42,7 +41,6 @@ type RefinedCol<Col, Params> = Col extends {
   ? RtRefinedKeyedColumn<MergeFormat<Data, Params>, NotNull, HasDefault, InsertExcluded, Key>
   : never;
 
-/** A refined column that keeps its key flags. */
 export interface RtRefinedKeyedColumn<
   Data,
   NotNull extends boolean,
