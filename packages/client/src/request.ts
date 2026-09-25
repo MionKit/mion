@@ -130,13 +130,16 @@ export class MionClientRequest implements CallContext {
         await this.loadMethodsMetadata(subRequestIds, this.signal);
         const chainIds = this.getChainMiddlewareIds(errors);
         if (errors.size) return Promise.reject(errors);
+        const beforeHandlers = new Set(Object.keys(this.subRequestList));
         const running = this.runRequestHandlers(chainIds);
         if (running) await running;
         if (this.signal?.aborted) {
           this.onError(this.signal.reason, 'Request aborted', errors);
           return Promise.reject(errors);
         }
-        const allIds = Object.keys(this.subRequestList);
+        // the verify subrequest added above is the framework's own, never loaded or validated as a method
+        const addedIds = Object.keys(this.subRequestList).filter((id) => !beforeHandlers.has(id));
+        const allIds = [...subRequestIds, ...addedIds];
         await this.loadMethodsMetadata(allIds, this.signal);
         sanitizeSubRequests(allIds, this);
         validateSubRequests(allIds, this, errors);
