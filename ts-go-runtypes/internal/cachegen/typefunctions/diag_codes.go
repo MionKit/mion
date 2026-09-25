@@ -177,7 +177,7 @@ func (ValidateEmitter) DiagCodeFor(slot DiagSlot) string { return validateCodes[
 var validateRootCodes = rootCodeMap{
 	never:           "", // validate has its own never arm, "no inhabitants", so it is not unsupported
 	nonSerializable: diagnostics.CodeVLNonSerializableRoot,
-	function:        "", // validate supports function kinds as `typeof === 'function'`
+	function:        diagnostics.CodeVLFunctionRoot,
 	symbol:          diagnostics.CodeVLSymbolRoot,
 }
 
@@ -201,7 +201,7 @@ func (ValidationErrorsEmitter) DiagCodeFor(slot DiagSlot) string { return valida
 var validationErrorsRootCodes = rootCodeMap{
 	never:           "",
 	nonSerializable: diagnostics.CodeVENonSerializableRoot,
-	function:        "",
+	function:        diagnostics.CodeVEFunctionRoot,
 	symbol:          diagnostics.CodeVESymbolRoot,
 }
 

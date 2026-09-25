@@ -7,6 +7,7 @@ package diagnostics
 const (
 	CodeVLNonSerializableRoot     = "VL001"
 	CodeVLSymbolRoot              = "VL002"
+	CodeVLFunctionRoot            = "VL003"
 	CodeVLFunctionPropDropped     = "VL010"
 	CodeVLMethodDropped           = "VL011"
 	CodeVLStaticDropped           = "VL012"
@@ -20,6 +21,7 @@ const (
 const (
 	CodeVENonSerializableRoot     = "VE001"
 	CodeVESymbolRoot              = "VE002"
+	CodeVEFunctionRoot            = "VE003"
 	CodeVEFunctionPropDropped     = "VE010"
 	CodeVEMethodDropped           = "VE011"
 	CodeVEStaticDropped           = "VE012"
@@ -156,8 +158,8 @@ func init() {
 	// factory, so the module is written and the function throws the moment it is called.
 	// ScopeRoot: the same trigger inside a property is a child-position drop (the …01x warnings).
 	for _, code := range []string{
-		CodeVLNonSerializableRoot, CodeVLSymbolRoot,
-		CodeVENonSerializableRoot, CodeVESymbolRoot,
+		CodeVLNonSerializableRoot, CodeVLSymbolRoot, CodeVLFunctionRoot,
+		CodeVENonSerializableRoot, CodeVESymbolRoot, CodeVEFunctionRoot,
 		CodePJNeverRoot, CodePJNonSerializableRoot, CodePJFunctionRoot, CodePJSymbolRoot,
 		CodePJSNeverRoot, CodePJSNonSerializableRoot, CodePJSFunctionRoot, CodePJSSymbolRoot,
 		CodeRJNeverRoot, CodeRJNonSerializableRoot, CodeRJFunctionRoot, CodeRJSymbolRoot,

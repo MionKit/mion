@@ -867,7 +867,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     severity: 'error',
     family: 'runtype',
     detail:
-      'A standard-library class carries runtime state that does not survive a JSON\nround-trip: its instance identity is lost the moment it is serialised, so at a root position there is nothing left to work with.\n\nA few have an agreed data form and ARE supported: `Date`, `Map`,\n`Set` and the Temporal types. Everything else the standard library declares\n(`URL`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, the typed arrays and\n`Buffer`) has none, and is refused here rather than guessed at.\n\nFix: describe the data form yourself and convert at the boundary:\n  // for URL:\n  const data = yourUrl.href;             // string\n  // for typed arrays:\n  const data = Array.from(yourBuffer);   // number[]\n\nFix: change the field type to a shape made of data:\n  interface User {\n-   home: URL;\n+   home: string;\n  }',
+      'A standard-library class carries runtime state that does not survive a JSON\nround-trip: its instance identity is lost the moment it is serialised, so at a root position there is nothing left to work with.\n\nA few have an agreed data form and ARE supported: `Date`, `Map`,\n`Set` and the Temporal types. Everything else the standard library declares\n(`URL`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, `RegExp`, the typed\narrays and `Buffer`) has none, and is refused here rather than guessed at.\n\nFix: describe the data form yourself and convert at the boundary:\n  // for URL:\n  const data = yourUrl.href;             // string\n  // for typed arrays:\n  const data = Array.from(yourBuffer);   // number[]\n\nFix: change the field type to a shape made of data:\n  interface User {\n-   home: URL;\n+   home: string;\n  }',
   },
   PJ003: {
     headline: 'Type `{0}` can never be encoded to JSON: the generated function will always fail.',
@@ -950,7 +950,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     severity: 'error',
     family: 'runtype',
     detail:
-      'A standard-library class carries runtime state that does not survive a JSON\nround-trip: its instance identity is lost the moment it is serialised, so at a root position there is nothing left to work with.\n\nA few have an agreed data form and ARE supported: `Date`, `Map`,\n`Set` and the Temporal types. Everything else the standard library declares\n(`URL`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, the typed arrays and\n`Buffer`) has none, and is refused here rather than guessed at.\n\nFix: describe the data form yourself and convert at the boundary:\n  // for URL:\n  const data = yourUrl.href;             // string\n  // for typed arrays:\n  const data = Array.from(yourBuffer);   // number[]\n\nFix: change the field type to a shape made of data:\n  interface User {\n-   home: URL;\n+   home: string;\n  }',
+      'A standard-library class carries runtime state that does not survive a JSON\nround-trip: its instance identity is lost the moment it is serialised, so at a root position there is nothing left to work with.\n\nA few have an agreed data form and ARE supported: `Date`, `Map`,\n`Set` and the Temporal types. Everything else the standard library declares\n(`URL`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, `RegExp`, the typed\narrays and `Buffer`) has none, and is refused here rather than guessed at.\n\nFix: describe the data form yourself and convert at the boundary:\n  // for URL:\n  const data = yourUrl.href;             // string\n  // for typed arrays:\n  const data = Array.from(yourBuffer);   // number[]\n\nFix: change the field type to a shape made of data:\n  interface User {\n-   home: URL;\n+   home: string;\n  }',
   },
   PJS003: {
     headline: 'Type `{0}` can never be encoded to JSON: the generated function will always fail.',
@@ -1034,7 +1034,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     severity: 'error',
     family: 'runtype',
     detail:
-      'A standard-library class carries runtime state that does not survive a JSON\nround-trip: its instance identity is lost the moment it is serialised, so at a root position there is nothing left to work with.\n\nA few have an agreed data form and ARE supported: `Date`, `Map`,\n`Set` and the Temporal types. Everything else the standard library declares\n(`URL`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, the typed arrays and\n`Buffer`) has none, and is refused here rather than guessed at.\n\nFix: describe the data form yourself and convert at the boundary:\n  // for URL:\n  const data = yourUrl.href;             // string\n  // for typed arrays:\n  const data = Array.from(yourBuffer);   // number[]\n\nFix: change the field type to a shape made of data:\n  interface User {\n-   home: URL;\n+   home: string;\n  }',
+      'A standard-library class carries runtime state that does not survive a JSON\nround-trip: its instance identity is lost the moment it is serialised, so at a root position there is nothing left to work with.\n\nA few have an agreed data form and ARE supported: `Date`, `Map`,\n`Set` and the Temporal types. Everything else the standard library declares\n(`URL`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, `RegExp`, the typed\narrays and `Buffer`) has none, and is refused here rather than guessed at.\n\nFix: describe the data form yourself and convert at the boundary:\n  // for URL:\n  const data = yourUrl.href;             // string\n  // for typed arrays:\n  const data = Array.from(yourBuffer);   // number[]\n\nFix: change the field type to a shape made of data:\n  interface User {\n-   home: URL;\n+   home: string;\n  }',
   },
   RJ003: {
     headline: 'Type `{0}` can never be decoded from JSON: the generated function will always fail.',
@@ -1177,7 +1177,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     severity: 'error',
     family: 'runtype',
     detail:
-      'A standard-library class carries runtime state that does not survive a JSON\nround-trip: its instance identity is lost the moment it is serialised, so at a root position there is nothing left to work with.\n\nA few have an agreed data form and ARE supported: `Date`, `Map`,\n`Set` and the Temporal types. Everything else the standard library declares\n(`URL`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, the typed arrays and\n`Buffer`) has none, and is refused here rather than guessed at.\n\nFix: describe the data form yourself and convert at the boundary:\n  // for URL:\n  const data = yourUrl.href;             // string\n  // for typed arrays:\n  const data = Array.from(yourBuffer);   // number[]\n\nFix: change the field type to a shape made of data:\n  interface User {\n-   home: URL;\n+   home: string;\n  }',
+      'A standard-library class carries runtime state that does not survive a JSON\nround-trip: its instance identity is lost the moment it is serialised, so at a root position there is nothing left to work with.\n\nA few have an agreed data form and ARE supported: `Date`, `Map`,\n`Set` and the Temporal types. Everything else the standard library declares\n(`URL`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, `RegExp`, the typed\narrays and `Buffer`) has none, and is refused here rather than guessed at.\n\nFix: describe the data form yourself and convert at the boundary:\n  // for URL:\n  const data = yourUrl.href;             // string\n  // for typed arrays:\n  const data = Array.from(yourBuffer);   // number[]\n\nFix: change the field type to a shape made of data:\n  interface User {\n-   home: URL;\n+   home: string;\n  }',
   },
   VE002: {
     headline: 'Type `{0}` can never be validated: the generated function will always fail.',
@@ -1186,6 +1186,14 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     family: 'runtype',
     detail:
       "Every `symbol` value carries a unique runtime identity (`Symbol() !==\nSymbol()` even with the same description). That identity disappears the\nmoment it's serialised, and two symbols can't be compared across realms,\nworkers, or process boundaries. A validator that asserts \"this is a\nsymbol\" gives a false sense of safety: the value can't actually\nround-trip.\n\nFix: use a stable string key (often a literal union):\n  -  type Status = symbol;\n+  type Status = 'pending' | 'active' | 'done';",
+  },
+  VE003: {
+    headline: 'Type `{0}` can never be validated: the generated function will always fail.',
+    level: 'runtimeError',
+    severity: 'error',
+    family: 'runtype',
+    detail:
+      "A function is code, not data: it cannot survive a JSON round trip, so\nvalidate refuses it rather than only checking `typeof v === 'function'`.\nThis covers methods, call signatures and interfaces with a call signature.\n\nFix: validate what the function takes or returns instead:\n  const isArgs = createValidateFn<Parameters<typeof fn>>();\n  const isResult = createValidateFn<Awaited<ReturnType<typeof fn>>>();",
   },
   VE010: {
     headline:
@@ -1243,7 +1251,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     severity: 'error',
     family: 'runtype',
     detail:
-      'A standard-library class carries runtime state that does not survive a JSON\nround-trip: its instance identity is lost the moment it is serialised, so at a root position there is nothing left to work with.\n\nA few have an agreed data form and ARE supported: `Date`, `Map`,\n`Set` and the Temporal types. Everything else the standard library declares\n(`URL`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, the typed arrays and\n`Buffer`) has none, and is refused here rather than guessed at.\n\nFix: describe the data form yourself and convert at the boundary:\n  // for URL:\n  const data = yourUrl.href;             // string\n  // for typed arrays:\n  const data = Array.from(yourBuffer);   // number[]\n\nFix: change the field type to a shape made of data:\n  interface User {\n-   home: URL;\n+   home: string;\n  }',
+      'A standard-library class carries runtime state that does not survive a JSON\nround-trip: its instance identity is lost the moment it is serialised, so at a root position there is nothing left to work with.\n\nA few have an agreed data form and ARE supported: `Date`, `Map`,\n`Set` and the Temporal types. Everything else the standard library declares\n(`URL`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, `RegExp`, the typed\narrays and `Buffer`) has none, and is refused here rather than guessed at.\n\nFix: describe the data form yourself and convert at the boundary:\n  // for URL:\n  const data = yourUrl.href;             // string\n  // for typed arrays:\n  const data = Array.from(yourBuffer);   // number[]\n\nFix: change the field type to a shape made of data:\n  interface User {\n-   home: URL;\n+   home: string;\n  }',
   },
   VL002: {
     headline: 'Type `{0}` can never be validated: the generated function will always fail.',
@@ -1252,6 +1260,14 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     family: 'runtype',
     detail:
       "Every `symbol` value carries a unique runtime identity (`Symbol() !==\nSymbol()` even with the same description). That identity disappears the\nmoment it's serialised, and two symbols can't be compared across realms,\nworkers, or process boundaries. A validator that asserts \"this is a\nsymbol\" gives a false sense of safety: the value can't actually\nround-trip.\n\nFix: use a stable string key (often a literal union):\n  -  type Status = symbol;\n+  type Status = 'pending' | 'active' | 'done';",
+  },
+  VL003: {
+    headline: 'Type `{0}` can never be validated: the generated function will always fail.',
+    level: 'runtimeError',
+    severity: 'error',
+    family: 'runtype',
+    detail:
+      "A function is code, not data: it cannot survive a JSON round trip, so\nvalidate refuses it rather than only checking `typeof v === 'function'`.\nThis covers methods, call signatures and interfaces with a call signature.\n\nFix: validate what the function takes or returns instead:\n  const isArgs = createValidateFn<Parameters<typeof fn>>();\n  const isResult = createValidateFn<Awaited<ReturnType<typeof fn>>>();",
   },
   VL010: {
     headline:

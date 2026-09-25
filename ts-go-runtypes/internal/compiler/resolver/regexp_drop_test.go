@@ -51,9 +51,8 @@ export const decode = createJsonDecoderFn<Rule>();
 	}
 }
 
-// A RegExp at a root position fails the serialization families like a function
-// does, while validate keeps its identity check.
-func TestDiag_RegExpAtRootFailsSerializationOnly(t *testing.T) {
+// A RegExp at a root position fails every family like a function does, validate included.
+func TestDiag_RegExpAtRootFailsEveryFamily(t *testing.T) {
 	const code = `import {createValidateFn, createJsonEncoderFn} from '@mionjs/run-types';
 export const isPattern = createValidateFn<RegExp>();
 export const encode = createJsonEncoderFn<RegExp>(undefined, {strategy: 'mutate'});
@@ -63,7 +62,7 @@ export const encode = createJsonEncoderFn<RegExp>(undefined, {strategy: 'mutate'
 	if response.Error != "" {
 		t.Fatalf("scanFiles: %s", response.Error)
 	}
-	var sawRoot bool
+	var sawRoot, sawValidateRoot bool
 	for _, diagnostic := range runtypeDiagsOf(response.Diagnostics) {
 		if diagnostic.Code == diagnostics.CodePJNonSerializableRoot {
 			sawRoot = true
@@ -72,11 +71,14 @@ export const encode = createJsonEncoderFn<RegExp>(undefined, {strategy: 'mutate'
 			}
 		}
 		if diagnostic.Code == diagnostics.CodeVLNonSerializableRoot {
-			t.Errorf("validate must keep the RegExp identity check, got %s", diagnostic.Code)
+			sawValidateRoot = true
 		}
 	}
 	if !sawRoot {
 		t.Errorf("expected PJ002 for a root RegExp encoder")
+	}
+	if !sawValidateRoot {
+		t.Errorf("expected VL001 for a root RegExp validator")
 	}
 }
 

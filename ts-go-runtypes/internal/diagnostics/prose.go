@@ -86,17 +86,23 @@ var proseByCode = map[string]prose{
 	// ───────────────────────── validate (VL) ─────────────────────────
 
 	CodeVLNonSerializableRoot: {
-		Summary: "The type you validate is a built-in that carries runtime state, like a `WeakMap`, a `WeakSet`, or a typed array such as `Uint8Array`. None of these survive a JSON round trip, so a guard that passed for one would claim a safety it cannot deliver. Validate a plain shape, or convert the value before you validate it.",
+		Summary: "The type you validate is a built-in that carries runtime state, like a `Promise`, a `RegExp`, a `WeakMap`, or a typed array such as `Uint8Array`. None of these survive a JSON round trip, so a guard that passed for one would claim a safety it cannot deliver. Validate a plain shape, or convert the value before you validate it.",
 		Fix: `const bytes = Array.from(myUint8Array);
 const isData = createValidateFn<number[]>();`,
 		Example: `import {createValidateFn} from '@mionjs/run-types';
 export const isData = createValidateFn<Uint8Array>();`,
 	},
 	CodeVLSymbolRoot: {
-		Summary: "The type is a bare `symbol`. Every symbol has its own runtime identity, so it cannot round trip across a network or a process boundary. Use a stable string union instead.",
+		Summary: "The type is a `symbol`, or one named symbol such as `typeof mySymbol`. Every symbol has its own runtime identity, so it cannot round trip across a network or a process boundary. Use a stable string union instead.",
 		Fix:     `type Status = 'pending' | 'active' | 'done';`,
 		Example: `import {createValidateFn} from '@mionjs/run-types';
 export const isData = createValidateFn<symbol>();`,
+	},
+	CodeVLFunctionRoot: {
+		Summary: "The type you validate is a function, a method or an interface with a call signature. A function is code, not data, so it cannot round trip. Validate what it takes or returns instead.",
+		Fix:     `const isArgs = createValidateFn<Parameters<typeof handler>>();`,
+		Example: `import {createValidateFn} from '@mionjs/run-types';
+export const isData = createValidateFn<() => void>();`,
 	},
 	CodeVLFunctionPropDropped: {
 		// No Example: a function-valued property on a plain object surfaces as VL011, and VL010 fires
@@ -161,9 +167,14 @@ export const isAnything = createValidateFn<unknown>();`,
 export const errorsOf = createGetValidationErrorsFn<Uint8Array>();`,
 	},
 	CodeVESymbolRoot: {
-		Summary: "Same case as `VL002`, from `createGetValidationErrorsFn`. The type is a bare `symbol`, which cannot round trip. Use a string union instead.",
+		Summary: "Same case as `VL002`, from `createGetValidationErrorsFn`. The type is a `symbol`, which cannot round trip. Use a string union instead.",
 		Example: `import {createGetValidationErrorsFn} from '@mionjs/run-types';
 export const errorsOf = createGetValidationErrorsFn<symbol>();`,
+	},
+	CodeVEFunctionRoot: {
+		Summary: "Same case as `VL003`, from `createGetValidationErrorsFn`. The type is a function, which cannot round trip. Report errors against what it takes or returns instead.",
+		Example: `import {createGetValidationErrorsFn} from '@mionjs/run-types';
+export const errorsOf = createGetValidationErrorsFn<() => void>();`,
 	},
 	CodeVEFunctionPropDropped: {
 		// No Example, same reason as VL010: such a property surfaces as VE011.

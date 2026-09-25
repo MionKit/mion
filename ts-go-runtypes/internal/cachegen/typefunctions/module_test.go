@@ -199,7 +199,7 @@ func TestValidateModule_AtomicEmitBodies(t *testing.T) {
 		{"any", &reflection.RunType{ID: "any", Kind: reflection.KindAny}, "", true},
 		{"unknown", &reflection.RunType{ID: "unk", Kind: reflection.KindUnknown}, "", true},
 		{"object", &reflection.RunType{ID: "obj", Kind: reflection.KindObject}, "return (typeof v === 'object' && v !== null)", false},
-		{"regexp", &reflection.RunType{ID: "reg", Kind: reflection.KindRegexp}, "return (v instanceof RegExp)", false},
+		{"regexp", &reflection.RunType{ID: "reg", Kind: reflection.KindRegexp}, "init('" + valKey("reg") + "','regexp',,,,,," + quoteJS(buildAlwaysThrowMessage("VL001", "RegExp", nil)) + ")", false},
 		{"date", &reflection.RunType{ID: "dat", Kind: reflection.KindClass, SubKind: reflection.SubKindDate}, "return (v instanceof Date && !isNaN(v.getTime()))", false},
 	}
 	for _, row := range rows {
@@ -261,7 +261,7 @@ func TestValidateModule_LiteralEmitBodies(t *testing.T) {
 		},
 		{
 			"symbol", &reflection.RunType{ID: "lsy", Kind: reflection.KindLiteral, Literal: map[string]any{"symbol": "hello"}, Flags: []string{"symbol"}},
-			"return typeof v === 'symbol' && v.description === 'hello'",
+			"init('" + valKey("lsy") + "','literal',,,,,," + quoteJS(buildAlwaysThrowMessage("VL002", "Symbol", nil)) + ")",
 		},
 	}
 	for _, row := range rows {
@@ -532,13 +532,12 @@ func TestValidateModule_IndexSignatureEmitBody(t *testing.T) {
 	}
 }
 
-// TestValidateModule_FunctionTopLevelEmitBody — a free-standing function
-// runtype emits the bare `typeof === 'function'` check.
+// TestValidateModule_FunctionTopLevelEmitBody — a free-standing function is non-data, so it renders an alwaysThrow VL003 factory.
 func TestValidateModule_FunctionTopLevelEmitBody(t *testing.T) {
 	dump := protocol.Dump{RunTypes: []*reflection.RunType{{ID: "fn1", Kind: reflection.KindFunction}}}
 	out := renderToString(t, dump)
-	if !strings.Contains(out, "return typeof v === 'function'") {
-		t.Errorf("expected function body in:\n%s", out)
+	if !strings.Contains(out, "init('"+valKey("fn1")+"','function',,,,,,"+quoteJS(buildAlwaysThrowMessage("VL003", "Function", nil))+")") {
+		t.Errorf("expected an alwaysThrow VL003 factory in:\n%s", out)
 	}
 }
 

@@ -408,7 +408,8 @@ func (ValidateEmitter) emitKindDefault(rt *reflection.RunType, ctx *EmitContext,
 		return RTCode{Code: objectGuard(v, ""), Type: CodeE}
 
 	case reflection.KindRegexp:
-		return RTCode{Code: "(" + v + " instanceof RegExp)", Type: CodeE}
+		// DataOnly strips RegExp, so it is refused wherever it would collapse the value to never.
+		return RTCode{Code: "", Type: CodeNS}
 
 	case reflection.KindClass:
 		if rt.SubKind == reflection.SubKindDate {
@@ -443,11 +444,8 @@ func (ValidateEmitter) emitKindDefault(rt *reflection.RunType, ctx *EmitContext,
 		return emitObjectValidate(rt, ctx, v)
 
 	case reflection.KindPromise:
-		// Only thenable-ness is checkable here: the promise has not resolved, so callers validate the resolved value with `Awaited<P>`.
-		return RTCode{
-			Code: "typeof " + v + " === 'object' && " + v + " !== null && typeof " + v + ".then === 'function'",
-			Type: CodeE,
-		}
+		// DataOnly strips a thenable; validate the resolved value with `Awaited<P>` instead.
+		return RTCode{Code: "", Type: CodeNS}
 
 	case reflection.KindEnum:
 		// Mixed enums carry mixed value types (numeric reverse-mapped plus string-enum values), so each entry goes through jsLiteralFromAny.
@@ -520,9 +518,8 @@ func (ValidateEmitter) emitKindDefault(rt *reflection.RunType, ctx *EmitContext,
 
 	case reflection.KindFunction, reflection.KindMethod,
 		reflection.KindMethodSignature, reflection.KindCallSignature:
-		// Method / MethodSignature / CallSignature inherit FunctionRunType and share this emit. No param-count arity guard on
-		// purpose: per-arg validation goes through `Parameters<F>`, which routes into the tuple emit.
-		return RTCode{Code: "typeof " + v + " === 'function'", Type: CodeE}
+		// DataOnly strips every callable; per-arg validation goes through `Parameters<F>`, which routes into the tuple emit.
+		return RTCode{Code: "", Type: CodeNS}
 
 	case reflection.KindTuple:
 		// CodeRB rather than the reference's expression chain: a rest member's for-loop mixed into `a && b` is invalid JS, and RB
@@ -1012,21 +1009,11 @@ func escapeRegex(s string) string {
 // CallSignature child swaps the typeof guard from 'object' to 'function') and the all-optional array / native-object rejection.
 // Method-shaped and static children are dropped; a child that returns CodeNS propagates it and the whole factory is skipped.
 func emitObjectValidate(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
-	// A callable interface requires a function value (typeof === 'function') with optional extra properties on top, so the
-	// plain object check is suppressed for it.
-	callSigChild := objectCallSignatureChild(rt, ctx)
-	// A callable interface at a NON-root position is function-like: CodeNS lets the parent handle it like any other
-	// function-valued child (matching the serializers, F2). At the ROOT a function value is valid, so the guard below stands.
-	if callSigChild != nil && !ctx.IsRoot() {
+	// A callable interface is function-like, which DataOnly strips at every position, the root included.
+	if objectCallSignatureChild(rt, ctx) != nil {
 		return RTCode{Code: "", Type: CodeNS}
 	}
-	var parts []string
-	if callSigChild != nil {
-		// Callable shape — functions can carry properties in JS, so the property checks still run on top of the typeof guard.
-		parts = append(parts, "typeof "+v+" === 'function'")
-	} else {
-		parts = append(parts, "typeof "+v+" === 'object' && "+v+" !== null")
-	}
+	parts := []string{"typeof " + v + " === 'object' && " + v + " !== null"}
 	// Publish the sibling-named-props set so an index-signature child can skip those keys at the top of its for-in loop.
 	// No-op when the object has no index sig or no named props.
 	publishSiblingNamedKeysForIndexSig(rt, ctx)
@@ -1050,8 +1037,7 @@ func emitObjectValidate(rt *reflection.RunType, ctx *EmitContext, v string) RTCo
 			hasIndexSig = true
 		}
 		if isFunctionLikeKind(resolved.Kind) {
-			// Method-shaped members directly on the shape are skipped; for the callable case the CallSignature is already represented
-			// by the `typeof === 'function'` guard above.
+			// Method-shaped members directly on the shape are skipped.
 			ctx.EmitDiagnosticSlot(SlotMethodDropped, memberLabel(resolved))
 			continue
 		}
@@ -1078,8 +1064,7 @@ func emitObjectValidate(rt *reflection.RunType, ctx *EmitContext, v string) RTCo
 	// An index-signature object needs it too: a for-in over a Map / Set / Date / empty array enumerates no own string keys, so
 	// the per-key value check is vacuously satisfied. That over-acceptance corrupts a union's merged-prop dispatch — a Map value
 	// matches an earlier `Record` candidate and is then encoded as `{}` on every serialization lane.
-	// Suppressed for callable shapes: `Object.prototype.toString.call(v)` answers '[object Function]' there.
-	if callSigChild == nil && objectNeedsBrandGuard(hasContributingChild, allOptional, hasIndexSig, hasArrayProofRequiredProp) {
+	if objectNeedsBrandGuard(hasContributingChild, allOptional, hasIndexSig, hasArrayProofRequiredProp) {
 		guard := "(!Array.isArray(" + v + ") && Object.prototype.toString.call(" + v + ") === '[object Object]')"
 		// Insert AFTER the typeof guard so null / non-objects still short-circuit first.
 		parts = append(parts[:1], append([]string{guard}, parts[1:]...)...)
@@ -1087,13 +1072,13 @@ func emitObjectValidate(rt *reflection.RunType, ctx *EmitContext, v string) RTCo
 	// Fused (`checkUnknowns`) families only. WHETHER to emit it is emitsUnknownKeyCheck's call, shared with
 	// emitObjectValidationErrors so the validator and its error twin can never disagree about a node.
 	// Appended LAST on purpose: the O(1) key-count compare is only sound once every property check above it has passed.
-	if emitsUnknownKeyCheck(rt, ctx, callSigChild) {
+	if emitsUnknownKeyCheck(rt, ctx, nil) {
 		parts = append(parts, strictObjectKeyAssertion(rt, ctx))
 	}
 	// Under a union, emitUnionValidate emits one shared `typeof v === 'object' && v !== null` guard, so dropping parts[0] here
 	// just trims the OR-chain; the brand guard and every property check survive as the arm's own checks.
-	// callSigChild == nil keeps callable shapes intact; len(parts) > 1 is defensive against emitting "()".
-	if callSigChild == nil && len(parts) > 1 && ctx.ParentIsUnion() {
+	// len(parts) > 1 is defensive against emitting "()".
+	if len(parts) > 1 && ctx.ParentIsUnion() {
 		return RTCode{Code: "(" + joinAnd(parts[1:]) + ")", Type: CodeE}
 	}
 	return RTCode{Code: "(" + joinAnd(parts) + ")", Type: CodeE}
@@ -1259,15 +1244,8 @@ func emitLiteral(rt *reflection.RunType, v string) RTCode {
 	}
 
 	if flagSet["symbol"] {
-		entry, ok := literal.(map[string]any)
-		if !ok {
-			panic(fmt.Sprintf("typefns: symbol literal expected map encoding, got %T", literal))
-		}
-		name, _ := entry["symbol"].(string)
-		return RTCode{
-			Code: "typeof " + v + " === 'symbol' && " + v + ".description === " + quoteJS(name),
-			Type: CodeE,
-		}
+		// A unique symbol is still a symbol, which DataOnly strips.
+		return RTCode{Code: "", Type: CodeNS}
 	}
 
 	lit, err := jsLiteralFromAny(literal)

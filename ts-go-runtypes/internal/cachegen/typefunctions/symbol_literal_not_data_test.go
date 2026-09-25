@@ -10,8 +10,8 @@ import (
 )
 
 // A symbol literal is no more data than the bare kind: a decoder can only build a fresh Symbol(), never
-// the symbol the type names. Every serialization family refuses it like `symbol` (dropped at a property
-// with a Warning, alwaysThrow at a root); validate keeps the description check it had.
+// the symbol the type names. Every family refuses it like `symbol` (dropped at a property with a Warning,
+// alwaysThrow at a root); validate_nondata_root_test.go covers the validators.
 
 // mkSymLit is the resolver's shape for `typeof sym` (serialize.go's UniqueESSymbol arm).
 func mkSymLit() *reflection.RunType {
@@ -94,22 +94,6 @@ func TestSymbolLiteral_UnionMemberDrops(t *testing.T) {
 		}
 		if _, ok := findCode(sink, code); !ok {
 			t.Errorf("[%s] expected union-member drop warning %s; sink=%+v", fam, code, sink)
-		}
-	}
-}
-
-// An in-memory value is still checkable by description, so the validators refuse nothing.
-func TestSymbolLiteral_ValidateKeepsTheDescriptionCheck(t *testing.T) {
-	for _, fam := range []string{"validate", "validationErrors"} {
-		dump := protocol.Dump{RunTypes: []*reflection.RunType{mkSymLit()}}
-		out, sink := renderWithDiag(t, dump, fam, "lsym")
-		if !strings.Contains(out, "typeof v === 'symbol' && v.description === 'hello'") {
-			t.Errorf("[%s] a root symbol literal must still validate by description; got:\n%s", fam, out)
-		}
-		for _, d := range sink {
-			if d.Severity == diagnostics.SeverityError {
-				t.Errorf("[%s] a root symbol literal must not fail the build for the validators, got %s", fam, d.Code)
-			}
 		}
 	}
 }
