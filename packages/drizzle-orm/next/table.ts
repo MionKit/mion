@@ -5,9 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Side-by-side table core: the table type holds the shared, nameless column types unchanged plus the
-// table-level metadata (db names that differ from the record key, extras). Owner metadata exists only
-// on the cols() view, where references() reads it.
+// Column types stay shared and nameless in a table; owner metadata exists only on the cols() view, for references().
 
 import type {AnyColumn, ColumnOwner} from './columns.ts';
 

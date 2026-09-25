@@ -5,8 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Refinement over the side-by-side columns: the refined column keeps its fn, props and base, so the
-// key flags and every other derived flag survive; only the format params of its data change.
+// A refined column keeps its fn, props and base, so every derived flag survives; only its format params change.
 
 import type {MergeFormat, RefinableParamsOf} from '@mionjs/run-types/formats';
 import type {Column, Merge, ValueOf} from './columns.ts';

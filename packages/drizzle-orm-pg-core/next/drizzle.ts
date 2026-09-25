@@ -5,9 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Side-by-side toDrizzle types: the ONE place a column gets its db name and table name back, as
-// drizzle's own BuildColumns stamps them (column-builder.d.ts), so that cost is paid only in files
-// that materialize a table. The runtime is the shipped toDrizzle, unchanged.
+// The ONE place a column gets its db and table names back, as drizzle's BuildColumns stamps them
+// (column-builder.d.ts), so only files that materialize a table pay for it. The runtime is the shipped toDrizzle.
 
 import type {PgColumn as DzPgColumn, PgTableWithColumns, PgViewWithSelection} from 'drizzle-orm/pg-core';
 import type {PlainDataOf} from '../../drizzle-orm/src/recorder.ts';

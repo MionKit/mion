@@ -5,9 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The side-by-side pg columns at run time: a new builder table, the shipped builder table and raw
-// drizzle materialize the same drizzle table; tableFromType rebuilds it from the hand-written type;
-// and builder and hand-written tables reflect to one runtype id in both marker call shapes.
+// next/ pg columns at run time, against the shipped builders and raw drizzle.
 
 import {describe, it, expect} from 'vitest';
 import * as dz from 'drizzle-orm/pg-core';
@@ -198,8 +196,7 @@ describe('next pg columns: views and enums', () => {
 });
 
 describe('next pg columns: one column shape is one runtype entry', () => {
-  // The reason columns carry no db name: a shape reused across tables reflects to ONE node, where the
-  // shipped type road reflects one node per column name.
+  // Why columns carry no db name: a shape reused across tables reflects to ONE node.
   const columnId = (table: ReflectedNode, key: string) =>
     table.children!.find((member) => member.name === 'columns')!.child!.children!.find((member) => member.name === key)!.child!
       .id;
@@ -218,9 +215,8 @@ describe('next pg columns: one column shape is one runtype entry', () => {
 });
 
 describe('next pg columns: builder tables reflect on their own', () => {
-  // A builder's chain methods are an endless walk for the runtype id (MKR009), so nothing a table or a
-  // view reflects may reach the builders, the type arguments of an alias included. Each probe here is
-  // reflected first, with no hand-written twin reflected before it.
+  // Chain methods are an endless walk for the runtype id (MKR009): nothing reflected may reach them, alias args included.
+  // Each probe is reflected first, with no hand-written twin before it.
   const solo = pgTable('solo', {
     id: uuid('id', {primaryKey: true, defaultRandom: true}),
     name: varchar('user_name', {length: 20, notNull: true}),

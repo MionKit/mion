@@ -5,8 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Models over the side-by-side columns: one spec read per column, every flag derived here from the
-// raw props. Same semantics as ../src/models.ts, which mirrors drizzle's own operations.d.ts.
+// Same semantics as ../src/models.ts (drizzle's operations.d.ts), every flag derived here from the raw props.
 
 import type {InsertKind, SelectValue} from './columns.ts';
 import {rtColSpecKey} from './columns.ts';

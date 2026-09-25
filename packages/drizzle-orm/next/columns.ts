@@ -5,10 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Side-by-side column system: a column type is ONE optional sentinel holding the builder fn, the raw
-// authored props (config and modifier calls together) and the data type, with no db name and no
-// owning table, so one column shape is one shared type in every table. Every flag the models need is
-// derived lazily from the raw props, never at declaration.
+// A column type is ONE optional sentinel {fn, raw props, data} with no db name and no owner, so one column
+// shape is one shared type in every table. Flags are derived lazily from the raw props, never at declaration.
 
 /** Sentinel key of the column spec: {fn, config, data, base}. */
 export const rtColSpecKey: unique symbol = Symbol('rtColSpec');
@@ -25,13 +23,11 @@ export type ColBaseFlag = 'notNull' | 'hasDefault' | 'primaryKeyHasDefault' | 'a
 /** Props of a column with no config and no modifier. */
 export type NoProps = Record<never, never>;
 
-/** A column type: its spec and nothing else, no methods, no db name, no owner. Named, so declaration
- *  emit prints a reference. */
+/** Named, so declaration emit prints a reference. */
 export interface Column<Fn extends string, Props, Data, Base extends ColBaseFlag = never> {
   readonly [rtColSpecKey]?: {fn: Fn; config: Props; data: Data; base: Base};
 }
-/** What a builder called with a db name returns: the column, plus the name the table lifts into its
- *  names map. A nameless builder returns the column itself. */
+/** What a named builder returns; the table lifts the name into its names map. A nameless one returns the column. */
 export interface NamedColumn<Name extends string, C> {
   readonly [rtColNameKey]: Name;
   readonly [rtNamedColumnKey]: C;
@@ -47,8 +43,7 @@ export type Merge<Props, Mod> = {[K in keyof (Props & Mod)]: (Props & Mod)[K]};
 
 /** Strip `readonly` from a const-inferred config so it equals the hand-written object. */
 export type Writable<T> = {-readonly [K in keyof T]: T[K] extends readonly unknown[] ? MutableTuple<T[K]> : T[K]};
-// Its own alias: only a mapped type over a bare type parameter maps a tuple to a tuple. One level of
-// object inside it is made writable too (`unique: ['uq', {nulls: 'distinct'}]`).
+// Its own alias: only a mapped type over a bare type parameter maps a tuple to a tuple.
 type MutableTuple<A> = {
   -readonly [I in keyof A]: A[I] extends (...args: never[]) => unknown
     ? A[I]
@@ -58,10 +53,8 @@ type MutableTuple<A> = {
 };
 
 // ── A builder's props object ─────────────────────────────────────────────────
-// Every key follows one rule, a no-argument modifier is `true` and a modifier with arguments is its
-// argument tuple, so the props a builder takes ARE the props its column type records. Only the keys
-// holding functions change on the way: a references() thunk records the {table, column} it points at,
-// a runtime callback records `true`, since no type can spell a function.
+// A no-argument modifier is `true`, one with arguments its tuple, so builder props ARE the recorded props.
+// Only function keys change, since no type spells a function: references() records {table, column}, a callback `true`.
 
 /** The props keys that carry functions at run time. */
 export type RuntimeModKeys = 'references' | '$default' | '$defaultFn' | '$onUpdate' | '$onUpdateFn';
@@ -94,15 +87,13 @@ export function $type<T>(): [T] {
 export interface ColumnOwner<Table extends string, Key extends string> {
   readonly [rtColOwnerKey]?: {table: Table; column: Key};
 }
-/** Return annotation for a self-reference, which TypeScript cannot infer inside its own initializer:
- *  `parentId: integer().references((): SelfRef<'emps', 'id'> => cols(emps).id)`. */
+/** Return annotation for a self-reference, which TypeScript cannot infer inside its own initializer (TS7022). */
 export type SelfRef<Table extends string, Key extends string> = ColumnOwner<Table, Key>;
 /** The ColRef a references() target records. */
 export type RefOf<Target> = Target extends {readonly [rtColOwnerKey]?: infer Owner} ? NonNullable<Owner> : never;
 
 // ── Lazy flag derivation, read only by the models and ToDrizzleTable ─────────
-// Key tests are `[keyof Props & Keys] extends [never]`: an intersection of two key unions, where an
-// Extract over keyof Props is a distributive conditional paid once per key.
+// Key tests intersect key unions: an Extract over keyof Props is a distributive conditional paid once per key.
 
 type NotNullKeys = 'notNull' | 'primaryKey' | 'generatedAlwaysAsIdentity' | 'generatedByDefaultAsIdentity';
 // Mirrors the builders: generated and identity columns carry a default, so they are never required on insert.
@@ -121,7 +112,6 @@ type DefaultKeys =
   | '$onUpdateFn';
 type ExcludedKeys = 'generatedAlwaysAs' | 'generatedAlwaysAsIdentity';
 
-/** notNull from the props or the builder's intrinsic flags. */
 export type IsNotNull<Props, Base> = [(keyof Props & NotNullKeys) | (Base & 'notNull')] extends [never] ? false : true;
 export type IsHasDefault<Props, Base> = [(keyof Props & DefaultKeys) | (Base & 'hasDefault')] extends [never]
   ? Props extends {primaryKey: [{autoIncrement: true}]}
@@ -151,13 +141,11 @@ export type SelectValue<Props, Data, Base> = [keyof Props & ('$type' | 'array')]
   : IsNotNull<Props, Base> extends true
     ? ValueOf<Props, Data>
     : ValueOf<Props, Data> | null;
-/** The select value of a column spec. */
 export type SelectValueOf<Spec> = Spec extends {config: infer Props; data: infer Data; base: infer Base}
   ? SelectValue<Props, Data, Base>
   : never;
 
-/** How a column sits in an insert payload. The primary-key default (sqlite's rowid, autoIncrement) is
- *  only probed on a column that has a primary key. */
+/** The primary-key default (sqlite's rowid, autoIncrement) only counts on a primary-key column. */
 export type InsertKind<Props, Base> = [keyof Props & ExcludedKeys] extends [never]
   ? [(keyof Props & NotNullKeys) | (Base & 'notNull')] extends [never]
     ? 'optional'

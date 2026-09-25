@@ -112,9 +112,8 @@ const CASES = [
   },
 ];
 
-// The side-by-side columns (each drizzle package's next/ folder), imported by path without an
-// extension, as a real declaration build resolves them. next/ is no package export, so the helper
-// types an inferred table names are imported here; once shipped, the package entry must export them.
+// next/ is imported by extensionless path, as a real declaration build resolves it.
+// It is no package export, so this imports the helper types an inferred table names; the shipped entry must export them.
 const NEXT_HEADER = `
 import type {NoProps, Writable} from '../../drizzle-orm/next/index';
 export type {NoProps, Writable};

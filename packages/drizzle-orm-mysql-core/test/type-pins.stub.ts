@@ -244,9 +244,7 @@ type _refinedReturningId = Expect<Equal<Awaited<typeof returnedIds>, {id: number
 export type _RefinedKeyPins = [_refinedReturningId];
 
 // ── toDrizzle names a column as drizzle does ─────────────────────────────────
-// drizzle's own column `name` is the explicit db name, or the record key when nameless, and its
-// InferSelectModel with {dbColumnNames: true} keys the row by it. The type road knows the db name;
-// a builder column's type does not carry it, so it stays `string` rather than a wrong literal.
+// drizzle names a column by its db name, else its key; a builder column's type lacks the db name, so it is `string`.
 
 type DbNamedType = MysqlTable<'db_named', {createdAt: Timestamp<'created_at'>; bare: Int}>;
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- consumed as a type by the pins
