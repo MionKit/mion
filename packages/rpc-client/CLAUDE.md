@@ -40,7 +40,7 @@ Two of them exist because of real bugs, keep them in mind when touching request 
 One thing rides slot 2 that the router never saw: a metadata cache write the browser refused, after
 eviction ran out of things to give up. The request itself succeeded, so it never rejects and never
 displaces a real error; it takes the first free undeclared slot on a later call and is reported once
-(`packages/client/src/lib/clientMethodsMetadata.ts`, `takeMetadataCacheError`).
+(`packages/rpc-client/src/lib/clientMethodsMetadata.ts`, `takeMetadataCacheError`).
 
 ## Middleware params come only from onRequest
 

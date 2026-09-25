@@ -30,8 +30,8 @@
   },
   "references": [
     {"path": "./packages/core/tsconfig.build.json"},
-    {"path": "./packages/router/tsconfig.build.json"},
-    {"path": "./packages/client/tsconfig.build.json"},
+    {"path": "./packages/rpc-router/tsconfig.build.json"},
+    {"path": "./packages/rpc-client/tsconfig.build.json"},
     {"path": "./packages/platform-node/tsconfig.build.json"},
     {"path": "./packages/platform-aws/tsconfig.build.json"},
     {"path": "./packages/platform-gcloud/tsconfig.build.json"},

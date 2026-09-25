@@ -13,8 +13,8 @@ Once client middleware has `onRequest`, the `mion@syncRoutes` middleware should 
 Needs the client middleware `onRequest` feature (which removes `prefill` and per-call middleware data) to land first.
 
 ## Direction
-- Client side today: `packages/client/src/lib/syncRoutes.ts` (`createSyncSubRequest`, `sendsSyncIds`, `learnSyncRoutes`), wired by hand in `packages/client/src/dispatch.ts` (`makeCall`, `takeSyncRefusal`, `handleSyncRefusal`) and `packages/client/src/lib/serializer.ts:43`.
-- Server side: `packages/router/src/routes/syncRoutes.routes.ts`, key `MION_ROUTES.syncRoutes` in `packages/core/src/constants.ts`.
+- Client side today: `packages/rpc-client/src/lib/syncRoutes.ts` (`createSyncSubRequest`, `sendsSyncIds`, `learnSyncRoutes`), wired by hand in `packages/rpc-client/src/dispatch.ts` (`makeCall`, `takeSyncRefusal`, `handleSyncRefusal`) and `packages/rpc-client/src/lib/serializer.ts:43`.
+- Server side: `packages/rpc-router/src/routes/syncRoutes.routes.ts`, key `MION_ROUTES.syncRoutes` in `packages/core/src/constants.ts`.
 - The `onRequest` for sync is registered internally when `setInjectedRouterOptions` sees `syncRoutes: true`, or after a refusal teaches the client (`learnSyncRoutes`).
 - Note the existing comment in `syncRoutes.ts` keeps it out of the fetched lane: the dynamic import must keep a bundled client working.
 - The implementer plans the details.

@@ -9,7 +9,7 @@ duplicating a server in each of them.
 ## Usage
 
 The package exports the route tree and its types; the tests own the server lifecycle through their
-own vitest `globalSetup` (see `packages/client/globalSetup.ts`).
+own vitest `globalSetup` (see `packages/rpc-client/globalSetup.ts`).
 
 ```typescript
 import {initClient} from '@mionjs/client';

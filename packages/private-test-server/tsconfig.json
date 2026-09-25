@@ -18,7 +18,7 @@
         "../core/index.ts"
       ],
       "@mionjs/router": [
-        "../router/index.ts"
+        "../rpc-router/index.ts"
       ],
       "@mionjs/platform-node": [
         "../platform-node/index.ts"

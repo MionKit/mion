@@ -272,7 +272,7 @@ describe('published packages point at this repository', () => {
         '-i',
         'fatal',
         '--',
-        'packages/client/src',
+        'packages/rpc-client/src',
         'packages/private-examples/src/client',
         'container/website/content/01.rpc/03.client',
         ':!*.spec.ts',
@@ -1137,7 +1137,7 @@ describe('run-types mocking subpath', () => {
 describe('client published surface', () => {
   // Checks the resolved file list, not `exclude`: these tsconfigs are JSONC, and `extends` can lose an exclude.
   it('the build program excludes the test tree', () => {
-    const config = join(REPO_ROOT, 'packages/client/tsconfig.build.json');
+    const config = join(REPO_ROOT, 'packages/rpc-client/tsconfig.build.json');
     const parsed = ts.getParsedCommandLineOfConfigFile(
       config,
       {},
@@ -1147,7 +1147,7 @@ describe('client published surface', () => {
           expect.fail(ts.flattenDiagnosticMessageText(diagnostic.messageText, ' ')),
       }
     );
-    const inTestTree = (parsed?.fileNames ?? []).filter((file) => file.includes('/packages/client/test/'));
+    const inTestTree = (parsed?.fileNames ?? []).filter((file) => file.includes('/packages/rpc-client/test/'));
     expect(inTestTree).toEqual([]);
     expect(parsed?.fileNames.length, 'the build program matched nothing, so the check stopped meaning anything').toBeGreaterThan(
       10
@@ -1157,7 +1157,7 @@ describe('client published surface', () => {
   it('no client source module is a test helper', () => {
     // testUtils.ts lived under src/lib/: not *.spec.ts, so the build included it and the tarball
     // carried a cache reset nothing else calls.
-    const strays = globSync('src/**/*{testUtils,testHelpers,mocks}*.ts', {cwd: join(REPO_ROOT, 'packages/client')});
+    const strays = globSync('src/**/*{testUtils,testHelpers,mocks}*.ts', {cwd: join(REPO_ROOT, 'packages/rpc-client')});
     expect(strays).toEqual([]);
   });
 });
@@ -1904,7 +1904,7 @@ describe('every package under packages/ runs a type check over everything it shi
     const own = {'typecheck:test': 'tsc -p tsconfig.json --noEmit', 'check-types': 'tsc --noEmit -p tsconfig.drizzle.json'};
     const root = {
       typecheck: 'pnpm run typecheck:test && tsc -p packages/private-examples/tsconfig.runtypes.json',
-      other: 'tsc -p packages/router/tsconfig.json',
+      other: 'tsc -p packages/rpc-router/tsconfig.json',
     };
     expect(coverage.projectsOf('private-examples', own, root)).toEqual([
       'tsconfig.json',

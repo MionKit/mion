@@ -360,7 +360,7 @@ describe('inputFrom e2e in batch', () => {
   });
 
   // The build registers every inline mapper, so the unknown-mapper rejection cannot be written here.
-  // It is tested against the router in packages/router/test/batches.spec.ts.
+  // It is tested against the router in packages/rpc-router/test/batches.spec.ts.
 });
 
 // ############# END-TO-END: every route shape the build reads #############

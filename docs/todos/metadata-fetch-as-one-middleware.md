@@ -13,7 +13,7 @@ Fetching route metadata is a middleware on the server (`mion@methodsMetadata`), 
 Last step of the client middleware chain: needs `onRequest` and route sync on `onRequest` first.
 
 ## Direction
-- Scattered today: `packages/client/src/dispatch.ts` (`makeCall`'s optimistic and version-check branches, `retryWithProperSerialization`, `handleSyncRefusal`), `lib/serializer.ts` (~43, 142), `lib/clientMethodsMetadata.ts` (~451), `lib/apiVersionRecovery.ts` (~41), `lib/fetchRemoteMethodsMetadata.ts` (`mion@methodsMetadataById`).
+- Scattered today: `packages/rpc-client/src/dispatch.ts` (`makeCall`'s optimistic and version-check branches, `retryWithProperSerialization`, `handleSyncRefusal`), `lib/serializer.ts` (~43, 142), `lib/clientMethodsMetadata.ts` (~451), `lib/apiVersionRecovery.ts` (~41), `lib/fetchRemoteMethodsMetadata.ts` (`mion@methodsMetadataById`).
 - Keep the on-demand load of the fetched metadata code (dynamic import) working, and the bundled-API mode that needs no fetch.
 - Decide whether the separate `methodsMetadataById` fetch folds into the same middleware.
 - The implementer plans the details.

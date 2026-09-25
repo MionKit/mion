@@ -14,7 +14,7 @@
       "path": "../core/tsconfig.build.json"
     },
     {
-      "path": "../router/tsconfig.build.json"
+      "path": "../rpc-router/tsconfig.build.json"
     }
   ],
   "exclude": [

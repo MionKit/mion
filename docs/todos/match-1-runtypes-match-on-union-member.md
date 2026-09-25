@@ -88,7 +88,7 @@ The implementer plans the details. Pointers verified at the time of writing:
   to its own validate entry, run in written order.
 - Chained method markers already work: the scanner reads the resolved call signature
   (`ts-go-runtypes/internal/compiler/resolver/scan.go`, `Checker_getResolvedSignature`) and
-  `mion.route()` is itself a method marker (`packages/router/src/types/mionRouter.ts`). So
+  `mion.route()` is itself a method marker (`packages/rpc-router/src/types/mionRouter.ts`). So
   `.when<T>()` needs no resolver change, but a `when` in ARGUMENT position of another call
   needs its paired test (Marker test coverage rule, both `getRunTypeId` shapes).
 - Three layers, each catching what the one below cannot. TypeScript: the member constraint

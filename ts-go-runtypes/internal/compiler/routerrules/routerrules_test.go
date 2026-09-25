@@ -15,7 +15,7 @@ import (
 // routerDts is the ambient stand-in for the `@mionjs/router` surface the rules
 // read. The SHAPE is what matters: three helper interfaces whose first argument
 // is the handler, and the two handler type aliases. It mirrors the real
-// packages/router/src/types/mionRouter.ts without the marker parameters, which
+// packages/rpc-router/src/types/mionRouter.ts without the marker parameters, which
 // play no part in these rules. The package's OWN helper bodies are consts typed
 // by the same interfaces, which is why they need no separate entry in the
 // helperInterfaces table.
