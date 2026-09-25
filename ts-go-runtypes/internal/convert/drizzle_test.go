@@ -504,11 +504,7 @@ func TestDrizzle_CapitalisedConstGetsTSuffix(t *testing.T) {
 	}
 }
 
-// TestDrizzle_ForwardReferenceThunk covers the ordering drizzle's own schemas
-// are written in: `references: () => parents.id` is lazy, so the parent
-// routinely sits FURTHER DOWN the file. A bare value in the tables option would
-// be read before that declaration exists, so a forward reference rides a thunk
-// — and a backward one keeps the plain spelling it always had.
+// TestDrizzle_ForwardReferenceThunk: drizzle schemas often declare the parent later; the eager tables option needs a thunk.
 func TestDrizzle_ForwardReferenceThunk(t *testing.T) {
 	source := drizzleHeader +
 		"export const children = DZ.pgTable('children', {\n" +
