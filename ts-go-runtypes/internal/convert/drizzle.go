@@ -543,11 +543,11 @@ func (spellings *drizzleSpellings) removableLocals() map[string]bool {
 			continue
 		}
 		// A dialect package's bindings are all the conversion's to drop. The root module is
-		// registered too, a printed reference spelling cols() from it, but only THAT binding is the
-		// conversion's: `sql` and anything else there belong to the file.
+		// registered too, a printed reference spelling cols() (and a self-reference's AnyRtColumn)
+		// from it, but only THOSE bindings are the conversion's: `sql` and anything else belong to the file.
 		root := module == drizzleRootModule
 		for _, binding := range append(append([]namedBinding{}, entry.Named...), entry.ExtraNamedBindings()...) {
-			if root && binding.Imported != "cols" {
+			if root && binding.Imported != "cols" && binding.Imported != "AnyRtColumn" {
 				continue
 			}
 			locals[binding.Local] = true
@@ -1824,8 +1824,13 @@ func printDrizzleBuilders(spec *drizzleTableSpec, decl *declaration, typeName, c
 					return nil, drizzleRefuse(decl, "references table %q is not declared in this file", mod.refTable)
 				}
 				// cols() because a slim table's TYPE is its metadata: the object carries the
-				// columns as properties, the type does not name them.
-				text += ".references(() => " + colsSpelling(fileInfo) + "(" + targetConst + ")." + mod.refColumn
+				// columns as properties, the type does not name them. A self-reference needs a return
+				// annotation, since TypeScript cannot infer a table inside its own initializer (TS7022).
+				returnType := ""
+				if targetConst == constName {
+					returnType = ": " + fileInfo.spellings.forModule(drizzleRootModule).spellType("AnyRtColumn")
+				}
+				text += ".references(()" + returnType + " => " + colsSpelling(fileInfo) + "(" + targetConst + ")." + mod.refColumn
 				if mod.refActions != "" {
 					text += ", " + mod.refActions
 				}
