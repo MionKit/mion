@@ -6,6 +6,7 @@
 //
 // Coverage matrix:
 //   17a–17d  direct calls + user-defined wrappers (positive — site emitted)
+//   17g      marker wrapped in a user alias (injects T, not unknown)
 //   17e–17f  free-T body / wrong-module collision (negative — skipped)
 //   passthrough  wrappers that forward `id` to inner calls — outer site
 //                only; inner free-T calls stay untouched
@@ -154,6 +155,69 @@ const d = nameOf({kind: 'node', value: 42});
           const {code: out, sites} = await rewrite('17d.ts', sources['17d.ts'], client);
           expect(sites.length).toBe(1);
           expect(out).toMatch(/nameOf\(\{kind: 'node', value: 42\}, __rt_[A-Za-z0-9]+\)/);
+        },
+        {reset: true}
+      );
+    }
+  );
+
+  // ---- 17g: marker wrapped in a user alias -------------------------------
+  //
+  // `type Slot<T> = InjectRunTypeId<T>` hides the marker's alias name. The
+  // wrapped slot must still inject the id of T, never the id of `unknown`.
+
+  runTest(
+    '17g static: marker wrapped in a user alias injects the id of T',
+    {
+      '17g_static.ts': `import {getRunTypeId, type InjectRunTypeId} from '@mionjs/run-types';
+type Slot<T> = InjectRunTypeId<T>;
+function wrap<T>(_val?: T, id?: Slot<T>): string {
+  return getRunTypeId<T>(undefined, id);
+}
+const direct = getRunTypeId<{a: number}>();
+const wrapped = wrap<{a: number}>();
+const other = wrap<{b: string}>();
+`,
+    },
+    async (sources) => {
+      await withInlineSources(
+        sources,
+        async ({client}) => {
+          const {sites} = await rewrite('17g_static.ts', sources['17g_static.ts'], client);
+          const [direct, wrapped, other] = [...sites].sort((left, right) => left.pos - right.pos);
+          expect(sites.length).toBe(3);
+          expect(wrapped.id).toBe(direct.id);
+          expect(other.id).not.toBe(wrapped.id);
+        },
+        {reset: true}
+      );
+    }
+  );
+
+  runTest(
+    '17g reflect: marker wrapped in a user alias injects the id of the value type',
+    {
+      '17g_reflect.ts': `import {getRunTypeId, type InjectRunTypeId} from '@mionjs/run-types';
+type Slot<T> = InjectRunTypeId<T>;
+function wrap<T>(_val?: T, id?: Slot<T>): string {
+  return getRunTypeId<T>(undefined, id);
+}
+const first = {a: 1} as {a: number};
+const second = {b: 'x'} as {b: string};
+const direct = getRunTypeId(first);
+const wrapped = wrap(first);
+const other = wrap(second);
+`,
+    },
+    async (sources) => {
+      await withInlineSources(
+        sources,
+        async ({client}) => {
+          const {sites} = await rewrite('17g_reflect.ts', sources['17g_reflect.ts'], client);
+          const [direct, wrapped, other] = [...sites].sort((left, right) => left.pos - right.pos);
+          expect(sites.length).toBe(3);
+          expect(wrapped.id).toBe(direct.id);
+          expect(other.id).not.toBe(wrapped.id);
         },
         {reset: true}
       );

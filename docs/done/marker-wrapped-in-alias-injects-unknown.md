@@ -1,7 +1,7 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-09-24
 ---
 
@@ -33,3 +33,18 @@ None, because this is build internals with no consumer-facing knob.
 - A marker wrapped in an alias either injects its real type argument or the build reports it.
 - Go and JS tests cover it, with both `getRunTypeId` call shapes as paired tests.
 - The simplify-comments pass ran on every touched source file, committed on its own.
+
+## Plan (approved 2026-09-25)
+
+Resolve the type argument through the brand property, strip `undefined`, no change to the public marker type.
+
+- Reproduce first: Go tests in `ts-go-runtypes/internal/compiler/resolver/marker_alias_wrapped_test.go` and JS tests `17g` in `packages/devtools/test/wrapping.test.ts`, both failing before the fix.
+- `marker.go`: when a marker matches only by its brand property, read that property's type (only when the trusted marker package declared it) and return it as T, for `InjectRunTypeId` and `InjectTypeFnArgs`. For `InjectTypeFnArgs`, read the Fn keys off the `__rtInjectTypeFnArgsFns` tuple the same way.
+- No docs, no fuzzing.
+
+## What shipped
+
+- `typeArgumentFromBrand` / `trustedBrandType` in `marker.go`: the brand's type with `undefined` removed by `RemoveMissingOrUndefinedType`, so `null` survives. Known limit: a wrapped `Slot<X | undefined>` resolves as `X` (without `exactOptionalPropertyTypes`).
+- `fnKeysFromBrand`: a wrapped `InjectTypeFnArgs` keeps its function families. Without it the value-shape site lost its fnId.
+- Only the static shape (`wrap<T>()`) was broken; the value shape (`wrap(value)`) already inferred T from the argument. Both are now tested.
+- A look-alike brand from an untrusted package still resolves to `unknown` for the static shape, exactly as before.
