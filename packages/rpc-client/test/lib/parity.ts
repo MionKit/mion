@@ -101,6 +101,8 @@ export async function expectEveryMethodMatchesTheServer(baseURL: string): Promis
   resetClientCaches();
   resetBundledApi();
   const {client} = initClient<TestServerApi>({baseURL});
+  // bundles every route and sends nothing, so no middleware needs setting up
+  // @mion-expect-error MET008
   client.useBundledApi(everyMethod.call() as InjectedApiMetadata);
   const served = await serverRows(baseURL);
   const ids = Object.keys(served.methods).sort();
