@@ -5,9 +5,89 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Shared core of the mysql table suites: the getTableConfig projection oracle every road must match.
+// The mysql half of the table suites: its column kinds and type-road vocabulary bound over the dialect-free
+// core (packages/drizzle-orm/test/tableSpecCore.ts), the getTableConfig projection oracle, and views.
 
 import {getTableConfig, getViewConfig} from 'drizzle-orm/mysql-core';
+import {
+  specTools,
+  type ColumnSpec,
+  type SpecDialect,
+  type Surface,
+  type TableSpec,
+} from '../../drizzle-orm/test/tableSpecCore.ts';
+
+export type {ColumnSpec, Surface, TableSpec} from '../../drizzle-orm/test/tableSpecCore.ts';
+export {buildTable, FUZZ_PARENT_NAME} from '../../drizzle-orm/test/tableSpecCore.ts';
+
+// ── the random table spec ────────────────────────────────────────────────────
+// Kinds and their order are part of every seed: append new kinds, never reorder them.
+
+const mysqlSpecDialect: SpecDialect = {
+  brand: 'mysql',
+  tableFn: 'mysqlTable',
+  tableType: 'MysqlTable',
+  kinds: [
+    ({int}) => ({fn: 'varchar', args: [{length: int(200)}], mods: []}),
+    ({chance}) => ({fn: 'text', args: chance(0.4) ? [{enum: ['a', 'b', 'c']}] : [], mods: []}),
+    ({chance}) => ({
+      fn: 'int',
+      args: chance(0.3) ? [{unsigned: true}] : [],
+      mods: chance(0.2) ? [{method: 'autoincrement', args: []}] : [],
+    }),
+    () => ({fn: 'smallint', args: [], mods: []}),
+    ({chance}) => ({fn: 'boolean', args: [], mods: chance(0.5) ? [{method: 'default', args: [chance(0.5)]}] : []}),
+    ({pick, chance}) => ({
+      fn: 'timestamp',
+      args: [{mode: pick(['date', 'string'])}],
+      mods: [
+        ...(chance(0.5) ? [{method: 'defaultNow', args: []}] : []),
+        ...(chance(0.3) ? [{method: 'onUpdateNow', args: []}] : []),
+      ],
+    }),
+    ({int}) => ({fn: 'decimal', args: [{precision: 4 + int(12), scale: int(4)}], mods: []}),
+    () => ({fn: 'double', args: [], mods: []}),
+    () => ({fn: 'json', args: [], mods: []}),
+    ({pick, chance}) => ({fn: 'bigint', args: [{mode: pick(['number', 'bigint']), unsigned: chance(0.3)}], mods: []}),
+    () => ({fn: 'serial', args: [], mods: []}),
+    ({int}) => ({fn: 'char', args: [{length: int(20)}], mods: []}),
+    ({pick}) => ({fn: 'datetime', args: [{mode: pick(['date', 'string'])}], mods: []}),
+    () => ({fn: 'tinyint', args: [], mods: []}),
+    () => ({fn: 'year', args: [], mods: []}),
+  ],
+  stringDefaultFns: ['varchar', 'char'],
+  intFns: ['int', 'smallint'],
+  refFn: 'int',
+  indexWhere: false,
+  typeNames: {
+    varchar: 'Varchar',
+    text: 'Text',
+    int: 'Int',
+    smallint: 'Smallint',
+    boolean: 'Boolean',
+    timestamp: 'Timestamp',
+    decimal: 'Decimal',
+    double: 'Double',
+    json: 'Json',
+    bigint: 'Bigint',
+    serial: 'Serial',
+    char: 'Char',
+    datetime: 'Datetime',
+    tinyint: 'Tinyint',
+    year: 'Year',
+  },
+  typeMods: new Set(['notNull', 'primaryKey', 'default', 'defaultNow', 'onUpdateNow', 'autoincrement', 'unique']),
+};
+
+export const {
+  makeSpec,
+  typeRoadReduce,
+  renderNextTableType,
+  renderTableSingleCall,
+  renderTableType,
+  syntheticTableGraph,
+  syntheticNextTableGraph,
+} = specTools(mysqlSpecDialect);
 
 // ── the oracle: getTableConfig projections must match ────────────────────────
 
@@ -83,4 +163,50 @@ export function projectView(view: unknown) {
       notNull: (column as {notNull: boolean}).notNull,
     })),
   };
+}
+
+// ── views: the same column kinds, read-only ─────────────────────────────────
+
+export interface ViewSpec {
+  /** Fresh column builders: a column can never be shared with a table. */
+  columns: ColumnSpec[];
+  /** `.existing()` instead of `.as(sql`...`)`. */
+  existing: boolean;
+  algorithm?: string;
+  sqlSecurity?: string;
+  withCheckOption?: string;
+}
+
+/** The table's column kinds minus every table-only modifier: a manual view column has its type and notNull. */
+export function makeViewSpec(rng: () => number, tableSpec: TableSpec): ViewSpec {
+  const chance = (p: number) => rng() < p;
+  const pick = <T>(items: T[]): T => items[Math.floor(rng() * items.length)];
+  const columns = tableSpec.columns.slice(0, 1 + Math.floor(rng() * tableSpec.columns.length)).map((column, index) => ({
+    key: `v${index}`,
+    fn: column.fn,
+    args: column.args,
+    mods: chance(0.5) ? [{method: 'notNull', args: []}] : [],
+  }));
+  return {
+    columns,
+    existing: chance(0.3),
+    algorithm: chance(0.4) ? pick(['undefined', 'merge', 'temptable']) : undefined,
+    sqlSecurity: chance(0.4) ? pick(['definer', 'invoker']) : undefined,
+    withCheckOption: chance(0.3) ? pick(['local', 'cascaded']) : undefined,
+  };
+}
+
+export function buildView(surface: Surface, spec: ViewSpec, viewName: string): unknown {
+  const columns: Record<string, unknown> = {};
+  for (const columnSpec of spec.columns) {
+    let column = surface.ns[columnSpec.fn](...(columnSpec.args as never[])) as Record<string, (...a: unknown[]) => unknown>;
+    for (const mod of columnSpec.mods) column = column[mod.method](...mod.args) as never;
+    columns[columnSpec.key] = column;
+  }
+  let builder = surface.ns.mysqlView(viewName as never, columns as never) as Record<string, (...a: unknown[]) => unknown>;
+  if (spec.algorithm !== undefined) builder = builder.algorithm(spec.algorithm) as never;
+  if (spec.sqlSecurity !== undefined) builder = builder.sqlSecurity(spec.sqlSecurity) as never;
+  if (spec.withCheckOption !== undefined) builder = builder.withCheckOption(spec.withCheckOption) as never;
+  // The query embeds the parent table, so reference resolution runs on every iteration that is not `.existing()`.
+  return spec.existing ? builder.existing() : builder.as(surface.sql`select * from ${surface.parent}`);
 }

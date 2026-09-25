@@ -5,9 +5,60 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Shared core of the sqlite table suites: the getTableConfig projection oracle every road is compared through.
+// The sqlite half of the table suites: its column kinds and type-road vocabulary bound over the dialect-free
+// core (packages/drizzle-orm/test/tableSpecCore.ts), the getTableConfig projection oracle, and views.
 
 import {getTableConfig, getViewConfig} from 'drizzle-orm/sqlite-core';
+import {
+  specTools,
+  type ColumnSpec,
+  type SpecDialect,
+  type Surface,
+  type TableSpec,
+} from '../../drizzle-orm/test/tableSpecCore.ts';
+
+export type {ColumnSpec, Surface, TableSpec} from '../../drizzle-orm/test/tableSpecCore.ts';
+export {buildTable, FUZZ_PARENT_NAME} from '../../drizzle-orm/test/tableSpecCore.ts';
+
+// ── the random table spec ────────────────────────────────────────────────────
+// Kinds and their order are part of every seed: append new kinds, never reorder them.
+
+const sqliteSpecDialect: SpecDialect = {
+  brand: 'sqlite',
+  tableFn: 'sqliteTable',
+  tableType: 'SqliteTable',
+  kinds: [
+    ({chance, int}) => {
+      if (chance(0.3)) return {fn: 'text', args: [{enum: ['a', 'b', 'c']}], mods: []};
+      return {
+        fn: 'text',
+        args: chance(0.5) ? [{length: int(200)}] : [],
+        mods: chance(0.3) ? [{method: 'default', args: ['dflt']}] : [],
+      };
+    },
+    () => ({fn: 'int', args: [], mods: []}),
+    ({pick}) => ({fn: 'integer', args: [{mode: pick(['number', 'boolean', 'timestamp', 'timestamp_ms'])}], mods: []}),
+    () => ({fn: 'real', args: [], mods: []}),
+    ({pick}) => ({fn: 'numeric', args: [{mode: pick(['string', 'number', 'bigint'])}], mods: []}),
+    ({pick}) => ({fn: 'blob', args: [{mode: pick(['buffer', 'json', 'bigint'])}], mods: []}),
+  ],
+  stringDefaultFns: [],
+  intFns: ['int'],
+  refFn: 'int',
+  indexWhere: true,
+  typeNames: {text: 'Text', int: 'Int', integer: 'Integer', real: 'Real', numeric: 'Numeric', blob: 'Blob'},
+  typeMods: new Set(['notNull', 'primaryKey', 'default', 'unique']),
+};
+
+export const {
+  makeSpec,
+  typeRoadReduce,
+  renderNextTableType,
+  renderTableSingleCall,
+  renderTableType,
+  syntheticTableGraph,
+  syntheticNextTableGraph,
+} = specTools(sqliteSpecDialect);
 
 const normalizeValue = (value: unknown): unknown => {
   if (typeof value === 'function') return '<fn>';
@@ -80,4 +131,37 @@ export function projectView(view: unknown) {
       notNull: (column as {notNull: boolean}).notNull,
     })),
   };
+}
+
+// ── views: the same column kinds, read-only ─────────────────────────────────
+
+export interface ViewSpec {
+  /** Fresh column builders: a column can never be shared with a table. */
+  columns: ColumnSpec[];
+  /** `.existing()` instead of `.as(sql`...`)`. */
+  existing: boolean;
+}
+
+/** The table's column kinds minus every table-only modifier: a manual view column has its type and notNull. */
+export function makeViewSpec(rng: () => number, tableSpec: TableSpec): ViewSpec {
+  const chance = (p: number) => rng() < p;
+  const columns = tableSpec.columns.slice(0, 1 + Math.floor(rng() * tableSpec.columns.length)).map((column, index) => ({
+    key: `v${index}`,
+    fn: column.fn,
+    args: column.args,
+    mods: chance(0.5) ? [{method: 'notNull', args: []}] : [],
+  }));
+  return {columns, existing: chance(0.3)};
+}
+
+export function buildView(surface: Surface, spec: ViewSpec, viewName: string): unknown {
+  const columns: Record<string, unknown> = {};
+  for (const columnSpec of spec.columns) {
+    let column = surface.ns[columnSpec.fn](...(columnSpec.args as never[])) as Record<string, (...a: unknown[]) => unknown>;
+    for (const mod of columnSpec.mods) column = column[mod.method](...mod.args) as never;
+    columns[columnSpec.key] = column;
+  }
+  const builder = surface.ns.sqliteView(viewName as never, columns as never) as Record<string, (...a: unknown[]) => unknown>;
+  // The query embeds the parent table, so reference resolution runs on every iteration that is not `.existing()`.
+  return spec.existing ? builder.existing() : builder.as(surface.sql`select * from ${surface.parent}`);
 }
