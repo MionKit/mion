@@ -27,6 +27,7 @@ Needs the isolated reusable middleware shape first: the `@mionjs/client/middlewa
 - Client side today: `packages/rpc-client/src/lib/syncRoutes.ts` (`createSyncSubRequest`, `sendsSyncIds`, `learnSyncRoutes`), wired by hand in `packages/rpc-client/src/dispatch.ts` (`makeCall`, `takeSyncRefusal`, `handleSyncRefusal`) and `packages/rpc-client/src/lib/serializer.ts:43`. All of it moves into `useSyncRoutes`, built on the public hooks: `onRequest` sends the sync ids, `onError` handles the refusal and resends with `ctx.retry()` (a refusal means no route ran, so retry is always allowed).
 - Server side: `packages/rpc-router/src/routes/syncRoutes.routes.ts`, added today by `addSyncRoutesMiddleware` in `packages/rpc-router/src/router.ts` when `syncRoutes` or `apiVersionCheck` is on. It becomes an entry the user spreads into the routes, exported from `@mionjs/router/middlewares`. Decide what the `syncRoutes` router option still does once the entry is explicit (and how the `apiVersionCheck` header keeps working), and what the build injects into `initClient` (`InjectRouterOptions`).
 - `RouteSyncError` / `RouteSyncErrorData` move to `@mionjs/core` so the client imports nothing from the router.
+- Delete the `echoTag` test fixture that stood in for real content: `packages/private-test-server/src/echoTag.middleware.ts` (and its `notes.echoTag` route entry and index export), `packages/rpc-client/test/lib/echoTag.client.ts`, and the test and parity lines that use it. Route sync's own pair is the first real content of both `./middlewares` entries.
 - The implementer plans the details.
 
 ## Docs
@@ -36,6 +37,7 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
 
 ## Done when
 - Route sync has no special case left in `dispatch.ts` or the router: it is an explicit server entry plus `useSyncRoutes` on the client.
+- No `echoTag` is left anywhere in the repo (a grep finds nothing).
 - A client that never talks to a sync server does not load the sync module (a test pins it).
 - Existing route sync tests pass unchanged, plus `pnpm test` and `pnpm run lint`.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source file, each committed on its own.
