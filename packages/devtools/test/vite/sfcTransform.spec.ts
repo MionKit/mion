@@ -13,6 +13,7 @@ import {build, createServer, type ViteDevServer} from 'vite';
 import vue from '@vitejs/plugin-vue';
 import {mionVitePlugin} from '../../src/vite/mionVitePlugin.ts';
 import {createVirtualSiteMap} from '../../src/vite/sfcTransform.ts';
+import {writeMarkerPackage} from '../helpers/inline.ts';
 
 // Typed mion code inside a .vue <script> used to be silently untransformed. These run the REAL
 // pipeline — real vite, real @vitejs/plugin-vue, the real mion resolver — because the whole
@@ -23,9 +24,9 @@ import {createVirtualSiteMap} from '../../src/vite/sfcTransform.ts';
 // module receives its compiled fn. (esbuild renders the injected `undefined` args as `void 0`.)
 const INJECTED = /createValidateFn\((?:undefined|void 0), (?:undefined|void 0), __rt_/;
 
-// Fixtures live under the package (gitignored `.tmp/`), not in the OS temp dir: both vite and the
-// mion program must resolve `vue` and `@mionjs/run-types` the way a real project does — by
-// walking up to node_modules. A /tmp root resolves neither.
+// Fixtures live under the package (gitignored `.tmp/`), not in the OS temp dir: `vue` must resolve
+// by walking up to node_modules. The marker package is written into each fixture, since devtools
+// does not depend on run-types.
 const FIXTURE_ROOT = path.resolve(fileURLToPath(new URL('../../.tmp', import.meta.url)));
 
 const TSCONFIG = JSON.stringify({
@@ -80,12 +81,18 @@ const greeting: string = 'no mion code here';
 `,
 };
 
+// The marker package is installed as types only, so vite resolves its runtime import to this stand-in.
+const MARKER_STUB = `export const createValidateFn = () => () => true;\n`;
+const markerAlias = (root: string) => ({alias: {'@mionjs/run-types': path.join(root, 'marker-stub.js')}});
+
 /** Writes the fixture tree into a fresh directory and returns its root. */
 function writeFixture(extra: Record<string, string> = {}): string {
   mkdirSync(FIXTURE_ROOT, {recursive: true});
   const root = mkdtempSync(path.join(FIXTURE_ROOT, 'sfc-'));
   mkdirSync(path.join(root, 'src'), {recursive: true});
   writeFileSync(path.join(root, 'tsconfig.json'), TSCONFIG);
+  writeMarkerPackage(root);
+  writeFileSync(path.join(root, 'marker-stub.js'), MARKER_STUB);
   for (const [name, content] of Object.entries({...FILES, ...extra})) {
     writeFileSync(path.join(root, name), content);
   }
@@ -106,6 +113,7 @@ function devServer(root: string, sfc?: boolean): Promise<ViteDevServer> {
     configFile: false,
     logLevel: 'silent',
     appType: 'custom',
+    resolve: markerAlias(root),
     server: {middlewareMode: true},
     plugins: [mionVitePlugin({runTypes: {tsConfig: path.join(root, 'tsconfig.json'), sfc}}), vue()],
   });
@@ -233,6 +241,7 @@ const ok = validate({a: 'x'});
         root,
         configFile: false,
         logLevel: 'silent',
+        resolve: markerAlias(root),
         build: {write: false, rollupOptions: {input: path.join(root, 'src', 'entry.ts')}},
         plugins: [mionVitePlugin({runTypes: {tsConfig: path.join(root, 'tsconfig.json')}}), vue()],
       })
