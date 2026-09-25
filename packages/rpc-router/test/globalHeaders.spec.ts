@@ -23,12 +23,29 @@ describe('global response headers', () => {
     expect(getGlobalResponseHeaders()).toEqual({});
   });
 
-  // the version header is the mion@syncRoutes middleware's own answer, see syncRoutes.spec.ts
-  it('carries the option only, never the build version', () => {
+  it('carries the option and the build version, so every answer tells a client which API it came from', () => {
     const mion = createMionRouter({globalResponseHeaders: {'x-app-name': 'MyApp'}});
     mion.initRoutes(routes(mion), 'abc123');
-    expect(getGlobalResponseHeaders()).toEqual({'x-app-name': 'MyApp'});
+    expect(getGlobalResponseHeaders()).toEqual({'x-app-name': 'MyApp', [BUILD_VERSION_HEADER]: 'abc123'});
+  });
+
+  // No literal: the build fills the slot from this file's routes, so the JS suite runs the whole pipeline.
+  it('carries the version the build injects when the call leaves the slot empty', () => {
+    const mion = createMionRouter();
+    mion.initRoutes(routes(mion));
+    expect(getGlobalResponseHeaders()[BUILD_VERSION_HEADER]).toMatch(/^[A-Za-z0-9]{12}$/);
+  });
+
+  it('leaves the build version out with apiVersionCheck off', () => {
+    const mion = createMionRouter({apiVersionCheck: false});
+    mion.initRoutes(routes(mion), 'abc123');
     expect(getGlobalResponseHeaders()[BUILD_VERSION_HEADER]).toBeUndefined();
+  });
+
+  it('lets the option replace the build version', () => {
+    const mion = createMionRouter({globalResponseHeaders: {[BUILD_VERSION_HEADER]: 'mine'}});
+    mion.initRoutes(routes(mion), 'abc123');
+    expect(getGlobalResponseHeaders()[BUILD_VERSION_HEADER]).toBe('mine');
   });
 
   it('is frozen, so nothing can add a header per request', () => {

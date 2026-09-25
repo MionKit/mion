@@ -5,25 +5,26 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// A client built against `oldRoutes` calls a server that moved on to `newRoutes`, under `syncRoutes`.
+// A client built against `oldRoutes` calls a server that moved on to `newRoutes`, both ends running route sync.
 // Both route sets live here and the server runs in this process: the router is reset between the two.
 
 import {describe, it, expect, beforeAll, afterAll} from 'vitest';
 import {createServer, type Server} from 'node:http';
 import {routesCache} from '@mionjs/core';
 import {createMionRouter, resetRouter} from '@mionjs/router';
-import type {ApiWithOptions, MionRouter} from '@mionjs/router';
+import type {MionRouter, PublicApi} from '@mionjs/router';
+import {mionSyncRoutes} from '@mionjs/router/middlewares';
 import {httpRequestHandler} from '@mionjs/platform-node';
 import {initClient} from '../../src/client.ts';
 import type {RouteSubRequest} from '../../src/types.ts';
 import {resetBundledApi} from '../../src/lib/bundledApi.ts';
-import {resetSyncRoutes} from '../../src/lib/syncRoutes.ts';
+import {useSyncRoutes} from '../../src/middlewares/syncRoutes.ts';
 import {resetApiBuildVersion} from '../../src/lib/apiBuildVersion.ts';
 import {resetApiVersionRecovery} from '../../src/lib/apiVersionRecovery.ts';
 import {resetMetadataStore} from '../../src/lib/metadataStore.ts';
 import {flushMetadataCache, resetMetadataCacheState} from '../../src/lib/clientMethodsMetadata.ts';
 
-const options = {syncRoutes: true, skipClientRoutes: false} as const;
+const options = {skipClientRoutes: false} as const;
 type Mion = MionRouter<typeof options>;
 
 /** How many times each handler ran: a refused call leaves its count alone. */
@@ -32,6 +33,7 @@ const count = (id: string) => (handlerCalls[id] = (handlerCalls[id] ?? 0) + 1);
 
 /** What the client was built against. */
 const oldRoutes = (mion: Mion) => ({
+  syncRoutes: mionSyncRoutes,
   same: mion.route((ctx, value: number): number => (count('same'), value + 1)),
   paramsChanged: mion.route((ctx, name: string): string => (count('paramsChanged'), name)),
   returnChanged: mion.route((ctx, name: string): string => (count('returnChanged'), name)),
@@ -46,6 +48,7 @@ const oldRoutes = (mion: Mion) => ({
 
 /** What the server runs now: each route differs from the old one in one way, or not at all. */
 const newRoutes = (mion: Mion) => ({
+  syncRoutes: mionSyncRoutes,
   same: mion.route((ctx, value: number): number => (count('same'), value + 1)),
   paramsChanged: mion.route((ctx, name: string, age: number): string => (count('paramsChanged'), `${name} ${age}`)),
   returnChanged: mion.route((ctx, name: string): number => (count('returnChanged'), name.length)),
@@ -61,7 +64,7 @@ const newRoutes = (mion: Mion) => ({
   },
 });
 
-type OldApi = ApiWithOptions<ReturnType<typeof oldRoutes>, typeof options>;
+type OldApi = PublicApi<ReturnType<typeof oldRoutes>>;
 
 let server: Server;
 let baseURL: string;
@@ -82,9 +85,10 @@ function reloadClient() {
   resetBundledApi();
   resetApiBuildVersion();
   resetApiVersionRecovery();
-  resetSyncRoutes();
   // what the build injects for OldApi, spelled out for the same reason as in `serve`
-  return initClient<OldApi>({baseURL, storageEngine: 'memory'}, 'old', {syncRoutes: true});
+  const client = initClient<OldApi>({baseURL, storageEngine: 'memory'}, 'old');
+  useSyncRoutes(client.middlewares.syncRoutes);
+  return client;
 }
 
 /** A call site the build cannot see, so its route is fetched rather than bundled. */
@@ -117,7 +121,7 @@ describe('a client built against routes the server has since changed', () => {
   });
 
   describe('while the server runs the same routes', () => {
-    it('sends the ids with the first call: the build told the client to', async () => {
+    it('sends the ids with the first call', async () => {
       const same = await counted(() => reloadClient().routes.same(1).call());
       expect(same.value[0]).toBe(2);
       expect(same.fetches).toBe(1);
@@ -181,7 +185,7 @@ describe('a client built against routes the server has since changed', () => {
       const relearned = await counted(() => callWide(reloadClient().routes.stored(3)));
       expect(relearned.value[0]).toBe('3');
       expect(relearned.value[2]).toBeUndefined();
-      // refused for the stale id, refused again with no row, then sent with the fresh id
+      // refused for the stale id, the fresh row fetched, then sent with the fresh id
       expect(relearned.fetches).toBe(3);
       // and saved: the next page load sends the fresh id straight away
       await flushMetadataCache();

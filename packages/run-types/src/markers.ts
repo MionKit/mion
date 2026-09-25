@@ -267,9 +267,3 @@ export type InjectApiMetadata<Api, Id extends string> = {
 export type InjectBuildVersion<Api> = string & {
   readonly __rtInjectBuildVersionBrand?: Api;
 };
-
-/** `initClient`'s router options slot: the build fills it with the options a client acts on, as an object literal,
- *  read off the API type's `ROUTER_OPTIONS` key. Same trust rule as `InjectBuildVersion`. */
-export type InjectRouterOptions<Api> = {readonly syncRoutes?: boolean} & {
-  readonly __rtInjectRouterOptionsBrand?: Api;
-};

@@ -40,7 +40,7 @@ func (sess *Session) apiVersionSites(files []string) []apiVersionSite {
 	if sess.Program == nil || sess.Program.TS == nil || len(files) == 0 || !sess.apiVersionTrusted() {
 		return nil
 	}
-	versions := map[*checker.Type]apiVersionValue{}
+	versions := map[*checker.Type]string{}
 	var out []apiVersionSite
 	for _, filePath := range files {
 		sourceFile := sess.Program.SourceFile(filePath)
@@ -88,7 +88,7 @@ func (sess *Session) apiVersionTrusted() bool {
 }
 
 // apiVersionSitesIn walks one file's calls; versions memoises per API type because each walk assigns ids for every method.
-func (sess *Session) apiVersionSitesIn(sourceFile *ast.SourceFile, versions map[*checker.Type]apiVersionValue) []apiVersionSite {
+func (sess *Session) apiVersionSitesIn(sourceFile *ast.SourceFile, versions map[*checker.Type]string) []apiVersionSite {
 	var sites []apiVersionSite
 	var visit ast.Visitor
 	visit = func(node *ast.Node) bool {
@@ -108,8 +108,7 @@ func (sess *Session) apiVersionSitesIn(sourceFile *ast.SourceFile, versions map[
 }
 
 // apiVersionSiteOf reads one call; a slot the caller already filled holds a forwarded value, never ours.
-// `initClient`'s router options are spliced into the same text, after the version.
-func (sess *Session) apiVersionSiteOf(sourceFile *ast.SourceFile, call *ast.Node, versions map[*checker.Type]apiVersionValue) (apiVersionSite, bool) {
+func (sess *Session) apiVersionSiteOf(sourceFile *ast.SourceFile, call *ast.Node, versions map[*checker.Type]string) (apiVersionSite, bool) {
 	callExpr := call.AsCallExpression()
 	if callExpr == nil || callExpr.Arguments == nil {
 		return apiVersionSite{}, false
@@ -118,7 +117,7 @@ func (sess *Session) apiVersionSiteOf(sourceFile *ast.SourceFile, call *ast.Node
 	if signature == nil {
 		return apiVersionSite{}, false
 	}
-	versionIndex, optionsIndex := -1, -1
+	versionIndex := -1
 	var apiType *checker.Type
 	for paramIndex, paramSymbol := range checker.Signature_parameters(signature) {
 		if paramSymbol == nil {
@@ -129,55 +128,32 @@ func (sess *Session) apiVersionSiteOf(sourceFile *ast.SourceFile, call *ast.Node
 		if !matched {
 			continue
 		}
-		switch {
-		case kind == marker.KindInjectBuildVersion && versionIndex < 0 && markedApi != nil:
+		if kind == marker.KindInjectBuildVersion && markedApi != nil {
 			versionIndex, apiType = paramIndex, markedApi
-		case kind == marker.KindInjectRouterOptions && versionIndex >= 0 && optionsIndex < 0:
-			optionsIndex = paramIndex
+			break
 		}
 	}
 	if versionIndex < 0 || versionIndex < len(callExpr.Arguments.Nodes) {
 		return apiVersionSite{}, false
 	}
-	value, ok := versions[apiType]
+	version, ok := versions[apiType]
 	if !ok {
-		value = sess.apiVersionValueOf(apiType)
-		versions[apiType] = value
+		version = sess.apiVersionOf(apiType)
+		versions[apiType] = version
 	}
-	if value.version == "" {
+	if version == "" {
 		return apiVersionSite{}, false
 	}
 	// TrailingArgText quotes the value and pads any slot the call left empty before it.
-	text := purefunctions.TrailingArgText(value.version, callExpr.Arguments.HasTrailingComma(), versionIndex-len(callExpr.Arguments.Nodes))
-	if optionsIndex >= 0 && len(value.routerOptions) > 0 {
-		text += ", " + strings.Repeat("undefined, ", optionsIndex-versionIndex-1) + encodeJSON(value.routerOptions)
-	}
+	text := purefunctions.TrailingArgText(version, callExpr.Arguments.HasTrailingComma(), versionIndex-len(callExpr.Arguments.Nodes))
 	return apiVersionSite{
 		filePath: sourceFile.FileName(),
 		injectAt: call.End() - 1,
 		callee:   marker.CalleeIdentifierName(callExpr),
-		version:  value.version,
+		version:  version,
 		diagSite: textpos.NodeSite(sourceFile.FileName(), sourceFile, call),
 		text:     text,
 	}, true
-}
-
-// apiVersionValue is what one API type injects: its build version and the router options a client acts on.
-type apiVersionValue struct {
-	version       string
-	routerOptions map[string]any
-}
-
-func (sess *Session) apiVersionValueOf(apiType *checker.Type) apiVersionValue {
-	value := apiVersionValue{version: sess.apiVersionOf(apiType)}
-	if value.version == "" {
-		return value
-	}
-	// read off the program's own API type: the options ride the type the call names, never the peer's tree
-	if tree, problem := apimeta.WalkApi(sess.checker, apiType); tree != nil && problem == "" {
-		value.routerOptions = tree.ReadRouterOptions()
-	}
-	return value
 }
 
 // apiVersionOf hashes the API type's method rows; with api.tsConfig it hashes the peer program's tree instead,

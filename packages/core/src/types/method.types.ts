@@ -92,7 +92,7 @@ export interface SerializableMethodsData {
   batches?: string[];
 }
 
-/** One type for both mion@syncRoutes refusals: the encoder cannot tell two `FatalError`s in a union apart */
+/** One type for both route sync refusals: the encoder cannot tell two `FatalError`s in a union apart */
 export type RouteSyncError = FatalError<'route-types-mismatch' | 'route-sync-required', RouteSyncErrorData>;
 
 export interface RouteSyncErrorData {
@@ -101,6 +101,9 @@ export interface RouteSyncErrorData {
   /** 'route-sync-required': the rows of the called routes and their chains, so the client can compute the ids */
   metadata?: SerializableMethodsData;
 }
+
+/** The route sync middleware's handler, typed here so the client installer needs no router import */
+export type SyncRoutesHandler = (ctx: any, routeSyncIds?: string[]) => RouteSyncError | void;
 
 export interface HeadersMethodWithJitFns extends HeadersMetaData {
   jitFns: Pick<JitCompiledFunctions, 'isType' | 'typeErrors'>;

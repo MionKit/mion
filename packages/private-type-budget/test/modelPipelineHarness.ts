@@ -171,7 +171,8 @@ export const selectedUser: User = {name: 'a-long-name', age: 21, createdAt: new 
     // and names the types the server compiled it from (an interface over the
     // handler, resolved only when read).
     // 525 -> 547: initRoutes returns the router options under a symbol key (ApiWithOptions).
-    budget: 547,
+    // 547 -> 523: that key is gone, route sync is a middleware placed in the routes.
+    budget: 523,
     body: `
 const store = new Map<string, User>();
 const mion = createMionRouter({});
@@ -209,7 +210,8 @@ type UsersApi = typeof usersApi;
     // the `type` discriminant instead of comparing each method structurally, which
     // measured 475 cheaper than the structural check over the new methods.
     // 3048 -> 3076: initClient's router options slot, and the client maps string keys only.
-    budget: 3076,
+    // 3076 -> 3052: the router options slot is gone.
+    budget: 3052,
     body: `
 const {routes} = initClient<UsersApi>({baseURL: 'http://localhost:3000'});
 const [inserted, insertError] = await routes.users.insert({name: 'a-long-name', age: 21}).call();
@@ -469,8 +471,10 @@ export function measureConsumerLane(): ConsumerLaneResult {
  *
  *  13597 -> 13614: a REVIEWED EXCEPTION, refined columns keep their key flags for toDrizzle (steps 2 and 6, both in budget).
  *
- *  13614 -> 13628: REVIEWED EXCEPTION, toDrizzle names columns by db name, one check per column (step 6). **/
-export const PIPELINE_TOTAL_BUDGET = 13628;
+ *  13614 -> 13628: REVIEWED EXCEPTION, toDrizzle names columns by db name, one check per column (step 6).
+ *
+ *  13628 -> 13580: the router options key and initClient's slot are gone (steps 4 and 5). **/
+export const PIPELINE_TOTAL_BUDGET = 13580;
 
 /** What a downstream consumer may pay to read the model types out of the
  *  emitted `.d.ts`. ONE-WAY DOWNWARD, same rule as the step budgets. The first

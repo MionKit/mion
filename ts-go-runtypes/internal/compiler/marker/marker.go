@@ -65,9 +65,6 @@ const (
 	// `initClient`: a hash over the compiled ids of every method the Api declares, so both ends of one API
 	// agree and a changed route type disagrees. No scanCall case, the apiversion extractor splices it in.
 	KindInjectBuildVersion
-	// KindInjectRouterOptions (InjectRouterOptions<Api>) brands `initClient`'s trailing parameter: the client-read
-	// options under the Api's ROUTER_OPTIONS key, as an object literal. No scanCall case, apiversion splices it.
-	KindInjectRouterOptions
 	// KindPureFnId (PureFnId<ID>) brands the VALUE a pure-fn registrar returns, not an injection (no
 	// scanCall case): it is what lets a build recognise an id handed to a `CompTimeArgs<PureFnId>`
 	// lookup when the value comes from a call or from a `.d.ts` with no initializer to read.
@@ -110,9 +107,6 @@ const DefaultInjectApiMetadataName = "InjectApiMetadata"
 // DefaultInjectBuildVersionName is the symbol name of the API build version injection marker.
 const DefaultInjectBuildVersionName = "InjectBuildVersion"
 
-// DefaultInjectRouterOptionsName is the symbol name of the client's router options injection marker.
-const DefaultInjectRouterOptionsName = "InjectRouterOptions"
-
 // DefaultModule is the package the marker types must be declared in.
 const DefaultModule = "@mionjs/run-types"
 
@@ -145,7 +139,6 @@ const (
 	BrandInjectBatchId       = "__rtInjectBatchIdBrand"
 	BrandInjectApiMetadata   = "__rtInjectApiMetadataBrand"
 	BrandInjectBuildVersion  = "__rtInjectBuildVersionBrand"
-	BrandInjectRouterOptions = "__rtInjectRouterOptionsBrand"
 	BrandPureFnId            = "__rtPureFnIdBrand"
 )
 
@@ -163,7 +156,6 @@ func DefaultSpecs() []Spec {
 		{Name: DefaultInjectBatchIdName, Module: DefaultModule, Kind: KindInjectBatchId, BrandProperty: BrandInjectBatchId},
 		{Name: DefaultInjectApiMetadataName, Module: DefaultModule, Kind: KindInjectApiMetadata, BrandProperty: BrandInjectApiMetadata},
 		{Name: DefaultInjectBuildVersionName, Module: DefaultModule, Kind: KindInjectBuildVersion, BrandProperty: BrandInjectBuildVersion},
-		{Name: DefaultInjectRouterOptionsName, Module: DefaultModule, Kind: KindInjectRouterOptions, BrandProperty: BrandInjectRouterOptions},
 		{Name: DefaultPureFnIdName, Module: DefaultModule, Kind: KindPureFnId, BrandProperty: BrandPureFnId},
 		// CompTimeHints is an identity alias with no phantom brand, so detection is syntactic instead
 		// (the comptimeargs node check) and BrandProperty stays empty.

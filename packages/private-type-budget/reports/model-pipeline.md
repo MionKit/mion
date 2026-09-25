@@ -15,11 +15,11 @@ layer to another.
 | 1 | slim table + row | 434 | 434 | 434 |
 | 2 | refineTableType | 1141 | 1141 | 1575 |
 | 3 | Infer* models | 573 | 578 | 2148 |
-| 4 | mion route api | 547 | 547 | 2695 |
-| 5 | initClient | 3076 | 3076 | 5771 |
-| 6 | db query (toDrizzle) | 7857 | 7857 | 13628 |
+| 4 | mion route api | 523 | 523 | 2671 |
+| 5 | initClient | 3052 | 3052 | 5723 |
+| 6 | db query (toDrizzle) | 7857 | 7857 | 13580 |
 
-Total for the whole chain: **13628**, against a total budget of **13628**.
+Total for the whole chain: **13580**, against a total budget of **13580**.
 
 Every one of these is paid again on every keystroke. TypeScript memoises type
 instantiations within a single check, but each edit builds a new checker, so the

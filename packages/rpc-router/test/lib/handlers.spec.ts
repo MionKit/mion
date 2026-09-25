@@ -38,7 +38,7 @@ describe('route & middlewares init functions', () => {
     returnId: expect.anything(),
     // the build-time answer to "does this handler return a promise" (see HandlerIsAsync)
     isAsyncId: expect.anything(),
-    // id of the [params, return] pair, compared under syncRoutes
+    // id of the [params, return] pair, compared by route sync
     syncId: expect.anything(),
   };
 

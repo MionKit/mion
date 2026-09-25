@@ -1,12 +1,14 @@
 import {createMionRouter, Routes} from '@mionjs/router';
+import {mionSyncRoutes} from '@mionjs/router/middlewares';
 
-const mion = createMionRouter({syncRoutes: true});
+const mion = createMionRouter();
 
 const routes = {
+  // first, so a stopped call runs nothing else
+  syncRoutes: mionSyncRoutes,
   sayHello: mion.route((ctx, name: string): string => `Hello ${name}`),
 } satisfies Routes;
 
 const myApi = mion.initRoutes(routes);
 
-// the client build reads syncRoutes from this type, so the client needs no option
 export type MyApi = typeof myApi;
