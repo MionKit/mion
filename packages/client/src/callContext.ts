@@ -57,7 +57,7 @@ export function getRouteIds(context: ClientCallContext): string[] {
   return [context.requestId];
 }
 
-/** The pointers of the route(s) this call sends, in the same order as getRouteIds() */
+/** Same order as getRouteIds() */
 export function getRoutePointers(context: ClientCallContext): string[][] {
   if (context.batchSubRequests && context.batchSubRequests.length > 0) return context.batchSubRequests.map((sr) => sr.pointer);
   return context.route ? [context.route.pointer] : [];
