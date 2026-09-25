@@ -54,8 +54,7 @@ const (
 	CodeNameCollision      = "CNV005"
 	CodeTemporalNotLoaded  = "CNV007"
 	CodeUnresolvedTypeName = "CNV008"
-	// CodeDrizzleUnsupported: a drizzle table using constructs with no type spelling (interpolated
-	// sql, $type, non-literal args, out-of-file references), see drizzle.go.
+	// CodeDrizzleUnsupported: a drizzle table construct with no type spelling, listed in drizzle.go.
 	CodeDrizzleUnsupported = "CNV009"
 	// CodeUnresolvedImport: a runtypes or drizzle package import that resolves nowhere, see unresolvedimports.go.
 	CodeUnresolvedImport = "CNV010"

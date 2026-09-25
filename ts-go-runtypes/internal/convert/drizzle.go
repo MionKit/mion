@@ -8,18 +8,16 @@ package convert
 //	const users = DZ.pgTable('users', {…});    type UsersTable = DZ.PgTable<'users', {…}>;
 //	type UsersTable = typeof users;            const users = DZ.tableFromType<UsersTable>(options?);
 //
-// The emitted const uses the MARKER form, the devtools transform resolving the type argument; the
-// explicit `tableFromType(getRunType<T>(), options?)` escape hatch is still recognized, pairing
-// ignoring the value arguments, and stays as written once in the target form. References ride the
-// options object, evaluated eagerly, so a table declared later in the file rides a thunk. Both
-// directions preserve the VALUE and the TYPE name, so every use keeps working, and the two halves
-// always print together.
+// The emitted const uses the marker form, resolved by the devtools transform. The explicit
+// `tableFromType(getRunType<T>(), options?)` escape hatch is still recognized (pairing ignores the value
+// arguments) and left as written in the target form. References go in the eagerly evaluated options
+// object, so a table declared later in the file is wrapped in a thunk. Both directions keep the value
+// and the type name, and always print both halves.
 //
-// The vocabulary is never a Go name table: builder fn names ride the type road's rtColSpec sentinel
-// literals, type names follow the first-letter uppercase rule verified against the dialect module's
-// REAL exports, and the modifier vocabulary is whatever the builder's return type or the mods
-// sentinel carries. A table using constructs with no type spelling (interpolated sql, $type,
-// non-literal args, out-of-file references) reports CNV009 and stays untouched.
+// No Go name table: builder names come from the rtColSpec sentinel literals, type names from the
+// first-letter uppercase rule checked against the dialect module's real exports, and modifiers from
+// the builder's return type or the mods sentinel. A construct with no type spelling (interpolated sql,
+// $type, non-literal args, out-of-file references) reports CNV009 and stays untouched.
 
 import (
 	"fmt"
