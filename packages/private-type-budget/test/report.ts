@@ -233,6 +233,7 @@ export function writeRoadReport(report: RoadReport): void {
 }
 
 export interface ColumnFormatsRow {
+  dialect: string;
   label: string;
   curBuilders: number;
   curTypes: number;
@@ -251,7 +252,7 @@ function columnFormatsMarkdown(report: ColumnFormatsReport): string {
   const rows = report.rows
     .map(
       (r) =>
-        `| ${r.label} | ${r.curBuilders} | ${r.curTypes} | ${r.newTypes} (${r.budget.newTypes}) | ${r.newBuilders} (${r.budget.newBuilders}) |`
+        `| ${r.dialect} | ${r.label} | ${r.curBuilders} | ${r.curTypes} | ${r.newTypes} (${r.budget.newTypes}) | ${r.newBuilders} (${r.budget.newBuilders}) |`
     )
     .join('\n');
   return `# Shipped columns vs side-by-side columns, per table shape
@@ -261,16 +262,16 @@ Measured with TypeScript ${report.typescript} and drizzle-orm ${report.drizzleOr
 
 The same table declared four ways and read through the same models:
 
-- **shipped builders** \`pgTable('t', {...})\` from the published pg package
-- **shipped types** \`PgTable<'t', {...}>\` with the published column types
+- **shipped builders** \`pgTable('t', {...})\` (or \`mysqlTable\`, \`sqliteTable\`) from the published dialect package
+- **shipped types** \`PgTable<'t', {...}>\` (or \`MysqlTable\`, \`SqliteTable\`) with the published column types
 - **new types** the side-by-side column types, hand-written
 - **new builders** the side-by-side builders, whose table IS the new hand-written table
 
 Net instantiations, lower is better. The new lines carry their budget in parentheses; budgets may
 only ever be lowered.
 
-| Shape | Shipped builders | Shipped types | New types (budget) | New builders (budget) |
-| ----- | ---------------: | ------------: | -----------------: | --------------------: |
+| Dialect | Shape | Shipped builders | Shipped types | New types (budget) | New builders (budget) |
+| ------- | ----- | ---------------: | ------------: | -----------------: | --------------------: |
 ${rows}
 `;
 }

@@ -5,23 +5,29 @@ Measured with TypeScript 6.0.3 and drizzle-orm 0.45.2.
 
 The same table declared four ways and read through the same models:
 
-- **shipped builders** `pgTable('t', {...})` from the published pg package
-- **shipped types** `PgTable<'t', {...}>` with the published column types
+- **shipped builders** `pgTable('t', {...})` (or `mysqlTable`, `sqliteTable`) from the published dialect package
+- **shipped types** `PgTable<'t', {...}>` (or `MysqlTable`, `SqliteTable`) with the published column types
 - **new types** the side-by-side column types, hand-written
 - **new builders** the side-by-side builders, whose table IS the new hand-written table
 
 Net instantiations, lower is better. The new lines carry their budget in parentheses; budgets may
 only ever be lowered.
 
-| Shape | Shipped builders | Shipped types | New types (budget) | New builders (budget) |
-| ----- | ---------------: | ------------: | -----------------: | --------------------: |
-| 5 mixed, select | 570 | 971 | 683 (683) | 1160 (1160) |
-| 5 mixed, select + insert | 1036 | 1437 | 1276 (1276) | 1827 (1827) |
-| 10 plain, db name per column | 235 | 798 | 210 (210) | 363 (363) |
-| 20 plain, db name per column | 345 | 1338 | 300 (300) | 573 (573) |
-| 40 plain, db name per column | 565 | 2418 | 480 (480) | 993 (993) |
-| 20 plain, nameless | 325 | 494 | 300 (300) | 532 (532) |
-| wide vocabulary, select | 676 | 1175 | 873 (873) | 1516 (1516) |
-| two tables, one reference | 183 | 387 | 266 (266) | 494 (494) |
-| refineTableType, select | 1341 | 1768 | 1421 (1421) | 1918 (1918) |
-| toDrizzle + select / insert / update query | 8643 | 9461 | 8956 (8956) | 10104 (10104) |
+| Dialect | Shape | Shipped builders | Shipped types | New types (budget) | New builders (budget) |
+| ------- | ----- | ---------------: | ------------: | -----------------: | --------------------: |
+| pg | 5 mixed, select | 570 | 971 | 683 (683) | 1160 (1160) |
+| pg | 5 mixed, select + insert | 1036 | 1437 | 1276 (1276) | 1827 (1827) |
+| pg | 10 plain, db name per column | 235 | 798 | 210 (210) | 363 (363) |
+| pg | 20 plain, db name per column | 345 | 1338 | 300 (300) | 573 (573) |
+| pg | 40 plain, db name per column | 565 | 2418 | 480 (480) | 993 (993) |
+| pg | 20 plain, nameless | 325 | 494 | 300 (300) | 532 (532) |
+| pg | wide vocabulary, select | 676 | 1175 | 873 (873) | 1516 (1516) |
+| pg | two tables, one reference | 183 | 387 | 266 (266) | 494 (494) |
+| pg | refineTableType, select | 1341 | 1768 | 1421 (1421) | 1918 (1918) |
+| pg | toDrizzle + select / insert / update query | 8643 | 9461 | 8956 (8956) | 10104 (10104) |
+| mysql | 5 mixed, select | 608 | 971 | 712 (712) | 1184 (1184) |
+| mysql | wide vocabulary, select | 830 | 1341 | 1040 (1040) | 1773 (1773) |
+| mysql | toDrizzle + select / insert / update query | 8324 | 9029 | 8583 (8583) | 9786 (9786) |
+| sqlite | 5 mixed, select | 517 | 1002 | 658 (658) | 1058 (1058) |
+| sqlite | wide vocabulary, select | 735 | 1315 | 977 (977) | 1631 (1631) |
+| sqlite | toDrizzle + select / insert / update query | 7471 | 7874 | 7672 (7672) | 8695 (8695) |

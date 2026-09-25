@@ -75,6 +75,55 @@ type UsersType = PgTable<'users', {name: Varchar<{length: 100; notNull: true}>; 
 export const handWritten: InferSelectModel<UsersType> = {name: row.name, age: 21} as never;
 `;
 
+const NEXT_MYSQL_SOURCE = `
+import {mysqlTable, varchar, int, timestamp, mysqlView, mysqlEnum, mysqlSchema} from '../../drizzle-orm-mysql-core/next/index.ts';
+import type {Varchar, Int, MysqlTable} from '../../drizzle-orm-mysql-core/next/index.ts';
+import {index} from '@mionjs/drizzle-orm-mysql-core';
+import {sql} from '@mionjs/drizzle-orm';
+import {refineTableType} from '../../drizzle-orm/next/index.ts';
+import type {InferSelectModel, InferSelectViewModel, InferInsertModel} from '../../drizzle-orm/next/index.ts';
+
+const users = mysqlTable('users', {
+  id: int('id', {primaryKey: true, autoincrement: true}),
+  name: varchar('name', {length: 100, notNull: true}),
+  role: mysqlEnum('role', ['admin', 'user'], {notNull: true}),
+  updatedAt: timestamp('updated_at', {mode: 'date', notNull: true, defaultNow: true, onUpdateNow: true}),
+}, (t) => [index('users_name_idx').on(t.name)]);
+const apiUsers = refineTableType(users, {name: {minLength: 10}});
+export const newUser: InferInsertModel<typeof apiUsers> = {name: 'a-long-name', role: 'user'};
+declare const row: InferSelectModel<typeof apiUsers>;
+export const rowName: string = row.name;
+const activeUsers = mysqlView('active_users', {name: varchar('name', {length: 100, notNull: true})}).algorithm('merge').as(sql\`select name from users\`);
+export const activeName: string = (undefined as unknown as InferSelectViewModel<typeof activeUsers>).name;
+export const audit = mysqlSchema('audit').table('events', {id: int('id', {primaryKey: true})});
+type UsersType = MysqlTable<'users', {name: Varchar<{length: 100; notNull: true}>; age: Int<{notNull: true}>}>;
+export const handWritten: InferSelectModel<UsersType> = {name: row.name, age: 21} as never;
+`;
+
+const NEXT_SQLITE_SOURCE = `
+import {sqliteTable, text, integer, sqliteView, sqliteTableCreator} from '../../drizzle-orm-sqlite-core/next/index.ts';
+import type {Text, Integer, SqliteTable} from '../../drizzle-orm-sqlite-core/next/index.ts';
+import {index} from '@mionjs/drizzle-orm-sqlite-core';
+import {sql} from '@mionjs/drizzle-orm';
+import {refineTableType} from '../../drizzle-orm/next/index.ts';
+import type {InferSelectModel, InferSelectViewModel, InferInsertModel} from '../../drizzle-orm/next/index.ts';
+
+const users = sqliteTable('users', {
+  id: integer('id', {primaryKey: [{autoIncrement: true}]}),
+  name: text('name', {length: 100, notNull: true}),
+  createdAt: integer('created_at', {mode: 'timestamp', notNull: true}),
+}, (t) => [index('users_name_idx').on(t.name)]);
+const apiUsers = refineTableType(users, {name: {minLength: 10}});
+export const newUser: InferInsertModel<typeof apiUsers> = {name: 'a-long-name', createdAt: new Date()};
+declare const row: InferSelectModel<typeof apiUsers>;
+export const rowName: string = row.name;
+const activeUsers = sqliteView('active_users', {name: text('name', {notNull: true})}).as(sql\`select name from users\`);
+export const activeName: string = (undefined as unknown as InferSelectViewModel<typeof activeUsers>).name;
+export const prefixed = sqliteTableCreator((name) => \`app_\${name}\`)('events', {id: integer('id', {primaryKey: true})});
+type UsersType = SqliteTable<'users', {name: Text<{length: 100; notNull: true}>; age: Integer<{notNull: true}>}>;
+export const handWritten: InferSelectModel<UsersType> = {name: row.name, age: 21} as never;
+`;
+
 describe('slim authoring surface with drizzle-orm absent', () => {
   it('type-checks a schema + models module when drizzle-orm cannot resolve', {timeout: 60_000}, () => {
     const options: ts.CompilerOptions = {...RESOLVING_OPTIONS, noImplicitAny: true};
@@ -122,8 +171,8 @@ describe('slim authoring surface with drizzle-orm absent', () => {
 });
 
 /** Program-wide diagnostics of `source` compiled with every drizzle-orm path hidden. */
-function drizzleFreeErrors(source: string): string[] {
-  const options: ts.CompilerOptions = {...RESOLVING_OPTIONS, noImplicitAny: true};
+function drizzleFreeErrors(source: string, types: string[] = []): string[] {
+  const options: ts.CompilerOptions = {...RESOLVING_OPTIONS, noImplicitAny: true, types};
   const base = makeHost(options, new Map([[CASE_FILE, source]]));
   const hidesDrizzle = (fileName: string) => /[\\/]drizzle-orm@|[\\/]node_modules[\\/]drizzle-orm[\\/]/.test(fileName);
   const host: ts.CompilerHost = {
@@ -139,8 +188,15 @@ function drizzleFreeErrors(source: string): string[] {
 }
 
 describe('side-by-side columns with drizzle-orm absent', () => {
-  it('type-checks a next/ schema + models module when drizzle-orm cannot resolve', {timeout: 60_000}, () => {
-    const errors = drizzleFreeErrors(NEXT_SOURCE);
-    expect(errors, `the next/ authoring surface required drizzle-orm:\n  ${errors.join('\n  ')}`).toEqual([]);
-  });
+  // sqlite's blob buffer mode is Node's Buffer, as drizzle types it, so that program needs Node's types (not drizzle's).
+  for (const [dialect, source, types] of [
+    ['pg', NEXT_SOURCE, []],
+    ['mysql', NEXT_MYSQL_SOURCE, []],
+    ['sqlite', NEXT_SQLITE_SOURCE, ['node']],
+  ] as const) {
+    it(`type-checks a ${dialect} next/ schema + models module when drizzle-orm cannot resolve`, {timeout: 60_000}, () => {
+      const errors = drizzleFreeErrors(source, [...types]);
+      expect(errors, `the ${dialect} next/ authoring surface required drizzle-orm:\n  ${errors.join('\n  ')}`).toEqual([]);
+    });
+  }
 });

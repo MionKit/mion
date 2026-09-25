@@ -366,9 +366,15 @@ importers:
       '@mionjs/drizzle-orm':
         specifier: workspace:*
         version: link:../drizzle-orm
+      '@mionjs/drizzle-orm-mysql-core':
+        specifier: workspace:*
+        version: link:../drizzle-orm-mysql-core
       '@mionjs/drizzle-orm-pg-core':
         specifier: workspace:*
         version: link:../drizzle-orm-pg-core
+      '@mionjs/drizzle-orm-sqlite-core':
+        specifier: workspace:*
+        version: link:../drizzle-orm-sqlite-core
       '@mionjs/router':
         specifier: workspace:*
         version: link:../rpc-router
