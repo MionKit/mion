@@ -13,9 +13,15 @@
 //      coverage rule in ts-go-runtypes/CLAUDE.md).
 
 import {describe, it, expect} from 'vitest';
-import {getTableConfig} from 'drizzle-orm/pg-core';
+import {
+  getTableConfig,
+  pgTable as dzPgTable,
+  serial as dzSerial,
+  integer as dzInteger,
+  type AnyPgColumn,
+} from 'drizzle-orm/pg-core';
 import {getRunTypeId} from '@mionjs/run-types';
-import type {InferInsertModel, InferSelectModel, RtTableMeta, Sql} from '@mionjs/drizzle-orm';
+import type {AnyRtColumn, InferInsertModel, InferSelectModel, RtTableMeta, Sql} from '@mionjs/drizzle-orm';
 import {rtTableBrand, cols, sql as slimSql} from '@mionjs/drizzle-orm';
 import {project as sharedProject} from './tableSpecShared.ts';
 import type {
@@ -373,5 +379,31 @@ describe('pg tables are typed to the pg package', () => {
     // @ts-expect-error and it cannot be rebuilt through the pg bridge either
     void tableFromType<MysqlLike>;
     expect(rejected).toBeDefined();
+  });
+});
+
+// A self-reference: drizzle's own style needs a return annotation, since TypeScript cannot infer a
+// table from its own initializer (TS7022). The type road points the reference at a thunk of the
+// table being built.
+const empsBuilders = pgTable('emps', {
+  id: serial('id').primaryKey(),
+  managerId: integer('manager_id').references((): AnyRtColumn => cols(empsBuilders).id),
+});
+type EmpsType = PgTable<
+  'emps',
+  {id: Serial<'id', {primaryKey: true}>; managerId: Integer<'manager_id', {references: [{table: 'emps'; column: 'id'}]}>}
+>;
+const empsDrizzle = dzPgTable('emps', {
+  id: dzSerial('id').primaryKey(),
+  managerId: dzInteger('manager_id').references((): AnyPgColumn => empsDrizzle.id),
+});
+
+describe('pg self-referencing tables', () => {
+  it('the builder road materializes the same table as drizzle', () => {
+    expect(sharedProject(toDrizzle(empsBuilders))).toEqual(sharedProject(empsDrizzle));
+  });
+  it('the type road resolves the reference through a thunk of the table itself', () => {
+    const self: object = tableFromType<EmpsType>({tables: {emps: () => self}});
+    expect(sharedProject(toDrizzle(self as EmpsType))).toEqual(sharedProject(empsDrizzle));
   });
 });
