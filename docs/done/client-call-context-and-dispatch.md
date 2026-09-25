@@ -36,7 +36,7 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source file, each committed on its own.
 
 ## Plan (approved 2026-09-25), as shipped
-- `packages/client/src/callContext.ts`: `ClientCallContext` (extends the public `CallContext` with `path`, `requestId`, a mutable `subRequestList`, `thrownErrorIds`, `response`), built as a plain object by `createCallContext`. Helpers are plain functions: `addSubRequest`, `getRouteIds`, `getRoutePointers`. `batchId` only feeds the batch `path`.
+- `packages/client/src/callContext.ts`: `ClientCallContext` (declared in `types.ts`, extends the public `CallContext` with `path`, `requestId`, a mutable `subRequestList`, `thrownErrorIds`, `response`), built as a plain object by `createCallContext`. Helpers are plain functions: `addSubRequest`, `getRouteIds`, `getRoutePointers`. `batchId` only feeds the batch `path`.
 - `packages/client/src/dispatch.ts`: `dispatchCall(context, handlersRegistry)` runs the call, the middleware `onResponse` / `onError` hooks and `buildResult`; `dispatchTypeErrors(options, subRequests)` replaces `validateParams`. The retry flags live in a per-call `DispatchState`, never on the context. `isMiddlewareInScope` moved here.
 - Header wire helpers (`extractRequestHeaders`, `reconstructHeadersSubsetFromResponse`) moved to `lib/headers.ts`.
 - `MionClient` keeps its name (it is the client instance; the proxy is `MethodProxy`). `execute` composes the signal, creates the context and calls `dispatchCall`; it no longer builds results.
