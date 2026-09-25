@@ -406,3 +406,11 @@ describe('mysql slim surface — views equal hand-written drizzle', () => {
     expect(row.id).toBeNull();
   });
 });
+
+describe('generated columns', () => {
+  it('generatedAlwaysAs keeps its mode config', () => {
+    const table = mysqlTable('gen', {derived: text('derived').generatedAlwaysAs('x', {mode: 'stored'})});
+    const [column] = getTableConfig(toDrizzle(table) as never).columns;
+    expect(column.generated).toMatchObject({type: 'always', mode: 'stored'});
+  });
+});

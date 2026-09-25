@@ -248,8 +248,8 @@ export class RtColumnRecorder {
   references(ref: unknown, actions?: unknown) {
     return this.record('references', actions === undefined ? [ref] : [ref, actions]);
   }
-  generatedAlwaysAs(as: unknown) {
-    return this.record('generatedAlwaysAs', [as]);
+  generatedAlwaysAs(as: unknown, config?: unknown) {
+    return this.record('generatedAlwaysAs', config === undefined ? [as] : [as, config]);
   }
   generatedAlwaysAsIdentity(sequence?: unknown) {
     return this.record('generatedAlwaysAsIdentity', sequence === undefined ? [] : [sequence]);
