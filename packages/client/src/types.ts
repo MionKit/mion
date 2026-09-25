@@ -10,6 +10,7 @@ import type {InputFromRef, Prettify, RunTypeError, ValidationError} from '@mionj
 import type {PublicHeadersFn, PublicMiddleware, RemoteApi, PublicRoute} from '@mionjs/router';
 import type {InjectApiMetadata} from '@mionjs/run-types';
 import type {TypedEvent} from './lib/typedEvent.ts';
+import type {MIDDLEWARE_HOOKS} from './constants.ts';
 import type {StorageEngine} from './lib/storage.ts';
 
 // type-undeclared-error-start
@@ -37,22 +38,15 @@ export type Result<
 ];
 // type-result-end
 
-export type MiddlewareSuccess<H> = H extends MiddlewareSubRequest<infer PH> ? HandlerSuccessResponse<PH> : never;
-
-export type MiddlewareError<H> = H extends MiddlewareSubRequest<infer PH> ? Simplify<HandlerErrors<PH>> : never;
-
 // type-batch-result-start
 /** Result type for batch() - 5-tuple pattern:
  * [routeResults[], routeErrors[] (declared | ValidationError), undeclared (request-scoped, ONE slot), middlewareResults, middlewareErrors] **/
-export type BatchResult<
-  Routes extends RouteSubRequest<any>[],
-  Middlewares extends Record<string, MiddlewareSubRequest<any>> = Record<string, MiddlewareSubRequest<any>>,
-> = [
+export type BatchResult<Routes extends RouteSubRequest<any>[]> = [
   BatchRouteResults<Routes>,
   BatchRouteErrors<Routes>,
   UndeclaredError | undefined,
-  {[K in keyof Middlewares]?: MiddlewareSuccess<Middlewares[K]>} | undefined,
-  {[K in keyof Middlewares]?: MiddlewareError<Middlewares[K]>} | undefined,
+  Record<string, unknown> | undefined,
+  Record<string, RpcError<string, unknown>> | undefined,
 ];
 // type-batch-result-end
 
@@ -128,7 +122,30 @@ export type RequestErrors = Map<string, RpcError<string>>;
 
 export type ErrorHandler<E extends RpcError<string, any>> = (error: E) => void;
 
-export type SuccessHandler<S> = (result: S) => void;
+export type ResponseHandler<S> = (result: S) => void;
+
+// type-request-handler-start
+/** Runs before every request that includes the middleware. Calling `call` sets this request's params;
+ * not calling it sends the middleware nothing. Throwing or rejecting stops the request. */
+export type RequestHandler<P extends any[] = any[]> = (
+  call: (...params: P) => void,
+  context: CallContext
+) => void | Promise<void>;
+// type-request-handler-end
+
+// type-call-context-start
+/** The request a RequestHandler runs for, read only */
+export interface CallContext {
+  /** The route this request calls, undefined for a batch */
+  readonly route?: RouteSubRequest<any>;
+  /** The routes of a batch */
+  readonly batchSubRequests?: RouteSubRequest<any>[];
+  /** Every route and middleware this request sends so far, by id */
+  readonly subRequestList: Readonly<Record<string, SubRequest<any>>>;
+  readonly options: ClientOptions;
+  readonly signal?: AbortSignal;
+}
+// type-call-context-end
 
 /** Utility type to force TypeScript to evaluate/resolve the type */
 type Simplify<T> = T extends any ? T : never;
@@ -158,8 +175,8 @@ export interface SubRequest<PH extends PublicHandler, Id extends string = string
 }
 // type-sub-request-end
 
-export interface CallSetup<H extends Record<string, MiddlewareSubRequest<any>> = Record<string, never>> {
-  middlewares?: H;
+/** Middleware params never go here: each middleware gets them from its onRequest hook */
+export interface CallSetup {
   signal?: AbortSignal;
   /** Timeout in ms (overrides ClientOptions.timeout) */
   timeout?: number;
@@ -170,19 +187,7 @@ export type ApiOf<Routes extends SubRequest<any>[]> = Routes[number] extends Rou
 
 export interface BatchBuilder<Routes extends RouteSubRequest<any>[]> {
   /** Execute the batch */
-  call(
-    setup?: {middlewares?: never; signal?: AbortSignal; timeout?: number},
-    apiMetadata?: InjectApiMetadata<ApiOf<Routes>, Routes[number]['id']>
-  ): Promise<BatchResult<Routes>>;
-  /** Execute the batch with middleware */
-  call<H extends Record<string, MiddlewareSubRequest<any>>>(
-    setup: {
-      middlewares: H;
-      signal?: AbortSignal;
-      timeout?: number;
-    },
-    apiMetadata?: InjectApiMetadata<ApiOf<Routes>, Routes[number]['id']>
-  ): Promise<BatchResult<Routes, H>>;
+  call(setup?: CallSetup, apiMetadata?: InjectApiMetadata<ApiOf<Routes>, Routes[number]['id']>): Promise<BatchResult<Routes>>;
 }
 
 // type-route-sub-request-start
@@ -197,58 +202,26 @@ export interface RouteSubRequest<
 
   /** Calls a remote route and returns a Result 5-tuple */
   call(
-    setup?: {
-      middlewares?: never;
-      signal?: AbortSignal;
-      timeout?: number;
-    },
+    setup?: CallSetup,
     apiMetadata?: InjectApiMetadata<RA, Id>
   ): Promise<Result<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>>>;
-
-  /** Calls a remote route with middlewares */
-  call<H extends Record<string, MiddlewareSubRequest<any>>>(
-    setup: {
-      middlewares: H;
-      signal?: AbortSignal;
-      timeout?: number;
-    },
-    apiMetadata?: InjectApiMetadata<RA, Id>
-  ): Promise<
-    Result<
-      HandlerSuccessResponse<PH>,
-      Simplify<HandlerErrors<PH>>,
-      {[K in keyof H]?: MiddlewareSuccess<H[K]>},
-      {[K in keyof H]?: MiddlewareError<H[K]>}
-    >
-  >;
 }
 // type-route-sub-request-end
 
-// type-middleware-sub-request-start
-/** structure returned from the proxy, containing info of the remote middleware to execute */
-export interface MiddlewareSubRequest<
-  PH extends PublicHandler,
-  Id extends string = string,
-  RA extends RemoteApi = RemoteApi,
-> extends SubRequest<PH, Id> {
-  /** Validates Middleware's parameters and returns type errors */
-  typeErrors(apiMetadata?: InjectApiMetadata<RA, Id>): Promise<RunTypeError[]>;
-  /** Prefills Middleware's parameters for any future request and returns TypedEvent */
-  prefill(apiMetadata?: InjectApiMetadata<RA, Id>): TypedEvent<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>>;
-  /** Removes prefilled value */
-  removePrefill: () => Promise<void>;
-  /** Returns the TypedEvent for this middleware so typed handlers can be registered without prefilling */
-  events: () => TypedEvent<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>>;
-  /** Registers a persistent typed error handler for this middleware, no prefill required */
-  onError: TypedEvent<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>>['onError'];
-  /** Removes a previously registered error handler */
-  offError: TypedEvent<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>>['offError'];
-  /** Registers a persistent success handler for this middleware, no prefill required */
-  onSuccess: TypedEvent<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>>['onSuccess'];
-  /** Removes a previously registered success handler */
-  offSuccess: TypedEvent<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>>['offSuccess'];
-}
-// type-middleware-sub-request-end
+/** A middleware's params for one request, built by the `call` its onRequest hook receives */
+export type MiddlewareSubRequest<PH extends PublicHandler, Id extends string = string> = SubRequest<PH, Id>;
+
+// type-client-middleware-start
+/** The persistent hooks of a middleware, keyed by its id */
+export type MiddlewareEvents<PH extends PublicHandler> = TypedEvent<
+  HandlerSuccessResponse<PH>,
+  Simplify<HandlerErrors<PH>>,
+  Parameters<PH>
+>;
+
+/** A middleware on the client: hooks only, its params come from onRequest on every request */
+export type ClientMiddleware<PH extends PublicHandler> = Pick<MiddlewareEvents<PH>, (typeof MIDDLEWARE_HOOKS)[number]>;
+// type-client-middleware-end
 
 // The mapped types below tell a route, a middleware and a group apart by the `type` discriminant every public
 // method carries (a group carries none), never structurally: a PublicRoute's options and compiled types are
@@ -281,19 +254,15 @@ export type ClientRoutes<
 /** What `ClientMiddlewares` leaves out: a route, and a group holding nothing but routes. */
 export type NonClientMiddleware = RouteLeaf | {[key: string]: RouteLeaf};
 
-export type ClientMiddlewares<
-  RA,
-  Prefix extends string = '',
-  Root extends RemoteApi = RA extends RemoteApi ? RA : RemoteApi,
-> = Prettify<{
+export type ClientMiddlewares<RA> = Prettify<{
   [Property in keyof RA & string as RA[Property] extends NonClientMiddleware ? never : Property]: RA[Property] extends {
     type: typeof HandlerType.middleware | typeof HandlerType.headersMiddleware;
     handler: infer H extends PublicHandler;
   }
-    ? (...params: Parameters<H>) => MiddlewareSubRequest<H, `${Prefix}${Property & string}`, Root>
+    ? ClientMiddleware<H>
     : RA[Property] extends AnyLeaf
       ? never
-      : ClientMiddlewares<RA[Property], `${Prefix}${Property & string}/`, Root>;
+      : ClientMiddlewares<RA[Property]>;
 }>;
 
 export type Cleaned<RMS extends RemoteApi> = {
@@ -304,5 +273,3 @@ export type SuccessClientResponse<RS extends RouteSubRequest<any>, RHList extend
   SuccessResponse<RS>,
   ...SuccessResponses<RHList>,
 ];
-
-export type PrefilledMiddlewaresCache = Map<string, SubRequest<any>>;

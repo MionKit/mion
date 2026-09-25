@@ -11,14 +11,13 @@ const {routes, middlewares} = initClient<MyApi>({
 // - undeclared: anything NOBODY declared - transport, platform, framework,
 //   an undeclared throw, or an error for a middleware that
 //   was not part of the request (OPEN RpcError<string>)
-// - middlewareErrors: each middleware's DECLARED errors, by name (strongly typed)
+// - middlewareErrors: each middleware's DECLARED errors, by middleware id
+middlewares.auth.onRequest((auth) =>
+  auth(new HeadersSubset({Authorization: 'myToken-XYZ'}))
+);
 const [user, error, undeclared, , middlewareErrors] = await routes.users
   .getById('USER-404')
-  .call({
-    middlewares: {
-      auth: middlewares.auth(new HeadersSubset({Authorization: 'myToken-XYZ'})),
-    },
-  });
+  .call();
 
 // error.type is the discriminator, never the HTTP status code
 if (error) {
@@ -31,9 +30,9 @@ if (error) {
       console.log('type errors:', error.errorData?.typeErrors.length);
       break;
   }
-} else if (middlewareErrors?.auth?.type === 'not-authorized') {
-  // the middleware's declared error, also strongly typed
-  console.log('auth failed:', middlewareErrors.auth.errorData?.reason);
+} else if (middlewareErrors?.auth) {
+  // the middleware's declared error; its onError hook gets it strongly typed
+  console.log('auth failed:', middlewareErrors.auth.type);
 } else if (undeclared) {
   // transport, platform or any undeclared error lands here
   if (isRpcError(undeclared)) console.log('request failed:', undeclared.type);

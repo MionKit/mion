@@ -25,12 +25,12 @@ export interface SerializedRequest {
 // ################################## SERIALIZE ##################################
 
 /** `optimistic`: the route's metadata is still being fetched, so no compiled encoders exist yet. */
-export function serializeRequestBody(req: MionClientRequest<any, any>, optimistic = false): SerializedRequest {
+export function serializeRequestBody(req: MionClientRequest, optimistic = false): SerializedRequest {
   const body = optimistic ? serializeJSonBodyOptimistic(req) : serializeJsonBody(req);
   return {body, contentType: 'application/json; charset=utf-8'};
 }
 
-function serializeJsonBody(req: MionClientRequest<any, any>): string {
+function serializeJsonBody(req: MionClientRequest): string {
   const props: string[] = [];
   const subRequestIds = Object.keys(req.subRequestList);
 
@@ -67,7 +67,7 @@ function serializeJsonBody(req: MionClientRequest<any, any>): string {
 
 /** Serializes the body without compiled functions, on the plain wire forms every server decoder
  * accepts. A headers middleware's HeadersSubset goes out as HTTP headers, never in the body. */
-function serializeJSonBodyOptimistic(req: MionClientRequest<any, any>): string {
+function serializeJSonBodyOptimistic(req: MionClientRequest): string {
   const body: Record<string, any> = {};
   const subRequestIds = Object.keys(req.subRequestList);
   for (const id of subRequestIds) {

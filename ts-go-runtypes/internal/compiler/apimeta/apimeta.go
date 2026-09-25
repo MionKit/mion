@@ -43,7 +43,7 @@ type Site struct {
 	// ApiType comes from Checker, the program's checker that materialized it; the resolver walks it or its `apiTsconfig` twin.
 	ApiType *checker.Type
 	Checker *checker.Checker
-	// CalleeName is the dispatch method (`call`, `prefill`, `typeErrors`), for reports.
+	// CalleeName is the dispatch method (`call`, `typeErrors`), for reports.
 	CalleeName string
 
 	sourceFile *ast.SourceFile

@@ -7,17 +7,14 @@
 
 import {RpcError} from '@mionjs/core';
 import type {RunTypeError} from '@mionjs/core';
-import type {CallSetup, MiddlewareSubRequest, RequestErrors, RouteSubRequest, SubRequest} from './types.ts';
+import type {CallSetup, RequestErrors, RouteSubRequest, SubRequest} from './types.ts';
 import type {InjectedApiMetadata} from './types.ts';
 
 import type {InputFromRef} from '@mionjs/core';
 import type {MionClient} from './client.ts';
-import {TypedEvent} from './lib/typedEvent.ts';
 import {isInputFromRef} from './batch.ts';
 
-export class MionSubRequest<S = any, E extends RpcError<string, any> = any>
-  implements RouteSubRequest<any>, MiddlewareSubRequest<any>
-{
+export class MionSubRequest<S = any, E extends RpcError<string, any> = any> implements RouteSubRequest<any> {
   pointer: string[];
   id: string;
   isResolved: boolean = false;
@@ -47,54 +44,9 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any>
   }
 
   /** `apiMetadata` is filled by the build under `bundleApi`, never by hand. */
-  prefill(apiMetadata?: InjectedApiMetadata): TypedEvent<S, E> {
+  call(setup?: CallSetup, apiMetadata?: InjectedApiMetadata): Promise<any> {
     this.client.useBundledApi(apiMetadata);
-    this.client.prefill(this as MiddlewareSubRequest<any>).catch((errors: RequestErrors) => {
-      console.error('Prefill error:', findSubRequestError(this, errors));
-    });
-
-    return this.events();
-  }
-
-  /** Returns the TypedEvent for this middleware so typed handlers can be registered without prefilling */
-  events(): TypedEvent<S, E> {
-    return new TypedEvent<S, E>(this.id, this.client.handlersRegistry);
-  }
-
-  /** Registers a persistent typed error handler for this middleware, no prefill required */
-  onError<T extends E['type']>(errorType: T, handler: (error: Extract<E, {type: T}>) => void): TypedEvent<S, E> {
-    return this.events().onError(errorType, handler);
-  }
-
-  offError<T extends E['type']>(errorType: T): TypedEvent<S, E> {
-    return this.events().offError(errorType);
-  }
-
-  /** Registers a persistent success handler for this middleware, no prefill required */
-  onSuccess(handler: (result: S) => void): TypedEvent<S, E> {
-    return this.events().onSuccess(handler);
-  }
-
-  offSuccess(): TypedEvent<S, E> {
-    return this.events().offSuccess();
-  }
-
-  removePrefill(): Promise<void> {
-    this.client.handlersRegistry.clearHandlers(this.id);
-    return this.client.removePrefill(this as MiddlewareSubRequest<any>);
-  }
-
-  /** `apiMetadata` is filled by the build under `bundleApi`, never by hand. */
-  call(setup?: CallSetup<any>, apiMetadata?: InjectedApiMetadata): Promise<any> {
-    this.client.useBundledApi(apiMetadata);
-    return this.client.execute(
-      this as unknown as RouteSubRequest<any>,
-      undefined,
-      undefined,
-      setup?.middlewares,
-      setup?.signal,
-      setup?.timeout
-    );
+    return this.client.execute(this as unknown as RouteSubRequest<any>, undefined, undefined, setup?.signal, setup?.timeout);
   }
 
   /** `apiMetadata` is filled by the build under `bundleApi`, never by hand. */

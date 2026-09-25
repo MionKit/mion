@@ -38,10 +38,10 @@ outcome at once, middleware slots included.
 The implementer plans the details. Decided shape and rules:
 
 - `call()` resolves to the outcome union. A middleware's DECLARED fatal error (it
-  stopped the route) is part of that union, typed, since the middleware are known
-  at the call. A middleware error that did NOT stop the route is not in the outcome: the
-  value is, and the middleware's own `onError` / `onSuccess` listeners (prefill or per sub
-  request) carry its outcome. `callRaw()` still exposes it in slot 4.
+  stopped the route) is part of that union, typed. `call()` no longer names its middleware
+  (they get their data from `onRequest`), so these types must come from the route's middleware
+  chain. A middleware error that did NOT stop the route is not in the outcome: the value is,
+  and the middleware's own `onError` / `onResponse` hooks carry its outcome. `callRaw()` still exposes it in slot 4.
 - The dispatch rules pinned by `packages/client/src/errorDispatch.spec.ts` keep holding for
   `callRaw()`; the outcome union is derived from the same dispatch, not a second one.
 - `batch([...]).call()` resolves to ONE outcome per route, in order, each with the same union

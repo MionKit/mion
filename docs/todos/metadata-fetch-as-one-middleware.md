@@ -8,9 +8,9 @@ created: 2026-09-24
 # Metadata Fetch as One Client Middleware
 
 ## Intent
-Fetching route metadata is a middleware on the server (`mion@methodsMetadata`), so the client should treat it as ONE middleware with an internal `onCall`, the same way route sync does. Today its handling is spread across several client files.
+Fetching route metadata is a middleware on the server (`mion@methodsMetadata`), so the client should treat it as ONE middleware with an internal `onRequest`, the same way route sync does. Today its handling is spread across several client files.
 
-Last step of the client middleware chain: needs `onCall` and route sync on `onCall` first.
+Last step of the client middleware chain: needs `onRequest` and route sync on `onRequest` first.
 
 ## Direction
 - Scattered today: `packages/client/src/request.ts` (~lines 151, 188, 210, 266), `lib/serializer.ts` (~43, 142), `lib/clientMethodsMetadata.ts` (~451), `lib/apiVersionRecovery.ts` (~41), `lib/fetchRemoteMethodsMetadata.ts` (`mion@methodsMetadataById`).

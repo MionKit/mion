@@ -22,7 +22,7 @@ Modern client for mion APIs:
 - Fully typed list of remote methods with it's parameters and return values.
 - Automattic Validation and Serialization out of the box.
 - Local Validation (no need to make a server request to validate parameters)
-- Prefill request data to persist across multiple calls.
+- Middleware hooks that set their data before every request.
 - No compilation needed
 
 ## Check Out The [Website And Documentation](http://mion.io) 📚

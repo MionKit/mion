@@ -31,9 +31,8 @@ const CLIENT_DTS = `declare module '@mionjs/client' {
     id: Id;
     call(setup?: unknown, apiMetadata?: InjectApiMetadata<RA, Id>): Promise<unknown>;
   }
-  export interface MiddlewareSubRequest<PH, Id extends string = string, RA = any> {
-    id: Id;
-    prefill(apiMetadata?: InjectApiMetadata<RA, Id>): unknown;
+  export interface MiddlewareHooks<PH> {
+    onRequest(handler: (call: (...params: Parameters<PH>) => void) => void): MiddlewareHooks<PH>;
   }
   type Handler = (...args: any[]) => any;
   export type ClientRoutes<RA, Prefix extends string = '', Root = RA> = {
@@ -43,7 +42,7 @@ const CLIENT_DTS = `declare module '@mionjs/client' {
   };
   export type ClientMiddlewares<RA, Prefix extends string = '', Root = RA> = {
     [K in keyof RA as RA[K] extends {type: 2 | 3} ? K : RA[K] extends {type: number} ? never : K]: RA[K] extends {type: 2 | 3; handler: infer H extends Handler}
-      ? (...params: Parameters<H>) => MiddlewareSubRequest<H, \`\${Prefix}\${K & string}\`, Root>
+      ? MiddlewareHooks<H>
       : ClientMiddlewares<RA[K], \`\${Prefix}\${K & string}/\`, Root>;
   };
   export function initClient<RA>(o?: unknown): {routes: ClientRoutes<RA>; middlewares: ClientMiddlewares<RA>};
@@ -67,7 +66,7 @@ const CLIENT = `import {initClient} from '@mionjs/client';
 import type {Api} from './api.ts';
 export const {routes, middlewares} = initClient<Api>({baseURL: 'http://x'});
 export const a = routes.users.getById(1).call();
-export const b = middlewares.auth({headers: {authorization: 'x'}}).prefill();
+middlewares.auth.onRequest((auth) => auth({headers: {authorization: 'x'}}));
 `;
 // Records the lane injected at initClient and the module injected at each dispatch point.
 const CLIENT_STUB = `export function setBundleApiMode(mode) {
@@ -77,10 +76,9 @@ export function initClient(options) {
   const make = (id) => ({
     id,
     call: (setup, bundle) => { (globalThis.__bundles ??= {})[id] = bundle; return Promise.resolve(); },
-    prefill: (bundle) => { (globalThis.__bundles ??= {})[id] = bundle; },
   });
   const node = (pathId) => new Proxy(function () {}, {
-    get: (_, key) => (typeof key === 'string' ? node(pathId ? pathId + '/' + key : key) : undefined),
+    get: (_, key) => (key === 'onRequest' ? () => undefined : typeof key === 'string' ? node(pathId ? pathId + '/' + key : key) : undefined),
     apply: () => make(pathId),
   });
   return {routes: node(''), middlewares: node('')};
@@ -171,7 +169,8 @@ register('bundled API through a real vite build', () => {
     const api = path.join(root, '.mion', 'api');
     const files = walk(api);
     expect(files.filter((file) => file.startsWith('m/'))).toEqual(['m/auth.js', 'm/users/getById.js']);
-    expect(files.filter((file) => file.startsWith('s/'))).toEqual(['s/auth.js', 's/users/getById.js']);
+    // a middleware is no dispatch point, it rides its route's chain
+    expect(files.filter((file) => file.startsWith('s/'))).toEqual(['s/users/getById.js']);
     expect(files.some((file) => file.startsWith('types/'))).toBe(true);
     const manifest = JSON.parse(readFileSync(path.join(api, 'manifest.json'), 'utf8')) as {
       kind: string;
@@ -207,7 +206,7 @@ register('bundled API through a real vite build', () => {
     const globals = await runArtifact(await buildClient('bundled'));
     expect(globals.__mode).toBe('bundled');
     const bundles = globals.__bundles ?? {};
-    expect(Object.keys(bundles).sort()).toEqual(['auth', 'users/getById']);
+    expect(Object.keys(bundles).sort()).toEqual(['users/getById']);
     // the route's payload: the route plus the middleware of its chain, in tree order
     const getById = bundles['users/getById'];
     expect(getById.methods.map((method) => method.id)).toEqual(['auth', 'users/getById']);
@@ -222,8 +221,8 @@ register('bundled API through a real vite build', () => {
     for (const tuple of paramsFns)
       expect(tuple.filter((slot) => typeof slot === 'string' && slot.includes('return '))).toEqual([]);
     expect(Array.isArray(route.rtFns.paramsId)).toBe(true);
-    // the prefilled headers middleware carries its headers type too
-    const auth = bundles['auth'].methods[0];
+    // the headers middleware of the chain carries its headers type too
+    const auth = getById.methods[0];
     expect(auth.type).toBe(3);
     expect(Array.isArray(auth.rtFns.headersFns)).toBe(true);
   });

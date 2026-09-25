@@ -131,3 +131,11 @@ Not a candidate: this is request wiring, there is no round-trip or reference ora
 - `onRequest` tests: every request, root request, typed params, not calling, per-call override, sync + async, throw + reject.
 - Naming analysed and recorded.
 - `pnpm test` and `pnpm run lint` pass; both simplify passes committed on their own.
+
+## Plan amendment — onRequest is the only way to send middleware data (approved 2026-09-25)
+
+- `call({middlewares})` on a route and on a batch is removed. `CallSetup` keeps only `signal` and `timeout`.
+- The result stays a 5-tuple. Slots 3 and 4 (`middlewareResults`, `middlewareErrors`) are keyed by middleware id and loosely typed (`Record<string, unknown>` / `Record<string, RpcError<string>>`), so a route caller can still inspect any middleware outcome.
+- `middlewares.auth` is hooks only (`onRequest` / `offRequest` / `onResponse` / `offResponse` / `onError` / `offError`). Calling it directly is a type error; the typed `call` inside `onRequest` is the only way to pass params. Middleware `typeErrors()` goes with it.
+- Replaces the earlier "per-call override" decision: there is no per-call middleware value any more. Per-call data comes from the `context` argument of `onRequest`.
+- Extra docs: the "Passing Data to Middleware" section of `00.client-overview.md`, and the examples `client-using-middlewares.ts`, `batch-with-middlewares.ts`, `cancellation-with-middlewares.ts`.

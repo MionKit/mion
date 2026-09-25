@@ -5,15 +5,15 @@
 `call()` resolves to `[result, error, undeclared, middlewareResults, middlewareErrors]`
 ([src/types.ts](src/types.ts), `Result`; `batch()` returns the same layout with arrays in
 the first two slots, `BatchResult`). Do not "tidy" the shape or the order: it encodes WHO
-can produce each error, and that is what makes slots 1 and 4 closed, strongly typed unions.
+can produce each error, and that is what makes slot 1 a closed, strongly typed union.
 
 | slot | holds                                                          | who produced it                                                                                                                                                                   |
 | ---- | -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 0    | the route's value                                              | the route handler, whenever it ran and succeeded                                                                                                                                  |
 | 1    | the route's DECLARED errors + `ValidationError`                | the route (or its param validation), a CLOSED union                                                                                                                               |
 | 2    | `UndeclaredError`, an OPEN `RpcError<string>`                  | anything outside the declared contract: transport (timeout, abort, network), platform, framework, an undeclared throw, an error for a middleware that was not part of the request |
-| 3    | middleware results, by name                                    | each middleware sent with the request                                                                                                                                             |
-| 4    | each middleware's DECLARED errors + `ValidationError`, by name | each middleware, one slot per name so several failures are never collapsed into one                                                                                               |
+| 3    | middleware results, by middleware id                           | each middleware sent with the request                                                                                                                                             |
+| 4    | each middleware's DECLARED errors + `ValidationError`, by id   | each middleware, one entry per id so several failures are never collapsed into one                                                                                                |
 
 Why `undeclared` sits BEFORE the middleware slots, which looks odd at first:
 
@@ -22,10 +22,10 @@ Why `undeclared` sits BEFORE the middleware slots, which looks odd at first:
   else can be a network error the router never saw. Reading order follows frequency: the
   route's own value and error first, then the catch-all a user MUST check before trusting
   `result === undefined`, then the middleware outcomes.
-- Middleware outcomes are meant to be handled by the middleware's own callbacks
-  (`prefill().onError()` / `.onSuccess()`, or `onError` / `onSuccess` registered on the
-  middleware sub request). The two trailing slots exist so a call site CAN still read them;
-  they are not the primary way. Prefer the callbacks and leave the tuple positions alone.
+- Middleware outcomes are meant to be handled by the middleware's own hooks
+  (`middlewares.x.onResponse()` / `.onError()`). The two trailing slots exist so a call site
+  CAN still read them, keyed by middleware id and loosely typed; they are not the primary way.
+  Prefer the hooks and leave the tuple positions alone.
 
 The dispatch rules (which error lands where) are pinned by
 [test/errorDispatch.spec.ts](test/errorDispatch.spec.ts); the header of that file lists them.
@@ -41,6 +41,12 @@ One thing rides slot 2 that the router never saw: a metadata cache write the bro
 eviction ran out of things to give up. The request itself succeeded, so it never rejects and never
 displaces a real error; it takes the first free undeclared slot on a later call and is reported once
 (`packages/client/src/lib/clientMethodsMetadata.ts`, `takeMetadataCacheError`).
+
+## Middleware params come only from onRequest
+
+`call()` and `batch().call()` take no middleware values. A middleware gets its params from its
+`onRequest` hook, which runs before every request whose chain includes it, and `middlewares.x`
+is hooks only. Do not add a second way to pass them.
 
 ## Calls never throw
 

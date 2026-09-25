@@ -8,10 +8,10 @@ const {routes, middlewares} = initClient<MyApi>({
   baseURL: 'http://localhost:3000',
 });
 
-// prefills auth token for any future requests, value is stored in localStorage by default
-await middlewares
-  .auth(new HeadersSubset({Authorization: 'myToken-XYZ'}))
-  .prefill();
+// sets the auth token before every request that runs the auth middleware
+middlewares.auth.onRequest((auth) =>
+  auth(new HeadersSubset({Authorization: 'myToken-XYZ'}))
+);
 
 // calls sayHello route in the server - call() returns [result, error] tuple
 const [greeting, error] = await routes.users.sayHello(john).call();
