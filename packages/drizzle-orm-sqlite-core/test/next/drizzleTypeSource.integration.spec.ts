@@ -7,7 +7,7 @@
 
 // next/ sqlite columns through the REAL resolver, each random spec as a hand-written type and as builders in one fixture.
 // Columns and names are compared, not whole tables: a builder table's type records no extraConfig entries.
-// The value probe is the Marker rule pair. Replay with MION_FUZZ_SEED; widen with MION_FUZZ_ITER.
+// The value probe is the Marker rule pair.
 
 import path from 'node:path';
 import {describe, expect, it} from 'vitest';

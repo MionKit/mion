@@ -185,7 +185,6 @@ describe('next sqlite columns: same drizzle table on every road', () => {
     expect(project(toDrizzle(wide))).toEqual(project(curToDrizzle(curWide)));
     expect(project(toDrizzle(wide))).toEqual(project(rawWide));
   });
-  // Fails until the shipped recorder's generatedAlwaysAs(as) keeps its config argument, which it drops today.
   it('a stored generated column keeps its mode', () => {
     const stored = sqliteTable('stored', {derived: text({generatedAlwaysAs: ['x', {mode: 'stored'}]})});
     expect(project(toDrizzle(stored))).toEqual(

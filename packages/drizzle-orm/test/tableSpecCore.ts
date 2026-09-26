@@ -5,9 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Dialect-free core of the table fuzz suites: the random table spec, the value-surface interpreter,
-// the type-road renderers and the synthetic reflected graphs. Each dialect's test/tableSpecShared.ts
-// binds it with specTools(dialect) and adds its own getTableConfig projection and views.
+// Dialect-free core of the table fuzz suites; each dialect's test/tableSpecShared.ts binds it with specTools(dialect)
+// and adds its own getTableConfig projection and views.
 
 import type {ReflectedNode} from '../src/fromType.ts';
 import {reflectedKinds} from '../src/fromType.ts';
@@ -193,7 +192,7 @@ function typeRoadCovers(dialect: SpecDialect, spec: TableSpec): boolean {
   );
 }
 
-/** The spec minus what the type road cannot spell (uncovered columns and mods, interpolated sql extras), or undefined. */
+/** The spec minus what the type road cannot spell, or undefined when no column is left. */
 function typeRoadReduce(dialect: SpecDialect, spec: TableSpec): TableSpec | undefined {
   const columns = spec.columns
     .filter((column) => dialect.typeNames[column.fn] !== undefined)
@@ -213,7 +212,7 @@ function typeRoadReduce(dialect: SpecDialect, spec: TableSpec): TableSpec | unde
   return {columns, extras};
 }
 
-/** Literal type text of a config/arg value (string/number/boolean/objects). */
+/** Literal type text of a config/arg value. */
 function literalTypeText(value: unknown): string {
   if (typeof value === 'string') return JSON.stringify(value).replace(/"/g, "'");
   if (typeof value === 'number' || typeof value === 'boolean') return String(value);
@@ -374,8 +373,7 @@ function renderTableType(dialect: SpecDialect, spec: TableSpec, tableName: strin
 }
 
 // ── synthetic reflected graph of a covered spec ──────────────────────────────
-// Mirrors what the resolver reflects for the rendered type text (the shape fromType.spec.ts pins),
-// so the wide fuzz space exercises the bridge on every run without spawning the resolver.
+// Mirrors what the resolver reflects for the rendered type text (pinned by fromType.spec.ts), without spawning it.
 
 let nextNodeId = 0;
 const nodeId = () => `syn${nextNodeId++}`;

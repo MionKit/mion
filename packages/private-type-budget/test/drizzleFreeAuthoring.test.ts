@@ -188,7 +188,7 @@ function drizzleFreeErrors(source: string, types: string[] = []): string[] {
 }
 
 describe('side-by-side columns with drizzle-orm absent', () => {
-  // sqlite's blob buffer mode is Node's Buffer, as drizzle types it, so that program needs Node's types (not drizzle's).
+  // drizzle types sqlite's blob buffer mode as Node's Buffer, so that program needs Node's types.
   for (const [dialect, source, types] of [
     ['pg', NEXT_SOURCE, []],
     ['mysql', NEXT_MYSQL_SOURCE, []],

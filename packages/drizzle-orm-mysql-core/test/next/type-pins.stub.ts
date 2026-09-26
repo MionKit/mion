@@ -360,7 +360,6 @@ export type WidePins = [
 ];
 
 // ── the key flags $returningId() reads ───────────────────────────────────────
-// serial's base flag, an autoincrement prop and a runtime default are each pinned by KeyFlagsOf.
 
 export type KeyFlagPins = [
   Expect<Equal<KeyFlagsOf<ColSpecOf<Serial>>['autoincrement'], true>>,

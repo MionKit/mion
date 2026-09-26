@@ -5,9 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The pg half of the table fuzz suites: its column kinds and type-road vocabulary bound over the dialect-free
-// core (packages/drizzle-orm/test/tableSpecCore.ts), the getTableConfig projection oracle, and views.
-// Consumed by tableEquality.fuzz.spec.ts and the drizzleTypeSource integration specs.
+// The pg half of the table fuzz suites: column kinds over the dialect-free core, the getTableConfig oracle, views.
 
 import {getMaterializedViewConfig, getTableConfig, getViewConfig} from 'drizzle-orm/pg-core';
 import {
@@ -22,7 +20,7 @@ export type {ColumnSpec, ExtraSpec, ModCall, Surface, TableSpec} from '../../dri
 export {buildTable, FUZZ_PARENT_NAME, renderColumnBuilders, renderEntryType} from '../../drizzle-orm/test/tableSpecCore.ts';
 
 // ── the random table spec ────────────────────────────────────────────────────
-// Kinds and their order are part of every seed: never reorder or edit them, or old seeds stop replaying.
+// Kinds and their order are part of every seed: never reorder or edit them.
 
 const pgSpecDialect: SpecDialect = {
   brand: 'pg',
