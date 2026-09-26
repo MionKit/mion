@@ -299,3 +299,13 @@ Everything in the plan landed. Where it went beyond or differs from the plan:
 - **Drizzle-free authoring:** the sqlite case compiles with Node's types, because sqlite's blob buffer mode is
   Node's `Buffer`, as drizzle types it.
 - The shipped road is unchanged: `drizzle-translate --to-types` reports 21 type errors before and after, both roads.
+
+## Follow-up in the same PR: the three dialects test the same things (2026-09-26)
+
+A review found pg's `next/` tests thinner than mysql's and sqlite's, and the type-budget files testing pg only in places. The three dialects now carry one test set:
+
+- **Parity check:** `packages/drizzle-orm/test/nextDialectParity.spec.ts` compares every describe / it title, exported `*Pins` tuple and `@ts-expect-error` reason in each dialect's `test/next/typeTables.spec.ts`, `test/next/type-pins.stub.ts`, `test/next/drizzleTypeSource.integration.spec.ts` and `test/tableEquality.fuzz.spec.ts`. An unmarked item must exist in every dialect; a dialect-only item is marked `only <dialects>:` (titles, reasons) or `Only<Dialects>_` (pins) and must exist in exactly those. The dialect list is one `DIALECTS` array. Negative controls: a renamed title, an unmarked extra test and a wrong prefix all fail.
+- **pg `next/` gained** `pgTableCreator`, `pgSchema` (table, view, materializedView, enum, sequence), the query-builder refusal overloads for `pgView` / `pgMaterializedView`, every shipped `toDrizzle` form (enum, schema, sequence, role, policies, standalone index) routed by a recorded-value check, and `PgEnumObjectCol`. mysql gained the `mysqlView(name)` refusal; both re-export the view types.
+- **Fuzz:** each dialect projects every drizzle field it has (generated, identity, uniqueName, composite primary keys, fk onUpdate, index options), generates its own modifiers (pg identity, array, generated; mysql generated; sqlite autoIncrement primary key, generated), and runs a next/ view surface; pg reads `MION_FUZZ_ITER`. This changed what pg seeds generate. Soaked at 2000 x 4 seeds in process and 40 x 4 through the resolver.
+- **Type budget:** `columnFormats.compile.test.ts` runs the same ten shapes and twin pins for all three; `declarationEmit.test.ts` the same twelve cases; `drizzleFreeAuthoring.test.ts` one next/ template plus each dialect's own features.
+- **Left for the switch** (old-system tests only pg has, convert tests, two shipped bugs found on the way: mysql index options typed before `.on()`, and `pgSchema().enum`'s object form keeping the object as `enumValues`): listed in the switch spec.
