@@ -15,8 +15,8 @@ import {withMion} from '@mionjs/devtools/next';
 // at the e2e package root rather than in this app dir.
 const E2E_ROOT = path.resolve(import.meta.dirname, '../..');
 
-// Built TWICE by build-all.mjs: unset is the fetched lane, the only place the basePath-on-both-ends
-// trap shows; set is the bundled lane, whose point is that the fetching code is GONE from the output.
+// Built TWICE by build-all.mjs: unset is the fetched lane (bundleApi: false), the only place the basePath-on-both-ends
+// trap shows; 'bundled' is the bundled lane, whose point is that the fetching code stays out of what the page loads.
 // genDir stays out of dist/: it is a build INPUT, and a bundler emptying its output dir would delete it.
 // Both names differ from the first build's so neither build reads the other's.
 const bundleApi = process.env.MION_E2E_BUNDLE_API;
@@ -35,7 +35,7 @@ export default await withMion(
       tsConfig: 'tsconfig.json',
       genDir: bundleApi ? `.rt-${bundleApi}` : '.rt',
     },
-    ...(bundleApi ? {bundleApi} : {}),
+    bundleApi: bundleApi === 'bundled' ? 'bundled' : false,
     cwd: import.meta.dirname,
   }
 );

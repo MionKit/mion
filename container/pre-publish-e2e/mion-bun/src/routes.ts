@@ -7,6 +7,7 @@
 
 import {RpcError} from '@mionjs/core';
 import {PublicApi, Routes, createMionRouter} from '@mionjs/router';
+import {mionMethodsMetadata} from '@mionjs/router/middlewares';
 
 // NOTE: regular imports only — the resolver reads types from the program, but the
 // route VALUES are real runtime values.
@@ -17,9 +18,11 @@ type SimpleUser = {name: string; age: number};
 // it and then starts the server. The contextDataFactory must return a plain object with
 // at least one property (the router validates it at init), so give it the shape a real
 // app would carry.
-const mion = createMionRouter({contextDataFactory: () => ({user: null}), skipClientRoutes: false});
+const mion = createMionRouter({contextDataFactory: () => ({user: null})});
 
 const routes = {
+    // serves route metadata to a client that fetches it
+    ...mionMethodsMetadata,
     sayHello: mion.route((_ctx, user: SimpleUser): string => `Hello ${user.name}`),
     calculateAge: mion.route((_ctx, birthYear: number): number => 2026 - birthYear),
     mayFail: mion.route((_ctx, shouldFail: boolean): string | RpcError<'intentional-error'> => {
