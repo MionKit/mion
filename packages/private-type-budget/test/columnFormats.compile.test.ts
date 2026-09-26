@@ -1,5 +1,6 @@
 // next/ columns against the shipped ones over the REAL packages: each shape declared four ways, read through the
-// same models. Only the two next/ lines carry budgets (one-way downward); the shipped lines are the reference.
+// same models, in every dialect. Only the two next/ lines carry budgets (one-way downward); the shipped lines are
+// the reference.
 
 import {describe, it, expect, beforeAll, afterAll} from 'vitest';
 import * as ts from 'typescript';
@@ -14,22 +15,19 @@ const drizzleVersion: string = JSON.parse(readFileSync(fileURLToPath(new URL('..
 
 const SNIPPET_FILE = fileURLToPath(new URL('./__columnFormatsCase__.ts', import.meta.url));
 
-const IMPORT_HEADER = `
-import * as c from '@mionjs/drizzle-orm-pg-core';
-import {toDrizzle as cToDrizzle} from '@mionjs/drizzle-orm-pg-core/drizzle';
+const importHeader = (dialect: string, db: string) => `
+import * as c from '@mionjs/drizzle-orm-${dialect}-core';
+import {toDrizzle as cToDrizzle} from '@mionjs/drizzle-orm-${dialect}-core/drizzle';
 import type {InferSelectModel as CSelect, InferInsertModel as CInsert} from '@mionjs/drizzle-orm';
 import {refineTableType as cRefine, cols as cCols} from '@mionjs/drizzle-orm';
-import * as n from '../../drizzle-orm-pg-core/next/index.ts';
-import {toDrizzle as nToDrizzle} from '../../drizzle-orm-pg-core/next/drizzle.ts';
+import * as n from '../../drizzle-orm-${dialect}-core/next/index.ts';
+import {toDrizzle as nToDrizzle} from '../../drizzle-orm-${dialect}-core/next/drizzle.ts';
 import type {InferSelectModel as NSelect, InferInsertModel as NInsert} from '../../drizzle-orm/next/models.ts';
 import {refineTableType as nRefine, tableRef as nTableRef, $type as n$type} from '../../drizzle-orm/next/index.ts';
 import type {TableRef as NTableRef} from '../../drizzle-orm/next/index.ts';
-import type {PgDatabase, PgQueryResultHKT} from 'drizzle-orm/pg-core';
-declare const db: PgDatabase<PgQueryResultHKT>;
+${db}
 export {};
 `;
-
-const measure = makeMeasurer(IMPORT_HEADER, {options: RESOLVING_OPTIONS, snippetFile: SNIPPET_FILE, diagnosticsScope: 'snippet'});
 
 type Line = 'curBuilders' | 'curTypes' | 'newTypes' | 'newBuilders';
 const LINES: Line[] = ['curBuilders', 'curTypes', 'newTypes', 'newBuilders'];
@@ -54,7 +52,7 @@ const col = (key: string, db: string | undefined, curB: string, curT: string, ne
   newB,
 });
 
-const MIXED: ColSpec[] = [
+const PG_MIXED: ColSpec[] = [
   col(
     'id',
     'id',
@@ -96,7 +94,7 @@ const MIXED: ColSpec[] = [
     `n.timestamp('created_at', {mode: 'date', notNull: true, defaultNow: true})`
   ),
 ];
-const WIDE: ColSpec[] = [
+const PG_WIDE: ColSpec[] = [
   col(
     'id',
     'id',
@@ -154,170 +152,6 @@ const WIDE: ColSpec[] = [
     `n.timestamp('created_at', {mode: 'date', notNull: true, defaultNow: true})`
   ),
 ];
-const plain = (count: number, named: boolean): ColSpec[] =>
-  Array.from({length: count}, (_, i) => {
-    const key = `c${i}`;
-    return named
-      ? col(key, key, `c.integer('${key}')`, `c.Integer<'${key}'>`, `n.Integer`, `n.integer('${key}')`)
-      : col(key, undefined, `c.integer()`, `c.Integer`, `n.Integer`, `n.integer()`);
-  });
-
-/** A table declaration on one line, as `${prefix}T` (the table type). */
-function declare(line: Line, prefix: string, table: string, cols: ColSpec[], tableFn = 'pgTable', tableType = 'PgTable'): string {
-  if (line === 'curBuilders')
-    return `const ${prefix}V = c.${tableFn}('${table}', {${cols.map((x) => `${x.key}: ${x.curB},`).join(' ')}});\ntype ${prefix}T = typeof ${prefix}V;`;
-  if (line === 'newBuilders')
-    return `const ${prefix}V = n.${tableFn}('${table}', {${cols.map((x) => `${x.key}: ${x.newB},`).join(' ')}});\ntype ${prefix}T = typeof ${prefix}V;`;
-  if (line === 'curTypes')
-    return `type ${prefix}T = c.${tableType}<'${table}', {${cols.map((x) => `${x.key}: ${x.curT};`).join(' ')}}>;`;
-  const names = cols.filter((x) => x.db !== undefined && x.db !== x.key).map((x) => `${x.key}: '${x.db}'`);
-  return `type ${prefix}T = n.${tableType}<'${table}', {${cols.map((x) => `${x.key}: ${x.newT};`).join(' ')}}${names.length ? `, [], {${names.join('; ')}}` : ''}>;`;
-}
-const isCur = (line: Line) => line === 'curBuilders' || line === 'curTypes';
-const select = (line: Line, t: string) => `${isCur(line) ? 'CSelect' : 'NSelect'}<${t}>`;
-const insert = (line: Line, t: string) => `${isCur(line) ? 'CInsert' : 'NInsert'}<${t}>`;
-
-// Reading the row into annotated consts is what forces the work: a bare alias measures almost nothing.
-const readMixed = (p: string) => `declare const ${p}row: ${p}Row;
-export const ${p}Id: string = ${p}row.id;
-export const ${p}Name: string = ${p}row.name;
-export const ${p}Age: number = ${p}row.age;
-export const ${p}Role: string = ${p}row.role;
-export const ${p}When: Date = ${p}row.createdAt;`;
-const readPlain = (p: string, count: number) =>
-  `declare const ${p}row: ${p}Row;\n` +
-  Array.from({length: count}, (_, i) => `export const ${p}${i}: number | null = ${p}row.c${i};`).join('\n');
-const readWide = (p: string) => `declare const ${p}row: ${p}Row;
-export const ${p}0: number = ${p}row.id;
-export const ${p}1: string = ${p}row.role;
-export const ${p}2: number = ${p}row.seq;
-export const ${p}3: string[] = ${p}row.tags;
-export const ${p}4: {kind: string} | null = ${p}row.payload;
-export const ${p}5: string | null = ${p}row.email;
-export const ${p}6: Date = ${p}row.createdAt;`;
-
-interface Shape {
-  label: string;
-  body: (line: Line, p: string) => string;
-  /** Budgets for the two new lines. ONE-WAY DOWNWARD. */
-  budget: {newTypes: number; newBuilders: number};
-}
-
-const SHAPES: Shape[] = [
-  {
-    label: '5 mixed, select',
-    // 539 -> 683 and 971 -> 1160: a REVIEWED EXCEPTION, props reject stray modifier keys (Only<P, Allowed>, about 30 per configured column).
-    budget: {newTypes: 683, newBuilders: 1160},
-    body: (line, p) => `${declare(line, p, 'users', MIXED)}\ntype ${p}Row = ${select(line, `${p}T`)};\n${readMixed(p)}`,
-  },
-  {
-    label: '5 mixed, select + insert',
-    // 1132 -> 1276 and 1638 -> 1827: a REVIEWED EXCEPTION, props reject stray modifier keys.
-    budget: {newTypes: 1276, newBuilders: 1827},
-    body: (line, p) =>
-      `${declare(line, p, 'users', MIXED)}\ntype ${p}Row = ${select(line, `${p}T`)};\ntype ${p}New = ${insert(line, `${p}T`)};\n${readMixed(p)}
-export const ${p}NewUser: ${p}New = {id: 'x' as never, name: 'a', age: 1, role: 'admin'};`,
-  },
-  ...(
-    [
-      [10, {newTypes: 210, newBuilders: 363}],
-      [20, {newTypes: 300, newBuilders: 573}],
-      [40, {newTypes: 480, newBuilders: 993}],
-    ] as const
-  ).map(
-    ([count, budget]): Shape => ({
-      label: `${count} plain, db name per column`,
-      budget,
-      body: (line, p) =>
-        `${declare(line, p, 't', plain(count, true))}\ntype ${p}Row = ${select(line, `${p}T`)};\n${readPlain(p, count)}`,
-    })
-  ),
-  {
-    label: '20 plain, nameless',
-    budget: {newTypes: 300, newBuilders: 532},
-    body: (line, p) =>
-      `${declare(line, p, 't', plain(20, false))}\ntype ${p}Row = ${select(line, `${p}T`)};\n${readPlain(p, 20)}`,
-  },
-  {
-    label: 'wide vocabulary, select',
-    // 702 -> 873 and 1293 -> 1516: a REVIEWED EXCEPTION, props reject stray modifier keys.
-    budget: {newTypes: 873, newBuilders: 1516},
-    body: (line, p) => `${declare(line, p, 'w', WIDE)}\ntype ${p}Row = ${select(line, `${p}T`)};\n${readWide(p)}`,
-  },
-  {
-    label: 'two tables, one reference',
-    // 160 -> 212: a REVIEWED EXCEPTION, TableRef checks the column key and takes a name for self-references.
-    // 212 -> 266 and 423 -> 494: a REVIEWED EXCEPTION, props reject stray modifier keys.
-    budget: {newTypes: 266, newBuilders: 494},
-    body: (line, p) => {
-      if (line === 'curBuilders')
-        return `const ${p}A = c.pgTable('teams', {id: c.serial('id').primaryKey()});
-const ${p}B = c.pgTable('members', {id: c.serial('id').primaryKey(), teamId: c.integer('team_id').references(() => cCols(${p}A).id)});
-declare const ${p}row: CSelect<typeof ${p}B>; export const ${p}t: number | null = ${p}row.teamId;`;
-      if (line === 'newBuilders')
-        return `const ${p}A = n.pgTable('teams', {id: n.serial('id', {primaryKey: true})});
-const ${p}B = n.pgTable('members', {id: n.serial('id', {primaryKey: true}), teamId: n.integer('team_id', {references: [() => nTableRef(${p}A, 'id')]})});
-declare const ${p}row: NSelect<typeof ${p}B>; export const ${p}t: number | null = ${p}row.teamId;`;
-      if (line === 'curTypes')
-        return `type ${p}A = c.PgTable<'teams', {id: c.Serial<'id', {primaryKey: true}>}>;
-type ${p}B = c.PgTable<'members', {id: c.Serial<'id', {primaryKey: true}>; teamId: c.Integer<'team_id', {references: [{table: 'teams'; column: 'id'}]}>}>;
-declare const ${p}row: CSelect<${p}B>; export const ${p}t: number | null = ${p}row.teamId;`;
-      return `type ${p}A = n.PgTable<'teams', {id: n.Serial<{primaryKey: true}>}>;
-type ${p}B = n.PgTable<'members', {id: n.Serial<{primaryKey: true}>; teamId: n.Integer<{references: [NTableRef<${p}A, 'id'>]}>}, [], {teamId: 'team_id'}>;
-declare const ${p}row: NSelect<${p}B>; export const ${p}t: number | null = ${p}row.teamId;`;
-    },
-  },
-  {
-    label: 'refineTableType, select',
-    // 1277 -> 1421 and 1729 -> 1918: a REVIEWED EXCEPTION, props reject stray modifier keys.
-    budget: {newTypes: 1421, newBuilders: 1918},
-    body: (line, p) => {
-      const refine = isCur(line) ? 'cRefine' : 'nRefine';
-      const source = line.endsWith('Builders') ? `${p}V` : `({} as ${p}T)`;
-      return `${declare(line, p, 'users', MIXED)}
-const ${p}R = ${refine}(${source}, {name: {maxLength: 50}});
-type ${p}Row = ${select(line, `typeof ${p}R`)};\n${readMixed(p)}`;
-    },
-  },
-  {
-    label: 'toDrizzle + select / insert / update query',
-    // 8812 -> 8956 and 9915 -> 10104: a REVIEWED EXCEPTION, props reject stray modifier keys.
-    budget: {newTypes: 8956, newBuilders: 10104},
-    body: (line, p) => {
-      const toDz = isCur(line) ? 'cToDrizzle' : 'nToDrizzle';
-      const source = line.endsWith('Builders') ? `${p}V` : `({} as ${p}T)`;
-      return `${declare(line, p, 'users', MIXED)}
-const ${p}D = ${toDz}(${source});
-const ${p}Q = db.select().from(${p}D);
-declare const ${p}rows: Awaited<typeof ${p}Q>;
-export const ${p}n: string = ${p}rows[0]!.name;
-export const ${p}w: Date = ${p}rows[0]!.createdAt;
-export const ${p}i = db.insert(${p}D).values({id: 'x', name: 'a', age: 21, role: 'user'});
-export const ${p}u = db.update(${p}D).set({age: 31});`;
-    },
-  },
-];
-
-// ── mysql and sqlite: the same four lines over three shapes each ─────────────
-
-const dialectHeader = (dialect: 'mysql' | 'sqlite', db: string) => `
-import * as c from '@mionjs/drizzle-orm-${dialect}-core';
-import {toDrizzle as cToDrizzle} from '@mionjs/drizzle-orm-${dialect}-core/drizzle';
-import type {InferSelectModel as CSelect, InferInsertModel as CInsert} from '@mionjs/drizzle-orm';
-import * as n from '../../drizzle-orm-${dialect}-core/next/index.ts';
-import {toDrizzle as nToDrizzle} from '../../drizzle-orm-${dialect}-core/next/drizzle.ts';
-import type {InferSelectModel as NSelect, InferInsertModel as NInsert} from '../../drizzle-orm/next/models.ts';
-import {$type as n$type} from '../../drizzle-orm/next/index.ts';
-${db}
-export {};
-`;
-
-interface DialectBlock {
-  dialect: 'mysql' | 'sqlite';
-  measure: ReturnType<typeof makeMeasurer>;
-  shapes: Shape[];
-}
-
 const MYSQL_MIXED: ColSpec[] = [
   col(
     'id',
@@ -505,135 +339,285 @@ const SQLITE_WIDE: ColSpec[] = [
   ),
 ];
 
+/** Everything a dialect spells differently; the shapes below are the same for all three. */
+interface Dialect {
+  dialect: 'pg' | 'mysql' | 'sqlite';
+  measure: ReturnType<typeof makeMeasurer>;
+  tableFn: string;
+  tableType: string;
+  mixed: ColSpec[];
+  mixedReads: Array<[string, string]>;
+  wide: ColSpec[];
+  wideReads: Array<[string, string]>;
+  /** The plain nullable int column: builder and type names. */
+  int: {fn: string; type: string};
+  /** The referenced table's primary key: builder call, shipped type, new type, new builder call. */
+  refId: {curB: string; curT: string; newT: string; newB: string};
+  /** A row the insert model of the mixed table accepts. */
+  insertRow: string;
+  /** The queries over `${p}D`, the toDrizzle of the mixed table. */
+  queries: (p: string) => string;
+  budgets: Record<ShapeLabel, Budget>;
+}
+
+const plain = (int: Dialect['int'], count: number, named: boolean): ColSpec[] =>
+  Array.from({length: count}, (_, i) => {
+    const key = `c${i}`;
+    return named
+      ? col(key, key, `c.${int.fn}('${key}')`, `c.${int.type}<'${key}'>`, `n.${int.type}`, `n.${int.fn}('${key}')`)
+      : col(key, undefined, `c.${int.fn}()`, `c.${int.type}`, `n.${int.type}`, `n.${int.fn}()`);
+  });
+
+/** A table declaration on one line, as `${prefix}T` (the table type). */
+function declare(names: Dialect, line: Line, prefix: string, table: string, cols: ColSpec[]): string {
+  const {tableFn, tableType} = names;
+  if (line === 'curBuilders')
+    return `const ${prefix}V = c.${tableFn}('${table}', {${cols.map((x) => `${x.key}: ${x.curB},`).join(' ')}});\ntype ${prefix}T = typeof ${prefix}V;`;
+  if (line === 'newBuilders')
+    return `const ${prefix}V = n.${tableFn}('${table}', {${cols.map((x) => `${x.key}: ${x.newB},`).join(' ')}});\ntype ${prefix}T = typeof ${prefix}V;`;
+  if (line === 'curTypes')
+    return `type ${prefix}T = c.${tableType}<'${table}', {${cols.map((x) => `${x.key}: ${x.curT};`).join(' ')}}>;`;
+  const names_ = cols.filter((x) => x.db !== undefined && x.db !== x.key).map((x) => `${x.key}: '${x.db}'`);
+  return `type ${prefix}T = n.${tableType}<'${table}', {${cols.map((x) => `${x.key}: ${x.newT};`).join(' ')}}${names_.length ? `, [], {${names_.join('; ')}}` : ''}>;`;
+}
+const isCur = (line: Line) => line === 'curBuilders' || line === 'curTypes';
+const select = (line: Line, t: string) => `${isCur(line) ? 'CSelect' : 'NSelect'}<${t}>`;
+const insert = (line: Line, t: string) => `${isCur(line) ? 'CInsert' : 'NInsert'}<${t}>`;
+
+// Reading the row into annotated consts is what forces the work: a bare alias measures almost nothing.
 const readRow = (p: string, reads: Array<[string, string]>) =>
   `declare const ${p}row: ${p}Row;\n` +
   reads.map(([key, type], i) => `export const ${p}${i}: ${type} = ${p}row.${key};`).join('\n');
+const readPlain = (p: string, count: number) =>
+  `declare const ${p}row: ${p}Row;\n` +
+  Array.from({length: count}, (_, i) => `export const ${p}${i}: number | null = ${p}row.c${i};`).join('\n');
 
-function dialectShapes(
-  tableFn: string,
-  tableType: string,
-  mixed: ColSpec[],
-  mixedReads: Array<[string, string]>,
-  wide: ColSpec[],
-  wideReads: Array<[string, string]>,
-  queries: (p: string) => string,
-  budgets: [Shape['budget'], Shape['budget'], Shape['budget']]
-): Shape[] {
-  const declareIn = (line: Line, p: string, table: string, cols: ColSpec[]) => declare(line, p, table, cols, tableFn, tableType);
-  return [
-    {
-      label: '5 mixed, select',
-      budget: budgets[0],
-      body: (line, p) =>
-        `${declareIn(line, p, 'users', mixed)}\ntype ${p}Row = ${select(line, `${p}T`)};\n${readRow(p, mixedReads)}`,
-    },
-    {
-      label: 'wide vocabulary, select',
-      budget: budgets[1],
-      body: (line, p) => `${declareIn(line, p, 'w', wide)}\ntype ${p}Row = ${select(line, `${p}T`)};\n${readRow(p, wideReads)}`,
-    },
-    {
-      label: 'toDrizzle + select / insert / update query',
-      budget: budgets[2],
-      body: (line, p) => {
-        const toDz = isCur(line) ? 'cToDrizzle' : 'nToDrizzle';
-        const source = line.endsWith('Builders') ? `${p}V` : `({} as ${p}T)`;
-        return `${declareIn(line, p, 'users', mixed)}\nconst ${p}D = ${toDz}(${source});\n${queries(p)}`;
-      },
-    },
-  ];
+interface Budget {
+  newTypes: number;
+  newBuilders: number;
+}
+const SHAPE_LABELS = [
+  '5 mixed, select',
+  '5 mixed, select + insert',
+  '10 plain, db name per column',
+  '20 plain, db name per column',
+  '40 plain, db name per column',
+  '20 plain, nameless',
+  'wide vocabulary, select',
+  'two tables, one reference',
+  'refineTableType, select',
+  'toDrizzle + select / insert / update query',
+] as const;
+type ShapeLabel = (typeof SHAPE_LABELS)[number];
+
+/** Each shape's snippet for one line of one dialect. */
+function shapeBody(names: Dialect, label: ShapeLabel, line: Line, p: string): string {
+  const {mixed, mixedReads, wide, wideReads, int, refId, tableFn, tableType} = names;
+  const plainShape = (count: number, named: boolean) =>
+    `${declare(names, line, p, 't', plain(int, count, named))}\ntype ${p}Row = ${select(line, `${p}T`)};\n${readPlain(p, count)}`;
+  switch (label) {
+    case '5 mixed, select':
+      return `${declare(names, line, p, 'users', mixed)}\ntype ${p}Row = ${select(line, `${p}T`)};\n${readRow(p, mixedReads)}`;
+    case '5 mixed, select + insert':
+      return `${declare(names, line, p, 'users', mixed)}\ntype ${p}Row = ${select(line, `${p}T`)};\ntype ${p}New = ${insert(line, `${p}T`)};\n${readRow(p, mixedReads)}
+export const ${p}NewUser: ${p}New = ${names.insertRow};`;
+    case '10 plain, db name per column':
+      return plainShape(10, true);
+    case '20 plain, db name per column':
+      return plainShape(20, true);
+    case '40 plain, db name per column':
+      return plainShape(40, true);
+    case '20 plain, nameless':
+      return plainShape(20, false);
+    case 'wide vocabulary, select':
+      return `${declare(names, line, p, 'w', wide)}\ntype ${p}Row = ${select(line, `${p}T`)};\n${readRow(p, wideReads)}`;
+    case 'two tables, one reference': {
+      const read = (model: string) => `declare const ${p}row: ${model}; export const ${p}t: number | null = ${p}row.teamId;`;
+      if (line === 'curBuilders')
+        return `const ${p}A = c.${tableFn}('teams', {id: ${refId.curB}});
+const ${p}B = c.${tableFn}('members', {id: ${refId.curB}, teamId: c.${int.fn}('team_id').references(() => cCols(${p}A).id)});
+${read(`CSelect<typeof ${p}B>`)}`;
+      if (line === 'newBuilders')
+        return `const ${p}A = n.${tableFn}('teams', {id: ${refId.newB}});
+const ${p}B = n.${tableFn}('members', {id: ${refId.newB}, teamId: n.${int.fn}('team_id', {references: [() => nTableRef(${p}A, 'id')]})});
+${read(`NSelect<typeof ${p}B>`)}`;
+      if (line === 'curTypes')
+        return `type ${p}A = c.${tableType}<'teams', {id: ${refId.curT}}>;
+type ${p}B = c.${tableType}<'members', {id: ${refId.curT}; teamId: c.${int.type}<'team_id', {references: [{table: 'teams'; column: 'id'}]}>}>;
+${read(`CSelect<${p}B>`)}`;
+      return `type ${p}A = n.${tableType}<'teams', {id: ${refId.newT}}>;
+type ${p}B = n.${tableType}<'members', {id: ${refId.newT}; teamId: n.${int.type}<{references: [NTableRef<${p}A, 'id'>]}>}, [], {teamId: 'team_id'}>;
+${read(`NSelect<${p}B>`)}`;
+    }
+    case 'refineTableType, select': {
+      const refine = isCur(line) ? 'cRefine' : 'nRefine';
+      const source = line.endsWith('Builders') ? `${p}V` : `({} as ${p}T)`;
+      return `${declare(names, line, p, 'users', mixed)}
+const ${p}R = ${refine}(${source}, {name: {maxLength: 50}});
+type ${p}Row = ${select(line, `typeof ${p}R`)};\n${readRow(p, mixedReads)}`;
+    }
+    case 'toDrizzle + select / insert / update query': {
+      const toDz = isCur(line) ? 'cToDrizzle' : 'nToDrizzle';
+      const source = line.endsWith('Builders') ? `${p}V` : `({} as ${p}T)`;
+      return `${declare(names, line, p, 'users', mixed)}\nconst ${p}D = ${toDz}(${source});\n${names.queries(p)}`;
+    }
+  }
 }
 
-const DIALECT_BLOCKS: DialectBlock[] = [
-  {
-    dialect: 'mysql',
-    measure: makeMeasurer(
-      dialectHeader(
-        'mysql',
-        `import type {MySqlDatabase, MySqlQueryResultHKT, PreparedQueryHKTBase} from 'drizzle-orm/mysql-core';
-declare const db: MySqlDatabase<MySqlQueryResultHKT, PreparedQueryHKTBase>;`
-      ),
-      {options: RESOLVING_OPTIONS, snippetFile: SNIPPET_FILE, diagnosticsScope: 'snippet'}
-    ),
-    shapes: dialectShapes(
-      'mysqlTable',
-      'MysqlTable',
-      MYSQL_MIXED,
-      [
-        ['id', 'number'],
-        ['name', 'string'],
-        ['age', 'number'],
-        ['role', 'string'],
-        ['createdAt', 'Date'],
-      ],
-      MYSQL_WIDE,
-      [
-        ['id', 'number'],
-        ['role', 'string'],
-        ['seq', 'number'],
-        ['payload', '{kind: string} | null'],
-        ['email', 'string | null'],
-        ['updatedAt', 'Date'],
-        ['big', 'bigint | null'],
-      ],
-      (p) => `const ${p}Q = db.select().from(${p}D);
+const measurerFor = (dialect: string, db: string) =>
+  makeMeasurer(importHeader(dialect, db), {options: RESOLVING_OPTIONS, snippetFile: SNIPPET_FILE, diagnosticsScope: 'snippet'});
+const MIXED_READS: Array<[string, string]> = [
+  ['name', 'string'],
+  ['age', 'number'],
+  ['role', 'string'],
+  ['createdAt', 'Date'],
+];
+const QUERY_READS = (p: string) => `const ${p}Q = db.select().from(${p}D);
 declare const ${p}rows: Awaited<typeof ${p}Q>;
 export const ${p}n: string = ${p}rows[0]!.name;
-export const ${p}w: Date = ${p}rows[0]!.createdAt;
+export const ${p}w: Date = ${p}rows[0]!.createdAt;`;
+
+const DIALECTS: Dialect[] = [
+  {
+    dialect: 'pg',
+    measure: measurerFor(
+      'pg',
+      `import type {PgDatabase, PgQueryResultHKT} from 'drizzle-orm/pg-core';\ndeclare const db: PgDatabase<PgQueryResultHKT>;`
+    ),
+    tableFn: 'pgTable',
+    tableType: 'PgTable',
+    mixed: PG_MIXED,
+    mixedReads: [['id', 'string'], ...MIXED_READS],
+    wide: PG_WIDE,
+    wideReads: [
+      ['id', 'number'],
+      ['role', 'string'],
+      ['seq', 'number'],
+      ['tags', 'string[]'],
+      ['payload', '{kind: string} | null'],
+      ['email', 'string | null'],
+      ['createdAt', 'Date'],
+    ],
+    int: {fn: 'integer', type: 'Integer'},
+    refId: {
+      curB: `c.serial('id').primaryKey()`,
+      curT: `c.Serial<'id', {primaryKey: true}>`,
+      newT: `n.Serial<{primaryKey: true}>`,
+      newB: `n.serial('id', {primaryKey: true})`,
+    },
+    insertRow: `{id: 'x' as never, name: 'a', age: 1, role: 'admin'}`,
+    queries: (p) => `${QUERY_READS(p)}
+export const ${p}i = db.insert(${p}D).values({id: 'x', name: 'a', age: 21, role: 'user'});
+export const ${p}u = db.update(${p}D).set({age: 31});`,
+    budgets: {
+      // 539 -> 683 and 971 -> 1160: a REVIEWED EXCEPTION, props reject stray modifier keys (Only<P, Allowed>, about 30 per configured column).
+      '5 mixed, select': {newTypes: 683, newBuilders: 1160},
+      // 1132 -> 1276 and 1638 -> 1827: a REVIEWED EXCEPTION, props reject stray modifier keys.
+      '5 mixed, select + insert': {newTypes: 1276, newBuilders: 1827},
+      '10 plain, db name per column': {newTypes: 210, newBuilders: 363},
+      '20 plain, db name per column': {newTypes: 300, newBuilders: 573},
+      '40 plain, db name per column': {newTypes: 480, newBuilders: 993},
+      '20 plain, nameless': {newTypes: 300, newBuilders: 532},
+      // 702 -> 873 and 1293 -> 1516: a REVIEWED EXCEPTION, props reject stray modifier keys.
+      'wide vocabulary, select': {newTypes: 873, newBuilders: 1516},
+      // 160 -> 212: a REVIEWED EXCEPTION, TableRef checks the column key and takes a name for self-references.
+      // 212 -> 266 and 423 -> 494: a REVIEWED EXCEPTION, props reject stray modifier keys.
+      'two tables, one reference': {newTypes: 266, newBuilders: 494},
+      // 1277 -> 1421 and 1729 -> 1918: a REVIEWED EXCEPTION, props reject stray modifier keys.
+      'refineTableType, select': {newTypes: 1421, newBuilders: 1918},
+      // 8812 -> 8956 and 9915 -> 10104: a REVIEWED EXCEPTION, props reject stray modifier keys.
+      'toDrizzle + select / insert / update query': {newTypes: 8956, newBuilders: 10104},
+    },
+  },
+  {
+    dialect: 'mysql',
+    measure: measurerFor(
+      'mysql',
+      `import type {MySqlDatabase, MySqlQueryResultHKT, PreparedQueryHKTBase} from 'drizzle-orm/mysql-core';\ndeclare const db: MySqlDatabase<MySqlQueryResultHKT, PreparedQueryHKTBase>;`
+    ),
+    tableFn: 'mysqlTable',
+    tableType: 'MysqlTable',
+    mixed: MYSQL_MIXED,
+    mixedReads: [['id', 'number'], ...MIXED_READS],
+    wide: MYSQL_WIDE,
+    wideReads: [
+      ['id', 'number'],
+      ['role', 'string'],
+      ['seq', 'number'],
+      ['payload', '{kind: string} | null'],
+      ['email', 'string | null'],
+      ['updatedAt', 'Date'],
+      ['big', 'bigint | null'],
+    ],
+    int: {fn: 'int', type: 'Int'},
+    refId: {
+      curB: `c.serial('id').primaryKey()`,
+      curT: `c.Serial<'id', {primaryKey: true}>`,
+      newT: `n.Serial<{primaryKey: true}>`,
+      newB: `n.serial('id', {primaryKey: true})`,
+    },
+    insertRow: `{name: 'a', age: 1, role: 'admin'}`,
+    queries: (p) => `${QUERY_READS(p)}
 const ${p}I = db.insert(${p}D).values({name: 'a', age: 21, role: 'user'}).$returningId();
 declare const ${p}ids: Awaited<typeof ${p}I>;
 export const ${p}id: number = ${p}ids[0]!.id;
 export const ${p}u = db.update(${p}D).set({age: 31});`,
-      [
-        {newTypes: 712, newBuilders: 1184},
-        {newTypes: 1040, newBuilders: 1773},
-        {newTypes: 8583, newBuilders: 9786},
-      ]
-    ),
+    budgets: {
+      '5 mixed, select': {newTypes: 712, newBuilders: 1184},
+      '5 mixed, select + insert': {newTypes: 1268, newBuilders: 1801},
+      '10 plain, db name per column': {newTypes: 228, newBuilders: 382},
+      '20 plain, db name per column': {newTypes: 318, newBuilders: 592},
+      '40 plain, db name per column': {newTypes: 498, newBuilders: 1012},
+      '20 plain, nameless': {newTypes: 318, newBuilders: 551},
+      'wide vocabulary, select': {newTypes: 1040, newBuilders: 1773},
+      'two tables, one reference': {newTypes: 290, newBuilders: 525},
+      'refineTableType, select': {newTypes: 1447, newBuilders: 1939},
+      'toDrizzle + select / insert / update query': {newTypes: 8583, newBuilders: 9786},
+    },
   },
   {
     dialect: 'sqlite',
-    measure: makeMeasurer(
-      dialectHeader(
-        'sqlite',
-        `import type {BaseSQLiteDatabase} from 'drizzle-orm/sqlite-core';
-declare const db: BaseSQLiteDatabase<'sync', unknown>;`
-      ),
-      {options: RESOLVING_OPTIONS, snippetFile: SNIPPET_FILE, diagnosticsScope: 'snippet'}
+    measure: measurerFor(
+      'sqlite',
+      `import type {BaseSQLiteDatabase} from 'drizzle-orm/sqlite-core';\ndeclare const db: BaseSQLiteDatabase<'sync', unknown>;`
     ),
-    shapes: dialectShapes(
-      'sqliteTable',
-      'SqliteTable',
-      SQLITE_MIXED,
-      [
-        ['id', 'number'],
-        ['name', 'string'],
-        ['age', 'number'],
-        ['role', 'string'],
-        ['createdAt', 'Date'],
-      ],
-      SQLITE_WIDE,
-      [
-        ['id', 'number'],
-        ['role', 'string'],
-        ['flag', 'boolean'],
-        ['payload', '{kind: string} | null'],
-        ['email', 'string | null'],
-        ['amount', 'number'],
-        ['big', 'bigint | null'],
-      ],
-      (p) => `const ${p}Q = db.select().from(${p}D);
-declare const ${p}rows: Awaited<typeof ${p}Q>;
-export const ${p}n: string = ${p}rows[0]!.name;
-export const ${p}w: Date = ${p}rows[0]!.createdAt;
+    tableFn: 'sqliteTable',
+    tableType: 'SqliteTable',
+    mixed: SQLITE_MIXED,
+    mixedReads: [['id', 'number'], ...MIXED_READS],
+    wide: SQLITE_WIDE,
+    wideReads: [
+      ['id', 'number'],
+      ['role', 'string'],
+      ['flag', 'boolean'],
+      ['payload', '{kind: string} | null'],
+      ['email', 'string | null'],
+      ['amount', 'number'],
+      ['big', 'bigint | null'],
+    ],
+    int: {fn: 'integer', type: 'Integer'},
+    refId: {
+      curB: `c.integer('id').primaryKey()`,
+      curT: `c.Integer<'id', {primaryKey: true}>`,
+      newT: `n.Integer<{primaryKey: true}>`,
+      newB: `n.integer('id', {primaryKey: true})`,
+    },
+    insertRow: `{name: 'a', age: 1, role: 'admin', createdAt: new Date()}`,
+    queries: (p) => `${QUERY_READS(p)}
 export const ${p}i = db.insert(${p}D).values({name: 'a', age: 21, role: 'user', createdAt: new Date()});
 export const ${p}u = db.update(${p}D).set({age: 31});`,
-      [
-        {newTypes: 658, newBuilders: 1058},
-        {newTypes: 977, newBuilders: 1631},
-        {newTypes: 7672, newBuilders: 8695},
-      ]
-    ),
+    budgets: {
+      '5 mixed, select': {newTypes: 658, newBuilders: 1058},
+      '5 mixed, select + insert': {newTypes: 1252, newBuilders: 1716},
+      '10 plain, db name per column': {newTypes: 231, newBuilders: 385},
+      '20 plain, db name per column': {newTypes: 321, newBuilders: 595},
+      '40 plain, db name per column': {newTypes: 501, newBuilders: 1015},
+      '20 plain, nameless': {newTypes: 321, newBuilders: 554},
+      'wide vocabulary, select': {newTypes: 977, newBuilders: 1631},
+      'two tables, one reference': {newTypes: 298, newBuilders: 518},
+      'refineTableType, select': {newTypes: 1393, newBuilders: 1813},
+      'toDrizzle + select / insert / update query': {newTypes: 7672, newBuilders: 8695},
+    },
   },
 ];
 
@@ -641,15 +625,15 @@ const PREFIX: Record<Line, string> = {curBuilders: 'cb', curTypes: 'ct', newType
 const measured = new Map<string, Record<Line, number>>();
 
 // Without these, a broken import collapses every type to `any` and the counts drop.
-const SHAPE_PINS = `
+const shapePins = (names: Dialect) => `
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 type Expect<T extends true> = T;
-${declare('curBuilders', 'pa', 'users', MIXED)}
-${declare('newTypes', 'pb', 'users', MIXED)}
-${declare('newBuilders', 'pc', 'users', MIXED)}
-${declare('curBuilders', 'wa', 'w', WIDE)}
-${declare('newTypes', 'wb', 'w', WIDE)}
-${declare('newBuilders', 'wc', 'w', WIDE)}
+${declare(names, 'curBuilders', 'pa', 'users', names.mixed)}
+${declare(names, 'newTypes', 'pb', 'users', names.mixed)}
+${declare(names, 'newBuilders', 'pc', 'users', names.mixed)}
+${declare(names, 'curBuilders', 'wa', 'w', names.wide)}
+${declare(names, 'newTypes', 'wb', 'w', names.wide)}
+${declare(names, 'newBuilders', 'wc', 'w', names.wide)}
 export type _Pins = [
   Expect<Equal<pcT, pbT>>,
   Expect<Equal<NSelect<pbT>, CSelect<paT>>>,
@@ -662,19 +646,18 @@ export type _Pins = [
 
 describe('column formats: shipped vs side-by-side columns, type-instantiation cost', () => {
   beforeAll(() => {
-    const blocks = [{dialect: 'pg', measure, shapes: SHAPES}, ...DIALECT_BLOCKS];
-    for (const block of blocks) {
-      for (const shape of block.shapes) {
+    for (const names of DIALECTS) {
+      for (const label of SHAPE_LABELS) {
         const row = {} as Record<Line, number>;
         for (const line of LINES) {
-          const result = block.measure(shape.body(line, PREFIX[line]));
+          const result = names.measure(shapeBody(names, label, line, PREFIX[line]));
           expect(
             result.errors,
-            `${block.dialect} "${shape.label}" / ${line} should type-check cleanly:\n  ${result.errors.join('\n  ')}`
+            `${names.dialect} "${label}" / ${line} should type-check cleanly:\n  ${result.errors.join('\n  ')}`
           ).toEqual([]);
           row[line] = result.netInstantiations;
         }
-        measured.set(`${block.dialect}: ${shape.label}`, row);
+        measured.set(`${names.dialect}: ${label}`, row);
       }
     }
   });
@@ -683,36 +666,29 @@ describe('column formats: shipped vs side-by-side columns, type-instantiation co
     writeColumnFormatsReport({
       typescript: ts.version,
       drizzleOrm: drizzleVersion,
-      rows: [{dialect: 'pg', shapes: SHAPES}, ...DIALECT_BLOCKS].flatMap(({dialect, shapes}) =>
-        shapes.map(
-          (shape): ColumnFormatsRow => ({
-            dialect,
-            label: shape.label,
-            ...measured.get(`${dialect}: ${shape.label}`)!,
-            budget: shape.budget,
-          })
+      rows: DIALECTS.flatMap(({dialect, budgets}) =>
+        SHAPE_LABELS.map(
+          (label): ColumnFormatsRow => ({dialect, label, ...measured.get(`${dialect}: ${label}`)!, budget: budgets[label]})
         )
       ),
     });
   });
 
-  for (const {dialect, shapes} of [{dialect: 'pg', shapes: SHAPES}, ...DIALECT_BLOCKS]) {
-    for (const shape of shapes) budgetTest(dialect, shape);
-  }
-  function budgetTest(dialect: string, shape: Shape) {
-    it(`${dialect}: ${shape.label}: the new lines stay within their budgets`, () => {
-      const row = measured.get(`${dialect}: ${shape.label}`)!;
-      expect(row.newTypes, `new types cost ${row.newTypes}, over ${shape.budget.newTypes}`).toBeLessThanOrEqual(
-        shape.budget.newTypes
-      );
-      expect(row.newBuilders, `new builders cost ${row.newBuilders}, over ${shape.budget.newBuilders}`).toBeLessThanOrEqual(
-        shape.budget.newBuilders
-      );
+  for (const names of DIALECTS) {
+    for (const label of SHAPE_LABELS) {
+      it(`${names.dialect}: ${label}: the new lines stay within their budgets`, () => {
+        const row = measured.get(`${names.dialect}: ${label}`)!;
+        const budget = names.budgets[label];
+        expect(row.newTypes, `new types cost ${row.newTypes}, over ${budget.newTypes}`).toBeLessThanOrEqual(budget.newTypes);
+        expect(row.newBuilders, `new builders cost ${row.newBuilders}, over ${budget.newBuilders}`).toBeLessThanOrEqual(
+          budget.newBuilders
+        );
+      });
+    }
+
+    it(`${names.dialect}: the new builder table is its hand-written twin, and the models are the shipped ones`, () => {
+      const result = names.measure(shapePins(names));
+      expect(result.errors, `shape pins failed:\n  ${result.errors.join('\n  ')}`).toEqual([]);
     });
   }
-
-  it('the new builder table is its hand-written twin, and the models are the shipped ones', () => {
-    const result = measure(SHAPE_PINS);
-    expect(result.errors, `shape pins failed:\n  ${result.errors.join('\n  ')}`).toEqual([]);
-  });
 });

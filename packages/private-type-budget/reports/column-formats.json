@@ -136,6 +136,66 @@
     },
     {
       "dialect": "mysql",
+      "label": "5 mixed, select + insert",
+      "curBuilders": 1061,
+      "curTypes": 1424,
+      "newTypes": 1268,
+      "newBuilders": 1801,
+      "budget": {
+        "newTypes": 1268,
+        "newBuilders": 1801
+      }
+    },
+    {
+      "dialect": "mysql",
+      "label": "10 plain, db name per column",
+      "curBuilders": 312,
+      "curTypes": 834,
+      "newTypes": 228,
+      "newBuilders": 382,
+      "budget": {
+        "newTypes": 228,
+        "newBuilders": 382
+      }
+    },
+    {
+      "dialect": "mysql",
+      "label": "20 plain, db name per column",
+      "curBuilders": 452,
+      "curTypes": 1394,
+      "newTypes": 318,
+      "newBuilders": 592,
+      "budget": {
+        "newTypes": 318,
+        "newBuilders": 592
+      }
+    },
+    {
+      "dialect": "mysql",
+      "label": "40 plain, db name per column",
+      "curBuilders": 732,
+      "curTypes": 2514,
+      "newTypes": 498,
+      "newBuilders": 1012,
+      "budget": {
+        "newTypes": 498,
+        "newBuilders": 1012
+      }
+    },
+    {
+      "dialect": "mysql",
+      "label": "20 plain, nameless",
+      "curBuilders": 364,
+      "curTypes": 512,
+      "newTypes": 318,
+      "newBuilders": 551,
+      "budget": {
+        "newTypes": 318,
+        "newBuilders": 551
+      }
+    },
+    {
+      "dialect": "mysql",
       "label": "wide vocabulary, select",
       "curBuilders": 830,
       "curTypes": 1341,
@@ -144,6 +204,30 @@
       "budget": {
         "newTypes": 1040,
         "newBuilders": 1773
+      }
+    },
+    {
+      "dialect": "mysql",
+      "label": "two tables, one reference",
+      "curBuilders": 213,
+      "curTypes": 410,
+      "newTypes": 290,
+      "newBuilders": 525,
+      "budget": {
+        "newTypes": 290,
+        "newBuilders": 525
+      }
+    },
+    {
+      "dialect": "mysql",
+      "label": "refineTableType, select",
+      "curBuilders": 1380,
+      "curTypes": 1765,
+      "newTypes": 1447,
+      "newBuilders": 1939,
+      "budget": {
+        "newTypes": 1447,
+        "newBuilders": 1939
       }
     },
     {
@@ -172,6 +256,66 @@
     },
     {
       "dialect": "sqlite",
+      "label": "5 mixed, select + insert",
+      "curBuilders": 983,
+      "curTypes": 1468,
+      "newTypes": 1252,
+      "newBuilders": 1716,
+      "budget": {
+        "newTypes": 1252,
+        "newBuilders": 1716
+      }
+    },
+    {
+      "dialect": "sqlite",
+      "label": "10 plain, db name per column",
+      "curBuilders": 321,
+      "curTypes": 868,
+      "newTypes": 231,
+      "newBuilders": 385,
+      "budget": {
+        "newTypes": 231,
+        "newBuilders": 385
+      }
+    },
+    {
+      "dialect": "sqlite",
+      "label": "20 plain, db name per column",
+      "curBuilders": 461,
+      "curTypes": 1428,
+      "newTypes": 321,
+      "newBuilders": 595,
+      "budget": {
+        "newTypes": 321,
+        "newBuilders": 595
+      }
+    },
+    {
+      "dialect": "sqlite",
+      "label": "40 plain, db name per column",
+      "curBuilders": 741,
+      "curTypes": 2548,
+      "newTypes": 501,
+      "newBuilders": 1015,
+      "budget": {
+        "newTypes": 501,
+        "newBuilders": 1015
+      }
+    },
+    {
+      "dialect": "sqlite",
+      "label": "20 plain, nameless",
+      "curBuilders": 341,
+      "curTypes": 539,
+      "newTypes": 321,
+      "newBuilders": 554,
+      "budget": {
+        "newTypes": 321,
+        "newBuilders": 554
+      }
+    },
+    {
+      "dialect": "sqlite",
       "label": "wide vocabulary, select",
       "curBuilders": 735,
       "curTypes": 1315,
@@ -180,6 +324,30 @@
       "budget": {
         "newTypes": 977,
         "newBuilders": 1631
+      }
+    },
+    {
+      "dialect": "sqlite",
+      "label": "two tables, one reference",
+      "curBuilders": 194,
+      "curTypes": 485,
+      "newTypes": 298,
+      "newBuilders": 518,
+      "budget": {
+        "newTypes": 298,
+        "newBuilders": 518
+      }
+    },
+    {
+      "dialect": "sqlite",
+      "label": "refineTableType, select",
+      "curBuilders": 1285,
+      "curTypes": 1796,
+      "newTypes": 1393,
+      "newBuilders": 1813,
+      "budget": {
+        "newTypes": 1393,
+        "newBuilders": 1813
       }
     },
     {
