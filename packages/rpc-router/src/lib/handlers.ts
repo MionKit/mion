@@ -110,7 +110,7 @@ export function isOnDemandMiddleware(def: object): boolean {
 
 const standaloneRoutes = new WeakSet<object>();
 
-/** Internal: the route runs none of the middlewares around it, wherever it is placed, like a route mion registered itself */
+/** Internal: the route runs none of the middlewares around it wherever placed, like a route mion registered itself */
 export function markStandalone<Def extends object>(def: Def): Def {
   standaloneRoutes.add(def);
   return def;

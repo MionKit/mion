@@ -474,7 +474,7 @@ func mustMkdirAll(t *testing.T, dir string) {
 	}
 }
 
-// TestResolveBundleApi: the flag wins over the tsconfig key, `false` in the tsconfig means off, and nothing set means bundled.
+// TestResolveBundleApi: the flag beats the tsconfig key, tsconfig `false` means off, and nothing set means bundled.
 func TestResolveBundleApi(t *testing.T) {
 	decode := func(raw string) bundleApiKey {
 		var key bundleApiKey

@@ -335,8 +335,8 @@ func (tree *Tree) Select(ids []string) (methods []*Method, missing []string) {
 	return methods, missing
 }
 
-// routerDeclares reports whether a member of the API type is `name` as @mionjs/router declares it; a mapped
-// PublicApi member keeps the declaration of the routes entry it was mapped from, spread entries included.
+// routerDeclares reports whether an API member is @mionjs/router's own `name`.
+// A mapped PublicApi member keeps its routes entry's declaration, spread entries included.
 func routerDeclares(property *ast.Symbol, name string) bool {
 	if property == nil || len(property.Declarations) == 0 {
 		return false

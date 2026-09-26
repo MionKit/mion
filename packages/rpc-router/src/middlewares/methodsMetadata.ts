@@ -95,11 +95,9 @@ function addRequiredRemoteMethodsToResponse(id: string, resp: SerializableMethod
   serializeMethodDeps(method, deps, purFnDeps);
 }
 
-// Spread it first in the routes: `{...mionMethodsMetadata, ...routes}`. The client finds the route next to the
-// middleware, so keep both keys. Both pin the built-in parser: a client asks before it knows any strategy.
-// The middleware sits in every chain with an unbounded `string[]`, so maxBodySize pins a fixed contribution to each
-// chain's limit: room for the ids a client sends along its first call. On demand, it skips its params pipeline
-// unless the body carries its slot.
+// Spread first in the routes; keep both keys, the client finds the route next to the middleware.
+// Both pin the built-in parser: a client asks before it knows any strategy.
+// In every chain with an unbounded `string[]`, so maxBodySize is a fixed share of each limit: room for a first call's ids.
 export const mionMethodsMetadata = {
   mionMethodsMetadata: markOnDemand(
     middleware(methodsMetadata satisfies MethodsMetadataHandler, {

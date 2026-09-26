@@ -28,7 +28,6 @@ const baseURL = TEST_SERVER_BASE_URL;
 const user = {name: 'John', surname: 'Doe'};
 const METADATA = 'mionMethodsMetadata';
 
-/** Every request the client sends, parsed. */
 function watchFetch() {
   const spy = vi.spyOn(globalThis, 'fetch');
   return {

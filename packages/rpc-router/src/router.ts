@@ -554,8 +554,7 @@ export function getExecutableFromMiddleware(
   return executable as any;
 }
 
-/** An absent body slot skips the whole params pipeline (decode, sanitize, validate, call) instead of running it
- *  to return undefined; the answer is identical only because such a middleware's params are all optional. */
+/** An absent slot skips the params pipeline; the answer is the same only because such a middleware's params are optional. */
 function onDemandCaller(caller: RemoteMethod['methodCaller']): RemoteMethod['methodCaller'] {
   return (context: unknown, executable: RemoteMethod, request: {body: Record<string, unknown>}, ...rest: unknown[]) =>
     request.body[executable.id] === undefined ? undefined : caller(context, executable, request, ...rest);

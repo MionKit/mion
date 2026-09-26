@@ -158,8 +158,8 @@ describe('what a default client leaves out', () => {
   }, 120_000);
 });
 
-// The version check reads one header per response, so it cannot be loaded on demand; the per-route recovery
-// rides the fetch's chunk, since both run only once the bundle comes up short.
+// The version check reads every response's header, so it cannot load on demand.
+// The per-route recovery rides the fetch's chunk: both run only once the bundle comes up short.
 describe('the api version check', () => {
   it('keeps only the comparison in the first download, in every mode', async () => {
     for (const mode of MODES) {

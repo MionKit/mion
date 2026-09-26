@@ -130,7 +130,6 @@ async function makeCall(state: DispatchState, skipOptimistic?: boolean): Promise
   let isOptimistic = false;
 
   try {
-    // the metadata's own answer to whether this attempt goes out before the rows are known
     if (metadata) isOptimistic = (await metadata.prepare(subRequestIds)) && !skipOptimistic;
     if (signal?.aborted) {
       onError(context, signal.reason ?? new DOMException('This operation was aborted', 'AbortError'), 'Request aborted', errors);
