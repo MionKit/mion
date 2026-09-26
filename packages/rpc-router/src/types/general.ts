@@ -42,8 +42,6 @@ export interface RouterOptions<Req = any, ContextData extends Record<string, any
   getPublicRoutesData: boolean;
   /** generate a uuid as the id of every error */
   autoGenerateErrorId: boolean;
-  /** client routes are initialized by default */
-  skipClientRoutes: boolean;
   /** Await every step of the chain, even one that returned a plain value: the await is what makes a long
    *  chain yield the event loop. Only honoured when the router has something async in it.
    *  Turning it off raises throughput on short sync chains and can cost tail latency under load.

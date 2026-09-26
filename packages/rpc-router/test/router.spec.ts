@@ -91,10 +91,6 @@ describe('Create routes should', () => {
       id: 'mionDeserializeRequest',
       type: HandlerType.rawMiddleware,
     },
-    mionMethodsMetadata: {
-      id: 'mion@methodsMetadata',
-      type: HandlerType.middleware,
-    },
     mionSerializeResponse: {
       id: 'mionSerializeResponse',
       type: HandlerType.rawMiddleware,
@@ -105,7 +101,6 @@ describe('Create routes should', () => {
     return [
       expect.objectContaining({...defaultExecutables.mionDeserializeRequest}),
       ...exec,
-      expect.objectContaining({...defaultExecutables.mionMethodsMetadata}),
       expect.objectContaining({...defaultExecutables.mionSerializeResponse}),
     ];
   }
@@ -116,7 +111,7 @@ describe('Create routes should', () => {
     mion.initRoutes(routes);
 
     expect(geRoutesSize()).toEqual(7); // includes +2 mion Error routes (thrownErrors, platformError)
-    expect(getMiddlewaresSize()).toEqual(6);
+    expect(getMiddlewaresSize()).toEqual(5);
 
     expect(getRouteExecutionChain('/users/getUser')?.methods).toEqual(
       addDefaultExecutables([
@@ -225,7 +220,7 @@ describe('Create routes should', () => {
     createMionRouter({basePath: 'api/v1', suffix: '.json'}).initRoutes(routes);
 
     expect(geRoutesSize()).toEqual(7); // includes +2 mion Error routes (thrownErrors, platformError)
-    expect(getMiddlewaresSize()).toEqual(6);
+    expect(getMiddlewaresSize()).toEqual(5);
 
     expect(getRouteExecutionChain('/api/v1/users/getUser.json')).toBeTruthy();
     expect(getRouteExecutionChain('/api/v1/users/setUser.json')).toBeTruthy();
@@ -423,7 +418,7 @@ describe('initRoutes', () => {
     const mion = createMionRouter();
     const shadow = mion.middleware((ctx): void => undefined);
     const hello = mion.route((ctx): string => 'hi');
-    expect(() => mion.initRoutes({'mion@methodsMetadata': shadow, hello})).toThrow(/reserved mion middleware name/);
+    expect(() => mion.initRoutes({mionSerializeResponse: shadow, hello})).toThrow(/reserved mion middleware name/);
   });
 
   it('accepts a key every object inherits, like toString', () => {
@@ -434,8 +429,14 @@ describe('initRoutes', () => {
   });
 
   it('throws for the removed syncRoutes option, which would silently turn the check off', () => {
-    const mion = createMionRouter({syncRoutes: true, skipClientRoutes: true} as any);
+    const mion = createMionRouter({syncRoutes: true} as any);
     const hello = mion.route((ctx): string => 'hi');
     expect(() => mion.initRoutes({hello})).toThrow(/mionSyncRoutes/);
+  });
+
+  it('throws for the removed skipClientRoutes option, whose route is now placed by hand', () => {
+    const mion = createMionRouter({skipClientRoutes: false} as any);
+    const hello = mion.route((ctx): string => 'hi');
+    expect(() => mion.initRoutes({hello})).toThrow(/mionMethodsMetadata/);
   });
 });

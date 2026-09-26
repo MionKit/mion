@@ -262,7 +262,7 @@ describe('Dispatch routes', () => {
 
   describe('fail path should', () => {
     it('return an error if no route is found', async () => {
-      createMionRouter({contextDataFactory: getSharedData, skipClientRoutes: false}).initRoutes({changeUserName});
+      createMionRouter({contextDataFactory: getSharedData}).initRoutes({changeUserName});
 
       const request = getDefaultRequest('abcd', [{name: 'Leo', surname: 'Tungsten'}]);
 

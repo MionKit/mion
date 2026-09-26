@@ -7,4 +7,10 @@
 
 // Types shared by the server (`@mionjs/router/middlewares`) and client (`@mionjs/client/middlewares`) middleware halves.
 
-export type {RouteSyncError, RouteSyncErrorData, SyncRoutesHandler} from './src/types/middlewares.types.ts';
+export type {
+  MethodsMetadataByIdHandler,
+  MethodsMetadataHandler,
+  RouteSyncError,
+  RouteSyncErrorData,
+  SyncRoutesHandler,
+} from './src/types/middlewares.types.ts';

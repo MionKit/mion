@@ -15,7 +15,7 @@ import {dispatchRoute} from '../src/dispatch.ts';
 import {MionHeaders} from '../src/types/context.ts';
 import {headersFromRecord} from '../src/lib/headers.ts';
 
-const mion = createMionRouter({skipClientRoutes: true});
+const mion = createMionRouter();
 
 type RawRequest = {
   headers: MionHeaders;

@@ -20,7 +20,7 @@ import {createMionRouter, resetRouter, getRouteExecutable} from '../src/router.t
 import {dispatchRoute} from '../src/dispatch.ts';
 import {headersFromRecord} from '../src/lib/headers.ts';
 
-const mion = createMionRouter({skipClientRoutes: true});
+const mion = createMionRouter();
 
 describe('type-only imports still produce reflection', () => {
   const greet = mion.route((ctx, user: ProbeUser, count: ProbeCount): string => {

@@ -9,7 +9,8 @@ import {FatalError} from '@mionjs/core';
 import type {RouteSyncError, RouteSyncErrorData, SyncRoutesHandler} from '@mionjs/core/middlewares';
 import {middleware} from '../lib/handlers.ts';
 import {getRouteExecutable} from '../router.ts';
-import {getMethodsDataFor, mionInternalRouteIds} from '../routes/client.routes.ts';
+import {getMethodsDataFor} from './methodsMetadata.ts';
+import {mionInternalRouteIds} from '../constants.ts';
 import type {RemoteMethod} from '../types/remoteMethods.ts';
 import type {CallContext} from '../types/context.ts';
 

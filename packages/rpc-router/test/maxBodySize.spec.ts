@@ -18,6 +18,7 @@ import {createCallContext} from '../src/callContext.ts';
 import {headersFromRecord} from '../src/lib/headers.ts';
 import {getSerializableMethod} from '../src/lib/remoteMethods.ts';
 import {DEFAULT_ROUTE_OPTIONS} from '../src/constants.ts';
+import {mionMethodsMetadata} from '../middlewares.ts';
 import {DEFAULT_MAX_BODY_SIZE, MION_ROUTES, RpcError, SerializerModes, StatusCodes} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
 
@@ -32,12 +33,12 @@ interface Item {
 const ITEM_BYTES = 1 + 5 + (2 + 6 * 36) + 1 + 6 + 24 + 1; // {"id":…,"qty":…}
 const PAGE_BYTES = 2 + 3 * ITEM_BYTES + 2; // [ 3 items ]
 const BOUNDED_PARAMS_BYTES = 2 + (2 + 6 * 36) + 1 + PAGE_BYTES; // [orderId, items]
-// the metadata middleware sits in every chain and declares a fixed contribution
-const METADATA_SLOT = JSON.stringify(MION_ROUTES.methodsMetadata).length + 1 + 4096;
+// the metadata middleware, once placed, sits in every chain and declares a fixed contribution
+const METADATA_SLOT = JSON.stringify('mionMethodsMetadata').length + 1 + 4096;
 
-/** The keyed body `{"<route>":<params>,"<metadata>":<ids>}` at its largest, times the factor. */
-function derivedLimit(routeId: string, paramsBytes: number): number {
-  const envelope = 2 + (JSON.stringify(routeId).length + 1 + paramsBytes) + 1 + METADATA_SLOT;
+/** The keyed body `{"<route>":<params>}` at its largest, plus the metadata slot when placed, times the factor. */
+function derivedLimit(routeId: string, paramsBytes: number, withMetadata = false): number {
+  const envelope = 2 + (JSON.stringify(routeId).length + 1 + paramsBytes) + (withMetadata ? 1 + METADATA_SLOT : 0);
   return Math.ceil(envelope * DEFAULT_ROUTE_OPTIONS.maxBodySizeFactor);
 }
 
@@ -140,13 +141,13 @@ describe('per-route request limits', () => {
     resetRouter();
     mion.initRoutes({declaredGate, bounded});
     const envelope =
-      2 +
-      (JSON.stringify('declaredGate').length + 1 + 100) +
-      1 +
-      (JSON.stringify('bounded').length + 1 + BOUNDED_PARAMS_BYTES) +
-      1 +
-      METADATA_SLOT;
+      2 + (JSON.stringify('declaredGate').length + 1 + 100) + 1 + (JSON.stringify('bounded').length + 1 + BOUNDED_PARAMS_BYTES);
     expect(getRouteExecutionChain('/bounded')!.maxBodySize).toBe(Math.ceil(envelope * DEFAULT_ROUTE_OPTIONS.maxBodySizeFactor));
+  });
+
+  it('the metadata middleware adds its fixed slot only once placed in the routes', () => {
+    mion.initRoutes({...mionMethodsMetadata, bounded});
+    expect(getRouteExecutionChain('/bounded')!.maxBodySize).toBe(derivedLimit('bounded', BOUNDED_PARAMS_BYTES, true));
   });
 
   it("an unknown path resolves to the not-found chain with the platform adapter's number", () => {

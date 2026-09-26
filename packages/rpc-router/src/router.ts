@@ -17,7 +17,7 @@ import type {
 import type {PublicApi, PrivateDef, MiddlewaresCollection} from './types/publicMethods.ts';
 import type {InjectBuildVersion} from '@mionjs/run-types';
 import type {HeadersMiddlewareDef, MiddlewareDef, RawMiddlewareDef} from './types/definitions.ts';
-import {DEFAULT_ROUTE_OPTIONS, MAX_ROUTE_NESTING} from './constants.ts';
+import {DEFAULT_ROUTE_OPTIONS, MAX_ROUTE_NESTING, mionInternalRouteIds} from './constants.ts';
 import {
   isRawMiddlewareDef,
   isHeadersMiddlewareDef,
@@ -52,15 +52,18 @@ import {
 } from '@mionjs/core';
 import {setErrorOptions} from '@mionjs/core';
 import {getPublicApi, resetRemoteMethodsMetadata} from './lib/remoteMethods.ts';
-import {
-  mionClientRoutes,
-  mionClientMiddlewares,
-  mionInternalRouteIds,
-  useOnDemandMetadataCaller,
-} from './routes/client.routes.ts';
 import {mionErrorsRoutes, notFoundMiddleware, batchNotFoundMiddleware} from './routes/errors.routes.ts';
 import {capBatchBodySizes, clearBatches, getMaxBatchBodySize, refreshBatchChainBodyLimits} from './batches.ts';
-import {headersFn, middleware, mutation, query, rawMiddleware, route} from './lib/handlers.ts';
+import {
+  headersFn,
+  isOnDemandMiddleware,
+  isStandaloneRoute,
+  middleware,
+  mutation,
+  query,
+  rawMiddleware,
+  route,
+} from './lib/handlers.ts';
 import type {
   HeadersFnHelper,
   MiddlewareHelper,
@@ -110,9 +113,10 @@ const defaultStartMiddlewares = {
   mionDeserializeRequest: serializerMiddlewares.mionDeserializeRequest,
 };
 const defaultEndMiddlewares = {
-  ...mionClientMiddlewares,
   mionSerializeResponse: serializerMiddlewares.mionSerializeResponse,
 };
+/** Routes whose chain holds only mion's own start and end middlewares. */
+const standaloneExecutables = new WeakSet<object>();
 /** True once any registered method answers with a promise. */
 let hasAsyncMethods = false;
 /** What the dispatcher reads per request: both inputs are fixed once registration is done (the options
@@ -236,13 +240,17 @@ export function createMionRouter<const O extends RouterOptionsInput = RouterOpti
   };
 }
 
-/** Initializes the router options and the internal error / client routes. Once per app (`resetRouter()` clears it). */
+/** Initializes the router options and the internal error routes. Once per app (`resetRouter()` clears it). */
 function initRouter(opts: RouterOptionsInput, buildVersion?: string): void {
   if (isRouterInitialized) throw new Error('Router has already been initialized');
   // still compiles next to any other option, and ignoring it would silently turn the check off
   if (Object.hasOwn(opts, 'syncRoutes'))
     throw new Error(
       "The syncRoutes option was removed: put mionSyncRoutes from '@mionjs/router/middlewares' first in your routes."
+    );
+  if (Object.hasOwn(opts, 'skipClientRoutes'))
+    throw new Error(
+      "The skipClientRoutes option was removed: spread mionMethodsMetadata from '@mionjs/router/middlewares' first in your routes to serve route metadata."
     );
   routerOptions = {...routerOptions, ...opts};
   const versionHeader = routerOptions.apiVersionCheck && buildVersion ? {[BUILD_VERSION_HEADER]: buildVersion} : undefined;
@@ -253,7 +261,6 @@ function initRouter(opts: RouterOptionsInput, buildVersion?: string): void {
   setErrorOptions(routerOptions);
   isRouterInitialized = true;
   registerRoutes({...mionErrorsRoutes});
-  if (!routerOptions.skipClientRoutes) registerRoutes({...mionClientRoutes});
   if (!isTestEnv()) console.log('mion router initialized', {routerOptions});
 }
 
@@ -261,10 +268,6 @@ function registerRoutes<R extends Routes>(routes: R): PublicApi<R> {
   if (!isRouterInitialized) throw new Error('the router must be initialized first');
   startMiddlewares = getExecutablesFromMiddlewaresCollection(startMiddlewaresDef);
   endMiddlewares = getExecutablesFromMiddlewaresCollection(endMiddlewaresDef);
-  // the metadata middleware is in every chain: give it the caller that skips its params pipeline unless a
-  // client asked for metadata
-  const metadataMiddleware = middlewaresById.get(MION_ROUTES.methodsMetadata);
-  if (metadataMiddleware) useOnDemandMetadataCaller(metadataMiddleware as RemoteMethod);
   recursiveFlatRoutes(routes, [], [], [], 0);
   buildNotFoundChains();
   // every method this call could register is registered and the options are frozen, so the await rule is
@@ -431,13 +434,9 @@ function recursiveCreateExecutionChain(
   if (isExec && props.isRoute) {
     const path = getRoutePath(routeEntry.pointer, routerOptions);
     const routeMethod = routeEntry as RouteMethod;
-    const levelMethods = [
-      ...preMiddlewares,
-      ...props.preLevelMiddlewares,
-      routeEntry,
-      ...props.postLevelMiddlewares,
-      ...postMiddlewares,
-    ];
+    const levelMethods = standaloneExecutables.has(routeEntry)
+      ? [routeEntry]
+      : [...preMiddlewares, ...props.preLevelMiddlewares, routeEntry, ...props.postLevelMiddlewares, ...postMiddlewares];
     const methods = [...startMiddlewares, ...levelMethods, ...endMiddlewares];
     // internal error routes are never client-called: platform's size, not their no-params tuple's tiny one
     const maxBodySize = mionInternalRouteIds.has(routeMethod.id)
@@ -529,7 +528,9 @@ export function getExecutableFromMiddleware(
       handler: middleware.handler,
       pointer: middlewarePointer,
       // resolved here so the dispatch loop reads a field instead of deriving them per request
-      methodCaller: callerForType(middlewareType),
+      methodCaller: isOnDemandMiddleware(middleware)
+        ? onDemandCaller(callerForType(middlewareType))
+        : callerForType(middlewareType),
       alwaysRun: !!middleware.options?.alwaysRun,
       quotedId: JSON.stringify(middlewareId),
       ...reflectionData,
@@ -551,6 +552,13 @@ export function getExecutableFromMiddleware(
   middlewaresById.set(middlewareId, executable as any);
   routesCache.setMethodJitFns(middlewareId, executable as any);
   return executable as any;
+}
+
+/** An absent body slot skips the whole params pipeline (decode, sanitize, validate, call) instead of running it
+ *  to return undefined; the answer is identical only because such a middleware's params are all optional. */
+function onDemandCaller(caller: RemoteMethod['methodCaller']): RemoteMethod['methodCaller'] {
+  return (context: unknown, executable: RemoteMethod, request: {body: Record<string, unknown>}, ...rest: unknown[]) =>
+    request.body[executable.id] === undefined ? undefined : caller(context, executable, request, ...rest);
 }
 
 export function getExecutableFromRawMiddleware(
@@ -619,6 +627,7 @@ export function getExecutableFromRoute(route: Route, routePointer: string[], nes
     if (route.options?.maxBodySize !== undefined) executable.options.maxBodySize = route.options.maxBodySize;
   }
   if (executable.isAsync) hasAsyncMethods = true;
+  if (isStandaloneRoute(route)) standaloneExecutables.add(executable);
   routesById.set(routeId, executable);
   routesCache.setMethodJitFns(routeId, executable as any);
   return executable;
