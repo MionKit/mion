@@ -9,6 +9,7 @@
 
 import {describe, it, expect} from 'vitest';
 import * as dz from 'drizzle-orm/mysql-core';
+import {sql as dzSql} from 'drizzle-orm';
 import {getRunType, getRunTypeId} from '@mionjs/run-types';
 import type {ReflectedNode} from '../../../drizzle-orm/src/fromType.ts';
 import type {InferInsertModel, InferSelectModel} from '../../../drizzle-orm/src/models.ts';
@@ -18,6 +19,7 @@ import * as cur from '../../src/index.ts';
 import {cols as curCols} from '../../../drizzle-orm/src/table.ts';
 import {toDrizzle as curToDrizzle} from '../../src/drizzle.ts';
 import type {
+  CustomCol,
   Int,
   Json,
   MysqlEnumCol,
@@ -143,6 +145,18 @@ const curWide = cur.mysqlTable('wide', {
   score: cur.int('score').unique('uq_score'),
   total: cur.int('total').generatedAlwaysAs(sql`1 + 1`, {mode: 'stored'}),
 });
+const rawWide = dz.mysqlTable('wide', {
+  id: dz.serial('id').primaryKey(),
+  role: dz.text('role', {enum: ['free', 'pro']}).notNull(),
+  seq: dz.int('seq', {unsigned: true}).autoincrement(),
+  big: dz.bigint('big', {mode: 'bigint', unsigned: true}),
+  price: dz.decimal('price', {precision: 10, scale: 2, unsigned: true}),
+  level: dz.tinyint('level', {unsigned: true}).default(1),
+  born: dz.year('born'),
+  meta: dz.json('meta').$type<{tags: string[]}>().notNull(),
+  score: dz.int('score').unique('uq_score'),
+  total: dz.int('total').generatedAlwaysAs(dzSql`1 + 1`, {mode: 'stored'}),
+});
 const curWideTyped = cur.mysqlTable('wide', {
   id: cur.serial('id').primaryKey(),
   role: cur.text('role', {enum: ['free', 'pro']}).notNull(),
@@ -256,24 +270,32 @@ describe('next mysql columns: same drizzle table on every road', () => {
     expect(project(toDrizzle(users))).toEqual(project(curToDrizzle(curUsers)));
     expect(project(toDrizzle(users))).toEqual(project(rawUsers));
     expect(project(toDrizzle(wide))).toEqual(project(curToDrizzle(curWide)));
+    expect(project(toDrizzle(wide))).toEqual(project(rawWide));
   });
   it('every builder materializes as its shipped twin does', () => {
     expect(project(toDrizzle(every))).toEqual(project(curToDrizzle(curEvery)));
     expect(dz.getTableConfig(toDrizzle(every)).columns).toHaveLength(27);
   });
-  it('autoincrement and onUpdateNow reach drizzle', () => {
-    const config = dz.getTableConfig(toDrizzle(wide));
-    expect(config.columns.find((column) => column.name === 'seq')).toMatchObject({autoIncrement: true});
-    expect(dz.getTableConfig(toDrizzle(users)).columns.find((column) => column.name === 'touched_at')).toMatchObject({
-      hasOnUpdateNow: true,
-    });
+  it('the dialect modifiers reach drizzle', () => {
+    const wideColumns = dz.getTableConfig(toDrizzle(wide)).columns;
+    const seq = wideColumns.find((column) => column.name === 'seq')!;
+    expect(seq).toMatchObject({autoIncrement: true});
+    expect(seq.getSQLType()).toBe('int unsigned');
+    const touchedAt = dz.getTableConfig(toDrizzle(users)).columns.find((column) => column.name === 'touched_at');
+    expect(touchedAt).toMatchObject({hasOnUpdateNow: true});
+  });
+  it('a generated column keeps its config', () => {
+    const total = dz.getTableConfig(toDrizzle(wide)).columns.find((column) => column.name === 'total');
+    expect(total?.generated).toMatchObject({type: 'always', mode: 'stored'});
   });
   it('tableFromType rebuilds the same table from the hand-written type, db names from the names map', () => {
     expect(project(toDrizzle(tableFromType<Users>()))).toEqual(project(rawUsers));
     expect(project(toDrizzle(tableFromType<Wide>()))).toEqual(project(curToDrizzle(curWideTyped)));
+    expect(tableFromType<Users>()).toBe(tableFromType<Users>());
+    expect(toDrizzle<Users>()).toBe(toDrizzle<Users>());
     expect(toDrizzle<Users>()).toBe(toDrizzle(tableFromType<Users>()));
   });
-  it('tableFromType takes a runtime default from options, and refuses the marker without it', () => {
+  it('tableFromType takes runtime callbacks from options, and refuses a marker without one', () => {
     type Slugs = MysqlTable<'slugs', {slug: Varchar<{length: 8; primaryKey: true; $defaultFn: true}>}>;
     const curSlugs = cur.mysqlTable('slugs', {
       slug: cur
@@ -307,17 +329,42 @@ describe('next mysql columns: same drizzle table on every road', () => {
       cur.foreignKey({name: 'fk_team', columns: [t.teamId], foreignColumns: [curCols(curTeams).id]}).onDelete('cascade'),
     ]);
     expect(project(toDrizzle(withFk))).toEqual(project(curToDrizzle(curWithFk)));
+    expect(dz.getTableConfig(toDrizzle(withFk)).foreignKeys[0]!.onDelete).toBe('cascade');
   });
-  it('the shipped index helpers work on the new columns, and a standalone index materializes', () => {
-    const indexed = mysqlTable('indexed', {name: varchar('name', {length: 20})}, (t) => [
-      cur.index('by_name').on(t.name).using('btree').algorithm('inplace'),
+  it('the shipped index and constraint helpers work in extraConfig', () => {
+    const indexed = mysqlTable('indexed', {a: int('a', {notNull: true}), b: varchar('b', {length: 20})}, (t) => [
+      cur.index('idx_b').on(t.b).using('btree').algorithm('inplace').lock('none'),
+      cur.uniqueIndex('uidx_a').on(t.a),
+      cur.unique('uq_ab').on(t.a, t.b),
+      cur.check('chk_a', sql`a > 0`),
+      cur.primaryKey({columns: [t.a, t.b]}),
     ]);
-    const curIndexed = cur.mysqlTable('indexed', {name: cur.varchar('name', {length: 20})}, (t) => [
-      cur.index('by_name').on(t.name).using('btree').algorithm('inplace'),
+    const curIndexed = cur.mysqlTable('indexed', {a: cur.int('a').notNull(), b: cur.varchar('b', {length: 20})}, (t) => [
+      cur.index('idx_b').on(t.b).using('btree').algorithm('inplace').lock('none'),
+      cur.uniqueIndex('uidx_a').on(t.a),
+      cur.unique('uq_ab').on(t.a, t.b),
+      cur.check('chk_a', sql`a > 0`),
+      cur.primaryKey({columns: [t.a, t.b]}),
     ]);
-    expect(project(toDrizzle(indexed))).toEqual(project(curToDrizzle(curIndexed)));
-    const standalone = cur.index('solo_name').on(curCols(curIndexed).name);
-    expect(toDrizzle(standalone)).toBeInstanceOf(dz.IndexBuilder);
+    const projected = project(toDrizzle(indexed));
+    expect(projected).toEqual(project(curToDrizzle(curIndexed)));
+    expect(projected.indexes).toContainEqual({
+      name: 'idx_b',
+      unique: false,
+      using: 'btree',
+      algorithm: 'inplace',
+      lock: 'none',
+      columns: ['b'],
+    });
+  });
+  it('a standalone index materializes on its own', () => {
+    const entry = cur.index('idx_name').on(curCols(curUsers).name).using('hash');
+    const built = toDrizzle(entry);
+    expect(built).toBeInstanceOf(dz.IndexBuilder);
+    const {config} = built as unknown as {config: {name: string; using: string; columns: Array<{name: string}>}};
+    expect(config.name).toBe('idx_name');
+    expect(config.using).toBe('hash');
+    expect(config.columns.map((column) => column.name)).toEqual(['name']);
   });
   it('a reference written without tableRef() fails with an actionable error', () => {
     const loose = mysqlTable('loose', {teamId: int({references: [() => ({table: 'teams', column: 'id'})]})});
@@ -334,8 +381,36 @@ describe('next mysql columns: same drizzle table on every road', () => {
   });
 });
 
-describe('next mysql columns: schemas and table creators', () => {
-  it('mysqlSchema tables and views materialize schema-qualified, like the shipped ones', () => {
+describe('next mysql columns: table creators and the columns callback', () => {
+  it('the table creator maps the table name like raw drizzle', () => {
+    const prefixed = mysqlTableCreator((name) => `app_${name}`);
+    const curPrefixed = cur.mysqlTableCreator((name) => `app_${name}`);
+    const rawPrefixed = dz.mysqlTableCreator((name) => `app_${name}`);
+    const items = prefixed('items', {id: serial({primaryKey: true}), note: text('note_text', {notNull: true})});
+    const curItems = curPrefixed('items', {id: cur.serial().primaryKey(), note: cur.text('note_text').notNull()});
+    const rawItems = rawPrefixed('items', {id: dz.serial().primaryKey(), note: dz.text('note_text').notNull()});
+    expect(project(toDrizzle(items))).toEqual(project(rawItems));
+    expect(project(toDrizzle(items))).toEqual(project(curToDrizzle(curItems)));
+    expect(dz.getTableConfig(toDrizzle(items)).name).toBe('app_items');
+  });
+  it('the table builder and the table creator hand a columns callback the new builders', () => {
+    const prefixed = mysqlTableCreator((name) => `app_${name}`);
+    const byCreator = prefixed('notes', (helpers) => ({
+      id: helpers.serial({primaryKey: true}),
+      body: helpers.text({notNull: true}),
+    }));
+    const byTable = mysqlTable('notes', (helpers) => ({
+      id: helpers.serial({primaryKey: true}),
+      body: helpers.text({notNull: true}),
+    }));
+    const rawColumns = () => ({id: dz.serial().primaryKey(), body: dz.text().notNull()});
+    expect(project(toDrizzle(byTable))).toEqual(project(dz.mysqlTable('notes', rawColumns())));
+    expect(project(toDrizzle(byCreator))).toEqual(project(dz.mysqlTableCreator((name) => `app_${name}`)('notes', rawColumns())));
+  });
+});
+
+describe('next mysql columns: only pg, mysql: schemas', () => {
+  it('schema tables and views materialize schema-qualified, and toDrizzle(schema) too', () => {
     const shop = mysqlSchema('shop');
     const curShop = cur.mysqlSchema('shop');
     const items = shop.table('items', {id: serial({primaryKey: true}), label: varchar('item_label', {length: 20})});
@@ -357,14 +432,6 @@ describe('next mysql columns: schemas and table creators', () => {
     const rawThings = dz.mysqlSchema('shop').table('things', {id: dz.int().primaryKey(), mood: dz.mysqlEnum(['a', 'b'])});
     expect(project(toDrizzle(byCallback))).toEqual(project(rawThings));
   });
-  it('mysqlTableCreator maps the table name, like raw drizzle', () => {
-    const prefixed = mysqlTableCreator((name) => `app_${name}`);
-    const rawPrefixed = dz.mysqlTableCreator((name) => `app_${name}`);
-    const items = prefixed('items', (helpers) => ({id: helpers.serial({primaryKey: true}), note: helpers.text({notNull: true})}));
-    const rawItems = rawPrefixed('items', {id: dz.serial().primaryKey(), note: dz.text().notNull()});
-    expect(project(toDrizzle(items))).toEqual(project(rawItems));
-    expect(dz.getTableConfig(toDrizzle(items)).name).toBe('app_items');
-  });
 });
 
 describe('next mysql columns: one runtype id for builder and hand-written tables', () => {
@@ -372,7 +439,9 @@ describe('next mysql columns: one runtype id for builder and hand-written tables
   it('static form: the table and its models share one id', () => {
     expect(getRunTypeId<Users>()).toBeTruthy();
     expect(getRunTypeId<Users>()).toBe(getRunTypeId<typeof users>());
+    expect(getRunTypeId<next.InferSelectModel<Users>>()).toBeTruthy();
     expect(getRunTypeId<next.InferSelectModel<Users>>()).toBe(getRunTypeId<InferSelectModel<typeof curUsers>>());
+    expect(getRunTypeId<next.InferInsertModel<Wide>>()).toBeTruthy();
     expect(getRunTypeId<next.InferInsertModel<Wide>>()).toBe(getRunTypeId<InferInsertModel<typeof curWideTyped>>());
   });
   it('reflection form: the table and its models share one id', () => {
@@ -382,9 +451,11 @@ describe('next mysql columns: one runtype id for builder and hand-written tables
     expect(getRunTypeId(row)).toBeTruthy();
     expect(getRunTypeId(row)).toBe(getRunTypeId<InferSelectModel<typeof curUsers>>());
     const insert = {} as next.InferInsertModel<Wide>;
+    expect(getRunTypeId(insert)).toBeTruthy();
     expect(getRunTypeId(insert)).toBe(getRunTypeId<InferInsertModel<typeof curWideTyped>>());
   });
   it('static form: a TableRef reference reflects as its plain {table, column}', () => {
+    expect(getRunTypeId<MembersByRef>()).toBeTruthy();
     expect(getRunTypeId<MembersByRef>()).toBe(getRunTypeId<Members>());
     expect(getRunTypeId<MembersByRef>()).toBe(getRunTypeId<typeof members>());
   });
@@ -394,8 +465,34 @@ describe('next mysql columns: one runtype id for builder and hand-written tables
   });
 });
 
-describe('next mysql columns: views and enums', () => {
-  it('a view with its mysql options materializes the same drizzle view as the shipped builders', () => {
+describe('next mysql columns: views, enums and custom types', () => {
+  it('a view materializes the same drizzle view as the shipped builders', () => {
+    const query = sql`select user_name from users`;
+    const view = mysqlView('active', {name: varchar('user_name', {length: 10, notNull: true})}).as(query);
+    const curView = cur.mysqlView('active', {name: cur.varchar('user_name', {length: 10}).notNull()}).as(query);
+    expect(projectView(toDrizzle(view))).toEqual(projectView(curToDrizzle(curView)));
+  });
+  it('an existing view materializes as the shipped one does', () => {
+    const view = mysqlView('existing_view', {id: int({notNull: true})}).existing();
+    const curView = cur.mysqlView('existing_view', {id: cur.int().notNull()}).existing();
+    expect(projectView(toDrizzle(view))).toEqual(projectView(curToDrizzle(curView)));
+  });
+  it('a view without columns fails naming the unsupported form', () => {
+    expect(() => mysqlView('from_query')).toThrow(/mysqlView\('from_query'\) without columns/);
+  });
+  it('a customType column materializes as the shipped one does', () => {
+    const params = {dataType: () => 'point', toDriver: (value: {x: number}) => JSON.stringify(value)};
+    const at = customType<{data: {x: number}}>(params);
+    const curAt = cur.customType<{data: {x: number}}>(params);
+    const table = mysqlTable('with_custom', {at: at('at_point', {notNull: true})});
+    const curTable = cur.mysqlTable('with_custom', {at: curAt('at_point').notNull()});
+    expect(project(toDrizzle(table))).toEqual(project(curToDrizzle(curTable)));
+  });
+  it('tableFromType refuses a custom column, whose runtime needs the customType callbacks', () => {
+    type WithCustom = MysqlTable<'with_custom', {at: CustomCol<{x: number}, {notNull: true}>}>;
+    expect(() => tableFromType<WithCustom>()).toThrow(/custom column, which needs its runtime handle/);
+  });
+  it('only pg, mysql: view options materialize as the shipped ones do', () => {
     const view = mysqlView('active', {name: varchar('user_name', {length: 10, notNull: true})})
       .algorithm('merge')
       .sqlSecurity('invoker')
@@ -414,12 +511,7 @@ describe('next mysql columns: views and enums', () => {
       withCheckOption: 'cascaded',
     });
   });
-  it('an existing view materializes as the shipped one does', () => {
-    const view = mysqlView('existing_view', {id: int({notNull: true})}).existing();
-    const curView = cur.mysqlView('existing_view', {id: cur.int().notNull()}).existing();
-    expect(projectView(toDrizzle(view))).toEqual(projectView(curToDrizzle(curView)));
-  });
-  it('enum columns, tuple and object forms, materialize as the shipped ones do', () => {
+  it('only pg, mysql: enum columns, tuple and object forms, materialize as the shipped ones do', () => {
     const table = mysqlTable('with_enum', {
       mood: mysqlEnum('mood', ['sad', 'happy'], {notNull: true}),
       level: mysqlEnum({Low: 'low', High: 'high'} as const, {default: ['low']}),
@@ -432,7 +524,7 @@ describe('next mysql columns: views and enums', () => {
     });
     expect(project(toDrizzle(table))).toEqual(project(curToDrizzle(curTable)));
   });
-  it('tableFromType refuses an enum column, whose runtime needs the enum values', () => {
+  it('only pg, mysql: tableFromType refuses an enum column, whose runtime needs the enum values', () => {
     type WithEnum = MysqlTable<'with_enum', {mood: MysqlEnumCol<['sad', 'happy'], {notNull: true}>}>;
     type WithEnumObject = MysqlTable<'with_enum', {mood: MysqlEnumObjectCol<{Sad: 'sad'}>}>;
     expect(() => tableFromType<WithEnum>()).toThrow(/enum column, which needs its runtime handle/);
@@ -450,6 +542,14 @@ describe('next mysql columns: one column shape is one runtype entry', () => {
     type Items = MysqlTable<'items', {qty: Int<{notNull: true}>}>;
     expect(columnId(getRunType<Orders>() as ReflectedNode, 'total')).toBe(columnId(getRunType<Items>() as ReflectedNode, 'qty'));
   });
+  it('the shipped type road reflects one id per column name', () => {
+    type Orders = cur.MysqlTable<'orders', {total: cur.Int<'order_total', {notNull: true}>}>;
+    type Items = cur.MysqlTable<'items', {qty: cur.Int<'qty', {notNull: true}>}>;
+    type Lines = cur.MysqlTable<'lines', {amount: cur.Int<'qty', {notNull: true}>}>;
+    const itemsQty = columnId(getRunType<Items>() as ReflectedNode, 'qty');
+    expect(columnId(getRunType<Orders>() as ReflectedNode, 'total')).not.toBe(itemsQty);
+    expect(columnId(getRunType<Lines>() as ReflectedNode, 'amount')).toBe(itemsQty);
+  });
 });
 
 describe('next mysql columns: builder tables reflect on their own', () => {
@@ -464,6 +564,7 @@ describe('next mysql columns: builder tables reflect on their own', () => {
   const soloView = mysqlView('solo_view', {name: varchar('user_name', {length: 20, notNull: true})})
     .algorithm('merge')
     .existing();
+  const soloCreated = mysqlTableCreator((name) => `x_${name}`)('solo_created', {id: int('id', {primaryKey: true})});
   const soloSchemaTable = mysqlSchema('solo_schema').table('solo_items', {label: varchar('item_label', {length: 20})});
   it('a builder table with explicit db names', () => {
     expect(getRunTypeId<typeof solo>()).toBeTruthy();
@@ -473,7 +574,11 @@ describe('next mysql columns: builder tables reflect on their own', () => {
     expect(getRunTypeId<typeof soloView>()).toBeTruthy();
     expect(getRunTypeId(soloView)).toBe(getRunTypeId<typeof soloView>());
   });
-  it('a schema builder table', () => {
+  it('a table creator result', () => {
+    expect(getRunTypeId<typeof soloCreated>()).toBeTruthy();
+    expect(getRunTypeId(soloCreated)).toBe(getRunTypeId<typeof soloCreated>());
+  });
+  it('only pg, mysql: a schema table', () => {
     expect(getRunTypeId<typeof soloSchemaTable>()).toBeTruthy();
     expect(getRunTypeId(soloSchemaTable)).toBe(getRunTypeId<typeof soloSchemaTable>());
   });
