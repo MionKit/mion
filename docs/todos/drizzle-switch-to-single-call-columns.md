@@ -188,6 +188,7 @@ The side-by-side PR made the three `next/` dialects mirror each other (a parity 
 - The rpc-client e2e (`packages/rpc-client/test/drizzleModels.e2e.spec.ts` via `packages/private-test-server/`) declares only a pg table.
 - `packages/devtools/test/publish-order.test.ts` and `test-pr.test.ts` name only the pg package.
 - Convert and migrate tests (`ts-go-runtypes/internal/convert/drizzle_test.go`, `internal/drizzlemigrate/migrate_test.go`, `drizzleConvert.integration.spec.ts`) are almost all pg: rewrite them for the new shape in all three dialects as part of the convert and drizzle-migrate work above.
+- The shipped index entry types offer the dialect's index options before `.on()`, where drizzle only has them after: `index('idx').using('hash').on(col)` compiles on mysql and throws at `toDrizzle` (`entry[method] is not a function`). Give the new surface drizzle's two steps (`on` first, then the options) and pin the wrong order with `@ts-expect-error` in every dialect.
 - Every new test file joins the parity test's file list; every new dialect joins its `DIALECTS` array.
 
 ## Docs
