@@ -14,8 +14,7 @@ import {hasMethod} from '../lib/methods.ts';
 import {loadedMetadataFromServer, loadMetadataFromServer} from '../lib/metadataFromServerLoader.ts';
 import {middlewareTargetOf, setMetadataFetcher, type MetadataCall, type MetadataFetcher} from '../lib/metadataFetcher.ts';
 
-/** Client half of `mionMethodsMetadata`: fetches the rows of routes the build did not bundle, on first use.
- *  Needed only when `bundleApi` is `false` or `'mixed'`; a fully bundled client never asks. */
+/** Client half of `mionMethodsMetadata`: fetches unbundled routes' rows on first use; for `bundleApi` `false` or `'mixed'`. */
 export function useMethodsMetadata(middleware: ClientMiddlewareOf<Handler>): void {
   const {id, registry} = middlewareTargetOf(middleware);
   setMetadataFetcher(registry, createFetcher(id));
@@ -63,8 +62,8 @@ function startCall(id: string, context: ClientCallContext): MetadataCall {
         optimistic = !ids.every((methodId) => hasMethod(methodId));
         return optimistic;
       }
-      // After a version mismatch each route is confirmed once, on its first use, riding this request. The
-      // middleware's own row writes the ids, and a server that never placed it has nothing to confirm with.
+      // After a version mismatch each route is confirmed once, on first use, riding this request.
+      // Needs the middleware's own row: it encodes the ids, and a server that never placed it cannot confirm.
       if (hasApiVersionMismatch(options.baseURL) && hasMethod(id)) {
         const unverified = (await loadMetadataFromServer()).unverifiedIds(options.baseURL, ids);
         if (unverified.length) {

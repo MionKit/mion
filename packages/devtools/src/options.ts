@@ -105,9 +105,8 @@ export interface MionApiPointer {
   tsConfig: string;
 }
 
-/** How a client gets its route metadata and compiled functions: bundled at build time (the default), bundled
- *  with fetching as the fallback for routes the bundle lacks, or `false` to fetch every route. Fetching needs
- *  `useMethodsMetadata` on the client and `mionMethodsMetadata` in the server's routes. */
+/** Bundled at build time (the default), bundled with fetching for routes the bundle lacks, or `false` to fetch all.
+ *  Fetching needs `useMethodsMetadata` on the client and `mionMethodsMetadata` in the server's routes. */
 export type MionBundleApiMode = NonNullable<TsRuntypesPluginOptions['bundleApi']>;
 
 /** The subset of a mion preset's options that both lanes read. */

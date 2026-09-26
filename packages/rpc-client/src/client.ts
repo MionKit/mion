@@ -31,7 +31,7 @@ import {setApiBuildVersion} from './lib/apiBuildVersion.ts';
 import {registerBundledApi} from '#bundled-api';
 import {MIDDLEWARE_TARGET, type MiddlewareTarget} from './lib/metadataFetcher.ts';
 
-/** Under `bundleApi` the client never asks the server for metadata; `buildVersion` is build-filled, never by hand. */
+/** A bundled route needs nothing from the server; `buildVersion` is build-filled, never by hand. */
 export function initClient<RM extends RemoteApi>(
   options: InitClientOptions,
   buildVersion?: InjectBuildVersion<RM>

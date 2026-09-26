@@ -39,8 +39,7 @@ const (
 	CodeApiMetaMiddlewareNotSetUp = "MET008"
 	// CodeApiMetaOptionalMiddlewareNotSetUp: like MET008, for a middleware whose params are all optional. Same args.
 	CodeApiMetaOptionalMiddlewareNotSetUp = "MET009"
-	// CodeApiMetaMixedWithoutMetadata: a `mixed` client calls an API that does not place `mionMethodsMetadata`,
-	// so a route the bundle lacks has nowhere to fetch its metadata from. Reported at the first call to that API.
+	// CodeApiMetaMixedWithoutMetadata: a `mixed` client's API does not place `mionMethodsMetadata`; reported at its first call.
 	CodeApiMetaMixedWithoutMetadata = "MET010"
 )
 

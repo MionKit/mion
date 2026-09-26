@@ -928,7 +928,7 @@ func generateMetadataDiags(t *testing.T, mode constants.BundleApiMode, client st
 	return metDiags(gen.Diagnostics)
 }
 
-// TestApiGen_MetadataMiddleware: a fully bundled client never needs mion's metadata middleware; a mixed one must fetch through it.
+// TestApiGen_MetadataMiddleware: a bundled client never needs mion's metadata middleware; a mixed one must fetch through it.
 func TestApiGen_MetadataMiddleware(t *testing.T) {
 	neverSetUp := func(api string) string {
 		return `import {initClient} from '@mionjs/client';

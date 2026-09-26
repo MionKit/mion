@@ -71,10 +71,8 @@ type tsRuntypesPlugin struct {
 	// strictness. Relative to this tsconfig's directory. Absent when client and
 	// API share one program.
 	ApiTsconfig string `json:"apiTsconfig"`
-	// BundleApi bundles the metadata and compiled functions of every route
-	// this client calls into the client itself: "bundled" (no metadata is
-	// fetched at runtime) or "mixed" (routes the bundle lacks are still
-	// fetched). `false` or "off" fetches every route. Absent means "bundled".
+	// BundleApi bundles the metadata and compiled functions of every route this client calls into the client.
+	// "mixed" still fetches routes the bundle lacks, `false` or "off" fetches every route; absent means "bundled".
 	BundleApi  bundleApiKey `json:"bundleApi"`
 	ModuleMode string       `json:"moduleMode"`
 	EmitMode   string       `json:"emitMode"`

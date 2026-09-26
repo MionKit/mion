@@ -416,10 +416,9 @@ const (
 	BundleApiUnset BundleApiMode = ""
 	// BundleApiOff bundles nothing: the client fetches its metadata from the server, through `useMethodsMetadata`.
 	BundleApiOff BundleApiMode = "off"
-	// BundleApiBundled (the default) bundles every route the program calls; the client never asks the server for
-	// metadata, and a route it did not bundle fails unless the client set up `useMethodsMetadata`.
+	// BundleApiBundled (the default) bundles every called route; an unbundled one fails unless `useMethodsMetadata` is set up.
 	BundleApiBundled BundleApiMode = "bundled"
-	// BundleApiMixed bundles the same set, and the client fetches the routes the bundle lacks through `useMethodsMetadata`.
+	// BundleApiMixed bundles the same set and fetches the routes the bundle lacks through `useMethodsMetadata`.
 	BundleApiMixed BundleApiMode = "mixed"
 )
 

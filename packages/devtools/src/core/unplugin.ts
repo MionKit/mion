@@ -78,11 +78,9 @@ export interface PluginOptions {
   // runtypes whatever this project's own `lib` or strictness. Unset when client and API share one program.
   // Same key as the tsconfig entry's `apiTsconfig` and the CLI's `--api-tsconfig`.
   apiTsconfig?: string;
-  // Bundle the metadata and compiled functions of every route this client calls, so it does not ask the server:
-  //   - 'bundled' (the default): a route the build did not see is reported, and fails unless the client fetches metadata.
-  //   - 'mixed': the bundled routes are used as-is and the rest are fetched through `useMethodsMetadata`.
-  //   - false: nothing is bundled, every route is fetched through `useMethodsMetadata`.
-  // Same key as the tsconfig `bundleApi` and the CLI's `--bundle-api` (where false is spelled `off`).
+  // Bundle metadata and compiled functions of every called route; same key as tsconfig `bundleApi` and CLI `--bundle-api`.
+  // 'bundled' (default): a route the build did not see is reported, and fails unless the client fetches metadata.
+  // 'mixed' fetches the unbundled routes through `useMethodsMetadata`; false fetches all of them (`off` on the CLI).
   bundleApi?: 'bundled' | 'mixed' | false;
   // Generated-output root, relative to cwd: cache modules under `<genDir>/types/` (gitignored), committed
   // enrichment under `<genDir>/enriched/`. Omitted, the resolver infers `<srcDir>/.mion` from the tsconfig.
@@ -959,8 +957,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
     // entry point included. The stub is only a size win, so bun keeps the real module.
     ...(meta.framework !== 'bun' && options.bundleApi === false
       ? {
-          // bundleApi off means no injected metadata reaches a dispatch point, so stubbing the dead
-          // registration lane drops core's marker reflection with it.
+          // nothing injected reaches a dispatch point, so stubbing the dead registration lane drops core's marker reflection too
           resolveId(id: string) {
             return id === BUNDLED_API_ID ? bundledApiStubPath() : null;
           },
