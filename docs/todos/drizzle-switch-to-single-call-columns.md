@@ -163,6 +163,23 @@ pg numbers, after the stray-key check (`Only<P, Allowed>`); mysql and sqlite hav
   id convergence in both `getRunTypeId` call shapes, reflection of builder tables on their own.
 - Go: convert round trips on the new shape, drizzle-migrate chain folding (every modifier, a
   callback, a `sql` default, a self-reference), `go -C ts-go-runtypes test ./internal/... ./cmd/...`.
+- **Convert and drizzle-migrate are tested in pg, mysql and sqlite alike.** Every case runs once per dialect from ONE
+  dialect list (like the TS parity test's `DIALECTS` array); a case that fits only some dialects says so in its name
+  (`only pg: enableRLS head refused`). Today these tests are almost all pg.
+  - `ts-go-runtypes/internal/convert/drizzle_test.go`, per dialect: builders to type, type to builders, the round-trip
+    fixpoint; named imports (round trip and runtime modifiers included); keyed-object and grouped-array extraConfig;
+    refused heads (a table creator in all three, a schema in pg and mysql, enableRLS in pg); nested declarations and
+    scope, derived pair names, the migrated recorder const name, the capitalised-const `T` suffix; forward (thunk),
+    self and backward references; references with `sql`, table extras, runtime modifiers and their mismatch
+    refusals, the CNV009 refusals, the no-type-twin refusals (enum, custom); `TestFuzz_DrizzleRoundTrip` with one
+    generator per dialect vocabulary. Drop the stale comment at `drizzle_test.go:692-696` (sqlite `int` converts now).
+  - `ts-go-runtypes/internal/drizzlemigrate/migrate_test.go`: stub `drizzle-orm/mysql-core` and
+    `drizzle-orm/sqlite-core` beside pg; the split cases per dialect (table, table creator, schema in pg and mysql,
+    a lazy index declared after its table, namespace import, `Used[<dialect>]`).
+  - `drizzleConvert.integration.spec.ts` (the real `mion convert` CLI round trip) in each dialect package: mysql
+    and sqlite need a 60s `testTimeout` / `hookTimeout`, `drizzle-mysql` and `drizzle-sqlite` move to the heavy
+    projects in `packages/devtools/test/test-batch-contracts.test.ts`, and the file joins the TS parity test's
+    file list.
 - Both fuzzes for all three dialects, soaked (`MION_FUZZ_ITER=40`, several seeds).
 - Stray-key pins in every dialect: the shipped column types accept `Varchar<'v', {length: 10; autoincrement: true}>`
   today (a weak-type check only rejects an object sharing no key); the `next/` ones reject it, and the switch must
@@ -187,7 +204,7 @@ The side-by-side PR made the three `next/` dialects mirror each other (a parity 
 - `packages/private-type-budget/test/typeRoad.compile.test.ts`, `modelPipeline.compile.test.ts` and `laneComparison.compile.test.ts` for every dialect, and the shipped drizzle-free source replaced by the next/ template.
 - The rpc-client e2e (`packages/rpc-client/test/drizzleModels.e2e.spec.ts` via `packages/private-test-server/`) declares only a pg table.
 - `packages/devtools/test/publish-order.test.ts` and `test-pr.test.ts` name only the pg package.
-- Convert and migrate tests (`ts-go-runtypes/internal/convert/drizzle_test.go`, `internal/drizzlemigrate/migrate_test.go`, `drizzleConvert.integration.spec.ts`) are almost all pg: rewrite them for the new shape in all three dialects as part of the convert and drizzle-migrate work above.
+- Convert and migrate tests in all three dialects: see the convert bullet in **Tests** below.
 - The shipped index entry types offer the dialect's index options before `.on()`, where drizzle only has them after: `index('idx').using('hash').on(col)` compiles on mysql and throws at `toDrizzle` (`entry[method] is not a function`). Give the new surface drizzle's two steps (`on` first, then the options) and pin the wrong order with `@ts-expect-error` in every dialect.
 - The shipped `pgSchema(...).enum` object form keeps the object as `enumValues` instead of its values (`src/table.ts` `schemaEnum` skips the `Object.values` step top-level `pgEnum` does). `next/` works around it with `enumFromShipped`; the switch must drop the workaround and fix the recorder, with a test.
 - Every new test file joins the parity test's file list; every new dialect joins its `DIALECTS` array.
@@ -203,6 +220,35 @@ folded output. Update `packages/private-examples/src/drizzle/`.
 
 Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagent) over every page and example this change touched, review its report against the code, and commit it as its own commit.
 
+## Removing the old system, carefully
+
+The old and new systems share names (`Varchar`, `Int`, `pgTable`, `toDrizzle`, `tableFromType`, `InferSelectModel`,
+...), so a plain grep cannot tell them apart. Remove it this way:
+
+1. **Plan the removal in writing before deleting anything**, and add the list to this spec:
+   - every old-system file and symbol per package: the chain kinds (`RtPgColumn`, `RtMyIntColumn`,
+     `RtSqliteColumn`, ...), `RtColType`, `ColNameArg`, `ColConfigArg`, `cols()`, the `@rtColModsKey` sentinel,
+     the old graph reader in `src/fromType.ts`;
+   - their Go twins in `ts-go-runtypes/internal/convert/drizzle.go` (sentinel constants, `columnFromChain`) and in
+     `internal/drizzlemigrate/`;
+   - every `next/` path that disappears once `next/` moves into `src/`.
+2. **Remove, then let the tools find the breakage.** Move `next/` into `src/` and delete the old files outright,
+   then run `pnpm run typecheck`, `pnpm run lint`, `go -C ts-go-runtypes vet ./...`, the Go tests and
+   `pnpm miondevx core drizzle-translate --to-types`. Every broken import or unknown name is a leftover: the compiler
+   resolves by module path, which grep cannot.
+3. **Grep only with path-aware patterns**: import specifiers (`from '.*drizzle-orm/next`, `from '.*/next/`,
+   `src/typeColumns`) and names only the old system has (`RtColumnBrand`, `ColNameArg`, `rtColModsKey`,
+   `RtMy.*Column`). Never search a bare shared name like `Varchar` without its import path.
+4. **Check what no compiler sees**: the `"next"` excludes in each `tsconfig.build.json`, the `next/` handling in
+   `scripts/lib/drizzle-line.mjs`, the parity test's file paths (`test/next/...` becomes `test/...`), the
+   "shipped vs new" lines of `packages/private-type-budget/test/columnFormats.compile.test.ts`, the "Side by side"
+   section of `packages/drizzle-orm/TYPE-COST.md`, the manifests, the drizzle-slim-schemas skill,
+   `packages/drizzle-orm*/CLAUDE.md`, the website drizzle pages and `packages/private-examples/src/drizzle/`.
+5. **An independent leftovers pass.** Once the removal is green, a fresh subagent that did not do the removal gets
+   the written list and the branch diff and searches the whole repo for anything of the old system still standing:
+   code, Go, tests, scripts, docs, skills, comments that still describe chained modifiers, dead exports, unused
+   files. It reports and never edits. Fix every item, then run the pass again until it finds nothing.
+
 ## Out of scope
 
 - Pure-function callbacks in a table type: their own spec.
@@ -212,6 +258,10 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
 
 - The three dialects run on the single-call system and the old column types are gone.
 - drizzle-migrate folds chains; convert reads and writes the new shape.
+- Convert and drizzle-migrate tests run for pg, mysql and sqlite from one dialect list; a dialect-only case is marked
+  in its name.
+- The old system is gone: the written removal list is ticked off, and an independent leftovers pass by a subagent
+  found nothing on its last run.
 - All tests above pass, the drizzle-e2e lane passes (labels `drizzle-e2e` and
   `pre-publish-e2e`), budgets moved only as reviewed exceptions.
 - Docs updated.
