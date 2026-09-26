@@ -149,7 +149,6 @@ const NEXT_CASES = [
   },
 ];
 
-// The same next/ cases per dialect: a builder table, a hand-written one, and the toDrizzle view.
 const dialectNextCases = (dialect: 'mysql' | 'sqlite', table: string, tableType: string, text: string, textType: string) => {
   const header = `
 import type {NoProps, Writable} from '../../drizzle-orm/next/index';

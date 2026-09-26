@@ -5,8 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The sqlite half of the table suites: its column kinds and type-road vocabulary bound over the dialect-free
-// core (packages/drizzle-orm/test/tableSpecCore.ts), the getTableConfig projection oracle, and views.
+// The sqlite half of the table fuzz suites: column kinds over the dialect-free core, the getTableConfig oracle, views.
 
 import {getTableConfig, getViewConfig} from 'drizzle-orm/sqlite-core';
 import {

@@ -30,8 +30,7 @@ import type {AnyMysqlView} from './views.ts';
 
 type Spec<C> = C extends {readonly [rtColSpecKey]?: infer S} ? NonNullable<S> : never;
 
-// The key flags are NOT decorative: `$returningId()` returns exactly the primary keys that autoincrement or carry
-// a runtime default, so fixing them to false (as pg and sqlite do) would make it infer `{}`.
+// Real key flags, not false as in pg and sqlite: `$returningId()` reads them and would infer `{}`.
 /** Structural MySqlColumn config; dataType / columnType are fixed because drizzle's typing never branches on them. */
 type SynthConfig<Name extends string, TName extends string, S> = S extends {config: infer P; data: infer D; base: infer B}
   ? {

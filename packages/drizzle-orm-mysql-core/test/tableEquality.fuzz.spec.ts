@@ -5,18 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Property fuzz for the slim mysql surface, oracle: compare-to-a-trusted-source.
-// One randomly generated table SPEC is interpreted over up to THREE surfaces
-// whose call shapes are identical by design — the slim recorders here, raw
-// drizzle-orm/mysql-core, and (for specs the pure-types vocabulary covers) the
-// type road's runtime bridge over a synthetic reflected graph — and drizzle's
-// own getTableConfig must agree across all of them, for random columns,
-// configs, modifier chains, references and extraConfig entries. A failing
-// iteration prints its seed and the generated spec; re-running with
-// MION_FUZZ_SEED replays it byte-for-byte (seeding per the shared harness in
-// packages/run-types/test/fuzz/core/). The source→graph half of the type
-// road is fuzzed by drizzleTypeSource.integration.spec.ts over the real
-// resolver; the spec generator and projection live in test/tableSpecShared.ts.
+// One random table spec over the slim recorders, the next/ builders, raw drizzle-orm/mysql-core and (for the subset it
+// covers) the type road's bridge: getTableConfig must agree. A failure prints its seed; MION_FUZZ_SEED replays it.
+// The source-to-graph half runs over the real resolver in drizzleTypeSource.integration.spec.ts.
 
 import {describe, it, expect} from 'vitest';
 import * as dzMy from 'drizzle-orm/mysql-core';
@@ -84,22 +75,16 @@ describe('mysql slim surface — fuzz: toDrizzle equals raw drizzle for random t
       const detail = `iteration ${iteration}, seed ${seed} (set MION_FUZZ_SEED=${BASE_SEED} to replay)\nspec: ${JSON.stringify(spec)}`;
       const rawProjection = project(rawTable);
       expect(project(toDrizzle(slimTable as never)), detail).toEqual(rawProjection);
-      // Surface 2: the side-by-side builders over the same spec.
       expect(project(toDrizzle(buildTable(nextSurface, spec, tableName) as never)), `next builders\n${detail}`).toEqual(
         rawProjection
       );
-      // Surface 1b: a random manual VIEW over the same generated column kinds,
-      // through the same compare-to-a-trusted-source oracle. Not `.existing()`
-      // iterations embed the parent table, so reference resolution is
-      // exercised too.
+      // A view that is not `.existing()` embeds the parent table, so reference resolution is exercised too.
       const viewSpec = makeViewSpec(mulberry32(mixSeed(BASE_SEED, 'mysql-view-equality', iteration)), spec);
       const viewName = `fuzz_view_${iteration}`;
       const viewDetail = `${detail}\nviewSpec: ${JSON.stringify(viewSpec)}`;
       expect(projectView(toDrizzle(buildView(slimSurface, viewSpec, viewName) as never)), viewDetail).toEqual(
         projectView(buildView(rawSurface, viewSpec, viewName))
       );
-      // Surface 3: the covered SUBSET of the spec through the type road's
-      // runtime bridge, against a raw build of the same reduced spec.
       const reduced = typeRoadReduce(spec);
       if (reduced !== undefined) {
         typeRoadRuns++;
@@ -111,7 +96,6 @@ describe('mysql slim surface — fuzz: toDrizzle equals raw drizzle for random t
         expect(project(toDrizzle(bridged as never)), `type-road surface\n${detail}\nreduced: ${JSON.stringify(reduced)}`).toEqual(
           project(rawReduced)
         );
-        // Surface 4: the side-by-side reader over the same spec in the new reflected shape.
         const nextBridged = buildNextTableFromGraph(syntheticNextTableGraph(reduced, reducedName), mysqlBuildTable, {
           tables: {fuzz_parents: nextSurfaceParent as object},
         });
@@ -121,8 +105,7 @@ describe('mysql slim surface — fuzz: toDrizzle equals raw drizzle for random t
         ).toEqual(project(rawReduced));
       }
     }
-    // The third surface must actually run — a generator drift that stops
-    // covering any spec would silently gut the oracle.
+    // Generator drift that stops the type road covering any spec would silently gut the oracle.
     expect(typeRoadRuns).toBeGreaterThan(0);
   });
 });
