@@ -58,6 +58,10 @@ import type {
   MysqlEnumObjectCol,
   MysqlTable,
   MysqlView,
+  MysqlViewBuilder,
+  MySqlViewAlgorithm,
+  MySqlViewCheckOption,
+  MySqlViewSecurity,
   Real,
   Serial,
   Smallint,
@@ -68,6 +72,7 @@ import type {
   Tinytext,
   Varbinary,
   Varchar,
+  ViewFromQueryBuilderNotSupported,
   Year,
 } from '../../next/index.ts';
 import {
@@ -107,6 +112,7 @@ import {
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 type Expect<T extends true> = T;
 type DataOf<C> = ColSpecOf<C> extends {data: infer D} ? D : never;
+type IsOptional<T, K extends keyof T> = Partial<Pick<T, K>> extends Pick<T, K> ? true : false;
 
 // ── narrow, nameless ─────────────────────────────────────────────────────────
 
@@ -136,13 +142,64 @@ export const curUsers = cur.mysqlTable('users', {
 });
 
 // With one call per column, a builder column IS the hand-written column, even outside a table.
-export const looseVarchar = varchar({length: 100, notNull: true, unique: ['uq_name']});
+const point = customType<{data: {x: number; y: number}}>({dataType: () => 'point'});
+export const looseBigint = bigint({mode: 'bigint', unsigned: true});
+export const looseBinary = binary({length: 4});
+export const looseBoolean = boolean({notNull: true});
+export const looseChar = char({length: 3, enum: ['abc', 'def']});
+export const looseDate = date({mode: 'string'});
+export const looseDatetime = datetime({fsp: 3});
+export const looseDecimal = decimal({precision: 10, scale: 2});
+export const looseDouble = double({unsigned: true});
+export const looseFloat = float({autoincrement: true});
 export const looseInt = int({notNull: true, default: [21]});
 export const looseUnsigned = int({unsigned: true, autoincrement: true});
+export const looseJson = json({$type: $type<{x: number}>()});
+export const looseLongtext = longtext();
+export const looseMediumint = mediumint({unsigned: true});
+export const looseMediumtext = mediumtext();
+export const looseReal = real();
+export const looseSerial = serial();
+export const looseSmallint = smallint();
+export const looseText = text({enum: ['a', 'b']});
+export const looseTime = time({fsp: 2});
+export const looseTimestamp = timestamp({defaultNow: true, onUpdateNow: true});
+export const looseTinyint = tinyint();
+export const looseTinytext = tinytext();
+export const looseVarbinary = varbinary({length: 16});
+export const looseVarchar = varchar({length: 100, notNull: true, unique: ['uq_name']});
+export const looseYear = year();
+export const looseEnum = mysqlEnum(['a', 'b']);
+export const loosePoint = point({notNull: true});
 export type LoosePins = [
-  Expect<Equal<typeof looseVarchar, Varchar<{length: 100; notNull: true; unique: ['uq_name']}>>>,
+  Expect<Equal<typeof looseBigint, Bigint<{mode: 'bigint'; unsigned: true}>>>,
+  Expect<Equal<typeof looseBinary, Binary<{length: 4}>>>,
+  Expect<Equal<typeof looseBoolean, Boolean<{notNull: true}>>>,
+  Expect<Equal<typeof looseChar, Char<{length: 3; enum: ['abc', 'def']}>>>,
+  Expect<Equal<typeof looseDate, MySqlDate<{mode: 'string'}>>>,
+  Expect<Equal<typeof looseDatetime, Datetime<{fsp: 3}>>>,
+  Expect<Equal<typeof looseDecimal, Decimal<{precision: 10; scale: 2}>>>,
+  Expect<Equal<typeof looseDouble, Double<{unsigned: true}>>>,
+  Expect<Equal<typeof looseFloat, Float<{autoincrement: true}>>>,
   Expect<Equal<typeof looseInt, Int<{notNull: true; default: [21]}>>>,
   Expect<Equal<typeof looseUnsigned, Int<{unsigned: true; autoincrement: true}>>>,
+  Expect<Equal<typeof looseJson, Json<{$type: [{x: number}]}>>>,
+  Expect<Equal<typeof looseLongtext, Longtext>>,
+  Expect<Equal<typeof looseMediumint, Mediumint<{unsigned: true}>>>,
+  Expect<Equal<typeof looseMediumtext, Mediumtext>>,
+  Expect<Equal<typeof looseReal, Real>>,
+  Expect<Equal<typeof looseSerial, Serial>>,
+  Expect<Equal<typeof looseSmallint, Smallint>>,
+  Expect<Equal<typeof looseText, Text<{enum: ['a', 'b']}>>>,
+  Expect<Equal<typeof looseTime, Time<{fsp: 2}>>>,
+  Expect<Equal<typeof looseTimestamp, Timestamp<{defaultNow: true; onUpdateNow: true}>>>,
+  Expect<Equal<typeof looseTinyint, Tinyint>>,
+  Expect<Equal<typeof looseTinytext, Tinytext>>,
+  Expect<Equal<typeof looseVarbinary, Varbinary<{length: 16}>>>,
+  Expect<Equal<typeof looseVarchar, Varchar<{length: 100; notNull: true; unique: ['uq_name']}>>>,
+  Expect<Equal<typeof looseYear, Year>>,
+  Expect<Equal<typeof looseEnum, MysqlEnumCol<['a', 'b']>>>,
+  Expect<Equal<typeof loosePoint, CustomCol<{x: number; y: number}, {notNull: true}>>>,
 ];
 
 export type NarrowPins = [
@@ -210,7 +267,6 @@ export type NamedPins = [
 
 // ── wide vocabulary: every builder, and mysql's own modifiers ────────────────
 
-const point = customType<{data: {x: number; y: number}}>({dataType: () => 'point'});
 export const every = mysqlTable('every', {
   bigint: bigint({mode: 'number'}),
   binary: binary({length: 4}),
@@ -316,6 +372,7 @@ export const wide = mysqlTable('w', {
   payload: json('payload', {$type: $type<{kind: string}>()}),
   email: varchar('email', {length: 50, unique: ['uq_email']}),
   slug: varchar('slug', {length: 20, $defaultFn: [() => 'x']}),
+  stamp: varchar('stamp', {length: 20, $onUpdate: [() => 'y']}),
   total: int('total', {generatedAlwaysAs: [1, {mode: 'stored'}]}),
   createdAt: timestamp('created_at', {mode: 'date', notNull: true, defaultNow: true}),
   touchedAt: timestamp('touched_at', {onUpdateNow: true}),
@@ -329,6 +386,7 @@ type Wide = MysqlTable<
     payload: Json<{$type: [{kind: string}]}>;
     email: Varchar<{length: 50; unique: ['uq_email']}>;
     slug: Varchar<{length: 20; $defaultFn: true}>;
+    stamp: Varchar<{length: 20; $onUpdate: true}>;
     total: Int<{generatedAlwaysAs: [1, {mode: 'stored'}]}>;
     createdAt: Timestamp<{mode: 'date'; notNull: true; defaultNow: true}>;
     touchedAt: Timestamp<{onUpdateNow: true}>;
@@ -343,6 +401,7 @@ export const curWide = cur.mysqlTable('w', {
   payload: cur.json('payload').$type<{kind: string}>(),
   email: cur.varchar('email', {length: 50}).unique('uq_email'),
   slug: cur.varchar('slug', {length: 20}).$defaultFn(() => 'x'),
+  stamp: cur.varchar('stamp', {length: 20}).$onUpdate(() => 'y'),
   total: cur.int('total').generatedAlwaysAs(1, {mode: 'stored'}),
   createdAt: cur.timestamp('created_at', {mode: 'date'}).notNull().defaultNow(),
   touchedAt: cur.timestamp('touched_at').onUpdateNow(),
@@ -356,7 +415,27 @@ export type WidePins = [
   // autoincrement and onUpdateNow both give the column a database default.
   Expect<Equal<next.InferInsertModel<Wide>['seq'], UInt32 | null | undefined>>,
   Expect<Equal<next.InferInsertModel<Wide>['touchedAt'], RTDate | null | undefined>>,
+  Expect<Equal<IsOptional<next.InferInsertModel<Wide>, 'slug'>, true>>,
+  Expect<Equal<IsOptional<next.InferInsertModel<Wide>, 'stamp'>, true>>,
+  Expect<Equal<IsOptional<next.InferInsertModel<Wide>, 'role'>, false>>,
   Expect<Equal<'total' extends keyof next.InferInsertModel<Wide> ? true : false, false>>,
+];
+
+// ── the column flags drizzle reads off a materialized table ──────────────────
+
+type DzWide = ToDrizzleTable<Wide>;
+export type ToDrizzleFlagPins = [
+  Expect<Equal<DzWide['role']['_']['notNull'], true>>,
+  Expect<Equal<DzWide['email']['_']['notNull'], false>>,
+  Expect<Equal<DzWide['createdAt']['_']['hasDefault'], true>>,
+  Expect<Equal<DzWide['email']['_']['hasDefault'], false>>,
+  Expect<Equal<DzWide['id']['_']['isPrimaryKey'], true>>,
+  Expect<Equal<DzWide['email']['_']['isPrimaryKey'], false>>,
+  Expect<Equal<DzWide['id']['_']['isAutoincrement'], true>>,
+  Expect<Equal<DzWide['seq']['_']['isAutoincrement'], true>>,
+  Expect<Equal<DzWide['email']['_']['isAutoincrement'], false>>,
+  Expect<Equal<DzWide['slug']['_']['hasRuntimeDefault'], true>>,
+  Expect<Equal<DzWide['email']['_']['hasRuntimeDefault'], false>>,
 ];
 
 // ── the key flags $returningId() reads ───────────────────────────────────────
@@ -397,12 +476,31 @@ export const refinedKeyedIds = myDb
   .insert(toDrizzle(refineTableType(keyed, {id: {max: 1000}})))
   .values({name: 'a'})
   .$returningId();
-export type ReturningIdPins = [
+export type OnlyMysql_ReturningIdPins = [
   Expect<Equal<Awaited<typeof keyedIds>, {id: number; code: string}[]>>,
   Expect<Equal<Awaited<typeof keyedIds>, Awaited<typeof curKeyedIds>>>,
   Expect<Equal<Awaited<typeof intKeyedIds>, {id: number}[]>>,
   Expect<Equal<keyof Awaited<typeof plainKeyedIds>[number], never>>,
   Expect<Equal<Awaited<typeof refinedKeyedIds>, {id: number; code: string}[]>>,
+];
+
+// ── select, insert and update through the mysql database ─────────────────────
+
+const dzUsers = toDrizzle(users);
+declare const newUser: next.InferInsertModel<typeof users>;
+declare const userPatch: next.InferUpdateModel<typeof users>;
+export const selectUsers = myDb.select().from(dzUsers);
+type SelectedRow = Awaited<typeof selectUsers>[number];
+declare const selectedRow: SelectedRow;
+export const rowIntoModel: next.InferSelectModel<typeof users> = selectedRow;
+export const insertFromModel = myDb.insert(dzUsers).values(newUser);
+export const updateFromModel = myDb.update(dzUsers).set(userPatch);
+export type QueryPins = [
+  Expect<Equal<SelectedRow['id'], number>>,
+  Expect<Equal<SelectedRow['name'], string>>,
+  Expect<Equal<SelectedRow['role'], 'admin' | 'user'>>,
+  Expect<Equal<SelectedRow['createdAt'], Date>>,
+  Expect<Equal<keyof SelectedRow, keyof next.InferSelectModel<typeof users>>>,
 ];
 
 // ── references, across tables and to itself ──────────────────────────────────
@@ -443,42 +541,119 @@ export type BadRefColumn = TableRef<typeof teams, 'idd'>;
 // @ts-expect-error tableRef() checks the column exists
 tableRef(teams, 'idd');
 
-// ── views, enums, schemas and table creators ─────────────────────────────────
+// ── views ────────────────────────────────────────────────────────────────────
 
-export const activeView = mysqlView('active', {name: varchar('user_name', {length: 10, notNull: true})})
+export const activeView = mysqlView('active', {name: varchar('user_name', {length: 10, notNull: true}), note: text()}).existing();
+type ActiveView = MysqlView<'active', {name: Varchar<{length: 10; notNull: true}>; note: Text}, {name: 'user_name'}>;
+export const curActiveView = cur
+  .mysqlView('active', {name: cur.varchar('user_name', {length: 10}).notNull(), note: cur.text()})
+  .existing();
+
+export type ViewPins = [
+  Expect<Equal<typeof activeView, ActiveView>>,
+  Expect<Equal<next.InferSelectViewModel<ActiveView>, InferSelectViewModel<typeof curActiveView>>>,
+  Expect<Equal<ReturnType<typeof mysqlView>, ViewFromQueryBuilderNotSupported>>,
+];
+// @ts-expect-error the query-builder form has no columns to type, so it has no as()
+export const noAs = mysqlView('from_query').as;
+
+export const optionView = mysqlView('options', {name: varchar('user_name', {length: 10, notNull: true})})
   .algorithm('merge')
   .sqlSecurity('invoker')
   .withCheckOption('cascaded')
   .existing();
-type ActiveView = MysqlView<'active', {name: Varchar<{length: 10; notNull: true}>}, {name: 'user_name'}>;
-export const curActiveView = cur.mysqlView('active', {name: cur.varchar('user_name', {length: 10}).notNull()}).existing();
+type OptionView = MysqlView<'options', {name: Varchar<{length: 10; notNull: true}>}, {name: 'user_name'}>;
+export const curOptionView = cur
+  .mysqlView('options', {name: cur.varchar('user_name', {length: 10}).notNull()})
+  .algorithm('merge')
+  .sqlSecurity('invoker')
+  .withCheckOption('cascaded')
+  .existing();
+type AnyViewBuilder = MysqlViewBuilder<'v', object, object>;
+
+export type OnlyPgMysql_ViewOptionPins = [
+  Expect<Equal<typeof optionView, OptionView>>,
+  Expect<Equal<next.InferSelectViewModel<OptionView>, InferSelectViewModel<typeof curOptionView>>>,
+  Expect<Equal<Parameters<AnyViewBuilder['algorithm']>[0], MySqlViewAlgorithm>>,
+  Expect<Equal<Parameters<AnyViewBuilder['sqlSecurity']>[0], MySqlViewSecurity>>,
+  Expect<Equal<Parameters<AnyViewBuilder['withCheckOption']>[0], MySqlViewCheckOption | undefined>>,
+];
+
+// ── enums: tuple and object forms ────────────────────────────────────────────
+
 export const withEnum = mysqlTable('with_enum', {
   mood: mysqlEnum('mood', ['sad', 'happy'], {notNull: true}),
   level: mysqlEnum({Low: 'low', High: 'high'} as const, {default: ['low']}),
+  bare: mysqlEnum(['x', 'y']),
 });
 type WithEnum = MysqlTable<
   'with_enum',
   {
     mood: MysqlEnumCol<['sad', 'happy'], {notNull: true}>;
     level: MysqlEnumObjectCol<{Low: 'low'; High: 'high'}, {default: ['low']}>;
+    bare: MysqlEnumCol<['x', 'y']>;
   }
 >;
+export const curWithEnum = cur.mysqlTable('with_enum', {
+  mood: cur.mysqlEnum('mood', ['sad', 'happy']).notNull(),
+  level: cur.mysqlEnum({Low: 'low', High: 'high'} as const).default('low'),
+  bare: cur.mysqlEnum(['x', 'y']),
+});
+
+export type OnlyPgMysql_EnumPins = [
+  Expect<Equal<typeof withEnum, WithEnum>>,
+  Expect<Equal<next.InferSelectModel<WithEnum>, {mood: 'sad' | 'happy'; level: 'low' | 'high' | null; bare: 'x' | 'y' | null}>>,
+  Expect<Equal<next.InferSelectModel<WithEnum>, InferSelectModel<typeof curWithEnum>>>,
+  Expect<Equal<next.InferInsertModel<WithEnum>, InferInsertModel<typeof curWithEnum>>>,
+  Expect<Equal<MysqlEnumObjectCol<{Low: 'low'; High: 'high'}>, MysqlEnumCol<['low', 'high']>>>,
+];
+
+// ── schemas ──────────────────────────────────────────────────────────────────
+
 export const shop = mysqlSchema('shop');
 export const shopItems = shop.table('items', {id: serial({primaryKey: true}), label: varchar('item_label', {length: 20})});
+export const shopCallbackItems = shop.table('items', (helpers) => ({
+  id: helpers.serial({primaryKey: true}),
+  label: helpers.varchar('item_label', {length: 20}),
+}));
 export const shopView = shop.view('item_view', {label: varchar({length: 20})}).existing();
-export const prefixed = mysqlTableCreator((name) => `app_${name}`);
-export const prefixedItems = prefixed('items', (helpers) => ({id: helpers.serial({primaryKey: true}), note: helpers.text()}));
 type Items = MysqlTable<'items', {id: Serial<{primaryKey: true}>; label: Varchar<{length: 20}>}, [], {label: 'item_label'}>;
 
-export type ViewEnumSchemaPins = [
-  Expect<Equal<typeof activeView, ActiveView>>,
-  Expect<Equal<next.InferSelectViewModel<ActiveView>, InferSelectViewModel<typeof curActiveView>>>,
-  Expect<Equal<typeof withEnum, WithEnum>>,
-  Expect<Equal<next.InferSelectModel<WithEnum>, {mood: 'sad' | 'happy'; level: 'low' | 'high' | null}>>,
-  Expect<Equal<MysqlEnumObjectCol<{Low: 'low'; High: 'high'}>, MysqlEnumCol<['low', 'high']>>>,
+export type OnlyPgMysql_SchemaPins = [
   Expect<Equal<typeof shopItems, Items>>,
+  Expect<Equal<typeof shopCallbackItems, Items>>,
   Expect<Equal<typeof shopView, MysqlView<'item_view', {label: Varchar<{length: 20}>}>>>,
-  Expect<Equal<typeof prefixedItems, MysqlTable<'items', {id: Serial<{primaryKey: true}>; note: Text}>>>,
+  Expect<Equal<(typeof shop)['schemaName'], 'shop'>>,
+];
+
+// ── table creators and the columns callback ──────────────────────────────────
+
+export const byCallback = mysqlTable('users', (helpers) => ({
+  id: helpers.serial({primaryKey: true}),
+  name: helpers.varchar({length: 100, notNull: true}),
+  age: helpers.int({notNull: true}),
+  role: helpers.text({enum: ['admin', 'user'], notNull: true}),
+  createdAt: helpers.timestamp({mode: 'date', notNull: true, defaultNow: true}),
+}));
+export const prefixed = mysqlTableCreator((name) => `app_${name}`);
+export const createdUsers = prefixed('users', {
+  id: serial({primaryKey: true}),
+  name: varchar({length: 100, notNull: true}),
+  age: int({notNull: true}),
+  role: text({enum: ['admin', 'user'], notNull: true}),
+  createdAt: timestamp({mode: 'date', notNull: true, defaultNow: true}),
+});
+export const createdByCallback = prefixed('users', (helpers) => ({
+  id: helpers.serial({primaryKey: true}),
+  name: helpers.varchar({length: 100, notNull: true}),
+  age: helpers.int({notNull: true}),
+  role: helpers.text({enum: ['admin', 'user'], notNull: true}),
+  createdAt: helpers.timestamp({mode: 'date', notNull: true, defaultNow: true}),
+}));
+export type CreatorPins = [
+  Expect<Equal<typeof byCallback, Users>>,
+  Expect<Equal<typeof createdUsers, Users>>,
+  Expect<Equal<typeof createdByCallback, Users>>,
 ];
 
 // ── refine keeps every column fact, key flags included ───────────────────────
@@ -502,25 +677,25 @@ export type DbNamePins = [
 
 // ── wrong modifiers are rejected ─────────────────────────────────────────────
 
-// @ts-expect-error varchar has no autoincrement
-export type BadAutoincrement = Varchar<{autoincrement: true}>;
-// @ts-expect-error autoincrement is the numeric kinds only
-char({autoincrement: true});
-// @ts-expect-error onUpdateNow is timestamp only
-export type BadOnUpdateNow = Datetime<{onUpdateNow: true}>;
-// @ts-expect-error onUpdateNow is timestamp only
-int({onUpdateNow: true});
-// @ts-expect-error defaultNow is timestamp only
-text({defaultNow: true});
-// @ts-expect-error mysql columns have no array
+// @ts-expect-error a stray key is rejected in a call
+int({unsigned: true, onUpdateNow: true});
+// @ts-expect-error a stray key is rejected in a column type
+export type BadStrayKey = Varchar<{length: 10; autoincrement: true}>;
+// @ts-expect-error a stray key is rejected in a named call
+varchar('name', {length: 10, autoincrement: true});
+// @ts-expect-error another dialect's modifier is rejected
 text({array: true});
-// @ts-expect-error varchar needs its length
-varchar();
 // @ts-expect-error a references() target must be a tableRef(), which records its table
 int({references: [() => users]});
-// @ts-expect-error a stray key is rejected beside valid ones too
-int({unsigned: true, onUpdateNow: true});
-// @ts-expect-error a stray key is rejected beside valid ones too
-export type BadStrayKey = Varchar<{length: 10; autoincrement: true}>;
-// @ts-expect-error a stray key is rejected in a named call too
-varchar('name', {length: 10, autoincrement: true});
+// @ts-expect-error only pg, mysql: a modifier this column kind lacks is rejected
+export type BadAutoincrement = Varchar<{autoincrement: true}>;
+// @ts-expect-error only mysql: autoincrement is the numeric kinds only
+char({autoincrement: true});
+// @ts-expect-error only mysql: onUpdateNow is timestamp only, in a column type
+export type BadOnUpdateNow = Datetime<{onUpdateNow: true}>;
+// @ts-expect-error only mysql: onUpdateNow is timestamp only, in a call
+int({onUpdateNow: true});
+// @ts-expect-error only mysql: defaultNow is timestamp only
+text({defaultNow: true});
+// @ts-expect-error only mysql: varchar needs its length
+varchar();

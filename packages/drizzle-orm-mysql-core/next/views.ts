@@ -12,8 +12,17 @@ import type {RtViewBrand} from '../../drizzle-orm/src/view.ts';
 import {RtViewBuilder} from '../../drizzle-orm/src/view.ts';
 import type {AnyColumn} from '../../drizzle-orm/next/columns.ts';
 import type {NoNames, RtViewMeta} from '../../drizzle-orm/next/table.ts';
-import {mysqlBuildView, type MySqlViewAlgorithm, type MySqlViewCheckOption, type MySqlViewSecurity} from '../src/views.ts';
+import {
+  mysqlBuildView,
+  requireColumns,
+  type MySqlViewAlgorithm,
+  type MySqlViewCheckOption,
+  type MySqlViewSecurity,
+  type ViewFromQueryBuilderNotSupported,
+} from '../src/views.ts';
 import type {rtColNameKey, rtNamedColumnKey} from '../../drizzle-orm/next/columns.ts';
+
+export type {MySqlViewAlgorithm, MySqlViewCheckOption, MySqlViewSecurity, ViewFromQueryBuilderNotSupported};
 
 // Inline maps, never aliases over the builders record: see mysqlTable in ./table.ts.
 type NameOf<C> = C extends {readonly [rtColNameKey]: infer Name} ? Name : undefined;
@@ -37,6 +46,8 @@ export function mysqlView<TName extends string, Cols extends Record<string, obje
   TName,
   {[K in keyof Cols]: Cols[K] extends {readonly [rtNamedColumnKey]: infer C} ? C : Cols[K]},
   {[K in keyof Cols as NameOf<Cols[K]> extends string ? (NameOf<Cols[K]> extends K ? never : K) : never]: NameOf<Cols[K]>}
-> {
-  return new RtViewBuilder(name, columns, mysqlBuildView) as never;
+>;
+export function mysqlView(name: string): ViewFromQueryBuilderNotSupported;
+export function mysqlView(name: string, columns?: Record<string, unknown>) {
+  return new RtViewBuilder(name, requireColumns('mysqlView', name, columns), mysqlBuildView) as never;
 }
