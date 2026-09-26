@@ -81,10 +81,13 @@ function makeSpec(dialect: SpecDialect, rng: () => number): TableSpec {
     const base = pick(dialect.kinds)(gen);
     const column: ColumnSpec = {key: `col_${i}`, fn: base.fn, args: [`c${i}`, ...base.args], mods: [...base.mods]};
     if (chance(0.5)) column.mods.push({method: 'notNull', args: []});
-    if (!hasPrimary && chance(0.15)) {
+    // A kind may bring its own primary key (sqlite's autoIncrement); the random one then stays out.
+    const kindPrimary = column.mods.some((mod) => mod.method === 'primaryKey');
+    if (!hasPrimary && !kindPrimary && chance(0.15)) {
       column.mods.push({method: 'primaryKey', args: []});
       hasPrimary = true;
     }
+    hasPrimary ||= kindPrimary;
     if (chance(0.2)) column.mods.push({method: 'unique', args: [`uq_c${i}`]});
     if (dialect.stringDefaultFns.includes(base.fn) && chance(0.3)) column.mods.push({method: 'default', args: ['dflt']});
     if (dialect.intFns.includes(base.fn) && chance(0.3)) column.mods.push({method: 'default', args: [int(100)]});
@@ -165,8 +168,23 @@ export function buildTable(surface: Surface, spec: TableSpec, tableName: string)
   return surface.table(tableName, columns, extraConfig as never);
 }
 
+/** A view's manual columns, chained or in one call as the surface builds them; never shared with a table. */
+export function buildViewColumns(surface: Surface, columnSpecs: ColumnSpec[]): Record<string, unknown> {
+  const columns: Record<string, unknown> = {};
+  for (const columnSpec of columnSpecs) {
+    if (surface.singleCall) {
+      columns[columnSpec.key] = singleCallColumn(surface, columnSpec);
+      continue;
+    }
+    let column = surface.ns[columnSpec.fn](...(columnSpec.args as never[])) as Record<string, (...a: unknown[]) => unknown>;
+    for (const mod of columnSpec.mods) column = column[mod.method](...mod.args) as never;
+    columns[columnSpec.key] = column;
+  }
+  return columns;
+}
+
 /** One column built in one call: the config keys, then each modifier as `true` or its argument tuple. */
-function singleCallColumn(surface: Surface, columnSpec: ColumnSpec): unknown {
+export function singleCallColumn(surface: Surface, columnSpec: ColumnSpec): unknown {
   const [name, config] = columnSpec.args as [string | undefined, Record<string, unknown> | undefined];
   const props: Record<string, unknown> = {...config};
   for (const mod of columnSpec.mods) if (mod.method !== 'skip') props[mod.method] = mod.args.length > 0 ? mod.args : true;

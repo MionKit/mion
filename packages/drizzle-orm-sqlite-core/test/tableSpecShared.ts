@@ -9,6 +9,7 @@
 
 import {getTableConfig, getViewConfig} from 'drizzle-orm/sqlite-core';
 import {
+  buildViewColumns,
   specTools,
   type ColumnSpec,
   type SpecDialect,
@@ -40,13 +41,19 @@ const sqliteSpecDialect: SpecDialect = {
     () => ({fn: 'real', args: [], mods: []}),
     ({pick}) => ({fn: 'numeric', args: [{mode: pick(['string', 'number', 'bigint'])}], mods: []}),
     ({pick}) => ({fn: 'blob', args: [{mode: pick(['buffer', 'json', 'bigint'])}], mods: []}),
+    () => ({fn: 'integer', args: [], mods: [{method: 'primaryKey', args: [{autoIncrement: true}]}]}),
+    ({pick}) => ({
+      fn: 'text',
+      args: [],
+      mods: [{method: 'generatedAlwaysAs', args: ['x', {mode: pick(['virtual', 'stored'])}]}],
+    }),
   ],
   stringDefaultFns: [],
   intFns: ['int'],
   refFn: 'int',
   indexWhere: true,
   typeNames: {text: 'Text', int: 'Int', integer: 'Integer', real: 'Real', numeric: 'Numeric', blob: 'Blob'},
-  typeMods: new Set(['notNull', 'primaryKey', 'default', 'unique']),
+  typeMods: new Set(['notNull', 'primaryKey', 'default', 'unique', 'generatedAlwaysAs']),
 };
 
 export const {
@@ -154,12 +161,7 @@ export function makeViewSpec(rng: () => number, tableSpec: TableSpec): ViewSpec 
 }
 
 export function buildView(surface: Surface, spec: ViewSpec, viewName: string): unknown {
-  const columns: Record<string, unknown> = {};
-  for (const columnSpec of spec.columns) {
-    let column = surface.ns[columnSpec.fn](...(columnSpec.args as never[])) as Record<string, (...a: unknown[]) => unknown>;
-    for (const mod of columnSpec.mods) column = column[mod.method](...mod.args) as never;
-    columns[columnSpec.key] = column;
-  }
+  const columns = buildViewColumns(surface, spec.columns);
   const builder = surface.ns.sqliteView(viewName as never, columns as never) as Record<string, (...a: unknown[]) => unknown>;
   // The query embeds the parent table, so reference resolution runs on every iteration that is not `.existing()`.
   return spec.existing ? builder.existing() : builder.as(surface.sql`select * from ${surface.parent}`);

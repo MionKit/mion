@@ -9,6 +9,7 @@
 
 import {getMaterializedViewConfig, getTableConfig, getViewConfig} from 'drizzle-orm/pg-core';
 import {
+  buildViewColumns,
   specTools,
   type ColumnSpec,
   type SpecDialect,
@@ -43,6 +44,13 @@ const pgSpecDialect: SpecDialect = {
     () => ({fn: 'jsonb', args: [], mods: []}),
     () => ({fn: 'inet', args: [], mods: []}),
     ({pick}) => ({fn: 'bigint', args: [{mode: pick(['number', 'bigint'])}], mods: []}),
+    ({pick}) => ({
+      fn: 'integer',
+      args: [],
+      mods: [{method: pick(['generatedAlwaysAsIdentity', 'generatedByDefaultAsIdentity']), args: []}],
+    }),
+    ({chance, int}) => ({fn: 'text', args: [], mods: [{method: 'array', args: chance(0.5) ? [int(4)] : []}]}),
+    () => ({fn: 'text', args: [], mods: [{method: 'generatedAlwaysAs', args: ['x']}]}),
   ],
   stringDefaultFns: ['varchar'],
   intFns: ['integer', 'smallint'],
@@ -62,7 +70,18 @@ const pgSpecDialect: SpecDialect = {
     inet: 'Inet',
     bigint: 'Bigint',
   },
-  typeMods: new Set(['notNull', 'primaryKey', 'default', 'defaultRandom', 'defaultNow', 'unique']),
+  typeMods: new Set([
+    'notNull',
+    'primaryKey',
+    'default',
+    'defaultRandom',
+    'defaultNow',
+    'unique',
+    'generatedAlwaysAsIdentity',
+    'generatedByDefaultAsIdentity',
+    'array',
+    'generatedAlwaysAs',
+  ]),
 };
 
 export const {
@@ -90,23 +109,39 @@ export function project(table: unknown) {
   const columnName = (column: unknown) => (column as {name: string}).name;
   return {
     name: config.name,
-    columns: config.columns.map((column) => ({
-      name: column.name,
-      columnType: column.columnType,
-      sqlType: column.getSQLType(),
-      notNull: column.notNull,
-      hasDefault: column.hasDefault,
-      default: normalizeValue(column.default),
-      primary: column.primary,
-      isUnique: (column as unknown as {isUnique: boolean}).isUnique,
-      enumValues: column.enumValues,
-    })),
+    schema: config.schema,
+    columns: config.columns.map((column) => {
+      const extra = column as unknown as {
+        uniqueName?: string;
+        uniqueType?: string;
+        generated?: {as: unknown; type: string};
+        generatedIdentity?: {type: string};
+      };
+      return {
+        name: column.name,
+        columnType: column.columnType,
+        sqlType: column.getSQLType(),
+        notNull: column.notNull,
+        hasDefault: column.hasDefault,
+        default: normalizeValue(column.default),
+        primary: column.primary,
+        isUnique: column.isUnique,
+        uniqueName: extra.uniqueName,
+        uniqueType: extra.uniqueType,
+        enumValues: column.enumValues,
+        generated: extra.generated && {as: normalizeValue(extra.generated.as), type: extra.generated.type},
+        identity: extra.generatedIdentity?.type,
+      };
+    }),
     indexes: config.indexes.map((idx) => {
       const indexConfig = (idx as unknown as {config: Record<string, unknown>}).config;
       return {
         name: indexConfig.name,
         unique: indexConfig.unique,
         where: normalizeValue(indexConfig.where),
+        method: indexConfig.method,
+        concurrently: indexConfig.concurrently,
+        with: indexConfig.with,
         columns: (indexConfig.columns as unknown[]).map(columnName),
       };
     }),
@@ -115,11 +150,13 @@ export function project(table: unknown) {
       return {
         name: fk.getName(),
         onDelete: fk.onDelete,
+        onUpdate: fk.onUpdate,
         columns: reference.columns.map(columnName),
         foreignColumns: reference.foreignColumns.map(columnName),
       };
     }),
     checks: config.checks.map((entry) => ({name: entry.name, value: normalizeValue(entry.value)})),
+    primaryKeys: config.primaryKeys.map((key) => ({name: key.getName(), columns: key.columns.map(columnName)})),
     uniqueConstraints: config.uniqueConstraints.map((constraint) => ({
       name: constraint.name,
       columns: constraint.columns.map(columnName),
@@ -165,12 +202,7 @@ export function makeViewSpec(rng: () => number, tableSpec: TableSpec): ViewSpec 
 }
 
 export function buildView(surface: Surface, spec: ViewSpec, viewName: string): unknown {
-  const columns: Record<string, unknown> = {};
-  for (const columnSpec of spec.columns) {
-    let column = surface.ns[columnSpec.fn](...(columnSpec.args as never[])) as Record<string, (...a: unknown[]) => unknown>;
-    for (const mod of columnSpec.mods) column = column[mod.method](...mod.args) as never;
-    columns[columnSpec.key] = column;
-  }
+  const columns = buildViewColumns(surface, spec.columns);
   const factory = spec.materialized ? 'pgMaterializedView' : 'pgView';
   let builder = surface.ns[factory](viewName as never, columns as never) as Record<string, (...a: unknown[]) => unknown>;
   if (spec.using !== undefined) builder = builder.using(spec.using) as never;
