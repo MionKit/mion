@@ -12,6 +12,7 @@ import type {BigInt as RTBigInt, Date as RTDate, Float, Integer as IntegerFormat
 import type {DrizzleD1Database} from 'drizzle-orm/d1';
 import type {DrizzleSqliteDODatabase} from 'drizzle-orm/durable-sqlite';
 import type {InferSelectModel as DzInferSelectModel} from 'drizzle-orm';
+import type {BaseSQLiteDatabase} from 'drizzle-orm/sqlite-core';
 import type {
   InferInsertModel,
   InferSelectModel,
@@ -160,6 +161,48 @@ export type NarrowPins = [
   Expect<Equal<next.InferUpdateModel<Users>, InferUpdateModel<typeof curUsers>>>,
 ];
 
+// ── every builder in one table ───────────────────────────────────────────────
+
+export const every = sqliteTable('every', {
+  blob: blob({mode: 'json'}),
+  customType: point({notNull: true}),
+  int: int({default: [1]}),
+  integer: integer({mode: 'timestamp_ms'}),
+  numeric: numeric({mode: 'bigint'}),
+  real: real({unique: true}),
+  text: text({length: 10, enum: ['a', 'b']}),
+});
+type Every = SqliteTable<
+  'every',
+  {
+    blob: Blob<{mode: 'json'}>;
+    customType: CustomCol<{x: number; y: number}, {notNull: true}>;
+    int: Int<{default: [1]}>;
+    integer: Integer<{mode: 'timestamp_ms'}>;
+    numeric: Numeric<{mode: 'bigint'}>;
+    real: Real<{unique: true}>;
+    text: Text<{length: 10; enum: ['a', 'b']}>;
+  }
+>;
+export const curEvery = cur.sqliteTable('every', {
+  blob: cur.blob({mode: 'json'}),
+  customType: cur
+    .customType<{data: {x: number; y: number}}>({dataType: () => 'text'})()
+    .notNull(),
+  int: cur.int().default(1),
+  integer: cur.integer({mode: 'timestamp_ms'}),
+  numeric: cur.numeric({mode: 'bigint'}),
+  real: cur.real().unique(),
+  text: cur.text({length: 10, enum: ['a', 'b']}),
+});
+
+export type EveryPins = [
+  Expect<Equal<typeof every, Every>>,
+  Expect<Equal<next.InferSelectModel<Every>, InferSelectModel<typeof curEvery>>>,
+  Expect<Equal<next.InferInsertModel<Every>, InferInsertModel<typeof curEvery>>>,
+  Expect<Equal<next.InferUpdateModel<Every>, InferUpdateModel<typeof curEvery>>>,
+];
+
 // ── the rowid: an integer primary key is optional on insert, a text one required ──
 
 export const intPk = sqliteTable('int_pk', {id: integer({primaryKey: true}), note: text()});
@@ -169,7 +212,7 @@ export const textAutoPk = sqliteTable('text_auto_pk', {id: text({primaryKey: [{a
 export const curIntPk = cur.sqliteTable('int_pk', {id: cur.integer().primaryKey(), note: cur.text()});
 export const curTextPk = cur.sqliteTable('text_pk', {id: cur.text().primaryKey()});
 export const curTextAutoPk = cur.sqliteTable('text_auto_pk', {id: cur.text().primaryKey({autoIncrement: true})});
-export type RowidPins = [
+export type OnlySqlite_RowidPins = [
   Expect<Equal<next.InferInsertModel<typeof intPk>, {id?: IntegerFormat; note?: Str | null}>>,
   Expect<Equal<next.InferInsertModel<typeof intPk>, InferInsertModel<typeof curIntPk>>>,
   Expect<Equal<next.InferInsertModel<typeof intAliasPk>, {id?: IntegerFormat}>>,
@@ -180,10 +223,31 @@ export type RowidPins = [
   Expect<Equal<next.InferInsertModel<typeof textAutoPk>, InferInsertModel<typeof curTextAutoPk>>>,
   // Without the primary key the rowid base flag gives no default.
   Expect<Equal<next.InferInsertModel<SqliteTable<'n', {id: Integer<{notNull: true}>}>>, {id: IntegerFormat}>>,
+];
+
+// ── the key flags a query builder reads ──────────────────────────────────────
+
+export type KeyFlagPins = [
+  Expect<Equal<KeyFlagsOf<ColSpecOf<(typeof intPk)['columns']['id']>>['primaryKey'], true>>,
+  Expect<Equal<KeyFlagsOf<ColSpecOf<Text>>['primaryKey'], false>>,
+  Expect<Equal<KeyFlagsOf<ColSpecOf<Integer<{primaryKey: [{autoIncrement: true}]}>>>['primaryKey'], true>>,
+  // drizzle's sqlite never sets isAutoincrement, so the autoIncrement primary key leaves the flag false.
+  Expect<Equal<KeyFlagsOf<ColSpecOf<Integer<{primaryKey: [{autoIncrement: true}]}>>>['autoincrement'], false>>,
+  Expect<Equal<KeyFlagsOf<ColSpecOf<Text<{$defaultFn: true}>>>['runtimeDefault'], true>>,
+  Expect<Equal<KeyFlagsOf<ColSpecOf<Text>>['runtimeDefault'], false>>,
+];
+
+// ── the column flags toDrizzle hands drizzle ─────────────────────────────────
+
+export type ToDrizzleFlagPins = [
+  Expect<Equal<ToDrizzleTable<typeof users>['name']['_']['notNull'], true>>,
+  Expect<Equal<ToDrizzleTable<typeof intPk>['note']['_']['notNull'], false>>,
+  Expect<Equal<ToDrizzleTable<typeof users>['rating']['_']['hasDefault'], true>>,
+  Expect<Equal<ToDrizzleTable<typeof users>['name']['_']['hasDefault'], false>>,
+  // The rowid: an integer primary key has a default, a text one does not unless it autoIncrements.
   Expect<Equal<ToDrizzleTable<typeof intPk>['id']['_']['hasDefault'], true>>,
   Expect<Equal<ToDrizzleTable<typeof textPk>['id']['_']['hasDefault'], false>>,
   Expect<Equal<ToDrizzleTable<typeof textAutoPk>['id']['_']['hasDefault'], true>>,
-  Expect<Equal<KeyFlagsOf<ColSpecOf<(typeof intPk)['columns']['id']>>['primaryKey'], true>>,
 ];
 
 // ── explicit db names go to the table's names map ────────────────────────────
@@ -264,6 +328,26 @@ export type WidePins = [
   Expect<Equal<next.InferSelectModel<Wide>, InferSelectModel<typeof curWide>>>,
   Expect<Equal<next.InferInsertModel<Wide>, InferInsertModel<typeof curWide>>>,
   Expect<Equal<next.InferUpdateModel<Wide>, InferUpdateModel<typeof curWide>>>,
+  // A runtime default or an update hook makes the column optional on insert; a generated one leaves insert.
+  Expect<Equal<next.InferInsertModel<Wide>['slug'], Str | undefined>>,
+  Expect<Equal<next.InferInsertModel<Wide>['touched'], RTDate | null | undefined>>,
+  Expect<Equal<'derived' extends keyof next.InferInsertModel<Wide> ? true : false, false>>,
+];
+
+// ── a builder table through the drizzle database type ────────────────────────
+
+declare const sqliteDb: BaseSQLiteDatabase<'async', unknown>;
+declare const newUser: next.InferInsertModel<typeof users>;
+declare const userPatch: next.InferUpdateModel<typeof users>;
+export const usersQuery = sqliteDb.select().from(toDrizzle(users));
+type UserRows = Awaited<typeof usersQuery>;
+export const usersInsert = sqliteDb.insert(toDrizzle(users)).values(newUser);
+export const usersUpdate = sqliteDb.update(toDrizzle(users)).set(userPatch);
+export type QueryPins = [
+  Expect<Equal<keyof UserRows[number], 'id' | 'name' | 'rating' | 'role' | 'createdAt'>>,
+  Expect<Equal<UserRows[number]['name'], string>>,
+  Expect<Equal<UserRows[number]['createdAt'], Date>>,
+  Expect<Equal<UserRows[number]['role'], 'admin' | 'user'>>,
 ];
 
 // ── the columns callback and the table creator give the same type ────────────
@@ -401,7 +485,7 @@ export const doRowIntoModel: CfNote = doRows[0]!;
 export const doInsertFromModel = doDb.insert(dzCfNotes).values(newCfNote);
 export const doUpdateFromModel = doDb.update(dzCfNotes).set(cfNotePatch);
 
-export type CloudflarePins = [
+export type OnlySqlite_CloudflarePins = [
   Expect<Equal<D1Rows[number]['title'], string>>,
   Expect<Equal<D1Rows[number]['createdAt'], Date>>,
   Expect<Equal<DoRows[number]['title'], string>>,
@@ -411,25 +495,27 @@ export type CloudflarePins = [
 
 // ── wrong settings are rejected ──────────────────────────────────────────────
 
-// @ts-expect-error defaultNow is a pg / mysql modifier
-export type BadDefaultNow = Text<{defaultNow: true}>;
-// @ts-expect-error defaultNow is a pg / mysql modifier
-integer({defaultNow: true});
-// @ts-expect-error a stray key is rejected beside valid ones too
+// @ts-expect-error a stray key is rejected in a call
 integer({notNull: true, defaultNow: true});
-// @ts-expect-error a stray key is rejected beside valid ones too
+// @ts-expect-error a stray key is rejected in a column type
 export type BadStrayKey = Text<{notNull: true; defaultNow: true}>;
-// @ts-expect-error autoincrement is mysql's; sqlite spells it primaryKey: [{autoIncrement: true}]
-export type BadAutoincrement = Integer<{autoincrement: true}>;
-// @ts-expect-error autoincrement is mysql's; sqlite spells it primaryKey: [{autoIncrement: true}]
-integer({autoincrement: true});
-// @ts-expect-error autoincrement is mysql's, also beside a primary key
-integer({primaryKey: true, autoincrement: true});
-// @ts-expect-error sqlite columns have no array
+// @ts-expect-error a stray key is rejected in a named call
+integer('id', {notNull: true, defaultNow: true});
+// @ts-expect-error another dialect's modifier is rejected
 text({array: true});
-// @ts-expect-error unique takes a name only, pg's nulls option is not sqlite's
+// @ts-expect-error only sqlite: defaultNow is rejected in a column type
+export type BadDefaultNow = Text<{defaultNow: true}>;
+// @ts-expect-error only sqlite: defaultNow is rejected in a call
+integer({defaultNow: true});
+// @ts-expect-error only sqlite: autoincrement is spelled as an autoIncrement primary key, in a column type
+export type BadAutoincrement = Integer<{autoincrement: true}>;
+// @ts-expect-error only sqlite: autoincrement is spelled as an autoIncrement primary key, in a call
+integer({autoincrement: true});
+// @ts-expect-error only sqlite: autoincrement is rejected beside a primary key too
+integer({primaryKey: true, autoincrement: true});
+// @ts-expect-error only sqlite: unique takes a name only
 text({unique: ['uq', {nulls: 'distinct'}]});
-// @ts-expect-error real takes no mode
+// @ts-expect-error only sqlite: real takes no mode
 real({mode: 'number'});
 // @ts-expect-error a references() target must be a tableRef(), which records its table
 integer({references: [() => users]});

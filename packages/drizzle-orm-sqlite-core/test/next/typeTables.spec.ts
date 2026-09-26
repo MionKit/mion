@@ -178,6 +178,27 @@ const rawEmps = dz.sqliteTable('emps', {
   managerId: dz.integer('manager_id').references((): dz.AnySQLiteColumn => rawEmps.id),
 });
 
+const point = customType<{data: string}>({dataType: () => 'text'});
+const curPoint = cur.customType<{data: string}>({dataType: () => 'text'});
+const every = sqliteTable('every', {
+  blob: blob({mode: 'json'}),
+  customType: point({notNull: true}),
+  int: int({default: [1]}),
+  integer: integer({mode: 'timestamp_ms'}),
+  numeric: numeric({mode: 'bigint'}),
+  real: real({unique: true}),
+  text: text({length: 10, enum: ['a', 'b']}),
+});
+const curEvery = cur.sqliteTable('every', {
+  blob: cur.blob({mode: 'json'}),
+  customType: curPoint().notNull(),
+  int: cur.int().default(1),
+  integer: cur.integer({mode: 'timestamp_ms'}),
+  numeric: cur.numeric({mode: 'bigint'}),
+  real: cur.real().unique(),
+  text: cur.text({length: 10, enum: ['a', 'b']}),
+});
+
 describe('next sqlite columns: same drizzle table on every road', () => {
   it('new builders, shipped builders and raw drizzle materialize the same table', () => {
     expect(project(toDrizzle(users))).toEqual(project(curToDrizzle(curUsers)));
@@ -185,27 +206,34 @@ describe('next sqlite columns: same drizzle table on every road', () => {
     expect(project(toDrizzle(wide))).toEqual(project(curToDrizzle(curWide)));
     expect(project(toDrizzle(wide))).toEqual(project(rawWide));
   });
-  it('a stored generated column keeps its mode', () => {
+  it('every builder materializes as its shipped twin does', () => {
+    expect(project(toDrizzle(every))).toEqual(project(curToDrizzle(curEvery)));
+    expect(dz.getTableConfig(toDrizzle(every)).columns).toHaveLength(7);
+  });
+  it('the dialect modifiers reach drizzle', () => {
+    const columns = dz.getTableConfig(toDrizzle(users)).columns;
+    expect(columns.find((column) => column.name === 'id')).toMatchObject({primary: true, autoIncrement: true, hasDefault: true});
+    // An integer primary key is the rowid, so drizzle gives it a default even without autoIncrement.
+    const plainPk = dz.getTableConfig(toDrizzle(sqliteTable('plain_pk', {id: integer({primaryKey: true})}))).columns;
+    expect(plainPk[0]).toMatchObject({primary: true, autoIncrement: false, hasDefault: true});
+    const textPk = dz.getTableConfig(toDrizzle(sqliteTable('text_pk', {key: text({primaryKey: true})}))).columns;
+    expect(textPk[0]).toMatchObject({primary: true, hasDefault: false});
+  });
+  it('a generated column keeps its config', () => {
     const stored = sqliteTable('stored', {derived: text({generatedAlwaysAs: ['x', {mode: 'stored'}]})});
     expect(project(toDrizzle(stored))).toEqual(
       project(dz.sqliteTable('stored', {derived: dz.text().generatedAlwaysAs('x', {mode: 'stored'})}))
     );
-  });
-  it('the autoIncrement primary key and the rowid reach drizzle', () => {
-    const columns = dz.getTableConfig(toDrizzle(users)).columns;
-    expect(columns.find((column) => column.name === 'id')).toMatchObject({primary: true, autoIncrement: true, hasDefault: true});
-    const plainPk = sqliteTable('plain_pk', {id: integer({primaryKey: true}), key: text({primaryKey: true})});
-    expect(project(toDrizzle(plainPk))).toEqual(
-      project(dz.sqliteTable('plain_pk', {id: dz.integer().primaryKey(), key: dz.text().primaryKey()}))
-    );
+    expect(dz.getTableConfig(toDrizzle(stored)).columns[0]!.generated).toMatchObject({as: 'x', mode: 'stored'});
   });
   it('tableFromType rebuilds the same table from the hand-written type, db names from the names map', () => {
     expect(project(toDrizzle(tableFromType<Users>()))).toEqual(project(rawUsers));
     expect(project(toDrizzle(tableFromType<Wide>()))).toEqual(project(rawWide));
     expect(tableFromType<Users>()).toBe(tableFromType<Users>());
+    expect(toDrizzle<Users>()).toBe(toDrizzle<Users>());
     expect(toDrizzle<Users>()).toBe(toDrizzle(tableFromType<Users>()));
   });
-  it('runtime callbacks ride tableFromType options, as on the shipped road', () => {
+  it('tableFromType takes runtime callbacks from options, and refuses a marker without one', () => {
     type Runtime = SqliteTable<'runtime_t', {id: Integer<{primaryKey: true}>; slug: Text<{notNull: true; $defaultFn: true}>}>;
     const builders = sqliteTable('runtime_t', {
       id: integer({primaryKey: true}),
@@ -216,6 +244,7 @@ describe('next sqlite columns: same drizzle table on every road', () => {
     const slugDefault = (table: unknown) =>
       (dz.getTableConfig(table as never).columns[1] as unknown as {defaultFn: () => unknown}).defaultFn();
     expect([slugDefault(toDrizzle(builders)), slugDefault(fromType)]).toEqual(['b', 't']);
+    expect(() => tableFromType<Runtime>()).toThrow(/carries the \$defaultFn marker/);
   });
   it('references resolve through tableRef() on builders and through options.tables on types', () => {
     expect(project(toDrizzle(members))).toEqual(project(curToDrizzle(curMembers)));
@@ -223,9 +252,9 @@ describe('next sqlite columns: same drizzle table on every road', () => {
     const fromTypes = toDrizzle<Members>({tables: {teams: () => teamsType}});
     expect(project(fromTypes)).toEqual(project(curToDrizzle(curMembers)));
   });
-  it('a marker call nested in another marker call gets its own id', () => {
-    const fromTypes = toDrizzle<Members>({tables: {teams: () => tableFromType<Teams>()}});
-    expect(project(fromTypes)).toEqual(project(curToDrizzle(curMembers)));
+  it('a tableFromType() nested in toDrizzle() options gets its own id', () => {
+    const nested = toDrizzle<MembersByRef>({tables: {teams: () => tableFromType<Teams>()}});
+    expect(project(nested)).toEqual(project(curToDrizzle(curMembers)));
   });
   it('a self-reference materializes on both roads', () => {
     expect(project(toDrizzle(emps))).toEqual(project(rawEmps));
@@ -234,10 +263,10 @@ describe('next sqlite columns: same drizzle table on every road', () => {
   });
   it('foreignKey takes a tableRef() for the other table', () => {
     const withFk = sqliteTable('with_fk', {teamId: integer('team_id')}, (t) => [
-      foreignKey({name: 'fk_team', columns: [t.teamId as never], foreignColumns: [tableRef(teams, 'id')]}),
+      foreignKey({name: 'fk_team', columns: [t.teamId], foreignColumns: [tableRef(teams, 'id')]}).onDelete('cascade'),
     ]);
     const curWithFk = cur.sqliteTable('with_fk', {teamId: cur.integer('team_id')}, (t) => [
-      cur.foreignKey({name: 'fk_team', columns: [t.teamId], foreignColumns: [curCols(curTeams).id]}),
+      cur.foreignKey({name: 'fk_team', columns: [t.teamId], foreignColumns: [curCols(curTeams).id]}).onDelete('cascade'),
     ]);
     expect(project(toDrizzle(withFk))).toEqual(project(curToDrizzle(curWithFk)));
   });
@@ -280,18 +309,21 @@ describe('next sqlite columns: same drizzle table on every road', () => {
     const typo = toDrizzle(tableFromType<Typo>({tables: {teams: teamsType}}));
     expect(() => dz.getTableConfig(typo).foreignKeys[0]!.reference()).toThrowError(/references no column "idd" in table "teams"/);
   });
+  it('a type reference with no table passed fails with an actionable error', () => {
+    expect(() => tableFromType<Members>({})).toThrow(/pass it via tableFromType options: \{tables: \{teams: \.\.\.\}\}/);
+  });
 });
 
 describe('next sqlite columns: table creators and the columns callback', () => {
-  it('sqliteTableCreator maps the table name, like the shipped creator', () => {
+  it('the table creator maps the table name like raw drizzle', () => {
     const create = sqliteTableCreator((name) => `app_${name}`);
-    const curCreate = cur.sqliteTableCreator((name) => `app_${name}`);
+    const rawCreate = dz.sqliteTableCreator((name) => `app_${name}`);
     const table = create('notes', {id: integer({primaryKey: true}), body: text('body_text', {notNull: true})});
-    const curTable = curCreate('notes', {id: cur.integer().primaryKey(), body: cur.text('body_text').notNull()});
-    expect(project(toDrizzle(table)).name).toBe('app_notes');
-    expect(project(toDrizzle(table))).toEqual(project(curToDrizzle(curTable)));
+    const rawTable = rawCreate('notes', {id: dz.integer().primaryKey(), body: dz.text('body_text').notNull()});
+    expect(dz.getTableConfig(toDrizzle(table)).name).toBe('app_notes');
+    expect(project(toDrizzle(table))).toEqual(project(rawTable));
   });
-  it('a creator and sqliteTable hand a columns callback the new builders', () => {
+  it('the table builder and the table creator hand a columns callback the new builders', () => {
     const create = sqliteTableCreator((name) => `app_${name}`);
     const byCallback = create('notes', (helpers) => ({id: helpers.int({primaryKey: true}), body: helpers.text({notNull: true})}));
     const plain = sqliteTable('notes', (helpers) => ({id: helpers.int({primaryKey: true}), body: helpers.text({notNull: true})}));
@@ -309,16 +341,21 @@ describe('next sqlite columns: one runtype id for builder and hand-written table
     expect(getRunTypeId<Users>()).toBeTruthy();
     expect(getRunTypeId<Users>()).toBe(getRunTypeId<typeof users>());
     expect(getRunTypeId<Wide>()).toBe(getRunTypeId<typeof wide>());
+    expect(getRunTypeId<next.InferSelectModel<Users>>()).toBeTruthy();
+    expect(getRunTypeId<next.InferInsertModel<Users>>()).toBeTruthy();
     expect(getRunTypeId<next.InferSelectModel<Users>>()).toBe(getRunTypeId<InferSelectModel<typeof curUsers>>());
     expect(getRunTypeId<next.InferInsertModel<Users>>()).toBe(getRunTypeId<InferInsertModel<typeof curUsers>>());
     expect(getRunTypeId<next.InferInsertModel<Wide>>()).toBe(getRunTypeId<InferInsertModel<typeof curWide>>());
   });
   it('reflection form: the table and its models share one id', () => {
+    expect(getRunTypeId(users)).toBeTruthy();
     expect(getRunTypeId(users)).toBe(getRunTypeId<Users>());
     expect(getRunTypeId(wide)).toBe(getRunTypeId<Wide>());
     const row = {} as next.InferSelectModel<typeof users>;
+    expect(getRunTypeId(row)).toBeTruthy();
     expect(getRunTypeId(row)).toBe(getRunTypeId<InferSelectModel<typeof curUsers>>());
     const insert = {} as next.InferInsertModel<typeof users>;
+    expect(getRunTypeId(insert)).toBeTruthy();
     expect(getRunTypeId(insert)).toBe(getRunTypeId<InferInsertModel<typeof curUsers>>());
   });
   it('static form: a TableRef reference reflects as its plain {table, column}', () => {
@@ -326,18 +363,17 @@ describe('next sqlite columns: one runtype id for builder and hand-written table
     expect(getRunTypeId<MembersByRef>()).toBe(getRunTypeId<typeof members>());
   });
   it('reflection form: a TableRef reference reflects as its plain {table, column}', () => {
+    expect(getRunTypeId(members)).toBeTruthy();
     expect(getRunTypeId(members)).toBe(getRunTypeId<MembersByRef>());
   });
 });
 
-describe('next sqlite columns: views and custom types', () => {
-  it('a view materializes the same drizzle view as the shipped builders, under both names', () => {
+describe('next sqlite columns: views, enums and custom types', () => {
+  it('a view materializes the same drizzle view as the shipped builders', () => {
     const query = sql`select user_name from users`;
     const byView = sqliteView('active', {name: text('user_name', {length: 10, notNull: true})}).as(query);
-    const byAlias = view('active', {name: text('user_name', {length: 10, notNull: true})}).as(query);
     const curView = cur.sqliteView('active', {name: cur.text('user_name', {length: 10}).notNull()}).as(query);
     expect(projectView(toDrizzle(byView))).toEqual(projectView(curToDrizzle(curView)));
-    expect(projectView(toDrizzle(byAlias))).toEqual(projectView(curToDrizzle(curView)));
   });
   it('an existing view materializes as the shipped one does', () => {
     const existing = sqliteView('old', {id: integer({notNull: true})}).existing();
@@ -359,6 +395,13 @@ describe('next sqlite columns: views and custom types', () => {
     type WithCustom = SqliteTable<'with_custom', {at: CustomCol<{x: number}, {notNull: true}>}>;
     expect(() => tableFromType<WithCustom>()).toThrow(/custom column, which needs its runtime handle/);
   });
+  it('only sqlite: the view alias is the same factory', () => {
+    expect(view).toBe(sqliteView);
+    const query = sql`select user_name from users`;
+    const byAlias = view('active', {name: text('user_name', {length: 10, notNull: true})}).as(query);
+    const curView = cur.view('active', {name: cur.text('user_name', {length: 10}).notNull()}).as(query);
+    expect(projectView(toDrizzle(byAlias))).toEqual(projectView(curToDrizzle(curView)));
+  });
 });
 
 describe('next sqlite columns: one column shape is one runtype entry', () => {
@@ -370,6 +413,13 @@ describe('next sqlite columns: one column shape is one runtype entry', () => {
     type Orders = SqliteTable<'orders', {total: Integer<{notNull: true}>}, [], {total: 'order_total'}>;
     type Items = SqliteTable<'items', {qty: Integer<{notNull: true}>}>;
     expect(columnId(getRunType<Orders>() as ReflectedNode, 'total')).toBe(columnId(getRunType<Items>() as ReflectedNode, 'qty'));
+  });
+  it('the shipped type road reflects one id per column name', () => {
+    type Orders = cur.SqliteTable<'orders', {total: cur.Integer<'order_total', {notNull: true}>}>;
+    type Items = cur.SqliteTable<'items', {qty: cur.Integer<'qty', {notNull: true}>}>;
+    expect(columnId(getRunType<Orders>() as ReflectedNode, 'total')).not.toBe(
+      columnId(getRunType<Items>() as ReflectedNode, 'qty')
+    );
   });
 });
 
