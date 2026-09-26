@@ -16,7 +16,7 @@
 //   hand-written serialization anywhere.
 
 import {describe, it, expect} from 'vitest';
-import {initClient} from '../src/client.ts';
+import {initClient} from './lib/fetchingClient.ts';
 import {HeadersSubset} from '@mionjs/core';
 import {TestServerApi} from '@mionjs/test-server';
 import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';

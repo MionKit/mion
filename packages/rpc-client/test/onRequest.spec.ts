@@ -8,7 +8,7 @@
 import {describe, it, expect, expectTypeOf, vi, afterEach} from 'vitest';
 import {HeadersSubset, RpcError, routesCache} from '@mionjs/core';
 import {TestServerApi} from '@mionjs/test-server';
-import {initClient} from '../src/client.ts';
+import {initClient} from './lib/fetchingClient.ts';
 import {batch} from '../src/batch.ts';
 import {purgeHydratedMetadata} from '../src/lib/clientMethodsMetadata.ts';
 import {getMetadataStore} from '../src/lib/metadataStore.ts';

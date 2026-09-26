@@ -19,7 +19,7 @@
  */
 
 import {describe, it, expect} from 'vitest';
-import {initClient} from '../src/client.ts';
+import {initClient} from './lib/fetchingClient.ts';
 import {batch} from '../src/batch.ts';
 import {isRpcError, isFatalError, FatalError, RpcError, HeadersSubset} from '@mionjs/core';
 import {TestServerApi, ScopedAuthError} from '@mionjs/test-server';

@@ -6,8 +6,7 @@
  * ######## */
 
 import {isRpcError, addRoutesToCache, isUnsafePropertyName, hasJitFnsForMethod, RpcError} from '@mionjs/core';
-import {MION_ROUTES} from '@mionjs/core';
-import {ClientOptions, SubRequest} from '../types.ts';
+import {ClientOptions} from '../types.ts';
 import type {
   CompiledFnData,
   MethodsCache,
@@ -24,9 +23,6 @@ import type {MetadataKind, MetadataRecord, MetadataRecordKey, MetadataStore, Sto
 import {findOrphans, type CacheGraph} from './metadataEviction.ts';
 import {requestPersistenceWhenSilent} from './persistentStorage.ts';
 import {isBundledMethod, setFetchedMethods} from './methods.ts';
-import {registerMetadataCacheHooks, type MetadataCacheHooks} from './metadataFromServerLoader.ts';
-
-type MetadataRouteKey = typeof MION_ROUTES.methodsMetadata | typeof MION_ROUTES.methodsMetadataById;
 
 /** What the cache knows about one stored record, without holding its text. Enough to pick the
  *  oldest rows when room is needed, and to skip re-writing an entry that is already down. */
@@ -85,7 +81,7 @@ function storedKey(kind: MetadataKind, id: string): string {
 }
 
 /** Extracts raw metadata from a parsed response body, unwraps the JIT union discriminator, and processes it. */
-export function extractAndProcessMetadata(routeKey: MetadataRouteKey, parsedBody: any, options: ClientOptions): void {
+export function extractAndProcessMetadata(routeKey: string, parsedBody: any, options: ClientOptions): void {
   if (typeof parsedBody !== 'object' || !(routeKey in parsedBody)) return;
   const rawMetadata = parsedBody[routeKey];
   delete parsedBody[routeKey];
@@ -445,16 +441,6 @@ export function resetMetadataCacheState(): void {
   pendingCacheError = undefined;
 }
 
-/** Creates a SubRequest for the metadata middleware to piggyback on an optimistic request */
-export function createMetadataSubRequest(methodIds: string[]): SubRequest<any> {
-  return {
-    pointer: [MION_ROUTES.methodsMetadata],
-    id: MION_ROUTES.methodsMetadata,
-    isResolved: false,
-    params: [methodIds],
-  };
-}
-
 /** Saves rows answered outside the metadata route: a stored row that later disagrees with its server is relearned.
  *  `replaceIds` go first: the fetched shelf never overwrites a row. */
 export function installMethodRows(
@@ -474,9 +460,3 @@ function addToCaches(serializableMethodsData: SerializableMethodsData) {
 // Registered here rather than in metadataFromServer.ts: its pieces are public API and a consumer
 // can import one directly, so this module evaluating IS the moment the fetched lane exists.
 setFetchedMethods(routesCache);
-registerMetadataCacheHooks({
-  extractAndProcessMetadata: extractAndProcessMetadata as MetadataCacheHooks['extractAndProcessMetadata'],
-  takeMetadataCacheError,
-  wasHydratedFromCache,
-  purgeHydratedMetadata,
-});

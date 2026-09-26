@@ -8,7 +8,7 @@
 import {describe, it, expect} from 'vitest';
 import {existsSync, readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
-import {initClient} from '../src/client.ts';
+import {initClient} from './lib/fetchingClient.ts';
 import {batch} from '../src/batch.ts';
 import {HeadersSubset} from '@mionjs/core';
 import type {TestServerApi} from '@mionjs/test-server';

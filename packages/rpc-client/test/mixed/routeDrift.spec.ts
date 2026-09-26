@@ -13,18 +13,19 @@ import {createServer, type Server} from 'node:http';
 import {routesCache} from '@mionjs/core';
 import {createMionRouter, resetRouter} from '@mionjs/router';
 import type {MionRouter, PublicApi} from '@mionjs/router';
-import {mionSyncRoutes} from '@mionjs/router/middlewares';
+import {mionMethodsMetadata, mionSyncRoutes} from '@mionjs/router/middlewares';
 import {httpRequestHandler} from '@mionjs/platform-node';
 import {initClient} from '../../src/client.ts';
 import type {RouteSubRequest} from '../../src/types.ts';
 import {resetBundledApi} from '../../src/lib/bundledApi.ts';
 import {useSyncRoutes} from '../../src/middlewares/syncRoutes.ts';
+import {useMethodsMetadata} from '../../src/middlewares/methodsMetadata.ts';
 import {resetApiBuildVersion} from '../../src/lib/apiBuildVersion.ts';
 import {resetApiVersionRecovery} from '../../src/lib/apiVersionRecovery.ts';
 import {resetMetadataStore} from '../../src/lib/metadataStore.ts';
 import {flushMetadataCache, resetMetadataCacheState} from '../../src/lib/clientMethodsMetadata.ts';
 
-const options = {skipClientRoutes: false} as const;
+const options = {} as const;
 type Mion = MionRouter<typeof options>;
 
 /** How many times each handler ran: a refused call leaves its count alone. */
@@ -33,6 +34,7 @@ const count = (id: string) => (handlerCalls[id] = (handlerCalls[id] ?? 0) + 1);
 
 /** What the client was built against. */
 const oldRoutes = (mion: Mion) => ({
+  ...mionMethodsMetadata,
   mionSyncRoutes,
   same: mion.route((ctx, value: number): number => (count('same'), value + 1)),
   paramsChanged: mion.route((ctx, name: string): string => (count('paramsChanged'), name)),
@@ -48,6 +50,7 @@ const oldRoutes = (mion: Mion) => ({
 
 /** What the server runs now: each route differs from the old one in one way, or not at all. */
 const newRoutes = (mion: Mion) => ({
+  ...mionMethodsMetadata,
   mionSyncRoutes,
   same: mion.route((ctx, value: number): number => (count('same'), value + 1)),
   paramsChanged: mion.route((ctx, name: string, age: number): string => (count('paramsChanged'), `${name} ${age}`)),
@@ -87,6 +90,7 @@ function reloadClient() {
   resetApiVersionRecovery();
   // what the build injects for OldApi, spelled out for the same reason as in `serve`
   const client = initClient<OldApi>({baseURL, storageEngine: 'memory'}, 'old');
+  useMethodsMetadata(client.middlewares.mionMethodsMetadata);
   useSyncRoutes(client.middlewares.mionSyncRoutes);
   return client;
 }

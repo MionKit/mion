@@ -78,7 +78,7 @@ function wrapStore(inner: MetadataStore, overrides: Partial<MetadataStore>): Met
 }
 
 function receiveFromServer(data: unknown): void {
-  extractAndProcessMetadata(MION_ROUTES.methodsMetadata, {[MION_ROUTES.methodsMetadata]: data}, options);
+  extractAndProcessMetadata('mionMethodsMetadata', {['mionMethodsMetadata']: data}, options);
 }
 
 /** A store that refuses the first `failures` writes with the error a full browser raises. */
@@ -278,7 +278,7 @@ describe('the metadata cache around its store', () => {
     };
     const appOptions: ClientOptions = {...options, storageEngine: () => appStore};
 
-    extractAndProcessMetadata(MION_ROUTES.methodsMetadata, {[MION_ROUTES.methodsMetadata]: payload('sayHi', 'h1')}, appOptions);
+    extractAndProcessMetadata('mionMethodsMetadata', {['mionMethodsMetadata']: payload('sayHi', 'h1')}, appOptions);
     await flushMetadataCache();
 
     expect(calls).toContain('write');
@@ -318,7 +318,7 @@ describe('the metadata cache around its store', () => {
     await inner.write([{baseURL, kind: 'j', id: 'ancient', json: '{}', ts: 1}]);
     await hydrateMetadataCache(appOptions);
 
-    extractAndProcessMetadata(MION_ROUTES.methodsMetadata, {[MION_ROUTES.methodsMetadata]: payload('sayHi', 'h1')}, appOptions);
+    extractAndProcessMetadata('mionMethodsMetadata', {['mionMethodsMetadata']: payload('sayHi', 'h1')}, appOptions);
     await flushMetadataCache();
 
     expect(removed).toContain('j:ancient');

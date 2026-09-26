@@ -10,12 +10,12 @@
 
 import {expect} from 'vitest';
 import {parseAst} from 'vite';
-import {MION_ROUTES, getJitFnHashes, getRoutePath} from '@mionjs/core';
+import {getJitFnHashes, getRoutePath} from '@mionjs/core';
 import type {ParserStrategy, SerializableMethodsData} from '@mionjs/core';
 import {getRTUtils} from '@mionjs/run-types/runtime';
 import type {InjectApiMetadata} from '@mionjs/run-types';
 import type {TestServerApi} from '@mionjs/test-server';
-import {initClient} from '../../src/client.ts';
+import {initClient} from './fetchingClient.ts';
 import {resetBundledApi} from '../../src/lib/bundledApi.ts';
 import {bundledMethodIds, getMethod} from '../../src/lib/methods.ts';
 import type {InjectedApiMetadata} from '../../src/types.ts';
@@ -37,15 +37,15 @@ const everyMethod = {
 };
 
 async function serverRows(baseURL: string): Promise<SerializableMethodsData> {
-  const url = new URL(getRoutePath([MION_ROUTES.methodsMetadataById], {basePath: '', suffix: ''} as never), baseURL);
+  const url = new URL(getRoutePath(['mionMethodsMetadataById'], {basePath: '', suffix: ''} as never), baseURL);
   const response = await fetch(url, {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({[MION_ROUTES.methodsMetadataById]: [[], true]}),
+    body: JSON.stringify({['mionMethodsMetadataById']: [[], true]}),
   });
   expect(response.ok).toBe(true);
   const body = (await response.json()) as Record<string, unknown>;
-  const envelope = body[MION_ROUTES.methodsMetadataById];
+  const envelope = body['mionMethodsMetadataById'];
   return (Array.isArray(envelope) ? envelope[1] : envelope) as SerializableMethodsData;
 }
 

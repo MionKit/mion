@@ -7,9 +7,9 @@
 
 // Rides the `#metadata-from-server` chunk: like the fetch, it runs only when the bundle comes up short.
 
-import {RpcError, MION_ROUTES} from '@mionjs/core';
+import {RpcError} from '@mionjs/core';
 import type {MethodWithOptions, SerializableMethodsData} from '@mionjs/core';
-import type {ClientOptions, SubRequest} from '../types.ts';
+import type {ClientOptions} from '../types.ts';
 import {stashApiVersionError} from './apiBuildVersion.ts';
 import {getMethod, isBundledMethod} from './methods.ts';
 import {installMethodRows} from './clientMethodsMetadata.ts';
@@ -32,17 +32,6 @@ export function unverifiedIds(baseURL: string, ids: string[]): string[] {
 /** Tests only: forgets which routes were confirmed. */
 export function resetApiVersionRecovery(): void {
   verifiedIds.clear();
-}
-
-/** Rides a request the client was making anyway, so a mismatch costs no round trip.
- *  The server answers unfiltered: only this side holds both rows, so only it can compare. */
-export function createVerifySubRequest(methodIds: string[]): SubRequest<any> {
-  return {
-    pointer: [MION_ROUTES.methodsMetadata],
-    id: MION_ROUTES.methodsMetadata,
-    isResolved: false,
-    params: [methodIds],
-  } as SubRequest<any>;
 }
 
 /** A fetched row is a cache: replaced and saved. A bundled one is what the calling code was built against: reported. */

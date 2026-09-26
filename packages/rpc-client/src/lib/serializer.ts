@@ -8,7 +8,6 @@
 import type {ResponseBody} from '@mionjs/router';
 import {type MethodWithJitFns, RpcError, isRpcError, MION_ROUTES, HandlerType} from '@mionjs/core';
 import type {CallContext} from '../types.ts';
-import {metadataCacheHooks} from './metadataFromServerLoader.ts';
 import {useMethodFns} from './methods.ts';
 import {hasHeadersSubsetParam} from './headers.ts';
 import {ClientOptions} from '../types.ts';
@@ -39,11 +38,6 @@ function serializeJsonBody(context: CallContext): string {
     const subRequest = context.subRequestList[id];
     if (!subRequest) continue;
     let params = subRequest.params;
-    // mion's own middleware takes plain JSON (it parses params as a clone), and a client compiles none for it.
-    if (id === MION_ROUTES.methodsMetadata) {
-      props.push(`${JSON.stringify(id)}:${JSON.stringify(params)}`);
-      continue;
-    }
     const method = useMethodFns(id);
     if (method.type === HandlerType.headersMiddleware && method.headersParam) {
       params = getParamsWithoutHeadersSubset(params);
@@ -111,16 +105,17 @@ export function wireFormReplacer(this: unknown, key: string, value: unknown): un
 
 // ################################## DE-SERIALIZE ##################################
 
+/** `takeRaw` runs on the parsed body before anything decodes, and may hand back entries to add untouched. */
 export async function deserializeResponseBody(
   response: Response,
   options: ClientOptions,
-  liftMetadataRows = false
+  takeRaw?: (parsedBody: Record<string, unknown>) => Record<string, unknown> | undefined
 ): Promise<ResponseBody> {
   let parsedBody: any;
   const contentType = response.headers.get('content-type')?.toLowerCase();
   switch (true) {
     case !!contentType?.includes('application/json'):
-      parsedBody = await deserializeJsonResponseBody(response, options, liftMetadataRows);
+      parsedBody = await deserializeJsonResponseBody(response, takeRaw);
       break;
     default:
       throw new RpcError({
@@ -131,23 +126,13 @@ export async function deserializeResponseBody(
   return parsedBody;
 }
 
-async function deserializeJsonResponseBody(response: Response, options: ClientOptions, liftMetadataRows: boolean) {
+async function deserializeJsonResponseBody(
+  response: Response,
+  takeRaw: ((parsedBody: Record<string, unknown>) => Record<string, unknown> | undefined) | undefined
+) {
   try {
     const parsedBody = await response.json();
-    // Lifted before the cache hook below, which consumes the same slot: these rows belong to this call, not the store.
-    // Kept raw, or the loop further down would look for compiled functions under the metadata route's own id.
-    let askedRows: unknown;
-    if (liftMetadataRows) {
-      askedRows = parsedBody[MION_ROUTES.methodsMetadata];
-      if (askedRows !== undefined) delete parsedBody[MION_ROUTES.methodsMetadata];
-    }
-    // Runs without jit functions, and deletes the entries it processed. No lane means nothing to do:
-    // a response only carries metadata when the client asked, and asking awaits the lane first.
-    const cache = metadataCacheHooks();
-    if (cache) {
-      cache.extractAndProcessMetadata(MION_ROUTES.methodsMetadata, parsedBody, options);
-      cache.extractAndProcessMetadata(MION_ROUTES.methodsMetadataById, parsedBody, options);
-    }
+    const rawEntries = parsedBody && typeof parsedBody === 'object' ? takeRaw?.(parsedBody) : undefined;
     // kept out of the body, so the wire's returned-vs-thrown split survives
     const {platformError, thrownErrors} = extractThrownErrors(parsedBody);
     if (platformError) return {[MION_ROUTES.platformError]: platformError};
@@ -157,7 +142,7 @@ async function deserializeJsonResponseBody(response: Response, options: ClientOp
       deserializedBody[methodId] = parseHandlerJsonReturnValue(method, returnValue);
     });
     if (thrownErrors) deserializedBody[MION_ROUTES.thrownErrors] = thrownErrors as any;
-    if (askedRows !== undefined) deserializedBody[MION_ROUTES.methodsMetadata] = askedRows as any;
+    if (rawEntries) Object.assign(deserializedBody, rawEntries);
     return deserializedBody;
   } catch (err: any) {
     throw new RpcError({

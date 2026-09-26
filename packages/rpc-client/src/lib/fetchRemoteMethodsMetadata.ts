@@ -5,26 +5,27 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {isRpcError, MION_ROUTES, getRoutePath} from '@mionjs/core';
+import {isRpcError, MION_ROUTES, getRoutePath, RpcError} from '@mionjs/core';
 import {ClientOptions, RequestBody} from '../types.ts';
-import {hydrateMetadataCache} from './clientMethodsMetadata.ts';
-import {deserializeResponseBody} from './serializer.ts';
+import {extractAndProcessMetadata, hydrateMetadataCache} from './clientMethodsMetadata.ts';
 import {hasMethod} from './methods.ts';
 
-/** Fetched lane only: a bundled client refuses a method its bundle lacks before the lane loads. */
+/** The by-id route `mionMethodsMetadata` spreads into the routes, next to its middleware. */
+export const METHODS_METADATA_BY_ID = 'mionMethodsMetadataById';
+
+/** Fetched lane only: asks the by-id route for rows, without running any route. */
 export async function fetchRemoteMethodsMetadata(
   methodIds: string[],
   options: ClientOptions,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  byIdRouteId: string = METHODS_METADATA_BY_ID
 ): Promise<void> {
   await hydrateMetadataCache(options);
   const missingAfterLocal = methodIds.filter((path) => !hasMethod(path));
   if (!missingAfterLocal.length) return;
-  const body: RequestBody = {
-    [MION_ROUTES.methodsMetadataById]: [missingAfterLocal],
-  };
+  const body: RequestBody = {[byIdRouteId]: [missingAfterLocal]};
   try {
-    const path = getRoutePath([MION_ROUTES.methodsMetadataById], options);
+    const path = getRoutePath(byIdRouteId.split('/'), options);
     const url = new URL(path, options.baseURL);
     const response = await fetch(url, {
       method: 'POST',
@@ -32,9 +33,11 @@ export async function fetchRemoteMethodsMetadata(
       body: JSON.stringify(body),
       signal,
     });
-    const deserialized = await deserializeResponseBody(response, options);
-    const platformError = deserialized[MION_ROUTES.platformError];
-    if (isRpcError(platformError)) throw platformError;
+    // the route pins the built-in parser on both wires, so its answer is plain JSON
+    const parsedBody = await response.json();
+    const platformError = parsedBody?.[MION_ROUTES.thrownErrors]?.[MION_ROUTES.platformError];
+    if (isRpcError(platformError)) throw new RpcError(platformError);
+    extractAndProcessMetadata(byIdRouteId, parsedBody, options);
     const stillMissing = missingAfterLocal.filter((id) => !hasMethod(id));
     if (stillMissing.length) throw new Error(`Failed to fetch metadata for: ${stillMissing.join(', ')}`);
   } catch (error: any) {

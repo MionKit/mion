@@ -9,6 +9,7 @@ import type {SyncRoutesHandler} from '@mionjs/core/middlewares';
 import type {CallContext, ClientMiddlewareOf} from '../types.ts';
 import {getMethod, isBundledMethod} from '../lib/methods.ts';
 import {loadMetadataFromServer} from '../lib/metadataFromServerLoader.ts';
+import {metadataFetcherOf} from '../lib/metadataFetcher.ts';
 
 /** Client half of `mionSyncRoutes`: sends each route's sync id, and resends once when the server asks for it. */
 export function useSyncRoutes(middleware: ClientMiddlewareOf<SyncRoutesHandler>): void {
@@ -24,11 +25,11 @@ export function useSyncRoutes(middleware: ClientMiddlewareOf<SyncRoutesHandler>)
   // a fetched row is a cache of the server's and can be relearned; a bundled one needs a new build
   middleware.onError('route-types-mismatch', async (refusal, context) => {
     const refusedIds = refusal.errorData?.routeIds;
-    if (!refusedIds?.length || refusedIds.some((id) => isBundledMethod(id))) return;
-    const lane = await loadMetadataFromServer();
-    await lane.forgetFetchedMetadata(refusedIds, context.options);
+    const fetcher = metadataFetcherOf(middleware);
+    if (!fetcher || !refusedIds?.length || refusedIds.some((id) => isBundledMethod(id))) return;
+    await (await loadMetadataFromServer()).forgetFetchedMetadata(refusedIds, context.options);
     // fetched here rather than on a second refusal: a call gets one resend per middleware
-    await lane.fetchRemoteMethodsMetadata(refusedIds, context.options, context.signal);
+    await fetcher.fetchRows(refusedIds, context.options, context.signal);
     context.retry();
   });
 }
