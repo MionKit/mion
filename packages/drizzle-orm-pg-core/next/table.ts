@@ -80,7 +80,7 @@ export function pgTable(name: string, columns: ColumnsArg<Record<string, unknown
   return createRtTable(name, resolveColumns(columns), extraConfig as never, pgBuildTable);
 }
 
-/** Drizzle's pgTableCreator over the new columns: the shipped recorder, handed resolved columns. */
+/** Drizzle's pgTableCreator over the new columns. */
 export function pgTableCreator(customizeTableName: (name: string) => string): typeof pgTable {
   const createTable = shippedPgTableCreator(customizeTableName);
   return ((name: string, columns: ColumnsArg<Record<string, unknown>>, extraConfig?: unknown) =>

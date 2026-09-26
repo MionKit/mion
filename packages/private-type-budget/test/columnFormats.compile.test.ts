@@ -349,7 +349,7 @@ interface Dialect {
   mixedReads: Array<[string, string]>;
   wide: ColSpec[];
   wideReads: Array<[string, string]>;
-  /** The plain nullable int column: builder and type names. */
+  /** The plain nullable int column. */
   int: {fn: string; type: string};
   /** The referenced table's primary key: builder call, shipped type, new type, new builder call. */
   refId: {curB: string; curT: string; newT: string; newB: string};

@@ -12,11 +12,10 @@ import {describe, it, expect} from 'vitest';
 import {readFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 
-/** Every dialect with a next/ folder, in prefix order. A new dialect joins the check here. */
+/** Every dialect with a next/ folder, in the order an only list names them; a new dialect joins the check here. */
 const DIALECTS = ['pg', 'mysql', 'sqlite'] as const;
 type Dialect = (typeof DIALECTS)[number];
 
-/** The per-dialect test files compared, relative to the dialect package. */
 const FILES = [
   'test/next/typeTables.spec.ts',
   'test/next/type-pins.stub.ts',
@@ -41,7 +40,6 @@ interface Item {
   expected: readonly Dialect[];
 }
 
-/** An `only` prefix's dialect list, checked for order; undefined when the text has none. */
 function onlyList(text: string, where: string, errors: string[]): {rest: string; dialects?: Dialect[]} {
   const match = ONLY_PREFIX.exec(text);
   if (!match) return {rest: text};
@@ -87,7 +85,6 @@ function itemsOf(source: string, where: string, errors: string[]): Item[] {
   return items;
 }
 
-/** Every mismatch across dialects, one line each. */
 export function parityErrors(read: (dialect: Dialect, file: string) => string): string[] {
   const errors: string[] = [];
   for (const file of FILES) {

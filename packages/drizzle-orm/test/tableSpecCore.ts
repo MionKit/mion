@@ -168,7 +168,7 @@ export function buildTable(surface: Surface, spec: TableSpec, tableName: string)
   return surface.table(tableName, columns, extraConfig as never);
 }
 
-/** A view's manual columns, chained or in one call as the surface builds them; never shared with a table. */
+/** A view's manual columns, never shared with a table. */
 export function buildViewColumns(surface: Surface, columnSpecs: ColumnSpec[]): Record<string, unknown> {
   const columns: Record<string, unknown> = {};
   for (const columnSpec of columnSpecs) {
