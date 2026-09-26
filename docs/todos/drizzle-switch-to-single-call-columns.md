@@ -170,6 +170,26 @@ pg numbers, after the stray-key check (`Only<P, Allowed>`); mysql and sqlite hav
 - The drizzle-e2e lane: drizzle's own suites translated by the new drizzle-migrate, for all five
   lanes.
 
+## Tests the switch must carry to the new columns
+
+The side-by-side PR made the three `next/` dialects mirror each other (a parity test, `packages/drizzle-orm/test/nextDialectParity.spec.ts`, fails on any test one dialect has and another lacks unless it is marked `only <dialects>:`). These checks exist today only for the shipped columns, often for pg only, and must move to the new columns in all three dialects when the shipped ones go:
+
+- Builder completeness against drizzle (`drizzle-orm-pg-core/test/completeness.spec.ts`, and the column-only copies inside the mysql and sqlite `index.spec.ts`): retarget from chain methods to the props interfaces, so a drizzle upgrade that adds a modifier still fails; include entry builders, table own methods and view builders for every dialect.
+- Validators compiled from the models: accepts a valid row, enforces captured and refined params (formats, ranges, integers, dates, enums), insert rejects a missing required column, patch is partial.
+- extraConfig keyed-object form and grouped-array flattening.
+- The extras tuple on the type road (TableEntry index / unique / check / foreignKey) and models ignoring it.
+- `$` marker without its `options.runtime` callback, and a callback without its marker, both refused.
+- A thunk in `options.tables` for a table declared later, and `toDrizzle` refusing a value that is neither table, handle nor options.
+- pg row level security policies and roles, and `pgSequence`, on the new surface.
+- Boundary pins: a drizzle row is plain data, rows flow into the models, insert and update take the models, a nominal `$type` brand survives.
+- `RefinedTable` rejections on the type road (unknown key, wrong param, boolean / enum / family change).
+- `nestedMarkerCalls.spec.ts` for every dialect.
+- `packages/private-type-budget/test/typeRoad.compile.test.ts`, `modelPipeline.compile.test.ts` and `laneComparison.compile.test.ts` for every dialect, and the shipped drizzle-free source replaced by the next/ template.
+- The rpc-client e2e (`packages/rpc-client/test/drizzleModels.e2e.spec.ts` via `packages/private-test-server/`) declares only a pg table.
+- `packages/devtools/test/publish-order.test.ts` and `test-pr.test.ts` name only the pg package.
+- Convert and migrate tests (`ts-go-runtypes/internal/convert/drizzle_test.go`, `internal/drizzlemigrate/migrate_test.go`, `drizzleConvert.integration.spec.ts`) are almost all pg: rewrite them for the new shape in all three dialects as part of the convert and drizzle-migrate work above.
+- Every new test file joins the parity test's file list; every new dialect joins its `DIALECTS` array.
+
 ## Docs
 
 `container/website/content/01.rpc/04.drizzle-orm/`: every page showing a column changes to
