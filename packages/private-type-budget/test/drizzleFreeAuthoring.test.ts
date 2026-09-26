@@ -49,80 +49,110 @@ type UsersType = PgTable<'users', {name: Varchar<'name', {length: 100; notNull: 
 export const handWritten: InferSelectModel<UsersType> = {name: row.name, age: 21} as never;
 `;
 
-// The side-by-side columns (each drizzle package's next/ folder) make the same promise.
-const NEXT_SOURCE = `
-import {pgTable, varchar, integer, timestamp, pgView} from '../../drizzle-orm-pg-core/next/index.ts';
-import type {Varchar, Integer, PgTable} from '../../drizzle-orm-pg-core/next/index.ts';
-import {index} from '@mionjs/drizzle-orm-pg-core';
+// The side-by-side columns (each drizzle package's next/ folder) make the same promise, in every dialect.
+interface NextDialect {
+  dialect: 'pg' | 'mysql' | 'sqlite';
+  table: string;
+  tableType: string;
+  view: string;
+  creator: string;
+  text: string;
+  textType: string;
+  int: string;
+  intType: string;
+  /** A notNull date column: its builder and its call. */
+  date: string;
+  createdAt: string;
+  /** What only this dialect has: enums, schemas, row level security. */
+  extras: string;
+  /** Ambient types the program needs besides drizzle's. */
+  types: string[];
+}
+const NEXT_DIALECTS: NextDialect[] = [
+  {
+    dialect: 'pg',
+    table: 'pgTable',
+    tableType: 'PgTable',
+    view: 'pgView',
+    creator: 'pgTableCreator',
+    text: 'varchar',
+    textType: 'Varchar',
+    int: 'integer',
+    intType: 'Integer',
+    date: 'timestamp',
+    createdAt: `timestamp('created_at', {mode: 'date', notNull: true, defaultNow: true})`,
+    extras: `import {pgEnum, pgSchema} from '../../drizzle-orm-pg-core/next/index.ts';
+const roleEnum = pgEnum('role', ['admin', 'user']);
+export const withEnum = pgTable('with_enum', {role: roleEnum('role', {notNull: true})});
+export const audit = pgSchema('audit').table('events', {id: integer('id', {primaryKey: true})});
+export const rlsUsers = pgTable('rls_users', {name: varchar('name', {length: 10})}).enableRLS();`,
+    types: [],
+  },
+  {
+    dialect: 'mysql',
+    table: 'mysqlTable',
+    tableType: 'MysqlTable',
+    view: 'mysqlView',
+    creator: 'mysqlTableCreator',
+    text: 'varchar',
+    textType: 'Varchar',
+    int: 'int',
+    intType: 'Int',
+    date: 'timestamp',
+    createdAt: `timestamp('created_at', {mode: 'date', notNull: true, defaultNow: true})`,
+    extras: `import {mysqlEnum, mysqlSchema} from '../../drizzle-orm-mysql-core/next/index.ts';
+export const withEnum = mysqlTable('with_enum', {role: mysqlEnum('role', ['admin', 'user'], {notNull: true})});
+export const audit = mysqlSchema('audit').table('events', {id: int('id', {primaryKey: true})});`,
+    types: [],
+  },
+  {
+    dialect: 'sqlite',
+    table: 'sqliteTable',
+    tableType: 'SqliteTable',
+    view: 'sqliteView',
+    creator: 'sqliteTableCreator',
+    text: 'text',
+    textType: 'Text',
+    int: 'integer',
+    intType: 'Integer',
+    date: 'integer',
+    createdAt: `integer('created_at', {mode: 'timestamp', notNull: true})`,
+    extras: '',
+    // drizzle types sqlite's blob buffer mode as Node's Buffer, so that program needs Node's types.
+    types: ['node'],
+  },
+];
+
+const nextSource = (names: NextDialect) => {
+  const {dialect, table, tableType, view, creator, text, textType, int, intType, date} = names;
+  const builders = [...new Set([table, text, int, view, creator, date])].join(', ');
+  return `
+import {${builders}} from '../../drizzle-orm-${dialect}-core/next/index.ts';
+import type {${textType}, ${intType}, ${tableType}} from '../../drizzle-orm-${dialect}-core/next/index.ts';
+import {index} from '@mionjs/drizzle-orm-${dialect}-core';
 import {sql} from '@mionjs/drizzle-orm';
 import {refineTableType} from '../../drizzle-orm/next/index.ts';
 import type {InferSelectModel, InferSelectViewModel, InferInsertModel, InferUpdateModel} from '../../drizzle-orm/next/index.ts';
 
-const users = pgTable('users', {
-  name: varchar('name', {length: 100, notNull: true}),
-  age: integer('age', {notNull: true}),
-  createdAt: timestamp('created_at', {mode: 'date', notNull: true, defaultNow: true}),
+const users = ${table}('users', {
+  name: ${text}('name', {length: 100, notNull: true}),
+  age: ${int}('age', {notNull: true}),
+  createdAt: ${names.createdAt},
 }, (t) => [index('users_name_idx').on(t.name)]);
 const apiUsers = refineTableType(users, {name: {minLength: 10}, age: {min: 18}});
 type User = InferSelectModel<typeof apiUsers>;
-export const newUser: InferInsertModel<typeof apiUsers> = {name: 'a-long-name', age: 21};
-export const patch: InferUpdateModel<typeof apiUsers> = {age: 30};
 declare const row: User;
 export const rowName: string = row.name;
-const activeUsers = pgView('active_users', {name: varchar('name', {length: 100, notNull: true})}).as(sql\`select name from users\`);
+export const patch: InferUpdateModel<typeof apiUsers> = {age: 30};
+export const newUser: InferInsertModel<typeof apiUsers> = {name: 'a-long-name', age: 21, createdAt: new Date()};
+const activeUsers = ${view}('active_users', {name: ${text}('name', {length: 100, notNull: true})}).as(sql\`select name from users\`);
 export const activeName: string = (undefined as unknown as InferSelectViewModel<typeof activeUsers>).name;
-type UsersType = PgTable<'users', {name: Varchar<{length: 100; notNull: true}>; age: Integer<{notNull: true}>}>;
+export const prefixed = ${creator}((name) => \`app_\${name}\`)('events', {id: ${int}('id', {primaryKey: true})});
+type UsersType = ${tableType}<'users', {name: ${textType}<{length: 100; notNull: true}>; age: ${intType}<{notNull: true}>}>;
 export const handWritten: InferSelectModel<UsersType> = {name: row.name, age: 21} as never;
+${names.extras}
 `;
-
-const NEXT_MYSQL_SOURCE = `
-import {mysqlTable, varchar, int, timestamp, mysqlView, mysqlEnum, mysqlSchema} from '../../drizzle-orm-mysql-core/next/index.ts';
-import type {Varchar, Int, MysqlTable} from '../../drizzle-orm-mysql-core/next/index.ts';
-import {index} from '@mionjs/drizzle-orm-mysql-core';
-import {sql} from '@mionjs/drizzle-orm';
-import {refineTableType} from '../../drizzle-orm/next/index.ts';
-import type {InferSelectModel, InferSelectViewModel, InferInsertModel} from '../../drizzle-orm/next/index.ts';
-
-const users = mysqlTable('users', {
-  id: int('id', {primaryKey: true, autoincrement: true}),
-  name: varchar('name', {length: 100, notNull: true}),
-  role: mysqlEnum('role', ['admin', 'user'], {notNull: true}),
-  updatedAt: timestamp('updated_at', {mode: 'date', notNull: true, defaultNow: true, onUpdateNow: true}),
-}, (t) => [index('users_name_idx').on(t.name)]);
-const apiUsers = refineTableType(users, {name: {minLength: 10}});
-export const newUser: InferInsertModel<typeof apiUsers> = {name: 'a-long-name', role: 'user'};
-declare const row: InferSelectModel<typeof apiUsers>;
-export const rowName: string = row.name;
-const activeUsers = mysqlView('active_users', {name: varchar('name', {length: 100, notNull: true})}).algorithm('merge').as(sql\`select name from users\`);
-export const activeName: string = (undefined as unknown as InferSelectViewModel<typeof activeUsers>).name;
-export const audit = mysqlSchema('audit').table('events', {id: int('id', {primaryKey: true})});
-type UsersType = MysqlTable<'users', {name: Varchar<{length: 100; notNull: true}>; age: Int<{notNull: true}>}>;
-export const handWritten: InferSelectModel<UsersType> = {name: row.name, age: 21} as never;
-`;
-
-const NEXT_SQLITE_SOURCE = `
-import {sqliteTable, text, integer, sqliteView, sqliteTableCreator} from '../../drizzle-orm-sqlite-core/next/index.ts';
-import type {Text, Integer, SqliteTable} from '../../drizzle-orm-sqlite-core/next/index.ts';
-import {index} from '@mionjs/drizzle-orm-sqlite-core';
-import {sql} from '@mionjs/drizzle-orm';
-import {refineTableType} from '../../drizzle-orm/next/index.ts';
-import type {InferSelectModel, InferSelectViewModel, InferInsertModel} from '../../drizzle-orm/next/index.ts';
-
-const users = sqliteTable('users', {
-  id: integer('id', {primaryKey: [{autoIncrement: true}]}),
-  name: text('name', {length: 100, notNull: true}),
-  createdAt: integer('created_at', {mode: 'timestamp', notNull: true}),
-}, (t) => [index('users_name_idx').on(t.name)]);
-const apiUsers = refineTableType(users, {name: {minLength: 10}});
-export const newUser: InferInsertModel<typeof apiUsers> = {name: 'a-long-name', createdAt: new Date()};
-declare const row: InferSelectModel<typeof apiUsers>;
-export const rowName: string = row.name;
-const activeUsers = sqliteView('active_users', {name: text('name', {notNull: true})}).as(sql\`select name from users\`);
-export const activeName: string = (undefined as unknown as InferSelectViewModel<typeof activeUsers>).name;
-export const prefixed = sqliteTableCreator((name) => \`app_\${name}\`)('events', {id: integer('id', {primaryKey: true})});
-type UsersType = SqliteTable<'users', {name: Text<{length: 100; notNull: true}>; age: Integer<{notNull: true}>}>;
-export const handWritten: InferSelectModel<UsersType> = {name: row.name, age: 21} as never;
-`;
+};
 
 describe('slim authoring surface with drizzle-orm absent', () => {
   it('type-checks a schema + models module when drizzle-orm cannot resolve', {timeout: 60_000}, () => {
@@ -188,15 +218,10 @@ function drizzleFreeErrors(source: string, types: string[] = []): string[] {
 }
 
 describe('side-by-side columns with drizzle-orm absent', () => {
-  // drizzle types sqlite's blob buffer mode as Node's Buffer, so that program needs Node's types.
-  for (const [dialect, source, types] of [
-    ['pg', NEXT_SOURCE, []],
-    ['mysql', NEXT_MYSQL_SOURCE, []],
-    ['sqlite', NEXT_SQLITE_SOURCE, ['node']],
-  ] as const) {
-    it(`type-checks a ${dialect} next/ schema + models module when drizzle-orm cannot resolve`, {timeout: 60_000}, () => {
-      const errors = drizzleFreeErrors(source, [...types]);
-      expect(errors, `the ${dialect} next/ authoring surface required drizzle-orm:\n  ${errors.join('\n  ')}`).toEqual([]);
+  for (const names of NEXT_DIALECTS) {
+    it(`type-checks a ${names.dialect} next/ schema + models module when drizzle-orm cannot resolve`, {timeout: 60_000}, () => {
+      const errors = drizzleFreeErrors(nextSource(names), names.types);
+      expect(errors, `the ${names.dialect} next/ authoring surface required drizzle-orm:\n  ${errors.join('\n  ')}`).toEqual([]);
     });
   }
 });
