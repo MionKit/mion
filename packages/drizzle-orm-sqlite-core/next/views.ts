@@ -15,6 +15,8 @@ import type {NoNames, RtViewMeta} from '../../drizzle-orm/next/table.ts';
 import {requireColumns, sqliteBuildView, type ViewFromQueryBuilderNotSupported} from '../src/views.ts';
 import type {rtColNameKey, rtNamedColumnKey} from '../../drizzle-orm/next/columns.ts';
 
+export type {ViewFromQueryBuilderNotSupported} from '../src/views.ts';
+
 // Inline maps, never aliases over the builders record: see sqliteTable in ./table.ts.
 type NameOf<C> = C extends {readonly [rtColNameKey]: infer Name} ? Name : undefined;
 
