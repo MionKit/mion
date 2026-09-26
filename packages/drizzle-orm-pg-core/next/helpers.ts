@@ -12,7 +12,7 @@ import type {PgColIn} from './columns.ts';
 import type {Column, NamedColumn, Only, PropsOf} from '../../drizzle-orm/next/columns.ts';
 import {recordColumn} from '../../drizzle-orm/next/recorder.ts';
 import {refColumn, type AnyTableRef} from '../../drizzle-orm/next/table.ts';
-import {RtColumnRecorder} from '../../drizzle-orm/src/recorder.ts';
+import type {RtColumnRecorder} from '../../drizzle-orm/src/recorder.ts';
 import type {AnyColumn, NoProps} from '../../drizzle-orm/next/columns.ts';
 
 type Writable<T> = {-readonly [K in keyof T]: T[K]};
@@ -46,11 +46,17 @@ export interface PgEnumObject<E extends Record<string, string>> {
 export function pgEnum<U extends string, T extends Readonly<[U, ...U[]]>>(enumName: string, values: T | Writable<T>): PgEnum<T>;
 export function pgEnum<E extends Record<string, string>>(enumName: string, enumObj: NonArray<E>): PgEnumObject<E>;
 export function pgEnum(enumName: string, values: readonly string[] | Record<string, string>): unknown {
-  const shipped = shippedPgEnum(enumName, values as never) as unknown as (...args: unknown[]) => RtColumnRecorder;
-  // The shipped enum column takes only a name; the props replay onto it as modifier calls.
+  return enumFromShipped(shippedPgEnum(enumName, values as never));
+}
+
+/** A shipped enum handle taking props: they replay onto its name-only column as modifier calls. */
+export function enumFromShipped(shipped: object): unknown {
+  const shippedFactory = shipped as (...args: unknown[]) => RtColumnRecorder;
   const factory = (...args: unknown[]) =>
-    recordColumn(args, (context, callArgs) => (shipped(...callArgs) as RtColumnRecorder).toDrizzleColumn(context));
-  return Object.assign(factory, shipped);
+    recordColumn(args, (context, callArgs) => shippedFactory(...callArgs).toDrizzleColumn(context));
+  const {enumValues} = shipped as {enumValues: readonly string[] | Record<string, string>};
+  // Object.assign keeps the symbol-keyed recorder toDrizzle(handle) materializes.
+  return Object.assign(factory, shipped, {enumValues: Array.isArray(enumValues) ? enumValues : Object.values(enumValues)});
 }
 
 /** foreignKey over the side-by-side columns: another table's column is a tableRef(), this table's a `t.key`. */
