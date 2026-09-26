@@ -19,28 +19,179 @@ import {makeHost, RESOLVING_OPTIONS} from './modelPipelineHarness.ts';
 const CASE_FILE = fileURLToPath(new URL('./__declarationEmitCase__.ts', import.meta.url));
 const REPO_ROOT = fileURLToPath(new URL('../../..', import.meta.url));
 
-const HEADER = `
-import {pgTable, varchar, integer} from '@mionjs/drizzle-orm-pg-core';
+/** The names each dialect spells the same two-column table with. */
+interface Dialect {
+  dialect: 'pg' | 'mysql' | 'sqlite';
+  table: string;
+  tableType: string;
+  text: string;
+  textType: string;
+  int: string;
+  intType: string;
+  /** The shipped int column kind, printed once per int column in an exported table's declaration. */
+  shippedIntKind: string;
+}
+const DIALECTS: Dialect[] = [
+  {
+    dialect: 'pg',
+    table: 'pgTable',
+    tableType: 'PgTable',
+    text: 'varchar',
+    textType: 'Varchar',
+    int: 'integer',
+    intType: 'Integer',
+    shippedIntKind: 'RtPgIntColumn',
+  },
+  {
+    dialect: 'mysql',
+    table: 'mysqlTable',
+    tableType: 'MysqlTable',
+    text: 'varchar',
+    textType: 'Varchar',
+    int: 'int',
+    intType: 'Int',
+    shippedIntKind: 'RtMyIntColumn',
+  },
+  {
+    dialect: 'sqlite',
+    table: 'sqliteTable',
+    tableType: 'SqliteTable',
+    text: 'text',
+    textType: 'Text',
+    int: 'integer',
+    intType: 'Integer',
+    shippedIntKind: 'RtSqliteIntColumn',
+  },
+];
+
+const shippedHeader = ({dialect, table, text, int}: Dialect) => `
+import {${table}, ${text}, ${int}} from '@mionjs/drizzle-orm-${dialect}-core';
 import type {InferSelectModel} from '@mionjs/drizzle-orm';
-import {toDrizzle} from '@mionjs/drizzle-orm-pg-core/drizzle';
-import {pgTable as dzPgTable, varchar as dzVarchar, integer as dzInteger} from 'drizzle-orm/pg-core';
+import {toDrizzle} from '@mionjs/drizzle-orm-${dialect}-core/drizzle';
+import {${table} as dzTable, ${text} as dzText, ${int} as dzInt} from 'drizzle-orm/${dialect}-core';
 import type {InferSelectModel as DzInferSelectModel} from 'drizzle-orm';
 import {refineTableType} from '@mionjs/drizzle-orm';
 import {RpcError} from '@mionjs/core';
 import {createMionRouter} from '@mionjs/router';
 `;
-
-const slimTable = `
-const users = pgTable('users', {
-  name: varchar('name', {length: 100}).notNull(),
-  age: integer('age').notNull(),
+const shippedTable = ({table, text, int}: Dialect) => `
+const users = ${table}('users', {
+  name: ${text}('name', {length: 100}).notNull(),
+  age: ${int}('age').notNull(),
 });`;
-
 const plainTable = `
-const plain = dzPgTable('users', {
-  name: dzVarchar('name', {length: 100}).notNull(),
-  age: dzInteger('age').notNull(),
+const plain = dzTable('users', {
+  name: dzText('name', {length: 100}).notNull(),
+  age: dzInt('age').notNull(),
 });`;
+
+// next/ is imported by extensionless path, as a real declaration build resolves it.
+// It is no package export, so this imports the helper types an inferred table names; the shipped entry must export them.
+const nextHeader = ({dialect, table, tableType, text, textType, int, intType}: Dialect) => `
+import type {NoProps, Writable} from '../../drizzle-orm/next/index';
+export type {NoProps, Writable};
+import {${table}, ${text}, ${int}} from '../../drizzle-orm-${dialect}-core/next/index';
+import type {${tableType}, ${textType}, ${intType}} from '../../drizzle-orm-${dialect}-core/next/index';
+import {toDrizzle} from '../../drizzle-orm-${dialect}-core/next/drizzle';
+import type {InferSelectModel} from '../../drizzle-orm/next/models';
+import {refineTableType} from '../../drizzle-orm/next/refine';
+import {RpcError} from '@mionjs/core';
+import {createMionRouter} from '@mionjs/router';
+`;
+const nextTable = ({table, text, int}: Dialect) => `
+const users = ${table}('users', {
+  name: ${text}('user_name', {length: 100, notNull: true}),
+  age: ${int}('age', {notNull: true}),
+});`;
+
+function casesFor(names: Dialect) {
+  const {dialect, tableType, textType, intType} = names;
+  const shipped = `${shippedHeader(names)}${shippedTable(names)}`;
+  const next = `${nextHeader(names)}${nextTable(names)}`;
+  return [
+    {
+      label: `${dialect}: plain drizzle table + router (the control)`,
+      source: `${shippedHeader(names)}${plainTable}\nexport type PlainUser = DzInferSelectModel<typeof plain>;${routerOver('PlainUser')}\n`,
+    },
+    {
+      label: `${dialect}: slim table + router`,
+      source: `${shipped}\nexport type SlimUser = InferSelectModel<typeof users>;${routerOver('SlimUser')}\n`,
+    },
+    {
+      label: `${dialect}: refined table + router`,
+      source: `${shipped}\nconst api = refineTableType(users, {name: {minLength: 10}, age: {min: 18}});\nexport type User = InferSelectModel<typeof api>;${routerOver('User')}\n`,
+    },
+    {
+      label: `${dialect}: refined table, model types only`,
+      source: `${shipped}\nconst api = refineTableType(users, {name: {minLength: 10}});\nexport type User = InferSelectModel<typeof api>;\nexport {};\n`,
+    },
+    {
+      label: `${dialect}: the slim table and its toDrizzle view exported as consts`,
+      source: `${shipped}\nexport const usersTable = users;\nexport const usersDb = toDrizzle(users);\n`,
+    },
+    {
+      label: `${dialect} next: builder table + router`,
+      source: `${next}\nexport type User = InferSelectModel<typeof users>;${routerOver('User')}\n`,
+    },
+    {
+      label: `${dialect} next: hand-written table + router`,
+      source: `${nextHeader(names)}type Users = ${tableType}<'users', {name: ${textType}<{length: 100; notNull: true}>; age: ${intType}<{notNull: true}>}, [], {name: 'user_name'}>;\nexport type User = InferSelectModel<Users>;${routerOver('User')}\n`,
+    },
+    {
+      label: `${dialect} next: refined table + router`,
+      source: `${next}\nconst api = refineTableType(users, {name: {minLength: 10}, age: {min: 18}});\nexport type User = InferSelectModel<typeof api>;${routerOver('User')}\n`,
+    },
+    {
+      label: `${dialect} next: the table and its toDrizzle view exported as consts`,
+      source: `${next}\nexport const usersTable = users;\nexport const usersDb = toDrizzle(users);\n`,
+    },
+  ];
+}
+
+describe('declaration emit over slim drizzle tables', () => {
+  for (const names of DIALECTS) {
+    const {dialect, int, shippedIntKind} = names;
+    for (const {label, source} of casesFor(names)) {
+      // The first case pays for parsing the whole resolved graph; later ones reuse
+      // it. Comfortable on an idle machine, but the default 5s is not enough when
+      // the rest of the suite is running alongside.
+      it(`${label} emits a .d.ts`, {timeout: 60_000}, () => {
+        const outcome = emitDeclarations(source);
+        expect(outcome.errors, `declaration diagnostics:\n  ${outcome.errors.join('\n  ')}`).toEqual([]);
+        expect(outcome.emitSkipped, 'declaration emit was skipped, so nothing was written').toBe(false);
+        expect(outcome.dts.length).toBeGreaterThan(0);
+      });
+    }
+
+    // A library that exports its slim table ships that table's whole columns
+    // record in its .d.ts, and every consumer parses and checks what is there. The
+    // factories used to return `PgTable<Name, Cols, [], Cols>` — the columns in
+    // slot two AND again in the normalized fast-path slot — so the record was
+    // printed TWICE. Counting one column's own emitted type is what pins the fix:
+    // a return to the 4-parameter form doubles it and fails here.
+    it(`${dialect}: the exported table prints its columns once, not twice`, {timeout: 60_000}, () => {
+      const outcome = emitDeclarations(`${shippedHeader(names)}${shippedTable(names)}\nexport const usersTable = users;\n`);
+      expect(outcome.emitSkipped).toBe(false);
+      expect(outcome.dts.split(shippedIntKind).length - 1, `emitted declaration:\n${outcome.dts}`).toBe(1);
+    });
+
+    // The table builder spells its maps inline, so the declaration prints each resolved column once and no builder.
+    it(`${dialect} next: the exported builder table prints its columns once and no builders`, {timeout: 60_000}, () => {
+      const outcome = emitDeclarations(`${nextHeader(names)}${nextTable(names)}\nexport const usersTable = users;\n`);
+      expect(outcome.emitSkipped).toBe(false);
+      expect(outcome.dts, `emitted declaration:\n${outcome.dts}`).not.toContain('ColumnBuilder');
+      expect(outcome.dts.split(`Column<"${int}"`).length - 1, `emitted declaration:\n${outcome.dts}`).toBe(1);
+    });
+
+    // Emit succeeding is not enough: the format metadata has to survive into the
+    // declaration, or consumers lose the refined bounds.
+    it(`${dialect}: the emitted declaration still carries the format brand`, {timeout: 60_000}, () => {
+      const outcome = emitDeclarations(casesFor(names)[2].source);
+      expect(outcome.dts).toContain('minLength');
+      expect(/FormatBrand|RTString|String</.test(outcome.dts)).toBe(true);
+    });
+  }
+});
 
 /** A router exporting routes that take and return `Model`. **/
 const routerOver = (model: string) => `
@@ -88,142 +239,3 @@ function emitDeclarations(source: string): EmitOutcome {
   );
   return {emitSkipped: result.emitSkipped, errors, dts: written[0] ?? ''};
 }
-
-const CASES = [
-  {
-    label: 'plain drizzle table + router (the control)',
-    source: `${HEADER}${plainTable}\nexport type PlainUser = DzInferSelectModel<typeof plain>;${routerOver('PlainUser')}\n`,
-  },
-  {
-    label: 'slim table + router',
-    source: `${HEADER}${slimTable}\nexport type SlimUser = InferSelectModel<typeof users>;${routerOver('SlimUser')}\n`,
-  },
-  {
-    label: 'refined table + router',
-    source: `${HEADER}${slimTable}\nconst api = refineTableType(users, {name: {minLength: 10}, age: {min: 18}});\nexport type User = InferSelectModel<typeof api>;${routerOver('User')}\n`,
-  },
-  {
-    label: 'refined table, model types only',
-    source: `${HEADER}${slimTable}\nconst api = refineTableType(users, {name: {minLength: 10}});\nexport type User = InferSelectModel<typeof api>;\nexport {};\n`,
-  },
-  {
-    label: 'the slim table and its toDrizzle view exported as consts',
-    source: `${HEADER}${slimTable}\nexport const usersTable = users;\nexport const usersDb = toDrizzle(users);\n`,
-  },
-];
-
-// next/ is imported by extensionless path, as a real declaration build resolves it.
-// It is no package export, so this imports the helper types an inferred table names; the shipped entry must export them.
-const NEXT_HEADER = `
-import type {NoProps, Writable} from '../../drizzle-orm/next/index';
-export type {NoProps, Writable};
-import {pgTable, varchar, integer} from '../../drizzle-orm-pg-core/next/index';
-import type {PgTable, Varchar, Integer} from '../../drizzle-orm-pg-core/next/index';
-import {toDrizzle} from '../../drizzle-orm-pg-core/next/drizzle';
-import type {InferSelectModel} from '../../drizzle-orm/next/models';
-import {refineTableType} from '../../drizzle-orm/next/refine';
-import {RpcError} from '@mionjs/core';
-import {createMionRouter} from '@mionjs/router';
-`;
-const nextTable = `
-const users = pgTable('users', {
-  name: varchar('user_name', {length: 100, notNull: true}),
-  age: integer('age', {notNull: true}),
-});`;
-const NEXT_CASES = [
-  {
-    label: 'next: builder table + router',
-    source: `${NEXT_HEADER}${nextTable}\nexport type User = InferSelectModel<typeof users>;${routerOver('User')}\n`,
-  },
-  {
-    label: 'next: hand-written table + router',
-    source: `${NEXT_HEADER}type Users = PgTable<'users', {name: Varchar<{length: 100; notNull: true}>; age: Integer<{notNull: true}>}, [], {name: 'user_name'}>;\nexport type User = InferSelectModel<Users>;${routerOver('User')}\n`,
-  },
-  {
-    label: 'next: refined table + router',
-    source: `${NEXT_HEADER}${nextTable}\nconst api = refineTableType(users, {name: {minLength: 10}, age: {min: 18}});\nexport type User = InferSelectModel<typeof api>;${routerOver('User')}\n`,
-  },
-  {
-    label: 'next: the table and its toDrizzle view exported as consts',
-    source: `${NEXT_HEADER}${nextTable}\nexport const usersTable = users;\nexport const usersDb = toDrizzle(users);\n`,
-  },
-];
-
-const dialectNextCases = (dialect: 'mysql' | 'sqlite', table: string, tableType: string, text: string, textType: string) => {
-  const header = `
-import type {NoProps, Writable} from '../../drizzle-orm/next/index';
-export type {NoProps, Writable};
-import {${table}, ${text}, int} from '../../drizzle-orm-${dialect}-core/next/index';
-import type {${tableType}, ${textType}, Int} from '../../drizzle-orm-${dialect}-core/next/index';
-import {toDrizzle} from '../../drizzle-orm-${dialect}-core/next/drizzle';
-import type {InferSelectModel} from '../../drizzle-orm/next/models';
-import {RpcError} from '@mionjs/core';
-import {createMionRouter} from '@mionjs/router';
-`;
-  const builderTable = `
-const users = ${table}('users', {
-  name: ${text}('user_name', {length: 100, notNull: true}),
-  age: int('age', {notNull: true}),
-});`;
-  return [
-    {
-      label: `next ${dialect}: builder table + router`,
-      source: `${header}${builderTable}\nexport type User = InferSelectModel<typeof users>;${routerOver('User')}\n`,
-    },
-    {
-      label: `next ${dialect}: hand-written table + router`,
-      source: `${header}type Users = ${tableType}<'users', {name: ${textType}<{length: 100; notNull: true}>; age: Int<{notNull: true}>}, [], {name: 'user_name'}>;\nexport type User = InferSelectModel<Users>;${routerOver('User')}\n`,
-    },
-    {
-      label: `next ${dialect}: the table and its toDrizzle view exported as consts`,
-      source: `${header}${builderTable}\nexport const usersTable = users;\nexport const usersDb = toDrizzle(users);\n`,
-    },
-  ];
-};
-const DIALECT_NEXT_CASES = [
-  ...dialectNextCases('mysql', 'mysqlTable', 'MysqlTable', 'varchar', 'Varchar'),
-  ...dialectNextCases('sqlite', 'sqliteTable', 'SqliteTable', 'text', 'Text'),
-];
-
-describe('declaration emit over slim drizzle tables', () => {
-  for (const {label, source} of [...CASES, ...NEXT_CASES, ...DIALECT_NEXT_CASES]) {
-    // The first case pays for parsing the whole resolved graph; later ones reuse
-    // it. Comfortable on an idle machine, but the default 5s is not enough when
-    // the rest of the suite is running alongside.
-    it(`${label} emits a .d.ts`, {timeout: 60_000}, () => {
-      const outcome = emitDeclarations(source);
-      expect(outcome.errors, `declaration diagnostics:\n  ${outcome.errors.join('\n  ')}`).toEqual([]);
-      expect(outcome.emitSkipped, 'declaration emit was skipped, so nothing was written').toBe(false);
-      expect(outcome.dts.length).toBeGreaterThan(0);
-    });
-  }
-
-  // A library that exports its slim table ships that table's whole columns
-  // record in its .d.ts, and every consumer parses and checks what is there. The
-  // factories used to return `PgTable<Name, Cols, [], Cols>` — the columns in
-  // slot two AND again in the normalized fast-path slot — so the record was
-  // printed TWICE. Counting one column's own emitted type is what pins the fix:
-  // a return to the 4-parameter form doubles it and fails here.
-  it('the exported table prints its columns once, not twice', {timeout: 60_000}, () => {
-    const outcome = emitDeclarations(`${HEADER}${slimTable}\nexport const usersTable = users;\n`);
-    expect(outcome.emitSkipped).toBe(false);
-    const ageOccurrences = outcome.dts.split('RtPgIntColumn').length - 1;
-    expect(ageOccurrences, `emitted declaration:\n${outcome.dts}`).toBe(1);
-  });
-
-  // pgTable spells its maps inline, so the declaration prints each resolved column once and no builder.
-  it('next: the exported builder table prints its columns once and no builders', {timeout: 60_000}, () => {
-    const outcome = emitDeclarations(`${NEXT_HEADER}${nextTable}\nexport const usersTable = users;\n`);
-    expect(outcome.emitSkipped).toBe(false);
-    expect(outcome.dts, `emitted declaration:\n${outcome.dts}`).not.toContain('ColumnBuilder');
-    expect(outcome.dts.split('Column<"integer"').length - 1, `emitted declaration:\n${outcome.dts}`).toBe(1);
-  });
-
-  // Emit succeeding is not enough: the format metadata has to survive into the
-  // declaration, or consumers lose the refined bounds.
-  it('the emitted declaration still carries the format brand', {timeout: 60_000}, () => {
-    const outcome = emitDeclarations(CASES[2].source);
-    expect(outcome.dts).toContain('minLength');
-    expect(/FormatBrand|RTString|String</.test(outcome.dts)).toBe(true);
-  });
-});
