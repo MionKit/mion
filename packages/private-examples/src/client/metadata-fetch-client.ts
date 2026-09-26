@@ -7,6 +7,6 @@ const {routes, middlewares} = initClient<MyApi>({
 });
 useMethodsMetadata(middlewares.mionMethodsMetadata);
 
-// the first call asks the server how sayHello works, in the same request
+// the first call asks the server how sayHello works
 const [greeting] = await routes.sayHello('Ana').call();
 console.log(greeting);
