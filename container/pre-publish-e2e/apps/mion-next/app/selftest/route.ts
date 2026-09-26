@@ -5,6 +5,7 @@
 // build-all.mjs serves the built app and fetches this route; test/build-outputs.test.mjs asserts
 // what it reported.
 import {batch, initClient} from '@mionjs/client';
+import {useMethodsMetadata} from '@mionjs/client/middlewares';
 import type {MionApi} from '../../src/routes';
 
 export const dynamic = 'force-dynamic';
@@ -15,7 +16,9 @@ export async function GET(request: Request): Promise<Response> {
   // basePath on BOTH ends: the router puts `/api` into every route path, and the client has to
   // build the same path or its very first call (the route metadata fetch) lands outside the
   // catch-all handler and comes back as Next's 404 page.
-  const {routes} = initClient<MionApi>({baseURL, basePath: '/api'});
+  const {routes, middlewares} = initClient<MionApi>({baseURL, basePath: '/api'});
+  // the fetched lane needs it; the bundled lane ships it lazily, which build-outputs.test.mjs checks
+  useMethodsMetadata(middlewares.mionMethodsMetadata);
 
   const [greeting, greetingError] = await routes.sayHello('mion').call();
   // Compact wire: the same client, a route whose parser is positional.
