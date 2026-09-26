@@ -7,6 +7,7 @@ import (
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/comptimeargs"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
 )
 
 // The handler type numbers @mionjs/core's HandlerType assigns; the API type carries them as number literals.
@@ -38,7 +39,16 @@ type Method struct {
 	MiddlewareIds []string
 	// NeedsParams is true when the client must send something: a required param, or a required header.
 	NeedsParams bool
+	// MethodsMetadata marks mion's own metadata middleware, placed by spreading `mionMethodsMetadata` into the routes.
+	MethodsMetadata bool
+	standalone      bool
 }
+
+// The router's metadata pair, recognised by where they are declared, whatever key or group holds them.
+const (
+	MethodsMetadataName     = "mionMethodsMetadata"
+	MethodsMetadataByIdName = "mionMethodsMetadataById"
+)
 
 // Tree is a walked PublicApi type: every public method in checker order, and the checker their type ids must be assigned under.
 type Tree struct {
@@ -49,6 +59,16 @@ type Tree struct {
 
 // tsgo names a symbol-keyed member with this internal prefix; a symbol key is never a route.
 const symbolKeyPrefix = "\xFE@"
+
+// HasMethodsMetadata reports whether the API places mion's metadata middleware.
+func (tree *Tree) HasMethodsMetadata() bool {
+	for _, method := range tree.Methods {
+		if method.MethodsMetadata {
+			return true
+		}
+	}
+	return false
+}
 
 // Ids returns the sorted ids of every method in the tree.
 func (tree *Tree) Ids() []string {
@@ -111,6 +131,8 @@ func (walker *treeWalker) level(levelType *checker.Type, pointer []string, nestL
 			if problem != "" {
 				return problem
 			}
+			method.MethodsMetadata = method.Type == TypeMiddleware && routerDeclares(property, MethodsMetadataName)
+			method.standalone = method.Type == TypeRoute && routerDeclares(property, MethodsMetadataByIdName)
 			entries = append(entries, levelEntry{key: property.Name, method: method})
 			continue
 		}
@@ -136,6 +158,10 @@ func (walker *treeWalker) level(levelType *checker.Type, pointer []string, nestL
 			if entry.method.Type == TypeRoute {
 				chain := make([]string, 0, len(pre)+len(preLevel)+len(postLevel)+len(post))
 				chain = append(append(append(append(chain, pre...), preLevel...), postLevel...), post...)
+				// the router runs the by-id route with none of the middlewares around it
+				if entry.method.standalone {
+					chain = nil
+				}
 				entry.method.MiddlewareIds = chain
 			}
 			walker.tree.Methods = append(walker.tree.Methods, entry.method)
@@ -307,4 +333,19 @@ func (tree *Tree) Select(ids []string) (methods []*Method, missing []string) {
 		}
 	}
 	return methods, missing
+}
+
+// routerDeclares reports whether a member of the API type is `name` as @mionjs/router declares it; a mapped
+// PublicApi member keeps the declaration of the routes entry it was mapped from, spread entries included.
+func routerDeclares(property *ast.Symbol, name string) bool {
+	if property == nil || len(property.Declarations) == 0 {
+		return false
+	}
+	declaration := property.Declarations[0]
+	// a computed key cannot be the router's own entry, and Text() panics on one
+	declName := declaration.Name()
+	if declName == nil || declName.Kind != ast.KindIdentifier || declName.Text() != name {
+		return false
+	}
+	return marker.DeclaringModuleOfNode(declaration, nil) == RouterModule
 }

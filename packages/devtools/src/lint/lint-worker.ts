@@ -65,7 +65,9 @@ async function ensureConnection(tsconfig: string, binary: string): Promise<Resol
   // type-checks like the build. Single-threaded: the session lints one file at a time, and a light child keeps
   // editor/CI hosts under process and memory limits.
   const binaryPath = binary ? resolveConfiguredBinary(binary) : getExePath();
-  const args = buildResolverArgs(process.cwd(), tsconfig, {serverMode: true, singleThreaded: true});
+  // bundleApi off: lint cannot know each client's build mode, so the bundled-API checks stay with the build
+  const options = {serverMode: true, singleThreaded: true, bundleApi: 'off'} as const;
+  const args = buildResolverArgs(process.cwd(), tsconfig, options);
   if (shim?.stdin && shim.stdout && shim.exitCode === null) {
     const launcher = shim;
     launcher.stdin!.write(JSON.stringify({exec: binaryPath, args}) + '\n');
@@ -74,7 +76,7 @@ async function ensureConnection(tsconfig: string, binary: string): Promise<Resol
     connection = stream;
     return connection;
   }
-  connection = new ResolverClient(binaryPath, process.cwd(), tsconfig, {serverMode: true, singleThreaded: true});
+  connection = new ResolverClient(binaryPath, process.cwd(), tsconfig, options);
   return connection;
 }
 

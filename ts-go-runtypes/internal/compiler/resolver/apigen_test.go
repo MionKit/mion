@@ -892,3 +892,97 @@ export const a = routes.ping().call();
 		}
 	})
 }
+
+// metadataRouterDTS declares the metadata pair the way @mionjs/router does, so the walk recognises it by its declaration.
+const metadataRouterDTS = `declare module '@mionjs/router' {
+  type Opts = {alwaysRun: true; validateParams: true; validateReturn: false; description: undefined; parser: {params: 'clone'; return: 'clone'}; sanitizeParams: undefined};
+  type ByIdOpts = {alwaysRun: false; validateParams: true; validateReturn: false; description: undefined; parser: {params: 'clone'; return: 'clone'}; isMutation: undefined; sanitizeParams: undefined};
+  export type MethodsMetadataPair = {
+    mionMethodsMetadata: {type: 2; handler: (ids?: string[]) => Promise<void>; options: Opts; types?: {params: [ids?: string[]]; return: void; headers: never; isAsync: false}};
+    mionMethodsMetadataById: {type: 1; handler: (ids: string[]) => Promise<string>; options: ByIdOpts; types?: {params: [ids: string[]]; return: string; headers: never; isAsync: false; sync: [[ids: string[]], string, 'json', 'json']}};
+  };
+}
+`
+
+// metadataApiTS places the router's pair next to a route, and a look-alike declared by the app itself.
+const metadataApiTS = optionalApiTS + `import type {MethodsMetadataPair} from '@mionjs/router';
+export type MetadataApi = MethodsMetadataPair & {
+  ping: {type: 1; handler: () => Promise<string>; options: RouteOpts; types?: {params: []; return: string; headers: never; isAsync: false; sync: [[], string, 'json', 'json']}};
+};
+declare const computedKey: 'computed';
+export type LookAlikeApi = {
+  [computedKey]: {type: 1; handler: () => Promise<string>; options: RouteOpts; types?: {params: []; return: string; headers: never; isAsync: false; sync: [[], string, 'json', 'json']}};
+  mionMethodsMetadata: {type: 2; handler: (ids?: string[]) => Promise<void>; options: MfOpts; types?: {params: [ids?: string[]]; return: void; headers: never; isAsync: false}};
+  ping: {type: 1; handler: () => Promise<string>; options: RouteOpts; types?: {params: []; return: string; headers: never; isAsync: false; sync: [[], string, 'json', 'json']}};
+};
+`
+
+func generateMetadataDiags(t *testing.T, mode constants.BundleApiMode, client string) []diagnostics.Diagnostic {
+	t.Helper()
+	sources := map[string]string{"client.d.ts": apiClientDTS, "router.d.ts": metadataRouterDTS, "api.ts": metadataApiTS, "client.ts": client}
+	sess := setupApi(t, sources, t.TempDir(), mode, "")
+	gen := sess.Dispatch(protocol.Request{Op: protocol.OpGenerate})
+	if gen.Error != "" {
+		t.Fatalf("generate: %s", gen.Error)
+	}
+	return metDiags(gen.Diagnostics)
+}
+
+// TestApiGen_MetadataMiddleware: a fully bundled client never needs mion's metadata middleware; a mixed one must fetch through it.
+func TestApiGen_MetadataMiddleware(t *testing.T) {
+	neverSetUp := func(api string) string {
+		return `import {initClient} from '@mionjs/client';
+import type {` + api + `} from './api.ts';
+export const {routes, middlewares} = initClient<` + api + `>({baseURL: 'http://x'});
+export const a = routes.ping().call();
+`
+	}
+
+	t.Run("bundled, never set up: nothing to report", func(t *testing.T) {
+		if diags := generateMetadataDiags(t, constants.BundleApiBundled, neverSetUp("MetadataApi")); len(diags) != 0 {
+			t.Fatalf("a bundled client never asks for metadata, got %+v", diags)
+		}
+	})
+
+	t.Run("bundled, a look-alike the app declares is still a middleware to set up", func(t *testing.T) {
+		diags := generateMetadataDiags(t, constants.BundleApiBundled, neverSetUp("LookAlikeApi"))
+		if len(diags) != 1 || diags[0].Code != diagnostics.CodeApiMetaOptionalMiddlewareNotSetUp || diags[0].Args[0] != "mionMethodsMetadata" {
+			t.Fatalf("expected one MET009 for the look-alike, got %+v", diags)
+		}
+	})
+
+	t.Run("mixed, never set up: the fallback has no client half", func(t *testing.T) {
+		diags := generateMetadataDiags(t, constants.BundleApiMixed, neverSetUp("MetadataApi"))
+		if len(diags) != 1 || diags[0].Code != diagnostics.CodeApiMetaOptionalMiddlewareNotSetUp || diags[0].Args[0] != "mionMethodsMetadata" {
+			t.Fatalf("expected one MET009 for mionMethodsMetadata, got %+v", diags)
+		}
+	})
+
+	t.Run("mixed, set up: nothing to report", func(t *testing.T) {
+		diags := generateMetadataDiags(t, constants.BundleApiMixed, `import {initClient} from '@mionjs/client';
+import type {MetadataApi} from './api.ts';
+export const {routes, middlewares} = initClient<MetadataApi>({baseURL: 'http://x'});
+declare function useMethodsMetadata(middleware: unknown): void;
+useMethodsMetadata(middlewares.mionMethodsMetadata);
+export const a = routes.ping().call();
+`)
+		if len(diags) != 0 {
+			t.Fatalf("the client fetches through it, got %+v", diags)
+		}
+	})
+
+	t.Run("mixed, the API places no metadata pair", func(t *testing.T) {
+		diags := generateMetadataDiags(t, constants.BundleApiMixed, `import {initClient} from '@mionjs/client';
+import type {OptionalApi} from './api.ts';
+export const {routes, middlewares} = initClient<OptionalApi>({baseURL: 'http://x'});
+middlewares.note.onRequest((call) => call());
+export const a = routes.ping().call();
+`)
+		if len(diags) != 1 || diags[0].Code != diagnostics.CodeApiMetaMixedWithoutMetadata {
+			t.Fatalf("expected one MET010, got %+v", diags)
+		}
+		if diags[0].Level != diagnostics.LevelRuntimeError {
+			t.Errorf("MET010 stops the build, got level %v", diags[0].Level)
+		}
+	})
+}

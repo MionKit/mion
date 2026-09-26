@@ -131,6 +131,10 @@ func (sess *Session) unsetMiddlewareDiags(order []string, uses map[string]middle
 		if !ok || reads[id] {
 			continue
 		}
+		// a fully bundled client never asks the server for metadata; `mixed` falls back on it, so it must be set up
+		if use.method.MethodsMetadata && sess.opts.BundleApi == constants.BundleApiBundled {
+			continue
+		}
 		code := diagnostics.CodeApiMetaOptionalMiddlewareNotSetUp
 		if use.method.NeedsParams {
 			code = diagnostics.CodeApiMetaMiddlewareNotSetUp
@@ -385,6 +389,7 @@ func (sess *Session) resolveApiBundle(sites []apimeta.Site) (*apiBundle, []diagn
 	peerTried := false
 	widenedReported := map[string]bool{}
 	middlewareUses := map[string]middlewareUse{}
+	mixedReported := map[*apimeta.Tree]bool{}
 	for _, site := range sites {
 		tree, ok := trees[site.ApiType]
 		if !ok {
@@ -413,6 +418,12 @@ func (sess *Session) resolveApiBundle(sites []apimeta.Site) (*apiBundle, []diagn
 				continue
 			}
 			tree = peerTree
+		}
+		if sess.opts.BundleApi == constants.BundleApiMixed && !mixedReported[tree] {
+			mixedReported[tree] = true
+			if !tree.HasMethodsMetadata() {
+				diags = append(diags, diagnostics.New(diagnostics.CodeApiMetaMixedWithoutMetadata, site.DiagSite()))
+			}
 		}
 		methods, missing := tree.Select(site.Ids)
 		for _, id := range missing {

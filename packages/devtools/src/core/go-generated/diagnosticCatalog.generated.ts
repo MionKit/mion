@@ -500,12 +500,12 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   MET003: {
     headline:
-      "The route id at this call is `string` (a generic helper erased it), so nothing is bundled for it and the call fetches its metadata instead, which `bundleApi: 'bundled'` was meant to avoid.",
+      "The route id at this call is `string` (a generic helper erased it), so nothing is bundled for it and the call has to fetch its metadata, which `bundleApi: 'bundled'` was meant to avoid.",
     level: 'runtimeError',
     severity: 'error',
     family: 'marker',
     detail:
-      "Every dispatch point carries the route it calls as a literal in its type\n(`RouteSubRequest<Handler, 'users/getById'>`). A helper typed with a wide\n`RouteSubRequest<any>` widens that literal to `string`, and the build no longer\nknows which route to bundle for the call inside it.\n\nThe call still works: it asks the server for that route and builds its functions\nat runtime. Under a strict Content Security Policy, which is one reason to pick\n`bundled`, building them throws.\n\nFix: keep the literal through the helper, or move the call out of it:\n-  function run(sub: RouteSubRequest<any>) { return sub.call() }\n+  function run<S extends RouteSubRequest<any>>(sub: S) { return sub.call() }\nOr build with `bundleApi: 'mixed'`, where fetching such a call is the point.",
+      "Every dispatch point carries the route it calls as a literal in its type\n(`RouteSubRequest<Handler, 'users/getById'>`). A helper typed with a wide\n`RouteSubRequest<any>` widens that literal to `string`, and the build no longer\nknows which route to bundle for the call inside it.\n\nThe call works only when the client set up `useMethodsMetadata`: it then asks the\nserver for that route and builds its functions at runtime, which a strict Content\nSecurity Policy blocks. Without it, the call fails.\n\nFix: keep the literal through the helper, or move the call out of it:\n-  function run(sub: RouteSubRequest<any>) { return sub.call() }\n+  function run<S extends RouteSubRequest<any>>(sub: S) { return sub.call() }\nOr build with `bundleApi: 'mixed'`, where fetching such a call is the point.",
   },
   MET004: {
     headline:
@@ -514,7 +514,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     severity: 'warning',
     family: 'marker',
     detail:
-      "Every dispatch point carries the route it calls as a literal in its type. A\nhelper typed with a wide `RouteSubRequest<any>` widens it to `string`, so the\nbuild cannot bundle for the call inside it. Under `bundleApi: 'mixed'` the call\nstill works: the client fetches that route's metadata on first use.\n\nFix (to bundle it too): keep the literal through the helper:\n-  function run(sub: RouteSubRequest<any>) { return sub.call() }\n+  function run<S extends RouteSubRequest<any>>(sub: S) { return sub.call() }",
+      "Every dispatch point carries the route it calls as a literal in its type. A\nhelper typed with a wide `RouteSubRequest<any>` widens it to `string`, so the\nbuild cannot bundle for the call inside it. Under `bundleApi: 'mixed'` the call\nstill works: the client fetches that route's metadata on first use, through\n`useMethodsMetadata`.\n\nFix (to bundle it too): keep the literal through the helper:\n-  function run(sub: RouteSubRequest<any>) { return sub.call() }\n+  function run<S extends RouteSubRequest<any>>(sub: S) { return sub.call() }",
   },
   MET005: {
     headline:
@@ -559,6 +559,15 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     family: 'marker',
     detail:
       "The middleware's params are all optional, so nothing fails on send, but the\nmiddleware never receives anything from this client. The build looked for\nany read of `middlewares.{0}` in the client program (a hook, or the middleware\nhanded to an installer) and found none.\n\nFix: set it up with `middlewares.{0}.onRequest(...)` or its installer. If sending\nnothing is intended, add `// @mion-expect-error MET009` above this call.",
+  },
+  MET010: {
+    headline:
+      "This client builds with `bundleApi: 'mixed'`, but the API it calls does not place `mionMethodsMetadata`, so a route the bundle lacks cannot fetch its metadata.",
+    level: 'runtimeError',
+    severity: 'error',
+    family: 'marker',
+    detail:
+      "`mixed` bundles every route the build can see and fetches the rest from the\nserver at runtime. The server answers those requests only through the\nmetadata pair from `@mionjs/router/middlewares`.\n\nFix: place it first in the server's routes and set up its client half:\n+  mion.initRoutes({...mionMethodsMetadata, ...routes});\n+  useMethodsMetadata(middlewares.mionMethodsMetadata);\nOr build with `bundleApi: 'bundled'` if every call can be bundled.",
   },
   MKR001: {
     headline:

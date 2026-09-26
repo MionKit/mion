@@ -79,10 +79,11 @@ export interface PluginOptions {
   // Same key as the tsconfig entry's `apiTsconfig` and the CLI's `--api-tsconfig`.
   apiTsconfig?: string;
   // Bundle the metadata and compiled functions of every route this client calls, so it does not ask the server:
-  //   - 'bundled': a route the build did not see is reported; the call still falls back to fetching it.
-  //   - 'mixed': the bundled routes are used as-is and the rest are fetched.
-  // Unset (the default) keeps the fetched lane. Same key as the tsconfig `bundleApi` and the CLI's `--bundle-api`.
-  bundleApi?: 'bundled' | 'mixed';
+  //   - 'bundled' (the default): a route the build did not see is reported, and fails unless the client fetches metadata.
+  //   - 'mixed': the bundled routes are used as-is and the rest are fetched through `useMethodsMetadata`.
+  //   - false: nothing is bundled, every route is fetched through `useMethodsMetadata`.
+  // Same key as the tsconfig `bundleApi` and the CLI's `--bundle-api` (where false is spelled `off`).
+  bundleApi?: 'bundled' | 'mixed' | false;
   // Generated-output root, relative to cwd: cache modules under `<genDir>/types/` (gitignored), committed
   // enrichment under `<genDir>/enriched/`. Omitted, the resolver infers `<srcDir>/.mion` from the tsconfig.
   // It lives in the project rather than node_modules so a dev watcher sees regenerated modules.
@@ -361,7 +362,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       ...(genDirAbs ? {genDir: genDirAbs} : {}),
       ...(options.clientTsconfig ? {clientTsconfig: options.clientTsconfig} : {}),
       ...(options.apiTsconfig ? {apiTsconfig: options.apiTsconfig} : {}),
-      ...(options.bundleApi ? {bundleApi: options.bundleApi} : {}),
+      ...(options.bundleApi !== undefined ? {bundleApi: options.bundleApi === false ? 'off' : options.bundleApi} : {}),
       transformRelative: true,
       ...(options.sourcesContent === false ? {omitSourcesContent: true} : {}),
       ...(enrichFriendly ? {enrichFriendly: true} : {}),
@@ -956,9 +957,9 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
     // NEVER declared on bun: unplugin registers one `onResolve({filter: /.*/})` for the whole plugin as soon
     // as any resolveId hook exists, and bun's loader then fails every module this plugin returns null for,
     // entry point included. The stub is only a size win, so bun keeps the real module.
-    ...(meta.framework !== 'bun' && options.bundleApi === undefined
+    ...(meta.framework !== 'bun' && options.bundleApi === false
       ? {
-          // No bundleApi means no injected metadata reaches a dispatch point, so stubbing the dead
+          // bundleApi off means no injected metadata reaches a dispatch point, so stubbing the dead
           // registration lane drops core's marker reflection with it.
           resolveId(id: string) {
             return id === BUNDLED_API_ID ? bundledApiStubPath() : null;
