@@ -18,7 +18,7 @@ import type {
 // ############# Route & Middlewares initialization (INTERNAL) #############
 // These bodies initialize the definition objects AND are the mion injection points: the trailing marker
 // params are filled at BUILD TIME by @mionjs/devtools. Not exported from the package, consumers reach
-// them as the closures `createMionRouter()` returns; only the internal client / error / serializer routes
+// them as the closures `createMionRouter()` returns; only mion's own middlewares and its error / serializer routes
 // call them directly, each pinning its own `encoder`.
 // ⚠️ There is NO signature here on purpose: each body is TYPED BY its helper interface in
 // types/mionRouter.ts, the one place a helper signature is written, so there is no second surface to keep
@@ -95,3 +95,27 @@ export const rawMiddleware: RawMiddlewareHelper<RouterOptionsInput> = (handler, 
   handler,
   options: opts,
 });
+
+const onDemandMiddlewares = new WeakSet<object>();
+
+/** Internal: the middleware runs only when the request body carries its slot, so an absent slot costs nothing */
+export function markOnDemand<Def extends object>(def: Def): Def {
+  onDemandMiddlewares.add(def);
+  return def;
+}
+
+export function isOnDemandMiddleware(def: object): boolean {
+  return onDemandMiddlewares.has(def);
+}
+
+const standaloneRoutes = new WeakSet<object>();
+
+/** Internal: the route runs none of the middlewares around it, wherever it is placed, like a route mion registered itself */
+export function markStandalone<Def extends object>(def: Def): Def {
+  standaloneRoutes.add(def);
+  return def;
+}
+
+export function isStandaloneRoute(def: object): boolean {
+  return standaloneRoutes.has(def);
+}

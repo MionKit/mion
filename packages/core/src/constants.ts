@@ -33,9 +33,6 @@ export const MION_BATCH_PATH = `${PATH_SEPARATOR}${MION_BATCH_KEY}`;
 
 /** Mion internal routes. */
 export const MION_ROUTES = {
-  methodsMetadataById: 'mion@methodsMetadataById',
-  /** Middleware that returns methods metadata alongside any route response */
-  methodsMetadata: 'mion@methodsMetadata',
   /** Errors raised by an adapter rather than a handler: before the router sees the request, or after
    *  the route resolved (a body the adapter refused) */
   platformError: 'mion@platformError',

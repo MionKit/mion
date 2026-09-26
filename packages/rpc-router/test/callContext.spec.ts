@@ -28,7 +28,7 @@ describe('call context per request', () => {
 
   /** Registers one echo route that records the context it ran with. */
   const setup = (seen: CallContext[]): void => {
-    const mion = createMionRouter({skipClientRoutes: true, contextDataFactory: () => ({tag: 'none'})});
+    const mion = createMionRouter({contextDataFactory: () => ({tag: 'none'})});
     mion.initRoutes({
       echo: mion.route((ctx, user: User): User => {
         seen.push(ctx as CallContext);

@@ -8,6 +8,7 @@
 
 import {RpcError, FatalError, HeadersSubset} from '@mionjs/core';
 import {PublicApi, Routes, createMionRouter} from '@mionjs/router';
+import {mionMethodsMetadata} from '@mionjs/router/middlewares';
 import {setNodeHttpOpts, startNodeServer} from '@mionjs/platform-node';
 import type {Server as HttpServer} from 'node:http';
 import type {Server as HttpsServer} from 'node:https';
@@ -25,7 +26,7 @@ import {csrf, getCsrfToken, rotateCsrfToken} from './csrf.middleware.ts';
 // them injected.
 type TestSharedData = {user: {name: string; surname: string} | null; httpMethod: string | null};
 const getSharedData = (): TestSharedData => ({user: null, httpMethod: null});
-const mion = createMionRouter({contextDataFactory: getSharedData, skipClientRoutes: false});
+const mion = createMionRouter({contextDataFactory: getSharedData});
 const {route, headersFn, middleware, query, mutation, rawMiddleware} = mion;
 
 // ============ Batch chain fixtures (flow/*) ============
@@ -205,6 +206,8 @@ type NoteRuns = {getNote: number; saveNote: number; touchNote: number; clearNote
 const noteRuns: NoteRuns = {getNote: 0, saveNote: 0, touchNote: 0, clearNote: 0, failNote: 0, adminNote: 0};
 
 const routes = {
+  // the fetched-lane client tests ask this server for route metadata
+  ...mionMethodsMetadata,
   // ============ Shared middleware ============
   // A gate: a present but WRONG token answers a FatalError, typed for the client and ending the
   // chain so the route never runs. A missing header fails header validation before the handler.
@@ -481,7 +484,6 @@ const defaultPort = process.env.MION_TEST_PORT
 /** Starts the server and hands back the listening node server, so the caller can close it. A test
  *  project's vitest globalSetup calls this in the SAME process, nothing is spawned. */
 export async function startTestServer(port: number = defaultPort): Promise<HttpServer | HttpsServer> {
-  // Registers the routes, the internal mion routes (methodsMetadataById, …) included.
   mion.initRoutes(routes);
   setNodeHttpOpts({port});
   const server = await startNodeServer();
