@@ -189,6 +189,7 @@ The side-by-side PR made the three `next/` dialects mirror each other (a parity 
 - `packages/devtools/test/publish-order.test.ts` and `test-pr.test.ts` name only the pg package.
 - Convert and migrate tests (`ts-go-runtypes/internal/convert/drizzle_test.go`, `internal/drizzlemigrate/migrate_test.go`, `drizzleConvert.integration.spec.ts`) are almost all pg: rewrite them for the new shape in all three dialects as part of the convert and drizzle-migrate work above.
 - The shipped index entry types offer the dialect's index options before `.on()`, where drizzle only has them after: `index('idx').using('hash').on(col)` compiles on mysql and throws at `toDrizzle` (`entry[method] is not a function`). Give the new surface drizzle's two steps (`on` first, then the options) and pin the wrong order with `@ts-expect-error` in every dialect.
+- The shipped `pgSchema(...).enum` object form keeps the object as `enumValues` instead of its values (`src/table.ts` `schemaEnum` skips the `Object.values` step top-level `pgEnum` does). `next/` works around it with `enumFromShipped`; the switch must drop the workaround and fix the recorder, with a test.
 - Every new test file joins the parity test's file list; every new dialect joins its `DIALECTS` array.
 
 ## Docs
