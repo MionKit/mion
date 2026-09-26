@@ -9,6 +9,7 @@
 
 import {getTableConfig, getViewConfig} from 'drizzle-orm/mysql-core';
 import {
+  buildViewColumns,
   specTools,
   type ColumnSpec,
   type SpecDialect,
@@ -53,6 +54,11 @@ const mysqlSpecDialect: SpecDialect = {
     ({pick}) => ({fn: 'datetime', args: [{mode: pick(['date', 'string'])}], mods: []}),
     () => ({fn: 'tinyint', args: [], mods: []}),
     () => ({fn: 'year', args: [], mods: []}),
+    ({pick}) => ({
+      fn: 'text',
+      args: [],
+      mods: [{method: 'generatedAlwaysAs', args: ['x', {mode: pick(['virtual', 'stored'])}]}],
+    }),
   ],
   stringDefaultFns: ['varchar', 'char'],
   intFns: ['int', 'smallint'],
@@ -75,7 +81,16 @@ const mysqlSpecDialect: SpecDialect = {
     tinyint: 'Tinyint',
     year: 'Year',
   },
-  typeMods: new Set(['notNull', 'primaryKey', 'default', 'defaultNow', 'onUpdateNow', 'autoincrement', 'unique']),
+  typeMods: new Set([
+    'notNull',
+    'primaryKey',
+    'default',
+    'defaultNow',
+    'onUpdateNow',
+    'autoincrement',
+    'unique',
+    'generatedAlwaysAs',
+  ]),
 };
 
 export const {
@@ -101,19 +116,24 @@ export function project(table: unknown) {
   return {
     name: config.name,
     schema: config.schema,
-    columns: config.columns.map((column) => ({
-      name: column.name,
-      columnType: column.columnType,
-      sqlType: column.getSQLType(),
-      notNull: column.notNull,
-      hasDefault: column.hasDefault,
-      default: normalizeValue(column.default),
-      primary: column.primary,
-      isUnique: (column as unknown as {isUnique: boolean}).isUnique,
-      enumValues: column.enumValues,
-      autoIncrement: (column as unknown as {autoIncrement?: boolean}).autoIncrement,
-      hasOnUpdateNow: (column as unknown as {hasOnUpdateNow?: boolean}).hasOnUpdateNow,
-    })),
+    columns: config.columns.map((column) => {
+      const generated = (column as unknown as {generated?: {as: unknown; type: string; mode: string}}).generated;
+      return {
+        name: column.name,
+        columnType: column.columnType,
+        sqlType: column.getSQLType(),
+        notNull: column.notNull,
+        hasDefault: column.hasDefault,
+        default: normalizeValue(column.default),
+        primary: column.primary,
+        isUnique: (column as unknown as {isUnique: boolean}).isUnique,
+        uniqueName: (column as unknown as {uniqueName?: string}).uniqueName,
+        enumValues: column.enumValues,
+        autoIncrement: (column as unknown as {autoIncrement?: boolean}).autoIncrement,
+        hasOnUpdateNow: (column as unknown as {hasOnUpdateNow?: boolean}).hasOnUpdateNow,
+        generated: generated && {as: normalizeValue(generated.as), type: generated.type, mode: generated.mode},
+      };
+    }),
     indexes: config.indexes.map((idx) => {
       const indexConfig = (idx as unknown as {config: Record<string, unknown>}).config;
       return {
@@ -196,12 +216,7 @@ export function makeViewSpec(rng: () => number, tableSpec: TableSpec): ViewSpec 
 }
 
 export function buildView(surface: Surface, spec: ViewSpec, viewName: string): unknown {
-  const columns: Record<string, unknown> = {};
-  for (const columnSpec of spec.columns) {
-    let column = surface.ns[columnSpec.fn](...(columnSpec.args as never[])) as Record<string, (...a: unknown[]) => unknown>;
-    for (const mod of columnSpec.mods) column = column[mod.method](...mod.args) as never;
-    columns[columnSpec.key] = column;
-  }
+  const columns = buildViewColumns(surface, spec.columns);
   let builder = surface.ns.mysqlView(viewName as never, columns as never) as Record<string, (...a: unknown[]) => unknown>;
   if (spec.algorithm !== undefined) builder = builder.algorithm(spec.algorithm) as never;
   if (spec.sqlSecurity !== undefined) builder = builder.sqlSecurity(spec.sqlSecurity) as never;

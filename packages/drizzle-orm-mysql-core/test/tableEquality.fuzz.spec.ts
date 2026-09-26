@@ -85,6 +85,9 @@ describe('mysql slim surface — fuzz: toDrizzle equals raw drizzle for random t
       expect(projectView(toDrizzle(buildView(slimSurface, viewSpec, viewName) as never)), viewDetail).toEqual(
         projectView(buildView(rawSurface, viewSpec, viewName))
       );
+      expect(projectView(toDrizzle(buildView(nextSurface, viewSpec, viewName) as never)), `next view\n${viewDetail}`).toEqual(
+        projectView(buildView(rawSurface, viewSpec, viewName))
+      );
       const reduced = typeRoadReduce(spec);
       if (reduced !== undefined) {
         typeRoadRuns++;

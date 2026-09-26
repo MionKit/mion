@@ -42,7 +42,7 @@ import {
   type Surface,
 } from './tableSpecShared.ts';
 
-const ITERATIONS = 120;
+const ITERATIONS = process.env.MION_FUZZ_ITER ? Number(process.env.MION_FUZZ_ITER) : 120;
 const BASE_SEED = process.env.MION_FUZZ_SEED ? Number(process.env.MION_FUZZ_SEED) : 0x5eed_d12e;
 
 const slimSurfaceParent = slim.pgTable('fuzz_parents', {id: slim.integer('id').primaryKey()});
@@ -98,6 +98,10 @@ describe('pg slim surface — fuzz: toDrizzle equals raw drizzle for random tabl
       expect(
         projectView(toDrizzle(buildView(slimSurface, viewSpec, viewName) as never), viewSpec.materialized),
         viewDetail
+      ).toEqual(projectView(buildView(rawSurface, viewSpec, viewName), viewSpec.materialized));
+      expect(
+        projectView(toDrizzle(buildView(nextSurface, viewSpec, viewName) as never), viewSpec.materialized),
+        `next view\n${viewDetail}`
       ).toEqual(projectView(buildView(rawSurface, viewSpec, viewName), viewSpec.materialized));
       // Surface 3: the covered SUBSET of the spec through the type road's
       // runtime bridge, against a raw build of the same reduced spec.
