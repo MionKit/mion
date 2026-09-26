@@ -485,11 +485,17 @@ export function vector(...args: unknown[]) {
 // ── Enums and custom types ───────────────────────────────────────────────────
 // No type road (the runtime needs the enum handle or customType callbacks); the types exist for the models.
 
-/** A pgEnum column: one shared type per value set. */
+/** A pgEnum column over a value tuple: one shared type per value set. */
 export type PgEnumCol<Values extends readonly string[], P extends Only<P, PgColMods> = NoProps> = Column<
   'enum',
   P,
   Values[number]
+>;
+/** A pgEnum column over an enum object: data is the union of its VALUES. */
+export type PgEnumObjectCol<E extends Record<string, string>, P extends Only<P, PgColMods> = NoProps> = Column<
+  'enum',
+  P,
+  E[keyof E]
 >;
 /** A customType column. */
 export type CustomCol<Data, P extends Only<P, PgColMods> = NoProps> = Column<'custom', P, Data>;
