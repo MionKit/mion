@@ -28,7 +28,7 @@ interface Dialect {
   textType: string;
   int: string;
   intType: string;
-  /** The shipped int column kind, printed once per int column in an exported table's declaration. */
+  /** Printed once per int column in an exported table's declaration. */
   shippedIntKind: string;
 }
 const DIALECTS: Dialect[] = [
@@ -152,9 +152,7 @@ describe('declaration emit over slim drizzle tables', () => {
   for (const names of DIALECTS) {
     const {dialect, int, shippedIntKind} = names;
     for (const {label, source} of casesFor(names)) {
-      // The first case pays for parsing the whole resolved graph; later ones reuse
-      // it. Comfortable on an idle machine, but the default 5s is not enough when
-      // the rest of the suite is running alongside.
+      // The first case parses the whole resolved graph: the default 5s is too short beside the rest of the suite.
       it(`${label} emits a .d.ts`, {timeout: 60_000}, () => {
         const outcome = emitDeclarations(source);
         expect(outcome.errors, `declaration diagnostics:\n  ${outcome.errors.join('\n  ')}`).toEqual([]);
@@ -163,12 +161,7 @@ describe('declaration emit over slim drizzle tables', () => {
       });
     }
 
-    // A library that exports its slim table ships that table's whole columns
-    // record in its .d.ts, and every consumer parses and checks what is there. The
-    // factories used to return `PgTable<Name, Cols, [], Cols>` — the columns in
-    // slot two AND again in the normalized fast-path slot — so the record was
-    // printed TWICE. Counting one column's own emitted type is what pins the fix:
-    // a return to the 4-parameter form doubles it and fails here.
+    // Every consumer parses the exported columns record; the old `PgTable<Name, Cols, [], Cols>` form printed it twice.
     it(`${dialect}: the exported table prints its columns once, not twice`, {timeout: 60_000}, () => {
       const outcome = emitDeclarations(`${shippedHeader(names)}${shippedTable(names)}\nexport const usersTable = users;\n`);
       expect(outcome.emitSkipped).toBe(false);
@@ -183,8 +176,7 @@ describe('declaration emit over slim drizzle tables', () => {
       expect(outcome.dts.split(`Column<"${int}"`).length - 1, `emitted declaration:\n${outcome.dts}`).toBe(1);
     });
 
-    // Emit succeeding is not enough: the format metadata has to survive into the
-    // declaration, or consumers lose the refined bounds.
+    // Emit succeeding is not enough: without the format metadata, consumers lose the refined bounds.
     it(`${dialect}: the emitted declaration still carries the format brand`, {timeout: 60_000}, () => {
       const outcome = emitDeclarations(casesFor(names)[2].source);
       expect(outcome.dts).toContain('minLength');
