@@ -86,8 +86,8 @@ export interface ResolverClientOptions {
   // Forwarded as --api-tsconfig: the tsconfig of the SEPARATE project declaring the API this (client) session calls,
   // where the bundleApi lane resolves the routes' types. Undefined means the API is in this program.
   apiTsconfig?: string;
-  // Forwarded as --bundle-api: switches the client-side bundleApi lane on.
-  bundleApi?: 'bundled' | 'mixed';
+  // Forwarded as --bundle-api: picks the client-side bundleApi lane; unset leaves the binary's default, 'bundled'.
+  bundleApi?: 'bundled' | 'mixed' | 'off';
   // Forwarded as --transform-relative: rewrite the injected import block's `rtmod:` specifiers to paths relative to
   // the resolved output root (files mode). The bundler plugin always sets it; the virtual-module lanes (batchcompile
   // pass 1, the transform-wire bench, the inline test lane) leave it off. Session config: every consumer is homogeneous.

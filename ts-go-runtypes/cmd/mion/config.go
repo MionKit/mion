@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment/enrichgen"
 )
@@ -73,11 +74,11 @@ type tsRuntypesPlugin struct {
 	// BundleApi bundles the metadata and compiled functions of every route
 	// this client calls into the client itself: "bundled" (no metadata is
 	// fetched at runtime) or "mixed" (routes the bundle lacks are still
-	// fetched). Absent or empty means the fetched lane.
-	BundleApi  string `json:"bundleApi"`
-	ModuleMode string `json:"moduleMode"`
-	EmitMode   string `json:"emitMode"`
-	InlineMode string `json:"inlineMode"`
+	// fetched). `false` or "off" fetches every route. Absent means "bundled".
+	BundleApi  bundleApiKey `json:"bundleApi"`
+	ModuleMode string       `json:"moduleMode"`
+	EmitMode   string       `json:"emitMode"`
+	InlineMode string       `json:"inlineMode"`
 
 	// I18n is the FriendlyText translation config. A pointer so an absent key
 	// (nil) keeps every i18n default dormant.
@@ -536,4 +537,43 @@ func isTrailingComma(input string, pos int) bool {
 		}
 	}
 	return false
+}
+
+// bundleApiKey reads the tsconfig `bundleApi` key, a mode name or `false` (the same as "off").
+type bundleApiKey string
+
+func (key *bundleApiKey) UnmarshalJSON(data []byte) error {
+	var value any
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+	switch typed := value.(type) {
+	case string:
+		*key = bundleApiKey(strings.TrimSpace(typed))
+	case bool:
+		if typed {
+			return fmt.Errorf("bundleApi: true is not a mode, write 'bundled' or 'mixed'")
+		}
+		*key = bundleApiKey(constants.BundleApiOff)
+	case nil:
+		*key = ""
+	default:
+		return fmt.Errorf("bundleApi must be 'bundled', 'mixed' or false")
+	}
+	return nil
+}
+
+// resolveBundleApi picks the flag, then the tsconfig key, then the default `bundled`; ok is false for an unknown mode.
+func resolveBundleApi(flag string, key bundleApiKey) (constants.BundleApiMode, bool) {
+	mode := constants.BundleApiMode(strings.TrimSpace(flag))
+	if mode == constants.BundleApiUnset {
+		mode = constants.BundleApiMode(key)
+	}
+	if !mode.Valid() {
+		return mode, false
+	}
+	if mode == constants.BundleApiUnset {
+		mode = constants.BundleApiBundled
+	}
+	return mode, true
 }

@@ -17,7 +17,7 @@ Flags:
   --api-tsconfig PATH
     	tsconfig PATH of the SEPARATE project declaring the mion API this client calls: under --bundle-api the routes' types resolve in that program, so the client emits the server's exact runtypes (default: the tsconfig apiTsconfig plugin key, else this program)
   --bundle-api string
-    	bundle the metadata + compiled functions of every route this client calls: bundled (nothing fetched at runtime) | mixed (unbundled routes still fetched) (default: the tsconfig bundleApi plugin key, else off)
+    	bundle the metadata + compiled functions of every route this client calls: bundled (nothing fetched at runtime) | mixed (unbundled routes still fetched) | off (every route fetched) (default: the tsconfig bundleApi plugin key, else bundled)
   --client-tsconfig PATH
     	tsconfig PATH of a SEPARATE mion client project: this (server) build generates the batch transport (<genDir>/rpc/) from its batch() calls and inline inputFrom mappers (default: the tsconfig clientTsconfig plugin key, else this program)
   --cwd string
@@ -132,7 +132,7 @@ Flags:
   --api-tsconfig PATH
     	tsconfig PATH of the SEPARATE project declaring the mion API this client calls: under --bundle-api the routes' types resolve in that program, so the client emits the server's exact runtypes (default: the tsconfig apiTsconfig plugin key, else this program)
   --bundle-api string
-    	bundle the metadata + compiled functions of every route this client calls: bundled (nothing fetched at runtime) | mixed (unbundled routes still fetched) (default: the tsconfig bundleApi plugin key, else off)
+    	bundle the metadata + compiled functions of every route this client calls: bundled (nothing fetched at runtime) | mixed (unbundled routes still fetched) | off (every route fetched) (default: the tsconfig bundleApi plugin key, else bundled)
   --client-tsconfig PATH
     	tsconfig PATH of a SEPARATE mion client project: this (server) build generates the batch transport (<genDir>/rpc/) from its batch() calls and inline inputFrom mappers (default: the tsconfig clientTsconfig plugin key, else this program)
   --cwd string

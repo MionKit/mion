@@ -11,6 +11,7 @@ package diagnostics
 // MET007 injects both versions and the call still runs, reporting a mismatch it should not: LevelRuntimeError.
 // MET008 bundles the call, which then fails the middleware's validation on every request: LevelRuntimeError.
 // MET009 bundles a call whose middleware silently gets nothing: LevelRuntimeError.
+// MET010 builds a `mixed` client whose fallback has nothing to fetch from: LevelRuntimeError.
 const (
 	// CodeApiMetaUnreadable: the API type a dispatch site names cannot be read as a mion PublicApi.
 	// Args: [0] what could not be read.
@@ -38,6 +39,9 @@ const (
 	CodeApiMetaMiddlewareNotSetUp = "MET008"
 	// CodeApiMetaOptionalMiddlewareNotSetUp: like MET008, for a middleware whose params are all optional. Same args.
 	CodeApiMetaOptionalMiddlewareNotSetUp = "MET009"
+	// CodeApiMetaMixedWithoutMetadata: a `mixed` client calls an API that does not place `mionMethodsMetadata`,
+	// so a route the bundle lacks has nowhere to fetch its metadata from. Reported at the first call to that API.
+	CodeApiMetaMixedWithoutMetadata = "MET010"
 )
 
 func init() {
@@ -51,6 +55,7 @@ func init() {
 		{Code: CodeApiMetaVersionMismatch, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "A client and the API it is built against inject different build versions"},
 		{Code: CodeApiMetaMiddlewareNotSetUp, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "A called route runs a middleware that needs params, and the client never sets it up"},
 		{Code: CodeApiMetaOptionalMiddlewareNotSetUp, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "A called route runs a middleware with optional params, and the client never sets it up"},
+		{Code: CodeApiMetaMixedWithoutMetadata, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "A `mixed` client calls an API that serves no route metadata to fall back on"},
 	} {
 		register(definition)
 	}

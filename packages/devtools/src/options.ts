@@ -105,8 +105,9 @@ export interface MionApiPointer {
   tsConfig: string;
 }
 
-/** How a client gets its route metadata and compiled functions: bundled at build time, or bundled
- *  with the fetched lane as the fallback for routes the bundle lacks. Unset keeps the fetched lane. */
+/** How a client gets its route metadata and compiled functions: bundled at build time (the default), bundled
+ *  with fetching as the fallback for routes the bundle lacks, or `false` to fetch every route. Fetching needs
+ *  `useMethodsMetadata` on the client and `mionMethodsMetadata` in the server's routes. */
 export type MionBundleApiMode = NonNullable<TsRuntypesPluginOptions['bundleApi']>;
 
 /** The subset of a mion preset's options that both lanes read. */
@@ -147,8 +148,13 @@ export function toRunTypesOptions(
   if (bundle.api !== undefined && !bundle.api.tsConfig) {
     throw new Error(`[mion] api.tsConfig must name the API project's tsconfig (absolute, or relative to the root).`);
   }
-  if (bundle.bundleApi !== undefined && bundle.bundleApi !== 'bundled' && bundle.bundleApi !== 'mixed') {
-    throw new Error(`[mion] bundleApi must be 'bundled' or 'mixed' (got '${String(bundle.bundleApi)}').`);
+  if (
+    bundle.bundleApi !== undefined &&
+    bundle.bundleApi !== 'bundled' &&
+    bundle.bundleApi !== 'mixed' &&
+    bundle.bundleApi !== false
+  ) {
+    throw new Error(`[mion] bundleApi must be 'bundled', 'mixed' or false (got '${String(bundle.bundleApi)}').`);
   }
   // Project `references` in the tsconfig are fine: the resolver drops them when building its scan program.
   return {

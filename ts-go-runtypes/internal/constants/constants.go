@@ -412,12 +412,14 @@ const (
 type BundleApiMode string
 
 const (
-	// BundleApiOff (the default) bundles nothing: the client fetches its metadata from the server on first use.
-	BundleApiOff BundleApiMode = ""
-	// BundleApiBundled bundles every route the program calls; the client never asks the server for metadata and
-	// refuses a route it did not bundle.
+	// BundleApiUnset is the zero value: the CLI resolves it to BundleApiBundled, a session left at it bundles nothing.
+	BundleApiUnset BundleApiMode = ""
+	// BundleApiOff bundles nothing: the client fetches its metadata from the server, through `useMethodsMetadata`.
+	BundleApiOff BundleApiMode = "off"
+	// BundleApiBundled (the default) bundles every route the program calls; the client never asks the server for
+	// metadata, and a route it did not bundle fails unless the client set up `useMethodsMetadata`.
 	BundleApiBundled BundleApiMode = "bundled"
-	// BundleApiMixed bundles the same set, and the client still fetches the routes the bundle lacks.
+	// BundleApiMixed bundles the same set, and the client fetches the routes the bundle lacks through `useMethodsMetadata`.
 	BundleApiMixed BundleApiMode = "mixed"
 )
 
@@ -427,7 +429,7 @@ func (mode BundleApiMode) Enabled() bool {
 }
 
 func (mode BundleApiMode) Valid() bool {
-	return mode == BundleApiOff || mode.Enabled()
+	return mode == BundleApiUnset || mode == BundleApiOff || mode.Enabled()
 }
 
 // EmitMode selects what each compiled fn entry ships in its code/factory slots; the --emit-mode CLI flag and the

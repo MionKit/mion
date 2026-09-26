@@ -114,7 +114,7 @@ register('bundled API through a real vite build', () => {
   afterEach(() => rmSync(root, {recursive: true, force: true}));
 
   /** Builds the fixture client through the real preset and returns the single emitted chunk. */
-  async function buildClient(bundleApi?: 'bundled' | 'mixed', warnings: string[] = []): Promise<string> {
+  async function buildClient(bundleApi?: 'bundled' | 'mixed' | false, warnings: string[] = []): Promise<string> {
     const result = await build({
       root,
       configFile: false,
@@ -243,8 +243,16 @@ register('bundled API through a real vite build', () => {
     expect(warnings.join('\n')).toMatch(/MET008.*`auth`/);
   });
 
-  it('writes nothing and injects nothing without the option', async () => {
+  it('bundles with no option: bundled is the default', async () => {
     const code = await buildClient();
+    expect(existsSync(path.join(root, '.mion', 'api'))).toBe(true);
+    const globals = await runArtifact(code);
+    expect(globals.__mode).toBe('bundled');
+    expect(globals.__bundles?.['users/getById']).toBeDefined();
+  });
+
+  it('writes nothing and injects nothing with bundleApi: false', async () => {
+    const code = await buildClient(false);
     expect(existsSync(path.join(root, '.mion', 'api'))).toBe(false);
     expect(code).not.toMatch(/['"]bundled['"]/);
     expect(code).not.toContain('__rt_s$2F');

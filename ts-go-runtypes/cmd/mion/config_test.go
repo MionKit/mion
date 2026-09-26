@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"os/exec"
@@ -8,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment/mirror"
 )
 
@@ -469,5 +471,40 @@ func mustMkdirAll(t *testing.T, dir string) {
 	t.Helper()
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatalf("mkdir %s: %v", dir, err)
+	}
+}
+
+// TestResolveBundleApi: the flag wins over the tsconfig key, `false` in the tsconfig means off, and nothing set means bundled.
+func TestResolveBundleApi(t *testing.T) {
+	decode := func(raw string) bundleApiKey {
+		var key bundleApiKey
+		if err := json.Unmarshal([]byte(raw), &key); err != nil {
+			t.Fatalf("decode %s: %v", raw, err)
+		}
+		return key
+	}
+	for _, tc := range []struct {
+		flag string
+		key  string
+		want constants.BundleApiMode
+	}{
+		{"", `null`, constants.BundleApiBundled},
+		{"", `"mixed"`, constants.BundleApiMixed},
+		{"", `false`, constants.BundleApiOff},
+		{"", `"off"`, constants.BundleApiOff},
+		{"mixed", `false`, constants.BundleApiMixed},
+		{"off", `"bundled"`, constants.BundleApiOff},
+	} {
+		got, ok := resolveBundleApi(tc.flag, decode(tc.key))
+		if !ok || got != tc.want {
+			t.Errorf("flag %q, key %s: got %q (ok %v), want %q", tc.flag, tc.key, got, ok, tc.want)
+		}
+	}
+	if _, ok := resolveBundleApi("fetched", ""); ok {
+		t.Errorf("an unknown mode is refused")
+	}
+	var key bundleApiKey
+	if err := json.Unmarshal([]byte(`true`), &key); err == nil {
+		t.Errorf("`true` is not a mode and is refused")
 	}
 }
