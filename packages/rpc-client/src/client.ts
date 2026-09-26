@@ -29,6 +29,7 @@ import {MionSubRequest} from './subRequest.ts';
 import {getBundleApiMode} from './lib/bundleApiMode.ts';
 import {setApiBuildVersion} from './lib/apiBuildVersion.ts';
 import {registerBundledApi} from '#bundled-api';
+import {MIDDLEWARE_TARGET, type MiddlewareTarget} from './lib/metadataFetcher.ts';
 
 /** Under `bundleApi` the client never asks the server for metadata; `buildVersion` is build-filled, never by hand. */
 export function initClient<RM extends RemoteApi>(
@@ -93,7 +94,7 @@ export class MionClient {
   }
 
   typeErrors<List extends SubRequest<any>[]>(...subRequest: List): Promise<RunTypeError[]> {
-    return dispatchTypeErrors(this.clientOptions, subRequest);
+    return dispatchTypeErrors(this.clientOptions, subRequest, this.handlersRegistry);
   }
 
   destroy(): void {
@@ -115,6 +116,9 @@ class MethodProxy {
 
     // On the middlewares tree hook names win, so no middleware can be named after one
     get: (_target: any, prop: string): any => {
+      if (this.isMiddleware && prop === (MIDDLEWARE_TARGET as unknown)) {
+        return {id: getRouterItemId(this.parentProps), registry: this.client.handlersRegistry} satisfies MiddlewareTarget;
+      }
       if (this.isMiddleware && middlewareHooks.has(prop)) return this.getEvents()[prop].bind(this.events);
       const existing = this.propsProxies[prop];
       if (existing) return existing.proxy;

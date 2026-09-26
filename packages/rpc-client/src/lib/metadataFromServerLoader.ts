@@ -6,23 +6,13 @@
  * ######## */
 
 import {RpcError} from '@mionjs/core';
-import type {ClientOptions} from '../types.ts';
 
 // Reaches the lane through `#metadata-from-server`, an @mionjs/client `imports` entry no consumer alias can collide with.
 
 type MetadataFromServer = typeof import('./metadataFromServer.ts');
 
-/** What the request and response paths ask of the lane WITHOUT loading it. */
-export interface MetadataCacheHooks {
-  extractAndProcessMetadata(routeKey: string, parsedBody: any, options: ClientOptions): void;
-  takeMetadataCacheError(): RpcError<string> | undefined;
-  wasHydratedFromCache(id: string, options: ClientOptions): boolean;
-  purgeHydratedMetadata(ids: string[], options: ClientOptions): Promise<void>;
-}
-
 let laneModule: MetadataFromServer | undefined;
 let loading: Promise<MetadataFromServer> | undefined;
-let cacheHooks: MetadataCacheHooks | undefined;
 
 /** Loads the lane once per process. Callers await it inside the request path's own try, so a failed
  *  load becomes that call's undeclared slot; the failure is forgotten so a later call retries. */
@@ -40,14 +30,9 @@ export function loadMetadataFromServer(): Promise<MetadataFromServer> {
   return loading;
 }
 
-/** The cache half if present, never loading it; undefined means nothing was ever fetched or stored. */
-export function metadataCacheHooks(): MetadataCacheHooks | undefined {
-  return cacheHooks;
-}
-
-/** Called by the cache module as it evaluates, whether through `loadMetadataFromServer` or a direct import. */
-export function registerMetadataCacheHooks(hooks: MetadataCacheHooks): void {
-  cacheHooks = hooks;
+/** The lane if a call already loaded it, never loading it. */
+export function loadedMetadataFromServer(): MetadataFromServer | undefined {
+  return laneModule;
 }
 
 /** True when a call has reached the lane. Tests only. */

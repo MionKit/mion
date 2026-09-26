@@ -15,6 +15,8 @@ export default defineConfig({
       runTypes: {
         tsConfig: resolve(__dirname, 'tsconfig.json'),
       },
+      // the fetched lane: every spec here sets up useMethodsMetadata through test/lib/fetchingClient.ts
+      bundleApi: false,
       // No `server` block: globalSetup.ts starts the API in THIS process. That also makes this
       // program the batch source — it already pulls the test server in through the `source` export
       // condition — so the resolver writes `rpc/` under this package's genDir and appends the

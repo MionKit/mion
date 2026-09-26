@@ -40,7 +40,17 @@ Two of them exist because of real bugs, keep them in mind when touching request 
 One thing rides slot 2 that the router never saw: a metadata cache write the browser refused, after
 eviction ran out of things to give up. The request itself succeeded, so it never rejects and never
 displaces a real error; it takes the first free undeclared slot on a later call and is reported once
-(`packages/rpc-client/src/lib/clientMethodsMetadata.ts`, `takeMetadataCacheError`).
+(`packages/rpc-client/src/lib/clientMethodsMetadata.ts`, `takeMetadataCacheError`, reached only through
+`useMethodsMetadata`'s internal hook).
+
+## Metadata fetching is one installer, never a dispatch special case
+
+Everything about fetching route metadata (the optimistic first call, the browser store, the version
+recovery, the one resend) lives behind `useMethodsMetadata` in
+[src/middlewares/methodsMetadata.ts](src/middlewares/methodsMetadata.ts). `dispatch.ts` only calls the
+optional internal hook in [src/lib/metadataFetcher.ts](src/lib/metadataFetcher.ts), which no public type
+names. A client that never calls the installer ships none of it. Do not add a metadata branch back into
+`dispatch.ts` or `serializer.ts`.
 
 ## Middleware params come only from onRequest
 

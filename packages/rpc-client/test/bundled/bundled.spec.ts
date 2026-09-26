@@ -12,6 +12,7 @@ import {describe, it, expect, beforeEach, afterEach, inject, vi} from 'vitest';
 import {HeadersSubset, MION_ROUTES} from '@mionjs/core';
 import type {TestServerApi} from '@mionjs/test-server';
 import {initClient} from '../../src/client.ts';
+import {useMethodsMetadata} from '../../src/middlewares/methodsMetadata.ts';
 import {batch} from '../../src/batch.ts';
 import {resetClientCaches} from '../lib/testUtils.ts';
 import {resetBundledApi} from '../../src/lib/bundledApi.ts';
@@ -44,8 +45,7 @@ function watchFetch() {
   return {
     calls: () => spy.mock.calls.length,
     askedForMetadata: () =>
-      bodies.some((body) => body.includes(MION_ROUTES.methodsMetadata)) ||
-      urls.some((url) => url.includes(MION_ROUTES.methodsMetadataById)),
+      bodies.some((body) => body.includes('mionMethodsMetadata')) || urls.some((url) => url.includes('mionMethodsMetadataById')),
     restore: () => {
       globalThis.fetch = realFetch;
     },
@@ -115,9 +115,31 @@ describe('a client built with bundleApi: bundled', () => {
     expect(isMetadataFromServerLoaded()).toBe(false);
   });
 
-  it('fetches a route the bundle lacks, loading the lane only then', async () => {
+  it('fails a route the bundle lacks with a clear error when it never set up metadata fetching', async () => {
     const {client, middlewares} = initClient<TestServerApi>({baseURL});
     useAuth(middlewares);
+    const watch = watchFetch();
+    try {
+      const [result, , undeclared] = await client.execute({
+        pointer: ['flow', 'getOrgLabel'],
+        id: 'flow/getOrgLabel',
+        isResolved: false,
+        params: ['acme'],
+      } as never);
+      expect(result).toBeUndefined();
+      expect(undeclared?.type).toBe('route-metadata-not-found');
+      expect(undeclared?.publicMessage).toContain('useMethodsMetadata');
+      expect(watch.calls()).toBe(0);
+    } finally {
+      watch.restore();
+    }
+    expect(isMetadataFromServerLoaded()).toBe(false);
+  });
+
+  it('fetches a route the bundle lacks once metadata fetching is set up, loading the lane only then', async () => {
+    const {client, middlewares} = initClient<TestServerApi>({baseURL});
+    useAuth(middlewares);
+    useMethodsMetadata(middlewares.mionMethodsMetadata);
     expect(isMetadataFromServerLoaded()).toBe(false);
     const [result, , undeclared] = await client.execute({
       pointer: ['flow', 'getOrgLabel'],
@@ -204,7 +226,8 @@ describe('a client built with bundleApi: bundled', () => {
   });
 
   it('asks the server about a method the bundle does not carry, then validates against it', async () => {
-    const {client, routes} = initClient<TestServerApi>({baseURL});
+    const {client, routes, middlewares} = initClient<TestServerApi>({baseURL});
+    useMethodsMetadata(middlewares.mionMethodsMetadata);
     const watch = watchFetch();
     try {
       // client.typeErrors(...) takes already-built subrequests, so the build saw no dispatch point

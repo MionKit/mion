@@ -11,6 +11,8 @@ import type {MethodWithOptsAndJitFns} from '@mionjs/core';
 import type {RouteSyncError, SyncRoutesHandler} from '@mionjs/core/middlewares';
 import type {CallContext, ClientMiddlewareOf, ClientOptions, MiddlewareContext, SubRequest} from '../../src/types.ts';
 import {useSyncRoutes} from '../../src/middlewares/syncRoutes.ts';
+import {useMethodsMetadata} from '../../src/middlewares/methodsMetadata.ts';
+import {MIDDLEWARE_TARGET} from '../../src/lib/metadataFetcher.ts';
 import {installMethodRows, resetMetadataCacheState} from '../../src/lib/clientMethodsMetadata.ts';
 import {hasMethod, resetBundledMethods, setBundledMethod} from '../../src/lib/methods.ts';
 import {HandlersRegistry} from '../../src/lib/handlersRegistry.ts';
@@ -24,7 +26,11 @@ const ID = 'mionSyncRoutes';
 /** Installs through the real hook registry, as `initClient`'s middlewares do. */
 function installed() {
   const registry = new HandlersRegistry();
-  const middleware = new TypedEvent(ID, registry, () => ({}) as SubRequest<any>);
+  // what `middlewares.<name>` answers, so route sync reaches the client's metadata fetching
+  const middleware = Object.assign(new TypedEvent(ID, registry, () => ({}) as SubRequest<any>), {
+    [MIDDLEWARE_TARGET]: {id: ID, registry},
+  });
+  useMethodsMetadata({[MIDDLEWARE_TARGET]: {id: 'mionMethodsMetadata', registry}} as any);
   useSyncRoutes(middleware as unknown as ClientMiddlewareOf<SyncRoutesHandler>);
   const sent = (context: Partial<CallContext>) => {
     let ids: string[] | undefined;
@@ -53,7 +59,7 @@ describe('useSyncRoutes', () => {
     globalThis.fetch = (async () => {
       fetches++;
       const rows = {methods: {users: methodRow('users', 'fresh')}, deps: {}, purFnDeps: {}};
-      return new Response(JSON.stringify({'mion@methodsMetadataById': rows}), {headers: {'content-type': 'application/json'}});
+      return new Response(JSON.stringify({mionMethodsMetadataById: rows}), {headers: {'content-type': 'application/json'}});
     }) as typeof fetch;
   });
 

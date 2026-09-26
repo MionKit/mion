@@ -38,7 +38,7 @@ async function seed(records: Omit<MetadataRecord, 'baseURL' | 'ts'>[]): Promise<
 
 /** Hands the client a server response carrying this metadata payload. */
 function receiveFromServer(payload: unknown): void {
-  extractAndProcessMetadata(MION_ROUTES.methodsMetadata, {[MION_ROUTES.methodsMetadata]: payload}, options);
+  extractAndProcessMetadata('mionMethodsMetadata', {['mionMethodsMetadata']: payload}, options);
 }
 
 describe('client metadata cache: prototype safety', () => {

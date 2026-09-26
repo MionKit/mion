@@ -30,7 +30,7 @@ describe('a fetched lane that cannot be loaded', () => {
   it('comes back in the undeclared slot, never as a throw', async () => {
     const {resetMetadataFromServer} = await import('../src/lib/metadataFromServerLoader.ts');
     resetMetadataFromServer();
-    const {initClient} = await import('../src/client.ts');
+    const {initClient} = await import('./lib/fetchingClient.ts');
     const {routes} = initClient<TestServerApi>({baseURL});
 
     const [result, error, undeclared] = await routes.sayHello(user).call();

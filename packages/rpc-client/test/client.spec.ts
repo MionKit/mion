@@ -6,7 +6,7 @@
  * ######## */
 
 import {describe, it, expect, beforeEach, vi} from 'vitest';
-import {initClient} from '../src/client.ts';
+import {initClient} from './lib/fetchingClient.ts';
 import {isMiddlewareInScope} from '../src/dispatch.ts';
 import type {ClientOptions, RouteSubRequest} from '../src/types.ts';
 import {purgeHydratedMetadata} from '../src/lib/clientMethodsMetadata.ts';
@@ -947,7 +947,7 @@ describe('client', () => {
       expect(body.auth).toBeUndefined();
       expect(body.calculateAge).toEqual([1990]);
       // the metadata ask piggybacks on that single request
-      expect(body[MION_ROUTES.methodsMetadata]).toBeDefined();
+      expect(body['mionMethodsMetadata']).toBeDefined();
     });
 
     it('first optimistic call with an ASYNC auth onRequest hook is one round trip (no retry)', async () => {
@@ -1084,7 +1084,7 @@ describe('client', () => {
         const requests = requestsOf(fetchSpy);
         expect(requests.map((request) => request.url)).toHaveLength(1);
         expect(requests[0].body.calculateAge).toEqual([1990]);
-        expect(requests[0].body[MION_ROUTES.methodsMetadata]).toBeDefined();
+        expect(requests[0].body['mionMethodsMetadata']).toBeDefined();
         // the HeadersSubset rides as HTTP headers, so nothing is left and the body omits the key
         expect(requests[0].body.auth).toBeUndefined();
         expect(requests[0].headers.Authorization).toBe('XWYZ-TOKEN');
@@ -1106,7 +1106,7 @@ describe('client', () => {
         const requests = requestsOf(fetchSpy);
         expect(requests).toHaveLength(1);
         expect(requests[0].body['compact/processSimpleUser']).toEqual([{name: 'Ada', age: 36}]);
-        expect(requests[0].body[MION_ROUTES.methodsMetadata]).toBeDefined();
+        expect(requests[0].body['mionMethodsMetadata']).toBeDefined();
       } finally {
         fetchSpy.mockRestore();
       }

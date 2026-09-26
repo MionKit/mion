@@ -7,7 +7,7 @@
 
 import {describe, it, expect, beforeAll} from 'vitest';
 import {routesCache} from '@mionjs/core';
-import {initClient} from '../../src/client.ts';
+import {initClient} from './fetchingClient.ts';
 import {TestServerApi} from '@mionjs/test-server';
 import {TEST_SERVER_BASE_URL} from '../../globalSetup.ts';
 import {wireFormReplacer} from '../../src/lib/serializer.ts';

@@ -13,7 +13,6 @@
 import '@mionjs/run-types/formats';
 
 export {
-  createMetadataSubRequest,
   extractAndProcessMetadata,
   forgetFetchedMetadata,
   hydrateMetadataCache,
@@ -23,4 +22,4 @@ export {
   wasHydratedFromCache,
 } from './clientMethodsMetadata.ts';
 export {fetchRemoteMethodsMetadata} from './fetchRemoteMethodsMetadata.ts';
-export {createVerifySubRequest, unverifiedIds, verifyMethodRows} from './apiVersionRecovery.ts';
+export {unverifiedIds, verifyMethodRows} from './apiVersionRecovery.ts';

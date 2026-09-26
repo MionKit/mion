@@ -23,14 +23,25 @@ const {routes} = initClient<any>({baseURL: 'http://localhost:3000'});
 export const call = () => routes.sayHello({name: 'a', surname: 'b'}).call();
 `;
 
+// The same app with metadata fetching set up.
+const FETCHING_APP = `import {initClient} from '${path.join(packageRoot, 'index.ts')}';
+import {useMethodsMetadata} from '${path.join(packageRoot, 'middlewares.ts')}';
+const {routes, middlewares} = initClient<any>({baseURL: 'http://localhost:3000'});
+useMethodsMetadata(middlewares.mionMethodsMetadata);
+export const call = () => routes.sayHello({name: 'a', surname: 'b'}).call();
+`;
+
+type Mode = 'bundled' | 'mixed' | false;
+const MODES: Mode[] = [false, 'bundled', 'mixed'];
+
 /** Names only the fetched lane puts in an artifact. */
 const LANE_MARKERS = ['indexedDB', 'mion:client', 'requestIdleCallback'];
 
 /** The lane's own code: unlike the store key, which every build carries, these say which chunk holds it. */
 const LANE_CODE_MARKERS = ['indexedDB', 'requestIdleCallback'];
 
-/** Names only the version-mismatch recovery puts in an artifact; the check itself is in every build. */
-const RECOVERY_MARKERS = ['api-version-mismatch', 'rowsAgree', 'staleRoutesError'];
+/** Names only the per-route version recovery puts in an artifact; the check itself is in every build. */
+const RECOVERY_MARKERS = ['rowsAgree', 'staleRoutesError'];
 
 /** Names only the bundled-API REGISTRATION puts in an artifact; the light half is in every build. */
 const BUNDLED_API_MARKERS = ['bundle-api-invalid-payload', 'bundledMethodToCacheEntry'];
@@ -56,6 +67,7 @@ let root: string;
 beforeAll(() => {
   root = mkdtempSync(path.join(tmpdir(), 'mion-client-bundle-split-'));
   writeFileSync(path.join(root, 'app.ts'), APP);
+  writeFileSync(path.join(root, 'fetching-app.ts'), FETCHING_APP);
   writeFileSync(path.join(root, 'middlewares-app.ts'), MIDDLEWARES_APP);
 });
 
@@ -63,7 +75,7 @@ afterAll(() => rmSync(root, {recursive: true, force: true}));
 
 type Chunk = {type: string; code?: string; fileName: string; isEntry?: boolean; imports?: string[]};
 
-async function buildChunks(bundleApi?: 'bundled' | 'mixed', entry = 'app.ts'): Promise<Chunk[]> {
+async function buildChunks(bundleApi?: Mode, entry = 'app.ts'): Promise<Chunk[]> {
   const result = await build({
     root,
     configFile: false,
@@ -86,13 +98,13 @@ async function buildChunks(bundleApi?: 'bundled' | 'mixed', entry = 'app.ts'): P
 }
 
 /** Every chunk concatenated: a lane split into its own chunk is still shipped. */
-async function buildApp(bundleApi?: 'bundled' | 'mixed'): Promise<string> {
-  return (await buildChunks(bundleApi)).map((chunk) => chunk.code ?? '').join('\n');
+async function buildApp(bundleApi?: Mode, entry = 'app.ts'): Promise<string> {
+  return (await buildChunks(bundleApi, entry)).map((chunk) => chunk.code ?? '').join('\n');
 }
 
 /** What a browser runs before the first call: the entry and everything it imports statically. */
-async function buildEagerApp(bundleApi?: 'bundled' | 'mixed'): Promise<string> {
-  const chunks = await buildChunks(bundleApi);
+async function buildEagerApp(bundleApi?: Mode, entry = 'app.ts'): Promise<string> {
+  const chunks = await buildChunks(bundleApi, entry);
   const byName = new Map(chunks.map((chunk) => [chunk.fileName, chunk]));
   const eager = new Set<string>();
   const walk = (name: string): void => {
@@ -104,26 +116,22 @@ async function buildEagerApp(bundleApi?: 'bundled' | 'mixed'): Promise<string> {
   return [...eager].map((name) => byName.get(name)?.code ?? '').join('\n');
 }
 
-// Every build ships the lane: any client can come up short, a route the build never saw or a server that moved on.
-// What changes is when it is downloaded, and no build downloads it up front.
+// Only a client that sets up useMethodsMetadata ships the lane, and even then no build downloads it up front.
 describe('the fetched metadata lane', () => {
-  it('a client with no bundleApi loads it on the first call, not before', async () => {
-    const [all, eager] = [await buildApp(), await buildEagerApp()];
-    for (const marker of LANE_MARKERS) expect(all, marker).toContain(marker);
-    for (const marker of LANE_CODE_MARKERS) expect(eager, marker).not.toContain(marker);
-  }, 240_000);
+  it('a client that never sets up useMethodsMetadata ships none of it, in every mode', async () => {
+    for (const mode of MODES) {
+      const code = await buildApp(mode);
+      for (const marker of LANE_CODE_MARKERS) expect(code, `${mode}: ${marker}`).not.toContain(marker);
+    }
+  }, 360_000);
 
-  it('a bundled client still ships it, for the call its bundle cannot answer', async () => {
-    const [all, eager] = [await buildApp('bundled'), await buildEagerApp('bundled')];
-    for (const marker of LANE_MARKERS) expect(all, marker).toContain(marker);
-    for (const marker of LANE_CODE_MARKERS) expect(eager, marker).not.toContain(marker);
-  }, 240_000);
-
-  it('a mixed client splits it the same way', async () => {
-    const [all, eager] = [await buildApp('mixed'), await buildEagerApp('mixed')];
-    for (const marker of LANE_MARKERS) expect(all, marker).toContain(marker);
-    for (const marker of LANE_CODE_MARKERS) expect(eager, marker).not.toContain(marker);
-  }, 240_000);
+  it('a client that sets it up ships it, loaded on the first call and not before, in every mode', async () => {
+    for (const mode of MODES) {
+      const [all, eager] = [await buildApp(mode, 'fetching-app.ts'), await buildEagerApp(mode, 'fetching-app.ts')];
+      for (const marker of LANE_MARKERS) expect(all, `${mode}: ${marker}`).toContain(marker);
+      for (const marker of LANE_CODE_MARKERS) expect(eager, `${mode}: ${marker}`).not.toContain(marker);
+    }
+  }, 360_000);
 });
 
 // Mock generation and the pattern table used to reach every client through @mionjs/core's formats
@@ -139,33 +147,38 @@ describe('what a default client leaves out', () => {
     for (const marker of PATTERN_MARKERS) expect(code, marker).not.toContain(marker);
   }, 120_000);
 
-  it('carries no bundled-API registration, which only a bundleApi build can reach', async () => {
-    const code = await buildApp();
+  it('carries no bundled-API registration when bundleApi is off', async () => {
+    const code = await buildApp(false);
     for (const marker of BUNDLED_API_MARKERS) expect(code, marker).not.toContain(marker);
   }, 120_000);
 
-  it('a bundleApi build still gets the real registration', async () => {
-    const code = await buildApp('bundled');
+  it('a bundleApi build, the default, still gets the real registration', async () => {
+    const code = await buildApp();
     for (const marker of BUNDLED_API_MARKERS) expect(code, marker).toContain(marker);
   }, 120_000);
 });
 
-// The version check reads one header per response, so it cannot be loaded on demand; what a mismatch then
-// does rides the fetch's chunk, since both run only once the bundle comes up short.
+// The version check reads one header per response, so it cannot be loaded on demand; the per-route recovery
+// rides the fetch's chunk, since both run only once the bundle comes up short.
 describe('the api version check', () => {
   it('keeps only the comparison in the first download, in every mode', async () => {
-    for (const mode of [undefined, 'bundled', 'mixed'] as const) {
-      const [all, eager] = [await buildApp(mode), await buildEagerApp(mode)];
+    for (const mode of MODES) {
+      const [all, eager] = [await buildApp(mode, 'fetching-app.ts'), await buildEagerApp(mode, 'fetching-app.ts')];
       for (const marker of RECOVERY_MARKERS) expect(all, `${mode}: ${marker}`).toContain(marker);
       for (const marker of RECOVERY_MARKERS) expect(eager, `${mode}: ${marker}`).not.toContain(marker);
     }
   }, 360_000);
 
   it('ships the recovery in the same chunk as the fetch, so one download covers both', async () => {
-    const chunks = await buildChunks('bundled');
-    const withRecovery = chunks.filter((chunk) => (chunk.code ?? '').includes('api-version-mismatch'));
+    const chunks = await buildChunks('bundled', 'fetching-app.ts');
+    const withRecovery = chunks.filter((chunk) => (chunk.code ?? '').includes('rowsAgree'));
     expect(withRecovery).toHaveLength(1);
     for (const marker of LANE_CODE_MARKERS) expect(withRecovery[0].code ?? '', marker).toContain(marker);
+  }, 240_000);
+
+  it('a client without metadata fetching ships no recovery at all', async () => {
+    const code = await buildApp();
+    for (const marker of RECOVERY_MARKERS) expect(code, marker).not.toContain(marker);
   }, 240_000);
 });
 
@@ -188,7 +201,7 @@ describe('the @mionjs/client/middlewares entry', () => {
 
 describe('route sync', () => {
   it('a client that never installs it ships none of it, in every mode', async () => {
-    for (const mode of [undefined, 'bundled', 'mixed'] as const) {
+    for (const mode of MODES) {
       const code = await buildApp(mode);
       for (const marker of SYNC_MARKERS) expect(code, `${mode}: ${marker}`).not.toContain(marker);
     }

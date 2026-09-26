@@ -13,7 +13,7 @@ import 'fake-indexeddb/auto';
 import {describe, beforeEach, afterEach, it, expect, vi} from 'vitest';
 import {HeadersSubset, MION_ROUTES, routesCache} from '@mionjs/core';
 import type {TestServerApi} from '@mionjs/test-server';
-import {initClient} from '../src/client.ts';
+import {initClient} from './lib/fetchingClient.ts';
 import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
 import {resetClientCaches} from './lib/testUtils.ts';
 import {
@@ -47,7 +47,7 @@ function watchFetch() {
   return {
     bodies,
     calls: () => spy.mock.calls.length,
-    guessedTheWire: () => bodies.some((body) => body.includes(MION_ROUTES.methodsMetadata)),
+    guessedTheWire: () => bodies.some((body) => body.includes('mionMethodsMetadata')),
     restore: () => {
       globalThis.fetch = realFetch;
     },
@@ -165,8 +165,8 @@ describe('stored metadata the server has moved on from', () => {
       expect(result).toContain('John');
       // the first went out trusting the store, the retry relearned from the server
       expect(bodies).toHaveLength(2);
-      expect(bodies[0]).not.toContain(MION_ROUTES.methodsMetadata);
-      expect(bodies[1]).toContain(MION_ROUTES.methodsMetadata);
+      expect(bodies[0]).not.toContain('mionMethodsMetadata');
+      expect(bodies[1]).toContain('mionMethodsMetadata');
       expect(wasHydratedFromCache('sayHello', {baseURL} as ClientOptions)).toBe(false);
     } finally {
       globalThis.fetch = realFetch;

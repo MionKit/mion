@@ -18,12 +18,12 @@ import type {
   SubRequest,
 } from './types.ts';
 import type {HandlersRegistry, RequestHandlerEntry} from './lib/handlersRegistry.ts';
-import type {RunTypeError, SerializableMethodsData} from '@mionjs/core';
+import type {RunTypeError} from '@mionjs/core';
 import {RpcError, isRpcError, MION_ROUTES, toBase64Url, BUILD_VERSION_HEADER, ROUTER_ITEM_SEPARATOR_CHAR} from '@mionjs/core';
 import {addSubRequest, createCallContext, getRouteIds, getRoutePointers} from './callContext.ts';
-import {hasApiVersionMismatch, noteServerApiVersion, takeApiVersionError} from './lib/apiBuildVersion.ts';
+import {noteServerApiVersion, reportApiVersionMismatch, takeApiVersionError} from './lib/apiBuildVersion.ts';
 import {getMethod, hasMethod} from './lib/methods.ts';
-import {loadMetadataFromServer, metadataCacheHooks} from './lib/metadataFromServerLoader.ts';
+import {getMetadataFetcher, type MetadataCall, type MetadataFetcher} from './lib/metadataFetcher.ts';
 import {validateSubRequests} from './lib/validation.ts';
 import {sanitizeSubRequests} from './lib/sanitize.ts';
 import {serializeRequestBody, deserializeResponseBody} from './lib/serializer.ts';
@@ -35,12 +35,10 @@ import {takeBundledApiError} from '#bundled-api';
 interface DispatchState {
   readonly context: ClientCallContext;
   readonly handlersRegistry: HandlersRegistry;
-  /** bounds the stale-metadata relearn to one attempt per call */
-  purgedStaleMetadata: boolean;
-  /** one resend after a build-version mismatch; a second failure is reported */
-  retriedAfterMismatch: boolean;
-  /** ids this call asked the server to confirm after a build-version mismatch */
-  verifying: string[] | undefined;
+  /** set only when the client set up `useMethodsMetadata` */
+  readonly fetcher: MetadataFetcher | undefined;
+  readonly metadataId: string | undefined;
+  readonly metadata: MetadataCall | undefined;
   /** middlewares whose onRequest already ran, so a retry never asks twice */
   readonly askedRequestHandlers: Set<string>;
   /** the current attempt reached fetch, so the server may have run its routes */
@@ -53,12 +51,13 @@ export async function dispatchCall(
   context: ClientCallContext,
   handlersRegistry: HandlersRegistry
 ): Promise<BatchResult<any> | Result<any, any>> {
+  const fetcher = getMetadataFetcher(handlersRegistry);
   const state: DispatchState = {
     context,
     handlersRegistry,
-    purgedStaleMetadata: false,
-    retriedAfterMismatch: false,
-    verifying: undefined,
+    fetcher,
+    metadataId: fetcher?.id,
+    metadata: fetcher?.startCall(context),
     askedRequestHandlers: new Set<string>(),
     sent: false,
   };
@@ -71,22 +70,32 @@ export async function dispatchCall(
     } catch (requestErrors: any) {
       errors = requestErrors;
     }
+    // before any hook sees the failed attempt: a resend with fresh rows is the metadata's own, not a hook's
+    if (fetcher && (await resendsForMetadata(state, fetcher.id, errors, retriedBy))) {
+      retriedBy.add(fetcher.id);
+      resetForMetadataResend(state);
+      continue;
+    }
     const middlewares = getMiddlewareSubRequests(context);
     const hooks = await runMiddlewareResponses(state, middlewares, errors, retriedBy);
-    if (!hooks.retryIds.length) return buildResult(context, middlewares, hooks.errors);
+    if (!hooks.retryIds.length) return buildResult(state, middlewares, hooks.errors);
     hooks.retryIds.forEach((id) => retriedBy.add(id));
     resetForMiddlewareRetry(state);
   }
 }
 
 /** Validates params locally without sending anything */
-export async function dispatchTypeErrors(options: ClientOptions, subRequests: SubRequest<any>[]): Promise<RunTypeError[]> {
+export async function dispatchTypeErrors(
+  options: ClientOptions,
+  subRequests: SubRequest<any>[],
+  handlersRegistry: HandlersRegistry
+): Promise<RunTypeError[]> {
   const context = createCallContext(options);
   subRequests.forEach((subRequest) => addSubRequest(context, subRequest));
   const errors: RequestErrors = new Map();
   try {
     const subRequestIds = Object.keys(context.subRequestList);
-    await loadMethodsMetadata(context, subRequestIds);
+    await loadMethodsMetadata(getMetadataFetcher(handlersRegistry), context, subRequestIds);
     sanitizeSubRequests(subRequestIds, context);
     validateSubRequests(subRequestIds, context, errors, false);
     return Object.values(context.subRequestList)
@@ -114,54 +123,30 @@ async function runCall(state: DispatchState): Promise<ResponseBody> {
 }
 
 async function makeCall(state: DispatchState, skipOptimistic?: boolean): Promise<ResponseBody> {
-  const {context} = state;
+  const {context, metadata} = state;
   const {options, signal} = context;
   const errors: RequestErrors = new Map();
-  const subRequestIds = Object.keys(context.subRequestList);
-  let allCached = subRequestIds.every((id) => hasMethod(id));
+  const subRequestIds = Object.keys(context.subRequestList).filter((id) => id !== state.metadataId);
   let isOptimistic = false;
 
   try {
-    // One indexed read settles an id this page never heard of; guessing wrong costs a round trip AND its retry.
-    // Hydration runs once per baseURL and never rejects, so a missing or blocked store just leaves this false.
-    if (!allCached) {
-      const lane = await loadMetadataFromServer();
-      await lane.hydrateMetadataCache(options);
-      if (signal?.aborted) {
-        onError(
-          context,
-          signal.reason ?? new DOMException('This operation was aborted', 'AbortError'),
-          'Request aborted',
-          errors
-        );
-        return Promise.reject(errors);
-      }
-      allCached = subRequestIds.every((id) => hasMethod(id));
+    // the metadata's own answer to whether this attempt goes out before the rows are known
+    if (metadata) isOptimistic = (await metadata.prepare(subRequestIds)) && !skipOptimistic;
+    if (signal?.aborted) {
+      onError(context, signal.reason ?? new DOMException('This operation was aborted', 'AbortError'), 'Request aborted', errors);
+      return Promise.reject(errors);
     }
-    // Optimistic sends plain wire forms; what a decoder cannot read errors, and the retry sends the real encoder.
-    isOptimistic = !allCached && !skipOptimistic;
     if (isOptimistic) {
-      // No chain before metadata, so scope picks the middlewares; a missed one costs the retry, an extra is ignored.
+      // No chain before metadata, so scope picks the middlewares; a missed one costs the resend, an extra is ignored.
       const running = runRequestHandlers(state, getScopedRequestHandlerIds(state));
       if (running) await running;
       if (signal?.aborted) {
         onError(context, signal.reason, 'Request aborted', errors);
         return Promise.reject(errors);
       }
-      // Storing the server's copy over a BUNDLED method would let a later purge drop it for good.
-      const missingIds = Object.keys(context.subRequestList).filter((id) => !hasMethod(id));
-      addSubRequest(context, (await loadMetadataFromServer()).createMetadataSubRequest(missingIds));
+      metadata!.askRows(Object.keys(context.subRequestList));
     } else {
-      // After a version mismatch each route is confirmed once, on its first use, riding this request.
-      if (hasApiVersionMismatch(options.baseURL)) {
-        const lane = await loadMetadataFromServer();
-        const unverified = lane.unverifiedIds(options.baseURL, subRequestIds);
-        if (unverified.length) {
-          state.verifying = unverified;
-          addSubRequest(context, lane.createVerifySubRequest(unverified));
-        }
-      }
-      await loadMethodsMetadata(context, subRequestIds, signal);
+      await loadMethodsMetadata(state.fetcher, context, subRequestIds, signal);
       const chainIds = getChainMiddlewareIds(context, errors);
       if (errors.size) return Promise.reject(errors);
       const beforeHandlers = new Set(Object.keys(context.subRequestList));
@@ -171,10 +156,9 @@ async function makeCall(state: DispatchState, skipOptimistic?: boolean): Promise
         onError(context, signal.reason, 'Request aborted', errors);
         return Promise.reject(errors);
       }
-      // the verify subrequest added above is the framework's own, never loaded or validated as a method
       const addedIds = Object.keys(context.subRequestList).filter((id) => !beforeHandlers.has(id));
       const allIds = [...subRequestIds, ...addedIds];
-      await loadMethodsMetadata(context, allIds, signal);
+      await loadMethodsMetadata(state.fetcher, context, allIds, signal);
       sanitizeSubRequests(allIds, context);
       validateSubRequests(allIds, context, errors);
       if (errors.size) return Promise.reject(errors);
@@ -190,11 +174,8 @@ async function makeCall(state: DispatchState, skipOptimistic?: boolean): Promise
     try {
       serialized = serializeRequestBody(context, isOptimistic);
     } catch (serializeError) {
-      if (isOptimistic) {
-        // Plain JSON.stringify failed; the standard path fetches metadata first.
-        delete context.subRequestList[MION_ROUTES.methodsMetadata];
-        return makeCall(state, true);
-      }
+      // plain JSON.stringify failed and nothing was sent: fetch the rows first, then send the real encoders
+      if (isOptimistic) return makeCall(state, true);
       throw serializeError;
     }
 
@@ -223,35 +204,12 @@ async function makeCall(state: DispatchState, skipOptimistic?: boolean): Promise
       onError(context, signal.reason, 'Request aborted', errors);
       return Promise.reject(errors);
     }
-    const deserialized = await deserializeResponseBody(response, options, !!state.verifying);
+    const deserialized = await deserializeResponseBody(response, options, metadata && ((body) => metadata.readRows(body)));
     if (handlePlatformError(context, deserialized, errors)) return Promise.reject(errors);
-
-    const callFailed = shouldRetryWithProperSerialization(deserialized);
-    // On a version mismatch, fetched rows are refreshed and bundled ones only reported.
-    const mismatch = noteServerApiVersion(options.baseURL, response.headers.get(BUILD_VERSION_HEADER));
-    const rows = state.verifying && metadataRowsOf(deserialized[MION_ROUTES.methodsMetadata]);
-    if (rows?.methods) {
-      (await loadMetadataFromServer()).verifyMethodRows(options, state.verifying!, rows);
-      delete deserialized[MION_ROUTES.methodsMetadata];
-    }
-    // Only a FAILED call is repeated: it already ran server-side, and repeating a successful mutation would run it twice.
-    if (mismatch && callFailed && !state.retriedAfterMismatch && !signal?.aborted) {
-      state.retriedAfterMismatch = true;
-      return retryWithProperSerialization(state);
-    }
-
-    if (!signal?.aborted && callFailed) {
-      if (isOptimistic) return retryWithProperSerialization(state);
-      // Stored metadata can predate the server's current build and nothing else would correct it.
-      const cache = metadataCacheHooks();
-      if (cache && !state.purgedStaleMetadata && subRequestIds.some((id) => cache.wasHydratedFromCache(id, options))) {
-        state.purgedStaleMetadata = true;
-        await cache.purgeHydratedMetadata(subRequestIds, options);
-        return retryWithProperSerialization(state);
-      }
-    }
-
-    resolveSubRequests(context, deserialized, errors, isOptimistic ? MION_ROUTES.methodsMetadata : undefined);
+    // without the metadata middleware the client cannot check routes one by one, so the whole API is reported
+    if (noteServerApiVersion(options.baseURL, response.headers.get(BUILD_VERSION_HEADER)) && !metadata)
+      reportApiVersionMismatch(options.baseURL);
+    resolveSubRequests(context, deserialized, errors);
     if (errors.size) return Promise.reject(errors);
     return deserialized;
   } catch (error) {
@@ -260,32 +218,43 @@ async function makeCall(state: DispatchState, skipOptimistic?: boolean): Promise
   }
 }
 
-async function loadMethodsMetadata(context: ClientCallContext, methodIds: string[], signal?: AbortSignal): Promise<void> {
-  if (methodIds.every((id) => hasMethod(id))) return;
-  const lane = await loadMetadataFromServer();
-  await lane.fetchRemoteMethodsMetadata(methodIds, context.options, signal);
-}
-
-function shouldRetryWithProperSerialization(deserialized: ResponseBody): boolean {
-  const thrownErrors = (deserialized[MION_ROUTES.thrownErrors] ?? {}) as Record<string, RpcError<string>>;
-  const isRetryError = (value: any): boolean =>
-    isRpcError(value) &&
-    (value.type === 'serialization-error' || value.type === 'validation-error' || value.type === 'parsing-json-request-error');
-  return Object.values(deserialized).some(isRetryError) || Object.values(thrownErrors).some(isRetryError);
-}
-
-async function retryWithProperSerialization(state: DispatchState): Promise<ResponseBody> {
-  const {context} = state;
-  delete context.subRequestList[MION_ROUTES.methodsMetadata];
-  // each attempt asks again: a stale flag would set the next answer's rows aside instead of caching them
-  state.verifying = undefined;
-  context.thrownErrorIds.clear();
-  Object.values(context.subRequestList).forEach((sr) => {
-    sr.isResolved = false;
-    sr.resolvedValue = undefined;
-    sr.error = undefined;
+/** Rows missing for any id: fetched when the client set up metadata fetching, a clear error otherwise. */
+async function loadMethodsMetadata(
+  fetcher: MetadataFetcher | undefined,
+  context: ClientCallContext,
+  methodIds: string[],
+  signal?: AbortSignal
+): Promise<void> {
+  const missing = methodIds.filter((id) => !hasMethod(id));
+  if (!missing.length) return;
+  if (fetcher) return fetcher.fetchRows(missing, context.options, signal);
+  throw new RpcError({
+    type: 'route-metadata-not-found',
+    publicMessage:
+      `No metadata for ${missing.map((id) => `'${id}'`).join(', ')}: the build did not bundle it and the client does not fetch it. ` +
+      `Call the route where the build can see it, or set up useMethodsMetadata from '@mionjs/client/middlewares'.`,
   });
-  return makeCall(state);
+}
+
+/** A metadata resend fixes an attempt that failed on the wire, once per call, never re-running a success. */
+async function resendsForMetadata(
+  state: DispatchState,
+  metadataId: string,
+  errors: RequestErrors | undefined,
+  retriedBy: ReadonlySet<string>
+): Promise<boolean> {
+  if (!errors || !state.sent || retriedBy.has(metadataId) || !state.metadata) return false;
+  if (!(await state.metadata.shouldResend(failedOnWire(errors)))) return false;
+  return isRetrySafe(state, errors);
+}
+
+/** The errors plain wire forms or stale rows cause: the server could not read what the client wrote. */
+function failedOnWire(errors: RequestErrors): boolean {
+  for (const error of errors.values()) {
+    const type = error?.type;
+    if (type === 'serialization-error' || type === 'validation-error' || type === 'parsing-json-request-error') return true;
+  }
+  return false;
 }
 
 /** A platform error is request-scoped: one entry, not one per subrequest */
@@ -303,12 +272,7 @@ function setUndeclaredError(context: ClientCallContext, id: string, error: RpcEr
 }
 
 /** Body entries are declared, [MION_ROUTES.thrownErrors] unexpected; 'validation-error' is thrown yet always declared */
-function resolveSubRequests(
-  context: ClientCallContext,
-  deserialized: ResponseBody,
-  errors: RequestErrors,
-  skipId?: string
-): void {
+function resolveSubRequests(context: ClientCallContext, deserialized: ResponseBody, errors: RequestErrors): void {
   const thrownErrors = (deserialized[MION_ROUTES.thrownErrors] ?? {}) as Record<string, RpcError<string>>;
   Object.entries(thrownErrors).forEach(([id, thrownError]) => {
     const subRequest = context.subRequestList[id];
@@ -321,7 +285,7 @@ function resolveSubRequests(
   });
 
   Object.entries(context.subRequestList).forEach(([id, methodMeta]) => {
-    if (id === skipId || errors.has(id)) return;
+    if (errors.has(id)) return;
     const resp = getResponseValueFromBodyOrHeader(id, deserialized, (context.response as Response).headers);
     methodMeta.isResolved = true;
     if (isRpcError(resp)) {
@@ -536,12 +500,6 @@ function buildFetchOptions(
   };
 }
 
-/** The metadata middleware declares a union, so its answer arrives as an `[index, value]` envelope. */
-function metadataRowsOf(slot: unknown): SerializableMethodsData | undefined {
-  const value = Array.isArray(slot) ? slot[1] : slot;
-  return value && typeof value === 'object' ? (value as SerializableMethodsData) : undefined;
-}
-
 // ############# RESULT #############
 
 function getMiddlewareSubRequests(context: ClientCallContext): MiddlewareSubRequest<any>[] {
@@ -661,7 +619,20 @@ function resetForMiddlewareRetry(state: DispatchState): void {
   context.thrownErrorIds.clear();
   context.response = undefined;
   state.askedRequestHandlers.clear();
-  state.verifying = undefined;
+  state.sent = false;
+}
+
+/** A metadata resend keeps what onRequest hooks sent: the params did not change, only how they are written */
+function resetForMetadataResend(state: DispatchState): void {
+  const {context} = state;
+  delete context.subRequestList[state.metadataId!];
+  Object.values(context.subRequestList).forEach((sr) => {
+    sr.isResolved = false;
+    sr.resolvedValue = undefined;
+    sr.error = undefined;
+  });
+  context.thrownErrorIds.clear();
+  context.response = undefined;
   state.sent = false;
 }
 
@@ -678,10 +649,11 @@ function middlewareHandlerError(handlerName: 'onResponse' | 'onError', id: strin
 
 /** Slot rules are pinned in test/errorDispatch.spec.ts; slot 2 takes the first undeclared error, middlewares first */
 function buildResult(
-  context: ClientCallContext,
+  state: DispatchState,
   middlewares: MiddlewareSubRequest<any>[],
   errors: RequestErrors | undefined
 ): BatchResult<RouteSubRequest<any>[]> | Result<any, any> {
+  const {context} = state;
   const {route: routeSubRequest, batchSubRequests, thrownErrorIds} = context;
   const middlewaresResults = {} as Record<string, any>;
   const processedIds = new Set<string>();
@@ -749,7 +721,7 @@ function buildResult(
   // Framework errors the router never saw take the first free undeclared slot rather than rejecting: the call ran.
   if (undeclaredPart === undefined) undeclaredPart = takeBundledApiError();
   if (undeclaredPart === undefined) undeclaredPart = takeApiVersionError();
-  if (undeclaredPart === undefined) undeclaredPart = metadataCacheHooks()?.takeMetadataCacheError();
+  if (undeclaredPart === undefined) undeclaredPart = state.fetcher?.takeError();
 
   return [routeResultPart, routeErrorPart, undeclaredPart, middlewaresResults, middlewaresErrors] as any;
 }

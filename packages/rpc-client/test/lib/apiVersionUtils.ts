@@ -8,7 +8,7 @@
 // Shared by the bundled and mixed lanes, whose specs differ only in what each lane bundles.
 
 import {vi} from 'vitest';
-import {HeadersSubset, MION_ROUTES, BUILD_VERSION_HEADER} from '@mionjs/core';
+import {HeadersSubset, BUILD_VERSION_HEADER} from '@mionjs/core';
 import type {MethodWithOptions, SerializableMethodsData} from '@mionjs/core';
 import type {TestServerApi} from '@mionjs/test-server';
 import type {initClient} from '../../src/client.ts';
@@ -57,7 +57,7 @@ export function serveVersion(version: string | null, editRows?: RowEdit) {
     /** The ids each request asked the server to confirm, one entry per request that asked. */
     verifyAsks: () =>
       bodies
-        .map((body) => safeParse(body)?.[MION_ROUTES.methodsMetadata]?.[0] as string[] | undefined)
+        .map((body) => safeParse(body)?.['mionMethodsMetadata']?.[0] as string[] | undefined)
         .filter((ids): ids is string[] => Array.isArray(ids)),
     restore: () => {
       globalThis.fetch = realFetch;
@@ -68,7 +68,7 @@ export function serveVersion(version: string | null, editRows?: RowEdit) {
 function rewriteRows(payload: string, editRows: RowEdit): string {
   const parsed = safeParse(payload);
   // the metadata middleware declares a union, so its slot rides as an `[index, value]` envelope
-  const slot = parsed?.[MION_ROUTES.methodsMetadata];
+  const slot = parsed?.['mionMethodsMetadata'];
   const data = (Array.isArray(slot) ? slot[1] : slot) as SerializableMethodsData | undefined;
   if (!data?.methods) return payload;
   editRows(data.methods as Record<string, MethodWithOptions>);

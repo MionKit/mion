@@ -6,7 +6,7 @@
  * ######## */
 
 import {describe, it, expect, vi} from 'vitest';
-import {initClient} from '../src/client.ts';
+import {initClient} from './lib/fetchingClient.ts';
 import {batch} from '../src/batch.ts';
 import type {CallContext, RouteSubRequest} from '../src/types.ts';
 import {HeadersSubset, RpcError, MION_ROUTES, getRoutePath, routesCache} from '@mionjs/core';
@@ -795,16 +795,16 @@ describe('batch runtime behaviour', () => {
   });
 
   it('the metadata route lists the registered batch ids', async () => {
-    const url = new URL(getRoutePath([MION_ROUTES.methodsMetadataById], {basePath: '', suffix: ''} as never), baseURL);
+    const url = new URL(getRoutePath(['mionMethodsMetadataById'], {basePath: '', suffix: ''} as never), baseURL);
     const response = await fetch(url, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({[MION_ROUTES.methodsMetadataById]: [[], true]}),
+      body: JSON.stringify({['mionMethodsMetadataById']: [[], true]}),
     });
     expect(response.ok).toBe(true);
     // the route answers a union (data | RpcError), which the wire encodes as [memberIndex, value]
     const body = (await response.json()) as Record<string, unknown>;
-    const envelope = body[MION_ROUTES.methodsMetadataById];
+    const envelope = body['mionMethodsMetadataById'];
     const metadata = (Array.isArray(envelope) ? envelope[1] : envelope) as {batches?: string[]; methods: Record<string, unknown>};
     expect(metadata.methods['flow/getUser']).toBeDefined();
     // every id the build compiled in; this file alone defines well over a dozen

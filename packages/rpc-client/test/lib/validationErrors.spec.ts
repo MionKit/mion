@@ -6,7 +6,7 @@
  * ######## */
 
 import {describe, it, expect, beforeEach} from 'vitest';
-import {initClient} from '../../src/client.ts';
+import {initClient} from './fetchingClient.ts';
 import {Email} from '@mionjs/run-types/formats';
 import {TEST_SERVER_BASE_URL} from '../../globalSetup.ts';
 import {TestServerApi} from '@mionjs/test-server';
