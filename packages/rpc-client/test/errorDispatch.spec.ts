@@ -16,6 +16,8 @@
  *      middleware that was not part of the request           several undeclared: first in execution order
  * - R5 route produced a result                          -> slot 0 keeps it, whatever else failed
  * - R6 an error the route did not declare               -> never appears in slot 1
+ * - R7 with validateServerResponses, an answer its type -> slot 2, the value is dropped and NO listener fires
+ *      does not describe
  */
 
 import {describe, it, expect} from 'vitest';
@@ -379,6 +381,84 @@ describe('client error dispatch contract', () => {
       expect(Array.isArray(flatErrors)).toBe(true);
       expect(flatErrors.length).toBeGreaterThan(0);
       expect(flatErrors[0]).toHaveProperty('path');
+    });
+  });
+
+  describe('validateServerResponses (R7)', () => {
+    type Initialized = ReturnType<typeof initClient<MyApi>>;
+    function checkingClient(token?: string): Initialized {
+      const initialized = initClient<MyApi>({baseURL, validateServerResponses: true});
+      useAuth(initialized.middlewares, token);
+      return initialized;
+    }
+
+    it('is off by default, so a wrong answer reaches the caller', async () => {
+      const {routes, middlewares} = initClient<MyApi>({baseURL});
+      useAuth(middlewares);
+      const [result, routeError, undeclared] = await routes.wrongAnswers.wrongAnswer(someUser).call();
+      expect(result).toEqual({name: 'John', surname: 42});
+      expect(routeError).toBeUndefined();
+      expect(undeclared).toBeUndefined();
+    });
+
+    it('lets an answer that matches the return type through', async () => {
+      const {routes} = checkingClient();
+      const [result, routeError, undeclared] = await routes.createProduct({id: 'p1', name: 'Pen', price: 2}).call();
+      expect(routeError).toBeUndefined();
+      expect(undeclared).toBeUndefined();
+      expect(result).toMatchObject({id: 'p1', name: 'Pen', price: 2});
+    });
+
+    it('drops a wrong answer and reports it in slot 2', async () => {
+      const {routes} = checkingClient();
+      const [result, routeError, undeclared] = await routes.wrongAnswers.wrongAnswer(someUser).call();
+      expect(result).toBeUndefined();
+      expect(routeError).toBeUndefined();
+      expect(undeclared?.type).toBe('response-validation-error');
+      expect(undeclared?.publicMessage).toBe(
+        `Invalid response from Route or Middleware 'wrongAnswers/wrongAnswer', validation failed.`
+      );
+      expect(undeclared?.errorData?.typeErrors?.length).toBeGreaterThan(0);
+    });
+
+    it('checks an answer the server left out, since a missing value is a wrong one too', async () => {
+      const {routes} = checkingClient();
+      const [result, , undeclared] = await routes.wrongAnswers.missingAnswer().call();
+      expect(result).toBeUndefined();
+      expect(undeclared?.type).toBe('response-validation-error');
+    });
+
+    it('never checks a member a stopped chain did not run', async () => {
+      const {routes} = checkingClient('WRONG-TOKEN');
+      const [result, , undeclared, , middlewareErrors] = await routes.wrongAnswers.missingAnswer().call();
+      expect(result).toBeUndefined();
+      expect(undeclared).toBeUndefined();
+      expect(middlewareErrors?.auth?.type).toBe('not-authorized');
+    });
+
+    it('decodes before it checks, so Date, Map and Set answers pass', async () => {
+      const {routes} = checkingClient();
+      const [stamp, routeError, undeclared] = await routes.flow.getStamp(5).call();
+      expect(routeError).toBeUndefined();
+      expect(undeclared).toBeUndefined();
+      expect(stamp?.when).toBeInstanceOf(Date);
+      expect(stamp?.counts).toBeInstanceOf(Map);
+    });
+
+    it("a middleware's wrong answer goes to slot 2, fires no listener and keeps the route result", async () => {
+      const {routes, middlewares} = checkingClient();
+      const heard: unknown[] = [];
+      middlewares.wrongAnswers.wrongMiddleware.onRequest((call) => call('x')).onResponse((answer) => void heard.push(answer));
+      const [result, routeError, undeclared, middlewareResults, middlewareErrors] = await routes.wrongAnswers
+        .rightAnswer('ok')
+        .call();
+      expect(undeclared?.type).toBe('response-validation-error');
+      expect(undeclared?.publicMessage).toContain(`'wrongAnswers/wrongMiddleware'`);
+      expect(middlewareErrors?.['wrongAnswers/wrongMiddleware']).toBeUndefined();
+      expect(middlewareResults?.['wrongAnswers/wrongMiddleware']).toBeUndefined();
+      expect(heard).toEqual([]);
+      expect(routeError).toBeUndefined();
+      expect(result).toBe('ok');
     });
   });
 });

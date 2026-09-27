@@ -268,6 +268,9 @@ function resolveSubRequests(context: ClientCallContext, deserialized: ResponseBo
     if (thrownError.type !== 'validation-error') context.thrownErrorIds.add(id);
   });
 
+  const checkAnswers = context.options.validateServerResponses;
+  // the fatal brand never travels, so any error may have stopped the chain: an absent member then never ran
+  const mayHaveStopped = checkAnswers && (errors.size > 0 || Object.values(deserialized).some((value) => isRpcError(value)));
   Object.entries(context.subRequestList).forEach(([id, methodMeta]) => {
     if (errors.has(id)) return;
     const resp = getResponseValueFromBodyOrHeader(id, deserialized, (context.response as Response).headers);
@@ -277,8 +280,7 @@ function resolveSubRequests(context: ClientCallContext, deserialized: ResponseBo
       errors.set(id, resp);
       return;
     }
-    // only answers the body carries: a member the chain never reached is absent, not wrong
-    const responseError = context.options.validateServerResponses && id in deserialized ? getResponseError(id, resp) : undefined;
+    const responseError = checkAnswers && (id in deserialized || !mayHaveStopped) ? getResponseError(id, resp) : undefined;
     if (responseError) {
       methodMeta.error = responseError;
       setUndeclaredError(context, id, responseError, errors);

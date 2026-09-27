@@ -262,14 +262,21 @@ const routes = {
     return new RpcError({publicMessage: 'Something fails', type: 'unknown-error'});
   }),
   calculateAge: route((_ctx, birthYear: number): number => new Date().getFullYear() - birthYear),
-  // answers a value its own return type does not describe, for the client's response check
-  wrongAnswer: route((_ctx, user: User): User => ({name: user.name, surname: 42}) as unknown as User),
   createProduct: route(
     (_ctx, product: Product): Product => ({
       ...product,
       id: product.id || 'generated-id',
     })
   ),
+  // answers its own return type does not describe, for the client's response check
+  wrongAnswers: {
+    wrongMiddleware: middleware((_ctx, tag?: string): {tag: string} | null =>
+      tag ? ({tag: 42} as unknown as {tag: string}) : null
+    ),
+    wrongAnswer: route((_ctx, user: User): User => ({name: user.name, surname: 42}) as unknown as User),
+    missingAnswer: route((): User => undefined as unknown as User),
+    rightAnswer: route((_ctx, tag: string): string => tag),
+  },
   sumNumbers: route((_ctx, numbers: number[]): number => numbers.reduce((a, b) => a + b, 0)),
   greetUser: route((_ctx, name: string, greeting?: string): string => `${greeting || 'Hello'} ${name}`),
 
