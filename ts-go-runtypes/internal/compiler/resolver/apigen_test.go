@@ -993,3 +993,26 @@ export const a = routes.ping().call();
 		}
 	})
 }
+
+// TestApiGen_MiddlewareReadsFollowAnEdit: the per-file middleware reads are dropped with the Program, so setting one up clears MET009.
+func TestApiGen_MiddlewareReadsFollowAnEdit(t *testing.T) {
+	client := func(setUp string) string {
+		return `import {initClient} from '@mionjs/client';
+import type {OptionalApi} from './api.ts';
+export const {routes, middlewares} = initClient<OptionalApi>({baseURL: 'http://x'});
+` + setUp + `export const a = routes.ping().call();
+`
+	}
+	sources := map[string]string{"client.d.ts": apiClientDTS, "router.d.ts": metadataRouterDTS, "api.ts": metadataApiTS, "client.ts": client("")}
+	sess := setupApi(t, sources, t.TempDir(), constants.BundleApiBundled, "")
+	if diags := metDiags(sess.Dispatch(protocol.Request{Op: protocol.OpGenerate}).Diagnostics); len(diags) != 1 || diags[0].Code != diagnostics.CodeApiMetaOptionalMiddlewareNotSetUp {
+		t.Fatalf("expected MET009 before the edit, got %+v", diags)
+	}
+	sources["client.ts"] = client("middlewares.note.onRequest((call) => call());\n")
+	if resp := sess.Dispatch(protocol.Request{Op: protocol.OpSetSources, Sources: withRealMarker(t, sources)}); resp.Error != "" {
+		t.Fatalf("setSources: %s", resp.Error)
+	}
+	if diags := metDiags(sess.Dispatch(protocol.Request{Op: protocol.OpGenerate}).Diagnostics); len(diags) != 0 {
+		t.Fatalf("the edit set the middleware up, got %+v", diags)
+	}
+}
