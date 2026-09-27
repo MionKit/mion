@@ -8,7 +8,7 @@
 // The sqlite authoring helpers beyond columns and tables: indexes, constraints and checks, with drizzle-identical
 // names and call shapes and recorder returns.
 
-import type {AnyColumn, AnyTableRef, RtIndexedColumn, RtSql} from '@mionjs/drizzle-orm';
+import type {AnyTableRef, EntryColumn, RtIndexedColumn, RtSql} from '@mionjs/drizzle-orm';
 import {refColumn, RtEntryRecorder, rtColumnKey} from '@mionjs/drizzle-orm';
 import type {UpdateDeleteAction} from './types.ts';
 
@@ -17,7 +17,7 @@ export interface SqliteEntryBrand {
   readonly [rtColumnKey]?: {rtEntry: true};
 }
 
-export type SqliteIndexColumn = AnyColumn | RtIndexedColumn | RtSql;
+export type SqliteIndexColumn = EntryColumn | RtIndexedColumn | RtSql;
 
 // drizzle's two steps: `on` first, then the index options; an option before `on` does not exist on drizzle's builder.
 /** `index(name)` before its columns: only `on`. */
@@ -36,7 +36,7 @@ export function uniqueIndex(name: string): RtSqliteIndexBuilderOn {
 }
 
 export interface RtSqliteUniqueEntry extends SqliteEntryBrand {
-  on(...columns: [AnyColumn, ...AnyColumn[]]): RtSqliteUniqueEntry;
+  on(...columns: [EntryColumn, ...EntryColumn[]]): RtSqliteUniqueEntry;
 }
 export function unique(name?: string): RtSqliteUniqueEntry {
   return new RtEntryRecorder('unique', name === undefined ? [] : [name]) as unknown as RtSqliteUniqueEntry;
@@ -45,8 +45,8 @@ export function unique(name?: string): RtSqliteUniqueEntry {
 /** foreignKey: this table's columns as `t.key`, another table's as a tableRef(). */
 export interface SqliteForeignKeyConfig {
   name?: string;
-  columns: [AnyColumn, ...AnyColumn[]];
-  foreignColumns: [AnyColumn | AnyTableRef, ...Array<AnyColumn | AnyTableRef>];
+  columns: [EntryColumn, ...EntryColumn[]];
+  foreignColumns: [EntryColumn, ...EntryColumn[]];
 }
 export interface RtSqliteForeignKeyEntry extends SqliteEntryBrand {
   onDelete(action: UpdateDeleteAction): RtSqliteForeignKeyEntry;
@@ -60,7 +60,7 @@ export function foreignKey(config: SqliteForeignKeyConfig): RtSqliteForeignKeyEn
 
 export interface SqlitePrimaryKeyEntryConfig {
   name?: string;
-  columns: [AnyColumn, ...AnyColumn[]];
+  columns: [EntryColumn, ...EntryColumn[]];
 }
 export type RtSqlitePrimaryKeyEntry = SqliteEntryBrand;
 export function primaryKey(config: SqlitePrimaryKeyEntryConfig): RtSqlitePrimaryKeyEntry {

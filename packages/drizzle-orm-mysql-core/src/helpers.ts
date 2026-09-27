@@ -9,7 +9,7 @@
 // drizzle-identical names and call shapes and recorder returns.
 
 import type {
-  AnyColumn,
+  EntryColumn,
   AnyTableRef,
   Column,
   NamedColumn,
@@ -70,7 +70,7 @@ export interface MyEntryBrand {
   readonly [rtColumnKey]?: {rtEntry: true};
 }
 
-export type MyIndexColumn = AnyColumn | RtIndexedColumn | RtSql;
+export type MyIndexColumn = EntryColumn | RtIndexedColumn | RtSql;
 
 // drizzle's two steps: `on` first, then the index options; an option before `on` does not exist on drizzle's builder.
 /** `index(name)` before its columns: only `on`. */
@@ -91,7 +91,7 @@ export function uniqueIndex(name: string): RtMyIndexBuilderOn {
 }
 
 export interface RtMyUniqueEntry extends MyEntryBrand {
-  on(...columns: [AnyColumn, ...AnyColumn[]]): RtMyUniqueEntry;
+  on(...columns: [EntryColumn, ...EntryColumn[]]): RtMyUniqueEntry;
 }
 export function unique(name?: string): RtMyUniqueEntry {
   return new RtEntryRecorder('unique', name === undefined ? [] : [name]) as unknown as RtMyUniqueEntry;
@@ -100,8 +100,8 @@ export function unique(name?: string): RtMyUniqueEntry {
 /** foreignKey: this table's columns as `t.key`, another table's as a tableRef(). */
 export interface MysqlForeignKeyConfig {
   name?: string;
-  columns: [AnyColumn, ...AnyColumn[]];
-  foreignColumns: [AnyColumn | AnyTableRef, ...Array<AnyColumn | AnyTableRef>];
+  columns: [EntryColumn, ...EntryColumn[]];
+  foreignColumns: [EntryColumn, ...EntryColumn[]];
 }
 export interface RtMyForeignKeyEntry extends MyEntryBrand {
   onDelete(action: UpdateDeleteAction): RtMyForeignKeyEntry;
@@ -115,7 +115,7 @@ export function foreignKey(config: MysqlForeignKeyConfig): RtMyForeignKeyEntry {
 
 export interface MysqlPrimaryKeyConfig {
   name?: string;
-  columns: [AnyColumn, ...AnyColumn[]];
+  columns: [EntryColumn, ...EntryColumn[]];
 }
 export type RtMyPrimaryKeyEntry = MyEntryBrand;
 export function primaryKey(config: MysqlPrimaryKeyConfig): RtMyPrimaryKeyEntry {
