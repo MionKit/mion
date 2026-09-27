@@ -46,17 +46,12 @@ export interface MethodMetadata {
 export interface RemoteMethodOpts {
   alwaysRun?: boolean;
   description?: string;
-  /** The resolved parser strategy per direction (route option, then router option, then the built-in
-   *  default). Always resolved on an executable, and rides the methods metadata so the client picks the
-   *  matching compiled functions. */
+  /** Resolved per direction (route, router, then built-in default); rides the metadata so the client picks the matching functions. */
   parser?: ResolvedParser;
   /** Whether this route mutates data. Only set for route handlers, undefined for middlewares. */
   isMutation?: boolean | undefined;
-  /** Per-route sanitizeParams, already resolved (route option ?? router option), so it also rides the methods
-   *  metadata to the client. When true, the rewrites the params types declare under a format's `transform` key
-   *  are applied after decode and BEFORE validation, on the server at dispatch and, when the client's own
-   *  `sanitizeParams` is on, before its local pre-validation and serialization. Params only: headers and return
-   *  values are never sanitized. */
+  /** Resolved (route ?? router) and sent in the metadata, so a client with its own sanitizeParams on applies it too.
+   *  Rewrites params only, never headers or returns, after decode and BEFORE validation. */
   sanitizeParams?: boolean;
   /** Largest request body this route accepts, in bytes. On a route the RESOLVED limit of the whole chain
    *  (route option, else every member's params types summed times the router's `maxBodySizeFactor`, else the

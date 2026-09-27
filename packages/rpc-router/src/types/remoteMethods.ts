@@ -45,15 +45,13 @@ interface RouteOptionsBase {
   /** Whether this route mutates data (query / mutation set it, route leaves it undefined). */
   isMutation?: boolean | undefined;
   sanitizeParams?: boolean;
-  /** Largest request body this route accepts, in bytes. Wins over the number derived from the
-   *  types and over the router option. */
+  /** Largest request body in bytes; wins over the number derived from the types and over the router option. */
   maxBodySize?: number;
 }
 interface MiddlewareOptionsBase {
   description?: string;
-  /** This middleware's contribution to the request limit of every chain it sits in, in bytes, for a
-   *  middleware whose params type has no maximum (a plain `string[]`). Without it such a middleware
-   *  sends every chain it sits in to the router default. */
+  /** Bytes added to every chain's limit when the params type has no maximum (a plain `string[]`).
+   *  Without it every chain this middleware sits in falls back to the router default. */
   maxBodySize?: number;
   alwaysRun?: boolean;
   sanitizeParams?: boolean;
