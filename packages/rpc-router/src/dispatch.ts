@@ -114,11 +114,7 @@ async function runExecutionChain(
         }
       }
 
-      // Declaring a value and answering undefined is the bug validateReturn exists to catch
-      if (result === undefined) {
-        if (executable.options.validateReturn && executable.hasReturnData) validateReturnOrThrow(result, executable);
-        continue;
-      }
+      if (result === undefined) continue;
       // One brand read serves every branch below: it is an own property on every mion error, wire copies too
       // `null` is a valid answer and reading a property off it throws, so it is excluded first
       const isMionError = result !== null && result['mion@isΣrrθr'] === true;
@@ -148,7 +144,6 @@ async function runExecutionChain(
         }
         continue;
       }
-      if (executable.options.validateReturn) validateReturnOrThrow(result, executable);
       (response.body as Mutable<AnyObject>)[executable.id] = result;
     } catch (err: any) {
       // All thrown errors are undeclared and fatal
@@ -186,7 +181,7 @@ function runHeadersMiddleware(context: CallContext, executable: HeadersMethod, r
   });
   const headersSubset = new HeadersSubset(headersMap);
   validateHeaderParamsOrThrow(headersSubset, executable as HeadersMethod);
-  if (executable.options.validateParams) validateParametersOrThrow(params, executable as HeadersMethod);
+  validateParametersOrThrow(params, executable as HeadersMethod);
 
   return executable.handler(context, headersSubset, ...params);
 }
@@ -197,7 +192,7 @@ function runRouteOrMiddleware(context: CallContext, executable: HeadersMethod, r
     request,
     executable as RemoteMethod
   );
-  if (executable.options.validateParams) validateParametersOrThrow(params, executable as RemoteMethod);
+  validateParametersOrThrow(params, executable as RemoteMethod);
   return executable.handler(context, ...params);
 }
 
@@ -242,7 +237,7 @@ function deserializeBodyParamsOrThrow(request: MionRequest, executable: RemoteMe
   // EMPTY_PARAMS is frozen and the decoders mutate what they are handed, so decoding the sentinel would
   // report a raw serialization error where validation should refuse the missing body.
   if (!params) return EMPTY_PARAMS;
-  // with validation off nothing else checks it, and a spread string would reach the handler as its characters
+  // a route without params has no validator, so a spread string would reach the handler as its characters
   if (!Array.isArray(params))
     throw new FatalError({
       statusCode: StatusCodes.UNEXPECTED_ERROR,
@@ -287,25 +282,6 @@ function nestingTooDeep(executable: RemoteMethod, originalError: Error): RpcErro
     publicMessage: `Invalid params in '${executable.id}', the request is nested too deep.`,
     originalError,
   });
-}
-
-/** Opt-in via `validateReturn`; a bad return is the server's own bug, so it throws as an undeclared fatal. */
-function validateReturnOrThrow(result: any, executable: RemoteMethod): void {
-  if (executable.returnJitFns.isType.isNoop) return;
-  let isValid: boolean;
-  try {
-    isValid = executable.returnJitFns.isType.fn(result);
-  } catch (err: any) {
-    if (isStackOverflow(err)) throw nestingTooDeep(executable, err);
-    throw err;
-  }
-  if (isValid) return;
-  throw new FatalError({
-    statusCode: StatusCodes.UNEXPECTED_ERROR,
-    type: 'validation-error',
-    publicMessage: `Invalid return value in '${executable.id}', validation failed.`,
-    errorData: {typeErrors: executable.returnJitFns.typeErrors.fn(result)},
-  }) as ValidationError;
 }
 
 function validateParametersOrThrow(params: any[], executable: RemoteMethod): void {

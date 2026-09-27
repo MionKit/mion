@@ -720,82 +720,19 @@ describe('a declared error in the return union, on a key-checking row', () => {
   });
 });
 
-describe('validateReturn', () => {
+describe('return values', () => {
   type Answer = {name: string};
-
-  // `as Answer` is what a real bug looks like: a value built elsewhere and only asserted on the way out.
-  const badHandler = (): Answer => ({name: 42}) as unknown as Answer;
-
-  const unchecked = mion.route(badHandler);
-  const checked = mion.route(badHandler, {validateReturn: true});
-  const goodChecked = mion.route((): Answer => ({name: 'rex'}), {validateReturn: true});
-
-  const jsonRequest = (path: string) => ({headers: headersFromRecord({}), body: JSON.stringify({[path]: []})});
 
   beforeEach(() => resetRouter());
 
-  it('is off by default, so a wrong return still ships', async () => {
+  // `as Answer` is what a real bug looks like: a value built elsewhere and only asserted on the way out.
+  it('are never validated on the server, so a wrong return still ships', async () => {
+    const unchecked = mion.route((): Answer => ({name: 42}) as unknown as Answer);
     mion.initRoutes({unchecked});
-    const request = jsonRequest('unchecked');
+    const request = {headers: headersFromRecord({}), body: JSON.stringify({unchecked: []})};
     const response = await dispatchRoute('/unchecked', request.body, request.headers, headersFromRecord({}), request, {});
     expect(response.hasErrors).toBeFalsy();
     expect(response.body.unchecked).toEqual({name: 42});
-  });
-
-  // A bad return is the server's own bug, so it takes the thrown path rather than a typed slot.
-  it('rejects a return the type does not describe', async () => {
-    mion.initRoutes({checked});
-    const request = jsonRequest('checked');
-    const response = await dispatchRoute('/checked', request.body, request.headers, headersFromRecord({}), request, {});
-    expect(response.body[MION_ROUTES.thrownErrors]?.checked).toMatchObject({
-      type: 'validation-error',
-      publicMessage: `Invalid return value in 'checked', validation failed.`,
-    });
-    expect(response.body.checked).toBeUndefined();
-  });
-
-  it('lets a correct return through', async () => {
-    mion.initRoutes({goodChecked});
-    const request = jsonRequest('goodChecked');
-    const response = await dispatchRoute('/goodChecked', request.body, request.headers, headersFromRecord({}), request, {});
-    expect(response.hasErrors).toBeFalsy();
-    expect(response.body.goodChecked).toEqual({name: 'rex'});
-  });
-
-  // `undefined` leaves the chain before the body write, so the check has to happen on that path too.
-  it('catches a handler that declares a value and answers undefined', async () => {
-    const missing = mion.route((): Answer => undefined as unknown as Answer, {validateReturn: true});
-    mion.initRoutes({missing});
-    const request = jsonRequest('missing');
-    const response = await dispatchRoute('/missing', request.body, request.headers, headersFromRecord({}), request, {});
-    expect(response.body[MION_ROUTES.thrownErrors]?.missing).toMatchObject({
-      type: 'validation-error',
-      publicMessage: `Invalid return value in 'missing', validation failed.`,
-    });
-    expect(response.body.missing).toBeUndefined();
-  });
-
-  // The carve-out: a middleware declaring no return value contributes nothing, which is not a wrong answer.
-  it('leaves a middleware that declares no return value alone', async () => {
-    const silent = mion.middleware((): void => undefined, {validateReturn: true});
-    mion.initRoutes({silent, goodChecked});
-    const request = jsonRequest('goodChecked');
-    const response = await dispatchRoute('/goodChecked', request.body, request.headers, headersFromRecord({}), request, {});
-    expect(response.hasErrors).toBeFalsy();
-    expect(response.body[MION_ROUTES.thrownErrors]?.silent).toBeUndefined();
-  });
-
-  // A middleware resolves the flag on its own and its failure takes its own slot, so it needs its own case.
-  it('checks a middleware return, in the middleware own slot', async () => {
-    const badMf = mion.middleware((): Answer => ({name: 42}) as unknown as Answer, {validateReturn: true});
-    mion.initRoutes({badMf, goodChecked});
-    const request = jsonRequest('goodChecked');
-    const response = await dispatchRoute('/goodChecked', request.body, request.headers, headersFromRecord({}), request, {});
-    expect(response.body[MION_ROUTES.thrownErrors]?.badMf).toMatchObject({
-      type: 'validation-error',
-      publicMessage: `Invalid return value in 'badMf', validation failed.`,
-    });
-    expect(response.body.badMf).toBeUndefined();
   });
 });
 
@@ -975,12 +912,12 @@ describe('Route errors should', () => {
 describe('a params slot that is not an array', () => {
   beforeEach(() => resetRouter());
 
-  it('never reaches the handler, even with validation off', async () => {
+  it('never reaches the handler', async () => {
     let runs = 0;
     const mion = createMionRouter();
     mion.initRoutes({
-      loose: mion.route((ctx, a?: string): string => (runs++, `got ${a}`), {validateParams: false}),
-      none: mion.route((ctx): string => (runs++, 'none'), {validateParams: false}),
+      loose: mion.route((ctx, a?: string): string => (runs++, `got ${a}`)),
+      none: mion.route((ctx): string => (runs++, 'none')),
     });
     for (const id of ['loose', 'none']) {
       const body = JSON.stringify({[id]: 'x'});

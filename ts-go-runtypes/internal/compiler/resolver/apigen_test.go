@@ -54,8 +54,8 @@ const apiClientDTS = `declare module '@mionjs/client' {
 // takes: a headers middleware, a plain middleware, two routes in a group and one
 // at the root.
 const apiTypeTS = `type Headers = {headers: {authorization: string}};
-type MfOpts = {alwaysRun: false; validateParams: true; validateReturn: false; description: undefined; parser: {params: 'clone'; return: 'clone'}; sanitizeParams: undefined};
-type RouteOpts = {alwaysRun: false; validateParams: true; validateReturn: false; description: undefined; parser: {params: 'clone'; return: 'clone'}; isMutation: undefined; sanitizeParams: undefined};
+type MfOpts = {alwaysRun: false; description: undefined; parser: {params: 'clone'; return: 'clone'}; sanitizeParams: undefined};
+type RouteOpts = {alwaysRun: false; description: undefined; parser: {params: 'clone'; return: 'clone'}; isMutation: undefined; sanitizeParams: undefined};
 export type Api = {
   auth: {type: 3; handler: (h: Headers) => Promise<void>; options: MfOpts; types?: {params: []; return: void; headers: Headers; isAsync: false}};
   users: {
@@ -384,7 +384,7 @@ export const b = routes.sum(1, 2).call();
 // and for the inline "server build" session of the manifest tests.
 const apiServerRouterDTS = `declare module '@mionjs/router' {
   type Handler = (...args: any[]) => any;
-  type Opts = {alwaysRun: false; validateParams: true; validateReturn: false; description: undefined; parser: {params: 'clone'; return: 'clone'}; isMutation: undefined; sanitizeParams: undefined};
+  type Opts = {alwaysRun: false; description: undefined; parser: {params: 'clone'; return: 'clone'}; isMutation: undefined; sanitizeParams: undefined};
   export type PublicApi<R> = {
     [K in keyof R]: R[K] extends {type: infer T; handler: infer H extends Handler}
       ? {type: T; handler: H; options: Opts; types?: {params: Parameters<H>; return: Awaited<ReturnType<H>>; headers: never; isAsync: false}}
@@ -437,7 +437,7 @@ func writeFile(t *testing.T, path, content string) {
 // apiPeerClientTS is the client whose API declaration (numbers only) differs
 // from the server project's (a boolean too), with the same route ids.
 const apiPeerClientTS = `import {initClient} from '@mionjs/client';
-type RouteOpts = {alwaysRun: false; validateParams: true; validateReturn: false; description: undefined; parser: {params: 'clone'; return: 'clone'}; isMutation: undefined; sanitizeParams: undefined};
+type RouteOpts = {alwaysRun: false; description: undefined; parser: {params: 'clone'; return: 'clone'}; isMutation: undefined; sanitizeParams: undefined};
 type Api = {
   users: {getById: {type: 1; handler: (id: number) => Promise<{id: number; name: string}>; options: RouteOpts; types?: {params: [id: number]; return: {id: number; name: string}; headers: never; isAsync: false}}};
   sum: {type: 1; handler: (a: number, b: number) => Promise<number>; options: RouteOpts; types?: {params: [a: number, b: number]; return: number; headers: never; isAsync: false}};
@@ -551,7 +551,7 @@ func TestApiGen_ClientManifestListsTheBundledMethods(t *testing.T) {
 	if got := strings.Join(getById.Families, ","); got != "validateUnionKeys,validationErrorsUnionKeys,formatTransform,prepareForJsonClone,restoreFromJsonClone,validateUnionKeys,validationErrorsUnionKeys,prepareForJsonClone,restoreFromJsonClone" {
 		t.Errorf("getById families: %s", got)
 	}
-	if getById.Options["validateParams"] != true {
+	if getById.Options["alwaysRun"] != false {
 		t.Errorf("getById options: %+v", getById.Options)
 	}
 	if auth := manifest.Methods["auth"]; auth.Type != 3 || auth.HeadersId == "" || len(auth.MiddlewareIds) != 0 {
@@ -895,7 +895,7 @@ export const a = routes.ping().call();
 
 // metadataRouterDTS declares the metadata middleware the way @mionjs/router does, so the walk recognises it by its declaration.
 const metadataRouterDTS = `declare module '@mionjs/router' {
-  type Opts = {alwaysRun: true; validateParams: true; validateReturn: false; description: undefined; parser: {params: 'clone'; return: 'clone'}; sanitizeParams: undefined};
+  type Opts = {alwaysRun: true; description: undefined; parser: {params: 'clone'; return: 'clone'}; sanitizeParams: undefined};
   export const mionMethodsMetadata: {type: 2; handler: (ids?: string[]) => Promise<void>; options: Opts; types?: {params: [ids?: string[]]; return: void; headers: never; isAsync: false}};
 }
 `

@@ -34,10 +34,6 @@ export interface HeadersMethod<H extends HeaderHandler = any> extends RemoteMeth
 }
 export interface RawMethod<H extends RawMiddlewareHandler = any> extends RemoteMethod<H> {
   type: typeof HandlerType.rawMiddleware;
-  options: RemoteMethodOpts & {
-    validateParams: false;
-    validateReturn?: false;
-  };
 }
 
 // `parser` is a BUILD-TIME literal, inline or an `as const` preset, or the build reports CTA001 / CTA004.
@@ -46,8 +42,6 @@ export interface RawMethod<H extends RawMiddlewareHandler = any> extends RemoteM
 // type-instantiation budget, paid on every route declaration.
 interface RouteOptionsBase {
   description?: string;
-  validateParams?: boolean;
-  validateReturn?: boolean;
   /** Whether this route mutates data (query / mutation set it, route leaves it undefined). */
   isMutation?: boolean | undefined;
   sanitizeParams?: boolean;
@@ -57,12 +51,10 @@ interface RouteOptionsBase {
 }
 interface MiddlewareOptionsBase {
   description?: string;
-  validateParams?: boolean;
   /** This middleware's contribution to the request limit of every chain it sits in, in bytes, for a
    *  middleware whose params type has no maximum (a plain `string[]`). Without it such a middleware
    *  sends every chain it sits in to the router default. */
   maxBodySize?: number;
-  validateReturn?: boolean;
   alwaysRun?: boolean;
   sanitizeParams?: boolean;
 }

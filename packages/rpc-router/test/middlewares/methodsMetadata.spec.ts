@@ -164,8 +164,6 @@ describe('Client Routes should', () => {
   const defaultRouteOpts: RouteOnlyOptions = {
     alwaysRun: false,
     parser: {params: 'clone', return: 'clone'},
-    validateParams: true,
-    validateReturn: false,
     description: undefined,
     isMutation: undefined,
     // every chain here carries `auth`, whose `token: string` has no maximum, so each route publishes
@@ -174,8 +172,6 @@ describe('Client Routes should', () => {
   };
   const defaultMiddlewareOpts: RemoteMethodOpts = {
     alwaysRun: false,
-    validateParams: true,
-    validateReturn: false,
     description: undefined,
     parser: {params: 'clone', return: 'clone'},
   };
@@ -400,6 +396,17 @@ describe('Client Routes should', () => {
     expect(runs).toEqual([]);
     expect(response.body.ping).toBeUndefined();
     expect(rowsOf(response).methods).toHaveProperty('ping');
+  });
+
+  it('refuses a mode it does not know instead of treating it as a mode', async () => {
+    const runs: string[] = [];
+    const router = createMionRouter({contextDataFactory: getSharedData});
+    router.initRoutes({mionMethodsMetadata, ping: router.route((ctx): string => (runs.push('ping'), 'pong'))});
+    const body = JSON.stringify({[methodsId]: [['ping'], 'bogus']});
+    const response = await dispatchRoute('/ping', body, headersFromRecord({}), headersFromRecord({}), {body} as any, {});
+    expect(runs).toEqual([]);
+    expect(response.body[MION_ROUTES.thrownErrors]?.[methodsId]?.type).toBe('validation-error');
+    expect(response.body[methodsId]).toBeUndefined();
   });
 
   it('must sit at the root, before any route or group', () => {

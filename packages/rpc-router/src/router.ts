@@ -546,8 +546,6 @@ export function getExecutableFromMiddleware(
       ...reflectionData,
       options: {
         alwaysRun: !!middleware.options?.alwaysRun,
-        validateParams: middleware.options?.validateParams ?? true,
-        validateReturn: middleware.options?.validateReturn ?? false,
         description: middleware.options?.description,
         parser,
         sanitizeParams: middleware.options?.sanitizeParams ?? routerOptions.sanitizeParams,
@@ -591,8 +589,6 @@ export function getExecutableFromRawMiddleware(
     ...reflectionData,
     options: {
       alwaysRun: !!middleware.options?.alwaysRun,
-      validateParams: false,
-      validateReturn: false,
       description: middleware.options?.description,
     },
   };
@@ -624,8 +620,6 @@ export function getExecutableFromRoute(route: Route, routePointer: string[], nes
       ...reflectionData,
       options: {
         alwaysRun: false,
-        validateParams: route.options?.validateParams ?? true,
-        validateReturn: route.options?.validateReturn ?? false,
         description: route.options?.description,
         parser,
         isMutation: route.options?.isMutation,

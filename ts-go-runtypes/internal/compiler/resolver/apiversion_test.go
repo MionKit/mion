@@ -17,7 +17,7 @@ import (
 const versionRouterDTS = `declare module '@mionjs/router' {
   import type {InjectBuildVersion} from '@mionjs/run-types';
   type Handler = (...args: any[]) => any;
-  type Opts = {alwaysRun: false; validateParams: true; validateReturn: false; description: undefined; parser: {params: 'clone'; return: 'clone'}; isMutation: undefined; sanitizeParams: undefined};
+  type Opts = {alwaysRun: false; description: undefined; parser: {params: 'clone'; return: 'clone'}; isMutation: undefined; sanitizeParams: undefined};
   export type PublicApi<R> = {
     [K in keyof R]: R[K] extends {type: infer T; handler: infer H extends Handler}
       ? {type: T; handler: H; options: Opts; types?: {params: Parameters<H>; return: Awaited<ReturnType<H>>; headers: never; isAsync: false}}
@@ -38,7 +38,7 @@ const versionClientDTS = `declare module '@mionjs/client' {
 
 // versionClientTS names the SAME routes the server declares, so only the build could separate the two versions.
 const versionClientTS = `import {initClient} from '@mionjs/client';
-type RouteOpts = {alwaysRun: false; validateParams: true; validateReturn: false; description: undefined; parser: {params: 'clone'; return: 'clone'}; isMutation: undefined; sanitizeParams: undefined};
+type RouteOpts = {alwaysRun: false; description: undefined; parser: {params: 'clone'; return: 'clone'}; isMutation: undefined; sanitizeParams: undefined};
 type Api = {
   users: {getById: {type: 1; handler: (id: number, verbose: boolean) => {id: number; name: string}; options: RouteOpts; types?: {params: [id: number, verbose: boolean]; return: {id: number; name: string}; headers: never; isAsync: false}}};
   sum: {type: 1; handler: (a: number, b: number) => number; options: RouteOpts; types?: {params: [a: number, b: number]; return: number; headers: never; isAsync: false}};
