@@ -101,12 +101,18 @@ describe('pg slim surface: modifier completeness against drizzle', () => {
       expect(propsInterface, `no props interface found for ${fnName}`).toBeDefined();
       const propsKeys = interfaceKeys(columnsSource, propsInterface!);
       const modifiers = runtimeMethods(builder).filter((method) => !INTERNAL_COLUMN_METHODS.has(method));
-      expect(modifiers.filter((method) => !propsKeys.has(method)), `drizzle's ${fnName} grew modifiers the props lack`).toEqual([]);
-      expect([...propsKeys].filter((key) => !modifiers.includes(key)), `${fnName} props offer modifiers drizzle lacks`).toEqual([]);
+      expect(
+        modifiers.filter((method) => !propsKeys.has(method)),
+        `drizzle's ${fnName} grew modifiers the props lack`
+      ).toEqual([]);
+      expect(
+        [...propsKeys].filter((key) => !modifiers.includes(key)),
+        `${fnName} props offer modifiers drizzle lacks`
+      ).toEqual([]);
     });
   }
 
-  it('indexes take drizzle\'s two steps: the columns, then the options', () => {
+  it("indexes take drizzle's two steps: the columns, then the options", () => {
     const helpersSource = sourceOf('helpers.ts');
     const start = runtimeMethods(dzPg.index('i') as unknown as object).filter((method) => !INTERNAL_ENTRY_METHODS.has(method));
     const options = runtimeMethods((dzPg as unknown as {IndexBuilder: {prototype: object}}).IndexBuilder.prototype).filter(

@@ -47,7 +47,6 @@ import {
   bit as dzBit,
 } from 'drizzle-orm/pg-core';
 import {sql as dzRealSql} from 'drizzle-orm';
-import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
 import {
   bigint,
   bit,
@@ -78,7 +77,7 @@ import {
   uuid,
   varchar,
 } from '../src/index.ts';
-import type {InferInsertModel, InferSelectModel, InferSelectViewModel, InferUpdateModel} from '@mionjs/drizzle-orm';
+import type {InferSelectViewModel} from '@mionjs/drizzle-orm';
 import {$type, refineTableType, sql, tableRef} from '@mionjs/drizzle-orm';
 import {toDrizzle} from '../src/drizzle.ts';
 
@@ -314,9 +313,11 @@ const dzRlsDocs = dzPgTable('rls_docs', {
 const authenticated = pgRole('authenticated').existing();
 const dzAuthenticated = dzPgRole('authenticated').existing();
 
-const inlinePolicyDocs = pgTable('rls_inline', {id: uuid('id', {primaryKey: true}), owner: text('owner', {notNull: true})}, (t) => [
-  pgPolicy('owner_reads', {as: 'permissive', for: 'select', to: authenticated, using: sql`${t.owner} = current_user`}),
-]);
+const inlinePolicyDocs = pgTable(
+  'rls_inline',
+  {id: uuid('id', {primaryKey: true}), owner: text('owner', {notNull: true})},
+  (t) => [pgPolicy('owner_reads', {as: 'permissive', for: 'select', to: authenticated, using: sql`${t.owner} = current_user`})]
+);
 const dzInlinePolicyDocs = dzPgTable('rls_inline', {id: dzUuid('id').primaryKey(), owner: dzText('owner').notNull()}, (t) => [
   dzPgPolicy('owner_reads', {as: 'permissive', for: 'select', to: dzAuthenticated, using: dzRealSql`${t.owner} = current_user`}),
 ]);

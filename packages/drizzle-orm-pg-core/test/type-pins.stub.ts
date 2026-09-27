@@ -121,23 +121,185 @@ import {
 
 // ── the models the chained system produced, captured before the switch ────────
 
-type CountersInsertBefore = { label: String; byDefault?: IntegerFormat | undefined; };
-type EveryInsertBefore = { bigint?: IntegerFormat | null | undefined; bigserial?: BigInt64 | undefined; bit?: String<{ length: 8; }> | null | undefined; boolean?: boolean | null | undefined; char?: String<{ length: 3; }> | null | undefined; cidr?: string | null | undefined; date?: StringDate | null | undefined; decimal?: string | null | undefined; doublePrecision?: Float | null | undefined; geometry?: { x: number; y: number; } | null | undefined; halfvec?: number[] | null | undefined; inet?: IP | null | undefined; integer?: Int32 | null | undefined; interval?: string | null | undefined; json?: unknown; jsonb?: unknown; line?: { a: number; b: number; c: number; } | null | undefined; macaddr?: string | null | undefined; macaddr8?: string | null | undefined; numeric?: string | null | undefined; point?: [number, number] | null | undefined; real?: Float | null | undefined; serial?: Int32 | undefined; smallint?: Int16 | null | undefined; smallserial?: Int16 | undefined; sparsevec?: string | null | undefined; text?: String | null | undefined; time?: StringTime | null | undefined; timestamp?: RTDate | null | undefined; uuid?: UUID | null | undefined; varchar?: String<{ maxLength: 10; }> | null | undefined; vector?: number[] | null | undefined; mood?: "a" | "b" | null | undefined; citext?: { x: number; y: number; } | null | undefined; };
-type UsersInsertBefore = { id: UUID; name: String<{ maxLength: 100; }>; age: Int32; role: "admin" | "user"; createdAt?: RTDate | undefined; };
-type WideInsertBefore = { role: "admin" | "user"; tags: String[]; id?: Int32 | undefined; payload?: { kind: string; } | null | undefined; email?: String | null | undefined; slug?: String<{ maxLength: 20; }> | null | undefined; touchedAt?: RTDate | null | undefined; createdAt?: RTDate | undefined; };
-type WithEnumInsertBefore = { mood: "sad" | "happy"; level?: "low" | "high" | null | undefined; bare?: "sad" | "happy" | null | undefined; };
-type EverySelectBefore = { bigint: IntegerFormat | null; bigserial: BigInt64; bit: String<{ length: 8; }> | null; boolean: boolean | null; char: String<{ length: 3; }> | null; cidr: string | null; date: StringDate | null; decimal: string | null; doublePrecision: Float | null; geometry: { x: number; y: number; } | null; halfvec: number[] | null; inet: IP | null; integer: Int32 | null; interval: string | null; json: unknown; jsonb: unknown; line: { a: number; b: number; c: number; } | null; macaddr: string | null; macaddr8: string | null; numeric: string | null; point: [number, number] | null; real: Float | null; serial: Int32; smallint: Int16 | null; smallserial: Int16; sparsevec: string | null; text: String | null; time: StringTime | null; timestamp: RTDate | null; uuid: UUID | null; varchar: String<{ maxLength: 10; }> | null; vector: number[] | null; mood: "a" | "b" | null; citext: { x: number; y: number; } | null; };
-type UsersSelectBefore = { id: UUID; name: String<{ maxLength: 100; }>; age: Int32; role: "admin" | "user"; createdAt: RTDate; };
-type WideSelectBefore = { id: Int32; role: "admin" | "user"; seq: Int32; tags: String[]; payload: { kind: string; } | null; email: String | null; slug: String<{ maxLength: 20; }> | null; touchedAt: RTDate | null; total: Int32 | null; createdAt: RTDate; };
-type WithEnumSelectBefore = { mood: "sad" | "happy"; level: "low" | "high" | null; bare: "sad" | "happy" | null; };
-type ActiveViewViewSelectBefore = { name: String<{ maxLength: 10; }>; };
-type SecureViewViewSelectBefore = { name: String<{ maxLength: 10; }> | null; };
-type TotalsViewSelectBefore = { total: Int32; };
-type EveryUpdateBefore = { bigint?: IntegerFormat | null | undefined; bigserial?: BigInt64 | undefined; bit?: String<{ length: 8; }> | null | undefined; boolean?: boolean | null | undefined; char?: String<{ length: 3; }> | null | undefined; cidr?: string | null | undefined; date?: StringDate | null | undefined; decimal?: string | null | undefined; doublePrecision?: Float | null | undefined; geometry?: { x: number; y: number; } | null | undefined; halfvec?: number[] | null | undefined; inet?: IP | null | undefined; integer?: Int32 | null | undefined; interval?: string | null | undefined; json?: unknown; jsonb?: unknown; line?: { a: number; b: number; c: number; } | null | undefined; macaddr?: string | null | undefined; macaddr8?: string | null | undefined; numeric?: string | null | undefined; point?: [number, number] | null | undefined; real?: Float | null | undefined; serial?: Int32 | undefined; smallint?: Int16 | null | undefined; smallserial?: Int16 | undefined; sparsevec?: string | null | undefined; text?: String | null | undefined; time?: StringTime | null | undefined; timestamp?: RTDate | null | undefined; uuid?: UUID | null | undefined; varchar?: String<{ maxLength: 10; }> | null | undefined; vector?: number[] | null | undefined; mood?: "a" | "b" | null | undefined; citext?: { x: number; y: number; } | null | undefined; };
-type UsersUpdateBefore = { id?: UUID | undefined; name?: String<{ maxLength: 100; }> | undefined; age?: Int32 | undefined; role?: "admin" | "user" | undefined; createdAt?: RTDate | undefined; };
-type WideUpdateBefore = { id?: Int32 | undefined; role?: "admin" | "user" | undefined; tags?: String[] | undefined; payload?: { kind: string; } | null | undefined; email?: String | null | undefined; slug?: String<{ maxLength: 20; }> | null | undefined; touchedAt?: RTDate | null | undefined; createdAt?: RTDate | undefined; };
-type UsersRefinedInsertBefore = { id: UUID; name: MergeFormat<String<{ maxLength: 100; }>, { maxLength: 50; }>; age: Int32; role: "admin" | "user"; createdAt?: RTDate | undefined; };
-type UsersRefinedSelectBefore = { id: UUID; name: MergeFormat<String<{ maxLength: 100; }>, { maxLength: 50; }>; age: Int32; role: "admin" | "user"; createdAt: RTDate; };
+type CountersInsertBefore = {label: String; byDefault?: IntegerFormat | undefined};
+type EveryInsertBefore = {
+  bigint?: IntegerFormat | null | undefined;
+  bigserial?: BigInt64 | undefined;
+  bit?: String<{length: 8}> | null | undefined;
+  boolean?: boolean | null | undefined;
+  char?: String<{length: 3}> | null | undefined;
+  cidr?: string | null | undefined;
+  date?: StringDate | null | undefined;
+  decimal?: string | null | undefined;
+  doublePrecision?: Float | null | undefined;
+  geometry?: {x: number; y: number} | null | undefined;
+  halfvec?: number[] | null | undefined;
+  inet?: IP | null | undefined;
+  integer?: Int32 | null | undefined;
+  interval?: string | null | undefined;
+  json?: unknown;
+  jsonb?: unknown;
+  line?: {a: number; b: number; c: number} | null | undefined;
+  macaddr?: string | null | undefined;
+  macaddr8?: string | null | undefined;
+  numeric?: string | null | undefined;
+  point?: [number, number] | null | undefined;
+  real?: Float | null | undefined;
+  serial?: Int32 | undefined;
+  smallint?: Int16 | null | undefined;
+  smallserial?: Int16 | undefined;
+  sparsevec?: string | null | undefined;
+  text?: String | null | undefined;
+  time?: StringTime | null | undefined;
+  timestamp?: RTDate | null | undefined;
+  uuid?: UUID | null | undefined;
+  varchar?: String<{maxLength: 10}> | null | undefined;
+  vector?: number[] | null | undefined;
+  mood?: 'a' | 'b' | null | undefined;
+  citext?: {x: number; y: number} | null | undefined;
+};
+type UsersInsertBefore = {
+  id: UUID;
+  name: String<{maxLength: 100}>;
+  age: Int32;
+  role: 'admin' | 'user';
+  createdAt?: RTDate | undefined;
+};
+type WideInsertBefore = {
+  role: 'admin' | 'user';
+  tags: String[];
+  id?: Int32 | undefined;
+  payload?: {kind: string} | null | undefined;
+  email?: String | null | undefined;
+  slug?: String<{maxLength: 20}> | null | undefined;
+  touchedAt?: RTDate | null | undefined;
+  createdAt?: RTDate | undefined;
+};
+type WithEnumInsertBefore = {
+  mood: 'sad' | 'happy';
+  level?: 'low' | 'high' | null | undefined;
+  bare?: 'sad' | 'happy' | null | undefined;
+};
+type EverySelectBefore = {
+  bigint: IntegerFormat | null;
+  bigserial: BigInt64;
+  bit: String<{length: 8}> | null;
+  boolean: boolean | null;
+  char: String<{length: 3}> | null;
+  cidr: string | null;
+  date: StringDate | null;
+  decimal: string | null;
+  doublePrecision: Float | null;
+  geometry: {x: number; y: number} | null;
+  halfvec: number[] | null;
+  inet: IP | null;
+  integer: Int32 | null;
+  interval: string | null;
+  json: unknown;
+  jsonb: unknown;
+  line: {a: number; b: number; c: number} | null;
+  macaddr: string | null;
+  macaddr8: string | null;
+  numeric: string | null;
+  point: [number, number] | null;
+  real: Float | null;
+  serial: Int32;
+  smallint: Int16 | null;
+  smallserial: Int16;
+  sparsevec: string | null;
+  text: String | null;
+  time: StringTime | null;
+  timestamp: RTDate | null;
+  uuid: UUID | null;
+  varchar: String<{maxLength: 10}> | null;
+  vector: number[] | null;
+  mood: 'a' | 'b' | null;
+  citext: {x: number; y: number} | null;
+};
+type UsersSelectBefore = {id: UUID; name: String<{maxLength: 100}>; age: Int32; role: 'admin' | 'user'; createdAt: RTDate};
+type WideSelectBefore = {
+  id: Int32;
+  role: 'admin' | 'user';
+  seq: Int32;
+  tags: String[];
+  payload: {kind: string} | null;
+  email: String | null;
+  slug: String<{maxLength: 20}> | null;
+  touchedAt: RTDate | null;
+  total: Int32 | null;
+  createdAt: RTDate;
+};
+type WithEnumSelectBefore = {mood: 'sad' | 'happy'; level: 'low' | 'high' | null; bare: 'sad' | 'happy' | null};
+type ActiveViewViewSelectBefore = {name: String<{maxLength: 10}>};
+type SecureViewViewSelectBefore = {name: String<{maxLength: 10}> | null};
+type TotalsViewSelectBefore = {total: Int32};
+type EveryUpdateBefore = {
+  bigint?: IntegerFormat | null | undefined;
+  bigserial?: BigInt64 | undefined;
+  bit?: String<{length: 8}> | null | undefined;
+  boolean?: boolean | null | undefined;
+  char?: String<{length: 3}> | null | undefined;
+  cidr?: string | null | undefined;
+  date?: StringDate | null | undefined;
+  decimal?: string | null | undefined;
+  doublePrecision?: Float | null | undefined;
+  geometry?: {x: number; y: number} | null | undefined;
+  halfvec?: number[] | null | undefined;
+  inet?: IP | null | undefined;
+  integer?: Int32 | null | undefined;
+  interval?: string | null | undefined;
+  json?: unknown;
+  jsonb?: unknown;
+  line?: {a: number; b: number; c: number} | null | undefined;
+  macaddr?: string | null | undefined;
+  macaddr8?: string | null | undefined;
+  numeric?: string | null | undefined;
+  point?: [number, number] | null | undefined;
+  real?: Float | null | undefined;
+  serial?: Int32 | undefined;
+  smallint?: Int16 | null | undefined;
+  smallserial?: Int16 | undefined;
+  sparsevec?: string | null | undefined;
+  text?: String | null | undefined;
+  time?: StringTime | null | undefined;
+  timestamp?: RTDate | null | undefined;
+  uuid?: UUID | null | undefined;
+  varchar?: String<{maxLength: 10}> | null | undefined;
+  vector?: number[] | null | undefined;
+  mood?: 'a' | 'b' | null | undefined;
+  citext?: {x: number; y: number} | null | undefined;
+};
+type UsersUpdateBefore = {
+  id?: UUID | undefined;
+  name?: String<{maxLength: 100}> | undefined;
+  age?: Int32 | undefined;
+  role?: 'admin' | 'user' | undefined;
+  createdAt?: RTDate | undefined;
+};
+type WideUpdateBefore = {
+  id?: Int32 | undefined;
+  role?: 'admin' | 'user' | undefined;
+  tags?: String[] | undefined;
+  payload?: {kind: string} | null | undefined;
+  email?: String | null | undefined;
+  slug?: String<{maxLength: 20}> | null | undefined;
+  touchedAt?: RTDate | null | undefined;
+  createdAt?: RTDate | undefined;
+};
+type UsersRefinedInsertBefore = {
+  id: UUID;
+  name: MergeFormat<String<{maxLength: 100}>, {maxLength: 50}>;
+  age: Int32;
+  role: 'admin' | 'user';
+  createdAt?: RTDate | undefined;
+};
+type UsersRefinedSelectBefore = {
+  id: UUID;
+  name: MergeFormat<String<{maxLength: 100}>, {maxLength: 50}>;
+  age: Int32;
+  role: 'admin' | 'user';
+  createdAt: RTDate;
+};
 
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 type Expect<T extends true> = T;
@@ -546,9 +708,7 @@ export type OnlyPgMysql_EnumPins = [
   Expect<Equal<typeof withEnum, WithEnum>>,
   Expect<Equal<InferSelectModel<WithEnum>, WithEnumSelectBefore>>,
   Expect<Equal<InferInsertModel<WithEnum>, WithEnumInsertBefore>>,
-  Expect<
-    Equal<InferSelectModel<WithEnum>, {mood: 'sad' | 'happy'; level: 'low' | 'high' | null; bare: 'sad' | 'happy' | null}>
-  >,
+  Expect<Equal<InferSelectModel<WithEnum>, {mood: 'sad' | 'happy'; level: 'low' | 'high' | null; bare: 'sad' | 'happy' | null}>>,
   Expect<Equal<PgEnumObjectCol<{Low: 'low'; High: 'high'}>, PgEnumCol<['low', 'high']>>>,
 ];
 
