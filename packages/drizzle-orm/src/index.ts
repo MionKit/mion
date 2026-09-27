@@ -40,7 +40,6 @@ export {
 // Column types: one optional spec sentinel per column, every flag derived lazily from its props.
 export type {
   AnyColumn,
-  AnyNamedColumn,
   ColBaseFlag,
   ColModName,
   ColMods,
@@ -48,7 +47,6 @@ export type {
   ColSpecOf,
   Column,
   EntryColRefs,
-  InsertKindOf,
   IsHasDefault,
   IsInsertExcluded,
   IsNotNull,
@@ -58,8 +56,6 @@ export type {
   NoProps,
   Only,
   PropsOf,
-  RuntimeModKeys,
-  SelectValueOf,
   Sql,
   TableEntry,
   ValueOf,
@@ -75,19 +71,16 @@ export type {
   AnyTableRef,
   EntryColumn,
   BuildTableFn,
-  ColsOf,
   DbNameOf,
-  NamesOf,
   NoNames,
   RtTableBrand,
   RtTableMeta,
-  TableNameOf,
   TableRef,
 } from './table.ts';
 export {createRtTable, materializeRtTable, refColumn, tableRef} from './table.ts';
 
 // View core: manual-column views only, the query-builder form stays on drizzle (see ./view.ts).
-export type {AnyView, BuildViewFn, RtViewBrand, RtViewMeta} from './view.ts';
+export type {BuildViewFn, RtViewBrand, RtViewMeta} from './view.ts';
 export {isRtView, materializeRtView, RtViewBuilder} from './view.ts';
 
 // Pure-types runtime bridge, which the dialect packages' tableFromType wrappers build on.

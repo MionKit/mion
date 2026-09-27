@@ -12,7 +12,7 @@
 import {isColModName} from './columns.ts';
 import {RtColumnRecorder, RtEntryRecorder, sql} from './recorder.ts';
 import type {RtSql} from './recorder.ts';
-import type {BuildTableFn, AnyTable} from './table.ts';
+import type {AnyTable, AnyTableRef, BuildTableFn} from './table.ts';
 import {createRtTable} from './table.ts';
 import type {ColSpecOf, ValueOf} from './columns.ts';
 
@@ -100,11 +100,7 @@ function literalValueOf(node: ReflectedNode, where: string): unknown {
 }
 
 /** Call only when drizzle asks for the column: a thunked table exists only then. */
-function resolveTypeRoadRef(
-  options: TableFromTypeOptions | undefined,
-  key: string,
-  ref: {table: string; column: string}
-): object {
+function resolveTypeRoadRef(options: TableFromTypeOptions | undefined, key: string, ref: AnyTableRef): object {
   const column = (tableDep(options, ref.table) as Record<string, object | undefined>)[ref.column];
   if (column === undefined) fail(`column "${key}" references no column "${ref.column}" in table "${ref.table}"`);
   return column;
@@ -168,7 +164,7 @@ function buildColumn(
     }
     const value = literalValueOf(member.child!, `${key}.${method}`);
     if (method === 'references') {
-      const [ref, actions] = value as [{table: string; column: string}, object | undefined];
+      const [ref, actions] = value as [AnyTableRef, object | undefined];
       if (options?.tables?.[ref.table] === undefined)
         fail(`column "${key}" references table "${ref.table}", pass it via tableFromType options: {tables: {${ref.table}: ...}}`);
       recorder.references(() => resolveTypeRoadRef(options, key, ref), actions);
