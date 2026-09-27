@@ -16,10 +16,10 @@ const drizzleVersion: string = JSON.parse(readFileSync(fileURLToPath(new URL('..
 const SNIPPET_FILE = fileURLToPath(new URL('./__columnFormatsCase__.ts', import.meta.url));
 
 const importHeader = (dialect: string, db: string) => `
-import * as n from '@mionjs/drizzle-orm-${dialect}-core';
-import {toDrizzle as nToDrizzle} from '@mionjs/drizzle-orm-${dialect}-core/drizzle';
-import type {InferSelectModel as NSelect, InferInsertModel as NInsert, TableRef as NTableRef} from '@mionjs/drizzle-orm';
-import {refineTableType as nRefine, tableRef as nTableRef, $type as n$type} from '@mionjs/drizzle-orm';
+import * as slim from '@mionjs/drizzle-orm-${dialect}-core';
+import {toDrizzle} from '@mionjs/drizzle-orm-${dialect}-core/drizzle';
+import type {InferSelectModel as Select, InferInsertModel as Insert, TableRef} from '@mionjs/drizzle-orm';
+import {refineTableType, tableRef, $type} from '@mionjs/drizzle-orm';
 ${db}
 export {};
 `;
@@ -34,123 +34,128 @@ interface ColSpec {
   /** The explicit db name; unset for a nameless column. */
   db?: string;
   /** The column type and the builder call. */
-  newT: string;
-  newB: string;
+  type: string;
+  builder: string;
 }
-const col = (key: string, db: string | undefined, newT: string, newB: string): ColSpec => ({key, db, newT, newB});
+const col = (key: string, db: string | undefined, type: string, builder: string): ColSpec => ({key, db, type, builder});
 
 const PG_MIXED: ColSpec[] = [
-  col('id', 'id', `n.Uuid<{primaryKey: true}>`, `n.uuid('id', {primaryKey: true})`),
-  col('name', 'name', `n.Varchar<{length: 100; notNull: true}>`, `n.varchar('name', {length: 100, notNull: true})`),
-  col('age', 'age', `n.Integer<{notNull: true}>`, `n.integer('age', {notNull: true})`),
+  col('id', 'id', `slim.Uuid<{primaryKey: true}>`, `slim.uuid('id', {primaryKey: true})`),
+  col('name', 'name', `slim.Varchar<{length: 100; notNull: true}>`, `slim.varchar('name', {length: 100, notNull: true})`),
+  col('age', 'age', `slim.Integer<{notNull: true}>`, `slim.integer('age', {notNull: true})`),
   col(
     'role',
     'role',
-    `n.Text<{enum: ['admin', 'user']; notNull: true}>`,
-    `n.text('role', {enum: ['admin', 'user'], notNull: true})`
+    `slim.Text<{enum: ['admin', 'user']; notNull: true}>`,
+    `slim.text('role', {enum: ['admin', 'user'], notNull: true})`
   ),
   col(
     'createdAt',
     'created_at',
-    `n.Timestamp<{mode: 'date'; notNull: true; defaultNow: true}>`,
-    `n.timestamp('created_at', {mode: 'date', notNull: true, defaultNow: true})`
+    `slim.Timestamp<{mode: 'date'; notNull: true; defaultNow: true}>`,
+    `slim.timestamp('created_at', {mode: 'date', notNull: true, defaultNow: true})`
   ),
 ];
 const PG_WIDE: ColSpec[] = [
-  col('id', 'id', `n.Serial<{primaryKey: true}>`, `n.serial('id', {primaryKey: true})`),
+  col('id', 'id', `slim.Serial<{primaryKey: true}>`, `slim.serial('id', {primaryKey: true})`),
   col(
     'role',
     'role',
-    `n.Text<{enum: ['admin', 'user']; notNull: true}>`,
-    `n.text('role', {enum: ['admin', 'user'], notNull: true})`
+    `slim.Text<{enum: ['admin', 'user']; notNull: true}>`,
+    `slim.text('role', {enum: ['admin', 'user'], notNull: true})`
   ),
-  col('seq', 'seq', `n.Integer<{generatedAlwaysAsIdentity: true}>`, `n.integer('seq', {generatedAlwaysAsIdentity: true})`),
-  col('tags', 'tags', `n.Text<{array: true; notNull: true}>`, `n.text('tags', {array: true, notNull: true})`),
-  col('payload', 'payload', `n.Jsonb<{$type: [{kind: string}]}>`, `n.jsonb('payload', {$type: n$type<{kind: string}>()})`),
-  col('email', 'email', `n.Text<{unique: ['uq_email']}>`, `n.text('email', {unique: ['uq_email']})`),
+  col('seq', 'seq', `slim.Integer<{generatedAlwaysAsIdentity: true}>`, `slim.integer('seq', {generatedAlwaysAsIdentity: true})`),
+  col('tags', 'tags', `slim.Text<{array: true; notNull: true}>`, `slim.text('tags', {array: true, notNull: true})`),
+  col('payload', 'payload', `slim.Jsonb<{$type: [{kind: string}]}>`, `slim.jsonb('payload', {$type: $type<{kind: string}>()})`),
+  col('email', 'email', `slim.Text<{unique: ['uq_email']}>`, `slim.text('email', {unique: ['uq_email']})`),
   col(
     'createdAt',
     'created_at',
-    `n.Timestamp<{mode: 'date'; notNull: true; defaultNow: true}>`,
-    `n.timestamp('created_at', {mode: 'date', notNull: true, defaultNow: true})`
+    `slim.Timestamp<{mode: 'date'; notNull: true; defaultNow: true}>`,
+    `slim.timestamp('created_at', {mode: 'date', notNull: true, defaultNow: true})`
   ),
 ];
 const MYSQL_MIXED: ColSpec[] = [
-  col('id', 'id', `n.Serial<{primaryKey: true}>`, `n.serial('id', {primaryKey: true})`),
-  col('name', 'name', `n.Varchar<{length: 100; notNull: true}>`, `n.varchar('name', {length: 100, notNull: true})`),
-  col('age', 'age', `n.Int<{notNull: true}>`, `n.int('age', {notNull: true})`),
+  col('id', 'id', `slim.Serial<{primaryKey: true}>`, `slim.serial('id', {primaryKey: true})`),
+  col('name', 'name', `slim.Varchar<{length: 100; notNull: true}>`, `slim.varchar('name', {length: 100, notNull: true})`),
+  col('age', 'age', `slim.Int<{notNull: true}>`, `slim.int('age', {notNull: true})`),
   col(
     'role',
     'role',
-    `n.Text<{enum: ['admin', 'user']; notNull: true}>`,
-    `n.text('role', {enum: ['admin', 'user'], notNull: true})`
+    `slim.Text<{enum: ['admin', 'user']; notNull: true}>`,
+    `slim.text('role', {enum: ['admin', 'user'], notNull: true})`
   ),
   col(
     'createdAt',
     'created_at',
-    `n.Timestamp<{mode: 'date'; notNull: true; defaultNow: true}>`,
-    `n.timestamp('created_at', {mode: 'date', notNull: true, defaultNow: true})`
+    `slim.Timestamp<{mode: 'date'; notNull: true; defaultNow: true}>`,
+    `slim.timestamp('created_at', {mode: 'date', notNull: true, defaultNow: true})`
   ),
 ];
 const MYSQL_WIDE: ColSpec[] = [
-  col('id', 'id', `n.Serial<{primaryKey: true}>`, `n.serial('id', {primaryKey: true})`),
+  col('id', 'id', `slim.Serial<{primaryKey: true}>`, `slim.serial('id', {primaryKey: true})`),
   MYSQL_MIXED[3],
   col(
     'seq',
     'seq',
-    `n.Int<{unsigned: true; notNull: true; autoincrement: true}>`,
-    `n.int('seq', {unsigned: true, notNull: true, autoincrement: true})`
+    `slim.Int<{unsigned: true; notNull: true; autoincrement: true}>`,
+    `slim.int('seq', {unsigned: true, notNull: true, autoincrement: true})`
   ),
-  col('payload', 'payload', `n.Json<{$type: [{kind: string}]}>`, `n.json('payload', {$type: n$type<{kind: string}>()})`),
+  col('payload', 'payload', `slim.Json<{$type: [{kind: string}]}>`, `slim.json('payload', {$type: $type<{kind: string}>()})`),
   col(
     'email',
     'email',
-    `n.Varchar<{length: 200; unique: ['uq_email']}>`,
-    `n.varchar('email', {length: 200, unique: ['uq_email']})`
+    `slim.Varchar<{length: 200; unique: ['uq_email']}>`,
+    `slim.varchar('email', {length: 200, unique: ['uq_email']})`
   ),
   col(
     'updatedAt',
     'updated_at',
-    `n.Timestamp<{mode: 'date'; notNull: true; defaultNow: true; onUpdateNow: true}>`,
-    `n.timestamp('updated_at', {mode: 'date', notNull: true, defaultNow: true, onUpdateNow: true})`
+    `slim.Timestamp<{mode: 'date'; notNull: true; defaultNow: true; onUpdateNow: true}>`,
+    `slim.timestamp('updated_at', {mode: 'date', notNull: true, defaultNow: true, onUpdateNow: true})`
   ),
-  col('big', 'big', `n.Bigint<{mode: 'bigint'; unsigned: true}>`, `n.bigint('big', {mode: 'bigint', unsigned: true})`),
+  col('big', 'big', `slim.Bigint<{mode: 'bigint'; unsigned: true}>`, `slim.bigint('big', {mode: 'bigint', unsigned: true})`),
 ];
 const SQLITE_MIXED: ColSpec[] = [
-  col('id', 'id', `n.Integer<{primaryKey: true}>`, `n.integer('id', {primaryKey: true})`),
-  col('name', 'name', `n.Text<{length: 100; notNull: true}>`, `n.text('name', {length: 100, notNull: true})`),
-  col('age', 'age', `n.Integer<{notNull: true}>`, `n.integer('age', {notNull: true})`),
+  col('id', 'id', `slim.Integer<{primaryKey: true}>`, `slim.integer('id', {primaryKey: true})`),
+  col('name', 'name', `slim.Text<{length: 100; notNull: true}>`, `slim.text('name', {length: 100, notNull: true})`),
+  col('age', 'age', `slim.Integer<{notNull: true}>`, `slim.integer('age', {notNull: true})`),
   col(
     'role',
     'role',
-    `n.Text<{enum: ['admin', 'user']; notNull: true}>`,
-    `n.text('role', {enum: ['admin', 'user'], notNull: true})`
+    `slim.Text<{enum: ['admin', 'user']; notNull: true}>`,
+    `slim.text('role', {enum: ['admin', 'user'], notNull: true})`
   ),
   col(
     'createdAt',
     'created_at',
-    `n.Integer<{mode: 'timestamp'; notNull: true}>`,
-    `n.integer('created_at', {mode: 'timestamp', notNull: true})`
+    `slim.Integer<{mode: 'timestamp'; notNull: true}>`,
+    `slim.integer('created_at', {mode: 'timestamp', notNull: true})`
   ),
 ];
 const SQLITE_WIDE: ColSpec[] = [
-  col('id', 'id', `n.Integer<{primaryKey: [{autoIncrement: true}]}>`, `n.integer('id', {primaryKey: [{autoIncrement: true}]})`),
+  col(
+    'id',
+    'id',
+    `slim.Integer<{primaryKey: [{autoIncrement: true}]}>`,
+    `slim.integer('id', {primaryKey: [{autoIncrement: true}]})`
+  ),
   SQLITE_MIXED[3],
   col(
     'flag',
     'flag',
-    `n.Integer<{mode: 'boolean'; notNull: true; default: [false]}>`,
-    `n.integer('flag', {mode: 'boolean', notNull: true, default: [false]})`
+    `slim.Integer<{mode: 'boolean'; notNull: true; default: [false]}>`,
+    `slim.integer('flag', {mode: 'boolean', notNull: true, default: [false]})`
   ),
   col(
     'payload',
     'payload',
-    `n.Text<{mode: 'json'; $type: [{kind: string}]}>`,
-    `n.text('payload', {mode: 'json', $type: n$type<{kind: string}>()})`
+    `slim.Text<{mode: 'json'; $type: [{kind: string}]}>`,
+    `slim.text('payload', {mode: 'json', $type: $type<{kind: string}>()})`
   ),
-  col('email', 'email', `n.Text<{unique: ['uq_email']}>`, `n.text('email', {unique: ['uq_email']})`),
-  col('amount', 'amount', `n.Real<{notNull: true}>`, `n.real('amount', {notNull: true})`),
-  col('big', 'big', `n.Blob<{mode: 'bigint'}>`, `n.blob('big', {mode: 'bigint'})`),
+  col('email', 'email', `slim.Text<{unique: ['uq_email']}>`, `slim.text('email', {unique: ['uq_email']})`),
+  col('amount', 'amount', `slim.Real<{notNull: true}>`, `slim.real('amount', {notNull: true})`),
+  col('big', 'big', `slim.Blob<{mode: 'bigint'}>`, `slim.blob('big', {mode: 'bigint'})`),
 ];
 
 /** Everything a dialect spells differently; the shapes below are the same for all three. */
@@ -166,7 +171,7 @@ interface Dialect {
   /** The plain nullable int column. */
   int: {fn: string; type: string};
   /** The referenced table's primary key: its column type and builder call. */
-  refId: {newT: string; newB: string};
+  refId: {type: string; builder: string};
   /** A row the insert model of the mixed table accepts. */
   insertRow: string;
   /** The queries over `${p}D`, the toDrizzle of the mixed table. */
@@ -178,20 +183,20 @@ const plain = (int: Dialect['int'], count: number, named: boolean): ColSpec[] =>
   Array.from({length: count}, (_, i) => {
     const key = `c${i}`;
     return named
-      ? col(key, key, `n.${int.type}`, `n.${int.fn}('${key}')`)
-      : col(key, undefined, `n.${int.type}`, `n.${int.fn}()`);
+      ? col(key, key, `slim.${int.type}`, `slim.${int.fn}('${key}')`)
+      : col(key, undefined, `slim.${int.type}`, `slim.${int.fn}()`);
   });
 
 /** A table declaration on one line, as `${prefix}T` (the table type). */
 function declare(names: Dialect, line: Line, prefix: string, table: string, cols: ColSpec[]): string {
   const {tableFn, tableType} = names;
   if (line === 'builders')
-    return `const ${prefix}V = n.${tableFn}('${table}', {${cols.map((x) => `${x.key}: ${x.newB},`).join(' ')}});\ntype ${prefix}T = typeof ${prefix}V;`;
+    return `const ${prefix}V = slim.${tableFn}('${table}', {${cols.map((x) => `${x.key}: ${x.builder},`).join(' ')}});\ntype ${prefix}T = typeof ${prefix}V;`;
   const names_ = cols.filter((x) => x.db !== undefined && x.db !== x.key).map((x) => `${x.key}: '${x.db}'`);
-  return `type ${prefix}T = n.${tableType}<'${table}', {${cols.map((x) => `${x.key}: ${x.newT};`).join(' ')}}${names_.length ? `, [], {${names_.join('; ')}}` : ''}>;`;
+  return `type ${prefix}T = slim.${tableType}<'${table}', {${cols.map((x) => `${x.key}: ${x.type};`).join(' ')}}${names_.length ? `, [], {${names_.join('; ')}}` : ''}>;`;
 }
-const select = (t: string) => `NSelect<${t}>`;
-const insert = (t: string) => `NInsert<${t}>`;
+const select = (t: string) => `Select<${t}>`;
+const insert = (t: string) => `Insert<${t}>`;
 
 // Reading the row into annotated consts is what forces the work: a bare alias measures almost nothing.
 const readRow = (p: string, reads: Array<[string, string]>) =>
@@ -243,22 +248,22 @@ export const ${p}NewUser: ${p}New = ${names.insertRow};`;
     case 'two tables, one reference': {
       const read = (model: string) => `declare const ${p}row: ${model}; export const ${p}t: number | null = ${p}row.teamId;`;
       if (line === 'builders')
-        return `const ${p}A = n.${tableFn}('teams', {id: ${refId.newB}});
-const ${p}B = n.${tableFn}('members', {id: ${refId.newB}, teamId: n.${int.fn}('team_id', {references: [() => nTableRef(${p}A, 'id')]})});
-${read(`NSelect<typeof ${p}B>`)}`;
-      return `type ${p}A = n.${tableType}<'teams', {id: ${refId.newT}}>;
-type ${p}B = n.${tableType}<'members', {id: ${refId.newT}; teamId: n.${int.type}<{references: [NTableRef<${p}A, 'id'>]}>}, [], {teamId: 'team_id'}>;
-${read(`NSelect<${p}B>`)}`;
+        return `const ${p}A = slim.${tableFn}('teams', {id: ${refId.builder}});
+const ${p}B = slim.${tableFn}('members', {id: ${refId.builder}, teamId: slim.${int.fn}('team_id', {references: [() => tableRef(${p}A, 'id')]})});
+${read(`Select<typeof ${p}B>`)}`;
+      return `type ${p}A = slim.${tableType}<'teams', {id: ${refId.type}}>;
+type ${p}B = slim.${tableType}<'members', {id: ${refId.type}; teamId: slim.${int.type}<{references: [TableRef<${p}A, 'id'>]}>}, [], {teamId: 'team_id'}>;
+${read(`Select<${p}B>`)}`;
     }
     case 'refineTableType, select': {
       const source = line === 'builders' ? `${p}V` : `({} as ${p}T)`;
       return `${declare(names, line, p, 'users', mixed)}
-const ${p}R = nRefine(${source}, {name: {maxLength: 50}});
+const ${p}R = refineTableType(${source}, {name: {maxLength: 50}});
 type ${p}Row = ${select(`typeof ${p}R`)};\n${readRow(p, mixedReads)}`;
     }
     case 'toDrizzle + select / insert / update query': {
       const source = line === 'builders' ? `${p}V` : `({} as ${p}T)`;
-      return `${declare(names, line, p, 'users', mixed)}\nconst ${p}D = nToDrizzle(${source});\n${names.queries(p)}`;
+      return `${declare(names, line, p, 'users', mixed)}\nconst ${p}D = toDrizzle(${source});\n${names.queries(p)}`;
     }
   }
 }
@@ -299,8 +304,8 @@ const DIALECTS: Dialect[] = [
     ],
     int: {fn: 'integer', type: 'Integer'},
     refId: {
-      newT: `n.Serial<{primaryKey: true}>`,
-      newB: `n.serial('id', {primaryKey: true})`,
+      type: `slim.Serial<{primaryKey: true}>`,
+      builder: `slim.serial('id', {primaryKey: true})`,
     },
     insertRow: `{id: 'x' as never, name: 'a', age: 1, role: 'admin'}`,
     queries: (p) => `${QUERY_READS(p)}
@@ -351,8 +356,8 @@ export const ${p}u = db.update(${p}D).set({age: 31});`,
     ],
     int: {fn: 'int', type: 'Int'},
     refId: {
-      newT: `n.Serial<{primaryKey: true}>`,
-      newB: `n.serial('id', {primaryKey: true})`,
+      type: `slim.Serial<{primaryKey: true}>`,
+      builder: `slim.serial('id', {primaryKey: true})`,
     },
     insertRow: `{name: 'a', age: 1, role: 'admin'}`,
     queries: (p) => `${QUERY_READS(p)}
@@ -396,8 +401,8 @@ export const ${p}u = db.update(${p}D).set({age: 31});`,
     ],
     int: {fn: 'integer', type: 'Integer'},
     refId: {
-      newT: `n.Integer<{primaryKey: true}>`,
-      newB: `n.integer('id', {primaryKey: true})`,
+      type: `slim.Integer<{primaryKey: true}>`,
+      builder: `slim.integer('id', {primaryKey: true})`,
     },
     insertRow: `{name: 'a', age: 1, role: 'admin', createdAt: new Date()}`,
     queries: (p) => `${QUERY_READS(p)}
