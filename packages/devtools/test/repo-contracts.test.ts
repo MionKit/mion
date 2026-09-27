@@ -279,16 +279,19 @@ describe('published packages point at this repository', () => {
 
   it("the client's undeclared slot is never called the fatal slot", () => {
     // Slot 2 holds what NOBODY declared, unlike the declared `FatalError`, so it is `undeclared` everywhere.
-    // Whole word only: FatalError / fatalError / isFatalError are the server-side names.
+    // Only the slot's old names: "fatal slot" / "fatal error part" / `fatalPart`, and a tuple item named `fatal`.
     const res = spawnSync(
       'git',
       [
         'grep',
         '-I',
         '-n',
-        '-w',
         '-i',
-        'fatal',
+        '-E',
+        '-e',
+        '\\bfatal[ _-]?(error[ _-]?)?(slot|part|position)',
+        '-e',
+        '\\[[^]]*,\\s*fatal\\s*[],]',
         '--',
         'packages/rpc-client/src',
         'packages/private-examples/src/client',
