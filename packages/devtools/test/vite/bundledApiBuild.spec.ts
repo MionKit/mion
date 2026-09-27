@@ -26,7 +26,7 @@ import {BIN, hasBinary, writeMarkerPackage} from '../helpers/inline.ts';
 // test needs no built framework package.
 
 const CLIENT_DTS = `declare module '@mionjs/client' {
-  import type {InjectApiMetadata} from '@mionjs/run-types';
+  import type {InjectApiMetadata, InjectBuildVersion} from '@mionjs/run-types';
   export interface RouteSubRequest<PH, Id extends string = string, RA = any> {
     id: Id;
     call(setup?: unknown, apiMetadata?: InjectApiMetadata<RA, Id>): Promise<unknown>;
@@ -45,7 +45,7 @@ const CLIENT_DTS = `declare module '@mionjs/client' {
       ? ClientMiddleware<H, \`\${Prefix}\${K & string}\`>
       : ClientMiddlewares<RA[K], \`\${Prefix}\${K & string}/\`, Root>;
   };
-  export function initClient<RA>(o?: unknown): {routes: ClientRoutes<RA>; middlewares: ClientMiddlewares<RA>};
+  export function initClient<RA>(o?: unknown, buildVersion?: InjectBuildVersion<RA>): {routes: ClientRoutes<RA>; middlewares: ClientMiddlewares<RA>};
   export function setApiBundled(): void;
 }
 `;
@@ -249,7 +249,17 @@ register('bundled API through a real vite build', () => {
     expect(globals.__bundles?.['users/getById']).toBeDefined();
   });
 
+  it('stops a bundleApi: false build whose API serves no metadata to fetch (MET010)', async () => {
+    const warnings: string[] = [];
+    await expect(buildClient(false, warnings)).rejects.toThrow(/build halted/);
+    expect(warnings.join('\n')).toMatch(/MET010/);
+  });
+
   it('writes nothing and injects nothing with bundleApi: false', async () => {
+    writeFileSync(
+      path.join(root, 'src', 'a.ts'),
+      CLIENT.replace('export const {routes', '// @mion-expect-error MET010\nexport const {routes')
+    );
     const code = await buildClient(false);
     expect(existsSync(path.join(root, '.mion', 'api'))).toBe(false);
     expect(code).not.toContain('setApiBundled');
