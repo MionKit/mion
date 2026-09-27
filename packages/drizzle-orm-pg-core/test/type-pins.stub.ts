@@ -692,3 +692,6 @@ export type BoundaryPins = [
   Expect<Equal<(typeof boundaryRows)[number]['createdAt'], Date>>,
   Expect<Equal<InferSelectModel<typeof brandedTable>['id'], BoundaryId>>,
 ];
+
+// @ts-expect-error real takes no mode
+real({mode: 'number'});

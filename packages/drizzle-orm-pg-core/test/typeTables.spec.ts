@@ -500,7 +500,7 @@ describe('pg columns: runtime callbacks', () => {
 // A table carries the dialect that recorded it, so another dialect's table is a compile error, not a runtime crash.
 // The foreign table is spelled here rather than imported: a dialect package must not depend on its siblings.
 describe('pg columns: tables are typed to their dialect', () => {
-  it('tags what pgTable() and PgTable<> produce with the dialect', () => {
+  it('tags what the table builder and the table type produce with the dialect', () => {
     const table = pgTable('tagged', {id: integer({primaryKey: true})});
     const accepted: AnyPgTable = table;
     const acceptedType: AnyPgTable = {} as PgTable<'tagged', {id: Integer<{primaryKey: true}>}>;

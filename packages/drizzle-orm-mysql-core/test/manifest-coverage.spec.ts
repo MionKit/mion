@@ -5,10 +5,13 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// In-vitest mirror of the manifest gate for this dialect: migrated entries
-// are callable exports of the shipped root module, every column is migrated,
-// nothing is pending, and the dialects.json row points here. The all-dialects
-// invariant is pinned in the pg package's twin spec.
+// In-vitest mirror of the `pnpm miondevx core drizzle-manifest --check` gate,
+// scoped to THIS package's dialect: every migrated entry (column builders and
+// authoring helpers alike) is a callable export of the root module,
+// nothing is pending, and the hand-owned drizzle-dialects.json row points at
+// this package. The all-dialects invariant (every configured manifest exists
+// and shares ONE drizzle-orm version) is pinned here too, reading the sibling
+// packages' manifests off the config rows.
 
 import {describe, it, expect} from 'vitest';
 import {readFileSync} from 'node:fs';
@@ -40,29 +43,36 @@ const ownManifest = JSON.parse(
 import * as surface from '../src/index.ts';
 
 const DIALECT = 'mysql';
+const PACKAGE_DIR = 'packages/drizzle-orm-mysql-core';
+
 const surfaceModule = surface as Record<string, unknown>;
 
-describe(`the ${DIALECT} manifest matches the shipped root module`, () => {
+describe(`the ${DIALECT} manifest matches the root module`, () => {
   it('the dialects.json row for this dialect points at this package', () => {
     const row = dialectsConfig.dialects.find((candidate) => candidate.dialect === DIALECT);
-    expect(row?.packageDir).toBe('packages/drizzle-orm-mysql-core');
+    expect(row).toBeDefined();
+    expect(row?.packageDir).toBe(PACKAGE_DIR);
     expect(row?.proxy).toBe('src/index.ts');
-    expect(row?.module).toBe('drizzle-orm/mysql-core');
+    expect(row?.manifest).toBe(`manifests/${DIALECT}.manifest.json`);
+    expect(row?.module).toBe(`drizzle-orm/${DIALECT}-core`);
   });
 
-  it('every migrated entry is a callable export; columns migrated; nothing pending', () => {
+  it('every migrated entry is a callable export of the root module', () => {
     for (const entry of ownManifest.entries) {
-      if (entry.status === 'migrated') {
-        expect(typeof surfaceModule[entry.fn], `migrated ${entry.fn} must be exported and callable`).toBe('function');
-      }
+      if (entry.status !== 'migrated') continue;
+      expect(typeof surfaceModule[entry.fn], `migrated ${entry.fn} must be exported and callable`).toBe('function');
+    }
+  });
+
+  it('every column entry is migrated and nothing is pending', () => {
+    for (const entry of ownManifest.entries) {
       if (entry.kind === 'column') expect(entry.status, `column ${entry.fn} must be migrated`).toBe('migrated');
       expect(entry.status, `${entry.fn} must not be pending`).not.toBe('pending');
     }
   });
 
   it('every migrated column entry records its pure-type alias (upperFirst rule)', () => {
-    // mysqlEnum takes a values ARRAY, not a config object, so it has no type
-    // spelling and stays builders-only (the one documented exemption).
+    // mysqlEnum takes a values array where the other builders take a config, so it has no type spelling.
     const noTypeRoad = new Set(['mysqlEnum']);
     for (const entry of ownManifest.entries) {
       if (entry.kind !== 'column' || entry.status !== 'migrated' || noTypeRoad.has(entry.fn)) continue;
@@ -71,27 +81,40 @@ describe(`the ${DIALECT} manifest matches the shipped root module`, () => {
     }
   });
 
-  it('every manifest modifier is spellable in a column type props bag', () => {
-    // Modifiers are PROPS now, not marker types: a column type takes one object
-    // holding the builder's config keys and its modifier calls, constrained by
-    // the *ColMods bags beside the builders. A modifier drizzle records but no
-    // bag declares has no type-road spelling at all, silently.
-    const columnsSource = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../src/columns.ts'), 'utf8');
-    const bagKeys = new Set<string>();
-    for (const bag of columnsSource.matchAll(/export interface \w*ColMods[\s\S]*?\n\}/g)) {
-      // Inherited names come through `Pick<ColMods, 'a' | 'b'>`, own ones are
-      // declared in the body.
-      for (const picked of bag[0].matchAll(/'([\w$]+)'/g)) bagKeys.add(picked[1]);
-      for (const own of bag[0].matchAll(/^ {2}([\w$]+)\?:/gm)) bagKeys.add(own[1]);
-    }
+  it('every manifest modifier is spellable in a builder props object and a column type', () => {
+    // A modifier is a PROPS key: the builders check theirs against the *In interfaces, the column types against the
+    // *ColMods bags. A modifier drizzle records but neither declares has no spelling at all, silently.
+    const sourceOf = (file: string) => readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../src', file), 'utf8');
+    const keysOf = (source: string, interfaces: RegExp): Set<string> => {
+      const keys = new Set<string>();
+      for (const declared of source.matchAll(interfaces)) {
+        // Inherited names come through `Pick<ColMods, 'a' | 'b'>`, own ones are declared in the body.
+        for (const picked of declared[0].matchAll(/'([\w$]+)'/g)) keys.add(picked[1]);
+        for (const own of declared[0].matchAll(/^ {2}([\w$]+)\?:/gm)) keys.add(own[1]);
+      }
+      return keys;
+    };
+    const bagKeys = keysOf(sourceOf('types.ts'), /export interface \w*ColMods[\s\S]*?\n\}/g);
+    const propsKeys = keysOf(sourceOf('columns.ts'), /export interface \w*In\b[\s\S]*?\n\}/g);
     const modifierNames = new Set<string>();
     for (const entry of ownManifest.entries) {
       for (const modifier of entry.modifiers ?? []) modifierNames.add(modifier);
     }
     expect(modifierNames.size).toBeGreaterThan(0);
-    expect(bagKeys.size, 'no *ColMods bag found — this gate is reading nothing').toBeGreaterThan(5);
+    expect(bagKeys.size, 'no *ColMods bag found, this gate is reading nothing').toBeGreaterThan(5);
+    expect(propsKeys.size, 'no builder props interface found, this gate is reading nothing').toBeGreaterThan(5);
     for (const modifier of modifierNames) {
-      expect(bagKeys.has(modifier), `modifier .${modifier}() has no key in any *ColMods bag`).toBe(true);
+      expect(bagKeys.has(modifier), `modifier ${modifier} has no key in any *ColMods bag`).toBe(true);
+      expect(propsKeys.has(modifier), `modifier ${modifier} has no key in any builder props interface`).toBe(true);
     }
+  });
+
+  it('every configured manifest exists and shares ONE drizzle-orm version', () => {
+    const versions = new Set<string>();
+    for (const row of dialectsConfig.dialects) {
+      const manifest = JSON.parse(readFileSync(resolve(REPO_ROOT, row.packageDir, row.manifest), 'utf8'));
+      versions.add(manifest.drizzleOrm);
+    }
+    expect([...versions]).toHaveLength(1);
   });
 });

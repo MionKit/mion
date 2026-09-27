@@ -50,8 +50,8 @@ const dzPrefixed = dzSqlite.sqliteTableCreator((name) => `pre_${name}`);
 const creatorUsers = prefixed(
   'users',
   {
-    id: integer('id').primaryKey(),
-    name: text('name').notNull(),
+    id: integer('id', {primaryKey: true}),
+    name: text('name', {notNull: true}),
   },
   (t) => [index('users_name_idx').on(t.name)]
 );
@@ -78,8 +78,8 @@ describe('sqlite value helpers — sqliteTableCreator', () => {
 // ── model derivation on creator tables ───────────────────────────────────────
 
 const plainUsers = sqliteTable('users', {
-  id: integer('id').primaryKey(),
-  name: text('name').notNull(),
+  id: integer('id', {primaryKey: true}),
+  name: text('name', {notNull: true}),
 });
 
 describe('sqlite value helpers — model derivation', () => {
