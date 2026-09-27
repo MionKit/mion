@@ -5,9 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Slim table core: the table TYPE (shared nameless columns plus a names map), the runtime object a dialect's table
-// factory returns (the column recorders as properties plus metadata under the rtTableKey symbol), and the traversal
-// that materializes the real drizzle table on demand. A reference names its target with a TableRef, never a column type.
+// A table TYPE is shared nameless columns plus a names map; its runtime object materializes the drizzle table
+// on demand. A reference names its target with a TableRef, never a column type.
 
 import type {DrizzleContext} from './recorder.ts';
 import {

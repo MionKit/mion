@@ -138,8 +138,7 @@ function drizzleFreeErrors(source: string, types: string[] = []): string[] {
 describe('slim authoring surface with drizzle-orm absent', () => {
   for (const names of DIALECTS) {
     it(`type-checks a ${names.dialect} schema + models module when drizzle-orm cannot resolve`, {timeout: 60_000}, () => {
-      // PROGRAM-wide diagnostics: a drizzle import inside the packages' own sources errors THERE (TS2307) while the
-      // case file silently degrades to any, so a case-file-only check misses it.
+      // PROGRAM-wide: a drizzle import in the package sources errors THERE (TS2307), while the case file degrades to any.
       const errors = drizzleFreeErrors(sourceOf(names), names.types);
       expect(errors, `the ${names.dialect} authoring surface required drizzle-orm:\n  ${errors.join('\n  ')}`).toEqual([]);
     });

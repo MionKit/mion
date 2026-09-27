@@ -846,8 +846,7 @@ export type ViewNotInsertModel = InferInsertModel<typeof activeView>;
 export type ViewNotUpdateModel = InferUpdateModel<typeof activeView>;
 
 // ── the slim <-> drizzle boundary ────────────────────────────────────────────
-// A drizzle row goes into a slim model slot, and a slim model goes into a drizzle query. toDrizzle drops a column's
-// FORMAT tag (transparent: its sentinels are optional) but keeps a NOMINAL brand, or a queried id could not go back.
+// toDrizzle drops a FORMAT tag (optional sentinels) but keeps a NOMINAL brand, or a queried id could not go back.
 
 export const boundaryUsers = mysqlTable('boundary_users', {
   name: varchar({length: 100, notNull: true}),

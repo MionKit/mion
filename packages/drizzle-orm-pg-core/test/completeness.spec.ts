@@ -5,11 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Modifier completeness: for every pg column function, the modifiers drizzle exposes at runtime must be exactly the
-// modifier keys that builder's props object takes (read off src/columns.ts), in both directions. A drizzle upgrade
-// that adds a modifier fails here instead of silently building tables that drop it; a props key drizzle's builder
-// lacks fails too. Entry builders, the table's own methods and view builders are held to drizzle's method lists.
-// The manifest gate covers new exported FUNCTIONS; this covers new METHODS on what they return.
+// Every pg column function's runtime modifiers must equal its props keys, both ways, so a drizzle upgrade adding one
+// fails here. Entry, table and view builders are held to drizzle's method lists; the manifest gate covers new exported
+// FUNCTIONS, this covers new METHODS on what they return.
 
 import {describe, it, expect} from 'vitest';
 import * as dzPg from 'drizzle-orm/pg-core';
@@ -17,8 +15,7 @@ import {readFileSync} from 'node:fs';
 import {dirname, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 
-/** All method names reachable through the prototype chain plus own function
- *  properties (drizzle defines the $default/$onUpdate aliases as own arrows). */
+/** Methods on the prototype chain plus own functions: drizzle defines the $default/$onUpdate aliases as own arrows. */
 function runtimeMethods(value: object): string[] {
   const names = new Set<string>();
   for (const name of Object.getOwnPropertyNames(value)) {
@@ -34,8 +31,7 @@ function runtimeMethods(value: object): string[] {
   return [...names].sort();
 }
 
-// Internal drizzle machinery, never part of the authoring surface: called by
-// drizzle itself while assembling the table.
+// Called by drizzle itself while assembling the table, never part of the authoring surface.
 const INTERNAL_COLUMN_METHODS = new Set(['build', 'buildExtraConfigColumn', 'buildForeignKeys', 'setName']);
 const INTERNAL_ENTRY_METHODS = new Set(['build']);
 

@@ -320,7 +320,7 @@ function renderColumnSingleCall(column: ColumnSpec, namespace: string, parentCon
   return `${namespace}.${column.fn}(${args.join(', ')})`;
 }
 
-/** A covered spec as single-call builder text: twin of renderTableType, so a fuzz iteration can prove both share ONE id. */
+/** A covered spec as builder text, twin of renderTableType, so a fuzz iteration can prove both share ONE id. */
 function renderTableBuilders(
   dialect: SpecDialect,
   spec: TableSpec,

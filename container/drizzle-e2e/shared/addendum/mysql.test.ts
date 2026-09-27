@@ -49,10 +49,8 @@ const lowercase = customType<{data: string; driverData: string}>({
   toDriver: (value) => value.toLowerCase(),
 });
 
-// The two builders-only constructs share a table of their own: an interpolated
-// sql template and a column from a local customType both have no type spelling,
-// so leaving either beside the column types below would make that whole table
-// refuse `convert --to type` and none of them would reach the type road.
+// Interpolated sql and a local customType have no type spelling, so they get their own table; beside the column
+// types below they would make that table refuse `convert --to type`.
 const checked = mysqlTable(
   'addendum_checked',
   {id: int('id', {primaryKey: true}), tag: lowercase('tag', {notNull: true})},
@@ -60,9 +58,7 @@ const checked = mysqlTable(
 );
 const checkedDb = toDrizzle(checked);
 
-// mysql-common declares most of these on its `all_types` table, which cannot
-// convert (mysqlEnum takes a values array, which has no type spelling), so one
-// refusal there would cost every one of them their type road coverage.
+// mysql-common declares most of these on `all_types`, which cannot convert: mysqlEnum's values have no type spelling.
 const texts = mysqlTable('addendum_texts', {
   id: int('id', {primaryKey: true}),
   tiny: tinytext('tiny', {notNull: true}),

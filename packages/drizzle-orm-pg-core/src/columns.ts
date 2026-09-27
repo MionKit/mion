@@ -5,9 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Single-call pg columns: a builder takes every setting in ONE props object and returns exactly the hand-written
-// alias's type. No chained modifiers: chain methods break reflection (the runtype id walks method return types,
-// MKR009), and each builder's props bag rejects a modifier its kind lacks.
+// One props object per builder, typed exactly as the hand-written alias. No chained modifiers: the runtype id walks
+// method return types (MKR009), and each builder's props bag rejects a modifier its kind lacks.
 
 import type {
   Date as RTDate,

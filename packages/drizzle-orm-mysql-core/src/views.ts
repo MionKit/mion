@@ -5,10 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The mysql view factory, MANUAL-COLUMN form only: explicit columns, then `.as(sql`...`)` or `.existing()`. Nothing
-// here imports drizzle; the buildView closure receives the injected context at materialization (./drizzle.ts).
-// `mysqlView(name)` with no columns, drizzle's query-builder form, is declared but NOT supported: its columns come
-// from drizzle's select typing, the exact generic chain the slim design removes (packages/drizzle-orm/CLAUDE.md).
+// MANUAL-COLUMN views only. `mysqlView(name)` with no columns (the query-builder form) is NOT supported: its columns
+// come from drizzle's select typing (packages/drizzle-orm/CLAUDE.md).
 
 import type {
   AnyColumn,

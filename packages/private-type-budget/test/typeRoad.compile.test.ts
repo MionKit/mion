@@ -1,15 +1,7 @@
-// What a table costs depending on HOW it was declared, over the REAL slim packages, in every dialect.
-//
-// The model pipeline suite measures one builder table through six layers. This one holds the layers still
-// and varies the DECLARATION: the same columns written with the builders, written as a hand-written table type, and
-// written as the bare Column interface the column types alias (the floor nobody authors). A builder table IS its
-// hand-written twin, so the two roads differ only in what the builders' props checks and name lifting cost.
-//
-// Why it exists as a suite rather than a note in TYPE-COST.md: the numbers in that file went stale, and a stale
-// number sent a whole change down the wrong path. Measured beats remembered.
-//
-// Budgets are ONE-WAY DOWNWARD, the same rule the pipeline suite states: cheapen the types, never raise the number.
-// Every raise is a reviewed exception commented where the budget lives.
+// What a table costs by HOW it is declared (builders, hand-written type, bare Column interface), per dialect. A builder
+// table IS its hand-written twin, so the roads differ only in props checks and name lifting. A suite, not a TYPE-COST.md
+// note: a stale number there once sent a change down the wrong path. Budgets are ONE-WAY DOWNWARD, as in the pipeline
+// suite; every raise is a reviewed exception commented at its budget.
 
 import {describe, it, expect, beforeAll, afterAll} from 'vitest';
 import * as ts from 'typescript';
@@ -226,9 +218,8 @@ const DIALECTS: RoadDialect[] = [
       ['createdAt', 'Date'],
     ],
     budgets: {
-      // 570 -> 1089: a REVIEWED EXCEPTION, single-call builders. The declaration costs 647 (overload choice, the
-      // stray-key check, name lifting) and the models derive flags from props where chained builders carried them.
-      // Precomputing the flags in the builder cut this to 990 but broke builder = hand-written (TYPE-COST.md, attempt 14).
+      // 570 -> 1089: a REVIEWED EXCEPTION, single-call builders (647 at the declaration, the rest models deriving flags).
+      // Precomputing flags in the builder cut this to 990 but broke builder = hand-written (TYPE-COST.md, attempt 14).
       'builder road, 5 mixed columns': 1089,
       // 968 -> 678: a column type holds its raw props and no db name, flags derived only where a model reads them.
       'type road, 5 mixed columns': 678,

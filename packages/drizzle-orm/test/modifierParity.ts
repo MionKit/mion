@@ -108,8 +108,7 @@ function bagOfColumnType(source: string, typeName: string): string | null {
   return named.length ? named.join('+') : null;
 }
 
-/** A column with no `typeAlias` is builders-only, so only its builder is checked: mysqlEnum takes a values ARRAY.
- *  `typesSource` holds the bags, `buildersSource` the builders and their props interfaces. */
+/** A column with no `typeAlias` is builders-only, so only its builder is checked: mysqlEnum takes a values ARRAY. */
 export function columnParity(
   manifestEntries: ManifestEntry[],
   typesSource: string,

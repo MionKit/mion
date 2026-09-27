@@ -5,11 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The pg view factories, MANUAL-COLUMN form only: explicit columns, then `.as(sql`...`)` or `.existing()`. Nothing
-// here imports drizzle; each view stores a buildView closure that receives the injected context at materialization
-// (./drizzle.ts). `pgView(name)` with no columns, drizzle's query-builder form, is declared but NOT supported: its
-// columns come from drizzle's select typing, the exact generic chain the slim design removes. It returns a named
-// marker type so the mistake reads as an error on `.as(...)` (packages/drizzle-orm/CLAUDE.md).
+// MANUAL-COLUMN views only. `pgView(name)` with no columns (the query-builder form) is NOT supported: its columns come
+// from drizzle's select typing, so it returns a marker type that errors on `.as(...)` (packages/drizzle-orm/CLAUDE.md).
 
 import type {
   AnyColumn,

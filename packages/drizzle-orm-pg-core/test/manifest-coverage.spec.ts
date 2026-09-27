@@ -5,13 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// In-vitest mirror of the `pnpm miondevx core drizzle-manifest --check` gate,
-// scoped to THIS package's dialect: every migrated entry (column builders and
-// authoring helpers alike) is a callable export of the root module,
-// nothing is pending, and the hand-owned drizzle-dialects.json row points at
-// this package. The all-dialects invariant (every configured manifest exists
-// and shares ONE drizzle-orm version) is pinned here too, reading the sibling
-// packages' manifests off the config rows.
+// In-vitest mirror of `pnpm miondevx core drizzle-manifest --check` for this dialect: every migrated entry is a
+// callable root export, nothing is pending, and the drizzle-dialects.json row points here. Also pins that every
+// configured manifest exists and shares ONE drizzle-orm version.
 
 import {describe, it, expect} from 'vitest';
 import {readFileSync} from 'node:fs';
@@ -80,8 +76,7 @@ describe(`the ${DIALECT} manifest matches the root module`, () => {
   });
 
   it('every manifest modifier is spellable in a builder props object and a column type', () => {
-    // A modifier is a PROPS key: the builders check theirs against the *In interfaces, the column types against the
-    // *ColMods bags. A modifier drizzle records but neither declares has no spelling at all, silently.
+    // A modifier drizzle records that no *In interface or *ColMods bag declares has no spelling at all, silently.
     const sourceOf = (file: string) => readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../src', file), 'utf8');
     const keysOf = (source: string, interfaces: RegExp): Set<string> => {
       const keys = new Set<string>();

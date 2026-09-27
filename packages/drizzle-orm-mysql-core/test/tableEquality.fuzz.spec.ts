@@ -5,18 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Property fuzz for the slim mysql surface, oracle: compare-to-a-trusted-source.
-// One randomly generated table SPEC is interpreted over up to THREE surfaces
-// that must build the same table: the slim recorders here (one call per column), raw
-// drizzle-orm/mysql-core (drizzle's own chains), and (for specs the pure-types vocabulary covers) the
-// type road's runtime bridge over a synthetic reflected graph — and drizzle's
-// own getTableConfig must agree across all of them, for random columns,
-// configs, modifiers, references and extraConfig entries. A failing
-// iteration prints its seed and the generated spec; re-running with
-// MION_FUZZ_SEED replays it byte-for-byte (seeding per the shared harness in
-// packages/run-types/test/fuzz/core/). The source→graph half of the type
-// road is fuzzed by drizzleTypeSource.integration.spec.ts over the real
-// resolver; the spec generator and projection live in test/tableSpecShared.ts.
+// Property fuzz, oracle compare-to-a-trusted-source: each random spec builds on the slim recorders, raw drizzle and
+// (when covered) the type road's bridge, and getTableConfig must agree. MION_FUZZ_SEED replays a failure; the
+// source-to-graph half is drizzleTypeSource.integration.spec.ts, the generator test/tableSpecShared.ts.
 
 import {describe, it, expect} from 'vitest';
 import * as dzMy from 'drizzle-orm/mysql-core';
@@ -72,18 +63,14 @@ describe('mysql slim surface — fuzz: toDrizzle equals raw drizzle for random t
       const detail = `iteration ${iteration}, seed ${seed} (set MION_FUZZ_SEED=${BASE_SEED} to replay)\nspec: ${JSON.stringify(spec)}`;
       const rawProjection = project(rawTable);
       expect(project(toDrizzle(slimTable as never)), detail).toEqual(rawProjection);
-      // Surface 2: a random manual VIEW over the same generated column kinds,
-      // through the same compare-to-a-trusted-source oracle. Not `.existing()`
-      // iterations embed the parent table, so reference resolution is
-      // exercised too.
+      // Surface 2: a random manual VIEW; non-`.existing()` ones embed the parent table, exercising reference resolution.
       const viewSpec = makeViewSpec(mulberry32(mixSeed(BASE_SEED, 'mysql-view-equality', iteration)), spec);
       const viewName = `fuzz_view_${iteration}`;
       const viewDetail = `${detail}\nviewSpec: ${JSON.stringify(viewSpec)}`;
       expect(projectView(toDrizzle(buildView(slimSurface, viewSpec, viewName) as never)), viewDetail).toEqual(
         projectView(buildView(rawSurface, viewSpec, viewName))
       );
-      // Surface 3: the covered SUBSET of the spec through the type road's
-      // runtime bridge, against a raw build of the same reduced spec.
+      // Surface 3: the covered SUBSET through the type road's bridge, against a raw build of the same reduced spec.
       const reduced = typeRoadReduce(spec);
       if (reduced !== undefined) {
         typeRoadRuns++;
@@ -97,8 +84,7 @@ describe('mysql slim surface — fuzz: toDrizzle equals raw drizzle for random t
         );
       }
     }
-    // The third surface must actually run — a generator drift that stops
-    // covering any spec would silently gut the oracle.
+    // A generator drift that stops covering any spec would silently gut the oracle.
     expect(typeRoadRuns).toBeGreaterThan(0);
   });
 });

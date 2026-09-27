@@ -5,10 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The pg table factories: drizzle's call shapes (columns as an object or a callback receiving the column helpers,
-// extraConfig returning entries), slim recorder returns. The table type holds shared nameless columns plus a names
-// map, so a pgTable() result and a hand-written `PgTable<'users', {...}>` are one type. Nothing here imports drizzle:
-// each table stores a buildTable closure that receives the injected context at materialization (./drizzle.ts).
+// drizzle's table call shapes, slim recorder returns. Shared nameless columns plus a names map make a pgTable()
+// result and a hand-written `PgTable<'users', {...}>` one type. No drizzle import: ./drizzle.ts injects the context.
 
 import type {
   AnyColumn,
@@ -55,8 +53,7 @@ export type UniqueIndexEntry<Name extends string, On extends readonly string[]> 
 export type UniqueEntry<Name extends string, On extends readonly string[]> = TableEntry<'unique', [Name], {on: EntryColRefs<On>}>;
 /** `check(name, sql\`...\`)`, literal sql only. */
 export type CheckEntry<Name extends string, SqlValue> = TableEntry<'check', [Name, SqlValue]>;
-/** `foreignKey({name, columns, foreignColumns})`: this table's columns by record key, the foreign ones by table db
- *  name + key (resolved through tableFromType's options.tables). */
+/** `foreignKey(...)`: own columns by record key, foreign ones by table db name + key, resolved through options.tables. */
 export type ForeignKeyEntry<
   Name extends string,
   Columns extends readonly string[],
@@ -80,9 +77,8 @@ type NameOf<C> = C extends {readonly [rtColNameKey]: infer Name} ? Name : undefi
 
 /** The extraConfig view of the table's columns: plus the index-position decorators (asc/desc/op). */
 export type PgExtraConfigColumns<Cols> = {[K in keyof Cols]: Cols[K] & RtExtraColumn};
-/** ONE extraConfig entry: an index, constraint or policy from this package, a REAL drizzle entry passed straight
- *  through (crudPolicy, the supabase roles), or a group of either, which drizzle flattens one level.
- *  `object`, not a union with PgEntryBrand: that brand is a weak type and would reject a real drizzle entry. */
+// `object`, not a union with PgEntryBrand: that brand is a weak type and would reject a real drizzle entry.
+/** ONE extraConfig entry: ours, a REAL drizzle one (crudPolicy, supabase roles), or a group flattened one level. */
 export type PgExtraConfigEntry = object;
 /** drizzle accepts both the array form and its older keyed-object one; both are recorded and replayed unchanged. */
 export type PgExtraConfigFn<Cols> = (
@@ -213,11 +209,8 @@ export function pgSchema<TSchemaName extends string>(schemaName: TSchemaName): P
 // One slim table per reflected type id, so repeated calls share one materialized drizzle table.
 const fromTypeTables = new Map<string, object>();
 
-/** Runtime twin of a hand-written table, typed as the table type itself, so toDrizzle, the models and
- *  refineTableType treat it exactly like a pgTable() result. The type argument is resolved by the build
- *  (@mionjs/devtools must be active). References need the referenced tables in options.tables, runtime-callback
- *  markers take theirs from options.runtime. A call WITH options is not memoized: two tables of the same type can
- *  carry different callbacks or referenced tables. */
+// Needs @mionjs/devtools; references read options.tables, runtime-callback markers options.runtime.
+/** Runtime twin of a hand-written table type; a call WITH options is not memoized, its callbacks or tables may differ. */
 export function tableFromType<T extends AnyPgTable>(options?: TableFromTypeOptions<T>, id?: InjectRunTypeId<T>): T {
   const runType = getRunType<T>(undefined, id);
   if (options !== undefined) return buildRtTableFromGraph(runType as ReflectedNode, pgBuildTable, options, 'pg') as T;

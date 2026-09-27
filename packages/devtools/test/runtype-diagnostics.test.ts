@@ -265,15 +265,8 @@ export const _ = createJsonEncoderFn<[number, symbol]>(undefined, {strategy: 'mu
     });
   });
 
-  // JCP001 regression — the `compact` JSON strategy (encoder cj / decoder cjr)
-  // used to SILENTLY SKIP its primitive entry when a walk hit an unserialisable
-  // leaf at a propagating position, because the compact emitters implemented
-  // neither diagnostic interface. The composite then bound a never-rendered
-  // primitive (`utl.getRT(cj_<id>).fn` on a module that never registered),
-  // surfacing the internal JCP001 "never rendered — please file an issue" error.
-  // The fix delegates cj → prepareForJsonSafe (PJS*) and cjr → restoreFromJsonMutate
-  // (RJ*), so compact now alwaysThrows with the SAME per-family code as its
-  // siblings and never trips JCP001.
+  // JCP001 regression: compact (cj / cjr) once skipped its primitive on an unserialisable leaf, surfacing JCP001.
+  // cj now delegates to prepareForJsonSafe (PJS*) and cjr to restoreFromJsonMutate (RJ*), so it throws their codes.
   register('compact strategy alwaysThrows (PJS003 / RJ003) with NO JCP001 for a function tuple slot', async () => {
     const sources = {
       'compact-fn-tuple.ts': `import {createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
