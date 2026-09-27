@@ -17,6 +17,7 @@ import {
   RtIndexedColumnClass,
   RtSqlRecorder,
   rtTableBrand,
+  rtRefTargetKey,
   rtTableKey,
   rtViewKey,
   setResolveRecorded,
@@ -49,9 +50,6 @@ export type TableRef<T extends RefTable | string, K extends RefKeyOf<T>> = T ext
 type RefTable = {name: string; columns: object};
 type RefKeyOf<T> = T extends string ? string : keyof (T & RefTable)['columns'] & string;
 export type AnyTableRef = {table: string; column: string};
-
-/** Hidden key of the live table behind a tableRef() value. */
-const rtRefTargetKey = Symbol('rtRefTarget');
 
 /** For `references: [() => tableRef(teams, 'id')]` and foreignKey's foreignColumns. */
 export function tableRef<T extends AnyTable, K extends keyof T['columns'] & string>(

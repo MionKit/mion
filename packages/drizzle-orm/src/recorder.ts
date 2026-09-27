@@ -26,6 +26,8 @@ export const rtViewKey: unique symbol = Symbol('rtView');
 export const rtTableBrand: unique symbol = Symbol('rtTableBrand');
 /** Phantom key branding a view's metadata with its dialect; never set at runtime. */
 export const rtViewBrand: unique symbol = Symbol('rtViewBrand');
+/** Hidden key of the live table behind a tableRef() value, so a recorded arg can resolve the column it names. */
+export const rtRefTargetKey: unique symbol = Symbol('rtRefTarget');
 /** Runtime key a standalone factory handle (enum/schema/sequence) stores its
  *  RtValueRecorder under, so the dialect's toDrizzle can materialize it. */
 export const rtValueKey: unique symbol = Symbol('rtValue');
@@ -389,6 +391,9 @@ function mapRecordedArg(value: unknown, context: DrizzleContext, extra?: ExtraCo
   if (attached instanceof RtValueRecorder) return attached.toDrizzleValue(context);
   if (typeof value === 'function') return value;
   const asRecord = value as Record<symbol, unknown>;
+  // A tableRef() value inside sql or an entry's args: resolved to the live column it names.
+  const refTarget = asRecord[rtRefTargetKey] as Record<string, unknown> | undefined;
+  if (refTarget !== undefined) return mapRecordedArg(refTarget[(value as {column: string}).column], context, extra);
   if (typeof asRecord[rtTableKey] === 'object' || typeof asRecord[rtViewKey] === 'object') {
     return resolveRecorded(value, context, extra);
   }
