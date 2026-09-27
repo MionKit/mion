@@ -103,21 +103,21 @@ describe('buildRtTableFromGraph', () => {
     ]);
   });
 
-  it('a nameless column with an empty config replays a no-arg builder call', () => {
+  it('a column with no names entry and an empty config replays the builder with its key as the db name', () => {
     const fake = makeFake();
     const slim = buildRtTableFromGraph(tableNode('t', {note: colNode('varchar')}), fake.buildTable);
     materializeRtTable(slim, fake.context);
     expect(fake.calls).toEqual([
-      ['ns', 'varchar'],
+      ['ns', 'varchar', 'note'],
       ['buildTable', 't', ['note']],
     ]);
   });
 
-  it('a config-only column keeps the config as the single builder arg', () => {
+  it('a config-only column passes its key as the db name, then the config', () => {
     const fake = makeFake();
     const slim = buildRtTableFromGraph(tableNode('t', {note: colNode('varchar', {length: lit(5)})}), fake.buildTable);
     materializeRtTable(slim, fake.context);
-    expect(fake.calls[0]).toEqual(['ns', 'varchar', {length: 5}]);
+    expect(fake.calls[0]).toEqual(['ns', 'varchar', 'note', {length: 5}]);
   });
 
   it('replays a runtime-callback marker with the options.runtime callback, in props order', () => {
@@ -129,7 +129,7 @@ describe('buildRtTableFromGraph', () => {
     // the replay wraps top-level function args lazily (mapReplayArgs), so the
     // replayed arg is a wrapper: assert it forwards to the options callback.
     expect(fake.calls).toEqual([
-      ['ns', 'varchar'],
+      ['ns', 'varchar', 'slug'],
       ['ns.varchar', 'notNull'],
       ['ns.varchar', '$defaultFn', expect.any(Function)],
       ['ns.varchar', 'unique'],
@@ -183,7 +183,7 @@ describe('buildRtTableFromGraph', () => {
     const slim = buildRtTableFromGraph(graph, fake.buildTable);
     materializeRtTable(slim, fake.context);
     expect(fake.calls).toEqual([
-      ['ns', 'uuid', {frobnicate: true}],
+      ['ns', 'uuid', 'c', {frobnicate: true}],
       ['ns.uuid', 'notNull'],
       ['buildTable', 't', ['c']],
     ]);

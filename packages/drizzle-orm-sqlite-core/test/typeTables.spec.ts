@@ -50,6 +50,7 @@ import {
   uniqueIndex,
   view,
 } from '../src/index.ts';
+import {drizzle as proxyDb} from 'drizzle-orm/sqlite-proxy';
 import {toDrizzle} from '../src/drizzle.ts';
 import {project, projectView} from './tableSpecShared.ts';
 
@@ -253,6 +254,14 @@ describe('sqlite columns: same drizzle table on every road', () => {
     expect(project(toDrizzle(emps))).toEqual(project(rawEmps));
     const selfType: object = tableFromType<Emps>({tables: {emps: () => selfType}});
     expect(project(toDrizzle(selfType as Emps))).toEqual(project(rawEmps));
+  });
+  it('two tables from types with one name keep their own columns in one database', () => {
+    // drizzle caches a keyless column's name per table name, so a table from a type names every column.
+    const db = proxyDb(async () => ({rows: []}));
+    type First = SqliteTable<'dup', {id: Integer; name: Text}>;
+    type Second = SqliteTable<'dup', {id: Integer; firstName: Text}>;
+    db.insert(toDrizzle(tableFromType<First>())).values({id: 1, name: 'a'}).toSQL();
+    expect(db.insert(toDrizzle(tableFromType<Second>())).values({id: 1, firstName: 'b'}).toSQL().sql).toContain('firstName');
   });
   it('a literal sql default rebuilds from the type', () => {
     type Stamped = SqliteTable<'stamped', {at: Text<{default: [Sql<'CURRENT_TIMESTAMP'>]}>}>;
