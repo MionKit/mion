@@ -113,6 +113,7 @@ export async function expectEveryMethodMatchesTheServer(baseURL: string): Promis
     middlewares.utils.scopeTag,
     middlewares.compact.stamp,
     middlewares.compact.plainStamp,
+    middlewares.wrongAnswers.wrongMiddleware,
   ];
   client.useBundledApi(everyMethod.call() as InjectedApiMetadata);
   const served = await serverRows(baseURL);
