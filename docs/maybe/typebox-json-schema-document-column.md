@@ -4,16 +4,13 @@
 TypeBox release that does not exist yet, and there is no announced date for it, so
 this is not schedulable work. Revisit if TypeBox 1.x ships and a third column in
 the conformance table still looks worth having.
-**Created:** 2026-08-03 (as item 6 of
-[bench-website-e2e-followups.md](../done/bench-website-e2e-followups.md); the
-other five items shipped and that spec is done).
+**Created:** 2026-08-03 (as the one open item of the bench website e2e follow-ups;
+the other five shipped).
 **Type:** feature. **Spec depth:** guidelines — the direction below is sound, but
 anyone picking it up should re-verify the API against whatever TypeBox has
 published by then rather than trusting these notes.
 
-Raised while building the JSON Schema spec-conformance section
-([json-schema-spec-conformance-section.md](../done/json-schema-spec-conformance-section.md)),
-which today compares only mion and ajv because they are the only two
+Raised while building the JSON Schema spec-conformance section, which today compares only mion and ajv because they are the only two
 libraries that can take a schema document as input.
 
 ## Why it is blocked

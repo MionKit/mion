@@ -9,7 +9,8 @@ and written to [`reports/type-road.md`](../private-type-budget/reports/type-road
 with budgets that may only ever be lowered. This file is the reasoning: which designs were
 tried, which won, and why. A figure quoted below is a snapshot for the argument it makes,
 not a current value, and the very first section says what happens when someone treats one
-as current.
+as current. Every section before "single-call columns" describes the chained column system
+as it stood when it was measured; that system is gone.
 
 ## The correction: normalization is the cost, modifiers are a small slice of it
 
@@ -73,7 +74,7 @@ The number above prices the wrong thing, and stopping there was the mistake. Pro
 worth having for what they remove from `NormalizeCol`. They are worth having because they
 let `NormalizeCol` be deleted.
 
-A type-road column is a spec CARRIER that `NormalizeCol` converts into a branded column
+A type-road column was a spec CARRIER that `NormalizeCol` converted into a branded column
 afterwards, once per column, through `TypedCols`'s mapped pass. Everything that conversion
 extracts is already a type parameter inside the column alias. Once the modifiers are a type
 parameter too, the alias can expand straight to the branded column, `TypedCols` takes its
@@ -130,10 +131,9 @@ Before anyone chases the pre-branded floor: twenty type-road columns cost 2116 w
 distinct db names and 767 when every column is nameless (both measured before the props
 change, so read the ratio, not the absolutes). The builder road's twenty columns are twenty
 references to ONE type, because the db name is a runtime argument; the type road's are
-twenty separate instantiations, because the name and config ride in the type. That is the
-price of being reflectable and it is not removable while `tableFromType` and
-`mion convert` exist. Most of the gap the suite still shows is that, not work anyone
-can delete.
+twenty separate instantiations, because the name and config ride in the type. That was the
+price of being reflectable while columns carried their db name. The single-call columns
+removed it: a column carries no name, and the names live on the table.
 
 ## Accepted: four changes to the normalization itself
 
@@ -155,13 +155,13 @@ byte-identical (it never enters `NormalizeCol`).
    is read and not before. Worth about 8 per column.
 2. **The spec and the mods are extracted once and threaded down.** `NormalizeCol` called
    `ColSpecOf<C>` and `ColModsOf<C>` five times between them, and `BaseFlag` built a mapped
-   type (`{[K in Key]: true}`) per probe. Every derivation now takes the extracted pair.
+   type (`{[K in Key]: true}`) per probe. Every derivation then took the extracted pair.
 3. **One conditional pulls both out.** `ColSpecOf` and `ColModsOf` each computed `keyof C`;
    a single `C extends {[rtColSpecKey]?: infer Spec; [rtColModsKey]?: infer Mods}` does it
    once. This is the biggest of the four on tables that carry modifiers.
 4. **The intrinsic flags became a name union.** A column type used to instantiate
    `{notNull: false; hasDefault: false; primaryKeyHasDefault: false; autoincrement: false}`
-   on every column to say it had no intrinsic flags. It now names the flags it does have
+   on every column to say it had no intrinsic flags. It then named the flags it had
    (`'notNull' | 'hasDefault'` for the serial-likes, `never` for everyone else), and the
    three probes read it with `'notNull' extends Base`. Worth about 5 per column on a wide
    table; slightly negative on a narrow one, kept because width is what scales.
@@ -289,7 +289,7 @@ hitting either. Gone, with `reflectedKinds.intersection`, `RtTable`, `RtView` an
 
 ### The one thing to know before reading a table type
 
-`name`, `columns` and `extras` are plain keys on the table type now. On a table with a
+`name`, `columns`, `extras` and `names` are plain keys on the table type. On a table with a
 column called `name`, the type-level `table.name` is the table's DB name, not the column;
 `T['columns']['name']` is the column, and `tableRef(table, 'name')` points at it. Under the
 old shape the columns were the top-level members and this could not happen.
@@ -314,12 +314,12 @@ lost.
 
 ### Flattening the columns to bags, measured against the real packages
 
-Keep today's column brand, but flatten each column to `{data, notNull, hasDefault,
+Keep the chained column brand of the time, but flatten each column to `{data, notNull, hasDefault,
 insertExcluded}` once per table and let the models read those props by indexed access
 instead of four `infer` conditionals per column. This is the only variant that could be
 measured with no prototype stand-ins on either side, so it is the one to trust.
 
-| Columns | today's `Infer*` | bag models |      |
+| Columns | chained `Infer*` | bag models |      |
 | ------: | ---------------: | ---------: | ---- |
 |       5 |              888 |        897 | +1%  |
 |      10 |             1078 |       1175 | +9%  |
@@ -338,12 +338,12 @@ pass, it reads the brand member each column already carries.)
 `Merge<P, {notNull: true}>` per builder call and per modifier. Measured against the real
 `pgTable`:
 
-| Case                       | today | ColumnFormat |
-| -------------------------- | ----: | -----------: |
-| declare a 5-column table   |   314 | 1013 (+223%) |
-| + select model             |   501 | 1233 (+146%) |
-| + select and insert models |  1067 |  1606 (+51%) |
-| 40 columns, both models    |  2213 | 4804 (+117%) |
+| Case                       | chained | ColumnFormat |
+| -------------------------- | ------: | -----------: |
+| declare a 5-column table   |     314 | 1013 (+223%) |
+| + select model             |     501 | 1233 (+146%) |
+| + select and insert models |    1067 |  1606 (+51%) |
+| 40 columns, both models    |    2213 | 4804 (+117%) |
 
 A mapped type per modifier call is far too expensive for the builder road. (The
 single-call columns below revisit this with a different shape.)
@@ -354,12 +354,12 @@ Drop `Merge`: every prop optional, absent meaning false, `.notNull()` returns
 `ColFormat<P & {notNull: true}>`, and the models probe with a single `extends` and no
 `infer`. This is the best version of the idea.
 
-| Columns | today | merge-free bag |      |
-| ------: | ----: | -------------: | ---- |
-|       5 |   903 |            552 | -39% |
-|      10 |  1093 |            818 | -25% |
-|      20 |  1463 |           1372 | -6%  |
-|      40 |  2213 |           2458 | +11% |
+| Columns | chained | merge-free bag |      |
+| ------: | ------: | -------------: | ---- |
+|       5 |     903 |            552 | -39% |
+|      10 |    1093 |            818 | -25% |
+|      20 |    1463 |           1372 | -6%  |
+|      40 |    2213 |           2458 | +11% |
 
 It wins on narrow tables and loses on wide ones, crossing over around twenty columns. And
 this is a **stripped prototype measured against the real implementation**: it has no
@@ -477,12 +477,12 @@ Overload order is part of the cost: a plain name must never reach the props over
 
 Twenty plain integer columns on the chained type road, select model consumed:
 
-| Variant                                    | Cost |
-| ------------------------------------------ | ---: |
-| chained (names in columns, eager flags)    | 1319 |
-| flags fixed, names kept                    |  773 |
-| nameless, flags derived                    |  475 |
-| nameless, flags fixed                      |  317 |
+| Variant                                 | Cost |
+| --------------------------------------- | ---: |
+| chained (names in columns, eager flags) | 1319 |
+| flags fixed, names kept                 |  773 |
+| nameless, flags derived                 |  475 |
+| nameless, flags fixed                   |  317 |
 
 Both matter, names more: a column that carries its db name is its own type, so its flags are
 derived once per column. That is why the single-call columns carry no name.
@@ -508,27 +508,27 @@ derived once per column. That is why the single-call columns carry no name.
 
 Five mixed / twenty plain; builder numbers named, nameless in brackets.
 
-|   # | Change                                                                                                                                    |                         types |                            builders | Verdict                                                                |
-| --: | ----------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------: | ----------------------------------: | ---------------------------------------------------------------------- |
-|   1 | Full vocabulary, one shared chain returning its kind through a lookup, a merge per call, `pgTable` normalizing and scanning names eagerly |                     894 / 409 |                   2178 / 1716 (808) | starting point                                                         |
-|   2 | Each kind spells its chain and returns itself; builders return their kind directly                                                        |                     864 / 403 |                   1909 / 1557 (749) | kept: 47 to 19 per builder call                                        |
-|   3 | Names map as a lazy key-remapping mapped type; unname only named columns                                                                  |                     858 / 395 |                   1638 / 1221 (605) | kept: `pgTable` over 20 columns 210 to 56                              |
-|   4 | Flag tests as `[keyof P & Keys] extends [never]`, not `Extract`                                                                           |                     820 / 379 |                   1576 / 1205 (589) | kept                                                                   |
-|   5 | Models infer the spec parts straight off the column, one conditional, fast path for no `$type` / `array`                                  |                     689 / 330 |                   1482 / 1161 (540) | kept                                                                   |
-|   6 | Unname through a type-only member on each builder                                                                                         |                               |                          1073 / 981 | kept                                                                   |
-|   7 | Intersection per chained call, flattened once in that member                                                                              |                     689 / 330 |                    1003 / 868 (502) | kept, then reshaped by 8                                               |
-|   8 | Split builders (chain) from columns (spec only), forced by reflection                                                                     |                     533 / 292 |                     904 / 726 (488) | kept                                                                   |
-|   9 | One `PgBuilderTable` alias so a `.d.ts` prints the builders once                                                                          |                               |                       +12 per table | superseded by 10                                                       |
-|  10 | Inline column and names maps in `pgTable` / `pgView`, forced by reflection                                                                |                     539 / 300 |                     888 / 679 (461) | kept                                                                   |
-|  D1 | The builder-to-column member required, no `NonNullable`                                                                                   |                               |                          -12 to -80 | kept (in 10)                                                           |
-|  D2 | Merge per call again, unflattened pointer                                                                                                 |                               | plain -4 to -48, chained +16 to +80 | rejected: real tables chain                                            |
-|  D3 | One `{kind, value}` lookup per column for insert and update                                                                               |                    insert +44 |                                 +44 | rejected                                                               |
-|  D4 | Insert kind inlined, primary-key default probed only on primary keys                                                                      |                    insert -15 |                                 -30 | kept                                                                   |
-|  D5 | Single-call builders (every setting in one props object, no chain)                                                                        |                               |                   -7% on five mixed | rejected: the chain is not the cost, and it keeps drizzle's call shape |
-|  D6 | Empty-props fast path in the select value                                                                                                 | plain -4, modified +27 to +37 |                                     | rejected, the same trade as the chained fast path                      |
-|  D7 | Spelling (b), `Column = Data & spec brand`, the column IS its data like a `TypeFormat`                                                    |                    +14 to +74 |                          +25 to +95 | rejected                                                               |
-|  D8 | The backup: db names inside the columns                                                                                                   |           20 plain 860 vs 280 |                                     | not needed                                                             |
-|  14 | Builders precompute their flags into the base, models take a fast path when the base says ready                                           |       678 to 704, insert +61 |          1089 to 990, wide -218 | rejected: a builder column no longer equals its hand-written twin      |
+|   # | Change                                                                                                                                    |                         types |                            builders | Verdict                                                           |
+| --: | ----------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------: | ----------------------------------: | ----------------------------------------------------------------- |
+|   1 | Full vocabulary, one shared chain returning its kind through a lookup, a merge per call, `pgTable` normalizing and scanning names eagerly |                     894 / 409 |                   2178 / 1716 (808) | starting point                                                    |
+|   2 | Each kind spells its chain and returns itself; builders return their kind directly                                                        |                     864 / 403 |                   1909 / 1557 (749) | kept: 47 to 19 per builder call                                   |
+|   3 | Names map as a lazy key-remapping mapped type; unname only named columns                                                                  |                     858 / 395 |                   1638 / 1221 (605) | kept: `pgTable` over 20 columns 210 to 56                         |
+|   4 | Flag tests as `[keyof P & Keys] extends [never]`, not `Extract`                                                                           |                     820 / 379 |                   1576 / 1205 (589) | kept                                                              |
+|   5 | Models infer the spec parts straight off the column, one conditional, fast path for no `$type` / `array`                                  |                     689 / 330 |                   1482 / 1161 (540) | kept                                                              |
+|   6 | Unname through a type-only member on each builder                                                                                         |                               |                          1073 / 981 | kept                                                              |
+|   7 | Intersection per chained call, flattened once in that member                                                                              |                     689 / 330 |                    1003 / 868 (502) | kept, then reshaped by 8                                          |
+|   8 | Split builders (chain) from columns (spec only), forced by reflection                                                                     |                     533 / 292 |                     904 / 726 (488) | kept                                                              |
+|   9 | One `PgBuilderTable` alias so a `.d.ts` prints the builders once                                                                          |                               |                       +12 per table | superseded by 10                                                  |
+|  10 | Inline column and names maps in `pgTable` / `pgView`, forced by reflection                                                                |                     539 / 300 |                     888 / 679 (461) | kept                                                              |
+|  D1 | The builder-to-column member required, no `NonNullable`                                                                                   |                               |                          -12 to -80 | kept (in 10)                                                      |
+|  D2 | Merge per call again, unflattened pointer                                                                                                 |                               | plain -4 to -48, chained +16 to +80 | rejected: real tables chain                                       |
+|  D3 | One `{kind, value}` lookup per column for insert and update                                                                               |                    insert +44 |                                 +44 | rejected                                                          |
+|  D4 | Insert kind inlined, primary-key default probed only on primary keys                                                                      |                    insert -15 |                                 -30 | kept                                                              |
+|  D5 | Single-call builders (every setting in one props object, no chain)                                                                        |                               |                   -7% on five mixed | rejected then, later adopted (above)                              |
+|  D6 | Empty-props fast path in the select value                                                                                                 | plain -4, modified +27 to +37 |                                     | rejected, the same trade as the chained fast path                 |
+|  D7 | Spelling (b), `Column = Data & spec brand`, the column IS its data like a `TypeFormat`                                                    |                    +14 to +74 |                          +25 to +95 | rejected                                                          |
+|  D8 | The backup: db names inside the columns                                                                                                   |           20 plain 860 vs 280 |                                     | not needed                                                        |
+|  14 | Builders precompute their flags into the base, models take a fast path when the base says ready                                           |        678 to 704, insert +61 |              1089 to 990, wide -218 | rejected: a builder column no longer equals its hand-written twin |
 
 Attempt 14 ran during the switch, on the pg type-road budgets (five mixed and the wide
 vocabulary). It also broke the shape pins and runtype ids, and the type road paid for the
