@@ -69,8 +69,7 @@ export function takeBundledApiError(): RpcError<string> | undefined {
 export function resetBundledApi(): void {
   resetBundledMethods();
   pendingPayloadError = undefined;
-  // the bundled flag is NOT cleared: the build's module sets it once at import, and no amount of cache
-  // resetting changes which build produced this bundle
+  // the bundled flag stays: the build's module sets it once at import, and a cache reset cannot change the build
 }
 
 function isBundledApiPayload(value: unknown): value is BundledApiPayload {

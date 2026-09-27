@@ -30,8 +30,7 @@ export default defineConfig({
     include: ['test/**/*.spec.ts'],
     // the bundled lane runs these under its own project (vitest.bundled.config.ts)
     exclude: ['test/bundled/**'],
-    // First entry starts and stops the in-process test server; the second is teardown-only and
-    // removes the .mion genDir after the run
+    // The first entry runs the in-process test server; the second only removes the .mion genDir on teardown
     globalSetup: ['./globalSetup.ts', '../../scripts/lib/vitest-clean-gendir.ts'],
     // Run tests sequentially to avoid conflicts with shared server
     maxWorkers: 1,

@@ -71,7 +71,7 @@ export interface LintWorkerResponse {
   fatal?: boolean;
 }
 
-// bundleApi off: lint scans one file, and the bundled-API and metadata-fetching checks read the whole program on generate
+// bundleApi off: lint scans one file, and the bundled-API and metadata-fetching checks need the whole program
 export const LINT_RESOLVER_OPTIONS = {
   serverMode: true,
   singleThreaded: true,

@@ -362,10 +362,8 @@ const (
 	// ApiManifestFile is the id manifest's name under ApiModuleDir, written by BOTH builds: the server's from its
 	// initRoutes call, the client's from the routes it bundled.
 	ApiManifestFile = "manifest.json"
-	// ApiLaneFile is the BASENAME of the module a CLIENT build writes under ApiModuleDir to tell the client its API
-	// is bundled: it calls `setApiBundled` and is imported for its side effect into every file calling
-	// `initClient`, the way the batch table reaches a server. Bundling is a build option, so the build is the one
-	// place it is set.
+	// ApiLaneFile is the BASENAME of the module a CLIENT build writes under ApiModuleDir to call `setApiBundled`.
+	// Bundling is a build option, so every `initClient` file side-effect imports it, the way batches reach a server.
 	ApiLaneFile = "lane"
 	// ApiModulePrefix is the render-time specifier scheme for a bundled API module (`rtapi:/s/<id>.js`), the
 	// sibling of EntryModulePrefix: the transform imports it at a dispatch site, and the relativizers that turn
@@ -405,9 +403,7 @@ const (
 	ModuleModeAllModules = "allModules"
 )
 
-// BundleApiMode is the client build's `bundleApi` option in its CLI spelling: whether the metadata and compiled
-// functions of the routes a mion client calls are bundled in at build time. The tsconfig key and the devtools
-// option are booleans mapped onto it.
+// BundleApiMode is the CLI spelling of the client's `bundleApi` option; the tsconfig and devtools booleans map onto it.
 type BundleApiMode string
 
 const (

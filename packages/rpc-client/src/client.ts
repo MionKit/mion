@@ -55,7 +55,7 @@ export class MionClient {
 
   constructor(private clientOptions: ClientOptions) {}
 
-  /** Whether the build bundled the API this client calls; false means every route is fetched. */
+  /** False means the build did not bundle the API: every route is fetched. */
   get isApiBundled(): boolean {
     return isApiBundled();
   }

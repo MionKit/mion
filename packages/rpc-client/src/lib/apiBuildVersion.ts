@@ -6,7 +6,7 @@
  * ######## */
 
 // The version check rides every response, so it cannot be lazily loaded; what a mismatch then does lives in
-// apiVersionRecovery.ts, behind `#metadata-from-server`. Split from client.ts like apiBundled.ts: request.ts
+// apiVersionRecovery.ts, behind `#metadata-from-server`. Split from client.ts: request.ts
 // must not pull the client in. One build version per program, one mismatch per server.
 
 import {RpcError} from '@mionjs/core';

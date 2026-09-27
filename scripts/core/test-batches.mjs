@@ -1,17 +1,6 @@
-// test-batches.mjs — `pnpm run test:ci`: the whole vitest suite, run in batches,
-// plus the drift gate that keeps those batches covering every project.
-//
-// Why batches at all: a resolver process is ~200 MB, so one `vitest run` over all
-// 23 projects OOMs on a small host. Splitting the run into groups that each start
-// and tear down on their own keeps the peak down.
-//
-// Why a gate: the batch list used to be hand-written into package.json with no tie
-// to vitest.config.ts, and it drifted — it named the 16 mion projects and NONE of
-// the 5 runtypes ones, so `test:ci` came back green having skipped 309 of the 397
-// test files, including every test that drives the Go resolver through the plugin.
-// Now vitest.config.ts's `test.projects` list is the single source of truth: BATCHES
-// only GROUPS those names, and any project missing from (or unknown to) the grouping
-// fails `--check` in CI and fails the run itself before a single test boots.
+// test-batches.mjs: `pnpm run test:ci`, the vitest suite in batches, since a resolver process is ~200 MB and one
+// `vitest run` over every project OOMs on a small host. BATCHES only GROUPS vitest.config.ts's `test.projects`, or a
+// batch list drifts and skips projects while staying green: a project missing or unknown fails `--check` and the run.
 //
 // Usage (via `pnpm miondevx core test-batches …`, or `node scripts/core/test-batches.mjs …`):
 //   test-batches                run every batch in order (extra args pass to vitest)

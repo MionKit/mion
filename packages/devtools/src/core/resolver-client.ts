@@ -15,7 +15,7 @@ import type {
   TransformResult,
 } from './protocol.ts';
 
-/** The CLI spelling of the plugin's `bundleApi` boolean, what `--bundle-api` takes. */
+/** The CLI spelling of the plugin's `bundleApi` boolean (`--bundle-api`). */
 export type ResolverBundleApi = 'bundled' | 'off';
 
 export interface ResolverClientOptions {
@@ -89,7 +89,7 @@ export interface ResolverClientOptions {
   // Forwarded as --api-tsconfig: the tsconfig of the SEPARATE project declaring the API this (client) session calls,
   // where the bundleApi lane resolves the routes' types. Undefined means the API is in this program.
   apiTsconfig?: string;
-  // Forwarded as --bundle-api: picks the client-side bundleApi lane; unset leaves the binary's default, 'bundled'.
+  // Forwarded as --bundle-api; unset leaves the binary's default, 'bundled'.
   bundleApi?: ResolverBundleApi;
   // Forwarded as --transform-relative: rewrite the injected import block's `rtmod:` specifiers to paths relative to
   // the resolved output root (files mode). The bundler plugin always sets it; the virtual-module lanes (batchcompile

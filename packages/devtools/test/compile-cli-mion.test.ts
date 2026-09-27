@@ -393,7 +393,7 @@ describe('mion compile + api-check — a bundled client against its server', () 
       expect(clientJs).toMatch(/import '(\.\.\/)+\.mion\/api\/lane\.js';/);
       expect(clientJs).toMatch(/import \{ ?__rt_s\$2F[A-Za-z0-9_$]+ ?\} from '\.\.\/\.mion\/api\/[^']+\.js';/);
       expect(clientJs).not.toContain('rtapi:');
-      // the flag is set by the module the build wrote, not spliced into the call
+      // set by the module the build wrote, not spliced into the call
       expect(clientJs).not.toContain('setApiBundled');
       expect(fs.readFileSync(path.join(clientGen, 'api', 'lane.js'), 'utf8')).toContain('setApiBundled()');
       // the validators came from the server program: they check the boolean the client never declared

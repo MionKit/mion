@@ -16,10 +16,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
-// apiClientDTS is an ambient stand-in for the `@mionjs/client` surface the
-// bundled-API lane reads (the subrequest interfaces carrying the route id and
-// the API, the dispatch methods with their trailing marker slot, the proxies,
-// the batch builder and the initClient anchor). The marker is the REAL one.
+// apiClientDTS is an ambient stand-in for the `@mionjs/client` surface the bundled-API lane reads; the marker is REAL.
 const apiClientDTS = `declare module '@mionjs/client' {
   import type {InjectApiMetadata, InjectBuildVersion} from '@mionjs/run-types';
   export interface RouteSubRequest<PH, Id extends string = string, RA = any> {
@@ -240,8 +237,7 @@ func TestApiGen_GenerateWritesUsedRoutesWithTheirChains(t *testing.T) {
 	}
 }
 
-// TestApiGen_TransformInjectsLaneImportAndSiteBindings: the rewritten client file
-// imports the lane module and, at every dispatch site, its site module relative to the file.
+// TestApiGen_TransformInjectsLaneImportAndSiteBindings: each dispatch site imports its module relative to the file.
 func TestApiGen_TransformInjectsLaneImportAndSiteBindings(t *testing.T) {
 	genDir := t.TempDir()
 	r := setupApi(t, apiSources(apiClientTS), genDir, constants.BundleApiBundled, "")
@@ -518,9 +514,7 @@ func readManifest(t *testing.T, genDir string) *apimeta.Manifest {
 	return manifest
 }
 
-// TestApiGen_ClientManifestListsTheBundledMethods: a client build writes a
-// client manifest holding exactly the bundled methods, with the ids, families,
-// options and chains the modules carry.
+// TestApiGen_ClientManifestListsTheBundledMethods: exactly the bundled methods, with their ids, families, options and chains.
 func TestApiGen_ClientManifestListsTheBundledMethods(t *testing.T) {
 	genDir := t.TempDir()
 	r := setupApi(t, apiSources(apiClientTS), genDir, constants.BundleApiBundled, "")
@@ -640,11 +634,7 @@ declare const params: [id: number];
 export const valueId = getRunTypeId(params);
 `
 
-// TestApiGen_LaneRidesAModuleNotTheInitClientCall: the lane is a build option,
-// so it reaches the client as a generated module imported for its side effect
-// into every file that calls `initClient`, the way the batch table reaches a
-// server. Nothing is spliced into the call, so there is no slot a caller could
-// fill with a lane the build did not compile.
+// TestApiGen_LaneRidesAModuleNotTheInitClientCall: nothing is spliced into the call, so no caller can claim a bundle.
 func TestApiGen_LaneRidesAModuleNotTheInitClientCall(t *testing.T) {
 	genDir := t.TempDir()
 	r := setupApi(t, apiSources(apiClientTS), genDir, constants.BundleApiBundled, "")
@@ -961,7 +951,7 @@ export const a = routes.ping().call();
 	})
 }
 
-// fetchingClient builds a client of `api` calling `ping` directly (line 6), then sets up fetching (line 7) and adds a wide helper whose call is widened.
+// fetchingClient: `ping` is called directly on line 6, fetching set up on line 7, then a wide helper's call is widened.
 func fetchingClient(api string, setUp, widened bool) string {
 	source := `import {initClient, useMethodsMetadata} from '@mionjs/client';
 import type {RouteSubRequest} from '@mionjs/client';
@@ -979,8 +969,7 @@ export const a = routes.ping().call();
 	return source
 }
 
-// TestApiGen_MetadataFetchingSetup: every row of the fetching table, both modes. `useMethodsMetadata` is one
-// half, the API's metadata middleware the other; a widened call is the one a bundled client fetches.
+// TestApiGen_MetadataFetchingSetup: every fetching-table row; a widened call is the only one a bundled client fetches.
 func TestApiGen_MetadataFetchingSetup(t *testing.T) {
 	const served, bare = "ServedApi", "OptionalApi"
 	for _, tc := range []struct {
@@ -1041,7 +1030,7 @@ func TestApiGen_MetadataFetchingNeedsAClient(t *testing.T) {
 	}
 }
 
-// TestApiGen_MetadataFetchingSurvivesAnEdit: the program-wide facts are dropped with the Program, so adding the setup clears MET011.
+// TestApiGen_MetadataFetchingSurvivesAnEdit: the fetching facts drop with the Program, so adding the setup clears MET011.
 func TestApiGen_MetadataFetchingSurvivesAnEdit(t *testing.T) {
 	sources := map[string]string{"client.d.ts": apiClientDTS, "router.d.ts": metadataRouterDTS, "api.ts": metadataApiTS, "client.ts": fetchingClient("ServedApi", false, false)}
 	sess := setupApi(t, sources, t.TempDir(), constants.BundleApiOff, "")
@@ -1057,7 +1046,7 @@ func TestApiGen_MetadataFetchingSurvivesAnEdit(t *testing.T) {
 	}
 }
 
-// TestApiGen_MiddlewareReadsFollowAnEdit: the per-file middleware reads are dropped with the Program, so setting one up clears MET009.
+// TestApiGen_MiddlewareReadsFollowAnEdit: the middleware reads drop with the Program, so setting one up clears MET009.
 func TestApiGen_MiddlewareReadsFollowAnEdit(t *testing.T) {
 	client := func(setUp string) string {
 		return `import {initClient} from '@mionjs/client';
@@ -1080,7 +1069,7 @@ export const {routes, middlewares} = initClient<OptionalApi>({baseURL: 'http://x
 	}
 }
 
-// TestApiGen_DirectiveAboveALineOpeningCall: a report on a call that opens its line lands on that line, where the directive above reaches it.
+// TestApiGen_DirectiveAboveALineOpeningCall: a call opening its line is reported there, where the directive above reaches.
 func TestApiGen_DirectiveAboveALineOpeningCall(t *testing.T) {
 	client := strings.Replace(fetchingClient("OptionalApi", true, false), "useMethodsMetadata(", "// @mion-expect-error MET010\nuseMethodsMetadata(", 1)
 	if diags := generateMetadataDiags(t, constants.BundleApiBundled, client); len(diags) != 0 {

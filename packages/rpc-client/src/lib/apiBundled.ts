@@ -14,7 +14,6 @@ export function setApiBundled(): void {
   apiBundled = true;
 }
 
-/** Whether the build bundled this client's API. */
 export function isApiBundled(): boolean {
   return apiBundled;
 }
