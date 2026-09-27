@@ -19,7 +19,7 @@ export type MySqlViewAlgorithm = 'undefined' | 'merge' | 'temptable';
 export type MySqlViewSecurity = 'definer' | 'invoker';
 export type MySqlViewCheckOption = 'local' | 'cascaded';
 
-export function mysqlBuildView(context: DrizzleContext, name: string, builders: Record<string, unknown>): unknown {
+function mysqlBuildView(context: DrizzleContext, name: string, builders: Record<string, unknown>): unknown {
   return context.ns.mysqlView(name as never, builders as never);
 }
 

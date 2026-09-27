@@ -16,10 +16,10 @@ export interface ViewFromQueryBuilderNotSupported {
   readonly __use_drizzles_pgView_for_query_builder_views: never;
 }
 
-export function pgBuildView(context: DrizzleContext, name: string, builders: Record<string, unknown>): unknown {
+function pgBuildView(context: DrizzleContext, name: string, builders: Record<string, unknown>): unknown {
   return context.ns.pgView(name as never, builders as never);
 }
-export function pgBuildMaterializedView(context: DrizzleContext, name: string, builders: Record<string, unknown>): unknown {
+function pgBuildMaterializedView(context: DrizzleContext, name: string, builders: Record<string, unknown>): unknown {
   return context.ns.pgMaterializedView(name as never, builders as never);
 }
 
