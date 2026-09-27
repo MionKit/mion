@@ -22,7 +22,7 @@ import type {
   TableFromTypeOptions,
   rtNamedColumnKey,
 } from '@mionjs/drizzle-orm';
-import {buildRtTableFromGraph, createRtTable, RtValueRecorder, RtViewBuilder, rtValueKey} from '@mionjs/drizzle-orm';
+import {createRtTable, rtTableFromRunType, RtValueRecorder, RtViewBuilder, rtValueKey} from '@mionjs/drizzle-orm';
 import type {InjectRunTypeId} from '@mionjs/run-types';
 import {getRunType} from '@mionjs/run-types';
 import {pgColumnHelpers, type PgColumnHelpers} from './columns.ts';
@@ -200,18 +200,8 @@ export function pgSchema<SchemaName extends string>(schemaName: SchemaName): PgS
   } as PgSchema<SchemaName>;
 }
 
-// One slim table per reflected type id, so repeated calls share one materialized drizzle table.
-const fromTypeTables = new Map<string, object>();
-
 // Needs @mionjs/devtools; references read options.tables, runtime-callback markers options.runtime.
 /** Runtime twin of a hand-written table type; a call WITH options is not memoized, its callbacks or tables may differ. */
 export function tableFromType<T extends AnyPgTable>(options?: TableFromTypeOptions<T>, id?: InjectRunTypeId<T>): T {
-  const runType = getRunType<T>(undefined, id);
-  if (options !== undefined) return buildRtTableFromGraph(runType as ReflectedNode, pgBuildTable, options, 'pg') as T;
-  let slimTable = fromTypeTables.get(runType.id);
-  if (slimTable === undefined) {
-    slimTable = buildRtTableFromGraph(runType as ReflectedNode, pgBuildTable, undefined, 'pg');
-    fromTypeTables.set(runType.id, slimTable);
-  }
-  return slimTable as T;
+  return rtTableFromRunType(getRunType<T>(undefined, id) as ReflectedNode, pgBuildTable, 'pg', options) as T;
 }

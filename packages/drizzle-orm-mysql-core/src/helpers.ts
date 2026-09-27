@@ -8,18 +8,8 @@
 // The mysql authoring helpers beyond columns and tables: enums, indexes, constraints and checks, with
 // drizzle-identical names and call shapes and recorder returns.
 
-import type {
-  EntryColumn,
-  AnyTableRef,
-  Column,
-  NamedColumn,
-  NoProps,
-  Only,
-  PropsOf,
-  RtIndexedColumn,
-  RtSql,
-} from '@mionjs/drizzle-orm';
-import {recordColumn, refColumn, RtEntryRecorder} from '@mionjs/drizzle-orm';
+import type {EntryColumn, Column, NamedColumn, NoProps, Only, PropsOf, RtIndexedColumn, RtSql} from '@mionjs/drizzle-orm';
+import {recordColumn, RtEntryRecorder} from '@mionjs/drizzle-orm';
 import type {MyEntryBrand, MysqlColIn, RtMyIndexEntry, UpdateDeleteAction} from './types.ts';
 
 type DrizzleWritable<T> = {-readonly [K in keyof T]: T[K]};
@@ -96,9 +86,7 @@ export interface RtMyForeignKeyEntry extends MyEntryBrand {
   onUpdate(action: UpdateDeleteAction): RtMyForeignKeyEntry;
 }
 export function foreignKey(config: MysqlForeignKeyConfig): RtMyForeignKeyEntry {
-  const isRef = (column: object): boolean => typeof (column as Partial<AnyTableRef>).table === 'string';
-  const foreignColumns = config.foreignColumns.map((column) => (isRef(column) ? refColumn(column) : column));
-  return new RtEntryRecorder('foreignKey', [{...config, foreignColumns}]) as unknown as RtMyForeignKeyEntry;
+  return new RtEntryRecorder('foreignKey', [config]) as unknown as RtMyForeignKeyEntry;
 }
 
 export interface MysqlPrimaryKeyConfig {

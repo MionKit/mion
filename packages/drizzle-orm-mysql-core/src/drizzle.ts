@@ -25,7 +25,7 @@ import type {
   IsNotNull,
   KeyFlagsOf,
   ValueOf,
-  rtColSpecKey,
+  ColSpecOf,
   DbNameOf,
   TableFromTypeOptions,
   DrizzleContext,
@@ -49,8 +49,6 @@ const context: DrizzleContext = {
   ns: dzMy as unknown as DrizzleContext['ns'],
   sqlNs: dzSql as unknown as DrizzleContext['sqlNs'],
 };
-
-type Spec<C> = C extends {readonly [rtColSpecKey]?: infer S} ? NonNullable<S> : never;
 
 // Real key flags, not false as in pg and sqlite: `$returningId()` reads them and would infer `{}`.
 /** Structural MySqlColumn config; dataType / columnType are fixed because drizzle's typing never branches on them. */
@@ -78,14 +76,14 @@ export type ToDrizzleTable<T extends AnyMysqlTable> = MySqlTableWithColumns<{
   name: T['name'];
   schema: undefined;
   dialect: 'mysql';
-  columns: {[K in keyof T['columns'] & string]: MySqlColumn<SynthConfig<DbNameOf<T, K>, T['name'], Spec<T['columns'][K]>>>};
+  columns: {[K in keyof T['columns'] & string]: MySqlColumn<SynthConfig<DbNameOf<T, K>, T['name'], ColSpecOf<T['columns'][K]>>>};
 }>;
 
 /** The drizzle-typed view of a view. */
 export type ToDrizzleView<V extends AnyMysqlView> = MySqlViewWithSelection<
   V['name'],
   boolean,
-  {[K in keyof V['columns'] & string]: MySqlColumn<SynthConfig<DbNameOf<V, K>, V['name'], Spec<V['columns'][K]>>>}
+  {[K in keyof V['columns'] & string]: MySqlColumn<SynthConfig<DbNameOf<V, K>, V['name'], ColSpecOf<V['columns'][K]>>>}
 >;
 
 /** Materializes a table, view, schema handle or standalone index (memoized), or a table type by its marker. */

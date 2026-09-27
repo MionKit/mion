@@ -13,7 +13,6 @@ import {readFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {describe, expect, it} from 'vitest';
 import {colModNames, isColModName} from '../src/columns.ts';
-import {RtColumnRecorder} from '../src/recorder.ts';
 
 const DIALECTS = ['pg', 'mysql', 'sqlite'] as const;
 
@@ -63,15 +62,6 @@ describe('the one-object column spelling', () => {
 
   it('is sorted, so the two readers can be diffed by eye', () => {
     expect([...colModNames]).toEqual([...colModNames].sort());
-  });
-
-  it('every name is a method the column recorder can replay', () => {
-    // The bridge replays a modifier by calling the same-named method on the
-    // recorder. A name here with no method would fail at runtime, on a table
-    // that type-checked, in whichever dialect first spelled it.
-    const recorder = new RtColumnRecorder(() => undefined) as unknown as Record<string, unknown>;
-    const missing = colModNames.filter((name) => name !== '$type' && typeof recorder[name] !== 'function');
-    expect(missing, 'add the recorder method in recorder.ts').toEqual([]);
   });
 
   for (const dialect of DIALECTS) {

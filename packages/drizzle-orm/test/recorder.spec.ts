@@ -96,7 +96,7 @@ describe('recorder core (fake namespace, no drizzle installed)', () => {
   it('replays init + modifiers in recorded order with the recorded args', () => {
     const fake = makeFakeContext();
     const name = column('varchar', 'name', {length: 100});
-    name.notNull().default('x');
+    name.record('notNull', []).record('default', ['x']);
     name.toDrizzleColumn(fake.context);
     expect(fake.calls).toEqual([
       ['ns', 'varchar', 'name', {length: 100}],
@@ -105,10 +105,9 @@ describe('recorder core (fake namespace, no drizzle installed)', () => {
     ]);
   });
 
-  it('$type records nothing and asc()/desc() never touch the column mods', () => {
+  it('asc()/desc() never touch the column mods', () => {
     const fake = makeFakeContext();
     const age = column('integer', 'age');
-    age.$type();
     age.asc();
     age.desc();
     age.toDrizzleColumn(fake.context);
@@ -139,7 +138,7 @@ describe('recorder core (fake namespace, no drizzle installed)', () => {
     const otherId = column('integer', 'id');
     createRtTable('others', {id: otherId}, undefined, fakeBuildTable(fake.calls));
     const ref = column('integer', 'other_id');
-    ref.references(() => otherId, {onDelete: 'cascade'});
+    ref.record('references', [() => otherId, {onDelete: 'cascade'}]);
     const mine = createRtTable('mine', {otherId: ref}, undefined, fakeBuildTable(fake.calls));
 
     expect(fake.calls.find((call) => call[1] === 'references')).toBeUndefined();
@@ -180,7 +179,7 @@ describe('recorder core (fake namespace, no drizzle installed)', () => {
     const first = enumValue.toDrizzleValue(fake.context);
     expect(enumValue.toDrizzleValue(fake.context)).toBe(first);
     const col = column('timestamp', 'created_at');
-    col.default(raw);
+    col.record('default', [raw]);
     col.toDrizzleColumn(fake.context);
     expect(fake.calls).toContainEqual(['ns', 'pgEnum', 'role', ['admin', 'user']]);
     expect(fake.calls).toContainEqual(['sql', 'raw', 'now()']);
@@ -206,7 +205,7 @@ describe('recorder core (fake namespace, no drizzle installed)', () => {
     const users = createRtTable('users', {id: column('integer', 'id')}, undefined, fakeBuildTable(fake.calls));
     const query = sql`select ${tableRef(users as never, 'id')} from ${users}`;
     const col = column('integer', 'n');
-    col.default(query);
+    col.record('default', [query]);
     col.toDrizzleColumn(fake.context);
     const template = fake.calls.find((call) => call[1] === 'template')!;
     expect(template[3]).toEqual({dzColumn: 'users.id'});

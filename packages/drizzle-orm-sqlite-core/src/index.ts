@@ -23,7 +23,6 @@ export type {
   SqliteExtraConfigEntry,
   SqliteExtraConfigFn,
   SqliteTable,
-  SqliteTableCreatorFn,
   UniqueEntry,
   UniqueIndexEntry,
 } from './table.ts';

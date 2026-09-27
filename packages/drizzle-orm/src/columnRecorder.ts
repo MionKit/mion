@@ -8,7 +8,7 @@
 // Splits a single-call builder's props into drizzle's config argument and modifier calls, replayed in key order.
 
 import {RtColumnRecorder} from './recorder.ts';
-import type {DrizzleContext} from './types.ts';
+import type {AnyTableRef, DrizzleContext} from './types.ts';
 import {isColModName} from './columns.ts';
 import {refColumn} from './table.ts';
 
@@ -28,16 +28,20 @@ export function recordColumn(args: unknown[], init: (context: DrizzleContext, ca
   if (name !== undefined) callArgs.push(name);
   if (Object.keys(config).length > 0) callArgs.push(config);
   const recorder = new RtColumnRecorder((context) => init(context, callArgs));
-  const methods = recorder as unknown as Record<string, (...modArgs: unknown[]) => unknown>;
   for (const [method, value] of mods) {
     // Type-only in drizzle too: nothing to replay.
     if (method === '$type') continue;
-    if (value === true) methods[method]();
+    if (value === true) recorder.record(method, []);
     else if (method === 'references' && Array.isArray(value)) {
-      const [target, ...actions] = value as [() => unknown, ...unknown[]];
-      methods[method](() => refColumn(target()), ...actions);
-    } else if (Array.isArray(value)) methods[method](...value);
+      const [target, ...actions] = value as [() => AnyTableRef, ...unknown[]];
+      recorder.record(method, [() => refColumn(target()), ...actions]);
+    } else if (Array.isArray(value)) recorder.record(method, value);
     else throw new Error(`@mionjs/drizzle-orm: modifier "${method}" takes \`true\` or its argument tuple, got ${String(value)}`);
   }
   return recorder;
+}
+
+/** Record a builder that replays as the dialect namespace function of the same name. */
+export function recordNsColumn(fnName: string, args: unknown[]): never {
+  return recordColumn(args, (context, callArgs) => context.ns[fnName](...(callArgs as never[]))) as never;
 }

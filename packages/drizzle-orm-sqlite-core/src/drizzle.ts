@@ -18,7 +18,7 @@ import type {
   IsInsertExcluded,
   IsNotNull,
   ValueOf,
-  rtColSpecKey,
+  ColSpecOf,
   DbNameOf,
   TableFromTypeOptions,
   DrizzleContext,
@@ -41,8 +41,6 @@ const context: DrizzleContext = {
   ns: dzSqlite as unknown as DrizzleContext['ns'],
   sqlNs: dzSql as unknown as DrizzleContext['sqlNs'],
 };
-
-type Spec<C> = C extends {readonly [rtColSpecKey]?: infer S} ? NonNullable<S> : never;
 
 /** Structural SQLiteColumn config; dataType / columnType are fixed because drizzle's typing never branches on them. */
 type SynthConfig<Name extends string, TableName extends string, S> = S extends {config: infer P; data: infer D; base: infer B}
@@ -70,14 +68,14 @@ export type ToDrizzleTable<T extends AnySqliteTable> = SQLiteTableWithColumns<{
   name: T['name'];
   schema: undefined;
   dialect: 'sqlite';
-  columns: {[K in keyof T['columns'] & string]: SQLiteColumn<SynthConfig<DbNameOf<T, K>, T['name'], Spec<T['columns'][K]>>>};
+  columns: {[K in keyof T['columns'] & string]: SQLiteColumn<SynthConfig<DbNameOf<T, K>, T['name'], ColSpecOf<T['columns'][K]>>>};
 }>;
 
 /** The drizzle-typed view of a view. */
 export type ToDrizzleView<V extends AnySqliteView> = SQLiteViewWithSelection<
   V['name'],
   boolean,
-  {[K in keyof V['columns'] & string]: SQLiteColumn<SynthConfig<DbNameOf<V, K>, V['name'], Spec<V['columns'][K]>>>}
+  {[K in keyof V['columns'] & string]: SQLiteColumn<SynthConfig<DbNameOf<V, K>, V['name'], ColSpecOf<V['columns'][K]>>>}
 >;
 
 /** Materializes a table, view or standalone index (memoized), or a table type by its marker. */

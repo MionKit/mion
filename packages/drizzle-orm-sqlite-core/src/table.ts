@@ -22,7 +22,7 @@ import type {
   TableFromTypeOptions,
   rtNamedColumnKey,
 } from '@mionjs/drizzle-orm';
-import {buildRtTableFromGraph, createRtTable, RtValueRecorder} from '@mionjs/drizzle-orm';
+import {createRtTable, rtTableFromRunType, RtValueRecorder} from '@mionjs/drizzle-orm';
 import type {InjectRunTypeId} from '@mionjs/run-types';
 import {getRunType} from '@mionjs/run-types';
 import {sqliteColumnHelpers, type SqliteColumnHelpers} from './columns.ts';
@@ -117,52 +117,18 @@ export function sqliteTable(name: string, columns: ColumnsArg<Record<string, unk
   return createRtTable(name, resolveColumns(columns), extraConfig as never, sqliteBuildTable);
 }
 
-/** What sqliteTableCreator returns: sqliteTable's call shape, named so declaration emit can print it. */
-export interface SqliteTableCreatorFn {
-  <Name extends string, Cols extends Record<string, object>>(
-    name: Name,
-    columns: Cols,
-    extraConfig?: SqliteExtraConfigFn<LiftCols<Cols>>
-  ): SqliteTable<
-    Name,
-    {[K in keyof Cols]: Cols[K] extends {readonly [rtNamedColumnKey]: infer C} ? C : Cols[K]},
-    [],
-    {[K in keyof Cols as NameOf<Cols[K]> extends string ? (NameOf<Cols[K]> extends K ? never : K) : never]: NameOf<Cols[K]>}
-  >;
-  <Name extends string, Cols extends Record<string, object>>(
-    name: Name,
-    columns: (helpers: SqliteColumnHelpers) => Cols,
-    extraConfig?: SqliteExtraConfigFn<LiftCols<Cols>>
-  ): SqliteTable<
-    Name,
-    {[K in keyof Cols]: Cols[K] extends {readonly [rtNamedColumnKey]: infer C} ? C : Cols[K]},
-    [],
-    {[K in keyof Cols as NameOf<Cols[K]> extends string ? (NameOf<Cols[K]> extends K ? never : K) : never]: NameOf<Cols[K]>}
-  >;
-}
-
 /** Drizzle's sqliteTableCreator: a sqliteTable with a table-name mapper, recorded. */
-export function sqliteTableCreator(customizeTableName: (name: string) => string): SqliteTableCreatorFn {
+export function sqliteTableCreator(customizeTableName: (name: string) => string): typeof sqliteTable {
   const creator = new RtValueRecorder('sqliteTableCreator', [customizeTableName]);
   return ((name: string, columns: ColumnsArg<Record<string, unknown>>, extraConfig?: unknown) =>
     createRtTable(name, resolveColumns(columns), extraConfig as never, (context, tableName, builders, extraReplay) => {
       const drizzleCreator = creator.toDrizzleValue(context) as (...args: unknown[]) => unknown;
       return extraReplay ? drizzleCreator(tableName, builders, extraReplay) : drizzleCreator(tableName, builders);
-    })) as SqliteTableCreatorFn;
+    })) as typeof sqliteTable;
 }
-
-// One slim table per reflected type id, so repeated calls share one materialized drizzle table.
-const fromTypeTables = new Map<string, object>();
 
 // Needs @mionjs/devtools; references read options.tables, runtime-callback markers options.runtime.
 /** Runtime twin of a hand-written table type; a call WITH options is not memoized, its callbacks or tables may differ. */
 export function tableFromType<T extends AnySqliteTable>(options?: TableFromTypeOptions<T>, id?: InjectRunTypeId<T>): T {
-  const runType = getRunType<T>(undefined, id);
-  if (options !== undefined) return buildRtTableFromGraph(runType as ReflectedNode, sqliteBuildTable, options, 'sqlite') as T;
-  let slimTable = fromTypeTables.get(runType.id);
-  if (slimTable === undefined) {
-    slimTable = buildRtTableFromGraph(runType as ReflectedNode, sqliteBuildTable, undefined, 'sqlite');
-    fromTypeTables.set(runType.id, slimTable);
-  }
-  return slimTable as T;
+  return rtTableFromRunType(getRunType<T>(undefined, id) as ReflectedNode, sqliteBuildTable, 'sqlite', options) as T;
 }

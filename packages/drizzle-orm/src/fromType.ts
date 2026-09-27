@@ -115,7 +115,6 @@ function buildColumn(
   if (dbName !== undefined) args.push(dbName);
   if (Object.keys(config).length > 0) args.push(config);
   const recorder = new RtColumnRecorder((context) => context.ns[fn](...(args as never[])));
-  const methods = recorder as unknown as Record<string, (...callArgs: unknown[]) => unknown>;
   for (const member of configMembers) {
     const method = member.name as string;
     if (!isColModName(method) || method === '$type') continue;
@@ -125,20 +124,21 @@ function buildColumn(
         fail(
           `column "${key}" carries the ${method} marker, pass the callback via options: {runtime: {${key}: {${method}: () => ...}}}`
         );
-      methods[method](callback);
+      recorder.record(method, [callback]);
       consumedRuntime.add(`${key}.${method}`);
       continue;
     }
-    const value = literalValueOf(member.child!, `${key}.${method}`);
+    const value = literalValueOf(member.child as ReflectedNode, `${key}.${method}`);
     if (method === 'references') {
       const [ref, actions] = value as [AnyTableRef, object | undefined];
       if (options?.tables?.[ref.table] === undefined)
         fail(`column "${key}" references table "${ref.table}", pass it via tableFromType options: {tables: {${ref.table}: ...}}`);
-      recorder.references(() => resolveTypeRoadRef(options, key, ref), actions);
+      const thunk = () => resolveTypeRoadRef(options, key, ref);
+      recorder.record(method, actions === undefined ? [thunk] : [thunk, actions]);
     } else if (value === true) {
-      methods[method]();
+      recorder.record(method, []);
     } else if (Array.isArray(value)) {
-      methods[method](...value);
+      recorder.record(method, value);
     } else {
       fail(`column "${key}" modifier "${method}" carries neither a flag nor an args tuple`);
     }
@@ -163,7 +163,7 @@ function readEntries(meta: ReflectedNode, tableName: string): EntrySpec[] {
     const argsNode = plainMember(specMember.child, 'args')?.child;
     const args = argsNode === undefined ? [] : (literalValueOf(argsNode, `extras[${index}].args`) as unknown[]);
     const chain: EntrySpec['chain'] = membersOf(plainMember(specMember.child, 'chain')?.child).map((chainMember) => {
-      const value = literalValueOf(chainMember.child!, `extras[${index}].${String(chainMember.name)}`);
+      const value = literalValueOf(chainMember.child as ReflectedNode, `extras[${index}].${String(chainMember.name)}`);
       if (value !== true && !Array.isArray(value))
         fail(`table "${tableName}" extras[${index}].${String(chainMember.name)} is neither a flag nor an args tuple`);
       return {method: chainMember.name as string, args: value as unknown[] | true};
@@ -248,4 +248,24 @@ export function buildRtTableFromGraph(
             return recorder;
           });
   return createRtTable(tableName, columns, extraConfig as never, buildTable) as object;
+}
+
+// One slim table per dialect and reflected type id, so repeated calls share one materialized drizzle table.
+const fromTypeTables = new Map<string, object>();
+
+/** The dialects' tableFromType body; a call WITH options is not memoized, its callbacks or tables may differ. */
+export function rtTableFromRunType(
+  runType: ReflectedNode,
+  buildTable: BuildTableFn,
+  dialect: string,
+  options?: TableFromTypeOptions
+): object {
+  if (options !== undefined) return buildRtTableFromGraph(runType, buildTable, options, dialect);
+  const cacheKey = `${dialect}:${runType.id}`;
+  let slimTable = fromTypeTables.get(cacheKey);
+  if (slimTable === undefined) {
+    slimTable = buildRtTableFromGraph(runType, buildTable, undefined, dialect);
+    fromTypeTables.set(cacheKey, slimTable);
+  }
+  return slimTable;
 }
