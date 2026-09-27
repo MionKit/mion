@@ -4,7 +4,7 @@ import {mionMethodsMetadata} from '@mionjs/router/middlewares';
 const mion = createMionRouter();
 
 const routes = {
-  // first, so every route below can be described to the client
+  // at the root, before any route or group, or the router refuses it
   mionMethodsMetadata,
   sayHello: mion.route((ctx, name: string): string => `Hello ${name}`),
 } satisfies Routes;
