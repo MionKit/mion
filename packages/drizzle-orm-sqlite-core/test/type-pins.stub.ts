@@ -580,7 +580,7 @@ declare const d1Db: DrizzleD1Database;
 export const d1Query = d1Db.select().from(dzCfNotes);
 type D1Rows = Awaited<typeof d1Query>;
 declare const d1Rows: D1Rows;
-export const d1RowIntoModel: CfNote = d1Rows[0]!;
+export const d1RowIntoModel: CfNote = d1Rows[0] as (typeof d1Rows)[number];
 export const d1InsertFromModel = d1Db.insert(dzCfNotes).values(newCfNote);
 export const d1UpdateFromModel = d1Db.update(dzCfNotes).set(cfNotePatch);
 
@@ -589,7 +589,7 @@ declare const doDb: DrizzleSqliteDODatabase;
 export const doQuery = doDb.select().from(dzCfNotes);
 type DoRows = Awaited<typeof doQuery>;
 declare const doRows: DoRows;
-export const doRowIntoModel: CfNote = doRows[0]!;
+export const doRowIntoModel: CfNote = doRows[0] as (typeof doRows)[number];
 export const doInsertFromModel = doDb.insert(dzCfNotes).values(newCfNote);
 export const doUpdateFromModel = doDb.update(dzCfNotes).set(cfNotePatch);
 
@@ -667,7 +667,7 @@ export const boundaryQuery = sqliteDb.select().from(toDrizzle(boundaryApi));
 declare const boundaryRows: Awaited<typeof boundaryQuery>;
 declare const newBoundary: InferInsertModel<typeof boundaryApi>;
 declare const boundaryPatch: InferUpdateModel<typeof boundaryApi>;
-export const rowIntoModel: InferSelectModel<typeof boundaryApi> = boundaryRows[0]!;
+export const rowIntoModel: InferSelectModel<typeof boundaryApi> = boundaryRows[0] as (typeof boundaryRows)[number];
 export const rowsIntoModel: InferSelectModel<typeof boundaryApi>[] = boundaryRows;
 export const insertFromModel = sqliteDb.insert(toDrizzle(boundaryApi)).values([newBoundary, newBoundary]);
 export const updateFromModel = sqliteDb.update(toDrizzle(boundaryApi)).set(boundaryPatch);
@@ -676,7 +676,7 @@ type BoundaryId = Str<{minLength: 1}, 'BoundaryId'>;
 export const brandedTable = sqliteTable('boundary_branded', {id: text({length: 40, notNull: true, $type: $type<BoundaryId>()})});
 export const brandedQuery = sqliteDb.select().from(toDrizzle(brandedTable));
 declare const brandedRows: Awaited<typeof brandedQuery>;
-export const brandedRowIntoModel: InferSelectModel<typeof brandedTable> = brandedRows[0]!;
+export const brandedRowIntoModel: InferSelectModel<typeof brandedTable> = brandedRows[0] as (typeof brandedRows)[number];
 
 // A class or a Date in `$type` survives whole: a mapped type would flatten it into its members.
 class Money {

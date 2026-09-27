@@ -185,7 +185,7 @@ describe('the real workspace', () => {
     expect(packages.get('platform-vercel')!.deps).toContain('private-test-server');
     expect(packages.get('run-types')!.deps).toContain('private-go-be-sidecar');
     for (const dialect of ['pg', 'mysql', 'sqlite'])
-      expect(packages.get(`drizzle-orm-${dialect}-core`)!.deps).toContain('devtools');
+      expect(packages.get(`drizzle-orm-${dialect}-core`)?.deps).toContain('devtools');
   });
 
   it('a run-types change reaches the mion packages', () => {
