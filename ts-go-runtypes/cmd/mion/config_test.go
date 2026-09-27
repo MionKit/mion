@@ -474,7 +474,7 @@ func mustMkdirAll(t *testing.T, dir string) {
 	}
 }
 
-// TestResolveBundleApi: the flag beats the tsconfig key, tsconfig `false` means off, and nothing set means bundled.
+// TestResolveBundleApi: the flag beats the tsconfig key, the key is a boolean, and nothing set means bundled.
 func TestResolveBundleApi(t *testing.T) {
 	decode := func(raw string) bundleApiKey {
 		var key bundleApiKey
@@ -489,22 +489,26 @@ func TestResolveBundleApi(t *testing.T) {
 		want constants.BundleApiMode
 	}{
 		{"", `null`, constants.BundleApiBundled},
-		{"", `"mixed"`, constants.BundleApiMixed},
+		{"", `true`, constants.BundleApiBundled},
 		{"", `false`, constants.BundleApiOff},
-		{"", `"off"`, constants.BundleApiOff},
-		{"mixed", `false`, constants.BundleApiMixed},
-		{"off", `"bundled"`, constants.BundleApiOff},
+		{"bundled", `false`, constants.BundleApiBundled},
+		{"off", `true`, constants.BundleApiOff},
 	} {
 		got, ok := resolveBundleApi(tc.flag, decode(tc.key))
 		if !ok || got != tc.want {
 			t.Errorf("flag %q, key %s: got %q (ok %v), want %q", tc.flag, tc.key, got, ok, tc.want)
 		}
 	}
-	if _, ok := resolveBundleApi("fetched", ""); ok {
-		t.Errorf("an unknown mode is refused")
+	for _, flag := range []string{"fetched", "mixed"} {
+		if _, ok := resolveBundleApi(flag, ""); ok {
+			t.Errorf("the unknown mode %q is refused", flag)
+		}
 	}
-	var key bundleApiKey
-	if err := json.Unmarshal([]byte(`true`), &key); err == nil {
-		t.Errorf("`true` is not a mode and is refused")
+	for _, raw := range []string{`"bundled"`, `"mixed"`, `1`, `{"mode":"bundled"}`, `["bundled"]`} {
+		var key bundleApiKey
+		err := json.Unmarshal([]byte(raw), &key)
+		if err == nil || !strings.Contains(err.Error(), "true or false") {
+			t.Errorf("key %s: got %v, want a refusal naming true or false", raw, err)
+		}
 	}
 }

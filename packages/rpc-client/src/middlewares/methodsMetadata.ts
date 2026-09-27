@@ -15,7 +15,7 @@ import {hasMethod} from '../lib/methods.ts';
 import {loadedMetadataFromServer, loadMetadataFromServer} from '../lib/metadataFromServerLoader.ts';
 import {middlewareTargetOf, setMetadataFetcher, type MetadataCall, type MetadataFetcher} from '../lib/metadataFetcher.ts';
 
-/** Client half of `mionMethodsMetadata`: fetches unbundled routes' rows on first use; for `bundleApi` `false` or `'mixed'`. */
+/** Client half of `mionMethodsMetadata`: fetches unbundled routes' rows on first use. */
 export function useMethodsMetadata(middleware: ClientMiddlewareOf<Handler>): void {
   const {id, registry} = middlewareTargetOf(middleware);
   setMetadataFetcher(registry, createFetcher(id));

@@ -16,7 +16,13 @@ import {getExePath} from '@mionjs/bin-compiler';
 import {readEnvCompat} from '../core/envCompat.ts';
 import {Family, Level, Severity, type Diagnostic} from '../core/protocol.ts';
 import {buildResolverArgs, ResolverClient, ResolverStreamClient, type ResolverConnection} from '../core/resolver-client.ts';
-import {WAKE_INDEX, type LintWorkerData, type LintWorkerRequest, type LintWorkerResponse} from './session-protocol.ts';
+import {
+  LINT_RESOLVER_OPTIONS,
+  WAKE_INDEX,
+  type LintWorkerData,
+  type LintWorkerRequest,
+  type LintWorkerResponse,
+} from './session-protocol.ts';
 
 const data = workerData as LintWorkerData;
 const requests = data.port;
@@ -65,8 +71,7 @@ async function ensureConnection(tsconfig: string, binary: string): Promise<Resol
   // type-checks like the build. Single-threaded: the session lints one file at a time, and a light child keeps
   // editor/CI hosts under process and memory limits.
   const binaryPath = binary ? resolveConfiguredBinary(binary) : getExePath();
-  // bundleApi off: lint cannot know each client's build mode, so the bundled-API checks stay with the build
-  const options = {serverMode: true, singleThreaded: true, bundleApi: 'off'} as const;
+  const options = LINT_RESOLVER_OPTIONS;
   const args = buildResolverArgs(process.cwd(), tsconfig, options);
   if (shim?.stdin && shim.stdout && shim.exitCode === null) {
     const launcher = shim;

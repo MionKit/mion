@@ -97,9 +97,6 @@ export interface ClientOptions {
  *  class behind a proxy. The typed slot a caller sees is on RouteSubRequest / MiddlewareSubRequest. */
 export type InjectedApiMetadata = InjectApiMetadata<RemoteApi, string>;
 
-/** The lane a built client runs its metadata on. */
-export type BundleApiMode = 'bundled' | 'mixed';
-
 type PublicHandler = (...args: any[]) => Promise<any>;
 type PublicMethod = PublicRoute | PublicMiddleware | PublicHeadersFn;
 type ExtractHandler<PM extends PublicMethod> = PM extends {handler: infer H} ? H : never;

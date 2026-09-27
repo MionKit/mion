@@ -241,8 +241,8 @@ export type InjectBatchId<Routes> = string & {
  * server holds, and fills the slot with an import of the generated module carrying them. Without the
  * build option nothing is injected and the client fetches its metadata from the server as before.
  *
- * The LANE itself (`bundled` or `mixed`) is a build option, not a call-site fact, so it does not
- * ride this marker: the build writes a module that sets it and imports that module into every file
+ * Whether the API is bundled at all is a build option, not a call-site fact, so it does not ride
+ * this marker: the build writes a module that sets it and imports that module into every file
  * calling `initClient`, the way the batch transport reaches a server.
  *
  * `Api` and `Id` are phantom, read by the build; the injected runtime value is the generated

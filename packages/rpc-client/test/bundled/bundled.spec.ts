@@ -5,11 +5,11 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The bundled lane: this project is built with `bundleApi: 'bundled'`, so every route these specs call came
-// in with its call site and evaluates no code string; only a route the build never saw reaches the server.
+// The bundled lane: this project is built with `bundleApi: true`, so every route these specs call came in
+// with its call site and evaluates no code string; only a route the build never saw reaches the server.
 
 import {describe, it, expect, beforeEach, afterEach, inject, vi} from 'vitest';
-import {HeadersSubset} from '@mionjs/core';
+import {HeadersSubset, routesCache} from '@mionjs/core';
 import type {TestServerApi} from '@mionjs/test-server';
 import {initClient} from '../../src/client.ts';
 import {useMethodsMetadata} from '../../src/middlewares/methodsMetadata.ts';
@@ -18,7 +18,8 @@ import {resetClientCaches} from '../lib/testUtils.ts';
 import {resetBundledApi} from '../../src/lib/bundledApi.ts';
 import {getMethod, isBundledMethod, useMethodFns} from '../../src/lib/methods.ts';
 import {loadedMetadataFromServer} from '../../src/lib/metadataFromServerLoader.ts';
-import type {InjectedApiMetadata} from '../../src/types.ts';
+import type {InjectedApiMetadata, RouteSubRequest} from '../../src/types.ts';
+import {flushMetadataCache, installMethodRows} from '../../src/lib/clientMethodsMetadata.ts';
 import {MemoryMetadataStore, resetMetadataStore, setMetadataStoreForTesting} from '../../src/lib/metadataStore.ts';
 import {expectEveryMethodMatchesTheServer} from '../lib/parity.ts';
 
@@ -29,6 +30,12 @@ const user = {name: 'John', surname: 'Doe'};
 /** Every route of the test server runs behind the root-level `auth` headers middleware. */
 function useAuth(middlewares: ReturnType<typeof initClient<TestServerApi>>['middlewares']): void {
   middlewares.auth.onRequest((auth) => auth(new HeadersSubset({Authorization: 'XWYZ-TOKEN'})));
+}
+
+/** A helper typed with the wide subrequest: the build reports the widened id (MET004, a warning since this
+ *  program sets up `useMethodsMetadata`) and bundles nothing for the call inside, which the client then fetches. */
+function callThroughWideHelper(sub: RouteSubRequest<any>) {
+  return sub.call();
 }
 
 /** Records every request the client sends, and says which of them asked for metadata. */
@@ -49,7 +56,7 @@ function watchFetch() {
   };
 }
 
-describe('a client built with bundleApi: bundled', () => {
+describe('a client built with bundleApi: true', () => {
   let store: MemoryMetadataStore;
 
   beforeEach(async () => {
@@ -69,9 +76,9 @@ describe('a client built with bundleApi: bundled', () => {
     await resetMetadataStore();
   });
 
-  it('knows its lane from the build', () => {
+  it('knows from the build that its API is bundled', () => {
     const {client} = initClient<TestServerApi>({baseURL});
-    expect(client.bundleApiMode).toBe('bundled');
+    expect(client.isApiBundled).toBe(true);
   });
 
   it('calls a route through its middleware chain in ONE request, without asking for metadata', async () => {
@@ -243,6 +250,90 @@ describe('a client built with bundleApi: bundled', () => {
     } finally {
       watch.restore();
     }
+  });
+});
+
+describe('a bundled client that sets up metadata fetching', () => {
+  let store: MemoryMetadataStore;
+
+  beforeEach(async () => {
+    resetClientCaches();
+    resetBundledApi();
+    await resetMetadataStore();
+    store = new MemoryMetadataStore();
+    setMetadataStoreForTesting(store);
+  });
+
+  afterEach(async () => {
+    resetClientCaches();
+    resetBundledApi();
+    await resetMetadataStore();
+  });
+
+  it('uses the bundle for a route called through its own dispatch point', async () => {
+    const {routes, middlewares} = initClient<TestServerApi>({baseURL});
+    useAuth(middlewares);
+    useMethodsMetadata(middlewares.mionMethodsMetadata);
+    const watch = watchFetch();
+    try {
+      const [result] = await routes.utils.sumTwo(1).call();
+      expect(result).toBe(3);
+      expect(watch.calls()).toBe(1);
+      expect(watch.askedForMetadata()).toBe(false);
+    } finally {
+      watch.restore();
+    }
+    expect(isBundledMethod('utils/sumTwo')).toBe(true);
+  });
+
+  it('fetches a route the bundle lacks, and stores only what it fetched', async () => {
+    const {routes, middlewares} = initClient<TestServerApi>({baseURL});
+    useAuth(middlewares);
+    useMethodsMetadata(middlewares.mionMethodsMetadata);
+    const watch = watchFetch();
+    try {
+      const [result] = await callThroughWideHelper(routes.flow.getOrgLabel('acme'));
+      expect(result).toBe('[acme]');
+      expect(watch.askedForMetadata()).toBe(true);
+    } finally {
+      watch.restore();
+    }
+    expect(isBundledMethod('flow/getOrgLabel')).toBe(false);
+    expect(routesCache.hasMetadata('flow/getOrgLabel')).toBe(true);
+    await flushMetadataCache();
+    const stored = (await store.readAll(baseURL)).map((record) => record.id);
+    expect(stored).toContain('flow/getOrgLabel');
+    expect(stored).not.toContain('utils/sumTwo');
+  });
+
+  it("keeps a bundled middleware out of the store when it rides a fetched route's chain", async () => {
+    const {routes, middlewares} = initClient<TestServerApi>({baseURL});
+    useAuth(middlewares);
+    useMethodsMetadata(middlewares.mionMethodsMetadata);
+    // a bundled dispatch point first, so the chain's auth middleware comes from the build
+    await routes.utils.sumTwo(1).call();
+    expect(isBundledMethod('auth')).toBe(true);
+    // then a route the bundle lacks; the server answers for its WHOLE chain, auth included
+    await callThroughWideHelper(routes.flow.getOrgLabel('acme'));
+    await flushMetadataCache();
+    const stored = (await store.readAll(baseURL)).map((record) => record.id);
+    expect(stored).toContain('flow/getOrgLabel');
+    expect(stored).not.toContain('auth');
+    // and the build's own entry is still the one a call reads
+    expect(isBundledMethod('auth')).toBe(true);
+  });
+
+  it('never lets a fetched answer replace a bundled entry', async () => {
+    const {routes, middlewares} = initClient<TestServerApi>({baseURL});
+    useAuth(middlewares);
+    useMethodsMetadata(middlewares.mionMethodsMetadata);
+    await routes.utils.sumTwo(1).call();
+    const bundled = getMethod('utils/sumTwo');
+    expect(bundled).toBeDefined();
+    const options = {baseURL, basePath: '', suffix: '', storageEngine: 'memory'} as never;
+    const stale = {...bundled, paramsJitHash: 'stale', returnJitHash: 'stale'} as never;
+    installMethodRows({methods: {'utils/sumTwo': stale}, deps: {}, purFnDeps: {}}, options);
+    expect(getMethod('utils/sumTwo')?.paramsJitHash).toBe(bundled!.paramsJitHash);
   });
 });
 

@@ -42,9 +42,8 @@ export default defineConfig({
       'packages/core/vitest.config.ts',
       'packages/rpc-router/vitest.config.ts',
       'packages/rpc-client/vitest.config.ts',
-      // Client bundleApi lanes: metadata bundled at the call sites ('bundled') or with the fetch fallback ('mixed').
+      // The client's bundled lane: metadata bundled at the call sites.
       'packages/rpc-client/vitest.bundled.config.ts',
-      'packages/rpc-client/vitest.mixed.config.ts',
       'packages/platform-aws/vitest.config.ts',
       'packages/platform-gcloud/vitest.config.ts',
       'packages/platform-node/vitest.config.ts',

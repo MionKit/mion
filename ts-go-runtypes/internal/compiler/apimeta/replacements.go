@@ -24,6 +24,9 @@ func MethodBinding(id string) string {
 func Replacements(sites []Site) []protocol.Replacement {
 	out := make([]protocol.Replacement, 0, len(sites))
 	for _, site := range sites {
+		if site.Widened {
+			continue
+		}
 		binding := site.SiteBinding()
 		out = append(out, protocol.Replacement{
 			File:          site.FilePath,

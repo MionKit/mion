@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Shared by the bundled and mixed lanes: every method of the test server, bundled at once, compared with what the
+// Used by the bundled lane: every method of the test server, bundled at once, compared with what the
 // server itself answers (rows, route sync ids and the code of every compiled function a row reaches).
 
 import {expect} from 'vitest';

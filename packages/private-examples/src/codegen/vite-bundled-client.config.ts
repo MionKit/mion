@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [
     mionVitePlugin({
       runTypes: {tsConfig: resolve(__dirname, 'tsconfig.json')},
-      bundleApi: 'bundled',
+      bundleApi: true,
       api: {tsConfig: resolve(__dirname, '../api/tsconfig.json')},
     }),
   ],

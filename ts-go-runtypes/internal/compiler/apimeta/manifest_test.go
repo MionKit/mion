@@ -65,7 +65,7 @@ func TestManifest_CompareMissingAndAmbiguousIds(t *testing.T) {
 }
 
 func TestManifest_RenderReadRoundTrip(t *testing.T) {
-	manifest := &Manifest{Kind: ManifestKindClient, Mode: "mixed", ApiTsconfig: "../server/tsconfig.json", Methods: map[string]ManifestMethod{"sum": row("P1", "R1")}}
+	manifest := &Manifest{Kind: ManifestKindClient, Mode: "bundled", ApiTsconfig: "../server/tsconfig.json", Methods: map[string]ManifestMethod{"sum": row("P1", "R1")}}
 	path := filepath.Join(t.TempDir(), "manifest.json")
 	if err := os.WriteFile(path, []byte(manifest.Render()), 0o644); err != nil {
 		t.Fatal(err)
@@ -74,7 +74,7 @@ func TestManifest_RenderReadRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if read.Kind != "client" || read.Mode != "mixed" || read.ApiTsconfig != manifest.ApiTsconfig {
+	if read.Kind != "client" || read.Mode != "bundled" || read.ApiTsconfig != manifest.ApiTsconfig {
 		t.Errorf("header lost: %+v", read)
 	}
 	if mismatches := Compare(read, &Manifest{Kind: ManifestKindServer, Methods: manifest.Methods}); len(mismatches) != 0 {

@@ -10,7 +10,6 @@ import (
 	"github.com/microsoft/typescript-go/shim/tspath"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/testfixtures"
 )
@@ -126,13 +125,13 @@ func setupOverlay(t *testing.T, files map[string]string) overlayProgram {
 	return overlayProgram{typeChecker: typeChecker, markerOpts: marker.WithDefaults(marker.Options{FS: prog.FS}), prog: prog, files: abs}
 }
 
-func (overlay overlayProgram) extract(mode constants.BundleApiMode) ([]Site, []diagnostics.Diagnostic) {
-	return ExtractFromProgramCached(overlay.typeChecker, overlay.markerOpts, overlay.prog, overlay.files, nil, mode)
+func (overlay overlayProgram) extract() ([]Site, []diagnostics.Diagnostic) {
+	return ExtractFromProgramCached(overlay.typeChecker, overlay.markerOpts, overlay.prog, overlay.files, nil)
 }
 
-func extractBody(t *testing.T, body string, mode constants.BundleApiMode) ([]Site, []diagnostics.Diagnostic) {
+func extractBody(t *testing.T, body string) ([]Site, []diagnostics.Diagnostic) {
 	t.Helper()
-	return setupOverlay(t, map[string]string{"a.ts": fixture(body)}).extract(mode)
+	return setupOverlay(t, map[string]string{"a.ts": fixture(body)}).extract()
 }
 
 func idsOf(site Site) string { return strings.Join(site.Ids, ",") }
@@ -144,7 +143,7 @@ export const b = routes.users.getById(1).typeErrors();
 export const c = routes.sum(1, 2).call({signal: undefined});
 // a middleware is hooks only, it carries no dispatch point
 export const d = middlewares.auth.onRequest((auth) => auth({headers: {authorization: 'x'}}));
-`, constants.BundleApiBundled)
+`)
 	if len(diags) != 0 {
 		t.Fatalf("unexpected diagnostics: %+v", diags)
 	}
@@ -193,7 +192,7 @@ const stored = alias(1);
 export const a = stored.call();
 function run<S extends {call(setup?: unknown): unknown}>(sub: S) { return sub.call(); }
 export const b = run(routes.users.remove(2));
-`, constants.BundleApiBundled)
+`)
 	if len(diags) != 0 {
 		t.Fatalf("unexpected diagnostics: %+v", diags)
 	}
@@ -210,7 +209,7 @@ export const b = run(routes.users.remove(2));
 func TestExtract_BatchNamesTheUnionOfItsRoutes(t *testing.T) {
 	sites, diags := extractBody(t, `
 export const b = batch([routes.users.getById(1), routes.sum(1, 2), routes.users.getById(3)]).call();
-`, constants.BundleApiBundled)
+`)
 	if len(diags) != 0 {
 		t.Fatalf("unexpected diagnostics: %+v", diags)
 	}
@@ -223,7 +222,8 @@ export const b = batch([routes.users.getById(1), routes.sum(1, 2), routes.users.
 	}
 }
 
-func TestExtract_WidenedIdReportsPerMode(t *testing.T) {
+// TestExtract_WidenedIdIsAnUnreportedSite: the extractor cannot pick MET003 or MET004, fetching is a program fact.
+func TestExtract_WidenedIdIsAnUnreportedSite(t *testing.T) {
 	body := `
 function run(sub: {call(setup?: unknown): unknown}) { return sub.call(); }
 export const a = run(routes.sum(1, 2));
@@ -231,23 +231,25 @@ import type {RouteSubRequest} from '@mionjs/client';
 function wide(sub: RouteSubRequest<any>) { return sub.call(); }
 export const b = wide(routes.sum(1, 2));
 `
-	sites, diags := extractBody(t, body, constants.BundleApiBundled)
-	if len(sites) != 0 {
-		t.Fatalf("a widened id must yield no site, got %+v", sites)
+	sites, diags := extractBody(t, body)
+	if len(diags) != 0 {
+		t.Fatalf("a widened id is reported by the session, got %+v", diags)
 	}
-	if len(diags) != 1 || diags[0].Code != diagnostics.CodeApiMetaRouteWidened {
-		t.Fatalf("bundled: expected one MET003, got %+v", diags)
+	if len(sites) != 1 || !sites[0].Widened || sites[0].Ids != nil || sites[0].ApiType == nil {
+		t.Fatalf("expected one widened site carrying its API type, got %+v", sites)
 	}
-	_, mixedDiags := extractBody(t, body, constants.BundleApiMixed)
-	if len(mixedDiags) != 1 || mixedDiags[0].Code != diagnostics.CodeApiMetaRouteWidenedMixed {
-		t.Fatalf("mixed: expected one MET004, got %+v", mixedDiags)
+	if reps := Replacements(sites); len(reps) != 0 {
+		t.Errorf("nothing is spliced into a widened call, got %+v", reps)
+	}
+	if files := Files(sites); len(files) != 0 {
+		t.Errorf("a widened call's file is not a bundle site file, got %v", files)
 	}
 }
 
 func TestExtract_WrittenSlotIsAPassThrough(t *testing.T) {
 	sites, diags := extractBody(t, `
 export const a = routes.sum(1, 2).call(undefined, 'already' as any);
-`, constants.BundleApiBundled)
+`)
 	if len(diags) != 0 || len(sites) != 0 {
 		t.Fatalf("a written marker slot must not be spliced again: sites %+v diags %+v", sites, diags)
 	}
@@ -258,7 +260,7 @@ func TestExtract_UnrelatedCallsAreNotSites(t *testing.T) {
 const other = {call(): number { return 1; }, typeErrors(): void {}};
 export const a = other.call();
 export const b = other.typeErrors();
-`, constants.BundleApiBundled)
+`)
 	if len(diags) != 0 || len(sites) != 0 {
 		t.Fatalf("same-named methods without the brand must not match: %+v %+v", sites, diags)
 	}
@@ -267,7 +269,7 @@ export const b = other.typeErrors();
 func TestReplacements_EverySiteGetsItsModuleBinding(t *testing.T) {
 	sites, _ := extractBody(t, `
 export const a = routes.users.getById(1).call();
-`, constants.BundleApiMixed)
+`)
 	reps := Replacements(sites)
 	if len(reps) != 1 {
 		t.Fatalf("expected one site replacement and nothing else, got %+v", reps)
@@ -277,7 +279,7 @@ export const a = routes.users.getById(1).call();
 		t.Errorf("site replacement %+v", site)
 	}
 	// a written setup argument gets the separator, a trailing comma none
-	withSetup, _ := extractBody(t, "export const a = routes.users.getById(1).call({signal: undefined});\nexport const b = routes.sum(1, 2).call(\n  {},\n);\n", constants.BundleApiBundled)
+	withSetup, _ := extractBody(t, "export const a = routes.users.getById(1).call({signal: undefined});\nexport const b = routes.sum(1, 2).call(\n  {},\n);\n")
 	texts := map[string]bool{}
 	for _, rep := range Replacements(withSetup) {
 		texts[rep.Text] = true
@@ -290,7 +292,7 @@ export const a = routes.users.getById(1).call();
 func walkFixture(t *testing.T) *Tree {
 	t.Helper()
 	overlay := setupOverlay(t, map[string]string{"a.ts": fixture("export const a = routes.sum(1, 2).call();\n")})
-	sites, diags := overlay.extract(constants.BundleApiBundled)
+	sites, diags := overlay.extract()
 	if len(diags) != 0 {
 		t.Fatalf("unexpected diagnostics: %+v", diags)
 	}
@@ -377,7 +379,7 @@ type Api = {r: {type: 1; handler: (n: number) => Promise<number>; options: {alwa
 const {routes} = initClient<Api>({});
 export const a = routes.r(1).call();
 `})
-	sites, _ := overlay.extract(constants.BundleApiBundled)
+	sites, _ := overlay.extract()
 	site := sites[0]
 	tree, problem := WalkApi(site.Checker, site.ApiType)
 	if problem != "" {
@@ -402,7 +404,7 @@ func TestWalkApi_RefusesALooseApi(t *testing.T) {
 	for name, api := range cases {
 		t.Run(name, func(t *testing.T) {
 			overlay := setupOverlay(t, map[string]string{"a.ts": "import {initClient} from '@mionjs/client';\n" + api + "\ndeclare const routes: {r: () => {call(setup?: unknown, m?: import('@mionjs/run-types').InjectApiMetadata<Api, 'r'>): unknown}};\nexport const a = routes.r().call();\n"})
-			sites, _ := overlay.extract(constants.BundleApiBundled)
+			sites, _ := overlay.extract()
 			got := sites
 			if len(got) != 1 {
 				t.Fatalf("expected the call site, got %+v", got)
@@ -452,7 +454,7 @@ export const staticId = getRunTypeId<{id: number}>();
 const value: {id: number} = {id: 1};
 export const valueId = getRunTypeId(value);
 export const a = routes.sum(1, 2).call();
-`, constants.BundleApiBundled)
+`)
 	if len(diags) != 0 {
 		t.Fatalf("unexpected diagnostics: %+v", diags)
 	}

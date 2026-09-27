@@ -5,6 +5,7 @@
 // generated-output diff — is the right assertion for it.
 import {describe, expect, it} from 'vitest';
 import {buildResolverArgs} from '../src/core/resolver-client.ts';
+import {LINT_RESOLVER_OPTIONS} from '../src/lint/session-protocol.ts';
 
 describe('buildResolverArgs — bundler-lane project knobs', () => {
   it('forwards hashLength as `--hash-length <n>`', () => {
@@ -199,5 +200,14 @@ describe('buildResolverArgs — marker package gate', () => {
     // default — sending a flag for either would be noise.
     expect(buildResolverArgs('/proj', 'tsconfig.json', {markerPackageCheck: true})).not.toContain('--no-marker-package-check');
     expect(buildResolverArgs('/proj', 'tsconfig.json', {})).not.toContain('--no-marker-package-check');
+  });
+});
+
+describe('buildResolverArgs — the lint lane', () => {
+  it('turns bundling off: the bundled-API and fetching checks read the whole program, lint scans one file', () => {
+    const args = buildResolverArgs('/proj', '', LINT_RESOLVER_OPTIONS);
+    const idx = args.indexOf('--bundle-api');
+    expect(idx).toBeGreaterThanOrEqual(0);
+    expect(args[idx + 1]).toBe('off');
   });
 });

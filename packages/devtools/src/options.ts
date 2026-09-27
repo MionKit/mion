@@ -105,10 +105,6 @@ export interface MionApiPointer {
   tsConfig: string;
 }
 
-/** Bundled at build time (the default), bundled with fetching for routes the bundle lacks, or `false` to fetch all.
- *  Fetching needs `useMethodsMetadata` on the client and `mionMethodsMetadata` in the server's routes. */
-export type MionBundleApiMode = NonNullable<TsRuntypesPluginOptions['bundleApi']>;
-
 /** The subset of a mion preset's options that both lanes read. */
 export interface MionPresetOptions {
   runTypes?: MionRunTypesOptions;
@@ -116,8 +112,9 @@ export interface MionPresetOptions {
   client?: MionClientPointer;
   /** The separate project declaring the API this client calls. See MionApiPointer. */
   api?: MionApiPointer;
-  /** Bundle the metadata and compiled functions of every route this client calls. See MionBundleApiMode. */
-  bundleApi?: MionBundleApiMode;
+  /** Bundle the metadata and compiled functions of every route this client calls (default true). `false` fetches
+   *  every route, which needs `useMethodsMetadata` on the client and `mionMethodsMetadata` in the server's routes. */
+  bundleApi?: boolean;
 }
 
 /** The client-side half of MionPresetOptions: what a client build bundles and where its API lives. */
@@ -147,13 +144,8 @@ export function toRunTypesOptions(
   if (bundle.api !== undefined && !bundle.api.tsConfig) {
     throw new Error(`[mion] api.tsConfig must name the API project's tsconfig (absolute, or relative to the root).`);
   }
-  if (
-    bundle.bundleApi !== undefined &&
-    bundle.bundleApi !== 'bundled' &&
-    bundle.bundleApi !== 'mixed' &&
-    bundle.bundleApi !== false
-  ) {
-    throw new Error(`[mion] bundleApi must be 'bundled', 'mixed' or false (got '${String(bundle.bundleApi)}').`);
+  if (bundle.bundleApi !== undefined && typeof bundle.bundleApi !== 'boolean') {
+    throw new Error(`[mion] bundleApi must be true or false (got '${String(bundle.bundleApi)}').`);
   }
   // Project `references` in the tsconfig are fine: the resolver drops them when building its scan program.
   return {

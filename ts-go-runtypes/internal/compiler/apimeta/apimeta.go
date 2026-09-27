@@ -15,7 +15,6 @@ import (
 	"github.com/microsoft/typescript-go/shim/checker"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefunctions"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/textpos"
 )
@@ -45,6 +44,8 @@ type Site struct {
 	Checker *checker.Checker
 	// CalleeName is the dispatch method (`call`, `typeErrors`), for reports.
 	CalleeName string
+	// Widened marks a call whose route id a helper widened to `string`: nothing is bundled for it, so it fetches.
+	Widened bool
 
 	sourceFile *ast.SourceFile
 	callNode   *ast.Node
@@ -120,8 +121,9 @@ func (cache *FileCache) put(filePath string, sites []Site, diags []diagnostics.D
 }
 
 // ExtractFromProgramCached returns the branded dispatch sites of `files` in file then source order, plus diagnostics.
-// The cache is optional (nil degrades to an uncached walk); mode decides the level a widened id reports at.
-func ExtractFromProgramCached(typeChecker *checker.Checker, markerOpts marker.Options, lookup purefunctions.SourceFileLookup, files []string, cache *FileCache, mode constants.BundleApiMode) ([]Site, []diagnostics.Diagnostic) {
+// The cache is optional (nil degrades to an uncached walk). A widened site is returned unreported: its level
+// depends on whether the program sets up metadata fetching, a fact of the whole program.
+func ExtractFromProgramCached(typeChecker *checker.Checker, markerOpts marker.Options, lookup purefunctions.SourceFileLookup, files []string, cache *FileCache) ([]Site, []diagnostics.Diagnostic) {
 	var sites []Site
 	var diags []diagnostics.Diagnostic
 	for _, filePath := range files {
@@ -131,7 +133,7 @@ func ExtractFromProgramCached(typeChecker *checker.Checker, markerOpts marker.Op
 			if sourceFile == nil {
 				continue
 			}
-			fileSites, fileDiags = extractFromSourceFile(typeChecker, markerOpts, sourceFile, mode)
+			fileSites, fileDiags = extractFromSourceFile(typeChecker, markerOpts, sourceFile)
 			cache.put(filePath, fileSites, fileDiags)
 		}
 		sites = append(sites, fileSites...)
@@ -142,7 +144,7 @@ func ExtractFromProgramCached(typeChecker *checker.Checker, markerOpts marker.Op
 }
 
 // extractFromSourceFile walks every CallExpression; declaration files hold no calls.
-func extractFromSourceFile(typeChecker *checker.Checker, markerOpts marker.Options, sourceFile *ast.SourceFile, mode constants.BundleApiMode) ([]Site, []diagnostics.Diagnostic) {
+func extractFromSourceFile(typeChecker *checker.Checker, markerOpts marker.Options, sourceFile *ast.SourceFile) ([]Site, []diagnostics.Diagnostic) {
 	if sourceFile.IsDeclarationFile {
 		return nil, nil
 	}
@@ -152,7 +154,7 @@ func extractFromSourceFile(typeChecker *checker.Checker, markerOpts marker.Optio
 	}
 	var sites []Site
 	var diags []diagnostics.Diagnostic
-	scope := &fileScope{typeChecker: typeChecker, markerOpts: marker.WithDefaults(markerOpts), sourceFile: sourceFile, mode: mode}
+	scope := &fileScope{typeChecker: typeChecker, markerOpts: marker.WithDefaults(markerOpts), sourceFile: sourceFile}
 	var visit ast.Visitor
 	visit = func(node *ast.Node) bool {
 		if node == nil {
@@ -185,7 +187,6 @@ type fileScope struct {
 	typeChecker *checker.Checker
 	markerOpts  marker.Options
 	sourceFile  *ast.SourceFile
-	mode        constants.BundleApiMode
 }
 
 func (scope *fileScope) diag(code string, node *ast.Node, args ...string) diagnostics.Diagnostic {
@@ -233,11 +234,7 @@ func (scope *fileScope) extractOne(call *ast.Node) (*Site, []diagnostics.Diagnos
 	case idsLiteral:
 		site.Ids = ids
 	case idsWidened:
-		code := diagnostics.CodeApiMetaRouteWidened
-		if scope.mode == constants.BundleApiMixed {
-			code = diagnostics.CodeApiMetaRouteWidenedMixed
-		}
-		return nil, []diagnostics.Diagnostic{scope.diag(code, call)}
+		site.Widened = true
 	default:
 		return nil, []diagnostics.Diagnostic{scope.diag(diagnostics.CodeApiMetaUnreadable, call, "the route id type is not a string literal")}
 	}
@@ -293,12 +290,12 @@ func readIds(idType *checker.Type) ([]string, idsKind) {
 	return nil, idsUnreadable
 }
 
-// Files returns the sorted unique file paths of the sites.
+// Files returns the sorted unique file paths of the sites a bundle injects into.
 func Files(sites []Site) []string {
 	seen := map[string]bool{}
 	var files []string
 	for _, site := range sites {
-		if site.FilePath == "" || seen[site.FilePath] {
+		if site.Widened || site.FilePath == "" || seen[site.FilePath] {
 			continue
 		}
 		seen[site.FilePath] = true
