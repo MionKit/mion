@@ -269,7 +269,7 @@ function resolveSubRequests(context: ClientCallContext, deserialized: ResponseBo
   });
 
   const checkAnswers = context.options.validateServerResponses;
-  // the fatal brand never travels, so after any error an absent member may never have run
+  // the halting brand never travels, so after any error an absent member may never have run
   const mayHaveStopped = checkAnswers && (errors.size > 0 || Object.values(deserialized).some((value) => isRpcError(value)));
   Object.entries(context.subRequestList).forEach(([id, methodMeta]) => {
     if (errors.has(id)) return;
