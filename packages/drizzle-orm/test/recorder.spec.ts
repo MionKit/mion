@@ -19,7 +19,8 @@ import {
   type DrizzleContext,
   type SqlNamespace,
 } from '../src/recorder.ts';
-import {createRtTable, materializeRtTable} from '../src/table.ts';
+import {createRtTable, materializeRtTable, tableRef} from '../src/table.ts';
+import {recordColumn} from '../src/columnRecorder.ts';
 
 interface Fake {
   context: DrizzleContext;
@@ -191,5 +192,29 @@ describe('recorder core (fake namespace, no drizzle installed)', () => {
     expect(fake.calls).toContainEqual(['sql', 'raw', 'now()']);
     const defaultCall = fake.calls.find((call) => call[1] === 'default')!;
     expect(defaultCall[2]).toEqual({rawOf: 'now()'});
+  });
+
+  it('recordColumn splits one props object into the config argument and the modifier calls, in key order', () => {
+    const fake = makeFakeContext();
+    const name = recordColumn(['user_name', {length: 100, notNull: true, default: ['x'], $type: []}], (context, callArgs) =>
+      context.ns.varchar(...(callArgs as never[]))
+    );
+    name.toDrizzleColumn(fake.context);
+    expect(fake.calls).toEqual([
+      ['ns', 'varchar', 'user_name', {length: 100}],
+      ['ns.varchar', 'notNull'],
+      ['ns.varchar', 'default', 'x'],
+    ]);
+  });
+
+  it('a tableRef() inside sql resolves to the column it names', () => {
+    const fake = makeFakeContext();
+    const users = createRtTable('users', {id: column('integer', 'id')}, undefined, fakeBuildTable(fake.calls));
+    const query = sql`select ${tableRef(users as never, 'id')} from ${users}`;
+    const col = column('integer', 'n');
+    col.default(query);
+    col.toDrizzleColumn(fake.context);
+    const template = fake.calls.find((call) => call[1] === 'template')!;
+    expect(template[3]).toEqual({dzColumn: 'users.id'});
   });
 });
