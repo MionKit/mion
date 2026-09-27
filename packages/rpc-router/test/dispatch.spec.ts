@@ -140,6 +140,21 @@ describe('Dispatch routes', () => {
       expect(response.body.auth).toEqual('user-1234');
     });
 
+    it('validates the regular rpc params of a headers middleware', async () => {
+      let runs = 0;
+      const auth = mion.headersFn((ctx, h: HeadersSubset<'Authorization'>, userId: string): string => (runs++, userId));
+      mion.initRoutes({auth, changeUserName});
+
+      const request: RawRequest = {
+        headers: headersFromRecord({Authorization: 'bearer-token-1234'}),
+        body: JSON.stringify({auth: [123], changeUserName: [{name: 'Leo', surname: 'Tungsten'}]}),
+      };
+
+      const response = await dispatchRoute('/changeUserName', request.body, request.headers, headersFromRecord({}), request, {});
+      expect(runs).toBe(0);
+      expect(response.body[MION_ROUTES.thrownErrors]?.auth?.type).toBe('validation-error');
+    });
+
     it('if there are no params input field can be omitted', async () => {
       mion.initRoutes({sayHello: mion.route((): string => 'hello')});
 
