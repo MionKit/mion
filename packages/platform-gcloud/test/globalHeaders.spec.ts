@@ -16,7 +16,7 @@ import * as functions from '@google-cloud/functions-framework';
 import {googleCFHandler, resetGoogleCFOpts, setGoogleCFOpts} from '../src/googleCF.ts';
 
 describe('google cloud global response headers', () => {
-  const port = 8099;
+  const port = 8101; // its own port: googleCF.spec.ts runs in parallel and holds 8097 to 8100
   const getSharedData = () => ({auth: {me: null as any}});
   const mion = createMionRouter({
     contextDataFactory: getSharedData,
