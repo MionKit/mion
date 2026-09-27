@@ -1,11 +1,39 @@
 ---
 type: feature
 spec: full-plan
-status: in-progress
+status: done
 created: 2026-09-25
 ---
 
 # Switch all three drizzle dialects to the single-call column system
+
+## What shipped
+
+- All three dialects and `@mionjs/drizzle-orm` run on the single-call columns; `next/` and `test/next/` are gone,
+  their code is the regular `src/` and `test/`. The removal list below is ticked; two independent leftovers passes ran,
+  the second found only wording, fixed.
+- `mion convert` reads and prints the one-props shape and the table's names map; `mion drizzle-migrate` folds every
+  chain through one shared walker (`internal/convert/drizzlechain.go`). A chain with no one-object spelling (the same
+  modifier twice, e.g. pg `.array().array()`, or a reference to a table that stays drizzle) is refused as DRZ004 and
+  the table stays drizzle. `$type` stays refused by convert in both directions.
+- Convert and migrate tests run for pg, mysql and sqlite from one dialect list; the Go round-trip fuzz has a
+  vocabulary per dialect. `drizzleConvert.integration.spec.ts` exists in each dialect package.
+- Budgets moved only as reviewed exceptions. Step 7 (precomputed flags on the builder path) was measured and
+  rejected: it broke builder-equals-hand-written and made the type road pay (TYPE-COST.md attempt 14). The frozen
+  chained numbers live in TYPE-COST.md; `columnFormats` measures the two single-call lines per dialect.
+- Found and fixed on the way: `$type` kept a branded or class type intact; a `tableRef()` inside `sql` or entry args
+  resolves to its column; entry columns (`index().on()`, `unique().on()`, `primaryKey`, `foreignKey`) take a
+  `tableRef()` for an entry declared outside its table; the explicit `tableFromType(getRunType<T>())` form pairs in
+  convert; a table from a type names every column (drizzle caches a keyless column's name per table name, so two
+  type-road tables sharing a name lost their columns, seen in the drizzle-e2e type road); every container image
+  pins the workspace pnpm.
+- The index entries follow drizzle's two steps (`on()` first, then options) in every dialect, pinned by
+  `@ts-expect-error`; `pgSchema(...).enum` object form fixed, `enumFromShipped` gone.
+- Verified: the full JS suite (all 24 projects plus bun), lint, format, typecheck, the Go tests, fuzz soaks
+  (`MION_FUZZ_ITER=40`, seeds 11 / 222 / 3333, TS and Go, all three dialects), `drizzle-translate --to-types`,
+  `drizzle-manifest --check`, and the drizzle-e2e lane run locally with podman: pg, mysql, sqlite, d1 and durable
+  green on both roads, every result equal to drizzle's own code. The images were built locally, not pushed (this
+  session had no GHCR credentials).
 
 ## Why this exists
 
@@ -255,49 +283,49 @@ End state: no `next/` and no `test/next/` directory anywhere. What `next/` holds
 become `test/`. Nothing in code, tests, budgets or docs says "next", "shipped" or "side by side" any more.
 
 **`packages/drizzle-orm`**
-- [ ] `src/typeColumns.ts` column half: `RtColType`, `AnyRtColType`, `ColNameArg`, `ColConfigArg`, `RtTypedColumn`,
+- [x] `src/typeColumns.ts` column half: `RtColType`, `AnyRtColType`, `ColNameArg`, `ColConfigArg`, `RtTypedColumn`,
   `TypedCols`, `NotAColumn`, `ColDbNameOf`, `rtColModsKey`, the old `rtColSpecKey` symbol, `ModNotNull` /
   `ModHasDefault` / `ModInsertExcluded` / `ModKeyFlags` / `WithTypeOverride` / `WithArray`, the old `ColSpecOf`.
   Kept (moved to the new `src/columns.ts` or kept in place): `colModNames`, `ColModName`, `isColModName`, `ColMods`,
   `ColRef`, `Sql`, `rtSqlTextKey`, `TableEntry`, `rtEntrySpecKey`, `EntryColRefs`.
-- [ ] `src/recorder.ts`: `RtColumnBrand`, `AnyRtColumn`, `ColDataOf`, `ColNotNullOf`, `ColHasDefaultOf`,
+- [x] `src/recorder.ts`: `RtColumnBrand`, `AnyRtColumn`, `ColDataOf`, `ColNotNullOf`, `ColHasDefaultOf`,
   `ColInsertExcludedOf`, `ColBrandOf`, `ColKeyFlags`, `NoKeyFlags`, `RtColumnKeyBrand`, `rtColumnKeyFlagsKey`,
   `ColKeyFlagsOf`, `SetKeyFlag`, `SetIdentity`. The recorder runtime classes stay.
-- [ ] `src/table.ts`: the old `RtTableMeta` (no names map), `AnyRtTable`, `cols()`, old `ColsOf` / `TableNameOf`.
-- [ ] `src/view.ts`: the old `RtViewMeta`, `AnyRtView`, `ViewColsOf`, `ViewNameOf`.
-- [ ] `src/fromType.ts`: the old graph reader (`@rtColModsKey`, `name` in the spec) and its `RuntimeCallbacks` /
+- [x] `src/table.ts`: the old `RtTableMeta` (no names map), `AnyRtTable`, `cols()`, old `ColsOf` / `TableNameOf`.
+- [x] `src/view.ts`: the old `RtViewMeta`, `AnyRtView`, `ViewColsOf`, `ViewNameOf`.
+- [x] `src/fromType.ts`: the old graph reader (`@rtColModsKey`, `name` in the spec) and its `RuntimeCallbacks` /
   `TableFromTypeOptions`; `ReflectedNode`, `TableDep`, `reflectedKinds` stay.
-- [ ] `src/models.ts`, `src/refine.ts` (`RtRefinedColumn` included): replaced by the new ones.
-- [ ] `next/` (7 files) moved into `src/`.
+- [x] `src/models.ts`, `src/refine.ts` (`RtRefinedColumn` included): replaced by the new ones.
+- [x] `next/` (7 files) moved into `src/`.
 
 **Each dialect (`drizzle-orm-pg-core`, `-mysql-core`, `-sqlite-core`)**
-- [ ] The chained kind interfaces: `RtPgColumn`, `RtPgDateColumn`, `RtPgUuidColumn`, `RtPgIntColumn`; `RtMyColumn`,
+- [x] The chained kind interfaces: `RtPgColumn`, `RtPgDateColumn`, `RtPgUuidColumn`, `RtPgIntColumn`; `RtMyColumn`,
   `RtMyIntColumn`, `RtMyTimestampColumn`; `RtSqliteColumn`, `RtSqliteIntColumn`.
-- [ ] Every old column alias (`Varchar<A, C> = RtColType<...>`) and every old chained builder in `src/columns.ts`.
-- [ ] Old `PgTable` / `MysqlTable` / `SqliteTable` over `TypedCols`, the old table creators, schemas, enums
+- [x] Every old column alias (`Varchar<A, C> = RtColType<...>`) and every old chained builder in `src/columns.ts`.
+- [x] Old `PgTable` / `MysqlTable` / `SqliteTable` over `TypedCols`, the old table creators, schemas, enums
   (pg `makeEnumFactory`, the `enumFromShipped` workaround), old views (`PgSlimView`, `MysqlSlimView`,
   `SqliteSlimView`), old `toDrizzle` over `ColBrandOf` / `ColDbNameOf` / `ColKeyFlagsOf`, and the `shipped*` wrappers
   the new code calls today.
-- [ ] mysql names replaced by the new spelling: `MySqlColumnHelpers`, `MySqlViewBuilder`, `MySqlForeignKeyConfig`,
+- [x] mysql names replaced by the new spelling: `MySqlColumnHelpers`, `MySqlViewBuilder`, `MySqlForeignKeyConfig`,
   `MyExtraConfigColumns`, `MyExtraConfigFn`. sqlite: `SQLiteColumnHelpers`, `SQLiteViewBuilder`, `SQLiteForeignKeyConfig`.
-- [ ] Kept, moved to `src/types.ts`: the `*Config`, `*Data`, `*DataOf`, `*ColMods` types, `ReferenceActions`,
+- [x] Kept, moved to `src/types.ts`: the `*Config`, `*Data`, `*DataOf`, `*ColMods` types, `ReferenceActions`,
   `UpdateDeleteAction`, `PgIdentityConfig`, `CustomTypeParams` / `CustomTypeValues`. Kept in place: entry builders
   (`index`, `uniqueIndex`, `unique`, `primaryKey`, `check`, `foreignKey`), `pgPolicy`, `pgRole`, `pgSequence`, the
   `*Entry` type-road aliases, `*BuildTable` / `*BuildView`, `requireColumns`, `ViewFromQueryBuilderNotSupported`.
-- [ ] `next/` (6 files) moved into `src/`; `"next"` dropped from `tsconfig.build.json` `exclude`.
+- [x] `next/` (6 files) moved into `src/`; `"next"` dropped from `tsconfig.build.json` `exclude`.
 
 **Tests**
-- [ ] `test/next/*` moved to `test/` in each dialect; old-surface tests either retargeted or removed where a moved
+- [x] `test/next/*` moved to `test/` in each dialect; old-surface tests either retargeted or removed where a moved
   test already covers them; `packages/drizzle-orm/test/nextDialectParity.spec.ts` renamed and its paths updated.
 
 **Go (`ts-go-runtypes/internal/`)**
-- [ ] `convert/drizzle.go`: `sentinelColMods`, the `@rtColModsKey` read, `name` read from the spec, the chained
+- [x] `convert/drizzle.go`: `sentinelColMods`, the `@rtColModsKey` read, `name` read from the spec, the chained
   builder printer, `cols(T).col` references and the `AnyRtColumn` self-reference annotation.
-- [ ] `drizzlemigrate/`: `cols(x$table)` column reads (the new tables need no such helper; a reference is
+- [x] `drizzlemigrate/`: `cols(x$table)` column reads (the new tables need no such helper; a reference is
   `tableRef(x, 'col')`), the byte-for-byte keep of column chains (now folded).
 
 **Outside the packages**
-- [ ] `packages/private-type-budget` (shipped column lines, `TypedCols` / `RtPg*Column` names, `next/` paths),
+- [x] `packages/private-type-budget` (shipped column lines, `TypedCols` / `RtPg*Column` names, `next/` paths),
   `packages/private-test-server`, `packages/private-examples/src/drizzle/`, `container/pre-publish-e2e`,
   `container/drizzle-e2e/shared/addendum`, the website drizzle pages, `.claude/skills/drizzle-slim-schemas/`,
   `packages/drizzle-orm*/CLAUDE.md`, `packages/drizzle-orm/TYPE-COST.md`.
