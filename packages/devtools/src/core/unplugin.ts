@@ -79,9 +79,9 @@ export interface PluginOptions {
   // Same key as the tsconfig entry's `apiTsconfig` and the CLI's `--api-tsconfig`.
   apiTsconfig?: string;
   // Bundle metadata and compiled functions of every called route; same key as tsconfig `bundleApi` and CLI `--bundle-api`.
-  // 'bundled' (default): a route the build did not see is reported, and fails unless the client fetches metadata.
-  // 'mixed' fetches the unbundled routes through `useMethodsMetadata`; false fetches all of them (`off` on the CLI).
-  bundleApi?: 'bundled' | 'mixed' | false;
+  // true (default): a route the build did not see is reported, and fetched only when the client sets up
+  // `useMethodsMetadata`. false fetches every route (`off` on the CLI).
+  bundleApi?: boolean;
   // Generated-output root, relative to cwd: cache modules under `<genDir>/types/` (gitignored), committed
   // enrichment under `<genDir>/enriched/`. Omitted, the resolver infers `<srcDir>/.mion` from the tsconfig.
   // It lives in the project rather than node_modules so a dev watcher sees regenerated modules.
@@ -360,7 +360,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       ...(genDirAbs ? {genDir: genDirAbs} : {}),
       ...(options.clientTsconfig ? {clientTsconfig: options.clientTsconfig} : {}),
       ...(options.apiTsconfig ? {apiTsconfig: options.apiTsconfig} : {}),
-      ...(options.bundleApi !== undefined ? {bundleApi: options.bundleApi === false ? 'off' : options.bundleApi} : {}),
+      ...(options.bundleApi !== undefined ? {bundleApi: options.bundleApi ? 'bundled' : 'off'} : {}),
       transformRelative: true,
       ...(options.sourcesContent === false ? {omitSourcesContent: true} : {}),
       ...(enrichFriendly ? {enrichFriendly: true} : {}),

@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Shared by the bundled and mixed lanes, whose specs differ only in what each lane bundles.
+// Shared by the api version specs of the bundled lane.
 
 import {vi} from 'vitest';
 import {HeadersSubset, BUILD_VERSION_HEADER} from '@mionjs/core';

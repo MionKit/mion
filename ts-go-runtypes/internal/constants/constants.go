@@ -362,10 +362,10 @@ const (
 	// ApiManifestFile is the id manifest's name under ApiModuleDir, written by BOTH builds: the server's from its
 	// initRoutes call, the client's from the routes it bundled.
 	ApiManifestFile = "manifest.json"
-	// ApiLaneFile is the BASENAME of the module a CLIENT build writes under ApiModuleDir to put the client on the
-	// lane it compiled for: it calls `setBundleApiMode` and is imported for its side effect into every file
-	// calling `initClient`, the way the batch table reaches a server. The lane is a build option, so the build is
-	// the one place it is set.
+	// ApiLaneFile is the BASENAME of the module a CLIENT build writes under ApiModuleDir to tell the client its API
+	// is bundled: it calls `setApiBundled` and is imported for its side effect into every file calling
+	// `initClient`, the way the batch table reaches a server. Bundling is a build option, so the build is the one
+	// place it is set.
 	ApiLaneFile = "lane"
 	// ApiModulePrefix is the render-time specifier scheme for a bundled API module (`rtapi:/s/<id>.js`), the
 	// sibling of EntryModulePrefix: the transform imports it at a dispatch site, and the relativizers that turn
@@ -405,10 +405,9 @@ const (
 	ModuleModeAllModules = "allModules"
 )
 
-// BundleApiMode is the client build's `bundleApi` option: whether the metadata and compiled functions of the
-// routes a mion client calls are bundled in at build time. The --bundle-api CLI flag, the tsconfig plugin key and
-// the devtools option validate against this set; the value is injected at the client's initClient site so the
-// runtime picks the matching lane.
+// BundleApiMode is the client build's `bundleApi` option in its CLI spelling: whether the metadata and compiled
+// functions of the routes a mion client calls are bundled in at build time. The tsconfig key and the devtools
+// option are booleans mapped onto it.
 type BundleApiMode string
 
 const (
@@ -418,13 +417,11 @@ const (
 	BundleApiOff BundleApiMode = "off"
 	// BundleApiBundled (the default) bundles every called route; an unbundled one fails unless `useMethodsMetadata` is set up.
 	BundleApiBundled BundleApiMode = "bundled"
-	// BundleApiMixed bundles the same set and fetches the routes the bundle lacks through `useMethodsMetadata`.
-	BundleApiMixed BundleApiMode = "mixed"
 )
 
 // Enabled reports whether the client lane bundles anything.
 func (mode BundleApiMode) Enabled() bool {
-	return mode == BundleApiBundled || mode == BundleApiMixed
+	return mode == BundleApiBundled
 }
 
 func (mode BundleApiMode) Valid() bool {

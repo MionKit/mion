@@ -35,7 +35,7 @@ export default await withMion(
       tsConfig: 'tsconfig.json',
       genDir: bundleApi ? `.rt-${bundleApi}` : '.rt',
     },
-    bundleApi: bundleApi === 'bundled' ? 'bundled' : false,
+    bundleApi: bundleApi === 'bundled',
     cwd: import.meta.dirname,
   }
 );

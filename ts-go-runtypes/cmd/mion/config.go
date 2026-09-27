@@ -72,7 +72,7 @@ type tsRuntypesPlugin struct {
 	// API share one program.
 	ApiTsconfig string `json:"apiTsconfig"`
 	// BundleApi bundles the metadata and compiled functions of every route this client calls into the client.
-	// "mixed" still fetches routes the bundle lacks, `false` or "off" fetches every route; absent means "bundled".
+	// `true` (the default when absent) bundles, `false` fetches every route.
 	BundleApi  bundleApiKey `json:"bundleApi"`
 	ModuleMode string       `json:"moduleMode"`
 	EmitMode   string       `json:"emitMode"`
@@ -537,7 +537,7 @@ func isTrailingComma(input string, pos int) bool {
 	return false
 }
 
-// bundleApiKey reads the tsconfig `bundleApi` key, a mode name or `false` (the same as "off").
+// bundleApiKey reads the tsconfig `bundleApi` key, a boolean like the plugin option; it holds the CLI mode name.
 type bundleApiKey string
 
 func (key *bundleApiKey) UnmarshalJSON(data []byte) error {
@@ -546,17 +546,15 @@ func (key *bundleApiKey) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	switch typed := value.(type) {
-	case string:
-		*key = bundleApiKey(strings.TrimSpace(typed))
 	case bool:
-		if typed {
-			return fmt.Errorf("bundleApi: true is not a mode, write 'bundled' or 'mixed'")
-		}
 		*key = bundleApiKey(constants.BundleApiOff)
+		if typed {
+			*key = bundleApiKey(constants.BundleApiBundled)
+		}
 	case nil:
 		*key = ""
 	default:
-		return fmt.Errorf("bundleApi must be 'bundled', 'mixed' or false")
+		return fmt.Errorf("bundleApi must be true or false (got %s)", strings.TrimSpace(string(data)))
 	}
 	return nil
 }

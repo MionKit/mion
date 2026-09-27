@@ -102,15 +102,7 @@ func callsInitClient(typeChecker *checker.Checker, markerOpts marker.Options, so
 	return found
 }
 
-// isInitClientCall requires the resolved signature to be declared by the client package, so a same-named local never matches.
+// isInitClientCall reports whether the call is the client package's own `initClient`.
 func isInitClientCall(typeChecker *checker.Checker, markerOpts marker.Options, call *ast.Node) bool {
-	callExpr := call.AsCallExpression()
-	if callExpr == nil || marker.CalleeIdentifierName(callExpr) != InitClientName {
-		return false
-	}
-	signature := checker.Checker_getResolvedSignature(typeChecker, call, nil, 0)
-	if signature == nil {
-		return false
-	}
-	return marker.DeclaringModuleOfNode(checker.Signature_declaration(signature), markerOpts.FS) == ClientModule
+	return isClientCall(typeChecker, markerOpts, call, InitClientName)
 }

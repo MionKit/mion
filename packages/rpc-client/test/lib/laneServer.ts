@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Vitest globalSetup of the bundled and mixed lanes: their test server, one process per lane.
+// Vitest globalSetup of the bundled lane: its test server, in a process of its own.
 //
 // Each lane is its own program (its own tsconfig, genDir and `bundleApi` value), and its server has
 // to come from THAT program: it is the batch source the lane's resolver compiles the lane's batches

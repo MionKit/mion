@@ -2,6 +2,7 @@
 
 import type {MessagePort} from 'node:worker_threads';
 import type {Diagnostic} from '../core/protocol.ts';
+import type {ResolverClientOptions} from '../core/resolver-client.ts';
 
 // WAKE_INDEX is the slot the worker stores the completed seq into and notifies; the rule thread Atomics.waits on it.
 export const WAKE_INDEX = 0;
@@ -69,3 +70,10 @@ export interface LintWorkerResponse {
   // goes sticky-dead on it so later files answer instantly instead of re-paying the failure.
   fatal?: boolean;
 }
+
+// bundleApi off: lint scans one file, and the bundled-API and metadata-fetching checks read the whole program on generate
+export const LINT_RESOLVER_OPTIONS = {
+  serverMode: true,
+  singleThreaded: true,
+  bundleApi: 'off',
+} as const satisfies ResolverClientOptions;

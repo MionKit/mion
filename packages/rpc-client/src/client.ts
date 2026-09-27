@@ -7,7 +7,6 @@
 
 import {DEFAULT_CLIENT_OPTIONS, MIDDLEWARE_HOOKS} from './constants.ts';
 import {
-  BundleApiMode,
   ClientOptions,
   InjectedApiMetadata,
   MiddlewareSubRequest,
@@ -26,7 +25,7 @@ import type {RunTypeError} from '@mionjs/core';
 import {HandlersRegistry} from './lib/handlersRegistry.ts';
 import {TypedEvent} from './lib/typedEvent.ts';
 import {MionSubRequest} from './subRequest.ts';
-import {getBundleApiMode} from './lib/bundleApiMode.ts';
+import {isApiBundled} from './lib/apiBundled.ts';
 import {setApiBuildVersion} from './lib/apiBuildVersion.ts';
 import {registerBundledApi} from '#bundled-api';
 import {MIDDLEWARE_TARGET, type MiddlewareTarget} from './lib/metadataFetcher.ts';
@@ -56,9 +55,9 @@ export class MionClient {
 
   constructor(private clientOptions: ClientOptions) {}
 
-  /** The lane the build put this client on; undefined means the fetched lane. */
-  get bundleApiMode(): BundleApiMode | undefined {
-    return getBundleApiMode();
+  /** Whether the build bundled the API this client calls; false means every route is fetched. */
+  get isApiBundled(): boolean {
+    return isApiBundled();
   }
 
   /** Registers the metadata and compiled functions a dispatch point received from the build. */

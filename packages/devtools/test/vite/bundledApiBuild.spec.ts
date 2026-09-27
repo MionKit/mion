@@ -46,7 +46,7 @@ const CLIENT_DTS = `declare module '@mionjs/client' {
       : ClientMiddlewares<RA[K], \`\${Prefix}\${K & string}/\`, Root>;
   };
   export function initClient<RA>(o?: unknown): {routes: ClientRoutes<RA>; middlewares: ClientMiddlewares<RA>};
-  export function setBundleApiMode(mode: 'bundled' | 'mixed'): void;
+  export function setApiBundled(): void;
 }
 `;
 // The client's view of the API (PublicApi<typeof routes>): a headers middleware, a called route and
@@ -69,8 +69,8 @@ export const a = routes.users.getById(1).call();
 middlewares.auth.onRequest((auth) => auth({headers: {authorization: 'x'}}));
 `;
 // Records the lane injected at initClient and the module injected at each dispatch point.
-const CLIENT_STUB = `export function setBundleApiMode(mode) {
-  globalThis.__mode = mode;
+const CLIENT_STUB = `export function setApiBundled() {
+  globalThis.__bundled = true;
 }
 export function initClient(options) {
   const make = (id) => ({
@@ -94,7 +94,7 @@ const TSCONFIG = `{
 `;
 
 type Bundle = {methods: {id: string; type: number; middlewareIds?: string[]; rtFns: Record<string, unknown>}[]};
-type Globals = {__mode?: string; __bundles?: Record<string, Bundle>};
+type Globals = {__bundled?: boolean; __bundles?: Record<string, Bundle>};
 
 const register = hasBinary() ? describe : describe.skip;
 
@@ -114,7 +114,7 @@ register('bundled API through a real vite build', () => {
   afterEach(() => rmSync(root, {recursive: true, force: true}));
 
   /** Builds the fixture client through the real preset and returns the single emitted chunk. */
-  async function buildClient(bundleApi?: 'bundled' | 'mixed' | false, warnings: string[] = []): Promise<string> {
+  async function buildClient(bundleApi?: boolean, warnings: string[] = []): Promise<string> {
     const result = await build({
       root,
       configFile: false,
@@ -150,7 +150,7 @@ register('bundled API through a real vite build', () => {
     const runtime = `${root}/artifact.mjs`;
     writeFileSync(runtime, code);
     const globals = globalThis as Globals;
-    delete globals.__mode;
+    delete globals.__bundled;
     delete globals.__bundles;
     const realFunction = globalThis.Function;
     globalThis.Function = function () {
@@ -174,7 +174,7 @@ register('bundled API through a real vite build', () => {
   }
 
   it('writes api/ under the gen dir: the called methods with their chains, the site modules, the manifest', async () => {
-    await buildClient('bundled');
+    await buildClient(true);
     const api = path.join(root, '.mion', 'api');
     const files = walk(api);
     expect(files.filter((file) => file.startsWith('m/'))).toEqual(['m/auth.js', 'm/users/getById.js']);
@@ -198,8 +198,8 @@ register('bundled API through a real vite build', () => {
   });
 
   it('inlines the bundle into a self-contained artifact: live factories, no code string, nothing for the uncalled route', async () => {
-    const code = await buildClient('bundled');
-    expect(code).toMatch(/['"]bundled['"]/);
+    const code = await buildClient(true);
+    expect(code).toContain('setApiBundled()');
     expect(code).toContain('"users/getById"');
     expect(code).not.toContain('users/remove');
     expect(code).not.toContain('new Function');
@@ -212,8 +212,8 @@ register('bundled API through a real vite build', () => {
   });
 
   it('runs with dynamic code disabled: the artifact hands each dispatch point its bundle', async () => {
-    const globals = await runArtifact(await buildClient('bundled'));
-    expect(globals.__mode).toBe('bundled');
+    const globals = await runArtifact(await buildClient(true));
+    expect(globals.__bundled).toBe(true);
     const bundles = globals.__bundles ?? {};
     expect(Object.keys(bundles).sort()).toEqual(['users/getById']);
     // the route's payload: the route plus the middleware of its chain, in tree order
@@ -239,7 +239,7 @@ register('bundled API through a real vite build', () => {
   it('fails the build when a called route runs a middleware the client never sets up (MET008)', async () => {
     writeFileSync(path.join(root, 'src', 'a.ts'), CLIENT.replace(/^middlewares\.auth.*$/m, ''));
     const warnings: string[] = [];
-    await expect(buildClient('bundled', warnings)).rejects.toThrow(/build halted/);
+    await expect(buildClient(true, warnings)).rejects.toThrow(/build halted/);
     expect(warnings.join('\n')).toMatch(/MET008.*`auth`/);
   });
 
@@ -247,17 +247,17 @@ register('bundled API through a real vite build', () => {
     const code = await buildClient();
     expect(existsSync(path.join(root, '.mion', 'api'))).toBe(true);
     const globals = await runArtifact(code);
-    expect(globals.__mode).toBe('bundled');
+    expect(globals.__bundled).toBe(true);
     expect(globals.__bundles?.['users/getById']).toBeDefined();
   });
 
   it('writes nothing and injects nothing with bundleApi: false', async () => {
     const code = await buildClient(false);
     expect(existsSync(path.join(root, '.mion', 'api'))).toBe(false);
-    expect(code).not.toMatch(/['"]bundled['"]/);
+    expect(code).not.toContain('setApiBundled');
     expect(code).not.toContain('__rt_s$2F');
     const globals = await runArtifact(code);
-    expect(globals.__mode).toBeUndefined();
+    expect(globals.__bundled).toBeUndefined();
     expect(globals.__bundles?.['users/getById']).toBeUndefined();
   });
 });

@@ -189,6 +189,8 @@ type Session struct {
 	apiInitFileCache *apimeta.InitFileCache
 	// apiMiddlewareReadsCache memoises which client middlewares each file reads, for MET008 / MET009.
 	apiMiddlewareReadsCache *apimeta.MiddlewareReadsCache
+	// apiFetch memoises the program-wide facts the metadata-fetching checks read (MET003 / MET004 / MET010 / MET011).
+	apiFetch *apiFetchMemo
 	// hasBatchesMemo is the transform's switch for appending the batch import; reset with the Program (own-program
 	// case) and whenever the batch source is rebuilt.
 	// importsRouterMemo caches whether any own source file names `@mionjs/router` (see rpcgen.go); reset with the Program.
@@ -405,6 +407,7 @@ func (sess *Session) SetProgram(prog *program.Program) error {
 	sess.apiFileCache = apimeta.NewFileCache()
 	sess.apiInitFileCache = apimeta.NewInitFileCache()
 	sess.apiMiddlewareReadsCache = apimeta.NewMiddlewareReadsCache()
+	sess.apiFetch = nil
 	sess.hasBatchesMemo = nil
 	sess.importsRouterMemo = nil
 	sess.ownPackageName, sess.ownPackageRoot, sess.ownPackageDone = "", "", false
@@ -466,6 +469,7 @@ func (sess *Session) Reset() {
 	sess.apiFileCache = apimeta.NewFileCache()
 	sess.apiInitFileCache = apimeta.NewInitFileCache()
 	sess.apiMiddlewareReadsCache = apimeta.NewMiddlewareReadsCache()
+	sess.apiFetch = nil
 	sess.hasBatchesMemo = nil
 	sess.importsRouterMemo = nil
 	sess.ownPackageName, sess.ownPackageRoot, sess.ownPackageDone = "", "", false

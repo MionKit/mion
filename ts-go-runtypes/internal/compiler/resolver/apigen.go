@@ -22,7 +22,6 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/sourcerewrite"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/jsquote"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
@@ -49,7 +48,7 @@ func (sess *Session) extractApiSitesForScan(files []string) ([]apimeta.Site, []d
 	if !sess.apiLaneOn() || sess.Program == nil || len(files) == 0 {
 		return nil, nil, versions
 	}
-	sites, diags := apimeta.ExtractFromProgramCached(sess.checker, sess.marker, sess.Program, files, sess.apiFileCache, sess.opts.BundleApi)
+	sites, diags := sess.extractApiSites(files)
 	replacements := append([]protocol.Replacement(nil), apimeta.Replacements(sites)...)
 	replacements = append(replacements, sess.apiLaneImports(files)...)
 	return sites, diags, append(replacements, versions...)
@@ -96,7 +95,143 @@ func (sess *Session) collectProgramApiSites() ([]apimeta.Site, []diagnostics.Dia
 	if !sess.apiLaneOn() || sess.Program == nil {
 		return nil, nil
 	}
-	return apimeta.ExtractFromProgramCached(sess.checker, sess.marker, sess.Program, sess.apiWalkFiles(), sess.apiFileCache, sess.opts.BundleApi)
+	return sess.extractApiSites(sess.apiWalkFiles())
+}
+
+// extractApiSites returns the files' dispatch sites, widened ones included, with a report for each widened one.
+func (sess *Session) extractApiSites(files []string) ([]apimeta.Site, []diagnostics.Diagnostic) {
+	sites, diags := apimeta.ExtractFromProgramCached(sess.checker, sess.marker, sess.Program, files, sess.apiFileCache)
+	for _, site := range sites {
+		if site.Widened {
+			diags = append(diags, sess.widenedSiteDiag(site))
+		}
+	}
+	diagnostics.Sort(diags)
+	return sites, diags
+}
+
+// widenedSiteDiag reports a call nothing is bundled for: it fetches when the client set that up, else it fails.
+func (sess *Session) widenedSiteDiag(site apimeta.Site) diagnostics.Diagnostic {
+	if _, fetching := sess.fetchSetUp(); !fetching {
+		return diagnostics.New(diagnostics.CodeApiMetaRouteWidened, site.DiagSite())
+	}
+	if serves, known := sess.siteServesMetadata(site); known && !serves {
+		return diagnostics.New(diagnostics.CodeApiMetaNoMetadataToFetch, site.DiagSite())
+	}
+	return diagnostics.New(diagnostics.CodeApiMetaRouteWidenedFetched, site.DiagSite())
+}
+
+// siteServesMetadata reports whether the API a widened call reaches places the metadata middleware. A wide
+// `RouteSubRequest<any>` erases the API with the id, so the APIs named at `initClient` answer: any one serving is enough.
+func (sess *Session) siteServesMetadata(site apimeta.Site) (serves, known bool) {
+	if tree := sess.clientApiTree(site.Checker, site.ApiType); tree != nil {
+		return tree.HasMethodsMetadata(), true
+	}
+	return sess.clientApisServeMetadata()
+}
+
+// clientApisServeMetadata reports whether any readable API named at `initClient` places the metadata middleware.
+func (sess *Session) clientApisServeMetadata() (serves, known bool) {
+	for _, client := range sess.clientApis() {
+		if tree := sess.clientApiTree(sess.checker, client.ApiType); tree != nil {
+			known = true
+			serves = serves || tree.HasMethodsMetadata()
+		}
+	}
+	return serves, known
+}
+
+// apiFetchMemo holds the program-wide facts the fetching checks read; dropped with the Program.
+type apiFetchMemo struct {
+	fetchDone   bool
+	fetching    bool
+	fetchSite   diagnostics.Site
+	trees       map[*checker.Type]*apimeta.Tree
+	clientsDone bool
+	clients     []apimeta.ClientApi
+}
+
+func (sess *Session) fetchMemo() *apiFetchMemo {
+	if sess.apiFetch == nil {
+		sess.apiFetch = &apiFetchMemo{trees: map[*checker.Type]*apimeta.Tree{}}
+	}
+	return sess.apiFetch
+}
+
+// fetchSetUp reports whether the program calls `useMethodsMetadata`, and where it first does.
+func (sess *Session) fetchSetUp() (diagnostics.Site, bool) {
+	memo := sess.fetchMemo()
+	if !memo.fetchDone {
+		memo.fetchDone = true
+		memo.fetchSite, memo.fetching = apimeta.FetchSetUpSite(sess.checker, sess.marker, sess.Program, sess.apiWalkFiles())
+	}
+	return memo.fetchSite, memo.fetching
+}
+
+// clientApis lists the program's `initClient` calls with the API each names.
+func (sess *Session) clientApis() []apimeta.ClientApi {
+	memo := sess.fetchMemo()
+	if !memo.clientsDone {
+		memo.clientsDone = true
+		memo.clients = apimeta.ClientApis(sess.checker, sess.marker, sess.Program, sess.apiWalkFiles())
+	}
+	return memo.clients
+}
+
+// clientApiTree walks the API a client names, or its `apiTsconfig` twin; nil when unreadable, which MET001 owns.
+func (sess *Session) clientApiTree(typeChecker *checker.Checker, apiType *checker.Type) *apimeta.Tree {
+	memo := sess.fetchMemo()
+	if tree, ok := memo.trees[apiType]; ok {
+		return tree
+	}
+	tree, problem := apimeta.WalkApi(typeChecker, apiType)
+	if problem != "" {
+		tree = nil
+	}
+	if tree != nil && sess.opts.ApiTsconfig != "" {
+		peerTree, _, err := sess.apiSourceTree(tree.Ids())
+		if err != nil {
+			peerTree = nil
+		}
+		tree = peerTree
+	}
+	memo.trees[apiType] = tree
+	return tree
+}
+
+// fetchSetupDiags checks that a client which fetches has both halves: the server's metadata middleware and
+// the client's `useMethodsMetadata`. Bundled, a widened call already reported itself; with none, only a set-up
+// fetch whose API serves nothing is wrong. Off, every call fetches, so each API named at `initClient` needs
+// both halves, reported once at its first `initClient`.
+func (sess *Session) fetchSetupDiags(sites []apimeta.Site) []diagnostics.Diagnostic {
+	if sess.Program == nil || len(sess.clientApis()) == 0 {
+		return nil
+	}
+	fetchSite, fetching := sess.fetchSetUp()
+	if sess.apiLaneOn() {
+		if !fetching || slices.ContainsFunc(sites, func(site apimeta.Site) bool { return site.Widened }) {
+			return nil
+		}
+		if serves, known := sess.clientApisServeMetadata(); known && !serves {
+			return []diagnostics.Diagnostic{diagnostics.New(diagnostics.CodeApiMetaNoMetadataToFetch, fetchSite)}
+		}
+		return nil
+	}
+	reported := map[*apimeta.Tree]bool{}
+	var diags []diagnostics.Diagnostic
+	for _, client := range sess.clientApis() {
+		tree := sess.clientApiTree(sess.checker, client.ApiType)
+		if tree == nil || reported[tree] {
+			continue
+		}
+		reported[tree] = true
+		if !tree.HasMethodsMetadata() {
+			diags = append(diags, diagnostics.New(diagnostics.CodeApiMetaNoMetadataToFetch, client.DiagSite))
+		} else if !fetching {
+			diags = append(diags, diagnostics.New(diagnostics.CodeApiMetaFetchNotSetUp, client.DiagSite))
+		}
+	}
+	return diags
 }
 
 // apiWalkFiles lists the program's non-declaration files, the ones the client lane reads.
@@ -131,8 +266,8 @@ func (sess *Session) unsetMiddlewareDiags(order []string, uses map[string]middle
 		if !ok || reads[id] {
 			continue
 		}
-		// a fully bundled client never asks the server for metadata; `mixed` falls back on it, so it must be set up
-		if use.method.MethodsMetadata && sess.opts.BundleApi == constants.BundleApiBundled {
+		// mion's own metadata middleware is set up by `useMethodsMetadata`, which fetchSetupDiags checks
+		if use.method.MethodsMetadata {
 			continue
 		}
 		code := diagnostics.CodeApiMetaOptionalMiddlewareNotSetUp
@@ -194,6 +329,7 @@ func (sess *Session) generateApiBundle(outDir string, sites []apimeta.Site) ([]d
 	apiDir := filepath.Join(outDir, constants.ApiModuleDir)
 	bundle, bundleDiags, err := sess.resolveApiBundle(sites)
 	diags = append(diags, bundleDiags...)
+	diags = append(diags, sess.fetchSetupDiags(sites)...)
 	if err != nil {
 		return diags, err
 	}
@@ -219,7 +355,7 @@ func (sess *Session) generateApiBundle(outDir string, sites []apimeta.Site) ([]d
 		if manifest == nil {
 			manifest = bundle.clientManifest(sess.opts)
 		}
-		files[constants.ApiLaneFile] = renderApiLaneModule(sess.opts.BundleApi)
+		files[constants.ApiLaneFile] = renderApiLaneModule()
 	}
 	if err := os.MkdirAll(apiDir, 0o755); err != nil {
 		return diags, unwritableOutDirError(apiDir, err)
@@ -237,12 +373,12 @@ func (sess *Session) generateApiBundle(outDir string, sites []apimeta.Site) ([]d
 	return diags, nil
 }
 
-// renderApiLaneModule renders `api/lane.js`, which puts the client on the lane the build compiled for.
-// Imported for its side effect, so the lane is set in exactly one place: the build that made the bundle.
-func renderApiLaneModule(mode constants.BundleApiMode) string {
+// renderApiLaneModule renders `api/lane.js`, which tells the client the build bundled its API.
+// Imported for its side effect, so the flag is set in exactly one place: the build that made the bundle.
+func renderApiLaneModule() string {
 	return "// GENERATED by mion (the bundleApi lane). Do not edit.\n" +
-		"import {setBundleApiMode} from '" + apimeta.ClientModule + "';\n" +
-		"setBundleApiMode(" + jsquote.Single(string(mode)) + ");\n"
+		"import {setApiBundled} from '" + apimeta.ClientModule + "';\n" +
+		"setApiBundled();\n"
 }
 
 // renderApiBundle renders the bundle's module tree into files, in the materializeModules shape: the
@@ -389,8 +525,10 @@ func (sess *Session) resolveApiBundle(sites []apimeta.Site) (*apiBundle, []diagn
 	peerTried := false
 	widenedReported := map[string]bool{}
 	middlewareUses := map[string]middlewareUse{}
-	mixedReported := map[*apimeta.Tree]bool{}
 	for _, site := range sites {
+		if site.Widened {
+			continue
+		}
 		tree, ok := trees[site.ApiType]
 		if !ok {
 			var problem string
@@ -418,12 +556,6 @@ func (sess *Session) resolveApiBundle(sites []apimeta.Site) (*apiBundle, []diagn
 				continue
 			}
 			tree = peerTree
-		}
-		if sess.opts.BundleApi == constants.BundleApiMixed && !mixedReported[tree] {
-			mixedReported[tree] = true
-			if !tree.HasMethodsMetadata() {
-				diags = append(diags, diagnostics.New(diagnostics.CodeApiMetaMixedWithoutMetadata, site.DiagSite()))
-			}
 		}
 		methods, missing := tree.Select(site.Ids)
 		for _, id := range missing {

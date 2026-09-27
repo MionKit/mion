@@ -15,13 +15,12 @@ import {
   resolveRtBinary,
   toRunTypesOptions,
   type MionApiPointer,
-  type MionBundleApiMode,
   type MionClientPointer,
   type MionRunTypesOptions,
 } from '../options.ts';
 
 export {resolveRtBinary};
-export type {MionApiPointer, MionBundleApiMode, MionClientPointer, MionRunTypesOptions};
+export type {MionApiPointer, MionClientPointer, MionRunTypesOptions};
 
 // ############# mion vite plugin #############
 // A thin preset over the runtypes core, adding mion's own choices: the in-process API, the server bundle,
@@ -69,9 +68,9 @@ export interface MionPluginOptions {
   /** The separate project declaring the API this client calls; unset when they share this program.
    *  See MionApiPointer. */
   api?: MionApiPointer;
-  /** Bundle the metadata and compiled functions of every route this client calls into the bundle.
-   *  See MionBundleApiMode. */
-  bundleApi?: MionBundleApiMode;
+  /** Bundle the metadata and compiled functions of every route this client calls into the bundle (default true).
+   *  See MionPresetOptions.bundleApi. */
+  bundleApi?: boolean;
   /** The mion API this run hosts: mounted inside the dev server, and optionally emitted as a second
    *  bundle by `vite build`. One program, one process. */
   server?: MionServerOptions;

@@ -30,6 +30,11 @@ describe('client', () => {
 
   // middleware hooks are per client, so each test's fresh client starts with none
 
+  it('knows its API is not bundled: this project builds with bundleApi: false', () => {
+    const {client} = initClient<MyApi>({baseURL});
+    expect(client.isApiBundled).toBe(false);
+  });
+
   it('proxy to trap remote methods calls and return MethodRequest data', () => {
     const {routes, middlewares} = initClient<MyApi>({baseURL});
 

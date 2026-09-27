@@ -117,7 +117,6 @@ const LIGHT_PROJECTS = [
   'test-router-fuzz',
   'client',
   'client-bundled',
-  'client-mixed',
   'platform-aws',
   'platform-gcloud',
   'platform-node',

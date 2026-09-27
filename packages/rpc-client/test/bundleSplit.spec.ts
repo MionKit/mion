@@ -31,8 +31,7 @@ useMethodsMetadata(middlewares.mionMethodsMetadata);
 export const call = () => routes.sayHello({name: 'a', surname: 'b'}).call();
 `;
 
-type Mode = 'bundled' | 'mixed' | false;
-const MODES: Mode[] = [false, 'bundled', 'mixed'];
+const MODES = [false, true];
 
 /** Names only the fetched lane puts in an artifact. */
 const LANE_MARKERS = ['indexedDB', 'mion:client', 'requestIdleCallback'];
@@ -75,7 +74,7 @@ afterAll(() => rmSync(root, {recursive: true, force: true}));
 
 type Chunk = {type: string; code?: string; fileName: string; isEntry?: boolean; imports?: string[]};
 
-async function buildChunks(bundleApi?: Mode, entry = 'app.ts'): Promise<Chunk[]> {
+async function buildChunks(bundleApi?: boolean, entry = 'app.ts'): Promise<Chunk[]> {
   const result = await build({
     root,
     configFile: false,
@@ -98,12 +97,12 @@ async function buildChunks(bundleApi?: Mode, entry = 'app.ts'): Promise<Chunk[]>
 }
 
 /** Every chunk concatenated: a lane split into its own chunk is still shipped. */
-async function buildApp(bundleApi?: Mode, entry = 'app.ts'): Promise<string> {
+async function buildApp(bundleApi?: boolean, entry = 'app.ts'): Promise<string> {
   return (await buildChunks(bundleApi, entry)).map((chunk) => chunk.code ?? '').join('\n');
 }
 
 /** What a browser runs before the first call: the entry and everything it imports statically. */
-async function buildEagerApp(bundleApi?: Mode, entry = 'app.ts'): Promise<string> {
+async function buildEagerApp(bundleApi?: boolean, entry = 'app.ts'): Promise<string> {
   const chunks = await buildChunks(bundleApi, entry);
   const byName = new Map(chunks.map((chunk) => [chunk.fileName, chunk]));
   const eager = new Set<string>();
@@ -170,7 +169,7 @@ describe('the api version check', () => {
   }, 360_000);
 
   it('ships the recovery in the same chunk as the fetch, so one download covers both', async () => {
-    const chunks = await buildChunks('bundled', 'fetching-app.ts');
+    const chunks = await buildChunks(true, 'fetching-app.ts');
     const withRecovery = chunks.filter((chunk) => (chunk.code ?? '').includes('rowsAgree'));
     expect(withRecovery).toHaveLength(1);
     for (const marker of LANE_CODE_MARKERS) expect(withRecovery[0].code ?? '', marker).toContain(marker);

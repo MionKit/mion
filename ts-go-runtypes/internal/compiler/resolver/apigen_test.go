@@ -21,7 +21,7 @@ import (
 // the API, the dispatch methods with their trailing marker slot, the proxies,
 // the batch builder and the initClient anchor). The marker is the REAL one.
 const apiClientDTS = `declare module '@mionjs/client' {
-  import type {InjectApiMetadata} from '@mionjs/run-types';
+  import type {InjectApiMetadata, InjectBuildVersion} from '@mionjs/run-types';
   export interface RouteSubRequest<PH, Id extends string = string, RA = any> {
     id: Id;
     call(setup?: unknown, apiMetadata?: InjectApiMetadata<RA, Id>): Promise<unknown>;
@@ -46,7 +46,8 @@ const apiClientDTS = `declare module '@mionjs/client' {
     call(setup?: unknown, apiMetadata?: InjectApiMetadata<ApiOf<Routes>, Routes[number]['id']>): Promise<unknown>;
   }
   export function batch<R extends RouteSubRequest<any>[]>(routes: [...R]): BatchBuilder<R>;
-  export function initClient<RA>(o?: unknown): {routes: ClientRoutes<RA>; middlewares: ClientMiddlewares<RA>};
+  export function initClient<RA>(o?: unknown, buildVersion?: InjectBuildVersion<RA>): {routes: ClientRoutes<RA>; middlewares: ClientMiddlewares<RA>};
+  export function useMethodsMetadata(middleware: ClientMiddleware<any>): void;
 }
 `
 
@@ -240,11 +241,10 @@ func TestApiGen_GenerateWritesUsedRoutesWithTheirChains(t *testing.T) {
 }
 
 // TestApiGen_TransformInjectsLaneImportAndSiteBindings: the rewritten client file
-// carries the mode literal at initClient and, at every dispatch site, an
-// import of its site module relative to the file.
+// imports the lane module and, at every dispatch site, its site module relative to the file.
 func TestApiGen_TransformInjectsLaneImportAndSiteBindings(t *testing.T) {
 	genDir := t.TempDir()
-	r := setupApi(t, apiSources(apiClientTS), genDir, constants.BundleApiMixed, "")
+	r := setupApi(t, apiSources(apiClientTS), genDir, constants.BundleApiBundled, "")
 	tr := r.Dispatch(protocol.Request{Op: protocol.OpTransform, Files: []string{"client.ts"}})
 	if tr.Error != "" {
 		t.Fatalf("transform: %s", tr.Error)
@@ -523,13 +523,13 @@ func readManifest(t *testing.T, genDir string) *apimeta.Manifest {
 // options and chains the modules carry.
 func TestApiGen_ClientManifestListsTheBundledMethods(t *testing.T) {
 	genDir := t.TempDir()
-	r := setupApi(t, apiSources(apiClientTS), genDir, constants.BundleApiMixed, "")
+	r := setupApi(t, apiSources(apiClientTS), genDir, constants.BundleApiBundled, "")
 	if gen := r.Dispatch(protocol.Request{Op: protocol.OpGenerate}); gen.Error != "" {
 		t.Fatalf("generate: %s", gen.Error)
 	}
 	manifest := readManifest(t, genDir)
-	if manifest.Kind != apimeta.ManifestKindClient || manifest.Mode != "mixed" {
-		t.Fatalf("expected a client manifest under mixed, got kind %q mode %q", manifest.Kind, manifest.Mode)
+	if manifest.Kind != apimeta.ManifestKindClient || manifest.Mode != "bundled" {
+		t.Fatalf("expected a bundled client manifest, got kind %q mode %q", manifest.Kind, manifest.Mode)
 	}
 	ids := make([]string, 0, len(manifest.Methods))
 	for id := range manifest.Methods {
@@ -647,13 +647,13 @@ export const valueId = getRunTypeId(params);
 // fill with a lane the build did not compile.
 func TestApiGen_LaneRidesAModuleNotTheInitClientCall(t *testing.T) {
 	genDir := t.TempDir()
-	r := setupApi(t, apiSources(apiClientTS), genDir, constants.BundleApiMixed, "")
+	r := setupApi(t, apiSources(apiClientTS), genDir, constants.BundleApiBundled, "")
 	if gen := r.Dispatch(protocol.Request{Op: protocol.OpGenerate}); gen.Error != "" {
 		t.Fatalf("generate: %s", gen.Error)
 	}
 	lane := readGenerated(t, filepath.Join(genDir, constants.ApiModuleDir), constants.ApiLaneFile+".js")
-	if !strings.Contains(lane, "setBundleApiMode('mixed')") || !strings.Contains(lane, apimeta.ClientModule) {
-		t.Fatalf("the lane module must set the mode through the client package:\n%s", lane)
+	if !strings.Contains(lane, "setApiBundled()") || !strings.Contains(lane, apimeta.ClientModule) {
+		t.Fatalf("the lane module must set the flag through the client package:\n%s", lane)
 	}
 
 	tr := r.Dispatch(protocol.Request{Op: protocol.OpTransform, Files: []string{"client.ts"}})
@@ -664,8 +664,8 @@ func TestApiGen_LaneRidesAModuleNotTheInitClientCall(t *testing.T) {
 	if strings.Count(code, "api/lane.js") != 1 {
 		t.Errorf("exactly one lane import belongs in a file calling initClient:\n%s", code)
 	}
-	if strings.Contains(code, "'mixed'") {
-		t.Errorf("the mode must not be spliced into the source:\n%s", code)
+	if strings.Contains(code, "setApiBundled") {
+		t.Errorf("the flag must not be spliced into the source:\n%s", code)
 	}
 }
 
@@ -909,6 +909,8 @@ const routes = {mionMethodsMetadata, ping};
 export type MetadataApi = Mapped<typeof routes>;
 const renamed = {meta: mionMethodsMetadata, ping};
 export type RenamedApi = Mapped<typeof renamed>;
+const served = {mionMethodsMetadata, note: {} as OptionalApi['note'], ping};
+export type ServedApi = Mapped<typeof served>;
 declare const computedKey: 'computed';
 const lookAlike = {
   [computedKey]: ping,
@@ -929,7 +931,7 @@ func generateMetadataDiags(t *testing.T, mode constants.BundleApiMode, client st
 	return metDiags(gen.Diagnostics)
 }
 
-// TestApiGen_MetadataMiddleware: a bundled client never needs mion's metadata middleware; a mixed one must fetch through it.
+// TestApiGen_MetadataMiddleware: mion's own metadata middleware is set up by `useMethodsMetadata`, never reported as unset.
 func TestApiGen_MetadataMiddleware(t *testing.T) {
 	neverSetUp := func(api string) string {
 		return `import {initClient} from '@mionjs/client';
@@ -957,41 +959,102 @@ export const a = routes.ping().call();
 			t.Fatalf("expected one MET009 for the look-alike, got %+v", diags)
 		}
 	})
+}
 
-	t.Run("mixed, never set up: the fallback has no client half", func(t *testing.T) {
-		diags := generateMetadataDiags(t, constants.BundleApiMixed, neverSetUp("MetadataApi"))
-		if len(diags) != 1 || diags[0].Code != diagnostics.CodeApiMetaOptionalMiddlewareNotSetUp || diags[0].Args[0] != "mionMethodsMetadata" {
-			t.Fatalf("expected one MET009 for mionMethodsMetadata, got %+v", diags)
-		}
-	})
-
-	t.Run("mixed, set up: nothing to report", func(t *testing.T) {
-		diags := generateMetadataDiags(t, constants.BundleApiMixed, `import {initClient} from '@mionjs/client';
-import type {MetadataApi} from './api.ts';
-export const {routes, middlewares} = initClient<MetadataApi>({baseURL: 'http://x'});
-declare function useMethodsMetadata(middleware: unknown): void;
-useMethodsMetadata(middlewares.mionMethodsMetadata);
-export const a = routes.ping().call();
-`)
-		if len(diags) != 0 {
-			t.Fatalf("the client fetches through it, got %+v", diags)
-		}
-	})
-
-	t.Run("mixed, the API places no metadata middleware", func(t *testing.T) {
-		diags := generateMetadataDiags(t, constants.BundleApiMixed, `import {initClient} from '@mionjs/client';
-import type {OptionalApi} from './api.ts';
-export const {routes, middlewares} = initClient<OptionalApi>({baseURL: 'http://x'});
+// fetchingClient builds a client of `api` calling `ping` directly (line 6), then sets up fetching (line 7) and adds a wide helper whose call is widened.
+func fetchingClient(api string, setUp, widened bool) string {
+	source := `import {initClient, useMethodsMetadata} from '@mionjs/client';
+import type {RouteSubRequest} from '@mionjs/client';
+import type {` + api + `} from './api.ts';
+export const {routes, middlewares} = initClient<` + api + `>({baseURL: 'http://x'});
 middlewares.note.onRequest((call) => call());
 export const a = routes.ping().call();
-`)
-		if len(diags) != 1 || diags[0].Code != diagnostics.CodeApiMetaMixedWithoutMetadata {
-			t.Fatalf("expected one MET010, got %+v", diags)
-		}
-		if diags[0].Level != diagnostics.LevelRuntimeError {
-			t.Errorf("MET010 stops the build, got level %v", diags[0].Level)
-		}
-	})
+`
+	if setUp {
+		source += "useMethodsMetadata(middlewares.note as any);\n"
+	}
+	if widened {
+		source += "function wide(sub: RouteSubRequest<any>) { return sub.call(); }\nexport const w = wide(routes.ping());\n"
+	}
+	return source
+}
+
+// TestApiGen_MetadataFetchingSetup: every row of the fetching table, both modes. `useMethodsMetadata` is one
+// half, the API's metadata middleware the other; a widened call is the one a bundled client fetches.
+func TestApiGen_MetadataFetchingSetup(t *testing.T) {
+	const served, bare = "ServedApi", "OptionalApi"
+	for _, tc := range []struct {
+		name    string
+		mode    constants.BundleApiMode
+		api     string
+		setUp   bool
+		widened bool
+		want    []string
+		line    int
+	}{
+		{"bundled, not set up, widened call fails", constants.BundleApiBundled, served, false, true, []string{diagnostics.CodeApiMetaRouteWidened}, 7},
+		{"bundled, not set up, API without middleware: same", constants.BundleApiBundled, bare, false, true, []string{diagnostics.CodeApiMetaRouteWidened}, 7},
+		{"bundled, not set up, nothing widened: nothing to check", constants.BundleApiBundled, bare, false, false, nil, 0},
+		{"bundled, set up, widened call fetches", constants.BundleApiBundled, served, true, true, []string{diagnostics.CodeApiMetaRouteWidenedFetched}, 8},
+		{"bundled, set up, nothing widened: fine", constants.BundleApiBundled, served, true, false, nil, 0},
+		{"bundled, set up, API without middleware: the fetching call fails", constants.BundleApiBundled, bare, true, true, []string{diagnostics.CodeApiMetaNoMetadataToFetch}, 8},
+		{"bundled, set up, API without middleware, nothing widened: the setup fails", constants.BundleApiBundled, bare, true, false, []string{diagnostics.CodeApiMetaNoMetadataToFetch}, 7},
+		{"off, set up: fine", constants.BundleApiOff, served, true, true, nil, 0},
+		{"off, set up, API without middleware", constants.BundleApiOff, bare, true, false, []string{diagnostics.CodeApiMetaNoMetadataToFetch}, 4},
+		{"off, not set up", constants.BundleApiOff, served, false, false, []string{diagnostics.CodeApiMetaFetchNotSetUp}, 4},
+		{"off, not set up, API without middleware", constants.BundleApiOff, bare, false, true, []string{diagnostics.CodeApiMetaNoMetadataToFetch}, 4},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			diags := generateMetadataDiags(t, tc.mode, fetchingClient(tc.api, tc.setUp, tc.widened))
+			var codes []string
+			for _, diag := range diags {
+				codes = append(codes, diag.Code)
+			}
+			if strings.Join(codes, ",") != strings.Join(tc.want, ",") {
+				t.Fatalf("want %v, got %+v", tc.want, diags)
+			}
+			if len(diags) == 1 && diags[0].Site.StartLine != tc.line {
+				t.Errorf("%s reported on line %d, want %d", diags[0].Code, diags[0].Site.StartLine, tc.line)
+			}
+			for _, diag := range diags {
+				if want := diagnostics.LevelRuntimeError; diag.Code != diagnostics.CodeApiMetaRouteWidenedFetched && diag.Level != want {
+					t.Errorf("%s must stop the build, got level %v", diag.Code, diag.Level)
+				}
+			}
+		})
+	}
+}
+
+// TestApiGen_MetadataFetchingReportsOncePerApi: two clients of one API get one report, at the first `initClient`.
+func TestApiGen_MetadataFetchingReportsOncePerApi(t *testing.T) {
+	client := fetchingClient("ServedApi", false, false) + "export const second = initClient<ServedApi>({baseURL: 'http://y'});\n"
+	diags := generateMetadataDiags(t, constants.BundleApiOff, client)
+	if len(diags) != 1 || diags[0].Code != diagnostics.CodeApiMetaFetchNotSetUp || diags[0].Site.StartLine != 4 {
+		t.Fatalf("expected one MET011 at the first initClient, got %+v", diags)
+	}
+}
+
+// TestApiGen_MetadataFetchingNeedsAClient: an off build that never calls `initClient` checks nothing.
+func TestApiGen_MetadataFetchingNeedsAClient(t *testing.T) {
+	if diags := generateMetadataDiags(t, constants.BundleApiOff, "export const x = 1;\n"); len(diags) != 0 {
+		t.Fatalf("a program with no client has nothing to fetch, got %+v", diags)
+	}
+}
+
+// TestApiGen_MetadataFetchingSurvivesAnEdit: the program-wide facts are dropped with the Program, so adding the setup clears MET011.
+func TestApiGen_MetadataFetchingSurvivesAnEdit(t *testing.T) {
+	sources := map[string]string{"client.d.ts": apiClientDTS, "router.d.ts": metadataRouterDTS, "api.ts": metadataApiTS, "client.ts": fetchingClient("ServedApi", false, false)}
+	sess := setupApi(t, sources, t.TempDir(), constants.BundleApiOff, "")
+	if diags := metDiags(sess.Dispatch(protocol.Request{Op: protocol.OpGenerate}).Diagnostics); len(diags) != 1 {
+		t.Fatalf("expected MET011 before the edit, got %+v", diags)
+	}
+	sources["client.ts"] = fetchingClient("ServedApi", true, false)
+	if resp := sess.Dispatch(protocol.Request{Op: protocol.OpSetSources, Sources: withRealMarker(t, sources)}); resp.Error != "" {
+		t.Fatalf("setSources: %s", resp.Error)
+	}
+	if diags := metDiags(sess.Dispatch(protocol.Request{Op: protocol.OpGenerate}).Diagnostics); len(diags) != 0 {
+		t.Fatalf("the edit set up fetching, got %+v", diags)
+	}
 }
 
 // TestApiGen_MiddlewareReadsFollowAnEdit: the per-file middleware reads are dropped with the Program, so setting one up clears MET009.
@@ -1014,5 +1077,13 @@ export const {routes, middlewares} = initClient<OptionalApi>({baseURL: 'http://x
 	}
 	if diags := metDiags(sess.Dispatch(protocol.Request{Op: protocol.OpGenerate}).Diagnostics); len(diags) != 0 {
 		t.Fatalf("the edit set the middleware up, got %+v", diags)
+	}
+}
+
+// TestApiGen_DirectiveAboveALineOpeningCall: a report on a call that opens its line lands on that line, where the directive above reaches it.
+func TestApiGen_DirectiveAboveALineOpeningCall(t *testing.T) {
+	client := strings.Replace(fetchingClient("OptionalApi", true, false), "useMethodsMetadata(", "// @mion-expect-error MET010\nuseMethodsMetadata(", 1)
+	if diags := generateMetadataDiags(t, constants.BundleApiBundled, client); len(diags) != 0 {
+		t.Fatalf("the directive silences MET010 at the setup call, got %+v", diags)
 	}
 }
