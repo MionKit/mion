@@ -5,426 +5,690 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Compile-time pins for the slim pg surface (checked by tsc, not executed):
-// - every builder's inferred Data equals its NAMED type (the pure-types
-//   vocabulary cannot drift from the builders);
-// - the model rules: select nullability, insert optionality for defaults and
-//   serials, generated/identity exclusion, patch partiality;
-// - refinement merges params and rejects non-refinable columns;
-// - enum tuples become literal unions and $type overrides win.
+// Compile-time pins for the pg columns (checked by tsc, not executed): a builder table IS its hand-written twin,
+// its models equal the models the chained system produced for the same table, and its queries type as raw drizzle's.
 
-import type {Date as RTDate, Int32, Number as RTNumber, String as RTString, UUID} from '@mionjs/run-types/formats';
-import type {ColDataOf, InferInsertModel, InferSelectModel, InferUpdateModel, RefinedTable} from '@mionjs/drizzle-orm';
-import {refineTableType, sql} from '@mionjs/drizzle-orm';
-import type {InferSelectViewModel} from '@mionjs/drizzle-orm';
-import type {PgDatabase, PgQueryResultHKT} from 'drizzle-orm/pg-core';
-import {toDrizzle, type ToDrizzleTable} from '../src/drizzle.ts';
+import type {
+  BigInt64,
+  Date as RTDate,
+  Float,
+  Int16,
+  Int32,
+  Integer as IntegerFormat,
+  IP,
+  MergeFormat,
+  String,
+  StringDate,
+  StringDateTime,
+  StringTime,
+  UUID,
+} from '@mionjs/run-types/formats';
+import type {
+  ColSpecOf,
+  InferInsertModel,
+  InferSelectModel,
+  InferSelectViewModel,
+  InferUpdateModel,
+  KeyFlagsOf,
+  RefinedTable,
+} from '@mionjs/drizzle-orm';
+import {$type, refineTableType, sql, tableRef, type TableRef} from '@mionjs/drizzle-orm';
 import type {InferSelectModel as DzInferSelectModel} from 'drizzle-orm';
+import * as dz from 'drizzle-orm/pg-core';
+import type {PgDatabase, PgQueryResultHKT} from 'drizzle-orm/pg-core';
+import type {ToDrizzleTable} from '../src/drizzle.ts';
+import {toDrizzle} from '../src/drizzle.ts';
 import type {
   Bigint,
-  Boolean as PgBoolean,
+  Bigserial,
+  Bit,
+  Boolean,
+  Char,
+  Cidr,
+  CustomCol,
+  Decimal,
+  DoublePrecision,
+  Geometry,
+  Halfvec,
+  Inet,
   Integer,
+  Interval,
   Json,
   Jsonb,
+  Line,
+  Macaddr,
+  Macaddr8,
+  Numeric,
   PgDate,
+  PgEnumCol,
+  PgEnumObjectCol,
   PgTable,
+  PgView,
+  Point,
+  Real,
   Serial,
+  Smallint,
+  Smallserial,
+  Sparsevec,
   Text,
+  Time,
   Timestamp,
   Uuid,
   Varchar,
+  Vector,
 } from '../src/index.ts';
 import {
   bigint,
   bigserial,
+  bit,
   boolean,
+  char,
+  cidr,
+  customType,
   date,
+  decimal,
+  doublePrecision,
+  geometry,
+  halfvec,
+  inet,
   integer,
+  interval,
   json,
   jsonb,
+  line,
+  macaddr,
+  macaddr8,
+  numeric,
   pgEnum,
+  pgMaterializedView,
+  pgSchema,
   pgTable,
+  pgTableCreator,
   pgView,
+  point,
+  real,
   serial,
+  smallint,
+  smallserial,
+  sparsevec,
   text,
+  time,
   timestamp,
   uuid,
   varchar,
+  vector,
 } from '../src/index.ts';
 
-/** Data a column type carries (the builder-equivalence probe: a column type IS
- *  the branded column now, so this reads the same brand off both roads). */
-type TypeRoadData<C> = ColDataOf<C>;
+// ── the models the chained system produced, captured before the switch ────────
+
+type CountersInsertBefore = { label: String; byDefault?: IntegerFormat | undefined; };
+type EveryInsertBefore = { bigint?: IntegerFormat | null | undefined; bigserial?: BigInt64 | undefined; bit?: String<{ length: 8; }> | null | undefined; boolean?: boolean | null | undefined; char?: String<{ length: 3; }> | null | undefined; cidr?: string | null | undefined; date?: StringDate | null | undefined; decimal?: string | null | undefined; doublePrecision?: Float | null | undefined; geometry?: { x: number; y: number; } | null | undefined; halfvec?: number[] | null | undefined; inet?: IP | null | undefined; integer?: Int32 | null | undefined; interval?: string | null | undefined; json?: unknown; jsonb?: unknown; line?: { a: number; b: number; c: number; } | null | undefined; macaddr?: string | null | undefined; macaddr8?: string | null | undefined; numeric?: string | null | undefined; point?: [number, number] | null | undefined; real?: Float | null | undefined; serial?: Int32 | undefined; smallint?: Int16 | null | undefined; smallserial?: Int16 | undefined; sparsevec?: string | null | undefined; text?: String | null | undefined; time?: StringTime | null | undefined; timestamp?: RTDate | null | undefined; uuid?: UUID | null | undefined; varchar?: String<{ maxLength: 10; }> | null | undefined; vector?: number[] | null | undefined; mood?: "a" | "b" | null | undefined; citext?: { x: number; y: number; } | null | undefined; };
+type UsersInsertBefore = { id: UUID; name: String<{ maxLength: 100; }>; age: Int32; role: "admin" | "user"; createdAt?: RTDate | undefined; };
+type WideInsertBefore = { role: "admin" | "user"; tags: String[]; id?: Int32 | undefined; payload?: { kind: string; } | null | undefined; email?: String | null | undefined; slug?: String<{ maxLength: 20; }> | null | undefined; touchedAt?: RTDate | null | undefined; createdAt?: RTDate | undefined; };
+type WithEnumInsertBefore = { mood: "sad" | "happy"; level?: "low" | "high" | null | undefined; bare?: "sad" | "happy" | null | undefined; };
+type EverySelectBefore = { bigint: IntegerFormat | null; bigserial: BigInt64; bit: String<{ length: 8; }> | null; boolean: boolean | null; char: String<{ length: 3; }> | null; cidr: string | null; date: StringDate | null; decimal: string | null; doublePrecision: Float | null; geometry: { x: number; y: number; } | null; halfvec: number[] | null; inet: IP | null; integer: Int32 | null; interval: string | null; json: unknown; jsonb: unknown; line: { a: number; b: number; c: number; } | null; macaddr: string | null; macaddr8: string | null; numeric: string | null; point: [number, number] | null; real: Float | null; serial: Int32; smallint: Int16 | null; smallserial: Int16; sparsevec: string | null; text: String | null; time: StringTime | null; timestamp: RTDate | null; uuid: UUID | null; varchar: String<{ maxLength: 10; }> | null; vector: number[] | null; mood: "a" | "b" | null; citext: { x: number; y: number; } | null; };
+type UsersSelectBefore = { id: UUID; name: String<{ maxLength: 100; }>; age: Int32; role: "admin" | "user"; createdAt: RTDate; };
+type WideSelectBefore = { id: Int32; role: "admin" | "user"; seq: Int32; tags: String[]; payload: { kind: string; } | null; email: String | null; slug: String<{ maxLength: 20; }> | null; touchedAt: RTDate | null; total: Int32 | null; createdAt: RTDate; };
+type WithEnumSelectBefore = { mood: "sad" | "happy"; level: "low" | "high" | null; bare: "sad" | "happy" | null; };
+type ActiveViewViewSelectBefore = { name: String<{ maxLength: 10; }>; };
+type SecureViewViewSelectBefore = { name: String<{ maxLength: 10; }> | null; };
+type TotalsViewSelectBefore = { total: Int32; };
+type EveryUpdateBefore = { bigint?: IntegerFormat | null | undefined; bigserial?: BigInt64 | undefined; bit?: String<{ length: 8; }> | null | undefined; boolean?: boolean | null | undefined; char?: String<{ length: 3; }> | null | undefined; cidr?: string | null | undefined; date?: StringDate | null | undefined; decimal?: string | null | undefined; doublePrecision?: Float | null | undefined; geometry?: { x: number; y: number; } | null | undefined; halfvec?: number[] | null | undefined; inet?: IP | null | undefined; integer?: Int32 | null | undefined; interval?: string | null | undefined; json?: unknown; jsonb?: unknown; line?: { a: number; b: number; c: number; } | null | undefined; macaddr?: string | null | undefined; macaddr8?: string | null | undefined; numeric?: string | null | undefined; point?: [number, number] | null | undefined; real?: Float | null | undefined; serial?: Int32 | undefined; smallint?: Int16 | null | undefined; smallserial?: Int16 | undefined; sparsevec?: string | null | undefined; text?: String | null | undefined; time?: StringTime | null | undefined; timestamp?: RTDate | null | undefined; uuid?: UUID | null | undefined; varchar?: String<{ maxLength: 10; }> | null | undefined; vector?: number[] | null | undefined; mood?: "a" | "b" | null | undefined; citext?: { x: number; y: number; } | null | undefined; };
+type UsersUpdateBefore = { id?: UUID | undefined; name?: String<{ maxLength: 100; }> | undefined; age?: Int32 | undefined; role?: "admin" | "user" | undefined; createdAt?: RTDate | undefined; };
+type WideUpdateBefore = { id?: Int32 | undefined; role?: "admin" | "user" | undefined; tags?: String[] | undefined; payload?: { kind: string; } | null | undefined; email?: String | null | undefined; slug?: String<{ maxLength: 20; }> | null | undefined; touchedAt?: RTDate | null | undefined; createdAt?: RTDate | undefined; };
+type UsersRefinedInsertBefore = { id: UUID; name: MergeFormat<String<{ maxLength: 100; }>, { maxLength: 50; }>; age: Int32; role: "admin" | "user"; createdAt?: RTDate | undefined; };
+type UsersRefinedSelectBefore = { id: UUID; name: MergeFormat<String<{ maxLength: 100; }>, { maxLength: 50; }>; age: Int32; role: "admin" | "user"; createdAt: RTDate; };
 
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 type Expect<T extends true> = T;
+type DataOf<C> = ColSpecOf<C> extends {data: infer D} ? D : never;
 
-// ── named type === builder data ──────────────────────────────────────────────
+// ── narrow, nameless ─────────────────────────────────────────────────────────
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- consumed as a type by the pins
-const namedPins = {
-  varchar: varchar('v', {length: 100}),
-  varcharBare: varchar('v2'),
-  integer: integer('i'),
-  serial: serial('s'),
-  uuid: uuid('u'),
-  timestampDate: timestamp('t'),
-  timestampString: timestamp('t2', {mode: 'string'}),
-  dateString: date('d'),
-  dateDate: date('d2', {mode: 'date'}),
-  bigintNumber: bigint('b', {mode: 'number'}),
-  bigintBig: bigint('b2', {mode: 'bigint'}),
-  boolean: boolean('bo'),
-  json: json('j'),
-  text: text('tx'),
+export const users = pgTable('users', {
+  id: uuid({primaryKey: true}),
+  name: varchar({length: 100, notNull: true}),
+  age: integer({notNull: true}),
+  role: text({enum: ['admin', 'user'], notNull: true}),
+  createdAt: timestamp({mode: 'date', notNull: true, defaultNow: true}),
+});
+type Users = PgTable<
+  'users',
+  {
+    id: Uuid<{primaryKey: true}>;
+    name: Varchar<{length: 100; notNull: true}>;
+    age: Integer<{notNull: true}>;
+    role: Text<{enum: ['admin', 'user']; notNull: true}>;
+    createdAt: Timestamp<{mode: 'date'; notNull: true; defaultNow: true}>;
+  }
+>;
+export const rawUsers = dz.pgTable('users', {
+  id: dz.uuid().primaryKey(),
+  name: dz.varchar({length: 100}).notNull(),
+  age: dz.integer().notNull(),
+  role: dz.text({enum: ['admin', 'user']}).notNull(),
+  createdAt: dz.timestamp({mode: 'date'}).notNull().defaultNow(),
+});
+
+// With one call per column, a builder column IS the hand-written column, even outside a table.
+export const looseVarchar = varchar({length: 100, notNull: true, unique: ['uq_name', {nulls: 'not distinct'}]});
+export const looseInteger = integer({notNull: true, default: [21]});
+export const looseIdentity = integer({generatedAlwaysAsIdentity: [{startWith: 10}]});
+export type LoosePins = [
+  Expect<Equal<typeof looseVarchar, Varchar<{length: 100; notNull: true; unique: ['uq_name', {nulls: 'not distinct'}]}>>>,
+  Expect<Equal<typeof looseInteger, Integer<{notNull: true; default: [21]}>>>,
+  Expect<Equal<typeof looseIdentity, Integer<{generatedAlwaysAsIdentity: [{startWith: 10}]}>>>,
+];
+
+export type NarrowPins = [
+  Expect<Equal<typeof users, Users>>,
+  Expect<Equal<InferSelectModel<Users>, UsersSelectBefore>>,
+  Expect<Equal<InferInsertModel<Users>, UsersInsertBefore>>,
+  Expect<Equal<InferUpdateModel<Users>, UsersUpdateBefore>>,
+];
+
+// ── mode and config pick the data type ───────────────────────────────────────
+
+export const modes = {
+  timestampDate: timestamp({mode: 'date'}),
+  timestampString: timestamp({mode: 'string'}),
+  dateDate: date({mode: 'date'}),
+  dateString: date({mode: 'string'}),
+  bigNumber: bigint({mode: 'number'}),
+  bigBig: bigint({mode: 'bigint'}),
+  numericNumber: numeric({mode: 'number', precision: 10, scale: 2}),
+  numericBigint: numeric({mode: 'bigint'}),
+  bareNumeric: numeric(),
+  bareTimestamp: timestamp(),
+  bareDate: date(),
 };
-type _namedVarchar = Expect<Equal<ColDataOf<(typeof namedPins)['varchar']>, TypeRoadData<Varchar<'v', {length: 100}>>>>;
-type _namedVarcharBare = Expect<Equal<ColDataOf<(typeof namedPins)['varcharBare']>, TypeRoadData<Varchar<'v2'>>>>;
-type _namedInteger = Expect<Equal<ColDataOf<(typeof namedPins)['integer']>, TypeRoadData<Integer<'i'>>>>;
-type _namedSerial = Expect<Equal<ColDataOf<(typeof namedPins)['serial']>, TypeRoadData<Serial<'s'>>>>;
-type _namedUuid = Expect<Equal<ColDataOf<(typeof namedPins)['uuid']>, TypeRoadData<Uuid<'u'>>>>;
-type _namedTimestamp = Expect<Equal<ColDataOf<(typeof namedPins)['timestampDate']>, TypeRoadData<Timestamp<'t'>>>>;
-type _namedTimestampString = Expect<
-  Equal<ColDataOf<(typeof namedPins)['timestampString']>, TypeRoadData<Timestamp<'t2', {mode: 'string'}>>>
->;
-type _namedDate = Expect<Equal<ColDataOf<(typeof namedPins)['dateString']>, TypeRoadData<PgDate<'d'>>>>;
-type _namedDateDate = Expect<Equal<ColDataOf<(typeof namedPins)['dateDate']>, TypeRoadData<PgDate<'d2', {mode: 'date'}>>>>;
-type _namedBigintNumber = Expect<
-  Equal<ColDataOf<(typeof namedPins)['bigintNumber']>, TypeRoadData<Bigint<'b', {mode: 'number'}>>>
->;
-type _namedBigintBig = Expect<Equal<ColDataOf<(typeof namedPins)['bigintBig']>, TypeRoadData<Bigint<'b2', {mode: 'bigint'}>>>>;
-type _namedBoolean = Expect<Equal<ColDataOf<(typeof namedPins)['boolean']>, TypeRoadData<PgBoolean<'bo'>>>>;
-type _namedJson = Expect<Equal<ColDataOf<(typeof namedPins)['json']>, TypeRoadData<Json<'j'>>>>;
-type _namedText = Expect<Equal<ColDataOf<(typeof namedPins)['text']>, TypeRoadData<Text<'tx'>>>>;
-// The column vocabulary also stands alone: the data a column type carries is
-// exactly the core format the builder of the same call infers.
-type _timestampIsDate = Expect<Equal<TypeRoadData<Timestamp<'t'>>, RTDate>>;
-type _varcharIsString = Expect<Equal<TypeRoadData<Varchar<'v', {length: 100}>>, RTString<{maxLength: 100}>>>;
-type _uuidIsUUID = Expect<Equal<TypeRoadData<Uuid<'u'>>, UUID>>;
-type _integerIsInt32 = Expect<Equal<TypeRoadData<Integer<'i'>>, Int32>>;
-type _varcharEnum = Expect<Equal<TypeRoadData<Varchar<'v', {enum: ['a', 'b']}>>, 'a' | 'b'>>;
-type _varcharConfigOnly = Expect<Equal<TypeRoadData<Varchar<{length: 5}>>, RTString<{maxLength: 5}>>>;
+export type ModePins = [
+  Expect<Equal<DataOf<typeof modes.timestampDate>, RTDate>>,
+  Expect<Equal<DataOf<typeof modes.timestampString>, StringDateTime>>,
+  Expect<Equal<DataOf<typeof modes.dateDate>, RTDate>>,
+  Expect<Equal<DataOf<typeof modes.dateString>, StringDate>>,
+  Expect<Equal<DataOf<typeof modes.bigNumber>, IntegerFormat>>,
+  Expect<Equal<DataOf<typeof modes.bigBig>, BigInt64>>,
+  Expect<Equal<DataOf<typeof modes.numericNumber>, Float>>,
+  Expect<Equal<DataOf<typeof modes.numericBigint>, bigint>>,
+  Expect<Equal<DataOf<typeof modes.bareNumeric>, string>>,
+  Expect<Equal<DataOf<typeof modes.bareTimestamp>, RTDate>>,
+  Expect<Equal<DataOf<typeof modes.bareDate>, StringDate>>,
+  Expect<Equal<typeof modes.bigBig, Bigint<{mode: 'bigint'}>>>,
+  Expect<Equal<typeof modes.numericNumber, Numeric<{mode: 'number'; precision: 10; scale: 2}>>>,
+  Expect<Equal<typeof modes.timestampString, Timestamp<{mode: 'string'}>>>,
+];
 
-// ── model rules ──────────────────────────────────────────────────────────────
+// ── explicit db names go to the table's names map ────────────────────────────
 
-const roleEnum = pgEnum('role', ['admin', 'user']);
-const users = pgTable('users', {
-  id: serial('id').primaryKey(),
-  publicId: uuid('public_id').defaultRandom().notNull(),
-  name: varchar('name', {length: 100}).notNull(),
-  age: integer('age').notNull(),
-  role: roleEnum('role').notNull(),
-  plan: text('plan', {enum: ['free', 'pro']}),
-  seq: integer('seq').generatedAlwaysAsIdentity(),
-  byDefaultSeq: integer('bd_seq').generatedByDefaultAsIdentity(),
-  bio: text('bio'),
-  meta: jsonb('meta').$type<{tags: string[]}>().notNull(),
-  createdAt: timestamp('created_at', {mode: 'date'}).notNull().defaultNow(),
+export const named = pgTable('named', {
+  id: integer('id', {primaryKey: true}),
+  createdAt: timestamp('created_at', {mode: 'date', notNull: true}),
 });
-type User = InferSelectModel<typeof users>;
-type NewUser = InferInsertModel<typeof users>;
-type UserPatch = InferUpdateModel<typeof users>;
+type Named = PgTable<
+  'named',
+  {id: Integer<{primaryKey: true}>; createdAt: Timestamp<{mode: 'date'; notNull: true}>},
+  [],
+  {createdAt: 'created_at'}
+>;
 
-type _selectSerial = Expect<Equal<User['id'], Int32>>;
-type _selectNullable = Expect<Equal<User['bio'], RTString | null>>;
-type _selectEnum = Expect<Equal<User['role'], 'admin' | 'user'>>;
-type _selectTextEnum = Expect<Equal<User['plan'], 'free' | 'pro' | null>>;
-type _selectType = Expect<Equal<User['meta'], {tags: string[]}>>;
-type _selectIdentityAlways = Expect<Equal<User['seq'], Int32>>;
-// insert: serial + defaulted optional; identity-always excluded; nullable
-// optional with null; required stays required.
-type _insertSerialOptional = Expect<Equal<NewUser['id'], Int32 | undefined>>;
-type _insertDefaultedOptional = Expect<Equal<NewUser['createdAt'], RTDate | undefined>>;
-type _insertRandomDefault = Expect<Equal<NewUser['publicId'], UUID | undefined>>;
-type _insertByDefaultIdentity = Expect<Equal<NewUser['byDefaultSeq'], Int32 | undefined>>;
-type _insertExcluded = Expect<Equal<'seq' extends keyof NewUser ? true : false, false>>;
-type _insertNullable = Expect<Equal<NewUser['bio'], RTString | null | undefined>>;
-type _insertRequired = Expect<Equal<NewUser['name'], RTString<{maxLength: 100}>>>;
-// update: any subset of the insert payload, identity-always still excluded.
-type _patchPartial = Expect<Equal<UserPatch['name'], RTString<{maxLength: 100}> | undefined>>;
-type _patchExcluded = Expect<Equal<'seq' extends keyof UserPatch ? true : false, false>>;
+// The same column shape in two tables is ONE type.
+export type NamedPins = [
+  Expect<Equal<typeof named, Named>>,
+  Expect<Equal<(typeof named)['columns']['id'], Integer<{primaryKey: true}>>>,
+  Expect<Equal<(typeof named)['columns']['createdAt'], Timestamp<{mode: 'date'; notNull: true}>>>,
+];
 
-// ── type road ↔ builder road ─────────────────────────────────────────────────
+// ── every builder ────────────────────────────────────────────────────────────
 
-// The same table written both ways yields byte-identical models. This is the
-// core interchangeability promise of the pure-types road.
-const twinBuilders = pgTable('twins', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  name: varchar('name', {length: 100}).notNull(),
-  age: integer('age').notNull(),
-  bio: varchar('bio', {length: 500}),
+const citext = customType<{data: {x: number; y: number}}>({dataType: () => 'citext'});
+const everyMood = pgEnum('every_mood', ['a', 'b']);
+export const every = pgTable('every', {
+  bigint: bigint({mode: 'number'}),
+  bigserial: bigserial({mode: 'bigint'}),
+  bit: bit({dimensions: 8}),
+  boolean: boolean(),
+  char: char({length: 3}),
+  cidr: cidr(),
+  date: date(),
+  decimal: decimal({precision: 10, scale: 2}),
+  doublePrecision: doublePrecision(),
+  geometry: geometry({mode: 'xy'}),
+  halfvec: halfvec({dimensions: 3}),
+  inet: inet(),
+  integer: integer(),
+  interval: interval({fields: 'day'}),
+  json: json(),
+  jsonb: jsonb(),
+  line: line({mode: 'abc'}),
+  macaddr: macaddr(),
+  macaddr8: macaddr8(),
+  numeric: numeric(),
+  point: point(),
+  real: real(),
+  serial: serial(),
+  smallint: smallint(),
+  smallserial: smallserial(),
+  sparsevec: sparsevec({dimensions: 5}),
+  text: text(),
+  time: time({precision: 3}),
+  timestamp: timestamp(),
+  uuid: uuid(),
+  varchar: varchar({length: 10}),
+  vector: vector({dimensions: 3}),
+  mood: everyMood(),
+  citext: citext(),
 });
-type TwinType = PgTable<
-  'twins',
+type Every = PgTable<
+  'every',
   {
-    id: Uuid<'id', {primaryKey: true; defaultRandom: true}>;
-    name: Varchar<'name', {length: 100; notNull: true}>;
-    age: Integer<'age', {notNull: true}>;
-    bio: Varchar<'bio', {length: 500}>;
+    bigint: Bigint<{mode: 'number'}>;
+    bigserial: Bigserial<{mode: 'bigint'}>;
+    bit: Bit<{dimensions: 8}>;
+    boolean: Boolean;
+    char: Char<{length: 3}>;
+    cidr: Cidr;
+    date: PgDate;
+    decimal: Decimal<{precision: 10; scale: 2}>;
+    doublePrecision: DoublePrecision;
+    geometry: Geometry<{mode: 'xy'}>;
+    halfvec: Halfvec<{dimensions: 3}>;
+    inet: Inet;
+    integer: Integer;
+    interval: Interval<{fields: 'day'}>;
+    json: Json;
+    jsonb: Jsonb;
+    line: Line<{mode: 'abc'}>;
+    macaddr: Macaddr;
+    macaddr8: Macaddr8;
+    numeric: Numeric;
+    point: Point;
+    real: Real;
+    serial: Serial;
+    smallint: Smallint;
+    smallserial: Smallserial;
+    sparsevec: Sparsevec<{dimensions: 5}>;
+    text: Text;
+    time: Time<{precision: 3}>;
+    timestamp: Timestamp;
+    uuid: Uuid;
+    varchar: Varchar<{length: 10}>;
+    vector: Vector<{dimensions: 3}>;
+    mood: PgEnumCol<['a', 'b']>;
+    citext: CustomCol<{x: number; y: number}>;
   }
 >;
-// The widened vocabulary: serial base flags, enums, unique, identity, array,
-// $type, defaultNow — same both-roads equality bar.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- consumed as a type by the pins
-const twinWideBuilders = pgTable('twins_wide', {
-  id: serial('id').primaryKey(),
-  role: text('role', {enum: ['free', 'pro']}).notNull(),
-  seq: integer('seq').generatedAlwaysAsIdentity(),
-  bySeq: integer('by_seq').generatedByDefaultAsIdentity({name: 'sq', startWith: 5}),
-  tags: text('tags').array().notNull(),
-  meta: jsonb('meta').$type<{tags: string[]}>().notNull(),
-  score: integer('score').unique('uq_score'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-});
-type TwinWideType = PgTable<
-  'twins_wide',
-  {
-    id: Serial<'id', {primaryKey: true}>;
-    role: Text<'role', {enum: ['free', 'pro']; notNull: true}>;
-    seq: Integer<'seq', {generatedAlwaysAsIdentity: true}>;
-    bySeq: Integer<'by_seq', {generatedByDefaultAsIdentity: [{name: 'sq'; startWith: 5}]}>;
-    tags: Text<'tags', {array: true; notNull: true}>;
-    meta: Jsonb<'meta', {$type: [{tags: string[]}]; notNull: true}>;
-    score: Integer<'score', {unique: ['uq_score']}>;
-    createdAt: Timestamp<'created_at', {notNull: true; defaultNow: true}>;
-  }
->;
-type _twinWideSelect = Expect<Equal<InferSelectModel<typeof twinWideBuilders>, InferSelectModel<TwinWideType>>>;
-type _twinWideInsert = Expect<Equal<InferInsertModel<typeof twinWideBuilders>, InferInsertModel<TwinWideType>>>;
-type _twinWideUpdate = Expect<Equal<InferUpdateModel<typeof twinWideBuilders>, InferUpdateModel<TwinWideType>>>;
 
-type _twinSelect = Expect<Equal<InferSelectModel<typeof twinBuilders>, InferSelectModel<TwinType>>>;
-type _twinInsert = Expect<Equal<InferInsertModel<typeof twinBuilders>, InferInsertModel<TwinType>>>;
-type _twinUpdate = Expect<Equal<InferUpdateModel<typeof twinBuilders>, InferUpdateModel<TwinType>>>;
-// One public name describes both roads: the factories declare PgTable as their
-// return, and a builder table is assignable to the type-road spelling.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- the assignment IS the pin
-const _twinAsPgTable: TwinType = twinBuilders;
-// Refinement works on a type-road table through the RefinedTable type.
-type RefinedTwin = RefinedTable<TwinType, {name: {minLength: 2}}>;
-type _twinRefined = Expect<Equal<InferSelectModel<RefinedTwin>['name'], RTString<{maxLength: 100; minLength: 2}>>>;
-// The R parameter is constrained to TableRefinements<T>: a typo'd column or a
-// wrong-family param is a compile error at the TYPE level too.
-// @ts-expect-error "nam" is not a column of TwinType
-type _refinedBadKey = RefinedTable<TwinType, {nam: {minLength: 2}}>;
+export type EveryPins = [
+  Expect<Equal<typeof every, Every>>,
+  Expect<Equal<InferSelectModel<Every>, EverySelectBefore>>,
+  Expect<Equal<InferInsertModel<Every>, EveryInsertBefore>>,
+  Expect<Equal<InferUpdateModel<Every>, EveryUpdateBefore>>,
+];
+
+// ── wide vocabulary: pg's own modifiers, runtime callbacks and generated columns ──
+
+export const wide = pgTable('w', {
+  id: serial('id', {primaryKey: true}),
+  role: text('role', {enum: ['admin', 'user'], notNull: true}),
+  seq: integer('seq', {generatedAlwaysAsIdentity: true}),
+  tags: text('tags', {array: true, notNull: true}),
+  payload: jsonb('payload', {$type: $type<{kind: string}>()}),
+  email: text('email', {unique: ['uq_email']}),
+  slug: varchar('slug', {length: 20, $defaultFn: [() => 'x']}),
+  touchedAt: timestamp('touched_at', {$onUpdate: [() => new Date()]}),
+  total: integer('total', {generatedAlwaysAs: [2]}),
+  createdAt: timestamp('created_at', {mode: 'date', notNull: true, defaultNow: true}),
+});
+type Wide = PgTable<
+  'w',
+  {
+    id: Serial<{primaryKey: true}>;
+    role: Text<{enum: ['admin', 'user']; notNull: true}>;
+    seq: Integer<{generatedAlwaysAsIdentity: true}>;
+    tags: Text<{array: true; notNull: true}>;
+    payload: Jsonb<{$type: [{kind: string}]}>;
+    email: Text<{unique: ['uq_email']}>;
+    slug: Varchar<{length: 20; $defaultFn: true}>;
+    touchedAt: Timestamp<{$onUpdate: true}>;
+    total: Integer<{generatedAlwaysAs: [2]}>;
+    createdAt: Timestamp<{mode: 'date'; notNull: true; defaultNow: true}>;
+  },
+  [],
+  {touchedAt: 'touched_at'; createdAt: 'created_at'}
+>;
+
+export type WidePins = [
+  Expect<Equal<typeof wide, Wide>>,
+  Expect<Equal<InferSelectModel<Wide>, WideSelectBefore>>,
+  Expect<Equal<InferInsertModel<Wide>, WideInsertBefore>>,
+  Expect<Equal<InferUpdateModel<Wide>, WideUpdateBefore>>,
+  // A runtime default and an update callback make the column optional on insert; a generated one leaves it out.
+  Expect<Equal<undefined extends InferInsertModel<Wide>['slug'] ? true : false, true>>,
+  Expect<Equal<undefined extends InferInsertModel<Wide>['touchedAt'] ? true : false, true>>,
+  Expect<Equal<'total' extends keyof InferInsertModel<Wide> ? true : false, false>>,
+];
+
+// ── the key flags drizzle reads ──────────────────────────────────────────────
+
+export type KeyFlagPins = [
+  Expect<Equal<KeyFlagsOf<ColSpecOf<Uuid<{primaryKey: true}>>>['primaryKey'], true>>,
+  Expect<Equal<KeyFlagsOf<ColSpecOf<Uuid>>['primaryKey'], false>>,
+  Expect<Equal<KeyFlagsOf<ColSpecOf<Integer<{generatedAlwaysAsIdentity: true}>>>['identity'], 'always'>>,
+  Expect<Equal<KeyFlagsOf<ColSpecOf<Integer<{generatedByDefaultAsIdentity: true}>>>['identity'], 'byDefault'>>,
+  Expect<Equal<KeyFlagsOf<ColSpecOf<Integer>>['identity'], undefined>>,
+  Expect<Equal<KeyFlagsOf<ColSpecOf<Varchar<{length: 8; $defaultFn: true}>>>['runtimeDefault'], true>>,
+];
+
+// ── the column flags ToDrizzleTable hands drizzle ────────────────────────────
+
+type DzWide = ToDrizzleTable<Wide>;
+export type ToDrizzleFlagPins = [
+  Expect<Equal<DzWide['role']['_']['notNull'], true>>,
+  Expect<Equal<DzWide['payload']['_']['notNull'], false>>,
+  Expect<Equal<DzWide['id']['_']['hasDefault'], true>>,
+  Expect<Equal<DzWide['slug']['_']['hasDefault'], true>>,
+  Expect<Equal<DzWide['email']['_']['hasDefault'], false>>,
+  Expect<Equal<DzWide['seq']['_']['identity'], 'always'>>,
+  Expect<Equal<DzWide['seq']['_']['generated'], undefined>>,
+  Expect<Equal<DzWide['total']['_']['identity'], undefined>>,
+  Expect<Equal<DzWide['total']['_']['generated'] extends {type: 'always'} ? true : false, true>>,
+];
+
+// ── queries through drizzle's database type ──────────────────────────────────
+
+declare const pgDb: PgDatabase<PgQueryResultHKT>;
+export const dzUsers = toDrizzle(users);
+export const selected = pgDb.select().from(dzUsers);
+export const inserted = pgDb.insert(dzUsers).values({id: 'a', name: 'a', age: 1, role: 'admin'}).returning();
+export const updated = pgDb.update(dzUsers).set({age: 2}).returning({id: dzUsers.id});
+export const rawSelected = pgDb.select().from(rawUsers);
+export const rawInserted = pgDb.insert(rawUsers).values({id: 'a', name: 'a', age: 1, role: 'admin'}).returning();
+export const rawUpdated = pgDb.update(rawUsers).set({age: 2}).returning({id: rawUsers.id});
+type InsertValues<Q> = Q extends {values(value: infer V): unknown} ? V : never;
+type UpdateSet<Q> = Q extends {set(values: infer V): unknown} ? V : never;
+export type QueryPins = [
+  Expect<Equal<Awaited<typeof selected>, Awaited<typeof rawSelected>>>,
+  Expect<Equal<Awaited<typeof inserted>, Awaited<typeof rawInserted>>>,
+  Expect<Equal<Awaited<typeof updated>, Awaited<typeof rawUpdated>>>,
+  Expect<Equal<keyof Awaited<typeof selected>[number], 'id' | 'name' | 'age' | 'role' | 'createdAt'>>,
+  Expect<
+    Equal<
+      InsertValues<ReturnType<typeof pgDb.insert<typeof dzUsers>>>,
+      InsertValues<ReturnType<typeof pgDb.insert<typeof rawUsers>>>
+    >
+  >,
+  Expect<
+    Equal<UpdateSet<ReturnType<typeof pgDb.update<typeof dzUsers>>>, UpdateSet<ReturnType<typeof pgDb.update<typeof rawUsers>>>>
+  >,
+];
+
+// ── references, across tables and to itself ──────────────────────────────────
+
+export const teams = pgTable('teams', {id: serial({primaryKey: true})});
+export const members = pgTable('members', {
+  id: serial({primaryKey: true}),
+  teamId: integer('team_id', {references: [() => tableRef(teams, 'id'), {onDelete: 'cascade'}]}),
+});
+type Members = PgTable<
+  'members',
+  {id: Serial<{primaryKey: true}>; teamId: Integer<{references: [{table: 'teams'; column: 'id'}, {onDelete: 'cascade'}]}>},
+  [],
+  {teamId: 'team_id'}
+>;
+export const emps = pgTable('emps', {
+  id: serial({primaryKey: true}),
+  managerId: integer({references: [(): TableRef<'emps', 'id'> => tableRef(emps, 'id')]}),
+});
+type Emps = PgTable<'emps', {id: Serial<{primaryKey: true}>; managerId: Integer<{references: [{table: 'emps'; column: 'id'}]}>}>;
+
+type MembersByRef = PgTable<
+  'members',
+  {id: Serial<{primaryKey: true}>; teamId: Integer<{references: [TableRef<typeof teams, 'id'>, {onDelete: 'cascade'}]}>},
+  [],
+  {teamId: 'team_id'}
+>;
+type EmpsByRef = PgTable<'emps', {id: Serial<{primaryKey: true}>; managerId: Integer<{references: [TableRef<'emps', 'id'>]}>}>;
+
+export type RefPins = [
+  Expect<Equal<typeof members, Members>>,
+  Expect<Equal<typeof emps, Emps>>,
+  Expect<Equal<MembersByRef, Members>>,
+  Expect<Equal<EmpsByRef, Emps>>,
+];
+// @ts-expect-error TableRef checks the column exists
+export type BadRefColumn = TableRef<typeof teams, 'idd'>;
+// @ts-expect-error tableRef() checks the column exists
+tableRef(teams, 'idd');
+
+// ── views ────────────────────────────────────────────────────────────────────
+
+export const activeView = pgView('active', {name: varchar('user_name', {length: 10, notNull: true})}).existing();
+type ActiveView = PgView<'active', {name: Varchar<{length: 10; notNull: true}>}, {name: 'user_name'}>;
+
+export type ViewPins = [
+  Expect<Equal<typeof activeView, ActiveView>>,
+  Expect<Equal<InferSelectViewModel<ActiveView>, ActiveViewViewSelectBefore>>,
+];
+// @ts-expect-error the query-builder form has no columns to type, so it has no as()
+pgView('from_query').as(sql`select 1`);
+
+// ── table creators and the columns callback ──────────────────────────────────
+
+export const prefixed = pgTableCreator((name) => `app_${name}`);
+export const createdUsers = prefixed('users', {
+  id: uuid({primaryKey: true}),
+  name: varchar({length: 100, notNull: true}),
+  age: integer({notNull: true}),
+  role: text({enum: ['admin', 'user'], notNull: true}),
+  createdAt: timestamp({mode: 'date', notNull: true, defaultNow: true}),
+});
+export const byCallback = pgTable('users', (helpers) => ({
+  id: helpers.uuid({primaryKey: true}),
+  name: helpers.varchar({length: 100, notNull: true}),
+  age: helpers.integer({notNull: true}),
+  role: helpers.text({enum: ['admin', 'user'], notNull: true}),
+  createdAt: helpers.timestamp({mode: 'date', notNull: true, defaultNow: true}),
+}));
+export const createdByCallback = prefixed('users', (helpers) => ({
+  id: helpers.uuid({primaryKey: true}),
+  name: helpers.varchar({length: 100, notNull: true}),
+  age: helpers.integer({notNull: true}),
+  role: helpers.text({enum: ['admin', 'user'], notNull: true}),
+  createdAt: helpers.timestamp({mode: 'date', notNull: true, defaultNow: true}),
+}));
+export type CreatorPins = [
+  Expect<Equal<typeof createdUsers, Users>>,
+  Expect<Equal<typeof byCallback, Users>>,
+  Expect<Equal<typeof createdByCallback, Users>>,
+];
+
+// ── refine keeps every column fact, key flags included ───────────────────────
+
+type RefinedUsers = RefinedTable<Users, {name: {maxLength: 50}}>;
+type RefinedWide = RefinedTable<Wide, {email: {maxLength: 50}}>;
+export type RefinePins = [
+  Expect<Equal<KeyFlagsOf<ColSpecOf<RefinedUsers['columns']['id']>>['primaryKey'], true>>,
+  Expect<Equal<KeyFlagsOf<ColSpecOf<RefinedWide['columns']['seq']>>['identity'], 'always'>>,
+  Expect<Equal<InferSelectModel<RefinedUsers>, UsersRefinedSelectBefore>>,
+  Expect<Equal<InferInsertModel<RefinedUsers>, UsersRefinedInsertBefore>>,
+];
+
+// ── toDrizzle names columns as drizzle does, on BOTH roads ────────────────────
+// The names map is on the table, so a builder table gets its db names back too.
+
+export type DbNamePins = [
+  Expect<Equal<ToDrizzleTable<typeof named>['createdAt']['_']['name'], 'created_at'>>,
+  Expect<Equal<ToDrizzleTable<Named>['id']['_']['name'], 'id'>>,
+  Expect<Equal<keyof DzInferSelectModel<ToDrizzleTable<Named>, {dbColumnNames: true}>, 'id' | 'created_at'>>,
+];
+
+// ── enums, tuple and object forms ────────────────────────────────────────────
+
+export const mood = pgEnum('mood', ['sad', 'happy']);
+export const level = pgEnum('level', {Low: 'low', High: 'high'} as const);
+export const withEnum = pgTable('with_enum', {
+  mood: mood('mood_col', {notNull: true}),
+  level: level({default: ['low']}),
+  bare: mood(),
+});
+type WithEnum = PgTable<
+  'with_enum',
+  {
+    mood: PgEnumCol<['sad', 'happy'], {notNull: true}>;
+    level: PgEnumObjectCol<{Low: 'low'; High: 'high'}, {default: ['low']}>;
+    bare: PgEnumCol<['sad', 'happy']>;
+  },
+  [],
+  {mood: 'mood_col'}
+>;
+export type OnlyPgMysql_EnumPins = [
+  Expect<Equal<typeof withEnum, WithEnum>>,
+  Expect<Equal<InferSelectModel<WithEnum>, WithEnumSelectBefore>>,
+  Expect<Equal<InferInsertModel<WithEnum>, WithEnumInsertBefore>>,
+  Expect<
+    Equal<InferSelectModel<WithEnum>, {mood: 'sad' | 'happy'; level: 'low' | 'high' | null; bare: 'sad' | 'happy' | null}>
+  >,
+  Expect<Equal<PgEnumObjectCol<{Low: 'low'; High: 'high'}>, PgEnumCol<['low', 'high']>>>,
+];
+
+// ── schemas ──────────────────────────────────────────────────────────────────
+
+export const shop = pgSchema('shop');
+export const shopItems = shop.table('items', {id: serial({primaryKey: true}), label: varchar('item_label', {length: 20})});
+export const shopView = shop.view('item_view', {label: varchar({length: 20})}).existing();
+export const shopMaterialized = shop.materializedView('item_mview', {label: varchar({length: 20})}).existing();
+export const shopStatus = shop.enum('status', ['on', 'off']);
+export const shopFlags = shop.table('flags', (helpers) => ({id: helpers.serial({primaryKey: true}), status: shopStatus()}));
+type Items = PgTable<'items', {id: Serial<{primaryKey: true}>; label: Varchar<{length: 20}>}, [], {label: 'item_label'}>;
+export type OnlyPgMysql_SchemaPins = [
+  Expect<Equal<typeof shopItems, Items>>,
+  Expect<Equal<typeof shopView, PgView<'item_view', {label: Varchar<{length: 20}>}>>>,
+  Expect<Equal<typeof shopMaterialized, PgView<'item_mview', {label: Varchar<{length: 20}>}>>>,
+  Expect<Equal<typeof shopFlags, PgTable<'flags', {id: Serial<{primaryKey: true}>; status: PgEnumCol<['on', 'off']>}>>>,
+];
+
+// ── view options ─────────────────────────────────────────────────────────────
+
+export const secureView = pgView('secure', {name: varchar('user_name', {length: 10})})
+  .with({securityBarrier: true, checkOption: 'cascaded'})
+  .existing();
+export type OnlyPgMysql_ViewOptionPins = [
+  Expect<Equal<typeof secureView, PgView<'secure', {name: Varchar<{length: 10}>}, {name: 'user_name'}>>>,
+  Expect<Equal<InferSelectViewModel<typeof secureView>, SecureViewViewSelectBefore>>,
+];
+
+// ── identity columns ─────────────────────────────────────────────────────────
+
+export const counters = pgTable('counters', {
+  always: integer({generatedAlwaysAsIdentity: [{startWith: 10}]}),
+  byDefault: bigint({mode: 'number', generatedByDefaultAsIdentity: true}),
+  label: text({notNull: true}),
+});
+// An always identity leaves insert unless overridingSystemValue() puts it back.
+export const overridden = pgDb.insert(toDrizzle(counters)).overridingSystemValue().values({always: 1, label: 'a'});
+export type OnlyPg_IdentityPins = [
+  Expect<
+    Equal<
+      typeof counters,
+      PgTable<
+        'counters',
+        {
+          always: Integer<{generatedAlwaysAsIdentity: [{startWith: 10}]}>;
+          byDefault: Bigint<{mode: 'number'; generatedByDefaultAsIdentity: true}>;
+          label: Text<{notNull: true}>;
+        }
+      >
+    >
+  >,
+  Expect<Equal<InferInsertModel<typeof counters>, CountersInsertBefore>>,
+  Expect<Equal<'always' extends keyof InferInsertModel<typeof counters> ? true : false, false>>,
+  Expect<Equal<ToDrizzleTable<typeof counters>['always']['_']['identity'], 'always'>>,
+  Expect<Equal<ToDrizzleTable<typeof counters>['byDefault']['_']['identity'], 'byDefault'>>,
+  Expect<Equal<ToDrizzleTable<typeof counters>['byDefault']['_']['generated'], undefined>>,
+];
+
+// ── materialized views ───────────────────────────────────────────────────────
+
+export const totals = pgMaterializedView('totals', {total: integer('total_count', {notNull: true})})
+  .with({fillfactor: 90})
+  .using('heap')
+  .tablespace('fast_space')
+  .withNoData()
+  .existing();
+export type OnlyPg_MaterializedViewPins = [
+  Expect<Equal<typeof totals, PgView<'totals', {total: Integer<{notNull: true}>}, {total: 'total_count'}>>>,
+  Expect<Equal<InferSelectViewModel<typeof totals>, TotalsViewSelectBefore>>,
+];
+// @ts-expect-error only pg: a materialized view's query-builder form has no as() either
+pgMaterializedView('from_query').as(sql`select 1`);
+
+// ── wrong modifiers are rejected ─────────────────────────────────────────────
+
+// @ts-expect-error only pg, mysql: a modifier this column kind lacks is rejected
+export type BadMod = Varchar<{defaultNow: true}>;
+// @ts-expect-error only pg: identity is the int kinds only
+varchar({generatedAlwaysAsIdentity: true});
+// @ts-expect-error another dialect's modifier is rejected
+integer({autoincrement: true});
+// @ts-expect-error a references() target must be a tableRef(), which records its table
+integer({references: [() => users]});
+// @ts-expect-error a stray key is rejected in a call
+integer({notNull: true, defaultNow: true});
+// @ts-expect-error a stray key is rejected in a column type
+export type BadStrayKey = Varchar<{length: 10; defaultNow: true}>;
+// @ts-expect-error a stray key is rejected in a named call
+varchar('name', {length: 10, generatedAlwaysAsIdentity: true});
+
+// ── refinement rejections ────────────────────────────────────────────────────
+
+// @ts-expect-error "nam" is not a column of the table
+export type BadRefineKey = RefinedTable<Users, {nam: {minLength: 2}}>;
 // @ts-expect-error a string column takes no numeric refinement
-type _refinedBadParam = RefinedTable<TwinType, {name: {min: 2}}>;
-
-// ── refinement ───────────────────────────────────────────────────────────────
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- consumed as a type by the pins
-const apiUsers = refineTableType(users, {name: {minLength: 10}, age: {min: 18}});
-type ApiUser = InferSelectModel<typeof apiUsers>;
-type _refinedName = Expect<Equal<ApiUser['name'], RTString<{maxLength: 100; minLength: 10}>>>;
-type _refinedAge = Expect<Equal<ApiUser['age'], RTNumber<{integer: true; min: 18; max: 2147483647}>>>;
-type _refineKeepsOthers = Expect<Equal<ApiUser['createdAt'], RTDate>>;
-
-// Non-refinable columns reject ANY refinement (never a silent bypass).
+export type BadRefineParam = RefinedTable<Users, {name: {min: 2}}>;
 // @ts-expect-error a boolean column carries no refinable format
-refineTableType(pgTable('flags', {on: boolean('on')}), {on: {min: 1}});
+refineTableType(pgTable('flags', {on: boolean()}), {on: {min: 1}});
 // @ts-expect-error an enum column carries no refinable format
-refineTableType(users, {role: {maxLength: 3}});
+refineTableType(withEnum, {mood: {maxLength: 3}});
 // @ts-expect-error refining cannot change the value family
 refineTableType(users, {name: {min: 3}});
 
 // ── views: select-only models ────────────────────────────────────────────────
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- consumed as a type by the pins
-const pinnedView = pgView('pinned_view', {
-  id: uuid('id').primaryKey(),
-  name: varchar('name', {length: 100}).notNull(),
-  city: text('city'),
-}).as(sql`select 1`);
-type PinnedRow = InferSelectViewModel<typeof pinnedView>;
-type _viewSelectNotNull = Expect<Equal<PinnedRow['name'], RTString<{maxLength: 100}>>>;
-type _viewSelectNullable = Expect<Equal<PinnedRow['city'], RTString | null>>;
-type _viewSelectPk = Expect<Equal<PinnedRow['id'], UUID>>;
-// A view is READ-ONLY and is not a table: the three table models all reject it.
 // @ts-expect-error InferSelectModel takes a table, a view uses InferSelectViewModel
-type _viewNotSelectModel = InferSelectModel<typeof pinnedView>;
+export type ViewNotSelectModel = InferSelectModel<typeof activeView>;
 // @ts-expect-error a view has no insert model
-type _viewNotInsertModel = InferInsertModel<typeof pinnedView>;
+export type ViewNotInsertModel = InferInsertModel<typeof activeView>;
 // @ts-expect-error a view has no update model
-type _viewNotUpdateModel = InferUpdateModel<typeof pinnedView>;
+export type ViewNotUpdateModel = InferUpdateModel<typeof activeView>;
 
-export // ── The slim <-> drizzle boundary ────────────────────────────────────────────
-//
-// The one property that has to hold in BOTH directions, because it is what
-// makes a slim table usable from a mion route: a row a drizzle query returns
-// goes into a slim model slot, and a slim model goes into a drizzle query.
-//
-// toDrizzle drops a column's runtype FORMAT tag, so `db.select()` gives exactly
-// what drizzle's own table gives. That costs nothing here: a format tag is
-// transparent (its sentinels are optional, so the tagged type and its base are
-// mutually assignable). A NOMINAL brand is not transparent and is kept, which is
-// what the last two pins are for — without them a queried id could not go back
-// into the model it came from.
+// ── the slim <-> drizzle boundary ────────────────────────────────────────────
+// A drizzle row goes into a slim model slot, and a slim model goes into a drizzle query. toDrizzle drops a column's
+// FORMAT tag (transparent: its sentinels are optional) but keeps a NOMINAL brand, or a queried id could not go back.
 
-const boundaryUsers = pgTable('boundary_users', {
-  name: varchar('name', {length: 100}).notNull(),
-  age: integer('age').notNull(),
-  createdAt: timestamp('created_at', {mode: 'date'}).notNull().defaultNow(),
+export const boundaryUsers = pgTable('boundary_users', {
+  name: varchar({length: 100, notNull: true}),
+  age: integer({notNull: true}),
+  createdAt: timestamp('created_at', {mode: 'date', notNull: true, defaultNow: true}),
 });
-const boundaryApi = refineTableType(boundaryUsers, {name: {minLength: 10}, age: {min: 18}});
-type BoundaryUser = InferSelectModel<typeof boundaryApi>;
-type NewBoundaryUser = InferInsertModel<typeof boundaryApi>;
-type BoundaryPatch = InferUpdateModel<typeof boundaryApi>;
+export const boundaryApi = refineTableType(boundaryUsers, {name: {minLength: 10}, age: {min: 18}});
+export const boundaryQuery = pgDb.select().from(toDrizzle(boundaryApi));
+declare const boundaryRows: Awaited<typeof boundaryQuery>;
+declare const newBoundary: InferInsertModel<typeof boundaryApi>;
+declare const boundaryPatch: InferUpdateModel<typeof boundaryApi>;
+export const rowIntoModel: InferSelectModel<typeof boundaryApi> = boundaryRows[0]!;
+export const rowsIntoModel: InferSelectModel<typeof boundaryApi>[] = boundaryRows;
+export const insertFromModel = pgDb.insert(toDrizzle(boundaryApi)).values([newBoundary, newBoundary]);
+export const updateFromModel = pgDb.update(toDrizzle(boundaryApi)).set(boundaryPatch);
 
-declare const db: PgDatabase<PgQueryResultHKT>;
-const dzBoundary = toDrizzle(boundaryApi);
-const boundaryQuery = db.select().from(dzBoundary);
-type BoundaryRows = Awaited<typeof boundaryQuery>;
-declare const boundaryRows: BoundaryRows;
+type BoundaryId = String<{minLength: 1}, 'BoundaryId'>;
+export const brandedTable = pgTable('boundary_branded', {id: varchar({length: 40, notNull: true, $type: $type<BoundaryId>()})});
+export const brandedQuery = pgDb.select().from(toDrizzle(brandedTable));
+declare const brandedRows: Awaited<typeof brandedQuery>;
+export const brandedRowIntoModel: InferSelectModel<typeof brandedTable> = brandedRows[0]!;
 
-// a drizzle row IS what drizzle would return, and still fits the slim model
-type _dbRowIsPlain = Expect<Equal<BoundaryRows[number]['name'], string>>;
-type _dbDateIsPlain = Expect<Equal<BoundaryRows[number]['createdAt'], Date>>;
-const _rowIntoModel: BoundaryUser = boundaryRows[0]!;
-const _rowsIntoModel: BoundaryUser[] = boundaryRows;
-
-// and a slim model still goes into a drizzle query
-declare const newBoundary: NewBoundaryUser;
-declare const boundaryPatch: BoundaryPatch;
-const _insertFromModel = db.insert(dzBoundary).values(newBoundary);
-const _insertManyFromModel = db.insert(dzBoundary).values([newBoundary, newBoundary]);
-const _updateFromModel = db.update(dzBoundary).set(boundaryPatch);
-
-// a NOMINAL brand survives, or a queried id could not go back into its model
-type BoundaryId = RTString<{minLength: 1}, 'BoundaryId'>;
-const brandedTable = pgTable('boundary_branded', {
-  id: varchar('id', {length: 40}).notNull().$type<BoundaryId>(),
-});
-type BrandedRow = InferSelectModel<typeof brandedTable>;
-const brandedQuery = db.select().from(toDrizzle(brandedTable));
-type BrandedRows = Awaited<typeof brandedQuery>;
-declare const brandedRows: BrandedRows;
-const _brandedRowIntoModel: BrandedRow = brandedRows[0]!;
-type _brandedIdKeepsBrand = Expect<Equal<BrandedRow['id'], BoundaryId>>;
-
-export const _boundaryPins = [
-  boundaryQuery,
-  brandedQuery,
-  _rowIntoModel,
-  _rowsIntoModel,
-  _insertFromModel,
-  _insertManyFromModel,
-  _updateFromModel,
-  _brandedRowIntoModel,
+export type BoundaryPins = [
+  Expect<Equal<(typeof boundaryRows)[number]['name'], string>>,
+  Expect<Equal<(typeof boundaryRows)[number]['createdAt'], Date>>,
+  Expect<Equal<InferSelectModel<typeof brandedTable>['id'], BoundaryId>>,
 ];
-
-export type _PgTypePins = [
-  _namedVarchar,
-  _namedVarcharBare,
-  _namedInteger,
-  _namedSerial,
-  _namedUuid,
-  _namedTimestamp,
-  _namedTimestampString,
-  _namedDate,
-  _namedDateDate,
-  _namedBigintNumber,
-  _namedBigintBig,
-  _namedBoolean,
-  _namedJson,
-  _namedText,
-  _timestampIsDate,
-  _varcharIsString,
-  _uuidIsUUID,
-  _integerIsInt32,
-  _varcharEnum,
-  _varcharConfigOnly,
-  _twinSelect,
-  _twinInsert,
-  _twinUpdate,
-  _twinWideSelect,
-  _twinWideInsert,
-  _twinWideUpdate,
-  _twinRefined,
-  _selectSerial,
-  _selectNullable,
-  _selectEnum,
-  _selectTextEnum,
-  _selectType,
-  _selectIdentityAlways,
-  _insertSerialOptional,
-  _insertDefaultedOptional,
-  _insertRandomDefault,
-  _insertByDefaultIdentity,
-  _insertExcluded,
-  _insertNullable,
-  _insertRequired,
-  _patchPartial,
-  _patchExcluded,
-  _refinedName,
-  _refinedAge,
-  _refineKeepsOthers,
-  _refinedBadKey,
-  _refinedBadParam,
-  _viewSelectNotNull,
-  _viewSelectNullable,
-  _viewSelectPk,
-  _viewNotSelectModel,
-  _viewNotInsertModel,
-  _viewNotUpdateModel,
-  _dbRowIsPlain,
-  _dbDateIsPlain,
-  _brandedIdKeepsBrand,
-];
-
-// ── the per-builder modifier bags ────────────────────────────────────────────
-// A column type accepts only the modifiers its own builder has. This is new
-// with modifiers-as-props: while they were separate marker interfaces, an
-// intersection accepted any of them on any column, so `Varchar<...> &
-// Autoincrement` compiled on pg even though no pg builder has autoincrement().
-
-// @ts-expect-error pg varchar has no autoincrement() — that is a mysql modifier
-type _noAutoincrementOnVarchar = Varchar<'v', {autoincrement: true}>;
-// @ts-expect-error defaultNow() is date / time / timestamp only
-type _noDefaultNowOnVarchar = Varchar<'v', {defaultNow: true}>;
-// @ts-expect-error defaultRandom() is uuid only
-type _noDefaultRandomOnInteger = Integer<'i', {defaultRandom: true}>;
-// @ts-expect-error the identity modifiers are smallint / integer / bigint only
-type _noIdentityOnText = Text<'t', {generatedAlwaysAsIdentity: true}>;
-// drizzle builds the serials on plain PgColumnBuilder, so neither road may spell an identity modifier on one.
-// @ts-expect-error serial is already sequence-backed, it takes no identity
-type _noIdentityOnSerial = Serial<'id', {generatedAlwaysAsIdentity: true}>;
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- consumed as a type by the pins
-const noIdentityOnSerialBuilders = {
-  // @ts-expect-error serial takes no identity modifier
-  serial: serial('id').generatedAlwaysAsIdentity(),
-  // @ts-expect-error bigserial takes no identity modifier
-  bigserial: bigserial('id', {mode: 'number'}).generatedByDefaultAsIdentity(),
-};
-export type _BagPins = [
-  _noAutoincrementOnVarchar,
-  _noDefaultNowOnVarchar,
-  _noDefaultRandomOnInteger,
-  _noIdentityOnText,
-  _noIdentityOnSerial,
-  typeof noIdentityOnSerialBuilders,
-];
-
-// A refined identity column keeps its key flags, so `.overridingSystemValue()` still re-admits it.
-const identityUsers = pgTable('identity_users', {
-  seq: integer('seq').generatedAlwaysAsIdentity(),
-  name: varchar('name', {length: 100}).notNull(),
-});
-const identityApi = refineTableType(identityUsers, {seq: {max: 1000}});
-type _refinedIdentity = Expect<Equal<ToDrizzleTable<typeof identityApi>['seq']['_']['identity'], 'always'>>;
-export const overridingRefined = db.insert(toDrizzle(identityApi)).overridingSystemValue().values({seq: 5, name: 'a'});
-// the same on the pure-type road
-type TypedIdentityApi = RefinedTable<TwinWideType, {seq: {max: 1000}}>;
-type _refinedTypedIdentity = Expect<Equal<ToDrizzleTable<TypedIdentityApi>['seq']['_']['identity'], 'always'>>;
-export type _RefinedKeyPins = [_refinedIdentity, _refinedTypedIdentity];
-
-// ── toDrizzle names a column as drizzle does ─────────────────────────────────
-// drizzle names a column by its db name, else its key; a builder column's type lacks the db name, so it is `string`.
-
-type DbNamedType = PgTable<'db_named', {createdAt: Timestamp<'created_at'>; bare: Integer}>;
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- consumed as a type by the pins
-const dbNamedBuilders = pgTable('db_named', {createdAt: timestamp('created_at')});
-type _typeRoadDbNames = Expect<
-  Equal<keyof DzInferSelectModel<ToDrizzleTable<DbNamedType>, {dbColumnNames: true}>, 'created_at' | 'bare'>
->;
-type _builderRoadName = Expect<Equal<ToDrizzleTable<typeof dbNamedBuilders>['createdAt']['_']['name'], string>>;
-export type _DbNamePins = [_typeRoadDbNames, _builderRoadName];

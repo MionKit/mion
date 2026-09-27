@@ -79,7 +79,7 @@ import {
   varchar,
 } from '../src/index.ts';
 import type {InferInsertModel, InferSelectModel, InferSelectViewModel, InferUpdateModel} from '@mionjs/drizzle-orm';
-import {cols, refineTableType, sql} from '@mionjs/drizzle-orm';
+import {$type, refineTableType, sql, tableRef} from '@mionjs/drizzle-orm';
 import {toDrizzle} from '../src/drizzle.ts';
 
 // ── the equality oracle ──────────────────────────────────────────────────────
@@ -171,8 +171,8 @@ const auditor = pgRole('auditor', {createDb: false});
 const dzAuditor = dzPgRole('auditor', {createDb: false});
 
 const teams = pgTable('teams', {
-  id: serial('id').primaryKey(),
-  code: varchar('code', {length: 10}).notNull().unique(),
+  id: serial('id', {primaryKey: true}),
+  code: varchar('code', {length: 10, notNull: true, unique: true}),
 });
 const dzTeams = dzPgTable('teams', {
   id: dzSerial('id').primaryKey(),
@@ -182,30 +182,28 @@ const dzTeams = dzPgTable('teams', {
 const users = pgTable(
   'users',
   {
-    id: uuid('id').defaultRandom().primaryKey(),
-    name: varchar('name', {length: 100}).notNull(),
-    nickname: varchar('nickname', {length: 30}).$defaultFn(() => 'anon'),
-    role: roleEnum('role').notNull(),
-    plan: text('plan', {enum: ['free', 'pro']})
-      .notNull()
-      .default('free'),
-    age: integer('age').notNull(),
-    seq: integer('seq').generatedByDefaultAsIdentity(),
-    score: doublePrecision('score').default(0.5),
+    id: uuid('id', {defaultRandom: true, primaryKey: true}),
+    name: varchar('name', {length: 100, notNull: true}),
+    nickname: varchar('nickname', {length: 30, $defaultFn: [() => 'anon']}),
+    role: roleEnum('role', {notNull: true}),
+    plan: text('plan', {enum: ['free', 'pro'], notNull: true, default: ['free']}),
+    age: integer('age', {notNull: true}),
+    seq: integer('seq', {generatedByDefaultAsIdentity: true}),
+    score: doublePrecision('score', {default: [0.5]}),
     balance: numeric('balance', {precision: 10, scale: 2, mode: 'number'}),
     bigCount: bigint('big_count', {mode: 'bigint'}),
     small: smallint('small'),
-    codes: varchar('codes', {length: 5}).array().notNull(),
-    active: boolean('active').notNull().default(true),
-    meta: jsonb('meta').$type<{tags: string[]}>(),
+    codes: varchar('codes', {length: 5, array: true, notNull: true}),
+    active: boolean('active', {notNull: true, default: [true]}),
+    meta: jsonb('meta', {$type: $type<{tags: string[]}>()}),
     ip: inet('ip'),
     mask: bit('mask', {dimensions: 8}),
-    teamId: integer('team_id').references(() => cols(teams).id, {onDelete: 'cascade'}),
-    fullName: text('full_name').generatedAlwaysAs(sql`name || ' '`),
+    teamId: integer('team_id', {references: [() => tableRef(teams, 'id'), {onDelete: 'cascade'}]}),
+    fullName: text('full_name', {generatedAlwaysAs: [sql`name || ' '`]}),
     bornOn: date('born_on', {mode: 'string'}),
     wakeAt: time('wake_at'),
-    createdAt: timestamp('created_at', {mode: 'date'}).notNull().defaultNow(),
-    updatedAt: timestamp('updated_at').default(sql.raw('now()')),
+    createdAt: timestamp('created_at', {mode: 'date', notNull: true, defaultNow: true}),
+    updatedAt: timestamp('updated_at', {default: [sql.raw('now()')]}),
   },
   (t) => [
     index('users_name_idx')
@@ -213,7 +211,7 @@ const users = pgTable(
       .where(sql`${t.age} > ${18}`),
     uniqueIndex('users_nickname_uidx').on(t.nickname),
     unique('users_name_team_uq').on(t.name, t.teamId).nullsNotDistinct(),
-    foreignKey({name: 'users_team_fk', columns: [t.teamId], foreignColumns: [cols(teams).id]}).onUpdate('restrict'),
+    foreignKey({name: 'users_team_fk', columns: [t.teamId], foreignColumns: [tableRef(teams, 'id')]}).onUpdate('restrict'),
     check('users_age_check', sql`${t.age} >= 0`),
     pgPolicy('users_read_policy', {as: 'permissive', for: 'select', to: [auditor], using: sql`true`}),
   ]
@@ -261,8 +259,8 @@ const dzUsers = dzPgTable(
 const memberships = pgTable(
   'memberships',
   {
-    userId: uuid('user_id').notNull(),
-    teamId: integer('team_id').notNull(),
+    userId: uuid('user_id', {notNull: true}),
+    teamId: integer('team_id', {notNull: true}),
   },
   (t) => [primaryKey({name: 'memberships_pk', columns: [t.userId, t.teamId]})]
 );
@@ -302,53 +300,11 @@ describe('pg slim surface — toDrizzle equals hand-written drizzle', () => {
   });
 });
 
-// ── extraConfig: drizzle's array form AND its older keyed-object one ─────────
-// Its own integration suites still write both, and the object form used to
-// crash the recorder (it mapped the result as an array).
-
-const objectConfig = pgTable('object_config', {id: uuid('id').primaryKey(), owner: text('owner').notNull()}, (t) => ({
-  ownerIdx: index('object_config_owner_idx').on(t.owner),
-  ownerUnique: unique('object_config_owner_unique').on(t.owner),
-}));
-const dzObjectConfig = dzPgTable('object_config', {id: dzUuid('id').primaryKey(), owner: dzText('owner').notNull()}, (t) => ({
-  ownerIdx: dzIndex('object_config_owner_idx').on(t.owner),
-  ownerUnique: dzUnique('object_config_owner_unique').on(t.owner),
-}));
-
-// The array form may also GROUP entries one level deep; drizzle flattens.
-const groupedConfig = pgTable('grouped_config', {id: uuid('id').primaryKey(), owner: text('owner').notNull()}, (t) => [
-  [index('grouped_config_owner_idx').on(t.owner), unique('grouped_config_owner_unique').on(t.owner)],
-]);
-const dzGroupedConfig = dzPgTable(
-  'grouped_config',
-  {id: dzUuid('id').primaryKey(), owner: dzText('owner').notNull()},
-  (t) => [[dzIndex('grouped_config_owner_idx').on(t.owner), dzUnique('grouped_config_owner_unique').on(t.owner)]] as never
-);
-
-describe('pg slim surface — extraConfig object form', () => {
-  it('materializes byte-equal to the same table written with drizzle', () => {
-    expect(project(toDrizzle(objectConfig))).toEqual(project(dzObjectConfig));
-  });
-
-  it('keeps both entries: an object form is not silently dropped', () => {
-    const config = getTableConfig(toDrizzle(objectConfig));
-    expect(config.indexes.map((entry) => entry.config.name)).toEqual(['object_config_owner_idx']);
-    expect(config.uniqueConstraints.map((entry) => entry.name)).toEqual(['object_config_owner_unique']);
-  });
-
-  it('flattens a grouped array one level, the way drizzle does', () => {
-    expect(project(toDrizzle(groupedConfig))).toEqual(project(dzGroupedConfig));
-    const config = getTableConfig(toDrizzle(groupedConfig));
-    expect(config.indexes.map((entry) => entry.config.name)).toEqual(['grouped_config_owner_idx']);
-    expect(config.uniqueConstraints.map((entry) => entry.name)).toEqual(['grouped_config_owner_unique']);
-  });
-});
-
 // ── row level security: enableRLS, an existing role, a linked policy ─────────
 
 const rlsDocs = pgTable('rls_docs', {
-  id: uuid('id').primaryKey(),
-  owner: text('owner').notNull(),
+  id: uuid('id', {primaryKey: true}),
+  owner: text('owner', {notNull: true}),
 }).enableRLS();
 const dzRlsDocs = dzPgTable('rls_docs', {
   id: dzUuid('id').primaryKey(),
@@ -358,7 +314,7 @@ const dzRlsDocs = dzPgTable('rls_docs', {
 const authenticated = pgRole('authenticated').existing();
 const dzAuthenticated = dzPgRole('authenticated').existing();
 
-const inlinePolicyDocs = pgTable('rls_inline', {id: uuid('id').primaryKey(), owner: text('owner').notNull()}, (t) => [
+const inlinePolicyDocs = pgTable('rls_inline', {id: uuid('id', {primaryKey: true}), owner: text('owner', {notNull: true})}, (t) => [
   pgPolicy('owner_reads', {as: 'permissive', for: 'select', to: authenticated, using: sql`${t.owner} = current_user`}),
 ]);
 const dzInlinePolicyDocs = dzPgTable('rls_inline', {id: dzUuid('id').primaryKey(), owner: dzText('owner').notNull()}, (t) => [
@@ -413,7 +369,7 @@ describe('pg slim surface — row level security', () => {
     // No cast: a real drizzle entry is part of the declared type. The
     // documented way to use a provider helper (crudPolicy and friends) is to
     // pass its result straight in, and that used to need `as never`.
-    const passthrough = pgTable('rls_passthrough', {id: uuid('id').primaryKey()}, () => [
+    const passthrough = pgTable('rls_passthrough', {id: uuid('id', {primaryKey: true})}, () => [
       dzPgPolicy('from_drizzle', {for: 'select', using: dzRealSql`true`}),
     ]);
     const dzPassthrough = dzPgTable('rls_passthrough', {id: dzUuid('id').primaryKey()}, () => [
@@ -440,75 +396,6 @@ describe('pg slim surface — pgEnum object overload', () => {
 
   it('exposes enumValues as the object VALUES, matching drizzle', () => {
     expect(pgEnum('priority_2', Priority).enumValues).toEqual([Priority.Low, Priority.High]);
-  });
-});
-
-// ── derived models drive full-fidelity validators ────────────────────────────
-
-const people = pgTable('people', {
-  id: uuid('id').primaryKey(),
-  name: varchar('name', {length: 100}).notNull(),
-  age: integer('age').notNull(),
-  role: text('role', {enum: ['admin', 'user']}).notNull(),
-  bio: text('bio'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-});
-const apiPeople = refineTableType(people, {name: {minLength: 3}, age: {min: 18}});
-type Person = InferSelectModel<typeof apiPeople>;
-type NewPerson = InferInsertModel<typeof apiPeople>;
-type PersonPatch = InferUpdateModel<typeof apiPeople>;
-
-const validPerson = {
-  id: '793aff46-42ac-4372-b7fa-c48ba48ed94f',
-  name: 'ann-lee',
-  age: 30,
-  role: 'admin',
-  bio: null,
-  createdAt: new Date(),
-};
-
-describe('pg slim surface — models compile full-fidelity validators', () => {
-  const validatePerson = createValidateFn<Person>();
-  const validateInsert = createValidateFn<NewPerson>();
-  const validatePatch = createValidateFn<PersonPatch>();
-
-  it('the refined table is the same object; only typeof carries the refinement', () => {
-    expect(apiPeople).toBe(people);
-  });
-
-  it('accepts a valid row (nullable column as null)', () => {
-    expect(validatePerson(validPerson)).toBe(true);
-  });
-
-  it('enforces captured and refined params (uuid, maxLength, minLength, min, enum, Int32)', () => {
-    expect(validatePerson({...validPerson, id: 'not-a-uuid'})).toBe(false);
-    expect(validatePerson({...validPerson, name: 'x'.repeat(101)})).toBe(false);
-    expect(validatePerson({...validPerson, name: 'ab'})).toBe(false); // refined minLength 3
-    expect(validatePerson({...validPerson, age: 17})).toBe(false); // refined min 18
-    expect(validatePerson({...validPerson, age: 3000000000})).toBe(false); // Int32 max
-    expect(validatePerson({...validPerson, age: 20.5})).toBe(false); // integer
-    expect(validatePerson({...validPerson, role: 'root'})).toBe(false);
-  });
-
-  it('insert drops nothing required, defaults optional; patch is a real partial', () => {
-    expect(validateInsert({id: validPerson.id, name: 'ann-lee', age: 21, role: 'user'})).toBe(true);
-    expect(validateInsert({name: 'ann-lee', age: 21, role: 'user'})).toBe(false); // id has no default
-    expect(validatePatch({})).toBe(true);
-    expect(validatePatch({age: 17})).toBe(false); // present keys still validate
-  });
-
-  // Marker test coverage rule: both getRunTypeId call shapes, paired, with a
-  // hash-equivalence assertion between them.
-  it('getRunTypeId static form resolves the model', () => {
-    expect(getRunTypeId<Person>()).toBeTruthy();
-  });
-  it('getRunTypeId reflection form resolves the model', () => {
-    const person: Person = validPerson as Person;
-    expect(getRunTypeId(person)).toBeTruthy();
-  });
-  it('both getRunTypeId forms resolve to the same id', () => {
-    const person: Person = validPerson as Person;
-    expect(getRunTypeId(person)).toBe(getRunTypeId<Person>());
   });
 });
 
@@ -540,10 +427,10 @@ function projectView(view: object, materialized = false) {
 }
 
 const nyUsers = pgView('new_yorkers', {
-  id: uuid('id').primaryKey(),
-  name: varchar('name', {length: 100}).notNull(),
+  id: uuid('id', {primaryKey: true}),
+  name: varchar('name', {length: 100, notNull: true}),
   city: text('city'),
-}).as(sql`select ${cols(users).id}, ${cols(users).name}, 'NY' from ${users}`);
+}).as(sql`select ${tableRef(users, 'id')}, ${tableRef(users, 'name')}, 'NY' from ${users}`);
 const dzNyUsers = dzPgView('new_yorkers', {
   id: dzUuid('id').primaryKey(),
   name: dzVarchar('name', {length: 100}).notNull(),
@@ -560,14 +447,14 @@ const dzTrimmedUser = dzPgView('trimmed_user', {
 }).existing();
 
 const topTeams = pgMaterializedView('top_teams', {
-  id: serial('id').primaryKey(),
-  code: varchar('code', {length: 10}).notNull(),
+  id: serial('id', {primaryKey: true}),
+  code: varchar('code', {length: 10, notNull: true}),
 })
   .using('btree')
   .with({fillfactor: 90})
   .tablespace('custom_tablespace')
   .withNoData()
-  .as(sql`select ${cols(teams).id}, ${cols(teams).code} from ${teams}`);
+  .as(sql`select ${tableRef(teams, 'id')}, ${tableRef(teams, 'code')} from ${teams}`);
 const dzTopTeams = dzPgMaterializedView('top_teams', {
   id: dzSerial('id').primaryKey(),
   code: dzVarchar('code', {length: 10}).notNull(),

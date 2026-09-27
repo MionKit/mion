@@ -56,15 +56,8 @@ const sqliteSpecDialect: SpecDialect = {
   typeMods: new Set(['notNull', 'primaryKey', 'default', 'unique', 'generatedAlwaysAs']),
 };
 
-export const {
-  makeSpec,
-  typeRoadReduce,
-  renderNextTableType,
-  renderTableSingleCall,
-  renderTableType,
-  syntheticTableGraph,
-  syntheticNextTableGraph,
-} = specTools(sqliteSpecDialect);
+export const {makeSpec, typeRoadCovers, typeRoadReduce, renderTableBuilders, renderTableType, syntheticTableGraph} =
+  specTools(sqliteSpecDialect);
 
 const normalizeValue = (value: unknown): unknown => {
   if (typeof value === 'function') return '<fn>';

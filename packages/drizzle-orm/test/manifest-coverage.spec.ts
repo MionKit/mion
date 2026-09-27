@@ -43,7 +43,7 @@ import * as surface from '../src/index.ts';
 
 const surfaceModule = surface as Record<string, unknown>;
 
-describe('the root drizzle-orm manifest matches the shipped module', () => {
+describe('the root drizzle-orm manifest matches the module', () => {
   it('the dialects.json row for the root module points at this package', () => {
     const row = dialectsConfig.dialects.find((candidate) => candidate.dialect === 'root');
     expect(row?.packageDir).toBe('packages/drizzle-orm');
@@ -73,10 +73,12 @@ describe('the root drizzle-orm manifest matches the shipped module', () => {
       const row = columnDialects.find((candidate) => candidate.dialect === dialect)!;
       const packageDir = resolve(REPO_ROOT, row.packageDir);
       const manifest = JSON.parse(readFileSync(resolve(packageDir, row.manifest), 'utf8')) as {entries: ManifestEntry[]};
+      const source = (file: string) => readFileSync(resolve(packageDir, file), 'utf8');
       const report = columnParity(
         manifest.entries,
-        readFileSync(resolve(packageDir, 'src/columns.ts'), 'utf8'),
-        readFileSync(resolve(packageDir, row.proxy), 'utf8')
+        source('src/types.ts'),
+        source('src/columns.ts') + source('src/helpers.ts'),
+        source(row.proxy)
       );
       expect(report.length, `${dialect}: no migrated columns read - this gate is reading nothing`).toBeGreaterThan(5);
       for (const column of report) {

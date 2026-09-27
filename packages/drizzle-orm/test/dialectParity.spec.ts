@@ -5,22 +5,26 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Every dialect's next/ test files hold the same tests. A dialect-only test says so in its name:
+// Every dialect's shared test files hold the same tests. A dialect-only test says so in its name:
 // `only pg, mysql: ...` in a title or an @ts-expect-error reason, `OnlyPgMysql_` on a pin tuple.
 
 import {describe, it, expect} from 'vitest';
 import {readFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 
-/** Every dialect with a next/ folder, in the order an only list names them; a new dialect joins the check here. */
+/** Every dialect package, in the order an only list names them; a new dialect joins the check here. */
 const DIALECTS = ['pg', 'mysql', 'sqlite'] as const;
 type Dialect = (typeof DIALECTS)[number];
 
 const FILES = [
-  'test/next/typeTables.spec.ts',
-  'test/next/type-pins.stub.ts',
-  'test/next/drizzleTypeSource.integration.spec.ts',
+  'test/typeTables.spec.ts',
+  'test/type-pins.stub.ts',
+  'test/drizzleTypeSource.integration.spec.ts',
   'test/tableEquality.fuzz.spec.ts',
+  'test/nestedMarkerCalls.spec.ts',
+  'test/completeness.spec.ts',
+  'test/manifest-coverage.spec.ts',
+  'test/drizzleConvert.integration.spec.ts',
 ];
 
 const PACKAGES_DIR = fileURLToPath(new URL('../..', import.meta.url));
@@ -109,17 +113,17 @@ export function parityErrors(read: (dialect: Dialect, file: string) => string): 
   return errors;
 }
 
-describe('next dialect parity', () => {
-  it('every dialect holds the same next/ tests, dialect-only ones marked', () => {
+describe('dialect parity', () => {
+  it('every dialect holds the same shared tests, dialect-only ones marked', () => {
     const errors = parityErrors(readTestFile);
     expect(errors, errors.join('\n')).toEqual([]);
   });
 
   // Negative controls over a small in-memory copy of the three files.
   const sample: Record<Dialect, string> = {
-    pg: `describe('next pg columns: views', () => { it('a view materializes', () => {}); it('only pg: a materialized view', () => {}); });`,
-    mysql: `describe('next mysql columns: views', () => { it('a view materializes', () => {}); });`,
-    sqlite: `describe('next sqlite columns: views', () => { it('a view materializes', () => {}); });`,
+    pg: `describe('pg columns: views', () => { it('a view materializes', () => {}); it('only pg: a materialized view', () => {}); });`,
+    mysql: `describe('mysql columns: views', () => { it('a view materializes', () => {}); });`,
+    sqlite: `describe('sqlite columns: views', () => { it('a view materializes', () => {}); });`,
   };
   const readSample = (overrides: Partial<Record<Dialect, string>>) => (dialect: Dialect, file: string) =>
     file === FILES[0] ? (overrides[dialect] ?? sample[dialect]) : '';

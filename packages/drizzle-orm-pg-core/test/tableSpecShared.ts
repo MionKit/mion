@@ -18,7 +18,7 @@ import {
 } from '../../drizzle-orm/test/tableSpecCore.ts';
 
 export type {ColumnSpec, ExtraSpec, ModCall, Surface, TableSpec} from '../../drizzle-orm/test/tableSpecCore.ts';
-export {buildTable, FUZZ_PARENT_NAME, renderColumnBuilders, renderEntryType} from '../../drizzle-orm/test/tableSpecCore.ts';
+export {buildTable, FUZZ_PARENT_NAME, renderEntryType} from '../../drizzle-orm/test/tableSpecCore.ts';
 
 // ── the random table spec ────────────────────────────────────────────────────
 // Kinds and their order are part of every seed: never reorder or edit them.
@@ -84,18 +84,8 @@ const pgSpecDialect: SpecDialect = {
   ]),
 };
 
-export const {
-  makeSpec,
-  typeRoadCovers,
-  typeRoadReduce,
-  renderColumnType,
-  renderNextTableType,
-  renderTableBuilders,
-  renderTableSingleCall,
-  renderTableType,
-  syntheticTableGraph,
-  syntheticNextTableGraph,
-} = specTools(pgSpecDialect);
+export const {makeSpec, typeRoadCovers, typeRoadReduce, renderTableBuilders, renderTableType, syntheticTableGraph} =
+  specTools(pgSpecDialect);
 
 // ── the oracle: getTableConfig projections must match ────────────────────────
 
