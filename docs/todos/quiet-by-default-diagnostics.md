@@ -76,9 +76,9 @@ need anyway (`Walker.EmitDiagnostic`, `ts-go-runtypes/internal/cachegen/typefunc
 - **Lint:** `settings: {runtypes: {levels: 'all'}}` (the existing `settings.runtypes` namespace, not
   `settings.mion`; add the key to `LINT_SETTING_KEY_TABLE`). Default hides Info. The filter is a skip in the
   report loop of `packages/devtools/src/lint/index.ts`; the session cache keeps the full list.
-- **Build:** Info is not printed one by one. One summary line instead, e.g.
-  `mion: 12 info findings hidden (set levels: 'all' to show them)`. A build option `levels` (next to
-  `downgradeErrors`, also a tsconfig plugin key) shows them. `mion compile` follows the same rule.
+- **Build:** Info prints nothing by default, no summary line: the level alone decides. A build option
+  `levels` (next to `downgradeErrors`, also a tsconfig plugin key) set to `'all'` prints them. `mion compile`
+  follows the same rule.
 - **Why not per-rule `off` defaults:** five rules mix real problems with harmless notes (`redundant-marker`,
   `clone-shared-reference`, `pure-functions`, `enrichment-field`, `enrichment-message`), so only a level can
   split them.
