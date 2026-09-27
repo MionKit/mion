@@ -11,7 +11,7 @@
 // Consumers import this shared surface from HERE and the builders from their dialect
 // package; the dialect packages re-export nothing of it.
 
-// The shared type vocabulary: one optional spec sentinel per column, every flag derived lazily from its props.
+// The shared type vocabulary.
 export type {
   AnyColumn,
   AnyTable,
@@ -77,7 +77,7 @@ export {
   sql,
 } from './recorder.ts';
 
-// Column runtime: the sentinel keys, `$type`, the modifier list and the props splitter.
+// Column runtime.
 export type {ColModName} from './columns.ts';
 export {$type, colModNames, isColModName, rtColSpecKey, rtEntrySpecKey, rtSqlTextKey} from './columns.ts';
 export type {rtColNameKey, rtNamedColumnKey} from './columns.ts';

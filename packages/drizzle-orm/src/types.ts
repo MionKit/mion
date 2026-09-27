@@ -5,22 +5,20 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The type vocabulary the core modules and the dialect packages share.
-
 import type {FormatNameOf, NominalBrand} from '@mionjs/run-types';
 import type {rtColNameKey, rtColSpecKey, rtEntrySpecKey, rtNamedColumnKey, rtSqlTextKey} from './columns.ts';
 import type {RtColumnRecorder, rtColumnKey, rtTableBrand, rtViewBrand} from './recorder.ts';
 
 // ── Column types ─────────────────────────────────────────────────────────────
-// A column type is ONE optional sentinel {fn, raw props, data} with no db name and no owner, so one column
-// shape is one shared type in every table. Flags are derived lazily from the raw props, never at declaration.
+// A column type has no db name and no owner, so one column shape is one shared type in every table.
+// Flags are derived lazily from the raw props, never at declaration.
 
 /** The intrinsic flag names a builder may declare (serial-likes, sqlite rowid, mysql serial). */
 export type ColBaseFlag = 'notNull' | 'hasDefault' | 'primaryKeyHasDefault' | 'autoincrement';
 
 /** A props constraint that also rejects stray keys (a `const` type parameter gets no excess-property check). */
 export type Only<P, Allowed> = {[K in keyof P]: K extends keyof Allowed ? Allowed[K] : never} & DefinedValues;
-// A key set to `undefined` reads as set (NOT NULL) but the runtime refuses it; an index signature is cheaper than an Exclude.
+// A key set to `undefined` reads as set but the runtime refuses it; an index signature is cheaper than an Exclude.
 interface DefinedValues {
   readonly [key: string]: NonNullable<unknown> | null;
 }
@@ -198,7 +196,7 @@ export interface ColMods {
   references?: readonly [ColRef] | readonly [ColRef, unknown];
   /** `$type<T>()`, drizzle's type-only override; never replayed. Mutable, the tuple `$type<T>()` returns. */
   $type?: [unknown];
-  // Runtime callbacks have no type spelling: the type records `true`, tableFromType's options.runtime carries the callback.
+  // No type spells a callback: the type records `true`, tableFromType's options.runtime carries the function.
   $default?: true;
   $defaultFn?: true;
   $onUpdate?: true;
@@ -252,22 +250,14 @@ export type AnyTableRef = ColRef;
 /** An entry's column: the table's own, or a tableRef() when the entry is declared outside the table. */
 export type EntryColumn = AnyColumn | AnyTableRef;
 
-/** The brand each DIALECT adds to its own table interface: what marks a node a table in the
- *  reflected graph, and what carries the dialect that recorded it.
- *  It stops a table reaching another dialect's toDrizzle: materialization replays the table's OWN
- *  buildTable closure against whatever context it is handed, so a pg table run through mysql's
- *  toDrizzle used to reach for `context.ns.pgTable` and find nothing. Optional (the house sentinel
- *  convention) and still rejecting that call, since `'pg' | undefined` is not assignable to
- *  `'mysql' | undefined`.
- *  On the dialect interfaces rather than RtTableMeta, and a fixed member rather than a type
- *  parameter, because both cost: about 4 instantiations per declared table for a parameter, about 9
- *  for declaring it in core and narrowing it in the dialect. */
+/** Marks a table in the reflected graph and names its dialect, so another dialect's toDrizzle fails to compile. */
+// That call would replay the table's own buildTable on the wrong namespace; optional still rejects it.
+// Fixed and on the dialect interfaces: a type parameter costs ~4 instantiations per table, a core-declared member ~9.
 export interface RtTableBrand<Dialect extends string> {
   readonly [rtTableBrand]?: Dialect;
 }
 
-/** Builds the dialect's drizzle table at materialization; the last argument, passed only when the
- *  slim table recorded an extraConfig, is a replay callback shaped for drizzle's third argument. */
+/** extraConfigReplay is passed only when the table recorded an extraConfig, shaped as drizzle's third argument. */
 export type BuildTableFn = (
   context: DrizzleContext,
   name: string,
@@ -287,19 +277,14 @@ export interface RtViewBrand<Dialect extends string> {
   readonly [rtViewBrand]?: Dialect;
 }
 
-/** Builds the dialect's drizzle view builder at materialization; returns drizzle's
- *  ManualViewBuilder, which the chain and the terminal call then run against. */
+/** Returns drizzle's ManualViewBuilder, which the chain and the terminal call then run against. */
 export type BuildViewFn = (context: DrizzleContext, name: string, columnBuilders: Record<string, unknown>) => unknown;
 
 // ── Recording and replay ─────────────────────────────────────────────────────
 
-/** A column's data type with its runtype FORMAT tag dropped. Right on the slim side, where the tag
- *  makes a schema double as a runtypes type; wrong on the drizzle side, where toDrizzle()'s rows must
- *  be exactly drizzle's own or a migrated schema is not a drop-in replacement. Dropping it costs
- *  nothing: a plain format tag is TRANSPARENT (optional sentinels, so tagged type and base are
- *  mutually assignable). A NOMINAL brand (`String<P, 'UserId'>`) is kept, its marker being REQUIRED,
- *  and dropping it would stop a queried row going back into the model it came from. Tuples are left
- *  alone: pg's `point({mode: 'tuple'})` is `[number, number]`, mapping it would flatten it to `number[]`. */
+/** Drops a runtype FORMAT tag so toDrizzle()'s rows equal drizzle's own, keeping a migrated schema a drop-in. */
+// A plain tag is transparent, so dropping it is free; a NOMINAL brand stays, or a row could not go back into its model.
+// Tuples stay: mapping pg's `point({mode: 'tuple'})` would flatten it to `number[]`.
 type LengthOf<T> = T extends {length: infer L} ? L : never;
 type ElementOf<T> = T extends readonly (infer E)[] ? E : never;
 export type PlainDataOf<T> = [T] extends [readonly unknown[]]
@@ -320,8 +305,7 @@ export type PlainDataOf<T> = [T] extends [readonly unknown[]]
               ? bigint
               : T;
 
-/** What a dialect's toDrizzle module injects into materialization. Typed loosely on purpose: this
- *  package never sees drizzle's types. */
+/** Injected by a dialect's toDrizzle module; typed loosely because this package never sees drizzle's types. */
 export interface DrizzleContext {
   /** The dialect namespace (`drizzle-orm/pg-core`, `drizzle-orm/mysql-core`, ...). */
   ns: Record<string, (...args: never[]) => unknown>;
@@ -338,14 +322,12 @@ export interface RecordedCall {
   args: unknown[];
 }
 
-/** Opaque type of a recorded sql template, accepted wherever the authoring surface accepts SQL
- *  (defaults, checks, generated columns, index where-clauses). */
+/** A recorded sql template: accepted in defaults, checks, generated columns and index where-clauses. */
 export interface RtSql {
   readonly [rtColumnKey]?: {rtSql: true};
 }
 
-/** A column reference decorated for an index position (`t.name.asc()` inside extraConfig), produced
- *  WITHOUT touching the column's own recorded calls. */
+/** A column decorated for an index position (`t.name.asc()`), never touching the column's own recorded calls. */
 export interface RtIndexedColumn {
   readonly [rtColumnKey]?: {rtIndexedColumn: true};
   asc(): RtIndexedColumn;
@@ -355,12 +337,10 @@ export interface RtIndexedColumn {
   op(op: string): RtIndexedColumn;
 }
 
-/** The extraConfig view of a column: only the index-position decorators. The runtime objects are the
- *  recorders themselves, which carry these methods. */
+/** At run time these are the column recorders themselves, which carry the index-position methods. */
 export type RtExtraColumn = RtIndexedColumn;
 
-/** The extraConfig replay scope: WHICH table is materializing and the columns
- *  drizzle handed its extraConfig callback. */
+/** WHICH table is materializing, and the columns drizzle handed its extraConfig callback. */
 export interface ExtraConfigScope {
   table: object;
   columns: Record<string, unknown>;
@@ -391,9 +371,7 @@ export interface TableFromTypeOptions<T extends AnyTable = AnyTable> {
   runtime?: RuntimeCallbacks<T>;
 }
 
-/** A referenced table, or a thunk returning it. The thunk is what makes a FORWARD reference
- *  spellable: drizzle's references are lazy, so schemas routinely point at a table declared further
- *  down the file, where a bare value in the options object would read it before its declaration. */
+/** A thunk spells a FORWARD reference: a bare value would read a table declared further down before its declaration. */
 export type TableDep = object | (() => object);
 
 /** Minimal structural view of a reflected RunType node, the walker's whole vocabulary. */

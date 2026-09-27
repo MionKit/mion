@@ -60,7 +60,7 @@ export function parseBags(source: string): Map<string, Set<string>> {
   return flattened;
 }
 
-/** Every builder props interface (`export interface PgColIn {...}`), its shared base included, inheritance flattened. */
+/** Every builder props interface and its shared base, inheritance flattened. */
 export function parsePropsInterfaces(source: string): Map<string, Set<string>> {
   const declared = new Map<string, {own: Set<string>; parent: string | null}>();
   for (const found of source.matchAll(/^export interface (\w+In|\w+SharedColMods)(?: extends (\w+))? \{([\s\S]*?)^\}/gm)) {

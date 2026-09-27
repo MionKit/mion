@@ -42,7 +42,7 @@ func (file *fileRun) toDrizzleLocal(dialect string) string {
 	return local
 }
 
-// rootLocal returns the local a @mionjs/drizzle-orm helper is imported under, claiming it on first use; "" when no name is free.
+// rootLocal claims the local a @mionjs/drizzle-orm helper is imported under on first use; "" when no name is free.
 func (file *fileRun) rootLocal(imported string, typeOnly bool) string {
 	if binding, ok := file.rootHelpers[imported]; ok {
 		return binding.Local

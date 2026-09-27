@@ -10,7 +10,7 @@
 
 // The sqlite column builders and their column types.
 export * from './columns.ts';
-// The types shared across files: configs, data, modifier bags, props interfaces, Any* tables and views, entries.
+// The shared types.
 export * from './types.ts';
 
 export {sqliteTable, sqliteTableCreator, tableFromType} from './table.ts';
