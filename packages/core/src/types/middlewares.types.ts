@@ -23,7 +23,7 @@ export interface RouteSyncErrorData {
 /** The route sync middleware's handler, typed here so the client installer needs no router import */
 export type SyncRoutesHandler = (ctx: any, routeSyncIds?: string[]) => RouteSyncError | void;
 
-/** How the metadata middleware answers: rows alongside the call, or rows alone with the call stopped before its route */
+/** Either mode stops the call before its route; `all` answers every public method and the batch ids */
 export type MethodsMetadataMode = 'only' | 'all';
 
 export interface MethodsMetadataOnlyData {
@@ -35,8 +35,7 @@ export interface MethodsMetadataOnlyData {
 /** Stops the chain so the route never runs; carries the rows the client asked for */
 export type MethodsMetadataOnly = FatalError<'metadata-only', MethodsMetadataOnlyData>;
 
-/** The metadata middleware's handler: no ids, no answer, so a call that asks nothing pays nothing.
- *  `only` answers the ids' rows and stops the call; `all` answers every public method and the batch ids. */
+/** No mode and no ids, no answer: a call that asks nothing pays nothing */
 export type MethodsMetadataHandler = (
   ctx: any,
   methodsIds?: string[],

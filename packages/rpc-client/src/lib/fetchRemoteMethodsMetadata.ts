@@ -14,7 +14,7 @@ import {hasMethod} from './methods.ts';
 /** The key `mionMethodsMetadata` sits under when placed by its own name. */
 export const METHODS_METADATA_ID = 'mionMethodsMetadata';
 
-/** Asks for rows alone: sent to a route's path, the metadata middleware answers and stops the call before the route. */
+/** Sent to a route's path: the metadata middleware answers and stops the call before the route runs. */
 export async function fetchRemoteMethodsMetadata(
   methodIds: string[],
   routePointer: string[],
