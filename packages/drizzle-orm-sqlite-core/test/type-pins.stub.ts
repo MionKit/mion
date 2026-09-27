@@ -690,3 +690,11 @@ export type BoundaryPins = [
   Expect<Equal<InferSelectModel<typeof classTable>['at'], Date>>,
   Expect<Equal<InferSelectModel<typeof classTable>['price'], Money>>,
 ];
+
+// A readonly `$type` is refused rather than read as an array: the override is the mutable tuple `$type<T>()` returns.
+// @ts-expect-error a readonly $type tuple
+export type ReadonlyTyped = Text<{length: 40; notNull: true; $type: readonly [BoundaryId]}>;
+
+// A hand-written readonly primaryKey config still makes the key optional on insert.
+type ReadonlyPk = SqliteTable<'boundary_readonly_pk', {id: Text<{primaryKey: readonly [{autoIncrement: true}]}>}>;
+export type OnlySqlite_ReadonlyPkPins = [Expect<Equal<InferInsertModel<ReadonlyPk>, {id?: Str | undefined}>>];

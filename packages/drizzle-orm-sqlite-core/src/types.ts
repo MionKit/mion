@@ -27,8 +27,10 @@ export interface SQLitePrimaryKeyConfig {
 /** The modifier calls every sqlite column type accepts. */
 export interface SqliteColMods extends Pick<
   ColMods,
-  'notNull' | 'default' | '$type' | '$default' | '$defaultFn' | '$onUpdate' | '$onUpdateFn'
+  'notNull' | 'default' | '$default' | '$defaultFn' | '$onUpdate' | '$onUpdateFn'
 > {
+  /** Mutable, as `$type<T>()` returns it, so a readonly tuple is refused; declared, not picked, as that costs less. */
+  $type?: [unknown];
   /** `true` mirrors `.primaryKey()`; the config form mirrors `.primaryKey({autoIncrement: true})`, db default included. */
   primaryKey?: true | readonly [SQLitePrimaryKeyConfig];
   unique?: true | readonly [string];

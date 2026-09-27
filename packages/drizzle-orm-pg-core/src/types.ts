@@ -42,8 +42,10 @@ export interface PgIdentityConfig {
 /** The modifier calls every pg column type accepts (base bag; each builder kind adds its own). */
 export interface PgColMods extends Pick<
   ColMods,
-  'notNull' | 'default' | 'generatedAlwaysAs' | 'array' | '$type' | '$default' | '$defaultFn' | '$onUpdate' | '$onUpdateFn'
+  'notNull' | 'default' | 'generatedAlwaysAs' | 'array' | '$default' | '$defaultFn' | '$onUpdate' | '$onUpdateFn'
 > {
+  /** Mutable, as `$type<T>()` returns it, so a readonly tuple is refused; declared, not picked, as that costs less. */
+  $type?: [unknown];
   primaryKey?: true;
   unique?: true | readonly [string] | readonly [string, {nulls: 'distinct' | 'not distinct'}];
   references?: readonly [ColRef] | readonly [ColRef, ReferenceActions];

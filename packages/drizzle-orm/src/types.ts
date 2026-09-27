@@ -103,7 +103,7 @@ type ExcludedKeys = 'generatedAlwaysAs' | 'generatedAlwaysAsIdentity';
 
 export type IsNotNull<Props, Base> = [(keyof Props & NotNullKeys) | (Base & 'notNull')] extends [never] ? false : true;
 export type IsHasDefault<Props, Base> = [(keyof Props & DefaultKeys) | (Base & 'hasDefault')] extends [never]
-  ? Props extends {primaryKey: [{autoIncrement: true}]}
+  ? Props extends {primaryKey: readonly [{autoIncrement: true}]}
     ? true
     : [Base & 'primaryKeyHasDefault'] extends [never]
       ? false
@@ -139,7 +139,7 @@ export type InsertKind<Props, Base> = [keyof Props & ExcludedKeys] extends [neve
       ? [keyof Props & 'primaryKey'] extends [never]
         ? 'required'
         : [Base & 'primaryKeyHasDefault'] extends [never]
-          ? Props extends {primaryKey: [{autoIncrement: true}]}
+          ? Props extends {primaryKey: readonly [{autoIncrement: true}]}
             ? 'optional'
             : 'required'
           : 'optional'
@@ -192,8 +192,8 @@ export interface ColMods {
   /** `.array(size?)`. */
   array?: true | readonly [number];
   references?: readonly [ColRef] | readonly [ColRef, unknown];
-  /** `$type<T>()`, drizzle's type-only override; never replayed. */
-  $type?: readonly [unknown];
+  /** `$type<T>()`, drizzle's type-only override; never replayed. Mutable, the tuple `$type<T>()` returns. */
+  $type?: [unknown];
   // Runtime callbacks have no type spelling: the type records `true`, tableFromType's options.runtime carries the callback.
   $default?: true;
   $defaultFn?: true;
