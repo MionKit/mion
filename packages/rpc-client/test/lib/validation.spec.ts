@@ -5,10 +5,13 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {describe, it, expect} from 'vitest';
+import {describe, it, expect, afterEach} from 'vitest';
 import {initClient} from './fetchingClient.ts';
 import {TestServerApi} from '@mionjs/test-server';
 import {TEST_SERVER_BASE_URL} from '../../globalSetup.ts';
+import type {MethodWithOptsAndJitFns} from '@mionjs/core';
+import {getResponseError} from '../../src/lib/validation.ts';
+import {resetBundledMethods, setBundledMethod} from '../../src/lib/methods.ts';
 
 // R17 — the client's local pre-validation on a `mutateStrict` route: the strategy rides the methods metadata, so the
 // client rebuilds the SAME validator the server compiled. `clone` and `compact` would rebuild the params from the
@@ -39,5 +42,25 @@ describe('client local pre-validation on a mutateStrict route (R17)', () => {
     const wrongType = {name: 123, surname: 'Doe'} as unknown as typeof validUser;
     const errors = await routes.createUserStrict(wrongType).typeErrors();
     expect(errors.length).toBeGreaterThan(0);
+  });
+});
+
+describe('getResponseError', () => {
+  afterEach(() => resetBundledMethods());
+
+  it('reports a validator that throws instead of raising it', () => {
+    const throwing = {
+      isNoop: false,
+      fn: () => {
+        throw new RangeError('Maximum call stack size exceeded');
+      },
+    };
+    const method = {id: 'deep', hasReturnData: true, returnJitFns: {isType: throwing, typeErrors: throwing}};
+    setBundledMethod('deep', method as unknown as MethodWithOptsAndJitFns);
+    const error = getResponseError('deep', {});
+    expect(error?.type).toBe('response-validation-error');
+    expect(error?.publicMessage).toBe(
+      `Could not validate response from Route or Middleware 'deep': Maximum call stack size exceeded`
+    );
   });
 });
