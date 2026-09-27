@@ -22,7 +22,7 @@ import {
   setResolveRecorded,
   type IndexedColumnInternal,
 } from './recorder.ts';
-import type {AnyColumn} from './columns.ts';
+import type {AnyColumn, ColRef} from './columns.ts';
 
 /** A table's type: name, the shared column types, extras, and the db names that differ from the key. */
 export interface RtTableMeta<Name extends string, Cols, Extras extends readonly object[] = [], Names = NoNames> {
@@ -35,9 +35,6 @@ export interface RtTableMeta<Name extends string, Cols, Extras extends readonly 
 export type NoNames = Record<never, never>;
 export type AnyTable = RtTableMeta<string, Record<string, AnyColumn>, readonly object[], object>;
 
-export type TableNameOf<T extends AnyTable> = T['name'];
-export type ColsOf<T extends AnyTable> = T['columns'];
-export type NamesOf<T extends AnyTable> = T['names'];
 /** The db name of one column of a table or view: the names map entry, else the record key. */
 export type DbNameOf<T extends {names: object}, K extends string> = K extends keyof T['names'] ? T['names'][K] & string : K;
 
@@ -48,7 +45,7 @@ export type TableRef<T extends RefTable | string, K extends RefKeyOf<T>> = T ext
 // Only what the ref reads: checking a table against AnyTable walks all its columns.
 type RefTable = {name: string; columns: object};
 type RefKeyOf<T> = T extends string ? string : keyof (T & RefTable)['columns'] & string;
-export type AnyTableRef = {table: string; column: string};
+export type AnyTableRef = ColRef;
 /** An entry's column: the table's own, or a tableRef() when the entry is declared outside the table. */
 export type EntryColumn = AnyColumn | AnyTableRef;
 

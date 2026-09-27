@@ -33,7 +33,6 @@ export interface NamedColumn<Name extends string, C> {
   readonly [rtColNameKey]: Name;
   readonly [rtNamedColumnKey]: C;
 }
-export type AnyNamedColumn = NamedColumn<string, AnyColumn>;
 export type AnyColumn = {readonly [rtColSpecKey]?: {fn: string; config: any; data: any; base: any}};
 
 /** The spec payload of a column, `never` for a non-column. */
@@ -61,7 +60,7 @@ type MutableTuple<A> = {
 // Only function keys change, since no type spells a function: references() records its TableRef, a callback `true`.
 
 /** The props keys that carry functions at run time. */
-export type RuntimeModKeys = 'references' | '$default' | '$defaultFn' | '$onUpdate' | '$onUpdateFn';
+type RuntimeModKeys = 'references' | '$default' | '$defaultFn' | '$onUpdate' | '$onUpdateFn';
 type RefArgs<Args> = Args extends readonly [() => infer Target, infer Actions]
   ? [Target, {-readonly [K in keyof Actions]: Actions[K]}]
   : Args extends readonly [() => infer Target]
@@ -136,9 +135,6 @@ export type SelectValue<Props, Data, Base> = [keyof Props & ('$type' | 'array')]
   : IsNotNull<Props, Base> extends true
     ? ValueOf<Props, Data>
     : ValueOf<Props, Data> | null;
-export type SelectValueOf<Spec> = Spec extends {config: infer Props; data: infer Data; base: infer Base}
-  ? SelectValue<Props, Data, Base>
-  : never;
 
 /** The primary-key default (sqlite's rowid, autoIncrement) only counts on a primary-key column. */
 export type InsertKind<Props, Base> = [keyof Props & ExcludedKeys] extends [never]
@@ -154,7 +150,6 @@ export type InsertKind<Props, Base> = [keyof Props & ExcludedKeys] extends [neve
           : 'optional'
       : 'optional'
   : 'excluded';
-export type InsertKindOf<Spec> = Spec extends {config: infer Props; base: infer Base} ? InsertKind<Props, Base> : never;
 
 type Has<Props, Keys extends string> = [keyof Props & Keys] extends [never] ? false : true;
 /** The key flags drizzle's mysql `$returningId()` and pg `overridingSystemValue()` read. */

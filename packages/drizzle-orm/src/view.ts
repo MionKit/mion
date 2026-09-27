@@ -13,7 +13,6 @@
 // InferInsertModel and InferUpdateModel do not.
 
 import type {DrizzleContext} from './recorder.ts';
-import type {AnyColumn} from './columns.ts';
 import type {NoNames} from './table.ts';
 import {mapReplayArgs, RtColumnRecorder, rtViewBrand, rtViewKey} from './recorder.ts';
 import {setViewMaterializer} from './table.ts';
@@ -24,7 +23,6 @@ export interface RtViewMeta<Name extends string, Cols, Names = NoNames> {
   columns: Cols;
   names: Names;
 }
-export type AnyView = RtViewMeta<string, Record<string, AnyColumn>, object>;
 
 /** The twin of RtTableBrand (see table.ts for why it lives here rather than on RtViewMeta). */
 export interface RtViewBrand<Dialect extends string> {
