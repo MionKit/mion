@@ -13,6 +13,7 @@ import (
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/jsquote"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/tsimports"
 )
 
@@ -90,6 +91,8 @@ type fileRun struct {
 	toDrizzleByDialect map[string]string
 	// rootHelpers are the @mionjs/drizzle-orm helpers the folded columns spell (tableRef, $type), claimed on first use.
 	rootHelpers map[string]tsimports.Binding
+	// noHelperName lists the helpers with no free local: any one leaves the whole file drizzle.
+	noHelperName map[string]bool
 	// used records the migrated exports that actually reached a recorder.
 	used map[string]map[string]bool
 
@@ -195,6 +198,7 @@ func MigrateFile(prog *program.Program, typeChecker *checker.Checker, absPath st
 		namespaceLocal: map[string]string{},
 		keepDrizzle:    map[string]bool{},
 		rootHelpers:    map[string]tsimports.Binding{},
+		noHelperName:   map[string]bool{},
 	}
 	file.seedTakenNames()
 
@@ -211,6 +215,9 @@ func MigrateFile(prog *program.Program, typeChecker *checker.Checker, absPath st
 	file.planDeclarationEdits()
 	if diag := file.planImportEdits(); diag != nil {
 		file.diags = append(file.diags, *diag)
+	}
+	if len(file.noHelperName) > 0 {
+		return &FileResult{Path: absPath, Output: source, Diags: file.diags}, nil
 	}
 
 	result := &FileResult{Path: absPath, Output: source, Diags: file.diags, Used: SortUsed(file.used)}
@@ -518,7 +525,7 @@ func (file *fileRun) planReferenceEdits() {
 			// A slim table's TYPE does not expose its columns, so a column is named with tableRef().
 			if ref.split.kind == "table" && readsColumn(ref.node) {
 				access := ref.node.Parent
-				text := file.rootLocal("tableRef", false) + "(" + ref.split.recorder + ", " + quoteSingle(access.AsPropertyAccessExpression().Name().Text()) + ")"
+				text := file.helperLocal(ref.node, "tableRef", false) + "(" + ref.split.recorder + ", " + jsquote.Single(access.AsPropertyAccessExpression().Name().Text()) + ")"
 				file.edits = append(file.edits, edit{start: tsimports.TokenStart(file.source, access.Pos()), end: access.End(), text: text})
 				continue
 			}
