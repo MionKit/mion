@@ -200,7 +200,7 @@ describe('PublicApi resolved options', () => {
         maxBodySize: 4096,
       }),
       r: compact.route((ctx): number => 1),
-      mf: compact.middleware((ctx, s: string): string => s, {alwaysRun: true}),
+      mf: compact.middleware((ctx, s: string): string => s, {alwaysRun: true, sanitizeParams: true}),
     } satisfies Routes;
     type Api = PublicApi<typeof defs>;
 
@@ -224,7 +224,7 @@ describe('PublicApi resolved options', () => {
       alwaysRun: true;
       description: undefined;
       parser: {params: 'compact'; return: 'compact'};
-      sanitizeParams: undefined;
+      sanitizeParams: true;
       maxBodySize: undefined;
     }>();
     // the definition keeps what the author wrote (plus the pinned isMutation); the router options ride by type only
@@ -255,6 +255,7 @@ describe('PublicApi resolved options', () => {
     expect(api.mf.options).toEqual({
       alwaysRun: true,
       parser: {params: 'compact', return: 'compact'},
+      sanitizeParams: true,
     });
     // the API type also names the exact types the server compiled each method from
     expectTypeOf<NonNullable<Api['q']['types']>>().toEqualTypeOf<{
