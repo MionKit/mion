@@ -8,46 +8,17 @@
 // A table TYPE is shared nameless columns plus a names map; its runtime object materializes the drizzle table
 // on demand. A reference names its target with a TableRef, never a column type.
 
-import type {DrizzleContext} from './recorder.ts';
 import {
-  type ExtraConfigScope,
   RtColumnRecorder,
   RtEntryRecorder,
   RtIndexedColumnClass,
   RtSqlRecorder,
-  rtTableBrand,
   rtRefTargetKey,
   rtTableKey,
   rtViewKey,
   setResolveRecorded,
-  type IndexedColumnInternal,
 } from './recorder.ts';
-import type {AnyColumn, ColRef} from './columns.ts';
-
-/** A table's type: name, the shared column types, extras, and the db names that differ from the key. */
-export interface RtTableMeta<Name extends string, Cols, Extras extends readonly object[] = [], Names = NoNames> {
-  name: Name;
-  columns: Cols;
-  extras: Extras;
-  names: Names;
-}
-/** The names map of a table whose every db name is its record key. */
-export type NoNames = Record<never, never>;
-export type AnyTable = RtTableMeta<string, Record<string, AnyColumn>, readonly object[], object>;
-
-/** The db name of one column of a table or view: the names map entry, else the record key. */
-export type DbNameOf<T extends {names: object}, K extends string> = K extends keyof T['names'] ? T['names'][K] & string : K;
-
-/** A reference to one column of another table, as plain data. Takes a table name for a self-reference. */
-export type TableRef<T extends RefTable | string, K extends RefKeyOf<T>> = T extends string
-  ? {table: T; column: K}
-  : {table: (T & RefTable)['name']; column: K};
-// Only what the ref reads: checking a table against AnyTable walks all its columns.
-type RefTable = {name: string; columns: object};
-type RefKeyOf<T> = T extends string ? string : keyof (T & RefTable)['columns'] & string;
-export type AnyTableRef = ColRef;
-/** An entry's column: the table's own, or a tableRef() when the entry is declared outside the table. */
-export type EntryColumn = AnyColumn | AnyTableRef;
+import type {AnyTable, AnyTableRef, BuildTableFn, DrizzleContext, ExtraConfigScope, IndexedColumnInternal} from './types.ts';
 
 /** For `references: [() => tableRef(teams, 'id')]` and foreignKey's foreignColumns. */
 export function tableRef<T extends AnyTable, K extends keyof T['columns'] & string>(
@@ -70,29 +41,6 @@ export function refColumn(ref: unknown): unknown {
   if (table[column] === undefined) throw new Error(`@mionjs/drizzle-orm: tableRef() found no column "${column}"`);
   return table[column];
 }
-
-/** The brand each DIALECT adds to its own table interface: what marks a node a table in the
- *  reflected graph, and what carries the dialect that recorded it.
- *  It stops a table reaching another dialect's toDrizzle: materialization replays the table's OWN
- *  buildTable closure against whatever context it is handed, so a pg table run through mysql's
- *  toDrizzle used to reach for `context.ns.pgTable` and find nothing. Optional (the house sentinel
- *  convention) and still rejecting that call, since `'pg' | undefined` is not assignable to
- *  `'mysql' | undefined`.
- *  On the dialect interfaces rather than RtTableMeta, and a fixed member rather than a type
- *  parameter, because both cost: about 4 instantiations per declared table for a parameter, about 9
- *  for declaring it in core and narrowing it in the dialect. */
-export interface RtTableBrand<Dialect extends string> {
-  readonly [rtTableBrand]?: Dialect;
-}
-
-/** Builds the dialect's drizzle table at materialization; the last argument, passed only when the
- *  slim table recorded an extraConfig, is a replay callback shaped for drizzle's third argument. */
-export type BuildTableFn = (
-  context: DrizzleContext,
-  name: string,
-  columnBuilders: Record<string, unknown>,
-  extraConfigReplay?: (dzExtraColumns: Record<string, unknown>) => unknown[] | Record<string, unknown>
-) => unknown;
 
 interface RtTableRuntime {
   name: string;

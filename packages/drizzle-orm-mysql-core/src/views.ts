@@ -8,16 +8,7 @@
 // MANUAL-COLUMN views only. `mysqlView(name)` with no columns (the query-builder form) is NOT supported: its columns
 // come from drizzle's select typing (packages/drizzle-orm/CLAUDE.md).
 
-import type {
-  AnyColumn,
-  DrizzleContext,
-  NoNames,
-  RtSql,
-  RtViewBrand,
-  RtViewMeta,
-  rtColNameKey,
-  rtNamedColumnKey,
-} from '@mionjs/drizzle-orm';
+import type {DrizzleContext, NameOf, NoNames, RtSql, RtViewBrand, RtViewMeta, rtNamedColumnKey} from '@mionjs/drizzle-orm';
 import {RtViewBuilder} from '@mionjs/drizzle-orm';
 
 export interface ViewFromQueryBuilderNotSupported {
@@ -42,13 +33,8 @@ export function requireColumns(fn: string, name: string, columns: Record<string,
   );
 }
 
-// Inline maps, never aliases over the builders record: see mysqlTable in ./table.ts.
-type NameOf<C> = C extends {readonly [rtColNameKey]: infer Name} ? Name : undefined;
-
 export interface MysqlView<Name extends string, Cols, Names = NoNames>
   extends RtViewMeta<Name, Cols, Names>, RtViewBrand<'mysql'> {}
-export type AnyMysqlView = MysqlView<string, Record<string, AnyColumn>, object>;
-
 export interface MysqlViewBuilder<Name extends string, Cols, Names> {
   algorithm(algorithm: MySqlViewAlgorithm): MysqlViewBuilder<Name, Cols, Names>;
   sqlSecurity(sqlSecurity: MySqlViewSecurity): MysqlViewBuilder<Name, Cols, Names>;
@@ -57,6 +43,7 @@ export interface MysqlViewBuilder<Name extends string, Cols, Names> {
   existing(): MysqlView<Name, Cols, Names>;
 }
 
+// Inline maps, never aliases over the builders record: see mysqlTable in ./table.ts.
 export function mysqlView<Name extends string, Cols extends Record<string, object>>(
   name: Name,
   columns: Cols

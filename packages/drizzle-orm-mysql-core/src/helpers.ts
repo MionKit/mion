@@ -19,9 +19,8 @@ import type {
   RtIndexedColumn,
   RtSql,
 } from '@mionjs/drizzle-orm';
-import {recordColumn, refColumn, RtEntryRecorder, rtColumnKey} from '@mionjs/drizzle-orm';
-import type {MysqlColIn} from './columns.ts';
-import type {UpdateDeleteAction} from './types.ts';
+import {recordColumn, refColumn, RtEntryRecorder} from '@mionjs/drizzle-orm';
+import type {MyEntryBrand, MysqlColIn, RtMyIndexEntry, UpdateDeleteAction} from './types.ts';
 
 type DrizzleWritable<T> = {-readonly [K in keyof T]: T[K]};
 type NonArray<T> = T extends readonly unknown[] ? never : T;
@@ -65,23 +64,12 @@ export function mysqlEnum(...args: unknown[]): unknown {
   return recordColumn(name === undefined ? [props] : [name, props], (context) => context.ns.mysqlEnum(...(enumArgs as never[])));
 }
 
-/** Common brand of every extraConfig entry. */
-export interface MyEntryBrand {
-  readonly [rtColumnKey]?: {rtEntry: true};
-}
-
 export type MyIndexColumn = EntryColumn | RtIndexedColumn | RtSql;
 
 // drizzle's two steps: `on` first, then the index options; an option before `on` does not exist on drizzle's builder.
 /** `index(name)` before its columns: only `on`. */
 export interface RtMyIndexBuilderOn {
   on(...columns: [MyIndexColumn, ...MyIndexColumn[]]): RtMyIndexEntry;
-}
-/** An index with its columns: the options drizzle's IndexBuilder takes. */
-export interface RtMyIndexEntry extends MyEntryBrand {
-  using(method: 'btree' | 'hash'): RtMyIndexEntry;
-  algorithm(algorithm: 'default' | 'inplace' | 'copy'): RtMyIndexEntry;
-  lock(lock: 'default' | 'none' | 'shared' | 'exclusive'): RtMyIndexEntry;
 }
 export function index(name: string): RtMyIndexBuilderOn {
   return new RtEntryRecorder('index', [name]) as unknown as RtMyIndexBuilderOn;

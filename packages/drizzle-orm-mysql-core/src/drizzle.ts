@@ -30,11 +30,10 @@ import type {
   TableFromTypeOptions,
   DrizzleContext,
 } from '@mionjs/drizzle-orm';
-import type {RtMyIndexEntry} from './helpers.ts';
 import type {InjectRunTypeId} from '@mionjs/run-types';
 import {tableFromType} from './table.ts';
-import type {AnyMysqlTable, MySqlSchema} from './table.ts';
-import type {AnyMysqlView} from './views.ts';
+import type {MySqlSchema} from './table.ts';
+import type {AnyMysqlTable, AnyMysqlView, RtMyIndexEntry} from './types.ts';
 
 import {
   isRtView,

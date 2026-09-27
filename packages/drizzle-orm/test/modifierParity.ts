@@ -117,7 +117,7 @@ export function columnParity(
   indexSource: string
 ): ColumnParity[] {
   const bags = parseBags(typesSource);
-  const interfaces = parsePropsInterfaces(buildersSource);
+  const interfaces = parsePropsInterfaces(typesSource);
   const builders = parseBuilderProps(buildersSource);
   const renames = parseExportRenames(indexSource);
   const report: ColumnParity[] = [];

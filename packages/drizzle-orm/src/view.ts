@@ -12,26 +12,9 @@
 // (packages/drizzle-orm/CLAUDE.md). A view is select-only: InferSelectViewModel accepts one,
 // InferInsertModel and InferUpdateModel do not.
 
-import type {DrizzleContext} from './recorder.ts';
-import type {NoNames} from './table.ts';
-import {mapReplayArgs, RtColumnRecorder, rtViewBrand, rtViewKey} from './recorder.ts';
+import type {BuildViewFn, DrizzleContext} from './types.ts';
+import {mapReplayArgs, RtColumnRecorder, rtViewKey} from './recorder.ts';
 import {setViewMaterializer} from './table.ts';
-
-/** A view's type: the table meta minus extras, since a view has none. */
-export interface RtViewMeta<Name extends string, Cols, Names = NoNames> {
-  name: Name;
-  columns: Cols;
-  names: Names;
-}
-
-/** The twin of RtTableBrand (see table.ts for why it lives here rather than on RtViewMeta). */
-export interface RtViewBrand<Dialect extends string> {
-  readonly [rtViewBrand]?: Dialect;
-}
-
-/** Builds the dialect's drizzle view builder at materialization; returns drizzle's
- *  ManualViewBuilder, which the chain and the terminal call then run against. */
-export type BuildViewFn = (context: DrizzleContext, name: string, columnBuilders: Record<string, unknown>) => unknown;
 
 interface RecordedViewCall {
   method: string;

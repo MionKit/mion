@@ -8,16 +8,7 @@
 // MANUAL-COLUMN views only. `pgView(name)` with no columns (the query-builder form) is NOT supported: its columns come
 // from drizzle's select typing, so it returns a marker type that errors on `.as(...)` (packages/drizzle-orm/CLAUDE.md).
 
-import type {
-  AnyColumn,
-  DrizzleContext,
-  NoNames,
-  RtSql,
-  RtViewBrand,
-  RtViewMeta,
-  rtColNameKey,
-  rtNamedColumnKey,
-} from '@mionjs/drizzle-orm';
+import type {DrizzleContext, NameOf, NoNames, RtSql, RtViewBrand, RtViewMeta, rtNamedColumnKey} from '@mionjs/drizzle-orm';
 import {RtViewBuilder} from '@mionjs/drizzle-orm';
 
 /** The stand-in a columnless `pgView(name)` returns: no `as`, so the query-builder form fails naming itself. */
@@ -42,12 +33,7 @@ export function requireColumns(fn: string, name: string, columns: Record<string,
   );
 }
 
-// Inline maps, never aliases over the builders record: see pgTable in ./table.ts.
-type NameOf<C> = C extends {readonly [rtColNameKey]: infer Name} ? Name : undefined;
-
 export interface PgView<Name extends string, Cols, Names = NoNames> extends RtViewMeta<Name, Cols, Names>, RtViewBrand<'pg'> {}
-export type AnyPgView = PgView<string, Record<string, AnyColumn>, object>;
-
 export interface PgViewBuilder<Name extends string, Cols, Names> {
   with(config: Record<string, unknown>): PgViewBuilder<Name, Cols, Names>;
   as(query: RtSql): PgView<Name, Cols, Names>;
@@ -62,6 +48,7 @@ export interface PgMaterializedViewBuilder<Name extends string, Cols, Names> {
   existing(): PgView<Name, Cols, Names>;
 }
 
+// Inline maps, never aliases over the builders record: see pgTable in ./table.ts.
 export function pgView<Name extends string, Cols extends Record<string, object>>(
   name: Name,
   columns: Cols

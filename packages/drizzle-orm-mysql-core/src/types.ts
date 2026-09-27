@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The mysql column vocabulary the builders and column types share: each builder's config, the data type it yields,
-// and the modifier bags a column type may spell beside its config keys.
+// The mysql types shared across files: each builder's config and data type, the modifier bags and props interfaces,
+// and the table, view and entry types toDrizzle takes.
 
 import type {
   BigInt64,
@@ -25,7 +25,9 @@ import type {
   UInt16,
   UInt32,
 } from '@mionjs/run-types/formats';
-import type {ColMods, ColRef} from '@mionjs/drizzle-orm';
+import type {AnyColumn, AnyTableRef, ColMods, ColRef, rtColumnKey} from '@mionjs/drizzle-orm';
+import type {MysqlTable} from './table.ts';
+import type {MysqlView} from './views.ts';
 
 type EnumTuple = readonly [string, ...string[]];
 type EnumOr<T extends readonly string[], Fallback> = string extends T[number] ? Fallback : T[number];
@@ -171,4 +173,48 @@ export interface CustomTypeParams<T extends CustomTypeValues> {
   dataType(config?: T['config']): string;
   toDriver?(value: T['data']): unknown;
   fromDriver?(value: unknown): T['data'];
+}
+
+// ── What each builder kind's props take ──────────────────────────────────────
+// The hand-written bags, with the function-carrying keys taking their runtime shape.
+
+// Written out, not an Omit of the hand-written bag: every builder call checks against one, and an interface is cheapest.
+export interface MysqlColIn {
+  notNull?: true;
+  primaryKey?: true;
+  default?: readonly [unknown];
+  unique?: true | readonly [string];
+  generatedAlwaysAs?: readonly [unknown] | readonly [unknown, {mode?: 'virtual' | 'stored'}];
+  $type?: readonly [unknown];
+  references?: readonly [() => AnyTableRef] | readonly [() => AnyTableRef, ReferenceActions];
+  $default?: readonly [() => unknown];
+  $defaultFn?: readonly [() => unknown];
+  $onUpdate?: readonly [() => unknown];
+  $onUpdateFn?: readonly [() => unknown];
+}
+/** Every numeric kind: mysql allows AUTO_INCREMENT on floats and decimal too. */
+export interface MysqlIntIn extends MysqlColIn {
+  autoincrement?: true;
+}
+export interface MysqlTimestampIn extends MysqlColIn {
+  defaultNow?: true;
+  onUpdateNow?: true;
+}
+
+// ── Tables, views and entries ────────────────────────────────────────────────
+
+/** What this package's toDrizzle and tableFromType take, so another dialect's table is a compile error. */
+export type AnyMysqlTable = MysqlTable<string, Record<string, AnyColumn>, readonly object[], object>;
+/** What this package's toDrizzle takes for a view. */
+export type AnyMysqlView = MysqlView<string, Record<string, AnyColumn>, object>;
+
+/** Common brand of every extraConfig entry. */
+export interface MyEntryBrand {
+  readonly [rtColumnKey]?: {rtEntry: true};
+}
+/** An index with its columns: the options drizzle's IndexBuilder takes. */
+export interface RtMyIndexEntry extends MyEntryBrand {
+  using(method: 'btree' | 'hash'): RtMyIndexEntry;
+  algorithm(algorithm: 'default' | 'inplace' | 'copy'): RtMyIndexEntry;
+  lock(lock: 'default' | 'none' | 'shared' | 'exclusive'): RtMyIndexEntry;
 }

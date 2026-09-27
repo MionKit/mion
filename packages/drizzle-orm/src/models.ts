@@ -7,9 +7,8 @@
 
 // Flat models with drizzle's operations.d.ts semantics, every flag derived from the column's raw props.
 
-import type {InsertKind, SelectValue} from './columns.ts';
+import type {AnyTable, InsertKind, SelectValue} from './types.ts';
 import {rtColSpecKey} from './columns.ts';
-import type {AnyTable} from './table.ts';
 
 type Prettify<T> = {[K in keyof T]: T[K]} & {};
 

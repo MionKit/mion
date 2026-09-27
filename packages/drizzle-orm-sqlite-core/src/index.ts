@@ -10,16 +10,14 @@
 
 // The sqlite column builders and their column types.
 export * from './columns.ts';
-// The config, data and modifier-bag types the builders and column types share.
+// The types shared across files: configs, data, modifier bags, props interfaces, Any* tables and views, entries.
 export * from './types.ts';
 
 export {sqliteTable, sqliteTableCreator, tableFromType} from './table.ts';
 export type {
-  AnySqliteTable,
   CheckEntry,
   ForeignKeyEntry,
   IndexEntry,
-  LiftCols,
   PrimaryKeyEntry,
   SqliteExtraConfigColumns,
   SqliteExtraConfigEntry,
@@ -38,4 +36,4 @@ export * from './helpers.ts';
 
 // Views, the manual-column form only (the query-builder form stays on drizzle), under BOTH names drizzle uses.
 export {sqliteView, view} from './views.ts';
-export type {AnySqliteView, SqliteView, SqliteViewBuilder, ViewFromQueryBuilderNotSupported} from './views.ts';
+export type {SqliteView, SqliteViewBuilder, ViewFromQueryBuilderNotSupported} from './views.ts';

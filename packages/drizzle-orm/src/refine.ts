@@ -8,9 +8,8 @@
 // A refined column keeps its fn, props and base, so every derived flag survives; only its format params change.
 
 import type {MergeFormat, RefinableParamsOf} from '@mionjs/run-types/formats';
-import type {ColBaseFlag, Column, Merge, ValueOf} from './columns.ts';
+import type {AnyTable, ColBaseFlag, Column, Merge, ValueOf} from './types.ts';
 import {rtColSpecKey} from './columns.ts';
-import type {AnyTable} from './table.ts';
 
 type Parts<C> = C extends {readonly [rtColSpecKey]?: {fn: infer Fn extends string; config: infer P; data: infer D; base: infer B}}
   ? [Fn, P, D, B]
