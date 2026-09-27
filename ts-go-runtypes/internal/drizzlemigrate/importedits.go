@@ -13,7 +13,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/tsimports"
 )
 
-// drizzleRootModule is the dialect-agnostic package: where cols() comes from.
+// drizzleRootModule is the dialect-agnostic package: where tableRef() and $type() come from.
 const drizzleRootModule = "@mionjs/drizzle-orm"
 
 // toDrizzleLocal returns the local toDrizzle is imported under for a dialect, claiming it on first use.
@@ -41,14 +41,17 @@ func (file *fileRun) toDrizzleLocal(dialect string) string {
 	return local
 }
 
-// colsLocal returns the local cols() is imported under, claiming it on first use.
-// A slim table's TYPE is its metadata, so reading a column off one goes through cols().
-func (file *fileRun) colsLocal() string {
-	if file.colsBinding != "" {
-		return file.colsBinding
+// rootLocal returns the local a @mionjs/drizzle-orm helper is imported under, claiming it on first use.
+func (file *fileRun) rootLocal(imported string, typeOnly bool) string {
+	if binding, ok := file.rootHelpers[imported]; ok {
+		return binding.Local
 	}
-	file.colsBinding = file.claim("cols")
-	return file.colsBinding
+	local := file.claim(imported)
+	if local == "" {
+		local = imported
+	}
+	file.rootHelpers[imported] = tsimports.Binding{Imported: imported, Local: local, TypeOnly: typeOnly}
+	return local
 }
 
 func (file *fileRun) ruleForDialect(dialect string) *ModuleRule {
@@ -112,6 +115,10 @@ func (file *fileRun) planImportEdits() *Diagnostic {
 		namespaceAdditions = append(namespaceAdditions, tsimports.Render(rule.To, alias, nil))
 	}
 
+	// The folded columns' helpers join whatever else moved to the root package, one statement.
+	for _, binding := range file.rootHelpers {
+		movedByTarget[drizzleRootModule] = append(movedByTarget[drizzleRootModule], binding)
+	}
 	var additions []string
 	targets := make([]string, 0, len(movedByTarget))
 	for target := range movedByTarget {
@@ -122,9 +129,6 @@ func (file *fileRun) planImportEdits() *Diagnostic {
 		if rendered := tsimports.Render(target, "", movedByTarget[target]); rendered != "" {
 			additions = append(additions, rendered)
 		}
-	}
-	if file.colsBinding != "" {
-		additions = append(additions, tsimports.Render(drizzleRootModule, "", []tsimports.Binding{{Imported: "cols", Local: file.colsBinding}}))
 	}
 	// toDrizzle last, so the block reads recorder-first then materializer.
 	dialects := make([]string, 0, len(file.toDrizzleByDialect))

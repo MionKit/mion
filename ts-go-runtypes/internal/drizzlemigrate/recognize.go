@@ -230,6 +230,24 @@ type splitDecl struct {
 	// initStart/initEnd bound the initializer, where references flip to their recorder binding.
 	initStart int
 	initEnd   int
+	// columns is a table or view's columns object, whose chains fold; dbName its name literal, "" when not one.
+	columns *ast.Node
+	dbName  string
+}
+
+// dbNameOf is the string literal a declaring call names its table or view with, "" otherwise.
+func dbNameOf(declaring *ast.Node) string {
+	for declaring != nil && !ast.IsCallExpression(declaring) {
+		declaring = declaring.Parent
+	}
+	if declaring == nil {
+		return ""
+	}
+	args := declaring.AsCallExpression().Arguments
+	if args == nil || len(args.Nodes) == 0 || !ast.IsStringLiteral(args.Nodes[0]) {
+		return ""
+	}
+	return args.Nodes[0].Text()
 }
 
 // singleDeclarationStatement returns the variable statement a declaration is the ONLY declarator of.

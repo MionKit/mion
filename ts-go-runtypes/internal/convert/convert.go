@@ -117,7 +117,7 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 	}
 	var planned []plannedDecl
 	var drizzlePlans []drizzlePlan
-	drizzleInfo := buildDrizzleFileInfo(decls, imports, names, baseTakenNames(imports, inScope), identifiersIn(sourceFile))
+	drizzleInfo := buildDrizzleFileInfo(decls, imports, names, baseTakenNames(imports, inScope), identifiersIn(sourceFile), opts.Target)
 	for _, decl := range decls {
 		if decl.Form == opts.Target {
 			continue
@@ -126,13 +126,13 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 		// printers, the id oracle or the const-away fixpoint: the pair keeps the const alive in both
 		// directions.
 		if decl.Drizzle {
-			printed, drizzleDiag := convertDrizzleDecl(prog, typeChecker, cache, source, decl, opts, names, drizzleInfo)
+			plan, drizzleDiag := convertDrizzleDecl(prog, typeChecker, cache, source, decl, drizzleInfo)
 			if drizzleDiag != nil {
 				drizzleDiag.File = absPath
 				result.Diags = append(result.Diags, *drizzleDiag)
 				continue
 			}
-			drizzlePlans = append(drizzlePlans, drizzlePlan{decl: decl, printed: printed})
+			drizzlePlans = append(drizzlePlans, *plan)
 			continue
 		}
 		if decl.Generic {
@@ -223,6 +223,11 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 			}
 		}
 	}
+
+	drizzlePlans, settleDiags := settleDrizzlePlans(drizzlePlans, absPath, drizzleInfo, func(decl *declaration) (*drizzlePlan, *Diagnostic) {
+		return convertDrizzleDecl(prog, typeChecker, cache, source, decl, drizzleInfo)
+	})
+	result.Diags = append(result.Diags, settleDiags...)
 
 	var replacements []replacement
 	needs := importNeeds{}

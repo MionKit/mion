@@ -2,9 +2,10 @@
 // moves a file authored against drizzle-orm onto the slim @mionjs/drizzle-orm-* packages. The ORIGINAL
 // name keeps binding the real drizzle table (`const users$table = pgTable(…); const users =
 // toDrizzle(users$table)`), so every query works with zero edits, and only references INSIDE a recorder
-// call flip to the `$<kind>` binding. It REWRITES, never re-prints: the table call's text is kept
-// byte-for-byte, so a construct it does not know rides through, the opposite trade from internal/convert.
-// What it refuses is the DRZ codes below; a refusal leaves the file valid drizzle, so the suite runs.
+// call flip to the `$<kind>` binding. It REWRITES, never re-prints: the table call's text is kept except
+// the glue of each column chain, which folds into the slim builders' one props object (fold.go), so a
+// construct it does not know rides through, the opposite trade from internal/convert. What it refuses is
+// the DRZ codes below; a refusal leaves the file valid drizzle, so the suite runs.
 package drizzlemigrate
 
 import (
@@ -35,6 +36,8 @@ const (
 	CodeUnsupportedHead = "DRZ002"
 	// No free name for a binding the rewrite has to add.
 	CodeNameCollision = "DRZ003"
+	// A column chain with no single-call spelling (an unknown or repeated modifier, a reference to an unmigrated table).
+	CodeUnfoldableColumn = "DRZ004"
 )
 
 // Diagnostic is one per-declaration finding.
@@ -90,8 +93,8 @@ type fileRun struct {
 	taken map[string]bool
 	// toDrizzleByDialect is the local toDrizzle is imported under per dialect, claimed on first use.
 	toDrizzleByDialect map[string]string
-	// colsBinding is the local cols() is imported under, claimed on first use.
-	colsBinding string
+	// rootHelpers are the @mionjs/drizzle-orm helpers the folded columns spell (tableRef, $type), claimed on first use.
+	rootHelpers map[string]tsimports.Binding
 	// used records the migrated exports that actually reached a recorder.
 	used map[string]map[string]bool
 
@@ -197,6 +200,7 @@ func MigrateFile(prog *program.Program, typeChecker *checker.Checker, absPath st
 		movedLocal:     map[string]string{},
 		namespaceLocal: map[string]string{},
 		keepDrizzle:    map[string]bool{},
+		rootHelpers:    map[string]tsimports.Binding{},
 	}
 	file.seedTakenNames()
 
@@ -205,9 +209,11 @@ func MigrateFile(prog *program.Program, typeChecker *checker.Checker, absPath st
 		return &FileResult{Path: absPath, Output: source}, nil
 	}
 	file.collectSplits()
+	file.refuseUnfoldableSplits()
 	file.collectReferences()
 	file.decideBindings()
 	file.planReferenceEdits()
+	file.planColumnFolds()
 	file.planDeclarationEdits()
 	if diag := file.planImportEdits(); diag != nil {
 		file.diags = append(file.diags, *diag)
@@ -229,13 +235,14 @@ func MigrateFile(prog *program.Program, typeChecker *checker.Checker, absPath st
 }
 
 // seedTakenNames registers every identifier the file already spells, so an invented binding never shadows one.
+// A member name binds nothing, so `.$type()` leaves `$type` free for the import that replaces it.
 func (file *fileRun) seedTakenNames() {
 	var walk func(node *ast.Node) bool
 	walk = func(node *ast.Node) bool {
 		if node == nil {
 			return false
 		}
-		if ast.IsIdentifier(node) {
+		if ast.IsIdentifier(node) && !isPropertyName(node) {
 			file.taken[node.Text()] = true
 		}
 		node.ForEachChild(walk)
@@ -320,6 +327,14 @@ func (file *fileRun) collectSplits() {
 			name: nameNode.Text(), recorder: recorder, kind: kind, dialect: dialect,
 			nameNode: nameNode, stmt: statement,
 			initStart: initializer.Pos(), initEnd: initializer.End(),
+		}
+		if kind == "table" || kind == "view" {
+			split.columns = columnsObjectOf(initializer)
+			if split.columns != nil {
+				if declaring := split.columns.Parent; declaring != nil {
+					split.dbName = dbNameOf(declaring)
+				}
+			}
 		}
 		file.splits = append(file.splits, split)
 		file.regions = append(file.regions, [2]int{split.initStart, split.initEnd})
@@ -508,10 +523,11 @@ func (file *fileRun) planReferenceEdits() {
 			continue
 		}
 		if ref.split != nil {
-			// Reading a COLUMN off a slim table goes through cols(): the table type is its metadata, so the
-			// columns are not properties of it (`index('i').on(users.name)`).
+			// A slim table's TYPE does not expose its columns, so a column is named with tableRef().
 			if ref.split.kind == "table" && readsColumn(ref.node) {
-				file.replaceIdentifier(ref.node, file.colsLocal()+"("+ref.split.recorder+")")
+				access := ref.node.Parent
+				text := file.rootLocal("tableRef", false) + "(" + ref.split.recorder + ", " + quoteSingle(access.AsPropertyAccessExpression().Name().Text()) + ")"
+				file.edits = append(file.edits, edit{start: tsimports.TokenStart(file.source, access.Pos()), end: access.End(), text: text})
 				continue
 			}
 			file.replaceIdentifier(ref.node, ref.split.recorder)
