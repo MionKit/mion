@@ -242,6 +242,14 @@ function deserializeBodyParamsOrThrow(request: MionRequest, executable: RemoteMe
   // EMPTY_PARAMS is frozen and the decoders mutate what they are handed, so decoding the sentinel would
   // report a raw serialization error where validation should refuse the missing body.
   if (!params) return EMPTY_PARAMS;
+  // with validation off nothing else checks it, and a spread string would reach the handler as its characters
+  if (!Array.isArray(params))
+    throw new FatalError({
+      statusCode: StatusCodes.UNEXPECTED_ERROR,
+      type: 'serialization-error',
+      publicMessage: `Invalid params '${executable.id}', params must be an array.`,
+      errorData: {deserializeError: 'params must be an array'},
+    });
 
   const {decode} = executable.paramsJitFns.json;
   if (decode.isNoop) return params;
