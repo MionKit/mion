@@ -46,20 +46,20 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
 ## Plan: two modes and the fetching check (approved 2026-09-27)
 
 ### Context
-Spec `docs/todos/check-metadata-fetching-setup-at-build.md` (feature, guidelines). `bundleApi: 'mixed'` already runs like `bundled` at runtime; its only extra is a softer diagnostic. And with `bundleApi: false` nothing checks the fetching setup, so a wrong setup only shows at runtime as `route-metadata-not-found`. Goal: two modes, and the build enforces the spec's table in both.
+Spec (feature, guidelines). `bundleApi: 'mixed'` already runs like `bundled` at runtime; its only extra is a softer diagnostic. And with `bundleApi: false` nothing checks the fetching setup, so a wrong setup only shows at runtime as `route-metadata-not-found`. Goal: two modes, and the build enforces the spec's table in both.
 
 User decisions: `bundleApi` becomes a **boolean** (default `true`); **no** "fetch code never used" warning (a bundled client's `useMethodsMetadata` still serves version-mismatch recovery and `client.execute`).
 
 ### 1. Remove `mixed`, make the option boolean
-- **devtools**: `packages/devtools/src/core/unplugin.ts` `bundleApi?: boolean` (true -> CLI `bundled`, false -> `off`). `src/options.ts`: `MionBundleApiMode` goes; the six-line check becomes one `typeof !== 'boolean'` line. `resolver-client.ts` keeps the CLI spelling `'bundled' | 'off'` written once as an exported type (`ResolverBundleApi`) and reused. Test files that restate the union (`rpc-client/test/bundleSplit.spec.ts`, `devtools/test/vite/bundledApiBuild.spec.ts`) import/derive it.
+- **devtools**: `packages/devtools/src/core/unplugin.ts` `bundleApi?: boolean` (true -> CLI `bundled`, false -> `off`). `src/options.ts`: `MionBundleApiMode` goes; the six-line check becomes one `typeof !== 'boolean'` line. `resolver-client.ts` keeps the CLI spelling `'bundled' | 'off'` on its one option field. Test files that restate the union (`rpc-client/test/bundleSplit.spec.ts`, `devtools/test/vite/bundledApiBuild.spec.ts`) import/derive it.
 - **Go**: drop `BundleApiMixed` (`internal/constants/constants.go`); CLI `--bundle-api bundled|off` (`cmd/mion/main.go`); tsconfig key `bundleApi` accepts `true | false` only (`cmd/mion/config.go` `bundleApiKey`; a string, number or object is refused with a clear message).
-- **Runtime client**: `setBundleApiMode(mode)` -> `setApiBundled()` (no arg, generated `api/lane.js` calls it); `client.bundleApiMode` -> `client.isApiBundled: boolean`; drop `BundleApiMode` type and the `bundle-api-invalid-mode` error. Manifest `Mode` keeps writing `"bundled"`.
+- **Runtime client**: `setBundleApiMode(mode)` -> `setApiBundled()` (no arg, generated `api/lane.js` calls it); `client.bundleApiMode` -> `client.isApiBundled: boolean`; drop `BundleApiMode` type and the `bundle-api-invalid-mode` error. The manifest drops its `mode` field, which only ever held `"bundled"`.
 - **Tests lane**: delete `vitest.mixed.config.ts`, `tsconfig.mixed.json`, the `client-mixed` entry in root `vitest.config.ts` and `scripts/core/test-batches.mjs`. Move what `test/mixed/` still proves into `test/bundled/`: the wide-helper fetch + store tests of `mixed.spec.ts` into `bundled.spec.ts`, `routeDrift.spec.ts` moved as-is; `mixed/apiVersion.spec.ts` is a subset of `bundled/apiVersion.spec.ts` and goes.
 - Examples: `private-examples/src/codegen/*` (`'mixed'` -> `true`, `'bundled'` -> `true`/omitted). mion-next e2e `MION_E2E_BUNDLE_API` value mapping checked.
 
 ### 2. The build check (Go)
 Two new program-wide facts, memoised per Program next to `apiFileCache` (`resolver.go`, reset where it is):
-- **fetching set up** = the program calls `useMethodsMetadata(...)` declared by `@mionjs/client` (new detector in `apimeta/`, twin of `callsInitClient` in `clientinit.go`, text pre-filtered, keeps the first call's site).
+- **fetching set up** = a `useMethodsMetadata(...)` call declared by `@mionjs/client` whose argument leads back to that client's `initClient` (new detector in `apimeta/clientfetch.go`, text pre-filtered). A call the build cannot follow counts for every client.
 - **client APIs** = the API type named at each `initClient<Api>` call (read off its InjectBuildVersion marker param, as `apiVersionSiteOf` does), walked with `WalkApi` (peer tree under `apiTsconfig`, like today's MET010). Unreadable -> skipped (MET001 stays the bundle's job). Only runs when the program calls `initClient`, so server-only builds pay nothing.
 
 Rules (one function, called on generate in both modes; the widened part also on scan):
@@ -77,7 +77,7 @@ Rules (one function, called on generate in both modes; the widened part also on 
 - **Lint lane stays `bundleApi: 'off'`**: lint scans one file, and these checks are program-wide on generate, which lint never runs. Pinned by a test on `buildResolverArgs`.
 
 ### 3. Tests
-- Go (`internal/compiler/resolver/apigen_test.go`, `apimeta_test.go`, `cmd/mion/config_test.go`): one subtest per table row (bundled x fetching x middleware, off x fetching x middleware), MET010/MET011 once per API with two `initClient` calls, off-mode build with no `initClient` runs no walk, `bundleApiKey` refusing a string / number / object and accepting `true` / `false`, MET010 at a fetching call only.
+- Go (`internal/compiler/resolver/apigen_test.go`, `apimeta_test.go`, `cmd/mion/config_test.go`): one subtest per table row (bundled x fetching x middleware, off x fetching x middleware), MET010/MET011 once per API with two `initClient` calls, off-mode build with no `initClient` reports nothing, `bundleApiKey` refusing a string / number / object and accepting `true` / `false`, MET010 at a fetching call only.
 - JS: bundled lane gains the moved mixed specs; `mion-presets.test.ts` boolean mapping + refusal; lint `buildResolverArgs` test; `bundledApiBuild.spec.ts` / `compile-cli-mion.test.ts` lane.js text `setApiBundled()`.
 - Any existing off-mode test program that inits a client against an API without the metadata middleware on purpose gets `// @mion-expect-error MET010` (found by running the suite).
 - Not a fuzz candidate: diagnostic selection logic has no cheap oracle.
@@ -105,3 +105,6 @@ Rebuild `mion-bin/mion` + devtools dist; `go -C ts-go-runtypes test ./internal/.
 - New MET011 for a `bundleApi: false` client that never calls `useMethodsMetadata`, reported once per API at its first `initClient`.
 - Two related fixes landed in their own commits: a diagnostic now starts at the node's first token (a call opening its line was reported on the line above, out of a directive's reach), and the `initClient` and middleware-read caches are dropped with the Program (an edit in watch mode kept stale MET008 / MET009 results).
 - The lint lane stays on `bundleApi: 'off'`: lint scans one file, and these checks read the whole program on generate. Its options moved to `session-protocol.ts` so a test pins them.
+- After review: fetching is checked per client. `useMethodsMetadata(middlewares.x)` is followed back through the variable or destructuring to its `initClient<Api>`, so a second client that never sets it up gets its own MET011 (or MET003 on a widened call). A setup the build cannot follow counts for every client.
+- After review: MET011 is reported even when the build cannot read the client's API, and a widened call that keeps its API type (`RouteSubRequest<any, string, Api>`) answers from that API.
+- After review: the API lookup is shared by the bundle, the version hash and the fetching check, and the `apiTsconfig` match is dropped when that project reloads. The plain runtypes adapters refuse a non-boolean `bundleApi` like the presets do. The bundled flag lives in `client.ts`, and the bundled lane config is one file.
