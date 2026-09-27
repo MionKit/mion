@@ -14,10 +14,11 @@
 // (drizzle's durable-objects worker): all three then read as both ADDED and
 // REMOVED, and the lane failed while the two trees were in fact identical.
 import {describe, it, expect} from 'vitest';
-import {readFileSync} from 'node:fs';
+import {mkdtempSync, mkdirSync, readFileSync, writeFileSync} from 'node:fs';
+import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {diffTypeErrors, errorLines} from '../../../container/drizzle-e2e/shared/baseline.mjs';
+import {diffTypeErrors, errorLines, isExactTypeAssertion} from '../../../container/drizzle-e2e/shared/baseline.mjs';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const read = (rel: string): string => readFileSync(path.join(REPO_ROOT, rel), 'utf8');
@@ -111,5 +112,51 @@ describe('drizzle-e2e typecheck normalization', () => {
     const runSuite = read('container/drizzle-e2e/shared/run-suite.mjs');
     expect(runSuite).toContain('path.relative(HOME, tree)');
     expect(runSuite).toContain('path.relative(HOME, CONTROL)');
+  });
+});
+
+// toDrizzle rows keep their column formats, so drizzle's own exact-type assertions stop matching; only those pass.
+describe('an added error on an exact-type assertion is set apart, any other still fails', () => {
+  const source = [
+    'const result = await db.select().from(users);',
+    'expectTypeOf(result).toEqualTypeOf<{id: number}[]>();',
+    'Expect<',
+    '  Equal<{id: number}[], typeof result>',
+    '>;',
+    'const wrong: number = result[0].name;',
+  ].join('\n');
+  const HOME = mkdtempSync(path.join(tmpdir(), 'drizzle-baseline-'));
+  mkdirSync(path.join(HOME, 'work/tests'), {recursive: true});
+  writeFileSync(path.join(HOME, 'work/tests/pg-common.ts'), source);
+  const roots = [`${HOME}/work/`, `${HOME}/control/`, 'work/', 'control/'];
+  const translated = [
+    'work/tests/pg-common.ts(2,22): error TS2554: Expected 1 arguments, but got 0.',
+    "work/tests/pg-common.ts(4,3): error TS2344: Type 'false' does not satisfy the constraint 'true'.",
+    "work/tests/pg-common.ts(6,7): error TS2322: Type 'string' is not assignable to type 'number'.",
+  ];
+
+  it('knows the two assertion shapes', () => {
+    const lines = source.split('\n');
+    expect([1, 2, 3, 4, 5, 6].map((lineNo) => isExactTypeAssertion(lines, lineNo))).toEqual([
+      false,
+      true,
+      false,
+      true,
+      false,
+      false,
+    ]);
+  });
+
+  it('moves the assertions out of `added`, keeps the real error in it', () => {
+    const {added, assertions} = diffTypeErrors({translated, control: [], roots, cwd: HOME});
+    expect(assertions).toHaveLength(2);
+    expect(added).toHaveLength(1);
+    expect(added[0]).toContain('TS2322');
+  });
+
+  it('without `cwd` every added error still counts', () => {
+    const {added, assertions} = diffTypeErrors({translated, control: [], roots});
+    expect(added).toHaveLength(3);
+    expect(assertions).toEqual([]);
   });
 });

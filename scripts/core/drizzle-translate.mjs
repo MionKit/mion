@@ -122,13 +122,15 @@ export async function main(args) {
   info('typechecking the translated tree against the untranslated control');
   const errors = typecheck(workDir);
   const controlErrors = typecheck(controlDir);
-  const {added, removed} = diffTypeErrors({
+  const {added, assertions, removed} = diffTypeErrors({
     translated: errors,
     control: controlErrors,
     // tsc prints paths relative to its cwd, so strip both spellings of each root.
     roots: [`${workDir}/`, `${controlDir}/`, `${path.relative(REPO_ROOT, workDir)}/`, `${path.relative(REPO_ROOT, controlDir)}/`],
+    cwd: REPO_ROOT,
   });
   note(`type errors: ${controlErrors.length} before the translation, ${errors.length} after`);
+  note(`exact-type assertions that now see the column formats: ${assertions.length}`);
   if (added.length > 0) {
     noteErr(`drizzle-translate: the translation ADDED ${added.length} type error(s) the untranslated tree does not have:`);
     noteErr(added.slice(0, 40).join('\n'));
@@ -169,8 +171,10 @@ export async function main(args) {
       translated: typeErrors,
       control: controlErrors,
       roots: [`${typesDir}/`, `${controlDir}/`, `${path.relative(REPO_ROOT, typesDir)}/`, `${path.relative(REPO_ROOT, controlDir)}/`],
+      cwd: REPO_ROOT,
     });
     note(`type errors on the type road: ${controlErrors.length} before, ${typeErrors.length} after`);
+    note(`exact-type assertions on the type road that now see the column formats: ${typeDiff.assertions.length}`);
     if (typeDiff.added.length > 0) {
       noteErr(`drizzle-translate: the type-road conversion ADDED ${typeDiff.added.length} type error(s) the untranslated tree does not have:`);
       noteErr(typeDiff.added.slice(0, 40).join('\n'));
