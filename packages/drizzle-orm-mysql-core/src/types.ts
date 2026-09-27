@@ -40,8 +40,10 @@ export interface ReferenceActions {
 /** The modifier calls every mysql column type accepts (base bag; each builder kind adds its own). */
 export interface MySqlColMods extends Pick<
   ColMods,
-  'notNull' | 'default' | '$type' | '$default' | '$defaultFn' | '$onUpdate' | '$onUpdateFn'
+  'notNull' | 'default' | '$default' | '$defaultFn' | '$onUpdate' | '$onUpdateFn'
 > {
+  /** Mutable, as `$type<T>()` returns it, so a readonly tuple is refused; declared, not picked, as that costs less. */
+  $type?: [unknown];
   primaryKey?: true;
   unique?: true | readonly [string];
   references?: readonly [ColRef] | readonly [ColRef, ReferenceActions];

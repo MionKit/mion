@@ -860,6 +860,10 @@ export type BoundaryPins = [
   Expect<Equal<InferSelectModel<typeof classTable>['price'], Money>>,
 ];
 
+// A readonly `$type` is refused rather than read as an array: the override is the mutable tuple `$type<T>()` returns.
+// @ts-expect-error a readonly $type tuple
+export type ReadonlyTyped = Varchar<{length: 40; notNull: true; $type: readonly [BoundaryId]}>;
+
 // @ts-expect-error only mysql, sqlite: unique takes a name only
 varchar({length: 5, unique: ['uq', {nulls: 'distinct'}]});
 // @ts-expect-error real takes no mode
