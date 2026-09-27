@@ -124,8 +124,7 @@ async function runExecutionChain(
         continue;
       }
       if (isMionError) {
-        // a returned FatalError is declared: it ends the chain but keeps its slot, defaulting to an application error.
-        // A plain RpcError stays in its slot and the chain keeps running.
+        // a returned FatalError is declared: it ends the chain but keeps its slot; a plain RpcError lets the chain run on
         if (result.isFatal === true) markResponseFailed(context, result, StatusCodes.APPLICATION_ERROR);
       }
       // A brandless Error is a bug with no typed slot; in the body it would be served as a SUCCESSFUL answer
