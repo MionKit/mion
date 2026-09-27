@@ -1,7 +1,7 @@
 ---
 type: chore
 spec: guidelines
-status: ready
+status: done
 created: 2026-09-27
 ---
 
@@ -34,3 +34,25 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
 - A client can opt in to checking responses, with tests for a matching and a mismatching answer.
 - `pnpm test`, `go -C ts-go-runtypes test ./internal/... ./cmd/...` and `pnpm run lint` pass.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source file, each committed on its own.
+
+## Plan — as built (approved 2026-09-27)
+
+### Server
+- The two keys are gone from the route and middleware option types, the resolved option types, `RemoteMethodOpts` in `@mionjs/core`, and the options the router writes on each executable, so they no longer ride the client metadata rows either.
+- `dispatch.ts` always runs `validateParametersOrThrow`; `validateReturnOrThrow` and its two call sites are deleted.
+- The not-an-array guard in `deserializeBodyParamsOrThrow` stays: a route with no params has a no-op validator, so a string body would still be spread into the handler as characters. Only its comment changed.
+- `batches.ts`: the mapping method drops `validateParams: false`. It runs through its own caller and never read the option.
+- The Go side reads the options object generically; only its test fixtures named the keys.
+- `mionMethodsMetadata` already had validation on by default; a new test pins that an unknown `mode` is refused with a `validation-error` and no route runs.
+
+### Client
+- New `validateServerResponses` option on `initClient`, default `false` (the client's own `validateParams` pre-send check stays).
+- When on, every answer the response body carries (not an error, method has return data, not a headers return) is checked with the method's return `isType`. A mismatch drops the value and lands in the undeclared slot as a `response-validation-error` with the type errors in `errorData`. Members absent from the body (a chain stopped early) are not checked.
+- Tests: `packages/rpc-client/test/validateServerResponses.spec.ts` against a new `wrongAnswer` route in the test server: off by default, a matching answer passes, a wrong answer is dropped and reported.
+
+### Docs
+- `01.rpc/02.server/07.validation.md`: params are always validated; the return-value section and its example are gone.
+- `01.rpc/03.client/00.client-overview.md`: new "Checking Server Responses" section with `client-validate-server-responses.ts`.
+
+### Not a fuzz candidate
+The check reuses the return validators, which the run-types fuzz suites already cover.
