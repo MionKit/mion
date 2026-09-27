@@ -86,9 +86,8 @@ type FileResult struct {
 	Converted []string `json:"converted,omitempty"`
 }
 
-// ConvertFile converts every recognized declaration of one file to opts.Target. A declaration
-// already in the target form stays byte-identical (idempotence) and one the converter cannot express
-// is reported and left untouched. A nil set converts the file as a single-file set.
+// ConvertFile converts every recognized declaration to opts.Target; one it cannot express is reported and left untouched.
+// A declaration already in the target form stays byte-identical, and a nil set means a single-file set.
 func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *runtype.Cache, markerOpts marker.Options, absPath string, opts Options, set *Set) (*FileResult, error) {
 	sourceFile := prog.SourceFile(absPath)
 	if sourceFile == nil {
@@ -122,9 +121,7 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 		if decl.Form == opts.Target {
 			continue
 		}
-		// Drizzle tables convert through their own arm (drizzle.go) and never enter the generic
-		// printers, the id oracle or the const-away fixpoint: the pair keeps the const alive in both
-		// directions.
+		// Drizzle tables skip the generic printers, the id oracle and the const-away fixpoint: the pair keeps the const.
 		if decl.Drizzle {
 			plan, drizzleDiag := convertDrizzleDecl(prog, typeChecker, cache, source, decl, drizzleInfo)
 			if drizzleDiag != nil {
@@ -136,16 +133,12 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 			continue
 		}
 		if decl.Generic {
-			// WARNING, not an error: a generic alias has no runtime shape to convert and its
-			// INSTANTIATIONS convert wherever they are reflected, so one type-level helper would
-			// otherwise fail a whole file.
+			// Warning, not error: its instantiations convert where reflected, and one type-level helper must not fail the file.
 			result.Diags = append(result.Diags, Diagnostic{Code: CodeGenericDecl, Severity: SeverityWarning, File: absPath, Decl: decl.Name,
 				Message: fmt.Sprintf("generic declaration %q is left as written (an unbound type parameter has no runtime shape); its instantiations still convert", decl.Name)})
 			continue
 		}
-		// One walk classifies the declaration's written type references into the silent-any refusal
-		// that owns them: a Temporal-lib hit gets the lib-specific message, anything else CNV008,
-		// rather than cement an unwritten `any` / `RT.any()` into the rewritten source.
+		// Refuse rather than cement an unwritten `any` / `RT.any()`: a Temporal-lib hit gets its own message, else CNV008.
 		temporalDiags, unresolvedDiags := writtenTypeRefDiags(typeChecker, decl, absPath)
 		if len(temporalDiags) > 0 {
 			result.Diags = append(result.Diags, temporalDiags...)
@@ -171,9 +164,7 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 		}
 		planned = append(planned, plannedDecl{decl: decl, printed: printed})
 	}
-	// Marker call sites (callsites.go) are planned BEFORE the const-away fixpoint so their spans join
-	// keptSpans: rewriting `fn(namedRT)` into `fn<Named>()` removes a use of the const, which is what
-	// lets the const convert away instead of refusing with CNV005.
+	// Planned before the const-away fixpoint: `fn(namedRT)` -> `fn<Named>()` drops a const use, so it converts, not CNV005.
 	var plannedCalls []*callSite
 	var callTexts []*printedDecl
 	for _, site := range recognizeCallSites(sourceFile, typeChecker, cache, markerOpts, set, opts.Target) {
@@ -190,10 +181,8 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 		callTexts = append(callTexts, printed)
 	}
 
-	// Const-away safety runs AFTER printing: converting to type-form removes the const binding, so
-	// any reference the conversion will NOT rewrite has to keep it, and only the declarations that
-	// PRINTED are rewritten. Dropping one const can re-expose uses inside its own kept span, hence
-	// the fixpoint.
+	// Runs after printing: only printed declarations are rewritten, and a reference outside them keeps the const.
+	// Dropping one const can re-expose uses inside its own kept span, hence the fixpoint.
 	if opts.Target == TargetType {
 		for {
 			var keptSpans [][2]int
@@ -235,14 +224,12 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 		needs.merge(callTexts[index].needs)
 		replacements = append(replacements, replacement{start: site.start, end: site.end, text: callTexts[index].text})
 	}
-	// Drizzle pairs: the main statement span takes the whole pair text, and the paired half's
-	// statement is removed in BOTH directions because the pair text re-emits it in canonical order.
+	// The paired half's statement is removed in both directions: the pair text re-emits it in canonical order.
 	for _, plan := range drizzlePlans {
 		needs.merge(plan.printed.needs)
 		result.Converted = append(result.Converted, declLabel(plan.decl))
 		start := tokenStart(source, plan.decl.Stmt.Pos())
-		// The printers emit the pair flush left, so a table inside a block needs its continuation
-		// lines re-indented to where the statement it replaces started.
+		// The printers emit flush left, so a table inside a block needs its continuation lines re-indented.
 		replacements = append(replacements, replacement{start: start, end: plan.decl.Stmt.End(), text: indentAfterFirstLine(plan.printed.text, lineIndentAt(source, start))})
 		if plan.decl.AliasStmt != nil {
 			aliasStart, aliasEnd := wholeLineSpan(source, plan.decl.AliasStmt)
@@ -254,8 +241,7 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 		needs.merge(plan.printed.needs)
 		result.Converted = append(result.Converted, declLabel(decl))
 		replacements = append(replacements, replacement{start: tokenStart(source, decl.Stmt.Pos()), end: decl.Stmt.End(), text: plan.printed.text})
-		// A const converted to type-form leaves its InferType alias self-referential, so it is
-		// dropped; const → const conversions keep the alias as-is.
+		// A type-form target leaves the InferType alias self-referential, so it goes.
 		if opts.Target == TargetType && decl.AliasStmt != nil {
 			aliasStart, aliasEnd := wholeLineSpan(source, decl.AliasStmt)
 			replacements = append(replacements, replacement{start: aliasStart, end: aliasEnd, text: ""})
@@ -266,8 +252,7 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 	}
 
 	removable := fileCtx.bindings.removableLocals(set)
-	// The dialect packages are a dependency, not part of the conversion SET, so their bindings are
-	// marked here or a builders import would survive a file that no longer calls it.
+	// The dialect packages are outside the conversion set, so without this a builders import outlives its last call.
 	for local := range drizzleInfo.spellings.removableLocals() {
 		removable[local] = true
 	}

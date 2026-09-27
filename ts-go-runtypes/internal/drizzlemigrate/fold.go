@@ -1,9 +1,7 @@
 package drizzlemigrate
 
-// Folds drizzle's chained columns into the slim builders' single call, `varchar('n', {length: 5}).notNull()`
-// becoming `varchar('n', {length: 5, notNull: true})`: a modifier with no argument is `true`, one with
-// arguments its argument tuple. The fold edits only the glue between the arguments, never the arguments
-// themselves, so every other rewrite inside them (an `sql` alias, a reference) composes with it.
+// Folds drizzle's chained columns into the slim builders' single call (`.notNull()` becomes `notNull: true`,
+// arguments their tuple). It edits only the glue between arguments, so every rewrite inside them composes with it.
 
 import (
 	"fmt"
@@ -15,7 +13,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/tsimports"
 )
 
-// columnsObjectOf finds a table or view's columns object: the innermost call's object (or object-returning callback) second argument.
+// columnsObjectOf finds the columns object: the innermost call's second argument, or what its callback returns.
 func columnsObjectOf(initializer *ast.Node) *ast.Node {
 	var found *ast.Node
 	node := initializer
@@ -303,7 +301,7 @@ func (file *fileRun) isDbNameArgument(node *ast.Node) bool {
 	return argType != nil && argType.Flags()&checker.TypeFlagsStringLike != 0
 }
 
-// retypeReferenceAnnotation swaps a reference callback's drizzle column annotation (a self-reference needs one, TS7022) for its TableRef.
+// retypeReferenceAnnotation swaps a reference callback's column annotation (self-references need one, TS7022) for TableRef.
 func (file *fileRun) retypeReferenceAnnotation(link convert.CallChainLink) {
 	target, column, arrow := file.referenceTarget(link)
 	if arrow == nil || arrow.Type() == nil {

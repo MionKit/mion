@@ -1,11 +1,8 @@
-// Package drizzlemigrate is the source-rewriting arm behind the `mion drizzle-migrate` CLI verb: it
-// moves a file authored against drizzle-orm onto the slim @mionjs/drizzle-orm-* packages. The ORIGINAL
-// name keeps binding the real drizzle table (`const users$table = pgTable(…); const users =
-// toDrizzle(users$table)`), so every query works with zero edits, and only references INSIDE a recorder
-// call flip to the `$<kind>` binding. It REWRITES, never re-prints: the table call's text is kept except
-// the glue of each column chain, which folds into the slim builders' one props object (fold.go), so a
-// construct it does not know rides through, the opposite trade from internal/convert. What it refuses is
-// the DRZ codes below; a refusal leaves the file valid drizzle, so the suite runs.
+// Package drizzlemigrate is the `mion drizzle-migrate` arm, moving a drizzle-orm file onto the slim packages. The
+// original name keeps the real drizzle table (`const users = toDrizzle(users$table)`), so queries need no edits; only
+// references inside a recorder call flip to the `$<kind>` binding. It rewrites, never re-prints: only each column
+// chain's glue changes (fold.go), so an unknown construct passes through, the opposite trade from internal/convert.
+// A DRZ refusal leaves the file valid drizzle, so the suite runs.
 package drizzlemigrate
 
 import (
@@ -79,11 +76,9 @@ type fileRun struct {
 	splits        []*splitDecl
 	// regions are the spans where a reference is RECORDED not queried: each split initializer, each factory's.
 	regions [][2]int
-	// refs is every identifier the rewrite may touch: a binding's fate depends on ALL its uses, so nothing
-	// is decided while collecting.
+	// refs is every identifier the rewrite may touch, decided only after collecting: a binding's fate depends on ALL uses.
 	refs []reference
-	// movedLocal is the local a migrated export arrives under, keepDrizzle marks the ones whose drizzle
-	// binding must ALSO stay. Keyed module:local.
+	// movedLocal: the local a migrated export arrives under; keepDrizzle: its drizzle binding ALSO stays. Keyed module:local.
 	movedLocal map[string]string
 	// namespaceLocal is the alias an `import * as X` object is re-imported under from the slim package.
 	namespaceLocal map[string]string
@@ -174,8 +169,7 @@ func (file *fileRun) noteUsed(dialect, fn string) {
 	file.used[dialect][fn] = true
 }
 
-// MigrateFile rewrites one source file onto the slim packages; a file with nothing to migrate comes
-// back unchanged and undiagnosed.
+// MigrateFile rewrites one file onto the slim packages; a file with nothing to migrate comes back unchanged, undiagnosed.
 func MigrateFile(prog *program.Program, typeChecker *checker.Checker, absPath string, _ Options) (*FileResult, error) {
 	sourceFile := prog.SourceFile(absPath)
 	if sourceFile == nil {
@@ -260,8 +254,7 @@ func (file *fileRun) importsAnyMappedModule() bool {
 	return false
 }
 
-// collectSplits walks in source order: a schema declared earlier is what makes `mySchema.table(…)`
-// recognisable later.
+// collectSplits walks in source order: an earlier schema is what makes `mySchema.table(…)` recognisable.
 func (file *fileRun) collectSplits() {
 	eachVariableDeclaration(file.sourceFile, func(decl *ast.Node) {
 		initializer := decl.Initializer()
@@ -293,9 +286,8 @@ func (file *fileRun) collectSplits() {
 			return
 		}
 		if kind == "" {
-			// A migrated helper bound to a const: the binding already holds a recorder, so the declaration
-			// stays as written, but its initializer IS a recorder region. mysql-common.ts declares an index
-			// AFTER its table and hands it to a lazy extraConfig, where `users.name` must mean the recorder's.
+			// A migrated helper bound to a const stays as written, but its initializer IS a recorder region.
+			// mysql-common.ts hands an index declared after its table to a lazy extraConfig: `users.name` must be ours.
 			if source == originImport {
 				file.regions = append(file.regions, [2]int{initializer.Pos(), initializer.End()})
 			}
