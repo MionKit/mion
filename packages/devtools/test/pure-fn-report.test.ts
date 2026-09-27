@@ -34,7 +34,7 @@ const TSCONFIG = JSON.stringify({
   include: ['*.ts'],
 });
 
-// Both forms, plus one registration bound to no name (it reports no binding name).
+// Both forms, plus one registration bound to no name.
 const CONSUMER = `import {registerPureFnFactory, registerPureFn} from '@mionjs/run-types/runtime';
 export const mul = registerPureFnFactory((utl) => function _mul(x: number, y: number) { return x * y; });
 export const neg = registerPureFn(function _neg(x: number) { return -x; });
