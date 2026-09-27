@@ -6,6 +6,7 @@ import (
 	"sort"
 
 	"github.com/microsoft/typescript-go/shim/ast"
+	"github.com/microsoft/typescript-go/shim/scanner"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 )
 
@@ -27,7 +28,8 @@ func NodeSite(filePath string, sourceFile *ast.SourceFile, node *ast.Node) diagn
 	if sourceFile == nil || node == nil {
 		return diagnostics.Site{}
 	}
-	startLine, startCol := LineCol(sourceFile, node.Pos())
+	// Pos() includes the leading trivia: a node opening its line would report on the line above, out of its directive's reach.
+	startLine, startCol := LineCol(sourceFile, scanner.GetTokenPosOfNode(node, sourceFile, false))
 	endLine, endCol := LineCol(sourceFile, node.End())
 	return diagnostics.Site{FilePath: filePath, StartLine: startLine, StartCol: startCol, EndLine: endLine, EndCol: endCol}
 }
