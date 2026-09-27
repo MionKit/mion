@@ -18,7 +18,7 @@ import type {TestServerApi} from '../../src/server/server.ts';
 export async function runInlineMapperBatch(baseURL: string): Promise<{customer: unknown; prefs: unknown; errors: unknown[]}> {
     const {routes, middlewares} = initClient<TestServerApi>({baseURL});
     middlewares.auth.onRequest((auth) => auth(new HeadersSubset({Authorization: 'XWYZ-TOKEN'})));
-    // no session token to send; setting it up says so, a bundled build refuses a middleware left alone (MET009)
+    // No session token to send, but a bundled build refuses a middleware left alone (MET009).
     middlewares.session.onRequest(() => undefined);
     const customer = routes.getCustomerById(7);
     const [[customerData, prefs], errors] = await batch([
