@@ -37,16 +37,18 @@ const everyMethod = {
 };
 
 async function serverRows(baseURL: string): Promise<SerializableMethodsData> {
-  const url = new URL(getRoutePath(['mionMethodsMetadataById'], {basePath: '', suffix: ''} as never), baseURL);
+  // every row, from the metadata middleware's 'all' mode: it stops the call before sayHello runs
+  const url = new URL(getRoutePath(['sayHello'], {basePath: '', suffix: ''} as never), baseURL);
   const response = await fetch(url, {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({['mionMethodsMetadataById']: [[], true]}),
+    body: JSON.stringify({mionMethodsMetadata: [[], 'all']}),
   });
-  expect(response.ok).toBe(true);
-  const body = (await response.json()) as Record<string, unknown>;
-  const envelope = body['mionMethodsMetadataById'];
-  return (Array.isArray(envelope) ? envelope[1] : envelope) as SerializableMethodsData;
+  const body = (await response.json()) as Record<string, any>;
+  const envelope = body['mionMethodsMetadata'];
+  const refusal = Array.isArray(envelope) ? envelope[1] : envelope;
+  expect(refusal?.type).toBe('metadata-only');
+  return refusal.errorData.metadata as SerializableMethodsData;
 }
 
 /** The code as a syntax tree, positions and empty statements dropped: the test runner's transform adds a `;`. */

@@ -94,6 +94,17 @@ describe('useMethodsMetadata', () => {
     expect(watch.bodies()).toHaveLength(1);
   });
 
+  it('typeErrors() asks for the rows alone and never runs the route it checks', async () => {
+    const {routes} = newClient();
+    await routes.resetNoteRuns().call();
+    expect(await routes.notes.touchNote('a').typeErrors()).toEqual([]);
+    // the rows came from a metadata-only request sent to touchNote's own path
+    const asked = watch.bodies().find((body) => body?.[METADATA]?.[1] === 'only');
+    expect(asked?.[METADATA][0]).toContain('notes/touchNote');
+    const [noteRuns] = await routes.noteRuns().call();
+    expect(noteRuns!.touchNote).toBe(0);
+  });
+
   it('a network error is never sent again', async () => {
     const {routes} = initClient<TestServerApi>({baseURL: 'http://127.0.0.1:1', storageEngine: 'memory'});
     const [, , undeclared] = await routes.sayHello(user).call();

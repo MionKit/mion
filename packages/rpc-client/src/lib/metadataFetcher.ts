@@ -17,7 +17,7 @@ export interface MetadataFetcher {
   /** the metadata middleware's id: the rows a call asks for ride the request under it */
   readonly id: string;
   /** Rows for the given ids without running any route: `typeErrors()`, a body that cannot go out plain. */
-  fetchRows(ids: string[], options: ClientOptions, signal?: AbortSignal): Promise<void>;
+  fetchRows(ids: string[], routePointer: string[], options: ClientOptions, signal?: AbortSignal): Promise<void>;
   startCall(context: ClientCallContext): MetadataCall;
   /** a store write the browser refused, reported once in a later call's undeclared slot */
   takeError(): RpcError<string> | undefined;

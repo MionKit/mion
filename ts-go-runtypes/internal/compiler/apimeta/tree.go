@@ -39,16 +39,12 @@ type Method struct {
 	MiddlewareIds []string
 	// NeedsParams is true when the client must send something: a required param, or a required header.
 	NeedsParams bool
-	// MethodsMetadata marks mion's own metadata middleware, placed by spreading `mionMethodsMetadata` into the routes.
+	// MethodsMetadata marks mion's own metadata middleware, `mionMethodsMetadata` placed in the routes.
 	MethodsMetadata bool
-	standalone      bool
 }
 
-// The router's metadata pair, recognised by where they are declared, whatever key or group holds them.
-const (
-	MethodsMetadataName     = "mionMethodsMetadata"
-	MethodsMetadataByIdName = "mionMethodsMetadataById"
-)
+// MethodsMetadataName is the router's metadata middleware, recognised by where it is declared, whatever key holds it.
+const MethodsMetadataName = "mionMethodsMetadata"
 
 // Tree is a walked PublicApi type: every public method in checker order, and the checker their type ids must be assigned under.
 type Tree struct {
@@ -131,8 +127,7 @@ func (walker *treeWalker) level(levelType *checker.Type, pointer []string, nestL
 			if problem != "" {
 				return problem
 			}
-			method.MethodsMetadata = method.Type == TypeMiddleware && routerDeclares(property, MethodsMetadataName)
-			method.standalone = method.Type == TypeRoute && routerDeclares(property, MethodsMetadataByIdName)
+			method.MethodsMetadata = method.Type == TypeMiddleware && walker.routerDeclares(property, MethodsMetadataName)
 			entries = append(entries, levelEntry{key: property.Name, method: method})
 			continue
 		}
@@ -158,10 +153,6 @@ func (walker *treeWalker) level(levelType *checker.Type, pointer []string, nestL
 			if entry.method.Type == TypeRoute {
 				chain := make([]string, 0, len(pre)+len(preLevel)+len(postLevel)+len(post))
 				chain = append(append(append(append(chain, pre...), preLevel...), postLevel...), post...)
-				// the router runs the by-id route with none of the middlewares around it
-				if entry.method.standalone {
-					chain = nil
-				}
 				entry.method.MiddlewareIds = chain
 			}
 			walker.tree.Methods = append(walker.tree.Methods, entry.method)
@@ -335,17 +326,41 @@ func (tree *Tree) Select(ids []string) (methods []*Method, missing []string) {
 	return methods, missing
 }
 
-// routerDeclares reports whether an API member is @mionjs/router's own `name`.
-// A mapped PublicApi member keeps its routes entry's declaration, spread entries included.
-func routerDeclares(property *ast.Symbol, name string) bool {
+// routerDeclares reports whether an API member's value is @mionjs/router's own `name`.
+// A mapped PublicApi member keeps its routes entry's declaration, so the entry's value leads to the router's.
+func (walker *treeWalker) routerDeclares(property *ast.Symbol, name string) bool {
 	if property == nil || len(property.Declarations) == 0 {
 		return false
 	}
-	declaration := property.Declarations[0]
+	declaration := walker.valueDeclaration(property.Declarations[0])
+	if declaration == nil {
+		return false
+	}
 	// a computed key cannot be the router's own entry, and Text() panics on one
 	declName := declaration.Name()
 	if declName == nil || declName.Kind != ast.KindIdentifier || declName.Text() != name {
 		return false
 	}
 	return marker.DeclaringModuleOfNode(declaration, nil) == RouterModule
+}
+
+// valueDeclaration follows a routes entry (`{name}` or `key: name`) through its import to where the value is declared.
+func (walker *treeWalker) valueDeclaration(entry *ast.Node) *ast.Node {
+	var symbol *ast.Symbol
+	switch entry.Kind {
+	case ast.KindShorthandPropertyAssignment:
+		symbol = checker.Checker_GetShorthandAssignmentValueSymbol(walker.typeChecker, entry)
+	case ast.KindPropertyAssignment:
+		symbol = walker.typeChecker.GetSymbolAtLocation(entry.AsPropertyAssignment().Initializer)
+	default:
+		return entry
+	}
+	if symbol == nil {
+		return nil
+	}
+	symbol = checker.SkipAlias(symbol, walker.typeChecker)
+	if symbol == nil || len(symbol.Declarations) == 0 {
+		return nil
+	}
+	return symbol.Declarations[0]
 }

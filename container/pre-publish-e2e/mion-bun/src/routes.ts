@@ -22,7 +22,7 @@ const mion = createMionRouter({contextDataFactory: () => ({user: null})});
 
 const routes = {
     // serves route metadata to a client that fetches it
-    ...mionMethodsMetadata,
+    mionMethodsMetadata,
     sayHello: mion.route((_ctx, user: SimpleUser): string => `Hello ${user.name}`),
     calculateAge: mion.route((_ctx, birthYear: number): number => 2026 - birthYear),
     mayFail: mion.route((_ctx, shouldFail: boolean): string | RpcError<'intentional-error'> => {

@@ -59,7 +59,8 @@ describe('useSyncRoutes', () => {
     globalThis.fetch = (async () => {
       fetches++;
       const rows = {methods: {users: methodRow('users', 'fresh')}, deps: {}, purFnDeps: {}};
-      return new Response(JSON.stringify({mionMethodsMetadataById: rows}), {headers: {'content-type': 'application/json'}});
+      const answer = new FatalError({type: 'metadata-only', publicMessage: 'rows', errorData: {metadata: rows}});
+      return new Response(JSON.stringify({mionMethodsMetadata: [1, answer]}), {headers: {'content-type': 'application/json'}});
     }) as typeof fetch;
   });
 

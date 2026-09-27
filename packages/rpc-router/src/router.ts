@@ -54,16 +54,7 @@ import {setErrorOptions} from '@mionjs/core';
 import {getPublicApi, resetRemoteMethodsMetadata} from './lib/remoteMethods.ts';
 import {mionErrorsRoutes, notFoundMiddleware, batchNotFoundMiddleware} from './routes/errors.routes.ts';
 import {capBatchBodySizes, clearBatches, getMaxBatchBodySize, refreshBatchChainBodyLimits} from './batches.ts';
-import {
-  headersFn,
-  isOnDemandMiddleware,
-  isStandaloneRoute,
-  middleware,
-  mutation,
-  query,
-  rawMiddleware,
-  route,
-} from './lib/handlers.ts';
+import {headersFn, isOnDemandMiddleware, middleware, mutation, query, rawMiddleware, route} from './lib/handlers.ts';
 import type {
   HeadersFnHelper,
   MiddlewareHelper,
@@ -115,8 +106,6 @@ const defaultStartMiddlewares = {
 const defaultEndMiddlewares = {
   mionSerializeResponse: serializerMiddlewares.mionSerializeResponse,
 };
-/** Routes whose chain holds only mion's own start and end middlewares. */
-const standaloneExecutables = new WeakSet<object>();
 /** True once any registered method answers with a promise. */
 let hasAsyncMethods = false;
 /** What the dispatcher reads per request: both inputs are fixed once registration is done (the options
@@ -250,7 +239,7 @@ function initRouter(opts: RouterOptionsInput, buildVersion?: string): void {
     );
   if (Object.hasOwn(opts, 'skipClientRoutes'))
     throw new Error(
-      "The skipClientRoutes option was removed: spread mionMethodsMetadata from '@mionjs/router/middlewares' first in your routes to serve route metadata."
+      "The skipClientRoutes option was removed: put mionMethodsMetadata from '@mionjs/router/middlewares' first in your routes to serve route metadata."
     );
   routerOptions = {...routerOptions, ...opts};
   const versionHeader = routerOptions.apiVersionCheck && buildVersion ? {[BUILD_VERSION_HEADER]: buildVersion} : undefined;
@@ -365,6 +354,14 @@ function recursiveFlatRoutes(
       // a start or end middleware already owns this id, and would otherwise be silently reused in its place
       if (nestLevel === 0 && (Object.hasOwn(startMiddlewaresDef, key) || Object.hasOwn(endMiddlewaresDef, key)))
         throw new Error(`Invalid middleware: ${joinPath(...newPointer)}. '${key}' is a reserved mion middleware name.`);
+      // it can stop a call before its route, so every route must come after it
+      if (
+        isOnDemandMiddleware(item) &&
+        (nestLevel !== 0 || entries.slice(0, index).some(([, entry]) => !isAnyMiddlewareDef(entry)))
+      )
+        throw new Error(
+          `Invalid middleware: ${joinPath(...newPointer)}. Place '${key}' at the root of your routes, before any route or group.`
+        );
       routeEntry = getExecutableFromAnyMiddleware(item, newPointer, nestLevel);
       if (middlewareNames.has(routeEntry.id))
         throw new Error(
@@ -434,9 +431,13 @@ function recursiveCreateExecutionChain(
   if (isExec && props.isRoute) {
     const path = getRoutePath(routeEntry.pointer, routerOptions);
     const routeMethod = routeEntry as RouteMethod;
-    const levelMethods = standaloneExecutables.has(routeEntry)
-      ? [routeEntry]
-      : [...preMiddlewares, ...props.preLevelMiddlewares, routeEntry, ...props.postLevelMiddlewares, ...postMiddlewares];
+    const levelMethods = [
+      ...preMiddlewares,
+      ...props.preLevelMiddlewares,
+      routeEntry,
+      ...props.postLevelMiddlewares,
+      ...postMiddlewares,
+    ];
     const methods = [...startMiddlewares, ...levelMethods, ...endMiddlewares];
     // internal error routes are never client-called: platform's size, not their no-params tuple's tiny one
     const maxBodySize = mionInternalRouteIds.has(routeMethod.id)
@@ -626,7 +627,6 @@ export function getExecutableFromRoute(route: Route, routePointer: string[], nes
     if (route.options?.maxBodySize !== undefined) executable.options.maxBodySize = route.options.maxBodySize;
   }
   if (executable.isAsync) hasAsyncMethods = true;
-  if (isStandaloneRoute(route)) standaloneExecutables.add(executable);
   routesById.set(routeId, executable);
   routesCache.setMethodJitFns(routeId, executable as any);
   return executable;

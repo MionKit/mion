@@ -794,18 +794,21 @@ describe('batch runtime behaviour', () => {
     expect(fatal?.type).toBe('request-aborted');
   });
 
-  it('the metadata route lists the registered batch ids', async () => {
-    const url = new URL(getRoutePath(['mionMethodsMetadataById'], {basePath: '', suffix: ''} as never), baseURL);
+  it("the metadata middleware's 'all' mode lists the registered batch ids", async () => {
+    // sent to any route's path: the middleware answers and stops the call before the route
+    const url = new URL(getRoutePath(['sayHello'], {basePath: '', suffix: ''} as never), baseURL);
     const response = await fetch(url, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({['mionMethodsMetadataById']: [[], true]}),
+      body: JSON.stringify({mionMethodsMetadata: [[], 'all']}),
     });
-    expect(response.ok).toBe(true);
-    // the route answers a union (data | RpcError), which the wire encodes as [memberIndex, value]
+    // the middleware answers a union, which the wire encodes as [memberIndex, value]
     const body = (await response.json()) as Record<string, unknown>;
-    const envelope = body['mionMethodsMetadataById'];
-    const metadata = (Array.isArray(envelope) ? envelope[1] : envelope) as {batches?: string[]; methods: Record<string, unknown>};
+    const envelope = body['mionMethodsMetadata'] as any;
+    const refusal = Array.isArray(envelope) ? envelope[1] : envelope;
+    expect(refusal.type).toBe('metadata-only');
+    expect(body.sayHello).toBeUndefined();
+    const metadata = refusal.errorData.metadata as {batches?: string[]; methods: Record<string, unknown>};
     expect(metadata.methods['flow/getUser']).toBeDefined();
     // every id the build compiled in; this file alone defines well over a dozen
     expect(Array.isArray(metadata.batches)).toBe(true);

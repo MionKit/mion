@@ -29,7 +29,7 @@ export function useSyncRoutes(middleware: ClientMiddlewareOf<SyncRoutesHandler>)
     if (!fetcher || !refusedIds?.length || refusedIds.some((id) => isBundledMethod(id))) return;
     await (await loadMetadataFromServer()).forgetFetchedMetadata(refusedIds, context.options);
     // fetched here rather than on a second refusal: a call gets one resend per middleware
-    await fetcher.fetchRows(refusedIds, context.options, context.signal);
+    await fetcher.fetchRows(refusedIds, refusedIds[0].split('/'), context.options, context.signal);
     context.retry();
   });
 }

@@ -41,7 +41,7 @@ describe('fetchRemoteMethodsMetadata', () => {
 
   it('should fetch and restore JIT functions from real server', async () => {
     // Fetch metadata for a real route from test server
-    await fetchRemoteMethodsMetadata(['sayHello'], options);
+    await fetchRemoteMethodsMetadata(['sayHello'], ['sayHello'], options);
 
     // Verify method metadata was stored in routesCache
     expect(routesCache.hasMetadata('sayHello')).toBe(true);
@@ -65,7 +65,7 @@ describe('fetchRemoteMethodsMetadata', () => {
 
   it('should handle multiple routes with different validation types', async () => {
     // Fetch metadata for multiple routes from test server with different validation types
-    await fetchRemoteMethodsMetadata(['sayHello', 'calculateAge', 'createProduct'], options);
+    await fetchRemoteMethodsMetadata(['sayHello', 'calculateAge', 'createProduct'], ['sayHello'], options);
 
     // Verify all methods were fetched
     expect(routesCache.hasMetadata('sayHello')).toBe(true);
@@ -91,7 +91,7 @@ describe('fetchRemoteMethodsMetadata', () => {
 
   it('restores everything on a cold page, without asking the server again', async () => {
     // First call - fetch from server
-    await fetchRemoteMethodsMetadata(['sayHello'], options);
+    await fetchRemoteMethodsMetadata(['sayHello'], ['sayHello'], options);
     expect(routesCache.hasMetadata('sayHello')).toBe(true);
 
     // the write is deferred off the response path on purpose
@@ -107,7 +107,7 @@ describe('fetchRemoteMethodsMetadata', () => {
     global.fetch = mockFetch;
 
     try {
-      await fetchRemoteMethodsMetadata(['sayHello'], options);
+      await fetchRemoteMethodsMetadata(['sayHello'], ['sayHello'], options);
 
       // nothing went out: the stored copy answered
       expect(mockFetch).not.toHaveBeenCalled();
@@ -123,7 +123,7 @@ describe('fetchRemoteMethodsMetadata', () => {
   });
 
   it('stores the method metadata as one record per method', async () => {
-    await fetchRemoteMethodsMetadata(['sayHello'], options);
+    await fetchRemoteMethodsMetadata(['sayHello'], ['sayHello'], options);
     expect(routesCache.getMetadata('sayHello')).toBeDefined();
     await flushMetadataCache();
 
@@ -139,7 +139,7 @@ describe('fetchRemoteMethodsMetadata', () => {
   });
 
   it('should throw for non-existent routes', async () => {
-    await expect(fetchRemoteMethodsMetadata(['nonExistentRoute'], options)).rejects.toThrow(
+    await expect(fetchRemoteMethodsMetadata(['nonExistentRoute'], ['sayHello'], options)).rejects.toThrow(
       'Error fetching validation and serialization metadata'
     );
     expect(routesCache.hasMetadata('nonExistentRoute')).toBe(false);
@@ -147,7 +147,7 @@ describe('fetchRemoteMethodsMetadata', () => {
 
   it('should not fetch if method already exists locally', async () => {
     // First fetch
-    await fetchRemoteMethodsMetadata(['sayHello'], options);
+    await fetchRemoteMethodsMetadata(['sayHello'], ['sayHello'], options);
 
     // Verify method exists in routesCache
     expect(routesCache.hasMetadata('sayHello')).toBe(true);
@@ -159,7 +159,7 @@ describe('fetchRemoteMethodsMetadata', () => {
 
     try {
       // Second fetch - should not make HTTP request
-      await fetchRemoteMethodsMetadata(['sayHello'], options);
+      await fetchRemoteMethodsMetadata(['sayHello'], ['sayHello'], options);
 
       // Verify fetch was not called
       expect(mockFetch).not.toHaveBeenCalled();

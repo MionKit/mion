@@ -186,7 +186,7 @@ var messagesByCode = map[string]message{
 	},
 	"MET010": {
 		Headline: "This client builds with `bundleApi: 'mixed'`, but the API it calls does not place `mionMethodsMetadata`, so a route the bundle lacks cannot fetch its metadata.",
-		Detail:   "`mixed` bundles every route the build can see and fetches the rest from the\nserver at runtime. The server answers those requests only through the\nmetadata pair from `@mionjs/router/middlewares`.\n\nFix: place it first in the server's routes and set up its client half:\n+  mion.initRoutes({...mionMethodsMetadata, ...routes});\n+  useMethodsMetadata(middlewares.mionMethodsMetadata);\nOr build with `bundleApi: 'bundled'` if every call can be bundled.",
+		Detail:   "`mixed` bundles every route the build can see and fetches the rest from the\nserver at runtime. The server answers those requests only through the\nmetadata middleware from `@mionjs/router/middlewares`.\n\nFix: place it first in the server's routes and set up its client half:\n+  mion.initRoutes({mionMethodsMetadata, ...routes});\n+  useMethodsMetadata(middlewares.mionMethodsMetadata);\nOr build with `bundleApi: 'bundled'` if every call can be bundled.",
 	},
 	"MRT001": {
 		Headline: "mion `{0}` handler has no return type annotation; write the type the handler answers with.",

@@ -107,15 +107,3 @@ export function markOnDemand<Def extends object>(def: Def): Def {
 export function isOnDemandMiddleware(def: object): boolean {
   return onDemandMiddlewares.has(def);
 }
-
-const standaloneRoutes = new WeakSet<object>();
-
-/** Internal: the route runs none of the middlewares around it wherever placed, like a route mion registered itself */
-export function markStandalone<Def extends object>(def: Def): Def {
-  standaloneRoutes.add(def);
-  return def;
-}
-
-export function isStandaloneRoute(def: object): boolean {
-  return standaloneRoutes.has(def);
-}

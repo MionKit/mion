@@ -5,8 +5,13 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {AnyObject, RpcError, SerializableMethodsData} from '@mionjs/core';
-import type {MethodsMetadataByIdHandler, MethodsMetadataHandler} from '@mionjs/core/middlewares';
+import {AnyObject, FatalError, RpcError, SerializableMethodsData} from '@mionjs/core';
+import type {
+  MethodsMetadataHandler,
+  MethodsMetadataMode,
+  MethodsMetadataOnly,
+  MethodsMetadataOnlyData,
+} from '@mionjs/core/middlewares';
 import {
   getMiddlewareExecutable,
   getRouteExecutable,
@@ -15,7 +20,7 @@ import {
   getAllExecutablesIds,
   getAnyExecutable,
 } from '../router.ts';
-import {markOnDemand, markStandalone, middleware, route} from '../lib/handlers.ts';
+import {markOnDemand, middleware} from '../lib/handlers.ts';
 import {isPublicExecutable} from '../types/guards.ts';
 import {getBatchIds} from '../batches.ts';
 import {RouterOptions} from '../types/general.ts';
@@ -30,46 +35,47 @@ export interface MethodsMetadataOptions extends RouterOptions {
 
 const DEFAULT_ALL_REMOTE_METHODS_MAX_NUMBER = 100;
 
-/** With getAllRemoteMethods, answers with every public method instead of the given ids. */
-function methodsMetadataById(
+/** Rows alongside the call; with a mode, rows alone and the call stopped before its route runs. */
+function methodsMetadata(
   ctx: CallContext,
-  methodsIds: string[],
-  getAllRemoteMethods?: boolean
-): SerializableMethodsData | RpcError<'rpc-metadata-not-found'> {
-  const resp: SerializableMethodsData = {
-    methods: {},
-    deps: {},
-    purFnDeps: {},
-  };
-  const errorData = {};
+  methodsIds?: string[],
+  mode?: MethodsMetadataMode
+): SerializableMethodsData | RpcError<'rpc-metadata-not-found'> | MethodsMetadataOnly | void {
+  if (mode) {
+    const {metadata, notFound} = rowsFor(methodsIds ?? [], mode === 'all');
+    return new FatalError<'metadata-only', MethodsMetadataOnlyData>({
+      type: 'metadata-only',
+      publicMessage: 'Route metadata only: the call was stopped before its route.',
+      errorData: notFound ? {metadata, notFound} : {metadata},
+    });
+  }
+  if (!methodsIds || methodsIds.length === 0) return;
+  const {metadata, notFound} = rowsFor(methodsIds, false);
+  if (notFound)
+    return new RpcError({
+      type: 'rpc-metadata-not-found',
+      publicMessage: 'Errors getting Remote Methods Metadata',
+      errorData: notFound,
+    });
+  return metadata;
+}
+
+/** With `all`, every public method instead of the given ids, plus the batch ids. */
+function rowsFor(methodsIds: string[], all: boolean): {metadata: SerializableMethodsData; notFound?: Record<string, string>} {
+  const metadata: SerializableMethodsData = {methods: {}, deps: {}, purFnDeps: {}};
+  const notFound: Record<string, string> = {};
   const maxMethods =
     getRouterOptions<MethodsMetadataOptions>().getAllRemoteMethodsMaxNumber || DEFAULT_ALL_REMOTE_METHODS_MAX_NUMBER;
-  const shouldReturnAll = getAllRemoteMethods && getTotalExecutables() <= maxMethods;
+  const shouldReturnAll = all && getTotalExecutables() <= maxMethods;
   const idsToReturn = shouldReturnAll
     ? getAllExecutablesIds().filter(
         (id) => !mionInternalRouteIds.has(id) && isPublicExecutable(getAnyExecutable(id) as RemoteMethod)
       )
     : methodsIds;
-  idsToReturn.forEach((id) => addRequiredRemoteMethodsToResponse(id, resp, errorData));
+  idsToReturn.forEach((id) => addRequiredRemoteMethodsToResponse(id, metadata, notFound));
   // A hand-written client can only send ids the build compiled in, so list them alongside the methods
-  if (shouldReturnAll) resp.batches = getBatchIds();
-
-  if (Object.keys(errorData).length)
-    return new RpcError({
-      type: 'rpc-metadata-not-found',
-      publicMessage: 'Errors getting Remote Methods Metadata',
-      errorData,
-    });
-  return resp;
-}
-
-function methodsMetadata(
-  ctx: CallContext,
-  methodsIds?: string[],
-  getAllRemoteMethods?: boolean
-): SerializableMethodsData | RpcError<'rpc-metadata-not-found'> | void {
-  if (!methodsIds || methodsIds.length === 0) return;
-  return methodsMetadataById(ctx, methodsIds, getAllRemoteMethods);
+  if (shouldReturnAll) metadata.batches = getBatchIds();
+  return Object.keys(notFound).length ? {metadata, notFound} : {metadata};
 }
 
 /** The rows of the given methods and of their chains; an unknown id is left out. */
@@ -95,17 +101,13 @@ function addRequiredRemoteMethodsToResponse(id: string, resp: SerializableMethod
   serializeMethodDeps(method, deps, purFnDeps);
 }
 
-// Spread first in the routes; keep both keys, the client finds the route next to the middleware.
-// Both pin the built-in parser: a client asks before it knows any strategy.
+// Place it at the root, before any route: in `only` or `all` mode it stops the chain, which must happen before the route.
+// Pins the built-in parser: a client asks before it knows any strategy.
 // In every chain with an unbounded `string[]`, so maxBodySize is a fixed share of each limit: room for a first call's ids.
-export const mionMethodsMetadata = {
-  mionMethodsMetadata: markOnDemand(
-    middleware(methodsMetadata satisfies MethodsMetadataHandler, {
-      alwaysRun: true,
-      parser: {params: 'clone', return: 'clone'},
-      maxBodySize: 4096,
-    })
-  ),
-  // asked before the client knows any middleware's params, so none of yours run on it (as `typeErrors()` sends none)
-  mionMethodsMetadataById: markStandalone(route(methodsMetadataById satisfies MethodsMetadataByIdHandler, {parser: 'clone'})),
-} as const;
+export const mionMethodsMetadata = markOnDemand(
+  middleware(methodsMetadata satisfies MethodsMetadataHandler, {
+    alwaysRun: true,
+    parser: {params: 'clone', return: 'clone'},
+    maxBodySize: 4096,
+  })
+);
