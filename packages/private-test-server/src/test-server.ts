@@ -254,6 +254,8 @@ const routes = {
     return new RpcError({publicMessage: 'Something fails', type: 'unknown-error'});
   }),
   calculateAge: route((_ctx, birthYear: number): number => new Date().getFullYear() - birthYear),
+  // answers a value its own return type does not describe, for the client's response check
+  wrongAnswer: route((_ctx, user: User): User => ({name: user.name, surname: 42}) as unknown as User),
   createProduct: route(
     (_ctx, product: Product): Product => ({
       ...product,

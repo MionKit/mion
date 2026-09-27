@@ -21,6 +21,7 @@ export const DEFAULT_CLIENT_OPTIONS: ClientOptions = {
   /** Suffix for all routes, i.e: .json */
   suffix: '',
   validateParams: true,
+  validateServerResponses: false,
   sanitizeParams: true,
   /** Where the client keeps what it learned about the remote methods */
   storageEngine: DEFAULT_STORAGE_ENGINE,

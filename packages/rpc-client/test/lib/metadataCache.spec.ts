@@ -36,6 +36,7 @@ const options: ClientOptions = {
   basePath: '',
   suffix: '',
   validateParams: true,
+  validateServerResponses: false,
   sanitizeParams: true,
   storageEngine: 'indexeddb',
 };

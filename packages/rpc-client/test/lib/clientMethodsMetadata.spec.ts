@@ -27,6 +27,7 @@ describe('fetchRemoteMethodsMetadata', () => {
       basePath: '',
       suffix: '',
       validateParams: true,
+      validateServerResponses: false,
       sanitizeParams: true,
       storageEngine: 'indexeddb',
     };
