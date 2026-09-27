@@ -28,7 +28,7 @@ export interface ColumnParity {
   bagExtra: string[];
   builderMissing: string[];
   builderExtra: string[];
-  /** Set when the parse could not reach a bag or a single return interface. */
+  /** Set when the parse could not reach a bag or a single props interface. */
   unresolved: string | null;
 }
 

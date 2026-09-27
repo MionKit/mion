@@ -104,11 +104,9 @@ root by minor-aligned peer range plus workspace devDependency.
 Only `toDrizzle`'s return type references drizzle: it synthesizes structural
 column configs from the slim state (fixed `dataType: 'custom'` /
 `columnType: 'RtColumn'`; only data, notNull, hasDefault, generated, identity
-vary — the only fields drizzle's model/query typing reads). Measured (TS 6.0.3,
-drizzle-orm 0.45.2, committed under packages/private-type-budget/reports/): the model
-path costs 493 + 1245 + 673 net instantiations vs 11504 through the old proxy
-chain; the db-query step costs 7676, paid only in db files; an npm consumer
-reading the emitted d.ts pays 1841 vs 4205 before.
+vary, the only fields drizzle's model/query typing reads). The live costs of each
+step, the db-query step included (paid only in db files), are in
+packages/private-type-budget/reports/.
 
 ## The safety net
 

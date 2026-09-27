@@ -568,7 +568,7 @@ Not re-measured, and why:
 
 ## What this does not measure
 
-- `refineTableType`, still the single most expensive step in the pipeline at 1141.
+- `refineTableType`, the most expensive step before the db query.
 - The runtime half. Moving `toDrizzle` onto metadata-driven generation, the way MockData
   reads a `TypeFormat`, is a runtime architecture question and independent of everything
   above. Half of it already exists: `buildRtTableFromGraph` reconstructs a slim table from
