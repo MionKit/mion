@@ -900,8 +900,7 @@ const metadataRouterDTS = `declare module '@mionjs/router' {
 }
 `
 
-// metadataApiTS places the router's middleware under its own name and under another key, next to a
-// look-alike the app declares itself; the API types map a routes object, as PublicApi does.
+// metadataApiTS maps each routes object as PublicApi does, so members keep their routes entry's declaration.
 const metadataApiTS = optionalApiTS + `import {mionMethodsMetadata} from '@mionjs/router';
 type Ping = {type: 1; handler: () => Promise<string>; options: RouteOpts; types?: {params: []; return: string; headers: never; isAsync: false; sync: [[], string, 'json', 'json']}};
 declare const ping: Ping;

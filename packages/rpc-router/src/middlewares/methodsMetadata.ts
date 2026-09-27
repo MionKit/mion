@@ -101,7 +101,7 @@ function addRequiredRemoteMethodsToResponse(id: string, resp: SerializableMethod
   serializeMethodDeps(method, deps, purFnDeps);
 }
 
-// Place it at the root, before any route: in `only` or `all` mode it stops the chain, which must happen before the route.
+// Place it at the root, before any route: its `only` and `all` modes must stop the chain before the route.
 // Pins the built-in parser: a client asks before it knows any strategy.
 // In every chain with an unbounded `string[]`, so maxBodySize is a fixed share of each limit: room for a first call's ids.
 export const mionMethodsMetadata = markOnDemand(

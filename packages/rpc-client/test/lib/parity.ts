@@ -37,7 +37,7 @@ const everyMethod = {
 };
 
 async function serverRows(baseURL: string): Promise<SerializableMethodsData> {
-  // every row, from the metadata middleware's 'all' mode: it stops the call before sayHello runs
+  // the metadata middleware stops the call before sayHello runs
   const url = new URL(getRoutePath(['sayHello'], {basePath: '', suffix: ''} as never), baseURL);
   const response = await fetch(url, {
     method: 'POST',

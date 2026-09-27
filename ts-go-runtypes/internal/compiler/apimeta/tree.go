@@ -326,8 +326,7 @@ func (tree *Tree) Select(ids []string) (methods []*Method, missing []string) {
 	return methods, missing
 }
 
-// routerDeclares reports whether an API member's value is @mionjs/router's own `name`.
-// A mapped PublicApi member keeps its routes entry's declaration, so the entry's value leads to the router's.
+// routerDeclares reports whether an API member's value is the router's own `name`, via the routes entry a mapped member keeps.
 func (walker *treeWalker) routerDeclares(property *ast.Symbol, name string) bool {
 	if property == nil || len(property.Declarations) == 0 {
 		return false
