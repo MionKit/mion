@@ -36,9 +36,7 @@ gyp ERR! stack at EnvHttpProxyAgent.dispatch (/usr/local/lib/node_modules/pnpm/d
 - A `--no-cache` build of the same context also succeeds, and inside it a forced `node-gyp rebuild` of better-sqlite3
   (node-gyp 12.4.0 from pnpm 11.8.0) downloads the Node headers through the proxy and compiles.
 
-## Not done
+## Images
 
-- The images were rebuilt locally only, NOT pushed to GHCR: this session had no `GHCR_*` credentials. The pin change
-  moves each affected image's deps hash, so CI builds them locally until someone runs `pnpm miondevx container push`
-  for `mion-bench`, `e2e`, `drizzle-pg`, `drizzle-mysql`, `drizzle-sqlite` and `drizzle-cloudflare` (arm64 half included,
-  per CLAUDE.md's Containers section).
+All six affected images (`mion-bench`, `e2e`, `drizzle-pg`, `drizzle-mysql`, `drizzle-sqlite`, `drizzle-cloudflare`)
+were rebuilt and pushed to GHCR, amd64 and arm64.
