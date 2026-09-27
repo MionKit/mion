@@ -120,7 +120,7 @@ func typeofAliasTarget(statement *ast.Node) (string, bool) {
 	return queried.Text(), true
 }
 
-// tableFromTypeTarget returns N when the initializer is the type form's handle call, `<ns>.tableFromType<N>(…)`.
+// tableFromTypeTarget returns N when the initializer is the type form's handle call, `<ns>.tableFromType<N>(…)` or its explicit twin.
 func tableFromTypeTarget(typeChecker *checker.Checker, initializer *ast.Node) (string, bool) {
 	if initializer == nil || initializer.Kind != ast.KindCallExpression {
 		return "", false
@@ -142,14 +142,30 @@ func tableFromTypeTarget(typeChecker *checker.Checker, initializer *ast.Node) (s
 	if importedNameOf(typeChecker, calleeName) != "tableFromType" {
 		return "", false
 	}
-	if call.TypeArguments == nil || len(call.TypeArguments.Nodes) != 1 {
+	if call.TypeArguments != nil {
+		return singleTypeRefName(call.TypeArguments.Nodes)
+	}
+	// The explicit escape hatch, `tableFromType(getRunType<N>(), options?)`.
+	if call.Arguments == nil || len(call.Arguments.Nodes) == 0 || call.Arguments.Nodes[0].Kind != ast.KindCallExpression {
 		return "", false
 	}
-	argument := call.TypeArguments.Nodes[0]
-	if argument.Kind != ast.KindTypeReference {
+	inner := call.Arguments.Nodes[0].AsCallExpression()
+	innerName := inner.Expression
+	if innerName != nil && ast.IsPropertyAccessExpression(innerName) {
+		innerName = innerName.AsPropertyAccessExpression().Name()
+	}
+	if innerName == nil || !ast.IsIdentifier(innerName) || importedNameOf(typeChecker, innerName) != "getRunType" || inner.TypeArguments == nil {
 		return "", false
 	}
-	typeRef := argument.AsTypeReferenceNode()
+	return singleTypeRefName(inner.TypeArguments.Nodes)
+}
+
+// singleTypeRefName returns N when the type arguments are exactly one plain `N`.
+func singleTypeRefName(typeArguments []*ast.Node) (string, bool) {
+	if len(typeArguments) != 1 || typeArguments[0].Kind != ast.KindTypeReference {
+		return "", false
+	}
+	typeRef := typeArguments[0].AsTypeReferenceNode()
 	if typeRef == nil || typeRef.TypeName == nil || !ast.IsIdentifier(typeRef.TypeName) {
 		return "", false
 	}

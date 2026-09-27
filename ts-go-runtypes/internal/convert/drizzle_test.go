@@ -230,6 +230,24 @@ func TestDrizzle_DbNameEqualToKeyIsDropped(t *testing.T) {
 	})
 }
 
+// The explicit escape hatch pairs like the marker form: kept as written in type form, converted to builders.
+func TestDrizzle_ExplicitTableFromTypePairs(t *testing.T) {
+	eachDialect(t, "explicit tableFromType pairs", func(t *testing.T, dialect drizzleDialect) {
+		source := dialect.src("import * as DZ from '{{mod}}';\n" +
+			"import {getRunType} from '@mionjs/run-types';\n" +
+			"export type T = DZ.{{Table}}<'t', {\n  id: DZ.{{Int}}<{primaryKey: true}>;\n}>;\n" +
+			"export const t = DZ.tableFromType(getRunType<T>());\n")
+		output, diags := convertDrizzleOne(t, source, convert.Options{Target: convert.TargetType})
+		expectNoDiags(t, diags)
+		if output != source {
+			t.Fatalf("type form changed:\n--- want ---\n%s\n--- got ---\n%s", source, output)
+		}
+		output, diags = convertDrizzleOne(t, source, convert.Options{Target: convert.TargetBuilders})
+		expectNoDiags(t, diags)
+		expectContains(t, "type→builders", output, dialect.src("export const t = DZ.{{table}}('t', {\n  id: DZ.{{int}}({primaryKey: true}),\n});\nexport type T = typeof t;\n"))
+	})
+}
+
 func TestDrizzle_RoundTripFixpoint(t *testing.T) {
 	eachDialect(t, "round trip fixpoint", func(t *testing.T, dialect drizzleDialect) {
 		_, buildersForm := roundTrip(t, dialect.src(drizzleBuildersTemplate))
