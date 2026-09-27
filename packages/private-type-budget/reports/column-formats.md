@@ -22,7 +22,7 @@ lowered.
 | pg | wide vocabulary, select | 848 (848) | 1451 (1451) |
 | pg | two tables, one reference | 263 (263) | 490 (490) |
 | pg | refineTableType, select | 1366 (1366) | 1869 (1869) |
-| pg | toDrizzle + select / insert / update query | 8943 (8943) | 10095 (10095) |
+| pg | toDrizzle + select / insert / update query | 8822 (8822) | 9999 (9999) |
 | mysql | 5 mixed, select | 700 (700) | 1176 (1176) |
 | mysql | 5 mixed, select + insert | 1256 (1256) | 1793 (1793) |
 | mysql | 10 plain, db name per column | 228 (228) | 382 (382) |
@@ -32,7 +32,7 @@ lowered.
 | mysql | wide vocabulary, select | 1020 (1020) | 1706 (1706) |
 | mysql | two tables, one reference | 287 (287) | 521 (521) |
 | mysql | refineTableType, select | 1392 (1392) | 1890 (1890) |
-| mysql | toDrizzle + select / insert / update query | 8570 (8570) | 9776 (9776) |
+| mysql | toDrizzle + select / insert / update query | 8466 (8466) | 9672 (9672) |
 | sqlite | 5 mixed, select | 649 (649) | 1053 (1053) |
 | sqlite | 5 mixed, select + insert | 1243 (1243) | 1711 (1711) |
 | sqlite | 10 plain, db name per column | 231 (231) | 385 (385) |
@@ -42,4 +42,4 @@ lowered.
 | sqlite | wide vocabulary, select | 959 (959) | 1567 (1567) |
 | sqlite | two tables, one reference | 296 (296) | 515 (515) |
 | sqlite | refineTableType, select | 1341 (1341) | 1767 (1767) |
-| sqlite | toDrizzle + select / insert / update query | 7662 (7662) | 8689 (8689) |
+| sqlite | toDrizzle + select / insert / update query | 7554 (7554) | 8606 (8606) |

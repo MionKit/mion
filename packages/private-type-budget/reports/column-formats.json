@@ -95,11 +95,11 @@
     {
       "dialect": "pg",
       "label": "toDrizzle + select / insert / update query",
-      "types": 8943,
-      "builders": 10095,
+      "types": 8822,
+      "builders": 9999,
       "budget": {
-        "types": 8943,
-        "builders": 10095
+        "types": 8822,
+        "builders": 9999
       }
     },
     {
@@ -195,11 +195,11 @@
     {
       "dialect": "mysql",
       "label": "toDrizzle + select / insert / update query",
-      "types": 8570,
-      "builders": 9776,
+      "types": 8466,
+      "builders": 9672,
       "budget": {
-        "types": 8570,
-        "builders": 9776
+        "types": 8466,
+        "builders": 9672
       }
     },
     {
@@ -295,11 +295,11 @@
     {
       "dialect": "sqlite",
       "label": "toDrizzle + select / insert / update query",
-      "types": 7662,
-      "builders": 8689,
+      "types": 7554,
+      "builders": 8606,
       "budget": {
-        "types": 7662,
-        "builders": 8689
+        "types": 7554,
+        "builders": 8606
       }
     }
   ]

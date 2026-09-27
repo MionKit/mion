@@ -26,9 +26,9 @@ checker.
 | 3 | Infer* models | 591 | 591 | 2543 |
 | 4 | mion route api | 514 | 525 | 3057 |
 | 5 | initClient | 3044 | 3179 | 6101 |
-| 6 | db query (toDrizzle) | 8571 | 8571 | 14672 |
+| 6 | db query (toDrizzle) | 8471 | 8471 | 14572 |
 
-Total for the whole chain: **14672**, against a total budget of **14818**.
+Total for the whole chain: **14572**, against a total budget of **14718**.
 
 | Downstream consumer, read from the emitted `.d.ts` | Value |
 | ---- | ----: |
@@ -46,9 +46,9 @@ Total for the whole chain: **14672**, against a total budget of **14818**.
 | 3 | Infer* models | 591 | 591 | 2559 |
 | 4 | mion route api | 514 | 525 | 3073 |
 | 5 | initClient | 3044 | 3179 | 6117 |
-| 6 | db query (toDrizzle) | 7245 | 7245 | 13362 |
+| 6 | db query (toDrizzle) | 7144 | 7144 | 13261 |
 
-Total for the whole chain: **13362**, against a total budget of **13508**.
+Total for the whole chain: **13261**, against a total budget of **13407**.
 
 | Downstream consumer, read from the emitted `.d.ts` | Value |
 | ---- | ----: |
@@ -66,9 +66,9 @@ Total for the whole chain: **13362**, against a total budget of **13508**.
 | 3 | Infer* models | 591 | 591 | 2559 |
 | 4 | mion route api | 513 | 524 | 3072 |
 | 5 | initClient | 3044 | 3179 | 6116 |
-| 6 | db query (toDrizzle) | 7426 | 7426 | 13542 |
+| 6 | db query (toDrizzle) | 7318 | 7318 | 13434 |
 
-Total for the whole chain: **13542**, against a total budget of **13688**.
+Total for the whole chain: **13434**, against a total budget of **13580**.
 
 | Downstream consumer, read from the emitted `.d.ts` | Value |
 | ---- | ----: |

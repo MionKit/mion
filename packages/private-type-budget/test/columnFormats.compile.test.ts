@@ -328,8 +328,8 @@ export const ${p}u = db.update(${p}D).set({age: 31});`,
       'two tables, one reference': {types: 263, builders: 490},
       // 1277 -> 1366 and 1729 -> 1869: a REVIEWED EXCEPTION, props reject stray modifier keys.
       'refineTableType, select': {types: 1366, builders: 1869},
-      // 8812 -> 8943 and 9915 -> 10095: a REVIEWED EXCEPTION, props reject stray modifier keys.
-      'toDrizzle + select / insert / update query': {types: 8943, builders: 10095},
+      // 8812 -> 8943 and 9915 -> 10095: a REVIEWED EXCEPTION, props reject stray modifier keys. Lowered once rows kept their formats.
+      'toDrizzle + select / insert / update query': {types: 8822, builders: 9999},
     },
   },
   {
@@ -373,7 +373,7 @@ export const ${p}u = db.update(${p}D).set({age: 31});`,
       'wide vocabulary, select': {types: 1020, builders: 1706},
       'two tables, one reference': {types: 287, builders: 521},
       'refineTableType, select': {types: 1392, builders: 1890},
-      'toDrizzle + select / insert / update query': {types: 8570, builders: 9776},
+      'toDrizzle + select / insert / update query': {types: 8466, builders: 9672},
     },
   },
   {
@@ -415,7 +415,7 @@ export const ${p}u = db.update(${p}D).set({age: 31});`,
       'wide vocabulary, select': {types: 959, builders: 1567},
       'two tables, one reference': {types: 296, builders: 515},
       'refineTableType, select': {types: 1341, builders: 1767},
-      'toDrizzle + select / insert / update query': {types: 7662, builders: 8689},
+      'toDrizzle + select / insert / update query': {types: 7554, builders: 8606},
     },
   },
 ];

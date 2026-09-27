@@ -227,11 +227,10 @@ type _insertOptionalDefault = Expect<Equal<NewUser['createdAt'], RTDate | undefi
 type _patchIsPartial = Expect<Equal<UserPatch['name'], RTString<{maxLength: 100; minLength: 10}> | undefined>>;
 type _clientValueSlot = Expect<Equal<typeof inserted, User | undefined>>;
 type _clientErrorSlot = Expect<RpcError<'bad-insert'> extends NonNullable<typeof insertError> ? true : false>;
-// A query returns exactly what drizzle's own table would, so a migrated schema is a drop-in.
-// A queried row still goes back into the slim model, which keeps the refined formats.
-type _dbRowName = Expect<Equal<SelectedRows[number]['name'], string>>;
-type _dbRowDate = Expect<Equal<SelectedRows[number]['createdAt'], Date>>;
-type _dbRowIntoModel = Expect<SelectedRows[number] extends User ? true : false>;
+// A queried row IS the slim model, refined formats included.
+type _dbRowName = Expect<Equal<SelectedRows[number]['name'], User['name']>>;
+type _dbRowDate = Expect<Equal<SelectedRows[number]['createdAt'], RTDate>>;
+type _dbRowIntoModel = Expect<Equal<SelectedRows[number], User>>;
 export type _Pins = [
   _refinedName,
   _refinedAge,
@@ -303,16 +302,16 @@ export const PIPELINE_DIALECTS: PipelineDialect[] = [
       525,
       // 3052 -> 3179: a REVIEWED EXCEPTION, the client maps the models derived from props.
       3179,
-      // 7857 -> 8571: a REVIEWED EXCEPTION, toDrizzle derives each column's flags from props.
-      8571,
+      // 7857 -> 8571: a REVIEWED EXCEPTION, toDrizzle derives each column's flags from props. 8571 -> 8471: rows keep their formats.
+      8471,
     ],
-    // 13580 -> 14818: a REVIEWED EXCEPTION, the single-call steps above.
-    total: 14818,
+    // 13580 -> 14818: a REVIEWED EXCEPTION, the single-call steps above. 14818 -> 14718: rows keep their formats.
+    total: 14718,
     // 1784 -> 1605: lowered to the measurement, which rose from 1495 because the consumer derives the flags from props.
     consumer: 1605,
   }),
-  pipelineDialect(MYSQL, {steps: [895, 1073, 591, 525, 3179, 7245], total: 13508, consumer: 1602}),
-  pipelineDialect(SQLITE, {steps: [900, 1068, 591, 524, 3179, 7426], total: 13688, consumer: 1574}),
+  pipelineDialect(MYSQL, {steps: [895, 1073, 591, 525, 3179, 7144], total: 13407, consumer: 1602}),
+  pipelineDialect(SQLITE, {steps: [900, 1068, 591, 524, 3179, 7318], total: 13580, consumer: 1574}),
 ];
 
 /** The cumulative snippet of `pipeline` up to (and including) `index`. **/

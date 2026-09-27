@@ -193,9 +193,8 @@ describe('mysql, builder tables', () => {
 describe('format probes: a row that breaks its column format', () => {
   it('selectAll with a 101 char name', async () => {
     queueRows([[ANN, 'x'.repeat(101), 'ann@x.io', 30, 'admin', '42', CREATED]]);
-    const [rows, , fatal] = await client.listUsers();
-    // toDrizzle rows drop their formats today, so the client accepts the too-long name
-    expect(fatal).toBeUndefined();
-    expect(rows?.[0].name).toHaveLength(101);
+    const [, , fatal] = await client.listUsers();
+    // the row keeps maxLength 100, so the client rejects the response
+    expect(fatal?.type).toBe('response-validation-error');
   });
 });

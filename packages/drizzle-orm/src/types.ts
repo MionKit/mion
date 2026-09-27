@@ -5,7 +5,6 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {FormatNameOf, NominalBrand} from '@mionjs/run-types';
 import type {rtColNameKey, rtColSpecKey, rtEntrySpecKey, rtNamedColumnKey, rtSqlTextKey} from './columns.ts';
 import type {RtColumnRecorder, rtColumnKey, rtTableBrand, rtViewBrand} from './recorder.ts';
 
@@ -281,29 +280,6 @@ export interface RtViewBrand<Dialect extends string> {
 export type BuildViewFn = (context: DrizzleContext, name: string, columnBuilders: Record<string, unknown>) => unknown;
 
 // ── Recording and replay ─────────────────────────────────────────────────────
-
-/** Drops a runtype FORMAT tag so toDrizzle()'s rows equal drizzle's own, keeping a migrated schema a drop-in. */
-// A plain tag is transparent, so dropping it is free; a NOMINAL brand stays, or a row could not go back into its model.
-// Tuples stay: mapping pg's `point({mode: 'tuple'})` would flatten it to `number[]`.
-type LengthOf<T> = T extends {length: infer L} ? L : never;
-type ElementOf<T> = T extends readonly (infer E)[] ? E : never;
-export type PlainDataOf<T> = [T] extends [readonly unknown[]]
-  ? number extends LengthOf<T>
-    ? PlainDataOf<ElementOf<T>>[]
-    : T
-  : [FormatNameOf<T>] extends [never]
-    ? T
-    : [T] extends [NominalBrand<string>]
-      ? T
-      : [T] extends [Date]
-        ? Date
-        : [T] extends [string]
-          ? string
-          : [T] extends [number]
-            ? number
-            : [T] extends [bigint]
-              ? bigint
-              : T;
 
 /** Injected by a dialect's toDrizzle module; typed loosely because this package never sees drizzle's types. */
 export interface DrizzleContext {
