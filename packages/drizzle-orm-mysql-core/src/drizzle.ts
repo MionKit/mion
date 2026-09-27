@@ -5,11 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The ONE module of @mionjs/drizzle-orm-mysql-core that imports drizzle-orm, which is why drizzle-orm can be an
-// optional peer: a project that never calls toDrizzle never loads it. toDrizzle materializes a slim table by replaying
-// the recorded graph, and types the result by SYNTHESIZING structural column configs from the column specs. This is
-// also the ONE place a column gets its db and table names back, as drizzle's BuildColumns stamps them, so only files
-// that materialize a table pay for it.
+// The ONE module that imports drizzle-orm, so a project that never calls toDrizzle never loads it (an optional peer).
+// Types are synthesized structural column configs. The ONE place a column gets its db and table names back, so only
+// files that materialize a table pay for it.
 
 import * as dzMy from 'drizzle-orm/mysql-core';
 import {sql as dzSql} from 'drizzle-orm';
@@ -102,7 +100,6 @@ export function toDrizzle(value?: object, id?: unknown): unknown {
   if (value !== undefined) {
     const attached = (value as Record<symbol, unknown>)[rtValueKey];
     if (attached instanceof RtValueRecorder) return attached.toDrizzleValue(context);
-    // A standalone ENTRY, declared outside any table's extraConfig: `.useIndex(idx)` wants its own IndexBuilder.
     if (value instanceof RtEntryRecorder) return value.toDrizzleEntry(context);
     if (isRtView(value)) return materializeRtView(value, context);
     if ((value as Record<symbol, unknown>)[rtTableKey] !== undefined) return materializeRtTable(value, context);

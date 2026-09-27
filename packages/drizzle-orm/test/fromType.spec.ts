@@ -177,9 +177,7 @@ describe('buildRtTableFromGraph', () => {
   });
 
   it('an unrecognised props key rides into the builder call, it is never replayed', () => {
-    // Config keys and modifier calls share ONE authored object, so at runtime the bridge cannot tell a typo'd
-    // modifier from a config key it has never heard of; the props bags reject that at compile time. What it must
-    // NOT do is call the unknown name as a method on the column.
+    // At runtime a typo'd modifier looks like a config key (the props bags reject it at compile time); never call it.
     const fake = makeFake();
     const graph = tableNode('t', {c: colNode('uuid', {frobnicate: lit(true), notNull: lit(true)})});
     const slim = buildRtTableFromGraph(graph, fake.buildTable);

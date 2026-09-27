@@ -65,10 +65,8 @@ const lowercase = customType<{data: string; driverData: string}>({
   toDriver: (value) => value.toLowerCase(),
 });
 
-// The two builders-only constructs share a table of their own: an interpolated
-// sql template and a column from a local customType both have no type spelling,
-// so leaving either on the table below would make it refuse `convert --to type`
-// and the columns beside it (decimal above all) would never reach the type road.
+// Interpolated sql and a local customType have no type spelling, so they get their own table; on the one below they
+// would make it refuse `convert --to type`, and decimal above all would never reach the type road.
 const checked = pgTable(
   'addendum_checked',
   {id: integer('id', {primaryKey: true}), tag: lowercase('tag', {notNull: true})},
@@ -131,10 +129,8 @@ describe('addendum — check, uniqueIndex, decimal and customType', () => {
 // ── the column types drizzle's suites only declare on a table that cannot
 // convert ───────────────────────────────────────────────────────────────────
 //
-// pg-common declares all eight of these on its `all_types` table, and that
-// table also carries a column built from a locally declared enum handle, which
-// has no type spelling. One refusal there would cost these eight their type
-// road coverage entirely, so they get a table of their own that converts.
+// pg-common declares these eight on `all_types`, which cannot convert (a local enum handle has no type spelling),
+// so they get a table of their own that converts.
 const numerics = pgTable('addendum_numerics', {
   id: smallserial('id', {primaryKey: true}),
   small: smallint('small'),

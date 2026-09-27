@@ -1,6 +1,5 @@
-// Column formats over the REAL packages: each shape declared as a hand-written table type and with the builders,
-// read through the same models, in every dialect. Both lines carry budgets (one-way downward). The chained columns
-// these replaced cost what TYPE-COST.md records.
+// Each column shape over the REAL packages, as a hand-written table type and as builders, in every dialect; both
+// carry one-way-downward budgets. TYPE-COST.md records what the chained columns cost.
 
 import {describe, it, expect, beforeAll, afterAll} from 'vitest';
 import * as ts from 'typescript';

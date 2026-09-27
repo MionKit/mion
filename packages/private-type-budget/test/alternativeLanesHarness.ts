@@ -1,22 +1,6 @@
-// Two alternative ways to declare the same model, measured against each
-// dialect's slim table lane in modelPipelineHarness.ts.
-//
-//   slim       a table built from the slim recorder builders, model derived flat
-//   type-only  the row written as a plain TypeScript type (formats by hand)
-//   builder    the row built with the RT.* / TF.* value-first builders
-//
-// Steps 2 to 5 (refinement, the Select/Insert/Update models, the mion route api
-// and the client's Result-tuple mapping) are deliberately IDENTICAL across the
-// two lanes here, and steps 4 and 5 match the slim lane's too. That is what
-// makes the comparison mean something: only step 1 (how the formatted row is
-// declared) differs, so whatever separates the totals is the cost of HOW the
-// model was declared.
-//
-// This prices the three approaches. It does not rank them. The slim lane
-// derives the model from the table, so the schema and the API types cannot drift
-// apart, and it is the only lane that also yields a runnable drizzle table
-// (toDrizzle; its db-step cost lives in the pipeline suite). Read the numbers
-// as the cost of each convenience, not a verdict.
+// Two alternatives to each dialect's slim lane (modelPipelineHarness.ts): the row as a plain type (type-only) and
+// with the RT.* / TF.* builders. Steps 2 to 5 are IDENTICAL on purpose, so the totals price only how the row is
+// declared. This prices, it does not rank: only the slim lane keeps schema and API in sync and yields a drizzle table.
 
 import {fileURLToPath} from 'node:url';
 import {makeMeasurer} from '../../run-types/test/types/compileHarness.ts';
@@ -228,10 +212,8 @@ export const brandedWhen: Date = brandedRow.createdAt;
       ],
       budgets
     ),
-    // The builders infer the brand with READONLY params and no alias, so the
-    // spelling is not identical to `RTString<…>` even though the information is
-    // the same. Pin the information: the family, the merged params, and one-way
-    // assignability to the alias form.
+    // The builders infer READONLY params with no alias, so the spelling differs from `RTString<…>`.
+    // Pin the information instead: the family, the merged params, and one-way assignability to the alias form.
     shapePins: `
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 type Expect<T extends true> = T;

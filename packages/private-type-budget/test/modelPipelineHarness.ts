@@ -1,20 +1,7 @@
-// Measurement core for the model-pipeline type-cost budgets, over the REAL
-// slim packages (@mionjs/drizzle-orm + the pg, mysql and sqlite dialects).
-//
-// Reuses `makeMeasurer` from the runtypes compile-budget harness
-// (packages/run-types/test/types/compileHarness.ts) rather than copying it, so
-// the counting, the empty-snippet baseline subtraction and the snippet-relative
-// error line numbers stay identical across every budget suite in the repo. The
-// one thing this measurer does differently is REAL module resolution: the chain
-// under measurement spans the slim packages, @mionjs/run-types, @mionjs/router,
-// @mionjs/client and (in the db step only) drizzle-orm, so a sliced lib-only
-// preamble cannot stand in for it. The snippet is a virtual file at a real path
-// inside THIS package, so its bare imports resolve through this package's
-// node_modules exactly as a consumer's would.
-//
-// The import header is the measurer's PREAMBLE, so it is present in every
-// program (baseline + steps) and module resolution never lands in a delta:
-// every delta is type-level work and nothing else.
+// Measurement core for the model-pipeline budgets over the REAL slim packages. Reuses `makeMeasurer` from
+// packages/run-types/test/types/compileHarness.ts so counting matches every budget suite, but with REAL module
+// resolution: the snippet is a virtual file inside THIS package, so bare imports resolve as a consumer's would.
+// The import header is the PREAMBLE, in the baseline too, so no delta ever includes module resolution.
 
 import * as ts from 'typescript';
 import {fileURLToPath} from 'node:url';
@@ -27,11 +14,8 @@ export type {MeasureResult};
  *  packages and `drizzle-orm` resolve from this package's node_modules. **/
 const SNIPPET_FILE = fileURLToPath(new URL('./__modelPipelineCase__.ts', import.meta.url));
 
-/** A resolving program, configured the way a mion consumer's is: the client's
- *  own lib set (es2023 + DOM), bundler resolution, and the `source` condition
- *  the workspace packages export so imports land on src instead of a stale
- *  build. `skipLibCheck` keeps drizzle's published .d.ts out of the error list
- *  without hiding any of its instantiation cost. **/
+// skipLibCheck keeps drizzle's .d.ts errors out without hiding any of its instantiation cost.
+/** Like a mion consumer: the client's libs, bundler resolution, and the `source` condition, never a stale build. **/
 export const RESOLVING_OPTIONS: ts.CompilerOptions = {
   module: ts.ModuleKind.ESNext,
   moduleResolution: ts.ModuleResolutionKind.Bundler,
@@ -109,9 +93,7 @@ const SQLITE: DialectSource = {
   refinedAge: 'RTNumber<{integer: true; min: 18}>',
 };
 
-/** Every module the chain needs, imported once. Being the preamble, this is the
- *  baseline: resolving these costs 0 instantiations on its own, so a step's net
- *  is the type work its own body triggered. **/
+/** Every module the chain needs; as the preamble it is the baseline, so a step's net is its own body's type work. **/
 const importHeader = (source: DialectSource) => `
 import {${source.builders}, index} from '@mionjs/drizzle-orm-${source.dialect}-core';
 import {refineTableType} from '@mionjs/drizzle-orm';
@@ -245,8 +227,8 @@ type _insertOptionalDefault = Expect<Equal<NewUser['createdAt'], RTDate | undefi
 type _patchIsPartial = Expect<Equal<UserPatch['name'], RTString<{maxLength: 100; minLength: 10}> | undefined>>;
 type _clientValueSlot = Expect<Equal<typeof inserted, User | undefined>>;
 type _clientErrorSlot = Expect<RpcError<'bad-insert'> extends NonNullable<typeof insertError> ? true : false>;
-// A drizzle query returns exactly what drizzle's own table would, so a migrated schema is a drop-in, and a queried
-// row still goes back into the slim model, which keeps the refined formats.
+// A query returns exactly what drizzle's own table would, so a migrated schema is a drop-in.
+// A queried row still goes back into the slim model, which keeps the refined formats.
 type _dbRowName = Expect<Equal<SelectedRows[number]['name'], string>>;
 type _dbRowDate = Expect<Equal<SelectedRows[number]['createdAt'], Date>>;
 type _dbRowIntoModel = Expect<SelectedRows[number] extends User ? true : false>;
@@ -281,8 +263,7 @@ export type UserPatch = InferUpdateModel<typeof api>;
 interface PipelineBudgets {
   /** Net instantiations each of the six steps may add. **/
   steps: [number, number, number, number, number, number];
-  /** What the WHOLE chain may cost, the cumulative figure after the last step. The per-step deltas alone cannot see
-   *  a change that moves work BETWEEN layers, so the chain total is budgeted too. **/
+  /** The cumulative total after the last step: per-step deltas cannot see work moving BETWEEN layers. **/
   total: number;
   /** What a downstream consumer may pay to read the model types out of the emitted `.d.ts`. **/
   consumer: number;
@@ -314,17 +295,17 @@ function pipelineDialect(source: DialectSource, budgets: PipelineBudgets): Pipel
 export const PIPELINE_DIALECTS: PipelineDialect[] = [
   pipelineDialect(PG, {
     steps: [
-      // 434 -> 881: a REVIEWED EXCEPTION, single-call builders pay overload choice, the stray-key check and name lifting at the declaration (typeRoad.compile.test.ts has the split).
+      // 434 -> 881: a REVIEWED EXCEPTION, single-call builders pay overloads, stray keys, name lifting (see typeRoad).
       881,
       // 1141 -> 1140: lowered, refineTableType reads the raw props.
       1140,
-      // 578 -> 591: a REVIEWED EXCEPTION, the models derive flags from props where the chained builders carried them.
+      // 578 -> 591: a REVIEWED EXCEPTION, the models derive flags from props.
       591,
       // 523 -> 525: a REVIEWED EXCEPTION, the route api reads the models derived from props.
       525,
       // 3052 -> 3179: a REVIEWED EXCEPTION, the client maps the models derived from props.
       3179,
-      // 7857 -> 8576: a REVIEWED EXCEPTION, toDrizzle derives each column's flags from props where the chained builders carried them.
+      // 7857 -> 8576: a REVIEWED EXCEPTION, toDrizzle derives each column's flags from props.
       8576,
     ],
     // 13580 -> 14892: a REVIEWED EXCEPTION, the single-call steps above.
@@ -345,18 +326,8 @@ export function snippetUpTo(pipeline: PipelineDialect, index: number): string {
 }
 
 // ── Consumer lane ────────────────────────────────────────────────────────────
-//
-// Everything above measures the chain compiled from SOURCE, which is what this
-// repo and a monorepo consumer see. Someone installing from npm reads the
-// emitted `.d.ts` instead, and that is a separate cost worth its own budget:
-// declaration emit prints the type ALIAS it was written as, never the type it
-// evaluates to, so `export type User = InferSelectModel<typeof api>` crosses the
-// package boundary unresolved and every consumer re-evaluates it, over the
-// FLAT slim columns, never over drizzle's generics.
-//
-// This lane emits the declaration for a models module, then compiles a consumer
-// against it. It does not use `makeMeasurer`: that measurer serves ONE virtual
-// file, and this needs two (the emitted d.ts plus the consumer importing it).
+// An npm consumer reads the `.d.ts`, where declaration emit prints the ALIAS, so every consumer re-evaluates the models.
+// Not `makeMeasurer`: that serves ONE virtual file, this needs the emitted d.ts plus the consumer importing it.
 
 const MODELS_TS = fileURLToPath(new URL('./__models__.ts', import.meta.url));
 const MODELS_DTS = fileURLToPath(new URL('./__models__.d.ts', import.meta.url));

@@ -5,13 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// @mionjs/drizzle-orm-pg-core — the slim pg authoring surface: tables are written as drizzle tables with every
-// column setting in ONE props object, and every function RECORDS the call instead of running drizzle. The
-// dialect-agnostic surface (InferSelectModel/InferInsertModel/InferUpdateModel, refineTableType, sql, tableRef)
-// is NOT re-exported here: import it from @mionjs/drizzle-orm, the required peer. toDrizzle on the './drizzle'
-// subpath is the ONE module that imports drizzle-orm, an optional peer.
-// Coverage is gated by manifests/pg.manifest.json (`pnpm miondevx core drizzle-manifest --check`);
-// the mapping rules live in the drizzle-slim-schemas skill.
+// Every function RECORDS the call instead of running drizzle. The models, refineTableType, sql and tableRef are NOT
+// re-exported: import them from @mionjs/drizzle-orm. Coverage is gated by manifests/pg.manifest.json; the mapping
+// rules live in the drizzle-slim-schemas skill.
 
 // The pg column builders and their column types.
 export * from './columns.ts';

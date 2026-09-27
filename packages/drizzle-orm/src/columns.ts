@@ -8,7 +8,7 @@
 // A column type is ONE optional sentinel {fn, raw props, data} with no db name and no owner, so one column
 // shape is one shared type in every table. Flags are derived lazily from the raw props, never at declaration.
 
-/** Sentinel key of the column spec: {fn, config, data, base}. */
+/** Sentinel key of the column spec. */
 export const rtColSpecKey: unique symbol = Symbol('rtColSpec');
 /** Type-only key of a named builder result's db name, lifted by the table into its names map. */
 export declare const rtColNameKey: unique symbol;
@@ -174,22 +174,16 @@ export type KeyFlagsOf<Spec> = Spec extends {config: infer Props; base: infer Ba
 /** Sentinel key of the literal sql carrier (Sql<'now()'>). */
 export const rtSqlTextKey: unique symbol = Symbol('rtSqlText');
 
-/** Literal sql for type-road values, TEXT only: a template with interpolations has no type spelling
- *  and stays builders-only. */
+/** Literal sql, TEXT only: an interpolated template has no type spelling and stays builders-only. */
 export interface Sql<Text extends string> {
   readonly [rtSqlTextKey]?: {sql: Text};
 }
 
 // ── Modifiers ────────────────────────────────────────────────────────────────
-// A builder's props hold its own config keys and drizzle's modifier calls together:
-//
-//   varchar('name', {length: 100, notNull: true, unique: ['uq']})
-//   Varchar<{length: 100; notNull: true; unique: ['uq']}>
-//
-// A no-argument modifier is `true`, one with arguments its args TUPLE, so `default: [true]` stays apart from a flag.
-// Nothing says which half a key belongs to, so every reader splits by colModNames: the recorder (./columnRecorder.ts),
-// the type reader (./fromType.ts) and the Go convert program (ts-go-runtypes/internal/convert/drizzle.go).
-// colMods.spec.ts gates the list against the dialect manifests and every config key, so a collision cannot slip in.
+// Props mix config and modifiers: varchar('n', {length: 100, notNull: true}) is Varchar<{length: 100; notNull: true}>.
+// A modifier's args are a TUPLE, so `default: [true]` stays apart from a flag.
+// Every reader splits by colModNames: ./columnRecorder.ts, ./fromType.ts, ts-go-runtypes/internal/convert/drizzle.go.
+// colMods.spec.ts gates the list against the dialect manifests and every config key.
 
 /** Every modifier method name a column type can carry, across all dialects. */
 export const colModNames = [
@@ -228,8 +222,7 @@ export interface ColRef {
 /** Every modifier a column type can spell; each dialect Picks its subset per builder kind, so a stray one is an error. */
 export interface ColMods {
   notNull?: true;
-  /** Bare `{primaryKey: true}` mirrors `.primaryKey()`; sqlite's config form
-   *  (`{primaryKey: [{autoIncrement: true}]}`) mirrors `.primaryKey(config)`. */
+  /** `true` mirrors `.primaryKey()`; sqlite's `[{autoIncrement: true}]` mirrors `.primaryKey(config)`. */
   primaryKey?: true | readonly [unknown];
   default?: readonly [unknown];
   defaultRandom?: true;
@@ -260,9 +253,8 @@ export interface ColMods {
 /** Sentinel key of a table entry spec (index/unique/check/foreignKey/...). */
 export const rtEntrySpecKey: unique symbol = Symbol('rtEntrySpec');
 
-/** One table-level entry, replayed as `ns[fn](...args)` then each chain call. In args and chain, a column of this
- *  table is `{col: key}`, another table's `{table: dbName, col: key}`, literal sql `Sql<'...'>`; chain values encode
- *  like modifiers. The dialects export friendlier aliases (IndexEntry, ...) over it. */
+// In args and chain: own column `{col: key}`, another table's `{table: dbName, col: key}`, literal sql `Sql<'...'>`.
+/** One table-level entry, replayed as `ns[fn](...args)` then each chain call; chain values encode like modifiers. */
 export interface TableEntry<
   Fn extends string,
   Args extends readonly unknown[] = [],

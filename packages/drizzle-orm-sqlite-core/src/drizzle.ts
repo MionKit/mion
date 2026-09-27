@@ -5,11 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The ONE module of @mionjs/drizzle-orm-sqlite-core that imports drizzle-orm, which is why drizzle-orm can be an
-// optional peer: a project that never calls toDrizzle never loads it. toDrizzle materializes a slim table by replaying
-// the recorded graph, and types the result by SYNTHESIZING structural column configs from the column specs. This is
-// also the ONE place a column gets its db and table names back, as drizzle's BuildColumns stamps them, so only files
-// that materialize a table pay for it.
+// The ONE module that imports drizzle-orm, so a project that never calls toDrizzle never loads it (an optional peer).
+// Types are synthesized structural column configs. The ONE place a column gets its db and table names back, so only
+// files that materialize a table pay for it.
 
 import * as dzSqlite from 'drizzle-orm/sqlite-core';
 import {sql as dzSql} from 'drizzle-orm';

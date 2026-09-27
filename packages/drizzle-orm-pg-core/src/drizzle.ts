@@ -5,12 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The ONE module of @mionjs/drizzle-orm-pg-core that imports drizzle-orm, which is why drizzle-orm can be an optional
-// peer: a project that never calls toDrizzle never loads it. toDrizzle materializes a slim table (or a recorded
-// enum/schema/sequence handle) by replaying the recorded graph, and types the result by SYNTHESIZING structural
-// PgColumn configs from the column specs: drizzle's model and query typing reads only data / notNull / hasDefault /
-// generated / identity, so a fixed dataType/columnType satisfies it. This is also the ONE place a column gets its db
-// and table names back, as drizzle's BuildColumns stamps them, so only files that materialize a table pay for it.
+// The ONE module that imports drizzle-orm, so a project that never calls toDrizzle never loads it (an optional peer).
+// Types are synthesized PgColumn configs: drizzle's typing reads only data / notNull / hasDefault / generated / identity.
+// The ONE place a column gets its db and table names back, so only files that materialize a table pay for it.
 
 import * as dzPg from 'drizzle-orm/pg-core';
 import {sql as dzSql} from 'drizzle-orm';
@@ -87,10 +84,8 @@ export type ToDrizzleView<V extends AnyPgView> = PgViewWithSelection<
   {[K in keyof V['columns'] & string]: DzPgColumn<SynthConfig<DbNameOf<V, K>, V['name'], Spec<V['columns'][K]>>>}
 >;
 
-/** Materializes a slim table (memoized: every call returns the same object), a view, or a recorded pgEnum /
- *  pgSchema / pgSequence / pgRole / pgPolicy / index handle, which you export from a drizzle-kit schema file beside
- *  the tables. The marker form `toDrizzle<UsersTable>(options?)` resolves the table type itself (@mionjs/devtools
- *  must be active) and shares tableFromType's per-type slim table. */
+// The marker form `toDrizzle<UsersTable>(options?)` needs @mionjs/devtools and shares tableFromType's per-type table.
+/** Materializes a table (memoized), a view, or a recorded handle a drizzle-kit schema file exports beside the tables. */
 export function toDrizzle<T extends AnyPgTable>(table: T): ToDrizzleTable<T>;
 export function toDrizzle<V extends AnyPgView>(view: V): ToDrizzleView<V>;
 export function toDrizzle<T extends readonly [string, ...string[]]>(handle: PgEnum<T>): dzPg.PgEnum<[T[0], ...string[]]>;

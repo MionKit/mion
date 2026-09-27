@@ -5,11 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The dialect-agnostic recorder core behind @mionjs/drizzle-orm-*-core: slim column objects that
-// RECORD their creation and modifier calls and replay them 1:1 against the real drizzle functions
-// when a table materializes. Nothing here imports drizzle: every materializer receives the drizzle
-// modules through a DrizzleContext injected by the dialect's toDrizzle module, which lets drizzle-orm
-// be an OPTIONAL peer of the family. The column TYPES live in ./columns.ts; this module is runtime only.
+// Slim columns RECORD their creation and modifier calls and replay them 1:1 against drizzle when a table
+// materializes. Drizzle arrives through a DrizzleContext from the dialect's toDrizzle module, so drizzle-orm
+// stays an OPTIONAL peer. Runtime only; the column TYPES live in ./columns.ts.
 
 /** Phantom key branding the recorder types (sql, index positions, entries); never set at runtime. */
 export const rtColumnKey: unique symbol = Symbol('rtColumn');
@@ -146,8 +144,7 @@ class RtIndexedColumnImpl {
  *  recorders themselves, which carry these methods. */
 export type RtExtraColumn = RtIndexedColumn;
 
-/** Runtime shape of every slim column: the `init` materializer the builder that created it set, plus the
- *  modifier calls its props recorded, which toDrizzleColumn replays in order. */
+/** Runtime shape of every slim column: its builder's `init`, then the recorded modifier calls in order. */
 export class RtColumnRecorder {
   /** Key in the owning table's columns record; set by createRtTable. */
   key = '';
@@ -172,8 +169,7 @@ export class RtColumnRecorder {
     return this;
   }
 
-  // Every dialect's modifier, called only by recordColumn replaying a builder's props; each builder's props bag
-  // decides which of them a column may carry.
+  // Called only by recordColumn; each builder's props type decides which modifiers a column may carry.
   notNull() {
     return this.record('notNull', []);
   }

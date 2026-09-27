@@ -5,9 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Single-call sqlite columns: a builder takes every setting in ONE props object and returns exactly the hand-written
-// alias's type. No chained modifiers: chain methods break reflection (the runtype id walks method return types,
-// MKR009), and the props bag rejects a modifier sqlite lacks.
+// One props object per builder, typed exactly as the hand-written alias. No chained modifiers: the runtype id walks
+// method return types (MKR009), and the props bag rejects a modifier sqlite lacks.
 
 import type {Float, Integer as IntegerFormat, String as Str} from '@mionjs/run-types/formats';
 import {RtValueRecorder, rtValueKey, recordColumn} from '@mionjs/drizzle-orm';

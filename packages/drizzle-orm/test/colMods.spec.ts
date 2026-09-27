@@ -5,22 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The gate under the one-object column spelling.
-//
-// A builder and its column type take the config and the modifier calls in the SAME
-// object (`varchar({length: 100, notNull: true})`, `Varchar<{length: 100; notNull: true}>`),
-// and every reader splits that object by colModNames: the recorder (./columnRecorder.ts),
-// the type reader (./fromType.ts) and the Go convert program
-// (ts-go-runtypes/internal/convert/drizzle.go). Two things must hold for that
-// split to be sound, and neither is visible from any reader alone:
-//
-//   1. the list covers every modifier the dialects actually record, so a
-//      drizzle upgrade that adds one cannot land as a silent config key;
-//   2. no builder config key is NAMED like a modifier, or it would be pulled
-//      out of the call and replayed as a method.
-//
-// Both are checked against the generated manifests and the dialect sources
-// rather than against a second hand-written list.
+// Every reader splits a builder's props by colModNames, so, checked against the manifests and dialect sources:
+// the list covers every recorded modifier (a drizzle upgrade cannot add one as a silent config key), and no
+// config key is named like a modifier (it would be replayed as a method).
 
 import {readFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';

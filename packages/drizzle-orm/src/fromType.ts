@@ -5,11 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The runtime bridge of the pure-types road: rebuild a slim table from the REFLECTED graph of a hand-written table
-// type. The graph carries every builder call as literal types: the builder fn and its props ride the rtColSpec
-// sentinel (config keys and modifier calls together, split by colModNames), db names ride the table's `names` member.
-// Nothing here imports @mionjs/run-types at runtime: the dialects' tableFromType resolves the graph and this walker
-// reads the plain node objects structurally.
+// Pure-types road: rebuilds a slim table from the reflected graph of a hand-written table type (builder calls
+// ride the rtColSpec sentinel, db names the `names` member). No runtime @mionjs/run-types import: the dialects'
+// tableFromType resolves the graph and this walker reads the nodes structurally.
 
 import {isColModName} from './columns.ts';
 import {RtColumnRecorder, RtEntryRecorder, sql} from './recorder.ts';

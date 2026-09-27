@@ -140,8 +140,7 @@ export function pgPolicy(name: string, config?: PgPolicyConfig): RtPolicyEntry {
 type Writable<T> = {-readonly [K in keyof T]: T[K]};
 type NonArray<T> = T extends readonly unknown[] ? never : T;
 
-/** A recorded pg enum: a factory of enum column builders, plus the name and values drizzle-kit consumers read.
- *  Migrations need the enum itself, so materialize it with toDrizzle. */
+/** A recorded pg enum: migrations need the enum itself, so materialize it with toDrizzle. */
 export interface PgEnum<T extends readonly [string, ...string[]]> {
   (): Column<'enum', NoProps, T[number]>;
   <N extends string>(columnName: N): NamedColumn<N, Column<'enum', NoProps, T[number]>>;
@@ -172,9 +171,8 @@ export function pgEnum(enumName: string, values: readonly string[] | Record<stri
   return makeEnumFactory(new RtValueRecorder('pgEnum', [enumName, values]), enumName, values);
 }
 
-/** Shared by pgEnum and pgSchema(...).enum: enum column builders whose materializer calls the real (memoized)
- *  drizzle enum. The RECORDED values stay what the caller passed, drizzle reads the object form itself; only the
- *  exposed enumValues are normalized to the values. */
+// The recorded values stay as passed (drizzle reads the object form); only the exposed enumValues are normalized.
+/** Shared by pgEnum and pgSchema(...).enum. */
 export function makeEnumFactory(recorder: RtValueRecorder, enumName: string, values: readonly string[] | Record<string, string>) {
   const factory = (...args: unknown[]) =>
     recordColumn(args, (context, callArgs) =>

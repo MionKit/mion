@@ -5,9 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The mysql table factories: drizzle's call shapes, slim recorder returns. The table type holds shared nameless
-// columns plus a names map, so a mysqlTable() result and a hand-written `MysqlTable<'users', {...}>` are one type.
-// Nothing here imports drizzle; the buildTable closures receive the injected context at materialization (./drizzle.ts).
+// drizzle's table call shapes, slim recorder returns. Shared nameless columns plus a names map make a mysqlTable()
+// result and a hand-written `MysqlTable<'users', {...}>` one type. No drizzle import: ./drizzle.ts injects the context.
 
 import type {
   AnyColumn,
@@ -73,9 +72,8 @@ type NameOf<C> = C extends {readonly [rtColNameKey]: infer Name} ? Name : undefi
 
 /** The extraConfig view of the table's columns: plus the index-position decorators. */
 export type MysqlExtraConfigColumns<Cols> = {[K in keyof Cols]: Cols[K] & RtExtraColumn};
-/** ONE extraConfig entry: an index or constraint from this package, a REAL drizzle entry passed straight through, or
- *  a group of either, which drizzle flattens one level. `object`: MyEntryBrand is a weak type and would reject a real
- *  drizzle entry. */
+// `object`: MyEntryBrand is a weak type and would reject a real drizzle entry.
+/** ONE extraConfig entry: ours, a REAL drizzle one passed through, or a group drizzle flattens one level. */
 export type MysqlExtraConfigEntry = object;
 /** drizzle accepts both the array form and its older keyed-object one; both are recorded and replayed unchanged. */
 export type MysqlExtraConfigFn<Cols> = (
@@ -169,11 +167,8 @@ export function mysqlSchema<TSchemaName extends string>(schemaName: TSchemaName)
 // One slim table per reflected type id, so repeated calls share one materialized drizzle table.
 const fromTypeTables = new Map<string, object>();
 
-/** Runtime twin of a hand-written table, typed as the table type itself, so toDrizzle, the models and
- *  refineTableType treat it exactly like a mysqlTable() result. The type argument is resolved by the build
- *  (@mionjs/devtools must be active). References need the referenced tables in options.tables, runtime-callback
- *  markers take theirs from options.runtime. A call WITH options is not memoized: two tables of the same type can
- *  carry different callbacks or referenced tables. */
+// Needs @mionjs/devtools; references read options.tables, runtime-callback markers options.runtime.
+/** Runtime twin of a hand-written table type; a call WITH options is not memoized, its callbacks or tables may differ. */
 export function tableFromType<T extends AnyMysqlTable>(options?: TableFromTypeOptions<T>, id?: InjectRunTypeId<T>): T {
   const runType = getRunType<T>(undefined, id);
   if (options !== undefined) return buildRtTableFromGraph(runType as ReflectedNode, mysqlBuildTable, options, 'mysql') as T;

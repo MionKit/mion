@@ -5,10 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The sqlite view factory, MANUAL-COLUMN form only: explicit columns, then `.as(sql`...`)` or `.existing()`; sqlite
-// views take no pre-terminal options. Nothing here imports drizzle; the buildView closure receives the injected
-// context at materialization (./drizzle.ts). `sqliteView(name)` with no columns, drizzle's query-builder form, is
-// declared but NOT supported: its columns come from drizzle's select typing (packages/drizzle-orm/CLAUDE.md).
+// MANUAL-COLUMN views only. `sqliteView(name)` with no columns (the query-builder form) is NOT supported: its columns
+// come from drizzle's select typing (packages/drizzle-orm/CLAUDE.md).
 
 import type {
   AnyColumn,

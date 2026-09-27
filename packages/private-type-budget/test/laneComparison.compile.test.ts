@@ -1,28 +1,7 @@
-// Three ways to declare the same model, priced in every dialect.
-//
-//   slim       a table built from the slim recorder builders, model derived flat
-//   type-only  the row written as a plain TypeScript type (formats by hand)
-//   builder    the row built with the RT.* / TF.* value-first builders
-//
-// All three end in the same place: the same refinement, the same
-// Select/Insert/Update models, the same mion route api, the same client. Only
-// how the row is DECLARED differs, so the gap between the totals is the price of
-// each approach and nothing else. The slim lane's sixth step (the db query
-// through toDrizzle) has no counterpart in the other lanes, which yield no
-// runnable table at all, so the comparison covers the five shared steps and
-// the db cost lives in the pipeline suite.
-//
-// Each dialect gets its own comparison: its slim table, and the other two lanes
-// spelling the formats that dialect's columns yield. The two alternative lanes
-// get budgets on the same one-way-downward terms as the slim lane (see
-// modelPipeline.compile.test.ts for the full rule). The slim lane is re-measured
-// here rather than read from its budgets, so the comparison is measurement
-// against measurement.
-//
-// What this suite does NOT do is pick a winner. The slim lane derives the
-// model from the table, so the database schema and the API types cannot drift
-// apart. The other two hand you that consistency to maintain by hand. These
-// numbers price that guarantee; choosing is a separate conversation.
+// Three ways to declare one model (slim table, plain type-only row, RT.* / TF.* builder row), priced per dialect.
+// Only the DECLARATION differs, so the gap is its price; the slim lane's db step has no counterpart and is priced in
+// the pipeline suite. Alternatives get one-way-downward budgets (rule in modelPipeline.compile.test.ts); the slim
+// lane is re-measured, not read from its budgets. It prices, never ranks: only slim keeps schema and API in sync.
 
 import {describe, it, expect, beforeAll, afterAll} from 'vitest';
 import * as ts from 'typescript';
@@ -116,21 +95,15 @@ describe('model declaration approaches, cost comparison', () => {
           });
         }
 
-        // Without this a lane could look cheap simply by having lost the formats
-        // somewhere, which would make its whole column meaningless.
+        // Without this a lane could look cheap simply by having lost the formats.
         it(`${dialect}: ${lane.name}: the row still carries the refined formats`, () => {
           const result = lane.measure(laneSnippetUpTo(lane, lane.steps.length - 1) + lane.shapePins);
           expect(result.errors, `${dialect} ${lane.name} shape pins failed:\n  ${result.errors.join('\n  ')}`).toEqual([]);
         });
       }
 
-      // Steps 4 and 5 are the same text in every lane, so their deltas should stay
-      // close. A wide gap means a lane's model type reaches the router or the client
-      // differently, and the comparison above would be measuring that instead of the
-      // declaration style. Not zero though: the three lanes hand the router
-      // structurally equivalent but differently SPELLED types (the builder lane's
-      // readonly params). The threshold sits above today's spread to catch drift,
-      // not to pin the current gap.
+      // A wide gap means a lane's model reaches the router or client differently, skewing the comparison above.
+      // Not zero, the builder lane spells readonly params; the threshold sits above today's spread to catch drift.
       it(`${dialect}: the shared route and client steps cost about the same in every lane`, () => {
         for (const stepIndex of [3, 4]) {
           const costs = lanes.map((lane) => laneDeltas(dialect, lane)[stepIndex]);

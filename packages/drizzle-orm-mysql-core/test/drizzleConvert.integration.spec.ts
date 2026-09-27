@@ -58,8 +58,7 @@ register('drizzle convert CLI round trip', () => {
     projectDir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-drizzle-convert-mysql-'));
     fs.writeFileSync(path.join(projectDir, 'tsconfig.json'), TSCONFIG);
     fs.mkdirSync(path.join(projectDir, 'src'));
-    // A consumer-shaped node_modules: the three workspace packages linked in
-    // by name (the source export condition then resolves their real src).
+    // Linked by name, so the source export condition resolves their real src.
     const packages: Array<[string, string]> = [
       ['@mionjs/drizzle-orm-mysql-core', path.resolve(__dirname, '..')],
       ['@mionjs/drizzle-orm', path.resolve(__dirname, '../../drizzle-orm')],

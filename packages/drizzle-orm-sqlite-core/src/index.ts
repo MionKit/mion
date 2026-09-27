@@ -5,10 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// @mionjs/drizzle-orm-sqlite-core — the slim sqlite authoring surface: tables are written as drizzle tables with every
-// column setting in ONE props object, every function records instead of running drizzle, and toDrizzle on the
-// './drizzle' subpath is the one module that imports drizzle-orm (an optional peer).
-// Coverage is gated by manifests/sqlite.manifest.json; the mapping rules live in the drizzle-slim-schemas skill.
+// Every function RECORDS the call instead of running drizzle. Coverage is gated by manifests/sqlite.manifest.json;
+// the mapping rules live in the drizzle-slim-schemas skill.
 
 // The sqlite column builders and their column types.
 export * from './columns.ts';
