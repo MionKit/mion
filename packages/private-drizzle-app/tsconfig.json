@@ -1,0 +1,17 @@
+{
+  // `rootDir` is the repo root because the cost test imports the compile harness from packages/run-types/test/.
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "composite": false,
+    "noEmit": true,
+    "declaration": false,
+    "declarationMap": false,
+    "incremental": false,
+    "rootDir": "../..",
+    "sourceMap": false,
+    "lib": ["ES2023", "DOM"],
+    "types": ["node", "vitest/globals"]
+  },
+  "include": ["."],
+  "exclude": ["node_modules"]
+}
