@@ -287,7 +287,7 @@ func eachVariableDeclaration(sourceFile *ast.SourceFile, visit func(decl *ast.No
 
 // isBarrierCall reports whether a call stops the recorder rewrite reaching into its arguments: a call
 // to an identifier that is NOT one of our migrated helpers, so `eq(users.cityId, 1)` inside a view's
-// sql keeps drizzle's column. Method calls are transparent: those are the recorder's modifier chains.
+// sql keeps drizzle's column. Method calls are transparent: drizzle's column chains (folded later) and entry chains like .on().
 func (file *fileRun) isBarrierCall(node *ast.Node) bool {
 	if !ast.IsCallExpression(node) {
 		return false

@@ -291,9 +291,8 @@ hitting either. Gone, with `reflectedKinds.intersection`, `RtTable`, `RtView` an
 
 `name`, `columns` and `extras` are plain keys on the table type now. On a table with a
 column called `name`, the type-level `table.name` is the table's DB name, not the column;
-`cols(table).name` is the column. Under the old shape the columns were the top-level
-members and this could not happen. `cols()` is identity at run time, because the object
-really does carry the columns as properties, and only the type stopped naming them.
+`T['columns']['name']` is the column, and `tableRef(table, 'name')` points at it. Under the
+old shape the columns were the top-level members and this could not happen.
 
 ### D1 turned out not to be a dialect
 
@@ -302,7 +301,7 @@ verbatim". There is no fourth dialect. D1 and durable-sqlite are DRIVERS: neithe
 column builder, and tables for both are declared with sqlite-core, which is what the sqlite
 package's `type-pins.stub.ts` pins.
 
-The advice still holds for a real new dialect: copy the pg/mysql/sqlite alias pair rather
+The advice still holds for a real new dialect: copy the per-dialect table interface rather
 than factoring the three into a shared base. A shared base with the dialect's own extras
 intersected on top costs +4 per table over spelling the extra member inside the same object.
 
@@ -486,14 +485,14 @@ Twenty plain integer columns on the chained type road, select model consumed:
 | nameless, flags fixed                      |  317 |
 
 Both matter, names more: a column that carries its db name is its own type, so its flags are
-derived once per column. That is why the new columns carry no name.
+derived once per column. That is why the single-call columns carry no name.
 
 ### Two constraints no measurement shows, both from reflection
 
 - **A column type cannot carry chain methods.** The runtype id walks method return types
   (`typeid.go` `signatureID`), and a chain returning a column with new props per call never
-  repeats a type: MKR009 at the 512-level depth cap. Today's code escapes only because
-  hand-written columns have no methods and builder tables were never reflected. Hence the
+  repeats a type: MKR009 at the 512-level depth cap. The chained system escaped only
+  because hand-written columns had no methods and builder tables were never reflected. Hence the
   builder / column split, exactly drizzle's own `ColumnBuilder` / `Column`.
 - **No alias may carry the builder record as a type argument.** The resolver serializes an
   aliased type's arguments (`serialize.go` `projectType`), so `LiftCols<Cols>` or a
@@ -539,17 +538,17 @@ builder's extra cost is the call itself.
 
 Not re-measured, and why:
 
-- **The `Pick` split** has nothing to split: the new spec holds one props object and the
+- **The `Pick` split** has nothing to split: the column spec holds one props object and the
   readers split it by `colModNames`, as before.
-- **One sentinel against two**: the new columns already carry one. The builder's db name is
-  a second member only on builders, never on a column.
+- **One sentinel against two**: the single-call columns carry one. A db name lives on the
+  table's names map, never on a column.
 
 ### Older conclusions the new numbers contradict
 
 - **"A full ColumnFormat is far too expensive for the builder road"** (+223% to declare a
   five-column table): true of that shape, which merged per call AND kept eager flags.
-  Declaring a new builder table costs 434 against 391, +11%.
-- **"Merge-free bags win narrow and lose wide, crossing near twenty columns"**: the new
+  Declaring a single-call builder table cost 434 against 391, +11%, when measured.
+- **"Merge-free bags win narrow and lose wide, crossing near twenty columns"**: the single-call
   hand-written tables win at every width measured, 40 columns included (480 against 2418
   for chained types and 565 for chained builders).
 
@@ -559,11 +558,10 @@ Not re-measured, and why:
 - The runtime half. Moving `toDrizzle` onto metadata-driven generation, the way MockData
   reads a `TypeFormat`, is a runtime architecture question and independent of everything
   above. Half of it already exists: `buildRtTableFromGraph` reconstructs a slim table from
-  the reflected `@rtTableKey` meta. Two things to settle before the builder road joins it:
-  a bag has no call ORDER, where the recorder replays modifiers in the order they were
-  written, and runtime-only values (interpolated `sql`, `$defaultFn`, cross-table
-  references) can live in a runtime bag but never in a type, which is why the type road
-  already routes them through `options.runtime`.
+  the reflected `@rtTableKey` meta. One thing to settle before the builder road joins it:
+  runtime-only values (interpolated `sql`, `$defaultFn`, cross-table references) can live
+  in a runtime bag but never in a type, which is why the type road routes them through
+  `options.runtime`.
 
 ## Reproducing
 
