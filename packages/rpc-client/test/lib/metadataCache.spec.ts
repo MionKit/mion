@@ -11,9 +11,9 @@
 
 import 'fake-indexeddb/auto';
 import {describe, beforeEach, afterEach, it, expect, vi} from 'vitest';
-import {DEFAULT_PARSER, MION_ROUTES, getJitFnHashes, resolveCompiledPureFn, routesCache} from '@mionjs/core';
+import {DEFAULT_PARSER, getJitFnHashes, resolveCompiledPureFn, routesCache} from '@mionjs/core';
 import {
-  extractAndProcessMetadata,
+  installMethodRows,
   flushMetadataCache,
   hydrateMetadataCache,
   takeMetadataCacheError,
@@ -78,7 +78,7 @@ function wrapStore(inner: MetadataStore, overrides: Partial<MetadataStore>): Met
 }
 
 function receiveFromServer(data: unknown): void {
-  extractAndProcessMetadata('mionMethodsMetadata', {['mionMethodsMetadata']: data}, options);
+  installMethodRows(data as never, options);
 }
 
 /** A store that refuses the first `failures` writes with the error a full browser raises. */
@@ -278,7 +278,7 @@ describe('the metadata cache around its store', () => {
     };
     const appOptions: ClientOptions = {...options, storageEngine: () => appStore};
 
-    extractAndProcessMetadata('mionMethodsMetadata', {['mionMethodsMetadata']: payload('sayHi', 'h1')}, appOptions);
+    installMethodRows(payload('sayHi', 'h1') as never, appOptions);
     await flushMetadataCache();
 
     expect(calls).toContain('write');
@@ -318,7 +318,7 @@ describe('the metadata cache around its store', () => {
     await inner.write([{baseURL, kind: 'j', id: 'ancient', json: '{}', ts: 1}]);
     await hydrateMetadataCache(appOptions);
 
-    extractAndProcessMetadata('mionMethodsMetadata', {['mionMethodsMetadata']: payload('sayHi', 'h1')}, appOptions);
+    installMethodRows(payload('sayHi', 'h1') as never, appOptions);
     await flushMetadataCache();
 
     expect(removed).toContain('j:ancient');

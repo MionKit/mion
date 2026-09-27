@@ -10,7 +10,7 @@
 // still fetched from the server as before.
 
 import {describe, it, expect, beforeEach, afterEach, inject, vi} from 'vitest';
-import {HeadersSubset, MION_ROUTES, routesCache} from '@mionjs/core';
+import {HeadersSubset, routesCache} from '@mionjs/core';
 import type {TestServerApi} from '@mionjs/test-server';
 import {initClient} from '../../src/client.ts';
 import {useMethodsMetadata} from '../../src/middlewares/methodsMetadata.ts';
@@ -18,7 +18,7 @@ import type {RouteSubRequest} from '../../src/types.ts';
 import {resetClientCaches} from '../lib/testUtils.ts';
 import {resetBundledApi} from '../../src/lib/bundledApi.ts';
 import {getMethod, isBundledMethod} from '../../src/lib/methods.ts';
-import {flushMetadataCache, extractAndProcessMetadata} from '../../src/lib/clientMethodsMetadata.ts';
+import {flushMetadataCache, installMethodRows} from '../../src/lib/clientMethodsMetadata.ts';
 import {MemoryMetadataStore, resetMetadataStore, setMetadataStoreForTesting} from '../../src/lib/metadataStore.ts';
 import {expectEveryMethodMatchesTheServer} from '../lib/parity.ts';
 
@@ -136,17 +136,8 @@ describe('a client built with bundleApi: mixed', () => {
     const bundled = getMethod('utils/sumTwo');
     expect(bundled).toBeDefined();
     const options = {baseURL, basePath: '', suffix: '', storageEngine: 'memory'} as never;
-    extractAndProcessMetadata(
-      'mionMethodsMetadata',
-      {
-        ['mionMethodsMetadata']: {
-          methods: {'utils/sumTwo': {...bundled, paramsJitHash: 'stale', returnJitHash: 'stale'}},
-          deps: {},
-          purFnDeps: {},
-        },
-      },
-      options
-    );
+    const stale = {...bundled, paramsJitHash: 'stale', returnJitHash: 'stale'} as never;
+    installMethodRows({methods: {'utils/sumTwo': stale}, deps: {}, purFnDeps: {}}, options);
     expect(getMethod('utils/sumTwo')?.paramsJitHash).toBe(bundled!.paramsJitHash);
   });
 });

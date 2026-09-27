@@ -11,11 +11,10 @@
 
 import 'fake-indexeddb/auto';
 import {describe, beforeEach, afterEach, it, expect, vi} from 'vitest';
-import {flushMetadataCache, extractAndProcessMetadata, hydrateMetadataCache} from '../../src/lib/clientMethodsMetadata.ts';
+import {flushMetadataCache, installMethodRows, hydrateMetadataCache} from '../../src/lib/clientMethodsMetadata.ts';
 import type {ClientOptions} from '../../src/types.ts';
 import {getMetadataStore, resetMetadataStore} from '../../src/lib/metadataStore.ts';
 import type {MetadataRecord} from '../../src/lib/storage.ts';
-import {MION_ROUTES} from '@mionjs/core';
 import {resetClientCaches} from './testUtils.ts';
 
 const options: ClientOptions = {
@@ -38,7 +37,7 @@ async function seed(records: Omit<MetadataRecord, 'baseURL' | 'ts'>[]): Promise<
 
 /** Hands the client a server response carrying this metadata payload. */
 function receiveFromServer(payload: unknown): void {
-  extractAndProcessMetadata('mionMethodsMetadata', {['mionMethodsMetadata']: payload}, options);
+  installMethodRows(payload as never, options);
 }
 
 describe('client metadata cache: prototype safety', () => {

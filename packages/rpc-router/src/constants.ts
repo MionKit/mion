@@ -6,7 +6,6 @@
  * ######## */
 
 import {RouterOptions} from './types/general.ts';
-import {MION_ROUTES} from '@mionjs/core';
 
 export const DEFAULT_ROUTE_OPTIONS = {
   basePath: '',
@@ -25,6 +24,3 @@ export const DEFAULT_ROUTE_OPTIONS = {
 } as Readonly<RouterOptions>;
 
 export const MAX_ROUTE_NESTING = 10;
-
-/** mion's own ids, never exposed to clients */
-export const mionInternalRouteIds: ReadonlySet<string> = new Set(Object.values(MION_ROUTES));

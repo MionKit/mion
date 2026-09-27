@@ -14,7 +14,7 @@ import {initClient} from '../../src/client.ts';
 import {useMethodsMetadata} from '../../src/middlewares/methodsMetadata.ts';
 import {getApiBuildVersion} from '../../src/lib/apiBuildVersion.ts';
 import {isBundledMethod} from '../../src/lib/methods.ts';
-import {isMetadataFromServerLoaded} from '../../src/lib/metadataFromServerLoader.ts';
+import {loadedMetadataFromServer} from '../../src/lib/metadataFromServerLoader.ts';
 import {resetApiVersionState, serveVersion, useAuth} from '../lib/apiVersionUtils.ts';
 
 const baseURL = inject('laneServerBaseURL');
@@ -57,7 +57,7 @@ describe('the api version a bundled client compares', () => {
     } finally {
       watch.restore();
     }
-    expect(isMetadataFromServerLoaded()).toBe(false);
+    expect(loadedMetadataFromServer()).toBeUndefined();
   });
 
   it('changes nothing when the server sends no version', async () => {

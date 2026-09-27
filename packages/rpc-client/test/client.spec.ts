@@ -11,7 +11,7 @@ import {isMiddlewareInScope} from '../src/dispatch.ts';
 import type {ClientOptions, RouteSubRequest} from '../src/types.ts';
 import {purgeHydratedMetadata} from '../src/lib/clientMethodsMetadata.ts';
 import {getMetadataStore} from '../src/lib/metadataStore.ts';
-import {isRpcError, HeadersSubset, MION_ROUTES, routesCache, resetRoutesCache} from '@mionjs/core';
+import {isRpcError, HeadersSubset, routesCache, resetRoutesCache} from '@mionjs/core';
 import {resetJitFunctionsCache} from '@mionjs/core/testing';
 import {TestServerApi} from '@mionjs/test-server';
 import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
