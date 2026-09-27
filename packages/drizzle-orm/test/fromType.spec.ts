@@ -126,8 +126,7 @@ describe('buildRtTableFromGraph', () => {
     const graph = tableNode('users', {slug: colNode('varchar', {notNull: lit(true), $defaultFn: lit(true), unique: tuple()})});
     const slim = buildRtTableFromGraph(graph, fake.buildTable, {runtime: {slug: {$defaultFn: callback}}});
     materializeRtTable(slim, fake.context);
-    // the replay wraps top-level function args lazily (mapReplayArgs), so the
-    // replayed arg is a wrapper: assert it forwards to the options callback.
+    // mapReplayArgs wraps top-level function args, so assert the wrapper forwards to the options callback.
     expect(fake.calls).toEqual([
       ['ns', 'varchar', 'slug'],
       ['ns.varchar', 'notNull'],

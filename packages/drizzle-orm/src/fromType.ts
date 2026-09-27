@@ -254,7 +254,7 @@ export function buildRtTableFromGraph(
   for (const columnMember of columnsNode.children) {
     const key = columnMember.name;
     if (typeof key !== 'string' || columnMember.child === undefined) continue;
-    // The key when the names map has no entry: a keyless drizzle column shares drizzle's per-table-name casing cache, and two tables with one name then miss it.
+    // Never keyless: drizzle caches keyless column names once per table name, so a second table with that name misses its own.
     columns[key] = buildColumn(columnMember.child, key, names[key] ?? key, options, consumedRuntime);
   }
   for (const [key, callbacks] of Object.entries(options?.runtime ?? {})) {
