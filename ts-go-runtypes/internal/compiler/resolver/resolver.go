@@ -403,6 +403,8 @@ func (sess *Session) SetProgram(prog *program.Program) error {
 	sess.batchFileCache = requestbatch.NewFileCache()
 	sess.routerInitFileCache = routerinit.NewFileCache()
 	sess.apiFileCache = apimeta.NewFileCache()
+	sess.apiInitFileCache = apimeta.NewInitFileCache()
+	sess.apiMiddlewareReadsCache = apimeta.NewMiddlewareReadsCache()
 	sess.hasBatchesMemo = nil
 	sess.importsRouterMemo = nil
 	sess.ownPackageName, sess.ownPackageRoot, sess.ownPackageDone = "", "", false
@@ -462,6 +464,8 @@ func (sess *Session) Reset() {
 	sess.batchFileCache = requestbatch.NewFileCache()
 	sess.routerInitFileCache = routerinit.NewFileCache()
 	sess.apiFileCache = apimeta.NewFileCache()
+	sess.apiInitFileCache = apimeta.NewInitFileCache()
+	sess.apiMiddlewareReadsCache = apimeta.NewMiddlewareReadsCache()
 	sess.hasBatchesMemo = nil
 	sess.importsRouterMemo = nil
 	sess.ownPackageName, sess.ownPackageRoot, sess.ownPackageDone = "", "", false

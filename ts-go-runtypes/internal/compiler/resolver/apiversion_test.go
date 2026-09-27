@@ -220,3 +220,26 @@ func TestApiVersion_EveryClientIsCheckedAgainstTheServer(t *testing.T) {
 		t.Fatalf("the error must point at a-client.ts and name two different versions, got %+v", mismatches[0])
 	}
 }
+
+// TestApiGen_InitClientFilesFollowAnEdit: the initClient files are dropped with the Program, so a file that gains one gets the lane import.
+func TestApiGen_InitClientFilesFollowAnEdit(t *testing.T) {
+	sources := apiSources("export const nothing = 1;\n")
+	sess := setupApi(t, sources, t.TempDir(), constants.BundleApiBundled, "")
+	transform := func() string {
+		response := sess.Dispatch(protocol.Request{Op: protocol.OpTransform, Files: []string{"client.ts"}})
+		if response.Error != "" {
+			t.Fatalf("transform: %s", response.Error)
+		}
+		return response.Transformed["client.ts"].Code
+	}
+	if code := transform(); strings.Contains(code, "api/lane.js") {
+		t.Fatalf("a file with no initClient gets no lane import:\n%s", code)
+	}
+	sources["client.ts"] = apiClientTS
+	if response := sess.Dispatch(protocol.Request{Op: protocol.OpSetSources, Sources: withRealMarker(t, sources)}); response.Error != "" {
+		t.Fatalf("setSources: %s", response.Error)
+	}
+	if code := transform(); strings.Count(code, "api/lane.js") != 1 {
+		t.Fatalf("the edit added initClient, so exactly one lane import belongs in the file:\n%s", code)
+	}
+}
