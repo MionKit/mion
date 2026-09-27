@@ -35,11 +35,11 @@ func WalkCallChain(expr *ast.Node) (base *ast.Node, links []CallChainLink, ok bo
 	return nil, nil, false
 }
 
-// IsDrizzleModName reports whether a props key is a modifier call rather than one of the builder's own config keys.
-func IsDrizzleModName(name string) bool { return drizzleModNames[name] }
+// isDrizzleModName reports whether a props key is a modifier call rather than one of the builder's own config keys.
+func isDrizzleModName(name string) bool { return drizzleModNames[name] }
 
-// IsDrizzleRuntimeMod reports whether a modifier takes a callback, which a type cannot spell.
-func IsDrizzleRuntimeMod(name string) bool {
+// isDrizzleRuntimeMod reports whether a modifier takes a callback, which a type cannot spell.
+func isDrizzleRuntimeMod(name string) bool {
 	return name == "$default" || name == "$defaultFn" || name == "$onUpdate" || name == "$onUpdateFn"
 }
 
@@ -57,13 +57,13 @@ func ColumnChainProps(expr *ast.Node) (base *ast.Node, links []CallChainLink, re
 			argCount = len(call.Arguments.Nodes)
 		}
 		switch {
-		case !IsDrizzleModName(link.Method):
+		case !isDrizzleModName(link.Method):
 			return nil, nil, fmt.Sprintf(".%s() is not a column modifier the single-call builders take", link.Method)
 		case seen[link.Method]:
 			return nil, nil, fmt.Sprintf(".%s() is applied more than once, and the props object holds each modifier once", link.Method)
 		case link.Method == "$type" && (argCount != 0 || call.TypeArguments == nil || len(call.TypeArguments.Nodes) != 1):
 			return nil, nil, ".$type() needs exactly one type argument and no value argument"
-		case IsDrizzleRuntimeMod(link.Method) && argCount != 1:
+		case isDrizzleRuntimeMod(link.Method) && argCount != 1:
 			return nil, nil, fmt.Sprintf(".%s() takes exactly one callback", link.Method)
 		}
 		seen[link.Method] = true
