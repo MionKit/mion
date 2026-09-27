@@ -34,38 +34,38 @@ export interface SqliteColMods extends Pick<
   generatedAlwaysAs?: readonly [unknown] | readonly [unknown, {mode?: 'virtual' | 'stored'}];
 }
 
-export interface BlobConfig<TMode extends 'buffer' | 'json' | 'bigint' = 'buffer' | 'json' | 'bigint'> {
-  mode: TMode;
+export interface BlobConfig<Mode extends 'buffer' | 'json' | 'bigint' = 'buffer' | 'json' | 'bigint'> {
+  mode: Mode;
 }
-export type BlobDataOf<TMode> = TMode extends 'bigint' ? RTBigInt : TMode extends 'json' ? unknown : Buffer;
-export type BlobData<C> = BlobDataOf<C extends {mode: infer TMode} ? TMode : 'buffer'>;
+export type BlobDataOf<Mode> = Mode extends 'bigint' ? RTBigInt : Mode extends 'json' ? unknown : Buffer;
+export type BlobData<C> = BlobDataOf<C extends {mode: infer Mode} ? Mode : 'buffer'>;
 export interface IntegerConfig<
-  TMode extends 'number' | 'timestamp' | 'timestamp_ms' | 'boolean' = 'number' | 'timestamp' | 'timestamp_ms' | 'boolean',
+  Mode extends 'number' | 'timestamp' | 'timestamp_ms' | 'boolean' = 'number' | 'timestamp' | 'timestamp_ms' | 'boolean',
 > {
-  mode: TMode;
+  mode: Mode;
 }
-export type IntegerDataOf<TMode> = TMode extends 'timestamp' | 'timestamp_ms'
+export type IntegerDataOf<Mode> = Mode extends 'timestamp' | 'timestamp_ms'
   ? RTDate
-  : TMode extends 'boolean'
+  : Mode extends 'boolean'
     ? boolean
     : IntegerFormat;
-export type IntegerData<C> = IntegerDataOf<C extends {mode: infer TMode} ? TMode : 'number'>;
-export interface SQLiteNumericConfig<TMode extends 'number' | 'string' | 'bigint' = 'number' | 'string' | 'bigint'> {
-  mode?: TMode;
+export type IntegerData<C> = IntegerDataOf<C extends {mode: infer Mode} ? Mode : 'number'>;
+export interface SQLiteNumericConfig<Mode extends 'number' | 'string' | 'bigint' = 'number' | 'string' | 'bigint'> {
+  mode?: Mode;
 }
-export type NumericDataOf<TMode> = TMode extends 'number' ? Float : TMode extends 'bigint' ? bigint : string;
-export type NumericData<C> = NumericDataOf<C extends {mode: infer TMode} ? TMode : 'string'>;
+export type NumericDataOf<Mode> = Mode extends 'number' ? Float : Mode extends 'bigint' ? bigint : string;
+export type NumericData<C> = NumericDataOf<C extends {mode: infer Mode} ? Mode : 'string'>;
 export interface SQLiteTextConfig<
-  TMode extends 'text' | 'json' = 'text' | 'json',
+  Mode extends 'text' | 'json' = 'text' | 'json',
   T extends readonly string[] = EnumTuple,
   L extends number | undefined = number | undefined,
 > {
-  mode?: TMode;
+  mode?: Mode;
   enum?: T;
   length?: L;
 }
 /** The text data computation both the builders and TextData go through. */
-export type TextDataOf<TMode, T extends readonly string[], L> = TMode extends 'json'
+export type TextDataOf<Mode, T extends readonly string[], L> = Mode extends 'json'
   ? unknown
   : string extends T[number]
     ? L extends number
@@ -73,7 +73,7 @@ export type TextDataOf<TMode, T extends readonly string[], L> = TMode extends 'j
       : Str
     : T[number];
 export type TextData<C> = TextDataOf<
-  C extends {mode: infer TMode} ? TMode : 'text',
+  C extends {mode: infer Mode} ? Mode : 'text',
   C extends {enum: infer E extends readonly string[]} ? E : readonly string[],
   C extends {length: infer L extends number} ? L : undefined
 >;

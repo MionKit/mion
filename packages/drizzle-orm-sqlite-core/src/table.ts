@@ -28,8 +28,8 @@ import {getRunType} from '@mionjs/run-types';
 import {sqliteColumnHelpers, type SqliteColumnHelpers} from './columns.ts';
 
 /** A sqlite table: ONE type for a sqliteTable() result and a hand-written `SqliteTable<'users', {...}>`. */
-export interface SqliteTable<TName extends string, Cols, Extras extends readonly object[] = [], Names = NoNames>
-  extends RtTableMeta<TName, Cols, Extras, Names>, RtTableBrand<'sqlite'> {}
+export interface SqliteTable<Name extends string, Cols, Extras extends readonly object[] = [], Names = NoNames>
+  extends RtTableMeta<Name, Cols, Extras, Names>, RtTableBrand<'sqlite'> {}
 export type AnySqliteTable = SqliteTable<string, Record<string, AnyColumn>, readonly object[], object>;
 
 // Friendly aliases over the TableEntry carrier the runtime bridge and the convert program read.
@@ -98,22 +98,22 @@ export function sqliteBuildTable(
 }
 
 /** Records the table and returns the SLIM table, not drizzle's own: toDrizzle() from the ./drizzle subpath builds that. */
-export function sqliteTable<TName extends string, Cols extends Record<string, object>>(
-  name: TName,
+export function sqliteTable<Name extends string, Cols extends Record<string, object>>(
+  name: Name,
   columns: Cols,
   extraConfig?: SqliteExtraConfigFn<LiftCols<Cols>>
 ): SqliteTable<
-  TName,
+  Name,
   {[K in keyof Cols]: Cols[K] extends {readonly [rtNamedColumnKey]: infer C} ? C : Cols[K]},
   [],
   {[K in keyof Cols as NameOf<Cols[K]> extends string ? (NameOf<Cols[K]> extends K ? never : K) : never]: NameOf<Cols[K]>}
 >;
-export function sqliteTable<TName extends string, Cols extends Record<string, object>>(
-  name: TName,
+export function sqliteTable<Name extends string, Cols extends Record<string, object>>(
+  name: Name,
   columns: (helpers: SqliteColumnHelpers) => Cols,
   extraConfig?: SqliteExtraConfigFn<LiftCols<Cols>>
 ): SqliteTable<
-  TName,
+  Name,
   {[K in keyof Cols]: Cols[K] extends {readonly [rtNamedColumnKey]: infer C} ? C : Cols[K]},
   [],
   {[K in keyof Cols as NameOf<Cols[K]> extends string ? (NameOf<Cols[K]> extends K ? never : K) : never]: NameOf<Cols[K]>}
@@ -124,22 +124,22 @@ export function sqliteTable(name: string, columns: ColumnsArg<Record<string, unk
 
 /** What sqliteTableCreator returns: sqliteTable's call shape, named so declaration emit can print it. */
 export interface SqliteTableCreatorFn {
-  <TName extends string, Cols extends Record<string, object>>(
-    name: TName,
+  <Name extends string, Cols extends Record<string, object>>(
+    name: Name,
     columns: Cols,
     extraConfig?: SqliteExtraConfigFn<LiftCols<Cols>>
   ): SqliteTable<
-    TName,
+    Name,
     {[K in keyof Cols]: Cols[K] extends {readonly [rtNamedColumnKey]: infer C} ? C : Cols[K]},
     [],
     {[K in keyof Cols as NameOf<Cols[K]> extends string ? (NameOf<Cols[K]> extends K ? never : K) : never]: NameOf<Cols[K]>}
   >;
-  <TName extends string, Cols extends Record<string, object>>(
-    name: TName,
+  <Name extends string, Cols extends Record<string, object>>(
+    name: Name,
     columns: (helpers: SqliteColumnHelpers) => Cols,
     extraConfig?: SqliteExtraConfigFn<LiftCols<Cols>>
   ): SqliteTable<
-    TName,
+    Name,
     {[K in keyof Cols]: Cols[K] extends {readonly [rtNamedColumnKey]: infer C} ? C : Cols[K]},
     [],
     {[K in keyof Cols as NameOf<Cols[K]> extends string ? (NameOf<Cols[K]> extends K ? never : K) : never]: NameOf<Cols[K]>}

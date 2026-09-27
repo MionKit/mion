@@ -22,7 +22,7 @@ export interface ColumnParity {
   /** The *ColMods bag(s) the column type's props constraint names. */
   bag: string | null;
   /** The props interface(s) the builder's overloads constrain their props by. */
-  returns: string[];
+  props: string[];
   manifestModifiers: string[];
   bagMissing: string[];
   bagExtra: string[];
@@ -76,18 +76,19 @@ export function parsePropsInterfaces(source: string): Map<string, Set<string>> {
 }
 
 /** The props interfaces a builder's overloads name (`const C extends Only<C, Config & PgColIn>`), by function. */
-export function parseBuilderReturns(source: string): Map<string, Set<string>> {
-  const returns = new Map<string, Set<string>>();
+export function parseBuilderProps(source: string): Map<string, Set<string>> {
+  const builderProps = new Map<string, Set<string>>();
   for (const part of source.split(/^export function /m).slice(1)) {
     const name = (part.match(/^(\w+)/) ?? [])[1];
     if (!name) continue;
     // One overload only: stop at its terminating ';', or at the implementation's '{'.
     const semicolon = part.indexOf(';');
     const signature = part.slice(0, semicolon >= 0 ? semicolon + 1 : Math.max(part.search(/[{]/), 0));
-    if (!returns.has(name)) returns.set(name, new Set());
-    for (const props of signature.matchAll(/const C extends Only<C, (?:[^\n]*? & )?(\w+In)>/g)) returns.get(name)!.add(props[1]);
+    if (!builderProps.has(name)) builderProps.set(name, new Set());
+    for (const match of signature.matchAll(/const C extends Only<C, (?:[^\n]*? & )?(\w+In)>/g))
+      builderProps.get(name)!.add(match[1]);
   }
-  return returns;
+  return builderProps;
 }
 
 /** Local declaration names for types the root module re-exports renamed. */
@@ -117,35 +118,35 @@ export function columnParity(
 ): ColumnParity[] {
   const bags = parseBags(typesSource);
   const interfaces = parsePropsInterfaces(buildersSource);
-  const builders = parseBuilderReturns(buildersSource);
+  const builders = parseBuilderProps(buildersSource);
   const renames = parseExportRenames(indexSource);
   const report: ColumnParity[] = [];
 
   for (const entry of manifestEntries) {
     if (entry.kind !== 'column' || entry.status !== 'migrated') continue;
     const modifiers = new Set(entry.modifiers ?? []);
-    const returns = [...(builders.get(entry.fn) ?? [])];
+    const props = [...(builders.get(entry.fn) ?? [])];
     const typeName = entry.typeAlias ? (renames.get(entry.typeAlias) ?? entry.typeAlias) : null;
     const bag = typeName ? bagOfColumnType(buildersSource, typeName) : null;
     const bagKeys = bag ? bags.get(bag) : undefined;
-    const builderMethods = returns.length === 1 ? interfaces.get(returns[0]) : undefined;
+    const builderProps = props.length === 1 ? interfaces.get(props[0]) : undefined;
 
     const unresolved =
       typeName && !bagKeys
         ? `no *ColMods bag resolved for column type ${typeName} (read ${bag ?? 'nothing'})`
-        : !builderMethods
-          ? `builder ${entry.fn} does not resolve to exactly one props interface (read [${returns}])`
+        : !builderProps
+          ? `builder ${entry.fn} does not resolve to exactly one props interface (read [${props}])`
           : null;
 
     report.push({
       fn: entry.fn,
       bag,
-      returns,
+      props,
       manifestModifiers: [...modifiers].sort(),
       bagMissing: bagKeys ? [...modifiers].filter((name) => !bagKeys.has(name)).sort() : [],
       bagExtra: bagKeys ? [...bagKeys].filter((name) => !modifiers.has(name)).sort() : [],
-      builderMissing: builderMethods ? [...modifiers].filter((name) => !builderMethods.has(name)).sort() : [],
-      builderExtra: builderMethods ? [...builderMethods].filter((name) => !modifiers.has(name)).sort() : [],
+      builderMissing: builderProps ? [...modifiers].filter((name) => !builderProps.has(name)).sort() : [],
+      builderExtra: builderProps ? [...builderProps].filter((name) => !modifiers.has(name)).sort() : [],
       unresolved,
     });
   }

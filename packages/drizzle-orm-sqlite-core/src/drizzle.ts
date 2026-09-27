@@ -47,10 +47,10 @@ const context: DrizzleContext = {
 type Spec<C> = C extends {readonly [rtColSpecKey]?: infer S} ? NonNullable<S> : never;
 
 /** Structural SQLiteColumn config; dataType / columnType are fixed because drizzle's typing never branches on them. */
-type SynthConfig<Name extends string, TName extends string, S> = S extends {config: infer P; data: infer D; base: infer B}
+type SynthConfig<Name extends string, TableName extends string, S> = S extends {config: infer P; data: infer D; base: infer B}
   ? {
       name: Name;
-      tableName: TName;
+      tableName: TableName;
       dataType: 'custom';
       columnType: 'RtColumn';
       data: PlainDataOf<ValueOf<P, D>>;

@@ -55,17 +55,13 @@ export interface MySqlTimestampColMods extends MySqlColMods {
   onUpdateNow?: true;
 }
 
-export interface MySqlBigIntConfig<TMode extends 'number' | 'bigint' = 'number' | 'bigint'> {
-  mode: TMode;
+export interface MySqlBigIntConfig<Mode extends 'number' | 'bigint' = 'number' | 'bigint'> {
+  mode: Mode;
   unsigned?: boolean;
 }
-export type BigintDataOf<TMode, Unsigned> = TMode extends 'bigint'
-  ? Unsigned extends true
-    ? BigUInt64
-    : BigInt64
-  : IntegerFormat;
+export type BigintDataOf<Mode, Unsigned> = Mode extends 'bigint' ? (Unsigned extends true ? BigUInt64 : BigInt64) : IntegerFormat;
 export type BigintData<C> = BigintDataOf<
-  C extends {mode: infer TMode} ? TMode : 'number',
+  C extends {mode: infer Mode} ? Mode : 'number',
   C extends {unsigned: true} ? true : false
 >;
 export interface MySqlBinaryConfig {
@@ -84,25 +80,25 @@ export type CharData<C> = CharDataOf<
   C extends {enum: infer E extends readonly string[]} ? E : readonly string[],
   C extends {length: infer L extends number} ? L : undefined
 >;
-export interface MySqlDateConfig<TMode extends 'date' | 'string' = 'date' | 'string'> {
-  mode?: TMode;
+export interface MySqlDateConfig<Mode extends 'date' | 'string' = 'date' | 'string'> {
+  mode?: Mode;
 }
-export type MySqlDateDataOf<TMode> = TMode extends 'string' ? StringDate : RTDate;
-export type MySqlDateData<C> = MySqlDateDataOf<C extends {mode: infer TMode} ? TMode : 'date'>;
-export interface MySqlDatetimeConfig<TMode extends 'date' | 'string' = 'date' | 'string'> {
-  mode?: TMode;
+export type MySqlDateDataOf<Mode> = Mode extends 'string' ? StringDate : RTDate;
+export type MySqlDateData<C> = MySqlDateDataOf<C extends {mode: infer Mode} ? Mode : 'date'>;
+export interface MySqlDatetimeConfig<Mode extends 'date' | 'string' = 'date' | 'string'> {
+  mode?: Mode;
   fsp?: number;
 }
-export type DatetimeDataOf<TMode> = TMode extends 'string' ? StringDateTime : RTDate;
-export type DatetimeData<C> = DatetimeDataOf<C extends {mode: infer TMode} ? TMode : 'date'>;
-export interface MySqlDecimalConfig<TMode extends 'number' | 'string' | 'bigint' = 'number' | 'string' | 'bigint'> {
-  mode?: TMode;
+export type DatetimeDataOf<Mode> = Mode extends 'string' ? StringDateTime : RTDate;
+export type DatetimeData<C> = DatetimeDataOf<C extends {mode: infer Mode} ? Mode : 'date'>;
+export interface MySqlDecimalConfig<Mode extends 'number' | 'string' | 'bigint' = 'number' | 'string' | 'bigint'> {
+  mode?: Mode;
   precision?: number;
   scale?: number;
   unsigned?: boolean;
 }
-export type DecimalDataOf<TMode> = TMode extends 'number' ? FloatFormat : TMode extends 'bigint' ? bigint : string;
-export type DecimalData<C> = DecimalDataOf<C extends {mode: infer TMode} ? TMode : 'string'>;
+export type DecimalDataOf<Mode> = Mode extends 'number' ? FloatFormat : Mode extends 'bigint' ? bigint : string;
+export type DecimalData<C> = DecimalDataOf<C extends {mode: infer Mode} ? Mode : 'string'>;
 export interface MySqlDoubleConfig {
   precision?: number;
   scale?: number;
@@ -137,12 +133,12 @@ export type SmallintData<C> = SmallintDataOf<C extends {unsigned: true} ? true :
 export interface TimeConfig {
   fsp?: number;
 }
-export interface MySqlTimestampConfig<TMode extends 'date' | 'string' = 'date' | 'string'> {
-  mode?: TMode;
+export interface MySqlTimestampConfig<Mode extends 'date' | 'string' = 'date' | 'string'> {
+  mode?: Mode;
   fsp?: number;
 }
-export type TimestampDataOf<TMode> = TMode extends 'string' ? StringDateTime : RTDate;
-export type TimestampData<C> = TimestampDataOf<C extends {mode: infer TMode} ? TMode : 'date'>;
+export type TimestampDataOf<Mode> = Mode extends 'string' ? StringDateTime : RTDate;
+export type TimestampData<C> = TimestampDataOf<C extends {mode: infer Mode} ? Mode : 'date'>;
 export type TinyintDataOf<Unsigned> = Unsigned extends true ? UInt8 : Int8;
 export type TinyintData<C> = TinyintDataOf<C extends {unsigned: true} ? true : false>;
 export interface MySqlVarbinaryOptions {

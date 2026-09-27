@@ -55,10 +55,10 @@ type Spec<C> = C extends {readonly [rtColSpecKey]?: infer S} ? NonNullable<S> : 
 
 // Real key flags, not false as in pg and sqlite: `$returningId()` reads them and would infer `{}`.
 /** Structural MySqlColumn config; dataType / columnType are fixed because drizzle's typing never branches on them. */
-type SynthConfig<Name extends string, TName extends string, S> = S extends {config: infer P; data: infer D; base: infer B}
+type SynthConfig<Name extends string, TableName extends string, S> = S extends {config: infer P; data: infer D; base: infer B}
   ? {
       name: Name;
-      tableName: TName;
+      tableName: TableName;
       dataType: 'custom';
       columnType: 'RtColumn';
       data: PlainDataOf<ValueOf<P, D>>;

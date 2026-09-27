@@ -60,11 +60,11 @@ export interface PgIntColMods extends PgColMods {
   generatedByDefaultAsIdentity?: true | readonly [PgIdentityConfig];
 }
 
-export interface PgBigIntConfig<TMode extends 'number' | 'bigint' = 'number' | 'bigint'> {
-  mode: TMode;
+export interface PgBigIntConfig<Mode extends 'number' | 'bigint' = 'number' | 'bigint'> {
+  mode: Mode;
 }
-export type BigintDataOf<TMode> = TMode extends 'bigint' ? BigInt64 : IntegerFormat;
-export type BigintData<C> = BigintDataOf<C extends {mode: infer TMode} ? TMode : 'number'>;
+export type BigintDataOf<Mode> = Mode extends 'bigint' ? BigInt64 : IntegerFormat;
+export type BigintData<C> = BigintDataOf<C extends {mode: infer Mode} ? Mode : 'number'>;
 export interface PgBitConfig<D extends number = number> {
   dimensions: D;
 }
@@ -83,25 +83,25 @@ export type CharData<C> = CharDataOf<
   C extends {enum: infer E extends readonly string[]} ? E : readonly string[],
   C extends {length: infer L extends number} ? L : undefined
 >;
-export interface PgDateConfig<TMode extends 'date' | 'string' = 'date' | 'string'> {
-  mode?: TMode;
+export interface PgDateConfig<Mode extends 'date' | 'string' = 'date' | 'string'> {
+  mode?: Mode;
 }
-export type PgDateDataOf<TMode> = TMode extends 'date' ? RTDate : StringDate;
-export type PgDateData<C> = PgDateDataOf<C extends {mode: infer TMode} ? TMode : 'string'>;
-export interface PgNumericConfig<TMode extends 'number' | 'string' | 'bigint' = 'number' | 'string' | 'bigint'> {
-  mode?: TMode;
+export type PgDateDataOf<Mode> = Mode extends 'date' ? RTDate : StringDate;
+export type PgDateData<C> = PgDateDataOf<C extends {mode: infer Mode} ? Mode : 'string'>;
+export interface PgNumericConfig<Mode extends 'number' | 'string' | 'bigint' = 'number' | 'string' | 'bigint'> {
+  mode?: Mode;
   precision?: number;
   scale?: number;
 }
-export type NumericDataOf<TMode> = TMode extends 'number' ? Float : TMode extends 'bigint' ? bigint : string;
-export type NumericData<C> = NumericDataOf<C extends {mode: infer TMode} ? TMode : 'string'>;
-export interface PgGeometryConfig<TMode extends 'tuple' | 'xy' = 'tuple' | 'xy'> {
-  mode?: TMode;
+export type NumericDataOf<Mode> = Mode extends 'number' ? Float : Mode extends 'bigint' ? bigint : string;
+export type NumericData<C> = NumericDataOf<C extends {mode: infer Mode} ? Mode : 'string'>;
+export interface PgGeometryConfig<Mode extends 'tuple' | 'xy' = 'tuple' | 'xy'> {
+  mode?: Mode;
   type?: string;
   srid?: number;
 }
-export type GeometryDataOf<TMode> = TMode extends 'xy' ? {x: number; y: number} : [number, number];
-export type GeometryData<C> = GeometryDataOf<C extends {mode: infer TMode} ? TMode : 'tuple'>;
+export type GeometryDataOf<Mode> = Mode extends 'xy' ? {x: number; y: number} : [number, number];
+export type GeometryData<C> = GeometryDataOf<C extends {mode: infer Mode} ? Mode : 'tuple'>;
 export interface PgVectorConfig<D extends number = number> {
   dimensions: D;
 }
@@ -109,16 +109,16 @@ export interface IntervalConfig {
   fields?: string;
   precision?: number;
 }
-export interface PgLineConfig<TMode extends 'tuple' | 'abc' = 'tuple' | 'abc'> {
-  mode?: TMode;
+export interface PgLineConfig<Mode extends 'tuple' | 'abc' = 'tuple' | 'abc'> {
+  mode?: Mode;
 }
-export type LineDataOf<TMode> = TMode extends 'abc' ? {a: number; b: number; c: number} : [number, number, number];
-export type LineData<C> = LineDataOf<C extends {mode: infer TMode} ? TMode : 'tuple'>;
-export interface PgPointConfig<TMode extends 'tuple' | 'xy' = 'tuple' | 'xy'> {
-  mode?: TMode;
+export type LineDataOf<Mode> = Mode extends 'abc' ? {a: number; b: number; c: number} : [number, number, number];
+export type LineData<C> = LineDataOf<C extends {mode: infer Mode} ? Mode : 'tuple'>;
+export interface PgPointConfig<Mode extends 'tuple' | 'xy' = 'tuple' | 'xy'> {
+  mode?: Mode;
 }
-export type PointDataOf<TMode> = TMode extends 'xy' ? {x: number; y: number} : [number, number];
-export type PointData<C> = PointDataOf<C extends {mode: infer TMode} ? TMode : 'tuple'>;
+export type PointDataOf<Mode> = Mode extends 'xy' ? {x: number; y: number} : [number, number];
+export type PointData<C> = PointDataOf<C extends {mode: infer Mode} ? Mode : 'tuple'>;
 export interface PgTextConfig<T extends readonly string[] = EnumTuple> {
   enum?: T;
 }
@@ -128,13 +128,13 @@ export interface TimeConfig {
   precision?: number;
   withTimezone?: boolean;
 }
-export interface PgTimestampConfig<TMode extends 'date' | 'string' = 'date' | 'string'> {
-  mode?: TMode;
+export interface PgTimestampConfig<Mode extends 'date' | 'string' = 'date' | 'string'> {
+  mode?: Mode;
   precision?: number;
   withTimezone?: boolean;
 }
-export type TimestampDataOf<TMode> = TMode extends 'string' ? StringDateTime : RTDate;
-export type TimestampData<C> = TimestampDataOf<C extends {mode: infer TMode} ? TMode : 'date'>;
+export type TimestampDataOf<Mode> = Mode extends 'string' ? StringDateTime : RTDate;
+export type TimestampData<C> = TimestampDataOf<C extends {mode: infer Mode} ? Mode : 'date'>;
 export interface PgVarcharConfig<T extends readonly string[] = EnumTuple, L extends number | undefined = number | undefined> {
   length?: L;
   enum?: T;

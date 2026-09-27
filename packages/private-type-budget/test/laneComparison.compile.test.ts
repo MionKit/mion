@@ -40,11 +40,11 @@ const COMPARISONS = PIPELINE_DIALECTS.map(({dialect, steps, measure}) => {
 });
 
 const laneDeltas = (dialect: string, lane: Lane) => deltas.get(`${dialect}/${lane.name}`)!;
-const total = (dialect: string, lane: Lane) => laneDeltas(dialect, lane).reduce((sum, d) => sum + d, 0);
+const total = (dialect: string, lane: Lane) => laneDeltas(dialect, lane).reduce((sum, delta) => sum + delta, 0);
 
 describe('model declaration approaches, cost comparison', () => {
   afterAll(() => {
-    if (deltas.size !== COMPARISONS.reduce((sum, c) => sum + c.lanes.length, 0)) return;
+    if (deltas.size !== COMPARISONS.reduce((sum, comparison) => sum + comparison.lanes.length, 0)) return;
     writeComparisonReport({
       typescript: ts.version,
       drizzleOrm: drizzleVersion,

@@ -29,8 +29,8 @@ import {mysqlColumnHelpers, type MysqlColumnHelpers} from './columns.ts';
 import {requireColumns, type mysqlView} from './views.ts';
 
 /** A mysql table: ONE type for a mysqlTable() result and a hand-written `MysqlTable<'users', {...}>`. */
-export interface MysqlTable<TName extends string, Cols, Extras extends readonly object[] = [], Names = NoNames>
-  extends RtTableMeta<TName, Cols, Extras, Names>, RtTableBrand<'mysql'> {}
+export interface MysqlTable<Name extends string, Cols, Extras extends readonly object[] = [], Names = NoNames>
+  extends RtTableMeta<Name, Cols, Extras, Names>, RtTableBrand<'mysql'> {}
 export type AnyMysqlTable = MysqlTable<string, Record<string, AnyColumn>, readonly object[], object>;
 
 // Friendly aliases over the TableEntry carrier the runtime bridge and the convert program read.
@@ -99,22 +99,22 @@ export function mysqlBuildTable(
 }
 
 /** Records the table and returns the SLIM table, not drizzle's own: toDrizzle() from the ./drizzle subpath builds that. */
-export function mysqlTable<TName extends string, Cols extends Record<string, object>>(
-  name: TName,
+export function mysqlTable<Name extends string, Cols extends Record<string, object>>(
+  name: Name,
   columns: Cols,
   extraConfig?: MysqlExtraConfigFn<LiftCols<Cols>>
 ): MysqlTable<
-  TName,
+  Name,
   {[K in keyof Cols]: Cols[K] extends {readonly [rtNamedColumnKey]: infer C} ? C : Cols[K]},
   [],
   {[K in keyof Cols as NameOf<Cols[K]> extends string ? (NameOf<Cols[K]> extends K ? never : K) : never]: NameOf<Cols[K]>}
 >;
-export function mysqlTable<TName extends string, Cols extends Record<string, object>>(
-  name: TName,
+export function mysqlTable<Name extends string, Cols extends Record<string, object>>(
+  name: Name,
   columns: (helpers: MysqlColumnHelpers) => Cols,
   extraConfig?: MysqlExtraConfigFn<LiftCols<Cols>>
 ): MysqlTable<
-  TName,
+  Name,
   {[K in keyof Cols]: Cols[K] extends {readonly [rtNamedColumnKey]: infer C} ? C : Cols[K]},
   [],
   {[K in keyof Cols as NameOf<Cols[K]> extends string ? (NameOf<Cols[K]> extends K ? never : K) : never]: NameOf<Cols[K]>}
@@ -133,13 +133,13 @@ export function mysqlTableCreator(customizeTableName: (name: string) => string):
     })) as typeof mysqlTable;
 }
 
-export interface MySqlSchema<TSchemaName extends string = string> {
-  readonly schemaName: TSchemaName;
+export interface MySqlSchema<SchemaName extends string = string> {
+  readonly schemaName: SchemaName;
   table: typeof mysqlTable;
   view: typeof mysqlView;
 }
 
-export function mysqlSchema<TSchemaName extends string>(schemaName: TSchemaName): MySqlSchema<TSchemaName> {
+export function mysqlSchema<SchemaName extends string>(schemaName: SchemaName): MySqlSchema<SchemaName> {
   const schema = new RtValueRecorder('mysqlSchema', [schemaName]);
   const drizzleSchema = (context: DrizzleContext) =>
     schema.toDrizzleValue(context) as Record<string, (...args: unknown[]) => unknown>;
@@ -159,9 +159,9 @@ export function mysqlSchema<TSchemaName extends string>(schemaName: TSchemaName)
   return {
     schemaName,
     table: schemaTable as typeof mysqlTable,
-    view: schemaView as MySqlSchema<TSchemaName>['view'],
+    view: schemaView as MySqlSchema<SchemaName>['view'],
     [rtValueKey]: schema,
-  } as MySqlSchema<TSchemaName>;
+  } as MySqlSchema<SchemaName>;
 }
 
 // One slim table per reflected type id, so repeated calls share one materialized drizzle table.

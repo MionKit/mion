@@ -45,28 +45,28 @@ export function requireColumns(fn: string, name: string, columns: Record<string,
 // Inline maps, never aliases over the builders record: see pgTable in ./table.ts.
 type NameOf<C> = C extends {readonly [rtColNameKey]: infer Name} ? Name : undefined;
 
-export interface PgView<TName extends string, Cols, Names = NoNames> extends RtViewMeta<TName, Cols, Names>, RtViewBrand<'pg'> {}
+export interface PgView<Name extends string, Cols, Names = NoNames> extends RtViewMeta<Name, Cols, Names>, RtViewBrand<'pg'> {}
 export type AnyPgView = PgView<string, Record<string, AnyColumn>, object>;
 
-export interface PgViewBuilder<TName extends string, Cols, Names> {
-  with(config: Record<string, unknown>): PgViewBuilder<TName, Cols, Names>;
-  as(query: RtSql): PgView<TName, Cols, Names>;
-  existing(): PgView<TName, Cols, Names>;
+export interface PgViewBuilder<Name extends string, Cols, Names> {
+  with(config: Record<string, unknown>): PgViewBuilder<Name, Cols, Names>;
+  as(query: RtSql): PgView<Name, Cols, Names>;
+  existing(): PgView<Name, Cols, Names>;
 }
-export interface PgMaterializedViewBuilder<TName extends string, Cols, Names> {
-  with(config: Record<string, unknown>): PgMaterializedViewBuilder<TName, Cols, Names>;
-  using(method: string): PgMaterializedViewBuilder<TName, Cols, Names>;
-  tablespace(tablespace: string): PgMaterializedViewBuilder<TName, Cols, Names>;
-  withNoData(): PgMaterializedViewBuilder<TName, Cols, Names>;
-  as(query: RtSql): PgView<TName, Cols, Names>;
-  existing(): PgView<TName, Cols, Names>;
+export interface PgMaterializedViewBuilder<Name extends string, Cols, Names> {
+  with(config: Record<string, unknown>): PgMaterializedViewBuilder<Name, Cols, Names>;
+  using(method: string): PgMaterializedViewBuilder<Name, Cols, Names>;
+  tablespace(tablespace: string): PgMaterializedViewBuilder<Name, Cols, Names>;
+  withNoData(): PgMaterializedViewBuilder<Name, Cols, Names>;
+  as(query: RtSql): PgView<Name, Cols, Names>;
+  existing(): PgView<Name, Cols, Names>;
 }
 
-export function pgView<TName extends string, Cols extends Record<string, object>>(
-  name: TName,
+export function pgView<Name extends string, Cols extends Record<string, object>>(
+  name: Name,
   columns: Cols
 ): PgViewBuilder<
-  TName,
+  Name,
   {[K in keyof Cols]: Cols[K] extends {readonly [rtNamedColumnKey]: infer C} ? C : Cols[K]},
   {[K in keyof Cols as NameOf<Cols[K]> extends string ? (NameOf<Cols[K]> extends K ? never : K) : never]: NameOf<Cols[K]>}
 >;
@@ -74,11 +74,11 @@ export function pgView(name: string): ViewFromQueryBuilderNotSupported;
 export function pgView(name: string, columns?: Record<string, unknown>) {
   return new RtViewBuilder(name, requireColumns('pgView', name, columns), pgBuildView) as never;
 }
-export function pgMaterializedView<TName extends string, Cols extends Record<string, object>>(
-  name: TName,
+export function pgMaterializedView<Name extends string, Cols extends Record<string, object>>(
+  name: Name,
   columns: Cols
 ): PgMaterializedViewBuilder<
-  TName,
+  Name,
   {[K in keyof Cols]: Cols[K] extends {readonly [rtNamedColumnKey]: infer C} ? C : Cols[K]},
   {[K in keyof Cols as NameOf<Cols[K]> extends string ? (NameOf<Cols[K]> extends K ? never : K) : never]: NameOf<Cols[K]>}
 >;
