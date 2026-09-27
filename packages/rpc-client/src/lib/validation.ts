@@ -7,7 +7,7 @@
 
 import {RpcError} from '@mionjs/core';
 import {getMethod, useMethodFns} from './methods.ts';
-import type {RunTypeError} from '@mionjs/core';
+import type {JitCompiledFunctions, RunTypeError, ValidationErrorData} from '@mionjs/core';
 import type {CallContext, RequestErrors, SubRequest} from '../types.ts';
 
 export function validateSubRequests(
@@ -47,47 +47,47 @@ export function validateSubRequest(id: string, subRequest: SubRequest<any>, erro
 }
 
 /** An answer the return type does not describe; undefined when it matches or the method returns nothing. */
-export function getResponseError(id: string, value: unknown): RpcError<'response-validation-error'> | undefined {
+export function getResponseError(id: string, value: unknown) {
   const method = useMethodFns(id);
   if (!method.hasReturnData || method.headersReturn) return;
-  const returnJit = method.returnJitFns;
-  if (returnJit.isType.isNoop) return;
-  try {
-    if (returnJit.isType.fn(value)) return;
-    return new RpcError({
-      type: 'response-validation-error',
-      publicMessage: `Invalid response from Route or Middleware '${method.id}', validation failed.`,
-      errorData: {typeErrors: returnJit.typeErrors.fn(value) as RunTypeError[]},
-    });
-  } catch (e: any) {
-    return new RpcError({
-      type: 'response-validation-error',
-      publicMessage: `Could not validate response from Route or Middleware '${method.id}': ${e.message}`,
-    });
-  }
+  return checkValue(
+    method.id,
+    method.returnJitFns,
+    value,
+    'response-validation-error',
+    'response-validation-error',
+    'response from'
+  );
 }
 
-function getTypeErrors(id: string, params: any[]): void | RpcError<'validation-error' | 'unexpected-validation-error'> {
+function getTypeErrors(id: string, params: any[]) {
   const method = useMethodFns(id);
   if (!method.paramsCount) return;
-  const paramsJit = method.paramsJitFns;
-  if (paramsJit.typeErrors.isNoop) return;
+  // No separate strict pass: whatever key check the route's parser strategy asked for is compiled into isType.
+  return checkValue(method.id, method.paramsJitFns, params, 'validation-error', 'unexpected-validation-error', 'params for');
+}
+
+/** typeErrors runs only on a miss, and a validator that throws is reported, never raised. */
+function checkValue<Invalid extends string, Failed extends string>(
+  methodId: string,
+  jitFns: JitCompiledFunctions,
+  value: unknown,
+  invalidType: Invalid,
+  failedType: Failed,
+  subject: string
+): RpcError<Invalid, ValidationErrorData> | RpcError<Failed> | undefined {
+  if (jitFns.isType.isNoop) return;
   try {
-    const errors: RunTypeError[] | undefined = paramsJit.isType.fn(params)
-      ? undefined
-      : (paramsJit.typeErrors.fn(params) as RunTypeError[]);
-    // No separate strict pass: whatever key check the route's parser strategy asked for is compiled into isType.
-    if (errors?.length) {
-      return new RpcError({
-        type: 'validation-error',
-        publicMessage: `Invalid params for Route or Middleware '${method.id}', validation failed.`,
-        errorData: {typeErrors: errors},
-      });
-    }
-  } catch (e: any) {
-    return new RpcError({
-      type: 'unexpected-validation-error',
-      publicMessage: `Could not validate params for Route or Middleware '${method.id}': ${e.message} `,
+    if (jitFns.isType.fn(value)) return;
+    return new RpcError<Invalid, ValidationErrorData>({
+      type: invalidType,
+      publicMessage: `Invalid ${subject} Route or Middleware '${methodId}', validation failed.`,
+      errorData: {typeErrors: jitFns.typeErrors.fn(value) as RunTypeError[]},
+    });
+  } catch (err: any) {
+    return new RpcError<Failed>({
+      type: failedType,
+      publicMessage: `Could not validate ${subject} Route or Middleware '${methodId}': ${err.message}`,
     });
   }
 }
