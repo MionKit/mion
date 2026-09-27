@@ -19,7 +19,7 @@ Write the result as if the two options never existed: no check or error for some
 - Dispatch: `packages/rpc-router/src/dispatch.ts` checks `options.validateParams` before calling a route or headers middleware (~189, ~200) and runs `validateReturnOrThrow` (~117-151, ~292). Params validation becomes unconditional; the return check is deleted.
 - `packages/rpc-router/src/batches.ts` (~363) builds an internal executable with `validateParams: false`: decide whether it validates like the rest or needs no params step at all.
 - `dispatch.ts` (~246) refuses a params value that is not an array before it is validated, because with validation off nothing else did. Decide whether it stays once validation always runs.
-- `mionMethodsMetadata` (`packages/rpc-router/src/middlewares/methodsMetadata.ts`) reads its `mode` param as-is: with validation off today any truthy value acts as `'only'`. Always-on validation fixes that; add a test that a wrong mode is refused.
+- `mionMethodsMetadata` (`packages/rpc-router/src/middlewares/methodsMetadata.ts`) reads its `mode` param as-is (`if (mode)`), so only validation keeps a wrong mode out: add a test that a wrong mode is refused.
 - The options also reach the client metadata rows (`options.validateParams` in serialized methods) and the Go side that emits bundled rows: grep both and drop them.
 - Client: add an opt-in to validate a response against the route's return type (the compiled functions are already on the client), with a clear home for the error (likely the undeclared slot). Decide the option name and where it lives (`initClient` options, per call, or both).
 - The implementer plans the details.
@@ -47,12 +47,16 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
 
 ### Client
 - New `validateServerResponses` option on `initClient`, default `false` (the client's own `validateParams` pre-send check stays).
-- When on, every answer the response body carries (not an error, method has return data, not a headers return) is checked with the method's return `isType`. A mismatch drops the value and lands in the undeclared slot as a `response-validation-error` with the type errors in `errorData`. Members absent from the body (a chain stopped early) are not checked.
-- Tests: `packages/rpc-client/test/validateServerResponses.spec.ts` against a new `wrongAnswer` route in the test server: off by default, a matching answer passes, a wrong answer is dropped and reported.
+- When on, every answer (not an error, method has return data, not a headers return) is checked with the method's return `isType`. A mismatch drops the value and lands in the undeclared slot as a `response-validation-error` with the type errors in `errorData`.
+- A member missing from the body is checked as `undefined`, so a route declaring a value that answers nothing is caught. The one exception: when the response carries any error, a missing member is skipped, because the chain may have stopped before it ran. The fatal brand never travels, so the client cannot tell a stopping error from a plain one.
+- A mutation whose answer the client refused still counts as run, so a retry hook never sends it again.
+- Params and answers share one validation helper in `packages/rpc-client/src/lib/validation.ts`, typed with core's `ValidationErrorData`.
+- Tests live in `packages/rpc-client/test/errorDispatch.spec.ts` (rule R7), against a `wrongAnswers` group in the test server: off by default, a matching answer, a wrong answer, a missing answer, a stopped chain, Date / Map / Set answers, and a middleware's wrong answer. The retry rule is in `isolatedMiddleware.spec.ts`, the throwing validator in `test/lib/validation.spec.ts`, and the bundled lane in `test/bundled/bundled.spec.ts`.
 
 ### Docs
 - `01.rpc/02.server/07.validation.md`: params are always validated; the return-value section and its example are gone.
 - `01.rpc/03.client/00.client-overview.md`: new "Checking Server Responses" section with `client-validate-server-responses.ts`.
+- `index.md` and the client features table: params are validated, results are only serialized.
 
 ### Not a fuzz candidate
 The check reuses the return validators, which the run-types fuzz suites already cover.
