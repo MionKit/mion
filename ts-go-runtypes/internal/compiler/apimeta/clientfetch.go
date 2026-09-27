@@ -11,8 +11,11 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/textpos"
 )
 
-// UseMethodsMetadataName is the client call that sets up metadata fetching.
-const UseMethodsMetadataName = "useMethodsMetadata"
+// useMethodsMetadataName is the client call that sets up metadata fetching.
+const useMethodsMetadataName = "useMethodsMetadata"
+
+// maxClientTrace caps the hops from a `useMethodsMetadata` argument back to its `initClient` call.
+const maxClientTrace = 16
 
 // ClientApi is one `initClient<Api>` call: the API it names and where to report about it.
 type ClientApi struct {
@@ -20,25 +23,75 @@ type ClientApi struct {
 	DiagSite diagnostics.Site
 }
 
-// FetchSetUpSite returns the first `useMethodsMetadata(...)` call of `files` declared by the client package.
-func FetchSetUpSite(typeChecker *checker.Checker, markerOpts marker.Options, lookup purefunctions.SourceFileLookup, files []string) (diagnostics.Site, bool) {
+// FetchSetUp is one `useMethodsMetadata(...)` call; ApiType is nil when the build cannot follow its argument to an `initClient`.
+type FetchSetUp struct {
+	ApiType  *checker.Type
+	DiagSite diagnostics.Site
+}
+
+// FetchSetUps returns every `useMethodsMetadata(...)` call of `files` declared by the client package.
+func FetchSetUps(typeChecker *checker.Checker, markerOpts marker.Options, lookup purefunctions.SourceFileLookup, files []string) []FetchSetUp {
+	markerOpts = marker.WithDefaults(markerOpts)
+	var out []FetchSetUp
 	for _, filePath := range files {
 		sourceFile := lookup.SourceFile(filePath)
-		if sourceFile == nil || sourceFile.IsDeclarationFile || !strings.Contains(sourceFile.Text(), UseMethodsMetadataName) {
+		if sourceFile == nil || sourceFile.IsDeclarationFile || !strings.Contains(sourceFile.Text(), useMethodsMetadataName) {
 			continue
 		}
-		var found *ast.Node
 		forEachCall(sourceFile, func(call *ast.Node) bool {
-			if isClientCall(typeChecker, markerOpts, call, UseMethodsMetadataName) {
-				found = call
+			if !isClientCall(typeChecker, markerOpts, call, useMethodsMetadataName) {
+				return true
 			}
-			return found == nil
+			setUp := FetchSetUp{DiagSite: textpos.NodeSite(sourceFile.FileName(), sourceFile, call)}
+			if arguments := call.AsCallExpression().Arguments; arguments != nil && len(arguments.Nodes) > 0 {
+				if initCall := initClientCallOf(typeChecker, markerOpts, arguments.Nodes[0]); initCall != nil {
+					_, setUp.ApiType = BuildVersionParam(typeChecker, markerOpts, initCall)
+				}
+			}
+			out = append(out, setUp)
+			return true
 		})
-		if found != nil {
-			return textpos.NodeSite(sourceFile.FileName(), sourceFile, found), true
+	}
+	return out
+}
+
+// initClientCallOf follows `middlewares.x`, `client.middlewares.x` or a destructured binding back to the `initClient(...)` that made it.
+func initClientCallOf(typeChecker *checker.Checker, markerOpts marker.Options, expression *ast.Node) *ast.Node {
+	for hops := 0; expression != nil && hops < maxClientTrace; hops++ {
+		expression = ast.SkipOuterExpressions(expression, ast.OEKAll)
+		switch expression.Kind {
+		case ast.KindCallExpression:
+			if isInitClientCall(typeChecker, markerOpts, expression) {
+				return expression
+			}
+			return nil
+		case ast.KindPropertyAccessExpression:
+			expression = expression.AsPropertyAccessExpression().Expression
+		case ast.KindElementAccessExpression:
+			expression = expression.AsElementAccessExpression().Expression
+		case ast.KindIdentifier:
+			expression = variableInitializer(typeChecker, expression)
+		default:
+			return nil
 		}
 	}
-	return diagnostics.Site{}, false
+	return nil
+}
+
+// variableInitializer returns the initializer of the variable an identifier names, through imports and destructuring.
+func variableInitializer(typeChecker *checker.Checker, identifier *ast.Node) *ast.Node {
+	symbol := typeChecker.GetSymbolAtLocation(identifier)
+	if symbol == nil {
+		return nil
+	}
+	declaration := checker.SkipAlias(symbol, typeChecker).ValueDeclaration
+	if declaration != nil && declaration.Kind == ast.KindBindingElement {
+		declaration = ast.WalkUpBindingElementsAndPatterns(declaration)
+	}
+	if declaration == nil || declaration.Kind != ast.KindVariableDeclaration {
+		return nil
+	}
+	return declaration.AsVariableDeclaration().Initializer
 }
 
 // ClientApis returns every `initClient` call of `files` with the API type its build-version slot names.
@@ -54,7 +107,7 @@ func ClientApis(typeChecker *checker.Checker, markerOpts marker.Options, lookup 
 			if !isInitClientCall(typeChecker, markerOpts, call) {
 				return true
 			}
-			if apiType := buildVersionApi(typeChecker, markerOpts, call); apiType != nil {
+			if _, apiType := BuildVersionParam(typeChecker, markerOpts, call); apiType != nil {
 				out = append(out, ClientApi{ApiType: apiType, DiagSite: textpos.NodeSite(sourceFile.FileName(), sourceFile, call)})
 			}
 			return true
@@ -63,22 +116,22 @@ func ClientApis(typeChecker *checker.Checker, markerOpts marker.Options, lookup 
 	return out
 }
 
-// buildVersionApi reads the API type off the call's InjectBuildVersion parameter, the one initClient declares.
-func buildVersionApi(typeChecker *checker.Checker, markerOpts marker.Options, call *ast.Node) *checker.Type {
+// BuildVersionParam returns the index of the call's InjectBuildVersion parameter and the API it names; -1 and nil without one.
+func BuildVersionParam(typeChecker *checker.Checker, markerOpts marker.Options, call *ast.Node) (int, *checker.Type) {
 	signature := checker.Checker_getResolvedSignature(typeChecker, call, nil, 0)
 	if signature == nil {
-		return nil
+		return -1, nil
 	}
-	for _, paramSymbol := range checker.Signature_parameters(signature) {
+	for paramIndex, paramSymbol := range checker.Signature_parameters(signature) {
 		if paramSymbol == nil {
 			continue
 		}
 		kind, apiType, matched := marker.DetectAny(typeChecker, checker.Checker_getTypeOfSymbol(typeChecker, paramSymbol), markerOpts)
 		if matched && kind == marker.KindInjectBuildVersion && apiType != nil {
-			return apiType
+			return paramIndex, apiType
 		}
 	}
-	return nil
+	return -1, nil
 }
 
 // isClientCall requires the resolved signature to be declared by the client package, so a same-named local never matches.

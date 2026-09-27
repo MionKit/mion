@@ -400,22 +400,7 @@ func (sess *Session) SetProgram(prog *program.Program) error {
 	sess.cache.Rebind(typeChecker)
 	sess.cache.SetMarkerOptions(sess.marker)
 	sess.sites = sess.sites[:0]
-	sess.scannedFiles = map[string]struct{}{}
-	sess.pureFnFileCache = purefunctions.NewFileCache()
-	sess.batchFileCache = requestbatch.NewFileCache()
-	sess.routerInitFileCache = routerinit.NewFileCache()
-	sess.apiFileCache = apimeta.NewFileCache()
-	sess.apiInitFileCache = apimeta.NewInitFileCache()
-	sess.apiMiddlewareReadsCache = apimeta.NewMiddlewareReadsCache()
-	sess.apiFetch = nil
-	sess.hasBatchesMemo = nil
-	sess.importsRouterMemo = nil
-	sess.ownPackageName, sess.ownPackageRoot, sess.ownPackageDone = "", "", false
-	sess.verdictsByChecker = map[*checker.Checker]map[*checker.Type]markerVerdict{}
-	sess.overridesBuilt = false
-	sess.overrideEntries = nil
-	sess.overrideDiagnostics = nil
-	sess.overrideArgSpansByFile = nil
+	sess.resetProgramMemos()
 	sess.unresolvedSpecifiersMutex.Lock()
 	sess.unresolvedSpecifiersByFile = nil
 	sess.unresolvedSpecifiersMutex.Unlock()
@@ -462,6 +447,11 @@ func (sess *Session) Reset() {
 	sess.cache.Rebind(nil)
 	sess.sites = sess.sites[:0]
 	sess.pureFnKeys = map[string]bool{}
+	sess.resetProgramMemos()
+}
+
+// resetProgramMemos drops every memo tied to the Program, the one list both SetProgram and Reset clear.
+func (sess *Session) resetProgramMemos() {
 	sess.scannedFiles = map[string]struct{}{}
 	sess.pureFnFileCache = purefunctions.NewFileCache()
 	sess.batchFileCache = requestbatch.NewFileCache()

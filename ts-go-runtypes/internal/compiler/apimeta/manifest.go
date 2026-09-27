@@ -60,12 +60,11 @@ func BuildVersion(methods map[string]ManifestMethod) string {
 	return hashid.QuickHash(input.String(), BuildVersionLength)
 }
 
-// Manifest is the file's shape; Mode and ApiTsconfig are set on a client manifest only. Ambiguous lists the
+// Manifest is the file's shape; ApiTsconfig is set on a client manifest only. Ambiguous lists the
 // ids a server program initializes more than once with differing rows: the first in file order is kept, and
 // a client row for such an id never passes the check.
 type Manifest struct {
 	Kind        string                    `json:"kind"`
-	Mode        string                    `json:"mode,omitempty"`
 	ApiTsconfig string                    `json:"apiTsconfig,omitempty"`
 	Methods     map[string]ManifestMethod `json:"methods"`
 	// BuildVersion is what this build injects at its `initRoutes` / `initClient` call, so a report can name it.

@@ -415,13 +415,8 @@ const (
 	BundleApiBundled BundleApiMode = "bundled"
 )
 
-// Enabled reports whether the client lane bundles anything.
-func (mode BundleApiMode) Enabled() bool {
-	return mode == BundleApiBundled
-}
-
 func (mode BundleApiMode) Valid() bool {
-	return mode == BundleApiUnset || mode == BundleApiOff || mode.Enabled()
+	return mode == BundleApiUnset || mode == BundleApiOff || mode == BundleApiBundled
 }
 
 // EmitMode selects what each compiled fn entry ships in its code/factory slots; the --emit-mode CLI flag and the
