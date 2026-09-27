@@ -5,27 +5,52 @@ Measured with TypeScript 6.0.3 and drizzle-orm 0.45.2.
 
 Three ways to declare the same model:
 
-- **slim** a table built from the slim recorder builders, model derived flat
+- **slim** a table built from the dialect's slim recorder builders, model derived flat
 - **type-only** the row written as a plain TypeScript type (formats by hand)
 - **builder** the row built with the RT.* / TF.* value-first builders
 
 Steps 2 to 5 are the same code in every lane: the same refinement, the same
 Select/Insert/Update models, the same mion route api, the same client. Only step
 1 differs, so the gap between the totals is the price of how the model was
-declared and nothing else. The slim lane is also the only one that yields a
-runnable drizzle table (toDrizzle); that db-query cost lives in the pipeline
-report, paid only in the files that run queries.
+declared and nothing else. Each dialect's type-only and builder rows spell the
+formats that dialect's columns yield. The slim lane is also the only one that
+yields a runnable drizzle table (toDrizzle); that db-query cost lives in the
+pipeline report, paid only in the files that run queries.
 
-## Net instantiations per step
+Net instantiations per step, one table per dialect.
+
+## pg
 
 | Step | Layer | slim | type-only | builder |
 | ---: | ----- | ---: | ---: | ---: |
-| 1 | declare the formatted row | 434 | 47 | 553 |
-| 2 | refine two columns | 1141 | 393 | 384 |
-| 3 | select / insert / update models | 573 | 254 | 262 |
-| 4 | mion route api | 523 | 500 | 496 |
-| 5 | initClient | 3052 | 3106 | 3346 |
-| | **Total** | **5723** | **4300** | **5041** |
+| 1 | declare the formatted row | 881 | 47 | 553 |
+| 2 | refine two columns | 1140 | 393 | 384 |
+| 3 | select / insert / update models | 591 | 254 | 262 |
+| 4 | mion route api | 525 | 500 | 496 |
+| 5 | initClient | 3179 | 3106 | 3346 |
+| | **Total** | **6316** | **4300** | **5041** |
+
+## mysql
+
+| Step | Layer | slim | type-only | builder |
+| ---: | ----- | ---: | ---: | ---: |
+| 1 | declare the formatted row | 900 | 47 | 553 |
+| 2 | refine two columns | 1137 | 393 | 384 |
+| 3 | select / insert / update models | 591 | 254 | 262 |
+| 4 | mion route api | 525 | 500 | 496 |
+| 5 | initClient | 3179 | 3106 | 3346 |
+| | **Total** | **6332** | **4300** | **5041** |
+
+## sqlite
+
+| Step | Layer | slim | type-only | builder |
+| ---: | ----- | ---: | ---: | ---: |
+| 1 | declare the formatted row | 906 | 47 | 549 |
+| 2 | refine two columns | 1132 | 388 | 379 |
+| 3 | select / insert / update models | 591 | 254 | 262 |
+| 4 | mion route api | 524 | 500 | 496 |
+| 5 | initClient | 3179 | 3106 | 3346 |
+| | **Total** | **6332** | **4295** | **5032** |
 
 ## Reading this
 
@@ -33,7 +58,7 @@ These numbers price the three approaches, they do not rank them. The slim lane
 derives the model from the table, so the database schema and the API types cannot
 drift apart. The other two hand you that consistency to keep by hand: the
 type-only row has to be edited whenever a column changes, and the builder row is
-one authored definition the runtime also uses. What the table shows is the cost of
+one authored definition the runtime also uses. What the tables show is the cost of
 that guarantee, paid by every consumer's editor on every keystroke.
 
 Steps 4 and 5 are the control. Their code is identical in all three lanes, so

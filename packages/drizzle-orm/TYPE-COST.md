@@ -187,7 +187,7 @@ It stalled on the first attempt because the pipeline suite budgets each STEP, an
 work between steps: every shape of it left the cumulative total lower while pushing at least
 two per-step deltas over budgets that are one-way downward. The fix was to convert the OTHER
 two readers as well, so the layers that were absorbing the moved work got cheaper too, and to
-give the suite a TOTAL budget (`PIPELINE_TOTAL_BUDGET`) beside its per-step ones. Per-step
+give the suite a TOTAL budget (each dialect's `total`) beside its per-step ones. Per-step
 deltas cannot see work crossing a layer boundary in either direction; the total can.
 
 One step still rises by 2 (step 6, where drizzle's own generics consume the synthesized

@@ -28,8 +28,6 @@ interface Dialect {
   textType: string;
   int: string;
   intType: string;
-  /** Printed once per int column in an exported table's declaration. */
-  shippedIntKind: string;
 }
 const DIALECTS: Dialect[] = [
   {
@@ -40,7 +38,6 @@ const DIALECTS: Dialect[] = [
     textType: 'Varchar',
     int: 'integer',
     intType: 'Integer',
-    shippedIntKind: 'RtPgIntColumn',
   },
   {
     dialect: 'mysql',
@@ -50,7 +47,6 @@ const DIALECTS: Dialect[] = [
     textType: 'Varchar',
     int: 'int',
     intType: 'Int',
-    shippedIntKind: 'RtMyIntColumn',
   },
   {
     dialect: 'sqlite',
@@ -60,12 +56,13 @@ const DIALECTS: Dialect[] = [
     textType: 'Text',
     int: 'integer',
     intType: 'Integer',
-    shippedIntKind: 'RtSqliteIntColumn',
   },
 ];
 
-const shippedHeader = ({dialect, table, text, int}: Dialect) => `
+// No helper type is imported here: every type an inferred table names must come from the package entries.
+const header = ({dialect, table, tableType, text, textType, int, intType}: Dialect) => `
 import {${table}, ${text}, ${int}} from '@mionjs/drizzle-orm-${dialect}-core';
+import type {${tableType}, ${textType}, ${intType}} from '@mionjs/drizzle-orm-${dialect}-core';
 import type {InferSelectModel} from '@mionjs/drizzle-orm';
 import {toDrizzle} from '@mionjs/drizzle-orm-${dialect}-core/drizzle';
 import {${table} as dzTable, ${text} as dzText, ${int} as dzInt} from 'drizzle-orm/${dialect}-core';
@@ -74,10 +71,10 @@ import {refineTableType} from '@mionjs/drizzle-orm';
 import {RpcError} from '@mionjs/core';
 import {createMionRouter} from '@mionjs/router';
 `;
-const shippedTable = ({table, text, int}: Dialect) => `
+const slimTable = ({table, text, int}: Dialect) => `
 const users = ${table}('users', {
-  name: ${text}('name', {length: 100}).notNull(),
-  age: ${int}('age').notNull(),
+  name: ${text}('user_name', {length: 100, notNull: true}),
+  age: ${int}('age', {notNull: true}),
 });`;
 const plainTable = `
 const plain = dzTable('users', {
@@ -85,72 +82,40 @@ const plain = dzTable('users', {
   age: dzInt('age').notNull(),
 });`;
 
-// next/ is imported by extensionless path, as a real declaration build resolves it.
-// It is no package export, so this imports the helper types an inferred table names; the shipped entry must export them.
-const nextHeader = ({dialect, table, tableType, text, textType, int, intType}: Dialect) => `
-import type {NoProps, Writable} from '../../drizzle-orm/next/index';
-export type {NoProps, Writable};
-import {${table}, ${text}, ${int}} from '../../drizzle-orm-${dialect}-core/next/index';
-import type {${tableType}, ${textType}, ${intType}} from '../../drizzle-orm-${dialect}-core/next/index';
-import {toDrizzle} from '../../drizzle-orm-${dialect}-core/next/drizzle';
-import type {InferSelectModel} from '../../drizzle-orm/next/models';
-import {refineTableType} from '../../drizzle-orm/next/refine';
-import {RpcError} from '@mionjs/core';
-import {createMionRouter} from '@mionjs/router';
-`;
-const nextTable = ({table, text, int}: Dialect) => `
-const users = ${table}('users', {
-  name: ${text}('user_name', {length: 100, notNull: true}),
-  age: ${int}('age', {notNull: true}),
-});`;
-
 function casesFor(names: Dialect) {
   const {dialect, tableType, textType, intType} = names;
-  const shipped = `${shippedHeader(names)}${shippedTable(names)}`;
-  const next = `${nextHeader(names)}${nextTable(names)}`;
+  const slim = `${header(names)}${slimTable(names)}`;
   return [
     {
       label: `${dialect}: plain drizzle table + router (the control)`,
-      source: `${shippedHeader(names)}${plainTable}\nexport type PlainUser = DzInferSelectModel<typeof plain>;${routerOver('PlainUser')}\n`,
+      source: `${header(names)}${plainTable}\nexport type PlainUser = DzInferSelectModel<typeof plain>;${routerOver('PlainUser')}\n`,
     },
     {
-      label: `${dialect}: slim table + router`,
-      source: `${shipped}\nexport type SlimUser = InferSelectModel<typeof users>;${routerOver('SlimUser')}\n`,
+      label: `${dialect}: builder table + router`,
+      source: `${slim}\nexport type User = InferSelectModel<typeof users>;${routerOver('User')}\n`,
+    },
+    {
+      label: `${dialect}: hand-written table + router`,
+      source: `${header(names)}type Users = ${tableType}<'users', {name: ${textType}<{length: 100; notNull: true}>; age: ${intType}<{notNull: true}>}, [], {name: 'user_name'}>;\nexport type User = InferSelectModel<Users>;${routerOver('User')}\n`,
     },
     {
       label: `${dialect}: refined table + router`,
-      source: `${shipped}\nconst api = refineTableType(users, {name: {minLength: 10}, age: {min: 18}});\nexport type User = InferSelectModel<typeof api>;${routerOver('User')}\n`,
+      source: `${slim}\nconst api = refineTableType(users, {name: {minLength: 10}, age: {min: 18}});\nexport type User = InferSelectModel<typeof api>;${routerOver('User')}\n`,
     },
     {
       label: `${dialect}: refined table, model types only`,
-      source: `${shipped}\nconst api = refineTableType(users, {name: {minLength: 10}});\nexport type User = InferSelectModel<typeof api>;\nexport {};\n`,
+      source: `${slim}\nconst api = refineTableType(users, {name: {minLength: 10}});\nexport type User = InferSelectModel<typeof api>;\nexport {};\n`,
     },
     {
-      label: `${dialect}: the slim table and its toDrizzle view exported as consts`,
-      source: `${shipped}\nexport const usersTable = users;\nexport const usersDb = toDrizzle(users);\n`,
-    },
-    {
-      label: `${dialect} next: builder table + router`,
-      source: `${next}\nexport type User = InferSelectModel<typeof users>;${routerOver('User')}\n`,
-    },
-    {
-      label: `${dialect} next: hand-written table + router`,
-      source: `${nextHeader(names)}type Users = ${tableType}<'users', {name: ${textType}<{length: 100; notNull: true}>; age: ${intType}<{notNull: true}>}, [], {name: 'user_name'}>;\nexport type User = InferSelectModel<Users>;${routerOver('User')}\n`,
-    },
-    {
-      label: `${dialect} next: refined table + router`,
-      source: `${next}\nconst api = refineTableType(users, {name: {minLength: 10}, age: {min: 18}});\nexport type User = InferSelectModel<typeof api>;${routerOver('User')}\n`,
-    },
-    {
-      label: `${dialect} next: the table and its toDrizzle view exported as consts`,
-      source: `${next}\nexport const usersTable = users;\nexport const usersDb = toDrizzle(users);\n`,
+      label: `${dialect}: the table and its toDrizzle view exported as consts`,
+      source: `${slim}\nexport const usersTable = users;\nexport const usersDb = toDrizzle(users);\n`,
     },
   ];
 }
 
 describe('declaration emit over slim drizzle tables', () => {
   for (const names of DIALECTS) {
-    const {dialect, int, shippedIntKind} = names;
+    const {dialect, int} = names;
     for (const {label, source} of casesFor(names)) {
       // The first case parses the whole resolved graph: the default 5s is too short beside the rest of the suite.
       it(`${label} emits a .d.ts`, {timeout: 60_000}, () => {
@@ -161,16 +126,9 @@ describe('declaration emit over slim drizzle tables', () => {
       });
     }
 
-    // Every consumer parses the exported columns record; the old `PgTable<Name, Cols, [], Cols>` form printed it twice.
-    it(`${dialect}: the exported table prints its columns once, not twice`, {timeout: 60_000}, () => {
-      const outcome = emitDeclarations(`${shippedHeader(names)}${shippedTable(names)}\nexport const usersTable = users;\n`);
-      expect(outcome.emitSkipped).toBe(false);
-      expect(outcome.dts.split(shippedIntKind).length - 1, `emitted declaration:\n${outcome.dts}`).toBe(1);
-    });
-
     // The table builder spells its maps inline, so the declaration prints each resolved column once and no builder.
-    it(`${dialect} next: the exported builder table prints its columns once and no builders`, {timeout: 60_000}, () => {
-      const outcome = emitDeclarations(`${nextHeader(names)}${nextTable(names)}\nexport const usersTable = users;\n`);
+    it(`${dialect}: the exported builder table prints its columns once and no builders`, {timeout: 60_000}, () => {
+      const outcome = emitDeclarations(`${header(names)}${slimTable(names)}\nexport const usersTable = users;\n`);
       expect(outcome.emitSkipped).toBe(false);
       expect(outcome.dts, `emitted declaration:\n${outcome.dts}`).not.toContain('ColumnBuilder');
       expect(outcome.dts.split(`Column<"${int}"`).length - 1, `emitted declaration:\n${outcome.dts}`).toBe(1);
@@ -178,7 +136,7 @@ describe('declaration emit over slim drizzle tables', () => {
 
     // Emit succeeding is not enough: without the format metadata, consumers lose the refined bounds.
     it(`${dialect}: the emitted declaration still carries the format brand`, {timeout: 60_000}, () => {
-      const outcome = emitDeclarations(casesFor(names)[2].source);
+      const outcome = emitDeclarations(casesFor(names)[3].source);
       expect(outcome.dts).toContain('minLength');
       expect(/FormatBrand|RTString|String</.test(outcome.dts)).toBe(true);
     });
@@ -216,7 +174,7 @@ function emitDeclarations(source: string): EmitOutcome {
     rootDir: REPO_ROOT,
     outDir: '/__declaration_emit_case__',
   };
-  // The case file's own declaration: with the next/ sources in the program their .d.ts are written too.
+  // Only the case file's own declaration: the package sources in the program are written too.
   const written: string[] = [];
   const program = ts.createProgram(
     [CASE_FILE],

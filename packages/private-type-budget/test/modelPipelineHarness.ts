@@ -1,5 +1,5 @@
 // Measurement core for the model-pipeline type-cost budgets, over the REAL
-// slim packages (@mionjs/drizzle-orm + @mionjs/drizzle-orm-pg-core).
+// slim packages (@mionjs/drizzle-orm + the pg, mysql and sqlite dialects).
 //
 // Reuses `makeMeasurer` from the runtypes compile-budget harness
 // (packages/run-types/test/types/compileHarness.ts) rather than copying it, so
@@ -27,28 +27,10 @@ export type {MeasureResult};
  *  packages and `drizzle-orm` resolve from this package's node_modules. **/
 const SNIPPET_FILE = fileURLToPath(new URL('./__modelPipelineCase__.ts', import.meta.url));
 
-/** Every module the chain needs, imported once. Being the preamble, this is the
- *  baseline: resolving these costs 0 instantiations on its own, so a step's net
- *  is the type work its own body triggered. **/
-const IMPORT_HEADER = `
-import {pgTable, varchar, integer, timestamp, index} from '@mionjs/drizzle-orm-pg-core';
-import {refineTableType} from '@mionjs/drizzle-orm';
-import type {InferSelectModel, InferInsertModel, InferUpdateModel} from '@mionjs/drizzle-orm';
-import {toDrizzle} from '@mionjs/drizzle-orm-pg-core/drizzle';
-import type {PgDatabase, PgQueryResultHKT} from 'drizzle-orm/pg-core';
-import type {Date as RTDate, Number as RTNumber, String as RTString} from '@mionjs/run-types/formats';
-import {RpcError} from '@mionjs/core';
-import {createMionRouter} from '@mionjs/router';
-import {initClient} from '@mionjs/client';
-type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
-type Expect<T extends true> = T;
-export {};
-`;
-
 /** A resolving program, configured the way a mion consumer's is: the client's
  *  own lib set (es2023 + DOM), bundler resolution, and the `source` condition
  *  the workspace packages export so imports land on src instead of a stale
- *  build. `skipLibCheck` keeps drizzle's shipped .d.ts out of the error list
+ *  build. `skipLibCheck` keeps drizzle's published .d.ts out of the error list
  *  without hiding any of its instantiation cost. **/
 export const RESOLVING_OPTIONS: ts.CompilerOptions = {
   module: ts.ModuleKind.ESNext,
@@ -62,16 +44,10 @@ export const RESOLVING_OPTIONS: ts.CompilerOptions = {
   noImplicitAny: false,
 };
 
-/** Compile `IMPORT_HEADER + snippet` against the real module graph; report
- *  snippet errors + raw/net instantiations. **/
-export const measurePipeline = makeMeasurer(IMPORT_HEADER, {
-  options: RESOLVING_OPTIONS,
-  snippetFile: SNIPPET_FILE,
-  diagnosticsScope: 'snippet',
-});
+export type DialectName = 'pg' | 'mysql' | 'sqlite';
 
 export interface PipelineStep {
-  /** Printed on failure — names the layer that regressed. **/
+  /** Printed on failure, names the layer that regressed. **/
   label: string;
   /** Appended to every previous body: the snippets are CUMULATIVE, and the
    *  metric is this step's delta over the one before it. **/
@@ -79,6 +55,81 @@ export interface PipelineStep {
   /** Net instantiations this step may add. ONE-WAY DOWNWARD (see the test). **/
   budget: number;
 }
+
+/** What a dialect spells differently; steps 2 to 5 are the same text for all three. **/
+interface DialectSource {
+  dialect: DialectName;
+  /** The table function and the column builders the users table calls. **/
+  builders: string;
+  tableFn: string;
+  /** The users table's three columns, shared by step 1 and the consumer lane's models. **/
+  columns: string;
+  /** The db handle's type, the one step 6 queries through. **/
+  db: string;
+  dbImport: string;
+  /** The refined age format, which follows the dialect's integer range. **/
+  refinedAge: string;
+}
+
+const PG: DialectSource = {
+  dialect: 'pg',
+  builders: 'pgTable, varchar, integer, timestamp',
+  tableFn: 'pgTable',
+  columns: `
+  name: varchar({length: 100, notNull: true}),
+  age: integer({notNull: true}),
+  createdAt: timestamp('created_at', {mode: 'date', notNull: true, defaultNow: true}),`,
+  db: 'PgDatabase<PgQueryResultHKT>',
+  dbImport: `import type {PgDatabase, PgQueryResultHKT} from 'drizzle-orm/pg-core';`,
+  refinedAge: 'RTNumber<{integer: true; min: 18; max: 2147483647}>',
+};
+const MYSQL: DialectSource = {
+  dialect: 'mysql',
+  builders: 'mysqlTable, varchar, int, timestamp',
+  tableFn: 'mysqlTable',
+  columns: `
+  name: varchar({length: 100, notNull: true}),
+  age: int({notNull: true}),
+  createdAt: timestamp('created_at', {mode: 'date', notNull: true, defaultNow: true}),`,
+  db: 'MySqlDatabase<MySqlQueryResultHKT, PreparedQueryHKTBase>',
+  dbImport: `import type {MySqlDatabase, MySqlQueryResultHKT, PreparedQueryHKTBase} from 'drizzle-orm/mysql-core';`,
+  refinedAge: 'RTNumber<{integer: true; min: 18; max: 2147483647}>',
+};
+// sqlite has no timestamp type or defaultNow: an integer in timestamp mode, defaulted at runtime.
+const SQLITE: DialectSource = {
+  dialect: 'sqlite',
+  builders: 'sqliteTable, text, integer',
+  tableFn: 'sqliteTable',
+  columns: `
+  name: text({length: 100, notNull: true}),
+  age: integer({notNull: true}),
+  createdAt: integer('created_at', {mode: 'timestamp', notNull: true, $defaultFn: [() => new Date()]}),`,
+  db: `BaseSQLiteDatabase<'sync', unknown>`,
+  dbImport: `import type {BaseSQLiteDatabase} from 'drizzle-orm/sqlite-core';`,
+  refinedAge: 'RTNumber<{integer: true; min: 18}>',
+};
+
+/** Every module the chain needs, imported once. Being the preamble, this is the
+ *  baseline: resolving these costs 0 instantiations on its own, so a step's net
+ *  is the type work its own body triggered. **/
+const importHeader = (source: DialectSource) => `
+import {${source.builders}, index} from '@mionjs/drizzle-orm-${source.dialect}-core';
+import {refineTableType} from '@mionjs/drizzle-orm';
+import type {InferSelectModel, InferInsertModel, InferUpdateModel} from '@mionjs/drizzle-orm';
+import {toDrizzle} from '@mionjs/drizzle-orm-${source.dialect}-core/drizzle';
+${source.dbImport}
+import type {Date as RTDate, Number as RTNumber, String as RTString} from '@mionjs/run-types/formats';
+import {RpcError} from '@mionjs/core';
+import {createMionRouter} from '@mionjs/router';
+import {initClient} from '@mionjs/client';
+type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
+type Expect<T extends true> = T;
+export {};
+`;
+
+/** Compiles one dialect's `importHeader + snippet` against the real module graph. **/
+const measurerFor = (source: DialectSource) =>
+  makeMeasurer(importHeader(source), {options: RESOLVING_OPTIONS, snippetFile: SNIPPET_FILE, diagnosticsScope: 'snippet'});
 
 // Each body USES what it builds. Declaring a type measures nothing: the checker
 // is lazy, so an unused `type User = InferSelectModel<…>` costs close to zero and the
@@ -88,38 +139,11 @@ export interface PipelineStep {
 //
 // Step 6 is the db lane: the ONLY place drizzle's generics are paid, through
 // toDrizzle's synthesized table typing. Steps 1-5 never touch a drizzle type.
-export const PIPELINE_STEPS: PipelineStep[] = [
+const stepBodies = (source: DialectSource): Array<Omit<PipelineStep, 'budget'>> => [
   {
     label: '1 slim table + row',
-    // 485 -> 490. toDrizzle now drops a column's runtype format tag so a query
-    // returns drizzle's own types, and keeps a NOMINAL brand so a queried row
-    // still goes back into its slim model. Reading which of the two a column
-    // carries is a conditional per column, and that is the 5.
-    //
-    // 478 -> 485. The ONE upward move before it, and it buys a runtime fix: drizzle
-    // still accepts a KEYED-OBJECT extraConfig callback (`(t) => ({idx: index()})`)
-    // beside the array one, and its own integration suites write both. Our
-    // recorder mapped the result as an array and threw on the object form, so
-    // the callback's return type is now `readonly Entry[] | Record<string, Entry>`
-    // — and a two-member union costs the checker 7 more instantiations than a
-    // single array type. Measured by reverting exactly that one line.
-    //
-    // 490 -> 489. The factories now return a 3-parameter PgTable instead
-    // of PgTable with its columns passed twice (slot two AND the normalized fast
-    // path), which also stops declaration emit printing the whole column record
-    // twice in every consumer's .d.ts.
-    // 489 -> 433: the flat models read the column brand payload once per column
-    // instead of probing it once per flag.
-    // 433 -> 434: ONE table type per dialect now, so the builder road runs its
-    // columns through TypedCols (a wholesale pass-through) where it used to skip
-    // it. Reviewed: two shapes for the same table cost more than the one
-    // instantiation is worth. See typeRoad.compile.test.ts for the full note.
-    budget: 434,
     body: `
-const users = pgTable('users', {
-  name: varchar('name', {length: 100}).notNull(),
-  age: integer('age').notNull(),
-  createdAt: timestamp('created_at', {mode: 'date'}).notNull().defaultNow(),
+const users = ${source.tableFn}('users', {${source.columns}
 }, (t) => [index('users_name_idx').on(t.name)]);
 type SlimUser = InferSelectModel<typeof users>;
 declare const slimRow: SlimUser;
@@ -130,8 +154,6 @@ export const plainWhen: Date = slimRow.createdAt;
   },
   {
     label: '2 + refineTableType',
-    // 1198 -> 1141, the same payload read inside RefineCols.
-    budget: 1141,
     body: `
 const apiUsers = refineTableType(users, {name: {minLength: 10}, age: {min: 18}});
 type RefinedUser = InferSelectModel<typeof apiUsers>;
@@ -142,8 +164,6 @@ export const refinedAge: number = refinedRow.age;
   },
   {
     label: '3 + Infer* models',
-    // 673 -> 578, the same payload read.
-    budget: 578,
     body: `
 type User = InferSelectModel<typeof apiUsers>;
 type NewUser = InferInsertModel<typeof apiUsers>;
@@ -155,24 +175,6 @@ export const selectedUser: User = {name: 'a-long-name', age: 21, createdAt: new 
   },
   {
     label: '4 + mion route api',
-    // 581 -> 533, carried over from the cheaper models below it.
-    //
-    // 533 -> 612: the router became a typed factory. `createMionRouter(opts)` carries
-    // the options type into every `mion.route` call (the handler context is derived
-    // from them), so each route declaration instantiates that carrier once.
-    // 580 -> 409: the per-route encoder strategies. The definition and option types
-    // became flat interfaces (a `Pick` plus an intersection was paid on every
-    // declaration), which more than covered the strategy slots the helpers gained,
-    // and each helper is ONE call signature whose options type parameter defaults to
-    // the no-encoder shape: one extra instantiation, ~235 fewer duplicated lines.
-    // 409 -> 525: the API type carries what a client build with `bundleApi` reads
-    // off it. Each definition keeps the route's options literal and the router's
-    // (RouteDef<H, RO, O>), and PublicApi resolves the effective options per method
-    // and names the types the server compiled it from (an interface over the
-    // handler, resolved only when read).
-    // 525 -> 547: initRoutes returns the router options under a symbol key (ApiWithOptions).
-    // 547 -> 523: that key is gone, route sync is a middleware placed in the routes.
-    budget: 523,
     body: `
 const store = new Map<string, User>();
 const mion = createMionRouter({});
@@ -188,9 +190,9 @@ const usersApi = mion.initRoutes({
     update: mion.route((_ctx, name: string, patch: UserPatch): User | RpcError<'user-not-found'> => {
       const existing = store.get(name);
       if (!existing) return new RpcError({publicMessage: 'User not found', type: 'user-not-found'});
-      const next: User = {...existing, ...patch};
-      store.set(name, next);
-      return next;
+      const patched: User = {...existing, ...patch};
+      store.set(name, patched);
+      return patched;
     }),
   },
 });
@@ -199,19 +201,6 @@ type UsersApi = typeof usersApi;
   },
   {
     label: '5 + initClient',
-    // 2540 -> 2558: `mion.initRoutes` returns the PublicApi through the factory's
-    // generic, which the client reads back through one more layer.
-    // 2558 -> 2589 (and step 4 612 -> 580): initRoutes became synchronous, so the
-    // Promise unwrap left the route-api step and the client reads the api directly.
-    // 2589 -> 2500: the flat definition types (step 4) are read by the client too.
-    // 2500 -> 3048: every subrequest names its route and its API in its type (the
-    // template-literal id per route, the marker slot on each dispatch point), and
-    // the client reads the richer public methods of step 4. Its mapping now keys on
-    // the `type` discriminant instead of comparing each method structurally, which
-    // measured 475 cheaper than the structural check over the new methods.
-    // 3048 -> 3076: initClient's router options slot, and the client maps string keys only.
-    // 3076 -> 3052: the router options slot is gone.
-    budget: 3052,
     body: `
 const {routes} = initClient<UsersApi>({baseURL: 'http://localhost:3000'});
 const [inserted, insertError] = await routes.users.insert({name: 'a-long-name', age: 21}).call();
@@ -226,25 +215,8 @@ export const errorName: string | undefined = insertError?.name ?? updateError?.n
   },
   {
     label: '6 + db query (toDrizzle)',
-    // 7676 -> 7850. Two fixes drizzle's own suites caught, both of which mean
-    // the synthesized column config now reports fields it used to hardcode:
-    // `identity` (pg's .overridingSystemValue() re-admits an identity column to
-    // an insert, and could not before) and the format-tag drop above.
-    //
-    // 7850 -> 7852: a REVIEWED EXCEPTION. Reading
-    // the column brand payload once instead of once per flag made every layer
-    // above cheaper and moved 2 instantiations into this one, where drizzle's
-    // own generics consume the synthesized config. The chain total fell 13328
-    // to 13077, which PIPELINE_TOTAL_BUDGET below now holds. Raising a step
-    // budget is otherwise never the answer; see the header of the suite.
-    //
-    // 7852 -> 7857: a REVIEWED EXCEPTION. toDrizzle names each synthesized column by its db name
-    // (a type-road column's own, `string` for a builder column), one check per column; with the
-    // refined key flags landing in the same layer the two no longer fit. A one-conditional
-    // spelling measured 7877.
-    budget: 7857,
     body: `
-declare const db: PgDatabase<PgQueryResultHKT>;
+declare const db: ${source.db};
 const dzUsers = toDrizzle(apiUsers);
 const selectQuery = db.select().from(dzUsers);
 type SelectedRows = Awaited<typeof selectQuery>;
@@ -257,13 +229,6 @@ export const updateQuery = db.update(dzUsers).set({age: 31});
   },
 ];
 
-/** The cumulative snippet up to (and including) `index`. **/
-export function snippetUpTo(index: number): string {
-  return PIPELINE_STEPS.slice(0, index + 1)
-    .map((step) => step.body)
-    .join('');
-}
-
 /** Compiled after the six steps: pins the SHAPES the chain resolves to.
  *
  *  Load-bearing, not decoration. If module resolution breaks (a stale workspace
@@ -272,18 +237,16 @@ export function snippetUpTo(index: number): string {
  *  measurement of nothing. These assertions fail to compile in that world. The
  *  db pins also prove toDrizzle's SYNTHESIZED typing carries the refined formats
  *  into the query rows and enforces insert optionality. **/
-export const SHAPE_PINS = `
+const shapePins = (source: DialectSource) => `
 type _refinedName = Expect<Equal<User['name'], RTString<{maxLength: 100; minLength: 10}>>>;
-type _refinedAge = Expect<Equal<User['age'], RTNumber<{integer: true; min: 18; max: 2147483647}>>>;
+type _refinedAge = Expect<Equal<User['age'], ${source.refinedAge}>>;
 type _selectDate = Expect<Equal<User['createdAt'], RTDate>>;
 type _insertOptionalDefault = Expect<Equal<NewUser['createdAt'], RTDate | undefined>>;
 type _patchIsPartial = Expect<Equal<UserPatch['name'], RTString<{maxLength: 100; minLength: 10}> | undefined>>;
 type _clientValueSlot = Expect<Equal<typeof inserted, User | undefined>>;
 type _clientErrorSlot = Expect<RpcError<'bad-insert'> extends NonNullable<typeof insertError> ? true : false>;
-// A drizzle query returns exactly what drizzle's own table would, so a migrated
-// schema is a drop-in. The refined formats stay on the SLIM side (_refinedName
-// above), and a queried row still goes back into that model, which is the
-// property that actually matters — pinned right below.
+// A drizzle query returns exactly what drizzle's own table would, so a migrated schema is a drop-in, and a queried
+// row still goes back into the slim model, which keeps the refined formats.
 type _dbRowName = Expect<Equal<SelectedRows[number]['name'], string>>;
 type _dbRowDate = Expect<Equal<SelectedRows[number]['createdAt'], Date>>;
 type _dbRowIntoModel = Expect<SelectedRows[number] extends User ? true : false>;
@@ -301,6 +264,86 @@ export type _Pins = [
 ];
 `;
 
+/** The library the consumer lane emits: a refined table plus the three model aliases it exports. **/
+const modelsSource = (source: DialectSource) => `
+import {${source.builders}} from '@mionjs/drizzle-orm-${source.dialect}-core';
+import {refineTableType} from '@mionjs/drizzle-orm';
+import type {InferSelectModel, InferInsertModel, InferUpdateModel} from '@mionjs/drizzle-orm';
+const users = ${source.tableFn}('users', {${source.columns}
+});
+const api = refineTableType(users, {name: {minLength: 10}, age: {min: 18}});
+export type User = InferSelectModel<typeof api>;
+export type NewUser = InferInsertModel<typeof api>;
+export type UserPatch = InferUpdateModel<typeof api>;
+`;
+
+/** One dialect's budgets. All ONE-WAY DOWNWARD. **/
+interface PipelineBudgets {
+  /** Net instantiations each of the six steps may add. **/
+  steps: [number, number, number, number, number, number];
+  /** What the WHOLE chain may cost, the cumulative figure after the last step. The per-step deltas alone cannot see
+   *  a change that moves work BETWEEN layers, so the chain total is budgeted too. **/
+  total: number;
+  /** What a downstream consumer may pay to read the model types out of the emitted `.d.ts`. **/
+  consumer: number;
+}
+
+export interface PipelineDialect {
+  dialect: DialectName;
+  measure: (snippet: string) => MeasureResult;
+  steps: PipelineStep[];
+  totalBudget: number;
+  consumerBudget: number;
+  shapePins: string;
+  modelsSource: string;
+}
+
+function pipelineDialect(source: DialectSource, budgets: PipelineBudgets): PipelineDialect {
+  return {
+    dialect: source.dialect,
+    measure: measurerFor(source),
+    steps: stepBodies(source).map((step, i) => ({...step, budget: budgets.steps[i]})),
+    totalBudget: budgets.total,
+    consumerBudget: budgets.consumer,
+    shapePins: shapePins(source),
+    modelsSource: modelsSource(source),
+  };
+}
+
+// Steps 4 and 5 moved with the slim models alone: the type-only and builder lanes (laneComparison) did not move.
+export const PIPELINE_DIALECTS: PipelineDialect[] = [
+  pipelineDialect(PG, {
+    steps: [
+      // 434 -> 881: a REVIEWED EXCEPTION, single-call builders pay overload choice, the stray-key check and name lifting at the declaration (typeRoad.compile.test.ts has the split).
+      881,
+      // 1141 -> 1140: lowered, refineTableType reads the raw props.
+      1140,
+      // 578 -> 591: a REVIEWED EXCEPTION, the models derive flags from props where the chained builders carried them.
+      591,
+      // 523 -> 525: a REVIEWED EXCEPTION, the route api reads the models derived from props.
+      525,
+      // 3052 -> 3179: a REVIEWED EXCEPTION, the client maps the models derived from props.
+      3179,
+      // 7857 -> 8576: a REVIEWED EXCEPTION, toDrizzle derives each column's flags from props where the chained builders carried them.
+      8576,
+    ],
+    // 13580 -> 14892: a REVIEWED EXCEPTION, the single-call steps above.
+    total: 14892,
+    // 1784 -> 1616: lowered to the measurement, which rose from 1495 because the consumer derives the flags from props.
+    consumer: 1616,
+  }),
+  pipelineDialect(MYSQL, {steps: [900, 1137, 591, 525, 3179, 7250], total: 13582, consumer: 1613}),
+  pipelineDialect(SQLITE, {steps: [906, 1132, 591, 524, 3179, 7431], total: 13763, consumer: 1585}),
+];
+
+/** The cumulative snippet of `pipeline` up to (and including) `index`. **/
+export function snippetUpTo(pipeline: PipelineDialect, index: number): string {
+  return pipeline.steps
+    .slice(0, index + 1)
+    .map((step) => step.body)
+    .join('');
+}
+
 // ── Consumer lane ────────────────────────────────────────────────────────────
 //
 // Everything above measures the chain compiled from SOURCE, which is what this
@@ -308,8 +351,8 @@ export type _Pins = [
 // emitted `.d.ts` instead, and that is a separate cost worth its own budget:
 // declaration emit prints the type ALIAS it was written as, never the type it
 // evaluates to, so `export type User = InferSelectModel<typeof api>` crosses the
-// package boundary unresolved and every consumer re-evaluates it — over the
-// FLAT slim columns now, never over drizzle's generics.
+// package boundary unresolved and every consumer re-evaluates it, over the
+// FLAT slim columns, never over drizzle's generics.
 //
 // This lane emits the declaration for a models module, then compiles a consumer
 // against it. It does not use `makeMeasurer`: that measurer serves ONE virtual
@@ -318,22 +361,6 @@ export type _Pins = [
 const MODELS_TS = fileURLToPath(new URL('./__models__.ts', import.meta.url));
 const MODELS_DTS = fileURLToPath(new URL('./__models__.d.ts', import.meta.url));
 const CONSUMER_TS = fileURLToPath(new URL('./__consumer__.ts', import.meta.url));
-
-/** The "library": a refined table plus the three model aliases it exports. **/
-const MODELS_SOURCE = `
-import {pgTable, varchar, integer, timestamp} from '@mionjs/drizzle-orm-pg-core';
-import {refineTableType} from '@mionjs/drizzle-orm';
-import type {InferSelectModel, InferInsertModel, InferUpdateModel} from '@mionjs/drizzle-orm';
-const users = pgTable('users', {
-  name: varchar('name', {length: 100}).notNull(),
-  age: integer('age').notNull(),
-  createdAt: timestamp('created_at', {mode: 'date'}).notNull().defaultNow(),
-});
-const api = refineTableType(users, {name: {minLength: 10}, age: {min: 18}});
-export type User = InferSelectModel<typeof api>;
-export type NewUser = InferInsertModel<typeof api>;
-export type UserPatch = InferUpdateModel<typeof api>;
-`;
 
 /** The downstream app: imports the models and uses them, same as step 3 does. **/
 const CONSUMER_SOURCE = `
@@ -381,8 +408,8 @@ export interface ConsumerLaneResult {
   netInstantiations: number;
 }
 
-/** Emit the models declaration, then measure a consumer compiled against it. **/
-export function measureConsumerLane(): ConsumerLaneResult {
+/** Emit the models declaration of `pipeline`, then measure a consumer compiled against it. **/
+export function measureConsumerLane(pipeline: PipelineDialect): ConsumerLaneResult {
   const emitOptions: ts.CompilerOptions = {
     ...RESOLVING_OPTIONS,
     strict: true,
@@ -398,7 +425,7 @@ export function measureConsumerLane(): ConsumerLaneResult {
   const emitProgram = ts.createProgram(
     [MODELS_TS],
     emitOptions,
-    makeHost(emitOptions, new Map([[MODELS_TS, MODELS_SOURCE]]), (_file, text) => emitted.push(text))
+    makeHost(emitOptions, new Map([[MODELS_TS, pipeline.modelsSource]]), (_file, text) => emitted.push(text))
   );
   const emitResult = emitProgram.emit(undefined, undefined, undefined, true);
   const errors = [...emitProgram.getSemanticDiagnostics(emitProgram.getSourceFile(MODELS_TS)), ...emitResult.diagnostics].map(
@@ -438,7 +465,7 @@ export function measureConsumerLane(): ConsumerLaneResult {
   // skipLibCheck swallows an unresolved module there and the models collapse
   // to any, which once seeded this lane's budget 11x too low.
   if (!program.getSourceFiles().some((file) => file.fileName.includes('packages/drizzle-orm/src/'))) {
-    consumerErrors.push('the d.ts references to @mionjs/drizzle-orm did not resolve — the lane measured any, not the models');
+    consumerErrors.push('the d.ts references to @mionjs/drizzle-orm did not resolve, the lane measured any, not the models');
   }
   return {
     dts,
@@ -447,44 +474,3 @@ export function measureConsumerLane(): ConsumerLaneResult {
     netInstantiations: program.getInstantiationCount() - baselineCount,
   };
 }
-
-/** What the WHOLE chain may cost, the cumulative figure after the last step.
- *  ONE-WAY DOWNWARD like the per-step budgets, and it exists because they alone
- *  cannot see a change that moves work BETWEEN layers: every per-step delta can
- *  sit inside its budget while the chain gets more expensive, and a change that
- *  cheapens the chain can still push one step over. This is the number a
- *  consumer's editor actually pays.
- *
- *  13328 -> 13077: the flat models, RefineCols and the toDrizzle synthesis all
- *  read the column brand payload once per column instead of probing it once per
- *  flag.
- *
- *  13077 -> 13144: the typed router factory (steps 4 and 5 above).
- *
- *  13144 -> 12883: the flat definition and option types of the per-route encoder
- *  strategies (steps 4 and 5 above).
- *
- *  12883 -> 13560: the API type carries the resolved options and the compiled
- *  types, and every subrequest its route id and API (steps 4 and 5 above).
- *
- *  13560 -> 13597: the router options on the API type and initClient's options slot (steps 4 and 5).
- *
- *  13597 -> 13614: a REVIEWED EXCEPTION, refined columns keep their key flags for toDrizzle (steps 2 and 6, both in budget).
- *
- *  13614 -> 13628: REVIEWED EXCEPTION, toDrizzle names columns by db name, one check per column (step 6).
- *
- *  13628 -> 13580: the router options key and initClient's slot are gone (steps 4 and 5). **/
-export const PIPELINE_TOTAL_BUDGET = 13580;
-
-/** What a downstream consumer may pay to read the model types out of the
- *  emitted `.d.ts`. ONE-WAY DOWNWARD, same rule as the step budgets. The first
- *  seed (166) was an artifact: @mionjs/drizzle-orm did not resolve from this
- *  package, so the lane measured InferSelectModel<any>.
- *
- *  1785 -> 1787: the column brand gained the key flags drizzle's own typing
- *  reads (isPrimaryKey / isAutoincrement / hasRuntimeDefault / identity), which
- *  a consumer pays two instantiations to read past.
- *
- *  1787 -> 1784: the table type stopped carrying its columns twice, so the
- *  emitted declaration a consumer reads is a third smaller. **/
-export const CONSUMER_BUDGET = 1784;
