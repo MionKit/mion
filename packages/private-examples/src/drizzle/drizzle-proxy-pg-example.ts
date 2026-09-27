@@ -4,11 +4,11 @@ import {createValidateFn} from '@mionjs/run-types';
 
 // a recorded table, not drizzle's PgTable: toDrizzle() builds that on demand
 export const users = DZ.pgTable('users', {
-  id: DZ.uuid('id').primaryKey(),
-  name: DZ.varchar('name', {length: 100}).notNull(),
-  age: DZ.integer('age').notNull(),
-  role: DZ.text('role', {enum: ['admin', 'user']}).notNull(),
-  createdAt: DZ.timestamp('created_at').defaultNow().notNull(),
+  id: DZ.uuid('id', {primaryKey: true}),
+  name: DZ.varchar('name', {length: 100, notNull: true}),
+  age: DZ.integer('age', {notNull: true}),
+  role: DZ.text('role', {enum: ['admin', 'user'], notNull: true}),
+  createdAt: DZ.timestamp('created_at', {defaultNow: true, notNull: true}),
 });
 
 // { id: UUID; name: String<{maxLength: 100}>; age: Int32; role: 'admin' | 'user'; createdAt: Date }

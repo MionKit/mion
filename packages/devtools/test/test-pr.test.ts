@@ -184,12 +184,12 @@ describe('the real workspace', () => {
     expect(packages.get('platform-cloudflare')!.deps).toContain('private-test-server');
     expect(packages.get('platform-vercel')!.deps).toContain('private-test-server');
     expect(packages.get('run-types')!.deps).toContain('private-go-be-sidecar');
-    expect(packages.get('drizzle-orm-pg-core')!.deps).toContain('devtools');
+    for (const dialect of ['pg', 'mysql', 'sqlite']) expect(packages.get(`drizzle-orm-${dialect}-core`)!.deps).toContain('devtools');
   });
 
   it('a run-types change reaches the mion packages', () => {
     const affected = affectedClosure(['run-types'], packages) as Map<string, string | null>;
-    for (const dir of ['core', 'rpc-router', 'rpc-client', 'devtools', 'drizzle-orm-pg-core'])
+    for (const dir of ['core', 'rpc-router', 'rpc-client', 'devtools', 'drizzle-orm-pg-core', 'drizzle-orm-mysql-core', 'drizzle-orm-sqlite-core'])
       expect(affected.has(dir), dir).toBe(true);
   });
 

@@ -12,18 +12,12 @@ import {
 } from '@mionjs/run-types';
 import {createMockDataFn} from '@mionjs/run-types/mocking';
 
-export type UsersTable = DZ.PgTable<
-  'users',
-  {
-    id: DZ.Uuid<'id', {primaryKey: true; defaultRandom: true}>;
-    name: DZ.Varchar<'name', {length: 100; notNull: true}>; // captured as String<{maxLength: 100}>
-    age: DZ.Integer<'age', {notNull: true}>;
-    createdAt: DZ.Timestamp<
-      'created_at',
-      {mode: 'date'; notNull: true; defaultNow: true}
-    >;
-  }
->;
+export type UsersTable = DZ.PgTable<'users', {
+    id: DZ.Uuid<{primaryKey: true; defaultRandom: true}>;
+    name: DZ.Varchar<{length: 100; notNull: true}>; // captured as String<{maxLength: 100}>
+    age: DZ.Integer<{notNull: true}>;
+    createdAt: DZ.Timestamp<{mode: 'date'; notNull: true; defaultNow: true}>;
+  }, [], {createdAt: 'created_at'}>;
 export const users = DZ.tableFromType<UsersTable>();
 
 // stricter types for the API

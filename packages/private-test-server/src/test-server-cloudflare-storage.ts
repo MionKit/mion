@@ -28,10 +28,10 @@ import type {InferInsertModel, InferSelectModel} from '@mionjs/drizzle-orm';
 // ############# The table #############
 
 const notesTable = sqliteTable('notes', {
-  id: integer('id').primaryKey({autoIncrement: true}),
-  title: text('title', {length: 120}).notNull(),
+  id: integer('id', {primaryKey: [{autoIncrement: true}]}),
+  title: text('title', {length: 120, notNull: true}),
   // Its model is a Date, the interesting half of the round trip.
-  createdAt: integer('created_at', {mode: 'timestamp'}).notNull(),
+  createdAt: integer('created_at', {mode: 'timestamp', notNull: true}),
 });
 const apiNotes = refineTableType(notesTable, {title: {minLength: 3}});
 const notesDb = toDrizzle(apiNotes);

@@ -4,10 +4,10 @@ import {createValidateFn} from '@mionjs/run-types';
 
 // a recorded table, not drizzle's SQLiteTable: toDrizzle() builds that on demand
 export const notes = DZ.sqliteTable('notes', {
-  id: DZ.integer('id').primaryKey(),
-  title: DZ.text('title', {length: 80}).notNull(),
-  rating: DZ.real('rating').notNull(),
-  createdAt: DZ.integer('created_at', {mode: 'timestamp'}).notNull(), // a real Date
+  id: DZ.integer('id', {primaryKey: true}),
+  title: DZ.text('title', {length: 80, notNull: true}),
+  rating: DZ.real('rating', {notNull: true}),
+  createdAt: DZ.integer('created_at', {mode: 'timestamp', notNull: true}), // a real Date
 });
 
 export type Note = InferSelectModel<typeof notes>;

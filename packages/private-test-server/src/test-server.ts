@@ -15,6 +15,8 @@ import type {Server as HttpsServer} from 'node:https';
 // regular import, not type-only, so the JIT functions get created
 import {String, Email, UUIDv4, Transform} from '@mionjs/run-types/formats';
 import {integer, pgTable, timestamp, uuid, varchar} from '@mionjs/drizzle-orm-pg-core';
+import * as my from '@mionjs/drizzle-orm-mysql-core';
+import * as lite from '@mionjs/drizzle-orm-sqlite-core';
 import {refineTableType} from '@mionjs/drizzle-orm';
 import type {InferInsertModel, InferSelectModel, InferUpdateModel} from '@mionjs/drizzle-orm';
 import {Number} from '@mionjs/run-types/formats';
@@ -68,16 +70,33 @@ type SessionInfo = {userId: string; role: 'admin' | 'user'; expiresAt: number};
 // Route-level e2e for the dialect packages: the routes below take and return the DERIVED types,
 // and validation plus Date serialization are generated from those types alone.
 const dbUsersTable = pgTable('users', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  name: varchar('name', {length: 100}).notNull(),
-  age: integer('age').notNull(),
-  createdAt: timestamp('created_at', {mode: 'date'}).notNull().defaultNow(),
+  id: uuid('id', {primaryKey: true, defaultRandom: true}),
+  name: varchar('name', {length: 100, notNull: true}),
+  age: integer('age', {notNull: true}),
+  createdAt: timestamp('created_at', {mode: 'date', notNull: true, defaultNow: true}),
 });
 const apiUsersTable = refineTableType(dbUsersTable, {name: {minLength: 5}, age: {min: 18}});
 export type DbUser = InferSelectModel<typeof apiUsersTable>;
 export type NewDbUser = InferInsertModel<typeof apiUsersTable>;
 export type DbUserPatch = InferUpdateModel<typeof apiUsersTable>;
 const dbUsersStore = new Map<string, DbUser>();
+
+// One table per other dialect, so every dialect's models are proven over the wire.
+const dbDevicesTable = my.mysqlTable('devices', {
+  serialNo: my.varchar('serial_no', {length: 12, primaryKey: true}),
+  views: my.int({unsigned: true, notNull: true}),
+  registeredAt: my.datetime('registered_at', {mode: 'date', notNull: true}),
+});
+export type DbDevice = InferSelectModel<typeof dbDevicesTable>;
+const dbDevicesStore = new Map<string, DbDevice>();
+const dbNotesTable = lite.sqliteTable('notes', {
+  id: lite.integer({primaryKey: true}),
+  title: lite.text({length: 80, notNull: true}),
+  createdAt: lite.integer('created_at', {mode: 'timestamp', notNull: true}),
+});
+export type DbNote = InferSelectModel<typeof dbNotesTable>;
+export type NewDbNote = InferInsertModel<typeof dbNotesTable>;
+const dbNotesStore = new Map<number, DbNote>();
 
 // ============ Shared payload types ============
 export type SimpleUser = {name: string; age: number};
@@ -266,6 +285,22 @@ const routes = {
       const next: DbUser = {...existing, ...patch};
       dbUsersStore.set(id, next);
       return next;
+    }),
+  },
+  dbDevices: {
+    insert: route((_ctx, device: DbDevice): DbDevice => {
+      dbDevicesStore.set(device.serialNo, device);
+      return device;
+    }),
+    select: route((_ctx, serialNo: string): DbDevice | RpcError<'device-not-found'> => {
+      return dbDevicesStore.get(serialNo) ?? new RpcError({publicMessage: 'Device not found', type: 'device-not-found'});
+    }),
+  },
+  dbNotes: {
+    insert: route((_ctx, note: NewDbNote): DbNote => {
+      const row: DbNote = {id: note.id ?? dbNotesStore.size + 1, title: note.title, createdAt: note.createdAt};
+      dbNotesStore.set(row.id, row);
+      return row;
     }),
   },
 
