@@ -9,31 +9,33 @@
 // middleware type stays hooks only, and a client that never sets metadata fetching up ships none of it.
 
 import type {RpcError} from '@mionjs/core';
-import type {ClientCallContext, ClientOptions} from '../types.ts';
+import type {ClientCallContext, ClientOptions, RequestErrors} from '../types.ts';
 import type {HandlersRegistry} from './handlersRegistry.ts';
 
 /** What `useMethodsMetadata` hands the dispatch, once per client. */
 export interface MetadataFetcher {
-  /** the metadata middleware's id: the rows a call asks for ride the request under it */
-  readonly id: string;
-  /** Rows for the given ids without running any route: `typeErrors()`, a body that cannot go out plain. */
+  /** Rows for the given ids without running any route; route sync refetches through it. */
   fetchRows(ids: string[], routePointer: string[], options: ClientOptions, signal?: AbortSignal): Promise<void>;
   startCall(context: ClientCallContext): MetadataCall;
-  /** a store write the browser refused, reported once in a later call's undeclared slot */
-  takeError(): RpcError<string> | undefined;
 }
 
 /** One call's metadata state, driven by the dispatch attempt by attempt. */
 export interface MetadataCall {
-  /** Before the chain is read: restores the store, asks for verification after a version mismatch.
-   *  True when the attempt goes out before the rows are known, in plain wire forms. */
-  prepare(ids: string[]): Promise<boolean>;
-  /** Optimistic attempt: asks the server for the rows of the given ids along with the call. */
-  askRows(ids: string[]): void;
+  /** the metadata middleware's id: the rows a call asks for ride the request under it */
+  readonly id: string;
+  /** Before the chain is read: drops its own request entry, restores the store, asks for verification after a
+   *  version mismatch. `optimistic`: the attempt goes out before the rows are known, in plain wire forms. */
+  prepare(skipOptimistic: boolean): Promise<{ids: string[]; optimistic: boolean}>;
+  /** Optimistic attempt: asks the server for the rows of every id in the call. */
+  askRows(): void;
+  /** Rows for the given ids without running any route: `typeErrors()`, a body that cannot go out plain. */
+  fetchRows(ids: string[], signal?: AbortSignal): Promise<void>;
   /** Takes this call's rows out of the raw body before anything is decoded; returns a refusal to put back. */
-  readRows(parsedBody: Record<string, unknown>): Record<string, unknown> | undefined;
+  readRows(parsedBody: Record<string, unknown>): Record<string, RpcError<string>> | undefined;
   /** After a failed attempt: true when a resend with fresh rows can fix it. Called at most once per call. */
-  shouldResend(failedOnWire: boolean): Promise<boolean>;
+  shouldResend(errors: RequestErrors): Promise<boolean>;
+  /** a store write the browser refused, reported once in a later call's undeclared slot */
+  takeError(): RpcError<string> | undefined;
 }
 
 /** A middleware's client and id, read off `middlewares.<name>` through a key no public type names. */
@@ -46,8 +48,10 @@ export interface MiddlewareTarget {
 
 const fetchers = new WeakMap<HandlersRegistry, MetadataFetcher>();
 
+const readTarget = (middleware: object) => (middleware as {[MIDDLEWARE_TARGET]?: MiddlewareTarget})[MIDDLEWARE_TARGET];
+
 export function middlewareTargetOf(middleware: object): MiddlewareTarget {
-  const target = (middleware as {[MIDDLEWARE_TARGET]?: MiddlewareTarget})[MIDDLEWARE_TARGET];
+  const target = readTarget(middleware);
   if (!target) throw new Error('Expected a middleware from the client, like middlewares.mionMethodsMetadata');
   return target;
 }
@@ -56,12 +60,11 @@ export function setMetadataFetcher(registry: HandlersRegistry, fetcher: Metadata
   fetchers.set(registry, fetcher);
 }
 
-export function getMetadataFetcher(registry: HandlersRegistry): MetadataFetcher | undefined {
-  return fetchers.get(registry);
+export function getMetadataFetcher(registry: HandlersRegistry | undefined): MetadataFetcher | undefined {
+  return registry && fetchers.get(registry);
 }
 
 /** The fetcher of the client a middleware belongs to, if it set one up; route sync refetches through it. */
 export function metadataFetcherOf(middleware: object): MetadataFetcher | undefined {
-  const target = (middleware as {[MIDDLEWARE_TARGET]?: MiddlewareTarget})[MIDDLEWARE_TARGET];
-  return target && fetchers.get(target.registry);
+  return getMetadataFetcher(readTarget(middleware)?.registry);
 }

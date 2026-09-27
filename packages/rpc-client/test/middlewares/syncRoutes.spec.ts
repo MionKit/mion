@@ -24,13 +24,13 @@ const options = {...DEFAULT_CLIENT_OPTIONS, baseURL: 'http://x', storageEngine: 
 const ID = 'mionSyncRoutes';
 
 /** Installs through the real hook registry, as `initClient`'s middlewares do. */
-function installed() {
+function installed(fetchesMetadata = true) {
   const registry = new HandlersRegistry();
   // what `middlewares.<name>` answers, so route sync reaches the client's metadata fetching
   const middleware = Object.assign(new TypedEvent(ID, registry, () => ({}) as SubRequest<any>), {
     [MIDDLEWARE_TARGET]: {id: ID, registry},
   });
-  useMethodsMetadata({[MIDDLEWARE_TARGET]: {id: 'mionMethodsMetadata', registry}} as any);
+  if (fetchesMetadata) useMethodsMetadata({[MIDDLEWARE_TARGET]: {id: 'mionMethodsMetadata', registry}} as any);
   useSyncRoutes(middleware as unknown as ClientMiddlewareOf<SyncRoutesHandler>);
   const sent = (context: Partial<CallContext>) => {
     let ids: string[] | undefined;
@@ -106,6 +106,18 @@ describe('useSyncRoutes', () => {
     );
     expect(fetches).toBe(1);
     expect(retried).toBe(1);
+  });
+
+  it('without useMethodsMetadata, a route whose types changed is neither refetched nor resent', async () => {
+    installMethodRows({methods: {users: methodRow('users', 'stale')}, deps: {}, purFnDeps: {}}, options);
+    const {onError} = installed(false);
+    let retried = 0;
+    await onError(
+      refusal('route-types-mismatch', {routeIds: ['users']}),
+      contextFor('users', () => (retried++, true))
+    );
+    expect(fetches).toBe(0);
+    expect(retried).toBe(0);
   });
 
   it('leaves the refusal to the call when its resend is refused', async () => {
