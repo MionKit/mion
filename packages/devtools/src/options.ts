@@ -10,7 +10,7 @@
 // what its host has, so vite keeps the Vue SFC pass, middleware mode and module-graph invalidation, and Next
 // keeps nothing extra (the broker's typeDeps + stamp cover staleness, and Next runs its own dev server).
 
-import type {PluginOptions as TsRuntypesPluginOptions} from './core/unplugin.ts';
+import {assertValidBundleApi, type PluginOptions as TsRuntypesPluginOptions} from './core/unplugin.ts';
 
 /** Options for the mion powered type transformation. */
 export interface MionRunTypesOptions {
@@ -113,7 +113,7 @@ export interface MionPresetOptions {
   /** The separate project declaring the API this client calls. See MionApiPointer. */
   api?: MionApiPointer;
   /** Default true. `false` fetches all routes: needs client `useMethodsMetadata` and server `mionMethodsMetadata`. */
-  bundleApi?: boolean;
+  bundleApi?: TsRuntypesPluginOptions['bundleApi'];
 }
 
 /** The client-side half of MionPresetOptions: what a client build bundles and where its API lives. */
@@ -143,9 +143,7 @@ export function toRunTypesOptions(
   if (bundle.api !== undefined && !bundle.api.tsConfig) {
     throw new Error(`[mion] api.tsConfig must name the API project's tsconfig (absolute, or relative to the root).`);
   }
-  if (bundle.bundleApi !== undefined && typeof bundle.bundleApi !== 'boolean') {
-    throw new Error(`[mion] bundleApi must be true or false (got '${String(bundle.bundleApi)}').`);
-  }
+  assertValidBundleApi(bundle.bundleApi);
   // Project `references` in the tsconfig are fine: the resolver drops them when building its scan program.
   return {
     binary: resolveRtBinary(rt.binary),

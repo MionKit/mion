@@ -16,6 +16,7 @@ import {
   toRunTypesOptions,
   type MionApiPointer,
   type MionClientPointer,
+  type MionPresetOptions,
   type MionRunTypesOptions,
 } from '../options.ts';
 
@@ -69,7 +70,7 @@ export interface MionPluginOptions {
    *  See MionApiPointer. */
   api?: MionApiPointer;
   /** Default true. See MionPresetOptions.bundleApi. */
-  bundleApi?: boolean;
+  bundleApi?: MionPresetOptions['bundleApi'];
   /** The mion API this run hosts: mounted inside the dev server, and optionally emitted as a second
    *  bundle by `vite build`. One program, one process. */
   server?: MionServerOptions;

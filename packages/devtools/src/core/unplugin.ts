@@ -57,6 +57,13 @@ export interface GenerateInfo {
   routerInitFiles: string[];
 }
 
+/** Rejects a bundleApi that is not a boolean, which would otherwise read as truthy. **/
+export function assertValidBundleApi(bundleApi: unknown): void {
+  if (bundleApi !== undefined && typeof bundleApi !== 'boolean') {
+    throw new Error(`[mion] bundleApi must be true or false (got ${JSON.stringify(bundleApi)}).`);
+  }
+}
+
 // The host-plugin surface. tsconfig's `mion` plugin entry is the canonical home of the PROJECT knobs
 // (emitMode, moduleMode, inlineMode, hashLength, parallelScan/Render, singleThreaded); set here they
 // override one build, tsc-style. `binary` / `cwd` / `tsconfig` / `genDir` have no tsconfig equivalent.
@@ -330,6 +337,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
     //
     // Surface a config typo at the host boundary (the binary validates the merged value too).
     assertValidModuleMode(options.moduleMode);
+    assertValidBundleApi(options.bundleApi);
     // getExePath throws with a clear message when no platform binary is installed.
     const binaryPath = options.binary ?? getExePath();
     // Forward ONLY an explicit options.tsconfig: the Go side hard errors when it is missing or broken,
