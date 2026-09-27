@@ -24,7 +24,7 @@ import {addSubRequest, createCallContext, getRouteIds, getRoutePointers} from '.
 import {noteServerApiVersion, reportApiVersionMismatch, takeApiVersionError} from './lib/apiBuildVersion.ts';
 import {getMethod, hasMethod} from './lib/methods.ts';
 import {getMetadataFetcher, type MetadataCall} from './lib/metadataFetcher.ts';
-import {validateSubRequests} from './lib/validation.ts';
+import {getResponseError, validateSubRequests} from './lib/validation.ts';
 import {sanitizeSubRequests} from './lib/sanitize.ts';
 import {serializeRequestBody, deserializeResponseBody} from './lib/serializer.ts';
 import {MAX_GET_URL_LENGTH, CLIENT_REQUEST_ERROR_ID} from './constants.ts';
@@ -275,6 +275,13 @@ function resolveSubRequests(context: ClientCallContext, deserialized: ResponseBo
     if (isRpcError(resp)) {
       methodMeta.error = resp;
       errors.set(id, resp);
+      return;
+    }
+    // only answers the body carries: a member the chain never reached is absent, not wrong
+    const responseError = context.options.validateServerResponses && id in deserialized ? getResponseError(id, resp) : undefined;
+    if (responseError) {
+      methodMeta.error = responseError;
+      setUndeclaredError(context, id, responseError, errors);
     } else {
       methodMeta.resolvedValue = resp;
     }

@@ -46,6 +46,27 @@ export function validateSubRequest(id: string, subRequest: SubRequest<any>, erro
   return;
 }
 
+/** An answer the return type does not describe; undefined when it matches or the method returns nothing. */
+export function getResponseError(id: string, value: unknown): RpcError<'response-validation-error'> | undefined {
+  const method = useMethodFns(id);
+  if (!method.hasReturnData || method.headersReturn) return;
+  const returnJit = method.returnJitFns;
+  if (returnJit.isType.isNoop) return;
+  try {
+    if (returnJit.isType.fn(value)) return;
+    return new RpcError({
+      type: 'response-validation-error',
+      publicMessage: `Invalid response from Route or Middleware '${method.id}', validation failed.`,
+      errorData: {typeErrors: returnJit.typeErrors.fn(value) as RunTypeError[]},
+    });
+  } catch (e: any) {
+    return new RpcError({
+      type: 'response-validation-error',
+      publicMessage: `Could not validate response from Route or Middleware '${method.id}': ${e.message}`,
+    });
+  }
+}
+
 function getTypeErrors(id: string, params: any[]): void | RpcError<'validation-error' | 'unexpected-validation-error'> {
   const method = useMethodFns(id);
   if (!method.paramsCount) return;

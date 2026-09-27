@@ -77,6 +77,9 @@ export interface ClientOptions {
   fetchOptions: ClientFetchOptions;
   /** enable automatic parameter validation, defaults to true */
   validateParams: boolean;
+  /** Check every answer against the route's or middleware's return type. A mismatch goes to the undeclared
+   *  slot as a `response-validation-error` and the value is dropped. Defaults to false. */
+  validateServerResponses: boolean;
   /** Apply a route's declared format transforms (trim / case / replace / stripSeparators) to its
    *  params locally, before local validation and before sending, for routes the server registered
    *  with `sanitizeParams`. Defaults to true. The server sanitizes those routes regardless, so
