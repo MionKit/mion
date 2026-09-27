@@ -273,7 +273,7 @@ export const _ = createJsonEncoderFn<[number, symbol]>(undefined, {strategy: 'mu
   // surfacing the internal JCP001 "never rendered — please file an issue" error.
   // The fix delegates cj → prepareForJsonSafe (PJS*) and cjr → restoreFromJsonMutate
   // (RJ*), so compact now alwaysThrows with the SAME per-family code as its
-  // siblings and never trips JCP001. See docs/done/jcp001-*.
+  // siblings and never trips JCP001.
   register('compact strategy alwaysThrows (PJS003 / RJ003) with NO JCP001 for a function tuple slot', async () => {
     const sources = {
       'compact-fn-tuple.ts': `import {createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';

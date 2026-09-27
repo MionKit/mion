@@ -249,8 +249,8 @@ func TestTsconfigParity_BuildLaneEqualsDaemonLane(t *testing.T) {
 			daemonOnly: []string{"consumer.ts"},
 		},
 		{
-			// THE regression pin for docs/done/program-roots-lose-ambient-
-			// declarations.md: an ambient declaration in the include set that
+			// THE regression pin for program roots losing ambient declarations:
+			// an ambient declaration in the include set that
 			// nothing imports, daemon handed only the consumer. Without the
 			// config's declaration files on the inferred roots the daemon checks
 			// ParityAmbient as `any` and the lanes' ids diverge.
