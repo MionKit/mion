@@ -22,10 +22,14 @@ afterAll(async () => {
 });
 beforeEach(() => resetDriver());
 
-describe('pg, builder tables, routes with no return annotation', () => {
+// the same cases twice: return types inferred from drizzle, and written by hand from the slim models
+describe.each(['pg', 'pgTyped'] as const)('pg, builder tables, %s routes', (group) => {
+  // both groups answer the same shapes at run time; the type test checks they are the same types
+  const pg = (): AppClient['pg'] => client[group] as AppClient['pg'];
+
   it('selectAll', async () => {
     queueRows([annRaw]);
-    const [rows, error, fatal] = await client.listUsers();
+    const [rows, error, fatal] = await pg().listUsers().call();
     expect(fatal).toBeUndefined();
     expect(error).toBeUndefined();
     expect(rows?.[0]).toEqual({
@@ -42,14 +46,14 @@ describe('pg, builder tables, routes with no return annotation', () => {
 
   it('partialSelect', async () => {
     queueRows([[ANN, 'Ann']]);
-    const [rows, error] = await client.userNames();
+    const [rows, error] = await pg().userNames().call();
     expect(error).toBeUndefined();
     expect(rows).toEqual([{id: ANN, name: 'Ann'}]);
   });
 
   it('innerJoin', async () => {
     queueRows([[POST, ANN, 'Hello', ['a', 'b'], 150, null, ANN, 'Ann']]);
-    const [rows, error, fatal] = await client.postsWithAuthor();
+    const [rows, error, fatal] = await pg().postsWithAuthor().call();
     expect(fatal).toBeUndefined();
     expect(error).toBeUndefined();
     expect(rows).toEqual([
@@ -65,7 +69,7 @@ describe('pg, builder tables, routes with no return annotation', () => {
       [...annRaw, POST, ANN, 'Hello', ['a'], 150, CREATED],
       [BOB, 'Bob', 'bob@x.io', 20, 'user', '0', CREATED, null, null, null, null, null, null],
     ]);
-    const [rows, error, fatal] = await client.usersAndPosts();
+    const [rows, error, fatal] = await pg().usersAndPosts().call();
     expect(fatal).toBeUndefined();
     expect(error).toBeUndefined();
     expect(rows?.[0].posts?.publishedAt).toEqual(new Date('2026-01-02T03:04:05Z'));
@@ -74,7 +78,7 @@ describe('pg, builder tables, routes with no return annotation', () => {
 
   it('aggregate', async () => {
     queueRows([['admin', '2', '30.5000000000000000', 40]]);
-    const [rows, error, fatal] = await client.roleStats();
+    const [rows, error, fatal] = await pg().roleStats().call();
     expect(fatal).toBeUndefined();
     expect(error).toBeUndefined();
     expect(rows).toEqual([{role: 'admin', total: 2, avgAge: '30.5000000000000000', maxAge: 40}]);
@@ -82,7 +86,9 @@ describe('pg, builder tables, routes with no return annotation', () => {
 
   it('insertReturning', async () => {
     queueRows([annRaw]);
-    const [row, error, fatal] = await client.createUser({name: 'Ann', email: 'ann@x.io', age: 30, role: 'admin', balance: 42n});
+    const [row, error, fatal] = await pg()
+      .createUser({name: 'Ann', email: 'ann@x.io', age: 30, role: 'admin', balance: 42n})
+      .call();
     expect(fatal).toBeUndefined();
     expect(error).toBeUndefined();
     expect(row?.balance).toBe(42n);
@@ -91,7 +97,7 @@ describe('pg, builder tables, routes with no return annotation', () => {
 
   it('updateReturning', async () => {
     queueRows([[ANN, 'Anna']]);
-    const [row, error, fatal] = await client.renameUser(ANN, 'Anna');
+    const [row, error, fatal] = await pg().renameUser(ANN, 'Anna').call();
     expect(fatal).toBeUndefined();
     expect(error).toBeUndefined();
     expect(row).toEqual({id: ANN, name: 'Anna'});
@@ -99,7 +105,7 @@ describe('pg, builder tables, routes with no return annotation', () => {
 
   it('relations', async () => {
     queueRows([[...annRaw, [[POST, ANN, 'Hello', ['a'], 150, '2026-01-02T03:04:05']]]]);
-    const [rows, error, fatal] = await client.usersWithPosts();
+    const [rows, error, fatal] = await pg().usersWithPosts().call();
     expect(fatal).toBeUndefined();
     expect(error).toBeUndefined();
     expect(rows?.[0].posts[0].title).toBe('Hello');
@@ -108,7 +114,7 @@ describe('pg, builder tables, routes with no return annotation', () => {
 
   it('viewColumns', async () => {
     queueRows([[ANN, 'Ann', 30]]);
-    const [rows, error, fatal] = await client.adults();
+    const [rows, error, fatal] = await pg().adults().call();
     expect(fatal).toBeUndefined();
     expect(error).toBeUndefined();
     expect(rows).toEqual([{id: ANN, name: 'Ann', age: 30}]);
@@ -116,7 +122,7 @@ describe('pg, builder tables, routes with no return annotation', () => {
 
   it('viewQueryBuilder', async () => {
     queueRows([[ANN, 150]]);
-    const [rows, error, fatal] = await client.busyAuthors();
+    const [rows, error, fatal] = await pg().busyAuthors().call();
     expect(fatal).toBeUndefined();
     expect(error).toBeUndefined();
     expect(rows).toEqual([{authorId: ANN, views: 150}]);
@@ -124,12 +130,19 @@ describe('pg, builder tables, routes with no return annotation', () => {
 
   it('mappedShape', async () => {
     queueRows([[...annRaw, [[POST, ANN, 'Hello', ['a'], 150, null]]]]);
-    const [cards, error, fatal] = await client.authorCards();
+    const [cards, error, fatal] = await pg().authorCards().call();
     expect(fatal).toBeUndefined();
     expect(error).toBeUndefined();
     expect(cards).toEqual([
       {author: {id: ANN, name: 'Ann', since: new Date('2026-01-02T03:04:05Z')}, postCount: 1, titles: ['Hello']},
     ]);
+  });
+
+  it('selectAll with a 101 char name', async () => {
+    queueRows([[ANN, 'x'.repeat(101), 'ann@x.io', 30, 'admin', '42', CREATED]]);
+    const [, , fatal] = await pg().listUsers().call();
+    // the row keeps maxLength 100, so the client rejects the response
+    expect(fatal?.type).toBe('response-validation-error');
   });
 });
 
@@ -139,7 +152,7 @@ describe('sqlite, builder tables', () => {
 
   it('selectAll', async () => {
     queueRows([noteRaw]);
-    const [rows, error, fatal] = await client.listNotes();
+    const [rows, error, fatal] = await client.sqlite.listNotes().call();
     expect(fatal).toBeUndefined();
     expect(error).toBeUndefined();
     expect(rows).toEqual([note]);
@@ -147,13 +160,15 @@ describe('sqlite, builder tables', () => {
 
   it('insertReturning', async () => {
     queueRows([noteRaw]);
-    const [row, error, fatal] = await client.createNote({
-      title: 'Buy milk',
-      done: true,
-      meta: {color: 'red'},
-      rating: 4.5,
-      createdAt: note.createdAt,
-    });
+    const [row, error, fatal] = await client.sqlite
+      .createNote({
+        title: 'Buy milk',
+        done: true,
+        meta: {color: 'red'},
+        rating: 4.5,
+        createdAt: note.createdAt,
+      })
+      .call();
     expect(fatal).toBeUndefined();
     expect(error).toBeUndefined();
     expect(row).toEqual(note);
@@ -161,7 +176,7 @@ describe('sqlite, builder tables', () => {
 
   it('transaction', async () => {
     queueRows([[1, 3.5, 1767323045]], [[2, 5.5, 1767323045]]);
-    const [result, error, fatal] = await client.bumpRatings(1, 2);
+    const [result, error, fatal] = await client.sqlite.bumpRatings(1, 2).call();
     expect(fatal).toBeUndefined();
     expect(error).toBeUndefined();
     expect(result).toEqual({
@@ -175,7 +190,7 @@ describe('sqlite, builder tables', () => {
 describe('mysql, builder tables', () => {
   it('selectAll', async () => {
     queueRows([[7, 'SN-1', 12, '2026-01-02 03:04:05']]);
-    const [rows, error, fatal] = await client.listDevices();
+    const [rows, error, fatal] = await client.mysql.listDevices().call();
     expect(fatal).toBeUndefined();
     expect(error).toBeUndefined();
     expect(rows).toEqual([{id: 7, serialNo: 'SN-1', views: 12, builtAt: new Date('2026-01-02T03:04:05Z')}]);
@@ -183,18 +198,11 @@ describe('mysql, builder tables', () => {
 
   it('insertReturningId', async () => {
     queueRows([{insertId: 7, affectedRows: 1} as unknown as unknown[]]);
-    const [ids, error, fatal] = await client.addDevice({serialNo: 'SN-1', views: 12, builtAt: new Date('2026-01-02T03:04:05Z')});
+    const [ids, error, fatal] = await client.mysql
+      .addDevice({serialNo: 'SN-1', views: 12, builtAt: new Date('2026-01-02T03:04:05Z')})
+      .call();
     expect(fatal).toBeUndefined();
     expect(error).toBeUndefined();
     expect(ids).toEqual({id: 7});
-  });
-});
-
-describe('format probes: a row that breaks its column format', () => {
-  it('selectAll with a 101 char name', async () => {
-    queueRows([[ANN, 'x'.repeat(101), 'ann@x.io', 30, 'admin', '42', CREATED]]);
-    const [, , fatal] = await client.listUsers();
-    // the row keeps maxLength 100, so the client rejects the response
-    expect(fatal?.type).toBe('response-validation-error');
   });
 });

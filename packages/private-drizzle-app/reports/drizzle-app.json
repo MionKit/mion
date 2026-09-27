@@ -1,0 +1,332 @@
+{
+  "selectAll": {
+    "inferred": {
+      "builders": {
+        "server": 15474,
+        "client": 16587
+      },
+      "types": {
+        "server": 13189,
+        "client": 13625
+      },
+      "plain drizzle": {
+        "server": 16792,
+        "client": 17738
+      }
+    },
+    "typed": {
+      "builders": {
+        "server": 16187,
+        "client": 2575
+      },
+      "types": {
+        "server": 13866,
+        "client": 1694
+      },
+      "plain drizzle": {
+        "server": 17103,
+        "client": 5070
+      }
+    }
+  },
+  "partialSelect": {
+    "inferred": {
+      "builders": {
+        "server": 15472,
+        "client": 16337
+      },
+      "types": {
+        "server": 13192,
+        "client": 14053
+      },
+      "plain drizzle": {
+        "server": 16793,
+        "client": 17618
+      }
+    },
+    "typed": {
+      "builders": {
+        "server": 16189,
+        "client": 2691
+      },
+      "types": {
+        "server": 13890,
+        "client": 1810
+      },
+      "plain drizzle": {
+        "server": 17296,
+        "client": 5182
+      }
+    }
+  },
+  "innerJoin": {
+    "inferred": {
+      "builders": {
+        "server": 16608,
+        "client": 18073
+      },
+      "types": {
+        "server": 14305,
+        "client": 15597
+      },
+      "plain drizzle": {
+        "server": 17911,
+        "client": 19365
+      }
+    },
+    "typed": {
+      "builders": {
+        "server": 18677,
+        "client": 3348
+      },
+      "types": {
+        "server": 16300,
+        "client": 2046
+      },
+      "plain drizzle": {
+        "server": 19500,
+        "client": 8473
+      }
+    }
+  },
+  "leftJoin": {
+    "inferred": {
+      "builders": {
+        "server": 17033,
+        "client": 18788
+      },
+      "types": {
+        "server": 14610,
+        "client": 15037
+      },
+      "plain drizzle": {
+        "server": 18279,
+        "client": 19741
+      }
+    },
+    "typed": {
+      "builders": {
+        "server": 18235,
+        "client": 3281
+      },
+      "types": {
+        "server": 15747,
+        "client": 1979
+      },
+      "plain drizzle": {
+        "server": 18775,
+        "client": 8406
+      }
+    }
+  },
+  "aggregate": {
+    "inferred": {
+      "builders": {
+        "server": 15991,
+        "client": 16830
+      },
+      "types": {
+        "server": 13711,
+        "client": 14548
+      },
+      "plain drizzle": {
+        "server": 17303,
+        "client": 18139
+      }
+    },
+    "typed": {
+      "builders": {
+        "server": 16250,
+        "client": 1801
+      },
+      "types": {
+        "server": 13963,
+        "client": 1079
+      },
+      "plain drizzle": {
+        "server": 17477,
+        "client": 2984
+      }
+    }
+  },
+  "insertReturning": {
+    "inferred": {
+      "builders": {
+        "server": 18396,
+        "client": 19567
+      },
+      "types": {
+        "server": 15914,
+        "client": 16860
+      },
+      "plain drizzle": {
+        "server": 18498,
+        "client": 19434
+      }
+    },
+    "typed": {
+      "builders": {
+        "server": 18485,
+        "client": 3659
+      },
+      "types": {
+        "server": 16003,
+        "client": 2674
+      },
+      "plain drizzle": {
+        "server": 18498,
+        "client": 8741
+      }
+    }
+  },
+  "updateReturning": {
+    "inferred": {
+      "builders": {
+        "server": 16342,
+        "client": 17162
+      },
+      "types": {
+        "server": 14062,
+        "client": 14878
+      },
+      "plain drizzle": {
+        "server": 17609,
+        "client": 18429
+      }
+    },
+    "typed": {
+      "builders": {
+        "server": 16628,
+        "client": 2706
+      },
+      "types": {
+        "server": 14334,
+        "client": 1825
+      },
+      "plain drizzle": {
+        "server": 17776,
+        "client": 5197
+      }
+    }
+  },
+  "relations": {
+    "inferred": {
+      "builders": {
+        "server": 16995,
+        "client": 18643
+      },
+      "types": {
+        "server": 14679,
+        "client": 16077
+      },
+      "plain drizzle": {
+        "server": 18657,
+        "client": 20123
+      }
+    },
+    "typed": {
+      "builders": {
+        "server": 18829,
+        "client": 3539
+      },
+      "types": {
+        "server": 16428,
+        "client": 2192
+      },
+      "plain drizzle": {
+        "server": 19718,
+        "client": 8676
+      }
+    }
+  },
+  "viewColumns": {
+    "inferred": {
+      "builders": {
+        "server": 16701,
+        "client": 17624
+      },
+      "types": {
+        "server": 14628,
+        "client": 15551
+      },
+      "plain drizzle": {
+        "server": 17949,
+        "client": 18705
+      }
+    },
+    "typed": {
+      "builders": {
+        "server": 17020,
+        "client": 1736
+      },
+      "types": {
+        "server": 14947,
+        "client": 1736
+      },
+      "plain drizzle": {
+        "server": 18068,
+        "client": 5608
+      }
+    }
+  },
+  "viewQueryBuilder": {
+    "inferred": {
+      "builders": {
+        "server": 17038,
+        "client": 17907
+      },
+      "types": {
+        "server": 14744,
+        "client": 15613
+      },
+      "plain drizzle": {
+        "server": 18378,
+        "client": 19224
+      }
+    },
+    "typed": {
+      "builders": {
+        "server": 17322,
+        "client": 3156
+      },
+      "types": {
+        "server": 15017,
+        "client": 1709
+      },
+      "plain drizzle": {
+        "server": 18516,
+        "client": 6628
+      }
+    }
+  },
+  "mappedShape": {
+    "inferred": {
+      "builders": {
+        "server": 17662,
+        "client": 18291
+      },
+      "types": {
+        "server": 15271,
+        "client": 15900
+      },
+      "plain drizzle": {
+        "server": 19254,
+        "client": 19875
+      }
+    },
+    "typed": {
+      "builders": {
+        "server": 17933,
+        "client": 2569
+      },
+      "types": {
+        "server": 15522,
+        "client": 1326
+      },
+      "plain drizzle": {
+        "server": 19248,
+        "client": 5599
+      }
+    }
+  }
+}
