@@ -39,10 +39,8 @@ const (
 	// variant. Same literal-only validation as KindCompTimeArgs, and it names the parameter the
 	// scanner reads when computing the injected fnHash.
 	KindCompTimeFnArgs
-	// KindInjectPureFnId (InjectPureFnId<F>) rides the callee signature so it propagates through
-	// wrappers; the injected value is the id of the sibling PureFunction<F> registration (its
-	// package plus a hash of its shipped body). The purefunctions extractor splices the id in;
-	// the resolver's marker walk does not inject for it, so it carries no scanCall case.
+	// KindInjectPureFnId (InjectPureFnId<F>) sits in the callee signature so it propagates through wrappers.
+	// The purefunctions extractor splices in the sibling registration's id (IDFor), so scanCall has no case for it.
 	KindInjectPureFnId
 	// KindPureFunctionFactory brands a FACTORY argument `(utl) => fn` (the registerPureFnFactory
 	// lane). Same inline + purity rules as KindPureFunction, but the extractor emits the factory

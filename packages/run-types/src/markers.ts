@@ -200,14 +200,11 @@ export type PureFunction<F> = F & {readonly __rtPureFunctionBrand?: never};
 export type PureFunctionFactory<F> = F & {readonly __rtPureFunctionFactoryBrand?: never};
 
 /**
- * Pure-fn id injection marker. A pure INJECTION marker like `InjectRunTypeId<T>` (no literal
- * double-duty): absent at author time, the build fills the trailing `id?` parameter with the
- * registration's id: its package plus a hash of the body that ships (`@acme/text#pf_Kq3f_xN9pQ2wLd`).
- * Renaming or moving the registration keeps the id, editing the body changes it, and two structurally
- * identical callbacks collapse to one entry. Living in the callee
- * signature, it propagates through wrappers: a library can offer its own
- * `registerXPureFn<F>(fn: PureFunction<F>, id?: InjectPureFnId<F>)` and the build injects at ITS
- * call sites with zero scanner diagnostics.
+ * Pure-fn id injection marker, like `InjectRunTypeId<T>` (no literal double-duty): the build fills the
+ * trailing `id?` with the package plus a hash of the shipped body (`@acme/text#pf_Kq3f_xN9pQ2wLd`).
+ * Renaming or moving keeps the id, editing the body changes it, identical callbacks share one entry.
+ * It propagates through wrappers: `registerXPureFn<F>(fn: PureFunction<F>, id?: InjectPureFnId<F>)`
+ * gets injected at ITS call sites with zero scanner diagnostics.
  *
  * `F` is phantom, linking the marker to the sibling `PureFunction<F>` argument; the runtime value is
  * the injected string. Mirrors `InjectRunTypeId`'s `string & {brand}` shape so the Go marker scanner

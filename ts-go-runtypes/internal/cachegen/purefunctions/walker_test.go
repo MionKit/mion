@@ -260,7 +260,7 @@ export const fn = registerPureFnFactory(function ({a, b}) {
 	if !hasCode(diags, CodeDestructuredParam) {
 		t.Fatalf("expected %s diagnostic, got %+v", CodeDestructuredParam, diags)
 	}
-	// The diagnostic names the binding, not an id-shaped `<package>#pf_fn`.
+	// Never the id-shaped `<package>#pf_fn`.
 	if args := diags[0].Args; len(args) != 1 || args[0] != "fn" {
 		t.Errorf("expected the binding name as the only arg, got %v", args)
 	}

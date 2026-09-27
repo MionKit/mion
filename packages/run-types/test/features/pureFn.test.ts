@@ -84,7 +84,7 @@ const arrowExpression = registerPureFnFactory(
     }
 );
 
-// Bound to no name (handed straight to an array): the id is the body hash all the same.
+// Bound to no name: the id is still the body hash.
 const namelessIds = [
   registerPureFn((s: string): string => s.padStart(3, '0')),
   registerPureFn((s: string): string => s.padStart(3, '0')),

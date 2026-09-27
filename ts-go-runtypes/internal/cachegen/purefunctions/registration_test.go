@@ -6,8 +6,7 @@ import (
 	"testing"
 )
 
-// A registration is identified by its package plus a hash of its shipped body,
-// and comes in two forms, told apart by the pure-fn parameter's marker:
+// Ids are package plus shipped-body hash; the two registration forms are told apart by the pure-fn marker:
 //   - registerPureFn(fn)          — DIRECT: the arg IS the pure fn; the
 //     extractor wraps it into `function(){ return <fn> }` (params empty).
 //   - registerPureFnFactory(cf)   — FACTORY: the arg IS a factory, extracted
@@ -15,7 +14,7 @@ import (
 //
 // Per the repo's marker-test discipline each form is covered DIRECTLY and
 // THROUGH A LIBRARY WRAPPER (a fixture forwarding the markers), asserting the
-// wrapper injects the same id a direct call at that location would.
+// wrapper injects the same id a direct call would.
 
 func TestExtractRegistration_DirectForm(t *testing.T) {
 	entries, diags := extractFromOverlay(t, map[string]string{
@@ -144,8 +143,6 @@ export const slugify = registerPureFn((s: string): string => s.toLowerCase());`,
 }
 
 func TestExtractRegistration_NamelessDedupsByBody(t *testing.T) {
-	// Two registrations bound to NO name (handed straight to a wrapper) with
-	// structurally identical bodies collapse to a single entry.
 	entries, diags := extractFromOverlay(t, map[string]string{
 		"a.ts": `
 import {type PureFunction, type InjectPureFnId} from '@mionjs/run-types'; import {registerPureFn} from '@mionjs/run-types/runtime';

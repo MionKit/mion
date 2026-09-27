@@ -504,8 +504,7 @@ func (ctx *resolveCtx) buildPureFnEntry(sourceFile *ast.SourceFile, call *ast.No
 	return entry, diags
 }
 
-// siteName names a registration in a diagnostic raised before its body hash exists: the name it is
-// bound to, never an id-shaped string, since an id is a hash and a name alone would pass for one.
+// siteName is for diagnostics raised before the body hash exists; never id-shaped, or it would pass for a real id.
 func siteName(call *ast.Node) string {
 	if name := bindingNameOf(call); name != "" {
 		return name

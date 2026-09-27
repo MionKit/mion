@@ -123,8 +123,7 @@ describe('request-batch build report', () => {
     expect(site.calleeName).toBe('batch');
     expect(site.calleeModule).toBe('@mionjs/client');
 
-    // Mappings in canonical (toId, paramIndex) order, each keyed by its mapper's
-    // own pure-fn id, a hash of its body.
+    // Mappings in (toId, paramIndex) order, each keyed by its mapper's pure-fn id (a body hash).
     expect(site.mappings?.length).toBe(2);
     const byTo = new Map(site.mappings!.map((m) => [m.toId, m]));
     expect(byTo.get('orders/list')).toMatchObject({fromId: 'users/getById', paramIndex: 0});
