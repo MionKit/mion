@@ -55,7 +55,7 @@ const lowercase = customType<{data: string; driverData: string}>({
 // refuse `convert --to type` and none of them would reach the type road.
 const checked = mysqlTable(
   'addendum_checked',
-  {id: int('id').primaryKey(), tag: lowercase('tag').notNull()},
+  {id: int('id', {primaryKey: true}), tag: lowercase('tag', {notNull: true})},
   (t) => [check('addendum_positive', rtSql`${t.id} > 0`)]
 );
 const checkedDb = toDrizzle(checked);
@@ -64,11 +64,11 @@ const checkedDb = toDrizzle(checked);
 // convert (mysqlEnum takes a values array, which has no type spelling), so one
 // refusal there would cost every one of them their type road coverage.
 const texts = mysqlTable('addendum_texts', {
-  id: int('id').primaryKey(),
-  tiny: tinytext('tiny').notNull(),
-  medium: mediumtext('medium').notNull(),
-  long: longtext('long').notNull(),
-  label: varchar('label', {length: 20}).notNull(),
+  id: int('id', {primaryKey: true}),
+  tiny: tinytext('tiny', {notNull: true}),
+  medium: mediumtext('medium', {notNull: true}),
+  long: longtext('long', {notNull: true}),
+  label: varchar('label', {length: 20, notNull: true}),
   fixed: char('fixed', {length: 4}),
   bin: binary('bin', {length: 4}),
   varbin: varbinary('varbin', {length: 8}),

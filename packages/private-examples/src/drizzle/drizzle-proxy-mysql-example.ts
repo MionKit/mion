@@ -4,10 +4,10 @@ import {createValidateFn} from '@mionjs/run-types';
 
 // a recorded table, not drizzle's MySqlTable: toDrizzle() builds that on demand
 export const devices = DZ.mysqlTable('devices', {
-  serialNo: DZ.varchar('serial_no', {length: 12}).notNull(),
-  views: DZ.int('views', {unsigned: true}).notNull(), // UInt32: 0 to 4294967295
-  offsetC: DZ.tinyint('offset_c').notNull(), // Int8: -128 to 127
-  builtIn: DZ.year('built_in').notNull(), // 1901 to 2155
+  serialNo: DZ.varchar('serial_no', {length: 12, notNull: true}),
+  views: DZ.int('views', {unsigned: true, notNull: true}), // UInt32: 0 to 4294967295
+  offsetC: DZ.tinyint('offset_c', {notNull: true}), // Int8: -128 to 127
+  builtIn: DZ.year('built_in', {notNull: true}), // 1901 to 2155
 });
 
 export type Device = InferSelectModel<typeof devices>;

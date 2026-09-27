@@ -1,19 +1,19 @@
 import * as DZ from '@mionjs/drizzle-orm-pg-core';
-import {cols, sql} from '@mionjs/drizzle-orm';
+import {sql, tableRef} from '@mionjs/drizzle-orm';
 
 export const teams = DZ.pgTable('teams', {
-  id: DZ.serial('id').primaryKey(),
-  slug: DZ.varchar('slug', {length: 40}).notNull().unique(),
+  id: DZ.serial('id', {primaryKey: true}),
+  slug: DZ.varchar('slug', {length: 40, notNull: true, unique: true}),
 });
 
 export const members = DZ.pgTable(
   'members',
   {
-    teamId: DZ.integer('team_id').notNull(),
-    userId: DZ.uuid('user_id').notNull(),
-    email: DZ.varchar('email', {length: 200}).notNull(),
-    age: DZ.integer('age').notNull(),
-    joinedAt: DZ.timestamp('joined_at').notNull().defaultNow(),
+    teamId: DZ.integer('team_id', {notNull: true}),
+    userId: DZ.uuid('user_id', {notNull: true}),
+    email: DZ.varchar('email', {length: 200, notNull: true}),
+    age: DZ.integer('age', {notNull: true}),
+    joinedAt: DZ.timestamp('joined_at', {notNull: true, defaultNow: true}),
   },
   (t) => [
     DZ.primaryKey({name: 'members_pk', columns: [t.teamId, t.userId]}),
@@ -21,7 +21,7 @@ export const members = DZ.pgTable(
     DZ.foreignKey({
       name: 'members_team_fk',
       columns: [t.teamId],
-      foreignColumns: [cols(teams).id],
+      foreignColumns: [tableRef(teams, 'id')],
     })
       .onDelete('cascade')
       .onUpdate('restrict'),
@@ -40,9 +40,9 @@ export const members = DZ.pgTable(
 
 // single-column constraints inline, the drizzle way
 export const invites = DZ.pgTable('invites', {
-  id: DZ.uuid('id').defaultRandom().primaryKey(),
-  teamId: DZ.integer('team_id').references(() => cols(teams).id, {
+  id: DZ.uuid('id', {defaultRandom: true, primaryKey: true}),
+  teamId: DZ.integer('team_id', {references: [() => tableRef(teams, 'id'), {
     onDelete: 'cascade',
-  }),
-  code: DZ.varchar('code', {length: 12}).notNull().unique('invites_code_uq'),
+  }]}),
+  code: DZ.varchar('code', {length: 12, notNull: true, unique: ['invites_code_uq']}),
 });

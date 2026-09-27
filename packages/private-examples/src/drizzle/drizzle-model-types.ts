@@ -6,11 +6,11 @@ import type {
 } from '@mionjs/drizzle-orm';
 
 export const users = DZ.pgTable('users', {
-  id: DZ.uuid('id').primaryKey().defaultRandom(),
-  email: DZ.varchar('email', {length: 254}).notNull(),
-  name: DZ.varchar('name', {length: 100}).notNull(),
+  id: DZ.uuid('id', {primaryKey: true, defaultRandom: true}),
+  email: DZ.varchar('email', {length: 254, notNull: true}),
+  name: DZ.varchar('name', {length: 100, notNull: true}),
   bio: DZ.varchar('bio', {length: 500}),
-  createdAt: DZ.timestamp('created_at').defaultNow().notNull(),
+  createdAt: DZ.timestamp('created_at', {defaultNow: true, notNull: true}),
 });
 
 // every key present, bio is value | null

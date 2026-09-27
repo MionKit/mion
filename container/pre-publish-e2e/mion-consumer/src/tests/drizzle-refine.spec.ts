@@ -20,8 +20,8 @@ import {refineTableType} from '@mionjs/drizzle-orm';
 import type {InferSelectModel} from '@mionjs/drizzle-orm';
 
 const users = pgTable('users', {
-    name: varchar('name', {length: 20}).notNull(),
-    age: integer('age').notNull(),
+    name: varchar('name', {length: 20, notNull: true}),
+    age: integer('age', {notNull: true}),
 });
 
 const apiUsers = refineTableType(users, {name: {minLength: 10}, age: {min: 18}});

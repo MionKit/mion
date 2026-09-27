@@ -140,7 +140,7 @@ describe('publish-order: the real workspace', () => {
     before('@mionjs/bin-compiler', '@mionjs/devtools');
     before('@mionjs/native-uws-linux-x64', '@mionjs/bin-uws');
     before('@mionjs/bin-uws', '@mionjs/platform-uws');
-    before('@mionjs/drizzle-orm', '@mionjs/drizzle-orm-pg-core');
+    for (const dialect of ['pg', 'mysql', 'sqlite']) before('@mionjs/drizzle-orm', `@mionjs/drizzle-orm-${dialect}-core`);
     before('@mionjs/run-types', '@mionjs/drizzle-orm');
   });
 
@@ -153,7 +153,10 @@ describe('publish-order: the real workspace', () => {
       '@mionjs/core',
       '@mionjs/router',
       '@mionjs/bin-uws',
+      '@mionjs/drizzle-orm',
       '@mionjs/drizzle-orm-pg-core',
+      '@mionjs/drizzle-orm-mysql-core',
+      '@mionjs/drizzle-orm-sqlite-core',
     ]) {
       expect(published).toContain(name);
     }

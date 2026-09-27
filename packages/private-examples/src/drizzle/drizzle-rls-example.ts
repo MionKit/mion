@@ -13,9 +13,9 @@ export const authenticated = DZ.pgRole('authenticated').existing();
 export const documents = DZ.pgTable(
   'documents',
   {
-    id: DZ.uuid('id').defaultRandom().primaryKey(),
-    ownerId: DZ.uuid('owner_id').notNull(),
-    title: DZ.varchar('title', {length: 200}).notNull(),
+    id: DZ.uuid('id', {defaultRandom: true, primaryKey: true}),
+    ownerId: DZ.uuid('owner_id', {notNull: true}),
+    title: DZ.varchar('title', {length: 200, notNull: true}),
     body: DZ.text('body'),
   },
   (t) => [

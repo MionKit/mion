@@ -12,9 +12,9 @@ export const reader = DZ.pgRole('reader').existing();
 const accounts = DZ.pgTable(
   'accounts',
   {
-    id: DZ.uuid('id').defaultRandom().primaryKey(),
-    email: DZ.varchar('email', {length: 200}).notNull(),
-    plan: plan('plan').notNull().default('free'),
+    id: DZ.uuid('id', {defaultRandom: true, primaryKey: true}),
+    email: DZ.varchar('email', {length: 200, notNull: true}),
+    plan: plan('plan', {notNull: true, default: ['free']}),
     spend: DZ.numeric('spend', {precision: 10, scale: 2, mode: 'number'}),
   },
   (t) => [
@@ -30,7 +30,7 @@ const accounts = DZ.pgTable(
 
 const paidAccounts = DZ.pgView('paid_accounts', {
   id: DZ.uuid('id'),
-  email: DZ.varchar('email', {length: 200}).notNull(),
+  email: DZ.varchar('email', {length: 200, notNull: true}),
 }).as(sql`select id, email from ${accounts} where plan = 'pro'`);
 
 // materialized for drizzle-kit

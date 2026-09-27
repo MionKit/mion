@@ -106,3 +106,36 @@ describe('drizzle-derived models over real routes', () => {
     expect(routeError?.type).toBe('user-not-found');
   });
 });
+
+describe('drizzle-derived models over real routes, every dialect', () => {
+  it('a mysql row validates its captured params and revives its Date', async () => {
+    const {routes} = client();
+    const registeredAt = new Date('2026-03-04T05:06:07.000Z');
+    const [row, routeError] = await routes.dbDevices.insert({serialNo: 'SN-1', views: 3, registeredAt}).call();
+    expect(routeError).toBeUndefined();
+    expect(row?.registeredAt.getTime()).toBe(registeredAt.getTime());
+    const [selected] = await routes.dbDevices.select('SN-1').call();
+    expect(selected?.registeredAt).toBeInstanceOf(Date);
+    // views is an unsigned int, serialNo a varchar(12)
+    const [negative, negativeError] = await routes.dbDevices.insert({serialNo: 'SN-2', views: -1, registeredAt}).call();
+    expect(negative).toBeUndefined();
+    expect(negativeError?.type).toBe('validation-error');
+    const [tooLong, tooLongError] = await routes.dbDevices.insert({serialNo: 'x'.repeat(13), views: 1, registeredAt}).call();
+    expect(tooLong).toBeUndefined();
+    expect(tooLongError?.type).toBe('validation-error');
+  });
+
+  it('a sqlite row validates its captured params and revives its Date', async () => {
+    const {routes} = client();
+    const createdAt = new Date('2026-05-06T07:08:09.000Z');
+    const [row, routeError] = await routes.dbNotes.insert({title: 'first note', createdAt}).call();
+    expect(routeError).toBeUndefined();
+    expect(typeof row?.id).toBe('number');
+    expect(row?.createdAt).toBeInstanceOf(Date);
+    expect(row?.createdAt.getTime()).toBe(createdAt.getTime());
+    // title is text(80)
+    const [tooLong, tooLongError] = await routes.dbNotes.insert({title: 'x'.repeat(81), createdAt}).call();
+    expect(tooLong).toBeUndefined();
+    expect(tooLongError?.type).toBe('validation-error');
+  });
+});
