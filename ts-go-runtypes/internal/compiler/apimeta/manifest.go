@@ -60,9 +60,8 @@ func BuildVersion(methods map[string]ManifestMethod) string {
 	return hashid.QuickHash(input.String(), BuildVersionLength)
 }
 
-// Manifest is the file's shape; ApiTsconfig is set on a client manifest only. Ambiguous lists the
-// ids a server program initializes more than once with differing rows: the first in file order is kept, and
-// a client row for such an id never passes the check.
+// Manifest is the file's shape; ApiTsconfig is set on a client manifest only.
+// Ambiguous ids are initialized more than once with differing rows: the first in file order is kept, a client row never passes.
 type Manifest struct {
 	Kind        string                    `json:"kind"`
 	ApiTsconfig string                    `json:"apiTsconfig,omitempty"`

@@ -11,7 +11,6 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/textpos"
 )
 
-// useMethodsMetadataName is the client call that sets up metadata fetching.
 const useMethodsMetadataName = "useMethodsMetadata"
 
 // maxClientTrace caps the hops from a `useMethodsMetadata` argument back to its `initClient` call.

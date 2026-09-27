@@ -57,7 +57,7 @@ export interface GenerateInfo {
   routerInitFiles: string[];
 }
 
-/** Rejects a bundleApi that is not a boolean, which would otherwise read as truthy. **/
+/** A non-boolean bundleApi would otherwise read as truthy. */
 export function assertValidBundleApi(bundleApi: unknown): void {
   if (bundleApi !== undefined && typeof bundleApi !== 'boolean') {
     throw new Error(`[mion] bundleApi must be true or false (got ${JSON.stringify(bundleApi)}).`);
