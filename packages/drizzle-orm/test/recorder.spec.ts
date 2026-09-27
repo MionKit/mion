@@ -13,7 +13,7 @@
 import {describe, it, expect} from 'vitest';
 import {RtColumnRecorder, RtEntryRecorder, RtValueRecorder, sql} from '../src/recorder.ts';
 import type {DrizzleContext, SqlNamespace} from '../src/types.ts';
-import {createRtTable, materializeRtTable, tableRef} from '../src/table.ts';
+import {createRtTable, materializeRtTable, refColumn, tableRef} from '../src/table.ts';
 import {recordColumn} from '../src/columnRecorder.ts';
 
 interface Fake {
@@ -209,5 +209,21 @@ describe('recorder core (fake namespace, no drizzle installed)', () => {
     col.toDrizzleColumn(fake.context);
     const template = fake.calls.find((call) => call[1] === 'template')!;
     expect(template[3]).toEqual({dzColumn: 'users.id'});
+  });
+
+  it('tableRef() rejects a value that is not a slim table', () => {
+    expect(() => tableRef({} as never, 'id')).toThrow(/takes a table built with/);
+  });
+
+  it('refColumn() rejects a tableRef() naming a column the table lacks', () => {
+    const fake = makeFakeContext();
+    const users = createRtTable('users', {id: column('integer', 'id')}, undefined, fakeBuildTable(fake.calls));
+    expect(() => refColumn(tableRef(users as never, 'nope'))).toThrow(/found no column "nope"/);
+  });
+
+  it('recordColumn rejects a modifier that is neither `true` nor an args tuple', () => {
+    expect(() => recordColumn(['n', {notNull: undefined}], (context) => context.ns.integer())).toThrow(
+      /modifier "notNull" takes `true` or its argument tuple/
+    );
   });
 });

@@ -811,10 +811,21 @@ export const brandedQuery = pgDb.select().from(toDrizzle(brandedTable));
 declare const brandedRows: Awaited<typeof brandedQuery>;
 export const brandedRowIntoModel: InferSelectModel<typeof brandedTable> = brandedRows[0]!;
 
+// A class or a Date in `$type` survives whole: a mapped type would flatten it into its members.
+class Money {
+  constructor(readonly cents: number) {}
+}
+export const classTable = pgTable('boundary_class', {
+  at: varchar({length: 40, notNull: true, $type: $type<Date>()}),
+  price: varchar({length: 40, notNull: true, $type: $type<Money>()}),
+});
+
 export type BoundaryPins = [
   Expect<Equal<(typeof boundaryRows)[number]['name'], string>>,
   Expect<Equal<(typeof boundaryRows)[number]['createdAt'], Date>>,
   Expect<Equal<InferSelectModel<typeof brandedTable>['id'], BoundaryId>>,
+  Expect<Equal<InferSelectModel<typeof classTable>['at'], Date>>,
+  Expect<Equal<InferSelectModel<typeof classTable>['price'], Money>>,
 ];
 
 // @ts-expect-error real takes no mode
