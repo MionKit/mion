@@ -16,12 +16,8 @@ import type {ParamsStrategy, ReturnStrategy} from './parser.ts';
 
 /** The value of option `K` when the options literal names it, `undefined` otherwise. */
 type Named<Opts, K extends PropertyKey> = Opts extends {[P in K]: infer V} ? V : undefined;
-/** The first level that names the option: route literal, then router literal, then the default. */
-type Pick3<RouteValue, RouterValue, Default> = [RouteValue] extends [undefined]
-  ? [RouterValue] extends [undefined]
-    ? Default
-    : RouterValue
-  : RouteValue;
+/** The route literal when it names the option, else the router literal. */
+type PickRouteOrRouter<RouteValue, RouterValue> = [RouteValue] extends [undefined] ? RouterValue : RouteValue;
 
 // Both views are flat object types (no intersection) so the build reads them as one literal object.
 
@@ -31,7 +27,7 @@ export type ResolvedRouteOptions<RO, O> = {
   description: Named<RO, 'description'>;
   parser: {params: ParamsStrategy<RO, O>; return: ReturnStrategy<RO, O>};
   isMutation: Named<RO, 'isMutation'>;
-  sanitizeParams: Pick3<Named<RO, 'sanitizeParams'>, Named<O, 'sanitizeParams'>, undefined>;
+  sanitizeParams: PickRouteOrRouter<Named<RO, 'sanitizeParams'>, Named<O, 'sanitizeParams'>>;
   /** The route's OWN limit when it declares one. The number the router settles for a chain that
    *  declares none (derived from the types times the router factor, else the platform adapter's)
    *  exists only at the server's registration, so the type does not carry it. */
@@ -43,7 +39,7 @@ export type ResolvedMiddlewareOptions<RO, O> = {
   alwaysRun: [Named<RO, 'alwaysRun'>] extends [true] ? true : false;
   description: Named<RO, 'description'>;
   parser: {params: ParamsStrategy<RO, O>; return: ReturnStrategy<RO, O>};
-  sanitizeParams: Pick3<Named<RO, 'sanitizeParams'>, Named<O, 'sanitizeParams'>, undefined>;
+  sanitizeParams: PickRouteOrRouter<Named<RO, 'sanitizeParams'>, Named<O, 'sanitizeParams'>>;
   /** The middleware's own contribution to the request limit of the chains it sits in, when declared. */
   maxBodySize: Named<RO, 'maxBodySize'>;
 };
