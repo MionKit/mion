@@ -43,12 +43,12 @@
         {
           "step": 6,
           "label": "db query (toDrizzle)",
-          "delta": 8571,
-          "budget": 8571,
-          "cumulative": 14672
+          "delta": 8471,
+          "budget": 8471,
+          "cumulative": 14572
         }
       ],
-      "totalBudget": 14818,
+      "totalBudget": 14718,
       "consumer": {
         "budget": 1605,
         "netInstantiations": 1605,
@@ -97,12 +97,12 @@
         {
           "step": 6,
           "label": "db query (toDrizzle)",
-          "delta": 7245,
-          "budget": 7245,
-          "cumulative": 13362
+          "delta": 7144,
+          "budget": 7144,
+          "cumulative": 13261
         }
       ],
-      "totalBudget": 13508,
+      "totalBudget": 13407,
       "consumer": {
         "budget": 1602,
         "netInstantiations": 1602,
@@ -151,12 +151,12 @@
         {
           "step": 6,
           "label": "db query (toDrizzle)",
-          "delta": 7426,
-          "budget": 7426,
-          "cumulative": 13542
+          "delta": 7318,
+          "budget": 7318,
+          "cumulative": 13434
         }
       ],
-      "totalBudget": 13688,
+      "totalBudget": 13580,
       "consumer": {
         "budget": 1574,
         "netInstantiations": 1574,

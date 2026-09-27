@@ -413,23 +413,21 @@ export const rawUpdated = sqliteDb.update(rawUsers).set({rating: 2}).returning({
 type InsertValues<Q> = Q extends {values(value: infer V): unknown} ? V : never;
 type UpdateSet<Q> = Q extends {set(values: infer V): unknown} ? V : never;
 export type QueryPins = [
-  Expect<Equal<Awaited<typeof selected>, Awaited<typeof rawSelected>>>,
-  Expect<Equal<Awaited<typeof inserted>, Awaited<typeof rawInserted>>>,
-  Expect<Equal<Awaited<typeof updated>, Awaited<typeof rawUpdated>>>,
+  // a queried row IS the slim model, formats included
+  Expect<Equal<Awaited<typeof selected>[number], InferSelectModel<typeof users>>>,
+  Expect<Equal<Awaited<typeof inserted>[number], InferSelectModel<typeof users>>>,
+  Expect<Equal<Awaited<typeof updated>[number], {id: InferSelectModel<typeof users>['id']}>>,
   Expect<Equal<keyof Awaited<typeof selected>[number], 'id' | 'name' | 'rating' | 'role' | 'createdAt'>>,
-  Expect<
-    Equal<
-      InsertValues<ReturnType<typeof sqliteDb.insert<typeof dzUsers>>>,
-      InsertValues<ReturnType<typeof sqliteDb.insert<typeof rawUsers>>>
-    >
-  >,
-  Expect<
-    Equal<
-      UpdateSet<ReturnType<typeof sqliteDb.update<typeof dzUsers>>>,
-      UpdateSet<ReturnType<typeof sqliteDb.update<typeof rawUsers>>>
-    >
-  >,
 ];
+// a format tag is optional, so drizzle's plain values still go in
+export const plainInsertIn: InsertValues<ReturnType<typeof sqliteDb.insert<typeof dzUsers>>> = {} as InsertValues<
+  ReturnType<typeof sqliteDb.insert<typeof rawUsers>>
+>;
+export const plainSetIn: UpdateSet<ReturnType<typeof sqliteDb.update<typeof dzUsers>>> = {} as UpdateSet<
+  ReturnType<typeof sqliteDb.update<typeof rawUsers>>
+>;
+// and a queried row still reads as drizzle's own
+export const rowAsRaw: Awaited<typeof rawSelected>[number] = {} as Awaited<typeof selected>[number];
 
 // ── references, across tables and to itself ──────────────────────────────────
 
@@ -594,10 +592,8 @@ export const doInsertFromModel = doDb.insert(dzCfNotes).values(newCfNote);
 export const doUpdateFromModel = doDb.update(dzCfNotes).set(cfNotePatch);
 
 export type OnlySqlite_CloudflarePins = [
-  Expect<Equal<D1Rows[number]['title'], string>>,
-  Expect<Equal<D1Rows[number]['createdAt'], Date>>,
-  Expect<Equal<DoRows[number]['title'], string>>,
-  Expect<Equal<DoRows[number]['createdAt'], Date>>,
+  Expect<Equal<D1Rows[number], CfNote>>,
+  Expect<Equal<DoRows[number], CfNote>>,
   Expect<Equal<NewCfNote['id'], IntegerFormat | undefined>>,
 ];
 
@@ -655,7 +651,7 @@ export type ViewNotInsertModel = InferInsertModel<typeof activeView>;
 export type ViewNotUpdateModel = InferUpdateModel<typeof activeView>;
 
 // ── the slim <-> drizzle boundary ────────────────────────────────────────────
-// toDrizzle drops a FORMAT tag (optional sentinels) but keeps a NOMINAL brand, or a queried id could not go back.
+// toDrizzle keeps every format tag and nominal brand, so a queried row is its model.
 
 export const boundaryUsers = sqliteTable('boundary_users', {
   name: text({length: 100, notNull: true}),
@@ -688,8 +684,8 @@ export const classTable = sqliteTable('boundary_class', {
 });
 
 export type BoundaryPins = [
-  Expect<Equal<(typeof boundaryRows)[number]['name'], string>>,
-  Expect<Equal<(typeof boundaryRows)[number]['createdAt'], Date>>,
+  Expect<Equal<(typeof boundaryRows)[number], InferSelectModel<typeof boundaryApi>>>,
+  Expect<Equal<(typeof brandedRows)[number]['id'], BoundaryId>>,
   Expect<Equal<InferSelectModel<typeof brandedTable>['id'], BoundaryId>>,
   Expect<Equal<InferSelectModel<typeof classTable>['at'], Date>>,
   Expect<Equal<InferSelectModel<typeof classTable>['price'], Money>>,

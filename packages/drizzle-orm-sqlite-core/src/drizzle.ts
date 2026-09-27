@@ -13,7 +13,6 @@ import * as dzSqlite from 'drizzle-orm/sqlite-core';
 import {sql as dzSql} from 'drizzle-orm';
 import type {IndexBuilder, SQLiteColumn, SQLiteTableWithColumns, SQLiteViewWithSelection} from 'drizzle-orm/sqlite-core';
 import type {
-  PlainDataOf,
   IsHasDefault,
   IsInsertExcluded,
   IsNotNull,
@@ -49,7 +48,7 @@ type SynthConfig<Name extends string, TableName extends string, S> = S extends {
       tableName: TableName;
       dataType: 'custom';
       columnType: 'RtColumn';
-      data: PlainDataOf<ValueOf<P, D>>;
+      data: ValueOf<P, D>;
       driverParam: unknown;
       enumValues: undefined;
       notNull: IsNotNull<P, B>;

@@ -24,6 +24,6 @@ export class NotesObject {
   // same models, validators and table as every other database
   async addNote(note: NewNote): Promise<Note> {
     const [row] = await this.db.insert(notesDb).values(note).returning();
-    return row as Note;
+    return row;
   }
 }

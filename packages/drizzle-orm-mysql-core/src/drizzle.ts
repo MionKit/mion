@@ -19,7 +19,6 @@ import type {
   MySqlViewWithSelection,
 } from 'drizzle-orm/mysql-core';
 import type {
-  PlainDataOf,
   IsHasDefault,
   IsInsertExcluded,
   IsNotNull,
@@ -58,7 +57,7 @@ type SynthConfig<Name extends string, TableName extends string, S> = S extends {
       tableName: TableName;
       dataType: 'custom';
       columnType: 'RtColumn';
-      data: PlainDataOf<ValueOf<P, D>>;
+      data: ValueOf<P, D>;
       driverParam: unknown;
       enumValues: undefined;
       notNull: IsNotNull<P, B>;

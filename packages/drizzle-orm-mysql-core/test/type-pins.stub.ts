@@ -562,20 +562,21 @@ export const rawUpdated = myDb.update(rawUsers).set({age: 2});
 type InsertValues<Q> = Q extends {values(value: infer V): unknown} ? V : never;
 type UpdateSet<Q> = Q extends {set(values: infer V): unknown} ? V : never;
 export type QueryPins = [
-  Expect<Equal<Awaited<typeof selected>, Awaited<typeof rawSelected>>>,
+  // a queried row IS the slim model, formats included
+  Expect<Equal<Awaited<typeof selected>[number], InferSelectModel<typeof users>>>,
   Expect<Equal<Awaited<typeof inserted>, Awaited<typeof rawInserted>>>,
   Expect<Equal<Awaited<typeof updated>, Awaited<typeof rawUpdated>>>,
   Expect<Equal<keyof Awaited<typeof selected>[number], 'id' | 'name' | 'age' | 'role' | 'createdAt'>>,
-  Expect<
-    Equal<
-      InsertValues<ReturnType<typeof myDb.insert<typeof dzUsers>>>,
-      InsertValues<ReturnType<typeof myDb.insert<typeof rawUsers>>>
-    >
-  >,
-  Expect<
-    Equal<UpdateSet<ReturnType<typeof myDb.update<typeof dzUsers>>>, UpdateSet<ReturnType<typeof myDb.update<typeof rawUsers>>>>
-  >,
 ];
+// a format tag is optional, so drizzle's plain values still go in
+export const plainInsertIn: InsertValues<ReturnType<typeof myDb.insert<typeof dzUsers>>> = {} as InsertValues<
+  ReturnType<typeof myDb.insert<typeof rawUsers>>
+>;
+export const plainSetIn: UpdateSet<ReturnType<typeof myDb.update<typeof dzUsers>>> = {} as UpdateSet<
+  ReturnType<typeof myDb.update<typeof rawUsers>>
+>;
+// and a queried row still reads as drizzle's own
+export const rowAsRaw: Awaited<typeof rawSelected>[number] = {} as Awaited<typeof selected>[number];
 
 // $returningId() returns exactly the primary keys that autoincrement or carry a runtime default.
 export const keyed = mysqlTable('keyed', {
@@ -605,11 +606,11 @@ export const refinedKeyedIds = myDb
   .values({name: 'a'})
   .$returningId();
 export type OnlyMysql_ReturningIdPins = [
-  Expect<Equal<Awaited<typeof keyedIds>, {id: number; code: string}[]>>,
-  Expect<Equal<Awaited<typeof keyedIds>, Awaited<typeof rawKeyedIds>>>,
-  Expect<Equal<Awaited<typeof intKeyedIds>, {id: number}[]>>,
+  Expect<Equal<Awaited<typeof keyedIds>, Pick<InferSelectModel<typeof keyed>, 'id' | 'code'>[]>>,
+  Expect<Equal<keyof Awaited<typeof keyedIds>[number], keyof Awaited<typeof rawKeyedIds>[number]>>,
+  Expect<Equal<Awaited<typeof intKeyedIds>, Pick<InferSelectModel<typeof intKeyed>, 'id'>[]>>,
   Expect<Equal<keyof Awaited<typeof plainKeyedIds>[number], never>>,
-  Expect<Equal<Awaited<typeof refinedKeyedIds>, {id: number; code: string}[]>>,
+  Expect<Equal<keyof Awaited<typeof refinedKeyedIds>[number], 'id' | 'code'>>,
 ];
 
 // ── references, across tables and to itself ──────────────────────────────────
@@ -818,7 +819,7 @@ export type ViewNotInsertModel = InferInsertModel<typeof activeView>;
 export type ViewNotUpdateModel = InferUpdateModel<typeof activeView>;
 
 // ── the slim <-> drizzle boundary ────────────────────────────────────────────
-// toDrizzle drops a FORMAT tag (optional sentinels) but keeps a NOMINAL brand, or a queried id could not go back.
+// toDrizzle keeps every format tag and nominal brand, so a queried row is its model.
 
 export const boundaryUsers = mysqlTable('boundary_users', {
   name: varchar({length: 100, notNull: true}),
@@ -853,8 +854,8 @@ export const classTable = mysqlTable('boundary_class', {
 });
 
 export type BoundaryPins = [
-  Expect<Equal<(typeof boundaryRows)[number]['name'], string>>,
-  Expect<Equal<(typeof boundaryRows)[number]['createdAt'], Date>>,
+  Expect<Equal<(typeof boundaryRows)[number], InferSelectModel<typeof boundaryApi>>>,
+  Expect<Equal<(typeof brandedRows)[number]['id'], BoundaryId>>,
   Expect<Equal<InferSelectModel<typeof brandedTable>['id'], BoundaryId>>,
   Expect<Equal<InferSelectModel<typeof classTable>['at'], Date>>,
   Expect<Equal<InferSelectModel<typeof classTable>['price'], Money>>,

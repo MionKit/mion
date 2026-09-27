@@ -39,7 +39,6 @@ export type {
   NoNames,
   NoProps,
   Only,
-  PlainDataOf,
   PropsOf,
   ReflectedNode,
   RtExtraColumn,

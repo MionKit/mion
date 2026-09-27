@@ -57,12 +57,12 @@ export class NotesDurableObject extends DurableObject {
 
   async insertNote(note: NewNote): Promise<Note> {
     const [row] = await this.db.insert(notesDb).values(note).returning();
-    return row as Note;
+    return row;
   }
 
   async getNote(id: number): Promise<Note | undefined> {
     const [row] = await this.db.select().from(notesDb).where(eq(notesDb.id, id));
-    return row as Note | undefined;
+    return row;
   }
 }
 
@@ -91,12 +91,12 @@ const noteNotFound = (): RpcError<'note-not-found'> => new RpcError({publicMessa
 
 const d1Insert: Route = mion.route(async (ctx: Context, note: NewNote): Promise<Note> => {
   const [row] = await ctx.shared.d1!.insert(notesDb).values(note).returning();
-  return row as Note;
+  return row;
 });
 
 const d1Select: Route = mion.route(async (ctx: Context, id: number): Promise<Note | RpcError<'note-not-found'>> => {
   const [row] = await ctx.shared.d1!.select().from(notesDb).where(eq(notesDb.id, id));
-  return (row as Note | undefined) ?? noteNotFound();
+  return row ?? noteNotFound();
 });
 
 const doInsert: Route = mion.route(async (ctx: Context, note: NewNote): Promise<Note> => ctx.shared.notes!.insertNote(note));
