@@ -5,9 +5,6 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The pg types shared across files: each builder's config and data type, the modifier bags and props interfaces,
-// and the table, view and entry types toDrizzle takes.
-
 import type {
   BigInt64,
   Date as RTDate,
@@ -173,7 +170,7 @@ export interface CustomTypeParams<T extends CustomTypeValues> {
 // ── What each builder kind's props take ──────────────────────────────────────
 // The hand-written bags, with the function-carrying keys taking their runtime shape.
 
-// Written out, not an Omit of the hand-written bag: every builder call checks against one, and an interface is cheapest.
+// Not an Omit of the hand-written bag: every builder call checks against one, and an interface is cheapest.
 export interface PgColIn extends PgSharedColMods {
   $type?: readonly [unknown];
   references?: readonly [() => AnyTableRef] | readonly [() => AnyTableRef, ReferenceActions];

@@ -5,9 +5,6 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The sqlite types shared across files: each builder's config and data type, the modifier bags and props interfaces,
-// and the table, view and entry types toDrizzle takes.
-
 import type {BigInt as RTBigInt, Date as RTDate, Float, Integer as IntegerFormat, String as Str} from '@mionjs/run-types/formats';
 import type {AnyColumn, AnyTableRef, ColMods, ColRef, RtSql, rtColumnKey} from '@mionjs/drizzle-orm';
 import type {SqliteTable} from './table.ts';
@@ -98,9 +95,9 @@ export interface CustomTypeParams<T extends CustomTypeValues> {
 }
 
 // ── What every builder's props take ──────────────────────────────────────────
-// The hand-written bag, with the function-carrying keys taking their runtime shape. sqlite has one builder kind, so one bag.
+// The hand-written bag with function-carrying keys in their runtime shape; sqlite has one builder kind, so one bag.
 
-// Written out, not an Omit of the hand-written bag: every builder call checks against one, and an interface is cheapest.
+// Not an Omit of the hand-written bag: every builder call checks against one, and an interface is cheapest.
 export interface SqliteColIn extends SqliteSharedColMods {
   $type?: readonly [unknown];
   references?: readonly [() => AnyTableRef] | readonly [() => AnyTableRef, ReferenceActions];

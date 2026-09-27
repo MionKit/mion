@@ -317,7 +317,7 @@ func (file *fileRun) retypeReferenceAnnotation(link convert.CallChainLink) {
 	}
 	typeNode := arrow.Type()
 	start := tsimports.TokenStart(file.source, typeNode.Pos())
-	// The annotation is replaced whole, so a rename planned inside it (`typeof teams.id`) is dropped rather than overlapped.
+	// A rename planned inside the replaced annotation (`typeof teams.id`) is dropped rather than overlapped.
 	kept := file.edits[:0]
 	for _, planned := range file.edits {
 		if planned.start < start || planned.end > typeNode.End() {

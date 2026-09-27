@@ -677,7 +677,6 @@ const plans = {{table}}('plans', {schedule: {{text}}('schedule').array().array()
 }
 
 func TestRefusesAChainThatHasNoProp(t *testing.T) {
-	// Each reason a chain cannot fold into one props member refuses the table with DRZ004 and names the reason.
 	cases := []struct{ name, column, reason string }{
 		{"a method that is not a modifier", "{{int}}('id').foo()", ".foo() is not a column modifier"},
 		{"$type with a value argument", "{{int}}('id').$type<number>(1)", ".$type() needs exactly one type argument"},
@@ -701,7 +700,6 @@ const users = {{table}}('users', {id: ` + refusal.column + `});
 }
 
 func TestFoldsABuilderCalledWithTypeArgumentsOnly(t *testing.T) {
-	// The props argument goes inside the parentheses that follow the type arguments.
 	eachDialect(t, "folds a builder called with type arguments only", func(t *testing.T, dialect migrateDialect) {
 		assertCase(t, dialect, `import {{{int}}, {{table}}} from '{{mod}}';
 
@@ -716,7 +714,7 @@ const users = toDrizzle(users$table);
 }
 
 func TestFoldsAReferenceWhoseAnnotationNamesTheTable(t *testing.T) {
-	// The annotation is replaced whole, so the rename of `teams` inside `typeof teams.id` must not collide with it.
+	// The rename of `teams` inside `typeof teams.id` must not collide with the replaced annotation.
 	eachDialect(t, "folds a reference annotated with typeof", func(t *testing.T, dialect migrateDialect) {
 		assertCase(t, dialect, `import {{{int}}, {{table}}} from '{{mod}}';
 
@@ -758,7 +756,7 @@ const emps = toDrizzle(emps$table);
 }
 
 func TestRefusesAFileWithNoFreeNameForAHelper(t *testing.T) {
-	// `$type` through `$type9` are all taken, so the import the fold needs has no name and the file stays drizzle.
+	// claim stops at a 9 suffix, so the fold's `$type` import has no name and the file stays drizzle.
 	eachDialect(t, "refuses a file with no free name for a helper", func(t *testing.T, dialect migrateDialect) {
 		taken := make([]string, 0, 9)
 		for _, name := range []string{"$type", "$type2", "$type3", "$type4", "$type5", "$type6", "$type7", "$type8", "$type9"} {

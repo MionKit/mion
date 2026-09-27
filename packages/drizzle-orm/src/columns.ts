@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The runtime half of the column vocabulary: sentinel keys, `$type` and the modifier list (types in ./types.ts).
+// The runtime half of the column vocabulary; its types live in ./types.ts.
 
 /** Sentinel key of the column spec. */
 export const rtColSpecKey: unique symbol = Symbol('rtColSpec');

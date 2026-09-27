@@ -313,7 +313,7 @@ const DIALECTS: Dialect[] = [
 export const ${p}i = db.insert(${p}D).values({id: 'x', name: 'a', age: 21, role: 'user'});
 export const ${p}u = db.update(${p}D).set({age: 31});`,
     budgets: {
-      // 539 -> 671 and 971 -> 1152: a REVIEWED EXCEPTION, props reject stray modifier keys (Only<P, Allowed>, about 30 per configured column).
+      // 539 -> 671 and 971 -> 1152: a REVIEWED EXCEPTION, props reject stray modifier keys (Only<P, Allowed>, ~30 per column).
       '5 mixed, select': {types: 671, builders: 1152},
       // 1132 -> 1264 and 1638 -> 1820: a REVIEWED EXCEPTION, props reject stray modifier keys.
       '5 mixed, select + insert': {types: 1264, builders: 1820},
