@@ -16,6 +16,9 @@ export type SerializedBody = string;
 
 export type ContentType = 'application/json; charset=utf-8';
 
+/** Runs on the parsed body before anything decodes, and may hand back entries to add untouched. */
+type TakeRaw = (parsedBody: Record<string, unknown>) => Record<string, unknown> | undefined;
+
 export interface SerializedRequest {
   body: SerializedBody;
   contentType: ContentType;
@@ -105,11 +108,10 @@ export function wireFormReplacer(this: unknown, key: string, value: unknown): un
 
 // ################################## DE-SERIALIZE ##################################
 
-/** `takeRaw` runs on the parsed body before anything decodes, and may hand back entries to add untouched. */
 export async function deserializeResponseBody(
   response: Response,
   options: ClientOptions,
-  takeRaw?: (parsedBody: Record<string, unknown>) => Record<string, unknown> | undefined
+  takeRaw?: TakeRaw
 ): Promise<ResponseBody> {
   let parsedBody: any;
   const contentType = response.headers.get('content-type')?.toLowerCase();
@@ -126,10 +128,7 @@ export async function deserializeResponseBody(
   return parsedBody;
 }
 
-async function deserializeJsonResponseBody(
-  response: Response,
-  takeRaw: ((parsedBody: Record<string, unknown>) => Record<string, unknown> | undefined) | undefined
-) {
+async function deserializeJsonResponseBody(response: Response, takeRaw: TakeRaw | undefined) {
   try {
     const parsedBody = await response.json();
     const rawEntries = parsedBody && typeof parsedBody === 'object' ? takeRaw?.(parsedBody) : undefined;

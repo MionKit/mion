@@ -28,6 +28,19 @@ const baseURL = TEST_SERVER_BASE_URL;
 const user = {name: 'John', surname: 'Doe'};
 const METADATA = 'mionMethodsMetadata';
 
+// the one body the plain wire form cannot write is rare (a value plain JSON.stringify throws on), so it is forced here
+const plainBody = vi.hoisted(() => ({fails: false}));
+vi.mock('../../src/lib/serializer.ts', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../../src/lib/serializer.ts')>();
+  return {
+    ...original,
+    serializeRequestBody: (...args: Parameters<typeof original.serializeRequestBody>) => {
+      if (args[1] && plainBody.fails) throw new TypeError('Do not know how to serialize');
+      return original.serializeRequestBody(...args);
+    },
+  };
+});
+
 function watchFetch() {
   const spy = vi.spyOn(globalThis, 'fetch');
   return {
@@ -51,7 +64,10 @@ describe('useMethodsMetadata', () => {
     watch = watchFetch();
   });
 
-  afterEach(() => watch.restore());
+  afterEach(() => {
+    watch.restore();
+    plainBody.fails = false;
+  });
 
   it('a success is never sent again: one request, and the rows it brought are kept', async () => {
     const {routes} = newClient();
@@ -69,12 +85,34 @@ describe('useMethodsMetadata', () => {
 
   it('an optimistic call the server could not read is sent once more, with the real encoders', async () => {
     const {routes} = newClient();
-    // a Date the plain wire form writes as text is fine; a number where a string goes fails validation on the server
-    const [result, error] = await routes.sayHello({name: 1} as any).call();
-    expect(result).toBeUndefined();
+    // a union mixing a JSON member with a Date needs the `[index, value]` form, which needs the rows
+    const [result, error] = await routes.echoStringOrDate(new Date('2024-02-02T02:02:02.000Z')).call();
+    expect(error).toBeUndefined();
+    expect(result).toBe('2024-02-02T02:02:02.000Z');
+    const bodies = watch.bodies();
+    expect(bodies).toHaveLength(2);
+    expect(bodies[1].echoStringOrDate).toEqual([[1, '2024-02-02T02:02:02.000Z']]);
+  });
+
+  it('a body the plain wire form cannot write fetches the rows first, then sends once', async () => {
+    plainBody.fails = true;
+    const {routes} = newClient();
+    const [result] = await routes.sayHello(user).call();
+    expect(result).toBe('Hello John Doe');
+    const bodies = watch.bodies();
+    expect(bodies).toHaveLength(2);
+    expect(bodies[0][METADATA][1]).toBe('only');
+    expect(bodies[1][METADATA]).toBeUndefined();
+  });
+
+  it('once the rows came first, a failure on the wire is never sent again', async () => {
+    plainBody.fails = true;
+    // with local validation off the wrong value reaches the server, which refuses it
+    const {routes, middlewares} = initClient<TestServerApi>({baseURL, storageEngine: 'memory', validateParams: false});
+    middlewares.auth.onRequest((auth) => auth(new HeadersSubset({Authorization: 'XWYZ-TOKEN'})));
+    const [, error] = await routes.sayHello({name: 1} as any).call();
     expect(error?.type).toBe('validation-error');
-    // the resend validates locally first, so it never reaches the server
-    expect(watch.bodies()).toHaveLength(1);
+    expect(watch.bodies()).toHaveLength(2);
   });
 
   it("a route's own declared error is never sent again", async () => {
@@ -135,7 +173,7 @@ describe('a client that never set up useMethodsMetadata', () => {
 
   it('rejects typeErrors() for such a route the same way', async () => {
     const {routes} = initPlainClient<TestServerApi>({baseURL, storageEngine: 'memory'});
-    await expect(routes.sayHello(user).typeErrors()).rejects.toBeDefined();
+    await expect(routes.sayHello(user).typeErrors()).rejects.toMatchObject({type: 'route-metadata-not-found'});
   });
 });
 
@@ -163,7 +201,9 @@ describe('the rows a call carries', () => {
   });
 
   it('a refusal is never a reason to send again', async () => {
-    expect(await startCall().shouldResend(false)).toBe(false);
+    expect(
+      await startCall().shouldResend(new Map([[METADATA, new RpcError({type: 'rpc-metadata-not-found', publicMessage: 'no'})]]))
+    ).toBe(false);
   });
 });
 

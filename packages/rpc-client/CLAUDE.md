@@ -49,14 +49,16 @@ Everything about fetching route metadata (the optimistic first call, the browser
 recovery, the one resend) lives behind `useMethodsMetadata` in
 [src/middlewares/methodsMetadata.ts](src/middlewares/methodsMetadata.ts). `dispatch.ts` only calls the
 optional internal hook in [src/lib/metadataFetcher.ts](src/lib/metadataFetcher.ts), which no public type
-names. A client that never calls the installer ships none of it. Do not add a metadata branch back into
+names. Without the installer, `dispatch.ts` only reports `route-metadata-not-found` and a whole-API version
+mismatch. A client that never calls the installer ships none of it. Do not add a metadata branch back into
 `dispatch.ts` or `serializer.ts`.
 
 ## Middleware params come only from onRequest
 
 `call()` and `batch().call()` take no middleware values. A middleware gets its params from its
 `onRequest` hook, which runs before every request whose chain includes it, and `middlewares.x`
-is hooks only. Do not add a second way to pass them.
+is hooks only. Do not add a second way to pass them. The one exception is `useMethodsMetadata`'s internal
+hook, which writes the metadata middleware's params itself: the ids it asks for are only known mid-dispatch.
 
 ## Calls never throw
 
