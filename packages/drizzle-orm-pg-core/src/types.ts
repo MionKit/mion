@@ -19,7 +19,6 @@ import type {
 } from '@mionjs/run-types/formats';
 import type {ColMods, ColRef} from '@mionjs/drizzle-orm';
 
-type Writable<T> = {-readonly [K in keyof T]: T[K]};
 type EnumTuple = readonly [string, ...string[]];
 /** A wide enum config (plain string[]) carries no literal union: fall back. */
 type EnumOr<T extends readonly string[], Fallback> = string extends T[number] ? Fallback : T[number];

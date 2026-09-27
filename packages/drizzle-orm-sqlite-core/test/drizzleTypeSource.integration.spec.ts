@@ -131,7 +131,9 @@ describe('sqlite columns fuzz: authored source through the real resolver', () =>
             expect(builderModel.id, `builder model vs hand-written model, spec ${i}\n${detail}`).toBe(typeModel.id);
             const node = registered[sites[count * PROBES_PER_SPEC + 1 + i].id];
             expect(node, `graph for table ${i}\n${detail}`).toBeTruthy();
-            const slim = buildRtTableFromGraph(node as never, sqliteBuildTable, {tables: {[FUZZ_PARENT_NAME]: slimParent as object}});
+            const slim = buildRtTableFromGraph(node as never, sqliteBuildTable, {
+              tables: {[FUZZ_PARENT_NAME]: slimParent as object},
+            });
             const raw = buildTable(rawSurface, fixture.specs[i], fixture.names[i]);
             expect(project(toDrizzle(slim as never)), `table ${i}\n${detail}`).toEqual(project(raw));
           }

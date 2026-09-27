@@ -50,21 +50,112 @@ import {
 
 // ── the models the chained system produced, captured before the switch ────────
 
-type EveryInsertBefore = { customType: { x: number; y: number; }; blob?: unknown; int?: IntegerFormat | null | undefined; integer?: RTDate | null | undefined; numeric?: bigint | null | undefined; real?: Float | null | undefined; text?: "a" | "b" | null | undefined; };
-type IntPkInsertBefore = { id?: IntegerFormat | undefined; note?: Str | null | undefined; };
-type TextAutoPkInsertBefore = { id?: Str | undefined; };
-type TextPkInsertBefore = { id: Str; };
-type UsersInsertBefore = { name: Str<{ maxLength: 100; }>; role: "admin" | "user"; createdAt: RTDate; id?: IntegerFormat | undefined; rating?: Float | undefined; };
-type WideInsertBefore = { role: "admin" | "user"; createdAt: RTDate; id?: IntegerFormat | undefined; payload?: { kind: string; } | null | undefined; email?: Str | null | undefined; slug?: Str | undefined; touched?: RTDate | null | undefined; flag?: boolean | undefined; big?: RTBigInt | null | undefined; amount?: Float | null | undefined; code?: IntegerFormat | null | undefined; };
-type EverySelectBefore = { blob: unknown; customType: { x: number; y: number; }; int: IntegerFormat | null; integer: RTDate | null; numeric: bigint | null; real: Float | null; text: "a" | "b" | null; };
-type UsersSelectBefore = { id: IntegerFormat; name: Str<{ maxLength: 100; }>; rating: Float; role: "admin" | "user"; createdAt: RTDate; };
-type WideSelectBefore = { id: IntegerFormat; role: "admin" | "user"; payload: { kind: string; } | null; email: Str | null; slug: Str; touched: RTDate | null; derived: Str | null; flag: boolean; big: RTBigInt | null; amount: Float | null; code: IntegerFormat | null; createdAt: RTDate; };
-type ActiveViewViewSelectBefore = { name: Str<{ maxLength: 10; }>; note: Str | null; };
-type EveryUpdateBefore = { blob?: unknown; customType?: { x: number; y: number; } | undefined; int?: IntegerFormat | null | undefined; integer?: RTDate | null | undefined; numeric?: bigint | null | undefined; real?: Float | null | undefined; text?: "a" | "b" | null | undefined; };
-type UsersUpdateBefore = { id?: IntegerFormat | undefined; name?: Str<{ maxLength: 100; }> | undefined; rating?: Float | undefined; role?: "admin" | "user" | undefined; createdAt?: RTDate | undefined; };
-type WideUpdateBefore = { id?: IntegerFormat | undefined; role?: "admin" | "user" | undefined; payload?: { kind: string; } | null | undefined; email?: Str | null | undefined; slug?: Str | undefined; touched?: RTDate | null | undefined; flag?: boolean | undefined; big?: RTBigInt | null | undefined; amount?: Float | null | undefined; code?: IntegerFormat | null | undefined; createdAt?: RTDate | undefined; };
-type UsersRefinedInsertBefore = { name: MergeFormat<Str<{ maxLength: 100; }>, { maxLength: 50; }>; role: "admin" | "user"; createdAt: RTDate; id?: IntegerFormat | undefined; rating?: Float | undefined; };
-type UsersRefinedSelectBefore = { id: IntegerFormat; name: MergeFormat<Str<{ maxLength: 100; }>, { maxLength: 50; }>; rating: Float; role: "admin" | "user"; createdAt: RTDate; };
+type EveryInsertBefore = {
+  customType: {x: number; y: number};
+  blob?: unknown;
+  int?: IntegerFormat | null | undefined;
+  integer?: RTDate | null | undefined;
+  numeric?: bigint | null | undefined;
+  real?: Float | null | undefined;
+  text?: 'a' | 'b' | null | undefined;
+};
+type IntPkInsertBefore = {id?: IntegerFormat | undefined; note?: Str | null | undefined};
+type TextAutoPkInsertBefore = {id?: Str | undefined};
+type TextPkInsertBefore = {id: Str};
+type UsersInsertBefore = {
+  name: Str<{maxLength: 100}>;
+  role: 'admin' | 'user';
+  createdAt: RTDate;
+  id?: IntegerFormat | undefined;
+  rating?: Float | undefined;
+};
+type WideInsertBefore = {
+  role: 'admin' | 'user';
+  createdAt: RTDate;
+  id?: IntegerFormat | undefined;
+  payload?: {kind: string} | null | undefined;
+  email?: Str | null | undefined;
+  slug?: Str | undefined;
+  touched?: RTDate | null | undefined;
+  flag?: boolean | undefined;
+  big?: RTBigInt | null | undefined;
+  amount?: Float | null | undefined;
+  code?: IntegerFormat | null | undefined;
+};
+type EverySelectBefore = {
+  blob: unknown;
+  customType: {x: number; y: number};
+  int: IntegerFormat | null;
+  integer: RTDate | null;
+  numeric: bigint | null;
+  real: Float | null;
+  text: 'a' | 'b' | null;
+};
+type UsersSelectBefore = {
+  id: IntegerFormat;
+  name: Str<{maxLength: 100}>;
+  rating: Float;
+  role: 'admin' | 'user';
+  createdAt: RTDate;
+};
+type WideSelectBefore = {
+  id: IntegerFormat;
+  role: 'admin' | 'user';
+  payload: {kind: string} | null;
+  email: Str | null;
+  slug: Str;
+  touched: RTDate | null;
+  derived: Str | null;
+  flag: boolean;
+  big: RTBigInt | null;
+  amount: Float | null;
+  code: IntegerFormat | null;
+  createdAt: RTDate;
+};
+type ActiveViewViewSelectBefore = {name: Str<{maxLength: 10}>; note: Str | null};
+type EveryUpdateBefore = {
+  blob?: unknown;
+  customType?: {x: number; y: number} | undefined;
+  int?: IntegerFormat | null | undefined;
+  integer?: RTDate | null | undefined;
+  numeric?: bigint | null | undefined;
+  real?: Float | null | undefined;
+  text?: 'a' | 'b' | null | undefined;
+};
+type UsersUpdateBefore = {
+  id?: IntegerFormat | undefined;
+  name?: Str<{maxLength: 100}> | undefined;
+  rating?: Float | undefined;
+  role?: 'admin' | 'user' | undefined;
+  createdAt?: RTDate | undefined;
+};
+type WideUpdateBefore = {
+  id?: IntegerFormat | undefined;
+  role?: 'admin' | 'user' | undefined;
+  payload?: {kind: string} | null | undefined;
+  email?: Str | null | undefined;
+  slug?: Str | undefined;
+  touched?: RTDate | null | undefined;
+  flag?: boolean | undefined;
+  big?: RTBigInt | null | undefined;
+  amount?: Float | null | undefined;
+  code?: IntegerFormat | null | undefined;
+  createdAt?: RTDate | undefined;
+};
+type UsersRefinedInsertBefore = {
+  name: MergeFormat<Str<{maxLength: 100}>, {maxLength: 50}>;
+  role: 'admin' | 'user';
+  createdAt: RTDate;
+  id?: IntegerFormat | undefined;
+  rating?: Float | undefined;
+};
+type UsersRefinedSelectBefore = {
+  id: IntegerFormat;
+  name: MergeFormat<Str<{maxLength: 100}>, {maxLength: 50}>;
+  rating: Float;
+  role: 'admin' | 'user';
+  createdAt: RTDate;
+};
 
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 type Expect<T extends true> = T;

@@ -115,10 +115,7 @@ describe('buildRtTableFromGraph', () => {
 
   it('a config-only column keeps the config as the single builder arg', () => {
     const fake = makeFake();
-    const slim = buildRtTableFromGraph(
-      tableNode('t', {note: colNode('varchar', {length: lit(5)})}),
-      fake.buildTable
-    );
+    const slim = buildRtTableFromGraph(tableNode('t', {note: colNode('varchar', {length: lit(5)})}), fake.buildTable);
     materializeRtTable(slim, fake.context);
     expect(fake.calls[0]).toEqual(['ns', 'varchar', {length: 5}]);
   });

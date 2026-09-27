@@ -11,7 +11,6 @@
 import type {BigInt as RTBigInt, Date as RTDate, Float, Integer as IntegerFormat, String as Str} from '@mionjs/run-types/formats';
 import type {ColMods, ColRef} from '@mionjs/drizzle-orm';
 
-type Writable<T> = {-readonly [K in keyof T]: T[K]};
 type EnumTuple = readonly [string, ...string[]];
 export type UpdateDeleteAction = 'cascade' | 'restrict' | 'no action' | 'set null' | 'set default';
 export interface ReferenceActions {

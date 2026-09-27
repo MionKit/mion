@@ -27,7 +27,6 @@ import type {
 } from '@mionjs/run-types/formats';
 import type {ColMods, ColRef} from '@mionjs/drizzle-orm';
 
-type Writable<T> = {-readonly [K in keyof T]: T[K]};
 type EnumTuple = readonly [string, ...string[]];
 type EnumOr<T extends readonly string[], Fallback> = string extends T[number] ? Fallback : T[number];
 export type UpdateDeleteAction = 'cascade' | 'restrict' | 'no action' | 'set null' | 'set default';
