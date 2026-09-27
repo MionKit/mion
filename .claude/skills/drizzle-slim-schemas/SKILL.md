@@ -18,16 +18,16 @@ table type; models derive the flags from the props lazily; drizzle-orm is an
 OPTIONAL peer.
 
 - `packages/drizzle-orm` (`@mionjs/drizzle-orm`) — the dialect-agnostic core:
-  the column types (`src/columns.ts`: `Column`, `colModNames`, the flag
-  derivation), `recordColumn` (splits a builder's props into drizzle's config
+  the column types (`src/types.ts`: `Column`, `ColMods`, the flag derivation;
+  `src/columns.ts`: `colModNames`, `$type`), `recordColumn` (splits a builder's props into drizzle's config
   argument and its modifier calls), RtColumnRecorder, RtEntryRecorder
   (index/constraint chains), RtValueRecorder (enum/schema/sequence/role handles),
   the sql recorder, createRtTable/materializeRtTable, `tableRef`, flat
   InferSelectModel/InferInsertModel/InferUpdateModel, refineTableType, the sql template. Consumers import ALL of
   this shared surface from @mionjs/drizzle-orm directly.
 - `packages/drizzle-orm-<dialect>-core` — the dialect surface: `src/columns.ts`
-  (column builders, their column types and the builder props interfaces),
-  `src/types.ts` (each builder's config, data type and `*ColMods` bag), `src/table.ts`
+  (column builders and their column types), `src/types.ts` (each builder's config,
+  data type, `*ColMods` bag and props interface, and the shared table/view/entry types), `src/table.ts`
   (table factories/schema handles), `src/helpers.ts` (index, constraints,
   checks, enums, policies), `src/drizzle.ts` (toDrizzle + the synthesized
   drizzle table typing), `src/index.ts` (the package root module). A dialect index
@@ -128,7 +128,8 @@ function-carrying keys in their runtime shape (`references: [() => tableRef(...)
 `$defaultFn: [() => ...]`). A new drizzle modifier means: a key
 in the core `ColMods` (`packages/drizzle-orm/src/types.ts`) and in `colModNames` (`src/columns.ts`)
 AND in `drizzleModNames` (`ts-go-runtypes/internal/convert/drizzle.go`), a key in the
-`*ColMods` bags and the props interfaces of the builders that have it, and its flag
+`*ColMods` bags and the props interfaces of the builders that have it (the `*SharedColMods`
+base when both spell it alike), and its flag
 in the derivation key lists (`NotNullKeys` / `DefaultKeys` / `ExcludedKeys`). The value
 is `true` for a no-arg call and the args tuple otherwise. Four gates catch a
 half-done job: `colMods.spec.ts`, `TestDrizzleModNamesMatchManifests`, each dialect's
@@ -188,7 +189,7 @@ the dialect looks finished while a gate or a lane silently skips it.
 | Where | What |
 | --- | --- |
 | `packages/drizzle-orm-<d>-core/` | `package.json`, `tsconfig.json`, `tsconfig.build.json`, `vite.config.ts`, `vitest.config.ts`, thin `README.md`, a `CLAUDE.md` carrying ONLY what is specific to this dialect |
-| `src/` | `columns.ts`, `table.ts`, `helpers.ts`, `views.ts`, `drizzle.ts`, `index.ts` |
+| `src/` | `columns.ts`, `types.ts`, `table.ts`, `helpers.ts`, `views.ts`, `drizzle.ts`, `index.ts` |
 | `test/` | `index.spec.ts` (the equality matrix), `type-pins.stub.ts`, `typeTables.spec.ts`, `valueHelpers.spec.ts`, `manifest-coverage.spec.ts` |
 | repo root | a `drizzle-dialects.json` row, a `tsconfig.json` reference, the `lint:eslint` glob AND the lint-staged glob in `package.json`, the vitest project list |
 | e2e | its own lane and image, per "Adding an e2e image" below |
