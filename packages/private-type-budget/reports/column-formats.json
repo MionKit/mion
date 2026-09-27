@@ -5,21 +5,21 @@
     {
       "dialect": "pg",
       "label": "5 mixed, select",
-      "types": 683,
-      "builders": 1160,
+      "types": 671,
+      "builders": 1152,
       "budget": {
-        "types": 683,
-        "builders": 1160
+        "types": 671,
+        "builders": 1152
       }
     },
     {
       "dialect": "pg",
       "label": "5 mixed, select + insert",
-      "types": 1276,
-      "builders": 1828,
+      "types": 1264,
+      "builders": 1820,
       "budget": {
-        "types": 1276,
-        "builders": 1828
+        "types": 1264,
+        "builders": 1820
       }
     },
     {
@@ -65,61 +65,61 @@
     {
       "dialect": "pg",
       "label": "wide vocabulary, select",
-      "types": 873,
-      "builders": 1461,
+      "types": 848,
+      "builders": 1451,
       "budget": {
-        "types": 873,
-        "builders": 1461
+        "types": 848,
+        "builders": 1451
       }
     },
     {
       "dialect": "pg",
       "label": "two tables, one reference",
-      "types": 266,
-      "builders": 494,
+      "types": 263,
+      "builders": 490,
       "budget": {
-        "types": 266,
-        "builders": 494
+        "types": 263,
+        "builders": 490
       }
     },
     {
       "dialect": "pg",
       "label": "refineTableType, select",
-      "types": 1421,
-      "builders": 1918,
+      "types": 1366,
+      "builders": 1869,
       "budget": {
-        "types": 1421,
-        "builders": 1918
+        "types": 1366,
+        "builders": 1869
       }
     },
     {
       "dialect": "pg",
       "label": "toDrizzle + select / insert / update query",
-      "types": 8956,
-      "builders": 10105,
+      "types": 8943,
+      "builders": 10095,
       "budget": {
-        "types": 8956,
-        "builders": 10105
+        "types": 8943,
+        "builders": 10095
       }
     },
     {
       "dialect": "mysql",
       "label": "5 mixed, select",
-      "types": 712,
-      "builders": 1184,
+      "types": 700,
+      "builders": 1176,
       "budget": {
-        "types": 712,
-        "builders": 1184
+        "types": 700,
+        "builders": 1176
       }
     },
     {
       "dialect": "mysql",
       "label": "5 mixed, select + insert",
-      "types": 1268,
-      "builders": 1801,
+      "types": 1256,
+      "builders": 1793,
       "budget": {
-        "types": 1268,
-        "builders": 1801
+        "types": 1256,
+        "builders": 1793
       }
     },
     {
@@ -165,61 +165,61 @@
     {
       "dialect": "mysql",
       "label": "wide vocabulary, select",
-      "types": 1040,
-      "builders": 1718,
+      "types": 1020,
+      "builders": 1706,
       "budget": {
-        "types": 1040,
-        "builders": 1718
+        "types": 1020,
+        "builders": 1706
       }
     },
     {
       "dialect": "mysql",
       "label": "two tables, one reference",
-      "types": 290,
-      "builders": 525,
+      "types": 287,
+      "builders": 521,
       "budget": {
-        "types": 290,
-        "builders": 525
+        "types": 287,
+        "builders": 521
       }
     },
     {
       "dialect": "mysql",
       "label": "refineTableType, select",
-      "types": 1447,
-      "builders": 1939,
+      "types": 1392,
+      "builders": 1890,
       "budget": {
-        "types": 1447,
-        "builders": 1939
+        "types": 1392,
+        "builders": 1890
       }
     },
     {
       "dialect": "mysql",
       "label": "toDrizzle + select / insert / update query",
-      "types": 8583,
-      "builders": 9786,
+      "types": 8570,
+      "builders": 9776,
       "budget": {
-        "types": 8583,
-        "builders": 9786
+        "types": 8570,
+        "builders": 9776
       }
     },
     {
       "dialect": "sqlite",
       "label": "5 mixed, select",
-      "types": 658,
-      "builders": 1058,
+      "types": 649,
+      "builders": 1053,
       "budget": {
-        "types": 658,
-        "builders": 1058
+        "types": 649,
+        "builders": 1053
       }
     },
     {
       "dialect": "sqlite",
       "label": "5 mixed, select + insert",
-      "types": 1252,
-      "builders": 1716,
+      "types": 1243,
+      "builders": 1711,
       "budget": {
-        "types": 1252,
-        "builders": 1716
+        "types": 1243,
+        "builders": 1711
       }
     },
     {
@@ -265,41 +265,41 @@
     {
       "dialect": "sqlite",
       "label": "wide vocabulary, select",
-      "types": 977,
-      "builders": 1576,
+      "types": 959,
+      "builders": 1567,
       "budget": {
-        "types": 977,
-        "builders": 1576
+        "types": 959,
+        "builders": 1567
       }
     },
     {
       "dialect": "sqlite",
       "label": "two tables, one reference",
-      "types": 298,
-      "builders": 518,
+      "types": 296,
+      "builders": 515,
       "budget": {
-        "types": 298,
-        "builders": 518
+        "types": 296,
+        "builders": 515
       }
     },
     {
       "dialect": "sqlite",
       "label": "refineTableType, select",
-      "types": 1393,
-      "builders": 1813,
+      "types": 1341,
+      "builders": 1767,
       "budget": {
-        "types": 1393,
-        "builders": 1813
+        "types": 1341,
+        "builders": 1767
       }
     },
     {
       "dialect": "sqlite",
       "label": "toDrizzle + select / insert / update query",
-      "types": 7672,
-      "builders": 8696,
+      "types": 7662,
+      "builders": 8689,
       "budget": {
-        "types": 7672,
-        "builders": 8696
+        "types": 7662,
+        "builders": 8689
       }
     }
   ]

@@ -23,34 +23,34 @@ Net instantiations per step, one table per dialect.
 
 | Step | Layer | slim | type-only | builder |
 | ---: | ----- | ---: | ---: | ---: |
-| 1 | declare the formatted row | 881 | 47 | 553 |
-| 2 | refine two columns | 1140 | 393 | 384 |
+| 1 | declare the formatted row | 876 | 47 | 553 |
+| 2 | refine two columns | 1076 | 393 | 384 |
 | 3 | select / insert / update models | 591 | 254 | 262 |
 | 4 | mion route api | 525 | 500 | 496 |
 | 5 | initClient | 3179 | 3106 | 3346 |
-| | **Total** | **6316** | **4300** | **5041** |
+| | **Total** | **6247** | **4300** | **5041** |
 
 ## mysql
 
 | Step | Layer | slim | type-only | builder |
 | ---: | ----- | ---: | ---: | ---: |
-| 1 | declare the formatted row | 900 | 47 | 553 |
-| 2 | refine two columns | 1137 | 393 | 384 |
+| 1 | declare the formatted row | 895 | 47 | 553 |
+| 2 | refine two columns | 1073 | 393 | 384 |
 | 3 | select / insert / update models | 591 | 254 | 262 |
 | 4 | mion route api | 525 | 500 | 496 |
 | 5 | initClient | 3179 | 3106 | 3346 |
-| | **Total** | **6332** | **4300** | **5041** |
+| | **Total** | **6263** | **4300** | **5041** |
 
 ## sqlite
 
 | Step | Layer | slim | type-only | builder |
 | ---: | ----- | ---: | ---: | ---: |
-| 1 | declare the formatted row | 906 | 47 | 549 |
-| 2 | refine two columns | 1132 | 388 | 379 |
+| 1 | declare the formatted row | 900 | 47 | 549 |
+| 2 | refine two columns | 1068 | 388 | 379 |
 | 3 | select / insert / update models | 591 | 254 | 262 |
 | 4 | mion route api | 524 | 500 | 496 |
 | 5 | initClient | 3179 | 3106 | 3346 |
-| | **Total** | **6332** | **4295** | **5032** |
+| | **Total** | **6262** | **4295** | **5032** |
 
 ## Reading this
 

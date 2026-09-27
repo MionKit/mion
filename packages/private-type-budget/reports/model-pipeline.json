@@ -8,56 +8,110 @@
         {
           "step": 1,
           "label": "slim table + row",
-          "delta": 881,
-          "budget": 881,
-          "cumulative": 881
+          "delta": 876,
+          "budget": 876,
+          "cumulative": 876
         },
         {
           "step": 2,
           "label": "refineTableType",
-          "delta": 1140,
-          "budget": 1140,
-          "cumulative": 2021
+          "delta": 1076,
+          "budget": 1076,
+          "cumulative": 1952
         },
         {
           "step": 3,
           "label": "Infer* models",
           "delta": 591,
           "budget": 591,
-          "cumulative": 2612
+          "cumulative": 2543
         },
         {
           "step": 4,
           "label": "mion route api",
           "delta": 525,
           "budget": 525,
-          "cumulative": 3137
+          "cumulative": 3068
         },
         {
           "step": 5,
           "label": "initClient",
           "delta": 3179,
           "budget": 3179,
-          "cumulative": 6316
+          "cumulative": 6247
         },
         {
           "step": 6,
           "label": "db query (toDrizzle)",
-          "delta": 8576,
-          "budget": 8576,
-          "cumulative": 14892
+          "delta": 8571,
+          "budget": 8571,
+          "cumulative": 14818
         }
       ],
-      "totalBudget": 14892,
+      "totalBudget": 14818,
       "consumer": {
-        "budget": 1616,
-        "netInstantiations": 1616,
+        "budget": 1605,
+        "netInstantiations": 1605,
         "keepsGenericAlias": true,
         "dtsBytes": 1248
       }
     },
     {
       "dialect": "mysql",
+      "steps": [
+        {
+          "step": 1,
+          "label": "slim table + row",
+          "delta": 895,
+          "budget": 895,
+          "cumulative": 895
+        },
+        {
+          "step": 2,
+          "label": "refineTableType",
+          "delta": 1073,
+          "budget": 1073,
+          "cumulative": 1968
+        },
+        {
+          "step": 3,
+          "label": "Infer* models",
+          "delta": 591,
+          "budget": 591,
+          "cumulative": 2559
+        },
+        {
+          "step": 4,
+          "label": "mion route api",
+          "delta": 525,
+          "budget": 525,
+          "cumulative": 3084
+        },
+        {
+          "step": 5,
+          "label": "initClient",
+          "delta": 3179,
+          "budget": 3179,
+          "cumulative": 6263
+        },
+        {
+          "step": 6,
+          "label": "db query (toDrizzle)",
+          "delta": 7245,
+          "budget": 7245,
+          "cumulative": 13508
+        }
+      ],
+      "totalBudget": 13508,
+      "consumer": {
+        "budget": 1602,
+        "netInstantiations": 1602,
+        "keepsGenericAlias": true,
+        "dtsBytes": 1250
+      }
+    },
+    {
+      "dialect": "sqlite",
       "steps": [
         {
           "step": 1,
@@ -69,97 +123,43 @@
         {
           "step": 2,
           "label": "refineTableType",
-          "delta": 1137,
-          "budget": 1137,
-          "cumulative": 2037
+          "delta": 1068,
+          "budget": 1068,
+          "cumulative": 1968
         },
         {
           "step": 3,
           "label": "Infer* models",
           "delta": 591,
           "budget": 591,
-          "cumulative": 2628
-        },
-        {
-          "step": 4,
-          "label": "mion route api",
-          "delta": 525,
-          "budget": 525,
-          "cumulative": 3153
-        },
-        {
-          "step": 5,
-          "label": "initClient",
-          "delta": 3179,
-          "budget": 3179,
-          "cumulative": 6332
-        },
-        {
-          "step": 6,
-          "label": "db query (toDrizzle)",
-          "delta": 7250,
-          "budget": 7250,
-          "cumulative": 13582
-        }
-      ],
-      "totalBudget": 13582,
-      "consumer": {
-        "budget": 1613,
-        "netInstantiations": 1613,
-        "keepsGenericAlias": true,
-        "dtsBytes": 1250
-      }
-    },
-    {
-      "dialect": "sqlite",
-      "steps": [
-        {
-          "step": 1,
-          "label": "slim table + row",
-          "delta": 906,
-          "budget": 906,
-          "cumulative": 906
-        },
-        {
-          "step": 2,
-          "label": "refineTableType",
-          "delta": 1132,
-          "budget": 1132,
-          "cumulative": 2038
-        },
-        {
-          "step": 3,
-          "label": "Infer* models",
-          "delta": 591,
-          "budget": 591,
-          "cumulative": 2629
+          "cumulative": 2559
         },
         {
           "step": 4,
           "label": "mion route api",
           "delta": 524,
           "budget": 524,
-          "cumulative": 3153
+          "cumulative": 3083
         },
         {
           "step": 5,
           "label": "initClient",
           "delta": 3179,
           "budget": 3179,
-          "cumulative": 6332
+          "cumulative": 6262
         },
         {
           "step": 6,
           "label": "db query (toDrizzle)",
-          "delta": 7431,
-          "budget": 7431,
-          "cumulative": 13763
+          "delta": 7426,
+          "budget": 7426,
+          "cumulative": 13688
         }
       ],
-      "totalBudget": 13763,
+      "totalBudget": 13688,
       "consumer": {
-        "budget": 1585,
-        "netInstantiations": 1585,
+        "budget": 1574,
+        "netInstantiations": 1574,
         "keepsGenericAlias": true,
         "dtsBytes": 1225
       }

@@ -400,8 +400,8 @@ The live numbers are in
 
 The last run with both systems in the tree, 2026-09-27. Chained builders were
 `varchar('name', {length: 100}).notNull()`, chained types the column types that carried their
-db name. The single-call columns are the live report above; five mixed pg columns there cost
-683 hand-written and 1160 as builders.
+db name. The single-call columns are the live report above; five mixed pg columns cost
+683 hand-written and 1160 as builders in that run.
 
 | Dialect | Shape                                      | chained builders | chained types |
 | ------- | ------------------------------------------ | ---------------: | ------------: |
@@ -472,6 +472,20 @@ exception. Measured on pg, five mixed / 10 plain named, builders in the last col
 | Key remapping `as` / `Partial<Record<...>>` instead of homomorphic            | 743 / 694 | 1235 / 1206 | rejected                                                                                     |
 
 Overload order is part of the cost: a plain name must never reach the props overload.
+
+A key set to `undefined` (`{notNull: undefined}`) also passed `Only`: the models read it as set
+(NOT NULL) and the runtime threw. Measured on pg, five mixed, types / builders, from 683 / 1160:
+
+- `Exclude<Allowed[K], undefined>` per key: 767 / 1244, rejected.
+- `Required<Allowed>[K]` per key: 764 / 1241, rejected.
+- `Allowed[K] & {}` per key: 692 / 1169, rejected.
+- `Only` intersected with one index signature of defined values: 675 / 1152, kept. Its value type
+  is `NonNullable<unknown> | null`; the plain `{}` the linter bans measures 2 less.
+
+A readonly `$type` tuple read as `Data[]`. Matching `readonly [infer Override]` in `ValueOf` added
+3 to every wide vocabulary select, a second readonly branch 5, `readonly (infer Override)[]` 34.
+The column type bags declare `$type?: [unknown]` instead, so a readonly tuple is refused. Declared
+in each bag, not picked from `ColMods`: the picked key cost 3 more on sqlite.
 
 ### Why the chained type road cost what it did, isolated
 

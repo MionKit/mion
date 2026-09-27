@@ -295,26 +295,24 @@ function pipelineDialect(source: DialectSource, budgets: PipelineBudgets): Pipel
 export const PIPELINE_DIALECTS: PipelineDialect[] = [
   pipelineDialect(PG, {
     steps: [
-      // 434 -> 881: a REVIEWED EXCEPTION, single-call builders pay overloads, stray keys, name lifting (see typeRoad).
-      881,
-      // 1141 -> 1140: lowered, refineTableType reads the raw props.
-      1140,
+      // 434 -> 876: a REVIEWED EXCEPTION, single-call builders pay overloads, stray keys, name lifting (see typeRoad).
+      876, 1076,
       // 578 -> 591: a REVIEWED EXCEPTION, the models derive flags from props.
       591,
       // 523 -> 525: a REVIEWED EXCEPTION, the route api reads the models derived from props.
       525,
       // 3052 -> 3179: a REVIEWED EXCEPTION, the client maps the models derived from props.
       3179,
-      // 7857 -> 8576: a REVIEWED EXCEPTION, toDrizzle derives each column's flags from props.
-      8576,
+      // 7857 -> 8571: a REVIEWED EXCEPTION, toDrizzle derives each column's flags from props.
+      8571,
     ],
-    // 13580 -> 14892: a REVIEWED EXCEPTION, the single-call steps above.
-    total: 14892,
-    // 1784 -> 1616: lowered to the measurement, which rose from 1495 because the consumer derives the flags from props.
-    consumer: 1616,
+    // 13580 -> 14818: a REVIEWED EXCEPTION, the single-call steps above.
+    total: 14818,
+    // 1784 -> 1605: lowered to the measurement, which rose from 1495 because the consumer derives the flags from props.
+    consumer: 1605,
   }),
-  pipelineDialect(MYSQL, {steps: [900, 1137, 591, 525, 3179, 7250], total: 13582, consumer: 1613}),
-  pipelineDialect(SQLITE, {steps: [906, 1132, 591, 524, 3179, 7431], total: 13763, consumer: 1585}),
+  pipelineDialect(MYSQL, {steps: [895, 1073, 591, 525, 3179, 7245], total: 13508, consumer: 1602}),
+  pipelineDialect(SQLITE, {steps: [900, 1068, 591, 524, 3179, 7426], total: 13688, consumer: 1574}),
 ];
 
 /** The cumulative snippet of `pipeline` up to (and including) `index`. **/
