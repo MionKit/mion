@@ -43,7 +43,10 @@ export type ColSpecOf<C> = C extends {readonly [rtColSpecKey]?: infer Spec} ? No
 export type Merge<Props, Mod> = {[K in keyof (Props & Mod)]: (Props & Mod)[K]};
 
 /** Strip `readonly` from a const-inferred config so it equals the hand-written object. */
-export type Writable<T> = {-readonly [K in keyof T]: T[K] extends readonly unknown[] ? MutableTuple<T[K]> : T[K]};
+// `$type` is left alone: its tuple holds a caller's type (a nominal brand, a class), which a mapped type would flatten.
+export type Writable<T> = {
+  -readonly [K in keyof T]: K extends '$type' ? T[K] : T[K] extends readonly unknown[] ? MutableTuple<T[K]> : T[K];
+};
 // Its own alias: only a mapped type over a bare type parameter maps a tuple to a tuple.
 type MutableTuple<A> = {
   -readonly [I in keyof A]: A[I] extends (...args: never[]) => unknown
@@ -72,9 +75,11 @@ export type PropsOf<C> = [keyof C & RuntimeModKeys] extends [never]
         ? RefArgs<C[K]>
         : K extends RuntimeModKeys
           ? true
-          : C[K] extends readonly unknown[]
-            ? MutableTuple<C[K]>
-            : C[K];
+          : K extends '$type'
+            ? C[K]
+            : C[K] extends readonly unknown[]
+              ? MutableTuple<C[K]>
+              : C[K];
     };
 
 /** `$type<T>()` in a builder's props: drizzle's `.$type<T>()`, recorded as `{$type: [T]}`. Type-only. */
