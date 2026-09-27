@@ -341,7 +341,7 @@ function readTree(dir: string): string[] {
   return out;
 }
 
-function readManifest(genDir: string): {kind: string; mode?: string; methods: Record<string, {paramsId: string}>} {
+function readManifest(genDir: string): {kind: string; methods: Record<string, {paramsId: string}>} {
   return JSON.parse(fs.readFileSync(path.join(genDir, 'api', 'manifest.json'), 'utf8'));
 }
 
@@ -385,7 +385,6 @@ describe('mion compile + api-check — a bundled client against its server', () 
       expect(clientRun.status, clientRun.report).toBe(0);
       const clientManifest = readManifest(clientGen);
       expect(clientManifest.kind).toBe('client');
-      expect(clientManifest.mode).toBe('bundled');
       expect(Object.keys(clientManifest.methods)).toEqual(['users/getById']);
       expect(clientManifest.methods['users/getById'].paramsId).toBe(serverManifest.methods['users/getById'].paramsId);
       // the emitted client imports the lane module and the site module at the call, both relativized

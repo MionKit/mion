@@ -480,6 +480,21 @@ func TestApiGen_ApiTsconfigResolvesTypesInTheApiProgram(t *testing.T) {
 	}
 }
 
+// TestApiGen_ApiTsconfigFollowsAnEditToTheApiProject: the API project's routes are read again once it changes, with no client edit.
+func TestApiGen_ApiTsconfigFollowsAnEditToTheApiProject(t *testing.T) {
+	serverDir := filepath.Join(t.TempDir(), "server")
+	serverTsconfig := writeApiServerProject(t, serverDir, 1)
+	sess := setupApi(t, map[string]string{"client.d.ts": apiClientDTS, "client.ts": apiPeerClientTS}, t.TempDir(), constants.BundleApiBundled, serverTsconfig)
+	if diags := metDiags(sess.Dispatch(protocol.Request{Op: protocol.OpGenerate}).Diagnostics); len(diags) != 0 {
+		t.Fatalf("one matching initRoutes, got %+v", diags)
+	}
+	writeFile(t, filepath.Join(serverDir, "routes.ts"), apiServerRoutesTS(2, false))
+	diags := metDiags(sess.Dispatch(protocol.Request{Op: protocol.OpGenerate}).Diagnostics)
+	if len(diags) != 1 || diags[0].Code != diagnostics.CodeApiMetaSourceAmbiguous {
+		t.Fatalf("the edit made two matching initRoutes, expected MET005, got %+v", diags)
+	}
+}
+
 // TestApiGen_ApiTsconfigNeedsOneMatchingInitRoutes: two initRoutes calls
 // declaring the same routes, or none, are MET005.
 func TestApiGen_ApiTsconfigNeedsOneMatchingInitRoutes(t *testing.T) {
@@ -522,8 +537,8 @@ func TestApiGen_ClientManifestListsTheBundledMethods(t *testing.T) {
 		t.Fatalf("generate: %s", gen.Error)
 	}
 	manifest := readManifest(t, genDir)
-	if manifest.Kind != apimeta.ManifestKindClient || manifest.Mode != "bundled" {
-		t.Fatalf("expected a bundled client manifest, got kind %q mode %q", manifest.Kind, manifest.Mode)
+	if manifest.Kind != apimeta.ManifestKindClient {
+		t.Fatalf("expected a client manifest, got kind %q", manifest.Kind)
 	}
 	ids := make([]string, 0, len(manifest.Methods))
 	for id := range manifest.Methods {
@@ -910,11 +925,15 @@ const lookAlike = {
 export type LookAlikeApi = Mapped<typeof lookAlike>;
 `
 
-func generateMetadataDiags(t *testing.T, mode constants.BundleApiMode, client string) []diagnostics.Diagnostic {
+func metadataSession(t *testing.T, mode constants.BundleApiMode, client string) *resolver.Session {
 	t.Helper()
 	sources := map[string]string{"client.d.ts": apiClientDTS, "router.d.ts": metadataRouterDTS, "api.ts": metadataApiTS, "client.ts": client}
-	sess := setupApi(t, sources, t.TempDir(), mode, "")
-	gen := sess.Dispatch(protocol.Request{Op: protocol.OpGenerate})
+	return setupApi(t, sources, t.TempDir(), mode, "")
+}
+
+func generateMetadataDiags(t *testing.T, mode constants.BundleApiMode, client string) []diagnostics.Diagnostic {
+	t.Helper()
+	gen := metadataSession(t, mode, client).Dispatch(protocol.Request{Op: protocol.OpGenerate})
 	if gen.Error != "" {
 		t.Fatalf("generate: %s", gen.Error)
 	}
@@ -994,7 +1013,8 @@ func TestApiGen_MetadataFetchingSetup(t *testing.T) {
 		{"off, not set up, API without middleware", constants.BundleApiOff, bare, false, true, []string{diagnostics.CodeApiMetaNoMetadataToFetch}, 4},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			diags := generateMetadataDiags(t, tc.mode, fetchingClient(tc.api, tc.setUp, tc.widened))
+			client := fetchingClient(tc.api, tc.setUp, tc.widened)
+			diags := generateMetadataDiags(t, tc.mode, client)
 			var codes []string
 			for _, diag := range diags {
 				codes = append(codes, diag.Code)
@@ -1010,8 +1030,76 @@ func TestApiGen_MetadataFetchingSetup(t *testing.T) {
 					t.Errorf("%s must stop the build, got level %v", diag.Code, diag.Level)
 				}
 			}
+			if tc.mode == constants.BundleApiBundled && tc.widened {
+				scan := metadataSession(t, tc.mode, client).Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"client.ts"}})
+				scanDiags := metDiags(scan.Diagnostics)
+				if len(scanDiags) != 1 || scanDiags[0].Code != tc.want[0] || scanDiags[0].Site.StartLine != tc.line {
+					t.Errorf("a scan reports the widened call as the build does (%s on line %d), got %+v", tc.want[0], tc.line, scanDiags)
+				}
+			}
 		})
 	}
+}
+
+// TestApiGen_MetadataFetchingPerClient: `useMethodsMetadata` sets up the client its argument comes from, not every client.
+func TestApiGen_MetadataFetchingPerClient(t *testing.T) {
+	const header = "import {initClient, useMethodsMetadata} from '@mionjs/client';\nimport type {RouteSubRequest} from '@mionjs/client';\nimport type {ServedApi, MetadataApi, OptionalApi} from './api.ts';\n"
+	t.Run("off: the client that never sets it up is reported, at its own initClient", func(t *testing.T) {
+		client := header + `const served = initClient<ServedApi>({baseURL: 'http://x'});
+useMethodsMetadata(served.middlewares.note as any);
+served.middlewares.note.onRequest((call) => call());
+export const other = initClient<MetadataApi>({baseURL: 'http://y'});
+`
+		diags := generateMetadataDiags(t, constants.BundleApiOff, client)
+		if len(diags) != 1 || diags[0].Code != diagnostics.CodeApiMetaFetchNotSetUp || diags[0].Site.StartLine != 7 {
+			t.Fatalf("expected one MET011 at the second initClient, got %+v", diags)
+		}
+	})
+	t.Run("off: a setup the build cannot follow covers every client", func(t *testing.T) {
+		client := header + `export function setUp(middleware: unknown) { useMethodsMetadata(middleware as any); }
+const served = initClient<ServedApi>({baseURL: 'http://x'});
+served.middlewares.note.onRequest((call) => call());
+export const other = initClient<MetadataApi>({baseURL: 'http://y'});
+`
+		if diags := generateMetadataDiags(t, constants.BundleApiOff, client); len(diags) != 0 {
+			t.Fatalf("an untraced setup may belong to any client, got %+v", diags)
+		}
+	})
+	t.Run("bundled: a widened call of a client that never sets it up fails", func(t *testing.T) {
+		client := header + `const served = initClient<ServedApi>({baseURL: 'http://x'});
+useMethodsMetadata(served.middlewares.note as any);
+served.middlewares.note.onRequest((call) => call());
+const bare = initClient<OptionalApi>({baseURL: 'http://y'});
+bare.middlewares.note.onRequest((call) => call());
+function wide(sub: RouteSubRequest<any, string, OptionalApi>) { return sub.call(); }
+export const w = wide(bare.routes.ping());
+`
+		diags := generateMetadataDiags(t, constants.BundleApiBundled, client)
+		if len(diags) != 1 || diags[0].Code != diagnostics.CodeApiMetaRouteWidened || diags[0].Site.StartLine != 9 {
+			t.Fatalf("expected MET003 at the helper's call, got %+v", diags)
+		}
+	})
+	t.Run("bundled: a widened call that keeps its API answers from that API", func(t *testing.T) {
+		client := header + `export function setUp(middleware: unknown) { useMethodsMetadata(middleware as any); }
+const served = initClient<ServedApi>({baseURL: 'http://x'});
+served.middlewares.note.onRequest((call) => call());
+const bare = initClient<OptionalApi>({baseURL: 'http://y'});
+bare.middlewares.note.onRequest((call) => call());
+function wide(sub: RouteSubRequest<any, string, OptionalApi>) { return sub.call(); }
+export const w = wide(bare.routes.ping());
+`
+		diags := generateMetadataDiags(t, constants.BundleApiBundled, client)
+		if len(diags) != 1 || diags[0].Code != diagnostics.CodeApiMetaNoMetadataToFetch || diags[0].Site.StartLine != 9 {
+			t.Fatalf("expected MET010 from OptionalApi, not the served client's fallback, got %+v", diags)
+		}
+	})
+	t.Run("off: an API the build cannot read still needs its setup", func(t *testing.T) {
+		client := "import {initClient} from '@mionjs/client';\nexport const loose = initClient<{nothing: string}>({baseURL: 'http://x'});\n"
+		diags := generateMetadataDiags(t, constants.BundleApiOff, client)
+		if len(diags) != 1 || diags[0].Code != diagnostics.CodeApiMetaFetchNotSetUp || diags[0].Site.StartLine != 2 {
+			t.Fatalf("expected MET011 at initClient, got %+v", diags)
+		}
+	})
 }
 
 // TestApiGen_MetadataFetchingReportsOncePerApi: two clients of one API get one report, at the first `initClient`.
@@ -1020,6 +1108,11 @@ func TestApiGen_MetadataFetchingReportsOncePerApi(t *testing.T) {
 	diags := generateMetadataDiags(t, constants.BundleApiOff, client)
 	if len(diags) != 1 || diags[0].Code != diagnostics.CodeApiMetaFetchNotSetUp || diags[0].Site.StartLine != 4 {
 		t.Fatalf("expected one MET011 at the first initClient, got %+v", diags)
+	}
+	bare := fetchingClient("OptionalApi", true, false) + "export const second = initClient<OptionalApi>({baseURL: 'http://y'});\n"
+	diags = generateMetadataDiags(t, constants.BundleApiOff, bare)
+	if len(diags) != 1 || diags[0].Code != diagnostics.CodeApiMetaNoMetadataToFetch || diags[0].Site.StartLine != 4 {
+		t.Fatalf("expected one MET010 at the first initClient, got %+v", diags)
 	}
 }
 

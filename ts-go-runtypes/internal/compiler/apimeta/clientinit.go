@@ -86,19 +86,10 @@ func callsInitClient(typeChecker *checker.Checker, markerOpts marker.Options, so
 		return false
 	}
 	found := false
-	var visit ast.Visitor
-	visit = func(node *ast.Node) bool {
-		if node == nil || found {
-			return false
-		}
-		if node.Kind == ast.KindCallExpression && isInitClientCall(typeChecker, markerOpts, node) {
-			found = true
-			return false
-		}
-		node.ForEachChild(visit)
-		return false
-	}
-	sourceFile.AsNode().ForEachChild(visit)
+	forEachCall(sourceFile, func(call *ast.Node) bool {
+		found = isInitClientCall(typeChecker, markerOpts, call)
+		return !found
+	})
 	return found
 }
 

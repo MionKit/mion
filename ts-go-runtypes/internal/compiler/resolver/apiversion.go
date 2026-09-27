@@ -113,26 +113,7 @@ func (sess *Session) apiVersionSiteOf(sourceFile *ast.SourceFile, call *ast.Node
 	if callExpr == nil || callExpr.Arguments == nil {
 		return apiVersionSite{}, false
 	}
-	signature := checker.Checker_getResolvedSignature(sess.checker, call, nil, 0)
-	if signature == nil {
-		return apiVersionSite{}, false
-	}
-	versionIndex := -1
-	var apiType *checker.Type
-	for paramIndex, paramSymbol := range checker.Signature_parameters(signature) {
-		if paramSymbol == nil {
-			continue
-		}
-		paramType := checker.Checker_getTypeOfSymbol(sess.checker, paramSymbol)
-		kind, markedApi, matched := marker.DetectAny(sess.checker, paramType, sess.marker)
-		if !matched {
-			continue
-		}
-		if kind == marker.KindInjectBuildVersion && markedApi != nil {
-			versionIndex, apiType = paramIndex, markedApi
-			break
-		}
-	}
+	versionIndex, apiType := apimeta.BuildVersionParam(sess.checker, sess.marker, call)
 	if versionIndex < 0 || versionIndex < len(callExpr.Arguments.Nodes) {
 		return apiVersionSite{}, false
 	}
@@ -159,16 +140,9 @@ func (sess *Session) apiVersionSiteOf(sourceFile *ast.SourceFile, call *ast.Node
 // apiVersionOf hashes the API type's method rows; with api.tsConfig it hashes the peer program's tree instead,
 // the same source resolveApiBundle compiles from, so both ends hash ids minted under one checker.
 func (sess *Session) apiVersionOf(apiType *checker.Type) string {
-	tree, problem := apimeta.WalkApi(sess.checker, apiType)
-	if tree == nil || problem != "" {
+	tree := sess.clientApiTree(sess.checker, apiType)
+	if tree == nil {
 		return ""
-	}
-	if sess.opts.ApiTsconfig != "" {
-		peerTree, _, err := sess.apiSourceTree(tree.Ids())
-		if err != nil || peerTree == nil {
-			return ""
-		}
-		tree = peerTree
 	}
 	rows := make(map[string]apimeta.ManifestMethod, len(tree.Methods))
 	for _, method := range tree.Methods {

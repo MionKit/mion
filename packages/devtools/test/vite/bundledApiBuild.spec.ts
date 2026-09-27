@@ -183,11 +183,9 @@ register('bundled API through a real vite build', () => {
     expect(files.some((file) => file.startsWith('types/'))).toBe(true);
     const manifest = JSON.parse(readFileSync(path.join(api, 'manifest.json'), 'utf8')) as {
       kind: string;
-      mode: string;
       methods: Record<string, unknown>;
     };
     expect(manifest.kind).toBe('client');
-    expect(manifest.mode).toBe('bundled');
     expect(Object.keys(manifest.methods).sort()).toEqual(['auth', 'users/getById']);
     // relative imports only, nothing from any project path
     for (const file of ['m/auth.js', 'm/users/getById.js', 's/users/getById.js']) {
