@@ -567,7 +567,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     severity: 'error',
     family: 'marker',
     detail:
-      "`mixed` bundles every route the build can see and fetches the rest from the\nserver at runtime. The server answers those requests only through the\nmetadata pair from `@mionjs/router/middlewares`.\n\nFix: place it first in the server's routes and set up its client half:\n+  mion.initRoutes({...mionMethodsMetadata, ...routes});\n+  useMethodsMetadata(middlewares.mionMethodsMetadata);\nOr build with `bundleApi: 'bundled'` if every call can be bundled.",
+      "`mixed` bundles every route the build can see and fetches the rest from the\nserver at runtime. The server answers those requests only through the\nmetadata middleware from `@mionjs/router/middlewares`.\n\nFix: place it first in the server's routes and set up its client half:\n+  mion.initRoutes({mionMethodsMetadata, ...routes});\n+  useMethodsMetadata(middlewares.mionMethodsMetadata);\nOr build with `bundleApi: 'bundled'` if every call can be bundled.",
   },
   MKR001: {
     headline:

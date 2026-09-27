@@ -20,20 +20,13 @@ export function useMethodsMetadata(middleware: ClientMiddlewareOf<Handler>): voi
   setMetadataFetcher(registry, createFetcher(id));
 }
 
-// the by-id route is spread next to its middleware, so it shares the middleware's group
-function byIdRouteOf(id: string): string {
-  return `${id}ById`;
-}
-
 function createFetcher(id: string): MetadataFetcher {
-  const byIdRouteId = byIdRouteOf(id);
-  const fetchRows = async (ids: string[], options: ClientCallContext['options'], signal?: AbortSignal) => {
-    const lane = await loadMetadataFromServer();
-    await lane.fetchRemoteMethodsMetadata(ids, options, signal, byIdRouteId);
-  };
   return {
     id,
-    fetchRows,
+    fetchRows: async (ids, routePointer, options, signal) => {
+      const lane = await loadMetadataFromServer();
+      await lane.fetchRemoteMethodsMetadata(ids, routePointer, options, signal, id);
+    },
     startCall: (context) => startCall(id, context),
     takeError: () => loadedMetadataFromServer()?.takeMetadataCacheError(),
   };

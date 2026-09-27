@@ -8,8 +8,10 @@
 // Types shared by the server (`@mionjs/router/middlewares`) and client (`@mionjs/client/middlewares`) middleware halves.
 
 export type {
-  MethodsMetadataByIdHandler,
   MethodsMetadataHandler,
+  MethodsMetadataMode,
+  MethodsMetadataOnly,
+  MethodsMetadataOnlyData,
   RouteSyncError,
   RouteSyncErrorData,
   SyncRoutesHandler,

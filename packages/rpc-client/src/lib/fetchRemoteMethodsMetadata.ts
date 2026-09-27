@@ -5,39 +5,49 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {isRpcError, MION_ROUTES, getRoutePath, RpcError} from '@mionjs/core';
+import {isRpcError, MION_ROUTES, getRoutePath, RpcError, getRouterItemId} from '@mionjs/core';
+import type {MethodsMetadataOnlyData} from '@mionjs/core/middlewares';
 import {ClientOptions, RequestBody} from '../types.ts';
-import {extractAndProcessMetadata, hydrateMetadataCache} from './clientMethodsMetadata.ts';
+import {hydrateMetadataCache, installMethodRows} from './clientMethodsMetadata.ts';
 import {hasMethod} from './methods.ts';
 
-/** The by-id route `mionMethodsMetadata` spreads into the routes, next to its middleware. */
-export const METHODS_METADATA_BY_ID = 'mionMethodsMetadataById';
+/** The key `mionMethodsMetadata` sits under when placed by its own name. */
+export const METHODS_METADATA_ID = 'mionMethodsMetadata';
 
-/** Fetched lane only: asks the by-id route for rows, without running any route. */
+/** Asks for rows alone: sent to a route's path, the metadata middleware answers and stops the call before the route. */
 export async function fetchRemoteMethodsMetadata(
   methodIds: string[],
+  routePointer: string[],
   options: ClientOptions,
   signal?: AbortSignal,
-  byIdRouteId: string = METHODS_METADATA_BY_ID
+  middlewareId: string = METHODS_METADATA_ID
 ): Promise<void> {
   await hydrateMetadataCache(options);
   const missingAfterLocal = methodIds.filter((path) => !hasMethod(path));
   if (!missingAfterLocal.length) return;
-  const body: RequestBody = {[byIdRouteId]: [missingAfterLocal]};
+  const body: RequestBody = {
+    [middlewareId]: [missingAfterLocal, 'only'],
+    // not params: a server without the middleware refuses this slot instead of running the route
+    [getRouterItemId(routePointer)]: 'metadata-only' as any,
+  };
   try {
-    const path = getRoutePath(byIdRouteId.split('/'), options);
-    const url = new URL(path, options.baseURL);
+    const url = new URL(getRoutePath(routePointer, options), options.baseURL);
     const response = await fetch(url, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(body),
       signal,
     });
-    // the route pins the built-in parser on both wires, so its answer is plain JSON
+    // the middleware pins the built-in parser on both wires, so its answer is plain JSON
     const parsedBody = await response.json();
     const platformError = parsedBody?.[MION_ROUTES.thrownErrors]?.[MION_ROUTES.platformError];
     if (isRpcError(platformError)) throw new RpcError(platformError);
-    extractAndProcessMetadata(byIdRouteId, parsedBody, options);
+    const slot = parsedBody?.[middlewareId];
+    // a union answer rides the `[index, value]` envelope
+    const answer = (Array.isArray(slot) ? slot[1] : slot) as RpcError<string, MethodsMetadataOnlyData> | undefined;
+    if (!isRpcError(answer) || answer.type !== 'metadata-only' || !answer.errorData?.metadata)
+      throw new Error(`the server answered no metadata; place ${middlewareId} first in its routes`);
+    installMethodRows(answer.errorData.metadata, options);
     const stillMissing = missingAfterLocal.filter((id) => !hasMethod(id));
     if (stillMissing.length) throw new Error(`Failed to fetch metadata for: ${stillMissing.join(', ')}`);
   } catch (error: any) {

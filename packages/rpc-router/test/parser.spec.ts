@@ -460,24 +460,24 @@ describe('parser strategies at the router level', () => {
     // an INLINE literal per test: a variable holding the union widens the parser back to the default
     it('pin their own wire under a router-wide compact', () => {
       const ownRouter = createMionRouter({parser: 'compact'});
-      ownRouter.initRoutes({...mionMethodsMetadata, noLiteral: ownRouter.route((ctx, p: Pet): Pet => p)});
+      ownRouter.initRoutes({mionMethodsMetadata, noLiteral: ownRouter.route((ctx, p: Pet): Pet => p)});
       expectBuiltInsPinned();
     });
 
     it('pin their own wire under a router-wide clone', () => {
       const ownRouter = createMionRouter({parser: 'clone'});
-      ownRouter.initRoutes({...mionMethodsMetadata, noLiteral: ownRouter.route((ctx, p: Pet): Pet => p)});
+      ownRouter.initRoutes({mionMethodsMetadata, noLiteral: ownRouter.route((ctx, p: Pet): Pet => p)});
       expectBuiltInsPinned();
     });
 
     it('pin their own wire under a router-wide mutate', () => {
       const ownRouter = createMionRouter({parser: 'mutate'});
-      ownRouter.initRoutes({...mionMethodsMetadata, noLiteral: ownRouter.route((ctx, p: Pet): Pet => p)});
+      ownRouter.initRoutes({mionMethodsMetadata, noLiteral: ownRouter.route((ctx, p: Pet): Pet => p)});
       expectBuiltInsPinned();
     });
 
     it('compile real functions, not noop placeholders', () => {
-      mion.initRoutes({...mionMethodsMetadata, plainRoute});
+      mion.initRoutes({mionMethodsMetadata, plainRoute});
       const thrown = getAnyExecutable(MION_ROUTES.thrownErrors) as RemoteMethod;
       const metadata = getAnyExecutable('mionMethodsMetadata') as RemoteMethod;
       // a noop encoder would mean the build never saw the call site

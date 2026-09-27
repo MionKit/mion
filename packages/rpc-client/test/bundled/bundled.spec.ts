@@ -34,18 +34,15 @@ function useAuth(middlewares: ReturnType<typeof initClient<TestServerApi>>['midd
 /** Records every request the client sends, and says which of them asked for metadata. */
 function watchFetch() {
   const bodies: string[] = [];
-  const urls: string[] = [];
   const realFetch = globalThis.fetch;
   const spy = vi.fn(async (url: any, init?: any) => {
-    urls.push(String(url));
     bodies.push(typeof init?.body === 'string' ? init.body : '');
     return realFetch(url, init);
   });
   globalThis.fetch = spy as any;
   return {
     calls: () => spy.mock.calls.length,
-    askedForMetadata: () =>
-      bodies.some((body) => body.includes('mionMethodsMetadata')) || urls.some((url) => url.includes('mionMethodsMetadataById')),
+    askedForMetadata: () => bodies.some((body) => body.includes('mionMethodsMetadata')),
     restore: () => {
       globalThis.fetch = realFetch;
     },

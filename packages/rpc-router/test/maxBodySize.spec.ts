@@ -146,7 +146,7 @@ describe('per-route request limits', () => {
   });
 
   it('the metadata middleware adds its fixed slot only once placed in the routes', () => {
-    mion.initRoutes({...mionMethodsMetadata, bounded});
+    mion.initRoutes({mionMethodsMetadata, bounded});
     expect(getRouteExecutionChain('/bounded')!.maxBodySize).toBe(derivedLimit('bounded', BOUNDED_PARAMS_BYTES, true));
   });
 

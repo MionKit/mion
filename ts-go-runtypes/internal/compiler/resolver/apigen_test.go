@@ -893,28 +893,30 @@ export const a = routes.ping().call();
 	})
 }
 
-// metadataRouterDTS declares the metadata pair the way @mionjs/router does, so the walk recognises it by its declaration.
+// metadataRouterDTS declares the metadata middleware the way @mionjs/router does, so the walk recognises it by its declaration.
 const metadataRouterDTS = `declare module '@mionjs/router' {
   type Opts = {alwaysRun: true; validateParams: true; validateReturn: false; description: undefined; parser: {params: 'clone'; return: 'clone'}; sanitizeParams: undefined};
-  type ByIdOpts = {alwaysRun: false; validateParams: true; validateReturn: false; description: undefined; parser: {params: 'clone'; return: 'clone'}; isMutation: undefined; sanitizeParams: undefined};
-  export type MethodsMetadataPair = {
-    mionMethodsMetadata: {type: 2; handler: (ids?: string[]) => Promise<void>; options: Opts; types?: {params: [ids?: string[]]; return: void; headers: never; isAsync: false}};
-    mionMethodsMetadataById: {type: 1; handler: (ids: string[]) => Promise<string>; options: ByIdOpts; types?: {params: [ids: string[]]; return: string; headers: never; isAsync: false; sync: [[ids: string[]], string, 'json', 'json']}};
-  };
+  export const mionMethodsMetadata: {type: 2; handler: (ids?: string[]) => Promise<void>; options: Opts; types?: {params: [ids?: string[]]; return: void; headers: never; isAsync: false}};
 }
 `
 
-// metadataApiTS places the router's pair next to a route, and a look-alike declared by the app itself.
-const metadataApiTS = optionalApiTS + `import type {MethodsMetadataPair} from '@mionjs/router';
-export type MetadataApi = MethodsMetadataPair & {
-  ping: {type: 1; handler: () => Promise<string>; options: RouteOpts; types?: {params: []; return: string; headers: never; isAsync: false; sync: [[], string, 'json', 'json']}};
-};
+// metadataApiTS places the router's middleware under its own name and under another key, next to a
+// look-alike the app declares itself; the API types map a routes object, as PublicApi does.
+const metadataApiTS = optionalApiTS + `import {mionMethodsMetadata} from '@mionjs/router';
+type Ping = {type: 1; handler: () => Promise<string>; options: RouteOpts; types?: {params: []; return: string; headers: never; isAsync: false; sync: [[], string, 'json', 'json']}};
+declare const ping: Ping;
+type Mapped<R> = {[K in keyof R]: R[K]};
+const routes = {mionMethodsMetadata, ping};
+export type MetadataApi = Mapped<typeof routes>;
+const renamed = {meta: mionMethodsMetadata, ping};
+export type RenamedApi = Mapped<typeof renamed>;
 declare const computedKey: 'computed';
-export type LookAlikeApi = {
-  [computedKey]: {type: 1; handler: () => Promise<string>; options: RouteOpts; types?: {params: []; return: string; headers: never; isAsync: false; sync: [[], string, 'json', 'json']}};
-  mionMethodsMetadata: {type: 2; handler: (ids?: string[]) => Promise<void>; options: MfOpts; types?: {params: [ids?: string[]]; return: void; headers: never; isAsync: false}};
-  ping: {type: 1; handler: () => Promise<string>; options: RouteOpts; types?: {params: []; return: string; headers: never; isAsync: false; sync: [[], string, 'json', 'json']}};
+const lookAlike = {
+  [computedKey]: ping,
+  mionMethodsMetadata: {} as {type: 2; handler: (ids?: string[]) => Promise<void>; options: MfOpts; types?: {params: [ids?: string[]]; return: void; headers: never; isAsync: false}},
+  ping,
 };
+export type LookAlikeApi = Mapped<typeof lookAlike>;
 `
 
 func generateMetadataDiags(t *testing.T, mode constants.BundleApiMode, client string) []diagnostics.Diagnostic {
@@ -941,6 +943,12 @@ export const a = routes.ping().call();
 	t.Run("bundled, never set up: nothing to report", func(t *testing.T) {
 		if diags := generateMetadataDiags(t, constants.BundleApiBundled, neverSetUp("MetadataApi")); len(diags) != 0 {
 			t.Fatalf("a bundled client never asks for metadata, got %+v", diags)
+		}
+	})
+
+	t.Run("bundled, under another key: still recognised", func(t *testing.T) {
+		if diags := generateMetadataDiags(t, constants.BundleApiBundled, neverSetUp("RenamedApi")); len(diags) != 0 {
+			t.Fatalf("the middleware is the router's whatever key holds it, got %+v", diags)
 		}
 	})
 
@@ -971,7 +979,7 @@ export const a = routes.ping().call();
 		}
 	})
 
-	t.Run("mixed, the API places no metadata pair", func(t *testing.T) {
+	t.Run("mixed, the API places no metadata middleware", func(t *testing.T) {
 		diags := generateMetadataDiags(t, constants.BundleApiMixed, `import {initClient} from '@mionjs/client';
 import type {OptionalApi} from './api.ts';
 export const {routes, middlewares} = initClient<OptionalApi>({baseURL: 'http://x'});

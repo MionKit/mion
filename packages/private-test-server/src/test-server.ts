@@ -207,7 +207,7 @@ const noteRuns: NoteRuns = {getNote: 0, saveNote: 0, touchNote: 0, clearNote: 0,
 
 const routes = {
   // the fetched-lane client tests ask this server for route metadata
-  ...mionMethodsMetadata,
+  mionMethodsMetadata,
   // ============ Shared middleware ============
   // A gate: a present but WRONG token answers a FatalError, typed for the client and ending the
   // chain so the route never runs. A missing header fails header validation before the handler.

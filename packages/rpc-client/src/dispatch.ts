@@ -226,13 +226,18 @@ async function loadMethodsMetadata(
 ): Promise<void> {
   const missing = methodIds.filter((id) => !hasMethod(id));
   if (!missing.length) return;
-  if (fetcher) return fetcher.fetchRows(missing, context.options, signal);
+  if (fetcher) return fetcher.fetchRows(missing, rowsPointer(context), context.options, signal);
   throw new RpcError({
     type: 'route-metadata-not-found',
     publicMessage:
       `No metadata for ${missing.map((id) => `'${id}'`).join(', ')}: the build did not bundle it and the client does not fetch it. ` +
       `Call the route where the build can see it, or set up useMethodsMetadata from '@mionjs/client/middlewares'.`,
   });
+}
+
+/** A metadata-only request goes to a route of this call: its chain holds the metadata middleware. */
+function rowsPointer(context: ClientCallContext): string[] {
+  return getRoutePointers(context)[0] ?? Object.values(context.subRequestList)[0].pointer;
 }
 
 /** A metadata resend fixes an attempt that failed on the wire, once per call, never re-running a success. */

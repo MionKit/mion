@@ -23,16 +23,22 @@ export interface RouteSyncErrorData {
 /** The route sync middleware's handler, typed here so the client installer needs no router import */
 export type SyncRoutesHandler = (ctx: any, routeSyncIds?: string[]) => RouteSyncError | void;
 
-/** The metadata middleware's handler: no ids, no answer, so a call that asks nothing pays nothing */
+/** How the metadata middleware answers: rows alongside the call, or rows alone with the call stopped before its route */
+export type MethodsMetadataMode = 'only' | 'all';
+
+export interface MethodsMetadataOnlyData {
+  metadata: SerializableMethodsData;
+  /** ids the server does not know, with the reason */
+  notFound?: Record<string, string>;
+}
+
+/** Stops the chain so the route never runs; carries the rows the client asked for */
+export type MethodsMetadataOnly = FatalError<'metadata-only', MethodsMetadataOnlyData>;
+
+/** The metadata middleware's handler: no ids, no answer, so a call that asks nothing pays nothing.
+ *  `only` answers the ids' rows and stops the call; `all` answers every public method and the batch ids. */
 export type MethodsMetadataHandler = (
   ctx: any,
   methodsIds?: string[],
-  getAllRemoteMethods?: boolean
-) => SerializableMethodsData | RpcError<'rpc-metadata-not-found'> | void;
-
-/** The by-id route's handler: rows without running any route, for `typeErrors()` and a body that cannot go out plain */
-export type MethodsMetadataByIdHandler = (
-  ctx: any,
-  methodsIds: string[],
-  getAllRemoteMethods?: boolean
-) => SerializableMethodsData | RpcError<'rpc-metadata-not-found'>;
+  mode?: MethodsMetadataMode
+) => SerializableMethodsData | RpcError<'rpc-metadata-not-found'> | MethodsMetadataOnly | void;

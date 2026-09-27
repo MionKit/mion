@@ -34,7 +34,7 @@ const count = (id: string) => (handlerCalls[id] = (handlerCalls[id] ?? 0) + 1);
 
 /** What the client was built against. */
 const oldRoutes = (mion: Mion) => ({
-  ...mionMethodsMetadata,
+  mionMethodsMetadata,
   mionSyncRoutes,
   same: mion.route((ctx, value: number): number => (count('same'), value + 1)),
   paramsChanged: mion.route((ctx, name: string): string => (count('paramsChanged'), name)),
@@ -50,7 +50,7 @@ const oldRoutes = (mion: Mion) => ({
 
 /** What the server runs now: each route differs from the old one in one way, or not at all. */
 const newRoutes = (mion: Mion) => ({
-  ...mionMethodsMetadata,
+  mionMethodsMetadata,
   mionSyncRoutes,
   same: mion.route((ctx, value: number): number => (count('same'), value + 1)),
   paramsChanged: mion.route((ctx, name: string, age: number): string => (count('paramsChanged'), `${name} ${age}`)),

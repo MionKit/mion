@@ -467,27 +467,25 @@ describe('batches', () => {
     });
 
     it('the metadata route lists the batch ids when all methods are requested', async () => {
-      mion.initRoutes({...mionMethodsMetadata, ...routes});
+      mion.initRoutes({mionMethodsMetadata, ...routes});
       registerBatches({a: {routes: ['route1']}, b: {routes: ['route1', 'routeX2']}});
 
-      const methodsId = 'mionMethodsMetadataById';
-      const request = getDefaultRequest({[methodsId]: [[], true]});
-      const response = await dispatchRoute(`/${methodsId}`, request.body, request.headers, headersFromRecord({}), request, {});
+      const methodsId = 'mionMethodsMetadata';
+      const request = getDefaultRequest({[methodsId]: [[], 'all']});
+      const response = await dispatchRoute('/route1', request.body, request.headers, headersFromRecord({}), request, {});
 
-      expect(response.hasErrors).toBe(false);
-      expect(unwrapUnion(response.body[methodsId]).batches).toEqual(['a', 'b']);
+      expect(unwrapUnion(response.body[methodsId]).errorData.metadata.batches).toEqual(['a', 'b']);
     });
 
     it('the metadata route omits the batch ids when only some methods are requested', async () => {
-      mion.initRoutes({...mionMethodsMetadata, ...routes});
+      mion.initRoutes({mionMethodsMetadata, ...routes});
       registerBatches({a: {routes: ['route1']}});
 
-      const methodsId = 'mionMethodsMetadataById';
-      const request = getDefaultRequest({[methodsId]: [['route1']]});
-      const response = await dispatchRoute(`/${methodsId}`, request.body, request.headers, headersFromRecord({}), request, {});
+      const methodsId = 'mionMethodsMetadata';
+      const request = getDefaultRequest({[methodsId]: [['route1'], 'only']});
+      const response = await dispatchRoute('/route1', request.body, request.headers, headersFromRecord({}), request, {});
 
-      expect(response.hasErrors).toBe(false);
-      expect(unwrapUnion(response.body[methodsId]).batches).toBeUndefined();
+      expect(unwrapUnion(response.body[methodsId]).errorData.metadata.batches).toBeUndefined();
     });
   });
 

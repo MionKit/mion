@@ -57,7 +57,7 @@ const compactRoutes = {
 
 const routes = {
     // serves route metadata to a client that fetches it; a bundled client never asks
-    ...mionMethodsMetadata,
+    mionMethodsMetadata,
     // Middleware
     auth: mion.headersFn((ctx, h: HeadersSubset<'Authorization'>): void => {
         ctx.shared.user = {name: 'John', surname: 'Doe'};

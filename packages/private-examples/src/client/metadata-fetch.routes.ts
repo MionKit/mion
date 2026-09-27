@@ -5,7 +5,7 @@ const mion = createMionRouter();
 
 const routes = {
   // first, so every route below can be described to the client
-  ...mionMethodsMetadata,
+  mionMethodsMetadata,
   sayHello: mion.route((ctx, name: string): string => `Hello ${name}`),
 } satisfies Routes;
 
