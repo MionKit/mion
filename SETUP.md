@@ -14,7 +14,7 @@ The repository contains a **Go binary** at [ts-go-runtypes/cmd/mion/](ts-go-runt
 | ------ | -------- | --------------------------------------------- | ------------------------------------ |
 | Go     | ≥ 1.26   | resolver binary + benchmarks                  | `ts-go-runtypes/go.mod`              |
 | Node   | ≥ 26.0.0 | tests, builds, benchmarks host prep           | root `package.json` `engines.node`   |
-| pnpm   | ≥ 11.0.0 | the monorepo (workspace policies)             | `packageManager: pnpm@11.1.1`        |
+| pnpm   | ≥ 11.0.0 | the monorepo (workspace policies)             | `packageManager: pnpm@11.8.0`        |
 | git    | recent   | submodule + `git apply` are used              | -                                    |
 | podman | ≥ 4.0    | docs website + benchmarks containers          | tested 4.9.3 / 5.8.3                 |
 
