@@ -27,7 +27,9 @@ A server with the middleware next to a bundled client is normal (one server serv
 - With bundling off the lane does not run today: `apiLaneOn()` in `apigen.go` gates `collectProgramApiSites`. The build still needs to read the API type named at `initClient<Api>` and the client's `middlewares.<name>` reads, without writing a bundle. Keep the cost off builds that never call `initClient`.
 - The metadata middleware is recognised by `routerDeclares` in `internal/compiler/apimeta/tree.go`; the reads by `internal/compiler/apimeta/clientreads.go`.
 - The lint lane passes `bundleApi: 'off'` today so it reports none of these; decide whether that stays.
-- Levels by the two-questions rule in `ts-go-runtypes/CLAUDE.md`.
+- Levels by the two-questions rule in `ts-go-runtypes/CLAUDE.md`. Report at the call sites that fetch, not once per API tree: today MET010 (`apigen.go` ~422) stops a `mixed` build even when no call fetches, which runs exactly like a bundled one.
+- Tests the current code lacks: MET010 reported once per tree (the subtest has one call site), `bundleApiKey` refusing a number or object (`cmd/mion/config.go` ~558), and whatever the lint lane decides, pinned by a test on `buildResolverArgs` (`packages/devtools/src/lint/lint-worker.ts` ~69).
+- Write the mode union once and derive the rest: `unplugin.ts` ~84 and `resolver-client.ts` ~90 spell it by hand, and `packages/rpc-client/test/bundleSplit.spec.ts` ~34 and `packages/devtools/test/vite/bundledApiBuild.spec.ts` ~117 restate `MionBundleApiMode`. The six-line value check in `packages/devtools/src/options.ts` ~150 becomes one line.
 - The implementer plans the details.
 
 ## Docs

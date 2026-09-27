@@ -18,6 +18,8 @@ Write the result as if the two options never existed: no check or error for some
 - Router options: `validateParams` / `validateReturn` in `packages/rpc-router/src/types/remoteMethods.ts` (~38-65) and the resolved option types in `src/types/resolvedOptions.ts` (~31-47); defaults set in `src/router.ts` (~540, and the route twin).
 - Dispatch: `packages/rpc-router/src/dispatch.ts` checks `options.validateParams` before calling a route or headers middleware (~189, ~200) and runs `validateReturnOrThrow` (~117-151, ~292). Params validation becomes unconditional; the return check is deleted.
 - `packages/rpc-router/src/batches.ts` (~363) builds an internal executable with `validateParams: false`: decide whether it validates like the rest or needs no params step at all.
+- `dispatch.ts` (~246) refuses a params value that is not an array before it is validated, because with validation off nothing else did. Decide whether it stays once validation always runs.
+- `mionMethodsMetadata` (`packages/rpc-router/src/middlewares/methodsMetadata.ts`) reads its `mode` param as-is: with validation off today any truthy value acts as `'only'`. Always-on validation fixes that; add a test that a wrong mode is refused.
 - The options also reach the client metadata rows (`options.validateParams` in serialized methods) and the Go side that emits bundled rows: grep both and drop them.
 - Client: add an opt-in to validate a response against the route's return type (the compiled functions are already on the client), with a clear home for the error (likely the undeclared slot). Decide the option name and where it lives (`initClient` options, per call, or both).
 - The implementer plans the details.
