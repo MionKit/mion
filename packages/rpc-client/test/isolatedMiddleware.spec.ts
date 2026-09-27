@@ -161,6 +161,26 @@ describe('isolated reusable middleware', () => {
       expect(noteRuns.getNote).toBe(1);
       expect(noteRuns.saveNote).toBe(1);
     });
+
+    // The client refused the answer, but the server ran the mutation: sending it again would run it twice.
+    it('a mutation whose answer the client refused is refused', async () => {
+      const {routes, middlewares, client: checkingClient} = initClient<TestServerApi>({baseURL, validateServerResponses: true});
+      const checkedRetries: boolean[] = [];
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
+      const token = await serverToken(routes);
+      middlewares.notes.csrf.onRequest((call) => call(token));
+      middlewares.notes.audit
+        .onRequest((call) => call(true))
+        .onError('audit-flagged', (_error, context) => {
+          checkedRetries.push(context.retry());
+        });
+      const [result, , undeclared] = await routes.notes.wrongNote('a').call();
+      checkingClient.destroy();
+      expect(result).toBeUndefined();
+      expect(undeclared?.type).toBe('response-validation-error');
+      expect(checkedRetries).toEqual([false]);
+      expect((await runs(client.routes)).wrongNote).toBe(1);
+    });
   });
 
   describe('middleware handler failures', () => {

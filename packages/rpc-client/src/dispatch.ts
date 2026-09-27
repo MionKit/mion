@@ -590,6 +590,8 @@ function isRetrySafe(state: DispatchState, errors: RequestErrors | undefined): b
 
 /** A void route answers nothing, so any error in the response counts it as failed */
 function routeSucceeded(context: ClientCallContext, routeId: string, errors: RequestErrors | undefined): boolean {
+  // the client refused the answer, but the server did run the route
+  if (errors?.get(routeId)?.type === 'response-validation-error') return true;
   if (errors?.has(routeId)) return false;
   if (context.subRequestList[routeId]?.resolvedValue !== undefined) return true;
   return !errors?.size;

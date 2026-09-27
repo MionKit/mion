@@ -221,8 +221,16 @@ export class ScopedAuthError extends RpcError<'not-authorized'> {
 registerClassSerializer(ScopedAuthError, {deserialize: (d) => new ScopedAuthError(d.scope, d.retryAfter)});
 
 // run count per notes route, so a client test can prove a retry never ran a mutation twice
-type NoteRuns = {getNote: number; saveNote: number; touchNote: number; clearNote: number; failNote: number; adminNote: number};
-const noteRuns: NoteRuns = {getNote: 0, saveNote: 0, touchNote: 0, clearNote: 0, failNote: 0, adminNote: 0};
+type NoteRuns = {
+  getNote: number;
+  saveNote: number;
+  touchNote: number;
+  clearNote: number;
+  failNote: number;
+  adminNote: number;
+  wrongNote: number;
+};
+const noteRuns: NoteRuns = {getNote: 0, saveNote: 0, touchNote: 0, clearNote: 0, failNote: 0, adminNote: 0, wrongNote: 0};
 
 const routes = {
   // the fetched-lane client tests ask this server for route metadata
@@ -493,6 +501,8 @@ const routes = {
     clearNote: mutation((_ctx, _id: string): void => {
       noteRuns.clearNote++;
     }),
+    // answers a number where it declares a string, so a client checking answers refuses it
+    wrongNote: mutation((_ctx, _id: string): string => (noteRuns.wrongNote++, 42 as unknown as string)),
     failNote: mutation((_ctx, _id: string): RpcError<'note-failed'> => {
       noteRuns.failNote++;
       return new RpcError({type: 'note-failed', publicMessage: 'The note could not be saved'});
