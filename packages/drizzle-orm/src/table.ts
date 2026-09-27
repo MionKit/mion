@@ -28,6 +28,8 @@ export function tableRef<T extends AnyTable, K extends keyof T['columns'] & stri
   const runtime = (table as unknown as Record<symbol, {name: string} | undefined>)[rtTableKey];
   if (runtime === undefined)
     throw new Error('@mionjs/drizzle-orm: tableRef() takes a table built with pgTable(), mysqlTable() or sqliteTable()');
+  if ((table as Record<string, unknown>)[column] === undefined)
+    throw new Error(`@mionjs/drizzle-orm: tableRef() found no column "${column}" in table "${runtime.name}"`);
   const ref = {table: runtime.name, column};
   Object.defineProperty(ref, rtRefTargetKey, {value: table});
   return ref as {table: T['name']; column: K};
@@ -36,9 +38,8 @@ export function tableRef<T extends AnyTable, K extends keyof T['columns'] & stri
 /** The live column a tableRef() value points at. */
 export function refColumn(ref: AnyTableRef): object {
   const {column} = ref;
-  const table = (ref as unknown as Record<symbol, Record<string, object | undefined> | undefined>)[rtRefTargetKey];
+  const table = (ref as unknown as Record<symbol, Record<string, object> | undefined>)[rtRefTargetKey];
   if (table === undefined) throw new Error('@mionjs/drizzle-orm: a reference must be written with tableRef(table, column)');
-  if (table[column] === undefined) throw new Error(`@mionjs/drizzle-orm: tableRef() found no column "${column}"`);
   return table[column];
 }
 

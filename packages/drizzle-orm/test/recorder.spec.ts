@@ -13,7 +13,7 @@
 import {describe, it, expect} from 'vitest';
 import {RtColumnRecorder, RtEntryRecorder, RtValueRecorder, sql} from '../src/recorder.ts';
 import type {DrizzleContext, SqlNamespace} from '../src/types.ts';
-import {createRtTable, materializeRtTable, refColumn, tableRef} from '../src/table.ts';
+import {createRtTable, materializeRtTable, tableRef} from '../src/table.ts';
 import {recordColumn} from '../src/columnRecorder.ts';
 
 interface Fake {
@@ -215,10 +215,10 @@ describe('recorder core (fake namespace, no drizzle installed)', () => {
     expect(() => tableRef({} as never, 'id')).toThrow(/takes a table built with/);
   });
 
-  it('refColumn() rejects a tableRef() naming a column the table lacks', () => {
+  it('tableRef() rejects a column the table lacks, so sql never gets an undefined column', () => {
     const fake = makeFakeContext();
     const users = createRtTable('users', {id: column('integer', 'id')}, undefined, fakeBuildTable(fake.calls));
-    expect(() => refColumn(tableRef(users as never, 'nope'))).toThrow(/found no column "nope"/);
+    expect(() => sql`select ${tableRef(users as never, 'nope')}`).toThrow(/found no column "nope" in table "users"/);
   });
 
   it('recordColumn rejects a modifier that is neither `true` nor an args tuple', () => {
