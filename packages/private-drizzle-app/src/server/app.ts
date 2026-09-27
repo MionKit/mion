@@ -4,12 +4,14 @@ import {mionMethodsMetadata} from '@mionjs/router/middlewares';
 import type {PublicApi} from '@mionjs/router';
 import {mion} from './mion.ts';
 import {pgRoutes} from './pg.routes.ts';
+import {pgTypedRoutes} from './pg.typed.routes.ts';
 import {sqliteRoutes} from './sqlite.routes.ts';
 import {mysqlRoutes} from './mysql.routes.ts';
 
 const routes = {
   mionMethodsMetadata,
   pg: pgRoutes,
+  pgTyped: pgTypedRoutes,
   sqlite: sqliteRoutes,
   mysql: mysqlRoutes,
 };
