@@ -35,7 +35,7 @@ export interface ColumnParity {
 /** Every *ColMods bag in a dialect's types.ts, inheritance flattened. */
 export function parseBags(source: string): Map<string, Set<string>> {
   const declared = new Map<string, {own: Set<string>; parent: string | null}>();
-  for (const bag of source.matchAll(/^export interface (\w*ColMods)(?: extends ([\s\S]*?))?\s*\{([\s\S]*?)^\}/gm)) {
+  for (const bag of source.matchAll(/^export interface (\w*ColMods)(?:\s+extends ([\s\S]*?))?\s*\{([\s\S]*?)^\}/gm)) {
     const [, name, heritage = '', body] = bag;
     const own = new Set<string>();
     // Scoped to the Pick<ColMods, ...> list: every quoted string would also collect value unions like 'virtual'.
@@ -60,10 +60,10 @@ export function parseBags(source: string): Map<string, Set<string>> {
   return flattened;
 }
 
-/** Every builder props interface (`export interface PgColIn {...}`), inheritance flattened. */
+/** Every builder props interface (`export interface PgColIn {...}`), its shared base included, inheritance flattened. */
 export function parsePropsInterfaces(source: string): Map<string, Set<string>> {
   const declared = new Map<string, {own: Set<string>; parent: string | null}>();
-  for (const found of source.matchAll(/^export interface (\w+In)(?: extends (\w+))? \{([\s\S]*?)^\}/gm)) {
+  for (const found of source.matchAll(/^export interface (\w+In|\w+SharedColMods)(?: extends (\w+))? \{([\s\S]*?)^\}/gm)) {
     const own = new Set([...found[3].matchAll(/^ {2}([\w$]+)\?:/gm)].map((key) => key[1]));
     declared.set(found[1], {own, parent: found[2] ?? null});
   }

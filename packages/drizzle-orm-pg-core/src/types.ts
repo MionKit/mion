@@ -39,15 +39,19 @@ export interface PgIdentityConfig {
   cache?: number;
   cycle?: boolean;
 }
+/** The modifiers a pg column type and a builder's props spell alike. */
+export interface PgSharedColMods {
+  notNull?: true;
+  primaryKey?: true;
+  default?: readonly [unknown];
+  unique?: true | readonly [string] | readonly [string, {nulls: 'distinct' | 'not distinct'}];
+  generatedAlwaysAs?: readonly [unknown];
+  array?: true | readonly [number];
+}
 /** The modifier calls every pg column type accepts (base bag; each builder kind adds its own). */
-export interface PgColMods extends Pick<
-  ColMods,
-  'notNull' | 'default' | 'generatedAlwaysAs' | 'array' | '$default' | '$defaultFn' | '$onUpdate' | '$onUpdateFn'
-> {
+export interface PgColMods extends PgSharedColMods, Pick<ColMods, '$default' | '$defaultFn' | '$onUpdate' | '$onUpdateFn'> {
   /** Mutable, as `$type<T>()` returns it, so a readonly tuple is refused; declared, not picked, as that costs less. */
   $type?: [unknown];
-  primaryKey?: true;
-  unique?: true | readonly [string] | readonly [string, {nulls: 'distinct' | 'not distinct'}];
   references?: readonly [ColRef] | readonly [ColRef, ReferenceActions];
 }
 /** date / time / timestamp: + defaultNow(). */
@@ -170,13 +174,7 @@ export interface CustomTypeParams<T extends CustomTypeValues> {
 // The hand-written bags, with the function-carrying keys taking their runtime shape.
 
 // Written out, not an Omit of the hand-written bag: every builder call checks against one, and an interface is cheapest.
-export interface PgColIn {
-  notNull?: true;
-  primaryKey?: true;
-  default?: readonly [unknown];
-  unique?: true | readonly [string] | readonly [string, {nulls: 'distinct' | 'not distinct'}];
-  generatedAlwaysAs?: readonly [unknown];
-  array?: true | readonly [number];
+export interface PgColIn extends PgSharedColMods {
   $type?: readonly [unknown];
   references?: readonly [() => AnyTableRef] | readonly [() => AnyTableRef, ReferenceActions];
   $default?: readonly [() => unknown];
