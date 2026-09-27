@@ -30,7 +30,7 @@ import type {InferSelectModel} from '@mionjs/drizzle-orm';
 import {eq} from 'drizzle-orm';
 import type {PgDatabase, PgQueryResultHKT} from 'drizzle-orm/pg-core';
 
-export const users = pgTable('users', {id: uuid().primaryKey(), name: varchar({length: 50}).notNull()});
+export const users = pgTable('users', {id: uuid({primaryKey: true}), name: varchar({length: 50, notNull: true})});
 export type User = InferSelectModel<typeof users>; // no drizzle types anywhere
 
 declare const db: PgDatabase<PgQueryResultHKT>;
@@ -40,4 +40,4 @@ db.select().from(usersDb).where(eq(usersDb.id, 'some-id'));
 
 Coverage is gated by the manifests (`pnpm miondevx core drizzle-manifest --check`); the mapping rules and the boundary pass live in the [drizzle-slim-schemas skill](../../.claude/skills/drizzle-slim-schemas/).
 
-An existing drizzle schema moves onto these packages with `mion drizzle-migrate` (the same boundary, applied by machine: it splits each declaration into a `X$table` recorder and `X = toDrizzle(X$table)`, and refuses what the table above keeps on drizzle). `mion convert --to type` takes it one step further, onto the pure-type road, in either direction. `pnpm miondevx release drizzle-e2e` runs drizzle's OWN integration suites through BOTH translations against a real postgres, mysql and sqlite — the only thing that proves a materialized table works against a database rather than against another type.
+An existing drizzle schema moves onto these packages with `mion drizzle-migrate` (the same boundary, applied by machine: it splits each declaration into a `X$table` recorder and `X = toDrizzle(X$table)`, folds each column's modifier chain into its one settings object, and refuses what the table above keeps on drizzle). `mion convert --to type` takes it one step further, onto the pure-type road, in either direction. `pnpm miondevx release drizzle-e2e` runs drizzle's OWN integration suites through BOTH translations against a real postgres, mysql and sqlite — the only thing that proves a materialized table works against a database rather than against another type.
