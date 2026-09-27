@@ -396,13 +396,13 @@ describe('pg columns: same drizzle table on every road', () => {
   });
   it('a reference written without tableRef() fails with an actionable error', () => {
     const loose = pgTable('loose', {teamId: integer({references: [() => ({table: 'teams', column: 'id'})]})});
-    expect(() => dz.getTableConfig(toDrizzle(loose)).foreignKeys[0]!.reference()).toThrowError(/tableRef\(table, column\)/);
+    expect(() => dz.getTableConfig(toDrizzle(loose)).foreignKeys[0]?.reference()).toThrowError(/tableRef\(table, column\)/);
   });
   it('a reference to a missing column fails with an actionable error', () => {
     type Typo = PgTable<'typo', {pid: Integer<{references: [{table: 'teams'; column: 'idd'}]}>}>;
     const teamsType = tableFromType<Teams>();
     const typo = toDrizzle(tableFromType<Typo>({tables: {teams: teamsType}}));
-    expect(() => dz.getTableConfig(typo).foreignKeys[0]!.reference()).toThrowError(/references no column "idd" in table "teams"/);
+    expect(() => dz.getTableConfig(typo).foreignKeys[0]?.reference()).toThrowError(/references no column "idd" in table "teams"/);
   });
   it('a type reference with no table passed fails with an actionable error', () => {
     expect(() => tableFromType<Members>({})).toThrow(/pass it via tableFromType options: \{tables: \{teams: \.\.\.\}\}/);

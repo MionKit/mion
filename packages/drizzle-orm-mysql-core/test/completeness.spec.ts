@@ -92,7 +92,7 @@ describe('mysql slim surface: modifier completeness against drizzle', () => {
     it(`${fnName}: the props object takes exactly drizzle's modifiers`, () => {
       const propsInterface = propsInterfaceOf.get(fnName);
       expect(propsInterface, `no props interface found for ${fnName}`).toBeDefined();
-      const propsKeys = interfaceKeys(typesSource, propsInterface!);
+      const propsKeys = interfaceKeys(typesSource, propsInterface as string);
       const modifiers = runtimeMethods(builder).filter((method) => !INTERNAL_COLUMN_METHODS.has(method));
       expect(
         modifiers.filter((method) => !propsKeys.has(method)),

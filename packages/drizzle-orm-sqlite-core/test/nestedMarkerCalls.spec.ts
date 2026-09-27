@@ -20,17 +20,17 @@ describe('a marker call nested in toDrizzle options', () => {
   it('nested in an arrow', () => {
     const children = toDrizzle<Children>({tables: {parents: () => tableFromType<Parents>()}});
     // Reading the foreign key is what runs the arrow.
-    expect(getTableConfig(children).foreignKeys[0]!.reference().foreignTable).toBeTruthy();
+    expect(getTableConfig(children).foreignKeys[0]?.reference().foreignTable).toBeTruthy();
   });
 
   it('nested directly', () => {
     const children = toDrizzle<Children>({tables: {parents: tableFromType<Parents>()}});
-    expect(getTableConfig(children).foreignKeys[0]!.reference().foreignTable).toBeTruthy();
+    expect(getTableConfig(children).foreignKeys[0]?.reference().foreignTable).toBeTruthy();
   });
 
   it('hoisted, as the control', () => {
     const parents = tableFromType<Parents>();
     const children = toDrizzle<Children>({tables: {parents: () => parents}});
-    expect(getTableConfig(children).foreignKeys[0]!.reference().foreignTable).toBeTruthy();
+    expect(getTableConfig(children).foreignKeys[0]?.reference().foreignTable).toBeTruthy();
   });
 });

@@ -800,7 +800,7 @@ export const boundaryQuery = pgDb.select().from(toDrizzle(boundaryApi));
 declare const boundaryRows: Awaited<typeof boundaryQuery>;
 declare const newBoundary: InferInsertModel<typeof boundaryApi>;
 declare const boundaryPatch: InferUpdateModel<typeof boundaryApi>;
-export const rowIntoModel: InferSelectModel<typeof boundaryApi> = boundaryRows[0]!;
+export const rowIntoModel: InferSelectModel<typeof boundaryApi> = boundaryRows[0] as (typeof boundaryRows)[number];
 export const rowsIntoModel: InferSelectModel<typeof boundaryApi>[] = boundaryRows;
 export const insertFromModel = pgDb.insert(toDrizzle(boundaryApi)).values([newBoundary, newBoundary]);
 export const updateFromModel = pgDb.update(toDrizzle(boundaryApi)).set(boundaryPatch);
@@ -809,7 +809,7 @@ type BoundaryId = String<{minLength: 1}, 'BoundaryId'>;
 export const brandedTable = pgTable('boundary_branded', {id: varchar({length: 40, notNull: true, $type: $type<BoundaryId>()})});
 export const brandedQuery = pgDb.select().from(toDrizzle(brandedTable));
 declare const brandedRows: Awaited<typeof brandedQuery>;
-export const brandedRowIntoModel: InferSelectModel<typeof brandedTable> = brandedRows[0]!;
+export const brandedRowIntoModel: InferSelectModel<typeof brandedTable> = brandedRows[0] as (typeof brandedRows)[number];
 
 // A class or a Date in `$type` survives whole: a mapped type would flatten it into its members.
 class Money {
