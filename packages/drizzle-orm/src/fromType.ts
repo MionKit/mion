@@ -83,8 +83,9 @@ function readNames(meta: ReflectedNode): Record<string, string> {
   const names: Record<string, string> = {};
   for (const member of membersOf(plainMember(meta, 'names')?.child)) {
     const value = member.child;
-    if (typeof member.name === 'string' && value?.kind === KIND_LITERAL && typeof value.literal === 'string')
-      names[member.name] = value.literal;
+    if (typeof member.name !== 'string' || value?.kind !== KIND_LITERAL || typeof value.literal !== 'string')
+      fail(`names.${String(member.name)} is not a string literal db name`);
+    names[member.name] = value.literal;
   }
   return names;
 }

@@ -199,6 +199,12 @@ describe('buildRtTableFromGraph', () => {
     expect(() => buildRtTableFromGraph(graph, makeFake().buildTable)).toThrowError(/not a literal type/);
   });
 
+  it('rejects a names entry that is not a string literal', () => {
+    const names = obj({bio: lit(5)});
+    const graph = obj({'þ@rtTableBrand': lit('pg'), name: lit('t'), columns: obj({bio: colNode('varchar')}), names});
+    expect(() => buildRtTableFromGraph(graph, makeFake().buildTable)).toThrowError(/names\.bio is not a string literal/);
+  });
+
   // The brand is what says "table" at all: a bare {name, columns} object is not
   // one, which is the whole reason the metadata carries a sentinel of its own.
   it('rejects a graph with no table brand', () => {
