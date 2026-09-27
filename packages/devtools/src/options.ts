@@ -112,8 +112,7 @@ export interface MionPresetOptions {
   client?: MionClientPointer;
   /** The separate project declaring the API this client calls. See MionApiPointer. */
   api?: MionApiPointer;
-  /** Bundle the metadata and compiled functions of every route this client calls (default true). `false` fetches
-   *  every route, which needs `useMethodsMetadata` on the client and `mionMethodsMetadata` in the server's routes. */
+  /** Default true. `false` fetches all routes: needs client `useMethodsMetadata` and server `mionMethodsMetadata`. */
   bundleApi?: boolean;
 }
 

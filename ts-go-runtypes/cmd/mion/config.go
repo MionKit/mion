@@ -71,8 +71,7 @@ type tsRuntypesPlugin struct {
 	// strictness. Relative to this tsconfig's directory. Absent when client and
 	// API share one program.
 	ApiTsconfig string `json:"apiTsconfig"`
-	// BundleApi bundles the metadata and compiled functions of every route this client calls into the client.
-	// `true` (the default when absent) bundles, `false` fetches every route.
+	// BundleApi: `true` (the default when absent) bundles every route this client calls, `false` fetches every route.
 	BundleApi  bundleApiKey `json:"bundleApi"`
 	ModuleMode string       `json:"moduleMode"`
 	EmitMode   string       `json:"emitMode"`
@@ -537,7 +536,7 @@ func isTrailingComma(input string, pos int) bool {
 	return false
 }
 
-// bundleApiKey reads the tsconfig `bundleApi` key, a boolean like the plugin option; it holds the CLI mode name.
+// bundleApiKey reads the boolean tsconfig `bundleApi` key into its CLI mode name.
 type bundleApiKey string
 
 func (key *bundleApiKey) UnmarshalJSON(data []byte) error {

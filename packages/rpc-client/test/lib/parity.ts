@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Used by the bundled lane: every method of the test server, bundled at once, compared with what the
-// server itself answers (rows, route sync ids and the code of every compiled function a row reaches).
+// Every test-server method bundled at once, compared with what the server answers: rows, route sync ids and the
+// code of every compiled function a row reaches.
 
 import {expect} from 'vitest';
 import {parseAst} from 'vite';

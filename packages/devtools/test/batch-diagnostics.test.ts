@@ -572,7 +572,7 @@ describe('request-batch diagnostics and readable shapes', () => {
     });
 
     register('an element on its own line is reported on that line, where a directive above it reaches', async () => {
-      // Pins the position the build reports for a multi-line call: the element's first token, not its leading trivia.
+      // Reported at the element's first token, not its leading trivia.
       const source =
         IMPORTS +
         `const prepared = [routes.users.getById(1)];\nexport const b = batch([\n  routes.orders.list(1),\n  ...prepared,\n]);\n`;

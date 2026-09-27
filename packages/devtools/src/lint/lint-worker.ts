@@ -61,15 +61,12 @@ function resolveConfiguredBinary(binary: string): string {
   return resolved;
 }
 
-// ensureConnection opens the resolver on the first request, preferring the pre-spawned shim over a direct spawn.
 // The connection is long-lived, so the first request's tsconfig and binary fix the options for every later file.
 async function ensureConnection(tsconfig: string, binary: string): Promise<ResolverConnection> {
   if (connection) return connection;
-  // A configured binary wins; otherwise @mionjs/bin-compiler resolves the host-platform one (honouring MION_BIN).
-  // The resolver is rooted at process.cwd(), the directory the linter itself runs in. Only an explicit tsconfig
-  // is forwarded; otherwise the Go side discovers it as tsc does and adopts its FULL options, so lint
-  // type-checks like the build. Single-threaded: the session lints one file at a time, and a light child keeps
-  // editor/CI hosts under process and memory limits.
+  // getExePath honours MION_BIN.
+  // An unset tsconfig is discovered as tsc does, with its FULL options, so lint type-checks like the build.
+  // Single-threaded: one file at a time, and a light child keeps editor/CI hosts under process and memory limits.
   const binaryPath = binary ? resolveConfiguredBinary(binary) : getExePath();
   const options = LINT_RESOLVER_OPTIONS;
   const args = buildResolverArgs(process.cwd(), tsconfig, options);

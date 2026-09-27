@@ -44,7 +44,7 @@ type Site struct {
 	Checker *checker.Checker
 	// CalleeName is the dispatch method (`call`, `typeErrors`), for reports.
 	CalleeName string
-	// Widened marks a call whose route id a helper widened to `string`: nothing is bundled for it, so it fetches.
+	// Widened marks a route id a helper widened to `string`: nothing is bundled for the call.
 	Widened bool
 
 	sourceFile *ast.SourceFile
@@ -120,9 +120,8 @@ func (cache *FileCache) put(filePath string, sites []Site, diags []diagnostics.D
 	cache.diags[filePath] = diags
 }
 
-// ExtractFromProgramCached returns the branded dispatch sites of `files` in file then source order, plus diagnostics.
-// The cache is optional (nil degrades to an uncached walk). A widened site is returned unreported: its level
-// depends on whether the program sets up metadata fetching, a fact of the whole program.
+// ExtractFromProgramCached returns the branded dispatch sites of `files`, file then source order; a nil cache walks uncached.
+// A widened site is returned unreported: its level depends on whether the whole program sets up metadata fetching.
 func ExtractFromProgramCached(typeChecker *checker.Checker, markerOpts marker.Options, lookup purefunctions.SourceFileLookup, files []string, cache *FileCache) ([]Site, []diagnostics.Diagnostic) {
 	var sites []Site
 	var diags []diagnostics.Diagnostic

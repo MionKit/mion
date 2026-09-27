@@ -13,7 +13,7 @@ export * from './src/lib/persistentStorage.ts';
 export * from './src/lib/validation.ts';
 export * from './src/lib/serializer.ts';
 export * from './src/lib/clientMethodsMetadata.ts';
-// setApiBundled: called by the module the build writes under <genDir>/api/, never by hand
+// called by the module the build writes under <genDir>/api/, never by hand
 export {setApiBundled} from './src/lib/apiBundled.ts';
 export * from './src/lib/fetchRemoteMethodsMetadata.ts';
 export * from './src/callContext.ts';

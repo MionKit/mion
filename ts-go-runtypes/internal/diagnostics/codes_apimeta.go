@@ -4,9 +4,8 @@ package diagnostics
 // dispatch point is recognised by the InjectApiMetadata brand on its resolved signature, and the
 // lane injects the generated module carrying the route's metadata and compiled functions.
 //
-// MET001 / MET002 / MET005 drop the site, so nothing is injected for it: LevelError. MET003 and its twin
-// MET004 leave the call to metadata fetching: LevelRuntimeError when the client never sets it up (the call
-// fails), LevelWarning when it does (the call works, built at runtime).
+// MET001 / MET002 / MET005 drop the site, so nothing is injected for it: LevelError.
+// MET003 / MET004 leave the call to fetching: LevelRuntimeError if the client never sets it up, else LevelWarning.
 // MET006 only leaves one bundled option unset: LevelWarning.
 // MET007 injects both versions and the call still runs, reporting a mismatch it should not: LevelRuntimeError.
 // MET008 bundles the call, which then fails the middleware's validation on every request: LevelRuntimeError.
@@ -18,11 +17,9 @@ const (
 	CodeApiMetaUnreadable = "MET001"
 	// CodeApiMetaRouteNotDeclared: a route id the API type does not declare. Args: [0] the route id.
 	CodeApiMetaRouteNotDeclared = "MET002"
-	// CodeApiMetaRouteWidened: the route id is `string` (a generic helper erased the literal) and the
-	// client never sets up metadata fetching, so the call fails. Reported at the dispatch site.
+	// CodeApiMetaRouteWidened: a widened `string` route id, and the client never sets up fetching; reported at the site.
 	CodeApiMetaRouteWidened = "MET003"
-	// CodeApiMetaRouteWidenedFetched: the same widened id in a client that sets up `useMethodsMetadata`,
-	// so the call fetches its metadata. Reported at the dispatch site.
+	// CodeApiMetaRouteWidenedFetched: as MET003, but the client sets up `useMethodsMetadata`, so the call fetches.
 	CodeApiMetaRouteWidenedFetched = "MET004"
 	// CodeApiMetaSourceAmbiguous: the program named by `apiTsconfig` has no single `initRoutes(...)`
 	// declaring the routes this client calls. Args: [0] the api tsconfig, [1] the candidate count.
@@ -39,9 +36,8 @@ const (
 	CodeApiMetaMiddlewareNotSetUp = "MET008"
 	// CodeApiMetaOptionalMiddlewareNotSetUp: like MET008, for a middleware whose params are all optional. Same args.
 	CodeApiMetaOptionalMiddlewareNotSetUp = "MET009"
-	// CodeApiMetaNoMetadataToFetch: a client fetches route metadata from an API that does not place
-	// `mionMethodsMetadata`. Reported at the call that fetches: a widened dispatch site, the
-	// `useMethodsMetadata` call, or `initClient` when bundling is off.
+	// CodeApiMetaNoMetadataToFetch: the fetched API lacks `mionMethodsMetadata`.
+	// Reported at the fetching call: a widened site, `useMethodsMetadata`, or `initClient` when bundling is off.
 	CodeApiMetaNoMetadataToFetch = "MET010"
 	// CodeApiMetaFetchNotSetUp: bundling is off and the client never calls `useMethodsMetadata`; reported at `initClient`.
 	CodeApiMetaFetchNotSetUp = "MET011"
