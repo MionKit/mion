@@ -1,0 +1,46 @@
+import {eq} from 'drizzle-orm';
+import {drizzle} from 'drizzle-orm/pg-proxy';
+import {createMionRouter} from '@mionjs/router';
+import {toDrizzle} from '@mionjs/drizzle-orm-pg-core/drizzle';
+import {
+  authors,
+  posts,
+  schema,
+  type Author,
+  type AuthorWithPosts,
+  type Post,
+} from './drizzle-relations-example.ts';
+
+const authorsDb = toDrizzle(authors);
+const postsDb = toDrizzle(posts);
+const db = drizzle(async () => ({rows: []}), {schema});
+
+const mion = createMionRouter();
+
+export const blogApi = mion.initRoutes({
+  // a queried row is the model, formats included
+  listAuthors: mion.route(
+    async (): Promise<Author[]> => db.select().from(authorsDb)
+  ),
+
+  // selected columns: pick them from the model
+  authorNames: mion.route(
+    async (): Promise<Pick<Author, 'id' | 'name'>[]> =>
+      db.select({id: authorsDb.id, name: authorsDb.name}).from(authorsDb)
+  ),
+
+  // a join: one model per table
+  postsWithAuthor: mion.route(
+    async (): Promise<{post: Post; author: Author}[]> =>
+      db
+        .select({post: postsDb, author: authorsDb})
+        .from(postsDb)
+        .innerJoin(authorsDb, eq(postsDb.authorId, authorsDb.id))
+  ),
+
+  // relations: the nested shape built from the models
+  authorsWithPosts: mion.route(
+    async (): Promise<AuthorWithPosts[]> =>
+      db.query.authors.findMany({with: {posts: true}})
+  ),
+});
