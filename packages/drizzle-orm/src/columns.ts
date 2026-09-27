@@ -165,3 +165,106 @@ export type KeyFlagsOf<Spec> = Spec extends {config: infer Props; base: infer Ba
           : undefined;
     }
   : never;
+
+/** Sentinel key of the literal sql carrier (Sql<'now()'>). */
+export const rtSqlTextKey: unique symbol = Symbol('rtSqlText');
+
+/** Literal sql for type-road values, TEXT only: a template with interpolations has no type spelling
+ *  and stays builders-only. */
+export interface Sql<Text extends string> {
+  readonly [rtSqlTextKey]?: {sql: Text};
+}
+
+// ── Modifiers ────────────────────────────────────────────────────────────────
+// A builder's props hold its own config keys and drizzle's modifier calls together:
+//
+//   varchar('name', {length: 100, notNull: true, unique: ['uq']})
+//   Varchar<{length: 100; notNull: true; unique: ['uq']}>
+//
+// A no-argument modifier is `true`, one with arguments its args TUPLE, so `default: [true]` stays apart from a flag.
+// Nothing says which half a key belongs to, so every reader splits by colModNames: the recorder (./columnRecorder.ts),
+// the type reader (./fromType.ts) and the Go convert program (ts-go-runtypes/internal/convert/drizzle.go).
+// colMods.spec.ts gates the list against the dialect manifests and every config key, so a collision cannot slip in.
+
+/** Every modifier method name a column type can carry, across all dialects. */
+export const colModNames = [
+  '$default',
+  '$defaultFn',
+  '$onUpdate',
+  '$onUpdateFn',
+  '$type',
+  'array',
+  'autoincrement',
+  'default',
+  'defaultNow',
+  'defaultRandom',
+  'generatedAlwaysAs',
+  'generatedAlwaysAsIdentity',
+  'generatedByDefaultAsIdentity',
+  'notNull',
+  'onUpdateNow',
+  'primaryKey',
+  'references',
+  'unique',
+] as const;
+export type ColModName = (typeof colModNames)[number];
+const colModNameSet: ReadonlySet<string> = new Set(colModNames);
+/** Is this key a modifier call, or one of the builder's own config keys? */
+export function isColModName(name: string): name is ColModName {
+  return colModNameSet.has(name);
+}
+
+/** A `references` target in a column type: the table by db name, the column by record key (what TableRef spells). */
+export interface ColRef {
+  table: string;
+  column: string;
+}
+
+/** Every modifier a column type can spell; each dialect Picks its subset per builder kind, so a stray one is an error. */
+export interface ColMods {
+  notNull?: true;
+  /** Bare `{primaryKey: true}` mirrors `.primaryKey()`; sqlite's config form
+   *  (`{primaryKey: [{autoIncrement: true}]}`) mirrors `.primaryKey(config)`. */
+  primaryKey?: true | readonly [unknown];
+  default?: readonly [unknown];
+  defaultRandom?: true;
+  defaultNow?: true;
+  unique?: true | readonly [string] | readonly [string, unknown];
+  /** The VALUE form only; sql expressions and callbacks stay builders-only. */
+  generatedAlwaysAs?: readonly [unknown];
+  generatedAlwaysAsIdentity?: true | readonly [unknown];
+  generatedByDefaultAsIdentity?: true | readonly [unknown];
+  /** mysql. */
+  autoincrement?: true;
+  /** mysql. */
+  onUpdateNow?: true;
+  /** `.array(size?)`. */
+  array?: true | readonly [number];
+  references?: readonly [ColRef] | readonly [ColRef, unknown];
+  /** `$type<T>()`, drizzle's type-only override; never replayed. */
+  $type?: readonly [unknown];
+  // Runtime callbacks have no type spelling: the type records `true`, tableFromType's options.runtime carries the callback.
+  $default?: true;
+  $defaultFn?: true;
+  $onUpdate?: true;
+  $onUpdateFn?: true;
+}
+
+// ── Table-level entries (the extraConfig road) ───────────────────────────────
+
+/** Sentinel key of a table entry spec (index/unique/check/foreignKey/...). */
+export const rtEntrySpecKey: unique symbol = Symbol('rtEntrySpec');
+
+/** One table-level entry, replayed as `ns[fn](...args)` then each chain call. In args and chain, a column of this
+ *  table is `{col: key}`, another table's `{table: dbName, col: key}`, literal sql `Sql<'...'>`; chain values encode
+ *  like modifiers. The dialects export friendlier aliases (IndexEntry, ...) over it. */
+export interface TableEntry<
+  Fn extends string,
+  Args extends readonly unknown[] = [],
+  Chain extends object = Record<never, never>,
+> {
+  readonly [rtEntrySpecKey]?: {fn: Fn; args: Args; chain: Chain};
+}
+
+/** Map record keys onto self-column refs (the per-helper aliases' plumbing). */
+export type EntryColRefs<Keys extends readonly string[]> = {[I in keyof Keys]: {col: Keys[I]}};

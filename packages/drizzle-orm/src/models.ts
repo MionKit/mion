@@ -5,50 +5,31 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Flat model derivation for slim tables: ONE mapped pass per model directly over the columns
-// record, the RowOf-intermediate route through the standard SelectModel/InsertModel/UpdateModel
-// utilities having measured at ~1.7x this shape (.claude/skills/drizzle-slim-schemas/ARCHITECTURE.md).
-// The SEMANTICS are exactly those utilities', mirroring drizzle's own rules (drizzle-orm operations.d.ts).
+// Flat models with drizzle's operations.d.ts semantics, every flag derived from the column's raw props.
 
-import type {ColBrandOf} from './recorder.ts';
-import type {AnyRtTable, ColsOf} from './table.ts';
-import type {AnyRtView, ViewColsOf} from './view.ts';
+import type {InsertKind, SelectValue} from './columns.ts';
+import {rtColSpecKey} from './columns.ts';
+import type {AnyTable} from './table.ts';
 
 type Prettify<T> = {[K in keyof T]: T[K]} & {};
 
-// ColBrandOf reads ONE payload per column; the four Col*Of helpers probe once per flag, and insert needs three.
-type SelectValue<B> = B extends {data: infer Data; notNull: true} ? Data : B extends {data: infer Data} ? Data | null : never;
+// The spec parts are inferred straight off the column, one conditional per column and model.
+type Sel<C> = C extends {readonly [rtColSpecKey]?: {config: infer P; data: infer D; base: infer B}}
+  ? SelectValue<P, D, B>
+  : never;
+type Ins<C> = C extends {readonly [rtColSpecKey]?: {config: infer P; base: infer B}} ? InsertKind<P, B> : never;
 
-type SelectOfCols<C> = {
-  [K in keyof C]: SelectValue<ColBrandOf<C[K]>>;
+type SelectOfCols<C> = {[K in keyof C]: Sel<C[K]>};
+type InsertOfCols<C> = {[K in keyof C as Ins<C[K]> extends 'required' ? K : never]: Sel<C[K]>} & {
+  [K in keyof C as Ins<C[K]> extends 'optional' ? K : never]?: Sel<C[K]>;
 };
-type InsertOfCols<C> = {
-  [K in keyof C as ColBrandOf<C[K]> extends {insertExcluded: true}
-    ? never
-    : ColBrandOf<C[K]> extends {notNull: true}
-      ? ColBrandOf<C[K]> extends {hasDefault: true}
-        ? never
-        : K
-      : never]: SelectValue<ColBrandOf<C[K]>>;
-} & {
-  [K in keyof C as ColBrandOf<C[K]> extends {insertExcluded: true}
-    ? never
-    : ColBrandOf<C[K]> extends {notNull: true}
-      ? ColBrandOf<C[K]> extends {hasDefault: true}
-        ? K
-        : never
-      : K]?: SelectValue<ColBrandOf<C[K]>>;
-};
-type UpdateOfCols<C> = {
-  [K in keyof C as ColBrandOf<C[K]> extends {insertExcluded: true} ? never : K]?: SelectValue<ColBrandOf<C[K]>>;
-};
+type UpdateOfCols<C> = {[K in keyof C as Ins<C[K]> extends 'excluded' ? never : K]?: Sel<C[K]>};
 
-/** Row model of a (refined) slim table: every column, nullable ones as `| null`. */
-export type InferSelectModel<T extends AnyRtTable> = Prettify<SelectOfCols<ColsOf<T>>>;
-/** Row model of a slim VIEW. A separate name (as in drizzle) makes InferInsertModel<typeof someView>
- *  a compile error; a shared entry point would need a conditional, +14 instantiations per declared table. */
-export type InferSelectViewModel<V extends AnyRtView> = Prettify<SelectOfCols<ViewColsOf<V>>>;
+/** Row model: every column, nullable ones as `| null`. */
+export type InferSelectModel<T extends AnyTable> = Prettify<SelectOfCols<T['columns']>>;
+/** Row model of a view. */
+export type InferSelectViewModel<V extends {columns: object}> = Prettify<SelectOfCols<V['columns']>>;
 /** Insert payload: generated columns removed, defaulted and nullable ones optional. */
-export type InferInsertModel<T extends AnyRtTable> = Prettify<InsertOfCols<ColsOf<T>>>;
+export type InferInsertModel<T extends AnyTable> = Prettify<InsertOfCols<T['columns']>>;
 /** Update payload: any subset of the insert payload. */
-export type InferUpdateModel<T extends AnyRtTable> = Prettify<UpdateOfCols<ColsOf<T>>>;
+export type InferUpdateModel<T extends AnyTable> = Prettify<UpdateOfCols<T['columns']>>;

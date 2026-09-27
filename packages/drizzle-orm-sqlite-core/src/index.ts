@@ -5,38 +5,39 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// @mionjs/drizzle-orm-sqlite-core — the slim sqlite authoring surface: tables are written exactly
-// as drizzle tables, every function records instead of running drizzle, and toDrizzle on the
+// @mionjs/drizzle-orm-sqlite-core — the slim sqlite authoring surface: tables are written as drizzle tables with every
+// column setting in ONE props object, every function records instead of running drizzle, and toDrizzle on the
 // './drizzle' subpath is the one module that imports drizzle-orm (an optional peer).
-// Coverage is gated by manifests/sqlite.manifest.json; the mapping rules live in the
-// drizzle-slim-schemas skill.
+// Coverage is gated by manifests/sqlite.manifest.json; the mapping rules live in the drizzle-slim-schemas skill.
 
-// The sqlite column builders, their column types, and the two kind interfaces.
+// The sqlite column builders and their column types.
 export * from './columns.ts';
+// The config, data and modifier-bag types the builders and column types share.
+export * from './types.ts';
 
 export {sqliteTable, sqliteTableCreator, tableFromType} from './table.ts';
 export type {
+  AnySqliteTable,
   CheckEntry,
   ForeignKeyEntry,
   IndexEntry,
+  LiftCols,
   PrimaryKeyEntry,
-  AnySqliteTable,
-  AnySqliteView,
   SqliteExtraConfigColumns,
   SqliteExtraConfigEntry,
   SqliteExtraConfigFn,
   SqliteTable,
+  SqliteTableCreatorFn,
   UniqueEntry,
   UniqueIndexEntry,
 } from './table.ts';
 
-// The pure-types road: SqliteColMods lives in ./columns.ts, so only the sql and entry carriers are shared.
+// The pure-types road: the sql and entry carriers are shared with the core package.
 export type {ColRef, Sql, TableEntry} from '@mionjs/drizzle-orm';
 
 // Indexes, constraints and checks.
 export * from './helpers.ts';
 
-// Views, the manual-column form only (the query-builder form stays on drizzle).
-// Exported under BOTH names drizzle uses.
+// Views, the manual-column form only (the query-builder form stays on drizzle), under BOTH names drizzle uses.
 export {sqliteView, view} from './views.ts';
-export type {SQLiteViewBuilder, ViewFromQueryBuilderNotSupported} from './views.ts';
+export type {AnySqliteView, SqliteView, SqliteViewBuilder, ViewFromQueryBuilderNotSupported} from './views.ts';

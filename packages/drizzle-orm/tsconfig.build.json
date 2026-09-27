@@ -19,7 +19,6 @@
     ".dist",
     "build",
     "test",
-    "next",
     "*.config.ts",
     "**/*.spec.ts",
     "**/*.test.ts",

@@ -5,45 +5,48 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// @mionjs/drizzle-orm-mysql-core — the slim mysql authoring surface: tables are written exactly as
-// drizzle tables, every function records instead of running drizzle, and toDrizzle on the
+// @mionjs/drizzle-orm-mysql-core — the slim mysql authoring surface: tables are written as drizzle tables with every
+// column setting in ONE props object, every function records instead of running drizzle, and toDrizzle on the
 // './drizzle' subpath is the one module that imports drizzle-orm (an optional peer).
-// Coverage is gated by manifests/mysql.manifest.json; the mapping rules live in the
-// drizzle-slim-schemas skill.
+// Coverage is gated by manifests/mysql.manifest.json; the mapping rules live in the drizzle-slim-schemas skill.
 
-// The mysql column builders, their column types, and the three kind interfaces.
+// The mysql column builders and their column types.
 export * from './columns.ts';
+// The config, data and modifier-bag types the builders and column types share.
+export * from './types.ts';
 
 export {mysqlTable, mysqlTableCreator, mysqlSchema, tableFromType} from './table.ts';
 export type {
+  AnyMysqlTable,
   CheckEntry,
   ForeignKeyEntry,
   IndexEntry,
-  MyExtraConfigColumns,
-  MyExtraConfigEntry,
-  MyExtraConfigFn,
+  LiftCols,
   MySqlSchema,
-  AnyMysqlTable,
-  AnyMysqlView,
+  MysqlExtraConfigColumns,
+  MysqlExtraConfigEntry,
+  MysqlExtraConfigFn,
   MysqlTable,
   PrimaryKeyEntry,
   UniqueEntry,
   UniqueIndexEntry,
 } from './table.ts';
 
-// The pure-types road: the modifier bags live in ./columns.ts, so only the sql and entry carriers are shared.
+// The pure-types road: the sql and entry carriers are shared with the core package.
 export type {ColRef, Sql, TableEntry} from '@mionjs/drizzle-orm';
 
-// Indexes, constraints and checks.
+// Enums, indexes, constraints and checks.
 export * from './helpers.ts';
 
 // Views, the manual-column form only (the query-builder form stays on drizzle).
 export {mysqlView} from './views.ts';
 export type {
+  AnyMysqlView,
   MySqlViewAlgorithm,
-  MySqlViewBuilder,
   MySqlViewCheckOption,
   MySqlViewSecurity,
+  MysqlView,
+  MysqlViewBuilder,
   ViewFromQueryBuilderNotSupported,
 } from './views.ts';
 

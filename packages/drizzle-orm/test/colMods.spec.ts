@@ -25,7 +25,7 @@
 import {readFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {describe, expect, it} from 'vitest';
-import {colModNames, isColModName} from '../src/typeColumns.ts';
+import {colModNames, isColModName} from '../src/columns.ts';
 import {RtColumnRecorder} from '../src/recorder.ts';
 
 const DIALECTS = ['pg', 'mysql', 'sqlite'] as const;

@@ -12,24 +12,24 @@
 // (packages/drizzle-orm/CLAUDE.md). A view is select-only: InferSelectViewModel accepts one,
 // InferInsertModel and InferUpdateModel do not.
 
-import type {AnyRtColumn, DrizzleContext} from './recorder.ts';
+import type {DrizzleContext} from './recorder.ts';
+import type {AnyColumn} from './columns.ts';
+import type {NoNames} from './table.ts';
 import {mapReplayArgs, RtColumnRecorder, rtViewBrand, rtViewKey} from './recorder.ts';
 import {setViewMaterializer} from './table.ts';
 
-/** A slim view's TYPE: the metadata, same shape and reasons as RtTableMeta (see table.ts). Its own
- *  brand rather than the table's, so a view and a table stay distinguishable where toDrizzle overloads. */
-export interface RtViewMeta<TName extends string, Cols> {
+/** A view's type: the table meta minus extras, since a view has none. */
+export interface RtViewMeta<TName extends string, Cols, Names = NoNames> {
   name: TName;
   columns: Cols;
+  names: Names;
 }
-export type AnyRtView = RtViewMeta<string, Record<string, AnyRtColumn>>;
+export type AnyView = RtViewMeta<string, Record<string, AnyColumn>, object>;
+
 /** The twin of RtTableBrand (see table.ts for why it lives here rather than on RtViewMeta). */
 export interface RtViewBrand<Dialect extends string> {
   readonly [rtViewBrand]?: Dialect;
 }
-
-export type ViewNameOf<V extends AnyRtView> = V['name'];
-export type ViewColsOf<V extends AnyRtView> = V['columns'];
 
 /** Builds the dialect's drizzle view builder at materialization; returns drizzle's
  *  ManualViewBuilder, which the chain and the terminal call then run against. */

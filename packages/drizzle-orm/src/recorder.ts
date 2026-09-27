@@ -9,11 +9,9 @@
 // RECORD their creation and modifier calls and replay them 1:1 against the real drizzle functions
 // when a table materializes. Nothing here imports drizzle: every materializer receives the drizzle
 // modules through a DrizzleContext injected by the dialect's toDrizzle module, which lets drizzle-orm
-// be an OPTIONAL peer of the family. Type level, deliberately tiny: Data plus three booleans, with
-// everything else about a column living only in the recorded calls, where toDrizzleColumn restores
-// it (.claude/skills/drizzle-slim-schemas/ARCHITECTURE.md).
+// be an OPTIONAL peer of the family. The column TYPES live in ./columns.ts; this module is runtime only.
 
-/** Phantom key for the column brand; never set at runtime. */
+/** Phantom key branding the recorder types (sql, index positions, entries); never set at runtime. */
 export const rtColumnKey: unique symbol = Symbol('rtColumn');
 /** Runtime key a slim table stores its metadata under (see table.ts). */
 export const rtTableKey: unique symbol = Symbol('rtTable');
@@ -33,53 +31,6 @@ export const rtViewBrand: unique symbol = Symbol('rtViewBrand');
 export const rtValueKey: unique symbol = Symbol('rtValue');
 
 import type {FormatNameOf, NominalBrand} from '@mionjs/run-types';
-
-/** Sentinel key of the key-flag brand (see ColKeyFlags). */
-export const rtColumnKeyFlagsKey: unique symbol = Symbol('rtColumnKeyFlags');
-
-/** Named brand every slim column interface extends (named, so declaration emit prints a reference to
- *  it instead of a bare symbol key). InsertExcluded covers generatedAlwaysAs / identity-always
- *  columns, which cannot appear in an insert payload. */
-export interface RtColumnBrand<Data, NotNull extends boolean, HasDefault extends boolean, InsertExcluded extends boolean> {
-  readonly [rtColumnKey]?: {data: Data; notNull: NotNull; hasDefault: HasDefault; insertExcluded: InsertExcluded};
-}
-export type AnyRtColumn = RtColumnBrand<any, any, any, any>;
-
-/** The value type a column holds (the format-branded data type). */
-export type ColDataOf<C> = C extends RtColumnBrand<infer Data, any, any, any> ? Data : never;
-export type ColNotNullOf<C> = C extends RtColumnBrand<any, infer NotNull, any, any> ? NotNull : never;
-export type ColHasDefaultOf<C> = C extends RtColumnBrand<any, any, infer HasDefault, any> ? HasDefault : never;
-export type ColInsertExcludedOf<C> = C extends RtColumnBrand<any, any, any, infer Excluded> ? Excluded : never;
-/** The WHOLE brand payload in one conditional: the four helpers above cost one each, and the flat
- *  models would pay three per column, so they read this and index into it. */
-export type ColBrandOf<C> = C extends {readonly [rtColumnKey]?: infer Brand} ? NonNullable<Brand> : never;
-
-/** The parts of drizzle's column config the four core flags cannot express, and drizzle's own typing
- *  reads: mysql's `$returningId()` returns a key when the column is a primary key AND is either
- *  auto-incrementing or has a runtime default; pg's `.overridingSystemValue()` re-admits an
- *  `identity: 'always'` column to an insert and leaves a `generated` one out. Their own optional
- *  brand rather than more RtColumnBrand type parameters, so a column carrying none stays as it was. */
-export interface ColKeyFlags {
-  primaryKey: boolean;
-  autoincrement: boolean;
-  runtimeDefault: boolean;
-  identity: 'always' | 'byDefault' | undefined;
-}
-export type NoKeyFlags = {primaryKey: false; autoincrement: false; runtimeDefault: false; identity: undefined};
-export interface RtColumnKeyBrand<Key extends ColKeyFlags> {
-  readonly [rtColumnKeyFlagsKey]?: Key;
-}
-/** A column's key flags: the builder road carries them in the brand above, the type road recovers
- *  them from the modifier calls it already records. */
-export type ColKeyFlagsOf<C> = C extends RtColumnKeyBrand<infer Key> ? Key : NoKeyFlags;
-/** Flip one boolean flag on, leaving the rest as they were. */
-export type SetKeyFlag<Key extends ColKeyFlags, Flag extends 'primaryKey' | 'autoincrement' | 'runtimeDefault'> = {
-  [F in keyof ColKeyFlags]: F extends Flag ? true : Key[F];
-};
-/** Record which kind of identity column this is. */
-export type SetIdentity<Key extends ColKeyFlags, Kind extends 'always' | 'byDefault'> = {
-  [F in keyof ColKeyFlags]: F extends 'identity' ? Kind : Key[F];
-};
 
 /** A column's data type with its runtype FORMAT tag dropped. Right on the slim side, where the tag
  *  makes a schema double as a runtypes type; wrong on the drizzle side, where toDrizzle()'s rows must
@@ -193,8 +144,8 @@ class RtIndexedColumnImpl {
  *  recorders themselves, which carry these methods. */
 export type RtExtraColumn = RtIndexedColumn;
 
-/** Runtime shape of every slim column: the `init` materializer the column function that created it
- *  set, plus the recorded modifier calls toDrizzleColumn replays in order. */
+/** Runtime shape of every slim column: the `init` materializer the builder that created it set, plus the
+ *  modifier calls its props recorded, which toDrizzleColumn replays in order. */
 export class RtColumnRecorder {
   /** Key in the owning table's columns record; set by createRtTable. */
   key = '';
@@ -219,8 +170,8 @@ export class RtColumnRecorder {
     return this;
   }
 
-  // The modifier chain across all dialects. Which of them a given column TYPE exposes is decided by
-  // the dialect's kind interfaces, so an inapplicable one can never be called from typed code.
+  // Every dialect's modifier, called only by recordColumn replaying a builder's props; each builder's props bag
+  // decides which of them a column may carry.
   notNull() {
     return this.record('notNull', []);
   }

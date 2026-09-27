@@ -5,695 +5,447 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The mysql column builders of @mionjs/drizzle-orm-mysql-core: drizzle-identical names and call
-// params, slim recorder returns. THREE kind interfaces, grouped by drizzle's own method sets:
-//   RtMyColumn           the common chain every mysql builder has
-//   RtMyIntColumn        + autoincrement()      (every numeric kind + serial)
-//   RtMyTimestampColumn  + defaultNow() / onUpdateNow()
-// Coverage is gated by manifests/mysql.manifest.json; the completeness spec diffs the chain methods
-// against drizzle's builder prototypes. Each builder also exports its COLUMN TYPE (Varchar, Int,
-// Timestamp, ...), the pure-types vocabulary: a hand-written row using those names gets exactly the
-// types the builders infer, with zero table machinery.
+// Single-call mysql columns: a builder takes every setting in ONE props object and returns exactly the hand-written
+// alias's type. No chained modifiers: chain methods break reflection (the runtype id walks method return types,
+// MKR009), and each builder's props bag rejects a modifier its kind lacks.
 
 import type {
-  BigInt64,
-  BigUInt64,
   Date as RTDate,
   Float as FloatFormat,
   Int8,
   Int16,
   Int32,
-  Integer as IntegerFormat,
-  Number as Num,
   PositiveInt,
   String as Str,
-  StringDate,
-  StringDateTime,
   StringTime,
-  UInt8,
-  UInt16,
-  UInt32,
 } from '@mionjs/run-types/formats';
+import {RtValueRecorder, rtValueKey, recordColumn} from '@mionjs/drizzle-orm';
+import type {ColBaseFlag, Column, NamedColumn, NoProps, Only, PropsOf, AnyTableRef} from '@mionjs/drizzle-orm';
+import {mysqlEnum} from './helpers.ts';
 import type {
-  AnyRtColumn,
-  ColConfigArg,
-  ColKeyFlags,
-  ColMods,
-  ColRef,
-  ColNameArg,
-  NoKeyFlags,
-  RtColType,
-  RtColumnBrand,
-  RtColumnKeyBrand,
-  RtSql,
-  SetKeyFlag,
-} from '@mionjs/drizzle-orm';
-import {RtColumnRecorder, RtValueRecorder, rtValueKey} from '@mionjs/drizzle-orm';
+  BigintData,
+  CharData,
+  CustomTypeParams,
+  CustomTypeValues,
+  DatetimeData,
+  DecimalData,
+  IntData,
+  MediumintData,
+  MediumintDataOf,
+  MySqlBigIntConfig,
+  MySqlBinaryConfig,
+  MySqlCharConfig,
+  MySqlColMods,
+  MySqlDateConfig,
+  MySqlDateData,
+  MySqlDatetimeConfig,
+  MySqlDecimalConfig,
+  MySqlDoubleConfig,
+  MySqlFloatConfig,
+  MySqlIntColMods,
+  MySqlIntConfig,
+  MySqlRealConfig,
+  MySqlTextConfig,
+  MySqlTimestampColMods,
+  MySqlTimestampConfig,
+  MySqlVarbinaryOptions,
+  MySqlVarCharConfig,
+  ReferenceActions,
+  SmallintData,
+  TextData,
+  TimeConfig,
+  TimestampData,
+  TinyintData,
+  VarcharData,
+  YearData,
+} from './types.ts';
 
-type Writable<T> = {-readonly [K in keyof T]: T[K]};
-/** Rejects a tuple, so the enum-OBJECT overloads never shadow the array ones. */
-type NonArray<T> = T extends readonly unknown[] ? never : T;
-type EnumTuple = readonly [string, ...string[]];
-type EnumOr<T extends readonly string[], Fallback> = string extends T[number] ? Fallback : T[number];
+// ── What each builder kind's props take ──────────────────────────────────────
+// The hand-written bags, with the function-carrying keys taking their runtime shape.
 
-export type UpdateDeleteAction = 'cascade' | 'restrict' | 'no action' | 'set null' | 'set default';
-export interface ReferenceActions {
-  onDelete?: UpdateDeleteAction;
-  onUpdate?: UpdateDeleteAction;
-}
-
-// ── The three kind interfaces ────────────────────────────────────────────────
-
-export interface RtMyColumn<Data, N extends boolean, H extends boolean, X extends boolean, K extends ColKeyFlags = NoKeyFlags>
-  extends RtColumnBrand<Data, N, H, X>, RtColumnKeyBrand<K> {
-  notNull(): RtMyColumn<Data, true, H, X, K>;
-  default(value: Data | RtSql): RtMyColumn<Data, N, true, X, K>;
-  $default(fn: () => Data | RtSql): RtMyColumn<Data, N, true, X, SetKeyFlag<K, 'runtimeDefault'>>;
-  $defaultFn(fn: () => Data | RtSql): RtMyColumn<Data, N, true, X, SetKeyFlag<K, 'runtimeDefault'>>;
-  $onUpdate(fn: () => Data | RtSql): RtMyColumn<Data, N, true, X, K>;
-  $onUpdateFn(fn: () => Data | RtSql): RtMyColumn<Data, N, true, X, K>;
-  primaryKey(): RtMyColumn<Data, true, H, X, SetKeyFlag<K, 'primaryKey'>>;
-  unique(name?: string): RtMyColumn<Data, N, H, X, K>;
-  references(ref: () => AnyRtColumn, actions?: ReferenceActions): RtMyColumn<Data, N, H, X, K>;
-  generatedAlwaysAs(as: Data | RtSql | (() => RtSql), config?: {mode?: 'virtual' | 'stored'}): RtMyColumn<Data, N, true, true, K>;
-  $type<T>(): RtMyColumn<T, N, H, X, K>;
-}
-
-export interface RtMyIntColumn<Data, N extends boolean, H extends boolean, X extends boolean, K extends ColKeyFlags = NoKeyFlags>
-  extends RtColumnBrand<Data, N, H, X>, RtColumnKeyBrand<K> {
-  notNull(): RtMyIntColumn<Data, true, H, X, K>;
-  default(value: Data | RtSql): RtMyIntColumn<Data, N, true, X, K>;
-  $default(fn: () => Data | RtSql): RtMyIntColumn<Data, N, true, X, SetKeyFlag<K, 'runtimeDefault'>>;
-  $defaultFn(fn: () => Data | RtSql): RtMyIntColumn<Data, N, true, X, SetKeyFlag<K, 'runtimeDefault'>>;
-  $onUpdate(fn: () => Data | RtSql): RtMyIntColumn<Data, N, true, X, K>;
-  $onUpdateFn(fn: () => Data | RtSql): RtMyIntColumn<Data, N, true, X, K>;
-  autoincrement(): RtMyIntColumn<Data, N, true, X, SetKeyFlag<K, 'autoincrement'>>;
-  primaryKey(): RtMyIntColumn<Data, true, H, X, SetKeyFlag<K, 'primaryKey'>>;
-  unique(name?: string): RtMyIntColumn<Data, N, H, X, K>;
-  references(ref: () => AnyRtColumn, actions?: ReferenceActions): RtMyIntColumn<Data, N, H, X, K>;
-  generatedAlwaysAs(
-    as: Data | RtSql | (() => RtSql),
-    config?: {mode?: 'virtual' | 'stored'}
-  ): RtMyIntColumn<Data, N, true, true, K>;
-  $type<T>(): RtMyIntColumn<T, N, H, X, K>;
-}
-
-export interface RtMyTimestampColumn<
-  Data,
-  N extends boolean,
-  H extends boolean,
-  X extends boolean,
-  K extends ColKeyFlags = NoKeyFlags,
->
-  extends RtColumnBrand<Data, N, H, X>, RtColumnKeyBrand<K> {
-  notNull(): RtMyTimestampColumn<Data, true, H, X, K>;
-  default(value: Data | RtSql): RtMyTimestampColumn<Data, N, true, X, K>;
-  $default(fn: () => Data | RtSql): RtMyTimestampColumn<Data, N, true, X, SetKeyFlag<K, 'runtimeDefault'>>;
-  $defaultFn(fn: () => Data | RtSql): RtMyTimestampColumn<Data, N, true, X, SetKeyFlag<K, 'runtimeDefault'>>;
-  $onUpdate(fn: () => Data | RtSql): RtMyTimestampColumn<Data, N, true, X, K>;
-  $onUpdateFn(fn: () => Data | RtSql): RtMyTimestampColumn<Data, N, true, X, K>;
-  defaultNow(): RtMyTimestampColumn<Data, N, true, X, K>;
-  onUpdateNow(): RtMyTimestampColumn<Data, N, true, X, K>;
-  primaryKey(): RtMyTimestampColumn<Data, true, H, X, SetKeyFlag<K, 'primaryKey'>>;
-  unique(name?: string): RtMyTimestampColumn<Data, N, H, X, K>;
-  references(ref: () => AnyRtColumn, actions?: ReferenceActions): RtMyTimestampColumn<Data, N, H, X, K>;
-  generatedAlwaysAs(
-    as: Data | RtSql | (() => RtSql),
-    config?: {mode?: 'virtual' | 'stored'}
-  ): RtMyTimestampColumn<Data, N, true, true, K>;
-  $type<T>(): RtMyTimestampColumn<T, N, H, X, K>;
-}
-
-// ── Modifier bags, one per kind interface ────────────────────────────────────
-// What a column type may spell in its props object, beside the builder's own
-// config keys. Each bag mirrors the chain of the kind interface above it, so
-// `Varchar<'v', {autoincrement: true}>` is an error rather than a silent no-op.
-// Derived from manifests/mysql.manifest.json.
-
-/** The modifier calls every mysql column type accepts (RtMyColumn's chain). */
-export interface MySqlColMods extends Pick<
-  ColMods,
-  'notNull' | 'default' | '$type' | '$default' | '$defaultFn' | '$onUpdate' | '$onUpdateFn'
-> {
+// Written out, not an Omit of the hand-written bag: every builder call checks against one, and an interface is cheapest.
+export interface MysqlColIn {
+  notNull?: true;
   primaryKey?: true;
+  default?: readonly [unknown];
   unique?: true | readonly [string];
-  references?: readonly [ColRef] | readonly [ColRef, ReferenceActions];
   generatedAlwaysAs?: readonly [unknown] | readonly [unknown, {mode?: 'virtual' | 'stored'}];
+  $type?: readonly [unknown];
+  references?: readonly [() => AnyTableRef] | readonly [() => AnyTableRef, ReferenceActions];
+  $default?: readonly [() => unknown];
+  $defaultFn?: readonly [() => unknown];
+  $onUpdate?: readonly [() => unknown];
+  $onUpdateFn?: readonly [() => unknown];
 }
-/** Floats and decimal use this too: mysql allows AUTO_INCREMENT on any numeric column. */
-export interface MySqlIntColMods extends MySqlColMods {
+/** Every numeric kind: mysql allows AUTO_INCREMENT on floats and decimal too. */
+export interface MysqlIntIn extends MysqlColIn {
   autoincrement?: true;
 }
-/** timestamp: + defaultNow() and onUpdateNow(). */
-export interface MySqlTimestampColMods extends MySqlColMods {
+export interface MysqlTimestampIn extends MysqlColIn {
   defaultNow?: true;
   onUpdateNow?: true;
 }
 
-// ── Internal builder plumbing ────────────────────────────────────────────────
+/** What a nameless builder returns; a named call wraps it in NamedColumn. */
+type Built<Fn extends string, C, D, B extends ColBaseFlag = never> = Column<Fn, PropsOf<C>, D, B>;
 
-function myColumn(fnName: string, args: unknown[]): never {
-  return new RtColumnRecorder((context) => context.ns[fnName](...(args as never[]))) as never;
+type SerialBase = 'notNull' | 'hasDefault' | 'autoincrement';
+
+function mysqlColumn(fnName: string, args: unknown[]): never {
+  return recordColumn(args, (context, callArgs) => context.ns[fnName](...(callArgs as never[]))) as never;
 }
 
-// ── Named types + builders, one block per column function ────────────────────
+// ── Hand-written aliases + builders ──────────────────────────────────────────
 
-export interface MySqlBigIntConfig<TMode extends 'number' | 'bigint' = 'number' | 'bigint'> {
-  mode: TMode;
-  unsigned?: boolean;
-}
-export type BigintDataOf<TMode, Unsigned> = TMode extends 'bigint'
-  ? Unsigned extends true
-    ? BigUInt64
-    : BigInt64
-  : IntegerFormat;
-export type BigintData<C> = BigintDataOf<
-  C extends {mode: infer TMode} ? TMode : 'number',
-  C extends {unsigned: true} ? true : false
+export type Bigint<P extends Only<P, MySqlBigIntConfig & MySqlIntColMods> = {mode: 'number'}> = Column<
+  'bigint',
+  P,
+  BigintData<P>
 >;
-/** Column type twin of `bigint(name?, config)`. */
-export type Bigint<
-  A extends string | (MySqlBigIntConfig & MySqlIntColMods) | undefined = undefined,
-  C extends MySqlBigIntConfig & MySqlIntColMods = MySqlBigIntConfig<'number'>,
-> = RtColType<'bigint', ColNameArg<A>, ColConfigArg<A, C>, BigintData<ColConfigArg<A, C>>>;
-export function bigint<TMode extends 'number' | 'bigint', U extends boolean = false>(
-  config: MySqlBigIntConfig<TMode> & {unsigned?: U}
-): RtMyIntColumn<BigintDataOf<TMode, U>, false, false, false>;
-export function bigint<TName extends string, TMode extends 'number' | 'bigint', U extends boolean = false>(
-  name: TName,
-  config: MySqlBigIntConfig<TMode> & {unsigned?: U}
-): RtMyIntColumn<BigintDataOf<TMode, U>, false, false, false>;
+export function bigint<N extends string, const C extends Only<C, MySqlBigIntConfig & MysqlIntIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'bigint', C, BigintData<C>>>;
+export function bigint<const C extends Only<C, MySqlBigIntConfig & MysqlIntIn>>(props: C): Built<'bigint', C, BigintData<C>>;
 export function bigint(...args: unknown[]) {
-  return myColumn('bigint', args);
+  return mysqlColumn('bigint', args);
 }
 
-export interface MySqlBinaryConfig {
-  length?: number;
-}
-/** Column type twin of `binary(name?, config?)`. */
-export type Binary<
-  A extends string | (MySqlBinaryConfig & MySqlColMods) | undefined = undefined,
-  C extends MySqlBinaryConfig & MySqlColMods = Record<never, never>,
-> = RtColType<'binary', ColNameArg<A>, ColConfigArg<A, C>, string>;
-export function binary(): RtMyColumn<string, false, false, false>;
-export function binary(config?: MySqlBinaryConfig): RtMyColumn<string, false, false, false>;
-export function binary<TName extends string>(name: TName, config?: MySqlBinaryConfig): RtMyColumn<string, false, false, false>;
+export type Binary<P extends Only<P, MySqlBinaryConfig & MySqlColMods> = NoProps> = Column<'binary', P, string>;
+export function binary(): Column<'binary', NoProps, string>;
+export function binary<N extends string>(name: N): NamedColumn<N, Column<'binary', NoProps, string>>;
+export function binary<N extends string, const C extends Only<C, MySqlBinaryConfig & MysqlColIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'binary', C, string>>;
+export function binary<const C extends Only<C, MySqlBinaryConfig & MysqlColIn>>(props: C): Built<'binary', C, string>;
 export function binary(...args: unknown[]) {
-  return myColumn('binary', args);
+  return mysqlColumn('binary', args);
 }
 
-/** Column type twin of `boolean(name?)`. */
-export type Boolean<
-  A extends string | MySqlColMods | undefined = undefined,
-  C extends MySqlColMods = Record<never, never>,
-> = RtColType<'boolean', ColNameArg<A>, ColConfigArg<A, C>, boolean>;
-export function boolean(): RtMyColumn<boolean, false, false, false>;
-export function boolean<TName extends string>(name: TName): RtMyColumn<boolean, false, false, false>;
+export type Boolean<P extends Only<P, MySqlColMods> = NoProps> = Column<'boolean', P, boolean>;
+export function boolean(): Column<'boolean', NoProps, boolean>;
+export function boolean<N extends string>(name: N): NamedColumn<N, Column<'boolean', NoProps, boolean>>;
+export function boolean<N extends string, const C extends Only<C, MysqlColIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'boolean', C, boolean>>;
+export function boolean<const C extends Only<C, MysqlColIn>>(props: C): Built<'boolean', C, boolean>;
 export function boolean(...args: unknown[]) {
-  return myColumn('boolean', args);
+  return mysqlColumn('boolean', args);
 }
 
-export interface MySqlCharConfig<T extends readonly string[] = EnumTuple, L extends number | undefined = number | undefined> {
-  length?: L;
-  enum?: T;
-}
-export type CharDataOf<T extends readonly string[], L> = string extends T[number]
-  ? L extends number
-    ? Str<{length: L}>
-    : Str
-  : T[number];
-export type CharData<C> = CharDataOf<
-  C extends {enum: infer E extends readonly string[]} ? E : readonly string[],
-  C extends {length: infer L extends number} ? L : undefined
->;
-/** Column type twin of `char(name?, config?)`. */
-export type Char<
-  A extends string | (MySqlCharConfig & MySqlColMods) | undefined = undefined,
-  C extends MySqlCharConfig & MySqlColMods = Record<never, never>,
-> = RtColType<'char', ColNameArg<A>, ColConfigArg<A, C>, CharData<ColConfigArg<A, C>>>;
-export function char(): RtMyColumn<Str, false, false, false>;
-export function char<U extends string, T extends Readonly<[U, ...U[]]>, L extends number | undefined = undefined>(
-  config?: MySqlCharConfig<T | Writable<T>, L>
-): RtMyColumn<CharDataOf<T, L>, false, false, false>;
-export function char<
-  TName extends string,
-  U extends string,
-  T extends Readonly<[U, ...U[]]>,
-  L extends number | undefined = undefined,
->(name: TName, config?: MySqlCharConfig<T | Writable<T>, L>): RtMyColumn<CharDataOf<T, L>, false, false, false>;
+export type Char<P extends Only<P, MySqlCharConfig & MySqlColMods> = NoProps> = Column<'char', P, CharData<P>>;
+export function char(): Column<'char', NoProps, Str>;
+export function char<N extends string>(name: N): NamedColumn<N, Column<'char', NoProps, Str>>;
+export function char<N extends string, const C extends Only<C, MySqlCharConfig & MysqlColIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'char', C, CharData<C>>>;
+export function char<const C extends Only<C, MySqlCharConfig & MysqlColIn>>(props: C): Built<'char', C, CharData<C>>;
 export function char(...args: unknown[]) {
-  return myColumn('char', args);
+  return mysqlColumn('char', args);
 }
 
-export interface MySqlDateConfig<TMode extends 'date' | 'string' = 'date' | 'string'> {
-  mode?: TMode;
-}
-export type MySqlDateDataOf<TMode> = TMode extends 'string' ? StringDate : RTDate;
-export type MySqlDateData<C> = MySqlDateDataOf<C extends {mode: infer TMode} ? TMode : 'date'>;
-/** Column type twin of `date(name?, config?)`; named MySqlDate to dodge global Date, re-exported as `Date`. */
-export type MySqlDate<
-  A extends string | (MySqlDateConfig & MySqlColMods) | undefined = undefined,
-  C extends MySqlDateConfig & MySqlColMods = Record<never, never>,
-> = RtColType<'date', ColNameArg<A>, ColConfigArg<A, C>, MySqlDateData<ColConfigArg<A, C>>>;
-export function date(): RtMyColumn<RTDate, false, false, false>;
-export function date<TMode extends 'date' | 'string' = 'date'>(
-  config?: MySqlDateConfig<TMode>
-): RtMyColumn<MySqlDateDataOf<TMode>, false, false, false>;
-export function date<TName extends string, TMode extends 'date' | 'string' = 'date'>(
-  name: TName,
-  config?: MySqlDateConfig<TMode>
-): RtMyColumn<MySqlDateDataOf<TMode>, false, false, false>;
+export type MySqlDate<P extends Only<P, MySqlDateConfig & MySqlColMods> = NoProps> = Column<'date', P, MySqlDateData<P>>;
+export function date(): Column<'date', NoProps, RTDate>;
+export function date<N extends string>(name: N): NamedColumn<N, Column<'date', NoProps, RTDate>>;
+export function date<N extends string, const C extends Only<C, MySqlDateConfig & MysqlColIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'date', C, MySqlDateData<C>>>;
+export function date<const C extends Only<C, MySqlDateConfig & MysqlColIn>>(props: C): Built<'date', C, MySqlDateData<C>>;
 export function date(...args: unknown[]) {
-  return myColumn('date', args);
+  return mysqlColumn('date', args);
 }
 
-export interface MySqlDatetimeConfig<TMode extends 'date' | 'string' = 'date' | 'string'> {
-  mode?: TMode;
-  fsp?: number;
-}
-export type DatetimeDataOf<TMode> = TMode extends 'string' ? StringDateTime : RTDate;
-export type DatetimeData<C> = DatetimeDataOf<C extends {mode: infer TMode} ? TMode : 'date'>;
-/** Column type twin of `datetime(name?, config?)`. */
-export type Datetime<
-  A extends string | (MySqlDatetimeConfig & MySqlColMods) | undefined = undefined,
-  C extends MySqlDatetimeConfig & MySqlColMods = Record<never, never>,
-> = RtColType<'datetime', ColNameArg<A>, ColConfigArg<A, C>, DatetimeData<ColConfigArg<A, C>>>;
-export function datetime(): RtMyColumn<RTDate, false, false, false>;
-export function datetime<TMode extends 'date' | 'string' = 'date'>(
-  config?: MySqlDatetimeConfig<TMode>
-): RtMyColumn<DatetimeDataOf<TMode>, false, false, false>;
-export function datetime<TName extends string, TMode extends 'date' | 'string' = 'date'>(
-  name: TName,
-  config?: MySqlDatetimeConfig<TMode>
-): RtMyColumn<DatetimeDataOf<TMode>, false, false, false>;
+export type Datetime<P extends Only<P, MySqlDatetimeConfig & MySqlColMods> = NoProps> = Column<'datetime', P, DatetimeData<P>>;
+export function datetime(): Column<'datetime', NoProps, RTDate>;
+export function datetime<N extends string>(name: N): NamedColumn<N, Column<'datetime', NoProps, RTDate>>;
+export function datetime<N extends string, const C extends Only<C, MySqlDatetimeConfig & MysqlColIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'datetime', C, DatetimeData<C>>>;
+export function datetime<const C extends Only<C, MySqlDatetimeConfig & MysqlColIn>>(
+  props: C
+): Built<'datetime', C, DatetimeData<C>>;
 export function datetime(...args: unknown[]) {
-  return myColumn('datetime', args);
+  return mysqlColumn('datetime', args);
 }
 
-export interface MySqlDecimalConfig<TMode extends 'number' | 'string' | 'bigint' = 'number' | 'string' | 'bigint'> {
-  mode?: TMode;
-  precision?: number;
-  scale?: number;
-  unsigned?: boolean;
-}
-export type DecimalDataOf<TMode> = TMode extends 'number' ? FloatFormat : TMode extends 'bigint' ? bigint : string;
-export type DecimalData<C> = DecimalDataOf<C extends {mode: infer TMode} ? TMode : 'string'>;
-/** Column type twin of `decimal(name?, config?)`. */
-export type Decimal<
-  A extends string | (MySqlDecimalConfig & MySqlIntColMods) | undefined = undefined,
-  C extends MySqlDecimalConfig & MySqlIntColMods = Record<never, never>,
-> = RtColType<'decimal', ColNameArg<A>, ColConfigArg<A, C>, DecimalData<ColConfigArg<A, C>>>;
-export function decimal(): RtMyIntColumn<string, false, false, false>;
-export function decimal<TMode extends 'number' | 'string' | 'bigint' = 'string'>(
-  config?: MySqlDecimalConfig<TMode>
-): RtMyIntColumn<DecimalDataOf<TMode>, false, false, false>;
-export function decimal<TName extends string, TMode extends 'number' | 'string' | 'bigint' = 'string'>(
-  name: TName,
-  config?: MySqlDecimalConfig<TMode>
-): RtMyIntColumn<DecimalDataOf<TMode>, false, false, false>;
+export type Decimal<P extends Only<P, MySqlDecimalConfig & MySqlIntColMods> = NoProps> = Column<'decimal', P, DecimalData<P>>;
+export function decimal(): Column<'decimal', NoProps, string>;
+export function decimal<N extends string>(name: N): NamedColumn<N, Column<'decimal', NoProps, string>>;
+export function decimal<N extends string, const C extends Only<C, MySqlDecimalConfig & MysqlIntIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'decimal', C, DecimalData<C>>>;
+export function decimal<const C extends Only<C, MySqlDecimalConfig & MysqlIntIn>>(props: C): Built<'decimal', C, DecimalData<C>>;
 export function decimal(...args: unknown[]) {
-  return myColumn('decimal', args);
+  return mysqlColumn('decimal', args);
 }
 
-export interface MySqlDoubleConfig {
-  precision?: number;
-  scale?: number;
-  unsigned?: boolean;
-}
-/** Column type twin of `double(name?, config?)`. */
-export type Double<
-  A extends string | (MySqlDoubleConfig & MySqlIntColMods) | undefined = undefined,
-  C extends MySqlDoubleConfig & MySqlIntColMods = Record<never, never>,
-> = RtColType<'double', ColNameArg<A>, ColConfigArg<A, C>, FloatFormat>;
-export function double(): RtMyIntColumn<FloatFormat, false, false, false>;
-export function double(config?: MySqlDoubleConfig): RtMyIntColumn<FloatFormat, false, false, false>;
-export function double<TName extends string>(
-  name: TName,
-  config?: MySqlDoubleConfig
-): RtMyIntColumn<FloatFormat, false, false, false>;
+export type Double<P extends Only<P, MySqlDoubleConfig & MySqlIntColMods> = NoProps> = Column<'double', P, FloatFormat>;
+export function double(): Column<'double', NoProps, FloatFormat>;
+export function double<N extends string>(name: N): NamedColumn<N, Column<'double', NoProps, FloatFormat>>;
+export function double<N extends string, const C extends Only<C, MySqlDoubleConfig & MysqlIntIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'double', C, FloatFormat>>;
+export function double<const C extends Only<C, MySqlDoubleConfig & MysqlIntIn>>(props: C): Built<'double', C, FloatFormat>;
 export function double(...args: unknown[]) {
-  return myColumn('double', args);
+  return mysqlColumn('double', args);
 }
 
-export interface MySqlFloatConfig {
-  precision?: number;
-  scale?: number;
-  unsigned?: boolean;
-}
-/** Column type twin of `float(name?, config?)`. */
-export type Float<
-  A extends string | (MySqlFloatConfig & MySqlIntColMods) | undefined = undefined,
-  C extends MySqlFloatConfig & MySqlIntColMods = Record<never, never>,
-> = RtColType<'float', ColNameArg<A>, ColConfigArg<A, C>, FloatFormat>;
-export function float(): RtMyIntColumn<FloatFormat, false, false, false>;
-export function float(config?: MySqlFloatConfig): RtMyIntColumn<FloatFormat, false, false, false>;
-export function float<TName extends string>(
-  name: TName,
-  config?: MySqlFloatConfig
-): RtMyIntColumn<FloatFormat, false, false, false>;
+export type Float<P extends Only<P, MySqlFloatConfig & MySqlIntColMods> = NoProps> = Column<'float', P, FloatFormat>;
+export function float(): Column<'float', NoProps, FloatFormat>;
+export function float<N extends string>(name: N): NamedColumn<N, Column<'float', NoProps, FloatFormat>>;
+export function float<N extends string, const C extends Only<C, MySqlFloatConfig & MysqlIntIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'float', C, FloatFormat>>;
+export function float<const C extends Only<C, MySqlFloatConfig & MysqlIntIn>>(props: C): Built<'float', C, FloatFormat>;
 export function float(...args: unknown[]) {
-  return myColumn('float', args);
+  return mysqlColumn('float', args);
 }
 
-export interface MySqlIntConfig {
-  unsigned?: boolean;
-}
-export type IntDataOf<Unsigned> = Unsigned extends true ? UInt32 : Int32;
-export type IntData<C> = IntDataOf<C extends {unsigned: true} ? true : false>;
-/** Column type twin of `int(name?, config?)`; unsigned rides the config. */
-export type Int<
-  A extends string | (MySqlIntConfig & MySqlIntColMods) | undefined = undefined,
-  C extends MySqlIntConfig & MySqlIntColMods = Record<never, never>,
-> = RtColType<'int', ColNameArg<A>, ColConfigArg<A, C>, IntData<ColConfigArg<A, C>>>;
-export function int<U extends boolean = false>(
-  config?: MySqlIntConfig & {unsigned?: U}
-): RtMyIntColumn<IntDataOf<U>, false, false, false>;
-export function int<TName extends string, U extends boolean = false>(
-  name: TName,
-  config?: MySqlIntConfig & {unsigned?: U}
-): RtMyIntColumn<IntDataOf<U>, false, false, false>;
+export type Int<P extends Only<P, MySqlIntConfig & MySqlIntColMods> = NoProps> = Column<'int', P, IntData<P>>;
+export function int(): Column<'int', NoProps, Int32>;
+export function int<N extends string>(name: N): NamedColumn<N, Column<'int', NoProps, Int32>>;
+export function int<N extends string, const C extends Only<C, MySqlIntConfig & MysqlIntIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'int', C, IntData<C>>>;
+export function int<const C extends Only<C, MySqlIntConfig & MysqlIntIn>>(props: C): Built<'int', C, IntData<C>>;
 export function int(...args: unknown[]) {
-  return myColumn('int', args);
+  return mysqlColumn('int', args);
 }
 
-/** Column type twin of `json(name?)`. */
-export type Json<
-  A extends string | MySqlColMods | undefined = undefined,
-  C extends MySqlColMods = Record<never, never>,
-> = RtColType<'json', ColNameArg<A>, ColConfigArg<A, C>, unknown>;
-export function json(): RtMyColumn<unknown, false, false, false>;
-export function json<TName extends string>(name: TName): RtMyColumn<unknown, false, false, false>;
+export type Json<P extends Only<P, MySqlColMods> = NoProps> = Column<'json', P, unknown>;
+export function json(): Column<'json', NoProps, unknown>;
+export function json<N extends string>(name: N): NamedColumn<N, Column<'json', NoProps, unknown>>;
+export function json<N extends string, const C extends Only<C, MysqlColIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'json', C, unknown>>;
+export function json<const C extends Only<C, MysqlColIn>>(props: C): Built<'json', C, unknown>;
 export function json(...args: unknown[]) {
-  return myColumn('json', args);
+  return mysqlColumn('json', args);
 }
 
-export interface MySqlTextConfig<T extends readonly string[] = EnumTuple> {
-  enum?: T;
-}
-/** The one data computation the four text builders and their column types go through. */
-export type TextDataOf<T extends readonly string[]> = EnumOr<T, Str>;
-export type TextData<C> = TextDataOf<C extends {enum: infer E extends readonly string[]} ? E : readonly string[]>;
-/** Column type twin of `longtext(name?, config?)`. */
-export type Longtext<
-  A extends string | (MySqlTextConfig & MySqlColMods) | undefined = undefined,
-  C extends MySqlTextConfig & MySqlColMods = Record<never, never>,
-> = RtColType<'longtext', ColNameArg<A>, ColConfigArg<A, C>, TextData<ColConfigArg<A, C>>>;
-export function longtext(): RtMyColumn<Str, false, false, false>;
-export function longtext<U extends string, T extends Readonly<[U, ...U[]]>>(
-  config?: MySqlTextConfig<T | Writable<T>>
-): RtMyColumn<TextDataOf<T>, false, false, false>;
-export function longtext<TName extends string, U extends string, T extends Readonly<[U, ...U[]]>>(
-  name: TName,
-  config?: MySqlTextConfig<T | Writable<T>>
-): RtMyColumn<TextDataOf<T>, false, false, false>;
+export type Longtext<P extends Only<P, MySqlTextConfig & MySqlColMods> = NoProps> = Column<'longtext', P, TextData<P>>;
+export function longtext(): Column<'longtext', NoProps, Str>;
+export function longtext<N extends string>(name: N): NamedColumn<N, Column<'longtext', NoProps, Str>>;
+export function longtext<N extends string, const C extends Only<C, MySqlTextConfig & MysqlColIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'longtext', C, TextData<C>>>;
+export function longtext<const C extends Only<C, MySqlTextConfig & MysqlColIn>>(props: C): Built<'longtext', C, TextData<C>>;
 export function longtext(...args: unknown[]) {
-  return myColumn('longtext', args);
+  return mysqlColumn('longtext', args);
 }
 
-export type MediumintDataOf<Unsigned> = Unsigned extends true
-  ? Num<{integer: true; min: 0; max: 16777215}>
-  : Num<{integer: true; min: -8388608; max: 8388607}>;
-export type MediumintData<C> = MediumintDataOf<C extends {unsigned: true} ? true : false>;
-/** Column type twin of `mediumint(name?, config?)`. */
-export type Mediumint<
-  A extends string | (MySqlIntConfig & MySqlIntColMods) | undefined = undefined,
-  C extends MySqlIntConfig & MySqlIntColMods = Record<never, never>,
-> = RtColType<'mediumint', ColNameArg<A>, ColConfigArg<A, C>, MediumintData<ColConfigArg<A, C>>>;
-export function mediumint<U extends boolean = false>(
-  config?: MySqlIntConfig & {unsigned?: U}
-): RtMyIntColumn<MediumintDataOf<U>, false, false, false>;
-export function mediumint<TName extends string, U extends boolean = false>(
-  name: TName,
-  config?: MySqlIntConfig & {unsigned?: U}
-): RtMyIntColumn<MediumintDataOf<U>, false, false, false>;
+export type Mediumint<P extends Only<P, MySqlIntConfig & MySqlIntColMods> = NoProps> = Column<'mediumint', P, MediumintData<P>>;
+export function mediumint(): Column<'mediumint', NoProps, MediumintDataOf<false>>;
+export function mediumint<N extends string>(name: N): NamedColumn<N, Column<'mediumint', NoProps, MediumintDataOf<false>>>;
+export function mediumint<N extends string, const C extends Only<C, MySqlIntConfig & MysqlIntIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'mediumint', C, MediumintData<C>>>;
+export function mediumint<const C extends Only<C, MySqlIntConfig & MysqlIntIn>>(
+  props: C
+): Built<'mediumint', C, MediumintData<C>>;
 export function mediumint(...args: unknown[]) {
-  return myColumn('mediumint', args);
+  return mysqlColumn('mediumint', args);
 }
 
-/** Column type twin of `mediumtext(name?, config?)`. */
-export type Mediumtext<
-  A extends string | (MySqlTextConfig & MySqlColMods) | undefined = undefined,
-  C extends MySqlTextConfig & MySqlColMods = Record<never, never>,
-> = RtColType<'mediumtext', ColNameArg<A>, ColConfigArg<A, C>, TextData<ColConfigArg<A, C>>>;
-export function mediumtext(): RtMyColumn<Str, false, false, false>;
-export function mediumtext<U extends string, T extends Readonly<[U, ...U[]]>>(
-  config?: MySqlTextConfig<T | Writable<T>>
-): RtMyColumn<TextDataOf<T>, false, false, false>;
-export function mediumtext<TName extends string, U extends string, T extends Readonly<[U, ...U[]]>>(
-  name: TName,
-  config?: MySqlTextConfig<T | Writable<T>>
-): RtMyColumn<TextDataOf<T>, false, false, false>;
+export type Mediumtext<P extends Only<P, MySqlTextConfig & MySqlColMods> = NoProps> = Column<'mediumtext', P, TextData<P>>;
+export function mediumtext(): Column<'mediumtext', NoProps, Str>;
+export function mediumtext<N extends string>(name: N): NamedColumn<N, Column<'mediumtext', NoProps, Str>>;
+export function mediumtext<N extends string, const C extends Only<C, MySqlTextConfig & MysqlColIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'mediumtext', C, TextData<C>>>;
+export function mediumtext<const C extends Only<C, MySqlTextConfig & MysqlColIn>>(props: C): Built<'mediumtext', C, TextData<C>>;
 export function mediumtext(...args: unknown[]) {
-  return myColumn('mediumtext', args);
+  return mysqlColumn('mediumtext', args);
 }
 
-/** mysqlEnum: a column function directly, with drizzle's four call shapes (the enum-OBJECT ones take
- *  members, not a tuple). No column type twin: the second arg is a VALUES list, not a config object,
- *  so the type road cannot spell it and mysqlEnum stays builders-only. */
-export function mysqlEnum<U extends string, T extends Readonly<[U, ...U[]]>>(
-  values: T | Writable<T>
-): RtMyColumn<T[number], false, false, false>;
-export function mysqlEnum<TName extends string, U extends string, T extends Readonly<[U, ...U[]]>>(
-  name: TName,
-  values: T | Writable<T>
-): RtMyColumn<T[number], false, false, false>;
-export function mysqlEnum<E extends Record<string, string>>(enumObj: NonArray<E>): RtMyColumn<E[keyof E], false, false, false>;
-export function mysqlEnum<TName extends string, E extends Record<string, string>>(
-  name: TName,
-  enumObj: NonArray<E>
-): RtMyColumn<E[keyof E], false, false, false>;
-export function mysqlEnum(...args: unknown[]) {
-  return myColumn('mysqlEnum', args);
-}
-
-export interface MySqlRealConfig {
-  precision?: number;
-  scale?: number;
-}
-/** Column type twin of `real(name?, config?)`. */
-export type Real<
-  A extends string | (MySqlRealConfig & MySqlIntColMods) | undefined = undefined,
-  C extends MySqlRealConfig & MySqlIntColMods = Record<never, never>,
-> = RtColType<'real', ColNameArg<A>, ColConfigArg<A, C>, FloatFormat>;
-export function real(): RtMyIntColumn<FloatFormat, false, false, false>;
-export function real(config?: MySqlRealConfig): RtMyIntColumn<FloatFormat, false, false, false>;
-export function real<TName extends string>(
-  name: TName,
-  config?: MySqlRealConfig
-): RtMyIntColumn<FloatFormat, false, false, false>;
+export type Real<P extends Only<P, MySqlRealConfig & MySqlIntColMods> = NoProps> = Column<'real', P, FloatFormat>;
+export function real(): Column<'real', NoProps, FloatFormat>;
+export function real<N extends string>(name: N): NamedColumn<N, Column<'real', NoProps, FloatFormat>>;
+export function real<N extends string, const C extends Only<C, MySqlRealConfig & MysqlIntIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'real', C, FloatFormat>>;
+export function real<const C extends Only<C, MySqlRealConfig & MysqlIntIn>>(props: C): Built<'real', C, FloatFormat>;
 export function real(...args: unknown[]) {
-  return myColumn('real', args);
+  return mysqlColumn('real', args);
 }
 
-/** drizzle's mysql `serial` is `bigint unsigned auto_increment`, so it is auto-incrementing before
- *  any modifier runs, which is what makes `serial('id').primaryKey()` come back from `$returningId()`. */
-type SerialKeyFlags = {primaryKey: false; autoincrement: true; runtimeDefault: false; identity: undefined};
-
-/** Column type twin of `serial(name?)`; notNull, defaulted and auto-incrementing (`$returningId()` reads the last). */
-export type Serial<
-  A extends string | MySqlIntColMods | undefined = undefined,
-  C extends MySqlIntColMods = Record<never, never>,
-> = RtColType<'serial', ColNameArg<A>, ColConfigArg<A, C>, PositiveInt, 'notNull' | 'hasDefault' | 'autoincrement'>;
-export function serial(): RtMyIntColumn<PositiveInt, true, true, false, SerialKeyFlags>;
-export function serial<TName extends string>(name: TName): RtMyIntColumn<PositiveInt, true, true, false, SerialKeyFlags>;
+/** drizzle's mysql serial is `bigint unsigned auto_increment`, so `$returningId()` returns it before any modifier. */
+export type Serial<P extends Only<P, MySqlIntColMods> = NoProps> = Column<'serial', P, PositiveInt, SerialBase>;
+export function serial(): Column<'serial', NoProps, PositiveInt, SerialBase>;
+export function serial<N extends string>(name: N): NamedColumn<N, Column<'serial', NoProps, PositiveInt, SerialBase>>;
+export function serial<N extends string, const C extends Only<C, MysqlIntIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'serial', C, PositiveInt, SerialBase>>;
+export function serial<const C extends Only<C, MysqlIntIn>>(props: C): Built<'serial', C, PositiveInt, SerialBase>;
 export function serial(...args: unknown[]) {
-  return myColumn('serial', args);
+  return mysqlColumn('serial', args);
 }
 
-export type SmallintDataOf<Unsigned> = Unsigned extends true ? UInt16 : Int16;
-export type SmallintData<C> = SmallintDataOf<C extends {unsigned: true} ? true : false>;
-/** Column type twin of `smallint(name?, config?)`. */
-export type Smallint<
-  A extends string | (MySqlIntConfig & MySqlIntColMods) | undefined = undefined,
-  C extends MySqlIntConfig & MySqlIntColMods = Record<never, never>,
-> = RtColType<'smallint', ColNameArg<A>, ColConfigArg<A, C>, SmallintData<ColConfigArg<A, C>>>;
-export function smallint<U extends boolean = false>(
-  config?: MySqlIntConfig & {unsigned?: U}
-): RtMyIntColumn<SmallintDataOf<U>, false, false, false>;
-export function smallint<TName extends string, U extends boolean = false>(
-  name: TName,
-  config?: MySqlIntConfig & {unsigned?: U}
-): RtMyIntColumn<SmallintDataOf<U>, false, false, false>;
+export type Smallint<P extends Only<P, MySqlIntConfig & MySqlIntColMods> = NoProps> = Column<'smallint', P, SmallintData<P>>;
+export function smallint(): Column<'smallint', NoProps, Int16>;
+export function smallint<N extends string>(name: N): NamedColumn<N, Column<'smallint', NoProps, Int16>>;
+export function smallint<N extends string, const C extends Only<C, MySqlIntConfig & MysqlIntIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'smallint', C, SmallintData<C>>>;
+export function smallint<const C extends Only<C, MySqlIntConfig & MysqlIntIn>>(props: C): Built<'smallint', C, SmallintData<C>>;
 export function smallint(...args: unknown[]) {
-  return myColumn('smallint', args);
+  return mysqlColumn('smallint', args);
 }
 
-/** Column type twin of `text(name?, config?)`. */
-export type Text<
-  A extends string | (MySqlTextConfig & MySqlColMods) | undefined = undefined,
-  C extends MySqlTextConfig & MySqlColMods = Record<never, never>,
-> = RtColType<'text', ColNameArg<A>, ColConfigArg<A, C>, TextData<ColConfigArg<A, C>>>;
-export function text(): RtMyColumn<Str, false, false, false>;
-export function text<U extends string, T extends Readonly<[U, ...U[]]>>(
-  config?: MySqlTextConfig<T | Writable<T>>
-): RtMyColumn<TextDataOf<T>, false, false, false>;
-export function text<TName extends string, U extends string, T extends Readonly<[U, ...U[]]>>(
-  name: TName,
-  config?: MySqlTextConfig<T | Writable<T>>
-): RtMyColumn<TextDataOf<T>, false, false, false>;
+export type Text<P extends Only<P, MySqlTextConfig & MySqlColMods> = NoProps> = Column<'text', P, TextData<P>>;
+export function text(): Column<'text', NoProps, Str>;
+export function text<N extends string>(name: N): NamedColumn<N, Column<'text', NoProps, Str>>;
+export function text<N extends string, const C extends Only<C, MySqlTextConfig & MysqlColIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'text', C, TextData<C>>>;
+export function text<const C extends Only<C, MySqlTextConfig & MysqlColIn>>(props: C): Built<'text', C, TextData<C>>;
 export function text(...args: unknown[]) {
-  return myColumn('text', args);
+  return mysqlColumn('text', args);
 }
 
-export interface TimeConfig {
-  fsp?: number;
-}
-/** Column type twin of `time(name?, config?)`. */
-export type Time<
-  A extends string | (TimeConfig & MySqlColMods) | undefined = undefined,
-  C extends TimeConfig & MySqlColMods = Record<never, never>,
-> = RtColType<'time', ColNameArg<A>, ColConfigArg<A, C>, StringTime>;
-export function time(): RtMyColumn<StringTime, false, false, false>;
-export function time(config?: TimeConfig): RtMyColumn<StringTime, false, false, false>;
-export function time<TName extends string>(name: TName, config?: TimeConfig): RtMyColumn<StringTime, false, false, false>;
+export type Time<P extends Only<P, TimeConfig & MySqlColMods> = NoProps> = Column<'time', P, StringTime>;
+export function time(): Column<'time', NoProps, StringTime>;
+export function time<N extends string>(name: N): NamedColumn<N, Column<'time', NoProps, StringTime>>;
+export function time<N extends string, const C extends Only<C, TimeConfig & MysqlColIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'time', C, StringTime>>;
+export function time<const C extends Only<C, TimeConfig & MysqlColIn>>(props: C): Built<'time', C, StringTime>;
 export function time(...args: unknown[]) {
-  return myColumn('time', args);
+  return mysqlColumn('time', args);
 }
 
-export interface MySqlTimestampConfig<TMode extends 'date' | 'string' = 'date' | 'string'> {
-  mode?: TMode;
-  fsp?: number;
-}
-export type TimestampDataOf<TMode> = TMode extends 'string' ? StringDateTime : RTDate;
-export type TimestampData<C> = TimestampDataOf<C extends {mode: infer TMode} ? TMode : 'date'>;
-/** Column type twin of `timestamp(name?, config?)`. */
-export type Timestamp<
-  A extends string | (MySqlTimestampConfig & MySqlTimestampColMods) | undefined = undefined,
-  C extends MySqlTimestampConfig & MySqlTimestampColMods = Record<never, never>,
-> = RtColType<'timestamp', ColNameArg<A>, ColConfigArg<A, C>, TimestampData<ColConfigArg<A, C>>>;
-export function timestamp(): RtMyTimestampColumn<RTDate, false, false, false>;
-export function timestamp<TMode extends 'date' | 'string' = 'date'>(
-  config?: MySqlTimestampConfig<TMode>
-): RtMyTimestampColumn<TimestampDataOf<TMode>, false, false, false>;
-export function timestamp<TName extends string, TMode extends 'date' | 'string' = 'date'>(
-  name: TName,
-  config?: MySqlTimestampConfig<TMode>
-): RtMyTimestampColumn<TimestampDataOf<TMode>, false, false, false>;
-export function timestamp(...args: unknown[]) {
-  return myColumn('timestamp', args);
-}
-
-export type TinyintDataOf<Unsigned> = Unsigned extends true ? UInt8 : Int8;
-export type TinyintData<C> = TinyintDataOf<C extends {unsigned: true} ? true : false>;
-/** Column type twin of `tinyint(name?, config?)`. */
-export type Tinyint<
-  A extends string | (MySqlIntConfig & MySqlIntColMods) | undefined = undefined,
-  C extends MySqlIntConfig & MySqlIntColMods = Record<never, never>,
-> = RtColType<'tinyint', ColNameArg<A>, ColConfigArg<A, C>, TinyintData<ColConfigArg<A, C>>>;
-export function tinyint<U extends boolean = false>(
-  config?: MySqlIntConfig & {unsigned?: U}
-): RtMyIntColumn<TinyintDataOf<U>, false, false, false>;
-export function tinyint<TName extends string, U extends boolean = false>(
-  name: TName,
-  config?: MySqlIntConfig & {unsigned?: U}
-): RtMyIntColumn<TinyintDataOf<U>, false, false, false>;
-export function tinyint(...args: unknown[]) {
-  return myColumn('tinyint', args);
-}
-
-/** Column type twin of `tinytext(name?, config?)`. */
-export type Tinytext<
-  A extends string | (MySqlTextConfig & MySqlColMods) | undefined = undefined,
-  C extends MySqlTextConfig & MySqlColMods = Record<never, never>,
-> = RtColType<'tinytext', ColNameArg<A>, ColConfigArg<A, C>, TextData<ColConfigArg<A, C>>>;
-export function tinytext(): RtMyColumn<Str, false, false, false>;
-export function tinytext<U extends string, T extends Readonly<[U, ...U[]]>>(
-  config?: MySqlTextConfig<T | Writable<T>>
-): RtMyColumn<TextDataOf<T>, false, false, false>;
-export function tinytext<TName extends string, U extends string, T extends Readonly<[U, ...U[]]>>(
-  name: TName,
-  config?: MySqlTextConfig<T | Writable<T>>
-): RtMyColumn<TextDataOf<T>, false, false, false>;
-export function tinytext(...args: unknown[]) {
-  return myColumn('tinytext', args);
-}
-
-export interface MySqlVarbinaryOptions {
-  length: number;
-}
-/** Column type twin of `varbinary(name?, config)`. */
-export type Varbinary<
-  A extends string | (Partial<MySqlVarbinaryOptions> & MySqlColMods) | undefined = undefined,
-  C extends Partial<MySqlVarbinaryOptions> & MySqlColMods = Record<never, never>,
-> = RtColType<'varbinary', ColNameArg<A>, ColConfigArg<A, C>, string>;
-export function varbinary(config: MySqlVarbinaryOptions): RtMyColumn<string, false, false, false>;
-export function varbinary<TName extends string>(
-  name: TName,
-  config: MySqlVarbinaryOptions
-): RtMyColumn<string, false, false, false>;
-export function varbinary(...args: unknown[]) {
-  return myColumn('varbinary', args);
-}
-
-export interface MySqlVarCharConfig<T extends readonly string[] = EnumTuple, L extends number | undefined = number | undefined> {
-  length: L;
-  enum?: T;
-}
-/** The one varchar data computation BOTH roads go through: the builder overloads and VarcharData. */
-export type VarcharDataOf<T extends readonly string[], L> = string extends T[number]
-  ? L extends number
-    ? Str<{maxLength: L}>
-    : Str
-  : T[number];
-export type VarcharData<C> = VarcharDataOf<
-  C extends {enum: infer E extends readonly string[]} ? E : readonly string[],
-  C extends {length: infer L extends number} ? L : undefined
+export type Timestamp<P extends Only<P, MySqlTimestampConfig & MySqlTimestampColMods> = NoProps> = Column<
+  'timestamp',
+  P,
+  TimestampData<P>
 >;
-/** Column type twin of `varchar(name?, config)`. */
-export type Varchar<
-  A extends string | (Partial<MySqlVarCharConfig> & MySqlColMods) | undefined = undefined,
-  C extends Partial<MySqlVarCharConfig> & MySqlColMods = Record<never, never>,
-> = RtColType<'varchar', ColNameArg<A>, ColConfigArg<A, C>, VarcharData<ColConfigArg<A, C>>>;
-export function varchar<U extends string, T extends Readonly<[U, ...U[]]>, L extends number | undefined = undefined>(
-  config: MySqlVarCharConfig<T | Writable<T>, L>
-): RtMyColumn<VarcharDataOf<T, L>, false, false, false>;
-export function varchar<
-  TName extends string,
-  U extends string,
-  T extends Readonly<[U, ...U[]]>,
-  L extends number | undefined = undefined,
->(name: TName, config: MySqlVarCharConfig<T | Writable<T>, L>): RtMyColumn<VarcharDataOf<T, L>, false, false, false>;
+export function timestamp(): Column<'timestamp', NoProps, RTDate>;
+export function timestamp<N extends string>(name: N): NamedColumn<N, Column<'timestamp', NoProps, RTDate>>;
+export function timestamp<N extends string, const C extends Only<C, MySqlTimestampConfig & MysqlTimestampIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'timestamp', C, TimestampData<C>>>;
+export function timestamp<const C extends Only<C, MySqlTimestampConfig & MysqlTimestampIn>>(
+  props: C
+): Built<'timestamp', C, TimestampData<C>>;
+export function timestamp(...args: unknown[]) {
+  return mysqlColumn('timestamp', args);
+}
+
+export type Tinyint<P extends Only<P, MySqlIntConfig & MySqlIntColMods> = NoProps> = Column<'tinyint', P, TinyintData<P>>;
+export function tinyint(): Column<'tinyint', NoProps, Int8>;
+export function tinyint<N extends string>(name: N): NamedColumn<N, Column<'tinyint', NoProps, Int8>>;
+export function tinyint<N extends string, const C extends Only<C, MySqlIntConfig & MysqlIntIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'tinyint', C, TinyintData<C>>>;
+export function tinyint<const C extends Only<C, MySqlIntConfig & MysqlIntIn>>(props: C): Built<'tinyint', C, TinyintData<C>>;
+export function tinyint(...args: unknown[]) {
+  return mysqlColumn('tinyint', args);
+}
+
+export type Tinytext<P extends Only<P, MySqlTextConfig & MySqlColMods> = NoProps> = Column<'tinytext', P, TextData<P>>;
+export function tinytext(): Column<'tinytext', NoProps, Str>;
+export function tinytext<N extends string>(name: N): NamedColumn<N, Column<'tinytext', NoProps, Str>>;
+export function tinytext<N extends string, const C extends Only<C, MySqlTextConfig & MysqlColIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'tinytext', C, TextData<C>>>;
+export function tinytext<const C extends Only<C, MySqlTextConfig & MysqlColIn>>(props: C): Built<'tinytext', C, TextData<C>>;
+export function tinytext(...args: unknown[]) {
+  return mysqlColumn('tinytext', args);
+}
+
+export type Varbinary<P extends Only<P, Partial<MySqlVarbinaryOptions> & MySqlColMods> = NoProps> = Column<
+  'varbinary',
+  P,
+  string
+>;
+export function varbinary<N extends string, const C extends Only<C, MySqlVarbinaryOptions & MysqlColIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'varbinary', C, string>>;
+export function varbinary<const C extends Only<C, MySqlVarbinaryOptions & MysqlColIn>>(props: C): Built<'varbinary', C, string>;
+export function varbinary(...args: unknown[]) {
+  return mysqlColumn('varbinary', args);
+}
+
+export type Varchar<P extends Only<P, Partial<MySqlVarCharConfig> & MySqlColMods> = NoProps> = Column<
+  'varchar',
+  P,
+  VarcharData<P>
+>;
+export function varchar<N extends string, const C extends Only<C, MySqlVarCharConfig & MysqlColIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'varchar', C, VarcharData<C>>>;
+export function varchar<const C extends Only<C, MySqlVarCharConfig & MysqlColIn>>(props: C): Built<'varchar', C, VarcharData<C>>;
 export function varchar(...args: unknown[]) {
-  return myColumn('varchar', args);
+  return mysqlColumn('varchar', args);
 }
 
-/** The 1901-2155 range mysql stores in a YEAR column, shared by both roads. */
-export type YearData = Num<{integer: true; min: 1901; max: 2155}>;
-/** Column type twin of `year(name?)`. */
-export type Year<
-  A extends string | MySqlColMods | undefined = undefined,
-  C extends MySqlColMods = Record<never, never>,
-> = RtColType<'year', ColNameArg<A>, ColConfigArg<A, C>, YearData>;
-export function year(): RtMyColumn<YearData, false, false, false>;
-export function year<TName extends string>(name: TName): RtMyColumn<YearData, false, false, false>;
+export type Year<P extends Only<P, MySqlColMods> = NoProps> = Column<'year', P, YearData>;
+export function year(): Column<'year', NoProps, YearData>;
+export function year<N extends string>(name: N): NamedColumn<N, Column<'year', NoProps, YearData>>;
+export function year<N extends string, const C extends Only<C, MysqlColIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'year', C, YearData>>;
+export function year<const C extends Only<C, MysqlColIn>>(props: C): Built<'year', C, YearData>;
 export function year(...args: unknown[]) {
-  return myColumn('year', args);
+  return mysqlColumn('year', args);
 }
 
-// ── customType escape hatch ──────────────────────────────────────────────────
+// ── Enums and custom types ───────────────────────────────────────────────────
+// No type road (the runtime needs the enum values or customType callbacks); the types exist for the models.
 
-export interface CustomTypeValues {
-  data: unknown;
-  driverData?: unknown;
-  config?: Record<string, unknown>;
-  notNull?: boolean;
-  default?: boolean;
-}
-export interface CustomTypeParams<T extends CustomTypeValues> {
-  dataType(config?: T['config']): string;
-  toDriver?(value: T['data']): unknown;
-  fromDriver?(value: unknown): T['data'];
-}
+/** A mysqlEnum column over a value tuple: one shared type per value set. */
+export type MysqlEnumCol<Values extends readonly string[], P extends Only<P, MySqlColMods> = NoProps> = Column<
+  'enum',
+  P,
+  Values[number]
+>;
+/** A mysqlEnum column over an enum object: data is the union of its VALUES. */
+export type MysqlEnumObjectCol<E extends Record<string, string>, P extends Only<P, MySqlColMods> = NoProps> = Column<
+  'enum',
+  P,
+  E[keyof E]
+>;
+/** A customType column. */
+export type CustomCol<Data, P extends Only<P, MySqlColMods> = NoProps> = Column<'custom', P, Data>;
+
+/** Drizzle's customType, recorded; the caller supplies the model type through T['data']. */
 export function customType<T extends CustomTypeValues>(params: CustomTypeParams<T>) {
   const custom = new RtValueRecorder('customType', [params]);
-  function factory(): RtMyColumn<T['data'], false, false, false>;
-  function factory(config?: T['config']): RtMyColumn<T['data'], false, false, false>;
-  function factory<TName extends string>(name: TName, config?: T['config']): RtMyColumn<T['data'], false, false, false>;
+  function factory(): Column<'custom', NoProps, T['data']>;
+  function factory<N extends string>(name: N): NamedColumn<N, Column<'custom', NoProps, T['data']>>;
+  function factory<N extends string, const C extends Only<C, MysqlColIn & T['config']>>(
+    name: N,
+    props: C
+  ): NamedColumn<N, Built<'custom', C, T['data']>>;
+  function factory<const C extends Only<C, MysqlColIn & T['config']>>(props: C): Built<'custom', C, T['data']>;
   function factory(...args: unknown[]) {
-    return new RtColumnRecorder((context) => {
-      const drizzleFactory = custom.toDrizzleValue(context) as (...factoryArgs: unknown[]) => unknown;
-      return drizzleFactory(...args);
-    }) as never;
+    return recordColumn(args, (context, callArgs) =>
+      (custom.toDrizzleValue(context) as (...factoryArgs: unknown[]) => unknown)(...callArgs)
+    ) as never;
   }
   (factory as unknown as Record<symbol, unknown>)[rtValueKey] = custom;
   return factory;
@@ -729,4 +481,4 @@ export const mysqlColumnHelpers = {
   varchar,
   year,
 };
-export type MySqlColumnHelpers = typeof mysqlColumnHelpers;
+export type MysqlColumnHelpers = typeof mysqlColumnHelpers;
