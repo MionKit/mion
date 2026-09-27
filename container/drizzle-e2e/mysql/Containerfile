@@ -54,7 +54,7 @@ RUN set -eux; \
     rm /tmp/node.tar.xz; \
     node --version
 
-ARG PNPM_VERSION=11.1.1
+ARG PNPM_VERSION=11.8.0
 RUN npm install -g pnpm@${PNPM_VERSION}
 
 # verdaccio: the in-container registry the packed tarballs are published to, so

@@ -884,6 +884,29 @@ describe('container CA plumbing — the run-time twin of the baked certs', () =>
   });
 });
 
+// pnpm 11.1.1's bundled node-gyp fails behind an HTTP proxy, so a pin left behind breaks that image's native builds.
+describe('every container image runs the workspace pnpm', () => {
+  it('pins each Containerfile PNPM_VERSION and each _deps packageManager to the root packageManager', () => {
+    const rootPnpm = JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'utf8')).packageManager;
+    expect(rootPnpm).toMatch(/^pnpm@\d+\.\d+\.\d+$/);
+    const skipDeps = (path: string) => path.includes('node_modules');
+    const pins = [
+      ...globSync('container/**/Containerfile', {cwd: REPO_ROOT, exclude: skipDeps}).flatMap((file) =>
+        [...readFileSync(join(REPO_ROOT, file), 'utf8').matchAll(/^ARG PNPM_VERSION=(\S*)$/gm)].map((match) => ({
+          file,
+          pin: `pnpm@${match[1]}`,
+        }))
+      ),
+      ...globSync('container/**/package.json', {cwd: REPO_ROOT, exclude: skipDeps}).flatMap((file) => {
+        const packageManager = JSON.parse(readFileSync(join(REPO_ROOT, file), 'utf8')).packageManager;
+        return packageManager?.startsWith('pnpm@') ? [{file, pin: packageManager}] : [];
+      }),
+    ];
+    expect(pins.filter(({file}) => file.endsWith('Containerfile')).length).toBeGreaterThanOrEqual(7);
+    expect(pins.filter(({pin}) => pin !== rootPnpm)).toEqual([]);
+  });
+});
+
 // The serialization benchmark points the resolver at the MARKER package's own
 // tsconfig, but the container mounts that package at
 // <competitor>/node_modules/@mionjs/run-types — one path segment deeper than

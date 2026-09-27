@@ -33,7 +33,7 @@
 # Supported tool versions (kept in sync with CLAUDE.md -> "Containerized apps"):
 #   podman >= 4.0    both apps (container runtime)
 #   Node   >= 26     benchmarks host build (root package.json engines)
-#   pnpm   >= 11     monorepo workspace policies (packageManager pnpm@11.1.1)
+#   pnpm   >= 11     monorepo workspace policies (packageManager pnpm@11.8.0)
 #   Go     >= 1.26   benchmarks resolver binary (go.mod)
 #
 # Usage:
