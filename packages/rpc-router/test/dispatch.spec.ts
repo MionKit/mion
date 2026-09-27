@@ -971,3 +971,23 @@ describe('Route errors should', () => {
     expect(error2.id).toEqual(undefined);
   });
 });
+
+describe('a params slot that is not an array', () => {
+  beforeEach(() => resetRouter());
+
+  it('never reaches the handler, even with validation off', async () => {
+    let runs = 0;
+    const mion = createMionRouter();
+    mion.initRoutes({
+      loose: mion.route((ctx, a?: string): string => (runs++, `got ${a}`), {validateParams: false}),
+      none: mion.route((ctx): string => (runs++, 'none'), {validateParams: false}),
+    });
+    for (const id of ['loose', 'none']) {
+      const body = JSON.stringify({[id]: 'x'});
+      const response = await dispatchRoute(`/${id}`, body, headersFromRecord({}), headersFromRecord({}), {body} as any, {});
+      expect(response.hasErrors).toBe(true);
+      expect((response.body[MION_ROUTES.thrownErrors] as any)[id].type).toBe('serialization-error');
+    }
+    expect(runs).toBe(0);
+  });
+});
