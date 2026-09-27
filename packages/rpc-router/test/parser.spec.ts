@@ -448,7 +448,7 @@ describe('parser strategies at the router level', () => {
 
     // a pair differing from the method's own compiled functions is what assertCompiledParser refuses
     const expectBuiltInsPinned = () => {
-      for (const id of [...Object.values(MION_ROUTES), ...Object.keys(mionMethodsMetadata)] as string[]) {
+      for (const id of [...Object.values(MION_ROUTES), 'mionMethodsMetadata'] as string[]) {
         const method = getAnyExecutable(id) as RemoteMethod | undefined;
         const pinned = method?.options?.parser;
         if (!pinned) continue;
