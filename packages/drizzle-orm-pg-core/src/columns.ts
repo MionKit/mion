@@ -5,753 +5,519 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The pg column builders of @mionjs/drizzle-orm-pg-core: drizzle-identical names and call params,
-// slim recorder returns. Each records its call and returns one of FOUR kind interfaces, grouped by
-// drizzle's own method sets:
-//   RtPgColumn      the common chain every pg builder has
-//   RtPgDateColumn  + defaultNow()            (date / time / timestamp)
-//   RtPgUuidColumn  + defaultRandom()         (uuid)
-//   RtPgIntColumn   + the identity modifiers  (the int and serial families)
-// Coverage is gated by manifests/pg.manifest.json (`pnpm miondevx core drizzle-manifest --check`);
-// the completeness spec diffs the chain methods against drizzle's builder prototypes, so a drizzle
-// upgrade cannot silently add a modifier we do not record. Each builder also exports its NAMED data
-// type (Varchar, Integer, Timestamp, ...), the pure-types vocabulary: a hand-written row using those
-// names gets exactly the types the builders infer, with zero table machinery.
+// Single-call pg columns: a builder takes every setting in ONE props object and returns exactly the hand-written
+// alias's type. No chained modifiers: chain methods break reflection (the runtype id walks method return types,
+// MKR009), and each builder's props bag rejects a modifier its kind lacks.
 
 import type {
-  BigInt64,
   Date as RTDate,
   Float,
   Int16,
   Int32,
-  Integer as IntegerFormat,
   IP,
   String as Str,
   StringDate,
-  StringDateTime,
   StringTime,
   UUID,
 } from '@mionjs/run-types/formats';
+import {RtValueRecorder, rtValueKey, recordColumn} from '@mionjs/drizzle-orm';
+import type {ColBaseFlag, Column, NamedColumn, NoProps, Only, PropsOf, AnyTableRef} from '@mionjs/drizzle-orm';
 import type {
-  AnyRtColumn,
-  ColConfigArg,
-  ColMods,
-  ColRef,
-  ColKeyFlags,
-  ColNameArg,
-  NoKeyFlags,
-  RtColType,
-  RtColumnKeyBrand,
-  RtSql,
-  SetIdentity,
-  SetKeyFlag,
-} from '@mionjs/drizzle-orm';
-import {RtColumnRecorder, RtValueRecorder, rtValueKey} from '@mionjs/drizzle-orm';
+  BigintData,
+  BitData,
+  CharData,
+  CustomTypeParams,
+  CustomTypeValues,
+  GeometryData,
+  IntervalConfig,
+  LineData,
+  NumericData,
+  PgBigIntConfig,
+  PgBitConfig,
+  PgCharConfig,
+  PgColMods,
+  PgDateColMods,
+  PgDateConfig,
+  PgDateData,
+  PgGeometryConfig,
+  PgIdentityConfig,
+  PgIntColMods,
+  PgLineConfig,
+  PgNumericConfig,
+  PgPointConfig,
+  PgTextConfig,
+  PgTimestampConfig,
+  PgUuidColMods,
+  PgVarcharConfig,
+  PgVectorConfig,
+  PointData,
+  ReferenceActions,
+  TextData,
+  TimeConfig,
+  TimestampData,
+  VarcharData,
+} from './types.ts';
 
-type Writable<T> = {-readonly [K in keyof T]: T[K]};
-type EnumTuple = readonly [string, ...string[]];
-/** A wide enum config (plain string[]) carries no literal union: fall back. */
-type EnumOr<T extends readonly string[], Fallback> = string extends T[number] ? Fallback : T[number];
+// ── What each builder kind's props take ──────────────────────────────────────
+// The hand-written bags, with the function-carrying keys taking their runtime shape.
 
-export type UpdateDeleteAction = 'cascade' | 'restrict' | 'no action' | 'set null' | 'set default';
-export interface ReferenceActions {
-  onDelete?: UpdateDeleteAction;
-  onUpdate?: UpdateDeleteAction;
-}
-
-// ── The four kind interfaces ─────────────────────────────────────────────────
-
-import type {RtColumnBrand} from '@mionjs/drizzle-orm';
-
-export interface RtPgColumn<Data, N extends boolean, H extends boolean, X extends boolean> extends RtColumnBrand<Data, N, H, X> {
-  notNull(): RtPgColumn<Data, true, H, X>;
-  default(value: Data | RtSql): RtPgColumn<Data, N, true, X>;
-  $default(fn: () => Data | RtSql): RtPgColumn<Data, N, true, X>;
-  $defaultFn(fn: () => Data | RtSql): RtPgColumn<Data, N, true, X>;
-  $onUpdate(fn: () => Data | RtSql): RtPgColumn<Data, N, true, X>;
-  $onUpdateFn(fn: () => Data | RtSql): RtPgColumn<Data, N, true, X>;
-  primaryKey(): RtPgColumn<Data, true, H, X>;
-  unique(name?: string, config?: {nulls: 'distinct' | 'not distinct'}): RtPgColumn<Data, N, H, X>;
-  references(ref: () => AnyRtColumn, actions?: ReferenceActions): RtPgColumn<Data, N, H, X>;
-  generatedAlwaysAs(as: Data | RtSql | (() => RtSql)): RtPgColumn<Data, N, true, true>;
-  array(size?: number): RtPgColumn<Data[], N, H, X>;
-  $type<T>(): RtPgColumn<T, N, H, X>;
-}
-
-export interface RtPgDateColumn<Data, N extends boolean, H extends boolean, X extends boolean> extends RtColumnBrand<
-  Data,
-  N,
-  H,
-  X
-> {
-  notNull(): RtPgDateColumn<Data, true, H, X>;
-  default(value: Data | RtSql): RtPgDateColumn<Data, N, true, X>;
-  $default(fn: () => Data | RtSql): RtPgDateColumn<Data, N, true, X>;
-  $defaultFn(fn: () => Data | RtSql): RtPgDateColumn<Data, N, true, X>;
-  $onUpdate(fn: () => Data | RtSql): RtPgDateColumn<Data, N, true, X>;
-  $onUpdateFn(fn: () => Data | RtSql): RtPgDateColumn<Data, N, true, X>;
-  defaultNow(): RtPgDateColumn<Data, N, true, X>;
-  primaryKey(): RtPgDateColumn<Data, true, H, X>;
-  unique(name?: string, config?: {nulls: 'distinct' | 'not distinct'}): RtPgDateColumn<Data, N, H, X>;
-  references(ref: () => AnyRtColumn, actions?: ReferenceActions): RtPgDateColumn<Data, N, H, X>;
-  generatedAlwaysAs(as: Data | RtSql | (() => RtSql)): RtPgDateColumn<Data, N, true, true>;
-  array(size?: number): RtPgColumn<Data[], N, H, X>;
-  $type<T>(): RtPgDateColumn<T, N, H, X>;
-}
-
-export interface RtPgUuidColumn<Data, N extends boolean, H extends boolean, X extends boolean> extends RtColumnBrand<
-  Data,
-  N,
-  H,
-  X
-> {
-  notNull(): RtPgUuidColumn<Data, true, H, X>;
-  default(value: Data | RtSql): RtPgUuidColumn<Data, N, true, X>;
-  $default(fn: () => Data | RtSql): RtPgUuidColumn<Data, N, true, X>;
-  $defaultFn(fn: () => Data | RtSql): RtPgUuidColumn<Data, N, true, X>;
-  $onUpdate(fn: () => Data | RtSql): RtPgUuidColumn<Data, N, true, X>;
-  $onUpdateFn(fn: () => Data | RtSql): RtPgUuidColumn<Data, N, true, X>;
-  defaultRandom(): RtPgUuidColumn<Data, N, true, X>;
-  primaryKey(): RtPgUuidColumn<Data, true, H, X>;
-  unique(name?: string, config?: {nulls: 'distinct' | 'not distinct'}): RtPgUuidColumn<Data, N, H, X>;
-  references(ref: () => AnyRtColumn, actions?: ReferenceActions): RtPgUuidColumn<Data, N, H, X>;
-  generatedAlwaysAs(as: Data | RtSql | (() => RtSql)): RtPgUuidColumn<Data, N, true, true>;
-  array(size?: number): RtPgColumn<Data[], N, H, X>;
-  $type<T>(): RtPgUuidColumn<T, N, H, X>;
-}
-
-export interface PgIdentityConfig {
-  name?: string;
-  startWith?: number;
-  increment?: number;
-  minValue?: number;
-  maxValue?: number;
-  cache?: number;
-  cycle?: boolean;
-}
-export interface RtPgIntColumn<Data, N extends boolean, H extends boolean, X extends boolean, K extends ColKeyFlags = NoKeyFlags>
-  extends RtColumnBrand<Data, N, H, X>, RtColumnKeyBrand<K> {
-  notNull(): RtPgIntColumn<Data, true, H, X, K>;
-  default(value: Data | RtSql): RtPgIntColumn<Data, N, true, X, K>;
-  $default(fn: () => Data | RtSql): RtPgIntColumn<Data, N, true, X, SetKeyFlag<K, 'runtimeDefault'>>;
-  $defaultFn(fn: () => Data | RtSql): RtPgIntColumn<Data, N, true, X, SetKeyFlag<K, 'runtimeDefault'>>;
-  $onUpdate(fn: () => Data | RtSql): RtPgIntColumn<Data, N, true, X, K>;
-  $onUpdateFn(fn: () => Data | RtSql): RtPgIntColumn<Data, N, true, X, K>;
-  primaryKey(): RtPgIntColumn<Data, true, H, X, SetKeyFlag<K, 'primaryKey'>>;
-  unique(name?: string, config?: {nulls: 'distinct' | 'not distinct'}): RtPgIntColumn<Data, N, H, X, K>;
-  references(ref: () => AnyRtColumn, actions?: ReferenceActions): RtPgIntColumn<Data, N, H, X, K>;
-  generatedAlwaysAs(as: Data | RtSql | (() => RtSql)): RtPgIntColumn<Data, N, true, true, K>;
-  /** Identity columns are NOT NULL; `always` also removes them from inserts. */
-  generatedAlwaysAsIdentity(sequence?: PgIdentityConfig): RtPgIntColumn<Data, true, true, true, SetIdentity<K, 'always'>>;
-  generatedByDefaultAsIdentity(sequence?: PgIdentityConfig): RtPgIntColumn<Data, true, true, X, SetIdentity<K, 'byDefault'>>;
-  array(size?: number): RtPgColumn<Data[], N, H, X>;
-  $type<T>(): RtPgIntColumn<T, N, H, X, K>;
-}
-
-// ── Modifier bags, one per kind interface ────────────────────────────────────
-// What a column type may spell in its props object, beside the builder's own
-// config keys. Each bag mirrors the chain of the kind interface above it, which
-// is what makes `Varchar<'v', {autoincrement: true}>` an error rather than a
-// silent no-op. Derived from manifests/pg.manifest.json.
-
-/** The modifier calls every pg column type accepts (RtPgColumn's chain). */
-export interface PgColMods extends Pick<
-  ColMods,
-  'notNull' | 'default' | 'generatedAlwaysAs' | 'array' | '$type' | '$default' | '$defaultFn' | '$onUpdate' | '$onUpdateFn'
-> {
+// Written out, not an Omit of the hand-written bag: every builder call checks against one, and an interface is cheapest.
+export interface PgColIn {
+  notNull?: true;
   primaryKey?: true;
+  default?: readonly [unknown];
   unique?: true | readonly [string] | readonly [string, {nulls: 'distinct' | 'not distinct'}];
-  references?: readonly [ColRef] | readonly [ColRef, ReferenceActions];
+  generatedAlwaysAs?: readonly [unknown];
+  array?: true | readonly [number];
+  $type?: readonly [unknown];
+  references?: readonly [() => AnyTableRef] | readonly [() => AnyTableRef, ReferenceActions];
+  $default?: readonly [() => unknown];
+  $defaultFn?: readonly [() => unknown];
+  $onUpdate?: readonly [() => unknown];
+  $onUpdateFn?: readonly [() => unknown];
 }
-/** date / time / timestamp: + defaultNow(). */
-export interface PgDateColMods extends PgColMods {
+export interface PgDateIn extends PgColIn {
   defaultNow?: true;
 }
-/** uuid: + defaultRandom(). */
-export interface PgUuidColMods extends PgColMods {
+export interface PgUuidIn extends PgColIn {
   defaultRandom?: true;
 }
-/** smallint / integer / bigint: + the identity modifiers. */
-export interface PgIntColMods extends PgColMods {
+export interface PgIntIn extends PgColIn {
   generatedAlwaysAsIdentity?: true | readonly [PgIdentityConfig];
   generatedByDefaultAsIdentity?: true | readonly [PgIdentityConfig];
 }
 
-// ── Internal builder plumbing ────────────────────────────────────────────────
+/** What a nameless builder returns; a named call wraps it in NamedColumn. */
+type Built<Fn extends string, C, D, B extends ColBaseFlag = never> = Column<Fn, PropsOf<C>, D, B>;
 
-/** Record a call to the drizzle pg builder of the same name, args verbatim. */
 function pgColumn(fnName: string, args: unknown[]): never {
-  return new RtColumnRecorder((context) => context.ns[fnName](...(args as never[]))) as never;
+  return recordColumn(args, (context, callArgs) => context.ns[fnName](...(callArgs as never[]))) as never;
 }
 
-// ── Named types + builders, one block per column function ────────────────────
+// ── Hand-written aliases + builders ──────────────────────────────────────────
 
-export interface PgBigIntConfig<TMode extends 'number' | 'bigint' = 'number' | 'bigint'> {
-  mode: TMode;
-}
-export type BigintDataOf<TMode> = TMode extends 'bigint' ? BigInt64 : IntegerFormat;
-export type BigintData<C> = BigintDataOf<C extends {mode: infer TMode} ? TMode : 'number'>;
-/** Column type twin of `bigint(name?, config)`. */
-export type Bigint<
-  A extends string | (PgBigIntConfig & PgIntColMods) | undefined = undefined,
-  C extends PgBigIntConfig & PgIntColMods = PgBigIntConfig<'number'>,
-> = RtColType<'bigint', ColNameArg<A>, ColConfigArg<A, C>, BigintData<ColConfigArg<A, C>>>;
-export function bigint<TMode extends 'number' | 'bigint'>(
-  config: PgBigIntConfig<TMode>
-): RtPgIntColumn<BigintDataOf<TMode>, false, false, false>;
-export function bigint<TName extends string, TMode extends 'number' | 'bigint'>(
-  name: TName,
-  config: PgBigIntConfig<TMode>
-): RtPgIntColumn<BigintDataOf<TMode>, false, false, false>;
+export type Bigint<P extends Only<P, PgBigIntConfig & PgIntColMods> = PgBigIntConfig<'number'>> = Column<
+  'bigint',
+  P,
+  BigintData<P>
+>;
+export function bigint<N extends string, const C extends Only<C, PgBigIntConfig & PgIntIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'bigint', C, BigintData<C>>>;
+export function bigint<const C extends Only<C, PgBigIntConfig & PgIntIn>>(props: C): Built<'bigint', C, BigintData<C>>;
 export function bigint(...args: unknown[]) {
   return pgColumn('bigint', args);
 }
 
-/** Column type twin of `bigserial(name?, config)`; intrinsically notNull + defaulted. */
-export type Bigserial<
-  A extends string | (PgBigIntConfig & PgColMods) | undefined = undefined,
-  C extends PgBigIntConfig & PgColMods = PgBigIntConfig<'number'>,
-> = RtColType<'bigserial', ColNameArg<A>, ColConfigArg<A, C>, BigintData<ColConfigArg<A, C>>, 'notNull' | 'hasDefault'>;
-export function bigserial<TMode extends 'number' | 'bigint'>(
-  config: PgBigIntConfig<TMode>
-): RtPgColumn<BigintDataOf<TMode>, true, true, false>;
-export function bigserial<TName extends string, TMode extends 'number' | 'bigint'>(
-  name: TName,
-  config: PgBigIntConfig<TMode>
-): RtPgColumn<BigintDataOf<TMode>, true, true, false>;
+export type Bigserial<P extends Only<P, PgBigIntConfig & PgColMods> = PgBigIntConfig<'number'>> = Column<
+  'bigserial',
+  P,
+  BigintData<P>,
+  'notNull' | 'hasDefault'
+>;
+export function bigserial<N extends string, const C extends Only<C, PgBigIntConfig & PgColIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'bigserial', C, BigintData<C>, 'notNull' | 'hasDefault'>>;
+export function bigserial<const C extends Only<C, PgBigIntConfig & PgColIn>>(
+  props: C
+): Built<'bigserial', C, BigintData<C>, 'notNull' | 'hasDefault'>;
 export function bigserial(...args: unknown[]) {
   return pgColumn('bigserial', args);
 }
 
-export interface PgBitConfig<D extends number = number> {
-  dimensions: D;
-}
-export type BitDataOf<D> = D extends number ? Str<{length: D}> : Str;
-export type BitData<C> = BitDataOf<C extends {dimensions: infer D} ? D : undefined>;
-/** Column type twin of `bit(name?, config)`. */
-export type Bit<
-  A extends string | (Partial<PgBitConfig> & PgColMods) | undefined = undefined,
-  C extends Partial<PgBitConfig> & PgColMods = Record<never, never>,
-> = RtColType<'bit', ColNameArg<A>, ColConfigArg<A, C>, BitData<ColConfigArg<A, C>>>;
-export function bit<D extends number>(config: PgBitConfig<D>): RtPgColumn<BitDataOf<D>, false, false, false>;
-export function bit<TName extends string, D extends number>(
-  name: TName,
-  config: PgBitConfig<D>
-): RtPgColumn<BitDataOf<D>, false, false, false>;
+export type Bit<P extends Only<P, Partial<PgBitConfig> & PgColMods> = NoProps> = Column<'bit', P, BitData<P>>;
+export function bit<N extends string, const C extends Only<C, PgBitConfig & PgColIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'bit', C, BitData<C>>>;
+export function bit<const C extends Only<C, PgBitConfig & PgColIn>>(props: C): Built<'bit', C, BitData<C>>;
 export function bit(...args: unknown[]) {
   return pgColumn('bit', args);
 }
 
-/** Column type twin of `boolean(name?)`. */
-export type Boolean<A extends string | PgColMods | undefined = undefined, C extends PgColMods = Record<never, never>> = RtColType<
-  'boolean',
-  ColNameArg<A>,
-  ColConfigArg<A, C>,
-  boolean
->;
-export function boolean(): RtPgColumn<boolean, false, false, false>;
-export function boolean<TName extends string>(name: TName): RtPgColumn<boolean, false, false, false>;
+export type Boolean<P extends Only<P, PgColMods> = NoProps> = Column<'boolean', P, boolean>;
+export function boolean(): Column<'boolean', NoProps, boolean>;
+export function boolean<N extends string>(name: N): NamedColumn<N, Column<'boolean', NoProps, boolean>>;
+export function boolean<N extends string, const C extends Only<C, PgColIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'boolean', C, boolean>>;
+export function boolean<const C extends Only<C, PgColIn>>(props: C): Built<'boolean', C, boolean>;
 export function boolean(...args: unknown[]) {
   return pgColumn('boolean', args);
 }
 
-export interface PgCharConfig<T extends readonly string[] = EnumTuple, L extends number | undefined = number | undefined> {
-  length?: L;
-  enum?: T;
-}
-export type CharDataOf<T extends readonly string[], L> = string extends T[number]
-  ? L extends number
-    ? Str<{length: L}>
-    : Str
-  : T[number];
-export type CharData<C> = CharDataOf<
-  C extends {enum: infer E extends readonly string[]} ? E : readonly string[],
-  C extends {length: infer L extends number} ? L : undefined
->;
-/** Column type twin of `char(name?, config?)`. */
-export type Char<
-  A extends string | (PgCharConfig & PgColMods) | undefined = undefined,
-  C extends PgCharConfig & PgColMods = Record<never, never>,
-> = RtColType<'char', ColNameArg<A>, ColConfigArg<A, C>, CharData<ColConfigArg<A, C>>>;
-export function char(): RtPgColumn<Str, false, false, false>;
-export function char<U extends string, T extends Readonly<[U, ...U[]]>, L extends number | undefined = undefined>(
-  config?: PgCharConfig<T | Writable<T>, L>
-): RtPgColumn<CharDataOf<T, L>, false, false, false>;
-export function char<
-  TName extends string,
-  U extends string,
-  T extends Readonly<[U, ...U[]]>,
-  L extends number | undefined = undefined,
->(name: TName, config?: PgCharConfig<T | Writable<T>, L>): RtPgColumn<CharDataOf<T, L>, false, false, false>;
+export type Char<P extends Only<P, PgCharConfig & PgColMods> = NoProps> = Column<'char', P, CharData<P>>;
+export function char(): Column<'char', NoProps, Str>;
+export function char<N extends string>(name: N): NamedColumn<N, Column<'char', NoProps, Str>>;
+export function char<N extends string, const C extends Only<C, PgCharConfig & PgColIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'char', C, CharData<C>>>;
+export function char<const C extends Only<C, PgCharConfig & PgColIn>>(props: C): Built<'char', C, CharData<C>>;
 export function char(...args: unknown[]) {
   return pgColumn('char', args);
 }
 
-/** Column type twin of `cidr(name?)`. */
-export type Cidr<A extends string | PgColMods | undefined = undefined, C extends PgColMods = Record<never, never>> = RtColType<
-  'cidr',
-  ColNameArg<A>,
-  ColConfigArg<A, C>,
-  string
->;
-export function cidr(): RtPgColumn<string, false, false, false>;
-export function cidr<TName extends string>(name: TName): RtPgColumn<string, false, false, false>;
+export type Cidr<P extends Only<P, PgColMods> = NoProps> = Column<'cidr', P, string>;
+export function cidr(): Column<'cidr', NoProps, string>;
+export function cidr<N extends string>(name: N): NamedColumn<N, Column<'cidr', NoProps, string>>;
+export function cidr<N extends string, const C extends Only<C, PgColIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'cidr', C, string>>;
+export function cidr<const C extends Only<C, PgColIn>>(props: C): Built<'cidr', C, string>;
 export function cidr(...args: unknown[]) {
   return pgColumn('cidr', args);
 }
 
-export interface PgDateConfig<TMode extends 'date' | 'string' = 'date' | 'string'> {
-  mode?: TMode;
-}
-export type PgDateDataOf<TMode> = TMode extends 'date' ? RTDate : StringDate;
-export type PgDateData<C> = PgDateDataOf<C extends {mode: infer TMode} ? TMode : 'string'>;
-/** Column type twin of `date(name?, config?)`; named PgDate to dodge global Date, re-exported as `Date`. */
-export type PgDate<
-  A extends string | (PgDateConfig & PgDateColMods) | undefined = undefined,
-  C extends PgDateConfig & PgDateColMods = Record<never, never>,
-> = RtColType<'date', ColNameArg<A>, ColConfigArg<A, C>, PgDateData<ColConfigArg<A, C>>>;
-export function date(): RtPgDateColumn<StringDate, false, false, false>;
-export function date<TMode extends 'date' | 'string' = 'string'>(
-  config?: PgDateConfig<TMode>
-): RtPgDateColumn<PgDateDataOf<TMode>, false, false, false>;
-export function date<TName extends string, TMode extends 'date' | 'string' = 'string'>(
-  name: TName,
-  config?: PgDateConfig<TMode>
-): RtPgDateColumn<PgDateDataOf<TMode>, false, false, false>;
+export type PgDate<P extends Only<P, PgDateConfig & PgDateColMods> = NoProps> = Column<'date', P, PgDateData<P>>;
+export function date(): Column<'date', NoProps, StringDate>;
+export function date<N extends string>(name: N): NamedColumn<N, Column<'date', NoProps, StringDate>>;
+export function date<N extends string, const C extends Only<C, PgDateConfig & PgDateIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'date', C, PgDateData<C>>>;
+export function date<const C extends Only<C, PgDateConfig & PgDateIn>>(props: C): Built<'date', C, PgDateData<C>>;
 export function date(...args: unknown[]) {
   return pgColumn('date', args);
 }
 
-export interface PgNumericConfig<TMode extends 'number' | 'string' | 'bigint' = 'number' | 'string' | 'bigint'> {
-  mode?: TMode;
-  precision?: number;
-  scale?: number;
-}
-export type NumericDataOf<TMode> = TMode extends 'number' ? Float : TMode extends 'bigint' ? bigint : string;
-export type NumericData<C> = NumericDataOf<C extends {mode: infer TMode} ? TMode : 'string'>;
-/** Column type twin of `numeric(name?, config?)`. */
-export type Numeric<
-  A extends string | (PgNumericConfig & PgColMods) | undefined = undefined,
-  C extends PgNumericConfig & PgColMods = Record<never, never>,
-> = RtColType<'numeric', ColNameArg<A>, ColConfigArg<A, C>, NumericData<ColConfigArg<A, C>>>;
-export function numeric<TMode extends 'number' | 'string' | 'bigint' = 'string'>(
-  config?: PgNumericConfig<TMode>
-): RtPgColumn<NumericDataOf<TMode>, false, false, false>;
-export function numeric<TName extends string, TMode extends 'number' | 'string' | 'bigint' = 'string'>(
-  name: TName,
-  config?: PgNumericConfig<TMode>
-): RtPgColumn<NumericDataOf<TMode>, false, false, false>;
-export function numeric(...args: unknown[]) {
-  return pgColumn('numeric', args);
-}
-
-/** Column type twin of `decimal(name?, config?)`. */
-export type Decimal<
-  A extends string | (PgNumericConfig & PgColMods) | undefined = undefined,
-  C extends PgNumericConfig & PgColMods = Record<never, never>,
-> = RtColType<'decimal', ColNameArg<A>, ColConfigArg<A, C>, NumericData<ColConfigArg<A, C>>>;
-export function decimal<TMode extends 'number' | 'string' | 'bigint' = 'string'>(
-  config?: PgNumericConfig<TMode>
-): RtPgColumn<NumericDataOf<TMode>, false, false, false>;
-export function decimal<TName extends string, TMode extends 'number' | 'string' | 'bigint' = 'string'>(
-  name: TName,
-  config?: PgNumericConfig<TMode>
-): RtPgColumn<NumericDataOf<TMode>, false, false, false>;
+export type Decimal<P extends Only<P, PgNumericConfig & PgColMods> = NoProps> = Column<'decimal', P, NumericData<P>>;
+export function decimal(): Column<'decimal', NoProps, string>;
+export function decimal<N extends string>(name: N): NamedColumn<N, Column<'decimal', NoProps, string>>;
+export function decimal<N extends string, const C extends Only<C, PgNumericConfig & PgColIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'decimal', C, NumericData<C>>>;
+export function decimal<const C extends Only<C, PgNumericConfig & PgColIn>>(props: C): Built<'decimal', C, NumericData<C>>;
 export function decimal(...args: unknown[]) {
   return pgColumn('decimal', args);
 }
 
-/** Column type twin of `doublePrecision(name?)`. */
-export type DoublePrecision<
-  A extends string | PgColMods | undefined = undefined,
-  C extends PgColMods = Record<never, never>,
-> = RtColType<'doublePrecision', ColNameArg<A>, ColConfigArg<A, C>, Float>;
-export function doublePrecision(): RtPgColumn<Float, false, false, false>;
-export function doublePrecision<TName extends string>(name: TName): RtPgColumn<Float, false, false, false>;
+export type DoublePrecision<P extends Only<P, PgColMods> = NoProps> = Column<'doublePrecision', P, Float>;
+export function doublePrecision(): Column<'doublePrecision', NoProps, Float>;
+export function doublePrecision<N extends string>(name: N): NamedColumn<N, Column<'doublePrecision', NoProps, Float>>;
+export function doublePrecision<N extends string, const C extends Only<C, PgColIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'doublePrecision', C, Float>>;
+export function doublePrecision<const C extends Only<C, PgColIn>>(props: C): Built<'doublePrecision', C, Float>;
 export function doublePrecision(...args: unknown[]) {
   return pgColumn('doublePrecision', args);
 }
 
-export interface PgGeometryConfig<TMode extends 'tuple' | 'xy' = 'tuple' | 'xy'> {
-  mode?: TMode;
-  type?: string;
-  srid?: number;
-}
-export type GeometryDataOf<TMode> = TMode extends 'xy' ? {x: number; y: number} : [number, number];
-export type GeometryData<C> = GeometryDataOf<C extends {mode: infer TMode} ? TMode : 'tuple'>;
-/** Column type twin of `geometry(name?, config?)`. */
-export type Geometry<
-  A extends string | (PgGeometryConfig & PgColMods) | undefined = undefined,
-  C extends PgGeometryConfig & PgColMods = Record<never, never>,
-> = RtColType<'geometry', ColNameArg<A>, ColConfigArg<A, C>, GeometryData<ColConfigArg<A, C>>>;
-export function geometry(): RtPgColumn<GeometryDataOf<'tuple'>, false, false, false>;
-export function geometry<TMode extends 'tuple' | 'xy' = 'tuple'>(
-  config?: PgGeometryConfig<TMode>
-): RtPgColumn<GeometryDataOf<TMode>, false, false, false>;
-export function geometry<TName extends string, TMode extends 'tuple' | 'xy' = 'tuple'>(
-  name: TName,
-  config?: PgGeometryConfig<TMode>
-): RtPgColumn<GeometryDataOf<TMode>, false, false, false>;
+export type Geometry<P extends Only<P, PgGeometryConfig & PgColMods> = NoProps> = Column<'geometry', P, GeometryData<P>>;
+export function geometry(): Column<'geometry', NoProps, [number, number]>;
+export function geometry<N extends string>(name: N): NamedColumn<N, Column<'geometry', NoProps, [number, number]>>;
+export function geometry<N extends string, const C extends Only<C, PgGeometryConfig & PgColIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'geometry', C, GeometryData<C>>>;
+export function geometry<const C extends Only<C, PgGeometryConfig & PgColIn>>(props: C): Built<'geometry', C, GeometryData<C>>;
 export function geometry(...args: unknown[]) {
   return pgColumn('geometry', args);
 }
 
-export interface PgVectorConfig<D extends number = number> {
-  dimensions: D;
-}
-/** Column type twin of `halfvec(name?, config)`. */
-export type Halfvec<
-  A extends string | (Partial<PgVectorConfig> & PgColMods) | undefined = undefined,
-  C extends Partial<PgVectorConfig> & PgColMods = Record<never, never>,
-> = RtColType<'halfvec', ColNameArg<A>, ColConfigArg<A, C>, number[]>;
-export function halfvec(config: PgVectorConfig): RtPgColumn<number[], false, false, false>;
-export function halfvec<TName extends string>(name: TName, config: PgVectorConfig): RtPgColumn<number[], false, false, false>;
+export type Halfvec<P extends Only<P, Partial<PgVectorConfig> & PgColMods> = NoProps> = Column<'halfvec', P, number[]>;
+export function halfvec<N extends string, const C extends Only<C, PgVectorConfig & PgColIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'halfvec', C, number[]>>;
+export function halfvec<const C extends Only<C, PgVectorConfig & PgColIn>>(props: C): Built<'halfvec', C, number[]>;
 export function halfvec(...args: unknown[]) {
   return pgColumn('halfvec', args);
 }
 
-/** Column type twin of `inet(name?)`. */
-export type Inet<A extends string | PgColMods | undefined = undefined, C extends PgColMods = Record<never, never>> = RtColType<
-  'inet',
-  ColNameArg<A>,
-  ColConfigArg<A, C>,
-  IP
->;
-export function inet(): RtPgColumn<IP, false, false, false>;
-export function inet<TName extends string>(name: TName): RtPgColumn<IP, false, false, false>;
+export type Inet<P extends Only<P, PgColMods> = NoProps> = Column<'inet', P, IP>;
+export function inet(): Column<'inet', NoProps, IP>;
+export function inet<N extends string>(name: N): NamedColumn<N, Column<'inet', NoProps, IP>>;
+export function inet<N extends string, const C extends Only<C, PgColIn>>(name: N, props: C): NamedColumn<N, Built<'inet', C, IP>>;
+export function inet<const C extends Only<C, PgColIn>>(props: C): Built<'inet', C, IP>;
 export function inet(...args: unknown[]) {
   return pgColumn('inet', args);
 }
 
-/** Column type twin of `integer(name?)`. */
-export type Integer<
-  A extends string | PgIntColMods | undefined = undefined,
-  C extends PgIntColMods = Record<never, never>,
-> = RtColType<'integer', ColNameArg<A>, ColConfigArg<A, C>, Int32>;
-export function integer(): RtPgIntColumn<Int32, false, false, false>;
-export function integer<TName extends string>(name: TName): RtPgIntColumn<Int32, false, false, false>;
+export type Integer<P extends Only<P, PgIntColMods> = NoProps> = Column<'integer', P, Int32>;
+export function integer(): Column<'integer', NoProps, Int32>;
+export function integer<N extends string>(name: N): NamedColumn<N, Column<'integer', NoProps, Int32>>;
+export function integer<N extends string, const C extends Only<C, PgIntIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'integer', C, Int32>>;
+export function integer<const C extends Only<C, PgIntIn>>(props: C): Built<'integer', C, Int32>;
 export function integer(...args: unknown[]) {
   return pgColumn('integer', args);
 }
 
-export interface IntervalConfig {
-  fields?: string;
-  precision?: number;
-}
-/** Column type twin of `interval(name?, config?)`. */
-export type Interval<
-  A extends string | (IntervalConfig & PgColMods) | undefined = undefined,
-  C extends IntervalConfig & PgColMods = Record<never, never>,
-> = RtColType<'interval', ColNameArg<A>, ColConfigArg<A, C>, string>;
-export function interval(): RtPgColumn<string, false, false, false>;
-export function interval(config?: IntervalConfig): RtPgColumn<string, false, false, false>;
-export function interval<TName extends string>(name: TName, config?: IntervalConfig): RtPgColumn<string, false, false, false>;
+export type Interval<P extends Only<P, IntervalConfig & PgColMods> = NoProps> = Column<'interval', P, string>;
+export function interval(): Column<'interval', NoProps, string>;
+export function interval<N extends string>(name: N): NamedColumn<N, Column<'interval', NoProps, string>>;
+export function interval<N extends string, const C extends Only<C, IntervalConfig & PgColIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'interval', C, string>>;
+export function interval<const C extends Only<C, IntervalConfig & PgColIn>>(props: C): Built<'interval', C, string>;
 export function interval(...args: unknown[]) {
   return pgColumn('interval', args);
 }
 
-/** Column type twin of `json(name?)`. */
-export type Json<A extends string | PgColMods | undefined = undefined, C extends PgColMods = Record<never, never>> = RtColType<
-  'json',
-  ColNameArg<A>,
-  ColConfigArg<A, C>,
-  unknown
->;
-export function json(): RtPgColumn<unknown, false, false, false>;
-export function json<TName extends string>(name: TName): RtPgColumn<unknown, false, false, false>;
+export type Json<P extends Only<P, PgColMods> = NoProps> = Column<'json', P, unknown>;
+export function json(): Column<'json', NoProps, unknown>;
+export function json<N extends string>(name: N): NamedColumn<N, Column<'json', NoProps, unknown>>;
+export function json<N extends string, const C extends Only<C, PgColIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'json', C, unknown>>;
+export function json<const C extends Only<C, PgColIn>>(props: C): Built<'json', C, unknown>;
 export function json(...args: unknown[]) {
   return pgColumn('json', args);
 }
 
-/** Column type twin of `jsonb(name?)`. */
-export type Jsonb<A extends string | PgColMods | undefined = undefined, C extends PgColMods = Record<never, never>> = RtColType<
-  'jsonb',
-  ColNameArg<A>,
-  ColConfigArg<A, C>,
-  unknown
->;
-export function jsonb(): RtPgColumn<unknown, false, false, false>;
-export function jsonb<TName extends string>(name: TName): RtPgColumn<unknown, false, false, false>;
+export type Jsonb<P extends Only<P, PgColMods> = NoProps> = Column<'jsonb', P, unknown>;
+export function jsonb(): Column<'jsonb', NoProps, unknown>;
+export function jsonb<N extends string>(name: N): NamedColumn<N, Column<'jsonb', NoProps, unknown>>;
+export function jsonb<N extends string, const C extends Only<C, PgColIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'jsonb', C, unknown>>;
+export function jsonb<const C extends Only<C, PgColIn>>(props: C): Built<'jsonb', C, unknown>;
 export function jsonb(...args: unknown[]) {
   return pgColumn('jsonb', args);
 }
 
-export interface PgLineConfig<TMode extends 'tuple' | 'abc' = 'tuple' | 'abc'> {
-  mode?: TMode;
-}
-export type LineDataOf<TMode> = TMode extends 'abc' ? {a: number; b: number; c: number} : [number, number, number];
-export type LineData<C> = LineDataOf<C extends {mode: infer TMode} ? TMode : 'tuple'>;
-/** Column type twin of `line(name?, config?)`. */
-export type Line<
-  A extends string | (PgLineConfig & PgColMods) | undefined = undefined,
-  C extends PgLineConfig & PgColMods = Record<never, never>,
-> = RtColType<'line', ColNameArg<A>, ColConfigArg<A, C>, LineData<ColConfigArg<A, C>>>;
-export function line(): RtPgColumn<LineDataOf<'tuple'>, false, false, false>;
-export function line<TMode extends 'tuple' | 'abc' = 'tuple'>(
-  config?: PgLineConfig<TMode>
-): RtPgColumn<LineDataOf<TMode>, false, false, false>;
-export function line<TName extends string, TMode extends 'tuple' | 'abc' = 'tuple'>(
-  name: TName,
-  config?: PgLineConfig<TMode>
-): RtPgColumn<LineDataOf<TMode>, false, false, false>;
+export type Line<P extends Only<P, PgLineConfig & PgColMods> = NoProps> = Column<'line', P, LineData<P>>;
+export function line(): Column<'line', NoProps, [number, number, number]>;
+export function line<N extends string>(name: N): NamedColumn<N, Column<'line', NoProps, [number, number, number]>>;
+export function line<N extends string, const C extends Only<C, PgLineConfig & PgColIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'line', C, LineData<C>>>;
+export function line<const C extends Only<C, PgLineConfig & PgColIn>>(props: C): Built<'line', C, LineData<C>>;
 export function line(...args: unknown[]) {
   return pgColumn('line', args);
 }
 
-/** Column type twin of `macaddr(name?)`. */
-export type Macaddr<A extends string | PgColMods | undefined = undefined, C extends PgColMods = Record<never, never>> = RtColType<
-  'macaddr',
-  ColNameArg<A>,
-  ColConfigArg<A, C>,
-  string
->;
-export function macaddr(): RtPgColumn<string, false, false, false>;
-export function macaddr<TName extends string>(name: TName): RtPgColumn<string, false, false, false>;
+export type Macaddr<P extends Only<P, PgColMods> = NoProps> = Column<'macaddr', P, string>;
+export function macaddr(): Column<'macaddr', NoProps, string>;
+export function macaddr<N extends string>(name: N): NamedColumn<N, Column<'macaddr', NoProps, string>>;
+export function macaddr<N extends string, const C extends Only<C, PgColIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'macaddr', C, string>>;
+export function macaddr<const C extends Only<C, PgColIn>>(props: C): Built<'macaddr', C, string>;
 export function macaddr(...args: unknown[]) {
   return pgColumn('macaddr', args);
 }
 
-/** Column type twin of `macaddr8(name?)`. */
-export type Macaddr8<
-  A extends string | PgColMods | undefined = undefined,
-  C extends PgColMods = Record<never, never>,
-> = RtColType<'macaddr8', ColNameArg<A>, ColConfigArg<A, C>, string>;
-export function macaddr8(): RtPgColumn<string, false, false, false>;
-export function macaddr8<TName extends string>(name: TName): RtPgColumn<string, false, false, false>;
+export type Macaddr8<P extends Only<P, PgColMods> = NoProps> = Column<'macaddr8', P, string>;
+export function macaddr8(): Column<'macaddr8', NoProps, string>;
+export function macaddr8<N extends string>(name: N): NamedColumn<N, Column<'macaddr8', NoProps, string>>;
+export function macaddr8<N extends string, const C extends Only<C, PgColIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'macaddr8', C, string>>;
+export function macaddr8<const C extends Only<C, PgColIn>>(props: C): Built<'macaddr8', C, string>;
 export function macaddr8(...args: unknown[]) {
   return pgColumn('macaddr8', args);
 }
 
-export interface PgPointConfig<TMode extends 'tuple' | 'xy' = 'tuple' | 'xy'> {
-  mode?: TMode;
+export type Numeric<P extends Only<P, PgNumericConfig & PgColMods> = NoProps> = Column<'numeric', P, NumericData<P>>;
+export function numeric(): Column<'numeric', NoProps, string>;
+export function numeric<N extends string>(name: N): NamedColumn<N, Column<'numeric', NoProps, string>>;
+export function numeric<N extends string, const C extends Only<C, PgNumericConfig & PgColIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'numeric', C, NumericData<C>>>;
+export function numeric<const C extends Only<C, PgNumericConfig & PgColIn>>(props: C): Built<'numeric', C, NumericData<C>>;
+export function numeric(...args: unknown[]) {
+  return pgColumn('numeric', args);
 }
-export type PointDataOf<TMode> = TMode extends 'xy' ? {x: number; y: number} : [number, number];
-export type PointData<C> = PointDataOf<C extends {mode: infer TMode} ? TMode : 'tuple'>;
-/** Column type twin of `point(name?, config?)`. */
-export type Point<
-  A extends string | (PgPointConfig & PgColMods) | undefined = undefined,
-  C extends PgPointConfig & PgColMods = Record<never, never>,
-> = RtColType<'point', ColNameArg<A>, ColConfigArg<A, C>, PointData<ColConfigArg<A, C>>>;
-export function point(): RtPgColumn<PointDataOf<'tuple'>, false, false, false>;
-export function point<TMode extends 'tuple' | 'xy' = 'tuple'>(
-  config?: PgPointConfig<TMode>
-): RtPgColumn<PointDataOf<TMode>, false, false, false>;
-export function point<TName extends string, TMode extends 'tuple' | 'xy' = 'tuple'>(
-  name: TName,
-  config?: PgPointConfig<TMode>
-): RtPgColumn<PointDataOf<TMode>, false, false, false>;
+
+export type Point<P extends Only<P, PgPointConfig & PgColMods> = NoProps> = Column<'point', P, PointData<P>>;
+export function point(): Column<'point', NoProps, [number, number]>;
+export function point<N extends string>(name: N): NamedColumn<N, Column<'point', NoProps, [number, number]>>;
+export function point<N extends string, const C extends Only<C, PgPointConfig & PgColIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'point', C, PointData<C>>>;
+export function point<const C extends Only<C, PgPointConfig & PgColIn>>(props: C): Built<'point', C, PointData<C>>;
 export function point(...args: unknown[]) {
   return pgColumn('point', args);
 }
 
-/** Column type twin of `real(name?)`. */
-export type Real<A extends string | PgColMods | undefined = undefined, C extends PgColMods = Record<never, never>> = RtColType<
-  'real',
-  ColNameArg<A>,
-  ColConfigArg<A, C>,
-  Float
->;
-export function real(): RtPgColumn<Float, false, false, false>;
-export function real<TName extends string>(name: TName): RtPgColumn<Float, false, false, false>;
+export type Real<P extends Only<P, PgColMods> = NoProps> = Column<'real', P, Float>;
+export function real(): Column<'real', NoProps, Float>;
+export function real<N extends string>(name: N): NamedColumn<N, Column<'real', NoProps, Float>>;
+export function real<N extends string, const C extends Only<C, PgColIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'real', C, Float>>;
+export function real<const C extends Only<C, PgColIn>>(props: C): Built<'real', C, Float>;
 export function real(...args: unknown[]) {
   return pgColumn('real', args);
 }
 
-/** Column type twin of `serial(name?)`; intrinsically notNull + defaulted. */
-export type Serial<A extends string | PgColMods | undefined = undefined, C extends PgColMods = Record<never, never>> = RtColType<
-  'serial',
-  ColNameArg<A>,
-  ColConfigArg<A, C>,
-  Int32,
-  'notNull' | 'hasDefault'
->;
-export function serial(): RtPgColumn<Int32, true, true, false>;
-export function serial<TName extends string>(name: TName): RtPgColumn<Int32, true, true, false>;
+export type Serial<P extends Only<P, PgColMods> = NoProps> = Column<'serial', P, Int32, 'notNull' | 'hasDefault'>;
+export function serial(): Column<'serial', NoProps, Int32, 'notNull' | 'hasDefault'>;
+export function serial<N extends string>(name: N): NamedColumn<N, Column<'serial', NoProps, Int32, 'notNull' | 'hasDefault'>>;
+export function serial<N extends string, const C extends Only<C, PgColIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'serial', C, Int32, 'notNull' | 'hasDefault'>>;
+export function serial<const C extends Only<C, PgColIn>>(props: C): Built<'serial', C, Int32, 'notNull' | 'hasDefault'>;
 export function serial(...args: unknown[]) {
   return pgColumn('serial', args);
 }
 
-/** Column type twin of `smallint(name?)`. */
-export type Smallint<
-  A extends string | PgIntColMods | undefined = undefined,
-  C extends PgIntColMods = Record<never, never>,
-> = RtColType<'smallint', ColNameArg<A>, ColConfigArg<A, C>, Int16>;
-export function smallint(): RtPgIntColumn<Int16, false, false, false>;
-export function smallint<TName extends string>(name: TName): RtPgIntColumn<Int16, false, false, false>;
+export type Smallint<P extends Only<P, PgIntColMods> = NoProps> = Column<'smallint', P, Int16>;
+export function smallint(): Column<'smallint', NoProps, Int16>;
+export function smallint<N extends string>(name: N): NamedColumn<N, Column<'smallint', NoProps, Int16>>;
+export function smallint<N extends string, const C extends Only<C, PgIntIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'smallint', C, Int16>>;
+export function smallint<const C extends Only<C, PgIntIn>>(props: C): Built<'smallint', C, Int16>;
 export function smallint(...args: unknown[]) {
   return pgColumn('smallint', args);
 }
 
-/** Column type twin of `smallserial(name?)`; intrinsically notNull + defaulted. */
-export type Smallserial<
-  A extends string | PgColMods | undefined = undefined,
-  C extends PgColMods = Record<never, never>,
-> = RtColType<'smallserial', ColNameArg<A>, ColConfigArg<A, C>, Int16, 'notNull' | 'hasDefault'>;
-export function smallserial(): RtPgColumn<Int16, true, true, false>;
-export function smallserial<TName extends string>(name: TName): RtPgColumn<Int16, true, true, false>;
+export type Smallserial<P extends Only<P, PgColMods> = NoProps> = Column<'smallserial', P, Int16, 'notNull' | 'hasDefault'>;
+export function smallserial(): Column<'smallserial', NoProps, Int16, 'notNull' | 'hasDefault'>;
+export function smallserial<N extends string>(
+  name: N
+): NamedColumn<N, Column<'smallserial', NoProps, Int16, 'notNull' | 'hasDefault'>>;
+export function smallserial<N extends string, const C extends Only<C, PgColIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'smallserial', C, Int16, 'notNull' | 'hasDefault'>>;
+export function smallserial<const C extends Only<C, PgColIn>>(props: C): Built<'smallserial', C, Int16, 'notNull' | 'hasDefault'>;
 export function smallserial(...args: unknown[]) {
   return pgColumn('smallserial', args);
 }
 
-/** Column type twin of `sparsevec(name?, config)`. */
-export type Sparsevec<
-  A extends string | (Partial<PgVectorConfig> & PgColMods) | undefined = undefined,
-  C extends Partial<PgVectorConfig> & PgColMods = Record<never, never>,
-> = RtColType<'sparsevec', ColNameArg<A>, ColConfigArg<A, C>, string>;
-export function sparsevec(config: PgVectorConfig): RtPgColumn<string, false, false, false>;
-export function sparsevec<TName extends string>(name: TName, config: PgVectorConfig): RtPgColumn<string, false, false, false>;
+export type Sparsevec<P extends Only<P, Partial<PgVectorConfig> & PgColMods> = NoProps> = Column<'sparsevec', P, string>;
+export function sparsevec<N extends string, const C extends Only<C, PgVectorConfig & PgColIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'sparsevec', C, string>>;
+export function sparsevec<const C extends Only<C, PgVectorConfig & PgColIn>>(props: C): Built<'sparsevec', C, string>;
 export function sparsevec(...args: unknown[]) {
   return pgColumn('sparsevec', args);
 }
 
-export interface PgTextConfig<T extends readonly string[] = EnumTuple> {
-  enum?: T;
-}
-export type TextDataOf<T extends readonly string[]> = EnumOr<T, Str>;
-export type TextData<C> = TextDataOf<C extends {enum: infer E extends readonly string[]} ? E : readonly string[]>;
-/** Column type twin of `text(name?, config?)`. */
-export type Text<
-  A extends string | (PgTextConfig & PgColMods) | undefined = undefined,
-  C extends PgTextConfig & PgColMods = Record<never, never>,
-> = RtColType<'text', ColNameArg<A>, ColConfigArg<A, C>, TextData<ColConfigArg<A, C>>>;
-export function text(): RtPgColumn<Str, false, false, false>;
-export function text<U extends string, T extends Readonly<[U, ...U[]]>>(
-  config?: PgTextConfig<T | Writable<T>>
-): RtPgColumn<TextDataOf<T>, false, false, false>;
-export function text<TName extends string, U extends string, T extends Readonly<[U, ...U[]]>>(
-  name: TName,
-  config?: PgTextConfig<T | Writable<T>>
-): RtPgColumn<TextDataOf<T>, false, false, false>;
+export type Text<P extends Only<P, PgTextConfig & PgColMods> = NoProps> = Column<'text', P, TextData<P>>;
+export function text(): Column<'text', NoProps, Str>;
+export function text<N extends string>(name: N): NamedColumn<N, Column<'text', NoProps, Str>>;
+export function text<N extends string, const C extends Only<C, PgTextConfig & PgColIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'text', C, TextData<C>>>;
+export function text<const C extends Only<C, PgTextConfig & PgColIn>>(props: C): Built<'text', C, TextData<C>>;
 export function text(...args: unknown[]) {
   return pgColumn('text', args);
 }
 
-export interface TimeConfig {
-  precision?: number;
-  withTimezone?: boolean;
-}
-/** Column type twin of `time(name?, config?)`. */
-export type Time<
-  A extends string | (TimeConfig & PgDateColMods) | undefined = undefined,
-  C extends TimeConfig & PgDateColMods = Record<never, never>,
-> = RtColType<'time', ColNameArg<A>, ColConfigArg<A, C>, StringTime>;
-export function time(): RtPgDateColumn<StringTime, false, false, false>;
-export function time(config?: TimeConfig): RtPgDateColumn<StringTime, false, false, false>;
-export function time<TName extends string>(name: TName, config?: TimeConfig): RtPgDateColumn<StringTime, false, false, false>;
+export type Time<P extends Only<P, TimeConfig & PgDateColMods> = NoProps> = Column<'time', P, StringTime>;
+export function time(): Column<'time', NoProps, StringTime>;
+export function time<N extends string>(name: N): NamedColumn<N, Column<'time', NoProps, StringTime>>;
+export function time<N extends string, const C extends Only<C, TimeConfig & PgDateIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'time', C, StringTime>>;
+export function time<const C extends Only<C, TimeConfig & PgDateIn>>(props: C): Built<'time', C, StringTime>;
 export function time(...args: unknown[]) {
   return pgColumn('time', args);
 }
 
-export interface PgTimestampConfig<TMode extends 'date' | 'string' = 'date' | 'string'> {
-  mode?: TMode;
-  precision?: number;
-  withTimezone?: boolean;
-}
-export type TimestampDataOf<TMode> = TMode extends 'string' ? StringDateTime : RTDate;
-export type TimestampData<C> = TimestampDataOf<C extends {mode: infer TMode} ? TMode : 'date'>;
-/** Column type twin of `timestamp(name?, config?)`. */
-export type Timestamp<
-  A extends string | (PgTimestampConfig & PgDateColMods) | undefined = undefined,
-  C extends PgTimestampConfig & PgDateColMods = Record<never, never>,
-> = RtColType<'timestamp', ColNameArg<A>, ColConfigArg<A, C>, TimestampData<ColConfigArg<A, C>>>;
-export function timestamp(): RtPgDateColumn<RTDate, false, false, false>;
-export function timestamp<TMode extends 'date' | 'string' = 'date'>(
-  config?: PgTimestampConfig<TMode>
-): RtPgDateColumn<TimestampDataOf<TMode>, false, false, false>;
-export function timestamp<TName extends string, TMode extends 'date' | 'string' = 'date'>(
-  name: TName,
-  config?: PgTimestampConfig<TMode>
-): RtPgDateColumn<TimestampDataOf<TMode>, false, false, false>;
+export type Timestamp<P extends Only<P, PgTimestampConfig & PgDateColMods> = NoProps> = Column<'timestamp', P, TimestampData<P>>;
+export function timestamp(): Column<'timestamp', NoProps, RTDate>;
+export function timestamp<N extends string>(name: N): NamedColumn<N, Column<'timestamp', NoProps, RTDate>>;
+export function timestamp<N extends string, const C extends Only<C, PgTimestampConfig & PgDateIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'timestamp', C, TimestampData<C>>>;
+export function timestamp<const C extends Only<C, PgTimestampConfig & PgDateIn>>(
+  props: C
+): Built<'timestamp', C, TimestampData<C>>;
 export function timestamp(...args: unknown[]) {
   return pgColumn('timestamp', args);
 }
 
-/** Column type twin of `uuid(name?)`. */
-export type Uuid<
-  A extends string | PgUuidColMods | undefined = undefined,
-  C extends PgUuidColMods = Record<never, never>,
-> = RtColType<'uuid', ColNameArg<A>, ColConfigArg<A, C>, UUID>;
-export function uuid(): RtPgUuidColumn<UUID, false, false, false>;
-export function uuid<TName extends string>(name: TName): RtPgUuidColumn<UUID, false, false, false>;
+export type Uuid<P extends Only<P, PgUuidColMods> = NoProps> = Column<'uuid', P, UUID>;
+export function uuid(): Column<'uuid', NoProps, UUID>;
+export function uuid<N extends string>(name: N): NamedColumn<N, Column<'uuid', NoProps, UUID>>;
+export function uuid<N extends string, const C extends Only<C, PgUuidIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'uuid', C, UUID>>;
+export function uuid<const C extends Only<C, PgUuidIn>>(props: C): Built<'uuid', C, UUID>;
 export function uuid(...args: unknown[]) {
   return pgColumn('uuid', args);
 }
 
-export interface PgVarcharConfig<T extends readonly string[] = EnumTuple, L extends number | undefined = number | undefined> {
-  length?: L;
-  enum?: T;
-}
-/** The one varchar data computation BOTH roads go through: the builder overloads and VarcharData. */
-export type VarcharDataOf<T extends readonly string[], L> = string extends T[number]
-  ? L extends number
-    ? Str<{maxLength: L}>
-    : Str
-  : T[number];
-export type VarcharData<C> = VarcharDataOf<
-  C extends {enum: infer E extends readonly string[]} ? E : readonly string[],
-  C extends {length: infer L extends number} ? L : undefined
->;
-/** Column type twin of `varchar(name?, config?)`. */
-export type Varchar<
-  A extends string | (PgVarcharConfig & PgColMods) | undefined = undefined,
-  C extends PgVarcharConfig & PgColMods = Record<never, never>,
-> = RtColType<'varchar', ColNameArg<A>, ColConfigArg<A, C>, VarcharData<ColConfigArg<A, C>>>;
-export function varchar(): RtPgColumn<Str, false, false, false>;
-export function varchar<U extends string, T extends Readonly<[U, ...U[]]>, L extends number | undefined = undefined>(
-  config?: PgVarcharConfig<T | Writable<T>, L>
-): RtPgColumn<VarcharDataOf<T, L>, false, false, false>;
-export function varchar<
-  TName extends string,
-  U extends string,
-  T extends Readonly<[U, ...U[]]>,
-  L extends number | undefined = undefined,
->(name: TName, config?: PgVarcharConfig<T | Writable<T>, L>): RtPgColumn<VarcharDataOf<T, L>, false, false, false>;
+export type Varchar<P extends Only<P, PgVarcharConfig & PgColMods> = NoProps> = Column<'varchar', P, VarcharData<P>>;
+export function varchar(): Column<'varchar', NoProps, Str>;
+export function varchar<N extends string>(name: N): NamedColumn<N, Column<'varchar', NoProps, Str>>;
+export function varchar<N extends string, const C extends Only<C, PgVarcharConfig & PgColIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'varchar', C, VarcharData<C>>>;
+export function varchar<const C extends Only<C, PgVarcharConfig & PgColIn>>(props: C): Built<'varchar', C, VarcharData<C>>;
 export function varchar(...args: unknown[]) {
   return pgColumn('varchar', args);
 }
 
-/** Column type twin of `vector(name?, config)`. */
-export type Vector<
-  A extends string | (Partial<PgVectorConfig> & PgColMods) | undefined = undefined,
-  C extends Partial<PgVectorConfig> & PgColMods = Record<never, never>,
-> = RtColType<'vector', ColNameArg<A>, ColConfigArg<A, C>, number[]>;
-export function vector(config: PgVectorConfig): RtPgColumn<number[], false, false, false>;
-export function vector<TName extends string>(name: TName, config: PgVectorConfig): RtPgColumn<number[], false, false, false>;
+export type Vector<P extends Only<P, Partial<PgVectorConfig> & PgColMods> = NoProps> = Column<'vector', P, number[]>;
+export function vector<N extends string, const C extends Only<C, PgVectorConfig & PgColIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'vector', C, number[]>>;
+export function vector<const C extends Only<C, PgVectorConfig & PgColIn>>(props: C): Built<'vector', C, number[]>;
 export function vector(...args: unknown[]) {
   return pgColumn('vector', args);
 }
 
-// ── customType escape hatch ──────────────────────────────────────────────────
+// ── Enums and custom types ───────────────────────────────────────────────────
+// No type road (the runtime needs the enum handle or customType callbacks); the types exist for the models.
 
-export interface CustomTypeValues {
-  data: unknown;
-  driverData?: unknown;
-  config?: Record<string, unknown>;
-  notNull?: boolean;
-  default?: boolean;
-}
-export interface CustomTypeParams<T extends CustomTypeValues> {
-  dataType(config?: T['config']): string;
-  toDriver?(value: T['data']): unknown;
-  fromDriver?(value: unknown): T['data'];
-}
-/** Drizzle's customType, recorded: the caller supplies the model type through T['data'], formats included. */
+/** A pgEnum column over a value tuple: one shared type per value set. */
+export type PgEnumCol<Values extends readonly string[], P extends Only<P, PgColMods> = NoProps> = Column<
+  'enum',
+  P,
+  Values[number]
+>;
+/** A pgEnum column over an enum object: data is the union of its VALUES. */
+export type PgEnumObjectCol<E extends Record<string, string>, P extends Only<P, PgColMods> = NoProps> = Column<
+  'enum',
+  P,
+  E[keyof E]
+>;
+/** A customType column. */
+export type CustomCol<Data, P extends Only<P, PgColMods> = NoProps> = Column<'custom', P, Data>;
+
+/** Drizzle's customType, recorded; the caller supplies the model type through T['data']. */
 export function customType<T extends CustomTypeValues>(params: CustomTypeParams<T>) {
   const custom = new RtValueRecorder('customType', [params]);
-  function factory(): RtPgColumn<T['data'], false, false, false>;
-  function factory(config?: T['config']): RtPgColumn<T['data'], false, false, false>;
-  function factory<TName extends string>(name: TName, config?: T['config']): RtPgColumn<T['data'], false, false, false>;
+  function factory(): Column<'custom', NoProps, T['data']>;
+  function factory<N extends string>(name: N): NamedColumn<N, Column<'custom', NoProps, T['data']>>;
+  function factory<N extends string, const C extends Only<C, PgColIn & T['config']>>(
+    name: N,
+    props: C
+  ): NamedColumn<N, Built<'custom', C, T['data']>>;
+  function factory<const C extends Only<C, PgColIn & T['config']>>(props: C): Built<'custom', C, T['data']>;
   function factory(...args: unknown[]) {
-    return new RtColumnRecorder((context) => {
-      const drizzleFactory = custom.toDrizzleValue(context) as (...factoryArgs: unknown[]) => unknown;
-      return drizzleFactory(...args);
-    }) as never;
+    return recordColumn(args, (context, callArgs) =>
+      (custom.toDrizzleValue(context) as (...factoryArgs: unknown[]) => unknown)(...callArgs)
+    ) as never;
   }
   (factory as unknown as Record<symbol, unknown>)[rtValueKey] = custom;
   return factory;
 }
 
-/** The record handed to a `pgTable` columns callback, mirroring drizzle's callback overload. */
+/** The record handed to a `pgTable` columns callback. */
 export const pgColumnHelpers = {
   bigint,
   bigserial,

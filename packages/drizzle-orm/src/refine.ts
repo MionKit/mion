@@ -5,66 +5,42 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Type-level table refinement over slim tables: tighten a column's captured format params for the API
-// without touching the database column. The merge is @mionjs/run-types' MergeFormat/RefinableParamsOf
-// applied to the flat column brand instead of drizzle column configs (4365 net instantiations to ~380).
+// A refined column keeps its fn, props and base, so every derived flag survives; only its format params change.
 
 import type {MergeFormat, RefinableParamsOf} from '@mionjs/run-types/formats';
-import type {rtColumnKey, rtColumnKeyFlagsKey} from './recorder.ts';
-import type {ColDataOf, RtColumnBrand} from './recorder.ts';
-import type {AnyRtTable, ColsOf} from './table.ts';
+import type {ColBaseFlag, Column, Merge, ValueOf} from './columns.ts';
+import {rtColSpecKey} from './columns.ts';
+import type {AnyTable} from './table.ts';
 
-/** Only format-carrying columns are refinable: a passthrough boolean/json/enum column refines to
- *  `never`, so ANY refinement on it is a compile error rather than a silent bypass. */
-export type TableRefinements<T extends AnyRtTable> = {
-  [K in keyof ColsOf<T>]?: RefinableParamsOf<ColDataOf<ColsOf<T>[K]>>;
-};
-
-/** Post-refine column: the brand alone, no modifier methods, since nothing chains after refineTableType. */
-export type RtRefinedColumn<
-  Data,
-  NotNull extends boolean,
-  HasDefault extends boolean,
-  InsertExcluded extends boolean,
-> = RtColumnBrand<Data, NotNull, HasDefault, InsertExcluded>;
-
-// Key flags pass through, or toDrizzle loses mysql's $returningId() keys and pg's identity; one conditional reads both.
-type RefinedCol<Col, Params> = Col extends {
-  readonly [rtColumnKey]?: {
-    data: infer Data;
-    notNull: infer NotNull extends boolean;
-    hasDefault: infer HasDefault extends boolean;
-    insertExcluded: infer InsertExcluded extends boolean;
-  };
-  readonly [rtColumnKeyFlagsKey]?: infer Key;
-}
-  ? RtRefinedKeyedColumn<MergeFormat<Data, Params>, NotNull, HasDefault, InsertExcluded, Key>
+type Parts<C> = C extends {readonly [rtColSpecKey]?: {fn: infer Fn extends string; config: infer P; data: infer D; base: infer B}}
+  ? [Fn, P, D, B]
   : never;
 
-export interface RtRefinedKeyedColumn<
-  Data,
-  NotNull extends boolean,
-  HasDefault extends boolean,
-  InsertExcluded extends boolean,
-  Key,
-> {
-  readonly [rtColumnKey]?: {data: Data; notNull: NotNull; hasDefault: HasDefault; insertExcluded: InsertExcluded};
-  readonly [rtColumnKeyFlagsKey]?: Key;
-}
+/** Only format-carrying columns are refinable; any other refines to `never`, so a refinement on it fails. */
+export type TableRefinements<T extends AnyTable> = {
+  [K in keyof T['columns']]?: Parts<T['columns'][K]> extends [string, infer P, infer D, unknown]
+    ? RefinableParamsOf<ValueOf<P, D>>
+    : never;
+};
 
+// A `$type` override is what holds the value, so the refinement merges into it.
+type RefinedColumn<C, Params> =
+  Parts<C> extends [infer Fn extends string, infer P, infer D, infer B extends string]
+    ? P extends {$type: [infer Override]}
+      ? Column<Fn, Merge<P, {$type: [MergeFormat<Override, Params>]}>, D, B & ColBaseFlag>
+      : Column<Fn, P, MergeFormat<D, Params>, B & ColBaseFlag>
+    : never;
 type RefineCols<Cols, R> = {
-  [K in keyof Cols]: K extends keyof R ? (R[K] extends object ? RefinedCol<Cols[K], R[K]> : Cols[K]) : Cols[K];
-};
-/** The same table retyped, the type road's refine: `RefinedTable<UsersTable, {name: {maxLength: 50}}>`.
- *  R is constrained, so a typo'd column or an unrefinable param is a compile error. */
-export type RefinedTable<T extends AnyRtTable, R extends TableRefinements<T>> = Omit<T, 'columns'> & {
-  columns: RefineCols<ColsOf<T>, R>;
+  [K in keyof Cols]: K extends keyof R ? (R[K] extends object ? RefinedColumn<Cols[K], R[K]> : Cols[K]) : Cols[K];
 };
 
-/** Tighten a table's column types for the API (stricter than the database): refinement wins on a
- *  shared key, base and value type can never change. Identity at runtime, so the SAME table object
- *  comes back retyped and the materialized drizzle table is shared too. */
-export function refineTableType<T extends AnyRtTable, const R extends TableRefinements<T>>(
+/** The same table retyped: `RefinedTable<UsersTable, {name: {maxLength: 50}}>`. */
+export type RefinedTable<T extends AnyTable, R extends TableRefinements<T>> = Omit<T, 'columns'> & {
+  columns: RefineCols<T['columns'], R>;
+};
+
+/** Tighten a table's column types for the API; identity at run time, so the materialized table is shared. */
+export function refineTableType<T extends AnyTable, const R extends TableRefinements<T>>(
   table: T,
   refinements: R
 ): RefinedTable<T, R> {

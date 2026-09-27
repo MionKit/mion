@@ -9,10 +9,22 @@
 // sequences, policies and roles, with drizzle-identical names and call shapes and recorder returns.
 // All of them replay 1:1 against the real drizzle functions when the owning table materializes.
 
-import type {AnyRtColumn, AnyRtTable, RtIndexedColumn, RtSql} from '@mionjs/drizzle-orm';
-import {RtEntryRecorder, RtValueRecorder, rtColumnKey, rtValueKey} from '@mionjs/drizzle-orm';
-import type {UpdateDeleteAction} from './columns.ts';
-import {makeEnumFactory, type PgSequence, type PgSequenceOptions} from './table.ts';
+import type {
+  AnyColumn,
+  AnyTable,
+  AnyTableRef,
+  Column,
+  NamedColumn,
+  NoProps,
+  Only,
+  PropsOf,
+  RtIndexedColumn,
+  RtSql,
+} from '@mionjs/drizzle-orm';
+import {recordColumn, refColumn, RtEntryRecorder, RtValueRecorder, rtColumnKey, rtValueKey} from '@mionjs/drizzle-orm';
+import type {PgColIn} from './columns.ts';
+import type {UpdateDeleteAction} from './types.ts';
+import type {PgSequence, PgSequenceOptions} from './table.ts';
 
 /** Common brand of every extraConfig entry (what the callback's array holds). */
 export interface PgEntryBrand {
@@ -20,47 +32,55 @@ export interface PgEntryBrand {
 }
 
 /** What an index position accepts: a column, a decorated column, or sql. */
-export type PgIndexColumn = AnyRtColumn | RtIndexedColumn | RtSql;
+export type PgIndexColumn = AnyColumn | RtIndexedColumn | RtSql;
 
-export interface RtIndexEntry extends PgEntryBrand {
+// drizzle's two steps: `on` first, then the index options; an option before `on` does not exist on drizzle's builder.
+/** `index(name)` before its columns: only the `on` calls. */
+export interface RtIndexBuilderOn {
   on(...columns: [PgIndexColumn, ...PgIndexColumn[]]): RtIndexEntry;
   using(method: string, ...columns: [PgIndexColumn, ...PgIndexColumn[]]): RtIndexEntry;
   onOnly(...columns: [PgIndexColumn, ...PgIndexColumn[]]): RtIndexEntry;
+}
+/** An index with its columns: the options drizzle's IndexBuilder takes. */
+export interface RtIndexEntry extends PgEntryBrand {
   concurrently(): RtIndexEntry;
   where(condition: RtSql): RtIndexEntry;
   with(config: Record<string, unknown>): RtIndexEntry;
 }
-export function index(name?: string): RtIndexEntry {
-  return new RtEntryRecorder('index', name === undefined ? [] : [name]) as unknown as RtIndexEntry;
+export function index(name?: string): RtIndexBuilderOn {
+  return new RtEntryRecorder('index', name === undefined ? [] : [name]) as unknown as RtIndexBuilderOn;
 }
-export function uniqueIndex(name?: string): RtIndexEntry {
-  return new RtEntryRecorder('uniqueIndex', name === undefined ? [] : [name]) as unknown as RtIndexEntry;
+export function uniqueIndex(name?: string): RtIndexBuilderOn {
+  return new RtEntryRecorder('uniqueIndex', name === undefined ? [] : [name]) as unknown as RtIndexBuilderOn;
 }
 
 export interface RtUniqueEntry extends PgEntryBrand {
-  on(...columns: [AnyRtColumn, ...AnyRtColumn[]]): RtUniqueEntry;
+  on(...columns: [AnyColumn, ...AnyColumn[]]): RtUniqueEntry;
   nullsNotDistinct(): RtUniqueEntry;
 }
 export function unique(name?: string): RtUniqueEntry {
   return new RtEntryRecorder('unique', name === undefined ? [] : [name]) as unknown as RtUniqueEntry;
 }
 
+/** foreignKey: this table's columns as `t.key`, another table's as a tableRef(). */
 export interface PgForeignKeyConfig {
   name?: string;
-  columns: [AnyRtColumn, ...AnyRtColumn[]];
-  foreignColumns: [AnyRtColumn, ...AnyRtColumn[]];
+  columns: [AnyColumn, ...AnyColumn[]];
+  foreignColumns: [AnyColumn | AnyTableRef, ...Array<AnyColumn | AnyTableRef>];
 }
 export interface RtForeignKeyEntry extends PgEntryBrand {
   onDelete(action: UpdateDeleteAction): RtForeignKeyEntry;
   onUpdate(action: UpdateDeleteAction): RtForeignKeyEntry;
 }
 export function foreignKey(config: PgForeignKeyConfig): RtForeignKeyEntry {
-  return new RtEntryRecorder('foreignKey', [config]) as unknown as RtForeignKeyEntry;
+  const isRef = (column: object): boolean => typeof (column as Partial<AnyTableRef>).table === 'string';
+  const foreignColumns = config.foreignColumns.map((column) => (isRef(column) ? refColumn(column) : column));
+  return new RtEntryRecorder('foreignKey', [{...config, foreignColumns}]) as unknown as RtForeignKeyEntry;
 }
 
 export interface PgPrimaryKeyConfig {
   name?: string;
-  columns: [AnyRtColumn, ...AnyRtColumn[]];
+  columns: [AnyColumn, ...AnyColumn[]];
 }
 export type RtPrimaryKeyEntry = PgEntryBrand;
 export function primaryKey(config: PgPrimaryKeyConfig): RtPrimaryKeyEntry {
@@ -109,7 +129,7 @@ export interface RtLinkedPolicy {
   readonly [rtColumnKey]?: {rtLinkedPolicy: true};
 }
 export interface RtPolicyEntry extends PgEntryBrand {
-  link(table: AnyRtTable): RtLinkedPolicy;
+  link(table: AnyTable): RtLinkedPolicy;
 }
 export function pgPolicy(name: string, config?: PgPolicyConfig): RtPolicyEntry {
   return new RtEntryRecorder('pgPolicy', config === undefined ? [name] : [name, config]) as unknown as RtPolicyEntry;
@@ -118,30 +138,52 @@ export function pgPolicy(name: string, config?: PgPolicyConfig): RtPolicyEntry {
 // ── pgEnum / pgSequence ──────────────────────────────────────────────────────
 
 type Writable<T> = {-readonly [K in keyof T]: T[K]};
+type NonArray<T> = T extends readonly unknown[] ? never : T;
 
-/** A recorded pg enum: a factory producing slim enum columns, plus the name/values drizzle-kit
- *  consumers read. Migrations need the enum itself, so materialize it with toDrizzle. */
+/** A recorded pg enum: a factory of enum column builders, plus the name and values drizzle-kit consumers read.
+ *  Migrations need the enum itself, so materialize it with toDrizzle. */
 export interface PgEnum<T extends readonly [string, ...string[]]> {
-  (columnName?: string): import('./columns.ts').RtPgColumn<T[number], false, false, false>;
+  (): Column<'enum', NoProps, T[number]>;
+  <N extends string>(columnName: N): NamedColumn<N, Column<'enum', NoProps, T[number]>>;
+  <N extends string, const C extends Only<C, PgColIn>>(
+    columnName: N,
+    props: C
+  ): NamedColumn<N, Column<'enum', PropsOf<C>, T[number]>>;
+  <const C extends Only<C, PgColIn>>(props: C): Column<'enum', PropsOf<C>, T[number]>;
   readonly enumName: string;
   readonly enumValues: T;
 }
-
 /** The object form of a pg enum (drizzle's second overload); data is the union of its VALUES. */
 export interface PgEnumObject<E extends Record<string, string>> {
-  (columnName?: string): import('./columns.ts').RtPgColumn<E[keyof E], false, false, false>;
+  (): Column<'enum', NoProps, E[keyof E]>;
+  <N extends string>(columnName: N): NamedColumn<N, Column<'enum', NoProps, E[keyof E]>>;
+  <N extends string, const C extends Only<C, PgColIn>>(
+    columnName: N,
+    props: C
+  ): NamedColumn<N, Column<'enum', PropsOf<C>, E[keyof E]>>;
+  <const C extends Only<C, PgColIn>>(props: C): Column<'enum', PropsOf<C>, E[keyof E]>;
   readonly enumName: string;
   readonly enumValues: E[keyof E][];
 }
-type NonArray<T> = T extends readonly unknown[] ? never : T;
 
 export function pgEnum<U extends string, T extends Readonly<[U, ...U[]]>>(enumName: string, values: T | Writable<T>): PgEnum<T>;
 export function pgEnum<E extends Record<string, string>>(enumName: string, enumObj: NonArray<E>): PgEnumObject<E>;
-export function pgEnum(enumName: string, values: readonly string[] | Record<string, string>) {
-  // The RECORDED arg stays what the caller passed, drizzle reads the object form itself; only the
-  // exposed enumValues are normalized.
-  const enumValues = Array.isArray(values) ? (values as readonly string[]) : Object.values(values as Record<string, string>);
-  return makeEnumFactory(new RtValueRecorder('pgEnum', [enumName, values]), enumName, enumValues);
+export function pgEnum(enumName: string, values: readonly string[] | Record<string, string>): unknown {
+  return makeEnumFactory(new RtValueRecorder('pgEnum', [enumName, values]), enumName, values);
+}
+
+/** Shared by pgEnum and pgSchema(...).enum: enum column builders whose materializer calls the real (memoized)
+ *  drizzle enum. The RECORDED values stay what the caller passed, drizzle reads the object form itself; only the
+ *  exposed enumValues are normalized to the values. */
+export function makeEnumFactory(recorder: RtValueRecorder, enumName: string, values: readonly string[] | Record<string, string>) {
+  const factory = (...args: unknown[]) =>
+    recordColumn(args, (context, callArgs) =>
+      (recorder.toDrizzleValue(context) as (...enumArgs: unknown[]) => unknown)(...callArgs)
+    );
+  const enumValues = Array.isArray(values) ? values : Object.values(values);
+  const handle = Object.assign(factory, {enumName, enumValues});
+  (handle as unknown as Record<symbol, unknown>)[rtValueKey] = recorder;
+  return handle;
 }
 
 export function pgSequence(name: string, options?: PgSequenceOptions): PgSequence {

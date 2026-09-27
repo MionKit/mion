@@ -5,57 +5,65 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The sqlite authoring helpers beyond columns and tables: indexes, constraints
-// and checks — drizzle-identical names and call shapes, recorder returns.
+// The sqlite authoring helpers beyond columns and tables: indexes, constraints and checks, with drizzle-identical
+// names and call shapes and recorder returns.
 
-import type {AnyRtColumn, RtIndexedColumn, RtSql} from '@mionjs/drizzle-orm';
-import {RtEntryRecorder, rtColumnKey} from '@mionjs/drizzle-orm';
-import type {UpdateDeleteAction} from './columns.ts';
+import type {AnyColumn, AnyTableRef, RtIndexedColumn, RtSql} from '@mionjs/drizzle-orm';
+import {refColumn, RtEntryRecorder, rtColumnKey} from '@mionjs/drizzle-orm';
+import type {UpdateDeleteAction} from './types.ts';
 
 /** Common brand of every extraConfig entry. */
 export interface SqliteEntryBrand {
   readonly [rtColumnKey]?: {rtEntry: true};
 }
 
-export type SqliteIndexColumn = AnyRtColumn | RtIndexedColumn | RtSql;
+export type SqliteIndexColumn = AnyColumn | RtIndexedColumn | RtSql;
 
-export interface RtSqliteIndexEntry extends SqliteEntryBrand {
+// drizzle's two steps: `on` first, then the index options; an option before `on` does not exist on drizzle's builder.
+/** `index(name)` before its columns: only `on`. */
+export interface RtSqliteIndexBuilderOn {
   on(...columns: [SqliteIndexColumn, ...SqliteIndexColumn[]]): RtSqliteIndexEntry;
+}
+/** An index with its columns: the options drizzle's IndexBuilder takes. */
+export interface RtSqliteIndexEntry extends SqliteEntryBrand {
   where(condition: RtSql): RtSqliteIndexEntry;
 }
-export function index(name: string): RtSqliteIndexEntry {
-  return new RtEntryRecorder('index', [name]) as unknown as RtSqliteIndexEntry;
+export function index(name: string): RtSqliteIndexBuilderOn {
+  return new RtEntryRecorder('index', [name]) as unknown as RtSqliteIndexBuilderOn;
 }
-export function uniqueIndex(name: string): RtSqliteIndexEntry {
-  return new RtEntryRecorder('uniqueIndex', [name]) as unknown as RtSqliteIndexEntry;
+export function uniqueIndex(name: string): RtSqliteIndexBuilderOn {
+  return new RtEntryRecorder('uniqueIndex', [name]) as unknown as RtSqliteIndexBuilderOn;
 }
 
 export interface RtSqliteUniqueEntry extends SqliteEntryBrand {
-  on(...columns: [AnyRtColumn, ...AnyRtColumn[]]): RtSqliteUniqueEntry;
+  on(...columns: [AnyColumn, ...AnyColumn[]]): RtSqliteUniqueEntry;
 }
 export function unique(name?: string): RtSqliteUniqueEntry {
   return new RtEntryRecorder('unique', name === undefined ? [] : [name]) as unknown as RtSqliteUniqueEntry;
 }
 
-export interface SQLiteForeignKeyConfig {
+/** foreignKey: this table's columns as `t.key`, another table's as a tableRef(). */
+export interface SqliteForeignKeyConfig {
   name?: string;
-  columns: [AnyRtColumn, ...AnyRtColumn[]];
-  foreignColumns: [AnyRtColumn, ...AnyRtColumn[]];
+  columns: [AnyColumn, ...AnyColumn[]];
+  foreignColumns: [AnyColumn | AnyTableRef, ...Array<AnyColumn | AnyTableRef>];
 }
 export interface RtSqliteForeignKeyEntry extends SqliteEntryBrand {
   onDelete(action: UpdateDeleteAction): RtSqliteForeignKeyEntry;
   onUpdate(action: UpdateDeleteAction): RtSqliteForeignKeyEntry;
 }
-export function foreignKey(config: SQLiteForeignKeyConfig): RtSqliteForeignKeyEntry {
-  return new RtEntryRecorder('foreignKey', [config]) as unknown as RtSqliteForeignKeyEntry;
+export function foreignKey(config: SqliteForeignKeyConfig): RtSqliteForeignKeyEntry {
+  const isRef = (column: object): boolean => typeof (column as Partial<AnyTableRef>).table === 'string';
+  const foreignColumns = config.foreignColumns.map((column) => (isRef(column) ? refColumn(column) : column));
+  return new RtEntryRecorder('foreignKey', [{...config, foreignColumns}]) as unknown as RtSqliteForeignKeyEntry;
 }
 
-export interface SQLitePrimaryKeyEntryConfig {
+export interface SqlitePrimaryKeyEntryConfig {
   name?: string;
-  columns: [AnyRtColumn, ...AnyRtColumn[]];
+  columns: [AnyColumn, ...AnyColumn[]];
 }
 export type RtSqlitePrimaryKeyEntry = SqliteEntryBrand;
-export function primaryKey(config: SQLitePrimaryKeyEntryConfig): RtSqlitePrimaryKeyEntry {
+export function primaryKey(config: SqlitePrimaryKeyEntryConfig): RtSqlitePrimaryKeyEntry {
   return new RtEntryRecorder('primaryKey', [config]) as unknown as RtSqlitePrimaryKeyEntry;
 }
 

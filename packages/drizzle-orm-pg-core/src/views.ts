@@ -5,49 +5,27 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The pg view factories, MANUAL-COLUMN form only: explicit columns, then `.as(sql`...`)` or
-// `.existing()`. Nothing here imports drizzle; each view stores a buildView closure that receives
-// the injected context at materialization (./drizzle.ts). `pgView(name)` with no columns, drizzle's
-// query-builder form, is declared but NOT supported: its columns come from drizzle's select typing,
-// the exact generic chain the slim design removes. It returns a named marker type so the mistake
-// reads as an error on `.as(...)` rather than an arity complaint (packages/drizzle-orm/CLAUDE.md).
+// The pg view factories, MANUAL-COLUMN form only: explicit columns, then `.as(sql`...`)` or `.existing()`. Nothing
+// here imports drizzle; each view stores a buildView closure that receives the injected context at materialization
+// (./drizzle.ts). `pgView(name)` with no columns, drizzle's query-builder form, is declared but NOT supported: its
+// columns come from drizzle's select typing, the exact generic chain the slim design removes. It returns a named
+// marker type so the mistake reads as an error on `.as(...)` (packages/drizzle-orm/CLAUDE.md).
 
-import type {AnyRtColumn, DrizzleContext, RtSql, RtViewBrand, RtViewMeta} from '@mionjs/drizzle-orm';
+import type {
+  AnyColumn,
+  DrizzleContext,
+  NoNames,
+  RtSql,
+  RtViewBrand,
+  RtViewMeta,
+  rtColNameKey,
+  rtNamedColumnKey,
+} from '@mionjs/drizzle-orm';
 import {RtViewBuilder} from '@mionjs/drizzle-orm';
 
-/** A pg slim view: tagged with the dialect that recorded it, so it cannot reach another dialect's toDrizzle. */
-export interface PgSlimView<TName extends string, Cols> extends RtViewMeta<TName, Cols>, RtViewBrand<'pg'> {}
 /** The stand-in a columnless `pgView(name)` returns: no `as`, so the query-builder form fails naming itself. */
 export interface ViewFromQueryBuilderNotSupported {
   readonly __use_drizzles_pgView_for_query_builder_views: never;
-}
-
-/** Storage parameters accepted by a view's `.with(...)`. */
-export type PgViewWithConfig = Record<string, unknown>;
-
-/** Shared by both pg view builders: drizzle's DefaultViewBuilderCore. */
-export interface PgViewBuilderCore<Self> {
-  with(config: PgViewWithConfig): Self;
-}
-
-export interface PgViewBuilder<TName extends string, Cols extends Record<string, AnyRtColumn>> extends PgViewBuilderCore<
-  PgViewBuilder<TName, Cols>
-> {
-  /** The view's query, as literal sql. */
-  as(query: RtSql): PgSlimView<TName, Cols>;
-  /** The view already exists: drizzle-kit emits no CREATE VIEW for it. */
-  existing(): PgSlimView<TName, Cols>;
-}
-
-export interface PgMaterializedViewBuilder<
-  TName extends string,
-  Cols extends Record<string, AnyRtColumn>,
-> extends PgViewBuilderCore<PgMaterializedViewBuilder<TName, Cols>> {
-  using(method: string): PgMaterializedViewBuilder<TName, Cols>;
-  tablespace(tablespace: string): PgMaterializedViewBuilder<TName, Cols>;
-  withNoData(): PgMaterializedViewBuilder<TName, Cols>;
-  as(query: RtSql): PgSlimView<TName, Cols>;
-  existing(): PgSlimView<TName, Cols>;
 }
 
 export function pgBuildView(context: DrizzleContext, name: string, builders: Record<string, unknown>): unknown {
@@ -55,25 +33,6 @@ export function pgBuildView(context: DrizzleContext, name: string, builders: Rec
 }
 export function pgBuildMaterializedView(context: DrizzleContext, name: string, builders: Record<string, unknown>): unknown {
   return context.ns.pgMaterializedView(name as never, builders as never);
-}
-
-/** Returns the SLIM view, not drizzle's own: materialize it with toDrizzle() from the './drizzle' subpath. */
-export function pgView<TName extends string, Cols extends Record<string, AnyRtColumn>>(
-  name: TName,
-  columns: Cols
-): PgViewBuilder<TName, Cols>;
-export function pgView(name: string): ViewFromQueryBuilderNotSupported;
-export function pgView(name: string, columns?: Record<string, unknown>) {
-  return new RtViewBuilder(name, requireColumns('pgView', name, columns), pgBuildView) as never;
-}
-
-export function pgMaterializedView<TName extends string, Cols extends Record<string, AnyRtColumn>>(
-  name: TName,
-  columns: Cols
-): PgMaterializedViewBuilder<TName, Cols>;
-export function pgMaterializedView(name: string): ViewFromQueryBuilderNotSupported;
-export function pgMaterializedView(name: string, columns?: Record<string, unknown>) {
-  return new RtViewBuilder(name, requireColumns('pgMaterializedView', name, columns), pgBuildMaterializedView) as never;
 }
 
 /** The runtime half of the unsupported query-builder form: typed code cannot reach it, plain JS can. */
@@ -84,4 +43,49 @@ export function requireColumns(fn: string, name: string, columns: Record<string,
       'which the slim surface does not carry. Either declare the columns explicitly and use .as(sql`...`), ' +
       'or declare this view with drizzle itself over your toDrizzle() tables.'
   );
+}
+
+// Inline maps, never aliases over the builders record: see pgTable in ./table.ts.
+type NameOf<C> = C extends {readonly [rtColNameKey]: infer Name} ? Name : undefined;
+
+export interface PgView<TName extends string, Cols, Names = NoNames> extends RtViewMeta<TName, Cols, Names>, RtViewBrand<'pg'> {}
+export type AnyPgView = PgView<string, Record<string, AnyColumn>, object>;
+
+export interface PgViewBuilder<TName extends string, Cols, Names> {
+  with(config: Record<string, unknown>): PgViewBuilder<TName, Cols, Names>;
+  as(query: RtSql): PgView<TName, Cols, Names>;
+  existing(): PgView<TName, Cols, Names>;
+}
+export interface PgMaterializedViewBuilder<TName extends string, Cols, Names> {
+  with(config: Record<string, unknown>): PgMaterializedViewBuilder<TName, Cols, Names>;
+  using(method: string): PgMaterializedViewBuilder<TName, Cols, Names>;
+  tablespace(tablespace: string): PgMaterializedViewBuilder<TName, Cols, Names>;
+  withNoData(): PgMaterializedViewBuilder<TName, Cols, Names>;
+  as(query: RtSql): PgView<TName, Cols, Names>;
+  existing(): PgView<TName, Cols, Names>;
+}
+
+export function pgView<TName extends string, Cols extends Record<string, object>>(
+  name: TName,
+  columns: Cols
+): PgViewBuilder<
+  TName,
+  {[K in keyof Cols]: Cols[K] extends {readonly [rtNamedColumnKey]: infer C} ? C : Cols[K]},
+  {[K in keyof Cols as NameOf<Cols[K]> extends string ? (NameOf<Cols[K]> extends K ? never : K) : never]: NameOf<Cols[K]>}
+>;
+export function pgView(name: string): ViewFromQueryBuilderNotSupported;
+export function pgView(name: string, columns?: Record<string, unknown>) {
+  return new RtViewBuilder(name, requireColumns('pgView', name, columns), pgBuildView) as never;
+}
+export function pgMaterializedView<TName extends string, Cols extends Record<string, object>>(
+  name: TName,
+  columns: Cols
+): PgMaterializedViewBuilder<
+  TName,
+  {[K in keyof Cols]: Cols[K] extends {readonly [rtNamedColumnKey]: infer C} ? C : Cols[K]},
+  {[K in keyof Cols as NameOf<Cols[K]> extends string ? (NameOf<Cols[K]> extends K ? never : K) : never]: NameOf<Cols[K]>}
+>;
+export function pgMaterializedView(name: string): ViewFromQueryBuilderNotSupported;
+export function pgMaterializedView(name: string, columns?: Record<string, unknown>) {
+  return new RtViewBuilder(name, requireColumns('pgMaterializedView', name, columns), pgBuildMaterializedView) as never;
 }

@@ -5,276 +5,168 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The sqlite column builders of @mionjs/drizzle-orm-sqlite-core: drizzle-identical names and call
-// params, slim recorder returns. TWO kind interfaces sharing one method set (autoIncrement rides
-// the primaryKey config): the integer one only differs in what primaryKey() returns. Coverage is
-// gated by manifests/sqlite.manifest.json; the completeness spec diffs the chain methods against
-// drizzle's builder prototypes. Each builder also exports its COLUMN TYPE (Integer, Text, ...), the
-// pure-types vocabulary: a hand-written row using these names gets the types the builders infer.
+// Single-call sqlite columns: a builder takes every setting in ONE props object and returns exactly the hand-written
+// alias's type. No chained modifiers: chain methods break reflection (the runtype id walks method return types,
+// MKR009), and the props bag rejects a modifier sqlite lacks.
 
-import type {BigInt as RTBigInt, Date as RTDate, Float, Integer as IntegerFormat, String as Str} from '@mionjs/run-types/formats';
-import type {AnyRtColumn, ColConfigArg, ColMods, ColNameArg, ColRef, RtColType, RtColumnBrand, RtSql} from '@mionjs/drizzle-orm';
-import {RtColumnRecorder, RtValueRecorder, rtValueKey} from '@mionjs/drizzle-orm';
+import type {Float, Integer as IntegerFormat, String as Str} from '@mionjs/run-types/formats';
+import {RtValueRecorder, rtValueKey, recordColumn} from '@mionjs/drizzle-orm';
+import type {ColBaseFlag, Column, NamedColumn, NoProps, Only, PropsOf, AnyTableRef} from '@mionjs/drizzle-orm';
+import type {
+  BlobConfig,
+  BlobData,
+  CustomTypeParams,
+  CustomTypeValues,
+  IntegerConfig,
+  IntegerData,
+  NumericData,
+  ReferenceActions,
+  SqliteColMods,
+  SQLiteNumericConfig,
+  SQLitePrimaryKeyConfig,
+  SQLiteTextConfig,
+  TextData,
+} from './types.ts';
 
-type Writable<T> = {-readonly [K in keyof T]: T[K]};
-type EnumTuple = readonly [string, ...string[]];
+// ── What every builder's props take ──────────────────────────────────────────
+// The hand-written bag, with the function-carrying keys taking their runtime shape. sqlite has one builder kind, so one bag.
 
-export type UpdateDeleteAction = 'cascade' | 'restrict' | 'no action' | 'set null' | 'set default';
-export interface ReferenceActions {
-  onDelete?: UpdateDeleteAction;
-  onUpdate?: UpdateDeleteAction;
-}
-
-// ── The two kind interfaces ──────────────────────────────────────────────────
-
-export interface SQLitePrimaryKeyConfig {
-  autoIncrement?: boolean;
-  onConflict?: 'rollback' | 'abort' | 'fail' | 'ignore' | 'replace';
-}
-export interface RtSqliteColumn<Data, N extends boolean, H extends boolean, X extends boolean> extends RtColumnBrand<
-  Data,
-  N,
-  H,
-  X
-> {
-  notNull(): RtSqliteColumn<Data, true, H, X>;
-  default(value: Data | RtSql): RtSqliteColumn<Data, N, true, X>;
-  $default(fn: () => Data | RtSql): RtSqliteColumn<Data, N, true, X>;
-  $defaultFn(fn: () => Data | RtSql): RtSqliteColumn<Data, N, true, X>;
-  $onUpdate(fn: () => Data | RtSql): RtSqliteColumn<Data, N, true, X>;
-  $onUpdateFn(fn: () => Data | RtSql): RtSqliteColumn<Data, N, true, X>;
-  /** With `autoIncrement: true` the column gains a database default too. */
-  primaryKey(config: SQLitePrimaryKeyConfig & {autoIncrement: true}): RtSqliteColumn<Data, true, true, X>;
-  primaryKey(config?: SQLitePrimaryKeyConfig): RtSqliteColumn<Data, true, H, X>;
-  unique(name?: string): RtSqliteColumn<Data, N, H, X>;
-  references(ref: () => AnyRtColumn, actions?: ReferenceActions): RtSqliteColumn<Data, N, H, X>;
-  generatedAlwaysAs(
-    as: Data | RtSql | (() => RtSql),
-    config?: {mode?: 'virtual' | 'stored'}
-  ): RtSqliteColumn<Data, N, true, true>;
-  $type<T>(): RtSqliteColumn<T, N, H, X>;
-}
-
-/** sqlite's `integer primary key` IS the rowid, so drizzle defaults it with or without
- *  `autoIncrement`; without that, `integer('id').primaryKey()` reads as required on insert. */
-export interface RtSqliteIntColumn<Data, N extends boolean, H extends boolean, X extends boolean> extends RtColumnBrand<
-  Data,
-  N,
-  H,
-  X
-> {
-  notNull(): RtSqliteIntColumn<Data, true, H, X>;
-  default(value: Data | RtSql): RtSqliteIntColumn<Data, N, true, X>;
-  $default(fn: () => Data | RtSql): RtSqliteIntColumn<Data, N, true, X>;
-  $defaultFn(fn: () => Data | RtSql): RtSqliteIntColumn<Data, N, true, X>;
-  $onUpdate(fn: () => Data | RtSql): RtSqliteIntColumn<Data, N, true, X>;
-  $onUpdateFn(fn: () => Data | RtSql): RtSqliteIntColumn<Data, N, true, X>;
-  primaryKey(config?: SQLitePrimaryKeyConfig): RtSqliteIntColumn<Data, true, true, X>;
-  unique(name?: string): RtSqliteIntColumn<Data, N, H, X>;
-  references(ref: () => AnyRtColumn, actions?: ReferenceActions): RtSqliteIntColumn<Data, N, H, X>;
-  generatedAlwaysAs(
-    as: Data | RtSql | (() => RtSql),
-    config?: {mode?: 'virtual' | 'stored'}
-  ): RtSqliteIntColumn<Data, N, true, true>;
-  $type<T>(): RtSqliteIntColumn<T, N, H, X>;
-}
-
-// ── The modifier bag ─────────────────────────────────────────────────────────
-// What a column type may spell in its props object, beside the builder's own config keys.
-// sqlite's two kinds share one chain, so there is one bag. Derived from manifests/sqlite.manifest.json.
-
-/** The modifier calls every sqlite column type accepts. */
-export interface SqliteColMods extends Pick<
-  ColMods,
-  'notNull' | 'default' | '$type' | '$default' | '$defaultFn' | '$onUpdate' | '$onUpdateFn'
-> {
-  /** `true` mirrors `.primaryKey()`; the config form mirrors `.primaryKey({autoIncrement: true})`, db default included. */
+// Written out, not an Omit of the hand-written bag: every builder call checks against one, and an interface is cheapest.
+export interface SqliteColIn {
+  notNull?: true;
   primaryKey?: true | readonly [SQLitePrimaryKeyConfig];
+  default?: readonly [unknown];
   unique?: true | readonly [string];
-  references?: readonly [ColRef] | readonly [ColRef, ReferenceActions];
   generatedAlwaysAs?: readonly [unknown] | readonly [unknown, {mode?: 'virtual' | 'stored'}];
+  $type?: readonly [unknown];
+  references?: readonly [() => AnyTableRef] | readonly [() => AnyTableRef, ReferenceActions];
+  $default?: readonly [() => unknown];
+  $defaultFn?: readonly [() => unknown];
+  $onUpdate?: readonly [() => unknown];
+  $onUpdateFn?: readonly [() => unknown];
 }
 
-// ── Internal builder plumbing ────────────────────────────────────────────────
+/** What a nameless builder returns; a named call wraps it in NamedColumn. */
+type Built<Fn extends string, C, D, B extends ColBaseFlag = never> = Column<Fn, PropsOf<C>, D, B>;
 
 function sqliteColumn(fnName: string, args: unknown[]): never {
-  return new RtColumnRecorder((context) => context.ns[fnName](...(args as never[]))) as never;
+  return recordColumn(args, (context, callArgs) => context.ns[fnName](...(callArgs as never[]))) as never;
 }
 
-// ── Named types + builders, one block per column function ────────────────────
+// ── Hand-written aliases + builders ──────────────────────────────────────────
 
-export interface BlobConfig<TMode extends 'buffer' | 'json' | 'bigint' = 'buffer' | 'json' | 'bigint'> {
-  mode: TMode;
-}
-export type BlobDataOf<TMode> = TMode extends 'bigint' ? RTBigInt : TMode extends 'json' ? unknown : Buffer;
-export type BlobData<C> = BlobDataOf<C extends {mode: infer TMode} ? TMode : 'buffer'>;
-/** Column type twin of `blob(name?, config?)`. */
-export type Blob<
-  A extends string | (Partial<BlobConfig> & SqliteColMods) | undefined = undefined,
-  C extends Partial<BlobConfig> & SqliteColMods = Record<never, never>,
-> = RtColType<'blob', ColNameArg<A>, ColConfigArg<A, C>, BlobData<ColConfigArg<A, C>>>;
-export function blob(): RtSqliteColumn<Buffer, false, false, false>;
-export function blob<TMode extends 'buffer' | 'json' | 'bigint' = 'buffer'>(
-  config?: BlobConfig<TMode>
-): RtSqliteColumn<BlobDataOf<TMode>, false, false, false>;
-export function blob<TName extends string, TMode extends 'buffer' | 'json' | 'bigint' = 'buffer'>(
-  name: TName,
-  config?: BlobConfig<TMode>
-): RtSqliteColumn<BlobDataOf<TMode>, false, false, false>;
+export type Blob<P extends Only<P, Partial<BlobConfig> & SqliteColMods> = NoProps> = Column<'blob', P, BlobData<P>>;
+export function blob(): Column<'blob', NoProps, Buffer>;
+export function blob<N extends string>(name: N): NamedColumn<N, Column<'blob', NoProps, Buffer>>;
+export function blob<N extends string, const C extends Only<C, Partial<BlobConfig> & SqliteColIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'blob', C, BlobData<C>>>;
+export function blob<const C extends Only<C, Partial<BlobConfig> & SqliteColIn>>(props: C): Built<'blob', C, BlobData<C>>;
 export function blob(...args: unknown[]) {
   return sqliteColumn('blob', args);
 }
 
-export interface IntegerConfig<
-  TMode extends 'number' | 'timestamp' | 'timestamp_ms' | 'boolean' = 'number' | 'timestamp' | 'timestamp_ms' | 'boolean',
-> {
-  mode: TMode;
-}
-export type IntegerDataOf<TMode> = TMode extends 'timestamp' | 'timestamp_ms'
-  ? RTDate
-  : TMode extends 'boolean'
-    ? boolean
-    : IntegerFormat;
-export type IntegerData<C> = IntegerDataOf<C extends {mode: infer TMode} ? TMode : 'number'>;
-/** Column type twin of `integer(name?, config?)`. */
-export type Integer<
-  A extends string | (Partial<IntegerConfig> & SqliteColMods) | undefined = undefined,
-  C extends Partial<IntegerConfig> & SqliteColMods = Record<never, never>,
-> = RtColType<'integer', ColNameArg<A>, ColConfigArg<A, C>, IntegerData<ColConfigArg<A, C>>, 'primaryKeyHasDefault'>;
-export function integer(): RtSqliteIntColumn<IntegerFormat, false, false, false>;
-export function integer<TMode extends 'number' | 'timestamp' | 'timestamp_ms' | 'boolean' = 'number'>(
-  config?: IntegerConfig<TMode>
-): RtSqliteIntColumn<IntegerDataOf<TMode>, false, false, false>;
-export function integer<TName extends string, TMode extends 'number' | 'timestamp' | 'timestamp_ms' | 'boolean' = 'number'>(
-  name: TName,
-  config?: IntegerConfig<TMode>
-): RtSqliteIntColumn<IntegerDataOf<TMode>, false, false, false>;
+// integer and int are the rowid when they are the primary key, so drizzle defaults them with or without autoIncrement.
+export type Integer<P extends Only<P, Partial<IntegerConfig> & SqliteColMods> = NoProps> = Column<
+  'integer',
+  P,
+  IntegerData<P>,
+  'primaryKeyHasDefault'
+>;
+export function integer(): Column<'integer', NoProps, IntegerFormat, 'primaryKeyHasDefault'>;
+export function integer<N extends string>(
+  name: N
+): NamedColumn<N, Column<'integer', NoProps, IntegerFormat, 'primaryKeyHasDefault'>>;
+export function integer<N extends string, const C extends Only<C, Partial<IntegerConfig> & SqliteColIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'integer', C, IntegerData<C>, 'primaryKeyHasDefault'>>;
+export function integer<const C extends Only<C, Partial<IntegerConfig> & SqliteColIn>>(
+  props: C
+): Built<'integer', C, IntegerData<C>, 'primaryKeyHasDefault'>;
 export function integer(...args: unknown[]) {
   return sqliteColumn('integer', args);
 }
 
-/** Column type twin of `int(name?, config?)`. Its own type rather than an alias of Integer: the
- *  recorded name is what a converted table prints back as, so sharing would rewrite `int()` as `integer()`. */
-export type Int<
-  A extends string | (Partial<IntegerConfig> & SqliteColMods) | undefined = undefined,
-  C extends Partial<IntegerConfig> & SqliteColMods = Record<never, never>,
-> = RtColType<'int', ColNameArg<A>, ColConfigArg<A, C>, IntegerData<ColConfigArg<A, C>>, 'primaryKeyHasDefault'>;
-export function int(): RtSqliteIntColumn<IntegerFormat, false, false, false>;
-export function int<TMode extends 'number' | 'timestamp' | 'timestamp_ms' | 'boolean' = 'number'>(
-  config?: IntegerConfig<TMode>
-): RtSqliteIntColumn<IntegerDataOf<TMode>, false, false, false>;
-export function int<TName extends string, TMode extends 'number' | 'timestamp' | 'timestamp_ms' | 'boolean' = 'number'>(
-  name: TName,
-  config?: IntegerConfig<TMode>
-): RtSqliteIntColumn<IntegerDataOf<TMode>, false, false, false>;
+// Its own alias rather than Integer: the recorded fn is what a converted table prints back, so int() stays int().
+export type Int<P extends Only<P, Partial<IntegerConfig> & SqliteColMods> = NoProps> = Column<
+  'int',
+  P,
+  IntegerData<P>,
+  'primaryKeyHasDefault'
+>;
+export function int(): Column<'int', NoProps, IntegerFormat, 'primaryKeyHasDefault'>;
+export function int<N extends string>(name: N): NamedColumn<N, Column<'int', NoProps, IntegerFormat, 'primaryKeyHasDefault'>>;
+export function int<N extends string, const C extends Only<C, Partial<IntegerConfig> & SqliteColIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'int', C, IntegerData<C>, 'primaryKeyHasDefault'>>;
+export function int<const C extends Only<C, Partial<IntegerConfig> & SqliteColIn>>(
+  props: C
+): Built<'int', C, IntegerData<C>, 'primaryKeyHasDefault'>;
 export function int(...args: unknown[]) {
   return sqliteColumn('int', args);
 }
 
-export interface SQLiteNumericConfig<TMode extends 'number' | 'string' | 'bigint' = 'number' | 'string' | 'bigint'> {
-  mode?: TMode;
-}
-export type NumericDataOf<TMode> = TMode extends 'number' ? Float : TMode extends 'bigint' ? bigint : string;
-export type NumericData<C> = NumericDataOf<C extends {mode: infer TMode} ? TMode : 'string'>;
-/** Column type twin of `numeric(name?, config?)`. */
-export type Numeric<
-  A extends string | (SQLiteNumericConfig & SqliteColMods) | undefined = undefined,
-  C extends SQLiteNumericConfig & SqliteColMods = Record<never, never>,
-> = RtColType<'numeric', ColNameArg<A>, ColConfigArg<A, C>, NumericData<ColConfigArg<A, C>>>;
-export function numeric<TMode extends 'number' | 'string' | 'bigint' = 'string'>(
-  config?: SQLiteNumericConfig<TMode>
-): RtSqliteColumn<NumericDataOf<TMode>, false, false, false>;
-export function numeric<TName extends string, TMode extends 'number' | 'string' | 'bigint' = 'string'>(
-  name: TName,
-  config?: SQLiteNumericConfig<TMode>
-): RtSqliteColumn<NumericDataOf<TMode>, false, false, false>;
+export type Numeric<P extends Only<P, SQLiteNumericConfig & SqliteColMods> = NoProps> = Column<'numeric', P, NumericData<P>>;
+export function numeric(): Column<'numeric', NoProps, string>;
+export function numeric<N extends string>(name: N): NamedColumn<N, Column<'numeric', NoProps, string>>;
+export function numeric<N extends string, const C extends Only<C, SQLiteNumericConfig & SqliteColIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'numeric', C, NumericData<C>>>;
+export function numeric<const C extends Only<C, SQLiteNumericConfig & SqliteColIn>>(
+  props: C
+): Built<'numeric', C, NumericData<C>>;
 export function numeric(...args: unknown[]) {
   return sqliteColumn('numeric', args);
 }
 
-/** Column type twin of `real(name?)`. */
-export type Real<
-  A extends string | SqliteColMods | undefined = undefined,
-  C extends SqliteColMods = Record<never, never>,
-> = RtColType<'real', ColNameArg<A>, ColConfigArg<A, C>, Float>;
-export function real(): RtSqliteColumn<Float, false, false, false>;
-export function real<TName extends string>(name: TName): RtSqliteColumn<Float, false, false, false>;
+export type Real<P extends Only<P, SqliteColMods> = NoProps> = Column<'real', P, Float>;
+export function real(): Column<'real', NoProps, Float>;
+export function real<N extends string>(name: N): NamedColumn<N, Column<'real', NoProps, Float>>;
+export function real<N extends string, const C extends Only<C, SqliteColIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'real', C, Float>>;
+export function real<const C extends Only<C, SqliteColIn>>(props: C): Built<'real', C, Float>;
 export function real(...args: unknown[]) {
   return sqliteColumn('real', args);
 }
 
-export interface SQLiteTextConfig<
-  TMode extends 'text' | 'json' = 'text' | 'json',
-  T extends readonly string[] = EnumTuple,
-  L extends number | undefined = number | undefined,
-> {
-  mode?: TMode;
-  enum?: T;
-  length?: L;
-}
-/** The one text data computation BOTH roads go through: the builder overloads and TextData. */
-export type TextDataOf<TMode, T extends readonly string[], L> = TMode extends 'json'
-  ? unknown
-  : string extends T[number]
-    ? L extends number
-      ? Str<{maxLength: L}>
-      : Str
-    : T[number];
-export type TextData<C> = TextDataOf<
-  C extends {mode: infer TMode} ? TMode : 'text',
-  C extends {enum: infer E extends readonly string[]} ? E : readonly string[],
-  C extends {length: infer L extends number} ? L : undefined
->;
-/** Column type twin of `text(name?, config?)`. */
-export type Text<
-  A extends string | (SQLiteTextConfig & SqliteColMods) | undefined = undefined,
-  C extends SQLiteTextConfig & SqliteColMods = Record<never, never>,
-> = RtColType<'text', ColNameArg<A>, ColConfigArg<A, C>, TextData<ColConfigArg<A, C>>>;
-export function text(): RtSqliteColumn<Str, false, false, false>;
-export function text<
-  U extends string,
-  T extends Readonly<[U, ...U[]]>,
-  L extends number | undefined = undefined,
-  TMode extends 'text' | 'json' = 'text',
->(config?: SQLiteTextConfig<TMode, T | Writable<T>, L>): RtSqliteColumn<TextDataOf<TMode, T, L>, false, false, false>;
-export function text<
-  TName extends string,
-  U extends string,
-  T extends Readonly<[U, ...U[]]>,
-  L extends number | undefined = undefined,
-  TMode extends 'text' | 'json' = 'text',
->(
-  name: TName,
-  config?: SQLiteTextConfig<TMode, T | Writable<T>, L>
-): RtSqliteColumn<TextDataOf<TMode, T, L>, false, false, false>;
+export type Text<P extends Only<P, SQLiteTextConfig & SqliteColMods> = NoProps> = Column<'text', P, TextData<P>>;
+export function text(): Column<'text', NoProps, Str>;
+export function text<N extends string>(name: N): NamedColumn<N, Column<'text', NoProps, Str>>;
+export function text<N extends string, const C extends Only<C, SQLiteTextConfig & SqliteColIn>>(
+  name: N,
+  props: C
+): NamedColumn<N, Built<'text', C, TextData<C>>>;
+export function text<const C extends Only<C, SQLiteTextConfig & SqliteColIn>>(props: C): Built<'text', C, TextData<C>>;
 export function text(...args: unknown[]) {
   return sqliteColumn('text', args);
 }
 
-// ── customType escape hatch ──────────────────────────────────────────────────
+// ── Custom types ─────────────────────────────────────────────────────────────
+// No type road (the runtime needs the customType callbacks); the type exists for the models.
 
-export interface CustomTypeValues {
-  data: unknown;
-  driverData?: unknown;
-  config?: Record<string, unknown>;
-  notNull?: boolean;
-  default?: boolean;
-}
-export interface CustomTypeParams<T extends CustomTypeValues> {
-  dataType(config?: T['config']): string;
-  toDriver?(value: T['data']): unknown;
-  fromDriver?(value: unknown): T['data'];
-}
+/** A customType column. */
+export type CustomCol<Data, P extends Only<P, SqliteColMods> = NoProps> = Column<'custom', P, Data>;
+
+/** Drizzle's customType, recorded; the caller supplies the model type through T['data']. */
 export function customType<T extends CustomTypeValues>(params: CustomTypeParams<T>) {
   const custom = new RtValueRecorder('customType', [params]);
-  function factory(): RtSqliteColumn<T['data'], false, false, false>;
-  function factory(config?: T['config']): RtSqliteColumn<T['data'], false, false, false>;
-  function factory<TName extends string>(name: TName, config?: T['config']): RtSqliteColumn<T['data'], false, false, false>;
+  function factory(): Column<'custom', NoProps, T['data']>;
+  function factory<N extends string>(name: N): NamedColumn<N, Column<'custom', NoProps, T['data']>>;
+  function factory<N extends string, const C extends Only<C, SqliteColIn & T['config']>>(
+    name: N,
+    props: C
+  ): NamedColumn<N, Built<'custom', C, T['data']>>;
+  function factory<const C extends Only<C, SqliteColIn & T['config']>>(props: C): Built<'custom', C, T['data']>;
   function factory(...args: unknown[]) {
-    return new RtColumnRecorder((context) => {
-      const drizzleFactory = custom.toDrizzleValue(context) as (...factoryArgs: unknown[]) => unknown;
-      return drizzleFactory(...args);
-    }) as never;
+    return recordColumn(args, (context, callArgs) =>
+      (custom.toDrizzleValue(context) as (...factoryArgs: unknown[]) => unknown)(...callArgs)
+    ) as never;
   }
   (factory as unknown as Record<symbol, unknown>)[rtValueKey] = custom;
   return factory;
@@ -282,4 +174,4 @@ export function customType<T extends CustomTypeValues>(params: CustomTypeParams<
 
 /** The record handed to a `sqliteTable` columns callback. */
 export const sqliteColumnHelpers = {blob, customType, int, integer, numeric, real, text};
-export type SQLiteColumnHelpers = typeof sqliteColumnHelpers;
+export type SqliteColumnHelpers = typeof sqliteColumnHelpers;

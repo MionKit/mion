@@ -5,111 +5,104 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The ONE module of @mionjs/drizzle-orm-mysql-core that imports drizzle-orm.
-// toDrizzle materializes a slim table (or a recorded mysqlSchema handle) by
-// traversing the recorded graph, and types the result by SYNTHESIZING
-// structural MySqlColumn configs from the slim state (see the pg twin for the
-// full rationale; the type-budget slim lane pins the approach).
+// The ONE module of @mionjs/drizzle-orm-mysql-core that imports drizzle-orm, which is why drizzle-orm can be an
+// optional peer: a project that never calls toDrizzle never loads it. toDrizzle materializes a slim table by replaying
+// the recorded graph, and types the result by SYNTHESIZING structural column configs from the column specs. This is
+// also the ONE place a column gets its db and table names back, as drizzle's BuildColumns stamps them, so only files
+// that materialize a table pay for it.
 
 import * as dzMy from 'drizzle-orm/mysql-core';
 import {sql as dzSql} from 'drizzle-orm';
-import type {MySqlColumn, MySqlTableWithColumns, MySqlViewWithSelection} from 'drizzle-orm/mysql-core';
 import type {
-  ColBrandOf,
-  ColDbNameOf,
+  IndexBuilder,
+  MySqlColumn,
+  MySqlSchema as DzMySqlSchema,
+  MySqlTableWithColumns,
+  MySqlViewWithSelection,
+} from 'drizzle-orm/mysql-core';
+import type {
   PlainDataOf,
-  ColKeyFlags,
-  ColKeyFlagsOf,
-  ColsOf,
+  IsHasDefault,
+  IsInsertExcluded,
+  IsNotNull,
+  KeyFlagsOf,
+  ValueOf,
+  rtColSpecKey,
+  DbNameOf,
+  TableFromTypeOptions,
   DrizzleContext,
-  TableNameOf,
-  ViewColsOf,
-  ViewNameOf,
 } from '@mionjs/drizzle-orm';
-import type {TableFromTypeOptions} from '@mionjs/drizzle-orm';
+import type {RtMyIndexEntry} from './helpers.ts';
+import type {InjectRunTypeId} from '@mionjs/run-types';
+import {tableFromType} from './table.ts';
+import type {AnyMysqlTable, MySqlSchema} from './table.ts';
+import type {AnyMysqlView} from './views.ts';
+
 import {
   isRtView,
-  RtEntryRecorder,
-  materializeRtView,
   materializeRtTable,
+  materializeRtView,
+  RtEntryRecorder,
   RtValueRecorder,
   rtTableKey,
   rtValueKey,
 } from '@mionjs/drizzle-orm';
-import type {InjectRunTypeId} from '@mionjs/run-types';
-import type {RtMyIndexEntry} from './helpers.ts';
-import type {AnyMysqlTable, AnyMysqlView} from './table.ts';
-import {tableFromType, type MySqlSchema} from './table.ts';
 
 const context: DrizzleContext = {
   ns: dzMy as unknown as DrizzleContext['ns'],
   sqlNs: dzSql as unknown as DrizzleContext['sqlNs'],
 };
 
-// isPrimaryKey / isAutoincrement / hasRuntimeDefault are NOT decorative here: drizzle's
-// `$returningId()` returns exactly the keys where isPrimaryKey and one of the other two are true,
-// so hardcoding them makes it infer `{}` instead of `{id: number}`.
-type SynthConfig<Name extends string, TName extends string, Brand, Key extends ColKeyFlags> = Brand extends {
-  data: infer Data;
-  notNull: infer N extends boolean;
-  hasDefault: infer H extends boolean;
-  insertExcluded: infer X extends boolean;
-}
+type Spec<C> = C extends {readonly [rtColSpecKey]?: infer S} ? NonNullable<S> : never;
+
+// Real key flags, not false as in pg and sqlite: `$returningId()` reads them and would infer `{}`.
+/** Structural MySqlColumn config; dataType / columnType are fixed because drizzle's typing never branches on them. */
+type SynthConfig<Name extends string, TName extends string, S> = S extends {config: infer P; data: infer D; base: infer B}
   ? {
       name: Name;
       tableName: TName;
       dataType: 'custom';
       columnType: 'RtColumn';
-      data: PlainDataOf<Data>;
+      data: PlainDataOf<ValueOf<P, D>>;
       driverParam: unknown;
       enumValues: undefined;
-      notNull: N;
-      hasDefault: H;
-      isPrimaryKey: Key['primaryKey'];
-      isAutoincrement: Key['autoincrement'];
-      hasRuntimeDefault: Key['runtimeDefault'];
+      notNull: IsNotNull<P, B>;
+      hasDefault: IsHasDefault<P, B>;
+      isPrimaryKey: KeyFlagsOf<S>['primaryKey'];
+      isAutoincrement: KeyFlagsOf<S>['autoincrement'];
+      hasRuntimeDefault: KeyFlagsOf<S>['runtimeDefault'];
       identity: undefined;
-      generated: X extends true ? {type: 'always'} : undefined;
+      generated: IsInsertExcluded<P> extends true ? {type: 'always'} : undefined;
     }
   : never;
 
-/** The drizzle-typed view of a slim table, paid lazily where queries live. */
+/** The drizzle-typed view of a table, evaluated only where toDrizzle is used. */
 export type ToDrizzleTable<T extends AnyMysqlTable> = MySqlTableWithColumns<{
-  name: TableNameOf<T>;
+  name: T['name'];
   schema: undefined;
   dialect: 'mysql';
-  columns: {
-    [K in keyof ColsOf<T> & string]: MySqlColumn<
-      SynthConfig<ColDbNameOf<ColsOf<T>[K], K>, TableNameOf<T>, ColBrandOf<ColsOf<T>[K]>, ColKeyFlagsOf<ColsOf<T>[K]>>
-    >;
-  };
+  columns: {[K in keyof T['columns'] & string]: MySqlColumn<SynthConfig<DbNameOf<T, K>, T['name'], Spec<T['columns'][K]>>>};
 }>;
 
-/** TExisting stays `boolean`: nothing in select typing branches on it, and pinning it would cost a
- *  type parameter on every declared view. */
+/** The drizzle-typed view of a view. */
 export type ToDrizzleView<V extends AnyMysqlView> = MySqlViewWithSelection<
-  ViewNameOf<V>,
+  V['name'],
   boolean,
-  {
-    [K in keyof ViewColsOf<V> & string]: MySqlColumn<
-      SynthConfig<ColDbNameOf<ViewColsOf<V>[K], K>, ViewNameOf<V>, ColBrandOf<ViewColsOf<V>[K]>, ColKeyFlagsOf<ViewColsOf<V>[K]>>
-    >;
-  }
+  {[K in keyof V['columns'] & string]: MySqlColumn<SynthConfig<DbNameOf<V, K>, V['name'], Spec<V['columns'][K]>>>}
 >;
 
+/** Materializes a table, view, schema handle or standalone index (memoized), or a table type by its marker. */
 export function toDrizzle<T extends AnyMysqlTable>(table: T): ToDrizzleTable<T>;
 export function toDrizzle<V extends AnyMysqlView>(view: V): ToDrizzleView<V>;
-export function toDrizzle(handle: MySqlSchema): dzMy.MySqlSchema;
-// An INDEX declared outside any table's extraConfig: drizzle's query side wants its own
-// IndexBuilder for a hint, so a schema that does both declares the index once and materializes it here.
-export function toDrizzle(entry: RtMyIndexEntry): dzMy.IndexBuilder;
+export function toDrizzle(handle: MySqlSchema): DzMySqlSchema;
+// An index declared outside any table's extraConfig: drizzle's `.useIndex(idx)` wants its own IndexBuilder.
+export function toDrizzle(entry: RtMyIndexEntry): IndexBuilder;
 export function toDrizzle<T extends AnyMysqlTable>(options?: TableFromTypeOptions<T>, id?: InjectRunTypeId<T>): ToDrizzleTable<T>;
 export function toDrizzle(value?: object, id?: unknown): unknown {
   if (value !== undefined) {
     const attached = (value as Record<symbol, unknown>)[rtValueKey];
     if (attached instanceof RtValueRecorder) return attached.toDrizzleValue(context);
-    // A standalone ENTRY, declared outside any table's extraConfig: `.useIndex(idx)` wants its own
-    // IndexBuilder, so an entry has to be materializable on its own, exactly as a table is.
+    // A standalone ENTRY, declared outside any table's extraConfig: `.useIndex(idx)` wants its own IndexBuilder.
     if (value instanceof RtEntryRecorder) return value.toDrizzleEntry(context);
     if (isRtView(value)) return materializeRtView(value, context);
     if ((value as Record<symbol, unknown>)[rtTableKey] !== undefined) return materializeRtTable(value, context);
