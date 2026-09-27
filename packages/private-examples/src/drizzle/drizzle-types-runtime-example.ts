@@ -1,11 +1,16 @@
 import * as DZ from '@mionjs/drizzle-orm-pg-core';
 import type {InferInsertModel} from '@mionjs/drizzle-orm';
 
-export type JobsTable = DZ.PgTable<'jobs', {
+export type JobsTable = DZ.PgTable<
+  'jobs',
+  {
     id: DZ.Uuid<{primaryKey: true}>;
     slug: DZ.Varchar<{length: 80; notNull: true; $defaultFn: true}>;
     updatedAt: DZ.Timestamp<{mode: 'string'; $onUpdate: true}>;
-  }, [], {updatedAt: 'updated_at'}>;
+  },
+  [],
+  {updatedAt: 'updated_at'}
+>;
 
 // a missing or extra callback throws at startup, naming the column
 export const jobs = DZ.tableFromType<JobsTable>({

@@ -15,7 +15,10 @@ export const authors = DZ.pgTable('authors', {
 
 export const posts = DZ.pgTable('posts', {
   id: DZ.uuid('id', {defaultRandom: true, primaryKey: true}),
-  authorId: DZ.uuid('author_id', {notNull: true, references: [() => tableRef(authors, 'id'), {onDelete: 'cascade'}]}),
+  authorId: DZ.uuid('author_id', {
+    notNull: true,
+    references: [() => tableRef(authors, 'id'), {onDelete: 'cascade'}],
+  }),
   title: DZ.varchar('title', {length: 200, notNull: true}),
 });
 
