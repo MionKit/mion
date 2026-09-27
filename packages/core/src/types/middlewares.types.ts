@@ -30,6 +30,8 @@ export interface MethodsMetadataOnlyData {
   metadata: SerializableMethodsData;
   /** ids the server does not know, with the reason */
   notFound?: Record<string, string>;
+  /** `all` asked, but the server has more methods than it answers at once: only the given ids came back */
+  truncated?: boolean;
 }
 
 /** Stops the chain so the route never runs; carries the rows the client asked for */

@@ -5,13 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {AnyObject, FatalError, RpcError, SerializableMethodsData} from '@mionjs/core';
-import type {
-  MethodsMetadataHandler,
-  MethodsMetadataMode,
-  MethodsMetadataOnly,
-  MethodsMetadataOnlyData,
-} from '@mionjs/core/middlewares';
+import {FatalError, RpcError, SerializableMethodsData, StatusCodes} from '@mionjs/core';
+import type {MethodsMetadataHandler, MethodsMetadataMode, MethodsMetadataOnlyData} from '@mionjs/core/middlewares';
 import {
   getMiddlewareExecutable,
   getRouteExecutable,
@@ -20,16 +15,15 @@ import {
   getAllExecutablesIds,
   getAnyExecutable,
 } from '../router.ts';
-import {markOnDemand, middleware} from '../lib/handlers.ts';
+import {markOnDemand, middleware, mionInternalRouteIds} from '../lib/handlers.ts';
 import {isPublicExecutable} from '../types/guards.ts';
 import {getBatchIds} from '../batches.ts';
 import {RouterOptions} from '../types/general.ts';
 import {getSerializableMethod, serializeMethodDeps} from '../lib/remoteMethods.ts';
 import {RemoteMethod} from '../types/remoteMethods.ts';
 import {CallContext} from '../types/context.ts';
-import {mionInternalRouteIds} from '../constants.ts';
 
-export interface MethodsMetadataOptions extends RouterOptions {
+interface MethodsMetadataOptions extends RouterOptions {
   getAllRemoteMethodsMaxNumber?: number;
 }
 
@@ -40,13 +34,14 @@ function methodsMetadata(
   ctx: CallContext,
   methodsIds?: string[],
   mode?: MethodsMetadataMode
-): SerializableMethodsData | RpcError<'rpc-metadata-not-found'> | MethodsMetadataOnly | void {
+): ReturnType<MethodsMetadataHandler> {
   if (mode) {
-    const {metadata, notFound} = rowsFor(methodsIds ?? [], mode === 'all');
     return new FatalError<'metadata-only', MethodsMetadataOnlyData>({
       type: 'metadata-only',
       publicMessage: 'Route metadata only: the call was stopped before its route.',
-      errorData: notFound ? {metadata, notFound} : {metadata},
+      errorData: rowsFor(methodsIds ?? [], mode === 'all'),
+      // an answer, not a failure: access logs and monitoring count it as a success
+      statusCode: StatusCodes.OK,
     });
   }
   if (!methodsIds || methodsIds.length === 0) return;
@@ -61,7 +56,7 @@ function methodsMetadata(
 }
 
 /** With `all`, every public method instead of the given ids, plus the batch ids. */
-function rowsFor(methodsIds: string[], all: boolean): {metadata: SerializableMethodsData; notFound?: Record<string, string>} {
+function rowsFor(methodsIds: string[], all: boolean): MethodsMetadataOnlyData {
   const metadata: SerializableMethodsData = {methods: {}, deps: {}, purFnDeps: {}};
   const notFound: Record<string, string> = {};
   const maxMethods =
@@ -75,17 +70,18 @@ function rowsFor(methodsIds: string[], all: boolean): {metadata: SerializableMet
   idsToReturn.forEach((id) => addRequiredRemoteMethodsToResponse(id, metadata, notFound));
   // A hand-written client can only send ids the build compiled in, so list them alongside the methods
   if (shouldReturnAll) metadata.batches = getBatchIds();
-  return Object.keys(notFound).length ? {metadata, notFound} : {metadata};
+  const answer: MethodsMetadataOnlyData = {metadata};
+  if (Object.keys(notFound).length) answer.notFound = notFound;
+  if (all && !shouldReturnAll) answer.truncated = true;
+  return answer;
 }
 
 /** The rows of the given methods and of their chains; an unknown id is left out. */
 export function getMethodsDataFor(ids: string[]): SerializableMethodsData {
-  const resp: SerializableMethodsData = {methods: {}, deps: {}, purFnDeps: {}};
-  ids.forEach((id) => addRequiredRemoteMethodsToResponse(id, resp, {}));
-  return resp;
+  return rowsFor(ids, false).metadata;
 }
 
-function addRequiredRemoteMethodsToResponse(id: string, resp: SerializableMethodsData, errorData: AnyObject): void {
+function addRequiredRemoteMethodsToResponse(id: string, resp: SerializableMethodsData, errorData: Record<string, string>): void {
   const {methods, deps, purFnDeps} = resp;
   if (methods[id]) return;
   if (mionInternalRouteIds.has(id)) return;
