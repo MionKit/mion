@@ -141,3 +141,99 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
   quiet by default (the dropped-member warnings and the drizzle route rule are the first users).
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched
   source file, each committed on its own.
+
+## Plan (approved 2026-09-27)
+
+## 1. Go: the Info level (commit `feat(diagnostics): add the Info level`)
+
+- `ts-go-runtypes/internal/diagnostics/catalog.go`: `LevelInfo Level = 4`; `severityOf` maps Warning →
+  SeverityWarning, Info → SeverityInfo (already on the wire), rest → Error; `LevelLabel` → `"info"`;
+  `register` panic text; header comment.
+- `expecterror.go` `malformedCode`: DWN004 ("already a warning") covers Info too; `Downgradeable` stays
+  RuntimeError only; `Suppressible` already admits Info. DWN004 message wording covers "warning or info".
+- Move the 38 codes to `LevelInfo`: split the member-drop loop in `codes_runtype.go` (VL/VE/PJ/PJS/RJ
+  010-015, RUK011/RUK012 → Info; RUK010/RUK015 stay Warning), VL021/VE020, MKR006 (`codes_marker.go`),
+  OVR010 (`codes_override.go`), MET004 (`codes_apimeta.go`), DWN004, FT008 (`codes_friendly.go`).
+- `mion compile` (`cmd/mion/main.go` runCompile) and `mion enrich --no-emit`: skip Info unless the
+  tsconfig plugin key `levels` is `"all"` (new key in `cmd/mion/config.go`, parsed like `downgradeErrors`).
+  Echo it on `generate` next to `downgradeErrors` (`protocol.go` Response) so the JS build reads it too.
+- Tests: `catalog_test.go` (four levels, `TestLevelsThatMoved` rows for every moved code, `TestLevelLabel`),
+  `expecterror` DWN004 on an Info code, and the Go resolver tests asserting `SeverityWarning` on the moved
+  codes (`diagnostics_test.go`, `*_dataonly_test.go`, …) now assert `SeverityInfo`. A `mion compile` test:
+  Info hidden by default, printed with `levels: "all"`.
+
+## 2. Codegen + wire TS
+
+- `scripts/core/gen-diagnostics-catalog.mjs`: level union gains `'info'`; regenerate
+  `packages/devtools/src/core/go-generated/diagnosticCatalog.generated.ts` and the website
+  `diagnostics-catalog.json` (`pnpm miondevx core codegen diag`).
+- `packages/devtools/src/core/protocol.ts`: `Level.Info = 4`.
+
+## 3. Lint (commit `feat(lint): hide Info findings unless levels is 'all'`)
+
+- `session-protocol.ts`: `levels?: 'all'` in `LintSessionOptions` + `LINT_SETTING_KEY_TABLE`; any other
+  value warns once like an unknown key (JS side only, not sent to the worker; the session cache keeps the
+  full list).
+- `index.ts` report loop: skip `diagnostic.level === Level.Info` unless `options.levels === 'all'`.
+- `diagnosticRouting.ts` `ruleNameFor`: Info (and Warning) take the family's `warn` rule; Info never
+  lands on an error rule. `validate-skipped-member`, `json-skipped-member`, `override-side-effect` now
+  carry only Info codes, so they report nothing by default but stay in `recommended` (turning
+  `levels: 'all'` on shows them at `warn`).
+- Tests: `routing.test.ts` (Info routes to a warn rule, never an error rule), `plugin.test.ts` +
+  `e2e-lint-settings.test.ts` (new key), `oxlint-e2e.test.ts` (VL011 hidden by default, shown with
+  `settings.runtypes.levels: 'all'`, both through the shipped preset).
+
+## 4. Build (commit `feat(devtools): hide Info findings in the build unless levels is 'all'`)
+
+- `packages/devtools/src/core/unplugin.ts`: new `levels?: 'all'` plugin option (in `PLUGIN_OPTION_KEY_TABLE`,
+  `plugin-option-keys.ts`, the tsconfig key parity list); plugin option wins over the tsconfig echo, same
+  precedence as `downgradeErrors`. `surfaceDiagnostics` skips Info unless shown; Info never counts toward
+  a halt. `enrichDriftGate` skips Info the same way and never halts on it. Covers every adapter and the
+  Next broker (they all print through `surfaceDiagnostics`).
+- `src/options.ts`: `levels` passes through `toRunTypesOptions` for `mionVitePlugin` / `withMion`.
+- Tests: `downgrade-errors.test.ts` VL010/VL011 case → Info hidden, and printed as `info` with
+  `levels: 'all'`; `runtype-diagnostics.test.ts` + `cache-disk.test.ts` severities; `plugin-option-parity`.
+  Fuzz harnesses filtering `Severity.Warning` (`roundtripHarness.ts`, `typeFuzzHarness.ts`) also accept Info.
+
+## 5. Related fixes, each its own commit + test
+
+1. **Latch** (`walker.go` `diagSeen`): key on code + args, so every dropped member is reported, not only the
+   first per code per type. Test: a class with `a()` and `b()` reports both.
+2. **Symbol-keyed properties are compiled, not dropped (real bug), and VL/VE/PJ/PJS/RJ 013 never fire.**
+   Today `{name: string; [k]: string}` compiles `[k]` as a string property named `"\xFE@k"`, so a required
+   symbol member fails validation on a real object and JSON reads `undefined`; `DataOnly` drops symbol keys.
+   Fix in `strippedPropertyDrop` (`union_strip.go`): a symbol-keyed name drops the member and emits
+   `SlotSymbolKeyedDropped` (so the …013 codes fire, as Info), one spot for all five families. Move the
+   `\xFE@` / `@@` check (twins in `convert/print.go` `isSymbolKeyedName`, `schemadoc/render.go`) into one
+   `reflection` helper. Fix the stale comment at `reflection/runtype.go:91`. Tests: typefunctions test
+   expecting VL013/PJ013 and the member missing from output; a run-types suite case validating and
+   round-tripping an object with a symbol-keyed member.
+3. **Downgraded findings in lint** (user picked): a new rule `runtypes/downgraded-error`, default `warn`,
+   in `RULE_SPECS`, `recommended` and `oxlint-recommended.json`. `ruleNameFor` sends any finding with
+   `downgraded: true` there; its message keeps the code plus `(downgraded)`, like the build line. Tests:
+   `routing.test.ts` + an oxlint e2e case (a `@mion-downgrade-error` line reports under the new rule at warn).
+   Linter page: a row in the rule table.
+4. **Stale text** in `diagnosticRouting.ts`: `redundant-marker` description, the BAT comment, the
+   `enrichment-field` FT006 claim; add a `MET` row to `PREFIX_TO_FAMILY` (routing test pins it).
+5. **Linter page** "27 `runtypes/*` rules" → 24.
+
+## 6. Docs
+
+- `container/website/content/01.rpc/06.devtools/01.linter.md`: new section "Showing Info Findings"
+  (the setting), a tip in "Picking Rules" on turning a rule off, the count fix, the rule table notes.
+- `container/website/content/02.runtypes/08.diagnostics/01.error-levels.md` + `DiagnosticLevels.vue`
+  (fourth card) + `DiagnosticCatalog.vue` (Info filter + badge class).
+- `01.rpc/06.devtools/02.vite.md` and `02.runtypes/01.introduction/04.configuration.md`: the `levels` option row.
+- `packages/devtools/src/lint/CLAUDE.md` "Severity" section: four levels, Info for lint-only advice.
+- Update `docs/todos/lint-route-returns-drizzle-type.md`: unblocked, its code is `LevelInfo`.
+
+## 7. Finish
+
+- `pnpm run check:builds`, `go -C ts-go-runtypes test ./internal/... ./cmd/...`, `pnpm test`
+  (or `pnpm run test:ci`), `pnpm run lint`, `pnpm run format`, `pnpm exec vitest run website-links`.
+- Reconcile the spec, append the approved plan, `git mv` it to `docs/done/`.
+- `docs-simplifier` and `comments-simplifier` subagents in parallel, each committed on its own.
+- Fuzzing: not a candidate (no cheap oracle: this is routing and printing, not a value transform).
+- Push to `claude/gracious-keller-sqkdgj`; PR only if asked. Labels when opened: `website`,
+  `pre-publish-e2e` (new plugin option).
+
