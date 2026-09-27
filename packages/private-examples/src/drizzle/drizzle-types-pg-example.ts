@@ -3,13 +3,18 @@ import type {InferSelectModel} from '@mionjs/drizzle-orm';
 import {createValidateFn} from '@mionjs/run-types';
 
 // nothing runs where the table is declared
-export type UsersTable = DZ.PgTable<'users', {
+export type UsersTable = DZ.PgTable<
+  'users',
+  {
     id: DZ.Uuid<{primaryKey: true}>;
     name: DZ.Varchar<{length: 100; notNull: true}>;
     age: DZ.Integer<{notNull: true}>;
     role: DZ.Text<{enum: ['admin', 'user']; notNull: true}>;
     createdAt: DZ.Timestamp<{defaultNow: true; notNull: true}>;
-  }, [], {createdAt: 'created_at'}>;
+  },
+  [],
+  {createdAt: 'created_at'}
+>; // database names that differ from the key
 
 // the same object pgTable returns; the build resolves the type, nothing is repeated
 export const users = DZ.tableFromType<UsersTable>();

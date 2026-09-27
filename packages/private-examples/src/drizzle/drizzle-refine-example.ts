@@ -16,7 +16,11 @@ export const users = DZ.pgTable('users', {
   id: DZ.uuid('id', {primaryKey: true, defaultRandom: true}),
   name: DZ.varchar('name', {length: 100, notNull: true}), // captured as String<{maxLength: 100}>
   age: DZ.integer('age', {notNull: true}),
-  createdAt: DZ.timestamp('created_at', {mode: 'date', notNull: true, defaultNow: true}),
+  createdAt: DZ.timestamp('created_at', {
+    mode: 'date',
+    notNull: true,
+    defaultNow: true,
+  }),
 });
 
 // stricter types for the API

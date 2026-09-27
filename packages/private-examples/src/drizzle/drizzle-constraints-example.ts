@@ -38,11 +38,20 @@ export const members = DZ.pgTable(
   ]
 );
 
-// single-column constraints inline, the drizzle way
+// single-column constraints inline
 export const invites = DZ.pgTable('invites', {
   id: DZ.uuid('id', {defaultRandom: true, primaryKey: true}),
-  teamId: DZ.integer('team_id', {references: [() => tableRef(teams, 'id'), {
-    onDelete: 'cascade',
-  }]}),
-  code: DZ.varchar('code', {length: 12, notNull: true, unique: ['invites_code_uq']}),
+  teamId: DZ.integer('team_id', {
+    references: [
+      () => tableRef(teams, 'id'),
+      {
+        onDelete: 'cascade',
+      },
+    ],
+  }),
+  code: DZ.varchar('code', {
+    length: 12,
+    notNull: true,
+    unique: ['invites_code_uq'],
+  }),
 });

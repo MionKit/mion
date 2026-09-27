@@ -5,13 +5,18 @@ import type {
   InferUpdateModel,
 } from '@mionjs/drizzle-orm';
 
-export type UsersTable = DZ.PgTable<'users', {
+export type UsersTable = DZ.PgTable<
+  'users',
+  {
     id: DZ.Uuid<{primaryKey: true; defaultRandom: true}>;
     email: DZ.Varchar<{length: 254; notNull: true}>;
     name: DZ.Varchar<{length: 100; notNull: true}>;
     bio: DZ.Varchar<{length: 500}>;
     createdAt: DZ.Timestamp<{defaultNow: true; notNull: true}>;
-  }, [], {createdAt: 'created_at'}>;
+  },
+  [],
+  {createdAt: 'created_at'}
+>;
 
 // every key present, bio is value | null
 export type User = InferSelectModel<UsersTable>;

@@ -1,7 +1,7 @@
 import * as DZ from '@mionjs/drizzle-orm-pg-core';
 import type {InferSelectModel} from '@mionjs/drizzle-orm';
 import {createValidateFn} from '@mionjs/run-types';
-// @annotate: Declare drizzle tables as usual, with the column builders from @mionjs/drizzle-orm-pg-core
+// @annotate: Declare drizzle tables with the column builders from @mionjs/drizzle-orm-pg-core
 
 const users = DZ.pgTable('users', {
   id: DZ.uuid('id', {primaryKey: true, defaultRandom: true}),
