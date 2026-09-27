@@ -81,16 +81,16 @@ export {
 export type {ColModName} from './columns.ts';
 export {$type, colModNames, isColModName, rtColSpecKey, rtEntrySpecKey, rtSqlTextKey} from './columns.ts';
 export type {rtColNameKey, rtNamedColumnKey} from './columns.ts';
-export {recordColumn} from './columnRecorder.ts';
+export {recordColumn, recordNsColumn} from './columnRecorder.ts';
 
 // Table core.
-export {createRtTable, materializeRtTable, refColumn, tableRef} from './table.ts';
+export {createRtTable, materializeRtTable, tableRef} from './table.ts';
 
 // View core: manual-column views only, the query-builder form stays on drizzle (see ./view.ts).
 export {isRtView, materializeRtView, RtViewBuilder} from './view.ts';
 
 // Pure-types runtime bridge, which the dialect packages' tableFromType wrappers build on.
-export {buildRtTableFromGraph} from './fromType.ts';
+export {buildRtTableFromGraph, rtTableFromRunType} from './fromType.ts';
 
 // Flat models.
 export type {InferInsertModel, InferSelectModel, InferSelectViewModel, InferUpdateModel} from './models.ts';

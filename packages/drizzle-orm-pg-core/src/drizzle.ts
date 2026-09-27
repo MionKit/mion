@@ -22,7 +22,7 @@ import type {
   PlainDataOf,
   TableFromTypeOptions,
   ValueOf,
-  rtColSpecKey,
+  ColSpecOf,
 } from '@mionjs/drizzle-orm';
 import {
   isRtView,
@@ -42,8 +42,6 @@ const context: DrizzleContext = {
   ns: dzPg as unknown as DrizzleContext['ns'],
   sqlNs: dzSql as unknown as DrizzleContext['sqlNs'],
 };
-
-type Spec<C> = C extends {readonly [rtColSpecKey]?: infer S} ? NonNullable<S> : never;
 
 /** Structural PgColumn config; dataType / columnType are fixed because drizzle's typing never branches on them. */
 type SynthConfig<Name extends string, TableName extends string, S> = S extends {config: infer P; data: infer D; base: infer B}
@@ -74,14 +72,14 @@ export type ToDrizzleTable<T extends AnyPgTable> = PgTableWithColumns<{
   name: T['name'];
   schema: undefined;
   dialect: 'pg';
-  columns: {[K in keyof T['columns'] & string]: DzPgColumn<SynthConfig<DbNameOf<T, K>, T['name'], Spec<T['columns'][K]>>>};
+  columns: {[K in keyof T['columns'] & string]: DzPgColumn<SynthConfig<DbNameOf<T, K>, T['name'], ColSpecOf<T['columns'][K]>>>};
 }>;
 
 /** The drizzle-typed view of a view. */
 export type ToDrizzleView<V extends AnyPgView> = PgViewWithSelection<
   V['name'],
   boolean,
-  {[K in keyof V['columns'] & string]: DzPgColumn<SynthConfig<DbNameOf<V, K>, V['name'], Spec<V['columns'][K]>>>}
+  {[K in keyof V['columns'] & string]: DzPgColumn<SynthConfig<DbNameOf<V, K>, V['name'], ColSpecOf<V['columns'][K]>>>}
 >;
 
 // The marker form `toDrizzle<UsersTable>(options?)` needs @mionjs/devtools and shares tableFromType's per-type table.

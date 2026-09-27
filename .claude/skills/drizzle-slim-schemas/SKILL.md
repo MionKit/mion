@@ -125,8 +125,7 @@ In the dialect package, one block per column function:
 METHOD SETS (pg has four: common / +defaultNow / +defaultRandom / +identity; mysql
 three; sqlite one). They are the builder's twin of the `*ColMods` bags, with the
 function-carrying keys in their runtime shape (`references: [() => tableRef(...)]`,
-`$defaultFn: [() => ...]`). A new drizzle modifier means: add the runtime recorder
-method in `packages/drizzle-orm/src/recorder.ts` (a pure `record(name, args)`), a key
+`$defaultFn: [() => ...]`). A new drizzle modifier means: a key
 in the core `ColMods` (`packages/drizzle-orm/src/types.ts`) and in `colModNames` (`src/columns.ts`)
 AND in `drizzleModNames` (`ts-go-runtypes/internal/convert/drizzle.go`), a key in the
 `*ColMods` bags and the props interfaces of the builders that have it, and its flag

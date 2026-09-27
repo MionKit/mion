@@ -8,23 +8,18 @@
 // A refined column keeps its fn, props and base, so every derived flag survives; only its format params change.
 
 import type {MergeFormat, RefinableParamsOf} from '@mionjs/run-types/formats';
-import type {AnyTable, ColBaseFlag, Column, Merge, ValueOf} from './types.ts';
-import {rtColSpecKey} from './columns.ts';
-
-type Parts<C> = C extends {readonly [rtColSpecKey]?: {fn: infer Fn extends string; config: infer P; data: infer D; base: infer B}}
-  ? [Fn, P, D, B]
-  : never;
+import type {AnyTable, ColBaseFlag, ColSpecOf, Column, Merge, ValueOf} from './types.ts';
 
 /** Only format-carrying columns are refinable; any other refines to `never`, so a refinement on it fails. */
 export type TableRefinements<T extends AnyTable> = {
-  [K in keyof T['columns']]?: Parts<T['columns'][K]> extends [string, infer P, infer D, unknown]
+  [K in keyof T['columns']]?: ColSpecOf<T['columns'][K]> extends {config: infer P; data: infer D}
     ? RefinableParamsOf<ValueOf<P, D>>
     : never;
 };
 
 // A `$type` override is what holds the value, so the refinement merges into it.
 type RefinedColumn<C, Params> =
-  Parts<C> extends [infer Fn extends string, infer P, infer D, infer B extends string]
+  ColSpecOf<C> extends {fn: infer Fn extends string; config: infer P; data: infer D; base: infer B extends string}
     ? P extends {$type: [infer Override]}
       ? Column<Fn, Merge<P, {$type: [MergeFormat<Override, Params>]}>, D, B & ColBaseFlag>
       : Column<Fn, P, MergeFormat<D, Params>, B & ColBaseFlag>

@@ -176,35 +176,6 @@ type EverySelectBefore = {
   enum: 'a' | 'b' | null;
   point: {x: number; y: number} | null;
 };
-type EveryUpdateBefore = {
-  bigint?: IntegerFormat | null | undefined;
-  binary?: string | null | undefined;
-  boolean?: boolean | null | undefined;
-  char?: String<{length: 3}> | null | undefined;
-  date?: RTDate | null | undefined;
-  datetime?: RTDate | null | undefined;
-  decimal?: string | null | undefined;
-  double?: FloatFormat | null | undefined;
-  float?: FloatFormat | null | undefined;
-  int?: Int32 | null | undefined;
-  json?: unknown;
-  longtext?: String | null | undefined;
-  mediumint?: NumberFormat<{integer: true; min: 0; max: 16777215}> | null | undefined;
-  mediumtext?: String | null | undefined;
-  real?: FloatFormat | null | undefined;
-  serial?: PositiveInt | undefined;
-  smallint?: Int16 | null | undefined;
-  text?: String | null | undefined;
-  time?: StringTime | null | undefined;
-  timestamp?: RTDate | null | undefined;
-  tinyint?: Int8 | null | undefined;
-  tinytext?: String | null | undefined;
-  varbinary?: string | null | undefined;
-  varchar?: String<{maxLength: 10}> | null | undefined;
-  year?: YearData | null | undefined;
-  enum?: 'a' | 'b' | null | undefined;
-  point?: {x: number; y: number} | null | undefined;
-};
 type OptionViewViewSelectBefore = {name: String<{maxLength: 10}>};
 type UsersInsertBefore = {
   name: String<{maxLength: 100}>;
@@ -500,7 +471,8 @@ export type EveryPins = [
   Expect<Equal<typeof every, Every>>,
   Expect<Equal<InferSelectModel<Every>, EverySelectBefore>>,
   Expect<Equal<InferInsertModel<Every>, EveryInsertBefore>>,
-  Expect<Equal<InferUpdateModel<Every>, EveryUpdateBefore>>,
+  // Every column is optional on insert, so the update model is the insert one.
+  Expect<Equal<InferUpdateModel<Every>, EveryInsertBefore>>,
 ];
 
 // ── wide vocabulary: mysql's own modifiers, runtime callbacks and generated columns ──

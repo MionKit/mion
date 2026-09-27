@@ -18,7 +18,7 @@ import type {
   String as Str,
   StringTime,
 } from '@mionjs/run-types/formats';
-import {RtValueRecorder, rtValueKey, recordColumn} from '@mionjs/drizzle-orm';
+import {RtValueRecorder, rtValueKey, recordColumn, recordNsColumn} from '@mionjs/drizzle-orm';
 import type {ColBaseFlag, Column, NamedColumn, NoProps, Only, PropsOf} from '@mionjs/drizzle-orm';
 import {mysqlEnum} from './helpers.ts';
 import type {
@@ -66,10 +66,6 @@ type Built<Fn extends string, C, D, B extends ColBaseFlag = never> = Column<Fn, 
 
 type SerialBase = 'notNull' | 'hasDefault' | 'autoincrement';
 
-function mysqlColumn(fnName: string, args: unknown[]): never {
-  return recordColumn(args, (context, callArgs) => context.ns[fnName](...(callArgs as never[]))) as never;
-}
-
 // ── Hand-written aliases + builders ──────────────────────────────────────────
 
 export type Bigint<P extends Only<P, MySqlBigIntConfig & MySqlIntColMods> = {mode: 'number'}> = Column<
@@ -83,7 +79,7 @@ export function bigint<N extends string, const C extends Only<C, MySqlBigIntConf
 ): NamedColumn<N, Built<'bigint', C, BigintData<C>>>;
 export function bigint<const C extends Only<C, MySqlBigIntConfig & MysqlIntIn>>(props: C): Built<'bigint', C, BigintData<C>>;
 export function bigint(...args: unknown[]) {
-  return mysqlColumn('bigint', args);
+  return recordNsColumn('bigint', args);
 }
 
 export type Binary<P extends Only<P, MySqlBinaryConfig & MySqlColMods> = NoProps> = Column<'binary', P, string>;
@@ -95,7 +91,7 @@ export function binary<N extends string, const C extends Only<C, MySqlBinaryConf
 ): NamedColumn<N, Built<'binary', C, string>>;
 export function binary<const C extends Only<C, MySqlBinaryConfig & MysqlColIn>>(props: C): Built<'binary', C, string>;
 export function binary(...args: unknown[]) {
-  return mysqlColumn('binary', args);
+  return recordNsColumn('binary', args);
 }
 
 export type Boolean<P extends Only<P, MySqlColMods> = NoProps> = Column<'boolean', P, boolean>;
@@ -107,7 +103,7 @@ export function boolean<N extends string, const C extends Only<C, MysqlColIn>>(
 ): NamedColumn<N, Built<'boolean', C, boolean>>;
 export function boolean<const C extends Only<C, MysqlColIn>>(props: C): Built<'boolean', C, boolean>;
 export function boolean(...args: unknown[]) {
-  return mysqlColumn('boolean', args);
+  return recordNsColumn('boolean', args);
 }
 
 export type Char<P extends Only<P, MySqlCharConfig & MySqlColMods> = NoProps> = Column<'char', P, CharData<P>>;
@@ -119,7 +115,7 @@ export function char<N extends string, const C extends Only<C, MySqlCharConfig &
 ): NamedColumn<N, Built<'char', C, CharData<C>>>;
 export function char<const C extends Only<C, MySqlCharConfig & MysqlColIn>>(props: C): Built<'char', C, CharData<C>>;
 export function char(...args: unknown[]) {
-  return mysqlColumn('char', args);
+  return recordNsColumn('char', args);
 }
 
 export type MySqlDate<P extends Only<P, MySqlDateConfig & MySqlColMods> = NoProps> = Column<'date', P, MySqlDateData<P>>;
@@ -131,7 +127,7 @@ export function date<N extends string, const C extends Only<C, MySqlDateConfig &
 ): NamedColumn<N, Built<'date', C, MySqlDateData<C>>>;
 export function date<const C extends Only<C, MySqlDateConfig & MysqlColIn>>(props: C): Built<'date', C, MySqlDateData<C>>;
 export function date(...args: unknown[]) {
-  return mysqlColumn('date', args);
+  return recordNsColumn('date', args);
 }
 
 export type Datetime<P extends Only<P, MySqlDatetimeConfig & MySqlColMods> = NoProps> = Column<'datetime', P, DatetimeData<P>>;
@@ -145,7 +141,7 @@ export function datetime<const C extends Only<C, MySqlDatetimeConfig & MysqlColI
   props: C
 ): Built<'datetime', C, DatetimeData<C>>;
 export function datetime(...args: unknown[]) {
-  return mysqlColumn('datetime', args);
+  return recordNsColumn('datetime', args);
 }
 
 export type Decimal<P extends Only<P, MySqlDecimalConfig & MySqlIntColMods> = NoProps> = Column<'decimal', P, DecimalData<P>>;
@@ -157,7 +153,7 @@ export function decimal<N extends string, const C extends Only<C, MySqlDecimalCo
 ): NamedColumn<N, Built<'decimal', C, DecimalData<C>>>;
 export function decimal<const C extends Only<C, MySqlDecimalConfig & MysqlIntIn>>(props: C): Built<'decimal', C, DecimalData<C>>;
 export function decimal(...args: unknown[]) {
-  return mysqlColumn('decimal', args);
+  return recordNsColumn('decimal', args);
 }
 
 export type Double<P extends Only<P, MySqlDoubleConfig & MySqlIntColMods> = NoProps> = Column<'double', P, FloatFormat>;
@@ -169,7 +165,7 @@ export function double<N extends string, const C extends Only<C, MySqlDoubleConf
 ): NamedColumn<N, Built<'double', C, FloatFormat>>;
 export function double<const C extends Only<C, MySqlDoubleConfig & MysqlIntIn>>(props: C): Built<'double', C, FloatFormat>;
 export function double(...args: unknown[]) {
-  return mysqlColumn('double', args);
+  return recordNsColumn('double', args);
 }
 
 export type Float<P extends Only<P, MySqlFloatConfig & MySqlIntColMods> = NoProps> = Column<'float', P, FloatFormat>;
@@ -181,7 +177,7 @@ export function float<N extends string, const C extends Only<C, MySqlFloatConfig
 ): NamedColumn<N, Built<'float', C, FloatFormat>>;
 export function float<const C extends Only<C, MySqlFloatConfig & MysqlIntIn>>(props: C): Built<'float', C, FloatFormat>;
 export function float(...args: unknown[]) {
-  return mysqlColumn('float', args);
+  return recordNsColumn('float', args);
 }
 
 export type Int<P extends Only<P, MySqlIntConfig & MySqlIntColMods> = NoProps> = Column<'int', P, IntData<P>>;
@@ -193,7 +189,7 @@ export function int<N extends string, const C extends Only<C, MySqlIntConfig & M
 ): NamedColumn<N, Built<'int', C, IntData<C>>>;
 export function int<const C extends Only<C, MySqlIntConfig & MysqlIntIn>>(props: C): Built<'int', C, IntData<C>>;
 export function int(...args: unknown[]) {
-  return mysqlColumn('int', args);
+  return recordNsColumn('int', args);
 }
 
 export type Json<P extends Only<P, MySqlColMods> = NoProps> = Column<'json', P, unknown>;
@@ -205,7 +201,7 @@ export function json<N extends string, const C extends Only<C, MysqlColIn>>(
 ): NamedColumn<N, Built<'json', C, unknown>>;
 export function json<const C extends Only<C, MysqlColIn>>(props: C): Built<'json', C, unknown>;
 export function json(...args: unknown[]) {
-  return mysqlColumn('json', args);
+  return recordNsColumn('json', args);
 }
 
 export type Longtext<P extends Only<P, MySqlTextConfig & MySqlColMods> = NoProps> = Column<'longtext', P, TextData<P>>;
@@ -217,7 +213,7 @@ export function longtext<N extends string, const C extends Only<C, MySqlTextConf
 ): NamedColumn<N, Built<'longtext', C, TextData<C>>>;
 export function longtext<const C extends Only<C, MySqlTextConfig & MysqlColIn>>(props: C): Built<'longtext', C, TextData<C>>;
 export function longtext(...args: unknown[]) {
-  return mysqlColumn('longtext', args);
+  return recordNsColumn('longtext', args);
 }
 
 export type Mediumint<P extends Only<P, MySqlIntConfig & MySqlIntColMods> = NoProps> = Column<'mediumint', P, MediumintData<P>>;
@@ -231,7 +227,7 @@ export function mediumint<const C extends Only<C, MySqlIntConfig & MysqlIntIn>>(
   props: C
 ): Built<'mediumint', C, MediumintData<C>>;
 export function mediumint(...args: unknown[]) {
-  return mysqlColumn('mediumint', args);
+  return recordNsColumn('mediumint', args);
 }
 
 export type Mediumtext<P extends Only<P, MySqlTextConfig & MySqlColMods> = NoProps> = Column<'mediumtext', P, TextData<P>>;
@@ -243,7 +239,7 @@ export function mediumtext<N extends string, const C extends Only<C, MySqlTextCo
 ): NamedColumn<N, Built<'mediumtext', C, TextData<C>>>;
 export function mediumtext<const C extends Only<C, MySqlTextConfig & MysqlColIn>>(props: C): Built<'mediumtext', C, TextData<C>>;
 export function mediumtext(...args: unknown[]) {
-  return mysqlColumn('mediumtext', args);
+  return recordNsColumn('mediumtext', args);
 }
 
 export type Real<P extends Only<P, MySqlRealConfig & MySqlIntColMods> = NoProps> = Column<'real', P, FloatFormat>;
@@ -255,7 +251,7 @@ export function real<N extends string, const C extends Only<C, MySqlRealConfig &
 ): NamedColumn<N, Built<'real', C, FloatFormat>>;
 export function real<const C extends Only<C, MySqlRealConfig & MysqlIntIn>>(props: C): Built<'real', C, FloatFormat>;
 export function real(...args: unknown[]) {
-  return mysqlColumn('real', args);
+  return recordNsColumn('real', args);
 }
 
 /** drizzle's mysql serial is `bigint unsigned auto_increment`, so `$returningId()` returns it before any modifier. */
@@ -268,7 +264,7 @@ export function serial<N extends string, const C extends Only<C, MysqlIntIn>>(
 ): NamedColumn<N, Built<'serial', C, PositiveInt, SerialBase>>;
 export function serial<const C extends Only<C, MysqlIntIn>>(props: C): Built<'serial', C, PositiveInt, SerialBase>;
 export function serial(...args: unknown[]) {
-  return mysqlColumn('serial', args);
+  return recordNsColumn('serial', args);
 }
 
 export type Smallint<P extends Only<P, MySqlIntConfig & MySqlIntColMods> = NoProps> = Column<'smallint', P, SmallintData<P>>;
@@ -280,7 +276,7 @@ export function smallint<N extends string, const C extends Only<C, MySqlIntConfi
 ): NamedColumn<N, Built<'smallint', C, SmallintData<C>>>;
 export function smallint<const C extends Only<C, MySqlIntConfig & MysqlIntIn>>(props: C): Built<'smallint', C, SmallintData<C>>;
 export function smallint(...args: unknown[]) {
-  return mysqlColumn('smallint', args);
+  return recordNsColumn('smallint', args);
 }
 
 export type Text<P extends Only<P, MySqlTextConfig & MySqlColMods> = NoProps> = Column<'text', P, TextData<P>>;
@@ -292,7 +288,7 @@ export function text<N extends string, const C extends Only<C, MySqlTextConfig &
 ): NamedColumn<N, Built<'text', C, TextData<C>>>;
 export function text<const C extends Only<C, MySqlTextConfig & MysqlColIn>>(props: C): Built<'text', C, TextData<C>>;
 export function text(...args: unknown[]) {
-  return mysqlColumn('text', args);
+  return recordNsColumn('text', args);
 }
 
 export type Time<P extends Only<P, TimeConfig & MySqlColMods> = NoProps> = Column<'time', P, StringTime>;
@@ -304,7 +300,7 @@ export function time<N extends string, const C extends Only<C, TimeConfig & Mysq
 ): NamedColumn<N, Built<'time', C, StringTime>>;
 export function time<const C extends Only<C, TimeConfig & MysqlColIn>>(props: C): Built<'time', C, StringTime>;
 export function time(...args: unknown[]) {
-  return mysqlColumn('time', args);
+  return recordNsColumn('time', args);
 }
 
 export type Timestamp<P extends Only<P, MySqlTimestampConfig & MySqlTimestampColMods> = NoProps> = Column<
@@ -322,7 +318,7 @@ export function timestamp<const C extends Only<C, MySqlTimestampConfig & MysqlTi
   props: C
 ): Built<'timestamp', C, TimestampData<C>>;
 export function timestamp(...args: unknown[]) {
-  return mysqlColumn('timestamp', args);
+  return recordNsColumn('timestamp', args);
 }
 
 export type Tinyint<P extends Only<P, MySqlIntConfig & MySqlIntColMods> = NoProps> = Column<'tinyint', P, TinyintData<P>>;
@@ -334,7 +330,7 @@ export function tinyint<N extends string, const C extends Only<C, MySqlIntConfig
 ): NamedColumn<N, Built<'tinyint', C, TinyintData<C>>>;
 export function tinyint<const C extends Only<C, MySqlIntConfig & MysqlIntIn>>(props: C): Built<'tinyint', C, TinyintData<C>>;
 export function tinyint(...args: unknown[]) {
-  return mysqlColumn('tinyint', args);
+  return recordNsColumn('tinyint', args);
 }
 
 export type Tinytext<P extends Only<P, MySqlTextConfig & MySqlColMods> = NoProps> = Column<'tinytext', P, TextData<P>>;
@@ -346,7 +342,7 @@ export function tinytext<N extends string, const C extends Only<C, MySqlTextConf
 ): NamedColumn<N, Built<'tinytext', C, TextData<C>>>;
 export function tinytext<const C extends Only<C, MySqlTextConfig & MysqlColIn>>(props: C): Built<'tinytext', C, TextData<C>>;
 export function tinytext(...args: unknown[]) {
-  return mysqlColumn('tinytext', args);
+  return recordNsColumn('tinytext', args);
 }
 
 export type Varbinary<P extends Only<P, Partial<MySqlVarbinaryOptions> & MySqlColMods> = NoProps> = Column<
@@ -360,7 +356,7 @@ export function varbinary<N extends string, const C extends Only<C, MySqlVarbina
 ): NamedColumn<N, Built<'varbinary', C, string>>;
 export function varbinary<const C extends Only<C, MySqlVarbinaryOptions & MysqlColIn>>(props: C): Built<'varbinary', C, string>;
 export function varbinary(...args: unknown[]) {
-  return mysqlColumn('varbinary', args);
+  return recordNsColumn('varbinary', args);
 }
 
 export type Varchar<P extends Only<P, Partial<MySqlVarCharConfig> & MySqlColMods> = NoProps> = Column<
@@ -374,7 +370,7 @@ export function varchar<N extends string, const C extends Only<C, MySqlVarCharCo
 ): NamedColumn<N, Built<'varchar', C, VarcharData<C>>>;
 export function varchar<const C extends Only<C, MySqlVarCharConfig & MysqlColIn>>(props: C): Built<'varchar', C, VarcharData<C>>;
 export function varchar(...args: unknown[]) {
-  return mysqlColumn('varchar', args);
+  return recordNsColumn('varchar', args);
 }
 
 export type Year<P extends Only<P, MySqlColMods> = NoProps> = Column<'year', P, YearData>;
@@ -386,7 +382,7 @@ export function year<N extends string, const C extends Only<C, MysqlColIn>>(
 ): NamedColumn<N, Built<'year', C, YearData>>;
 export function year<const C extends Only<C, MysqlColIn>>(props: C): Built<'year', C, YearData>;
 export function year(...args: unknown[]) {
-  return mysqlColumn('year', args);
+  return recordNsColumn('year', args);
 }
 
 // ── Enums and custom types ───────────────────────────────────────────────────

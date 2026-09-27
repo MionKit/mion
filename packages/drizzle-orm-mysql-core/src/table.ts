@@ -22,7 +22,7 @@ import type {
   TableFromTypeOptions,
   rtNamedColumnKey,
 } from '@mionjs/drizzle-orm';
-import {buildRtTableFromGraph, createRtTable, RtValueRecorder, RtViewBuilder, rtValueKey} from '@mionjs/drizzle-orm';
+import {createRtTable, rtTableFromRunType, RtValueRecorder, RtViewBuilder, rtValueKey} from '@mionjs/drizzle-orm';
 import type {InjectRunTypeId} from '@mionjs/run-types';
 import {getRunType} from '@mionjs/run-types';
 import {mysqlColumnHelpers, type MysqlColumnHelpers} from './columns.ts';
@@ -159,18 +159,8 @@ export function mysqlSchema<SchemaName extends string>(schemaName: SchemaName): 
   } as MySqlSchema<SchemaName>;
 }
 
-// One slim table per reflected type id, so repeated calls share one materialized drizzle table.
-const fromTypeTables = new Map<string, object>();
-
 // Needs @mionjs/devtools; references read options.tables, runtime-callback markers options.runtime.
 /** Runtime twin of a hand-written table type; a call WITH options is not memoized, its callbacks or tables may differ. */
 export function tableFromType<T extends AnyMysqlTable>(options?: TableFromTypeOptions<T>, id?: InjectRunTypeId<T>): T {
-  const runType = getRunType<T>(undefined, id);
-  if (options !== undefined) return buildRtTableFromGraph(runType as ReflectedNode, mysqlBuildTable, options, 'mysql') as T;
-  let slimTable = fromTypeTables.get(runType.id);
-  if (slimTable === undefined) {
-    slimTable = buildRtTableFromGraph(runType as ReflectedNode, mysqlBuildTable, undefined, 'mysql');
-    fromTypeTables.set(runType.id, slimTable);
-  }
-  return slimTable as T;
+  return rtTableFromRunType(getRunType<T>(undefined, id) as ReflectedNode, mysqlBuildTable, 'mysql', options) as T;
 }

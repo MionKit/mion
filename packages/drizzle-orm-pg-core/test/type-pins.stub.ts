@@ -233,42 +233,6 @@ type WithEnumSelectBefore = {mood: 'sad' | 'happy'; level: 'low' | 'high' | null
 type ActiveViewViewSelectBefore = {name: String<{maxLength: 10}>};
 type SecureViewViewSelectBefore = {name: String<{maxLength: 10}> | null};
 type TotalsViewSelectBefore = {total: Int32};
-type EveryUpdateBefore = {
-  bigint?: IntegerFormat | null | undefined;
-  bigserial?: BigInt64 | undefined;
-  bit?: String<{length: 8}> | null | undefined;
-  boolean?: boolean | null | undefined;
-  char?: String<{length: 3}> | null | undefined;
-  cidr?: string | null | undefined;
-  date?: StringDate | null | undefined;
-  decimal?: string | null | undefined;
-  doublePrecision?: Float | null | undefined;
-  geometry?: {x: number; y: number} | null | undefined;
-  halfvec?: number[] | null | undefined;
-  inet?: IP | null | undefined;
-  integer?: Int32 | null | undefined;
-  interval?: string | null | undefined;
-  json?: unknown;
-  jsonb?: unknown;
-  line?: {a: number; b: number; c: number} | null | undefined;
-  macaddr?: string | null | undefined;
-  macaddr8?: string | null | undefined;
-  numeric?: string | null | undefined;
-  point?: [number, number] | null | undefined;
-  real?: Float | null | undefined;
-  serial?: Int32 | undefined;
-  smallint?: Int16 | null | undefined;
-  smallserial?: Int16 | undefined;
-  sparsevec?: string | null | undefined;
-  text?: String | null | undefined;
-  time?: StringTime | null | undefined;
-  timestamp?: RTDate | null | undefined;
-  uuid?: UUID | null | undefined;
-  varchar?: String<{maxLength: 10}> | null | undefined;
-  vector?: number[] | null | undefined;
-  mood?: 'a' | 'b' | null | undefined;
-  citext?: {x: number; y: number} | null | undefined;
-};
 type UsersUpdateBefore = {
   id?: UUID | undefined;
   name?: String<{maxLength: 100}> | undefined;
@@ -485,7 +449,8 @@ export type EveryPins = [
   Expect<Equal<typeof every, Every>>,
   Expect<Equal<InferSelectModel<Every>, EverySelectBefore>>,
   Expect<Equal<InferInsertModel<Every>, EveryInsertBefore>>,
-  Expect<Equal<InferUpdateModel<Every>, EveryUpdateBefore>>,
+  // Every column is optional on insert, so the update model is the insert one.
+  Expect<Equal<InferUpdateModel<Every>, EveryInsertBefore>>,
 ];
 
 // ── wide vocabulary: pg's own modifiers, runtime callbacks and generated columns ──

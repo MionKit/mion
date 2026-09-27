@@ -99,65 +99,9 @@ export class RtColumnRecorder {
     return builder;
   }
 
-  protected record(method: string, args: unknown[]): this {
+  /** Record one modifier call, replayed by name; each builder's props type decides which a column may carry. */
+  record(method: string, args: unknown[]): this {
     this.mods.push({method, args});
-    return this;
-  }
-
-  // Called only by recordColumn; each builder's props type decides which modifiers a column may carry.
-  notNull() {
-    return this.record('notNull', []);
-  }
-  default(value: unknown) {
-    return this.record('default', [value]);
-  }
-  $default(fn: unknown) {
-    return this.record('$default', [fn]);
-  }
-  $defaultFn(fn: unknown) {
-    return this.record('$defaultFn', [fn]);
-  }
-  $onUpdate(fn: unknown) {
-    return this.record('$onUpdate', [fn]);
-  }
-  $onUpdateFn(fn: unknown) {
-    return this.record('$onUpdateFn', [fn]);
-  }
-  primaryKey(...args: unknown[]) {
-    return this.record('primaryKey', args);
-  }
-  unique(...args: unknown[]) {
-    return this.record('unique', args);
-  }
-  references(ref: unknown, actions?: unknown) {
-    return this.record('references', actions === undefined ? [ref] : [ref, actions]);
-  }
-  generatedAlwaysAs(as: unknown, config?: unknown) {
-    return this.record('generatedAlwaysAs', config === undefined ? [as] : [as, config]);
-  }
-  generatedAlwaysAsIdentity(sequence?: unknown) {
-    return this.record('generatedAlwaysAsIdentity', sequence === undefined ? [] : [sequence]);
-  }
-  generatedByDefaultAsIdentity(sequence?: unknown) {
-    return this.record('generatedByDefaultAsIdentity', sequence === undefined ? [] : [sequence]);
-  }
-  array(size?: number) {
-    return this.record('array', size === undefined ? [] : [size]);
-  }
-  defaultNow() {
-    return this.record('defaultNow', []);
-  }
-  defaultRandom() {
-    return this.record('defaultRandom', []);
-  }
-  autoincrement() {
-    return this.record('autoincrement', []);
-  }
-  onUpdateNow() {
-    return this.record('onUpdateNow', []);
-  }
-  // Type-only in drizzle too: nothing to replay.
-  $type() {
     return this;
   }
 

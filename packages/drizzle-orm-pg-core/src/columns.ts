@@ -19,7 +19,7 @@ import type {
   StringTime,
   UUID,
 } from '@mionjs/run-types/formats';
-import {RtValueRecorder, rtValueKey, recordColumn} from '@mionjs/drizzle-orm';
+import {RtValueRecorder, rtValueKey, recordColumn, recordNsColumn} from '@mionjs/drizzle-orm';
 import type {ColBaseFlag, Column, NamedColumn, NoProps, Only, PropsOf} from '@mionjs/drizzle-orm';
 import type {
   BigintData,
@@ -62,10 +62,6 @@ import type {
 /** What a nameless builder returns; a named call wraps it in NamedColumn. */
 type Built<Fn extends string, C, D, B extends ColBaseFlag = never> = Column<Fn, PropsOf<C>, D, B>;
 
-function pgColumn(fnName: string, args: unknown[]): never {
-  return recordColumn(args, (context, callArgs) => context.ns[fnName](...(callArgs as never[]))) as never;
-}
-
 // ── Hand-written aliases + builders ──────────────────────────────────────────
 
 export type Bigint<P extends Only<P, PgBigIntConfig & PgIntColMods> = PgBigIntConfig<'number'>> = Column<
@@ -79,7 +75,7 @@ export function bigint<N extends string, const C extends Only<C, PgBigIntConfig 
 ): NamedColumn<N, Built<'bigint', C, BigintData<C>>>;
 export function bigint<const C extends Only<C, PgBigIntConfig & PgIntIn>>(props: C): Built<'bigint', C, BigintData<C>>;
 export function bigint(...args: unknown[]) {
-  return pgColumn('bigint', args);
+  return recordNsColumn('bigint', args);
 }
 
 export type Bigserial<P extends Only<P, PgBigIntConfig & PgColMods> = PgBigIntConfig<'number'>> = Column<
@@ -96,7 +92,7 @@ export function bigserial<const C extends Only<C, PgBigIntConfig & PgColIn>>(
   props: C
 ): Built<'bigserial', C, BigintData<C>, 'notNull' | 'hasDefault'>;
 export function bigserial(...args: unknown[]) {
-  return pgColumn('bigserial', args);
+  return recordNsColumn('bigserial', args);
 }
 
 export type Bit<P extends Only<P, Partial<PgBitConfig> & PgColMods> = NoProps> = Column<'bit', P, BitData<P>>;
@@ -106,7 +102,7 @@ export function bit<N extends string, const C extends Only<C, PgBitConfig & PgCo
 ): NamedColumn<N, Built<'bit', C, BitData<C>>>;
 export function bit<const C extends Only<C, PgBitConfig & PgColIn>>(props: C): Built<'bit', C, BitData<C>>;
 export function bit(...args: unknown[]) {
-  return pgColumn('bit', args);
+  return recordNsColumn('bit', args);
 }
 
 export type Boolean<P extends Only<P, PgColMods> = NoProps> = Column<'boolean', P, boolean>;
@@ -118,7 +114,7 @@ export function boolean<N extends string, const C extends Only<C, PgColIn>>(
 ): NamedColumn<N, Built<'boolean', C, boolean>>;
 export function boolean<const C extends Only<C, PgColIn>>(props: C): Built<'boolean', C, boolean>;
 export function boolean(...args: unknown[]) {
-  return pgColumn('boolean', args);
+  return recordNsColumn('boolean', args);
 }
 
 export type Char<P extends Only<P, PgCharConfig & PgColMods> = NoProps> = Column<'char', P, CharData<P>>;
@@ -130,7 +126,7 @@ export function char<N extends string, const C extends Only<C, PgCharConfig & Pg
 ): NamedColumn<N, Built<'char', C, CharData<C>>>;
 export function char<const C extends Only<C, PgCharConfig & PgColIn>>(props: C): Built<'char', C, CharData<C>>;
 export function char(...args: unknown[]) {
-  return pgColumn('char', args);
+  return recordNsColumn('char', args);
 }
 
 export type Cidr<P extends Only<P, PgColMods> = NoProps> = Column<'cidr', P, string>;
@@ -142,7 +138,7 @@ export function cidr<N extends string, const C extends Only<C, PgColIn>>(
 ): NamedColumn<N, Built<'cidr', C, string>>;
 export function cidr<const C extends Only<C, PgColIn>>(props: C): Built<'cidr', C, string>;
 export function cidr(...args: unknown[]) {
-  return pgColumn('cidr', args);
+  return recordNsColumn('cidr', args);
 }
 
 export type PgDate<P extends Only<P, PgDateConfig & PgDateColMods> = NoProps> = Column<'date', P, PgDateData<P>>;
@@ -154,7 +150,7 @@ export function date<N extends string, const C extends Only<C, PgDateConfig & Pg
 ): NamedColumn<N, Built<'date', C, PgDateData<C>>>;
 export function date<const C extends Only<C, PgDateConfig & PgDateIn>>(props: C): Built<'date', C, PgDateData<C>>;
 export function date(...args: unknown[]) {
-  return pgColumn('date', args);
+  return recordNsColumn('date', args);
 }
 
 export type Decimal<P extends Only<P, PgNumericConfig & PgColMods> = NoProps> = Column<'decimal', P, NumericData<P>>;
@@ -166,7 +162,7 @@ export function decimal<N extends string, const C extends Only<C, PgNumericConfi
 ): NamedColumn<N, Built<'decimal', C, NumericData<C>>>;
 export function decimal<const C extends Only<C, PgNumericConfig & PgColIn>>(props: C): Built<'decimal', C, NumericData<C>>;
 export function decimal(...args: unknown[]) {
-  return pgColumn('decimal', args);
+  return recordNsColumn('decimal', args);
 }
 
 export type DoublePrecision<P extends Only<P, PgColMods> = NoProps> = Column<'doublePrecision', P, Float>;
@@ -178,7 +174,7 @@ export function doublePrecision<N extends string, const C extends Only<C, PgColI
 ): NamedColumn<N, Built<'doublePrecision', C, Float>>;
 export function doublePrecision<const C extends Only<C, PgColIn>>(props: C): Built<'doublePrecision', C, Float>;
 export function doublePrecision(...args: unknown[]) {
-  return pgColumn('doublePrecision', args);
+  return recordNsColumn('doublePrecision', args);
 }
 
 export type Geometry<P extends Only<P, PgGeometryConfig & PgColMods> = NoProps> = Column<'geometry', P, GeometryData<P>>;
@@ -190,7 +186,7 @@ export function geometry<N extends string, const C extends Only<C, PgGeometryCon
 ): NamedColumn<N, Built<'geometry', C, GeometryData<C>>>;
 export function geometry<const C extends Only<C, PgGeometryConfig & PgColIn>>(props: C): Built<'geometry', C, GeometryData<C>>;
 export function geometry(...args: unknown[]) {
-  return pgColumn('geometry', args);
+  return recordNsColumn('geometry', args);
 }
 
 export type Halfvec<P extends Only<P, Partial<PgVectorConfig> & PgColMods> = NoProps> = Column<'halfvec', P, number[]>;
@@ -200,7 +196,7 @@ export function halfvec<N extends string, const C extends Only<C, PgVectorConfig
 ): NamedColumn<N, Built<'halfvec', C, number[]>>;
 export function halfvec<const C extends Only<C, PgVectorConfig & PgColIn>>(props: C): Built<'halfvec', C, number[]>;
 export function halfvec(...args: unknown[]) {
-  return pgColumn('halfvec', args);
+  return recordNsColumn('halfvec', args);
 }
 
 export type Inet<P extends Only<P, PgColMods> = NoProps> = Column<'inet', P, IP>;
@@ -209,7 +205,7 @@ export function inet<N extends string>(name: N): NamedColumn<N, Column<'inet', N
 export function inet<N extends string, const C extends Only<C, PgColIn>>(name: N, props: C): NamedColumn<N, Built<'inet', C, IP>>;
 export function inet<const C extends Only<C, PgColIn>>(props: C): Built<'inet', C, IP>;
 export function inet(...args: unknown[]) {
-  return pgColumn('inet', args);
+  return recordNsColumn('inet', args);
 }
 
 export type Integer<P extends Only<P, PgIntColMods> = NoProps> = Column<'integer', P, Int32>;
@@ -221,7 +217,7 @@ export function integer<N extends string, const C extends Only<C, PgIntIn>>(
 ): NamedColumn<N, Built<'integer', C, Int32>>;
 export function integer<const C extends Only<C, PgIntIn>>(props: C): Built<'integer', C, Int32>;
 export function integer(...args: unknown[]) {
-  return pgColumn('integer', args);
+  return recordNsColumn('integer', args);
 }
 
 export type Interval<P extends Only<P, IntervalConfig & PgColMods> = NoProps> = Column<'interval', P, string>;
@@ -233,7 +229,7 @@ export function interval<N extends string, const C extends Only<C, IntervalConfi
 ): NamedColumn<N, Built<'interval', C, string>>;
 export function interval<const C extends Only<C, IntervalConfig & PgColIn>>(props: C): Built<'interval', C, string>;
 export function interval(...args: unknown[]) {
-  return pgColumn('interval', args);
+  return recordNsColumn('interval', args);
 }
 
 export type Json<P extends Only<P, PgColMods> = NoProps> = Column<'json', P, unknown>;
@@ -245,7 +241,7 @@ export function json<N extends string, const C extends Only<C, PgColIn>>(
 ): NamedColumn<N, Built<'json', C, unknown>>;
 export function json<const C extends Only<C, PgColIn>>(props: C): Built<'json', C, unknown>;
 export function json(...args: unknown[]) {
-  return pgColumn('json', args);
+  return recordNsColumn('json', args);
 }
 
 export type Jsonb<P extends Only<P, PgColMods> = NoProps> = Column<'jsonb', P, unknown>;
@@ -257,7 +253,7 @@ export function jsonb<N extends string, const C extends Only<C, PgColIn>>(
 ): NamedColumn<N, Built<'jsonb', C, unknown>>;
 export function jsonb<const C extends Only<C, PgColIn>>(props: C): Built<'jsonb', C, unknown>;
 export function jsonb(...args: unknown[]) {
-  return pgColumn('jsonb', args);
+  return recordNsColumn('jsonb', args);
 }
 
 export type Line<P extends Only<P, PgLineConfig & PgColMods> = NoProps> = Column<'line', P, LineData<P>>;
@@ -269,7 +265,7 @@ export function line<N extends string, const C extends Only<C, PgLineConfig & Pg
 ): NamedColumn<N, Built<'line', C, LineData<C>>>;
 export function line<const C extends Only<C, PgLineConfig & PgColIn>>(props: C): Built<'line', C, LineData<C>>;
 export function line(...args: unknown[]) {
-  return pgColumn('line', args);
+  return recordNsColumn('line', args);
 }
 
 export type Macaddr<P extends Only<P, PgColMods> = NoProps> = Column<'macaddr', P, string>;
@@ -281,7 +277,7 @@ export function macaddr<N extends string, const C extends Only<C, PgColIn>>(
 ): NamedColumn<N, Built<'macaddr', C, string>>;
 export function macaddr<const C extends Only<C, PgColIn>>(props: C): Built<'macaddr', C, string>;
 export function macaddr(...args: unknown[]) {
-  return pgColumn('macaddr', args);
+  return recordNsColumn('macaddr', args);
 }
 
 export type Macaddr8<P extends Only<P, PgColMods> = NoProps> = Column<'macaddr8', P, string>;
@@ -293,7 +289,7 @@ export function macaddr8<N extends string, const C extends Only<C, PgColIn>>(
 ): NamedColumn<N, Built<'macaddr8', C, string>>;
 export function macaddr8<const C extends Only<C, PgColIn>>(props: C): Built<'macaddr8', C, string>;
 export function macaddr8(...args: unknown[]) {
-  return pgColumn('macaddr8', args);
+  return recordNsColumn('macaddr8', args);
 }
 
 export type Numeric<P extends Only<P, PgNumericConfig & PgColMods> = NoProps> = Column<'numeric', P, NumericData<P>>;
@@ -305,7 +301,7 @@ export function numeric<N extends string, const C extends Only<C, PgNumericConfi
 ): NamedColumn<N, Built<'numeric', C, NumericData<C>>>;
 export function numeric<const C extends Only<C, PgNumericConfig & PgColIn>>(props: C): Built<'numeric', C, NumericData<C>>;
 export function numeric(...args: unknown[]) {
-  return pgColumn('numeric', args);
+  return recordNsColumn('numeric', args);
 }
 
 export type Point<P extends Only<P, PgPointConfig & PgColMods> = NoProps> = Column<'point', P, PointData<P>>;
@@ -317,7 +313,7 @@ export function point<N extends string, const C extends Only<C, PgPointConfig & 
 ): NamedColumn<N, Built<'point', C, PointData<C>>>;
 export function point<const C extends Only<C, PgPointConfig & PgColIn>>(props: C): Built<'point', C, PointData<C>>;
 export function point(...args: unknown[]) {
-  return pgColumn('point', args);
+  return recordNsColumn('point', args);
 }
 
 export type Real<P extends Only<P, PgColMods> = NoProps> = Column<'real', P, Float>;
@@ -329,7 +325,7 @@ export function real<N extends string, const C extends Only<C, PgColIn>>(
 ): NamedColumn<N, Built<'real', C, Float>>;
 export function real<const C extends Only<C, PgColIn>>(props: C): Built<'real', C, Float>;
 export function real(...args: unknown[]) {
-  return pgColumn('real', args);
+  return recordNsColumn('real', args);
 }
 
 export type Serial<P extends Only<P, PgColMods> = NoProps> = Column<'serial', P, Int32, 'notNull' | 'hasDefault'>;
@@ -341,7 +337,7 @@ export function serial<N extends string, const C extends Only<C, PgColIn>>(
 ): NamedColumn<N, Built<'serial', C, Int32, 'notNull' | 'hasDefault'>>;
 export function serial<const C extends Only<C, PgColIn>>(props: C): Built<'serial', C, Int32, 'notNull' | 'hasDefault'>;
 export function serial(...args: unknown[]) {
-  return pgColumn('serial', args);
+  return recordNsColumn('serial', args);
 }
 
 export type Smallint<P extends Only<P, PgIntColMods> = NoProps> = Column<'smallint', P, Int16>;
@@ -353,7 +349,7 @@ export function smallint<N extends string, const C extends Only<C, PgIntIn>>(
 ): NamedColumn<N, Built<'smallint', C, Int16>>;
 export function smallint<const C extends Only<C, PgIntIn>>(props: C): Built<'smallint', C, Int16>;
 export function smallint(...args: unknown[]) {
-  return pgColumn('smallint', args);
+  return recordNsColumn('smallint', args);
 }
 
 export type Smallserial<P extends Only<P, PgColMods> = NoProps> = Column<'smallserial', P, Int16, 'notNull' | 'hasDefault'>;
@@ -367,7 +363,7 @@ export function smallserial<N extends string, const C extends Only<C, PgColIn>>(
 ): NamedColumn<N, Built<'smallserial', C, Int16, 'notNull' | 'hasDefault'>>;
 export function smallserial<const C extends Only<C, PgColIn>>(props: C): Built<'smallserial', C, Int16, 'notNull' | 'hasDefault'>;
 export function smallserial(...args: unknown[]) {
-  return pgColumn('smallserial', args);
+  return recordNsColumn('smallserial', args);
 }
 
 export type Sparsevec<P extends Only<P, Partial<PgVectorConfig> & PgColMods> = NoProps> = Column<'sparsevec', P, string>;
@@ -377,7 +373,7 @@ export function sparsevec<N extends string, const C extends Only<C, PgVectorConf
 ): NamedColumn<N, Built<'sparsevec', C, string>>;
 export function sparsevec<const C extends Only<C, PgVectorConfig & PgColIn>>(props: C): Built<'sparsevec', C, string>;
 export function sparsevec(...args: unknown[]) {
-  return pgColumn('sparsevec', args);
+  return recordNsColumn('sparsevec', args);
 }
 
 export type Text<P extends Only<P, PgTextConfig & PgColMods> = NoProps> = Column<'text', P, TextData<P>>;
@@ -389,7 +385,7 @@ export function text<N extends string, const C extends Only<C, PgTextConfig & Pg
 ): NamedColumn<N, Built<'text', C, TextData<C>>>;
 export function text<const C extends Only<C, PgTextConfig & PgColIn>>(props: C): Built<'text', C, TextData<C>>;
 export function text(...args: unknown[]) {
-  return pgColumn('text', args);
+  return recordNsColumn('text', args);
 }
 
 export type Time<P extends Only<P, TimeConfig & PgDateColMods> = NoProps> = Column<'time', P, StringTime>;
@@ -401,7 +397,7 @@ export function time<N extends string, const C extends Only<C, TimeConfig & PgDa
 ): NamedColumn<N, Built<'time', C, StringTime>>;
 export function time<const C extends Only<C, TimeConfig & PgDateIn>>(props: C): Built<'time', C, StringTime>;
 export function time(...args: unknown[]) {
-  return pgColumn('time', args);
+  return recordNsColumn('time', args);
 }
 
 export type Timestamp<P extends Only<P, PgTimestampConfig & PgDateColMods> = NoProps> = Column<'timestamp', P, TimestampData<P>>;
@@ -415,7 +411,7 @@ export function timestamp<const C extends Only<C, PgTimestampConfig & PgDateIn>>
   props: C
 ): Built<'timestamp', C, TimestampData<C>>;
 export function timestamp(...args: unknown[]) {
-  return pgColumn('timestamp', args);
+  return recordNsColumn('timestamp', args);
 }
 
 export type Uuid<P extends Only<P, PgUuidColMods> = NoProps> = Column<'uuid', P, UUID>;
@@ -427,7 +423,7 @@ export function uuid<N extends string, const C extends Only<C, PgUuidIn>>(
 ): NamedColumn<N, Built<'uuid', C, UUID>>;
 export function uuid<const C extends Only<C, PgUuidIn>>(props: C): Built<'uuid', C, UUID>;
 export function uuid(...args: unknown[]) {
-  return pgColumn('uuid', args);
+  return recordNsColumn('uuid', args);
 }
 
 export type Varchar<P extends Only<P, PgVarcharConfig & PgColMods> = NoProps> = Column<'varchar', P, VarcharData<P>>;
@@ -439,7 +435,7 @@ export function varchar<N extends string, const C extends Only<C, PgVarcharConfi
 ): NamedColumn<N, Built<'varchar', C, VarcharData<C>>>;
 export function varchar<const C extends Only<C, PgVarcharConfig & PgColIn>>(props: C): Built<'varchar', C, VarcharData<C>>;
 export function varchar(...args: unknown[]) {
-  return pgColumn('varchar', args);
+  return recordNsColumn('varchar', args);
 }
 
 export type Vector<P extends Only<P, Partial<PgVectorConfig> & PgColMods> = NoProps> = Column<'vector', P, number[]>;
@@ -449,7 +445,7 @@ export function vector<N extends string, const C extends Only<C, PgVectorConfig 
 ): NamedColumn<N, Built<'vector', C, number[]>>;
 export function vector<const C extends Only<C, PgVectorConfig & PgColIn>>(props: C): Built<'vector', C, number[]>;
 export function vector(...args: unknown[]) {
-  return pgColumn('vector', args);
+  return recordNsColumn('vector', args);
 }
 
 // ── Enums and custom types ───────────────────────────────────────────────────

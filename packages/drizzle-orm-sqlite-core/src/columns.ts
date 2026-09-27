@@ -9,7 +9,7 @@
 // method return types (MKR009), and the props bag rejects a modifier sqlite lacks.
 
 import type {Float, Integer as IntegerFormat, String as Str} from '@mionjs/run-types/formats';
-import {RtValueRecorder, rtValueKey, recordColumn} from '@mionjs/drizzle-orm';
+import {RtValueRecorder, rtValueKey, recordColumn, recordNsColumn} from '@mionjs/drizzle-orm';
 import type {ColBaseFlag, Column, NamedColumn, NoProps, Only, PropsOf} from '@mionjs/drizzle-orm';
 import type {
   BlobConfig,
@@ -29,10 +29,6 @@ import type {
 /** What a nameless builder returns; a named call wraps it in NamedColumn. */
 type Built<Fn extends string, C, D, B extends ColBaseFlag = never> = Column<Fn, PropsOf<C>, D, B>;
 
-function sqliteColumn(fnName: string, args: unknown[]): never {
-  return recordColumn(args, (context, callArgs) => context.ns[fnName](...(callArgs as never[]))) as never;
-}
-
 // ── Hand-written aliases + builders ──────────────────────────────────────────
 
 export type Blob<P extends Only<P, Partial<BlobConfig> & SqliteColMods> = NoProps> = Column<'blob', P, BlobData<P>>;
@@ -44,7 +40,7 @@ export function blob<N extends string, const C extends Only<C, Partial<BlobConfi
 ): NamedColumn<N, Built<'blob', C, BlobData<C>>>;
 export function blob<const C extends Only<C, Partial<BlobConfig> & SqliteColIn>>(props: C): Built<'blob', C, BlobData<C>>;
 export function blob(...args: unknown[]) {
-  return sqliteColumn('blob', args);
+  return recordNsColumn('blob', args);
 }
 
 // integer and int are the rowid when they are the primary key, so drizzle defaults them with or without autoIncrement.
@@ -66,7 +62,7 @@ export function integer<const C extends Only<C, Partial<IntegerConfig> & SqliteC
   props: C
 ): Built<'integer', C, IntegerData<C>, 'primaryKeyHasDefault'>;
 export function integer(...args: unknown[]) {
-  return sqliteColumn('integer', args);
+  return recordNsColumn('integer', args);
 }
 
 // Its own alias rather than Integer: the recorded fn is what a converted table prints back, so int() stays int().
@@ -86,7 +82,7 @@ export function int<const C extends Only<C, Partial<IntegerConfig> & SqliteColIn
   props: C
 ): Built<'int', C, IntegerData<C>, 'primaryKeyHasDefault'>;
 export function int(...args: unknown[]) {
-  return sqliteColumn('int', args);
+  return recordNsColumn('int', args);
 }
 
 export type Numeric<P extends Only<P, SQLiteNumericConfig & SqliteColMods> = NoProps> = Column<'numeric', P, NumericData<P>>;
@@ -100,7 +96,7 @@ export function numeric<const C extends Only<C, SQLiteNumericConfig & SqliteColI
   props: C
 ): Built<'numeric', C, NumericData<C>>;
 export function numeric(...args: unknown[]) {
-  return sqliteColumn('numeric', args);
+  return recordNsColumn('numeric', args);
 }
 
 export type Real<P extends Only<P, SqliteColMods> = NoProps> = Column<'real', P, Float>;
@@ -112,7 +108,7 @@ export function real<N extends string, const C extends Only<C, SqliteColIn>>(
 ): NamedColumn<N, Built<'real', C, Float>>;
 export function real<const C extends Only<C, SqliteColIn>>(props: C): Built<'real', C, Float>;
 export function real(...args: unknown[]) {
-  return sqliteColumn('real', args);
+  return recordNsColumn('real', args);
 }
 
 export type Text<P extends Only<P, SQLiteTextConfig & SqliteColMods> = NoProps> = Column<'text', P, TextData<P>>;
@@ -124,7 +120,7 @@ export function text<N extends string, const C extends Only<C, SQLiteTextConfig 
 ): NamedColumn<N, Built<'text', C, TextData<C>>>;
 export function text<const C extends Only<C, SQLiteTextConfig & SqliteColIn>>(props: C): Built<'text', C, TextData<C>>;
 export function text(...args: unknown[]) {
-  return sqliteColumn('text', args);
+  return recordNsColumn('text', args);
 }
 
 // ── Custom types ─────────────────────────────────────────────────────────────

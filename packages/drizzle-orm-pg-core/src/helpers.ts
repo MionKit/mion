@@ -12,7 +12,6 @@
 import type {
   EntryColumn,
   AnyTable,
-  AnyTableRef,
   Column,
   NamedColumn,
   NoProps,
@@ -21,7 +20,7 @@ import type {
   RtIndexedColumn,
   RtSql,
 } from '@mionjs/drizzle-orm';
-import {recordColumn, refColumn, RtEntryRecorder, RtValueRecorder, rtColumnKey, rtValueKey} from '@mionjs/drizzle-orm';
+import {recordColumn, RtEntryRecorder, RtValueRecorder, rtColumnKey, rtValueKey} from '@mionjs/drizzle-orm';
 import type {PgColIn, PgEntryBrand, RtIndexEntry, UpdateDeleteAction} from './types.ts';
 import type {PgSequence, PgSequenceOptions} from './table.ts';
 
@@ -61,9 +60,7 @@ export interface RtForeignKeyEntry extends PgEntryBrand {
   onUpdate(action: UpdateDeleteAction): RtForeignKeyEntry;
 }
 export function foreignKey(config: PgForeignKeyConfig): RtForeignKeyEntry {
-  const isRef = (column: object): boolean => typeof (column as Partial<AnyTableRef>).table === 'string';
-  const foreignColumns = config.foreignColumns.map((column) => (isRef(column) ? refColumn(column) : column));
-  return new RtEntryRecorder('foreignKey', [{...config, foreignColumns}]) as unknown as RtForeignKeyEntry;
+  return new RtEntryRecorder('foreignKey', [config]) as unknown as RtForeignKeyEntry;
 }
 
 export interface PgPrimaryKeyConfig {

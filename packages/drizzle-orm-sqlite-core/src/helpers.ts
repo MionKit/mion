@@ -8,8 +8,8 @@
 // The sqlite authoring helpers beyond columns and tables: indexes, constraints and checks, with drizzle-identical
 // names and call shapes and recorder returns.
 
-import type {AnyTableRef, EntryColumn, RtIndexedColumn, RtSql} from '@mionjs/drizzle-orm';
-import {refColumn, RtEntryRecorder} from '@mionjs/drizzle-orm';
+import type {EntryColumn, RtIndexedColumn, RtSql} from '@mionjs/drizzle-orm';
+import {RtEntryRecorder} from '@mionjs/drizzle-orm';
 import type {RtSqliteIndexEntry, SqliteEntryBrand, UpdateDeleteAction} from './types.ts';
 
 export type SqliteIndexColumn = EntryColumn | RtIndexedColumn | RtSql;
@@ -44,9 +44,7 @@ export interface RtSqliteForeignKeyEntry extends SqliteEntryBrand {
   onUpdate(action: UpdateDeleteAction): RtSqliteForeignKeyEntry;
 }
 export function foreignKey(config: SqliteForeignKeyConfig): RtSqliteForeignKeyEntry {
-  const isRef = (column: object): boolean => typeof (column as Partial<AnyTableRef>).table === 'string';
-  const foreignColumns = config.foreignColumns.map((column) => (isRef(column) ? refColumn(column) : column));
-  return new RtEntryRecorder('foreignKey', [{...config, foreignColumns}]) as unknown as RtSqliteForeignKeyEntry;
+  return new RtEntryRecorder('foreignKey', [config]) as unknown as RtSqliteForeignKeyEntry;
 }
 
 export interface SqlitePrimaryKeyEntryConfig {

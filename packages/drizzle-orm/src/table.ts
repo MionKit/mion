@@ -34,9 +34,9 @@ export function tableRef<T extends AnyTable, K extends keyof T['columns'] & stri
 }
 
 /** The live column a tableRef() value points at. */
-export function refColumn(ref: unknown): unknown {
-  const {column} = ref as AnyTableRef;
-  const table = (ref as Record<symbol, Record<string, unknown> | undefined>)[rtRefTargetKey];
+export function refColumn(ref: AnyTableRef): object {
+  const {column} = ref;
+  const table = (ref as unknown as Record<symbol, Record<string, object | undefined> | undefined>)[rtRefTargetKey];
   if (table === undefined) throw new Error('@mionjs/drizzle-orm: a reference must be written with tableRef(table, column)');
   if (table[column] === undefined) throw new Error(`@mionjs/drizzle-orm: tableRef() found no column "${column}"`);
   return table[column];
