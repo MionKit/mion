@@ -268,7 +268,7 @@ const routes = {
       id: product.id || 'generated-id',
     })
   ),
-  // answers its own return type does not describe, for the client's response check
+  // answers their types do not describe, for the client's response check
   wrongAnswers: {
     wrongMiddleware: middleware((_ctx, tag?: string): {tag: string} | null =>
       tag ? ({tag: 42} as unknown as {tag: string}) : null
@@ -508,7 +508,7 @@ const routes = {
     clearNote: mutation((_ctx, _id: string): void => {
       noteRuns.clearNote++;
     }),
-    // answers a number where it declares a string, so a client checking answers refuses it
+    // wrong on purpose, so a client checking answers refuses it
     wrongNote: mutation((_ctx, _id: string): string => (noteRuns.wrongNote++, 42 as unknown as string)),
     failNote: mutation((_ctx, _id: string): RpcError<'note-failed'> => {
       noteRuns.failNote++;

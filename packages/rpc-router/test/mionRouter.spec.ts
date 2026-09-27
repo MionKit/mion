@@ -212,8 +212,7 @@ describe('PublicApi resolved options', () => {
       sanitizeParams: true;
       maxBodySize: undefined;
     }>();
-    // a limit the route declares rides the type; the number the router settles for a route that
-    // declares none exists only at registration, so the type says undefined there
+    // a route declaring no limit gets its number only at registration, so the type says undefined
     expectTypeOf<Api['m']['options']['maxBodySize']>().toEqualTypeOf<4096>();
     expectTypeOf<Api['r']['options']['maxBodySize']>().toEqualTypeOf<undefined>();
     expectTypeOf<Api['m']['options']['parser']>().toEqualTypeOf<{params: 'compact'; return: 'mutate'}>();
@@ -233,9 +232,7 @@ describe('PublicApi resolved options', () => {
     >();
     expect(defs.q).not.toHaveProperty('routerOptions');
 
-    // runtime agrees with the type, field by field. The one field the type leaves undefined and the
-    // runtime fills is a route's settled request limit (its types times the router factor, else
-    // the platform's number), which only exists at registration.
+    // runtime agrees with the type, except a route's settled request limit, which exists only at registration
     const api = compact.initRoutes(defs);
     const {maxBodySize: settledLimit, ...qOptions} = api.q.options;
     expect(typeof settledLimit).toBe('number');

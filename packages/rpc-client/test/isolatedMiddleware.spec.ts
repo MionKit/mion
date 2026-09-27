@@ -162,7 +162,7 @@ describe('isolated reusable middleware', () => {
       expect(noteRuns.saveNote).toBe(1);
     });
 
-    // The client refused the answer, but the server ran the mutation: sending it again would run it twice.
+    // The server ran the mutation, so a retry would run it twice.
     it('a mutation whose answer the client refused is refused', async () => {
       const {routes, middlewares, client: checkingClient} = initClient<TestServerApi>({baseURL, validateServerResponses: true});
       const checkedRetries: boolean[] = [];

@@ -63,7 +63,7 @@ export function getResponseError(id: string, value: unknown) {
 function getTypeErrors(id: string, params: any[]) {
   const method = useMethodFns(id);
   if (!method.paramsCount) return;
-  // No separate strict pass: whatever key check the route's parser strategy asked for is compiled into isType.
+  // No separate strict pass: the parser strategy's key check is compiled into isType.
   return checkValue(method.id, method.paramsJitFns, params, 'validation-error', 'unexpected-validation-error', 'params for');
 }
 
