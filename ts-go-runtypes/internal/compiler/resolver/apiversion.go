@@ -137,8 +137,7 @@ func (sess *Session) apiVersionSiteOf(sourceFile *ast.SourceFile, call *ast.Node
 	}, true
 }
 
-// apiVersionOf hashes the API type's method rows; with api.tsConfig it hashes the peer program's tree instead,
-// the same source resolveApiBundle compiles from, so both ends hash ids minted under one checker.
+// apiVersionOf hashes the API's rows, the apiTsconfig twin's when set: resolveApiBundle's source, so ids share one checker.
 func (sess *Session) apiVersionOf(apiType *checker.Type) string {
 	tree := sess.clientApiTree(sess.checker, apiType)
 	if tree == nil {

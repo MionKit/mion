@@ -80,8 +80,7 @@ func callsInitClient(typeChecker *checker.Checker, markerOpts marker.Options, so
 	if sourceFile.IsDeclarationFile {
 		return false
 	}
-	// Text pre-filter, like the router twin: resolving a signature per call is the cost, and a file
-	// reaching the factory through a barrel that RENAMES it is deliberately not detected.
+	// Text pre-filter like the router twin, as resolving each call costs; a RENAMING barrel is deliberately missed.
 	if text := sourceFile.Text(); !strings.Contains(text, InitClientName) && !strings.Contains(text, ClientModule) {
 		return false
 	}

@@ -130,7 +130,7 @@ func (sess *Session) widenedSiteDiag(site apimeta.Site) diagnostics.Diagnostic {
 	return diagnostics.New(code, site.DiagSite())
 }
 
-// fetchingFor reports whether a `useMethodsMetadata` call sets up the client of apiType, or one the build cannot tie to a client.
+// fetchingFor reports whether apiType's client sets up fetching; an untraced `useMethodsMetadata` covers every client.
 func (sess *Session) fetchingFor(apiType *checker.Type) bool {
 	_, setUps := sess.clientFacts()
 	return slices.ContainsFunc(setUps, func(setUp apimeta.FetchSetUp) bool { return setUp.ApiType == nil || setUp.ApiType == apiType })
@@ -216,7 +216,7 @@ func (sess *Session) clientApiTree(typeChecker *checker.Checker, apiType *checke
 	return tree
 }
 
-// fetchSetupDiags checks a fetching client has both halves: the server's metadata middleware and its `useMethodsMetadata`.
+// fetchSetupDiags checks a fetching client has the server's metadata middleware and its `useMethodsMetadata`.
 // Bundled, widened sites reported themselves, and with none only a setup whose API lacks the middleware is wrong.
 // Off, every call fetches, so each API reports once at its first `initClient`, readable or not.
 func (sess *Session) fetchSetupDiags(sites []apimeta.Site) []diagnostics.Diagnostic {
@@ -450,8 +450,7 @@ func (sess *Session) renderApiBundle(bundle *apiBundle, files map[string]string)
 	return renderDiags, nil
 }
 
-// clientManifest is the manifest a client build writes: the bundled methods
-// and the API pointer it resolved them through.
+// clientManifest is what a client build writes: the bundled methods and the API pointer it resolved them through.
 func (bundle *apiBundle) clientManifest(opts Options) *apimeta.Manifest {
 	manifest := &apimeta.Manifest{Kind: apimeta.ManifestKindClient, ApiTsconfig: opts.ApiTsconfig, Methods: map[string]apimeta.ManifestMethod{}}
 	for _, id := range bundle.order {
@@ -554,8 +553,7 @@ func (sess *Session) resolveApiBundle(sites []apimeta.Site) (*apiBundle, []diagn
 			continue
 		}
 		if sess.opts.ApiTsconfig != "" {
-			// The API project's own program answers, rooted at its initRoutes call; the client's walk
-			// only says which routes to match on.
+			// The API project's program answers from its initRoutes call; the client's walk only picks the routes to match.
 			peerTree, candidates, err := sess.apiSourceTree(tree.Ids())
 			if err != nil {
 				return nil, diags, err
@@ -610,8 +608,7 @@ func routeRunning(tree *apimeta.Tree, routeIds []string, middlewareId string) st
 	return routeIds[0]
 }
 
-// apiSourceTree returns the walked API of the ONE `initRoutes(...)` call in the `apiTsconfig` program
-// whose routes are exactly the client's; nil when none or several match, and the caller reports MET005.
+// apiSourceTree walks the ONE `apiTsconfig` `initRoutes` whose routes equal the client's; nil for none or several (MET005).
 func (sess *Session) apiSourceTree(clientIds []string) (*apimeta.Tree, string, error) {
 	tsconfig := sess.absPath(sess.opts.ApiTsconfig)
 	peer, err := sess.apiPeer.open(sess, tsconfig, "apiTsconfig", nil)
