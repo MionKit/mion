@@ -9,9 +9,10 @@
 // result and a hand-written `PgTable<'users', {...}>` one type. No drizzle import: ./drizzle.ts injects the context.
 
 import type {
-  AnyColumn,
   DrizzleContext,
   EntryColRefs,
+  LiftCols,
+  NameOf,
   NoNames,
   ReflectedNode,
   RtExtraColumn,
@@ -19,7 +20,6 @@ import type {
   RtTableMeta,
   TableEntry,
   TableFromTypeOptions,
-  rtColNameKey,
   rtNamedColumnKey,
 } from '@mionjs/drizzle-orm';
 import {buildRtTableFromGraph, createRtTable, RtValueRecorder, RtViewBuilder, rtValueKey} from '@mionjs/drizzle-orm';
@@ -28,6 +28,7 @@ import {getRunType} from '@mionjs/run-types';
 import {pgColumnHelpers, type PgColumnHelpers} from './columns.ts';
 import {makeEnumFactory, type pgEnum} from './helpers.ts';
 import {requireColumns, type pgMaterializedView, type pgView} from './views.ts';
+import type {AnyPgTable} from './types.ts';
 
 /** A pg table: ONE type for a pgTable() result and a hand-written `PgTable<'users', {...}>`. */
 export interface PgTable<Name extends string, Cols, Extras extends readonly object[] = [], Names = NoNames>
@@ -37,9 +38,6 @@ export interface PgTable<Name extends string, Cols, Extras extends readonly obje
 /** A pg table with row level security on: the same table minus enableRLS, as drizzle's own `Omit<..., 'enableRLS'>`. */
 export interface PgTableWithRLS<Name extends string, Cols, Extras extends readonly object[] = [], Names = NoNames>
   extends RtTableMeta<Name, Cols, Extras, Names>, RtTableBrand<'pg'> {}
-/** What this package's toDrizzle and tableFromType take, so another dialect's table is a compile error. */
-export type AnyPgTable = PgTableWithRLS<string, Record<string, AnyColumn>, readonly object[], object>;
-
 // Friendly aliases over the TableEntry carrier the runtime bridge and the convert program read.
 /** `index(name).on(...columns by record key)`. */
 export type IndexEntry<Name extends string, On extends readonly string[]> = TableEntry<'index', [Name], {on: EntryColRefs<On>}>;
@@ -70,11 +68,6 @@ export type PrimaryKeyEntry<Name extends string, Columns extends readonly string
 >;
 type ForeignTableRefs<Table extends string, Keys extends readonly string[]> = {[I in keyof Keys]: {table: Table; col: Keys[I]}};
 
-// Maps are inline, never an alias: the resolver serializes an alias's type arguments, the builders' results.
-/** A builders record's columns: each named result unwrapped to its column. */
-export type LiftCols<Cols> = {[K in keyof Cols]: Cols[K] extends {readonly [rtNamedColumnKey]: infer C} ? C : Cols[K]};
-type NameOf<C> = C extends {readonly [rtColNameKey]: infer Name} ? Name : undefined;
-
 /** The extraConfig view of the table's columns: plus the index-position decorators (asc/desc/op). */
 export type PgExtraConfigColumns<Cols> = {[K in keyof Cols]: Cols[K] & RtExtraColumn};
 // `object`, not a union with PgEntryBrand: that brand is a weak type and would reject a real drizzle entry.
@@ -103,6 +96,7 @@ export function pgBuildTable(
     : context.ns.pgTable(name as never, builders as never);
 }
 
+// Maps are inline, never an alias: the resolver serializes an alias's type arguments, the builders' results.
 /** Records the table and returns the SLIM table, not drizzle's own: toDrizzle() from the ./drizzle subpath builds that. */
 export function pgTable<Name extends string, Cols extends Record<string, object>>(
   name: Name,

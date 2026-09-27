@@ -11,16 +11,56 @@
 // Consumers import this shared surface from HERE and the builders from their dialect
 // package; the dialect packages re-export nothing of it.
 
-// Recorder core.
+// The shared type vocabulary: one optional spec sentinel per column, every flag derived lazily from its props.
 export type {
+  AnyColumn,
+  AnyTable,
+  AnyTableRef,
+  BuildTableFn,
+  BuildViewFn,
+  ColBaseFlag,
+  ColMods,
+  ColRef,
+  ColSpecOf,
+  Column,
+  DbNameOf,
   DrizzleContext,
+  EntryColRefs,
+  EntryColumn,
   ExtraConfigScope,
+  IsHasDefault,
+  IsInsertExcluded,
+  IsNotNull,
+  KeyFlagsOf,
+  LiftCols,
+  Merge,
+  NameOf,
+  NamedColumn,
+  NoNames,
+  NoProps,
+  Only,
   PlainDataOf,
+  PropsOf,
+  ReflectedNode,
   RtExtraColumn,
   RtIndexedColumn,
   RtSql,
+  RtTableBrand,
+  RtTableMeta,
+  RtViewBrand,
+  RtViewMeta,
+  RuntimeCallbacks,
+  Sql,
   SqlNamespace,
-} from './recorder.ts';
+  TableDep,
+  TableEntry,
+  TableFromTypeOptions,
+  TableRef,
+  ValueOf,
+  Writable,
+} from './types.ts';
+
+// Recorder core.
 export {
   RtColumnRecorder,
   RtEntryRecorder,
@@ -37,54 +77,19 @@ export {
   sql,
 } from './recorder.ts';
 
-// Column types: one optional spec sentinel per column, every flag derived lazily from its props.
-export type {
-  AnyColumn,
-  ColBaseFlag,
-  ColModName,
-  ColMods,
-  ColRef,
-  ColSpecOf,
-  Column,
-  EntryColRefs,
-  IsHasDefault,
-  IsInsertExcluded,
-  IsNotNull,
-  KeyFlagsOf,
-  Merge,
-  NamedColumn,
-  NoProps,
-  Only,
-  PropsOf,
-  Sql,
-  TableEntry,
-  ValueOf,
-  Writable,
-} from './columns.ts';
+// Column runtime: the sentinel keys, `$type`, the modifier list and the props splitter.
+export type {ColModName} from './columns.ts';
 export {$type, colModNames, isColModName, rtColSpecKey, rtEntrySpecKey, rtSqlTextKey} from './columns.ts';
 export type {rtColNameKey, rtNamedColumnKey} from './columns.ts';
 export {recordColumn} from './columnRecorder.ts';
 
 // Table core.
-export type {
-  AnyTable,
-  AnyTableRef,
-  EntryColumn,
-  BuildTableFn,
-  DbNameOf,
-  NoNames,
-  RtTableBrand,
-  RtTableMeta,
-  TableRef,
-} from './table.ts';
 export {createRtTable, materializeRtTable, refColumn, tableRef} from './table.ts';
 
 // View core: manual-column views only, the query-builder form stays on drizzle (see ./view.ts).
-export type {BuildViewFn, RtViewBrand, RtViewMeta} from './view.ts';
 export {isRtView, materializeRtView, RtViewBuilder} from './view.ts';
 
 // Pure-types runtime bridge, which the dialect packages' tableFromType wrappers build on.
-export type {ReflectedNode, RuntimeCallbacks, TableDep, TableFromTypeOptions} from './fromType.ts';
 export {buildRtTableFromGraph} from './fromType.ts';
 
 // Flat models.

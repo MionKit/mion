@@ -11,42 +11,9 @@
 
 import {isColModName} from './columns.ts';
 import {RtColumnRecorder, RtEntryRecorder, sql} from './recorder.ts';
-import type {RtSql} from './recorder.ts';
-import type {AnyTable, AnyTableRef, BuildTableFn} from './table.ts';
+import type {AnyTableRef, BuildTableFn, ReflectedNode, TableFromTypeOptions} from './types.ts';
 import {createRtTable} from './table.ts';
-import type {ColSpecOf, ValueOf} from './columns.ts';
 
-// An `any` config (AnyTable, a table not known statically) takes any value rather than ValueOf's `any[]` branch.
-type DataOfCol<C> = ColSpecOf<C> extends {config: infer P; data: infer D} ? (0 extends 1 & P ? unknown : ValueOf<P, D>) : never;
-
-/** Per-column runtime callbacks a type cannot carry, keyed like the column's $ markers. */
-export type RuntimeCallbacks<T extends AnyTable> = {
-  [K in keyof T['columns']]?: {
-    $default?: () => DataOfCol<T['columns'][K]> | RtSql;
-    $defaultFn?: () => DataOfCol<T['columns'][K]> | RtSql;
-    $onUpdate?: () => DataOfCol<T['columns'][K]> | RtSql;
-    $onUpdateFn?: () => DataOfCol<T['columns'][K]> | RtSql;
-  };
-};
-export interface TableFromTypeOptions<T extends AnyTable = AnyTable> {
-  tables?: Record<string, TableDep>;
-  runtime?: RuntimeCallbacks<T>;
-}
-
-/** A referenced table, or a thunk returning it. The thunk is what makes a FORWARD reference
- *  spellable: drizzle's references are lazy, so schemas routinely point at a table declared further
- *  down the file, where a bare value in the options object would read it before its declaration. */
-export type TableDep = object | (() => object);
-
-/** Minimal structural view of a reflected RunType node, the walker's whole vocabulary. */
-export interface ReflectedNode {
-  id: string;
-  kind?: unknown;
-  name?: unknown;
-  literal?: unknown;
-  child?: ReflectedNode;
-  children?: ReflectedNode[];
-}
 /** The kind discriminators the walker dispatches on. Local on purpose (no runtime @mionjs/run-types
  *  import here); they mirror runTypeKind.generated.ts, wire-stable by contract and pinned against
  *  RunTypeKind by fromType.spec.ts. */

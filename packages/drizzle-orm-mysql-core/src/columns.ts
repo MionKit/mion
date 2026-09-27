@@ -19,7 +19,7 @@ import type {
   StringTime,
 } from '@mionjs/run-types/formats';
 import {RtValueRecorder, rtValueKey, recordColumn} from '@mionjs/drizzle-orm';
-import type {ColBaseFlag, Column, NamedColumn, NoProps, Only, PropsOf, AnyTableRef} from '@mionjs/drizzle-orm';
+import type {ColBaseFlag, Column, NamedColumn, NoProps, Only, PropsOf} from '@mionjs/drizzle-orm';
 import {mysqlEnum} from './helpers.ts';
 import type {
   BigintData,
@@ -35,6 +35,7 @@ import type {
   MySqlBinaryConfig,
   MySqlCharConfig,
   MySqlColMods,
+  MysqlColIn,
   MySqlDateConfig,
   MySqlDateData,
   MySqlDatetimeConfig,
@@ -42,14 +43,15 @@ import type {
   MySqlDoubleConfig,
   MySqlFloatConfig,
   MySqlIntColMods,
+  MysqlIntIn,
   MySqlIntConfig,
   MySqlRealConfig,
   MySqlTextConfig,
   MySqlTimestampColMods,
+  MysqlTimestampIn,
   MySqlTimestampConfig,
   MySqlVarbinaryOptions,
   MySqlVarCharConfig,
-  ReferenceActions,
   SmallintData,
   TextData,
   TimeConfig,
@@ -58,32 +60,6 @@ import type {
   VarcharData,
   YearData,
 } from './types.ts';
-
-// ── What each builder kind's props take ──────────────────────────────────────
-// The hand-written bags, with the function-carrying keys taking their runtime shape.
-
-// Written out, not an Omit of the hand-written bag: every builder call checks against one, and an interface is cheapest.
-export interface MysqlColIn {
-  notNull?: true;
-  primaryKey?: true;
-  default?: readonly [unknown];
-  unique?: true | readonly [string];
-  generatedAlwaysAs?: readonly [unknown] | readonly [unknown, {mode?: 'virtual' | 'stored'}];
-  $type?: readonly [unknown];
-  references?: readonly [() => AnyTableRef] | readonly [() => AnyTableRef, ReferenceActions];
-  $default?: readonly [() => unknown];
-  $defaultFn?: readonly [() => unknown];
-  $onUpdate?: readonly [() => unknown];
-  $onUpdateFn?: readonly [() => unknown];
-}
-/** Every numeric kind: mysql allows AUTO_INCREMENT on floats and decimal too. */
-export interface MysqlIntIn extends MysqlColIn {
-  autoincrement?: true;
-}
-export interface MysqlTimestampIn extends MysqlColIn {
-  defaultNow?: true;
-  onUpdateNow?: true;
-}
 
 /** What a nameless builder returns; a named call wraps it in NamedColumn. */
 type Built<Fn extends string, C, D, B extends ColBaseFlag = never> = Column<Fn, PropsOf<C>, D, B>;

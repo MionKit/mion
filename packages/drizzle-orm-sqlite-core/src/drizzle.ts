@@ -23,11 +23,9 @@ import type {
   TableFromTypeOptions,
   DrizzleContext,
 } from '@mionjs/drizzle-orm';
-import type {RtSqliteIndexEntry} from './helpers.ts';
 import type {InjectRunTypeId} from '@mionjs/run-types';
 import {tableFromType} from './table.ts';
-import type {AnySqliteTable} from './table.ts';
-import type {AnySqliteView} from './views.ts';
+import type {AnySqliteTable, AnySqliteView, RtSqliteIndexEntry} from './types.ts';
 
 import {
   isRtView,

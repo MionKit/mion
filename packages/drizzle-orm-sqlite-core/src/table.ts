@@ -9,9 +9,10 @@
 // result and a hand-written `SqliteTable<'notes', {...}>` one type. No drizzle import: ./drizzle.ts injects the context.
 
 import type {
-  AnyColumn,
   DrizzleContext,
   EntryColRefs,
+  LiftCols,
+  NameOf,
   NoNames,
   ReflectedNode,
   RtExtraColumn,
@@ -19,19 +20,17 @@ import type {
   RtTableMeta,
   TableEntry,
   TableFromTypeOptions,
-  rtColNameKey,
   rtNamedColumnKey,
 } from '@mionjs/drizzle-orm';
 import {buildRtTableFromGraph, createRtTable, RtValueRecorder} from '@mionjs/drizzle-orm';
 import type {InjectRunTypeId} from '@mionjs/run-types';
 import {getRunType} from '@mionjs/run-types';
 import {sqliteColumnHelpers, type SqliteColumnHelpers} from './columns.ts';
+import type {AnySqliteTable} from './types.ts';
 
 /** A sqlite table: ONE type for a sqliteTable() result and a hand-written `SqliteTable<'users', {...}>`. */
 export interface SqliteTable<Name extends string, Cols, Extras extends readonly object[] = [], Names = NoNames>
   extends RtTableMeta<Name, Cols, Extras, Names>, RtTableBrand<'sqlite'> {}
-export type AnySqliteTable = SqliteTable<string, Record<string, AnyColumn>, readonly object[], object>;
-
 // Friendly aliases over the TableEntry carrier the runtime bridge and the convert program read.
 /** `index(name).on(...columns by record key)`. */
 export type IndexEntry<Name extends string, On extends readonly string[]> = TableEntry<'index', [Name], {on: EntryColRefs<On>}>;
@@ -64,11 +63,6 @@ export type PrimaryKeyEntry<Name extends string, Columns extends readonly string
 >;
 type ForeignTableRefs<Table extends string, Keys extends readonly string[]> = {[I in keyof Keys]: {table: Table; col: Keys[I]}};
 
-// Maps are inline, never an alias: the resolver serializes an alias's type arguments, the builders' results.
-/** A builders record's columns: each named result unwrapped to its column. */
-export type LiftCols<Cols> = {[K in keyof Cols]: Cols[K] extends {readonly [rtNamedColumnKey]: infer C} ? C : Cols[K]};
-type NameOf<C> = C extends {readonly [rtColNameKey]: infer Name} ? Name : undefined;
-
 /** The extraConfig view of the table's columns: plus the index-position decorators. */
 export type SqliteExtraConfigColumns<Cols> = {[K in keyof Cols]: Cols[K] & RtExtraColumn};
 // `object`: SqliteEntryBrand is a weak type and would reject a real drizzle entry.
@@ -97,6 +91,7 @@ export function sqliteBuildTable(
     : context.ns.sqliteTable(name as never, builders as never);
 }
 
+// Maps are inline, never an alias: the resolver serializes an alias's type arguments, the builders' results.
 /** Records the table and returns the SLIM table, not drizzle's own: toDrizzle() from the ./drizzle subpath builds that. */
 export function sqliteTable<Name extends string, Cols extends Record<string, object>>(
   name: Name,

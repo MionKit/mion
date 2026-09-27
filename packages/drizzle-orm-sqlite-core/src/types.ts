@@ -5,11 +5,13 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The sqlite column vocabulary the builders and column types share: each builder's config, the data type it yields,
-// and the modifier bags a column type may spell beside its config keys.
+// The sqlite types shared across files: each builder's config and data type, the modifier bags and props interfaces,
+// and the table, view and entry types toDrizzle takes.
 
 import type {BigInt as RTBigInt, Date as RTDate, Float, Integer as IntegerFormat, String as Str} from '@mionjs/run-types/formats';
-import type {ColMods, ColRef} from '@mionjs/drizzle-orm';
+import type {AnyColumn, AnyTableRef, ColMods, ColRef, RtSql, rtColumnKey} from '@mionjs/drizzle-orm';
+import type {SqliteTable} from './table.ts';
+import type {SqliteView} from './views.ts';
 
 type EnumTuple = readonly [string, ...string[]];
 export type UpdateDeleteAction = 'cascade' | 'restrict' | 'no action' | 'set null' | 'set default';
@@ -88,4 +90,38 @@ export interface CustomTypeParams<T extends CustomTypeValues> {
   dataType(config?: T['config']): string;
   toDriver?(value: T['data']): unknown;
   fromDriver?(value: unknown): T['data'];
+}
+
+// ── What every builder's props take ──────────────────────────────────────────
+// The hand-written bag, with the function-carrying keys taking their runtime shape. sqlite has one builder kind, so one bag.
+
+// Written out, not an Omit of the hand-written bag: every builder call checks against one, and an interface is cheapest.
+export interface SqliteColIn {
+  notNull?: true;
+  primaryKey?: true | readonly [SQLitePrimaryKeyConfig];
+  default?: readonly [unknown];
+  unique?: true | readonly [string];
+  generatedAlwaysAs?: readonly [unknown] | readonly [unknown, {mode?: 'virtual' | 'stored'}];
+  $type?: readonly [unknown];
+  references?: readonly [() => AnyTableRef] | readonly [() => AnyTableRef, ReferenceActions];
+  $default?: readonly [() => unknown];
+  $defaultFn?: readonly [() => unknown];
+  $onUpdate?: readonly [() => unknown];
+  $onUpdateFn?: readonly [() => unknown];
+}
+
+// ── Tables, views and entries ────────────────────────────────────────────────
+
+/** What this package's toDrizzle and tableFromType take, so another dialect's table is a compile error. */
+export type AnySqliteTable = SqliteTable<string, Record<string, AnyColumn>, readonly object[], object>;
+/** What this package's toDrizzle takes for a view. */
+export type AnySqliteView = SqliteView<string, Record<string, AnyColumn>, object>;
+
+/** Common brand of every extraConfig entry. */
+export interface SqliteEntryBrand {
+  readonly [rtColumnKey]?: {rtEntry: true};
+}
+/** An index with its columns: the options drizzle's IndexBuilder takes. */
+export interface RtSqliteIndexEntry extends SqliteEntryBrand {
+  where(condition: RtSql): RtSqliteIndexEntry;
 }

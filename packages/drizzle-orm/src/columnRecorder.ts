@@ -7,7 +7,8 @@
 
 // Splits a single-call builder's props into drizzle's config argument and modifier calls, replayed in key order.
 
-import {RtColumnRecorder, type DrizzleContext} from './recorder.ts';
+import {RtColumnRecorder} from './recorder.ts';
+import type {DrizzleContext} from './types.ts';
 import {isColModName} from './columns.ts';
 import {refColumn} from './table.ts';
 

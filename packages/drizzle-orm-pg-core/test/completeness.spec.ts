@@ -37,6 +37,7 @@ const INTERNAL_ENTRY_METHODS = new Set(['build']);
 
 const sourceOf = (file: string) => readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../src', file), 'utf8');
 const columnsSource = sourceOf('columns.ts');
+const typesSource = sourceOf('types.ts');
 
 /** The keys an exported interface declares, its `extends` parents' included. */
 function interfaceKeys(source: string, name: string): Set<string> {
@@ -95,7 +96,7 @@ describe('pg slim surface: modifier completeness against drizzle', () => {
     it(`${fnName}: the props object takes exactly drizzle's modifiers`, () => {
       const propsInterface = propsInterfaceOf.get(fnName);
       expect(propsInterface, `no props interface found for ${fnName}`).toBeDefined();
-      const propsKeys = interfaceKeys(columnsSource, propsInterface!);
+      const propsKeys = interfaceKeys(typesSource, propsInterface!);
       const modifiers = runtimeMethods(builder).filter((method) => !INTERNAL_COLUMN_METHODS.has(method));
       expect(
         modifiers.filter((method) => !propsKeys.has(method)),
@@ -115,7 +116,7 @@ describe('pg slim surface: modifier completeness against drizzle', () => {
       (method) => !INTERNAL_ENTRY_METHODS.has(method)
     );
     expect([...interfaceKeys(helpersSource, 'RtIndexBuilderOn')].sort()).toEqual(start);
-    expect([...interfaceKeys(helpersSource, 'RtIndexEntry')].sort()).toEqual(options);
+    expect([...interfaceKeys(helpersSource + typesSource, 'RtIndexEntry')].sort()).toEqual(options);
   });
 
   it('entry builders: every entry chain drizzle has is covered', () => {

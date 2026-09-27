@@ -10,16 +10,14 @@
 
 // The mysql column builders and their column types.
 export * from './columns.ts';
-// The config, data and modifier-bag types the builders and column types share.
+// The types shared across files: configs, data, modifier bags, props interfaces, Any* tables and views, entries.
 export * from './types.ts';
 
 export {mysqlTable, mysqlTableCreator, mysqlSchema, tableFromType} from './table.ts';
 export type {
-  AnyMysqlTable,
   CheckEntry,
   ForeignKeyEntry,
   IndexEntry,
-  LiftCols,
   MySqlSchema,
   MysqlExtraConfigColumns,
   MysqlExtraConfigEntry,
@@ -39,7 +37,6 @@ export * from './helpers.ts';
 // Views, the manual-column form only (the query-builder form stays on drizzle).
 export {mysqlView} from './views.ts';
 export type {
-  AnyMysqlView,
   MySqlViewAlgorithm,
   MySqlViewCheckOption,
   MySqlViewSecurity,

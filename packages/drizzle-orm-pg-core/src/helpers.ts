@@ -22,14 +22,8 @@ import type {
   RtSql,
 } from '@mionjs/drizzle-orm';
 import {recordColumn, refColumn, RtEntryRecorder, RtValueRecorder, rtColumnKey, rtValueKey} from '@mionjs/drizzle-orm';
-import type {PgColIn} from './columns.ts';
-import type {UpdateDeleteAction} from './types.ts';
+import type {PgColIn, PgEntryBrand, RtIndexEntry, UpdateDeleteAction} from './types.ts';
 import type {PgSequence, PgSequenceOptions} from './table.ts';
-
-/** Common brand of every extraConfig entry (what the callback's array holds). */
-export interface PgEntryBrand {
-  readonly [rtColumnKey]?: {rtEntry: true};
-}
 
 /** What an index position accepts: a column, a decorated column, or sql. */
 export type PgIndexColumn = EntryColumn | RtIndexedColumn | RtSql;
@@ -40,12 +34,6 @@ export interface RtIndexBuilderOn {
   on(...columns: [PgIndexColumn, ...PgIndexColumn[]]): RtIndexEntry;
   using(method: string, ...columns: [PgIndexColumn, ...PgIndexColumn[]]): RtIndexEntry;
   onOnly(...columns: [PgIndexColumn, ...PgIndexColumn[]]): RtIndexEntry;
-}
-/** An index with its columns: the options drizzle's IndexBuilder takes. */
-export interface RtIndexEntry extends PgEntryBrand {
-  concurrently(): RtIndexEntry;
-  where(condition: RtSql): RtIndexEntry;
-  with(config: Record<string, unknown>): RtIndexEntry;
 }
 export function index(name?: string): RtIndexBuilderOn {
   return new RtEntryRecorder('index', name === undefined ? [] : [name]) as unknown as RtIndexBuilderOn;

@@ -8,7 +8,7 @@
 // Dialect-free core of the table fuzz suites; each dialect's test/tableSpecShared.ts binds it with specTools(dialect)
 // and adds its own getTableConfig projection and views.
 
-import type {ReflectedNode} from '../src/fromType.ts';
+import type {ReflectedNode} from '../src/types.ts';
 import {reflectedKinds} from '../src/fromType.ts';
 
 // ── the random table spec ────────────────────────────────────────────────────

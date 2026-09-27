@@ -11,16 +11,14 @@
 
 // The pg column builders and their column types.
 export * from './columns.ts';
-// The config, data and modifier-bag types the builders and column types share.
+// The types shared across files: configs, data, modifier bags, props interfaces, Any* tables and views, entries.
 export * from './types.ts';
 
 export {pgTable, pgTableCreator, pgSchema, tableFromType} from './table.ts';
 export type {
-  AnyPgTable,
   CheckEntry,
   ForeignKeyEntry,
   IndexEntry,
-  LiftCols,
   PgExtraConfigColumns,
   PgExtraConfigEntry,
   PgExtraConfigFn,
@@ -40,7 +38,6 @@ export type {ColRef, Sql, TableEntry} from '@mionjs/drizzle-orm';
 // Indexes, constraints, checks, enums, sequences, policies, roles.
 export {check, foreignKey, index, pgEnum, pgPolicy, pgRole, pgSequence, primaryKey, unique, uniqueIndex} from './helpers.ts';
 export type {
-  PgEntryBrand,
   PgEnum,
   PgEnumObject,
   PgForeignKeyConfig,
@@ -52,7 +49,6 @@ export type {
   RtCheckEntry,
   RtForeignKeyEntry,
   RtIndexBuilderOn,
-  RtIndexEntry,
   RtLinkedPolicy,
   RtPolicyEntry,
   RtPrimaryKeyEntry,
@@ -61,7 +57,7 @@ export type {
 
 // Views, the manual-column form only (the query-builder form stays on drizzle).
 export {pgMaterializedView, pgView} from './views.ts';
-export type {AnyPgView, PgMaterializedViewBuilder, PgView, PgViewBuilder, ViewFromQueryBuilderNotSupported} from './views.ts';
+export type {PgMaterializedViewBuilder, PgView, PgViewBuilder, ViewFromQueryBuilderNotSupported} from './views.ts';
 
 // PgDate doubles as `Date`, the same global-shadowing convention the runtype formats use.
 export type {PgDate as Date} from './columns.ts';

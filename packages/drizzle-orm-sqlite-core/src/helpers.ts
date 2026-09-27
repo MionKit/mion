@@ -9,13 +9,8 @@
 // names and call shapes and recorder returns.
 
 import type {AnyTableRef, EntryColumn, RtIndexedColumn, RtSql} from '@mionjs/drizzle-orm';
-import {refColumn, RtEntryRecorder, rtColumnKey} from '@mionjs/drizzle-orm';
-import type {UpdateDeleteAction} from './types.ts';
-
-/** Common brand of every extraConfig entry. */
-export interface SqliteEntryBrand {
-  readonly [rtColumnKey]?: {rtEntry: true};
-}
+import {refColumn, RtEntryRecorder} from '@mionjs/drizzle-orm';
+import type {RtSqliteIndexEntry, SqliteEntryBrand, UpdateDeleteAction} from './types.ts';
 
 export type SqliteIndexColumn = EntryColumn | RtIndexedColumn | RtSql;
 
@@ -23,10 +18,6 @@ export type SqliteIndexColumn = EntryColumn | RtIndexedColumn | RtSql;
 /** `index(name)` before its columns: only `on`. */
 export interface RtSqliteIndexBuilderOn {
   on(...columns: [SqliteIndexColumn, ...SqliteIndexColumn[]]): RtSqliteIndexEntry;
-}
-/** An index with its columns: the options drizzle's IndexBuilder takes. */
-export interface RtSqliteIndexEntry extends SqliteEntryBrand {
-  where(condition: RtSql): RtSqliteIndexEntry;
 }
 export function index(name: string): RtSqliteIndexBuilderOn {
   return new RtEntryRecorder('index', [name]) as unknown as RtSqliteIndexBuilderOn;

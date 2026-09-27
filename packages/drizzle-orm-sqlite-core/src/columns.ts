@@ -10,7 +10,7 @@
 
 import type {Float, Integer as IntegerFormat, String as Str} from '@mionjs/run-types/formats';
 import {RtValueRecorder, rtValueKey, recordColumn} from '@mionjs/drizzle-orm';
-import type {ColBaseFlag, Column, NamedColumn, NoProps, Only, PropsOf, AnyTableRef} from '@mionjs/drizzle-orm';
+import type {ColBaseFlag, Column, NamedColumn, NoProps, Only, PropsOf} from '@mionjs/drizzle-orm';
 import type {
   BlobConfig,
   BlobData,
@@ -19,31 +19,12 @@ import type {
   IntegerConfig,
   IntegerData,
   NumericData,
-  ReferenceActions,
+  SqliteColIn,
   SqliteColMods,
   SQLiteNumericConfig,
-  SQLitePrimaryKeyConfig,
   SQLiteTextConfig,
   TextData,
 } from './types.ts';
-
-// ── What every builder's props take ──────────────────────────────────────────
-// The hand-written bag, with the function-carrying keys taking their runtime shape. sqlite has one builder kind, so one bag.
-
-// Written out, not an Omit of the hand-written bag: every builder call checks against one, and an interface is cheapest.
-export interface SqliteColIn {
-  notNull?: true;
-  primaryKey?: true | readonly [SQLitePrimaryKeyConfig];
-  default?: readonly [unknown];
-  unique?: true | readonly [string];
-  generatedAlwaysAs?: readonly [unknown] | readonly [unknown, {mode?: 'virtual' | 'stored'}];
-  $type?: readonly [unknown];
-  references?: readonly [() => AnyTableRef] | readonly [() => AnyTableRef, ReferenceActions];
-  $default?: readonly [() => unknown];
-  $defaultFn?: readonly [() => unknown];
-  $onUpdate?: readonly [() => unknown];
-  $onUpdateFn?: readonly [() => unknown];
-}
 
 /** What a nameless builder returns; a named call wraps it in NamedColumn. */
 type Built<Fn extends string, C, D, B extends ColBaseFlag = never> = Column<Fn, PropsOf<C>, D, B>;

@@ -8,16 +8,7 @@
 // MANUAL-COLUMN views only. `sqliteView(name)` with no columns (the query-builder form) is NOT supported: its columns
 // come from drizzle's select typing (packages/drizzle-orm/CLAUDE.md).
 
-import type {
-  AnyColumn,
-  DrizzleContext,
-  NoNames,
-  RtSql,
-  RtViewBrand,
-  RtViewMeta,
-  rtColNameKey,
-  rtNamedColumnKey,
-} from '@mionjs/drizzle-orm';
+import type {DrizzleContext, NameOf, NoNames, RtSql, RtViewBrand, RtViewMeta, rtNamedColumnKey} from '@mionjs/drizzle-orm';
 import {RtViewBuilder} from '@mionjs/drizzle-orm';
 
 /** The stand-in a columnless `sqliteView(name)` returns: no `as`, so the query-builder form fails naming itself. */
@@ -39,19 +30,15 @@ export function requireColumns(fn: string, name: string, columns: Record<string,
   );
 }
 
-// Inline maps, never aliases over the builders record: see sqliteTable in ./table.ts.
-type NameOf<C> = C extends {readonly [rtColNameKey]: infer Name} ? Name : undefined;
-
 export interface SqliteView<Name extends string, Cols, Names = NoNames>
   extends RtViewMeta<Name, Cols, Names>, RtViewBrand<'sqlite'> {}
-export type AnySqliteView = SqliteView<string, Record<string, AnyColumn>, object>;
-
 // sqlite views take no options before the terminal call.
 export interface SqliteViewBuilder<Name extends string, Cols, Names> {
   as(query: RtSql): SqliteView<Name, Cols, Names>;
   existing(): SqliteView<Name, Cols, Names>;
 }
 
+// Inline maps, never aliases over the builders record: see sqliteTable in ./table.ts.
 export function sqliteView<Name extends string, Cols extends Record<string, object>>(
   name: Name,
   columns: Cols

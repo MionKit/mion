@@ -34,9 +34,9 @@ import {
   rtValueKey,
 } from '@mionjs/drizzle-orm';
 import type {InjectRunTypeId} from '@mionjs/run-types';
-import type {PgEnum, PgEnumObject, PgRole, RtIndexEntry, RtLinkedPolicy, RtPolicyEntry} from './helpers.ts';
-import {tableFromType, type AnyPgTable, type PgSchema, type PgSequence} from './table.ts';
-import type {AnyPgView} from './views.ts';
+import type {PgEnum, PgEnumObject, PgRole, RtLinkedPolicy, RtPolicyEntry} from './helpers.ts';
+import {tableFromType, type PgSchema, type PgSequence} from './table.ts';
+import type {AnyPgTable, AnyPgView, RtIndexEntry} from './types.ts';
 
 const context: DrizzleContext = {
   ns: dzPg as unknown as DrizzleContext['ns'],

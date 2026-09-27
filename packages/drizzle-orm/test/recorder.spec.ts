@@ -11,14 +11,8 @@
 // getTableConfig.
 
 import {describe, it, expect} from 'vitest';
-import {
-  RtColumnRecorder,
-  RtEntryRecorder,
-  RtValueRecorder,
-  sql,
-  type DrizzleContext,
-  type SqlNamespace,
-} from '../src/recorder.ts';
+import {RtColumnRecorder, RtEntryRecorder, RtValueRecorder, sql} from '../src/recorder.ts';
+import type {DrizzleContext, SqlNamespace} from '../src/types.ts';
 import {createRtTable, materializeRtTable, tableRef} from '../src/table.ts';
 import {recordColumn} from '../src/columnRecorder.ts';
 

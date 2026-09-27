@@ -7,7 +7,7 @@
 
 // Slim columns RECORD their creation and modifier calls and replay them 1:1 against drizzle when a table
 // materializes. Drizzle arrives through a DrizzleContext from the dialect's toDrizzle module, so drizzle-orm
-// stays an OPTIONAL peer. Runtime only; the column TYPES live in ./columns.ts.
+// stays an OPTIONAL peer. Runtime only; the types live in ./types.ts.
 
 /** Phantom key branding the recorder types (sql, index positions, entries); never set at runtime. */
 export const rtColumnKey: unique symbol = Symbol('rtColumn');
@@ -30,60 +30,9 @@ export const rtRefTargetKey: unique symbol = Symbol('rtRefTarget');
  *  RtValueRecorder under, so the dialect's toDrizzle can materialize it. */
 export const rtValueKey: unique symbol = Symbol('rtValue');
 
-import type {FormatNameOf, NominalBrand} from '@mionjs/run-types';
-
-/** A column's data type with its runtype FORMAT tag dropped. Right on the slim side, where the tag
- *  makes a schema double as a runtypes type; wrong on the drizzle side, where toDrizzle()'s rows must
- *  be exactly drizzle's own or a migrated schema is not a drop-in replacement. Dropping it costs
- *  nothing: a plain format tag is TRANSPARENT (optional sentinels, so tagged type and base are
- *  mutually assignable). A NOMINAL brand (`String<P, 'UserId'>`) is kept, its marker being REQUIRED,
- *  and dropping it would stop a queried row going back into the model it came from. Tuples are left
- *  alone: pg's `point({mode: 'tuple'})` is `[number, number]`, mapping it would flatten it to `number[]`. */
-type LengthOf<T> = T extends {length: infer L} ? L : never;
-type ElementOf<T> = T extends readonly (infer E)[] ? E : never;
-export type PlainDataOf<T> = [T] extends [readonly unknown[]]
-  ? number extends LengthOf<T>
-    ? PlainDataOf<ElementOf<T>>[]
-    : T
-  : [FormatNameOf<T>] extends [never]
-    ? T
-    : [T] extends [NominalBrand<string>]
-      ? T
-      : [T] extends [Date]
-        ? Date
-        : [T] extends [string]
-          ? string
-          : [T] extends [number]
-            ? number
-            : [T] extends [bigint]
-              ? bigint
-              : T;
-
-/** What a dialect's toDrizzle module injects into materialization. Typed loosely on purpose: this
- *  package never sees drizzle's types. */
-export interface DrizzleContext {
-  /** The dialect namespace (`drizzle-orm/pg-core`, `drizzle-orm/mysql-core`, ...). */
-  ns: Record<string, (...args: never[]) => unknown>;
-  /** The root `sql` export of drizzle-orm. Only the tagged template and `raw` are typed here. */
-  sqlNs: SqlNamespace;
-}
-export interface SqlNamespace {
-  (strings: TemplateStringsArray, ...values: unknown[]): unknown;
-  raw(query: string): unknown;
-}
-
-interface RecordedCall {
-  method: string;
-  args: unknown[];
-}
+import type {DrizzleContext, ExtraConfigScope, RecordedCall, RtSql} from './types.ts';
 
 // ── sql recorder ─────────────────────────────────────────────────────────────
-
-/** Opaque type of a recorded sql template, accepted wherever the authoring surface accepts SQL
- *  (defaults, checks, generated columns, index where-clauses). */
-export interface RtSql {
-  readonly [rtColumnKey]?: {rtSql: true};
-}
 
 export class RtSqlRecorder {
   constructor(
@@ -106,16 +55,6 @@ sql.raw = (query: string): RtSql => new RtSqlRecorder(undefined, [], query) as u
 
 // ── column recorder ──────────────────────────────────────────────────────────
 
-/** A column reference decorated for an index position (`t.name.asc()` inside extraConfig), produced
- *  WITHOUT touching the column's own recorded calls. */
-export interface RtIndexedColumn {
-  readonly [rtColumnKey]?: {rtIndexedColumn: true};
-  asc(): RtIndexedColumn;
-  desc(): RtIndexedColumn;
-  nullsFirst(): RtIndexedColumn;
-  nullsLast(): RtIndexedColumn;
-  op(op: string): RtIndexedColumn;
-}
 class RtIndexedColumnImpl {
   calls: RecordedCall[] = [];
   constructor(readonly column: RtColumnRecorder) {}
@@ -139,10 +78,6 @@ class RtIndexedColumnImpl {
     return this.chain('op', [op]);
   }
 }
-
-/** The extraConfig view of a column: only the index-position decorators. The runtime objects are the
- *  recorders themselves, which carry these methods. */
-export type RtExtraColumn = RtIndexedColumn;
 
 /** Runtime shape of every slim column: its builder's `init`, then the recorded modifier calls in order. */
 export class RtColumnRecorder {
@@ -345,13 +280,6 @@ export class RtValueRecorder {
 
 // ── recorded-argument resolution ─────────────────────────────────────────────
 
-/** The extraConfig replay scope: WHICH table is materializing and the columns
- *  drizzle handed its extraConfig callback. */
-export interface ExtraConfigScope {
-  table: object;
-  columns: Record<string, unknown>;
-}
-
 /** Resolve one recorded value to its drizzle counterpart. Set by table.ts to break the module cycle
  *  (resolving a column materializes its table). */
 export let resolveRecorded: (value: unknown, context: DrizzleContext, extra?: ExtraConfigScope) => unknown = () => {
@@ -402,9 +330,4 @@ function mapRecordedArg(value: unknown, context: DrizzleContext, extra?: ExtraCo
   return value;
 }
 
-/** Internal view of RtIndexedColumnImpl for table.ts. */
-export interface IndexedColumnInternal {
-  column: RtColumnRecorder;
-  calls: RecordedCall[];
-}
 export const RtIndexedColumnClass = RtIndexedColumnImpl;

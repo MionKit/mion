@@ -20,7 +20,7 @@ import type {
   UUID,
 } from '@mionjs/run-types/formats';
 import {RtValueRecorder, rtValueKey, recordColumn} from '@mionjs/drizzle-orm';
-import type {ColBaseFlag, Column, NamedColumn, NoProps, Only, PropsOf, AnyTableRef} from '@mionjs/drizzle-orm';
+import type {ColBaseFlag, Column, NamedColumn, NoProps, Only, PropsOf} from '@mionjs/drizzle-orm';
 import type {
   BigintData,
   BitData,
@@ -34,57 +34,30 @@ import type {
   PgBigIntConfig,
   PgBitConfig,
   PgCharConfig,
+  PgColIn,
   PgColMods,
   PgDateColMods,
   PgDateConfig,
   PgDateData,
+  PgDateIn,
   PgGeometryConfig,
-  PgIdentityConfig,
   PgIntColMods,
+  PgIntIn,
   PgLineConfig,
   PgNumericConfig,
   PgPointConfig,
   PgTextConfig,
   PgTimestampConfig,
   PgUuidColMods,
+  PgUuidIn,
   PgVarcharConfig,
   PgVectorConfig,
   PointData,
-  ReferenceActions,
   TextData,
   TimeConfig,
   TimestampData,
   VarcharData,
 } from './types.ts';
-
-// ── What each builder kind's props take ──────────────────────────────────────
-// The hand-written bags, with the function-carrying keys taking their runtime shape.
-
-// Written out, not an Omit of the hand-written bag: every builder call checks against one, and an interface is cheapest.
-export interface PgColIn {
-  notNull?: true;
-  primaryKey?: true;
-  default?: readonly [unknown];
-  unique?: true | readonly [string] | readonly [string, {nulls: 'distinct' | 'not distinct'}];
-  generatedAlwaysAs?: readonly [unknown];
-  array?: true | readonly [number];
-  $type?: readonly [unknown];
-  references?: readonly [() => AnyTableRef] | readonly [() => AnyTableRef, ReferenceActions];
-  $default?: readonly [() => unknown];
-  $defaultFn?: readonly [() => unknown];
-  $onUpdate?: readonly [() => unknown];
-  $onUpdateFn?: readonly [() => unknown];
-}
-export interface PgDateIn extends PgColIn {
-  defaultNow?: true;
-}
-export interface PgUuidIn extends PgColIn {
-  defaultRandom?: true;
-}
-export interface PgIntIn extends PgColIn {
-  generatedAlwaysAsIdentity?: true | readonly [PgIdentityConfig];
-  generatedByDefaultAsIdentity?: true | readonly [PgIdentityConfig];
-}
 
 /** What a nameless builder returns; a named call wraps it in NamedColumn. */
 type Built<Fn extends string, C, D, B extends ColBaseFlag = never> = Column<Fn, PropsOf<C>, D, B>;

@@ -13,8 +13,8 @@
 
 import {describe, it, expect} from 'vitest';
 import {RunTypeKind} from '@mionjs/run-types';
-import type {DrizzleContext} from '../src/recorder.ts';
-import {buildRtTableFromGraph, reflectedKinds, type ReflectedNode} from '../src/fromType.ts';
+import type {DrizzleContext, ReflectedNode} from '../src/types.ts';
+import {buildRtTableFromGraph, reflectedKinds} from '../src/fromType.ts';
 import {materializeRtTable} from '../src/table.ts';
 
 // ── tiny node builders ───────────────────────────────────────────────────────

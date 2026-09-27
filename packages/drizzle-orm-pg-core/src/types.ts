@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The pg column vocabulary the builders and column types share: each builder's config, the data type it yields,
-// and the modifier bags a column type may spell beside its config keys.
+// The pg types shared across files: each builder's config and data type, the modifier bags and props interfaces,
+// and the table, view and entry types toDrizzle takes.
 
 import type {
   BigInt64,
@@ -17,7 +17,9 @@ import type {
   StringDate,
   StringDateTime,
 } from '@mionjs/run-types/formats';
-import type {ColMods, ColRef} from '@mionjs/drizzle-orm';
+import type {AnyColumn, AnyTableRef, ColMods, ColRef, RtSql, rtColumnKey} from '@mionjs/drizzle-orm';
+import type {PgTableWithRLS} from './table.ts';
+import type {PgView} from './views.ts';
 
 type EnumTuple = readonly [string, ...string[]];
 /** A wide enum config (plain string[]) carries no literal union: fall back. */
@@ -160,4 +162,51 @@ export interface CustomTypeParams<T extends CustomTypeValues> {
   dataType(config?: T['config']): string;
   toDriver?(value: T['data']): unknown;
   fromDriver?(value: unknown): T['data'];
+}
+
+// ── What each builder kind's props take ──────────────────────────────────────
+// The hand-written bags, with the function-carrying keys taking their runtime shape.
+
+// Written out, not an Omit of the hand-written bag: every builder call checks against one, and an interface is cheapest.
+export interface PgColIn {
+  notNull?: true;
+  primaryKey?: true;
+  default?: readonly [unknown];
+  unique?: true | readonly [string] | readonly [string, {nulls: 'distinct' | 'not distinct'}];
+  generatedAlwaysAs?: readonly [unknown];
+  array?: true | readonly [number];
+  $type?: readonly [unknown];
+  references?: readonly [() => AnyTableRef] | readonly [() => AnyTableRef, ReferenceActions];
+  $default?: readonly [() => unknown];
+  $defaultFn?: readonly [() => unknown];
+  $onUpdate?: readonly [() => unknown];
+  $onUpdateFn?: readonly [() => unknown];
+}
+export interface PgDateIn extends PgColIn {
+  defaultNow?: true;
+}
+export interface PgUuidIn extends PgColIn {
+  defaultRandom?: true;
+}
+export interface PgIntIn extends PgColIn {
+  generatedAlwaysAsIdentity?: true | readonly [PgIdentityConfig];
+  generatedByDefaultAsIdentity?: true | readonly [PgIdentityConfig];
+}
+
+// ── Tables, views and entries ────────────────────────────────────────────────
+
+/** What this package's toDrizzle and tableFromType take, so another dialect's table is a compile error. */
+export type AnyPgTable = PgTableWithRLS<string, Record<string, AnyColumn>, readonly object[], object>;
+/** What this package's toDrizzle takes for a view. */
+export type AnyPgView = PgView<string, Record<string, AnyColumn>, object>;
+
+/** Common brand of every extraConfig entry (what the callback's array holds). */
+export interface PgEntryBrand {
+  readonly [rtColumnKey]?: {rtEntry: true};
+}
+/** An index with its columns: the options drizzle's IndexBuilder takes. */
+export interface RtIndexEntry extends PgEntryBrand {
+  concurrently(): RtIndexEntry;
+  where(condition: RtSql): RtIndexEntry;
+  with(config: Record<string, unknown>): RtIndexEntry;
 }
