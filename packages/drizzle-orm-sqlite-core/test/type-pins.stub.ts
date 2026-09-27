@@ -627,6 +627,10 @@ integer({primaryKey: true, autoincrement: true});
 text({unique: ['uq', {nulls: 'distinct'}]});
 // @ts-expect-error real takes no mode
 real({mode: 'number'});
+// @ts-expect-error a modifier set to undefined, which recordColumn would throw on
+real({notNull: undefined});
+// @ts-expect-error a hand-written modifier set to undefined
+export type UndefinedMod = Real<{notNull: undefined}>;
 
 // ── refinement rejections ────────────────────────────────────────────────────
 
