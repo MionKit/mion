@@ -18,8 +18,12 @@ import type {RtColumnRecorder, rtColumnKey, rtTableBrand, rtViewBrand} from './r
 /** The intrinsic flag names a builder may declare (serial-likes, sqlite rowid, mysql serial). */
 export type ColBaseFlag = 'notNull' | 'hasDefault' | 'primaryKeyHasDefault' | 'autoincrement';
 
-/** A props constraint that also rejects stray keys: a `const` type parameter gets no excess-property check. */
-export type Only<P, Allowed> = {[K in keyof P]: K extends keyof Allowed ? Allowed[K] : never};
+/** A props constraint that also rejects stray keys (a `const` type parameter gets no excess-property check). */
+export type Only<P, Allowed> = {[K in keyof P]: K extends keyof Allowed ? Allowed[K] : never} & DefinedValues;
+// A key set to `undefined` reads as set (NOT NULL) but the runtime refuses it; an index signature is cheaper than an Exclude.
+interface DefinedValues {
+  readonly [key: string]: NonNullable<unknown> | null;
+}
 
 /** Props of a column with no config and no modifier. */
 export type NoProps = Record<never, never>;

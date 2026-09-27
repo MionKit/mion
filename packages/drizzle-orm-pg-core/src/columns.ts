@@ -64,11 +64,7 @@ type Built<Fn extends string, C, D, B extends ColBaseFlag = never> = Column<Fn, 
 
 // ── Hand-written aliases + builders ──────────────────────────────────────────
 
-export type Bigint<P extends Only<P, PgBigIntConfig & PgIntColMods> = PgBigIntConfig<'number'>> = Column<
-  'bigint',
-  P,
-  BigintData<P>
->;
+export type Bigint<P extends Only<P, PgBigIntConfig & PgIntColMods> = {mode: 'number'}> = Column<'bigint', P, BigintData<P>>;
 export function bigint<N extends string, const C extends Only<C, PgBigIntConfig & PgIntIn>>(
   name: N,
   props: C
@@ -78,7 +74,7 @@ export function bigint(...args: unknown[]) {
   return recordNsColumn('bigint', args);
 }
 
-export type Bigserial<P extends Only<P, PgBigIntConfig & PgColMods> = PgBigIntConfig<'number'>> = Column<
+export type Bigserial<P extends Only<P, PgBigIntConfig & PgColMods> = {mode: 'number'}> = Column<
   'bigserial',
   P,
   BigintData<P>,
