@@ -68,8 +68,7 @@ async function ensureConnection(tsconfig: string, binary: string): Promise<Resol
   // An unset tsconfig is discovered as tsc does, with its FULL options, so lint type-checks like the build.
   // Single-threaded: one file at a time, and a light child keeps editor/CI hosts under process and memory limits.
   const binaryPath = binary ? resolveConfiguredBinary(binary) : getExePath();
-  const options = LINT_RESOLVER_OPTIONS;
-  const args = buildResolverArgs(process.cwd(), tsconfig, options);
+  const args = buildResolverArgs(process.cwd(), tsconfig, LINT_RESOLVER_OPTIONS);
   if (shim?.stdin && shim.stdout && shim.exitCode === null) {
     const launcher = shim;
     launcher.stdin!.write(JSON.stringify({exec: binaryPath, args}) + '\n');
@@ -78,7 +77,7 @@ async function ensureConnection(tsconfig: string, binary: string): Promise<Resol
     connection = stream;
     return connection;
   }
-  connection = new ResolverClient(binaryPath, process.cwd(), tsconfig, options);
+  connection = new ResolverClient(binaryPath, process.cwd(), tsconfig, LINT_RESOLVER_OPTIONS);
   return connection;
 }
 

@@ -15,9 +15,6 @@ import type {
   TransformResult,
 } from './protocol.ts';
 
-/** The CLI spelling of the plugin's `bundleApi` boolean (`--bundle-api`). */
-export type ResolverBundleApi = 'bundled' | 'off';
-
 export interface ResolverClientOptions {
   // Spawns `serve --sources stdin` and writes this map as the first stdin line (JSON `{"sources": …}`) before any
   // request. Keys are paths relative to `cwd`, values TS source. No on-disk tsconfig is needed: the Go side builds
@@ -90,7 +87,7 @@ export interface ResolverClientOptions {
   // where the bundleApi lane resolves the routes' types. Undefined means the API is in this program.
   apiTsconfig?: string;
   // Forwarded as --bundle-api; unset leaves the binary's default, 'bundled'.
-  bundleApi?: ResolverBundleApi;
+  bundleApi?: 'bundled' | 'off';
   // Forwarded as --transform-relative: rewrite the injected import block's `rtmod:` specifiers to paths relative to
   // the resolved output root (files mode). The bundler plugin always sets it; the virtual-module lanes (batchcompile
   // pass 1, the transform-wire bench, the inline test lane) leave it off. Session config: every consumer is homogeneous.

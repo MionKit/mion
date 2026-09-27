@@ -11,6 +11,7 @@ import path from 'node:path';
 import {toRunTypesOptions} from '../src/options.ts';
 import {withMion} from '../src/next/index.ts';
 import {mionVitePlugin} from '../src/vite/index.ts';
+import runtypesVite from '../src/runtypes/vite.ts';
 
 describe('toRunTypesOptions — the mapping both presets share', () => {
   it('rejects emitMode functions, which mion can never support', () => {
@@ -115,6 +116,11 @@ describe('the api pointer and bundleApi — the client build bundles what it cal
   it('rejects an empty pointer and a bundleApi that is not a boolean', () => {
     expect(() => toRunTypesOptions({}, undefined, {api: {tsConfig: ''}})).toThrow(/api\.tsConfig/);
     expect(() => toRunTypesOptions({}, undefined, {bundleApi: 'all' as never})).toThrow(/bundleApi must be true or false/);
+  });
+
+  it('is refused by the plain adapters too, before any resolver starts', async () => {
+    const plugin = runtypesVite({bundleApi: 'off' as never}) as unknown as {buildStart: () => Promise<void>};
+    await expect(plugin.buildStart()).rejects.toThrow(/bundleApi must be true or false \(got "off"\)/);
   });
 
   it('is reached through BOTH presets', async () => {
