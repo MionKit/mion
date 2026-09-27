@@ -347,7 +347,7 @@ pass, it reads the brand member each column already carries.)
 | 40 columns, both models    |  2213 | 4804 (+117%) |
 
 A mapped type per modifier call is far too expensive for the builder road. (The
-side-by-side columns below revisit this with a different shape.)
+single-call columns below revisit this with a different shape.)
 
 ### ColumnFormat, modifiers accumulated by intersection
 
@@ -368,16 +368,16 @@ runtype formats, no key flags, no `$type`, no arrays, no reflection sentinels. E
 feature added moves the crossover down. The apparent win is the prototype's simplicity,
 not the design's.
 
-The side-by-side columns below, a full implementation, do win at every width.
+The single-call columns below, a full implementation, do win at every width.
 
 That is the trap in this whole area, and it is worth stating plainly: a small prototype of
 a new column design will always look good next to the real one. The bag-flattening figures
 above are the honest measurement, because both sides are real code.
 
-## Side by side: columns as type formats (the `next/` folders)
+## SHIPPED: single-call columns, the column type IS the builder's result
 
-A second column system lives beside the shipped one, in `packages/drizzle-orm/next/` and each
-dialect's `next/` (pg, mysql, sqlite). Nothing ships from those folders. Its shape:
+The chained column system is gone. Its replacement was built beside it first and measured in
+one run against it; the figures below are that run, frozen when the chained system was removed.
 
 - A column type is `Column<Fn, Props, Data, Base>`: one optional spec sentinel holding the
   builder fn, the raw props (config keys and modifier calls in one object), the data and the
@@ -395,27 +395,60 @@ dialect's `next/` (pg, mysql, sqlite). Nothing ships from those folders. Its sha
 
 The live numbers are in
 [`reports/column-formats.md`](../private-type-budget/reports/column-formats.md), measured by
-[`columnFormats.compile.test.ts`](../private-type-budget/test/columnFormats.compile.test.ts)
-in one run beside the shipped system. A snapshot, 2026-09-25:
+[`columnFormats.compile.test.ts`](../private-type-budget/test/columnFormats.compile.test.ts).
 
-| Shape                        | shipped builders | shipped types | new types | new builders |
-| ---------------------------- | ---------------: | ------------: | --------: | -----------: |
-| 5 mixed, select              |              570 |           971 |       539 |          888 |
-| 5 mixed, select + insert     |             1036 |          1437 |      1132 |         1691 |
-| 40 plain, db name per column |              565 |          2418 |       480 |         1219 |
-| 20 plain, nameless           |              325 |           494 |       300 |          461 |
-| wide vocabulary              |              676 |          1175 |       702 |         1165 |
-| refineTableType              |             1352 |          1752 |      1277 |         1694 |
-| toDrizzle + three queries    |             8643 |          9461 |      8812 |        10130 |
+### The chained system, frozen
 
-The table above is the last chained measurement. With single-call builders (attempts 11
-to 13) five mixed columns cost 971, forty plain named ones 994 and the query case 9915.
-Hand-written tables are cheaper than the shipped BUILDER road at every width. New builders
-cost more than shipped builders on narrow tables because the models derive flags from
-props where the shipped builders carry four ready booleans.
+The last run with both systems in the tree, 2026-09-27. Chained builders were
+`varchar('name', {length: 100}).notNull()`, chained types the column types that carried their
+db name. The single-call columns are the live report above; five mixed pg columns there cost
+683 hand-written and 1160 as builders.
 
-Since the stray-key check below, five mixed columns cost 683 hand-written and 1160 as builders;
-plain named columns did not move.
+| Dialect | Shape                                      | chained builders | chained types |
+| ------- | ------------------------------------------ | ---------------: | ------------: |
+| pg      | 5 mixed, select                            |              570 |           971 |
+| pg      | 5 mixed, select + insert                   |             1036 |          1437 |
+| pg      | 10 plain, db name per column               |              235 |           798 |
+| pg      | 20 plain, db name per column               |              345 |          1338 |
+| pg      | 40 plain, db name per column               |              565 |          2418 |
+| pg      | 20 plain, nameless                         |              325 |           494 |
+| pg      | wide vocabulary, select                    |              676 |          1175 |
+| pg      | two tables, one reference                  |              183 |           387 |
+| pg      | refineTableType, select                    |             1341 |          1768 |
+| pg      | toDrizzle + select / insert / update query |             8643 |          9461 |
+| mysql   | 5 mixed, select                            |              608 |           971 |
+| mysql   | 5 mixed, select + insert                   |             1061 |          1424 |
+| mysql   | 10 plain, db name per column               |              312 |           834 |
+| mysql   | 20 plain, db name per column               |              452 |          1394 |
+| mysql   | 40 plain, db name per column               |              732 |          2514 |
+| mysql   | 20 plain, nameless                         |              364 |           512 |
+| mysql   | wide vocabulary, select                    |              830 |          1341 |
+| mysql   | two tables, one reference                  |              213 |           410 |
+| mysql   | refineTableType, select                    |             1380 |          1765 |
+| mysql   | toDrizzle + select / insert / update query |             8324 |          9029 |
+| sqlite  | 5 mixed, select                            |              517 |          1002 |
+| sqlite  | 5 mixed, select + insert                   |              983 |          1468 |
+| sqlite  | 10 plain, db name per column               |              321 |           868 |
+| sqlite  | 20 plain, db name per column               |              461 |          1428 |
+| sqlite  | 40 plain, db name per column               |              741 |          2548 |
+| sqlite  | 20 plain, nameless                         |              341 |           539 |
+| sqlite  | wide vocabulary, select                    |              735 |          1315 |
+| sqlite  | two tables, one reference                  |              194 |           485 |
+| sqlite  | refineTableType, select                    |             1285 |          1796 |
+| sqlite  | toDrizzle + select / insert / update query |             7471 |          7874 |
+
+Hand-written tables are cheaper than the chained types at every width, and cheaper than the
+chained builders from ten named columns up. Single-call builders cost more than chained
+builders: the models derive flags from props where chained builders carried four ready
+booleans. That raise is a reviewed exception, taken because a builder table is now the same
+type as its hand-written twin (one runtype id, one `.d.ts` spelling, no builder in a reflected
+graph). Attempt 14 below tried to buy it back and could not.
+
+mysql differs from pg in one place: `toDrizzle` reads the primary-key, autoincrement and
+runtime-default flags from the props (`KeyFlagsOf`), because `$returningId()` returns exactly
+those keys. pg and sqlite keep them `false`. In sqlite, `integer` and `int` carry the
+`primaryKeyHasDefault` base flag (the rowid), and `primaryKey: [{autoIncrement: true}]` sets
+the default on any column.
 
 References are `tableRef(teams, 'id')`, plain `{table, column}` data. Two tables with one
 reference: builders 423 (461 with the earlier `cols(teams).id`), a hand-written
@@ -441,30 +474,13 @@ exception. Measured on pg, five mixed / 10 plain named, builders in the last col
 
 Overload order is part of the cost: a plain name must never reach the props overload.
 
-### mysql and sqlite
+### Why the chained type road cost what it did, isolated
 
-Measured with the same four lines, three shapes each (the report has all rows):
-
-- **mysql**: five mixed 608 shipped builders, 971 shipped types, 712 new types, 1184 new builders;
-  `toDrizzle` plus select, `insert().$returningId()` and update 8324 / 9029 / 8583 / 9786. The
-  only real difference from pg: `toDrizzle` reads the primary-key, autoincrement and
-  runtime-default flags from the props (`KeyFlagsOf`), because `$returningId()` returns exactly
-  those keys. pg and sqlite keep them `false`.
-- **sqlite**: five mixed 517 / 1002 / 658 / 1058; `toDrizzle` plus three queries
-  7471 / 7874 / 7672 / 8695. `integer` and `int` carry the `primaryKeyHasDefault` base flag
-  (the rowid), and `primaryKey: [{autoIncrement: true}]` sets the default on any column.
-
-Both dialects follow pg's pattern: hand-written tables beat the shipped types everywhere, and
-new builders cost more than shipped builders on narrow tables, since models derive flags from
-props.
-
-### Why the shipped type road costs what it does, isolated
-
-Twenty plain integer columns on the shipped type road, select model consumed:
+Twenty plain integer columns on the chained type road, select model consumed:
 
 | Variant                                    | Cost |
 | ------------------------------------------ | ---: |
-| as shipped (names in columns, eager flags) | 1319 |
+| chained (names in columns, eager flags)    | 1319 |
 | flags fixed, names kept                    |  773 |
 | nameless, flags derived                    |  475 |
 | nameless, flags fixed                      |  317 |
@@ -510,9 +526,16 @@ Five mixed / twenty plain; builder numbers named, nameless in brackets.
 |  D3 | One `{kind, value}` lookup per column for insert and update                                                                               |                    insert +44 |                                 +44 | rejected                                                               |
 |  D4 | Insert kind inlined, primary-key default probed only on primary keys                                                                      |                    insert -15 |                                 -30 | kept                                                                   |
 |  D5 | Single-call builders (every setting in one props object, no chain)                                                                        |                               |                   -7% on five mixed | rejected: the chain is not the cost, and it keeps drizzle's call shape |
-|  D6 | Empty-props fast path in the select value                                                                                                 | plain -4, modified +27 to +37 |                                     | rejected, the same trade as the shipped fast path                      |
+|  D6 | Empty-props fast path in the select value                                                                                                 | plain -4, modified +27 to +37 |                                     | rejected, the same trade as the chained fast path                      |
 |  D7 | Spelling (b), `Column = Data & spec brand`, the column IS its data like a `TypeFormat`                                                    |                    +14 to +74 |                          +25 to +95 | rejected                                                               |
 |  D8 | The backup: db names inside the columns                                                                                                   |           20 plain 860 vs 280 |                                     | not needed                                                             |
+|  14 | Builders precompute their flags into the base, models take a fast path when the base says ready                                           |       678 to 704, insert +61 |          1089 to 990, wide -218 | rejected: a builder column no longer equals its hand-written twin      |
+
+Attempt 14 ran during the switch, on the pg type-road budgets (five mixed and the wide
+vocabulary). It also broke the shape pins and runtype ids, and the type road paid for the
+builder's gain. Declaring alone costs 647 for a five-column builder table and 189 hand-written;
+one `varchar()` call 115, one `Varchar<>` type 45. The models cost the same on both roads, so the
+builder's extra cost is the call itself.
 
 Not re-measured, and why:
 
@@ -528,7 +551,7 @@ Not re-measured, and why:
   Declaring a new builder table costs 434 against 391, +11%.
 - **"Merge-free bags win narrow and lose wide, crossing near twenty columns"**: the new
   hand-written tables win at every width measured, 40 columns included (480 against 2418
-  for shipped types and 565 for shipped builders).
+  for chained types and 565 for chained builders).
 
 ## What this does not measure
 

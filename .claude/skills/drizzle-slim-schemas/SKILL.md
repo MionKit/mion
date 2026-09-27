@@ -5,24 +5,29 @@ description: Add or update the slim drizzle recorders and their e2e lanes from t
 
 # drizzle-slim-schemas
 
-The drizzle family is built on SLIM RECORDERS — [ARCHITECTURE.md](ARCHITECTURE.md)
-in this folder records the full design and why. Tables are authored exactly as
-drizzle tables, but
-every function comes from OUR packages and records its call at runtime instead
-of running drizzle; `toDrizzle()` (each dialect's `./drizzle` subpath, the ONE
-module importing drizzle-orm) traverses the recorded graph and replays it 1:1.
-Column types carry ONLY the runtype-format data type plus three booleans
-(notNull / hasDefault / insertExcluded); models derive flat; drizzle-orm is an
+The drizzle family is built on SLIM RECORDERS: [ARCHITECTURE.md](ARCHITECTURE.md)
+in this folder records the full design and why. Tables are authored as drizzle
+tables with drizzle's names and config, except that a column takes every setting
+in ONE props object (`varchar('name', {length: 100, notNull: true})`) instead of a
+modifier chain. Every function comes from OUR packages and records its call at
+runtime instead of running drizzle; `toDrizzle()` (each dialect's `./drizzle`
+subpath, the ONE module importing drizzle-orm) traverses the recorded graph and
+replays it 1:1. A column type is ONE optional spec sentinel `{fn, config, data,
+base}` with no db name and no methods, so a builder table IS its hand-written
+table type; models derive the flags from the props lazily; drizzle-orm is an
 OPTIONAL peer.
 
 - `packages/drizzle-orm` (`@mionjs/drizzle-orm`) — the dialect-agnostic core:
-  RtColumnRecorder (the modifier chain), RtEntryRecorder (index/constraint
-  chains), RtValueRecorder (enum/schema/sequence/role handles), the sql
-  recorder, createRtTable/materializeRtTable, flat InferSelectModel/InferInsertModel/
-  InferUpdateModel, refineTableType, the sql template. Consumers import ALL of
+  the column types (`src/columns.ts`: `Column`, `colModNames`, the flag
+  derivation), `recordColumn` (splits a builder's props into drizzle's config
+  argument and its modifier calls), RtColumnRecorder, RtEntryRecorder
+  (index/constraint chains), RtValueRecorder (enum/schema/sequence/role handles),
+  the sql recorder, createRtTable/materializeRtTable, `tableRef`, flat
+  InferSelectModel/InferInsertModel/InferUpdateModel, refineTableType, the sql template. Consumers import ALL of
   this shared surface from @mionjs/drizzle-orm directly.
 - `packages/drizzle-orm-<dialect>-core` — the dialect surface: `src/columns.ts`
-  (column builders + NAMED data types + the kind interfaces), `src/table.ts`
+  (column builders, their column types and the builder props interfaces),
+  `src/types.ts` (each builder's config, data type and `*ColMods` bag), `src/table.ts`
   (table factories/schema handles), `src/helpers.ts` (index, constraints,
   checks, enums, policies), `src/drizzle.ts` (toDrizzle + the synthesized
   drizzle table typing), `src/index.ts` (the package root module). A dialect index
@@ -91,56 +96,45 @@ exactly where a wrong call is expensive.
 
 ## Authoring a column builder
 
-In `src/columns.ts` of the dialect package, one block per column function:
+In the dialect package, one block per column function:
 
-1. **Column type first** (the pure-types vocabulary): PascalCase of the
-   function name (upperFirst — the manifest records it as `typeAlias`), an
-   `RtColType<'fn', Name, Props, Data>` alias whose params mirror the builder
-   arguments one to one (`Varchar<'bio', {length: 500}>` matches
-   `varchar('bio', {length: 500})`; serial-likes pass the base flag union
-   `'notNull' | 'hasDefault'`). `Props` is ONE object carrying the builder's
-   own config keys AND its modifier calls, so the alias is written
-   `<A extends string | (XConfig & XColMods) | undefined, C extends XConfig & XColMods>`
-   and passes `ColNameArg<A>, ColConfigArg<A, C>` down. RtColType expands
-   STRAIGHT to the branded column the builders return, so nothing normalizes an
-   authored record afterwards.
-   The Data computation is a SHARED helper the builder overloads also return
-   (`VarcharDataOf<T, L>` cheap-params form for the builders, `VarcharData<C>`
-   config-extract form for the type — the split keeps the type-instantiation
-   budgets green). Formats live in `@mionjs/run-types/formats`; pick per the
-   drizzle column's VALUE semantics (length/width bounds, uuid, ip, date/time
-   string shapes). A column with no matching format keeps its plain data type
-   (boolean, string, unknown for json).
-2. **Local config interface** mirroring drizzle's param shape (the manifest's
-   `params` strings are the contract; the drift gate re-opens the entry when
-   drizzle changes them). Never import drizzle types.
-3. **Overloads**: mirror drizzle's call shapes exactly (no-arg / config /
-   name+config), returning the matching KIND interface with the initial flags
-   (`false,false,false`; serial-likes start `true,true,false`).
-4. **Implementation**: one line, `return dialectColumn('fnName', args)` — the
-   recorder's init forwards the raw args to drizzle's same-named builder at
-   materialization.
+1. **Config, data and bag** in `src/types.ts`: a local config interface mirroring
+   drizzle's param shape (the manifest's `params` strings are the contract; the
+   drift gate re-opens the entry when drizzle changes them; never import drizzle
+   types), the data computation (`VarcharData<C>`), and the `*ColMods` bag of the
+   modifiers this builder kind takes. Formats live in `@mionjs/run-types/formats`;
+   pick per the drizzle column's VALUE semantics (length/width bounds, uuid, ip,
+   date/time string shapes). A column with no matching format keeps its plain data
+   type (boolean, string, unknown for json).
+2. **Column type** in `src/columns.ts`: PascalCase of the function name (upperFirst,
+   the manifest records it as `typeAlias`),
+   `type Varchar<P extends Only<P, XConfig & XColMods> = NoProps> = Column<'varchar', P, VarcharData<P>>`.
+   `Only` rejects a stray key; serial-likes pass their base flags as the 4th argument.
+3. **Builder overloads**: the no-props forms first (`varchar()`, `varchar(name)`),
+   then `(name, props)` and `(props)` with `const C extends Only<C, XConfig & XIn>`
+   and the return `Built<'varchar', C, Data>` (wrapped in `NamedColumn<N, ...>` when
+   named). The name overloads MUST come first: a plain name tried against the props
+   overload is the expensive path (TYPE-COST.md).
+4. **Implementation**: one line, `return dialectColumn('fnName', args)`, which calls
+   `recordColumn`: the config keys go to drizzle's builder, the modifier keys replay
+   as its method calls in key order.
 5. Add the builder to the package's column-helpers record (the table factory's
    callback overload).
 
-**Kind interfaces** group builders by drizzle's own METHOD SETS (pg has four:
-common / +defaultNow / +defaultRandom / +identity; mysql three; sqlite one).
-A new drizzle modifier means: add the runtime recorder method in
-`packages/drizzle-orm/src/recorder.ts` (a pure `record(name, args)`), declare
-it on the affected kind interfaces with the right flag transitions
-(`default`-like methods set HasDefault, `primaryKey`/identity set NotNull,
-`generatedAlwaysAs` sets InsertExcluded), and add it to the completeness
-spec's SLIM method list — that spec diffs drizzle's builder prototypes and is
-what caught the modifier in the first place. The manifest records each
-column's chainable methods under `modifiers`; a new one also needs, for the type
-road: a key in `ColMods` (`packages/drizzle-orm/src/typeColumns.ts`), its name in
-`colModNames` there AND in `drizzleModNames`
-(`ts-go-runtypes/internal/convert/drizzle.go`), a key in the `*ColMods` bags of
-the dialects whose builders have it, and the same flag transitions in
-`ModNotNull`/`ModHasDefault`/`ModInsertExcluded`. The value is `true` for a
-no-arg call and the args tuple otherwise. Three gates catch a half-done job:
-`colMods.spec.ts`, `TestDrizzleModNamesMatchManifests`, and each dialect's
-`manifest-coverage.spec.ts`.
+**Props interfaces** (`PgColIn`, `PgDateIn`, ...) group builders by drizzle's own
+METHOD SETS (pg has four: common / +defaultNow / +defaultRandom / +identity; mysql
+three; sqlite one). They are the builder's twin of the `*ColMods` bags, with the
+function-carrying keys in their runtime shape (`references: [() => tableRef(...)]`,
+`$defaultFn: [() => ...]`). A new drizzle modifier means: add the runtime recorder
+method in `packages/drizzle-orm/src/recorder.ts` (a pure `record(name, args)`), a key
+in the core `ColMods` and in `colModNames` (`packages/drizzle-orm/src/columns.ts`)
+AND in `drizzleModNames` (`ts-go-runtypes/internal/convert/drizzle.go`), a key in the
+`*ColMods` bags and the props interfaces of the builders that have it, and its flag
+in the derivation key lists (`NotNullKeys` / `DefaultKeys` / `ExcludedKeys`). The value
+is `true` for a no-arg call and the args tuple otherwise. Four gates catch a
+half-done job: `colMods.spec.ts`, `TestDrizzleModNamesMatchManifests`, each dialect's
+`manifest-coverage.spec.ts`, and each dialect's `completeness.spec.ts`, which diffs
+drizzle's builder methods against the props interfaces in both directions.
 
 ## Authoring an entry/value helper
 
@@ -154,15 +148,17 @@ primaryKey, check, policies, enums, schemas, sequences, table creators) wrap as:
 
 ## Tests (paired, per package)
 
-- The **equality matrix** in `test/index.spec.ts`: extend the slim and raw
-  tables with the new column/modifier/helper and keep
-  `project(toDrizzle(slim))` equal to `project(rawDrizzle)` (getTableConfig is
-  the oracle).
-- **Type pins** in `test/type-pins.stub.ts`: builder-inferred data equals the
-  named type; model rules for any new flag behavior.
-- Validator specs already run the models through `createValidateFn`; extend
-  them when the new column carries a format. Any test touching the marker API
-  follows the Marker test coverage rule (both `getRunTypeId` shapes).
+- **Raw drizzle is the oracle**: `test/typeTables.spec.ts` and `test/index.spec.ts`
+  build the slim table and the same table with drizzle's own builders and keep
+  `project(toDrizzle(slim))` equal to `project(raw)` (getTableConfig is the oracle).
+- **Type pins** in `test/type-pins.stub.ts`: a builder table equals its hand-written
+  twin; model rules for any new flag behavior.
+- The shared test files hold the same titles in every dialect, checked by
+  `packages/drizzle-orm/test/dialectParity.spec.ts`; a dialect-only test says so
+  (`only pg, mysql: ...`).
+- Validator specs run the models through `createValidateFn`; extend them when the
+  new column carries a format. Any test touching the marker API follows the Marker
+  test coverage rule (both `getRunTypeId` shapes).
 
 ## Adding a dialect, or a driver
 
@@ -220,7 +216,8 @@ A dialect is not done when its builders compile. It is done when drizzle code
 **translates onto it**, and that translation **converts to the pure-type road**.
 A new dialect supports every feature the older ones do, or it is half a dialect.
 
-**Road 1 — `mion drizzle-migrate`, drizzle to mion.** Driven by
+**Road 1 — `mion drizzle-migrate`, drizzle to mion.** It folds each column's
+modifier chain into one props object and is driven by
 `ts-go-runtypes/internal/drizzlemigrate/importmap.json`, generated by joining
 `drizzle-dialects.json` with the per-package manifests. A `migrated` export moves
 to the wrapping package under the same name; everything else stays on drizzle.
@@ -230,12 +227,11 @@ only hand-owned input, for a name whose DRIZZLE spelling is still needed in the
 same file; `sql` is the only one today.
 
 **Road 2 — `mion convert --to type`, builders to pure types.** Needs, per
-column: the `typeAlias` recorded in the manifest, a key in `ColMods`
-(`packages/drizzle-orm/src/typeColumns.ts`), the name in `colModNames` there AND
-in `drizzleModNames` (`ts-go-runtypes/internal/convert/drizzle.go`), and the same
-flag transitions in `ModNotNull` / `ModHasDefault` / `ModInsertExcluded`. Gated
-by `colMods.spec.ts`, `TestDrizzleModNamesMatchManifests` and each dialect's
-`manifest-coverage.spec.ts`.
+column: the `typeAlias` recorded in the manifest, a key in `ColMods` and the name
+in `colModNames` (`packages/drizzle-orm/src/columns.ts`) AND in `drizzleModNames`
+(`ts-go-runtypes/internal/convert/drizzle.go`), and its flag in the derivation key
+lists. Gated by `colMods.spec.ts`, `TestDrizzleModNamesMatchManifests` and each
+dialect's `manifest-coverage.spec.ts`.
 
 **Run the host half first.** `pnpm miondevx core drizzle-translate [--to-types]` does
 both translations and both typechecks with no container and no database. Get it

@@ -15,27 +15,31 @@ drizzle is a runtime target materialized on demand.
 
 ## One authoring surface, drizzle-shaped, all ours
 
-A table is written exactly as a drizzle table: same function names, same call
-params, same modifier chains, same extraConfig, same helpers. Every authoring
-function comes from OUR packages and returns a slim object RECORDING the call
-instead of running drizzle. The record lives at runtime only, as internal
-closures on the object; nothing about it enters the type system. Wrapped:
+A table is written as a drizzle table: same function names, same config, same
+extraConfig, same helpers. The one difference is the column: it takes every
+setting in ONE props object, drizzle's config keys and its modifier calls
+together (`varchar('name', {length: 100, notNull: true, default: ['x']})`; a no-arg
+modifier is `true`, one with arguments its args tuple). Every authoring function
+comes from OUR packages and returns a slim object RECORDING the call instead of
+running drizzle. The record lives at runtime only, as internal closures on the
+object; nothing about it enters the type system. Wrapped:
 
-- the column builders (every manifest `column` entry) and their full modifier
-  chains;
+- the column builders (every manifest `column` entry), each taking every drizzle
+  modifier its builder has as a props key;
 - the table factories (both drizzle overloads: columns object, or a callback
   receiving the column helpers) plus the extraConfig callback;
-- the constraint/index/enum/schema/sequence/policy/role helpers, which chain
-  exactly like columns, so the same record-and-replay applies;
-- the `sql` tagged template, recorded with its embedded values (slim column
-  refs included) and rebuilt with drizzle's real `sql` at materialization.
+- the constraint/index/enum/schema/sequence/policy/role helpers, which keep
+  drizzle's chains (an index takes `on()` first, then its options);
+- the `sql` tagged template, recorded with its embedded values (slim columns and
+  `tableRef()` values included) and rebuilt with drizzle's real `sql` at
+  materialization.
 
 ## Lazy materialization
 
 `toDrizzle(table)` (each dialect's `./drizzle` subpath) is the ONE module that
 imports drizzle-orm. It traverses the recorded graph, passes the drizzle
-namespace into each element's materializer, replays the modifier list 1:1
-(drizzle's builders are config objects whose modifiers mutate and return
+namespace into each element's materializer, replays each column's props as the
+modifier calls in key order (drizzle's builders are config objects whose modifiers mutate and return
 `this`, so replay reproduces the exact hand-written table), and memoizes per
 table. The result IS a genuine drizzle table: queries, migrations,
 getTableConfig all work on it. Because authoring imports nothing from drizzle,
@@ -43,37 +47,33 @@ drizzle-orm is an OPTIONAL peer: schema, models and validators work without it.
 
 ## Slim types
 
-The builder chain carries only what models need:
-`RtColumnBrand<Data, NotNull, HasDefault, InsertExcluded>`. The format mapping
-(varchar length -> String<{maxLength}>, integer -> Int32, timestamp mode ->
-Date/StringDateTime, enum tuples -> literal unions) lives in the builders' own
-return types. Modifiers that do not affect models return the type untouched;
-`primaryKey()` implies notNull, mirroring drizzle. `toDrizzleColumn` restores
-everything else from the recorded params, so no other column metadata rides a
-type.
+A column type is ONE optional spec sentinel, `Column<Fn, Props, Data, Base>`: the
+builder fn, the raw props, the format-mapped data (varchar length ->
+String<{maxLength}>, integer -> Int32, timestamp mode -> Date/StringDateTime, enum
+tuples -> literal unions) and the builder's intrinsic flags. No methods, no db
+name, no owning table, so the same shape in two tables is ONE type and one runtype
+node. A builder returns exactly this type, which makes a builder table IS its
+hand-written twin (`Varchar<{length: 100; notNull: true}>`); db names that differ
+from the key live on the table's names map, and only `toDrizzle` reads them. The
+flags (notNull, hasDefault, insertExcluded, the key flags) are derived from the
+props where a model reads them, never at declaration.
 
-**Kind interfaces group builders by drizzle's METHOD SETS** (pg four: common /
-+defaultNow / +defaultRandom / +identity; mysql three; sqlite one), not one
-interface per column. Common methods are redeclared per kind because each must
-return its own interface: an intersection loses the extras after chaining, and
-`this` types cannot change the flag generics.
+Two constraints from reflection shaped this, and no measurement shows them:
 
-**A named data type per column builder** (Varchar, Integer, Timestamp, ...):
-the pure-types vocabulary. A hand-written row using these names gets exactly
-the types the builders infer; the builders' return Data types reference the
-same aliases, so the pair cannot drift. Type pins assert the equality per
-column.
+- **A column type carries no methods.** The runtype id walks method return types;
+  a chain returning a column with new props per call never repeats a type and hits
+  the 512-level cap (MKR009). Hence no chained modifiers.
+- **No alias may carry the builder record as a type argument.** The resolver
+  serializes an aliased type's arguments, so `pgTable` and `pgView` spell their
+  column and names maps inline.
 
-A column type takes the db name and ONE props object holding the builder's own
-config keys and its modifier calls (`Varchar<'name', {length: 100; notNull:
-true}>` for `varchar('name', {length: 100}).notNull()`; no-arg call is `true`,
-with-args is the args tuple). It expands STRAIGHT to the same `RtColumnBrand`
-the builders return, which is what lets `TypedCols` pass a whole authored record
-through wholesale instead of converting it column by column. The two readers
-that replay the calls (the runtime bridge and the Go convert program) split the
-props object by modifier name; the *ColMods bags constrain each column type to
-its own builder's modifiers. See `packages/drizzle-orm/TYPE-COST.md` for what
-the earlier carrier-plus-normalization shape cost.
+**Props interfaces group builders by drizzle's METHOD SETS** (pg four: common /
++defaultNow / +defaultRandom / +identity; mysql three; sqlite one), with the
+`*ColMods` bags as their column-type twins. `Only<P, Allowed>` rejects a stray key
+in both, which a `const` type parameter and a weak type would otherwise let through.
+Every reader of a props object (the recorder, the runtime bridge and the Go convert
+program) splits it by `colModNames`. See `packages/drizzle-orm/TYPE-COST.md` for
+every shape measured on the way here.
 
 ## Models and refinement, flat
 
@@ -95,7 +95,7 @@ a compile error.
 `@mionjs/drizzle-orm` is the dialect-agnostic core (recorders, table core,
 models, refinement, sql). Consumers import that shared surface from it
 DIRECTLY; a dialect package exports only its own local surface (columns,
-factories, helpers, kind interfaces, named types) and re-exports nothing. All
+factories, helpers, props interfaces, column types) and re-exports nothing. All
 four packages ride the drizzle versionLine; the dialect packages depend on the
 root by minor-aligned peer range plus workspace devDependency.
 
@@ -112,11 +112,11 @@ reading the emitted d.ts pays 1841 vs 4205 before.
 
 ## The safety net
 
-- **Equality matrices** in each dialect's index.spec.ts plus the pg fuzz suite
-  (tableEquality.fuzz.spec.ts, 120 random tables per run): getTableConfig of
-  toDrizzle(slim) deep-equals the raw drizzle build.
-- **Completeness specs** diff our chain-method sets against drizzle's builder
-  prototypes, so a drizzle upgrade adding a modifier fails visibly.
+- **Equality matrices** in each dialect's typeTables.spec.ts and index.spec.ts plus
+  each dialect's fuzz suite (tableEquality.fuzz.spec.ts, 120 random tables per run):
+  getTableConfig of toDrizzle(slim) deep-equals the raw drizzle build.
+- **Completeness specs** diff drizzle's builder methods against our props
+  interfaces in both directions, so a drizzle upgrade adding a modifier fails visibly.
 - **The manifest gate** (committed manifests + gen-drizzle-manifest --check)
   covers every drizzle export, the root drizzle-orm module included.
 - **The drizzle-free pin** (type-budget drizzleFreeAuthoring.test.ts) compiles
