@@ -94,6 +94,15 @@ describe('a client built with bundleApi: bundled', () => {
     expect(getMethod('sayHello')?.middlewareIds).toContain('auth');
   });
 
+  it('checks answers with the return validator the build bundled', async () => {
+    const {routes, middlewares} = initClient<TestServerApi>({baseURL, validateServerResponses: true});
+    useAuth(middlewares);
+    const [result, , undeclared] = await routes.wrongAnswers.wrongAnswer(user).call();
+    expect(isBundledMethod('wrongAnswers/wrongAnswer')).toBe(true);
+    expect(result).toBeUndefined();
+    expect(undeclared?.type).toBe('response-validation-error');
+  });
+
   it('neither reads nor writes the metadata store', async () => {
     const {routes, middlewares} = initClient<TestServerApi>({baseURL});
     useAuth(middlewares);
