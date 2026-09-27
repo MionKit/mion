@@ -5,39 +5,44 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Compile-time pins for the side-by-side mysql columns (checked by tsc, not executed): a builder table
-// IS its hand-written twin, and its models equal the shipped system's models for the same table.
+// Compile-time pins for the mysql columns (checked by tsc, not executed): a builder table IS its hand-written twin,
+// its models equal the models the chained system produced for the same table, and its queries type as raw drizzle's.
 
 import type {
   BigInt64,
   BigUInt64,
   Date as RTDate,
   Float as FloatFormat,
+  Int8,
+  Int16,
   Int32,
   Integer as IntegerFormat,
+  MergeFormat,
+  Number as NumberFormat,
+  PositiveInt,
+  String,
   StringDate,
   StringDateTime,
+  StringTime,
   UInt8,
   UInt16,
   UInt32,
 } from '@mionjs/run-types/formats';
 import type {
+  ColSpecOf,
   InferInsertModel,
   InferSelectModel,
   InferSelectViewModel,
   InferUpdateModel,
-} from '../../../drizzle-orm/src/models.ts';
-import type {RefinedTable as CurRefinedTable} from '../../../drizzle-orm/src/refine.ts';
-import type {ColSpecOf, KeyFlagsOf, RefinedTable} from '../../../drizzle-orm/next/index.ts';
-import {refineTableType} from '../../../drizzle-orm/next/index.ts';
+  KeyFlagsOf,
+  RefinedTable,
+} from '@mionjs/drizzle-orm';
+import {$type, refineTableType, sql, tableRef, type TableRef} from '@mionjs/drizzle-orm';
 import type {InferSelectModel as DzInferSelectModel} from 'drizzle-orm';
+import * as dz from 'drizzle-orm/mysql-core';
 import type {MySqlDatabase, MySqlQueryResultHKT, PreparedQueryHKTBase} from 'drizzle-orm/mysql-core';
-import type {ToDrizzleTable} from '../../next/drizzle.ts';
-import {toDrizzle} from '../../next/drizzle.ts';
-import {toDrizzle as curToDrizzle} from '../../src/drizzle.ts';
-import type * as next from '../../../drizzle-orm/next/models.ts';
-import {$type, tableRef, type TableRef} from '../../../drizzle-orm/next/index.ts';
-import * as cur from '../../src/index.ts';
+import type {ToDrizzleTable} from '../src/drizzle.ts';
+import {toDrizzle} from '../src/drizzle.ts';
 import type {
   Bigint,
   Binary,
@@ -54,14 +59,14 @@ import type {
   Mediumint,
   Mediumtext,
   MySqlDate,
+  MySqlViewAlgorithm,
+  MySqlViewCheckOption,
+  MySqlViewSecurity,
   MysqlEnumCol,
   MysqlEnumObjectCol,
   MysqlTable,
   MysqlView,
   MysqlViewBuilder,
-  MySqlViewAlgorithm,
-  MySqlViewCheckOption,
-  MySqlViewSecurity,
   Real,
   Serial,
   Smallint,
@@ -74,7 +79,8 @@ import type {
   Varchar,
   ViewFromQueryBuilderNotSupported,
   Year,
-} from '../../next/index.ts';
+  YearData,
+} from '../src/index.ts';
 import {
   bigint,
   binary,
@@ -107,7 +113,168 @@ import {
   varbinary,
   varchar,
   year,
-} from '../../next/index.ts';
+} from '../src/index.ts';
+
+// ── the models the chained system produced, captured before the switch ────────
+
+type ActiveViewViewSelectBefore = {name: String<{maxLength: 10}>; note: String | null};
+type EveryInsertBefore = {
+  bigint?: IntegerFormat | null | undefined;
+  binary?: string | null | undefined;
+  boolean?: boolean | null | undefined;
+  char?: String<{length: 3}> | null | undefined;
+  date?: RTDate | null | undefined;
+  datetime?: RTDate | null | undefined;
+  decimal?: string | null | undefined;
+  double?: FloatFormat | null | undefined;
+  float?: FloatFormat | null | undefined;
+  int?: Int32 | null | undefined;
+  json?: unknown;
+  longtext?: String | null | undefined;
+  mediumint?: NumberFormat<{integer: true; min: 0; max: 16777215}> | null | undefined;
+  mediumtext?: String | null | undefined;
+  real?: FloatFormat | null | undefined;
+  serial?: PositiveInt | undefined;
+  smallint?: Int16 | null | undefined;
+  text?: String | null | undefined;
+  time?: StringTime | null | undefined;
+  timestamp?: RTDate | null | undefined;
+  tinyint?: Int8 | null | undefined;
+  tinytext?: String | null | undefined;
+  varbinary?: string | null | undefined;
+  varchar?: String<{maxLength: 10}> | null | undefined;
+  year?: YearData | null | undefined;
+  enum?: 'a' | 'b' | null | undefined;
+  point?: {x: number; y: number} | null | undefined;
+};
+type EverySelectBefore = {
+  bigint: IntegerFormat | null;
+  binary: string | null;
+  boolean: boolean | null;
+  char: String<{length: 3}> | null;
+  date: RTDate | null;
+  datetime: RTDate | null;
+  decimal: string | null;
+  double: FloatFormat | null;
+  float: FloatFormat | null;
+  int: Int32 | null;
+  json: unknown;
+  longtext: String | null;
+  mediumint: NumberFormat<{integer: true; min: 0; max: 16777215}> | null;
+  mediumtext: String | null;
+  real: FloatFormat | null;
+  serial: PositiveInt;
+  smallint: Int16 | null;
+  text: String | null;
+  time: StringTime | null;
+  timestamp: RTDate | null;
+  tinyint: Int8 | null;
+  tinytext: String | null;
+  varbinary: string | null;
+  varchar: String<{maxLength: 10}> | null;
+  year: YearData | null;
+  enum: 'a' | 'b' | null;
+  point: {x: number; y: number} | null;
+};
+type EveryUpdateBefore = {
+  bigint?: IntegerFormat | null | undefined;
+  binary?: string | null | undefined;
+  boolean?: boolean | null | undefined;
+  char?: String<{length: 3}> | null | undefined;
+  date?: RTDate | null | undefined;
+  datetime?: RTDate | null | undefined;
+  decimal?: string | null | undefined;
+  double?: FloatFormat | null | undefined;
+  float?: FloatFormat | null | undefined;
+  int?: Int32 | null | undefined;
+  json?: unknown;
+  longtext?: String | null | undefined;
+  mediumint?: NumberFormat<{integer: true; min: 0; max: 16777215}> | null | undefined;
+  mediumtext?: String | null | undefined;
+  real?: FloatFormat | null | undefined;
+  serial?: PositiveInt | undefined;
+  smallint?: Int16 | null | undefined;
+  text?: String | null | undefined;
+  time?: StringTime | null | undefined;
+  timestamp?: RTDate | null | undefined;
+  tinyint?: Int8 | null | undefined;
+  tinytext?: String | null | undefined;
+  varbinary?: string | null | undefined;
+  varchar?: String<{maxLength: 10}> | null | undefined;
+  year?: YearData | null | undefined;
+  enum?: 'a' | 'b' | null | undefined;
+  point?: {x: number; y: number} | null | undefined;
+};
+type OptionViewViewSelectBefore = {name: String<{maxLength: 10}>};
+type UsersInsertBefore = {
+  name: String<{maxLength: 100}>;
+  age: Int32;
+  role: 'admin' | 'user';
+  id?: PositiveInt | undefined;
+  createdAt?: RTDate | undefined;
+};
+type UsersRefinedInsertBefore = {
+  name: MergeFormat<String<{maxLength: 100}>, {maxLength: 50}>;
+  age: Int32;
+  role: 'admin' | 'user';
+  id?: PositiveInt | undefined;
+  createdAt?: RTDate | undefined;
+};
+type UsersRefinedSelectBefore = {
+  id: PositiveInt;
+  name: MergeFormat<String<{maxLength: 100}>, {maxLength: 50}>;
+  age: Int32;
+  role: 'admin' | 'user';
+  createdAt: RTDate;
+};
+type UsersSelectBefore = {id: PositiveInt; name: String<{maxLength: 100}>; age: Int32; role: 'admin' | 'user'; createdAt: RTDate};
+type UsersUpdateBefore = {
+  id?: PositiveInt | undefined;
+  name?: String<{maxLength: 100}> | undefined;
+  age?: Int32 | undefined;
+  role?: 'admin' | 'user' | undefined;
+  createdAt?: RTDate | undefined;
+};
+type WideInsertBefore = {
+  role: 'admin' | 'user';
+  id?: PositiveInt | undefined;
+  seq?: UInt32 | null | undefined;
+  payload?: {kind: string} | null | undefined;
+  email?: String<{maxLength: 50}> | null | undefined;
+  slug?: String<{maxLength: 20}> | null | undefined;
+  stamp?: String<{maxLength: 20}> | null | undefined;
+  createdAt?: RTDate | undefined;
+  touchedAt?: RTDate | null | undefined;
+};
+type WideSelectBefore = {
+  id: PositiveInt;
+  role: 'admin' | 'user';
+  seq: UInt32 | null;
+  payload: {kind: string} | null;
+  email: String<{maxLength: 50}> | null;
+  slug: String<{maxLength: 20}> | null;
+  stamp: String<{maxLength: 20}> | null;
+  total: Int32 | null;
+  createdAt: RTDate;
+  touchedAt: RTDate | null;
+};
+type WideUpdateBefore = {
+  id?: PositiveInt | undefined;
+  role?: 'admin' | 'user' | undefined;
+  seq?: UInt32 | null | undefined;
+  payload?: {kind: string} | null | undefined;
+  email?: String<{maxLength: 50}> | null | undefined;
+  slug?: String<{maxLength: 20}> | null | undefined;
+  stamp?: String<{maxLength: 20}> | null | undefined;
+  createdAt?: RTDate | undefined;
+  touchedAt?: RTDate | null | undefined;
+};
+type WithEnumInsertBefore = {
+  mood: 'sad' | 'happy';
+  level?: 'low' | 'high' | null | undefined;
+  bare?: 'x' | 'y' | null | undefined;
+};
+type WithEnumSelectBefore = {mood: 'sad' | 'happy'; level: 'low' | 'high' | null; bare: 'x' | 'y' | null};
 
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 type Expect<T extends true> = T;
@@ -133,12 +300,12 @@ type Users = MysqlTable<
     createdAt: Timestamp<{mode: 'date'; notNull: true; defaultNow: true}>;
   }
 >;
-export const curUsers = cur.mysqlTable('users', {
-  id: cur.serial().primaryKey(),
-  name: cur.varchar({length: 100}).notNull(),
-  age: cur.int().notNull(),
-  role: cur.text({enum: ['admin', 'user']}).notNull(),
-  createdAt: cur.timestamp({mode: 'date'}).notNull().defaultNow(),
+export const rawUsers = dz.mysqlTable('users', {
+  id: dz.serial().primaryKey(),
+  name: dz.varchar({length: 100}).notNull(),
+  age: dz.int().notNull(),
+  role: dz.text({enum: ['admin', 'user']}).notNull(),
+  createdAt: dz.timestamp({mode: 'date'}).notNull().defaultNow(),
 });
 
 // With one call per column, a builder column IS the hand-written column, even outside a table.
@@ -204,12 +371,12 @@ export type LoosePins = [
 
 export type NarrowPins = [
   Expect<Equal<typeof users, Users>>,
-  Expect<Equal<next.InferSelectModel<Users>, InferSelectModel<typeof curUsers>>>,
-  Expect<Equal<next.InferInsertModel<Users>, InferInsertModel<typeof curUsers>>>,
-  Expect<Equal<next.InferUpdateModel<Users>, InferUpdateModel<typeof curUsers>>>,
+  Expect<Equal<InferSelectModel<Users>, UsersSelectBefore>>,
+  Expect<Equal<InferInsertModel<Users>, UsersInsertBefore>>,
+  Expect<Equal<InferUpdateModel<Users>, UsersUpdateBefore>>,
 ];
 
-// ── unsigned and mode move onto the props and pick the data type ─────────────
+// ── mode and config pick the data type ───────────────────────────────────────
 
 export const modes = {
   bigNumber: bigint({mode: 'number'}),
@@ -265,7 +432,7 @@ export type NamedPins = [
   Expect<Equal<(typeof named)['columns']['createdAt'], Timestamp<{mode: 'date'; notNull: true}>>>,
 ];
 
-// ── wide vocabulary: every builder, and mysql's own modifiers ────────────────
+// ── every builder ────────────────────────────────────────────────────────────
 
 export const every = mysqlTable('every', {
   bigint: bigint({mode: 'number'}),
@@ -328,42 +495,15 @@ type Every = MysqlTable<
     point: CustomCol<{x: number; y: number}>;
   }
 >;
-export const curEvery = cur.mysqlTable('every', {
-  bigint: cur.bigint({mode: 'number'}),
-  binary: cur.binary({length: 4}),
-  boolean: cur.boolean(),
-  char: cur.char({length: 3}),
-  date: cur.date(),
-  datetime: cur.datetime({fsp: 3}),
-  decimal: cur.decimal({precision: 10, scale: 2}),
-  double: cur.double(),
-  float: cur.float().autoincrement(),
-  int: cur.int(),
-  json: cur.json(),
-  longtext: cur.longtext(),
-  mediumint: cur.mediumint({unsigned: true}),
-  mediumtext: cur.mediumtext(),
-  real: cur.real(),
-  serial: cur.serial(),
-  smallint: cur.smallint(),
-  text: cur.text(),
-  time: cur.time({fsp: 2}),
-  timestamp: cur.timestamp(),
-  tinyint: cur.tinyint(),
-  tinytext: cur.tinytext(),
-  varbinary: cur.varbinary({length: 16}),
-  varchar: cur.varchar({length: 10}),
-  year: cur.year(),
-  enum: cur.mysqlEnum(['a', 'b']),
-  point: cur.customType<{data: {x: number; y: number}}>({dataType: () => 'point'})(),
-});
 
 export type EveryPins = [
   Expect<Equal<typeof every, Every>>,
-  Expect<Equal<next.InferSelectModel<Every>, InferSelectModel<typeof curEvery>>>,
-  Expect<Equal<next.InferInsertModel<Every>, InferInsertModel<typeof curEvery>>>,
-  Expect<Equal<next.InferUpdateModel<Every>, InferUpdateModel<typeof curEvery>>>,
+  Expect<Equal<InferSelectModel<Every>, EverySelectBefore>>,
+  Expect<Equal<InferInsertModel<Every>, EveryInsertBefore>>,
+  Expect<Equal<InferUpdateModel<Every>, EveryUpdateBefore>>,
 ];
+
+// ── wide vocabulary: mysql's own modifiers, runtime callbacks and generated columns ──
 
 export const wide = mysqlTable('w', {
   id: serial('id', {primaryKey: true}),
@@ -394,34 +534,33 @@ type Wide = MysqlTable<
   [],
   {createdAt: 'created_at'; touchedAt: 'touched_at'}
 >;
-export const curWide = cur.mysqlTable('w', {
-  id: cur.serial('id').primaryKey(),
-  role: cur.text('role', {enum: ['admin', 'user']}).notNull(),
-  seq: cur.int('seq', {unsigned: true}).autoincrement(),
-  payload: cur.json('payload').$type<{kind: string}>(),
-  email: cur.varchar('email', {length: 50}).unique('uq_email'),
-  slug: cur.varchar('slug', {length: 20}).$defaultFn(() => 'x'),
-  stamp: cur.varchar('stamp', {length: 20}).$onUpdate(() => 'y'),
-  total: cur.int('total').generatedAlwaysAs(1, {mode: 'stored'}),
-  createdAt: cur.timestamp('created_at', {mode: 'date'}).notNull().defaultNow(),
-  touchedAt: cur.timestamp('touched_at').onUpdateNow(),
-});
 
 export type WidePins = [
   Expect<Equal<typeof wide, Wide>>,
-  Expect<Equal<next.InferSelectModel<Wide>, InferSelectModel<typeof curWide>>>,
-  Expect<Equal<next.InferInsertModel<Wide>, InferInsertModel<typeof curWide>>>,
-  Expect<Equal<next.InferUpdateModel<Wide>, InferUpdateModel<typeof curWide>>>,
+  Expect<Equal<InferSelectModel<Wide>, WideSelectBefore>>,
+  Expect<Equal<InferInsertModel<Wide>, WideInsertBefore>>,
+  Expect<Equal<InferUpdateModel<Wide>, WideUpdateBefore>>,
   // autoincrement and onUpdateNow both give the column a database default.
-  Expect<Equal<next.InferInsertModel<Wide>['seq'], UInt32 | null | undefined>>,
-  Expect<Equal<next.InferInsertModel<Wide>['touchedAt'], RTDate | null | undefined>>,
-  Expect<Equal<IsOptional<next.InferInsertModel<Wide>, 'slug'>, true>>,
-  Expect<Equal<IsOptional<next.InferInsertModel<Wide>, 'stamp'>, true>>,
-  Expect<Equal<IsOptional<next.InferInsertModel<Wide>, 'role'>, false>>,
-  Expect<Equal<'total' extends keyof next.InferInsertModel<Wide> ? true : false, false>>,
+  Expect<Equal<InferInsertModel<Wide>['seq'], UInt32 | null | undefined>>,
+  Expect<Equal<InferInsertModel<Wide>['touchedAt'], RTDate | null | undefined>>,
+  // A runtime default and an update callback make the column optional on insert; a generated one leaves it out.
+  Expect<Equal<IsOptional<InferInsertModel<Wide>, 'slug'>, true>>,
+  Expect<Equal<IsOptional<InferInsertModel<Wide>, 'stamp'>, true>>,
+  Expect<Equal<IsOptional<InferInsertModel<Wide>, 'role'>, false>>,
+  Expect<Equal<'total' extends keyof InferInsertModel<Wide> ? true : false, false>>,
 ];
 
-// ── the column flags drizzle reads off a materialized table ──────────────────
+// ── the key flags drizzle reads ──────────────────────────────────────────────
+
+export type KeyFlagPins = [
+  Expect<Equal<KeyFlagsOf<ColSpecOf<Serial>>['autoincrement'], true>>,
+  Expect<Equal<KeyFlagsOf<ColSpecOf<Int<{autoincrement: true}>>>['autoincrement'], true>>,
+  Expect<Equal<KeyFlagsOf<ColSpecOf<Int>>['autoincrement'], false>>,
+  Expect<Equal<KeyFlagsOf<ColSpecOf<Varchar<{length: 8; $defaultFn: true}>>>['runtimeDefault'], true>>,
+  Expect<Equal<KeyFlagsOf<ColSpecOf<Varchar<{length: 8; primaryKey: true}>>>['primaryKey'], true>>,
+];
+
+// ── the column flags ToDrizzleTable hands drizzle ────────────────────────────
 
 type DzWide = ToDrizzleTable<Wide>;
 export type ToDrizzleFlagPins = [
@@ -438,14 +577,32 @@ export type ToDrizzleFlagPins = [
   Expect<Equal<DzWide['email']['_']['hasRuntimeDefault'], false>>,
 ];
 
-// ── the key flags $returningId() reads ───────────────────────────────────────
+// ── queries through drizzle's database type ──────────────────────────────────
 
-export type KeyFlagPins = [
-  Expect<Equal<KeyFlagsOf<ColSpecOf<Serial>>['autoincrement'], true>>,
-  Expect<Equal<KeyFlagsOf<ColSpecOf<Int<{autoincrement: true}>>>['autoincrement'], true>>,
-  Expect<Equal<KeyFlagsOf<ColSpecOf<Int>>['autoincrement'], false>>,
-  Expect<Equal<KeyFlagsOf<ColSpecOf<Varchar<{length: 8; $defaultFn: true}>>>['runtimeDefault'], true>>,
-  Expect<Equal<KeyFlagsOf<ColSpecOf<Varchar<{length: 8; primaryKey: true}>>>['primaryKey'], true>>,
+declare const myDb: MySqlDatabase<MySqlQueryResultHKT, PreparedQueryHKTBase>;
+export const dzUsers = toDrizzle(users);
+export const selected = myDb.select().from(dzUsers);
+export const inserted = myDb.insert(dzUsers).values({name: 'a', age: 1, role: 'admin'});
+export const updated = myDb.update(dzUsers).set({age: 2});
+export const rawSelected = myDb.select().from(rawUsers);
+export const rawInserted = myDb.insert(rawUsers).values({name: 'a', age: 1, role: 'admin'});
+export const rawUpdated = myDb.update(rawUsers).set({age: 2});
+type InsertValues<Q> = Q extends {values(value: infer V): unknown} ? V : never;
+type UpdateSet<Q> = Q extends {set(values: infer V): unknown} ? V : never;
+export type QueryPins = [
+  Expect<Equal<Awaited<typeof selected>, Awaited<typeof rawSelected>>>,
+  Expect<Equal<Awaited<typeof inserted>, Awaited<typeof rawInserted>>>,
+  Expect<Equal<Awaited<typeof updated>, Awaited<typeof rawUpdated>>>,
+  Expect<Equal<keyof Awaited<typeof selected>[number], 'id' | 'name' | 'age' | 'role' | 'createdAt'>>,
+  Expect<
+    Equal<
+      InsertValues<ReturnType<typeof myDb.insert<typeof dzUsers>>>,
+      InsertValues<ReturnType<typeof myDb.insert<typeof rawUsers>>>
+    >
+  >,
+  Expect<
+    Equal<UpdateSet<ReturnType<typeof myDb.update<typeof dzUsers>>>, UpdateSet<ReturnType<typeof myDb.update<typeof rawUsers>>>>
+  >,
 ];
 
 // $returningId() returns exactly the primary keys that autoincrement or carry a runtime default.
@@ -457,18 +614,17 @@ export const keyed = mysqlTable('keyed', {
 });
 export const intKeyed = mysqlTable('int_keyed', {id: int({primaryKey: true, autoincrement: true}), name: text()});
 export const plainKeyed = mysqlTable('plain_keyed', {id: int({primaryKey: true}), name: text()});
-export const curKeyed = cur.mysqlTable('keyed', {
-  id: cur.serial().primaryKey(),
-  code: cur
+export const rawKeyed = dz.mysqlTable('keyed', {
+  id: dz.serial().primaryKey(),
+  code: dz
     .varchar({length: 8})
     .primaryKey()
     .$defaultFn(() => 'x'),
-  seq: cur.int().autoincrement(),
-  name: cur.varchar({length: 50}).notNull(),
+  seq: dz.int().autoincrement(),
+  name: dz.varchar({length: 50}).notNull(),
 });
-declare const myDb: MySqlDatabase<MySqlQueryResultHKT, PreparedQueryHKTBase>;
 export const keyedIds = myDb.insert(toDrizzle(keyed)).values({code: 'a', name: 'a'}).$returningId();
-export const curKeyedIds = myDb.insert(curToDrizzle(curKeyed)).values({code: 'a', name: 'a'}).$returningId();
+export const rawKeyedIds = myDb.insert(rawKeyed).values({code: 'a', name: 'a'}).$returningId();
 export const intKeyedIds = myDb.insert(toDrizzle(intKeyed)).values({}).$returningId();
 export const plainKeyedIds = myDb.insert(toDrizzle(plainKeyed)).values({id: 1}).$returningId();
 // A refined serial primary key keeps its key flags, so `$returningId()` still returns it.
@@ -478,29 +634,10 @@ export const refinedKeyedIds = myDb
   .$returningId();
 export type OnlyMysql_ReturningIdPins = [
   Expect<Equal<Awaited<typeof keyedIds>, {id: number; code: string}[]>>,
-  Expect<Equal<Awaited<typeof keyedIds>, Awaited<typeof curKeyedIds>>>,
+  Expect<Equal<Awaited<typeof keyedIds>, Awaited<typeof rawKeyedIds>>>,
   Expect<Equal<Awaited<typeof intKeyedIds>, {id: number}[]>>,
   Expect<Equal<keyof Awaited<typeof plainKeyedIds>[number], never>>,
   Expect<Equal<Awaited<typeof refinedKeyedIds>, {id: number; code: string}[]>>,
-];
-
-// ── select, insert and update through the mysql database ─────────────────────
-
-const dzUsers = toDrizzle(users);
-declare const newUser: next.InferInsertModel<typeof users>;
-declare const userPatch: next.InferUpdateModel<typeof users>;
-export const selectUsers = myDb.select().from(dzUsers);
-type SelectedRow = Awaited<typeof selectUsers>[number];
-declare const selectedRow: SelectedRow;
-export const rowIntoModel: next.InferSelectModel<typeof users> = selectedRow;
-export const insertFromModel = myDb.insert(dzUsers).values(newUser);
-export const updateFromModel = myDb.update(dzUsers).set(userPatch);
-export type QueryPins = [
-  Expect<Equal<SelectedRow['id'], number>>,
-  Expect<Equal<SelectedRow['name'], string>>,
-  Expect<Equal<SelectedRow['role'], 'admin' | 'user'>>,
-  Expect<Equal<SelectedRow['createdAt'], Date>>,
-  Expect<Equal<keyof SelectedRow, keyof next.InferSelectModel<typeof users>>>,
 ];
 
 // ── references, across tables and to itself ──────────────────────────────────
@@ -545,44 +682,68 @@ tableRef(teams, 'idd');
 
 export const activeView = mysqlView('active', {name: varchar('user_name', {length: 10, notNull: true}), note: text()}).existing();
 type ActiveView = MysqlView<'active', {name: Varchar<{length: 10; notNull: true}>; note: Text}, {name: 'user_name'}>;
-export const curActiveView = cur
-  .mysqlView('active', {name: cur.varchar('user_name', {length: 10}).notNull(), note: cur.text()})
-  .existing();
 
 export type ViewPins = [
   Expect<Equal<typeof activeView, ActiveView>>,
-  Expect<Equal<next.InferSelectViewModel<ActiveView>, InferSelectViewModel<typeof curActiveView>>>,
+  Expect<Equal<InferSelectViewModel<ActiveView>, ActiveViewViewSelectBefore>>,
   Expect<Equal<ReturnType<typeof mysqlView>, ViewFromQueryBuilderNotSupported>>,
 ];
 // @ts-expect-error the query-builder form has no columns to type, so it has no as()
-export const noAs = mysqlView('from_query').as;
+mysqlView('from_query').as(sql`select 1`);
 
-export const optionView = mysqlView('options', {name: varchar('user_name', {length: 10, notNull: true})})
-  .algorithm('merge')
-  .sqlSecurity('invoker')
-  .withCheckOption('cascaded')
-  .existing();
-type OptionView = MysqlView<'options', {name: Varchar<{length: 10; notNull: true}>}, {name: 'user_name'}>;
-export const curOptionView = cur
-  .mysqlView('options', {name: cur.varchar('user_name', {length: 10}).notNull()})
-  .algorithm('merge')
-  .sqlSecurity('invoker')
-  .withCheckOption('cascaded')
-  .existing();
-type AnyViewBuilder = MysqlViewBuilder<'v', object, object>;
+// ── table creators and the columns callback ──────────────────────────────────
 
-export type OnlyPgMysql_ViewOptionPins = [
-  Expect<Equal<typeof optionView, OptionView>>,
-  Expect<Equal<next.InferSelectViewModel<OptionView>, InferSelectViewModel<typeof curOptionView>>>,
-  Expect<Equal<Parameters<AnyViewBuilder['algorithm']>[0], MySqlViewAlgorithm>>,
-  Expect<Equal<Parameters<AnyViewBuilder['sqlSecurity']>[0], MySqlViewSecurity>>,
-  Expect<Equal<Parameters<AnyViewBuilder['withCheckOption']>[0], MySqlViewCheckOption | undefined>>,
+export const prefixed = mysqlTableCreator((name) => `app_${name}`);
+export const createdUsers = prefixed('users', {
+  id: serial({primaryKey: true}),
+  name: varchar({length: 100, notNull: true}),
+  age: int({notNull: true}),
+  role: text({enum: ['admin', 'user'], notNull: true}),
+  createdAt: timestamp({mode: 'date', notNull: true, defaultNow: true}),
+});
+export const byCallback = mysqlTable('users', (helpers) => ({
+  id: helpers.serial({primaryKey: true}),
+  name: helpers.varchar({length: 100, notNull: true}),
+  age: helpers.int({notNull: true}),
+  role: helpers.text({enum: ['admin', 'user'], notNull: true}),
+  createdAt: helpers.timestamp({mode: 'date', notNull: true, defaultNow: true}),
+}));
+export const createdByCallback = prefixed('users', (helpers) => ({
+  id: helpers.serial({primaryKey: true}),
+  name: helpers.varchar({length: 100, notNull: true}),
+  age: helpers.int({notNull: true}),
+  role: helpers.text({enum: ['admin', 'user'], notNull: true}),
+  createdAt: helpers.timestamp({mode: 'date', notNull: true, defaultNow: true}),
+}));
+export type CreatorPins = [
+  Expect<Equal<typeof createdUsers, Users>>,
+  Expect<Equal<typeof byCallback, Users>>,
+  Expect<Equal<typeof createdByCallback, Users>>,
 ];
 
-// ── enums: tuple and object forms ────────────────────────────────────────────
+// ── refine keeps every column fact, key flags included ───────────────────────
+
+type RefinedUsers = RefinedTable<Users, {name: {maxLength: 50}}>;
+export type RefinePins = [
+  Expect<Equal<KeyFlagsOf<ColSpecOf<RefinedUsers['columns']['id']>>['primaryKey'], true>>,
+  Expect<Equal<KeyFlagsOf<ColSpecOf<RefinedUsers['columns']['id']>>['autoincrement'], true>>,
+  Expect<Equal<InferSelectModel<RefinedUsers>, UsersRefinedSelectBefore>>,
+  Expect<Equal<InferInsertModel<RefinedUsers>, UsersRefinedInsertBefore>>,
+];
+
+// ── toDrizzle names columns as drizzle does, on BOTH roads ────────────────────
+// The names map is on the table, so a builder table gets its db names back too.
+
+export type DbNamePins = [
+  Expect<Equal<ToDrizzleTable<typeof named>['createdAt']['_']['name'], 'created_at'>>,
+  Expect<Equal<ToDrizzleTable<Named>['id']['_']['name'], 'id'>>,
+  Expect<Equal<keyof DzInferSelectModel<ToDrizzleTable<Named>, {dbColumnNames: true}>, 'id' | 'created_at'>>,
+];
+
+// ── enums, tuple and object forms ────────────────────────────────────────────
 
 export const withEnum = mysqlTable('with_enum', {
-  mood: mysqlEnum('mood', ['sad', 'happy'], {notNull: true}),
+  mood: mysqlEnum('mood_col', ['sad', 'happy'], {notNull: true}),
   level: mysqlEnum({Low: 'low', High: 'high'} as const, {default: ['low']}),
   bare: mysqlEnum(['x', 'y']),
 });
@@ -592,19 +753,15 @@ type WithEnum = MysqlTable<
     mood: MysqlEnumCol<['sad', 'happy'], {notNull: true}>;
     level: MysqlEnumObjectCol<{Low: 'low'; High: 'high'}, {default: ['low']}>;
     bare: MysqlEnumCol<['x', 'y']>;
-  }
+  },
+  [],
+  {mood: 'mood_col'}
 >;
-export const curWithEnum = cur.mysqlTable('with_enum', {
-  mood: cur.mysqlEnum('mood', ['sad', 'happy']).notNull(),
-  level: cur.mysqlEnum({Low: 'low', High: 'high'} as const).default('low'),
-  bare: cur.mysqlEnum(['x', 'y']),
-});
-
 export type OnlyPgMysql_EnumPins = [
   Expect<Equal<typeof withEnum, WithEnum>>,
-  Expect<Equal<next.InferSelectModel<WithEnum>, {mood: 'sad' | 'happy'; level: 'low' | 'high' | null; bare: 'x' | 'y' | null}>>,
-  Expect<Equal<next.InferSelectModel<WithEnum>, InferSelectModel<typeof curWithEnum>>>,
-  Expect<Equal<next.InferInsertModel<WithEnum>, InferInsertModel<typeof curWithEnum>>>,
+  Expect<Equal<InferSelectModel<WithEnum>, WithEnumSelectBefore>>,
+  Expect<Equal<InferInsertModel<WithEnum>, WithEnumInsertBefore>>,
+  Expect<Equal<InferSelectModel<WithEnum>, {mood: 'sad' | 'happy'; level: 'low' | 'high' | null; bare: 'x' | 'y' | null}>>,
   Expect<Equal<MysqlEnumObjectCol<{Low: 'low'; High: 'high'}>, MysqlEnumCol<['low', 'high']>>>,
 ];
 
@@ -618,7 +775,6 @@ export const shopCallbackItems = shop.table('items', (helpers) => ({
 }));
 export const shopView = shop.view('item_view', {label: varchar({length: 20})}).existing();
 type Items = MysqlTable<'items', {id: Serial<{primaryKey: true}>; label: Varchar<{length: 20}>}, [], {label: 'item_label'}>;
-
 export type OnlyPgMysql_SchemaPins = [
   Expect<Equal<typeof shopItems, Items>>,
   Expect<Equal<typeof shopCallbackItems, Items>>,
@@ -626,69 +782,36 @@ export type OnlyPgMysql_SchemaPins = [
   Expect<Equal<(typeof shop)['schemaName'], 'shop'>>,
 ];
 
-// ── table creators and the columns callback ──────────────────────────────────
+// ── view options ─────────────────────────────────────────────────────────────
 
-export const byCallback = mysqlTable('users', (helpers) => ({
-  id: helpers.serial({primaryKey: true}),
-  name: helpers.varchar({length: 100, notNull: true}),
-  age: helpers.int({notNull: true}),
-  role: helpers.text({enum: ['admin', 'user'], notNull: true}),
-  createdAt: helpers.timestamp({mode: 'date', notNull: true, defaultNow: true}),
-}));
-export const prefixed = mysqlTableCreator((name) => `app_${name}`);
-export const createdUsers = prefixed('users', {
-  id: serial({primaryKey: true}),
-  name: varchar({length: 100, notNull: true}),
-  age: int({notNull: true}),
-  role: text({enum: ['admin', 'user'], notNull: true}),
-  createdAt: timestamp({mode: 'date', notNull: true, defaultNow: true}),
-});
-export const createdByCallback = prefixed('users', (helpers) => ({
-  id: helpers.serial({primaryKey: true}),
-  name: helpers.varchar({length: 100, notNull: true}),
-  age: helpers.int({notNull: true}),
-  role: helpers.text({enum: ['admin', 'user'], notNull: true}),
-  createdAt: helpers.timestamp({mode: 'date', notNull: true, defaultNow: true}),
-}));
-export type CreatorPins = [
-  Expect<Equal<typeof byCallback, Users>>,
-  Expect<Equal<typeof createdUsers, Users>>,
-  Expect<Equal<typeof createdByCallback, Users>>,
-];
-
-// ── refine keeps every column fact, key flags included ───────────────────────
-
-type RefinedUsers = RefinedTable<Users, {name: {maxLength: 50}}>;
-export type RefinePins = [
-  Expect<Equal<KeyFlagsOf<ColSpecOf<RefinedUsers['columns']['id']>>['primaryKey'], true>>,
-  Expect<Equal<KeyFlagsOf<ColSpecOf<RefinedUsers['columns']['id']>>['autoincrement'], true>>,
-  Expect<Equal<next.InferSelectModel<RefinedUsers>, InferSelectModel<CurRefinedTable<typeof curUsers, {name: {maxLength: 50}}>>>>,
-  Expect<Equal<next.InferInsertModel<RefinedUsers>, InferInsertModel<CurRefinedTable<typeof curUsers, {name: {maxLength: 50}}>>>>,
-];
-
-// ── toDrizzle names columns as drizzle does, on BOTH roads ────────────────────
-// The names map is on the table, so a builder table gets its db names back too.
-
-export type DbNamePins = [
-  Expect<Equal<ToDrizzleTable<typeof named>['createdAt']['_']['name'], 'created_at'>>,
-  Expect<Equal<ToDrizzleTable<Named>['id']['_']['name'], 'id'>>,
-  Expect<Equal<keyof DzInferSelectModel<ToDrizzleTable<Named>, {dbColumnNames: true}>, 'id' | 'created_at'>>,
+export const optionView = mysqlView('options', {name: varchar('user_name', {length: 10, notNull: true})})
+  .algorithm('merge')
+  .sqlSecurity('invoker')
+  .withCheckOption('cascaded')
+  .existing();
+type AnyViewBuilder = MysqlViewBuilder<'v', object, object>;
+export type OnlyPgMysql_ViewOptionPins = [
+  Expect<Equal<typeof optionView, MysqlView<'options', {name: Varchar<{length: 10; notNull: true}>}, {name: 'user_name'}>>>,
+  Expect<Equal<InferSelectViewModel<typeof optionView>, OptionViewViewSelectBefore>>,
+  Expect<Equal<Parameters<AnyViewBuilder['algorithm']>[0], MySqlViewAlgorithm>>,
+  Expect<Equal<Parameters<AnyViewBuilder['sqlSecurity']>[0], MySqlViewSecurity>>,
+  Expect<Equal<Parameters<AnyViewBuilder['withCheckOption']>[0], MySqlViewCheckOption | undefined>>,
 ];
 
 // ── wrong modifiers are rejected ─────────────────────────────────────────────
 
+// @ts-expect-error only pg, mysql: a modifier this column kind lacks is rejected
+export type BadMod = Varchar<{autoincrement: true}>;
+// @ts-expect-error another dialect's modifier is rejected
+text({array: true});
+// @ts-expect-error a references() target must be a tableRef(), which records its table
+int({references: [() => users]});
 // @ts-expect-error a stray key is rejected in a call
 int({unsigned: true, onUpdateNow: true});
 // @ts-expect-error a stray key is rejected in a column type
 export type BadStrayKey = Varchar<{length: 10; autoincrement: true}>;
 // @ts-expect-error a stray key is rejected in a named call
 varchar('name', {length: 10, autoincrement: true});
-// @ts-expect-error another dialect's modifier is rejected
-text({array: true});
-// @ts-expect-error a references() target must be a tableRef(), which records its table
-int({references: [() => users]});
-// @ts-expect-error only pg, mysql: a modifier this column kind lacks is rejected
-export type BadAutoincrement = Varchar<{autoincrement: true}>;
 // @ts-expect-error only mysql: autoincrement is the numeric kinds only
 char({autoincrement: true});
 // @ts-expect-error only mysql: onUpdateNow is timestamp only, in a column type
@@ -699,3 +822,63 @@ int({onUpdateNow: true});
 text({defaultNow: true});
 // @ts-expect-error only mysql: varchar needs its length
 varchar();
+
+// ── refinement rejections ────────────────────────────────────────────────────
+
+// @ts-expect-error "nam" is not a column of the table
+export type BadRefineKey = RefinedTable<Users, {nam: {minLength: 2}}>;
+// @ts-expect-error a string column takes no numeric refinement
+export type BadRefineParam = RefinedTable<Users, {name: {min: 2}}>;
+// @ts-expect-error a boolean column carries no refinable format
+refineTableType(mysqlTable('flags', {on: boolean()}), {on: {min: 1}});
+// @ts-expect-error an enum column carries no refinable format
+refineTableType(withEnum, {mood: {maxLength: 3}});
+// @ts-expect-error refining cannot change the value family
+refineTableType(users, {name: {min: 3}});
+
+// ── views: select-only models ────────────────────────────────────────────────
+
+// @ts-expect-error InferSelectModel takes a table, a view uses InferSelectViewModel
+export type ViewNotSelectModel = InferSelectModel<typeof activeView>;
+// @ts-expect-error a view has no insert model
+export type ViewNotInsertModel = InferInsertModel<typeof activeView>;
+// @ts-expect-error a view has no update model
+export type ViewNotUpdateModel = InferUpdateModel<typeof activeView>;
+
+// ── the slim <-> drizzle boundary ────────────────────────────────────────────
+// A drizzle row goes into a slim model slot, and a slim model goes into a drizzle query. toDrizzle drops a column's
+// FORMAT tag (transparent: its sentinels are optional) but keeps a NOMINAL brand, or a queried id could not go back.
+
+export const boundaryUsers = mysqlTable('boundary_users', {
+  name: varchar({length: 100, notNull: true}),
+  age: int({notNull: true}),
+  createdAt: timestamp('created_at', {mode: 'date', notNull: true, defaultNow: true}),
+});
+export const boundaryApi = refineTableType(boundaryUsers, {name: {minLength: 10}, age: {min: 18}});
+export const boundaryQuery = myDb.select().from(toDrizzle(boundaryApi));
+declare const boundaryRows: Awaited<typeof boundaryQuery>;
+declare const newBoundary: InferInsertModel<typeof boundaryApi>;
+declare const boundaryPatch: InferUpdateModel<typeof boundaryApi>;
+export const rowIntoModel: InferSelectModel<typeof boundaryApi> = boundaryRows[0]!;
+export const rowsIntoModel: InferSelectModel<typeof boundaryApi>[] = boundaryRows;
+export const insertFromModel = myDb.insert(toDrizzle(boundaryApi)).values([newBoundary, newBoundary]);
+export const updateFromModel = myDb.update(toDrizzle(boundaryApi)).set(boundaryPatch);
+
+type BoundaryId = String<{minLength: 1}, 'BoundaryId'>;
+export const brandedTable = mysqlTable('boundary_branded', {
+  id: varchar({length: 40, notNull: true, $type: $type<BoundaryId>()}),
+});
+export const brandedQuery = myDb.select().from(toDrizzle(brandedTable));
+declare const brandedRows: Awaited<typeof brandedQuery>;
+export const brandedRowIntoModel: InferSelectModel<typeof brandedTable> = brandedRows[0]!;
+
+export type BoundaryPins = [
+  Expect<Equal<(typeof boundaryRows)[number]['name'], string>>,
+  Expect<Equal<(typeof boundaryRows)[number]['createdAt'], Date>>,
+  Expect<Equal<InferSelectModel<typeof brandedTable>['id'], BoundaryId>>,
+];
+
+// @ts-expect-error only mysql, sqlite: unique takes a name only
+varchar({length: 5, unique: ['uq', {nulls: 'distinct'}]});
+// @ts-expect-error real takes no mode
+real({mode: 'number'});

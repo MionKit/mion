@@ -52,8 +52,8 @@ const dzAppSchema = dzMy.mysqlSchema('app');
 const schemaUsers = appSchema.table(
   'users',
   {
-    id: int('id').primaryKey(),
-    name: varchar('name', {length: 50}).notNull(),
+    id: int('id', {primaryKey: true}),
+    name: varchar('name', {length: 50, notNull: true}),
   },
   (t) => [index('app_users_name_idx').on(t.name)]
 );
@@ -87,8 +87,8 @@ const prefixed = mysqlTableCreator((name) => `pre_${name}`);
 const dzPrefixed = dzMy.mysqlTableCreator((name) => `pre_${name}`);
 
 const creatorUsers = prefixed('users', {
-  id: int('id').primaryKey(),
-  name: varchar('name', {length: 50}).notNull(),
+  id: int('id', {primaryKey: true}),
+  name: varchar('name', {length: 50, notNull: true}),
 });
 const dzCreatorUsers = dzPrefixed('users', {
   id: dzMy.int('id').primaryKey(),
@@ -109,8 +109,8 @@ describe('mysql value helpers — mysqlTableCreator', () => {
 // ── model derivation on creator/schema tables ────────────────────────────────
 
 const plainUsers = mysqlTable('users', {
-  id: int('id').primaryKey(),
-  name: varchar('name', {length: 50}).notNull(),
+  id: int('id', {primaryKey: true}),
+  name: varchar('name', {length: 50, notNull: true}),
 });
 
 describe('mysql value helpers — model derivation', () => {

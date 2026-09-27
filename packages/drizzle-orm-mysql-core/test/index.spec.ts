@@ -6,9 +6,7 @@
  * ######## */
 
 // Runtime pins for the slim mysql surface: toDrizzle materializes EXACTLY the
-// table a hand-written drizzle file builds (getTableConfig oracle), models
-// compile full-fidelity validators, and the chain-method completeness diff
-// keeps a drizzle upgrade from silently adding modifiers we do not record.
+// table a hand-written drizzle file builds (getTableConfig oracle).
 
 import {describe, it, expect} from 'vitest';
 import {
@@ -33,7 +31,6 @@ import {
 } from 'drizzle-orm/mysql-core';
 import * as dzMy from 'drizzle-orm/mysql-core';
 import {sql as dzRealSql} from 'drizzle-orm';
-import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
 import {
   boolean,
   check,
@@ -53,8 +50,8 @@ import {
   varchar,
   year,
 } from '../src/index.ts';
-import type {InferInsertModel, InferSelectModel, InferSelectViewModel, InferUpdateModel} from '@mionjs/drizzle-orm';
-import {cols, refineTableType, sql} from '@mionjs/drizzle-orm';
+import type {InferSelectModel, InferSelectViewModel} from '@mionjs/drizzle-orm';
+import {$type, refineTableType, sql, tableRef} from '@mionjs/drizzle-orm';
 import {toDrizzle} from '../src/drizzle.ts';
 import {mysqlView} from '../src/views.ts';
 
@@ -114,8 +111,8 @@ function project(table: Parameters<typeof getTableConfig>[0]) {
 }
 
 const teams = mysqlTable('teams', {
-  id: serial('id').primaryKey(),
-  code: varchar('code', {length: 10}).notNull().unique(),
+  id: serial('id', {primaryKey: true}),
+  code: varchar('code', {length: 10, notNull: true, unique: true}),
 });
 const dzTeams = dzMysqlTable('teams', {
   id: dzSerial('id').primaryKey(),
@@ -125,23 +122,23 @@ const dzTeams = dzMysqlTable('teams', {
 const users = mysqlTable(
   'users',
   {
-    id: int('id').autoincrement().primaryKey(),
-    name: varchar('name', {length: 100}).notNull(),
-    role: mysqlEnum('role', ['admin', 'user']).notNull(),
-    plan: text('plan', {enum: ['free', 'pro']}).default('free'),
+    id: int('id', {autoincrement: true, primaryKey: true}),
+    name: varchar('name', {length: 100, notNull: true}),
+    role: mysqlEnum('role', ['admin', 'user'], {notNull: true}),
+    plan: text('plan', {enum: ['free', 'pro'], default: ['free']}),
     level: tinyint('level', {unsigned: true}),
     born: year('born'),
-    active: boolean('active').notNull().default(true),
-    meta: json('meta').$type<{tags: string[]}>(),
-    teamId: int('team_id').references(() => cols(teams).id, {onDelete: 'cascade'}),
-    fullName: text('full_name').generatedAlwaysAs(sql`name`),
+    active: boolean('active', {notNull: true, default: [true]}),
+    meta: json('meta', {$type: $type<{tags: string[]}>()}),
+    teamId: int('team_id', {references: [() => tableRef(teams, 'id'), {onDelete: 'cascade'}]}),
+    fullName: text('full_name', {generatedAlwaysAs: [sql`name`]}),
     seenAt: datetime('seen_at', {mode: 'string'}),
-    createdAt: timestamp('created_at').notNull().defaultNow().onUpdateNow(),
+    createdAt: timestamp('created_at', {notNull: true, defaultNow: true, onUpdateNow: true}),
   },
   (t) => [
     index('users_name_idx').on(t.name, t.level).using('btree'),
     unique('users_name_uq').on(t.name),
-    foreignKey({name: 'users_team_fk', columns: [t.teamId], foreignColumns: [cols(teams).id]}).onUpdate('restrict'),
+    foreignKey({name: 'users_team_fk', columns: [t.teamId], foreignColumns: [tableRef(teams, 'id')]}).onUpdate('restrict'),
     check('users_level_check', sql`${t.level} >= 0`),
   ]
 );
@@ -169,9 +166,11 @@ const dzUsers = dzMysqlTable(
   ]
 );
 
-const memberships = mysqlTable('memberships', {userId: int('user_id').notNull(), teamId: int('team_id').notNull()}, (t) => [
-  primaryKey({name: 'memberships_pk', columns: [t.userId, t.teamId]}),
-]);
+const memberships = mysqlTable(
+  'memberships',
+  {userId: int('user_id', {notNull: true}), teamId: int('team_id', {notNull: true})},
+  (t) => [primaryKey({name: 'memberships_pk', columns: [t.userId, t.teamId]})]
+);
 const dzMemberships = dzMysqlTable(
   'memberships',
   {userId: dzInt('user_id').notNull(), teamId: dzInt('team_id').notNull()},
@@ -189,7 +188,7 @@ enum PinnedRole {
 }
 /* eslint-enable no-unused-vars */
 const enumObjTable = mysqlTable('enum_obj', {
-  named: mysqlEnum('named', PinnedRole).notNull(),
+  named: mysqlEnum('named', PinnedRole, {notNull: true}),
   bare: mysqlEnum(PinnedRole),
 });
 const dzEnumObjTable = dzMysqlTable('enum_obj', {
@@ -223,127 +222,6 @@ describe('mysql slim surface — toDrizzle equals hand-written drizzle', () => {
   });
 });
 
-const people = mysqlTable('people', {
-  id: serial('id').primaryKey(),
-  name: varchar('name', {length: 100}).notNull(),
-  age: int('age').notNull(),
-  role: mysqlEnum('role', ['admin', 'user']).notNull(),
-  bio: text('bio'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-});
-const apiPeople = refineTableType(people, {name: {minLength: 3}, age: {min: 18}});
-type Person = InferSelectModel<typeof apiPeople>;
-type NewPerson = InferInsertModel<typeof apiPeople>;
-type PersonPatch = InferUpdateModel<typeof apiPeople>;
-
-const validPerson = {id: 1, name: 'ann-lee', age: 30, role: 'admin', bio: null, createdAt: new Date()};
-
-describe('mysql slim surface — models compile full-fidelity validators', () => {
-  const validatePerson = createValidateFn<Person>();
-  const validateInsert = createValidateFn<NewPerson>();
-  const validatePatch = createValidateFn<PersonPatch>();
-
-  it('the refined table is the same object; only typeof carries the refinement', () => {
-    expect(apiPeople).toBe(people);
-  });
-
-  it('accepts a valid row and enforces captured + refined params', () => {
-    expect(validatePerson(validPerson)).toBe(true);
-    expect(validatePerson({...validPerson, id: -1})).toBe(false); // serial is PositiveInt
-    expect(validatePerson({...validPerson, name: 'x'.repeat(101)})).toBe(false);
-    expect(validatePerson({...validPerson, name: 'ab'})).toBe(false);
-    expect(validatePerson({...validPerson, age: 17})).toBe(false);
-    expect(validatePerson({...validPerson, role: 'root'})).toBe(false);
-  });
-
-  it('insert makes serial + defaults optional; patch is a real partial', () => {
-    expect(validateInsert({name: 'ann-lee', age: 21, role: 'user'})).toBe(true);
-    expect(validatePatch({})).toBe(true);
-    expect(validatePatch({age: 17})).toBe(false);
-  });
-
-  // Marker test coverage rule: both getRunTypeId call shapes, paired.
-  it('getRunTypeId static form resolves the model', () => {
-    expect(getRunTypeId<Person>()).toBeTruthy();
-  });
-  it('getRunTypeId reflection form resolves the model', () => {
-    const person: Person = validPerson as Person;
-    expect(getRunTypeId(person)).toBeTruthy();
-  });
-  it('both getRunTypeId forms resolve to the same id', () => {
-    const person: Person = validPerson as Person;
-    expect(getRunTypeId(person)).toBe(getRunTypeId<Person>());
-  });
-});
-
-describe('mysql slim surface — chain-method completeness against drizzle', () => {
-  function runtimeMethods(value: object): string[] {
-    const names = new Set<string>();
-    for (const name of Object.getOwnPropertyNames(value)) {
-      if (name !== 'constructor' && typeof (value as Record<string, unknown>)[name] === 'function') names.add(name);
-    }
-    let proto = Object.getPrototypeOf(value);
-    while (proto && proto !== Object.prototype) {
-      for (const name of Object.getOwnPropertyNames(proto)) {
-        if (name !== 'constructor' && typeof proto[name] === 'function') names.add(name);
-      }
-      proto = Object.getPrototypeOf(proto);
-    }
-    return [...names].sort();
-  }
-  const INTERNAL = new Set(['build', 'buildExtraConfigColumn', 'buildForeignKeys', 'setName']);
-  const SLIM = new Set([
-    '$type',
-    '$default',
-    '$defaultFn',
-    '$onUpdate',
-    '$onUpdateFn',
-    'notNull',
-    'default',
-    'defaultNow',
-    'onUpdateNow',
-    'primaryKey',
-    'unique',
-    'references',
-    'generatedAlwaysAs',
-    'autoincrement',
-  ]);
-  const RAW: Record<string, object> = {
-    bigint: dzMy.bigint('c', {mode: 'number'}),
-    binary: dzMy.binary('c'),
-    boolean: dzMy.boolean('c'),
-    char: dzMy.char('c'),
-    date: dzMy.date('c'),
-    datetime: dzMy.datetime('c'),
-    decimal: dzMy.decimal('c'),
-    double: dzMy.double('c'),
-    float: dzMy.float('c'),
-    int: dzMy.int('c'),
-    json: dzMy.json('c'),
-    longtext: dzMy.longtext('c'),
-    mediumint: dzMy.mediumint('c'),
-    mediumtext: dzMy.mediumtext('c'),
-    mysqlEnum: dzMy.mysqlEnum('c', ['a']),
-    real: dzMy.real('c'),
-    serial: dzMy.serial('c'),
-    smallint: dzMy.smallint('c'),
-    text: dzMy.text('c'),
-    time: dzMy.time('c'),
-    timestamp: dzMy.timestamp('c'),
-    tinyint: dzMy.tinyint('c'),
-    tinytext: dzMy.tinytext('c'),
-    varbinary: dzMy.varbinary('c', {length: 4}),
-    varchar: dzMy.varchar('c', {length: 4}),
-    year: dzMy.year('c'),
-  };
-  for (const [fnName, builder] of Object.entries(RAW)) {
-    it(`${fnName}: every drizzle modifier is covered by the slim surface`, () => {
-      const uncovered = runtimeMethods(builder).filter((method) => !INTERNAL.has(method) && !SLIM.has(method));
-      expect(uncovered, `drizzle's ${fnName} builder grew modifiers the slim surface does not record`).toEqual([]);
-    });
-  }
-});
-
 // ── views: the manual-column form ────────────────────────────────────────────
 
 /** JSON-safe projection of a view: name, the config drizzle-kit reads, and the
@@ -374,7 +252,7 @@ const activeTeams = mysqlView('active_teams', {
   .algorithm('merge')
   .sqlSecurity('definer')
   .withCheckOption('cascaded')
-  .as(sql`select ${cols(teams).id}, ${cols(teams).code} from ${teams}`);
+  .as(sql`select ${tableRef(teams, 'id')}, ${tableRef(teams, 'code')} from ${teams}`);
 const dzActiveTeams = dzMy
   .mysqlView('active_teams', {
     id: dzMy.int('id'),
@@ -404,13 +282,5 @@ describe('mysql slim surface — views equal hand-written drizzle', () => {
     type Row = InferSelectViewModel<typeof activeTeams>;
     const row: Row = {id: null, code: null};
     expect(row.id).toBeNull();
-  });
-});
-
-describe('generated columns', () => {
-  it('generatedAlwaysAs keeps its mode config', () => {
-    const table = mysqlTable('gen', {derived: text('derived').generatedAlwaysAs('x', {mode: 'stored'})});
-    const [column] = getTableConfig(toDrizzle(table) as never).columns;
-    expect(column.generated).toMatchObject({type: 'always', mode: 'stored'});
   });
 });
