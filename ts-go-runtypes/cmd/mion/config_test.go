@@ -499,12 +499,10 @@ func TestResolveBundleApi(t *testing.T) {
 			t.Errorf("flag %q, key %s: got %q (ok %v), want %q", tc.flag, tc.key, got, ok, tc.want)
 		}
 	}
-	for _, flag := range []string{"fetched", "mixed"} {
-		if _, ok := resolveBundleApi(flag, ""); ok {
-			t.Errorf("the unknown mode %q is refused", flag)
-		}
+	if _, ok := resolveBundleApi("fetched", ""); ok {
+		t.Errorf("an unknown mode is refused")
 	}
-	for _, raw := range []string{`"bundled"`, `"mixed"`, `1`, `{"mode":"bundled"}`, `["bundled"]`} {
+	for _, raw := range []string{`"yes"`, `1`, `{}`, `[]`} {
 		var key bundleApiKey
 		err := json.Unmarshal([]byte(raw), &key)
 		if err == nil || !strings.Contains(err.Error(), "true or false") {

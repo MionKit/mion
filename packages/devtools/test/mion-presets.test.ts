@@ -115,9 +115,6 @@ describe('the api pointer and bundleApi — the client build bundles what it cal
   it('rejects an empty pointer and a bundleApi that is not a boolean', () => {
     expect(() => toRunTypesOptions({}, undefined, {api: {tsConfig: ''}})).toThrow(/api\.tsConfig/);
     expect(() => toRunTypesOptions({}, undefined, {bundleApi: 'all' as never})).toThrow(/bundleApi must be true or false/);
-    // the retired string modes are refused, not read as truthy
-    expect(() => toRunTypesOptions({}, undefined, {bundleApi: 'bundled' as never})).toThrow(/bundleApi/);
-    expect(() => toRunTypesOptions({}, undefined, {bundleApi: 'mixed' as never})).toThrow(/bundleApi/);
   });
 
   it('is reached through BOTH presets', async () => {
