@@ -13,8 +13,8 @@ import type {Integer, PgTable} from '../src/index.ts';
 import {tableFromType} from '../src/index.ts';
 import {toDrizzle} from '../src/drizzle.ts';
 
-type Parents = PgTable<'parents', {id: Integer<'id', {primaryKey: true}>}>;
-type Children = PgTable<'children', {pid: Integer<'pid', {references: [{table: 'parents'; column: 'id'}]}>}>;
+type Parents = PgTable<'parents', {id: Integer<{primaryKey: true}>}>;
+type Children = PgTable<'children', {pid: Integer<{references: [{table: 'parents'; column: 'id'}]}>}>;
 
 describe('a marker call nested in toDrizzle options', () => {
   it('nested in an arrow', () => {

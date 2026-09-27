@@ -19,9 +19,9 @@ export interface ManifestEntry {
 
 export interface ColumnParity {
   fn: string;
-  /** The *ColMods bag(s) the column type's generic constraints name. */
+  /** The *ColMods bag(s) the column type's props constraint names. */
   bag: string | null;
-  /** The Rt*Column interface(s) the builder overloads return. */
+  /** The props interface(s) the builder's overloads constrain their props by. */
   returns: string[];
   manifestModifiers: string[];
   bagMissing: string[];
@@ -32,7 +32,7 @@ export interface ColumnParity {
   unresolved: string | null;
 }
 
-/** Every *ColMods bag in a dialect's columns.ts, inheritance flattened. */
+/** Every *ColMods bag in a dialect's types.ts, inheritance flattened. */
 export function parseBags(source: string): Map<string, Set<string>> {
   const declared = new Map<string, {own: Set<string>; parent: string | null}>();
   for (const bag of source.matchAll(/^export interface (\w*ColMods)(?: extends ([\s\S]*?))?\s*\{([\s\S]*?)^\}/gm)) {
@@ -60,18 +60,22 @@ export function parseBags(source: string): Map<string, Set<string>> {
   return flattened;
 }
 
-/** Every Rt*Column kind interface in a dialect's columns.ts, by method name. */
-export function parseColumnInterfaces(source: string): Map<string, Set<string>> {
-  const interfaces = new Map<string, Set<string>>();
-  for (const found of source.matchAll(/^export interface (Rt\w*Column)<[\s\S]*?\{([\s\S]*?)^\}/gm)) {
-    const methods = new Set<string>();
-    for (const method of found[2].matchAll(/^ {2}([\w$]+)(?:<[^>]*>)?\(/gm)) methods.add(method[1]);
-    interfaces.set(found[1], methods);
+/** Every builder props interface (`export interface PgColIn {...}`), inheritance flattened. */
+export function parsePropsInterfaces(source: string): Map<string, Set<string>> {
+  const declared = new Map<string, {own: Set<string>; parent: string | null}>();
+  for (const found of source.matchAll(/^export interface (\w+In)(?: extends (\w+))? \{([\s\S]*?)^\}/gm)) {
+    const own = new Set([...found[3].matchAll(/^ {2}([\w$]+)\?:/gm)].map((key) => key[1]));
+    declared.set(found[1], {own, parent: found[2] ?? null});
   }
-  return interfaces;
+  const flatten = (name: string): Set<string> => {
+    const props = declared.get(name);
+    if (!props) return new Set();
+    return new Set([...props.own, ...(props.parent ? flatten(props.parent) : [])]);
+  };
+  return new Map([...declared.keys()].map((name) => [name, flatten(name)]));
 }
 
-/** Return interfaces named by a builder's overload signatures, by function. */
+/** The props interfaces a builder's overloads name (`const C extends Only<C, Config & PgColIn>`), by function. */
 export function parseBuilderReturns(source: string): Map<string, Set<string>> {
   const returns = new Map<string, Set<string>>();
   for (const part of source.split(/^export function /m).slice(1)) {
@@ -81,7 +85,7 @@ export function parseBuilderReturns(source: string): Map<string, Set<string>> {
     const semicolon = part.indexOf(';');
     const signature = part.slice(0, semicolon >= 0 ? semicolon + 1 : Math.max(part.search(/[{]/), 0));
     if (!returns.has(name)) returns.set(name, new Set());
-    for (const kind of signature.matchAll(/\):\s*(Rt\w*Column)</g)) returns.get(name)!.add(kind[1]);
+    for (const props of signature.matchAll(/const C extends Only<C, (?:[^\n]*? & )?(\w+In)>/g)) returns.get(name)!.add(props[1]);
   }
   return returns;
 }
@@ -95,21 +99,26 @@ export function parseExportRenames(indexSource: string): Map<string, string> {
   return renames;
 }
 
-/** The bag(s) a column type's generic constraints name, or null if not found. */
+/** The bag(s) a column type's props constraint names, or null if not found. */
 function bagOfColumnType(source: string, typeName: string): string | null {
-  // Lazy so a one-line declaration cannot run on into the next type's ' = RtColType<'.
-  const declaration = source.match(new RegExp(String.raw`^export type ${typeName}<([\s\S]*?)>\s*=\s*RtColType<`, 'm'));
+  // Lazy so a one-line declaration cannot run on into the next type's ' = Column<'.
+  const declaration = source.match(new RegExp(String.raw`^export type ${typeName}<([\s\S]*?)>\s*=\s*Column<`, 'm'));
   if (!declaration || declaration[1].includes('\nexport ')) return null;
   const named = [...new Set([...declaration[1].matchAll(/\b(\w*ColMods)\b/g)].map((match) => match[1]))];
   return named.length ? named.join('+') : null;
 }
 
-/** A column with no `typeAlias` is builders-only, so only its builder is checked:
- *  mysqlEnum takes a values ARRAY, not a config object. */
-export function columnParity(manifestEntries: ManifestEntry[], columnsSource: string, indexSource: string): ColumnParity[] {
-  const bags = parseBags(columnsSource);
-  const interfaces = parseColumnInterfaces(columnsSource);
-  const builders = parseBuilderReturns(columnsSource);
+/** A column with no `typeAlias` is builders-only, so only its builder is checked: mysqlEnum takes a values ARRAY.
+ *  `typesSource` holds the bags, `buildersSource` the builders and their props interfaces. */
+export function columnParity(
+  manifestEntries: ManifestEntry[],
+  typesSource: string,
+  buildersSource: string,
+  indexSource: string
+): ColumnParity[] {
+  const bags = parseBags(typesSource);
+  const interfaces = parsePropsInterfaces(buildersSource);
+  const builders = parseBuilderReturns(buildersSource);
   const renames = parseExportRenames(indexSource);
   const report: ColumnParity[] = [];
 
@@ -118,7 +127,7 @@ export function columnParity(manifestEntries: ManifestEntry[], columnsSource: st
     const modifiers = new Set(entry.modifiers ?? []);
     const returns = [...(builders.get(entry.fn) ?? [])];
     const typeName = entry.typeAlias ? (renames.get(entry.typeAlias) ?? entry.typeAlias) : null;
-    const bag = typeName ? bagOfColumnType(columnsSource, typeName) : null;
+    const bag = typeName ? bagOfColumnType(buildersSource, typeName) : null;
     const bagKeys = bag ? bags.get(bag) : undefined;
     const builderMethods = returns.length === 1 ? interfaces.get(returns[0]) : undefined;
 
@@ -126,7 +135,7 @@ export function columnParity(manifestEntries: ManifestEntry[], columnsSource: st
       typeName && !bagKeys
         ? `no *ColMods bag resolved for column type ${typeName} (read ${bag ?? 'nothing'})`
         : !builderMethods
-          ? `builder ${entry.fn} does not resolve to exactly one Rt*Column interface (read [${returns}])`
+          ? `builder ${entry.fn} does not resolve to exactly one props interface (read [${returns}])`
           : null;
 
     report.push({

@@ -5,25 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The source→graph half of the type-road oracle, over the REAL resolver: a
-// random table spec is rendered as pure-type SOURCE (DB.PgTable<'t', {...}>),
-// scanned by the actual mion binary, its entry modules evaluated into
-// the live reflected graph, and tableFromType over that graph must produce
-// the same drizzle table as a raw drizzle build of the same spec. The wide
-// in-process fuzz (tableEquality.fuzz.spec.ts) covers the graph→table half on
-// every run; this lane proves authored type text reflects into that graph.
-//
-// The SAME fixture also renders each spec as BUILDER calls, so every iteration
-// pins the property the whole two-road design rests on: a table written as a
-// type and the same table written with the builders must resolve to ONE runtype
-// id. If that ever drifts, the compiled validators and the serialized client
-// functions disagree with the schema they were derived from, silently. The
-// hand-written twin tables in typeTables.spec.ts pin it on two examples; this
-// pins it across the generated vocabulary.
-//
-// Replay with MION_FUZZ_SEED; widen with MION_FUZZ_ITER (`pnpm miondevx core fuzz
-// drizzletypes`). Every iteration also pins the Marker rule pair: the value
-// probe's id equals the static probe's id.
+// pg columns through the REAL resolver, each random spec as a hand-written type and as builders in one fixture.
+// Columns and names are compared, not whole tables: a builder table's type records no extraConfig entries.
+// The value probe is the Marker rule pair. Replay with MION_FUZZ_SEED; widen with MION_FUZZ_ITER.
 
 import path from 'node:path';
 import {describe, expect, it} from 'vitest';
@@ -31,9 +15,7 @@ import * as dzPg from 'drizzle-orm/pg-core';
 import {sql as dzSql} from 'drizzle-orm';
 import {mixSeed, mulberry32} from '../../run-types/test/fuzz/core/seededRng.ts';
 import {entrySeed, parseSeed} from '../../run-types/test/fuzz/core/fuzzPolicy.ts';
-// Deliberately the LIGHT helpers (not typeFuzzHarness): the harness imports
-// the core runtime sources, which would drag them into THIS project's plugin
-// scan; inline.ts + ResolverClient carry no marker call sites.
+// The LIGHT helpers: no marker call sites of their own.
 import {evalEntryModules, instantiateRunTypes, BIN, hasBinary} from '../../devtools/test/helpers/inline.ts';
 import {ResolverClient} from '../../devtools/src/core/resolver-client.ts';
 import {
@@ -49,12 +31,10 @@ import {
 } from './tableSpecShared.ts';
 import {buildRtTableFromGraph} from '@mionjs/drizzle-orm';
 import {pgBuildTable} from '../src/table.ts';
-import {integer, pgTable} from '../src/index.ts';
 import {toDrizzle} from '../src/drizzle.ts';
+import {integer, pgTable} from '../src/index.ts';
 
-// The referenced parent every surface shares (References resolves through
-// tableFromType deps; the raw surface builds its own).
-const slimParent = pgTable(FUZZ_PARENT_NAME, {id: integer('id').primaryKey()});
+const slimParent = pgTable(FUZZ_PARENT_NAME, {id: integer('id', {primaryKey: true})});
 
 const REPO_ROOT = path.resolve(__dirname, '../../..');
 const openClient = () => new ResolverClient(BIN, REPO_ROOT, '', {serverMode: true, emitMode: 'both'});
@@ -62,9 +42,7 @@ const register = hasBinary() ? it : it.skip;
 const ITERATIONS = parseSeed(process.env.MION_FUZZ_ITER, 4);
 const BASE_SEED = process.env.MION_FUZZ_SEED ? Number(process.env.MION_FUZZ_SEED) : entrySeed('drizzletypes');
 const TABLES_PER_ITERATION = 2;
-// Keyed inside the pg package dir so the fixture's relative ./src import and
-// its bare @mionjs/RunTypes imports resolve exactly as this package's own
-// sources do (workspace node_modules + the source export condition).
+// Inside the pg package dir, so the fixture's relative imports resolve as this package's sources do.
 const FIXTURE = 'packages/drizzle-orm-pg-core/__drizzleTypeFuzz__.ts';
 
 const rawSurface: Surface = {
@@ -72,13 +50,19 @@ const rawSurface: Surface = {
   sql: dzSql as never,
   table: (name, columns, extra) => dzPg.pgTable(name as never, columns as never, extra as never),
   parent: dzPg.pgTable(FUZZ_PARENT_NAME, {id: dzPg.integer('id').primaryKey()}) as never,
+  drizzle: true,
 };
+
+const tableProbes = (count: number) => Array.from({length: count}, (_, i) => `getRunTypeId<Fz${i}>();`).join('\n') + '\n';
 
 interface Rendered {
   source: string;
   specs: TableSpec[];
   names: string[];
 }
+
+/** Probes per spec, in source order: columns and names of both spellings, then the model of each. */
+const PROBES_PER_SPEC = 6;
 
 function renderFixture(rng: () => number, iteration: number): Rendered {
   const specs: TableSpec[] = [];
@@ -89,35 +73,37 @@ function renderFixture(rng: () => number, iteration: number): Rendered {
     names.push(`fz_${iteration}_${specs.length}`);
     specs.push(reduced);
   }
-  // Both roads, in one file: the type alias the reflection oracle reads, and
-  // the builder const whose model must land on the SAME runtype id.
-  const typeDecls = specs.map((spec, i) => `export type Fz${i} = ${renderTableType(spec, names[i], 'DB')};`).join('\n');
-  const builderDecls = specs
-    .map((spec, i) => `export const bz${i} = ${renderTableBuilders(spec, names[i], 'DBV', 'fzParent')};`)
+  const decls = specs
+    .map(
+      (spec, i) =>
+        `export type Fz${i} = ${renderTableType(spec, names[i], 'DB', 'DB')};\n` +
+        `export const bz${i} = ${renderTableBuilders(spec, names[i], 'DBV', 'fzParent')};`
+    )
     .join('\n');
-  const tableProbes = specs.map((_, i) => `getRunTypeId<Fz${i}>();`).join('\n');
-  // The model pairs, type road then builder road per spec, so the assertion can
-  // read them two at a time.
-  const modelProbes = specs
-    .map((_, i) => `getRunTypeId<InferSelectModel<Fz${i}>>();\ngetRunTypeId<InferSelectModel<typeof bz${i}>>();`)
+  const probes = specs
+    .map(
+      (_, i) =>
+        `getRunTypeId<Fz${i}['columns']>();\ngetRunTypeId<(typeof bz${i})['columns']>();\n` +
+        `getRunTypeId<Fz${i}['names']>();\ngetRunTypeId<(typeof bz${i})['names']>();\n` +
+        `getRunTypeId<Select<Fz${i}>>();\ngetRunTypeId<Select<typeof bz${i}>>();`
+    )
     .join('\n');
   const source =
     `import {getRunTypeId} from '@mionjs/run-types';\n` +
     `import type * as DB from './src/index.ts';\n` +
     `import * as DBV from './src/index.ts';\n` +
-    `import type {InferSelectModel} from '@mionjs/drizzle-orm';\n` +
-    // cols(): a slim table's TYPE is its metadata, so a cross-table reference
-    // reaches the columns through the accessor rather than a property.
-    `import {cols} from '@mionjs/drizzle-orm';\n` +
-    `const fzParent = DBV.pgTable('${FUZZ_PARENT_NAME}', {id: DBV.integer('id').primaryKey()});\n` +
-    `${typeDecls}\n${builderDecls}\ndeclare const fzValueProbe: Fz0;\n` +
-    `${tableProbes}\ngetRunTypeId(fzValueProbe);\n${modelProbes}\n`;
+    `import type {InferSelectModel as Select} from '@mionjs/drizzle-orm';\n` +
+    `import {tableRef} from '@mionjs/drizzle-orm';\n` +
+    `const fzParent = DBV.pgTable('${FUZZ_PARENT_NAME}', {id: DBV.integer('id', {primaryKey: true})});\n` +
+    `${decls}\ndeclare const fzValueProbe: Fz0['columns'];\n${probes}\ngetRunTypeId(fzValueProbe);\n` +
+    // The whole hand-written table, last: the graph the reader rebuilds from.
+    tableProbes(specs.length);
   return {source, specs, names};
 }
 
-describe('pg type-road fuzz: authored type source through the real resolver', () => {
+describe('pg columns fuzz: authored source through the real resolver', () => {
   register(
-    `reflects ${ITERATIONS}x${TABLES_PER_ITERATION} random type tables into equal drizzle tables`,
+    `reflects ${ITERATIONS}x${TABLES_PER_ITERATION} random tables, both spellings, to one id and equal drizzle tables`,
     {timeout: 900_000},
     async () => {
       const client = openClient();
@@ -130,31 +116,24 @@ describe('pg type-road fuzz: authored type source through the real resolver', ()
           const resp = await client.scanFiles([FIXTURE], {includeEntryModules: true});
           const errors = (resp.diagnostics ?? []).filter((diag) => diag.severity === 1);
           expect(errors, `resolver errors\n${detail}\n${JSON.stringify(errors, null, 1)}`).toEqual([]);
-          const reflectionSites = (resp.sites ?? []).filter((site) => !site.fnId).sort((a, b) => a.pos - b.pos);
-          // specs table probes + the value probe + one model pair per spec.
-          expect(reflectionSites.length, `reflection sites\n${detail}`).toBe(fixture.specs.length * 3 + 1);
+          const sites = (resp.sites ?? []).filter((site) => !site.fnId).sort((a, b) => a.pos - b.pos);
+          const count = fixture.specs.length;
+          expect(sites.length, `reflection sites\n${detail}`).toBe(count * PROBES_PER_SPEC + 1 + count);
           const registered = instantiateRunTypes(evalEntryModules(resp.entryModules ?? {}));
-          // Marker rule pair: the reflection-form probe (last site) matches the
-          // static-form probe of Fz0 (first site).
-          expect(reflectionSites[fixture.specs.length].id, `marker pair\n${detail}`).toBe(reflectionSites[0].id);
-          // The two-roads oracle: the select model of the type-road table and of
-          // the builder-road table must be ONE runtype, per generated spec.
-          for (let i = 0; i < fixture.specs.length; i++) {
-            const typeRoadId = reflectionSites[fixture.specs.length + 1 + i * 2].id;
-            const builderRoadId = reflectionSites[fixture.specs.length + 2 + i * 2].id;
-            expect(typeRoadId, `two-roads runtype id, table ${i}\n${detail}`).toBe(builderRoadId);
-          }
-          for (let i = 0; i < fixture.specs.length; i++) {
-            const node = registered[reflectionSites[i].id];
+          expect(sites[count * PROBES_PER_SPEC].id, `marker pair\n${detail}`).toBe(sites[0].id);
+          for (let i = 0; i < count; i++) {
+            const [typeCols, builderCols, typeNames, builderNames, typeModel, builderModel] = sites.slice(
+              i * PROBES_PER_SPEC,
+              (i + 1) * PROBES_PER_SPEC
+            );
+            expect(builderCols.id, `builder columns vs hand-written columns, spec ${i}\n${detail}`).toBe(typeCols.id);
+            expect(builderNames.id, `builder names vs hand-written names, spec ${i}\n${detail}`).toBe(typeNames.id);
+            expect(builderModel.id, `builder model vs hand-written model, spec ${i}\n${detail}`).toBe(typeModel.id);
+            const node = registered[sites[count * PROBES_PER_SPEC + 1 + i].id];
             expect(node, `graph for table ${i}\n${detail}`).toBeTruthy();
-            // The graph was loaded dynamically, so this uses the low-level
-            // bridge (tableFromType's marker form needs a static type argument).
-            const slim = buildRtTableFromGraph(node as never, pgBuildTable, {
-              tables: {[FUZZ_PARENT_NAME]: slimParent as object},
-            });
-            const bridge = toDrizzle(slim as never);
+            const slim = buildRtTableFromGraph(node as never, pgBuildTable, {tables: {[FUZZ_PARENT_NAME]: slimParent as object}});
             const raw = buildTable(rawSurface, fixture.specs[i], fixture.names[i]);
-            expect(project(bridge), `table ${i}\n${detail}`).toEqual(project(raw));
+            expect(project(toDrizzle(slim as never)), `table ${i}\n${detail}`).toEqual(project(raw));
           }
         }
       } finally {

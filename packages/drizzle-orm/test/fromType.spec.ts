@@ -34,22 +34,16 @@ const tuple = (...items: ReflectedNode[]): ReflectedNode => ({
   children: items.map((child) => ({id: id(), kind: 27, child})),
 });
 
-function colNode(spec: {fn: string; name?: string; config?: ReflectedNode}, mods?: Record<string, ReflectedNode>): ReflectedNode {
-  const members: Record<string, ReflectedNode> = {
-    'þ@rtColSpecKey': obj({
-      fn: lit(spec.fn),
-      name: spec.name === undefined ? undef() : lit(spec.name),
-      config: spec.config ?? obj({}),
-      data: obj({}),
-    }),
-  };
-  if (mods) members['þ@rtColModsKey'] = obj(mods);
-  return obj(members);
+/** A column: ONE spec whose config holds the config keys and the modifier calls together, in authored order. */
+function colNode(fn: string, props: Record<string, ReflectedNode> = {}): ReflectedNode {
+  return obj({'þ@rtColSpecKey': obj({fn: lit(fn), config: obj(props), data: obj({}), base: undef()})});
 }
 
-function tableNode(name: string, columns: Record<string, ReflectedNode>): ReflectedNode {
+/** A table: db names that differ from the record key ride its `names` member. */
+function tableNode(name: string, columns: Record<string, ReflectedNode>, names: Record<string, string> = {}): ReflectedNode {
   // The graph IS the meta: the brand marks it a table, the rest are its members.
-  return obj({'þ@rtTableBrand': lit('pg'), name: lit(name), columns: obj(columns)});
+  const namesNode = obj(Object.fromEntries(Object.entries(names).map(([key, dbName]) => [key, lit(dbName)])));
+  return obj({'þ@rtTableBrand': lit('pg'), name: lit(name), columns: obj(columns), names: namesNode});
 }
 
 // ── fake replay surface (same pattern as recorder.spec.ts) ───────────────────
@@ -94,13 +88,15 @@ describe('buildRtTableFromGraph', () => {
 
   it('rebuilds init args and replays modifiers (flags and args tuples) in order', () => {
     const fake = makeFake();
-    const graph = tableNode('users', {
-      bio: colNode({fn: 'varchar', name: 'bio', config: obj({length: lit(500)})}, {notNull: lit(true), default: tuple(lit(21))}),
-    });
+    const graph = tableNode(
+      'users',
+      {bio: colNode('varchar', {length: lit(500), notNull: lit(true), default: tuple(lit(21))})},
+      {bio: 'bio_text'}
+    );
     const slim = buildRtTableFromGraph(graph, fake.buildTable);
     materializeRtTable(slim, fake.context);
     expect(fake.calls).toEqual([
-      ['ns', 'varchar', 'bio', {length: 500}],
+      ['ns', 'varchar', 'bio_text', {length: 500}],
       ['ns.varchar', 'notNull'],
       ['ns.varchar', 'default', 21],
       ['buildTable', 'users', ['bio']],
@@ -109,7 +105,7 @@ describe('buildRtTableFromGraph', () => {
 
   it('a nameless column with an empty config replays a no-arg builder call', () => {
     const fake = makeFake();
-    const slim = buildRtTableFromGraph(tableNode('t', {note: colNode({fn: 'varchar'})}), fake.buildTable);
+    const slim = buildRtTableFromGraph(tableNode('t', {note: colNode('varchar')}), fake.buildTable);
     materializeRtTable(slim, fake.context);
     expect(fake.calls).toEqual([
       ['ns', 'varchar'],
@@ -120,25 +116,23 @@ describe('buildRtTableFromGraph', () => {
   it('a config-only column keeps the config as the single builder arg', () => {
     const fake = makeFake();
     const slim = buildRtTableFromGraph(
-      tableNode('t', {note: colNode({fn: 'varchar', config: obj({length: lit(5)})})}),
+      tableNode('t', {note: colNode('varchar', {length: lit(5)})}),
       fake.buildTable
     );
     materializeRtTable(slim, fake.context);
     expect(fake.calls[0]).toEqual(['ns', 'varchar', {length: 5}]);
   });
 
-  it('replays a runtime-callback marker with the options.runtime callback, in mods order', () => {
+  it('replays a runtime-callback marker with the options.runtime callback, in props order', () => {
     const fake = makeFake();
     const callback = () => 'generated';
-    const graph = tableNode('users', {
-      slug: colNode({fn: 'varchar', name: 'slug'}, {notNull: lit(true), $defaultFn: lit(true), unique: tuple()}),
-    });
+    const graph = tableNode('users', {slug: colNode('varchar', {notNull: lit(true), $defaultFn: lit(true), unique: tuple()})});
     const slim = buildRtTableFromGraph(graph, fake.buildTable, {runtime: {slug: {$defaultFn: callback}}});
     materializeRtTable(slim, fake.context);
     // the replay wraps top-level function args lazily (mapReplayArgs), so the
     // replayed arg is a wrapper: assert it forwards to the options callback.
     expect(fake.calls).toEqual([
-      ['ns', 'varchar', 'slug'],
+      ['ns', 'varchar'],
       ['ns.varchar', 'notNull'],
       ['ns.varchar', '$defaultFn', expect.any(Function)],
       ['ns.varchar', 'unique'],
@@ -151,14 +145,14 @@ describe('buildRtTableFromGraph', () => {
   it('replays each runtime method under its own name ($default vs $onUpdateFn)', () => {
     const fake = makeFake();
     const onUpdate = () => 0;
-    const graph = tableNode('t', {c: colNode({fn: 'integer'}, {$default: lit(true), $onUpdateFn: lit(true)})});
+    const graph = tableNode('t', {c: colNode('integer', {$default: lit(true), $onUpdateFn: lit(true)})});
     const slim = buildRtTableFromGraph(graph, fake.buildTable, {runtime: {c: {$default: onUpdate, $onUpdateFn: onUpdate}}});
     materializeRtTable(slim, fake.context);
     expect(fake.calls.map((call) => call[1])).toEqual(['integer', '$default', '$onUpdateFn', 't']);
   });
 
   it('rejects a runtime marker without its options.runtime callback, naming column and method', () => {
-    const graph = tableNode('t', {c: colNode({fn: 'uuid'}, {$defaultFn: lit(true)})});
+    const graph = tableNode('t', {c: colNode('uuid', {$defaultFn: lit(true)})});
     expect(() => buildRtTableFromGraph(graph, makeFake().buildTable)).toThrowError(/column "c" carries the \$defaultFn marker/);
     expect(() => buildRtTableFromGraph(graph, makeFake().buildTable, {runtime: {c: {$onUpdate: () => 1}}})).toThrowError(
       /column "c" carries the \$defaultFn marker/
@@ -166,7 +160,7 @@ describe('buildRtTableFromGraph', () => {
   });
 
   it('rejects an options.runtime callback with no matching marker (and unknown columns)', () => {
-    const graph = tableNode('t', {c: colNode({fn: 'uuid'}, {$defaultFn: lit(true)})});
+    const graph = tableNode('t', {c: colNode('uuid', {$defaultFn: lit(true)})});
     const runtime = {c: {$defaultFn: () => 1, $onUpdate: () => 2}};
     expect(() => buildRtTableFromGraph(graph, makeFake().buildTable, {runtime})).toThrowError(
       /options\.runtime\.c\.\$onUpdate has no matching/
@@ -186,14 +180,11 @@ describe('buildRtTableFromGraph', () => {
   });
 
   it('an unrecognised props key rides into the builder call, it is never replayed', () => {
-    // Config keys and modifier calls share ONE authored object, so at runtime
-    // the bridge cannot tell a typo'd modifier from a config key it has never
-    // heard of; the per-builder *ColMods bags reject that at compile time. What
-    // it must NOT do is call the unknown name as a method on the column.
+    // Config keys and modifier calls share ONE authored object, so at runtime the bridge cannot tell a typo'd
+    // modifier from a config key it has never heard of; the props bags reject that at compile time. What it must
+    // NOT do is call the unknown name as a method on the column.
     const fake = makeFake();
-    const graph = tableNode('t', {
-      c: colNode({fn: 'uuid', config: obj({frobnicate: lit(true)})}, {frobnicate: lit(true), notNull: lit(true)}),
-    });
+    const graph = tableNode('t', {c: colNode('uuid', {frobnicate: lit(true), notNull: lit(true)})});
     const slim = buildRtTableFromGraph(graph, fake.buildTable);
     materializeRtTable(slim, fake.context);
     expect(fake.calls).toEqual([
@@ -204,34 +195,34 @@ describe('buildRtTableFromGraph', () => {
   });
 
   it('rejects a modifier value that is neither a flag nor an args tuple', () => {
-    const graph = tableNode('t', {c: colNode({fn: 'uuid'}, {default: lit(21)})});
+    const graph = tableNode('t', {c: colNode('uuid', {default: lit(21)})});
     expect(() => buildRtTableFromGraph(graph, makeFake().buildTable)).toThrowError(/neither a flag nor an args tuple/);
   });
 
   it('rejects a non-literal config member', () => {
     const fnTyped: ReflectedNode = {id: id(), kind: 17};
-    const graph = tableNode('t', {c: colNode({fn: 'varchar', config: obj({length: fnTyped})})});
+    const graph = tableNode('t', {c: colNode('varchar', {length: fnTyped})});
     expect(() => buildRtTableFromGraph(graph, makeFake().buildTable)).toThrowError(/not a literal type/);
   });
 
   // The brand is what says "table" at all: a bare {name, columns} object is not
   // one, which is the whole reason the metadata carries a sentinel of its own.
   it('rejects a graph with no table brand', () => {
-    const graph = obj({name: lit('t'), columns: obj({c: colNode({fn: 'varchar'})})});
+    const graph = obj({name: lit('t'), columns: obj({c: colNode('varchar')})});
     expect(() => buildRtTableFromGraph(graph, makeFake().buildTable)).toThrowError(/is not a table/);
   });
 
   // And the dialect it carries must match the bridge rebuilding it, or the
   // rebuilt table would replay a pg call through another dialect's namespace.
   it('rejects a table of another dialect', () => {
-    const graph = tableNode('t', {c: colNode({fn: 'varchar'})});
+    const graph = tableNode('t', {c: colNode('varchar')});
     expect(() => buildRtTableFromGraph(graph, makeFake().buildTable, undefined, 'mysql')).toThrowError(
       /is a pg table, rebuilt through the mysql package/
     );
   });
 
   it('accepts the dialect it was recorded with', () => {
-    const graph = tableNode('t', {c: colNode({fn: 'varchar'})});
+    const graph = tableNode('t', {c: colNode('varchar')});
     expect(() => buildRtTableFromGraph(graph, makeFake().buildTable, undefined, 'pg')).not.toThrow();
   });
 });

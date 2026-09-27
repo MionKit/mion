@@ -7,11 +7,11 @@
 
 // Property fuzz for the slim pg surface, oracle: compare-to-a-trusted-source.
 // One randomly generated table SPEC is interpreted over up to THREE surfaces
-// whose call shapes are identical by design — the slim recorders here, raw
-// drizzle-orm/pg-core, and (for specs the pure-types vocabulary covers) the
+// that must build the same table: the slim recorders here (one call per column), raw
+// drizzle-orm/pg-core (drizzle's own chains), and (for specs the pure-types vocabulary covers) the
 // type road's runtime bridge over a synthetic reflected graph — and drizzle's
 // own getTableConfig must agree across all of them, for random columns,
-// configs, modifier chains, references and extraConfig entries. A failing
+// configs, modifiers, references and extraConfig entries. A failing
 // iteration prints its seed and the generated spec; re-running with
 // MION_FUZZ_SEED replays it byte-for-byte (seeding per the shared harness in
 // packages/run-types/test/fuzz/core/). The source→graph half of the type
@@ -22,13 +22,10 @@ import {describe, it, expect} from 'vitest';
 import * as dzPg from 'drizzle-orm/pg-core';
 import {sql as dzSql} from 'drizzle-orm';
 import {mixSeed, mulberry32} from '../../run-types/test/fuzz/core/seededRng.ts';
-import {sql as slimSql, buildRtTableFromGraph} from '@mionjs/drizzle-orm';
+import {sql as slimSql, buildRtTableFromGraph, tableRef} from '@mionjs/drizzle-orm';
 import * as slim from '../src/index.ts';
 import {pgBuildTable} from '../src/table.ts';
 import {toDrizzle} from '../src/drizzle.ts';
-import * as next from '../next/index.ts';
-import {buildRtTableFromGraph as buildNextTableFromGraph} from '../../drizzle-orm/next/fromType.ts';
-import {tableRef} from '../../drizzle-orm/next/table.ts';
 import {
   buildTable,
   buildView,
@@ -36,7 +33,6 @@ import {
   makeViewSpec,
   project,
   projectView,
-  syntheticNextTableGraph,
   syntheticTableGraph,
   typeRoadReduce,
   type Surface,
@@ -45,31 +41,23 @@ import {
 const ITERATIONS = process.env.MION_FUZZ_ITER ? Number(process.env.MION_FUZZ_ITER) : 120;
 const BASE_SEED = process.env.MION_FUZZ_SEED ? Number(process.env.MION_FUZZ_SEED) : 0x5eed_d12e;
 
-const slimSurfaceParent = slim.pgTable('fuzz_parents', {id: slim.integer('id').primaryKey()});
+const slimSurfaceParent = slim.pgTable('fuzz_parents', {id: slim.integer('id', {primaryKey: true})});
 const rawSurfaceParent = dzPg.pgTable('fuzz_parents', {id: dzPg.integer('id').primaryKey()});
 
+// The slim builders take each column in one call; a reference names its target with tableRef().
 const slimSurface: Surface = {
   ns: slim as never,
   sql: slimSql as never,
   table: (name, columns, extra) => slim.pgTable(name as never, columns as never, extra as never),
   parent: slimSurfaceParent as never,
+  parentRef: () => tableRef(slimSurfaceParent, 'id'),
 };
-// The side-by-side builders take each column in one call; the shipped helpers fill in the entries.
-const nextSurfaceParent = next.pgTable('fuzz_parents', {id: next.integer('id', {primaryKey: true})});
-const nextSurface: Surface = {
-  ns: {...slim, ...next} as never,
-  sql: slimSql as never,
-  table: (name, columns, extra) => next.pgTable(name as never, columns as never, extra as never),
-  parent: nextSurfaceParent as never,
-  singleCall: true,
-  parentRef: () => tableRef(nextSurfaceParent, 'id'),
-};
-
 const rawSurface: Surface = {
   ns: dzPg as never,
   sql: dzSql as never,
   table: (name, columns, extra) => dzPg.pgTable(name as never, columns as never, extra as never),
   parent: rawSurfaceParent as never,
+  drizzle: true,
 };
 
 describe('pg slim surface — fuzz: toDrizzle equals raw drizzle for random tables', () => {
@@ -84,11 +72,7 @@ describe('pg slim surface — fuzz: toDrizzle equals raw drizzle for random tabl
       const detail = `iteration ${iteration}, seed ${seed} (set MION_FUZZ_SEED=${BASE_SEED} to replay)\nspec: ${JSON.stringify(spec)}`;
       const rawProjection = project(rawTable);
       expect(project(toDrizzle(slimTable as never)), detail).toEqual(rawProjection);
-      // Surface 2: the side-by-side builders over the same spec.
-      expect(project(toDrizzle(buildTable(nextSurface, spec, tableName) as never)), `next builders\n${detail}`).toEqual(
-        rawProjection
-      );
-      // Surface 1b: a random manual VIEW over the same generated column kinds,
+      // Surface 2: a random manual VIEW over the same generated column kinds,
       // through the same compare-to-a-trusted-source oracle. Not `.existing()`
       // iterations embed the parent table, so reference resolution is
       // exercised too.
@@ -98,10 +82,6 @@ describe('pg slim surface — fuzz: toDrizzle equals raw drizzle for random tabl
       expect(
         projectView(toDrizzle(buildView(slimSurface, viewSpec, viewName) as never), viewSpec.materialized),
         viewDetail
-      ).toEqual(projectView(buildView(rawSurface, viewSpec, viewName), viewSpec.materialized));
-      expect(
-        projectView(toDrizzle(buildView(nextSurface, viewSpec, viewName) as never), viewSpec.materialized),
-        `next view\n${viewDetail}`
       ).toEqual(projectView(buildView(rawSurface, viewSpec, viewName), viewSpec.materialized));
       // Surface 3: the covered SUBSET of the spec through the type road's
       // runtime bridge, against a raw build of the same reduced spec.
@@ -116,14 +96,6 @@ describe('pg slim surface — fuzz: toDrizzle equals raw drizzle for random tabl
         expect(project(toDrizzle(bridged as never)), `type-road surface\n${detail}\nreduced: ${JSON.stringify(reduced)}`).toEqual(
           project(rawReduced)
         );
-        // Surface 4: the side-by-side reader over the same spec in the new reflected shape.
-        const nextBridged = buildNextTableFromGraph(syntheticNextTableGraph(reduced, reducedName), pgBuildTable, {
-          tables: {fuzz_parents: nextSurfaceParent as object},
-        });
-        expect(
-          project(toDrizzle(nextBridged as never)),
-          `next type-road surface\n${detail}\nreduced: ${JSON.stringify(reduced)}`
-        ).toEqual(project(rawReduced));
       }
     }
     // The third surface must actually run — a generator drift that stops

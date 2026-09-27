@@ -121,9 +121,9 @@ export interface Surface {
   sql: (strings: TemplateStringsArray, ...values: unknown[]) => unknown;
   table: (name: string, columns: Record<string, unknown>, extra?: (t: Record<string, unknown>) => unknown[]) => unknown;
   parent: Record<string, unknown>;
-  /** Build each column in ONE call, settings and modifiers in one props object (the next/ builders). */
-  singleCall?: boolean;
-  /** How this surface references parent.id, when not the column itself (the next/ tableRef). */
+  /** Raw drizzle: columns built as drizzle's own modifier chains, the fuzz oracle. The slim surfaces take one call. */
+  drizzle?: boolean;
+  /** How this surface references parent.id, when not the column itself (the slim tableRef). */
   parentRef?: () => unknown;
 }
 
@@ -132,7 +132,7 @@ const parentRefOf = (surface: Surface): unknown => (surface.parentRef ? surface.
 export function buildTable(surface: Surface, spec: TableSpec, tableName: string): unknown {
   const columns: Record<string, unknown> = {};
   for (const columnSpec of spec.columns) {
-    if (surface.singleCall) {
+    if (!surface.drizzle) {
       columns[columnSpec.key] = singleCallColumn(surface, columnSpec);
       continue;
     }
@@ -172,7 +172,7 @@ export function buildTable(surface: Surface, spec: TableSpec, tableName: string)
 export function buildViewColumns(surface: Surface, columnSpecs: ColumnSpec[]): Record<string, unknown> {
   const columns: Record<string, unknown> = {};
   for (const columnSpec of columnSpecs) {
-    if (surface.singleCall) {
+    if (!surface.drizzle) {
       columns[columnSpec.key] = singleCallColumn(surface, columnSpec);
       continue;
     }
@@ -242,17 +242,6 @@ function literalTypeText(value: unknown): string {
   throw new Error(`no literal type text for ${String(value)}`);
 }
 
-/** A covered column as its shipped pure-type spelling: `DB.Varchar<'c0', {length: 5; notNull: true}>`. */
-function renderColumnType(dialect: SpecDialect, column: ColumnSpec, namespace: string): string {
-  const typeName = dialect.typeNames[column.fn];
-  const [name] = column.args as [string | undefined];
-  const props = columnPropsText(column);
-  const typeArgs: string[] = [];
-  if (name !== undefined) typeArgs.push(literalTypeText(name));
-  if (props.length > 0) typeArgs.push(`{${props.join('; ')}}`);
-  return `${namespace}.${typeName}${typeArgs.length > 0 ? `<${typeArgs.join(', ')}>` : ''}`;
-}
-
 /** The props object members of a covered column: its config keys, then its modifier calls. */
 function columnPropsText(column: ColumnSpec): string[] {
   const [, config] = column.args as [string | undefined, Record<string, unknown> | undefined];
@@ -271,8 +260,8 @@ function columnPropsText(column: ColumnSpec): string[] {
   return props;
 }
 
-/** A covered spec as next/ types: nameless columns, shipped TableEntry extras, names for differing db names. */
-function renderNextTableType(
+/** A covered spec as its table type: nameless columns, TableEntry extras, names for differing db names. */
+function renderTableType(
   dialect: SpecDialect,
   spec: TableSpec,
   tableName: string,
@@ -316,42 +305,6 @@ function literalValueText(value: unknown): string {
   throw new Error(`no literal value text for ${String(value)}`);
 }
 
-/** A covered column as its shipped builder chain: `NS.varchar('c0', {length: 5}).notNull()`. */
-export function renderColumnBuilders(column: ColumnSpec, namespace: string, parentConst: string): string {
-  let text = `${namespace}.${column.fn}(${column.args.map(literalValueText).join(', ')})`;
-  for (const mod of column.mods) text += `.${mod.method}(${mod.args.map(literalValueText).join(', ')})`;
-  if (column.referencesParent) {
-    text += `.references(() => cols(${parentConst}).id, ${literalValueText(FUZZ_REFERENCE_ACTIONS)})`;
-  }
-  return text;
-}
-
-/** Twin of renderTableType: together they let a fuzz iteration prove both roads share ONE runtype id. */
-function renderTableBuilders(
-  dialect: SpecDialect,
-  spec: TableSpec,
-  tableName: string,
-  namespace: string,
-  parentConst: string,
-  parentRefText = `cols(${parentConst}).id`
-): string {
-  const columns = spec.columns.map((column) => `  ${column.key}: ${renderColumnBuilders(column, namespace, parentConst)},`);
-  const base = `${namespace}.${dialect.tableFn}('${tableName}', {\n${columns.join('\n')}\n}`;
-  if (spec.extras.length === 0) return `${base})`;
-  const entries = spec.extras.map((extra) => {
-    if (extra.fn === 'foreignKey') {
-      const fkColumn = spec.columns.find((column) => column.referencesParent)!;
-      return (
-        `    ${namespace}.foreignKey({name: '${extra.name}', ` +
-        `columns: [t.${fkColumn.key}], foreignColumns: [${parentRefText}]}),`
-      );
-    }
-    const on = (extra.onKeys ?? []).map((key) => `t.${key}`).join(', ');
-    return `    ${namespace}.${extra.fn}('${extra.name}').on(${on}),`;
-  });
-  return `${base}, (t) => [\n${entries.join('\n')}\n  ])`;
-}
-
 /** A covered column as a single-call builder: `NS.varchar('c0', {length: 5, notNull: true})`. */
 function renderColumnSingleCall(column: ColumnSpec, namespace: string, parentConst: string): string {
   const [name, config] = column.args as [string | undefined, Record<string, unknown> | undefined];
@@ -367,27 +320,29 @@ function renderColumnSingleCall(column: ColumnSpec, namespace: string, parentCon
   return `${namespace}.${column.fn}(${args.join(', ')})`;
 }
 
-/** A covered spec with single-call builders, reusing renderTableBuilders' extras. */
-function renderTableSingleCall(
+/** A covered spec as single-call builder text: twin of renderTableType, so a fuzz iteration can prove both share ONE id. */
+function renderTableBuilders(
   dialect: SpecDialect,
   spec: TableSpec,
   tableName: string,
   namespace: string,
   parentConst: string
 ): string {
-  const chained = renderTableBuilders(dialect, spec, tableName, namespace, parentConst, `tableRef(${parentConst}, 'id')`);
   const columns = spec.columns.map((column) => `  ${column.key}: ${renderColumnSingleCall(column, namespace, parentConst)},`);
-  const head = `${namespace}.${dialect.tableFn}('${tableName}', {\n${columns.join('\n')}\n}`;
-  return head + chained.slice(chained.indexOf('\n}') + 2);
-}
-
-/** A covered spec as shipped `NS.PgTable<'name', {...}, [extras]>` type text. */
-function renderTableType(dialect: SpecDialect, spec: TableSpec, tableName: string, namespace: string): string {
-  const columns = spec.columns.map((column) => `  ${column.key}: ${renderColumnType(dialect, column, namespace)};`);
-  const base = `${namespace}.${dialect.tableType}<'${tableName}', {\n${columns.join('\n')}\n}`;
-  if (spec.extras.length === 0) return `${base}>`;
-  const entries = spec.extras.map((extra) => `  ${renderEntryType(extra, spec, namespace)},`);
-  return `${base}, [\n${entries.join('\n')}\n]>`;
+  const base = `${namespace}.${dialect.tableFn}('${tableName}', {\n${columns.join('\n')}\n}`;
+  if (spec.extras.length === 0) return `${base})`;
+  const entries = spec.extras.map((extra) => {
+    if (extra.fn === 'foreignKey') {
+      const fkColumn = spec.columns.find((column) => column.referencesParent)!;
+      return (
+        `    ${namespace}.foreignKey({name: '${extra.name}', ` +
+        `columns: [t.${fkColumn.key}], foreignColumns: [tableRef(${parentConst}, 'id')]}),`
+      );
+    }
+    const on = (extra.onKeys ?? []).map((key) => `t.${key}`).join(', ');
+    return `    ${namespace}.${extra.fn}('${extra.name}').on(${on}),`;
+  });
+  return `${base}, (t) => [\n${entries.join('\n')}\n  ])`;
 }
 
 // ── synthetic reflected graph of a covered spec ──────────────────────────────
@@ -419,7 +374,7 @@ function valueNode(value: unknown): ReflectedNode {
   return literalNode(value);
 }
 
-/** The extras tuple members of a covered spec, shared by both graph shapes. */
+/** The extras tuple members of a covered spec. */
 function syntheticEntries(spec: TableSpec): ReflectedNode[] {
   return spec.extras.map((extra) => {
     if (extra.fn === 'foreignKey') {
@@ -444,41 +399,8 @@ function syntheticEntries(spec: TableSpec): ReflectedNode[] {
   });
 }
 
-/** The synthetic reflected graph of a covered spec's shipped type spelling. */
+/** The spec as the resolver reflects it: config and modifiers in one spec, differing db names in `names`. */
 function syntheticTableGraph(dialect: SpecDialect, spec: TableSpec, tableName: string): ReflectedNode {
-  const columns: Record<string, ReflectedNode> = {};
-  for (const column of spec.columns) {
-    const [name, config] = column.args as [string | undefined, Record<string, unknown> | undefined];
-    const mods: Record<string, ReflectedNode> = {};
-    for (const mod of column.mods) {
-      mods[mod.method] = mod.args.length > 0 ? tupleNode(mod.args.map(valueNode)) : literalNode(true);
-    }
-    if (column.referencesParent) {
-      mods.references = tupleNode([valueNode({table: FUZZ_PARENT_NAME, column: 'id'}), valueNode(FUZZ_REFERENCE_ACTIONS)]);
-    }
-    columns[column.key] = objectNode({
-      'þ@rtColSpecKey': objectNode({
-        fn: literalNode(column.fn),
-        name: name === undefined ? undefinedNode() : literalNode(name),
-        config: valueNode(config ?? {}),
-        data: objectNode({}),
-      }),
-      'þ@rtColModsKey': objectNode(mods),
-    });
-  }
-  const entries = syntheticEntries(spec);
-  // The table type IS its metadata: name / columns / extras are the root's own members, the brand marks it a table.
-  const meta: Record<string, ReflectedNode> = {
-    'þ@rtTableBrand': literalNode(dialect.brand),
-    name: literalNode(tableName),
-    columns: objectNode(columns),
-  };
-  if (entries.length > 0) meta.extras = tupleNode(entries);
-  return objectNode(meta);
-}
-
-/** The spec as the resolver reflects next/ columns: config and modifiers in one spec, differing db names in `names`. */
-function syntheticNextTableGraph(dialect: SpecDialect, spec: TableSpec, tableName: string): ReflectedNode {
   const columns: Record<string, ReflectedNode> = {};
   const names: Record<string, ReflectedNode> = {};
   for (const column of spec.columns) {
@@ -517,16 +439,10 @@ export function specTools(dialect: SpecDialect) {
     makeSpec: (rng: () => number) => makeSpec(dialect, rng),
     typeRoadCovers: (spec: TableSpec) => typeRoadCovers(dialect, spec),
     typeRoadReduce: (spec: TableSpec) => typeRoadReduce(dialect, spec),
-    renderColumnType: (column: ColumnSpec, namespace: string) => renderColumnType(dialect, column, namespace),
-    renderNextTableType: (spec: TableSpec, tableName: string, namespace: string, entriesNamespace: string) =>
-      renderNextTableType(dialect, spec, tableName, namespace, entriesNamespace),
-    renderTableBuilders: (spec: TableSpec, tableName: string, namespace: string, parentConst: string, parentRefText?: string) =>
-      renderTableBuilders(dialect, spec, tableName, namespace, parentConst, parentRefText),
-    renderTableSingleCall: (spec: TableSpec, tableName: string, namespace: string, parentConst: string) =>
-      renderTableSingleCall(dialect, spec, tableName, namespace, parentConst),
-    renderTableType: (spec: TableSpec, tableName: string, namespace: string) =>
-      renderTableType(dialect, spec, tableName, namespace),
+    renderTableType: (spec: TableSpec, tableName: string, namespace: string, entriesNamespace: string) =>
+      renderTableType(dialect, spec, tableName, namespace, entriesNamespace),
+    renderTableBuilders: (spec: TableSpec, tableName: string, namespace: string, parentConst: string) =>
+      renderTableBuilders(dialect, spec, tableName, namespace, parentConst),
     syntheticTableGraph: (spec: TableSpec, tableName: string) => syntheticTableGraph(dialect, spec, tableName),
-    syntheticNextTableGraph: (spec: TableSpec, tableName: string) => syntheticNextTableGraph(dialect, spec, tableName),
   };
 }

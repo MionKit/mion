@@ -5,16 +5,17 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Chain-method completeness: for every pg column function and every entry
-// builder, the methods drizzle exposes at runtime must be covered by the slim
-// surface (recorded by the recorder AND declared on the matching kind/entry
-// interface) or listed here as deliberately internal. A drizzle upgrade that
-// adds a modifier fails this spec instead of silently building tables that
-// drop it. The manifest gate covers new exported FUNCTIONS; this covers new
-// METHODS on the builders those functions return.
+// Modifier completeness: for every pg column function, the modifiers drizzle exposes at runtime must be exactly the
+// modifier keys that builder's props object takes (read off src/columns.ts), in both directions. A drizzle upgrade
+// that adds a modifier fails here instead of silently building tables that drop it; a props key drizzle's builder
+// lacks fails too. Entry builders, the table's own methods and view builders are held to drizzle's method lists.
+// The manifest gate covers new exported FUNCTIONS; this covers new METHODS on what they return.
 
 import {describe, it, expect} from 'vitest';
 import * as dzPg from 'drizzle-orm/pg-core';
+import {readFileSync} from 'node:fs';
+import {dirname, resolve} from 'node:path';
+import {fileURLToPath} from 'node:url';
 
 /** All method names reachable through the prototype chain plus own function
  *  properties (drizzle defines the $default/$onUpdate aliases as own arrows). */
@@ -38,30 +39,25 @@ function runtimeMethods(value: object): string[] {
 const INTERNAL_COLUMN_METHODS = new Set(['build', 'buildExtraConfigColumn', 'buildForeignKeys', 'setName']);
 const INTERNAL_ENTRY_METHODS = new Set(['build']);
 
-// What the slim surface records on columns (RtColumnRecorder methods + the
-// kind interfaces). Kept as an explicit list so a drizzle addition and a slim
-// addition must MEET here, in one reviewable place.
-const SLIM_COLUMN_METHODS = new Set([
-  '$type',
-  '$default',
-  '$defaultFn',
-  '$onUpdate',
-  '$onUpdateFn',
-  'notNull',
-  'default',
-  'defaultNow',
-  'defaultRandom',
-  'primaryKey',
-  'unique',
-  'references',
-  'generatedAlwaysAs',
-  'generatedAlwaysAsIdentity',
-  'generatedByDefaultAsIdentity',
-  'array',
-  'autoincrement',
-  'onUpdateNow',
-]);
+const sourceOf = (file: string) => readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../src', file), 'utf8');
+const columnsSource = sourceOf('columns.ts');
 
+/** The keys an exported interface declares, its `extends` parents' included. */
+function interfaceKeys(source: string, name: string): Set<string> {
+  const declared = new RegExp(`export interface ${name}(?: extends ([\\w, ]+))? \\{([\\s\\S]*?)\\n\\}`).exec(source);
+  if (!declared) throw new Error(`no interface ${name} in the source`);
+  const keys = new Set([...declared[2].matchAll(/^ {2}([\w$]+)\??[:(]/gm)].map((match) => match[1]));
+  for (const parent of declared[1]?.split(',') ?? []) for (const key of interfaceKeys(source, parent.trim())) keys.add(key);
+  return keys;
+}
+
+/** Each builder's props interface, off its `const C extends Only<C, ... & XIn>` overloads. */
+const propsInterfaceOf = new Map(
+  [...columnsSource.matchAll(/export function (\w+)<[^>]*?const C extends Only<C, (?:[\w<>'| ]+ & )?(\w+In)>/g)].map((match) => [
+    match[1],
+    match[2],
+  ])
+);
 /** One representative raw drizzle builder per column function. */
 const RAW_BUILDERS: Record<string, object> = {
   bigint: dzPg.bigint('c', {mode: 'number'}),
@@ -98,15 +94,27 @@ const RAW_BUILDERS: Record<string, object> = {
   vector: dzPg.vector('c', {dimensions: 3}),
 };
 
-describe('pg slim surface — chain-method completeness against drizzle', () => {
+describe('pg slim surface: modifier completeness against drizzle', () => {
   for (const [fnName, builder] of Object.entries(RAW_BUILDERS)) {
-    it(`${fnName}: every drizzle modifier is covered by the slim surface`, () => {
-      const uncovered = runtimeMethods(builder).filter(
-        (method) => !INTERNAL_COLUMN_METHODS.has(method) && !SLIM_COLUMN_METHODS.has(method)
-      );
-      expect(uncovered, `drizzle's ${fnName} builder grew modifiers the slim surface does not record`).toEqual([]);
+    it(`${fnName}: the props object takes exactly drizzle's modifiers`, () => {
+      const propsInterface = propsInterfaceOf.get(fnName);
+      expect(propsInterface, `no props interface found for ${fnName}`).toBeDefined();
+      const propsKeys = interfaceKeys(columnsSource, propsInterface!);
+      const modifiers = runtimeMethods(builder).filter((method) => !INTERNAL_COLUMN_METHODS.has(method));
+      expect(modifiers.filter((method) => !propsKeys.has(method)), `drizzle's ${fnName} grew modifiers the props lack`).toEqual([]);
+      expect([...propsKeys].filter((key) => !modifiers.includes(key)), `${fnName} props offer modifiers drizzle lacks`).toEqual([]);
     });
   }
+
+  it('indexes take drizzle\'s two steps: the columns, then the options', () => {
+    const helpersSource = sourceOf('helpers.ts');
+    const start = runtimeMethods(dzPg.index('i') as unknown as object).filter((method) => !INTERNAL_ENTRY_METHODS.has(method));
+    const options = runtimeMethods((dzPg as unknown as {IndexBuilder: {prototype: object}}).IndexBuilder.prototype).filter(
+      (method) => !INTERNAL_ENTRY_METHODS.has(method)
+    );
+    expect([...interfaceKeys(helpersSource, 'RtIndexBuilderOn')].sort()).toEqual(start);
+    expect([...interfaceKeys(helpersSource, 'RtIndexEntry')].sort()).toEqual(options);
+  });
 
   it('entry builders: index/unique/foreignKey/policy chains are covered', () => {
     const slimEntryMethods = new Set([

@@ -57,8 +57,8 @@ const dzAppSchema = dzPg.pgSchema('app');
 const schemaUsers = appSchema.table(
   'users',
   {
-    id: integer('id').primaryKey(),
-    name: varchar('name', {length: 50}).notNull(),
+    id: integer('id', {primaryKey: true}),
+    name: varchar('name', {length: 50, notNull: true}),
   },
   (t) => [index('app_users_name_idx').on(t.name)]
 );
@@ -125,8 +125,8 @@ const prefixed = pgTableCreator((name) => `pre_${name}`);
 const dzPrefixed = dzPg.pgTableCreator((name) => `pre_${name}`);
 
 const creatorUsers = prefixed('users', {
-  id: integer('id').primaryKey(),
-  name: varchar('name', {length: 50}).notNull(),
+  id: integer('id', {primaryKey: true}),
+  name: varchar('name', {length: 50, notNull: true}),
 });
 const dzCreatorUsers = dzPrefixed('users', {
   id: dzPg.integer('id').primaryKey(),
@@ -147,8 +147,8 @@ describe('pg value helpers — pgTableCreator', () => {
 // ── model derivation on creator/schema tables ────────────────────────────────
 
 const plainUsers = pgTable('users', {
-  id: integer('id').primaryKey(),
-  name: varchar('name', {length: 50}).notNull(),
+  id: integer('id', {primaryKey: true}),
+  name: varchar('name', {length: 50, notNull: true}),
 });
 
 describe('pg value helpers — model derivation', () => {

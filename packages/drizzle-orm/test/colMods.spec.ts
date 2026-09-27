@@ -7,12 +7,12 @@
 
 // The gate under the one-object column spelling.
 //
-// A column type takes its builder config and its modifier calls in the SAME
-// object (`Varchar<'name', {length: 100; notNull: true}>`), and both readers
-// split that object by colModNames: this package's runtime bridge
-// (./fromType.ts) and the Go convert program
+// A builder and its column type take the config and the modifier calls in the SAME
+// object (`varchar({length: 100, notNull: true})`, `Varchar<{length: 100; notNull: true}>`),
+// and every reader splits that object by colModNames: the recorder (./columnRecorder.ts),
+// the type reader (./fromType.ts) and the Go convert program
 // (ts-go-runtypes/internal/convert/drizzle.go). Two things must hold for that
-// split to be sound, and neither is visible from either reader alone:
+// split to be sound, and neither is visible from any reader alone:
 //
 //   1. the list covers every modifier the dialects actually record, so a
 //      drizzle upgrade that adds one cannot land as a silent config key;
@@ -47,17 +47,15 @@ function manifestModifiers(dialect: string): string[] {
     .flatMap((entry) => entry.modifiers ?? []);
 }
 
-/** The config interfaces the column aliases actually constrain their props by,
- *  read off the `C extends <Config> & <Bag>` line every alias now carries. */
+/** The config interfaces the column types constrain their props by, read off `P extends Only<P, <Config> & <Bag>>`. */
 function configTypeNames(source: string): string[] {
   const names = new Set<string>();
-  for (const match of source.matchAll(/^ {2}C extends (.+?) = .*$/gm)) {
+  for (const match of source.matchAll(/extends Only<P, (.+?) & \w*ColMods>/g)) {
     const bare = match[1]
-      .replace(/\s*&\s*\w*ColMods$/, '')
       .replace(/^Partial<(.+)>$/, '$1')
       .replace(/<.*>$/, '')
       .trim();
-    if (/^[A-Za-z][\w]*$/.test(bare) && !bare.endsWith('ColMods')) names.add(bare);
+    if (/^[A-Za-z][\w]*$/.test(bare)) names.add(bare);
   }
   return [...names];
 }
@@ -91,11 +89,12 @@ describe('the one-object column spelling', () => {
 
   for (const dialect of DIALECTS) {
     it(`no ${dialect} column config key is named like a modifier`, () => {
-      const source = readFileSync(`${packageDir(dialect)}src/columns.ts`, 'utf8');
-      const configs = configTypeNames(source);
-      expect(configs.length, 'the alias constraints changed shape, this gate is reading nothing').toBeGreaterThan(3);
+      const columns = readFileSync(`${packageDir(dialect)}src/columns.ts`, 'utf8');
+      const types = readFileSync(`${packageDir(dialect)}src/types.ts`, 'utf8');
+      const configs = configTypeNames(columns);
+      expect(configs.length, 'the column type constraints changed shape, this gate is reading nothing').toBeGreaterThan(3);
       const clashes = configs.flatMap((name) =>
-        interfaceKeys(source, name)
+        interfaceKeys(types, name)
           .filter(isColModName)
           .map((key) => `${name}.${key}`)
       );

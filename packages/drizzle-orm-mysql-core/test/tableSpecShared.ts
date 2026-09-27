@@ -93,15 +93,8 @@ const mysqlSpecDialect: SpecDialect = {
   ]),
 };
 
-export const {
-  makeSpec,
-  typeRoadReduce,
-  renderNextTableType,
-  renderTableSingleCall,
-  renderTableType,
-  syntheticTableGraph,
-  syntheticNextTableGraph,
-} = specTools(mysqlSpecDialect);
+export const {makeSpec, typeRoadCovers, typeRoadReduce, renderTableBuilders, renderTableType, syntheticTableGraph} =
+  specTools(mysqlSpecDialect);
 
 // ── the oracle: getTableConfig projections must match ────────────────────────
 
