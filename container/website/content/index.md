@@ -24,7 +24,7 @@ blur: 150px
 
   #body
     ::::div{class="home-intro"}
-    Write a plain TypeScript function, and it is an API route. Params and results are validated and serialized for you, and the client calls remote routes like local async functions, with full types and autocompletion.
+    Write a plain TypeScript function, and it is an API route. Params are validated, and params and results are serialized for you. The client calls remote routes like local async functions, with full types and autocompletion.
 
       :::::div{class="home-links"}
         ::::::u-button
