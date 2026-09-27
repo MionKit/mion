@@ -269,7 +269,7 @@ function resolveSubRequests(context: ClientCallContext, deserialized: ResponseBo
   });
 
   const checkAnswers = context.options.validateServerResponses;
-  // the fatal brand never travels, so any error may have stopped the chain: an absent member then never ran
+  // the fatal brand never travels, so after any error an absent member may never have run
   const mayHaveStopped = checkAnswers && (errors.size > 0 || Object.values(deserialized).some((value) => isRpcError(value)));
   Object.entries(context.subRequestList).forEach(([id, methodMeta]) => {
     if (errors.has(id)) return;
@@ -592,7 +592,7 @@ function isRetrySafe(state: DispatchState, errors: RequestErrors | undefined): b
 
 /** A void route answers nothing, so any error in the response counts it as failed */
 function routeSucceeded(context: ClientCallContext, routeId: string, errors: RequestErrors | undefined): boolean {
-  // the client refused the answer, but the server did run the route
+  // the server ran the route; only its answer was refused
   if (errors?.get(routeId)?.type === 'response-validation-error') return true;
   if (errors?.has(routeId)) return false;
   if (context.subRequestList[routeId]?.resolvedValue !== undefined) return true;

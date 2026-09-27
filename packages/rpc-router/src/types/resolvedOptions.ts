@@ -16,7 +16,6 @@ import type {ParamsStrategy, ReturnStrategy} from './parser.ts';
 
 /** The value of option `K` when the options literal names it, `undefined` otherwise. */
 type Named<Opts, K extends PropertyKey> = Opts extends {[P in K]: infer V} ? V : undefined;
-/** The route literal when it names the option, else the router literal. */
 type PickRouteOrRouter<RouteValue, RouterValue> = [RouteValue] extends [undefined] ? RouterValue : RouteValue;
 
 // Both views are flat object types (no intersection) so the build reads them as one literal object.
@@ -28,9 +27,7 @@ export type ResolvedRouteOptions<RO, O> = {
   parser: {params: ParamsStrategy<RO, O>; return: ReturnStrategy<RO, O>};
   isMutation: Named<RO, 'isMutation'>;
   sanitizeParams: PickRouteOrRouter<Named<RO, 'sanitizeParams'>, Named<O, 'sanitizeParams'>>;
-  /** The route's OWN limit when it declares one. The number the router settles for a chain that
-   *  declares none (derived from the types times the router factor, else the platform adapter's)
-   *  exists only at the server's registration, so the type does not carry it. */
+  /** The route's own limit; the one the router settles for a chain declaring none exists only at registration. */
   maxBodySize: Named<RO, 'maxBodySize'>;
 };
 
