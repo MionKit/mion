@@ -137,7 +137,7 @@ export function pgPolicy(name: string, config?: PgPolicyConfig): RtPolicyEntry {
 
 // ── pgEnum / pgSequence ──────────────────────────────────────────────────────
 
-type Writable<T> = {-readonly [K in keyof T]: T[K]};
+type DrizzleWritable<T> = {-readonly [K in keyof T]: T[K]};
 type NonArray<T> = T extends readonly unknown[] ? never : T;
 
 /** A recorded pg enum: migrations need the enum itself, so materialize it with toDrizzle. */
@@ -165,7 +165,10 @@ export interface PgEnumObject<E extends Record<string, string>> {
   readonly enumValues: E[keyof E][];
 }
 
-export function pgEnum<U extends string, T extends Readonly<[U, ...U[]]>>(enumName: string, values: T | Writable<T>): PgEnum<T>;
+export function pgEnum<U extends string, T extends Readonly<[U, ...U[]]>>(
+  enumName: string,
+  values: T | DrizzleWritable<T>
+): PgEnum<T>;
 export function pgEnum<E extends Record<string, string>>(enumName: string, enumObj: NonArray<E>): PgEnumObject<E>;
 export function pgEnum(enumName: string, values: readonly string[] | Record<string, string>): unknown {
   return makeEnumFactory(new RtValueRecorder('pgEnum', [enumName, values]), enumName, values);

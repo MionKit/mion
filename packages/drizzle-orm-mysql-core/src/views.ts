@@ -45,23 +45,23 @@ export function requireColumns(fn: string, name: string, columns: Record<string,
 // Inline maps, never aliases over the builders record: see mysqlTable in ./table.ts.
 type NameOf<C> = C extends {readonly [rtColNameKey]: infer Name} ? Name : undefined;
 
-export interface MysqlView<TName extends string, Cols, Names = NoNames>
-  extends RtViewMeta<TName, Cols, Names>, RtViewBrand<'mysql'> {}
+export interface MysqlView<Name extends string, Cols, Names = NoNames>
+  extends RtViewMeta<Name, Cols, Names>, RtViewBrand<'mysql'> {}
 export type AnyMysqlView = MysqlView<string, Record<string, AnyColumn>, object>;
 
-export interface MysqlViewBuilder<TName extends string, Cols, Names> {
-  algorithm(algorithm: MySqlViewAlgorithm): MysqlViewBuilder<TName, Cols, Names>;
-  sqlSecurity(sqlSecurity: MySqlViewSecurity): MysqlViewBuilder<TName, Cols, Names>;
-  withCheckOption(withCheckOption?: MySqlViewCheckOption): MysqlViewBuilder<TName, Cols, Names>;
-  as(query: RtSql): MysqlView<TName, Cols, Names>;
-  existing(): MysqlView<TName, Cols, Names>;
+export interface MysqlViewBuilder<Name extends string, Cols, Names> {
+  algorithm(algorithm: MySqlViewAlgorithm): MysqlViewBuilder<Name, Cols, Names>;
+  sqlSecurity(sqlSecurity: MySqlViewSecurity): MysqlViewBuilder<Name, Cols, Names>;
+  withCheckOption(withCheckOption?: MySqlViewCheckOption): MysqlViewBuilder<Name, Cols, Names>;
+  as(query: RtSql): MysqlView<Name, Cols, Names>;
+  existing(): MysqlView<Name, Cols, Names>;
 }
 
-export function mysqlView<TName extends string, Cols extends Record<string, object>>(
-  name: TName,
+export function mysqlView<Name extends string, Cols extends Record<string, object>>(
+  name: Name,
   columns: Cols
 ): MysqlViewBuilder<
-  TName,
+  Name,
   {[K in keyof Cols]: Cols[K] extends {readonly [rtNamedColumnKey]: infer C} ? C : Cols[K]},
   {[K in keyof Cols as NameOf<Cols[K]> extends string ? (NameOf<Cols[K]> extends K ? never : K) : never]: NameOf<Cols[K]>}
 >;

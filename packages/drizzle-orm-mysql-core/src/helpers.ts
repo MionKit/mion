@@ -23,27 +23,27 @@ import {recordColumn, refColumn, RtEntryRecorder, rtColumnKey} from '@mionjs/dri
 import type {MysqlColIn} from './columns.ts';
 import type {UpdateDeleteAction} from './types.ts';
 
-type Writable<T> = {-readonly [K in keyof T]: T[K]};
+type DrizzleWritable<T> = {-readonly [K in keyof T]: T[K]};
 type NonArray<T> = T extends readonly unknown[] ? never : T;
 
 /** mysqlEnum(name?, values, props?): the values are a tuple or an enum object, whose data is the union of its VALUES. */
 export function mysqlEnum<U extends string, T extends Readonly<[U, ...U[]]>>(
-  values: T | Writable<T>
+  values: T | DrizzleWritable<T>
 ): Column<'enum', NoProps, T[number]>;
 export function mysqlEnum<U extends string, T extends Readonly<[U, ...U[]]>, const C extends Only<C, MysqlColIn>>(
-  values: T | Writable<T>,
+  values: T | DrizzleWritable<T>,
   props: C
 ): Column<'enum', PropsOf<C>, T[number]>;
 export function mysqlEnum<N extends string, U extends string, T extends Readonly<[U, ...U[]]>>(
   name: N,
-  values: T | Writable<T>
+  values: T | DrizzleWritable<T>
 ): NamedColumn<N, Column<'enum', NoProps, T[number]>>;
 export function mysqlEnum<
   N extends string,
   U extends string,
   T extends Readonly<[U, ...U[]]>,
   const C extends Only<C, MysqlColIn>,
->(name: N, values: T | Writable<T>, props: C): NamedColumn<N, Column<'enum', PropsOf<C>, T[number]>>;
+>(name: N, values: T | DrizzleWritable<T>, props: C): NamedColumn<N, Column<'enum', PropsOf<C>, T[number]>>;
 export function mysqlEnum<E extends Record<string, string>>(enumObj: NonArray<E>): Column<'enum', NoProps, E[keyof E]>;
 export function mysqlEnum<E extends Record<string, string>, const C extends Only<C, MysqlColIn>>(
   enumObj: NonArray<E>,

@@ -19,8 +19,8 @@ import {mapReplayArgs, RtColumnRecorder, rtViewBrand, rtViewKey} from './recorde
 import {setViewMaterializer} from './table.ts';
 
 /** A view's type: the table meta minus extras, since a view has none. */
-export interface RtViewMeta<TName extends string, Cols, Names = NoNames> {
-  name: TName;
+export interface RtViewMeta<Name extends string, Cols, Names = NoNames> {
+  name: Name;
   columns: Cols;
   names: Names;
 }

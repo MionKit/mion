@@ -190,12 +190,14 @@ const plain = (int: Dialect['int'], count: number, named: boolean): ColSpec[] =>
 function declare(names: Dialect, line: Line, prefix: string, table: string, cols: ColSpec[]): string {
   const {tableFn, tableType} = names;
   if (line === 'builders')
-    return `const ${prefix}V = slim.${tableFn}('${table}', {${cols.map((x) => `${x.key}: ${x.builder},`).join(' ')}});\ntype ${prefix}T = typeof ${prefix}V;`;
-  const names_ = cols.filter((x) => x.db !== undefined && x.db !== x.key).map((x) => `${x.key}: '${x.db}'`);
-  return `type ${prefix}T = slim.${tableType}<'${table}', {${cols.map((x) => `${x.key}: ${x.type};`).join(' ')}}${names_.length ? `, [], {${names_.join('; ')}}` : ''}>;`;
+    return `const ${prefix}V = slim.${tableFn}('${table}', {${cols.map((column) => `${column.key}: ${column.builder},`).join(' ')}});\ntype ${prefix}T = typeof ${prefix}V;`;
+  const names_ = cols
+    .filter((column) => column.db !== undefined && column.db !== column.key)
+    .map((column) => `${column.key}: '${column.db}'`);
+  return `type ${prefix}T = slim.${tableType}<'${table}', {${cols.map((column) => `${column.key}: ${column.type};`).join(' ')}}${names_.length ? `, [], {${names_.join('; ')}}` : ''}>;`;
 }
-const select = (t: string) => `Select<${t}>`;
-const insert = (t: string) => `Insert<${t}>`;
+const select = (tableType: string) => `Select<${tableType}>`;
+const insert = (tableType: string) => `Insert<${tableType}>`;
 
 // Reading the row into annotated consts is what forces the work: a bare alias measures almost nothing.
 const readRow = (p: string, reads: Array<[string, string]>) =>

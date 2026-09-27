@@ -30,13 +30,13 @@ import {makeEnumFactory, type pgEnum} from './helpers.ts';
 import {requireColumns, type pgMaterializedView, type pgView} from './views.ts';
 
 /** A pg table: ONE type for a pgTable() result and a hand-written `PgTable<'users', {...}>`. */
-export interface PgTable<TName extends string, Cols, Extras extends readonly object[] = [], Names = NoNames>
-  extends RtTableMeta<TName, Cols, Extras, Names>, RtTableBrand<'pg'> {
-  enableRLS(): PgTableWithRLS<TName, Cols, Extras, Names>;
+export interface PgTable<Name extends string, Cols, Extras extends readonly object[] = [], Names = NoNames>
+  extends RtTableMeta<Name, Cols, Extras, Names>, RtTableBrand<'pg'> {
+  enableRLS(): PgTableWithRLS<Name, Cols, Extras, Names>;
 }
 /** A pg table with row level security on: the same table minus enableRLS, as drizzle's own `Omit<..., 'enableRLS'>`. */
-export interface PgTableWithRLS<TName extends string, Cols, Extras extends readonly object[] = [], Names = NoNames>
-  extends RtTableMeta<TName, Cols, Extras, Names>, RtTableBrand<'pg'> {}
+export interface PgTableWithRLS<Name extends string, Cols, Extras extends readonly object[] = [], Names = NoNames>
+  extends RtTableMeta<Name, Cols, Extras, Names>, RtTableBrand<'pg'> {}
 /** What this package's toDrizzle and tableFromType take, so another dialect's table is a compile error. */
 export type AnyPgTable = PgTableWithRLS<string, Record<string, AnyColumn>, readonly object[], object>;
 
@@ -104,22 +104,22 @@ export function pgBuildTable(
 }
 
 /** Records the table and returns the SLIM table, not drizzle's own: toDrizzle() from the ./drizzle subpath builds that. */
-export function pgTable<TName extends string, Cols extends Record<string, object>>(
-  name: TName,
+export function pgTable<Name extends string, Cols extends Record<string, object>>(
+  name: Name,
   columns: Cols,
   extraConfig?: PgExtraConfigFn<LiftCols<Cols>>
 ): PgTable<
-  TName,
+  Name,
   {[K in keyof Cols]: Cols[K] extends {readonly [rtNamedColumnKey]: infer C} ? C : Cols[K]},
   [],
   {[K in keyof Cols as NameOf<Cols[K]> extends string ? (NameOf<Cols[K]> extends K ? never : K) : never]: NameOf<Cols[K]>}
 >;
-export function pgTable<TName extends string, Cols extends Record<string, object>>(
-  name: TName,
+export function pgTable<Name extends string, Cols extends Record<string, object>>(
+  name: Name,
   columns: (helpers: PgColumnHelpers) => Cols,
   extraConfig?: PgExtraConfigFn<LiftCols<Cols>>
 ): PgTable<
-  TName,
+  Name,
   {[K in keyof Cols]: Cols[K] extends {readonly [rtNamedColumnKey]: infer C} ? C : Cols[K]},
   [],
   {[K in keyof Cols as NameOf<Cols[K]> extends string ? (NameOf<Cols[K]> extends K ? never : K) : never]: NameOf<Cols[K]>}
@@ -153,8 +153,8 @@ export interface PgSequence {
   readonly seqName: string | undefined;
 }
 
-export interface PgSchema<TSchemaName extends string = string> {
-  readonly schemaName: TSchemaName;
+export interface PgSchema<SchemaName extends string = string> {
+  readonly schemaName: SchemaName;
   table: typeof pgTable;
   view: typeof pgView;
   materializedView: typeof pgMaterializedView;
@@ -162,7 +162,7 @@ export interface PgSchema<TSchemaName extends string = string> {
   sequence(name: string, options?: PgSequenceOptions): PgSequence;
 }
 
-export function pgSchema<TSchemaName extends string>(schemaName: TSchemaName): PgSchema<TSchemaName> {
+export function pgSchema<SchemaName extends string>(schemaName: SchemaName): PgSchema<SchemaName> {
   const schema = new RtValueRecorder('pgSchema', [schemaName]);
   const drizzleSchema = (context: DrizzleContext) =>
     schema.toDrizzleValue(context) as Record<string, (...args: unknown[]) => unknown>;
@@ -198,12 +198,12 @@ export function pgSchema<TSchemaName extends string>(schemaName: TSchemaName): P
   return {
     schemaName,
     table: schemaTable as typeof pgTable,
-    enum: schemaEnum as unknown as PgSchema<TSchemaName>['enum'],
+    enum: schemaEnum as unknown as PgSchema<SchemaName>['enum'],
     sequence: schemaSequence,
-    view: schemaView as PgSchema<TSchemaName>['view'],
-    materializedView: schemaMaterializedView as PgSchema<TSchemaName>['materializedView'],
+    view: schemaView as PgSchema<SchemaName>['view'],
+    materializedView: schemaMaterializedView as PgSchema<SchemaName>['materializedView'],
     [rtValueKey]: schema,
-  } as PgSchema<TSchemaName>;
+  } as PgSchema<SchemaName>;
 }
 
 // One slim table per reflected type id, so repeated calls share one materialized drizzle table.

@@ -91,7 +91,7 @@ describe('the root drizzle-orm manifest matches the module', () => {
         };
         expect(
           drift,
-          `${dialect} ${column.fn}: bag ${column.bag ?? 'none'} and builder ${column.returns.join('+')} must both offer exactly [${column.manifestModifiers.join(',')}]`
+          `${dialect} ${column.fn}: bag ${column.bag ?? 'none'} and builder ${column.props.join('+')} must both offer exactly [${column.manifestModifiers.join(',')}]`
         ).toEqual({bagMissing: [], bagExtra: [], builderMissing: [], builderExtra: []});
       }
     }

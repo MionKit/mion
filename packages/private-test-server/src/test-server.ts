@@ -15,7 +15,7 @@ import type {Server as HttpsServer} from 'node:https';
 // regular import, not type-only, so the JIT functions get created
 import {String, Email, UUIDv4, Transform} from '@mionjs/run-types/formats';
 import {integer, pgTable, timestamp, uuid, varchar} from '@mionjs/drizzle-orm-pg-core';
-import * as my from '@mionjs/drizzle-orm-mysql-core';
+import * as mysql from '@mionjs/drizzle-orm-mysql-core';
 import * as lite from '@mionjs/drizzle-orm-sqlite-core';
 import {refineTableType} from '@mionjs/drizzle-orm';
 import type {InferInsertModel, InferSelectModel, InferUpdateModel} from '@mionjs/drizzle-orm';
@@ -82,10 +82,10 @@ export type DbUserPatch = InferUpdateModel<typeof apiUsersTable>;
 const dbUsersStore = new Map<string, DbUser>();
 
 // One table per other dialect, so every dialect's models are proven over the wire.
-const dbDevicesTable = my.mysqlTable('devices', {
-  serialNo: my.varchar('serial_no', {length: 12, primaryKey: true}),
-  views: my.int({unsigned: true, notNull: true}),
-  registeredAt: my.datetime('registered_at', {mode: 'date', notNull: true}),
+const dbDevicesTable = mysql.mysqlTable('devices', {
+  serialNo: mysql.varchar('serial_no', {length: 12, primaryKey: true}),
+  views: mysql.int({unsigned: true, notNull: true}),
+  registeredAt: mysql.datetime('registered_at', {mode: 'date', notNull: true}),
 });
 export type DbDevice = InferSelectModel<typeof dbDevicesTable>;
 const dbDevicesStore = new Map<string, DbDevice>();

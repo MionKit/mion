@@ -25,8 +25,8 @@ import {
 import type {AnyColumn} from './columns.ts';
 
 /** A table's type: name, the shared column types, extras, and the db names that differ from the key. */
-export interface RtTableMeta<TName extends string, Cols, Extras extends readonly object[] = [], Names = NoNames> {
-  name: TName;
+export interface RtTableMeta<Name extends string, Cols, Extras extends readonly object[] = [], Names = NoNames> {
+  name: Name;
   columns: Cols;
   extras: Extras;
   names: Names;

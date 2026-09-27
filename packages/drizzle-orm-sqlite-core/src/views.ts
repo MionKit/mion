@@ -42,21 +42,21 @@ export function requireColumns(fn: string, name: string, columns: Record<string,
 // Inline maps, never aliases over the builders record: see sqliteTable in ./table.ts.
 type NameOf<C> = C extends {readonly [rtColNameKey]: infer Name} ? Name : undefined;
 
-export interface SqliteView<TName extends string, Cols, Names = NoNames>
-  extends RtViewMeta<TName, Cols, Names>, RtViewBrand<'sqlite'> {}
+export interface SqliteView<Name extends string, Cols, Names = NoNames>
+  extends RtViewMeta<Name, Cols, Names>, RtViewBrand<'sqlite'> {}
 export type AnySqliteView = SqliteView<string, Record<string, AnyColumn>, object>;
 
 // sqlite views take no options before the terminal call.
-export interface SqliteViewBuilder<TName extends string, Cols, Names> {
-  as(query: RtSql): SqliteView<TName, Cols, Names>;
-  existing(): SqliteView<TName, Cols, Names>;
+export interface SqliteViewBuilder<Name extends string, Cols, Names> {
+  as(query: RtSql): SqliteView<Name, Cols, Names>;
+  existing(): SqliteView<Name, Cols, Names>;
 }
 
-export function sqliteView<TName extends string, Cols extends Record<string, object>>(
-  name: TName,
+export function sqliteView<Name extends string, Cols extends Record<string, object>>(
+  name: Name,
   columns: Cols
 ): SqliteViewBuilder<
-  TName,
+  Name,
   {[K in keyof Cols]: Cols[K] extends {readonly [rtNamedColumnKey]: infer C} ? C : Cols[K]},
   {[K in keyof Cols as NameOf<Cols[K]> extends string ? (NameOf<Cols[K]> extends K ? never : K) : never]: NameOf<Cols[K]>}
 >;
