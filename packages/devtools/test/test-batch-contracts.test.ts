@@ -97,7 +97,16 @@ describe('the wiring still points at the batch script', () => {
 const HEAVY_TIMEOUT_FLOOR = 30_000;
 
 /** Projects whose tests or hooks compile, build or spawn the resolver. **/
-const HEAVY_PROJECTS = ['runtypes', 'playground', 'type-budget', 'devtools-core', 'devtools', 'drizzle-pg'] as const;
+const HEAVY_PROJECTS = [
+  'runtypes',
+  'playground',
+  'type-budget',
+  'devtools-core',
+  'devtools',
+  'drizzle-pg',
+  'drizzle-mysql',
+  'drizzle-sqlite',
+] as const;
 
 /** The rest: in-memory fixtures or an in-process server, or their own inline timeout on the hook. **/
 const LIGHT_PROJECTS = [
@@ -117,8 +126,6 @@ const LIGHT_PROJECTS = [
   'platform-cloudflare',
   'bin-uws',
   'drizzle-root',
-  'drizzle-mysql',
-  'drizzle-sqlite',
 ] as const;
 
 /** undefined means the project takes vitest's default. **/

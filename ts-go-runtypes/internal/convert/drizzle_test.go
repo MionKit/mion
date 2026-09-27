@@ -64,78 +64,188 @@ func convertDrizzleOne(t testing.TB, source string, opts convert.Options) (strin
 	return result.Output, result.Diags
 }
 
-const drizzleHeader = "import * as DZ from '@mionjs/drizzle-orm-pg-core';\n"
+// ── the ONE dialect list ─────────────────────────────────────────────────────
+//
+// Every case runs once per dialect. A case that fits only some says so in its
+// name, `only pg: …` or `only pg, mysql: …`, and eachDialect reads that prefix,
+// so the name and the dialects it runs in cannot disagree.
 
-const drizzleBuildersSource = drizzleHeader +
-	"export const users = DZ.pgTable('users', {\n" +
-	"  id: DZ.uuid('id').primaryKey().defaultRandom(),\n" +
-	"  name: DZ.varchar('name', {length: 100}).notNull(),\n" +
-	"  age: DZ.integer('age').notNull().default(21),\n" +
-	"  bio: DZ.varchar('bio', {length: 500}),\n" +
-	"  note: DZ.varchar(),\n" +
+type drizzleDialect struct {
+	name string
+	// fill holds the {{placeholder}} spellings a case's source is written in.
+	fill map[string]string
+}
+
+var drizzleDialects = []drizzleDialect{
+	{name: "pg", fill: map[string]string{
+		"mod": "@mionjs/drizzle-orm-pg-core", "table": "pgTable", "Table": "PgTable", "creator": "pgTableCreator", "schema": "pgSchema",
+		"int": "integer", "Int": "Integer", "str": "varchar", "Str": "Varchar", "text": "text", "Text": "Text", "serial": "serial", "Serial": "Serial",
+	}},
+	{name: "mysql", fill: map[string]string{
+		"mod": "@mionjs/drizzle-orm-mysql-core", "table": "mysqlTable", "Table": "MysqlTable", "creator": "mysqlTableCreator", "schema": "mysqlSchema",
+		"int": "int", "Int": "Int", "str": "varchar", "Str": "Varchar", "text": "text", "Text": "Text", "serial": "serial", "Serial": "Serial",
+	}},
+	{name: "sqlite", fill: map[string]string{
+		"mod": "@mionjs/drizzle-orm-sqlite-core", "table": "sqliteTable", "Table": "SqliteTable", "creator": "sqliteTableCreator", "schema": "",
+		"int": "integer", "Int": "Integer", "str": "text", "Str": "Text", "text": "text", "Text": "Text", "serial": "integer", "Serial": "Integer",
+	}},
+}
+
+// src spells a case's template in this dialect.
+func (dialect drizzleDialect) src(template string) string {
+	pairs := make([]string, 0, 2*len(dialect.fill))
+	for key, value := range dialect.fill {
+		pairs = append(pairs, "{{"+key+"}}", value)
+	}
+	return strings.NewReplacer(pairs...).Replace(template)
+}
+
+// namedImport is `import {a, b} from '<mod>';` over the dialect spellings of the given placeholders, sorted
+// the way the import planner writes them.
+func (dialect drizzleDialect) namedImport(placeholders ...string) string {
+	seen := map[string]bool{}
+	var names []string
+	for _, placeholder := range placeholders {
+		name := dialect.src(placeholder)
+		if !seen[name] {
+			seen[name] = true
+			names = append(names, name)
+		}
+	}
+	sort.Strings(names)
+	return "import {" + strings.Join(names, ", ") + "} from '" + dialect.fill["mod"] + "';\n"
+}
+
+// eachDialect runs body once per dialect of the list, narrowed by an `only a, b:` prefix on name.
+func eachDialect(t *testing.T, name string, body func(t *testing.T, dialect drizzleDialect)) {
+	t.Helper()
+	only := map[string]bool{}
+	if rest, ok := strings.CutPrefix(name, "only "); ok {
+		list, _, found := strings.Cut(rest, ":")
+		if !found {
+			t.Fatalf("case %q: an `only` case names its dialects before a colon", name)
+		}
+		for _, dialectName := range strings.Split(list, ",") {
+			only[strings.TrimSpace(dialectName)] = true
+		}
+	}
+	t.Run(name, func(t *testing.T) {
+		ran := 0
+		for _, dialect := range drizzleDialects {
+			if len(only) > 0 && !only[dialect.name] {
+				continue
+			}
+			ran++
+			t.Run(dialect.name, func(t *testing.T) { body(t, dialect) })
+		}
+		if ran == 0 || (len(only) > 0 && ran != len(only)) {
+			t.Fatalf("case %q names a dialect the list does not have", name)
+		}
+	})
+}
+
+func expectContains(t *testing.T, label, output string, wants ...string) {
+	t.Helper()
+	for _, want := range wants {
+		if !strings.Contains(output, want) {
+			t.Fatalf("%s missing %q:\n%s", label, want, output)
+		}
+	}
+}
+
+func expectRefusal(t *testing.T, diags []convert.Diagnostic, output, wantInMessage string) {
+	t.Helper()
+	for _, diagnostic := range diags {
+		if diagnostic.Code == convert.CodeDrizzleUnsupported && strings.Contains(diagnostic.Message, wantInMessage) {
+			return
+		}
+	}
+	t.Fatalf("expected a CNV009 refusal containing %q, got %v\noutput:\n%s", wantInMessage, diags, output)
+}
+
+// roundTrip drives builders→type→builders→type and pins the canonical fixpoint.
+func roundTrip(t *testing.T, builders string) (typeForm string, buildersForm string) {
+	t.Helper()
+	typeForm, diags := convertDrizzleOne(t, builders, convert.Options{Target: convert.TargetType})
+	expectNoDiags(t, diags)
+	buildersForm, diags = convertDrizzleOne(t, typeForm, convert.Options{Target: convert.TargetBuilders})
+	expectNoDiags(t, diags)
+	typeAgain, diags := convertDrizzleOne(t, buildersForm, convert.Options{Target: convert.TargetType})
+	expectNoDiags(t, diags)
+	if typeAgain != typeForm {
+		t.Fatalf("type form is not a fixpoint:\n--- first ---\n%s\n--- second ---\n%s", typeForm, typeAgain)
+	}
+	same, diags := convertDrizzleOne(t, typeForm, convert.Options{Target: convert.TargetType})
+	expectNoDiags(t, diags)
+	if same != typeForm {
+		t.Fatalf("re-converting the type form is not a byte no-op:\n%s", same)
+	}
+	return typeForm, buildersForm
+}
+
+// ── builders ⇄ type ──────────────────────────────────────────────────────────
+
+const drizzleBuildersTemplate = "import * as DZ from '{{mod}}';\n" +
+	"export const users = DZ.{{table}}('users', {\n" +
+	"  id: DZ.{{int}}({primaryKey: true}),\n" +
+	"  name: DZ.{{str}}('user_name', {length: 100, notNull: true}),\n" +
+	"  age: DZ.{{int}}({notNull: true, default: [21]}),\n" +
+	"  bio: DZ.{{str}}('bio_text', {length: 500}),\n" +
+	"  note: DZ.{{text}}(),\n" +
 	"});\n" +
 	"export type UsersTable = typeof users;\n"
 
-const drizzleTypeSource = drizzleHeader +
-	"export type UsersTable = DZ.PgTable<'users', {\n" +
-	"  id: DZ.Uuid<'id', {primaryKey: true; defaultRandom: true}>;\n" +
-	"  name: DZ.Varchar<'name', {length: 100; notNull: true}>;\n" +
-	"  age: DZ.Integer<'age', {notNull: true; default: [21]}>;\n" +
-	"  bio: DZ.Varchar<'bio', {length: 500}>;\n" +
-	"  note: DZ.Varchar;\n" +
-	"}>;\n" +
+const drizzleTypeTemplate = "import * as DZ from '{{mod}}';\n" +
+	"export type UsersTable = DZ.{{Table}}<'users', {\n" +
+	"  id: DZ.{{Int}}<{primaryKey: true}>;\n" +
+	"  name: DZ.{{Str}}<{length: 100; notNull: true}>;\n" +
+	"  age: DZ.{{Int}}<{notNull: true; default: [21]}>;\n" +
+	"  bio: DZ.{{Str}}<{length: 500}>;\n" +
+	"  note: DZ.{{Text}};\n" +
+	"}, [], {name: 'user_name'; bio: 'bio_text'}>;\n" +
 	"export const users = DZ.tableFromType<UsersTable>();\n"
 
 func TestDrizzle_BuildersToType(t *testing.T) {
-	output, diags := convertDrizzleOne(t, drizzleBuildersSource, convert.Options{Target: convert.TargetType})
-	expectNoDiags(t, diags)
-	for _, want := range []string{
-		"export type UsersTable = DZ.PgTable<'users', {",
-		"  id: DZ.Uuid<'id', {primaryKey: true; defaultRandom: true}>;",
-		"  name: DZ.Varchar<'name', {length: 100; notNull: true}>;",
-		"  age: DZ.Integer<'age', {notNull: true; default: [21]}>;",
-		"  bio: DZ.Varchar<'bio', {length: 500}>;",
-		"  note: DZ.Varchar;",
-		"export const users = DZ.tableFromType<UsersTable>();",
-	} {
-		if !strings.Contains(output, want) {
-			t.Fatalf("builders→type output missing %q:\n%s", want, output)
+	eachDialect(t, "builders to type", func(t *testing.T, dialect drizzleDialect) {
+		output, diags := convertDrizzleOne(t, dialect.src(drizzleBuildersTemplate), convert.Options{Target: convert.TargetType})
+		expectNoDiags(t, diags)
+		if want := dialect.src(drizzleTypeTemplate); output != want {
+			t.Fatalf("builders→type:\n--- want ---\n%s\n--- got ---\n%s", want, output)
 		}
-	}
-	if strings.Contains(output, "typeof users") {
-		t.Fatalf("builders→type left the typeof alias behind:\n%s", output)
-	}
-	// The marker form needs no getRunType: neither the call nor an import.
-	if strings.Contains(output, "getRunType") {
-		t.Fatalf("builders→type emitted a getRunType reference:\n%s", output)
-	}
+	})
 }
 
 func TestDrizzle_TypeToBuilders(t *testing.T) {
-	output, diags := convertDrizzleOne(t, drizzleTypeSource, convert.Options{Target: convert.TargetBuilders})
-	expectNoDiags(t, diags)
-	for _, want := range []string{
-		"export const users = DZ.pgTable('users', {",
-		"  id: DZ.uuid('id').primaryKey().defaultRandom(),",
-		"  name: DZ.varchar('name', {length: 100}).notNull(),",
-		"  age: DZ.integer('age').notNull().default(21),",
-		"  bio: DZ.varchar('bio', {length: 500}),",
-		"  note: DZ.varchar(),",
-		"export type UsersTable = typeof users;",
-	} {
-		if !strings.Contains(output, want) {
-			t.Fatalf("type→builders output missing %q:\n%s", want, output)
+	eachDialect(t, "type to builders", func(t *testing.T, dialect drizzleDialect) {
+		output, diags := convertDrizzleOne(t, dialect.src(drizzleTypeTemplate), convert.Options{Target: convert.TargetBuilders})
+		expectNoDiags(t, diags)
+		if want := dialect.src(drizzleBuildersTemplate); output != want {
+			t.Fatalf("type→builders:\n--- want ---\n%s\n--- got ---\n%s", want, output)
 		}
-	}
-	if strings.Contains(output, "tableFromType") {
-		t.Fatalf("type→builders left the tableFromType handle behind:\n%s", output)
-	}
+	})
 }
 
-// TestDrizzle_DerivedPairNames pins the Table naming rule for invented names:
-// a table const derives a Table-suffixed type (users → UsersTable) and a
-// table type derives an RT-free const (UsersTable → users) — the RT-suffix
-// derivation stays reserved for actual runtype pairs.
+// TestDrizzle_DbNameEqualToKeyIsDropped pins the canonical builders spelling: a db name equal to its key adds
+// nothing to the type, so it prints back nameless.
+func TestDrizzle_DbNameEqualToKeyIsDropped(t *testing.T) {
+	eachDialect(t, "db name equal to its key", func(t *testing.T, dialect drizzleDialect) {
+		source := dialect.src("import * as DZ from '{{mod}}';\n" +
+			"export const t = DZ.{{table}}('t', {id: DZ.{{int}}('id', {primaryKey: true}), n: DZ.{{int}}('n')});\n")
+		output, diags := convertDrizzleOne(t, source, convert.Options{Target: convert.TargetType})
+		expectNoDiags(t, diags)
+		expectContains(t, "builders→type", output, dialect.src("  id: DZ.{{Int}}<{primaryKey: true}>;\n  n: DZ.{{Int}};\n}>;"))
+	})
+}
+
+func TestDrizzle_RoundTripFixpoint(t *testing.T) {
+	eachDialect(t, "round trip fixpoint", func(t *testing.T, dialect drizzleDialect) {
+		_, buildersForm := roundTrip(t, dialect.src(drizzleBuildersTemplate))
+		if want := dialect.src(drizzleBuildersTemplate); buildersForm != want {
+			t.Fatalf("the canonical builders form did not come back:\n--- want ---\n%s\n--- got ---\n%s", want, buildersForm)
+		}
+	})
+}
+
 // ── named imports ────────────────────────────────────────────────────────────
 //
 // The spelling a file was written in is the spelling it keeps. Drizzle's own
@@ -143,641 +253,141 @@ func TestDrizzle_TypeToBuilders(t *testing.T) {
 // dialect package's NAMES; the namespace form above is the other half of the
 // same rule, not the only one that converts.
 
-const drizzleNamedHeader = "import {integer, pgTable, uuid, varchar} from '@mionjs/drizzle-orm-pg-core';\n"
-
-const drizzleNamedBuildersSource = drizzleNamedHeader +
-	"export const users = pgTable('users', {\n" +
-	"  id: uuid('id').primaryKey().defaultRandom(),\n" +
-	"  name: varchar('name', {length: 100}).notNull(),\n" +
-	"  age: integer('age').notNull().default(21),\n" +
-	"});\n" +
-	"export type UsersTable = typeof users;\n"
+func namedBuildersSource(dialect drizzleDialect) string {
+	return dialect.namedImport("{{int}}", "{{table}}", "{{str}}") + dialect.src(
+		"export const users = {{table}}('users', {\n"+
+			"  id: {{int}}({primaryKey: true}),\n"+
+			"  name: {{str}}({length: 100, notNull: true}),\n"+
+			"  age: {{int}}({notNull: true, default: [21]}),\n"+
+			"});\n"+
+			"export type UsersTable = typeof users;\n")
+}
 
 func TestDrizzle_NamedImportsBuildersToType(t *testing.T) {
-	output, diags := convertDrizzleOne(t, drizzleNamedBuildersSource, convert.Options{Target: convert.TargetType})
-	expectNoDiags(t, diags)
-	for _, want := range []string{
-		"export type UsersTable = PgTable<'users', {",
-		"  id: Uuid<'id', {primaryKey: true; defaultRandom: true}>;",
-		"  name: Varchar<'name', {length: 100; notNull: true}>;",
-		"  age: Integer<'age', {notNull: true; default: [21]}>;",
-		"export const users = tableFromType<UsersTable>();",
-	} {
-		if !strings.Contains(output, want) {
-			t.Fatalf("named builders→type output missing %q:\n%s", want, output)
+	eachDialect(t, "named imports builders to type", func(t *testing.T, dialect drizzleDialect) {
+		output, diags := convertDrizzleOne(t, namedBuildersSource(dialect), convert.Options{Target: convert.TargetType})
+		expectNoDiags(t, diags)
+		expectContains(t, "named builders→type", output, dialect.src("export type UsersTable = {{Table}}<'users', {\n"+
+			"  id: {{Int}}<{primaryKey: true}>;\n"+
+			"  name: {{Str}}<{length: 100; notNull: true}>;\n"+
+			"  age: {{Int}}<{notNull: true; default: [21]}>;\n"+
+			"}>;\n"+
+			"export const users = tableFromType<UsersTable>();"))
+		// The type names arrive as type-only bindings, the bridge as a value one.
+		expectContains(t, "named builders→type imports", output, dialect.src("type {{Table}}"), dialect.src("type {{Int}}"))
+		if strings.Contains(output, "type tableFromType") {
+			t.Fatalf("the bridge is CALLED, so it cannot come in as `import type`:\n%s", output)
 		}
-	}
-	// The type names arrive as type-only bindings, the bridge as a value one.
-	if !strings.Contains(output, "type PgTable") || !strings.Contains(output, "type Uuid") {
-		t.Fatalf("named builders→type did not import the type names:\n%s", output)
-	}
-	if strings.Contains(output, "type tableFromType") {
-		t.Fatalf("the bridge is CALLED, so it cannot come in as `import type`:\n%s", output)
-	}
-	// The builders the file no longer calls are gone.
-	for _, gone := range []string{"uuid,", "varchar,", " integer,"} {
-		if strings.Contains(output, gone) {
-			t.Fatalf("named builders→type kept the now-unused builder import %q:\n%s", gone, output)
+		// The builders the file no longer calls are gone.
+		for _, gone := range []string{dialect.src("{{int}},"), dialect.src(" {{str}},"), dialect.src("{{table}},")} {
+			if strings.Contains(output, gone) {
+				t.Fatalf("named builders→type kept the now-unused builder import %q:\n%s", gone, output)
+			}
 		}
-	}
-	if strings.Contains(output, "DZ.") {
-		t.Fatalf("named builders→type invented a namespace spelling:\n%s", output)
-	}
+		if strings.Contains(output, "DZ.") {
+			t.Fatalf("named builders→type invented a namespace spelling:\n%s", output)
+		}
+	})
 }
 
 func TestDrizzle_NamedImportsRoundTripFixpoint(t *testing.T) {
-	typeForm, diags := convertDrizzleOne(t, drizzleNamedBuildersSource, convert.Options{Target: convert.TargetType})
-	expectNoDiags(t, diags)
-	buildersForm, diags := convertDrizzleOne(t, typeForm, convert.Options{Target: convert.TargetBuilders})
-	expectNoDiags(t, diags)
-	if buildersForm != drizzleNamedBuildersSource {
-		t.Fatalf("named round trip did not return the original:\nwant:\n%s\ngot:\n%s", drizzleNamedBuildersSource, buildersForm)
-	}
-	again, diags := convertDrizzleOne(t, typeForm, convert.Options{Target: convert.TargetType})
-	expectNoDiags(t, diags)
-	if again != typeForm {
-		t.Fatalf("named type form is not a byte fixpoint:\nwant:\n%s\ngot:\n%s", typeForm, again)
-	}
+	eachDialect(t, "named imports round trip", func(t *testing.T, dialect drizzleDialect) {
+		source := namedBuildersSource(dialect)
+		_, buildersForm := roundTrip(t, source)
+		if buildersForm != source {
+			t.Fatalf("named round trip did not return the original:\nwant:\n%s\ngot:\n%s", source, buildersForm)
+		}
+	})
 }
 
-// TestDrizzle_NamedImportsRuntimeModifiers is the runtime-callback half under
-// the named spelling: the callback text moves into options.runtime and back,
-// unchanged, and the type carries only the marker.
+// TestDrizzle_NamedImportsRuntimeModifiers is the runtime-callback half under the named spelling: the callback
+// text moves into options.runtime and back, unchanged, and the type carries only the flag.
 func TestDrizzle_NamedImportsRuntimeModifiers(t *testing.T) {
-	source := "import {pgTable, uuid, varchar} from '@mionjs/drizzle-orm-pg-core';\n" +
-		"export const jobs = pgTable('jobs', {\n" +
-		"  id: uuid('id').primaryKey(),\n" +
-		"  slug: varchar('slug', {length: 80}).notNull().$defaultFn(() => 'slug-1'),\n" +
-		"});\n" +
-		"export type JobsTable = typeof jobs;\n"
-	typeForm, diags := convertDrizzleOne(t, source, convert.Options{Target: convert.TargetType})
-	expectNoDiags(t, diags)
-	for _, want := range []string{
-		"  slug: Varchar<'slug', {length: 80; notNull: true; $defaultFn: true}>;",
-		"export const jobs = tableFromType<JobsTable>({runtime: {slug: {$defaultFn: () => 'slug-1'}}});",
-	} {
-		if !strings.Contains(typeForm, want) {
-			t.Fatalf("named runtime-modifier type form missing %q:\n%s", want, typeForm)
+	eachDialect(t, "named imports runtime modifiers", func(t *testing.T, dialect drizzleDialect) {
+		source := dialect.namedImport("{{int}}", "{{table}}", "{{str}}") + dialect.src(
+			"export const jobs = {{table}}('jobs', {\n"+
+				"  id: {{int}}({primaryKey: true}),\n"+
+				"  slug: {{str}}({length: 80, notNull: true, $defaultFn: [() => 'slug-1']}),\n"+
+				"});\n"+
+				"export type JobsTable = typeof jobs;\n")
+		typeForm, buildersForm := roundTrip(t, source)
+		expectContains(t, "named runtime-modifier type form", typeForm,
+			dialect.src("  slug: {{Str}}<{length: 80; notNull: true; $defaultFn: true}>;"),
+			"export const jobs = tableFromType<JobsTable>({runtime: {slug: {$defaultFn: () => 'slug-1'}}});")
+		if buildersForm != source {
+			t.Fatalf("named runtime-modifier round trip did not return the original:\nwant:\n%s\ngot:\n%s", source, buildersForm)
 		}
-	}
-	buildersForm, diags := convertDrizzleOne(t, typeForm, convert.Options{Target: convert.TargetBuilders})
-	expectNoDiags(t, diags)
-	if buildersForm != source {
-		t.Fatalf("named runtime-modifier round trip did not return the original:\nwant:\n%s\ngot:\n%s", source, buildersForm)
-	}
+	})
 }
 
-// TestDrizzle_NamedImportsAliasOnCollision covers the file the drizzle-e2e lane
-// actually feeds the arm: drizzle's OWN names live beside ours in the same
-// file, so a name the printed output needs can already be bound to something
-// else. It comes in under a free local rather than colliding.
+// TestDrizzle_NamedImportsAliasOnCollision covers the file the drizzle-e2e lane actually feeds the arm:
+// drizzle's OWN names live beside ours in the same file, so a name the printed output needs can already be
+// bound to something else. It comes in under a free local rather than colliding.
 func TestDrizzle_NamedImportsAliasOnCollision(t *testing.T) {
-	source := "import type {PgTable} from 'drizzle-orm/pg-core';\n" +
-		"import {pgTable, uuid} from '@mionjs/drizzle-orm-pg-core';\n" +
-		"export const users = pgTable('users', {\n" +
-		"  id: uuid('id').primaryKey(),\n" +
-		"});\n" +
-		"export type UsersTable = typeof users;\n" +
-		"export type Held = PgTable<any, any, any>;\n"
-	output, diags := convertDrizzleOne(t, source, convert.Options{Target: convert.TargetType})
-	expectNoDiags(t, diags)
-	if !strings.Contains(output, "export type Held = PgTable<any, any, any>;") {
-		t.Fatalf("the drizzle-owned PgTable binding was disturbed:\n%s", output)
-	}
-	if !strings.Contains(output, "export type UsersTable = PgTable$rt<'users', {") {
-		t.Fatalf("ours did not take a free local beside drizzle's:\n%s", output)
-	}
-	if !strings.Contains(output, "PgTable as PgTable$rt") {
-		t.Fatalf("the aliased binding was not imported:\n%s", output)
-	}
+	eachDialect(t, "named imports alias on collision", func(t *testing.T, dialect drizzleDialect) {
+		source := dialect.src("import type {{{Table}}} from 'drizzle-orm/" + dialect.name + "-core';\n" +
+			"import {{{int}}, {{table}}} from '{{mod}}';\n" +
+			"export const users = {{table}}('users', {\n" +
+			"  id: {{int}}({primaryKey: true}),\n" +
+			"});\n" +
+			"export type UsersTable = typeof users;\n" +
+			"export type Held = {{Table}}<any, any, any>;\n")
+		output, diags := convertDrizzleOne(t, source, convert.Options{Target: convert.TargetType})
+		expectNoDiags(t, diags)
+		expectContains(t, "collision", output,
+			dialect.src("export type Held = {{Table}}<any, any, any>;"),
+			dialect.src("export type UsersTable = {{Table}}$rt<'users', {"),
+			dialect.src("{{Table}} as {{Table}}$rt"))
+	})
 }
 
-// TestDrizzle_KeyedExtraConfig covers the OTHER extraConfig shape drizzle
-// accepts, which its own suites still write. drizzle reads only the values of
-// that object and so does the recorder, so the keys are labels: the entries
-// convert, and the builders form comes back as the array.
+// ── extraConfig ──────────────────────────────────────────────────────────────
+
+// TestDrizzle_KeyedExtraConfig covers the OTHER extraConfig shape drizzle accepts, which its own suites still
+// write. drizzle reads only the values of that object and so does the recorder, so the keys are labels: the
+// entries convert, and the builders form comes back as the array.
 func TestDrizzle_KeyedExtraConfig(t *testing.T) {
-	source := "import {pgTable, text, unique} from '@mionjs/drizzle-orm-pg-core';\n" +
-		"export const cities = pgTable('cities', {\n" +
-		"  name: text('name').notNull(),\n" +
-		"}, (t) => ({\n" +
-		"  f: unique('custom_name').on(t.name),\n" +
-		"}));\n" +
-		"export type CitiesTable = typeof cities;\n"
-	typeForm, diags := convertDrizzleOne(t, source, convert.Options{Target: convert.TargetType})
-	expectNoDiags(t, diags)
-	if !strings.Contains(typeForm, "TableEntry<'unique', ['custom_name'], {on: [{col: 'name'}]}>,") {
-		t.Fatalf("the keyed-object entry did not convert:\n%s", typeForm)
-	}
-	buildersForm, diags := convertDrizzleOne(t, typeForm, convert.Options{Target: convert.TargetBuilders})
-	expectNoDiags(t, diags)
-	if !strings.Contains(buildersForm, "unique('custom_name').on(t.name),") {
-		t.Fatalf("the entry did not come back on the builders road:\n%s", buildersForm)
-	}
+	eachDialect(t, "keyed-object extraConfig", func(t *testing.T, dialect drizzleDialect) {
+		source := dialect.namedImport("{{table}}", "{{text}}", "unique") + dialect.src(
+			"export const cities = {{table}}('cities', {\n"+
+				"  name: {{text}}({notNull: true}),\n"+
+				"}, (t) => ({\n"+
+				"  f: unique('custom_name').on(t.name),\n"+
+				"}));\n"+
+				"export type CitiesTable = typeof cities;\n")
+		typeForm, diags := convertDrizzleOne(t, source, convert.Options{Target: convert.TargetType})
+		expectNoDiags(t, diags)
+		expectContains(t, "keyed builders→type", typeForm, "TableEntry<'unique', ['custom_name'], {on: [{col: 'name'}]}>,")
+		buildersForm, diags := convertDrizzleOne(t, typeForm, convert.Options{Target: convert.TargetBuilders})
+		expectNoDiags(t, diags)
+		expectContains(t, "keyed type→builders", buildersForm, "unique('custom_name').on(t.name),")
+	})
 }
 
-// TestDrizzle_SqliteIntAlias pins the type road for drizzle's `int`: it has its
-// own column type rather than borrowing Integer's, so a converted table prints
-// back as int() and not integer().
-func TestDrizzle_SqliteIntAlias(t *testing.T) {
-	source := "import * as DZ from '@mionjs/drizzle-orm-sqlite-core';\n" +
-		"export const t = DZ.sqliteTable('t', {n: DZ.int('n')});\n" +
-		"export type TTable = typeof t;\n"
-	typeForm, diags := convertDrizzleOne(t, source, convert.Options{Target: convert.TargetType})
-	expectNoDiags(t, diags)
-	if !strings.Contains(typeForm, "  n: DZ.Int<'n'>;") {
-		t.Fatalf("int did not get its own column type:\n%s", typeForm)
-	}
-	buildersForm, diags := convertDrizzleOne(t, typeForm, convert.Options{Target: convert.TargetBuilders})
-	expectNoDiags(t, diags)
-	if !strings.Contains(buildersForm, "  n: DZ.int('n'),") {
-		t.Fatalf("int came back as something else:\n%s", buildersForm)
-	}
-}
-
-// TestDrizzle_GroupedExtraConfig covers the grouping drizzle flattens one level
-// of (`extraConfig.flat(1)`), which its own mysql suite writes.
+// TestDrizzle_GroupedExtraConfig covers the grouping drizzle flattens one level of (`extraConfig.flat(1)`),
+// which its own mysql suite writes.
 func TestDrizzle_GroupedExtraConfig(t *testing.T) {
-	source := "import {index, integer, pgTable, primaryKey} from '@mionjs/drizzle-orm-pg-core';\n" +
-		"export const rows = pgTable('rows', {\n" +
-		"  id: integer('id'),\n" +
-		"}, (t) => [\n" +
-		"  [index('rows_id').on(t.id), primaryKey({columns: [t.id], name: 'custom'})],\n" +
-		"]);\n" +
-		"export type RowsTable = typeof rows;\n"
-	typeForm, diags := convertDrizzleOne(t, source, convert.Options{Target: convert.TargetType})
-	expectNoDiags(t, diags)
-	for _, want := range []string{"TableEntry<'index', ['rows_id'], {on: [{col: 'id'}]}>,", "TableEntry<'primaryKey', [{columns: [{col: 'id'}], name: 'custom'}]>,"} {
-		if !strings.Contains(typeForm, want) {
-			t.Fatalf("the grouped entries did not flatten into the extras tuple, missing %q:\n%s", want, typeForm)
-		}
-	}
+	eachDialect(t, "grouped-array extraConfig", func(t *testing.T, dialect drizzleDialect) {
+		source := dialect.namedImport("index", "{{int}}", "{{table}}", "primaryKey") + dialect.src(
+			"export const rows = {{table}}('rows', {\n"+
+				"  id: {{int}}(),\n"+
+				"}, (t) => [\n"+
+				"  [index('rows_id').on(t.id), primaryKey({columns: [t.id], name: 'custom'})],\n"+
+				"]);\n"+
+				"export type RowsTable = typeof rows;\n")
+		typeForm, diags := convertDrizzleOne(t, source, convert.Options{Target: convert.TargetType})
+		expectNoDiags(t, diags)
+		expectContains(t, "grouped builders→type", typeForm,
+			"TableEntry<'index', ['rows_id'], {on: [{col: 'id'}]}>,",
+			"TableEntry<'primaryKey', [{columns: [{col: 'id'}], name: 'custom'}]>,")
+	})
 }
 
-// TestDrizzle_UnspellableHeadsSayWhy pins the reports for the table heads the
-// type road cannot express. The declaration IS a recognized table, so a refusal
-// that reads "not recognized" would send the reader hunting for a bug that is
-// not there.
-func TestDrizzle_UnspellableHeadsSayWhy(t *testing.T) {
-	cases := []struct{ name, source, want string }{
-		{
-			name: "table creator",
-			source: "import {pgTableCreator, integer} from '@mionjs/drizzle-orm-pg-core';\n" +
-				"export function scenario() {\n" +
-				"  const pgTable = pgTableCreator((name) => `prefixed_${name}`);\n" +
-				"  const users = pgTable('users', {id: integer('id')});\n" +
-				"  return users;\n" +
-				"}\n",
-			want: "table creator",
-		},
-		{
-			name: "schema handle",
-			source: "import {pgSchema, integer} from '@mionjs/drizzle-orm-pg-core';\n" +
-				"const mySchema = pgSchema('mySchema');\n" +
-				"export const users = mySchema.table('users', {id: integer('id')});\n",
-			want: "cannot carry the schema it belongs to",
-		},
-		{
-			name: "chained table modifier",
-			source: "import {pgTable, integer} from '@mionjs/drizzle-orm-pg-core';\n" +
-				"export const users = pgTable('users', {id: integer('id')}).enableRLS();\n",
-			want: "chained modifier on the table (.enableRLS())",
-		},
-	}
-	for _, testCase := range cases {
-		t.Run(testCase.name, func(t *testing.T) {
-			output, diags := convertDrizzleOne(t, testCase.source, convert.Options{Target: convert.TargetType})
-			var found bool
-			for _, diagnostic := range diags {
-				if diagnostic.Code == convert.CodeDrizzleUnsupported && strings.Contains(diagnostic.Message, testCase.want) {
-					found = true
-				}
-			}
-			if !found {
-				t.Fatalf("expected a CNV009 naming %q, got %v\noutput:\n%s", testCase.want, diags, output)
-			}
-		})
-	}
-}
-
-// ── declarations inside a scope ──────────────────────────────────────────────
-
-// TestDrizzle_NestedDeclarations covers where drizzle's own suites actually
-// declare their tables: inside test bodies, not at the top level (95 of 113 in
-// pg-common.ts). A table in a block is an ordinary table.
-func TestDrizzle_NestedDeclarations(t *testing.T) {
-	source := "import {integer, pgTable, uuid} from '@mionjs/drizzle-orm-pg-core';\n" +
-		"\n" +
-		"export function scenarioOne() {\n" +
-		"  const users = pgTable('users', {id: uuid('id').primaryKey()});\n" +
-		"  return users;\n" +
-		"}\n" +
-		"\n" +
-		"export function scenarioTwo() {\n" +
-		"  const users = pgTable('users_two', {id: integer('id').primaryKey()});\n" +
-		"  return users;\n" +
-		"}\n"
-	typeForm, diags := convertDrizzleOne(t, source, convert.Options{Target: convert.TargetType})
-	expectNoDiags(t, diags)
-	for _, want := range []string{
-		"  type Users = PgTable<'users', {\n    id: Uuid<'id', {primaryKey: true}>;\n  }>;",
-		"  type Users = PgTable<'users_two', {\n    id: Integer<'id', {primaryKey: true}>;\n  }>;",
-		"  const users = tableFromType<Users>();",
-	} {
-		if !strings.Contains(typeForm, want) {
-			t.Fatalf("nested builders→type output missing %q:\n%s", want, typeForm)
-		}
-	}
-	// Sibling scopes claim the same name: a file-wide claim budget would have
-	// pushed the second onto UsersT, and runs out entirely on the ninth.
-	if strings.Contains(typeForm, "UsersT") {
-		t.Fatalf("sibling scopes should each claim Users:\n%s", typeForm)
-	}
-	buildersForm, diags := convertDrizzleOne(t, typeForm, convert.Options{Target: convert.TargetBuilders})
-	expectNoDiags(t, diags)
-	if !strings.Contains(buildersForm, "  const users = pgTable('users', {\n    id: uuid('id').primaryKey(),\n  });\n  type Users = typeof users;\n  return users;") {
-		t.Fatalf("nested type→builders lost the block indentation:\n%s", buildersForm)
-	}
-	again, diags := convertDrizzleOne(t, typeForm, convert.Options{Target: convert.TargetType})
-	expectNoDiags(t, diags)
-	if again != typeForm {
-		t.Fatalf("nested type form is not a byte fixpoint:\nwant:\n%s\ngot:\n%s", typeForm, again)
-	}
-}
-
-// TestDrizzle_NestedScopeDoesNotShadow pins the other side of scoped naming: a
-// claimed pair name may repeat across sibling scopes, but never shadow a name
-// the file already uses at the top level.
-func TestDrizzle_NestedScopeDoesNotShadow(t *testing.T) {
-	source := "import {pgTable, uuid} from '@mionjs/drizzle-orm-pg-core';\n" +
-		"export type Users = {taken: true};\n" +
-		"export function scenario() {\n" +
-		"  const users = pgTable('users', {id: uuid('id').primaryKey()});\n" +
-		"  return users;\n" +
-		"}\n"
-	typeForm, diags := convertDrizzleOne(t, source, convert.Options{Target: convert.TargetType})
-	expectNoDiags(t, diags)
-	if !strings.Contains(typeForm, "export type Users = {taken: true};") {
-		t.Fatalf("the top-level name was overwritten:\n%s", typeForm)
-	}
-	if !strings.Contains(typeForm, "  type UsersT = PgTable<'users', {") {
-		t.Fatalf("the nested pair should step aside from the top-level name:\n%s", typeForm)
-	}
-	if !strings.Contains(typeForm, "  const users = tableFromType<UsersT>();") {
-		t.Fatalf("the nested pair's const should bind the stepped-aside type:\n%s", typeForm)
-	}
-}
-
-// TestDrizzle_DerivedPairNames pins the pair-naming rule in both directions:
-// a const derives its type by uppercasing the first letter, and a type derives
-// its const by lowercasing it. Nothing appends a `Table` word any more — the
-// name that mattered was the one the author already chose, and a migrated
-// recorder const (`users$table`) used to come out as `Users$tableTable`.
-func TestDrizzle_DerivedPairNames(t *testing.T) {
-	buildersOnly := drizzleHeader +
-		"export const users = DZ.pgTable('users', {id: DZ.integer('id').primaryKey()});\n"
-	typeForm, diags := convertDrizzleOne(t, buildersOnly, convert.Options{Target: convert.TargetType})
-	expectNoDiags(t, diags)
-	for _, want := range []string{
-		"export type Users = DZ.PgTable<'users', {",
-		"export const users = DZ.tableFromType<Users>();",
-	} {
-		if !strings.Contains(typeForm, want) {
-			t.Fatalf("derived type name missing %q:\n%s", want, typeForm)
-		}
-	}
-
-	typeOnly := drizzleHeader +
-		"export type UsersTable = DZ.PgTable<'users', {\n" +
-		"  id: DZ.Integer<'id', {primaryKey: true}>;\n" +
-		"}>;\n"
-	buildersForm, diags := convertDrizzleOne(t, typeOnly, convert.Options{Target: convert.TargetBuilders})
-	expectNoDiags(t, diags)
-	for _, want := range []string{
-		"export const usersTable = DZ.pgTable('users', {",
-		"export type UsersTable = typeof usersTable;",
-	} {
-		if !strings.Contains(buildersForm, want) {
-			t.Fatalf("derived const name missing %q:\n%s", want, buildersForm)
-		}
-	}
-	if strings.Contains(buildersForm, "usersRT") || strings.Contains(typeForm, "usersRT") {
-		t.Fatalf("drizzle derivation produced an RT-suffixed const:\n%s\n%s", typeForm, buildersForm)
-	}
-}
-
-// TestDrizzle_MigratedRecorderConstName is the case that started this rule: the
-// `$table` recorder binding `drizzle-migrate` emits used to derive
-// `Users$tableTable`, a doubled word from two translations in a row.
-func TestDrizzle_MigratedRecorderConstName(t *testing.T) {
-	source := drizzleHeader +
-		"export const users$table = DZ.pgTable('users', {id: DZ.integer('id').primaryKey()});\n"
-	typeForm, diags := convertDrizzleOne(t, source, convert.Options{Target: convert.TargetType})
-	expectNoDiags(t, diags)
-	if strings.Contains(typeForm, "tableTable") {
-		t.Fatalf("the recorder marker must not double the Table word:\n%s", typeForm)
-	}
-	for _, want := range []string{
-		"export type Users$table = DZ.PgTable<'users', {",
-		"export const users$table = DZ.tableFromType<Users$table>();",
-	} {
-		if !strings.Contains(typeForm, want) {
-			t.Fatalf("migrated recorder name missing %q:\n%s", want, typeForm)
-		}
-	}
-}
-
-// TestDrizzle_CapitalisedConstGetsTSuffix — uppercasing a const that is ALREADY
-// capitalised would hand the type the const's own spelling, so it takes a `T`.
-func TestDrizzle_CapitalisedConstGetsTSuffix(t *testing.T) {
-	source := drizzleHeader +
-		"export const Users = DZ.pgTable('users', {id: DZ.integer('id').primaryKey()});\n"
-	typeForm, diags := convertDrizzleOne(t, source, convert.Options{Target: convert.TargetType})
-	expectNoDiags(t, diags)
-	for _, want := range []string{
-		"export type UsersT = DZ.PgTable<'users', {",
-		"export const Users = DZ.tableFromType<UsersT>();",
-	} {
-		if !strings.Contains(typeForm, want) {
-			t.Fatalf("capitalised const name missing %q:\n%s", want, typeForm)
-		}
-	}
-}
-
-// TestDrizzle_ForwardReferenceThunk: drizzle schemas often declare the parent later; the eager tables option needs a thunk.
-func TestDrizzle_ForwardReferenceThunk(t *testing.T) {
-	source := drizzleHeader +
-		"export const children = DZ.pgTable('children', {\n" +
-		"  pid: DZ.integer('pid').references(() => parents.id),\n" +
-		"});\n" +
-		"export const parents = DZ.pgTable('parents', {\n" +
-		"  id: DZ.integer('id').primaryKey(),\n" +
-		"});\n"
-	typeForm, diags := convertDrizzleOne(t, source, convert.Options{Target: convert.TargetType})
-	expectNoDiags(t, diags)
-	if !strings.Contains(typeForm, "export const children = DZ.tableFromType<Children>({tables: {parents: () => parents}});") {
-		t.Fatalf("the forward reference did not ride a thunk:\n%s", typeForm)
-	}
-	if !strings.Contains(typeForm, "export const parents = DZ.tableFromType<Parents>();") {
-		t.Fatalf("the parent declaration did not convert:\n%s", typeForm)
-	}
-	buildersForm, diags := convertDrizzleOne(t, typeForm, convert.Options{Target: convert.TargetBuilders})
-	expectNoDiags(t, diags)
-	// Back on the builders road the reference is a lazy callback again, so the
-	// declaration order the file was written in still stands.
-	if !strings.Contains(buildersForm, "  pid: DZ.integer('pid').references(() => cols(parents).id),") {
-		t.Fatalf("the forward reference did not come back:\n%s", buildersForm)
-	}
-	if strings.Index(buildersForm, "'children'") > strings.Index(buildersForm, "'parents'") {
-		t.Fatalf("the round trip reordered the declarations:\n%s", buildersForm)
-	}
-	again, diags := convertDrizzleOne(t, typeForm, convert.Options{Target: convert.TargetType})
-	expectNoDiags(t, diags)
-	if again != typeForm {
-		t.Fatalf("the thunk spelling is not a byte fixpoint:\nwant:\n%s\ngot:\n%s", typeForm, again)
-	}
-}
-
-// TestDrizzle_SelfReferenceRoundTrip pins that a self-reference keeps its return annotation (TS7022) over a round trip.
-func TestDrizzle_SelfReferenceRoundTrip(t *testing.T) {
-	source := drizzleHeader +
-		"export const emps = DZ.pgTable('emps', {\n" +
-		"  id: DZ.serial('id').primaryKey(),\n" +
-		"  managerId: DZ.integer('manager_id').references((): AnyRtColumn => emps.id),\n" +
-		"});\n"
-	typeForm, diags := convertDrizzleOne(t, source, convert.Options{Target: convert.TargetType})
-	expectNoDiags(t, diags)
-	if !strings.Contains(typeForm, "export const emps = DZ.tableFromType<Emps>({tables: {emps: () => emps}});") {
-		t.Fatalf("the self-reference did not ride a thunk:\n%s", typeForm)
-	}
-	if !strings.Contains(typeForm, "references: [{table: 'emps'; column: 'id'}]") {
-		t.Fatalf("the self-reference is missing from the column type:\n%s", typeForm)
-	}
-	buildersForm, diags := convertDrizzleOne(t, typeForm, convert.Options{Target: convert.TargetBuilders})
-	expectNoDiags(t, diags)
-	if !strings.Contains(buildersForm, "managerId: DZ.integer('manager_id').references((): AnyRtColumn => cols(emps).id),") {
-		t.Fatalf("the self-reference lost its return annotation (TS7022 in strict mode):\n%s", buildersForm)
-	}
-	if !strings.Contains(buildersForm, "import {type AnyRtColumn, cols} from '@mionjs/drizzle-orm';") {
-		t.Fatalf("the annotation's type is not imported:\n%s", buildersForm)
-	}
-	again, diags := convertDrizzleOne(t, buildersForm, convert.Options{Target: convert.TargetType})
-	expectNoDiags(t, diags)
-	if again != typeForm {
-		t.Fatalf("the self-reference is not a round-trip fixpoint:\nwant:\n%s\ngot:\n%s", typeForm, again)
-	}
-}
-
-// TestDrizzle_BackwardReferenceStaysPlain pins the other half: nothing about
-// the thunk leaks into a file whose reference target is already declared.
-func TestDrizzle_BackwardReferenceStaysPlain(t *testing.T) {
-	source := drizzleHeader +
-		"export const parents = DZ.pgTable('parents', {\n" +
-		"  id: DZ.integer('id').primaryKey(),\n" +
-		"});\n" +
-		"export const children = DZ.pgTable('children', {\n" +
-		"  pid: DZ.integer('pid').references(() => parents.id),\n" +
-		"});\n"
-	typeForm, diags := convertDrizzleOne(t, source, convert.Options{Target: convert.TargetType})
-	expectNoDiags(t, diags)
-	if !strings.Contains(typeForm, "export const children = DZ.tableFromType<Children>({tables: {parents: parents}});") {
-		t.Fatalf("a backward reference should stay the plain value:\n%s", typeForm)
-	}
-}
-
-// TestDrizzle_RoundTripFixpoint drives builders→type→builders→type and pins
-// the canonical fixpoint: leg2 (type) and leg4 (type) byte-equal, leg3
-// (builders) reconverts to itself.
-func TestDrizzle_RoundTripFixpoint(t *testing.T) {
-	leg1, diags := convertDrizzleOne(t, drizzleBuildersSource, convert.Options{Target: convert.TargetType})
-	expectNoDiags(t, diags)
-	leg2, diags := convertDrizzleOne(t, leg1, convert.Options{Target: convert.TargetBuilders})
-	expectNoDiags(t, diags)
-	leg3, diags := convertDrizzleOne(t, leg2, convert.Options{Target: convert.TargetType})
-	expectNoDiags(t, diags)
-	if leg3 != leg1 {
-		t.Fatalf("type form is not a fixpoint:\n--- first ---\n%s\n--- second ---\n%s", leg1, leg3)
-	}
-	same, diags := convertDrizzleOne(t, leg1, convert.Options{Target: convert.TargetType})
-	expectNoDiags(t, diags)
-	if same != leg1 {
-		t.Fatalf("re-converting the type form is not a byte no-op:\n%s", same)
-	}
-}
-
-const drizzleMysqlHeader = "import * as DZ from '@mionjs/drizzle-orm-mysql-core';\n"
-
-const drizzleMysqlBuildersSource = drizzleMysqlHeader +
-	"export const devices = DZ.mysqlTable('devices', {\n" +
-	"  id: DZ.serial('id').primaryKey(),\n" +
-	"  name: DZ.varchar('name', {length: 100}).notNull(),\n" +
-	"  views: DZ.int('views', {unsigned: true}).notNull(),\n" +
-	"  plan: DZ.text('plan', {enum: ['free', 'pro']}).notNull(),\n" +
-	"});\n" +
-	"export type DevicesTable = typeof devices;\n"
-
-// TestDrizzle_MysqlRoundTripFixpoint drives a mysql builders table through
-// builders→type→builders→type, pinning the mysqlTable → MysqlTable pair and
-// the same fixpoint oracle as the pg round trip.
-func TestDrizzle_MysqlRoundTripFixpoint(t *testing.T) {
-	leg1, diags := convertDrizzleOne(t, drizzleMysqlBuildersSource, convert.Options{Target: convert.TargetType})
-	expectNoDiags(t, diags)
-	for _, want := range []string{
-		"export type DevicesTable = DZ.MysqlTable<'devices', {",
-		"  id: DZ.Serial<'id', {primaryKey: true}>;",
-		"  name: DZ.Varchar<'name', {length: 100; notNull: true}>;",
-		"  views: DZ.Int<'views', {unsigned: true; notNull: true}>;",
-		"  plan: DZ.Text<'plan', {enum: ['free', 'pro']; notNull: true}>;",
-		"export const devices = DZ.tableFromType<DevicesTable>();",
-	} {
-		if !strings.Contains(leg1, want) {
-			t.Fatalf("mysql builders→type output missing %q:\n%s", want, leg1)
-		}
-	}
-	leg2, diags := convertDrizzleOne(t, leg1, convert.Options{Target: convert.TargetBuilders})
-	expectNoDiags(t, diags)
-	for _, want := range []string{
-		"export const devices = DZ.mysqlTable('devices', {",
-		"  id: DZ.serial('id').primaryKey(),",
-		"  views: DZ.int('views', {unsigned: true}).notNull(),",
-		"  plan: DZ.text('plan', {enum: ['free', 'pro']}).notNull(),",
-	} {
-		if !strings.Contains(leg2, want) {
-			t.Fatalf("mysql type→builders output missing %q:\n%s", want, leg2)
-		}
-	}
-	leg3, diags := convertDrizzleOne(t, leg2, convert.Options{Target: convert.TargetType})
-	expectNoDiags(t, diags)
-	if leg3 != leg1 {
-		t.Fatalf("mysql type form is not a fixpoint:\n--- first ---\n%s\n--- second ---\n%s", leg1, leg3)
-	}
-}
-
-func TestDrizzle_RefusalsCNV009(t *testing.T) {
-	cases := map[string]string{
-		"$type override": drizzleHeader +
-			"export const t = DZ.pgTable('t', {c: DZ.jsonb('c').$type<{a: number}>()});\n",
-		"references outside the file": drizzleHeader +
-			"declare const p: {id: number};\n" +
-			"export const t = DZ.pgTable('t', {pid: DZ.integer('pid').references(() => p.id)});\n",
-		"interpolated sql": "import {sql} from '@mionjs/drizzle-orm';\n" + drizzleHeader +
-			"export const t = DZ.pgTable('t', {c: DZ.integer('c').default(sql`${1} + 1`)});\n",
-		"extraConfig index decorator": drizzleHeader +
-			"export const t = DZ.pgTable('t', {c: DZ.integer('c')}, (self) => [DZ.index('i').on(self.c.desc())]);\n",
-		"non-literal default": drizzleHeader +
-			"const v = 21;\n" +
-			"export const t = DZ.pgTable('t', {c: DZ.integer('c').default(v)});\n",
-	}
-	for label, source := range cases {
-		t.Run(label, func(t *testing.T) {
-			output, diags := convertDrizzleOne(t, source, convert.Options{Target: convert.TargetType})
-			var found bool
-			for _, diagnostic := range diags {
-				if diagnostic.Code == convert.CodeDrizzleUnsupported {
-					found = true
-				}
-			}
-			if !found {
-				t.Fatalf("%s: expected a CNV009 refusal, got diags %v\noutput:\n%s", label, diags, output)
-			}
-			// The REFUSED declaration (table 't') stays byte-untouched; sibling
-			// tables in the same file may legitimately convert.
-			if !strings.Contains(output, "DZ.pgTable('t', {") {
-				t.Fatalf("%s: the refused declaration was rewritten:\n%s", label, output)
-			}
-		})
-	}
-}
-
-// TestDrizzle_RefusalsNoTypeTwin pins that builders WITHOUT a type twin refuse
-// loudly instead of failing silent: mysqlEnum's values-array arg trips the
-// config-shape gate; sqlite's int (the builders-only alias of integer) trips
-// the vocabulary gate naming the missing "Int" type. Either way the
-// declaration stays byte-untouched.
-func TestDrizzle_RefusalsNoTypeTwin(t *testing.T) {
-	cases := map[string]struct {
-		source        string
-		keep          string
-		wantInMessage string
-	}{
-		"mysqlEnum values array": {
-			source: drizzleMysqlHeader +
-				"export const t = DZ.mysqlTable('t', {role: DZ.mysqlEnum('role', ['admin', 'user'])});\n",
-			keep:          "DZ.mysqlTable('t', {",
-			wantInMessage: `builder "mysqlEnum"`,
-		},
-	}
-	for label, testCase := range cases {
-		t.Run(label, func(t *testing.T) {
-			output, diags := convertDrizzleOne(t, testCase.source, convert.Options{Target: convert.TargetType})
-			var found bool
-			for _, diagnostic := range diags {
-				if diagnostic.Code == convert.CodeDrizzleUnsupported && strings.Contains(diagnostic.Message, testCase.wantInMessage) {
-					found = true
-				}
-			}
-			if !found {
-				t.Fatalf("%s: expected a CNV009 refusal containing %q, got diags %v\noutput:\n%s", label, testCase.wantInMessage, diags, output)
-			}
-			if !strings.Contains(output, testCase.keep) {
-				t.Fatalf("%s: the refused declaration was rewritten:\n%s", label, output)
-			}
-		})
-	}
-}
-
-// Deliberately legacy-named (parentsRT/childrenRT): existing names are always
-// preserved by conversion, whatever their suffix — this fixture doubles as
-// that coverage.
-const drizzleRefSqlSource = "import {sql} from '@mionjs/drizzle-orm';\n" + drizzleHeader +
-	"export const parentsRT = DZ.pgTable('parents', {\n" +
-	"  id: DZ.integer('id').primaryKey(),\n" +
-	"});\n" +
-	"export type ParentsRT = typeof parentsRT;\n" +
-	"export const childrenRT = DZ.pgTable('children', {\n" +
-	"  pid: DZ.integer('pid').references(() => parentsRT.id, {onDelete: 'cascade'}).notNull(),\n" +
-	"  createdAt: DZ.timestamp('created_at').default(sql`now()`),\n" +
-	"});\n" +
-	"export type ChildrenRT = typeof childrenRT;\n"
-
-// TestDrizzle_ReferencesAndSql pins the references + literal-sql spellings
-// through both directions and the fixpoint.
-func TestDrizzle_ReferencesAndSql(t *testing.T) {
-	typeForm, diags := convertDrizzleOne(t, drizzleRefSqlSource, convert.Options{Target: convert.TargetType})
-	expectNoDiags(t, diags)
-	for _, want := range []string{
-		"pid: DZ.Integer<'pid', {references: [{table: 'parents'; column: 'id'}, {onDelete: 'cascade'}]; notNull: true}>;",
-		"createdAt: DZ.Timestamp<'created_at', {default: [DZ.Sql<'now()'>]}>;",
-		// The referenced table rides the emitted tables option (the runtime
-		// bridge resolves References through it).
-		"export const parentsRT = DZ.tableFromType<ParentsRT>();",
-		"export const childrenRT = DZ.tableFromType<ChildrenRT>({tables: {parents: parentsRT}});",
-	} {
-		if !strings.Contains(typeForm, want) {
-			t.Fatalf("builders→type missing %q:\n%s", want, typeForm)
-		}
-	}
-	buildersForm, diags := convertDrizzleOne(t, typeForm, convert.Options{Target: convert.TargetBuilders})
-	expectNoDiags(t, diags)
-	for _, want := range []string{
-		".references(() => cols(parentsRT).id, {onDelete: 'cascade'}).notNull(),",
-		".default(sql`now()`),",
-	} {
-		if !strings.Contains(buildersForm, want) {
-			t.Fatalf("type→builders missing %q:\n%s", want, buildersForm)
-		}
-	}
-	typeAgain, diags := convertDrizzleOne(t, buildersForm, convert.Options{Target: convert.TargetType})
-	expectNoDiags(t, diags)
-	if typeAgain != typeForm {
-		t.Fatalf("references/sql type form not a fixpoint:\n--- first ---\n%s\n--- second ---\n%s", typeForm, typeAgain)
-	}
-}
-
-const drizzleExtrasSource = "import {sql} from '@mionjs/drizzle-orm';\n" + drizzleHeader +
-	"export const extras = DZ.pgTable('extras_t', {\n" +
-	"  a: DZ.integer('a').notNull(),\n" +
-	"  b: DZ.varchar('b', {length: 10}),\n" +
+const drizzleExtrasTemplate = "import {sql} from '@mionjs/drizzle-orm';\n" +
+	"import * as DZ from '{{mod}}';\n" +
+	"export const extras = DZ.{{table}}('extras_t', {\n" +
+	"  a: DZ.{{int}}('a_col', {notNull: true}),\n" +
+	"  b: DZ.{{str}}({length: 10}),\n" +
 	"}, (t) => [\n" +
 	"  DZ.index('idx_a').on(t.a),\n" +
 	"  DZ.uniqueIndex('uidx_b').on(t.b),\n" +
@@ -786,144 +396,557 @@ const drizzleExtrasSource = "import {sql} from '@mionjs/drizzle-orm';\n" + drizz
 	"]);\n" +
 	"export type ExtrasTable = typeof extras;\n"
 
-// TestDrizzle_TableExtras pins the extraConfig road through both directions
-// and the fixpoint.
+// TestDrizzle_TableExtras pins the extraConfig road through both directions, with the names map after the
+// extras tuple.
 func TestDrizzle_TableExtras(t *testing.T) {
-	typeForm, diags := convertDrizzleOne(t, drizzleExtrasSource, convert.Options{Target: convert.TargetType})
-	expectNoDiags(t, diags)
-	for _, want := range []string{
-		"}, [\n",
-		"  DZ.TableEntry<'index', ['idx_a'], {on: [{col: 'a'}]}>,",
-		"  DZ.TableEntry<'uniqueIndex', ['uidx_b'], {on: [{col: 'b'}]}>,",
-		"  DZ.TableEntry<'unique', ['uq_ab'], {on: [{col: 'a'}, {col: 'b'}]}>,",
-		"  DZ.TableEntry<'check', ['chk_a', DZ.Sql<'a >= 0'>]>,",
-	} {
-		if !strings.Contains(typeForm, want) {
-			t.Fatalf("builders→type extras missing %q:\n%s", want, typeForm)
+	eachDialect(t, "table extras", func(t *testing.T, dialect drizzleDialect) {
+		source := dialect.src(drizzleExtrasTemplate)
+		typeForm, buildersForm := roundTrip(t, source)
+		expectContains(t, "builders→type extras", typeForm,
+			"}, [\n",
+			"  DZ.TableEntry<'index', ['idx_a'], {on: [{col: 'a'}]}>,",
+			"  DZ.TableEntry<'uniqueIndex', ['uidx_b'], {on: [{col: 'b'}]}>,",
+			"  DZ.TableEntry<'unique', ['uq_ab'], {on: [{col: 'a'}, {col: 'b'}]}>,",
+			"  DZ.TableEntry<'check', ['chk_a', DZ.Sql<'a >= 0'>]>,\n], {a: 'a_col'}>;")
+		if buildersForm != source {
+			t.Fatalf("extras round trip did not return the original:\nwant:\n%s\ngot:\n%s", source, buildersForm)
 		}
-	}
-	buildersForm, diags := convertDrizzleOne(t, typeForm, convert.Options{Target: convert.TargetBuilders})
-	expectNoDiags(t, diags)
-	for _, want := range []string{
-		", (t) => [\n",
-		"  DZ.index('idx_a').on(t.a),",
-		"  DZ.unique('uq_ab').on(t.a, t.b),",
-		"  DZ.check('chk_a', sql`a >= 0`),",
-	} {
-		if !strings.Contains(buildersForm, want) {
-			t.Fatalf("type→builders extras missing %q:\n%s", want, buildersForm)
+	})
+}
+
+// TestDrizzle_ForeignKeyEntryTableRef pins another table's column in an entry: tableRef() on the builders
+// road, {table, col} in the type.
+func TestDrizzle_ForeignKeyEntryTableRef(t *testing.T) {
+	eachDialect(t, "foreignKey entry with tableRef", func(t *testing.T, dialect drizzleDialect) {
+		source := dialect.src("import * as DZ from '{{mod}}';\n" +
+			"import {tableRef} from '@mionjs/drizzle-orm';\n" +
+			"export const parents = DZ.{{table}}('parents', {\n" +
+			"  id: DZ.{{int}}({primaryKey: true}),\n" +
+			"});\n" +
+			"export type Parents = typeof parents;\n" +
+			"export const kids = DZ.{{table}}('kids', {\n" +
+			"  pid: DZ.{{int}}(),\n" +
+			"}, (t) => [\n" +
+			"  DZ.foreignKey({columns: [t.pid], foreignColumns: [tableRef(parents, 'id')]}),\n" +
+			"]);\n" +
+			"export type Kids = typeof kids;\n")
+		typeForm, buildersForm := roundTrip(t, source)
+		expectContains(t, "foreignKey builders→type", typeForm,
+			"DZ.TableEntry<'foreignKey', [{columns: [{col: 'pid'}], foreignColumns: [{table: 'parents', col: 'id'}]}]>,",
+			"export const kids = DZ.tableFromType<Kids>({tables: {parents: parents}});")
+		if strings.Contains(typeForm, "tableRef") {
+			t.Fatalf("the type form kept an unused tableRef import:\n%s", typeForm)
 		}
+		if buildersForm != source {
+			t.Fatalf("foreignKey round trip did not return the original:\nwant:\n%s\ngot:\n%s", source, buildersForm)
+		}
+	})
+}
+
+// ── refused heads ────────────────────────────────────────────────────────────
+
+// TestDrizzle_UnspellableHeadsSayWhy pins the reports for the table heads the type road cannot express. The
+// declaration IS a recognized table, so a refusal that reads "not recognized" would send the reader hunting
+// for a bug that is not there.
+func TestDrizzle_UnspellableHeadsSayWhy(t *testing.T) {
+	cases := []struct{ name, source, want string }{
+		{
+			name: "table creator refused",
+			source: "import {{{creator}}, {{int}}} from '{{mod}}';\n" +
+				"export function scenario() {\n" +
+				"  const {{table}} = {{creator}}((name) => `prefixed_${name}`);\n" +
+				"  const users = {{table}}('users', {id: {{int}}()});\n" +
+				"  return users;\n" +
+				"}\n",
+			want: "table creator",
+		},
+		{
+			name: "only pg, mysql: schema head refused",
+			source: "import {{{schema}}, {{int}}} from '{{mod}}';\n" +
+				"const mySchema = {{schema}}('mySchema');\n" +
+				"export const users = mySchema.table('users', {id: {{int}}()});\n",
+			want: "cannot carry the schema it belongs to",
+		},
+		{
+			name: "only pg: enableRLS head refused",
+			source: "import {{{table}}, {{int}}} from '{{mod}}';\n" +
+				"export const users = {{table}}('users', {id: {{int}}()}).enableRLS();\n",
+			want: "chained modifier on the table (.enableRLS())",
+		},
 	}
-	typeAgain, diags := convertDrizzleOne(t, buildersForm, convert.Options{Target: convert.TargetType})
-	expectNoDiags(t, diags)
-	if typeAgain != typeForm {
-		t.Fatalf("extras type form not a fixpoint:\n--- first ---\n%s\n--- second ---\n%s", typeForm, typeAgain)
+	for _, testCase := range cases {
+		eachDialect(t, testCase.name, func(t *testing.T, dialect drizzleDialect) {
+			output, diags := convertDrizzleOne(t, dialect.src(testCase.source), convert.Options{Target: convert.TargetType})
+			expectRefusal(t, diags, output, testCase.want)
+		})
 	}
 }
 
-const drizzleRuntimeSource = drizzleHeader +
-	"export const jobs = DZ.pgTable('jobs', {\n" +
-	"  id: DZ.uuid('id').primaryKey(),\n" +
-	"  slug: DZ.varchar('slug', {length: 80}).notNull().$defaultFn(() => 'slug-' + Math.random()),\n" +
-	"  attempts: DZ.integer('attempts').$default(() => 0),\n" +
-	"  touchedAt: DZ.timestamp('touched_at', {mode: 'string'}).$onUpdate(() => new Date().toISOString()),\n" +
-	"  counter: DZ.integer('counter').$onUpdateFn(() => {\n" +
+// ── declarations inside a scope ──────────────────────────────────────────────
+
+// TestDrizzle_NestedDeclarations covers where drizzle's own suites actually declare their tables: inside test
+// bodies, not at the top level (95 of 113 in pg-common.ts). A table in a block is an ordinary table.
+func TestDrizzle_NestedDeclarations(t *testing.T) {
+	eachDialect(t, "nested declarations", func(t *testing.T, dialect drizzleDialect) {
+		source := dialect.namedImport("{{int}}", "{{table}}", "{{text}}") + dialect.src(
+			"\n"+
+				"export function scenarioOne() {\n"+
+				"  const users = {{table}}('users', {id: {{text}}({primaryKey: true})});\n"+
+				"  return users;\n"+
+				"}\n"+
+				"\n"+
+				"export function scenarioTwo() {\n"+
+				"  const users = {{table}}('users_two', {id: {{int}}({primaryKey: true})});\n"+
+				"  return users;\n"+
+				"}\n")
+		typeForm, diags := convertDrizzleOne(t, source, convert.Options{Target: convert.TargetType})
+		expectNoDiags(t, diags)
+		expectContains(t, "nested builders→type", typeForm,
+			dialect.src("  type Users = {{Table}}<'users', {\n    id: {{Text}}<{primaryKey: true}>;\n  }>;"),
+			dialect.src("  type Users = {{Table}}<'users_two', {\n    id: {{Int}}<{primaryKey: true}>;\n  }>;"),
+			"  const users = tableFromType<Users>();")
+		// Sibling scopes claim the same name: a file-wide claim budget would have pushed the second onto
+		// UsersT, and runs out entirely on the ninth.
+		if strings.Contains(typeForm, "UsersT") {
+			t.Fatalf("sibling scopes should each claim Users:\n%s", typeForm)
+		}
+		buildersForm, diags := convertDrizzleOne(t, typeForm, convert.Options{Target: convert.TargetBuilders})
+		expectNoDiags(t, diags)
+		expectContains(t, "nested type→builders", buildersForm,
+			dialect.src("  const users = {{table}}('users', {\n    id: {{text}}({primaryKey: true}),\n  });\n  type Users = typeof users;\n  return users;"))
+		again, diags := convertDrizzleOne(t, typeForm, convert.Options{Target: convert.TargetType})
+		expectNoDiags(t, diags)
+		if again != typeForm {
+			t.Fatalf("nested type form is not a byte fixpoint:\nwant:\n%s\ngot:\n%s", typeForm, again)
+		}
+	})
+}
+
+// TestDrizzle_NestedScopeDoesNotShadow pins the other side of scoped naming: a claimed pair name may repeat
+// across sibling scopes, but never shadow a name the file already uses at the top level.
+func TestDrizzle_NestedScopeDoesNotShadow(t *testing.T) {
+	eachDialect(t, "nested scope does not shadow", func(t *testing.T, dialect drizzleDialect) {
+		source := dialect.namedImport("{{int}}", "{{table}}") + dialect.src(
+			"export type Users = {taken: true};\n"+
+				"export function scenario() {\n"+
+				"  const users = {{table}}('users', {id: {{int}}({primaryKey: true})});\n"+
+				"  return users;\n"+
+				"}\n")
+		typeForm, diags := convertDrizzleOne(t, source, convert.Options{Target: convert.TargetType})
+		expectNoDiags(t, diags)
+		expectContains(t, "nested shadow", typeForm,
+			"export type Users = {taken: true};",
+			dialect.src("  type UsersT = {{Table}}<'users', {"),
+			"  const users = tableFromType<UsersT>();")
+	})
+}
+
+// TestDrizzle_DerivedPairNames pins the pair-naming rule in both directions: a const derives its type by
+// uppercasing the first letter, and a type derives its const by lowercasing it.
+func TestDrizzle_DerivedPairNames(t *testing.T) {
+	eachDialect(t, "derived pair names", func(t *testing.T, dialect drizzleDialect) {
+		buildersOnly := dialect.src("import * as DZ from '{{mod}}';\n" +
+			"export const users = DZ.{{table}}('users', {id: DZ.{{int}}({primaryKey: true})});\n")
+		typeForm, diags := convertDrizzleOne(t, buildersOnly, convert.Options{Target: convert.TargetType})
+		expectNoDiags(t, diags)
+		expectContains(t, "derived type name", typeForm,
+			dialect.src("export type Users = DZ.{{Table}}<'users', {"),
+			"export const users = DZ.tableFromType<Users>();")
+
+		typeOnly := dialect.src("import * as DZ from '{{mod}}';\n" +
+			"export type UsersTable = DZ.{{Table}}<'users', {\n" +
+			"  id: DZ.{{Int}}<{primaryKey: true}>;\n" +
+			"}>;\n")
+		buildersForm, diags := convertDrizzleOne(t, typeOnly, convert.Options{Target: convert.TargetBuilders})
+		expectNoDiags(t, diags)
+		expectContains(t, "derived const name", buildersForm,
+			dialect.src("export const usersTable = DZ.{{table}}('users', {"),
+			"export type UsersTable = typeof usersTable;")
+		if strings.Contains(buildersForm, "usersRT") || strings.Contains(typeForm, "usersRT") {
+			t.Fatalf("drizzle derivation produced an RT-suffixed const:\n%s\n%s", typeForm, buildersForm)
+		}
+	})
+}
+
+// TestDrizzle_MigratedRecorderConstName is the case that started the naming rule: the `$table` recorder
+// binding `drizzle-migrate` emits used to derive `Users$tableTable`, a doubled word from two translations.
+func TestDrizzle_MigratedRecorderConstName(t *testing.T) {
+	eachDialect(t, "migrated recorder const name", func(t *testing.T, dialect drizzleDialect) {
+		source := dialect.src("import * as DZ from '{{mod}}';\n" +
+			"export const users$table = DZ.{{table}}('users', {id: DZ.{{int}}({primaryKey: true})});\n")
+		typeForm, diags := convertDrizzleOne(t, source, convert.Options{Target: convert.TargetType})
+		expectNoDiags(t, diags)
+		if strings.Contains(typeForm, "tableTable") {
+			t.Fatalf("the recorder marker must not double the Table word:\n%s", typeForm)
+		}
+		expectContains(t, "migrated recorder name", typeForm,
+			dialect.src("export type Users$table = DZ.{{Table}}<'users', {"),
+			"export const users$table = DZ.tableFromType<Users$table>();")
+	})
+}
+
+// TestDrizzle_CapitalisedConstGetsTSuffix — uppercasing a const that is ALREADY capitalised would hand the
+// type the const's own spelling, so it takes a `T`.
+func TestDrizzle_CapitalisedConstGetsTSuffix(t *testing.T) {
+	eachDialect(t, "capitalised const gets T suffix", func(t *testing.T, dialect drizzleDialect) {
+		source := dialect.src("import * as DZ from '{{mod}}';\n" +
+			"export const Users = DZ.{{table}}('users', {id: DZ.{{int}}({primaryKey: true})});\n")
+		typeForm, diags := convertDrizzleOne(t, source, convert.Options{Target: convert.TargetType})
+		expectNoDiags(t, diags)
+		expectContains(t, "capitalised const", typeForm,
+			dialect.src("export type UsersT = DZ.{{Table}}<'users', {"),
+			"export const Users = DZ.tableFromType<UsersT>();")
+	})
+}
+
+// ── references ───────────────────────────────────────────────────────────────
+
+const drizzleRefHeader = "import {tableRef} from '@mionjs/drizzle-orm';\nimport * as DZ from '{{mod}}';\n"
+
+// TestDrizzle_ForwardReferenceThunk: drizzle schemas often declare the parent later; the eager tables option
+// needs a thunk, and the type names the parent's derived type.
+func TestDrizzle_ForwardReferenceThunk(t *testing.T) {
+	eachDialect(t, "forward reference", func(t *testing.T, dialect drizzleDialect) {
+		source := dialect.src(drizzleRefHeader +
+			"export const children = DZ.{{table}}('children', {\n" +
+			"  pid: DZ.{{int}}({references: [() => tableRef(parents, 'id')]}),\n" +
+			"});\n" +
+			"export const parents = DZ.{{table}}('parents', {\n" +
+			"  id: DZ.{{int}}({primaryKey: true}),\n" +
+			"});\n")
+		typeForm, buildersForm := roundTrip(t, source)
+		expectContains(t, "forward reference type form", typeForm,
+			dialect.src("  pid: DZ.{{Int}}<{references: [TableRef<Parents, 'id'>]}>;"),
+			"export const children = DZ.tableFromType<Children>({tables: {parents: () => parents}});",
+			"export const parents = DZ.tableFromType<Parents>();",
+			"import {type TableRef} from '@mionjs/drizzle-orm';")
+		// Back on the builders road the reference is a lazy callback again, so the declaration order the
+		// file was written in still stands.
+		expectContains(t, "forward reference builders form", buildersForm,
+			dialect.src("  pid: DZ.{{int}}({references: [() => tableRef(parents, 'id')]}),"),
+			"import {tableRef} from '@mionjs/drizzle-orm';")
+		if strings.Index(buildersForm, "'children'") > strings.Index(buildersForm, "'parents'") {
+			t.Fatalf("the round trip reordered the declarations:\n%s", buildersForm)
+		}
+	})
+}
+
+// TestDrizzle_SelfReferenceRoundTrip pins that a self-reference keeps its return annotation (TS7022) on the
+// builders road and names the table by its db name in the type.
+func TestDrizzle_SelfReferenceRoundTrip(t *testing.T) {
+	eachDialect(t, "self reference", func(t *testing.T, dialect drizzleDialect) {
+		source := dialect.src("import {type TableRef, tableRef} from '@mionjs/drizzle-orm';\n" +
+			"import * as DZ from '{{mod}}';\n" +
+			"export const emps = DZ.{{table}}('emps', {\n" +
+			"  id: DZ.{{serial}}({primaryKey: true}),\n" +
+			"  managerId: DZ.{{int}}('manager_id', {references: [(): TableRef<'emps', 'id'> => tableRef(emps, 'id')]}),\n" +
+			"});\n" +
+			"export type Emps = typeof emps;\n")
+		typeForm, buildersForm := roundTrip(t, source)
+		expectContains(t, "self-reference type form", typeForm,
+			"export const emps = DZ.tableFromType<Emps>({tables: {emps: () => emps}});",
+			dialect.src("  managerId: DZ.{{Int}}<{references: [TableRef<'emps', 'id'>]}>;"),
+			"}, [], {managerId: 'manager_id'}>;")
+		if buildersForm != source {
+			t.Fatalf("the self-reference round trip did not return the original:\nwant:\n%s\ngot:\n%s", source, buildersForm)
+		}
+	})
+}
+
+// TestDrizzle_BackwardReferenceStaysPlain pins the other half: nothing about the thunk leaks into a file
+// whose reference target is already declared.
+func TestDrizzle_BackwardReferenceStaysPlain(t *testing.T) {
+	eachDialect(t, "backward reference", func(t *testing.T, dialect drizzleDialect) {
+		source := dialect.src(drizzleRefHeader +
+			"export const parents = DZ.{{table}}('parents', {\n" +
+			"  id: DZ.{{int}}({primaryKey: true}),\n" +
+			"});\n" +
+			"export const children = DZ.{{table}}('children', {\n" +
+			"  pid: DZ.{{int}}({references: [() => tableRef(parents, 'id')]}),\n" +
+			"});\n")
+		typeForm, diags := convertDrizzleOne(t, source, convert.Options{Target: convert.TargetType})
+		expectNoDiags(t, diags)
+		expectContains(t, "backward reference", typeForm, "export const children = DZ.tableFromType<Children>({tables: {parents: parents}});")
+	})
+}
+
+// TestDrizzle_ReferenceToARefusedTable pins a reference to a table that does not convert: a builders const
+// is still named as `typeof <const>`, while a standalone type left unconverted has no const to call.
+func TestDrizzle_ReferenceToARefusedTable(t *testing.T) {
+	eachDialect(t, "reference to a refused builders table", func(t *testing.T, dialect drizzleDialect) {
+		source := dialect.src("import {tableRef, $type} from '@mionjs/drizzle-orm';\n" +
+			"import * as DZ from '{{mod}}';\n" +
+			"export const parents = DZ.{{table}}('parents', {\n" +
+			"  id: DZ.{{int}}({primaryKey: true, $type: $type<1 | 2>()}),\n" +
+			"});\n" +
+			"export const children = DZ.{{table}}('children', {\n" +
+			"  pid: DZ.{{int}}({references: [() => tableRef(parents, 'id')]}),\n" +
+			"});\n")
+		output, diags := convertDrizzleOne(t, source, convert.Options{Target: convert.TargetType})
+		expectRefusal(t, diags, output, "prop $type")
+		if len(diags) != 1 {
+			t.Fatalf("only the table with $type should refuse, got %v", diags)
+		}
+		expectContains(t, "dependent type form", output,
+			dialect.src("  pid: DZ.{{Int}}<{references: [TableRef<typeof parents, 'id'>]}>;"),
+			"export const children = DZ.tableFromType<Children>({tables: {parents: parents}});",
+			dialect.src("export const parents = DZ.{{table}}('parents', {"))
+	})
+	eachDialect(t, "reference to a refused standalone type", func(t *testing.T, dialect drizzleDialect) {
+		source := dialect.src("import type {TableRef} from '@mionjs/drizzle-orm';\n" +
+			"import * as DZ from '{{mod}}';\n" +
+			"export type Parents = DZ.{{Table}}<'parents', {\n" +
+			"  id: DZ.{{Int}}<{primaryKey: true; $type: [1 | 2]}>;\n" +
+			"}>;\n" +
+			"export type Kids = DZ.{{Table}}<'kids', {\n" +
+			"  pid: DZ.{{Int}}<{references: [TableRef<Parents, 'id'>]}>;\n" +
+			"}>;\n")
+		output, diags := convertDrizzleOne(t, source, convert.Options{Target: convert.TargetBuilders})
+		expectRefusal(t, diags, output, "the $type override")
+		expectRefusal(t, diags, output, "which did not convert, so it has no const to call")
+		if output != source {
+			t.Fatalf("both declarations should stay as written:\n%s", output)
+		}
+	})
+}
+
+// Deliberately legacy-named (parentsRT/childrenRT): existing names are always preserved by conversion,
+// whatever their suffix — this fixture doubles as that coverage.
+const drizzleRefSqlTemplate = "import {sql, tableRef} from '@mionjs/drizzle-orm';\n" +
+	"import * as DZ from '{{mod}}';\n" +
+	"export const parentsRT = DZ.{{table}}('parents', {\n" +
+	"  id: DZ.{{int}}({primaryKey: true}),\n" +
+	"});\n" +
+	"export type ParentsRT = typeof parentsRT;\n" +
+	"export const childrenRT = DZ.{{table}}('children', {\n" +
+	"  pid: DZ.{{int}}({references: [() => tableRef(parentsRT, 'id'), {onDelete: 'cascade'}], notNull: true}),\n" +
+	"  note: DZ.{{text}}({default: [sql`'x'`]}),\n" +
+	"});\n" +
+	"export type ChildrenRT = typeof childrenRT;\n"
+
+// TestDrizzle_ReferencesAndSql pins the references + literal-sql spellings through both directions and the
+// fixpoint.
+func TestDrizzle_ReferencesAndSql(t *testing.T) {
+	eachDialect(t, "references with sql", func(t *testing.T, dialect drizzleDialect) {
+		source := dialect.src(drizzleRefSqlTemplate)
+		typeForm, buildersForm := roundTrip(t, source)
+		expectContains(t, "references type form", typeForm,
+			dialect.src("pid: DZ.{{Int}}<{references: [TableRef<ParentsRT, 'id'>, {onDelete: 'cascade'}]; notNull: true}>;"),
+			dialect.src("note: DZ.{{Text}}<{default: [DZ.Sql<'\\'x\\''>]}>;"),
+			// The referenced table rides the emitted tables option.
+			"export const parentsRT = DZ.tableFromType<ParentsRT>();",
+			"export const childrenRT = DZ.tableFromType<ChildrenRT>({tables: {parents: parentsRT}});")
+		if buildersForm != source {
+			t.Fatalf("references round trip did not return the original:\nwant:\n%s\ngot:\n%s", source, buildersForm)
+		}
+	})
+}
+
+// ── runtime callbacks ────────────────────────────────────────────────────────
+
+const drizzleRuntimeTemplate = "import * as DZ from '{{mod}}';\n" +
+	"export const jobs = DZ.{{table}}('jobs', {\n" +
+	"  id: DZ.{{int}}({primaryKey: true}),\n" +
+	"  slug: DZ.{{str}}({length: 80, notNull: true, $defaultFn: [() => 'slug-' + Math.random()]}),\n" +
+	"  attempts: DZ.{{int}}({$default: [() => 0]}),\n" +
+	"  touchedAt: DZ.{{text}}('touched_at', {$onUpdate: [() => new Date().toISOString()]}),\n" +
+	"  counter: DZ.{{int}}({$onUpdateFn: [() => {\n" +
 	"    const next = 1 + 1;\n" +
 	"    return next;\n" +
-	"  }),\n" +
+	"  }]}),\n" +
 	"});\n" +
 	"export type JobsTable = typeof jobs;\n"
 
-// TestDrizzle_RuntimeModifiers pins the runtime-callback modifiers through
-// both directions: the type form carries the flag markers plus the callbacks
-// VERBATIM in options.runtime (alias preserved: $default vs $defaultFn,
-// multi-line bodies included), and the whole thing is a byte fixpoint.
+// TestDrizzle_RuntimeModifiers pins the runtime callbacks through both directions: the type carries the flag,
+// the callbacks move VERBATIM into options.runtime (multi-line bodies included), and it is a byte fixpoint.
 func TestDrizzle_RuntimeModifiers(t *testing.T) {
-	typeForm, diags := convertDrizzleOne(t, drizzleRuntimeSource, convert.Options{Target: convert.TargetType})
-	expectNoDiags(t, diags)
-	for _, want := range []string{
-		"  slug: DZ.Varchar<'slug', {length: 80; notNull: true; $defaultFn: true}>;",
-		"  attempts: DZ.Integer<'attempts', {$default: true}>;",
-		"  touchedAt: DZ.Timestamp<'touched_at', {mode: 'string'; $onUpdate: true}>;",
-		"  counter: DZ.Integer<'counter', {$onUpdateFn: true}>;",
-		"export const jobs = DZ.tableFromType<JobsTable>({runtime: {" +
-			"slug: {$defaultFn: () => 'slug-' + Math.random()}, " +
-			"attempts: {$default: () => 0}, " +
-			"touchedAt: {$onUpdate: () => new Date().toISOString()}, " +
-			"counter: {$onUpdateFn: () => {\n" +
-			"    const next = 1 + 1;\n" +
-			"    return next;\n" +
-			"  }}}});",
-	} {
-		if !strings.Contains(typeForm, want) {
-			t.Fatalf("builders→type runtime missing %q:\n%s", want, typeForm)
+	eachDialect(t, "runtime modifiers", func(t *testing.T, dialect drizzleDialect) {
+		source := dialect.src(drizzleRuntimeTemplate)
+		typeForm, buildersForm := roundTrip(t, source)
+		expectContains(t, "runtime type form", typeForm,
+			dialect.src("  slug: DZ.{{Str}}<{length: 80; notNull: true; $defaultFn: true}>;"),
+			dialect.src("  attempts: DZ.{{Int}}<{$default: true}>;"),
+			dialect.src("  touchedAt: DZ.{{Text}}<{$onUpdate: true}>;"),
+			dialect.src("  counter: DZ.{{Int}}<{$onUpdateFn: true}>;"),
+			"export const jobs = DZ.tableFromType<JobsTable>({runtime: {"+
+				"slug: {$defaultFn: () => 'slug-' + Math.random()}, "+
+				"attempts: {$default: () => 0}, "+
+				"touchedAt: {$onUpdate: () => new Date().toISOString()}, "+
+				"counter: {$onUpdateFn: () => {\n"+
+				"    const next = 1 + 1;\n"+
+				"    return next;\n"+
+				"  }}}});")
+		if buildersForm != source {
+			t.Fatalf("runtime round trip did not return the original:\nwant:\n%s\ngot:\n%s", source, buildersForm)
 		}
-	}
-	buildersForm, diags := convertDrizzleOne(t, typeForm, convert.Options{Target: convert.TargetBuilders})
-	expectNoDiags(t, diags)
-	for _, want := range []string{
-		".notNull().$defaultFn(() => 'slug-' + Math.random()),",
-		".$default(() => 0),",
-		".$onUpdate(() => new Date().toISOString()),",
-		".$onUpdateFn(() => {\n    const next = 1 + 1;\n    return next;\n  }),",
-	} {
-		if !strings.Contains(buildersForm, want) {
-			t.Fatalf("type→builders runtime missing %q:\n%s", want, buildersForm)
-		}
-	}
-	typeAgain, diags := convertDrizzleOne(t, buildersForm, convert.Options{Target: convert.TargetType})
-	expectNoDiags(t, diags)
-	if typeAgain != typeForm {
-		t.Fatalf("runtime type form not a fixpoint:\n--- first ---\n%s\n--- second ---\n%s", typeForm, typeAgain)
-	}
+	})
 }
 
-// TestDrizzle_RuntimeMismatchRefusals pins the two-way marker↔callback
-// validation on the type→builders direction.
+// TestDrizzle_RuntimeMismatchRefusals pins the two-way flag↔callback validation on the type→builders direction.
 func TestDrizzle_RuntimeMismatchRefusals(t *testing.T) {
-	cases := map[string]struct {
-		source        string
-		wantInMessage string
-	}{
-		"marker without callback": {
-			source: drizzleHeader +
-				"export type TTable = DZ.PgTable<'t', {\n" +
-				"  c: DZ.Integer<'c', {$defaultFn: true}>;\n" +
+	cases := []struct{ name, source, want string }{
+		{
+			name: "flag without callback",
+			source: "import * as DZ from '{{mod}}';\n" +
+				"export type TTable = DZ.{{Table}}<'t', {\n" +
+				"  c: DZ.{{Int}}<{$defaultFn: true}>;\n" +
 				"}>;\n" +
 				"export const t = DZ.tableFromType<TTable>();\n",
-			wantInMessage: "no matching callback",
+			want: "no matching callback",
 		},
-		"callback without marker": {
-			source: drizzleHeader +
-				"export type TTable = DZ.PgTable<'t', {\n" +
-				"  c: DZ.Integer<'c'>;\n" +
+		{
+			name: "callback without flag",
+			source: "import * as DZ from '{{mod}}';\n" +
+				"export type TTable = DZ.{{Table}}<'t', {\n" +
+				"  c: DZ.{{Int}};\n" +
 				"}>;\n" +
 				"export const t = DZ.tableFromType<TTable>({runtime: {c: {$defaultFn: () => 1}}});\n",
-			wantInMessage: "no matching $defaultFn flag",
+			want: "no matching $defaultFn flag",
 		},
 	}
-	for label, testCase := range cases {
-		t.Run(label, func(t *testing.T) {
-			output, diags := convertDrizzleOne(t, testCase.source, convert.Options{Target: convert.TargetBuilders})
-			var found bool
-			for _, diagnostic := range diags {
-				if diagnostic.Code == convert.CodeDrizzleUnsupported && strings.Contains(diagnostic.Message, testCase.wantInMessage) {
-					found = true
-				}
-			}
-			if !found {
-				t.Fatalf("%s: expected a CNV009 refusal containing %q, got %v\noutput:\n%s", label, testCase.wantInMessage, diags, output)
-			}
-			if !strings.Contains(output, "DZ.PgTable<'t', {") {
-				t.Fatalf("%s: the refused declaration was rewritten:\n%s", label, output)
+	for _, testCase := range cases {
+		eachDialect(t, testCase.name, func(t *testing.T, dialect drizzleDialect) {
+			output, diags := convertDrizzleOne(t, dialect.src(testCase.source), convert.Options{Target: convert.TargetBuilders})
+			expectRefusal(t, diags, output, testCase.want)
+			if !strings.Contains(output, dialect.src("DZ.{{Table}}<'t', {")) {
+				t.Fatalf("the refused declaration was rewritten:\n%s", output)
 			}
 		})
 	}
 }
 
-// TestFuzz_DrizzleRoundTrip sweeps random slice-vocabulary tables through
-// builders→type→builders→type, pinning the same fixpoint oracle as the static
-// round-trip test. Iterations ride MION_FUZZ_ITER like the atom sweep.
+// ── refusals ─────────────────────────────────────────────────────────────────
+
+func TestDrizzle_RefusalsCNV009(t *testing.T) {
+	cases := []struct{ name, source, want string }{
+		{
+			name: "$type override",
+			source: "import {$type} from '@mionjs/drizzle-orm';\nimport * as DZ from '{{mod}}';\n" +
+				"export const t = DZ.{{table}}('t', {c: DZ.{{text}}({$type: $type<'a' | 'b'>()})});\n",
+			want: "prop $type",
+		},
+		{
+			name: "references outside the file",
+			source: "import {tableRef} from '@mionjs/drizzle-orm';\nimport * as DZ from '{{mod}}';\n" +
+				"declare const p: any;\n" +
+				"export const t = DZ.{{table}}('t', {pid: DZ.{{int}}({references: [() => tableRef(p, 'id')]})});\n",
+			want: "not a drizzle table this declaration can see",
+		},
+		{
+			name: "interpolated sql",
+			source: "import {sql} from '@mionjs/drizzle-orm';\nimport * as DZ from '{{mod}}';\n" +
+				"export const t = DZ.{{table}}('t', {c: DZ.{{int}}({default: [sql`${1} + 1`]})});\n",
+			want: "argument is not a literal",
+		},
+		{
+			name: "extraConfig index decorator",
+			source: "import * as DZ from '{{mod}}';\n" +
+				"export const t = DZ.{{table}}('t', {c: DZ.{{int}}()}, (self) => [DZ.index('i').on(self.c.desc())]);\n",
+			want: "extraConfig",
+		},
+		{
+			name: "non-literal default",
+			source: "import * as DZ from '{{mod}}';\n" +
+				"const v = 21;\n" +
+				"export const t = DZ.{{table}}('t', {c: DZ.{{int}}({default: [v]})});\n",
+			want: "argument is not a literal",
+		},
+		{
+			name: "chained modifier",
+			source: "import * as DZ from '{{mod}}';\n" +
+				"export const t = DZ.{{table}}('t', {c: DZ.{{int}}().notNull()});\n",
+			want: "chained .notNull()",
+		},
+	}
+	for _, testCase := range cases {
+		eachDialect(t, testCase.name, func(t *testing.T, dialect drizzleDialect) {
+			output, diags := convertDrizzleOne(t, dialect.src(testCase.source), convert.Options{Target: convert.TargetType})
+			expectRefusal(t, diags, output, testCase.want)
+			// The REFUSED declaration (table 't') stays byte-untouched.
+			if !strings.Contains(output, dialect.src("DZ.{{table}}('t', {")) {
+				t.Fatalf("the refused declaration was rewritten:\n%s", output)
+			}
+		})
+	}
+}
+
+// TestDrizzle_RefusalsNoTypeTwin pins that the columns WITHOUT a type twin, enum and custom, refuse loudly on
+// both roads instead of failing silent, and the declaration stays byte-untouched.
+func TestDrizzle_RefusalsNoTypeTwin(t *testing.T) {
+	cases := []struct {
+		name, source, keep, want string
+		target                   convert.Target
+	}{
+		{
+			name: "only mysql: mysqlEnum values array",
+			source: "import * as DZ from '{{mod}}';\n" +
+				"export const t = DZ.{{table}}('t', {role: DZ.mysqlEnum('role', ['admin', 'user'])});\n",
+			keep: "DZ.{{table}}('t', {", want: `builder "mysqlEnum" takes a values array`, target: convert.TargetType,
+		},
+		{
+			name: "only pg: pgEnum handle",
+			source: "import * as DZ from '{{mod}}';\n" +
+				"const role = DZ.pgEnum('role', ['admin', 'user']);\n" +
+				"export const t = DZ.{{table}}('t', {role: role()});\n",
+			keep: "DZ.{{table}}('t', {", want: "locally declared handle", target: convert.TargetType,
+		},
+		{
+			name: "customType handle",
+			source: "import * as DZ from '{{mod}}';\n" +
+				"const custom = DZ.customType<{data: string}>({dataType: () => 'text'});\n" +
+				"export const t = DZ.{{table}}('t', {c: custom()});\n",
+			keep: "DZ.{{table}}('t', {", want: "locally declared handle", target: convert.TargetType,
+		},
+		{
+			name: "only pg: enum column type",
+			source: "import * as DZ from '{{mod}}';\n" +
+				"export type TTable = DZ.{{Table}}<'t', {role: DZ.PgEnumCol<['admin', 'user']>}>;\n",
+			keep: "DZ.{{Table}}<'t', {", want: "is a enum column, which has no type twin", target: convert.TargetBuilders,
+		},
+		{
+			name: "only mysql: enum column type",
+			source: "import * as DZ from '{{mod}}';\n" +
+				"export type TTable = DZ.{{Table}}<'t', {role: DZ.MysqlEnumCol<['admin', 'user']>}>;\n",
+			keep: "DZ.{{Table}}<'t', {", want: "is a enum column, which has no type twin", target: convert.TargetBuilders,
+		},
+		{
+			name: "custom column type",
+			source: "import * as DZ from '{{mod}}';\n" +
+				"export type TTable = DZ.{{Table}}<'t', {c: DZ.CustomCol<string>}>;\n",
+			keep: "DZ.{{Table}}<'t', {", want: "is a custom column, which has no type twin", target: convert.TargetBuilders,
+		},
+	}
+	for _, testCase := range cases {
+		eachDialect(t, testCase.name, func(t *testing.T, dialect drizzleDialect) {
+			output, diags := convertDrizzleOne(t, dialect.src(testCase.source), convert.Options{Target: testCase.target})
+			expectRefusal(t, diags, output, testCase.want)
+			if !strings.Contains(output, dialect.src(testCase.keep)) {
+				t.Fatalf("the refused declaration was rewritten:\n%s", output)
+			}
+		})
+	}
+}
+
+// TestDrizzle_OnlySqliteIntKeepsItsOwnColumnType pins drizzle's `int`: it has its own column type rather than
+// borrowing Integer's, so a converted table prints back as int() and not integer().
+func TestDrizzle_OnlySqliteIntKeepsItsOwnColumnType(t *testing.T) {
+	eachDialect(t, "only sqlite: int keeps its own column type", func(t *testing.T, dialect drizzleDialect) {
+		source := "import * as DZ from '@mionjs/drizzle-orm-sqlite-core';\n" +
+			"export const t = DZ.sqliteTable('t', {\n  n: DZ.int('n_col'),\n});\n" +
+			"export type TTable = typeof t;\n"
+		typeForm, buildersForm := roundTrip(t, source)
+		expectContains(t, "int type form", typeForm, "  n: DZ.Int;\n}, [], {n: 'n_col'}>;")
+		if buildersForm != source {
+			t.Fatalf("int came back as something else:\n%s", buildersForm)
+		}
+	})
+}
+
+// ── fuzz ─────────────────────────────────────────────────────────────────────
+
+// TestFuzz_DrizzleRoundTrip sweeps random tables over each dialect's vocabulary through
+// builders→type→builders→type, pinning the same fixpoint oracle as the static round trips. Iterations ride
+// MION_FUZZ_ITER like the atom sweep.
 func TestFuzz_DrizzleRoundTrip(t *testing.T) {
 	if testing.Short() {
 		t.Skip("randomized sweep skipped under -short")
@@ -937,19 +960,24 @@ func TestFuzz_DrizzleRoundTrip(t *testing.T) {
 		iterations = parsed
 	}
 	baseSeed := entrySeed(t, "drizzlego")
-	for iteration := 0; iteration < iterations; iteration++ {
-		seed := baseSeed + int64(iteration)
-		source := randomDrizzleBuildersFile(rand.New(rand.NewSource(seed)))
-		leg1, diags := convertDrizzleOne(t, source, convert.Options{Target: convert.TargetType})
-		failOnDiags(t, seed, source, diags)
-		leg2, diags := convertDrizzleOne(t, leg1, convert.Options{Target: convert.TargetBuilders})
-		failOnDiags(t, seed, leg1, diags)
-		leg3, diags := convertDrizzleOne(t, leg2, convert.Options{Target: convert.TargetType})
-		failOnDiags(t, seed, leg2, diags)
-		if leg3 != leg1 {
-			t.Fatalf("seed %d: type form not a fixpoint\n--- source ---\n%s\n--- leg1 ---\n%s\n--- leg3 ---\n%s", seed, source, leg1, leg3)
+	eachDialect(t, "round trip over the dialect vocabulary", func(t *testing.T, dialect drizzleDialect) {
+		for iteration := 0; iteration < iterations; iteration++ {
+			seed := baseSeed + int64(iteration)
+			source := randomDrizzleBuildersFile(dialect, rand.New(rand.NewSource(seed)))
+			leg1, diags := convertDrizzleOne(t, source, convert.Options{Target: convert.TargetType})
+			failOnDiags(t, seed, source, diags)
+			leg2, diags := convertDrizzleOne(t, leg1, convert.Options{Target: convert.TargetBuilders})
+			failOnDiags(t, seed, leg1, diags)
+			leg3, diags := convertDrizzleOne(t, leg2, convert.Options{Target: convert.TargetType})
+			failOnDiags(t, seed, leg2, diags)
+			if leg3 != leg1 {
+				t.Fatalf("seed %d: type form not a fixpoint\n--- source ---\n%s\n--- leg1 ---\n%s\n--- leg3 ---\n%s", seed, source, leg1, leg3)
+			}
+			if leg2 != source {
+				t.Fatalf("seed %d: the canonical builders source did not come back\n--- source ---\n%s\n--- leg2 ---\n%s", seed, source, leg2)
+			}
 		}
-	}
+	})
 }
 
 func failOnDiags(t *testing.T, seed int64, source string, diags []convert.Diagnostic) {
@@ -959,90 +987,146 @@ func failOnDiags(t *testing.T, seed int64, source string, diags []convert.Diagno
 	}
 }
 
-// randomDrizzleBuildersFile renders 1-2 random tables over the covered pg
-// vocabulary (the same space the JS fuzz suites draw from), builders form,
-// canonical layout.
-func randomDrizzleBuildersFile(rng *rand.Rand) string {
-	var out strings.Builder
-	out.WriteString(drizzleHeader)
+// fuzzColumn is one draw of a dialect's vocabulary: the builder, its config props and the runtime-callback
+// value its data type takes.
+type fuzzColumn struct {
+	fn, config, callbackValue string
+	mods                      []string
+}
+
+// fuzzVocabularies are the builders each dialect's generator draws from, the same space the JS fuzz suites use.
+var fuzzVocabularies = map[string][]func(rng *rand.Rand) fuzzColumn{
+	"pg": {
+		func(rng *rand.Rand) fuzzColumn {
+			return fuzzColumn{fn: "varchar", config: fmt.Sprintf("length: %d", 1+rng.Intn(200)), callbackValue: "'rv'", mods: []string{"default: ['dflt']"}}
+		},
+		func(rng *rand.Rand) fuzzColumn {
+			return fuzzColumn{fn: "integer", callbackValue: "7", mods: []string{fmt.Sprintf("default: [%d]", rng.Intn(100))}}
+		},
+		func(*rand.Rand) fuzzColumn {
+			return fuzzColumn{fn: "uuid", callbackValue: "'00000000-0000-0000-0000-000000000000'", mods: []string{"defaultRandom: true"}}
+		},
+		func(*rand.Rand) fuzzColumn {
+			return fuzzColumn{fn: "text", config: "enum: ['a', 'b', 'c']", callbackValue: "'a'"}
+		},
+		func(rng *rand.Rand) fuzzColumn {
+			return fuzzColumn{fn: "boolean", callbackValue: "true", mods: []string{fmt.Sprintf("default: [%t]", rng.Intn(2) == 0)}}
+		},
+		func(*rand.Rand) fuzzColumn {
+			return fuzzColumn{fn: "timestamp", config: "mode: 'string'", callbackValue: "'2026-01-01T00:00:00Z'", mods: []string{"defaultNow: true"}}
+		},
+		func(rng *rand.Rand) fuzzColumn {
+			return fuzzColumn{fn: "numeric", config: fmt.Sprintf("precision: %d, scale: %d", 1+rng.Intn(12), 1+rng.Intn(4)), callbackValue: "'1.5'"}
+		},
+		func(*rand.Rand) fuzzColumn {
+			return fuzzColumn{fn: "bigint", config: "mode: 'number'", callbackValue: "9"}
+		},
+		func(*rand.Rand) fuzzColumn { return fuzzColumn{fn: "smallint", callbackValue: "1"} },
+	},
+	"mysql": {
+		func(rng *rand.Rand) fuzzColumn {
+			return fuzzColumn{fn: "varchar", config: fmt.Sprintf("length: %d", 1+rng.Intn(200)), callbackValue: "'rv'", mods: []string{"default: ['dflt']"}}
+		},
+		func(rng *rand.Rand) fuzzColumn {
+			return fuzzColumn{fn: "int", callbackValue: "7", mods: []string{fmt.Sprintf("default: [%d]", rng.Intn(100)), "autoincrement: true"}}
+		},
+		func(*rand.Rand) fuzzColumn {
+			return fuzzColumn{fn: "int", config: "unsigned: true", callbackValue: "7"}
+		},
+		func(*rand.Rand) fuzzColumn {
+			return fuzzColumn{fn: "text", config: "enum: ['a', 'b', 'c']", callbackValue: "'a'"}
+		},
+		func(rng *rand.Rand) fuzzColumn {
+			return fuzzColumn{fn: "boolean", callbackValue: "true", mods: []string{fmt.Sprintf("default: [%t]", rng.Intn(2) == 0)}}
+		},
+		func(*rand.Rand) fuzzColumn {
+			return fuzzColumn{fn: "timestamp", config: "mode: 'string'", callbackValue: "'2026-01-01 00:00:00'", mods: []string{"defaultNow: true", "onUpdateNow: true"}}
+		},
+		func(rng *rand.Rand) fuzzColumn {
+			return fuzzColumn{fn: "decimal", config: fmt.Sprintf("precision: %d, scale: %d", 1+rng.Intn(12), 1+rng.Intn(4)), callbackValue: "'1.5'"}
+		},
+		func(*rand.Rand) fuzzColumn {
+			return fuzzColumn{fn: "bigint", config: "mode: 'number'", callbackValue: "9"}
+		},
+		func(*rand.Rand) fuzzColumn { return fuzzColumn{fn: "tinyint", callbackValue: "1"} },
+	},
+	"sqlite": {
+		func(rng *rand.Rand) fuzzColumn {
+			return fuzzColumn{fn: "text", config: fmt.Sprintf("length: %d", 1+rng.Intn(200)), callbackValue: "'rv'", mods: []string{"default: ['dflt']"}}
+		},
+		func(rng *rand.Rand) fuzzColumn {
+			return fuzzColumn{fn: "integer", callbackValue: "7", mods: []string{fmt.Sprintf("default: [%d]", rng.Intn(100))}}
+		},
+		func(*rand.Rand) fuzzColumn {
+			return fuzzColumn{fn: "int", config: "mode: 'number'", callbackValue: "7"}
+		},
+		func(*rand.Rand) fuzzColumn {
+			return fuzzColumn{fn: "text", config: "enum: ['a', 'b', 'c']", callbackValue: "'a'"}
+		},
+		func(*rand.Rand) fuzzColumn {
+			return fuzzColumn{fn: "integer", config: "mode: 'boolean'", callbackValue: "true"}
+		},
+		func(*rand.Rand) fuzzColumn { return fuzzColumn{fn: "real", callbackValue: "1.5"} },
+		func(*rand.Rand) fuzzColumn {
+			return fuzzColumn{fn: "numeric", config: "mode: 'number'", callbackValue: "1.5"}
+		},
+		func(*rand.Rand) fuzzColumn {
+			return fuzzColumn{fn: "blob", config: "mode: 'bigint'", callbackValue: "9n"}
+		},
+	},
+}
+
+// randomDrizzleBuildersFile renders 1-2 random tables over a dialect's vocabulary in the canonical builders
+// layout, so the round trip must return it byte for byte.
+func randomDrizzleBuildersFile(dialect drizzleDialect, rng *rand.Rand) string {
+	vocabulary := fuzzVocabularies[dialect.name]
 	tableCount := 1 + rng.Intn(2)
+	usesRef := tableCount == 2 && rng.Intn(2) == 0
+	var out strings.Builder
+	if usesRef {
+		out.WriteString("import {tableRef} from '@mionjs/drizzle-orm';\n")
+	}
+	out.WriteString(dialect.src("import * as DZ from '{{mod}}';\n"))
 	for tableIndex := 0; tableIndex < tableCount; tableIndex++ {
 		columnCount := 1 + rng.Intn(5)
 		var columns []string
 		for i := 0; i < columnCount; i++ {
-			key := fmt.Sprintf("col_%d", i)
-			var text string
-			// callbackValue keeps the runtime-modifier draws TYPE-CORRECT: the
-			// emitted options.runtime is typed () => ColDataOf<column>.
-			var callbackValue string
-			switch rng.Intn(9) {
-			case 0:
-				text = fmt.Sprintf("DZ.varchar('c%d', {length: %d})", i, 1+rng.Intn(200))
+			column := vocabulary[rng.Intn(len(vocabulary))](rng)
+			var props []string
+			if column.config != "" {
+				props = append(props, column.config)
+			}
+			for _, mod := range column.mods {
 				if rng.Intn(2) == 0 {
-					text += ".default('dflt')"
+					props = append(props, mod)
 				}
-				callbackValue = "'rv'"
-			case 1:
-				text = fmt.Sprintf("DZ.integer('c%d')", i)
-				if rng.Intn(2) == 0 {
-					text += fmt.Sprintf(".default(%d)", rng.Intn(100))
-				}
-				callbackValue = "7"
-			case 2:
-				text = fmt.Sprintf("DZ.uuid('c%d')", i)
-				if rng.Intn(2) == 0 {
-					text += ".defaultRandom()"
-				}
-				callbackValue = "'00000000-0000-0000-0000-000000000000'"
-			case 3:
-				if rng.Intn(2) == 0 {
-					text = fmt.Sprintf("DZ.text('c%d', {enum: ['a', 'b', 'c']})", i)
-					callbackValue = "'a'"
-				} else {
-					text = fmt.Sprintf("DZ.text('c%d')", i)
-					callbackValue = "'rv'"
-				}
-			case 4:
-				text = fmt.Sprintf("DZ.boolean('c%d')", i)
-				if rng.Intn(2) == 0 {
-					text += fmt.Sprintf(".default(%t)", rng.Intn(2) == 0)
-				}
-				callbackValue = "true"
-			case 5:
-				text = fmt.Sprintf("DZ.timestamp('c%d', {mode: 'string'})", i)
-				if rng.Intn(2) == 0 {
-					text += ".defaultNow()"
-				}
-				callbackValue = "'2026-01-01T00:00:00Z'"
-			case 6:
-				text = fmt.Sprintf("DZ.numeric('c%d', {precision: %d, scale: %d})", i, 1+rng.Intn(12), 1+rng.Intn(4))
-				callbackValue = "'1.5'"
-			case 7:
-				text = fmt.Sprintf("DZ.bigint('c%d', {mode: 'number'})", i)
-				callbackValue = "9"
-			default:
-				text = fmt.Sprintf("DZ.smallint('c%d')", i)
-				callbackValue = "1"
 			}
 			if rng.Intn(2) == 0 {
-				text += ".notNull()"
+				props = append(props, "notNull: true")
 			}
 			if rng.Intn(4) == 0 {
-				text += fmt.Sprintf(".unique('uq_c%d')", i)
+				props = append(props, fmt.Sprintf("unique: ['uq_c%d']", i))
 			}
 			if rng.Intn(4) == 0 {
 				method := []string{"$default", "$defaultFn", "$onUpdate", "$onUpdateFn"}[rng.Intn(4)]
-				text += "." + method + "(() => " + callbackValue + ")"
+				props = append(props, method+": [() => "+column.callbackValue+"]")
 			}
 			if i == 0 && rng.Intn(3) == 0 {
-				text += ".primaryKey()"
+				props = append(props, "primaryKey: true")
 			}
-			columns = append(columns, "  "+key+": "+text+",")
+			var args []string
+			if rng.Intn(3) == 0 {
+				args = append(args, fmt.Sprintf("'c%d_db'", i))
+			}
+			if len(props) > 0 {
+				args = append(args, "{"+strings.Join(props, ", ")+"}")
+			}
+			columns = append(columns, fmt.Sprintf("  col_%d: DZ.%s(%s),", i, column.fn, strings.Join(args, ", ")))
 		}
-		// A forward reference onto the first table (col_0 always exists): the
-		// type form must carry it through the emitted tables option.
-		if tableIndex == 1 && rng.Intn(3) == 0 {
-			columns = append(columns, "  ref_pid: DZ.integer('ref_pid').references(() => table0.col_0),")
+		// A reference onto the first table (col_0 always exists): the type form carries it through the
+		// emitted tables option and names the first table's derived type.
+		if tableIndex == 1 && usesRef {
+			columns = append(columns, dialect.src("  ref_pid: DZ.{{int}}({references: [() => tableRef(table0, 'col_0')]}),"))
 		}
 		extras := ""
 		if rng.Intn(2) == 0 {
@@ -1057,7 +1141,8 @@ func randomDrizzleBuildersFile(rng *rand.Rand) string {
 				extras = ", (t) => [\n" + strings.Join(entries, "\n") + "\n]"
 			}
 		}
-		fmt.Fprintf(&out, "export const table%d = DZ.pgTable('t_%d', {\n%s\n}%s);\n", tableIndex, tableIndex, strings.Join(columns, "\n"), extras)
+		fmt.Fprintf(&out, "export const table%d = DZ.%s('t_%d', {\n%s\n}%s);\nexport type Table%d = typeof table%d;\n",
+			tableIndex, dialect.fill["table"], tableIndex, strings.Join(columns, "\n"), extras, tableIndex, tableIndex)
 	}
 	return out.String()
 }

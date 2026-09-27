@@ -27,10 +27,10 @@ const TSCONFIG = `{
 `;
 
 const BUILDERS_SOURCE =
-  "import * as DZ from '@mionjs/drizzle-orm-pg-core';\n" +
-  "export const users = DZ.pgTable('users', {\n" +
-  '  id: DZ.uuid({primaryKey: true, defaultRandom: true}),\n' +
-  "  name: DZ.varchar('user_name', {length: 100, notNull: true}),\n" +
+  "import * as DZ from '@mionjs/drizzle-orm-sqlite-core';\n" +
+  "export const users = DZ.sqliteTable('users', {\n" +
+  '  id: DZ.integer({primaryKey: true}),\n' +
+  "  name: DZ.text('user_name', {notNull: true}),\n" +
   '  age: DZ.integer({notNull: true, default: [21]}),\n' +
   '});\n' +
   'export type UsersTable = typeof users;\n';
@@ -55,13 +55,13 @@ function convertTo(source: string, target: 'type' | 'builders'): string {
 
 register('drizzle convert CLI round trip', () => {
   beforeAll(() => {
-    projectDir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-drizzle-convert-pg-'));
+    projectDir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-drizzle-convert-sqlite-'));
     fs.writeFileSync(path.join(projectDir, 'tsconfig.json'), TSCONFIG);
     fs.mkdirSync(path.join(projectDir, 'src'));
     // A consumer-shaped node_modules: the three workspace packages linked in
     // by name (the source export condition then resolves their real src).
     const packages: Array<[string, string]> = [
-      ['@mionjs/drizzle-orm-pg-core', path.resolve(__dirname, '..')],
+      ['@mionjs/drizzle-orm-sqlite-core', path.resolve(__dirname, '..')],
       ['@mionjs/drizzle-orm', path.resolve(__dirname, '../../drizzle-orm')],
       ['@mionjs/run-types', path.resolve(__dirname, '../../run-types')],
     ];
@@ -78,27 +78,27 @@ register('drizzle convert CLI round trip', () => {
 
   it('runtime-callback modifiers ride options.runtime through the round trip', () => {
     const runtimeSource =
-      "import * as DZ from '@mionjs/drizzle-orm-pg-core';\n" +
-      "export const jobs = DZ.pgTable('jobs', {\n" +
-      '  id: DZ.uuid({primaryKey: true}),\n' +
-      "  slug: DZ.varchar({length: 80, notNull: true, $defaultFn: [() => 'slug-1']}),\n" +
+      "import * as DZ from '@mionjs/drizzle-orm-sqlite-core';\n" +
+      "export const jobs = DZ.sqliteTable('jobs', {\n" +
+      '  id: DZ.integer({primaryKey: true}),\n' +
+      "  slug: DZ.text({notNull: true, $defaultFn: [() => 'slug-1']}),\n" +
       '});\n' +
       'export type JobsTable = typeof jobs;\n';
     const typeForm = convertTo(runtimeSource, 'type');
-    expect(typeForm).toContain('  slug: DZ.Varchar<{length: 80; notNull: true; $defaultFn: true}>;');
+    expect(typeForm).toContain('  slug: DZ.Text<{notNull: true; $defaultFn: true}>;');
     expect(typeForm).toContain(
       "export const jobs = DZ.tableFromType<JobsTable>({runtime: {slug: {$defaultFn: () => 'slug-1'}}});"
     );
     const buildersForm = convertTo(typeForm, 'builders');
-    expect(buildersForm).toContain("  slug: DZ.varchar({length: 80, notNull: true, $defaultFn: [() => 'slug-1']}),");
+    expect(buildersForm).toContain("  slug: DZ.text({notNull: true, $defaultFn: [() => 'slug-1']}),");
     expect(convertTo(buildersForm, 'type')).toBe(typeForm);
   });
 
   it('builders → type emits the canonical pair, and back, landing on a byte fixpoint', () => {
     const typeForm = convertTo(BUILDERS_SOURCE, 'type');
-    expect(typeForm).toContain("export type UsersTable = DZ.PgTable<'users', {");
+    expect(typeForm).toContain("export type UsersTable = DZ.SqliteTable<'users', {");
     expect(typeForm).toContain("}, [], {name: 'user_name'}>;");
-    expect(typeForm).toContain('  name: DZ.Varchar<{length: 100; notNull: true}>;');
+    expect(typeForm).toContain('  name: DZ.Text<{notNull: true}>;');
     // The marker form: no repeated type name, no getRunType call.
     expect(typeForm).toContain('export const users = DZ.tableFromType<UsersTable>();');
     expect(typeForm).not.toContain('getRunType');
