@@ -28,8 +28,6 @@ type Pick3<RouteValue, RouterValue, Default> = [RouteValue] extends [undefined]
 /** A route's effective options: `alwaysRun` is always false and `isMutation` is what the helper pinned. */
 export type ResolvedRouteOptions<RO, O> = {
   alwaysRun: false;
-  validateParams: Pick3<Named<RO, 'validateParams'>, undefined, true>;
-  validateReturn: Pick3<Named<RO, 'validateReturn'>, undefined, false>;
   description: Named<RO, 'description'>;
   parser: {params: ParamsStrategy<RO, O>; return: ReturnStrategy<RO, O>};
   isMutation: Named<RO, 'isMutation'>;
@@ -43,8 +41,6 @@ export type ResolvedRouteOptions<RO, O> = {
 /** A middleware's effective options (headers middlewares included). */
 export type ResolvedMiddlewareOptions<RO, O> = {
   alwaysRun: [Named<RO, 'alwaysRun'>] extends [true] ? true : false;
-  validateParams: Pick3<Named<RO, 'validateParams'>, undefined, true>;
-  validateReturn: Pick3<Named<RO, 'validateReturn'>, undefined, false>;
   description: Named<RO, 'description'>;
   parser: {params: ParamsStrategy<RO, O>; return: ReturnStrategy<RO, O>};
   sanitizeParams: Pick3<Named<RO, 'sanitizeParams'>, Named<O, 'sanitizeParams'>, undefined>;

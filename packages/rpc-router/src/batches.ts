@@ -360,7 +360,7 @@ function createMappingMethod(mapping: BatchMapping): RemoteMethod {
     paramsJitFns: noopJitFns,
     returnJitFns: noopJitFns,
     handler: createMappingHandler(mapping),
-    options: {alwaysRun: false, validateParams: false},
+    options: {alwaysRun: false},
     alwaysRun: false,
     // runMappingHandler is async, so this member must be awaited
     isAsync: true,

@@ -200,14 +200,12 @@ describe('PublicApi resolved options', () => {
         maxBodySize: 4096,
       }),
       r: compact.route((ctx): number => 1),
-      mf: compact.middleware((ctx, s: string): string => s, {alwaysRun: true, validateReturn: true}),
+      mf: compact.middleware((ctx, s: string): string => s, {alwaysRun: true}),
     } satisfies Routes;
     type Api = PublicApi<typeof defs>;
 
     expectTypeOf<Api['q']['options']>().toEqualTypeOf<{
       alwaysRun: false;
-      validateParams: true;
-      validateReturn: false;
       description: 'd';
       parser: {params: 'compact'; return: 'compact'};
       isMutation: false;
@@ -224,8 +222,6 @@ describe('PublicApi resolved options', () => {
     expectTypeOf<Api['r']['options']['sanitizeParams']>().toEqualTypeOf<undefined>();
     expectTypeOf<Api['mf']['options']>().toEqualTypeOf<{
       alwaysRun: true;
-      validateParams: true;
-      validateReturn: true;
       description: undefined;
       parser: {params: 'compact'; return: 'compact'};
       sanitizeParams: undefined;
@@ -245,8 +241,6 @@ describe('PublicApi resolved options', () => {
     expect(typeof settledLimit).toBe('number');
     expect(qOptions).toEqual({
       alwaysRun: false,
-      validateParams: true,
-      validateReturn: false,
       description: 'd',
       parser: {params: 'compact', return: 'compact'},
       isMutation: false,
@@ -254,16 +248,12 @@ describe('PublicApi resolved options', () => {
     });
     expect(api.m.options).toEqual({
       alwaysRun: false,
-      validateParams: true,
-      validateReturn: false,
       parser: {params: 'compact', return: 'mutate'},
       isMutation: true,
       maxBodySize: 4096,
     });
     expect(api.mf.options).toEqual({
       alwaysRun: true,
-      validateParams: true,
-      validateReturn: true,
       parser: {params: 'compact', return: 'compact'},
     });
     // the API type also names the exact types the server compiled each method from

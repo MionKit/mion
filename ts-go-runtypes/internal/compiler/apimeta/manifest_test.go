@@ -13,7 +13,7 @@ func row(paramsId, returnId string) ManifestMethod {
 		ParamsId:      paramsId,
 		ReturnId:      returnId,
 		Families:      []string{"val", "verr", "fmt", "pj", "rj"},
-		Options:       map[string]any{"parser": map[string]any{"params": "clone", "return": "clone"}, "validateParams": true},
+		Options:       map[string]any{"parser": map[string]any{"params": "clone", "return": "clone"}, "sanitizeParams": true},
 		MiddlewareIds: []string{"auth"},
 	}
 }
@@ -30,7 +30,7 @@ func TestManifest_CompareNamesEveryDifferingField(t *testing.T) {
 	server := &Manifest{Kind: ManifestKindServer, Methods: map[string]ManifestMethod{"sum": row("P1", "R1")}}
 	changed := row("P9", "R1")
 	changed.Families = []string{"val"}
-	changed.Options = map[string]any{"validateParams": false}
+	changed.Options = map[string]any{"sanitizeParams": false}
 	changed.MiddlewareIds = nil
 	client := &Manifest{Kind: ManifestKindClient, Methods: map[string]ManifestMethod{"sum": changed}}
 	mismatches := Compare(client, server)
