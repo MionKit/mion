@@ -1,0 +1,39 @@
+{
+  "name": "@mionjs/drizzle-app",
+  "version": "0.12.2",
+  "private": true,
+  "type": "module",
+  "description": "Reference app: slim drizzle tables queried through drizzle, returned from mion routes and called from a typed client (never published)",
+  "author": "ma jerez",
+  "homepage": "https://mion.io/",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MionKit/mion.git"
+  },
+  "bugs": {
+    "url": "https://github.com/MionKit/mion/issues"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck:test": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src test",
+    "clean": "rimraf .coverage .mion",
+    "fresh-start": "pnpm run clean && rimraf node_modules"
+  },
+  "dependencies": {
+    "@mionjs/client": "workspace:*",
+    "@mionjs/core": "workspace:*",
+    "@mionjs/drizzle-orm": "workspace:*",
+    "@mionjs/drizzle-orm-mysql-core": "workspace:*",
+    "@mionjs/drizzle-orm-pg-core": "workspace:*",
+    "@mionjs/drizzle-orm-sqlite-core": "workspace:*",
+    "@mionjs/platform-node": "workspace:*",
+    "@mionjs/router": "workspace:*",
+    "@mionjs/run-types": "workspace:*",
+    "drizzle-orm": "0.45.2"
+  },
+  "devDependencies": {
+    "@mionjs/devtools": "workspace:*"
+  }
+}

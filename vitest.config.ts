@@ -60,6 +60,8 @@ export default defineConfig({
       'packages/private-test-router-fuzz/vitest.config.ts',
       // Model-pipeline type-instantiation budgets: in-process compile measurement, no plugins.
       'packages/private-type-budget/vitest.config.ts',
+      // Reference app: slim drizzle tables through routes to a typed client, plus their type cost.
+      'packages/private-drizzle-app/vitest.config.ts',
     ],
     // Teardown-only sweep removing every .mion genDir under packages/ after the
     // run. Belt-and-braces with each project's own teardown, and the only cleanup

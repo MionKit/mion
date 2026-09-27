@@ -239,6 +239,43 @@ importers:
         specifier: workspace:*
         version: link:../rpc-router
 
+  packages/private-drizzle-app:
+    dependencies:
+      '@mionjs/client':
+        specifier: workspace:*
+        version: link:../rpc-client
+      '@mionjs/core':
+        specifier: workspace:*
+        version: link:../core
+      '@mionjs/drizzle-orm':
+        specifier: workspace:*
+        version: link:../drizzle-orm
+      '@mionjs/drizzle-orm-mysql-core':
+        specifier: workspace:*
+        version: link:../drizzle-orm-mysql-core
+      '@mionjs/drizzle-orm-pg-core':
+        specifier: workspace:*
+        version: link:../drizzle-orm-pg-core
+      '@mionjs/drizzle-orm-sqlite-core':
+        specifier: workspace:*
+        version: link:../drizzle-orm-sqlite-core
+      '@mionjs/platform-node':
+        specifier: workspace:*
+        version: link:../platform-node
+      '@mionjs/router':
+        specifier: workspace:*
+        version: link:../rpc-router
+      '@mionjs/run-types':
+        specifier: workspace:*
+        version: link:../run-types
+      drizzle-orm:
+        specifier: 0.45.2
+        version: 0.45.2(bun-types@1.3.12)
+    devDependencies:
+      '@mionjs/devtools':
+        specifier: workspace:*
+        version: link:../devtools
+
   packages/private-examples:
     dependencies:
       '@mionjs/client':
