@@ -10,7 +10,7 @@
 // All of them replay 1:1 against the real drizzle functions when the owning table materializes.
 
 import type {
-  AnyColumn,
+  EntryColumn,
   AnyTable,
   AnyTableRef,
   Column,
@@ -32,7 +32,7 @@ export interface PgEntryBrand {
 }
 
 /** What an index position accepts: a column, a decorated column, or sql. */
-export type PgIndexColumn = AnyColumn | RtIndexedColumn | RtSql;
+export type PgIndexColumn = EntryColumn | RtIndexedColumn | RtSql;
 
 // drizzle's two steps: `on` first, then the index options; an option before `on` does not exist on drizzle's builder.
 /** `index(name)` before its columns: only the `on` calls. */
@@ -55,7 +55,7 @@ export function uniqueIndex(name?: string): RtIndexBuilderOn {
 }
 
 export interface RtUniqueEntry extends PgEntryBrand {
-  on(...columns: [AnyColumn, ...AnyColumn[]]): RtUniqueEntry;
+  on(...columns: [EntryColumn, ...EntryColumn[]]): RtUniqueEntry;
   nullsNotDistinct(): RtUniqueEntry;
 }
 export function unique(name?: string): RtUniqueEntry {
@@ -65,8 +65,8 @@ export function unique(name?: string): RtUniqueEntry {
 /** foreignKey: this table's columns as `t.key`, another table's as a tableRef(). */
 export interface PgForeignKeyConfig {
   name?: string;
-  columns: [AnyColumn, ...AnyColumn[]];
-  foreignColumns: [AnyColumn | AnyTableRef, ...Array<AnyColumn | AnyTableRef>];
+  columns: [EntryColumn, ...EntryColumn[]];
+  foreignColumns: [EntryColumn, ...EntryColumn[]];
 }
 export interface RtForeignKeyEntry extends PgEntryBrand {
   onDelete(action: UpdateDeleteAction): RtForeignKeyEntry;
@@ -80,7 +80,7 @@ export function foreignKey(config: PgForeignKeyConfig): RtForeignKeyEntry {
 
 export interface PgPrimaryKeyConfig {
   name?: string;
-  columns: [AnyColumn, ...AnyColumn[]];
+  columns: [EntryColumn, ...EntryColumn[]];
 }
 export type RtPrimaryKeyEntry = PgEntryBrand;
 export function primaryKey(config: PgPrimaryKeyConfig): RtPrimaryKeyEntry {

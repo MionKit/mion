@@ -73,6 +73,7 @@ export {recordColumn} from './columnRecorder.ts';
 export type {
   AnyTable,
   AnyTableRef,
+  EntryColumn,
   BuildTableFn,
   ColsOf,
   DbNameOf,

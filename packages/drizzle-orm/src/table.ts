@@ -50,6 +50,8 @@ export type TableRef<T extends RefTable | string, K extends RefKeyOf<T>> = T ext
 type RefTable = {name: string; columns: object};
 type RefKeyOf<T> = T extends string ? string : keyof (T & RefTable)['columns'] & string;
 export type AnyTableRef = {table: string; column: string};
+/** An entry's column: the table's own, or a tableRef() when the entry is declared outside the table. */
+export type EntryColumn = AnyColumn | AnyTableRef;
 
 /** For `references: [() => tableRef(teams, 'id')]` and foreignKey's foreignColumns. */
 export function tableRef<T extends AnyTable, K extends keyof T['columns'] & string>(

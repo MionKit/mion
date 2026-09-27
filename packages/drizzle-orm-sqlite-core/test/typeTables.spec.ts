@@ -270,6 +270,11 @@ describe('sqlite columns: same drizzle table on every road', () => {
     ]);
     expect(project(toDrizzle(withFk))).toEqual(project(rawWithFk));
   });
+  // pg's index clones an extraConfig column, so there a standalone index takes an expression (the standalone test).
+  it('only mysql, sqlite: an index declared outside its table takes a tableRef() column', () => {
+    const built = toDrizzle(index('teams_id_idx').on(tableRef(teams, 'id')));
+    expect((built as unknown as {config: {columns: unknown[]}}).config.columns).toEqual([toDrizzle(teams).id]);
+  });
   it('the index and constraint helpers work in extraConfig', () => {
     const indexed = sqliteTable('indexed', {a: integer('a', {notNull: true}), b: text('b')}, (t) => [
       index('idx_b').on(t.b),
@@ -296,7 +301,9 @@ describe('sqlite columns: same drizzle table on every road', () => {
     sqliteTable('ordered', {a: integer('a')}, (t) => [
       // @ts-expect-error an index option before on() does not exist on drizzle's index builder
       index('idx_a').where(sql`a > 0`),
-      index('idx_a2').on(t.a).where(sql`a > 0`),
+      index('idx_a2')
+        .on(t.a)
+        .where(sql`a > 0`),
     ]);
     expect(true).toBe(true);
   });
@@ -326,17 +333,13 @@ describe('sqlite columns: same drizzle table on every road', () => {
 });
 
 // Table-level extras on the type road: the extras tuple.
-const extras = sqliteTable(
-  'extras_t',
-  {a: integer({notNull: true}), b: text({length: 10}), pid: integer()},
-  (t) => [
-    index('idx_a').on(t.a),
-    uniqueIndex('uidx_b').on(t.b),
-    unique('uq_ab').on(t.a, t.b),
-    check('chk_a', sql`a >= 0`),
-    foreignKey({name: 'fk_pid', columns: [t.pid], foreignColumns: [tableRef(teams, 'id')]}),
-  ]
-);
+const extras = sqliteTable('extras_t', {a: integer({notNull: true}), b: text({length: 10}), pid: integer()}, (t) => [
+  index('idx_a').on(t.a),
+  uniqueIndex('uidx_b').on(t.b),
+  unique('uq_ab').on(t.a, t.b),
+  check('chk_a', sql`a >= 0`),
+  foreignKey({name: 'fk_pid', columns: [t.pid], foreignColumns: [tableRef(teams, 'id')]}),
+]);
 type Extras = SqliteTable<
   'extras_t',
   {a: Integer<{notNull: true}>; b: Text<{length: 10}>; pid: Integer},
@@ -534,7 +537,9 @@ describe('sqlite columns: only sqlite: blob columns', () => {
 
 describe('sqlite columns: views, enums and custom types', () => {
   it('a view materializes the same drizzle view as raw drizzle', () => {
-    const byView = sqliteView('active', {name: text('user_name', {length: 10, notNull: true})}).as(sql`select user_name from users`);
+    const byView = sqliteView('active', {name: text('user_name', {length: 10, notNull: true})}).as(
+      sql`select user_name from users`
+    );
     const rawView = dz
       .sqliteView('active', {name: dz.text('user_name', {length: 10}).notNull()})
       .as(dzSql`select user_name from users`);
@@ -563,7 +568,9 @@ describe('sqlite columns: views, enums and custom types', () => {
   it('only sqlite: the view alias is the same factory', () => {
     expect(view).toBe(sqliteView);
     const byAlias = view('active', {name: text('user_name', {length: 10, notNull: true})}).as(sql`select user_name from users`);
-    const rawView = dz.view('active', {name: dz.text('user_name', {length: 10}).notNull()}).as(dzSql`select user_name from users`);
+    const rawView = dz
+      .view('active', {name: dz.text('user_name', {length: 10}).notNull()})
+      .as(dzSql`select user_name from users`);
     expect(projectView(toDrizzle(byAlias))).toEqual(projectView(rawView));
   });
 });
@@ -649,7 +656,14 @@ const people = sqliteTable('people', {
 });
 const apiPeople = refineTableType(people, {name: {minLength: 3}, age: {min: 18}});
 type Person = InferSelectModel<typeof apiPeople>;
-const validPerson = {id: '793aff46-42ac-4372-b7fa-c48ba48ed94f', name: 'ann-lee', age: 30, role: 'admin', bio: null, createdAt: new Date()};
+const validPerson = {
+  id: '793aff46-42ac-4372-b7fa-c48ba48ed94f',
+  name: 'ann-lee',
+  age: 30,
+  role: 'admin',
+  bio: null,
+  createdAt: new Date(),
+};
 
 describe('sqlite columns: models compile full-fidelity validators', () => {
   const validatePerson = createValidateFn<Person>();

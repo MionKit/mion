@@ -369,7 +369,9 @@ describe('pg columns: same drizzle table on every road', () => {
     pgTable('ordered', {a: integer('a')}, (t) => [
       // @ts-expect-error an index option before on() does not exist on drizzle's index builder
       index('idx_a').where(sql`a > 0`),
-      index('idx_a2').on(t.a).where(sql`a > 0`),
+      index('idx_a2')
+        .on(t.a)
+        .where(sql`a > 0`),
     ]);
     expect(true).toBe(true);
   });
@@ -399,17 +401,13 @@ describe('pg columns: same drizzle table on every road', () => {
 });
 
 // Table-level extras on the type road: the extras tuple.
-const extras = pgTable(
-  'extras_t',
-  {a: integer({notNull: true}), b: varchar({length: 10}), pid: integer()},
-  (t) => [
-    index('idx_a').on(t.a),
-    uniqueIndex('uidx_b').on(t.b),
-    unique('uq_ab').on(t.a, t.b),
-    check('chk_a', sql`a >= 0`),
-    foreignKey({name: 'fk_pid', columns: [t.pid], foreignColumns: [tableRef(teams, 'id')]}),
-  ]
-);
+const extras = pgTable('extras_t', {a: integer({notNull: true}), b: varchar({length: 10}), pid: integer()}, (t) => [
+  index('idx_a').on(t.a),
+  uniqueIndex('uidx_b').on(t.b),
+  unique('uq_ab').on(t.a, t.b),
+  check('chk_a', sql`a >= 0`),
+  foreignKey({name: 'fk_pid', columns: [t.pid], foreignColumns: [tableRef(teams, 'id')]}),
+]);
 type Extras = PgTable<
   'extras_t',
   {a: Integer<{notNull: true}>; b: Varchar<{length: 10}>; pid: Integer},
@@ -817,7 +815,14 @@ const people = pgTable('people', {
 });
 const apiPeople = refineTableType(people, {name: {minLength: 3}, age: {min: 18}});
 type Person = InferSelectModel<typeof apiPeople>;
-const validPerson = {id: '793aff46-42ac-4372-b7fa-c48ba48ed94f', name: 'ann-lee', age: 30, role: 'admin', bio: null, createdAt: new Date()};
+const validPerson = {
+  id: '793aff46-42ac-4372-b7fa-c48ba48ed94f',
+  name: 'ann-lee',
+  age: 30,
+  role: 'admin',
+  bio: null,
+  createdAt: new Date(),
+};
 
 describe('pg columns: models compile full-fidelity validators', () => {
   const validatePerson = createValidateFn<Person>();

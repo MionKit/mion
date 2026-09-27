@@ -332,6 +332,11 @@ describe('mysql columns: same drizzle table on every road', () => {
     ]);
     expect(project(toDrizzle(withFk))).toEqual(project(rawWithFk));
   });
+  // pg's index clones an extraConfig column, so there a standalone index takes an expression (the standalone test).
+  it('only mysql, sqlite: an index declared outside its table takes a tableRef() column', () => {
+    const built = toDrizzle(index('teams_id_idx').on(tableRef(teams, 'id')));
+    expect((built as unknown as {config: {columns: unknown[]}}).config.columns).toEqual([toDrizzle(teams).id]);
+  });
   it('the index and constraint helpers work in extraConfig', () => {
     const indexed = mysqlTable('indexed', {a: int('a', {notNull: true}), b: varchar('b', {length: 20})}, (t) => [
       index('idx_b').on(t.b).using('btree').algorithm('inplace').lock('none'),
