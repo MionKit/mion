@@ -260,6 +260,26 @@ export const fn = registerPureFnFactory(function ({a, b}) {
 	if !hasCode(diags, CodeDestructuredParam) {
 		t.Fatalf("expected %s diagnostic, got %+v", CodeDestructuredParam, diags)
 	}
+	// The diagnostic names the binding, not an id-shaped `<package>#pf_fn`.
+	if args := diags[0].Args; len(args) != 1 || args[0] != "fn" {
+		t.Errorf("expected the binding name as the only arg, got %v", args)
+	}
+}
+
+func TestExtract_DestructuredParam_PFE9005_Unnamed(t *testing.T) {
+	_, diags := extractFromOverlay(t, map[string]string{
+		"a.ts": `
+import {registerPureFnFactory} from '@mionjs/run-types/runtime';
+export const pair = [registerPureFnFactory(function ({a, b}) {
+  return function() {};
+})];`,
+	})
+	if !hasCode(diags, CodeDestructuredParam) {
+		t.Fatalf("expected %s diagnostic, got %+v", CodeDestructuredParam, diags)
+	}
+	if args := diags[0].Args; len(args) != 1 || args[0] != "(unnamed)" {
+		t.Errorf("expected `(unnamed)` for a registration bound to no name, got %v", args)
+	}
 }
 
 func TestExtract_SameBodyTwiceIsOneEntry(t *testing.T) {

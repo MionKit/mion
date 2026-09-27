@@ -163,7 +163,7 @@ export const foo = registerPureFnFactory(function () {
     });
   });
 
-  register('a registration bound to no name is identified by its body, and equal bodies collapse', async () => {
+  register('registrations bound to no name get a body-hash id, and equal bodies collapse', async () => {
     const sources = {
       'anon.ts': `import {registerPureFn} from '@mionjs/run-types/runtime';
 export const pair = [

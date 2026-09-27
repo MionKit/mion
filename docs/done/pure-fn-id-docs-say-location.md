@@ -1,7 +1,7 @@
 ---
 type: docs
 spec: guidelines
-status: ready
+status: done
 created: 2026-09-25
 ---
 
@@ -29,3 +29,11 @@ PFE9014's advice is now wrong for a user: a rename does not change the id, but a
 
 - No doc, comment or diagnostic describes a location-based pure-fn id.
 - Tests that pin diagnostic text pass (`go -C ts-go-runtypes test ./internal/... ./cmd/...` and the affected vitest projects).
+
+## Plan (approved 2026-09-27)
+
+- PFE9012 detail and PFE9014 headline + detail in `ts-go-runtypes/internal/diagnostics/messages.go` now say an id is the package plus a hash of the body: a rename or move keeps it, a body edit changes it. PFE9014 compares against the "computed id", not a "location". The generated catalogs were regenerated with `pnpm miondevx core codegen diag`.
+- Found while fixing: PFE9005 named its registration with a fake id built from the location (`<package>#pf_<bindingName>`, the old `siteID` in `purefunctions/walker.go`). It now names the binding alone (`siteName`), `(unnamed)` when there is none, pinned by two Go tests.
+- Stale comments rewritten: `InjectPureFnId` (`markers.ts`), `PureFunctionData.id` (`runtypes/types.ts`), `KindInjectPureFnId` (`marker/marker.go`), the generated built-in ids header (`cmd/gen-builtin-purefns`, regenerated), and test names and comments that implied only nameless registrations are body-hashed.
+- Website: the "Pure function id" card on the compiler markers page.
+- Not a fuzz candidate: text only, plus one diagnostic label.

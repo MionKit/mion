@@ -41,7 +41,7 @@ const (
 	KindCompTimeFnArgs
 	// KindInjectPureFnId (InjectPureFnId<F>) rides the callee signature so it propagates through
 	// wrappers; the injected value is the id of the sibling PureFunction<F> registration (its
-	// package, its file, the name it is bound to). The purefunctions extractor splices the id in;
+	// package plus a hash of its shipped body). The purefunctions extractor splices the id in;
 	// the resolver's marker walk does not inject for it, so it carries no scanCall case.
 	KindInjectPureFnId
 	// KindPureFunctionFactory brands a FACTORY argument `(utl) => fn` (the registerPureFnFactory
