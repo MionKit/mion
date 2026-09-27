@@ -17,7 +17,7 @@ import type {
 import type {PublicApi, PrivateDef, MiddlewaresCollection} from './types/publicMethods.ts';
 import type {InjectBuildVersion} from '@mionjs/run-types';
 import type {HeadersMiddlewareDef, MiddlewareDef, RawMiddlewareDef} from './types/definitions.ts';
-import {DEFAULT_ROUTE_OPTIONS, MAX_ROUTE_NESTING, mionInternalRouteIds} from './constants.ts';
+import {DEFAULT_ROUTE_OPTIONS, MAX_ROUTE_NESTING} from './constants.ts';
 import {
   isRawMiddlewareDef,
   isHeadersMiddlewareDef,
@@ -54,7 +54,16 @@ import {setErrorOptions} from '@mionjs/core';
 import {getPublicApi, resetRemoteMethodsMetadata} from './lib/remoteMethods.ts';
 import {mionErrorsRoutes, notFoundMiddleware, batchNotFoundMiddleware} from './routes/errors.routes.ts';
 import {capBatchBodySizes, clearBatches, getMaxBatchBodySize, refreshBatchChainBodyLimits} from './batches.ts';
-import {headersFn, isOnDemandMiddleware, middleware, mutation, query, rawMiddleware, route} from './lib/handlers.ts';
+import {
+  headersFn,
+  isOnDemandMiddleware,
+  middleware,
+  mionInternalRouteIds,
+  mutation,
+  query,
+  rawMiddleware,
+  route,
+} from './lib/handlers.ts';
 import type {
   HeadersFnHelper,
   MiddlewareHelper,

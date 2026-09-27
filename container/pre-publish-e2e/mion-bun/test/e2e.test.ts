@@ -7,20 +7,13 @@
 
 import {afterAll, beforeAll, describe, expect, setDefaultTimeout, test} from 'bun:test';
 import type {Server} from 'bun';
-import {initClient as initPlainClient} from '@mionjs/client';
+import {initClient} from '@mionjs/client';
 import {useMethodsMetadata} from '@mionjs/client/middlewares';
 import {isRpcError} from '@mionjs/core';
 import {setBunHttpOpts, startBunServer} from '@mionjs/platform-bun';
 // a value import: loading the routes file creates the router and initializes the routes
 import '../src/routes.ts';
 import type {BunServerApi} from '../src/routes.ts';
-
-/** The packaged client, fetching route metadata: bun's runtime plugin may not bundle it. */
-const initClient: typeof initPlainClient = (options, buildVersion) => {
-    const client = initPlainClient(options, buildVersion);
-    useMethodsMetadata((client.middlewares as any).mionMethodsMetadata);
-    return client;
-};
 
 // The resolver spawns a process per program scan; give it room on a cold container.
 setDefaultTimeout(60_000);
@@ -67,6 +60,8 @@ describe('published mion packages under bun', () => {
 
     test('round-trips JSON through the packaged client', async () => {
         const client = initClient<BunServerApi>({baseURL});
+        // bun's runtime plugin may not bundle the API, so the client fetches route metadata
+        useMethodsMetadata(client.middlewares.mionMethodsMetadata);
         const [greeting, error] = await client.routes.sayHello({name: 'Grace', age: 45}).call();
         expect(error).toBeUndefined();
         expect(greeting).toBe('Hello Grace');
@@ -74,6 +69,7 @@ describe('published mion packages under bun', () => {
 
     test('surfaces a typed RpcError through the packaged client', async () => {
         const client = initClient<BunServerApi>({baseURL});
+        useMethodsMetadata(client.middlewares.mionMethodsMetadata);
         const [result, error] = await client.routes.mayFail(true).call();
         expect(result).toBeUndefined();
         expect(isRpcError(error)).toBe(true);
@@ -82,6 +78,7 @@ describe('published mion packages under bun', () => {
 
     test('round-trips the compact parser through the packaged client', async () => {
         const client = initClient<BunServerApi>({baseURL});
+        useMethodsMetadata(client.middlewares.mionMethodsMetadata);
         const [echoed, echoError] = await client.routes.compact.echo('Hello Compact Bun!').call();
         expect(echoError).toBeUndefined();
         expect(echoed).toBe('Hello Compact Bun!');

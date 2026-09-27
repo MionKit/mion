@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {isRpcError, addRoutesToCache, isUnsafePropertyName, hasJitFnsForMethod, RpcError} from '@mionjs/core';
+import {addRoutesToCache, isUnsafePropertyName, hasJitFnsForMethod, RpcError} from '@mionjs/core';
 import {ClientOptions} from '../types.ts';
 import type {
   CompiledFnData,
@@ -78,18 +78,6 @@ function getState(options: ClientOptions): CacheState {
 
 function storedKey(kind: MetadataKind, id: string): string {
   return `${kind} ${id}`;
-}
-
-/** Extracts raw metadata from a parsed response body, unwraps the JIT union discriminator, and processes it. */
-export function extractAndProcessMetadata(routeKey: string, parsedBody: any, options: ClientOptions): void {
-  if (typeof parsedBody !== 'object' || !(routeKey in parsedBody)) return;
-  const rawMetadata = parsedBody[routeKey];
-  delete parsedBody[routeKey];
-  if (!rawMetadata) return;
-  const metadataValue = Array.isArray(rawMetadata) ? rawMetadata[1] : rawMetadata;
-  if (metadataValue && !isRpcError(metadataValue) && metadataValue.methods) {
-    processMethodsMetadata(metadataValue as SerializableMethodsData, options);
-  }
 }
 
 /** Fills the in-memory caches now and leaves the store for later: the caller is a sync deserializer on the

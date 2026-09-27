@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {HandlerType} from '@mionjs/core';
+import {HandlerType, MION_ROUTES} from '@mionjs/core';
 import type {
   HeadersFnHelper,
   MiddlewareHelper,
@@ -107,3 +107,6 @@ export function markOnDemand<Def extends object>(def: Def): Def {
 export function isOnDemandMiddleware(def: object): boolean {
   return onDemandMiddlewares.has(def);
 }
+
+/** mion's own ids, never exposed to clients */
+export const mionInternalRouteIds: ReadonlySet<string> = new Set(Object.values(MION_ROUTES));

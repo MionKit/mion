@@ -35,11 +35,6 @@ export function loadedMetadataFromServer(): MetadataFromServer | undefined {
   return laneModule;
 }
 
-/** True when a call has reached the lane. Tests only. */
-export function isMetadataFromServerLoaded(): boolean {
-  return laneModule !== undefined;
-}
-
 /** Forgets the loaded lane. Tests only: simulates a process that never reached it. */
 export function resetMetadataFromServer(): void {
   laneModule = undefined;

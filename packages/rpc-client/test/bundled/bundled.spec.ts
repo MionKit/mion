@@ -9,7 +9,7 @@
 // in with its call site and evaluates no code string; only a route the build never saw reaches the server.
 
 import {describe, it, expect, beforeEach, afterEach, inject, vi} from 'vitest';
-import {HeadersSubset, MION_ROUTES} from '@mionjs/core';
+import {HeadersSubset} from '@mionjs/core';
 import type {TestServerApi} from '@mionjs/test-server';
 import {initClient} from '../../src/client.ts';
 import {useMethodsMetadata} from '../../src/middlewares/methodsMetadata.ts';
@@ -17,7 +17,7 @@ import {batch} from '../../src/batch.ts';
 import {resetClientCaches} from '../lib/testUtils.ts';
 import {resetBundledApi} from '../../src/lib/bundledApi.ts';
 import {getMethod, isBundledMethod, useMethodFns} from '../../src/lib/methods.ts';
-import {isMetadataFromServerLoaded} from '../../src/lib/metadataFromServerLoader.ts';
+import {loadedMetadataFromServer} from '../../src/lib/metadataFromServerLoader.ts';
 import type {InjectedApiMetadata} from '../../src/types.ts';
 import {MemoryMetadataStore, resetMetadataStore, setMetadataStoreForTesting} from '../../src/lib/metadataStore.ts';
 import {expectEveryMethodMatchesTheServer} from '../lib/parity.ts';
@@ -109,7 +109,7 @@ describe('a client built with bundleApi: bundled', () => {
     useAuth(middlewares);
     await routes.utils.sumTwo(40).call();
     await routes.compact.addNumbers(2, 3).typeErrors();
-    expect(isMetadataFromServerLoaded()).toBe(false);
+    expect(loadedMetadataFromServer()).toBeUndefined();
   });
 
   it('fails a route the bundle lacks with a clear error when it never set up metadata fetching', async () => {
@@ -130,14 +130,14 @@ describe('a client built with bundleApi: bundled', () => {
     } finally {
       watch.restore();
     }
-    expect(isMetadataFromServerLoaded()).toBe(false);
+    expect(loadedMetadataFromServer()).toBeUndefined();
   });
 
   it('fetches a route the bundle lacks once metadata fetching is set up, loading the lane only then', async () => {
     const {client, middlewares} = initClient<TestServerApi>({baseURL});
     useAuth(middlewares);
     useMethodsMetadata(middlewares.mionMethodsMetadata);
-    expect(isMetadataFromServerLoaded()).toBe(false);
+    expect(loadedMetadataFromServer()).toBeUndefined();
     const [result, , undeclared] = await client.execute({
       pointer: ['flow', 'getOrgLabel'],
       id: 'flow/getOrgLabel',
@@ -146,7 +146,7 @@ describe('a client built with bundleApi: bundled', () => {
     } as never);
     expect(undeclared).toBeUndefined();
     expect(result).toBeDefined();
-    expect(isMetadataFromServerLoaded()).toBe(true);
+    expect(loadedMetadataFromServer()).toBeDefined();
     expect(isBundledMethod('flow/getOrgLabel')).toBe(false);
   });
 

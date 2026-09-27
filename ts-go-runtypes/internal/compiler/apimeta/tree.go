@@ -43,8 +43,8 @@ type Method struct {
 	MethodsMetadata bool
 }
 
-// MethodsMetadataName is the router's metadata middleware, recognised by where it is declared, whatever key holds it.
-const MethodsMetadataName = "mionMethodsMetadata"
+// methodsMetadataName is the router's metadata middleware, recognised by where it is declared, whatever key holds it.
+const methodsMetadataName = "mionMethodsMetadata"
 
 // Tree is a walked PublicApi type: every public method in checker order, and the checker their type ids must be assigned under.
 type Tree struct {
@@ -127,7 +127,7 @@ func (walker *treeWalker) level(levelType *checker.Type, pointer []string, nestL
 			if problem != "" {
 				return problem
 			}
-			method.MethodsMetadata = method.Type == TypeMiddleware && walker.routerDeclares(property, MethodsMetadataName)
+			method.MethodsMetadata = method.Type == TypeMiddleware && walker.routerDeclares(property, methodsMetadataName)
 			entries = append(entries, levelEntry{key: property.Name, method: method})
 			continue
 		}

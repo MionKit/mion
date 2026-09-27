@@ -13,7 +13,6 @@
 import '@mionjs/run-types/formats';
 
 export {
-  extractAndProcessMetadata,
   forgetFetchedMetadata,
   hydrateMetadataCache,
   installMethodRows,
