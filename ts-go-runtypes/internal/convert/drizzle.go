@@ -802,7 +802,7 @@ func propsFromObjectAST(source string, object *ast.Node, builderFn string, spec 
 		}
 		key := nameNode.Text()
 		value := assignment.Initializer
-		if !IsDrizzleModName(key) {
+		if !isDrizzleModName(key) {
 			text, ok := literalExprText(source, value)
 			if !ok {
 				return nil, refuse("builder %q: config key %q carries a non-literal value", builderFn, key)
@@ -818,7 +818,7 @@ func propsFromObjectAST(source string, object *ast.Node, builderFn string, spec 
 		switch {
 		case key == "$type":
 			return nil, refuse("prop $type has no spelling convert carries across roads, its type argument is not a literal; keep this table on the builders road")
-		case IsDrizzleRuntimeMod(key):
+		case isDrizzleRuntimeMod(key):
 			if value.Kind != ast.KindArrayLiteralExpression || len(elements) != 1 {
 				return nil, refuse("prop %q takes its one callback in a tuple, [() => ...]", key)
 			}
@@ -1156,7 +1156,7 @@ func specFromGraph(resolved *resolvedDecl, decl *declaration, spelling *drizzleS
 			if valueNode == nil {
 				return nil, drizzleRefuse(decl, "column %q: malformed prop %q", columnMember.Name, propName)
 			}
-			if !IsDrizzleModName(propName) {
+			if !isDrizzleModName(propName) {
 				value, diag := literalText(valueNode, columnMember.Name+"."+propName)
 				if diag != nil {
 					return nil, diag
@@ -1192,7 +1192,7 @@ func specFromGraph(resolved *resolvedDecl, decl *declaration, spelling *drizzleS
 					}
 					prop.refActions = actionsText
 				}
-			case IsDrizzleRuntimeMod(propName):
+			case isDrizzleRuntimeMod(propName):
 				// The callback text is read off the paired const's options.runtime afterwards.
 				if valueNode.Kind != reflection.KindLiteral {
 					return nil, drizzleRefuse(decl, "column %q: malformed runtime flag %q", columnMember.Name, propName)
