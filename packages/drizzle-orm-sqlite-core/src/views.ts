@@ -16,7 +16,7 @@ export interface ViewFromQueryBuilderNotSupported {
   readonly __use_drizzles_sqliteView_for_query_builder_views: never;
 }
 
-export function sqliteBuildView(context: DrizzleContext, name: string, builders: Record<string, unknown>): unknown {
+function sqliteBuildView(context: DrizzleContext, name: string, builders: Record<string, unknown>): unknown {
   return context.ns.sqliteView(name as never, builders as never);
 }
 
