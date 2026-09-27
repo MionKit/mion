@@ -37,17 +37,19 @@ export interface ReferenceActions {
   onUpdate?: UpdateDeleteAction;
 }
 
+/** The modifiers a mysql column type and a builder's props spell alike. */
+export interface MySqlSharedColMods {
+  notNull?: true;
+  primaryKey?: true;
+  default?: readonly [unknown];
+  unique?: true | readonly [string];
+  generatedAlwaysAs?: readonly [unknown] | readonly [unknown, {mode?: 'virtual' | 'stored'}];
+}
 /** The modifier calls every mysql column type accepts (base bag; each builder kind adds its own). */
-export interface MySqlColMods extends Pick<
-  ColMods,
-  'notNull' | 'default' | '$default' | '$defaultFn' | '$onUpdate' | '$onUpdateFn'
-> {
+export interface MySqlColMods extends MySqlSharedColMods, Pick<ColMods, '$default' | '$defaultFn' | '$onUpdate' | '$onUpdateFn'> {
   /** Mutable, as `$type<T>()` returns it, so a readonly tuple is refused; declared, not picked, as that costs less. */
   $type?: [unknown];
-  primaryKey?: true;
-  unique?: true | readonly [string];
   references?: readonly [ColRef] | readonly [ColRef, ReferenceActions];
-  generatedAlwaysAs?: readonly [unknown] | readonly [unknown, {mode?: 'virtual' | 'stored'}];
 }
 /** Floats and decimal use this too: mysql allows AUTO_INCREMENT on any numeric column. */
 export interface MySqlIntColMods extends MySqlColMods {
@@ -181,12 +183,7 @@ export interface CustomTypeParams<T extends CustomTypeValues> {
 // The hand-written bags, with the function-carrying keys taking their runtime shape.
 
 // Written out, not an Omit of the hand-written bag: every builder call checks against one, and an interface is cheapest.
-export interface MysqlColIn {
-  notNull?: true;
-  primaryKey?: true;
-  default?: readonly [unknown];
-  unique?: true | readonly [string];
-  generatedAlwaysAs?: readonly [unknown] | readonly [unknown, {mode?: 'virtual' | 'stored'}];
+export interface MysqlColIn extends MySqlSharedColMods {
   $type?: readonly [unknown];
   references?: readonly [() => AnyTableRef] | readonly [() => AnyTableRef, ReferenceActions];
   $default?: readonly [() => unknown];

@@ -24,18 +24,21 @@ export interface SQLitePrimaryKeyConfig {
   autoIncrement?: boolean;
   onConflict?: 'rollback' | 'abort' | 'fail' | 'ignore' | 'replace';
 }
-/** The modifier calls every sqlite column type accepts. */
-export interface SqliteColMods extends Pick<
-  ColMods,
-  'notNull' | 'default' | '$default' | '$defaultFn' | '$onUpdate' | '$onUpdateFn'
-> {
-  /** Mutable, as `$type<T>()` returns it, so a readonly tuple is refused; declared, not picked, as that costs less. */
-  $type?: [unknown];
+/** The modifiers a sqlite column type and a builder's props spell alike. */
+export interface SqliteSharedColMods {
+  notNull?: true;
   /** `true` mirrors `.primaryKey()`; the config form mirrors `.primaryKey({autoIncrement: true})`, db default included. */
   primaryKey?: true | readonly [SQLitePrimaryKeyConfig];
+  default?: readonly [unknown];
   unique?: true | readonly [string];
-  references?: readonly [ColRef] | readonly [ColRef, ReferenceActions];
   generatedAlwaysAs?: readonly [unknown] | readonly [unknown, {mode?: 'virtual' | 'stored'}];
+}
+/** The modifier calls every sqlite column type accepts. */
+export interface SqliteColMods
+  extends SqliteSharedColMods, Pick<ColMods, '$default' | '$defaultFn' | '$onUpdate' | '$onUpdateFn'> {
+  /** Mutable, as `$type<T>()` returns it, so a readonly tuple is refused; declared, not picked, as that costs less. */
+  $type?: [unknown];
+  references?: readonly [ColRef] | readonly [ColRef, ReferenceActions];
 }
 
 export interface BlobConfig<Mode extends 'buffer' | 'json' | 'bigint' = 'buffer' | 'json' | 'bigint'> {
@@ -98,12 +101,7 @@ export interface CustomTypeParams<T extends CustomTypeValues> {
 // The hand-written bag, with the function-carrying keys taking their runtime shape. sqlite has one builder kind, so one bag.
 
 // Written out, not an Omit of the hand-written bag: every builder call checks against one, and an interface is cheapest.
-export interface SqliteColIn {
-  notNull?: true;
-  primaryKey?: true | readonly [SQLitePrimaryKeyConfig];
-  default?: readonly [unknown];
-  unique?: true | readonly [string];
-  generatedAlwaysAs?: readonly [unknown] | readonly [unknown, {mode?: 'virtual' | 'stored'}];
+export interface SqliteColIn extends SqliteSharedColMods {
   $type?: readonly [unknown];
   references?: readonly [() => AnyTableRef] | readonly [() => AnyTableRef, ReferenceActions];
   $default?: readonly [() => unknown];

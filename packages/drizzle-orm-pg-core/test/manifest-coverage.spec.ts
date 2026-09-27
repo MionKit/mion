@@ -88,7 +88,7 @@ describe(`the ${DIALECT} manifest matches the root module`, () => {
       return keys;
     };
     const bagKeys = keysOf(sourceOf('types.ts'), /export interface \w*ColMods[\s\S]*?\n\}/g);
-    const propsKeys = keysOf(sourceOf('types.ts'), /export interface \w*In\b[\s\S]*?\n\}/g);
+    const propsKeys = keysOf(sourceOf('types.ts'), /export interface (?:\w*In|\w*SharedColMods)\b[\s\S]*?\n\}/g);
     const modifierNames = new Set<string>();
     for (const entry of ownManifest.entries) {
       for (const modifier of entry.modifiers ?? []) modifierNames.add(modifier);
