@@ -28,7 +28,7 @@ const baseURL = TEST_SERVER_BASE_URL;
 const user = {name: 'John', surname: 'Doe'};
 const METADATA = 'mionMethodsMetadata';
 
-// the one body the plain wire form cannot write is rare (a value plain JSON.stringify throws on), so it is forced here
+// a body the plain wire form cannot write (JSON.stringify throws) is rare, so it is forced here
 const plainBody = vi.hoisted(() => ({fails: false}));
 vi.mock('../../src/lib/serializer.ts', async (importOriginal) => {
   const original = await importOriginal<typeof import('../../src/lib/serializer.ts')>();

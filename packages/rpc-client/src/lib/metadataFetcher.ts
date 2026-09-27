@@ -23,8 +23,7 @@ export interface MetadataFetcher {
 export interface MetadataCall {
   /** the metadata middleware's id: the rows a call asks for ride the request under it */
   readonly id: string;
-  /** Before the chain is read: drops its own request entry, restores the store, asks for verification after a
-   *  version mismatch. `optimistic`: the attempt goes out before the rows are known, in plain wire forms. */
+  /** Before the chain is read. `ids` omits its own entry; `optimistic`: sent before rows are known, in plain wire forms. */
   prepare(skipOptimistic: boolean): Promise<{ids: string[]; optimistic: boolean}>;
   /** Optimistic attempt: asks the server for the rows of every id in the call. */
   askRows(): void;

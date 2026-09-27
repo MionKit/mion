@@ -30,7 +30,7 @@ export interface MethodsMetadataOnlyData {
   metadata: SerializableMethodsData;
   /** ids the server does not know, with the reason */
   notFound?: Record<string, string>;
-  /** `all` asked, but the server has more methods than it answers at once: only the given ids came back */
+  /** `all` asked, but past the server's method cap: only the given ids came back */
   truncated?: boolean;
 }
 
