@@ -10,8 +10,8 @@ created: 2026-09-25
 ## What shipped
 
 - All three dialects and `@mionjs/drizzle-orm` run on the single-call columns; `next/` and `test/next/` are gone,
-  their code is the regular `src/` and `test/`. The removal list below is ticked; two independent leftovers passes ran,
-  the second found only wording, fixed.
+  their code is the regular `src/` and `test/`. The removal list below is ticked. Three independent leftovers passes and the
+  review's leftovers group ran; none found old-system code, and the wording and dead exports they found are fixed.
 - `mion convert` reads and prints the one-props shape and the table's names map; `mion drizzle-migrate` folds every
   chain through one shared walker (`internal/convert/drizzlechain.go`). A chain with no one-object spelling (the same
   modifier twice, e.g. pg `.array().array()`, or a reference to a table that stays drizzle) is refused as DRZ004 and
@@ -32,8 +32,7 @@ created: 2026-09-25
 - Verified: the full JS suite (all 24 projects plus bun), lint, format, typecheck, the Go tests, fuzz soaks
   (`MION_FUZZ_ITER=40`, seeds 11 / 222 / 3333, TS and Go, all three dialects), `drizzle-translate --to-types`,
   `drizzle-manifest --check`, and the drizzle-e2e lane run locally with podman: pg, mysql, sqlite, d1 and durable
-  green on both roads, every result equal to drizzle's own code. The images were built locally, not pushed (this
-  session had no GHCR credentials).
+  green on both roads, every result equal to drizzle's own code. The images were rebuilt and pushed to GHCR.
 
 ## Why this exists
 
