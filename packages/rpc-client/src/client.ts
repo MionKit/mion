@@ -25,10 +25,16 @@ import type {RunTypeError} from '@mionjs/core';
 import {HandlersRegistry} from './lib/handlersRegistry.ts';
 import {TypedEvent} from './lib/typedEvent.ts';
 import {MionSubRequest} from './subRequest.ts';
-import {isApiBundled} from './lib/apiBundled.ts';
 import {setApiBuildVersion} from './lib/apiBuildVersion.ts';
 import {registerBundledApi} from '#bundled-api';
 import {MIDDLEWARE_TARGET, type MiddlewareTarget} from './lib/metadataFetcher.ts';
+
+let apiBundled = false;
+
+/** Called by generated code, never by hand: bundling the API is a build option. */
+export function setApiBundled(): void {
+  apiBundled = true;
+}
 
 /** A bundled route needs nothing from the server; `buildVersion` is build-filled, never by hand. */
 export function initClient<RM extends RemoteApi>(
@@ -57,7 +63,7 @@ export class MionClient {
 
   /** False means the build did not bundle the API: every route is fetched. */
   get isApiBundled(): boolean {
-    return isApiBundled();
+    return apiBundled;
   }
 
   /** Registers the metadata and compiled functions a dispatch point received from the build. */
