@@ -5,20 +5,20 @@
     {
       "dialect": "pg",
       "label": "builder road, 5 mixed columns",
-      "netInstantiations": 1089,
-      "budget": 1089
+      "netInstantiations": 1081,
+      "budget": 1081
     },
     {
       "dialect": "pg",
       "label": "type road, 5 mixed columns",
-      "netInstantiations": 678,
-      "budget": 678
+      "netInstantiations": 666,
+      "budget": 666
     },
     {
       "dialect": "pg",
       "label": "type road, 5 mixed columns + insert model",
-      "netInstantiations": 1271,
-      "budget": 1271
+      "netInstantiations": 1259,
+      "budget": 1259
     },
     {
       "dialect": "pg",
@@ -41,32 +41,32 @@
     {
       "dialect": "pg",
       "label": "type road, wide vocabulary",
-      "netInstantiations": 866,
-      "budget": 866
+      "netInstantiations": 841,
+      "budget": 841
     },
     {
       "dialect": "pg",
       "label": "builder road, wide vocabulary",
-      "netInstantiations": 1352,
-      "budget": 1352
+      "netInstantiations": 1342,
+      "budget": 1342
     },
     {
       "dialect": "mysql",
       "label": "builder road, 5 mixed columns",
-      "netInstantiations": 1112,
-      "budget": 1112
+      "netInstantiations": 1104,
+      "budget": 1104
     },
     {
       "dialect": "mysql",
       "label": "type road, 5 mixed columns",
-      "netInstantiations": 707,
-      "budget": 707
+      "netInstantiations": 695,
+      "budget": 695
     },
     {
       "dialect": "mysql",
       "label": "type road, 5 mixed columns + insert model",
-      "netInstantiations": 1263,
-      "budget": 1263
+      "netInstantiations": 1251,
+      "budget": 1251
     },
     {
       "dialect": "mysql",
@@ -89,32 +89,32 @@
     {
       "dialect": "mysql",
       "label": "type road, wide vocabulary",
-      "netInstantiations": 865,
-      "budget": 865
+      "netInstantiations": 847,
+      "budget": 847
     },
     {
       "dialect": "mysql",
       "label": "builder road, wide vocabulary",
-      "netInstantiations": 1351,
-      "budget": 1351
+      "netInstantiations": 1341,
+      "budget": 1341
     },
     {
       "dialect": "sqlite",
       "label": "builder road, 5 mixed columns",
-      "netInstantiations": 1025,
-      "budget": 1025
+      "netInstantiations": 1018,
+      "budget": 1018
     },
     {
       "dialect": "sqlite",
       "label": "type road, 5 mixed columns",
-      "netInstantiations": 667,
-      "budget": 667
+      "netInstantiations": 658,
+      "budget": 658
     },
     {
       "dialect": "sqlite",
       "label": "type road, 5 mixed columns + insert model",
-      "netInstantiations": 1239,
-      "budget": 1239
+      "netInstantiations": 1230,
+      "budget": 1230
     },
     {
       "dialect": "sqlite",
@@ -137,14 +137,14 @@
     {
       "dialect": "sqlite",
       "label": "type road, wide vocabulary",
-      "netInstantiations": 767,
-      "budget": 767
+      "netInstantiations": 754,
+      "budget": 754
     },
     {
       "dialect": "sqlite",
       "label": "builder road, wide vocabulary",
-      "netInstantiations": 1149,
-      "budget": 1149
+      "netInstantiations": 1142,
+      "budget": 1142
     }
   ]
 }

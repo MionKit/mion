@@ -16,30 +16,30 @@ sqlite) is left out of that dialect's wide vocabulary.
 
 | Dialect | Case | Net instantiations | Budget |
 | ------- | ---- | -----------------: | -----: |
-| pg | builder road, 5 mixed columns | 1089 | 1089 |
-| pg | type road, 5 mixed columns | 678 | 678 |
-| pg | type road, 5 mixed columns + insert model | 1271 | 1271 |
+| pg | builder road, 5 mixed columns | 1081 | 1081 |
+| pg | type road, 5 mixed columns | 666 | 666 |
+| pg | type road, 5 mixed columns + insert model | 1259 | 1259 |
 | pg | type road, 20 plain columns | 299 | 299 |
 | pg | builder road, 20 plain columns | 573 | 573 |
 | pg | bare Column interface, 20 plain columns | 295 | 295 |
-| pg | type road, wide vocabulary | 866 | 866 |
-| pg | builder road, wide vocabulary | 1352 | 1352 |
-| mysql | builder road, 5 mixed columns | 1112 | 1112 |
-| mysql | type road, 5 mixed columns | 707 | 707 |
-| mysql | type road, 5 mixed columns + insert model | 1263 | 1263 |
+| pg | type road, wide vocabulary | 841 | 841 |
+| pg | builder road, wide vocabulary | 1342 | 1342 |
+| mysql | builder road, 5 mixed columns | 1104 | 1104 |
+| mysql | type road, 5 mixed columns | 695 | 695 |
+| mysql | type road, 5 mixed columns + insert model | 1251 | 1251 |
 | mysql | type road, 20 plain columns | 317 | 317 |
 | mysql | builder road, 20 plain columns | 592 | 592 |
 | mysql | bare Column interface, 20 plain columns | 295 | 295 |
-| mysql | type road, wide vocabulary | 865 | 865 |
-| mysql | builder road, wide vocabulary | 1351 | 1351 |
-| sqlite | builder road, 5 mixed columns | 1025 | 1025 |
-| sqlite | type road, 5 mixed columns | 667 | 667 |
-| sqlite | type road, 5 mixed columns + insert model | 1239 | 1239 |
+| mysql | type road, wide vocabulary | 847 | 847 |
+| mysql | builder road, wide vocabulary | 1341 | 1341 |
+| sqlite | builder road, 5 mixed columns | 1018 | 1018 |
+| sqlite | type road, 5 mixed columns | 658 | 658 |
+| sqlite | type road, 5 mixed columns + insert model | 1230 | 1230 |
 | sqlite | type road, 20 plain columns | 320 | 320 |
 | sqlite | builder road, 20 plain columns | 595 | 595 |
 | sqlite | bare Column interface, 20 plain columns | 295 | 295 |
-| sqlite | type road, wide vocabulary | 767 | 767 |
-| sqlite | builder road, wide vocabulary | 1149 | 1149 |
+| sqlite | type road, wide vocabulary | 754 | 754 |
+| sqlite | builder road, wide vocabulary | 1142 | 1142 |
 
 Budgets may only ever be lowered. Every one of these is paid again on every keystroke, because each
 edit builds a new checker.

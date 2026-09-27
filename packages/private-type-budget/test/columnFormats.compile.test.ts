@@ -313,26 +313,23 @@ const DIALECTS: Dialect[] = [
 export const ${p}i = db.insert(${p}D).values({id: 'x', name: 'a', age: 21, role: 'user'});
 export const ${p}u = db.update(${p}D).set({age: 31});`,
     budgets: {
-      // 539 -> 683 and 971 -> 1160: a REVIEWED EXCEPTION, props reject stray modifier keys (Only<P, Allowed>, about 30 per configured column).
-      '5 mixed, select': {types: 683, builders: 1160},
-      // 1132 -> 1276 and 1638 -> 1827: a REVIEWED EXCEPTION, props reject stray modifier keys.
-      // 1827 -> 1828: a REVIEWED EXCEPTION, Writable leaves a $type tuple alone so a nominal brand survives.
-      '5 mixed, select + insert': {types: 1276, builders: 1828},
+      // 539 -> 671 and 971 -> 1152: a REVIEWED EXCEPTION, props reject stray modifier keys (Only<P, Allowed>, about 30 per configured column).
+      '5 mixed, select': {types: 671, builders: 1152},
+      // 1132 -> 1264 and 1638 -> 1820: a REVIEWED EXCEPTION, props reject stray modifier keys.
+      '5 mixed, select + insert': {types: 1264, builders: 1820},
       '10 plain, db name per column': {types: 210, builders: 363},
       '20 plain, db name per column': {types: 300, builders: 573},
       '40 plain, db name per column': {types: 480, builders: 993},
       '20 plain, nameless': {types: 300, builders: 532},
-      // 702 -> 873 and 1293 -> 1516: a REVIEWED EXCEPTION, props reject stray modifier keys.
-      // 1516 -> 1461: lowered, a $type tuple left unmapped is cheaper.
-      'wide vocabulary, select': {types: 873, builders: 1461},
+      // 702 -> 848 and 1293 -> 1451: a REVIEWED EXCEPTION, props reject stray modifier keys.
+      'wide vocabulary, select': {types: 848, builders: 1451},
       // 160 -> 212: a REVIEWED EXCEPTION, TableRef checks the column key and takes a name for self-references.
-      // 212 -> 266 and 423 -> 494: a REVIEWED EXCEPTION, props reject stray modifier keys.
-      'two tables, one reference': {types: 266, builders: 494},
-      // 1277 -> 1421 and 1729 -> 1918: a REVIEWED EXCEPTION, props reject stray modifier keys.
-      'refineTableType, select': {types: 1421, builders: 1918},
-      // 8812 -> 8956 and 9915 -> 10104: a REVIEWED EXCEPTION, props reject stray modifier keys.
-      // 10104 -> 10105: a REVIEWED EXCEPTION, Writable leaves a $type tuple alone so a nominal brand survives.
-      'toDrizzle + select / insert / update query': {types: 8956, builders: 10105},
+      // 212 -> 263 and 423 -> 490: a REVIEWED EXCEPTION, props reject stray modifier keys.
+      'two tables, one reference': {types: 263, builders: 490},
+      // 1277 -> 1366 and 1729 -> 1869: a REVIEWED EXCEPTION, props reject stray modifier keys.
+      'refineTableType, select': {types: 1366, builders: 1869},
+      // 8812 -> 8943 and 9915 -> 10095: a REVIEWED EXCEPTION, props reject stray modifier keys.
+      'toDrizzle + select / insert / update query': {types: 8943, builders: 10095},
     },
   },
   {
@@ -367,17 +364,16 @@ declare const ${p}ids: Awaited<typeof ${p}I>;
 export const ${p}id: number = ${p}ids[0]!.id;
 export const ${p}u = db.update(${p}D).set({age: 31});`,
     budgets: {
-      '5 mixed, select': {types: 712, builders: 1184},
-      '5 mixed, select + insert': {types: 1268, builders: 1801},
+      '5 mixed, select': {types: 700, builders: 1176},
+      '5 mixed, select + insert': {types: 1256, builders: 1793},
       '10 plain, db name per column': {types: 228, builders: 382},
       '20 plain, db name per column': {types: 318, builders: 592},
       '40 plain, db name per column': {types: 498, builders: 1012},
       '20 plain, nameless': {types: 318, builders: 551},
-      // 1773 -> 1718: lowered, a $type tuple left unmapped is cheaper.
-      'wide vocabulary, select': {types: 1040, builders: 1718},
-      'two tables, one reference': {types: 290, builders: 525},
-      'refineTableType, select': {types: 1447, builders: 1939},
-      'toDrizzle + select / insert / update query': {types: 8583, builders: 9786},
+      'wide vocabulary, select': {types: 1020, builders: 1706},
+      'two tables, one reference': {types: 287, builders: 521},
+      'refineTableType, select': {types: 1392, builders: 1890},
+      'toDrizzle + select / insert / update query': {types: 8570, builders: 9776},
     },
   },
   {
@@ -410,18 +406,16 @@ export const ${p}u = db.update(${p}D).set({age: 31});`,
 export const ${p}i = db.insert(${p}D).values({name: 'a', age: 21, role: 'user', createdAt: new Date()});
 export const ${p}u = db.update(${p}D).set({age: 31});`,
     budgets: {
-      '5 mixed, select': {types: 658, builders: 1058},
-      '5 mixed, select + insert': {types: 1252, builders: 1716},
+      '5 mixed, select': {types: 649, builders: 1053},
+      '5 mixed, select + insert': {types: 1243, builders: 1711},
       '10 plain, db name per column': {types: 231, builders: 385},
       '20 plain, db name per column': {types: 321, builders: 595},
       '40 plain, db name per column': {types: 501, builders: 1015},
       '20 plain, nameless': {types: 321, builders: 554},
-      // 1631 -> 1576: lowered, a $type tuple left unmapped is cheaper.
-      'wide vocabulary, select': {types: 977, builders: 1576},
-      'two tables, one reference': {types: 298, builders: 518},
-      'refineTableType, select': {types: 1393, builders: 1813},
-      // 8695 -> 8696: a REVIEWED EXCEPTION, Writable leaves a $type tuple alone so a nominal brand survives.
-      'toDrizzle + select / insert / update query': {types: 7672, builders: 8696},
+      'wide vocabulary, select': {types: 959, builders: 1567},
+      'two tables, one reference': {types: 296, builders: 515},
+      'refineTableType, select': {types: 1341, builders: 1767},
+      'toDrizzle + select / insert / update query': {types: 7662, builders: 8689},
     },
   },
 ];

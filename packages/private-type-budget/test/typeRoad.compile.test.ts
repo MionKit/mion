@@ -218,23 +218,23 @@ const DIALECTS: RoadDialect[] = [
       ['createdAt', 'Date'],
     ],
     budgets: {
-      // 570 -> 1089: a REVIEWED EXCEPTION, single-call builders (647 at the declaration, the rest models deriving flags).
+      // 570 -> 1081: a REVIEWED EXCEPTION, single-call builders (647 at the declaration, the rest models deriving flags).
       // Precomputing flags in the builder cut this to 990 but broke builder = hand-written (TYPE-COST.md, attempt 14).
-      'builder road, 5 mixed columns': 1089,
-      // 968 -> 678: a column type holds its raw props and no db name, flags derived only where a model reads them.
-      'type road, 5 mixed columns': 678,
-      // 1434 -> 1271, the same change.
-      'type road, 5 mixed columns + insert model': 1271,
+      'builder road, 5 mixed columns': 1081,
+      // 968 -> 666: a column type holds its raw props and no db name, flags derived only where a model reads them.
+      'type road, 5 mixed columns': 666,
+      // 1434 -> 1259, the same change.
+      'type road, 5 mixed columns + insert model': 1259,
       // 1341 -> 299: one shared column type for the twenty columns, the db names on the table.
       'type road, 20 plain columns': 299,
       // 345 -> 573: a REVIEWED EXCEPTION, single-call builders (see the five-column case).
       'builder road, 20 plain columns': 573,
       // The floor, 326 when it was the chained kind.
       'bare Column interface, 20 plain columns': 295,
-      // 1170 -> 866, the same change as the narrow type road.
-      'type road, wide vocabulary': 866,
-      // 676 -> 1352: a REVIEWED EXCEPTION, single-call builders (see the five-column case).
-      'builder road, wide vocabulary': 1352,
+      // 1170 -> 841, the same change as the narrow type road.
+      'type road, wide vocabulary': 841,
+      // 676 -> 1342: a REVIEWED EXCEPTION, single-call builders (see the five-column case).
+      'builder road, wide vocabulary': 1342,
     },
   },
   {
@@ -282,14 +282,14 @@ const DIALECTS: RoadDialect[] = [
       ['createdAt', 'Date'],
     ],
     budgets: {
-      'builder road, 5 mixed columns': 1112,
-      'type road, 5 mixed columns': 707,
-      'type road, 5 mixed columns + insert model': 1263,
+      'builder road, 5 mixed columns': 1104,
+      'type road, 5 mixed columns': 695,
+      'type road, 5 mixed columns + insert model': 1251,
       'type road, 20 plain columns': 317,
       'builder road, 20 plain columns': 592,
       'bare Column interface, 20 plain columns': 295,
-      'type road, wide vocabulary': 865,
-      'builder road, wide vocabulary': 1351,
+      'type road, wide vocabulary': 847,
+      'builder road, wide vocabulary': 1341,
     },
   },
   {
@@ -340,14 +340,14 @@ const DIALECTS: RoadDialect[] = [
       ['createdAt', 'Date'],
     ],
     budgets: {
-      'builder road, 5 mixed columns': 1025,
-      'type road, 5 mixed columns': 667,
-      'type road, 5 mixed columns + insert model': 1239,
+      'builder road, 5 mixed columns': 1018,
+      'type road, 5 mixed columns': 658,
+      'type road, 5 mixed columns + insert model': 1230,
       'type road, 20 plain columns': 320,
       'builder road, 20 plain columns': 595,
       'bare Column interface, 20 plain columns': 295,
-      'type road, wide vocabulary': 767,
-      'builder road, wide vocabulary': 1149,
+      'type road, wide vocabulary': 754,
+      'builder road, wide vocabulary': 1142,
     },
   },
 ];

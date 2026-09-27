@@ -11,14 +11,14 @@
             {
               "step": 1,
               "label": "slim table + row",
-              "delta": 881,
-              "budget": 881
+              "delta": 876,
+              "budget": 876
             },
             {
               "step": 2,
               "label": "refineTableType",
-              "delta": 1140,
-              "budget": 1140
+              "delta": 1076,
+              "budget": 1076
             },
             {
               "step": 3,
@@ -39,7 +39,7 @@
               "budget": 3179
             }
           ],
-          "total": 6316
+          "total": 6247
         },
         {
           "name": "type-only",
@@ -124,14 +124,14 @@
             {
               "step": 1,
               "label": "slim table + row",
-              "delta": 900,
-              "budget": 900
+              "delta": 895,
+              "budget": 895
             },
             {
               "step": 2,
               "label": "refineTableType",
-              "delta": 1137,
-              "budget": 1137
+              "delta": 1073,
+              "budget": 1073
             },
             {
               "step": 3,
@@ -152,7 +152,7 @@
               "budget": 3179
             }
           ],
-          "total": 6332
+          "total": 6263
         },
         {
           "name": "type-only",
@@ -237,14 +237,14 @@
             {
               "step": 1,
               "label": "slim table + row",
-              "delta": 906,
-              "budget": 906
+              "delta": 900,
+              "budget": 900
             },
             {
               "step": 2,
               "label": "refineTableType",
-              "delta": 1132,
-              "budget": 1132
+              "delta": 1068,
+              "budget": 1068
             },
             {
               "step": 3,
@@ -265,7 +265,7 @@
               "budget": 3179
             }
           ],
-          "total": 6332
+          "total": 6262
         },
         {
           "name": "type-only",
