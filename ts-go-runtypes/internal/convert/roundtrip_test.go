@@ -181,7 +181,6 @@ func TestChain_UniqueItemsFalseEscapesGenericSpelling(t *testing.T) {
 	// a follow-up --to type dropped the brand entirely. The brand must ride
 	// the raw StructuralBrand spelling instead — the structural twin of the
 	// `isRegex` constructor escape (TestChain_RegexPresetEscapesGenericSpelling).
-	// docs/done history: filed during the json-schema-input removal.
 	source := "import * as TF from '@mionjs/run-types/formats';\n" +
 		"export type LooseTags = string[] & TF.StructuralBrand<'formattedArray', {uniqueItems: false}>;\n"
 	builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
