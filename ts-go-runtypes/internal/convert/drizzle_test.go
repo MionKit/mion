@@ -17,9 +17,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/testfixtures"
 )
 
-// setupDrizzleConvert mirrors setupConvert but mounts the REAL drizzle
-// packages (sources) and resolves under the "source" export condition, the
-// way the shipped packages actually publish their authoring surface.
+// setupDrizzleConvert is setupConvert over the REAL drizzle sources, under the "source" condition the packages publish.
 func setupDrizzleConvert(t testing.TB, sources map[string]string) (*program.Program, *resolver.Session, string) {
 	t.Helper()
 	cwd := tspath.NormalizePath(t.TempDir())
@@ -65,10 +63,7 @@ func convertDrizzleOne(t testing.TB, source string, opts convert.Options) (strin
 }
 
 // ── the ONE dialect list ─────────────────────────────────────────────────────
-//
-// Every case runs once per dialect. A case that fits only some says so in its
-// name, `only pg: …` or `only pg, mysql: …`, and eachDialect reads that prefix,
-// so the name and the dialects it runs in cannot disagree.
+// A case for some dialects names them, `only pg, mysql: …`; eachDialect reads that prefix, so the two cannot disagree.
 
 type drizzleDialect struct {
 	name string
@@ -100,8 +95,7 @@ func (dialect drizzleDialect) src(template string) string {
 	return strings.NewReplacer(pairs...).Replace(template)
 }
 
-// namedImport is `import {a, b} from '<mod>';` over the dialect spellings of the given placeholders, sorted
-// the way the import planner writes them.
+// namedImport is the dialect's `import {a, b} from '<mod>';` for the placeholders, sorted as the import planner writes.
 func (dialect drizzleDialect) namedImport(placeholders ...string) string {
 	seen := map[string]bool{}
 	var names []string
@@ -225,8 +219,7 @@ func TestDrizzle_TypeToBuilders(t *testing.T) {
 	})
 }
 
-// TestDrizzle_DbNameEqualToKeyIsDropped pins the canonical builders spelling: a db name equal to its key adds
-// nothing to the type, so it prints back nameless.
+// TestDrizzle_DbNameEqualToKeyIsDropped: a db name equal to its key adds nothing to the type, so it prints back nameless.
 func TestDrizzle_DbNameEqualToKeyIsDropped(t *testing.T) {
 	eachDialect(t, "db name equal to its key", func(t *testing.T, dialect drizzleDialect) {
 		source := dialect.src("import * as DZ from '{{mod}}';\n" +
@@ -247,11 +240,7 @@ func TestDrizzle_RoundTripFixpoint(t *testing.T) {
 }
 
 // ── named imports ────────────────────────────────────────────────────────────
-//
-// The spelling a file was written in is the spelling it keeps. Drizzle's own
-// code, and everything `mion drizzle-migrate` emits from it, imports the
-// dialect package's NAMES; the namespace form above is the other half of the
-// same rule, not the only one that converts.
+// A file keeps its import style; drizzle's code and drizzle-migrate's output import NAMES, not a namespace.
 
 func namedBuildersSource(dialect drizzleDialect) string {
 	return dialect.namedImport("{{int}}", "{{table}}", "{{str}}") + dialect.src(
@@ -300,8 +289,7 @@ func TestDrizzle_NamedImportsRoundTripFixpoint(t *testing.T) {
 	})
 }
 
-// TestDrizzle_NamedImportsRuntimeModifiers is the runtime-callback half under the named spelling: the callback
-// text moves into options.runtime and back, unchanged, and the type carries only the flag.
+// TestDrizzle_NamedImportsRuntimeModifiers: the callback goes to options.runtime and back unchanged.
 func TestDrizzle_NamedImportsRuntimeModifiers(t *testing.T) {
 	eachDialect(t, "named imports runtime modifiers", func(t *testing.T, dialect drizzleDialect) {
 		source := dialect.namedImport("{{int}}", "{{table}}", "{{str}}") + dialect.src(
@@ -320,9 +308,7 @@ func TestDrizzle_NamedImportsRuntimeModifiers(t *testing.T) {
 	})
 }
 
-// TestDrizzle_NamedImportsAliasOnCollision covers the file the drizzle-e2e lane actually feeds the arm:
-// drizzle's OWN names live beside ours in the same file, so a name the printed output needs can already be
-// bound to something else. It comes in under a free local rather than colliding.
+// TestDrizzle_NamedImportsAliasOnCollision: drizzle's names sit beside ours, so a taken one gets a free local.
 func TestDrizzle_NamedImportsAliasOnCollision(t *testing.T) {
 	eachDialect(t, "named imports alias on collision", func(t *testing.T, dialect drizzleDialect) {
 		source := dialect.src("import type {{{Table}}} from 'drizzle-orm/" + dialect.name + "-core';\n" +
@@ -343,9 +329,7 @@ func TestDrizzle_NamedImportsAliasOnCollision(t *testing.T) {
 
 // ── extraConfig ──────────────────────────────────────────────────────────────
 
-// TestDrizzle_KeyedExtraConfig covers the OTHER extraConfig shape drizzle accepts, which its own suites still
-// write. drizzle reads only the values of that object and so does the recorder, so the keys are labels: the
-// entries convert, and the builders form comes back as the array.
+// TestDrizzle_KeyedExtraConfig: the keyed form drizzle's suites write; only values count, so it comes back an array.
 func TestDrizzle_KeyedExtraConfig(t *testing.T) {
 	eachDialect(t, "keyed-object extraConfig", func(t *testing.T, dialect drizzleDialect) {
 		source := dialect.namedImport("{{table}}", "{{text}}", "unique") + dialect.src(
@@ -364,8 +348,7 @@ func TestDrizzle_KeyedExtraConfig(t *testing.T) {
 	})
 }
 
-// TestDrizzle_GroupedExtraConfig covers the grouping drizzle flattens one level of (`extraConfig.flat(1)`),
-// which its own mysql suite writes.
+// TestDrizzle_GroupedExtraConfig: drizzle flattens one level (`extraConfig.flat(1)`), and its mysql suite writes groups.
 func TestDrizzle_GroupedExtraConfig(t *testing.T) {
 	eachDialect(t, "grouped-array extraConfig", func(t *testing.T, dialect drizzleDialect) {
 		source := dialect.namedImport("index", "{{int}}", "{{table}}", "primaryKey") + dialect.src(
@@ -396,8 +379,7 @@ const drizzleExtrasTemplate = "import {sql} from '@mionjs/drizzle-orm';\n" +
 	"]);\n" +
 	"export type ExtrasTable = typeof extras;\n"
 
-// TestDrizzle_TableExtras pins the extraConfig road through both directions, with the names map after the
-// extras tuple.
+// TestDrizzle_TableExtras pins extraConfig both ways, with the names map after the extras tuple.
 func TestDrizzle_TableExtras(t *testing.T) {
 	eachDialect(t, "table extras", func(t *testing.T, dialect drizzleDialect) {
 		source := dialect.src(drizzleExtrasTemplate)
@@ -414,8 +396,7 @@ func TestDrizzle_TableExtras(t *testing.T) {
 	})
 }
 
-// TestDrizzle_ForeignKeyEntryTableRef pins another table's column in an entry: tableRef() on the builders
-// road, {table, col} in the type.
+// TestDrizzle_ForeignKeyEntryTableRef: another table's column in an entry, tableRef() in builders, {table, col} in the type.
 func TestDrizzle_ForeignKeyEntryTableRef(t *testing.T) {
 	eachDialect(t, "foreignKey entry with tableRef", func(t *testing.T, dialect drizzleDialect) {
 		source := dialect.src("import * as DZ from '{{mod}}';\n" +
@@ -445,9 +426,7 @@ func TestDrizzle_ForeignKeyEntryTableRef(t *testing.T) {
 
 // ── refused heads ────────────────────────────────────────────────────────────
 
-// TestDrizzle_UnspellableHeadsSayWhy pins the reports for the table heads the type road cannot express. The
-// declaration IS a recognized table, so a refusal that reads "not recognized" would send the reader hunting
-// for a bug that is not there.
+// TestDrizzle_UnspellableHeadsSayWhy: the declaration IS a table, so "not recognized" would send the reader bug hunting.
 func TestDrizzle_UnspellableHeadsSayWhy(t *testing.T) {
 	cases := []struct{ name, source, want string }{
 		{
@@ -484,8 +463,7 @@ func TestDrizzle_UnspellableHeadsSayWhy(t *testing.T) {
 
 // ── declarations inside a scope ──────────────────────────────────────────────
 
-// TestDrizzle_NestedDeclarations covers where drizzle's own suites actually declare their tables: inside test
-// bodies, not at the top level (95 of 113 in pg-common.ts). A table in a block is an ordinary table.
+// TestDrizzle_NestedDeclarations: drizzle's suites declare most tables inside test bodies (95 of 113 in pg-common.ts).
 func TestDrizzle_NestedDeclarations(t *testing.T) {
 	eachDialect(t, "nested declarations", func(t *testing.T, dialect drizzleDialect) {
 		source := dialect.namedImport("{{int}}", "{{table}}", "{{text}}") + dialect.src(
@@ -505,8 +483,7 @@ func TestDrizzle_NestedDeclarations(t *testing.T) {
 			dialect.src("  type Users = {{Table}}<'users', {\n    id: {{Text}}<{primaryKey: true}>;\n  }>;"),
 			dialect.src("  type Users = {{Table}}<'users_two', {\n    id: {{Int}}<{primaryKey: true}>;\n  }>;"),
 			"  const users = tableFromType<Users>();")
-		// Sibling scopes claim the same name: a file-wide claim budget would have pushed the second onto
-		// UsersT, and runs out entirely on the ninth.
+		// A file-wide claim would push the second onto UsersT, and run out on the ninth.
 		if strings.Contains(typeForm, "UsersT") {
 			t.Fatalf("sibling scopes should each claim Users:\n%s", typeForm)
 		}
@@ -522,8 +499,7 @@ func TestDrizzle_NestedDeclarations(t *testing.T) {
 	})
 }
 
-// TestDrizzle_NestedScopeDoesNotShadow pins the other side of scoped naming: a claimed pair name may repeat
-// across sibling scopes, but never shadow a name the file already uses at the top level.
+// TestDrizzle_NestedScopeDoesNotShadow: a pair name may repeat across sibling scopes, never shadow a top-level name.
 func TestDrizzle_NestedScopeDoesNotShadow(t *testing.T) {
 	eachDialect(t, "nested scope does not shadow", func(t *testing.T, dialect drizzleDialect) {
 		source := dialect.namedImport("{{int}}", "{{table}}") + dialect.src(
@@ -541,8 +517,7 @@ func TestDrizzle_NestedScopeDoesNotShadow(t *testing.T) {
 	})
 }
 
-// TestDrizzle_DerivedPairNames pins the pair-naming rule in both directions: a const derives its type by
-// uppercasing the first letter, and a type derives its const by lowercasing it.
+// TestDrizzle_DerivedPairNames: a const's type uppercases its first letter, a type's const lowercases it.
 func TestDrizzle_DerivedPairNames(t *testing.T) {
 	eachDialect(t, "derived pair names", func(t *testing.T, dialect drizzleDialect) {
 		buildersOnly := dialect.src("import * as DZ from '{{mod}}';\n" +
@@ -568,8 +543,7 @@ func TestDrizzle_DerivedPairNames(t *testing.T) {
 	})
 }
 
-// TestDrizzle_MigratedRecorderConstName is the case that started the naming rule: the `$table` recorder
-// binding `drizzle-migrate` emits used to derive `Users$tableTable`, a doubled word from two translations.
+// TestDrizzle_MigratedRecorderConstName: drizzle-migrate's `users$table` once derived `Users$tableTable`, doubling the word.
 func TestDrizzle_MigratedRecorderConstName(t *testing.T) {
 	eachDialect(t, "migrated recorder const name", func(t *testing.T, dialect drizzleDialect) {
 		source := dialect.src("import * as DZ from '{{mod}}';\n" +
@@ -585,8 +559,7 @@ func TestDrizzle_MigratedRecorderConstName(t *testing.T) {
 	})
 }
 
-// TestDrizzle_CapitalisedConstGetsTSuffix — uppercasing a const that is ALREADY capitalised would hand the
-// type the const's own spelling, so it takes a `T`.
+// TestDrizzle_CapitalisedConstGetsTSuffix: uppercasing an already capitalised const would give the type its name.
 func TestDrizzle_CapitalisedConstGetsTSuffix(t *testing.T) {
 	eachDialect(t, "capitalised const gets T suffix", func(t *testing.T, dialect drizzleDialect) {
 		source := dialect.src("import * as DZ from '{{mod}}';\n" +
@@ -603,8 +576,7 @@ func TestDrizzle_CapitalisedConstGetsTSuffix(t *testing.T) {
 
 const drizzleRefHeader = "import {tableRef} from '@mionjs/drizzle-orm';\nimport * as DZ from '{{mod}}';\n"
 
-// TestDrizzle_ForwardReferenceThunk: drizzle schemas often declare the parent later; the eager tables option
-// needs a thunk, and the type names the parent's derived type.
+// TestDrizzle_ForwardReferenceThunk: a parent declared later needs a thunk in the eager tables option.
 func TestDrizzle_ForwardReferenceThunk(t *testing.T) {
 	eachDialect(t, "forward reference", func(t *testing.T, dialect drizzleDialect) {
 		source := dialect.src(drizzleRefHeader +
@@ -620,8 +592,7 @@ func TestDrizzle_ForwardReferenceThunk(t *testing.T) {
 			"export const children = DZ.tableFromType<Children>({tables: {parents: () => parents}});",
 			"export const parents = DZ.tableFromType<Parents>();",
 			"import {type TableRef} from '@mionjs/drizzle-orm';")
-		// Back on the builders road the reference is a lazy callback again, so the declaration order the
-		// file was written in still stands.
+		// Back on the builders road the reference is lazy again, so the written declaration order stands.
 		expectContains(t, "forward reference builders form", buildersForm,
 			dialect.src("  pid: DZ.{{int}}({references: [() => tableRef(parents, 'id')]}),"),
 			"import {tableRef} from '@mionjs/drizzle-orm';")
@@ -631,8 +602,7 @@ func TestDrizzle_ForwardReferenceThunk(t *testing.T) {
 	})
 }
 
-// TestDrizzle_SelfReferenceRoundTrip pins that a self-reference keeps its return annotation (TS7022) on the
-// builders road and names the table by its db name in the type.
+// TestDrizzle_SelfReferenceRoundTrip: builders keep the return annotation (TS7022), the type names the table by db name.
 func TestDrizzle_SelfReferenceRoundTrip(t *testing.T) {
 	eachDialect(t, "self reference", func(t *testing.T, dialect drizzleDialect) {
 		source := dialect.src("import {type TableRef, tableRef} from '@mionjs/drizzle-orm';\n" +
@@ -653,8 +623,7 @@ func TestDrizzle_SelfReferenceRoundTrip(t *testing.T) {
 	})
 }
 
-// TestDrizzle_BackwardReferenceStaysPlain pins the other half: nothing about the thunk leaks into a file
-// whose reference target is already declared.
+// TestDrizzle_BackwardReferenceStaysPlain: no thunk when the reference target is already declared.
 func TestDrizzle_BackwardReferenceStaysPlain(t *testing.T) {
 	eachDialect(t, "backward reference", func(t *testing.T, dialect drizzleDialect) {
 		source := dialect.src(drizzleRefHeader +
@@ -670,8 +639,7 @@ func TestDrizzle_BackwardReferenceStaysPlain(t *testing.T) {
 	})
 }
 
-// TestDrizzle_ReferenceToARefusedTable pins a reference to a table that does not convert: a builders const
-// is still named as `typeof <const>`, while a standalone type left unconverted has no const to call.
+// TestDrizzle_ReferenceToARefusedTable: a refused builders table is named `typeof <const>`, a refused type has no const.
 func TestDrizzle_ReferenceToARefusedTable(t *testing.T) {
 	eachDialect(t, "reference to a refused builders table", func(t *testing.T, dialect drizzleDialect) {
 		source := dialect.src("import {tableRef, $type} from '@mionjs/drizzle-orm';\n" +
@@ -710,8 +678,7 @@ func TestDrizzle_ReferenceToARefusedTable(t *testing.T) {
 	})
 }
 
-// Deliberately legacy-named (parentsRT/childrenRT): existing names are always preserved by conversion,
-// whatever their suffix — this fixture doubles as that coverage.
+// Legacy-named on purpose (parentsRT): conversion keeps existing names whatever their suffix, and this covers it.
 const drizzleRefSqlTemplate = "import {sql, tableRef} from '@mionjs/drizzle-orm';\n" +
 	"import * as DZ from '{{mod}}';\n" +
 	"export const parentsRT = DZ.{{table}}('parents', {\n" +
@@ -724,8 +691,7 @@ const drizzleRefSqlTemplate = "import {sql, tableRef} from '@mionjs/drizzle-orm'
 	"});\n" +
 	"export type ChildrenRT = typeof childrenRT;\n"
 
-// TestDrizzle_ReferencesAndSql pins the references + literal-sql spellings through both directions and the
-// fixpoint.
+// TestDrizzle_ReferencesAndSql pins references and literal sql both ways and the fixpoint.
 func TestDrizzle_ReferencesAndSql(t *testing.T) {
 	eachDialect(t, "references with sql", func(t *testing.T, dialect drizzleDialect) {
 		source := dialect.src(drizzleRefSqlTemplate)
@@ -757,8 +723,7 @@ const drizzleRuntimeTemplate = "import * as DZ from '{{mod}}';\n" +
 	"});\n" +
 	"export type JobsTable = typeof jobs;\n"
 
-// TestDrizzle_RuntimeModifiers pins the runtime callbacks through both directions: the type carries the flag,
-// the callbacks move VERBATIM into options.runtime (multi-line bodies included), and it is a byte fixpoint.
+// TestDrizzle_RuntimeModifiers: the type keeps the flag, callbacks move VERBATIM into options.runtime, a byte fixpoint.
 func TestDrizzle_RuntimeModifiers(t *testing.T) {
 	eachDialect(t, "runtime modifiers", func(t *testing.T, dialect drizzleDialect) {
 		source := dialect.src(drizzleRuntimeTemplate)
@@ -870,8 +835,7 @@ func TestDrizzle_RefusalsCNV009(t *testing.T) {
 	}
 }
 
-// TestDrizzle_RefusalsNoTypeTwin pins that the columns WITHOUT a type twin, enum and custom, refuse loudly on
-// both roads instead of failing silent, and the declaration stays byte-untouched.
+// TestDrizzle_RefusalsNoTypeTwin: enum and custom columns have no type twin, so they refuse on both roads, untouched.
 func TestDrizzle_RefusalsNoTypeTwin(t *testing.T) {
 	cases := []struct {
 		name, source, keep, want string
@@ -927,8 +891,7 @@ func TestDrizzle_RefusalsNoTypeTwin(t *testing.T) {
 	}
 }
 
-// TestDrizzle_OnlySqliteIntKeepsItsOwnColumnType pins drizzle's `int`: it has its own column type rather than
-// borrowing Integer's, so a converted table prints back as int() and not integer().
+// TestDrizzle_OnlySqliteIntKeepsItsOwnColumnType: `int` has its own column type, not Integer's, so it prints back as int().
 func TestDrizzle_OnlySqliteIntKeepsItsOwnColumnType(t *testing.T) {
 	eachDialect(t, "only sqlite: int keeps its own column type", func(t *testing.T, dialect drizzleDialect) {
 		source := "import * as DZ from '@mionjs/drizzle-orm-sqlite-core';\n" +
@@ -944,9 +907,7 @@ func TestDrizzle_OnlySqliteIntKeepsItsOwnColumnType(t *testing.T) {
 
 // ── fuzz ─────────────────────────────────────────────────────────────────────
 
-// TestFuzz_DrizzleRoundTrip sweeps random tables over each dialect's vocabulary through
-// builders→type→builders→type, pinning the same fixpoint oracle as the static round trips. Iterations ride
-// MION_FUZZ_ITER like the atom sweep.
+// TestFuzz_DrizzleRoundTrip runs random tables per dialect through the round-trip fixpoint oracle, MION_FUZZ_ITER times.
 func TestFuzz_DrizzleRoundTrip(t *testing.T) {
 	if testing.Short() {
 		t.Skip("randomized sweep skipped under -short")
@@ -987,8 +948,7 @@ func failOnDiags(t *testing.T, seed int64, source string, diags []convert.Diagno
 	}
 }
 
-// fuzzColumn is one draw of a dialect's vocabulary: the builder, its config props and the runtime-callback
-// value its data type takes.
+// fuzzColumn is one vocabulary draw: builder, config props, and the runtime-callback value its data type takes.
 type fuzzColumn struct {
 	fn, config, callbackValue string
 	mods                      []string
@@ -1076,8 +1036,7 @@ var fuzzVocabularies = map[string][]func(rng *rand.Rand) fuzzColumn{
 	},
 }
 
-// randomDrizzleBuildersFile renders 1-2 random tables over a dialect's vocabulary in the canonical builders
-// layout, so the round trip must return it byte for byte.
+// randomDrizzleBuildersFile writes 1-2 tables in canonical builders layout, which the round trip must return byte for byte.
 func randomDrizzleBuildersFile(dialect drizzleDialect, rng *rand.Rand) string {
 	vocabulary := fuzzVocabularies[dialect.name]
 	tableCount := 1 + rng.Intn(2)
@@ -1123,8 +1082,7 @@ func randomDrizzleBuildersFile(dialect drizzleDialect, rng *rand.Rand) string {
 			}
 			columns = append(columns, fmt.Sprintf("  col_%d: DZ.%s(%s),", i, column.fn, strings.Join(args, ", ")))
 		}
-		// A reference onto the first table (col_0 always exists): the type form carries it through the
-		// emitted tables option and names the first table's derived type.
+		// A reference onto the first table (col_0 always exists), carried by the type form's tables option.
 		if tableIndex == 1 && usesRef {
 			columns = append(columns, dialect.src("  ref_pid: DZ.{{int}}({references: [() => tableRef(table0, 'col_0')]}),"))
 		}

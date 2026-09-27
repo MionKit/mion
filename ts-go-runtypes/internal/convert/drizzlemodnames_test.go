@@ -1,11 +1,8 @@
 package convert
 
-// The gate under the one-object column spelling on the Go side: a column's props
-// object holds its config keys and its modifiers together (`Varchar<{length: 100;
-// notNull: true}>`), and this package splits it by drizzleModNames in both
-// directions. Its twin is colModNames in packages/drizzle-orm/src/columns.ts,
-// gated by colMods.spec.ts; both are checked against the generated manifests,
-// so a modifier a drizzle upgrade adds cannot reach only one of the two lists.
+// Go gate for the one props object, whose config keys and modifiers drizzleModNames splits both ways. Its twin
+// colModNames (packages/drizzle-orm/src/columns.ts) is gated on the same manifests by colMods.spec.ts, so a
+// modifier a drizzle upgrade adds cannot reach only one list.
 
 import (
 	"encoding/json"

@@ -175,12 +175,8 @@ func TestChain_BoundedSetAndMap(t *testing.T) {
 }
 
 func TestChain_UniqueItemsFalseEscapesGenericSpelling(t *testing.T) {
-	// `uniqueItems: false` sits OUTSIDE the public params bag
-	// (FormattedCollectionParams declares `uniqueItems?: true`), so the generic
-	// `RT.array(…, {uniqueItems: false})` spelling resolved a DIFFERENT id and
-	// a follow-up --to type dropped the brand entirely. The brand must ride
-	// the raw StructuralBrand spelling instead — the structural twin of the
-	// `isRegex` constructor escape (TestChain_RegexPresetEscapesGenericSpelling).
+	// `uniqueItems: false` is outside the public params bag (`uniqueItems?: true`), so `RT.array(…)` resolved another id.
+	// The brand keeps the raw StructuralBrand spelling, like the `isRegex` escape (TestChain_RegexPresetEscapesGenericSpelling).
 	source := "import * as TF from '@mionjs/run-types/formats';\n" +
 		"export type LooseTags = string[] & TF.StructuralBrand<'formattedArray', {uniqueItems: false}>;\n"
 	builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)

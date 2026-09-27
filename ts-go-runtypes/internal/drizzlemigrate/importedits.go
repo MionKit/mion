@@ -88,7 +88,7 @@ func (file *fileRun) planImportEdits() *Diagnostic {
 					stay = append(stay, binding)
 					continue
 				}
-				// A binding used on BOTH sides is imported twice: drizzle's under its own name, ours under decideBindings' second local.
+				// A binding used on BOTH sides is imported twice: drizzle's under its name, ours under decideBindings' local.
 				if file.keepDrizzle[key] {
 					stay = append(stay, binding)
 				}

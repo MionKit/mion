@@ -1,7 +1,6 @@
 package convert
 
-// The one method-chain walker of the drizzle arms: convert reads extraConfig entries through it, and
-// drizzle-migrate folds drizzle's chained column calls into the single-call props object with it.
+// The one method-chain walker of the drizzle arms, shared by convert's extraConfig reader and drizzle-migrate's fold.
 
 import (
 	"fmt"
@@ -9,7 +8,7 @@ import (
 	"github.com/microsoft/typescript-go/shim/ast"
 )
 
-// CallChainLink is one method call of a chain: the method name and its call node.
+// CallChainLink is one method call of a chain.
 type CallChainLink struct {
 	Method string
 	Call   *ast.Node

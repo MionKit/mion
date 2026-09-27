@@ -1,14 +1,6 @@
-// One case per rule the arm applies, each spelled out as the source it is given
-// and the source it must produce. Table-driven and inline rather than golden
-// files on disk: every case here is a handful of lines, and the point of reading
-// one is to see the BEFORE and the AFTER together. Every case runs once per
-// dialect of ONE list; a case that fits only some says so in its name.
-//
-// The drizzle modules are stubbed in the overlay. The arm resolves an import's
-// origin through the checker, so `drizzle-orm/pg-core` has to resolve to
-// something — but nothing here reads a drizzle TYPE, so a declaration file
-// naming the exports is enough. That is also what keeps these tests fast and
-// independent of which drizzle version is installed.
+// One inline case per rule, BEFORE and AFTER side by side, run per dialect unless its name says `only …:`. The drizzle
+// modules are stubs naming their exports: the arm only asks where a binding came from, so the tests stay fast and
+// independent of the installed drizzle version.
 package drizzlemigrate_test
 
 import (
@@ -23,8 +15,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/jsengine"
 )
 
-// migrateDialect is one dialect of the list: the {{placeholder}} spellings its cases are written in, and
-// the names its stub module declares.
+// migrateDialect is one dialect: its {{placeholder}} spellings and the names its stub module declares.
 type migrateDialect struct {
 	name    string
 	fill    map[string]string
@@ -180,8 +171,7 @@ func assertCase(t *testing.T, dialect migrateDialect, source, want string) {
 	assertOutput(t, dialect.src(source), sortSlimImports(dialect.src(want)))
 }
 
-// sortSlimImports orders the bindings of each import the arm writes to the slim package by imported name,
-// as it renders them, so a case template can list them in its dialect-neutral order.
+// sortSlimImports sorts slim import bindings by imported name, as the arm renders them, so templates stay dialect-neutral.
 func sortSlimImports(text string) string {
 	lines := strings.Split(text, "\n")
 	for index, line := range lines {
@@ -240,8 +230,7 @@ export const users = toDrizzle(users$table);
 }
 
 func TestReferencesInsideARecorderCallUseTheRecorder(t *testing.T) {
-	// foreignColumns must be OUR column, so the reference becomes a tableRef(); the query below must be
-	// drizzle's table, so it does not.
+	// foreignColumns must be OUR column, so it becomes a tableRef(); the query below must stay drizzle's table.
 	eachDialect(t, "references inside a recorder call", func(t *testing.T, dialect migrateDialect) {
 		assertCase(t, dialect, `import {foreignKey, {{table}}, {{int}}} from '{{mod}}';
 import {eq} from 'drizzle-orm';
@@ -268,8 +257,7 @@ eq(users.id, 'x');
 }
 
 func TestSqlIsImportedTwiceWhenBothSidesUseIt(t *testing.T) {
-	// drizzle's sql builds the query; ours records the default. One name, two bindings, and only the
-	// recorder one is rewritten.
+	// drizzle's sql builds the query, ours records the default: one name, two bindings, only the recorder one rewritten.
 	eachDialect(t, "sql imported twice", func(t *testing.T, dialect migrateDialect) {
 		assertCase(t, dialect, `import {{{table}}, {{text}}} from '{{mod}}';
 import {sql} from 'drizzle-orm';
@@ -289,8 +277,7 @@ sql`+"`select 1`"+`;
 }
 
 func TestABarrierKeepsADrizzleOperatorsArgumentOnDrizzle(t *testing.T) {
-	// eq() did not migrate, so the column it is handed has to stay drizzle's, even though the whole
-	// expression sits inside a recorder call. The view's own columns fold like a table's.
+	// eq() did not migrate, so its column stays drizzle's even inside a recorder call; the view's columns fold like a table's.
 	eachDialect(t, "a barrier keeps a drizzle operator's argument on drizzle", func(t *testing.T, dialect migrateDialect) {
 		assertCase(t, dialect, `import {{{int}}, {{table}}, {{view}}, {{text}}} from '{{mod}}';
 import {eq, sql} from 'drizzle-orm';
@@ -328,8 +315,7 @@ const users = toDrizzle(users$table);
 }
 
 func TestATableFactoryIsNotSplitButItsTablesAre(t *testing.T) {
-	// `const pgTable = pgTableCreator(...)` SHADOWS the import, which is why recognition is by symbol and
-	// not by name.
+	// `const pgTable = pgTableCreator(...)` SHADOWS the import, so recognition is by symbol, not name.
 	eachDialect(t, "a table creator is not split, its tables are", func(t *testing.T, dialect migrateDialect) {
 		assertCase(t, dialect, `import {{{creator}}, {{int}}} from '{{mod}}';
 
@@ -346,8 +332,7 @@ const users = toDrizzle(users$table);
 }
 
 func TestAnAliasedImportKeepsItsLocalName(t *testing.T) {
-	// pg-common.ts really does import `uuid` twice, once plain and once as pgUuid, so each BINDING is
-	// decided on its own.
+	// pg-common.ts imports `uuid` twice, plain and as pgUuid, so each BINDING is decided on its own.
 	eachDialect(t, "an aliased import keeps its local", func(t *testing.T, dialect migrateDialect) {
 		assertCase(t, dialect, `import {{{table}}, {{text}}, {{text}} as myText} from '{{mod}}';
 
@@ -362,11 +347,8 @@ const users = toDrizzle(users$table);
 }
 
 func TestALazyIndexDeclaredAfterItsTableStillRecords(t *testing.T) {
-	// mysql-common.ts declares the index AFTER the table and hands it to a lazy extraConfig, so the
-	// index's own initializer is a recorder region too, and its column is named with tableRef().
-	//
-	// An index SPLITS like a table: the table's replay needs the recorder while drizzle's query side takes
-	// its own IndexBuilder for a `.useIndex(idx)` hint. One binding cannot be both.
+	// mysql-common.ts hands an index declared after its table to a lazy extraConfig, so its initializer records too.
+	// An index SPLITS: the table's replay needs the recorder, drizzle's `.useIndex(idx)` hint its own IndexBuilder.
 	eachDialect(t, "a lazy index declared after its table", func(t *testing.T, dialect migrateDialect) {
 		assertCase(t, dialect, `import {index, {{int}}, {{table}}} from '{{mod}}';
 
@@ -385,8 +367,7 @@ const nameIndex = toDrizzle(name$index);
 }
 
 func TestTheSameRecorderNameIsReusedInSeparateScopes(t *testing.T) {
-	// Two `const users` in two blocks are two scopes, so both take `users$table`. Claiming the name
-	// file-wide would run out of suffixes: drizzle's suites declare `const users` in twenty test bodies.
+	// Each block is its own scope: claimed file-wide, drizzle's twenty `const users` test bodies would run out of suffixes.
 	eachDialect(t, "the recorder name is reused in separate scopes", func(t *testing.T, dialect migrateDialect) {
 		assertCase(t, dialect, `import {{{int}}, {{table}}} from '{{mod}}';
 
@@ -416,9 +397,7 @@ function second() {
 }
 
 func TestTranslatesANamespaceImport(t *testing.T) {
-	// Half of that namespace's members move and half do not, and one alias cannot be both — so the file
-	// gets a SECOND namespace. drizzle's own object keeps the members that stayed (getTableConfig), ours
-	// carries the rest.
+	// Half the namespace's members move and one alias cannot be both, so ours gets a SECOND namespace beside drizzle's.
 	eachDialect(t, "a namespace import", func(t *testing.T, dialect migrateDialect) {
 		assertCase(t, dialect, `import * as Driz from '{{mod}}';
 
@@ -436,8 +415,7 @@ Driz.getTableConfig(users);
 }
 
 func TestTranslatingTwiceChangesNothing(t *testing.T) {
-	// Idempotence. A migration tool gets run again — on a re-clone, on a branch, by someone who is not
-	// sure whether it ran — and the second run must be a no-op. It needs the tool's OWN output as input.
+	// A migration tool gets re-run (a re-clone, an unsure user), so its own output must be a no-op input.
 	eachDialect(t, "translating twice changes nothing", func(t *testing.T, dialect migrateDialect) {
 		once, _ := migrate(t, dialect.src(`import {{{int}}, {{table}}} from '{{mod}}';
 
@@ -457,8 +435,7 @@ const users = {{table}}('users', {id: {{int}}('id').notNull().references(() => p
 }
 
 func TestReportsWhichMigratedExportsWereUsed(t *testing.T) {
-	// The lane's coverage gate crosses this against the manifests, so an entry that never reached a
-	// recorder has to be absent rather than assumed.
+	// The lane's coverage gate crosses this with the manifests, so an entry that never reached a recorder must be absent.
 	eachDialect(t, "reports which migrated exports were used", func(t *testing.T, dialect migrateDialect) {
 		result := migrateFile(t, dialect.src(`import {getTableConfig, {{int}}, {{table}}} from '{{mod}}';
 
@@ -476,8 +453,7 @@ getTableConfig(users);
 // ── folding chains into one call ─────────────────────────────────────────────
 
 func TestFoldsEveryModifierKind(t *testing.T) {
-	// A flag is `true`, arguments are their tuple, a callback goes in unchanged, and a config object takes
-	// the modifiers after its own keys, whatever the layout of the chain.
+	// A flag is `true`, arguments a tuple, a callback verbatim; modifiers follow a config's own keys, whatever the layout.
 	eachDialect(t, "folds every modifier kind", func(t *testing.T, dialect migrateDialect) {
 		assertCase(t, dialect, `import {{{int}}, {{str}}, {{table}}} from '{{mod}}';
 
@@ -514,8 +490,7 @@ const users = toDrizzle(users$table);
 }
 
 func TestFoldsIntoAConfigInItsOwnLayout(t *testing.T) {
-	// A multi-line config takes one member per line; a config in a variable spreads; a non-literal db name
-	// stays the name.
+	// A multi-line config gets one member per line, a config variable spreads, a non-literal db name stays the name.
 	eachDialect(t, "folds into a config in its own layout", func(t *testing.T, dialect migrateDialect) {
 		assertCase(t, dialect, `import {{{int}}, {{str}}, {{table}}} from '{{mod}}';
 
@@ -553,8 +528,7 @@ const users = toDrizzle(users$table);
 }
 
 func TestFoldsSqlTypeAndReferences(t *testing.T) {
-	// An sql value keeps its template, `$type<T>()` becomes the prop helper, and a reference names its
-	// target with tableRef(); a forward one stays lazy.
+	// sql keeps its template, `$type<T>()` becomes the prop helper, a reference uses tableRef() and a forward one stays lazy.
 	eachDialect(t, "folds sql, $type and references", func(t *testing.T, dialect migrateDialect) {
 		assertCase(t, dialect, `import {{{int}}, {{table}}, {{text}}} from '{{mod}}';
 import {sql} from 'drizzle-orm';
@@ -652,8 +626,7 @@ func assertRefusal(t *testing.T, source, code, mustContain string) {
 }
 
 func TestRefusesAQueryBuilderView(t *testing.T) {
-	// A one-argument view takes its columns from drizzle's select typing, the exact generic chain the slim
-	// packages remove. It stays drizzle, and so does the view binding it needs.
+	// A one-argument view's columns come from drizzle's select typing, which the slim packages drop, so it stays drizzle.
 	eachDialect(t, "refuses a query-builder view", func(t *testing.T, dialect migrateDialect) {
 		assertRefusal(t, dialect.src(`import {{{int}}, {{table}}, {{view}}} from '{{mod}}';
 
@@ -674,8 +647,7 @@ const users = {{table}}('users', {id: {{int}}('id')}), posts = {{table}}('posts'
 }
 
 func TestRefusesAnUnfoldableChainAndWhatReferencesIt(t *testing.T) {
-	// The props object holds each modifier once, so a repeated one has no single-call spelling: that
-	// table stays drizzle, and so does a table referencing it, whose tableRef() would have no recorder.
+	// The props object holds a modifier once, so a repeat stays drizzle, as does a table whose tableRef() would lack a recorder.
 	eachDialect(t, "refuses a repeated modifier and the tables referencing it", func(t *testing.T, dialect migrateDialect) {
 		source := dialect.src(`import {{{int}}, {{table}}} from '{{mod}}';
 
