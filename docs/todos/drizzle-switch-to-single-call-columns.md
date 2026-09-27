@@ -1,7 +1,7 @@
 ---
 type: feature
 spec: full-plan
-status: blocked
+status: in-progress
 created: 2026-09-25
 ---
 
@@ -248,6 +248,59 @@ The old and new systems share names (`Varchar`, `Int`, `pgTable`, `toDrizzle`, `
    the written list and the branch diff and searches the whole repo for anything of the old system still standing:
    code, Go, tests, scripts, docs, skills, comments that still describe chained modifiers, dead exports, unused
    files. It reports and never edits. Fix every item, then run the pass again until it finds nothing.
+
+## Removal list (written 2026-09-27, before deleting anything)
+
+End state: no `next/` and no `test/next/` directory anywhere. What `next/` holds today becomes `src/`, its tests
+become `test/`. Nothing in code, tests, budgets or docs says "next", "shipped" or "side by side" any more.
+
+**`packages/drizzle-orm`**
+- [ ] `src/typeColumns.ts` column half: `RtColType`, `AnyRtColType`, `ColNameArg`, `ColConfigArg`, `RtTypedColumn`,
+  `TypedCols`, `NotAColumn`, `ColDbNameOf`, `rtColModsKey`, the old `rtColSpecKey` symbol, `ModNotNull` /
+  `ModHasDefault` / `ModInsertExcluded` / `ModKeyFlags` / `WithTypeOverride` / `WithArray`, the old `ColSpecOf`.
+  Kept (moved to the new `src/columns.ts` or kept in place): `colModNames`, `ColModName`, `isColModName`, `ColMods`,
+  `ColRef`, `Sql`, `rtSqlTextKey`, `TableEntry`, `rtEntrySpecKey`, `EntryColRefs`.
+- [ ] `src/recorder.ts`: `RtColumnBrand`, `AnyRtColumn`, `ColDataOf`, `ColNotNullOf`, `ColHasDefaultOf`,
+  `ColInsertExcludedOf`, `ColBrandOf`, `ColKeyFlags`, `NoKeyFlags`, `RtColumnKeyBrand`, `rtColumnKeyFlagsKey`,
+  `ColKeyFlagsOf`, `SetKeyFlag`, `SetIdentity`. The recorder runtime classes stay.
+- [ ] `src/table.ts`: the old `RtTableMeta` (no names map), `AnyRtTable`, `cols()`, old `ColsOf` / `TableNameOf`.
+- [ ] `src/view.ts`: the old `RtViewMeta`, `AnyRtView`, `ViewColsOf`, `ViewNameOf`.
+- [ ] `src/fromType.ts`: the old graph reader (`@rtColModsKey`, `name` in the spec) and its `RuntimeCallbacks` /
+  `TableFromTypeOptions`; `ReflectedNode`, `TableDep`, `reflectedKinds` stay.
+- [ ] `src/models.ts`, `src/refine.ts` (`RtRefinedColumn` included): replaced by the new ones.
+- [ ] `next/` (7 files) moved into `src/`.
+
+**Each dialect (`drizzle-orm-pg-core`, `-mysql-core`, `-sqlite-core`)**
+- [ ] The chained kind interfaces: `RtPgColumn`, `RtPgDateColumn`, `RtPgUuidColumn`, `RtPgIntColumn`; `RtMyColumn`,
+  `RtMyIntColumn`, `RtMyTimestampColumn`; `RtSqliteColumn`, `RtSqliteIntColumn`.
+- [ ] Every old column alias (`Varchar<A, C> = RtColType<...>`) and every old chained builder in `src/columns.ts`.
+- [ ] Old `PgTable` / `MysqlTable` / `SqliteTable` over `TypedCols`, the old table creators, schemas, enums
+  (pg `makeEnumFactory`, the `enumFromShipped` workaround), old views (`PgSlimView`, `MysqlSlimView`,
+  `SqliteSlimView`), old `toDrizzle` over `ColBrandOf` / `ColDbNameOf` / `ColKeyFlagsOf`, and the `shipped*` wrappers
+  the new code calls today.
+- [ ] mysql names replaced by the new spelling: `MySqlColumnHelpers`, `MySqlViewBuilder`, `MySqlForeignKeyConfig`,
+  `MyExtraConfigColumns`, `MyExtraConfigFn`. sqlite: `SQLiteColumnHelpers`, `SQLiteViewBuilder`, `SQLiteForeignKeyConfig`.
+- [ ] Kept, moved to `src/types.ts`: the `*Config`, `*Data`, `*DataOf`, `*ColMods` types, `ReferenceActions`,
+  `UpdateDeleteAction`, `PgIdentityConfig`, `CustomTypeParams` / `CustomTypeValues`. Kept in place: entry builders
+  (`index`, `uniqueIndex`, `unique`, `primaryKey`, `check`, `foreignKey`), `pgPolicy`, `pgRole`, `pgSequence`, the
+  `*Entry` type-road aliases, `*BuildTable` / `*BuildView`, `requireColumns`, `ViewFromQueryBuilderNotSupported`.
+- [ ] `next/` (6 files) moved into `src/`; `"next"` dropped from `tsconfig.build.json` `exclude`.
+
+**Tests**
+- [ ] `test/next/*` moved to `test/` in each dialect; old-surface tests either retargeted or removed where a moved
+  test already covers them; `packages/drizzle-orm/test/nextDialectParity.spec.ts` renamed and its paths updated.
+
+**Go (`ts-go-runtypes/internal/`)**
+- [ ] `convert/drizzle.go`: `sentinelColMods`, the `@rtColModsKey` read, `name` read from the spec, the chained
+  builder printer, `cols(T).col` references and the `AnyRtColumn` self-reference annotation.
+- [ ] `drizzlemigrate/`: `cols(x$table)` column reads (the new tables need no such helper; a reference is
+  `tableRef(x, 'col')`), the byte-for-byte keep of column chains (now folded).
+
+**Outside the packages**
+- [ ] `packages/private-type-budget` (shipped column lines, `TypedCols` / `RtPg*Column` names, `next/` paths),
+  `packages/private-test-server`, `packages/private-examples/src/drizzle/`, `container/pre-publish-e2e`,
+  `container/drizzle-e2e/shared/addendum`, the website drizzle pages, `.claude/skills/drizzle-slim-schemas/`,
+  `packages/drizzle-orm*/CLAUDE.md`, `packages/drizzle-orm/TYPE-COST.md`.
 
 ## Out of scope
 
