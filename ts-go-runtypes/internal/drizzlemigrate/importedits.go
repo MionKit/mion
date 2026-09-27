@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/tsimports"
 )
 
@@ -41,17 +42,38 @@ func (file *fileRun) toDrizzleLocal(dialect string) string {
 	return local
 }
 
-// rootLocal returns the local a @mionjs/drizzle-orm helper is imported under, claiming it on first use.
+// rootLocal returns the local a @mionjs/drizzle-orm helper is imported under, claiming it on first use; "" when no name is free.
 func (file *fileRun) rootLocal(imported string, typeOnly bool) string {
 	if binding, ok := file.rootHelpers[imported]; ok {
 		return binding.Local
 	}
 	local := file.claim(imported)
 	if local == "" {
-		local = imported
+		return ""
 	}
 	file.rootHelpers[imported] = tsimports.Binding{Imported: imported, Local: local, TypeOnly: typeOnly}
 	return local
+}
+
+// helperLocal is rootLocal for a rewrite at node, refusing with DRZ003 when the helper has no free name.
+func (file *fileRun) helperLocal(node *ast.Node, imported string, typeOnly bool) string {
+	local := file.rootLocal(imported, typeOnly)
+	if local == "" && !file.noHelperName[imported] {
+		file.noHelperName[imported] = true
+		file.diags = append(file.diags, *file.refuse(CodeNameCollision, enclosingDeclaration(node),
+			"no free name to import "+imported+" from "+drizzleRootModule+" under, so this file stays drizzle"))
+	}
+	return local
+}
+
+// enclosingDeclaration is the variable declaration a node sits in, nil at the top level.
+func enclosingDeclaration(node *ast.Node) *ast.Node {
+	for ; node != nil; node = node.Parent {
+		if node.Kind == ast.KindVariableDeclaration {
+			return node
+		}
+	}
+	return nil
 }
 
 func (file *fileRun) ruleForDialect(dialect string) *ModuleRule {

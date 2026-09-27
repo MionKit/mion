@@ -10,6 +10,7 @@ import (
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/convert"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/jsquote"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/tsimports"
 )
 
@@ -196,7 +197,7 @@ func (file *fileRun) foldChain(chain *ast.Node, base *ast.Node, links []convert.
 		case link.Method == "$type":
 			typeArgs := call.TypeArguments
 			typeText := strings.TrimSpace(file.textWithEdits(typeArgs.Nodes[0].Pos(), typeArgs.Nodes[len(typeArgs.Nodes)-1].End()))
-			members = append(members, "$type: "+file.rootLocal("$type", false)+"<"+typeText+">()")
+			members = append(members, "$type: "+file.helperLocal(chain, "$type", false)+"<"+typeText+">()")
 		case len(args) == 0:
 			members = append(members, link.Method+": true")
 		default:
@@ -272,11 +273,12 @@ func (file *fileRun) textWithEdits(start, end int) string {
 		}
 		kept = append(kept, planned)
 	}
-	file.edits = kept
 	text, applyErr := applyEdits(file.source[start:end], inner)
 	if applyErr != nil {
+		// The overlapping edits stay planned, so MigrateFile's own applyEdits fails loudly.
 		return file.source[start:end]
 	}
+	file.edits = kept
 	return text
 }
 
@@ -309,15 +311,18 @@ func (file *fileRun) retypeReferenceAnnotation(link convert.CallChainLink) {
 	}
 	annotation := ""
 	if target.dbName != "" {
-		annotation = file.rootLocal("TableRef", true) + "<" + quoteSingle(target.dbName) + ", " + quoteSingle(column) + ">"
+		annotation = file.helperLocal(arrow, "TableRef", true) + "<" + jsquote.Single(target.dbName) + ", " + jsquote.Single(column) + ">"
 	} else {
-		annotation = file.rootLocal("AnyTableRef", true)
+		annotation = file.helperLocal(arrow, "AnyTableRef", true)
 	}
 	typeNode := arrow.Type()
-	file.edits = append(file.edits, edit{start: tsimports.TokenStart(file.source, typeNode.Pos()), end: typeNode.End(), text: annotation})
-}
-
-// quoteSingle spells a string as a single-quoted TS literal.
-func quoteSingle(text string) string {
-	return "'" + strings.NewReplacer(`\`, `\\`, `'`, `\'`, "\n", `\n`).Replace(text) + "'"
+	start := tsimports.TokenStart(file.source, typeNode.Pos())
+	// The annotation is replaced whole, so a rename planned inside it (`typeof teams.id`) is dropped rather than overlapped.
+	kept := file.edits[:0]
+	for _, planned := range file.edits {
+		if planned.start < start || planned.end > typeNode.End() {
+			kept = append(kept, planned)
+		}
+	}
+	file.edits = append(kept, edit{start: start, end: typeNode.End(), text: annotation})
 }

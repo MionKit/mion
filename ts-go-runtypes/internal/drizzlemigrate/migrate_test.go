@@ -647,12 +647,12 @@ const users = {{table}}('users', {id: {{int}}('id')}), posts = {{table}}('posts'
 }
 
 func TestRefusesAnUnfoldableChainAndWhatReferencesIt(t *testing.T) {
-	// The props object holds a modifier once, so a repeat stays drizzle, as does a table whose tableRef() would lack a recorder.
+	// kids comes first, so only a second pass sees it lose parents: the refusal runs to a fixpoint.
 	eachDialect(t, "refuses a repeated modifier and the tables referencing it", func(t *testing.T, dialect migrateDialect) {
 		source := dialect.src(`import {{{int}}, {{table}}} from '{{mod}}';
 
-const parents = {{table}}('parents', {id: {{int}}('id').notNull().notNull()});
 const kids = {{table}}('kids', {pid: {{int}}('pid').references(() => parents.id)});
+const parents = {{table}}('parents', {id: {{int}}('id').notNull().notNull()});
 `)
 		got, diags := migrate(t, source)
 		refused := map[string]bool{}
@@ -673,6 +673,112 @@ const kids = {{table}}('kids', {pid: {{int}}('pid').references(() => parents.id)
 
 const plans = {{table}}('plans', {schedule: {{text}}('schedule').array().array()});
 `), drizzlemigrate.CodeUnfoldableColumn, "text('schedule').array().array()")
+	})
+}
+
+func TestRefusesAChainThatHasNoProp(t *testing.T) {
+	// Each reason a chain cannot fold into one props member refuses the table with DRZ004 and names the reason.
+	cases := []struct{ name, column, reason string }{
+		{"a method that is not a modifier", "{{int}}('id').foo()", ".foo() is not a column modifier"},
+		{"$type with a value argument", "{{int}}('id').$type<number>(1)", ".$type() needs exactly one type argument"},
+		{"$type with two type arguments", "{{int}}('id').$type<number, string>()", ".$type() needs exactly one type argument"},
+		{"a runtime modifier with no callback", "{{int}}('id').$defaultFn()", ".$defaultFn() takes exactly one callback"},
+		{"a runtime modifier with two arguments", "{{int}}('id').$onUpdate(() => 1, 2)", ".$onUpdate() takes exactly one callback"},
+	}
+	for _, refusal := range cases {
+		eachDialect(t, "refuses "+refusal.name, func(t *testing.T, dialect migrateDialect) {
+			source := dialect.src(`import {{{int}}, {{table}}} from '{{mod}}';
+
+const users = {{table}}('users', {id: ` + refusal.column + `});
+`)
+			assertRefusal(t, source, drizzlemigrate.CodeUnfoldableColumn, dialect.src(refusal.column))
+			_, diags := migrate(t, source)
+			if len(diags) != 1 || !strings.Contains(diags[0].Message, refusal.reason) {
+				t.Fatalf("expected one refusal naming %q, got %v", refusal.reason, diags)
+			}
+		})
+	}
+}
+
+func TestFoldsABuilderCalledWithTypeArgumentsOnly(t *testing.T) {
+	// The props argument goes inside the parentheses that follow the type arguments.
+	eachDialect(t, "folds a builder called with type arguments only", func(t *testing.T, dialect migrateDialect) {
+		assertCase(t, dialect, `import {{{int}}, {{table}}} from '{{mod}}';
+
+const users = {{table}}('users', {id: {{int}}<number>().notNull()});
+`, `import {{{int}}, {{table}}} from '{{slim}}';
+import {toDrizzle} from '{{slim}}/drizzle';
+
+const users$table = {{table}}('users', {id: {{int}}<number>({notNull: true})});
+const users = toDrizzle(users$table);
+`)
+	})
+}
+
+func TestFoldsAReferenceWhoseAnnotationNamesTheTable(t *testing.T) {
+	// The annotation is replaced whole, so the rename of `teams` inside `typeof teams.id` must not collide with it.
+	eachDialect(t, "folds a reference annotated with typeof", func(t *testing.T, dialect migrateDialect) {
+		assertCase(t, dialect, `import {{{int}}, {{table}}} from '{{mod}}';
+
+const teams = {{table}}('teams', {id: {{int}}('id').primaryKey()});
+const members = {{table}}('members', {teamId: {{int}}('team_id').references((): typeof teams.id => teams.id)});
+`, `import {type TableRef, tableRef} from '@mionjs/drizzle-orm';
+import {{{int}}, {{table}}} from '{{slim}}';
+import {toDrizzle} from '{{slim}}/drizzle';
+
+const teams$table = {{table}}('teams', {id: {{int}}('id', {primaryKey: true})});
+const teams = toDrizzle(teams$table);
+const members$table = {{table}}('members', {teamId: {{int}}('team_id', {references: [(): TableRef<'teams', 'id'> => tableRef(teams$table, 'id')]})});
+const members = toDrizzle(members$table);
+`)
+	})
+}
+
+func TestQuotesATableNameWithAControlCharacter(t *testing.T) {
+	// A raw tab or line break must not reach the emitted TableRef literal.
+	eachDialect(t, "quotes a table name with a control character", func(t *testing.T, dialect migrateDialect) {
+		assertCase(t, dialect, `import {type {{AnyColumn}}, {{int}}, {{table}}} from '{{mod}}';
+
+const emps = {{table}}('e\tmps', {
+  managerId: {{int}}('manager_id').references((): {{AnyColumn}} => emps.id),
+  id: {{int}}('id'),
+});
+`, `import {type {{AnyColumn}}} from '{{mod}}';
+import {type TableRef, tableRef} from '@mionjs/drizzle-orm';
+import {{{int}}, {{table}}} from '{{slim}}';
+import {toDrizzle} from '{{slim}}/drizzle';
+
+const emps$table = {{table}}('e\tmps', {
+  managerId: {{int}}('manager_id', {references: [(): TableRef<'e\tmps', 'id'> => tableRef(emps$table, 'id')]}),
+  id: {{int}}('id'),
+});
+const emps = toDrizzle(emps$table);
+`)
+	})
+}
+
+func TestRefusesAFileWithNoFreeNameForAHelper(t *testing.T) {
+	// `$type` through `$type9` are all taken, so the import the fold needs has no name and the file stays drizzle.
+	eachDialect(t, "refuses a file with no free name for a helper", func(t *testing.T, dialect migrateDialect) {
+		taken := make([]string, 0, 9)
+		for _, name := range []string{"$type", "$type2", "$type3", "$type4", "$type5", "$type6", "$type7", "$type8", "$type9"} {
+			taken = append(taken, "const "+name+" = 0;")
+		}
+		source := dialect.src(`import {{{int}}, {{table}}} from '{{mod}}';
+` + strings.Join(taken, "\n") + `
+const users = {{table}}('users', {id: {{int}}('id').$type<number>()});
+`)
+		got, diags := migrate(t, source)
+		found := false
+		for _, diagnostic := range diags {
+			found = found || diagnostic.Code == drizzlemigrate.CodeNameCollision
+		}
+		if !found {
+			t.Fatalf("expected a %s refusal, got %v", drizzlemigrate.CodeNameCollision, diags)
+		}
+		if got != source {
+			t.Fatalf("a file with no free helper name must stay as written:\n%s", got)
+		}
 	})
 }
 
