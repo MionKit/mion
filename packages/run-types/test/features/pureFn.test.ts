@@ -84,8 +84,7 @@ const arrowExpression = registerPureFnFactory(
     }
 );
 
-// Bound to no name (handed straight to an array), so these are identified by
-// their body instead of their location.
+// Bound to no name (handed straight to an array): the id is the body hash all the same.
 const namelessIds = [
   registerPureFn((s: string): string => s.padStart(3, '0')),
   registerPureFn((s: string): string => s.padStart(3, '0')),
@@ -97,7 +96,7 @@ const namelessIds = [
 // and it is also the dev-tool override path.
 const rawRegister = registerPureFn as unknown as (fn: unknown, id?: string) => string;
 
-describe('a pure fn is identified by where it lives', () => {
+describe('a pure fn is identified by its package and body hash', () => {
   it('the factory form returns its id and runs', () => {
     expect(stringPureFn).toMatch(ID_RE);
     const restored = getRTUtils().getPureFn(stringPureFn) as (s: string, p: StringParams) => boolean;

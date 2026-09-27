@@ -202,9 +202,9 @@ export type PureFunctionFactory<F> = F & {readonly __rtPureFunctionFactoryBrand?
 /**
  * Pure-fn id injection marker. A pure INJECTION marker like `InjectRunTypeId<T>` (no literal
  * double-duty): absent at author time, the build fills the trailing `id?` parameter with the
- * registration's id, which is where it lives — its package, its file and the name it is bound to
- * (`@acme/text/src/slug#slugify`). A registration bound to no name is identified by a hash of its
- * body instead, so two structurally identical callbacks collapse to one entry. Living in the callee
+ * registration's id: its package plus a hash of the body that ships (`@acme/text#pf_Kq3f_xN9pQ2wLd`).
+ * Renaming or moving the registration keeps the id, editing the body changes it, and two structurally
+ * identical callbacks collapse to one entry. Living in the callee
  * signature, it propagates through wrappers: a library can offer its own
  * `registerXPureFn<F>(fn: PureFunction<F>, id?: InjectPureFnId<F>)` and the build injects at ITS
  * call sites with zero scanner diagnostics.

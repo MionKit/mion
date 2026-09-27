@@ -446,7 +446,7 @@ func (ctx *resolveCtx) buildPureFnEntry(sourceFile *ast.SourceFile, call *ast.No
 				diags = append(diags, diagnostics.New(
 					diagnostics.CodeDestructuredParam,
 					siteFromNode(sourceFile, paramNode),
-					ctx.siteID(sourceFile, call),
+					siteName(call),
 				))
 				return nil, diags
 			}
@@ -504,15 +504,13 @@ func (ctx *resolveCtx) buildPureFnEntry(sourceFile *ast.SourceFile, call *ast.No
 	return entry, diags
 }
 
-// siteID names a registration in a diagnostic raised before its id can be
-// computed, which is why a registration bound to no name reads `#(unnamed)`
-// here rather than carrying its body hash.
-func (ctx *resolveCtx) siteID(sourceFile *ast.SourceFile, call *ast.Node) string {
-	name := bindingNameOf(call)
-	if name == "" {
-		name = "(unnamed)"
+// siteName names a registration in a diagnostic raised before its body hash exists: the name it is
+// bound to, never an id-shaped string, since an id is a hash and a name alone would pass for one.
+func siteName(call *ast.Node) string {
+	if name := bindingNameOf(call); name != "" {
+		return name
 	}
-	return IDFor(ctx.markerOpts, sourceFile.FileName(), name)
+	return "(unnamed)"
 }
 
 // siteFromNode builds a 1-based diagnostics.Site for the node's start/end.

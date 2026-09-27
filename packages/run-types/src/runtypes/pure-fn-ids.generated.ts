@@ -2,7 +2,8 @@
 // Regenerate with `pnpm miondevx core codegen builtinpurefns` after editing the
 // pure-fn sources in this package.
 //
-// A pure function's id is where it lives, and the build normally injects it.
+// A pure function's id is its package plus a hash of its body, and the build
+// normally injects it.
 // This package builds with plain tsc, which injects nothing, so its own
 // registrations pass their id from here. The literal types are also how a
 // consumer reading only this package's .d.ts still resolves an id.

@@ -823,7 +823,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     severity: 'error',
     family: 'purefn',
     detail:
-      'A RT validator/encoder reaches that pure fn through `utl.usePureFn`, but no\nregistration for that id was found in any scanned file. An id names the\npackage, the file and the binding a pure fn was registered under, so a miss\nmeans that file is outside the scan set, or the registration moved or was\nrenamed.\n\nFix: import the id from the file that registers it, and make sure that file\nis part of the build.',
+      "A RT validator/encoder reaches that pure fn through `utl.usePureFn`, but no\nregistration for that id was found in any scanned file. An id is the package\nplus a hash of the pure fn's body, so a miss means the file that registers it\nis outside the scan set, or its body changed and the id was copied by hand\nfrom an older build.\n\nFix: import the id from the file that registers it, and make sure that file\nis part of the build.",
   },
   PFE9013: {
     headline: '`{0}.{1}` dependency argument must be a pure-fn id.',
@@ -834,12 +834,12 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
       "`utl.usePureFn` / `utl.getPureFn` need a static id so the build can verify\nthe pure fn is registered and inline the id into the emitted body. The id is\nthe value a registrar returned, imported from a file in this build, or a\nstring literal.\n\nFix:\n-  const key = buildKey();\n-  return utl.usePureFn(key)(input);\n+  import {slugify} from './slug';\n+  return utl.usePureFn(slugify)(input);",
   },
   PFE9014: {
-    headline: "Explicit pure-fn id `{0}` does not match this registration's location `{1}`.",
+    headline: "Explicit pure-fn id `{0}` does not match this registration's computed id `{1}`.",
     level: 'error',
     severity: 'error',
     family: 'purefn',
     detail:
-      "A pure function's id is computed from where it lives: the package, the file\nand the name it is bound to. The build injects it, so source normally passes\nnone. An id written by hand, or left behind by a move or a rename, would\nregister the body under one id while every reference to it uses the other.\n\nFix: delete the argument and let the build inject it, or regenerate the file\nthe id is imported from.",
+      "A pure function's id is its package plus a hash of its body, so renaming or\nmoving it keeps the id and editing the body changes it. The build injects it,\nso source normally passes none. An id written by hand, or copied before the\nbody changed, would register the body under one id while every reference to\nit uses the other.\n\nFix: delete the argument and let the build inject it, or regenerate the file\nthe id is imported from.",
   },
   PFE9015: {
     headline: 'Pure functions circular dependency: `{0}` (`{1}`) reaches back into `{2}`.',
