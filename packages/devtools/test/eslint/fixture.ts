@@ -2,43 +2,18 @@
 // helpers (which overlay every source over one long-lived process), the lint
 // session resolves a file's IMPORTS from disk — only the linted file itself
 // rides the setSources overlay — so these fixtures are real temp projects:
-// a directory with a fake `node_modules/ts-runtypes` package (the marker
+// a directory with the real built `@mionjs/run-types` installed (the marker
 // scanner's package.json gate needs the real layout) plus the files under
 // test.
 
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import {writeMarkerPackage} from '../helpers/inline.ts';
 
 const ROOT = path.resolve(__dirname, '../../../..');
 export const BIN = path.resolve(ROOT, 'mion-bin/mion');
 export const hasBinary = (): boolean => fs.existsSync(BIN);
-
-// Minimal mion package typings for the fixtures: the two marker call
-// shapes, one createX factory (validate), and the enrichment DSL types. Plain
-// exports (not the ambient `declare module` form) because the fixture ships
-// them as a real node_modules package.
-export const FIXTURE_PACKAGE_DTS = `
-export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
-export type CompTimeFnArgs<T> = T & {readonly __rtCompTimeFnArgsBrand?: never};
-export type InjectTypeFnArgs<T, F1 extends string, F2 extends string = never, F3 extends string = never, F4 extends string = never, F5 extends string = never, F6 extends string = never, F7 extends string = never, F8 extends string = never, F9 extends string = never, F10 extends string = never, F11 extends string = never, F12 extends string = never> = string & {
-  readonly __rtInjectTypeFnArgsBrand?: T;
-  readonly __rtInjectTypeFnArgsFns?: [F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12];
-};
-export declare function getRunTypeId<T>(value?: T, id?: InjectRunTypeId<T>): InjectRunTypeId<T>;
-export interface ValidateOptions {
-  numberMode?: 'isFinite' | 'typeof' | 'notNaN';
-}
-export declare function createValidateFn<T>(
-  val?: T,
-  options?: CompTimeFnArgs<ValidateOptions>,
-  id?: InjectTypeFnArgs<T, 'validate'>
-): (value: unknown) => boolean;
-export type FriendlyText<T> = Record<string, unknown> & {readonly __rtFriendly?: T};
-/** @deprecated legacy alias kept so mirrors authored before the friendly-text rename still resolve */
-export type FriendlyType<T> = FriendlyText<T>;
-export type MockData<T> = Record<string, unknown> & {readonly __rtMock?: T};
-`;
 
 // FIXTURE_ROUTER_DTS / FIXTURE_CORE_DTS are the fake `@mionjs/router` and
 // `@mionjs/core` a route fixture resolves against. Only the shapes the route
@@ -65,7 +40,7 @@ export interface FixtureProject {
   cleanup(): void;
 }
 
-// makeFixtureProject creates a temp project with the fake mion package
+// makeFixtureProject creates a temp project with the real marker package
 // installed and the given files written.
 export function makeFixtureProject(files: Record<string, string> = {}): FixtureProject {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-lint-'));
@@ -75,7 +50,7 @@ export function makeFixtureProject(files: Record<string, string> = {}): FixtureP
     fs.writeFileSync(path.join(pkgDir, 'package.json'), `{"name":"@mionjs/${name}","exports":{".":"./index.d.ts"}}`);
     fs.writeFileSync(path.join(pkgDir, 'index.d.ts'), dts);
   };
-  installPackage('run-types', FIXTURE_PACKAGE_DTS);
+  writeMarkerPackage(dir);
   // The mion route rules read these two; a route fixture resolves against them
   // exactly as a consumer project would.
   installPackage('router', FIXTURE_ROUTER_DTS);
