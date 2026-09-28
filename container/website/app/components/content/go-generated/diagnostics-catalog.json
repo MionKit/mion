@@ -190,7 +190,7 @@
       "level": "runtimeError",
       "headline": "`CompTimeArgs<T>` literal contains a forbidden construct ({0}). Only literals and nested literals are allowed.",
       "summary": "Every part of a `CompTimeArgs<T>` literal must be a string, number, bigint, boolean, `null`, `undefined`, regex, arrow function, object or array literal, or a `const` that points to one. Computed property names, function calls, ternaries and template strings with `${}` are rejected. A spread works only on a `const` (or imported) object literal inside an object, or an array literal inside an array. If the value is only known at runtime, use the untracked version of the function instead: `getPureFnByKey`, `hasPureFnByKey` and `getCompiledPureFnByKey` sit next to `getPureFn`, `hasPureFn` and `getCompiledPureFn`.",
-      "fix": "const base = {strict: true};\nconst options = {...base, mode: 'unsafe'};",
+      "fix": "const base = {strict: true} as const;\nconst options = {...base, mode: 'unsafe'} as const;",
       "example": null
     },
     {

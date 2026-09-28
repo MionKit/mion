@@ -487,8 +487,8 @@ const isUserToo = createValidateFn<User>(undefined, opts);`,
 	},
 	CodeCompTimeArgsForbiddenConstruct: {
 		Summary: "Every part of a `CompTimeArgs<T>` literal must be a string, number, bigint, boolean, `null`, `undefined`, regex, arrow function, object or array literal, or a `const` that points to one. Computed property names, function calls, ternaries and template strings with `${}` are rejected. A spread works only on a `const` (or imported) object literal inside an object, or an array literal inside an array. If the value is only known at runtime, use the untracked version of the function instead: `getPureFnByKey`, `hasPureFnByKey` and `getCompiledPureFnByKey` sit next to `getPureFn`, `hasPureFn` and `getCompiledPureFn`.",
-		Fix: `const base = {strict: true};
-const options = {...base, mode: 'unsafe'};`,
+		Fix: `const base = {strict: true} as const;
+const options = {...base, mode: 'unsafe'} as const;`,
 	},
 	CodeCompTimeArgsWidenedConst: {
 		Summary: "A `const` passed as a `CompTimeArgs` or `CompTimeFnArgs` argument (a whole options object, or a builder child) must keep literal types. Without `as const`, `{strategy: 'mutate'}` widens to `{strategy: string}`, and TypeScript can pick one function variant while the build injects another. Add `as const` to the declaration.",
