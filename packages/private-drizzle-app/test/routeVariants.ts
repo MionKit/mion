@@ -10,11 +10,8 @@ export const VARIANTS: Variant[] = ['drizzle', 'types', 'builders'];
 
 const cap = (text: string) => text[0].toUpperCase() + text.slice(1);
 
-export function importsOf(dialect: Dialect, variant: Variant): {db: string; models: string} {
-  if (variant === 'builders') return {db: `../db/${dialect}.db.ts`, models: `../db/${dialect}.schema.ts`};
-  if (variant === 'types') return {db: `../db/${dialect}.types.db.ts`, models: `../db/${dialect}.types.schema.ts`};
-  return {db: `../db/${dialect}.plain.db.ts`, models: `../db/${dialect}.plain.db.ts`};
-}
+// each variant keeps its tables, drizzle handles and model types in ONE file
+export const dbFileOf = (dialect: Dialect, variant: Variant) => `../db/${dialect}.${variant}.ts`;
 
 export const routesName = (dialect: Dialect, variant: Variant) => `${dialect}${cap(variant)}Routes`;
 
@@ -35,13 +32,9 @@ export function stripReturnTypes(source: string): string {
 }
 
 export function deriveVariant(buildersSource: string, dialect: Dialect, variant: Variant): string {
-  const from = importsOf(dialect, 'builders');
-  const to = importsOf(dialect, variant);
   const swapped = buildersSource
-    .split(`'${from.db}'`)
-    .join(`'${to.db}'`)
-    .split(`'${from.models}'`)
-    .join(`'${to.models}'`)
+    .split(`'${dbFileOf(dialect, 'builders')}'`)
+    .join(`'${dbFileOf(dialect, variant)}'`)
     .split(routesName(dialect, 'builders'))
     .join(routesName(dialect, variant));
   return variant === 'drizzle' ? dropUnusedTypeImports(stripReturnTypes(swapped)) : swapped;

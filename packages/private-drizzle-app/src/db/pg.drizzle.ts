@@ -1,39 +1,39 @@
-import {drizzle} from 'drizzle-orm/mysql-proxy';
+import {drizzle} from 'drizzle-orm/pg-proxy';
 import {gt, relations, sql} from 'drizzle-orm';
-import {bigint, boolean, int, json, mysqlTable, mysqlView, timestamp, varchar} from 'drizzle-orm/mysql-core';
+import {bigint, boolean, integer, pgTable, pgView, text, timestamp, uuid, varchar} from 'drizzle-orm/pg-core';
 import {answer} from './fakeDriver.ts';
 
-// mysql.schema.ts + mysql.db.ts on plain drizzle.
+// Postgres on plain drizzle: the same tables as pg.builders.ts, every type from drizzle.
 
-export const usersDb = mysqlTable('users', {
-  id: varchar('id', {length: 36}).primaryKey(),
+export const usersDb = pgTable('users', {
+  id: uuid('id').defaultRandom().primaryKey(),
   name: varchar('name', {length: 100}).notNull(),
   email: varchar('email', {length: 255}).notNull(),
-  age: int('age').notNull(),
-  role: varchar('role', {length: 10, enum: ['admin', 'user']}).notNull(),
+  age: integer('age').notNull(),
+  role: text('role', {enum: ['admin', 'user']}).notNull(),
   active: boolean('active').notNull(),
   balance: bigint('balance', {mode: 'bigint'}).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
-export const postsDb = mysqlTable('posts', {
-  id: varchar('id', {length: 36}).primaryKey(),
-  authorId: varchar('author_id', {length: 36})
+export const postsDb = pgTable('posts', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  authorId: uuid('author_id')
     .notNull()
     .references(() => usersDb.id),
   title: varchar('title', {length: 200}).notNull(),
-  tags: json('tags').$type<string[]>().notNull(),
-  views: int('views').notNull().default(0),
+  tags: text('tags').array().notNull(),
+  views: integer('views').notNull().default(0),
   publishedAt: timestamp('published_at'),
 });
 
-export const adultUsersDb = mysqlView('adult_users', {
-  id: varchar('id', {length: 36}).notNull(),
+export const adultUsersDb = pgView('adult_users', {
+  id: uuid('id').notNull(),
   name: varchar('name', {length: 100}).notNull(),
-  age: int('age').notNull(),
+  age: integer('age').notNull(),
 }).as(sql`select id, name, age from ${usersDb} where age >= 18`);
 
-export const busyAuthorsDb = mysqlView('busy_authors').as((qb) =>
+export const busyAuthorsDb = pgView('busy_authors').as((qb) =>
   qb.select({authorId: postsDb.authorId, views: postsDb.views}).from(postsDb).where(gt(postsDb.views, 100))
 );
 
@@ -50,4 +50,7 @@ export type User = typeof usersDb.$inferSelect;
 export type NewUser = typeof usersDb.$inferInsert;
 export type UserPatch = Partial<NewUser>;
 export type Post = typeof postsDb.$inferSelect;
+export type NewPost = typeof postsDb.$inferInsert;
+export type PostPatch = Partial<NewPost>;
 export type AdultUser = typeof adultUsersDb.$inferSelect;
+export type BusyAuthor = typeof busyAuthorsDb.$inferSelect;

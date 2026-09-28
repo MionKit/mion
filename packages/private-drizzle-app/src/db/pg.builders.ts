@@ -1,8 +1,13 @@
+// Postgres, builder tables: the slim tables, their drizzle tables and every model type, in one file.
 import * as DZ from '@mionjs/drizzle-orm-pg-core';
 import {sql, tableRef} from '@mionjs/drizzle-orm';
 import type {InferInsertModel, InferSelectModel, InferSelectViewModel, InferUpdateModel} from '@mionjs/drizzle-orm';
-
-// Builder tables: no drizzle types in this file.
+import {drizzle} from 'drizzle-orm/pg-proxy';
+import {relations} from 'drizzle-orm';
+import {pgView} from 'drizzle-orm/pg-core';
+import {gt} from 'drizzle-orm';
+import {toDrizzle} from '@mionjs/drizzle-orm-pg-core/drizzle';
+import {answer} from './fakeDriver.ts';
 
 export const users = DZ.pgTable('users', {
   id: DZ.uuid('id', {defaultRandom: true, primaryKey: true}),
@@ -34,4 +39,28 @@ export type User = InferSelectModel<typeof users>;
 export type NewUser = InferInsertModel<typeof users>;
 export type UserPatch = InferUpdateModel<typeof users>;
 export type Post = InferSelectModel<typeof posts>;
+export type NewPost = InferInsertModel<typeof posts>;
+export type PostPatch = InferUpdateModel<typeof posts>;
+// a view built from a query builder has no slim model: its row type is written by hand
+export type BusyAuthor = Pick<Post, 'authorId' | 'views'>;
 export type AdultUser = InferSelectViewModel<typeof adultUsers>;
+
+// The query side.
+
+export const usersDb = toDrizzle(users);
+export const postsDb = toDrizzle(posts);
+export const adultUsersDb = toDrizzle(adultUsers);
+
+// a view built from a query builder stays on drizzle (DRZ001), so it lives here
+export const busyAuthorsDb = pgView('busy_authors').as((qb) =>
+  qb.select({authorId: postsDb.authorId, views: postsDb.views}).from(postsDb).where(gt(postsDb.views, 100))
+);
+
+export const usersRelations = relations(usersDb, ({many}) => ({posts: many(postsDb)}));
+export const postsRelations = relations(postsDb, ({one}) => ({
+  author: one(usersDb, {fields: [postsDb.authorId], references: [usersDb.id]}),
+}));
+
+export const schema = {users: usersDb, posts: postsDb, usersRelations, postsRelations};
+
+export const db = drizzle(answer, {schema});

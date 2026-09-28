@@ -1,11 +1,11 @@
 // Type-only pins, checked by `typecheck:test`: what the client sees from each route.
 import type {AppClient} from '../src/client/client.ts';
-import type * as Pg from '../src/db/pg.schema.ts';
-import type * as PgTypes from '../src/db/pg.types.schema.ts';
-import type * as Mysql from '../src/db/mysql.schema.ts';
-import type * as MysqlTypes from '../src/db/mysql.types.schema.ts';
-import type * as Sqlite from '../src/db/sqlite.schema.ts';
-import type * as SqliteTypes from '../src/db/sqlite.types.schema.ts';
+import type * as Pg from '../src/db/pg.builders.ts';
+import type * as PgTypes from '../src/db/pg.types.ts';
+import type * as Mysql from '../src/db/mysql.builders.ts';
+import type * as MysqlTypes from '../src/db/mysql.types.ts';
+import type * as Sqlite from '../src/db/sqlite.builders.ts';
+import type * as SqliteTypes from '../src/db/sqlite.types.ts';
 
 type Equal<X, Y> = (<T>() => T extends X ? 1 : 2) extends <T>() => T extends Y ? 1 : 2 ? true : false;
 type Expect<T extends true> = T;

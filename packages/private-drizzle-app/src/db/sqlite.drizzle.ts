@@ -3,7 +3,7 @@ import {gt, relations, sql} from 'drizzle-orm';
 import {blob, integer, sqliteTable, sqliteView, text} from 'drizzle-orm/sqlite-core';
 import {answer} from './fakeDriver.ts';
 
-// sqlite.schema.ts + sqlite.db.ts on plain drizzle.
+// SQLite on plain drizzle: the same tables as sqlite.builders.ts, every type from drizzle.
 
 export const usersDb = sqliteTable('users', {
   id: text('id').primaryKey(),
@@ -50,4 +50,7 @@ export type User = typeof usersDb.$inferSelect;
 export type NewUser = typeof usersDb.$inferInsert;
 export type UserPatch = Partial<NewUser>;
 export type Post = typeof postsDb.$inferSelect;
+export type NewPost = typeof postsDb.$inferInsert;
+export type PostPatch = Partial<NewPost>;
 export type AdultUser = typeof adultUsersDb.$inferSelect;
+export type BusyAuthor = typeof busyAuthorsDb.$inferSelect;

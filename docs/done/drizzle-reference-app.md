@@ -20,9 +20,10 @@ types, so a route returning a query result lost its formats.
   vitest project, `mion-rest` batch, a heavy project). No database and nothing new installed: queries run
   through drizzle's own proxy drivers (`pg-proxy`, `mysql-proxy`, `sqlite-proxy`) answered by a fake driver
   that hands back queued raw rows, in the shape a real driver sends them.
-  - `src/db/`: the SAME two tables (users, posts) and two views in pg, mysql and sqlite, each three ways:
-    builder tables (`<dialect>.schema.ts` + `<dialect>.db.ts`), tables written as types
-    (`<dialect>.types.schema.ts` + `<dialect>.types.db.ts`) and plain drizzle (`<dialect>.plain.db.ts`).
+  - `src/db/`: the SAME two tables (users, posts) and two views in pg, mysql and sqlite, each three ways, one
+    self-contained file per way: `<dialect>.builders.ts` (builder tables), `<dialect>.types.ts` (tables written
+    as types) and `<dialect>.drizzle.ts` (plain drizzle). Each exports its tables, drizzle handles and the same
+    model names (`User`, `NewUser`, `UserPatch`, `Post`, `NewPost`, `PostPatch`, `AdultUser`, `BusyAuthor`).
   - `src/server/`: the SAME 12 routes in every dialect, three files each. `builders` and `types` write params
     and return types with the slim models; `drizzle` types the params with drizzle's types and leaves every
     return type to drizzle. `test/routeFiles.test.ts` proves the three files are one set of routes: types is
@@ -60,9 +61,9 @@ Type cost across the 12 routes (`reports/drizzle-app.md` has every route, params
 
 | Dialect | Client: drizzle / types / builders | Server: drizzle / types / builders |
 | ---- | ----: | ----: |
-| pg | 318,915 / 23,313 / 36,337 | 306,759 / 270,246 / 302,444 |
-| mysql | 501,419 / 23,713 / 36,311 | 490,188 / 461,737 / 493,759 |
-| sqlite | 507,610 / 24,082 / 36,295 | 495,657 / 450,995 / 482,294 |
+| pg | 318,915 / 22,871 / 35,882 | 306,759 / 270,242 / 302,440 |
+| mysql | 501,419 / 23,328 / 35,842 | 490,188 / 461,733 / 493,755 |
+| sqlite | 507,610 / 23,662 / 35,770 | 495,657 / 450,991 / 482,290 |
 
 - Per route, a drizzle-typed client costs 4.8 to 11 times the builders one and 6.5 to 18 times the type-form
   one (1,000 to 3,900 against 18,500 to 21,200); with a transaction, up to 166 times.
@@ -86,6 +87,8 @@ Type cost across the 12 routes (`reports/drizzle-app.md` has every route, params
 - **mysql has no `returning`**, so its insert, update and transaction routes read the row back with a select.
 - **Views have no type form**: a type-form schema keeps its views as builders over the type-form tables.
   Works as documented, nothing to fix.
+- **A view built from a query builder has no slim model** (DRZ001 keeps it on drizzle), so the slim files write
+  its row type by hand (`BusyAuthor = Pick<Post, 'authorId' | 'views'>`); drizzle infers it.
 - **A client that imports `AppApi` from server sources loads the server's whole import graph**, drizzle
   included, so "the client program loads no drizzle file" was dropped as a check. What matters is what the
   client pays to check, which the cost test measures.

@@ -1,7 +1,7 @@
 import {avg, count, eq, gte, sql} from 'drizzle-orm';
 import {mion} from './mion.ts';
-import {adultUsersDb, busyAuthorsDb, db, postsDb, usersDb} from '../db/mysql.types.db.ts';
-import type {AdultUser, NewUser, Post, User, UserPatch} from '../db/mysql.types.schema.ts';
+import {adultUsersDb, busyAuthorsDb, db, postsDb, usersDb} from '../db/mysql.types.ts';
+import type {AdultUser, BusyAuthor, NewUser, Post, User, UserPatch} from '../db/mysql.types.ts';
 
 // The builders routes over the type-form tables: only the imports differ.
 // The `case:` markers name each route for the cost test.
@@ -64,7 +64,7 @@ export const mysqlTypesRoutes = {
   adults: mion.route(async (): Promise<AdultUser[]> => db.select().from(adultUsersDb)),
 
   // case: viewQueryBuilder
-  busyAuthors: mion.route(async (): Promise<Pick<Post, 'authorId' | 'views'>[]> => db.select().from(busyAuthorsDb)),
+  busyAuthors: mion.route(async (): Promise<BusyAuthor[]> => db.select().from(busyAuthorsDb)),
 
   // case: transaction
   moveBalance: mion.route(

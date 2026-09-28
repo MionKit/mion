@@ -1,8 +1,12 @@
+// MySQL, tables written as types: the same schema as mysql.builders.ts, in one file.
 import * as DZ from '@mionjs/drizzle-orm-mysql-core';
 import {sql} from '@mionjs/drizzle-orm';
 import type {InferInsertModel, InferSelectModel, InferSelectViewModel, InferUpdateModel} from '@mionjs/drizzle-orm';
-
-// The same schema as mysql.schema.ts, written as types.
+import {drizzle} from 'drizzle-orm/mysql-proxy';
+import {gt, relations} from 'drizzle-orm';
+import {mysqlView} from 'drizzle-orm/mysql-core';
+import {toDrizzle} from '@mionjs/drizzle-orm-mysql-core/drizzle';
+import {answer} from './fakeDriver.ts';
 
 export type UsersTable = DZ.MysqlTable<
   'users',
@@ -48,4 +52,28 @@ export type User = InferSelectModel<UsersTable>;
 export type NewUser = InferInsertModel<UsersTable>;
 export type UserPatch = InferUpdateModel<UsersTable>;
 export type Post = InferSelectModel<PostsTable>;
+export type NewPost = InferInsertModel<PostsTable>;
+export type PostPatch = InferUpdateModel<PostsTable>;
+// a view built from a query builder has no slim model: its row type is written by hand
+export type BusyAuthor = Pick<Post, 'authorId' | 'views'>;
 export type AdultUser = InferSelectViewModel<typeof adultUsers>;
+
+// The query side.
+
+export const usersDb = toDrizzle<UsersTable>();
+export const postsDb = toDrizzle<PostsTable>();
+export const adultUsersDb = toDrizzle(adultUsers);
+
+// a view built from a query builder stays on drizzle (DRZ001), so it lives here
+export const busyAuthorsDb = mysqlView('busy_authors').as((qb) =>
+  qb.select({authorId: postsDb.authorId, views: postsDb.views}).from(postsDb).where(gt(postsDb.views, 100))
+);
+
+export const usersRelations = relations(usersDb, ({many}) => ({posts: many(postsDb)}));
+export const postsRelations = relations(postsDb, ({one}) => ({
+  author: one(usersDb, {fields: [postsDb.authorId], references: [usersDb.id]}),
+}));
+
+export const schema = {users: usersDb, posts: postsDb, usersRelations, postsRelations};
+
+export const db = drizzle(answer, {schema});
