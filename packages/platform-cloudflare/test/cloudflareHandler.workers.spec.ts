@@ -33,8 +33,8 @@ function setupOptions(options: CloudflareSetupOptions = {}): string {
   return JSON.stringify(options);
 }
 
-/** Creates a Miniflare instance with the test server bundle loaded as a service worker */
-function createMiniflare(setupCode: string, port?: number): Miniflare {
+/** Starts a Miniflare with the test server bundle loaded as a service worker; workerd boots here, never inside a test. */
+async function startMiniflare(setupCode: string, port?: number): Promise<Miniflare> {
   const bundleCode = readFileSync(CLOUDFLARE_BUNDLE_PATH, 'utf-8');
   // Service worker format: the IIFE bundle sets up CloudflareTestServer on globalThis,
   // then we call setup (storing the promise) and register the fetch handler.
@@ -49,11 +49,13 @@ function createMiniflare(setupCode: string, port?: number): Miniflare {
             );
         });
     `;
-  return new Miniflare({
+  const mf = new Miniflare({
     script: workerScript,
     compatibilityDate: '2024-01-01',
     ...(port === undefined ? {} : {port}),
   });
+  await mf.ready;
+  return mf;
 }
 
 /** Calls the worker and returns serialized response data */
@@ -80,7 +82,7 @@ describe('cloudflare handler (workerd runtime)', () => {
     let mf: Miniflare;
 
     beforeAll(async () => {
-      mf = createMiniflare(setupOptions());
+      mf = await startMiniflare(setupOptions());
     });
 
     afterAll(async () => {
@@ -124,11 +126,20 @@ describe('cloudflare handler (workerd runtime)', () => {
       expect(result.headers['server']).toEqual('my-server');
       expect(result.headers['x-something']).toEqual('true');
     });
+  });
+
+  describe('with default response headers', () => {
+    let mf: Miniflare;
+
+    beforeAll(async () => {
+      mf = await startMiniflare(setupOptions({defaultResponseHeaders: {'x-app-name': 'MyApp', 'x-instance-id': '3089'}}));
+    });
+
+    afterAll(async () => {
+      await mf?.dispose();
+    });
 
     it('should include default headers', async () => {
-      await mf.dispose();
-      mf = createMiniflare(setupOptions({defaultResponseHeaders: {'x-app-name': 'MyApp', 'x-instance-id': '3089'}}));
-
       const requestData = {getDate: [{date: new Date('2022-04-10T02:13:00.000Z')}]};
       const result = await callHandler(mf, '/api/getDate', JSON.stringify(requestData));
       const parsedResponse = JSON.parse(result.body);
@@ -145,7 +156,7 @@ describe('cloudflare handler (workerd runtime)', () => {
     let mf: Miniflare;
 
     beforeAll(async () => {
-      mf = createMiniflare(setupOptions({basePath: '/api/mion'}));
+      mf = await startMiniflare(setupOptions({basePath: '/api/mion'}));
     });
 
     afterAll(async () => {
@@ -166,7 +177,7 @@ describe('cloudflare handler (workerd runtime)', () => {
     let mf: Miniflare;
 
     beforeAll(async () => {
-      mf = createMiniflare(setupOptions({parser: 'mutate'}));
+      mf = await startMiniflare(setupOptions({parser: 'mutate'}));
     });
 
     afterAll(async () => {
@@ -207,12 +218,15 @@ describe('cloudflare handler (workerd runtime)', () => {
   describe('setup options', () => {
     let mf: Miniflare;
 
+    beforeAll(async () => {
+      mf = await startMiniflare(`{encoder: 'direct'}`);
+    });
+
     afterAll(async () => {
       await mf?.dispose();
     });
 
     it('should reject an option the fixture does not declare', async () => {
-      mf = createMiniflare(`{encoder: 'direct'}`);
       const response = await mf.dispatchFetch('http://localhost/api/getDate', {method: 'POST', body: '{}'});
 
       expect(response.status).toBe(500);
@@ -228,8 +242,7 @@ describe('cloudflare handler (workerd runtime): content-length bounds the body',
   let mf: Miniflare;
 
   beforeAll(async () => {
-    mf = createMiniflare(setupOptions(), port);
-    await mf.ready;
+    mf = await startMiniflare(setupOptions(), port);
   });
 
   afterAll(async () => {
