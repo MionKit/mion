@@ -40,10 +40,10 @@ func setupUnderDomLib(t *testing.T, sources map[string]string) *resolver.Session
 // no such predicate in TypeScript), so for a lib class like `URL` the two sides
 // disagree: Go strips it, `DataOnly<T>` keeps its data shape. The build says so
 // out loud instead. A property whose value has no data form raises the
-// per-family …015 drop WARNING naming the property, and the rest of the object
+// per-family …015 drop (Info) naming the property, and the rest of the object
 // still validates and still serialises.
 //
-// Warning, not Error, is the contract: an Error means the generated function
+// Info, not Error, is the contract: an Error means the generated function
 // throws at runtime, and this one does not. Before this, the same `URL` property
 // silently compiled a forty-member validator over `href`, `searchParams` and
 // friends, which is the failure mode this replaces.

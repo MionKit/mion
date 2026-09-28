@@ -10,7 +10,7 @@ import (
 )
 
 // A RegExp is not data: a pattern is code the receiver would run. Every family, validate included, treats it like a
-// function: dropped at a property with the …015 Warning, an alwaysThrow factory at a root.
+// function: dropped at a property with the …015 Info, an alwaysThrow factory at a root.
 
 func mkRegexp() *reflection.RunType {
 	return &reflection.RunType{ID: "re", Kind: reflection.KindRegexp}

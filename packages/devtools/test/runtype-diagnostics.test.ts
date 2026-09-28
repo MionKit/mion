@@ -436,8 +436,7 @@ export const enc = createJsonEncoderFn<{pet: Pet; owner: Owner}>(undefined, {str
       const response = await client.scanFiles(Object.keys(sources), {includeEntryModules: true});
       const dropped = runtypeDiagsOf(response).filter((d) => d.code === 'PJ011');
       // BOTH nested classes, each once, attributed to the call site that pulled
-      // them in. Each is its own child entry, so the per-walk code latch (which
-      // would allow only one PJ011 per walk) does not merge them.
+      // them in: the per-walk latch keys on code AND member, so it never merges them.
       expect(dropped.map((d) => d.args?.[0]).sort()).toEqual(['contact', 'speak']);
       for (const diagnostic of dropped) expect(diagnostic.site.startLine).toBe(4);
     });

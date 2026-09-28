@@ -170,8 +170,9 @@ type Walker struct {
 	// call produced always fails, which is false at a site that merely
 	// contains the type somewhere inside.
 	rootedProvenance []diagnostics.Site
-	// diagSeen stops one walk emitting the same code twice, which a deep tree with
-	// several unsupported leaves of the same kind would otherwise do per call site.
+	// diagSeen stops one walk emitting the same finding twice, keyed on code AND args: a deep tree
+	// repeating one unsupported leaf reports it once, while two different members dropped under one
+	// code (a class with methods `a()` and `b()`) each report, since the message names the member.
 	diagSeen map[string]bool
 
 	// facts is the per-dispatch memo for the canonical-node subtree predicates; nil
@@ -293,13 +294,14 @@ func (w *Walker) EmitDiagnostic(code string, args ...string) {
 	if w.DiagSink == nil {
 		return
 	}
-	if w.diagSeen[code] {
+	seenKey := code + "\x00" + strings.Join(args, "\x00")
+	if w.diagSeen[seenKey] {
 		return
 	}
 	if w.diagSeen == nil {
 		w.diagSeen = map[string]bool{}
 	}
-	w.diagSeen[code] = true
+	w.diagSeen[seenKey] = true
 	sites := w.diagnosticSites(code)
 	if len(sites) == 0 {
 		// Without provenance the Diagnostic renders as filePath="", useless to
