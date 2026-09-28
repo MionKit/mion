@@ -38,6 +38,18 @@ func TestEveryCodeHasHeadline(t *testing.T) {
 	}
 }
 
+// TestHeadlinesNameNoInternalJsonFamily keeps internal cache-family names out of the printed line: users call
+// createPrepareForJsonFn / createJsonEncoderFn and their decoder pair, never prepareForJsonClone and friends.
+func TestHeadlinesNameNoInternalJsonFamily(t *testing.T) {
+	for code, def := range Definitions {
+		for _, internal := range []string{"prepareForJson", "restoreFromJson", "compactForJson", "compactFromJson"} {
+			if strings.Contains(def.Headline, internal) {
+				t.Errorf("code %q: Headline names the internal %q; say \"the JSON encoder\" or \"the JSON decoder\"", code, internal)
+			}
+		}
+	}
+}
+
 // TestEveryCodeHasSummary pins the one website text per code: the All Diagnostics page shows it as
 // a single paragraph, so it must exist, stay on one line and use no dash as punctuation.
 func TestEveryCodeHasSummary(t *testing.T) {
