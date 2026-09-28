@@ -117,6 +117,21 @@ func TestUnsafeKeys_DeclaredUnsafeNameDropsTheMemberEveryFamily(t *testing.T) {
 	}
 }
 
+// removeUnknownKeys drops a declared `__proto__` too: copying it into the clone's object literal would set the
+// clone's PROTOTYPE from the input, so a JSON `{"__proto__": {...}}` could plant inherited values.
+func TestUnsafeKeys_RemoveUnknownKeysDropsDeclaredUnsafeName(t *testing.T) {
+	out, sink := renderWithDiag(t, bigintProp("__proto__", false), "removeUnknownKeys", "obj")
+	if memberIsTouched(out, "__proto__") {
+		t.Errorf("the dropped member must not be read or written; got:\n%s", out)
+	}
+	if !memberIsTouched(out, "ok") {
+		t.Errorf("the sibling property must still be copied; got:\n%s", out)
+	}
+	if _, found := findCode(sink, diagnostics.CodeUnsafePropertyName); !found {
+		t.Errorf("expected %s; sink=%+v", diagnostics.CodeUnsafePropertyName, sink)
+	}
+}
+
 // `prototype` and `constructor` are ordinary property names: a real factory, no
 // UPN001, and the member carried in the emitted body. `({}).prototype` is
 // undefined and `({}).constructor` only needs the own-enumerability presence

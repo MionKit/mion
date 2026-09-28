@@ -128,6 +128,11 @@ func emitObjectRemoveUnknownKeys(rt *reflection.RunType, ctx *EmitContext, v str
 			ctx.EmitDiagnosticSlot(SlotStaticDropped, memberLabel(resolved))
 			continue
 		}
+		// Writing `__proto__` into the clone's literal would set its prototype from the input, so it drops like everywhere else.
+		if reflection.IsUnsafePropertyName(resolved.Name) {
+			ctx.EmitDiagnosticSlot(SlotUnsafeNamePropDropped, resolved.Name)
+			continue
+		}
 		// The clone rebuilds string keys only; reading tsgo's `\xFE@` spelling would add a bogus key.
 		if reflection.IsSymbolKeyedName(resolved.Name) {
 			ctx.EmitDiagnosticSlot(SlotSymbolKeyedDropped, reflection.SymbolKeyLabel(resolved.Name))
