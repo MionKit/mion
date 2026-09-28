@@ -48,3 +48,13 @@ func TestBuildAlwaysThrowMessage_WithProvenance(t *testing.T) {
 		t.Errorf("expected site suffix, got: %q", msg)
 	}
 }
+
+func TestBuildAlwaysThrowMessage_CountsSharedCallSites(t *testing.T) {
+	sites := []diagnostics.Site{{FilePath: "src/a.ts", StartLine: 1, StartCol: 1}, {FilePath: "src/b.ts", StartLine: 2, StartCol: 1}, {FilePath: "src/c.ts", StartLine: 3, StartCol: 1}}
+	if msg := buildAlwaysThrowMessage(diagnostics.CodeVLSymbolRoot, "Symbol", sites); !strings.HasSuffix(msg, "(at src/a.ts:1:1, and 2 other call sites)") {
+		t.Errorf("expected the first site plus the shared count, got: %q", msg)
+	}
+	if msg := buildAlwaysThrowMessage(diagnostics.CodeVLSymbolRoot, "Symbol", sites[:2]); !strings.HasSuffix(msg, "(at src/a.ts:1:1, and 1 other call site)") {
+		t.Errorf("expected the singular form, got: %q", msg)
+	}
+}

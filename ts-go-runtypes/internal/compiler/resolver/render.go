@@ -1,6 +1,7 @@
 package resolver
 
 import (
+	"path/filepath"
 	"slices"
 	"sort"
 	"strconv"
@@ -34,6 +35,7 @@ func (sess *Session) rtRenderOpts(sink *[]diagnostics.Diagnostic, rooted, proven
 		Store:           sess.rtStore,
 		Lookup:          sess.cache,
 		DiagSink:        sink,
+		ThrowSitePath:   sess.relativeToCwd,
 		ProvenanceSites: provenance,
 		RootedSites:     rooted,
 		EmitMode:        sess.opts.EmitMode,
@@ -101,7 +103,39 @@ func (sess *Session) buildProvenanceSites() (rooted, reaching map[string][]diagn
 	for id, demanded := range byID {
 		addProvenance(rooted, id, demanded)
 	}
-	return rooted, sess.inheritProvenanceToDescendants(byID)
+	reaching = sess.inheritProvenanceToDescendants(byID)
+	sess.sortProvenance(rooted)
+	sess.sortProvenance(reaching)
+	return rooted, reaching
+}
+
+// relativeToCwd spells a file relative to the working directory with forward slashes; one outside it stays absolute.
+func (sess *Session) relativeToCwd(file string) string {
+	absolutePath := sess.absPath(file)
+	relative, err := filepath.Rel(sess.workingDir(), absolutePath)
+	if err != nil || strings.HasPrefix(relative, "..") {
+		return filepath.ToSlash(absolutePath)
+	}
+	return filepath.ToSlash(relative)
+}
+
+// sortProvenance orders each key's sites by (absolute path, line, col) and drops repeats, so the site an
+// alwaysThrow message names is the same whatever order files were scanned or map keys iterated.
+func (sess *Session) sortProvenance(byKey map[string][]diagnostics.Site) {
+	for key, sites := range byKey {
+		slices.SortFunc(sites, func(left, right diagnostics.Site) int {
+			if byPath := strings.Compare(sess.absPath(left.FilePath), sess.absPath(right.FilePath)); byPath != 0 {
+				return byPath
+			}
+			if left.StartLine != right.StartLine {
+				return left.StartLine - right.StartLine
+			}
+			return left.StartCol - right.StartCol
+		})
+		byKey[key] = slices.CompactFunc(sites, func(left, right diagnostics.Site) bool {
+			return sess.absPath(left.FilePath) == sess.absPath(right.FilePath) && left.StartLine == right.StartLine && left.StartCol == right.StartCol
+		})
+	}
 }
 
 // demandedFamilies dedupes the site's family tags, so a composite strategy naming one twice does not
