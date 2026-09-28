@@ -147,21 +147,21 @@ describe.runIf(hasBinary())('eslint surface — option-sensitive types and confi
 
   beforeEach(() => resetSharedSession());
 
-  it('lib with ESNext.Temporal (default tsconfig.json): no invalid-marker report', () => {
-    expect(runRule(rules['invalid-marker'], consumerAbs, TEMPORAL_CONSUMER_SRC, {})).toEqual([]);
+  it('lib with ESNext.Temporal (default tsconfig.json): no mion/error report', () => {
+    expect(runRule(rules['error']!, consumerAbs, TEMPORAL_CONSUMER_SRC, {})).toEqual([]);
   });
 
-  it('lib without Temporal: the TMP001-routed invalid-marker report fires', () => {
-    const reports = runRule(rules['invalid-marker'], consumerAbs, TEMPORAL_CONSUMER_SRC, {
-      runtypes: {tsconfig: 'tsconfig.nolib.json'},
+  it('lib without Temporal: the TMP001 report fires under mion/error', () => {
+    const reports = runRule(rules['error']!, consumerAbs, TEMPORAL_CONSUMER_SRC, {
+      mion: {tsconfig: 'tsconfig.nolib.json'},
     });
     expect(reports.length).toBeGreaterThan(0);
     expect(reports.some((report) => report.message.includes('TMP001'))).toBe(true);
   });
 
-  it('a broken configured tsconfig surfaces as a CFG001 broken-tsconfig report, not an engine failure', () => {
-    const reports = runRule(rules['broken-tsconfig'], consumerAbs, TEMPORAL_CONSUMER_SRC, {
-      runtypes: {tsconfig: 'tsconfig.broken.json'},
+  it('a broken configured tsconfig reports as CFG001 under mion/error, not an engine failure', () => {
+    const reports = runRule(rules['error']!, consumerAbs, TEMPORAL_CONSUMER_SRC, {
+      mion: {tsconfig: 'tsconfig.broken.json'},
     });
     expect(reports.length).toBe(1);
     expect(reports[0].message).toContain('CFG001');

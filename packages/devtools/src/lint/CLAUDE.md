@@ -1,17 +1,17 @@
 # Lint rules: the resolver decides, the plugin relays
 
 Every lint finding mion reports is a diagnostic the Go resolver already emits. The rules in this
-directory are transport: one resolver pass per linted file, then `diagnosticRouting.ts` fans the
-wire diagnostics out to rules named for what they catch (`runtypes/*` for RunTypes, `@mionjs/*`
-for mion's route rules, whose logic lives in `ts-go-runtypes/internal/compiler/routerrules`).
-The same code paths run at build time, so the editor, the linter and the build never disagree.
+directory are transport: one resolver pass per linted file, then `diagnosticRouting.ts` sends each
+wire diagnostic to the rule of its level (mion's route checks live in
+`ts-go-runtypes/internal/compiler/routerrules`). The linter scans one file at a time, so a
+whole-program finding (a batch id collision, a bundled-API check) only shows in the build.
 
-## Adding a rule
+## Adding a code
 
-1. Emit a diagnostic from the resolver, with a code in the Go catalog and a default level.
-2. Add a row to `RULE_SPECS` in `diagnosticRouting.ts` (namespace, name, the codes it carries).
-   The plugin objects, `configs.recommended` and the OXlint preset are built from that table.
-3. Document it on the linter page (`container/website/content/01.rpc/06.devtools/01.linter.md`).
+1. Emit a diagnostic from the resolver, with a code in the Go catalog and a level.
+2. Nothing else here: the level picks the rule (`mion/error`, `mion/warning`, `mion/info`), so a new
+   code reaches the editor with no routing change.
+3. Document the code where its feature is documented; the linter page lists the three rules, not the codes.
 
 Never write a rule that inspects the AST on its own to answer a type or resolver question: it
 would drift from the build. `enforce-type-imports` is the one hand-written rule, and only because
@@ -23,9 +23,9 @@ ceiling, say) is still a resolver diagnostic: the resolver sees the call site.
 
 The Go catalog has four levels: Error (the build produced no code, never downgradable),
 RuntimeError (would throw at runtime, downgradable), Warning, and Info (the documented behaviour,
-or advice). Info is hidden by the linter and the build unless `levels: 'all'` is set, in the lint
-settings or the tsconfig (the `serve --sources ops` checker reads that one key and echoes it on
-`scanFiles`); the report loop in `index.ts` drops it, so the shared session still caches the full pass. A finding a linter
-should raise as advice, with no effect on the build, is Info. Routing sends Warning and Info to a
-family's `warn` rule, and any finding a `@mion-downgrade-error` comment lowered to
-`downgraded-error`, since a lint rule has one level and cannot share it with unlowered errors.
+or advice). The rules are one per level, never per topic: a lint rule has one severity, so a rule
+per topic let a lint config show a `warn` for a code that stops the build. Error and RuntimeError
+go to `mion/error`, Warning and every lowered error (a `@mion-downgrade-error` comment, or the
+tsconfig `downgradeErrors` the `serve --sources ops` checker echoes on `scanFiles`) to
+`mion/warning`, Info to `mion/info`, off by default like in the build. A project changes one finding
+with the directive comments or the tsconfig, which the build reads too, never in the lint config.

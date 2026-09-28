@@ -186,11 +186,11 @@ type Response struct {
 	// RouterInitFiles lists the program files calling `createMionRouter`, the modules the transform appends the
 	// batch import to. A dev host re-transforms them when BatchesModule first appears after they loaded without it.
 	RouterInitFiles []string `json:"routerInitFiles,omitempty"`
-	// DowngradeErrors echoes the tsconfig plugin's downgradeErrors on OpGenerate (nil when the tsconfig sets none)
+	// DowngradeErrors echoes the tsconfig plugin's downgradeErrors on OpGenerate and OpScanFiles (nil when unset)
 	// so a dependency-free host can honor a tsconfig-only setting; the host's own option wins, then this echo,
 	// then nothing downgraded. Either a list of codes or the single wildcard entry "*". Emitted via MarshalJSON.
 	DowngradeErrors []string `json:"downgradeErrors,omitempty"`
-	// Levels echoes the tsconfig plugin's `levels` on OpGenerate and OpScanFiles ("" when unset); the host's own option wins.
+	// Levels echoes the tsconfig plugin's `levels` on OpGenerate ("" when unset); the host's own option wins.
 	Levels string `json:"levels,omitempty"`
 	// Transformed carries one TransformResult per file for OpTransform, keyed by file path, scoped to the
 	// request's Files.

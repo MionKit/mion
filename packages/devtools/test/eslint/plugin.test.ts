@@ -9,7 +9,7 @@
 
 import fs from 'node:fs';
 import {afterAll, beforeAll, describe, expect, it, vi} from 'vitest';
-import plugin, {meta, mionPlugin, rules, sessionOptions} from '../../src/lint/index.ts';
+import plugin, {meta, rules, sessionOptions} from '../../src/lint/index.ts';
 import {RULE_SPECS} from '../../src/lint/diagnosticRouting.ts';
 import {resetSharedSession} from '../../src/lint/session.ts';
 import {ResolverClient} from '../../src/core/resolver-client.ts';
@@ -181,30 +181,26 @@ type TypeFormat<Base, Name extends string, Params> = Base & {
 export const isCode = createValidateFn<TypeFormat<string, 'stringFormat', {pattern: {source: '(?<=x)y'; flags: ''; mockSamples: ['nope']}}>>();
 `;
 
-// Transparency: the plugin reads timeoutMs and tsconfig. binary / cwd / socket
-// under settings.runtypes are NOT read — the resolver binary and working
-// directory are resolved automatically, like any other linter. Pure function,
-// so this runs without the resolver binary.
-describe('sessionOptions — timeoutMs, tsconfig and binary are configurable', () => {
+// Transparency: the plugin reads timeoutMs, tsconfig, binary and markers under settings.mion. cwd / socket are
+// NOT read: the working directory is resolved automatically, like any other linter. Pure function, so this runs
+// without the resolver binary.
+describe('sessionOptions: timeoutMs, tsconfig and binary are configurable', () => {
   it('reads timeoutMs, tsconfig and binary, drops cwd and socket', () => {
     expect(
-      sessionOptions({runtypes: {binary: '/x', cwd: '/y', socket: '/z', timeoutMs: 5000, tsconfig: './tsconfig.lint.json'}})
+      sessionOptions({mion: {binary: '/x', cwd: '/y', socket: '/z', timeoutMs: 5000, tsconfig: './tsconfig.lint.json'}})
     ).toEqual({binary: '/x', timeoutMs: 5000, tsconfig: './tsconfig.lint.json'});
   });
 
-  // A dropped key used to be invisible, which is how the e2e fixture spent
-  // months believing it had redirected the binary. One warning per key per run:
-  // enough to notice, not enough to drown a lint of a thousand files.
+  // One warning per key per run: enough to notice, not enough to drown a lint of a thousand files.
   it('warns once per unsupported key, naming it and the supported set', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     try {
-      // A key no other test uses: the warning is once per PROCESS, so a shared
-      // key would make this depend on which test ran first.
-      sessionOptions({runtypes: {bogusKnob: '/y', timeoutMs: 1}});
-      sessionOptions({runtypes: {bogusKnob: '/y'}});
-      sessionOptions({runtypes: {bogusKnob: '/y'}});
+      // A key no other test uses: the warning is once per PROCESS.
+      sessionOptions({mion: {bogusKnob: '/y', timeoutMs: 1}});
+      sessionOptions({mion: {bogusKnob: '/y'}});
+      sessionOptions({mion: {bogusKnob: '/y'}});
       const messages = warn.mock.calls.map((call) => String(call[0]));
-      expect(messages.filter((message) => message.includes('settings.runtypes.bogusKnob'))).toHaveLength(1);
+      expect(messages.filter((message) => message.includes('settings.mion.bogusKnob'))).toHaveLength(1);
       expect(messages[0]).toContain('tsconfig');
       expect(messages[0]).toContain('binary');
     } finally {
@@ -215,104 +211,72 @@ describe('sessionOptions — timeoutMs, tsconfig and binary are configurable', (
   it('says nothing about supported keys', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     try {
-      sessionOptions({runtypes: {timeoutMs: 1, tsconfig: 'tsconfig.json', binary: '/x'}});
+      sessionOptions({mion: {timeoutMs: 1, tsconfig: 'tsconfig.json', binary: '/x'}});
       expect(warn).not.toHaveBeenCalled();
     } finally {
       warn.mockRestore();
     }
   });
 
-  it("reads levels: 'all', and warns once on any other value while keeping Info hidden", () => {
-    expect(sessionOptions({runtypes: {levels: 'all'}})).toEqual({levels: 'all'});
+  it('points the removed levels key at the mion/info rule', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     try {
-      expect(sessionOptions({runtypes: {levels: 'warning'}})).toEqual({});
-      expect(sessionOptions({runtypes: {levels: ['info']}})).toEqual({});
+      expect(sessionOptions({mion: {levels: 'all'}})).toEqual({});
       const messages = warn.mock.calls.map((call) => String(call[0]));
-      expect(messages.filter((message) => message.includes('settings.runtypes.levels'))).toHaveLength(1);
-      expect(messages[0]).toContain("'all'");
+      expect(messages.filter((message) => message.includes('settings.mion.levels'))).toHaveLength(1);
+      expect(messages[0]).toContain('mion/info');
     } finally {
       warn.mockRestore();
     }
   });
 
-  it('reads tsconfig on its own', () => {
-    expect(sessionOptions({runtypes: {tsconfig: 'tsconfig.build.json'}})).toEqual({tsconfig: 'tsconfig.build.json'});
+  it('still reads the old settings.runtypes bag, with a rename warning', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      expect(sessionOptions({runtypes: {tsconfig: 'tsconfig.build.json'}})).toEqual({tsconfig: 'tsconfig.build.json'});
+      expect(warn.mock.calls.map((call) => String(call[0])).some((message) => message.includes("'settings.mion'"))).toBe(true);
+    } finally {
+      warn.mockRestore();
+    }
   });
 
-  it('is empty when settings are absent or carry no runtypes bag', () => {
+  it('is empty when settings are absent or carry no mion bag', () => {
     expect(sessionOptions(undefined)).toEqual({});
     expect(sessionOptions({other: {}})).toEqual({});
   });
 });
 
-// recommended is what the docs tell ESLint users to spread. Guard its shape:
-// both plugins registered, and one entry per runtypes rule at its RULE_SPECS
-// default.
-//
-// It carries TWO namespaces since the devtools packages merged. `runtypes/*` is
-// the transform's diagnostic surface; `@mionjs/*` is mion's own rule set, which
-// used to ship from a separate package's own recommended. oxlint never reads
-// this config (its .oxlintrc.json lists rules itself and takes only `meta` +
-// `rules` off the default export), so this is ESLint's entry point and the one
-// place the two families come together.
-const RUNTYPES_SPECS = RULE_SPECS.filter((spec) => spec.namespace === 'runtypes');
-const MION_SPECS = RULE_SPECS.filter((spec) => spec.namespace === '@mionjs');
-
-describe('configs.recommended — every rule at its family default', () => {
-  it('registers both plugins and sets every rule to its default level, under its own prefix', () => {
+// recommended is what the docs tell ESLint users to spread: the one plugin, and each level rule at the default
+// that matches what the build does with that level.
+describe('configs.recommended: the three level rules at their defaults', () => {
+  it('registers the mion plugin and sets each level rule to its default', () => {
     const rec = plugin.configs['recommended'] as {plugins: Record<string, unknown>; rules: Record<string, string>};
-    expect(rec.plugins['runtypes']).toBe(plugin);
-    expect(rec.plugins['@mionjs']).toBe(mionPlugin);
-    expect(Object.keys(rec.rules).sort()).toEqual(RULE_SPECS.map((spec) => `${spec.namespace}/${spec.name}`).sort());
-    for (const spec of RULE_SPECS) expect(rec.rules[`${spec.namespace}/${spec.name}`]).toBe(spec.default);
+    expect(rec.plugins).toEqual({mion: plugin});
+    expect(rec.rules).toEqual({'mion/error': 'error', 'mion/warning': 'warn', 'mion/info': 'off'});
   });
 
-  // The mion half, asserted on its own: the table is partitioned by namespace,
-  // so a bad partition would still satisfy a whole-table check.
-  it('enables mion own rules under the @mionjs prefix', () => {
-    const rec = plugin.configs['recommended'] as {plugins: Record<string, unknown>; rules: Record<string, string>};
-    expect(MION_SPECS.map((spec) => spec.name).sort()).toEqual([
-      'no-throw-in-handlers',
-      'no-unsafe-property-names',
-      'returned-error-type',
-      'strong-typed-routes',
-    ]);
-    for (const spec of MION_SPECS) expect(rec.rules[`@mionjs/${spec.name}`]).toBe(spec.default);
-    // Every rule the mion plugin exposes must be addressable under that prefix.
-    for (const name of Object.keys(mionPlugin.rules)) {
-      expect(mionPlugin.rules[name], `@mionjs/${name} is registered but has no rule module`).toBeTruthy();
-    }
-  });
-
-  // enforce-type-imports is the one hand-written rule left. It stays out of
-  // recommended: it reports nothing without a `backendSources` option, so a
-  // project opts in and configures it in the same edit.
+  // enforce-type-imports is the one hand-written rule. It stays out of recommended: it reports nothing without a
+  // `backendSources` option, so a project opts in and configures it in the same edit.
   it('keeps enforce-type-imports registered but out of recommended', () => {
     const rec = plugin.configs['recommended'] as {rules: Record<string, string>};
-    expect(mionPlugin.rules['enforce-type-imports']).toBeTruthy();
-    expect(rec.rules['@mionjs/enforce-type-imports']).toBeUndefined();
+    expect(rules['enforce-type-imports']).toBeTruthy();
+    expect(rec.rules['mion/enforce-type-imports']).toBeUndefined();
   });
 
-  // The runtypes plugin carries ONLY its own namespace: a mion rule leaking into
-  // the default export would make oxlint load a rule it has no prefix for.
-  it('keeps the two namespaces apart', () => {
-    expect(Object.keys(rules).sort()).toEqual(RUNTYPES_SPECS.map((spec) => spec.name).sort());
-    for (const spec of MION_SPECS) expect(rules[spec.name as keyof typeof rules]).toBeUndefined();
+  it('exposes exactly the three level rules plus enforce-type-imports', () => {
+    expect(Object.keys(rules).sort()).toEqual(['enforce-type-imports', 'error', 'info', 'warning']);
+    expect(RULE_SPECS.map((spec) => spec.name)).toEqual(['error', 'warning', 'info']);
   });
 });
 
-// oxlint-recommended.json is the OXlint twin of configs.recommended: oxlint has
-// no plugin-exported presets, but its `extends` takes config FILE paths, so the
-// package ships a ready-made config (jsPlugins + every rule at its default)
-// that a consumer extends with one line. Pin it against RULE_SPECS so a rule
-// rename or default change can never leave the shipped preset behind.
-describe('oxlint-recommended.json — the shipped extends preset matches RULE_SPECS', () => {
-  it('carries the dist plugin path and every rule at its default level', () => {
+// oxlint-recommended.json is the OXlint twin of configs.recommended: oxlint has no plugin-exported presets, but its
+// `extends` takes config FILE paths, so the package ships a ready-made config. Pin it against RULE_SPECS.
+describe('oxlint-recommended.json: the shipped extends preset matches RULE_SPECS', () => {
+  it('carries the dist plugin path and every level rule at its default', () => {
     const presetPath = new URL('../../oxlint-recommended.json', import.meta.url);
     const preset = JSON.parse(fs.readFileSync(presetPath, 'utf8')) as {jsPlugins: string[]; rules: Record<string, string>};
     expect(preset.jsPlugins).toEqual(['./dist/lint/index.js']);
-    expect(preset.rules).toEqual(Object.fromEntries(RUNTYPES_SPECS.map((spec) => [`runtypes/${spec.name}`, spec.default])));
+    expect(preset.rules).toEqual(Object.fromEntries(RULE_SPECS.map((spec) => [`mion/${spec.name}`, spec.default])));
   });
 });
 
@@ -376,32 +340,25 @@ describe.runIf(hasBinary())(
       project.cleanup();
     });
 
-    function reportsFor(ruleName: keyof typeof rules, rel: string): LintReportedProblem[] {
-      return runRule(rules[ruleName], abs.get(rel)!, texts[rel]!, settings);
+    function reportsFor(ruleName: string, rel: string): LintReportedProblem[] {
+      return runRule(rules[ruleName]!, abs.get(rel)!, texts[rel]!, settings);
     }
 
-    // The mion rules ride the other plugin object, but the same transport: one
-    // resolver pass per file serves both namespaces.
-    function mionReportsFor(ruleName: string, rel: string): LintReportedProblem[] {
-      return runRule(mionPlugin.rules[ruleName]!, abs.get(rel)!, texts[rel]!, settings);
+    // codesFor lists the `[CODE]` of every report one level rule makes on a file.
+    function codesFor(ruleName: string, rel: string): string[] {
+      return reportsFor(ruleName, rel).map((report) => report.message.match(/^\[([A-Z]+\d+)\]/)?.[1] ?? report.message);
     }
 
-    it('exposes the runtypes namespace and one rule per RULE_SPECS entry', () => {
-      expect(meta.name).toBe('runtypes');
-      expect(Object.keys(rules).sort()).toEqual(RUNTYPES_SPECS.map((spec) => spec.name).sort());
+    const LEVEL_RULES = ['error', 'warning', 'info'] as const;
+
+    it('exposes the mion namespace', () => {
+      expect(meta.name).toBe('mion');
       expect(plugin.configs['recommended']).toBeDefined();
     });
 
     describe('Family A — compiler diagnostics grouped by family', () => {
       it('reports nothing on a clean file using BOTH getRunTypeId shapes', () => {
-        for (const ruleName of [
-          'invalid-marker',
-          'redundant-marker',
-          'validate-non-serializable',
-          'validate-skipped-member',
-        ] as const) {
-          expect(reportsFor(ruleName, 'forms.ts')).toEqual([]);
-        }
+        for (const ruleName of LEVEL_RULES) expect(reportsFor(ruleName, 'forms.ts')).toEqual([]);
       });
 
       it('static and reflection getRunTypeId forms resolve to the SAME cache id (hash equivalence)', async () => {
@@ -416,26 +373,26 @@ describe.runIf(hasBinary())(
         }
       });
 
-      it('routes a Warning-severity marker diagnostic (MKR001, reflection form invoking a function) to runtypes/redundant-marker', () => {
-        const reports = reportsFor('redundant-marker', 'bad-form.ts');
+      it('routes a Warning marker diagnostic (MKR001, reflection form invoking a function) to mion/warning', () => {
+        const reports = reportsFor('warning', 'bad-form.ts');
         expect(reports).toHaveLength(1);
         expect(reports[0]!.message).toContain('[MKR001]');
         expect(reports[0]!.message).toContain('load');
         expect(reports[0]!.line).toBe(locate(BAD_FORM_TS, 'getRunTypeId(load())').line);
-        expect(reportsFor('invalid-marker', 'bad-form.ts')).toEqual([]);
+        expect(reportsFor('error', 'bad-form.ts')).toEqual([]);
       });
 
-      it('routes an Error-severity marker diagnostic (MKR003, marker in a generic function) to runtypes/invalid-marker', () => {
-        const reports = reportsFor('invalid-marker', 'generic-marker.ts');
+      it('routes an Error marker diagnostic (MKR003, marker in a generic function) to mion/error', () => {
+        const reports = reportsFor('error', 'generic-marker.ts');
         expect(reports).toHaveLength(1);
         expect(reports[0]!.message).toContain('[MKR003]');
         expect(reports[0]!.line).toBe(locate(GENERIC_MARKER_TS, 'createValidateFn<T>()').line);
-        expect(reportsFor('redundant-marker', 'generic-marker.ts')).toEqual([]);
+        expect(reportsFor('warning', 'generic-marker.ts')).toEqual([]);
       });
 
       it('checks a file whose marker comes only through a drizzle dialect package (MKR003 on tableFromType<T>())', () => {
         expect(DRIZZLE_GENERIC_TS).not.toContain('@mionjs/run-types');
-        const reports = reportsFor('invalid-marker', 'drizzle-generic.ts');
+        const reports = reportsFor('error', 'drizzle-generic.ts');
         expect(reports).toHaveLength(1);
         expect(reports[0]!.message).toContain('[MKR003]');
         expect(reports[0]!.line).toBe(locate(DRIZZLE_GENERIC_TS, 'tableFromType<T>()').line);
@@ -443,20 +400,16 @@ describe.runIf(hasBinary())(
 
       it('checks a file whose marker comes through a local wrapper module (MKR003 on tableFromType<T>())', () => {
         expect(WRAPPED_GENERIC_TS).not.toContain('@mionjs/');
-        const reports = reportsFor('invalid-marker', 'wrapped-generic.ts');
+        const reports = reportsFor('error', 'wrapped-generic.ts');
         expect(reports).toHaveLength(1);
         expect(reports[0]!.message).toContain('[MKR003]');
         expect(reports[0]!.line).toBe(locate(WRAPPED_GENERIC_TS, 'tableFromType<T>()').line);
       });
 
-      it('hides the Info-level VL011 method drop by default', () => {
-        expect(reportsFor('validate-skipped-member', 'widget.ts')).toEqual([]);
-      });
-
-      it("surfaces RunType render diagnostics (VL011 method drop) under runtypes/validate-skipped-member with levels: 'all'", () => {
-        const reports = runRule(rules['validate-skipped-member'], abs.get('widget.ts') as string, texts['widget.ts'] as string, {
-          runtypes: {levels: 'all'},
-        });
+      it('reports the Info VL011 method drop only under mion/info', () => {
+        expect(reportsFor('warning', 'widget.ts')).toEqual([]);
+        expect(reportsFor('error', 'widget.ts')).toEqual([]);
+        const reports = reportsFor('info', 'widget.ts');
         expect(reports).toEqual([
           expect.objectContaining({
             message: expect.stringMatching(/\[VL011\].*onClick/),
@@ -465,8 +418,8 @@ describe.runIf(hasBinary())(
         ]);
       });
 
-      it('reports a JS-only-pattern sample mismatch as FMT001 under runtypes/format at the definition site', () => {
-        const reports = reportsFor('format', 'unchecked-pattern.ts');
+      it('reports a JS-only-pattern sample mismatch as FMT001 under mion/error at the definition site', () => {
+        const reports = reportsFor('error', 'unchecked-pattern.ts');
         expect(reports).toHaveLength(1);
         expect(reports[0]!.message).toContain('[FMT001]');
         // The resolver's JS engine ran the real regex — the sample 'nope'
@@ -478,9 +431,9 @@ describe.runIf(hasBinary())(
       });
     });
 
-    describe('enrichment rules — one pass, per-concern routing', () => {
-      it('no-enrichment-todo fires once on the scaffold line with a tight tag span', () => {
-        const reports = reportsFor('no-enrichment-todo', 'mirror-dirty.ts');
+    describe('enrichment findings, one pass routed by level', () => {
+      it('the FT020 to-do reports once on the scaffold line with a tight tag span', () => {
+        const reports = reportsFor('warning', 'mirror-dirty.ts').filter((report) => report.message.includes('[FT020]'));
         expect(reports).toHaveLength(1);
         const expected = locate(MIRROR_DIRTY_TS, TODO_TAG);
         expect(reports[0]).toMatchObject({line: expected.line, column: expected.column});
@@ -489,8 +442,8 @@ describe.runIf(hasBinary())(
         expect(reports[0]!.message).toContain('[FT020]');
       });
 
-      it('no-orphan-carcass fires on both carcass forms', () => {
-        const reports = reportsFor('no-orphan-carcass', 'mirror-dirty.ts');
+      it('reports both carcass forms', () => {
+        const reports = reportsFor('warning', 'mirror-dirty.ts').filter((report) => /\[MD02[12]\]/.test(report.message));
         expect(reports).toHaveLength(2);
         // Both carcasses carry no preserved annotation and sit after the last
         // const, so they attribute to the nearest-before MockData family.
@@ -500,9 +453,9 @@ describe.runIf(hasBinary())(
         expect(reports[1]!.line).toBe(locate(MIRROR_DIRTY_TS, '@rtOrphanChild old').line);
       });
 
-      it('enrichment-field anchors FT002/MD001 on the dead keys', () => {
-        const reports = reportsFor('enrichment-field', 'mirror-dirty.ts');
-        expect(reports).toHaveLength(2);
+      it('anchors FT002/MD001 on the dead keys', () => {
+        expect(codesFor('warning', 'mirror-dirty.ts').sort()).toEqual(['FT002', 'FT020', 'MD001', 'MD021', 'MD022']);
+        const reports = reportsFor('warning', 'mirror-dirty.ts');
         const ft002 = reports.find((report) => report.message.includes('[FT002]'))!;
         expect(ft002.message).toContain('`nope`');
         expect(ft002).toMatchObject(locate(MIRROR_DIRTY_TS, 'nope:'));
@@ -511,8 +464,8 @@ describe.runIf(hasBinary())(
         expect(md001).toMatchObject(locate(MIRROR_DIRTY_TS, 'vanished:'));
       });
 
-      it('enrichment-broken-source reports GE002 on a dead breadcrumb, anchored to the import', () => {
-        const reports = reportsFor('enrichment-broken-source', 'mirror-drift.ts');
+      it('reports GE002 on a dead breadcrumb under mion/error, anchored to the import', () => {
+        const reports = reportsFor('error', 'mirror-drift.ts');
         expect(reports).toHaveLength(1);
         expect(reports[0]!.message).toContain('[GE002]');
         expect(reports[0]!.message).toContain('./ghost');
@@ -520,64 +473,35 @@ describe.runIf(hasBinary())(
       });
 
       it('a clean mirror (markers + @rtIds + valid content) produces ZERO reports on every rule', () => {
-        for (const ruleName of Object.keys(rules) as (keyof typeof rules)[]) {
-          expect(reportsFor(ruleName, 'mirror-clean.ts')).toEqual([]);
-        }
+        for (const ruleName of LEVEL_RULES) expect(reportsFor(ruleName, 'mirror-clean.ts')).toEqual([]);
       });
 
       it('replays from the session cache: a second identical pass returns the same reports', () => {
-        const first = reportsFor('no-enrichment-todo', 'mirror-dirty.ts');
-        const second = reportsFor('no-enrichment-todo', 'mirror-dirty.ts');
+        const first = reportsFor('warning', 'mirror-dirty.ts');
+        const second = reportsFor('warning', 'mirror-dirty.ts');
         expect(second).toEqual(first);
       });
     });
 
-    // The mion route rules, end to end: the compiler produces them, the routing
-    // layer fans them to four separate rules, and a file with no runtypes marker
-    // still gets a resolver pass.
-    describe('Family C — mion route rules', () => {
-      it('routes each finding to its own rule, on a file with no runtypes marker', () => {
+    // The mion route findings, end to end: the compiler produces them, the level rules report them, and a file
+    // with no runtypes marker still gets a resolver pass.
+    describe('mion route findings', () => {
+      it('reports each finding at its level, on a file with no runtypes marker', () => {
         expect(ROUTES_TS).not.toContain('@mionjs/run-types');
-        for (const [ruleName, code] of [
-          ['strong-typed-routes', 'MRT001'],
-          ['no-throw-in-handlers', 'MRT003'],
-          ['returned-error-type', 'MRT004'],
-          ['no-unsafe-property-names', 'MRT005'],
-        ] as const) {
-          const reports = mionReportsFor(ruleName, 'routes.ts');
-          expect(reports.length, `${ruleName} reported nothing`).toBeGreaterThan(0);
-          expect(
-            reports.some((one) => one.message.includes(`[${code}]`)),
-            `${ruleName} did not carry ${code}`
-          ).toBe(true);
-        }
-        // Both annotation codes ride strong-typed-routes, and neither leaks into
-        // another rule.
-        const annotations = mionReportsFor('strong-typed-routes', 'routes.ts').map((one) => one.message);
-        expect(annotations.some((message) => message.includes('[MRT001]'))).toBe(true);
-        expect(annotations.some((message) => message.includes('[MRT002]'))).toBe(true);
+        expect(codesFor('error', 'routes.ts').sort()).toEqual(['MRT001', 'MRT002', 'MRT003', 'MRT004']);
+        expect(codesFor('warning', 'routes.ts')).toContain('MRT005');
       });
 
       it('reports nothing on correct routes, including the shapes a syntactic rule could not see', () => {
-        for (const ruleName of [
-          'strong-typed-routes',
-          'no-throw-in-handlers',
-          'returned-error-type',
-          'no-unsafe-property-names',
-        ]) {
-          expect(mionReportsFor(ruleName, 'clean-routes.ts'), `${ruleName} fired on a clean file`).toEqual([]);
+        for (const ruleName of LEVEL_RULES) {
+          expect(reportsFor(ruleName, 'clean-routes.ts'), `mion/${ruleName} fired on a clean file`).toEqual([]);
         }
       });
 
-      // A lint report carries a line and column but no file: the host pins it to
-      // the file it is linting. So a finding about a handler defined elsewhere
-      // has to be reported at the ROUTE CALL, or it lands on an unrelated line
-      // of this file, or on no line at all.
+      // A lint report carries a line and column but no file: the host pins it to the file it is linting. So a
+      // finding about a handler defined elsewhere has to be reported at the ROUTE CALL.
       it('checks a handler imported from another module, and reports it at the route call', () => {
-        const reports = [
-          ...mionReportsFor('strong-typed-routes', 'importing-routes.ts'),
-          ...mionReportsFor('no-throw-in-handlers', 'importing-routes.ts'),
-        ];
+        const reports = reportsFor('error', 'importing-routes.ts');
         expect(reports.map((one) => one.message.slice(0, 8)).sort()).toEqual(['[MRT001]', '[MRT003]']);
         const lines = IMPORTING_ROUTES_TS.split('\n');
         for (const report of reports) {
@@ -588,21 +512,14 @@ describe.runIf(hasBinary())(
       });
 
       it('reports nothing on the handler module by itself', () => {
-        for (const ruleName of ['strong-typed-routes', 'no-throw-in-handlers']) {
-          expect(mionReportsFor(ruleName, 'handlers.ts'), `${ruleName} fired on a file that declares no route`).toEqual([]);
-        }
-      });
-
-      it('a runtypes rule never reports a mion route finding', () => {
-        expect(reportsFor('other', 'routes.ts')).toEqual([]);
-        expect(reportsFor('invalid-marker', 'routes.ts')).toEqual([]);
+        expect(reportsFor('error', 'handlers.ts'), 'mion/error fired on a file that declares no route').toEqual([]);
       });
     });
 
     describe('scoping', () => {
       it('a hand-written file with a stray @todo comment never reaches the resolver (empty visitor)', () => {
-        for (const ruleName of Object.keys(rules) as (keyof typeof rules)[]) {
-          const visitor = rules[ruleName].create({
+        for (const ruleName of LEVEL_RULES) {
+          const visitor = rules[ruleName]!.create({
             physicalFilename: abs.get('plain.ts')!,
             filename: abs.get('plain.ts')!,
             sourceCode: {text: PLAIN_TS},
@@ -616,7 +533,7 @@ describe.runIf(hasBinary())(
       });
 
       it('unnamed virtual buffers are skipped', () => {
-        const visitor = rules['no-enrichment-todo'].create({
+        const visitor = rules['warning']!.create({
           physicalFilename: '<input>',
           filename: '<input>',
           sourceCode: {text: MIRROR_DIRTY_TS},

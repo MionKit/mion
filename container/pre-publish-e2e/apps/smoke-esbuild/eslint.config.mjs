@@ -5,16 +5,16 @@
 // No `files` restriction so the config applies to whatever file eslint is told to
 // lint (the lint-transport test targets src/caveat.ts explicitly).
 //
-// settings.runtypes.tsconfig points the resolver at THIS app's tsconfig: the
+// settings.mion.tsconfig points the resolver at THIS app's tsconfig: the
 // linters run from the e2e root, so without it the resolver would search upward
-// from there and adopt some other project's config (or none). `levels: 'all'` shows
+// from there and adopt some other project's config (or none). `mion/info` shows
 // the caveat's skipped member, an Info hidden by default. The working directory is
 // not a setting: the plugin runs where the linter runs. In-container the binary
 // comes from the published @mionjs/bin-compiler launcher (exactly what the e2e
 // proves); for host runs the spawner forwards MION_E2E_BINARY to the launcher's
 // MION_BIN env var (see ../../lint-all.mjs).
 import {fileURLToPath} from 'node:url';
-import runtypes from '@mionjs/devtools/eslint';
+import mion from '@mionjs/devtools/eslint';
 import tsParser from '@typescript-eslint/parser';
 
 const appTsconfig = fileURLToPath(new URL('tsconfig.json', import.meta.url));
@@ -26,18 +26,15 @@ export default [
     // ESLint-on-TypeScript requirement (espree can't parse `interface`).
     files: ['**/*.ts'],
     languageOptions: {parser: tsParser},
-    plugins: {runtypes},
+    plugins: {mion},
     settings: {
-      runtypes: {
+      mion: {
         tsconfig: appTsconfig,
-        levels: 'all',
       },
     },
-    // The plugin's own recommended set, runtypes/* only (mion's @mionjs/* rules
-    // ride the mion consumer lane). Real rule names matter: ESLint reports an
-    // unknown rule as "Definition for rule 'runtypes/x' was not found", which
-    // contains the word the transport test greps for, so a stale name would
-    // pass the lane without ever loading the plugin. The test refuses that text.
-    rules: Object.fromEntries(Object.entries(runtypes.configs.recommended.rules).filter(([name]) => name.startsWith('runtypes/'))),
+    // The plugin's own recommended set plus Info. Real rule names matter: ESLint reports an unknown rule as
+    // "Definition for rule 'mion/x' was not found", which contains the word the transport test greps for, so a
+    // stale name would pass the lane without ever loading the plugin. The test refuses that text.
+    rules: {...mion.configs.recommended.rules, 'mion/info': 'warn'},
   },
 ];

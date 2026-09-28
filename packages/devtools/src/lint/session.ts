@@ -17,7 +17,7 @@ import {WAKE_INDEX, type LintSessionOptions, type LintWorkerRequest, type LintWo
 export type {LintSessionOptions} from './session-protocol.ts';
 
 // LintOutcome is one file's result: the wire diagnostics, or the reason the engine could not answer.
-export type LintOutcome = {diagnostics: Diagnostic[]; levels?: string; downgradeErrors?: string[]} | {engineError: string};
+export type LintOutcome = {diagnostics: Diagnostic[]; downgradeErrors?: string[]} | {engineError: string};
 
 const DEFAULT_TIMEOUT_MS = 60_000;
 const CACHE_CAP = 256;
@@ -124,8 +124,8 @@ export class LintSession {
         if (received.message.fatal) this.dead = engineError;
         return {engineError};
       }
-      const {diagnostics = [], levels, downgradeErrors} = received.message;
-      return {diagnostics, levels, downgradeErrors};
+      const {diagnostics = [], downgradeErrors} = received.message;
+      return {diagnostics, downgradeErrors};
     }
   }
 
@@ -161,7 +161,7 @@ function resolveWorkerURL(): URL {
   if (existsSync(fileURLToPath(sibling))) return sibling;
   const dist = new URL('../../dist/lint/lint-worker.js', import.meta.url);
   if (existsSync(fileURLToPath(dist))) return dist;
-  throw new Error('[runtypes] lint worker not found — build @mionjs/devtools first (pnpm --filter @mionjs/devtools run build)');
+  throw new Error('[mion] lint worker not found — build @mionjs/devtools first (pnpm --filter @mionjs/devtools run build)');
 }
 
 // sharedSession returns the module-level session every rule shares.

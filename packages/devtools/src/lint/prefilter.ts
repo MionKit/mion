@@ -45,7 +45,7 @@ export function referencesRouter(text: string): boolean {
   return routerHelperCallPattern.test(text);
 }
 
-// unsafePropertyNamePattern gates the unsafe-property-name rule, which reports a DECLARATION in any interface,
+// unsafePropertyNamePattern gates the UPN check, which reports a DECLARATION in any interface,
 // type literal or class, so it must admit files that import nothing of ours: it covers types no route reaches
 // yet. `__proto__` is matched anywhere, being rare enough that a stray mention costs one round trip.
 const unsafePropertyNamePattern = /__proto__/;
