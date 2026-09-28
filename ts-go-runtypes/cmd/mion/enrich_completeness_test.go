@@ -80,7 +80,6 @@ func TestReportEnrichDiagnostics_InfoNeverFails(t *testing.T) {
 	}
 }
 
-// captureReport runs reportEnrichDiagnostics and returns what it printed to stdout and stderr.
 func captureReport(t *testing.T, diags []diagnostics.Diagnostic, asJSON, showInfo bool) (stdout, stderr string) {
 	t.Helper()
 	outRead, outWrite, err := os.Pipe()
