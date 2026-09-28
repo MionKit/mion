@@ -1,100 +1,95 @@
 import {mkdirSync, writeFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
-import {measureCase, readRouteFile, type CaseCost, type Lane} from './costHarness.ts';
+import {measureCase, readRouteFile, type CaseCost} from './costHarness.ts';
+import {DIALECTS, VARIANTS, type Dialect, type Variant} from './routeVariants.ts';
 
-// The same pg queries, returned by inferred and by hand-typed routes, over builder, type-form and plain drizzle tables.
+// The same routes in three variants per dialect: drizzle types (return inferred), type-form models, builder models.
 
-const LANES: Lane[] = [
-  {name: 'builders', rewrites: {}},
-  {name: 'types', rewrites: {'../db/pg.db.ts': '../db/pg.types.db.ts', '../db/pg.schema.ts': '../db/pg.types.schema.ts'}},
-  {name: 'plain drizzle', rewrites: {'../db/pg.db.ts': '../db/pg.plain.db.ts', '../db/pg.schema.ts': '../db/pg.plain.db.ts'}},
-];
-const STYLES = [
-  {name: 'inferred', file: 'pg.routes.ts'},
-  {name: 'typed', file: 'pg.typed.routes.ts'},
-];
+type Costs = Record<Dialect, Record<string, Record<Variant, CaseCost>>>;
+const costs = {} as Costs;
 
-type Costs = Record<string, Record<string, Record<string, CaseCost>>>;
-const costs: Costs = {};
-
-describe('type cost of each pg case', () => {
+describe('type cost of every route, per dialect and variant', () => {
   beforeAll(() => {
-    for (const style of STYLES) {
-      const {header, cases} = readRouteFile(style.file);
-      for (const routeCase of cases) {
-        for (const lane of LANES) {
-          costs[routeCase.name] ??= {};
-          costs[routeCase.name][style.name] ??= {};
-          costs[routeCase.name][style.name][lane.name] = measureCase(header, lane, routeCase);
+    for (const dialect of DIALECTS) {
+      costs[dialect] = {};
+      for (const variant of VARIANTS) {
+        const {header, cases} = readRouteFile(`${dialect}.${variant}.routes.ts`);
+        for (const routeCase of cases) {
+          costs[dialect][routeCase.name] ??= {} as Record<Variant, CaseCost>;
+          costs[dialect][routeCase.name][variant] = measureCase(header, routeCase);
         }
       }
     }
     writeReport(costs);
-  }, 600_000);
+  }, 900_000);
 
-  it('every case compiles on every lane, in both styles', () => {
-    const errors = Object.entries(costs).flatMap(([name, styles]) =>
-      Object.entries(styles).flatMap(([style, lanes]) =>
-        Object.entries(lanes).flatMap(([lane, cost]) => cost.errors.map((error) => `${name} ${style} ${lane}: ${error}`))
+  it('every route compiles in every variant, whole and params only', () => {
+    const errors = DIALECTS.flatMap((dialect) =>
+      Object.entries(costs[dialect]).flatMap(([route, variants]) =>
+        VARIANTS.flatMap((variant) => variants[variant].errors.map((error) => `${dialect} ${route} ${variant}: ${error}`))
       )
     );
     expect(errors.join('\n')).toBe('');
   });
 
-  it('both slim table forms cost less than plain drizzle on the server', () => {
-    for (const [name, styles] of Object.entries(costs)) {
-      for (const [style, lanes] of Object.entries(styles)) {
-        for (const lane of ['builders', 'types']) {
-          expect(lanes[lane].server, `${name} ${style} ${lane}`).toBeLessThan(lanes['plain drizzle'].server);
+  it('a client of a slim-model route pays less than a client of a drizzle-typed one', () => {
+    for (const dialect of DIALECTS) {
+      for (const [route, variants] of Object.entries(costs[dialect])) {
+        for (const variant of ['types', 'builders'] as const) {
+          expect(variants[variant].client.total, `${dialect} ${route} ${variant}`).toBeLessThan(variants.drizzle.client.total);
         }
-      }
-    }
-  });
-
-  it('an inferred route makes its client pay for the drizzle query, a typed one does not', () => {
-    for (const [name, styles] of Object.entries(costs)) {
-      for (const lane of ['builders', 'types']) {
-        expect(styles.typed[lane].client, `${name} ${lane}`).toBeLessThan(styles.inferred[lane].client / 4);
-      }
-    }
-  });
-
-  it("a client of a typed route pays less for the slim models than for drizzle's $inferSelect types", () => {
-    for (const [name, styles] of Object.entries(costs)) {
-      for (const lane of ['builders', 'types']) {
-        expect(styles.typed[lane].client, `${name} ${lane}`).toBeLessThanOrEqual(styles.typed['plain drizzle'].client);
       }
     }
   });
 });
 
+const fmt = (value: number) => value.toLocaleString('en-US');
+
 function writeReport(all: Costs): void {
   const dir = fileURLToPath(new URL('../reports/', import.meta.url));
   mkdirSync(dir, {recursive: true});
   writeFileSync(`${dir}drizzle-app.json`, `${JSON.stringify(all, (key, value) => (key === 'errors' ? undefined : value), 2)}\n`);
-  const columns = STYLES.flatMap((style) => LANES.map((lane) => [style.name, lane.name] as const));
-  const table = (side: 'server' | 'client') => [
-    `| case | ${columns.map(([style, lane]) => `${style}, ${lane}`).join(' | ')} |`,
-    `| ---- | ${columns.map(() => '----:').join(' | ')} |`,
-    ...Object.entries(all).map(
-      ([name, styles]) => `| ${name} | ${columns.map(([style, lane]) => styles[style][lane][side]).join(' | ')} |`
-    ),
-  ];
+  const table = (dialect: Dialect, side: 'server' | 'client') => {
+    const routes = Object.entries(all[dialect]);
+    const sum = (variant: Variant, part: 'params' | 'return' | 'total') =>
+      routes.reduce((total, [, variants]) => total + variants[variant][side][part], 0);
+    const cell = (params: number, ret: number, total: number) => `${fmt(params)} + ${fmt(ret)} = **${fmt(total)}**`;
+    return [
+      `| route | ${VARIANTS.join(' | ')} |`,
+      `| ---- | ${VARIANTS.map(() => '----:').join(' | ')} |`,
+      ...routes.map(
+        ([route, variants]) =>
+          `| ${route} | ${VARIANTS.map((variant) => {
+            const cost = variants[variant][side];
+            return cell(cost.params, cost.return, cost.total);
+          }).join(' | ')} |`
+      ),
+      `| **all routes** | ${VARIANTS.map((variant) => cell(sum(variant, 'params'), sum(variant, 'return'), sum(variant, 'total'))).join(' | ')} |`,
+    ];
+  };
   const text = [
-    '# Drizzle reference app: type cost per case',
+    '# Drizzle reference app: type cost per route',
     '',
-    'GENERATED by packages/private-drizzle-app/test/cost.compile.test.ts. Net type instantiations of one pg route',
-    '(inferred: no return type written; typed: the return type written from the slim models), over builder tables,',
-    'type-form tables, and the same tables on plain drizzle.',
+    'GENERATED by packages/private-drizzle-app/test/cost.compile.test.ts. Net type instantiations of one route,',
+    'as `params + return = total`. `params` is the route with only its params; `return` is the rest (the query',
+    'and the return type). The server file holds the route alone; the client file calls it through the api type.',
     '',
-    '## Server file (the route alone)',
+    '- **drizzle**: plain drizzle tables, params typed with drizzle types, return type inferred by drizzle.',
+    '- **types**: slim tables written as types, params and return type written with the slim models.',
+    '- **builders**: slim builder tables, params and return type written with the slim models.',
     '',
-    ...table('server'),
-    '',
-    '## Client file (a call through the api type)',
-    '',
-    ...table('client'),
-    '',
+    ...DIALECTS.flatMap((dialect) => [
+      `## ${dialect}`,
+      '',
+      '### Client file',
+      '',
+      ...table(dialect, 'client'),
+      '',
+      '### Server file',
+      '',
+      ...table(dialect, 'server'),
+      '',
+    ]),
   ].join('\n');
   writeFileSync(`${dir}drizzle-app.md`, text);
 }

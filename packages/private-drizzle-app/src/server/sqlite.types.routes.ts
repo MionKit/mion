@@ -1,18 +1,21 @@
-import {avg, count, eq, sql} from 'drizzle-orm';
+import {avg, count, eq, gte, sql} from 'drizzle-orm';
 import {mion} from './mion.ts';
-import {adultUsersDb, busyAuthorsDb, db, postsDb, usersDb} from '../db/pg.db.ts';
-import type {AdultUser, NewUser, Post, User} from '../db/pg.schema.ts';
+import {adultUsersDb, busyAuthorsDb, db, postsDb, usersDb} from '../db/sqlite.types.db.ts';
+import type {AdultUser, NewUser, Post, User, UserPatch} from '../db/sqlite.types.schema.ts';
 
-// The same queries as pg.routes.ts, each route writing its return type from the slim models.
-// The `case:` markers below split the file for the per-case cost measure.
+// The builders routes over the type-form tables: only the imports differ.
+// The `case:` markers name each route for the cost test.
 
-export const pgTypedRoutes = {
+export const sqliteTypesRoutes = {
   // case: selectAll
-  listUsers: mion.route(async (): Promise<User[]> => db.select().from(usersDb)),
+  listUsers: mion.route(
+    async (_ctx, minAge: User['age']): Promise<User[]> => db.select().from(usersDb).where(gte(usersDb.age, minAge))
+  ),
 
   // case: partialSelect
   userNames: mion.route(
-    async (): Promise<Pick<User, 'id' | 'name'>[]> => db.select({id: usersDb.id, name: usersDb.name}).from(usersDb)
+    async (_ctx, role: User['role']): Promise<Pick<User, 'id' | 'name'>[]> =>
+      db.select({id: usersDb.id, name: usersDb.name}).from(usersDb).where(eq(usersDb.role, role))
   ),
 
   // case: innerJoin
@@ -46,8 +49,8 @@ export const pgTypedRoutes = {
   }),
 
   // case: updateReturning
-  renameUser: mion.route(async (_ctx, id: string, name: string): Promise<Pick<User, 'id' | 'name'>> => {
-    const [row] = await db.update(usersDb).set({name}).where(eq(usersDb.id, id)).returning({id: usersDb.id, name: usersDb.name});
+  renameUser: mion.route(async (_ctx, id: User['id'], patch: UserPatch): Promise<Pick<User, 'id' | 'name'>> => {
+    const [row] = await db.update(usersDb).set(patch).where(eq(usersDb.id, id)).returning({id: usersDb.id, name: usersDb.name});
     return row;
   }),
 
@@ -59,6 +62,29 @@ export const pgTypedRoutes = {
 
   // case: viewQueryBuilder
   busyAuthors: mion.route(async (): Promise<Pick<Post, 'authorId' | 'views'>[]> => db.select().from(busyAuthorsDb)),
+
+  // case: transaction
+  moveBalance: mion.route(
+    async (
+      _ctx,
+      fromId: User['id'],
+      toId: User['id'],
+      amount: User['balance']
+    ): Promise<{from: Pick<User, 'id' | 'balance'>; to: Pick<User, 'id' | 'balance'>}> =>
+      db.transaction(async (tx) => {
+        const [from] = await tx
+          .update(usersDb)
+          .set({balance: sql`${usersDb.balance} - ${amount}`})
+          .where(eq(usersDb.id, fromId))
+          .returning({id: usersDb.id, balance: usersDb.balance});
+        const [to] = await tx
+          .update(usersDb)
+          .set({balance: sql`${usersDb.balance} + ${amount}`})
+          .where(eq(usersDb.id, toId))
+          .returning({id: usersDb.id, balance: usersDb.balance});
+        return {from, to};
+      })
+  ),
 
   // case: mappedShape
   authorCards: mion.route(

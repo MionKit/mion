@@ -1,12 +1,13 @@
+// The type-form twin of sqlite.db.ts.
 import {drizzle} from 'drizzle-orm/sqlite-proxy';
 import {gt, relations} from 'drizzle-orm';
 import {sqliteView} from 'drizzle-orm/sqlite-core';
 import {toDrizzle} from '@mionjs/drizzle-orm-sqlite-core/drizzle';
-import {adultUsers, posts, users} from './sqlite.schema.ts';
+import {adultUsers, type PostsTable, type UsersTable} from './sqlite.types.schema.ts';
 import {answer} from './fakeDriver.ts';
 
-export const usersDb = toDrizzle(users);
-export const postsDb = toDrizzle(posts);
+export const usersDb = toDrizzle<UsersTable>();
+export const postsDb = toDrizzle<PostsTable>();
 export const adultUsersDb = toDrizzle(adultUsers);
 
 // a view built from a query builder stays on drizzle (DRZ001), so it lives here
