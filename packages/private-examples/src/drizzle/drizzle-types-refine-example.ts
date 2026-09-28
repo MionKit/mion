@@ -29,7 +29,7 @@ export const apiUsers = refineTableType(users, {
 
 export type User = InferSelectModel<typeof apiUsers>; // name: String<{maxLength: 100, minLength: 10}>
 export type NewUser = InferInsertModel<typeof apiUsers>; // id and createdAt optional (DB defaults)
-export type UserPatch = Partial<InferInsertModel<typeof apiUsers>>; // any subset of the insert payload
+export type UserPatch = Partial<InferInsertModel<typeof apiUsers>>;
 
 export const validateUser = createValidateFn<User>();
 export const mockUser = createMockDataFn<User>(); // realistic rows that pass validateUser
