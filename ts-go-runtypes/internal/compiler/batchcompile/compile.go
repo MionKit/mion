@@ -61,6 +61,7 @@ type Result struct {
 	EmittedFiles []string // absolute paths of the .js files written
 	Caches       []string // generated cache-module basenames
 	Diagnostics  []diagnostics.Diagnostic
+	CheckedFiles int // non-declaration source files the scan read
 }
 
 // Run executes the compile. See the package doc for the two-pass model.
@@ -102,6 +103,11 @@ func Run(opts Options) (*Result, error) {
 		return nil, fmt.Errorf("compile: dump: %s", dump.Error)
 	}
 	result.Diagnostics = append(result.Diagnostics, dump.Diagnostics...)
+	for _, sourceFile := range p1.TS.SourceFiles() {
+		if sourceFile != nil && !sourceFile.IsDeclarationFile {
+			result.CheckedFiles++
+		}
+	}
 
 	// The OpDump above already ran the full scan and its diagnostics in memory, so nothing more is needed.
 	if opts.NoEmit {

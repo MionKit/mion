@@ -718,7 +718,7 @@ func runCompile(args []string) {
 		}
 	}
 	if *noEmit {
-		fmt.Fprintf(os.Stderr, "mion: checked %d file(s), wrote nothing (--no-emit)\n", len(compileResult.Diagnostics))
+		fmt.Fprintf(os.Stderr, "mion: checked %d file(s), wrote nothing (--no-emit)\n", compileResult.CheckedFiles)
 	} else {
 		fmt.Fprintf(os.Stderr, "mion: compiled %d file(s), %d cache module(s)\n",
 			len(compileResult.EmittedFiles), len(compileResult.Caches))
