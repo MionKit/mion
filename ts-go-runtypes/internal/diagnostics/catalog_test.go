@@ -2,6 +2,7 @@ package diagnostics
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -307,6 +308,18 @@ func TestLevelsThatMoved(t *testing.T) {
 	} {
 		if got := Definitions[code].Level; got != want {
 			t.Errorf("%s: level %d, want %d", code, got, want)
+		}
+	}
+	// Every member and union drop of the data families (…010 to …015) is Info; VE has no 014.
+	for _, prefix := range []string{"VL", "VE", "PJ", "PJS", "RJ"} {
+		for number := 10; number <= 15; number++ {
+			code := fmt.Sprintf("%s%03d", prefix, number)
+			if code == "VE014" {
+				continue
+			}
+			if got := Definitions[code].Level; got != LevelInfo {
+				t.Errorf("%s: level %d, want Info", code, got)
+			}
 		}
 	}
 }

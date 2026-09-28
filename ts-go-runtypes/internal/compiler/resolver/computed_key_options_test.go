@@ -23,15 +23,7 @@ export const isTagged = createValidateFn<Tagged>(undefined, options);
 	if response.Error != "" {
 		t.Fatalf("scanFiles: %s", response.Error)
 	}
-	ids := map[string]bool{}
-	for _, site := range response.Sites {
-		if site.FnId == "" && site.ID != "" {
-			ids[site.ID] = true
-		}
-	}
-	if len(ids) != 1 {
-		t.Errorf("both getRunTypeId shapes must resolve to one id, got %v", ids)
-	}
+	assertOneReflectionID(t, response)
 }
 
 // The @nonEnumerable check names the member in its message; a computed key must not crash that either.

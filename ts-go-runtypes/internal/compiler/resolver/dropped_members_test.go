@@ -47,6 +47,12 @@ export const reflectedId = getRunTypeId(sample);
 		}
 	}
 
+	assertOneReflectionID(t, response)
+}
+
+// assertOneReflectionID checks the marker coverage rule: both getRunTypeId shapes resolve to one id.
+func assertOneReflectionID(t *testing.T, response protocol.Response) {
+	t.Helper()
 	ids := map[string]bool{}
 	for _, site := range response.Sites {
 		if site.FnId == "" && site.ID != "" {
