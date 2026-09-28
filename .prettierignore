@@ -18,6 +18,7 @@ build
 # Prettier would realign the tables, the next run would write them back, and the
 # file would churn forever.
 packages/private-type-budget/reports
+packages/private-drizzle-app/reports
 
 # Same, for the builder/format call-site budgets
 # (packages/run-types/test/types/builderCostReport.ts).
