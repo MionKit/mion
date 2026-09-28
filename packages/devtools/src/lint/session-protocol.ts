@@ -25,12 +25,15 @@ export interface LintSessionOptions {
   // text pre-filter matches import specifiers, so a project whose markers come from its own package would have
   // those files skipped before the resolver saw them. Set it to whatever the tsconfig `markers` block says.
   markers?: {packages?: string[]; checkPackage?: boolean};
+  // 'all' shows Info findings, hidden otherwise. Filtered on this side after the shared session answers, so the
+  // cached pass stays whole and the resolver is never asked twice for the same file.
+  levels?: 'all';
 }
 
 // The keys a host may set under `settings.runtypes`; sessionOptions() (index.ts) drops anything else and warns
 // once per process, so an unsupported key is never a silent no-op. `satisfies` keeps this exhaustive against
 // LintSessionOptions, like PLUGIN_OPTION_KEYS in core/plugin-option-keys.ts does for the bundler options.
-const LINT_SETTING_KEY_TABLE = {timeoutMs: true, tsconfig: true, binary: true, markers: true} satisfies Record<
+const LINT_SETTING_KEY_TABLE = {timeoutMs: true, tsconfig: true, binary: true, markers: true, levels: true} satisfies Record<
   keyof LintSessionOptions,
   true
 >;

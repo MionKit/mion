@@ -194,6 +194,20 @@ describe('sessionOptions — timeoutMs, tsconfig and binary are configurable', (
     }
   });
 
+  it("reads levels: 'all', and warns once on any other value while keeping Info hidden", () => {
+    expect(sessionOptions({runtypes: {levels: 'all'}})).toEqual({levels: 'all'});
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      expect(sessionOptions({runtypes: {levels: 'warning'}})).toEqual({});
+      expect(sessionOptions({runtypes: {levels: ['info']}})).toEqual({});
+      const messages = warn.mock.calls.map((call) => String(call[0]));
+      expect(messages.filter((message) => message.includes('settings.runtypes.levels'))).toHaveLength(1);
+      expect(messages[0]).toContain("'all'");
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
   it('reads tsconfig on its own', () => {
     expect(sessionOptions({runtypes: {tsconfig: 'tsconfig.build.json'}})).toEqual({tsconfig: 'tsconfig.build.json'});
   });
@@ -386,8 +400,14 @@ describe.runIf(hasBinary())(
         expect(reportsFor('redundant-marker', 'generic-marker.ts')).toEqual([]);
       });
 
-      it('surfaces RunType render diagnostics (VL011 method drop) under runtypes/validate-skipped-member without entry modules on the wire', () => {
-        const reports = reportsFor('validate-skipped-member', 'widget.ts');
+      it('hides the Info-level VL011 method drop by default', () => {
+        expect(reportsFor('validate-skipped-member', 'widget.ts')).toEqual([]);
+      });
+
+      it("surfaces RunType render diagnostics (VL011 method drop) under runtypes/validate-skipped-member with levels: 'all'", () => {
+        const reports = runRule(rules['validate-skipped-member'], abs.get('widget.ts')!, texts['widget.ts']!, {
+          runtypes: {levels: 'all'},
+        });
         expect(reports).toHaveLength(1);
         expect(reports[0]!.message).toContain('[VL011]');
         expect(reports[0]!.message).toContain('onClick');

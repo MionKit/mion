@@ -79,6 +79,6 @@ describe('pre-publish e2e lint configs — only settings the plugin actually rea
     // knows which import specifiers count as marker imports — without it, a
     // project whose markers come from its own package would have those files
     // skipped before the resolver ever saw them.
-    expect([...LINT_SETTING_KEYS].sort()).toEqual(['binary', 'markers', 'timeoutMs', 'tsconfig']);
+    expect([...LINT_SETTING_KEYS].sort()).toEqual(['binary', 'levels', 'markers', 'timeoutMs', 'tsconfig']);
   });
 });
