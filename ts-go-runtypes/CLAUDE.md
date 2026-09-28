@@ -46,27 +46,28 @@ Rules kept landing on the root node only (the prototype-named property check, th
 
 ## ⚠️ Every diagnostic declares its Level, and two questions pick it
 
-"Error" used to mean two unrelated things: the build could not produce the code, and the build produced code that is broken. Those want opposite things from a consumer, so a code now declares one of THREE levels in [diagnostics/catalog.go](internal/diagnostics/catalog.go), and `register` panics without it (`Severity` is derived from it, never written).
+"Error" used to mean two unrelated things: the build could not produce the code, and the build produced code that is broken. Those want opposite things from a consumer, so a code now declares one of FOUR levels in [diagnostics/catalog.go](internal/diagnostics/catalog.go), and `register` panics without it (`Severity` is derived from it, never written).
 
 Pick it by asking, in order:
 
 1. If we let this through, does the build still produce the code for this?
 2. If it does, is that code broken when it runs?
 
-No → `LevelError`. Yes and yes → `LevelRuntimeError`. Yes and no → `LevelWarning`.
+No → `LevelError`. Yes and yes → `LevelRuntimeError`. Yes and no → `LevelWarning`, or `LevelInfo` when the finding is the documented behaviour (a member with no data form left out) or pure advice.
 
 | Level | What it means | What a consumer may do |
 | --- | --- | --- |
 | `LevelError` | No code was produced for the thing: no cache entry, no injected id, no extracted body, no batch id | Stop. Never downgradeable, never silenceable |
 | `LevelRuntimeError` | Code IS written and it throws, or it no longer checks what was asked for | Report it. Every build lane halts (emitting and exiting non-zero is legitimate); a dev server reports it and keeps running, which is the reason the level exists. `downgradeErrors`, `@mion-expect-error` (removes it) or `@mion-downgrade-error` (keeps it, stops the halt) may stand one down |
-| `LevelWarning` | Worth knowing, nothing is wrong | Report it |
+| `LevelWarning` | Worth knowing, nothing is wrong, but the output may surprise (a clone sharing a value, a tag that does nothing) | Report it |
+| `LevelInfo` | The documented behaviour, or advice | Hide it unless the `levels: 'all'` setting asks for it (lint setting, plugin option, tsconfig key). Never halts |
 
 Three things that trip people up:
 
 - **Question 1 is per-SITE, not per-build.** Only `CFG001` stops a whole run. Every other fatal code leaves ONE thing unbuilt while the rest of the build proceeds. That is still "no output" for the thing the finding is about, and it is what makes standing it down meaningless: not halting buys a call that throws anyway.
 - **Read the emit path, not the intent.** The pure-fn family was documented as fatal as a block and is mostly not: only `PFE9005` withholds output, a purity violation compiles the offending body and ships it. Answer question 1 from what the code does.
 - **A middleware the client never sets up is a `LevelRuntimeError`, optional params included (`MET008`, `MET009`).** The call still sends, but the middleware never gets its client half, and one like route sync refuses every call without it. The one exception is mion's own metadata middleware, recognised by its `@mionjs/router` declaration (`apimeta.routerDeclares`): `useMethodsMetadata` sets it up, and the fetching check owns it instead (`MET010` when the API places none, `MET011` when a `bundleApi: false` client never calls `useMethodsMetadata`).
-- **A permissive validator is only wrong when the type was not actually `any`.** A type the author wrote as `any` gets an accept-everything validator because that is what was asked for (`VL021` / `VE020` stay warnings). A type that BECAME `any` because a name, an import or a lib failed to resolve is a `LevelRuntimeError` (`MKR007`, `MKR013`, `TMP001`, `CFG002`); `detectSilentAnyInGraph` is what tells the two apart.
+- **A permissive validator is only wrong when the type was not actually `any`.** A type the author wrote as `any` gets an accept-everything validator because that is what was asked for (`VL021` / `VE020` are Info). A type that BECAME `any` because a name, an import or a lib failed to resolve is a `LevelRuntimeError` (`MKR007`, `MKR013`, `TMP001`, `CFG002`); `detectSilentAnyInGraph` is what tells the two apart.
 
 `Completeness` is deliberately NOT a level: the unfilled-scaffold codes are warnings (a mirror with blank labels still runs), and that bit is what `enrich --require-complete` and the bundler's production enrichment gate promote. A gate keying on the level instead silently stops working.
 

@@ -1,8 +1,8 @@
 import {createValidateFn} from '@mionjs/run-types';
 
 // The classic gotcha. `onClick` is a function (not serializable), so the
-// validator drops it and only checks `name`. You get a build-time Warning
-// (VL010), which is EXPECTED, not an error.
+// validator drops it and only checks `name`. The build notes it as Info
+// (VL011, shown with `levels: 'all'`), which is EXPECTED, not an error.
 interface User {
   name: string;
   onClick: () => void;

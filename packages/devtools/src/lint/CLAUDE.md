@@ -21,7 +21,10 @@ ceiling, say) is still a resolver diagnostic: the resolver sees the call site.
 
 ## Severity
 
-The Go catalog has three levels: Error (the build produced no code, never downgradable),
-RuntimeError (would throw at runtime, downgradable) and Warning. A finding that only a linter
-should ever raise, with no effect on the build, has no level of its own yet; decide whether it
-needs one before adding the first such diagnostic.
+The Go catalog has four levels: Error (the build produced no code, never downgradable),
+RuntimeError (would throw at runtime, downgradable), Warning, and Info (the documented behaviour,
+or advice). Info is hidden by the linter and the build unless `levels: 'all'` is set; the report
+loop in `index.ts` drops it, so the shared session still caches the full pass. A finding a linter
+should raise as advice, with no effect on the build, is Info. Routing sends Warning and Info to a
+family's `warn` rule, and any finding a `@mion-downgrade-error` comment lowered to
+`downgraded-error`, since a lint rule has one level and cannot share it with unlowered errors.

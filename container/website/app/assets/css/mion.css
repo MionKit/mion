@@ -1229,7 +1229,7 @@ section[data-slot='root']:not(.home-subsite-card)::before {
 
 /* Diagnostic level badges, shared by the level cards (DiagnosticLevels.vue) and the
    catalog entries (DiagnosticCatalog.vue). One ramp, three readable steps: the further
-   from yellow, the less of your build survives. */
+   from yellow, the less of your build survives. Info sits off the ramp, muted: nothing is wrong. */
 .diag-badge {
   font-size: 0.7rem;
   font-weight: 600;
@@ -1250,6 +1250,10 @@ section[data-slot='root']:not(.home-subsite-card)::before {
 
 .diag-badge--warning {
   color: var(--color-yellow-300);
+}
+
+.diag-badge--info {
+  color: var(--ui-text-muted);
 }
 
 /* Frontmatter `navigation.class: nav-subpage` indents a page under the one before it, no folder needed. */
