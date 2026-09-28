@@ -471,7 +471,7 @@ func (r *docRenderer) objectText(node *reflection.RunType) string {
 			r.warn("object member %q (%s) has no document spelling and was dropped", member.Name, KindLabel(member.Kind))
 			continue
 		}
-		if isSymbolKeyedMemberName(member.Name) {
+		if reflection.IsSymbolKeyedName(member.Name) {
 			continue // symbol-keyed — never on the wire
 		}
 		child := r.resolve(member.Child)
@@ -792,13 +792,4 @@ func (r *docRenderer) nativeArguments(node *reflection.RunType) []*reflection.Ru
 		out = append(out, child)
 	}
 	return out
-}
-
-// isSymbolKeyedMemberName mirrors convert's isSymbolKeyedName: the resolver spells symbol-keyed members
-// as `@@name` or with the internal 0xFE prefix (cachegen/runtype/serialize.go stableMemberName).
-func isSymbolKeyedMemberName(name string) bool {
-	if strings.HasPrefix(name, "@@") {
-		return true
-	}
-	return len(name) >= 2 && name[0] == 0xFE && name[1] == '@'
 }

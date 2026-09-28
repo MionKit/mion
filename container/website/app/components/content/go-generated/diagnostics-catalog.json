@@ -650,7 +650,7 @@
       "detail": "JSON only supports string keys; symbol-keyed properties are dropped\nfrom the serialised form. `validate` follows the same rule.\n\nFix: use a string key:\n  -  [Symbol.for('id')]: string;\n+  id: string;",
       "summary": "JSON has string keys only, so a symbol-keyed property has nowhere to land in the serialized form. Use a string key if the property is real data.",
       "fix": "interface Item {\n  id: string; // instead of [Symbol.for('id')]: string\n}",
-      "example": null
+      "example": "import {createValidateFn} from '@mionjs/run-types';\nconst tag = Symbol('tag');\ninterface Item { id: string; [tag]: string }\nexport const isItem = createValidateFn<Item>();"
     },
     {
       "code": "VL014",
@@ -1099,6 +1099,17 @@
       "severity": "info",
       "headline": "Static member `{0}` is not part of instance data: `removeUnknownKeys` skips it.",
       "detail": "Statics live on the class, not the instance; the clone rebuilds instance\ndata only.",
+      "summary": null,
+      "fix": null,
+      "example": null
+    },
+    {
+      "code": "RUK013",
+      "subsystem": "unknown-keys",
+      "level": "info",
+      "severity": "info",
+      "headline": "Symbol-keyed property `{0}` is not copied onto the clone: `removeUnknownKeys` rebuilds string keys only.",
+      "detail": "Symbol keys aren't data, the same rule the JSON families follow. The clone\ncopies the declared string keys and leaves the symbol key out.\n\nFix: use a string key:\n  -  [Symbol.for('id')]: string;\n+  id: string;",
       "summary": null,
       "fix": null,
       "example": null

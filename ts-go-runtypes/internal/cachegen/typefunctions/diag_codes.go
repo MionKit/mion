@@ -213,6 +213,7 @@ var removeUnknownKeysCodes = map[DiagSlot]string{
 	SlotFunctionPropDropped:        diagnostics.CodeRUKFunctionPropDropped,
 	SlotMethodDropped:              diagnostics.CodeRUKMethodDropped,
 	SlotStaticDropped:              diagnostics.CodeRUKStaticDropped,
+	SlotSymbolKeyedDropped:         diagnostics.CodeRUKSymbolKeyedDropped,
 	SlotNonSerializablePropDropped: diagnostics.CodeRUKNonSerializablePropDrop,
 	SlotUnsafeNamePropDropped:      diagnostics.CodeUnsafePropertyName,
 }

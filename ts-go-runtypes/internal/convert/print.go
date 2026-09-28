@@ -702,17 +702,6 @@ func (ctx *printContext) selfLandsInEagerTupleSlot(root *reflection.RunType) boo
 	return walk(root, false)
 }
 
-// isSymbolKeyedName reports whether a member name is a SYMBOL key. Two spellings reach here: tsgo's
-// late-bound `\xFE@<declarationName>@<symbolId>`, the prefix cachegen/runtype/serialize.go's
-// stableMemberName strips, and the `@@name` form. Checking only the second printed a symbol-keyed
-// member as a STRING property keyed by the mangled internal spelling, silently moving the id.
-func isSymbolKeyedName(name string) bool {
-	if strings.HasPrefix(name, "@@") {
-		return true
-	}
-	return len(name) >= 2 && name[0] == 0xFE && name[1] == '@'
-}
-
 // liveSymbolName resolves the source-level name a node's live symbol is spelled with and checks it
 // is bound in this file: the reflected name is the DECLARATION name, which an aliased import would
 // not bind.
@@ -838,7 +827,7 @@ func (ctx *printContext) objectMembers(node *reflection.RunType) ([]*objectMembe
 			indexes = append(indexes, indexSignature{key: indexKey, value: indexValue})
 			continue
 		}
-		if isSymbolKeyedName(member.Name) {
+		if reflection.IsSymbolKeyedName(member.Name) {
 			return nil, nil, &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
 				Message: fmt.Sprintf("symbol-keyed member %q is not convertible yet", member.Name)}
 		}

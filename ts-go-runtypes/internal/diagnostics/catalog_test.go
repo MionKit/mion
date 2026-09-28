@@ -292,6 +292,7 @@ func TestLevelsThatMoved(t *testing.T) {
 		CodeVERootAnyUnknown:             LevelInfo,
 		CodeRUKMethodDropped:             LevelInfo, // lives on the prototype
 		CodeRUKStaticDropped:             LevelInfo,
+		CodeRUKSymbolKeyedDropped:        LevelInfo,
 		CodeOverrideValidateCrossFamily:  LevelInfo,
 		CodeApiMetaRouteWidenedFetched:   LevelInfo, // the call still works
 		CodeDowngradeErrorAlreadyWarning: LevelInfo,

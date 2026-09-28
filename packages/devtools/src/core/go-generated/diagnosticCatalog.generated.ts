@@ -1182,6 +1182,14 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     family: 'runtype',
     detail: 'Statics live on the class, not the instance; the clone rebuilds instance\ndata only.',
   },
+  RUK013: {
+    headline: 'Symbol-keyed property `{0}` is not copied onto the clone: `removeUnknownKeys` rebuilds string keys only.',
+    level: 'info',
+    severity: 'info',
+    family: 'runtype',
+    detail:
+      "Symbol keys aren't data, the same rule the JSON families follow. The clone\ncopies the declared string keys and leaves the symbol key out.\n\nFix: use a string key:\n  -  [Symbol.for('id')]: string;\n+  id: string;",
+  },
   RUK015: {
     headline:
       'Property `{0}` has a value type `removeUnknownKeys` cannot rebuild (symbol, Promise, or a non-serialisable built-in): it is kept on the clone, SHARED BY REFERENCE.',
