@@ -8,7 +8,7 @@
 
 import {createRequire} from 'node:module';
 import {isDowngraded, NONE, resolveDowngradeErrors, type DowngradeSet} from '../core/downgradeErrors.ts';
-import {routeDiagnostic, RULE_SPECS, type RuleName} from './diagnosticRouting.ts';
+import {anchoredIn, routeDiagnostic, RULE_SPECS, type RuleName} from './diagnosticRouting.ts';
 import {needsResolverPass} from './prefilter.ts';
 import {LINT_SETTING_KEYS} from './session-protocol.ts';
 import {prewarmSession, sharedSession, type LintSessionOptions} from './session.ts';
@@ -112,6 +112,7 @@ function diagnosticRule(ruleName: RuleName, description: string): RuleModule {
           }
           const downgrade = lintDowngrade(outcome.downgradeErrors);
           for (const diagnostic of outcome.diagnostics) {
+            if (!anchoredIn(diagnostic, file)) continue;
             const report = routeDiagnostic(isDowngraded(downgrade, diagnostic) ? {...diagnostic, downgraded: true} : diagnostic);
             if (report.ruleName !== ruleName) continue;
             context.report({message: report.message, loc: report.loc});

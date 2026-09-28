@@ -2,6 +2,7 @@
 // the rendered message, and the 0-based-column loc lint APIs expect. The OXlint/ESLint plugin entry (index.ts)
 // is one sink over this module; another transport reuses it unchanged.
 
+import path from 'node:path';
 import {DIAGNOSTIC_CATALOG, renderHeadline} from '../core/diagnosticCatalog.ts';
 import {DOWNGRADED_NOTE} from '../core/downgradeErrors.ts';
 import {Level, type Diagnostic, type DiagnosticSite} from '../core/protocol.ts';
@@ -55,6 +56,12 @@ export interface LintReport {
   ruleName: RuleName;
   message: string;
   loc: LintLoc;
+}
+
+// anchoredIn reports whether a diagnostic's site is the linted file: a report carries no file, so a finding
+// anchored in another one would land at this file's positions. A relative site resolves against process.cwd().
+export function anchoredIn(diagnostic: Diagnostic, file: string): boolean {
+  return Boolean(diagnostic.site.filePath) && path.resolve(diagnostic.site.filePath) === path.resolve(file);
 }
 
 // routeDiagnostic maps one wire diagnostic to its rule, message and location. Never returns null: an unknown
