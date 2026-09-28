@@ -8,10 +8,28 @@ import (
 )
 
 // RemoveUnknownKeysEmitter rebuilds the declared shape from the type, never `{...v}`: `clone(x) !== x` at every object.
-// Primitives and opaque values (any, functions, symbols, RegExps, natives) are shared: copying a handle is wrong.
+// The result is typed `T`, so every declared member is on the copy and works, or the factory refuses (always throws):
+//   - data is copied; primitives and symbol VALUES are immutable, so the copy holds the same value;
+//   - a value it cannot copy (function, Promise, RegExp, a built-in that is not data) follows `sharedValues`;
+//   - a class copy keeps the input's prototype and never runs the constructor, so methods and accessors stay
+//     there (RUK011) and a class with `#private` fields, which only the constructor can create, refuses (RUK005);
+//   - a symbol-keyed property refuses (RUK004): the code cannot name the user's symbol, and copying every own
+//     symbol would keep undeclared ones. A `[k: symbol]: V` signature declares them all, so those are copied.
+//
 // `overrideRemoveUnknownKeys<T>()` is the escape hatch for custom copying.
 // No key-count gate: on V8, `Object.keys(x).length === N` costs more than the rebuild (1.6x slower).
-type RemoveUnknownKeysEmitter struct{}
+type RemoveUnknownKeysEmitter struct {
+	shared sharedValuesMode
+}
+
+// sharedValuesMode is the `sharedValues` option; each mode is its own family, so nested entries follow it too.
+type sharedValuesMode int
+
+const (
+	sharedValuesWarn   sharedValuesMode = iota // option absent: shared, RUK010 / RUK015 Warning
+	sharedValuesShare                          // 'share': shared, RUK016 Info
+	sharedValuesRefuse                         // 'refuse': the factory always throws, RUK006
+)
 
 func (RemoveUnknownKeysEmitter) Args() []ArgSpec {
 	return []ArgSpec{{Key: "vλl", Name: "v", Default: ""}}
@@ -27,8 +45,8 @@ func (RemoveUnknownKeysEmitter) IsRTInlined(ctx *InlineContext) bool {
 	return DefaultIsRTInlined(ctx)
 }
 
-// IsNoopType: identity is sound exactly when the whole reachable subtree is immutable or opaque, where
-// sharing is observationally equivalent to copying; any mutable position forces a live clone body.
+// IsNoopType: identity is sound exactly when the whole reachable subtree is immutable, where sharing is
+// observationally equivalent to copying; any mutable or shared-with-notice position forces a live body.
 func (RemoveUnknownKeysEmitter) IsNoopType(rt *reflection.RunType, ctx *EmitContext) bool {
 	return isNoopForRemoveUnknownKeys(rt, ctx)
 }
@@ -54,26 +72,33 @@ func (RemoveUnknownKeysEmitter) Finalize(raw string) (string, bool) {
 }
 
 // Emit arms return CodeE (an expression evaluating to the clone), CodeRB (a self-returning block) or empty
-// CodeS (immutable/opaque passthrough).
+// CodeS (immutable passthrough). Parents check a child that can only be shared BEFORE compiling it
+// (shareOrRefuse), so the opaque arm below is reached at the root.
 // Composition rule as in prepareForJsonClone: an empty child emit means the child's clone IS its accessor.
-func (RemoveUnknownKeysEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ CodeType) RTCode {
+func (e RemoveUnknownKeysEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ CodeType) RTCode {
 	if rt == nil {
 		return RTCode{Code: "", Type: CodeS}
 	}
 	v := ctx.Vλl
+	if slot, shared := sharedValueSlot(rt, ctx); shared {
+		if !e.shareOrRefuse(slot, "the value", rt, ctx) {
+			return RTCode{Code: "", Type: CodeNS}
+		}
+		return RTCode{Code: "", Type: CodeS}
+	}
 	switch rt.Kind {
 
 	case reflection.KindObjectLiteral:
-		return emitObjectRemoveUnknownKeys(rt, ctx, v, false)
+		return e.emitObject(rt, ctx, v, false)
 
 	case reflection.KindClass:
 		switch rt.SubKind {
 		case reflection.SubKindNone:
 			// Prototype-preserving rebuild so `instanceof` survives; a custom serializer registration is a
 			// JSON-wire concern and does not apply to a value-level clone.
-			return emitObjectRemoveUnknownKeys(rt, ctx, v, true)
+			return e.emitObject(rt, ctx, v, true)
 		case reflection.SubKindMap, reflection.SubKindSet:
-			return emitNativeIterableRemoveUnknownKeys(rt, ctx, v)
+			return e.emitNativeIterable(rt, ctx, v)
 		case reflection.SubKindDate:
 			// Dates are mutable (setTime & friends), so always re-wrap.
 			return RTCode{Code: "new Date(" + v + ".getTime())", Type: CodeE}
@@ -83,45 +108,105 @@ func (RemoveUnknownKeysEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _
 			// `clone(x).field !== x.field` must hold for every object-typed field.
 			return RTCode{Code: "globalThis." + info.Builtin + ".from(" + v + ")", Type: CodeE}
 		}
-		// Non-serializable natives are opaque handles (copying is wrong).
-		return RTCode{Code: "", Type: CodeS}
-
-	case reflection.KindRegexp:
-		// A RegExp is not data (DataOnly strips it), so like a function it is shared rather than rebuilt.
 		return RTCode{Code: "", Type: CodeS}
 
 	case reflection.KindArray:
-		return emitArrayRemoveUnknownKeys(rt, ctx, v)
+		return e.emitArray(rt, ctx, v)
 
 	case reflection.KindTuple:
-		return emitTupleRemoveUnknownKeys(rt, ctx, v)
+		return e.emitTuple(rt, ctx, v)
 
 	case reflection.KindIndexSignature:
 		// Bare index-signature dispatch (root reach-in); the object arm normally consumes sigs itself.
-		return emitIndexSignatureRemoveUnknownKeys(rt, ctx, v)
+		return e.buildIndexObject(v, "{}", nil, nil, []*reflection.RunType{rt}, ctx)
 
 	case reflection.KindUnion:
-		return emitUnionRemoveUnknownKeys(rt, ctx)
+		return e.emitUnion(rt, ctx)
 
-	// Immutable kinds (primitives, enums, literals, template literals, bigints, with no `.toString()`:
-	// this is a value-level clone, not a JSON projection) and opaque kinds are shared by reference.
+	// Immutable kinds (primitives, symbols, enums, literals, template literals, bigints, with no `.toString()`:
+	// this is a value-level clone, not a JSON projection) and any / unknown / object are shared by reference.
 	default:
 		return RTCode{Code: "", Type: CodeS}
 	}
 }
 
-// emitObjectRemoveUnknownKeys mirrors emitObjectPrepareForJsonClone's property collection, minus its fastpath.
-func emitObjectRemoveUnknownKeys(rt *reflection.RunType, ctx *EmitContext, v string, asClass bool) RTCode {
-	// A callable interface is function-like (DataOnly = never), the same NS stance as the JSON families,
-	// whose diag maps it to the function code.
-	if objectHasCallSignature(rt, ctx) {
+// sharedValueSlot reports a value the copy cannot rebuild and so can only share, and the warning it gets.
+// A symbol value is not here: it is a primitive, so the copy holding it IS a copy.
+func sharedValueSlot(rt *reflection.RunType, ctx *EmitContext) (DiagSlot, bool) {
+	if rt == nil {
+		return "", false
+	}
+	if isFunctionLikeKind(rt.Kind) {
+		return SlotFunctionPropDropped, true
+	}
+	switch rt.Kind {
+	case reflection.KindPromise, reflection.KindRegexp:
+		return SlotNonSerializablePropDropped, true
+	case reflection.KindClass:
+		if rt.SubKind == reflection.SubKindNonSerializable {
+			return SlotNonSerializablePropDropped, true
+		}
+	case reflection.KindObjectLiteral:
+		// A callable interface is a function with properties bolted on.
+		if objectHasCallSignature(rt, ctx) {
+			return SlotFunctionPropDropped, true
+		}
+	}
+	return "", false
+}
+
+// shareOrRefuse applies `sharedValues` to a value the copy can only share. It returns false when the factory must
+// refuse; leaf is then latched so DiagCodeForLeaf names RUK006 and where.
+func (e RemoveUnknownKeysEmitter) shareOrRefuse(slot DiagSlot, where string, leaf *reflection.RunType, ctx *EmitContext) bool {
+	if e.shared == sharedValuesRefuse {
+		refuseWith(leaf, ctx)
+		return false
+	}
+	ctx.EmitDiagnosticSlot(slot, where)
+	return true
+}
+
+// refuseWith latches leaf as the reason this entry always throws; the caller returns CodeNS.
+func refuseWith(leaf *reflection.RunType, ctx *EmitContext) {
+	if ctx.walker.UnsupportedLeaf == nil {
+		ctx.walker.UnsupportedLeaf = leaf
+	}
+}
+
+// propertyWhere names a member in a warning, in the user's words.
+func propertyWhere(member *reflection.RunType) string {
+	return "property `" + memberLabel(member) + "`"
+}
+
+// isPrototypeMember reports a class member that lives on the prototype, which the copy inherits: a method
+// (not a function-typed field) or a get / set accessor.
+func isPrototypeMember(member *reflection.RunType) bool {
+	if member.HasFlag(reflection.FlagAccessor) {
+		return true
+	}
+	return member.Kind == reflection.KindMethod && !member.HasFlag(reflection.FlagField)
+}
+
+// emitObject rebuilds an object literal or a class instance from its declared members.
+func (e RemoveUnknownKeysEmitter) emitObject(rt *reflection.RunType, ctx *EmitContext, v string, asClass bool) RTCode {
+	if asClass && rt.HasFlag(reflection.FlagPrivateFields) {
+		refuseWith(rt, ctx)
 		return RTCode{Code: "", Type: CodeNS}
 	}
 	var props []safePropEmit
 	var indexSigs []*reflection.RunType
+	hasSymbolSig := false
+	for _, child := range objectMembers(rt) {
+		if resolved := ctx.ResolveRef(child); resolved != nil && resolved.Kind == reflection.KindIndexSignature {
+			indexSigs = append(indexSigs, resolved)
+			if isSymbolKeyedIndexSig(resolved, ctx) {
+				hasSymbolSig = true
+			}
+		}
+	}
 	for _, child := range objectMembers(rt) {
 		resolved := ctx.ResolveRef(child)
-		if resolved == nil {
+		if resolved == nil || resolved.Kind == reflection.KindIndexSignature {
 			continue
 		}
 		if resolved.IsStatic {
@@ -133,34 +218,33 @@ func emitObjectRemoveUnknownKeys(rt *reflection.RunType, ctx *EmitContext, v str
 			ctx.EmitDiagnosticSlot(SlotUnsafeNamePropDropped, resolved.Name)
 			continue
 		}
-		// The clone rebuilds string keys only; reading tsgo's `\xFE@` spelling would add a bogus key.
-		if reflection.IsSymbolKeyedName(resolved.Name) {
-			ctx.EmitDiagnosticSlot(SlotSymbolKeyedDropped, reflection.SymbolKeyLabel(resolved.Name))
+		if asClass && isPrototypeMember(resolved) {
+			// The copy inherits it; an own copy would shadow the prototype and change Object.keys. Advisory only.
+			ctx.EmitDiagnosticSlot(SlotMethodDropped, memberLabel(resolved))
 			continue
 		}
-		if isFunctionLikeKind(resolved.Kind) {
-			if asClass {
-				// Class methods live on the SHARED PROTOTYPE, so they keep working without an own prop;
-				// copying one would shadow the prototype and change Object.keys. Advisory only.
-				ctx.EmitDiagnosticSlot(SlotMethodDropped, memberLabel(resolved))
+		if reflection.IsSymbolKeyedName(resolved.Name) {
+			// The symbol-signature walk copies it; otherwise the value would be missing from the copy.
+			if hasSymbolSig {
 				continue
 			}
-			// An object-literal method is an own prop: the clone keeps it by reference, whatever the slot's name says.
-			ctx.EmitDiagnosticSlot(SlotFunctionPropDropped, memberLabel(resolved))
-			accessor := propertyAccessor(v, resolved.Name, resolved.IsSafeName)
-			props = append(props, safePropEmit{
-				name:       resolved.Name,
-				isSafeName: resolved.IsSafeName,
-				optional:   resolved.Optional,
-				accessor:   accessor,
-				expr:       accessor,
-			})
-			continue
+			refuseWith(resolved, ctx)
+			return RTCode{Code: "", Type: CodeNS}
 		}
-		if resolved.Kind == reflection.KindIndexSignature {
-			// Keys matching an index signature are DECLARED shape and must be copied onto the fresh object,
-			// so EVERY signature routes to the copy walk (which skips symbol-keyed / function-valued ones).
-			indexSigs = append(indexSigs, resolved)
+		accessor := propertyAccessor(v, resolved.Name, resolved.IsSafeName)
+		shared := safePropEmit{
+			name:       resolved.Name,
+			isSafeName: resolved.IsSafeName,
+			optional:   resolved.Optional,
+			accessor:   accessor,
+			expr:       accessor,
+		}
+		if isFunctionLikeKind(resolved.Kind) {
+			// An object-literal method or a class function field is an own value: the copy shares it.
+			if !e.shareOrRefuse(SlotFunctionPropDropped, propertyWhere(resolved), resolved, ctx) {
+				return RTCode{Code: "", Type: CodeNS}
+			}
+			props = append(props, shared)
 			continue
 		}
 		if resolved.Kind != reflection.KindProperty && resolved.Kind != reflection.KindPropertySignature {
@@ -173,25 +257,17 @@ func emitObjectRemoveUnknownKeys(rt *reflection.RunType, ctx *EmitContext, v str
 		if propResolved == nil {
 			continue
 		}
-		accessor := propertyAccessor(v, resolved.Name, resolved.IsSafeName)
-		// A declared value the emitter cannot rebuild is kept by REFERENCE with an advisory, not dropped as DataOnly does.
-		if slot, opaque := opaqueValueSlot(propResolved); opaque {
-			ctx.EmitDiagnosticSlot(slot, memberLabel(resolved))
-			props = append(props, safePropEmit{
-				name:       resolved.Name,
-				isSafeName: resolved.IsSafeName,
-				optional:   resolved.Optional,
-				accessor:   accessor,
-				expr:       accessor,
-			})
+		if slot, opaque := sharedValueSlot(propResolved, ctx); opaque {
+			if !e.shareOrRefuse(slot, propertyWhere(resolved), resolved, ctx) {
+				return RTCode{Code: "", Type: CodeNS}
+			}
+			props = append(props, shared)
 			continue
 		}
 		expr, ok := safeChildExpr(resolved.Child, accessor, ctx)
 		if !ok {
-			if propertyChildFailed(ctx) {
-				return RTCode{Code: "", Type: CodeNS}
-			}
-			continue
+			// Never absorbed: dropping the property would hand back a copy missing a declared member.
+			return RTCode{Code: "", Type: CodeNS}
 		}
 		prop := safePropEmit{
 			name:       resolved.Name,
@@ -206,22 +282,22 @@ func emitObjectRemoveUnknownKeys(rt *reflection.RunType, ctx *EmitContext, v str
 		props = append(props, prop)
 	}
 
-	if len(indexSigs) > 0 {
-		// The for-in copy walk is shared with the safe-clone family, and child compiles dispatch through
-		// this walker, so copied values are exact-shape clones. A key matching no pattern is dropped: a
-		// by-reference copy would break clone(x) !== x.
-		return buildSafeIndexSignatureObject(v, props, collectSiblingNamedKeys(rt, ctx), indexSigs, false, ctx)
+	newObject := "{}"
+	if asClass {
+		newObject = "Object.create(Object.getPrototypeOf(" + v + "))"
 	}
-
+	if len(indexSigs) > 0 {
+		// Keys matching an index signature are DECLARED shape and are copied onto the fresh object. A key
+		// matching no pattern is dropped: a by-reference copy would break clone(x) !== x.
+		return e.buildIndexObject(v, newObject, props, collectSiblingNamedKeys(rt, ctx), indexSigs, ctx)
+	}
+	if asClass {
+		return buildClassRemoveUnknownKeys(newObject, props)
+	}
 	if len(props) == 0 {
-		// No clonable declared property: the exact shape is `{}` whatever v holds, stripping ALL extras.
+		// No declared property: the exact shape is `{}` whatever v holds, stripping ALL extras.
 		return RTCode{Code: "return {}", Type: CodeRB}
 	}
-
-	if asClass {
-		return buildClassRemoveUnknownKeys(v, props)
-	}
-
 	clone := buildSafeObjectClone(props, ctx)
 	if clone.Type == CodeRB {
 		// The mixed-optionality accumulator self-returns, so splice it directly as the body.
@@ -230,37 +306,20 @@ func emitObjectRemoveUnknownKeys(rt *reflection.RunType, ctx *EmitContext, v str
 	return RTCode{Code: "return " + clone.Code, Type: CodeRB}
 }
 
-// opaqueValueSlot picks the warning (RUK010 / RUK015) for a value the clone cannot rebuild and so shares.
-func opaqueValueSlot(resolved *reflection.RunType) (DiagSlot, bool) {
-	if resolved == nil {
-		return "", false
-	}
-	if isFunctionLikeKind(resolved.Kind) {
-		return SlotFunctionPropDropped, true
-	}
-	switch resolved.Kind {
-	case reflection.KindSymbol, reflection.KindPromise:
-		return SlotNonSerializablePropDropped, true
-	case reflection.KindClass:
-		if resolved.SubKind == reflection.SubKindNonSerializable {
-			return SlotNonSerializablePropDropped, true
-		}
-	case reflection.KindLiteral:
-		for _, flag := range resolved.Flags {
-			if flag == "symbol" {
-				return SlotNonSerializablePropDropped, true
-			}
-		}
-	}
-	return "", false
+// buildClassRemoveUnknownKeys assigns the declared own props onto newObject, which carries the input's
+// prototype; accessors are never assigned, so no prototype setter runs.
+func buildClassRemoveUnknownKeys(newObject string, props []safePropEmit) RTCode {
+	var b strings.Builder
+	b.WriteString("const _r = ")
+	b.WriteString(newObject)
+	b.WriteString(";")
+	writePropAssignments(&b, props)
+	b.WriteString("return _r")
+	return RTCode{Code: b.String(), Type: CodeRB}
 }
 
-// buildClassRemoveUnknownKeys keeps the input's prototype; accepted edge: a prototype setter runs on assignment.
-func buildClassRemoveUnknownKeys(v string, props []safePropEmit) RTCode {
-	var b strings.Builder
-	b.WriteString("const _r = Object.create(Object.getPrototypeOf(")
-	b.WriteString(v)
-	b.WriteString("));")
+// writePropAssignments writes `_r[name] = expr;` per prop, guarding an optional one on presence.
+func writePropAssignments(b *strings.Builder, props []safePropEmit) {
 	for _, p := range props {
 		if p.optional {
 			b.WriteString("if (")
@@ -271,12 +330,7 @@ func buildClassRemoveUnknownKeys(v string, props []safePropEmit) RTCode {
 				b.WriteString(p.presenceGuard)
 				b.WriteString(")")
 			}
-			b.WriteString(") _r[")
-			b.WriteString(quoteJS(p.name))
-			b.WriteString("] = ")
-			b.WriteString(p.expr)
-			b.WriteString(";")
-			continue
+			b.WriteString(") ")
 		}
 		b.WriteString("_r[")
 		b.WriteString(quoteJS(p.name))
@@ -284,17 +338,104 @@ func buildClassRemoveUnknownKeys(v string, props []safePropEmit) RTCode {
 		b.WriteString(p.expr)
 		b.WriteString(";")
 	}
+}
+
+// buildIndexObject copies the index-signature keys, then the declared props (which win any clash). String and
+// number signatures walk `for...in`; a symbol signature walks the own enumerable symbols, all of them declared.
+func (e RemoveUnknownKeysEmitter) buildIndexObject(v, newObject string, props []safePropEmit, skipNames []string, indexSigs []*reflection.RunType, ctx *EmitContext) RTCode {
+	type sigArm struct {
+		keyRegexVar string
+		valueExpr   string
+	}
+	var arms []sigArm
+	symbolExpr := ""
+	keyVar := ctx.NextLocalVar("k")
+	symbolVar := ctx.NextLocalVar("s")
+	for _, sig := range indexSigs {
+		if sig.Child == nil {
+			continue
+		}
+		isSymbolSig := isSymbolKeyedIndexSig(sig, ctx)
+		if isSymbolSig && symbolExpr != "" {
+			continue
+		}
+		accessor := v + "[" + keyVar + "]"
+		if isSymbolSig {
+			accessor = v + "[" + symbolVar + "]"
+		}
+		expr := accessor
+		if slot, opaque := sharedValueSlot(ctx.ResolveRef(sig.Child), ctx); opaque {
+			if !e.shareOrRefuse(slot, "index signature values", sig, ctx) {
+				return RTCode{Code: "", Type: CodeNS}
+			}
+		} else {
+			childExpr, ok := safeChildExpr(sig.Child, accessor, ctx)
+			if !ok {
+				return RTCode{Code: "", Type: CodeNS}
+			}
+			expr = childExpr
+		}
+		if isSymbolSig {
+			symbolExpr = expr
+			continue
+		}
+		arms = append(arms, sigArm{keyRegexVar: indexSignatureKeyRegexVar(sig, ctx), valueExpr: expr})
+	}
+	var b strings.Builder
+	b.WriteString("const _r = ")
+	b.WriteString(newObject)
+	b.WriteString(";")
+	if len(arms) > 0 {
+		b.WriteString("for (const " + keyVar + " in " + v + ") {")
+		b.WriteString(unsafeKeySkip(keyVar))
+		// Declared keys are assigned below, after the walk.
+		for _, name := range skipNames {
+			if reflection.IsSymbolKeyedName(name) {
+				continue
+			}
+			b.WriteString("if (" + keyVar + " === " + quoteJS(name) + ") continue;")
+		}
+		// Pattern arms first: a key matching one takes its value type, the first plain signature takes the rest.
+		for _, arm := range arms {
+			if arm.keyRegexVar != "" {
+				b.WriteString("if (" + arm.keyRegexVar + ".test(" + keyVar + ")) { _r[" + keyVar + "] = " + arm.valueExpr + "; continue; }")
+			}
+		}
+		for _, arm := range arms {
+			if arm.keyRegexVar == "" {
+				b.WriteString("_r[" + keyVar + "] = " + arm.valueExpr + ";")
+				break
+			}
+		}
+		b.WriteString("}")
+	}
+	if symbolExpr != "" {
+		b.WriteString("for (const " + symbolVar + " of Object.getOwnPropertySymbols(" + v + ")) {")
+		b.WriteString("if (Object.prototype.propertyIsEnumerable.call(" + v + ", " + symbolVar + ")) _r[" + symbolVar + "] = " + symbolExpr + ";")
+		b.WriteString("}")
+	}
+	writePropAssignments(&b, props)
 	b.WriteString("return _r")
 	return RTCode{Code: b.String(), Type: CodeRB}
 }
 
-// emitArrayRemoveUnknownKeys always returns a fresh array, even when elements clone to themselves: arrays are mutable.
-func emitArrayRemoveUnknownKeys(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
+// elementExpr compiles one element slot, sharing (or refusing) a value the copy cannot rebuild.
+func (e RemoveUnknownKeysEmitter) elementExpr(child *reflection.RunType, accessor, where string, ctx *EmitContext) (string, bool) {
+	if resolved := ctx.ResolveRef(child); resolved != nil {
+		if slot, opaque := sharedValueSlot(resolved, ctx); opaque {
+			return accessor, e.shareOrRefuse(slot, where, resolved, ctx)
+		}
+	}
+	return safeChildExpr(child, accessor, ctx)
+}
+
+// emitArray always returns a fresh array, even when elements clone to themselves: arrays are mutable.
+func (e RemoveUnknownKeysEmitter) emitArray(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	if rt.Child == nil {
 		return RTCode{Code: v + ".slice()", Type: CodeE}
 	}
 	elemVar := ctx.NextLocalVar("e")
-	expr, ok := safeChildExpr(rt.Child, elemVar, ctx)
+	expr, ok := e.elementExpr(rt.Child, elemVar, "array elements", ctx)
 	if !ok {
 		return RTCode{Code: "", Type: CodeNS}
 	}
@@ -304,8 +445,8 @@ func emitArrayRemoveUnknownKeys(rt *reflection.RunType, ctx *EmitContext, v stri
 	return RTCode{Code: v + ".map(function(" + elemVar + "){return " + expr + "})", Type: CodeE}
 }
 
-// emitTupleRemoveUnknownKeys always returns a fresh array; optional slots keep `undefined`, no JSON `null` placeholder.
-func emitTupleRemoveUnknownKeys(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
+// emitTuple always returns a fresh array; optional slots keep `undefined`, no JSON `null` placeholder.
+func (e RemoveUnknownKeysEmitter) emitTuple(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	if len(rt.Children) == 0 {
 		return RTCode{Code: v + ".slice()", Type: CodeE}
 	}
@@ -320,7 +461,7 @@ func emitTupleRemoveUnknownKeys(rt *reflection.RunType, ctx *EmitContext, v stri
 		}
 		if isRestTupleMember(resolved) {
 			elemVar := ctx.NextLocalVar("e")
-			expr, ok := safeChildExpr(resolved.Child, elemVar, ctx)
+			expr, ok := e.elementExpr(resolved.Child, elemVar, "tuple elements", ctx)
 			if !ok {
 				return RTCode{Code: "", Type: CodeNS}
 			}
@@ -333,7 +474,7 @@ func emitTupleRemoveUnknownKeys(rt *reflection.RunType, ctx *EmitContext, v stri
 		}
 		idx := positionStr(resolved)
 		accessor := v + "[" + idx + "]"
-		expr, ok := safeChildExpr(resolved.Child, accessor, ctx)
+		expr, ok := e.elementExpr(resolved.Child, accessor, "tuple element "+idx, ctx)
 		if !ok {
 			return RTCode{Code: "", Type: CodeNS}
 		}
@@ -367,20 +508,8 @@ func emitTupleRemoveUnknownKeys(rt *reflection.RunType, ctx *EmitContext, v stri
 	return RTCode{Code: literal, Type: CodeE}
 }
 
-// emitIndexSignatureRemoveUnknownKeys covers a bare index signature outside an object (root reach-in).
-func emitIndexSignatureRemoveUnknownKeys(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
-	if rt.Child == nil || isSymbolKeyedIndexSig(rt, ctx) {
-		return RTCode{Code: "", Type: CodeS}
-	}
-	resolved := ctx.ResolveRef(rt.Child)
-	if resolved == nil || isFunctionLikeKind(resolved.Kind) {
-		return RTCode{Code: "", Type: CodeS}
-	}
-	return buildSafeIndexSignatureObject(v, nil, nil, []*reflection.RunType{rt}, false, ctx)
-}
-
-// emitUnionRemoveUnknownKeys refuses object members (RUK001): with no arm discrimination it could keep unknown keys.
-func emitUnionRemoveUnknownKeys(rt *reflection.RunType, ctx *EmitContext) RTCode {
+// emitUnion refuses object members (RUK001): with no arm discrimination it could keep unknown keys.
+func (e RemoveUnknownKeysEmitter) emitUnion(rt *reflection.RunType, ctx *EmitContext) RTCode {
 	layout := buildFlatLayout(rt, ctx)
 	if len(layout.ObjectMembers) > 0 {
 		return RTCode{Code: "", Type: CodeNS}
@@ -391,12 +520,12 @@ func emitUnionRemoveUnknownKeys(rt *reflection.RunType, ctx *EmitContext) RTCode
 		if m.Resolved == nil {
 			continue
 		}
-		expr, ok := safeChildExpr(m.Ref, v, ctx)
+		expr, ok := e.elementExpr(m.Ref, v, "union member `"+strippedMemberLabel(m.Resolved)+"`", ctx)
 		if !ok {
 			return RTCode{Code: "", Type: CodeNS}
 		}
 		if expr == v {
-			// An immutable/opaque member is covered by the `return v` tail.
+			// An immutable or shared member is covered by the `return v` tail.
 			continue
 		}
 		guard := atomicStructuralGuard(m.Resolved, ctx, v)
@@ -411,12 +540,14 @@ func emitUnionRemoveUnknownKeys(rt *reflection.RunType, ctx *EmitContext) RTCode
 	return RTCode{Code: strings.Join(clauses, " ") + " return " + v, Type: CodeRB}
 }
 
-// emitNativeIterableRemoveUnknownKeys always returns a fresh Map / Set: both are mutable.
-func emitNativeIterableRemoveUnknownKeys(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
+// emitNativeIterable always returns a fresh Map / Set: both are mutable.
+func (e RemoveUnknownKeysEmitter) emitNativeIterable(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	isMap := rt.SubKind == reflection.SubKindMap
 	ctor := "Set"
+	where := []string{"Set values"}
 	if isMap {
 		ctor = "Map"
+		where = []string{"Map keys", "Map values"}
 	}
 	innerTypes := iterableInnerTypes(rt, ctx)
 	entryVar := ctx.NextLocalVar("e")
@@ -430,7 +561,7 @@ func emitNativeIterableRemoveUnknownKeys(rt *reflection.RunType, ctx *EmitContex
 		if isMap {
 			accessor = entryVar + "[" + strconv.Itoa(i) + "]"
 		}
-		expr, ok := safeChildExpr(innerType, accessor, ctx)
+		expr, ok := e.elementExpr(innerType, accessor, where[i%len(where)], ctx)
 		if !ok {
 			return RTCode{Code: "", Type: CodeNS}
 		}
@@ -486,6 +617,10 @@ func removeUnknownKeysNoopRecursive(rt *reflection.RunType, ctx *EmitContext, vi
 		}
 		visited[rt.ID] = struct{}{}
 	}
+	if _, shared := sharedValueSlot(rt, ctx); shared {
+		// Not identity-equivalent in spirit: the entry must compile so the warning fires, or the refusal throws.
+		return false
+	}
 	switch rt.Kind {
 
 	// Mutable positions always need a live clone body.
@@ -502,18 +637,13 @@ func removeUnknownKeysNoopRecursive(rt *reflection.RunType, ctx *EmitContext, vi
 			// Immutable, but re-materialized anyway: object identity must be fresh at every object position.
 			return false
 		}
-		// Non-serializable (opaque) subkinds pass through.
 		return true
 
 	case reflection.KindProperty, reflection.KindPropertySignature:
 		if rt.Child == nil {
 			return true
 		}
-		resolved := ctx.ResolveRef(rt.Child)
-		if resolved == nil || isFunctionLikeKind(resolved.Kind) || resolved.IsStatic {
-			return true
-		}
-		return removeUnknownKeysNoopRecursive(resolved, ctx, visited)
+		return removeUnknownKeysNoopRecursive(ctx.ResolveRef(rt.Child), ctx, visited)
 
 	case reflection.KindTupleMember:
 		if rt.Child == nil {
@@ -537,7 +667,7 @@ func removeUnknownKeysNoopRecursive(rt *reflection.RunType, ctx *EmitContext, vi
 		}
 		return true
 	}
-	// Immutable (primitives, enums, literals, template literals, bigints, never/void/null/undefined) and
-	// opaque (any/unknown/object, symbol, function kinds, promise) kinds are passthrough.
+	// Immutable (primitives, symbols, enums, literals, template literals, bigints, never/void/null/undefined)
+	// and any / unknown / object kinds are passthrough.
 	return true
 }

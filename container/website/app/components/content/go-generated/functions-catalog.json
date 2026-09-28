@@ -75,6 +75,20 @@
       "factory": "createRemoveUnknownKeysFn"
     },
     {
+      "name": "removeUnknownKeysRefuse",
+      "call": "createRemoveUnknownKeysFn<T>(undefined, {sharedValues: 'refuse'})",
+      "tag": "rukr",
+      "doc": "Copies a value keeping only the declared properties, and refuses a type holding a function or a value it cannot copy.",
+      "factory": "createRemoveUnknownKeysFn"
+    },
+    {
+      "name": "removeUnknownKeysShared",
+      "call": "createRemoveUnknownKeysFn<T>(undefined, {sharedValues: 'share'})",
+      "tag": "ruks",
+      "doc": "Copies a value keeping only the declared properties, sharing a function or a value it cannot copy with the input, as asked.",
+      "factory": "createRemoveUnknownKeysFn"
+    },
+    {
       "name": "restoreFromJsonClone",
       "call": "createRestoreFromJsonFn<T>()",
       "tag": "rjs",

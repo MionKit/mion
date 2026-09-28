@@ -94,6 +94,18 @@ var CacheModules = CacheModuleGroup{
 		VarPrefix: "g_ruk_",
 		Tag:       "ruk",
 	},
+	// removeUnknownKeys under `{sharedValues: 'share' | 'refuse'}`: the same copy with the other two answers for a
+	// value it can only share, as families so nested entries follow the option.
+	"removeUnknownKeysShared": {
+		Name:      "removeUnknownKeysSharedModule",
+		VarPrefix: "g_ruks_",
+		Tag:       "ruks",
+	},
+	"removeUnknownKeysRefuse": {
+		Name:      "removeUnknownKeysRefuseModule",
+		VarPrefix: "g_rukr_",
+		Tag:       "rukr",
+	},
 	"formatTransform": {
 		Name:      "formatTransformModule",
 		VarPrefix: "g_fmt_",

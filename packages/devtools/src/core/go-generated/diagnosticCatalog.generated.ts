@@ -750,19 +750,30 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     level: 'runtimeError',
     family: 'runtype',
   },
-  RUK003: {
-    headline: '`removeUnknownKeys` cannot clone a function-typed value.',
+  RUK004: {
+    headline: 'Symbol-keyed {0} cannot be copied: the generated code cannot name your symbol, so the function always throws.',
+    level: 'runtimeError',
+    family: 'runtype',
+  },
+  RUK005: {
+    headline:
+      'The {0} has `#private` fields, which only its constructor can create: a copy would break its methods, so the function always throws.',
+    level: 'runtimeError',
+    family: 'runtype',
+  },
+  RUK006: {
+    headline:
+      "The value in {0} can only be shared with the input and `sharedValues: 'refuse'` is set, so the function always throws.",
     level: 'runtimeError',
     family: 'runtype',
   },
   RUK010: {
-    headline:
-      'Property `{0}` is a function: `removeUnknownKeys` cannot rebuild it, so it is kept on the clone, SHARED BY REFERENCE.',
+    headline: 'The function in {0} cannot be copied: the copy shares it with the input.',
     level: 'warning',
     family: 'runtype',
   },
   RUK011: {
-    headline: "Method `{0}` is not copied onto the clone's own properties: methods ride the prototype.",
+    headline: "Method or accessor `{0}` is not copied: the copy keeps the input's prototype, so it still works.",
     level: 'info',
     family: 'runtype',
   },
@@ -771,15 +782,15 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     level: 'info',
     family: 'runtype',
   },
-  RUK013: {
-    headline: 'Symbol-keyed property `{0}` is not copied onto the clone: `removeUnknownKeys` rebuilds string keys only.',
-    level: 'info',
-    family: 'runtype',
-  },
   RUK015: {
     headline:
-      'Property `{0}` has a value type `removeUnknownKeys` cannot rebuild (symbol, Promise, or a non-serialisable built-in): it is kept on the clone, SHARED BY REFERENCE.',
+      'The value in {0} cannot be copied (a Promise, a RegExp or a built-in that is not data): the copy shares it with the input.',
     level: 'warning',
+    family: 'runtype',
+  },
+  RUK016: {
+    headline: "The value in {0} is shared with the input, as `sharedValues: 'share'` asks.",
+    level: 'info',
     family: 'runtype',
   },
   TMP001: {

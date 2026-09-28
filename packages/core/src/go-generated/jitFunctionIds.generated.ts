@@ -16,6 +16,8 @@ export const JIT_FUNCTION_IDS = {
   prepareForJsonClone: 'A0Qb',
   prepareForJsonMutate: 'AwYs',
   removeUnknownKeys: 'C85b',
+  removeUnknownKeysRefuse: 'lJ3b',
+  removeUnknownKeysShared: 'LMn9',
   restoreFromJsonClone: 'Ky89',
   restoreFromJsonMutate: 'w8ie',
   validate: 'Eq2V',

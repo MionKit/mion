@@ -127,9 +127,15 @@ export type GetValidationErrorsFn<Format extends TypeFormatError = TypeFormatErr
   errors?: RTValidationError[]
 ) => RTValidationError<Format>[];
 
-/** Deep copy of the declared shape; RegExps and values it cannot rebuild (`any`, functions: RUK010/RUK015) are shared.
+/** Deep copy of the declared shape; a value it cannot rebuild (function, Promise, RegExp) follows `sharedValues`.
  *  `overrideRemoveUnknownKeys<T>()` is the escape hatch for custom copying. **/
 export type RemoveUnknownKeysFn<T = unknown> = (value: T) => T;
+/** What the copy does with a value it cannot rebuild (a function, a Promise, a RegExp, a built-in like URL).
+ *  Absent: shares it with the input and warns (RUK010 / RUK015). `'share'`: shares it, as asked (RUK016, Info).
+ *  `'refuse'`: the function always throws (RUK006). COMPILE-TIME: each value is its own family. **/
+export interface RemoveUnknownKeysOptions {
+  sharedValues?: 'share' | 'refuse';
+}
 
 /** Reduces a type to the plain runtime value the format transform operates on: TypeFormat brands
  *  collapse to their base (string formats → `string`), nested objects / arrays recurse. The brand is
@@ -256,12 +262,21 @@ export const createGetValidationErrorsFn = createTypeFnArgsFunction<GetValidatio
 
 // Leaf families take no options: a slot would let callers pass values the Go emitter silently ignores.
 
-/** Returns a new value with only the declared keys (Dates, Maps, Sets, prototypes kept); never mutates the input. **/
-export const createRemoveUnknownKeysFn = createRTFunction<RemoveUnknownKeysFn>(
+/** Returns a new value with only the declared keys (Dates, Maps, Sets, prototypes kept); never mutates the input.
+ *  `sharedValues` (compile-time) picks the family, so `options` is read by the scanner, never at runtime. **/
+export const createRemoveUnknownKeysFn = createTypeFnArgsFunction<RemoveUnknownKeysFn>(
   'createRemoveUnknownKeysFn',
   identityValueFn
-) as unknown as (<T>(runType: RunType<T>, id?: InjectTypeFnArgs<T, 'removeUnknownKeys'>) => RemoveUnknownKeysFn<T>) &
-  (<T>(val?: T, id?: InjectTypeFnArgs<T, 'removeUnknownKeys'>) => RemoveUnknownKeysFn<T>);
+) as unknown as (<T>(
+  runType: RunType<T>,
+  options?: CompTimeFnArgs<RemoveUnknownKeysOptions>,
+  id?: InjectTypeFnArgs<T, 'removeUnknownKeys'>
+) => RemoveUnknownKeysFn<T>) &
+  (<T>(
+    val?: T,
+    options?: CompTimeFnArgs<RemoveUnknownKeysOptions>,
+    id?: InjectTypeFnArgs<T, 'removeUnknownKeys'>
+  ) => RemoveUnknownKeysFn<T>);
 
 // =============================================================================
 // The VALUE-level JSON transforms, no string step: for a framework that parses ONE envelope per
@@ -387,6 +402,9 @@ export interface RTFunctionByKey {
   validationErrorsUnionKeys: GetValidationErrorsFn;
   // Unknown-keys group.
   removeUnknownKeys: RemoveUnknownKeysFn;
+  // The `sharedValues` twins: same call shape.
+  removeUnknownKeysShared: RemoveUnknownKeysFn;
+  removeUnknownKeysRefuse: RemoveUnknownKeysFn;
   // Format transform.
   formatTransform: FormatTransformFn<unknown>;
   // JSON string I/O.

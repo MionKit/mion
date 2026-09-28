@@ -496,7 +496,7 @@ func TestNoopType_RemoveUnknownKeys(t *testing.T) {
 	rows := map[string]bool{
 		"str":       true,  // immutable primitive
 		"big":       true,  // immutable primitive
-		"fn":        true,  // opaque — passthrough, overrideRemoveUnknownKeys is the escape hatch
+		"fn":        false, // shared or refused per sharedValues: the entry must compile to warn or throw
 		"uAt":       true,  // string | number — every member immutable
 		"dat":       false, // Date is mutable (setTime) — re-wrapped
 		"mp":        false, // Map is a mutable container — always fresh

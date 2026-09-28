@@ -40,9 +40,9 @@ export const RECORDS = {
   multiple_index_props: {
     title: 'Multiple index signatures',
     description:
-      'Root `{[key: string]: string; [key: number]: string; [abc: symbol]: Date}` clones string- and number-keyed entries onto the fresh object while symbol-keyed entries fall outside the string-keyed data projection and drop.',
+      'Root `{[key: string]: string; [key: number]: string; [abc: symbol]: Date}` clones string-, number- and symbol-keyed entries onto the fresh object: the symbol signature declares every symbol key, so each one is copied.',
     cloneNotes:
-      'Symbol-keyed entries are dropped from the clone (expected reflects it), mirroring how serialization omits them on the wire; numeric keys are stored as string property keys and copy as such.',
+      'Symbol-keyed entries keep their key and get a fresh Date; numeric keys are stored as string property keys and copy as such.',
     clone: () => createRemoveUnknownKeysFn<{[key: string]: string; [key: number]: string; [abc: symbol]: Date}>(),
     getTestData: () => {
       const objWithSymbolKeys = {
@@ -59,7 +59,12 @@ export const RECORDS = {
         values: [{key1: 'value1', key2: 'value2'}, objWithSymbolKeys, objWithNumericKeys],
         expected: [
           {key1: 'value1', key2: 'value2'},
-          {key1: 'value1', key2: 'value2'},
+          {
+            key1: 'value1',
+            key2: 'value2',
+            [key3]: new Date('2000-08-06T02:13:00.000Z'),
+            [key4]: new Date('2000-08-06T02:13:00.000Z'),
+          },
           {0: 'zero', 5: 'five', key1: 'value1'},
         ],
       };

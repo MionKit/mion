@@ -18,6 +18,8 @@ export const CACHE_MODULES = {
   prepareForJsonMutate: {name: 'prepareForJsonMutateModule', varPrefix: 'g_pj_', tag: 'pj'},
   pureFns: {name: 'pureFnsModule', varPrefix: '', tag: ''},
   removeUnknownKeys: {name: 'removeUnknownKeysModule', varPrefix: 'g_ruk_', tag: 'ruk'},
+  removeUnknownKeysRefuse: {name: 'removeUnknownKeysRefuseModule', varPrefix: 'g_rukr_', tag: 'rukr'},
+  removeUnknownKeysShared: {name: 'removeUnknownKeysSharedModule', varPrefix: 'g_ruks_', tag: 'ruks'},
   restoreFromJsonClone: {name: 'restoreFromJsonCloneModule', varPrefix: 'g_rjs_', tag: 'rjs'},
   restoreFromJsonMutate: {name: 'restoreFromJsonMutateModule', varPrefix: 'g_rj_', tag: 'rj'},
   runTypes: {name: 'runTypesModule', varPrefix: 't_', tag: 't'},
@@ -56,6 +58,12 @@ export const PUREFNS_TAG = '';
 export const REMOVEUNKNOWNKEYS_VAR_PREFIX = 'g_ruk_';
 export const REMOVEUNKNOWNKEYS_MODULE_NAME = 'removeUnknownKeysModule';
 export const REMOVEUNKNOWNKEYS_TAG = 'ruk';
+export const REMOVEUNKNOWNKEYSREFUSE_VAR_PREFIX = 'g_rukr_';
+export const REMOVEUNKNOWNKEYSREFUSE_MODULE_NAME = 'removeUnknownKeysRefuseModule';
+export const REMOVEUNKNOWNKEYSREFUSE_TAG = 'rukr';
+export const REMOVEUNKNOWNKEYSSHARED_VAR_PREFIX = 'g_ruks_';
+export const REMOVEUNKNOWNKEYSSHARED_MODULE_NAME = 'removeUnknownKeysSharedModule';
+export const REMOVEUNKNOWNKEYSSHARED_TAG = 'ruks';
 export const RESTOREFROMJSONCLONE_VAR_PREFIX = 'g_rjs_';
 export const RESTOREFROMJSONCLONE_MODULE_NAME = 'restoreFromJsonCloneModule';
 export const RESTOREFROMJSONCLONE_TAG = 'rjs';

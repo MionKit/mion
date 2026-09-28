@@ -875,61 +875,79 @@
       "headline": "`removeUnknownKeys` does not support unions with object members: the emitter cannot know which declared shape to rebuild at runtime.",
       "summary": "`removeUnknownKeys` rebuilds a value from its declared shape, and for a union of objects it cannot tell which member the value matches, so the function throws rather than keep unknown keys. Narrow the value first and use one `createRemoveUnknownKeysFn<Member>()` per member, or turn the union into one object with optional properties.",
       "fix": "const removeCatKeys = createRemoveUnknownKeysFn<Cat>();\nconst removeDogKeys = createRemoveUnknownKeysFn<Dog>();",
-      "example": null
+      "example": "import {createRemoveUnknownKeysFn} from '@mionjs/run-types';\ntype Pet = {kind: 'cat'; meows: boolean} | {kind: 'dog'; barks: boolean};\nexport const removePetKeys = createRemoveUnknownKeysFn<Pet>();"
     },
     {
-      "code": "RUK003",
+      "code": "RUK004",
       "subsystem": "unknown-keys",
       "level": "runtimeError",
-      "headline": "`removeUnknownKeys` cannot clone a function-typed value.",
-      "summary": "A function is not data, so `removeUnknownKeys` has no shape to rebuild, and the function built for it throws when called. Function-typed properties are fine: the clone keeps them by reference (RUK010), and class methods stay on the prototype (RUK011). Use it on the object type, not on a function type.",
+      "headline": "Symbol-keyed {0} cannot be copied: the generated code cannot name your symbol, so the function always throws.",
+      "summary": "The copy is typed as your type, so it must have the symbol-keyed property too. The generated code cannot name a symbol from your code, and copying every symbol on the input would keep undeclared ones, so the function always throws. Use a string key, or a `[key: symbol]: V` index signature, whose keys are all copied. Symbol-keyed class methods are fine: they stay on the prototype.",
+      "fix": "interface Item { id: string; tag: string }",
+      "example": "import {createRemoveUnknownKeysFn} from '@mionjs/run-types';\nconst tag = Symbol('tag');\ninterface Item { id: string; [tag]: string }\nexport const removeItemKeys = createRemoveUnknownKeysFn<Item>();"
+    },
+    {
+      "code": "RUK005",
+      "subsystem": "unknown-keys",
+      "level": "runtimeError",
+      "headline": "The {0} has `#private` fields, which only its constructor can create: a copy would break its methods, so the function always throws.",
+      "summary": "A class copy keeps the input's prototype but never runs the constructor, and only the constructor can create `#private` fields. A method reading one would throw on the copy, so the function always throws instead. Use TypeScript `private` instead of `#`, or register `overrideRemoveUnknownKeys<T>()` to build the copy yourself.",
+      "fix": "class Counter { private count = 0; }",
+      "example": "import {createRemoveUnknownKeysFn} from '@mionjs/run-types';\nexport class Counter { #count = 0; label = ''; }\nexport const removeCounterKeys = createRemoveUnknownKeysFn<Counter>();"
+    },
+    {
+      "code": "RUK006",
+      "subsystem": "unknown-keys",
+      "level": "runtimeError",
+      "headline": "The value in {0} can only be shared with the input and `sharedValues: 'refuse'` is set, so the function always throws.",
+      "summary": "With `sharedValues: 'refuse'`, a value the copy cannot rebuild (a function, a `Promise`, a `RegExp` or a built-in like `URL`) makes the function always throw instead of sharing it with the input. Remove the option to share it with a warning, or change the type.",
       "fix": null,
-      "example": null
+      "example": "import {createRemoveUnknownKeysFn} from '@mionjs/run-types';\ninterface Button { label: string; onClick: () => void }\nexport const removeButtonKeys = createRemoveUnknownKeysFn<Button>(undefined, {sharedValues: 'refuse'});"
     },
     {
       "code": "RUK010",
       "subsystem": "unknown-keys",
       "level": "warning",
-      "headline": "Property `{0}` is a function: `removeUnknownKeys` cannot rebuild it, so it is kept on the clone, SHARED BY REFERENCE.",
-      "summary": "`removeUnknownKeys` never removes a declared key. A function cannot be rebuilt, so the clone's property points to the same function as the input, methods written in an object literal included. Class methods stay on the shared prototype instead (RUK011).",
+      "headline": "The function in {0} cannot be copied: the copy shares it with the input.",
+      "summary": "`removeUnknownKeys` never removes a declared key. A function cannot be copied, so the copy points to the same function as the input. Class methods stay on the prototype instead (RUK011). A function type itself is shared the same way. Pass `sharedValues: 'share'` to say this is fine, or `'refuse'` to make it an error.",
       "fix": null,
-      "example": null
+      "example": "import {createRemoveUnknownKeysFn} from '@mionjs/run-types';\ninterface Button { label: string; onClick: () => void }\nexport const removeButtonKeys = createRemoveUnknownKeysFn<Button>();"
     },
     {
       "code": "RUK011",
       "subsystem": "unknown-keys",
       "level": "info",
-      "headline": "Method `{0}` is not copied onto the clone's own properties: methods ride the prototype.",
-      "summary": "For a class instance the clone keeps the input's prototype, so methods still work through the prototype chain without being copied as own properties. A method written in an object literal is kept by reference instead (RUK010).",
+      "headline": "Method or accessor `{0}` is not copied: the copy keeps the input's prototype, so it still works.",
+      "summary": "A class copy keeps the input's prototype, so methods and get / set accessors still work without being copied. A function stored in a field (`onChange = () => ...`) is its own value and is shared instead (RUK010). The constructor does not run on the copy.",
       "fix": null,
-      "example": null
+      "example": "import {createRemoveUnknownKeysFn} from '@mionjs/run-types';\nexport class User { name = ''; greet(): string { return this.name; } }\nexport const removeUserKeys = createRemoveUnknownKeysFn<User>();"
     },
     {
       "code": "RUK012",
       "subsystem": "unknown-keys",
       "level": "info",
       "headline": "Static member `{0}` is not part of instance data: `removeUnknownKeys` skips it.",
-      "summary": "Static members belong to the class, not its instances, so the clone leaves them out.",
+      "summary": "Static members belong to the class, not its instances, so the copy leaves them out.",
       "fix": null,
-      "example": null
-    },
-    {
-      "code": "RUK013",
-      "subsystem": "unknown-keys",
-      "level": "info",
-      "headline": "Symbol-keyed property `{0}` is not copied onto the clone: `removeUnknownKeys` rebuilds string keys only.",
-      "summary": "Symbol keys are not data (the same rule as the JSON functions), so the clone leaves this one out. Use a string key if the value must be kept.",
-      "fix": "interface Item { id: string }",
-      "example": null
+      "example": "import {createRemoveUnknownKeysFn} from '@mionjs/run-types';\nexport class Config { static version = 1; name = ''; }\nexport const removeConfigKeys = createRemoveUnknownKeysFn<Config>();"
     },
     {
       "code": "RUK015",
       "subsystem": "unknown-keys",
       "level": "warning",
-      "headline": "Property `{0}` has a value type `removeUnknownKeys` cannot rebuild (symbol, Promise, or a non-serialisable built-in): it is kept on the clone, SHARED BY REFERENCE.",
-      "summary": "`removeUnknownKeys` never removes a declared property. A value it cannot rebuild, like a symbol, a Promise or a built-in that is not data, is passed through by reference, so a change through it shows on both the clone and the input. Register `overrideRemoveUnknownKeys<T>()` if this type needs its own copy logic.",
+      "headline": "The value in {0} cannot be copied (a Promise, a RegExp or a built-in that is not data): the copy shares it with the input.",
+      "summary": "`removeUnknownKeys` never removes a declared property. A value it cannot copy, like a `Promise`, a `RegExp` or a built-in like `URL`, is shared with the input, so a change through it shows on both. Pass `sharedValues: 'share'` to say this is fine, `'refuse'` to make it an error, or register `overrideRemoveUnknownKeys<T>()` to copy it yourself.",
       "fix": null,
-      "example": null
+      "example": "import {createRemoveUnknownKeysFn} from '@mionjs/run-types';\ninterface Link { title: string; url: URL }\nexport const removeLinkKeys = createRemoveUnknownKeysFn<Link>();"
+    },
+    {
+      "code": "RUK016",
+      "subsystem": "unknown-keys",
+      "level": "info",
+      "headline": "The value in {0} is shared with the input, as `sharedValues: 'share'` asks.",
+      "summary": "You passed `sharedValues: 'share'`, so a function or a value the copy cannot rebuild is shared with the input, as asked. This note is hidden unless you show all levels.",
+      "fix": null,
+      "example": "import {createRemoveUnknownKeysFn} from '@mionjs/run-types';\ninterface Button { label: string; onClick: () => void }\nexport const removeButtonKeys = createRemoveUnknownKeysFn<Button>(undefined, {sharedValues: 'share'});"
     },
     {
       "code": "FMT001",

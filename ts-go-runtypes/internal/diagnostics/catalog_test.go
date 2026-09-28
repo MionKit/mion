@@ -320,7 +320,7 @@ func TestLevelsThatMoved(t *testing.T) {
 		CodeVERootAnyUnknown:             LevelInfo,
 		CodeRUKMethodDropped:             LevelInfo, // lives on the prototype
 		CodeRUKStaticDropped:             LevelInfo,
-		CodeRUKSymbolKeyedDropped:        LevelInfo,
+		CodeRUKSharedAsAsked:             LevelInfo, // the caller asked to share
 		CodeOverrideValidateCrossFamily:  LevelInfo,
 		CodeApiMetaRouteWidenedFetched:   LevelInfo, // the call still works
 		CodeDowngradeErrorAlreadyWarning: LevelInfo,
@@ -329,6 +329,10 @@ func TestLevelsThatMoved(t *testing.T) {
 		CodeRUKFunctionPropDropped:     LevelWarning, // the clone SHARES the value with the original
 		CodeRUKNonSerializablePropDrop: LevelWarning,
 		CodeUnsafePropertyName:         LevelWarning,
+		// The copy would break its own type, so the function throws instead.
+		CodeRUKSymbolKeyedMember: LevelRuntimeError,
+		CodeRUKPrivateFields:     LevelRuntimeError,
+		CodeRUKSharedRefused:     LevelRuntimeError,
 		// Error, and staying there: no code was produced for the thing.
 		CodeMarkerFreeTypeParameter: LevelError,
 		CodeTypeIdCollision:         LevelError,

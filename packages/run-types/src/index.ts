@@ -134,6 +134,7 @@ export {
   type RTPathSegment,
   createRemoveUnknownKeysFn,
   type RemoveUnknownKeysFn,
+  type RemoveUnknownKeysOptions,
   createFormatTransformFn,
   type FormatTransformFn,
   createJsonEncoderFn,
