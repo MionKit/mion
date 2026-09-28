@@ -32,16 +32,16 @@ var proseByCode = map[string]prose{
 	// by expecterror_test.go.
 
 	CodeExpectErrorUnused: {
-		Summary: "A `@mion-expect-error` comment hid nothing: the code it names was not reported on the line below. It is checked like TypeScript's `@ts-expect-error`, so a comment left behind after a fix is reported. Delete the comment, or correct the code it names.",
+		Summary: "A `@mion-expect-error` comment hid nothing: the code it names was not reported on the line below. Like `@ts-expect-error`, a comment left behind after a fix is reported. Delete the comment, or correct the code it names.",
 		Fix:     "// @mion-expect-error VL002\nexport const report = createValidateFn<symbol>();",
 	},
 
 	CodeExpectErrorNotSuppressible: {
-		Summary: "A `@mion-expect-error` comment named a code that is always reported. An Error code means the build produced no code for that call, so hiding it would ship missing output. The `EXP` and `DWN` codes check these comments, so a comment cannot hide them either. Fix the reported call instead.",
+		Summary: "A `@mion-expect-error` comment named a code that is always reported. An Error code means the build produced no code for that call, so hiding it would ship missing output. `EXP` and `DWN` codes check these comments, so they cannot be hidden either. Fix the reported call instead.",
 	},
 
 	CodeExpectErrorUnknownCode: {
-		Summary: "A `@mion-expect-error` comment names a code mion does not have, almost always a typo. It would hide nothing while looking like it works. Copy the code from the message you are hiding: it is the uppercase name, for example `VL002` in `error VL002: Type ... can never be validated`.",
+		Summary: "A `@mion-expect-error` comment names a code mion does not have, usually a typo, so it hides nothing. Copy the code from the message you are hiding, for example `VL002` in `error VL002: Type ... can never be validated`.",
 		Fix:     "// @mion-expect-error VL002",
 	},
 
@@ -51,21 +51,21 @@ var proseByCode = map[string]prose{
 	// anything", so these are raised on that pass and covered by downgradeerror_test.go.
 
 	CodeDowngradeErrorUnused: {
-		Summary: "A `@mion-downgrade-error` comment lowered nothing: the code it names was not reported on the line below. It is checked like `@mion-expect-error`, so a comment left behind after a fix is reported. Delete the comment, or correct the code it names.",
+		Summary: "A `@mion-downgrade-error` comment lowered nothing: the code it names was not reported on the line below. Like `@mion-expect-error`, a comment left behind after a fix is reported. Delete the comment, or correct the code it names.",
 		Fix:     "// @mion-downgrade-error VL002\nexport const report = createValidateFn<symbol>();",
 	},
 
 	CodeDowngradeErrorNotDowngradeable: {
-		Summary: "A `@mion-downgrade-error` comment named an Error code, which always stops the build. An Error means the build produced no code for that call, so going on would ship a call that throws. Only a RuntimeError can be downgraded, and the `downgradeErrors` setting refuses Error codes too. Fix the reported call instead.",
+		Summary: "A `@mion-downgrade-error` comment named an Error code, which always stops the build. The build produced no code for that call, so going on would ship a call that throws. Only a RuntimeError can be downgraded, by comment or by the `downgradeErrors` setting. Fix the reported call instead.",
 	},
 
 	CodeDowngradeErrorUnknownCode: {
-		Summary: "A `@mion-downgrade-error` comment names a code mion does not have, almost always a typo. It would lower nothing while looking like it works. Copy the code from the message you are lowering: it is the uppercase name, for example `VL002` in `error VL002: Type ... can never be validated`.",
+		Summary: "A `@mion-downgrade-error` comment names a code mion does not have, usually a typo, so it lowers nothing. Copy the code from the message you are lowering, for example `VL002` in `error VL002: Type ... can never be validated`.",
 		Fix:     "// @mion-downgrade-error VL002",
 	},
 
 	CodeDowngradeErrorAlreadyWarning: {
-		Summary: "A `@mion-downgrade-error` comment named a code that is already a warning or info. Neither ever stops the build, so the comment has nothing to do. Delete it, or use `@mion-expect-error` to hide the code completely.",
+		Summary: "A `@mion-downgrade-error` comment named a warning or info code, which never stops the build. Delete it, or use `@mion-expect-error` to hide the code completely.",
 		Fix:     "// @mion-expect-error VL015",
 	},
 
@@ -74,36 +74,36 @@ var proseByCode = map[string]prose{
 	CodeTsconfigLoadFailed: {
 		// No Example: the harness scans source through a healthy config, and this is raised by a
 		// broken tsconfig.json.
-		Summary: "Your tsconfig, the one you named or the one found next to your project, is missing or cannot be parsed. mion reads your types through it, like your build does, so it stops instead of guessing with defaults that could read your types differently. Fix the tsconfig (the message names the first problem), or point to the right file with the `tsconfig` setting of the build plugin or linter, or the `--tsconfig` flag.",
+		Summary: "Your tsconfig (the one you named, or the one found next to your project) is missing or cannot be parsed. mion reads your types through it, so it stops rather than guess with defaults. Fix the tsconfig (the message names the first problem), or point to the right file with the `tsconfig` setting of the build plugin or linter, or the `--tsconfig` flag.",
 	},
 
 	CodeUnsupportedLibSelection: {
 		// No Example: the harness scans source through a healthy config, and this is raised by the
 		// project's `lib` setting.
-		Summary: "Your tsconfig `lib` names no base ECMAScript edition, so TypeScript never declares `Array`, `Object`, `String` and the other core globals. Then `number[]` becomes an empty object and the validator would accept any value with no warning, so mion stops. Name a base edition in `lib` (`[\"ES2022\"]`, or `[\"ES2022\", \"DOM\"]` for browser code), or remove `lib` and let `target` pick it. A feature entry such as `\"esnext.disposable\"` only adds to a base edition, it cannot replace one.",
+		Summary: "Your tsconfig `lib` names no base ECMAScript edition, so `Array`, `Object`, `String` and the other core globals are never declared. Then `number[]` becomes an empty object and its validator would accept any value, so mion stops. Name a base edition in `lib` (`[\"ES2022\"]`, or `[\"ES2022\", \"DOM\"]` for browser code), or remove `lib` and let `target` pick it. A feature entry such as `\"esnext.disposable\"` cannot replace a base edition.",
 		Fix:     `{"compilerOptions": {"lib": ["ES2022"]}}`,
 	},
 	CodeEmitOutsideRootDir: {
-		Summary: "`mion compile` writes every file under `outDir`, in the same folders it has under `rootDir`, like `tsc`. A file imported from outside `rootDir` (a `paths` entry into a sibling package, or a relative import above the source folder) has no place there, so it is not written and the compile fails. Set `rootDir` to a folder that holds every file of the program, or import that module by its package name. `tsc` reports the same program as TS6059.",
+		Summary: "Like `tsc`, `mion compile` writes each file under `outDir`, in the same folders it has under `rootDir`. A file imported from outside `rootDir` (a `paths` entry into a sibling package, or a relative import above the source folder) has no place there, so it is not written and the compile fails. Set `rootDir` to a folder that holds every file of the program, or import that module by its package name. `tsc` reports it as TS6059.",
 	},
 
 	// ───────────────────────── validate (VL) ─────────────────────────
 
 	CodeVLNonSerializableRoot: {
-		Summary: "Your type is a built-in class that cannot survive a JSON round trip, such as `URL`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, `RegExp`, `Buffer` or a typed array like `Uint8Array`. Only `Date`, `Map`, `Set` and the Temporal types are supported. Validate plain data instead, or convert the value first (`url.href`, `Array.from(bytes)`).",
+		Summary: "Your type is a built-in class with no JSON form, such as `URL`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, `RegExp`, `Buffer` or a typed array like `Uint8Array`. Only `Date`, `Map`, `Set` and the Temporal types are supported. Validate plain data instead, or convert the value first (`url.href`, `Array.from(bytes)`).",
 		Fix: `const bytes = Array.from(myUint8Array);
 const isData = createValidateFn<number[]>();`,
 		Example: `import {createValidateFn} from '@mionjs/run-types';
 export const isData = createValidateFn<Uint8Array>();`,
 	},
 	CodeVLSymbolRoot: {
-		Summary: "Your type is a `symbol`, or one named symbol such as `typeof mySymbol`. Each symbol has its own identity, which is lost when it crosses a network, a worker or a process, so it cannot round trip. Use a string union instead.",
+		Summary: "Your type is a `symbol`, or one named symbol such as `typeof mySymbol`. A symbol's identity is lost when it crosses a network, a worker or a process. Use a string union instead.",
 		Fix:     `type Status = 'pending' | 'active' | 'done';`,
 		Example: `import {createValidateFn} from '@mionjs/run-types';
 export const isData = createValidateFn<symbol>();`,
 	},
 	CodeVLFunctionRoot: {
-		Summary: "Your type is a function, a method, or an interface with a call signature. A function is code, not data, so it cannot survive a JSON round trip. Validate what it takes or returns instead.",
+		Summary: "Your type is a function, a method, or an interface with a call signature. A function is code, not data. Validate what it takes or returns instead.",
 		Fix: `const isArgs = createValidateFn<Parameters<typeof handler>>();
 const isResult = createValidateFn<Awaited<ReturnType<typeof handler>>>();`,
 		Example: `import {createValidateFn} from '@mionjs/run-types';
@@ -112,10 +112,10 @@ export const isData = createValidateFn<() => void>();`,
 	CodeVLFunctionPropDropped: {
 		// No Example: a function-valued property on a plain object surfaces as VL011, and VL010 fires
 		// only inside a DataOnly union projection, which no minimal type reaches today.
-		Summary: "A property whose value is a function holds no data, so validation skips it and still checks the other properties. You mostly see it on an object inside a union; on a plain object the same property reports `VL011`. Remove the property, or replace it with the data it would produce.",
+		Summary: "A function holds no data, so validation skips the property and still checks the others. You mostly see this on an object inside a union; on a plain object the same property reports `VL011`. Remove the property, or replace it with the data it would produce.",
 	},
 	CodeVLMethodDropped: {
-		Summary: "A method like `greet(): string`, or a property typed as a function like `onClick: () => void`, is behavior, not data. Validation skips it and still checks the rest of the type. If you need its result checked, expose that result as a plain data property.",
+		Summary: "A method like `greet(): string`, or a function property like `onClick: () => void`, is not data. Validation skips it and still checks the rest of the type. To check its result, store that result in a data property.",
 		Example: `import {createValidateFn} from '@mionjs/run-types';
 interface User { name: string; greet(): string; }
 export const isUser = createValidateFn<User>();`,
@@ -124,7 +124,7 @@ interface Account { user: { name: string; greet(): string } }
 export const isAccount = createValidateFn<Account>();`,
 	},
 	CodeVLStaticDropped: {
-		Summary: "Static members live on the class, not on its instances, and validation checks instance data only. The static member is skipped and the rest of the class is still checked.",
+		Summary: "Static members belong to the class, not its instances, and validation checks instance data only. The rest of the class is still checked.",
 		Example: `import {createValidateFn} from '@mionjs/run-types';
 class Config { static version = 1; name = ''; }
 export const isConfig = createValidateFn<Config>();`,
@@ -143,13 +143,13 @@ const tag = Symbol('tag');
 interface Item { id: string; [tag]: string }
 interface Order { item: Item }
 export const isOrder = createValidateFn<Order>();`,
-		Summary: "JSON has string keys only, so a property with a symbol key cannot be sent and validation skips it. Use a string key if the property holds real data.",
+		Summary: "JSON has string keys only, so validation skips a symbol-keyed property. Use a string key if the property holds real data.",
 		Fix: `interface Item {
   id: string; // instead of [Symbol.for('id')]: string
 }`,
 	},
 	CodeVLUnionMemberDropped: {
-		Summary: "Validation keeps only the union members that have a data form, so `Date | symbol` validates as `Date`. A member that is a symbol, a function, a `Promise` or a built-in class with no data form is dropped. If no member has a data form, the whole type fails instead with `VL001`, `VL002` or `VL003`.",
+		Summary: "Validation drops union members with no data form (a symbol, a function, a `Promise`, or a built-in class that is not data), so `Date | symbol` validates as `Date`. If no member has a data form, the whole type fails with `VL001`, `VL002` or `VL003`.",
 		Example: `import {createValidateFn} from '@mionjs/run-types';
 export const isData = createValidateFn<Date | symbol>();`,
 		NestedExample: `import {createValidateFn} from '@mionjs/run-types';
@@ -157,7 +157,7 @@ interface Event { at: Date | symbol }
 export const isEvent = createValidateFn<Event>();`,
 	},
 	CodeVLNonSerializablePropDrop: {
-		Summary: "A property whose value is a symbol, a `Promise` or a built-in class with no data form (a typed array, `ArrayBuffer`, `URL` and similar) is skipped, so `{ id: symbol }` validates as `{}`. The other properties are still checked. A value that only holds one inside, like `symbol[]` or `Map<string, symbol>`, cannot be dropped, so the whole type fails with the matching error, such as `VL002`.",
+		Summary: "A property holding a symbol, a `Promise` or a built-in class with no data form (a typed array, `ArrayBuffer`, `URL` and similar) is skipped, so `{ id: symbol }` validates as `{}`. The other properties are still checked. A value that holds one inside, like `symbol[]` or `Map<string, symbol>`, cannot be dropped, so the whole type fails with the matching error, such as `VL002`.",
 		Example: `import {createValidateFn} from '@mionjs/run-types';
 interface Box { id: symbol; name: string; }
 export const isBox = createValidateFn<Box>();`,
@@ -166,7 +166,7 @@ interface Shelf { box: { id: symbol; name: string } }
 export const isShelf = createValidateFn<Shelf>();`,
 	},
 	CodeVLRootAnyUnknown: {
-		Summary: "`any` and `unknown` allow any value, so there is no shape to check and the validator accepts everything, including values you meant to reject. Narrow the type to the shape you expect.",
+		Summary: "`any` and `unknown` have no shape to check, so the validator accepts every value, including ones you meant to reject. Narrow the type to the shape you expect.",
 		Fix:     `const isUser = createValidateFn<User>(); // instead of <unknown>`,
 		Example: `import {createValidateFn} from '@mionjs/run-types';
 export const isAnything = createValidateFn<unknown>();`,
@@ -175,7 +175,7 @@ export const isAnything = createValidateFn<unknown>();`,
 	// ──────────────────── validationErrors (VE) ────────────────────
 
 	CodeVENonSerializableRoot: {
-		Summary: "Same as `VL001`, for `createGetValidationErrorsFn`. Your type is a built-in class that cannot survive a JSON round trip, such as `URL`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, `RegExp`, `Buffer` or a typed array like `Uint8Array`. Only `Date`, `Map`, `Set` and the Temporal types are supported. Check plain data instead, or convert the value first (`url.href`, `Array.from(bytes)`).",
+		Summary: "Same as `VL001`, for `createGetValidationErrorsFn`. Your type is a built-in class with no JSON form, such as `URL`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, `RegExp`, `Buffer` or a typed array like `Uint8Array`. Only `Date`, `Map`, `Set` and the Temporal types are supported. Check plain data instead, or convert the value first (`url.href`, `Array.from(bytes)`).",
 		Fix: `const bytes = Array.from(myUint8Array);
 const errorsOf = createGetValidationErrorsFn<number[]>();`,
 		Example: `import {createGetValidationErrorsFn} from '@mionjs/run-types';
@@ -196,10 +196,10 @@ export const errorsOf = createGetValidationErrorsFn<() => void>();`,
 	},
 	CodeVEFunctionPropDropped: {
 		// No Example, same reason as VL010: such a property surfaces as VE011.
-		Summary: "Same as `VL010`, for `createGetValidationErrorsFn`. A property whose value is a function holds no data, so it is left out of the error report and the other properties are still checked. On a plain object the same property reports `VE011`. Remove the property, or replace it with the data it would produce.",
+		Summary: "Same as `VL010`, for `createGetValidationErrorsFn`. A function holds no data, so the property is left out of the error report and the others are still checked. On a plain object the same property reports `VE011`. Remove the property, or replace it with the data it would produce.",
 	},
 	CodeVEMethodDropped: {
-		Summary: "Same as `VL011`, for `createGetValidationErrorsFn`. A method like `greet(): string`, or a property typed as a function like `onClick: () => void`, is behavior, not data, so it is left out of the error report. If you need its result checked, expose that result as a plain data property.",
+		Summary: "Same as `VL011`, for `createGetValidationErrorsFn`. A method like `greet(): string`, or a function property like `onClick: () => void`, is not data, so it is left out of the error report. To check its result, store that result in a data property.",
 		Example: `import {createGetValidationErrorsFn} from '@mionjs/run-types';
 interface User { name: string; greet(): string; }
 export const errorsOf = createGetValidationErrorsFn<User>();`,
@@ -208,7 +208,7 @@ interface Account { user: { name: string; greet(): string } }
 export const errorsOf = createGetValidationErrorsFn<Account>();`,
 	},
 	CodeVEStaticDropped: {
-		Summary: "Same as `VL012`, for `createGetValidationErrorsFn`. Static members live on the class, not on its instances, so they are left out of the error report.",
+		Summary: "Same as `VL012`, for `createGetValidationErrorsFn`. Static members belong to the class, not its instances, so they are left out of the error report.",
 		Example: `import {createGetValidationErrorsFn} from '@mionjs/run-types';
 class Config { static version = 1; name = ''; }
 export const errorsOf = createGetValidationErrorsFn<Config>();`,
@@ -219,13 +219,13 @@ export const errorsOf = createGetValidationErrorsFn<App>();`,
 	},
 	CodeVESymbolKeyedDropped: {
 		// No Example, same reason as VL013: the slot is not emitted today.
-		Summary: "Same as `VL013`, for `createGetValidationErrorsFn`. JSON has string keys only, so a property with a symbol key is left out of the error report. Use a string key if the property holds real data.",
+		Summary: "Same as `VL013`, for `createGetValidationErrorsFn`. JSON has string keys only, so a symbol-keyed property is left out of the error report. Use a string key if the property holds real data.",
 		Fix: `interface Item {
   id: string; // instead of [Symbol.for('id')]: string
 }`,
 	},
 	CodeVENonSerializablePropDrop: {
-		Summary: "Same as `VL015`, for `createGetValidationErrorsFn`. A property whose value is a symbol, a `Promise` or a built-in class with no data form (a typed array, `ArrayBuffer`, `URL` and similar) is left out of the error report, and the other properties are still checked. A value that only holds one inside, like `symbol[]` or `Map<string, symbol>`, cannot be dropped, so the whole type fails with the matching error, such as `VE002`.",
+		Summary: "Same as `VL015`, for `createGetValidationErrorsFn`. A property holding a symbol, a `Promise` or a built-in class with no data form (a typed array, `ArrayBuffer`, `URL` and similar) is left out of the error report, and the other properties are still checked. A value that holds one inside, like `symbol[]` or `Map<string, symbol>`, cannot be dropped, so the whole type fails with the matching error, such as `VE002`.",
 		Example: `import {createGetValidationErrorsFn} from '@mionjs/run-types';
 interface Box { id: symbol; name: string; }
 export const errorsOf = createGetValidationErrorsFn<Box>();`,
@@ -234,7 +234,7 @@ interface Shelf { box: { id: symbol; name: string } }
 export const errorsOf = createGetValidationErrorsFn<Shelf>();`,
 	},
 	CodeVERootAnyUnknown: {
-		Summary: "Same as `VL021`, for `createGetValidationErrorsFn`. `any` and `unknown` allow any value, so there is nothing to check and the error list is always empty. Narrow the type to the shape you expect.",
+		Summary: "Same as `VL021`, for `createGetValidationErrorsFn`. `any` and `unknown` have nothing to check, so the error list is always empty. Narrow the type to the shape you expect.",
 		Fix:     "const errorsOf = createGetValidationErrorsFn<User>(); // instead of <unknown>",
 		Example: `import {createGetValidationErrorsFn} from '@mionjs/run-types';
 export const errorsOf = createGetValidationErrorsFn<unknown>();`,
@@ -245,7 +245,7 @@ export const errorsOf = createGetValidationErrorsFn<unknown>();`,
 	// No Example: PFE9012 needs a pure fn whose registration is absent from the program, and the
 	// built-ins register through the `mion` package itself, which the harness always has present.
 	CodeMissingPureFnDep: {
-		Summary: "A generated validator or encoder calls a pure function through `utl.usePureFn`, but no file in the build registers that id, so the built code would fail when it runs. An id is the package plus a hash of the function's body, so either the file that registers it is outside the build, or the body changed after the id was copied by hand. Import the id from the file that registers it with `registerPureFnFactory`, and make sure that file is part of the build.",
+		Summary: "A generated validator or encoder calls a pure function through `utl.usePureFn`, but no file in the build registers that id, so the code would fail when it runs. Either the file that registers it is outside the build, or its body changed after the id was copied by hand (the id is the package plus a hash of the body). Import the id from the file that registers it with `registerPureFnFactory`, and make sure that file is part of the build.",
 		Fix: `import {registerPureFnFactory} from '@mionjs/run-types/runtime';
 export const newRunTypeErr = registerPureFnFactory((utl) => (message) => new Error(message));`,
 	},
@@ -257,10 +257,10 @@ export const newRunTypeErr = registerPureFnFactory((utl) => (message) => new Err
 	// No Example: PFE9017 and PFE9018 need an installed package with a `mion-pure-fns/`, which the
 	// harness cannot stage.
 	CodePureFnArtifactUnreadable: {
-		Summary: "A mion build writes a package's compiled pure functions to `mion-pure-fns/` next to its output: an `index.json` plus one module per function. This file was skipped: the index has a format this compiler does not know or is not an index, or a module it lists is missing or holds nothing for its id. The package may then look as if it ships no pure functions, or one may be missing. Update the mion compiler to the version that wrote the directory, or rebuild the package with the version you use.",
+		Summary: "A mion build writes a package's compiled pure functions to `mion-pure-fns/` next to its output: an `index.json` plus one module per function. This file was skipped: the index is not an index or has a format this compiler does not know, or a module it lists is missing or holds nothing for its id. The package may then seem to ship no pure functions, or miss one. Update mion to the version that wrote the directory, or rebuild the package with your version.",
 	},
 	CodePureFnArtifactConflict: {
-		Summary: "A pure function's id is a hash of its body, so one id means one body under one name. Two `mion-pure-fns/` directories of the same installed package give this id a different body or name, so one of them is stale or comes from another build. The build stops rather than pick one. Rebuild the package so every output directory has the same `mion-pure-fns/`, or delete the stale copy.",
+		Summary: "Two `mion-pure-fns/` directories of the same installed package give this id a different body or name, so one is stale or comes from another build. One id must mean one body under one name, so the build stops rather than pick one. Rebuild the package so every output directory has the same `mion-pure-fns/`, or delete the stale copy.",
 	},
 	CodeDestructuredParam: {
 		Summary: "A destructured parameter like `({a, b})` or `([x, y])` has no single name the build can refer to. Take one plain parameter and destructure it inside the body.",
@@ -294,7 +294,7 @@ export const newRunTypeErr = registerPureFnFactory((utl) => (message) => new Err
 		Summary: "Globals such as `eval`, `Function`, `fetch`, `XMLHttpRequest`, `require`, `process`, `globalThis`, `window` and `document` are blocked in a pure function. They run arbitrary code or depend on an environment the build cannot reproduce. Remove the reference, or pass the value you need in as a parameter.",
 	},
 	CodePurityClosure: {
-		Summary: "The build copies a factory's body without the scope around it, so a variable from outside becomes `undefined` at runtime. Pass it in as a parameter, write its value inside the body if it is a constant, or reach another pure function with `utl.getPureFn` and its id.",
+		Summary: "The build copies a factory's body without the scope around it, so a variable from outside becomes `undefined` at runtime. Pass it in as a parameter, write its value inside the body if it is a constant, or call another pure function through `utl.getPureFn` and its id.",
 		Fix: `import {slugify} from './slug';
 // pass the value in
 const withRate = registerPureFnFactory((utl) => (rate, value) => value * rate);
@@ -307,13 +307,13 @@ const toSlug = registerPureFnFactory((utl) => (value) => utl.getPureFn(slugify)(
 const myFn = registerPureFnFactory((utl) => (input) => utl.usePureFn(slugify)(input));`,
 	},
 	CodePureFnIdMismatch: {
-		Summary: "A pure function's id is its package plus a hash of its body: renaming or moving it keeps the id, editing the body changes it. The build adds the id itself, so your source normally passes none. A hand-written or outdated id registers the body under one id while every reference uses another. Delete the id argument and let the build add it, or regenerate the file the id is imported from.",
+		Summary: "The build adds a pure function's id itself, so your source normally passes none. Editing the body changes the id (renaming or moving the function does not), so a hand-written or outdated id registers the body under one id while every reference uses another. Delete the id argument and let the build add it, or regenerate the file the id is imported from.",
 	},
 	CodePureFnDependencyCycle: {
-		Summary: "A pure function's id is a hash of its body, and the body holds the ids of the pure functions it calls. Two that call each other would each need the other's id first, and at runtime they would call each other forever. Break the cycle: copy the shared part into both, or move it into a third pure function that calls neither of them.",
+		Summary: "A pure function's id depends on the ids of the pure functions it calls, so two that call each other can never get an id, and at runtime they would call each other forever. Break the cycle: copy the shared part into both, or move it into a third pure function that calls neither.",
 	},
 	CodeMarkerDuplicateFnKey: {
-		Summary: "An `InjectTypeFnArgs` marker lists each function family it needs once. A repeated family would add a second identical entry that nothing reads, so it is almost always a copy and paste slip. The build ignores the repeat, so remove it from the list.",
+		Summary: "An `InjectTypeFnArgs` marker lists each function family once. A repeat adds nothing and is usually a copy and paste slip. The build ignores it, so remove it from the list.",
 		Fix: `function route<H extends Handler>(
   handler: H,
   fns?: InjectTypeFnArgs<Parameters<H>, 'validationErrors', 'jsonDecoder', 'jsonEncoder'>,
@@ -329,7 +329,7 @@ export const lenRoute = route((ctx: unknown, name: string) => name.length);`,
 	},
 
 	CodeMarkerUnresolvedFnName: {
-		Summary: "Each name in an `InjectTypeFnArgs` marker must be a function family, like `validationErrors`. An unknown name compiles nothing, so the call quietly falls back to its no-plugin behaviour at runtime. The old short tags (`val`, `verr`, `pjs`) name what the build writes, not the functions you ask for, so use the full name. The message suggests the closest name when there is one.",
+		Summary: "Each name in an `InjectTypeFnArgs` marker must be a function family, like `validationErrors`. An unknown name compiles nothing, so at runtime the call falls back to its no-plugin behaviour. The old short tags (`val`, `verr`, `pjs`) are not accepted; use the full name. The message suggests the closest name when there is one.",
 		Fix: `function route<H extends Handler>(
   handler: H,
   fns?: InjectTypeFnArgs<Parameters<H>, 'validationErrors'>,
@@ -347,7 +347,7 @@ export const lenRoute = route((ctx: unknown, name: string) => name.length);`,
 	// ──────────────────── unresolved type name (MKR013) ────────────────────
 
 	CodeMarkerUnresolvedTypeName: {
-		Summary: "A type name at this marker did not resolve, so TypeScript read it as `any` and the generated functions would accept every value with no warning. A real `any`, written as `any` or through an alias like `type Loose = any`, is always allowed. Usual causes: a typo, a dependency whose types are not installed, or a `.d.ts` file that the tsconfig `include` or `files` does not cover. After you add a new `.d.ts`, restart the dev server or your editor's linter so it is picked up.",
+		Summary: "A type name at this marker did not resolve, so TypeScript read it as `any` and the generated functions would accept every value. A real `any`, written as `any` or through an alias like `type Loose = any`, is always allowed. Usual causes: a typo, a dependency whose types are not installed, or a `.d.ts` file the tsconfig `include` or `files` does not cover. After adding a `.d.ts`, restart the dev server or your editor's linter.",
 		Fix: `// src/ambient.d.ts, matched by the tsconfig include set
 declare interface Ambient { a: string; b: number }`,
 		Example: `import {getRunTypeId} from '@mionjs/run-types';
@@ -360,11 +360,11 @@ export const id = getRunTypeId<{payload: Payload}>();`,
 	CodeTypeIdCollision: {
 		// No Example: the trigger is two shapes hashing to the same seven characters, which no short
 		// snippet can arrange.
-		Summary: "Two types got the same short id, so the generated functions and files could not tell them apart, and the build stops. Ids are always exactly `hashLength` characters, so raise `hashLength` by one in your tsconfig plugin entry or on the build plugin. Each extra character gives 62 times more ids. The error names both types, the length to use, and the call that took the id first.",
+		Summary: "Two types got the same short id, so the build cannot tell them apart and stops. Raise `hashLength` (the exact id length) by one in your tsconfig plugin entry or on the build plugin; each extra character gives 62 times more ids. The error names both types, the length to use, and the call that took the id first.",
 		Fix:     `{"compilerOptions": {"plugins": [{"name": "mion", "hashLength": 8}]}}`,
 	},
 	CodeMarkerFunctionCallArg: {
-		Summary: "Passing a function call to a marker, like `createValidateFn(getUser())` or `getRunTypeId(getUser())`, runs that call at runtime only to read its type, then throws the value away. Its side effects, errors or async work happen for nothing. Use the type form with `ReturnType`, or pass a value you already have.",
+		Summary: "A marker given a function call, like `createValidateFn(getUser())` or `getRunTypeId(getUser())`, runs that call at runtime only to read its type. Use the type form with `ReturnType`, or pass a value you already have.",
 		Fix: `const isUser = createValidateFn<ReturnType<typeof getUser>>();
 
 // or pass an existing value of that type
@@ -378,38 +378,38 @@ const userTypeId = getRunTypeId(existingUser);`,
 const isUser = makeChecker<User>(getRunTypeId<User>());`,
 	},
 	CodeMarkerAnyFromUnresolvedImport: {
-		Summary: "An import in this file did not resolve, so the type it should provide became `any` at this marker. A validator over `any` accepts everything, a mock returns `undefined`, and encoders pass values through unchanged, with no warning. Usual causes: an import without a file extension under `moduleResolution: NodeNext`, a missing dependency, or a `paths` alias missing from the tsconfig mion reads. Fix the import, or give mion the same tsconfig as your bundler; for a real `any`, use an alias like `type Loose = any` declared in a file whose imports all resolve.",
+		Summary: "An import in this file did not resolve, so its type became `any` at this marker. A validator over `any` accepts everything, a mock returns `undefined`, and encoders pass values through unchanged. Usual causes: an import without a file extension under `moduleResolution: NodeNext`, a missing dependency, or a `paths` alias missing from the tsconfig mion reads. Fix the import, or give mion the same tsconfig as your bundler. For a real `any`, use an alias like `type Loose = any` declared in a file whose imports all resolve.",
 		Fix:     "import {User} from './user.runtype.ts';",
 	},
 	CodeStructuralIdDepthExceeded: {
-		Summary: "The type is nested hundreds of levels deep, written out or generated, with no named type that repeats. mion walks the type to build its id, and the walk stops at a depth far past any real shape. Use a smaller part of the type (such as the item or data you actually send), or make the recursion go through a named type that refers to itself, like a plain recursive interface.",
+		Summary: "The type is nested hundreds of levels deep, written out or generated, with no named type that repeats, and mion stops at a depth far past any real shape. Use a smaller part of the type (such as the item or data you actually send), or recurse through a named type that refers to itself, like a plain recursive interface.",
 	},
 	CodeMarkerSelfInstantiatingGeneric: {
-		Summary: "A generic method that returns a new copy of its own type with new type arguments, like `map<U>(fn: (x: T) => U): Iter<U>`, makes the type grow forever. Those type arguments are only known when the method is called, and renaming them does not help. Write a fully resolved recursive type instead, or reflect only the data, since validators skip methods. Normal generics like `Map<string, User>`, and generic methods that do not return a new copy of their type, work fine.",
+		Summary: "A generic method that returns its own type with new type arguments, like `map<U>(fn: (x: T) => U): Iter<U>`, makes the type grow forever, and renaming the arguments does not help. Write a fully resolved recursive type instead, or reflect only the data, since validators skip methods. Normal generics like `Map<string, User>`, and generic methods that do not return their own type, work fine.",
 		Fix:     "interface NumberIter { map(fn: (x: string) => number): NumberIter }",
 	},
 	CodeMarkerUnresolvedTypeParameter: {
-		Summary: "A type parameter of the surrounding generic takes a different type at each call, so one id would give every use the same wrong shape. A default on the parameter does not help inside the generic's own body. Resolve the generic first, like `type BoxString = Box<string>`, or let the caller pass the id in (see MKR003). Generic methods on a concrete type, like `find<T>(query: string): T[]`, are fine.",
+		Summary: "A type parameter of the surrounding generic changes with each call, so no single id fits, and a default on the parameter does not help inside the generic's body. Resolve the generic first, like `type BoxString = Box<string>`, or let the caller pass the id in (see MKR003). Generic methods on a concrete type, like `find<T>(query: string): T[]`, are fine.",
 		Fix: `interface Box<T> { value: T }
 type BoxString = Box<string>;
 const isBoxString = createValidateFn<BoxString>();`,
 	},
 	CodeMarkerUnresolvedGenericType: {
-		Summary: "TypeScript rejects this too (TS2314), but dev server builds skip the type check. Without this error the type would become `any` and its validator would accept everything. Pass the missing type argument, or give the parameter a default, which is used wherever the type is written without arguments.",
+		Summary: "TypeScript rejects this too (TS2314), but dev server builds skip the type check, and the type would become `any` with a validator that accepts everything. Pass the missing type argument, or give the parameter a default, used wherever the type is written without arguments.",
 		Fix: `const isA = createValidateFn<A<string>>();
 
 // or give the parameter a default
 interface A<S extends string = string> { a: S }`,
 	},
 	CodeMarkerUntrustedPackage: {
-		Summary: "A marker type counts only when a trusted package declares it, so a type of your own with the same name is ignored. This one comes from an untrusted package, so the call builds for `unknown`, and a validator over `unknown` accepts everything. Add the package to `markers.packages` in your tsconfig plugin entry, `markers` on the build plugin, or `--marker-packages` on the command line; `@mionjs/run-types` stays trusted. No setting is needed when the package re-exports the markers from `@mionjs/run-types`, so check whether it meant to do that.",
+		Summary: "A marker type counts only when a trusted package declares it, so a same-named type of your own is ignored. This one comes from an untrusted package, so the call builds for `unknown` and its validator accepts everything. Add the package to `markers.packages` in your tsconfig plugin entry, `markers` on the build plugin, or `--marker-packages` on the command line (`@mionjs/run-types` stays trusted). A package that re-exports the markers from `@mionjs/run-types` needs no setting, so check whether it meant to.",
 		Fix:     "{\"compilerOptions\": {\"plugins\": [{\"name\": \"mion\", \"markers\": {\"packages\": [\"@my-org/runtypes-markers\"]}}]}}",
 	},
 
 	// ──────────────────── unsafe property name (UPN001) ────────────────────
 
 	CodeUnsafePropertyName: {
-		Summary: "A property named `__proto__` is left out of every generated function, anywhere in the type, including nested objects, array items and Map values. Setting that key changes the object's prototype instead of storing a value, so TypeScript accepts the type but the key never exists at runtime. `prototype` and `constructor` are normal names and are kept. Rename the property to keep the data.",
+		Summary: "A property named `__proto__` is left out of every generated function, anywhere in the type (nested objects, array items and Map values too). Setting that key changes the object's prototype instead of storing a value, so it never exists at runtime even though TypeScript accepts it. `prototype` and `constructor` are normal names and are kept. Rename the property to keep the data.",
 		Fix:     `interface Settings { ok: number; parent: string }`,
 		Example: `import {createValidateFn} from '@mionjs/run-types';
 interface Settings { ok: number; __proto__: string }
@@ -422,7 +422,7 @@ export const isOuter = createValidateFn<Outer>();`,
 	// ──────────── mion route rules: unsafe property name (MRT005) ────────────
 
 	CodeRouteUnsafePropertyName: {
-		Summary: "Writing `__proto__` on a plain object changes its prototype instead of adding a key. Every compiled function drops the member, so the value never round trips, even though TypeScript accepts the type. This is reported on the declaration, in any interface, type literal or class, even before a route uses it. Rename the property to keep the data (`prototype` and `constructor` are fine).",
+		Summary: "Writing `__proto__` on a plain object changes its prototype instead of adding a key, so the value never round trips, even though TypeScript accepts the type. It is reported on the declaration in any interface, type literal or class, even before a route uses it. Rename the property to keep the data (`prototype` and `constructor` are fine).",
 		Fix:     `interface Settings { ok: number; parent: string }`,
 		Example: `export interface Settings { ok: number; __proto__: string }
 export const settings: Settings = {ok: 1, __proto__: 'x'};`,
@@ -433,7 +433,7 @@ export const outer: Outer = {inner: {ok: 1, __proto__: 'x'}};`,
 	// ───────────────────────── batch routes (BAT) ─────────────────────────
 
 	CodeBatchElementNotReadable: {
-		Summary: "Each item in `batch([...])` must be a call on the client routes, like `routes.users.getById(1)`, written inline or saved in a `const` or `let` in the same file. The build reads these calls to know which routes the batch runs, and in what order. A spread, a function parameter, a call on anything other than the routes, or a variable not set to a route call cannot be read.",
+		Summary: "Each item in `batch([...])` must be a call on the client routes, like `routes.users.getById(1)`, written inline or saved in a `const` or `let` in the same file. The build reads them to know which routes run, in what order. A spread, a function parameter, a call on anything other than the routes, or a variable not set to a route call cannot be read.",
 		Fix: `const user = routes.users.getById(id);
 batch([user, routes.orders.list()]);`,
 	},
@@ -456,26 +456,26 @@ inputFrom(user, 'toUserId');`,
 batch([routes.users.getById(2)]);`,
 	},
 	CodeBatchMappingParamOutOfRange: {
-		Summary: "The server passes a mapped input to the route at the argument position where you wrote `inputFrom()`. That position must be one of the route handler's parameters, counted from zero. The server would reject the request at runtime, so the build stops it first.",
+		Summary: "The server passes a mapped input at the argument position where you wrote `inputFrom()`, so that position (counted from zero) must be one of the route handler's parameters. Otherwise the server would reject the request at runtime.",
 		Fix: `// getById(id) takes 1 argument
 routes.orders.getById(inputFrom(user, 'toUserId'));`,
 	},
 	CodeBatchMapperMissing: {
-		Summary: "Every inline `inputFrom(source, (value) => ...)` mapper is compiled into a pure function that the server build copies next to the batch table. This mapper produced nothing, so the server would answer the batch with a missing mapper error. Fix the pure function errors (PFN codes) at its `inputFrom()` call, or use the name of a mapper registered on the server.",
+		Summary: "Each inline `inputFrom(source, (value) => ...)` mapper becomes a pure function the server build copies next to the batch table. This one produced nothing, so the server would answer the batch with a missing mapper error. Fix the pure function errors (PFN or PFE codes) at its `inputFrom()` call, or use the name of a mapper registered on the server.",
 		Fix:     "inputFrom(user, 'toOrgId')",
 	},
 	CodeBatchOwnBatchIgnored: {
 		Summary: "When `clientTsconfig` is set (`client.tsConfig` on the build plugin, `--client-tsconfig` on the command line), the server build reads batches only from that client project. A `batch()` call in the server's own code, such as a test or a script, is not registered, so the server answers it with an unknown batch id error. Move the batch into the client project, or remove the client setting when client and server are one project.",
 	},
 	CodeBatchNoRouterInit: {
-		Summary: "The build adds the batch table import to every module that calls `createMionRouter` from `@mionjs/router`, following aliases, namespace imports and local re-export files. It found no such call, for example because a wrapper from another package creates the router, so the server never loads the table. Import the table yourself in the module that creates the router (path relative to that module), or call `createMionRouter` from a source file of this project.",
+		Summary: "The build adds the batch table import to every module that calls `createMionRouter` from `@mionjs/router`, following aliases, namespace imports and local re-export files. It found none, for example because a wrapper from another package creates the router, so the server never loads the table. Import the table yourself in the module that creates the router (path relative to that module), or call `createMionRouter` from a source file of this project.",
 		Fix:     "import './<genDir>/rpc/batches.generated.js';",
 	},
 
 	// ───────────────────── build-time arguments (CTA) ─────────────────────
 
 	CodeCompTimeArgsNonLiteral: {
-		Summary: "The build reads a `CompTimeArgs<T>` argument from your source, so it must be a literal or a `const` whose value is all literals, declared in the same file or imported. Function calls, property access, ternaries and `let` or `var` variables cannot be read, and an object `const` needs `as const` (CTA004). If the value is only known at runtime, use the untracked version of the function instead: `getPureFnByKey`, `hasPureFnByKey` and `getCompiledPureFnByKey` sit next to `getPureFn`, `hasPureFn` and `getCompiledPureFn`.",
+		Summary: "The build reads a `CompTimeArgs<T>` argument from your source, so it must be a literal or a `const` whose value is all literals, declared in the same file or imported. Function calls, property access, ternaries and `let` or `var` variables cannot be read, and an object `const` needs `as const` (CTA004). If the value is only known at runtime, use the untracked version of the function: `getPureFnByKey`, `hasPureFnByKey` and `getCompiledPureFnByKey` instead of `getPureFn`, `hasPureFn` and `getCompiledPureFn`.",
 		Fix: `const isUser = createValidateFn<User>(undefined, {mode: 'unsafe'});
 
 // or a const of literals, here or in another module
@@ -483,10 +483,10 @@ const opts = {mode: 'unsafe'} as const;
 const isUserToo = createValidateFn<User>(undefined, opts);`,
 	},
 	CodeCompTimeArgsDepthExceeded: {
-		Summary: "A `CompTimeArgs<T>` literal can nest at most 16 levels deep. A value this deep is almost never what you want at build time. Flatten it, or split it into several smaller `CompTimeArgs<T>` arguments.",
+		Summary: "A `CompTimeArgs<T>` literal can nest at most 16 levels deep. Flatten it, or split it into several smaller `CompTimeArgs<T>` arguments.",
 	},
 	CodeCompTimeArgsForbiddenConstruct: {
-		Summary: "Every part of a `CompTimeArgs<T>` literal must be a string, number, bigint, boolean, `null`, `undefined`, regex, arrow function, object or array literal, or a `const` that points to one. Computed property names, function calls, ternaries and template strings with `${}` are rejected. A spread works only on a `const` (or imported) object literal inside an object, or an array literal inside an array. If the value is only known at runtime, use the untracked version of the function instead: `getPureFnByKey`, `hasPureFnByKey` and `getCompiledPureFnByKey` sit next to `getPureFn`, `hasPureFn` and `getCompiledPureFn`.",
+		Summary: "Every part of a `CompTimeArgs<T>` literal must be a string, number, bigint, boolean, `null`, `undefined`, regex, arrow function, object or array literal, or a `const` that points to one. Computed property names, function calls, ternaries and template strings with `${}` are rejected. A spread works only on a `const` (or imported) object literal inside an object, or an array literal inside an array. If the value is only known at runtime, use the untracked version of the function: `getPureFnByKey`, `hasPureFnByKey` and `getCompiledPureFnByKey` instead of `getPureFn`, `hasPureFn` and `getCompiledPureFn`.",
 		Fix: `const base = {strict: true} as const;
 const options = {...base, mode: 'unsafe'} as const;`,
 	},
@@ -499,34 +499,34 @@ createJsonEncoderFn(undefined, preset);`,
 	// ───────────────────────── type formats (FMT) ─────────────────────────
 
 	CodeFMTSampleMismatch: {
-		Summary: "A `mockSample` in a `pattern` format does not match that pattern when run through the same regex your validator uses. A sample must be a valid value, so mock data built from it would fail validation. Change the sample or the pattern so they agree.",
+		Summary: "A `mockSample` does not match its `pattern` (checked with the same regex your validator uses), so mock data built from it would fail validation. Change the sample or the pattern so they agree.",
 		Fix:     "type Slug = String<{pattern: {source: '^[a-z]+$'; mockSamples: ['abc', 'xyz']}}>;",
 	},
 	CodeFMTInvalidParams: {
-		Summary: "The settings of a format break one of its rules, so the validator it builds would be wrong or would throw. The message names the rule, for example `length` used with `minLength` or `maxLength`, `maxLength` below `minLength`, more than 100 `allowedValues`, or a `pattern` that is not a valid JavaScript regex. A string format takes only one of `pattern`, `allowedChars`, `disallowedChars`, `allowedValues` or `disallowedValues`, and `disallowedChars` or `disallowedValues` need `mockSamples`. Change the settings the message names.",
+		Summary: "A format's settings break one of its rules, so its validator would be wrong or would throw. The message names the rule, for example `length` used with `minLength` or `maxLength`, `maxLength` below `minLength`, more than 100 `allowedValues`, or a `pattern` that is not a valid JavaScript regex. A string format takes only one of `pattern`, `allowedChars`, `disallowedChars`, `allowedValues` or `disallowedValues`, and `disallowedChars` or `disallowedValues` need `mockSamples`. Change the settings the message names.",
 	},
 	CodeFMTSampleBounds: {
 		Summary: "A `mockSample` breaks another setting of the same format: `length`, `minLength`, `maxLength`, `allowedChars`, `disallowedChars` or `disallowedValues`. Mock data would then be invalid, or `createMockDataFn` would drop every sample and throw. Lengths count UTF-16 code units, the same as the validator's `.length` check. Change the sample or relax the setting.",
 		Fix:     "type B = String<{minLength: 1; pattern: {source: '^b+$'; mockSamples: ['b', 'bb']}}>;",
 	},
 	CodeFMTMissingJsRuntime: {
-		Summary: "mion checks a `pattern` on a real JavaScript engine, to see that it compiles and that its `mockSamples` match, and no JavaScript runtime could be started. Without one the pattern stays unchecked, so the build reports it. Install node or bun (both found on your PATH), or point `--js-runtime` or `MION_JS_RUNTIME` at another runtime such as deno. Projects with no patterns never need this.",
+		Summary: "mion checks each `pattern` on a real JavaScript engine (that it compiles and that its `mockSamples` match), and no JavaScript runtime could be started. Install node or bun (both found on your PATH), or point `--js-runtime` or `MION_JS_RUNTIME` at another runtime such as deno. Projects with no patterns never need this.",
 	},
 	CodeFMTSampleGenFailed: {
-		Summary: "A `pattern` with no `mockSamples` gets samples generated at build time, and this time none came out. Either generation is off (`patternSampleCount` is 0), the pattern uses something the generator cannot handle (usually a lookaround), or all `patternSampleCount` times `patternSampleRetries` tries failed the pattern or its length limits. Declare `mockSamples` yourself, they are still checked against the pattern. Or turn generation back on with a `patternSampleCount` above 0, and raise `patternSampleRetries` for a heavily constrained pattern.",
+		Summary: "A `pattern` with no `mockSamples` gets samples generated at build time, and none came out. Either generation is off (`patternSampleCount` is 0), the pattern uses something the generator cannot handle (usually a lookaround), or all `patternSampleCount` times `patternSampleRetries` tries failed the pattern or its length limits. Declare `mockSamples` yourself (they are still checked against the pattern), or set `patternSampleCount` above 0 and raise `patternSampleRetries` for a heavily constrained pattern.",
 		Fix:     "type Y = String<{pattern: {source: '(?<=x)y'; mockSamples: ['xy']}}>;",
 	},
 	CodeFMTSampleConflict: {
-		Summary: "Two formats that differ only in their `mockSamples` build the same validator, so they share one entry, and one entry keeps only one sample list. Which list wins would depend on the order your code is read, and unrelated edits could flip it, so the build stops. Use the same `mockSamples` in both, or declare them in one and leave them out of the other. If the two types really differ, give them a different pattern, bound or brand so they stop sharing.",
+		Summary: "Two formats that differ only in their `mockSamples` share one validator entry, which keeps only one sample list. Which list wins would depend on the order your code is read, so the build stops. Use the same `mockSamples` in both, or declare them in one and leave them out of the other. If the two types really differ, give them a different pattern, bound or brand.",
 		Fix: `type A = String<{maxLength: 5; mockSamples: ['aaa']}>;
 type B = String<{maxLength: 5; mockSamples: ['aaa']}>; // same samples
 // or leave them out: type B = String<{maxLength: 5}>;`,
 	},
 	CodeFMTPatternTimeout: {
-		Summary: "Each `mockSample` runs through your pattern with a time limit, and this one ran out of time even on a longer retry. Either the pattern backtracks without end (nested repeats such as `(a+)+` on a long input are the usual cause), or the machine was too busy. The next build checks it again, so a one-off slowdown clears by itself. If it keeps failing on an idle machine, rewrite the pattern without nested repeats, or shorten the sample it times out on.",
+		Summary: "Each `mockSample` runs through your pattern with a time limit, and this one ran out of time even on a longer retry. Either the pattern backtracks without end (nested repeats such as `(a+)+` on a long input are the usual cause), or the machine was too busy. The next build checks again, so a one-off slowdown clears by itself. If it keeps failing on an idle machine, rewrite the pattern without nested repeats, or shorten the sample it times out on.",
 	},
 	CodeFMTPatternUnsafe: {
-		Summary: "The `pattern` runs in your validator on every value, and JavaScript tries every way a regex can match before it gives up. When the pattern can match the same text in more than one way, a few dozen characters that almost match are enough to hang the process. Make each repeat match one way only, usually by giving the repeated part a boundary the rest cannot match. If the pattern is safe and the check is wrong, add `unsafePattern: true` to the pattern.",
+		Summary: "The `pattern` can match the same text in more than one way, and JavaScript tries every way before it gives up, so a few dozen almost-matching characters can hang your validator. Make each repeat match one way only, usually by giving the repeated part a boundary the rest cannot match. If the pattern is safe and the check is wrong, add `unsafePattern: true` to the pattern.",
 		Fix: `type Words = String<{pattern: {source: '^\\w+(?:\\s\\w+)*$'}}>;
 // only if the check is wrong:
 type Safe = String<{pattern: {source: '...'; unsafePattern: true}}>;`,
@@ -550,7 +550,7 @@ export const friendlyUser: FriendlyText<User> = {
 };`,
 	},
 	CodeFriendlyBadPlaceholder: {
-		Summary: "Error messages only fill in the four placeholders listed above. Any other `$[name]` is shown as plain text in the message. A format suffix such as `$[val:currency]` is not supported either; plain `$[val]` already formats by the field's type. Use a supported placeholder, or write the text without the `$[...]` wrapper.",
+		Summary: "Error messages fill in only the four placeholders listed above; any other `$[name]` shows as plain text. A format suffix such as `$[val:currency]` is not supported either, since plain `$[val]` already formats by the field's type. Use a supported placeholder, or drop the `$[...]` wrapper.",
 		Fix:     "rt$errors: {minLength: '$[label] is too short'}",
 	},
 	CodeFriendlyPluralNoOther: {
@@ -584,20 +584,20 @@ export const friendlyUser: FriendlyText<User> = {
 }`,
 	},
 	CodeFriendlyReservedProp: {
-		Summary: "Keys starting with `rt$` (`rt$label`, `rt$errors`, `rt$items`, and so on) are reserved for enrichment settings. A property with that prefix looks the same as one of them, so `mion enrich` refuses the type and writes no FriendlyText file. Rename the property; a plain `$` prefix is fine.",
+		Summary: "Keys starting with `rt$` (`rt$label`, `rt$errors`, `rt$items`, and so on) are reserved for enrichment settings, so `mion enrich` refuses a type with such a property and writes no FriendlyText file. Rename the property; a plain `$` prefix is fine.",
 		Fix: `interface Config {
   $mode: string;
 }`,
 	},
 	CodeFriendlyTodo: {
-		Summary: "`mion enrich` adds a `@todo` line to every new FriendlyText const it generates, and the const still holds empty values. Fill in the real labels and error messages, then delete the whole `@todo` line yourself (mion never removes it). `mion enrich --no-emit` reports it without failing, while `--require-complete` and production builds fail on it.",
+		Summary: "`mion enrich` adds a `@todo` line to every new FriendlyText const it generates, and the const still holds empty values. Fill in the real labels and error messages, then delete the `@todo` line yourself (mion never removes it). `mion enrich --no-emit` reports it without failing, while `--require-complete` and production builds fail on it.",
 		Fix: `/** @rtType User#a1b2c3 @rtIds {name: d4e5f6} */
 export const friendlyUser: FriendlyText<User> = {
   name: {rt$label: 'Name'},
 };`,
 	},
 	CodeFriendlyOrphanConst: {
-		Summary: "`mion enrich --update` commented out this FriendlyText const because its type was deleted or renamed. The comment keeps your labels and messages in case the type comes back. If the type is gone, run `mion enrich --prune` to remove it. If it was renamed, run `mion enrich <source.ts> <NewName> --update` and your values come back.",
+		Summary: "`mion enrich --update` commented out this FriendlyText const because its type was deleted or renamed; the comment keeps your labels and messages. If the type is gone, run `mion enrich --prune` to remove it. If it was renamed, run `mion enrich <source.ts> <NewName> --update` to get your values back.",
 		Fix: `# the type is gone
 mion enrich --prune
 # the type was renamed
@@ -611,7 +611,7 @@ mion enrich --prune
 mion enrich <source.ts> <Type> --update`,
 	},
 	CodeFriendlyBlankValue: {
-		Summary: "An empty string (`''`) in an `rt$label` or `rt$errors` slot is a generated blank nobody filled in, and it shows up empty in your UI. It is as unfinished as a `@todo` line, so deleting the `@todo` line alone is not enough. Write the real label or message. `mion enrich --no-emit` reports it without failing, while `--require-complete` and production builds fail on it.",
+		Summary: "An empty string (`''`) in an `rt$label` or `rt$errors` slot is a generated blank, and it shows up empty in your UI. Deleting the `@todo` line alone is not enough: write the real label or message. `mion enrich --no-emit` reports it without failing, while `--require-complete` and production builds fail on it.",
 		Fix: `export const friendlyUser: FriendlyText<User> = {
   name: {rt$label: 'Name'},
 };`,
@@ -624,14 +624,14 @@ mion enrich <source.ts> <Type> --update`,
 		Fix:     "mion enrich --no-emit",
 	},
 	CodeGenMirrorDrift: {
-		Summary: "Each source file has one expected path per file kind under the enrich folder (`friendly/`, `mock/`, and one per translation locale). This file sits somewhere else, usually because you moved the source, changed `genDir`, or still have an old single file holding both kinds. Run `mion enrich <source.ts> <Type> --update` to write the files at the right paths and split an old combined file. This is a warning only, so the check does not fail.",
+		Summary: "Each source file has one expected path per file kind under the enrich folder (`friendly/`, `mock/`, and one per translation locale). This file sits somewhere else, usually because you moved the source, changed `genDir`, or still have an old single file holding both kinds. Run `mion enrich <source.ts> <Type> --update` to write the files at the right paths and split an old combined file.",
 		Fix:     "mion enrich <source.ts> <Type> --update",
 	},
 	CodeGenSourceMissing: {
 		Summary: "The `import type` line at the top of this file points to a source file that no longer exists, so its consts describe types that are gone. If you deleted the source, delete this file, its FriendlyText or MockData sibling, and any translation files. If you moved the source, run `mion enrich` on it at the new location, then delete the old files.",
 	},
 	CodeGenTypeMissing: {
-		Summary: "This file imports a type your source file no longer declares, because the type was renamed or removed. Run `mion enrich <source.ts> <Type> --update`: it comments out the old consts as `@rtOrphan`, so your values stay. Then run `mion enrich --prune` to remove the ones that should not come back.",
+		Summary: "This file imports a type your source file no longer declares (renamed or removed). Run `mion enrich <source.ts> <Type> --update`: it comments out the old consts as `@rtOrphan`, so your values stay. Then run `mion enrich --prune` to remove the ones that should not come back.",
 		Fix: `mion enrich <source.ts> <Type> --update
 mion enrich --prune`,
 	},
@@ -639,7 +639,7 @@ mion enrich --prune`,
 	// ─────────────────── JSON composite functions (JCP) ───────────────────
 
 	CodeCompositeMissingPrimitive: {
-		Summary: "The JSON code mion generated for your type points to a piece that was never built. This is a bug in mion, not in your code. The generated function would crash when called, so a production build stops. Please include the type and the call site named in the error when you report it.",
+		Summary: "The JSON code mion generated for your type points to a piece that was never built, so it would crash when called and a production build stops. This is a bug in mion, not in your code: report it with the type and the call site named in the error.",
 	},
 
 	// ──────────────────────── MockData files (MD) ─────────────────────────
@@ -649,20 +649,20 @@ mion enrich --prune`,
 		Fix:     "mion enrich <source.ts> <Type> --update",
 	},
 	CodeMockReservedProp: {
-		Summary: "Keys starting with `rt$` (`rt$items`, `rt$length`, `rt$optional`, and so on) are reserved for enrichment settings. A property with that prefix looks the same as one of them, so `mion enrich` refuses the type and writes no MockData file. Rename the property; a plain `$` prefix is fine.",
+		Summary: "Keys starting with `rt$` (`rt$items`, `rt$length`, `rt$optional`, and so on) are reserved for enrichment settings, so `mion enrich` refuses a type with such a property and writes no MockData file. Rename the property; a plain `$` prefix is fine.",
 		Fix: `interface Config {
   $size: number;
 }`,
 	},
 	CodeMockTodo: {
-		Summary: "`mion enrich` adds a `@todo` line to every new MockData const it generates, and the const still holds empty pools. Fill in realistic sample pools and ranges, then delete the whole `@todo` line yourself (mion never removes it). `mion enrich --no-emit` reports it without failing, while `--require-complete` and production builds fail on it.",
+		Summary: "`mion enrich` adds a `@todo` line to every new MockData const it generates, and the const still holds empty pools. Fill in realistic sample pools and ranges, then delete the `@todo` line yourself (mion never removes it). `mion enrich --no-emit` reports it without failing, while `--require-complete` and production builds fail on it.",
 		Fix: `/** @rtType User#a1b2c3 @rtIds {name: d4e5f6} */
 export const mockUser: MockData<User> = {
   name: {pool: ['Ada Lovelace', 'Linus Torvalds']},
 };`,
 	},
 	CodeMockOrphanConst: {
-		Summary: "`mion enrich --update` commented out this MockData const because its type was deleted or renamed. The comment keeps your pools and ranges in case the type comes back. If the type is gone, run `mion enrich --prune` to remove it. If it was renamed, run `mion enrich <source.ts> <NewName> --update` and your values come back.",
+		Summary: "`mion enrich --update` commented out this MockData const because its type was deleted or renamed; the comment keeps your pools and ranges. If the type is gone, run `mion enrich --prune` to remove it. If it was renamed, run `mion enrich <source.ts> <NewName> --update` to get your values back.",
 		Fix: `# the type is gone
 mion enrich --prune
 # the type was renamed
@@ -676,7 +676,7 @@ mion enrich --prune
 mion enrich <source.ts> <Type> --update`,
 	},
 	CodeMockBlankValue: {
-		Summary: "An empty pool (`pool: []`) is a generated blank nobody filled in, so it mocks nothing. It is as unfinished as a `@todo` line, so deleting the `@todo` line alone is not enough. Add realistic sample data. `mion enrich --no-emit` reports it without failing, while `--require-complete` and production builds fail on it.",
+		Summary: "An empty pool (`pool: []`) is a generated blank, so it mocks nothing. Deleting the `@todo` line alone is not enough: add realistic sample data. `mion enrich --no-emit` reports it without failing, while `--require-complete` and production builds fail on it.",
 		Fix: `export const mockUser: MockData<User> = {
   name: {pool: ['Ada Lovelace', 'Linus Torvalds']},
 };`,
@@ -685,11 +685,11 @@ mion enrich <source.ts> <Type> --update`,
 	// ───────────────────────── bundled API (MET) ──────────────────────────
 
 	CodeApiMetaUnreadable: {
-		Summary: "With `bundleApi` on, the build reads each called route's handler types, options and middlewares from the client's API type. Only `PublicApi<typeof routes>`, the type the router exports, has them. A loose `RemoteApi`, an `any`, or a member without its compiled types has none, and the build does not guess. Type the client with `PublicApi<typeof routes>`.",
+		Summary: "With `bundleApi` on, the build reads each called route's handler types, options and middlewares from the client's API type. Only `PublicApi<typeof routes>`, the type the router exports, has them; a loose `RemoteApi`, an `any`, or a member without its compiled types does not. Type the client with `PublicApi<typeof routes>`.",
 		Fix:     "initClient<PublicApi<typeof routes>>({baseURL});",
 	},
 	CodeApiMetaRouteNotDeclared: {
-		Summary: "The route id in this call comes from the client's route types, but the API type has no such route. The API type is out of date with those routes, usually a stale declaration file or a route id written by hand. Rebuild the API's declarations, or set `api.tsConfig` (`apiTsconfig` in tsconfig) to the API project so the build reads the routes from their source.",
+		Summary: "The API type has no route with this id, usually because of a stale declaration file or a route id written by hand. Rebuild the API's declarations, or set `api.tsConfig` (`apiTsconfig` in tsconfig) to the API project so the build reads the routes from their source.",
 	},
 	CodeApiMetaRouteWidened: {
 		Summary: "A helper typed with `RouteSubRequest<any>` widens the route id to `string`, so the build cannot bundle the call inside it, and with no `useMethodsMetadata` set up that call fails. Keep the route id through a generic helper, or move the call out of it. Or set up `useMethodsMetadata` so the call asks the server for the route. That builds functions at runtime, which a strict Content Security Policy blocks.",
@@ -705,7 +705,7 @@ useMethodsMetadata(middlewares.mionMethodsMetadata);`,
 		Summary: "With `api.tsConfig` (`apiTsconfig`) set, the build reads route types from the API project, starting at the `mion.initRoutes(routes)` call that declares the routes this client calls. It found none, or more than one. Point it at a tsconfig whose program initializes the API once (a separate tsconfig for the server entry works), or remove it when the client and the API share one program.",
 	},
 	CodeApiMetaOptionWidened: {
-		Summary: "The bundled metadata copies each route's options from the API type, where only literal values exist. A value computed at runtime, like a variable or a call, has no literal to copy. The client then runs that route with the option unset, and the server may not. Write the option as a literal on the route or the router.",
+		Summary: "The bundled metadata copies each route's options from the API type, which holds only literal values. A value computed at runtime, like a variable or a call, is left unset on the client, while the server may set it. Write the option as a literal on the route or the router.",
 		Fix:     "mion.route(handler, {sanitizeParams: true})",
 	},
 	CodeApiMetaVersionMismatch: {
@@ -735,7 +735,7 @@ useMethodsMetadata(middlewares.mionMethodsMetadata);`,
 	// ──────────────────── non-enumerable members (NE) ─────────────────────
 
 	CodeNonEnumerableRequiresOptional: {
-		Summary: "The `@nonEnumerable` tag skips a property when it is not an enumerable own property of the value, but only on an optional property, since only that one may be missing. On a required property the tag is ignored and the property is always sent. Add `?` to the property, or remove the tag.",
+		Summary: "The `@nonEnumerable` tag skips a property that is not an enumerable own property of the value, but only when the property is optional. On a required property the tag is ignored and the property is always sent. Add `?` to the property, or remove the tag.",
 		Fix: `interface Session {
   /** @nonEnumerable */ token?: string;
 }`,
@@ -748,10 +748,10 @@ useMethodsMetadata(middlewares.mionMethodsMetadata);`,
 		Fix:     "overrideValidate<User>((utl) => (value) => checkA(value) && checkB(value));",
 	},
 	CodeOverrideMissingCfn: {
-		Summary: "An override points at a generated function that was never written, so calling the override would throw at runtime. This is a mion bug and should not happen. Delete the cache (`node_modules/.cache/mion`) or restart the dev server. If it keeps failing, open an issue with the type and the override that trigger it.",
+		Summary: "An override points at a generated function that was never written, so calling the override would throw at runtime. This is a mion bug. Delete the cache (`node_modules/.cache/mion`) or restart the dev server. If it keeps failing, open an issue with the type and the override that trigger it.",
 	},
 	CodeOverrideValidateCrossFamily: {
-		Summary: "`overrideValidate<T>()` also changes JSON decoders of any union that contains `T`, because they call each member's validator to pick the matching branch. The build continues. If the override should only affect `createValidateFn<T>()`, give the union members a discriminant so decoders never fall back to member validators.",
+		Summary: "`overrideValidate<T>()` also changes JSON decoders of any union that contains `T`, because they call each member's validator to pick the matching branch. If the override should only affect `createValidateFn<T>()`, give the union members a discriminant so decoders never fall back to member validators.",
 		Fix:     "type Event = {kind: 'click'; x: number} | {kind: 'key'; code: string};",
 	},
 
@@ -775,7 +775,7 @@ useMethodsMetadata(middlewares.mionMethodsMetadata);`,
 type AnyTag = unknown; // check it before use`,
 	},
 	CodePJNonSerializableRoot: {
-		Summary: "Standard library classes have no JSON form, except `Date`, `Map`, `Set` and the Temporal types. So when your type is `URL`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, `RegExp`, a typed array or `Buffer` (or an array of them), there is nothing to encode. Convert the value to plain data yourself, like a string for a URL or a number array for a typed array. Inside an object, such a property is dropped instead (PJ015).",
+		Summary: "Standard library classes have no JSON form, except `Date`, `Map`, `Set` and the Temporal types. When your type is `URL`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, `RegExp`, a typed array or `Buffer` (or an array of them), there is nothing to encode. Convert the value to plain data, like a string for a URL or a number array for a typed array. Inside an object, such a property is dropped instead (PJ015).",
 		Fix: `const home: string = yourUrl.href; // not a URL
 const bytes: number[] = Array.from(yourBuffer); // not a typed array`,
 	},
@@ -786,17 +786,17 @@ const bytes: number[] = Array.from(yourBuffer); // not a typed array`,
 }`,
 	},
 	CodePJSymbolRoot: {
-		Summary: "Every `symbol` is unique, and that identity is lost once it becomes JSON, so it cannot be encoded. Use a string instead, often a union of string literals. A symbol property inside an object is dropped instead (PJ015).",
+		Summary: "A `symbol`'s identity is lost in JSON, so it cannot be encoded. Use a string instead, often a union of string literals. A symbol property inside an object is dropped instead (PJ015).",
 		Fix:     "type Status = 'pending' | 'active' | 'done'; // not symbol",
 	},
 	CodePJFunctionPropDropped: {
-		Summary: "A function has no JSON form, so the encoder leaves this property out. The rest of the object encodes as usual. This is expected: only data is encoded.",
+		Summary: "A function has no JSON form, so the encoder leaves this property out and encodes the rest as usual. This is expected: only data is encoded.",
 	},
 	CodePJMethodDropped: {
-		Summary: "Methods are not data, so the encoder leaves them out, and the rest of the type still works. If you need the method's result encoded, store it in a data property instead.",
+		Summary: "Methods are not data, so the encoder leaves them out and still encodes the rest of the type. To encode a method's result, store it in a data property.",
 	},
 	CodePJStaticDropped: {
-		Summary: "Static members belong to the class, not to each instance. The encoder only handles instance data, so it leaves statics out.",
+		Summary: "Static members belong to the class, not its instances, so the encoder leaves them out.",
 	},
 	CodePJSymbolKeyedDropped: {
 		Summary: "JSON only has string keys, so the encoder leaves out properties keyed by a symbol. Use a string key if you need the value encoded.",
@@ -805,10 +805,10 @@ const bytes: number[] = Array.from(yourBuffer); // not a typed array`,
 }`,
 	},
 	CodePJUnionMemberDropped: {
-		Summary: "Symbols, functions, `never`, `Promise`, `RegExp` and standard library classes such as `URL` or typed arrays have no JSON form, so the encoder drops them from the union. For example, `Date | symbol` encodes as `Date`. If every member is dropped, you get the error for the whole type instead (such as PJ005), and the encoder always fails.",
+		Summary: "Symbols, functions, `never`, `Promise`, `RegExp` and standard library classes such as `URL` or typed arrays have no JSON form, so the encoder drops them from the union: `Date | symbol` encodes as `Date`. If every member is dropped, you get the error for the whole type instead (such as PJ005), and the encoder always fails.",
 	},
 	CodePJNonSerializablePropDrop: {
-		Summary: "A property holding a symbol, `never`, a `Promise`, a `RegExp` or a standard library class such as a typed array, `ArrayBuffer`, `URL` or `Intl.DateTimeFormat` has no JSON form, so the encoder drops it. For example, `{a: symbol}` encodes as `{}`, and the rest of the object is unaffected. A property that holds such a value inside an array or a Map, like `symbol[]` or `Map<string, symbol>`, cannot be dropped: you get an error instead (such as PJ005), and the encoder always fails.",
+		Summary: "A property holding a symbol, `never`, a `Promise`, a `RegExp` or a standard library class such as a typed array, `ArrayBuffer`, `URL` or `Intl.DateTimeFormat` has no JSON form, so the encoder drops it and leaves the rest of the object alone: `{a: symbol}` encodes as `{}`. A property holding such a value inside an array or a Map, like `symbol[]` or `Map<string, symbol>`, cannot be dropped: you get an error instead (such as PJ005), and the encoder always fails.",
 	},
 
 	// ───────────────────── prepareForJson clone (PJS) ─────────────────────
@@ -820,7 +820,7 @@ const bytes: number[] = Array.from(yourBuffer); // not a typed array`,
 type AnyTag = unknown; // check it before use`,
 	},
 	CodePJSNonSerializableRoot: {
-		Summary: "Standard library classes have no JSON form, except `Date`, `Map`, `Set` and the Temporal types. So when your type is `URL`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, `RegExp`, a typed array or `Buffer` (or an array of them), there is nothing to encode. Convert the value to plain data yourself, like a string for a URL or a number array for a typed array. Inside an object, such a property is dropped instead (PJS015).",
+		Summary: "Standard library classes have no JSON form, except `Date`, `Map`, `Set` and the Temporal types. When your type is `URL`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, `RegExp`, a typed array or `Buffer` (or an array of them), there is nothing to encode. Convert the value to plain data, like a string for a URL or a number array for a typed array. Inside an object, such a property is dropped instead (PJS015).",
 		Fix: `const home: string = yourUrl.href; // not a URL
 const bytes: number[] = Array.from(yourBuffer); // not a typed array`,
 	},
@@ -831,17 +831,17 @@ const bytes: number[] = Array.from(yourBuffer); // not a typed array`,
 }`,
 	},
 	CodePJSSymbolRoot: {
-		Summary: "Every `symbol` is unique, and that identity is lost once it becomes JSON, so it cannot be encoded. Use a string instead, often a union of string literals. A symbol property inside an object is dropped instead (PJS015).",
+		Summary: "A `symbol`'s identity is lost in JSON, so it cannot be encoded. Use a string instead, often a union of string literals. A symbol property inside an object is dropped instead (PJS015).",
 		Fix:     "type Status = 'pending' | 'active' | 'done'; // not symbol",
 	},
 	CodePJSFunctionPropDropped: {
-		Summary: "A function has no JSON form, so the encoder leaves this property out. The rest of the object encodes as usual. This is expected: only data is encoded.",
+		Summary: "A function has no JSON form, so the encoder leaves this property out and encodes the rest as usual. This is expected: only data is encoded.",
 	},
 	CodePJSMethodDropped: {
-		Summary: "Methods are not data, so the encoder leaves them out, and the rest of the type still works. If you need the method's result encoded, store it in a data property instead.",
+		Summary: "Methods are not data, so the encoder leaves them out and still encodes the rest of the type. To encode a method's result, store it in a data property.",
 	},
 	CodePJSStaticDropped: {
-		Summary: "Static members belong to the class, not to each instance. The encoder only handles instance data, so it leaves statics out.",
+		Summary: "Static members belong to the class, not its instances, so the encoder leaves them out.",
 	},
 	CodePJSSymbolKeyedDropped: {
 		Summary: "JSON only has string keys, so the encoder leaves out properties keyed by a symbol. Use a string key if you need the value encoded.",
@@ -850,10 +850,10 @@ const bytes: number[] = Array.from(yourBuffer); // not a typed array`,
 }`,
 	},
 	CodePJSUnionMemberDropped: {
-		Summary: "Symbols, functions, `never`, `Promise`, `RegExp` and standard library classes such as `URL` or typed arrays have no JSON form, so the encoder drops them from the union. For example, `Date | symbol` encodes as `Date`. If every member is dropped, you get the error for the whole type instead (such as PJS005), and the encoder always fails.",
+		Summary: "Symbols, functions, `never`, `Promise`, `RegExp` and standard library classes such as `URL` or typed arrays have no JSON form, so the encoder drops them from the union: `Date | symbol` encodes as `Date`. If every member is dropped, you get the error for the whole type instead (such as PJS005), and the encoder always fails.",
 	},
 	CodePJSNonSerializablePropDrop: {
-		Summary: "A property holding a symbol, `never`, a `Promise`, a `RegExp` or a standard library class such as a typed array, `ArrayBuffer`, `URL` or `Intl.DateTimeFormat` has no JSON form, so the encoder drops it. For example, `{a: symbol}` encodes as `{}`, and the rest of the object is unaffected. A property that holds such a value inside an array or a Map, like `symbol[]` or `Map<string, symbol>`, cannot be dropped: you get an error instead (such as PJS005), and the encoder always fails.",
+		Summary: "A property holding a symbol, `never`, a `Promise`, a `RegExp` or a standard library class such as a typed array, `ArrayBuffer`, `URL` or `Intl.DateTimeFormat` has no JSON form, so the encoder drops it and leaves the rest of the object alone: `{a: symbol}` encodes as `{}`. A property holding such a value inside an array or a Map, like `symbol[]` or `Map<string, symbol>`, cannot be dropped: you get an error instead (such as PJS005), and the encoder always fails.",
 	},
 
 	// ──────────────────────── restoreFromJson (RJ) ────────────────────────
@@ -865,7 +865,7 @@ const bytes: number[] = Array.from(yourBuffer); // not a typed array`,
 type AnyTag = unknown; // check it before use`,
 	},
 	CodeRJNonSerializableRoot: {
-		Summary: "Standard library classes have no JSON form, except `Date`, `Map`, `Set` and the Temporal types. So when your type is `URL`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, `RegExp`, a typed array or `Buffer` (or an array of them), there is nothing to decode. Convert the value to plain data yourself, like a string for a URL or a number array for a typed array. Inside an object, such a property is dropped instead (RJ015).",
+		Summary: "Standard library classes have no JSON form, except `Date`, `Map`, `Set` and the Temporal types. When your type is `URL`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, `RegExp`, a typed array or `Buffer` (or an array of them), there is nothing to decode. Convert the value to plain data, like a string for a URL or a number array for a typed array. Inside an object, such a property is dropped instead (RJ015).",
 		Fix: `const home: string = yourUrl.href; // not a URL
 const bytes: number[] = Array.from(yourBuffer); // not a typed array`,
 	},
@@ -876,17 +876,17 @@ const bytes: number[] = Array.from(yourBuffer); // not a typed array`,
 }`,
 	},
 	CodeRJSymbolRoot: {
-		Summary: "Every `symbol` is unique, and that identity is lost once it becomes JSON, so it cannot be decoded. Use a string instead, often a union of string literals. A symbol property inside an object is dropped instead (RJ015).",
+		Summary: "A `symbol`'s identity is lost in JSON, so it cannot be decoded. Use a string instead, often a union of string literals. A symbol property inside an object is dropped instead (RJ015).",
 		Fix:     "type Status = 'pending' | 'active' | 'done'; // not symbol",
 	},
 	CodeRJFunctionPropDropped: {
-		Summary: "A function has no JSON form, so the decoder leaves this property out. The rest of the object decodes as usual. This is expected: only data is decoded.",
+		Summary: "A function has no JSON form, so the decoder leaves this property out and decodes the rest as usual. This is expected: only data is decoded.",
 	},
 	CodeRJMethodDropped: {
-		Summary: "Methods are not data, so the decoder leaves them out, and the rest of the type still works. If you need the method's result decoded, store it in a data property instead.",
+		Summary: "Methods are not data, so the decoder leaves them out and still decodes the rest of the type. To decode a method's result, store it in a data property.",
 	},
 	CodeRJStaticDropped: {
-		Summary: "Static members belong to the class, not to each instance. The decoder only handles instance data, so it leaves statics out.",
+		Summary: "Static members belong to the class, not its instances, so the decoder leaves them out.",
 	},
 	CodeRJSymbolKeyedDropped: {
 		Summary: "JSON only has string keys, so the decoder leaves out properties keyed by a symbol. Use a string key if you need the value decoded.",
@@ -895,16 +895,16 @@ const bytes: number[] = Array.from(yourBuffer); // not a typed array`,
 }`,
 	},
 	CodeRJUnionMemberDropped: {
-		Summary: "Symbols, functions, `never`, `Promise`, `RegExp` and standard library classes such as `URL` or typed arrays have no JSON form, so the decoder drops them from the union. For example, `Date | symbol` decodes as `Date`. If every member is dropped, you get the error for the whole type instead (such as RJ005), and the decoder always fails.",
+		Summary: "Symbols, functions, `never`, `Promise`, `RegExp` and standard library classes such as `URL` or typed arrays have no JSON form, so the decoder drops them from the union: `Date | symbol` decodes as `Date`. If every member is dropped, you get the error for the whole type instead (such as RJ005), and the decoder always fails.",
 	},
 	CodeRJNonSerializablePropDrop: {
-		Summary: "A property holding a symbol, `never`, a `Promise`, a `RegExp` or a standard library class such as a typed array, `ArrayBuffer`, `URL` or `Intl.DateTimeFormat` has no JSON form, so the decoder drops it. For example, `{a: symbol}` decodes as `{}`, and the rest of the object is unaffected. A property that holds such a value inside an array or a Map, like `symbol[]` or `Map<string, symbol>`, cannot be dropped: you get an error instead (such as RJ005), and the decoder always fails.",
+		Summary: "A property holding a symbol, `never`, a `Promise`, a `RegExp` or a standard library class such as a typed array, `ArrayBuffer`, `URL` or `Intl.DateTimeFormat` has no JSON form, so the decoder drops it and leaves the rest of the object alone: `{a: symbol}` decodes as `{}`. A property holding such a value inside an array or a Map, like `symbol[]` or `Map<string, symbol>`, cannot be dropped: you get an error instead (such as RJ005), and the decoder always fails.",
 	},
 
 	// ────────────────────── removeUnknownKeys (RUK) ───────────────────────
 
 	CodeRUKUnionRoot: {
-		Summary: "`removeUnknownKeys` rebuilds a value from its declared shape, and for a union of objects it cannot tell which member the value matches. Keeping the unknown keys would break its promise to remove them, so the function throws instead. Narrow the value first and use one `createRemoveUnknownKeysFn<Member>()` per member, or turn the union into one object with optional properties.",
+		Summary: "`removeUnknownKeys` rebuilds a value from its declared shape, and for a union of objects it cannot tell which member the value matches, so the function throws rather than keep unknown keys. Narrow the value first and use one `createRemoveUnknownKeysFn<Member>()` per member, or turn the union into one object with optional properties.",
 		Fix: `const removeCatKeys = createRemoveUnknownKeysFn<Cat>();
 const removeDogKeys = createRemoveUnknownKeysFn<Dog>();`,
 	},
@@ -912,16 +912,16 @@ const removeDogKeys = createRemoveUnknownKeysFn<Dog>();`,
 		Summary: "A function is not data, so `removeUnknownKeys` has no shape to rebuild, and the function built for it throws when called. Function-typed properties are fine: the clone keeps them by reference (RUK010), and class methods stay on the prototype (RUK011). Use it on the object type, not on a function type.",
 	},
 	CodeRUKFunctionPropDropped: {
-		Summary: "`removeUnknownKeys` removes only undeclared keys, never declared ones. A function cannot be rebuilt, so the clone's property points to the same function as the input, and this includes methods written in an object literal. Class methods are different: they stay on the shared prototype (RUK011).",
+		Summary: "`removeUnknownKeys` never removes a declared key. A function cannot be rebuilt, so the clone's property points to the same function as the input, methods written in an object literal included. Class methods stay on the shared prototype instead (RUK011).",
 	},
 	CodeRUKMethodDropped: {
-		Summary: "For a class instance the clone keeps the input's prototype, so methods still work through the prototype chain. They are just not copied as own properties. A method written in an object literal is kept by reference instead (RUK010).",
+		Summary: "For a class instance the clone keeps the input's prototype, so methods still work through the prototype chain without being copied as own properties. A method written in an object literal is kept by reference instead (RUK010).",
 	},
 	CodeRUKStaticDropped: {
-		Summary: "Static members belong to the class, not to its instances. The clone rebuilds instance data only, so it leaves them out.",
+		Summary: "Static members belong to the class, not its instances, so the clone leaves them out.",
 	},
 	CodeRUKSymbolKeyedDropped: {
-		Summary: "Symbol keys are not data, the same rule the JSON functions follow. The clone copies the declared string keys and leaves this one out. Use a string key if the value must be kept.",
+		Summary: "Symbol keys are not data (the same rule as the JSON functions), so the clone leaves this one out. Use a string key if the value must be kept.",
 		Fix:     "interface Item { id: string }",
 	},
 	CodeRUKNonSerializablePropDrop: {
@@ -931,7 +931,7 @@ const removeDogKeys = createRemoveUnknownKeysFn<Dog>();`,
 	// ──────────────────────── Temporal types (TMP) ────────────────────────
 
 	CodeTemporalNotLoaded: {
-		Summary: "mion reads `Temporal.*` types from TypeScript's lib files, so they only work when the Temporal lib is loaded. Without it the type becomes `any` and the validator accepts everything. Add `\"ESNext.Temporal\"` to `lib` in your tsconfig.",
+		Summary: "`Temporal.*` types only work when the Temporal lib is loaded. Without it the type becomes `any` and the validator accepts everything. Add `\"ESNext.Temporal\"` to `lib` in your tsconfig.",
 		Fix:     "{\"compilerOptions\": {\"lib\": [\"ES2023\", \"ESNext.Temporal\"]}}",
 	},
 	CodeRouteMissingReturnType: {
@@ -947,7 +947,7 @@ const removeDogKeys = createRemoveUnknownKeysFn<Dog>();`,
 		Fix:     "return new RpcError({statusCode: 404, name: 'not-found', publicMessage: 'no pet'});",
 	},
 	CodeRouteReturnedErrorType: {
-		Summary: "mion sends a returned error to the client by its brand. An `RpcError` or any subclass goes to its own typed slot, and the client gets it typed. A plain `Error`, a class extending it, or a bare `TypedError` fails the request and goes to the undeclared `@thrownErrors` slot, so your declared return type is no longer true. Answer with an `RpcError` or a `FatalError`.",
+		Summary: "A returned `RpcError` (or any subclass) goes to its own typed slot, and the client gets it typed. A plain `Error`, a class extending it, or a bare `TypedError` fails the request and goes to the undeclared `@thrownErrors` slot, so your declared return type is no longer true. Answer with an `RpcError` or a `FatalError`.",
 		Fix: `mion.route((ctx, id: string): Pet | RpcError<'pet-not-found'> =>
   new RpcError({statusCode: 404, name: 'pet-not-found', publicMessage: 'no pet'}));`,
 	},
