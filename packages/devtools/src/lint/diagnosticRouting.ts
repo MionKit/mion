@@ -3,7 +3,8 @@
 // is one sink over this module; another transport reuses it unchanged.
 
 import {DIAGNOSTIC_CATALOG, renderHeadline} from '../core/diagnosticCatalog.ts';
-import {Family, Severity, type Diagnostic, type DiagnosticSite} from '../core/protocol.ts';
+import {DOWNGRADED_NOTE} from '../core/downgradeErrors.ts';
+import {Family, Level, type Diagnostic, type DiagnosticSite} from '../core/protocol.ts';
 
 // Rules are grouped by the DIAGNOSTIC FAMILY that produced them and NAMED for what they catch, not for their
 // severity. A family's two tiers are two different errors (a root the feature cannot represent versus a member
@@ -14,6 +15,7 @@ export type RuleName =
   | 'broken-tsconfig'
   | 'invalid-expect-error'
   | 'invalid-downgrade-error'
+  | 'downgraded-error'
   | 'invalid-marker'
   | 'redundant-marker'
   | 'pure-functions'
@@ -82,6 +84,14 @@ export const RULE_SPECS: readonly RuleSpec[] = [
     gate: 'compiler',
     description:
       'A `@mion-downgrade-error` comment that is wrong, at either scope (the line form, or the block comment at the top of a file that covers the whole file): it lowered nothing (so it is stale and should be deleted), it names a code that always stops the build, it names a code that does not exist, or it names one that is already a warning and was never halting anything',
+  },
+  {
+    name: 'downgraded-error',
+    namespace: 'runtypes',
+    default: 'warn',
+    gate: 'compiler',
+    description:
+      'An error a `@mion-downgrade-error` comment lowered: it no longer stops the build, which prints it as a warning with a `(downgraded)` note, and the linter shows it the same way. The message keeps the original code, so the finding is still easy to find and fix',
   },
   {
     name: 'invalid-marker',
@@ -289,8 +299,8 @@ export const RULE_SPECS: readonly RuleSpec[] = [
 
 export const ALL_RULE_NAMES: readonly RuleName[] = RULE_SPECS.map((spec) => spec.name);
 
-// FamilyRules names the rule per severity tier: `primary` takes the error-severity codes (and every code of a
-// family that only warns), `warn` the Warning-severity ones of a family spanning both tiers.
+// FamilyRules names the rule per level tier: `primary` takes the error-level codes (and every code of a family
+// that only warns), `warn` the Warning and Info codes of a family spanning both tiers.
 interface FamilyRules {
   primary: RuleName;
   warn?: RuleName;
@@ -309,6 +319,9 @@ const PREFIX_TO_FAMILY: Record<string, FamilyRules> = {
   // does nothing for this server (BAT008) or a table nothing imports (BAT009) is the redundant-marker kind.
   BAT: {primary: 'invalid-marker', warn: 'redundant-marker'},
   TMP: {primary: 'invalid-marker'},
+  // Bundled API metadata: a call that cannot work is an error, one that works but fetches or leaves an option
+  // unset (MET004, MET006) is the redundant-marker kind.
+  MET: {primary: 'invalid-marker', warn: 'redundant-marker'},
   PFE: {primary: 'pure-functions'},
   VL: {primary: 'validate-non-serializable', warn: 'validate-skipped-member'},
   VE: {primary: 'validate-non-serializable', warn: 'validate-skipped-member'},
@@ -429,14 +442,18 @@ export function routeDiagnostic(diagnostic: Diagnostic): LintReport {
   };
 }
 
-// ruleNameFor picks the rule a diagnostic reports under: enrichment and mion route codes route per code, every
-// other by its prefix family, and all of them then pick the error or warn rule by severity.
+// ruleNameFor picks the rule a diagnostic reports under: a downgraded finding always takes downgraded-error (a
+// lint rule has one level, so a lowered error cannot share a rule with the errors it was lowered from), then
+// enrichment and mion route codes route per code, every other by its prefix family, and all of them then pick
+// the error or warn rule by level.
 function ruleNameFor(diagnostic: Diagnostic): RuleName {
+  if (diagnostic.downgraded) return 'downgraded-error';
   let family: FamilyRules;
   if (diagnostic.family === Family.Enrich) family = enrichFamily(diagnostic.code);
   else if (diagnostic.family === Family.MionRoute) family = mionRouteFamily(diagnostic.code);
   else family = PREFIX_TO_FAMILY[codePrefix(diagnostic.code)] ?? fallbackFamily(diagnostic.family);
-  return diagnostic.severity === Severity.Warning && family.warn ? family.warn : family.primary;
+  const lowTier = diagnostic.level === Level.Warning || diagnostic.level === Level.Info;
+  return lowTier && family.warn ? family.warn : family.primary;
 }
 
 // renderMessage prefixes the stable code (so users can look it up or disable-comment it) and appends related
@@ -448,6 +465,7 @@ export function renderMessage(diagnostic: Diagnostic): string {
     ? renderHeadline(diagnostic.code, diagnostic.args)
     : '(message unavailable — regenerate the catalog via `pnpm miondevx core codegen diag`)';
   let message = `[${diagnostic.code}] ${headline}`;
+  if (diagnostic.downgraded) message += ` ${DOWNGRADED_NOTE}`;
   for (const related of diagnostic.related ?? []) {
     message += `\n  related: ${related.filePath}(${related.startLine},${related.startCol}): ${related.message}`;
   }

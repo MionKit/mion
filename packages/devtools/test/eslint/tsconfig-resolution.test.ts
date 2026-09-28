@@ -118,7 +118,8 @@ describe.runIf(hasBinary())('eslint tsconfig resolution (integration through mio
   });
 
   it('reports no skipped members for the resolved data type', () => {
-    expect(runRule(rules['validate-skipped-member'], consumerAbs, CONSUMER_SRC, {})).toEqual([]);
+    // levels: 'all', or the Info-level skipped-member codes would be hidden and this could never fail.
+    expect(runRule(rules['validate-skipped-member'], consumerAbs, CONSUMER_SRC, {runtypes: {levels: 'all'}})).toEqual([]);
   });
 
   it('honors settings.runtypes.tsconfig — a config without customConditions still flags the unresolved marker', () => {

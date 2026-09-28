@@ -4,12 +4,17 @@
 import {describe, expect, it} from 'vitest';
 import {routeDiagnostic, renderMessage, RULE_SPECS, type RuleName} from '../../src/lint/diagnosticRouting.ts';
 import {DIAGNOSTIC_CATALOG} from '../../src/core/diagnosticCatalog.ts';
-import {Family, Severity, type Diagnostic} from '../../src/core/protocol.ts';
+import {Family, Level, Severity, type Diagnostic} from '../../src/core/protocol.ts';
+
+// Routing reads the level; a test that names only a severity gets the level that severity implies.
+const LEVEL_OF_SEVERITY = {[Severity.Error]: Level.RuntimeError, [Severity.Warning]: Level.Warning, [Severity.Info]: Level.Info};
 
 function diagnostic(partial: Partial<Diagnostic> & {code: string}): Diagnostic {
+  const severity = partial.severity ?? Severity.Warning;
   return {
     family: Family.RunType,
-    severity: Severity.Warning,
+    severity,
+    level: LEVEL_OF_SEVERITY[severity],
     site: {filePath: 'a.ts', startLine: 3, startCol: 5},
     ...partial,
   } as Diagnostic;
@@ -42,6 +47,22 @@ describe('family routing (compiler diagnostics grouped by Go prefix family, name
     // overrides mixes tiers.
     expect(ruleOf({code: 'OVR001', severity: Severity.Error})).toBe('invalid-override');
     expect(ruleOf({code: 'OVR010', severity: Severity.Warning})).toBe('override-side-effect');
+  });
+
+  it('sends Info to the same advisory rule as a warning, never to an error rule', () => {
+    expect(ruleOf({code: 'VL011', severity: Severity.Info})).toBe('validate-skipped-member');
+    expect(ruleOf({code: 'RJ015', severity: Severity.Info})).toBe('json-skipped-member');
+    expect(ruleOf({code: 'RUK011', severity: Severity.Info})).toBe('clone-shared-reference');
+    expect(ruleOf({code: 'MKR006', family: Family.Marker, severity: Severity.Info})).toBe('redundant-marker');
+    expect(ruleOf({code: 'MET004', family: Family.Marker, severity: Severity.Info})).toBe('redundant-marker');
+  });
+
+  it('sends a downgraded finding to downgraded-error, whatever its family, with the build note', () => {
+    const report = routeDiagnostic(diagnostic({code: 'VL002', severity: Severity.Error, downgraded: true}));
+    expect(report.ruleName).toBe('downgraded-error');
+    expect(report.message).toMatch(/^\[VL002\] .*\(downgraded\)$/);
+    expect(ruleOf({code: 'FMT002', severity: Severity.Error, downgraded: true})).toBe('downgraded-error');
+    expect(ruleOf({code: 'VL002', severity: Severity.Error})).toBe('validate-non-serializable');
   });
 
   it('keeps the stable code in the message for lookup and disable comments', () => {
@@ -118,6 +139,7 @@ describe('catalog coverage — every code routes to a rule with the matching def
   const RULE_DEFAULT = new Map<RuleName, 'error' | 'warn'>(RULE_SPECS.map((spec) => [spec.name, spec.default]));
   const enrichPrefixes = new Set(['FT', 'MD', 'GE']);
   const severityEnum = {error: Severity.Error, warning: Severity.Warning, info: Severity.Info} as const;
+  const levelEnum = {error: Level.Error, runtimeError: Level.RuntimeError, warning: Level.Warning, info: Level.Info} as const;
 
   it('maps every catalog code to a rule with no gaps', () => {
     const codes = Object.keys(DIAGNOSTIC_CATALOG);
@@ -126,12 +148,14 @@ describe('catalog coverage — every code routes to a rule with the matching def
       const entry = DIAGNOSTIC_CATALOG[code]!;
       const prefix = code.match(/^[A-Z]+/)![0];
       const family = enrichPrefixes.has(prefix) ? Family.Enrich : Family.RunType;
-      const routed = ruleOf({code, family, severity: severityEnum[entry.severity]});
+      const routed = ruleOf({code, family, severity: severityEnum[entry.severity], level: levelEnum[entry.level]});
       const ruleDefault = RULE_DEFAULT.get(routed);
       expect(ruleDefault, `${code} routed to ${routed}, which is not a registered rule`).toBeDefined();
-      if (entry.level !== 'warning') {
+      if (entry.level === 'error' || entry.level === 'runtimeError') {
         expect(ruleDefault, `${code} is a ${entry.level} but ${routed} only warns`).toBe('error');
       }
+      // Info is never worth an error squiggle: showing it at all is opt-in.
+      if (entry.level === 'info') expect(ruleDefault, `${code} is info but ${routed} is an error rule`).toBe('warn');
     }
   });
 });

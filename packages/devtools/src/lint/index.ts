@@ -5,10 +5,11 @@
 // of the RULE_SPECS table. Severity is the linter's job, each rule shipping with the Go catalog default. No
 // RunTypes-specific configuration is needed: the plugin resolves the resolver binary itself (@mionjs/bin-compiler,
 // which honours MION_BIN) and runs in process.cwd(). The optional knobs are
-// `settings.runtypes.{timeoutMs, tsconfig, binary, markers}`, anything else is ignored with a one-per-run
+// `settings.runtypes.{timeoutMs, tsconfig, binary, markers, levels}`, anything else is ignored with a one-per-run
 // warning, and rules take no per-rule options.
 
 import {createRequire} from 'node:module';
+import {Level} from '../core/protocol.ts';
 import {routeDiagnostic, RULE_SPECS, type RuleName, type RuleSpec} from './diagnosticRouting.ts';
 import {looksLikeEnrichmentFile, needsResolverPass} from './prefilter.ts';
 import {LINT_SETTING_KEYS} from './session-protocol.ts';
@@ -57,6 +58,13 @@ function warnUnknownSettings(bag: Record<string, unknown>): void {
   }
 }
 
+// A wrong `levels` value warns once and keeps Info hidden, the same loud-but-harmless answer as an unknown key.
+function warnBadLevels(value: unknown): void {
+  if (warnedKeys.has('levels')) return;
+  warnedKeys.add('levels');
+  console.warn(`[runtypes] ignoring 'settings.runtypes.levels' = ${JSON.stringify(value)} (the only accepted value is 'all')`);
+}
+
 // sessionOptions pulls the plugin's knobs from `settings.runtypes`. LINT_SETTING_KEYS (session-protocol.ts)
 // names the whole contract. The working directory is deliberately NOT configurable, so a `cwd` or `socket` here
 // is ignored loudly: a silently dropped key reads as working configuration (it once left the e2e fixture
@@ -73,6 +81,8 @@ export function sessionOptions(settings: Record<string, unknown> | undefined): L
   if (bag['markers'] && typeof bag['markers'] === 'object') {
     options.markers = bag['markers'] as LintSessionOptions['markers'];
   }
+  if (bag['levels'] === 'all') options.levels = 'all';
+  else if (bag['levels'] !== undefined) warnBadLevels(bag['levels']);
   return options;
 }
 
@@ -107,6 +117,7 @@ function diagnosticRule(
             return;
           }
           for (const diagnostic of outcome.diagnostics) {
+            if (diagnostic.level === Level.Info && options.levels !== 'all') continue;
             const report = routeDiagnostic(diagnostic);
             if (report.ruleName !== ruleName) continue;
             context.report({message: report.message, loc: report.loc});

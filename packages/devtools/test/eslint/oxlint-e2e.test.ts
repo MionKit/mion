@@ -39,6 +39,11 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
         "import {createValidateFn} from '@mionjs/run-types';\n\n" +
         'interface Widget {\n  label: string;\n  onClick: () => void;\n}\n\n' +
         'export const isWidget = createValidateFn<Widget>();\n',
+      // A lowered error: the build prints it as a warning, and so must the linter.
+      'lowered.ts':
+        "import {createValidateFn} from '@mionjs/run-types';\n\n" +
+        '// @mion-downgrade-error VL002\n' +
+        'export const isSymbol = createValidateFn<symbol>();\n',
     });
     project.write(
       '.oxlintrc.json',
@@ -49,8 +54,9 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
           // `cwd` is the transparency case: it is NOT a lint setting (the plugin
           // runs in oxlint's own cwd), so it must be ignored — loudly on stderr,
           // but without changing the findings asserted below. `binary` IS honoured
-          // now and gets its own cases further down.
-          settings: {runtypes: {cwd: '/nonexistent/not-a-project'}},
+          // now and gets its own cases further down. `levels: 'all'` shows the
+          // Info-level VL011 these cases use as proof the engine ran.
+          settings: {runtypes: {cwd: '/nonexistent/not-a-project', levels: 'all'}},
           rules: {
             'runtypes/validate-non-serializable': 'error',
             'runtypes/validate-skipped-member': 'warn',
@@ -89,8 +95,8 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
     expect(stdout).toContain('[FT020]');
     expect(stdout).toContain('runtypes(enrichment-field)');
     expect(stdout).toContain('[FT002]');
-    // Family A rides the same run: the VL011 method-drop warning from the widget
-    // file lands under the validate family's skipped-member rule.
+    // Family A rides the same run: the VL011 method drop (Info, shown by the
+    // `levels: 'all'` setting) lands under the validate family's skipped-member rule.
     expect(stdout).toContain('runtypes(validate-skipped-member)');
     expect(stdout).toContain('[VL011]');
     // The engine itself must not have failed.
@@ -140,7 +146,7 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
         JSON.stringify({
           categories: {correctness: 'off'},
           jsPlugins: [PLUGIN_DIST],
-          settings: {runtypes: {binary}},
+          settings: {runtypes: {binary, levels: 'all'}},
           rules: {'runtypes/validate-skipped-member': 'warn', 'runtypes/broken-tsconfig': 'error'},
           ignorePatterns: ['node_modules/**'],
         })
@@ -173,44 +179,55 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
     expect(bogus.stdout).toContain('settings.runtypes.binary=/nonexistent/settings-binary');
   });
 
-  it('the shipped oxlint-recommended.json works as a one-line extends from node_modules', {timeout: 120_000}, async () => {
-    // The documented consumer layout: the package installed under
-    // node_modules/@mionjs/devtools (symlinked to this repo's package), the
-    // user config a single `extends` of the shipped preset. The preset's own
-    // jsPlugins path ("./dist/lint/index.js") must resolve relative to the
-    // preset file, and every rule rides at its RULE_SPECS default.
-    fs.mkdirSync(path.join(project.dir, 'node_modules', '@mionjs'), {recursive: true});
-    fs.symlinkSync(path.resolve(__dirname, '../..'), path.join(project.dir, 'node_modules', '@mionjs', 'devtools'));
+  // The documented consumer layout: the package installed under
+  // node_modules/@mionjs/devtools (symlinked to this repo's package), the user
+  // config a single `extends` of the shipped preset. The preset's own jsPlugins
+  // path ("./dist/lint/index.js") must resolve relative to the preset file, and
+  // every rule rides at its RULE_SPECS default.
+  const runPreset = async (config: string, settings?: Record<string, unknown>): Promise<{stdout: string; exitCode: number}> => {
+    const link = path.join(project.dir, 'node_modules', '@mionjs', 'devtools');
+    if (!fs.existsSync(link)) {
+      fs.mkdirSync(path.dirname(link), {recursive: true});
+      fs.symlinkSync(path.resolve(__dirname, '../..'), link);
+    }
     project.write(
-      '.oxlintrc.extends.json',
+      config,
       JSON.stringify(
         {
           categories: {correctness: 'off'},
           extends: ['./node_modules/@mionjs/devtools/oxlint-recommended.json'],
+          ...(settings ? {settings} : {}),
           ignorePatterns: ['node_modules/**'],
         },
         null,
         2
       )
     );
-
-    let stdout = '';
-    let exitCode = 0;
     try {
-      const result = await execFileAsync(OXLINT, ['-c', '.oxlintrc.extends.json', '.'], {cwd: project.dir});
-      stdout = result.stdout;
+      const result = await execFileAsync(OXLINT, ['-c', config, '.'], {cwd: project.dir});
+      return {stdout: result.stdout, exitCode: 0};
     } catch (error) {
       const failed = error as {stdout?: string; code?: number};
-      stdout = failed.stdout ?? '';
-      exitCode = failed.code ?? 1;
+      return {stdout: failed.stdout ?? '', exitCode: failed.code ?? 1};
     }
+  };
 
-    // Same findings as the hand-written config: error-severity gates fail the
-    // run, the validate advisory rides at its default warn level.
+  it('the shipped oxlint-recommended.json works as a one-line extends from node_modules', {timeout: 120_000}, async () => {
+    const {stdout, exitCode} = await runPreset('.oxlintrc.extends.json');
+    // Error-severity gates fail the run; the engine ran.
     expect(exitCode).toBe(1);
     expect(stdout).toContain('runtypes(no-enrichment-todo)');
-    expect(stdout).toContain('runtypes(validate-skipped-member)');
-    expect(stdout).toContain('[VL011]');
+    expect(stdout).not.toContain('resolver failed');
+    // The Info-level VL011 method drop is hidden by default.
+    expect(stdout).not.toContain('[VL011]');
+    // A `@mion-downgrade-error` line reports as a WARNING under downgraded-error, like the build prints it.
+    expect(stdout).toMatch(/lowered\.ts:4:\d+: warning runtypes\(downgraded-error\): \[VL002\] .*\(downgraded\)/);
+    expect(stdout).not.toContain('runtypes(validate-non-serializable)');
+  });
+
+  it("the preset plus settings.runtypes.levels: 'all' shows Info findings at warn", {timeout: 120_000}, async () => {
+    const {stdout} = await runPreset('.oxlintrc.extends-all.json', {runtypes: {levels: 'all'}});
+    expect(stdout).toMatch(/widget\.ts:\d+:\d+: warning runtypes\(validate-skipped-member\): \[VL011\]/);
     expect(stdout).not.toContain('resolver failed');
   });
 });
