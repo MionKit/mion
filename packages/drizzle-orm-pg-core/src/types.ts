@@ -14,9 +14,18 @@ import type {
   StringDate,
   StringDateTime,
 } from '@mionjs/run-types/formats';
-import type {AnyColumn, AnyTableRef, ColMods, ColRef, RtSql, rtColumnKey} from '@mionjs/drizzle-orm';
-import type {PgTableWithRLS} from './table.ts';
-import type {PgView} from './views.ts';
+import type {
+  AnyColumn,
+  AnyTableRef,
+  ColMods,
+  ColRef,
+  RtSql,
+  rtColumnKey,
+  RtTableBrand,
+  RtTableMeta,
+  RtViewBrand,
+  RtViewMeta,
+} from '@mionjs/drizzle-orm';
 
 type EnumTuple = readonly [string, ...string[]];
 /** A wide enum config (plain string[]) carries no literal union: fall back. */
@@ -193,9 +202,11 @@ export interface PgIntIn extends PgColIn {
 // ── Tables, views and entries ────────────────────────────────────────────────
 
 /** What this package's toDrizzle and tableFromType take, so another dialect's table is a compile error. */
-export type AnyPgTable = PgTableWithRLS<string, Record<string, AnyColumn>, readonly object[], object>;
+// Meta + brand only: a table's $inferSelect is never built to check it against these.
+export interface AnyPgTable
+  extends RtTableMeta<string, Record<string, AnyColumn>, readonly object[], object>, RtTableBrand<'pg'> {}
 /** What this package's toDrizzle takes for a view. */
-export type AnyPgView = PgView<string, Record<string, AnyColumn>, object>;
+export interface AnyPgView extends RtViewMeta<string, Record<string, AnyColumn>, object>, RtViewBrand<'pg'> {}
 
 /** Common brand of every extraConfig entry (what the callback's array holds). */
 export interface PgEntryBrand {

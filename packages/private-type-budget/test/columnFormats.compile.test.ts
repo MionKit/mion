@@ -313,23 +313,24 @@ const DIALECTS: Dialect[] = [
 export const ${p}i = db.insert(${p}D).values({id: 'x', name: 'a', age: 21, role: 'user'});
 export const ${p}u = db.update(${p}D).set({age: 31});`,
     budgets: {
+      // All raised 8 to 24 (except toDrizzle): a REVIEWED EXCEPTION, tables carry drizzle's $inferSelect / $inferInsert.
       // 539 -> 671 and 971 -> 1152: a REVIEWED EXCEPTION, props reject stray modifier keys (Only<P, Allowed>, ~30 per column).
-      '5 mixed, select': {types: 671, builders: 1152},
+      '5 mixed, select': {types: 681, builders: 1160},
       // 1132 -> 1264 and 1638 -> 1820: a REVIEWED EXCEPTION, props reject stray modifier keys.
-      '5 mixed, select + insert': {types: 1264, builders: 1820},
-      '10 plain, db name per column': {types: 210, builders: 363},
-      '20 plain, db name per column': {types: 300, builders: 573},
-      '40 plain, db name per column': {types: 480, builders: 993},
-      '20 plain, nameless': {types: 300, builders: 532},
+      '5 mixed, select + insert': {types: 1288, builders: 1842},
+      '10 plain, db name per column': {types: 220, builders: 371},
+      '20 plain, db name per column': {types: 310, builders: 581},
+      '40 plain, db name per column': {types: 490, builders: 1001},
+      '20 plain, nameless': {types: 310, builders: 540},
       // 702 -> 848 and 1293 -> 1451: a REVIEWED EXCEPTION, props reject stray modifier keys.
-      'wide vocabulary, select': {types: 848, builders: 1451},
+      'wide vocabulary, select': {types: 858, builders: 1459},
       // 160 -> 212: a REVIEWED EXCEPTION, TableRef checks the column key and takes a name for self-references.
       // 212 -> 263 and 423 -> 490: a REVIEWED EXCEPTION, props reject stray modifier keys.
-      'two tables, one reference': {types: 263, builders: 490},
+      'two tables, one reference': {types: 279, builders: 500},
       // 1277 -> 1366 and 1729 -> 1869: a REVIEWED EXCEPTION, props reject stray modifier keys.
-      'refineTableType, select': {types: 1366, builders: 1869},
+      'refineTableType, select': {types: 1382, builders: 1883},
       // 8812 -> 8943 and 9915 -> 10095: a REVIEWED EXCEPTION, props reject stray modifier keys. Now 8822 / 9999: rows keep formats.
-      'toDrizzle + select / insert / update query': {types: 8822, builders: 9999},
+      'toDrizzle + select / insert / update query': {types: 8821, builders: 9996},
     },
   },
   {
@@ -364,16 +365,17 @@ declare const ${p}ids: Awaited<typeof ${p}I>;
 export const ${p}id: number = ${p}ids[0]!.id;
 export const ${p}u = db.update(${p}D).set({age: 31});`,
     budgets: {
-      '5 mixed, select': {types: 700, builders: 1176},
-      '5 mixed, select + insert': {types: 1256, builders: 1793},
-      '10 plain, db name per column': {types: 228, builders: 382},
-      '20 plain, db name per column': {types: 318, builders: 592},
-      '40 plain, db name per column': {types: 498, builders: 1012},
-      '20 plain, nameless': {types: 318, builders: 551},
-      'wide vocabulary, select': {types: 1020, builders: 1706},
-      'two tables, one reference': {types: 287, builders: 521},
-      'refineTableType, select': {types: 1392, builders: 1890},
-      'toDrizzle + select / insert / update query': {types: 8466, builders: 9672},
+      // All raised 8 to 24 (except toDrizzle): a REVIEWED EXCEPTION, tables carry drizzle's $inferSelect / $inferInsert.
+      '5 mixed, select': {types: 710, builders: 1184},
+      '5 mixed, select + insert': {types: 1280, builders: 1815},
+      '10 plain, db name per column': {types: 238, builders: 390},
+      '20 plain, db name per column': {types: 328, builders: 600},
+      '40 plain, db name per column': {types: 508, builders: 1020},
+      '20 plain, nameless': {types: 328, builders: 559},
+      'wide vocabulary, select': {types: 1030, builders: 1714},
+      'two tables, one reference': {types: 303, builders: 531},
+      'refineTableType, select': {types: 1408, builders: 1904},
+      'toDrizzle + select / insert / update query': {types: 8357, builders: 9554},
     },
   },
   {
@@ -406,16 +408,17 @@ export const ${p}u = db.update(${p}D).set({age: 31});`,
 export const ${p}i = db.insert(${p}D).values({name: 'a', age: 21, role: 'user', createdAt: new Date()});
 export const ${p}u = db.update(${p}D).set({age: 31});`,
     budgets: {
-      '5 mixed, select': {types: 649, builders: 1053},
-      '5 mixed, select + insert': {types: 1243, builders: 1711},
-      '10 plain, db name per column': {types: 231, builders: 385},
-      '20 plain, db name per column': {types: 321, builders: 595},
-      '40 plain, db name per column': {types: 501, builders: 1015},
-      '20 plain, nameless': {types: 321, builders: 554},
-      'wide vocabulary, select': {types: 959, builders: 1567},
-      'two tables, one reference': {types: 296, builders: 515},
-      'refineTableType, select': {types: 1341, builders: 1767},
-      'toDrizzle + select / insert / update query': {types: 7554, builders: 8606},
+      // All raised 8 to 24 (except toDrizzle): a REVIEWED EXCEPTION, tables carry drizzle's $inferSelect / $inferInsert.
+      '5 mixed, select': {types: 659, builders: 1061},
+      '5 mixed, select + insert': {types: 1267, builders: 1733},
+      '10 plain, db name per column': {types: 241, builders: 393},
+      '20 plain, db name per column': {types: 331, builders: 603},
+      '40 plain, db name per column': {types: 511, builders: 1023},
+      '20 plain, nameless': {types: 331, builders: 562},
+      'wide vocabulary, select': {types: 969, builders: 1575},
+      'two tables, one reference': {types: 312, builders: 525},
+      'refineTableType, select': {types: 1357, builders: 1781},
+      'toDrizzle + select / insert / update query': {types: 7445, builders: 8488},
     },
   },
 ];

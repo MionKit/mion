@@ -16,30 +16,30 @@ sqlite) is left out of that dialect's wide vocabulary.
 
 | Dialect | Case | Net instantiations | Budget |
 | ------- | ---- | -----------------: | -----: |
-| pg | builder road, 5 mixed columns | 1081 | 1081 |
-| pg | type road, 5 mixed columns | 666 | 666 |
-| pg | type road, 5 mixed columns + insert model | 1259 | 1259 |
-| pg | type road, 20 plain columns | 299 | 299 |
-| pg | builder road, 20 plain columns | 573 | 573 |
-| pg | bare Column interface, 20 plain columns | 295 | 295 |
-| pg | type road, wide vocabulary | 841 | 841 |
-| pg | builder road, wide vocabulary | 1342 | 1342 |
-| mysql | builder road, 5 mixed columns | 1104 | 1104 |
-| mysql | type road, 5 mixed columns | 695 | 695 |
-| mysql | type road, 5 mixed columns + insert model | 1251 | 1251 |
-| mysql | type road, 20 plain columns | 317 | 317 |
-| mysql | builder road, 20 plain columns | 592 | 592 |
-| mysql | bare Column interface, 20 plain columns | 295 | 295 |
-| mysql | type road, wide vocabulary | 847 | 847 |
-| mysql | builder road, wide vocabulary | 1341 | 1341 |
-| sqlite | builder road, 5 mixed columns | 1018 | 1018 |
-| sqlite | type road, 5 mixed columns | 658 | 658 |
-| sqlite | type road, 5 mixed columns + insert model | 1230 | 1230 |
-| sqlite | type road, 20 plain columns | 320 | 320 |
-| sqlite | builder road, 20 plain columns | 595 | 595 |
-| sqlite | bare Column interface, 20 plain columns | 295 | 295 |
-| sqlite | type road, wide vocabulary | 754 | 754 |
-| sqlite | builder road, wide vocabulary | 1142 | 1142 |
+| pg | builder road, 5 mixed columns | 1089 | 1089 |
+| pg | type road, 5 mixed columns | 676 | 676 |
+| pg | type road, 5 mixed columns + insert model | 1283 | 1283 |
+| pg | type road, 20 plain columns | 309 | 309 |
+| pg | builder road, 20 plain columns | 581 | 581 |
+| pg | bare Column interface, 20 plain columns | 305 | 305 |
+| pg | type road, wide vocabulary | 851 | 851 |
+| pg | builder road, wide vocabulary | 1350 | 1350 |
+| mysql | builder road, 5 mixed columns | 1112 | 1112 |
+| mysql | type road, 5 mixed columns | 705 | 705 |
+| mysql | type road, 5 mixed columns + insert model | 1275 | 1275 |
+| mysql | type road, 20 plain columns | 327 | 327 |
+| mysql | builder road, 20 plain columns | 600 | 600 |
+| mysql | bare Column interface, 20 plain columns | 305 | 305 |
+| mysql | type road, wide vocabulary | 857 | 857 |
+| mysql | builder road, wide vocabulary | 1349 | 1349 |
+| sqlite | builder road, 5 mixed columns | 1026 | 1026 |
+| sqlite | type road, 5 mixed columns | 668 | 668 |
+| sqlite | type road, 5 mixed columns + insert model | 1254 | 1254 |
+| sqlite | type road, 20 plain columns | 330 | 330 |
+| sqlite | builder road, 20 plain columns | 603 | 603 |
+| sqlite | bare Column interface, 20 plain columns | 305 | 305 |
+| sqlite | type road, wide vocabulary | 764 | 764 |
+| sqlite | builder road, wide vocabulary | 1150 | 1150 |
 
 Budgets may only ever be lowered. Every one of these is paid again on every keystroke, because each
 edit builds a new checker.

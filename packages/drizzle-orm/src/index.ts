@@ -92,7 +92,16 @@ export {isRtView, materializeRtView, RtViewBuilder} from './view.ts';
 export {buildRtTableFromGraph, rtTableFromRunType} from './fromType.ts';
 
 // Flat models.
-export type {InferInsertModel, InferSelectModel, InferSelectViewModel, InferUpdateModel} from './models.ts';
+export type {
+  InferInsertModel,
+  InferSelectModel,
+  InferSelectViewModel,
+  InferUpdateModel,
+  InsertModelOf,
+  RtTableInfer,
+  RtViewInfer,
+  SelectModelOf,
+} from './models.ts';
 
 // Refinement.
 export type {RefinedTable, TableRefinements} from './refine.ts';

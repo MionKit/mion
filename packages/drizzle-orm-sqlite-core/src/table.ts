@@ -17,6 +17,7 @@ import type {
   ReflectedNode,
   RtExtraColumn,
   RtTableBrand,
+  RtTableInfer,
   RtTableMeta,
   TableEntry,
   TableFromTypeOptions,
@@ -30,7 +31,7 @@ import type {AnySqliteTable} from './types.ts';
 
 /** A sqlite table: ONE type for a sqliteTable() result and a hand-written `SqliteTable<'users', {...}>`. */
 export interface SqliteTable<Name extends string, Cols, Extras extends readonly object[] = [], Names = NoNames>
-  extends RtTableMeta<Name, Cols, Extras, Names>, RtTableBrand<'sqlite'> {}
+  extends RtTableMeta<Name, Cols, Extras, Names>, RtTableBrand<'sqlite'>, RtTableInfer<Cols> {}
 // Friendly aliases over the TableEntry carrier the runtime bridge and the convert program read.
 /** `index(name).on(...columns by record key)`. */
 export type IndexEntry<Name extends string, On extends readonly string[]> = TableEntry<'index', [Name], {on: EntryColRefs<On>}>;

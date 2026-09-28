@@ -8,7 +8,16 @@
 // MANUAL-COLUMN views only. `sqliteView(name)` with no columns (the query-builder form) is NOT supported: its columns
 // come from drizzle's select typing (packages/drizzle-orm/CLAUDE.md).
 
-import type {DrizzleContext, NameOf, NoNames, RtSql, RtViewBrand, RtViewMeta, rtNamedColumnKey} from '@mionjs/drizzle-orm';
+import type {
+  DrizzleContext,
+  NameOf,
+  NoNames,
+  RtSql,
+  RtViewBrand,
+  RtViewInfer,
+  RtViewMeta,
+  rtNamedColumnKey,
+} from '@mionjs/drizzle-orm';
 import {RtViewBuilder} from '@mionjs/drizzle-orm';
 
 /** The stand-in a columnless `sqliteView(name)` returns: no `as`, so the query-builder form fails naming itself. */
@@ -31,7 +40,7 @@ export function requireColumns(fn: string, name: string, columns: Record<string,
 }
 
 export interface SqliteView<Name extends string, Cols, Names = NoNames>
-  extends RtViewMeta<Name, Cols, Names>, RtViewBrand<'sqlite'> {}
+  extends RtViewMeta<Name, Cols, Names>, RtViewBrand<'sqlite'>, RtViewInfer<Cols> {}
 // sqlite views take no options before the terminal call.
 export interface SqliteViewBuilder<Name extends string, Cols, Names> {
   as(query: RtSql): SqliteView<Name, Cols, Names>;

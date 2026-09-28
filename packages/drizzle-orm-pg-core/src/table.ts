@@ -17,6 +17,7 @@ import type {
   ReflectedNode,
   RtExtraColumn,
   RtTableBrand,
+  RtTableInfer,
   RtTableMeta,
   TableEntry,
   TableFromTypeOptions,
@@ -32,12 +33,12 @@ import type {AnyPgTable} from './types.ts';
 
 /** A pg table: ONE type for a pgTable() result and a hand-written `PgTable<'users', {...}>`. */
 export interface PgTable<Name extends string, Cols, Extras extends readonly object[] = [], Names = NoNames>
-  extends RtTableMeta<Name, Cols, Extras, Names>, RtTableBrand<'pg'> {
+  extends RtTableMeta<Name, Cols, Extras, Names>, RtTableBrand<'pg'>, RtTableInfer<Cols> {
   enableRLS(): PgTableWithRLS<Name, Cols, Extras, Names>;
 }
 /** A pg table with row level security on: the same table minus enableRLS, as drizzle's own `Omit<..., 'enableRLS'>`. */
 export interface PgTableWithRLS<Name extends string, Cols, Extras extends readonly object[] = [], Names = NoNames>
-  extends RtTableMeta<Name, Cols, Extras, Names>, RtTableBrand<'pg'> {}
+  extends RtTableMeta<Name, Cols, Extras, Names>, RtTableBrand<'pg'>, RtTableInfer<Cols> {}
 // Friendly aliases over the TableEntry carrier the runtime bridge and the convert program read.
 /** `index(name).on(...columns by record key)`. */
 export type IndexEntry<Name extends string, On extends readonly string[]> = TableEntry<'index', [Name], {on: EntryColRefs<On>}>;

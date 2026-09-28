@@ -837,3 +837,15 @@ real({mode: 'number'});
 real({notNull: undefined});
 // @ts-expect-error a hand-written modifier set to undefined
 export type UndefinedMod = Real<{notNull: undefined}>;
+
+// ── drizzle's $inferSelect / $inferInsert ────────────────────────────────────
+// type only, the same types as the Infer*Model ones, on both table forms, on views and after enableRLS()
+
+export type InferMemberPins = [
+  Expect<Equal<(typeof users)['$inferSelect'], InferSelectModel<typeof users>>>,
+  Expect<Equal<(typeof users)['$inferInsert'], InferInsertModel<typeof users>>>,
+  Expect<Equal<Users['$inferSelect'], InferSelectModel<Users>>>,
+  Expect<Equal<Users['$inferInsert'], InferInsertModel<Users>>>,
+  Expect<Equal<(typeof activeView)['$inferSelect'], InferSelectViewModel<typeof activeView>>>,
+  Expect<Equal<ReturnType<(typeof users)['enableRLS']>['$inferSelect'], InferSelectModel<typeof users>>>,
+];

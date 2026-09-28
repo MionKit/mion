@@ -13,33 +13,33 @@ lowered.
 
 | Dialect | Shape | Types (budget) | Builders (budget) |
 | ------- | ----- | -------------: | ----------------: |
-| pg | 5 mixed, select | 671 (671) | 1152 (1152) |
-| pg | 5 mixed, select + insert | 1264 (1264) | 1820 (1820) |
-| pg | 10 plain, db name per column | 210 (210) | 363 (363) |
-| pg | 20 plain, db name per column | 300 (300) | 573 (573) |
-| pg | 40 plain, db name per column | 480 (480) | 993 (993) |
-| pg | 20 plain, nameless | 300 (300) | 532 (532) |
-| pg | wide vocabulary, select | 848 (848) | 1451 (1451) |
-| pg | two tables, one reference | 263 (263) | 490 (490) |
-| pg | refineTableType, select | 1366 (1366) | 1869 (1869) |
-| pg | toDrizzle + select / insert / update query | 8822 (8822) | 9999 (9999) |
-| mysql | 5 mixed, select | 700 (700) | 1176 (1176) |
-| mysql | 5 mixed, select + insert | 1256 (1256) | 1793 (1793) |
-| mysql | 10 plain, db name per column | 228 (228) | 382 (382) |
-| mysql | 20 plain, db name per column | 318 (318) | 592 (592) |
-| mysql | 40 plain, db name per column | 498 (498) | 1012 (1012) |
-| mysql | 20 plain, nameless | 318 (318) | 551 (551) |
-| mysql | wide vocabulary, select | 1020 (1020) | 1706 (1706) |
-| mysql | two tables, one reference | 287 (287) | 521 (521) |
-| mysql | refineTableType, select | 1392 (1392) | 1890 (1890) |
-| mysql | toDrizzle + select / insert / update query | 8466 (8466) | 9672 (9672) |
-| sqlite | 5 mixed, select | 649 (649) | 1053 (1053) |
-| sqlite | 5 mixed, select + insert | 1243 (1243) | 1711 (1711) |
-| sqlite | 10 plain, db name per column | 231 (231) | 385 (385) |
-| sqlite | 20 plain, db name per column | 321 (321) | 595 (595) |
-| sqlite | 40 plain, db name per column | 501 (501) | 1015 (1015) |
-| sqlite | 20 plain, nameless | 321 (321) | 554 (554) |
-| sqlite | wide vocabulary, select | 959 (959) | 1567 (1567) |
-| sqlite | two tables, one reference | 296 (296) | 515 (515) |
-| sqlite | refineTableType, select | 1341 (1341) | 1767 (1767) |
-| sqlite | toDrizzle + select / insert / update query | 7554 (7554) | 8606 (8606) |
+| pg | 5 mixed, select | 681 (681) | 1160 (1160) |
+| pg | 5 mixed, select + insert | 1288 (1288) | 1842 (1842) |
+| pg | 10 plain, db name per column | 220 (220) | 371 (371) |
+| pg | 20 plain, db name per column | 310 (310) | 581 (581) |
+| pg | 40 plain, db name per column | 490 (490) | 1001 (1001) |
+| pg | 20 plain, nameless | 310 (310) | 540 (540) |
+| pg | wide vocabulary, select | 858 (858) | 1459 (1459) |
+| pg | two tables, one reference | 279 (279) | 500 (500) |
+| pg | refineTableType, select | 1382 (1382) | 1883 (1883) |
+| pg | toDrizzle + select / insert / update query | 8821 (8821) | 9996 (9996) |
+| mysql | 5 mixed, select | 710 (710) | 1184 (1184) |
+| mysql | 5 mixed, select + insert | 1280 (1280) | 1815 (1815) |
+| mysql | 10 plain, db name per column | 238 (238) | 390 (390) |
+| mysql | 20 plain, db name per column | 328 (328) | 600 (600) |
+| mysql | 40 plain, db name per column | 508 (508) | 1020 (1020) |
+| mysql | 20 plain, nameless | 328 (328) | 559 (559) |
+| mysql | wide vocabulary, select | 1030 (1030) | 1714 (1714) |
+| mysql | two tables, one reference | 303 (303) | 531 (531) |
+| mysql | refineTableType, select | 1408 (1408) | 1904 (1904) |
+| mysql | toDrizzle + select / insert / update query | 8357 (8357) | 9554 (9554) |
+| sqlite | 5 mixed, select | 659 (659) | 1061 (1061) |
+| sqlite | 5 mixed, select + insert | 1267 (1267) | 1733 (1733) |
+| sqlite | 10 plain, db name per column | 241 (241) | 393 (393) |
+| sqlite | 20 plain, db name per column | 331 (331) | 603 (603) |
+| sqlite | 40 plain, db name per column | 511 (511) | 1023 (1023) |
+| sqlite | 20 plain, nameless | 331 (331) | 562 (562) |
+| sqlite | wide vocabulary, select | 969 (969) | 1575 (1575) |
+| sqlite | two tables, one reference | 312 (312) | 525 (525) |
+| sqlite | refineTableType, select | 1357 (1357) | 1781 (1781) |
+| sqlite | toDrizzle + select / insert / update query | 7445 (7445) | 8488 (8488) |

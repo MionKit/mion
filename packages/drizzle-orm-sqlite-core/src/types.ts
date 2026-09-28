@@ -6,9 +6,18 @@
  * ######## */
 
 import type {BigInt as RTBigInt, Date as RTDate, Float, Integer as IntegerFormat, String as Str} from '@mionjs/run-types/formats';
-import type {AnyColumn, AnyTableRef, ColMods, ColRef, RtSql, rtColumnKey} from '@mionjs/drizzle-orm';
-import type {SqliteTable} from './table.ts';
-import type {SqliteView} from './views.ts';
+import type {
+  AnyColumn,
+  AnyTableRef,
+  ColMods,
+  ColRef,
+  RtSql,
+  rtColumnKey,
+  RtTableBrand,
+  RtTableMeta,
+  RtViewBrand,
+  RtViewMeta,
+} from '@mionjs/drizzle-orm';
 
 type EnumTuple = readonly [string, ...string[]];
 export type UpdateDeleteAction = 'cascade' | 'restrict' | 'no action' | 'set null' | 'set default';
@@ -110,9 +119,11 @@ export interface SqliteColIn extends SqliteSharedColMods {
 // ── Tables, views and entries ────────────────────────────────────────────────
 
 /** What this package's toDrizzle and tableFromType take, so another dialect's table is a compile error. */
-export type AnySqliteTable = SqliteTable<string, Record<string, AnyColumn>, readonly object[], object>;
+// Meta + brand only: a table's $inferSelect is never built to check it against these.
+export interface AnySqliteTable
+  extends RtTableMeta<string, Record<string, AnyColumn>, readonly object[], object>, RtTableBrand<'sqlite'> {}
 /** What this package's toDrizzle takes for a view. */
-export type AnySqliteView = SqliteView<string, Record<string, AnyColumn>, object>;
+export interface AnySqliteView extends RtViewMeta<string, Record<string, AnyColumn>, object>, RtViewBrand<'sqlite'> {}
 
 /** Common brand of every extraConfig entry. */
 export interface SqliteEntryBrand {

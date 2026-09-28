@@ -291,26 +291,27 @@ function pipelineDialect(source: DialectSource, budgets: PipelineBudgets): Pipel
 
 // Steps 4 and 5 moved with the slim models alone: the type-only and builder lanes (laneComparison) did not move.
 export const PIPELINE_DIALECTS: PipelineDialect[] = [
+  // Steps 1-3 and the consumer +6 to +28: a REVIEWED EXCEPTION, tables carry drizzle's $inferSelect / $inferInsert.
   pipelineDialect(PG, {
     steps: [
       // 434 -> 876: a REVIEWED EXCEPTION, single-call builders pay overloads, stray keys, name lifting (see typeRoad).
-      876, 1076,
+      884, 1082,
       // 578 -> 591: a REVIEWED EXCEPTION, the models derive flags from props.
-      591,
+      605,
       // 523 -> 525: a REVIEWED EXCEPTION, the route api reads the models derived from props.
       525,
       // 3052 -> 3179: a REVIEWED EXCEPTION, the client maps the models derived from props.
       3179,
       // 7857 -> 8571: a REVIEWED EXCEPTION, toDrizzle derives each column's flags from props. 8571 -> 8471: rows keep their formats.
-      8471,
+      8466,
     ],
     // 13580 -> 14818: a REVIEWED EXCEPTION, the single-call steps above. 14818 -> 14718: rows keep their formats.
     total: 14718,
     // 1784 -> 1605: lowered to the measurement, which rose from 1495 because the consumer derives the flags from props.
-    consumer: 1605,
+    consumer: 1633,
   }),
-  pipelineDialect(MYSQL, {steps: [895, 1073, 591, 525, 3179, 7144], total: 13407, consumer: 1602}),
-  pipelineDialect(SQLITE, {steps: [900, 1068, 591, 524, 3179, 7318], total: 13580, consumer: 1574}),
+  pipelineDialect(MYSQL, {steps: [903, 1079, 605, 525, 3179, 7139], total: 13407, consumer: 1630}),
+  pipelineDialect(SQLITE, {steps: [908, 1074, 605, 524, 3179, 7313], total: 13580, consumer: 1602}),
 ];
 
 /** The cumulative snippet of `pipeline` up to (and including) `index`. **/
