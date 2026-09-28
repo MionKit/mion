@@ -77,7 +77,7 @@ every shape measured on the way here.
 
 ## Models and refinement, flat
 
-`InferSelectModel/InferInsertModel/InferUpdateModel` (drizzle's exact names)
+`InferSelectModel/InferInsertModel` (drizzle's exact names)
 are each ONE mapped pass directly over the columns record; the measured
 alternative (a RowOf intermediate routed through the mion modelTypes
 utilities) cost ~1.7x. The semantics mirror drizzle's operations.d.ts: select

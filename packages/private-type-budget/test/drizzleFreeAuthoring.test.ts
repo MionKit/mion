@@ -96,7 +96,7 @@ const sourceOf = (names: Dialect) => {
 import {${builders}, index} from '@mionjs/drizzle-orm-${dialect}-core';
 import type {${textType}, ${intType}, ${tableType}} from '@mionjs/drizzle-orm-${dialect}-core';
 import {refineTableType, sql} from '@mionjs/drizzle-orm';
-import type {InferSelectModel, InferSelectViewModel, InferInsertModel, InferUpdateModel} from '@mionjs/drizzle-orm';
+import type {InferSelectModel, InferSelectViewModel, InferInsertModel} from '@mionjs/drizzle-orm';
 
 const users = ${table}('users', {
   name: ${text}('name', {length: 100, notNull: true}),
@@ -107,7 +107,7 @@ const apiUsers = refineTableType(users, {name: {minLength: 10}, age: {min: 18}})
 type User = InferSelectModel<typeof apiUsers>;
 declare const row: User;
 export const rowName: string = row.name;
-export const patch: InferUpdateModel<typeof apiUsers> = {age: 30};
+export const patch: Partial<InferInsertModel<typeof apiUsers>> = {age: 30};
 export const newUser: InferInsertModel<typeof apiUsers> = {name: 'a-long-name', age: 21, createdAt: new Date()};
 const activeUsers = ${view}('active_users', {name: ${text}('name', {length: 100, notNull: true})}).as(sql\`select name from users\`);
 export const activeName: string = (undefined as unknown as InferSelectViewModel<typeof activeUsers>).name;

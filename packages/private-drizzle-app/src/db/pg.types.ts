@@ -1,7 +1,7 @@
 // Postgres tables written as types, the same schema as pg.builders.ts.
 import * as DZ from '@mionjs/drizzle-orm-pg-core';
 import {sql, type TableRef} from '@mionjs/drizzle-orm';
-import type {InferInsertModel, InferSelectModel, InferSelectViewModel, InferUpdateModel} from '@mionjs/drizzle-orm';
+import type {InferInsertModel, InferSelectModel, InferSelectViewModel} from '@mionjs/drizzle-orm';
 import {drizzle} from 'drizzle-orm/pg-proxy';
 import {gt, relations} from 'drizzle-orm';
 import {pgView} from 'drizzle-orm/pg-core';
@@ -50,10 +50,10 @@ export const adultUsers = DZ.pgView('adult_users', {
 
 export type User = InferSelectModel<UsersTable>;
 export type NewUser = InferInsertModel<UsersTable>;
-export type UserPatch = InferUpdateModel<UsersTable>;
+export type UserPatch = Partial<InferInsertModel<UsersTable>>;
 export type Post = InferSelectModel<PostsTable>;
 export type NewPost = InferInsertModel<PostsTable>;
-export type PostPatch = InferUpdateModel<PostsTable>;
+export type PostPatch = Partial<InferInsertModel<PostsTable>>;
 // A query-builder view has no slim model, so its row type is written by hand.
 export type BusyAuthor = Pick<Post, 'authorId' | 'views'>;
 export type AdultUser = InferSelectViewModel<typeof adultUsers>;

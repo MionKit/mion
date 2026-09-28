@@ -97,7 +97,7 @@ const SQLITE: DialectSource = {
 const importHeader = (source: DialectSource) => `
 import {${source.builders}, index} from '@mionjs/drizzle-orm-${source.dialect}-core';
 import {refineTableType} from '@mionjs/drizzle-orm';
-import type {InferSelectModel, InferInsertModel, InferUpdateModel} from '@mionjs/drizzle-orm';
+import type {InferSelectModel, InferInsertModel} from '@mionjs/drizzle-orm';
 import {toDrizzle} from '@mionjs/drizzle-orm-${source.dialect}-core/drizzle';
 ${source.dbImport}
 import type {Date as RTDate, Number as RTNumber, String as RTString} from '@mionjs/run-types/formats';
@@ -149,7 +149,7 @@ export const refinedAge: number = refinedRow.age;
     body: `
 type User = InferSelectModel<typeof apiUsers>;
 type NewUser = InferInsertModel<typeof apiUsers>;
-type UserPatch = InferUpdateModel<typeof apiUsers>;
+type UserPatch = Partial<InferInsertModel<typeof apiUsers>>;
 export const newUser: NewUser = {name: 'a-long-name', age: 21};
 export const userPatch: UserPatch = {age: 30};
 export const selectedUser: User = {name: 'a-long-name', age: 21, createdAt: new Date()};
@@ -248,13 +248,13 @@ export type _Pins = [
 const modelsSource = (source: DialectSource) => `
 import {${source.builders}} from '@mionjs/drizzle-orm-${source.dialect}-core';
 import {refineTableType} from '@mionjs/drizzle-orm';
-import type {InferSelectModel, InferInsertModel, InferUpdateModel} from '@mionjs/drizzle-orm';
+import type {InferSelectModel, InferInsertModel} from '@mionjs/drizzle-orm';
 const users = ${source.tableFn}('users', {${source.columns}
 });
 const api = refineTableType(users, {name: {minLength: 10}, age: {min: 18}});
 export type User = InferSelectModel<typeof api>;
 export type NewUser = InferInsertModel<typeof api>;
-export type UserPatch = InferUpdateModel<typeof api>;
+export type UserPatch = Partial<InferInsertModel<typeof api>>;
 `;
 
 /** One dialect's budgets. All ONE-WAY DOWNWARD. **/

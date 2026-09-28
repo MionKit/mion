@@ -23,18 +23,18 @@ checker.
 | ---: | ----- | -----------------------: | -----: | ---------: |
 | 1 | slim table + row | 884 | 884 | 884 |
 | 2 | refineTableType | 1082 | 1082 | 1966 |
-| 3 | Infer* models | 605 | 605 | 2571 |
-| 4 | mion route api | 514 | 525 | 3085 |
-| 5 | initClient | 3044 | 3179 | 6129 |
-| 6 | db query (toDrizzle) | 8466 | 8466 | 14595 |
+| 3 | Infer* models | 545 | 605 | 2511 |
+| 4 | mion route api | 500 | 525 | 3011 |
+| 5 | initClient | 3065 | 3179 | 6076 |
+| 6 | db query (toDrizzle) | 8466 | 8466 | 14542 |
 
-Total for the whole chain: **14595**, against a total budget of **14718**.
+Total for the whole chain: **14542**, against a total budget of **14718**.
 
 | Downstream consumer, read from the emitted `.d.ts` | Value |
 | ---- | ----: |
-| Consumer net instantiations | 1633 |
+| Consumer net instantiations | 1574 |
 | Budget | 1633 |
-| Emitted declaration size (bytes) | 1248 |
+| Emitted declaration size (bytes) | 1239 |
 | Declaration keeps the generic alias unresolved | yes |
 
 ## mysql
@@ -43,18 +43,18 @@ Total for the whole chain: **14595**, against a total budget of **14718**.
 | ---: | ----- | -----------------------: | -----: | ---------: |
 | 1 | slim table + row | 903 | 903 | 903 |
 | 2 | refineTableType | 1079 | 1079 | 1982 |
-| 3 | Infer* models | 605 | 605 | 2587 |
-| 4 | mion route api | 514 | 525 | 3101 |
-| 5 | initClient | 3044 | 3179 | 6145 |
-| 6 | db query (toDrizzle) | 7139 | 7139 | 13284 |
+| 3 | Infer* models | 545 | 605 | 2527 |
+| 4 | mion route api | 500 | 525 | 3027 |
+| 5 | initClient | 3065 | 3179 | 6092 |
+| 6 | db query (toDrizzle) | 7139 | 7139 | 13231 |
 
-Total for the whole chain: **13284**, against a total budget of **13407**.
+Total for the whole chain: **13231**, against a total budget of **13407**.
 
 | Downstream consumer, read from the emitted `.d.ts` | Value |
 | ---- | ----: |
-| Consumer net instantiations | 1630 |
+| Consumer net instantiations | 1571 |
 | Budget | 1630 |
-| Emitted declaration size (bytes) | 1250 |
+| Emitted declaration size (bytes) | 1241 |
 | Declaration keeps the generic alias unresolved | yes |
 
 ## sqlite
@@ -63,16 +63,16 @@ Total for the whole chain: **13284**, against a total budget of **13407**.
 | ---: | ----- | -----------------------: | -----: | ---------: |
 | 1 | slim table + row | 908 | 908 | 908 |
 | 2 | refineTableType | 1074 | 1074 | 1982 |
-| 3 | Infer* models | 605 | 605 | 2587 |
-| 4 | mion route api | 513 | 524 | 3100 |
-| 5 | initClient | 3044 | 3179 | 6144 |
-| 6 | db query (toDrizzle) | 7313 | 7313 | 13457 |
+| 3 | Infer* models | 545 | 605 | 2527 |
+| 4 | mion route api | 499 | 524 | 3026 |
+| 5 | initClient | 3065 | 3179 | 6091 |
+| 6 | db query (toDrizzle) | 7313 | 7313 | 13404 |
 
-Total for the whole chain: **13457**, against a total budget of **13580**.
+Total for the whole chain: **13404**, against a total budget of **13580**.
 
 | Downstream consumer, read from the emitted `.d.ts` | Value |
 | ---- | ----: |
-| Consumer net instantiations | 1602 |
+| Consumer net instantiations | 1543 |
 | Budget | 1602 |
-| Emitted declaration size (bytes) | 1225 |
+| Emitted declaration size (bytes) | 1216 |
 | Declaration keeps the generic alias unresolved | yes |

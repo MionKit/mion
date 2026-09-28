@@ -12,7 +12,7 @@ import {sql as dzSql} from 'drizzle-orm';
 import * as dz from 'drizzle-orm/mysql-core';
 import {createValidateFn, getRunType, getRunTypeId} from '@mionjs/run-types';
 import type {UUID} from '@mionjs/run-types/formats';
-import type {InferInsertModel, InferSelectModel, InferUpdateModel, ReflectedNode, RtTableMeta, Sql} from '@mionjs/drizzle-orm';
+import type {InferInsertModel, InferSelectModel, ReflectedNode, RtTableMeta, Sql} from '@mionjs/drizzle-orm';
 import {$type, refineTableType, rtTableBrand, sql, tableRef, type TableRef} from '@mionjs/drizzle-orm';
 import type {
   AnyMysqlTable,
@@ -771,7 +771,7 @@ const validPerson = {
 describe('mysql columns: models compile full-fidelity validators', () => {
   const validatePerson = createValidateFn<Person>();
   const validateInsert = createValidateFn<InferInsertModel<typeof apiPeople>>();
-  const validatePatch = createValidateFn<InferUpdateModel<typeof apiPeople>>();
+  const validatePatch = createValidateFn<Partial<InferInsertModel<typeof apiPeople>>>();
   it('the refined table is the same object; only typeof carries the refinement', () => {
     expect(apiPeople).toBe(people);
     expect(toDrizzle(apiPeople)).toBe(toDrizzle(people));

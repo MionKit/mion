@@ -21,7 +21,6 @@ import type {
   InferInsertModel,
   InferSelectModel,
   InferSelectViewModel,
-  InferUpdateModel,
   KeyFlagsOf,
   RefinedTable,
 } from '@mionjs/drizzle-orm';
@@ -233,7 +232,7 @@ export type NarrowPins = [
   Expect<Equal<typeof users, Users>>,
   Expect<Equal<InferSelectModel<Users>, UsersSelectBefore>>,
   Expect<Equal<InferInsertModel<Users>, UsersInsertBefore>>,
-  Expect<Equal<InferUpdateModel<Users>, UsersUpdateBefore>>,
+  Expect<Equal<Partial<InferInsertModel<Users>>, UsersUpdateBefore>>,
 ];
 
 // ── mode and config pick the data type ───────────────────────────────────────
@@ -324,7 +323,7 @@ export type EveryPins = [
   Expect<Equal<typeof every, Every>>,
   Expect<Equal<InferSelectModel<Every>, EverySelectBefore>>,
   Expect<Equal<InferInsertModel<Every>, EveryInsertBefore>>,
-  Expect<Equal<InferUpdateModel<Every>, EveryUpdateBefore>>,
+  Expect<Equal<Partial<InferInsertModel<Every>>, EveryUpdateBefore>>,
 ];
 
 // ── wide vocabulary: sqlite's own modifiers, runtime callbacks and generated columns ──
@@ -367,7 +366,7 @@ export type WidePins = [
   Expect<Equal<typeof wide, Wide>>,
   Expect<Equal<InferSelectModel<Wide>, WideSelectBefore>>,
   Expect<Equal<InferInsertModel<Wide>, WideInsertBefore>>,
-  Expect<Equal<InferUpdateModel<Wide>, WideUpdateBefore>>,
+  Expect<Equal<Partial<InferInsertModel<Wide>>, WideUpdateBefore>>,
   // A runtime default and an update callback make the column optional on insert; a generated one leaves it out.
   Expect<Equal<undefined extends InferInsertModel<Wide>['slug'] ? true : false, true>>,
   Expect<Equal<undefined extends InferInsertModel<Wide>['touched'] ? true : false, true>>,
@@ -567,7 +566,7 @@ const cfApi = refineTableType(cfNotes, {title: {minLength: 3}});
 const dzCfNotes = toDrizzle(cfApi);
 type CfNote = InferSelectModel<typeof cfApi>;
 type NewCfNote = InferInsertModel<typeof cfApi>;
-type CfNotePatch = InferUpdateModel<typeof cfApi>;
+type CfNotePatch = Partial<InferInsertModel<typeof cfApi>>;
 declare const newCfNote: NewCfNote;
 declare const cfNotePatch: CfNotePatch;
 
@@ -646,7 +645,7 @@ export type ViewNotSelectModel = InferSelectModel<typeof activeView>;
 // @ts-expect-error a view has no insert model
 export type ViewNotInsertModel = InferInsertModel<typeof activeView>;
 // @ts-expect-error a view has no update model
-export type ViewNotUpdateModel = InferUpdateModel<typeof activeView>;
+export type ViewNotUpdateModel = Partial<InferInsertModel<typeof activeView>>;
 
 // ── the slim <-> drizzle boundary ────────────────────────────────────────────
 // toDrizzle keeps every format tag and nominal brand, so a queried row is its model.
@@ -660,7 +659,7 @@ export const boundaryApi = refineTableType(boundaryUsers, {name: {minLength: 10}
 export const boundaryQuery = sqliteDb.select().from(toDrizzle(boundaryApi));
 declare const boundaryRows: Awaited<typeof boundaryQuery>;
 declare const newBoundary: InferInsertModel<typeof boundaryApi>;
-declare const boundaryPatch: InferUpdateModel<typeof boundaryApi>;
+declare const boundaryPatch: Partial<InferInsertModel<typeof boundaryApi>>;
 export const rowIntoModel: InferSelectModel<typeof boundaryApi> = boundaryRows[0] as (typeof boundaryRows)[number];
 export const rowsIntoModel: InferSelectModel<typeof boundaryApi>[] = boundaryRows;
 export const insertFromModel = sqliteDb.insert(toDrizzle(boundaryApi)).values([newBoundary, newBoundary]);

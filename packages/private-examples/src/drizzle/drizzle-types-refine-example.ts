@@ -1,10 +1,6 @@
 import * as DZ from '@mionjs/drizzle-orm-pg-core';
 import {refineTableType} from '@mionjs/drizzle-orm';
-import type {
-  InferInsertModel,
-  InferSelectModel,
-  InferUpdateModel,
-} from '@mionjs/drizzle-orm';
+import type {InferInsertModel, InferSelectModel} from '@mionjs/drizzle-orm';
 import {
   createJsonDecoderFn,
   createJsonEncoderFn,
@@ -33,7 +29,7 @@ export const apiUsers = refineTableType(users, {
 
 export type User = InferSelectModel<typeof apiUsers>; // name: String<{maxLength: 100, minLength: 10}>
 export type NewUser = InferInsertModel<typeof apiUsers>; // id and createdAt optional (DB defaults)
-export type UserPatch = InferUpdateModel<typeof apiUsers>; // any subset of the insert payload
+export type UserPatch = Partial<InferInsertModel<typeof apiUsers>>; // any subset of the insert payload
 
 export const validateUser = createValidateFn<User>();
 export const mockUser = createMockDataFn<User>(); // realistic rows that pass validateUser

@@ -23,23 +23,23 @@
             {
               "step": 3,
               "label": "Infer* models",
-              "delta": 605,
+              "delta": 545,
               "budget": 605
             },
             {
               "step": 4,
               "label": "mion route api",
-              "delta": 514,
+              "delta": 500,
               "budget": 525
             },
             {
               "step": 5,
               "label": "initClient",
-              "delta": 3044,
+              "delta": 3065,
               "budget": 3179
             }
           ],
-          "total": 6129
+          "total": 6076
         },
         {
           "name": "type-only",
@@ -136,23 +136,23 @@
             {
               "step": 3,
               "label": "Infer* models",
-              "delta": 605,
+              "delta": 545,
               "budget": 605
             },
             {
               "step": 4,
               "label": "mion route api",
-              "delta": 514,
+              "delta": 500,
               "budget": 525
             },
             {
               "step": 5,
               "label": "initClient",
-              "delta": 3044,
+              "delta": 3065,
               "budget": 3179
             }
           ],
-          "total": 6145
+          "total": 6092
         },
         {
           "name": "type-only",
@@ -249,23 +249,23 @@
             {
               "step": 3,
               "label": "Infer* models",
-              "delta": 605,
+              "delta": 545,
               "budget": 605
             },
             {
               "step": 4,
               "label": "mion route api",
-              "delta": 513,
+              "delta": 499,
               "budget": 524
             },
             {
               "step": 5,
               "label": "initClient",
-              "delta": 3044,
+              "delta": 3065,
               "budget": 3179
             }
           ],
-          "total": 6144
+          "total": 6091
         },
         {
           "name": "type-only",
