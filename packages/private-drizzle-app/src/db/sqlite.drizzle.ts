@@ -3,7 +3,7 @@ import {gt, relations, sql} from 'drizzle-orm';
 import {blob, integer, sqliteTable, sqliteView, text} from 'drizzle-orm/sqlite-core';
 import {answer} from './fakeDriver.ts';
 
-// SQLite on plain drizzle: the same tables as sqlite.builders.ts, every type from drizzle.
+// Plain drizzle twin of sqlite.builders.ts: every type comes from drizzle.
 
 export const usersDb = sqliteTable('users', {
   id: text('id').primaryKey(),

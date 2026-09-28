@@ -3,7 +3,7 @@ import {gt, relations, sql} from 'drizzle-orm';
 import {bigint, boolean, integer, pgTable, pgView, text, timestamp, uuid, varchar} from 'drizzle-orm/pg-core';
 import {answer} from './fakeDriver.ts';
 
-// Postgres on plain drizzle: the same tables as pg.builders.ts, every type from drizzle.
+// Plain drizzle twin of pg.builders.ts: every type comes from drizzle.
 
 export const usersDb = pgTable('users', {
   id: uuid('id').defaultRandom().primaryKey(),

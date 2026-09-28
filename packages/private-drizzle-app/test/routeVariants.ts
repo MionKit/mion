@@ -1,5 +1,4 @@
-// A dialect's three route files are ONE set of routes: types and drizzle are the builders file with other imports,
-// and drizzle also leaves every return type to drizzle.
+// Types and drizzle route files are the builders file with the db file and name swapped; drizzle also drops return types.
 
 import * as ts from 'typescript';
 
@@ -10,7 +9,7 @@ export const VARIANTS: Variant[] = ['drizzle', 'types', 'builders'];
 
 const cap = (text: string) => text[0].toUpperCase() + text.slice(1);
 
-// each variant keeps its tables, drizzle handles and model types in ONE file
+// One file per variant holds its tables, drizzle handles and model types.
 export const dbFileOf = (dialect: Dialect, variant: Variant) => `../db/${dialect}.${variant}.ts`;
 
 export const routesName = (dialect: Dialect, variant: Variant) => `${dialect}${cap(variant)}Routes`;
@@ -40,9 +39,8 @@ export function deriveVariant(buildersSource: string, dialect: Dialect, variant:
   return variant === 'drizzle' ? dropUnusedTypeImports(stripReturnTypes(swapped)) : swapped;
 }
 
-/** Drops `import type` names the rest of the file no longer uses. */
 function dropUnusedTypeImports(source: string): string {
-  return source.replace(/^import type \{([^}]*)\} from ('[^']+');$/m, (_line, names: string, from: string) => {
+  return source.replace(/^import type \{([^}]*)\} from ('[^']+');$/gm, (_line, names: string, from: string) => {
     const rest = source.replace(_line, '');
     const used = names
       .split(',')

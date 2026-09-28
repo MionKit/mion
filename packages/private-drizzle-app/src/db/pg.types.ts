@@ -1,4 +1,4 @@
-// Postgres, tables written as types: the same schema as pg.builders.ts, in one file.
+// Postgres tables written as types, the same schema as pg.builders.ts.
 import * as DZ from '@mionjs/drizzle-orm-pg-core';
 import {sql} from '@mionjs/drizzle-orm';
 import type {InferInsertModel, InferSelectModel, InferSelectViewModel, InferUpdateModel} from '@mionjs/drizzle-orm';
@@ -41,7 +41,7 @@ export type PostsTable = DZ.PgTable<
 export const users = DZ.tableFromType<UsersTable>();
 export const posts = DZ.tableFromType<PostsTable>();
 
-// a view has no type form: it stays a builder, over the type-form table
+// A view has no type form: it stays a builder.
 export const adultUsers = DZ.pgView('adult_users', {
   id: DZ.uuid('id', {notNull: true}),
   name: DZ.varchar('name', {length: 100, notNull: true}),
@@ -54,16 +54,15 @@ export type UserPatch = InferUpdateModel<UsersTable>;
 export type Post = InferSelectModel<PostsTable>;
 export type NewPost = InferInsertModel<PostsTable>;
 export type PostPatch = InferUpdateModel<PostsTable>;
-// a view built from a query builder has no slim model: its row type is written by hand
+// A query-builder view has no slim model, so its row type is written by hand.
 export type BusyAuthor = Pick<Post, 'authorId' | 'views'>;
 export type AdultUser = InferSelectViewModel<typeof adultUsers>;
-
-// The query side.
 
 export const usersDb = toDrizzle<UsersTable>();
 export const postsDb = toDrizzle<PostsTable>();
 export const adultUsersDb = toDrizzle(adultUsers);
 
+// Query-builder views stay on drizzle (DRZ001).
 export const busyAuthorsDb = pgView('busy_authors').as((qb) =>
   qb.select({authorId: postsDb.authorId, views: postsDb.views}).from(postsDb).where(gt(postsDb.views, 100))
 );
