@@ -17,12 +17,25 @@
 // file inside the marker package's own test program: cross-file wrapper sites
 // are currently NOT resolved inside the marker package's self-referential
 // program, while every consumer-shaped program resolves them fine.
-import {afterAll, beforeAll, describe, expect, it} from 'vitest';
+import {afterAll, beforeAll, describe, expect, it, vi} from 'vitest';
 import os from 'node:os';
 import path from 'node:path';
 import fs from 'node:fs';
 import runtypesRollup from '../src/runtypes/rollup.ts';
 import {BIN, hasBinary, writeMarkerPackage} from './helpers/inline.ts';
+
+// Records every text-gate call while keeping the real verdict.
+const gateCalls: {text: string; file: string | undefined}[] = [];
+vi.mock('../src/core/markerImports.ts', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../src/core/markerImports.ts')>();
+  return {
+    ...original,
+    mayHoldMarkerCalls: (...args: Parameters<typeof original.mayHoldMarkerCalls>) => {
+      gateCalls.push({text: args[0], file: args[1]});
+      return original.mayHoldMarkerCalls(...args);
+    },
+  };
+});
 
 const FIXTURE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-wrapper-zero-config-'));
 const WRAPPER = path.join(FIXTURE_DIR, 'wrapper.ts');
@@ -128,6 +141,27 @@ describe('zero-config wrapper-framework transform gating', () => {
       // null and the source ships untouched.
       const wrapperResult = await callHook(plugin.transform, ctx, WRAPPER_SRC, WRAPPER);
       expect(wrapperResult, 'wrapper forward must stay untouched (pass-through)').toBeNull();
+    } finally {
+      try {
+        await callHook(plugin.buildEnd, ctx);
+      } catch {
+        // best-effort teardown
+      }
+    }
+  });
+
+  // A file outside the site set reaches the resolver only through the text
+  // fallback, which must be the linter's own gate so the two admit the same files.
+  register('a file outside the site set is gated by the shared marker-import check', async () => {
+    const plugin = makePlugin();
+    try {
+      await callHook(plugin.buildStart, ctx);
+      gateCalls.length = 0;
+      await callHook(plugin.transform, ctx, CONSUMER_SRC, PLAIN);
+      expect(gateCalls).toEqual([{text: CONSUMER_SRC, file: PLAIN}]);
+      gateCalls.length = 0;
+      await callHook(plugin.transform, ctx, CONSUMER_SRC, CONSUMER);
+      expect(gateCalls, 'a site-set file never needs the text gate').toEqual([]);
     } finally {
       try {
         await callHook(plugin.buildEnd, ctx);

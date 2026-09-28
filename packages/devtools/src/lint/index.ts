@@ -98,19 +98,18 @@ export function sessionOptions(settings: Record<string, unknown> | undefined): L
 function diagnosticRule(
   ruleName: RuleName,
   description: string,
-  gate: (text: string, options: LintSessionOptions) => boolean
+  gate: (text: string, file: string, options: LintSessionOptions) => boolean
 ): RuleModule {
   return {
     meta: {type: 'problem', docs: {description}},
     create(context: RuleContext) {
       const text = context.sourceCode.text;
-      // Settings are read BEFORE the gate: the marker pre-filter matches import specifiers, so it needs the
-      // project's configured marker packages or it skips files whose markers come from elsewhere.
+      // The marker pre-filter needs the configured marker packages and the file path (it follows imports).
       const options = sessionOptions(context.settings);
-      if (!gate(text, options)) return {};
       const file = context.physicalFilename ?? context.filename ?? '';
       // Skip unnamed/virtual buffers: the resolver needs a real path to relativize and to read imports from disk.
       if (!file || file.startsWith('<')) return {};
+      if (!gate(text, file, options)) return {};
       const session = sharedSession();
       if (!engineErrorClaims.has(file)) engineErrorClaims.set(file, ruleName);
       return {
@@ -152,7 +151,7 @@ function buildRules(namespace: RuleSpec['namespace']): Record<string, RuleModule
         spec.description,
         spec.gate === 'enrichment'
           ? (text: string) => looksLikeEnrichmentFile(text)
-          : (text: string, options: LintSessionOptions) => needsResolverPass(text, options.markers)
+          : (text: string, file: string, options: LintSessionOptions) => needsResolverPass(text, file, options.markers)
       ),
     ])
   );
