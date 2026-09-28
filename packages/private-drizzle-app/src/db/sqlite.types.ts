@@ -1,6 +1,6 @@
 // SQLite tables written as types, the same schema as sqlite.builders.ts.
 import * as DZ from '@mionjs/drizzle-orm-sqlite-core';
-import {sql} from '@mionjs/drizzle-orm';
+import {sql, type TableRef} from '@mionjs/drizzle-orm';
 import type {InferInsertModel, InferSelectModel, InferSelectViewModel, InferUpdateModel} from '@mionjs/drizzle-orm';
 import {drizzle} from 'drizzle-orm/sqlite-proxy';
 import {gt, relations} from 'drizzle-orm';
@@ -28,7 +28,7 @@ export type PostsTable = DZ.SqliteTable<
   'posts',
   {
     id: DZ.Text<{primaryKey: true}>;
-    authorId: DZ.Text<{notNull: true; references: [{table: 'users'; column: 'id'}]}>;
+    authorId: DZ.Text<{notNull: true; references: [TableRef<UsersTable, 'id'>]}>;
     title: DZ.Text<{length: 200; notNull: true}>;
     tags: DZ.Text<{mode: 'json'; $type: [string[]]; notNull: true}>;
     views: DZ.Integer<{notNull: true; default: [0]}>;
