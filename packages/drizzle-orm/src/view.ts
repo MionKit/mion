@@ -5,12 +5,11 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Slim VIEW core, the read-only sibling of table.ts. Covers drizzle's manual-column view form only
-// (`pgView(name, columns).as(sql)` / `.existing()`, plus each dialect's pre-terminal chain); the
-// `pgView(name).as(qb => ...)` form's columns come from drizzle's select typing, the exact generic
-// chain the slim design removes, so those stay declared with drizzle over toDrizzle() tables
-// (packages/drizzle-orm/CLAUDE.md). A view is select-only: InferSelectViewModel accepts one,
-// InferInsertModel does not.
+// Slim VIEW core, the read-only sibling of table.ts. Covers only drizzle's manual-column form
+// (`pgView(name, columns).as(sql)` / `.existing()`, plus each dialect's pre-terminal chain);
+// `pgView(name).as(qb => ...)` takes its columns from drizzle's select typing, the generic chain slim removes,
+// so it stays on drizzle over toDrizzle() tables (packages/drizzle-orm/CLAUDE.md).
+// Select-only: InferSelectViewModel accepts a view, InferInsertModel does not.
 
 import type {BuildViewFn, DrizzleContext} from './types.ts';
 import {mapReplayArgs, RtColumnRecorder, rtViewKey} from './recorder.ts';
