@@ -117,8 +117,7 @@ func TestUnsafeKeys_DeclaredUnsafeNameDropsTheMemberEveryFamily(t *testing.T) {
 	}
 }
 
-// removeUnknownKeys drops a declared `__proto__` too: copying it into the clone's object literal would set the
-// clone's PROTOTYPE from the input, so a JSON `{"__proto__": {...}}` could plant inherited values.
+// Copied into the clone's literal, a JSON `{"__proto__": {...}}` would set its PROTOTYPE and plant inherited values.
 func TestUnsafeKeys_RemoveUnknownKeysDropsDeclaredUnsafeName(t *testing.T) {
 	out, sink := renderWithDiag(t, bigintProp("__proto__", false), "removeUnknownKeys", "obj")
 	if memberIsTouched(out, "__proto__") {

@@ -128,7 +128,7 @@ func emitObjectRemoveUnknownKeys(rt *reflection.RunType, ctx *EmitContext, v str
 			ctx.EmitDiagnosticSlot(SlotStaticDropped, memberLabel(resolved))
 			continue
 		}
-		// Writing `__proto__` into the clone's literal would set its prototype from the input, so it drops like everywhere else.
+		// Writing `__proto__` into the clone's literal would set its prototype from the input.
 		if reflection.IsUnsafePropertyName(resolved.Name) {
 			ctx.EmitDiagnosticSlot(SlotUnsafeNamePropDropped, resolved.Name)
 			continue
@@ -145,8 +145,7 @@ func emitObjectRemoveUnknownKeys(rt *reflection.RunType, ctx *EmitContext, v str
 				ctx.EmitDiagnosticSlot(SlotMethodDropped, memberLabel(resolved))
 				continue
 			}
-			// An object-literal method is an own function-valued prop. Declared members are NEVER dropped:
-			// the clone keeps it, shared by reference since functions cannot be rebuilt, and the build says so.
+			// An object-literal method is an own prop: the clone keeps it by reference, whatever the slot's name says.
 			ctx.EmitDiagnosticSlot(SlotFunctionPropDropped, memberLabel(resolved))
 			accessor := propertyAccessor(v, resolved.Name, resolved.IsSafeName)
 			props = append(props, safePropEmit{
@@ -175,9 +174,7 @@ func emitObjectRemoveUnknownKeys(rt *reflection.RunType, ctx *EmitContext, v str
 			continue
 		}
 		accessor := propertyAccessor(v, resolved.Name, resolved.IsSafeName)
-		// Declared members are NEVER dropped, only UNDECLARED keys are: that is the strip guarantee.
-		// A declared value the emitter cannot rebuild is kept and shared by REFERENCE, with a build
-		// advisory naming the member, the value-level analogue of the JSON families' DataOnly drop.
+		// A declared value the emitter cannot rebuild is kept by REFERENCE with an advisory, not dropped as DataOnly does.
 		if slot, opaque := opaqueValueSlot(propResolved); opaque {
 			ctx.EmitDiagnosticSlot(slot, memberLabel(resolved))
 			props = append(props, safePropEmit{
