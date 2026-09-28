@@ -9,8 +9,7 @@ import {
 } from '../core/go-generated/runtypes-constants.generated.ts';
 import {mayHoldMarkerCalls, type MarkerGateOptions} from '../core/markerImports.ts';
 
-// referencesMarkerModule gates the compiler-diagnostics pass: only files that can hold marker call sites go to
-// the resolver. It is the build fallback's own gate, so lint and build admit the same files.
+// Gates the compiler-diagnostics pass with the build fallback's own gate, so lint and build admit the same files.
 export function referencesMarkerModule(text: string, file?: string, markers?: MarkerGateOptions): boolean {
   return mayHoldMarkerCalls(text, file, markers);
 }
@@ -55,8 +54,7 @@ export function declaresUnsafePropertyName(text: string): boolean {
   return unsafePropertyNamePattern.test(text);
 }
 
-// needsResolverPass is the union gate: one pass per file serves every rule, so a file goes over the wire when
-// ANY family could report on it.
+// One pass per file serves every rule, so a file goes over the wire when any family could report on it.
 export function needsResolverPass(text: string, file?: string, markers?: MarkerGateOptions): boolean {
   return (
     referencesMarkerModule(text, file, markers) ||

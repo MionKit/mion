@@ -150,8 +150,7 @@ describe('zero-config wrapper-framework transform gating', () => {
     }
   });
 
-  // A file outside the site set reaches the resolver only through the text
-  // fallback, which must be the linter's own gate so the two admit the same files.
+  // The text fallback must be the linter's own gate, so both admit the same files.
   register('a file outside the site set is gated by the shared marker-import check', async () => {
     const plugin = makePlugin();
     try {

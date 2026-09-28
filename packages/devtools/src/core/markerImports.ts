@@ -1,8 +1,6 @@
-// The one text gate deciding whether a file can hold marker call sites, shared by the lint pre-filter and the
-// build transform's fallback for files the whole-program scan has not seen, so the two cannot drift. The build's
-// real gate finds marker calls by TYPE; this cheap stand-in also follows imports, because a marker declared by
-// `@mionjs/run-types` reaches a file through any package or local module that wraps it (a drizzle dialect's
-// `tableFromType<T>()`), and that file never names the marker package.
+// Cheap text gate for files that may hold marker calls, shared by the lint pre-filter and the build fallback for
+// files the type scan has not seen, so the two cannot drift. It follows imports: a package or local module wrapping
+// a marker (a drizzle dialect's `tableFromType<T>()`) hands it to files that never name the marker package.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -14,18 +12,17 @@ export interface MarkerGateOptions {
   checkPackage?: boolean;
 }
 
-// Matches the specifier of a static import/export, a side-effect import, a dynamic import and a require.
+// Static, side-effect and dynamic import specifiers, plus require() ones.
 const specifierPattern = /(?:\bfrom\s*|\bimport\s*|\bimport\s*\(\s*|\brequire\s*\(\s*)(['"])([^'"\n]+)\1/g;
 
-// Local wrapper files are followed one import deep; a wrapper of a wrapper is not seen.
+// Local imports are followed one level only: a wrapper of a wrapper is missed.
 const LOCAL_EXTENSIONS = ['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs'];
 
 const packageVerdicts = new Map<string, boolean>();
 const packageJsonLookups = new Map<string, string>();
 const localVerdicts = new Map<string, {mtimeMs: number; verdict: boolean}>();
 
-// mayHoldMarkerCalls: false only when the file cannot hold a marker call. With checkPackage:false a marker can be
-// declared anywhere, so every file passes.
+// With checkPackage:false a marker can be declared anywhere, so every file passes.
 export function mayHoldMarkerCalls(text: string, file: string | undefined, markers?: MarkerGateOptions): boolean {
   if (markers?.checkPackage === false) return true;
   const modules = markerModules(markers);
@@ -46,9 +43,8 @@ function markerModules(markers?: MarkerGateOptions): string[] {
   return [DEFAULT_MARKER_MODULE, ...(markers?.packages ?? [])];
 }
 
-// Matched only as a quoted specifier, so a path mentioned in a comment never forces a scan. `registerPureFn` is
-// probed apart because the marker package's own sources call it through relative imports, and it is a substring
-// of `registerPureFnFactory`, so one probe covers both.
+// Quoted only, so a path in a comment never forces a scan.
+// `registerPureFn` catches the marker package's own sources (relative imports) and `registerPureFnFactory` too.
 function namesMarkerModule(text: string, modules: string[]): boolean {
   return modules.some((mod) => text.includes(`'${mod}`) || text.includes(`"${mod}`)) || text.includes('registerPureFn');
 }
@@ -61,8 +57,7 @@ function importSpecifiers(text: string): Set<string> {
 
 const isRelative = (specifier: string): boolean => specifier.startsWith('./') || specifier.startsWith('../');
 
-// A direct check only: the file names a marker module or imports a package that depends on one, never its own
-// relative imports.
+// Skips relative imports, which keeps local wrappers one level deep.
 function directlyMayHoldMarkers(text: string, fromDir: string, modules: string[]): boolean {
   if (namesMarkerModule(text, modules)) return true;
   for (const specifier of importSpecifiers(text)) {
@@ -87,8 +82,7 @@ function localFileMayHoldMarkers(fromDir: string, specifier: string, modules: st
   return verdict;
 }
 
-// Resolves the way a bundler does for TS sources: as written, with an extension added, a `.js` specifier naming its
-// `.ts` source, or a directory's index file. tsconfig `paths` aliases are not followed.
+// Bundler-style TS resolution (a `.js` specifier may name its `.ts` source); tsconfig `paths` are not followed.
 function resolveLocalFile(base: string): {file: string; mtimeMs: number} | undefined {
   const withoutJs = base.replace(/\.([mc]?)jsx?$/, '');
   const candidates = [
@@ -115,8 +109,7 @@ function packageName(specifier: string): string | undefined {
   return parts[0] || undefined;
 }
 
-// A package qualifies when it is a marker module itself or lists one in dependencies, peerDependencies or
-// optionalDependencies: its typings can then hand a marker parameter to the importing file.
+// A package depending on a marker module can hand a marker parameter to its importer through its typings.
 function packageDependsOnMarkers(fromDir: string, specifier: string, modules: string[]): boolean {
   const name = packageName(specifier);
   if (!name) return false;
@@ -138,9 +131,8 @@ function packageDependsOnMarkers(fromDir: string, specifier: string, modules: st
   return verdict;
 }
 
-// Walks up the dirs the way Node resolves a bare specifier: a `node_modules/<name>` entry (a pnpm symlink is read
-// through), or a package importing itself by its own name. A miss is not cached, so a package installed
-// mid-session is seen on the next lint.
+// Node-style walk up (pnpm symlinks read through), also matching a package importing itself by name.
+// A miss is not cached, so a package installed mid-session is seen on the next lint.
 function findPackageJson(fromDir: string, name: string): string | undefined {
   const lookupKey = `${fromDir}\0${name}`;
   const cached = packageJsonLookups.get(lookupKey);

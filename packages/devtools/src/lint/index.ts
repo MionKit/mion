@@ -104,7 +104,7 @@ function diagnosticRule(
     meta: {type: 'problem', docs: {description}},
     create(context: RuleContext) {
       const text = context.sourceCode.text;
-      // The marker pre-filter needs the configured marker packages and the file path (it follows imports).
+      // The pre-filter follows imports: it needs the marker settings and the file path.
       const options = sessionOptions(context.settings);
       const file = context.physicalFilename ?? context.filename ?? '';
       // Skip unnamed/virtual buffers: the resolver needs a real path to relativize and to read imports from disk.

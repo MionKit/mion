@@ -1,10 +1,5 @@
-// Shared fixture plumbing for the lint-plugin suite. Unlike the inline
-// helpers (which overlay every source over one long-lived process), the lint
-// session resolves a file's IMPORTS from disk — only the linted file itself
-// rides the setSources overlay — so these fixtures are real temp projects:
-// a directory with the real built `@mionjs/run-types` installed (the marker
-// scanner's package.json gate needs the real layout) plus the files under
-// test.
+// The lint session reads a file's imports from disk (only the linted file rides the setSources overlay), so
+// these fixtures are real temp projects with the built `@mionjs/run-types` where the package.json gate finds it.
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -40,8 +35,6 @@ export interface FixtureProject {
   cleanup(): void;
 }
 
-// makeFixtureProject creates a temp project with the real marker package
-// installed and the given files written.
 export function makeFixtureProject(files: Record<string, string> = {}): FixtureProject {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-lint-'));
   const installPackage = (name: string, dts: string): void => {
@@ -51,8 +44,7 @@ export function makeFixtureProject(files: Record<string, string> = {}): FixtureP
     fs.writeFileSync(path.join(pkgDir, 'index.d.ts'), dts);
   };
   writeMarkerPackage(dir);
-  // The mion route rules read these two; a route fixture resolves against them
-  // exactly as a consumer project would.
+  // The mion route rules read these two.
   installPackage('router', FIXTURE_ROUTER_DTS);
   installPackage('core', FIXTURE_CORE_DTS);
   const project: FixtureProject = {
