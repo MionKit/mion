@@ -347,3 +347,39 @@ describe.runIf(ready)('oxlint tsconfig resolution end to end (settings.runtypes.
     }
   );
 });
+
+// The tsconfig `downgradeErrors` reaches the linter, so a code lowered for the build is a warning in the editor too.
+describe.runIf(ready)('oxlint end to end with the tsconfig downgradeErrors key', () => {
+  let project: FixtureProject;
+
+  beforeAll(() => {
+    project = makeFixtureProject({
+      'tsconfig.json': JSON.stringify({compilerOptions: {strict: true, plugins: [{name: 'mion', downgradeErrors: ['VL002']}]}}),
+      'symbol.ts':
+        "import {createValidateFn, getRunTypeId} from '@mionjs/run-types';\n\n" +
+        'export const isSymbol = createValidateFn<symbol>();\n' +
+        'export const idStatic = getRunTypeId<{name: string}>();\n' +
+        "const sample = {name: 'Ada'};\n" +
+        'export const idReflected = getRunTypeId(sample);\n',
+      '.oxlintrc.json': JSON.stringify({
+        categories: {correctness: 'off'},
+        jsPlugins: [PLUGIN_DIST],
+        rules: {'runtypes/validate-non-serializable': 'error', 'runtypes/downgraded-error': 'warn'},
+        ignorePatterns: ['node_modules/**'],
+      }),
+    });
+  });
+
+  afterAll(() => project.cleanup());
+
+  it('reports a tsconfig-lowered VL002 as a downgraded warning, like the build', {timeout: 120_000}, async () => {
+    const {stdout, exitCode} = await execFileAsync(OXLINT, ['-c', '.oxlintrc.json', '.'], {cwd: project.dir}).then(
+      ({stdout}) => ({stdout, exitCode: 0}),
+      (error: {stdout?: string; code?: number}) => ({stdout: error.stdout ?? '', exitCode: error.code ?? 1})
+    );
+    expect(stdout).toContain('runtypes(downgraded-error)');
+    expect(stdout).toMatch(/\[VL002\].*\(downgraded\)/);
+    expect(stdout).not.toContain('runtypes(validate-non-serializable)');
+    expect(exitCode).toBe(0);
+  });
+});

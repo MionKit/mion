@@ -382,7 +382,7 @@ export interface Response {
   // trigger a regenerate too
   batchSourceRoots?: string[];
   routerInitFiles?: string[];
-  // Echo of the tsconfig plugin's downgradeErrors on `generate`, absent when the tsconfig sets none, so a
+  // Echo of the tsconfig plugin's downgradeErrors on `generate` and `scanFiles`, absent when the tsconfig sets none, so a
   // dependency-free host can honor a tsconfig-only setting: the plugin's own option wins, then this echo,
   // then nothing downgraded. Either a list of codes or the single wildcard entry '*'.
   downgradeErrors?: string[];

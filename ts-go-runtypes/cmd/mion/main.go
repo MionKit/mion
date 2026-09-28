@@ -499,10 +499,12 @@ func runServe(args []string) {
 	// Only the on-disk project mode merges the tsconfig plugin block; the
 	// overlay modes (stdin/ops) have no on-disk build options to honor.
 	cfg := resolveSharedConfig(fs, s, "", *sources == "project")
-	// The linter's ops mode still takes `levels`: it only decides what is shown, so the editor follows the tsconfig.
+	// The linter's ops mode still takes `levels` and `downgradeErrors`: both decide only how a finding is shown,
+	// so the editor follows the tsconfig like the build does.
 	if *sources == "ops" {
 		if plugin, found := resolveBuildPlugin(cfg.absCwd, cfg.tsconfigPath); found {
 			cfg.opts.TsconfigLevels = plugin.Levels
+			cfg.opts.TsconfigDowngradeErrors = plugin.DowngradeErrors
 		}
 	}
 

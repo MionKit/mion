@@ -9,6 +9,7 @@
 // warning, and rules take no per-rule options.
 
 import {createRequire} from 'node:module';
+import {isDowngraded, NONE, resolveDowngradeErrors, type DowngradeSet} from '../core/downgradeErrors.ts';
 import {isShown, LEVELS_ALL} from '../core/levels.ts';
 import {routeDiagnostic, RULE_SPECS, type RuleName, type RuleSpec} from './diagnosticRouting.ts';
 import {looksLikeEnrichmentFile, needsResolverPass} from './prefilter.ts';
@@ -72,6 +73,20 @@ function lintShowInfo(options: LintSessionOptions, tsconfigLevels: string | unde
   return false;
 }
 
+// lintDowngrade resolves the tsconfig `downgradeErrors` echo; a bad value warns once, since the build fails on it.
+function lintDowngrade(value: string[] | undefined): DowngradeSet {
+  try {
+    return resolveDowngradeErrors(value);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (!warnedKeys.has(message)) {
+      warnedKeys.add(message);
+      console.warn(message);
+    }
+    return NONE;
+  }
+}
+
 // sessionOptions pulls the plugin's knobs from `settings.runtypes`. LINT_SETTING_KEYS (session-protocol.ts)
 // names the whole contract. The working directory is deliberately NOT configurable, so a `cwd` or `socket` here
 // is ignored loudly: a silently dropped key reads as working configuration (it once left the e2e fixture
@@ -123,9 +138,10 @@ function diagnosticRule(
             return;
           }
           const showInfo = lintShowInfo(options, outcome.levels);
+          const downgrade = lintDowngrade(outcome.downgradeErrors);
           for (const diagnostic of outcome.diagnostics) {
             if (!isShown(diagnostic, showInfo)) continue;
-            const report = routeDiagnostic(diagnostic);
+            const report = routeDiagnostic(isDowngraded(downgrade, diagnostic) ? {...diagnostic, downgraded: true} : diagnostic);
             if (report.ruleName !== ruleName) continue;
             context.report({message: report.message, loc: report.loc});
           }

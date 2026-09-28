@@ -256,6 +256,8 @@ export interface ScanFilesResult {
   metrics?: Metrics;
   // Echo of the tsconfig plugin's `levels`; the linter's own setting wins.
   levels?: string;
+  // Echo of the tsconfig plugin's `downgradeErrors`, so the linter lowers the same codes the build does.
+  downgradeErrors?: string[];
 }
 
 // TransformFilesResult is what transform() returns: one TransformResult per requested file, keyed by file path.
@@ -365,6 +367,7 @@ abstract class ResolverClientBase implements ResolverConnection {
       batchSites: resp.batchSites,
       metrics: resp.metrics,
       levels: resp.levels,
+      downgradeErrors: resp.downgradeErrors,
     };
   }
 
