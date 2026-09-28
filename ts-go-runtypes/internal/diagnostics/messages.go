@@ -452,6 +452,10 @@ var messagesByCode = map[string]message{
 		Headline: "Method `{0}` is not copied onto the clone's own properties: methods ride the prototype.",
 		Detail:   "For a plain class instance the clone preserves the PROTOTYPE\n(`Object.create(Object.getPrototypeOf(v))`), so methods keep working via the\nprototype chain; they are simply not copied as own properties. For object\nliterals a method-typed member is omitted like any function value.",
 	},
+	"RUK013": {
+		Headline: "Symbol-keyed property `{0}` is not copied onto the clone: `removeUnknownKeys` rebuilds string keys only.",
+		Detail:   "Symbol keys aren't data, the same rule the JSON families follow. The clone\ncopies the declared string keys and leaves the symbol key out.\n\nFix: use a string key:\n  -  [Symbol.for('id')]: string;\n+  id: string;",
+	},
 	"RUK015": {
 		Headline: "Property `{0}` has a value type `removeUnknownKeys` cannot rebuild (symbol, Promise, or a non-serialisable built-in): it is kept on the clone, SHARED BY REFERENCE.",
 		Detail:   "Declared members are never dropped (only UNDECLARED keys are; that is the\nstrip guarantee). A value the emitter cannot rebuild passes through by\nreference instead: the clone's property points at the SAME handle as the\ninput's, so mutations through it are visible on both sides. Register\n`overrideRemoveUnknownKeys<T>()` if this type needs custom copying.",

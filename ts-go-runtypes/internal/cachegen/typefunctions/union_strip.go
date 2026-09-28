@@ -48,6 +48,10 @@ func strippedPropertyDrop(resolved *reflection.RunType, name string, ctx *EmitCo
 		ctx.EmitDiagnosticSlot(SlotUnsafeNamePropDropped, name)
 		return true
 	}
+	if reflection.IsSymbolKeyedName(name) {
+		ctx.EmitDiagnosticSlot(SlotSymbolKeyedDropped, reflection.SymbolKeyLabel(name))
+		return true
+	}
 	if !isStrippedUnionMember(resolved) {
 		return false
 	}

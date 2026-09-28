@@ -88,8 +88,8 @@ type RunType struct {
 	Literal any `json:"literal,omitempty"`
 
 	// TypeProperty / TypePropertySignature / TypeMethod / TypeMethodSignature / TypeParameter / TypeEnumMember.
-	// A name is `string | number | symbol` in the model but only ever emitted as a string: a symbol-named
-	// property gets a synthetic "@@<name>" plus Flags=["symbol"].
+	// A name is `string | number | symbol` in the model but only ever emitted as a string: a symbol-keyed
+	// property keeps tsgo's `\xFE@<name>` spelling (see IsSymbolKeyedName).
 	Name string `json:"name,omitempty"`
 
 	// TypeProperty / TypePropertySignature / TypeParameter etc.

@@ -62,7 +62,7 @@ var printerDispositionByField = map[string]string{
 	"Optional": "printed: member `?` / RT.optional / propMod / the schema `required` inversion",
 	"Readonly": "printed: the readonly modifier / propMod / tsReadonly",
 	"Literal":  "printed: literalValueText behind const/enum/RT.literal and literal types",
-	"Flags":    "printed: rest and bigint discriminate spellings; symbol-keyed names refuse (isSymbolKeyedName)",
+	"Flags":    "printed: rest and bigint discriminate spellings; symbol-keyed names refuse (reflection.IsSymbolKeyedName)",
 
 	// Recursed slots.
 	"Child":        "printed: array element / promise payload / member value, recursed",

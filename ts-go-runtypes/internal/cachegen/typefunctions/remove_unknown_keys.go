@@ -128,6 +128,11 @@ func emitObjectRemoveUnknownKeys(rt *reflection.RunType, ctx *EmitContext, v str
 			ctx.EmitDiagnosticSlot(SlotStaticDropped, memberLabel(resolved))
 			continue
 		}
+		// The clone rebuilds string keys only; reading tsgo's `\xFE@` spelling would add a bogus key.
+		if reflection.IsSymbolKeyedName(resolved.Name) {
+			ctx.EmitDiagnosticSlot(SlotSymbolKeyedDropped, reflection.SymbolKeyLabel(resolved.Name))
+			continue
+		}
 		if isFunctionLikeKind(resolved.Kind) {
 			if asClass {
 				// Class methods live on the SHARED PROTOTYPE, so they keep working without an own prop;

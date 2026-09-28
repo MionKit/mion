@@ -141,6 +141,7 @@ const (
 	CodeRUKFunctionPropDropped     = "RUK010"
 	CodeRUKMethodDropped           = "RUK011"
 	CodeRUKStaticDropped           = "RUK012"
+	CodeRUKSymbolKeyedDropped      = "RUK013"
 	CodeRUKNonSerializablePropDrop = "RUK015"
 )
 
@@ -187,7 +188,7 @@ func init() {
 		CodePJFunctionPropDropped, CodePJMethodDropped, CodePJStaticDropped, CodePJSymbolKeyedDropped, CodePJUnionMemberDropped, CodePJNonSerializablePropDrop,
 		CodePJSFunctionPropDropped, CodePJSMethodDropped, CodePJSStaticDropped, CodePJSSymbolKeyedDropped, CodePJSUnionMemberDropped, CodePJSNonSerializablePropDrop,
 		CodeRJFunctionPropDropped, CodeRJMethodDropped, CodeRJStaticDropped, CodeRJSymbolKeyedDropped, CodeRJUnionMemberDropped, CodeRJNonSerializablePropDrop,
-		CodeRUKMethodDropped, CodeRUKStaticDropped,
+		CodeRUKMethodDropped, CodeRUKStaticDropped, CodeRUKSymbolKeyedDropped,
 	} {
 		register(Definition{Code: code, Family: FamilyRunType, Level: LevelInfo, Scope: ScopeGraph, Title: "RunType child-position member dropped"})
 	}
