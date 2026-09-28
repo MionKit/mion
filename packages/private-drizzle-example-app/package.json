@@ -1,5 +1,5 @@
 {
-  "name": "@mionjs/drizzle-app",
+  "name": "@mionjs/drizzle-example-app",
   "version": "0.12.2",
   "private": true,
   "type": "module",

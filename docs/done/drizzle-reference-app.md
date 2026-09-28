@@ -16,7 +16,7 @@ types, so a route returning a query result lost its formats.
 
 ## What shipped
 
-- **`packages/private-drizzle-app/`** (`@mionjs/drizzle-app`, private), in the normal suite (`drizzle-app`
+- **`packages/private-drizzle-example-app/`** (`@mionjs/drizzle-example-app`, private), in the normal suite (`drizzle-app`
   vitest project, `mion-rest` batch, a heavy project). No database and nothing new installed: queries run
   through drizzle's own proxy drivers (`pg-proxy`, `mysql-proxy`, `sqlite-proxy`) answered by a fake driver
   that hands back queued raw rows, in the shape a real driver sends them.
@@ -37,7 +37,7 @@ types, so a route returning a query result lost its formats.
     foreign keys), as drizzle-kit reads them.
   - `test/cost.compile.test.ts`: per route, the type cost of the server file and of a client file, split into
     params (the route with only its params) and return (the rest: query and return type). Writes
-    `reports/drizzle-app.{md,json}`.
+    `reports/drizzle-example-app.{md,json}`.
 - **The format question, decided: `toDrizzle` rows keep their formats.** `SynthConfig` now sets
   `data: ValueOf<P, D>`; `PlainDataOf` is deleted. A queried row IS its slim model (`maxLength`, `UUID`,
   `Int32`, `RTDate` included), so a route can return it with no cast and the client validates it. Cost went
@@ -59,7 +59,7 @@ a drizzle-typed route has none (plain drizzle types carry no formats), so its cl
 name. The builders files show what a user writes by hand when a route may not return drizzle types: a
 `Pick<User, ...>` per partial select, one model per joined table, `User & {posts: Post[]}` for relations.
 
-Type cost across the 12 routes (`reports/drizzle-app.md` has every route, params and return apart):
+Type cost across the 12 routes (`reports/drizzle-example-app.md` has every route, params and return apart):
 
 | Dialect | Client: drizzle / types / builders | Server: drizzle / types / builders |
 | ---- | ----: | ----: |

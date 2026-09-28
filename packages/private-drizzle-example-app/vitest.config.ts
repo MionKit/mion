@@ -15,7 +15,7 @@ export default defineConfig({
     }),
   ],
   test: {
-    name: 'drizzle-app',
+    name: 'drizzle-example-app',
     globals: true,
     environment: 'node',
     include: ['test/**/*.spec.ts', 'test/**/*.test.ts'],

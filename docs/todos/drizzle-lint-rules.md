@@ -14,7 +14,7 @@ drizzle apart, so people and coding agents always know which one to use.
 
 1. **A route never takes or returns a drizzle type.** A route's params and return type are reflected
    and reach the client, and every client file that calls it pays for them. Measured in
-   `packages/private-drizzle-app` (its `reports/drizzle-app.md`), per route in a client file:
+   `packages/private-drizzle-example-app` (its `reports/drizzle-example-app.md`), per route in a client file:
    1,000 to 3,900 type instantiations with the slim models, 18,500 to 21,200 with drizzle's types.
    MRT001 / MRT002 already ask for written types; this rule checks where they come from.
 
@@ -50,7 +50,7 @@ The implementer plans the details. What was checked:
 - **Level:** the old todo tied the route rule to the quiet-by-default level being built in its own
   todo; keep that dependency (status blocked until it lands) unless the owner picks a level first.
   Neither rule ever stops the build.
-- **Split the files the rule will flag:** `packages/private-drizzle-app/src/db/*.{builders,types}.ts`
+- **Split the files the rule will flag:** `packages/private-drizzle-example-app/src/db/*.{builders,types}.ts`
   put the slim schema and the `toDrizzle` side in one file; split each into a schema file and a db file
   (the `drizzle` variant files stay whole). Same for every example under
   `packages/private-examples/src/drizzle/` and the docs that import them; `test/routeVariants.ts` and
