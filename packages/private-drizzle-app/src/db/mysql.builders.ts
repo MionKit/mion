@@ -1,4 +1,4 @@
-// MySQL, builder tables: the slim tables, their drizzle tables and every model type, in one file.
+// MySQL on slim builders: tables, drizzle handles and model types, all in one file.
 import * as DZ from '@mionjs/drizzle-orm-mysql-core';
 import {$type, sql, tableRef} from '@mionjs/drizzle-orm';
 import type {InferInsertModel, InferSelectModel, InferSelectViewModel, InferUpdateModel} from '@mionjs/drizzle-orm';
@@ -40,17 +40,15 @@ export type UserPatch = InferUpdateModel<typeof users>;
 export type Post = InferSelectModel<typeof posts>;
 export type NewPost = InferInsertModel<typeof posts>;
 export type PostPatch = InferUpdateModel<typeof posts>;
-// a view built from a query builder has no slim model: its row type is written by hand
+// A query-builder view has no slim model, so its row type is written by hand.
 export type BusyAuthor = Pick<Post, 'authorId' | 'views'>;
 export type AdultUser = InferSelectViewModel<typeof adultUsers>;
-
-// The query side.
 
 export const usersDb = toDrizzle(users);
 export const postsDb = toDrizzle(posts);
 export const adultUsersDb = toDrizzle(adultUsers);
 
-// a view built from a query builder stays on drizzle (DRZ001), so it lives here
+// Query-builder views stay on drizzle (DRZ001).
 export const busyAuthorsDb = mysqlView('busy_authors').as((qb) =>
   qb.select({authorId: postsDb.authorId, views: postsDb.views}).from(postsDb).where(gt(postsDb.views, 100))
 );

@@ -3,7 +3,7 @@ import {gt, relations, sql} from 'drizzle-orm';
 import {bigint, boolean, int, json, mysqlTable, mysqlView, timestamp, varchar} from 'drizzle-orm/mysql-core';
 import {answer} from './fakeDriver.ts';
 
-// MySQL on plain drizzle: the same tables as mysql.builders.ts, every type from drizzle.
+// Plain drizzle twin of mysql.builders.ts: every type comes from drizzle.
 
 export const usersDb = mysqlTable('users', {
   id: varchar('id', {length: 36}).primaryKey(),
