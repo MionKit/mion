@@ -177,7 +177,7 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
 
   // The documented consumer layout: a symlinked node_modules/@mionjs/devtools and a config that only `extends` the preset.
   // The preset's jsPlugins path must resolve relative to the preset file, and every rule runs at its RULE_SPECS default.
-  // JSON output: oxlint picks its GitHub annotation format on CI, so plain text reads differently there.
+  // JSON output: oxlint prints GitHub annotations on CI, so plain text differs there.
   interface OxlintDiagnostic {
     message: string;
     code: string;

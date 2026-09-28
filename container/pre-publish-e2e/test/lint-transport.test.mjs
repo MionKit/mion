@@ -2,8 +2,8 @@
 // source and prove the published RunTypes lint transport
 // (@mionjs/devtools/{oxlint,eslint}) is wired and surfaces an RT diagnostic.
 // The TRANSPORT is under test, not the diagnostic catalog — the caveat's
-// non-serializable member reliably drives a VL0xx from the resolver, an Info both
-// configs show with `levels: 'all'`.
+// non-serializable member reliably drives a VL0xx Info from the resolver, shown by
+// both configs' `levels: 'all'`.
 //
 // oxlint rides build-vite; eslint rides smoke-esbuild — both published linters.
 import {test} from 'node:test';
