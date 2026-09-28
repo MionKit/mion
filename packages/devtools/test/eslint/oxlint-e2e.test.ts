@@ -229,19 +229,25 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
     // The Info-level VL011 method drop is hidden by default.
     expect(diagnostics.some((diagnostic) => diagnostic.message.includes('[VL011]'))).toBe(false);
     // A `@mion-downgrade-error` line reports as a WARNING under downgraded-error, like the build prints it.
-    const lowered = diagnostics.filter((diagnostic) => diagnostic.filename === 'lowered.ts');
-    expect(lowered).toHaveLength(1);
-    expect(lowered[0]).toMatchObject({code: 'runtypes(downgraded-error)', severity: 'warning'});
-    expect(lowered[0]!.labels[0]!.span.line).toBe(4);
-    expect(lowered[0]!.message).toMatch(/^\[VL002\] .*\(downgraded\)$/);
+    expect(diagnostics.filter((diagnostic) => diagnostic.filename === 'lowered.ts')).toEqual([
+      expect.objectContaining({
+        code: 'runtypes(downgraded-error)',
+        severity: 'warning',
+        labels: [expect.objectContaining({span: expect.objectContaining({line: 4})})],
+        message: expect.stringMatching(/^\[VL002\] .*\(downgraded\)$/),
+      }),
+    ]);
   });
 
   it("the preset plus settings.runtypes.levels: 'all' shows Info findings at warn", {timeout: 120_000}, async () => {
     const {diagnostics, stdout} = await runPreset('.oxlintrc.extends-all.json', {runtypes: {levels: 'all'}});
-    const widget = diagnostics.filter((diagnostic) => diagnostic.filename === 'widget.ts');
-    expect(widget).toHaveLength(1);
-    expect(widget[0]).toMatchObject({code: 'runtypes(validate-skipped-member)', severity: 'warning'});
-    expect(widget[0]!.message).toContain('[VL011]');
+    expect(diagnostics.filter((diagnostic) => diagnostic.filename === 'widget.ts')).toEqual([
+      expect.objectContaining({
+        code: 'runtypes(validate-skipped-member)',
+        severity: 'warning',
+        message: expect.stringContaining('[VL011]'),
+      }),
+    ]);
     expect(stdout).not.toContain('resolver failed');
   });
 });

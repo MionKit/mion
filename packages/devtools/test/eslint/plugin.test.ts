@@ -405,13 +405,15 @@ describe.runIf(hasBinary())(
       });
 
       it("surfaces RunType render diagnostics (VL011 method drop) under runtypes/validate-skipped-member with levels: 'all'", () => {
-        const reports = runRule(rules['validate-skipped-member'], abs.get('widget.ts')!, texts['widget.ts']!, {
+        const reports = runRule(rules['validate-skipped-member'], abs.get('widget.ts') as string, texts['widget.ts'] as string, {
           runtypes: {levels: 'all'},
         });
-        expect(reports).toHaveLength(1);
-        expect(reports[0]!.message).toContain('[VL011]');
-        expect(reports[0]!.message).toContain('onClick');
-        expect(reports[0]!.line).toBe(locate(WIDGET_TS, 'createValidateFn<Widget>()').line);
+        expect(reports).toEqual([
+          expect.objectContaining({
+            message: expect.stringMatching(/\[VL011\].*onClick/),
+            line: locate(WIDGET_TS, 'createValidateFn<Widget>()').line,
+          }),
+        ]);
       });
 
       it('reports a JS-only-pattern sample mismatch as FMT001 under runtypes/format at the definition site', () => {
