@@ -229,7 +229,8 @@ func runEnrichScaffold(srcArg, typeName string, mock, friendly bool, out string,
 
 	// Check flag: report the target mirrors' health, write nothing.
 	if checkOnly {
-		os.Exit(reportEnrichDiagnostics(checkMirrorFilesDiagnostics(mirrorPaths, config.Parsed, config.HashLength), asJSON, requireComplete))
+		diags := checkMirrorFilesDiagnostics(mirrorPaths, config.Parsed, config.HashLength)
+		os.Exit(reportEnrichDiagnostics(diags, asJSON, requireComplete, mustTsconfigShowInfo(tsconfigPath)))
 	}
 
 	// Write lane: migrate any pre-split combined mirror (CLI-only disk pre-step),
