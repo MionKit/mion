@@ -217,13 +217,15 @@ func (directive Directive) unusedCode() string {
 }
 
 // PassScope says what the pass that produced a diagnostic list could report, so a check only runs
-// where its answer is real. Two things vary per pass:
+// where its answer is real. Three things vary per pass:
 //
 //   - WHICH FILES it looked at. A directive in a file this pass never read was given no chance to
 //     silence anything and must not be judged.
 //   - WHICH FAMILIES it could raise. Enrichment and mion-route are opt-in per request and the
 //     whole-program build pass never asks for them, so judging a `@mion-expect-error MRT002` there
 //     would demand deleting a comment the editor's lint pass needs.
+//   - WHICH CODES of those families it could raise (Lacks against each code's Raised): a per-file
+//     scan never sees a whole-program code like BAT003.
 //
 // EXP002 / EXP003 read the comment text alone and need only Files; EXP001 also needs Families,
 // because "this silenced nothing" holds only if the pass could raise what the directive names.
@@ -237,6 +239,9 @@ type PassScope struct {
 	// Families the pass could raise. A directive is judged unused only when
 	// every family it could cover is in here; the bare form covers all of them.
 	Families map[Family]bool
+	// Lacks is the conditions this pass does not meet, so a code whose Raised needs one of them is never
+	// judged here (a per-file scan cannot see BAT003, the linter runs with the bundleApi lane off).
+	Lacks Raised
 }
 
 // sawFile reports whether the pass examined path.
@@ -248,8 +253,10 @@ func (scope PassScope) sawFile(path string) bool {
 // covers, which is what makes "it silenced nothing" a fact rather than a guess.
 func (scope PassScope) canJudge(directive Directive) bool {
 	if len(directive.Codes) == 0 {
-		// The bare form covers every family, so only a pass that raised them all
-		// can call it unused.
+		// The bare form covers every code, so only a pass that can raise them all can call it unused.
+		if scope.Lacks != 0 {
+			return false
+		}
 		for _, family := range allFamilies {
 			if !scope.Families[family] {
 				return false
@@ -258,7 +265,8 @@ func (scope PassScope) canJudge(directive Directive) bool {
 		return true
 	}
 	for _, code := range directive.Codes {
-		if !scope.Families[Definitions[code].Family] {
+		definition := Definitions[code]
+		if !scope.Families[definition.Family] || definition.Raised&scope.Lacks != 0 {
 			return false
 		}
 	}
