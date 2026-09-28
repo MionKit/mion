@@ -221,8 +221,7 @@ func TestDataOnlyUnion_ObjectMemberStrippedProp(t *testing.T) {
 	}
 }
 
-// A dropped property inside a union member reports the same code a plain object would: …015 for a
-// non-function value (`Date | {b: symbol}`), …010 only for a function value.
+// A dropped union-member property gets the strippedPropertyDrop code: …015 for a non-function value, …010 for a function.
 func TestDataOnlyUnion_ObjectMemberDropCodeMatchesValueKind(t *testing.T) {
 	cases := []struct {
 		name  string

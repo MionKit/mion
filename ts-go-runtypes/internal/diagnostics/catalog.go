@@ -166,15 +166,9 @@ type Diagnostic struct {
 	Downgraded bool `json:"downgraded,omitempty"`
 }
 
-// Definition is the catalog entry for one diagnostic code. Headline is the one line every tool
-// prints, authored in messages.go (`{0}`, `{1}` substitute against Diagnostic.Args). Summary, Fix and
-// Example are the website text, authored in prose.go: Summary is the one plain-language explanation,
-// mandatory for every code; Fix an optional corrected snippet; Example source that triggers the code.
-// Both files fold onto the Definition at init and `miondevx core codegen diag` exports them, so Go
-// stays the single source of every message while the wire carries only code + args.
-//
-// Example is more than docs: internal/compiler/resolver/diag_examples_test.go feeds every non-empty
-// Example through the real scan and asserts this code fires, so an example cannot drift from its code.
+// Definition is one code's catalog entry; messages.go folds on Headline, prose.go the website text (Summary mandatory).
+// `{0}`, `{1}` in Headline substitute against Diagnostic.Args, so the wire carries only code + args.
+// internal/compiler/resolver/diag_examples_test.go asserts every non-empty Example really fires this code.
 type Definition struct {
 	Code   string
 	Family Family

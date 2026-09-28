@@ -280,11 +280,8 @@ func TestFamilyClassifier_Attribution(t *testing.T) {
 	}
 }
 
-// TestScanDirtyTags_StringLiteralsNeverFire pins the comment-anchoring of the
-// hygiene scan: tag patterns embedded in STRING data — exactly what the
-// generated diagnostic catalog ships, since its messages describe the tags —
-// are not carcasses, and the marker emit form inside a string does not make
-// the file an enrichment mirror.
+// TestScanDirtyTags_StringLiteralsNeverFire: the generated catalog's headlines name the tags inside strings,
+// and a tag or marker inside a string is neither a carcass nor makes the file a mirror.
 func TestScanDirtyTags_StringLiteralsNeverFire(t *testing.T) {
 	catalogLike := "export const DIAG = {\n" +
 		"  FT021: {headline: 'example:\\n/* " + OrphanTag + " export const gone = {}; */\\nrun mion enrich --prune'},\n" +

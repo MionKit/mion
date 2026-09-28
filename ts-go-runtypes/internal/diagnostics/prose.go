@@ -1,19 +1,9 @@
 package diagnostics
 
-// Website text for the All Diagnostics page, keyed by code: the one plain-language Summary (what
-// triggers the code, what it means, how to fix it), an optional Fix snippet and an Example that
-// triggers the code. The gen-diag-catalog dump exports all three, so
-// scripts/core/gen-diagnostics-catalog.mjs renders the page without a second text source.
-//
-// Example is not just docs: internal/compiler/resolver/diag_examples_test.go feeds every non-empty
-// Example through the real scan and asserts the code fires, so one cannot drift from what it
-// demonstrates. Author it as a complete file: the `mion` import, the type, and the marker call.
-//
-// Voice rules (this renders on the website): plain language, no compiler internals, no dashes
-// chaining clauses. Backtick spans in Summary become inline code, wider examples go in Fix.
-//
-// A prose entry for an unregistered code panics at init; every registered code needs a Summary
-// (TestEveryCodeHasSummary pins it).
+// Website text for the All Diagnostics page: every code needs a Summary (what triggers it, what it means,
+// the fix); an entry for an unregistered code panics at init. internal/compiler/resolver/diag_examples_test.go
+// asserts each Example fires its code, so write it as a complete file: `mion` import, type, marker call.
+// Voice: plain language, no internals, no dashes chaining clauses; backticks render as code, wider examples go in Fix.
 
 type prose struct {
 	Summary string
