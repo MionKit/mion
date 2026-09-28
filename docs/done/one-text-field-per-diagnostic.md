@@ -96,3 +96,7 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
   function property; VL010 / VE010 fire for an optional function property, now their Example; the
   orphan codes (FT021 / FT022 / MD021 / MD022) name the build plugin's dev sync as well as the CLI.
   The unread `title` left the catalog dump.
+- Checking the UPN001 promise ("left out of every generated function") against the code found two gaps,
+  each fixed with its own commit and test: the union merge path never dropped a `__proto__` member,
+  and removeUnknownKeys copied a declared `__proto__` into the clone's object literal, which set the
+  clone's prototype from the input.
