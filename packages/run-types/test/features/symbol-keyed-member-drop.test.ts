@@ -40,7 +40,7 @@ describe('symbol-keyed member drop', () => {
 
   test('removeUnknownKeys keeps the data members and adds no key of its own', () => {
     const strip = createRemoveUnknownKeysFn<Tagged>();
-    const clean = strip({name: 'a', [tag]: 'x', extra: 1} as Tagged) as Record<string, unknown>;
+    const clean = strip({name: 'a', [tag]: 'x', extra: 1} as Tagged);
     expect(Object.keys(clean)).toEqual(['name']);
   });
 
