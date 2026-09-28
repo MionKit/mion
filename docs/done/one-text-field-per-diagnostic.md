@@ -85,7 +85,14 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
   never dropped from a union).
 - Two related code fixes, each with its own commit and test:
   - A non-function property dropped from a union member reported the function code (…010); it now
-    reports …015 like a plain object does (`union_flat_layout.go`).
-  - 18 PJ / PJS / RJ headlines named internal cache families (`prepareForJsonClone`,
-    `restoreFromJsonMutate`); they now say "the JSON encoder" / "the JSON decoder", and
-    `TestHeadlinesNameNoInternalJsonFamily` keeps them out.
+    reports …015 through `strippedValueDrop`, the value half of `strippedPropertyDrop` that both paths
+    share. `TestDataOnlyUnion_ObjectMemberStrippedProp` pins the code (and the absence of the other one)
+    for every JSON family and removeUnknownKeys, at the root and one object deeper.
+  - 18 PJ / PJS / RJ headlines named internal cache families (`prepareForJson`, `prepareForJsonClone`,
+    `restoreFromJsonMutate`); they no longer do. The 010 / 014 / 015 headlines say "the JSON encoder" /
+    "the JSON decoder", the 011 / 012 / 013 ones drop the name. `TestHeadlinesNameNoInternalJsonFamily`
+    keeps family names out.
+- The review corrected more texts against the code: PJ / PJS / RJ 003 name …011 for a required
+  function property; VL010 / VE010 fire for an optional function property, now their Example; the
+  orphan codes (FT021 / FT022 / MD021 / MD022) name the build plugin's dev sync as well as the CLI.
+  The unread `title` left the catalog dump.
