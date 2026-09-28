@@ -13,11 +13,15 @@ A mion route should return the mion model types (`InferSelectModel<Users>` from 
 or a hand-written table's models), never drizzle's own types. A route's return type is reflected
 and reaches the client, and every client file that calls the route pays for that type.
 
-Measured in `packages/private-drizzle-app` (its `reports/drizzle-app.md`), per pg route, in the client file:
+Measured in `packages/private-drizzle-app` (its `reports/drizzle-app.md`): the same 12 routes per dialect,
+typed three ways. Type instantiations in a client file that calls one route:
 
-- return type written with the mion models: 1,100 to 3,700 type instantiations;
-- written with drizzle's `$inferSelect` types: 3,000 to 8,700;
-- not written, inferred from the drizzle query: 13,600 to 20,100 (MRT001 already asks for the type).
+- params and return type written with the slim models: 1,000 to 3,900 (type-form tables the lowest);
+- params typed with drizzle's types, return type inferred by drizzle: 18,500 to 21,200, and 100,000 to
+  288,000 for a route that runs a transaction;
+- across the 12 routes: about 24,000 (type form) and 36,000 (builders) against 319,000 to 508,000 (drizzle).
+
+MRT001 already asks every route for a return type, so the rule only has to catch drizzle types written into it.
 
 `toDrizzle` rows now keep their column formats, so a queried row IS the mion model: the rule is only
 about cost, never about lost formats. It is a warning that points at the cheaper type.
