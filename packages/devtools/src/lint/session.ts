@@ -17,7 +17,7 @@ import {WAKE_INDEX, type LintSessionOptions, type LintWorkerRequest, type LintWo
 export type {LintSessionOptions} from './session-protocol.ts';
 
 // LintOutcome is one file's result: the wire diagnostics, or the reason the engine could not answer.
-export type LintOutcome = {diagnostics: Diagnostic[]; levels?: string} | {engineError: string};
+export type LintOutcome = {diagnostics: Diagnostic[]; levels?: string; downgradeErrors?: string[]} | {engineError: string};
 
 const DEFAULT_TIMEOUT_MS = 60_000;
 const CACHE_CAP = 256;
@@ -124,7 +124,8 @@ export class LintSession {
         if (received.message.fatal) this.dead = engineError;
         return {engineError};
       }
-      return {diagnostics: received.message.diagnostics ?? [], levels: received.message.levels};
+      const {diagnostics = [], levels, downgradeErrors} = received.message;
+      return {diagnostics, levels, downgradeErrors};
     }
   }
 

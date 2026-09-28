@@ -15,6 +15,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/resolver"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
@@ -221,5 +223,22 @@ export const idReflected = getRunTypeId(sample);
 		if contains(codes, unused) {
 			t.Errorf("both directives did their job, so neither is unused; got %v", codes)
 		}
+	}
+}
+
+// TestScanFiles_EchoesTheTsconfigDowngradeErrors: the linter has no generate call, so scanFiles carries the
+// tsconfig `downgradeErrors` for it to lower the same codes the build does.
+func TestScanFiles_EchoesTheTsconfigDowngradeErrors(t *testing.T) {
+	session := setupInlineWith(t, map[string]string{"entry.ts": vl002Source}, func(programOpts *program.Options, resolverOpts *resolver.Options) {
+		programOpts.SingleThreaded = true
+		resolverOpts.SingleThreaded = true
+		resolverOpts.TsconfigDowngradeErrors = []string{diagnostics.CodeVLSymbolRoot}
+	})
+	response := session.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"entry.ts"}, IncludeRtDiagnostics: true})
+	if response.Error != "" {
+		t.Fatalf("scanFiles: %s", response.Error)
+	}
+	if len(response.DowngradeErrors) != 1 || response.DowngradeErrors[0] != diagnostics.CodeVLSymbolRoot {
+		t.Fatalf("scanFiles must echo the tsconfig downgradeErrors, got %v", response.DowngradeErrors)
 	}
 }
