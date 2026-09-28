@@ -33,6 +33,8 @@ types, so a route returning a query result lost its formats.
   - `test/fullStack.spec.ts`: client, real HTTP (platform-node), route, fake database and back, for every
     route of every variant in every dialect (120 tests), and the three variants must send the same SQL.
   - `test/type-pins.stub.ts`: builder and type-form tables give every route the same params and answers.
+  - `test/schemaForms.spec.ts`: the three files of a dialect build the same drizzle tables (columns, keys,
+    foreign keys), as drizzle-kit reads them.
   - `test/cost.compile.test.ts`: per route, the type cost of the server file and of a client file, split into
     params (the route with only its params) and return (the rest: query and return type). Writes
     `reports/drizzle-app.{md,json}`.
@@ -66,11 +68,13 @@ Type cost across the 12 routes (`reports/drizzle-app.md` has every route, params
 | sqlite | 507,610 / 23,662 / 35,770 | 495,657 / 450,991 / 482,290 |
 
 - Per route, a drizzle-typed client costs 4.8 to 11 times the builders one and 6.5 to 18 times the type-form
-  one (1,000 to 3,900 against 18,500 to 21,200); with a transaction, up to 166 times.
+  one (1,000 to 3,900 against 18,500 to 21,200).
 - Params alone: drizzle's `$inferInsert` costs about 8,500, the type-form model 2,500, the builder model 3,500.
 - On the server the three are close (the query dominates); type-form tables are the cheapest.
-- A route that runs a transaction costs 100,000 (pg) to 288,000 (mysql, sqlite) on the server in every
-  variant: drizzle's `transaction` typing, not ours. With a written return type the client does not pay it.
+- The transaction route costs 100,000 (pg) to 288,000 (mysql, sqlite) when measured alone. That is
+  drizzle's `transaction` typing on a `db` with a relations schema, and it is paid ONCE per program (on pg about
+  85,000 the first time, under 500 for each later transaction), so it is not a per-route cost. A written
+  return type keeps it off the client.
 
 ## Findings
 
@@ -78,8 +82,9 @@ Type cost across the 12 routes (`reports/drizzle-app.md` has every route, params
 - **Inferred return types are the real cost.** A client calling a route whose return type drizzle infers
   re-checks the query: at least 4.8 times the type work of a route typed with the slim models. The MRT001 lint
   rule already asks every route for a return type; the lint-rule todo now carries these numbers.
-- **drizzle's `transaction` is the most expensive type in the app** (up to 288,000 per route). Nothing to fix
-  on our side; a written return type keeps it off the client.
+- **drizzle's `transaction` is the most expensive type in the app**, paid once per program. Nothing to fix
+  on our side; a written return type keeps it off the client. The cost test builds each route alone, so its
+  transaction row shows that one-time cost.
 - **`row as Note` casts** in the Cloudflare storage test server and example existed only to restore
   formats. Removed.
 - **Transactions:** drizzle's `pg-proxy` and `mysql-proxy` drivers refuse them, so the transaction route only

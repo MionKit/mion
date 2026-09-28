@@ -17,8 +17,8 @@ Measured in `packages/private-drizzle-app` (its `reports/drizzle-app.md`): the s
 typed three ways. Type instantiations in a client file that calls one route:
 
 - params and return type written with the slim models: 1,000 to 3,900 (type-form tables the lowest);
-- params typed with drizzle's types, return type inferred by drizzle: 18,500 to 21,200, and 100,000 to
-  288,000 for a route that runs a transaction;
+- params typed with drizzle's types, return type inferred by drizzle: 18,500 to 21,200 (a transaction adds a
+  one-time 85,000 or more to the first client file that reaches one);
 - across the 12 routes: about 24,000 (type form) and 36,000 (builders) against 319,000 to 508,000 (drizzle).
 
 MRT001 already asks every route for a return type, so the rule only has to catch drizzle types written into it.
