@@ -64,7 +64,8 @@ Type cost across the 12 routes (`reports/drizzle-app.md` has every route, params
 | mysql | 501,419 / 23,713 / 36,311 | 490,188 / 461,737 / 493,759 |
 | sqlite | 507,610 / 24,082 / 36,295 | 495,657 / 450,995 / 482,294 |
 
-- A client pays 5 to 10 times less per route with the slim models (1,000 to 3,900 against 18,500 to 21,200).
+- Per route, a drizzle-typed client costs 4.8 to 11 times the builders one and 6.5 to 18 times the type-form
+  one (1,000 to 3,900 against 18,500 to 21,200); with a transaction, up to 166 times.
 - Params alone: drizzle's `$inferInsert` costs about 8,500, the type-form model 2,500, the builder model 3,500.
 - On the server the three are close (the query dominates); type-form tables are the cheapest.
 - A route that runs a transaction costs 100,000 (pg) to 288,000 (mysql, sqlite) on the server in every
@@ -74,7 +75,7 @@ Type cost across the 12 routes (`reports/drizzle-app.md` has every route, params
 
 - **Formats were lost on every query result.** Fixed here (`toDrizzle` keeps them).
 - **Inferred return types are the real cost.** A client calling a route whose return type drizzle infers
-  re-checks the query: 5 to 10 times the type work of a route typed with the slim models. The MRT001 lint
+  re-checks the query: at least 4.8 times the type work of a route typed with the slim models. The MRT001 lint
   rule already asks every route for a return type; the lint-rule todo now carries these numbers.
 - **drizzle's `transaction` is the most expensive type in the app** (up to 288,000 per route). Nothing to fix
   on our side; a written return type keeps it off the client.
