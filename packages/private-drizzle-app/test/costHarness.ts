@@ -1,4 +1,4 @@
-// Type-instantiation cost of each `// case:` section of the app's REAL route files, compiled alone, whole and with only its params.
+// Type-instantiation cost of each `// case:` section of the REAL route files, compiled alone, whole and params only.
 
 import * as ts from 'typescript';
 import {readFileSync} from 'node:fs';
@@ -78,7 +78,7 @@ export function readRouteFile(file: string): {header: string; cases: RouteCase[]
   return {header, cases};
 }
 
-/** The route with its handler reduced to its params, so the params can be measured alone. */
+/** The route reduced to its params, so they can be measured alone. */
 function paramsOnlyOf(body: string): string {
   const file = ts.createSourceFile('case.ts', `({${body}})`, ts.ScriptTarget.Latest, true);
   let result = '';
