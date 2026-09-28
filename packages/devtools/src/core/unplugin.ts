@@ -579,9 +579,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       // with a blank label still runs), so filtering by level silently let the @rtOrphan carcasses
       // through. Downgraded ones stay too — a downgrade lowers a finding, it never hides it; only the
       // halt count below drops them.
-      // Except Info (FT008 advice): it never halts, so it prints only when shown.
-      incomplete = (result.diagnostics ?? []).filter((diagnostic) => diagnostic.level !== Level.Info);
-      surfaceDiagnostics(ctx, result.diagnostics ?? [], (diagnostic) => diagnostic.level === Level.Info, {halt: false, showInfo});
+      incomplete = result.diagnostics ?? [];
     } catch {
       return;
     }
