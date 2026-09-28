@@ -35,6 +35,11 @@ describe('toRunTypesOptions — the mapping both presets share', () => {
     expect(toRunTypesOptions({downgradeErrors: ['VL002']}).downgradeErrors).toEqual(['VL002']);
   });
 
+  it('passes levels through, undefined when unset so a tsconfig-only value still reaches the host', () => {
+    expect(toRunTypesOptions({}).levels).toBeUndefined();
+    expect(toRunTypesOptions({levels: 'all'}).levels).toBe('all');
+  });
+
   it('maps derivedPayloadLimits onto the resolver jsonMaxBytes key, undefined passing through', () => {
     expect(toRunTypesOptions({}).jsonMaxBytes).toBeUndefined();
     expect(toRunTypesOptions({derivedPayloadLimits: false}).jsonMaxBytes).toBe(false);

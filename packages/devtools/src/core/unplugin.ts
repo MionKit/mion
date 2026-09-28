@@ -18,6 +18,7 @@ import {
   NONE,
   type DowngradeSet,
 } from './downgradeErrors.ts';
+import {isShown, LEVELS_ALL, resolveShowInfo} from './levels.ts';
 import {createTypeDepsIndex, depKey} from './type-deps.ts';
 import {warnBelowTypeScriptFloor} from './typescript-floor.ts';
 
@@ -180,6 +181,10 @@ export interface PluginOptions {
   // Pure-fn extraction errors halt regardless, `'*'` included: files-mode has no fallback for a failed
   // generation. HMR updates never hard-fail mid-edit either way; the halt re-applies on the next run.
   downgradeErrors?: string[] | typeof DOWNGRADE_ALL;
+  // Which diagnostic levels are printed. Unset hides Info findings (a method a validator skips, a validator on a
+  // written `any`, advice); `'all'` prints them too. Never changes what halts: an Info never halts. Also a
+  // tsconfig plugin key, which this option overrides.
+  levels?: typeof LEVELS_ALL;
   // JS runtime the resolver runs format-pattern checks on (--js-runtime); defaults to this plugin's own
   // process.execPath, so the serve lane needs no configuration. Host-specific like `binary` — no tsconfig key.
   jsRuntime?: string;
@@ -275,6 +280,8 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
   // the generate response (adopted in buildStart below), else nothing downgraded. Seeded from the option
   // alone so the transform lane behaves even if buildStart never ran on this host.
   let downgrade: DowngradeSet = resolveDowngradeErrors(options.downgradeErrors);
+  // Same precedence as downgrade: the option, else the tsconfig echo adopted in buildStart.
+  let showInfo = resolveShowInfo(options.levels);
   // An explicit `false` wins even when a handler is set; a handler with no setting means 'callback'.
   const reportMode: 'file' | 'callback' | false =
     options.pureFnReport ?? (options.onPureFnReport || options.onBatchReport ? 'callback' : false);
@@ -574,7 +581,11 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       // with a blank label still runs), so filtering by level silently let the @rtOrphan carcasses
       // through. Downgraded ones stay too — a downgrade lowers a finding, it never hides it; only the
       // halt count below drops them.
-      incomplete = result.diagnostics ?? [];
+      // Info is the exception: advice (FT008) never halts, so it is printed only when shown.
+      incomplete = (result.diagnostics ?? []).filter((diagnostic) => diagnostic.level !== Level.Info);
+      for (const diagnostic of result.diagnostics ?? []) {
+        if (diagnostic.level === Level.Info && showInfo) ctx.warn?.(formatTscDiagnostic(diagnostic));
+      }
     } catch {
       return;
     }
@@ -718,7 +729,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       const gen = await regenerate();
       for (const file of gen.siteFiles) siteFiles.add(siteKey(file));
       reportGenerate(gen);
-      surfaceDiagnostics(ctx, gen.diagnostics ?? [], () => true, {halt: false, downgrade});
+      surfaceDiagnostics(ctx, gen.diagnostics ?? [], () => true, {halt: false, downgrade, showInfo});
     } catch {
       // A regenerate failure shouldn't tear down the dev server mid-edit.
     }
@@ -845,7 +856,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
 
     // Re-emitted so the editor's problem panel updates as the user types; `halt: false` because HMR
     // shouldn't tear down the dev server on a single bad type mid-edit.
-    surfaceDiagnostics(ctx, result.diagnostics ?? [], () => true, {halt: false, downgrade});
+    surfaceDiagnostics(ctx, result.diagnostics ?? [], () => true, {halt: false, downgrade, showInfo});
 
     const stale = staleSiteFiles(relevant.map((update) => update.file));
     // Reported from the SHARED leaf, so the contract does not depend on which host drove the update.
@@ -917,6 +928,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       // Adopting the echo (under the explicit plugin option) is how a tsconfig-only setting reaches this
       // dependency-free host.
       downgrade = resolveDowngradeErrors(options.downgradeErrors ?? gen.downgradeErrors);
+      showInfo = resolveShowInfo(options.levels ?? gen.levels);
       // A universal hook, so every adapter gets the report; a watch-mode rebuild re-runs buildStart and
       // re-fires 'build' with the fresh one.
       if (reportEnabled && options.onPureFnReport) options.onPureFnReport(gen.pureFnSites ?? [], 'build');
@@ -931,7 +943,11 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       // server. The split is the LEVEL, never the diagnostic family: a fatal marker or batch code is not
       // pure-fn, and a purity violation still ships the compiled body, so it is a RuntimeError.
       surfaceDiagnostics(this, gen.diagnostics ?? [], (d) => d.level === Level.Error, {halt: true});
-      surfaceDiagnostics(this, gen.diagnostics ?? [], (d) => d.level !== Level.Error, {halt: !isDevServer(), downgrade});
+      surfaceDiagnostics(this, gen.diagnostics ?? [], (d) => d.level !== Level.Error, {
+        halt: !isDevServer(),
+        downgrade,
+        showInfo,
+      });
       // Dev/watch WRITES the mirrors up front, a whole-program pass so they exist before the first edit;
       // every other lane (a production build, a non-Vite bundler) takes the read-only drift gate instead.
       if (anyEnrichFamily) {
@@ -1137,11 +1153,11 @@ function surfaceDiagnostics(
   ctx: any,
   diagnostics: Diagnostic[],
   filter: (d: Diagnostic) => boolean,
-  options: {halt: boolean; downgrade?: DowngradeSet}
+  options: {halt: boolean; downgrade?: DowngradeSet; showInfo?: boolean}
 ): void {
   let errorCount = 0;
   for (const diagnostic of diagnostics) {
-    if (!filter(diagnostic)) continue;
+    if (!filter(diagnostic) || !isShown(diagnostic, options.showInfo ?? false)) continue;
     // NONE, not a skip, when no set is configured: a `@mion-downgrade-error` comment lowers its finding
     // whatever the build was configured with.
     const downgraded = isDowngraded(options.downgrade ?? NONE, diagnostic);

@@ -4,7 +4,7 @@
 // self-cleaning, so it is the better tool when the call site is your own source). Only a RuntimeError
 // qualifies: a fatal Error produced no output to carry on with. Severity on the wire is untouched, so
 // the downgrade is applied where the halt decision is made, here for the bundler plugin and in
-// `mion compile` for its exit code, leaving lint rule routing alone.
+// `mion compile` for its exit code; the linter routes a comment-lowered finding to runtypes/downgraded-error.
 // Go twin: ts-go-runtypes/internal/diagnostics/downgrade.go.
 import {DIAGNOSTIC_CATALOG} from './go-generated/diagnosticCatalog.generated.ts';
 import {Level, type Diagnostic} from './protocol.ts';

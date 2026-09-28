@@ -75,7 +75,7 @@ export const c = createJsonEncoderFn<never>(undefined, {strategy: 'mutate'});
     });
   });
 
-  register('emits child-position warning for function-typed property under validate', async () => {
+  register('emits child-position info for function-typed property under validate', async () => {
     // `it` is demand-driven, so seed it via createValidateFn (a reflection-only
     // getRunTypeId would emit no val_ entry and thus no validate diagnostic).
     const sources = {
@@ -91,13 +91,13 @@ export const _ = createValidateFn<User>();
       const diags = runtypeDiagsOf(response);
       const dropped = diags.find((d) => (d.code === 'VL010' || d.code === 'VL011') && d.args?.[0] === 'onClick');
       expect(dropped, JSON.stringify(diags, null, 2)).toBeDefined();
-      expect(dropped!.severity).toBe(Severity.Warning);
+      expect(dropped!.severity).toBe(Severity.Info);
     });
   });
 
-  register('emits union-member-drop warning (VL014) for Date | symbol under validate', async () => {
+  register('emits union-member-drop info (VL014) for Date | symbol under validate', async () => {
     // `Date | symbol` projects to `Date` (DataOnly drops the symbol arm). The
-    // drop is silent at runtime, so the build surfaces a VL014 Warning naming
+    // drop is silent at runtime, so the build surfaces a VL014 Info naming
     // the dropped member — mirroring the function-prop drop (VL010) above.
     const sources = {
       'union-drop.ts': `import {createValidateFn} from '@mionjs/run-types';
@@ -111,14 +111,14 @@ export const _ = createValidateFn<Date | symbol>();
       const diags = runtypeDiagsOf(response);
       const dropped = diags.find((d) => d.code === 'VL014');
       expect(dropped, JSON.stringify(diags, null, 2)).toBeDefined();
-      expect(dropped!.severity).toBe(Severity.Warning);
+      expect(dropped!.severity).toBe(Severity.Info);
       // args[0] names the dropped member so the message can point at it.
       expect(dropped!.args?.[0]).toContain('symbol');
       expect(dropped!.site.filePath).toContain('union-drop.ts');
     });
   });
 
-  register('emits per-family union-drop warnings (PJS014 / RJ014) under JSON encode/decode', async () => {
+  register('emits per-family union-drop info (PJS014 / RJ014) under JSON encode/decode', async () => {
     // Each family reports its own …014 so a build log greps the drop by family; clone seeds pjs, the decoder rj.
     const sources = {
       'union-drop-json.ts': `import {createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
@@ -134,8 +134,8 @@ export const _d = createJsonDecoderFn<Date | symbol>();
       const codes = new Set(drops.map((d) => d.code));
       expect(codes, [...codes].join(',')).toContain('PJS014');
       expect(codes).toContain('RJ014');
-      // Every …014 is a Warning, never an Error.
-      for (const d of drops) expect(d.severity).toBe(Severity.Warning);
+      // Every …014 is Info, never an Error.
+      for (const d of drops) expect(d.severity).toBe(Severity.Info);
     });
   });
 
@@ -187,16 +187,15 @@ export const _ = getRunTypeId<any>();
       });
       const diags = runtypeDiagsOf(response);
       const warning = diags.find((d) => d.code === 'VE020');
-      // VE020 surfaces as Warning (not Info): root any/unknown is an
-      // intentional escape hatch but a validator that accepts every
-      // value is still a UX surprise worth flagging visibly.
+      // VE020 is Info: the author wrote any/unknown, so a validator that
+      // accepts every value is what was asked for; hidden unless levels: 'all'.
       if (warning) {
-        expect(warning.severity).toBe(Severity.Warning);
+        expect(warning.severity).toBe(Severity.Info);
       }
     });
   });
 
-  register('emits VL021 warning diagnostic for validate on root any/unknown', async () => {
+  register('emits VL021 info diagnostic for validate on root any/unknown', async () => {
     // `it` is demand-driven, so seed it via createValidateFn<unknown>() (a
     // reflection-only getRunTypeId would emit no val_ entry, no VL021).
     const sources = {
@@ -214,7 +213,7 @@ export const _ = createValidateFn<unknown>();
       // produces a validator that returns true for every value; surface
       // a warning so the user knows the schema is no longer enforced.
       expect(warning).toBeDefined();
-      expect(warning!.severity).toBe(Severity.Warning);
+      expect(warning!.severity).toBe(Severity.Info);
     });
   });
 
@@ -316,11 +315,11 @@ export const _d = createJsonDecoderFn<[number, symbol]>(undefined, {strategy: 'c
     });
   });
 
-  register('emits a …015 WARNING (not a root error) for a directly-stripped property value (F3)', async () => {
+  register('emits a …015 INFO (not a root error) for a directly-stripped property value (F3)', async () => {
     // `{a: symbol}` / `{a: Promise<number>}` — the property VALUE is directly
     // non-data, so the property is DROPPED and the object still serializes:
     // `DataOnly<{a: symbol; b: number}>` = `{b: number}`. The drop is a …015
-    // child-position Warning, NEVER a root error (the factory does not throw).
+    // child-position Info, NEVER a root error (the factory does not throw).
     // Before the fix the default clone encoder (prepareForJsonSafe) FAILED these
     // outright, and the other families emitted an Error — F3.
     const sources = {
@@ -337,13 +336,13 @@ export const _p = createValidateFn<P>();
         includeEntryModules: true,
       });
       const diags = runtypeDiagsOf(response);
-      // The default clone encoder + validate drop the property with a …015 Warning.
+      // The default clone encoder + validate drop the property with a …015 Info.
       const drops = diags.filter((d) => d.code.endsWith('015'));
       const codes = new Set(drops.map((d) => d.code));
       expect(codes, JSON.stringify(diags, null, 2)).toContain('VL015'); // validate
       expect(codes).toContain('PJS015'); // default clone encoder
       for (const d of drops) {
-        expect(d.severity, `${d.code} should be a Warning`).toBe(Severity.Warning);
+        expect(d.severity, `${d.code} should be Info`).toBe(Severity.Info);
         expect(d.args?.[0]).toBe('a');
       }
       // NO root error may fire — a dropped property serializes fine. (The …002 /
@@ -360,7 +359,7 @@ export const _p = createValidateFn<P>();
     // `{a: symbol[]}` — the property value is only STRUCTURALLY unserialisable
     // (a symbol in a propagating array slot). DataOnly KEEPS it as `never[]`, so
     // it cannot be safely dropped: the family throws at build time with a root
-    // error, and the …015 drop Warning must NOT fire.
+    // error, and the …015 drop Info must NOT fire.
     const sources = {
       'structural-prop.ts': `import {createJsonEncoderFn} from '@mionjs/run-types';
 interface S { a: symbol[]; b: number; }
@@ -410,7 +409,7 @@ export const dec = createJsonDecoderFn<Pet>();
       // across families, and neither family's finding on the other's call.
       expect(identities, `got:\n${JSON.stringify(dropped, null, 2)}`).toEqual(['PJ011@3', 'RJ011@4']);
       for (const diagnostic of dropped) {
-        expect(diagnostic.severity).toBe(Severity.Warning);
+        expect(diagnostic.severity).toBe(Severity.Info);
         expect(diagnostic.args).toEqual(['speak']);
       }
     });

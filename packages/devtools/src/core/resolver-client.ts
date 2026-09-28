@@ -292,6 +292,8 @@ export interface GenerateResult {
   // Echo of the tsconfig plugin's downgradeErrors, absent when the tsconfig sets none.
   // The plugin adopts it as its downgrade set: options.downgradeErrors ?? this ?? nothing.
   downgradeErrors?: string[];
+  // Echo of the tsconfig plugin's `levels`, adopted the same way: options.levels ?? this.
+  levels?: string;
   /** The package's `mion-pure-fns/` directory, path to content; empty when it registers no pure fn. */
   pureFnArtifact: Record<string, string>;
 }
@@ -401,6 +403,7 @@ abstract class ResolverClientBase implements ResolverConnection {
       pureFnSites: resp.pureFnSites,
       batchSites: resp.batchSites,
       downgradeErrors: resp.downgradeErrors,
+      levels: resp.levels,
       pureFnArtifact: resp.pureFnArtifact ?? {},
     };
   }
