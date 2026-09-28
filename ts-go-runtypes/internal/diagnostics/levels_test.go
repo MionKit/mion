@@ -6,8 +6,8 @@ func TestResolveLevels(t *testing.T) {
 	if show, err := ResolveLevels(""); err != nil || show {
 		t.Errorf("unset must hide Info; got show=%v err=%v", show, err)
 	}
-	if show, err := ResolveLevels(LevelsAll); err != nil || !show {
-		t.Errorf("%q must show Info; got show=%v err=%v", LevelsAll, show, err)
+	if show, err := ResolveLevels(levelsAll); err != nil || !show {
+		t.Errorf("%q must show Info; got show=%v err=%v", levelsAll, show, err)
 	}
 	if _, err := ResolveLevels("warning"); err == nil {
 		t.Error("an unknown value must error, a typo would otherwise read as working")
