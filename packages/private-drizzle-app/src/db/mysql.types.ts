@@ -1,6 +1,6 @@
 // MySQL tables written as types, the same schema as mysql.builders.ts.
 import * as DZ from '@mionjs/drizzle-orm-mysql-core';
-import {sql} from '@mionjs/drizzle-orm';
+import {sql, type TableRef} from '@mionjs/drizzle-orm';
 import type {InferInsertModel, InferSelectModel, InferSelectViewModel, InferUpdateModel} from '@mionjs/drizzle-orm';
 import {drizzle} from 'drizzle-orm/mysql-proxy';
 import {gt, relations} from 'drizzle-orm';
@@ -28,7 +28,7 @@ export type PostsTable = DZ.MysqlTable<
   'posts',
   {
     id: DZ.Varchar<{length: 36; primaryKey: true}>;
-    authorId: DZ.Varchar<{length: 36; notNull: true; references: [{table: 'users'; column: 'id'}]}>;
+    authorId: DZ.Varchar<{length: 36; notNull: true; references: [TableRef<UsersTable, 'id'>]}>;
     title: DZ.Varchar<{length: 200; notNull: true}>;
     tags: DZ.Json<{$type: [string[]]; notNull: true}>;
     views: DZ.Int<{notNull: true; default: [0]}>;

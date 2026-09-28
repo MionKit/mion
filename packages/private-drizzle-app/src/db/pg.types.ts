@@ -1,6 +1,6 @@
 // Postgres tables written as types, the same schema as pg.builders.ts.
 import * as DZ from '@mionjs/drizzle-orm-pg-core';
-import {sql} from '@mionjs/drizzle-orm';
+import {sql, type TableRef} from '@mionjs/drizzle-orm';
 import type {InferInsertModel, InferSelectModel, InferSelectViewModel, InferUpdateModel} from '@mionjs/drizzle-orm';
 import {drizzle} from 'drizzle-orm/pg-proxy';
 import {gt, relations} from 'drizzle-orm';
@@ -28,7 +28,7 @@ export type PostsTable = DZ.PgTable<
   'posts',
   {
     id: DZ.Uuid<{defaultRandom: true; primaryKey: true}>;
-    authorId: DZ.Uuid<{notNull: true; references: [{table: 'users'; column: 'id'}]}>;
+    authorId: DZ.Uuid<{notNull: true; references: [TableRef<UsersTable, 'id'>]}>;
     title: DZ.Varchar<{length: 200; notNull: true}>;
     tags: DZ.Text<{array: true; notNull: true}>;
     views: DZ.Integer<{notNull: true; default: [0]}>;
