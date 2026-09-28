@@ -20,20 +20,21 @@ types, so a route returning a query result lost its formats.
   vitest project, `mion-rest` batch, a heavy project). No database and nothing new installed: queries run
   through drizzle's own proxy drivers (`pg-proxy`, `mysql-proxy`, `sqlite-proxy`) answered by a fake driver
   that hands back queued raw rows, in the shape a real driver sends them.
-  - `src/db/`: the pg schema as builder tables, the same schema as type-form tables (`tableFromType`), the
-    same tables on plain drizzle (cost baseline only), plus sqlite and mysql tables for what they store
-    differently.
-  - `src/server/`: one mion router, the pg cases twice (`pg.routes.ts` with no return type written,
-    `pg.typed.routes.ts` with the return type written from the slim models), sqlite and mysql cases.
+  - `src/db/`: the SAME two tables (users, posts) and two views in pg, mysql and sqlite, each three ways:
+    builder tables (`<dialect>.schema.ts` + `<dialect>.db.ts`), tables written as types
+    (`<dialect>.types.schema.ts` + `<dialect>.types.db.ts`) and plain drizzle (`<dialect>.plain.db.ts`).
+  - `src/server/`: the SAME 12 routes in every dialect, three files each. `builders` and `types` write params
+    and return types with the slim models; `drizzle` types the params with drizzle's types and leaves every
+    return type to drizzle. `test/routeFiles.test.ts` proves the three files are one set of routes: types is
+    builders with other imports, drizzle is builders with other imports and the return types removed.
   - `src/client/client.ts`: the consumer, which knows the server only through `AppApi`, with
     `validateServerResponses: true`.
-  - `test/fullStack.spec.ts`: client, real HTTP (platform-node), route, fake database and back, per case,
-    on both pg route styles, plus sqlite and mysql.
-  - `test/typeForm.spec.ts`: the type-form tables run the same SQL and give the same rows as builder tables.
-  - `test/type-pins.stub.ts`: the client's answer type for every case is the same whether drizzle inferred
-    it or it was written by hand; both table forms give the same models.
-  - `test/cost.compile.test.ts`: per-case type cost of the server file and of a client file, both route
-    styles, over builder, type-form and plain drizzle tables. Writes `reports/drizzle-app.{md,json}`.
+  - `test/fullStack.spec.ts`: client, real HTTP (platform-node), route, fake database and back, for every
+    route of every variant in every dialect (120 tests), and the three variants must send the same SQL.
+  - `test/type-pins.stub.ts`: builder and type-form tables give every route the same params and answers.
+  - `test/cost.compile.test.ts`: per route, the type cost of the server file and of a client file, split into
+    params (the route with only its params) and return (the rest: query and return type). Writes
+    `reports/drizzle-app.{md,json}`.
 - **The format question, decided: `toDrizzle` rows keep their formats.** `SynthConfig` now sets
   `data: ValueOf<P, D>`; `PlainDataOf` is deleted. A queried row IS its slim model (`maxLength`, `UUID`,
   `Int32`, `RTDate` included), so a route can return it with no cast and the client validates it. Cost went
@@ -48,47 +49,45 @@ types, so a route returning a query result lost its formats.
 - **Docs:** "Returning Query Results" in `00.drizzle-overview.md` with
   `packages/private-examples/src/drizzle/drizzle-query-routes-example.ts`, and two lines in `02.views.md`.
 
-## Results per case (pg)
+## Results
 
-Formats: kept in every case, on both table forms, since the change above. Hand-written types: none are needed
-to get formats; a return type is still worth writing for cost (MRT001 asks for one anyway). Client cost is
-the type work a client file does to call the route (`reports/drizzle-app.md` has server and client, all lanes).
+Formats: every slim-model route keeps them, in every dialect and on both table forms, since the change above;
+a drizzle-typed route has none (plain drizzle types carry no formats), so its client accepts a 101-character
+name. The builders files show what a user writes by hand when a route may not return drizzle types: a
+`Pick<User, ...>` per partial select, one model per joined table, `User & {posts: Post[]}` for relations.
 
-| Case | Formats kept | Type needed by hand | Client cost, inferred / typed (builders) | Typed, plain drizzle |
-| ---- | ---- | ---- | ----: | ----: |
-| select all | yes | no | 16,587 / 2,575 | 5,070 |
-| partial select | yes | no (`Pick<User, ...>`) | 16,337 / 2,691 | 5,182 |
-| inner join | yes | no | 18,073 / 3,348 | 8,473 |
-| left join | yes | no | 18,788 / 3,281 | 8,406 |
-| aggregate (`count`, `avg`, `sql<number>`) | n/a, no format | no | 16,830 / 1,801 | 2,984 |
-| `insert().returning()` | yes | no | 19,567 / 3,659 | 8,741 |
-| `update().returning({...})` | yes | no | 17,162 / 2,706 | 5,197 |
-| relations (`db.query...with`) | yes | no (same fields as `User & {posts: Post[]}`) | 18,643 / 3,539 | 8,676 |
-| view, explicit columns | yes | no | 17,624 / 1,736 | 5,608 |
-| view from a query builder (DRZ001) | yes | no | 17,907 / 3,156 | 6,628 |
-| mapped / nested shape | yes | no | 18,291 / 2,569 | 5,599 |
+Type cost across the 12 routes (`reports/drizzle-app.md` has every route, params and return apart):
 
-On the server file, builder and type-form tables both cost less than plain drizzle in every case (type-form
-the least). sqlite (integer timestamp and boolean modes, json text, a transaction) and mysql (`$returningId`)
-run the same path and keep their formats.
+| Dialect | Client: drizzle / types / builders | Server: drizzle / types / builders |
+| ---- | ----: | ----: |
+| pg | 318,915 / 23,313 / 36,337 | 306,759 / 270,246 / 302,444 |
+| mysql | 501,419 / 23,713 / 36,311 | 490,188 / 461,737 / 493,759 |
+| sqlite | 507,610 / 24,082 / 36,295 | 495,657 / 450,995 / 482,294 |
+
+- A client pays 5 to 10 times less per route with the slim models (1,000 to 3,900 against 18,500 to 21,200).
+- Params alone: drizzle's `$inferInsert` costs about 8,500, the type-form model 2,500, the builder model 3,500.
+- On the server the three are close (the query dominates); type-form tables are the cheapest.
+- A route that runs a transaction costs 100,000 (pg) to 288,000 (mysql, sqlite) on the server in every
+  variant: drizzle's `transaction` typing, not ours. With a written return type the client does not pay it.
 
 ## Findings
 
 - **Formats were lost on every query result.** Fixed here (`toDrizzle` keeps them).
-- **Inferred return types are the real cost.** A client calling a route whose return type is inferred from a
-  drizzle query re-checks that query: 5 to 9 times the type work of a route typed with the slim models. The
-  MRT001 lint rule already asks every route for a return type.
-- **Drizzle's `$inferSelect` types in a return annotation cost the client 2 to 3 times the slim models.**
-  That is what the lint-rule todo is for; its intent now carries these numbers.
+- **Inferred return types are the real cost.** A client calling a route whose return type drizzle infers
+  re-checks the query: 5 to 10 times the type work of a route typed with the slim models. The MRT001 lint
+  rule already asks every route for a return type; the lint-rule todo now carries these numbers.
+- **drizzle's `transaction` is the most expensive type in the app** (up to 288,000 per route). Nothing to fix
+  on our side; a written return type keeps it off the client.
 - **`row as Note` casts** in the Cloudflare storage test server and example existed only to restore
   formats. Removed.
-- **Transactions:** drizzle's `pg-proxy` and `mysql-proxy` drivers refuse them, so the transaction case runs
-  on sqlite. A drizzle limit, not ours.
+- **Transactions:** drizzle's `pg-proxy` and `mysql-proxy` drivers refuse them, so the transaction route only
+  runs on sqlite; on pg and mysql its test asserts the refusal. A drizzle limit, not ours.
+- **mysql has no `returning`**, so its insert, update and transaction routes read the row back with a select.
 - **Views have no type form**: a type-form schema keeps its views as builders over the type-form tables.
   Works as documented, nothing to fix.
 - **A client that imports `AppApi` from server sources loads the server's whole import graph**, drizzle
   included, so "the client program loads no drizzle file" was dropped as a check. What matters is what the
   client pays to check, which the cost test measures.
 
-Not changed from the plan: the package is not in the drizzle-e2e lane's paths (it runs in the normal JS
-lane); relations and transactions tie the "at least pg" cases to pg, sqlite covering the transaction.
+Changed from the plan: every case runs in all three dialects, not only pg; the package is not in the
+drizzle-e2e lane's paths (it runs in the normal JS lane).
