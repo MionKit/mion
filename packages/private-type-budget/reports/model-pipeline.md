@@ -21,19 +21,19 @@ checker.
 
 | Step | Layer | Net instantiations added | Budget | Cumulative |
 | ---: | ----- | -----------------------: | -----: | ---------: |
-| 1 | slim table + row | 876 | 876 | 876 |
-| 2 | refineTableType | 1076 | 1076 | 1952 |
-| 3 | Infer* models | 591 | 591 | 2543 |
-| 4 | mion route api | 514 | 525 | 3057 |
-| 5 | initClient | 3044 | 3179 | 6101 |
-| 6 | db query (toDrizzle) | 8471 | 8471 | 14572 |
+| 1 | slim table + row | 884 | 884 | 884 |
+| 2 | refineTableType | 1082 | 1082 | 1966 |
+| 3 | Infer* models | 605 | 605 | 2571 |
+| 4 | mion route api | 514 | 525 | 3085 |
+| 5 | initClient | 3044 | 3179 | 6129 |
+| 6 | db query (toDrizzle) | 8466 | 8466 | 14595 |
 
-Total for the whole chain: **14572**, against a total budget of **14718**.
+Total for the whole chain: **14595**, against a total budget of **14718**.
 
 | Downstream consumer, read from the emitted `.d.ts` | Value |
 | ---- | ----: |
-| Consumer net instantiations | 1605 |
-| Budget | 1605 |
+| Consumer net instantiations | 1633 |
+| Budget | 1633 |
 | Emitted declaration size (bytes) | 1248 |
 | Declaration keeps the generic alias unresolved | yes |
 
@@ -41,19 +41,19 @@ Total for the whole chain: **14572**, against a total budget of **14718**.
 
 | Step | Layer | Net instantiations added | Budget | Cumulative |
 | ---: | ----- | -----------------------: | -----: | ---------: |
-| 1 | slim table + row | 895 | 895 | 895 |
-| 2 | refineTableType | 1073 | 1073 | 1968 |
-| 3 | Infer* models | 591 | 591 | 2559 |
-| 4 | mion route api | 514 | 525 | 3073 |
-| 5 | initClient | 3044 | 3179 | 6117 |
-| 6 | db query (toDrizzle) | 7144 | 7144 | 13261 |
+| 1 | slim table + row | 903 | 903 | 903 |
+| 2 | refineTableType | 1079 | 1079 | 1982 |
+| 3 | Infer* models | 605 | 605 | 2587 |
+| 4 | mion route api | 514 | 525 | 3101 |
+| 5 | initClient | 3044 | 3179 | 6145 |
+| 6 | db query (toDrizzle) | 7139 | 7139 | 13284 |
 
-Total for the whole chain: **13261**, against a total budget of **13407**.
+Total for the whole chain: **13284**, against a total budget of **13407**.
 
 | Downstream consumer, read from the emitted `.d.ts` | Value |
 | ---- | ----: |
-| Consumer net instantiations | 1602 |
-| Budget | 1602 |
+| Consumer net instantiations | 1630 |
+| Budget | 1630 |
 | Emitted declaration size (bytes) | 1250 |
 | Declaration keeps the generic alias unresolved | yes |
 
@@ -61,18 +61,18 @@ Total for the whole chain: **13261**, against a total budget of **13407**.
 
 | Step | Layer | Net instantiations added | Budget | Cumulative |
 | ---: | ----- | -----------------------: | -----: | ---------: |
-| 1 | slim table + row | 900 | 900 | 900 |
-| 2 | refineTableType | 1068 | 1068 | 1968 |
-| 3 | Infer* models | 591 | 591 | 2559 |
-| 4 | mion route api | 513 | 524 | 3072 |
-| 5 | initClient | 3044 | 3179 | 6116 |
-| 6 | db query (toDrizzle) | 7318 | 7318 | 13434 |
+| 1 | slim table + row | 908 | 908 | 908 |
+| 2 | refineTableType | 1074 | 1074 | 1982 |
+| 3 | Infer* models | 605 | 605 | 2587 |
+| 4 | mion route api | 513 | 524 | 3100 |
+| 5 | initClient | 3044 | 3179 | 6144 |
+| 6 | db query (toDrizzle) | 7313 | 7313 | 13457 |
 
-Total for the whole chain: **13434**, against a total budget of **13580**.
+Total for the whole chain: **13457**, against a total budget of **13580**.
 
 | Downstream consumer, read from the emitted `.d.ts` | Value |
 | ---- | ----: |
-| Consumer net instantiations | 1574 |
-| Budget | 1574 |
+| Consumer net instantiations | 1602 |
+| Budget | 1602 |
 | Emitted declaration size (bytes) | 1225 |
 | Declaration keeps the generic alias unresolved | yes |

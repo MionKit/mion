@@ -5,146 +5,146 @@
     {
       "dialect": "pg",
       "label": "builder road, 5 mixed columns",
-      "netInstantiations": 1081,
-      "budget": 1081
+      "netInstantiations": 1089,
+      "budget": 1089
     },
     {
       "dialect": "pg",
       "label": "type road, 5 mixed columns",
-      "netInstantiations": 666,
-      "budget": 666
+      "netInstantiations": 676,
+      "budget": 676
     },
     {
       "dialect": "pg",
       "label": "type road, 5 mixed columns + insert model",
-      "netInstantiations": 1259,
-      "budget": 1259
+      "netInstantiations": 1283,
+      "budget": 1283
     },
     {
       "dialect": "pg",
       "label": "type road, 20 plain columns",
-      "netInstantiations": 299,
-      "budget": 299
+      "netInstantiations": 309,
+      "budget": 309
     },
     {
       "dialect": "pg",
       "label": "builder road, 20 plain columns",
-      "netInstantiations": 573,
-      "budget": 573
+      "netInstantiations": 581,
+      "budget": 581
     },
     {
       "dialect": "pg",
       "label": "bare Column interface, 20 plain columns",
-      "netInstantiations": 295,
-      "budget": 295
+      "netInstantiations": 305,
+      "budget": 305
     },
     {
       "dialect": "pg",
       "label": "type road, wide vocabulary",
-      "netInstantiations": 841,
-      "budget": 841
+      "netInstantiations": 851,
+      "budget": 851
     },
     {
       "dialect": "pg",
       "label": "builder road, wide vocabulary",
-      "netInstantiations": 1342,
-      "budget": 1342
+      "netInstantiations": 1350,
+      "budget": 1350
     },
     {
       "dialect": "mysql",
       "label": "builder road, 5 mixed columns",
-      "netInstantiations": 1104,
-      "budget": 1104
+      "netInstantiations": 1112,
+      "budget": 1112
     },
     {
       "dialect": "mysql",
       "label": "type road, 5 mixed columns",
-      "netInstantiations": 695,
-      "budget": 695
+      "netInstantiations": 705,
+      "budget": 705
     },
     {
       "dialect": "mysql",
       "label": "type road, 5 mixed columns + insert model",
-      "netInstantiations": 1251,
-      "budget": 1251
+      "netInstantiations": 1275,
+      "budget": 1275
     },
     {
       "dialect": "mysql",
       "label": "type road, 20 plain columns",
-      "netInstantiations": 317,
-      "budget": 317
+      "netInstantiations": 327,
+      "budget": 327
     },
     {
       "dialect": "mysql",
       "label": "builder road, 20 plain columns",
-      "netInstantiations": 592,
-      "budget": 592
+      "netInstantiations": 600,
+      "budget": 600
     },
     {
       "dialect": "mysql",
       "label": "bare Column interface, 20 plain columns",
-      "netInstantiations": 295,
-      "budget": 295
+      "netInstantiations": 305,
+      "budget": 305
     },
     {
       "dialect": "mysql",
       "label": "type road, wide vocabulary",
-      "netInstantiations": 847,
-      "budget": 847
+      "netInstantiations": 857,
+      "budget": 857
     },
     {
       "dialect": "mysql",
       "label": "builder road, wide vocabulary",
-      "netInstantiations": 1341,
-      "budget": 1341
+      "netInstantiations": 1349,
+      "budget": 1349
     },
     {
       "dialect": "sqlite",
       "label": "builder road, 5 mixed columns",
-      "netInstantiations": 1018,
-      "budget": 1018
+      "netInstantiations": 1026,
+      "budget": 1026
     },
     {
       "dialect": "sqlite",
       "label": "type road, 5 mixed columns",
-      "netInstantiations": 658,
-      "budget": 658
+      "netInstantiations": 668,
+      "budget": 668
     },
     {
       "dialect": "sqlite",
       "label": "type road, 5 mixed columns + insert model",
-      "netInstantiations": 1230,
-      "budget": 1230
+      "netInstantiations": 1254,
+      "budget": 1254
     },
     {
       "dialect": "sqlite",
       "label": "type road, 20 plain columns",
-      "netInstantiations": 320,
-      "budget": 320
+      "netInstantiations": 330,
+      "budget": 330
     },
     {
       "dialect": "sqlite",
       "label": "builder road, 20 plain columns",
-      "netInstantiations": 595,
-      "budget": 595
+      "netInstantiations": 603,
+      "budget": 603
     },
     {
       "dialect": "sqlite",
       "label": "bare Column interface, 20 plain columns",
-      "netInstantiations": 295,
-      "budget": 295
+      "netInstantiations": 305,
+      "budget": 305
     },
     {
       "dialect": "sqlite",
       "label": "type road, wide vocabulary",
-      "netInstantiations": 754,
-      "budget": 754
+      "netInstantiations": 764,
+      "budget": 764
     },
     {
       "dialect": "sqlite",
       "label": "builder road, wide vocabulary",
-      "netInstantiations": 1142,
-      "budget": 1142
+      "netInstantiations": 1150,
+      "budget": 1150
     }
   ]
 }

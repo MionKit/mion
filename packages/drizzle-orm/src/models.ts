@@ -24,11 +24,28 @@ type InsertOfCols<C> = {[K in keyof C as Ins<C[K]> extends 'required' ? K : neve
 };
 type UpdateOfCols<C> = {[K in keyof C as Ins<C[K]> extends 'excluded' ? never : K]?: Sel<C[K]>};
 
+/** Row model of a set of columns: every column, nullable ones as `| null`. */
+export type SelectModelOf<Cols> = Prettify<SelectOfCols<Cols>>;
+/** Insert payload of a set of columns: generated columns removed, defaulted and nullable ones optional. */
+export type InsertModelOf<Cols> = Prettify<InsertOfCols<Cols>>;
+
 /** Row model: every column, nullable ones as `| null`. */
-export type InferSelectModel<T extends AnyTable> = Prettify<SelectOfCols<T['columns']>>;
+export type InferSelectModel<T extends AnyTable> = SelectModelOf<T['columns']>;
 /** Row model of a view. */
-export type InferSelectViewModel<V extends {columns: object}> = Prettify<SelectOfCols<V['columns']>>;
+export type InferSelectViewModel<V extends {columns: object}> = SelectModelOf<V['columns']>;
 /** Insert payload: generated columns removed, defaulted and nullable ones optional. */
-export type InferInsertModel<T extends AnyTable> = Prettify<InsertOfCols<T['columns']>>;
+export type InferInsertModel<T extends AnyTable> = InsertModelOf<T['columns']>;
 /** Update payload: any subset of the insert payload. */
 export type InferUpdateModel<T extends AnyTable> = Prettify<UpdateOfCols<T['columns']>>;
+
+// Type only, as drizzle's own: nothing holds these at run time. On each dialect's table interface, not on the core
+// meta, so AnyTable stays without them and checking a table against it never builds its models.
+/** drizzle's `typeof users.$inferSelect` / `$inferInsert` on a slim table: the same types as the Infer*Model ones. */
+export interface RtTableInfer<Cols> {
+  readonly $inferSelect: SelectModelOf<Cols>;
+  readonly $inferInsert: InsertModelOf<Cols>;
+}
+/** drizzle's `typeof view.$inferSelect` on a slim view. */
+export interface RtViewInfer<Cols> {
+  readonly $inferSelect: SelectModelOf<Cols>;
+}

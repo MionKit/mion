@@ -5,301 +5,301 @@
     {
       "dialect": "pg",
       "label": "5 mixed, select",
-      "types": 671,
-      "builders": 1152,
+      "types": 681,
+      "builders": 1160,
       "budget": {
-        "types": 671,
-        "builders": 1152
+        "types": 681,
+        "builders": 1160
       }
     },
     {
       "dialect": "pg",
       "label": "5 mixed, select + insert",
-      "types": 1264,
-      "builders": 1820,
+      "types": 1288,
+      "builders": 1842,
       "budget": {
-        "types": 1264,
-        "builders": 1820
+        "types": 1288,
+        "builders": 1842
       }
     },
     {
       "dialect": "pg",
       "label": "10 plain, db name per column",
-      "types": 210,
-      "builders": 363,
+      "types": 220,
+      "builders": 371,
       "budget": {
-        "types": 210,
-        "builders": 363
+        "types": 220,
+        "builders": 371
       }
     },
     {
       "dialect": "pg",
       "label": "20 plain, db name per column",
-      "types": 300,
-      "builders": 573,
+      "types": 310,
+      "builders": 581,
       "budget": {
-        "types": 300,
-        "builders": 573
+        "types": 310,
+        "builders": 581
       }
     },
     {
       "dialect": "pg",
       "label": "40 plain, db name per column",
-      "types": 480,
-      "builders": 993,
+      "types": 490,
+      "builders": 1001,
       "budget": {
-        "types": 480,
-        "builders": 993
+        "types": 490,
+        "builders": 1001
       }
     },
     {
       "dialect": "pg",
       "label": "20 plain, nameless",
-      "types": 300,
-      "builders": 532,
+      "types": 310,
+      "builders": 540,
       "budget": {
-        "types": 300,
-        "builders": 532
+        "types": 310,
+        "builders": 540
       }
     },
     {
       "dialect": "pg",
       "label": "wide vocabulary, select",
-      "types": 848,
-      "builders": 1451,
+      "types": 858,
+      "builders": 1459,
       "budget": {
-        "types": 848,
-        "builders": 1451
+        "types": 858,
+        "builders": 1459
       }
     },
     {
       "dialect": "pg",
       "label": "two tables, one reference",
-      "types": 263,
-      "builders": 490,
+      "types": 279,
+      "builders": 500,
       "budget": {
-        "types": 263,
-        "builders": 490
+        "types": 279,
+        "builders": 500
       }
     },
     {
       "dialect": "pg",
       "label": "refineTableType, select",
-      "types": 1366,
-      "builders": 1869,
+      "types": 1382,
+      "builders": 1883,
       "budget": {
-        "types": 1366,
-        "builders": 1869
+        "types": 1382,
+        "builders": 1883
       }
     },
     {
       "dialect": "pg",
       "label": "toDrizzle + select / insert / update query",
-      "types": 8822,
-      "builders": 9999,
+      "types": 8821,
+      "builders": 9996,
       "budget": {
-        "types": 8822,
-        "builders": 9999
+        "types": 8821,
+        "builders": 9996
       }
     },
     {
       "dialect": "mysql",
       "label": "5 mixed, select",
-      "types": 700,
-      "builders": 1176,
+      "types": 710,
+      "builders": 1184,
       "budget": {
-        "types": 700,
-        "builders": 1176
+        "types": 710,
+        "builders": 1184
       }
     },
     {
       "dialect": "mysql",
       "label": "5 mixed, select + insert",
-      "types": 1256,
-      "builders": 1793,
+      "types": 1280,
+      "builders": 1815,
       "budget": {
-        "types": 1256,
-        "builders": 1793
+        "types": 1280,
+        "builders": 1815
       }
     },
     {
       "dialect": "mysql",
       "label": "10 plain, db name per column",
-      "types": 228,
-      "builders": 382,
+      "types": 238,
+      "builders": 390,
       "budget": {
-        "types": 228,
-        "builders": 382
+        "types": 238,
+        "builders": 390
       }
     },
     {
       "dialect": "mysql",
       "label": "20 plain, db name per column",
-      "types": 318,
-      "builders": 592,
+      "types": 328,
+      "builders": 600,
       "budget": {
-        "types": 318,
-        "builders": 592
+        "types": 328,
+        "builders": 600
       }
     },
     {
       "dialect": "mysql",
       "label": "40 plain, db name per column",
-      "types": 498,
-      "builders": 1012,
+      "types": 508,
+      "builders": 1020,
       "budget": {
-        "types": 498,
-        "builders": 1012
+        "types": 508,
+        "builders": 1020
       }
     },
     {
       "dialect": "mysql",
       "label": "20 plain, nameless",
-      "types": 318,
-      "builders": 551,
+      "types": 328,
+      "builders": 559,
       "budget": {
-        "types": 318,
-        "builders": 551
+        "types": 328,
+        "builders": 559
       }
     },
     {
       "dialect": "mysql",
       "label": "wide vocabulary, select",
-      "types": 1020,
-      "builders": 1706,
+      "types": 1030,
+      "builders": 1714,
       "budget": {
-        "types": 1020,
-        "builders": 1706
+        "types": 1030,
+        "builders": 1714
       }
     },
     {
       "dialect": "mysql",
       "label": "two tables, one reference",
-      "types": 287,
-      "builders": 521,
+      "types": 303,
+      "builders": 531,
       "budget": {
-        "types": 287,
-        "builders": 521
+        "types": 303,
+        "builders": 531
       }
     },
     {
       "dialect": "mysql",
       "label": "refineTableType, select",
-      "types": 1392,
-      "builders": 1890,
+      "types": 1408,
+      "builders": 1904,
       "budget": {
-        "types": 1392,
-        "builders": 1890
+        "types": 1408,
+        "builders": 1904
       }
     },
     {
       "dialect": "mysql",
       "label": "toDrizzle + select / insert / update query",
-      "types": 8466,
-      "builders": 9672,
+      "types": 8357,
+      "builders": 9554,
       "budget": {
-        "types": 8466,
-        "builders": 9672
+        "types": 8357,
+        "builders": 9554
       }
     },
     {
       "dialect": "sqlite",
       "label": "5 mixed, select",
-      "types": 649,
-      "builders": 1053,
+      "types": 659,
+      "builders": 1061,
       "budget": {
-        "types": 649,
-        "builders": 1053
+        "types": 659,
+        "builders": 1061
       }
     },
     {
       "dialect": "sqlite",
       "label": "5 mixed, select + insert",
-      "types": 1243,
-      "builders": 1711,
+      "types": 1267,
+      "builders": 1733,
       "budget": {
-        "types": 1243,
-        "builders": 1711
+        "types": 1267,
+        "builders": 1733
       }
     },
     {
       "dialect": "sqlite",
       "label": "10 plain, db name per column",
-      "types": 231,
-      "builders": 385,
+      "types": 241,
+      "builders": 393,
       "budget": {
-        "types": 231,
-        "builders": 385
+        "types": 241,
+        "builders": 393
       }
     },
     {
       "dialect": "sqlite",
       "label": "20 plain, db name per column",
-      "types": 321,
-      "builders": 595,
+      "types": 331,
+      "builders": 603,
       "budget": {
-        "types": 321,
-        "builders": 595
+        "types": 331,
+        "builders": 603
       }
     },
     {
       "dialect": "sqlite",
       "label": "40 plain, db name per column",
-      "types": 501,
-      "builders": 1015,
+      "types": 511,
+      "builders": 1023,
       "budget": {
-        "types": 501,
-        "builders": 1015
+        "types": 511,
+        "builders": 1023
       }
     },
     {
       "dialect": "sqlite",
       "label": "20 plain, nameless",
-      "types": 321,
-      "builders": 554,
+      "types": 331,
+      "builders": 562,
       "budget": {
-        "types": 321,
-        "builders": 554
+        "types": 331,
+        "builders": 562
       }
     },
     {
       "dialect": "sqlite",
       "label": "wide vocabulary, select",
-      "types": 959,
-      "builders": 1567,
+      "types": 969,
+      "builders": 1575,
       "budget": {
-        "types": 959,
-        "builders": 1567
+        "types": 969,
+        "builders": 1575
       }
     },
     {
       "dialect": "sqlite",
       "label": "two tables, one reference",
-      "types": 296,
-      "builders": 515,
+      "types": 312,
+      "builders": 525,
       "budget": {
-        "types": 296,
-        "builders": 515
+        "types": 312,
+        "builders": 525
       }
     },
     {
       "dialect": "sqlite",
       "label": "refineTableType, select",
-      "types": 1341,
-      "builders": 1767,
+      "types": 1357,
+      "builders": 1781,
       "budget": {
-        "types": 1341,
-        "builders": 1767
+        "types": 1357,
+        "builders": 1781
       }
     },
     {
       "dialect": "sqlite",
       "label": "toDrizzle + select / insert / update query",
-      "types": 7554,
-      "builders": 8606,
+      "types": 7445,
+      "builders": 8488,
       "budget": {
-        "types": 7554,
-        "builders": 8606
+        "types": 7445,
+        "builders": 8488
       }
     }
   ]

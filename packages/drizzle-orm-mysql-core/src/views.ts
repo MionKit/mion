@@ -8,7 +8,16 @@
 // MANUAL-COLUMN views only. `mysqlView(name)` with no columns (the query-builder form) is NOT supported: its columns
 // come from drizzle's select typing (packages/drizzle-orm/CLAUDE.md).
 
-import type {DrizzleContext, NameOf, NoNames, RtSql, RtViewBrand, RtViewMeta, rtNamedColumnKey} from '@mionjs/drizzle-orm';
+import type {
+  DrizzleContext,
+  NameOf,
+  NoNames,
+  RtSql,
+  RtViewBrand,
+  RtViewInfer,
+  RtViewMeta,
+  rtNamedColumnKey,
+} from '@mionjs/drizzle-orm';
 import {RtViewBuilder} from '@mionjs/drizzle-orm';
 
 export interface ViewFromQueryBuilderNotSupported {
@@ -34,7 +43,7 @@ export function requireColumns(fn: string, name: string, columns: Record<string,
 }
 
 export interface MysqlView<Name extends string, Cols, Names = NoNames>
-  extends RtViewMeta<Name, Cols, Names>, RtViewBrand<'mysql'> {}
+  extends RtViewMeta<Name, Cols, Names>, RtViewBrand<'mysql'>, RtViewInfer<Cols> {}
 export interface MysqlViewBuilder<Name extends string, Cols, Names> {
   algorithm(algorithm: MySqlViewAlgorithm): MysqlViewBuilder<Name, Cols, Names>;
   sqlSecurity(sqlSecurity: MySqlViewSecurity): MysqlViewBuilder<Name, Cols, Names>;

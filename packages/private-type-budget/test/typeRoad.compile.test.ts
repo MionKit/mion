@@ -218,23 +218,24 @@ const DIALECTS: RoadDialect[] = [
       ['createdAt', 'Date'],
     ],
     budgets: {
+      // All raised 8 to 24: a REVIEWED EXCEPTION, tables carry drizzle's $inferSelect / $inferInsert.
       // 570 -> 1081: a REVIEWED EXCEPTION, single-call builders (647 at the declaration, the rest models deriving flags).
       // Precomputing flags in the builder cut this to 990 but broke builder = hand-written (TYPE-COST.md, attempt 14).
-      'builder road, 5 mixed columns': 1081,
+      'builder road, 5 mixed columns': 1089,
       // 968 -> 666: a column type holds its raw props and no db name, flags derived only where a model reads them.
-      'type road, 5 mixed columns': 666,
+      'type road, 5 mixed columns': 676,
       // 1434 -> 1259, the same change.
-      'type road, 5 mixed columns + insert model': 1259,
+      'type road, 5 mixed columns + insert model': 1283,
       // 1341 -> 299: one shared column type for the twenty columns, the db names on the table.
-      'type road, 20 plain columns': 299,
+      'type road, 20 plain columns': 309,
       // 345 -> 573: a REVIEWED EXCEPTION, single-call builders (see the five-column case).
-      'builder road, 20 plain columns': 573,
+      'builder road, 20 plain columns': 581,
       // The floor, 326 when it was the chained kind.
-      'bare Column interface, 20 plain columns': 295,
+      'bare Column interface, 20 plain columns': 305,
       // 1170 -> 841, the same change as the narrow type road.
-      'type road, wide vocabulary': 841,
+      'type road, wide vocabulary': 851,
       // 676 -> 1342: a REVIEWED EXCEPTION, single-call builders (see the five-column case).
-      'builder road, wide vocabulary': 1342,
+      'builder road, wide vocabulary': 1350,
     },
   },
   {
@@ -282,14 +283,15 @@ const DIALECTS: RoadDialect[] = [
       ['createdAt', 'Date'],
     ],
     budgets: {
-      'builder road, 5 mixed columns': 1104,
-      'type road, 5 mixed columns': 695,
-      'type road, 5 mixed columns + insert model': 1251,
-      'type road, 20 plain columns': 317,
-      'builder road, 20 plain columns': 592,
-      'bare Column interface, 20 plain columns': 295,
-      'type road, wide vocabulary': 847,
-      'builder road, wide vocabulary': 1341,
+      // All raised 8 to 24: a REVIEWED EXCEPTION, tables carry drizzle's $inferSelect / $inferInsert.
+      'builder road, 5 mixed columns': 1112,
+      'type road, 5 mixed columns': 705,
+      'type road, 5 mixed columns + insert model': 1275,
+      'type road, 20 plain columns': 327,
+      'builder road, 20 plain columns': 600,
+      'bare Column interface, 20 plain columns': 305,
+      'type road, wide vocabulary': 857,
+      'builder road, wide vocabulary': 1349,
     },
   },
   {
@@ -340,14 +342,15 @@ const DIALECTS: RoadDialect[] = [
       ['createdAt', 'Date'],
     ],
     budgets: {
-      'builder road, 5 mixed columns': 1018,
-      'type road, 5 mixed columns': 658,
-      'type road, 5 mixed columns + insert model': 1230,
-      'type road, 20 plain columns': 320,
-      'builder road, 20 plain columns': 595,
-      'bare Column interface, 20 plain columns': 295,
-      'type road, wide vocabulary': 754,
-      'builder road, wide vocabulary': 1142,
+      // All raised 8 to 24: a REVIEWED EXCEPTION, tables carry drizzle's $inferSelect / $inferInsert.
+      'builder road, 5 mixed columns': 1026,
+      'type road, 5 mixed columns': 668,
+      'type road, 5 mixed columns + insert model': 1254,
+      'type road, 20 plain columns': 330,
+      'builder road, 20 plain columns': 603,
+      'bare Column interface, 20 plain columns': 305,
+      'type road, wide vocabulary': 764,
+      'builder road, wide vocabulary': 1150,
     },
   },
 ];

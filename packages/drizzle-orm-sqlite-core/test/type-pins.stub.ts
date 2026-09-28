@@ -696,3 +696,14 @@ export type ReadonlyTyped = Text<{length: 40; notNull: true; $type: readonly [Bo
 // A hand-written readonly primaryKey config still makes the key optional on insert.
 type ReadonlyPk = SqliteTable<'boundary_readonly_pk', {id: Text<{primaryKey: readonly [{autoIncrement: true}]}>}>;
 export type OnlySqlite_ReadonlyPkPins = [Expect<Equal<InferInsertModel<ReadonlyPk>, {id?: Str | undefined}>>];
+
+// ── drizzle's $inferSelect / $inferInsert ────────────────────────────────────
+// type only, the same types as the Infer*Model ones, on both table forms and on views
+
+export type InferMemberPins = [
+  Expect<Equal<(typeof users)['$inferSelect'], InferSelectModel<typeof users>>>,
+  Expect<Equal<(typeof users)['$inferInsert'], InferInsertModel<typeof users>>>,
+  Expect<Equal<Users['$inferSelect'], InferSelectModel<Users>>>,
+  Expect<Equal<Users['$inferInsert'], InferInsertModel<Users>>>,
+  Expect<Equal<(typeof activeView)['$inferSelect'], InferSelectViewModel<typeof activeView>>>,
+];

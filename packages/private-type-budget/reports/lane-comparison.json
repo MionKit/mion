@@ -11,20 +11,20 @@
             {
               "step": 1,
               "label": "slim table + row",
-              "delta": 876,
-              "budget": 876
+              "delta": 884,
+              "budget": 884
             },
             {
               "step": 2,
               "label": "refineTableType",
-              "delta": 1076,
-              "budget": 1076
+              "delta": 1082,
+              "budget": 1082
             },
             {
               "step": 3,
               "label": "Infer* models",
-              "delta": 591,
-              "budget": 591
+              "delta": 605,
+              "budget": 605
             },
             {
               "step": 4,
@@ -39,7 +39,7 @@
               "budget": 3179
             }
           ],
-          "total": 6101
+          "total": 6129
         },
         {
           "name": "type-only",
@@ -124,20 +124,20 @@
             {
               "step": 1,
               "label": "slim table + row",
-              "delta": 895,
-              "budget": 895
+              "delta": 903,
+              "budget": 903
             },
             {
               "step": 2,
               "label": "refineTableType",
-              "delta": 1073,
-              "budget": 1073
+              "delta": 1079,
+              "budget": 1079
             },
             {
               "step": 3,
               "label": "Infer* models",
-              "delta": 591,
-              "budget": 591
+              "delta": 605,
+              "budget": 605
             },
             {
               "step": 4,
@@ -152,7 +152,7 @@
               "budget": 3179
             }
           ],
-          "total": 6117
+          "total": 6145
         },
         {
           "name": "type-only",
@@ -237,20 +237,20 @@
             {
               "step": 1,
               "label": "slim table + row",
-              "delta": 900,
-              "budget": 900
+              "delta": 908,
+              "budget": 908
             },
             {
               "step": 2,
               "label": "refineTableType",
-              "delta": 1068,
-              "budget": 1068
+              "delta": 1074,
+              "budget": 1074
             },
             {
               "step": 3,
               "label": "Infer* models",
-              "delta": 591,
-              "budget": 591
+              "delta": 605,
+              "budget": 605
             },
             {
               "step": 4,
@@ -265,7 +265,7 @@
               "budget": 3179
             }
           ],
-          "total": 6116
+          "total": 6144
         },
         {
           "name": "type-only",

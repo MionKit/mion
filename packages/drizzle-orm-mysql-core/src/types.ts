@@ -22,9 +22,17 @@ import type {
   UInt16,
   UInt32,
 } from '@mionjs/run-types/formats';
-import type {AnyColumn, AnyTableRef, ColMods, ColRef, rtColumnKey} from '@mionjs/drizzle-orm';
-import type {MysqlTable} from './table.ts';
-import type {MysqlView} from './views.ts';
+import type {
+  AnyColumn,
+  AnyTableRef,
+  ColMods,
+  ColRef,
+  rtColumnKey,
+  RtTableBrand,
+  RtTableMeta,
+  RtViewBrand,
+  RtViewMeta,
+} from '@mionjs/drizzle-orm';
 
 type EnumTuple = readonly [string, ...string[]];
 type EnumOr<T extends readonly string[], Fallback> = string extends T[number] ? Fallback : T[number];
@@ -200,9 +208,11 @@ export interface MysqlTimestampIn extends MysqlColIn {
 // ── Tables, views and entries ────────────────────────────────────────────────
 
 /** What this package's toDrizzle and tableFromType take, so another dialect's table is a compile error. */
-export type AnyMysqlTable = MysqlTable<string, Record<string, AnyColumn>, readonly object[], object>;
+// Meta + brand only: a table's $inferSelect is never built to check it against these.
+export interface AnyMysqlTable
+  extends RtTableMeta<string, Record<string, AnyColumn>, readonly object[], object>, RtTableBrand<'mysql'> {}
 /** What this package's toDrizzle takes for a view. */
-export type AnyMysqlView = MysqlView<string, Record<string, AnyColumn>, object>;
+export interface AnyMysqlView extends RtViewMeta<string, Record<string, AnyColumn>, object>, RtViewBrand<'mysql'> {}
 
 /** Common brand of every extraConfig entry. */
 export interface MyEntryBrand {
