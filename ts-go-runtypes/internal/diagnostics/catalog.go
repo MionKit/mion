@@ -5,6 +5,8 @@ package diagnostics
 
 import (
 	"fmt"
+	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -313,6 +315,51 @@ func NewWithRelated(code string, site Site, args []string, related ...Related) D
 		out.Related = related
 	}
 	return out
+}
+
+// headlineArgRE matches a `{N}` placeholder in a Headline.
+var headlineArgRE = regexp.MustCompile(`\{(\d+)\}`)
+
+// RenderHeadline fills a code's Headline with its args, a missing arg rendering empty; twin of renderHeadline in
+// packages/devtools/src/core/diagnosticCatalog.ts.
+func RenderHeadline(code string, args []string) string {
+	definition, ok := Definitions[code]
+	if !ok {
+		return "Unrecognised diagnostic code (" + code + ") — please file an issue."
+	}
+	return headlineArgRE.ReplaceAllStringFunc(definition.Headline, func(placeholder string) string {
+		index, _ := strconv.Atoi(placeholder[1 : len(placeholder)-1])
+		if index < len(args) {
+			return args[index]
+		}
+		return ""
+	})
+}
+
+// Format renders the user-facing line `mion compile` prints, the same shape as formatTscDiagnostic in the
+// bundler plugin; downgraded prints the finding as a warning with DowngradedNote.
+//
+//	<path>(<line>,<col>): <severity> <code>: <headline>
+//	  Related: <path>(<line>,<col>): <message>
+func Format(diagnostic Diagnostic, downgraded bool) string {
+	severity, suffix := diagnostic.Severity, ""
+	if downgraded {
+		severity, suffix = SeverityWarning, " "+DowngradedNote
+	}
+	var builder strings.Builder
+	fmt.Fprintf(&builder, "%s(%d,%d): %s %s: %s%s",
+		diagnostic.Site.FilePath,
+		diagnostic.Site.StartLine,
+		diagnostic.Site.StartCol,
+		SeverityLabel(severity),
+		diagnostic.Code,
+		RenderHeadline(diagnostic.Code, diagnostic.Args),
+		suffix,
+	)
+	for _, related := range diagnostic.Related {
+		fmt.Fprintf(&builder, "\n  Related: %s(%d,%d): %s", related.FilePath, related.StartLine, related.StartCol, related.Message)
+	}
+	return builder.String()
 }
 
 // FormatDebug renders a Diagnostic for Go-side debug logs and test assertions.

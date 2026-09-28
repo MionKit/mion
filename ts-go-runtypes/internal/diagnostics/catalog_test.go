@@ -365,3 +365,17 @@ func TestLevelLabel(t *testing.T) {
 		}
 	}
 }
+
+func TestFormat_PrintsTheHeadline(t *testing.T) {
+	diagnostic := New(CodeVLSymbolRoot, Site{FilePath: "src/a.ts", StartLine: 3, StartCol: 7}, "Symbol")
+	want := "src/a.ts(3,7): error VL002: " + RenderHeadline(CodeVLSymbolRoot, []string{"Symbol"})
+	if got := Format(diagnostic, false); got != want {
+		t.Fatalf("Format = %q, want %q", got, want)
+	}
+	if got := Format(diagnostic, true); got != "src/a.ts(3,7): warning VL002: "+RenderHeadline(CodeVLSymbolRoot, []string{"Symbol"})+" "+DowngradedNote {
+		t.Fatalf("downgraded Format = %q", got)
+	}
+	if headline := RenderHeadline(CodeVLSymbolRoot, []string{"Symbol"}); strings.Contains(headline, "{0}") || !strings.Contains(headline, "Symbol") {
+		t.Fatalf("RenderHeadline must fill {0}, got %q", headline)
+	}
+}

@@ -716,11 +716,10 @@ func runCompile(args []string) {
 		// Two ways in, one outcome: a `downgradeErrors` setting, or the
 		// `@mion-downgrade-error` comment the resolver already stamped on it.
 		if d.Downgraded || downgrade.Downgraded(d) {
-			d.Severity = diagnostics.SeverityWarning
-			fmt.Fprintln(os.Stderr, diagnostics.FormatDebug(d)+" "+diagnostics.DowngradedNote)
+			fmt.Fprintln(os.Stderr, diagnostics.Format(d, true))
 			continue
 		}
-		fmt.Fprintln(os.Stderr, diagnostics.FormatDebug(d))
+		fmt.Fprintln(os.Stderr, diagnostics.Format(d, false))
 		if d.Severity == diagnostics.SeverityError {
 			errorCount++
 		}
