@@ -8,7 +8,7 @@ import {describe, expect, it} from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {BIN, hasBinary} from './helpers/inline.ts';
+import {BIN, hasBinary, writeMarkerPackage} from './helpers/inline.ts';
 import {runCli} from './helpers/cliCrash.ts';
 import {decodeMappings} from './helpers/sourcemap.ts';
 
@@ -99,12 +99,15 @@ describe('mion compile (tsc-like CLI)', () => {
   });
 
   // VL011 (a skipped method) is Info: hidden by default, printed with tsconfig `levels: "all"`, never a failure.
-  const METHOD_TS = `import {createValidateFn} from '@mionjs/run-types';
+  // Both getRunTypeId shapes ride along (marker coverage rule) and must compile clean.
+  const METHOD_TS = `import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
 export class Pet {
   name = 'rex';
   speak(): string { return this.name; }
 }
 export const isPet = createValidateFn<Pet>();
+export const petId = getRunTypeId<Pet>();
+export const sampleId = getRunTypeId(new Pet());
 `;
   const compileWithLevels = (levels: string | undefined) => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-compile-levels-'));
@@ -112,7 +115,7 @@ export const isPet = createValidateFn<Pet>();
     if (levels) tsconfig.compilerOptions.plugins = [{name: 'mion', levels}];
     fs.writeFileSync(path.join(dir, 'tsconfig.json'), JSON.stringify(tsconfig));
     fs.mkdirSync(path.join(dir, 'src'));
-    fs.writeFileSync(path.join(dir, 'src', 'runtypes.d.ts'), RUNTYPES_DTS);
+    writeMarkerPackage(dir);
     fs.writeFileSync(path.join(dir, 'src', 'pet.ts'), METHOD_TS);
     try {
       return runCli(['compile', '--cwd', dir, '--tsconfig', 'tsconfig.json', '--no-emit'], {label: 'compile-cli-levels'});
@@ -125,6 +128,8 @@ export const isPet = createValidateFn<Pet>();
     const quiet = compileWithLevels(undefined);
     expect(quiet.status, quiet.report).toBe(0);
     expect(quiet.stderr).not.toContain('VL011');
+    expect(quiet.stderr).not.toMatch(/: (error|warning) /);
+    expect(quiet.stderr).toContain('checked 1 file(s), wrote nothing');
 
     const shown = compileWithLevels('all');
     expect(shown.status, shown.report).toBe(0);
