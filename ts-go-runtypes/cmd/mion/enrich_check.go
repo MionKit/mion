@@ -30,7 +30,8 @@ func runSingleFileCheck(fileArg, tsconfigFlag string, asJSON, requireComplete bo
 	absPath := tspath.NormalizePath(mustAbs(fileArg))
 	tsconfigPath, parsed := resolveEnrichProject(tsconfigFlag)
 	config := resolveEnrichConfig(absPath, "", tsconfigPath, parsed)
-	os.Exit(reportEnrichDiagnostics(checkMirrorFilesDiagnostics([]string{absPath}, parsed, config.HashLength), asJSON, requireComplete))
+	diags := checkMirrorFilesDiagnostics([]string{absPath}, parsed, config.HashLength)
+	os.Exit(reportEnrichDiagnostics(diags, asJSON, requireComplete, mustTsconfigShowInfo(tsconfigPath)))
 }
 
 // checkMirrorFilesDiagnostics builds ONE inferred Program over the given mirror
@@ -79,7 +80,7 @@ func checkMirrorFilesDiagnostics(paths []string, parsed *program.InferredConfig,
 // the completeness gate rejects them.
 // An empty JSON report marshals to `null` (a nil slice), matching the health
 // harness's `JSON.parse(stdout || 'null')`.
-func reportEnrichDiagnostics(diags []diagnostics.Diagnostic, asJSON, requireComplete bool) int {
+func reportEnrichDiagnostics(diags []diagnostics.Diagnostic, asJSON, requireComplete, showInfo bool) int {
 	sort.SliceStable(diags, func(left, right int) bool {
 		leftSite, rightSite := diags[left].Site, diags[right].Site
 		if leftSite.FilePath != rightSite.FilePath {
@@ -101,6 +102,7 @@ func reportEnrichDiagnostics(diags []diagnostics.Diagnostic, asJSON, requireComp
 		}
 	}
 
+	reported := len(diags)
 	if asJSON {
 		encoded, err := json.MarshalIndent(diags, "", "  ")
 		if err != nil {
@@ -109,24 +111,17 @@ func reportEnrichDiagnostics(diags []diagnostics.Diagnostic, asJSON, requireComp
 		fmt.Println(string(encoded))
 	} else {
 		// The text report hides Info like every other host; the JSON report is data and keeps it.
-		shown := 0
+		reported = 0
 		for _, diag := range diags {
-			if !diagnostics.Shown(diag, false) {
-				continue
+			if diagnostics.Shown(diag, showInfo) {
+				reported++
+				fmt.Println(diagnostics.FormatDebug(diag))
 			}
-			shown++
-			fmt.Println(diagnostics.FormatDebug(diag))
 		}
-		fmt.Fprintf(os.Stderr, "enrich --no-emit: %d finding(s)\n", shown)
-		return exitCode(hasError)
 	}
 
-	fmt.Fprintf(os.Stderr, "enrich --no-emit: %d finding(s)\n", len(diags))
-	return exitCode(hasError)
-}
-
-func exitCode(failed bool) int {
-	if failed {
+	fmt.Fprintf(os.Stderr, "enrich --no-emit: %d finding(s)\n", reported)
+	if hasError {
 		return 1
 	}
 	return 0

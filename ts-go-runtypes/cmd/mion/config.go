@@ -242,6 +242,30 @@ func resolveEnrichConfig(absTargetFile, genDirFlag, tsconfigPath string, parsed 
 	return enrichgen.ResolveConfig(absTargetFile, genDirFlag, tsconfigPath, parsed, pluginSettings)
 }
 
+// tsconfigShowInfo reads the mion plugin's `levels` key; no tsconfig or no plugin entry hides Info.
+func tsconfigShowInfo(tsconfigPath string) (bool, error) {
+	if tsconfigPath == "" {
+		return false, nil
+	}
+	pluginTsconfig, ok := parseTsconfig(tsconfigPath)
+	if !ok {
+		return false, fmt.Errorf("tsconfig %s: cannot parse", tsconfigPath)
+	}
+	plugin, ok, err := findTsRuntypesPlugin(pluginTsconfig)
+	if err != nil || !ok {
+		return false, err
+	}
+	return diagnostics.ResolveLevels(plugin.Levels)
+}
+
+func mustTsconfigShowInfo(tsconfigPath string) bool {
+	showInfo, err := tsconfigShowInfo(tsconfigPath)
+	if err != nil {
+		fatal("enrich: %v", err)
+	}
+	return showInfo
+}
+
 // pluginSettingsFrom projects the CLI's JSONC-read mion plugin entry onto
 // the shared enrichgen.PluginSettings the resolver consumes.
 func pluginSettingsFrom(plugin tsRuntypesPlugin) enrichgen.PluginSettings {
