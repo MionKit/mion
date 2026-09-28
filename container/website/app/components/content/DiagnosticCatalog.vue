@@ -5,8 +5,8 @@ import catalog from './go-generated/diagnostics-catalog.json';
 interface CodeEntry {
   code: string;
   subsystem: string;
-  /** The three-way level: did the build produce the code, and does it work. */
-  level: 'error' | 'runtimeError' | 'warning';
+  /** The level: did the build produce the code, and does it work. */
+  level: 'error' | 'runtimeError' | 'warning' | 'info';
   /** The level's two-way label form, what a tsc-shaped build line prints. */
   severity: 'error' | 'warning' | 'info';
   headline: string;
@@ -75,12 +75,12 @@ function withInlineCode(text: string): string {
   return escaped.replace(/`([^`]+)`/g, '<code>$1</code>');
 }
 
-const levelLabel: Record<Level, string> = {error: 'Error', runtimeError: 'RuntimeError', warning: 'Warning'};
+const levelLabel: Record<Level, string> = {error: 'Error', runtimeError: 'RuntimeError', warning: 'Warning', info: 'Info'};
 
 /** Badge class suffixes have to be valid CSS identifiers, so camelCase becomes a dash. */
-const levelClass: Record<Level, string> = {error: 'error', runtimeError: 'runtime', warning: 'warning'};
+const levelClass: Record<Level, string> = {error: 'error', runtimeError: 'runtime', warning: 'warning', info: 'info'};
 
-const levelOptions: Level[] = ['error', 'runtimeError', 'warning'];
+const levelOptions: Level[] = ['error', 'runtimeError', 'warning', 'info'];
 </script>
 
 <template>

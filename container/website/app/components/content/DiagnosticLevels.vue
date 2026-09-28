@@ -1,5 +1,5 @@
 <script setup lang="ts">
-/** The three diagnostic levels as cards; the badge classes are shared with the catalog. */
+/** The four diagnostic levels as cards; the badge classes are shared with the catalog. */
 const levels = [
   {
     key: 'error',
@@ -14,7 +14,12 @@ const levels = [
   {
     key: 'warning',
     label: 'Warning',
-    text: 'Worth knowing, nothing is broken. Usually a field mion skipped because it is not data: a method, a function, a symbol key. It never stops anything.',
+    text: 'Worth knowing, nothing is broken, but the result may surprise you: a clone that shares a value with the original, a tag that does nothing. It never stops anything.',
+  },
+  {
+    key: 'info',
+    label: 'Info',
+    text: 'mion works as documented: a method a validator skips, a validator on a type you wrote as any. Hidden unless you set levels to all.',
   },
 ];
 </script>
@@ -31,9 +36,15 @@ const levels = [
 <style scoped>
 .diag-levels {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 0.9rem;
   margin: 1rem 0 1.5rem;
+}
+
+@media (max-width: 1200px) {
+  .diag-levels {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 @media (max-width: 900px) {
