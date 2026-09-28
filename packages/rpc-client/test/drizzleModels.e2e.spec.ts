@@ -5,15 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Route-level e2e for the drizzle-derived models: the test server's dbUsers
-// routes take/return InferInsertModel/InferSelectModel (and its Partial) types of a REFINED
-// proxy-built table, and everything on the wire is generated from those types:
-// - insert/select/update payloads validate the captured (varchar maxLength)
-//   AND refined (minLength, min) params before the handler runs;
-// - the update payload is a real partial that still validates present keys;
-// - Date columns survive the default JSON serializer in BOTH directions
-//   (serialized on send, revived to a real Date on receive) with no
-//   hand-written serialization anywhere.
+// The test server's dbUsers routes use the select, insert and Partial-insert models of a REFINED proxy-built table,
+// and the wire code is generated from them: payloads validate captured (varchar maxLength) AND refined (minLength, min)
+// params before the handler, a patch validates only present keys, and Dates round-trip with no hand-written serializer.
 
 import {describe, it, expect} from 'vitest';
 import {initClient} from './lib/fetchingClient.ts';

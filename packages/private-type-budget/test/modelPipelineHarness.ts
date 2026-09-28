@@ -296,7 +296,7 @@ export const PIPELINE_DIALECTS: PipelineDialect[] = [
     steps: [
       // 434 -> 876: a REVIEWED EXCEPTION, single-call builders pay overloads, stray keys, name lifting (see typeRoad).
       884, 1082,
-      // 578 -> 591: a REVIEWED EXCEPTION, the models derive flags from props. 545 once the update model became a Partial.
+      // 578 -> 591: a REVIEWED EXCEPTION, the models derive flags from props. 605 -> 545: updates are a Partial.
       545,
       // 523 -> 525: a REVIEWED EXCEPTION, the route api reads the models derived from props.
       525,
