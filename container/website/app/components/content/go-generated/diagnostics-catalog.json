@@ -432,9 +432,9 @@
       "subsystem": "validation",
       "level": "info",
       "headline": "Property `{0}` is a function: `validationErrors` does not handle function values, so this property is silently not checked.",
-      "summary": "Same as `VL010`, for `createGetValidationErrorsFn`. A function holds no data, so the property is left out of the error report and the others are still checked. On a plain object the same property reports `VE011`. Remove the property, or replace it with the data it would produce.",
+      "summary": "Same as `VL010`, for `createGetValidationErrorsFn`. A function holds no data, so the property is left out of the error report and the others are still checked. You see this for an optional function property or one inside a union member; a required one reports `VE011`. Remove the property, or replace it with the data it would produce.",
       "fix": null,
-      "example": null
+      "example": "import {createGetValidationErrorsFn} from '@mionjs/run-types';\ninterface Button { label: string; onClick?: () => void }\nexport const getButtonErrors = createGetValidationErrorsFn<Button>();"
     },
     {
       "code": "VE011",
@@ -513,9 +513,9 @@
       "subsystem": "validation",
       "level": "info",
       "headline": "Property `{0}` is a function: `validate` does not handle function values, so this property is silently not validated.",
-      "summary": "A function holds no data, so validation skips the property and still checks the others. You mostly see this on an object inside a union; on a plain object the same property reports `VL011`. Remove the property, or replace it with the data it would produce.",
+      "summary": "A function holds no data, so validation skips the property and still checks the others. You see this for an optional function property (`onClick?: () => void`) or one inside a union member; a required one reports `VL011`. Remove the property, or replace it with the data it would produce.",
       "fix": null,
-      "example": null
+      "example": "import {createValidateFn} from '@mionjs/run-types';\ninterface Button { label: string; onClick?: () => void }\nexport const isButton = createValidateFn<Button>();"
     },
     {
       "code": "VL011",
@@ -612,7 +612,7 @@
       "subsystem": "serialization",
       "level": "runtimeError",
       "headline": "Type `{0}` can never be encoded to JSON: the generated function will always fail.",
-      "summary": "A function has no JSON form, so there is nothing to encode. Use the data the function returns instead. A function property inside an object is dropped instead (PJ010).",
+      "summary": "A function has no JSON form, so there is nothing to encode. Use the data the function returns instead. A method or function property inside an object is dropped instead (PJ011, or PJ010 when it is optional or in a union member).",
       "fix": "interface User {\n  name: string; // not getName: () => string\n}",
       "example": null
     },
@@ -702,7 +702,7 @@
       "subsystem": "serialization",
       "level": "runtimeError",
       "headline": "Type `{0}` can never be encoded to JSON: the generated function will always fail.",
-      "summary": "A function has no JSON form, so there is nothing to encode. Use the data the function returns instead. A function property inside an object is dropped instead (PJS010).",
+      "summary": "A function has no JSON form, so there is nothing to encode. Use the data the function returns instead. A method or function property inside an object is dropped instead (PJS011, or PJS010 when it is optional or in a union member).",
       "fix": "interface User {\n  name: string; // not getName: () => string\n}",
       "example": null
     },
@@ -792,7 +792,7 @@
       "subsystem": "serialization",
       "level": "runtimeError",
       "headline": "Type `{0}` can never be decoded from JSON: the generated function will always fail.",
-      "summary": "A function has no JSON form, so there is nothing to decode. Use the data the function returns instead. A function property inside an object is dropped instead (RJ010).",
+      "summary": "A function has no JSON form, so there is nothing to decode. Use the data the function returns instead. A method or function property inside an object is dropped instead (RJ011, or RJ010 when it is optional or in a union member).",
       "fix": "interface User {\n  name: string; // not getName: () => string\n}",
       "example": null
     },
@@ -1386,7 +1386,7 @@
       "subsystem": "enrichment",
       "level": "warning",
       "headline": "Stale `@rtOrphan` carcass; run `mion enrich --prune` to remove it (or restore the type).",
-      "summary": "`mion enrich --update` commented out this FriendlyText const because its type was deleted or renamed; the comment keeps your labels and messages. If the type is gone, run `mion enrich --prune` to remove it. If it was renamed, run `mion enrich <source.ts> <NewName> --update` to get your values back.",
+      "summary": "mion (`mion enrich --update`, or the build plugin in dev) commented out this FriendlyText const because its type was deleted or renamed; the comment keeps your labels and messages. If the type is gone, run `mion enrich --prune` to remove it. If it was renamed, run `mion enrich <source.ts> <NewName> --update` to get your values back.",
       "fix": "# the type is gone\nmion enrich --prune\n# the type was renamed\nmion enrich <source.ts> <NewName> --update",
       "example": null
     },
@@ -1395,7 +1395,7 @@
       "subsystem": "enrichment",
       "level": "warning",
       "headline": "Stale `@rtOrphanChild` field carcass; run `mion enrich --prune` to remove it (or restore the field).",
-      "summary": "`mion enrich --update` commented out this field because your type no longer has it. The comment keeps your value. If the field is gone, run `mion enrich --prune`. If it was renamed, run `mion enrich <source.ts> <Type> --update`, and the value moves to the new field when the field's type did not change.",
+      "summary": "mion (`mion enrich --update`, or the build plugin in dev) commented out this field because your type no longer has it. The comment keeps your value. If the field is gone, run `mion enrich --prune`. If it was renamed, run `mion enrich <source.ts> <Type> --update`, and the value moves to the new field when the field's type did not change.",
       "fix": "# the field is gone\nmion enrich --prune\n# the field was renamed\nmion enrich <source.ts> <Type> --update",
       "example": null
     },
@@ -1476,7 +1476,7 @@
       "subsystem": "enrichment",
       "level": "warning",
       "headline": "Stale `@rtOrphan` carcass; run `mion enrich --prune` to remove it (or restore the type).",
-      "summary": "`mion enrich --update` commented out this MockData const because its type was deleted or renamed; the comment keeps your pools and ranges. If the type is gone, run `mion enrich --prune` to remove it. If it was renamed, run `mion enrich <source.ts> <NewName> --update` to get your values back.",
+      "summary": "mion (`mion enrich --update`, or the build plugin in dev) commented out this MockData const because its type was deleted or renamed; the comment keeps your pools and ranges. If the type is gone, run `mion enrich --prune` to remove it. If it was renamed, run `mion enrich <source.ts> <NewName> --update` to get your values back.",
       "fix": "# the type is gone\nmion enrich --prune\n# the type was renamed\nmion enrich <source.ts> <NewName> --update",
       "example": null
     },
@@ -1485,7 +1485,7 @@
       "subsystem": "enrichment",
       "level": "warning",
       "headline": "Stale `@rtOrphanChild` field carcass; run `mion enrich --prune` to remove it (or restore the field).",
-      "summary": "`mion enrich --update` commented out this field because your type no longer has it. The comment keeps your value. If the field is gone, run `mion enrich --prune`. If it was renamed, run `mion enrich <source.ts> <Type> --update`, and the value moves to the new field when the field's type did not change.",
+      "summary": "mion (`mion enrich --update`, or the build plugin in dev) commented out this field because your type no longer has it. The comment keeps your value. If the field is gone, run `mion enrich --prune`. If it was renamed, run `mion enrich <source.ts> <Type> --update`, and the value moves to the new field when the field's type did not change.",
       "fix": "# the field is gone\nmion enrich --prune\n# the field was renamed\nmion enrich <source.ts> <Type> --update",
       "example": null
     },
