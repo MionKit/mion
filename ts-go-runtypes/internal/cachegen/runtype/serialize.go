@@ -1078,6 +1078,13 @@ func (cache *Cache) projectMembersInto(
 		// Members inherited from a default-lib global (Error's name/message/stack) are NOT excluded: they are
 		// projected NON-ENUMERABLE-GUARDED, and emitters gate the by-name write on a runtime enumerability
 		// check, so a vanilla error instance skips them (no stack leak) and an enumerable one serializes.
+		if propertySymbol != nil && reflection.IsPrivateName(propertySymbol.Name) {
+			// Twin of the typeid.memberIDs skip: a `#name` field has no key, so a by-name read would only ever see undefined.
+			if !node.HasFlag(reflection.FlagPrivateFields) {
+				node.Flags = append(node.Flags, reflection.FlagPrivateFields)
+			}
+			continue
+		}
 		cache.appendProperty(node, propertySymbol, asClass, i)
 	}
 	for i, indexInfo := range cache.typeChecker.GetIndexInfosOfType(tsType) {
@@ -1133,6 +1140,9 @@ func (cache *Cache) appendProperty(parent *reflection.RunType, symbol *ast.Symbo
 	member.NonEnumerable = guarded
 	member.IsSafeName = isSafeName(memberName)
 	applyMemberModifiers(member, symbol, asClass)
+	if asClass && typeid.IsAccessorMember(symbol) {
+		member.Flags = append(member.Flags, reflection.FlagAccessor)
+	}
 
 	// The member id must exist BEFORE a signature projects into it: parameters intern under
 	// `_pa_<member id>_<name>_<i>`, so an empty id collides every same-named parameter onto one node.
@@ -1143,6 +1153,9 @@ func (cache *Cache) appendProperty(parent *reflection.RunType, symbol *ast.Symbo
 	if isMethod {
 		if asClass {
 			member.Kind = reflection.KindMethod
+			if typeid.IsFunctionField(symbol) {
+				member.Flags = append(member.Flags, reflection.FlagField)
+			}
 		} else {
 			member.Kind = reflection.KindMethodSignature
 		}

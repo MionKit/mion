@@ -579,7 +579,7 @@ func (computer *Computer) objectID(tsType *checker.Type) string {
 		// discriminant can't tell apart. Anonymous classes (TS internal symbol name, 0xFE prefix) are never
 		// registered, so they keep the nameless structural id.
 		ids := computer.memberIDs(tsType, true)
-		id := collectionJoined(int(reflection.KindClass), computer.sortedJoin(ids), false)
+		id := collectionJoined(int(reflection.KindClass), computer.sortedJoin(ids), false) + computer.privateFieldsBit(tsType)
 		// Append the class name OUTSIDE the `{…}` member group: a bare `name:` token inside could collide with a
 		// property literally named `name`, and `#` never appears in a member id.
 		if symbol := tsType.Symbol(); symbol != nil && symbol.Name != "" && symbol.Name[0] != 0xFE {
@@ -617,6 +617,10 @@ func (computer *Computer) memberIDs(tsType *checker.Type, asClass bool) []string
 		// projectMembersInto, which matches the late-bound `unique symbol` spelling too.
 		if IsFormatSentinelPropName(propertySymbol.Name) ||
 			IsContainsSentinelPropName(propertySymbol.Name) || IsLabelsSentinelPropName(propertySymbol.Name) {
+			continue
+		}
+		// Twin of the projection skip: a `#name` field folds in once, as the class's privateFieldsBit.
+		if reflection.IsPrivateName(propertySymbol.Name) {
 			continue
 		}
 		out = append(out, computer.memberID(propertySymbol, asClass))
@@ -673,7 +677,7 @@ func (computer *Computer) memberID(symbol *ast.Symbol, asClass bool) string {
 			if asClass {
 				kind = reflection.KindMethod
 			}
-			return computer.signatureID(signatures[0], kind, memberName) + optBit(optional) + readonlyBit(readonly) + guardedBit(guarded)
+			return computer.signatureID(signatures[0], kind, memberName) + optBit(optional) + readonlyBit(readonly) + guardedBit(guarded) + fieldBit(asClass && IsFunctionField(symbol))
 		}
 	}
 
@@ -695,7 +699,43 @@ func (computer *Computer) memberID(symbol *ast.Symbol, asClass bool) string {
 	} else {
 		child = computer.Compute(propertyType)
 	}
-	return memberID(int(kind), memberName, optional, child) + readonlyBit(readonly) + guardedBit(guarded)
+	return memberID(int(kind), memberName, optional, child) + readonlyBit(readonly) + guardedBit(guarded) + accessorBit(asClass && IsAccessorMember(symbol))
+}
+
+// IsAccessorMember reports a get / set accessor; shared by the projection and memberID so id and flag cannot drift.
+func IsAccessorMember(symbol *ast.Symbol) bool {
+	return symbol != nil && symbol.Flags&ast.SymbolFlagsAccessor != 0
+}
+
+// IsFunctionField reports a member declared as a property (`fn = () => 1`, a parameter property), not a method.
+func IsFunctionField(symbol *ast.Symbol) bool {
+	return symbol != nil && symbol.Flags&ast.SymbolFlagsProperty != 0
+}
+
+// accessorBit keeps a getter apart from a data property of the same type: removeUnknownKeys copies one and not the other.
+func accessorBit(accessor bool) string {
+	if accessor {
+		return "#acc"
+	}
+	return ""
+}
+
+// fieldBit keeps a function-typed field apart from a method: the field is an own value, the method sits on the prototype.
+func fieldBit(field bool) string {
+	if field {
+		return "#fld"
+	}
+	return ""
+}
+
+// privateFieldsBit marks a class with `#name` fields, whose members list leaves them out.
+func (computer *Computer) privateFieldsBit(tsType *checker.Type) string {
+	for _, propertySymbol := range computer.typeChecker.GetPropertiesOfType(tsType) {
+		if reflection.IsPrivateName(propertySymbol.Name) {
+			return "#pf"
+		}
+	}
+	return ""
 }
 
 // stableMemberName strips the checker-instance symbol id off a late-bound symbol-keyed member name
