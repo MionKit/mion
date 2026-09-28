@@ -363,6 +363,10 @@ func buildMergedProps(objectMembers []FlatObject, ctx *EmitContext, discValueByM
 			if prop == nil || prop.IsStatic {
 				continue
 			}
+			if reflection.IsSymbolKeyedName(prop.Name) {
+				ctx.EmitDiagnosticSlot(SlotSymbolKeyedDropped, reflection.SymbolKeyLabel(prop.Name))
+				continue
+			}
 			// A method-like member is a DataOnly-dropped slot like a function-valued property, but a different
 			// member KIND, so the stripped-child branch below never sees it. Record it so a surviving
 			// same-name candidate gets the value guard: a value from THIS member still carries the key

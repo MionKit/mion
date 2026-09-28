@@ -48,7 +48,8 @@ func collectObjectChildNames(rt *reflection.RunType, ctx *EmitContext) (rtNames 
 		if resolved.Kind == reflection.KindIndexSignature {
 			continue
 		}
-		if resolved.Name == "" {
+		// A symbol key is never a string key: counting it would make a strict check reject every valid value.
+		if resolved.Name == "" || reflection.IsSymbolKeyedName(resolved.Name) {
 			continue
 		}
 		allNames = append(allNames, resolved.Name)

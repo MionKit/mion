@@ -28,6 +28,8 @@ describe('symbol-keyed member drop', () => {
   test('getValidationErrors reports nothing for the symbol key', () => {
     const errors = createGetValidationErrorsFn<Tagged>();
     expect(errors({name: 'a', [tag]: 'x'})).toEqual([]);
+    const isWrapped = createValidateFn<{inner: Tagged}>(undefined, {checkUnknowns: true});
+    expect(isWrapped({inner: {name: 'a', [tag]: 'x'}})).toBe(true);
   });
 
   test('JSON round-trips the data members only', () => {
@@ -42,6 +44,23 @@ describe('symbol-keyed member drop', () => {
     const strip = createRemoveUnknownKeysFn<Tagged>();
     const clean = strip({name: 'a', [tag]: 'x', extra: 1} as Tagged);
     expect(Object.keys(clean)).toEqual(['name']);
+  });
+
+  test('strict validation ignores the symbol key, it never counts as a declared key', () => {
+    const isTagged = createValidateFn<Tagged>(undefined, {checkUnknowns: true});
+    const errors = createGetValidationErrorsFn<Tagged>(undefined, {checkUnknowns: true});
+    expect(isTagged({name: 'a', [tag]: 'x'})).toBe(true);
+    expect(isTagged({name: 'a', extra: 1})).toBe(false);
+    expect(errors({name: 'a', [tag]: 'x'})).toEqual([]);
+  });
+
+  test('a union of arms that all declare the symbol key round-trips its data members only', () => {
+    type Shape = {kind: 'a'; name: string; [tag]: string} | {kind: 'b'; size: number; [tag]: string};
+    const encode = createJsonEncoderFn<Shape>();
+    const decode = createJsonDecoderFn<Shape>();
+    const json = encode({kind: 'a', name: 'x', [tag]: 't'}) as string;
+    expect(JSON.parse(json)).toEqual({kind: 'a', name: 'x'});
+    expect(Object.keys(decode(json))).toEqual(['kind', 'name']);
   });
 
   // Marker coverage rule: both getRunTypeId shapes name the same type.
