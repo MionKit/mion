@@ -24,7 +24,7 @@
               "step": 3,
               "label": "Infer* models",
               "delta": 545,
-              "budget": 605
+              "budget": 545
             },
             {
               "step": 4,
@@ -137,7 +137,7 @@
               "step": 3,
               "label": "Infer* models",
               "delta": 545,
-              "budget": 605
+              "budget": 545
             },
             {
               "step": 4,
@@ -250,7 +250,7 @@
               "step": 3,
               "label": "Infer* models",
               "delta": 545,
-              "budget": 605
+              "budget": 545
             },
             {
               "step": 4,

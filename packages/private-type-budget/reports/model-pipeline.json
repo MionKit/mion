@@ -23,7 +23,7 @@
           "step": 3,
           "label": "Infer* models",
           "delta": 545,
-          "budget": 605,
+          "budget": 545,
           "cumulative": 2511
         },
         {
@@ -77,7 +77,7 @@
           "step": 3,
           "label": "Infer* models",
           "delta": 545,
-          "budget": 605,
+          "budget": 545,
           "cumulative": 2527
         },
         {
@@ -131,7 +131,7 @@
           "step": 3,
           "label": "Infer* models",
           "delta": 545,
-          "budget": 605,
+          "budget": 545,
           "cumulative": 2527
         },
         {

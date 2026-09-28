@@ -296,8 +296,8 @@ export const PIPELINE_DIALECTS: PipelineDialect[] = [
     steps: [
       // 434 -> 876: a REVIEWED EXCEPTION, single-call builders pay overloads, stray keys, name lifting (see typeRoad).
       884, 1082,
-      // 578 -> 591: a REVIEWED EXCEPTION, the models derive flags from props.
-      605,
+      // 578 -> 591: a REVIEWED EXCEPTION, the models derive flags from props. 545 once the update model became a Partial.
+      545,
       // 523 -> 525: a REVIEWED EXCEPTION, the route api reads the models derived from props.
       525,
       // 3052 -> 3179: a REVIEWED EXCEPTION, the client maps the models derived from props.
@@ -310,8 +310,8 @@ export const PIPELINE_DIALECTS: PipelineDialect[] = [
     // 1784 -> 1605: lowered to the measurement, which rose from 1495 because the consumer derives the flags from props.
     consumer: 1633,
   }),
-  pipelineDialect(MYSQL, {steps: [903, 1079, 605, 525, 3179, 7139], total: 13407, consumer: 1630}),
-  pipelineDialect(SQLITE, {steps: [908, 1074, 605, 524, 3179, 7313], total: 13580, consumer: 1602}),
+  pipelineDialect(MYSQL, {steps: [903, 1079, 545, 525, 3179, 7139], total: 13407, consumer: 1630}),
+  pipelineDialect(SQLITE, {steps: [908, 1074, 545, 524, 3179, 7313], total: 13580, consumer: 1602}),
 ];
 
 /** The cumulative snippet of `pipeline` up to (and including) `index`. **/
