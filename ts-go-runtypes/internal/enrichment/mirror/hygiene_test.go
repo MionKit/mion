@@ -287,9 +287,9 @@ func TestFamilyClassifier_Attribution(t *testing.T) {
 // the file an enrichment mirror.
 func TestScanDirtyTags_StringLiteralsNeverFire(t *testing.T) {
 	catalogLike := "export const DIAG = {\n" +
-		"  FT021: {detail: 'example:\\n/* " + OrphanTag + " export const gone = {}; */\\nrun mion enrich --prune'},\n" +
-		"  FT022: {detail: \"a /* " + OrphanChildTag + " old: 1, */ example\"},\n" +
-		"  FT020: {detail: `fresh scaffold:\n" + MarkerCommentPrefix + "User#a1 */\n" + TodoLine + "`},\n" +
+		"  FT021: {headline: 'example:\\n/* " + OrphanTag + " export const gone = {}; */\\nrun mion enrich --prune'},\n" +
+		"  FT022: {headline: \"a /* " + OrphanChildTag + " old: 1, */ example\"},\n" +
+		"  FT020: {headline: `fresh scaffold:\n" + MarkerCommentPrefix + "User#a1 */\n" + TodoLine + "`},\n" +
 		"};\n"
 	if findings := ScanDirtyTags(catalogLike); len(findings) != 0 {
 		t.Errorf("tag patterns inside string literals must not fire; got %+v", findings)

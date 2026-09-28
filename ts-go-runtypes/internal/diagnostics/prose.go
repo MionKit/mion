@@ -1,8 +1,9 @@
 package diagnostics
 
-// Docs prose for the website diagnostics page, keyed by code: the plain-language Summary, an
-// optional Fix snippet and an Example that triggers the code. The gen-diag-catalog dump exports all
-// three, so scripts/core/gen-diagnostics-catalog.mjs renders the page without a second prose source.
+// Website text for the All Diagnostics page, keyed by code: the one plain-language Summary (what
+// triggers the code, what it means, how to fix it), an optional Fix snippet and an Example that
+// triggers the code. The gen-diag-catalog dump exports all three, so
+// scripts/core/gen-diagnostics-catalog.mjs renders the page without a second text source.
 //
 // Example is not just docs: internal/compiler/resolver/diag_examples_test.go feeds every non-empty
 // Example through the real scan and asserts the code fires, so one cannot drift from what it
@@ -11,8 +12,8 @@ package diagnostics
 // Voice rules (this renders on the website): plain language, no compiler internals, no dashes
 // chaining clauses. Backtick spans in Summary become inline code, wider examples go in Fix.
 //
-// A prose entry for an unregistered code panics at init; a registered code with no prose entry is
-// fine, and the generator reports the remaining gaps.
+// A prose entry for an unregistered code panics at init; every registered code needs a Summary
+// (TestEveryCodeHasSummary pins it).
 
 type prose struct {
 	Summary string

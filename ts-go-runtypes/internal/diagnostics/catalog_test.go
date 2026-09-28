@@ -33,7 +33,26 @@ func TestDefinitions_AllRegisteredCodesHaveFamilyAndSeverity(t *testing.T) {
 func TestEveryCodeHasHeadline(t *testing.T) {
 	for code, def := range Definitions {
 		if def.Headline == "" {
-			t.Errorf("code %q: no Headline, add it to messagesByCode in messages.go", code)
+			t.Errorf("code %q: no Headline, add it to headlineByCode in messages.go", code)
+		}
+	}
+}
+
+// TestEveryCodeHasSummary pins the one website text per code: the All Diagnostics page shows it as
+// a single paragraph, so it must exist, stay on one line and use no dash as punctuation.
+func TestEveryCodeHasSummary(t *testing.T) {
+	for code, def := range Definitions {
+		if def.Summary == "" {
+			t.Errorf("code %q: no Summary, add it to proseByCode in prose.go", code)
+			continue
+		}
+		if strings.Contains(def.Summary, "\n") {
+			t.Errorf("code %q: Summary spans several lines; the page renders it as one paragraph", code)
+		}
+		for _, dash := range []string{"\u2014", "\u2013", " -- ", " - "} {
+			if strings.Contains(def.Summary, dash) {
+				t.Errorf("code %q: Summary uses %q as punctuation; use a comma, a period or parentheses", code, dash)
+			}
 		}
 	}
 }

@@ -1,576 +1,156 @@
 package diagnostics
 
-// messages.go is the single source of the USER-FACING wording for every diagnostic code: a
-// mandatory Headline (`{0}`, `{1}` substitute against Diagnostic.Args) and an optional Detail block,
-// which only the website diagnostics page renders, as "Full build message".
-// The wire carries code + args only; `pnpm miondevx core codegen diag` exports this map into the
-// GENERATED packages/devtools/src/core/go-generated/diagnosticCatalog.generated.ts the bundler
-// plugin and the lint plugin render from. Runtime alwaysThrow text is not rendered there: Go bakes
-// it whole into the cache entry (see cachegen/typefunctions.buildAlwaysThrowMessage). Every code
-// MUST have a Headline (TestEveryCodeHasHeadline pins it); an unregistered code panics at init,
-// mirroring prose.go.
+// messages.go is the single source of the Headline every diagnostic code prints (`{0}`, `{1}`
+// substitute against Diagnostic.Args). The wire carries code + args only; `pnpm miondevx core
+// codegen diag` exports this map into the GENERATED
+// packages/devtools/src/core/go-generated/diagnosticCatalog.generated.ts the bundler plugin and the
+// lint plugin render from. Runtime alwaysThrow text is not rendered there: Go bakes it whole into
+// the cache entry (see cachegen/typefunctions.buildAlwaysThrowMessage). Every code MUST have a
+// Headline (TestEveryCodeHasHeadline pins it); an unregistered code panics at init, mirroring
+// prose.go, which holds the longer website text.
 //
-// Wording standard (same as the docs prose):
-//  1. Use the user's TypeScript vocabulary, no compiler internals.
-//  2. State the user-visible consequence, not what the compiler did.
-//  3. End the Detail with the fix as concrete code where possible.
-//  4. Headline first; Detail carries the explanation + example.
+// Wording standard: the user's TypeScript vocabulary, no compiler internals, and the user-visible
+// consequence rather than what the compiler did.
 
-type message struct {
-	Headline string
-	Detail   string
-}
-
-var messagesByCode = map[string]message{
-	"EXP001": {
-		Headline: "Unused `@mion-expect-error {0}`: nothing was reported on the line below it, so the comment is stale and can be deleted.",
-		Detail:   "`@mion-expect-error` silences a finding you already know about, and it is\nchecked the same way TypeScript checks `@ts-expect-error`: if the finding\nis gone, the comment itself is reported. That is what stops these comments\noutliving the problem they were added for, so a type that got fixed does\nnot keep a silencer parked over it forever.\n\nFix: delete the comment, or correct the code it names:\n-  // @mion-expect-error VL002\n+  // (nothing — the finding is gone)",
-	},
-	"EXP002": {
-		Headline: "`@mion-expect-error {0}` cannot silence that code: it is reported even when everything else is silenced.",
-		Detail:   "Two groups of codes are never suppressible. Pure-function codes report a\nfailed extraction, and the build writes generated files from that\nextraction, so continuing would ship missing output rather than risky\noutput. `EXP` codes are the check that keeps these comments honest, so a\ncomment cannot silence it either.\n\nFix: fix the reported call site instead of silencing it.",
-	},
-	"EXP003": {
-		Headline: "`@mion-expect-error {0}` names a diagnostic code that does not exist; check the spelling against the code in the message you are silencing.",
-		Detail:   "A code that is not in the catalog can never match a finding, so the comment\nwould silence nothing while looking like it works. Codes are the uppercase\nidentifier in a message, for example the `VL002` in\n`error VL002: Type ... can never be validated`.\n\nFix: copy the code out of the message you are silencing:\n-  // @mion-expect-error VL2\n+  // @mion-expect-error VL002",
-	},
-	"DWN001": {
-		Headline: "Unused `@mion-downgrade-error {0}`: nothing was reported on the line below it, so the comment is stale and can be deleted.",
-		Detail:   "`@mion-downgrade-error` lowers a finding you already know about to a\nwarning, and it is checked the same way `@mion-expect-error` is: if the\nfinding is gone, the comment itself is reported. That is what stops these\ncomments outliving the problem they were added for, so a type that got\nfixed does not keep a comment parked over it forever.\n\nFix: delete the comment, or correct the code it names:\n-  // @mion-downgrade-error VL002\n+  // (nothing — the finding is gone)",
-	},
-	"DWN002": {
-		Headline: "`@mion-downgrade-error {0}` cannot lower that code: the build produces no code for it, so carrying on would ship missing output.",
-		Detail:   "Lowering a finding says \"emit it and let me carry on\". That only means\nsomething when there IS output: this code reports that the build produced\nnone for the thing, so not halting would only ship a call that throws\nanyway. The same rule refuses it in the `downgradeErrors` setting.\n\nFix: fix the reported call site instead of lowering it.",
-	},
-	"DWN003": {
-		Headline: "`@mion-downgrade-error {0}` names a diagnostic code that does not exist; check the spelling against the code in the message you are lowering.",
-		Detail:   "A code that is not in the catalog can never match a finding, so the comment\nwould lower nothing while looking like it works. Codes are the uppercase\nidentifier in a message, for example the `VL002` in\n`error VL002: Type ... can never be validated`.\n\nFix: copy the code out of the message you are lowering:\n-  // @mion-downgrade-error VL2\n+  // @mion-downgrade-error VL002",
-	},
-	"DWN004": {
-		Headline: "`@mion-downgrade-error {0}` does nothing: that code is already a warning or info, so it was never halting your build.",
-		Detail:   "The comment exists to stop a finding halting the build. A warning or an\ninfo never halts one, so there is nothing for it to do here and the comment only\nsuggests a problem that is not there.\n\nFix: delete the comment. If you meant to stop the finding being reported\nat all, remove it instead:\n-  // @mion-downgrade-error VL015\n+  // @mion-expect-error VL015",
-	},
-	"CFG001": {
-		Headline: "Project tsconfig failed to load ({0}): the build, the linter, and the CLI all read this config, so nothing can run until it loads.",
-		Detail:   "RunTypes derives every type query from your project tsconfig, the same\nfile your build uses. A tsconfig that was named (or found next to your\nproject) but is missing or does not parse stops the operation, exactly\nlike `tsc --project` would, instead of silently falling back to defaults\nthat could resolve your types differently.\n\nFix: repair the tsconfig (the message names the first parse problem),\nor point the tooling at the right file (the plugin/lint `tsconfig`\nsetting, or the CLI `--tsconfig` flag).",
-	},
-	"CFG002": {
-		Headline: "The project `lib` declares no base ECMAScript library (loaded: {0}), so core globals like `Array` are missing and reflected types cannot be trusted.",
-		Detail:   "RunTypes reflects your types through the standard library your tsconfig\nselects. With no base edition in `lib`, TypeScript never declares `Array`,\n`Object`, `String` and friends, and the checker resolves `number[]` to an\nempty object instead. Nothing errors: the build succeeds and the generated\nvalidator accepts any value.\n\nThat is the one failure shape RunTypes refuses to ship, so the operation\nstops here instead.\n\nFix: name a base edition in your tsconfig `lib` (`[\"ES2022\"]`, or\n`[\"ES2022\", \"DOM\"]` for browser code), or drop `lib` entirely and let\n`target` pick it. A by-feature entry such as `\"esnext.disposable\"` adds to a\nbase edition, it cannot replace one.",
-	},
-	"FMT001": {
-		Headline: "TypeFormat mockSample \"{0}\" does not match its pattern /{1}/; fix the sample or the pattern.",
-	},
-	"FMT002": {
-		Headline: "Invalid type-format params: {0}",
-	},
-	"NE001": {
-		Headline: "Property `{0}` is tagged @nonEnumerable but is required: the guard only applies to optional properties, so the tag has no effect. Make it optional (`{0}?`) or remove the tag.",
-		Detail:   "The runtime enumerability guard (which lets a value omit a property from\nthe wire when it isn't an enumerable own property) is applied ONLY to\noptional properties. That keeps the decoder's `DataOnly<T>` return type\nhonest: a guarded property is always one the type already allows to be\nabsent. A `@nonEnumerable` tag on a REQUIRED property is therefore ignored;\nthe property still serializes unconditionally.\n\nFix: make the property optional:\n-  /** @nonEnumerable */ token: string;\n+  /** @nonEnumerable */ token?: string;",
-	},
-	"FMT003": {
-		Headline: "TypeFormat mockSample violates a sibling constraint: {0}",
-		Detail:   "A mockSample is meant to be a canonical VALID value for the format, so it\nmust satisfy the format's own statically checkable siblings (length /\nminLength / maxLength, and the plain-string allowedChars / disallowedChars /\ndisallowedValues ops). A sample that its siblings reject means\n`createMockDataFn` would either produce an invalid value or filter every\nsample out and throw at mock time.\n\nLengths are counted in UTF-16 code units, exactly as the emitted validator's\n`.length` check counts them.\n\nFix: adjust the offending sample(s), or relax the constraint:\n  -  String<{minLength: 5; pattern: {source: '^b+$'; mockSamples: ['b', 'bb']}}>\n+  String<{minLength: 1; pattern: {source: '^b+$'; mockSamples: ['b', 'bb']}}>",
-	},
-	"FMT004": {
-		Headline: "TypeFormat pattern /{0}/ cannot be checked: {1}; pattern validation requires a JavaScript runtime; install one or pass --js-runtime.",
-		Detail:   "Pattern checks (does the regex compile, do the mockSamples match it) run on\na real JS engine (the same `new RegExp` the emitted validator uses at\nruntime), driven by the resolver as a small sidecar under a JavaScript\nruntime. No runtime could be started, so the pattern is unverifiable and\nthe build fails closed rather than ship samples it can't verify.\n\nFix: install node or bun (both are found automatically on PATH), or point\nthe --js-runtime flag or the MION_JS_RUNTIME environment variable at any\nother runtime that can run the bundled checker (deno and most\nnode-compatible runtimes work). Projects with no patterns never need this.",
-	},
-	"FMT005": {
-		Headline: "Cannot auto-generate mockSamples for pattern /{0}/: {1}; declare mockSamples explicitly.",
-		Detail:   "A pattern with no declared mockSamples gets them generated at build time:\nthe JS engine draws candidate strings from the regex (patternSampleCount of\nthem, a fresh pool per build, or a reproducible one when a literal\n{mock: {seed}} rides a createMockDataFn call site) and keeps the ones the\nreal compiled pattern and the declared length bounds accept. This one\nproduced nothing: generation is disabled (patternSampleCount 0), the\ngenerator cannot handle a construct in the pattern (lookarounds are the\nusual case), or every draw in the retry budget (patternSampleCount ×\npatternSampleRetries) failed the pattern's own constraints.\n\nFix: declare the samples yourself; they are validated against the pattern\nat build time, so they stay trustworthy:\n-  String<{pattern: {source: '(?<=x)y'}}>\n+  String<{pattern: {source: '(?<=x)y'; mockSamples: ['xy']}}>\n\nOr, if generation was disabled on purpose, re-enable it by raising\npatternSampleCount above 0 (and patternSampleRetries if the pattern is\nheavily constrained).",
-	},
-	"FMT007": {
-		Headline: "TypeFormat pattern /{0}/ could not be evaluated in time: {1}; the build was not able to tell whether the pattern is safe.",
-		Detail:   "Pattern checks run each mockSample through the real compiled regex on a JS\nengine, with a time budget per sample so a pattern that backtracks\ncatastrophically cannot hang the build. This sample ran out of budget, and\nout of the larger retry budget too. Either the pattern really is runaway\n(nested quantifiers such as `(a+)+` on a long input are the usual case) or\nthe machine was too busy to finish a fine match in time.\n\nThis verdict is never cached: the next build re-evaluates the pattern, so a\none-off load spike clears itself. If it keeps failing on an idle machine,\nrewrite the pattern to avoid ambiguous nested repetition, or shorten the\nsample it times out on.",
-	},
-	"FMT008": {
-		Headline: "TypeFormat pattern /{0}/ can be made to backtrack exponentially: {1} (`{2}`); a crafted input would hang the validator.",
-		Detail:   "A `pattern` becomes a real regular expression inside the generated\nvalidator and runs on every value that validator sees. JavaScript matches\nwith a backtracking engine, so a pattern that can match the same text in\nmore than one way tries every combination before it gives up. On an input\nthat ALMOST matches, a few dozen characters are enough to hang the\nprocess, and the validator is the thing meant to keep bad input out.\n\nThe check is static, so it runs on every machine, unlike the sample time\nbudget, which needs a runtime that can interrupt a running match.\n\nFix: make each turn of the loop match one way only, usually by giving the\nrepeated part a boundary the rest cannot match:\n-  String<{pattern: {source: '^(\\\\w+\\\\s?)*$'}}>\n+  String<{pattern: {source: '^\\\\w+(?:\\\\s\\\\w+)*$'}}>\n\nIf the pattern really is safe and the check has it wrong, say so on the\npattern and the build accepts it:\n  String<{pattern: {source: '...'; unsafePattern: true}}>",
-	},
-	"FMT006": {
-		Headline: "Two sites share one cache entry for format `{0}` but declare different mockSamples: `{1}` here vs `{2}` at {3}. Make the pools identical, or declare one and leave the other out.",
-		Detail:   "mockSamples describe how to GENERATE a sample value; they are not part of\nwhat the format validates. So two formats identical apart from their pools\nare the same validator, and they intern as ONE cache entry. That dedup is\ndeliberate, and it is why the samples are excluded from the structural id.\n\nThe catch is that one entry can only carry one pool. When both sites declare\none and the pools differ, the entry keeps whichever it saw first, so which\npool survives depends on scan order, and adding or reordering unrelated\ncode elsewhere can flip it. Rather than pick silently, the build stops here.\n\nFix: declare the same pool at both sites:\n-  type A = String<{maxLength: 5; mockSamples: ['aaa']}>;\n-  type B = String<{maxLength: 5; mockSamples: ['bbb']}>;\n+  type A = String<{maxLength: 5; mockSamples: ['aaa']}>;\n+  type B = String<{maxLength: 5; mockSamples: ['aaa']}>;\n\nFix: or declare it once and leave the other alone; a site that declares\nnothing is not an opinion, so the declared pool is adopted for the shared\nentry:\n  type A = String<{maxLength: 5; mockSamples: ['aaa']}>;\n  type B = String<{maxLength: 5}>;\n\nIf the two really are different types, give them something the id DOES\nfold (a distinct pattern, bound, or brand) so they stop sharing an entry.",
-	},
-	"MKR001": {
-		Headline: "`{0}()` is being called at runtime just so the marker can read its return type: side effects, throws, or async work run for nothing.",
-		Detail:   "Reflect-form markers (`createValidateFn(value)`, `getRunTypeId(value)`)\ninvoke their argument expression at runtime; the value is then discarded;\nonly its inferred type is used.\n\nFix: use the static form with `ReturnType<>`:\n  -  const isUser = createValidateFn({0}());\n+  const isUser = createValidateFn<ReturnType<typeof {0}>>();\n\nFix: pass an existing value of the desired type:\n  const existingUser: User = ...;\n  const isUser = getRunTypeId(existingUser);",
-	},
-	"CTA001": {
-		Headline: "`CompTimeArgs<T>` argument must be a literal at the call site, or a `const` whose initializer is itself entirely literal (a same-module or imported `const` both work).",
-		Detail:   "The build resolves the argument before running, so it needs to read its\nvalue from the source. Function-call results, property accesses, ternary\nexpressions, and `let`/`var` bindings can't be evaluated at build time.\nAccepted: an inline literal, or a `const` whose initializer is itself\nfully literal, including a `const` imported from another module. (An\nobject `const` must be `as const` so its members stay literal; see CTA004.)\n\nFix: inline at the call site:\n-  const opts = getOpts();\n-  const isUser = createValidateFn<User>(undefined, opts);\n+  const isUser = createValidateFn<User>(undefined, {mode: 'unsafe'});\n\nFix: use a const of literals (here or in another module):\n  const opts = {mode: 'unsafe'} as const;   // literal initializer ✓\n  const isUser = createValidateFn<User>(undefined, opts);\n\nIf the value genuinely cannot be known until runtime, look for an\nUNTRACKED twin of the function you are calling rather than silencing this:\nthe brand exists to TRACK a reference, so a key computed at runtime belongs\non the untracked call. mion's pure-fn lookups ship one\n(`getPureFnByKey` / `hasPureFnByKey` / `getCompiledPureFnByKey` beside\n`getPureFn` / `hasPureFn` / `getCompiledPureFn`).",
-	},
-	"CTA002": {
-		Headline: "`CompTimeArgs<T>` literal nesting exceeds the depth cap (16), refactor to flatten.",
-		Detail:   "Deeply nested literal walks are capped at 16 levels to keep the build\npredictable. If you hit this, the value is almost certainly not what\nyou want at compile time: split it across multiple smaller\n`CompTimeArgs<T>` arguments, or flatten the nesting.",
-	},
-	"CTA003": {
-		Headline: "`CompTimeArgs<T>` literal contains a forbidden construct ({0}). Only literals and nested literals are allowed.",
-		Detail:   "The Go scanner cannot statically evaluate computed property names,\nfunction calls, ternary expressions, or template-string substitutions.\nInside a `CompTimeArgs<T>` literal every node must be a direct literal\n(string / number / bigint / boolean / null / undefined / regex / arrow /\nobject literal / array literal) or a const-traced identifier that\nresolves to one.\n\nSpread IS allowed when its operand resolves to a literal container of the\nmatching kind: a `const`-bound (or imported) object literal for an\nobject spread, an array literal for an array spread:\n  const base = {strict: true};\n  const a = {...base, mode: 'unsafe'};        // ok, merges a const fragment\n\nA spread is still rejected when the operand can't be statically merged:\na dynamic value, or a shape mismatch:\n  -  const a = {...getDefaults(), mode: 'unsafe'};   // dynamic operand\n  -  const a = {...[1, 2], mode: 'unsafe'};          // object spread of an array\n\nIf the value genuinely cannot be known until runtime, look for an\nUNTRACKED twin of the function you are calling rather than silencing this:\nthe brand exists to TRACK a reference, so a key computed at runtime belongs\non the untracked call. mion's pure-fn lookups ship one\n(`getPureFnByKey` / `hasPureFnByKey` / `getCompiledPureFnByKey` beside\n`getPureFn` / `hasPureFn` / `getCompiledPureFn`).",
-	},
-	"CTA004": {
-		Headline: "`CompTimeArgs<T>` value comes from a `const` with a widened (non-literal) member ({0}); declare the const `as const`.",
-		Detail:   "A `const` used as a CompTimeArgs / CompTimeFnArgs argument (a whole option\nbag, or a builder child) must carry LITERAL value types, so the value the\nbuild reads matches the type TypeScript resolves the call against. Without\n`as const`, an object literal's members widen (`{strategy: 'mutate'}`\nbecomes `{strategy: string}`), which can let the type system select one\nfunction variant while the build injects another.\n\nWhole imported consts now resolve cross-module (like a spread fragment), so\nthis rule keeps that path sound.\n\nFix: add `as const`:\n-  const preset = {strategy: 'mutate'};\n+  const preset = {strategy: 'mutate'} as const;\n   createJsonEncoderFn(undefined, preset);",
-	},
-	"BAT001": {
-		Headline: "`batch()` element is not a route call the build can read ({0}); write `routes.a.b(...)` inline or bind it to a `const`/`let` in this file.",
-		Detail:   "The build computes the batch id from the ORDERED list of route ids the\n`[...]` argument names, so every element must be a call on the client\nroutes proxy (`routes.users.getById(...)`) that it can trace statically,\neither written inline or bound to a `const` / `let` in the same file.\nA spread, a call on something that is not the routes proxy, a function\nparameter, or a binding without a route-call initializer cannot be read.\n\nFix: write the route call inline, or bind it first:\n-  batch([...prepared, routes.orders.list()]);\n+  const user = routes.users.getById(id);\n+  batch([user, routes.orders.list()]);",
-	},
-	"BAT002": {
-		Headline: "`inputFrom()` reads route `{0}` for route `{1}`, but the source is not in this batch or runs after the target; sources must be listed before the routes they feed.",
-		Detail:   "Routes in a batch run in the order they are listed, and a route can only\nread the output of one that already ran. The source route must be an\nelement of the same `batch([...])` call and sit before the route whose\ninput it maps into.\n\nFix: list the source route first:\n-  batch([routes.orders.list(inputFrom(user, 'toUserId')), user]);\n+  batch([user, routes.orders.list(inputFrom(user, 'toUserId'))]);",
-	},
-	"BAT003": {
-		Headline: "Batch id `{0}` is shared by two different batches; reorder the routes of one of them so the ids no longer collide.",
-		Detail:   "The batch id is a hash of the ordered route ids and the input mappings.\nTwo different batches hashing to the same id is a theoretical event, but\nif it ever happened the server could not tell the two plans apart.\n\nFix: change the route order of one batch, or split it into two batches.",
-	},
-	"BAT004": {
-		Headline: "`inputFrom()` mapper is not readable at build time ({0}); pass an inline arrow function or a string literal mapper name.",
-		Detail:   "The build records which mapper feeds each batched route: an inline\nfunction is registered by content hash, a string names a mapper the\nserver registered. Anything else (a function reference, a computed\nstring, a value from a parameter) cannot be read statically.\n\nFix: inline the mapper or name it:\n-  inputFrom(user, pickId);\n+  inputFrom(user, (u) => u.id);\n+  inputFrom(user, 'toUserId');",
-	},
-	"BAT005": {
-		Headline: "Route `{0}` is listed twice in this `batch()`; a batch runs each route once, so drop the duplicate or move it into a second batch.",
-		Detail:   "The server keys the batch request and its results by route id, so one\nbatch cannot run the same route twice: the second call would overwrite the\nfirst and only one result could come back.\n\nFix: keep one call per route, or split the calls into two batches:\n-  batch([routes.users.getById(1), routes.users.getById(2)]);\n+  batch([routes.users.getById(1)]);\n+  batch([routes.users.getById(2)]);",
-	},
-	"BAT006": {
-		Headline: "`inputFrom()` sits at argument index {0} of route `{2}`, which declares only {1} parameter(s); move the mapping to an argument the route declares.",
-		Detail:   "The server feeds a mapped input into the target route at the argument\nposition the client wrote it, so that position must be one of the route\nhandler's parameters (indexes are zero-based). Today the server rejects\nsuch a request at run time; the build reports it here so it never ships.\n\nFix: pass the mapping at a declared parameter position:\n-  routes.orders.getById(1, inputFrom(user, 'toUserId'));   // getById(id) takes 1 argument\n+  routes.orders.getById(inputFrom(user, 'toUserId'));",
-	},
-	"CFG003": {
-		Headline: "`mion compile` refused to write {0}: it lands outside outDir ({1}) because its source sits outside rootDir; move rootDir up so every file of the program is under it, or reach that module through its package name.",
-		Detail:   "The compile lane emits every file of the program under outDir, mirroring the\ntree below rootDir, exactly like tsc. A file the program reaches from outside\nrootDir (a `paths` entry into a sibling package, a relative import above the\nsource root) has no place under outDir, and writing it where tsgo computes\nit would litter another project with .js files. tsc reports TS6059 for the\nsame program.\n\nThe file is not written, and the emitted importer would point at a path that\nnever lands, so the compile fails.\n\nFix: set `rootDir` to a directory that contains every file of the program, or\nimport the module through its package name (resolved from node_modules at run\ntime) instead of a relative path or a `paths` mapping into its sources.",
-	},
-	"BAT008": {
-		Headline: "This `batch()` is ignored: the batch table is generated from the client project `{0}`, and batches written in the server program itself never reach it.",
-		Detail:   "With `clientTsconfig` (the plugin's `client.tsConfig`, the CLI's\n`--client-tsconfig`) set, the server build reads its batches from that client\nprogram only. A `batch()` call in the server's own program, a test or a script\nfor instance, is not part of the table the server registers, so a request\nnaming its id is answered with an unknown batch id.\n\nFix: move the batch into the client project, or drop the client pointer when\nclient and server are one program.",
-	},
-	"BAT009": {
-		Headline: "The batch table {0} was written, but no module of this program calls `createMionRouter` directly, so nothing imports it; import it by hand in the module that creates the router.",
-		Detail:   "The build appends the table's import to every module that calls\n`createMionRouter` from `@mionjs/router`, following aliases, namespace imports\nand local barrels through the type checker. It cannot see a call made behind a\ndeclaration file (a wrapper shipped by another package), and this program\nnames `@mionjs/router` without any such direct call.\n\nFix: in the module that creates the router, add\n  import './<genDir>/rpc/batches.generated.js';\n(relative to that module), or call `createMionRouter` from a source file of this\nprogram.",
-	},
-	"MET001": {
-		Headline: "The API type at this dispatch site cannot be read as a mion PublicApi ({0}); bundleApi needs `PublicApi<typeof routes>`.",
-		Detail:   "With `bundleApi` on, the build reads the route a call names out of the client's\nAPI type: its handler types, the options the router resolved and the middlewares in\nits chain. That only works on the `PublicApi<typeof routes>` type the router\nexports; a loose `RemoteApi`, an `any`, or a member without its compiled types\ncarries none of it, and the build does not guess.\n\nFix: type the client with the API's PublicApi:\n-  initClient<RemoteApi>({baseURL});\n+  initClient<PublicApi<typeof routes>>({baseURL});",
-	},
-	"MET002": {
-		Headline: "This call names the route `{0}`, which the API type does not declare; nothing is bundled for it.",
-		Detail:   "The route id at a dispatch site comes from the client's own route types, so the\nonly way to reach this is an API type that disagrees with the routes the client\nwas written against (a stale declaration file, or a hand-written id).\n\nFix: rebuild the API's declarations, or point `apiTsconfig` at the API project\nso the build reads the routes from their source.",
-	},
-	"MET003": {
-		Headline: "The route id at this call is `string` (a generic helper erased it), so nothing is bundled for it, and this client never sets up `useMethodsMetadata`: the call fails.",
-		Detail:   "Every dispatch point carries the route it calls as a literal in its type\n(`RouteSubRequest<Handler, 'users/getById'>`). A helper typed with a wide\n`RouteSubRequest<any>` widens that literal to `string`, and the build no longer\nknows which route to bundle for the call inside it.\n\nFix: keep the literal through the helper, or move the call out of it:\n-  function run(sub: RouteSubRequest<any>) { return sub.call() }\n+  function run<S extends RouteSubRequest<any>>(sub: S) { return sub.call() }\nOr set up metadata fetching, so the call asks the server for the route:\n+  useMethodsMetadata(middlewares.mionMethodsMetadata);\nThat builds its functions at runtime, which a strict Content Security Policy blocks.",
-	},
-	"MET004": {
-		Headline: "The route id at this call is `string` (a generic helper erased it); the call fetches its metadata from the server instead of using the bundle.",
-		Detail:   "Every dispatch point carries the route it calls as a literal in its type. A\nhelper typed with a wide `RouteSubRequest<any>` widens it to `string`, so the\nbuild cannot bundle for the call inside it. The client sets up\n`useMethodsMetadata`, so the call still works: it fetches that route's metadata\non first use and builds its functions at runtime.\n\nFix (to bundle it too): keep the literal through the helper:\n-  function run(sub: RouteSubRequest<any>) { return sub.call() }\n+  function run<S extends RouteSubRequest<any>>(sub: S) { return sub.call() }",
-	},
-	"MET005": {
-		Headline: "The API program {0} has {1} `initRoutes(...)` call(s) declaring the routes this client calls; bundleApi needs exactly one.",
-		Detail:   "With `apiTsconfig` set, the build resolves every route's types in the API\nproject's own program, rooted at its `mion.initRoutes(routes)` call. It picks the\ncall whose API declares the same routes the client calls; none, or more than\none, leaves nothing to root at.\n\nFix: point `apiTsconfig` at a tsconfig whose program initializes that API once\n(a dedicated tsconfig for the server entry works), or drop the pointer when the\nclient and the API share one program.",
-	},
-	"MET006": {
-		Headline: "Option `{0}` of `{1}` is not a literal on the API type, so the bundled metadata leaves it unset.",
-		Detail:   "The bundled metadata copies each method's options off the API type, where they\nare the literals the route and the router were declared with. A value computed\nat runtime (a variable, a call) has no literal to copy, and the client then runs\nthat method with the option unset, which can differ from the server.\n\nFix: write the option as a literal at the route or the router:\n-  mion.route(handler, {sanitizeParams: isProd})\n+  mion.route(handler, {sanitizeParams: true})",
-	},
-	"MET007": {
-		Headline: "This client injects the build version {0} but the API in the same program injects {1}; the client reports a version mismatch against its own server.",
-		Detail:   "Both `initClient` and `initRoutes` carry a build version derived from the routes\nthey are typed with. One program building both means one API, so the two values\nhave to agree; different values mean the type the client was given is not the\ntype the router registered.\n\nFix: type the client with the API the router returns:\n-  initClient<RemoteApi>({baseURL});\n+  initClient<PublicApi<typeof routes>>({baseURL});",
-	},
-	"MET008": {
-		Headline: "The route `{1}` runs the middleware `{0}`, which needs params, but this client never sets it up; every call to the route fails its validation.",
-		Detail:   "A middleware gets its params from its `onRequest` hook on the client. The build\nlooked for any read of `middlewares.{0}` in the client program (a hook, or the\nmiddleware handed to an installer) and found none, so the call sends nothing\nand the middleware refuses it.\n\nFix: set the middleware up once, next to `initClient`:\n+  middlewares.{0}.onRequest((call) => call(...));\nOr pass it to the installer the middleware ships with.",
-	},
-	"MET009": {
-		Headline: "The route `{1}` runs the middleware `{0}`, but this client never sets it up, so the middleware never gets its params.",
-		Detail:   "The middleware's params are all optional, so nothing fails on send, but the\nmiddleware never receives anything from this client. The build looked for\nany read of `middlewares.{0}` in the client program (a hook, or the middleware\nhanded to an installer) and found none.\n\nFix: set it up with `middlewares.{0}.onRequest(...)` or its installer. If sending\nnothing is intended, add `// @mion-expect-error MET009` above this call.",
-	},
-	"MET010": {
-		Headline: "This client fetches route metadata, but the API it calls does not place `mionMethodsMetadata`, so every fetch fails.",
-		Detail:   "A call fetches its metadata when the build could not bundle it, or for every\nroute when `bundleApi` is off. The server answers those requests only through\nthe metadata middleware from `@mionjs/router/middlewares`.\n\nFix: place it first in the server's routes and set up its client half:\n+  mion.initRoutes({mionMethodsMetadata, ...routes});\n+  useMethodsMetadata(middlewares.mionMethodsMetadata);\nOr, with bundling on, remove the call to `useMethodsMetadata` and keep every\nroute id a literal so every call is bundled.",
-	},
-	"MET011": {
-		Headline: "This client builds with `bundleApi: false`, so every call fetches its route's metadata, but it never sets up `useMethodsMetadata`: every call fails.",
-		Detail:   "With bundling off, the client asks the server how each route works on first\nuse. It asks through the client half of the metadata middleware, and nothing\nsets it up in this program.\n\nFix: set it up once, next to `initClient`:\n+  useMethodsMetadata(middlewares.mionMethodsMetadata);\nOr build with `bundleApi: true` (the default) so every call is bundled.",
-	},
-	"MRT001": {
-		Headline: "mion `{0}` handler has no return type annotation; write the type the handler answers with.",
-		Detail:   "mion compiles the handler's DECLARED types into the validation and\nserialization functions the route runs, and the client reads the same\ndeclaration to type the call site. An inferred return type leaves the build\nnothing to compile against.\n\nFix: annotate the return type:\n-  mion.route((ctx, name: string) => `hello ${name}`);\n+  mion.route((ctx, name: string): string => `hello ${name}`);",
-	},
-	"MRT002": {
-		Headline: "mion `{1}` handler parameter `{0}` has no type annotation; every parameter after the call context travels on the wire and must declare its type.",
-		Detail:   "The first parameter is the call context (`headersFn` takes two) and never\ncrosses the wire. Every parameter after it is part of the route's public\ninput, so mion compiles a validator and a decoder from its declared type.\n\nFix: annotate the parameter:\n-  mion.route((ctx, name): string => `hello ${name}`);\n+  mion.route((ctx, name: string): string => `hello ${name}`);",
-	},
-	"MRT003": {
-		Headline: "mion `{0}` handlers must return errors, not throw them; return an `RpcError` to let the chain continue, or a `FatalError` to stop the request.",
-		Detail:   "A returned error is part of the contract: it stays in the handler's\nsignature, so the client handles it at the call site, strongly typed. A\nthrown one is not. It leaves the signature, lands in the undeclared\n`@thrownErrors` slot, and the client only ever sees its public message.\n\nA `throw` caught by a `try` and `catch` inside the same handler never\nreaches the router, so it is not reported.\n\nFix: return the error instead:\n-  throw new RpcError({statusCode: 404, name: 'not-found', publicMessage: 'no pet'});\n+  return new RpcError({statusCode: 404, name: 'not-found', publicMessage: 'no pet'});\n\nThrowing is still the escape hatch for something nobody declared. When it is\ndeliberate, silence the rule on that line and say why.",
-	},
-	"MRT004": {
-		Headline: "mion `{1}` handler declares it can answer with `{0}`, which is not an `RpcError`; only an `RpcError` (or a subclass such as `FatalError`) carries the mion brand.",
-		Detail:   "The dispatcher routes a returned error by its mion brand. An `RpcError`, or\nany subclass of it, lands in its own typed slot and the client receives it\ntyped. Any other error, a plain `Error`, a custom class extending it, or a\nbare `TypedError`, carries no usable brand: the request is failed and the\nerror is dropped in the undeclared `@thrownErrors` slot instead, so the\ndeclared return type stops being true.\n\nFix: answer with an `RpcError` or a `FatalError`:\n-  mion.route((ctx, id: string): Pet | NotFoundError => new NotFoundError(id));\n+  mion.route((ctx, id: string): Pet | RpcError<'pet-not-found'> =>\n+    new RpcError({statusCode: 404, name: 'pet-not-found', publicMessage: 'no pet'}));",
-	},
-	"MRT005": {
-		Headline: "Property `{0}` can never be data and is dropped from every compiled function; rename it.",
-		Detail:   "Writing `__proto__` on a plain object swaps the object's prototype instead of\nstoring a value, so the member is dropped and the value never round trips.\n\nTypeScript ACCEPTS the declaration, which is why this is worth saying: the type\npromises a value, and at runtime there is no such key at all.\n\n`prototype` and `constructor` are ordinary property names and are left alone.\n\nThis reports the DECLARATION, so the problem shows up as you write it and for\ntypes no route reaches yet.\n\nFix: rename the property to keep the data.",
-	},
-	"BAT007": {
-		Headline: "Batch mapper `{0}` has no generated pure function in the batch source program; the server build cannot register it.",
-		Detail:   "Every inline `inputFrom(source, (value) => ...)` mapper is compiled into a pure\nfunction the server build copies next to the batch table. This batch names a\nmapper the compile produced nothing for, so the server would answer the batch\nwith a missing-mapper error.\n\nFix: check the mapper's own diagnostics (PFN0xx) at its `inputFrom()` call and\nmake it a pure inline arrow, or name a server-registered mapper instead:\n-  inputFrom(user, (u) => u!.orgId)\n+  inputFrom(user, 'toOrgId')",
-	},
-	"PFN001": {
-		Headline: "`PureFunction<F>` argument must be an INLINE arrow or function expression.",
-		Detail:   "The build extracts and AOT-compiles the function body, so it must see the\nliteral inline at the call site. A named reference (even a module-private\n`const f = …` or `function f(){}`) is not accepted, because the literal\nmust have no handle anything else can reach; the compiled copy is then the\nonly one that can run. (An imported or exported literal is rejected as PFN002.)\n\nFix: inline the function at the call site:\n-  const validate = (v: unknown) => typeof v === 'string';\n-  registerValidator(validate);\n+  registerValidator((v: unknown) => typeof v === 'string');",
-	},
-	"PFN002": {
-		Headline: "`PureFunction<F>` literal must not be imported or exported: the compiled copy must be the only one that can run.",
-		Detail:   "The build extracts and AOT-compiles the function body, and the compiled\ncopy is the single source of truth. If the original literal stays reachable\nas a value (imported from another module, or exported so another module can\nimport it), a caller could invoke the un-compiled function and diverge from\nthe compiled behaviour.\n\nUnder the literal-only rule a named binding isn't allowed at all (see PFN001),\nso the fix is to inline the function at the call site:\n-  import {validate} from './validators';   // imported, rejected\n-  export const validate = (v) => …;        // exported, rejected\n+  registerValidator((v: unknown) => typeof v === 'string');   // inline, ok",
-	},
-	"MKR003": {
-		Headline: "Marker call is inside a generic function: the type argument is unresolved, so no id can be computed at build time.",
-		Detail:   "The build can only compute an id for a concrete type (`User`,\n`{name: string}`, etc.). A type parameter like `T` is abstract: it\ntakes a different value at each call site of the surrounding function,\nso a single id can't represent it.\n\nFix: inline the marker at each concrete call site:\n  function isUser(value: unknown) {\n    return createValidateFn<User>()(value);\n  }\n\nFix: accept a pre-computed id from the caller:\n  function makeChecker<T>(id: InjectRunTypeId<T>) {\n    return createValidateFn<T>(id);\n  }\n  const isUser = makeChecker<User>(getRunTypeId<User>());",
-	},
-	"MKR006": {
-		Headline: "`InjectTypeFnArgs` names the function family `{0}` more than once; remove the duplicate key.",
-		Detail:   "An `InjectTypeFnArgs<T, …>` marker names each function family it needs for\n`T` once, in declaration order; the build injects one entry-module tuple\nper name and the wrapper forwards each to its factory. Naming a family\ntwice would inject a redundant identical tuple with no consumer, so it is\nalmost always a copy-paste slip and the build stops.\n\nFix: name each family at most once:\n-  id?: InjectTypeFnArgs<T, 'validationErrors', 'jsonDecoder', 'validationErrors'>;\n+  id?: InjectTypeFnArgs<T, 'validationErrors', 'jsonDecoder', 'jsonEncoder'>;",
-	},
-	"MKR007": {
-		Headline: "Marker type resolved to `any` because this file has an unresolved import (`{0}`): the generated functions would silently accept anything.",
-		Detail:   "TypeScript could not resolve the import, so the type it should have\nprovided checked as `any` at this marker call. A validator over `any` is\nthe always-true identity, a mock over `any` is `undefined`, and encoders\npass values through untouched, with no runtime signal that anything is\nwrong. This usually means the build tool and the type scanner resolve\nmodules differently (e.g. an extensionless relative import under\n`moduleResolution: NodeNext`, a missing dependency, or a `paths` alias the\nscan tsconfig doesn't declare).\n\nFix: make the import resolve for the type scanner:\n-  import {User} from './user.runtype';\n+  import {User} from './user.runtype.ts';\n\nOr align the tsconfig the plugin scans with the one your bundler uses.\nIf the `any` is genuinely intentional, write the marker over an alias\ndeclared in resolving code (e.g. `type Loose = any`) in a file with no\nfailing imports.",
-	},
-	"MKR008": {
-		Headline: "This type is too deeply nested to reflect: computing its structural id hit the recursion depth cap, so the build stops here instead of crashing.",
-		Detail:   "The build computes a structural id by walking the type, and the walk is\ncapped at a depth far beyond any realistic shape. Hitting the cap with no\nsingle recurring type on the path means literally written (or generated)\nnesting hundreds of levels deep.\n\nFix: reflect a concrete, bounded projection of the type (e.g. the element\nor data type you actually send), or restructure the recursion so the same\nnamed type recurs by reference (a plain recursive interface is fine).",
-	},
-	"MKR009": {
-		Headline: "Type `{0}` re-instantiates itself with fresh type arguments at every level (a self-instantiating generic), so its structural id never resolves. Reflect a monomorphic shape instead.",
-		Detail:   "A generic method's own type parameters (the `U` in `map<U>(fn: (x: T) => U):\nIter<U>`) are bound at each CALL of the method, so they can never be resolved\nwhile reflecting the containing type, and when such a method returns a fresh\ninstantiation of its own container, the type graph grows a new level forever.\nRenaming the type parameters does not resolve them; the fix is a monomorphic\n(fully resolved) recursive shape, which closes by reference:\n\n-  interface Iter<T> { map<U>(fn: (x: T) => U): Iter<U> }\n+  interface NumberIter { map(fn: (x: string) => number): NumberIter }\n\nOrdinary generics are unaffected: instantiated types (Map<string, User>, a\nconcrete Iter<string>'s data members) and generic methods that do not\nre-instantiate their container reflect fine. Validators also drop methods\nentirely (methods aren't data), so reflecting just the data shape usually\nsidesteps the problem.",
-	},
-	"MKR010": {
-		Headline: "Type argument contains the unresolved type parameter `{0}`: a generic must be fully resolved at the marker call, so no id can be computed. See Related for where `{0}` is declared.",
-		Detail:   "The build can only compute an id for a fully concrete type. `{0}` is a type\nparameter of the surrounding generic: it takes a different type at each call\nsite, so a single build-time id would alias every instantiation onto one\n(wrong) shape. A parameter DEFAULT does not help here: defaults resolve where\na caller omits the argument, never inside the generic's own body.\n\nFix: resolve the generic before reflecting it:\n  interface Box<T> { value: T }\n  type BoxString = Box<string>;\n  const isBoxString = createValidateFn<BoxString>();   // resolved, ok\n\nFix: or accept a pre-computed id from the caller and inline the marker at\neach concrete call site (same patterns as MKR003):\n  function makeChecker<T>(id: InjectRunTypeId<T>) {\n    return createValidateFn<T>(id);\n  }\n  const isBox = makeChecker<Box<string>>(getRunTypeId<Box<string>>());\n\nGeneric METHODS on a concrete type (`find<T>(query: string): T[]`) are\nunaffected: their own type parameters are bound per call of the method and\nmethods aren't data.",
-	},
-	"MKR011": {
-		Headline: "Generic type `{0}` is used without its required type argument(s): parameter `{1}` has no default, so the type cannot resolve to an id. See Related for where `{1}` is declared.",
-		Detail:   "TypeScript itself rejects this usage (TS2314), but dev-server builds don't\nrun the type checker, so the scan reads the written type arguments and stops\nthe build here instead of silently reflecting `any` (a validator over `any`\naccepts everything).\n\nFix: pass the missing type argument:\n-  const isA = createValidateFn<A>();\n+  const isA = createValidateFn<A<string>>();\n\nFix: or give the parameter a default, which the compiler resolves at every\nbare use site:\n-  interface A<S extends string> { a: S }\n+  interface A<S extends string = string> { a: S }\n   const isA = createValidateFn<A>();   // now resolves to A<string>",
-	},
-	"MKR012": {
-		Headline: "`{0}` here was declared by `{1}`, which this project does not trust as a marker package, so the type argument was dropped and this call reflects `unknown`.",
-		Detail:   "A marker only counts when it is BOTH named correctly and declared by a\ntrusted package, so a same-named type of your own never drives rewrites.\nThis one has the right name but comes from a package that is not on the\nlist, so its type argument was ignored: the call still compiles and still\ngenerates a function, but for `unknown` rather than for your type — a\nvalidator over `unknown` accepts everything.\n\nFix: trust the package in your tsconfig plugin entry:\n   {\n     \"name\": \"mion\",\n+    \"markers\": {\"packages\": [\"{1}\"]}\n   }\n\nThe list is additive, so `@mionjs/run-types` keeps working alongside it.\nThe same setting exists on the bundler plugin (`markers`) and as the\n`--marker-packages` CLI flag.\n\nIf the package re-exports the markers rather than declaring its own\n(`export type {InjectRunTypeId} from '@mionjs/run-types'`), no setting is\nneeded — a re-export keeps RunTypes as the declaring package, so check\nwhether the package meant to re-export instead.",
-	},
-	"MKR013": {
-		Headline: "Marker type resolved to `any` that was never written: `{0}` failed to resolve (or its declaration references a name that does not), so the generated functions would silently accept anything.",
-		Detail:   "The type checker keeps a distinct internal ERROR type for names it could\nnot resolve; it behaves like `any`, so without this guard the validator\nbecomes the always-true identity, the mock `undefined`, and encoders pass\nvalues through — with exit code 0 and no signal. A deliberately written\n`any`, and an alias like `type Loose = any`, are the real `any` and never\ntrip this.\n\nCommon causes and fixes:\n- A typo in the type name: fix the spelling.\n- A dependency whose types are not installed: install/declare them.\n- An ambient declaration (`declare interface ...` in a `.d.ts`) that is\n  not part of the scanned program: make sure the `.d.ts` is matched by the\n  tsconfig `include`/`files` set. The dev server and lint read that file\n  list when they start, so after ADDING a new `.d.ts`, restart the dev\n  server (or the editor's lint process) for it to be seen.",
-	},
-	"MKR014": {
-		Headline: "Two different types get the same id `{0}`: `{1}` from {4}, and `{2}` here. Raise the `hashLength` option to {3} so every type keeps its own id.",
-		Detail:   "Every type is given a short id hashed from its shape, and that id names the\ngenerated functions, the cache keys and the files on disk. Two types sharing\none id means nothing downstream can tell them apart, so the build stops here\ninstead of shipping one type's validator under the other's name.\n\nThe ids are exactly `hashLength` characters long by contract, so this is\nnever fixed by quietly making one of them longer. One more character is\nsixty-two times the room, and the fix is a single option:\n\nFix: raise it in your tsconfig, under the plugin entry:\n  {\"compilerOptions\": {\"plugins\": [{\"name\": \"mion\", \"hashLength\": {3}}]}}\n\nFix: or on the bundler plugin, for one build:\n  mionVitePlugin({hashLength: {3}})\n\nThe Related: line above points at the call site that took the id first.",
-	},
-	"MKR015": {
-		Headline: "`InjectTypeFnArgs` names `{0}`, which is not a function family{1}",
-		Detail:   "A marker names each function it needs by the family's own name, and the\nbuild injects one compiled handle per name. An unknown name matches no\nfamily, so nothing is compiled for that slot and the wrapper receives an\nempty handle: the call falls back to its no-plugin behaviour at runtime.\n\nThe short tags that markers used to accept (`val`, `verr`, `pjs`, …) are\nthe names of the entries the build EMITS, never the names you write. Use\nthe readable name instead:\n-  id?: InjectTypeFnArgs<T, 'verr'>;\n+  id?: InjectTypeFnArgs<T, 'validationErrors'>;",
-	},
-	"OVR001": {
-		Headline: "Duplicate override for `{0}`: there can be exactly one override per (type, function).",
-		Detail:   "Two `overrideX<T>()` declarations target the same type and the same\nfunction family. Which one wins would depend on scan order, so a second\noverride is rejected regardless of its body. The Related: line above\npoints at the override that was registered first.\n\nFix: keep one canonical override and delete the other:\n-  overrideValidate<User>((utl) => (value) => checkA(value));  // first\n-  overrideValidate<User>((utl) => (value) => checkB(value));  // duplicate\n+  overrideValidate<User>((utl) => (value) => checkA(value) && checkB(value));",
-	},
-	"OVR002": {
-		Headline: "Override entry `{0}` references compiled function `{1}` which did not render: this would throw at runtime, so the build stops.",
-		Detail:   "An override redirect body loads its compiled function from the cache\n(`usePureFn('<the override's id>')`), but that module never rendered into the entry\ngraph. Calling the override would throw at runtime, so the build surfaces\nthe miss now. This is an internal emitter tripwire and should never fire\nin normal operation.\n\nFix: re-run with a clean cache first (delete the .runtypes cache dir /\nrestart the dev server). If it persists, the emitter dropped a module it\nshould have rendered: please open an issue with the type + override that\ntriggers it.",
-	},
-	"OVR010": {
-		Headline: "Overriding `validate` for this type also changes how JSON decoders narrow unions containing it.",
-		Detail:   "`validate` is a shared dependency across function families: JSON union\ndecoders call the member validators to pick the matching branch. An `overrideValidate<T>()` therefore reaches past\n`createValidateFn<T>()`: decoders of any union containing T now narrow\nwith YOUR function.\n\nThis is informational; the build proceeds. If the override should only\naffect direct validation, give the union members a discriminant so\ndecoders never fall back to member validation:\n  type Event = {kind: 'click'; x: number} | {kind: 'key'; code: string};",
-	},
-	"TMP001": {
-		Headline: "Temporal type `{0}` resolved to `any`: the Temporal lib isn't in your tsconfig `lib`, so the generated validator would accept any value.",
-		Detail:   "mion reads types through TypeScript's lib definitions, so it\ncan only validate `Temporal.*` types when the Temporal namespace is loaded.\nWith the lib missing, `{0}` silently degrades to `any` and the validator\nbecomes a no-op that accepts everything, almost never what you intended.\n\nFix: add \"ESNext.Temporal\" to your tsconfig:\n  {\n    \"compilerOptions\": {\n      \"lib\": [\"ES2023\", \"ESNext.Temporal\"]\n    }\n  }",
-	},
-	"PFE9005": {
-		Headline: "Pure-fn factory `{0}` uses destructured parameters; only simple identifier params are supported.",
-		Detail:   "The build inlines parameter references by name when it materialises the\nfactory. Destructuring patterns (`({a, b})`, `([x, y])`) don't have a\nsingle name to substitute.\n\nFix: destructure inside the body:\n-  const myFn = registerPureFnFactory((utl) => ({a, b}) => ...);\n+  const myFn = registerPureFnFactory((utl) => (params) => {\n+    const {a, b} = params;\n+    return ...;\n+  });",
-	},
-	"PFE9006": {
-		Headline: "`this` is not allowed inside a pure-fn factory body; pure functions can't depend on a calling context.",
-		Detail:   "Pure functions are materialised standalone at build time; there's no\n`this` to bind to.\n\nFix: replace `this` with an explicit parameter, or move the function\nout of the class/object method that owns the `this`:\n  const myFn = registerPureFnFactory((utl) => (self, input) => {\n    return self.field + input;\n  });",
-	},
-	"PFE9007": {
-		Headline: "`async`/`await` is not allowed inside a pure-fn factory body.",
-		Detail:   "Pure functions must run synchronously so the build can call them at\ncompile time. `async` introduces a Promise that won't resolve until\nruntime.\n\nFix: make the factory synchronous; move async work to the caller:\n  const myFn = registerPureFnFactory((utl) => {\n-   return async (input) => { const r = await heavy(); return r; };\n+   return (resolvedValue) => transform(resolvedValue);\n  });",
-	},
-	"PFE9008": {
-		Headline: "`yield` / generators are not allowed inside a pure-fn factory body.",
-		Detail:   "Generators carry resumption state that can't be materialised\nstatically.\n\nFix: return an array or a plain iterable instead:\n  const myFn = registerPureFnFactory((utl) => (input) => {\n    return [...computeAll(input)];\n  });",
-	},
-	"PFE9009": {
-		Headline: "`import()` is not allowed inside a pure-fn factory body.",
-		Detail:   "Dynamic imports load modules at runtime, the build needs every\ndependency available statically.\n\nFix: use a top-level `import` statement, or pass the imported module\nin as a parameter.",
-	},
-	"PFE9010": {
-		Headline: "`{0}` is not allowed inside a pure-fn factory body.",
-		Detail:   "Globals like `eval`, `Function`, `fetch`, `XMLHttpRequest`, `require`,\n`process`, `globalThis`, `window`, `document` are blocked from pure-fn\nbodies: they either execute arbitrary code or depend on a runtime\nenvironment the build can't reproduce.\n\nFix: remove the reference, or pass the needed value in as a parameter.",
-	},
-	"PFE9011": {
-		Headline: "`{0}` is captured from outer scope inside a pure-fn factory; pure functions can't reach outside their own body.",
-		Detail:   "The build inlines factory bodies without their lexical environment, so\nany free variable becomes `undefined` at runtime.\n\nFix: pass `{0}` in as a parameter:\n  const myFn = registerPureFnFactory((utl) => ({0}, value) => ...);\n\nFix: inline its value if it's a known constant:\n  const myFn = registerPureFnFactory((utl) => (value) => {\n    const {0} = 42;\n    ...\n  });\n\nFix: reach another pure function through its id, which the build inlines:\n  import {slugify} from './slug';\n  const myFn = registerPureFnFactory((utl) => (value) => utl.getPureFn(slugify)(value));",
-	},
-	"PFE9012": {
-		Headline: "Pure fn `{0}` is referenced by a RT function but was never registered.",
-		Detail:   "A RT validator/encoder reaches that pure fn through `utl.usePureFn`, but no\nregistration for that id was found in any scanned file. An id is the package\nplus a hash of the pure fn's body, so a miss means the file that registers it\nis outside the scan set, or its body changed and the id was copied by hand\nfrom an older build.\n\nFix: import the id from the file that registers it, and make sure that file\nis part of the build.",
-	},
-	"PFE9013": {
-		Headline: "`{0}.{1}` dependency argument must be a pure-fn id.",
-		Detail:   "`utl.usePureFn` / `utl.getPureFn` need a static id so the build can verify\nthe pure fn is registered and inline the id into the emitted body. The id is\nthe value a registrar returned, imported from a file in this build, or a\nstring literal.\n\nFix:\n-  const key = buildKey();\n-  return utl.usePureFn(key)(input);\n+  import {slugify} from './slug';\n+  return utl.usePureFn(slugify)(input);",
-	},
-	"PFE9015": {
-		Headline: "Pure functions circular dependency: `{0}` (`{1}`) reaches back into `{2}`.",
-		Detail:   "A pure function is identified by a hash of the body that ships, and that\nbody carries the ids of the pure functions it reaches. Two that reach each\nother would each have to contain the other's id, which has no answer.\n\nThis also never worked at runtime: materialising either one would call\nstraight back into the other and recurse forever.\n\nFix: break the cycle. Inline the shared part into both, or move it into a\nthird pure function that neither of them reaches back into.",
-	},
-	"PFE9014": {
-		Headline: "Explicit pure-fn id `{0}` does not match this registration's computed id `{1}`.",
-		Detail:   "A pure function's id is its package plus a hash of its body, so renaming or\nmoving it keeps the id and editing the body changes it. The build injects it,\nso source normally passes none. An id written by hand, or copied before the\nbody changed, would register the body under one id while every reference to\nit uses the other.\n\nFix: delete the argument and let the build inject it, or regenerate the file\nthe id is imported from.",
-	},
-	"PFE9016": {
-		Headline: "Pure fn `{0}` comes from `{1}`, which ships no compiled pure functions.",
-		Detail:   "A pure fn imported from an installed package is served at build time from\nthat package's compiled pure functions (the `mion-pure-fns/` directory its\nmion build writes next to its output) or from its TypeScript sources, so the\nbody is bound into this build's own module. This package ships neither, so\nthis pure fn cannot be built.\n\nFix: build the package with mion (a bundler plugin or `mion compile`) and\npublish its output directory, or publish its sources.",
-	},
-	"PFE9017": {
-		Headline: "`{0}` could not be read as part of a pure-fn artifact: {1}.",
-		Detail:   "A mion build writes the package's compiled pure functions into\n`mion-pure-fns/` next to its output (an `index.json` plus one module per pure\nfunction), and a consumer's build reads that directory to serve the bodies.\nThis file was skipped: the index was written in a format this compiler does\nnot know or is not an index, or a module the index lists is missing or holds\nno tuple for its id. Skipped means the package may now look as if it shipped\nno compiled pure functions, or lacks one.\n\nFix: update the mion compiler to the version that wrote the directory, or\nrebuild the package with the version in use.",
-	},
-	"PFE9018": {
-		Headline: "Pure fn `{0}` differs between `{1}` and `{2}`.",
-		Detail:   "A pure function's id is a hash of the body that ships, so one id is one body\nunder one name. Two `mion-pure-fns/` directories of the same installed package\ndisagree on this id (a different body, or a different name in their indexes),\nwhich means one of them is stale or was produced by a different build.\n\nFix: rebuild the package so every output directory carries the same\n`mion-pure-fns/`, or remove the stale copy.",
-	},
-	"UPN001": {
-		Headline: "Property `{0}` can never be data and is dropped: the rest of the type still works.",
-		Detail:   "Writing `__proto__` on a plain object swaps the object's prototype instead of\nstoring a value, so no decoder can restore that key and no encoder can write\nit. The member is dropped from every generated function, the way a member whose\nvalue cannot cross the wire is dropped.\n\nTypeScript ACCEPTS the declaration, which is why this is worth saying: the type\npromises a string, and at runtime there is no such key at all.\n  const v: Settings = {ok: 1, __proto__: 'x'};  // compiles\n  Object.keys(v);                               // ['ok']\n\n`prototype` and `constructor` are ordinary property names and are kept.\n\nFix: rename the property to keep the data:\n  interface Settings {\n-   __proto__: string;\n+   parent: string;\n  }",
-	},
-	"PJ001": {
-		Headline: "Type `{0}` can never be encoded to JSON: the generated function will always fail.",
-		Detail:   "`never` is the empty type: no value can ever inhabit it. A field\ntyped `never` cannot carry a runtime value, so there is nothing to\nencode/decode/validate.\n\nFix: use `unknown` if you really want to accept any value:\n  interface User {\n-   tag: never;\n+   tag: unknown;  // narrow before use\n  }\n\nFix: pick a concrete type matching your real data:\n  interface User {\n-   tag: never;\n+   tag: 'pending' | 'active' | 'done';\n  }",
-	},
-	"PJ002": {
-		Headline: "Type `{0}` can never be encoded to JSON: the generated function will always fail.",
-		Detail:   "A standard-library class carries runtime state that does not survive a JSON\nround-trip: its instance identity is lost the moment it is serialised, so at a root position there is nothing left to work with.\n\nA few have an agreed data form and ARE supported: `Date`, `Map`,\n`Set` and the Temporal types. Everything else the standard library declares\n(`URL`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, `RegExp`, the typed\narrays and `Buffer`) has none, and is refused here rather than guessed at.\n\nFix: describe the data form yourself and convert at the boundary:\n  // for URL:\n  const data = yourUrl.href;             // string\n  // for typed arrays:\n  const data = Array.from(yourBuffer);   // number[]\n\nFix: change the field type to a shape made of data:\n  interface User {\n-   home: URL;\n+   home: string;\n  }",
-	},
-	"PJ003": {
-		Headline: "Type `{0}` can never be encoded to JSON: the generated function will always fail.",
-		Detail:   "Functions have no value form to serialise: their closure, prototype,\nand bound state aren't representable in JSON.\n\nFix: drop the function from your type, or replace it with the data the\nfunction would produce:\n  interface User {\n-   getName: () => string;\n+   name: string;\n  }",
-	},
-	"PJ005": {
-		Headline: "Type `{0}` can never be encoded to JSON: the generated function will always fail.",
-		Detail:   "Every `symbol` value carries a unique runtime identity (`Symbol() !==\nSymbol()` even with the same description). That identity disappears the\nmoment it's serialised, and two symbols can't be compared across realms,\nworkers, or process boundaries. A validator that asserts \"this is a\nsymbol\" gives a false sense of safety: the value can't actually\nround-trip.\n\nFix: use a stable string key (often a literal union):\n  -  type Status = symbol;\n+  type Status = 'pending' | 'active' | 'done';",
-	},
-	"PJS001": {
-		Headline: "Type `{0}` can never be encoded to JSON: the generated function will always fail.",
-		Detail:   "`never` is the empty type: no value can ever inhabit it. A field\ntyped `never` cannot carry a runtime value, so there is nothing to\nencode/decode/validate.\n\nFix: use `unknown` if you really want to accept any value:\n  interface User {\n-   tag: never;\n+   tag: unknown;  // narrow before use\n  }\n\nFix: pick a concrete type matching your real data:\n  interface User {\n-   tag: never;\n+   tag: 'pending' | 'active' | 'done';\n  }",
-	},
-	"PJS002": {
-		Headline: "Type `{0}` can never be encoded to JSON: the generated function will always fail.",
-		Detail:   "A standard-library class carries runtime state that does not survive a JSON\nround-trip: its instance identity is lost the moment it is serialised, so at a root position there is nothing left to work with.\n\nA few have an agreed data form and ARE supported: `Date`, `Map`,\n`Set` and the Temporal types. Everything else the standard library declares\n(`URL`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, `RegExp`, the typed\narrays and `Buffer`) has none, and is refused here rather than guessed at.\n\nFix: describe the data form yourself and convert at the boundary:\n  // for URL:\n  const data = yourUrl.href;             // string\n  // for typed arrays:\n  const data = Array.from(yourBuffer);   // number[]\n\nFix: change the field type to a shape made of data:\n  interface User {\n-   home: URL;\n+   home: string;\n  }",
-	},
-	"PJS003": {
-		Headline: "Type `{0}` can never be encoded to JSON: the generated function will always fail.",
-		Detail:   "Functions have no value form to serialise: their closure, prototype,\nand bound state aren't representable in JSON.\n\nFix: drop the function from your type, or replace it with the data the\nfunction would produce:\n  interface User {\n-   getName: () => string;\n+   name: string;\n  }",
-	},
-	"PJS005": {
-		Headline: "Type `{0}` can never be encoded to JSON: the generated function will always fail.",
-		Detail:   "Every `symbol` value carries a unique runtime identity (`Symbol() !==\nSymbol()` even with the same description). That identity disappears the\nmoment it's serialised, and two symbols can't be compared across realms,\nworkers, or process boundaries. A validator that asserts \"this is a\nsymbol\" gives a false sense of safety: the value can't actually\nround-trip.\n\nFix: use a stable string key (often a literal union):\n  -  type Status = symbol;\n+  type Status = 'pending' | 'active' | 'done';",
-	},
-	"RJ001": {
-		Headline: "Type `{0}` can never be decoded from JSON: the generated function will always fail.",
-		Detail:   "`never` is the empty type: no value can ever inhabit it. A field\ntyped `never` cannot carry a runtime value, so there is nothing to\nencode/decode/validate.\n\nFix: use `unknown` if you really want to accept any value:\n  interface User {\n-   tag: never;\n+   tag: unknown;  // narrow before use\n  }\n\nFix: pick a concrete type matching your real data:\n  interface User {\n-   tag: never;\n+   tag: 'pending' | 'active' | 'done';\n  }",
-	},
-	"RJ002": {
-		Headline: "Type `{0}` can never be decoded from JSON: the generated function will always fail.",
-		Detail:   "A standard-library class carries runtime state that does not survive a JSON\nround-trip: its instance identity is lost the moment it is serialised, so at a root position there is nothing left to work with.\n\nA few have an agreed data form and ARE supported: `Date`, `Map`,\n`Set` and the Temporal types. Everything else the standard library declares\n(`URL`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, `RegExp`, the typed\narrays and `Buffer`) has none, and is refused here rather than guessed at.\n\nFix: describe the data form yourself and convert at the boundary:\n  // for URL:\n  const data = yourUrl.href;             // string\n  // for typed arrays:\n  const data = Array.from(yourBuffer);   // number[]\n\nFix: change the field type to a shape made of data:\n  interface User {\n-   home: URL;\n+   home: string;\n  }",
-	},
-	"RJ003": {
-		Headline: "Type `{0}` can never be decoded from JSON: the generated function will always fail.",
-		Detail:   "Functions have no value form to serialise: their closure, prototype,\nand bound state aren't representable in JSON.\n\nFix: drop the function from your type, or replace it with the data the\nfunction would produce:\n  interface User {\n-   getName: () => string;\n+   name: string;\n  }",
-	},
-	"RJ005": {
-		Headline: "Type `{0}` can never be decoded from JSON: the generated function will always fail.",
-		Detail:   "Every `symbol` value carries a unique runtime identity (`Symbol() !==\nSymbol()` even with the same description). That identity disappears the\nmoment it's serialised, and two symbols can't be compared across realms,\nworkers, or process boundaries. A validator that asserts \"this is a\nsymbol\" gives a false sense of safety: the value can't actually\nround-trip.\n\nFix: use a stable string key (often a literal union):\n  -  type Status = symbol;\n+  type Status = 'pending' | 'active' | 'done';",
-	},
-	"VL001": {
-		Headline: "Type `{0}` can never be validated: the generated function will always fail.",
-		Detail:   "A standard-library class carries runtime state that does not survive a JSON\nround-trip: its instance identity is lost the moment it is serialised, so at a root position there is nothing left to work with.\n\nA few have an agreed data form and ARE supported: `Date`, `Map`,\n`Set` and the Temporal types. Everything else the standard library declares\n(`URL`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, `RegExp`, the typed\narrays and `Buffer`) has none, and is refused here rather than guessed at.\n\nFix: describe the data form yourself and convert at the boundary:\n  // for URL:\n  const data = yourUrl.href;             // string\n  // for typed arrays:\n  const data = Array.from(yourBuffer);   // number[]\n\nFix: change the field type to a shape made of data:\n  interface User {\n-   home: URL;\n+   home: string;\n  }",
-	},
-	"VL002": {
-		Headline: "Type `{0}` can never be validated: the generated function will always fail.",
-		Detail:   "Every `symbol` value carries a unique runtime identity (`Symbol() !==\nSymbol()` even with the same description). That identity disappears the\nmoment it's serialised, and two symbols can't be compared across realms,\nworkers, or process boundaries. A validator that asserts \"this is a\nsymbol\" gives a false sense of safety: the value can't actually\nround-trip.\n\nFix: use a stable string key (often a literal union):\n  -  type Status = symbol;\n+  type Status = 'pending' | 'active' | 'done';",
-	},
-	"VL003": {
-		Headline: "Type `{0}` can never be validated: the generated function will always fail.",
-		Detail:   "A function is code, not data: it cannot survive a JSON round trip, so\nvalidate refuses it rather than only checking `typeof v === 'function'`.\nThis covers methods, call signatures and interfaces with a call signature.\n\nFix: validate what the function takes or returns instead:\n  const isArgs = createValidateFn<Parameters<typeof fn>>();\n  const isResult = createValidateFn<Awaited<ReturnType<typeof fn>>>();",
-	},
-	"VE001": {
-		Headline: "Type `{0}` can never be validated: the generated function will always fail.",
-		Detail:   "A standard-library class carries runtime state that does not survive a JSON\nround-trip: its instance identity is lost the moment it is serialised, so at a root position there is nothing left to work with.\n\nA few have an agreed data form and ARE supported: `Date`, `Map`,\n`Set` and the Temporal types. Everything else the standard library declares\n(`URL`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, `RegExp`, the typed\narrays and `Buffer`) has none, and is refused here rather than guessed at.\n\nFix: describe the data form yourself and convert at the boundary:\n  // for URL:\n  const data = yourUrl.href;             // string\n  // for typed arrays:\n  const data = Array.from(yourBuffer);   // number[]\n\nFix: change the field type to a shape made of data:\n  interface User {\n-   home: URL;\n+   home: string;\n  }",
-	},
-	"VE002": {
-		Headline: "Type `{0}` can never be validated: the generated function will always fail.",
-		Detail:   "Every `symbol` value carries a unique runtime identity (`Symbol() !==\nSymbol()` even with the same description). That identity disappears the\nmoment it's serialised, and two symbols can't be compared across realms,\nworkers, or process boundaries. A validator that asserts \"this is a\nsymbol\" gives a false sense of safety: the value can't actually\nround-trip.\n\nFix: use a stable string key (often a literal union):\n  -  type Status = symbol;\n+  type Status = 'pending' | 'active' | 'done';",
-	},
-	"VE003": {
-		Headline: "Type `{0}` can never be validated: the generated function will always fail.",
-		Detail:   "A function is code, not data: it cannot survive a JSON round trip, so\nvalidate refuses it rather than only checking `typeof v === 'function'`.\nThis covers methods, call signatures and interfaces with a call signature.\n\nFix: validate what the function takes or returns instead:\n  const isArgs = createValidateFn<Parameters<typeof fn>>();\n  const isResult = createValidateFn<Awaited<ReturnType<typeof fn>>>();",
-	},
-	"VL010": {
-		Headline: "Property `{0}` is a function: `validate` does not handle function values, so this property is silently not validated.",
-		Detail:   "`validate` works on JSON-shaped data; functions don't survive JSON, so\nthe emitter drops them. The rest of the object's behaviour is unaffected.\n\nThis is by design, see the \"one contract: serializable data only\"\nsection in CLAUDE.md. If you need a stricter checker that fails on\nmissing/extra function-typed members, watch the project roadmap.",
-	},
-	"VE010": {
-		Headline: "Property `{0}` is a function: `validationErrors` does not handle function values, so this property is silently not checked.",
-		Detail:   "`validationErrors` works on JSON-shaped data; functions don't survive JSON, so\nthe emitter drops them. The rest of the object's behaviour is unaffected.\n\nThis is by design, see the \"one contract: serializable data only\"\nsection in CLAUDE.md. If you need a stricter checker that fails on\nmissing/extra function-typed members, watch the project roadmap.",
-	},
-	"PJ010": {
-		Headline: "Property `{0}` is a function: `prepareForJson` does not handle function values, so this property is silently not encoded.",
-		Detail:   "`prepareForJson` works on JSON-shaped data; functions don't survive JSON, so\nthe emitter drops them. The rest of the object's behaviour is unaffected.\n\nThis is by design, see the \"one contract: serializable data only\"\nsection in CLAUDE.md. If you need a stricter checker that fails on\nmissing/extra function-typed members, watch the project roadmap.",
-	},
-	"PJS010": {
-		Headline: "Property `{0}` is a function: `prepareForJsonClone` does not handle function values, so this property is silently not encoded.",
-		Detail:   "`prepareForJsonClone` works on JSON-shaped data; functions don't survive JSON, so\nthe emitter drops them. The rest of the object's behaviour is unaffected.\n\nThis is by design, see the \"one contract: serializable data only\"\nsection in CLAUDE.md. If you need a stricter checker that fails on\nmissing/extra function-typed members, watch the project roadmap.",
-	},
-	"RJ010": {
-		Headline: "Property `{0}` is a function: `restoreFromJsonMutate` does not handle function values, so this property is silently not decoded.",
-		Detail:   "`restoreFromJsonMutate` works on JSON-shaped data; functions don't survive JSON, so\nthe emitter drops them. The rest of the object's behaviour is unaffected.\n\nThis is by design, see the \"one contract: serializable data only\"\nsection in CLAUDE.md. If you need a stricter checker that fails on\nmissing/extra function-typed members, watch the project roadmap.",
-	},
-	"RUK001": {
-		Headline: "`removeUnknownKeys` does not support unions with object members: the emitter cannot know which declared shape to rebuild at runtime.",
-		Detail:   "A clone built from the declared shape needs to know WHICH union arm the\nruntime value matches; v1 has no arm discrimination, and silently keeping\nunknown keys would defeat the strip guarantee, so the build fails instead.\n\nWorkarounds: narrow the value to one arm before cloning (one\n`createRemoveUnknownKeysFn<Arm>()` per arm), or restructure the union into a\nsingle object with optional properties.",
-	},
-	"RUK003": {
-		Headline: "`removeUnknownKeys` cannot clone a function-typed value.",
-		Detail:   "Functions aren't data: there is no declared shape to rebuild. Function-typed\nPROPERTIES are dropped from the clone (RUK010/RUK011); a function at the root\nor a propagating position fails the build.",
-	},
-	"RUK010": {
-		Headline: "Property `{0}` is a function: `removeUnknownKeys` cannot rebuild it, so it is kept on the clone, SHARED BY REFERENCE.",
-		Detail:   "Declared members are never dropped (only UNDECLARED keys are; that is the\nstrip guarantee). Functions cannot be rebuilt from a declared shape, so the\nclone's property points at the SAME function as the input's. Class METHODS\ndiffer: they ride the shared prototype and are not copied as own props\n(RUK011).",
-	},
-	"RUK011": {
-		Headline: "Method `{0}` is not copied onto the clone's own properties: methods ride the prototype.",
-		Detail:   "For a plain class instance the clone preserves the PROTOTYPE\n(`Object.create(Object.getPrototypeOf(v))`), so methods keep working via the\nprototype chain; they are simply not copied as own properties. For object\nliterals a method-typed member is omitted like any function value.",
-	},
-	"RUK013": {
-		Headline: "Symbol-keyed property `{0}` is not copied onto the clone: `removeUnknownKeys` rebuilds string keys only.",
-		Detail:   "Symbol keys aren't data, the same rule the JSON families follow. The clone\ncopies the declared string keys and leaves the symbol key out.\n\nFix: use a string key:\n  -  [Symbol.for('id')]: string;\n+  id: string;",
-	},
-	"RUK015": {
-		Headline: "Property `{0}` has a value type `removeUnknownKeys` cannot rebuild (symbol, Promise, or a non-serialisable built-in): it is kept on the clone, SHARED BY REFERENCE.",
-		Detail:   "Declared members are never dropped (only UNDECLARED keys are; that is the\nstrip guarantee). A value the emitter cannot rebuild passes through by\nreference instead: the clone's property points at the SAME handle as the\ninput's, so mutations through it are visible on both sides. Register\n`overrideRemoveUnknownKeys<T>()` if this type needs custom copying.",
-	},
-	"RUK012": {
-		Headline: "Static member `{0}` is not part of instance data: `removeUnknownKeys` skips it.",
-		Detail:   "Statics live on the class, not the instance; the clone rebuilds instance\ndata only.",
-	},
-	"JCP001": {
-		Headline: "Internal error: JSON composite `{0}` references primitive entry `{1}` (type `{2}`) which was never rendered; please file an issue.",
-	},
-	"VL011": {
-		Headline: "Method `{0}` is silently not validated by `validate`: methods aren't data.",
-		Detail:   "Class and object methods aren't part of the serialisable shape, so\n`validate` excludes them. The rest of the type still works.\n\nIf you wanted the method's return value validated/serialised, expose it\nas a data property instead.",
-	},
-	"VE011": {
-		Headline: "Method `{0}` is silently not checked by `validationErrors`: methods aren't data.",
-		Detail:   "Class and object methods aren't part of the serialisable shape, so\n`validationErrors` excludes them. The rest of the type still works.\n\nIf you wanted the method's return value validated/serialised, expose it\nas a data property instead.",
-	},
-	"PJ011": {
-		Headline: "Method `{0}` is silently not encoded by `prepareForJson`: methods aren't data.",
-		Detail:   "Class and object methods aren't part of the serialisable shape, so\n`prepareForJson` excludes them. The rest of the type still works.\n\nIf you wanted the method's return value validated/serialised, expose it\nas a data property instead.",
-	},
-	"PJS011": {
-		Headline: "Method `{0}` is silently not encoded by `prepareForJsonClone`: methods aren't data.",
-		Detail:   "Class and object methods aren't part of the serialisable shape, so\n`prepareForJsonClone` excludes them. The rest of the type still works.\n\nIf you wanted the method's return value validated/serialised, expose it\nas a data property instead.",
-	},
-	"RJ011": {
-		Headline: "Method `{0}` is silently not decoded by `restoreFromJsonMutate`: methods aren't data.",
-		Detail:   "Class and object methods aren't part of the serialisable shape, so\n`restoreFromJsonMutate` excludes them. The rest of the type still works.\n\nIf you wanted the method's return value validated/serialised, expose it\nas a data property instead.",
-	},
-	"VL012": {
-		Headline: "Static member `{0}` is silently not validated by `validate`: statics aren't part of instance data.",
-		Detail:   "Class static members live on the class, not on individual instances.\n`validate` operates on instance shape, so statics are excluded.",
-	},
-	"VE012": {
-		Headline: "Static member `{0}` is silently not checked by `validationErrors`: statics aren't part of instance data.",
-		Detail:   "Class static members live on the class, not on individual instances.\n`validationErrors` operates on instance shape, so statics are excluded.",
-	},
-	"PJ012": {
-		Headline: "Static member `{0}` is silently not encoded by `prepareForJson`: statics aren't part of instance data.",
-		Detail:   "Class static members live on the class, not on individual instances.\n`prepareForJson` operates on instance shape, so statics are excluded.",
-	},
-	"PJS012": {
-		Headline: "Static member `{0}` is silently not encoded by `prepareForJsonClone`: statics aren't part of instance data.",
-		Detail:   "Class static members live on the class, not on individual instances.\n`prepareForJsonClone` operates on instance shape, so statics are excluded.",
-	},
-	"RJ012": {
-		Headline: "Static member `{0}` is silently not decoded by `restoreFromJsonMutate`: statics aren't part of instance data.",
-		Detail:   "Class static members live on the class, not on individual instances.\n`restoreFromJsonMutate` operates on instance shape, so statics are excluded.",
-	},
-	"VL013": {
-		Headline: "Symbol-keyed property `{0}` is silently not validated by `validate`: symbol keys aren't JSON-representable.",
-		Detail:   "JSON only supports string keys; symbol-keyed properties are dropped\nfrom the serialised form. `validate` follows the same rule.\n\nFix: use a string key:\n  -  [Symbol.for('id')]: string;\n+  id: string;",
-	},
-	"VE013": {
-		Headline: "Symbol-keyed property `{0}` is silently not checked by `validationErrors`: symbol keys aren't JSON-representable.",
-		Detail:   "JSON only supports string keys; symbol-keyed properties are dropped\nfrom the serialised form. `validationErrors` follows the same rule.\n\nFix: use a string key:\n  -  [Symbol.for('id')]: string;\n+  id: string;",
-	},
-	"PJ013": {
-		Headline: "Symbol-keyed property `{0}` is silently not encoded by `prepareForJson`: symbol keys aren't JSON-representable.",
-		Detail:   "JSON only supports string keys; symbol-keyed properties are dropped\nfrom the serialised form. `prepareForJson` follows the same rule.\n\nFix: use a string key:\n  -  [Symbol.for('id')]: string;\n+  id: string;",
-	},
-	"PJS013": {
-		Headline: "Symbol-keyed property `{0}` is silently not encoded by `prepareForJsonClone`: symbol keys aren't JSON-representable.",
-		Detail:   "JSON only supports string keys; symbol-keyed properties are dropped\nfrom the serialised form. `prepareForJsonClone` follows the same rule.\n\nFix: use a string key:\n  -  [Symbol.for('id')]: string;\n+  id: string;",
-	},
-	"RJ013": {
-		Headline: "Symbol-keyed property `{0}` is silently not decoded by `restoreFromJsonMutate`: symbol keys aren't JSON-representable.",
-		Detail:   "JSON only supports string keys; symbol-keyed properties are dropped\nfrom the serialised form. `restoreFromJsonMutate` follows the same rule.\n\nFix: use a string key:\n  -  [Symbol.for('id')]: string;\n+  id: string;",
-	},
-	"VL014": {
-		Headline: "Union member(s) of type `{0}` can't be represented as data: `validate` drops them, so the union is validated as its remaining members.",
-		Detail:   "A union projects to its serialisable members only: `DataOnly<Date | symbol>`\nis `Date`. The dropped member(s) ({0}) carry no JSON-shaped value (symbol,\nfunction, Promise, or a non-serialisable built-in like `Map` / `Set` /\ntyped arrays), so `validate` validated only the members that remain.\n\nThis is by design, see the \"one contract: serializable data only\"\nsection in CLAUDE.md. If EVERY member of the union is non-serialisable the\nprojection is `never`, and `validate` throws at build time instead.",
-	},
-	"PJ014": {
-		Headline: "Union member(s) of type `{0}` can't be represented as data: `prepareForJson` drops them, so the union is encoded as its remaining members.",
-		Detail:   "A union projects to its serialisable members only: `DataOnly<Date | symbol>`\nis `Date`. The dropped member(s) ({0}) carry no JSON-shaped value (symbol,\nfunction, Promise, or a non-serialisable built-in like `Map` / `Set` /\ntyped arrays), so `prepareForJson` encoded only the members that remain.\n\nThis is by design, see the \"one contract: serializable data only\"\nsection in CLAUDE.md. If EVERY member of the union is non-serialisable the\nprojection is `never`, and `prepareForJson` throws at build time instead.",
-	},
-	"PJS014": {
-		Headline: "Union member(s) of type `{0}` can't be represented as data: `prepareForJsonClone` drops them, so the union is encoded as its remaining members.",
-		Detail:   "A union projects to its serialisable members only: `DataOnly<Date | symbol>`\nis `Date`. The dropped member(s) ({0}) carry no JSON-shaped value (symbol,\nfunction, Promise, or a non-serialisable built-in like `Map` / `Set` /\ntyped arrays), so `prepareForJsonClone` encoded only the members that remain.\n\nThis is by design, see the \"one contract: serializable data only\"\nsection in CLAUDE.md. If EVERY member of the union is non-serialisable the\nprojection is `never`, and `prepareForJsonClone` throws at build time instead.",
-	},
-	"RJ014": {
-		Headline: "Union member(s) of type `{0}` can't be represented as data: `restoreFromJsonMutate` drops them, so the union is decoded as its remaining members.",
-		Detail:   "A union projects to its serialisable members only: `DataOnly<Date | symbol>`\nis `Date`. The dropped member(s) ({0}) carry no JSON-shaped value (symbol,\nfunction, Promise, or a non-serialisable built-in like `Map` / `Set` /\ntyped arrays), so `restoreFromJsonMutate` decoded only the members that remain.\n\nThis is by design, see the \"one contract: serializable data only\"\nsection in CLAUDE.md. If EVERY member of the union is non-serialisable the\nprojection is `never`, and `restoreFromJsonMutate` throws at build time instead.",
-	},
-	"VL015": {
-		Headline: "Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): `validate` drops it, so this property is silently not validated.",
-		Detail:   "`validate` works on JSON-shaped data. A property whose value is a symbol,\na Promise, or a non-serialisable built-in (a typed array, `ArrayBuffer`, or any other\nstandard-library class such as `URL` or `Intl.DateTimeFormat`) carries\nno JSON-shaped value, so it is dropped: `DataOnly<{ {0}: symbol }>` is `{}`.\nThe rest of the object's behaviour is unaffected.\n\nNote the difference from a property that is only STRUCTURALLY unserialisable\n(`{0}: symbol[]` or `{0}: Map<string, symbol>`), which CANNOT be safely\ndropped (DataOnly keeps it as `never[]`): there `validate` throws at build\ntime instead.\n\nThis is by design, see the \"one contract: serializable data only\"\nsection in CLAUDE.md.",
-	},
-	"VE015": {
-		Headline: "Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): `validationErrors` drops it, so this property is silently not checked.",
-		Detail:   "`validationErrors` works on JSON-shaped data. A property whose value is a symbol,\na Promise, or a non-serialisable built-in (a typed array, `ArrayBuffer`, or any other\nstandard-library class such as `URL` or `Intl.DateTimeFormat`) carries\nno JSON-shaped value, so it is dropped: `DataOnly<{ {0}: symbol }>` is `{}`.\nThe rest of the object's behaviour is unaffected.\n\nNote the difference from a property that is only STRUCTURALLY unserialisable\n(`{0}: symbol[]` or `{0}: Map<string, symbol>`), which CANNOT be safely\ndropped (DataOnly keeps it as `never[]`): there `validationErrors` throws at build\ntime instead.\n\nThis is by design, see the \"one contract: serializable data only\"\nsection in CLAUDE.md.",
-	},
-	"PJ015": {
-		Headline: "Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): `prepareForJson` drops it, so this property is silently not encoded.",
-		Detail:   "`prepareForJson` works on JSON-shaped data. A property whose value is a symbol,\na Promise, or a non-serialisable built-in (a typed array, `ArrayBuffer`, or any other\nstandard-library class such as `URL` or `Intl.DateTimeFormat`) carries\nno JSON-shaped value, so it is dropped: `DataOnly<{ {0}: symbol }>` is `{}`.\nThe rest of the object's behaviour is unaffected.\n\nNote the difference from a property that is only STRUCTURALLY unserialisable\n(`{0}: symbol[]` or `{0}: Map<string, symbol>`), which CANNOT be safely\ndropped (DataOnly keeps it as `never[]`): there `prepareForJson` throws at build\ntime instead.\n\nThis is by design, see the \"one contract: serializable data only\"\nsection in CLAUDE.md.",
-	},
-	"PJS015": {
-		Headline: "Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): `prepareForJsonClone` drops it, so this property is silently not encoded.",
-		Detail:   "`prepareForJsonClone` works on JSON-shaped data. A property whose value is a symbol,\na Promise, or a non-serialisable built-in (a typed array, `ArrayBuffer`, or any other\nstandard-library class such as `URL` or `Intl.DateTimeFormat`) carries\nno JSON-shaped value, so it is dropped: `DataOnly<{ {0}: symbol }>` is `{}`.\nThe rest of the object's behaviour is unaffected.\n\nNote the difference from a property that is only STRUCTURALLY unserialisable\n(`{0}: symbol[]` or `{0}: Map<string, symbol>`), which CANNOT be safely\ndropped (DataOnly keeps it as `never[]`): there `prepareForJsonClone` throws at build\ntime instead.\n\nThis is by design, see the \"one contract: serializable data only\"\nsection in CLAUDE.md.",
-	},
-	"RJ015": {
-		Headline: "Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): `restoreFromJsonMutate` drops it, so this property is silently not decoded.",
-		Detail:   "`restoreFromJsonMutate` works on JSON-shaped data. A property whose value is a symbol,\na Promise, or a non-serialisable built-in (a typed array, `ArrayBuffer`, or any other\nstandard-library class such as `URL` or `Intl.DateTimeFormat`) carries\nno JSON-shaped value, so it is dropped: `DataOnly<{ {0}: symbol }>` is `{}`.\nThe rest of the object's behaviour is unaffected.\n\nNote the difference from a property that is only STRUCTURALLY unserialisable\n(`{0}: symbol[]` or `{0}: Map<string, symbol>`), which CANNOT be safely\ndropped (DataOnly keeps it as `never[]`): there `restoreFromJsonMutate` throws at build\ntime instead.\n\nThis is by design, see the \"one contract: serializable data only\"\nsection in CLAUDE.md.",
-	},
-	"VL021": {
-		Headline: "`validate` on `any` / `unknown` always returns true: the validator accepts every value.",
-		Detail:   "`any` and `unknown` describe \"anything\", so a structural validator has\nnothing to check. The resulting function passes for every input,\nincluding the ones you probably wanted to reject.\n\nFix: narrow the type to the actual shape you expect:\n  -  const isUser = createValidateFn<unknown>();\n+  const isUser = createValidateFn<User>();",
-	},
-	"VE020": {
-		Headline: "`validationErrors` on `any` / `unknown` always returns an empty error array: nothing is checked.",
-		Detail:   "Same reason as VL021: `any` and `unknown` describe \"anything\", so the\nchecker has no structure to compare against. The returned error array\nwill always be empty.\n\nFix: narrow the type to the actual shape you expect:\n  -  const errors = createGetValidationErrorsFn<unknown>()(value);\n+  const errors = createGetValidationErrorsFn<User>()(value);",
-	},
+var headlineByCode = map[string]string{
+	"EXP001":  "Unused `@mion-expect-error {0}`: nothing was reported on the line below it, so the comment is stale and can be deleted.",
+	"EXP002":  "`@mion-expect-error {0}` cannot silence that code: it is reported even when everything else is silenced.",
+	"EXP003":  "`@mion-expect-error {0}` names a diagnostic code that does not exist; check the spelling against the code in the message you are silencing.",
+	"DWN001":  "Unused `@mion-downgrade-error {0}`: nothing was reported on the line below it, so the comment is stale and can be deleted.",
+	"DWN002":  "`@mion-downgrade-error {0}` cannot lower that code: the build produces no code for it, so carrying on would ship missing output.",
+	"DWN003":  "`@mion-downgrade-error {0}` names a diagnostic code that does not exist; check the spelling against the code in the message you are lowering.",
+	"DWN004":  "`@mion-downgrade-error {0}` does nothing: that code is already a warning or info, so it was never halting your build.",
+	"CFG001":  "Project tsconfig failed to load ({0}): the build, the linter, and the CLI all read this config, so nothing can run until it loads.",
+	"CFG002":  "The project `lib` declares no base ECMAScript library (loaded: {0}), so core globals like `Array` are missing and reflected types cannot be trusted.",
+	"FMT001":  "TypeFormat mockSample \"{0}\" does not match its pattern /{1}/; fix the sample or the pattern.",
+	"FMT002":  "Invalid type-format params: {0}",
+	"NE001":   "Property `{0}` is tagged @nonEnumerable but is required: the guard only applies to optional properties, so the tag has no effect. Make it optional (`{0}?`) or remove the tag.",
+	"FMT003":  "TypeFormat mockSample violates a sibling constraint: {0}",
+	"FMT004":  "TypeFormat pattern /{0}/ cannot be checked: {1}; pattern validation requires a JavaScript runtime; install one or pass --js-runtime.",
+	"FMT005":  "Cannot auto-generate mockSamples for pattern /{0}/: {1}; declare mockSamples explicitly.",
+	"FMT007":  "TypeFormat pattern /{0}/ could not be evaluated in time: {1}; the build was not able to tell whether the pattern is safe.",
+	"FMT008":  "TypeFormat pattern /{0}/ can be made to backtrack exponentially: {1} (`{2}`); a crafted input would hang the validator.",
+	"FMT006":  "Two sites share one cache entry for format `{0}` but declare different mockSamples: `{1}` here vs `{2}` at {3}. Make the pools identical, or declare one and leave the other out.",
+	"MKR001":  "`{0}()` is being called at runtime just so the marker can read its return type: side effects, throws, or async work run for nothing.",
+	"CTA001":  "`CompTimeArgs<T>` argument must be a literal at the call site, or a `const` whose initializer is itself entirely literal (a same-module or imported `const` both work).",
+	"CTA002":  "`CompTimeArgs<T>` literal nesting exceeds the depth cap (16), refactor to flatten.",
+	"CTA003":  "`CompTimeArgs<T>` literal contains a forbidden construct ({0}). Only literals and nested literals are allowed.",
+	"CTA004":  "`CompTimeArgs<T>` value comes from a `const` with a widened (non-literal) member ({0}); declare the const `as const`.",
+	"BAT001":  "`batch()` element is not a route call the build can read ({0}); write `routes.a.b(...)` inline or bind it to a `const`/`let` in this file.",
+	"BAT002":  "`inputFrom()` reads route `{0}` for route `{1}`, but the source is not in this batch or runs after the target; sources must be listed before the routes they feed.",
+	"BAT003":  "Batch id `{0}` is shared by two different batches; reorder the routes of one of them so the ids no longer collide.",
+	"BAT004":  "`inputFrom()` mapper is not readable at build time ({0}); pass an inline arrow function or a string literal mapper name.",
+	"BAT005":  "Route `{0}` is listed twice in this `batch()`; a batch runs each route once, so drop the duplicate or move it into a second batch.",
+	"BAT006":  "`inputFrom()` sits at argument index {0} of route `{2}`, which declares only {1} parameter(s); move the mapping to an argument the route declares.",
+	"CFG003":  "`mion compile` refused to write {0}: it lands outside outDir ({1}) because its source sits outside rootDir; move rootDir up so every file of the program is under it, or reach that module through its package name.",
+	"BAT008":  "This `batch()` is ignored: the batch table is generated from the client project `{0}`, and batches written in the server program itself never reach it.",
+	"BAT009":  "The batch table {0} was written, but no module of this program calls `createMionRouter` directly, so nothing imports it; import it by hand in the module that creates the router.",
+	"MET001":  "The API type at this dispatch site cannot be read as a mion PublicApi ({0}); bundleApi needs `PublicApi<typeof routes>`.",
+	"MET002":  "This call names the route `{0}`, which the API type does not declare; nothing is bundled for it.",
+	"MET003":  "The route id at this call is `string` (a generic helper erased it), so nothing is bundled for it, and this client never sets up `useMethodsMetadata`: the call fails.",
+	"MET004":  "The route id at this call is `string` (a generic helper erased it); the call fetches its metadata from the server instead of using the bundle.",
+	"MET005":  "The API program {0} has {1} `initRoutes(...)` call(s) declaring the routes this client calls; bundleApi needs exactly one.",
+	"MET006":  "Option `{0}` of `{1}` is not a literal on the API type, so the bundled metadata leaves it unset.",
+	"MET007":  "This client injects the build version {0} but the API in the same program injects {1}; the client reports a version mismatch against its own server.",
+	"MET008":  "The route `{1}` runs the middleware `{0}`, which needs params, but this client never sets it up; every call to the route fails its validation.",
+	"MET009":  "The route `{1}` runs the middleware `{0}`, but this client never sets it up, so the middleware never gets its params.",
+	"MET010":  "This client fetches route metadata, but the API it calls does not place `mionMethodsMetadata`, so every fetch fails.",
+	"MET011":  "This client builds with `bundleApi: false`, so every call fetches its route's metadata, but it never sets up `useMethodsMetadata`: every call fails.",
+	"MRT001":  "mion `{0}` handler has no return type annotation; write the type the handler answers with.",
+	"MRT002":  "mion `{1}` handler parameter `{0}` has no type annotation; every parameter after the call context travels on the wire and must declare its type.",
+	"MRT003":  "mion `{0}` handlers must return errors, not throw them; return an `RpcError` to let the chain continue, or a `FatalError` to stop the request.",
+	"MRT004":  "mion `{1}` handler declares it can answer with `{0}`, which is not an `RpcError`; only an `RpcError` (or a subclass such as `FatalError`) carries the mion brand.",
+	"MRT005":  "Property `{0}` can never be data and is dropped from every compiled function; rename it.",
+	"BAT007":  "Batch mapper `{0}` has no generated pure function in the batch source program; the server build cannot register it.",
+	"PFN001":  "`PureFunction<F>` argument must be an INLINE arrow or function expression.",
+	"PFN002":  "`PureFunction<F>` literal must not be imported or exported: the compiled copy must be the only one that can run.",
+	"MKR003":  "Marker call is inside a generic function: the type argument is unresolved, so no id can be computed at build time.",
+	"MKR006":  "`InjectTypeFnArgs` names the function family `{0}` more than once; remove the duplicate key.",
+	"MKR007":  "Marker type resolved to `any` because this file has an unresolved import (`{0}`): the generated functions would silently accept anything.",
+	"MKR008":  "This type is too deeply nested to reflect: computing its structural id hit the recursion depth cap, so the build stops here instead of crashing.",
+	"MKR009":  "Type `{0}` re-instantiates itself with fresh type arguments at every level (a self-instantiating generic), so its structural id never resolves. Reflect a monomorphic shape instead.",
+	"MKR010":  "Type argument contains the unresolved type parameter `{0}`: a generic must be fully resolved at the marker call, so no id can be computed. See Related for where `{0}` is declared.",
+	"MKR011":  "Generic type `{0}` is used without its required type argument(s): parameter `{1}` has no default, so the type cannot resolve to an id. See Related for where `{1}` is declared.",
+	"MKR012":  "`{0}` here was declared by `{1}`, which this project does not trust as a marker package, so the type argument was dropped and this call reflects `unknown`.",
+	"MKR013":  "Marker type resolved to `any` that was never written: `{0}` failed to resolve (or its declaration references a name that does not), so the generated functions would silently accept anything.",
+	"MKR014":  "Two different types get the same id `{0}`: `{1}` from {4}, and `{2}` here. Raise the `hashLength` option to {3} so every type keeps its own id.",
+	"MKR015":  "`InjectTypeFnArgs` names `{0}`, which is not a function family{1}",
+	"OVR001":  "Duplicate override for `{0}`: there can be exactly one override per (type, function).",
+	"OVR002":  "Override entry `{0}` references compiled function `{1}` which did not render: this would throw at runtime, so the build stops.",
+	"OVR010":  "Overriding `validate` for this type also changes how JSON decoders narrow unions containing it.",
+	"TMP001":  "Temporal type `{0}` resolved to `any`: the Temporal lib isn't in your tsconfig `lib`, so the generated validator would accept any value.",
+	"PFE9005": "Pure-fn factory `{0}` uses destructured parameters; only simple identifier params are supported.",
+	"PFE9006": "`this` is not allowed inside a pure-fn factory body; pure functions can't depend on a calling context.",
+	"PFE9007": "`async`/`await` is not allowed inside a pure-fn factory body.",
+	"PFE9008": "`yield` / generators are not allowed inside a pure-fn factory body.",
+	"PFE9009": "`import()` is not allowed inside a pure-fn factory body.",
+	"PFE9010": "`{0}` is not allowed inside a pure-fn factory body.",
+	"PFE9011": "`{0}` is captured from outer scope inside a pure-fn factory; pure functions can't reach outside their own body.",
+	"PFE9012": "Pure fn `{0}` is referenced by a RT function but was never registered.",
+	"PFE9013": "`{0}.{1}` dependency argument must be a pure-fn id.",
+	"PFE9015": "Pure functions circular dependency: `{0}` (`{1}`) reaches back into `{2}`.",
+	"PFE9014": "Explicit pure-fn id `{0}` does not match this registration's computed id `{1}`.",
+	"PFE9016": "Pure fn `{0}` comes from `{1}`, which ships no compiled pure functions.",
+	"PFE9017": "`{0}` could not be read as part of a pure-fn artifact: {1}.",
+	"PFE9018": "Pure fn `{0}` differs between `{1}` and `{2}`.",
+	"UPN001":  "Property `{0}` can never be data and is dropped: the rest of the type still works.",
+	"PJ001":   "Type `{0}` can never be encoded to JSON: the generated function will always fail.",
+	"PJ002":   "Type `{0}` can never be encoded to JSON: the generated function will always fail.",
+	"PJ003":   "Type `{0}` can never be encoded to JSON: the generated function will always fail.",
+	"PJ005":   "Type `{0}` can never be encoded to JSON: the generated function will always fail.",
+	"PJS001":  "Type `{0}` can never be encoded to JSON: the generated function will always fail.",
+	"PJS002":  "Type `{0}` can never be encoded to JSON: the generated function will always fail.",
+	"PJS003":  "Type `{0}` can never be encoded to JSON: the generated function will always fail.",
+	"PJS005":  "Type `{0}` can never be encoded to JSON: the generated function will always fail.",
+	"RJ001":   "Type `{0}` can never be decoded from JSON: the generated function will always fail.",
+	"RJ002":   "Type `{0}` can never be decoded from JSON: the generated function will always fail.",
+	"RJ003":   "Type `{0}` can never be decoded from JSON: the generated function will always fail.",
+	"RJ005":   "Type `{0}` can never be decoded from JSON: the generated function will always fail.",
+	"VL001":   "Type `{0}` can never be validated: the generated function will always fail.",
+	"VL002":   "Type `{0}` can never be validated: the generated function will always fail.",
+	"VL003":   "Type `{0}` can never be validated: the generated function will always fail.",
+	"VE001":   "Type `{0}` can never be validated: the generated function will always fail.",
+	"VE002":   "Type `{0}` can never be validated: the generated function will always fail.",
+	"VE003":   "Type `{0}` can never be validated: the generated function will always fail.",
+	"VL010":   "Property `{0}` is a function: `validate` does not handle function values, so this property is silently not validated.",
+	"VE010":   "Property `{0}` is a function: `validationErrors` does not handle function values, so this property is silently not checked.",
+	"PJ010":   "Property `{0}` is a function: `prepareForJson` does not handle function values, so this property is silently not encoded.",
+	"PJS010":  "Property `{0}` is a function: `prepareForJsonClone` does not handle function values, so this property is silently not encoded.",
+	"RJ010":   "Property `{0}` is a function: `restoreFromJsonMutate` does not handle function values, so this property is silently not decoded.",
+	"RUK001":  "`removeUnknownKeys` does not support unions with object members: the emitter cannot know which declared shape to rebuild at runtime.",
+	"RUK003":  "`removeUnknownKeys` cannot clone a function-typed value.",
+	"RUK010":  "Property `{0}` is a function: `removeUnknownKeys` cannot rebuild it, so it is kept on the clone, SHARED BY REFERENCE.",
+	"RUK011":  "Method `{0}` is not copied onto the clone's own properties: methods ride the prototype.",
+	"RUK013":  "Symbol-keyed property `{0}` is not copied onto the clone: `removeUnknownKeys` rebuilds string keys only.",
+	"RUK015":  "Property `{0}` has a value type `removeUnknownKeys` cannot rebuild (symbol, Promise, or a non-serialisable built-in): it is kept on the clone, SHARED BY REFERENCE.",
+	"RUK012":  "Static member `{0}` is not part of instance data: `removeUnknownKeys` skips it.",
+	"JCP001":  "Internal error: JSON composite `{0}` references primitive entry `{1}` (type `{2}`) which was never rendered; please file an issue.",
+	"VL011":   "Method `{0}` is silently not validated by `validate`: methods aren't data.",
+	"VE011":   "Method `{0}` is silently not checked by `validationErrors`: methods aren't data.",
+	"PJ011":   "Method `{0}` is silently not encoded by `prepareForJson`: methods aren't data.",
+	"PJS011":  "Method `{0}` is silently not encoded by `prepareForJsonClone`: methods aren't data.",
+	"RJ011":   "Method `{0}` is silently not decoded by `restoreFromJsonMutate`: methods aren't data.",
+	"VL012":   "Static member `{0}` is silently not validated by `validate`: statics aren't part of instance data.",
+	"VE012":   "Static member `{0}` is silently not checked by `validationErrors`: statics aren't part of instance data.",
+	"PJ012":   "Static member `{0}` is silently not encoded by `prepareForJson`: statics aren't part of instance data.",
+	"PJS012":  "Static member `{0}` is silently not encoded by `prepareForJsonClone`: statics aren't part of instance data.",
+	"RJ012":   "Static member `{0}` is silently not decoded by `restoreFromJsonMutate`: statics aren't part of instance data.",
+	"VL013":   "Symbol-keyed property `{0}` is silently not validated by `validate`: symbol keys aren't JSON-representable.",
+	"VE013":   "Symbol-keyed property `{0}` is silently not checked by `validationErrors`: symbol keys aren't JSON-representable.",
+	"PJ013":   "Symbol-keyed property `{0}` is silently not encoded by `prepareForJson`: symbol keys aren't JSON-representable.",
+	"PJS013":  "Symbol-keyed property `{0}` is silently not encoded by `prepareForJsonClone`: symbol keys aren't JSON-representable.",
+	"RJ013":   "Symbol-keyed property `{0}` is silently not decoded by `restoreFromJsonMutate`: symbol keys aren't JSON-representable.",
+	"VL014":   "Union member(s) of type `{0}` can't be represented as data: `validate` drops them, so the union is validated as its remaining members.",
+	"PJ014":   "Union member(s) of type `{0}` can't be represented as data: `prepareForJson` drops them, so the union is encoded as its remaining members.",
+	"PJS014":  "Union member(s) of type `{0}` can't be represented as data: `prepareForJsonClone` drops them, so the union is encoded as its remaining members.",
+	"RJ014":   "Union member(s) of type `{0}` can't be represented as data: `restoreFromJsonMutate` drops them, so the union is decoded as its remaining members.",
+	"VL015":   "Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): `validate` drops it, so this property is silently not validated.",
+	"VE015":   "Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): `validationErrors` drops it, so this property is silently not checked.",
+	"PJ015":   "Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): `prepareForJson` drops it, so this property is silently not encoded.",
+	"PJS015":  "Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): `prepareForJsonClone` drops it, so this property is silently not encoded.",
+	"RJ015":   "Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): `restoreFromJsonMutate` drops it, so this property is silently not decoded.",
+	"VL021":   "`validate` on `any` / `unknown` always returns true: the validator accepts every value.",
+	"VE020":   "`validationErrors` on `any` / `unknown` always returns an empty error array: nothing is checked.",
 
 	// ─────────── FriendlyText mirror files (FTxxx) ───────────
 	//
@@ -578,110 +158,43 @@ var messagesByCode = map[string]message{
 	// messages, plus its per-locale twins) and a MockData mirror. FT codes fire in the first, MD
 	// codes in the second, and the shared gen/prune/update commands regenerate both.
 
-	CodeFriendlyUnknownField: {
-		Headline: "Unknown field `{0}`: the type does not declare it, so this FriendlyText entry is dead.",
-		Detail:   "The FriendlyText map names a field the source type does not have\n(removed, renamed, or a typo). Its labels and messages can never be\nused.\n\nExample: `nick` no longer exists on the type:\n  interface User { name: string }\n  export const friendlyUser: FriendlyText<User> = {\n    name: {rt$label: 'Name'},\n-   nick: {rt$label: 'Nickname'},\n  };\n\nFix: remove the entry, or re-run the reconcile so the mirror follows\nthe type (a renamed field carries its authored values along):\n  mion enrich <source.ts> <Type> --update",
-	},
-	CodeFriendlyUnknownConstraint: {
-		Headline: "Error key `{0}` is not a declared constraint of this field: the message can never fire.",
-		Detail:   "`rt$errors` keys must name a failure the field can actually produce:\n`type`, `rt$default`, or one of the field's declared format constraints\n(`minLength`, `pattern`, `min`, …). An undeclared key is dead\nconfiguration.\n\nExample: the field has no `maxLength` constraint:\n  interface User { name: string & FormatString<{minLength: 2}> }\n  export const friendlyUser: FriendlyText<User> = {\n    name: {\n      rt$errors: {\n        minLength: 'Name needs at least 2 characters',\n-       maxLength: 'Name is too long',\n      },\n    },\n  };\n\nFix: remove the key, or declare the matching constraint on the field's\nTypeFormat so the message has a failure to describe.",
-	},
-	CodeFriendlyBadPlaceholder: {
-		Headline: "Unknown placeholder `$[{0}]`: expected one of `$[label]`, `$[val]`, `$[path]`, `$[index]`.",
-		Detail:   "Error-message templates substitute a fixed placeholder set; an unknown\nname renders literally instead of substituting.\n\nExample:\n- rt$errors: {minLength: '$[name] is too short'}\n+ rt$errors: {minLength: '$[label] is too short'}\n\nFix: use one of the recognised placeholders, or write the literal text\nwithout the `$[…]` wrapper.",
-	},
-	CodeFriendlyPluralNoOther: {
-		Headline: "Plural error template is missing the mandatory `other` arm: the render has no backstop.",
-		Detail:   "Plural templates render the CLDR arm matching the count, and `other` is\nthe arm every locale falls back to. Without it some counts have no\nmessage at all.\n\nExample:\n  rt$errors: {\n    minLength: {\n      one: 'Needs one more character',\n+     other: 'Needs $[val] more characters',\n    },\n  }\n\nFix: add the `other` arm to the plural object.",
-	},
-	CodeFriendlyPluralBadArm: {
-		Headline: "Unknown plural arm `{0}`: CLDR categories are `zero`, `one`, `two`, `few`, `many`, `other`.",
-		Detail:   "Plural template keys must be CLDR plural categories; anything else can\nnever be selected by any locale's plural rules.\n\nExample:\n  rt$errors: {\n    minLength: {\n-     single: 'Needs one more character',\n+     one: 'Needs one more character',\n      other: 'Needs $[val] more characters',\n    },\n  }\n\nFix: rename the arm to one of the six categories, or remove it.",
-	},
-	CodeFriendlyPluralNoCount: {
-		Headline: "Constraint `{0}` carries no count: a plural template here has dead arms; use a plain string.",
-		Detail:   "Only count-bearing constraints (`minLength`, `maxLength`, `min`, `max`,\n…) can select a plural arm. On a non-count constraint only `other` ever\nrenders, so the remaining arms are dead configuration.\n\nExample: `pattern` has no count:\n  rt$errors: {\n-   pattern: {one: 'One bad character', other: 'Invalid characters'},\n+   pattern: 'Only letters and numbers are allowed',\n  }\n\nFix: replace the plural object with a plain string message.",
-	},
-	CodeFriendlyDefaultNotAlone: {
-		Headline: "`rt$default` is mutually exclusive with per-constraint messages; use one mode or the other.",
-		Detail:   "An `rt$errors` record is either ONE `rt$default` catch-all or a set of\nper-constraint keys, mirroring the TypeScript union. Mixing them makes\nthe intent ambiguous (which message wins?).\n\nExample:\n  rt$errors: {\n-   rt$default: 'Invalid name',\n    minLength: 'Name is too short',\n  }\n\nFix: keep `{rt$default: '…'}` alone, or keep the per-constraint keys\nand drop `rt$default`.",
-	},
-	CodeFriendlyReservedProp: {
-		Headline: "Property `{0}` collides with the reserved `rt$` enrichment prefix: the type cannot be enriched.",
-		Detail:   "`rt$`-prefixed keys are reserved for enrichment meta (`rt$label`,\n`rt$errors`, `rt$items`, …); a source property with that prefix is\nindistinguishable from node meta, so `mion enrich` refuses the type and the\nFriendlyType checker reports it here.\n\nFix: rename the property (a plain `$` prefix is fine; only `rt$` is\nreserved):\n  interface Config {\n-   rt$mode: string;\n+   $mode: string;\n  }",
-	},
-	CodeFriendlyTodo: {
-		Headline: "Unfilled `@todo` placeholder; fill in the real labels/messages, then delete the `@todo` line.",
-		Detail:   "The generator stamps a `@todo` line on every freshly-scaffolded const in\na FriendlyText mirror file. It means \"this skeleton still carries\ngenerated blanks\". A clean, committed mirror has none.\n\nExample: a fresh scaffold:\n  /** @rtType User#a1b2c3 @rtIds {name: d4e5f6} */\n- // @todo: generated skeleton, fill in real data, then delete this line\n  export const friendlyUser: FriendlyText<User> = {\n-   name: {rt$label: ''},\n+   name: {rt$label: 'Name'},\n  };\n\nFix: author the real labels and error messages for the const, then\ndelete the whole `@todo` line (the compiler never removes it for you).",
-	},
-	CodeFriendlyOrphanConst: {
-		Headline: "Stale `@rtOrphan` carcass; run `mion enrich --prune` to remove it (or restore the type).",
-		Detail:   "The reconcile commented this FriendlyText const out because its source\ntype was deleted or renamed. The carcass preserves your authored labels\nand messages so a reappearing type can restore them, but a clean,\ncommitted mirror has none.\n\nFix: if the type is really gone, prune the carcass:\n  mion enrich --prune\n\nFix: if the type was renamed, re-run the reconcile; a matching carcass\nis restored with your values intact:\n  mion enrich <source.ts> <NewName> --update",
-	},
-	CodeFriendlyOrphanField: {
-		Headline: "Stale `@rtOrphanChild` field carcass; run `mion enrich --prune` to remove it (or restore the field).",
-		Detail:   "The reconcile commented this field out because the source type no longer\ndeclares it. The carcass preserves your authored value inline, but a\nclean, committed mirror has none.\n\nExample:\n  export const friendlyUser: FriendlyText<User> = {\n-   /* @rtOrphanChild nick: {rt$label: 'Nickname'}, */\n    name: {rt$label: 'Name'},\n  };\n\nFix: if the field is really gone: `mion enrich --prune`.\nFix: if the field was renamed, re-run `--update`; the authored value\nmoves to the renamed field when the ids match.",
-	},
-	CodeFriendlyBlankValue: {
-		Headline: "Unfilled blank value: a scaffolded label or message is still empty; fill in the real text.",
-		Detail:   "An empty string (`''`) at a `rt$label` / `rt$errors` slot is a generated\nblank that never got authored: it ships blank to the UI wherever the\nfriendly text is shown, so it is exactly as incomplete as a `@todo`\nmarker. This is why removing the `@todo` line without filling the values\nis not \"done\".\n\nExample:\n  export const friendlyUser: FriendlyText<User> = {\n-   name: {rt$label: ''},\n+   name: {rt$label: 'Name'},\n  };\n\nFix: author the real label / message. Only the completeness gate\n(`mion enrich --require-complete`) fails on it; a plain\n`--no-emit` health check reports it without failing.",
-	},
+	CodeFriendlyUnknownField:      "Unknown field `{0}`: the type does not declare it, so this FriendlyText entry is dead.",
+	CodeFriendlyUnknownConstraint: "Error key `{0}` is not a declared constraint of this field: the message can never fire.",
+	CodeFriendlyBadPlaceholder:    "Unknown placeholder `$[{0}]`: expected one of `$[label]`, `$[val]`, `$[path]`, `$[index]`.",
+	CodeFriendlyPluralNoOther:     "Plural error template is missing the mandatory `other` arm: the render has no backstop.",
+	CodeFriendlyPluralBadArm:      "Unknown plural arm `{0}`: CLDR categories are `zero`, `one`, `two`, `few`, `many`, `other`.",
+	CodeFriendlyPluralNoCount:     "Constraint `{0}` carries no count: a plural template here has dead arms; use a plain string.",
+	CodeFriendlyDefaultNotAlone:   "`rt$default` is mutually exclusive with per-constraint messages; use one mode or the other.",
+	CodeFriendlyReservedProp:      "Property `{0}` collides with the reserved `rt$` enrichment prefix: the type cannot be enriched.",
+	CodeFriendlyTodo:              "Unfilled `@todo` placeholder; fill in the real labels/messages, then delete the `@todo` line.",
+	CodeFriendlyOrphanConst:       "Stale `@rtOrphan` carcass; run `mion enrich --prune` to remove it (or restore the type).",
+	CodeFriendlyOrphanField:       "Stale `@rtOrphanChild` field carcass; run `mion enrich --prune` to remove it (or restore the field).",
+	CodeFriendlyBlankValue:        "Unfilled blank value: a scaffolded label or message is still empty; fill in the real text.",
 
 	// ─────────── MockData mirror files (MDxxx) ───────────
 
-	CodeMockUnknownField: {
-		Headline: "Unknown field `{0}`: the type does not declare it, so this MockData entry is dead.",
-		Detail:   "The MockData map names a field the source type does not have (removed,\nrenamed, or a typo). Its pool/range can never feed a generated mock.\n\nExample: `nick` no longer exists on the type:\n  interface User { name: string }\n  export const mockUser: MockData<User> = {\n    name: {pool: ['Ada', 'Linus']},\n-   nick: {pool: ['ada99']},\n  };\n\nFix: remove the entry, or re-run the reconcile so the mirror follows\nthe type:\n  mion enrich <source.ts> <Type> --update",
-	},
-	CodeMockReservedProp: {
-		Headline: "Property `{0}` collides with the reserved `rt$` enrichment prefix: the type cannot be enriched.",
-		Detail:   "`rt$`-prefixed keys are reserved for enrichment meta (`rt$items`,\n`rt$length`, `rt$optional`, …); a source property with that prefix is\nindistinguishable from node meta, so `mion enrich` refuses the type and the\nMockData checker reports it here.\n\nFix: rename the property (a plain `$` prefix is fine; only `rt$` is\nreserved):\n  interface Config {\n-   rt$size: number;\n+   $size: number;\n  }",
-	},
-	CodeMockTodo: {
-		Headline: "Unfilled `@todo` placeholder; fill in the real sample pools/ranges, then delete the `@todo` line.",
-		Detail:   "The generator stamps a `@todo` line on every freshly-scaffolded const in\na MockData mirror file. It means \"this skeleton still carries generated\nblanks\". A clean, committed mirror has none.\n\nExample: a fresh scaffold:\n  /** @rtType User#a1b2c3 @rtIds {name: d4e5f6} */\n- // @todo: generated skeleton, fill in real data, then delete this line\n  export const mockUser: MockData<User> = {\n-   name: {pool: []},\n+   name: {pool: ['Ada Lovelace', 'Linus Torvalds']},\n  };\n\nFix: author realistic sample pools/ranges for the const, then delete\nthe whole `@todo` line (the compiler never removes it for you).",
-	},
-	CodeMockOrphanConst: {
-		Headline: "Stale `@rtOrphan` carcass; run `mion enrich --prune` to remove it (or restore the type).",
-		Detail:   "The reconcile commented this MockData const out because its source type\nwas deleted or renamed. The carcass preserves your authored pools and\nranges so a reappearing type can restore them, but a clean, committed\nmirror has none.\n\nFix: if the type is really gone, prune the carcass:\n  mion enrich --prune\n\nFix: if the type was renamed, re-run the reconcile; a matching carcass\nis restored with your values intact:\n  mion enrich <source.ts> <NewName> --update",
-	},
-	CodeMockOrphanField: {
-		Headline: "Stale `@rtOrphanChild` field carcass; run `mion enrich --prune` to remove it (or restore the field).",
-		Detail:   "The reconcile commented this field out because the source type no longer\ndeclares it. The carcass preserves your authored value inline, but a\nclean, committed mirror has none.\n\nExample:\n  export const mockUser: MockData<User> = {\n-   /* @rtOrphanChild nick: {pool: ['ada99']}, */\n    name: {pool: ['Ada', 'Linus']},\n  };\n\nFix: if the field is really gone: `mion enrich --prune`.\nFix: if the field was renamed, re-run `--update`; the authored value\nmoves to the renamed field when the ids match.",
-	},
-	CodeMockBlankValue: {
-		Headline: "Unfilled blank value: a scaffolded sample pool or range is still empty; fill in real data.",
-		Detail:   "An empty pool (`pool: []`) is a generated blank that never got authored:\nit mocks nothing, so it is exactly as incomplete as a `@todo` marker.\nThis is why removing the `@todo` line without filling the values is not\n\"done\".\n\nExample:\n  export const mockUser: MockData<User> = {\n-   name: {pool: []},\n+   name: {pool: ['Ada Lovelace', 'Linus Torvalds']},\n  };\n\nFix: author realistic sample data. Only the completeness gate\n(`mion enrich --require-complete`) fails on it; a plain\n`--no-emit` health check reports it without failing.",
-	},
+	CodeMockUnknownField: "Unknown field `{0}`: the type does not declare it, so this MockData entry is dead.",
+	CodeMockReservedProp: "Property `{0}` collides with the reserved `rt$` enrichment prefix: the type cannot be enriched.",
+	CodeMockTodo:         "Unfilled `@todo` placeholder; fill in the real sample pools/ranges, then delete the `@todo` line.",
+	CodeMockOrphanConst:  "Stale `@rtOrphan` carcass; run `mion enrich --prune` to remove it (or restore the type).",
+	CodeMockOrphanField:  "Stale `@rtOrphanChild` field carcass; run `mion enrich --prune` to remove it (or restore the field).",
+	CodeMockBlankValue:   "Unfilled blank value: a scaffolded sample pool or range is still empty; fill in real data.",
 
 	// ─────────── Mirror ↔ source linkage (GExxx, check) ───────────
 
-	CodeGenMirrorUnreadable: {
-		Headline: "Cannot read enrichment mirror file: {0}",
-		Detail:   "The drift check could not read this mirror file (permissions, a broken\nsymlink, or a race with a concurrent write).\n\nFix: make the file readable and re-run `mion enrich --no-emit`.",
-	},
-	CodeGenMirrorDrift: {
-		Headline: "Mirror location drift: the source maps to `{0}` but this file lives at `{1}`; re-run `mion enrich` to relocate.",
-		Detail:   "Each source file mirrors to ONE computed path per family under the\nenrich root (friendly/… and mock/…, plus per-locale translation twins).\nThis file is not at its computed location, usually after a source move,\na genDir change, or a pre-split combined mirror that still needs\nmigrating.\n\nFix: re-run the generator; it writes the per-family files at the right\npaths and migrates a legacy combined mirror:\n  mion enrich <source.ts> <Type> --update",
-	},
-	CodeGenSourceMissing: {
-		Headline: "Breadcrumb source `{0}` no longer exists ({1}): the mirror is orphaned; delete it or re-run `mion enrich`.",
-		Detail:   "The mirror's `import type { … } from '<source>'` breadcrumb resolves to\na file that is gone. Its consts describe types that no longer exist\nanywhere.\n\nFix: if the source was deleted, delete the mirror file (both family\nfiles and any translation twins).\nFix: if the source moved, re-run the generator from the new location\nand prune the old mirror.",
-	},
-	CodeGenTypeMissing: {
-		Headline: "Source {0} no longer declares type `{1}`; re-run `mion enrich`.",
-		Detail:   "The mirror imports a type name its source file no longer declares (the\ntype was renamed or removed). The reconcile turns its consts into\n`@rtOrphan` carcasses so your authored values survive.\n\nFix: re-run the reconcile against the current source, then prune any\ncarcasses that should not come back:\n  mion enrich <source.ts> <Type> --update\n  mion enrich --prune",
-	},
+	CodeGenMirrorUnreadable: "Cannot read enrichment mirror file: {0}",
+	CodeGenMirrorDrift:      "Mirror location drift: the source maps to `{0}` but this file lives at `{1}`; re-run `mion enrich` to relocate.",
+	CodeGenSourceMissing:    "Breadcrumb source `{0}` no longer exists ({1}): the mirror is orphaned; delete it or re-run `mion enrich`.",
+	CodeGenTypeMissing:      "Source {0} no longer declares type `{1}`; re-run `mion enrich`.",
 }
 
 func init() {
-	for code, text := range messagesByCode {
+	for code, headline := range headlineByCode {
 		definition, ok := Definitions[code]
 		if !ok {
 			panic("diag: message for unregistered code " + code)
 		}
-		definition.Headline = text.Headline
-		definition.Detail = text.Detail
+		definition.Headline = headline
 		Definitions[code] = definition
 	}
 }

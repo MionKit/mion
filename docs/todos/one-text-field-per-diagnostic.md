@@ -58,3 +58,17 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
   old `detail` text was lost.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source
   file, each committed on its own.
+
+## Plan (approved 2026-09-28)
+
+- `summary` and `detail` do the same job: both are read only by the website's All Diagnostics page
+  (the devtools dictionary carried `detail`, but no code read it). They become ONE field, `summary`,
+  in `prose.go`; `messages.go` keeps only the headline (`headlineByCode`, a plain code → string map).
+- Drop `Definition.Detail`, drop `severity` and `detail` from the `gen-diag-catalog` dump and from both
+  generated catalogs. A missing summary fails the generator and `TestEveryCodeHasSummary` (one line,
+  no dash as punctuation).
+- `DiagnosticCatalog.vue`: remove the "Full build message" box and `detail` from the search text.
+- `routing.test.ts` derives severity from `level`.
+- The 160 texts are written by fresh subagents following the simplify-docs skill, one per family
+  group, to scratch JSON; merged into `prose.go`, checked against the old detail so no fact is lost,
+  then reviewed again by the `docs-simplifier` pass. Code fixes from the old detail move into `Fix`.

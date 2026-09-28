@@ -143,7 +143,13 @@ describe('enrichment routing (per-concern rules, named for what they catch)', ()
 describe('catalog coverage — every code routes to a rule with the matching default', () => {
   const RULE_DEFAULT = new Map<RuleName, 'error' | 'warn'>(RULE_SPECS.map((spec) => [spec.name, spec.default]));
   const enrichPrefixes = new Set(['FT', 'MD', 'GE']);
-  const severityEnum = {error: Severity.Error, warning: Severity.Warning, info: Severity.Info} as const;
+  // The catalog carries only the level; both error levels print as an error, like the Go severityOf.
+  const severityOfLevel = {
+    error: Severity.Error,
+    runtimeError: Severity.Error,
+    warning: Severity.Warning,
+    info: Severity.Info,
+  } as const;
   const levelEnum = {error: Level.Error, runtimeError: Level.RuntimeError, warning: Level.Warning, info: Level.Info} as const;
 
   it('maps every catalog code to a rule with no gaps', () => {
@@ -153,7 +159,7 @@ describe('catalog coverage — every code routes to a rule with the matching def
       const entry = DIAGNOSTIC_CATALOG[code]!;
       const prefix = code.match(/^[A-Z]+/)![0];
       const family = enrichPrefixes.has(prefix) ? Family.Enrich : Family.RunType;
-      const routed = ruleOf({code, family, severity: severityEnum[entry.severity], level: levelEnum[entry.level]});
+      const routed = ruleOf({code, family, severity: severityOfLevel[entry.level], level: levelEnum[entry.level]});
       const ruleDefault = RULE_DEFAULT.get(routed);
       expect(ruleDefault, `${code} routed to ${routed}, which is not a registered rule`).toBeDefined();
       if (entry.level === 'error' || entry.level === 'runtimeError') {
