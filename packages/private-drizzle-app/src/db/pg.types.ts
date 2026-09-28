@@ -28,7 +28,7 @@ export type PostsTable = DZ.PgTable<
   'posts',
   {
     id: DZ.Uuid<{defaultRandom: true; primaryKey: true}>;
-    authorId: DZ.Uuid<{notNull: true}>;
+    authorId: DZ.Uuid<{notNull: true; references: [{table: 'users'; column: 'id'}]}>;
     title: DZ.Varchar<{length: 200; notNull: true}>;
     tags: DZ.Text<{array: true; notNull: true}>;
     views: DZ.Integer<{notNull: true; default: [0]}>;
@@ -39,7 +39,7 @@ export type PostsTable = DZ.PgTable<
 >;
 
 export const users = DZ.tableFromType<UsersTable>();
-export const posts = DZ.tableFromType<PostsTable>();
+export const posts = DZ.tableFromType<PostsTable>({tables: {users}});
 
 // A view has no type form: it stays a builder.
 export const adultUsers = DZ.pgView('adult_users', {
@@ -59,7 +59,7 @@ export type BusyAuthor = Pick<Post, 'authorId' | 'views'>;
 export type AdultUser = InferSelectViewModel<typeof adultUsers>;
 
 export const usersDb = toDrizzle<UsersTable>();
-export const postsDb = toDrizzle<PostsTable>();
+export const postsDb = toDrizzle<PostsTable>({tables: {users}});
 export const adultUsersDb = toDrizzle(adultUsers);
 
 // Query-builder views stay on drizzle (DRZ001).
