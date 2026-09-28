@@ -38,8 +38,7 @@ export type InferInsertModel<T extends AnyTable> = InsertModelOf<T['columns']>;
 /** Update payload: any subset of the insert payload. */
 export type InferUpdateModel<T extends AnyTable> = Prettify<UpdateOfCols<T['columns']>>;
 
-// Type only, as drizzle's own: nothing holds these at run time. On each dialect's table interface, not on the core
-// meta, so AnyTable stays without them and checking a table against it never builds its models.
+// Type only, nothing holds these at run time. Kept off the core meta so checking against AnyTable never builds models.
 /** drizzle's `typeof users.$inferSelect` / `$inferInsert` on a slim table: the same types as the Infer*Model ones. */
 export interface RtTableInfer<Cols> {
   readonly $inferSelect: SelectModelOf<Cols>;

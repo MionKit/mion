@@ -839,7 +839,7 @@ real({notNull: undefined});
 export type UndefinedMod = Real<{notNull: undefined}>;
 
 // ── drizzle's $inferSelect / $inferInsert ────────────────────────────────────
-// type only, the same types as the Infer*Model ones, on both table forms, on views and after enableRLS()
+// type only: nothing holds these members at run time
 
 export type InferMemberPins = [
   Expect<Equal<(typeof users)['$inferSelect'], InferSelectModel<typeof users>>>,

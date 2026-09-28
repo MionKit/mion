@@ -698,7 +698,7 @@ type ReadonlyPk = SqliteTable<'boundary_readonly_pk', {id: Text<{primaryKey: rea
 export type OnlySqlite_ReadonlyPkPins = [Expect<Equal<InferInsertModel<ReadonlyPk>, {id?: Str | undefined}>>];
 
 // ── drizzle's $inferSelect / $inferInsert ────────────────────────────────────
-// type only, the same types as the Infer*Model ones, on both table forms and on views
+// type only: nothing holds these members at run time
 
 export type InferMemberPins = [
   Expect<Equal<(typeof users)['$inferSelect'], InferSelectModel<typeof users>>>,
