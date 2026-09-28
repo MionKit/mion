@@ -12,7 +12,8 @@ import {hasBinary, makeFixtureProject, type FixtureProject} from './fixture.ts';
 const DIST = path.resolve(__dirname, '../../dist/lint');
 const ready = hasBinary() && fs.existsSync(path.join(DIST, 'index.js'));
 
-const WIDGET_TS = `import {createValidateFn} from '@mionjs/run-types';
+// Marker coverage rule: both getRunTypeId shapes sit beside the validator and lint clean.
+const WIDGET_TS = `import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
 
 class Widget {
   label = 'ok';
@@ -20,6 +21,8 @@ class Widget {
 }
 
 export const isWidget = createValidateFn<Widget>();
+export const widgetId = getRunTypeId<Widget>();
+export const sampleId = getRunTypeId(new Widget());
 `;
 
 const LOWERED_TS = `import {createValidateFn} from '@mionjs/run-types';
@@ -74,21 +77,24 @@ describe.runIf(ready)('eslint end to end (configs.recommended from the built plu
   });
 
   it('reports a @mion-downgrade-error line as a warning under runtypes/downgraded-error', {timeout: 120_000}, async () => {
-    const lowered = (await lint()).get('lowered.ts')!;
-    expect(lowered).toHaveLength(1);
-    expect(lowered[0]!.ruleId).toBe('runtypes/downgraded-error');
-    expect(lowered[0]!.severity).toBe(1);
-    expect(lowered[0]!.line).toBe(4);
-    expect(lowered[0]!.message).toMatch(/^\[VL002\] .*\(downgraded\)$/);
+    expect((await lint()).get('lowered.ts')).toEqual([
+      expect.objectContaining({
+        ruleId: 'runtypes/downgraded-error',
+        severity: 1,
+        line: 4,
+        message: expect.stringMatching(/^\[VL002\] .*\(downgraded\)$/),
+      }),
+    ]);
   });
 
   it("shows Info findings at warn with settings.runtypes.levels: 'all'", {timeout: 120_000}, async () => {
-    const widget = (await lint({runtypes: {levels: 'all'}})).get('widget.ts')!;
-    expect(widget).toHaveLength(1);
-    expect(widget[0]!.ruleId).toBe('runtypes/validate-skipped-member');
-    expect(widget[0]!.severity).toBe(1);
-    expect(widget[0]!.message).toContain('[VL011]');
-    expect(widget[0]!.message).toContain('render');
+    expect((await lint({runtypes: {levels: 'all'}})).get('widget.ts')).toEqual([
+      expect.objectContaining({
+        ruleId: 'runtypes/validate-skipped-member',
+        severity: 1,
+        message: expect.stringMatching(/\[VL011\].*render/),
+      }),
+    ]);
   });
 });
 
