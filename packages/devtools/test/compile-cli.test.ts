@@ -134,5 +134,8 @@ export const sampleId = getRunTypeId(new Pet());
     const shown = compileWithLevels('all');
     expect(shown.status, shown.report).toBe(0);
     expect(shown.stderr).toMatch(/info VL011/);
+    // The same line the bundler plugin prints: the code, then the rendered headline, never the raw args.
+    expect(shown.stderr).toMatch(/\(\d+,\d+\): info VL011: \S.*`speak`/);
+    expect(shown.stderr).not.toMatch(/VL011\(/);
   });
 });
