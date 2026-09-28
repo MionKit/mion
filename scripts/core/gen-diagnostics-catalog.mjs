@@ -1,19 +1,7 @@
-// Generate every diagnostic-catalog artifact from the Go dump.
-//
-// internal/diagnostics is the single source of truth for the whole catalog: which
-// codes exist, their levels, the headline (internal/diagnostics/messages.go), and the
-// website text (summary, fix, example in internal/diagnostics/prose.go). `go run ./cmd/gen-diag-catalog` dumps it all
-// as JSON; this script fans that dump out into the two generated artifacts:
-//
-//   1. packages/devtools/src/core/go-generated/diagnosticCatalog.generated.ts, the
-//      front-end message dictionary (code → headline template) the
-//      bundler plugin, the lint plugin, and the runtime alwaysThrow factory
-//      render from. The binary ships only code + args over the wire.
-//   2. container/website/app/components/content/go-generated/diagnostics-catalog.json,
-//      the website diagnostics page data.
-//
-// Both outputs are committed so consumers build without the Go toolchain.
-// Run `pnpm miondevx core codegen diag` after changing internal/diagnostics.
+// Fans the Go dump of internal/diagnostics, the one source of every message, out into the headline
+// dictionary the bundler and lint plugins render from (the wire carries only code + args) and the
+// website page JSON. Both are committed so consumers build without Go; run
+// `pnpm miondevx core codegen diag` after changing internal/diagnostics.
 
 import {execFileSync} from 'node:child_process';
 import {writeFileSync} from 'node:fs';
@@ -109,7 +97,6 @@ function codePrefix(code) {
   return match ? match[0] : code;
 }
 
-// The authoritative dump: codes, levels, headlines, website text, all from Go.
 const goDump = execFileSync('go', ['run', './cmd/gen-diag-catalog'], {
   cwd: goRoot,
   encoding: 'utf8',
@@ -125,7 +112,7 @@ if (missingHeadlines.length) {
 
 const missingSummaries = goRecords.filter((record) => !record.summary).map((record) => record.code);
 if (missingSummaries.length) {
-  // internal/diagnostics's TestEveryCodeHasSummary pins this; the website would show a code with no explanation.
+  // TestEveryCodeHasSummary pins this too; else the page shows a code with no explanation.
   throw new Error(`gen-diag-catalog: codes with no summary in internal/diagnostics/prose.go: ${missingSummaries.join(', ')}`);
 }
 

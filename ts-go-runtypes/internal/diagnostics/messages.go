@@ -1,16 +1,9 @@
 package diagnostics
 
-// messages.go is the single source of the Headline every diagnostic code prints (`{0}`, `{1}`
-// substitute against Diagnostic.Args). The wire carries code + args only; `pnpm miondevx core
-// codegen diag` exports this map into the GENERATED
-// packages/devtools/src/core/go-generated/diagnosticCatalog.generated.ts the bundler plugin and the
-// lint plugin render from. Runtime alwaysThrow text is not rendered there: Go bakes it whole into
-// the cache entry (see cachegen/typefunctions.buildAlwaysThrowMessage). Every code MUST have a
-// Headline (TestEveryCodeHasHeadline pins it); an unregistered code panics at init, mirroring
-// prose.go, which holds the longer website text.
-//
-// Wording standard: the user's TypeScript vocabulary, no compiler internals, and the user-visible
-// consequence rather than what the compiler did.
+// messages.go is the one source of every code's Headline; `pnpm miondevx core codegen diag` exports it for
+// the bundler and lint plugins, while alwaysThrow text is baked into the cache entry by
+// cachegen/typefunctions.buildAlwaysThrowMessage. Every code MUST have a Headline; an unregistered code
+// panics at init. Wording: the user's TypeScript vocabulary and the user-visible consequence, no compiler internals.
 
 var headlineByCode = map[string]string{
 	"EXP001":  "Unused `@mion-expect-error {0}`: nothing was reported on the line below it, so the comment is stale and can be deleted.",

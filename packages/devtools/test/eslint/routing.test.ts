@@ -143,7 +143,7 @@ describe('enrichment routing (per-concern rules, named for what they catch)', ()
 describe('catalog coverage — every code routes to a rule with the matching default', () => {
   const RULE_DEFAULT = new Map<RuleName, 'error' | 'warn'>(RULE_SPECS.map((spec) => [spec.name, spec.default]));
   const enrichPrefixes = new Set(['FT', 'MD', 'GE']);
-  // The catalog carries only the level; both error levels print as an error, like the Go severityOf.
+  // Both error levels print as an error, mirroring Go's severityOf.
   const severityOfLevel = {
     error: Severity.Error,
     runtimeError: Severity.Error,
