@@ -1,8 +1,6 @@
 import {createValidateFn} from '@mionjs/run-types';
 
-// A type with a non-serializable member. createValidateFn drops `onClick` with a
-// VL0xx Info, which the lint configs show with `levels: 'all'`: the known RT
-// diagnostic the lint transport test asserts fires.
+// The lint transport test's known diagnostic: `onClick` drops with a VL0xx Info, shown via `levels: 'all'`.
 export interface WithHandler {
   name: string;
   onClick: () => void;

@@ -8,10 +8,11 @@
 // settings.runtypes.tsconfig points the resolver at THIS app's tsconfig: the
 // linters run from the e2e root, so without it the resolver would search upward
 // from there and adopt some other project's config (or none). `levels: 'all'` shows
-// the caveat's skipped member, an Info the linter hides by default. The working
-// directory is not a setting: the plugin runs where the linter runs. In-container the binary comes from the published @mionjs/bin-compiler
-// launcher (exactly what the e2e proves); for host runs the spawner forwards
-// MION_E2E_BINARY to the launcher's MION_BIN env var (see ../../lint-all.mjs).
+// the caveat's skipped member, an Info hidden by default. The working directory is
+// not a setting: the plugin runs where the linter runs. In-container the binary
+// comes from the published @mionjs/bin-compiler launcher (exactly what the e2e
+// proves); for host runs the spawner forwards MION_E2E_BINARY to the launcher's
+// MION_BIN env var (see ../../lint-all.mjs).
 import {fileURLToPath} from 'node:url';
 import runtypes from '@mionjs/devtools/eslint';
 import tsParser from '@typescript-eslint/parser';
