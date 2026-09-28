@@ -367,10 +367,7 @@ func buildMergedProps(objectMembers []FlatObject, ctx *EmitContext, discValueByM
 				ctx.EmitDiagnosticSlot(SlotSymbolKeyedDropped, reflection.SymbolKeyLabel(prop.Name))
 				continue
 			}
-			// A method-like member is a DataOnly-dropped slot like a function-valued property, but a different
-			// member KIND, so the stripped-child branch below never sees it. Record it so a surviving
-			// same-name candidate gets the value guard: a value from THIS member still carries the key
-			// holding a function, which the surviving codec must not be applied to.
+			// The stripped-child branch below never sees a method, yet its key holds a function, so guard a same-name survivor.
 			// No diagnostic: methods are silent skip slots in the standalone object walks too.
 			if isFunctionLikeKind(prop.Kind) {
 				if prop.Name != "" {
@@ -388,12 +385,9 @@ func buildMergedProps(objectMembers []FlatObject, ctx *EmitContext, discValueByM
 			if childResolved == nil {
 				continue
 			}
-			// Drop a property whose child is DataOnly-stripped, the same set a standalone object absorbs in
-			// emitProperty*: keeping it emits CodeNS and alwaysThrows the WHOLE union, while `{b: symbol}`
-			// on its own would serialize as `{}` (K2). The warning keeps the drop visible.
+			// Drop it as emitProperty* does for a standalone object: keeping it alwaysThrows the WHOLE union (K2).
 			if strippedValueDrop(childResolved, prop.Name, ctx) {
-				// Record so the surviving candidate's codec is guarded: a value from THIS member still
-				// carries the key with a foreign type (G3 / G4).
+				// Guard the surviving codec: a value from THIS member still carries the key with a foreign type (G3 / G4).
 				strippedByName[prop.Name] = true
 				continue
 			}

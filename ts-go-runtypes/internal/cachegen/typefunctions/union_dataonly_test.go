@@ -195,10 +195,9 @@ func TestDataOnlyUnion_NestedInArray(t *testing.T) {
 	}
 }
 
-// K2 regression: a union whose object member carries a DataOnly-stripped property (`Date | {b: symbol}`)
-// must DROP that property and still serialize, NOT alwaysThrow the whole union. The drop reports the
-// strippedPropertyDrop code (…015 for a non-function value, …010 for a function) and never the other one,
-// at the root and one object deeper. removeUnknownKeys refuses the union itself but still reports the drop.
+// K2: `Date | {b: symbol}` drops the prop instead of alwaysThrowing, at the root and one object deeper.
+// Only the value kind's drop code is reported (…010 function, …015 other).
+// removeUnknownKeys refuses the union itself but still reports the drop.
 func TestDataOnlyUnion_ObjectMemberStrippedProp(t *testing.T) {
 	type familyCodes struct{ want, notWant string }
 	cases := []struct {

@@ -33,15 +33,8 @@ func isStrippedUnionMember(resolved *reflection.RunType) bool {
 	return false
 }
 
-// strippedPropertyDrop reports whether a property must be dropped at a property position, emitting the
-// matching per-family child-position Warning. Two reasons, both leaving the surrounding object
-// serializing: the NAME can never be a property (`__proto__`, UPN001), or the VALUE is directly
-// DataOnly-stripped. Function-valued props use SlotFunctionPropDropped (…010), the other stripped kinds
-// SlotNonSerializablePropDropped (…015). Mirrors the DataOnly object rule: a property the projection
-// removes is gone and the object still serializes (`DataOnly<{a: symbol}>` = `{}`).
-// False for a value that is only STRUCTURALLY unserializable (symbol[], Map<string, symbol>, a tuple with
-// a stripped slot), which DataOnly KEEPS (`{a: symbol[]}` projects to `{a: never[]}`): the caller must
-// compile the value and propagate the CodeNS, so the object alwaysThrows, the "can't be safely dropped" contract.
+// strippedPropertyDrop reports whether a property drops with a Warning while the object serializes (`{a: symbol}` -> `{}`).
+// False for a value DataOnly keeps (`{a: symbol[]}`): the caller compiles it and the CodeNS makes the object alwaysThrow.
 func strippedPropertyDrop(resolved *reflection.RunType, name string, ctx *EmitContext) bool {
 	// A name that can never be a property drops whatever its value is (reflection.UnsafePropertyNames).
 	if reflection.IsUnsafePropertyName(name) {
@@ -55,7 +48,7 @@ func strippedPropertyDrop(resolved *reflection.RunType, name string, ctx *EmitCo
 	return strippedValueDrop(resolved, name, ctx)
 }
 
-// strippedValueDrop is the VALUE half of strippedPropertyDrop, shared with the union merge path, which checks names itself.
+// strippedValueDrop is strippedPropertyDrop's VALUE half, for the union merge path, which checks names itself.
 func strippedValueDrop(resolved *reflection.RunType, name string, ctx *EmitContext) bool {
 	if !isStrippedUnionMember(resolved) {
 		return false
