@@ -1,5 +1,5 @@
-// The three route files of a dialect are ONE set of routes: types and drizzle are the builders file with other
-// imports, and drizzle also leaves every return type to drizzle. These helpers derive and compare them.
+// A dialect's three route files are ONE set of routes: types and drizzle are the builders file with other imports,
+// and drizzle also leaves every return type to drizzle.
 
 import * as ts from 'typescript';
 
@@ -10,7 +10,6 @@ export const VARIANTS: Variant[] = ['drizzle', 'types', 'builders'];
 
 const cap = (text: string) => text[0].toUpperCase() + text.slice(1);
 
-/** Where a variant's db handles and model types come from. */
 export function importsOf(dialect: Dialect, variant: Variant): {db: string; models: string} {
   if (variant === 'builders') return {db: `../db/${dialect}.db.ts`, models: `../db/${dialect}.schema.ts`};
   if (variant === 'types') return {db: `../db/${dialect}.types.db.ts`, models: `../db/${dialect}.types.schema.ts`};
@@ -19,7 +18,6 @@ export function importsOf(dialect: Dialect, variant: Variant): {db: string; mode
 
 export const routesName = (dialect: Dialect, variant: Variant) => `${dialect}${cap(variant)}Routes`;
 
-/** Removes the return type of every handler passed to `mion.route(...)`. */
 export function stripReturnTypes(source: string): string {
   const file = ts.createSourceFile('routes.ts', source, ts.ScriptTarget.Latest, true);
   const cuts: [number, number][] = [];
@@ -36,7 +34,6 @@ export function stripReturnTypes(source: string): string {
   return cuts.reduceRight((text, [start, end]) => text.slice(0, start) + text.slice(end), source);
 }
 
-/** The builders routes file of a dialect, turned into `variant`. */
 export function deriveVariant(buildersSource: string, dialect: Dialect, variant: Variant): string {
   const from = importsOf(dialect, 'builders');
   const to = importsOf(dialect, variant);
@@ -50,7 +47,7 @@ export function deriveVariant(buildersSource: string, dialect: Dialect, variant:
   return variant === 'drizzle' ? dropUnusedTypeImports(stripReturnTypes(swapped)) : swapped;
 }
 
-/** Drops the names of an `import type {...}` line that nothing else in the file uses any more. */
+/** Drops `import type` names the rest of the file no longer uses. */
 function dropUnusedTypeImports(source: string): string {
   return source.replace(/^import type \{([^}]*)\} from ('[^']+');$/m, (_line, names: string, from: string) => {
     const rest = source.replace(_line, '');
@@ -62,7 +59,7 @@ function dropUnusedTypeImports(source: string): string {
   });
 }
 
-/** The code with comments and layout dropped, so two files compare on what they do. */
+/** Comments and layout dropped, so two files compare on what they do. */
 export function codeOf(source: string): string {
   const file = ts.createSourceFile('routes.ts', source, ts.ScriptTarget.Latest, true);
   return ts.createPrinter({removeComments: true}).printFile(file);

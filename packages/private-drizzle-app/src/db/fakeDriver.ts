@@ -21,7 +21,7 @@ export function resetDriver(): void {
 
 export async function answer(sql: string, params: unknown[], method: string): Promise<{rows: unknown[]}> {
   driverCalls.push({sql, params, method});
-  // pg-proxy sends begin / commit / rollback as their own calls; they return nothing
+  // sqlite-proxy sends begin / commit / rollback as their own calls; they return nothing
   if (/^(begin|commit|rollback|savepoint|release)/i.test(sql.trim())) return {rows: []};
   const rows = queued.shift();
   if (!rows) throw new Error(`fakeDriver: no rows queued for: ${sql}`);
