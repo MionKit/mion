@@ -18,7 +18,7 @@ var staleVerbPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`(^|[^\w-])(re-)?run gen(\s|$)`),
 }
 
-// enrichmentSourceRoots are the trees whose string literals reach a user, the website-published catalog Detail included.
+// enrichmentSourceRoots are the trees whose string literals reach a user, the website-published catalog Summary included.
 var enrichmentSourceRoots = []string{
 	filepath.Join("..", ".."),
 	filepath.Join("..", "..", "..", "cmd", "mion"),

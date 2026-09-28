@@ -7,11 +7,8 @@ interface CodeEntry {
   subsystem: string;
   /** The level: did the build produce the code, and does it work. */
   level: 'error' | 'runtimeError' | 'warning' | 'info';
-  /** The level's two-way label form, what a tsc-shaped build line prints. */
-  severity: 'error' | 'warning' | 'info';
   headline: string;
-  detail: string | null;
-  summary: string | null;
+  summary: string;
   example: string | null;
   fix: string | null;
 }
@@ -38,7 +35,7 @@ const familyLabel = new Map(subsystems.map((subsystem) => [subsystem.key, subsys
 const haystack = new Map(
   codes.map((entry) => [
     entry.code,
-    [entry.code, familyLabel.get(entry.subsystem), entry.headline, entry.summary, entry.detail, entry.example, entry.fix]
+    [entry.code, familyLabel.get(entry.subsystem), entry.headline, entry.summary, entry.example, entry.fix]
       .filter(Boolean)
       .join('\n')
       .toLowerCase(),
@@ -127,7 +124,7 @@ const levelOptions: Level[] = ['error', 'runtimeError', 'warning', 'info'];
 
         <pre class="diag-entry__headline"><code>{{ entry.headline }}</code></pre>
 
-        <p v-if="entry.summary" class="diag-entry__summary" v-html="withInlineCode(entry.summary)" />
+        <p class="diag-entry__summary" v-html="withInlineCode(entry.summary)" />
 
         <div v-if="entry.example" class="diag-entry__snippet">
           <span class="diag-entry__label">A type that triggers it</span>
@@ -138,11 +135,6 @@ const levelOptions: Level[] = ['error', 'runtimeError', 'warning', 'info'];
           <span class="diag-entry__label">How to fix it</span>
           <pre class="diag-entry__fix"><code>{{ entry.fix }}</code></pre>
         </div>
-
-        <details v-if="entry.detail" class="diag-entry__more">
-          <summary>Full build message</summary>
-          <pre><code>{{ entry.detail }}</code></pre>
-        </details>
       </article>
     </section>
 
@@ -289,8 +281,7 @@ const levelOptions: Level[] = ['error', 'runtimeError', 'warning', 'info'];
 
 .diag-entry__headline code,
 .diag-entry__fix code,
-.diag-entry__example code,
-.diag-entry__more code {
+.diag-entry__example code {
   font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 0.85rem;
   white-space: pre-wrap;
@@ -339,24 +330,6 @@ const levelOptions: Level[] = ['error', 'runtimeError', 'warning', 'info'];
 
 .diag-entry__fix {
   border-left: 2px solid var(--color-brand-500);
-}
-
-.diag-entry__more {
-  margin-top: 0.7rem;
-}
-
-.diag-entry__more summary {
-  cursor: pointer;
-  font-size: 0.85rem;
-  color: var(--ui-text-muted);
-}
-
-.diag-entry__more pre {
-  margin-top: 0.5rem;
-  padding: 0.6rem 0.8rem;
-  border-radius: 0.45rem;
-  background: var(--ui-bg);
-  overflow-x: auto;
 }
 
 .diag-empty {

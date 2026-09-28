@@ -1,13 +1,12 @@
 // gen-diag-catalog dumps the authoritative diagnostic catalog as JSON.
 //
 // internal/diagnostics is the single source of truth for which diagnostic codes
-// exist, what level each one carries, the user-facing wording (headline +
-// detail, authored in internal/diagnostics/messages.go), and the docs prose
-// (summary, fix, and the verified triggering example, authored in
-// internal/diagnostics/prose.go). This program imports that package, reads
-// diagnostics.Definitions, and prints one JSON array of {code, family, level,
-// severity, completeness, title, headline, detail, summary, fix, example}
-// records (sorted by code) to stdout.
+// exist, what level each one carries, the headline (authored in
+// internal/diagnostics/messages.go), and the website text (summary, fix, and the
+// verified triggering example, authored in internal/diagnostics/prose.go). This
+// program imports that package, reads diagnostics.Definitions, and prints one JSON
+// array of {code, family, level, completeness, title, headline, summary, fix,
+// example} records (sorted by code) to stdout.
 //
 // scripts/core/gen-diagnostics-catalog.mjs consumes this dump and emits BOTH generated
 // artifacts: the front-end message dictionary
@@ -30,25 +29,17 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 )
 
-// record is the per-code shape emitted to stdout. Family, level and severity are
-// rendered as their string labels so the JS side never has to
-// mirror the numeric enum values. Headline is the user-facing message
-// template (mandatory for every code); Detail the optional multi-line
-// explanation + example fix. Summary/Fix/Example are the docs prose; they
-// are omitempty so codes that are not yet documented stay terse.
+// record is the per-code shape emitted to stdout. Family and level are rendered as
+// their string labels so the JS side never has to mirror the numeric enum values.
+// Severity stays off: it is derived from level, and only the live wire diagnostic needs it.
 type record struct {
-	Code   string `json:"code"`
-	Family string `json:"family"`
-	// Level is the three-way classification a code author writes; Severity is
-	// its two-way label form. Both ride the dump: the front end reads Level for
-	// the downgrade / suppression rules and Severity for the tsc-shaped line.
+	Code         string `json:"code"`
+	Family       string `json:"family"`
 	Level        string `json:"level"`
-	Severity     string `json:"severity"`
 	Completeness bool   `json:"completeness,omitempty"`
 	Title        string `json:"title"`
 	Headline     string `json:"headline"`
-	Detail       string `json:"detail,omitempty"`
-	Summary      string `json:"summary,omitempty"`
+	Summary      string `json:"summary"`
 	Fix          string `json:"fix,omitempty"`
 	Example      string `json:"example,omitempty"`
 }
@@ -77,11 +68,9 @@ func main() {
 			Code:         definition.Code,
 			Family:       familyLabel(definition.Family),
 			Level:        diagnostics.LevelLabel(definition.Level),
-			Severity:     diagnostics.SeverityLabel(definition.Severity),
 			Completeness: definition.Completeness,
 			Title:        definition.Title,
 			Headline:     definition.Headline,
-			Detail:       definition.Detail,
 			Summary:      definition.Summary,
 			Fix:          definition.Fix,
 			Example:      definition.Example,

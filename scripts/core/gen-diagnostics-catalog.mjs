@@ -1,13 +1,12 @@
 // Generate every diagnostic-catalog artifact from the Go dump.
 //
 // internal/diagnostics is the single source of truth for the whole catalog: which
-// codes exist, their severities, the user-facing wording (headline + detail
-// in internal/diagnostics/messages.go), and the docs prose (summary, fix, example
-// in internal/diagnostics/prose.go). `go run ./cmd/gen-diag-catalog` dumps it all
+// codes exist, their levels, the headline (internal/diagnostics/messages.go), and the
+// website text (summary, fix, example in internal/diagnostics/prose.go). `go run ./cmd/gen-diag-catalog` dumps it all
 // as JSON; this script fans that dump out into the two generated artifacts:
 //
 //   1. packages/devtools/src/core/go-generated/diagnosticCatalog.generated.ts, the
-//      front-end message dictionary (code → headline/detail templates) the
+//      front-end message dictionary (code → headline template) the
 //      bundler plugin, the lint plugin, and the runtime alwaysThrow factory
 //      render from. The binary ships only code + args over the wire.
 //   2. container/website/app/components/content/go-generated/diagnostics-catalog.json,
@@ -110,7 +109,7 @@ function codePrefix(code) {
   return match ? match[0] : code;
 }
 
-// The authoritative dump: codes, severities, wording, prose, all from Go.
+// The authoritative dump: codes, levels, headlines, website text, all from Go.
 const goDump = execFileSync('go', ['run', './cmd/gen-diag-catalog'], {
   cwd: goRoot,
   encoding: 'utf8',
@@ -122,6 +121,12 @@ const missingHeadlines = goRecords.filter((record) => !record.headline).map((rec
 if (missingHeadlines.length) {
   // internal/diagnostics's TestEveryCodeHasHeadline pins this; fail loudly if it slips.
   throw new Error(`gen-diag-catalog: codes with no headline in internal/diagnostics/messages.go: ${missingHeadlines.join(', ')}`);
+}
+
+const missingSummaries = goRecords.filter((record) => !record.summary).map((record) => record.code);
+if (missingSummaries.length) {
+  // internal/diagnostics's TestEveryCodeHasSummary pins this; the website would show a code with no explanation.
+  throw new Error(`gen-diag-catalog: codes with no summary in internal/diagnostics/prose.go: ${missingSummaries.join(', ')}`);
 }
 
 // ── Artifact 1: the front-end message dictionary ────────────────────────────
@@ -146,11 +151,9 @@ const entries = goRecords
       `  ${record.code}: {`,
       `    headline: ${tsString(record.headline)},`,
       `    level: ${tsString(record.level)},`,
-      `    severity: ${tsString(record.severity)},`,
       `    family: ${tsString(record.family)},`,
     ];
     if (record.completeness) lines.push(`    completeness: true,`);
-    if (record.detail) lines.push(`    detail: ${tsString(record.detail)},`);
     lines.push('  },');
     return lines.join('\n');
   })
@@ -172,16 +175,11 @@ export interface DiagnosticEntry {
    *  (\`runtimeError\`: yes). Read by the config validators, which refuse to
    *  downgrade an \`error\`. */
   readonly level: 'error' | 'runtimeError' | 'warning' | 'info';
-  /** The level's two-way label form, the word the tsc-shaped output line and
-   *  the lint rule tier use. Derived from level, never authored. */
-  readonly severity: 'error' | 'warning' | 'info';
   /** Which part of the compiler raises the code. */
   readonly family: 'purefn' | 'marker' | 'runtype' | 'enrich' | 'mionroute';
   /** Set on the unfilled-enrichment-scaffold codes. Orthogonal to level: those
    *  are warnings, and this bit is what the completeness gates promote. */
   readonly completeness?: boolean;
-  /** Optional multi-line detail block (explanation + code-example fix). */
-  readonly detail?: string;
 }
 
 export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
@@ -208,16 +206,12 @@ const codes = goRecords.map((record) => {
     code: record.code,
     subsystem,
     level: record.level,
-    severity: record.severity,
     headline: record.headline,
-    detail: record.detail ?? null,
-    summary: record.summary ?? null,
+    summary: record.summary,
     fix: record.fix ?? null,
     example: record.example ?? null,
   };
 });
-
-const undocumented = codes.filter((code) => !code.summary).map((code) => code.code);
 
 const subsystemOrder = new Map(SUBSYSTEMS.map((subsystem, index) => [subsystem.key, index]));
 codes.sort((left, right) => {
@@ -242,5 +236,3 @@ console.log(`  levels: ${JSON.stringify(byLevel)}`);
 console.log(`  by subsystem: ${JSON.stringify(
   codes.reduce((acc, code) => ({...acc, [code.subsystem]: (acc[code.subsystem] ?? 0) + 1}), {}),
 )}`);
-console.log(`  prose written for ${codes.length - undocumented.length}/${codes.length} codes`);
-if (undocumented.length) console.log(`  still need a hand-written summary: ${undocumented.join(', ')}`);

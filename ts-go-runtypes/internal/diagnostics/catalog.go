@@ -166,34 +166,15 @@ type Diagnostic struct {
 	Downgraded bool `json:"downgraded,omitempty"`
 }
 
-// Definition is the catalog entry for one diagnostic code. Headline (mandatory) and Detail are the
-// user-facing wording, authored in messages.go; Summary, Fix and Example are the website's docs
-// prose, authored in prose.go. Both sets are folded on at init and exported by
-// `miondevx core codegen diag`, so Go stays the single source of every message and the wire keeps
-// carrying only code + args. `{0}`, `{1}` in Headline / Detail substitute against Diagnostic.Args.
+// Definition is the catalog entry for one diagnostic code. Headline is the one line every tool
+// prints, authored in messages.go (`{0}`, `{1}` substitute against Diagnostic.Args). Summary, Fix and
+// Example are the website text, authored in prose.go: Summary is the one plain-language explanation,
+// mandatory for every code; Fix an optional corrected snippet; Example source that triggers the code.
+// Both files fold onto the Definition at init and `miondevx core codegen diag` exports them, so Go
+// stays the single source of every message while the wire carries only code + args.
 //
-// Headline and Detail are the USER-FACING wording: Headline is the
-// single-line message (mandatory for every code; `{0}`, `{1}` placeholders
-// substitute against Diagnostic.Args), Detail the optional multi-line
-// explanation + example fix. They are authored in messages.go and folded
-// onto the Definition at init; `miondevx core codegen diag` exports them into the
-// GENERATED front-end dictionary (packages/devtools/src/core/go-generated/
-// diagnosticCatalog.generated.ts), so the wire keeps carrying only
-// code + args while Go stays the single source of every message.
-//
-// Summary, Fix, and Example are the human-written docs prose for the
-// website diagnostics page: Summary is a plain-language description of what
-// triggers the code and how to fix it; Fix is an optional corrected
-// snippet; Example is the TypeScript source that actually triggers the
-// code. They are authored in prose.go and folded onto the Definition at
-// init, so the gen-diag-catalog dump exports them alongside severity and
-// the website needs no second prose source. Most codes leave them empty
-// until written.
-//
-// Example is more than docs: the standardized suite in
-// internal/compiler/resolver/diag_examples_test.go feeds every non-empty Example
-// through the real scan pipeline and asserts this code fires, so a shipped
-// example can never drift from the diagnostic it claims to demonstrate.
+// Example is more than docs: internal/compiler/resolver/diag_examples_test.go feeds every non-empty
+// Example through the real scan and asserts this code fires, so an example cannot drift from its code.
 type Definition struct {
 	Code   string
 	Family Family
@@ -220,7 +201,6 @@ type Definition struct {
 	Template   string
 	DocsAnchor string
 	Headline   string
-	Detail     string
 	Summary    string
 	Fix        string
 	Example    string
