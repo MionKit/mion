@@ -239,7 +239,7 @@ importers:
         specifier: workspace:*
         version: link:../rpc-router
 
-  packages/private-drizzle-app:
+  packages/private-drizzle-example-app:
     dependencies:
       '@mionjs/client':
         specifier: workspace:*

@@ -101,7 +101,7 @@ const HEAVY_PROJECTS = [
   'runtypes',
   'playground',
   'type-budget',
-  'drizzle-app',
+  'drizzle-example-app',
   'devtools-core',
   'devtools',
   'drizzle-pg',
