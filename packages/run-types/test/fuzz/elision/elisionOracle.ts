@@ -56,7 +56,7 @@ export function comparableModules(modules: Record<string, string>): Record<strin
  *  spellings place their calls at different source positions, so coordinates
  *  legitimately differ while everything else must stay byte-identical. **/
 export function normalizeSitePositions(source: string): string {
-  return source.replace(/\(at [^)\s]+:\d+:\d+\)/g, '(at <site>)');
+  return source.replace(/\(at [^)\s]+:\d+:\d+(?:, and \d+ other call sites?)?\)/g, '(at <site>)');
 }
 
 /** E1a — the two spellings' createX sites must resolve the SAME cache keys

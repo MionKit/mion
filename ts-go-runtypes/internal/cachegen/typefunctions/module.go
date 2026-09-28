@@ -39,6 +39,8 @@ type RenderOpts struct {
 	// Lookup resolves structural ids ↔ short hashes; required when Store is
 	// non-nil. The resolver passes its runtype.Cache here.
 	Lookup diskcache.HashLookup
+	// ThrowSitePath spells a call site's file in a runtime error message; nil keeps the site's own spelling.
+	ThrowSitePath func(string) string
 	// DiagSink is where the walker appends compile-time diagnostics from root-throw / silent-skip sites.
 	// Nil disables emission, which keeps tests that don't care about the per-call-site fan-out quiet.
 	DiagSink *[]diagnostics.Diagnostic
@@ -425,12 +427,8 @@ func renderEntryWithDeps(runType *reflection.RunType, settings constants.CacheMo
 			if diagCode := leafProvider.DiagCodeForLeaf(diagLeaf); diagCode != "" {
 				kindLabel := leafKindLabel(diagLeaf)
 				walker.EmitDiagnostic(diagCode, kindLabel)
-				argsText := renderAlwaysThrowEntry(runType, innerName, diagCode, kindLabel, walker.throwProvenance())
-				if diskCacheable {
-					// alwaysThrow entries emit no dep calls, so there are no
-					// edges to persist.
-					writeCachedEntry(runType, settings, cacheTag, innerPrefix, argsText, nil, nil, nil, false, entryDiagnostics(diagStart, opts), opts)
-				}
+				// Never disk-cached: the message names this build's call site, which a warm hit would freeze.
+				argsText := renderAlwaysThrowEntry(runType, innerName, diagCode, kindLabel, throwSites(walker.throwProvenance(), opts.ThrowSitePath))
 				return entryRender{argsText: argsText}
 			}
 		}
@@ -792,16 +790,38 @@ func renderAlwaysThrowEntry(runType *reflection.RunType, innerName string, diagC
 	return joinArgs(holeifyArgs(args))
 }
 
-// buildAlwaysThrowMessage renders the runtime throw text, `[<code>] <headline> (at <file:line:col>)`.
-// The headline is rendered here so the runtime throws the string as-is, no catalog ships in the marker
-// package. The site suffix is omitted for an orphaned entry with no known call site.
+// throwSites respells each site's file for the runtime message, so a bundle never carries a machine's path.
+func throwSites(sites []diagnostics.Site, spell func(string) string) []diagnostics.Site {
+	if spell == nil || len(sites) == 0 {
+		return sites
+	}
+	out := make([]diagnostics.Site, len(sites))
+	for i, site := range sites {
+		site.FilePath = spell(site.FilePath)
+		out[i] = site
+	}
+	return out
+}
+
+// buildAlwaysThrowMessage renders the runtime throw text, `[<code>] <headline> (at <file:line:col>)`, plus how
+// many other call sites share the entry. The headline is rendered here so the runtime throws the string as-is,
+// no catalog ships in the marker package. The site suffix is omitted for an orphaned entry with no known call
+// site. provenance arrives sorted (resolver buildProvenanceSites), so the named site is stable across edits.
 func buildAlwaysThrowMessage(diagCode, kindLabel string, provenance []diagnostics.Site) string {
 	message := "[" + diagCode + "] " + rootThrowHeadline(diagCode, kindLabel)
-	if len(provenance) > 0 {
-		site := provenance[0]
-		message += fmt.Sprintf(" (at %s:%d:%d)", site.FilePath, site.StartLine, site.StartCol)
+	if len(provenance) == 0 {
+		return message
 	}
-	return message
+	site := provenance[0]
+	message += fmt.Sprintf(" (at %s:%d:%d", site.FilePath, site.StartLine, site.StartCol)
+	switch others := len(provenance) - 1; others {
+	case 0:
+	case 1:
+		message += ", and 1 other call site"
+	default:
+		message += fmt.Sprintf(", and %d other call sites", others)
+	}
+	return message + ")"
 }
 
 // rtTypeName resolves an entry's `typeName`: the RunType's declared TypeName, or for an anonymous atomic a
