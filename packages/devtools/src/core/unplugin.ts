@@ -581,9 +581,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       // halt count below drops them.
       // Except Info (FT008 advice): it never halts, so it prints only when shown.
       incomplete = (result.diagnostics ?? []).filter((diagnostic) => diagnostic.level !== Level.Info);
-      for (const diagnostic of result.diagnostics ?? []) {
-        if (diagnostic.level === Level.Info && showInfo) ctx.warn?.(formatTscDiagnostic(diagnostic));
-      }
+      surfaceDiagnostics(ctx, result.diagnostics ?? [], (diagnostic) => diagnostic.level === Level.Info, {halt: false, showInfo});
     } catch {
       return;
     }

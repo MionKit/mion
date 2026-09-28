@@ -1,6 +1,7 @@
 // Shapes shared by session.ts (rule thread) and lint-worker.ts; dependency-free so both halves import one contract.
 
 import type {MessagePort} from 'node:worker_threads';
+import type {LEVELS_ALL} from '../core/levels.ts';
 import type {Diagnostic} from '../core/protocol.ts';
 import type {ResolverClientOptions} from '../core/resolver-client.ts';
 
@@ -26,7 +27,7 @@ export interface LintSessionOptions {
   // those files skipped before the resolver saw them. Set it to whatever the tsconfig `markers` block says.
   markers?: {packages?: string[]; checkPackage?: boolean};
   // 'all' shows Info. Filtered here after the shared session answers, so no file is resolved twice.
-  levels?: 'all';
+  levels?: typeof LEVELS_ALL;
 }
 
 // The keys a host may set under `settings.runtypes`; sessionOptions() (index.ts) drops anything else and warns
