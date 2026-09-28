@@ -1,6 +1,5 @@
-// A symbol-keyed member is not data: DataOnly drops it, so every family drops it too. Before, the member was
-// compiled as a string property named by the checker's internal spelling, so a validator required a key no
-// real object has and an encoder read `undefined` from it.
+// A symbol-keyed member is not data, so every family drops it like DataOnly. Compiled as a string key (the checker's
+// internal spelling), a validator required a key no real object has and an encoder read `undefined`.
 
 import {describe, expect, test} from 'vitest';
 import {

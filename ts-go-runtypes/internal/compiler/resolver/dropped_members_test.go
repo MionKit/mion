@@ -8,9 +8,8 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
-// Every dropped member is reported, not just the first of its kind: a class with two methods names both, under
-// each family that drops them. The walk still reports one finding once, so the same member never repeats.
-// Marker coverage rule: both getRunTypeId shapes ride alongside, and resolve to one id.
+// Every dropped member is reported once per family that drops it: a class with two methods names both.
+// Marker coverage rule: both getRunTypeId shapes ride alongside and resolve to one id.
 func TestDiag_EveryDroppedMemberIsReported(t *testing.T) {
 	const code = `import {createValidateFn, createJsonEncoderFn, getRunTypeId} from '@mionjs/run-types';
 export class Pet {

@@ -19,8 +19,7 @@ var symbolKeyedDropCodes = map[string]string{
 	"removeUnknownKeys":     diagnostics.CodeRUKSymbolKeyedDropped,
 }
 
-// A symbol-keyed property (`[tag]: string`) is dropped by every family with its …013 Info, and no code reads
-// the checker's internal `\xFE@tag` spelling as if it were a string key.
+// Every family drops a symbol-keyed property with its …013 Info, and nothing reads tsgo's `\xFE@tag` as a string key.
 func TestSymbolKeyedProperty_DropsInEveryFamily(t *testing.T) {
 	for _, fam := range append(append([]string{}, allSerdeFamilies...), "removeUnknownKeys") {
 		value := &reflection.RunType{ID: "s", Kind: reflection.KindString}

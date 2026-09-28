@@ -170,9 +170,7 @@ type Walker struct {
 	// call produced always fails, which is false at a site that merely
 	// contains the type somewhere inside.
 	rootedProvenance []diagnostics.Site
-	// diagSeen stops one walk emitting the same finding twice, keyed on code AND args: a deep tree
-	// repeating one unsupported leaf reports it once, while two different members dropped under one
-	// code (a class with methods `a()` and `b()`) each report, since the message names the member.
+	// diagSeen keys on code AND args: a repeated leaf reports once, two members dropped under one code each report.
 	diagSeen map[string]bool
 
 	// facts is the per-dispatch memo for the canonical-node subtree predicates; nil

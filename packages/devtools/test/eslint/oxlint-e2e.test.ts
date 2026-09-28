@@ -51,11 +51,8 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
         {
           categories: {correctness: 'off'},
           jsPlugins: [PLUGIN_DIST],
-          // `cwd` is the transparency case: it is NOT a lint setting (the plugin
-          // runs in oxlint's own cwd), so it must be ignored — loudly on stderr,
-          // but without changing the findings asserted below. `binary` IS honoured
-          // now and gets its own cases further down. `levels: 'all'` shows the
-          // Info-level VL011 these cases use as proof the engine ran.
+          // `cwd` is NOT a lint setting (the plugin runs in oxlint's cwd): it warns on stderr and changes no finding.
+          // `levels: 'all'` shows the Info VL011 these cases use as proof the engine ran.
           settings: {runtypes: {cwd: '/nonexistent/not-a-project', levels: 'all'}},
           rules: {
             'runtypes/validate-non-serializable': 'error',
@@ -95,8 +92,7 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
     expect(stdout).toContain('[FT020]');
     expect(stdout).toContain('runtypes(enrichment-field)');
     expect(stdout).toContain('[FT002]');
-    // Family A rides the same run: the VL011 method drop (Info, shown by the
-    // `levels: 'all'` setting) lands under the validate family's skipped-member rule.
+    // VL011 is Info, shown only because the settings above set `levels: 'all'`.
     expect(stdout).toContain('runtypes(validate-skipped-member)');
     expect(stdout).toContain('[VL011]');
     // The engine itself must not have failed.
@@ -179,11 +175,8 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
     expect(bogus.stdout).toContain('settings.runtypes.binary=/nonexistent/settings-binary');
   });
 
-  // The documented consumer layout: the package installed under
-  // node_modules/@mionjs/devtools (symlinked to this repo's package), the user
-  // config a single `extends` of the shipped preset. The preset's own jsPlugins
-  // path ("./dist/lint/index.js") must resolve relative to the preset file, and
-  // every rule rides at its RULE_SPECS default.
+  // The documented consumer layout: a symlinked node_modules/@mionjs/devtools and a config that only `extends` the preset.
+  // The preset's jsPlugins path must resolve relative to the preset file, and every rule runs at its RULE_SPECS default.
   const runPreset = async (config: string, settings?: Record<string, unknown>): Promise<{stdout: string; exitCode: number}> => {
     const link = path.join(project.dir, 'node_modules', '@mionjs', 'devtools');
     if (!fs.existsSync(link)) {

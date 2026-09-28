@@ -11,8 +11,7 @@ package diagnostics
 const (
 	CodeMarkerFunctionCallArg   = "MKR001"
 	CodeMarkerFreeTypeParameter = "MKR003"
-	// CodeMarkerDuplicateFnKey: LevelInfo, because the scan DEDUPES the repeated key and emits the
-	// site normally, so what ships is correct and only the source has a copy-paste slip.
+	// CodeMarkerDuplicateFnKey: LevelInfo, since the scan DEDUPES the repeated key and only the source has a slip.
 	CodeMarkerDuplicateFnKey          = "MKR006"
 	CodeMarkerAnyFromUnresolvedImport = "MKR007"
 	// CodeStructuralIdDepthExceeded fires when the structural-id walk hits its depth cap with no

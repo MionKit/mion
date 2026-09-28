@@ -143,8 +143,7 @@ const sample = {name: 'Ada'};
 export const goodReflected = getRunTypeId(sample);
 `;
 
-// A function at a PROPERTY position drops with an Info (VL011 here), never
-// an Error — the strict default must NOT halt on it.
+// A function at a PROPERTY position drops with an Info (VL011), so the strict default must NOT halt on it.
 const WARNING_ENTRY_SRC = `import {createValidateFn} from '@mionjs/run-types';
 interface WithHandler {
   name: string;
@@ -180,7 +179,7 @@ const TSCONFIG_HASHLENGTH1_SRC = JSON.stringify({
   include: ['*.ts'],
 });
 
-// The warning program with `levels: 'all'` in the tsconfig plugin entry, the value the Go side echoes.
+// The Go side echoes this tsconfig `levels` to the plugin.
 const TSCONFIG_LEVELS_SRC = JSON.stringify({
   compilerOptions: {...JSON.parse(TSCONFIG_SRC).compilerOptions, plugins: [{name: 'mion', levels: 'all'}]},
   include: ['*.ts'],

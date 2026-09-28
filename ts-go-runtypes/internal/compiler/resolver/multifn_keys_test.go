@@ -187,8 +187,7 @@ createDup<string>();
 	if dupDiag == nil {
 		t.Fatalf("expected an MKR006 duplicate-fn-key diagnostic, got %+v", resp.Diagnostics)
 	}
-	// LevelInfo: the scan dedupes the repeated key and emits the site
-	// normally, so what ships is correct and only the source is untidy.
+	// Info because the scan dedupes the key: what ships is correct, only the source is untidy.
 	if dupDiag.Level != diagnostics.LevelInfo {
 		t.Errorf("MKR006 level = %v, want LevelInfo", dupDiag.Level)
 	}

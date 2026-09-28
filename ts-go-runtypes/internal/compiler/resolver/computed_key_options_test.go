@@ -7,8 +7,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
-// A marker argument that resolves to an object literal with a computed key (`[tag]: 'x'`) must not crash the
-// scan: an option name is never computed, so the option reader skips such a key. Both getRunTypeId shapes.
+// A computed key (`[tag]: 'x'`) in a marker's option object is skipped, never a panic. Both getRunTypeId shapes.
 func TestScan_ComputedKeyInResolvedArgumentDoesNotPanic(t *testing.T) {
 	const code = `import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
 const tag = Symbol('tag');

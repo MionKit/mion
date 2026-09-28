@@ -265,9 +265,7 @@ func TestRegisterRequiresLevel(t *testing.T) {
 	register(Definition{Code: "ZZZ002", Family: FamilyMarker, Scope: ScopeNotSource})
 }
 
-// TestLevelsThatMoved pins the codes whose level CHANGED in the level
-// splits, in both directions, with the mechanical fact behind each. Without this
-// a later edit could quietly re-lump them.
+// TestLevelsThatMoved pins the codes the level splits moved, with the reason for each, so no edit quietly re-lumps them.
 func TestLevelsThatMoved(t *testing.T) {
 	for code, want := range map[string]Level{
 		// Down to Warning: the build emits, and what it emits is correct.

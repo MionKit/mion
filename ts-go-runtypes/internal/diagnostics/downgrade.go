@@ -22,10 +22,9 @@ type DowngradeSet struct {
 	codes map[string]bool
 }
 
-// ResolveDowngrade validates a configured value and resolves it into a set. `["*"]` is the wildcard
-// too, so the tsconfig and plugin spellings agree. An unknown code errors, since a typo would read
-// as a working downgrade; a LevelError code errors, having no output to accept. A LevelWarning or LevelInfo code
-// is accepted and does nothing: a level may soften between releases and must not break a build.
+// ResolveDowngrade accepts `["*"]` as the wildcard too, so the tsconfig and plugin spellings agree.
+// An unknown code errors (a typo would read as working), and so does a LevelError (no output to accept).
+// A LevelWarning or LevelInfo code does nothing: a level may soften between releases and must not break a build.
 func ResolveDowngrade(values []string) (DowngradeSet, error) {
 	set := DowngradeSet{}
 	for _, value := range values {
@@ -49,10 +48,8 @@ func ResolveDowngrade(values []string) (DowngradeSet, error) {
 	return set, nil
 }
 
-// Downgraded reports whether this diagnostic should be treated as a Warning. Only a
-// LevelRuntimeError is ever downgraded: a LevelError has no output to accept, a LevelWarning or
-// LevelInfo never halts. The level is read off the WIRE, so a code this build's catalog does not know still
-// answers correctly.
+// Downgraded reports whether this is lowered to a Warning: a LevelError has no output, Warning and Info never halt.
+// The level is read off the WIRE, so a code this build's catalog does not know still answers correctly.
 func (set DowngradeSet) Downgraded(diagnostic Diagnostic) bool {
 	if diagnostic.Level != LevelRuntimeError {
 		return false

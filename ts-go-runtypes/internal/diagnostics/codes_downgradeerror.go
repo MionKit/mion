@@ -18,10 +18,8 @@ const (
 	// CodeDowngradeErrorUnknownCode fires on a code the catalog does not define, almost always a
 	// typo that would otherwise read as a working downgrade. Args: [0] the unknown code.
 	CodeDowngradeErrorUnknownCode = "DWN003"
-	// CodeDowngradeErrorAlreadyWarning fires on a code that is already a warning or info, so it does nothing.
-	// `downgradeErrors` accepts either silently (a level may soften between releases and must not
-	// break a consumer's build), but a hand-written comment is worth reporting: the author expected a
-	// halt to stop. Args: [0] the code.
+	// CodeDowngradeErrorAlreadyWarning: a comment expects a halt from a warning or info, which never halts. Args: [0] the code.
+	// `downgradeErrors` accepts one silently: a level may soften between releases and must not break a build.
 	CodeDowngradeErrorAlreadyWarning = "DWN004"
 )
 
