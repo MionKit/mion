@@ -629,7 +629,7 @@
       "code": "PJ010",
       "subsystem": "serialization",
       "level": "info",
-      "headline": "Property `{0}` is a function: `prepareForJson` does not handle function values, so this property is silently not encoded.",
+      "headline": "Property `{0}` is a function: the JSON encoder does not handle function values, so this property is silently not encoded.",
       "summary": "A function has no JSON form, so the encoder leaves this property out. The rest of the object encodes as usual. This is expected: only data is encoded.",
       "fix": null,
       "example": null
@@ -638,7 +638,7 @@
       "code": "PJ011",
       "subsystem": "serialization",
       "level": "info",
-      "headline": "Method `{0}` is silently not encoded by `prepareForJson`: methods aren't data.",
+      "headline": "Method `{0}` is silently not encoded: methods aren't data.",
       "summary": "Methods are not data, so the encoder leaves them out, and the rest of the type still works. If you need the method's result encoded, store it in a data property instead.",
       "fix": null,
       "example": null
@@ -647,7 +647,7 @@
       "code": "PJ012",
       "subsystem": "serialization",
       "level": "info",
-      "headline": "Static member `{0}` is silently not encoded by `prepareForJson`: statics aren't part of instance data.",
+      "headline": "Static member `{0}` is silently not encoded: statics aren't part of instance data.",
       "summary": "Static members belong to the class, not to each instance. The encoder only handles instance data, so it leaves statics out.",
       "fix": null,
       "example": null
@@ -656,7 +656,7 @@
       "code": "PJ013",
       "subsystem": "serialization",
       "level": "info",
-      "headline": "Symbol-keyed property `{0}` is silently not encoded by `prepareForJson`: symbol keys aren't JSON-representable.",
+      "headline": "Symbol-keyed property `{0}` is silently not encoded: symbol keys aren't JSON-representable.",
       "summary": "JSON only has string keys, so the encoder leaves out properties keyed by a symbol. Use a string key if you need the value encoded.",
       "fix": "interface Item {\n  id: string; // not [Symbol.for('id')]: string\n}",
       "example": null
@@ -665,7 +665,7 @@
       "code": "PJ014",
       "subsystem": "serialization",
       "level": "info",
-      "headline": "Union member(s) of type `{0}` can't be represented as data: `prepareForJson` drops them, so the union is encoded as its remaining members.",
+      "headline": "Union member(s) of type `{0}` can't be represented as data: the JSON encoder drops them, so the union is encoded as its remaining members.",
       "summary": "Symbols, functions, `never`, `Promise`, `RegExp` and standard library classes such as `URL` or typed arrays have no JSON form, so the encoder drops them from the union. For example, `Date | symbol` encodes as `Date`. If every member is dropped, you get the error for the whole type instead (such as PJ005), and the encoder always fails.",
       "fix": null,
       "example": null
@@ -674,7 +674,7 @@
       "code": "PJ015",
       "subsystem": "serialization",
       "level": "info",
-      "headline": "Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): `prepareForJson` drops it, so this property is silently not encoded.",
+      "headline": "Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): the JSON encoder drops it, so this property is silently not encoded.",
       "summary": "A property holding a symbol, `never`, a `Promise`, a `RegExp` or a standard library class such as a typed array, `ArrayBuffer`, `URL` or `Intl.DateTimeFormat` has no JSON form, so the encoder drops it. For example, `{a: symbol}` encodes as `{}`, and the rest of the object is unaffected. A property that holds such a value inside an array or a Map, like `symbol[]` or `Map<string, symbol>`, cannot be dropped: you get an error instead (such as PJ005), and the encoder always fails.",
       "fix": null,
       "example": null
@@ -719,7 +719,7 @@
       "code": "PJS010",
       "subsystem": "serialization",
       "level": "info",
-      "headline": "Property `{0}` is a function: `prepareForJsonClone` does not handle function values, so this property is silently not encoded.",
+      "headline": "Property `{0}` is a function: the JSON encoder does not handle function values, so this property is silently not encoded.",
       "summary": "A function has no JSON form, so the encoder leaves this property out. The rest of the object encodes as usual. This is expected: only data is encoded.",
       "fix": null,
       "example": null
@@ -728,7 +728,7 @@
       "code": "PJS011",
       "subsystem": "serialization",
       "level": "info",
-      "headline": "Method `{0}` is silently not encoded by `prepareForJsonClone`: methods aren't data.",
+      "headline": "Method `{0}` is silently not encoded: methods aren't data.",
       "summary": "Methods are not data, so the encoder leaves them out, and the rest of the type still works. If you need the method's result encoded, store it in a data property instead.",
       "fix": null,
       "example": null
@@ -737,7 +737,7 @@
       "code": "PJS012",
       "subsystem": "serialization",
       "level": "info",
-      "headline": "Static member `{0}` is silently not encoded by `prepareForJsonClone`: statics aren't part of instance data.",
+      "headline": "Static member `{0}` is silently not encoded: statics aren't part of instance data.",
       "summary": "Static members belong to the class, not to each instance. The encoder only handles instance data, so it leaves statics out.",
       "fix": null,
       "example": null
@@ -746,7 +746,7 @@
       "code": "PJS013",
       "subsystem": "serialization",
       "level": "info",
-      "headline": "Symbol-keyed property `{0}` is silently not encoded by `prepareForJsonClone`: symbol keys aren't JSON-representable.",
+      "headline": "Symbol-keyed property `{0}` is silently not encoded: symbol keys aren't JSON-representable.",
       "summary": "JSON only has string keys, so the encoder leaves out properties keyed by a symbol. Use a string key if you need the value encoded.",
       "fix": "interface Item {\n  id: string; // not [Symbol.for('id')]: string\n}",
       "example": null
@@ -755,7 +755,7 @@
       "code": "PJS014",
       "subsystem": "serialization",
       "level": "info",
-      "headline": "Union member(s) of type `{0}` can't be represented as data: `prepareForJsonClone` drops them, so the union is encoded as its remaining members.",
+      "headline": "Union member(s) of type `{0}` can't be represented as data: the JSON encoder drops them, so the union is encoded as its remaining members.",
       "summary": "Symbols, functions, `never`, `Promise`, `RegExp` and standard library classes such as `URL` or typed arrays have no JSON form, so the encoder drops them from the union. For example, `Date | symbol` encodes as `Date`. If every member is dropped, you get the error for the whole type instead (such as PJS005), and the encoder always fails.",
       "fix": null,
       "example": null
@@ -764,7 +764,7 @@
       "code": "PJS015",
       "subsystem": "serialization",
       "level": "info",
-      "headline": "Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): `prepareForJsonClone` drops it, so this property is silently not encoded.",
+      "headline": "Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): the JSON encoder drops it, so this property is silently not encoded.",
       "summary": "A property holding a symbol, `never`, a `Promise`, a `RegExp` or a standard library class such as a typed array, `ArrayBuffer`, `URL` or `Intl.DateTimeFormat` has no JSON form, so the encoder drops it. For example, `{a: symbol}` encodes as `{}`, and the rest of the object is unaffected. A property that holds such a value inside an array or a Map, like `symbol[]` or `Map<string, symbol>`, cannot be dropped: you get an error instead (such as PJS005), and the encoder always fails.",
       "fix": null,
       "example": null
@@ -809,7 +809,7 @@
       "code": "RJ010",
       "subsystem": "serialization",
       "level": "info",
-      "headline": "Property `{0}` is a function: `restoreFromJsonMutate` does not handle function values, so this property is silently not decoded.",
+      "headline": "Property `{0}` is a function: the JSON decoder does not handle function values, so this property is silently not decoded.",
       "summary": "A function has no JSON form, so the decoder leaves this property out. The rest of the object decodes as usual. This is expected: only data is decoded.",
       "fix": null,
       "example": null
@@ -818,7 +818,7 @@
       "code": "RJ011",
       "subsystem": "serialization",
       "level": "info",
-      "headline": "Method `{0}` is silently not decoded by `restoreFromJsonMutate`: methods aren't data.",
+      "headline": "Method `{0}` is silently not decoded: methods aren't data.",
       "summary": "Methods are not data, so the decoder leaves them out, and the rest of the type still works. If you need the method's result decoded, store it in a data property instead.",
       "fix": null,
       "example": null
@@ -827,7 +827,7 @@
       "code": "RJ012",
       "subsystem": "serialization",
       "level": "info",
-      "headline": "Static member `{0}` is silently not decoded by `restoreFromJsonMutate`: statics aren't part of instance data.",
+      "headline": "Static member `{0}` is silently not decoded: statics aren't part of instance data.",
       "summary": "Static members belong to the class, not to each instance. The decoder only handles instance data, so it leaves statics out.",
       "fix": null,
       "example": null
@@ -836,7 +836,7 @@
       "code": "RJ013",
       "subsystem": "serialization",
       "level": "info",
-      "headline": "Symbol-keyed property `{0}` is silently not decoded by `restoreFromJsonMutate`: symbol keys aren't JSON-representable.",
+      "headline": "Symbol-keyed property `{0}` is silently not decoded: symbol keys aren't JSON-representable.",
       "summary": "JSON only has string keys, so the decoder leaves out properties keyed by a symbol. Use a string key if you need the value decoded.",
       "fix": "interface Item {\n  id: string; // not [Symbol.for('id')]: string\n}",
       "example": null
@@ -845,7 +845,7 @@
       "code": "RJ014",
       "subsystem": "serialization",
       "level": "info",
-      "headline": "Union member(s) of type `{0}` can't be represented as data: `restoreFromJsonMutate` drops them, so the union is decoded as its remaining members.",
+      "headline": "Union member(s) of type `{0}` can't be represented as data: the JSON decoder drops them, so the union is decoded as its remaining members.",
       "summary": "Symbols, functions, `never`, `Promise`, `RegExp` and standard library classes such as `URL` or typed arrays have no JSON form, so the decoder drops them from the union. For example, `Date | symbol` decodes as `Date`. If every member is dropped, you get the error for the whole type instead (such as RJ005), and the decoder always fails.",
       "fix": null,
       "example": null
@@ -854,7 +854,7 @@
       "code": "RJ015",
       "subsystem": "serialization",
       "level": "info",
-      "headline": "Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): `restoreFromJsonMutate` drops it, so this property is silently not decoded.",
+      "headline": "Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): the JSON decoder drops it, so this property is silently not decoded.",
       "summary": "A property holding a symbol, `never`, a `Promise`, a `RegExp` or a standard library class such as a typed array, `ArrayBuffer`, `URL` or `Intl.DateTimeFormat` has no JSON form, so the decoder drops it. For example, `{a: symbol}` decodes as `{}`, and the rest of the object is unaffected. A property that holds such a value inside an array or a Map, like `symbol[]` or `Map<string, symbol>`, cannot be dropped: you get an error instead (such as RJ005), and the decoder always fails.",
       "fix": null,
       "example": null

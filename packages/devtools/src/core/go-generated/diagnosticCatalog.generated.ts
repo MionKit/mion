@@ -607,34 +607,34 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   PJ010: {
     headline:
-      'Property `{0}` is a function: `prepareForJson` does not handle function values, so this property is silently not encoded.',
+      'Property `{0}` is a function: the JSON encoder does not handle function values, so this property is silently not encoded.',
     level: 'info',
     family: 'runtype',
   },
   PJ011: {
-    headline: "Method `{0}` is silently not encoded by `prepareForJson`: methods aren't data.",
+    headline: "Method `{0}` is silently not encoded: methods aren't data.",
     level: 'info',
     family: 'runtype',
   },
   PJ012: {
-    headline: "Static member `{0}` is silently not encoded by `prepareForJson`: statics aren't part of instance data.",
+    headline: "Static member `{0}` is silently not encoded: statics aren't part of instance data.",
     level: 'info',
     family: 'runtype',
   },
   PJ013: {
-    headline: "Symbol-keyed property `{0}` is silently not encoded by `prepareForJson`: symbol keys aren't JSON-representable.",
+    headline: "Symbol-keyed property `{0}` is silently not encoded: symbol keys aren't JSON-representable.",
     level: 'info',
     family: 'runtype',
   },
   PJ014: {
     headline:
-      "Union member(s) of type `{0}` can't be represented as data: `prepareForJson` drops them, so the union is encoded as its remaining members.",
+      "Union member(s) of type `{0}` can't be represented as data: the JSON encoder drops them, so the union is encoded as its remaining members.",
     level: 'info',
     family: 'runtype',
   },
   PJ015: {
     headline:
-      'Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): `prepareForJson` drops it, so this property is silently not encoded.',
+      'Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): the JSON encoder drops it, so this property is silently not encoded.',
     level: 'info',
     family: 'runtype',
   },
@@ -660,35 +660,34 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   PJS010: {
     headline:
-      'Property `{0}` is a function: `prepareForJsonClone` does not handle function values, so this property is silently not encoded.',
+      'Property `{0}` is a function: the JSON encoder does not handle function values, so this property is silently not encoded.',
     level: 'info',
     family: 'runtype',
   },
   PJS011: {
-    headline: "Method `{0}` is silently not encoded by `prepareForJsonClone`: methods aren't data.",
+    headline: "Method `{0}` is silently not encoded: methods aren't data.",
     level: 'info',
     family: 'runtype',
   },
   PJS012: {
-    headline: "Static member `{0}` is silently not encoded by `prepareForJsonClone`: statics aren't part of instance data.",
+    headline: "Static member `{0}` is silently not encoded: statics aren't part of instance data.",
     level: 'info',
     family: 'runtype',
   },
   PJS013: {
-    headline:
-      "Symbol-keyed property `{0}` is silently not encoded by `prepareForJsonClone`: symbol keys aren't JSON-representable.",
+    headline: "Symbol-keyed property `{0}` is silently not encoded: symbol keys aren't JSON-representable.",
     level: 'info',
     family: 'runtype',
   },
   PJS014: {
     headline:
-      "Union member(s) of type `{0}` can't be represented as data: `prepareForJsonClone` drops them, so the union is encoded as its remaining members.",
+      "Union member(s) of type `{0}` can't be represented as data: the JSON encoder drops them, so the union is encoded as its remaining members.",
     level: 'info',
     family: 'runtype',
   },
   PJS015: {
     headline:
-      'Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): `prepareForJsonClone` drops it, so this property is silently not encoded.',
+      'Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): the JSON encoder drops it, so this property is silently not encoded.',
     level: 'info',
     family: 'runtype',
   },
@@ -714,35 +713,34 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   RJ010: {
     headline:
-      'Property `{0}` is a function: `restoreFromJsonMutate` does not handle function values, so this property is silently not decoded.',
+      'Property `{0}` is a function: the JSON decoder does not handle function values, so this property is silently not decoded.',
     level: 'info',
     family: 'runtype',
   },
   RJ011: {
-    headline: "Method `{0}` is silently not decoded by `restoreFromJsonMutate`: methods aren't data.",
+    headline: "Method `{0}` is silently not decoded: methods aren't data.",
     level: 'info',
     family: 'runtype',
   },
   RJ012: {
-    headline: "Static member `{0}` is silently not decoded by `restoreFromJsonMutate`: statics aren't part of instance data.",
+    headline: "Static member `{0}` is silently not decoded: statics aren't part of instance data.",
     level: 'info',
     family: 'runtype',
   },
   RJ013: {
-    headline:
-      "Symbol-keyed property `{0}` is silently not decoded by `restoreFromJsonMutate`: symbol keys aren't JSON-representable.",
+    headline: "Symbol-keyed property `{0}` is silently not decoded: symbol keys aren't JSON-representable.",
     level: 'info',
     family: 'runtype',
   },
   RJ014: {
     headline:
-      "Union member(s) of type `{0}` can't be represented as data: `restoreFromJsonMutate` drops them, so the union is decoded as its remaining members.",
+      "Union member(s) of type `{0}` can't be represented as data: the JSON decoder drops them, so the union is decoded as its remaining members.",
     level: 'info',
     family: 'runtype',
   },
   RJ015: {
     headline:
-      'Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): `restoreFromJsonMutate` drops it, so this property is silently not decoded.',
+      'Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): the JSON decoder drops it, so this property is silently not decoded.',
     level: 'info',
     family: 'runtype',
   },
