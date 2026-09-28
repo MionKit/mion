@@ -227,7 +227,6 @@ type _insertOptionalDefault = Expect<Equal<NewUser['createdAt'], RTDate | undefi
 type _patchIsPartial = Expect<Equal<UserPatch['name'], RTString<{maxLength: 100; minLength: 10}> | undefined>>;
 type _clientValueSlot = Expect<Equal<typeof inserted, User | undefined>>;
 type _clientErrorSlot = Expect<RpcError<'bad-insert'> extends NonNullable<typeof insertError> ? true : false>;
-// A queried row IS the slim model, refined formats included.
 type _dbRowName = Expect<Equal<SelectedRows[number]['name'], User['name']>>;
 type _dbRowDate = Expect<Equal<SelectedRows[number]['createdAt'], RTDate>>;
 type _dbRowIntoModel = Expect<Equal<SelectedRows[number], User>>;

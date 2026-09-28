@@ -562,7 +562,6 @@ export const rawUpdated = myDb.update(rawUsers).set({age: 2});
 type InsertValues<Q> = Q extends {values(value: infer V): unknown} ? V : never;
 type UpdateSet<Q> = Q extends {set(values: infer V): unknown} ? V : never;
 export type QueryPins = [
-  // a queried row IS the slim model, formats included
   Expect<Equal<Awaited<typeof selected>[number], InferSelectModel<typeof users>>>,
   Expect<Equal<Awaited<typeof inserted>, Awaited<typeof rawInserted>>>,
   Expect<Equal<Awaited<typeof updated>, Awaited<typeof rawUpdated>>>,
@@ -575,7 +574,6 @@ export const plainInsertIn: InsertValues<ReturnType<typeof myDb.insert<typeof dz
 export const plainSetIn: UpdateSet<ReturnType<typeof myDb.update<typeof dzUsers>>> = {} as UpdateSet<
   ReturnType<typeof myDb.update<typeof rawUsers>>
 >;
-// and a queried row still reads as drizzle's own
 export const rowAsRaw: Awaited<typeof rawSelected>[number] = {} as Awaited<typeof selected>[number];
 
 // $returningId() returns exactly the primary keys that autoincrement or carry a runtime default.

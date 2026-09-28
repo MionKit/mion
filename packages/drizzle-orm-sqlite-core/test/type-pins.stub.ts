@@ -413,7 +413,6 @@ export const rawUpdated = sqliteDb.update(rawUsers).set({rating: 2}).returning({
 type InsertValues<Q> = Q extends {values(value: infer V): unknown} ? V : never;
 type UpdateSet<Q> = Q extends {set(values: infer V): unknown} ? V : never;
 export type QueryPins = [
-  // a queried row IS the slim model, formats included
   Expect<Equal<Awaited<typeof selected>[number], InferSelectModel<typeof users>>>,
   Expect<Equal<Awaited<typeof inserted>[number], InferSelectModel<typeof users>>>,
   Expect<Equal<Awaited<typeof updated>[number], {id: InferSelectModel<typeof users>['id']}>>,
@@ -426,7 +425,6 @@ export const plainInsertIn: InsertValues<ReturnType<typeof sqliteDb.insert<typeo
 export const plainSetIn: UpdateSet<ReturnType<typeof sqliteDb.update<typeof dzUsers>>> = {} as UpdateSet<
   ReturnType<typeof sqliteDb.update<typeof rawUsers>>
 >;
-// and a queried row still reads as drizzle's own
 export const rowAsRaw: Awaited<typeof rawSelected>[number] = {} as Awaited<typeof selected>[number];
 
 // ── references, across tables and to itself ──────────────────────────────────

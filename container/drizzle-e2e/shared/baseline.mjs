@@ -8,9 +8,8 @@
 // line per split declaration) and the two trees live at different paths, so the
 // comparison is on file + code + message, with the position dropped.
 //
-// ONE kind of added error is expected: an exact-type assertion (`expectTypeOf(x).toEqualTypeOf<T>()`,
-// `Expect<Equal<T, U>>`) over a row type. toDrizzle rows keep their column formats (`PositiveInt`,
-// `StringTime`), so drizzle's own `{id: number}` no longer equals them. Those come back as `assertions`.
+// Expected additions: exact-type assertions (`toEqualTypeOf<T>()`, `Expect<Equal<T, U>>`) over a row type.
+// toDrizzle rows keep their column formats, so drizzle's own `{id: number}` no longer equals them.
 
 import {readFileSync} from 'node:fs';
 import path from 'node:path';
@@ -32,7 +31,7 @@ function tally(lines, roots) {
   return counts;
 }
 
-/** True when source line `lineNo` (1-based) is the type argument of an exact-type assertion. */
+/** `lineNo` is 1-based, as tsc reports it. */
 export function isExactTypeAssertion(sourceLines, lineNo) {
   const line = sourceLines[lineNo - 1] ?? '';
   if (/\.toEqualTypeOf\s*</.test(line) || /\bExpect<\s*Equal</.test(line)) return true;
@@ -44,7 +43,7 @@ export function isExactTypeAssertion(sourceLines, lineNo) {
   return false;
 }
 
-/** Whether a raw tsc error line points at an exact-type assertion; `cwd` is where tsc ran. */
+/** `cwd` is the directory tsc ran in. */
 function onAssertion(rawLine, cwd, sources) {
   const match = /^(.+?)\((\d+),\d+\): error TS/.exec(rawLine);
   if (!match) return false;
@@ -59,9 +58,7 @@ function onAssertion(rawLine, cwd, sources) {
   return isExactTypeAssertion(sources.get(file), Number(match[2]));
 }
 
-/** What the translation ADDED and what it REMOVED. Both empty means the
- *  translated tree typechecks exactly as the untranslated one does. With `cwd`,
- *  an added error on an exact-type assertion goes to `assertions` instead of `added`. */
+/** Both empty means the trees typecheck alike; with `cwd`, added errors on exact-type assertions go to `assertions`. */
 export function diffTypeErrors({translated, control, roots, cwd}) {
   const after = tally(translated, roots);
   const before = tally(control, roots);

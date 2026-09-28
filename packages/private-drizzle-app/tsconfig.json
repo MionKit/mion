@@ -1,5 +1,5 @@
 {
-  // `rootDir` is the repo root because the cost test imports the compile harness from packages/run-types/test/.
+  // `rootDir` is the repo root: the cost test imports other packages' test harnesses.
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "composite": false,

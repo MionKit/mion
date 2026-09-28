@@ -1,5 +1,4 @@
-// Type-instantiation cost of each route case, measured over the app's REAL route files: every
-// `// case: <name>` section is cut out and compiled alone, once per lane (a lane swaps the db imports).
+// Type-instantiation cost of each `// case:` section of the app's REAL route files, compiled alone once per lane.
 
 import * as ts from 'typescript';
 import {readFileSync} from 'node:fs';

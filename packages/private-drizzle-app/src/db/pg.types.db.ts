@@ -5,7 +5,7 @@ import {toDrizzle} from '@mionjs/drizzle-orm-pg-core/drizzle';
 import {adultUsers, type PostsTable, type UsersTable} from './pg.types.schema.ts';
 import {answer} from './fakeDriver.ts';
 
-// The type-form twin of pg.db.ts: the marker form of toDrizzle, no builder call anywhere.
+// The type-form twin of pg.db.ts.
 
 export const usersDb = toDrizzle<UsersTable>();
 export const postsDb = toDrizzle<PostsTable>();

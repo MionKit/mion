@@ -163,9 +163,7 @@ export async function main(args) {
     const report = JSON.parse(readFileSync(convertReport, 'utf8'));
     const convertedCount = (report.files ?? []).reduce((total, file) => total + (file.converted?.length ?? 0), 0);
     note(`converted ${convertedCount} table(s); ${(report.refusals ?? []).length} refusal(s), each with a reason`);
-    // A refusal costs COVERAGE, never correctness: the refused declaration stays
-    // valid builders code and its test still runs. What must not change is the
-    // program, so the bar is the control's, exactly as above.
+    // A refusal costs coverage, not correctness: the refused declaration stays builders code and its test still runs.
     const typeErrors = typecheck(typesDir);
     const typeDiff = diffTypeErrors({
       translated: typeErrors,

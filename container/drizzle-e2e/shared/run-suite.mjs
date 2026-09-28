@@ -524,19 +524,13 @@ function waitFor(ready, what, logFile) {
   throw new Error(`run-suite: ${what} did not become ready within 180s`);
 }
 
-// The typecheck is a gate, not a warning: a translated tree that does not
-// typecheck means a consumer following the same migration would not compile.
-// And the bar is the same one the suite run uses — the translated tree must
-// typecheck exactly as the untranslated CONTROL does, so nothing has to judge
-// which of drizzle's own errors are excusable.
+// A gate, not a warning: a consumer following the same migration would not compile.
+// The bar is the CONTROL's errors, so nothing has to judge which of drizzle's own errors are excusable.
 function typecheckAgainstControl(tree, control, label, logName) {
   const translated = runTsc(tree);
   writeFileSync(path.join(OUT, logName), `${translated.join('\n')}\n`);
-  // BOTH forms of each tree's root, the same list the host lane builds. tsc prints
-  // a file path relative to its cwd (`work/tests/...`) but spells an absolute one
-  // inside a message body (TS7016 names the .js it could not type), so stripping
-  // only the absolute form leaves the leading `work/` vs `control/` in place and
-  // every error reads as both ADDED and REMOVED.
+  // Same list as the host lane: tsc prints file paths relative to its cwd, but absolute ones in messages (TS7016).
+  // Strip only one form and every error reads as both ADDED and REMOVED.
   const roots = [`${tree}/`, `${CONTROL}/`, `${path.relative(HOME, tree)}/`, `${path.relative(HOME, CONTROL)}/`];
   const {added, assertions, removed} = diffTypeErrors({translated, control, roots, cwd: HOME});
   console.log(`-> type errors on the ${label}: ${control.length} before, ${translated.length} after`);

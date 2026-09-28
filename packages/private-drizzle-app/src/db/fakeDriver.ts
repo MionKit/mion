@@ -1,4 +1,4 @@
-// Stands in for a database: each query takes the next queued raw rows, in the shape the real driver returns.
+// Stands in for a database: each query answers with the next queued raw rows.
 
 export interface DriverCall {
   sql: string;
@@ -9,7 +9,7 @@ export interface DriverCall {
 const queued: unknown[][][] = [];
 export const driverCalls: DriverCall[] = [];
 
-/** Queues the raw rows the next query returns (arrays in select order, as pg / mysql / sqlite drivers send them). */
+/** Rows are arrays in select order, as pg / mysql / sqlite drivers send them. */
 export function queueRows(...results: unknown[][][]): void {
   queued.push(...results);
 }

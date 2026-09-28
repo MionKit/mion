@@ -328,7 +328,7 @@ export const ${p}u = db.update(${p}D).set({age: 31});`,
       'two tables, one reference': {types: 263, builders: 490},
       // 1277 -> 1366 and 1729 -> 1869: a REVIEWED EXCEPTION, props reject stray modifier keys.
       'refineTableType, select': {types: 1366, builders: 1869},
-      // 8812 -> 8943 and 9915 -> 10095: a REVIEWED EXCEPTION, props reject stray modifier keys. Lowered once rows kept their formats.
+      // 8812 -> 8943 and 9915 -> 10095: a REVIEWED EXCEPTION, props reject stray modifier keys. Now 8822 / 9999: rows keep formats.
       'toDrizzle + select / insert / update query': {types: 8822, builders: 9999},
     },
   },
