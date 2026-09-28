@@ -23,7 +23,7 @@ checker.
 | ---: | ----- | -----------------------: | -----: | ---------: |
 | 1 | slim table + row | 884 | 884 | 884 |
 | 2 | refineTableType | 1082 | 1082 | 1966 |
-| 3 | Infer* models | 545 | 605 | 2511 |
+| 3 | Infer* models | 545 | 545 | 2511 |
 | 4 | mion route api | 500 | 525 | 3011 |
 | 5 | initClient | 3065 | 3179 | 6076 |
 | 6 | db query (toDrizzle) | 8466 | 8466 | 14542 |
@@ -43,7 +43,7 @@ Total for the whole chain: **14542**, against a total budget of **14718**.
 | ---: | ----- | -----------------------: | -----: | ---------: |
 | 1 | slim table + row | 903 | 903 | 903 |
 | 2 | refineTableType | 1079 | 1079 | 1982 |
-| 3 | Infer* models | 545 | 605 | 2527 |
+| 3 | Infer* models | 545 | 545 | 2527 |
 | 4 | mion route api | 500 | 525 | 3027 |
 | 5 | initClient | 3065 | 3179 | 6092 |
 | 6 | db query (toDrizzle) | 7139 | 7139 | 13231 |
@@ -63,7 +63,7 @@ Total for the whole chain: **13231**, against a total budget of **13407**.
 | ---: | ----- | -----------------------: | -----: | ---------: |
 | 1 | slim table + row | 908 | 908 | 908 |
 | 2 | refineTableType | 1074 | 1074 | 1982 |
-| 3 | Infer* models | 545 | 605 | 2527 |
+| 3 | Infer* models | 545 | 545 | 2527 |
 | 4 | mion route api | 499 | 524 | 3026 |
 | 5 | initClient | 3065 | 3179 | 6091 |
 | 6 | db query (toDrizzle) | 7313 | 7313 | 13404 |
