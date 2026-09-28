@@ -392,7 +392,12 @@ func buildMergedProps(objectMembers []FlatObject, ctx *EmitContext, discValueByM
 			// emitProperty*: keeping it emits CodeNS and alwaysThrows the WHOLE union, while `{b: symbol}`
 			// on its own would serialize as `{}` (K2). The warning keeps the drop visible.
 			if isStrippedUnionMember(childResolved) {
-				ctx.EmitDiagnosticSlot(SlotFunctionPropDropped, prop.Name)
+				// Same code a plain object gives: …010 only for a function value, …015 for the rest.
+				if isFunctionLikeKind(childResolved.Kind) {
+					ctx.EmitDiagnosticSlot(SlotFunctionPropDropped, prop.Name)
+				} else {
+					ctx.EmitDiagnosticSlot(SlotNonSerializablePropDropped, prop.Name)
+				}
 				// Record so the surviving candidate's codec is guarded: a value from THIS member still
 				// carries the key with a foreign type (G3 / G4).
 				strippedByName[prop.Name] = true
