@@ -35,7 +35,7 @@ func init() {
 	register(Definition{
 		Code:   CodeOverrideValidateCrossFamily,
 		Family: FamilyMarker,
-		Level:  LevelWarning,
+		Level:  LevelInfo,
 		Scope:  ScopeNotSource,
 		Title:  "validate override also affects JSON union decoders for this type",
 	})

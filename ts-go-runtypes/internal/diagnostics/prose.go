@@ -64,7 +64,7 @@ var proseByCode = map[string]prose{
 	},
 
 	CodeDowngradeErrorAlreadyWarning: {
-		Summary: "A `@mion-downgrade-error` comment named a code that is already a warning, so it has nothing to do. The comment exists to stop a finding halting the build, and a warning never halts one. Delete it, or use `@mion-expect-error` if you meant to stop the finding being reported at all.",
+		Summary: "A `@mion-downgrade-error` comment named a code that is already a warning or info, so it has nothing to do. The comment exists to stop a finding halting the build, and neither ever halts one. Delete it, or use `@mion-expect-error` if you meant to stop the finding being reported at all.",
 		Fix:     "// @mion-expect-error VL015",
 	},
 

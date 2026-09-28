@@ -60,3 +60,18 @@ func TestReportEnrichDiagnostics_CompletenessGate(t *testing.T) {
 		t.Errorf("clean report must exit 0; exit=%d", got)
 	}
 }
+
+// An Info finding (FT008, a plural arm that can never fire) is advice: it fails neither lane.
+func TestReportEnrichDiagnostics_InfoNeverFails(t *testing.T) {
+	info := []diagnostics.Diagnostic{mkEnrichDiag(diagnostics.CodeFriendlyPluralNoCount)}
+	if info[0].Level != diagnostics.LevelInfo {
+		t.Fatalf("FT008 must be LevelInfo, got %d", info[0].Level)
+	}
+	for _, requireComplete := range []bool{false, true} {
+		for _, asJSON := range []bool{false, true} {
+			if got := reportEnrichDiagnostics(info, asJSON, requireComplete); got != 0 {
+				t.Errorf("an Info finding must not fail (requireComplete=%v json=%v); exit=%d", requireComplete, asJSON, got)
+			}
+		}
+	}
+}

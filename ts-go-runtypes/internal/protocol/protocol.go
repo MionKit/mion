@@ -190,6 +190,8 @@ type Response struct {
 	// so a dependency-free host can honor a tsconfig-only setting; the host's own option wins, then this echo,
 	// then nothing downgraded. Either a list of codes or the single wildcard entry "*". Emitted via MarshalJSON.
 	DowngradeErrors []string `json:"downgradeErrors,omitempty"`
+	// Levels echoes the tsconfig plugin's `levels` on OpGenerate ("" when unset); the host's own option wins.
+	Levels string `json:"levels,omitempty"`
 	// Transformed carries one TransformResult per file for OpTransform, keyed by file path, scoped to the
 	// request's Files.
 	Transformed map[string]TransformResult `json:"transformed,omitempty"`
@@ -500,6 +502,9 @@ func (response Response) MarshalJSON() ([]byte, error) {
 	}
 	if response.DowngradeErrors != nil {
 		out["downgradeErrors"] = response.DowngradeErrors
+	}
+	if response.Levels != "" {
+		out["levels"] = response.Levels
 	}
 	if len(response.Transformed) > 0 {
 		out["transformed"] = response.Transformed

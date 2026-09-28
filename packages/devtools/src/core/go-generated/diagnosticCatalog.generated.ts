@@ -9,11 +9,11 @@
 export interface DiagnosticEntry {
   /** Single-line headline. Mandatory. */
   readonly headline: string;
-  /** The code's three-way classification: did the build produce the code for
+  /** The code's level: did the build produce the code for
    *  this thing (`error`: no), and is what it produced broken when called
    *  (`runtimeError`: yes). Read by the config validators, which refuse to
    *  downgrade an `error`. */
-  readonly level: 'error' | 'runtimeError' | 'warning';
+  readonly level: 'error' | 'runtimeError' | 'warning' | 'info';
   /** The level's two-way label form, the word the tsc-shaped output line and
    *  the lint rule tier use. Derived from level, never authored. */
   readonly severity: 'error' | 'warning' | 'info';
@@ -197,12 +197,13 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
       'A code that is not in the catalog can never match a finding, so the comment\nwould lower nothing while looking like it works. Codes are the uppercase\nidentifier in a message, for example the `VL002` in\n`error VL002: Type ... can never be validated`.\n\nFix: copy the code out of the message you are lowering:\n-  // @mion-downgrade-error VL2\n+  // @mion-downgrade-error VL002',
   },
   DWN004: {
-    headline: '`@mion-downgrade-error {0}` does nothing: that code is already a warning, so it was never halting your build.',
-    level: 'warning',
-    severity: 'warning',
+    headline:
+      '`@mion-downgrade-error {0}` does nothing: that code is already a warning or info, so it was never halting your build.',
+    level: 'info',
+    severity: 'info',
     family: 'marker',
     detail:
-      'The comment exists to stop a finding halting the build. A warning never\nhalts one, so there is nothing for it to do here and the comment only\nsuggests a problem that is not there.\n\nFix: delete the comment. If you meant to stop the finding being reported\nat all, remove it instead:\n-  // @mion-downgrade-error VL015\n+  // @mion-expect-error VL015',
+      'The comment exists to stop a finding halting the build. A warning or an\ninfo never halts one, so there is nothing for it to do here and the comment only\nsuggests a problem that is not there.\n\nFix: delete the comment. If you meant to stop the finding being reported\nat all, remove it instead:\n-  // @mion-downgrade-error VL015\n+  // @mion-expect-error VL015',
   },
   EXP001: {
     headline:
@@ -336,8 +337,8 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   FT008: {
     headline: 'Constraint `{0}` carries no count: a plural template here has dead arms; use a plain string.',
-    level: 'warning',
-    severity: 'warning',
+    level: 'info',
+    severity: 'info',
     family: 'enrich',
     detail:
       "Only count-bearing constraints (`minLength`, `maxLength`, `min`, `max`,\n…) can select a plural arm. On a non-count constraint only `other` ever\nrenders, so the remaining arms are dead configuration.\n\nExample: `pattern` has no count:\n  rt$errors: {\n-   pattern: {one: 'One bad character', other: 'Invalid characters'},\n+   pattern: 'Only letters and numbers are allowed',\n  }\n\nFix: replace the plural object with a plain string message.",
@@ -510,8 +511,8 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   MET004: {
     headline:
       'The route id at this call is `string` (a generic helper erased it); the call fetches its metadata from the server instead of using the bundle.',
-    level: 'warning',
-    severity: 'warning',
+    level: 'info',
+    severity: 'info',
     family: 'marker',
     detail:
       "Every dispatch point carries the route it calls as a literal in its type. A\nhelper typed with a wide `RouteSubRequest<any>` widens it to `string`, so the\nbuild cannot bundle for the call inside it. The client sets up\n`useMethodsMetadata`, so the call still works: it fetches that route's metadata\non first use and builds its functions at runtime.\n\nFix (to bundle it too): keep the literal through the helper:\n-  function run(sub: RouteSubRequest<any>) { return sub.call() }\n+  function run<S extends RouteSubRequest<any>>(sub: S) { return sub.call() }",
@@ -598,8 +599,8 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   MKR006: {
     headline: '`InjectTypeFnArgs` names the function family `{0}` more than once; remove the duplicate key.',
-    level: 'warning',
-    severity: 'warning',
+    level: 'info',
+    severity: 'info',
     family: 'marker',
     detail:
       "An `InjectTypeFnArgs<T, …>` marker names each function family it needs for\n`T` once, in declaration order; the build injects one entry-module tuple\nper name and the wrapper forwards each to its factory. Naming a family\ntwice would inject a redundant identical tuple with no consumer, so it is\nalmost always a copy-paste slip and the build stops.\n\nFix: name each family at most once:\n-  id?: InjectTypeFnArgs<T, 'validationErrors', 'jsonDecoder', 'validationErrors'>;\n+  id?: InjectTypeFnArgs<T, 'validationErrors', 'jsonDecoder', 'jsonEncoder'>;",
@@ -755,8 +756,8 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   OVR010: {
     headline: 'Overriding `validate` for this type also changes how JSON decoders narrow unions containing it.',
-    level: 'warning',
-    severity: 'warning',
+    level: 'info',
+    severity: 'info',
     family: 'marker',
     detail:
       "`validate` is a shared dependency across function families: JSON union\ndecoders call the member validators to pick the matching branch. An `overrideValidate<T>()` therefore reaches past\n`createValidateFn<T>()`: decoders of any union containing T now narrow\nwith YOUR function.\n\nThis is informational; the build proceeds. If the override should only\naffect direct validation, give the union members a discriminant so\ndecoders never fall back to member validation:\n  type Event = {kind: 'click'; x: number} | {kind: 'key'; code: string};",
@@ -924,32 +925,32 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   PJ010: {
     headline:
       'Property `{0}` is a function: `prepareForJson` does not handle function values, so this property is silently not encoded.',
-    level: 'warning',
-    severity: 'warning',
+    level: 'info',
+    severity: 'info',
     family: 'runtype',
     detail:
       '`prepareForJson` works on JSON-shaped data; functions don\'t survive JSON, so\nthe emitter drops them. The rest of the object\'s behaviour is unaffected.\n\nThis is by design, see the "one contract: serializable data only"\nsection in CLAUDE.md. If you need a stricter checker that fails on\nmissing/extra function-typed members, watch the project roadmap.',
   },
   PJ011: {
     headline: "Method `{0}` is silently not encoded by `prepareForJson`: methods aren't data.",
-    level: 'warning',
-    severity: 'warning',
+    level: 'info',
+    severity: 'info',
     family: 'runtype',
     detail:
       "Class and object methods aren't part of the serialisable shape, so\n`prepareForJson` excludes them. The rest of the type still works.\n\nIf you wanted the method's return value validated/serialised, expose it\nas a data property instead.",
   },
   PJ012: {
     headline: "Static member `{0}` is silently not encoded by `prepareForJson`: statics aren't part of instance data.",
-    level: 'warning',
-    severity: 'warning',
+    level: 'info',
+    severity: 'info',
     family: 'runtype',
     detail:
       'Class static members live on the class, not on individual instances.\n`prepareForJson` operates on instance shape, so statics are excluded.',
   },
   PJ013: {
     headline: "Symbol-keyed property `{0}` is silently not encoded by `prepareForJson`: symbol keys aren't JSON-representable.",
-    level: 'warning',
-    severity: 'warning',
+    level: 'info',
+    severity: 'info',
     family: 'runtype',
     detail:
       "JSON only supports string keys; symbol-keyed properties are dropped\nfrom the serialised form. `prepareForJson` follows the same rule.\n\nFix: use a string key:\n  -  [Symbol.for('id')]: string;\n+  id: string;",
@@ -957,8 +958,8 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   PJ014: {
     headline:
       "Union member(s) of type `{0}` can't be represented as data: `prepareForJson` drops them, so the union is encoded as its remaining members.",
-    level: 'warning',
-    severity: 'warning',
+    level: 'info',
+    severity: 'info',
     family: 'runtype',
     detail:
       'A union projects to its serialisable members only: `DataOnly<Date | symbol>`\nis `Date`. The dropped member(s) ({0}) carry no JSON-shaped value (symbol,\nfunction, Promise, or a non-serialisable built-in like `Map` / `Set` /\ntyped arrays), so `prepareForJson` encoded only the members that remain.\n\nThis is by design, see the "one contract: serializable data only"\nsection in CLAUDE.md. If EVERY member of the union is non-serialisable the\nprojection is `never`, and `prepareForJson` throws at build time instead.',
@@ -966,8 +967,8 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   PJ015: {
     headline:
       'Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): `prepareForJson` drops it, so this property is silently not encoded.',
-    level: 'warning',
-    severity: 'warning',
+    level: 'info',
+    severity: 'info',
     family: 'runtype',
     detail:
       '`prepareForJson` works on JSON-shaped data. A property whose value is a symbol,\na Promise, or a non-serialisable built-in (a typed array, `ArrayBuffer`, or any other\nstandard-library class such as `URL` or `Intl.DateTimeFormat`) carries\nno JSON-shaped value, so it is dropped: `DataOnly<{ {0}: symbol }>` is `{}`.\nThe rest of the object\'s behaviour is unaffected.\n\nNote the difference from a property that is only STRUCTURALLY unserialisable\n(`{0}: symbol[]` or `{0}: Map<string, symbol>`), which CANNOT be safely\ndropped (DataOnly keeps it as `never[]`): there `prepareForJson` throws at build\ntime instead.\n\nThis is by design, see the "one contract: serializable data only"\nsection in CLAUDE.md.',
@@ -1007,24 +1008,24 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   PJS010: {
     headline:
       'Property `{0}` is a function: `prepareForJsonClone` does not handle function values, so this property is silently not encoded.',
-    level: 'warning',
-    severity: 'warning',
+    level: 'info',
+    severity: 'info',
     family: 'runtype',
     detail:
       '`prepareForJsonClone` works on JSON-shaped data; functions don\'t survive JSON, so\nthe emitter drops them. The rest of the object\'s behaviour is unaffected.\n\nThis is by design, see the "one contract: serializable data only"\nsection in CLAUDE.md. If you need a stricter checker that fails on\nmissing/extra function-typed members, watch the project roadmap.',
   },
   PJS011: {
     headline: "Method `{0}` is silently not encoded by `prepareForJsonClone`: methods aren't data.",
-    level: 'warning',
-    severity: 'warning',
+    level: 'info',
+    severity: 'info',
     family: 'runtype',
     detail:
       "Class and object methods aren't part of the serialisable shape, so\n`prepareForJsonClone` excludes them. The rest of the type still works.\n\nIf you wanted the method's return value validated/serialised, expose it\nas a data property instead.",
   },
   PJS012: {
     headline: "Static member `{0}` is silently not encoded by `prepareForJsonClone`: statics aren't part of instance data.",
-    level: 'warning',
-    severity: 'warning',
+    level: 'info',
+    severity: 'info',
     family: 'runtype',
     detail:
       'Class static members live on the class, not on individual instances.\n`prepareForJsonClone` operates on instance shape, so statics are excluded.',
@@ -1032,8 +1033,8 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   PJS013: {
     headline:
       "Symbol-keyed property `{0}` is silently not encoded by `prepareForJsonClone`: symbol keys aren't JSON-representable.",
-    level: 'warning',
-    severity: 'warning',
+    level: 'info',
+    severity: 'info',
     family: 'runtype',
     detail:
       "JSON only supports string keys; symbol-keyed properties are dropped\nfrom the serialised form. `prepareForJsonClone` follows the same rule.\n\nFix: use a string key:\n  -  [Symbol.for('id')]: string;\n+  id: string;",
@@ -1041,8 +1042,8 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   PJS014: {
     headline:
       "Union member(s) of type `{0}` can't be represented as data: `prepareForJsonClone` drops them, so the union is encoded as its remaining members.",
-    level: 'warning',
-    severity: 'warning',
+    level: 'info',
+    severity: 'info',
     family: 'runtype',
     detail:
       'A union projects to its serialisable members only: `DataOnly<Date | symbol>`\nis `Date`. The dropped member(s) ({0}) carry no JSON-shaped value (symbol,\nfunction, Promise, or a non-serialisable built-in like `Map` / `Set` /\ntyped arrays), so `prepareForJsonClone` encoded only the members that remain.\n\nThis is by design, see the "one contract: serializable data only"\nsection in CLAUDE.md. If EVERY member of the union is non-serialisable the\nprojection is `never`, and `prepareForJsonClone` throws at build time instead.',
@@ -1050,8 +1051,8 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   PJS015: {
     headline:
       'Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): `prepareForJsonClone` drops it, so this property is silently not encoded.',
-    level: 'warning',
-    severity: 'warning',
+    level: 'info',
+    severity: 'info',
     family: 'runtype',
     detail:
       '`prepareForJsonClone` works on JSON-shaped data. A property whose value is a symbol,\na Promise, or a non-serialisable built-in (a typed array, `ArrayBuffer`, or any other\nstandard-library class such as `URL` or `Intl.DateTimeFormat`) carries\nno JSON-shaped value, so it is dropped: `DataOnly<{ {0}: symbol }>` is `{}`.\nThe rest of the object\'s behaviour is unaffected.\n\nNote the difference from a property that is only STRUCTURALLY unserialisable\n(`{0}: symbol[]` or `{0}: Map<string, symbol>`), which CANNOT be safely\ndropped (DataOnly keeps it as `never[]`): there `prepareForJsonClone` throws at build\ntime instead.\n\nThis is by design, see the "one contract: serializable data only"\nsection in CLAUDE.md.',
@@ -1091,24 +1092,24 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   RJ010: {
     headline:
       'Property `{0}` is a function: `restoreFromJsonMutate` does not handle function values, so this property is silently not decoded.',
-    level: 'warning',
-    severity: 'warning',
+    level: 'info',
+    severity: 'info',
     family: 'runtype',
     detail:
       '`restoreFromJsonMutate` works on JSON-shaped data; functions don\'t survive JSON, so\nthe emitter drops them. The rest of the object\'s behaviour is unaffected.\n\nThis is by design, see the "one contract: serializable data only"\nsection in CLAUDE.md. If you need a stricter checker that fails on\nmissing/extra function-typed members, watch the project roadmap.',
   },
   RJ011: {
     headline: "Method `{0}` is silently not decoded by `restoreFromJsonMutate`: methods aren't data.",
-    level: 'warning',
-    severity: 'warning',
+    level: 'info',
+    severity: 'info',
     family: 'runtype',
     detail:
       "Class and object methods aren't part of the serialisable shape, so\n`restoreFromJsonMutate` excludes them. The rest of the type still works.\n\nIf you wanted the method's return value validated/serialised, expose it\nas a data property instead.",
   },
   RJ012: {
     headline: "Static member `{0}` is silently not decoded by `restoreFromJsonMutate`: statics aren't part of instance data.",
-    level: 'warning',
-    severity: 'warning',
+    level: 'info',
+    severity: 'info',
     family: 'runtype',
     detail:
       'Class static members live on the class, not on individual instances.\n`restoreFromJsonMutate` operates on instance shape, so statics are excluded.',
@@ -1116,8 +1117,8 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   RJ013: {
     headline:
       "Symbol-keyed property `{0}` is silently not decoded by `restoreFromJsonMutate`: symbol keys aren't JSON-representable.",
-    level: 'warning',
-    severity: 'warning',
+    level: 'info',
+    severity: 'info',
     family: 'runtype',
     detail:
       "JSON only supports string keys; symbol-keyed properties are dropped\nfrom the serialised form. `restoreFromJsonMutate` follows the same rule.\n\nFix: use a string key:\n  -  [Symbol.for('id')]: string;\n+  id: string;",
@@ -1125,8 +1126,8 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   RJ014: {
     headline:
       "Union member(s) of type `{0}` can't be represented as data: `restoreFromJsonMutate` drops them, so the union is decoded as its remaining members.",
-    level: 'warning',
-    severity: 'warning',
+    level: 'info',
+    severity: 'info',
     family: 'runtype',
     detail:
       'A union projects to its serialisable members only: `DataOnly<Date | symbol>`\nis `Date`. The dropped member(s) ({0}) carry no JSON-shaped value (symbol,\nfunction, Promise, or a non-serialisable built-in like `Map` / `Set` /\ntyped arrays), so `restoreFromJsonMutate` decoded only the members that remain.\n\nThis is by design, see the "one contract: serializable data only"\nsection in CLAUDE.md. If EVERY member of the union is non-serialisable the\nprojection is `never`, and `restoreFromJsonMutate` throws at build time instead.',
@@ -1134,8 +1135,8 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   RJ015: {
     headline:
       'Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): `restoreFromJsonMutate` drops it, so this property is silently not decoded.',
-    level: 'warning',
-    severity: 'warning',
+    level: 'info',
+    severity: 'info',
     family: 'runtype',
     detail:
       '`restoreFromJsonMutate` works on JSON-shaped data. A property whose value is a symbol,\na Promise, or a non-serialisable built-in (a typed array, `ArrayBuffer`, or any other\nstandard-library class such as `URL` or `Intl.DateTimeFormat`) carries\nno JSON-shaped value, so it is dropped: `DataOnly<{ {0}: symbol }>` is `{}`.\nThe rest of the object\'s behaviour is unaffected.\n\nNote the difference from a property that is only STRUCTURALLY unserialisable\n(`{0}: symbol[]` or `{0}: Map<string, symbol>`), which CANNOT be safely\ndropped (DataOnly keeps it as `never[]`): there `restoreFromJsonMutate` throws at build\ntime instead.\n\nThis is by design, see the "one contract: serializable data only"\nsection in CLAUDE.md.',
@@ -1168,16 +1169,16 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   RUK011: {
     headline: "Method `{0}` is not copied onto the clone's own properties: methods ride the prototype.",
-    level: 'warning',
-    severity: 'warning',
+    level: 'info',
+    severity: 'info',
     family: 'runtype',
     detail:
       'For a plain class instance the clone preserves the PROTOTYPE\n(`Object.create(Object.getPrototypeOf(v))`), so methods keep working via the\nprototype chain; they are simply not copied as own properties. For object\nliterals a method-typed member is omitted like any function value.',
   },
   RUK012: {
     headline: 'Static member `{0}` is not part of instance data: `removeUnknownKeys` skips it.',
-    level: 'warning',
-    severity: 'warning',
+    level: 'info',
+    severity: 'info',
     family: 'runtype',
     detail: 'Statics live on the class, not the instance; the clone rebuilds instance\ndata only.',
   },
@@ -1234,32 +1235,32 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   VE010: {
     headline:
       'Property `{0}` is a function: `validationErrors` does not handle function values, so this property is silently not checked.',
-    level: 'warning',
-    severity: 'warning',
+    level: 'info',
+    severity: 'info',
     family: 'runtype',
     detail:
       '`validationErrors` works on JSON-shaped data; functions don\'t survive JSON, so\nthe emitter drops them. The rest of the object\'s behaviour is unaffected.\n\nThis is by design, see the "one contract: serializable data only"\nsection in CLAUDE.md. If you need a stricter checker that fails on\nmissing/extra function-typed members, watch the project roadmap.',
   },
   VE011: {
     headline: "Method `{0}` is silently not checked by `validationErrors`: methods aren't data.",
-    level: 'warning',
-    severity: 'warning',
+    level: 'info',
+    severity: 'info',
     family: 'runtype',
     detail:
       "Class and object methods aren't part of the serialisable shape, so\n`validationErrors` excludes them. The rest of the type still works.\n\nIf you wanted the method's return value validated/serialised, expose it\nas a data property instead.",
   },
   VE012: {
     headline: "Static member `{0}` is silently not checked by `validationErrors`: statics aren't part of instance data.",
-    level: 'warning',
-    severity: 'warning',
+    level: 'info',
+    severity: 'info',
     family: 'runtype',
     detail:
       'Class static members live on the class, not on individual instances.\n`validationErrors` operates on instance shape, so statics are excluded.',
   },
   VE013: {
     headline: "Symbol-keyed property `{0}` is silently not checked by `validationErrors`: symbol keys aren't JSON-representable.",
-    level: 'warning',
-    severity: 'warning',
+    level: 'info',
+    severity: 'info',
     family: 'runtype',
     detail:
       "JSON only supports string keys; symbol-keyed properties are dropped\nfrom the serialised form. `validationErrors` follows the same rule.\n\nFix: use a string key:\n  -  [Symbol.for('id')]: string;\n+  id: string;",
@@ -1267,16 +1268,16 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   VE015: {
     headline:
       'Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): `validationErrors` drops it, so this property is silently not checked.',
-    level: 'warning',
-    severity: 'warning',
+    level: 'info',
+    severity: 'info',
     family: 'runtype',
     detail:
       '`validationErrors` works on JSON-shaped data. A property whose value is a symbol,\na Promise, or a non-serialisable built-in (a typed array, `ArrayBuffer`, or any other\nstandard-library class such as `URL` or `Intl.DateTimeFormat`) carries\nno JSON-shaped value, so it is dropped: `DataOnly<{ {0}: symbol }>` is `{}`.\nThe rest of the object\'s behaviour is unaffected.\n\nNote the difference from a property that is only STRUCTURALLY unserialisable\n(`{0}: symbol[]` or `{0}: Map<string, symbol>`), which CANNOT be safely\ndropped (DataOnly keeps it as `never[]`): there `validationErrors` throws at build\ntime instead.\n\nThis is by design, see the "one contract: serializable data only"\nsection in CLAUDE.md.',
   },
   VE020: {
     headline: '`validationErrors` on `any` / `unknown` always returns an empty error array: nothing is checked.',
-    level: 'warning',
-    severity: 'warning',
+    level: 'info',
+    severity: 'info',
     family: 'runtype',
     detail:
       'Same reason as VL021: `any` and `unknown` describe "anything", so the\nchecker has no structure to compare against. The returned error array\nwill always be empty.\n\nFix: narrow the type to the actual shape you expect:\n  -  const errors = createGetValidationErrorsFn<unknown>()(value);\n+  const errors = createGetValidationErrorsFn<User>()(value);',
@@ -1308,32 +1309,32 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   VL010: {
     headline:
       'Property `{0}` is a function: `validate` does not handle function values, so this property is silently not validated.',
-    level: 'warning',
-    severity: 'warning',
+    level: 'info',
+    severity: 'info',
     family: 'runtype',
     detail:
       '`validate` works on JSON-shaped data; functions don\'t survive JSON, so\nthe emitter drops them. The rest of the object\'s behaviour is unaffected.\n\nThis is by design, see the "one contract: serializable data only"\nsection in CLAUDE.md. If you need a stricter checker that fails on\nmissing/extra function-typed members, watch the project roadmap.',
   },
   VL011: {
     headline: "Method `{0}` is silently not validated by `validate`: methods aren't data.",
-    level: 'warning',
-    severity: 'warning',
+    level: 'info',
+    severity: 'info',
     family: 'runtype',
     detail:
       "Class and object methods aren't part of the serialisable shape, so\n`validate` excludes them. The rest of the type still works.\n\nIf you wanted the method's return value validated/serialised, expose it\nas a data property instead.",
   },
   VL012: {
     headline: "Static member `{0}` is silently not validated by `validate`: statics aren't part of instance data.",
-    level: 'warning',
-    severity: 'warning',
+    level: 'info',
+    severity: 'info',
     family: 'runtype',
     detail:
       'Class static members live on the class, not on individual instances.\n`validate` operates on instance shape, so statics are excluded.',
   },
   VL013: {
     headline: "Symbol-keyed property `{0}` is silently not validated by `validate`: symbol keys aren't JSON-representable.",
-    level: 'warning',
-    severity: 'warning',
+    level: 'info',
+    severity: 'info',
     family: 'runtype',
     detail:
       "JSON only supports string keys; symbol-keyed properties are dropped\nfrom the serialised form. `validate` follows the same rule.\n\nFix: use a string key:\n  -  [Symbol.for('id')]: string;\n+  id: string;",
@@ -1341,8 +1342,8 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   VL014: {
     headline:
       "Union member(s) of type `{0}` can't be represented as data: `validate` drops them, so the union is validated as its remaining members.",
-    level: 'warning',
-    severity: 'warning',
+    level: 'info',
+    severity: 'info',
     family: 'runtype',
     detail:
       'A union projects to its serialisable members only: `DataOnly<Date | symbol>`\nis `Date`. The dropped member(s) ({0}) carry no JSON-shaped value (symbol,\nfunction, Promise, or a non-serialisable built-in like `Map` / `Set` /\ntyped arrays), so `validate` validated only the members that remain.\n\nThis is by design, see the "one contract: serializable data only"\nsection in CLAUDE.md. If EVERY member of the union is non-serialisable the\nprojection is `never`, and `validate` throws at build time instead.',
@@ -1350,16 +1351,16 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   VL015: {
     headline:
       'Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): `validate` drops it, so this property is silently not validated.',
-    level: 'warning',
-    severity: 'warning',
+    level: 'info',
+    severity: 'info',
     family: 'runtype',
     detail:
       '`validate` works on JSON-shaped data. A property whose value is a symbol,\na Promise, or a non-serialisable built-in (a typed array, `ArrayBuffer`, or any other\nstandard-library class such as `URL` or `Intl.DateTimeFormat`) carries\nno JSON-shaped value, so it is dropped: `DataOnly<{ {0}: symbol }>` is `{}`.\nThe rest of the object\'s behaviour is unaffected.\n\nNote the difference from a property that is only STRUCTURALLY unserialisable\n(`{0}: symbol[]` or `{0}: Map<string, symbol>`), which CANNOT be safely\ndropped (DataOnly keeps it as `never[]`): there `validate` throws at build\ntime instead.\n\nThis is by design, see the "one contract: serializable data only"\nsection in CLAUDE.md.',
   },
   VL021: {
     headline: '`validate` on `any` / `unknown` always returns true: the validator accepts every value.',
-    level: 'warning',
-    severity: 'warning',
+    level: 'info',
+    severity: 'info',
     family: 'runtype',
     detail:
       '`any` and `unknown` describe "anything", so a structural validator has\nnothing to check. The resulting function passes for every input,\nincluding the ones you probably wanted to reject.\n\nFix: narrow the type to the actual shape you expect:\n  -  const isUser = createValidateFn<unknown>();\n+  const isUser = createValidateFn<User>();',

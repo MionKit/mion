@@ -80,7 +80,7 @@ var notSuppressible = map[string]bool{
 
 // Downgradeable reports whether a directive may lower code to a warning. Only a LevelRuntimeError
 // is: output exists, so printing it and carrying on is legitimate. A LevelError never is (no code
-// was produced), a LevelWarning already is one, and an unrecognised code is not either. The caller
+// was produced), a LevelWarning or LevelInfo already never halts, and an unrecognised code is not either. The caller
 // reports each of those three as its own DWN code, because the fix differs.
 func Downgradeable(code string) bool {
 	definition, registered := Definitions[code]
@@ -187,7 +187,7 @@ func ApplyDirectives(list []Diagnostic, directives []Directive, normalize func(s
 // malformedCode reports the code this directive earns for naming `code`, or ""
 // when naming it is fine. The three downgrade cases are kept apart because the
 // fix differs: a LevelError cannot be lowered at all, an unknown code is a typo,
-// and an already-warning code means the halt the author expected never existed.
+// and an already-warning (or info) code means the halt the author expected never existed.
 func (directive Directive) malformedCode(code string) string {
 	_, registered := Definitions[code]
 	if directive.Kind == DirectiveDowngrade {
@@ -196,7 +196,7 @@ func (directive Directive) malformedCode(code string) string {
 			return ""
 		case !registered:
 			return CodeDowngradeErrorUnknownCode
-		case LevelOf(code) == LevelWarning:
+		case LevelOf(code) == LevelWarning, LevelOf(code) == LevelInfo:
 			return CodeDowngradeErrorAlreadyWarning
 		default:
 			return CodeDowngradeErrorNotDowngradeable

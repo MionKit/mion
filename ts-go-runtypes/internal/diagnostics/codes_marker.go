@@ -11,7 +11,7 @@ package diagnostics
 const (
 	CodeMarkerFunctionCallArg   = "MKR001"
 	CodeMarkerFreeTypeParameter = "MKR003"
-	// CodeMarkerDuplicateFnKey: LevelWarning, because the scan DEDUPES the repeated key and emits the
+	// CodeMarkerDuplicateFnKey: LevelInfo, because the scan DEDUPES the repeated key and emits the
 	// site normally, so what ships is correct and only the source has a copy-paste slip.
 	CodeMarkerDuplicateFnKey          = "MKR006"
 	CodeMarkerAnyFromUnresolvedImport = "MKR007"
@@ -113,7 +113,7 @@ func init() {
 	for _, definition := range []Definition{
 		{Code: CodeMarkerFunctionCallArg, Family: FamilyMarker, Level: LevelWarning, Scope: ScopeNotSource, Title: "Marker invokes a function just to read its return type"},
 		{Code: CodeMarkerFreeTypeParameter, Family: FamilyMarker, Level: LevelError, Scope: ScopeRoot, Title: "Marker call inside a generic function: type argument is unresolved"},
-		{Code: CodeMarkerDuplicateFnKey, Family: FamilyMarker, Level: LevelWarning, Scope: ScopeNotSource, Title: "`InjectTypeFnArgs` names the same function family more than once"},
+		{Code: CodeMarkerDuplicateFnKey, Family: FamilyMarker, Level: LevelInfo, Scope: ScopeNotSource, Title: "`InjectTypeFnArgs` names the same function family more than once"},
 		{Code: CodeMarkerAnyFromUnresolvedImport, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeGraph, Title: "Marker type resolved to `any`: an import in this file failed to resolve"},
 		{Code: CodeStructuralIdDepthExceeded, Family: FamilyMarker, Level: LevelError, Scope: ScopeGraph, Title: "Type is too deeply nested: structural-id computation hit its depth cap"},
 		{Code: CodeMarkerSelfInstantiatingGeneric, Family: FamilyMarker, Level: LevelError, Scope: ScopeGraph, Title: "Type re-instantiates itself with fresh type arguments: a self-instantiating generic cannot resolve to a structural id"},

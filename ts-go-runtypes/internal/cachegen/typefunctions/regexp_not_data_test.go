@@ -39,8 +39,8 @@ func TestRegexp_PropertyDropsLikeAFunction(t *testing.T) {
 			t.Errorf("[%s] expected drop warning %s; sink=%+v", fam, nonSerPropDropCodes[fam], sink)
 			continue
 		}
-		if got.Severity != diagnostics.SeverityWarning {
-			t.Errorf("[%s] %s severity = %v, want Warning", fam, nonSerPropDropCodes[fam], got.Severity)
+		if got.Severity != diagnostics.SeverityInfo {
+			t.Errorf("[%s] %s severity = %v, want Info", fam, nonSerPropDropCodes[fam], got.Severity)
 		}
 	}
 }

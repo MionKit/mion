@@ -402,13 +402,15 @@ export interface Response {
 }
 
 // Level answers: did the build produce the code for this thing (Error: no), and is what it produced broken
-// when called (RuntimeError: yes). Anything deciding whether a finding may be downgraded or silenced reads
+// when called (RuntimeError: yes); Warning and Info are for output that is correct. Anything deciding whether a finding may be downgraded or silenced reads
 // THIS, never severity. It rides the wire rather than the generated catalog because a locally built binary
 // can run ahead of that catalog, and a build-halt decision must not depend on the two being in sync.
 export const Level = {
   Error: 1,
   RuntimeError: 2,
   Warning: 3,
+  // Info: the documented behaviour or advice; every host hides it unless `levels: 'all'` asks for it.
+  Info: 4,
 } as const;
 export type Level = (typeof Level)[keyof typeof Level];
 

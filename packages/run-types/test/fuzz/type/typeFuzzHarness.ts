@@ -165,7 +165,8 @@ export async function compileType(client: ResolverClient, gen: GeneratedType): P
     ...base,
     diagnostics,
     errorDiagnostics: diagnostics.filter((d) => d.severity === Severity.Error),
-    warningDiagnostics: diagnostics.filter((d) => d.severity === Severity.Warning),
+    // A dropped member is Info, and the oracles only care that something was dropped.
+    warningDiagnostics: diagnostics.filter((d) => d.severity === Severity.Warning || d.severity === Severity.Info),
     sites,
     fnSiteCount: fnSites.length,
     reflectionSiteCount: reflectionSites.length,

@@ -131,7 +131,7 @@ func findCode(sink []diagnostics.Diagnostic, code string) (diagnostics.Diagnosti
 // A genuine drop (Date | symbol — one member survives) raises a per-family
 // build-time Warning naming the dropped member, mirroring the property-drop
 // warnings (VL010 etc.).
-func TestDataOnlyUnion_DropEmitsWarning(t *testing.T) {
+func TestDataOnlyUnion_DropEmitsInfo(t *testing.T) {
 	dump := unionDump(mkDate(), mkSym())
 	for fam, wantCode := range dropWarnFamilies {
 		_, sink := renderWithDiag(t, dump, fam, "uni")
@@ -140,8 +140,8 @@ func TestDataOnlyUnion_DropEmitsWarning(t *testing.T) {
 			t.Errorf("[%s] expected union-member-drop warning %s; sink=%+v", fam, wantCode, sink)
 			continue
 		}
-		if got.Severity != diagnostics.SeverityWarning {
-			t.Errorf("[%s] %s severity = %v, want Warning", fam, wantCode, got.Severity)
+		if got.Severity != diagnostics.SeverityInfo {
+			t.Errorf("[%s] %s severity = %v, want Info", fam, wantCode, got.Severity)
 		}
 		if len(got.Args) == 0 || !strings.Contains(got.Args[0], "symbol") {
 			t.Errorf("[%s] %s args = %v, want a label naming the dropped \"symbol\" member", fam, wantCode, got.Args)

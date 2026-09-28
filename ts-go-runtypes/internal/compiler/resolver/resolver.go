@@ -67,6 +67,8 @@ type Options struct {
 	// tsconfig-only setting. The resolver never acts on it: downgrading is halt policy.
 	// `@mion-expect-error` IS applied here, being a fact about the source rather than a policy.
 	TsconfigDowngradeErrors []string
+	// TsconfigLevels is echoed on Response.Levels the same way; hiding Info is print policy too.
+	TsconfigLevels string
 	// SingleThreaded mirrors program.Options.SingleThreaded, and also forces the serial scan path.
 	SingleThreaded bool
 	// DisableParallelScan forces the serial marker scan; the zero value is parallel-on (same idiom as SingleThreaded).

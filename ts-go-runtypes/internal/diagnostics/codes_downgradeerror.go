@@ -18,8 +18,8 @@ const (
 	// CodeDowngradeErrorUnknownCode fires on a code the catalog does not define, almost always a
 	// typo that would otherwise read as a working downgrade. Args: [0] the unknown code.
 	CodeDowngradeErrorUnknownCode = "DWN003"
-	// CodeDowngradeErrorAlreadyWarning fires on a code that is already a warning, so it does nothing.
-	// `downgradeErrors` accepts a warning silently (a level may soften between releases and must not
+	// CodeDowngradeErrorAlreadyWarning fires on a code that is already a warning or info, so it does nothing.
+	// `downgradeErrors` accepts either silently (a level may soften between releases and must not
 	// break a consumer's build), but a hand-written comment is worth reporting: the author expected a
 	// halt to stop. Args: [0] the code.
 	CodeDowngradeErrorAlreadyWarning = "DWN004"
@@ -30,7 +30,7 @@ func init() {
 		{Code: CodeDowngradeErrorUnused, Family: FamilyMarker, Level: LevelWarning, Scope: ScopeNotSource, Title: "`@mion-downgrade-error` lowered nothing: delete it or fix the code it names"},
 		{Code: CodeDowngradeErrorNotDowngradeable, Family: FamilyMarker, Level: LevelWarning, Scope: ScopeNotSource, Title: "`@mion-downgrade-error` names a code that can never be lowered"},
 		{Code: CodeDowngradeErrorUnknownCode, Family: FamilyMarker, Level: LevelWarning, Scope: ScopeNotSource, Title: "`@mion-downgrade-error` names a diagnostic code that does not exist"},
-		{Code: CodeDowngradeErrorAlreadyWarning, Family: FamilyMarker, Level: LevelWarning, Scope: ScopeNotSource, Title: "`@mion-downgrade-error` names a code that is already a warning"},
+		{Code: CodeDowngradeErrorAlreadyWarning, Family: FamilyMarker, Level: LevelInfo, Scope: ScopeNotSource, Title: "`@mion-downgrade-error` names a code that is already a warning or info"},
 	} {
 		register(definition)
 	}
