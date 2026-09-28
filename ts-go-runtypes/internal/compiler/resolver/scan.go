@@ -1054,7 +1054,8 @@ func eachOptionPropertyOf(typeChecker *checker.Checker, objectLiteralNode *ast.N
 				continue
 			}
 			name := propertyAssignment.Name()
-			if name == nil || propertyAssignment.Initializer == nil {
+			// A computed key (`[tag]: 'x'`) has no text, and an option name is never computed.
+			if name == nil || name.Kind == ast.KindComputedPropertyName || propertyAssignment.Initializer == nil {
 				continue
 			}
 			visit(name.Text(), propertyAssignment.Initializer)
