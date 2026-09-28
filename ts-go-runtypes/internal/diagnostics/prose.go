@@ -133,6 +133,11 @@ export const isApp = createValidateFn<App>();`,
 const tag = Symbol('tag');
 interface Item { id: string; [tag]: string }
 export const isItem = createValidateFn<Item>();`,
+		NestedExample: `import {createValidateFn} from '@mionjs/run-types';
+const tag = Symbol('tag');
+interface Item { id: string; [tag]: string }
+interface Order { item: Item }
+export const isOrder = createValidateFn<Order>();`,
 		Summary: "JSON has string keys only, so a symbol-keyed property has nowhere to land in the serialized form. Use a string key if the property is real data.",
 		Fix: `interface Item {
   id: string; // instead of [Symbol.for('id')]: string
