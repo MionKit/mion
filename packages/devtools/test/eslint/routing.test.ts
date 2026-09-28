@@ -28,6 +28,11 @@ describe('family routing (compiler diagnostics grouped by Go prefix family, name
     expect(ruleOf({code: 'MKR003', family: Family.Marker, severity: Severity.Error})).toBe('invalid-marker');
     expect(ruleOf({code: 'MKR001', family: Family.Marker, severity: Severity.Warning})).toBe('redundant-marker');
     expect(ruleOf({code: 'CTA001', family: Family.Marker, severity: Severity.Error})).toBe('invalid-marker');
+    // A batch that 404s every request is an error, never the advisory rule.
+    expect(ruleOf({code: 'BAT008', family: Family.Marker, severity: Severity.Error})).toBe('invalid-marker');
+    // The bundled-API codes route by their own prefix: a broken call is an error, an unset option advice.
+    expect(ruleOf({code: 'MET003', family: Family.RunType, severity: Severity.Error})).toBe('invalid-marker');
+    expect(ruleOf({code: 'MET006', family: Family.RunType, severity: Severity.Warning})).toBe('redundant-marker');
     // validate absorbs validationErrors (VL + VE).
     expect(ruleOf({code: 'VL001', severity: Severity.Error})).toBe('validate-non-serializable');
     expect(ruleOf({code: 'VL011', severity: Severity.Warning})).toBe('validate-skipped-member');

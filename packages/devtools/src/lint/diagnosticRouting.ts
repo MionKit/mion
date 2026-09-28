@@ -107,7 +107,7 @@ export const RULE_SPECS: readonly RuleSpec[] = [
     default: 'warn',
     gate: 'compiler',
     description:
-      'A marker that works but probably does not do what you meant: a function called inside a marker just to read its return type (the call itself is wasted), a ValidateOptions flag that has no effect on this particular type, or a batch the server build leaves out (the table comes from the client project, or nothing imports it)',
+      'A marker that works but probably does not do what you meant: a function called inside a marker just to read its return type (the call itself is wasted), or a bundled-API option that is not a literal, so the bundled metadata leaves it unset. Info (shown with levels: all): an InjectTypeFnArgs marker naming a family twice, or a route id widened to string, so the call fetches its metadata',
   },
   {
     name: 'pure-functions',
@@ -131,7 +131,7 @@ export const RULE_SPECS: readonly RuleSpec[] = [
     default: 'warn',
     gate: 'compiler',
     description:
-      'A property the validator silently skips: functions, methods, statics, and symbols are not data and never survive JSON, so the generated validator checks the rest of the object and ignores them',
+      'A property the validator silently skips: functions, methods, statics, symbol keys and values with no data form (a Promise, a WeakMap) never survive JSON, so the generated validator checks the rest of the object and ignores them. Also a validator on a written any / unknown, which accepts every value. All Info: shown only with levels: all',
   },
   {
     name: 'json-non-serializable',
@@ -147,7 +147,7 @@ export const RULE_SPECS: readonly RuleSpec[] = [
     default: 'warn',
     gate: 'compiler',
     description:
-      'A property the JSON encoder and decoder silently leave out (a function, method, static, or symbol member) — the rest of the object round-trips normally',
+      'A property the JSON encoder and decoder silently leave out (a function, method, static, symbol key, or a value with no data form): the rest of the object round-trips normally. All Info: shown only with levels: all',
   },
   {
     name: 'clone-unsupported-type',
@@ -163,7 +163,7 @@ export const RULE_SPECS: readonly RuleSpec[] = [
     default: 'warn',
     gate: 'compiler',
     description:
-      'A property the clone cannot rebuild (a function, symbol, or non-serializable built-in), so it stays pointing at the same value as the original — changes through it are visible on both copies',
+      'A property the clone cannot rebuild (a function, symbol, or non-serializable built-in), so it stays pointing at the same value as the original: changes through it are visible on both copies. Info (shown with levels: all): a class method, a static, or a symbol key the clone leaves out',
   },
   {
     name: 'format',
@@ -187,7 +187,7 @@ export const RULE_SPECS: readonly RuleSpec[] = [
     default: 'warn',
     gate: 'compiler',
     description:
-      'A validate override on a type whose JSON union decoders also run validation internally — the override changes their behaviour too, which may be intended but is worth knowing',
+      'A validate override on a type whose JSON union decoders also run validation internally: the override changes their behaviour too, which may be intended but is worth knowing. Info: shown only with levels: all',
   },
   {
     name: 'non-enumerable',
@@ -235,7 +235,7 @@ export const RULE_SPECS: readonly RuleSpec[] = [
     default: 'error',
     gate: 'enrichment',
     description:
-      'A FriendlyText / MockData entry that no longer matches its type: a field the type does not declare, a name colliding with the reserved rt$ prefix, or a plural template missing its mandatory other arm',
+      'A FriendlyText / MockData entry that no longer matches its type: a field the type does not declare, or a name colliding with the reserved rt$ prefix',
   },
   {
     name: 'enrichment-message',
@@ -315,9 +315,9 @@ const PREFIX_TO_FAMILY: Record<string, FamilyRules> = {
   MKR: {primary: 'invalid-marker', warn: 'redundant-marker'},
   CTA: {primary: 'invalid-marker'},
   PFN: {primary: 'invalid-marker'},
-  // Batch transport: a batch the build cannot read is an error like any other marker, while one that works but
-  // does nothing for this server (BAT008) or a table nothing imports (BAT009) is the redundant-marker kind.
-  BAT: {primary: 'invalid-marker', warn: 'redundant-marker'},
+  // Batch transport: every BAT code ships a call that fails (BAT008 / BAT009 answer every request with a 404), so
+  // all of them are invalid-marker errors.
+  BAT: {primary: 'invalid-marker'},
   TMP: {primary: 'invalid-marker'},
   // Bundled API metadata: a call that cannot work is an error, one that works but fetches or leaves an option
   // unset (MET004, MET006) is the redundant-marker kind.
