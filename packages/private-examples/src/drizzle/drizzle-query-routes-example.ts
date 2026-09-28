@@ -18,7 +18,7 @@ const db = drizzle(async () => ({rows: []}), {schema});
 const mion = createMionRouter();
 
 export const blogApi = mion.initRoutes({
-  // a queried row is the model, formats included
+  // whole rows: the model
   listAuthors: mion.route(
     async (): Promise<Author[]> => db.select().from(authorsDb)
   ),
