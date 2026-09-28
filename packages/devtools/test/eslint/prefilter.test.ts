@@ -72,8 +72,7 @@ describe('referencesMarkerModule', () => {
   it('matches a configured marker package, additively with the default one', () => {
     const markers = {packages: ['@my-org/markers']};
     const ownPackage = `import {getRunTypeId} from '@my-org/markers';`;
-    // Without config the third-party import is invisible to the pre-filter, so
-    // the file would never reach the resolver and its diagnostics would vanish.
+    // Unconfigured, the file never reaches the resolver and its diagnostics vanish.
     expect(referencesMarkerModule(ownPackage)).toBe(false);
     expect(referencesMarkerModule(ownPackage, undefined, markers)).toBe(true);
     // Configuring one must not stop matching the built-in package.
@@ -85,16 +84,12 @@ describe('referencesMarkerModule', () => {
   });
 
   it('lets every file through when the package check is disabled', () => {
-    // With no package gate a marker can be declared anywhere, so no import
-    // probe is sound — pre-filtering by specifier would silently drop files.
+    // Any file may declare a marker, so filtering by specifier would silently drop files.
     expect(referencesMarkerModule('const unrelated = 1;', undefined, {checkPackage: false})).toBe(true);
   });
 });
 
-// A drizzle dialect's `tableFromType<T>()` carries a marker declared by
-// @mionjs/run-types, yet the calling file imports only the dialect package or a
-// local wrapper of it. These fixtures are real directories: the gate reads the
-// imported package.json and the wrapper file from disk.
+// Real directories, because the gate reads imported package.json files and local wrappers from disk.
 describe('referencesMarkerModule follows imports', () => {
   const REPO_ROOT = path.resolve(__dirname, '../../../..');
   let dir: string;

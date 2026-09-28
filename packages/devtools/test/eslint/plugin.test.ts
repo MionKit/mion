@@ -38,9 +38,7 @@ export function makeValidator<T>() {
 }
 `;
 
-// A drizzle dialect package: its tableFromType carries a marker declared by
-// @mionjs/run-types, so a file importing only the dialect still holds a marker
-// call the build rewrites and the linter must check.
+// A dialect's tableFromType carries a run-types marker, so a file importing only the dialect must be checked.
 const DIALECT_PACKAGE_JSON = JSON.stringify({
   name: '@mionjs/drizzle-orm-pg-core',
   exports: {'.': './index.d.ts'},
@@ -57,7 +55,7 @@ export function makeTable<T>() {
 }
 `;
 
-// A local wrapper module re-exporting the dialect: its importer names neither package.
+// A local wrapper of the dialect: its importer names neither package.
 const TABLES_TS = `export {tableFromType} from '@mionjs/drizzle-orm-pg-core';
 `;
 

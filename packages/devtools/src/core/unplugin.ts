@@ -971,9 +971,8 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       if (!resolver) return null;
       if (!/\.[mc]?[jt]sx?$/.test(id)) return null;
       const rel = path.relative(cwdAbs || process.cwd(), id);
-      // The resolver's site-file set is the real gate, so wrapper frameworks need no configuration. A file the
-      // last scan could not have seen (created mid-session, before its first HMR scan) falls back to the text
-      // gate the linter uses too.
+      // The site-file set is the real gate, so wrapper frameworks need no configuration.
+      // A file created since the last scan falls back to the text gate the linter shares.
       const inSiteSet = siteFiles.has(siteKey(rel));
       if (!inSiteSet && !mayHoldMarkerCalls(code, id, options.markers)) return null;
 
@@ -981,11 +980,8 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
         // `await` keeps the rejection inside this try — `return promise` would let it escape.
         return await (transformMode === 'edits' ? transformViaEdits(this, rel, code) : transformViaGo(this, rel, {code}));
       } catch (error) {
-        // A textual-fallback candidate can be a FALSE POSITIVE: a file merely containing a probed name
-        // (its own `registerPureFnFactory`, say) while living OUTSIDE the resolver's program, which the
-        // resolver rejects with "source file not in program". It was never scanned, so it carries no
-        // injectable sites. Files in the SITE SET keep failing loud: there a program miss would silently
-        // lose real injections.
+        // A text-fallback file may be a false positive outside the resolver's program, with no sites to inject.
+        // Site-set files keep failing loud: there a program miss would silently lose real injections.
         if (!inSiteSet && error instanceof Error && error.message.includes('source file not in program')) return null;
         throw error;
       }
