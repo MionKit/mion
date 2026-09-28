@@ -220,3 +220,42 @@ func TestDataOnlyUnion_ObjectMemberStrippedProp(t *testing.T) {
 		}
 	}
 }
+
+// A dropped property inside a union member reports the same code a plain object would: …015 for a
+// non-function value (`Date | {b: symbol}`), …010 only for a function value.
+func TestDataOnlyUnion_ObjectMemberDropCodeMatchesValueKind(t *testing.T) {
+	cases := []struct {
+		name  string
+		value *reflection.RunType
+		want  map[string]string
+	}{
+		{"symbol", mkSym(), map[string]string{
+			"validate":              diagnostics.CodeVLNonSerializablePropDrop,
+			"prepareForJsonMutate":  diagnostics.CodePJNonSerializablePropDrop,
+			"prepareForJsonClone":   diagnostics.CodePJSNonSerializablePropDrop,
+			"restoreFromJsonMutate": diagnostics.CodeRJNonSerializablePropDrop,
+		}},
+		{"function", mkFn(), map[string]string{
+			"validate":              diagnostics.CodeVLFunctionPropDropped,
+			"prepareForJsonMutate":  diagnostics.CodePJFunctionPropDropped,
+			"prepareForJsonClone":   diagnostics.CodePJSFunctionPropDropped,
+			"restoreFromJsonMutate": diagnostics.CodeRJFunctionPropDropped,
+		}},
+	}
+	for _, testCase := range cases {
+		propB := &reflection.RunType{ID: "pb", Kind: reflection.KindPropertySignature, Name: "b", Child: makeRef(testCase.value.ID)}
+		obj := &reflection.RunType{ID: "obj", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pb")}}
+		union := &reflection.RunType{
+			ID: "uni", Kind: reflection.KindUnion,
+			Children:          []*reflection.RunType{makeRef("dat"), makeRef("obj")},
+			SafeUnionChildren: []*reflection.RunType{makeRef("dat"), makeRef("obj")},
+		}
+		dump := protocol.Dump{RunTypes: []*reflection.RunType{mkDate(), testCase.value, propB, obj, union}}
+		for familyKey, wantCode := range testCase.want {
+			_, sink := renderWithDiag(t, dump, familyKey, "uni")
+			if _, ok := findCode(sink, wantCode); !ok {
+				t.Errorf("[%s] %s property in a union member: want %s; sink=%+v", familyKey, testCase.name, wantCode, sink)
+			}
+		}
+	}
+}
