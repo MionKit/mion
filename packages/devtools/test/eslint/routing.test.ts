@@ -2,7 +2,7 @@
 // {rule, message, loc}. Pure mapping — no binary, no worker.
 
 import {describe, expect, it} from 'vitest';
-import {routeDiagnostic, renderMessage, RULE_SPECS, type RuleName} from '../../src/lint/diagnosticRouting.ts';
+import {anchoredIn, routeDiagnostic, renderMessage, RULE_SPECS, type RuleName} from '../../src/lint/diagnosticRouting.ts';
 import {DIAGNOSTIC_CATALOG} from '../../src/core/diagnosticCatalog.ts';
 import {Family, Level, Severity, type Diagnostic} from '../../src/core/protocol.ts';
 
@@ -73,6 +73,24 @@ describe('catalog coverage: every code routes to the rule of its level', () => {
       expect(routed, `${code} is a ${entry.level}`).toBe(rule);
       expect(RULE_DEFAULT.get(routed)).toBe(ruleDefault);
     }
+  });
+});
+
+describe('anchoredIn: only the linted file findings are reported', () => {
+  it('keeps a finding anchored in the linted file, however its path is spelled', () => {
+    expect(
+      anchoredIn(
+        diagnostic({code: 'VL002', site: {filePath: 'src/a.ts', startLine: 1, startCol: 1}}),
+        `${process.cwd()}/src/a.ts`
+      )
+    ).toBe(true);
+  });
+
+  it('drops a finding anchored in another file, or in no file', () => {
+    expect(anchoredIn(diagnostic({code: 'OVR001', site: {filePath: '/p/b.ts', startLine: 4, startCol: 1}}), '/p/a.ts')).toBe(
+      false
+    );
+    expect(anchoredIn(diagnostic({code: 'BAT009', site: {filePath: '', startLine: 0, startCol: 0}}), '/p/a.ts')).toBe(false);
   });
 });
 

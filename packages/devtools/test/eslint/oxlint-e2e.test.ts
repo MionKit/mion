@@ -392,3 +392,45 @@ describe.runIf(ready)('oxlint end to end with the tsconfig downgradeErrors key',
     expect(exitCode).toBe(0);
   });
 });
+
+// A lint report carries no file, so the host pins it to the file being linted: the override pair in a.ts / b.ts
+// is a whole-program finding, and a lint of c.ts, which reaches both, must not report it at c.ts positions.
+describe.runIf(ready)('oxlint reports only the linted file findings', () => {
+  let project: FixtureProject;
+
+  beforeAll(() => {
+    project = makeFixtureProject({
+      'a.ts': "import {overrideValidate} from '@mionjs/run-types';\n\noverrideValidate<string>((v) => typeof v === 'string');\n",
+      'b.ts':
+        "import {overrideValidate} from '@mionjs/run-types';\nimport './a';\n\noverrideValidate<string>((v) => v !== null);\n",
+      'c.ts':
+        "import {getRunTypeId} from '@mionjs/run-types';\nimport './b';\n\n" +
+        'export const idStatic = getRunTypeId<{name: string}>();\n' +
+        "const sample = {name: 'Ada'};\n" +
+        'export const idReflected = getRunTypeId(sample);\n',
+      '.oxlintrc.json': JSON.stringify({
+        categories: {correctness: 'off'},
+        jsPlugins: [PLUGIN_DIST],
+        rules: {'mion/error': 'error', 'mion/warning': 'warn', 'mion/info': 'warn'},
+        ignorePatterns: ['node_modules/**'],
+      }),
+    });
+  });
+
+  afterAll(() => project.cleanup());
+
+  const lintCodes = async (file: string) => {
+    const stdout = await execFileAsync(OXLINT, ['-c', '.oxlintrc.json', '-f', 'json', file], {cwd: project.dir}).then(
+      ({stdout}) => stdout,
+      (error: {stdout?: string}) => error.stdout ?? ''
+    );
+    return (JSON.parse(stdout) as {diagnostics: {message: string}[]}).diagnostics.map((diagnostic) =>
+      diagnostic.message.slice(0, 8)
+    );
+  };
+
+  it('keeps the override pair out of a lint of c.ts, and reports it when b.ts is linted', {timeout: 120_000}, async () => {
+    expect((await lintCodes('c.ts')).filter((code) => code.startsWith('[OVR'))).toEqual([]);
+    expect(await lintCodes('b.ts')).toContain('[OVR001]');
+  });
+});
