@@ -80,3 +80,30 @@ func TestSymbolKeyedProperty_UnionArmDropped(t *testing.T) {
 		}
 	}
 }
+
+// A symbol-keyed method is named `[tag]` in its …011 message, never with tsgo's internal `\xFE@` spelling.
+func TestSymbolKeyedMethod_LabelIsReadable(t *testing.T) {
+	methodDropCodes := map[string]string{
+		"validate":              diagnostics.CodeVLMethodDropped,
+		"validationErrors":      diagnostics.CodeVEMethodDropped,
+		"prepareForJsonMutate":  diagnostics.CodePJMethodDropped,
+		"prepareForJsonClone":   diagnostics.CodePJSMethodDropped,
+		"restoreFromJsonMutate": diagnostics.CodeRJMethodDropped,
+	}
+	for fam, code := range methodDropCodes {
+		value := &reflection.RunType{ID: "s", Kind: reflection.KindString}
+		name := &reflection.RunType{ID: "pn", Kind: reflection.KindPropertySignature, Name: "name", Child: makeRef("s")}
+		method := &reflection.RunType{ID: "mt", Kind: reflection.KindMethodSignature, Name: "\xFE@tag"}
+		obj := &reflection.RunType{ID: "obj", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pn"), makeRef("mt")}}
+		dump := protocol.Dump{RunTypes: []*reflection.RunType{value, name, method, obj}}
+		_, sink := renderWithDiag(t, dump, fam, "obj")
+		got, ok := findCode(sink, code)
+		if !ok {
+			t.Errorf("[%s] expected %s; sink=%+v", fam, code, sink)
+			continue
+		}
+		if len(got.Args) == 0 || got.Args[0] != "[tag]" {
+			t.Errorf("[%s] %s must name the method `[tag]`, got %q", fam, code, got.Args)
+		}
+	}
+}

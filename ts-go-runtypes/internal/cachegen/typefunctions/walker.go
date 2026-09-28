@@ -274,7 +274,7 @@ func memberLabel(rt *reflection.RunType) string {
 	if rt == nil || rt.Name == "" {
 		return "<anonymous>"
 	}
-	return rt.Name
+	return reflection.SymbolKeyLabel(rt.Name)
 }
 
 // AbsorbUnsupported clears the unsupported-leaf latch so the walker keeps compiling siblings. Used by
