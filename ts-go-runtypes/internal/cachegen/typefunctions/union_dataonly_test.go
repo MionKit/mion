@@ -249,7 +249,6 @@ func TestDataOnlyUnion_ObjectMemberStrippedProp(t *testing.T) {
 	}
 }
 
-// A `__proto__` property in a union member drops with UPN001, like it does on a plain object.
 func TestDataOnlyUnion_ObjectMemberUnsafeNameDropped(t *testing.T) {
 	protoProp := &reflection.RunType{ID: "pp", Kind: reflection.KindPropertySignature, Name: "__proto__", Child: makeRef("str")}
 	obj := &reflection.RunType{ID: "obj", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pp")}}
