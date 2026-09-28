@@ -78,11 +78,17 @@ export const OTHERS = {
       'An array of non-serializable `Int8Array` elements renders the factory as alwaysThrow because a non-serializable element is a propagating position, so every encoder / decoder invocation throws for JSON.',
     serializeNotes:
       'No value-first builder can express the enclosing array, so all schema variants are not-supported and test data is empty.',
+    // @mion-downgrade-error PJ002
     mutateEncoder: () => createJsonEncoderFn<Int8Array[]>(undefined, {strategy: 'mutate'}),
+    // @mion-downgrade-error PJS002
     cloneEncoder: () => createJsonEncoderFn<Int8Array[]>(undefined, {strategy: 'clone'}),
+    // @mion-downgrade-error PJS002
     compactEncoder: () => createJsonEncoderFn<Int8Array[]>(undefined, {strategy: 'compact'}),
+    // @mion-downgrade-error RJ002
     cloneDecoder: () => createJsonDecoderFn<Int8Array[]>(),
+    // @mion-downgrade-error RJ002
     mutateDecoder: () => createJsonDecoderFn<Int8Array[]>(undefined, {strategy: 'mutate'}),
+    // @mion-downgrade-error RJ002
     compactDecoder: () => createJsonDecoderFn<Int8Array[]>(undefined, {strategy: 'compact'}),
     // No value-first builder for Int8Array, so the enclosing array is inexpressible.
     schemaEncoder: 'not-supported',
@@ -96,11 +102,17 @@ export const OTHERS = {
       'A tuple with a non-serializable `Int8Array` slot renders the factory as alwaysThrow because a non-serializable tuple slot is a propagating position, so every encoder / decoder invocation throws for JSON.',
     serializeNotes:
       'No value-first builder can express the enclosing tuple, so all schema variants are not-supported and test data is empty.',
+    // @mion-downgrade-error PJ002
     mutateEncoder: () => createJsonEncoderFn<[Int8Array]>(undefined, {strategy: 'mutate'}),
+    // @mion-downgrade-error PJS002
     cloneEncoder: () => createJsonEncoderFn<[Int8Array]>(undefined, {strategy: 'clone'}),
+    // @mion-downgrade-error PJS002
     compactEncoder: () => createJsonEncoderFn<[Int8Array]>(undefined, {strategy: 'compact'}),
+    // @mion-downgrade-error RJ002
     cloneDecoder: () => createJsonDecoderFn<[Int8Array]>(),
+    // @mion-downgrade-error RJ002
     mutateDecoder: () => createJsonDecoderFn<[Int8Array]>(undefined, {strategy: 'mutate'}),
+    // @mion-downgrade-error RJ002
     compactDecoder: () => createJsonDecoderFn<[Int8Array]>(undefined, {strategy: 'compact'}),
     // No value-first builder for Int8Array, so the enclosing tuple is inexpressible.
     schemaEncoder: 'not-supported',

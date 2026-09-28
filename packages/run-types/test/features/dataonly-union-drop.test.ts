@@ -103,14 +103,17 @@ describe('DataOnly collapse-to-never / empty still throws', () => {
   test('all-stripped union at a nested externalized property still throws (gate-elision regression)', () => {
     const buf = new ArrayBuffer(4);
     expect(() => {
+      // @mion-downgrade-error PJ002
       const encode = createJsonEncoderFn<HasNativeUnion>(undefined, {strategy: 'mutate'});
       return encode({x: buf, y: 1} as HasNativeUnion);
     }).toThrow();
     expect(() => {
+      // @mion-downgrade-error PJS002
       const encode = createJsonEncoderFn<HasNativeUnion>(); // clone (default)
       return encode({x: buf, y: 1} as HasNativeUnion);
     }).toThrow();
     expect(() => {
+      // @mion-downgrade-error PJS002
       const encode = createJsonEncoderFn<HasNativeUnion>(undefined, {strategy: 'compact'});
       return encode({x: buf, y: 1} as HasNativeUnion);
     }).toThrow();

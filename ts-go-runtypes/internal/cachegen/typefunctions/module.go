@@ -157,6 +157,8 @@ func CollectFamilyEntries(dump protocol.Dump, settings constants.CacheModuleSett
 	}
 
 	graph := make(entrymodules.Graph, len(dump.RunTypes))
+	throwing := map[string]*diskcache.CachedDiagnostic{}
+	var demandedRoots []demandedRoot
 
 	// renderEntry is idempotent via graph dedup; an unsupported child's CodeNS drops the factory (see codetype.go).
 	renderEntry := func(runType *reflection.RunType, suffix string, options []string, rejectCircular bool) ([]string, bool) {
@@ -177,6 +179,9 @@ func CollectFamilyEntries(dump protocol.Dump, settings constants.CacheModuleSett
 		rendered := renderEntryWithDeps(runType, settings, emitter, innerPrefix, refTable, opts, suffix, options, rejectCircular)
 		if rendered.argsText == "" {
 			return nil, false
+		}
+		if rendered.throws != nil {
+			throwing[entryID] = rendered.throws
 		}
 		graph.Add(&entrymodules.Entry{
 			Key:       entryID,
@@ -236,6 +241,10 @@ func CollectFamilyEntries(dump protocol.Dump, settings constants.CacheModuleSett
 				}
 				if deps, ok := renderEntry(root, demanded.VariantSuffix, demanded.Options, demanded.RejectCircular); ok {
 					enqueueChildren(deps)
+					demandedRoots = append(demandedRoots, demandedRoot{
+						entryID: variantKey(settings, demanded.VariantSuffix, demanded.Options, root.ID, demanded.RejectCircular),
+						typeID:  root.ID,
+					})
 				}
 			}
 		}
@@ -272,6 +281,7 @@ func CollectFamilyEntries(dump protocol.Dump, settings constants.CacheModuleSett
 				enqueueChildren(deps)
 			}
 		}
+		reportReachedThrows(graph, throwing, demandedRoots, settings.Tag, opts)
 	} else {
 		// Unit-test path with no call-site demand; the resolver-level cascade prunes parents of unsupported children.
 		for _, runType := range dump.RunTypes {
@@ -283,6 +293,75 @@ func CollectFamilyEntries(dump protocol.Dump, settings constants.CacheModuleSett
 	}
 
 	return graph
+}
+
+// demandedRoot is one entry a call site asked for, by entry key and the type id its provenance is keyed on.
+type demandedRoot struct {
+	entryID string
+	typeID  string
+}
+
+// reportReachedThrows reports, at a site whose entry works, the root code of an alwaysThrow entry it calls: the
+// body calls same-family deps unconditionally, so the site's function throws too. The walker only reports a root
+// code where the failing type was NAMED, which left `{inner: Inner}` silent when `Inner` always throws.
+func reportReachedThrows(graph entrymodules.Graph, throwing map[string]*diskcache.CachedDiagnostic, roots []demandedRoot, familyTag string, opts RenderOpts) {
+	if len(throwing) == 0 || opts.DiagSink == nil {
+		return
+	}
+	reported := map[string]bool{}
+	for _, diagnostic := range *opts.DiagSink {
+		reported[reachedThrowKey(diagnostic.Code, diagnostic.Args, diagnostic.Site)] = true
+	}
+	for _, root := range roots {
+		if throwing[root.entryID] != nil {
+			continue
+		}
+		sites := opts.RootedSites[ProvenanceKey(root.typeID, familyTag)]
+		if len(sites) == 0 {
+			continue
+		}
+		for _, thrown := range reachableThrows(graph, throwing, root.entryID) {
+			for _, site := range sites {
+				key := reachedThrowKey(thrown.Code, thrown.Args, site)
+				if reported[key] {
+					continue
+				}
+				reported[key] = true
+				*opts.DiagSink = append(*opts.DiagSink, diagnostics.New(thrown.Code, site, thrown.Args...))
+			}
+		}
+	}
+}
+
+// reachableThrows walks an entry's same-family deps and returns the alwaysThrow findings it reaches, in walk order.
+func reachableThrows(graph entrymodules.Graph, throwing map[string]*diskcache.CachedDiagnostic, entryID string) []*diskcache.CachedDiagnostic {
+	var found []*diskcache.CachedDiagnostic
+	visited := map[string]bool{entryID: true}
+	stack := []string{entryID}
+	for len(stack) > 0 {
+		current := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		entry, ok := graph[current]
+		if !ok {
+			continue
+		}
+		for _, dep := range entry.Deps {
+			if visited[dep] {
+				continue
+			}
+			visited[dep] = true
+			if thrown := throwing[dep]; thrown != nil {
+				found = append(found, thrown)
+				continue
+			}
+			stack = append(stack, dep)
+		}
+	}
+	return found
+}
+
+func reachedThrowKey(code string, args []string, site diagnostics.Site) string {
+	return fmt.Sprintf("%s\x00%s\x00%s:%d:%d", code, strings.Join(args, "\x01"), site.FilePath, site.StartLine, site.StartCol)
 }
 
 // collectFamilyDemand groups familyTag's demands per runtype id, deduped so N identical sites yield one entry.
@@ -341,6 +420,8 @@ type entryRender struct {
 	// isNoop marks the short-form tuple whose runtime fn is the family identity,
 	// so downstream consumers can elide references to it.
 	isNoop bool
+	// throws is the root code (and its args) of an alwaysThrow entry, so a parent that calls it can report it too.
+	throws *diskcache.CachedDiagnostic
 }
 
 // renderEntryWithDeps compiles one RunType into its tuple argument text and the dependency hashes alongside it
@@ -436,7 +517,7 @@ func renderEntryWithDeps(runType *reflection.RunType, settings constants.CacheMo
 					provenance[0].FilePath = opts.ThrowSitePath(provenance[0].FilePath)
 				}
 				argsText := renderAlwaysThrowEntry(runType, innerName, diagCode, kindLabel, provenance)
-				return entryRender{argsText: argsText}
+				return entryRender{argsText: argsText, throws: &diskcache.CachedDiagnostic{Code: diagCode, Args: []string{kindLabel}}}
 			}
 		}
 		return entryRender{}
@@ -622,7 +703,17 @@ func tryReadCachedEntry(runType *reflection.RunType, settings constants.CacheMod
 	}
 	pureFnDeps := append([]string(nil), entry.PureFnRefs...)
 	replayCachedDiagnostics(runType, settings.Tag, entry.Diagnostics, opts)
-	return entryRender{argsText: entry.ArgsText, deps: deps, crossFamilyDeps: crossFamilyDeps, pureFnDeps: pureFnDeps, isNoop: entry.IsNoop}, true
+	return entryRender{argsText: entry.ArgsText, deps: deps, crossFamilyDeps: crossFamilyDeps, pureFnDeps: pureFnDeps, isNoop: entry.IsNoop, throws: cachedThrow(entry.Diagnostics)}, true
+}
+
+// cachedThrow recovers an alwaysThrow entry's root code from its persisted findings: the only RuntimeError it emits.
+func cachedThrow(cached []diskcache.CachedDiagnostic) *diskcache.CachedDiagnostic {
+	for i := range cached {
+		if diagnostics.ScopeOf(cached[i].Code) == diagnostics.ScopeRoot && diagnostics.LevelOf(cached[i].Code) == diagnostics.LevelRuntimeError {
+			return &cached[i]
+		}
+	}
+	return nil
 }
 
 // replayCachedDiagnostics re-emits an entry's persisted findings on a cache hit, or a project's warnings would
