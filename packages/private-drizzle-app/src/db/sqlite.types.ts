@@ -28,7 +28,7 @@ export type PostsTable = DZ.SqliteTable<
   'posts',
   {
     id: DZ.Text<{primaryKey: true}>;
-    authorId: DZ.Text<{notNull: true}>;
+    authorId: DZ.Text<{notNull: true; references: [{table: 'users'; column: 'id'}]}>;
     title: DZ.Text<{length: 200; notNull: true}>;
     tags: DZ.Text<{mode: 'json'; $type: [string[]]; notNull: true}>;
     views: DZ.Integer<{notNull: true; default: [0]}>;
@@ -39,7 +39,7 @@ export type PostsTable = DZ.SqliteTable<
 >;
 
 export const users = DZ.tableFromType<UsersTable>();
-export const posts = DZ.tableFromType<PostsTable>();
+export const posts = DZ.tableFromType<PostsTable>({tables: {users}});
 
 // A view has no type form: it stays a builder.
 export const adultUsers = DZ.sqliteView('adult_users', {
@@ -59,7 +59,7 @@ export type BusyAuthor = Pick<Post, 'authorId' | 'views'>;
 export type AdultUser = InferSelectViewModel<typeof adultUsers>;
 
 export const usersDb = toDrizzle<UsersTable>();
-export const postsDb = toDrizzle<PostsTable>();
+export const postsDb = toDrizzle<PostsTable>({tables: {users}});
 export const adultUsersDb = toDrizzle(adultUsers);
 
 // Query-builder views stay on drizzle (DRZ001).
