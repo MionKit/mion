@@ -1,6 +1,7 @@
 package typefunctions
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -194,51 +195,30 @@ func TestDataOnlyUnion_NestedInArray(t *testing.T) {
 	}
 }
 
-// K2 regression: a union whose object member carries a DataOnly-stripped
-// property (`Date | {b: symbol}`) must DROP that property and serialize the
-// member as `{}`, NOT alwaysThrow the whole union. A standalone `{b: symbol}`
-// already drops to `{}`; the union merged-prop builder used to filter only
-// function-like props, so the symbol survived, emitted CodeNS, and failed the
-// union. Covers every flat-union family (the merged-prop list is shared).
+// K2 regression: a union whose object member carries a DataOnly-stripped property (`Date | {b: symbol}`)
+// must DROP that property and still serialize, NOT alwaysThrow the whole union. The drop reports the
+// strippedPropertyDrop code (…015 for a non-function value, …010 for a function) and never the other one,
+// at the root and one object deeper. removeUnknownKeys refuses the union itself but still reports the drop.
 func TestDataOnlyUnion_ObjectMemberStrippedProp(t *testing.T) {
-	date := mkDate()
-	sym := mkSym()
-	propB := &reflection.RunType{ID: "pb", Kind: reflection.KindPropertySignature, Name: "b", Child: makeRef("sym")}
-	obj := &reflection.RunType{ID: "obj", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pb")}}
-	union := &reflection.RunType{
-		ID: "uni", Kind: reflection.KindUnion,
-		Children:          []*reflection.RunType{makeRef("dat"), makeRef("obj")},
-		SafeUnionChildren: []*reflection.RunType{makeRef("dat"), makeRef("obj")},
-	}
-	dump := protocol.Dump{RunTypes: []*reflection.RunType{date, sym, propB, obj, union}}
-
-	for _, fam := range []string{"validate", "prepareForJsonMutate", "prepareForJsonClone", "restoreFromJsonMutate"} {
-		out := renderModule(t, dump, fam)
-		// Only a real union factory defines `_uni(`; an alwaysThrow union has none.
-		if !strings.Contains(out, "_uni(") {
-			t.Errorf("[%s] `Date | {b: symbol}` should drop the symbol prop and serialize, not alwaysThrow; got:\n%s", fam, out)
-		}
-	}
-}
-
-// A dropped union-member property gets the strippedPropertyDrop code: …015 for a non-function value, …010 for a function.
-func TestDataOnlyUnion_ObjectMemberDropCodeMatchesValueKind(t *testing.T) {
+	type familyCodes struct{ want, notWant string }
 	cases := []struct {
 		name  string
 		value *reflection.RunType
-		want  map[string]string
+		codes map[string]familyCodes
 	}{
-		{"symbol", mkSym(), map[string]string{
-			"validate":              diagnostics.CodeVLNonSerializablePropDrop,
-			"prepareForJsonMutate":  diagnostics.CodePJNonSerializablePropDrop,
-			"prepareForJsonClone":   diagnostics.CodePJSNonSerializablePropDrop,
-			"restoreFromJsonMutate": diagnostics.CodeRJNonSerializablePropDrop,
+		{"symbol", mkSym(), map[string]familyCodes{
+			"validate":              {diagnostics.CodeVLNonSerializablePropDrop, diagnostics.CodeVLFunctionPropDropped},
+			"prepareForJsonMutate":  {diagnostics.CodePJNonSerializablePropDrop, diagnostics.CodePJFunctionPropDropped},
+			"prepareForJsonClone":   {diagnostics.CodePJSNonSerializablePropDrop, diagnostics.CodePJSFunctionPropDropped},
+			"restoreFromJsonMutate": {diagnostics.CodeRJNonSerializablePropDrop, diagnostics.CodeRJFunctionPropDropped},
+			"removeUnknownKeys":     {diagnostics.CodeRUKNonSerializablePropDrop, diagnostics.CodeRUKFunctionPropDropped},
 		}},
-		{"function", mkFn(), map[string]string{
-			"validate":              diagnostics.CodeVLFunctionPropDropped,
-			"prepareForJsonMutate":  diagnostics.CodePJFunctionPropDropped,
-			"prepareForJsonClone":   diagnostics.CodePJSFunctionPropDropped,
-			"restoreFromJsonMutate": diagnostics.CodeRJFunctionPropDropped,
+		{"function", mkFn(), map[string]familyCodes{
+			"validate":              {diagnostics.CodeVLFunctionPropDropped, diagnostics.CodeVLNonSerializablePropDrop},
+			"prepareForJsonMutate":  {diagnostics.CodePJFunctionPropDropped, diagnostics.CodePJNonSerializablePropDrop},
+			"prepareForJsonClone":   {diagnostics.CodePJSFunctionPropDropped, diagnostics.CodePJSNonSerializablePropDrop},
+			"restoreFromJsonMutate": {diagnostics.CodeRJFunctionPropDropped, diagnostics.CodeRJNonSerializablePropDrop},
+			"removeUnknownKeys":     {diagnostics.CodeRUKFunctionPropDropped, diagnostics.CodeRUKNonSerializablePropDrop},
 		}},
 	}
 	for _, testCase := range cases {
@@ -249,11 +229,22 @@ func TestDataOnlyUnion_ObjectMemberDropCodeMatchesValueKind(t *testing.T) {
 			Children:          []*reflection.RunType{makeRef("dat"), makeRef("obj")},
 			SafeUnionChildren: []*reflection.RunType{makeRef("dat"), makeRef("obj")},
 		}
-		dump := protocol.Dump{RunTypes: []*reflection.RunType{mkDate(), testCase.value, propB, obj, union}}
-		for familyKey, wantCode := range testCase.want {
-			_, sink := renderWithDiag(t, dump, familyKey, "uni")
-			if _, ok := findCode(sink, wantCode); !ok {
-				t.Errorf("[%s] %s property in a union member: want %s; sink=%+v", familyKey, testCase.name, wantCode, sink)
+		propU := &reflection.RunType{ID: "pu", Kind: reflection.KindPropertySignature, Name: "u", Child: makeRef("uni")}
+		outer := &reflection.RunType{ID: "outer", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pu")}}
+		dump := protocol.Dump{RunTypes: []*reflection.RunType{mkDate(), testCase.value, propB, obj, union, propU, outer}}
+		for _, rootID := range []string{"uni", "outer"} {
+			for familyKey, codes := range testCase.codes {
+				out, sink := renderWithDiag(t, dump, familyKey, rootID)
+				label := fmt.Sprintf("[%s %s root=%s]", familyKey, testCase.name, rootID)
+				if familyKey != "removeUnknownKeys" && !strings.Contains(out, "_uni(") {
+					t.Errorf("%s the union should drop the property and serialize, not alwaysThrow; got:\n%s", label, out)
+				}
+				if _, ok := findCode(sink, codes.want); !ok {
+					t.Errorf("%s want %s; sink=%+v", label, codes.want, sink)
+				}
+				if _, ok := findCode(sink, codes.notWant); ok {
+					t.Errorf("%s must not report %s; sink=%+v", label, codes.notWant, sink)
+				}
 			}
 		}
 	}

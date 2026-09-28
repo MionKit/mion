@@ -52,6 +52,11 @@ func strippedPropertyDrop(resolved *reflection.RunType, name string, ctx *EmitCo
 		ctx.EmitDiagnosticSlot(SlotSymbolKeyedDropped, reflection.SymbolKeyLabel(name))
 		return true
 	}
+	return strippedValueDrop(resolved, name, ctx)
+}
+
+// strippedValueDrop is the VALUE half of strippedPropertyDrop, shared with the union merge path, which checks names itself.
+func strippedValueDrop(resolved *reflection.RunType, name string, ctx *EmitContext) bool {
 	if !isStrippedUnionMember(resolved) {
 		return false
 	}
