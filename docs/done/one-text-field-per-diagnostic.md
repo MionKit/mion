@@ -1,7 +1,7 @@
 ---
 type: chore
 spec: guidelines
-status: ready
+status: done
 created: 2026-09-28
 ---
 
@@ -72,3 +72,20 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
 - The 160 texts are written by fresh subagents following the simplify-docs skill, one per family
   group, to scratch JSON; merged into `prose.go`, checked against the old detail so no fact is lost,
   then reviewed again by the `docs-simplifier` pass. Code fixes from the old detail move into `Fix`.
+
+## What shipped
+
+- As planned: one `summary` per code (160 of 160), `detail` and `severity` gone from both generated
+  catalogs, the "Full build message" box gone, `TestEveryCodeHasSummary` pins it. Code fixes that the
+  old detail showed as diffs moved into `fix` as plain code.
+- Writing the texts against the code found old detail text that was wrong, now corrected in the
+  summary: MKR006 (info, not a build stop), EXP002 / DWN002 (the rule is by level, not "pure function
+  codes"), OVR002 (the cache is `node_modules/.cache/mion`), RUK003 / RUK010 / RUK011 (functions and
+  object-literal methods are kept by reference, not dropped), PJ / PJS / RJ 014 (`Map` and `Set` are
+  never dropped from a union).
+- Two related code fixes, each with its own commit and test:
+  - A non-function property dropped from a union member reported the function code (…010); it now
+    reports …015 like a plain object does (`union_flat_layout.go`).
+  - 18 PJ / PJS / RJ headlines named internal cache families (`prepareForJsonClone`,
+    `restoreFromJsonMutate`); they now say "the JSON encoder" / "the JSON decoder", and
+    `TestHeadlinesNameNoInternalJsonFamily` keeps them out.
