@@ -248,3 +248,24 @@ func TestDataOnlyUnion_ObjectMemberStrippedProp(t *testing.T) {
 		}
 	}
 }
+
+// A `__proto__` property in a union member drops with UPN001, like it does on a plain object.
+func TestDataOnlyUnion_ObjectMemberUnsafeNameDropped(t *testing.T) {
+	protoProp := &reflection.RunType{ID: "pp", Kind: reflection.KindPropertySignature, Name: "__proto__", Child: makeRef("str")}
+	obj := &reflection.RunType{ID: "obj", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pp")}}
+	union := &reflection.RunType{
+		ID: "uni", Kind: reflection.KindUnion,
+		Children:          []*reflection.RunType{makeRef("dat"), makeRef("obj")},
+		SafeUnionChildren: []*reflection.RunType{makeRef("dat"), makeRef("obj")},
+	}
+	dump := protocol.Dump{RunTypes: []*reflection.RunType{mkDate(), mkStr(), protoProp, obj, union}}
+	for _, familyKey := range []string{"validate", "prepareForJsonMutate", "prepareForJsonClone", "restoreFromJsonMutate", "removeUnknownKeys"} {
+		out, sink := renderWithDiag(t, dump, familyKey, "uni")
+		if _, ok := findCode(sink, diagnostics.CodeUnsafePropertyName); !ok {
+			t.Errorf("[%s] want %s for `__proto__` in a union member; sink=%+v", familyKey, diagnostics.CodeUnsafePropertyName, sink)
+		}
+		if strings.Contains(out, "__proto__") {
+			t.Errorf("[%s] generated code still reads `__proto__`:\n%s", familyKey, out)
+		}
+	}
+}

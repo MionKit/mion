@@ -363,6 +363,10 @@ func buildMergedProps(objectMembers []FlatObject, ctx *EmitContext, discValueByM
 			if prop == nil || prop.IsStatic {
 				continue
 			}
+			if reflection.IsUnsafePropertyName(prop.Name) {
+				ctx.EmitDiagnosticSlot(SlotUnsafeNamePropDropped, prop.Name)
+				continue
+			}
 			if reflection.IsSymbolKeyedName(prop.Name) {
 				ctx.EmitDiagnosticSlot(SlotSymbolKeyedDropped, reflection.SymbolKeyLabel(prop.Name))
 				continue
