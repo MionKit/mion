@@ -1,7 +1,7 @@
 ---
 type: feature
 spec: guidelines
-status: ready
+status: done
 created: 2026-09-25
 ---
 
@@ -225,7 +225,7 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
   (fourth card) + `DiagnosticCatalog.vue` (Info filter + badge class).
 - `01.rpc/06.devtools/02.vite.md` and `02.runtypes/01.introduction/04.configuration.md`: the `levels` option row.
 - `packages/devtools/src/lint/CLAUDE.md` "Severity" section: four levels, Info for lint-only advice.
-- Update `docs/todos/lint-route-returns-drizzle-type.md`: unblocked, its code is `LevelInfo`.
+- Update the drizzle route rule's todo: unblocked, its code is `LevelInfo`.
 
 ## 7. Finish
 
@@ -237,3 +237,34 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
 - Push to `claude/gracious-keller-sqkdgj`; PR only if asked. Labels when opened: `website`,
   `pre-publish-e2e` (new plugin option).
 
+
+## What shipped
+
+The picked option, built on the lint side, the build side and the CLI:
+
+- **`LevelInfo`** (Go catalog, wire `Level.Info = 4`, `SeverityInfo`). 39 codes: the 38 listed above plus the new
+  RUK013 (a symbol key the key-cleaning clone leaves out).
+- **Lint:** `settings.runtypes.levels: 'all'` shows Info; any other value warns once. Info and Warning route to a
+  family's `warn` rule. A finding a `@mion-downgrade-error` comment lowered reports under the new
+  `runtypes/downgraded-error` rule (`warn`), message ending `(downgraded)`.
+- **Build:** plugin option and tsconfig key `levels: 'all'` (echoed on `generate` like `downgradeErrors`, the option
+  wins). No summary line: Info prints nothing by default. The enrichment drift gate never halts on Info.
+- **CLI:** `mion compile` hides Info unless the tsconfig sets `levels: "all"`. `mion enrich --no-emit` never fails on
+  Info; its text report hides it, `--json` keeps it.
+- **Tests on real linters:** oxlint (the shipped preset, with and without `levels: 'all'`, and the downgraded
+  finding at `warning`) and a new ESLint run through `configs.recommended` from the built plugin; a real
+  `mion compile` run; build-plugin runs for the option and the tsconfig echo.
+
+Related fixes, each its own commit and test:
+
+1. Every dropped member is reported: the walker latch keys on code and args.
+2. Symbol-keyed members were compiled as a string key named by tsgo's internal `\xFE@` spelling (a valid object
+   failed validation, the clone added a bogus key). Every family now drops them with the …013 Info; one
+   `reflection.IsSymbolKeyedName` helper replaces the two copies in `convert` and `schemadoc`.
+3. The resolver crashed on a computed key (`[tag]: 'x'`) in an object a marker argument resolves to, and on a
+   `@nonEnumerable` computed member.
+4. FT008 is reported at its catalog level by the enrichment checker.
+5. Stale rule descriptions fixed; `BAT` routes only to `invalid-marker`; `MET` got its own routing row.
+6. The linter page rule count (now 25 with `downgraded-error`).
+
+Not built here: the drizzle route rule. Its todo is unblocked and now names `LevelInfo` as its level.
