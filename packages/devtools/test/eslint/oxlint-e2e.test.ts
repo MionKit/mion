@@ -177,7 +177,18 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
 
   // The documented consumer layout: a symlinked node_modules/@mionjs/devtools and a config that only `extends` the preset.
   // The preset's jsPlugins path must resolve relative to the preset file, and every rule runs at its RULE_SPECS default.
-  const runPreset = async (config: string, settings?: Record<string, unknown>): Promise<{stdout: string; exitCode: number}> => {
+  // JSON output: oxlint picks its GitHub annotation format on CI, so plain text reads differently there.
+  interface OxlintDiagnostic {
+    message: string;
+    code: string;
+    severity: string;
+    filename: string;
+    labels: {span: {line: number}}[];
+  }
+  const runPreset = async (
+    config: string,
+    settings?: Record<string, unknown>
+  ): Promise<{diagnostics: OxlintDiagnostic[]; stdout: string; exitCode: number}> => {
     const link = path.join(project.dir, 'node_modules', '@mionjs', 'devtools');
     if (!fs.existsSync(link)) {
       fs.mkdirSync(path.dirname(link), {recursive: true});
@@ -196,31 +207,41 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
         2
       )
     );
+    let stdout = '';
+    let exitCode = 0;
     try {
-      const result = await execFileAsync(OXLINT, ['-c', config, '.'], {cwd: project.dir});
-      return {stdout: result.stdout, exitCode: 0};
+      stdout = (await execFileAsync(OXLINT, ['-c', config, '-f', 'json', '.'], {cwd: project.dir})).stdout;
     } catch (error) {
       const failed = error as {stdout?: string; code?: number};
-      return {stdout: failed.stdout ?? '', exitCode: failed.code ?? 1};
+      stdout = failed.stdout ?? '';
+      exitCode = failed.code ?? 1;
     }
+    const diagnostics = (JSON.parse(stdout) as {diagnostics: OxlintDiagnostic[]}).diagnostics;
+    return {diagnostics, stdout, exitCode};
   };
 
   it('the shipped oxlint-recommended.json works as a one-line extends from node_modules', {timeout: 120_000}, async () => {
-    const {stdout, exitCode} = await runPreset('.oxlintrc.extends.json');
+    const {diagnostics, stdout, exitCode} = await runPreset('.oxlintrc.extends.json');
     // Error-severity gates fail the run; the engine ran.
     expect(exitCode).toBe(1);
-    expect(stdout).toContain('runtypes(no-enrichment-todo)');
+    expect(diagnostics.some((diagnostic) => diagnostic.code === 'runtypes(no-enrichment-todo)')).toBe(true);
     expect(stdout).not.toContain('resolver failed');
     // The Info-level VL011 method drop is hidden by default.
-    expect(stdout).not.toContain('[VL011]');
+    expect(diagnostics.some((diagnostic) => diagnostic.message.includes('[VL011]'))).toBe(false);
     // A `@mion-downgrade-error` line reports as a WARNING under downgraded-error, like the build prints it.
-    expect(stdout).toMatch(/lowered\.ts:4:\d+: warning runtypes\(downgraded-error\): \[VL002\] .*\(downgraded\)/);
-    expect(stdout).not.toContain('runtypes(validate-non-serializable)');
+    const lowered = diagnostics.filter((diagnostic) => diagnostic.filename === 'lowered.ts');
+    expect(lowered).toHaveLength(1);
+    expect(lowered[0]).toMatchObject({code: 'runtypes(downgraded-error)', severity: 'warning'});
+    expect(lowered[0]!.labels[0]!.span.line).toBe(4);
+    expect(lowered[0]!.message).toMatch(/^\[VL002\] .*\(downgraded\)$/);
   });
 
   it("the preset plus settings.runtypes.levels: 'all' shows Info findings at warn", {timeout: 120_000}, async () => {
-    const {stdout} = await runPreset('.oxlintrc.extends-all.json', {runtypes: {levels: 'all'}});
-    expect(stdout).toMatch(/widget\.ts:\d+:\d+: warning runtypes\(validate-skipped-member\): \[VL011\]/);
+    const {diagnostics, stdout} = await runPreset('.oxlintrc.extends-all.json', {runtypes: {levels: 'all'}});
+    const widget = diagnostics.filter((diagnostic) => diagnostic.filename === 'widget.ts');
+    expect(widget).toHaveLength(1);
+    expect(widget[0]).toMatchObject({code: 'runtypes(validate-skipped-member)', severity: 'warning'});
+    expect(widget[0]!.message).toContain('[VL011]');
     expect(stdout).not.toContain('resolver failed');
   });
 });
