@@ -9,7 +9,7 @@
 // warning, and rules take no per-rule options.
 
 import {createRequire} from 'node:module';
-import {Level} from '../core/protocol.ts';
+import {isShown, LEVELS_ALL} from '../core/levels.ts';
 import {routeDiagnostic, RULE_SPECS, type RuleName, type RuleSpec} from './diagnosticRouting.ts';
 import {looksLikeEnrichmentFile, needsResolverPass} from './prefilter.ts';
 import {LINT_SETTING_KEYS} from './session-protocol.ts';
@@ -62,7 +62,9 @@ function warnUnknownSettings(bag: Record<string, unknown>): void {
 function warnBadLevels(value: unknown): void {
   if (warnedKeys.has('levels')) return;
   warnedKeys.add('levels');
-  console.warn(`[runtypes] ignoring 'settings.runtypes.levels' = ${JSON.stringify(value)} (the only accepted value is 'all')`);
+  console.warn(
+    `[runtypes] ignoring 'settings.runtypes.levels' = ${JSON.stringify(value)} (the only accepted value is '${LEVELS_ALL}')`
+  );
 }
 
 // sessionOptions pulls the plugin's knobs from `settings.runtypes`. LINT_SETTING_KEYS (session-protocol.ts)
@@ -81,7 +83,7 @@ export function sessionOptions(settings: Record<string, unknown> | undefined): L
   if (bag['markers'] && typeof bag['markers'] === 'object') {
     options.markers = bag['markers'] as LintSessionOptions['markers'];
   }
-  if (bag['levels'] === 'all') options.levels = 'all';
+  if (bag['levels'] === LEVELS_ALL) options.levels = LEVELS_ALL;
   else if (bag['levels'] !== undefined) warnBadLevels(bag['levels']);
   return options;
 }
@@ -117,7 +119,7 @@ function diagnosticRule(
             return;
           }
           for (const diagnostic of outcome.diagnostics) {
-            if (diagnostic.level === Level.Info && options.levels !== 'all') continue;
+            if (!isShown(diagnostic, options.levels === LEVELS_ALL)) continue;
             const report = routeDiagnostic(diagnostic);
             if (report.ruleName !== ruleName) continue;
             context.report({message: report.message, loc: report.loc});
