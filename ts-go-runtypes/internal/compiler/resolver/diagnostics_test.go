@@ -186,8 +186,8 @@ export const _ = createJsonEncoderFn<User>(undefined, {strategy: 'mutate'});
 	if drop == nil {
 		t.Fatalf("expected PJ015 drop warning for the dropped never property, got %+v", runtype)
 	}
-	if drop.Severity != diagnostics.SeverityWarning {
-		t.Errorf("PJ015 severity = %v, want Warning (a dropped property serializes fine)", drop.Severity)
+	if drop.Severity != diagnostics.SeverityInfo {
+		t.Errorf("PJ015 severity = %v, want Info (a dropped property serializes fine)", drop.Severity)
 	}
 	if len(drop.Args) != 1 || drop.Args[0] != "bad" {
 		t.Errorf("expected args=[\"bad\"] (the dropped property name), got %v", drop.Args)
@@ -297,8 +297,8 @@ export const _ = createValidateFn<User>();
 	if found == nil {
 		t.Fatalf("expected VL010 or VL011 diagnostic, got %+v", resp.Diagnostics)
 	}
-	if found.Severity != diagnostics.SeverityWarning {
-		t.Errorf("severity: got %d want %d", found.Severity, diagnostics.SeverityWarning)
+	if found.Severity != diagnostics.SeverityInfo {
+		t.Errorf("severity: got %d want %d", found.Severity, diagnostics.SeverityInfo)
 	}
 	if len(found.Args) != 1 || found.Args[0] != "onClick" {
 		t.Errorf("args: got %v, expected [\"onClick\"]", found.Args)

@@ -123,6 +123,9 @@ type tsRuntypesPlugin struct {
 	//
 	// It replaced the boolean `failOnError`; see removedPluginKeys.
 	DowngradeErrors downgradeErrorsKey `json:"downgradeErrors"`
+	// Levels picks which diagnostic levels are printed: absent hides LevelInfo, "all" shows it. Echoed on
+	// the generate response (protocol.Response.Levels) like downgradeErrors; `mion compile` reads it too.
+	Levels string `json:"levels"`
 	// Validate holds project-wide ValidateOptions defaults the scanner merges per field into each site (site wins).
 	// It folds into the fnHash variant, so it is NOT a disk fingerprint input; nil keeps the built-in defaults.
 	Validate *validatePluginConfig `json:"validate"`

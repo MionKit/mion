@@ -97,4 +97,38 @@ describe('mion compile (tsc-like CLI)', () => {
       fs.rmSync(dir, {recursive: true, force: true});
     }
   });
+
+  // A method a validator skips is Info (VL011): hidden by default, printed as `info` once the tsconfig
+  // plugin entry sets `levels: "all"`, and never a failure either way.
+  const METHOD_TS = `import {createValidateFn} from '@mionjs/run-types';
+export class Pet {
+  name = 'rex';
+  speak(): string { return this.name; }
+}
+export const isPet = createValidateFn<Pet>();
+`;
+  const compileWithLevels = (levels: string | undefined) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-compile-levels-'));
+    const tsconfig = JSON.parse(TSCONFIG);
+    if (levels) tsconfig.compilerOptions.plugins = [{name: 'mion', levels}];
+    fs.writeFileSync(path.join(dir, 'tsconfig.json'), JSON.stringify(tsconfig));
+    fs.mkdirSync(path.join(dir, 'src'));
+    fs.writeFileSync(path.join(dir, 'src', 'runtypes.d.ts'), RUNTYPES_DTS);
+    fs.writeFileSync(path.join(dir, 'src', 'pet.ts'), METHOD_TS);
+    try {
+      return runCli(['compile', '--cwd', dir, '--tsconfig', 'tsconfig.json', '--no-emit'], {label: 'compile-cli-levels'});
+    } finally {
+      fs.rmSync(dir, {recursive: true, force: true});
+    }
+  };
+
+  register('hides an Info finding unless the tsconfig sets levels: "all"', () => {
+    const quiet = compileWithLevels(undefined);
+    expect(quiet.status, quiet.report).toBe(0);
+    expect(quiet.stderr).not.toContain('VL011');
+
+    const shown = compileWithLevels('all');
+    expect(shown.status, shown.report).toBe(0);
+    expect(shown.stderr).toMatch(/info VL011/);
+  });
 });

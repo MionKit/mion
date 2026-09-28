@@ -108,13 +108,25 @@ func reportEnrichDiagnostics(diags []diagnostics.Diagnostic, asJSON, requireComp
 		}
 		fmt.Println(string(encoded))
 	} else {
+		// The text report hides Info like every other host; the JSON report is data and keeps it.
+		shown := 0
 		for _, diag := range diags {
+			if !diagnostics.Shown(diag, false) {
+				continue
+			}
+			shown++
 			fmt.Println(diagnostics.FormatDebug(diag))
 		}
+		fmt.Fprintf(os.Stderr, "enrich --no-emit: %d finding(s)\n", shown)
+		return exitCode(hasError)
 	}
 
 	fmt.Fprintf(os.Stderr, "enrich --no-emit: %d finding(s)\n", len(diags))
-	if hasError {
+	return exitCode(hasError)
+}
+
+func exitCode(failed bool) int {
+	if failed {
 		return 1
 	}
 	return 0
@@ -157,6 +169,10 @@ func scaffoldWorklist(specs []mirror.Spec) []diagnostics.Diagnostic {
 // halt on them), and a gate keyed on the level would let a stale or malformed
 // mirror pass the check whose whole job is to catch it.
 func enrichFindingFails(code string, requireComplete bool) bool {
+	// An Info is advice (a plural arm that can never fire), never a failure in either lane.
+	if diagnostics.LevelOf(code) == diagnostics.LevelInfo {
+		return false
+	}
 	if diagnostics.IsCompleteness(code) {
 		return requireComplete
 	}

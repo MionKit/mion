@@ -172,7 +172,9 @@ func init() {
 	// `utl.getRT(key).fn` prologue would crash at runtime, so the build fails loudly here instead.
 	register(Definition{Code: CodeCompositeMissingPrimitive, Family: FamilyRunType, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "JSON composite references an unrendered primitive entry"})
 
-	// Child-position warnings: the factory still emits, just drops the member.
+	// Child-position drops: the factory still emits, just drops the member. LevelInfo, because leaving
+	// out what is not data is the documented contract; RUK010 / RUK015 stay LevelWarning, a clone that
+	// SHARES a value with the original is a surprise, not a drop.
 	// The …014 codes are the DataOnly union-member drop (`Date | symbol` acts as `Date`);
 	// validationErrors has none, its union arm delegates to validate so the user sees VL014.
 	// The …015 codes are the DataOnly PROPERTY drop: a property whose VALUE is directly non-data
@@ -185,8 +187,11 @@ func init() {
 		CodePJFunctionPropDropped, CodePJMethodDropped, CodePJStaticDropped, CodePJSymbolKeyedDropped, CodePJUnionMemberDropped, CodePJNonSerializablePropDrop,
 		CodePJSFunctionPropDropped, CodePJSMethodDropped, CodePJSStaticDropped, CodePJSSymbolKeyedDropped, CodePJSUnionMemberDropped, CodePJSNonSerializablePropDrop,
 		CodeRJFunctionPropDropped, CodeRJMethodDropped, CodeRJStaticDropped, CodeRJSymbolKeyedDropped, CodeRJUnionMemberDropped, CodeRJNonSerializablePropDrop,
-		CodeRUKFunctionPropDropped, CodeRUKMethodDropped, CodeRUKStaticDropped, CodeRUKNonSerializablePropDrop,
+		CodeRUKMethodDropped, CodeRUKStaticDropped,
 	} {
+		register(Definition{Code: code, Family: FamilyRunType, Level: LevelInfo, Scope: ScopeGraph, Title: "RunType child-position member dropped"})
+	}
+	for _, code := range []string{CodeRUKFunctionPropDropped, CodeRUKNonSerializablePropDrop} {
 		register(Definition{Code: code, Family: FamilyRunType, Level: LevelWarning, Scope: ScopeGraph, Title: "RunType child-position member dropped"})
 	}
 
@@ -194,13 +199,13 @@ func init() {
 	// because a member named `__proto__` cannot carry data on any road.
 	register(Definition{Code: CodeUnsafePropertyName, Family: FamilyRunType, Level: LevelWarning, Scope: ScopeGraph, Title: "RunType member named `__proto__` dropped"})
 
-	// Root any/unknown noop validators are LevelWarning, not LevelRuntimeError: the type really IS
+	// Root any/unknown noop validators are LevelInfo, not LevelRuntimeError: the type really IS
 	// `any` or `unknown` as written, so accepting everything is what was asked for. The RuntimeError
 	// case is a type that BECAME any because a name, an import or a lib failed to resolve (MKR007 /
 	// MKR013 / TMP001 / CFG002). The user is told because no schema is enforced, not because it is
 	// wrong.
-	register(Definition{Code: CodeVERootAnyUnknown, Family: FamilyRunType, Level: LevelWarning, Scope: ScopeRoot, Title: "validationErrors root any/unknown: identity fallback"})
-	register(Definition{Code: CodeVLRootAnyUnknown, Family: FamilyRunType, Level: LevelWarning, Scope: ScopeRoot, Title: "validate root any/unknown: identity fallback"})
+	register(Definition{Code: CodeVERootAnyUnknown, Family: FamilyRunType, Level: LevelInfo, Scope: ScopeRoot, Title: "validationErrors root any/unknown: identity fallback"})
+	register(Definition{Code: CodeVLRootAnyUnknown, Family: FamilyRunType, Level: LevelInfo, Scope: ScopeRoot, Title: "validate root any/unknown: identity fallback"})
 
 	// A format annotation is checked wherever it sits (ScopeGraph); the missing-runtime code is about
 	// the host, not the type, hence ScopeNotSource.

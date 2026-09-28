@@ -37,8 +37,8 @@ export const decode = createJsonDecoderFn<Rule>();
 		if !ok {
 			t.Fatalf("expected %s naming the dropped RegExp property, got %v", expected, codes)
 		}
-		if drop.Severity != diagnostics.SeverityWarning {
-			t.Errorf("%s severity = %v, want Warning", expected, drop.Severity)
+		if drop.Severity != diagnostics.SeverityInfo {
+			t.Errorf("%s severity = %v, want Info", expected, drop.Severity)
 		}
 		if len(drop.Args) != 1 || drop.Args[0] != "match" {
 			t.Errorf(`%s args = %v, want ["match"]`, expected, drop.Args)

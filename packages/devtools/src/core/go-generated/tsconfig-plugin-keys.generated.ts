@@ -17,6 +17,7 @@ export const TSCONFIG_PLUGIN_KEYS = [
   'i18n',
   'inlineMode',
   'jsonMaxBytes',
+  'levels',
   'markers',
   'moduleMode',
   'name',

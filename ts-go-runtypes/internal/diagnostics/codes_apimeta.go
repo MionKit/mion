@@ -5,7 +5,7 @@ package diagnostics
 // lane injects the generated module carrying the route's metadata and compiled functions.
 //
 // MET001 / MET002 / MET005 drop the site, so nothing is injected for it: LevelError.
-// MET003 / MET004 leave the call to fetching: LevelRuntimeError if the client never sets it up, else LevelWarning.
+// MET003 / MET004 leave the call to fetching: LevelRuntimeError if the client never sets it up, else LevelInfo (it works).
 // MET006 only leaves one bundled option unset: LevelWarning.
 // MET007 injects both versions and the call still runs, reporting a mismatch it should not: LevelRuntimeError.
 // MET008 bundles the call, which then fails the middleware's validation on every request: LevelRuntimeError.
@@ -48,7 +48,7 @@ func init() {
 		{Code: CodeApiMetaUnreadable, Family: FamilyMarker, Level: LevelError, Scope: ScopeNotSource, Title: "The API type a dispatch site names cannot be read as a mion PublicApi"},
 		{Code: CodeApiMetaRouteNotDeclared, Family: FamilyMarker, Level: LevelError, Scope: ScopeNotSource, Title: "A dispatch site calls a route its API type does not declare"},
 		{Code: CodeApiMetaRouteWidened, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "The route id at a dispatch site was widened to `string`, so nothing is bundled for it and the client never sets up fetching"},
-		{Code: CodeApiMetaRouteWidenedFetched, Family: FamilyMarker, Level: LevelWarning, Scope: ScopeNotSource, Title: "The route id at a dispatch site was widened to `string`; the call fetches its metadata"},
+		{Code: CodeApiMetaRouteWidenedFetched, Family: FamilyMarker, Level: LevelInfo, Scope: ScopeNotSource, Title: "The route id at a dispatch site was widened to `string`; the call fetches its metadata"},
 		{Code: CodeApiMetaSourceAmbiguous, Family: FamilyMarker, Level: LevelError, Scope: ScopeNotSource, Title: "The API program named by `apiTsconfig` has no single `initRoutes` call declaring the routes this client calls"},
 		{Code: CodeApiMetaOptionWidened, Family: FamilyMarker, Level: LevelWarning, Scope: ScopeNotSource, Title: "An option of a bundled method is not a literal on the API type, so the bundled metadata leaves it unset"},
 		{Code: CodeApiMetaVersionMismatch, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "A client and the API it is built against inject different build versions"},

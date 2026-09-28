@@ -47,8 +47,8 @@ var messagesByCode = map[string]message{
 		Detail:   "A code that is not in the catalog can never match a finding, so the comment\nwould lower nothing while looking like it works. Codes are the uppercase\nidentifier in a message, for example the `VL002` in\n`error VL002: Type ... can never be validated`.\n\nFix: copy the code out of the message you are lowering:\n-  // @mion-downgrade-error VL2\n+  // @mion-downgrade-error VL002",
 	},
 	"DWN004": {
-		Headline: "`@mion-downgrade-error {0}` does nothing: that code is already a warning, so it was never halting your build.",
-		Detail:   "The comment exists to stop a finding halting the build. A warning never\nhalts one, so there is nothing for it to do here and the comment only\nsuggests a problem that is not there.\n\nFix: delete the comment. If you meant to stop the finding being reported\nat all, remove it instead:\n-  // @mion-downgrade-error VL015\n+  // @mion-expect-error VL015",
+		Headline: "`@mion-downgrade-error {0}` does nothing: that code is already a warning or info, so it was never halting your build.",
+		Detail:   "The comment exists to stop a finding halting the build. A warning or an\ninfo never halts one, so there is nothing for it to do here and the comment only\nsuggests a problem that is not there.\n\nFix: delete the comment. If you meant to stop the finding being reported\nat all, remove it instead:\n-  // @mion-downgrade-error VL015\n+  // @mion-expect-error VL015",
 	},
 	"CFG001": {
 		Headline: "Project tsconfig failed to load ({0}): the build, the linter, and the CLI all read this config, so nothing can run until it loads.",

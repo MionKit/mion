@@ -167,11 +167,11 @@ const generatedTs = `// GENERATED FILE. DO NOT EDIT. Run \`pnpm miondevx core co
 export interface DiagnosticEntry {
   /** Single-line headline. Mandatory. */
   readonly headline: string;
-  /** The code's three-way classification: did the build produce the code for
+  /** The code's level: did the build produce the code for
    *  this thing (\`error\`: no), and is what it produced broken when called
    *  (\`runtimeError\`: yes). Read by the config validators, which refuse to
    *  downgrade an \`error\`. */
-  readonly level: 'error' | 'runtimeError' | 'warning';
+  readonly level: 'error' | 'runtimeError' | 'warning' | 'info';
   /** The level's two-way label form, the word the tsc-shaped output line and
    *  the lint rule tier use. Derived from level, never authored. */
   readonly severity: 'error' | 'warning' | 'info';

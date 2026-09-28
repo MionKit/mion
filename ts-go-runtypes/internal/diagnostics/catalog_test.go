@@ -228,6 +228,10 @@ func TestEveryCodeDeclaresALevel(t *testing.T) {
 			if definition.Severity != SeverityWarning {
 				t.Errorf("%s: LevelWarning must project to SeverityWarning, got %d", code, definition.Severity)
 			}
+		case LevelInfo:
+			if definition.Severity != SeverityInfo {
+				t.Errorf("%s: LevelInfo must project to SeverityInfo, got %d", code, definition.Severity)
+			}
 		default:
 			t.Errorf("%s declares no Level", code)
 		}
@@ -261,13 +265,12 @@ func TestRegisterRequiresLevel(t *testing.T) {
 	register(Definition{Code: "ZZZ002", Family: FamilyMarker, Scope: ScopeNotSource})
 }
 
-// TestLevelsThatMoved pins the codes whose level CHANGED in the three-level
-// split, in both directions, with the mechanical fact behind each. Without this
+// TestLevelsThatMoved pins the codes whose level CHANGED in the level
+// splits, in both directions, with the mechanical fact behind each. Without this
 // a later edit could quietly re-lump them.
 func TestLevelsThatMoved(t *testing.T) {
 	for code, want := range map[string]Level{
 		// Down to Warning: the build emits, and what it emits is correct.
-		CodeMarkerDuplicateFnKey:          LevelWarning, // the scan dedupes; output is sane
 		CodeNonEnumerableRequiresOptional: LevelWarning, // an ineffective tag, the function is right
 		CodeExpectErrorUnused:             LevelWarning, // only a comment is wrong
 		CodeExpectErrorNotSuppressible:    LevelWarning,
@@ -278,6 +281,25 @@ func TestLevelsThatMoved(t *testing.T) {
 		CodeMarkerUntrustedPackage: LevelRuntimeError, // reflects `unknown`, accepts everything
 		CodeBatchOwnBatchIgnored:   LevelRuntimeError, // an id no table row matches, every request 404s
 		CodeBatchNoRouterInit:      LevelRuntimeError, // the table is written, nothing imports it
+		// Down to Info: what ships is the documented behaviour, or the finding is advice.
+		CodeMarkerDuplicateFnKey:         LevelInfo, // the scan dedupes; output is sane
+		CodeVLMethodDropped:              LevelInfo, // a method is never data
+		CodePJFunctionPropDropped:        LevelInfo,
+		CodeRJNonSerializablePropDrop:    LevelInfo, // a Promise property included
+		CodeVESymbolKeyedDropped:         LevelInfo,
+		CodePJSUnionMemberDropped:        LevelInfo,
+		CodeVLRootAnyUnknown:             LevelInfo, // the author wrote `any`
+		CodeVERootAnyUnknown:             LevelInfo,
+		CodeRUKMethodDropped:             LevelInfo, // lives on the prototype
+		CodeRUKStaticDropped:             LevelInfo,
+		CodeOverrideValidateCrossFamily:  LevelInfo,
+		CodeApiMetaRouteWidenedFetched:   LevelInfo, // the call still works
+		CodeDowngradeErrorAlreadyWarning: LevelInfo,
+		CodeFriendlyPluralNoCount:        LevelInfo,
+		// Staying Warning: the output surprises, it is not the documented drop.
+		CodeRUKFunctionPropDropped:     LevelWarning, // the clone SHARES the value with the original
+		CodeRUKNonSerializablePropDrop: LevelWarning,
+		CodeUnsafePropertyName:         LevelWarning,
 		// Error, and staying there: no code was produced for the thing.
 		CodeMarkerFreeTypeParameter: LevelError,
 		CodeTypeIdCollision:         LevelError,
@@ -295,6 +317,7 @@ func TestLevelLabel(t *testing.T) {
 		LevelError:        "error",
 		LevelRuntimeError: "runtimeError",
 		LevelWarning:      "warning",
+		LevelInfo:         "info",
 	} {
 		if got := LevelLabel(level); got != want {
 			t.Errorf("LevelLabel(%d) = %q, want %q", level, got, want)

@@ -114,8 +114,8 @@ func TestF3_DirectlyStrippedPropertyDrops(t *testing.T) {
 					t.Errorf("[%s/%s optional=%v] expected drop warning %s; sink=%+v", fam, name, optional, nonSerPropDropCodes[fam], sink)
 					continue
 				}
-				if got.Severity != diagnostics.SeverityWarning {
-					t.Errorf("[%s/%s optional=%v] %s severity = %v, want Warning", fam, name, optional, nonSerPropDropCodes[fam], got.Severity)
+				if got.Severity != diagnostics.SeverityInfo {
+					t.Errorf("[%s/%s optional=%v] %s severity = %v, want Info", fam, name, optional, nonSerPropDropCodes[fam], got.Severity)
 				}
 				// A clean drop never carries an Error-severity diagnostic.
 				for _, d := range sink {

@@ -34,7 +34,7 @@ func init() {
 		{Code: CodeFriendlyBadPlaceholder, Family: FamilyEnrich, Level: LevelWarning, Scope: ScopeNotSource, Title: "FriendlyText error template uses an unknown $[…] placeholder"},
 		{Code: CodeFriendlyPluralNoOther, Family: FamilyEnrich, Level: LevelWarning, Scope: ScopeNotSource, Title: "FriendlyText plural template is missing the mandatory 'other' arm"},
 		{Code: CodeFriendlyPluralBadArm, Family: FamilyEnrich, Level: LevelWarning, Scope: ScopeNotSource, Title: "FriendlyText plural template arm is not a CLDR category"},
-		{Code: CodeFriendlyPluralNoCount, Family: FamilyEnrich, Level: LevelWarning, Scope: ScopeNotSource, Title: "FriendlyText plural template on a constraint that carries no count"},
+		{Code: CodeFriendlyPluralNoCount, Family: FamilyEnrich, Level: LevelInfo, Scope: ScopeNotSource, Title: "FriendlyText plural template on a constraint that carries no count"},
 		{Code: CodeFriendlyDefaultNotAlone, Family: FamilyEnrich, Level: LevelWarning, Scope: ScopeNotSource, Title: "FriendlyText rt$default is mutually exclusive with per-constraint messages"},
 		{Code: CodeFriendlyReservedProp, Family: FamilyEnrich, Level: LevelError, Scope: ScopeNotSource, Title: "Type property collides with the reserved rt$ enrichment prefix (FriendlyText)"},
 		{Code: CodeFriendlyTodo, Family: FamilyEnrich, Level: LevelWarning, Completeness: true, Scope: ScopeNotSource, Title: "Unfilled @todo scaffold placeholder in a FriendlyText mirror file"},

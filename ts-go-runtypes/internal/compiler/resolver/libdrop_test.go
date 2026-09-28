@@ -77,8 +77,8 @@ export const encode = createJsonEncoderFn<Bookmark>(undefined, {strategy: 'mutat
 		if !ok {
 			t.Fatalf("expected %s naming the dropped URL property, got %v", expected, codes)
 		}
-		if drop.Severity != diagnostics.SeverityWarning {
-			t.Errorf("%s severity = %v, want Warning (the object still validates without the property)", expected, drop.Severity)
+		if drop.Severity != diagnostics.SeverityInfo {
+			t.Errorf("%s severity = %v, want Info (the object still validates without the property)", expected, drop.Severity)
 		}
 		if len(drop.Args) != 1 || drop.Args[0] != "link" {
 			t.Errorf(`%s args = %v, want ["link"] (the dropped property)`, expected, drop.Args)

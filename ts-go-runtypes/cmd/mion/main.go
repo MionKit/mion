@@ -390,6 +390,7 @@ func resolveSharedConfig(fs *flag.FlagSet, s *sharedFlags, genDirFlag string, re
 		ApiTsconfig:             apiTsconfig,
 		BundleApi:               bundleApi,
 		TsconfigDowngradeErrors: plugin.DowngradeErrors,
+		TsconfigLevels:          plugin.Levels,
 		EnrichSourceLocale:      pluginI18nSourceLocale(plugin),
 		EnrichLocales:           pluginI18nLocales(plugin),
 		SingleThreaded:          merged.singleThreaded,
@@ -688,12 +689,19 @@ func runCompile(args []string) {
 	if downgradeErr != nil {
 		fatal("compile: %v", downgradeErr)
 	}
+	showInfo, levelsErr := diagnostics.ResolveLevels(cfg.opts.TsconfigLevels)
+	if levelsErr != nil {
+		fatal("compile: %v", levelsErr)
+	}
 	// A compile drives several ops, and each whole-program one answers the
 	// `@mion-expect-error` unused check for itself, so one stale comment would
 	// otherwise be reported once per pass. Dedupe collapses the identical
 	// repeats (same code, args and site) the way it does within one op.
 	errorCount := 0
 	for _, d := range diagnostics.Dedupe(compileResult.Diagnostics) {
+		if !diagnostics.Shown(d, showInfo) {
+			continue
+		}
 		// A downgraded finding is still printed, and carries the same one-word
 		// note the bundler adds: without it a stood-down finding reads as an
 		// ordinary warning, which is the thing downgrading is meant not to be.

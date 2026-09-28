@@ -1,8 +1,8 @@
 // Package diagnostics is the one catalog of every diagnostic the Go binary emits, so the whole set
 // of codes, levels and messages is auditable in one place. Every code declares a Level, the
-// three-way answer to "can the build still produce code": LevelError (no), LevelRuntimeError (yes,
-// and it is broken when called), LevelWarning (yes, and nothing is wrong); Severity is derived from
-// it. Level, severity and family go on the wire as uint8, mirrored TS-side as literal unions; the
+// answer to "can the build still produce code": LevelError (no), LevelRuntimeError (yes, and it is
+// broken when called), LevelWarning (yes, and nothing is wrong), LevelInfo (yes, and it is the
+// documented behaviour, hidden unless asked for); Severity is derived from it. Level, severity and family go on the wire as uint8, mirrored TS-side as literal unions; the
 // codes_*.go files register through init().
 package diagnostics
 
@@ -16,7 +16,8 @@ import (
 //  1. If we let this through, does the build still produce the code for this?
 //  2. If it does, is that code broken when it runs?
 //
-// No → LevelError. Yes and yes → LevelRuntimeError. Yes and no → LevelWarning.
+// No → LevelError. Yes and yes → LevelRuntimeError. Yes and no → LevelWarning, or LevelInfo when
+// the finding is the documented contract (a method a validator skips) or advice, never a problem.
 //
 // Question 1 is per-SITE, not per-build: only CFG001 stops a whole run, every other fatal code
 // leaves one thing unbuilt while the build proceeds, which is what makes standing it down
@@ -39,6 +40,10 @@ const (
 	// LevelWarning: worth knowing, nothing is wrong. A member with no data form left out of a
 	// generated function, a no-op option, an unfilled scaffold, a suppression naming a wrong code.
 	LevelWarning Level = 3
+	// LevelInfo: nothing is wrong and nothing is surprising, the code does what the docs say (a method
+	// left out of a validator, a validator on a written `any`) or the finding is advice. The linter and
+	// the build hide it unless the `levels: 'all'` setting asks for it; it never stops anything.
+	LevelInfo Level = 4
 )
 
 // Severity is DERIVED from Level, never authored per code: it is the label form the tsc-shaped line
@@ -56,14 +61,17 @@ const (
 // severityOf projects Level onto Severity; both error levels collapse to one word the problem
 // matcher knows, and telling them apart is a Level question.
 func severityOf(level Level) Severity {
-	if level == LevelWarning {
+	switch level {
+	case LevelWarning:
 		return SeverityWarning
+	case LevelInfo:
+		return SeverityInfo
 	}
 	return SeverityError
 }
 
 // LevelLabel returns a Level's stable spelling, the form the generated front-end catalog and the
-// website carry. NOT a tsc word: our own three-way name, so it keeps the two error levels apart.
+// website carry. NOT a tsc word: our own level name, so it keeps the two error levels apart.
 func LevelLabel(level Level) string {
 	switch level {
 	case LevelError:
@@ -72,6 +80,8 @@ func LevelLabel(level Level) string {
 		return "runtimeError"
 	case LevelWarning:
 		return "warning"
+	case LevelInfo:
+		return "info"
 	}
 	return "error"
 }
@@ -192,7 +202,7 @@ type Diagnostic struct {
 type Definition struct {
 	Code   string
 	Family Family
-	// Level is the code's three-way classification and the field a code author
+	// Level is the code's level and the field a code author
 	// WRITES (see Level). Required: register panics on the zero value.
 	Level Level
 	// Severity is DERIVED from Level by register; never write it in a codes_*.go
@@ -238,7 +248,7 @@ func register(definition Definition) {
 		panic("diag: code " + definition.Code + " declares no Scope (ScopeRoot / ScopeGraph / ScopeNotSource)")
 	}
 	if definition.Level == 0 {
-		panic("diag: code " + definition.Code + " declares no Level (LevelError / LevelRuntimeError / LevelWarning)")
+		panic("diag: code " + definition.Code + " declares no Level (LevelError / LevelRuntimeError / LevelWarning / LevelInfo)")
 	}
 	if definition.Severity != 0 {
 		panic("diag: code " + definition.Code + " writes Severity; it is derived from Level")
