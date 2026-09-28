@@ -164,3 +164,138 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
 - The PR carries the `website` and `pre-publish-e2e` labels.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source
   file, each committed on its own.
+
+## Plan (approved 2026-09-28)
+
+### Context
+
+One Go checker makes every mion finding. The editor (linter), the dev server and the build each show them, and
+they disagree. Target: the editor shows every finding at the checker's level, the dev server shows only what
+breaks running code (once), the build shows everything and stops on errors. The research added a few problems
+the todo did not list; they are on the same path, so they ship here (marked NEW).
+
+Decided with the user: lint rules become `mion/error`, `mion/warning`, `mion/info` in ONE plugin named `mion`;
+no new setting to raise single warning codes to errors (this repo's own scripts do it from oxlint's JSON output).
+
+Setup first: the devtools dist is not built on this host, run `bash scripts/setup-claude-web.sh`, then
+`pnpm run check:builds`. Rebuild `mion-bin/mion` after every Go edit, and the devtools dist after every devtools
+src edit.
+
+### Commits (each with its own test on the real path)
+
+#### Go checker (`ts-go-runtypes/internal/compiler/resolver/`)
+
+1. **Override findings in the right place.** `generate` appends `sess.overrideDiagnostics` and CFG002
+   (`dispatch.go` ~783-828); `scanFiles` and `transform` return only those whose site is in `request.Files`
+   (~597, ~950). NEW: `generate` also misses marker findings of files an earlier `scanFiles` already scanned
+   (`scan.go:55-68`, `programScanDiagnostics`); make generate report every file's findings.
+   Test: two files with `overrideValidate<string>`: scanFiles on one returns no OVR from the other; generate
+   returns OVR001 + OVR010; scan then generate on the same session still returns the first file's findings.
+2. **Judge only codes the op can raise** (EXP001 / DWN001). Add a per-code "raised by" attribute to the Go
+   catalog (`diagnostics/catalog.go` `Definition`): per-file scan, whole-program generate, or both. `canJudge`
+   (`diagnostics/expecterror.go` ~249-266) checks the code, not only its family; `directiveScope`
+   (`resolver/expecterror.go` ~45-74) passes the op, and MET codes count on scan only when `apiLaneOn()`.
+   Test: `@mion-expect-error BAT003` / `MET006` not flagged by scanFiles; `@mion-expect-error OVR001` not flagged
+   by generate; a truly stale comment still flagged by both. Extends `expecterror_test.go`.
+3. **Linter reads the tsconfig `downgradeErrors`.** `serve --sources ops` (`cmd/mion/main.go` ~502-507) reads
+   it next to `levels`, and scanFiles echoes it (`dispatch.go` ~617). The lint worker applies it like the build
+   (`isDowngraded`, `core/downgradeErrors.ts`). Test: Go echo test + a real oxlint run where a tsconfig-lowered
+   VL002 shows as a warning.
+4. **Stable call site in a runtime error.** `throwProvenance` (`cachegen/typefunctions/walker.go` ~329) picks
+   the smallest (absolute path, line, col), and the message adds how many other call sites share it. NEW: the
+   disk cache stores the site inside the cached message (`module.go` ~431, ~619); keep the site out of the
+   cache or re-render the message on a hit. Test: two identical `createValidateFn<symbol>()` calls, scanned in
+   both orders, name the same site; a cache hit after an edit names the right site.
+5. NEW: **`mion compile` prints the real message.** It prints `FormatDebug` (no headline, `main.go` ~662-737).
+   Print the same line shape as the build plugin, headline included. Test: `test/compile-cli.test.ts` checks
+   the headline.
+
+#### Linter (`packages/devtools/src/lint/`)
+
+6. **Three level rules, one plugin.** `diagnosticRouting.ts` shrinks to: Error + RuntimeError to `mion/error`,
+   Warning + downgraded to `mion/warning`, Info to `mion/info`. `index.ts`: default export `{meta: {name:
+   'mion'}}` with those three plus `enforce-type-imports`; `mionPlugin` goes away; `configs.recommended`
+   registers `mion`. `settings.runtypes` becomes `settings.mion` and loses `levels` (turn on `mion/info`
+   instead); messages lose the `[runtypes]` prefix for `[mion]`. Engine errors report under `mion/error`.
+   Update `oxlint-recommended.json`. Tests: rewrite `test/eslint/routing.test.ts` (catalog guard becomes "each
+   level goes to its rule"), `plugin.test.ts`, `e2e-lint-settings.test.ts`, the real `oxlint-e2e.test.ts` and
+   `eslint-e2e.test.ts`; add an oxlint run that reports an MRT code (route findings never reached oxlint).
+7. **Only the linted file's findings.** The report loop (`index.ts` ~125) skips a finding whose site is another
+   file (the Go fix in 1 already filters; this guards the other whole-program codes). Test: real oxlint run on
+   `a.ts` with an OVR pair across `a.ts` / `b.ts`.
+
+#### Build (`packages/devtools/src/core/unplugin.ts`)
+
+8. NEW: **webpack, rspack, esbuild and bun builds never stop.** Their build-start context has no `warn` or
+   `error` (unplugin 3.3.0), and every call is `ctx.warn?.()`, so findings vanish and the build passes. Fall
+   back to `console.warn` and throw when `error` is missing. Test: a real esbuild build with an Error fails;
+   buildStart with a context that has no warn/error throws and prints.
+9. **Build prints everything, then stops once, with the real error.** Today the Error pass halts before
+   RuntimeErrors and Warnings print (~925). One pass prints all, then one halt naming the first error's code
+   and place (not "unsupported-type errors", ~1136), passed as `{message, id, loc}` so the Vite overlay shows
+   it (column is 0-based, not remapped through another file's sourcemap). Tests: `downgrade-errors.test.ts`,
+   `test/vite/buildFailure.spec.ts` checks the error object carries `loc`.
+
+#### Dev server
+
+10. **One dev reporter** (new small module in `src/core/`, used by `applyHotUpdate`, transform, the batch
+    watcher, and buildStart when `isDevServer()`; vite dev and next dev):
+    - Error: printed and thrown so the overlay shows it. RuntimeError: printed. Warning / Info: one count line
+      per batch, `mion: N warnings, your editor shows them through the mion lint rules`.
+    - Each finding once per session, keyed on code + args + site; forgotten when gone so it prints again.
+    - Takes findings from `scanFiles` AND `generate` (`applyHotUpdate` ~824 drops generate's today, so VL003 is
+      lost after an edit), and the transform re-sync result (~476, dropped today).
+    - Prints through the dev server logger with `clear: false`, one block per batch (Vite 8 clears on every
+      plugin warn).
+    Tests: a real `createServer` test (pattern: `test/vite/sfcTransform.spec.ts`, `client-tsconfig-refresh.test.ts`)
+    with a capturing custom logger: no warning lines, one count line, an added VL003 printed once after an edit,
+    an added Error printed once, re-added after a fix prints again.
+11. **The generated folder stays put.** `seedOverlay()` (~727) walks the whole project, so `vite.config.ts`
+    becomes a checker root and the inferred folder climbs from `src/.mion` to `./.mion`. Fix: seed only files of
+    the tsconfig program, and in Go infer the folder from the tsconfig file list, not the overlay roots
+    (`generate.go` `inferSrcDir`). Test: a project with no `genDir`, `vite.config.ts` at the root and
+    `include: ["src"]`: after a hot update, output is still `src/.mion`, no `./.mion`.
+
+#### Cleanup and repo wiring
+
+12. **Stale comments**: the `$tsc` problem-matcher claims (unplugin.ts ~837, ~1115, ~1147, ~1155; protocol.ts
+    ~395, ~417; Go `protocol.go` ~199 which names a missing `FormatTsc`, `catalog.go`, `downgrade.go`; the tests
+    listed in the todo), the removed socket client comments, `protocol.go` ~82-87 (MRT005 is a Warning).
+13. **Repo configs**: root `.oxlintrc.json` and `scripts/core/oxlint-directives.json` use the `mion/*` rules;
+    `lint-directives.mjs` and a new check for the enrichment codes run oxlint `-f json` and fail on the codes
+    this repo treats as errors (EXP/DWN; FT020/MD020/FT021/.../GE codes, the set the old rules raised);
+    `repo-contracts.test.ts` pin updated. `eslint.config.js`: `mion` plugin; its per-topic test-file overrides
+    become `@mion-expect-error` comments or dropping mion rules on test files. `eslint-disable
+    @mionjs/...` comments in `private-*` packages become `@mion-expect-error MRT00x`. Pre-publish e2e configs
+    (`build-vite/oxlintrc.e2e.json`, `smoke-esbuild/eslint.config.mjs`, `mion-consumer/lint/*`,
+    `lint-transport` tests) follow.
+
+### Docs
+
+- `container/website/content/01.rpc/06.devtools/01.linter.md` and `02.runtypes/04.tooling/01.linting.md`: rules
+  section rewritten for the three level rules; say they are not normal lint rules (same three in every app, no
+  per-check config; change a finding with the comments or the tsconfig `downgradeErrors`, which change editor
+  and build together); the linter reads the tsconfig `downgradeErrors`, the plugin option is build-only;
+  `mion/info` replaces `levels`; `enforce-type-imports` is the one normal rule; config examples updated.
+  Also `01.rpc/02.server/06.error-handling.md` (disable comment), `01.rpc/06.devtools/02.vite.md` (ESLint
+  Rules section), `02.runtypes/01.introduction/04.configuration.md` (levels row).
+- `02.runtypes/08.diagnostics/01.error-levels.md`: new "Where You See Each Finding" section (editor, dev
+  terminal, overlay, build) with the dev print-once and count line.
+- `packages/private-examples/src/introduction/eslint-rule-test.routes.ts` rule headings.
+- `CLAUDE.md` (two-namespace lines 41, 169), `packages/devtools/CLAUDE.md`, `packages/devtools/src/lint/CLAUDE.md`
+  ("Adding a rule" becomes "Adding a code"), `SETUP.md` (`settings.runtypes`).
+- Changelog: no Unreleased section exists (sections are written at release), so the rename goes in the commit
+  subject as `feat(devtools)!:` with the old-to-new mapping in the body, which git-cliff picks up.
+
+No fuzzing: this is a fix, and there is no cheap oracle beyond the tests above.
+
+### Finish
+
+- Gate: `go -C ts-go-runtypes test ./internal/... ./cmd/...`, `pnpm test` (or `pnpm run test:ci`),
+  `pnpm run lint`, `pnpm run format`.
+- Reproduction project from the todo: no cross-file lint findings, same level in editor and build for a
+  tsconfig-lowered code, one count line and no warning lines in dev, VL003 after an edit, each finding once,
+  no `./.mion`, the overlay showing the real error, esbuild build failing on an Error.
+- Append this plan to the todo, reconcile it with what shipped, `git mv` it to `docs/done/`.
+- docs-simplifier and comments-simplifier subagents in parallel, each committed on its own.
+- PR labels at open: `website`, `pre-publish-e2e`. No PR is opened unless you ask.
