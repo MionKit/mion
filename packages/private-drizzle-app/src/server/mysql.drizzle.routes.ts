@@ -1,8 +1,8 @@
 /* eslint-disable @mionjs/strong-typed-routes -- the return types are left to drizzle on purpose */
 import {avg, count, eq, gte, sql} from 'drizzle-orm';
 import {mion} from './mion.ts';
-import {adultUsersDb, busyAuthorsDb, db, postsDb, usersDb} from '../db/mysql.plain.db.ts';
-import type {NewUser, User, UserPatch} from '../db/mysql.plain.db.ts';
+import {adultUsersDb, busyAuthorsDb, db, postsDb, usersDb} from '../db/mysql.drizzle.ts';
+import type {NewUser, User, UserPatch} from '../db/mysql.drizzle.ts';
 
 // The builders routes on plain drizzle: params typed with drizzle's types, return types left to drizzle.
 // The `case:` markers name each route for the cost test.
