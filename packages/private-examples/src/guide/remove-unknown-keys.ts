@@ -15,4 +15,10 @@ export function parseUser(data: unknown): User {
   return removeUnknownKeys(data);
 }
 
-export {removeUnknownKeys, clean};
+// a function can only be shared with the input: 'share' says that is fine, 'refuse' makes it a build error
+type Button = {label: string; onClick: () => void};
+const removeButtonKeys = createRemoveUnknownKeysFn<Button>(undefined, {
+  sharedValues: 'share',
+});
+
+export {removeUnknownKeys, clean, removeButtonKeys};
