@@ -76,6 +76,10 @@ var registry = []Operation{
 
 	// Option-less leaf families.
 	{Name: "removeUnknownKeys", Doc: "Copies a value keeping only the properties the type declares.", Factory: "createRemoveUnknownKeysFn", FamilyTag: "ruk", Axis: AxisNone, Public: true, FnKey: "removeUnknownKeys"},
+	// removeUnknownKeys under `sharedValues`, families for the same reason as the fused validators; the scanner swaps
+	// the operation when it reads the option (resolver/scan.go removeUnknownKeysOperation).
+	{Name: "removeUnknownKeysShared", Doc: "Copies a value keeping only the declared properties, sharing a function or a value it cannot copy with the input, as asked.", Factory: "createRemoveUnknownKeysFn", FamilyTag: "ruks", Axis: AxisNone, Public: true, FnKey: "removeUnknownKeysShared", CallOptions: "{sharedValues: 'share'}"},
+	{Name: "removeUnknownKeysRefuse", Doc: "Copies a value keeping only the declared properties, and refuses a type holding a function or a value it cannot copy.", Factory: "createRemoveUnknownKeysFn", FamilyTag: "rukr", Axis: AxisNone, Public: true, FnKey: "removeUnknownKeysRefuse", CallOptions: "{sharedValues: 'refuse'}"},
 	{Name: "formatTransform", Doc: "Applies the type's format rules to a value, for example trimming a string or clamping a number.", Factory: "createFormatTransformFn", FamilyTag: "fmt", Axis: AxisNone, Public: true, FnKey: "formatTransform"},
 	// jsonSchema renders the document at build time (schemadoc.RenderDocument); the entry's fn just returns it.
 	{Name: "jsonSchema", Doc: "Returns the JSON Schema document describing the type.", Factory: "createJsonSchemaFn", FamilyTag: "jsc", Axis: AxisNone, Public: true, FnKey: "jsonSchema"},

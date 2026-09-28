@@ -17,7 +17,16 @@ func overrideOpKeyForTag(tag string) string {
 	if !ok || !op.Public {
 		return ""
 	}
+	if base, aliased := overrideBaseOperation[op.Name]; aliased {
+		return base
+	}
 	return op.Name
+}
+
+// overrideBaseOperation: a `sharedValues` family runs the one overrideRemoveUnknownKeys<T>() registration too.
+var overrideBaseOperation = map[string]string{
+	"removeUnknownKeysShared": "removeUnknownKeys",
+	"removeUnknownKeysRefuse": "removeUnknownKeys",
 }
 
 // composedByOverride reports whether a primitive demand exists only for a JSON composite this type overrides.

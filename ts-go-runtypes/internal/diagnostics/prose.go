@@ -906,25 +906,75 @@ const bytes: number[] = Array.from(yourBuffer); // not a typed array`,
 		Summary: "`removeUnknownKeys` rebuilds a value from its declared shape, and for a union of objects it cannot tell which member the value matches, so the function throws rather than keep unknown keys. Narrow the value first and use one `createRemoveUnknownKeysFn<Member>()` per member, or turn the union into one object with optional properties.",
 		Fix: `const removeCatKeys = createRemoveUnknownKeysFn<Cat>();
 const removeDogKeys = createRemoveUnknownKeysFn<Dog>();`,
+		Example: `import {createRemoveUnknownKeysFn} from '@mionjs/run-types';
+type Pet = {kind: 'cat'; meows: boolean} | {kind: 'dog'; barks: boolean};
+export const removePetKeys = createRemoveUnknownKeysFn<Pet>();`,
 	},
-	CodeRUKFunctionRoot: {
-		Summary: "A function is not data, so `removeUnknownKeys` has no shape to rebuild, and the function built for it throws when called. Function-typed properties are fine: the clone keeps them by reference (RUK010), and class methods stay on the prototype (RUK011). Use it on the object type, not on a function type.",
+	CodeRUKSymbolKeyedMember: {
+		Summary: "The copy is typed as your type, so it must have the symbol-keyed property too. The generated code cannot name a symbol from your code, and copying every symbol on the input would keep undeclared ones, so the function always throws. Use a string key, or a `[key: symbol]: V` index signature, whose keys are all copied. Symbol-keyed class methods are fine: they stay on the prototype.",
+		Fix:     "interface Item { id: string; tag: string }",
+		Example: `import {createRemoveUnknownKeysFn} from '@mionjs/run-types';
+const tag = Symbol('tag');
+interface Item { id: string; [tag]: string }
+export const removeItemKeys = createRemoveUnknownKeysFn<Item>();`,
+	},
+	CodeRUKPrivateFields: {
+		Summary: "A class copy keeps the input's prototype but never runs the constructor, and only the constructor can create `#private` fields. A method reading one would throw on the copy, so the function always throws instead. Use TypeScript `private` instead of `#`, or register `overrideRemoveUnknownKeys<T>()` to build the copy yourself.",
+		Fix:     `class Counter { private count = 0; }`,
+		Example: `import {createRemoveUnknownKeysFn} from '@mionjs/run-types';
+export class Counter { #count = 0; label = ''; }
+export const removeCounterKeys = createRemoveUnknownKeysFn<Counter>();`,
+	},
+	CodeRUKSharedRefused: {
+		Summary: "With `sharedValues: 'refuse'`, a value the copy cannot rebuild (a function, a `Promise`, a `RegExp` or a built-in like `URL`) makes the function always throw instead of sharing it with the input. Remove the option to share it with a warning, or change the type.",
+		Example: `import {createRemoveUnknownKeysFn} from '@mionjs/run-types';
+interface Button { label: string; onClick: () => void }
+export const removeButtonKeys = createRemoveUnknownKeysFn<Button>(undefined, {sharedValues: 'refuse'});`,
 	},
 	CodeRUKFunctionPropDropped: {
-		Summary: "`removeUnknownKeys` never removes a declared key. A function cannot be rebuilt, so the clone's property points to the same function as the input, methods written in an object literal included. Class methods stay on the shared prototype instead (RUK011).",
+		Summary: "`removeUnknownKeys` never removes a declared key. A function cannot be copied, so the copy points to the same function as the input. Class methods stay on the prototype instead (RUK011). A function type itself is shared the same way. Pass `sharedValues: 'share'` to say this is fine, or `'refuse'` to make it an error.",
+		Example: `import {createRemoveUnknownKeysFn} from '@mionjs/run-types';
+interface Button { label: string; onClick: () => void }
+export const removeButtonKeys = createRemoveUnknownKeysFn<Button>();`,
+		NestedExample: `import {createRemoveUnknownKeysFn} from '@mionjs/run-types';
+interface Toolbar { button: { label: string; onClick: () => void } }
+export const removeToolbarKeys = createRemoveUnknownKeysFn<Toolbar>();`,
 	},
 	CodeRUKMethodDropped: {
-		Summary: "For a class instance the clone keeps the input's prototype, so methods still work through the prototype chain without being copied as own properties. A method written in an object literal is kept by reference instead (RUK010).",
+		Summary: "A class copy keeps the input's prototype, so methods and get / set accessors still work without being copied. A function stored in a field (`onChange = () => ...`) is its own value and is shared instead (RUK010). The constructor does not run on the copy.",
+		Example: `import {createRemoveUnknownKeysFn} from '@mionjs/run-types';
+export class User { name = ''; greet(): string { return this.name; } }
+export const removeUserKeys = createRemoveUnknownKeysFn<User>();`,
+		NestedExample: `import {createRemoveUnknownKeysFn} from '@mionjs/run-types';
+export class User { name = ''; greet(): string { return this.name; } }
+export const removeAccountKeys = createRemoveUnknownKeysFn<{user: User}>();`,
 	},
 	CodeRUKStaticDropped: {
-		Summary: "Static members belong to the class, not its instances, so the clone leaves them out.",
-	},
-	CodeRUKSymbolKeyedDropped: {
-		Summary: "Symbol keys are not data (the same rule as the JSON functions), so the clone leaves this one out. Use a string key if the value must be kept.",
-		Fix:     "interface Item { id: string }",
+		Summary: "Static members belong to the class, not its instances, so the copy leaves them out.",
+		Example: `import {createRemoveUnknownKeysFn} from '@mionjs/run-types';
+export class Config { static version = 1; name = ''; }
+export const removeConfigKeys = createRemoveUnknownKeysFn<Config>();`,
+		NestedExample: `import {createRemoveUnknownKeysFn} from '@mionjs/run-types';
+export class Config { static version = 1; name = ''; }
+export const removeAppKeys = createRemoveUnknownKeysFn<{config: Config}>();`,
 	},
 	CodeRUKNonSerializablePropDrop: {
-		Summary: "`removeUnknownKeys` never removes a declared property. A value it cannot rebuild, like a symbol, a Promise or a built-in that is not data, is passed through by reference, so a change through it shows on both the clone and the input. Register `overrideRemoveUnknownKeys<T>()` if this type needs its own copy logic.",
+		Summary: "`removeUnknownKeys` never removes a declared property. A value it cannot copy, like a `Promise`, a `RegExp` or a built-in like `URL`, is shared with the input, so a change through it shows on both. Pass `sharedValues: 'share'` to say this is fine, `'refuse'` to make it an error, or register `overrideRemoveUnknownKeys<T>()` to copy it yourself.",
+		Example: `import {createRemoveUnknownKeysFn} from '@mionjs/run-types';
+interface Link { title: string; url: URL }
+export const removeLinkKeys = createRemoveUnknownKeysFn<Link>();`,
+		NestedExample: `import {createRemoveUnknownKeysFn} from '@mionjs/run-types';
+interface Page { link: { title: string; url: URL } }
+export const removePageKeys = createRemoveUnknownKeysFn<Page>();`,
+	},
+	CodeRUKSharedAsAsked: {
+		Summary: "You passed `sharedValues: 'share'`, so a function or a value the copy cannot rebuild is shared with the input, as asked. This note is hidden unless you show all levels.",
+		Example: `import {createRemoveUnknownKeysFn} from '@mionjs/run-types';
+interface Button { label: string; onClick: () => void }
+export const removeButtonKeys = createRemoveUnknownKeysFn<Button>(undefined, {sharedValues: 'share'});`,
+		NestedExample: `import {createRemoveUnknownKeysFn} from '@mionjs/run-types';
+interface Toolbar { button: { label: string; onClick: () => void } }
+export const removeToolbarKeys = createRemoveUnknownKeysFn<Toolbar>(undefined, {sharedValues: 'share'});`,
 	},
 
 	// ──────────────────────── Temporal types (TMP) ────────────────────────

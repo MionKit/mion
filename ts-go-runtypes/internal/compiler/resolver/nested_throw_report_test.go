@@ -21,6 +21,11 @@ export const check = createValidateFn(value);`},
 		{"encoder static", diagnostics.CodePJSSymbolRoot, `export const encode = createJsonEncoderFn<{inner: Inner}>();`},
 		{"encoder value", diagnostics.CodePJSSymbolRoot, `declare const value: {inner: Inner};
 export const encode = createJsonEncoderFn(value);`},
+		{"removeUnknownKeys static", diagnostics.CodeRUKPrivateFields, `export const strip = createRemoveUnknownKeysFn<{counter: Counter}>();`},
+		{"removeUnknownKeys value", diagnostics.CodeRUKPrivateFields, `declare const value: {counter: Counter};
+export const strip = createRemoveUnknownKeysFn(value);`},
+		{"removeUnknownKeys two deep", diagnostics.CodeRUKPrivateFields, `export interface Holder { counter: Counter }
+export const strip = createRemoveUnknownKeysFn<{holder: Holder}>();`},
 	}
 	for _, testCase := range cases {
 		t.Run(testCase.name, func(t *testing.T) {
@@ -36,5 +41,20 @@ import {Counter} from './shared.ts';
 				t.Errorf("%s must report once at the outer site, got %v; codes=%v", testCase.code, sites, codesOf(response))
 			}
 		})
+	}
+}
+
+// A site that reaches the failing type through a family that does not call it stays quiet.
+func TestNestedThrow_OtherFamilySiteStaysQuiet(t *testing.T) {
+	response := wholeProgram(t, map[string]string{
+		"shared.ts": `export class Counter { #count = 0; label = ''; }
+`,
+		"site.ts": `import {createValidateFn} from '@mionjs/run-types';
+import {Counter} from './shared.ts';
+export const check = createValidateFn<{counter: Counter}>();
+`,
+	})
+	if sites := diagSitesFor(response, diagnostics.CodeRUKPrivateFields); len(sites) != 0 {
+		t.Errorf("a validator must not report the copy's refusal, got %v", sites)
 	}
 }

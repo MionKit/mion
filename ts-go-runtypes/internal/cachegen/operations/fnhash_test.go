@@ -12,7 +12,8 @@ import (
 // +12 each: vst / vest (`checkUnknowns`) and vuk / veuk (`checkUnionUnknowns`), 6 keys apiece like val / verr.
 // vst / vest are what forced FnHashLen 3 → 4 (see fnhash.go).
 // +1: restoreFromJsonClone (rjs), the stripping decode mirror of prepareForJsonClone.
-const expectedCanonicalKeyCount = 19 + 9 + 1 + 1 + 12 + 12 + 1 // +1: the jsonSchema (jsc) document operation; +1: the classSerializerReg (csr) name card
+// +2: removeUnknownKeys under `sharedValues: 'share'` (ruks) and `'refuse'` (rukr).
+const expectedCanonicalKeyCount = 19 + 9 + 1 + 1 + 12 + 12 + 1 + 2 // +1: the jsonSchema (jsc) document operation; +1: the classSerializerReg (csr) name card
 
 func TestFnHashCollisionFree(t *testing.T) {
 	// Runs at init too, but assert here so the failure is a test, not a panic.

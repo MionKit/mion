@@ -40,10 +40,9 @@ describe('symbol-keyed member drop', () => {
     expect(decode(json)).toEqual({name: 'a'});
   });
 
-  test('removeUnknownKeys keeps the data members and adds no key of its own', () => {
-    const strip = createRemoveUnknownKeysFn<Tagged>();
-    const clean = strip({name: 'a', [tag]: 'x', extra: 1} as Tagged);
-    expect(Object.keys(clean)).toEqual(['name']);
+  test('removeUnknownKeys refuses: its copy is typed Tagged, so it cannot drop the symbol key', () => {
+    // @mion-downgrade-error RUK004
+    expect(() => createRemoveUnknownKeysFn<Tagged>()).toThrow(/RUK004/);
   });
 
   test('strict validation ignores the symbol key, it never counts as a declared key', () => {

@@ -996,6 +996,9 @@ func computeSiteFn(typeChecker *checker.Checker, fnKey string, options validateO
 	if selected, swapped := validatorFamilyOperation(op, checkUnknowns, checkUnionUnknowns); swapped {
 		op = selected
 	}
+	if selected, swapped := removeUnknownKeysOperation(op, extractStringOption(typeChecker, call, lastIndex, argsCount, "sharedValues")); swapped {
+		op = selected
+	}
 	// Value-level JSON families: the strategy names the operation, and only the site's value counts (no project default).
 	if selected, swapped := jsonValueStrategyOperation(op, extractStrategyOption(typeChecker, call, lastIndex, argsCount)); swapped {
 		op = selected
@@ -1203,18 +1206,39 @@ func numericLiteralText(node *ast.Node) (string, bool) {
 // extractStrategyOption reads the `strategy` string property from the options slot, the JSON encoder/decoder
 // compile-time selector. "" when absent or not a string literal, so the caller falls back to the default strategy.
 func extractStrategyOption(typeChecker *checker.Checker, call *ast.Node, lastIndex, argsCount int) string {
-	strategy := ""
+	return extractStringOption(typeChecker, call, lastIndex, argsCount, "strategy")
+}
+
+// extractStringOption reads a literal string option from the call-site options object; "" when absent or not a literal.
+func extractStringOption(typeChecker *checker.Checker, call *ast.Node, lastIndex, argsCount int, option string) string {
+	value := ""
 	eachOptionProperty(typeChecker, call, lastIndex, argsCount, func(name string, initializer *ast.Node) {
-		if name != "strategy" {
+		if name != option || initializer == nil {
 			return
 		}
-		// Last-write-wins: a later `strategy`, inline or from a later spread, replaces an earlier one,
+		// Last-write-wins: a later value, inline or from a later spread, replaces an earlier one,
 		// matching the merge semantics of `{...preset, strategy: '…'}`.
 		if initializer.Kind == ast.KindStringLiteral || initializer.Kind == ast.KindNoSubstitutionTemplateLiteral {
-			strategy = initializer.Text()
+			value = initializer.Text()
 		}
 	})
-	return strategy
+	return value
+}
+
+// removeUnknownKeysOperations maps each `sharedValues` word to its family; absent or unknown keeps the warning default.
+var removeUnknownKeysOperations = map[string]string{"share": "removeUnknownKeysShared", "refuse": "removeUnknownKeysRefuse"}
+
+// removeUnknownKeysOperation swaps removeUnknownKeys for the family the site's `sharedValues` selects.
+func removeUnknownKeysOperation(op operations.Operation, sharedValues string) (operations.Operation, bool) {
+	if op.Name != "removeUnknownKeys" {
+		return op, false
+	}
+	name, mapped := removeUnknownKeysOperations[sharedValues]
+	if !mapped {
+		return op, false
+	}
+	resolved, ok := operations.ByName(name)
+	return resolved, ok
 }
 
 // extractRejectCircularOption reads a literal `rejectCircularRefs: true` from the call-site options object, in

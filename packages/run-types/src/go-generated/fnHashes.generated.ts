@@ -43,6 +43,8 @@ export const FN_HASHES = {
   prepareForJsonClone: {axis: 'none', variants: {'': 'A0Qb'}},
   prepareForJsonMutate: {axis: 'none', variants: {'': 'AwYs'}},
   removeUnknownKeys: {axis: 'none', variants: {'': 'C85b'}},
+  removeUnknownKeysRefuse: {axis: 'none', variants: {'': 'lJ3b'}},
+  removeUnknownKeysShared: {axis: 'none', variants: {'': 'LMn9'}},
   restoreFromJsonClone: {axis: 'none', variants: {'': 'Ky89'}},
   restoreFromJsonMutate: {axis: 'none', variants: {'': 'w8ie'}},
   validate: {
@@ -94,6 +96,8 @@ export const FAMILY_TAG_TO_FN_KEY = {
   rj: 'restoreFromJsonMutate',
   rjs: 'restoreFromJsonClone',
   ruk: 'removeUnknownKeys',
+  rukr: 'removeUnknownKeysRefuse',
+  ruks: 'removeUnknownKeysShared',
   val: 'validate',
   verr: 'validationErrors',
   vest: 'validationErrorsStrict',

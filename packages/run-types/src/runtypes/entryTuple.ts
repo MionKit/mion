@@ -369,6 +369,9 @@ export const familyMeta: Record<string, FamilyMeta> = {
   // rjs is the clone restore.
   rjs: valueShaped('rjs', noopIdentity),
   ruk: valueShaped('ruk', noopIdentity),
+  // removeUnknownKeys under `sharedValues: 'share'` / `'refuse'`: same shape and noop.
+  ruks: valueShaped('ruks', noopIdentity),
+  rukr: valueShaped('rukr', noopIdentity),
   // Name card: its typeName slot carries the build-time class name registerClassSerializer's name lane keys on.
   csr: valueShaped('csr', noopIdentity),
   fmt: valueShaped('fmt', noopIdentity),

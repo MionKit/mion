@@ -16,12 +16,11 @@ var symbolKeyedDropCodes = map[string]string{
 	"prepareForJsonClone":   diagnostics.CodePJSSymbolKeyedDropped,
 	"restoreFromJsonMutate": diagnostics.CodeRJSymbolKeyedDropped,
 	"restoreFromJsonClone":  diagnostics.CodeRJSymbolKeyedDropped,
-	"removeUnknownKeys":     diagnostics.CodeRUKSymbolKeyedDropped,
 }
 
-// Every family drops a symbol-keyed property with its …013 Info, and nothing reads tsgo's `\xFE@tag` as a string key.
+// Every serde family drops a symbol-keyed property with its …013 Info, and nothing reads tsgo's `\xFE@tag` as a string key.
 func TestSymbolKeyedProperty_DropsInEveryFamily(t *testing.T) {
-	for _, fam := range append(append([]string{}, allSerdeFamilies...), "removeUnknownKeys") {
+	for _, fam := range allSerdeFamilies {
 		value := &reflection.RunType{ID: "s", Kind: reflection.KindString}
 		name := &reflection.RunType{ID: "pn", Kind: reflection.KindPropertySignature, Name: "name", Child: makeRef("s")}
 		tag := &reflection.RunType{ID: "pt", Kind: reflection.KindPropertySignature, Name: "\xFE@tag", Child: makeRef("s")}

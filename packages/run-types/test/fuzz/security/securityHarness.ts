@@ -122,7 +122,7 @@ export async function compileSecurity(client: ResolverClient, gen: GeneratedType
     if (encode) jsonEncoders[name] = encode;
   }
   const clone = attempt('clone', () =>
-    byTag.ruk ? (createRemoveUnknownKeysFn(undefined, byTag.ruk as never) as (v: unknown) => unknown) : undefined
+    byTag.ruk ? (createRemoveUnknownKeysFn(undefined, undefined, byTag.ruk as never) as (v: unknown) => unknown) : undefined
   );
   const decoders: CompiledSecurity['decoders'] = {};
   for (const [name, tag] of [

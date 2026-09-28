@@ -1,6 +1,10 @@
 package typefunctions
 
-import "github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
+import (
+	"strings"
+
+	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
+)
 
 // Runtime alwaysThrow message wording: the Go emitter writes the COMPLETE message into the entry (see
 // buildAlwaysThrowMessage), so the shipped marker package throws it carrying no diagnostic catalog of its
@@ -43,6 +47,10 @@ func rootThrowHeadline(code, kindLabel string) string {
 	}
 	wording, ok := rootThrowWording[code]
 	if !ok {
+		// A headline written about its argument (RUK004-006) already says the function always throws: throw it as is.
+		if definition, known := diagnostics.Definitions[code]; known && strings.Contains(definition.Headline, "{0}") {
+			return strings.ReplaceAll(definition.Headline, "{0}", kindLabel)
+		}
 		return "Type `" + kindLabel + "` is not supported here" + alwaysFailSuffix
 	}
 	participle, suffix := wording[0], wording[1]

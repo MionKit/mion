@@ -133,16 +133,18 @@ const (
 	CodeFMTPatternUnsafe = "FMT008"
 )
 
-// removeUnknownKeys: object unions and callable roots fail, since a strip that silently keeps keys is a security bug.
-// Declared members are never dropped: a value it cannot rebuild is shared by reference, and these warnings name it.
+// removeUnknownKeys returns `T`, so a declared member is never dropped: it is copied, shared with a notice
+// (RUK010 / RUK015 / RUK016), or the function always throws (RUK001 / 004 / 005 / 006). RUK003 is retired.
 const (
 	CodeRUKUnionRoot               = "RUK001"
-	CodeRUKFunctionRoot            = "RUK003"
+	CodeRUKSymbolKeyedMember       = "RUK004"
+	CodeRUKPrivateFields           = "RUK005"
+	CodeRUKSharedRefused           = "RUK006"
 	CodeRUKFunctionPropDropped     = "RUK010"
 	CodeRUKMethodDropped           = "RUK011"
 	CodeRUKStaticDropped           = "RUK012"
-	CodeRUKSymbolKeyedDropped      = "RUK013"
 	CodeRUKNonSerializablePropDrop = "RUK015"
+	CodeRUKSharedAsAsked           = "RUK016"
 )
 
 // Unsafe property name (UPN), one warning for every family: a declared `__proto__` member is
@@ -164,7 +166,7 @@ func init() {
 		CodePJNeverRoot, CodePJNonSerializableRoot, CodePJFunctionRoot, CodePJSymbolRoot,
 		CodePJSNeverRoot, CodePJSNonSerializableRoot, CodePJSFunctionRoot, CodePJSSymbolRoot,
 		CodeRJNeverRoot, CodeRJNonSerializableRoot, CodeRJFunctionRoot, CodeRJSymbolRoot,
-		CodeRUKUnionRoot, CodeRUKFunctionRoot,
+		CodeRUKUnionRoot, CodeRUKSymbolKeyedMember, CodeRUKPrivateFields, CodeRUKSharedRefused,
 	} {
 		register(Definition{Code: code, Family: FamilyRunType, Level: LevelRuntimeError, Scope: ScopeRoot, Title: "RunType root-position error"})
 	}
@@ -187,7 +189,7 @@ func init() {
 		CodePJFunctionPropDropped, CodePJMethodDropped, CodePJStaticDropped, CodePJSymbolKeyedDropped, CodePJUnionMemberDropped, CodePJNonSerializablePropDrop,
 		CodePJSFunctionPropDropped, CodePJSMethodDropped, CodePJSStaticDropped, CodePJSSymbolKeyedDropped, CodePJSUnionMemberDropped, CodePJSNonSerializablePropDrop,
 		CodeRJFunctionPropDropped, CodeRJMethodDropped, CodeRJStaticDropped, CodeRJSymbolKeyedDropped, CodeRJUnionMemberDropped, CodeRJNonSerializablePropDrop,
-		CodeRUKMethodDropped, CodeRUKStaticDropped, CodeRUKSymbolKeyedDropped,
+		CodeRUKMethodDropped, CodeRUKStaticDropped, CodeRUKSharedAsAsked,
 	} {
 		register(Definition{Code: code, Family: FamilyRunType, Level: LevelInfo, Scope: ScopeGraph, Title: "RunType child-position member dropped"})
 	}

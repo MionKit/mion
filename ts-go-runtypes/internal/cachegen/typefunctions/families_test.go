@@ -4,9 +4,10 @@ import "testing"
 
 // TestFamilies_RegistryRoundTrip keeps validate LAST: families render in order, so CrossFamilyValRoots hit the entry memo.
 func TestFamilies_RegistryRoundTrip(t *testing.T) {
-	// 16 = 11 + the two checkUnknowns validators + the two checkUnionUnknowns validators + restoreFromJsonClone.
-	if len(Families) != 16 {
-		t.Fatalf("expected 16 type-walking families, got %d", len(Families))
+	// 18 = 11 + the two checkUnknowns validators + the two checkUnionUnknowns validators + restoreFromJsonClone
+	// + the two sharedValues copies.
+	if len(Families) != 18 {
+		t.Fatalf("expected 18 type-walking families, got %d", len(Families))
 	}
 	for _, spec := range Families {
 		if spec.Settings.Tag == "" {
