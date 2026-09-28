@@ -190,7 +190,10 @@ type Definition struct {
 	Transient bool
 	// Scope is where the trigger can sit in the marker's type (see Scope).
 	// Required: register panics without it.
-	Scope      Scope
+	Scope Scope
+	// Raised narrows which passes can raise the code; the zero value is every pass. A directive naming a code
+	// the pass cannot raise is never judged unused there (see PassScope).
+	Raised     Raised
 	Title      string
 	Template   string
 	DocsAnchor string
@@ -204,6 +207,16 @@ type Definition struct {
 	// feeds it through the scan and asserts the code still fires.
 	NestedExample string
 }
+
+// Raised is a bit set of the conditions a code needs before a pass can raise it.
+type Raised uint8
+
+const (
+	// RaisedWholeProgram: only a whole-program pass (generate, dump) sees it, never a per-file scan.
+	RaisedWholeProgram Raised = 1 << iota
+	// RaisedBundleApi: a per-file scan raises it only with the bundleApi lane on (the linter runs with it off).
+	RaisedBundleApi
+)
 
 // Definitions holds every registered code, keyed by Code; the codes_*.go files fill it from init()
 // and it is read-only afterwards.

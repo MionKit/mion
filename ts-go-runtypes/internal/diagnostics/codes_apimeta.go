@@ -45,17 +45,17 @@ const (
 
 func init() {
 	for _, definition := range []Definition{
-		{Code: CodeApiMetaUnreadable, Family: FamilyMarker, Level: LevelError, Scope: ScopeNotSource, Title: "The API type a dispatch site names cannot be read as a mion PublicApi"},
-		{Code: CodeApiMetaRouteNotDeclared, Family: FamilyMarker, Level: LevelError, Scope: ScopeNotSource, Title: "A dispatch site calls a route its API type does not declare"},
-		{Code: CodeApiMetaRouteWidened, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "The route id at a dispatch site was widened to `string`, so nothing is bundled for it and the client never sets up fetching"},
-		{Code: CodeApiMetaRouteWidenedFetched, Family: FamilyMarker, Level: LevelInfo, Scope: ScopeNotSource, Title: "The route id at a dispatch site was widened to `string`; the call fetches its metadata"},
-		{Code: CodeApiMetaSourceAmbiguous, Family: FamilyMarker, Level: LevelError, Scope: ScopeNotSource, Title: "The API program named by `apiTsconfig` has no single `initRoutes` call declaring the routes this client calls"},
-		{Code: CodeApiMetaOptionWidened, Family: FamilyMarker, Level: LevelWarning, Scope: ScopeNotSource, Title: "An option of a bundled method is not a literal on the API type, so the bundled metadata leaves it unset"},
-		{Code: CodeApiMetaVersionMismatch, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "A client and the API it is built against inject different build versions"},
-		{Code: CodeApiMetaMiddlewareNotSetUp, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "A called route runs a middleware that needs params, and the client never sets it up"},
-		{Code: CodeApiMetaOptionalMiddlewareNotSetUp, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "A called route runs a middleware with optional params, and the client never sets it up"},
-		{Code: CodeApiMetaNoMetadataToFetch, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "A client fetches route metadata from an API that does not serve it"},
-		{Code: CodeApiMetaFetchNotSetUp, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "A client built with bundleApi off never sets up metadata fetching"},
+		{Code: CodeApiMetaUnreadable, Family: FamilyMarker, Level: LevelError, Scope: ScopeNotSource, Raised: RaisedBundleApi, Title: "The API type a dispatch site names cannot be read as a mion PublicApi"},
+		{Code: CodeApiMetaRouteNotDeclared, Family: FamilyMarker, Level: LevelError, Scope: ScopeNotSource, Raised: RaisedWholeProgram, Title: "A dispatch site calls a route its API type does not declare"},
+		{Code: CodeApiMetaRouteWidened, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Raised: RaisedBundleApi, Title: "The route id at a dispatch site was widened to `string`, so nothing is bundled for it and the client never sets up fetching"},
+		{Code: CodeApiMetaRouteWidenedFetched, Family: FamilyMarker, Level: LevelInfo, Scope: ScopeNotSource, Raised: RaisedBundleApi, Title: "The route id at a dispatch site was widened to `string`; the call fetches its metadata"},
+		{Code: CodeApiMetaSourceAmbiguous, Family: FamilyMarker, Level: LevelError, Scope: ScopeNotSource, Raised: RaisedWholeProgram, Title: "The API program named by `apiTsconfig` has no single `initRoutes` call declaring the routes this client calls"},
+		{Code: CodeApiMetaOptionWidened, Family: FamilyMarker, Level: LevelWarning, Scope: ScopeNotSource, Raised: RaisedWholeProgram, Title: "An option of a bundled method is not a literal on the API type, so the bundled metadata leaves it unset"},
+		{Code: CodeApiMetaVersionMismatch, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Raised: RaisedWholeProgram, Title: "A client and the API it is built against inject different build versions"},
+		{Code: CodeApiMetaMiddlewareNotSetUp, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Raised: RaisedWholeProgram, Title: "A called route runs a middleware that needs params, and the client never sets it up"},
+		{Code: CodeApiMetaOptionalMiddlewareNotSetUp, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Raised: RaisedWholeProgram, Title: "A called route runs a middleware with optional params, and the client never sets it up"},
+		{Code: CodeApiMetaNoMetadataToFetch, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Raised: RaisedBundleApi, Title: "A client fetches route metadata from an API that does not serve it"},
+		{Code: CodeApiMetaFetchNotSetUp, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Raised: RaisedWholeProgram, Title: "A client built with bundleApi off never sets up metadata fetching"},
 	} {
 		register(definition)
 	}

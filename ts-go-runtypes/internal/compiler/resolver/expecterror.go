@@ -39,9 +39,9 @@ func (sess *Session) settleDiagnostics(list []diagnostics.Diagnostic, request pr
 // directiveScope describes what this request could report, so the EXP / DWN codes never fire on a
 // question it cannot answer. Two ops report: OpGenerate, the BUILD pass, covers every file but never asks
 // for the opt-in families, so it judges only directives naming codes it could have raised; OpScanFiles,
-// the LINT pass, covers the files it was given and, with both opt-ins set, every family for them, which
-// is what makes the editor the place a stale or mistyped directive shows up. Every other op silences
-// without judging.
+// the LINT pass, covers the files it was given and, with both opt-ins set, every family for them minus the
+// whole-program codes, which is what makes the editor the place a stale or mistyped directive shows up.
+// Every other op silences without judging.
 func (sess *Session) directiveScope(request protocol.Request) diagnostics.PassScope {
 	families := map[diagnostics.Family]bool{
 		diagnostics.FamilyPureFn: true,
@@ -68,7 +68,11 @@ func (sess *Session) directiveScope(request protocol.Request) diagnostics.PassSc
 		for _, file := range request.Files {
 			files[sess.absPath(file)] = true
 		}
-		return diagnostics.PassScope{Reports: true, Files: files, Families: families}
+		lacks := diagnostics.RaisedWholeProgram
+		if !sess.apiLaneOn() {
+			lacks |= diagnostics.RaisedBundleApi
+		}
+		return diagnostics.PassScope{Reports: true, Files: files, Families: families, Lacks: lacks}
 	}
 	return diagnostics.PassScope{}
 }

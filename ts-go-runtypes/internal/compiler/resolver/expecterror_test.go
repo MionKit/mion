@@ -286,3 +286,73 @@ func TestExpectError_TypoIsReportedToTheLinter(t *testing.T) {
 		t.Fatalf("a typo must reach the editor, not just the build; got %v", codes)
 	}
 }
+
+// buildOnlyDirectiveSource names codes only the whole-program build can raise (BAT003) or that a per-file scan
+// raises only with the bundleApi lane on (MET006 is build-only too), above a healthy line.
+func buildOnlyDirectiveSource(code string) string {
+	return `import {getRunTypeId} from '@mionjs/run-types';
+// @mion-expect-error ` + code + `
+export const idStatic = getRunTypeId<{name: string}>();
+const sample = {name: 'Ada'};
+export const idReflected = getRunTypeId(sample);
+`
+}
+
+// TestExpectError_LintPassDoesNotJudgeBuildOnlyCodes: the linter's per-file scan can never raise BAT003 or MET006,
+// so calling a comment naming them unused told the user to delete a comment the build needs.
+func TestExpectError_LintPassDoesNotJudgeBuildOnlyCodes(t *testing.T) {
+	for _, code := range []string{diagnostics.CodeBatchIdCollision, diagnostics.CodeApiMetaOptionWidened, diagnostics.CodeApiMetaRouteWidened} {
+		session := setupInline(t, map[string]string{"entry.ts": buildOnlyDirectiveSource(code)})
+		lint := session.Dispatch(protocol.Request{
+			Op:                   protocol.OpScanFiles,
+			Files:                []string{"entry.ts"},
+			IncludeRtDiagnostics: true,
+			CheckEnrich:          true,
+			CheckRouterRules:     true,
+		})
+		if codes := codesOf(lint); contains(codes, diagnostics.CodeExpectErrorUnused) {
+			t.Fatalf("the lint pass cannot raise %s, so it cannot call the comment unused; got %v", code, codes)
+		}
+		build := session.Dispatch(protocol.Request{Op: protocol.OpGenerate})
+		if codes := codesOf(build); !contains(codes, diagnostics.CodeExpectErrorUnused) {
+			t.Fatalf("the build can raise %s and did not, so the comment is stale there; got %v", code, codes)
+		}
+	}
+}
+
+// TestExpectError_LintPassStillJudgesCodesItRaises: a stale comment naming a code the scan does raise is reported.
+func TestExpectError_LintPassStillJudgesCodesItRaises(t *testing.T) {
+	session := setupInline(t, map[string]string{"entry.ts": buildOnlyDirectiveSource(diagnostics.CodeVLSymbolRoot)})
+	lint := session.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"entry.ts"}, IncludeRtDiagnostics: true})
+	if codes := codesOf(lint); !contains(codes, diagnostics.CodeExpectErrorUnused) {
+		t.Fatalf("the lint pass raises VL002 and found none there, so the comment is stale; got %v", codes)
+	}
+}
+
+// TestExpectError_BuildJudgesOverrideFindings: the build now raises OVR001, so a comment naming it is used there,
+// and the lint pass over the other file does not judge it.
+func TestExpectError_BuildJudgesOverrideFindings(t *testing.T) {
+	sources := map[string]string{
+		"runtypes.d.ts": overrideDTS,
+		"a.ts": `import {overrideValidate, getRunTypeId} from '@mionjs/run-types';
+overrideValidate<string>((v) => typeof v === 'string');
+export const idStatic = getRunTypeId<{name: string}>();
+const sample = {name: 'Ada'};
+export const idReflected = getRunTypeId(sample);
+`,
+		"b.ts": `import {overrideValidate} from '@mionjs/run-types';
+// @mion-expect-error OVR001
+overrideValidate<string>((v) => v !== null);
+`,
+	}
+	session := setupGen(t, sources, t.TempDir())
+	build := session.Dispatch(protocol.Request{Op: protocol.OpGenerate})
+	codes := codesOf(build)
+	if contains(codes, diagnostics.CodeDuplicateOverride) || contains(codes, diagnostics.CodeExpectErrorUnused) {
+		t.Fatalf("the build raises OVR001 and the comment silences it; got %v", codes)
+	}
+	lint := session.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"b.ts"}, IncludeRtDiagnostics: true})
+	if codes := codesOf(lint); contains(codes, diagnostics.CodeDuplicateOverride) || contains(codes, diagnostics.CodeExpectErrorUnused) {
+		t.Fatalf("the lint pass over b.ts raises and silences OVR001; got %v", codes)
+	}
+}
