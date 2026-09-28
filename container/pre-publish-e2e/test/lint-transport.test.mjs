@@ -17,20 +17,20 @@ const E2E_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BIN = path.join(E2E_ROOT, 'node_modules/.bin');
 
 // The transport is wired if its rule name reaches the output — as a real RT
-// diagnostic (VL0xx / runtypes/{warn,error}) in-container where the resolver
-// binary is installed, or as its `[runtypes]` engine line on a host without the
+// diagnostic (VL0xx / mion/<level>) in-container where the resolver
+// binary is installed, or as its `[mion]` engine line on a host without the
 // platform binary. Either proves the plugin loaded and ran; a silent no-op fails.
-const WIRED = /runtypes|VL0\d\d/i;
+const WIRED = /mion[/(](?:error|warning|info)|\[mion\]|VL0\d\d/i;
 
 // A config failure is NEVER an acceptable outcome: it means the app's lint config
 // points the resolver at the wrong tsconfig (or none), so the lane would "pass" on
 // an error message instead of a real diagnostic. Only a LIVE resolver emits
 // CFG001, so this can't collide with the tolerated missing-binary engine line.
-const MISCONFIGURED = /CFG001|broken-tsconfig/i;
+const MISCONFIGURED = /CFG001/i;
 
 // A linter that could not load the plugin, or was handed a rule the plugin does
-// not define, ALSO prints the word "runtypes" ("Failed to load JS plugin ...",
-// "Definition for rule 'runtypes/x' was not found", "unknown rule"), which is
+// not define, ALSO prints the word "mion" ("Failed to load JS plugin ...",
+// "Definition for rule 'mion/x' was not found", "unknown rule"), which is
 // exactly how a stale plugin path or rule name once passed this lane without a
 // single diagnostic. Those messages fail it.
 const NOT_WIRED = /Failed to load|Definition for rule|was not found|unknown rule|Cannot find module/i;
@@ -55,7 +55,7 @@ test('oxlint transport (build-vite) surfaces an RT diagnostic', () => {
   if (outcome.skip) return void console.log(`  (skipped: ${outcome.reason})`);
   assert.doesNotMatch(outcome.output, MISCONFIGURED, `oxlint lint config points the resolver at the wrong tsconfig:\n${outcome.output.slice(0, 800)}`);
   assert.doesNotMatch(outcome.output, NOT_WIRED, `oxlint could not load the RT plugin or one of its rules:\n${outcome.output.slice(0, 800)}`);
-  assert.match(outcome.output, WIRED, `oxlint RT transport produced no runtypes output:\n${outcome.output.slice(0, 800)}`);
+  assert.match(outcome.output, WIRED, `oxlint RT transport produced no mion output:\n${outcome.output.slice(0, 800)}`);
 });
 
 test('eslint transport (smoke-esbuild) surfaces an RT diagnostic', () => {
@@ -63,5 +63,5 @@ test('eslint transport (smoke-esbuild) surfaces an RT diagnostic', () => {
   if (outcome.skip) return void console.log(`  (skipped: ${outcome.reason})`);
   assert.doesNotMatch(outcome.output, MISCONFIGURED, `eslint lint config points the resolver at the wrong tsconfig:\n${outcome.output.slice(0, 800)}`);
   assert.doesNotMatch(outcome.output, NOT_WIRED, `eslint could not load the RT plugin or one of its rules:\n${outcome.output.slice(0, 800)}`);
-  assert.match(outcome.output, WIRED, `eslint RT transport produced no runtypes output:\n${outcome.output.slice(0, 800)}`);
+  assert.match(outcome.output, WIRED, `eslint RT transport produced no mion output:\n${outcome.output.slice(0, 800)}`);
 });

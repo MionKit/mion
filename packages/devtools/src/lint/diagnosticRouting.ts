@@ -4,416 +4,44 @@
 
 import {DIAGNOSTIC_CATALOG, renderHeadline} from '../core/diagnosticCatalog.ts';
 import {DOWNGRADED_NOTE} from '../core/downgradeErrors.ts';
-import {Family, Level, type Diagnostic, type DiagnosticSite} from '../core/protocol.ts';
+import {Level, type Diagnostic, type DiagnosticSite} from '../core/protocol.ts';
 
-// Rules are grouped by the DIAGNOSTIC FAMILY that produced them and NAMED for what they catch, not for their
-// severity. A family's two tiers are two different errors (a root the feature cannot represent versus a member
-// it silently skips), so each is its own rule and a team levels each on its own; severity picks the tier. The
-// concrete code (`[VL011]`) always rides in the message, so per-code disable comments and lookups keep working.
-// `validate` covers both `createValidateFn` and `createGetValidationErrorsFn` (VL + VE).
-export type RuleName =
-  | 'broken-tsconfig'
-  | 'invalid-expect-error'
-  | 'invalid-downgrade-error'
-  | 'downgraded-error'
-  | 'invalid-marker'
-  | 'redundant-marker'
-  | 'pure-functions'
-  | 'validate-non-serializable'
-  | 'validate-skipped-member'
-  | 'json-non-serializable'
-  | 'json-skipped-member'
-  | 'clone-unsupported-type'
-  | 'clone-shared-reference'
-  | 'format'
-  | 'invalid-override'
-  | 'override-side-effect'
-  | 'non-enumerable'
-  | 'unsafe-property-name'
-  | 'other'
-  | 'no-enrichment-todo'
-  | 'no-orphan-carcass'
-  | 'enrichment-field'
-  | 'enrichment-message'
-  | 'enrichment-broken-source'
-  | 'enrichment-misplaced-file'
-  // The mion route rules, compiler-fed like every rule above but keeping the names they had as hand-written
-  // `@mionjs/*` ESLint rules, so an existing config keeps working.
-  | 'strong-typed-routes'
-  | 'no-throw-in-handlers'
-  | 'returned-error-type'
-  | 'no-unsafe-property-names';
+// One rule per LEVEL, never per topic: a lint rule has one severity, so a rule per topic let the lint config
+// disagree with the level the checker gave a finding (a `warn` rule for a code that stops the build). The code
+// (`[VL011]`) rides in the message, and a finding is changed with the directive comments or the tsconfig
+// `downgradeErrors`, which the build reads too.
+export type RuleName = 'error' | 'warning' | 'info';
 
-// RuleSpec is the single source of truth for a rule. `gate` picks the text pre-filter that admits a file to the
-// resolver pass: `compiler` any marker / RT / router file, `enrichment` only generated mirror files. index.ts
-// builds its `rules` record and `recommended` config from this table, so nothing hand-lists the rules twice.
+// RuleSpec is the single source of truth for a rule; index.ts builds its `rules` record and `recommended`
+// config from this table, so nothing hand-lists the rules twice.
 export interface RuleSpec {
   readonly name: RuleName;
-  // `runtypes` rides the default export OXlint loads, `@mionjs` the named mionPlugin export; index.ts
-  // partitions this ONE table on the field so neither plugin hand-lists its rules.
-  readonly namespace: 'runtypes' | '@mionjs';
-  // Never `warn` while the rule carries a code the Go catalog does not call a Warning: under-reporting a fatal
-  // or runtime error is the one wrong direction. The reverse is the rule author's call, and is how something
-  // can be worth an editor squiggle without stopping a build (`enrichment-field`).
-  readonly default: 'error' | 'warn';
-  readonly gate: 'compiler' | 'enrichment';
+  readonly default: 'error' | 'warn' | 'off';
   readonly description: string;
 }
 
 export const RULE_SPECS: readonly RuleSpec[] = [
   {
-    name: 'broken-tsconfig',
-    namespace: 'runtypes',
+    name: 'error',
     default: 'error',
-    gate: 'compiler',
     description:
-      'The project tsconfig the linter was pointed at (the tsconfig setting, or the default tsconfig.json) is missing or does not parse, so type-aware linting cannot run. The linter reads the same config as your build; fix the config or the configured path',
+      'Every mion Error and RuntimeError: the build produced no code for the call, or the code it produced throws or no longer checks what you asked for. The build stops on each of them. Also reports a tsconfig that does not load and a checker that cannot run',
   },
   {
-    name: 'invalid-expect-error',
-    namespace: 'runtypes',
+    name: 'warning',
     default: 'warn',
-    gate: 'compiler',
     description:
-      'A `@mion-expect-error` comment that is wrong, at either scope (the line form, or the block comment at the top of a file that covers the whole file): it silenced nothing (so it is stale and should be deleted, the same check TypeScript runs on an unused `@ts-expect-error`), it names a code that is always reported, or it names a code that does not exist',
+      'Every mion Warning (the code works, but may surprise you), plus every error a `@mion-downgrade-error` comment or the tsconfig `downgradeErrors` lowered, marked `(downgraded)`',
   },
   {
-    name: 'invalid-downgrade-error',
-    namespace: 'runtypes',
-    default: 'warn',
-    gate: 'compiler',
+    name: 'info',
+    default: 'off',
     description:
-      'A `@mion-downgrade-error` comment that is wrong, at either scope (the line form, or the block comment at the top of a file that covers the whole file): it lowered nothing (so it is stale and should be deleted), it names a code that always stops the build, it names a code that does not exist, or it names one that is already a warning and was never halting anything',
-  },
-  {
-    name: 'downgraded-error',
-    namespace: 'runtypes',
-    default: 'warn',
-    gate: 'compiler',
-    description:
-      'An error a `@mion-downgrade-error` comment lowered: it no longer stops the build, which prints it as a warning with a `(downgraded)` note, and the linter shows it the same way. The message keeps the original code, so the finding is still easy to find and fix',
-  },
-  {
-    name: 'invalid-marker',
-    namespace: 'runtypes',
-    default: 'error',
-    gate: 'compiler',
-    description:
-      'A marker call the build cannot turn into a function: a generic type argument never filled in with a concrete type, an options argument that is not a plain literal the build can read, an import that failed to resolve, or a Temporal type without the Temporal lib enabled',
-  },
-  {
-    name: 'redundant-marker',
-    namespace: 'runtypes',
-    default: 'warn',
-    gate: 'compiler',
-    description:
-      'A marker that works but probably does not do what you meant: a function called inside a marker just to read its return type (the call itself is wasted), or a bundled-API option that is not a literal, so the bundled metadata leaves it unset. Info (shown with levels: all): an InjectTypeFnArgs marker naming a family twice, or a route id widened to string, so the call fetches its metadata',
-  },
-  {
-    name: 'pure-functions',
-    namespace: 'runtypes',
-    default: 'error',
-    gate: 'compiler',
-    description:
-      'A registered pure function that breaks the purity rules (uses this, await, yield, dynamic import, blocked globals, or variables from outside its own body), is registered twice with different bodies, or is referenced by a generated function but never registered',
-  },
-  {
-    name: 'validate-non-serializable',
-    namespace: 'runtypes',
-    default: 'error',
-    gate: 'compiler',
-    description:
-      'A type that can never be validated. Validators check serializable data only (the data-only projection of the type), so a type like symbol or WeakMap at a root position has nothing to check and the generated function will always fail',
-  },
-  {
-    name: 'validate-skipped-member',
-    namespace: 'runtypes',
-    default: 'warn',
-    gate: 'compiler',
-    description:
-      'A property the validator silently skips: functions, methods, statics, symbol keys and values with no data form (a Promise, a WeakMap) never survive JSON, so the generated validator checks the rest of the object and ignores them. Also a validator on a written any / unknown, which accepts every value. All Info: shown only with levels: all',
-  },
-  {
-    name: 'json-non-serializable',
-    namespace: 'runtypes',
-    default: 'error',
-    gate: 'compiler',
-    description:
-      'A type that can never be encoded to or decoded from JSON (a function, symbol, never, or a non-serializable built-in like WeakMap at a root position) — the generated function will always fail',
-  },
-  {
-    name: 'json-skipped-member',
-    namespace: 'runtypes',
-    default: 'warn',
-    gate: 'compiler',
-    description:
-      'A property the JSON encoder and decoder silently leave out (a function, method, static, symbol key, or a value with no data form): the rest of the object round-trips normally. All Info: shown only with levels: all',
-  },
-  {
-    name: 'clone-unsupported-type',
-    namespace: 'runtypes',
-    default: 'error',
-    gate: 'compiler',
-    description:
-      'A type removeUnknownKeys cannot clone safely: a union of objects (the clone cannot tell which shape to rebuild) or a callable root. A clone that guessed could keep unknown keys, so the build stops instead',
-  },
-  {
-    name: 'clone-shared-reference',
-    namespace: 'runtypes',
-    default: 'warn',
-    gate: 'compiler',
-    description:
-      'A property the clone cannot rebuild (a function, symbol, or non-serializable built-in), so it stays pointing at the same value as the original: changes through it are visible on both copies. Info (shown with levels: all): a class method, a static, or a symbol key the clone leaves out',
-  },
-  {
-    name: 'format',
-    namespace: 'runtypes',
-    default: 'error',
-    gate: 'compiler',
-    description:
-      'A custom string format with a broken definition: a mock sample that does not match its own pattern, a sample that violates a sibling constraint like maxLength, invalid format params (including a pattern that does not compile as a JS RegExp), a pattern that a crafted input can make backtrack exponentially, or pattern checks that could not run because no JS runtime was found',
-  },
-  {
-    name: 'invalid-override',
-    namespace: 'runtypes',
-    default: 'error',
-    gate: 'compiler',
-    description:
-      'An override that cannot work: the same (type, function) pair registered twice, or an override redirect pointing at a generated module that does not exist',
-  },
-  {
-    name: 'override-side-effect',
-    namespace: 'runtypes',
-    default: 'warn',
-    gate: 'compiler',
-    description:
-      'A validate override on a type whose JSON union decoders also run validation internally: the override changes their behaviour too, which may be intended but is worth knowing. Info: shown only with levels: all',
-  },
-  {
-    name: 'non-enumerable',
-    namespace: 'runtypes',
-    default: 'warn',
-    gate: 'compiler',
-    description:
-      'A property marked @nonEnumerable that is not optional — a non-enumerable property can be absent from a plain object, so the type must allow undefined',
-  },
-  {
-    name: 'unsafe-property-name',
-    namespace: 'runtypes',
-    default: 'warn',
-    gate: 'compiler',
-    description:
-      'A property named __proto__. That name is never data: writing it on a plain object swaps the prototype instead of storing a value, so the member is dropped from every compiled function and the value never round-trips. TypeScript accepts the declaration, so nothing else tells you the key is missing at runtime',
-  },
-  {
-    name: 'other',
-    namespace: 'runtypes',
-    default: 'error',
-    gate: 'compiler',
-    description:
-      'Any other RunTypes compiler diagnostic (reached only when a locally built binary runs ahead of the message catalog)',
-  },
-  {
-    name: 'no-enrichment-todo',
-    namespace: 'runtypes',
-    default: 'warn',
-    gate: 'enrichment',
-    description:
-      'An unfilled @todo placeholder the generator scaffolded in a FriendlyText / MockData file — fill in the value, then delete the tag line',
-  },
-  {
-    name: 'no-orphan-carcass',
-    namespace: 'runtypes',
-    default: 'warn',
-    gate: 'enrichment',
-    description:
-      'A commented-out @rtOrphan / @rtOrphanChild block the generator left behind when a type or field disappeared — restore the type, or run `mion enrich --prune` to remove it',
-  },
-  {
-    name: 'enrichment-field',
-    namespace: 'runtypes',
-    default: 'error',
-    gate: 'enrichment',
-    description:
-      'A FriendlyText / MockData entry that no longer matches its type: a field the type does not declare, or a name colliding with the reserved rt$ prefix',
-  },
-  {
-    name: 'enrichment-message',
-    namespace: 'runtypes',
-    default: 'warn',
-    gate: 'enrichment',
-    description:
-      'A friendly error message template with a problem: an error key that is not a declared constraint of the field, an unknown $[placeholder], or a plural arm that is not a valid category',
-  },
-  {
-    name: 'enrichment-broken-source',
-    namespace: 'runtypes',
-    default: 'error',
-    gate: 'enrichment',
-    description:
-      'A generated mirror whose source is gone — the file it mirrors no longer exists, or no longer declares the imported type. Re-run the generator, or delete the mirror',
-  },
-  {
-    name: 'enrichment-misplaced-file',
-    namespace: 'runtypes',
-    default: 'warn',
-    gate: 'enrichment',
-    description:
-      'A generated mirror that is no longer where the generator would write it, usually after its source file moved — re-run the generator to relocate it',
-  },
-  // ── the mion route rules (@mionjs/*) ─────────────────────────────────────
-  // Same table, same transport; only the namespace differs.
-  {
-    name: 'strong-typed-routes',
-    namespace: '@mionjs',
-    default: 'error',
-    gate: 'compiler',
-    description:
-      'A mion route, query, mutation, middleware or headersFn handler that does not declare its types: a missing return type, or a parameter with no type annotation. mion compiles the declared types into the validation and serialization the route runs, and the client reads the same declaration, so an inferred one leaves the build nothing to compile against',
-  },
-  {
-    name: 'no-throw-in-handlers',
-    namespace: '@mionjs',
-    default: 'error',
-    gate: 'compiler',
-    description:
-      'A throw that escapes a mion handler. Handlers answer with errors instead, so the error stays in the signature and the client handles it at the call site, typed; a thrown one lands in the undeclared slot and the client only sees its public message. A throw caught inside the same handler is left alone',
-  },
-  {
-    name: 'returned-error-type',
-    namespace: '@mionjs',
-    default: 'error',
-    gate: 'compiler',
-    description:
-      'A mion handler whose declared return type can be an error that is not an RpcError. Only an RpcError, or a subclass such as FatalError, carries the mion brand the dispatcher routes on; any other error is dropped in the undeclared slot instead of its typed one, so the declared return type stops being true',
-  },
-  {
-    name: 'no-unsafe-property-names',
-    namespace: '@mionjs',
-    default: 'warn',
-    gate: 'compiler',
-    description:
-      'A property named __proto__ in any interface, type literal or class. That name is never data: writing it on a plain object swaps the prototype instead of storing a value, so every compiled function drops the member. TypeScript accepts the declaration, so nothing else tells you. This reports the declaration, so it fires for types no route reaches yet',
+      'Every mion Info message: documented behaviour or advice, such as a member left out of a validator because it holds no data. Off by default, like in the build',
   },
 ];
 
 export const ALL_RULE_NAMES: readonly RuleName[] = RULE_SPECS.map((spec) => spec.name);
-
-// `primary` takes error-level codes and every code of a warn-only family; `warn` takes Warning and Info when set.
-interface FamilyRules {
-  primary: RuleName;
-  warn?: RuleName;
-}
-
-// Product-family granularity: the JSON prefixes share rules, as do validate / validationErrors and the marker scanners.
-// Enrichment (FT/MD/GE) and mion route (MRT) codes route by concern (enrichFamily, mionRouteFamily), so they are absent.
-const PREFIX_TO_FAMILY: Record<string, FamilyRules> = {
-  CFG: {primary: 'broken-tsconfig'},
-  EXP: {primary: 'invalid-expect-error'},
-  DWN: {primary: 'invalid-downgrade-error'},
-  MKR: {primary: 'invalid-marker', warn: 'redundant-marker'},
-  CTA: {primary: 'invalid-marker'},
-  PFN: {primary: 'invalid-marker'},
-  // Every BAT code ships a failing call (BAT008 / BAT009 answer every request with a 404).
-  BAT: {primary: 'invalid-marker'},
-  TMP: {primary: 'invalid-marker'},
-  // Bundled API metadata: MET004 / MET006 work but fetch or leave an option unset, the redundant-marker kind.
-  MET: {primary: 'invalid-marker', warn: 'redundant-marker'},
-  PFE: {primary: 'pure-functions'},
-  VL: {primary: 'validate-non-serializable', warn: 'validate-skipped-member'},
-  VE: {primary: 'validate-non-serializable', warn: 'validate-skipped-member'},
-  PJ: {primary: 'json-non-serializable', warn: 'json-skipped-member'},
-  PJS: {primary: 'json-non-serializable', warn: 'json-skipped-member'},
-  RJ: {primary: 'json-non-serializable', warn: 'json-skipped-member'},
-  JCP: {primary: 'json-non-serializable'},
-  RUK: {primary: 'clone-unsupported-type', warn: 'clone-shared-reference'},
-  FMT: {primary: 'format'},
-  OVR: {primary: 'invalid-override', warn: 'override-side-effect'},
-  NE: {primary: 'non-enumerable'},
-  UPN: {primary: 'unsafe-property-name'},
-};
-
-// codePrefix is the leading uppercase letters of a code (VL011 → VL, PFE9012 → PFE).
-function codePrefix(code: string): string {
-  const match = code.match(/^[A-Z]+/);
-  return match ? match[0] : code;
-}
-
-// enrichFamily buckets an enrichment code into its concern family; FT02x and MD02x express the same concerns,
-// so both families share them. An unknown enrich code is treated as a field error rather than dropped.
-function enrichFamily(code: string): FamilyRules {
-  switch (code) {
-    // Field errors: the map names something the type does not declare, or collides with the reserved `rt$`
-    // prefix. Listed per code because FT002 and MD001 are Warnings, so picking the tier by severity would
-    // route them to the message rule.
-    case 'FT002':
-    case 'FT011':
-    case 'MD001':
-    case 'MD011':
-      return {primary: 'enrichment-field'};
-    // Message errors: the template is wrong, so what a user reads is wrong or falls back. Per code for the
-    // same reason in reverse.
-    case 'FT003':
-    case 'FT005':
-    case 'FT006':
-    case 'FT007':
-    case 'FT008':
-    case 'FT009':
-      return {primary: 'enrichment-message'};
-    case 'FT020':
-    case 'MD020':
-    case 'FT023':
-    case 'MD023':
-      // A @todo marker and a blank value both mean "not finished yet", so both ride the todo rule.
-      return {primary: 'no-enrichment-todo'};
-    case 'FT021':
-    case 'FT022':
-    case 'MD021':
-    case 'MD022':
-      return {primary: 'no-orphan-carcass'};
-    case 'GE000':
-    case 'GE001':
-    case 'GE002':
-    case 'GE003':
-      return {primary: 'enrichment-broken-source', warn: 'enrichment-misplaced-file'};
-    default:
-      return {primary: 'enrichment-field', warn: 'enrichment-message'};
-  }
-}
-
-// mionRouteFamily buckets a mion route code into its rule: one Go-catalog family, four separate errors a team
-// levels on its own, so they route per code rather than through PREFIX_TO_FAMILY. An unknown MRT code rides
-// strong-typed-routes rather than being dropped.
-function mionRouteFamily(code: string): FamilyRules {
-  switch (code) {
-    case 'MRT003':
-      return {primary: 'no-throw-in-handlers'};
-    case 'MRT004':
-      return {primary: 'returned-error-type'};
-    case 'MRT005':
-      return {primary: 'no-unsafe-property-names'};
-    // MRT001 (missing return type) + MRT002 (missing parameter type).
-    default:
-      return {primary: 'strong-typed-routes'};
-  }
-}
-
-// fallbackFamily routes a code whose prefix isn't mapped (a locally built binary running ahead of the catalog)
-// by its coarse wire family, so a diagnostic is never silently dropped.
-function fallbackFamily(family: Family): FamilyRules {
-  switch (family) {
-    case Family.Marker:
-      return {primary: 'invalid-marker', warn: 'redundant-marker'};
-    case Family.PureFn:
-      return {primary: 'pure-functions'};
-    case Family.Enrich:
-      return {primary: 'enrichment-field', warn: 'enrichment-message'};
-    case Family.MionRoute:
-      return {primary: 'strong-typed-routes'};
-    default:
-      return {primary: 'other'};
-  }
-}
 
 // LintLoc is the report location: 1-based line, 0-based column, the ESLint/OXlint convention; wire sites are
 // 1-based on both.
@@ -430,7 +58,7 @@ export interface LintReport {
 }
 
 // routeDiagnostic maps one wire diagnostic to its rule, message and location. Never returns null: an unknown
-// code still reports through its family rule with the fallback message, so nothing is silently dropped.
+// code still reports at its wire level with the fallback message, so nothing is silently dropped.
 export function routeDiagnostic(diagnostic: Diagnostic): LintReport {
   return {
     ruleName: ruleNameFor(diagnostic),
@@ -439,15 +67,17 @@ export function routeDiagnostic(diagnostic: Diagnostic): LintReport {
   };
 }
 
-// ruleNameFor: a downgraded finding gets its own rule, since a lint rule has one level for all its findings.
+// ruleNameFor picks the rule from the level alone; a lowered error is a warning, as the build prints it.
 function ruleNameFor(diagnostic: Diagnostic): RuleName {
-  if (diagnostic.downgraded) return 'downgraded-error';
-  let family: FamilyRules;
-  if (diagnostic.family === Family.Enrich) family = enrichFamily(diagnostic.code);
-  else if (diagnostic.family === Family.MionRoute) family = mionRouteFamily(diagnostic.code);
-  else family = PREFIX_TO_FAMILY[codePrefix(diagnostic.code)] ?? fallbackFamily(diagnostic.family);
-  const lowTier = diagnostic.level === Level.Warning || diagnostic.level === Level.Info;
-  return lowTier && family.warn ? family.warn : family.primary;
+  if (diagnostic.downgraded) return 'warning';
+  switch (diagnostic.level) {
+    case Level.Warning:
+      return 'warning';
+    case Level.Info:
+      return 'info';
+    default:
+      return 'error';
+  }
 }
 
 // renderMessage prefixes the stable code (so users can look it up or disable-comment it) and appends related

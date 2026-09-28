@@ -2,7 +2,7 @@
 // test/ and examples/, where nearly all live, and a whole-tree pass takes minutes.
 import {join} from 'node:path';
 import {REPO_ROOT} from '../lib/env.mjs';
-import {capture, die, green, reportCliError, run} from '../lib/proc.mjs';
+import {capture, die, green, reportCliError} from '../lib/proc.mjs';
 
 const DIRECTIVE = '@mion-(downgrade|expect)-error';
 const CONFIG = join(REPO_ROOT, 'scripts/core/oxlint-directives.json');
@@ -16,11 +16,25 @@ export function directiveFiles(repoRoot = REPO_ROOT) {
   return listed.stdout.split('\0').filter(Boolean);
 }
 
+// The mion rules report every level, so the JSON output is filtered to the directive codes (EXP / DWN) and to an
+// engine failure, reported as `[mion] ...`; the other findings are the tests' own fixtures.
+const FAILING = /^\[(?:(?:EXP|DWN)\d+\]|mion\])/;
+
+export function failingDiagnostics(stdout) {
+  return JSON.parse(stdout).diagnostics.filter((diagnostic) => FAILING.test(diagnostic.message));
+}
+
 export function main() {
   const files = directiveFiles();
   if (files.length === 0) die('lint-directives: no file carries a directive comment, so the pathspec stopped matching');
-  const code = run('pnpm', ['exec', 'oxlint', '-c', CONFIG, ...files]);
-  if (code !== 0) die('', code);
+  const result = capture('pnpm', ['exec', 'oxlint', '-c', CONFIG, '-f', 'json', ...files], {cwd: REPO_ROOT});
+  if (!result.stdout.trim().startsWith('{')) die(`lint-directives: oxlint failed:\n${result.stderr || result.stdout}`);
+  const failing = failingDiagnostics(result.stdout);
+  for (const diagnostic of failing) {
+    const line = diagnostic.labels?.[0]?.span?.line ?? 1;
+    console.error(`${diagnostic.filename}:${line}: ${diagnostic.message}`);
+  }
+  if (failing.length > 0) die(`lint-directives: ${failing.length} directive comment(s) need fixing`);
   console.log(`${green('ok')} every directive comment in ${files.length} files still matches a diagnostic.`);
 }
 

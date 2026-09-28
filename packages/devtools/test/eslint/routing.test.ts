@@ -6,15 +6,11 @@ import {routeDiagnostic, renderMessage, RULE_SPECS, type RuleName} from '../../s
 import {DIAGNOSTIC_CATALOG} from '../../src/core/diagnosticCatalog.ts';
 import {Family, Level, Severity, type Diagnostic} from '../../src/core/protocol.ts';
 
-// Routing reads the level; a test that names only a severity gets the level that severity implies.
-const LEVEL_OF_SEVERITY = {[Severity.Error]: Level.RuntimeError, [Severity.Warning]: Level.Warning, [Severity.Info]: Level.Info};
-
 function diagnostic(partial: Partial<Diagnostic> & {code: string}): Diagnostic {
-  const severity = partial.severity ?? Severity.Warning;
   return {
     family: Family.RunType,
-    severity,
-    level: LEVEL_OF_SEVERITY[severity],
+    severity: Severity.Warning,
+    level: Level.Warning,
     site: {filePath: 'a.ts', startLine: 3, startCol: 5},
     ...partial,
   } as Diagnostic;
@@ -22,151 +18,60 @@ function diagnostic(partial: Partial<Diagnostic> & {code: string}): Diagnostic {
 
 const ruleOf = (partial: Partial<Diagnostic> & {code: string}) => routeDiagnostic(diagnostic(partial)).ruleName;
 
-describe('family routing (compiler diagnostics grouped by Go prefix family, named for what they catch)', () => {
-  it('routes each family to its error rule, splitting warnings to the descriptive advisory rule', () => {
-    // marker family folds MKR / CTA / PFN / TMP.
-    expect(ruleOf({code: 'MKR003', family: Family.Marker, severity: Severity.Error})).toBe('invalid-marker');
-    expect(ruleOf({code: 'MKR001', family: Family.Marker, severity: Severity.Warning})).toBe('redundant-marker');
-    expect(ruleOf({code: 'CTA001', family: Family.Marker, severity: Severity.Error})).toBe('invalid-marker');
-    // A batch that 404s every request is an error, never the advisory rule.
-    expect(ruleOf({code: 'BAT008', family: Family.Marker, severity: Severity.Error})).toBe('invalid-marker');
-    // The bundled-API codes route by their own prefix: a broken call is an error, an unset option advice.
-    expect(ruleOf({code: 'MET003', family: Family.RunType, severity: Severity.Error})).toBe('invalid-marker');
-    expect(ruleOf({code: 'MET006', family: Family.RunType, severity: Severity.Warning})).toBe('redundant-marker');
-    // validate absorbs validationErrors (VL + VE).
-    expect(ruleOf({code: 'VL001', severity: Severity.Error})).toBe('validate-non-serializable');
-    expect(ruleOf({code: 'VL011', severity: Severity.Warning})).toBe('validate-skipped-member');
-    expect(ruleOf({code: 'VE001', severity: Severity.Error})).toBe('validate-non-serializable');
-    expect(ruleOf({code: 'VE020', severity: Severity.Warning})).toBe('validate-skipped-member');
-    // json folds PJ / PJS / RJ / JCP.
-    expect(ruleOf({code: 'PJ001', severity: Severity.Error})).toBe('json-non-serializable');
-    expect(ruleOf({code: 'PJ011', severity: Severity.Warning})).toBe('json-skipped-member');
-    expect(ruleOf({code: 'JCP001', severity: Severity.Error})).toBe('json-non-serializable');
-    // clone keeps-by-reference rather than skipping.
-    expect(ruleOf({code: 'RUK001', severity: Severity.Error})).toBe('clone-unsupported-type');
-    expect(ruleOf({code: 'RUK010', severity: Severity.Warning})).toBe('clone-shared-reference');
-    // single-tier families keep one rule at their own default.
-    expect(ruleOf({code: 'PFE9012', family: Family.PureFn, severity: Severity.Error})).toBe('pure-functions');
-    expect(ruleOf({code: 'FMT001', severity: Severity.Error})).toBe('format');
-    expect(ruleOf({code: 'NE001', severity: Severity.Error})).toBe('non-enumerable');
-    // overrides mixes tiers.
-    expect(ruleOf({code: 'OVR001', severity: Severity.Error})).toBe('invalid-override');
-    expect(ruleOf({code: 'OVR010', severity: Severity.Warning})).toBe('override-side-effect');
+describe('level routing (one rule per level, never per topic)', () => {
+  it('sends Error and RuntimeError to mion/error, whatever the family', () => {
+    expect(ruleOf({code: 'MKR003', family: Family.Marker, level: Level.Error})).toBe('error');
+    expect(ruleOf({code: 'VL002', level: Level.RuntimeError})).toBe('error');
+    expect(ruleOf({code: 'MRT001', family: Family.MionRoute, level: Level.RuntimeError})).toBe('error');
+    expect(ruleOf({code: 'FT011', family: Family.Enrich, level: Level.Error})).toBe('error');
   });
 
-  it('sends Info to the same advisory rule as a warning, never to an error rule', () => {
-    expect(ruleOf({code: 'VL011', severity: Severity.Info})).toBe('validate-skipped-member');
-    expect(ruleOf({code: 'RJ015', severity: Severity.Info})).toBe('json-skipped-member');
-    expect(ruleOf({code: 'RUK011', severity: Severity.Info})).toBe('clone-shared-reference');
-    expect(ruleOf({code: 'MKR006', family: Family.Marker, severity: Severity.Info})).toBe('redundant-marker');
-    expect(ruleOf({code: 'MET004', family: Family.Marker, severity: Severity.Info})).toBe('redundant-marker');
+  it('sends Warning to mion/warning and Info to mion/info', () => {
+    expect(ruleOf({code: 'RUK010', level: Level.Warning})).toBe('warning');
+    expect(ruleOf({code: 'FT020', family: Family.Enrich, level: Level.Warning})).toBe('warning');
+    expect(ruleOf({code: 'MRT005', family: Family.MionRoute, level: Level.Warning})).toBe('warning');
+    expect(ruleOf({code: 'VL011', level: Level.Info})).toBe('info');
   });
 
-  it('sends a downgraded finding to downgraded-error, whatever its family, with the build note', () => {
-    const report = routeDiagnostic(diagnostic({code: 'VL002', severity: Severity.Error, downgraded: true}));
-    expect(report.ruleName).toBe('downgraded-error');
+  it('sends a downgraded finding to mion/warning, with the build note', () => {
+    const report = routeDiagnostic(diagnostic({code: 'VL002', level: Level.RuntimeError, downgraded: true}));
+    expect(report.ruleName).toBe('warning');
     expect(report.message).toMatch(/^\[VL002\] .*\(downgraded\)$/);
-    expect(ruleOf({code: 'FMT002', severity: Severity.Error, downgraded: true})).toBe('downgraded-error');
-    expect(ruleOf({code: 'VL002', severity: Severity.Error})).toBe('validate-non-serializable');
   });
 
-  it('keeps the stable code in the message for lookup and disable comments', () => {
+  it('keeps the stable code in the message for lookup and directive comments', () => {
     const report = routeDiagnostic(diagnostic({code: 'VL011', args: ['onClick']}));
     expect(report.message).toContain('[VL011]');
     expect(report.message).toContain('onClick');
   });
 
-  it('never drops a diagnostic: an unknown prefix routes by its wire family', () => {
-    expect(ruleOf({code: 'ZZ999', family: Family.RunType, severity: Severity.Error})).toBe('other');
-    expect(ruleOf({code: 'ZZ999', family: Family.Marker, severity: Severity.Error})).toBe('invalid-marker');
-    expect(ruleOf({code: 'ZZ999', family: Family.PureFn, severity: Severity.Error})).toBe('pure-functions');
-  });
-
-  // Both scopes report through the same codes, so the editor squiggle lands on the comment either way.
-  it('routes every directive code to its own rule, at both scopes', () => {
-    for (const code of ['EXP001', 'EXP002', 'EXP003']) {
-      expect(ruleOf({code, family: Family.Marker})).toBe('invalid-expect-error');
-    }
-    for (const code of ['DWN001', 'DWN002', 'DWN003', 'DWN004']) {
-      expect(ruleOf({code, family: Family.Marker})).toBe('invalid-downgrade-error');
-    }
+  it('never drops a diagnostic: an unknown code reports at its wire level', () => {
+    expect(ruleOf({code: 'ZZ999', level: Level.RuntimeError})).toBe('error');
+    expect(ruleOf({code: 'ZZ999', level: Level.Warning})).toBe('warning');
   });
 });
 
-describe('enrichment routing (per-concern rules, named for what they catch)', () => {
-  const cases: Array<[string, Severity, RuleName]> = [
-    // The content codes route PER CODE now, not by severity. Every one of them
-    // is a Warning since the three-level split, so a severity tier could not
-    // tell a field finding from a message finding any more — and never really
-    // could: FT006 (a plural template missing its `other` arm) is a message
-    // finding that only landed on the field rule because it happened to be an
-    // error.
-    ['FT020', Severity.Warning, 'no-enrichment-todo'],
-    ['MD020', Severity.Warning, 'no-enrichment-todo'],
-    ['FT023', Severity.Warning, 'no-enrichment-todo'],
-    ['MD023', Severity.Warning, 'no-enrichment-todo'],
-    ['FT021', Severity.Warning, 'no-orphan-carcass'],
-    ['FT022', Severity.Warning, 'no-orphan-carcass'],
-    ['MD021', Severity.Warning, 'no-orphan-carcass'],
-    ['MD022', Severity.Warning, 'no-orphan-carcass'],
-    ['FT002', Severity.Warning, 'enrichment-field'],
-    ['FT011', Severity.Error, 'enrichment-field'],
-    ['MD001', Severity.Warning, 'enrichment-field'],
-    ['MD011', Severity.Error, 'enrichment-field'],
-    ['FT003', Severity.Warning, 'enrichment-message'],
-    ['FT005', Severity.Warning, 'enrichment-message'],
-    ['FT006', Severity.Warning, 'enrichment-message'],
-    ['FT009', Severity.Warning, 'enrichment-message'],
-    ['GE000', Severity.Error, 'enrichment-broken-source'],
-    ['GE002', Severity.Error, 'enrichment-broken-source'],
-    ['GE001', Severity.Warning, 'enrichment-misplaced-file'],
-  ];
-  it.each(cases)('%s (%s) → runtypes/%s', (code, severity, ruleName) => {
-    expect(ruleOf({code, family: Family.Enrich, severity})).toBe(ruleName);
-  });
-
-  it('routes a FUTURE enrich code to the field tier matching its severity', () => {
-    // Unnamed codes keep the old severity tier, so a locally built binary ahead
-    // of the catalog still reports rather than dropping the finding.
-    expect(ruleOf({code: 'FT099', family: Family.Enrich, severity: Severity.Error})).toBe('enrichment-field');
-    expect(ruleOf({code: 'FT098', family: Family.Enrich, severity: Severity.Warning})).toBe('enrichment-message');
-  });
-});
-
-// Go↔JS drift guard: every code the Go catalog can emit must route to a rule,
-// and that rule must never UNDER-report it — a code the catalog does not call a
-// Warning cannot land on a rule that defaults to `warn`. The reverse is allowed
-// on purpose: a rule may ship at `error` while its codes are Warnings, which is
-// how a finding earns an editor squiggle without stopping a build. A new Go
-// prefix, or a level move, that the routing table doesn't cover fails here at PR
-// time (mirrors the constant-sync tests in prefilter.test.ts).
-describe('catalog coverage — every code routes to a rule with the matching default', () => {
-  const RULE_DEFAULT = new Map<RuleName, 'error' | 'warn'>(RULE_SPECS.map((spec) => [spec.name, spec.default]));
-  const enrichPrefixes = new Set(['FT', 'MD', 'GE']);
-  // Both error levels print as an error, mirroring Go's severityOf.
-  const severityOfLevel = {
-    error: Severity.Error,
-    runtimeError: Severity.Error,
-    warning: Severity.Warning,
-    info: Severity.Info,
-  } as const;
+// Go↔JS drift guard: every level the Go catalog uses lands on the rule named for it, and each rule's default
+// matches what the build does with that level (stops, prints, hides).
+describe('catalog coverage: every code routes to the rule of its level', () => {
+  const RULE_DEFAULT = new Map<RuleName, string>(RULE_SPECS.map((spec) => [spec.name, spec.default]));
   const levelEnum = {error: Level.Error, runtimeError: Level.RuntimeError, warning: Level.Warning, info: Level.Info} as const;
+  const expected = {
+    error: ['error', 'error'],
+    runtimeError: ['error', 'error'],
+    warning: ['warning', 'warn'],
+    info: ['info', 'off'],
+  } as const;
 
-  it('maps every catalog code to a rule with no gaps', () => {
+  it('maps every catalog code to the rule of its level, at the default the build implies', () => {
     const codes = Object.keys(DIAGNOSTIC_CATALOG);
     expect(codes.length).toBeGreaterThan(0);
     for (const code of codes) {
       const entry = DIAGNOSTIC_CATALOG[code]!;
-      const prefix = code.match(/^[A-Z]+/)![0];
-      const family = enrichPrefixes.has(prefix) ? Family.Enrich : Family.RunType;
-      const routed = ruleOf({code, family, severity: severityOfLevel[entry.level], level: levelEnum[entry.level]});
-      const ruleDefault = RULE_DEFAULT.get(routed);
-      expect(ruleDefault, `${code} routed to ${routed}, which is not a registered rule`).toBeDefined();
-      if (entry.level === 'error' || entry.level === 'runtimeError') {
-        expect(ruleDefault, `${code} is a ${entry.level} but ${routed} only warns`).toBe('error');
-      }
-      // Info is never worth an error squiggle: showing it at all is opt-in.
-      if (entry.level === 'info') expect(ruleDefault, `${code} is info but ${routed} is an error rule`).toBe('warn');
+      const routed = ruleOf({code, level: levelEnum[entry.level]});
+      const [rule, ruleDefault] = expected[entry.level];
+      expect(routed, `${code} is a ${entry.level}`).toBe(rule);
+      expect(RULE_DEFAULT.get(routed)).toBe(ruleDefault);
     }
   });
 });

@@ -19,7 +19,7 @@ function onData(chunk: Buffer): void {
   const rest = buffer.subarray(newline + 1);
   const child = spawn(control.exec, control.args, {stdio: ['pipe', 'inherit', 'inherit']});
   child.on('error', (error) => {
-    console.error(`[runtypes] spawn-shim could not start ${control.exec}: ${error.message}`);
+    console.error(`[mion] spawn-shim could not start ${control.exec}: ${error.message}`);
     process.exit(1);
   });
   child.on('exit', (code) => process.exit(code ?? 0));

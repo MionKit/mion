@@ -1,14 +1,13 @@
 // Shapes shared by session.ts (rule thread) and lint-worker.ts; dependency-free so both halves import one contract.
 
 import type {MessagePort} from 'node:worker_threads';
-import type {LEVELS_ALL} from '../core/levels.ts';
 import type {Diagnostic} from '../core/protocol.ts';
 import type {ResolverClientOptions} from '../core/resolver-client.ts';
 
 // WAKE_INDEX is the slot the worker stores the completed seq into and notifies; the rule thread Atomics.waits on it.
 export const WAKE_INDEX = 0;
 
-// LintSessionOptions carries the `settings.runtypes` knobs. No working directory among them: the session runs
+// LintSessionOptions carries the `settings.mion` knobs. No working directory among them: the session runs
 // in process.cwd(), the directory the linter itself runs in, like any other linter.
 export interface LintSessionOptions {
   // Per-file wait budget before the engine is reported unavailable; the 60s default covers the first file's
@@ -26,14 +25,12 @@ export interface LintSessionOptions {
   // text pre-filter matches import specifiers, so a project whose markers come from its own package would have
   // those files skipped before the resolver saw them. Set it to whatever the tsconfig `markers` block says.
   markers?: {packages?: string[]; checkPackage?: boolean};
-  // 'all' shows Info. Filtered here after the shared session answers, so no file is resolved twice.
-  levels?: typeof LEVELS_ALL;
 }
 
-// The keys a host may set under `settings.runtypes`; sessionOptions() (index.ts) drops anything else and warns
+// The keys a host may set under `settings.mion`; sessionOptions() (index.ts) drops anything else and warns
 // once per process, so an unsupported key is never a silent no-op. `satisfies` keeps this exhaustive against
 // LintSessionOptions, like PLUGIN_OPTION_KEYS in core/plugin-option-keys.ts does for the bundler options.
-const LINT_SETTING_KEY_TABLE = {timeoutMs: true, tsconfig: true, binary: true, markers: true, levels: true} satisfies Record<
+const LINT_SETTING_KEY_TABLE = {timeoutMs: true, tsconfig: true, binary: true, markers: true} satisfies Record<
   keyof LintSessionOptions,
   true
 >;
@@ -68,8 +65,6 @@ export const LINT_WORKER_REQUEST_KEYS = Object.keys(LINT_WORKER_REQUEST_KEY_TABL
 export interface LintWorkerResponse {
   seq: number;
   diagnostics?: Diagnostic[];
-  // The tsconfig `levels` echo, so a project-wide setting shows Info in the editor too.
-  levels?: string;
   // The tsconfig `downgradeErrors` echo, so the editor shows a lowered code as the build does.
   downgradeErrors?: string[];
   error?: string;

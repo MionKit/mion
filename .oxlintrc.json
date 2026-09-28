@@ -15,10 +15,8 @@
     "./packages/devtools/dist/lint/index.js"
   ],
   "rules": {
-    "runtypes/no-enrichment-todo": "error",
-    "runtypes/no-orphan-carcass": "error",
-    "runtypes/enrichment-field": "error",
-    "runtypes/enrichment-broken-source": "error",
+    "mion/error": "error",
+    "mion/warning": "error",
     "no-empty-function": "off",
     "typescript/no-empty-function": "off",
     "typescript/no-explicit-any": "off",
@@ -41,6 +39,7 @@
     "**/coverage/**",
     "**/.coverage/**",
     "**/test/**",
+    "**/test-fixtures/**",
     "packages/private-examples/**",
     "packages/run-types/src/caches/**",
     "container/**",

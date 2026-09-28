@@ -614,8 +614,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 			AddedRunTypes: addedRunTypes,
 			AddedPureFns:  addedPureFns,
 			Diagnostics:   combinedDiagnostics,
-			// Echoed for the linter, which has no generate call to read them from.
-			Levels:          sess.opts.TsconfigLevels,
+			// Echoed for the linter, which has no generate call to read it from.
 			DowngradeErrors: sess.opts.TsconfigDowngradeErrors,
 		}
 		// The opt-in build report carries the DELTA for the rescanned files, so the plugin's update-lane callback

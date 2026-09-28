@@ -16,7 +16,7 @@ import {fileURLToPath} from 'node:url';
 // condition), so a broken `build/` output would only ever surface here or in a
 // consumer's project — never in the package's own tests, which import source.
 //
-// The `@mionjs/*` rules are compiler-fed, so this also proves the resolver path:
+// The `mion/*` rules are compiler-fed, so this also proves the resolver path:
 // the plugin resolves the published binary through @mionjs/bin-compiler and runs
 // it over the consumer's own tsconfig. A rule that reported nothing here would
 // mean the entry loaded but never reached the binary.
@@ -38,9 +38,7 @@ describe('mion eslint transport', () => {
             (file) => file.messages
         );
         const ruleIds = messages.map((message) => message.ruleId);
-        for (const ruleId of ['@mionjs/strong-typed-routes', '@mionjs/no-throw-in-handlers', '@mionjs/returned-error-type']) {
-            expect(ruleIds, `${ruleId} did not fire:\n${output.slice(0, 1200)}`).toContain(ruleId);
-        }
+        expect(ruleIds, `mion/error did not fire:\n${output.slice(0, 1200)}`).toContain('mion/error');
         // A compiler-fed rule reports a plain message carrying the stable code, not
         // an ESLint messageId, so the codes are what pin which finding fired.
         const codes = messages.flatMap((message) => message.message.match(/^\[(MRT\d+)\]/)?.[1] ?? []);

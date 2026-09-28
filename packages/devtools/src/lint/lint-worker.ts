@@ -56,7 +56,7 @@ let connection: ResolverConnection | null = null;
 function resolveConfiguredBinary(binary: string): string {
   const resolved = path.resolve(binary);
   if (!existsSync(resolved)) {
-    throw new Error(`settings.runtypes.binary=${binary} does not exist (resolved to ${resolved})`);
+    throw new Error(`settings.mion.binary=${binary} does not exist (resolved to ${resolved})`);
   }
   return resolved;
 }
@@ -99,7 +99,7 @@ async function lintOne(request: LintWorkerRequest): Promise<LintWorkerResponse> 
       // Pattern verdicts (FMT001/FMT002/FMT004) arrive as ordinary diagnostics: the resolver runs the JS
       // engine itself, so this worker re-checks nothing.
       const diagnostics = (result.diagnostics ?? []) as Diagnostic[];
-      return {seq: request.seq, diagnostics, levels: result.levels, downgradeErrors: result.downgradeErrors};
+      return {seq: request.seq, diagnostics, downgradeErrors: result.downgradeErrors};
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       // CFG001 is the daemon refusing to load the project tsconfig: deterministic, so retrying is pointless, and

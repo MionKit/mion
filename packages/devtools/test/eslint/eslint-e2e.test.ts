@@ -1,5 +1,5 @@
-// The REAL ESLint class loads the BUILT plugin through `configs.recommended`. Info shows only with `levels: 'all'`,
-// and a `@mion-downgrade-error` line reports as a warning under `runtypes/downgraded-error`, like the build prints it.
+// The REAL ESLint class loads the BUILT plugin through `configs.recommended`. Info shows only with `mion/info` turned
+// on, and a `@mion-downgrade-error` line reports as a warning under `mion/warning`, like the build prints it.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -57,14 +57,14 @@ describe.runIf(ready)('eslint end to end (configs.recommended from the built plu
     project?.cleanup();
   });
 
-  const lint = async (settings?: Record<string, unknown>): Promise<Map<string, Linter.LintMessage[]>> => {
+  const lint = async (rules?: Linter.RulesRecord): Promise<Map<string, Linter.LintMessage[]>> => {
     const eslint = new ESLint({
       cwd: project.dir,
       overrideConfigFile: true,
       overrideConfig: [
         {files: ['**/*.ts'], languageOptions: {parser: tseslint.parser as Linter.Parser}},
         plugin.configs.recommended,
-        ...(settings ? [{settings}] : []),
+        ...(rules ? [{rules}] : []),
       ],
     });
     const results = await eslint.lintFiles(['widget.ts', 'lowered.ts']);
@@ -76,10 +76,10 @@ describe.runIf(ready)('eslint end to end (configs.recommended from the built plu
     expect(messages.get('widget.ts')).toEqual([]);
   });
 
-  it('reports a @mion-downgrade-error line as a warning under runtypes/downgraded-error', {timeout: 120_000}, async () => {
+  it('reports a @mion-downgrade-error line as a warning under mion/warning', {timeout: 120_000}, async () => {
     expect((await lint()).get('lowered.ts')).toEqual([
       expect.objectContaining({
-        ruleId: 'runtypes/downgraded-error',
+        ruleId: 'mion/warning',
         severity: 1,
         line: 4,
         message: expect.stringMatching(/^\[VL002\] .*\(downgraded\)$/),
@@ -87,57 +87,12 @@ describe.runIf(ready)('eslint end to end (configs.recommended from the built plu
     ]);
   });
 
-  it("shows Info findings at warn with settings.runtypes.levels: 'all'", {timeout: 120_000}, async () => {
-    expect((await lint({runtypes: {levels: 'all'}})).get('widget.ts')).toEqual([
+  it('shows Info findings at warn with mion/info turned on', {timeout: 120_000}, async () => {
+    expect((await lint({'mion/info': 'warn'})).get('widget.ts')).toEqual([
       expect.objectContaining({
-        ruleId: 'runtypes/validate-skipped-member',
+        ruleId: 'mion/info',
         severity: 1,
         message: expect.stringMatching(/\[VL011\].*render/),
-      }),
-    ]);
-  });
-});
-
-// The tsconfig plugin's `levels` reaches the linter too, so one project setting shows Info in the build and the editor.
-describe.runIf(ready)('eslint end to end with the tsconfig levels key', () => {
-  let project: FixtureProject;
-  let plugin: LintPlugin;
-  let resetSession: () => void;
-  let originalCwd: string;
-  const tsconfig = JSON.stringify({compilerOptions: {strict: true, plugins: [{name: 'mion', levels: 'all'}]}});
-
-  beforeAll(async () => {
-    project = makeFixtureProject({'tsconfig.json': tsconfig, 'widget.ts': WIDGET_TS});
-    originalCwd = process.cwd();
-    process.chdir(project.dir);
-    plugin = ((await import(pathToFileURL(path.join(DIST, 'index.js')).href)) as {default: LintPlugin}).default;
-    resetSession = ((await import(pathToFileURL(path.join(DIST, 'session.js')).href)) as {resetSharedSession: () => void})
-      .resetSharedSession;
-    // A fresh resolver, rooted here, so it reads this project's tsconfig.
-    resetSession();
-  });
-
-  afterAll(() => {
-    resetSession?.();
-    process.chdir(originalCwd);
-    project?.cleanup();
-  });
-
-  it("shows Info findings with only the tsconfig's levels: 'all'", {timeout: 120_000}, async () => {
-    const eslint = new ESLint({
-      cwd: project.dir,
-      overrideConfigFile: true,
-      overrideConfig: [
-        {files: ['**/*.ts'], languageOptions: {parser: tseslint.parser as Linter.Parser}},
-        plugin.configs.recommended,
-      ],
-    });
-    const [result] = await eslint.lintFiles(['widget.ts']);
-    expect(result?.messages).toEqual([
-      expect.objectContaining({
-        ruleId: 'runtypes/validate-skipped-member',
-        severity: 1,
-        message: expect.stringContaining('[VL011]'),
       }),
     ]);
   });

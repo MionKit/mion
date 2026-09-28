@@ -112,19 +112,19 @@ describe.runIf(hasBinary())('eslint tsconfig resolution (integration through mio
   // tsconfig on the first request).
   beforeEach(() => resetSharedSession());
 
-  it('resolves a source-condition cross-package marker — no invalid-marker (MKR007)', () => {
+  it('resolves a source-condition cross-package marker: no MKR007', () => {
     // settings: {} → tsconfig defaults to 'tsconfig.json' (customConditions:["source"]).
-    expect(runRule(rules['invalid-marker'], consumerAbs, CONSUMER_SRC, {})).toEqual([]);
+    expect(runRule(rules['error']!, consumerAbs, CONSUMER_SRC, {})).toEqual([]);
   });
 
   it('reports no skipped members for the resolved data type', () => {
-    // levels: 'all', or the Info-level skipped-member codes would be hidden and this could never fail.
-    expect(runRule(rules['validate-skipped-member'], consumerAbs, CONSUMER_SRC, {runtypes: {levels: 'all'}})).toEqual([]);
+    // Info included, or a skipped member could hide there and this could never fail.
+    for (const level of ['warning', 'info']) expect(runRule(rules[level]!, consumerAbs, CONSUMER_SRC, {})).toEqual([]);
   });
 
-  it('honors settings.runtypes.tsconfig — a config without customConditions still flags the unresolved marker', () => {
-    const reports = runRule(rules['invalid-marker'], consumerAbs, CONSUMER_SRC, {
-      runtypes: {tsconfig: 'tsconfig.noconditions.json'},
+  it('honors settings.mion.tsconfig — a config without customConditions still flags the unresolved marker', () => {
+    const reports = runRule(rules['error']!, consumerAbs, CONSUMER_SRC, {
+      mion: {tsconfig: 'tsconfig.noconditions.json'},
     });
     expect(reports.length).toBeGreaterThan(0);
     expect(reports.some((report) => report.message.includes('MKR007'))).toBe(true);

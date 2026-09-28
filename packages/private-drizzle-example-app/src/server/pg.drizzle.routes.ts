@@ -1,4 +1,5 @@
-/* eslint-disable @mionjs/strong-typed-routes -- the return types are left to drizzle on purpose */
+/* @mion-expect-error MRT001 */
+// The return types are left to drizzle on purpose.
 import {avg, count, eq, gte, sql} from 'drizzle-orm';
 import {mion} from './mion.ts';
 import {adultUsersDb, busyAuthorsDb, db, postsDb, usersDb} from '../db/pg.drizzle.ts';

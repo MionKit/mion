@@ -3,30 +3,8 @@
     "./dist/lint/index.js"
   ],
   "rules": {
-    "runtypes/broken-tsconfig": "error",
-    "runtypes/invalid-expect-error": "warn",
-    "runtypes/invalid-downgrade-error": "warn",
-    "runtypes/downgraded-error": "warn",
-    "runtypes/invalid-marker": "error",
-    "runtypes/redundant-marker": "warn",
-    "runtypes/pure-functions": "error",
-    "runtypes/validate-non-serializable": "error",
-    "runtypes/validate-skipped-member": "warn",
-    "runtypes/json-non-serializable": "error",
-    "runtypes/json-skipped-member": "warn",
-    "runtypes/clone-unsupported-type": "error",
-    "runtypes/clone-shared-reference": "warn",
-    "runtypes/format": "error",
-    "runtypes/invalid-override": "error",
-    "runtypes/override-side-effect": "warn",
-    "runtypes/non-enumerable": "warn",
-    "runtypes/unsafe-property-name": "warn",
-    "runtypes/other": "error",
-    "runtypes/no-enrichment-todo": "warn",
-    "runtypes/no-orphan-carcass": "warn",
-    "runtypes/enrichment-field": "error",
-    "runtypes/enrichment-message": "warn",
-    "runtypes/enrichment-broken-source": "error",
-    "runtypes/enrichment-misplaced-file": "warn"
+    "mion/error": "error",
+    "mion/warning": "warn",
+    "mion/info": "off"
   }
 }

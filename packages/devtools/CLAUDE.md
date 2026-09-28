@@ -61,7 +61,7 @@ The two devtools packages in one, so this package carries the whole build-time s
 | `src/vite/`      | the mion vite preset: `mionVitePlugin`, the Vue SFC pass, middleware mode      |
 | `src/next/`      | the mion Next preset: `withMion`, composed onto `src/runtypes/next/`           |
 | `src/options.ts` | what BOTH presets share, so a knob reaches vite and Next in one commit         |
-| `src/lint/`      | one module, two rule namespaces                                                |
+| `src/lint/`      | one module, one `mion` plugin, one rule per diagnostic level                   |
 
 `src/vite/` and `src/next/` are the OPINIONATED presets; `src/runtypes/vite.ts` and
 `src/runtypes/next/` are the plain adapters they sit on. Same host, different level: the
@@ -88,9 +88,9 @@ is load bearing: the resolver launcher must fork while the host process is still
 because oxlint reserves tens of GB of address space once linting starts and `fork()` then
 fails with ENOMEM on Linux. Do not add a `require` condition to `./eslint`.
 
-One module, two namespaces: the default export is the `runtypes` plugin (what oxlint's
-`jsPlugins` loads), `mionPlugin` carries the `@mionjs/*` rules, and `configs.recommended`
-registers both. oxlint never reads `configs.recommended`, so that is ESLint's entry point.
+One module, one plugin: the default export is the `mion` plugin (what oxlint's `jsPlugins`
+loads) and `configs.recommended` registers it for ESLint. oxlint never reads
+`configs.recommended`, so that is ESLint's entry point.
 
 ## The pure-fn artifact is synced from each bundler's post-bundle hook
 

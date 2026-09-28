@@ -254,8 +254,6 @@ export interface ScanFilesResult {
   batchSites?: BatchSite[];
   // Present only when the request set includeMetrics.
   metrics?: Metrics;
-  // Echo of the tsconfig plugin's `levels`; the linter's own setting wins.
-  levels?: string;
   // Echo of the tsconfig plugin's `downgradeErrors`, so the linter lowers the same codes the build does.
   downgradeErrors?: string[];
 }
@@ -366,7 +364,6 @@ abstract class ResolverClientBase implements ResolverConnection {
       pureFnSites: resp.pureFnSites,
       batchSites: resp.batchSites,
       metrics: resp.metrics,
-      levels: resp.levels,
       downgradeErrors: resp.downgradeErrors,
     };
   }

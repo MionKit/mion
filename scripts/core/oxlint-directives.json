@@ -11,7 +11,8 @@
     "../../packages/devtools/dist/lint/index.js"
   ],
   "rules": {
-    "runtypes/invalid-downgrade-error": "error",
-    "runtypes/invalid-expect-error": "error"
+    "mion/error": "warn",
+    "mion/warning": "warn",
+    "mion/info": "warn"
   }
 }
