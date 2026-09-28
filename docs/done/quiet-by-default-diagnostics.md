@@ -79,13 +79,17 @@ need anyway (`Walker.EmitDiagnostic`, `ts-go-runtypes/internal/cachegen/typefunc
 - **Build:** Info prints nothing by default, no summary line: the level alone decides. A build option
   `levels` (next to `downgradeErrors`, also a tsconfig plugin key) set to `'all'` prints them. `mion compile`
   follows the same rule.
+- **Why not do nothing:** the counts below are advice about working code, and they bury the real errors in the
+  build log and the editor. Rule-level silencing cannot help (next bullet), and line comments do not scale.
+- **Why not a build-only option:** it leaves the editor as noisy as before, and a second knob per host would drift
+  from the lint one. One `levels` value read by every host covers both.
 - **Why not per-rule `off` defaults:** five rules mix real problems with harmless notes (`redundant-marker`,
   `clone-shared-reference`, `pure-functions`, `enrichment-field`, `enrichment-message`), so only a level can
   split them.
 
 **Codes that move to Info (38):**
 
-- Skipped members, all families: VL/VE/PJ/PJS/RJ 010 to 015 (function property, method, static, symbol key,
+- Skipped members, all families: VL/PJ/PJS/RJ 010 to 015 and VE 010 to 013 and 015 (function property, method, static, symbol key,
   non-data union arm, non-data value). A `Promise` property is treated like any other non-data property: Info.
 - Validators on a written `any` / `unknown`: VL021, VE020.
 - Clone skips: RUK011 (method), RUK012 (static).
@@ -151,8 +155,8 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
   `register` panic text; header comment.
 - `expecterror.go` `malformedCode`: DWN004 ("already a warning") covers Info too; `Downgradeable` stays
   RuntimeError only; `Suppressible` already admits Info. DWN004 message wording covers "warning or info".
-- Move the 38 codes to `LevelInfo`: split the member-drop loop in `codes_runtype.go` (VL/VE/PJ/PJS/RJ
-  010-015, RUK011/RUK012 → Info; RUK010/RUK015 stay Warning), VL021/VE020, MKR006 (`codes_marker.go`),
+- Move the 38 codes to `LevelInfo`: split the member-drop loop in `codes_runtype.go` (VL/PJ/PJS/RJ
+  010-015, VE 010-013 and 015, RUK011/RUK012 → Info; RUK010/RUK015 stay Warning), VL021/VE020, MKR006 (`codes_marker.go`),
   OVR010 (`codes_override.go`), MET004 (`codes_apimeta.go`), DWN004, FT008 (`codes_friendly.go`).
 - `mion compile` (`cmd/mion/main.go` runCompile) and `mion enrich --no-emit`: skip Info unless the
   tsconfig plugin key `levels` is `"all"` (new key in `cmd/mion/config.go`, parsed like `downgradeErrors`).
@@ -248,9 +252,13 @@ The picked option, built on the lint side, the build side and the CLI:
   family's `warn` rule. A finding a `@mion-downgrade-error` comment lowered reports under the new
   `runtypes/downgraded-error` rule (`warn`), message ending `(downgraded)`.
 - **Build:** plugin option and tsconfig key `levels: 'all'` (echoed on `generate` like `downgradeErrors`, the option
-  wins). No summary line: Info prints nothing by default. The enrichment drift gate never halts on Info.
+  wins). No summary line: Info prints nothing by default. The enrichment drift gate needed no change: it only
+  receives the FT/MD 020 to 023 hygiene codes, none of them Info.
+- **Lint and the tsconfig key:** the tsconfig `levels` reaches the linter too. `serve --sources ops` (the linter's
+  checker) reads that one plugin key and echoes it on `scanFiles`; the lint setting wins.
 - **CLI:** `mion compile` hides Info unless the tsconfig sets `levels: "all"`. `mion enrich --no-emit` never fails on
-  Info; its text report hides it, `--json` keeps it.
+  Info; its text report hides it unless the tsconfig sets `levels: "all"` (a bad value is fatal, as in `compile`),
+  and `--json` keeps it.
 - **Tests on real linters:** oxlint (the shipped preset, with and without `levels: 'all'`, and the downgraded
   finding at `warning`) and a new ESLint run through `configs.recommended` from the built plugin; a real
   `mion compile` run; build-plugin runs for the option and the tsconfig echo.
@@ -266,5 +274,11 @@ Related fixes, each its own commit and test:
 4. FT008 is reported at its catalog level by the enrichment checker.
 5. Stale rule descriptions fixed; `BAT` routes only to `invalid-marker`; `MET` got its own routing row.
 6. The linter page rule count (now 25 with `downgraded-error`).
+7. `mion compile --no-emit` printed the diagnostic count as "checked N file(s)"; it now counts the files.
+8. Symbol keys also reached the strict unknown-key check (a valid value failed) and the union flat layout (a
+   decoded union got the `\xFE@` key), and a symbol-keyed method's …011 message showed that spelling.
+
+RUK013's level (the clone really loses a declared member) moved to its own todo, with the rest of
+`removeUnknownKeys`' handling of members it cannot copy.
 
 Not built here: the drizzle route rule. Its todo is unblocked and now names `LevelInfo` as its level.
