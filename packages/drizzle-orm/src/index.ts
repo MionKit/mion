@@ -96,7 +96,6 @@ export type {
   InferInsertModel,
   InferSelectModel,
   InferSelectViewModel,
-  InferUpdateModel,
   InsertModelOf,
   RtTableInfer,
   RtViewInfer,

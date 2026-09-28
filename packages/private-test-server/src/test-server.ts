@@ -18,7 +18,7 @@ import {integer, pgTable, timestamp, uuid, varchar} from '@mionjs/drizzle-orm-pg
 import * as mysql from '@mionjs/drizzle-orm-mysql-core';
 import * as lite from '@mionjs/drizzle-orm-sqlite-core';
 import {refineTableType} from '@mionjs/drizzle-orm';
-import type {InferInsertModel, InferSelectModel, InferUpdateModel} from '@mionjs/drizzle-orm';
+import type {InferInsertModel, InferSelectModel} from '@mionjs/drizzle-orm';
 import {Number} from '@mionjs/run-types/formats';
 import {registerClassSerializer} from '@mionjs/run-types/runtime';
 import {csrf, getCsrfToken, rotateCsrfToken} from './csrf.middleware.ts';
@@ -78,7 +78,7 @@ const dbUsersTable = pgTable('users', {
 const apiUsersTable = refineTableType(dbUsersTable, {name: {minLength: 5}, age: {min: 18}});
 export type DbUser = InferSelectModel<typeof apiUsersTable>;
 export type NewDbUser = InferInsertModel<typeof apiUsersTable>;
-export type DbUserPatch = InferUpdateModel<typeof apiUsersTable>;
+export type DbUserPatch = Partial<InferInsertModel<typeof apiUsersTable>>;
 const dbUsersStore = new Map<string, DbUser>();
 
 // One table per other dialect, so every dialect's models are proven over the wire.

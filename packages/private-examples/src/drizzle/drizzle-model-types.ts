@@ -1,9 +1,5 @@
 import * as DZ from '@mionjs/drizzle-orm-pg-core';
-import type {
-  InferInsertModel,
-  InferSelectModel,
-  InferUpdateModel,
-} from '@mionjs/drizzle-orm';
+import type {InferInsertModel, InferSelectModel} from '@mionjs/drizzle-orm';
 
 export const users = DZ.pgTable('users', {
   id: DZ.uuid('id', {primaryKey: true, defaultRandom: true}),
@@ -19,6 +15,6 @@ export type User = InferSelectModel<typeof users>;
 // id and createdAt have defaults, so inserts may omit them
 export type NewUser = InferInsertModel<typeof users>;
 
-export type UserPatch = InferUpdateModel<typeof users>;
+export type UserPatch = Partial<InferInsertModel<typeof users>>;
 
 // a NewUser route input checks the varchar lengths and goes into db.insert(...).values() uncast

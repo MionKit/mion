@@ -23,7 +23,7 @@ OPTIONAL peer.
   argument and its modifier calls), RtColumnRecorder, RtEntryRecorder
   (index/constraint chains), RtValueRecorder (enum/schema/sequence/role handles),
   the sql recorder, createRtTable/materializeRtTable, `tableRef`, flat
-  InferSelectModel/InferInsertModel/InferUpdateModel, refineTableType, the sql template. Consumers import ALL of
+  InferSelectModel/InferInsertModel, refineTableType, the sql template. Consumers import ALL of
   this shared surface from @mionjs/drizzle-orm directly.
 - `packages/drizzle-orm-<dialect>-core` — the dialect surface: `src/columns.ts`
   (column builders and their column types), `src/types.ts` (each builder's config,

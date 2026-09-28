@@ -10,7 +10,7 @@
 // `pgView(name).as(qb => ...)` form's columns come from drizzle's select typing, the exact generic
 // chain the slim design removes, so those stay declared with drizzle over toDrizzle() tables
 // (packages/drizzle-orm/CLAUDE.md). A view is select-only: InferSelectViewModel accepts one,
-// InferInsertModel and InferUpdateModel do not.
+// InferInsertModel does not.
 
 import type {BuildViewFn, DrizzleContext} from './types.ts';
 import {mapReplayArgs, RtColumnRecorder, rtViewKey} from './recorder.ts';

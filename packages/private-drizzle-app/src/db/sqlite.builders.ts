@@ -1,7 +1,6 @@
 // SQLite on slim builders: tables, drizzle handles and model types, all in one file.
 import * as DZ from '@mionjs/drizzle-orm-sqlite-core';
 import {$type, sql, tableRef} from '@mionjs/drizzle-orm';
-import type {InferUpdateModel} from '@mionjs/drizzle-orm';
 import {drizzle} from 'drizzle-orm/sqlite-proxy';
 import {gt, relations} from 'drizzle-orm';
 import {sqliteView} from 'drizzle-orm/sqlite-core';
@@ -36,10 +35,10 @@ export const adultUsers = DZ.sqliteView('adult_users', {
 
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
-export type UserPatch = InferUpdateModel<typeof users>;
+export type UserPatch = Partial<typeof users.$inferInsert>;
 export type Post = typeof posts.$inferSelect;
 export type NewPost = typeof posts.$inferInsert;
-export type PostPatch = InferUpdateModel<typeof posts>;
+export type PostPatch = Partial<typeof posts.$inferInsert>;
 // A query-builder view has no slim model, so its row type is written by hand.
 export type BusyAuthor = Pick<Post, 'authorId' | 'views'>;
 export type AdultUser = typeof adultUsers.$inferSelect;

@@ -22,7 +22,6 @@ type SelectOfCols<C> = {[K in keyof C]: Sel<C[K]>};
 type InsertOfCols<C> = {[K in keyof C as Ins<C[K]> extends 'required' ? K : never]: Sel<C[K]>} & {
   [K in keyof C as Ins<C[K]> extends 'optional' ? K : never]?: Sel<C[K]>;
 };
-type UpdateOfCols<C> = {[K in keyof C as Ins<C[K]> extends 'excluded' ? never : K]?: Sel<C[K]>};
 
 /** Row model of a set of columns: every column, nullable ones as `| null`. */
 export type SelectModelOf<Cols> = Prettify<SelectOfCols<Cols>>;
@@ -35,8 +34,6 @@ export type InferSelectModel<T extends AnyTable> = SelectModelOf<T['columns']>;
 export type InferSelectViewModel<V extends {columns: object}> = SelectModelOf<V['columns']>;
 /** Insert payload: generated columns removed, defaulted and nullable ones optional. */
 export type InferInsertModel<T extends AnyTable> = InsertModelOf<T['columns']>;
-/** Update payload: any subset of the insert payload. */
-export type InferUpdateModel<T extends AnyTable> = Prettify<UpdateOfCols<T['columns']>>;
 
 // Type only, nothing holds these at run time. Kept off the core meta so checking against AnyTable never builds models.
 /** drizzle's `typeof users.$inferSelect` / `$inferInsert` on a slim table: the same types as the Infer*Model ones. */
