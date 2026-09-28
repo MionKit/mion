@@ -19,7 +19,6 @@ type record struct {
 	Family       string `json:"family"`
 	Level        string `json:"level"`
 	Completeness bool   `json:"completeness,omitempty"`
-	Title        string `json:"title"`
 	Headline     string `json:"headline"`
 	Summary      string `json:"summary"`
 	Fix          string `json:"fix,omitempty"`
@@ -51,7 +50,6 @@ func main() {
 			Family:       familyLabel(definition.Family),
 			Level:        diagnostics.LevelLabel(definition.Level),
 			Completeness: definition.Completeness,
-			Title:        definition.Title,
 			Headline:     definition.Headline,
 			Summary:      definition.Summary,
 			Fix:          definition.Fix,
