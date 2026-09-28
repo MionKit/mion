@@ -100,7 +100,7 @@ const isResult = createValidateFn<Awaited<ReturnType<typeof handler>>>();`,
 export const isData = createValidateFn<() => void>();`,
 	},
 	CodeVLFunctionPropDropped: {
-		Summary: "A function holds no data, so validation skips the property and still checks the others. You see this for an optional function property (`onClick?: () => void`) or one inside a union member; a required one reports `VL011`. Remove the property, or replace it with the data it would produce.",
+		Summary: "A function holds no data, so validation skips the property and still checks the others. You see this for an optional function property or one in a union member. A required one reports `VL011`. Remove the property, or replace it with the data it would produce.",
 		Example: `import {createValidateFn} from '@mionjs/run-types';
 interface Button { label: string; onClick?: () => void }
 export const isButton = createValidateFn<Button>();`,
@@ -189,7 +189,7 @@ const resultErrors = createGetValidationErrorsFn<Awaited<ReturnType<typeof handl
 export const errorsOf = createGetValidationErrorsFn<() => void>();`,
 	},
 	CodeVEFunctionPropDropped: {
-		Summary: "Same as `VL010`, for `createGetValidationErrorsFn`. A function holds no data, so the property is left out of the error report and the others are still checked. You see this for an optional function property or one inside a union member; a required one reports `VE011`. Remove the property, or replace it with the data it would produce.",
+		Summary: "Same as `VL010`, for `createGetValidationErrorsFn`. A function holds no data, so the property is left out of the error report and the others are still checked. You see this for an optional function property or one in a union member. A required one reports `VE011`. Remove the property, or replace it with the data it would produce.",
 		Example: `import {createGetValidationErrorsFn} from '@mionjs/run-types';
 interface Button { label: string; onClick?: () => void }
 export const getButtonErrors = createGetValidationErrorsFn<Button>();`,
@@ -596,14 +596,14 @@ export const friendlyUser: FriendlyText<User> = {
 };`,
 	},
 	CodeFriendlyOrphanConst: {
-		Summary: "mion (`mion enrich --update`, or the build plugin in dev) commented out this FriendlyText const because its type was deleted or renamed; the comment keeps your labels and messages. If the type is gone, run `mion enrich --prune` to remove it. If it was renamed, run `mion enrich <source.ts> <NewName> --update` to get your values back.",
+		Summary: "`mion enrich --update` (or the build plugin in dev) commented out this FriendlyText const because its type was deleted or renamed. The comment keeps your labels and messages. If the type is gone, run `mion enrich --prune` to remove it. If it was renamed, run `mion enrich <source.ts> <NewName> --update` to get your values back.",
 		Fix: `# the type is gone
 mion enrich --prune
 # the type was renamed
 mion enrich <source.ts> <NewName> --update`,
 	},
 	CodeFriendlyOrphanField: {
-		Summary: "mion (`mion enrich --update`, or the build plugin in dev) commented out this field because your type no longer has it. The comment keeps your value. If the field is gone, run `mion enrich --prune`. If it was renamed, run `mion enrich <source.ts> <Type> --update`, and the value moves to the new field when the field's type did not change.",
+		Summary: "`mion enrich --update` (or the build plugin in dev) commented out this field because your type no longer has it. The comment keeps your value. If the field is gone, run `mion enrich --prune`. If it was renamed, run `mion enrich <source.ts> <Type> --update`, and the value moves to the new field when the field's type did not change.",
 		Fix: `# the field is gone
 mion enrich --prune
 # the field was renamed
@@ -661,14 +661,14 @@ export const mockUser: MockData<User> = {
 };`,
 	},
 	CodeMockOrphanConst: {
-		Summary: "mion (`mion enrich --update`, or the build plugin in dev) commented out this MockData const because its type was deleted or renamed; the comment keeps your pools and ranges. If the type is gone, run `mion enrich --prune` to remove it. If it was renamed, run `mion enrich <source.ts> <NewName> --update` to get your values back.",
+		Summary: "`mion enrich --update` (or the build plugin in dev) commented out this MockData const because its type was deleted or renamed. The comment keeps your pools and ranges. If the type is gone, run `mion enrich --prune` to remove it. If it was renamed, run `mion enrich <source.ts> <NewName> --update` to get your values back.",
 		Fix: `# the type is gone
 mion enrich --prune
 # the type was renamed
 mion enrich <source.ts> <NewName> --update`,
 	},
 	CodeMockOrphanField: {
-		Summary: "mion (`mion enrich --update`, or the build plugin in dev) commented out this field because your type no longer has it. The comment keeps your value. If the field is gone, run `mion enrich --prune`. If it was renamed, run `mion enrich <source.ts> <Type> --update`, and the value moves to the new field when the field's type did not change.",
+		Summary: "`mion enrich --update` (or the build plugin in dev) commented out this field because your type no longer has it. The comment keeps your value. If the field is gone, run `mion enrich --prune`. If it was renamed, run `mion enrich <source.ts> <Type> --update`, and the value moves to the new field when the field's type did not change.",
 		Fix: `# the field is gone
 mion enrich --prune
 # the field was renamed
@@ -779,7 +779,7 @@ type AnyTag = unknown; // check it before use`,
 const bytes: number[] = Array.from(yourBuffer); // not a typed array`,
 	},
 	CodePJFunctionRoot: {
-		Summary: "A function has no JSON form, so there is nothing to encode. Use the data the function returns instead. A method or function property inside an object is dropped instead (PJ011, or PJ010 when it is optional or in a union member).",
+		Summary: "A function has no JSON form, so there is nothing to encode. Use the data the function returns. A method or function property inside an object is dropped instead (PJ011, or PJ010 when optional or in a union member).",
 		Fix: `interface User {
   name: string; // not getName: () => string
 }`,
@@ -824,7 +824,7 @@ type AnyTag = unknown; // check it before use`,
 const bytes: number[] = Array.from(yourBuffer); // not a typed array`,
 	},
 	CodePJSFunctionRoot: {
-		Summary: "A function has no JSON form, so there is nothing to encode. Use the data the function returns instead. A method or function property inside an object is dropped instead (PJS011, or PJS010 when it is optional or in a union member).",
+		Summary: "A function has no JSON form, so there is nothing to encode. Use the data the function returns. A method or function property inside an object is dropped instead (PJS011, or PJS010 when optional or in a union member).",
 		Fix: `interface User {
   name: string; // not getName: () => string
 }`,
@@ -869,7 +869,7 @@ type AnyTag = unknown; // check it before use`,
 const bytes: number[] = Array.from(yourBuffer); // not a typed array`,
 	},
 	CodeRJFunctionRoot: {
-		Summary: "A function has no JSON form, so there is nothing to decode. Use the data the function returns instead. A method or function property inside an object is dropped instead (RJ011, or RJ010 when it is optional or in a union member).",
+		Summary: "A function has no JSON form, so there is nothing to decode. Use the data the function returns. A method or function property inside an object is dropped instead (RJ011, or RJ010 when optional or in a union member).",
 		Fix: `interface User {
   name: string; // not getName: () => string
 }`,
