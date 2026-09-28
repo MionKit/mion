@@ -4,7 +4,7 @@ import {mion} from './mion.ts';
 import {adultUsersDb, busyAuthorsDb, db, postsDb, usersDb} from '../db/pg.db.ts';
 import type {NewUser} from '../db/pg.schema.ts';
 
-// Every case written the way a drizzle user naturally writes it: no return annotation.
+// Written as a drizzle user would: no return annotation.
 // The `case:` markers below split the file for the per-case cost measure.
 
 export const pgRoutes = {
