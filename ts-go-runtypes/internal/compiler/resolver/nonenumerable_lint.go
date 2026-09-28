@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/microsoft/typescript-go/shim/ast"
+	"github.com/microsoft/typescript-go/shim/scanner"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/runtype/typeid"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/textpos"
@@ -31,7 +32,7 @@ func detectNonEnumerableRequired(file string, sourceFile *ast.SourceFile) []diag
 			out = append(out, diagnostics.New(
 				diagnostics.CodeNonEnumerableRequiresOptional,
 				textpos.NodeSite(file, sourceFile, node),
-				propertyMemberName(node),
+				propertyMemberName(node, sourceFile),
 			))
 		}
 		node.ForEachChild(func(child *ast.Node) bool {
@@ -68,10 +69,14 @@ func hasNonEnumerableJSDocTag(node *ast.Node, sourceFile *ast.SourceFile) bool {
 }
 
 // propertyMemberName returns the property's declared name for the diagnostic message.
-func propertyMemberName(node *ast.Node) string {
+func propertyMemberName(node *ast.Node, sourceFile *ast.SourceFile) string {
 	name := node.Name()
 	if name == nil {
 		return ""
+	}
+	// A computed key (`[tag]`) has no Text; its written source names it.
+	if name.Kind == ast.KindComputedPropertyName {
+		return sourceFile.Text()[scanner.GetTokenPosOfNode(name, sourceFile, false):name.End()]
 	}
 	return name.Text()
 }
