@@ -1,7 +1,7 @@
 ---
 type: feature
 spec: guidelines
-status: blocked
+status: ready
 created: 2026-09-28
 ---
 
@@ -47,9 +47,12 @@ The implementer plans the details. What was checked:
   (it reads import declarations, not types). Detect "a mion dialect is available" from the importing
   package's dependencies. Allow the one thing that must stay on drizzle in a mixed setting (a view
   built from a query builder, DRZ001) inside the drizzle file.
-- **Level:** the old todo tied the route rule to the quiet-by-default level being built in its own
-  todo; keep that dependency (status blocked until it lands) unless the owner picks a level first.
-  Neither rule ever stops the build.
+- **Level:** register rule 1's MRT code at `LevelInfo` (`ts-go-runtypes/internal/diagnostics/catalog.go`).
+  The linter, the build and the `mion` CLI hide Info unless `levels: 'all'` is set (lint
+  `settings.runtypes.levels`, the plugin option, or the tsconfig key), and an Info never halts. Route it
+  to its own `warn` rule so a team can still turn it off; `routing.test.ts` already fails an Info code
+  that lands on an `error` rule. Rule 2 has no resolver code, so it is a plain lint rule; decide whether
+  `recommended` turns it on. Neither rule ever stops the build.
 - **Split the files the rule will flag:** `packages/private-drizzle-example-app/src/db/*.{builders,types}.ts`
   put the slim schema and the `toDrizzle` side in one file; split each into a schema file and a db file
   (the `drizzle` variant files stay whole). Same for every example under
