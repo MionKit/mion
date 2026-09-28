@@ -7,21 +7,12 @@ import {
   MARKER_COMMENT_PREFIX,
   MOCK_DATA_NAME,
 } from '../core/go-generated/runtypes-constants.generated.ts';
-
-// DEFAULT_MARKER_MODULE mirrors the unplugin's short-circuit: matched only as a quoted import specifier
-// (subpaths included) so a path mention in a comment never forces a scan. The pure-fn registrars are probed
-// separately because the marker package's OWN sources call them through relative imports, and `registerPureFn`
-// is a substring of `registerPureFnFactory`, so one probe covers both.
-const DEFAULT_MARKER_MODULE = '@mionjs/run-types';
+import {mayHoldMarkerCalls, type MarkerGateOptions} from '../core/markerImports.ts';
 
 // referencesMarkerModule gates the compiler-diagnostics pass: only files that can hold marker call sites go to
-// the resolver. A file importing a configured marker package declares markers just as a mion import does, and
-// the default package is always probed on top, matching the additive Go-side gate. With checkPackage:false a
-// marker can come from anywhere, so the only sound answer is to let every file through.
-export function referencesMarkerModule(text: string, markers?: {packages?: string[]; checkPackage?: boolean}): boolean {
-  if (markers?.checkPackage === false) return true;
-  const modules = [DEFAULT_MARKER_MODULE, ...(markers?.packages ?? [])];
-  return modules.some((mod) => text.includes(`'${mod}`) || text.includes(`"${mod}`)) || text.includes('registerPureFn');
+// the resolver. It is the build fallback's own gate, so lint and build admit the same files.
+export function referencesMarkerModule(text: string, file?: string, markers?: MarkerGateOptions): boolean {
+  return mayHoldMarkerCalls(text, file, markers);
 }
 
 // enrichConstAnnotationPattern mirrors the Go-side guard's structural probe: a CONST declaration annotated with
@@ -66,9 +57,9 @@ export function declaresUnsafePropertyName(text: string): boolean {
 
 // needsResolverPass is the union gate: one pass per file serves every rule, so a file goes over the wire when
 // ANY family could report on it.
-export function needsResolverPass(text: string, markers?: {packages?: string[]; checkPackage?: boolean}): boolean {
+export function needsResolverPass(text: string, file?: string, markers?: MarkerGateOptions): boolean {
   return (
-    referencesMarkerModule(text, markers) ||
+    referencesMarkerModule(text, file, markers) ||
     looksLikeEnrichmentFile(text) ||
     referencesRouter(text) ||
     declaresUnsafePropertyName(text)

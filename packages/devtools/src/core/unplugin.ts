@@ -10,6 +10,7 @@ import {applyEdits, sourceHash} from './apply-edits.ts';
 import {Level, Severity, type BatchSite, type Diagnostic, type PureFnSite} from './protocol.ts';
 import {PURE_FN_ARTIFACT_DIR, type ModuleMode} from './go-generated/runtypes-constants.generated.ts';
 import {assertValidModuleMode} from './module-mode.ts';
+import {mayHoldMarkerCalls} from './markerImports.ts';
 import {
   DOWNGRADED_NOTE,
   isDowngraded,
@@ -241,19 +242,6 @@ export interface PluginOptions {
   enrich?: EnrichSyncOptions;
 }
 
-// MARKER_MODULE backs the transform's textual FALLBACK pre-filter only. The primary gate is the resolver's
-// site-file set, so wrapper frameworks re-exposing the markers behind their own factories (mion's `route()`
-// from '@mionjs/router') need ZERO configuration — their users' files never name '@mionjs/run-types'.
-// The textual check only catches files the last scan couldn't have seen (created mid-session).
-const MARKER_MODULE = '@mionjs/run-types';
-
-// markerImportProbes returns null when the package gate is disabled: a marker can then be declared
-// anywhere, so no import-specifier probe is sound and the fallback has to let every file through.
-function markerImportProbes(markers: PluginOptions['markers']): string[] | null {
-  if (markers?.checkPackage === false) return null;
-  return [MARKER_MODULE, ...(markers?.packages ?? [])].flatMap((mod) => [`'${mod}`, `"${mod}`]);
-}
-
 // ONE unplugin factory behind every bundler entry point (@mionjs/devtools/runtypes/vite, /rollup, /webpack,
 // /rspack, /esbuild are `unplugin.<bundler>` from this instance). Files-mode: the resolver writes the cache
 // modules to real files under <genDir>/types/ at buildStart and the transform injects relative imports, so
@@ -272,8 +260,6 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
   const options = rawOptions ?? {};
   // Validated below at the host boundary, so a config typo fails loudly.
   const transformMode: 'go' | 'edits' = options.transformMode ?? 'edits';
-  // Computed once per plugin instance; null = package gate disabled.
-  const markerProbes = markerImportProbes(options.markers);
   // Precedence is tsc-style: the explicit plugin option wins, else the tsconfig `downgradeErrors` echoed on
   // the generate response (adopted in buildStart below), else nothing downgraded. Seeded from the option
   // alone so the transform lane behaves even if buildStart never ran on this host.
@@ -927,7 +913,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       // re-fires 'build' with the fresh one.
       if (reportEnabled && options.onPureFnReport) options.onPureFnReport(gen.pureFnSites ?? [], 'build');
       if (reportEnabled && options.onBatchReport) options.onBatchReport(gen.batchSites ?? [], 'build');
-      // The scan's site-file set is the transform gate (see MARKER_MODULE), wrapper call sites included.
+      // The scan's site-file set is the transform gate, wrapper call sites included.
       // Rebuilt rather than merged, so a watch-mode rebuild drops files whose sites are gone.
       siteFiles = new Set(gen.siteFiles.map(siteKey));
       reportGenerate(gen);
@@ -985,19 +971,11 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       if (!resolver) return null;
       if (!/\.[mc]?[jt]sx?$/.test(id)) return null;
       const rel = path.relative(cwdAbs || process.cwd(), id);
-      // Files outside siteFiles can't need a rewrite, EXCEPT ones the last scan couldn't have seen (created
-      // mid-session, before their first HMR scan): those fall back to cheap textual checks.
-      // The marker package is matched only as a QUOTED import specifier, since a bare `includes(...)` also
-      // fires on a path mentioned in a comment (`packages/run-types/…`), forcing a scan of a file that
-      // never imports the markers. The pure-fn registrars are probed separately because the marker
-      // package's OWN sources call them through relative imports, with no package name in the file;
-      // `registerPureFn` is a substring of `registerPureFnFactory`, so one probe covers both.
+      // The resolver's site-file set is the real gate, so wrapper frameworks need no configuration. A file the
+      // last scan could not have seen (created mid-session, before its first HMR scan) falls back to the text
+      // gate the linter uses too.
       const inSiteSet = siteFiles.has(siteKey(rel));
-      if (!inSiteSet) {
-        const importsMarkerModule = markerProbes === null || markerProbes.some((probe) => code.includes(probe));
-        const callsPureFnRegistrar = code.includes('registerPureFn');
-        if (!importsMarkerModule && !callsPureFnRegistrar) return null;
-      }
+      if (!inSiteSet && !mayHoldMarkerCalls(code, id, options.markers)) return null;
 
       try {
         // `await` keeps the rejection inside this try — `return promise` would let it escape.

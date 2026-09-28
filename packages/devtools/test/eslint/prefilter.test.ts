@@ -5,8 +5,9 @@
 // this guard reads the Go source directly.
 
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
-import {describe, expect, it} from 'vitest';
+import {afterAll, beforeAll, describe, expect, it} from 'vitest';
 import {
   declaresUnsafePropertyName,
   looksLikeEnrichmentFile,
@@ -74,19 +75,117 @@ describe('referencesMarkerModule', () => {
     // Without config the third-party import is invisible to the pre-filter, so
     // the file would never reach the resolver and its diagnostics would vanish.
     expect(referencesMarkerModule(ownPackage)).toBe(false);
-    expect(referencesMarkerModule(ownPackage, markers)).toBe(true);
+    expect(referencesMarkerModule(ownPackage, undefined, markers)).toBe(true);
     // Configuring one must not stop matching the built-in package.
-    expect(referencesMarkerModule(`import {getRunTypeId} from '@mionjs/run-types';`, markers)).toBe(true);
+    expect(referencesMarkerModule(`import {getRunTypeId} from '@mionjs/run-types';`, undefined, markers)).toBe(true);
     // Subpaths of a configured package match too, same as the default's.
-    expect(referencesMarkerModule(`import {x} from "@my-org/markers/builders";`, markers)).toBe(true);
+    expect(referencesMarkerModule(`import {x} from "@my-org/markers/builders";`, undefined, markers)).toBe(true);
     // A path mention in prose still must not fire.
-    expect(referencesMarkerModule('// see @my-org/markers for details', markers)).toBe(false);
+    expect(referencesMarkerModule('// see @my-org/markers for details', undefined, markers)).toBe(false);
   });
 
   it('lets every file through when the package check is disabled', () => {
     // With no package gate a marker can be declared anywhere, so no import
     // probe is sound — pre-filtering by specifier would silently drop files.
-    expect(referencesMarkerModule('const unrelated = 1;', {checkPackage: false})).toBe(true);
+    expect(referencesMarkerModule('const unrelated = 1;', undefined, {checkPackage: false})).toBe(true);
+  });
+});
+
+// A drizzle dialect's `tableFromType<T>()` carries a marker declared by
+// @mionjs/run-types, yet the calling file imports only the dialect package or a
+// local wrapper of it. These fixtures are real directories: the gate reads the
+// imported package.json and the wrapper file from disk.
+describe('referencesMarkerModule follows imports', () => {
+  const REPO_ROOT = path.resolve(__dirname, '../../../..');
+  let dir: string;
+  const write = (rel: string, text: string): string => {
+    const abs = path.join(dir, rel);
+    fs.mkdirSync(path.dirname(abs), {recursive: true});
+    fs.writeFileSync(abs, text);
+    return abs;
+  };
+  const installPackage = (name: string, manifest: Record<string, unknown>): void => {
+    write(`node_modules/${name}/package.json`, JSON.stringify({name, ...manifest}));
+  };
+
+  beforeAll(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-prefilter-'));
+    installPackage('@acme/pg-tables', {peerDependencies: {'@mionjs/run-types': '*'}});
+    installPackage('@acme/dep-tables', {dependencies: {'@mionjs/run-types': '*'}});
+    installPackage('@acme/opt-tables', {optionalDependencies: {'@mionjs/run-types': '*'}});
+    installPackage('@acme/own-tables', {peerDependencies: {'@my-org/markers': '*'}});
+    installPackage('left-pad', {dependencies: {'is-number': '*'}});
+  });
+  afterAll(() => fs.rmSync(dir, {recursive: true, force: true}));
+
+  it('admits a file importing only a package that depends on the marker package', () => {
+    const file = path.join(dir, 'src/users.ts');
+    const text = `import {tableFromType} from '@acme/pg-tables';\nexport const users = tableFromType<Users>();`;
+    expect(text).not.toContain('@mionjs/run-types');
+    expect(referencesMarkerModule(text)).toBe(false);
+    expect(referencesMarkerModule(text, file)).toBe(true);
+    expect(referencesMarkerModule(`import {t} from '@acme/dep-tables/columns';`, file)).toBe(true);
+    expect(referencesMarkerModule(`const t = require("@acme/opt-tables");`, file)).toBe(true);
+    expect(referencesMarkerModule(`const t = await import('@acme/pg-tables');`, file)).toBe(true);
+  });
+
+  it('rejects packages with no marker dependency, missing packages and builtins', () => {
+    const file = path.join(dir, 'src/plain.ts');
+    expect(referencesMarkerModule(`import pad from 'left-pad';`, file)).toBe(false);
+    expect(referencesMarkerModule(`import {x} from '@acme/not-installed';`, file)).toBe(false);
+    expect(referencesMarkerModule(`import fs from 'node:fs';`, file)).toBe(false);
+    // A dependency on a configured marker package counts only once it is configured.
+    const own = `import {t} from '@acme/own-tables';`;
+    expect(referencesMarkerModule(own, file)).toBe(false);
+    expect(referencesMarkerModule(own, file, {packages: ['@my-org/markers']})).toBe(true);
+  });
+
+  it('admits a real repo file importing only a drizzle dialect package', () => {
+    const file = path.join(REPO_ROOT, 'packages/drizzle-orm-pg-core/test/users.ts');
+    const text = `import {tableFromType} from '@mionjs/drizzle-orm-pg-core';\nexport const users = tableFromType<Users>();`;
+    expect(referencesMarkerModule(text, file)).toBe(true);
+  });
+
+  it('admits a file importing a local wrapper, whatever the specifier spelling', () => {
+    write('lib/db.ts', `import {tableFromType} from '@acme/pg-tables';\nexport {tableFromType};`);
+    write('lib/markers/index.ts', `import {getRunTypeId} from '@mionjs/run-types';\nexport {getRunTypeId};`);
+    write('lib/pure.ts', `export const f = registerPureFnFactory('ns', 'f', () => 1);`);
+    const file = path.join(dir, 'src/users.ts');
+    expect(referencesMarkerModule(`import {tableFromType} from '../lib/db';`, file)).toBe(true);
+    expect(referencesMarkerModule(`import {tableFromType} from '../lib/db.ts';`, file)).toBe(true);
+    expect(referencesMarkerModule(`import {tableFromType} from '../lib/db.js';`, file)).toBe(true);
+    expect(referencesMarkerModule(`import {getRunTypeId} from '../lib/markers';`, file)).toBe(true);
+    expect(referencesMarkerModule(`import {f} from '../lib/pure';`, file)).toBe(true);
+  });
+
+  it('follows local imports one level only, and rejects a wrapper that holds no marker', () => {
+    write('lib/plain.ts', `export const answer = 42;`);
+    write('lib/outer.ts', `export {tableFromType} from './db';`);
+    const file = path.join(dir, 'src/users.ts');
+    expect(referencesMarkerModule(`import {answer} from '../lib/plain';`, file)).toBe(false);
+    expect(referencesMarkerModule(`import {x} from '../lib/missing';`, file)).toBe(false);
+    expect(referencesMarkerModule(`import {tableFromType} from '../lib/outer';`, file)).toBe(false);
+  });
+
+  it('keeps one verdict per wrapper file, even when two share a modified time', () => {
+    const marked = write('same/marked.ts', `export {tableFromType} from '@acme/pg-tables';`);
+    const plain = write('same/plain.ts', `export const answer = 42;`);
+    const stamp = new Date(Date.now() - 60_000);
+    for (const wrapper of [marked, plain]) fs.utimesSync(wrapper, stamp, stamp);
+    const file = path.join(dir, 'src/users.ts');
+    expect(referencesMarkerModule(`import {t} from '../same/marked';`, file)).toBe(true);
+    expect(referencesMarkerModule(`import {a} from '../same/plain';`, file)).toBe(false);
+  });
+
+  it('re-reads a wrapper after it changes', () => {
+    const wrapper = write('lib/late.ts', `export const answer = 42;`);
+    const file = path.join(dir, 'src/users.ts');
+    const text = `import {tableFromType} from '../lib/late';`;
+    expect(referencesMarkerModule(text, file)).toBe(false);
+    fs.writeFileSync(wrapper, `export {tableFromType} from '@acme/pg-tables';`);
+    const later = new Date(Date.now() + 5_000);
+    fs.utimesSync(wrapper, later, later);
+    expect(referencesMarkerModule(text, file)).toBe(true);
   });
 });
 
@@ -168,6 +267,11 @@ describe('needsResolverPass', () => {
     const types = 'export type Poison = {__proto__: {admin: boolean}};';
     expect(types).not.toContain('@mionjs/');
     expect(needsResolverPass(types)).toBe(true);
+  });
+
+  it('admits a file whose markers come through an imported package', () => {
+    const file = path.join(path.resolve(__dirname, '../../../..'), 'packages/drizzle-orm-pg-core/test/users.ts');
+    expect(needsResolverPass(`import {tableFromType} from '@mionjs/drizzle-orm-pg-core';`, file)).toBe(true);
   });
 
   it('admits a route file that references no marker package', () => {

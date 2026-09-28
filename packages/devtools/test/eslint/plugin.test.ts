@@ -38,6 +38,36 @@ export function makeValidator<T>() {
 }
 `;
 
+// A drizzle dialect package: its tableFromType carries a marker declared by
+// @mionjs/run-types, so a file importing only the dialect still holds a marker
+// call the build rewrites and the linter must check.
+const DIALECT_PACKAGE_JSON = JSON.stringify({
+  name: '@mionjs/drizzle-orm-pg-core',
+  exports: {'.': './index.d.ts'},
+  peerDependencies: {'@mionjs/run-types': '*'},
+});
+const DIALECT_DTS = `import type {InjectRunTypeId} from '@mionjs/run-types';
+export declare function tableFromType<T>(options?: {schema?: string}, id?: InjectRunTypeId<T>): T;
+`;
+
+const DRIZZLE_GENERIC_TS = `import {tableFromType} from '@mionjs/drizzle-orm-pg-core';
+
+export function makeTable<T>() {
+  return tableFromType<T>();
+}
+`;
+
+// A local wrapper module re-exporting the dialect: its importer names neither package.
+const TABLES_TS = `export {tableFromType} from '@mionjs/drizzle-orm-pg-core';
+`;
+
+const WRAPPED_GENERIC_TS = `import {tableFromType} from './tables';
+
+export function makeTable<T>() {
+  return tableFromType<T>();
+}
+`;
+
 const WIDGET_TS = `import {createValidateFn} from '@mionjs/run-types';
 
 interface Widget {
@@ -311,6 +341,9 @@ describe.runIf(hasBinary())(
       'forms.ts': FORMS_TS,
       'bad-form.ts': BAD_FORM_TS,
       'generic-marker.ts': GENERIC_MARKER_TS,
+      'drizzle-generic.ts': DRIZZLE_GENERIC_TS,
+      'tables.ts': TABLES_TS,
+      'wrapped-generic.ts': WRAPPED_GENERIC_TS,
       'widget.ts': WIDGET_TS,
       'user.ts': USER_TS,
       'mirror-dirty.ts': MIRROR_DIRTY_TS,
@@ -326,6 +359,8 @@ describe.runIf(hasBinary())(
 
     beforeAll(() => {
       project = makeFixtureProject(texts);
+      project.write('node_modules/@mionjs/drizzle-orm-pg-core/package.json', DIALECT_PACKAGE_JSON);
+      project.write('node_modules/@mionjs/drizzle-orm-pg-core/index.d.ts', DIALECT_DTS);
       for (const rel of Object.keys(texts)) abs.set(rel, `${project.dir}/${rel}`);
       // The plugin roots the resolver at process.cwd() (cwd is no longer
       // configurable), exactly like a real editor/CI run from the project
@@ -398,6 +433,22 @@ describe.runIf(hasBinary())(
         expect(reports[0]!.message).toContain('[MKR003]');
         expect(reports[0]!.line).toBe(locate(GENERIC_MARKER_TS, 'createValidateFn<T>()').line);
         expect(reportsFor('redundant-marker', 'generic-marker.ts')).toEqual([]);
+      });
+
+      it('checks a file whose marker comes only through a drizzle dialect package (MKR003 on tableFromType<T>())', () => {
+        expect(DRIZZLE_GENERIC_TS).not.toContain('@mionjs/run-types');
+        const reports = reportsFor('invalid-marker', 'drizzle-generic.ts');
+        expect(reports).toHaveLength(1);
+        expect(reports[0]!.message).toContain('[MKR003]');
+        expect(reports[0]!.line).toBe(locate(DRIZZLE_GENERIC_TS, 'tableFromType<T>()').line);
+      });
+
+      it('checks a file whose marker comes through a local wrapper module (MKR003 on tableFromType<T>())', () => {
+        expect(WRAPPED_GENERIC_TS).not.toContain('@mionjs/');
+        const reports = reportsFor('invalid-marker', 'wrapped-generic.ts');
+        expect(reports).toHaveLength(1);
+        expect(reports[0]!.message).toContain('[MKR003]');
+        expect(reports[0]!.line).toBe(locate(WRAPPED_GENERIC_TS, 'tableFromType<T>()').line);
       });
 
       it('hides the Info-level VL011 method drop by default', () => {
