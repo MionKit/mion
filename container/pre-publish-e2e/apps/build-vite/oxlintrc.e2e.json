@@ -28,7 +28,8 @@
   },
   "settings": {
     "runtypes": {
-      "tsconfig": "apps/build-vite/tsconfig.json"
+      "tsconfig": "apps/build-vite/tsconfig.json",
+      "levels": "all"
     }
   }
 }
