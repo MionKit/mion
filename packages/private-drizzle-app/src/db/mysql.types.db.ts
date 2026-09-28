@@ -1,16 +1,17 @@
-import {drizzle} from 'drizzle-orm/sqlite-proxy';
+// The type-form twin of mysql.db.ts.
+import {drizzle} from 'drizzle-orm/mysql-proxy';
 import {gt, relations} from 'drizzle-orm';
-import {sqliteView} from 'drizzle-orm/sqlite-core';
-import {toDrizzle} from '@mionjs/drizzle-orm-sqlite-core/drizzle';
-import {adultUsers, posts, users} from './sqlite.schema.ts';
+import {mysqlView} from 'drizzle-orm/mysql-core';
+import {toDrizzle} from '@mionjs/drizzle-orm-mysql-core/drizzle';
+import {adultUsers, type PostsTable, type UsersTable} from './mysql.types.schema.ts';
 import {answer} from './fakeDriver.ts';
 
-export const usersDb = toDrizzle(users);
-export const postsDb = toDrizzle(posts);
+export const usersDb = toDrizzle<UsersTable>();
+export const postsDb = toDrizzle<PostsTable>();
 export const adultUsersDb = toDrizzle(adultUsers);
 
 // a view built from a query builder stays on drizzle (DRZ001), so it lives here
-export const busyAuthorsDb = sqliteView('busy_authors').as((qb) =>
+export const busyAuthorsDb = mysqlView('busy_authors').as((qb) =>
   qb.select({authorId: postsDb.authorId, views: postsDb.views}).from(postsDb).where(gt(postsDb.views, 100))
 );
 

@@ -1,6 +1,6 @@
 import * as DZ from '@mionjs/drizzle-orm-pg-core';
 import {sql, tableRef} from '@mionjs/drizzle-orm';
-import type {InferInsertModel, InferSelectModel, InferSelectViewModel} from '@mionjs/drizzle-orm';
+import type {InferInsertModel, InferSelectModel, InferSelectViewModel, InferUpdateModel} from '@mionjs/drizzle-orm';
 
 // Builder tables: no drizzle types in this file.
 
@@ -10,6 +10,7 @@ export const users = DZ.pgTable('users', {
   email: DZ.varchar('email', {length: 255, notNull: true}),
   age: DZ.integer('age', {notNull: true}),
   role: DZ.text('role', {enum: ['admin', 'user'], notNull: true}),
+  active: DZ.boolean('active', {notNull: true}),
   balance: DZ.bigint('balance', {mode: 'bigint', notNull: true}),
   createdAt: DZ.timestamp('created_at', {defaultNow: true, notNull: true}),
 });
@@ -23,7 +24,6 @@ export const posts = DZ.pgTable('posts', {
   publishedAt: DZ.timestamp('published_at'),
 });
 
-// a view with explicit columns: its row keeps the same formats as a table
 export const adultUsers = DZ.pgView('adult_users', {
   id: DZ.uuid('id', {notNull: true}),
   name: DZ.varchar('name', {length: 100, notNull: true}),
@@ -32,5 +32,6 @@ export const adultUsers = DZ.pgView('adult_users', {
 
 export type User = InferSelectModel<typeof users>;
 export type NewUser = InferInsertModel<typeof users>;
+export type UserPatch = InferUpdateModel<typeof users>;
 export type Post = InferSelectModel<typeof posts>;
 export type AdultUser = InferSelectViewModel<typeof adultUsers>;

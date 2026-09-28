@@ -1,4 +1,4 @@
-// Type-instantiation cost of each `// case:` section of the app's REAL route files, compiled alone once per lane.
+// Type-instantiation cost of each `// case:` section of the app's REAL route files, compiled alone, whole and with only its params.
 
 import * as ts from 'typescript';
 import {readFileSync} from 'node:fs';
@@ -41,17 +41,19 @@ export interface RouteCase {
   name: string;
   /** `key: mion.route(...)`, as written in the route file. */
   body: string;
+  /** The same route with only its params: `key: mion.route((_ctx, ...params): void => {})`. */
+  paramsOnly: string;
 }
 
-export interface Lane {
-  name: string;
-  /** Import path rewrites applied to the route file's header. */
-  rewrites: Record<string, string>;
+export interface SideCost {
+  params: number;
+  return: number;
+  total: number;
 }
 
 export interface CaseCost {
-  server: number;
-  client: number;
+  server: SideCost;
+  client: SideCost;
   errors: string[];
 }
 
@@ -69,14 +71,26 @@ export function readRouteFile(file: string): {header: string; cases: RouteCase[]
     const body = rest
       .join('\n')
       .replace(/\n};\s*$/, '')
-      .trim();
-    return {name, body};
+      .trim()
+      .replace(/,$/, '');
+    return {name, body, paramsOnly: paramsOnlyOf(body)};
   });
   return {header, cases};
 }
 
-function applyRewrites(header: string, lane: Lane): string {
-  return Object.entries(lane.rewrites).reduce((text, [from, to]) => text.split(`'${from}'`).join(`'${to}'`), header);
+/** The route with its handler reduced to its params, so the params can be measured alone. */
+function paramsOnlyOf(body: string): string {
+  const file = ts.createSourceFile('case.ts', `({${body}})`, ts.ScriptTarget.Latest, true);
+  let result = '';
+  const visit = (node: ts.Node) => {
+    if (!result && ts.isCallExpression(node) && ts.isArrowFunction(node.arguments[0])) {
+      const params = node.arguments[0].parameters.map((param) => param.getText(file)).join(', ');
+      result = `${body.slice(0, body.indexOf(':'))}: mion.route((${params}): void => {})`;
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(file);
+  return result;
 }
 
 function serverSource(header: string, body: string): string {
@@ -101,38 +115,54 @@ function count(files: Map<string, string>, root: string): {instantiations: numbe
   return {instantiations: program.getInstantiationCount(), errors};
 }
 
-const baselines = new Map<string, {server: number; client: number}>();
-
-/** The empty server and client of one import header, counted once. */
-function baselineOf(laneHeader: string): {server: number; client: number} {
-  let baseline = baselines.get(laneHeader);
-  if (!baseline) {
-    const server = count(new Map([[SERVER_FILE, serverSource(laneHeader, '')]]), SERVER_FILE).instantiations;
-    const clientFiles = new Map([
-      [SERVER_FILE, serverSource(laneHeader, '')],
-      [CLIENT_FILE, clientSource('')],
-    ]);
-    baseline = {server, client: count(clientFiles, CLIENT_FILE).instantiations};
-    baselines.set(laneHeader, baseline);
-  }
-  return baseline;
-}
-
-/** Cost of one case on one lane: the server file alone, and a client calling it through the Api type. */
-export function measureCase(header: string, lane: Lane, routeCase: RouteCase): CaseCost {
-  const laneHeader = applyRewrites(header, lane);
-  const key = routeCase.body.slice(0, routeCase.body.indexOf(':')).trim();
-  const call = `export const result = routes.${key}(...([] as unknown as Parameters<typeof routes.${key}>)).call();`;
-  const baseline = baselineOf(laneHeader);
-  const server = count(new Map([[SERVER_FILE, serverSource(laneHeader, routeCase.body)]]), SERVER_FILE);
-  const clientFiles = new Map([
-    [SERVER_FILE, serverSource(laneHeader, routeCase.body)],
-    [CLIENT_FILE, clientSource(call)],
-  ]);
-  const client = count(clientFiles, CLIENT_FILE);
+/** Instantiations of one route body, on the server alone and in a client calling it, net of the empty file. */
+function measureBody(header: string, body: string): {server: number; client: number; errors: string[]} {
+  const key = body.slice(0, body.indexOf(':')).trim();
+  const call = key ? `export const result = routes.${key}(...([] as unknown as Parameters<typeof routes.${key}>)).call();` : '';
+  const baseline = baselineOf(header);
+  const server = count(new Map([[SERVER_FILE, serverSource(header, body)]]), SERVER_FILE);
+  const client = count(
+    new Map([
+      [SERVER_FILE, serverSource(header, body)],
+      [CLIENT_FILE, clientSource(call)],
+    ]),
+    CLIENT_FILE
+  );
   return {
     server: server.instantiations - baseline.server,
     client: client.instantiations - baseline.client,
     errors: [...server.errors, ...client.errors],
+  };
+}
+
+const baselines = new Map<string, {server: number; client: number}>();
+
+/** The empty server and client of one import header, counted once. */
+function baselineOf(header: string): {server: number; client: number} {
+  let baseline = baselines.get(header);
+  if (!baseline) {
+    const server = count(new Map([[SERVER_FILE, serverSource(header, '')]]), SERVER_FILE).instantiations;
+    const client = count(
+      new Map([
+        [SERVER_FILE, serverSource(header, '')],
+        [CLIENT_FILE, clientSource('')],
+      ]),
+      CLIENT_FILE
+    ).instantiations;
+    baseline = {server, client};
+    baselines.set(header, baseline);
+  }
+  return baseline;
+}
+
+/** One route's cost: `params` is the route with only its params, `return` is everything else (query and return type). */
+export function measureCase(header: string, routeCase: RouteCase): CaseCost {
+  const full = measureBody(header, routeCase.body);
+  const params = measureBody(header, routeCase.paramsOnly);
+  const side = (all: number, onlyParams: number): SideCost => ({params: onlyParams, return: all - onlyParams, total: all});
+  return {
+    server: side(full.server, params.server),
+    client: side(full.client, params.client),
+    errors: [...full.errors, ...params.errors],
   };
 }

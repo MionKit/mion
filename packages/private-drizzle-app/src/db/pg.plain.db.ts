@@ -1,6 +1,6 @@
 import {drizzle} from 'drizzle-orm/pg-proxy';
 import {gt, relations, sql} from 'drizzle-orm';
-import {bigint, integer, pgTable, pgView, text, timestamp, uuid, varchar} from 'drizzle-orm/pg-core';
+import {bigint, boolean, integer, pgTable, pgView, text, timestamp, uuid, varchar} from 'drizzle-orm/pg-core';
 import {answer} from './fakeDriver.ts';
 
 // pg.schema.ts + pg.db.ts on plain drizzle: the baseline the cost test compares against, never served.
@@ -11,6 +11,7 @@ export const usersDb = pgTable('users', {
   email: varchar('email', {length: 255}).notNull(),
   age: integer('age').notNull(),
   role: text('role', {enum: ['admin', 'user']}).notNull(),
+  active: boolean('active').notNull(),
   balance: bigint('balance', {mode: 'bigint'}).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
@@ -47,5 +48,6 @@ export const db = drizzle(answer, {schema});
 
 export type User = typeof usersDb.$inferSelect;
 export type NewUser = typeof usersDb.$inferInsert;
+export type UserPatch = Partial<NewUser>;
 export type Post = typeof postsDb.$inferSelect;
 export type AdultUser = typeof adultUsersDb.$inferSelect;
