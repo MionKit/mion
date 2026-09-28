@@ -25,8 +25,7 @@ export interface LintSessionOptions {
   // text pre-filter matches import specifiers, so a project whose markers come from its own package would have
   // those files skipped before the resolver saw them. Set it to whatever the tsconfig `markers` block says.
   markers?: {packages?: string[]; checkPackage?: boolean};
-  // 'all' shows Info findings, hidden otherwise. Filtered on this side after the shared session answers, so the
-  // cached pass stays whole and the resolver is never asked twice for the same file.
+  // 'all' shows Info. Filtered here after the shared session answers, so no file is resolved twice.
   levels?: 'all';
 }
 

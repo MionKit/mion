@@ -299,8 +299,7 @@ export const RULE_SPECS: readonly RuleSpec[] = [
 
 export const ALL_RULE_NAMES: readonly RuleName[] = RULE_SPECS.map((spec) => spec.name);
 
-// FamilyRules names the rule per level tier: `primary` takes the error-level codes (and every code of a family
-// that only warns), `warn` the Warning and Info codes of a family spanning both tiers.
+// `primary` takes error-level codes and every code of a warn-only family; `warn` takes Warning and Info when set.
 interface FamilyRules {
   primary: RuleName;
   warn?: RuleName;
@@ -315,12 +314,10 @@ const PREFIX_TO_FAMILY: Record<string, FamilyRules> = {
   MKR: {primary: 'invalid-marker', warn: 'redundant-marker'},
   CTA: {primary: 'invalid-marker'},
   PFN: {primary: 'invalid-marker'},
-  // Batch transport: every BAT code ships a call that fails (BAT008 / BAT009 answer every request with a 404), so
-  // all of them are invalid-marker errors.
+  // Every BAT code ships a failing call (BAT008 / BAT009 answer every request with a 404).
   BAT: {primary: 'invalid-marker'},
   TMP: {primary: 'invalid-marker'},
-  // Bundled API metadata: a call that cannot work is an error, one that works but fetches or leaves an option
-  // unset (MET004, MET006) is the redundant-marker kind.
+  // Bundled API metadata: MET004 / MET006 work but fetch or leave an option unset, the redundant-marker kind.
   MET: {primary: 'invalid-marker', warn: 'redundant-marker'},
   PFE: {primary: 'pure-functions'},
   VL: {primary: 'validate-non-serializable', warn: 'validate-skipped-member'},
@@ -442,10 +439,7 @@ export function routeDiagnostic(diagnostic: Diagnostic): LintReport {
   };
 }
 
-// ruleNameFor picks the rule a diagnostic reports under: a downgraded finding always takes downgraded-error (a
-// lint rule has one level, so a lowered error cannot share a rule with the errors it was lowered from), then
-// enrichment and mion route codes route per code, every other by its prefix family, and all of them then pick
-// the error or warn rule by level.
+// ruleNameFor: a downgraded finding gets its own rule, since a lint rule has one level for all its findings.
 function ruleNameFor(diagnostic: Diagnostic): RuleName {
   if (diagnostic.downgraded) return 'downgraded-error';
   let family: FamilyRules;

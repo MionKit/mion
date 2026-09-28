@@ -2,8 +2,7 @@ package diagnostics
 
 import "fmt"
 
-// LevelsAll is the one accepted value of the `levels` setting: it shows LevelInfo findings, which every
-// host hides by default. Hiding never changes a halt, an Info never halts anything.
+// LevelsAll shows LevelInfo, hidden by default; hiding never changes a halt, since an Info never halts.
 const LevelsAll = "all"
 
 // ResolveLevels validates a configured `levels` value; "" (unset) hides Info.

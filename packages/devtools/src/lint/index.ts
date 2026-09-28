@@ -58,7 +58,7 @@ function warnUnknownSettings(bag: Record<string, unknown>): void {
   }
 }
 
-// A wrong `levels` value warns once and keeps Info hidden, the same loud-but-harmless answer as an unknown key.
+// A wrong `levels` warns rather than throws, like an unknown key, and Info stays hidden.
 function warnBadLevels(value: unknown): void {
   if (warnedKeys.has('levels')) return;
   warnedKeys.add('levels');

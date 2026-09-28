@@ -1,9 +1,6 @@
-// Package diagnostics is the one catalog of every diagnostic the Go binary emits, so the whole set
-// of codes, levels and messages is auditable in one place. Every code declares a Level, the
-// answer to "can the build still produce code": LevelError (no), LevelRuntimeError (yes, and it is
-// broken when called), LevelWarning (yes, and nothing is wrong), LevelInfo (yes, and it is the
-// documented behaviour, hidden unless asked for); Severity is derived from it. Level, severity and family go on the wire as uint8, mirrored TS-side as literal unions; the
-// codes_*.go files register through init().
+// Package diagnostics is the one catalog of every diagnostic the Go binary emits, so codes, levels and messages
+// are auditable in one place. Level, severity and family go on the wire as uint8, mirrored TS-side as literal
+// unions; the codes_*.go files register through init().
 package diagnostics
 
 import (
@@ -16,8 +13,7 @@ import (
 //  1. If we let this through, does the build still produce the code for this?
 //  2. If it does, is that code broken when it runs?
 //
-// No → LevelError. Yes and yes → LevelRuntimeError. Yes and no → LevelWarning, or LevelInfo when
-// the finding is the documented contract (a method a validator skips) or advice, never a problem.
+// No → LevelError. Yes and yes → LevelRuntimeError. Yes and no → LevelWarning, or LevelInfo for documented behaviour or advice.
 //
 // Question 1 is per-SITE, not per-build: only CFG001 stops a whole run, every other fatal code
 // leaves one thing unbuilt while the build proceeds, which is what makes standing it down
@@ -34,15 +30,14 @@ const (
 	// LevelRuntimeError: output IS produced and it throws (an alwaysThrow factory, VL002) or is
 	// wrong when called (a type that silently became `any`, so the validator accepts every value:
 	// MKR007, MKR013, TMP001, CFG002). A type the author DID write as `any` is not this, the
-	// permissive validator is what was asked for (VL021 / VE020 stay warnings).
+	// permissive validator is what was asked for (VL021 / VE020 are LevelInfo).
 	// Downgradeable and silenceable: emitting and exiting non-zero is legitimate for a consumer.
 	LevelRuntimeError Level = 2
 	// LevelWarning: worth knowing, nothing is wrong. A member with no data form left out of a
 	// generated function, a no-op option, an unfilled scaffold, a suppression naming a wrong code.
 	LevelWarning Level = 3
-	// LevelInfo: nothing is wrong and nothing is surprising, the code does what the docs say (a method
-	// left out of a validator, a validator on a written `any`) or the finding is advice. The linter and
-	// the build hide it unless the `levels: 'all'` setting asks for it; it never stops anything.
+	// LevelInfo: documented behaviour (a method left out of a validator, a validator on a written `any`) or advice.
+	// Hidden unless `levels: 'all'`; it never stops anything.
 	LevelInfo Level = 4
 )
 

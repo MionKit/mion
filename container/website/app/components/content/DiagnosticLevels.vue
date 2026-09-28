@@ -1,5 +1,5 @@
 <script setup lang="ts">
-/** The four diagnostic levels as cards; the badge classes are shared with the catalog. */
+/** The badge classes are shared with DiagnosticCatalog. */
 const levels = [
   {
     key: 'error',

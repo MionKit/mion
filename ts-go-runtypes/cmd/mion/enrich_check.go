@@ -169,7 +169,7 @@ func scaffoldWorklist(specs []mirror.Spec) []diagnostics.Diagnostic {
 // halt on them), and a gate keyed on the level would let a stale or malformed
 // mirror pass the check whose whole job is to catch it.
 func enrichFindingFails(code string, requireComplete bool) bool {
-	// An Info is advice (a plural arm that can never fire), never a failure in either lane.
+	// An Info (a plural arm that can never fire) is advice.
 	if diagnostics.LevelOf(code) == diagnostics.LevelInfo {
 		return false
 	}

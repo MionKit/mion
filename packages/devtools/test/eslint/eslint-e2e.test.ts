@@ -1,7 +1,5 @@
-// End-to-end proof of the ESLint target: the REAL ESLint class loads the BUILT plugin through the documented
-// `configs.recommended`, lints a fixture project, and the levels contract holds. Info findings are hidden by
-// default and shown with `settings.runtypes.levels: 'all'`; a `@mion-downgrade-error` line reports as a warning
-// under `runtypes/downgraded-error`, the way the build prints it.
+// The REAL ESLint class loads the BUILT plugin through `configs.recommended`. Info shows only with `levels: 'all'`,
+// and a `@mion-downgrade-error` line reports as a warning under `runtypes/downgraded-error`, like the build prints it.
 
 import fs from 'node:fs';
 import path from 'node:path';

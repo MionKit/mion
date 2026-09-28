@@ -169,9 +169,8 @@ func TestDowngradeError_UnknownCodeIsATypo(t *testing.T) {
 	}
 }
 
-// DWN004: an info (VL015) never halted the build, so lowering it does nothing.
-// This is the case `downgradeErrors` accepts silently and a hand-written comment
-// at one call site should not. The DWN001 case below covers a warning.
+// DWN004: lowering an info (VL015) does nothing; `downgradeErrors` accepts that silently, a comment should not.
+// The DWN001 case below covers a warning.
 func TestDowngradeError_AlreadyWarningDoesNothing(t *testing.T) {
 	codes := codesIn(generateDiags(t, withDowngrade("// @mion-downgrade-error VL015")))
 	if !contains(codes, diagnostics.CodeDowngradeErrorAlreadyWarning) {

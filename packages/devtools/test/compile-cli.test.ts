@@ -98,8 +98,7 @@ describe('mion compile (tsc-like CLI)', () => {
     }
   });
 
-  // A method a validator skips is Info (VL011): hidden by default, printed as `info` once the tsconfig
-  // plugin entry sets `levels: "all"`, and never a failure either way.
+  // VL011 (a skipped method) is Info: hidden by default, printed with tsconfig `levels: "all"`, never a failure.
   const METHOD_TS = `import {createValidateFn} from '@mionjs/run-types';
 export class Pet {
   name = 'rex';

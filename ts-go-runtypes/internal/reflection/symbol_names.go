@@ -2,9 +2,8 @@ package reflection
 
 import "strings"
 
-// IsSymbolKeyedName reports whether a member name is a SYMBOL key. Two spellings reach here: tsgo's late-bound
-// `\xFE@<name>` (cachegen/runtype/serialize.go stableMemberName keeps its prefix), and the `@@name` form. A symbol
-// key is never data: JSON keys are strings, so every family drops the member, as `DataOnly<T>` does.
+// IsSymbolKeyedName reports a SYMBOL key: tsgo's `\xFE@<name>` (cachegen/runtype/serialize.go stableMemberName keeps it) or `@@name`.
+// A symbol key is never data (JSON keys are strings), so every family drops the member, as `DataOnly<T>` does.
 func IsSymbolKeyedName(name string) bool {
 	if strings.HasPrefix(name, "@@") {
 		return true

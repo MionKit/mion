@@ -181,9 +181,7 @@ export interface PluginOptions {
   // Pure-fn extraction errors halt regardless, `'*'` included: files-mode has no fallback for a failed
   // generation. HMR updates never hard-fail mid-edit either way; the halt re-applies on the next run.
   downgradeErrors?: string[] | typeof DOWNGRADE_ALL;
-  // Which diagnostic levels are printed. Unset hides Info findings (a method a validator skips, a validator on a
-  // written `any`, advice); `'all'` prints them too. Never changes what halts: an Info never halts. Also a
-  // tsconfig plugin key, which this option overrides.
+  // Unset hides Info findings, `'all'` prints them; never changes what halts. Overrides the tsconfig plugin key.
   levels?: typeof LEVELS_ALL;
   // JS runtime the resolver runs format-pattern checks on (--js-runtime); defaults to this plugin's own
   // process.execPath, so the serve lane needs no configuration. Host-specific like `binary` — no tsconfig key.
@@ -581,7 +579,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       // with a blank label still runs), so filtering by level silently let the @rtOrphan carcasses
       // through. Downgraded ones stay too — a downgrade lowers a finding, it never hides it; only the
       // halt count below drops them.
-      // Info is the exception: advice (FT008) never halts, so it is printed only when shown.
+      // Except Info (FT008 advice): it never halts, so it prints only when shown.
       incomplete = (result.diagnostics ?? []).filter((diagnostic) => diagnostic.level !== Level.Info);
       for (const diagnostic of result.diagnostics ?? []) {
         if (diagnostic.level === Level.Info && showInfo) ctx.warn?.(formatTscDiagnostic(diagnostic));

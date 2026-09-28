@@ -187,8 +187,7 @@ export const _ = getRunTypeId<any>();
       });
       const diags = runtypeDiagsOf(response);
       const warning = diags.find((d) => d.code === 'VE020');
-      // VE020 is Info: the author wrote any/unknown, so a validator that
-      // accepts every value is what was asked for; hidden unless levels: 'all'.
+      // VE020 is Info: the author wrote any/unknown, so an accept-everything validator is what was asked for.
       if (warning) {
         expect(warning.severity).toBe(Severity.Info);
       }
@@ -316,12 +315,8 @@ export const _d = createJsonDecoderFn<[number, symbol]>(undefined, {strategy: 'c
   });
 
   register('emits a …015 INFO (not a root error) for a directly-stripped property value (F3)', async () => {
-    // `{a: symbol}` / `{a: Promise<number>}` — the property VALUE is directly
-    // non-data, so the property is DROPPED and the object still serializes:
-    // `DataOnly<{a: symbol; b: number}>` = `{b: number}`. The drop is a …015
-    // child-position Info, NEVER a root error (the factory does not throw).
-    // Before the fix the default clone encoder (prepareForJsonSafe) FAILED these
-    // outright, and the other families emitted an Error — F3.
+    // A directly non-data value DROPS its property and the object still serializes: `{a: symbol; b: number}` -> `{b: number}`.
+    // The drop is a child-position …015 Info, NEVER a root error (the factory does not throw).
     const sources = {
       'stripped-prop.ts': `import {createValidateFn, createJsonEncoderFn} from '@mionjs/run-types';
 interface S { a: symbol; b: number; }
@@ -356,10 +351,8 @@ export const _p = createValidateFn<P>();
   });
 
   register('throws (root error, not a …015 drop) for a structurally-unserialisable property value (F3)', async () => {
-    // `{a: symbol[]}` — the property value is only STRUCTURALLY unserialisable
-    // (a symbol in a propagating array slot). DataOnly KEEPS it as `never[]`, so
-    // it cannot be safely dropped: the family throws at build time with a root
-    // error, and the …015 drop Info must NOT fire.
+    // A symbol in an array slot is only STRUCTURALLY non-data: DataOnly KEEPS it as `never[]`, so it cannot be dropped.
+    // The family throws a root error at build time, and the …015 drop Info must NOT fire.
     const sources = {
       'structural-prop.ts': `import {createJsonEncoderFn} from '@mionjs/run-types';
 interface S { a: symbol[]; b: number; }
@@ -435,8 +428,7 @@ export const enc = createJsonEncoderFn<{pet: Pet; owner: Owner}>(undefined, {str
     await withInlineSources(sources, async ({client}) => {
       const response = await client.scanFiles(Object.keys(sources), {includeEntryModules: true});
       const dropped = runtypeDiagsOf(response).filter((d) => d.code === 'PJ011');
-      // BOTH nested classes, each once, attributed to the call site that pulled
-      // them in: the per-walk latch keys on code AND member, so it never merges them.
+      // Each nested class once, at the call site that pulled it in: the per-walk latch keys on code AND member.
       expect(dropped.map((d) => d.args?.[0]).sort()).toEqual(['contact', 'speak']);
       for (const diagnostic of dropped) expect(diagnostic.site.startLine).toBe(4);
     });

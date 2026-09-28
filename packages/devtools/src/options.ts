@@ -44,8 +44,7 @@ export interface MionRunTypesOptions {
   /** Diagnostic codes to report as warnings instead of halting the build, or `'*'` for all of them. Strict by
    *  default: the RunTypes adapter is scanner-clean, so strict mode is safe monorepo-wide. */
   downgradeErrors?: TsRuntypesPluginOptions['downgradeErrors'];
-  /** `'all'` also prints Info findings (a method a validator skips, a validator on a written `any`), hidden by
-   *  default. Never changes what stops the build. */
+  /** `'all'` also prints Info findings (a skipped method, a validator on `any`), hidden by default; never changes what stops the build. */
   levels?: TsRuntypesPluginOptions['levels'];
   /** How many mockSamples to generate for a TypeFormat pattern that declares none. Declared mockSamples always
    *  win over generation, and a pattern the generator cannot handle (usually lookarounds) fails the build with
