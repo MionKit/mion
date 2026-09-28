@@ -303,7 +303,7 @@ func checkPluralLeaf(findings *[]Finding, plural LiteralView, key, keyPath strin
 	if !CountBearing(key) {
 		*findings = append(*findings, Finding{
 			Code:     "FT008",
-			Severity: Warning,
+			Severity: Info,
 			Path:     keyPath,
 			Message:  "constraint '" + key + "' carries no count — a plural object here has dead arms (only 'other' renders); use a plain string",
 			Args:     []string{key},

@@ -407,8 +407,8 @@ func TestCheckFriendly_FT008PluralOnNonCountBearing(t *testing.T) {
 	if ft008 == nil {
 		t.Fatalf("expected FT008 for a plural on a non-count-bearing constraint; got %v", findingCodes(findings))
 	}
-	if ft008.Severity != enrichment.Warning {
-		t.Errorf("FT008 severity = %v, want Warning", ft008.Severity)
+	if ft008.Severity != enrichment.Info {
+		t.Errorf("FT008 severity = %v, want Info (advice, the catalog level)", ft008.Severity)
 	}
 }
 
