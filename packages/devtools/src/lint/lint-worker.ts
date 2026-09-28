@@ -99,7 +99,7 @@ async function lintOne(request: LintWorkerRequest): Promise<LintWorkerResponse> 
       // Pattern verdicts (FMT001/FMT002/FMT004) arrive as ordinary diagnostics: the resolver runs the JS
       // engine itself, so this worker re-checks nothing.
       const diagnostics = (result.diagnostics ?? []) as Diagnostic[];
-      return {seq: request.seq, diagnostics};
+      return {seq: request.seq, diagnostics, levels: result.levels};
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       // CFG001 is the daemon refusing to load the project tsconfig: deterministic, so retrying is pointless, and

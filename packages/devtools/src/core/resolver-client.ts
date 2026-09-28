@@ -254,6 +254,8 @@ export interface ScanFilesResult {
   batchSites?: BatchSite[];
   // Present only when the request set includeMetrics.
   metrics?: Metrics;
+  // Echo of the tsconfig plugin's `levels`; the linter's own setting wins.
+  levels?: string;
 }
 
 // TransformFilesResult is what transform() returns: one TransformResult per requested file, keyed by file path.
@@ -362,6 +364,7 @@ abstract class ResolverClientBase implements ResolverConnection {
       pureFnSites: resp.pureFnSites,
       batchSites: resp.batchSites,
       metrics: resp.metrics,
+      levels: resp.levels,
     };
   }
 

@@ -91,3 +91,48 @@ describe.runIf(ready)('eslint end to end (configs.recommended from the built plu
     expect(widget[0]!.message).toContain('render');
   });
 });
+
+// The tsconfig plugin's `levels` reaches the linter too, so one project setting shows Info in the build and the editor.
+describe.runIf(ready)('eslint end to end with the tsconfig levels key', () => {
+  let project: FixtureProject;
+  let plugin: LintPlugin;
+  let resetSession: () => void;
+  let originalCwd: string;
+  const tsconfig = JSON.stringify({compilerOptions: {strict: true, plugins: [{name: 'mion', levels: 'all'}]}});
+
+  beforeAll(async () => {
+    project = makeFixtureProject({'tsconfig.json': tsconfig, 'widget.ts': WIDGET_TS});
+    originalCwd = process.cwd();
+    process.chdir(project.dir);
+    plugin = ((await import(pathToFileURL(path.join(DIST, 'index.js')).href)) as {default: LintPlugin}).default;
+    resetSession = ((await import(pathToFileURL(path.join(DIST, 'session.js')).href)) as {resetSharedSession: () => void})
+      .resetSharedSession;
+    // A fresh resolver, rooted here, so it reads this project's tsconfig.
+    resetSession();
+  });
+
+  afterAll(() => {
+    resetSession?.();
+    process.chdir(originalCwd);
+    project?.cleanup();
+  });
+
+  it("shows Info findings with only the tsconfig's levels: 'all'", {timeout: 120_000}, async () => {
+    const eslint = new ESLint({
+      cwd: project.dir,
+      overrideConfigFile: true,
+      overrideConfig: [
+        {files: ['**/*.ts'], languageOptions: {parser: tseslint.parser as Linter.Parser}},
+        plugin.configs.recommended,
+      ],
+    });
+    const [result] = await eslint.lintFiles(['widget.ts']);
+    expect(result?.messages).toEqual([
+      expect.objectContaining({
+        ruleId: 'runtypes/validate-skipped-member',
+        severity: 1,
+        message: expect.stringContaining('[VL011]'),
+      }),
+    ]);
+  });
+});

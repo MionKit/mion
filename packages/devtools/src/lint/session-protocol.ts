@@ -68,6 +68,8 @@ export const LINT_WORKER_REQUEST_KEYS = Object.keys(LINT_WORKER_REQUEST_KEY_TABL
 export interface LintWorkerResponse {
   seq: number;
   diagnostics?: Diagnostic[];
+  // The tsconfig `levels` echo, so a project-wide setting shows Info in the editor too.
+  levels?: string;
   error?: string;
   // fatal marks a CONNECTION-level failure (binary missing, child died), not a per-file op error: the session
   // goes sticky-dead on it so later files answer instantly instead of re-paying the failure.

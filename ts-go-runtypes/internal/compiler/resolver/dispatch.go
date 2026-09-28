@@ -614,6 +614,8 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 			AddedRunTypes: addedRunTypes,
 			AddedPureFns:  addedPureFns,
 			Diagnostics:   combinedDiagnostics,
+			// Echoed for the linter, which hides Info per file and has no generate call to read it from.
+			Levels: sess.opts.TsconfigLevels,
 		}
 		// The opt-in build report carries the DELTA for the rescanned files, so the plugin's update-lane callback
 		// fires with just the changed sites. nil when the report is off, so a normal HMR scan pays nothing.

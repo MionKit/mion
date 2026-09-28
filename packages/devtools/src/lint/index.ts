@@ -59,12 +59,17 @@ function warnUnknownSettings(bag: Record<string, unknown>): void {
 }
 
 // A wrong `levels` warns rather than throws, like an unknown key, and Info stays hidden.
-function warnBadLevels(value: unknown): void {
-  if (warnedKeys.has('levels')) return;
-  warnedKeys.add('levels');
-  console.warn(
-    `[runtypes] ignoring 'settings.runtypes.levels' = ${JSON.stringify(value)} (the only accepted value is '${LEVELS_ALL}')`
-  );
+function warnBadLevels(where: string, value: unknown): void {
+  if (warnedKeys.has(where)) return;
+  warnedKeys.add(where);
+  console.warn(`[runtypes] ignoring ${where} = ${JSON.stringify(value)} (the only accepted value is '${LEVELS_ALL}')`);
+}
+
+// The lint setting wins, then the tsconfig plugin's `levels`, the same order the build uses.
+function lintShowInfo(options: LintSessionOptions, tsconfigLevels: string | undefined): boolean {
+  if (options.levels === LEVELS_ALL || tsconfigLevels === LEVELS_ALL) return true;
+  if (tsconfigLevels) warnBadLevels("the tsconfig plugin 'levels'", tsconfigLevels);
+  return false;
 }
 
 // sessionOptions pulls the plugin's knobs from `settings.runtypes`. LINT_SETTING_KEYS (session-protocol.ts)
@@ -84,7 +89,7 @@ export function sessionOptions(settings: Record<string, unknown> | undefined): L
     options.markers = bag['markers'] as LintSessionOptions['markers'];
   }
   if (bag['levels'] === LEVELS_ALL) options.levels = LEVELS_ALL;
-  else if (bag['levels'] !== undefined) warnBadLevels(bag['levels']);
+  else if (bag['levels'] !== undefined) warnBadLevels("'settings.runtypes.levels'", bag['levels']);
   return options;
 }
 
@@ -118,8 +123,9 @@ function diagnosticRule(
             }
             return;
           }
+          const showInfo = lintShowInfo(options, outcome.levels);
           for (const diagnostic of outcome.diagnostics) {
-            if (!isShown(diagnostic, options.levels === LEVELS_ALL)) continue;
+            if (!isShown(diagnostic, showInfo)) continue;
             const report = routeDiagnostic(diagnostic);
             if (report.ruleName !== ruleName) continue;
             context.report({message: report.message, loc: report.loc});

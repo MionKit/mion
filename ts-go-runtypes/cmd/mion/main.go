@@ -499,6 +499,12 @@ func runServe(args []string) {
 	// Only the on-disk project mode merges the tsconfig plugin block; the
 	// overlay modes (stdin/ops) have no on-disk build options to honor.
 	cfg := resolveSharedConfig(fs, s, "", *sources == "project")
+	// The linter's ops mode still takes `levels`: it only decides what is shown, so the editor follows the tsconfig.
+	if *sources == "ops" {
+		if plugin, found := resolveBuildPlugin(cfg.absCwd, cfg.tsconfigPath); found {
+			cfg.opts.TsconfigLevels = plugin.Levels
+		}
+	}
 
 	// Apply the serve-local session config onto the resolved Options: the
 	// explicit flags win over the tsconfig-seeded defaults resolveSharedConfig
