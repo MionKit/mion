@@ -44,3 +44,39 @@ func TestSymbolKeyedProperty_DropsInEveryFamily(t *testing.T) {
 		}
 	}
 }
+
+// A strict check never counts the symbol key: `{name, [tag]}` has one string key.
+func TestSymbolKeyedProperty_StrictCountsStringKeysOnly(t *testing.T) {
+	value := &reflection.RunType{ID: "s", Kind: reflection.KindString}
+	name := &reflection.RunType{ID: "pn", Kind: reflection.KindPropertySignature, Name: "name", Child: makeRef("s")}
+	tag := &reflection.RunType{ID: "pt", Kind: reflection.KindPropertySignature, Name: "\xFE@tag", Child: makeRef("s")}
+	obj := &reflection.RunType{ID: "obj", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pn"), makeRef("pt")}}
+	out := renderModule(t, protocol.Dump{RunTypes: []*reflection.RunType{value, name, tag, obj}}, "validateStrict")
+	if strings.Contains(out, "\xFE") || strings.Contains(out, "@tag") || !strings.Contains(out, "cntEK(v) === 1") {
+		t.Errorf("the strict check must count one key and never name the symbol key; got:\n%s", out)
+	}
+}
+
+// A union arm's symbol key is dropped with the …013 Info, never merged in as the string key `\xFE@tag`.
+func TestSymbolKeyedProperty_UnionArmDropped(t *testing.T) {
+	for _, fam := range []string{"validate", "prepareForJsonMutate", "prepareForJsonClone", "restoreFromJsonMutate", "restoreFromJsonClone"} {
+		date := mkDate()
+		value := &reflection.RunType{ID: "s", Kind: reflection.KindString}
+		name := &reflection.RunType{ID: "pn", Kind: reflection.KindPropertySignature, Name: "name", Child: makeRef("s")}
+		tag := &reflection.RunType{ID: "pt", Kind: reflection.KindPropertySignature, Name: "\xFE@tag", Child: makeRef("s")}
+		obj := &reflection.RunType{ID: "obj", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pn"), makeRef("pt")}}
+		union := &reflection.RunType{
+			ID: "uni", Kind: reflection.KindUnion,
+			Children:          []*reflection.RunType{makeRef("dat"), makeRef("obj")},
+			SafeUnionChildren: []*reflection.RunType{makeRef("dat"), makeRef("obj")},
+		}
+		dump := protocol.Dump{RunTypes: []*reflection.RunType{date, value, name, tag, obj, union}}
+		out, sink := renderWithDiag(t, dump, fam, "uni")
+		if strings.Contains(out, "\xFE") || strings.Contains(out, "@tag") {
+			t.Errorf("[%s] the symbol key must not reach the union code; got:\n%s", fam, out)
+		}
+		if _, ok := findCode(sink, symbolKeyedDropCodes[fam]); !ok {
+			t.Errorf("[%s] expected %s; sink=%+v", fam, symbolKeyedDropCodes[fam], sink)
+		}
+	}
+}
