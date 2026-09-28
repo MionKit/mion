@@ -48,7 +48,7 @@ prototype comes from the input, and the constructor never runs.
 - **Shared values (RUK010, RUK015).** Decide whether sharing a function / Promise with the input is acceptable
   for a function whose output type is `T`, or should also refuse.
 - Every case gets a test at the root and one level deeper (`ts-go-runtypes/CLAUDE.md`, "same test, one level
-  deeper").
+  deeper"), and each RUK code gets an `Example` and a `NestedExample` in `prose.go` (RUK013 has neither yet).
 
 ## Docs
 

@@ -56,7 +56,9 @@ Line numbers are from when this was filed; confirm them first. The implementer p
 8. **The linter ignores the tsconfig `downgradeErrors`.** The build honours the plugin option and the tsconfig
    echo; the linter only honours the `@mion-downgrade-error` comment (`diagnosticRouting.ts` ~430), so a code
    lowered in the tsconfig is an error in the editor and a warning in the build. The plugin option stays
-   build-only (the linter cannot see it); document that.
+   build-only (the linter cannot see it); document that. The tsconfig `levels` key already reaches the linter:
+   `serve --sources ops` reads that one plugin key (`cmd/mion/main.go`) and echoes it on `scanFiles`. The same
+   path can carry `downgradeErrors`.
 9. **Stale comments.** Claims that VS Code's `$tsc` problem matcher picks up the build's lines (it needs a
    `TS<digits>` code, and Vite prefixes each line): `unplugin.ts` ~855, ~1145, ~1177; `protocol.ts` ~395;
    `protocol.go` ~200; `pure-fns-cache.test.ts` ~397. A removed socket client: `resolver-client.ts` ~130, ~168,
