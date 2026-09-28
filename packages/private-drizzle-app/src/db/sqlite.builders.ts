@@ -1,7 +1,7 @@
 // SQLite on slim builders: tables, drizzle handles and model types, all in one file.
 import * as DZ from '@mionjs/drizzle-orm-sqlite-core';
 import {$type, sql, tableRef} from '@mionjs/drizzle-orm';
-import type {InferInsertModel, InferSelectModel, InferSelectViewModel, InferUpdateModel} from '@mionjs/drizzle-orm';
+import type {InferUpdateModel} from '@mionjs/drizzle-orm';
 import {drizzle} from 'drizzle-orm/sqlite-proxy';
 import {gt, relations} from 'drizzle-orm';
 import {sqliteView} from 'drizzle-orm/sqlite-core';
@@ -34,15 +34,15 @@ export const adultUsers = DZ.sqliteView('adult_users', {
   age: DZ.integer('age', {notNull: true}),
 }).as(sql`select id, name, age from ${users} where age >= 18`);
 
-export type User = InferSelectModel<typeof users>;
-export type NewUser = InferInsertModel<typeof users>;
+export type User = typeof users.$inferSelect;
+export type NewUser = typeof users.$inferInsert;
 export type UserPatch = InferUpdateModel<typeof users>;
-export type Post = InferSelectModel<typeof posts>;
-export type NewPost = InferInsertModel<typeof posts>;
+export type Post = typeof posts.$inferSelect;
+export type NewPost = typeof posts.$inferInsert;
 export type PostPatch = InferUpdateModel<typeof posts>;
 // A query-builder view has no slim model, so its row type is written by hand.
 export type BusyAuthor = Pick<Post, 'authorId' | 'views'>;
-export type AdultUser = InferSelectViewModel<typeof adultUsers>;
+export type AdultUser = typeof adultUsers.$inferSelect;
 
 export const usersDb = toDrizzle(users);
 export const postsDb = toDrizzle(posts);
