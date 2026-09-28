@@ -11,7 +11,7 @@ func IsSymbolKeyedName(name string) bool {
 	return len(name) >= 2 && name[0] == 0xFE && name[1] == '@'
 }
 
-// SymbolKeyLabel is the name a message shows for a symbol-keyed member: the declared symbol's name, so `[Symbol.iterator]` reads `[iterator]`.
+// SymbolKeyLabel names a symbol-keyed member in messages by its symbol: `[Symbol.iterator]` reads `[iterator]`.
 func SymbolKeyLabel(name string) string {
 	if IsSymbolKeyedName(name) {
 		return "[" + name[2:] + "]"
