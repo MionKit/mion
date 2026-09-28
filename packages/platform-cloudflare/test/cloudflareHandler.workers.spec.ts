@@ -33,11 +33,10 @@ function setupOptions(options: CloudflareSetupOptions = {}): string {
   return JSON.stringify(options);
 }
 
-/** Starts a Miniflare with the test server bundle loaded as a service worker; workerd boots here, never inside a test. */
+/** workerd boots here, never inside a test. */
 async function startMiniflare(setupCode: string, port?: number): Promise<Miniflare> {
   const bundleCode = readFileSync(CLOUDFLARE_BUNDLE_PATH, 'utf-8');
-  // Service worker format: the IIFE bundle sets up CloudflareTestServer on globalThis,
-  // then we call setup (storing the promise) and register the fetch handler.
+  // Service worker format: the IIFE bundle defines CloudflareTestServer on globalThis.
   const workerScript = `
         // Polyfill process for bundled code that checks typeof process
         globalThis.process = { env: {} };
