@@ -324,3 +324,38 @@ export const slugify = registerPureFn((s: string): string => s.toLowerCase());
 		t.Errorf("module = %+v (err %v)", entry, err)
 	}
 }
+
+// TestCompile_NoEmitCountsCheckedFiles pins the `--no-emit` summary count to files, never to diagnostics.
+func TestCompile_NoEmitCountsCheckedFiles(t *testing.T) {
+	tmp := t.TempDir()
+	writeFile(t, filepath.Join(tmp, "tsconfig.json"), tsconfigJSON)
+	writeFile(t, filepath.Join(tmp, "src", "runtypes.d.ts"), runtypesDTS)
+	writeFile(t, filepath.Join(tmp, "src", "foo.ts"), fooTS)
+	writeFile(t, filepath.Join(tmp, "src", "bar.ts"), `import {getRunTypeId} from '@mionjs/run-types';
+const sample = {id: 1, name: 'a'};
+export const sampleId = getRunTypeId(sample);
+`)
+
+	result, err := Run(Options{
+		Cwd:          tmp,
+		TsconfigPath: "tsconfig.json",
+		GenDir:       filepath.Join(tmp, ".mion"),
+		NoEmit:       true,
+		ResolverOpts: resolver.Options{
+			Cwd:        tmp,
+			EmitMode:   constants.EmitCode,
+			ModuleMode: constants.ModuleModeDefault,
+			InlineMode: constants.InlineModeDefault,
+			CacheDir:   filepath.Join(tmp, ".cache"),
+		},
+	})
+	if err != nil {
+		t.Fatalf("compile --no-emit: %v", err)
+	}
+	if len(result.Diagnostics) != 0 {
+		t.Fatalf("want a clean project, got %v", result.Diagnostics)
+	}
+	if result.CheckedFiles != 2 {
+		t.Fatalf("CheckedFiles = %d, want 2 (foo.ts, bar.ts; the .d.ts is not counted)", result.CheckedFiles)
+	}
+}
