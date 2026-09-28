@@ -44,6 +44,9 @@ export interface MionRunTypesOptions {
   /** Diagnostic codes to report as warnings instead of halting the build, or `'*'` for all of them. Strict by
    *  default: the RunTypes adapter is scanner-clean, so strict mode is safe monorepo-wide. */
   downgradeErrors?: TsRuntypesPluginOptions['downgradeErrors'];
+  /** `'all'` also prints Info findings (a method a validator skips, a validator on a written `any`), hidden by
+   *  default. Never changes what stops the build. */
+  levels?: TsRuntypesPluginOptions['levels'];
   /** How many mockSamples to generate for a TypeFormat pattern that declares none. Declared mockSamples always
    *  win over generation, and a pattern the generator cannot handle (usually lookarounds) fails the build with
    *  FMT005, asking for explicit mockSamples. */
@@ -162,6 +165,8 @@ export function toRunTypesOptions(
     // through UNDEFINED when unset, never defaulted, so a tsconfig-only `downgradeErrors` still reaches the
     // host: the echo can only win over an absent option.
     downgradeErrors: rt.downgradeErrors,
+    // Undefined when unset, like downgradeErrors, so a tsconfig-only `levels` still reaches the host.
+    levels: rt.levels,
     patternSampleCount: rt.patternSampleCount,
     patternSampleRetries: rt.patternSampleRetries,
     jsonMaxBytes: rt.derivedPayloadLimits,

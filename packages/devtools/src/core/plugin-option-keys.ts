@@ -25,6 +25,7 @@ const PLUGIN_OPTION_KEY_TABLE = {
   transformMode: true,
   sourcesContent: true,
   downgradeErrors: true,
+  levels: true,
   jsRuntime: true,
   detachResolver: true,
   devServer: true,

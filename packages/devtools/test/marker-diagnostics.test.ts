@@ -314,7 +314,7 @@ export const r = route((ctx: unknown, name: string) => name.length);
       // LevelWarning: the scan DEDUPES the repeated key and emits the site
       // normally, so what ships is correct and only the source is untidy. It
       // used to halt the build, which the emitted output never justified.
-      expect(diagnostics[0].level).toBe(Level.Warning);
+      expect(diagnostics[0].level).toBe(Level.Info);
       // Args carry the FIRST REPEATED family, NOT the first key of the list —
       // pins first-repeated-key reporting rather than first-key.
       expect(diagnostics[0].args).toEqual(['validationErrors']);

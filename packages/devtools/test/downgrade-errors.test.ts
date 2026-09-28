@@ -143,7 +143,7 @@ const sample = {name: 'Ada'};
 export const goodReflected = getRunTypeId(sample);
 `;
 
-// A function at a PROPERTY position drops with a Warning (VL010-class), never
+// A function at a PROPERTY position drops with an Info (VL011 here), never
 // an Error — the strict default must NOT halt on it.
 const WARNING_ENTRY_SRC = `import {createValidateFn} from '@mionjs/run-types';
 interface WithHandler {
@@ -177,6 +177,12 @@ const TSCONFIG_HASHLENGTH1_SRC = JSON.stringify({
     types: [],
     plugins: [{name: 'mion', hashLength: 1}],
   },
+  include: ['*.ts'],
+});
+
+// The warning program with `levels: 'all'` in the tsconfig plugin entry, the value the Go side echoes.
+const TSCONFIG_LEVELS_SRC = JSON.stringify({
+  compilerOptions: {...JSON.parse(TSCONFIG_SRC).compilerOptions, plugins: [{name: 'mion', levels: 'all'}]},
   include: ['*.ts'],
 });
 
@@ -228,6 +234,7 @@ const UNRESOLVED_DIR = path.join(FIXTURE_DIR, 'unresolved-import-program');
 // Error program whose downgradeErrors comes from the tsconfig, not a plugin option.
 const TSCONFIG_DOWNGRADE_DIR = path.join(FIXTURE_DIR, 'tsconfig-downgrade-program');
 const COLLISION_DIR = path.join(FIXTURE_DIR, 'type-id-collision-program');
+const TSCONFIG_LEVELS_DIR = path.join(FIXTURE_DIR, 'tsconfig-levels-program');
 const EXPECT_ERROR_DIR = path.join(FIXTURE_DIR, 'expect-error-program');
 const STALE_EXPECT_DIR = path.join(FIXTURE_DIR, 'stale-expect-program');
 const DOWNGRADE_ERROR_DIR = path.join(FIXTURE_DIR, 'downgrade-error-program');
@@ -243,6 +250,7 @@ describe('downgradeErrors — Error-severity diagnostics fail the build in every
     fs.rmSync(FIXTURE_DIR, {recursive: true, force: true});
     writeFixture(ERROR_DIR, ERROR_ENTRY_SRC);
     writeFixture(WARNING_DIR, WARNING_ENTRY_SRC);
+    writeFixture(TSCONFIG_LEVELS_DIR, WARNING_ENTRY_SRC, TSCONFIG_LEVELS_SRC);
     writeFixture(UNRESOLVED_DIR, UNRESOLVED_IMPORT_SRC);
     writeFixture(TSCONFIG_DOWNGRADE_DIR, ERROR_ENTRY_SRC, TSCONFIG_DOWNGRADE_SRC);
     writeFixture(COLLISION_DIR, COLLISION_ENTRY_SRC, TSCONFIG_HASHLENGTH1_SRC);
@@ -435,17 +443,43 @@ describe('downgradeErrors — Error-severity diagnostics fail the build in every
     }
   });
 
-  register('default (strict): WARNING-severity diagnostics never halt (the Warning/Error line)', async () => {
+  register('default: an Info diagnostic (VL011, a skipped method) never halts and is not printed', async () => {
     const plugin = makePlugin(WARNING_DIR);
     const ctx = makeCtx();
     try {
       await callHook(plugin.buildStart, ctx); // must not throw
+      expect(ctx.warnings.join('\n')).not.toContain('VL011');
+    } finally {
+      await callHook(plugin.buildEnd, ctx);
+    }
+  });
+
+  register("levels: 'all' prints the Info diagnostic with the info label, and it still never halts", async () => {
+    const plugin = makePlugin(WARNING_DIR, {levels: 'all'});
+    const ctx = makeCtx();
+    try {
+      await callHook(plugin.buildStart, ctx); // must not throw
       const all = ctx.warnings.join('\n');
-      expect(all).toContain('warning');
+      expect(all).toMatch(/entry\.ts\(\d+,\d+\): info VL011: /);
       expect(all).not.toContain('error VL');
     } finally {
       await callHook(plugin.buildEnd, ctx);
     }
+  });
+
+  register("tsconfig levels: 'all' (echoed, no plugin option) prints Info too", async () => {
+    const plugin = makePlugin(TSCONFIG_LEVELS_DIR);
+    const ctx = makeCtx();
+    try {
+      await callHook(plugin.buildStart, ctx);
+      expect(ctx.warnings.join('\n')).toContain('info VL011');
+    } finally {
+      await callHook(plugin.buildEnd, ctx);
+    }
+  });
+
+  it('refuses a levels value other than all at the host boundary', () => {
+    expect(() => makePlugin(WARNING_DIR, {levels: 'warning'})).toThrow(/invalid levels "warning"/);
   });
 
   register('tsconfig downgradeErrors (echoed, no plugin option) downgrades the same Error', async () => {

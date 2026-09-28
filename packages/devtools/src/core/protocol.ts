@@ -386,6 +386,8 @@ export interface Response {
   // dependency-free host can honor a tsconfig-only setting: the plugin's own option wins, then this echo,
   // then nothing downgraded. Either a list of codes or the single wildcard entry '*'.
   downgradeErrors?: string[];
+  // Echo of the tsconfig plugin's `levels` on `generate`, absent when unset; the plugin's own option wins.
+  levels?: string;
   // One TransformResult per file for the `transform` op, keyed by file path.
   transformed?: Record<string, TransformResult>;
   // Every non-fatal diagnostic the Go binary emits: pure-fn extractor (PFE9xxx), marker scanner (MKRxxx),
