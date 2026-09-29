@@ -432,7 +432,7 @@ export const outer: Outer = {inner: {ok: 1, __proto__: 'x'}};`,
 	// ──────────── server imports (SRV001) ────────────
 
 	CodeServerImportInClient: {
-		Summary: "The API type you pass to `initClient` comes from your server code. Imported without `type`, your bundler ships that server module, the mion router and everything they import to the browser. `import type` is erased at build time.",
+		Summary: "The API type you pass to `initClient` comes from your server code. Imported without `type`, your bundler can ship that server module, the mion router and everything they import to the browser. It is an error even when your build would drop the import, because a client never imports server code. `import type` is always removed at build time.",
 		Fix:     `import type {MyApi} from '../server/api';`,
 	},
 

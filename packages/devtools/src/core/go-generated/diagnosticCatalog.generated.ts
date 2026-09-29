@@ -795,7 +795,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   SRV001: {
     headline:
-      '`{0}` is passed to `initClient` but imported as a value from "{1}", which puts that server module in the client bundle; use `import type`.',
+      '`{0}` is passed to `initClient` but imported as a value from "{1}", which can put that server module in the client bundle; use `import type`.',
     level: 'runtimeError',
     family: 'marker',
   },

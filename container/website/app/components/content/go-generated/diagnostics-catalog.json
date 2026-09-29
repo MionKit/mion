@@ -1327,8 +1327,8 @@
       "code": "SRV001",
       "subsystem": "client-imports",
       "level": "runtimeError",
-      "headline": "`{0}` is passed to `initClient` but imported as a value from \"{1}\", which puts that server module in the client bundle; use `import type`.",
-      "summary": "The API type you pass to `initClient` comes from your server code. Imported without `type`, your bundler ships that server module, the mion router and everything they import to the browser. `import type` is erased at build time.",
+      "headline": "`{0}` is passed to `initClient` but imported as a value from \"{1}\", which can put that server module in the client bundle; use `import type`.",
+      "summary": "The API type you pass to `initClient` comes from your server code. Imported without `type`, your bundler can ship that server module, the mion router and everything they import to the browser. It is an error even when your build would drop the import, because a client never imports server code. `import type` is always removed at build time.",
       "fix": "import type {MyApi} from '../server/api';",
       "example": null
     },

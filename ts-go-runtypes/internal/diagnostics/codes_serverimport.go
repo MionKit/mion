@@ -1,7 +1,8 @@
 package diagnostics
 
-// Server import codes (SRVxxx): a value import of the `initClient<Api>()` type ships the server module in the client
-// bundle. SRV001 is LevelRuntimeError: the bundle builds, but fails in a browser and exposes server code.
+// Server import codes (SRVxxx): a value import of the `initClient<Api>()` type pulls the server module into the client.
+// SRV001 is LevelRuntimeError by policy, not by the two questions: a transpiler without `verbatimModuleSyntax` drops a
+// type-only-used import, but a client must never import server code, so it stops the build like a broken call.
 const (
 	// CodeServerImportInClient: a name used in an `initClient` type argument is imported without `type`.
 	// Args: [0] the imported name, [1] the import specifier.
