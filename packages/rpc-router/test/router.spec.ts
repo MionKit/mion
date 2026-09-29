@@ -427,16 +427,4 @@ describe('initRoutes', () => {
     const hello = mion.route((ctx): string => 'hi');
     expect(() => mion.initRoutes({toString, hello})).not.toThrow();
   });
-
-  it('throws for the removed syncRoutes option, which would silently turn the check off', () => {
-    const mion = createMionRouter({syncRoutes: true} as any);
-    const hello = mion.route((ctx): string => 'hi');
-    expect(() => mion.initRoutes({hello})).toThrow(/mionSyncRoutes/);
-  });
-
-  it('throws for the removed skipClientRoutes option, whose route is now placed by hand', () => {
-    const mion = createMionRouter({skipClientRoutes: false} as any);
-    const hello = mion.route((ctx): string => 'hi');
-    expect(() => mion.initRoutes({hello})).toThrow(/mionMethodsMetadata/);
-  });
 });

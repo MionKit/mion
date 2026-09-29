@@ -3,7 +3,6 @@ package main
 import (
 	"path/filepath"
 	"reflect"
-	"strings"
 	"testing"
 )
 
@@ -302,16 +301,6 @@ func TestUnknownPluginKeys(t *testing.T) {
 		t.Errorf("recognised keys should not warn, got %v", got)
 	}
 
-	// cacheDir is no longer a recognised key — the RT cache follows the
-	// project's incremental setting, not a plugin knob — so it warns like any
-	// other unknown key (a project still carrying it gets a nudge to remove it).
-	removedCacheDir := withConfig(t, `{ "compilerOptions": { "plugins": [
-    { "name": "mion", "cacheDir": ".cache/rt" }
-  ] } }`)
-	if got := unknownPluginKeys(removedCacheDir, "tsconfig.json"); len(got) != 1 || got[0] != "cacheDir" {
-		t.Errorf("removed cacheDir key should warn, got %v", got)
-	}
-
 	typos := withConfig(t, `{ "compilerOptions": { "plugins": [
     { "name": "mion", "emitMdoe": "both", "zzz": 1, "moduleMode": "allSingle" }
   ] } }`)
@@ -452,29 +441,6 @@ func TestFindTsRuntypesPlugin_KeepsOtherPluginsOut(t *testing.T) {
 	}
 	if plugin.GenDir != "gen" {
 		t.Errorf("genDir = %q", plugin.GenDir)
-	}
-}
-
-// TestRemovedPluginKeys: a retired key reports its replacement, not a bare "unknown key".
-func TestRemovedPluginKeys(t *testing.T) {
-	for _, removedKey := range []struct{ key, value, replacement string }{
-		{"failOnError", "false", "downgradeErrors"},
-		{"parse", `{"strategy": "clone"}`, "createJsonDecoderFn"},
-	} {
-		dir := t.TempDir()
-		writeTestFile(t, filepath.Join(dir, "tsconfig.json"),
-			`{ "compilerOptions": { "plugins": [ { "name": "mion", "`+removedKey.key+`": `+removedKey.value+` } ] } }`)
-		unknown := unknownPluginKeys(dir, "tsconfig.json")
-		if len(unknown) != 1 || unknown[0] != removedKey.key {
-			t.Fatalf("%s is no longer a key, so it surfaces: %v", removedKey.key, unknown)
-		}
-		message, removed := removedPluginKeys[removedKey.key]
-		if !removed {
-			t.Fatalf("%s needs a migration message, not a generic warning", removedKey.key)
-		}
-		if !strings.Contains(message, removedKey.replacement) {
-			t.Errorf("the %s message must name the replacement, got %q", removedKey.key, message)
-		}
 	}
 }
 

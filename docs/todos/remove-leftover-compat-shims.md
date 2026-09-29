@@ -28,10 +28,6 @@ release", "no longer" and "renamed" too):
   `packages/devtools/test/env-compat.test.ts`, and the "DEPRECATED ALIAS" notes in
   `scripts/lib/env.mjs`. The root CLAUDE.md paragraph "Five vars still answer to their old `RT_`
   name" goes with them.
-- **Removed router options that still throw a hint**: `syncRoutes` and `skipClientRoutes` in
-  `packages/rpc-router/src/router.ts` (+ `test/router.spec.ts`).
-- **Removed tsconfig plugin keys with hints**: `removedPluginKeys` (`failOnError`, `parse`) in
-  `ts-go-runtypes/cmd/mion/config.go` and `main.go` (+ `buildconfig_test.go`).
 - **Removed CLI form with a hint**: the bare `release` hint in `scripts/miondevx.mjs`
   (+ `repo-contracts.test.ts`).
 - **Aliases**: `outDir` for `genDir` (`packages/devtools/src/options.ts`); `FriendlyType`
@@ -52,7 +48,7 @@ release", "no longer" and "renamed" too):
   code; confirm with the owner before touching it.
 
 Several items are public API (`FriendlyType`, `FormattedArrayParams*`, `./schema`, `outDir`, the
-`RT_*` vars, the router options): removing them is a breaking change, so the commit says so and the
+`RT_*` vars): removing them is a breaking change, so the commit says so and the
 PR carries the `pre-publish-e2e` label. Update every doc page, example and CLAUDE.md line that names
 them so the old names appear nowhere outside `docs/done/` and `CHANGELOG.md`.
 
