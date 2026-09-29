@@ -216,19 +216,9 @@ func (directive Directive) unusedCode() string {
 	return CodeExpectErrorUnused
 }
 
-// PassScope says what the pass that produced a diagnostic list could report, so a check only runs
-// where its answer is real. Three things vary per pass:
-//
-//   - WHICH FILES it looked at. A directive in a file this pass never read was given no chance to
-//     silence anything and must not be judged.
-//   - WHICH FAMILIES it could raise. Enrichment and mion-route are opt-in per request and the
-//     whole-program build pass never asks for them, so judging a `@mion-expect-error MRT002` there
-//     would demand deleting a comment the editor's lint pass needs.
-//   - WHICH CODES of those families it could raise (Lacks against each code's Raised): a per-file
-//     scan never sees a whole-program code like BAT003.
-//
-// EXP002 / EXP003 read the comment text alone and need only Files; EXP001 also needs Families,
-// because "this silenced nothing" holds only if the pass could raise what the directive names.
+// PassScope says what a pass could report, so a directive is judged only where the answer is real: never in a
+// file the pass did not read, a family it did not ask for (the build skips enrichment and mion-route, which the
+// lint pass needs), or a code it cannot raise (Lacks). EXP002 / EXP003 need only Files; EXP001 needs them all.
 type PassScope struct {
 	// Reports turns the EXP codes on. A pass that is only rewriting source
 	// leaves it false and silences without judging.
@@ -239,8 +229,7 @@ type PassScope struct {
 	// Families the pass could raise. A directive is judged unused only when
 	// every family it could cover is in here; the bare form covers all of them.
 	Families map[Family]bool
-	// Lacks is the conditions this pass does not meet, so a code whose Raised needs one of them is never
-	// judged here (a per-file scan cannot see BAT003, the linter runs with the bundleApi lane off).
+	// Lacks is the conditions this pass does not meet; a code whose Raised needs one is never judged here.
 	Lacks Raised
 }
 

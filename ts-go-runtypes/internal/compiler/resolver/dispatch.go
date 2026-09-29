@@ -818,7 +818,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		genResponse.Diagnostics = append(genResponse.Diagnostics, genBatchDiagnostics...)
 		genResponse.Diagnostics = append(genResponse.Diagnostics, apiSiteDiagnostics...)
 		genResponse.Diagnostics = append(genResponse.Diagnostics, apiGenDiagnostics...)
-		// Every file's scan findings plus the whole-program override and lib findings: buildStart consumes THIS response.
+		// buildStart consumes THIS response.
 		genResponse.Diagnostics = append(genResponse.Diagnostics, sess.programWideDiagnostics()...)
 		genResponse.Diagnostics = append(genResponse.Diagnostics, genPureFnsDiagnostics...)
 		genResponse.Diagnostics = append(genResponse.Diagnostics, genDiagnostics...)

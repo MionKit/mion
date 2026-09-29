@@ -40,8 +40,7 @@ func (sess *Session) appendLibSelectionDiagnostic(into []diagnostics.Diagnostic,
 	return into
 }
 
-// programWideDiagnostics is what a whole-program response (generate, dump) reports beyond its own collection:
-// every file's scan findings, the override findings, and CFG002 anchored at the first program source file.
+// programWideDiagnostics is what generate and dump report beyond their own collection.
 func (sess *Session) programWideDiagnostics() []diagnostics.Diagnostic {
 	out := append(sess.programScanDiagnostics(), sess.overrideDiagnostics...)
 	if files := sess.programSourceFiles(); len(files) > 0 {

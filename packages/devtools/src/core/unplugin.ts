@@ -310,7 +310,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
   let viteLogger: {warn: (message: string, options?: {clear?: boolean; timestamp?: boolean}) => void} | undefined;
   // The lane question for RuntimeErrors (see PluginOptions.devServer): halting everywhere but here.
   const isDevServer = (): boolean => options.devServer ?? (viteCommand === 'serve' && viteMode !== 'test');
-  // A fatal Error stops every lane; a RuntimeError every lane but the dev server, where the generated function throws when called.
+  // A RuntimeError spares only the dev server, where the generated function throws when called.
   const halts = (d: Diagnostic): boolean => d.level === Level.Error || (d.level === Level.RuntimeError && !isDevServer());
   const devReporter = new DevReporter(
     (block) =>
@@ -849,7 +849,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       // loop above would have just dropped it.
       for (const file of gen.siteFiles) siteFiles.add(siteKey(file));
       reportGenerate(gen);
-      // generate's list is every current finding, the edited file's scan included, so it is what the dev reporter reads.
+      // generate's list includes the edited file's scan, so it is the one the dev reporter reads.
       if (isDevServer()) devReporter.update(gen.diagnostics ?? [], downgrade);
     } catch {
       // A regenerate failure shouldn't tear down the dev server mid-edit.
@@ -858,7 +858,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
     // AFTER generate, so the resolver's Program already reflects the edit.
     if (anyEnrichFamily) await syncEnrich(rels);
 
-    // Outside a dev server (the Vue SFC pass of a build drives this leaf too) the scan's findings print as a build's do.
+    // The Vue SFC pass of a build drives this leaf too.
     if (!isDevServer()) surfaceDiagnostics(ctx, result.diagnostics ?? [], {halts: () => false, downgrade, showInfo});
 
     const stale = staleSiteFiles(relevant.map((update) => update.file));

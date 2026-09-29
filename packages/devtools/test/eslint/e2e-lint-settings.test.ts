@@ -1,14 +1,5 @@
-// Contract guard between the lint plugin and the pre-publish e2e fixture's lint
-// configs. sessionOptions() drops every `settings.mion` key outside
-// LINT_SETTING_KEYS, and a linter has nowhere to report a config complaint, so an
-// unsupported key is a SILENT no-op: both e2e configs used to set `cwd` (and one
-// of them `binary`) believing they pointed the resolver at the app, while the
-// resolver actually searched upward from the e2e root for a tsconfig and found
-// the monorepo's own — or none at all in-container.
-//
-// The e2e lanes only run inside the release gate's container, so this is the pin
-// that runs in the normal suite. It reads the REAL config files rather than a
-// copy: a key the plugin does not consume fails here, at the layer that knows.
+// An unsupported `settings.mion` key does nothing: the e2e configs once set `cwd`, and the resolver found the wrong
+// tsconfig. The e2e lanes run only in the release container, so this pins the REAL config files in the normal suite.
 import fs from 'node:fs';
 import path from 'node:path';
 import {describe, expect, it} from 'vitest';
@@ -17,16 +8,8 @@ import {LINT_SETTING_KEYS} from '../../src/lint/session-protocol.ts';
 const REPO_ROOT = path.resolve(__dirname, '../../../..');
 const E2E_ROOT = path.join(REPO_ROOT, 'container/pre-publish-e2e');
 
-// extractMionSettingKeys pulls every key named inside the `mion: {...}`
-// settings block of a lint config written as JS, by brace matching from the key.
-// (The eslint flat config is a module that imports the plugin, so it cannot just
-// be imported here — loading the plugin entry top-level-awaits a worker prewarm.)
-//
-// The scan is FLAT, not top-level-only: the original defect injected its key
-// through a spread — `...(process.env.X ? {binary: X} : {})` — which a
-// top-level-key scan walks straight past. Every supported setting is a scalar
-// (see LINT_SETTING_KEYS), so any `key:` anywhere in the block is a setting that
-// must be supported.
+// extractMionSettingKeys brace-matches because importing the flat config would load the plugin and its worker prewarm.
+// The scan is FLAT: a key once hid in a spread, and every setting is a scalar, so any `key:` in the block counts.
 function extractMionSettingKeys(source: string): string[] {
   const start = source.search(/\bmion:\s*\{/);
   expect(start, 'no `mion: {` settings block found').toBeGreaterThanOrEqual(0);

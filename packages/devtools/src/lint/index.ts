@@ -1,10 +1,6 @@
-// The lint plugin served from the package's `./eslint` subpath. ONE module works as both an OXlint JS plugin
-// (`jsPlugins` in .oxlintrc.json, the primary target) and an ESLint v9 flat-config plugin, every rule using
-// plain `create` and no oxlint-only lifecycle. The Go resolver is the single diagnostics engine and the three
-// `mion/<level>` rules are pure transport: each linted file takes ONE resolver pass, which diagnosticRouting.ts
-// splits by level. The plugin resolves the resolver binary itself (@mionjs/bin-compiler, which honours MION_BIN)
-// and runs in process.cwd(). The optional knobs are `settings.mion.{timeoutMs, tsconfig, binary, markers}`,
-// anything else is ignored with a one-per-run warning, and rules take no options.
+// ONE module is both an OXlint JS plugin (the primary target) and an ESLint v9 flat-config plugin, so every rule
+// uses plain `create` and no oxlint-only lifecycle. The three `mion/<level>` rules are pure transport over ONE
+// resolver pass per file, split by level in diagnosticRouting.ts; rules take no options.
 
 import {createRequire} from 'node:module';
 import {isDowngraded, NONE, resolveDowngradeErrors, type DowngradeSet} from '../core/downgradeErrors.ts';
@@ -12,8 +8,7 @@ import {anchoredIn, routeDiagnostic, RULE_SPECS, type RuleName} from './diagnost
 import {needsResolverPass} from './prefilter.ts';
 import {LINT_SETTING_KEYS} from './session-protocol.ts';
 import {prewarmSession, sharedSession, type LintSessionOptions} from './session.ts';
-// The one hand-written rule, and the one a project configures like any lint rule: bundle hygiene over import
-// statements that never needed the checker.
+// The one hand-written rule: bundle hygiene over import statements, which never needed the checker.
 import enforceTypeImports from './rules/enforce-type-imports.ts';
 
 // Hold the plugin load until the session's launcher child exists: a host that embeds the Rust linter in-process
@@ -36,8 +31,7 @@ interface RuleModule {
   create(context: RuleContext): Record<string, unknown>;
 }
 
-// warnedKeys keeps a config mistake to ONE report per run rather than one per linted file. It is not about
-// anyone's code, so it goes to stderr instead of becoming a report on an arbitrary file.
+// A config mistake warns once per run on stderr, not as a report on an arbitrary linted file.
 const warnedKeys = new Set<string>();
 
 function warnOnce(message: string): void {
@@ -54,7 +48,7 @@ function warnUnknownSettings(bag: Record<string, unknown>): void {
   }
 }
 
-// lintDowngrade resolves the tsconfig `downgradeErrors` echo; a bad value warns once, since the build fails on it.
+// A bad tsconfig `downgradeErrors` value only warns here; the build fails on it.
 function lintDowngrade(value: string[] | undefined): DowngradeSet {
   try {
     return resolveDowngradeErrors(value);
@@ -64,12 +58,11 @@ function lintDowngrade(value: string[] | undefined): DowngradeSet {
   }
 }
 
-// sessionOptions pulls the plugin's knobs from `settings.mion`. LINT_SETTING_KEYS (session-protocol.ts) names the
-// whole contract. The working directory is deliberately NOT configurable, so a `cwd` or `socket` here is ignored
-// loudly: a silently dropped key reads as working configuration. Exported for the transparency regression test.
+// The working directory is NOT configurable; a `cwd` or `socket` key warns: a silently dropped key reads as working.
+// Exported for the transparency regression test.
 export function sessionOptions(settings: Record<string, unknown> | undefined): LintSessionOptions {
   let raw = settings?.['mion'];
-  // The old key still works for one release, with a warning, so a config naming the tsconfig keeps resolving.
+  // The old key still works for one release, with a warning.
   if (raw === undefined && settings?.['runtypes'] !== undefined) {
     warnOnce("[mion] 'settings.runtypes' is now 'settings.mion'; rename it");
     raw = settings['runtypes'];
@@ -87,8 +80,7 @@ export function sessionOptions(settings: Record<string, unknown> | undefined): L
   return options;
 }
 
-// diagnosticRule builds one level rule: gate on the text pre-filter, run (or replay) the file's single resolver
-// pass, report the diagnostics routed to THIS rule. The shared session memoizes the pass, so three rules cost one.
+// The shared session memoizes the file's resolver pass, so the three level rules cost one.
 function diagnosticRule(ruleName: RuleName, description: string): RuleModule {
   return {
     meta: {type: 'problem', docs: {description}},
@@ -129,13 +121,11 @@ export const meta = {name: 'mion', version: packageVersion};
 
 export const rules: Record<string, RuleModule> = {
   ...Object.fromEntries(RULE_SPECS.map((spec) => [spec.name, diagnosticRule(spec.name, spec.description)])),
-  // Out of `recommended`: it does nothing without a `backendSources` option naming the paths to keep out of the
-  // front-end bundle, so a project opts in and configures it together.
+  // Not in `recommended`: it does nothing until a `backendSources` option names the paths to keep out of the bundle.
   'enforce-type-imports': enforceTypeImports as unknown as RuleModule,
 };
 
-// `recommended` is filled in below, after the plugin object it references; oxlint reads its own preset,
-// oxlint-recommended.json, and takes only `meta` + `rules` off this export.
+// oxlint reads its own preset, oxlint-recommended.json, and takes only `meta` + `rules` off this export.
 const plugin = {meta, rules, configs: {} as Record<string, unknown>};
 
 plugin.configs['recommended'] = {

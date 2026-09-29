@@ -7,8 +7,7 @@ import type {ResolverClientOptions} from '../core/resolver-client.ts';
 // WAKE_INDEX is the slot the worker stores the completed seq into and notifies; the rule thread Atomics.waits on it.
 export const WAKE_INDEX = 0;
 
-// LintSessionOptions carries the `settings.mion` knobs. No working directory among them: the session runs
-// in process.cwd(), the directory the linter itself runs in, like any other linter.
+// No working directory among the knobs: the session runs in process.cwd(), where the linter runs.
 export interface LintSessionOptions {
   // Per-file wait budget before the engine is reported unavailable; the 60s default covers the first file's
   // child spawn + Program build.
@@ -27,9 +26,8 @@ export interface LintSessionOptions {
   markers?: {packages?: string[]; checkPackage?: boolean};
 }
 
-// The keys a host may set under `settings.mion`; sessionOptions() (index.ts) drops anything else and warns
-// once per process, so an unsupported key is never a silent no-op. `satisfies` keeps this exhaustive against
-// LintSessionOptions, like PLUGIN_OPTION_KEYS in core/plugin-option-keys.ts does for the bundler options.
+// sessionOptions() (index.ts) warns once on any other key, so none is a silent no-op. `satisfies` keeps this
+// exhaustive, like PLUGIN_OPTION_KEYS in core/plugin-option-keys.ts.
 const LINT_SETTING_KEY_TABLE = {timeoutMs: true, tsconfig: true, binary: true, markers: true} satisfies Record<
   keyof LintSessionOptions,
   true

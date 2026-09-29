@@ -226,8 +226,7 @@ export const idReflected = getRunTypeId(sample);
 	}
 }
 
-// TestScanFiles_EchoesTheTsconfigDowngradeErrors: the linter has no generate call, so scanFiles carries the
-// tsconfig `downgradeErrors` for it to lower the same codes the build does.
+// TestScanFiles_EchoesTheTsconfigDowngradeErrors: the linter has no generate call to read it from.
 func TestScanFiles_EchoesTheTsconfigDowngradeErrors(t *testing.T) {
 	session := setupInlineWith(t, map[string]string{"entry.ts": vl002Source}, func(programOpts *program.Options, resolverOpts *resolver.Options) {
 		programOpts.SingleThreaded = true

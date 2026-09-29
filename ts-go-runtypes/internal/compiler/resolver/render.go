@@ -119,8 +119,7 @@ func (sess *Session) relativeToCwd(file string) string {
 	return filepath.ToSlash(relative)
 }
 
-// sortProvenance orders each key's sites by (absolute path, line, col) and drops repeats, so the site an
-// alwaysThrow message names is the same whatever order files were scanned or map keys iterated.
+// sortProvenance keeps the site an alwaysThrow message names independent of scan and map iteration order.
 func (sess *Session) sortProvenance(byKey map[string][]diagnostics.Site) {
 	for key, sites := range byKey {
 		slices.SortFunc(sites, func(left, right diagnostics.Site) int {

@@ -1,9 +1,5 @@
-// End-to-end proof of the OXlint target: the REAL oxlint CLI loads the built
-// plugin via jsPlugins, lints a dirty fixture project, and the findings come
-// back under the mion/<level> ids with error exit semantics. This is the
-// commit-gate wiring (.oxlintrc.json + lint-staged) exercised for real —
-// including the load-time resolver pre-spawn that survives oxlint's
-// multi-threaded memory ramp.
+// The REAL oxlint CLI loads the built plugin via jsPlugins: the commit-gate wiring (.oxlintrc.json + lint-staged)
+// for real, including the load-time resolver pre-spawn that survives oxlint's multi-threaded memory ramp.
 
 import {execFile} from 'node:child_process';
 import fs from 'node:fs';
@@ -132,10 +128,8 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
     expect(bogus.stdout).toContain('does not exist');
   });
 
-  // settings.mion.binary is the config-file twin of MION_BIN, and it WINS over
-  // the env var — matching the bundler lane, where an explicit `binary` option
-  // beats the launcher. Proving the precedence needs both set at once, which only
-  // a real run can show: the unit test sees the option, not who spawned what.
+  // settings.mion.binary beats MION_BIN, as an explicit `binary` option does in the bundler. Only a real run
+  // can prove it: the unit test sees the option, not who spawned what.
   it('honours settings.mion.binary, and it beats MION_BIN', {timeout: 120_000}, async () => {
     const runWithSettings = async (binary: string, rtBin?: string): Promise<{stdout: string; exitCode: number}> => {
       const config = '.oxlintrc.binary.json';
@@ -261,12 +255,8 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
   });
 });
 
-// A real consumer config drives the tsconfig setting end to end: oxlint reads
-// `settings.mion.tsconfig` from the .oxlintrc.json, the plugin forwards it to
-// the resolver as --tsconfig, and a cross-package type behind a `source` export
-// condition resolves — no false MKR007. The runRule-based suite injects settings
-// through a mock context; only this run proves they flow from an ACTUAL config
-// through the real engine to the resolver spawn.
+// Only this run proves `settings.mion.tsconfig` flows from an ACTUAL .oxlintrc.json to the resolver's --tsconfig,
+// so a cross-package type behind a `source` export condition resolves with no false MKR007.
 describe.runIf(ready)('oxlint tsconfig resolution end to end (settings.mion.tsconfig)', () => {
   let project: FixtureProject;
 
@@ -393,8 +383,7 @@ describe.runIf(ready)('oxlint end to end with the tsconfig downgradeErrors key',
   });
 });
 
-// A lint report carries no file, so the host pins it to the file being linted: the override pair in a.ts / b.ts
-// is a whole-program finding, and a lint of c.ts, which reaches both, must not report it at c.ts positions.
+// A lint report carries no file: a lint of c.ts must not report the a.ts / b.ts override pair at c.ts positions.
 describe.runIf(ready)('oxlint reports only the linted file findings', () => {
   let project: FixtureProject;
 

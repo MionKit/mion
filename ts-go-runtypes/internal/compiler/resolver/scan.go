@@ -61,13 +61,11 @@ func (sess *Session) scanAllProgramFiles() {
 	if len(files) == 0 {
 		return
 	}
-	// A file the Program does not carry cannot be scanned and must not block the other files, so the dump
-	// returns whatever the successful scans reached. dispatchScanFiles records the diagnostics per file.
+	// A file the Program does not carry must not block the rest; dispatchScanFiles records the diagnostics itself.
 	_, _, _ = sess.dispatchScanFiles(files)
 }
 
-// recordScanDiagnostics stores one scan's diagnostics under the absolute path of the scanned file each is
-// anchored in; one anchored elsewhere (a declaration in another file) goes to the first scanned file.
+// recordScanDiagnostics files a diagnostic anchored outside the scanned files under the first scanned file.
 func (sess *Session) recordScanDiagnostics(files []string, diags []diagnostics.Diagnostic) {
 	if len(files) == 0 {
 		return
@@ -105,8 +103,7 @@ func (sess *Session) programScanDiagnostics() []diagnostics.Diagnostic {
 	return out
 }
 
-// diagnosticsInFiles keeps the whole-program diagnostics anchored in one of the requested files, so a per-file
-// response never reports another file's finding at this file's positions.
+// diagnosticsInFiles: a per-file response must never report another file's finding at this file's positions.
 func (sess *Session) diagnosticsInFiles(diags []diagnostics.Diagnostic, files []string) []diagnostics.Diagnostic {
 	requested := make(map[string]bool, len(files))
 	for _, file := range files {

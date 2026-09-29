@@ -68,6 +68,5 @@ func (set DowngradeSet) Empty() bool {
 	return !set.all && len(set.codes) == 0
 }
 
-// DowngradedNote marks a finding `downgradeErrors` lowered, so it never reads as a warning that
-// always was one. `mion compile` (Format) and the bundler plugin print it after the message.
+// DowngradedNote keeps a lowered finding from reading as a warning that always was one.
 const DowngradedNote = "(downgraded)"

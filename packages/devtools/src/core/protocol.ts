@@ -382,9 +382,7 @@ export interface Response {
   // trigger a regenerate too
   batchSourceRoots?: string[];
   routerInitFiles?: string[];
-  // Echo of the tsconfig plugin's downgradeErrors on `generate` and `scanFiles`, absent when the tsconfig sets none, so a
-  // dependency-free host can honor a tsconfig-only setting: the plugin's own option wins, then this echo,
-  // then nothing downgraded. Either a list of codes or the single wildcard entry '*'.
+  // tsconfig `downgradeErrors` echo on `generate` and `scanFiles` for a dependency-free host; the plugin's option wins.
   downgradeErrors?: string[];
   // Echo of the tsconfig plugin's `levels` on `generate`, absent when unset; the host's own option wins.
   levels?: string;
@@ -392,7 +390,7 @@ export interface Response {
   transformed?: Record<string, TransformResult>;
   // Every non-fatal diagnostic the Go binary emits: pure-fn extractor (PFE9xxx), marker scanner (MKRxxx),
   // RT compiler (IT/TE/PJ/…/FB); the Family discriminator says which subsystem produced it.
-  // The build plugin prints each as `formatTscDiagnostic(d)` and stops on the levels that halt (surface.ts).
+  // The build plugin prints and halts on them in surface.ts.
   diagnostics?: Diagnostic[];
   // tsCompile only: wall-time (ms) of the embedded tsgo's bind + typecheck + emit pass on the current source
   // overlay, so a bench can show the pure-TypeScript compile cost next to mion's own work.
@@ -413,9 +411,7 @@ export const Level = {
 } as const;
 export type Level = (typeof Level)[keyof typeof Level];
 
-// Severity is the LABEL form of Level: the word the printed line needs, so both error levels read as
-// "error" here. Numeric on the wire to match the Go-side encoding; the
-// `as const` literal-union shape lets consumers `switch (d.severity)` against the named values.
+// Severity is the LABEL form of Level, so both error levels read "error". Numeric to match the Go-side encoding.
 export const Severity = {
   Error: 1,
   Warning: 2,

@@ -803,10 +803,8 @@ func throwSites(sites []diagnostics.Site, spell func(string) string) []diagnosti
 	return out
 }
 
-// buildAlwaysThrowMessage renders the runtime throw text, `[<code>] <headline> (at <file:line:col>)`, plus how
-// many other call sites share the entry. The headline is rendered here so the runtime throws the string as-is,
-// no catalog ships in the marker package. The site suffix is omitted for an orphaned entry with no known call
-// site. provenance arrives sorted (resolver buildProvenanceSites), so the named site is stable across edits.
+// buildAlwaysThrowMessage renders the headline here since no catalog ships in the marker package.
+// provenance arrives sorted (resolver buildProvenanceSites), so the named site is stable across edits.
 func buildAlwaysThrowMessage(diagCode, kindLabel string, provenance []diagnostics.Site) string {
 	message := "[" + diagCode + "] " + rootThrowHeadline(diagCode, kindLabel)
 	if len(provenance) == 0 {

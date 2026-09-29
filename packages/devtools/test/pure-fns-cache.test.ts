@@ -345,8 +345,7 @@ export const evilFn = registerPureFnFactory(function () {
       const diags = pureFnDiagsOf(response);
       const evalDiag = diags.find((d) => d.code === 'PFE9010' && d.args?.[0] === 'eval');
       expect(evalDiag).toBeDefined();
-      // Ensure the formatted line has the printed line shape
-      // — VS Code parses build-task output through that pattern.
+      // The printed line shape: file(line,col): severity CODE: headline
       const line = formatTscDiagnostic(evalDiag!);
       expect(line).toMatch(/^[^(]+\(\d+,\d+\):\s+error\s+PFE9010:/);
     });
@@ -394,7 +393,6 @@ export const rounder = registerPureFnFactory(function () {
     // shape: <path>(<line>,<col>): <severity> <code>: <headline-with-arg>
     expect(line).toMatch(/^\/abs\/path\/x\.ts\(12,5\): error PFE9012: /);
     expect(line).toContain('@acme/text#pf_9Zt1bRm4cVaPqL');
-    // The whole line: file(line,col): severity CODE: headline
     expect(line).toMatch(/^[^(]+\(\d+,\d+\):\s+(error|warning)\s+[A-Z]+\d+:\s+.+$/);
   });
 

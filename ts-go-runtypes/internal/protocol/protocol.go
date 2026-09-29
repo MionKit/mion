@@ -79,10 +79,8 @@ type Request struct {
 	// FriendlyText/MockData content validity, breadcrumb drift) to Response.Diagnostics as FamilyEnrich
 	// entries. Off by default so the rewrite pipeline pays nothing; the devtools lint plugin is the consumer.
 	CheckEnrich bool `json:"checkEnrich,omitempty"`
-	// CheckRouterRules adds the mion route rules over this request's Files (missing handler annotations, a
-	// throw escaping a handler, a declared error that is not an RpcError, a property named after a prototype
-	// slot) to Response.Diagnostics as FamilyMionRoute entries. Off by default, and the devtools lint plugin
-	// is the only consumer: the build never runs them, since most are RuntimeErrors that would stop it.
+	// CheckRouterRules adds the mion route rules over Files as FamilyMionRoute entries. Only the lint plugin sets it:
+	// most are RuntimeErrors that would stop a build.
 	CheckRouterRules bool `json:"checkRouterRules,omitempty"`
 	// IncludeRtDiagnostics renders the demanded entries for their RunType-family diagnostics (VL010, PJ001, …)
 	// but drops the module payload, so one lint scan returns the full picture a build would report.
@@ -185,19 +183,16 @@ type Response struct {
 	// RouterInitFiles lists the program files calling `createMionRouter`, the modules the transform appends the
 	// batch import to. A dev host re-transforms them when BatchesModule first appears after they loaded without it.
 	RouterInitFiles []string `json:"routerInitFiles,omitempty"`
-	// DowngradeErrors echoes the tsconfig plugin's downgradeErrors on OpGenerate and OpScanFiles (nil when unset)
-	// so a dependency-free host can honor a tsconfig-only setting; the host's own option wins, then this echo,
-	// then nothing downgraded. Either a list of codes or the single wildcard entry "*". Emitted via MarshalJSON.
+	// DowngradeErrors echoes the tsconfig's downgradeErrors on OpGenerate and OpScanFiles for a dependency-free host;
+	// the host's own option wins. A list of codes or the single wildcard "*". Emitted via MarshalJSON.
 	DowngradeErrors []string `json:"downgradeErrors,omitempty"`
 	// Levels echoes the tsconfig plugin's `levels` on OpGenerate ("" when unset); the host's own option wins.
 	Levels string `json:"levels,omitempty"`
 	// Transformed carries one TransformResult per file for OpTransform, keyed by file path, scoped to the
 	// request's Files.
 	Transformed map[string]TransformResult `json:"transformed,omitempty"`
-	// Diagnostics is the one wire channel for every non-fatal diagnostic the binary emits: the Family
-	// discriminator names the subsystem, Code is the stable identifier, Severity classifies impact. A host
-	// prints each as `file(line,col): severity CODE: headline` (diagnostics.Format, and formatTscDiagnostic in
-	// the bundler plugin). The schema mirrors the LSP Diagnostic shape.
+	// Diagnostics is the one wire channel for every non-fatal diagnostic; hosts print them via diagnostics.Format or
+	// formatTscDiagnostic. The schema mirrors the LSP Diagnostic shape.
 	Diagnostics []diagnostics.Diagnostic `json:"diagnostics,omitempty"`
 	// TsCompileMs is OpTsCompile's wall time in milliseconds, zero for every other op.
 	TsCompileMs float64 `json:"tsCompileMs,omitempty"`

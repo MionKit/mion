@@ -1,6 +1,5 @@
-// End-to-end check of the runtype diagnostics over inline sources: root throws get per-family codes (PJ001,
-// PJS001) so a build log greps by family, each points at the marker call site, child skips name the member,
-// dedup is one per call site (not per type id), and the output renders as a `file(line,col): severity CODE: headline` line.
+// Runtype diagnostics end to end: root throws get per-family codes (PJ001, PJS001) so a build log greps by family,
+// and dedup is one per call site, not per type id.
 
 import {describe, expect, it} from 'vitest';
 import {formatTscDiagnostic} from '../src/index.ts';
