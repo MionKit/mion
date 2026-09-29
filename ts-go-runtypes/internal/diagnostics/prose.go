@@ -429,6 +429,13 @@ export const settings: Settings = {ok: 1, __proto__: 'x'};`,
 export const outer: Outer = {inner: {ok: 1, __proto__: 'x'}};`,
 	},
 
+	// ──────────── server imports (SRV001) ────────────
+
+	CodeServerImportInClient: {
+		Summary: "The API type you pass to `initClient` comes from your server code. Imported without `type`, your bundler ships that server module, the mion router and everything they import to the browser. `import type` is erased at build time.",
+		Fix:     `import type {MyApi} from '../server/api';`,
+	},
+
 	// ───────────────────────── batch routes (BAT) ─────────────────────────
 
 	CodeBatchElementNotReadable: {

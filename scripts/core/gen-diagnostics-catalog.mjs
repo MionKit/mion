@@ -78,6 +78,12 @@ const SUBSYSTEMS = [
     prefixes: ['MET'],
   },
   {
+    key: 'client-imports',
+    label: 'Client imports',
+    description: 'From a client file that imports the API type it passes to initClient as a value.',
+    prefixes: ['SRV'],
+  },
+  {
     key: 'enrichment',
     label: 'Enrichment files',
     description: 'From mion check and the lint rules over generated FriendlyText and MockData files.',

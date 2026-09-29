@@ -86,13 +86,13 @@ func callsInitClient(typeChecker *checker.Checker, markerOpts marker.Options, so
 	}
 	found := false
 	forEachCall(sourceFile, func(call *ast.Node) bool {
-		found = isInitClientCall(typeChecker, markerOpts, call)
+		found = IsInitClientCall(typeChecker, markerOpts, call)
 		return !found
 	})
 	return found
 }
 
-// isInitClientCall reports whether the call is the client package's own `initClient`.
-func isInitClientCall(typeChecker *checker.Checker, markerOpts marker.Options, call *ast.Node) bool {
+// IsInitClientCall reports whether the call is the client package's own `initClient`.
+func IsInitClientCall(typeChecker *checker.Checker, markerOpts marker.Options, call *ast.Node) bool {
 	return isClientCall(typeChecker, markerOpts, call, InitClientName)
 }

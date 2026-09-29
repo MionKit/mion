@@ -52,6 +52,11 @@
       "description": "From a client build that ships the routes it calls, rather than asking the server for them."
     },
     {
+      "key": "client-imports",
+      "label": "Client imports",
+      "description": "From a client file that imports the API type it passes to initClient as a value."
+    },
+    {
       "key": "enrichment",
       "label": "Enrichment files",
       "description": "From mion check and the lint rules over generated FriendlyText and MockData files."
@@ -1316,6 +1321,15 @@
       "headline": "This client builds with `bundleApi: false`, so every call fetches its route's metadata, but it never sets up `useMethodsMetadata`: every call fails.",
       "summary": "With bundling off, each call asks the server how its route works on first use, through the client half of the metadata middleware. Nothing in this program sets that up. Set it up once next to `initClient`, or build with `bundleApi: true` (the default) so every call is bundled.",
       "fix": "useMethodsMetadata(middlewares.mionMethodsMetadata);",
+      "example": null
+    },
+    {
+      "code": "SRV001",
+      "subsystem": "client-imports",
+      "level": "runtimeError",
+      "headline": "`{0}` is passed to `initClient` but imported as a value from \"{1}\", which puts that server module in the client bundle; use `import type`.",
+      "summary": "The API type you pass to `initClient` comes from your server code. Imported without `type`, your bundler ships that server module, the mion router and everything they import to the browser. `import type` is erased at build time.",
+      "fix": "import type {MyApi} from '../server/api';",
       "example": null
     },
     {
