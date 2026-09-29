@@ -55,14 +55,38 @@ function readVersion() {
 // Fixed length, so the ldflags and the cache digest never vary between clones.
 const readTsgoRevision = () => tsgolintCommit().slice(0, 7) || 'unknown';
 
-function releaseLdflags(version, tsgo) {
+export function releaseLdflags(version, tsgo) {
   return ['-s', '-w', `-X ${GO_MODULE}/internal/constants.Version=${version}`, `-X ${GO_MODULE}/internal/constants.TsgoVersion=${tsgo}`].join(' ');
 }
 
-const binDigest = (platform, ldflags) =>
-  resolverDigest(`${ldflags} -trimpath CGO_ENABLED=0 ${platform.goos}/${platform.goarch}${platform.goarm ? `v${platform.goarm}` : ''}`);
+// One place builds the go command and env, and the cache digest hashes exactly that.
+export function goBuild(platform, ldflags, outFile) {
+  const env = {CGO_ENABLED: '0', GOOS: platform.goos, GOARCH: platform.goarch, ...(platform.goarm ? {GOARM: platform.goarm} : {})};
+  return {args: ['build', '-trimpath', `-ldflags=${ldflags}`, '-o', outFile, GO_PKG], env};
+}
 
-const cachedBin = (platform, ldflags) => path.join(BIN_CACHE_DIR, `${platformPackageName(platform).replace('/', '_')}-${binDigest(platform, ldflags).slice(0, 32)}`, exeName(platform));
+export function cachedBinPath(platform, ldflags) {
+  const {args, env} = goBuild(platform, ldflags, '');
+  const digest = resolverDigest(JSON.stringify({args, env})).slice(0, 32);
+  return path.join(BIN_CACHE_DIR, `${platformPackageName(platform).replace('/', '_')}-${digest}`, exeName(platform));
+}
+
+const runGoBuild = ({args, env}) => execFileSync('go', args, {cwd: GO_ROOT, env: {...process.env, ...env}, stdio: 'inherit'});
+
+// Reuses the cached binary for these exact build inputs, else builds and caches it. `build` is injectable for the tests.
+export function stageBinary(platform, ldflags, outFile, build = runGoBuild) {
+  const cached = cachedBinPath(platform, ldflags);
+  if (fs.existsSync(cached)) {
+    console.log(`    reused ${path.relative(REPO_ROOT, cached)}`);
+    fs.copyFileSync(cached, outFile);
+    fs.chmodSync(outFile, 0o755);
+    return 'reused';
+  }
+  build(goBuild(platform, ldflags, outFile));
+  fs.mkdirSync(path.dirname(cached), {recursive: true});
+  fs.copyFileSync(outFile, cached);
+  return 'built';
+}
 
 function exeName(platform) {
   return platform.os === 'win32' ? 'mion.exe' : 'mion';
@@ -98,26 +122,10 @@ function buildPlatform(platform, version, tsgo, launcherPkg) {
 
   const ldflags = releaseLdflags(version, tsgo);
 
-  const env = {...process.env, CGO_ENABLED: '0', GOOS: platform.goos, GOARCH: platform.goarch};
-  if (platform.goarm) env.GOARM = platform.goarm;
-
   const goarm = platform.goarm ? ` GOARM=${platform.goarm}` : '';
   console.log(`  - ${name}  (GOOS=${platform.goos} GOARCH=${platform.goarch}${goarm})`);
   const outFile = path.join(libDir, exeName(platform));
-  const cached = cachedBin(platform, ldflags);
-  if (fs.existsSync(cached)) {
-    console.log(`    reused ${path.relative(REPO_ROOT, cached)}`);
-    fs.copyFileSync(cached, outFile);
-    fs.chmodSync(outFile, 0o755);
-  } else {
-    execFileSync('go', ['build', '-trimpath', `-ldflags=${ldflags}`, '-o', outFile, GO_PKG], {
-      cwd: GO_ROOT,
-      env,
-      stdio: 'inherit',
-    });
-    fs.mkdirSync(path.dirname(cached), {recursive: true});
-    fs.copyFileSync(outFile, cached);
-  }
+  stageBinary(platform, ldflags, outFile);
 
   const packageJson = {
     name,
@@ -174,10 +182,10 @@ function parseArgs(args) {
 }
 
 // The actions/cache key for BIN_CACHE_DIR; needs no Go.
-function binCacheKey(platforms, version, tsgo) {
+export function binCacheKey(platforms, version, tsgo) {
   const ldflags = releaseLdflags(version, tsgo);
-  const digests = platforms.map((platform) => binDigest(platform, ldflags)).join('\n');
-  return `mion-release-bins-${createHash('sha256').update(digests).digest('hex').slice(0, 32)}`;
+  const paths = platforms.map((platform) => cachedBinPath(platform, ldflags)).join('\n');
+  return `mion-release-bins-${createHash('sha256').update(paths).digest('hex').slice(0, 32)}`;
 }
 
 async function main(args) {
@@ -209,7 +217,9 @@ async function main(args) {
   await stageUwsPackages({hostOnly});
 }
 
-main(process.argv.slice(2)).catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+if (import.meta.main) {
+  main(process.argv.slice(2)).catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}

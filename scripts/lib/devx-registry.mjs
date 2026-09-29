@@ -78,6 +78,7 @@ export const AREAS = {
         summary: 'which CI lanes this tree needs: one hash per lane over the paths that feed it',
         flags: [
           ['--decide <lane…>', 'decide those lanes and print the verdict as JSON'],
+          ['--candidates <lane…>', 'print the marker keys that could prove those lanes green (CI looks each one up)'],
           ['--green-keys <file>', 'the marker keys already recorded green (CI passes the cache listing)'],
           ['--github', 'also write the verdict to $GITHUB_OUTPUT and a table to $GITHUB_STEP_SUMMARY'],
           ['--ref <ref>', 'hash that tree instead of HEAD'],
@@ -309,7 +310,10 @@ export const AREAS = {
       {
         name: 'binaries',
         summary: 'cross-build the per-platform resolver binaries',
-        flags: [['--host-only', "only this machine's platform (the drizzle-e2e lane); a release needs all seven"]],
+        flags: [
+          ['--host-only', "only this machine's platform (the drizzle-e2e lane); a release needs all seven"],
+          ['--cache-key', 'print the CI cache key of the selected binaries, build nothing (needs no Go)'],
+        ],
         ...noBuild,
       },
       {name: 'pack', summary: 'pack the tarballs from the built dists', ...noBuild},
