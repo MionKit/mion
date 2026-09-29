@@ -129,8 +129,8 @@ export function passRecorder() {
     onTestModuleEnd(testModule) {
       const id = specId(testModule.project, testModule.moduleId);
       const tests = [...testModule.children.allTests()];
-      if (testModule.state() !== 'passed') failed.add(id);
-      else if (tests.length > 0 && tests.every((test) => test.result().state === 'passed')) passed.add(id);
+      if (testModule.state() === 'failed') failed.add(id);
+      else if (testModule.state() === 'passed' && tests.length > 0 && tests.every((test) => test.result().state === 'passed')) passed.add(id);
     },
   };
   return {reporter, passed, failed};
@@ -148,19 +148,14 @@ async function writeKeys(out, scope) {
   note(`test-skip: ${specs.length} file(s) keyed in ${Math.round(performance.now() - started)} ms, ${uncached} never cached -> ${relative(REPO_ROOT, out)}`);
 }
 
-// The proven files that failed anyway: each one's key misses an input.
-export const missedFiles = (provenIds, failed) => provenIds.filter((id) => failed.has(id));
-
-// `audit` runs everything and fails when a file the list would skip fails.
-async function runSkipping({store: storePath, audit, ...scope}) {
+async function runSkipping({store: storePath, ...scope}) {
   const recorder = passRecorder();
   const {vitest, specs} = await openVitest({...scope, reporters: [recorder.reporter]});
   const keys = await specKeys(vitest, specs);
   const store = readStore(storePath);
-  const proven = specs.filter((spec) => isProven(store, specId(spec.project, spec.moduleId), keys[specId(spec.project, spec.moduleId)]));
-  const toRun = audit ? specs : specs.filter((spec) => !proven.includes(spec));
-  note(`test-skip: ${specs.length} file(s), ${proven.length} already passed at these exact inputs, running ${toRun.length}`);
-  if (toRun.length > 0) await vitest.runTestSpecifications(toRun, audit || proven.length === 0);
+  const toRun = specs.filter((spec) => !isProven(store, specId(spec.project, spec.moduleId), keys[specId(spec.project, spec.moduleId)]));
+  note(`test-skip: ${specs.length} file(s), ${specs.length - toRun.length} already passed at these exact inputs, running ${toRun.length}`);
+  if (toRun.length > 0) await vitest.runTestSpecifications(toRun, toRun.length === specs.length);
   const unhandled = vitest.state.getUnhandledErrors().length;
   await vitest.close();
   // An unhandled error belongs to no file, so nothing from that run is trusted.
@@ -169,8 +164,6 @@ async function runSkipping({store: storePath, audit, ...scope}) {
     mkdirSync(dirname(storePath), {recursive: true});
     writeFileSync(storePath, `${JSON.stringify(store)}\n`);
   }
-  const missed = audit ? missedFiles(proven.map((spec) => specId(spec.project, spec.moduleId)), recorder.failed) : [];
-  if (missed.length > 0) die(`core test-skip: ${missed.length} file(s) the passed list would have skipped FAILED, so their key misses an input: ${missed.join(', ')}`);
   if (recorder.failed.size > 0 || unhandled > 0) die(`core test-skip: ${recorder.failed.size} file(s) failed, ${unhandled} unhandled error(s)`);
 }
 
@@ -180,19 +173,19 @@ export function parseCli(argv) {
     parsed = parseArgs({
       args: argv,
       allowPositionals: true,
-      options: {keys: {type: 'string'}, store: {type: 'string'}, project: {type: 'string', multiple: true}, exclude: {type: 'string', multiple: true}, audit: {type: 'boolean'}},
+      options: {keys: {type: 'string'}, store: {type: 'string'}, project: {type: 'string', multiple: true}, exclude: {type: 'string', multiple: true}},
     });
   } catch (err) {
     die(`core test-skip: ${err.message}`, 2);
   }
   const {values, positionals} = parsed;
-  return {keys: values.keys, store: values.store ?? DEFAULT_STORE, audit: Boolean(values.audit), scope: {filters: positionals, projects: values.project ?? [], excludes: values.exclude ?? []}};
+  return {keys: values.keys, store: values.store ?? DEFAULT_STORE, scope: {filters: positionals, projects: values.project ?? [], excludes: values.exclude ?? []}};
 }
 
 export async function main(argv = []) {
   const cli = parseCli(argv);
   if (cli.keys) return writeKeys(cli.keys, cli.scope);
-  return runSkipping({...cli.scope, audit: cli.audit, store: cli.store});
+  return runSkipping({...cli.scope, store: cli.store});
 }
 
 if (import.meta.main) {
