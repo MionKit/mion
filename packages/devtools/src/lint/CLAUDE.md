@@ -11,7 +11,7 @@ whole-program finding (a batch id collision, a bundled-API check) only shows in 
 1. Emit a diagnostic from the resolver, with a code in the Go catalog and a level.
 2. Nothing else here: the level picks the rule (`mion/error`, `mion/runtime-error`, `mion/warning`, `mion/info`), so a new
    code reaches the editor with no routing change.
-3. Document the code where its feature is documented; the linter page lists the three rules, not the codes.
+3. Document the code where its feature is documented; the linter page lists the four rules, not the codes.
 
 Never write a rule that inspects the AST on its own to answer a type or resolver question: it
 would drift from the build. `enforce-type-imports` is the one hand-written rule, and only because
