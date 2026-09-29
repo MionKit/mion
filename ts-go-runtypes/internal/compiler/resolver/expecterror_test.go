@@ -270,8 +270,8 @@ func TestExpectError_LintPassJudgesOnlyItsOwnFiles(t *testing.T) {
 	}
 }
 
-// TestExpectError_TypoIsReportedToTheLinter is what makes the
-// `invalid-expect-error` lint rule reachable: the lint pass runs scanFiles, and
+// TestExpectError_TypoIsReportedToTheLinter is what makes EXP002 reachable in
+// the linter: the lint pass runs scanFiles, and
 // a mistyped code is a fact about the comment text that any pass can check.
 func TestExpectError_TypoIsReportedToTheLinter(t *testing.T) {
 	session := setupInline(t, map[string]string{"entry.ts": withDirective("// @mion-expect-error VL2")})

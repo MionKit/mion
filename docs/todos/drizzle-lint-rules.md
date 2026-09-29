@@ -36,9 +36,9 @@ drizzle apart, so people and coding agents always know which one to use.
 
 The implementer plans the details. What was checked:
 
-- **Rule 1 is a resolver diagnostic.** Every mion route rule is a Go diagnostic routed by
-  `packages/devtools/src/lint/diagnosticRouting.ts` (read `packages/devtools/src/lint/CLAUDE.md`
-  first). Route rules live in `ts-go-runtypes/internal/compiler/routerrules/`;
+- **Rule 1 is a resolver diagnostic.** Every mion route check is a Go diagnostic the linter reports
+  under the rule of its level (read `packages/devtools/src/lint/CLAUDE.md` first). Route checks live
+  in `ts-go-runtypes/internal/compiler/routerrules/`;
   `checkReturnedErrorType` in `rules.go` already reads a handler's written return type, the place to
   start. Params too. A drizzle type is one whose alias or declaration comes from `drizzle-orm`
   (`$inferSelect` / `$inferInsert` of a drizzle table, drizzle's `InferSelectModel`, a query result);
@@ -47,12 +47,11 @@ The implementer plans the details. What was checked:
   (it reads import declarations, not types). Detect "a mion dialect is available" from the importing
   package's dependencies. Allow the one thing that must stay on drizzle in a mixed setting (a view
   built from a query builder, DRZ001) inside the drizzle file.
-- **Level:** register rule 1's MRT code at `LevelInfo` (`ts-go-runtypes/internal/diagnostics/catalog.go`).
-  The linter, the build and the `mion` CLI hide Info unless `levels: 'all'` is set (lint
-  `settings.runtypes.levels`, the plugin option, or the tsconfig key), and an Info never halts. Route it
-  to its own `warn` rule so a team can still turn it off; `routing.test.ts` already fails an Info code
-  that lands on an `error` rule. Rule 2 has no resolver code, so it is a plain lint rule; decide whether
-  `recommended` turns it on. Neither rule ever stops the build.
+- **Level:** register rule 1's MRT code at `LevelWarning` or `LevelInfo`
+  (`ts-go-runtypes/internal/diagnostics/catalog.go`); the level picks the lint rule. A Warning shows under
+  `mion/warning` by default; an Info shows only once a project turns on `mion/info` (or sets `levels: 'all'`
+  for the build). Neither halts. Rule 2 has no resolver code, so it is a hand-written rule like
+  `enforce-type-imports`; decide whether `recommended` turns it on. Neither rule ever stops the build.
 - **Split the files the rule will flag:** `packages/private-drizzle-example-app/src/db/*.{builders,types}.ts`
   put the slim schema and the `toDrizzle` side in one file; split each into a schema file and a db file
   (the `drizzle` variant files stay whole). Same for every example under
@@ -61,8 +60,8 @@ The implementer plans the details. What was checked:
 
 ## Docs
 
-`container/website/content/01.rpc/06.devtools/01.linter.md`: two new sections under "mion Rules", plus
-rows in "Rule Summary". `container/website/content/01.rpc/04.drizzle-orm/00.drizzle-overview.md`: the
+`container/website/content/01.rpc/06.devtools/01.linter.md`: a section for rule 1 under "Route Checks",
+and rule 2 next to `enforce-type-imports` in "Lint Rules". `container/website/content/01.rpc/04.drizzle-orm/00.drizzle-overview.md`: the
 schema file / query file split in "Building the Drizzle Table", and a one-line tip pointing at the rules.
 
 Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagent) over every page and example this change touched, review its report against the code, and commit it as its own commit.

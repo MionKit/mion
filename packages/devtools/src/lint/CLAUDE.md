@@ -23,8 +23,8 @@ ceiling, say) is still a resolver diagnostic: the resolver sees the call site.
 
 The Go catalog has four levels: Error (the build produced no code, never downgradable),
 RuntimeError (would throw at runtime, downgradable), Warning, and Info (the documented behaviour,
-or advice). The rules are one per level, never per topic: a lint rule has one severity, so a rule
-per topic let a lint config show a `warn` for a code that stops the build. Each level has its own rule, so
+or advice). The rules are one per level, never per topic: a lint rule has one severity, so each
+level gets its own rule and the editor can never show a code at another level than the build.
 Error goes to `mion/error`, RuntimeError to `mion/runtime-error`, Warning and every lowered error (a `@mion-downgrade-error` comment, or the
 tsconfig `downgradeErrors` the `serve --sources ops` checker echoes on `scanFiles`) to
 `mion/warning`, Info to `mion/info`, off by default like in the build. A project changes one finding

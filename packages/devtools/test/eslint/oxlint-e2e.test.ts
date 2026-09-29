@@ -35,7 +35,7 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
         "import {createValidateFn} from '@mionjs/run-types';\n\n" +
         'interface Widget {\n  label: string;\n  onClick: () => void;\n}\n\n' +
         'export const isWidget = createValidateFn<Widget>();\n',
-      // A mion route finding: it used to ride a second plugin object oxlint never loaded.
+      // A mion route finding.
       'routes.ts':
         "import {createMionRouter} from '@mionjs/router';\n" +
         'const mion = createMionRouter();\n' +

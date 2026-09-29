@@ -25,8 +25,8 @@ YES  Test Coverage
 NO   Use `error.type` to Identify Errors          (code name, backticks, an order to the reader)
 YES  Identifying Error Types
 
-NO   RunTypes compiler rules (`runtypes/*`)       (code name in the title, not Title Case)
-YES  Compiler Lint Rules
+NO   The `mion/*` lint rules                      (code name in the title, not Title Case)
+YES  Lint Rules
 
 NO   Walk your type's structure                   (a slogan, not Title Case)
 YES  Walking a Type

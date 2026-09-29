@@ -1,5 +1,5 @@
-// An unsupported `settings.mion` key does nothing: the e2e configs once set `cwd`, and the resolver found the wrong
-// tsconfig. The e2e lanes run only in the release container, so this pins the REAL config files in the normal suite.
+// An unsupported `settings.mion` key does nothing, so a typo in an e2e config would silently lint the wrong project.
+// The e2e lanes run only in the release container, so this pins the REAL config files in the normal suite.
 import fs from 'node:fs';
 import path from 'node:path';
 import {describe, expect, it} from 'vitest';
@@ -9,7 +9,7 @@ const REPO_ROOT = path.resolve(__dirname, '../../../..');
 const E2E_ROOT = path.join(REPO_ROOT, 'container/pre-publish-e2e');
 
 // extractMionSettingKeys brace-matches because importing the flat config would load the plugin and its worker prewarm.
-// The scan is FLAT: a key once hid in a spread, and every setting is a scalar, so any `key:` in the block counts.
+// The scan is FLAT so a key inside a spread still counts; every setting is a scalar, so any `key:` in the block counts.
 function extractMionSettingKeys(source: string): string[] {
   const start = source.search(/\bmion:\s*\{/);
   expect(start, 'no `mion: {` settings block found').toBeGreaterThanOrEqual(0);

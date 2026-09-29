@@ -152,7 +152,7 @@ func render(found []diagnostics.Diagnostic) string {
 	return out.String()
 }
 
-// ─────────────────────────── strong-typed-routes ───────────────────────────
+// ─────────────────────────── MRT001 / MRT002 ───────────────────────────
 
 func TestStrongTypedRoutes_InlineHandler(t *testing.T) {
 	assertCodes(t, checkBody(t, "export const ok = mion.route((ctx, name: string): string => name);"))
@@ -361,7 +361,7 @@ export const a = mion.route(local);
 	assertAt(t, found, diagnostics.CodeRouteMissingReturnType, "routes.ts", 3)
 }
 
-// ─────────────────────────── no-throw-in-handlers ───────────────────────────
+// ─────────────────────────── MRT003 ───────────────────────────
 
 func TestRouterShapes_SameNamedFunctionFromAnotherPackageIsIgnored(t *testing.T) {
 	assertCodes(t, check(t, map[string]string{
@@ -409,7 +409,7 @@ export function helper(name: string): string { throw new Error(name); }
 `))
 }
 
-// ─────────────────────────── returned-error-type ────────────────────────────
+// ─────────────────────────── MRT004 ───────────────────────────
 
 func TestReturnedErrorType_RpcErrorIsFine(t *testing.T) {
 	assertCodes(t, check(t, map[string]string{"routes.ts": `import {createMionRouter} from '@mionjs/router';
@@ -459,7 +459,7 @@ export const ok = mion.route((ctx, id: string): string | {code: number} | null =
 `}))
 }
 
-// ───────────────────────── no-unsafe-property-names ─────────────────────────
+// ─────────────────────────── MRT005 ───────────────────────────
 
 func TestUnsafePropertyNames(t *testing.T) {
 	assertCodes(t, check(t, map[string]string{"types.ts": `
