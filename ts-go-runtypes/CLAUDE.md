@@ -57,10 +57,10 @@ No → `LevelError`. Yes and yes → `LevelRuntimeError`. Yes and no → `LevelW
 
 | Level | What it means | What a consumer may do |
 | --- | --- | --- |
-| `LevelError` | No code was produced for the thing: no cache entry, no injected id, no extracted body, no batch id | Stop. Never downgradeable, never silenceable |
+| `LevelError` | No code was produced for the thing: no cache entry, no injected id, no extracted body, no batch id | Stop. Never downgradeable, never silenceable. A build halts; a dev server prints it and fails the transform of the file it sits in, so the overlay shows it |
 | `LevelRuntimeError` | Code IS written and it throws, or it no longer checks what was asked for | Report it. Every build lane halts (emitting and exiting non-zero is legitimate); a dev server reports it and keeps running, which is the reason the level exists. `downgradeErrors`, `@mion-expect-error` (removes it) or `@mion-downgrade-error` (keeps it, stops the halt) may stand one down |
 | `LevelWarning` | Worth knowing, nothing is wrong, but the output may surprise (a clone sharing a value, a tag that does nothing) | Report it |
-| `LevelInfo` | The documented behaviour, or advice | Hide it unless the `levels: 'all'` setting asks for it (lint setting, plugin option, tsconfig key). Never halts |
+| `LevelInfo` | The documented behaviour, or advice | Hide it unless asked: the `levels: 'all'` plugin option or tsconfig key in a build, the `mion/info` rule in the editor. A dev server never prints it. Never halts |
 
 Three things that trip people up:
 

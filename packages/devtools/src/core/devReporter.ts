@@ -1,5 +1,5 @@
 // A dev server prints only what breaks running code, once per session: Warnings collapse to one count line (the
-// editor shows them), Info never prints. It never stops; a fatal Error's transform throws into the overlay.
+// editor shows them), Info never prints. It never stops; a transform of a file holding a fatal Error throws into the overlay.
 
 import path from 'node:path';
 import {isDowngraded, NONE, type DowngradeSet} from './downgradeErrors.ts';
@@ -11,6 +11,8 @@ export class DevReporter {
   private printed = new Set<string>();
   // Warnings the last count line covered, so a batch with no new one prints nothing.
   private warned = new Set<string>();
+  // The last update's fatal Errors by absolute file, so a transform of that file throws a whole-program one too.
+  private fatal = new Map<string, Diagnostic[]>();
 
   constructor(
     private readonly print: (block: string) => void,
@@ -24,6 +26,12 @@ export class DevReporter {
     const fresh = [...warnings.keys()].filter((key) => !this.warned.has(key)).length;
     this.printed = new Set(errors.keys());
     this.warned = new Set(warnings.keys());
+    this.fatal = new Map();
+    for (const diagnostic of errors.values()) {
+      if (diagnostic.level !== Level.Error) continue;
+      const file = this.fileOf(diagnostic);
+      this.fatal.set(file, [...(this.fatal.get(file) ?? []), diagnostic]);
+    }
     if (fresh > 0) lines.push(countLine(warnings.size, fresh));
     if (lines.length > 0) this.print(lines.join('\n'));
   }
@@ -40,6 +48,16 @@ export class DevReporter {
     if (lines.length > 0) this.print(lines.join('\n'));
   }
 
+  // fatalIn is what a transform of file throws: its own Errors plus those the last update anchored there.
+  fatalIn(file: string, diagnostics: Diagnostic[]): Diagnostic[] {
+    const own = diagnostics.filter((diagnostic) => diagnostic.level === Level.Error);
+    const byKey = new Map(own.map((diagnostic) => [this.keyOf(diagnostic), diagnostic]));
+    for (const diagnostic of this.fatal.get(path.resolve(this.cwd(), file)) ?? []) {
+      if (!byKey.has(this.keyOf(diagnostic))) byKey.set(this.keyOf(diagnostic), diagnostic);
+    }
+    return [...byKey.values()];
+  }
+
   private split(diagnostics: Diagnostic[], downgrade: DowngradeSet) {
     const errors = new Map<string, Diagnostic>();
     const warnings = new Map<string, Diagnostic>();
@@ -52,10 +70,13 @@ export class DevReporter {
   }
 
   // The site is resolved so a relative and an absolute spelling match.
+  private fileOf(diagnostic: Diagnostic): string {
+    return diagnostic.site.filePath ? path.resolve(this.cwd(), diagnostic.site.filePath) : '';
+  }
+
   private keyOf(diagnostic: Diagnostic): string {
-    const {filePath, startLine, startCol} = diagnostic.site;
-    const file = filePath ? path.resolve(this.cwd(), filePath) : '';
-    return `${diagnostic.code}\u0000${(diagnostic.args ?? []).join('\u0000')}\u0000${file}:${startLine}:${startCol}`;
+    const {startLine, startCol} = diagnostic.site;
+    return `${diagnostic.code}\u0000${(diagnostic.args ?? []).join('\u0000')}\u0000${this.fileOf(diagnostic)}:${startLine}:${startCol}`;
   }
 }
 
