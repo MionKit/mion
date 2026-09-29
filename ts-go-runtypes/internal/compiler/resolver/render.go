@@ -1,7 +1,6 @@
 package resolver
 
 import (
-	"path/filepath"
 	"slices"
 	"sort"
 	"strconv"
@@ -32,10 +31,11 @@ func (sess *Session) rtRenderOpts(sink *[]diagnostics.Diagnostic, rooted, proven
 	// and memoized in the engine, so repeat dispatches re-ask nothing.
 	sess.enrichPatternSamples()
 	return typefunctions.RenderOpts{
-		Store:           sess.rtStore,
-		Lookup:          sess.cache,
-		DiagSink:        sink,
-		ThrowSitePath:   sess.relativeToCwd,
+		Store:    sess.rtStore,
+		Lookup:   sess.cache,
+		DiagSink: sink,
+		// Relative, so a bundle never carries a machine's path.
+		ThrowSitePath:   func(file string) string { return purefnindex.RelativeToRoot(sess.workingDir(), sess.absPath(file)) },
 		ProvenanceSites: provenance,
 		RootedSites:     rooted,
 		EmitMode:        sess.opts.EmitMode,
@@ -107,16 +107,6 @@ func (sess *Session) buildProvenanceSites() (rooted, reaching map[string][]diagn
 	sess.sortProvenance(rooted)
 	sess.sortProvenance(reaching)
 	return rooted, reaching
-}
-
-// relativeToCwd spells a file relative to the working directory with forward slashes; one outside it stays absolute.
-func (sess *Session) relativeToCwd(file string) string {
-	absolutePath := sess.absPath(file)
-	relative, err := filepath.Rel(sess.workingDir(), absolutePath)
-	if err != nil || strings.HasPrefix(relative, "..") {
-		return filepath.ToSlash(absolutePath)
-	}
-	return filepath.ToSlash(relative)
 }
 
 // sortProvenance keeps the site an alwaysThrow message names independent of scan and map iteration order.

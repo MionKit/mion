@@ -72,7 +72,7 @@ func FuzzArtifactRoundTrip(f *testing.F) {
 		if len(index.PureFns) != 1 || index.PureFns[0].ID != entry.ID || index.PureFns[0].BindingName != binding {
 			t.Fatalf("index = %+v", index)
 		}
-		if got, want := index.PureFns[0].File, relativeToRoot("/pkg", entry.FilePath); got != want {
+		if got, want := index.PureFns[0].File, RelativeToRoot("/pkg", entry.FilePath); got != want {
 			t.Fatalf("file = %q, want %q", got, want)
 		}
 		path := ModulePath(entry.ID)
@@ -122,5 +122,17 @@ func parsesAsBody(paramNames []string, code string) bool {
 func TestRenderArtifactIndex_EmptyIsNil(t *testing.T) {
 	if got := RenderArtifactIndex("@acme/app", "/app", nil); got != nil {
 		t.Errorf("expected nil, got %q", got)
+	}
+}
+
+func TestRelativeToRoot_KeepsAPathOutsideTheRootAbsolute(t *testing.T) {
+	if got := RelativeToRoot("/app", "/app/src/a.ts"); got != "src/a.ts" {
+		t.Fatalf("inside the root: got %q", got)
+	}
+	if got := RelativeToRoot("/app", "/elsewhere/a.ts"); got != "/elsewhere/a.ts" {
+		t.Fatalf("outside the root: got %q", got)
+	}
+	if got := RelativeToRoot("/app", "/application/a.ts"); got != "/application/a.ts" {
+		t.Fatalf("a sibling sharing the prefix: got %q", got)
 	}
 }
