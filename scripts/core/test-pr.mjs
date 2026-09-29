@@ -1,5 +1,5 @@
 // `core test-pr`: the changed packages plus their dependents in ONE vitest process (one startup, unlike test-batches).
-// A change outside packages/ that is not in FEEDS_NOTHING (docs and the like) runs the full suite.
+// A change outside packages/ that the js lane hashes runs the full suite; one it does not (docs, Go tests) runs nothing extra.
 import {REPO_ROOT} from '../lib/env.mjs';
 import {changedFiles, classifyPaths} from '../lib/branch-diff.mjs';
 import {affectedClosure, readWorkspaceGraph} from '../lib/workspace-graph.mjs';

@@ -13,7 +13,16 @@ import {readFileSync} from 'node:fs';
 import path from 'node:path';
 import {describe, expect, it} from 'vitest';
 // @ts-expect-error — a plain .mjs repo script, no types.
-import {LANES, FEEDS_NOTHING, decide, greenKey, laneHashes, unclassified} from '../../../scripts/ci/lanes.mjs';
+import {
+  LANES,
+  FEEDS_NOTHING,
+  candidateKeys,
+  decide,
+  greenKey,
+  laneHashes,
+  matches,
+  unclassified,
+} from '../../../scripts/ci/lanes.mjs';
 // @ts-expect-error — a plain .mjs repo script, no types.
 import {SWEEPS} from '../../../scripts/ci/check-tree.mjs';
 
@@ -55,11 +64,7 @@ describe('the lane table', () => {
     const projects = [...typecheck.matchAll(/tsc -p (\S+)/g)].map((match) => match[1]);
     expect(projects.length).toBeGreaterThan(2);
     for (const project of projects) {
-      const dir = project.slice(0, project.lastIndexOf('/') + 1);
-      expect(
-        LANES.js.paths.some((fed: string) => dir.startsWith(fed)),
-        `${project} is typechecked by js-lint but feeds no js lane path`
-      ).toBe(true);
+      expect(matches(project, LANES.js.paths), `${project} is typechecked by js-lint but feeds no js lane path`).toBe(true);
     }
   });
 
@@ -80,16 +85,46 @@ describe('the lane table', () => {
 
   it('gives each lane its own hash unless the two read the same inputs', () => {
     const {hashes} = laneHashes('HEAD');
-    // js, js-fuzz and go-tools read one input set, split so each piece of work owns
-    // its own marker; everything else must be distinguishable.
+    // js and js-fuzz are the two halves of one input set, split so each job half
+    // owns its own marker; everything else must be distinguishable.
     expect(hashes.js).toBe(hashes['js-fuzz']);
-    expect(hashes.js).toBe(hashes['go-tools']);
     const distinct = new Set(
       Object.entries(hashes)
-        .filter(([name]) => name !== 'js-fuzz' && name !== 'go-tools')
+        .filter(([name]) => name !== 'js-fuzz')
         .map(([, hash]) => hash)
     );
-    expect(distinct.size).toBe(Object.keys(LANES).length - 2);
+    expect(distinct.size).toBe(Object.keys(LANES).length - 1);
+  });
+
+  // A Go test, a testdata fixture or a code generator never reaches a binary the other
+  // lanes run, so editing one reruns only the lanes that run Go itself.
+  it('keeps Go tests, testdata and the generators out of every lane that only runs the binaries', () => {
+    for (const path of [
+      'ts-go-runtypes/internal/reflection/kind_test.go',
+      'ts-go-runtypes/internal/cachegen/testdata/golden.json',
+      'ts-go-runtypes/cmd/gen-ts-constants/main.go',
+    ]) {
+      for (const [name, lane] of Object.entries(LANES) as [string, {paths: unknown[]}][]) {
+        expect(matches(path, lane.paths), `${name} reads ${path}`).toBe(name === 'go' || name === 'go-tools');
+      }
+    }
+    for (const path of [
+      'ts-go-runtypes/internal/reflection/kind.go',
+      'ts-go-runtypes/cmd/mion/main.go',
+      'ts-go-runtypes/third_party/tsgolint',
+    ]) {
+      for (const [name, lane] of Object.entries(LANES) as [string, {paths: unknown[]}][]) {
+        expect(matches(path, lane.paths), `${name} misses ${path}`).toBe(true);
+      }
+    }
+  });
+
+  // Exact keys, so a marker can never fall off the end of a long cache listing.
+  it('names the exact marker keys decide reads, with the PR proof only on a pull request', () => {
+    const hashes = {js: 'abc', go: 'def'};
+    expect(candidateKeys(['js', 'go'], {hashes})).toEqual([greenKey('js', 'abc'), greenKey('go', 'def')]);
+    expect(candidateKeys(['js'], {hashes, pr: true})).toEqual([greenKey('js', 'abc'), greenKey('js-pr', 'abc')]);
+    expect(read('.github/actions/ci-lanes/action.yml')).not.toContain('--limit 200');
   });
 
   it('is fail-safe: an unclassified path joins every lane, and an unknown marker list runs everything', () => {
@@ -111,9 +146,10 @@ describe('the lane table', () => {
   });
 
   it('ci-lanes passes --pr only on a pull_request event', () => {
-    expect(read('.github/actions/ci-lanes/action.yml')).toContain(
-      "--github ${{ github.event_name == 'pull_request' && '--pr' || '' }}"
-    );
+    const action = read('.github/actions/ci-lanes/action.yml');
+    expect(action).toContain(`PR_FLAG="\${{ github.event_name == 'pull_request' && '--pr' || '' }}"`);
+    expect(action).toContain('--candidates $LANES $PR_FLAG');
+    expect(action).toContain('--github $PR_FLAG');
   });
 
   it('js-lint saves the full js marker only for a full run, and js-pr for a partial one', () => {
