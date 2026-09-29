@@ -606,7 +606,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		if request.CheckRouterRules {
 			combinedDiagnostics = append(combinedDiagnostics, sess.checkRouterRuleFiles(request.Files)...)
 		}
-		combinedDiagnostics = append(combinedDiagnostics, sess.checkApiImports(request.Files)...)
+		combinedDiagnostics = append(combinedDiagnostics, sess.checkApiTypeImports(request.Files)...)
 		// Override arg-nulling replacements ride the same Replacements channel as pure-fn factory nullings.
 		allReplacements := append(append(append(append([]protocol.Replacement(nil), pureFnReplacements...), batchReplacements...), apiReplacements...), sess.collectOverrideReplacements(request.Files)...)
 		response := protocol.Response{
@@ -821,7 +821,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		genResponse.Diagnostics = append(genResponse.Diagnostics, apiGenDiagnostics...)
 		// buildStart consumes THIS response.
 		genResponse.Diagnostics = append(genResponse.Diagnostics, sess.programWideDiagnostics()...)
-		genResponse.Diagnostics = append(genResponse.Diagnostics, sess.checkApiImports(sess.programSourceFiles())...)
+		genResponse.Diagnostics = append(genResponse.Diagnostics, sess.checkApiTypeImports(sess.programSourceFiles())...)
 		genResponse.Diagnostics = append(genResponse.Diagnostics, genPureFnsDiagnostics...)
 		genResponse.Diagnostics = append(genResponse.Diagnostics, genDiagnostics...)
 		// PFE9012: same dangling-dep guard on the disk-generation path.
