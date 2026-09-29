@@ -353,3 +353,23 @@ overrideValidate<string>((v) => v !== null);
 		t.Fatalf("the lint pass over b.ts raises and silences OVR001; got %v", codes)
 	}
 }
+
+// TestExpectError_LintNeverJudgesABareComment: a bare comment may cover a whole-program code the lint pass cannot
+// raise, so even a scan with every opt-in family on leaves it unjudged.
+func TestExpectError_LintNeverJudgesABareComment(t *testing.T) {
+	source := strings.Replace(vl002Source, "export const bad = createValidateFn<symbol>();", "// @mion-expect-error\nexport const good = createValidateFn<string>();", 1)
+	session := setupInline(t, map[string]string{"entry.ts": source})
+	lint := session.Dispatch(protocol.Request{
+		Op:                   protocol.OpScanFiles,
+		Files:                []string{"entry.ts"},
+		IncludeRtDiagnostics: true,
+		CheckEnrich:          true,
+		CheckRouterRules:     true,
+	})
+	if lint.Error != "" {
+		t.Fatalf("scanFiles: %s", lint.Error)
+	}
+	if codes := codesOf(lint); contains(codes, diagnostics.CodeExpectErrorUnused) {
+		t.Fatalf("the lint pass must not judge a bare comment; got %v", codes)
+	}
+}

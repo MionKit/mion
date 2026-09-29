@@ -21,15 +21,15 @@ export const idReflected = getRunTypeId(sample);
 	writeDisk(t, tspath.ResolvePath(dir, "src/a.ts"), source)
 	writeDisk(t, tspath.ResolvePath(dir, "vite.config.ts"), "export default {};\n")
 
-	r := resolver.NewServer(resolver.Options{Cwd: dir, TsconfigPath: "tsconfig.json", SingleThreaded: true})
-	t.Cleanup(r.Close)
-	if resp := r.Dispatch(protocol.Request{
+	session := resolver.NewServer(resolver.Options{Cwd: dir, TsconfigPath: "tsconfig.json", SingleThreaded: true})
+	t.Cleanup(session.Close)
+	if resp := session.Dispatch(protocol.Request{
 		Op:      protocol.OpSetSources,
 		Sources: withRealMarker(t, map[string]string{"src/a.ts": source, "vite.config.ts": "export default {};\n"}),
 	}); resp.Error != "" {
 		t.Fatalf("setSources: %s", resp.Error)
 	}
-	resp := r.Dispatch(protocol.Request{Op: protocol.OpGenerate})
+	resp := session.Dispatch(protocol.Request{Op: protocol.OpGenerate})
 	if resp.Error != "" {
 		t.Fatalf("generate: %s", resp.Error)
 	}
