@@ -271,18 +271,9 @@ func resolveSharedConfig(fs *flag.FlagSet, s *sharedFlags, genDirFlag string, re
 	var plugin tsRuntypesPlugin
 	if readBuildPlugin {
 		plugin, _ = resolveBuildPlugin(absCwd, tsconfigPath)
-		// A misspelt key is otherwise silently ignored; a REMOVED key names its replacement rather than reading as unknown.
-		unknown := unknownPluginKeys(absCwd, tsconfigPath)
-		var stillUnknown []string
-		for _, key := range unknown {
-			if replacement, removed := removedPluginKeys[key]; removed {
-				fmt.Fprintf(os.Stderr, "mion: %s\n", replacement)
-				continue
-			}
-			stillUnknown = append(stillUnknown, key)
-		}
-		if len(stillUnknown) > 0 {
-			fmt.Fprintf(os.Stderr, "mion: ignoring unknown mion plugin key(s) in tsconfig: %v\n", stillUnknown)
+		// A misspelt key is otherwise silently ignored.
+		if unknown := unknownPluginKeys(absCwd, tsconfigPath); len(unknown) > 0 {
+			fmt.Fprintf(os.Stderr, "mion: ignoring unknown mion plugin key(s) in tsconfig: %v\n", unknown)
 		}
 	}
 	merged := mergeBuildOptions(buildFlags{

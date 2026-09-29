@@ -241,15 +241,6 @@ export function createMionRouter<const O extends RouterOptionsInput = RouterOpti
 /** Initializes the router options and the internal error routes. Once per app (`resetRouter()` clears it). */
 function initRouter(opts: RouterOptionsInput, buildVersion?: string): void {
   if (isRouterInitialized) throw new Error('Router has already been initialized');
-  // still compiles next to any other option, and ignoring it would silently turn the check off
-  if (Object.hasOwn(opts, 'syncRoutes'))
-    throw new Error(
-      "The syncRoutes option was removed: put mionSyncRoutes from '@mionjs/router/middlewares' first in your routes."
-    );
-  if (Object.hasOwn(opts, 'skipClientRoutes'))
-    throw new Error(
-      "The skipClientRoutes option was removed: put mionMethodsMetadata from '@mionjs/router/middlewares' first in your routes to serve route metadata."
-    );
   routerOptions = {...routerOptions, ...opts};
   const versionHeader = routerOptions.apiVersionCheck && buildVersion ? {[BUILD_VERSION_HEADER]: buildVersion} : undefined;
   globalResponseHeaders = Object.freeze({...versionHeader, ...routerOptions.globalResponseHeaders});

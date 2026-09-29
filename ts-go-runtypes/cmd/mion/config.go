@@ -120,8 +120,6 @@ type tsRuntypesPlugin struct {
 	// (protocol.Response.DowngradeErrors) for the JS host, and applied by
 	// `mion compile` to its own exit code. nil means the key is absent, which is
 	// the strict default. The enrich lane ignores it.
-	//
-	// It replaced the boolean `failOnError`; see removedPluginKeys.
 	DowngradeErrors downgradeErrorsKey `json:"downgradeErrors"`
 	// Levels: absent hides LevelInfo, "all" shows it. Echoed on generate like downgradeErrors; `mion compile` reads it too.
 	Levels string `json:"levels"`
@@ -355,14 +353,6 @@ func (key *downgradeErrorsKey) UnmarshalJSON(data []byte) error {
 	}
 	*key = list
 	return nil
-}
-
-// removedPluginKeys names each retired key's replacement, which a generic "unknown key" warning leaves to guessing.
-var removedPluginKeys = map[string]string{
-	"failOnError": "`failOnError` was removed. Use `downgradeErrors`:\n" +
-		"    failOnError: false  ->  downgradeErrors: \"*\"\n" +
-		"    failOnError: true   ->  the default, drop the key",
-	"parse": "`parse` was removed with createParseFn. Decode with createJsonDecoderFn, then check with createValidateFn; drop the key.",
 }
 
 // findTsRuntypesPlugin scans compilerOptions.plugins[] for the entry whose
