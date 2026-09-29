@@ -413,7 +413,7 @@ async function runWebsite(args) {
 }
 
 // ── bench ────────────────────────────────────────────────────────────────
-const BENCH_SUB = new Set(['audit', 'typecheck', 'engine-check', 'typecost', 'compiletime', 'serialization', 'smoke', 'prep', 'clean', 'capture-env', 'shell', 'transform-wire', 'fullbench', 'website-bench', 'bench-one', 'build']);
+const BENCH_SUB = new Set(['audit', 'typecheck', 'engine-check', 'typecost', 'compiletime', 'serialization', 'smoke', 'prep', 'capture-env', 'shell', 'transform-wire', 'fullbench', 'website-bench', 'bench-one', 'build']);
 // Translate the miondevx-level flags (--one/--full/--website/--build-only) to bench.mjs's
 // own sub-verbs; a bare sub-verb passes through, and the default is `bench`.
 function benchArgs(args) {
@@ -448,8 +448,8 @@ async function runBench(args) {
 
 // ── release: npm publish + orchestrate the site build/deploy ────────────────
 
-// Flags the no-sub umbrella accepts. Anything else — an unknown flag, a
-// mistyped subcommand — must NOT reach it: the umbrella ends in an
+// Flags `release all` accepts. Anything else — an unknown flag, a
+// mistyped subcommand — must NOT reach it: the chain ends in an
 // irreversible npm publish, so it is the one default in this CLI that must
 // never run by accident.
 const UMBRELLA_FLAGS = new Set(['--preflight-only', '--no-website', '--dry-run']);
@@ -481,8 +481,7 @@ function runRelease(args) {
   // interactive npm publish that bumps, commits and tags, so it answers to its
   // own name (`miondevx release all`) and never to a bare word or a typo.
   if (sub === undefined || isHelpFlag(sub)) return printHelp('release');
-  if (!sub.startsWith('-')) die(`unknown release command '${sub}'. Run \`pnpm ${CLI} release --help\`.`, 2);
-  die(`\`${CLI} release\` no longer runs the release chain — use \`pnpm ${CLI} release all ${args.join(' ')}\`.`, 2);
+  die(`unknown release command '${sub}'. Run \`pnpm ${CLI} release --help\`.`, 2);
 }
 
 // The chain: preflight -> npm publish -> website build. Deploy is CI-only.

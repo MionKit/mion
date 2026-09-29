@@ -745,13 +745,8 @@ describe('twoslash VFS mounts the packages the examples import', () => {
   });
 });
 
-// The miondevx release area is the only one whose no-subcommand default performs an
-// IRREVERSIBLE action (preflight -> npm publish -> site build). It used to have
-// no help case and no unknown-sub guard, so `pnpm miondevx release --help` — the
-// thing you type when you are least sure what a command does — started a
-// release: it wiped node_modules, reinstalled, and ran the suites before
-// anything could stop it. These pin the guards. Nothing in CI calls the bare
-// umbrella (workflows always pass a subcommand), so the guards cost it nothing.
+// `miondevx release all` performs an IRREVERSIBLE action (preflight -> npm publish -> site build),
+// so help, a bare `release` and a typo must never reach it. These pin the guards.
 describe('miondevx release — help and typos never reach the publish umbrella', () => {
   const miondevx = (args: string[]): {status: number | null; stdout: string; stderr: string} => {
     const result = spawnSync(process.execPath, [join(REPO_ROOT, 'scripts/miondevx.mjs'), ...args], {encoding: 'utf8'});
@@ -785,12 +780,6 @@ describe('miondevx release — help and typos never reach the publish umbrella',
     expect(status).toBe(0);
     expect(stdout).toContain('preflight.mjs');
     expect(stdout).toContain('publish.mjs');
-  });
-
-  it('points the old bare-with-flags form at `release all`', () => {
-    const {status, stderr} = miondevx(['release', '--dry-run']);
-    expect(status).toBe(2);
-    expect(stderr).toContain('miondevx release all --dry-run');
   });
 
   it('rejects an unknown flag on the chain itself', () => {

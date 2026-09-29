@@ -37,12 +37,6 @@ const MOUNT_FILES = ['nuxt.config.ts', 'content.config.ts', 'tsconfig.json', 'es
 // Must match `externalDeps` in container/website/server/api/twoslash.post.ts.
 const TWOSLASH_EXTERNAL_DEPS = ['drizzle-orm'];
 
-// The checkout holding packages/ (source + built .d.ts); a sibling ../mion is only a legacy split-layout fallback.
-function defaultRepoContext() {
-  if (existsSync(join(REPO_ROOT, 'packages/private-examples'))) return REPO_ROOT;
-  if (existsSync(join(REPO_ROOT, '../mion/packages'))) return realpathSync(join(REPO_ROOT, '..', 'mion'));
-  return REPO_ROOT;
-}
 
 // Env-dependent config, read fresh (matches lib.sh + site.sh's var block).
 function config(env = process.env) {
@@ -61,7 +55,7 @@ function config(env = process.env) {
     agentIdle: env.MION_WEBSITE_AGENT_IDLE_SECONDS || '300',
     poll,
     runNetwork: env.MION_WEBSITE_RUN_NETWORK || '',
-    repoContext: env.MION_WEBSITE_REPO_CONTEXT || defaultRepoContext(),
+    repoContext: env.MION_WEBSITE_REPO_CONTEXT || REPO_ROOT,
     docdataDir: env.MION_WEBSITE_DOCDATA || join(REPO_ROOT, '.docdata'),
     skipPlayground: env.MION_WEBSITE_SKIP_PLAYGROUND === '1',
     smokeTimeout: env.MION_WEBSITE_SMOKE_TIMEOUT || '',

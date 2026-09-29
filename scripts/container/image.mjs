@@ -310,8 +310,7 @@ function resolvePublishedImage(cfg) {
 
 // Every file baked into a target's image: its Containerfile plus the manifests /
 // assets it COPYs. Sorted, so the hash below is stable across filesystems. The
-// ONE definition of "what makes this image out of date" — both the mtime gate
-// and the deps stamp read it, so they can never disagree about the input set.
+// ONE definition of "what makes this image out of date", read by the deps stamp.
 function targetSrcFiles(cfg) {
   const files = [join(cfg.dir, 'Containerfile')];
   if (cfg.target === 'website') files.push(join(DEPS_DIR, 'package.json'), join(DEPS_DIR, 'pnpm-lock.yaml'), join(DEPS_DIR, 'pnpm-workspace.yaml'), join(DEPS_DIR, '.npmrc'));
@@ -337,15 +336,6 @@ function targetSrcFiles(cfg) {
   return files.filter((f) => existsSync(f) && statSync(f).isFile()).sort();
 }
 
-// Max mtime (epoch seconds) of those inputs. The LEGACY staleness gate: only
-// sound on the local-build path, and only for an image with no deps stamp — a
-// fresh clone has arbitrary mtimes, which is why the stamp supersedes it.
-function targetSrcEpoch(cfg) {
-  let epoch = 0;
-  for (const f of targetSrcFiles(cfg)) epoch = Math.max(epoch, Math.floor(statSync(f).mtimeMs / 1000));
-  return epoch;
-}
-
 // Content hash of the baked inputs, stamped into the image as DEPS_LABEL at build
 // time and compared against the tree before any run. Content, never mtime, so it
 // survives a clone and means the same thing on every host.
@@ -360,8 +350,7 @@ function depsHash(cfg) {
   return digest.digest('hex').slice(0, 16);
 }
 
-// The label carrying depsHash(). Absent on any image built before stamping — that
-// is 'unknown', which must NOT be read as drift: forcing a local build on a
+// The label carrying depsHash(). An image without it is 'unknown', which the pull path must NOT read as drift: forcing a local build on a
 // missing label would make every CI lane rebuild these images from scratch.
 const DEPS_LABEL = 'org.mionkit.deps-hash';
 
@@ -369,7 +358,7 @@ function depsStampState(cfg) {
   const want = depsHash(cfg);
   const got = capture(cfg.engine, ['image', 'inspect', cfg.image, '--format', `{{index .Labels "${DEPS_LABEL}"}}`]).stdout.trim();
   if (!got || got === '<no value>') {
-    noteErr(`image ${cfg.image} carries no ${DEPS_LABEL} (built before deps stamping) - cannot verify it matches ${cfg.target}'s manifests; push it to stamp one`);
+    noteErr(`image ${cfg.image} carries no ${DEPS_LABEL} - cannot verify it matches ${cfg.target}'s manifests; push it to stamp one`);
     return 'unknown';
   }
   if (got === want) return 'match';
@@ -377,20 +366,11 @@ function depsStampState(cfg) {
   return 'drift';
 }
 
-// Local-image path: build when missing, and rebuild when any baked manifest (or the
-// Containerfile) is newer than the cached image. Bind-mounted source never needs a
-// rebuild (mounted live).
+// Local-image path: build when missing, and rebuild unless the deps stamp matches the tree.
+// Bind-mounted source never needs a rebuild (mounted live).
 function ensureImageLocal(cfg) {
   if (!imageExists(cfg.engine, cfg.image)) return buildImage(cfg);
-  const stamp = depsStampState(cfg);
-  if (stamp === 'drift') return buildImage(cfg);
-  if (stamp === 'match') return; // content-exact: mtimes cannot add anything
-  // No stamp to compare (image predates stamping): fall back to the mtime gate.
-  const imgEpoch = Number(capture(cfg.engine, ['image', 'inspect', cfg.image, '--format', '{{.Created.Unix}}']).stdout.trim()) || 0;
-  if (targetSrcEpoch(cfg) > imgEpoch) {
-    note('image is stale (Containerfile or a manifest newer than image) - rebuilding');
-    buildImage(cfg);
-  }
+  if (depsStampState(cfg) !== 'match') buildImage(cfg);
 }
 
 export function cmdLogin(opts = {}) {
