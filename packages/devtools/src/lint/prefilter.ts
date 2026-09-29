@@ -54,18 +54,12 @@ export function declaresUnsafePropertyName(text: string): boolean {
   return unsafePropertyNamePattern.test(text);
 }
 
-// Gates the API type import check (SRV001), which only reads files that call `initClient`.
-export function namesInitClient(text: string): boolean {
-  return text.includes('initClient');
-}
-
 // One pass per file serves every rule, so a file goes over the wire when any family could report on it.
 export function needsResolverPass(text: string, file?: string, markers?: MarkerGateOptions): boolean {
   return (
     referencesMarkerModule(text, file, markers) ||
     looksLikeEnrichmentFile(text) ||
     referencesRouter(text) ||
-    declaresUnsafePropertyName(text) ||
-    namesInitClient(text)
+    declaresUnsafePropertyName(text)
   );
 }
