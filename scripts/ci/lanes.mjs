@@ -82,13 +82,14 @@ export const LANES = {
   // JS checks that need Go (codegen and drizzle-manifest drift, build-gate tests), so js-lint never sets Go up.
   'go-tools': {job: 'go tests + fuzz · the Go-backed JS checks', paths: [...JS, 'ts-go-runtypes/']},
   js: {job: 'js tests + lint', paths: JS},
-  // Site and competitor-map checks have different inputs; only the site and mion's map read our packages and Go.
+  // Both halves build with our packages and Go (the site, and the mion competitor), so only
+  // a site-only or a benchmarks-only edit re-runs one half alone.
   smoke: {
     job: 'container smoke',
     paths: ['container/website/', 'container/benchmarks/', ...PACKED],
     items: {
       website: {paths: ['container/website/', 'packages/', 'version.json', GO_BUILD]},
-      bench: {paths: ['container/benchmarks/']},
+      bench: {paths: ['container/benchmarks/', 'packages/', 'version.json', GO_BUILD]},
     },
   },
   // pr-heavy.yml

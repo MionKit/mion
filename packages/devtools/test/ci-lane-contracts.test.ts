@@ -134,6 +134,9 @@ describe('the lane table', () => {
     expect(feeds('e2e', 'container/pre-publish-e2e/host-smoke/src/main.ts')).toEqual(['host-smoke']);
     expect(feeds('e2e', 'packages/core/src/errors.ts')).toEqual(['matrix', 'mion', 'host-smoke']);
     expect(feeds('smoke', 'container/benchmarks/competitors/ajv/cases.ts')).toEqual(['bench']);
+    expect(feeds('smoke', 'container/website/content/index.md')).toEqual(['website']);
+    // `bench smoke` builds the mion competitor with our packages, so a package edit re-runs it too.
+    expect(feeds('smoke', 'packages/core/src/errors.ts')).toEqual(['website', 'bench']);
   });
 
   it('runs only the unproven items, and skips them all on the lane marker', () => {
