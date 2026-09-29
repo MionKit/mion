@@ -299,3 +299,37 @@ No fuzzing: this is a fix, and there is no cheap oracle beyond the tests above.
 - Append this plan to the todo, reconcile it with what shipped, `git mv` it to `docs/done/`.
 - docs-simplifier and comments-simplifier subagents in parallel, each committed on its own.
 - PR labels at open: `website`, `pre-publish-e2e`. No PR is opened unless you ask.
+
+## What shipped (2026-09-29)
+
+Every item above landed, with these differences from the plan:
+
+- **Dev server.** It never stops on a finding, a fatal Error included: the dev reporter prints each Error and
+  RuntimeError once, and the transform of a file with a fatal Error throws it, which puts it in the overlay. A
+  dev server's build start no longer halts (it used to, which kept the server from starting). Info never prints
+  in dev; Warnings and lowered errors give way to one count line when a new one appears. The reporter reads
+  generate's list, which now holds every file's scan findings, so it can forget what is gone.
+- **Linter settings.** `settings.runtypes` still works for one release with a rename warning; its `levels` key
+  is gone and the tsconfig `levels` key no longer reaches the linter (turn on `mion/info`). The scanFiles
+  `levels` echo was removed with it.
+- **Directive judging.** A comment naming codes is judged per code (the catalog's `Raised` bits:
+  `RaisedWholeProgram`, `RaisedBundleApi`). A bare comment is judged only by a pass that can raise every code,
+  so neither the build nor the linter calls one unused any more; the docs already say to always name the code.
+- **Whole-program findings.** generate and dump also report OVR findings and CFG002 (anchored at the first
+  program file), and the scan findings are kept per file, so a file a scanFiles call reached first is reported.
+- **Generated folder.** Fixed on the Go side only: the inferred folder follows the tsconfig's file list, never
+  the current Program's roots. `seedOverlay()` still roots every project file.
+- **Linter file filter.** Lives in `anchoredIn` (`diagnosticRouting.ts`), unit tested; the end-to-end test
+  covers the override pair.
+- **Runtime error call site.** The site is sorted, spelled relative to the project, and the message says how
+  many other call sites share the entry; alwaysThrow entries are no longer disk-cached (format v18).
+- **This repo's lint.** `.oxlintrc.json` raises `mion/warning` to an error, `lint-directives.mjs` fails on the
+  EXP/DWN codes from oxlint's JSON output, `**/test-fixtures/**` is ignored, and the ESLint spec-file override
+  turns the mion rules off. `eslint-disable @mionjs/...` comments became `@mion-expect-error MRT00x`.
+- **Changelog.** No unreleased section exists, so the rule rename is the `BREAKING CHANGE` of the
+  `feat(devtools)!` commit, which the release changelog picks up.
+- Items 8 and 9 shipped as one commit: they share the new `surface.ts`.
+
+Found on the way and fixed here: webpack, rspack, esbuild and bun builds never stopped on a finding; `mion
+compile` printed raw debug lines; the disk cache froze a runtime error's call site; generate lost the findings of
+files a scanFiles call reached first; the mion route checks never reached oxlint.
