@@ -48,3 +48,19 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
 - The corpus exists, runs in the normal Go test run, and covers every family and position above.
 - Every gap it finds is fixed, each with its own commit and test.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source file, each committed on its own.
+
+## Plan (approved 2026-09-29)
+
+- **Corpus**: `ts-go-runtypes/internal/compiler/resolver/nested_diag_corpus_test.go`. Triggers (symbol, function,
+  callable interface, never, non-serializable class, private-field class, symbol-keyed interface, object union)
+  crossed with every position (property, optional property, array, tuple plain / optional / rest, Map key and value,
+  Set, index signature, union member, intersection, two deep), inline and named, in every family, both inline modes,
+  scan and generate, both marker call shapes. Oracle: every alwaysThrow entry in the output has its code reported at
+  the site, every reported always-throw code has an alwaysThrow entry, and a trigger that builds without a throw
+  leaves a drop diagnostic.
+- **Expected gaps** (confirm with the corpus, fix each with its own commit and test):
+  - a throw reached through ANOTHER family (validationErrors union arm calls the `val_` entry) is never reported;
+  - a callable interface property drops with no diagnostic when inlined and throws when named: drop it like a
+    function (…010 Info) in every mode;
+  - with that handled, remove the absorb path (`propertyChildFailed` -> `AbsorbUnsupported`) so an unsupported
+    property refuses instead of vanishing.
