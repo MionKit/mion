@@ -1,6 +1,5 @@
-// Package apiimports checks how a client file imports the API type it hands to `initClient<Api>()`: that type
-// names server code, so a value import puts the server module in the client bundle. It reads the call alone, so
-// no setting names a client or a server directory and the build and the editor agree.
+// Package apiimports flags a value import of the `initClient<Api>()` type, which ships the server module in the
+// client bundle. It reads the call alone: no setting names a client or server directory, so build and editor agree.
 package apiimports
 
 import (
@@ -15,8 +14,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/textpos"
 )
 
-// CheckSourceFile reports each import that brings a name of an `initClient` type argument into the file without
-// `type`, once per import statement; filePath is what the sites echo.
+// CheckSourceFile reports, once per import statement, each value import of a name in an `initClient` type argument.
 func CheckSourceFile(typeChecker *checker.Checker, markerOpts marker.Options, sourceFile *ast.SourceFile, filePath string) []diagnostics.Diagnostic {
 	if sourceFile == nil || sourceFile.IsDeclarationFile || !strings.Contains(sourceFile.Text(), apimeta.InitClientName) {
 		return nil
@@ -62,8 +60,7 @@ func typeNames(typeArgument *ast.Node) []*ast.Node {
 	return names
 }
 
-// valueImportOf returns the import statement that binds name and its module specifier, unless the binding is
-// type-only or not an import at all.
+// valueImportOf returns name's import statement and specifier, or nil for a type-only or non-import binding.
 func valueImportOf(typeChecker *checker.Checker, name *ast.Node) (*ast.Node, string) {
 	if name == nil || !ast.IsIdentifier(name) {
 		return nil, ""

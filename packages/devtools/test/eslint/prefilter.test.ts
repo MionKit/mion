@@ -246,7 +246,7 @@ describe('declaresUnsafePropertyName', () => {
   });
 });
 
-// The API type import check (SRV001) reads a client file that may name no marker at all.
+// The API type import check (SRV001) reads a client file that may name no marker.
 describe('namesInitClient', () => {
   it('admits a file that calls initClient and nothing else', () => {
     const client = `import {initClient} from '@mionjs/client';\nimport {MyApi} from '../server/api';\nexport const c = initClient<MyApi>({baseURL: ''});`;

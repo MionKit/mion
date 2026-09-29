@@ -7,8 +7,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 )
 
-// checkApiImports runs the `initClient` API type import check over files, on every scan (the linter and the dev
-// server) and on generate (the build). Sites echo the REQUESTED path, as the other per-file passes do.
+// checkApiImports runs on every scan (linter, dev server) and on generate (build); sites echo the REQUESTED path.
 func (sess *Session) checkApiImports(files []string) []diagnostics.Diagnostic {
 	var out []diagnostics.Diagnostic
 	if sess.Program == nil || sess.checker == nil {

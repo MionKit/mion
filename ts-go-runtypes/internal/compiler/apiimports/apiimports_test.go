@@ -27,7 +27,7 @@ const serverApi = "import {createMionRouter} from '@mionjs/router';\n" +
 	"export default routes;\n" +
 	"export const startServer = () => routes;\n"
 
-// check builds one program over server/api.ts, the ambients and client.ts, and returns "line name specifier" per SRV001.
+// check returns "line name specifier" for each SRV001 in client.ts.
 func check(t *testing.T, client string) []string {
 	t.Helper()
 	cwd := tspath.NormalizePath(t.TempDir())
