@@ -19,8 +19,7 @@ export function changedFiles(base, {cwd = REPO_ROOT} = {}) {
   return {mergeBase, files};
 }
 
-// A path outside every package forces the full suite, unless the js lane provably skips it (docs, a Go test);
-// an unclassified path joins every lane, so it forces the suite too.
+// A non-package path forces the full suite unless the js lane skips it (docs, a Go test); unclassified joins every lane.
 export function classifyPaths(files, packages) {
   const changed = new Set();
   const global = [];

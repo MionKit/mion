@@ -130,9 +130,9 @@ function checkTsgolintPin() {
 // The pinned Go, not `go version`: a runner image ships its own Go, which would split one tree into two keys.
 export const pinnedGoVersion = () => `go${readFileSync(GO_VERSION_FILE, 'utf8').trim()}`;
 
-// Needs no Go and no checkout: the gitlink pins the commit and its patches, so only UNapplied patches count.
 export const pendingPatches = (states) => states.filter((state) => !state.endsWith('=applied'));
 
+// Needs no Go and no checkout: the gitlink pins the commit and its patches, so only UNapplied patches count.
 export function goIdentity() {
   const identity = [pinnedGoVersion(), `${process.platform}/${process.arch}`, tsgolintCommit()];
   if (submoduleInitialised()) identity.push(...pendingPatches(patchState()));

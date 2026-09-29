@@ -384,7 +384,6 @@ describe('a marker is only ever written by work that actually ran and passed', (
   });
 });
 
-// A job slice: from `\n  <name>:` to the next top-level job.
 const jobOf = (workflow: string, name: string): string => {
   const start = workflow.indexOf(`\n  ${name}:\n`);
   const next = workflow.slice(start + 1).search(/\n {2}[\w-]+:\n/);
@@ -429,8 +428,7 @@ describe('the Go toolchain setup', () => {
   });
 });
 
-// build-gate.test.ts runs real `go build`s, so it lives on the Go runner. The two jobs must
-// stay a complete, disjoint split of it: never run twice, never dropped.
+// build-gate.test.ts runs real `go build`s, so only the Go runner may run it, exactly once.
 describe('the build-gate tests run on the Go runner and nowhere else', () => {
   const ci = read('.github/workflows/ci.yml');
 

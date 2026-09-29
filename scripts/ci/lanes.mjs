@@ -81,8 +81,7 @@ export const LANES = {
   // JS checks that need Go (codegen and drizzle-manifest drift, build-gate tests), so js-lint never sets Go up.
   'go-tools': {job: 'go tests + fuzz · the Go-backed JS checks', paths: [...JS, 'ts-go-runtypes/']},
   js: {job: 'js tests + lint', paths: JS},
-  // Both halves build with our packages and Go (the site, and the mion competitor), so only
-  // a site-only or a benchmarks-only edit re-runs one half alone.
+  // Both halves build with our packages and Go (the site, and the mion competitor).
   smoke: {
     job: 'container smoke',
     paths: ['container/website/', 'container/benchmarks/', ...PACKED],

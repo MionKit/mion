@@ -4,8 +4,7 @@ name: cache cleanup
 # the lane markers main reads after a merge, and weekly main keeps only its newest prebuilt Go binaries.
 # The rules live in scripts/ci/cache-cleanup.mjs.
 on:
-  # pull_request_target, not pull_request: a fork's pull_request token is read-only and deletes nothing.
-  # Safe here because the job checks out and runs only the base branch's code.
+  # pull_request_target: a fork's pull_request token is read-only. Safe: the job runs only the base branch's code.
   pull_request_target:
     types: [closed]
   schedule:
