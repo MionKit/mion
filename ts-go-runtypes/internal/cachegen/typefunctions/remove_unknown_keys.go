@@ -172,6 +172,18 @@ func isPrototypeMember(member *reflection.RunType) bool {
 	return member.Kind == reflection.KindMethod && !member.HasFlag(reflection.FlagField)
 }
 
+// coveredBySymbolSig reports a symbol-keyed property whose value type is exactly the symbol signature's.
+func coveredBySymbolSig(member, symbolSig *reflection.RunType, ctx *EmitContext) bool {
+	if symbolSig == nil || member.Child == nil || symbolSig.Child == nil {
+		return false
+	}
+	if member.Kind != reflection.KindProperty && member.Kind != reflection.KindPropertySignature {
+		return false
+	}
+	memberType, sigType := ctx.ResolveRef(member.Child), ctx.ResolveRef(symbolSig.Child)
+	return memberType != nil && sigType != nil && memberType.ID == sigType.ID
+}
+
 // emitObject rebuilds an object literal or a class instance from its declared members.
 func (e RemoveUnknownKeysEmitter) emitObject(rt *reflection.RunType, ctx *EmitContext, v string, asClass bool) RTCode {
 	if asClass && rt.HasFlag(reflection.FlagPrivateFields) {
@@ -180,12 +192,12 @@ func (e RemoveUnknownKeysEmitter) emitObject(rt *reflection.RunType, ctx *EmitCo
 	}
 	var props []safePropEmit
 	var indexSigs []*reflection.RunType
-	hasSymbolSig := false
+	var symbolSig *reflection.RunType
 	for _, child := range objectMembers(rt) {
 		if resolved := ctx.ResolveRef(child); resolved != nil && resolved.Kind == reflection.KindIndexSignature {
 			indexSigs = append(indexSigs, resolved)
-			if isSymbolKeyedIndexSig(resolved, ctx) {
-				hasSymbolSig = true
+			if symbolSig == nil && isSymbolKeyedIndexSig(resolved, ctx) {
+				symbolSig = resolved
 			}
 		}
 	}
@@ -209,8 +221,8 @@ func (e RemoveUnknownKeysEmitter) emitObject(rt *reflection.RunType, ctx *EmitCo
 			continue
 		}
 		if reflection.IsSymbolKeyedName(resolved.Name) {
-			// The symbol-signature walk copies it; otherwise the value would be missing from the copy.
-			if hasSymbolSig {
+			// The symbol-signature walk copies it with the signature's value type, so only an identical type is safe.
+			if coveredBySymbolSig(resolved, symbolSig, ctx) {
 				continue
 			}
 			refuseWith(resolved, ctx)

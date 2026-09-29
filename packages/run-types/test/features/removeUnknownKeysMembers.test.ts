@@ -135,6 +135,28 @@ describe('removeUnknownKeys on symbol keys', () => {
     expect(createRemoveUnknownKeysFn(input)(input)[tag]).toEqual({n: 1});
     expect(createRemoveUnknownKeysFn<{bag: Bag}>()({bag: input}).bag[tag]).toEqual({n: 1});
   });
+
+  test("a named symbol property with the signature's value type is copied by the signature", () => {
+    type Bag = {[key: symbol]: {n: number}; [tag]: {n: number}};
+    const inner = {n: 1, extra: true};
+    const input: Bag = {[tag]: inner};
+    const copy = createRemoveUnknownKeysFn<Bag>()(input);
+    expect(copy[tag]).toEqual({n: 1});
+    expect(copy[tag]).not.toBe(inner);
+    expect(createRemoveUnknownKeysFn(input)(input)[tag]).toEqual({n: 1});
+  });
+
+  test('a named symbol property wider than the signature is refused: the signature would drop its members', () => {
+    type Bag = {[key: symbol]: {n: number}; [tag]: {n: number; m: string}};
+    const wide = {n: 1, m: 'kept?'};
+    const input: Bag = {[tag]: wide};
+    // @mion-downgrade-error RUK004
+    expect(() => createRemoveUnknownKeysFn<Bag>()).toThrow(/RUK004/);
+    // @mion-downgrade-error RUK004
+    expect(() => createRemoveUnknownKeysFn(input)).toThrow(/RUK004/);
+    // @mion-downgrade-error RUK004
+    expect(() => createRemoveUnknownKeysFn<{bag: Bag}>()).toThrow(/RUK004/);
+  });
 });
 
 describe('removeUnknownKeys on values it can only share', () => {
