@@ -22,8 +22,6 @@ export interface MionRunTypesOptions {
   /** RunTypes generated-output root: gitignored modules under `<genDir>/types/`, committed enrichment under
    *  `<genDir>/enriched/`. */
   genDir?: string;
-  /** @deprecated use `genDir` — kept as an alias for existing configs. */
-  outDir?: string;
   /** What generated fn entries ship: 'code' (default) | 'both'.
    *
    *  ⚠️ EDGE TARGETS MUST USE 'both'. 'code' ships only the compiled fn's source string, which
@@ -155,7 +153,7 @@ export function toRunTypesOptions(
     // The client-side pair, forwarded as given like the client pointer above.
     apiTsconfig: bundle.api?.tsConfig,
     bundleApi: bundle.bundleApi,
-    genDir: rt.genDir ?? rt.outDir,
+    genDir: rt.genDir,
     emitMode: rt.emitMode,
     moduleMode: rt.moduleMode,
     inlineMode: rt.inlineMode,

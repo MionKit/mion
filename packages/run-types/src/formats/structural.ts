@@ -44,9 +44,6 @@ export interface FormattedCollectionParams<Contains = unknown> {
   readonly maxContains?: number;
 }
 
-/** @deprecated Renamed to `FormattedCollectionParams` (an Array, a Set and a Map all take it). This alias is kept for one release; migrate `FormattedArrayParams<C>` → `FormattedCollectionParams<C>`. */
-export type FormattedArrayParams<Contains = unknown> = FormattedCollectionParams<Contains>;
-
 // The literal keywords that ride `__rtFormatParams`; values pass through verbatim, so the id is
 // whatever the caller wrote. The `contains` trio is absent by construction: it belongs to the sentinel below.
 type CollectionLiteralKeys = 'minItems' | 'maxItems' | 'uniqueItems';
@@ -159,9 +156,6 @@ export type FormattedObject<Base extends object, P extends FormattedObjectParams
 
 /** The params bag every COLLECTION builder takes (`array` / `set` / `map`). **/
 export type FormattedCollectionParamsValueFirst = FormattedCollectionParams<RunType<unknown>>;
-
-/** @deprecated Renamed to `FormattedCollectionParamsValueFirst`. This alias is kept for one release. */
-export type FormattedArrayParamsValueFirst = FormattedCollectionParamsValueFirst;
 
 /** The `map` builder's params, the value-first twin of `FormattedMapParams`: `RT.tuple({required:
  *  [k, v]})` satisfies its `contains` slot; a single-value schema does not, which is the point. **/

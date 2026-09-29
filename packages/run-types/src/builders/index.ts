@@ -1,8 +1,7 @@
 // Public entry for the `@mionjs/run-types/builders` subpath — the value-first authoring
 // surface, an opt-in lane a type-first consumer never imports. The FORMAT builders are NOT
 // here: a format's TYPE and its BUILDER live together on `@mionjs/run-types/formats` (and
-// `/formats/temporal`). The older `@mionjs/run-types/schema` subpath resolves here as a
-// deprecated alias, removed at 1.0.
+// `/formats/temporal`).
 
 // The STRUCTURAL array/object keywords are not separate builders: each rides a trailing params
 // bag on `array` / `object` / `record`, and the wrapper TYPES live on the `/formats` surface.

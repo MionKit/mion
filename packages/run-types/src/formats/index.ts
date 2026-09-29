@@ -37,9 +37,6 @@ export type {
   FormattedMapParamsValueFirst,
   FormattedObjectParamsValueFirst,
   StructuralBrand,
-  // Deprecated: the pre-rename spellings of the collection bag, kept for one release.
-  FormattedArrayParams,
-  FormattedArrayParamsValueFirst,
 } from './structural.ts';
 
 // Temporal builders are NOT re-exported here: they live on the `@mionjs/run-types/formats/temporal`

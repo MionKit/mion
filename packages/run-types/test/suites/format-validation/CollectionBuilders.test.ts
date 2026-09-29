@@ -12,11 +12,6 @@ type SmallLookup = TF.FormattedMap<Map<string, number>, {minItems: 1; maxItems: 
 type UniqueLookup = TF.FormattedMap<Map<{id: number}, string>, {uniqueItems: true}>;
 type AdminSomewhere = TF.FormattedMap<Map<string, number>, {contains: ['admin', unknown]}>;
 
-// The deprecated pre-rename spellings still name the same bags (one release).
-type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
-const sameBag: Equal<TF.FormattedArrayParams, TF.FormattedCollectionParams> = true;
-const sameValueFirstBag: Equal<TF.FormattedArrayParamsValueFirst, TF.FormattedCollectionParamsValueFirst> = true;
-
 describe('format-validation / collection builders', () => {
   it('a bare set() / map() keeps the plain collection id', () => {
     expect(getRunTypeId(RT.set(TF.string()))).toBe(getRunTypeId<Set<string>>());
@@ -49,10 +44,5 @@ describe('format-validation / collection builders', () => {
       getRunTypeId(RT.map(TF.string(), TF.number(), {contains: RT.tuple({required: [RT.literal('admin'), RT.unknown()]})}))
     ).toBe(getRunTypeId<AdminSomewhere>());
     expect(getRunTypeId<AdminSomewhere>()).not.toBe(getRunTypeId<Map<string, number>>());
-  });
-
-  it('the deprecated params-bag aliases still name the renamed bags', () => {
-    expect(sameBag).toBe(true);
-    expect(sameValueFirstBag).toBe(true);
   });
 });
