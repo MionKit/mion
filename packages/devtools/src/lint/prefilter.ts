@@ -54,7 +54,7 @@ export function declaresUnsafePropertyName(text: string): boolean {
   return unsafePropertyNamePattern.test(text);
 }
 
-// namesInitClient gates the API type import check (SRV001), which only reads files that call `initClient`.
+// Gates the API type import check (SRV001), which only reads files that call `initClient`.
 export function namesInitClient(text: string): boolean {
   return text.includes('initClient');
 }

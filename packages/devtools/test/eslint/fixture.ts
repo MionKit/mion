@@ -27,7 +27,7 @@ export const FIXTURE_CORE_DTS = `export declare class TypedError<T extends strin
 export declare class RpcError<T extends string = string> extends TypedError<T> { readonly publicMessage: string }
 `;
 
-// FIXTURE_CLIENT_DTS is the fake `@mionjs/client`: the API type import check only reads which module declares `initClient`.
+// The fake `@mionjs/client`: the API type import check only reads which module declares `initClient`.
 export const FIXTURE_CLIENT_DTS = `export declare function initClient<Api>(options: {baseURL: string}): {routes: Api};
 `;
 

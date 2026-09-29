@@ -1,10 +1,7 @@
 package diagnostics
 
-// Server import codes (SRVxxx), from the API type check: the type a client hands to `initClient<Api>()` names
-// server code, so importing it as a value puts the server module in the client bundle.
-//
-// SRV001 is LevelRuntimeError: the bundle builds, but it carries the server module and everything it imports,
-// which fails in a browser and exposes server code. `import type` is erased and costs nothing.
+// Server import codes (SRVxxx): a value import of the `initClient<Api>()` type ships the server module in the client
+// bundle. SRV001 is LevelRuntimeError: the bundle builds, but fails in a browser and exposes server code.
 const (
 	// CodeServerImportInClient: a name used in an `initClient` type argument is imported without `type`.
 	// Args: [0] the imported name, [1] the import specifier.
