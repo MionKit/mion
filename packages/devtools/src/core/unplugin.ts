@@ -1104,6 +1104,8 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
         // reloading nothing is what keeps the auto-sync writes out of a reload loop.
         if (suppressEnrichHmr && isUnderEnrichedDir(file)) return [];
         if (!/\.[mc]?[jt]sx?$/.test(file)) return;
+        // configureServer's watcher already regenerates for a batch source file.
+        if (isBatchSourcePath(file)) return;
         const content = typeof ctx.read === 'function' ? await ctx.read() : undefined;
         const stale = await applyHotUpdate(this, [{file, content}]);
         if (stale.length === 0) return;
