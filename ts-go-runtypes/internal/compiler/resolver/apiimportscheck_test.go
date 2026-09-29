@@ -80,8 +80,7 @@ func TestApiImports_ExpectErrorSilences(t *testing.T) {
 	}
 }
 
-// A dependency resolved to its own `.ts` source is not the user's to fix: its SRV001 is dropped by TypeScript's own
-// provenance, while the same import in first-party code still fires, on both ops.
+// A dependency's own `.ts` source gets no SRV001 (TypeScript provenance); first-party code still does, on both ops.
 func TestApiImports_DependencySourceIsNotReported(t *testing.T) {
 	const clientSrc = "import {initClient} from '@mionjs/client';\nimport {MyApi} from './api';\nexport const client = initClient<MyApi>({baseURL: ''});\n"
 	const apiSrc = "export type MyApi = {hello: () => string};\nexport const version = 1;\n"

@@ -52,7 +52,7 @@ export function makeFixtureProject(files: Record<string, string> = {}): FixtureP
   // The mion route rules read these two, the API type import check the client.
   installPackage('router', FIXTURE_ROUTER_DTS);
   installPackage('core', FIXTURE_CORE_DTS);
-  // Like the real package, the client depends on the marker package, which is what sends a client file to the resolver.
+  // Like the real package: depending on the marker package is what sends a client file to the resolver.
   installPackage('client', FIXTURE_CLIENT_DTS, {'@mionjs/run-types': '*'});
   const project: FixtureProject = {
     dir,
