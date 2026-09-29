@@ -704,7 +704,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		pureFnGraph, pureFnsDiagnostics := sess.collectProgramPureFns(metrics)
 		// Marker diagnostics from the eager whole-program scan, surfaced as in OpGenerate: batchcompile
 		// consumes this response.
-		response.Diagnostics = append(response.Diagnostics, sess.programScanDiagnostics...)
+		response.Diagnostics = append(response.Diagnostics, sess.programScanDiagnostics()...)
 		response.Diagnostics = append(response.Diagnostics, pureFnsDiagnostics...)
 		dumpBatchSites, dumpBatchDiagnostics := sess.collectProgramBatches()
 		response.Diagnostics = append(response.Diagnostics, dumpBatchDiagnostics...)
@@ -818,9 +818,8 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		genResponse.Diagnostics = append(genResponse.Diagnostics, genBatchDiagnostics...)
 		genResponse.Diagnostics = append(genResponse.Diagnostics, apiSiteDiagnostics...)
 		genResponse.Diagnostics = append(genResponse.Diagnostics, apiGenDiagnostics...)
-		// The marker diagnostics scanAllProgramFiles persisted; without this, buildStart, which consumes THIS
-		// response, never sees them.
-		genResponse.Diagnostics = append(genResponse.Diagnostics, sess.programScanDiagnostics...)
+		// Every file's scan findings: buildStart consumes THIS response.
+		genResponse.Diagnostics = append(genResponse.Diagnostics, sess.programScanDiagnostics()...)
 		genResponse.Diagnostics = append(genResponse.Diagnostics, genPureFnsDiagnostics...)
 		genResponse.Diagnostics = append(genResponse.Diagnostics, genDiagnostics...)
 		// PFE9012: same dangling-dep guard on the disk-generation path.
