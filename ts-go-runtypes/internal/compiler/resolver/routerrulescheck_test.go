@@ -92,10 +92,8 @@ func TestCheckRouterRules_SinglePassFindings(t *testing.T) {
 	}
 }
 
-// TestCheckRouterRules_OptIn pins the gate. This is not an optimisation: every
-// route code but MRT005 is Severity-Error, and `mion compile` plus the bundler
-// plugins stop on one, so a build that ran these would fail on a
-// finding a team may have turned off in its lint config.
+// TestCheckRouterRules_OptIn pins the gate, not an optimisation: every route code but MRT005 is an Error.
+// `mion compile` and the bundler plugins stop on an Error, so a build would fail on a rule a team turned off in lint.
 func TestCheckRouterRules_OptIn(t *testing.T) {
 	res := setupInline(t, map[string]string{"router.d.ts": routerRulesDTS, "routes.ts": routerRulesRoutes})
 	response := res.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"routes.ts"}})
