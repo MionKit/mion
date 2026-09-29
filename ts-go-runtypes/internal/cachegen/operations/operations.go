@@ -59,11 +59,9 @@ var registry = []Operation{
 	{Name: "validate", Doc: "Answers whether a value matches the type. The cheapest check, and the one every other validator builds on.", Factory: "createValidateFn", FamilyTag: "val", Axis: AxisValidateOptions, Public: true, FnKey: "validate", CircularGuarded: true},
 	{Name: "validationErrors", Doc: "Returns the list of reasons a value does not match the type, with the path to each one.", Factory: "createGetValidationErrorsFn", FamilyTag: "verr", Axis: AxisValidateOptions, Public: true, FnKey: "validationErrors", CircularGuarded: true},
 
-	// The FUSED validators (`{checkUnknowns: true}`): the plain body plus the unknown-key check spliced into every object-ish node,
-	// so one walk answers "valid AND free of undeclared keys". Deliberately separate OPERATIONS, not a ValidateOptions variant:
-	// a variant is root-scoped (children dispatch to plain entries), is never disk-cached and skips overrides, while a family renders
-	// its own transitive subtree, caches under its own tag and runs the plain validate / validationErrors override. The call site's marker still says 'val' / 'verr';
-	// the scanner swaps the operation when it reads `checkUnknowns` (resolver/scan.go computeSiteFn), so no marker type changes.
+	// Fused `{checkUnknowns: true}` validators are separate families, not ValidateOptions variants:
+	// a variant's children dispatch to plain entries, it is never disk-cached and it skips overrides.
+	// The marker still says 'val' / 'verr'; resolver/scan.go computeSiteFn swaps the operation on `checkUnknowns`.
 	{Name: "validateStrict", Doc: "Answers whether a value matches the type AND carries no undeclared properties, in a single walk.", Factory: "createValidateFn", FamilyTag: "vst", Axis: AxisValidateOptions, Public: true, FnKey: "validateStrict", CircularGuarded: true, CallOptions: "{checkUnknowns: true}"},
 	{Name: "validationErrorsStrict", Doc: "Returns the reasons a value does not match, including undeclared properties, in a single walk.", Factory: "createGetValidationErrorsFn", FamilyTag: "vest", Axis: AxisValidateOptions, Public: true, FnKey: "validationErrorsStrict", CircularGuarded: true, CallOptions: "{checkUnknowns: true}"},
 

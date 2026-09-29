@@ -2,7 +2,6 @@ package typefunctions
 
 import "testing"
 
-// An option-selected family must read the override its factory's plain overrideX<T>() registered.
 func TestOverrideOpKeyForTag_OptionFamiliesReadThePlainOverride(t *testing.T) {
 	rows := map[string]string{
 		"val":  "validate",
