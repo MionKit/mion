@@ -166,7 +166,7 @@ func init() {
 		CodePJNeverRoot, CodePJNonSerializableRoot, CodePJFunctionRoot, CodePJSymbolRoot,
 		CodePJSNeverRoot, CodePJSNonSerializableRoot, CodePJSFunctionRoot, CodePJSSymbolRoot,
 		CodeRJNeverRoot, CodeRJNonSerializableRoot, CodeRJFunctionRoot, CodeRJSymbolRoot,
-		CodeRUKUnionRoot, CodeRUKSymbolKeyedMember, CodeRUKPrivateFields, CodeRUKSharedRefused,
+		CodeRUKUnionRoot,
 	} {
 		register(Definition{Code: code, Family: FamilyRunType, Level: LevelRuntimeError, Scope: ScopeRoot, Title: "RunType root-position error"})
 	}
@@ -195,6 +195,11 @@ func init() {
 	}
 	for _, code := range []string{CodeRUKFunctionPropDropped, CodeRUKNonSerializablePropDrop} {
 		register(Definition{Code: code, Family: FamilyRunType, Level: LevelWarning, Scope: ScopeGraph, Title: "RunType child-position member dropped"})
+	}
+
+	// The removeUnknownKeys refusals keep one code at any depth: a nested trigger makes the whole function throw too.
+	for _, code := range []string{CodeRUKSymbolKeyedMember, CodeRUKPrivateFields, CodeRUKSharedRefused} {
+		register(Definition{Code: code, Family: FamilyRunType, Level: LevelRuntimeError, Scope: ScopeGraph, Title: "removeUnknownKeys refuses a member it cannot copy"})
 	}
 
 	// UPN001 is the same child-position drop keyed on the NAME, and one code serves every family

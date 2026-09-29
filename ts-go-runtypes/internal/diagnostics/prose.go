@@ -917,6 +917,10 @@ export const removePetKeys = createRemoveUnknownKeysFn<Pet>();`,
 const tag = Symbol('tag');
 interface Item { id: string; [tag]: string }
 export const removeItemKeys = createRemoveUnknownKeysFn<Item>();`,
+		NestedExample: `import {createRemoveUnknownKeysFn} from '@mionjs/run-types';
+const tag = Symbol('tag');
+interface Order { item: { id: string; [tag]: string } }
+export const removeOrderKeys = createRemoveUnknownKeysFn<Order>();`,
 	},
 	CodeRUKPrivateFields: {
 		Summary: "A class copy keeps the input's prototype but never runs the constructor, and only the constructor can create `#private` fields. A method reading one would throw on the copy, so the function always throws instead. Use TypeScript `private` instead of `#`, or register `overrideRemoveUnknownKeys<T>()` to build the copy yourself.",
@@ -924,12 +928,18 @@ export const removeItemKeys = createRemoveUnknownKeysFn<Item>();`,
 		Example: `import {createRemoveUnknownKeysFn} from '@mionjs/run-types';
 export class Counter { #count = 0; label = ''; }
 export const removeCounterKeys = createRemoveUnknownKeysFn<Counter>();`,
+		NestedExample: `import {createRemoveUnknownKeysFn} from '@mionjs/run-types';
+export class Counter { #count = 0; label = ''; }
+export const removePageKeys = createRemoveUnknownKeysFn<{counter: Counter}>();`,
 	},
 	CodeRUKSharedRefused: {
 		Summary: "With `sharedValues: 'refuse'`, a value the copy cannot rebuild (a function, a `Promise`, a `RegExp` or a built-in like `URL`) makes the function always throw instead of sharing it with the input. Remove the option to share it with a warning, or change the type.",
 		Example: `import {createRemoveUnknownKeysFn} from '@mionjs/run-types';
 interface Button { label: string; onClick: () => void }
 export const removeButtonKeys = createRemoveUnknownKeysFn<Button>(undefined, {sharedValues: 'refuse'});`,
+		NestedExample: `import {createRemoveUnknownKeysFn} from '@mionjs/run-types';
+interface Toolbar { button: { label: string; onClick: () => void } }
+export const removeToolbarKeys = createRemoveUnknownKeysFn<Toolbar>(undefined, {sharedValues: 'refuse'});`,
 	},
 	CodeRUKFunctionPropDropped: {
 		Summary: "`removeUnknownKeys` never removes a declared key. A function cannot be copied, so the copy points to the same function as the input. Class methods stay on the prototype instead (RUK011). A function type itself is shared the same way. Pass `sharedValues: 'share'` to say this is fine, or `'refuse'` to make it an error.",
