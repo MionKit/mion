@@ -125,7 +125,7 @@ register('the dev server prints only what breaks running code, once', () => {
     expect(count('MKR003')).toBe(1);
   }, 60_000);
 
-  it('prints a failed regenerate and the edit\'s own findings, and keeps running', async () => {
+  it("prints a failed regenerate and the edit's own findings, and keeps running", async () => {
     // A file where the generated folder should be makes every write under it fail.
     const typesDir = path.join(dir, '.mion', 'types');
     fs.rmSync(typesDir, {recursive: true, force: true});
@@ -188,7 +188,10 @@ register('the dev server fails the file holding a whole-program Error', () => {
     fs.writeFileSync(path.join(dir, 'src', 'client.d.ts'), CLIENT_DTS);
     fs.writeFileSync(path.join(dir, 'src', 'api.ts'), API_TS);
     fs.writeFileSync(path.join(dir, 'src', 'client.ts'), GHOST_CLIENT_TS);
-    fs.writeFileSync(path.join(dir, 'client-stub.js'), 'export const initClient = () => ({routes: {}});\nexport const setApiBundled = () => {};\n');
+    fs.writeFileSync(
+      path.join(dir, 'client-stub.js'),
+      'export const initClient = () => ({routes: {}});\nexport const setApiBundled = () => {};\n'
+    );
     const printed: string[] = [];
     const logger = createLogger('silent');
     logger.warn = (message: string) => void printed.push(message);
@@ -204,6 +207,100 @@ register('the dev server fails the file holding a whole-program Error', () => {
       }),
     });
     await waitFor(() => printed.some((block) => block.includes('error MET002')), 'MET002 in the start-up report');
-    await expect(vite.transformRequest('/src/client.ts')).rejects.toThrow(/build stopped on 1 mion error\. First: .*error MET002: /);
+    await expect(vite.transformRequest('/src/client.ts')).rejects.toThrow(
+      /build stopped on 1 mion error\. First: .*error MET002: /
+    );
+  }, 60_000);
+});
+
+// A batch source program the server reads through `client.tsConfig`: the dev watcher is the only thing that sees it.
+const ROUTER_DTS = `declare module '@mionjs/router' {
+  export function createMionRouter(opts?: unknown): {initRoutes: (routes: unknown) => unknown};
+}
+`;
+const SERVER_TS = `import {createMionRouter} from '@mionjs/router';
+import {getRunTypeId} from '@mionjs/run-types';
+export const mion = createMionRouter();
+export const api = mion.initRoutes({});
+export const idStatic = getRunTypeId<{name: string}>();
+const sample = {name: 'Ada'};
+export const idReflected = getRunTypeId(sample);
+`;
+const BATCH_CLIENT_DTS = `declare module '@mionjs/client' {
+  import type {InjectBatchId} from '@mionjs/run-types';
+  export interface RouteSubRequest<PH> { id: string }
+  export type ClientRoutes<RA> = { [K in keyof RA]: RA[K] extends (...a: infer P) => infer R ? (...p: P) => RouteSubRequest<RA[K]> : ClientRoutes<RA[K]> };
+  export function initClient<RA>(o?: unknown): {client: unknown; routes: ClientRoutes<RA>};
+  export function batch<R extends RouteSubRequest<any>[]>(routes: [...R], batchId?: InjectBatchId<R>): unknown;
+}
+`;
+const BATCH_ROUTES_TS = `import {initClient} from '@mionjs/client';
+export type Routes = {orders: {list: (userId: number) => string[]}};
+export const {routes} = initClient<Routes>();
+`;
+const BATCH_TS = `import {batch} from '@mionjs/client';
+import {routes} from './routes.ts';
+export const b = batch([routes.orders.list(1)]);
+`;
+// BAT005: the same route listed twice in one batch.
+const DUPLICATE_ROUTE_LINE = 'export const twice = batch([routes.orders.list(1), routes.orders.list(2)]);\n';
+
+register('the dev server reports a finding a batch source edit adds', () => {
+  let dir = '';
+  let vite: ViteDevServer | undefined;
+
+  afterEach(async () => {
+    await vite?.close();
+    vite = undefined;
+    fs.rmSync(dir, {recursive: true, force: true});
+  });
+
+  it('prints BAT005 once after an edit in the client project', async () => {
+    dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'mion-dev-batch-source-')));
+    const server = path.join(dir, 'server');
+    const client = path.join(dir, 'client');
+    fs.mkdirSync(path.join(server, 'src'), {recursive: true});
+    fs.mkdirSync(path.join(client, 'src'), {recursive: true});
+    writeMarkerPackage(server);
+    writeMarkerPackage(client);
+    fs.writeFileSync(path.join(server, 'tsconfig.json'), TSCONFIG);
+    fs.writeFileSync(path.join(server, 'src', 'router.d.ts'), ROUTER_DTS);
+    fs.writeFileSync(path.join(server, 'src', 'server.ts'), SERVER_TS);
+    fs.writeFileSync(
+      path.join(client, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: {
+          target: 'ES2022',
+          module: 'ESNext',
+          moduleResolution: 'Bundler',
+          strict: true,
+          noEmit: true,
+          allowImportingTsExtensions: true,
+        },
+        include: ['src'],
+      })
+    );
+    fs.writeFileSync(path.join(client, 'src', 'client.d.ts'), BATCH_CLIENT_DTS);
+    fs.writeFileSync(path.join(client, 'src', 'routes.ts'), BATCH_ROUTES_TS);
+    fs.writeFileSync(path.join(client, 'src', 'a.ts'), BATCH_TS);
+    const printed: string[] = [];
+    const logger = createLogger('silent');
+    logger.warn = (message: string) => void printed.push(message);
+    vite = await createServer({
+      root: server,
+      configFile: false,
+      customLogger: logger,
+      server: {middlewareMode: true},
+      plugins: mionVitePlugin({
+        runTypes: {tsConfig: path.join(server, 'tsconfig.json'), binary: BIN, genDir: path.join(server, '.mion')},
+        client: {tsConfig: path.join(client, 'tsconfig.json')},
+      }),
+    });
+    await waitFor(() => fs.existsSync(path.join(server, '.mion', 'rpc')), 'the batch table from the client project');
+    const batchFile = path.join(client, 'src', 'a.ts');
+    fs.writeFileSync(batchFile, BATCH_TS + DUPLICATE_ROUTE_LINE);
+    vite.watcher.emit('change', batchFile);
+    await waitFor(() => printed.some((block) => block.includes('error BAT005')), 'BAT005 after the client edit');
+    expect(printed.join('\n').split('error BAT005').length - 1).toBe(1);
   }, 60_000);
 });
