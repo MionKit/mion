@@ -25,6 +25,28 @@ var bundledLibPrefix = tspath.NormalizePath(bundled.LibPath())
 // broken `User`), and both convert and enrich had exactly that gap. The bundled default lib and
 // node_modules are not followed: they are not the user's to fix.
 func EachWrittenTypeRef(typeChecker *checker.Checker, root *ast.Node, visit func(reference *ast.Node, via []string)) {
+	eachWrittenNode(typeChecker, root, func(node *ast.Node, via []string) {
+		if ast.IsTypeReferenceNode(node) {
+			visit(node, via)
+		}
+	})
+}
+
+// EachWrittenTypeName visits the first identifier of every type reference and `typeof` query written under root,
+// following references into their declarations exactly as EachWrittenTypeRef does.
+func EachWrittenTypeName(typeChecker *checker.Checker, root *ast.Node, visit func(name *ast.Node)) {
+	eachWrittenNode(typeChecker, root, func(node *ast.Node, _ []string) {
+		switch node.Kind {
+		case ast.KindTypeReference:
+			visit(ast.GetFirstIdentifier(node.AsTypeReferenceNode().TypeName))
+		case ast.KindTypeQuery:
+			visit(ast.GetFirstIdentifier(node.AsTypeQueryNode().ExprName))
+		}
+	})
+}
+
+// eachWrittenNode visits every node written under root and under each declaration a TypeReference names.
+func eachWrittenNode(typeChecker *checker.Checker, root *ast.Node, visit func(node *ast.Node, via []string)) {
 	if typeChecker == nil || root == nil {
 		return
 	}
@@ -36,8 +58,8 @@ func EachWrittenTypeRef(typeChecker *checker.Checker, root *ast.Node, visit func
 			return
 		}
 		budget--
+		visit(node, via)
 		if ast.IsTypeReferenceNode(node) {
-			visit(node, via)
 			if declaration, name := followedDeclaration(typeChecker, node.AsTypeReferenceNode().TypeName, visited); declaration != nil {
 				walk(declaration, append(via[:len(via):len(via)], name))
 			}

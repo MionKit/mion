@@ -8,6 +8,8 @@ import (
 	"github.com/microsoft/typescript-go/shim/checker"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefunctions"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/textpos"
 )
 
 // ClientModule is the package that declares `initClient`.
@@ -86,13 +88,68 @@ func callsInitClient(typeChecker *checker.Checker, markerOpts marker.Options, so
 	}
 	found := false
 	forEachCall(sourceFile, func(call *ast.Node) bool {
-		found = IsInitClientCall(typeChecker, markerOpts, call)
+		found = isInitClientCall(typeChecker, markerOpts, call)
 		return !found
 	})
 	return found
 }
 
-// IsInitClientCall reports whether the call is the client package's own `initClient`.
-func IsInitClientCall(typeChecker *checker.Checker, markerOpts marker.Options, call *ast.Node) bool {
+// isInitClientCall reports whether the call is the client package's own `initClient`.
+func isInitClientCall(typeChecker *checker.Checker, markerOpts marker.Options, call *ast.Node) bool {
 	return isClientCall(typeChecker, markerOpts, call, InitClientName)
+}
+
+// ApiTypeImports reports, once per import statement of this file, each value import of a name the `initClient`
+// type argument is written with, local type aliases followed: that type is server code (SRV001).
+func ApiTypeImports(typeChecker *checker.Checker, markerOpts marker.Options, sourceFile *ast.SourceFile, filePath string) []diagnostics.Diagnostic {
+	if sourceFile == nil || sourceFile.IsDeclarationFile || !strings.Contains(sourceFile.Text(), InitClientName) {
+		return nil
+	}
+	var found []diagnostics.Diagnostic
+	reported := map[*ast.Node]bool{}
+	forEachCall(sourceFile, func(call *ast.Node) bool {
+		if call.TypeArguments() == nil || !isInitClientCall(typeChecker, markerOpts, call) {
+			return true
+		}
+		for _, typeArgument := range call.TypeArguments() {
+			marker.EachWrittenTypeName(typeChecker, typeArgument, func(name *ast.Node) {
+				statement, specifier := valueImportOf(typeChecker, name)
+				if statement == nil || reported[statement] || ast.GetSourceFileOfNode(statement) != sourceFile {
+					return
+				}
+				reported[statement] = true
+				found = append(found, diagnostics.New(diagnostics.CodeServerImportInClient, textpos.NodeSite(filePath, sourceFile, statement), name.Text(), specifier))
+			})
+		}
+		return true
+	})
+	return found
+}
+
+// valueImportOf returns name's import statement and specifier, or nil for a type-only or non-import binding.
+func valueImportOf(typeChecker *checker.Checker, name *ast.Node) (*ast.Node, string) {
+	if name == nil || !ast.IsIdentifier(name) {
+		return nil, ""
+	}
+	symbol := typeChecker.GetSymbolAtLocation(name)
+	if symbol == nil || symbol.Flags&ast.SymbolFlagsAlias == 0 {
+		return nil, ""
+	}
+	declaration := checker.Checker_getDeclarationOfAliasSymbol(typeChecker, symbol)
+	if declaration == nil || ast.IsTypeOnlyImportDeclaration(declaration) {
+		return nil, ""
+	}
+	for node := declaration; node != nil; node = node.Parent {
+		switch {
+		case ast.IsImportDeclaration(node):
+			return node, node.AsImportDeclaration().ModuleSpecifier.Text()
+		case ast.IsImportEqualsDeclaration(node):
+			reference := node.AsImportEqualsDeclaration().ModuleReference
+			if !ast.IsExternalModuleReference(reference) {
+				return nil, ""
+			}
+			return node, reference.AsExternalModuleReference().Expression.Text()
+		}
+	}
+	return nil, ""
 }
