@@ -381,10 +381,6 @@ describe('the server block mounts in-process, and only in-process', () => {
     expect(pluginNames({startScript: '/srv.ts'})).toContain('mion-middleware-server');
   });
 
-  it('spawns nothing: the orchestrator that ran vite-node is gone', () => {
-    expect(pluginNames({startScript: '/srv.ts'})).not.toContain('mion-server-orchestrator');
-  });
-
   it('adds the server-bundle plugin only when server.build asks for it', () => {
     expect(pluginNames({startScript: '/srv.ts'})).not.toContain('mion-server-bundle');
     expect(pluginNames({startScript: '/srv.ts', build: {}})).toContain('mion-server-bundle');

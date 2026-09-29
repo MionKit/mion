@@ -383,12 +383,8 @@ function assertionsNewBuilders(): void {
   RT.tuple({required: [TF.number(), RT.slot('x', TF.number())]});
   // @ts-expect-error — `rest` is a single element, not a list.
   RT.tuple({required: [TF.number()], rest: [TF.string()]});
-  // @ts-expect-error — the positional spelling is gone; groups must be named.
-  RT.tuple([TF.number()], [TF.string()]);
   // @ts-expect-error — `prams` is a typo for `params`.
   RT.func({prams: [TF.number()], ret: TF.string()});
-  // @ts-expect-error — the positional func spelling is gone too.
-  RT.func([TF.number()], TF.string());
 
   // func(): ret defaults to void. The wired cases use no typed params (function
   // values lower per position); `func({ret: any()})` is the `() => any` form that

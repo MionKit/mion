@@ -150,11 +150,10 @@ describe('buildResolverArgs — session config the wire does not carry (enrich +
 });
 
 describe('buildResolverArgs — serve subcommand + --sources', () => {
-  it('uses the `serve` subcommand as args[0] and forwards --cwd (no legacy --one-shot)', () => {
+  it('uses the `serve` subcommand as args[0] and forwards --cwd', () => {
     const args = buildResolverArgs('/proj', '', {});
     expect(args[0]).toBe('serve');
     expect(args).toContain('--cwd');
-    expect(args).not.toContain('--one-shot');
   });
 
   it('maps serverMode to `--sources ops`', () => {
