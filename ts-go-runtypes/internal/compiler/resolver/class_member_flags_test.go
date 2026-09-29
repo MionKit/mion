@@ -77,8 +77,7 @@ func TestClassMemberFlags_PrivateFieldsAccessorsAndFunctionFields(t *testing.T) 
 	}
 }
 
-// No family reads a #field by its internal name: before the skip, validate checked `v['\xFE#…@#secret']`
-// and so failed every real instance, and the JSON encoder wrote that bogus key.
+// Reading `v['\xFE#…@#secret']` failed validate on every real instance and made the encoder write a bogus key.
 func TestClassMemberFlags_NoFamilyReadsAPrivateField(t *testing.T) {
 	r := setupInline(t, map[string]string{"account.ts": classMemberFlagsSource, "site.ts": `import {createValidateFn, createJsonEncoderFn, createJsonDecoderFn, createRemoveUnknownKeysFn} from '@mionjs/run-types';
 import {Account} from './account.ts';

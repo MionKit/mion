@@ -133,8 +133,8 @@ const (
 	CodeFMTPatternUnsafe = "FMT008"
 )
 
-// removeUnknownKeys returns `T`, so a declared member is never dropped: it is copied, shared with a notice
-// (RUK010 / RUK015 / RUK016), or the function always throws (RUK001 / 004 / 005 / 006). RUK003 is retired.
+// removeUnknownKeys never drops a declared member: copied, shared (RUK010/015/016) or it throws (RUK001/004-006).
+// RUK003 is retired.
 const (
 	CodeRUKUnionRoot               = "RUK001"
 	CodeRUKSymbolKeyedMember       = "RUK004"

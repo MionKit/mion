@@ -1203,8 +1203,7 @@ func numericLiteralText(node *ast.Node) (string, bool) {
 	return strconv.FormatFloat(value, 'g', -1, 64), true
 }
 
-// extractStrategyOption reads the `strategy` string property from the options slot, the JSON encoder/decoder
-// compile-time selector. "" when absent or not a string literal, so the caller falls back to the default strategy.
+// extractStrategyOption reads the JSON encoder/decoder `strategy`; "" makes the caller use the default strategy.
 func extractStrategyOption(typeChecker *checker.Checker, call *ast.Node, lastIndex, argsCount int) string {
 	return extractStringOption(typeChecker, call, lastIndex, argsCount, "strategy")
 }
@@ -1216,8 +1215,7 @@ func extractStringOption(typeChecker *checker.Checker, call *ast.Node, lastIndex
 		if name != option || initializer == nil {
 			return
 		}
-		// Last-write-wins: a later value, inline or from a later spread, replaces an earlier one,
-		// matching the merge semantics of `{...preset, strategy: '…'}`.
+		// Last write wins, inline or from a later spread, as in `{...preset, strategy: '…'}`.
 		if initializer.Kind == ast.KindStringLiteral || initializer.Kind == ast.KindNoSubstitutionTemplateLiteral {
 			value = initializer.Text()
 		}
