@@ -1,5 +1,5 @@
 /* eslint-disable */
-// This file demonstrates the ESLint rules for @mionjs/router
+// This file demonstrates the mion route checks the lint plugin reports
 // The rules are disabled for this file so you can see both valid and invalid examples
 import {HeadersSubset, RpcError, FatalError, TypedError} from '@mionjs/core';
 import {
@@ -12,7 +12,7 @@ import {
 const mion = createMionRouter();
 
 // ========================================
-// ✅ VALID EXAMPLES (these should NOT trigger ESLint errors)
+// ✅ VALID EXAMPLES (these should NOT trigger mion/error)
 // ========================================
 
 // start:strong-typed-valid-inline
@@ -85,11 +85,11 @@ function headersFnWithJSDoc(
 // end:strong-typed-valid-jsdoc
 
 // ========================================
-// ❌ INVALID EXAMPLES (these SHOULD trigger ESLint errors when rule is enabled)
+// ❌ INVALID EXAMPLES (these trigger mion/error when the lint rules are on)
 // ========================================
 
 // ========================================
-// Rule: @mionjs/strong-typed-routes
+// MRT001 / MRT002: typed handlers
 // ========================================
 
 // start:strong-typed-invalid-inline
@@ -159,7 +159,7 @@ function invalidHeadersFnJSDoc(c: CallContext, {headers}): void {
 // end:strong-typed-invalid-jsdoc
 
 // ========================================
-// Rule: @mionjs/no-throw-in-handlers
+// MRT003: return errors instead of throwing
 // ========================================
 
 // start:no-throw-valid
@@ -219,7 +219,7 @@ mion.route((ctx, id: string): string => {
 // end:no-throw-invalid
 
 // ========================================
-// Rule: @mionjs/returned-error-type
+// MRT004: returned error types
 // ========================================
 
 // start:returned-error-valid
