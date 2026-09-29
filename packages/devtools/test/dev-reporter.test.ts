@@ -1,8 +1,5 @@
-// What a real vite dev server prints for mion findings: only what breaks running code, each once per session,
-// through the dev server's logger without clearing the terminal. Warnings give way to one count line, since the
-// editor shows them through the mion lint rules. A RuntimeError added by an edit is reported (it used to be
-// lost: the edit handler read only the scan, never the regenerated program), and a fatal Error prints once and
-// is thrown by the transform, which puts it in the overlay.
+// A real vite dev server prints only what breaks running code, once per session, without clearing the terminal.
+// A RuntimeError added by an edit used to be lost: the edit handler read only the scan, not the regenerated program.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';

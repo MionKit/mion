@@ -16,10 +16,7 @@ import {fileURLToPath} from 'node:url';
 // condition), so a broken `build/` output would only ever surface here or in a
 // consumer's project — never in the package's own tests, which import source.
 //
-// The `mion/*` rules are compiler-fed, so this also proves the resolver path:
-// the plugin resolves the published binary through @mionjs/bin-compiler and runs
-// it over the consumer's own tsconfig. A rule that reported nothing here would
-// mean the entry loaded but never reached the binary.
+// The `mion/*` rules are compiler-fed: a rule that reported nothing means the entry never reached the binary.
 const consumerRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const eslintBin = resolve(consumerRoot, 'node_modules/.bin/eslint');
 

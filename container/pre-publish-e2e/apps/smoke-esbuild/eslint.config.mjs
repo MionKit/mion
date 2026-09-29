@@ -1,18 +1,6 @@
-// ESLint v9+ flat config wiring the RunTypes lint transport (the SAME module that
-// serves oxlint, here as an ESLint plugin). The transport, not the diagnostic
-// catalog, is under test: linting the caveat must surface an RT diagnostic.
-//
-// No `files` restriction so the config applies to whatever file eslint is told to
-// lint (the lint-transport test targets src/caveat.ts explicitly).
-//
-// settings.mion.tsconfig points the resolver at THIS app's tsconfig: the
-// linters run from the e2e root, so without it the resolver would search upward
-// from there and adopt some other project's config (or none). `mion/info` shows
-// the caveat's skipped member, an Info hidden by default. The working directory is
-// not a setting: the plugin runs where the linter runs. In-container the binary
-// comes from the published @mionjs/bin-compiler launcher (exactly what the e2e
-// proves); for host runs the spawner forwards MION_E2E_BINARY to the launcher's
-// MION_BIN env var (see ../../lint-all.mjs).
+// Tests the lint TRANSPORT, not the catalog. settings.mion.tsconfig is needed because the linters run from the e2e
+// root, where the resolver would adopt another project's config (or none). `mion/info` shows the caveat's skipped
+// member, an Info hidden by default. Host runs forward MION_E2E_BINARY to MION_BIN (see ../../lint-all.mjs).
 import {fileURLToPath} from 'node:url';
 import mion from '@mionjs/devtools/eslint';
 import tsParser from '@typescript-eslint/parser';
@@ -32,9 +20,7 @@ export default [
         tsconfig: appTsconfig,
       },
     },
-    // The plugin's own recommended set plus Info. Real rule names matter: ESLint reports an unknown rule as
-    // "Definition for rule 'mion/x' was not found", which contains the word the transport test greps for, so a
-    // stale name would pass the lane without ever loading the plugin. The test refuses that text.
+    // Real rule names matter: an unknown one prints "Definition for rule 'mion/x' was not found", which says "mion".
     rules: {...mion.configs.recommended.rules, 'mion/info': 'warn'},
   },
 ];

@@ -287,8 +287,7 @@ func TestExpectError_TypoIsReportedToTheLinter(t *testing.T) {
 	}
 }
 
-// buildOnlyDirectiveSource names codes only the whole-program build can raise (BAT003) or that a per-file scan
-// raises only with the bundleApi lane on (MET006 is build-only too), above a healthy line.
+// buildOnlyDirectiveSource takes a code only the build raises: whole-program (BAT003) or bundleApi-only (MET006).
 func buildOnlyDirectiveSource(code string) string {
 	return `import {getRunTypeId} from '@mionjs/run-types';
 // @mion-expect-error ` + code + `
@@ -298,8 +297,7 @@ export const idReflected = getRunTypeId(sample);
 `
 }
 
-// TestExpectError_LintPassDoesNotJudgeBuildOnlyCodes: the linter's per-file scan can never raise BAT003 or MET006,
-// so calling a comment naming them unused told the user to delete a comment the build needs.
+// TestExpectError_LintPassDoesNotJudgeBuildOnlyCodes: else the linter says to delete a comment the build needs.
 func TestExpectError_LintPassDoesNotJudgeBuildOnlyCodes(t *testing.T) {
 	for _, code := range []string{diagnostics.CodeBatchIdCollision, diagnostics.CodeApiMetaOptionWidened, diagnostics.CodeApiMetaRouteWidened} {
 		session := setupInline(t, map[string]string{"entry.ts": buildOnlyDirectiveSource(code)})
@@ -329,8 +327,7 @@ func TestExpectError_LintPassStillJudgesCodesItRaises(t *testing.T) {
 	}
 }
 
-// TestExpectError_BuildJudgesOverrideFindings: the build now raises OVR001, so a comment naming it is used there,
-// and the lint pass over the other file does not judge it.
+// TestExpectError_BuildJudgesOverrideFindings: an OVR001 comment is used in the build and not judged by the lint pass.
 func TestExpectError_BuildJudgesOverrideFindings(t *testing.T) {
 	sources := map[string]string{
 		"runtypes.d.ts": overrideDTS,

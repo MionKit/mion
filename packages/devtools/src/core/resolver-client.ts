@@ -126,8 +126,7 @@ function isTransportLoss(reason: string): boolean {
 // How long close() waits for in-flight requests before releasing the process anyway: a hung child must not wedge teardown.
 const CLOSE_DRAIN_TIMEOUT_MS = 5000;
 
-// Common JSON-per-line framing, owning the in-flight request queue. Agnostic to whether the streams come from
-// a spawned child process or a pre-spawned launcher's pipes.
+// JSON-per-line framing and the in-flight queue, for a spawned child or a pre-spawned launcher's pipes.
 class MessageTransport {
   private lines: Interface;
   private queue: Array<(r: Response) => void> = [];
@@ -165,7 +164,7 @@ class MessageTransport {
     return {bytesWritten: this.bytesWritten, bytesRead: this.bytesRead, requests: this.requestCount};
   }
 
-  // markClosed drains pending requests with an error; called by external close hooks (a child's 'exit').
+  // markClosed is called by external close hooks (a child's 'exit').
   markClosed(reason: string): void {
     this.closed = true;
     this.clearDrainTimer();
@@ -308,8 +307,7 @@ export interface EnrichResult {
   diagnostics?: Diagnostic[];
 }
 
-// Common operation surface: the spawn-based and stream-based clients both implement it, so a consumer can be typed
-// against the connection without caring which transport is in use.
+// Shared by the spawn-based and stream-based clients, so a consumer need not care which transport is in use.
 export interface ResolverConnection {
   scanFiles(files: string[], opts?: ScanFilesOptions): Promise<ScanFilesResult>;
   transform(files: string[], opts?: TransformOptions): Promise<TransformFilesResult>;
@@ -336,8 +334,7 @@ export interface TransformOptions {
 abstract class ResolverClientBase implements ResolverConnection {
   protected abstract transport: MessageTransport;
 
-  // Single request path for every op: ResolverClient overrides it with the respawn-retry lane, the stream
-  // client keeps the plain transport.
+  // Single request path for every op; ResolverClient overrides it with the respawn-retry lane.
   protected send(req: Request): Promise<Response> {
     return this.transport.request(req);
   }

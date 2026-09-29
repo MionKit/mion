@@ -8,9 +8,8 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
-// TestGenerate_OutDirFollowsTheTsconfigNotTheOverlay: a dev server's setSources roots every project file, a root
-// `vite.config.ts` included. The inferred folder must stay `<include dir>/.mion`, as the build start wrote it,
-// instead of climbing to the project root after the first edit.
+// TestGenerate_OutDirFollowsTheTsconfigNotTheOverlay: once setSources roots a root `vite.config.ts`, the folder must
+// stay `<include dir>/.mion` rather than climb to the project root.
 func TestGenerate_OutDirFollowsTheTsconfigNotTheOverlay(t *testing.T) {
 	dir := tspath.NormalizePath(t.TempDir())
 	writeDisk(t, tspath.ResolvePath(dir, "tsconfig.json"), `{"compilerOptions": {"strict": true, "noEmit": true, "types": []}, "include": ["src"]}`)

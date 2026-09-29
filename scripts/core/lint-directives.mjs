@@ -16,8 +16,7 @@ export function directiveFiles(repoRoot = REPO_ROOT) {
   return listed.stdout.split('\0').filter(Boolean);
 }
 
-// The mion rules report every level, so the JSON output is filtered to the directive codes (EXP / DWN) and to an
-// engine failure, reported as `[mion] ...`; the other findings are the tests' own fixtures.
+// Only directive codes (EXP / DWN) and an engine failure (`[mion] ...`) fail; other findings are the tests' fixtures.
 const FAILING = /^\[(?:(?:EXP|DWN)\d+\]|mion\])/;
 
 export function failingDiagnostics(stdout) {

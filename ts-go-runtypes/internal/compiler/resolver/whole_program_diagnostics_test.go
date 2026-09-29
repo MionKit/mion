@@ -31,8 +31,7 @@ func codesAt(diags []diagnostics.Diagnostic, code string) []string {
 	return files
 }
 
-// TestScanFiles_ReportsOnlyTheRequestedFilesOverrideFindings: scanning a.ts must not return the OVR001 anchored in
-// b.ts, which a linter would otherwise report at a.ts positions.
+// TestScanFiles_ReportsOnlyTheRequestedFilesOverrideFindings: a linter would report b.ts's OVR001 at a.ts positions.
 func TestScanFiles_ReportsOnlyTheRequestedFilesOverrideFindings(t *testing.T) {
 	r := setupInline(t, overridePairSources())
 	resp := r.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"a.ts"}})
@@ -50,8 +49,7 @@ func TestScanFiles_ReportsOnlyTheRequestedFilesOverrideFindings(t *testing.T) {
 	}
 }
 
-// TestTransform_ReportsOnlyTheRequestedFilesOverrideFindings: the transform lane filters the same way, so a dev
-// server transforming several files prints each override finding once.
+// TestTransform_ReportsOnlyTheRequestedFilesOverrideFindings: a dev server transforming several files prints each once.
 func TestTransform_ReportsOnlyTheRequestedFilesOverrideFindings(t *testing.T) {
 	r := setupInline(t, overridePairSources())
 	resp := r.Dispatch(protocol.Request{Op: protocol.OpTransform, Files: []string{"a.ts"}})
@@ -63,8 +61,7 @@ func TestTransform_ReportsOnlyTheRequestedFilesOverrideFindings(t *testing.T) {
 	}
 }
 
-// TestGenerate_ReportsOverrideFindings: the build-start report carries OVR001 (RuntimeError) and the kept
-// override's OVR010 (Info).
+// TestGenerate_ReportsOverrideFindings: OVR001 (RuntimeError) and the kept override's OVR010 (Info).
 func TestGenerate_ReportsOverrideFindings(t *testing.T) {
 	r := setupGen(t, overridePairSources(), t.TempDir())
 	resp := r.Dispatch(protocol.Request{Op: protocol.OpGenerate})
@@ -83,8 +80,7 @@ func TestGenerate_ReportsOverrideFindings(t *testing.T) {
 	}
 }
 
-// generateAfterScanReportsMKR003 scans a.ts first, as a hot update does, then checks generate still reports its
-// marker finding once.
+// generateAfterScanReportsMKR003 scans a.ts first, as a hot update does.
 func generateAfterScanReportsMKR003(t *testing.T, src string) {
 	t.Helper()
 	r := setupGen(t, map[string]string{"a.ts": src, "b.ts": "export const b = 1;\n"}, t.TempDir())

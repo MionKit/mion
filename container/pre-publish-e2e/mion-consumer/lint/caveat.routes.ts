@@ -5,17 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Deliberately WRONG routes. The mion/error rule must flag each:
-//  - `noReturnType` has no return type annotation  [MRT001]
-//  - `untypedParam` has an untyped parameter       [MRT002]
-//  - `throwsInstead` throws instead of returning   [MRT003]
-//  - `plainError` answers with a bare Error        [MRT004]
-// The rules are compiler-fed, so this file DOES have to resolve: the plugin runs
-// the published resolver binary over the project tsconfig (which includes
-// lint/), and that is exactly what is under test here — the TRANSPORT plus the
-// resolver path a consumer install takes. A silent pass means
-// @mionjs/devtools/eslint loaded but registered nothing, or never reached the
-// binary.
+// Deliberately WRONG routes, one per MRT001 to MRT004. The file must resolve: the plugin runs the published resolver
+// over the project tsconfig (which includes lint/), so a silent pass means it registered nothing or never reached it.
 import {createMionRouter} from '@mionjs/router';
 
 const mion = createMionRouter();

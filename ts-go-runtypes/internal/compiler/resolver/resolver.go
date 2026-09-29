@@ -233,8 +233,8 @@ type Session struct {
 	// Mutex-guarded: the parallel scan path can hit it from several checker groups. Dies with the Program.
 	unresolvedSpecifiersByFile map[string][]string
 	unresolvedSpecifiersMutex  sync.Mutex
-	// scanDiagnosticsByFile keeps every scan's marker diagnostics (MKR/CTA/TMP/PFN…) per absolute scanned file, a
-	// rescan replacing its entry, so OpGenerate/OpDump report files a per-file scanFiles reached first. Dies with the Program.
+	// scanDiagnosticsByFile lets OpGenerate/OpDump report files a per-file scanFiles reached first; a rescan replaces
+	// its entry. Dies with the Program.
 	scanDiagnosticsByFile map[string][]diagnostics.Diagnostic
 }
 

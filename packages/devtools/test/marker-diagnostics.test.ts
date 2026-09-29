@@ -337,7 +337,6 @@ export const _ = createValidateFn(makeUser());
       const diagnostic = markerDiagsOf(response)[0];
       expect(diagnostic).toBeDefined();
       const line = formatTscDiagnostic(diagnostic);
-      // The printed line shape: path(line,col): severity code: msg
       expect(line).toMatch(/^[^(]+\(\d+,\d+\):\s+warning\s+MKR001:\s+.+$/);
     });
   });

@@ -51,8 +51,7 @@ describe('level routing (one rule per level, never per topic)', () => {
   });
 });
 
-// Go↔JS drift guard: every level the Go catalog uses lands on the rule named for it, and each rule's default
-// matches what the build does with that level (stops, prints, hides).
+// Go↔JS drift guard: every catalog level routes to its rule, at the default the build uses for that level.
 describe('catalog coverage: every code routes to the rule of its level', () => {
   const RULE_DEFAULT = new Map<RuleName, string>(RULE_SPECS.map((spec) => [spec.name, spec.default]));
   const levelEnum = {error: Level.Error, runtimeError: Level.RuntimeError, warning: Level.Warning, info: Level.Info} as const;

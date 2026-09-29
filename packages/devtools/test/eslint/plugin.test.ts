@@ -181,9 +181,7 @@ type TypeFormat<Base, Name extends string, Params> = Base & {
 export const isCode = createValidateFn<TypeFormat<string, 'stringFormat', {pattern: {source: '(?<=x)y'; flags: ''; mockSamples: ['nope']}}>>();
 `;
 
-// Transparency: the plugin reads timeoutMs, tsconfig, binary and markers under settings.mion. cwd / socket are
-// NOT read: the working directory is resolved automatically, like any other linter. Pure function, so this runs
-// without the resolver binary.
+// cwd / socket are NOT read: the working directory is resolved automatically. Runs without the resolver binary.
 describe('sessionOptions: timeoutMs, tsconfig and binary are configurable', () => {
   it('reads timeoutMs, tsconfig and binary, drops cwd and socket', () => {
     expect(
@@ -191,7 +189,7 @@ describe('sessionOptions: timeoutMs, tsconfig and binary are configurable', () =
     ).toEqual({binary: '/x', timeoutMs: 5000, tsconfig: './tsconfig.lint.json'});
   });
 
-  // One warning per key per run: enough to notice, not enough to drown a lint of a thousand files.
+  // Once per key per run, so a lint of a thousand files is not drowned.
   it('warns once per unsupported key, naming it and the supported set', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     try {
@@ -246,8 +244,7 @@ describe('sessionOptions: timeoutMs, tsconfig and binary are configurable', () =
   });
 });
 
-// recommended is what the docs tell ESLint users to spread: the one plugin, and each level rule at the default
-// that matches what the build does with that level.
+// recommended is what the docs tell ESLint users to spread.
 describe('configs.recommended: the three level rules at their defaults', () => {
   it('registers the mion plugin and sets each level rule to its default', () => {
     const rec = plugin.configs['recommended'] as {plugins: Record<string, unknown>; rules: Record<string, string>};
@@ -255,8 +252,7 @@ describe('configs.recommended: the three level rules at their defaults', () => {
     expect(rec.rules).toEqual({'mion/error': 'error', 'mion/warning': 'warn', 'mion/info': 'off'});
   });
 
-  // enforce-type-imports is the one hand-written rule. It stays out of recommended: it reports nothing without a
-  // `backendSources` option, so a project opts in and configures it in the same edit.
+  // It reports nothing without a `backendSources` option, so a project opts in and configures it together.
   it('keeps enforce-type-imports registered but out of recommended', () => {
     const rec = plugin.configs['recommended'] as {rules: Record<string, string>};
     expect(rules['enforce-type-imports']).toBeTruthy();
@@ -269,8 +265,7 @@ describe('configs.recommended: the three level rules at their defaults', () => {
   });
 });
 
-// oxlint-recommended.json is the OXlint twin of configs.recommended: oxlint has no plugin-exported presets, but its
-// `extends` takes config FILE paths, so the package ships a ready-made config. Pin it against RULE_SPECS.
+// oxlint has no plugin-exported presets, but its `extends` takes config FILE paths, so the package ships one.
 describe('oxlint-recommended.json: the shipped extends preset matches RULE_SPECS', () => {
   it('carries the dist plugin path and every level rule at its default', () => {
     const presetPath = new URL('../../oxlint-recommended.json', import.meta.url);
@@ -344,7 +339,6 @@ describe.runIf(hasBinary())(
       return runRule(rules[ruleName]!, abs.get(rel)!, texts[rel]!, settings);
     }
 
-    // codesFor lists the `[CODE]` of every report one level rule makes on a file.
     function codesFor(ruleName: string, rel: string): string[] {
       return reportsFor(ruleName, rel).map((report) => report.message.match(/^\[([A-Z]+\d+)\]/)?.[1] ?? report.message);
     }
@@ -483,8 +477,7 @@ describe.runIf(hasBinary())(
       });
     });
 
-    // The mion route findings, end to end: the compiler produces them, the level rules report them, and a file
-    // with no runtypes marker still gets a resolver pass.
+    // A file with no runtypes marker still gets a resolver pass.
     describe('mion route findings', () => {
       it('reports each finding at its level, on a file with no runtypes marker', () => {
         expect(ROUTES_TS).not.toContain('@mionjs/run-types');
@@ -498,8 +491,7 @@ describe.runIf(hasBinary())(
         }
       });
 
-      // A lint report carries a line and column but no file: the host pins it to the file it is linting. So a
-      // finding about a handler defined elsewhere has to be reported at the ROUTE CALL.
+      // A lint report carries no file, so a finding about a handler defined elsewhere must land at the ROUTE CALL.
       it('checks a handler imported from another module, and reports it at the route call', () => {
         const reports = reportsFor('error', 'importing-routes.ts');
         expect(reports.map((one) => one.message.slice(0, 8)).sort()).toEqual(['[MRT001]', '[MRT003]']);

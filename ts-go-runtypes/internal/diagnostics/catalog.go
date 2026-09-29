@@ -43,10 +43,8 @@ const (
 	LevelInfo Level = 4
 )
 
-// Severity is DERIVED from Level, never authored per code: it is the label form the printed line
-// needs, so both error levels read as "error". Code that must tell
-// them apart reads Level. It controls nothing by itself; the consumer decides what to do with a
-// finding. Numeric to keep the wire compact.
+// Severity is DERIVED from Level, never authored per code; both error levels read "error", so code that must
+// tell them apart reads Level. It controls nothing, the consumer decides. Numeric to keep the wire compact.
 type Severity uint8
 
 const (
@@ -83,7 +81,7 @@ func LevelLabel(level Level) string {
 	return "error"
 }
 
-// SeverityLabel returns the lowercase word the printed line uses, as `tsc --pretty=false` does.
+// SeverityLabel returns the lowercase word `tsc --pretty=false` prints.
 func SeverityLabel(severity Severity) string {
 	switch severity {
 	case SeverityError:
@@ -317,11 +315,9 @@ func NewWithRelated(code string, site Site, args []string, related ...Related) D
 	return out
 }
 
-// headlineArgRE matches a `{N}` placeholder in a Headline.
 var headlineArgRE = regexp.MustCompile(`\{(\d+)\}`)
 
-// RenderHeadline fills a code's Headline with its args, a missing arg rendering empty; twin of renderHeadline in
-// packages/devtools/src/core/diagnosticCatalog.ts.
+// RenderHeadline is the twin of renderHeadline in packages/devtools/src/core/diagnosticCatalog.ts.
 func RenderHeadline(code string, args []string) string {
 	definition, ok := Definitions[code]
 	if !ok {
@@ -336,11 +332,7 @@ func RenderHeadline(code string, args []string) string {
 	})
 }
 
-// Format renders the user-facing line `mion compile` prints, the same shape as formatTscDiagnostic in the
-// bundler plugin; downgraded prints the finding as a warning with DowngradedNote.
-//
-//	<path>(<line>,<col>): <severity> <code>: <headline>
-//	  Related: <path>(<line>,<col>): <message>
+// Format renders the line `mion compile` prints, the same shape as formatTscDiagnostic in the bundler plugin.
 func Format(diagnostic Diagnostic, downgraded bool) string {
 	severity, suffix := diagnostic.Severity, ""
 	if downgraded {

@@ -1,10 +1,6 @@
-// The `downgradeErrors` rule: report a named RuntimeError code as a Warning, so one known finding
-// stops halting a build while every other one still does. It DOWNGRADES, never hides: the finding is
-// still printed on every build (`@mion-expect-error` removes one outright, site-local and
-// self-cleaning, so it is the better tool when the call site is your own source). Only a RuntimeError
-// qualifies: a fatal Error produced no output to carry on with. Severity on the wire is untouched, so
-// the downgrade is applied where the halt decision is made, here for the bundler plugin and in
-// `mion compile` for its exit code; the linter reports a lowered finding under mion/warning.
+// `downgradeErrors` reports a named RuntimeError code as a Warning: it DOWNGRADES, never hides (`@mion-expect-error`
+// removes one outright). A fatal Error never qualifies, it produced no output. Wire severity is untouched, so the
+// downgrade applies where the halt is decided: here for the bundler plugin, in `mion compile` for its exit code.
 // Go twin: ts-go-runtypes/internal/diagnostics/downgrade.go.
 import {DIAGNOSTIC_CATALOG} from './go-generated/diagnosticCatalog.generated.ts';
 import {Level, type Diagnostic} from './protocol.ts';

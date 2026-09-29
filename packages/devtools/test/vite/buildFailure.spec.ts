@@ -29,9 +29,7 @@ const FIXTURES = resolve(dirname(fileURLToPath(import.meta.url)), '../../test-fi
 
 type BuildOutcome = {ok: boolean; codes: string[]; messages: string[]; error: string; loc?: {file: string; line: number}};
 
-/** Runs one fixture through a real vite build with the mion plugin and reports what came out,
- *  instead of throwing. Diagnostics reach us as plugin WARNINGS (upstream's `ctx.warn`); the thrown
- *  error names the first one and carries its place (`loc`), which vite's overlay reads. */
+/** Diagnostics arrive as plugin WARNINGS; the thrown error carries the first one's `loc`, which vite's overlay reads. */
 async function buildFixture(name: string, runTypes: Partial<MionRunTypesOptions> = {}): Promise<BuildOutcome> {
   const dir = resolve(FIXTURES, name);
   const messages: string[] = [];
@@ -85,7 +83,7 @@ describe('build halts on pattern diagnostics', () => {
     const result = await buildFixture('fmt003');
     expect(result.codes).toContain('FMT003');
     expect(result.ok).toBe(false);
-    // The thrown error names the code and carries the place, which is what the vite overlay shows.
+    // The code and place are what the vite overlay shows.
     expect(result.error).toMatch(/build stopped on 1 mion error\. First: .*FMT003/);
     expect(result.loc).toMatchObject({file: resolve(FIXTURES, 'fmt003/index.ts'), line: expect.any(Number)});
   }, 60_000);

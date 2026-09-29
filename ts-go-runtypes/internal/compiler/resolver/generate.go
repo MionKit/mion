@@ -334,9 +334,8 @@ func (sess *Session) resolveOutDir() string {
 	return filepath.Join(sess.inferSrcDir(), outputDirName)
 }
 
-// inferSrcDir is program.InferSrcDir over the session's tsconfig, the one inference the enrich CLI shares. The
-// config's own file list, never the current Program's roots: a dev server's setSources roots every project file
-// (a root `vite.config.ts` included), which would move the folder after the first edit.
+// inferSrcDir is shared with the enrich CLI. It reads the config's file list, never the Program's roots: a dev
+// server's setSources roots every file (a root `vite.config.ts` included), which would move the folder after an edit.
 func (sess *Session) inferSrcDir() string {
 	cwd := sess.workingDir()
 	if config, err := sess.ensureInferredConfig(cwd); err == nil && config != nil {

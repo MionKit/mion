@@ -28,7 +28,6 @@ export const idReflected = getRunTypeId(sample);
 
 var throwSiteRE = regexp.MustCompile(`\(at [^)]*\)`)
 
-// throwSitesIn returns every runtime error site suffix written under outDir.
 func throwSitesIn(t *testing.T, outDir string) []string {
 	t.Helper()
 	var found []string
@@ -45,8 +44,7 @@ func throwSitesIn(t *testing.T, outDir string) []string {
 	return found
 }
 
-// throwSiteAfterScanning scans firstFile alone (as a hot update does), generates, and returns the site suffix of
-// the shared validator's runtime error.
+// throwSiteAfterScanning scans firstFile alone first, as a hot update does.
 func throwSiteAfterScanning(t *testing.T, firstFile string) string {
 	t.Helper()
 	outDir := t.TempDir()
@@ -64,8 +62,7 @@ func throwSiteAfterScanning(t *testing.T, firstFile string) string {
 	return found[0]
 }
 
-// TestThrowProvenance_StableAcrossScanOrder: the shared validator names the same call site, and says another one
-// shares it, whichever file a scan reached first.
+// TestThrowProvenance_StableAcrossScanOrder: the named site must not depend on which file a scan reached first.
 func TestThrowProvenance_StableAcrossScanOrder(t *testing.T) {
 	fromA := throwSiteAfterScanning(t, "a.ts")
 	fromB := throwSiteAfterScanning(t, "b.ts")
@@ -77,8 +74,7 @@ func TestThrowProvenance_StableAcrossScanOrder(t *testing.T) {
 	}
 }
 
-// TestThrowProvenance_WarmCacheNamesTheLiveSite: after an edit moves the call, a build reading the disk cache
-// names the new line, not the one the cold build wrote.
+// TestThrowProvenance_WarmCacheNamesTheLiveSite: after an edit moves the call, a warm build names the new line.
 func TestThrowProvenance_WarmCacheNamesTheLiveSite(t *testing.T) {
 	cacheDir := t.TempDir()
 	build := func(source string) string {

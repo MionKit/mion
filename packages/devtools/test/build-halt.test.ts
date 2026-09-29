@@ -1,8 +1,5 @@
-// How a build prints mion findings and stops. Three things are pinned here, each on the real plugin and binary:
-//   - a build prints EVERY finding before it stops, so a fatal Error never hides the RuntimeErrors after it;
-//   - the halt names the first error's code and place, and carries `id` / `loc` for vite's overlay;
-//   - a bundler whose buildStart context has no `warn` or `error` (webpack, rspack, esbuild, bun) still prints
-//     and still fails, where the findings used to vanish and the build passed.
+// On the real plugin and binary: a fatal Error never hides the RuntimeErrors after it, and a bundler whose
+// buildStart context has no `warn` or `error` (webpack, rspack, esbuild, bun) still prints and still fails.
 import fs from 'node:fs';
 import path from 'node:path';
 import * as esbuild from 'esbuild';
@@ -12,8 +9,8 @@ import runtypesRollup from '../src/runtypes/rollup.ts';
 import type {HaltError} from '../src/core/surface.ts';
 import {BIN, createMarkerProject, hasBinary} from './helpers/inline.ts';
 
-// MKR003 (a marker in a generic function) is a fatal Error; VL002 (a root `symbol`) a RuntimeError. Both call
-// shapes of getRunTypeId ride along and must resolve.
+// MKR003 (marker in a generic function) is a fatal Error, VL002 (root `symbol`) a RuntimeError.
+// Both getRunTypeId shapes must resolve.
 const MIXED_SRC = `import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
 export function makeValidator<T>() {
   return createValidateFn<T>();

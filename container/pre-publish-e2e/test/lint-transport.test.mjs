@@ -3,7 +3,7 @@
 // (@mionjs/devtools/{oxlint,eslint}) is wired and surfaces an RT diagnostic.
 // The TRANSPORT is under test, not the diagnostic catalog — the caveat's
 // non-serializable member reliably drives a VL0xx Info from the resolver, shown by
-// both configs' `levels: 'all'`.
+// both configs turning on `mion/info`.
 //
 // oxlint rides build-vite; eslint rides smoke-esbuild — both published linters.
 import {test} from 'node:test';
@@ -16,10 +16,7 @@ import {fileURLToPath} from 'node:url';
 const E2E_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BIN = path.join(E2E_ROOT, 'node_modules/.bin');
 
-// The transport is wired if its rule name reaches the output — as a real RT
-// diagnostic (VL0xx / mion/<level>) in-container where the resolver
-// binary is installed, or as its `[mion]` engine line on a host without the
-// platform binary. Either proves the plugin loaded and ran; a silent no-op fails.
+// Wired: a real diagnostic in-container, or the `[mion]` engine line on a host without the platform binary.
 const WIRED = /mion[/(](?:error|warning|info)|\[mion\]|VL0\d\d/i;
 
 // A config failure is NEVER an acceptable outcome: it means the app's lint config
@@ -28,11 +25,7 @@ const WIRED = /mion[/(](?:error|warning|info)|\[mion\]|VL0\d\d/i;
 // CFG001, so this can't collide with the tolerated missing-binary engine line.
 const MISCONFIGURED = /CFG001/i;
 
-// A linter that could not load the plugin, or was handed a rule the plugin does
-// not define, ALSO prints the word "mion" ("Failed to load JS plugin ...",
-// "Definition for rule 'mion/x' was not found", "unknown rule"), which is
-// exactly how a stale plugin path or rule name once passed this lane without a
-// single diagnostic. Those messages fail it.
+// A linter that could not load the plugin or a rule ALSO prints "mion"; a stale path or rule name once passed that way.
 const NOT_WIRED = /Failed to load|Definition for rule|was not found|unknown rule|Cannot find module/i;
 
 // The lint lane resolves its binary through @mionjs/bin-compiler, which takes no

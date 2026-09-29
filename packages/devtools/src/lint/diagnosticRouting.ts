@@ -7,14 +7,11 @@ import {DIAGNOSTIC_CATALOG, renderHeadline} from '../core/diagnosticCatalog.ts';
 import {DOWNGRADED_NOTE} from '../core/downgradeErrors.ts';
 import {Level, type Diagnostic, type DiagnosticSite} from '../core/protocol.ts';
 
-// One rule per LEVEL, never per topic: a lint rule has one severity, so a rule per topic let the lint config
-// disagree with the level the checker gave a finding (a `warn` rule for a code that stops the build). The code
-// (`[VL011]`) rides in the message, and a finding is changed with the directive comments or the tsconfig
-// `downgradeErrors`, which the build reads too.
+// One rule per LEVEL, never per topic: a per-topic rule's severity could disagree with the level the checker gave.
+// A finding is changed with directive comments or tsconfig `downgradeErrors`, which the build reads too.
 export type RuleName = 'error' | 'warning' | 'info';
 
-// RuleSpec is the single source of truth for a rule; index.ts builds its `rules` record and `recommended`
-// config from this table, so nothing hand-lists the rules twice.
+// index.ts builds `rules` and `recommended` from this table, so nothing lists the rules twice.
 export interface RuleSpec {
   readonly name: RuleName;
   readonly default: 'error' | 'warn' | 'off';
@@ -58,14 +55,12 @@ export interface LintReport {
   loc: LintLoc;
 }
 
-// anchoredIn reports whether a diagnostic's site is the linted file: a report carries no file, so a finding
-// anchored in another one would land at this file's positions. A relative site resolves against process.cwd().
+// A report carries no file, so a finding anchored elsewhere would land at this file's positions.
 export function anchoredIn(diagnostic: Diagnostic, file: string): boolean {
   return Boolean(diagnostic.site.filePath) && path.resolve(diagnostic.site.filePath) === path.resolve(file);
 }
 
-// routeDiagnostic maps one wire diagnostic to its rule, message and location. Never returns null: an unknown
-// code still reports at its wire level with the fallback message, so nothing is silently dropped.
+// Never returns null: an unknown code still reports with the fallback message, so nothing is silently dropped.
 export function routeDiagnostic(diagnostic: Diagnostic): LintReport {
   return {
     ruleName: ruleNameFor(diagnostic),
@@ -74,7 +69,7 @@ export function routeDiagnostic(diagnostic: Diagnostic): LintReport {
   };
 }
 
-// ruleNameFor picks the rule from the level alone; a lowered error is a warning, as the build prints it.
+// A downgraded error is a warning, as the build prints it.
 function ruleNameFor(diagnostic: Diagnostic): RuleName {
   if (diagnostic.downgraded) return 'warning';
   switch (diagnostic.level) {

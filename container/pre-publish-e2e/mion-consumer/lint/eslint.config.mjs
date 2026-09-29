@@ -3,14 +3,11 @@
 // This is the one thing a workspace test cannot cover: CLAUDE.md records that
 // @mionjs/devtools is consumed COMPILED — the `./eslint` entry is loaded through
 // node, which never sees the `source` export condition, so what runs is the
-// package's `build/` output. Here that output arrives inside a tarball verdaccio
+// package's `dist/` output. Here that output arrives inside a tarball verdaccio
 // served, which is as close to a consumer as this gets.
 //
-// The `mion/*` rules are compiler-fed: the plugin resolves the published
-// resolver binary itself (@mionjs/bin-compiler) and runs it over the project
-// tsconfig from process.cwd(), so this lane also proves the resolver path works
-// for a real consumer install. The parser stays a plain TS one — the rules take
-// their type information from the resolver, not from the ESLint parser.
+// The `mion/*` rules are compiler-fed, so this lane also proves the published resolver runs for a consumer install.
+// The parser stays plain TS: the rules take type information from the resolver.
 import mion from '@mionjs/devtools/eslint';
 import tsParser from '@typescript-eslint/parser';
 

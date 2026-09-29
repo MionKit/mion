@@ -1,6 +1,5 @@
-// With no `genDir`, the generated folder is `<include dir>/.mion`. A dev server's first edit hands the checker
-// every project file, a root `vite.config.ts` included, and the folder used to climb to `./.mion`: two trees,
-// with the imports pointing at the new one.
+// A dev server's first edit hands the checker a root `vite.config.ts`, and the default `<include dir>/.mion` used to
+// climb to `./.mion`: two trees, with the imports pointing at the new one.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
