@@ -8,7 +8,8 @@
 // ~18 minutes and are never installed. These pin each workflow to its form, the
 // flag to the CLI table that renders the help, and the guard that keeps a
 // host-only set out of a release.
-import {readFileSync} from 'node:fs';
+import {existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
+import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {describe, expect, it} from 'vitest';
 // Plain ESM dev scripts, no types: one directive per import line, so the formatter
@@ -21,6 +22,10 @@ import {hostPlatform, missingPlatformTarballs} from '../../../scripts/lib/binary
 import {selectPlatforms, selectUwsPlatforms} from '../../../scripts/lib/binary-platforms.mjs';
 // @ts-expect-error untyped .mjs
 import {lookup} from '../../../scripts/lib/devx-registry.mjs';
+// @ts-expect-error plain ESM dev script, no types
+import {binCacheKey, cachedBinPath, goBuild, releaseLdflags} from '../../../scripts/release/build-binaries.mjs';
+// @ts-expect-error plain ESM dev script, no types
+import {stageBinary} from '../../../scripts/release/build-binaries.mjs';
 
 const REPO_ROOT = path.resolve(__dirname, '../../..');
 const read = (rel: string): string => readFileSync(path.join(REPO_ROOT, rel), 'utf8');
@@ -158,5 +163,50 @@ describe('the publish guard against a host-only set', () => {
     expect(script).toContain("from '../lib/binary-platforms.mjs'");
     expect(script).toMatch(/const missing = staged \? missingPlatformTarballs\(packed\) : \[\];/);
     expect(script).toContain('refusing to publish — tarballs/ has no platform package for');
+  });
+});
+
+// CI caches .cache/release-bin across the packing jobs, so the key must name every build input.
+describe('the release binary cache', () => {
+  const arm = {os: 'linux', cpu: 'arm', goos: 'linux', goarch: 'arm', goarm: '7'};
+  const x64 = {os: 'linux', cpu: 'x64', goos: 'linux', goarch: 'amd64'};
+  const ldflags = releaseLdflags('1.0.0', 'abcdef0');
+
+  it('builds with the args and env the digest hashes', () => {
+    expect(goBuild(arm, ldflags, 'out')).toEqual({
+      args: ['build', '-trimpath', `-ldflags=${ldflags}`, '-o', 'out', './cmd/mion'],
+      env: {CGO_ENABLED: '0', GOOS: 'linux', GOARCH: 'arm', GOARM: '7'},
+    });
+    expect(ldflags).toContain('-s -w');
+  });
+
+  it('keys each binary on its platform, GOARM and version', () => {
+    expect(cachedBinPath(x64, ldflags)).toBe(cachedBinPath(x64, ldflags));
+    expect(cachedBinPath(arm, ldflags)).not.toBe(cachedBinPath({...arm, goarm: '6'}, ldflags));
+    expect(cachedBinPath(x64, ldflags)).not.toBe(cachedBinPath(arm, ldflags));
+    expect(cachedBinPath(x64, ldflags)).not.toBe(cachedBinPath(x64, releaseLdflags('1.0.1', 'abcdef0')));
+    expect(binCacheKey([x64], '1.0.0', 'abcdef0')).not.toBe(binCacheKey([x64], '1.0.1', 'abcdef0'));
+    expect(binCacheKey([x64], '1.0.0', 'abcdef0')).toMatch(/^mion-release-bins-[0-9a-f]{32}$/);
+  });
+
+  it('builds once, then reuses the cached binary for the same inputs', () => {
+    const platform = {os: 'testos', cpu: 'testcpu', goos: 'testos', goarch: 'testarch'};
+    const flags = releaseLdflags('0.0.0-cache-test', `${Date.now()}`.slice(-7));
+    const dir = mkdtempSync(path.join(tmpdir(), 'release-bin-'));
+    const builds: string[][] = [];
+    const build = ({args}: {args: string[]}) => {
+      builds.push(args);
+      writeFileSync(args[args.indexOf('-o') + 1], 'binary');
+    };
+    try {
+      expect(stageBinary(platform, flags, path.join(dir, 'first'), build)).toBe('built');
+      expect(stageBinary(platform, flags, path.join(dir, 'second'), build)).toBe('reused');
+      expect(builds).toHaveLength(1);
+      expect(readFileSync(path.join(dir, 'second'), 'utf8')).toBe('binary');
+    } finally {
+      rmSync(path.dirname(cachedBinPath(platform, flags)), {recursive: true, force: true});
+      rmSync(dir, {recursive: true, force: true});
+      expect(existsSync(cachedBinPath(platform, flags))).toBe(false);
+    }
   });
 });

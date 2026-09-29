@@ -44,8 +44,7 @@ import {capture, die, note, noteErr, reportCliError} from '../lib/proc.mjs';
 export const FEEDS_NOTHING = ['docs/', 'tools/', 'assets/', '.claude/', '.vscode/', '.husky/', '.git-blame-ignore-revs', 'CHANGELOG.md', 'CLAUDE.md', 'README.md', 'SETUP.md', 'LICENSE'];
 
 // A lane that only RUNS the Go binaries skips what never compiles into them, and the cmd/gen-* codegen tools.
-const goBuildInput = (path) => isGoInput(path) && !path.startsWith('ts-go-runtypes/cmd/gen-');
-const GO_BUILD = {prefix: 'ts-go-runtypes/', keep: goBuildInput};
+const GO_BUILD = {prefix: 'ts-go-runtypes/', keep: (path) => isGoInput(path) && !path.startsWith('ts-go-runtypes/cmd/gen-')};
 
 // Every lane hashes these: the Go binaries are the engine every lane runs (a submodule bump moves every hash).
 // Repo-wide config changes rarely enough that the over-run costs nothing.

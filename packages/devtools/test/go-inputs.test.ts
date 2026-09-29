@@ -163,6 +163,20 @@ describe('go-inputs — the CI cache key for the prebuilt binaries', () => {
     }
   }, 120_000);
 
+  // A job that restored the wasm has no Go: the playground build must still run, and ask for Go only to rebuild.
+  it('runs the playground build without Go, which asks for Go only when the wasm stamp is stale', () => {
+    const site = readFileSync(join(REPO_ROOT, 'scripts/website/site.mjs'), 'utf8');
+    const ensure = site.slice(
+      site.indexOf('function ensurePlayground('),
+      site.indexOf('\n}\n', site.indexOf('function ensurePlayground('))
+    );
+    expect(ensure).toContain('build-playground.mjs');
+    expect(ensure).not.toContain("which('go')");
+    const build = readFileSync(join(REPO_ROOT, 'container/website/scripts/build-playground.mjs'), 'utf8');
+    const stale = build.slice(build.indexOf('function buildWasmIfStale()'));
+    expect(stale.indexOf('if (!wasmMaybeStale())')).toBeLessThan(stale.indexOf("if (!which('go'))"));
+  });
+
   it('keys the resolver and the extractor on their own inputs', () => {
     expect(RESOLVER_INPUTS[0]).toBe('ts-go-runtypes/cmd/mion');
     expect(EXTRACT_INPUTS).toEqual(['ts-go-runtypes/cmd/extract-fn-bodies', ...RESOLVER_INPUTS.slice(1)]);

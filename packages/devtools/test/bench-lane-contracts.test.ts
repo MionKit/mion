@@ -179,6 +179,17 @@ describe('the default bench run is a correctness gate', () => {
     expect(cmdBench).toMatch(/if \(aggregate !== 0\) die\(/);
   });
 
+  it('refuses --only with no competitor list instead of running them all', () => {
+    for (const args of [['--only'], ['--only', '--quick']]) {
+      const run = spawnSync(process.execPath, [join(REPO_ROOT, 'scripts/miondevx.mjs'), 'bench', ...args], {
+        cwd: REPO_ROOT,
+        encoding: 'utf8',
+      });
+      expect(run.status, run.stderr).toBe(2);
+      expect(run.stderr).toContain('bench: --only needs a comma list of competitors');
+    }
+  }, 120_000);
+
   // `--only` is how CI runs just the competitors not yet proven green.
   it('runs only the competitors --only names, and refuses an unknown one', async () => {
     // @ts-expect-error plain ESM dev script, no types

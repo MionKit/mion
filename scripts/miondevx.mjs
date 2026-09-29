@@ -427,7 +427,8 @@ function benchArgs(args) {
   const buildOnly = takeFlag(args, '--build-only');
   if (buildOnly.value) return ['build', ...buildOnly.rest];
   const only = takeFlag(args, '--only', {valued: true});
-  const stray = only.rest.find((a) => !a.startsWith('-'));
+  if (args.includes('--only') && (only.value === undefined || only.value.startsWith('-'))) die('bench: --only needs a comma list of competitors', 2);
+  const stray = only.rest.find((arg) => !arg.startsWith('-'));
   if (stray) die(`unknown bench command '${stray}'. ${usage('bench')}`, 2);
   return ['bench', ...only.rest, ...(only.value === undefined ? [] : ['--only', only.value])];
 }
