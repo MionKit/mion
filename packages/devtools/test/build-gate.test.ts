@@ -11,12 +11,12 @@ const REPO_ROOT = join(__dirname, '../../..');
 const STAMP = join(REPO_ROOT, 'mion-bin/.mion.stamp');
 const BUILD = join(REPO_ROOT, 'scripts/core/build.mjs');
 
-const run = (code: string): {status: number | null; out: string} => {
-  const result = spawnSync(process.execPath, ['--input-type=module', '-e', code], {cwd: REPO_ROOT, encoding: 'utf8'});
+const run = (code: string, env?: NodeJS.ProcessEnv): {status: number | null; out: string} => {
+  const result = spawnSync(process.execPath, ['--input-type=module', '-e', code], {cwd: REPO_ROOT, encoding: 'utf8', env});
   return {status: result.status, out: `${result.stdout ?? ''}${result.stderr ?? ''}`};
 };
-const trusted = (): {status: number | null; out: string} =>
-  run(`const {main} = await import(${JSON.stringify(BUILD)}); main(['go'], {trustStamp: true});`);
+const trusted = (targets = ['go'], env?: NodeJS.ProcessEnv): {status: number | null; out: string} =>
+  run(`const {main} = await import(${JSON.stringify(BUILD)}); main(${JSON.stringify(targets)}, {trustStamp: true});`, env);
 // A PATH with node and git only: a CI job that restored the binaries and never set Go up.
 const noGoPath = (): string => {
   const dir = mkdtempSync(join(tmpdir(), 'no-go-'));
@@ -24,22 +24,14 @@ const noGoPath = (): string => {
   symlinkSync(spawnSync('which', ['git'], {encoding: 'utf8'}).stdout.trim(), join(dir, 'git'));
   return dir;
 };
-const trustedWithoutGo = (): {status: number | null; out: string} => {
-  const code = `const {main} = await import(${JSON.stringify(BUILD)}); main(['go'], {trustStamp: true});`;
-  const result = spawnSync(process.execPath, ['--input-type=module', '-e', code], {
-    cwd: REPO_ROOT,
-    encoding: 'utf8',
-    env: {...process.env, PATH: noGoPath()},
-  });
-  return {status: result.status, out: `${result.stdout ?? ''}${result.stderr ?? ''}`};
-};
+const withoutGo = (): NodeJS.ProcessEnv => ({...process.env, PATH: noGoPath()});
 const refTemps = (): string[] => readdirSync(join(REPO_ROOT, 'mion-bin')).filter((name) => name.startsWith('.rt-build-ref-'));
 
 describe('build gate — the mion-bin/mion stamp', () => {
   let original = '';
   beforeAll(() => {
     // The authoritative check (never trusts the stamp) leaves a fresh stamp behind.
-    const result = spawnSync(process.execPath, [BUILD, 'go'], {cwd: REPO_ROOT, encoding: 'utf8'});
+    const result = spawnSync(process.execPath, [BUILD, 'go', 'extract'], {cwd: REPO_ROOT, encoding: 'utf8'});
     expect(result.status, result.stderr).toBe(0);
     expect(existsSync(STAMP)).toBe(true);
     original = readFileSync(STAMP, 'utf8');
@@ -57,14 +49,21 @@ describe('build gate — the mion-bin/mion stamp', () => {
   }, 60_000);
 
   it('a matching stamp is trusted with no Go on PATH, as a job that restored the binary from the cache', () => {
-    const {status, out} = trustedWithoutGo();
+    const {status, out} = trusted(['go'], withoutGo());
     expect(status, out).toBe(0);
     expect(out).toContain('mion-bin/mion is up to date (stamp)');
   }, 60_000);
 
+  // The smoke job copies the restored binaries into the linux slots the containers mount.
+  it('fills the linux slots from trusted binaries with no Go on PATH', () => {
+    const {status, out} = trusted(['linux-go', 'linux-extract'], withoutGo());
+    expect(status, out).toBe(0);
+    expect(out).toContain('mion-bin/extract-fn-bodies is up to date (stamp)');
+  }, 60_000);
+
   it('with no Go on PATH, a stamp that disagrees fails loudly instead of trusting the binary', () => {
     writeFileSync(STAMP, 'not-the-digest\n');
-    const {status, out} = trustedWithoutGo();
+    const {status, out} = trusted(['go'], withoutGo());
     writeFileSync(STAMP, original);
     expect(status).not.toBe(0);
     expect(out).toContain('Go toolchain not found on PATH (needed to build mion-bin/mion)');
