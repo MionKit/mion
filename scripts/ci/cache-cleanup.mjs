@@ -5,7 +5,7 @@
 import {capture, die, note, reportCliError} from '../lib/proc.mjs';
 
 const MARKER = 'mion-lane-green-';
-// Entries on main kept per family, newest first; older ones are only ever re-built.
+// Entries on main kept per family, newest first; a run that needs an older one rebuilds it.
 export const KEEP_ON_MAIN = {'mion-go-bins-': 20, 'mion-release-bins-': 10, 'mion-vitest-passed-': 5};
 const MAIN = 'refs/heads/main';
 

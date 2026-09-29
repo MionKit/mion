@@ -1,7 +1,7 @@
 // scripts/lib/go-inputs.mjs is the content digest behind the Go binary stamps (scripts/core/build.mjs)
 // and the playground wasm's (container/website/scripts/build-playground.mjs).
 import {execFileSync} from 'node:child_process';
-import {mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync} from 'node:fs';
+import {mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {afterAll, describe, expect, it} from 'vitest';
@@ -123,6 +123,13 @@ describe('go-inputs — the CI cache key for the prebuilt binaries', () => {
     expect(pinnedGoVersion()).toMatch(/^go\d+\.\d+\.\d+$/);
     expect(identity).toContain(`${process.platform}/${process.arch}`);
     expect(identity).toContain(tsgolintCommit());
+  });
+
+  // The wasm is built with the pinned Go, so a Go bump must miss the cached one.
+  it('keys the cached playground wasm on the pinned Go version and the tsgolint commit', () => {
+    const action = readFileSync(join(REPO_ROOT, '.github/actions/cache-playground-wasm/action.yml'), 'utf8');
+    expect(action).toContain("'ts-go-runtypes/.go-version'");
+    expect(action).toContain('rt-wasm-${{ steps.tsgolint.outputs.sha }}-');
   });
 
   it('keys the resolver and the extractor on their own inputs', () => {
