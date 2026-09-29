@@ -24,7 +24,7 @@ func compactUnionNeedsEnvelope(rt *reflection.RunType, ctx *EmitContext, visited
 	}
 	for _, ref := range children {
 		resolved := ctx.ResolveRef(ref)
-		if resolved == nil || isStrippedUnionMember(resolved) {
+		if resolved == nil || isStrippedUnionMember(resolved, ctx) {
 			continue
 		}
 		if compactUnionMemberTransforms(resolved, ctx, visited) {

@@ -456,7 +456,7 @@ func (emitter RemoveUnknownKeysEmitter) emitUnion(rt *reflection.RunType, ctx *E
 	for _, member := range rt.Children {
 		resolved := ctx.ResolveRef(member)
 		if slot, shared := sharedValueSlot(resolved, ctx); shared {
-			if !emitter.shareOrRefuse(slot, "union member `"+strippedMemberLabel(resolved)+"`", resolved, ctx) {
+			if !emitter.shareOrRefuse(slot, "union member `"+strippedMemberLabel(resolved, ctx)+"`", resolved, ctx) {
 				return RTCode{Code: "", Type: CodeNS}
 			}
 		}
@@ -471,7 +471,7 @@ func (emitter RemoveUnknownKeysEmitter) emitUnion(rt *reflection.RunType, ctx *E
 		if m.Resolved == nil {
 			continue
 		}
-		expr, ok := emitter.elementExpr(m.Ref, v, "union member `"+strippedMemberLabel(m.Resolved)+"`", ctx)
+		expr, ok := emitter.elementExpr(m.Ref, v, "union member `"+strippedMemberLabel(m.Resolved, ctx)+"`", ctx)
 		if !ok {
 			return RTCode{Code: "", Type: CodeNS}
 		}

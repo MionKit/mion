@@ -253,7 +253,7 @@ func jsonNoopRecursive(rt *reflection.RunType, ctx *EmitContext, mode jsonNoopMo
 		// (a Promise, a typed array) is `delete`d from the live object so the output matches the data-only
 		// projection, and that delete is real code. The restore / compact side reads already-parsed JSON, where
 		// the key is gone, and drops it with empty code.
-		if isStrippedUnionMember(resolved) {
+		if isStrippedUnionMember(resolved, ctx) {
 			if mode == noopModePrepare && jsonStringifyLeaks(resolved) {
 				return false
 			}
@@ -272,6 +272,10 @@ func jsonNoopRecursive(rt *reflection.RunType, ctx *EmitContext, mode jsonNoopMo
 		return jsonNoopRecursive(rt.Child, ctx, mode, visited)
 
 	case reflection.KindObjectLiteral:
+		// A callable interface is the emitters' CodeNS arm, so skipping its call signature would hide the throw.
+		if objectHasCallSignature(rt, ctx) {
+			return false
+		}
 		return jsonNoopObjectChildren(objectMembers(rt), ctx, mode, visited)
 
 	case reflection.KindClass:
@@ -340,10 +344,10 @@ func unionJsonNoop(rt *reflection.RunType, ctx *EmitContext) bool {
 	// All-stripped fallback, mirroring dataOnlyUnionMembers (union_strip.go): when EVERY member projects to
 	// `never` the DataOnly union is `never`, so the emitter KEEPS the original member list, reaches a stripped
 	// member's CodeNS leaf and renders an alwaysThrow, not the identity. An all-dangling / empty union has no
-	// stripped member here (isStrippedUnionMember(nil) is false) and stays noop via the loop.
+	// stripped member here (isStrippedUnionMember(nil, ctx) is false) and stays noop via the loop.
 	strippedCount := 0
 	for _, ref := range children {
-		if isStrippedUnionMember(ctx.ResolveRef(ref)) {
+		if isStrippedUnionMember(ctx.ResolveRef(ref), ctx) {
 			strippedCount++
 		}
 	}
@@ -352,7 +356,7 @@ func unionJsonNoop(rt *reflection.RunType, ctx *EmitContext) bool {
 	}
 	for _, ref := range children {
 		resolved := ctx.ResolveRef(ref)
-		if resolved == nil || isStrippedUnionMember(resolved) {
+		if resolved == nil || isStrippedUnionMember(resolved, ctx) {
 			// dataOnlyUnionMembers drops stripped members before bucketing.
 			continue
 		}
@@ -635,7 +639,7 @@ func compactFromJsonNoopRecursive(rt *reflection.RunType, ctx *EmitContext, visi
 			return true
 		}
 		resolved := ctx.ResolveRef(rt.Child)
-		if resolved == nil || isStrippedUnionMember(resolved) {
+		if resolved == nil || isStrippedUnionMember(resolved, ctx) {
 			return true
 		}
 		return compactFromJsonNoopRecursive(resolved, ctx, visited)
@@ -744,7 +748,7 @@ func restoreJsonSafeNoopRecursive(rt *reflection.RunType, ctx *EmitContext, visi
 			return true
 		}
 		resolved := ctx.ResolveRef(rt.Child)
-		if resolved == nil || isStrippedUnionMember(resolved) {
+		if resolved == nil || isStrippedUnionMember(resolved, ctx) {
 			return true
 		}
 		return restoreJsonSafeNoopRecursive(resolved, ctx, visited)
@@ -807,7 +811,7 @@ func anyUnionMember(rt *reflection.RunType, ctx *EmitContext, pred func(*reflect
 	}
 	for _, child := range children {
 		resolved := ctx.ResolveRef(child)
-		if resolved == nil || isStrippedUnionMember(resolved) {
+		if resolved == nil || isStrippedUnionMember(resolved, ctx) {
 			continue
 		}
 		if pred(resolved, ctx) {

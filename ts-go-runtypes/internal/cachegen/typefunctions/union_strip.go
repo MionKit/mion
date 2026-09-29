@@ -14,11 +14,11 @@ import (
 
 // isStrippedUnionMember reports whether a resolved union member is one DataOnly projects to `never`.
 // Mirrors the DataOnlyStripped set in packages/run-types/src/runtypes/dataOnly.ts.
-func isStrippedUnionMember(resolved *reflection.RunType) bool {
+func isStrippedUnionMember(resolved *reflection.RunType, ctx *EmitContext) bool {
 	if resolved == nil {
 		return false
 	}
-	if isFunctionLikeKind(resolved.Kind) {
+	if isCallableValue(resolved, ctx) {
 		return true
 	}
 	switch resolved.Kind {
@@ -31,6 +31,14 @@ func isStrippedUnionMember(resolved *reflection.RunType) bool {
 		return resolved.SubKind == reflection.SubKindNonSerializable
 	}
 	return false
+}
+
+// isCallableValue reports a function-like kind or an interface with a call signature, which DataOnly strips as a function.
+func isCallableValue(resolved *reflection.RunType, ctx *EmitContext) bool {
+	if isFunctionLikeKind(resolved.Kind) {
+		return true
+	}
+	return resolved.Kind == reflection.KindObjectLiteral && ctx != nil && objectHasCallSignature(resolved, ctx)
 }
 
 // strippedPropertyDrop reports whether a property drops with a Warning while the object serializes (`{a: symbol}` -> `{}`).
@@ -50,10 +58,10 @@ func strippedPropertyDrop(resolved *reflection.RunType, name string, ctx *EmitCo
 
 // strippedValueDrop is strippedPropertyDrop's VALUE half, for the union merge path, which checks names itself.
 func strippedValueDrop(resolved *reflection.RunType, name string, ctx *EmitContext) bool {
-	if !isStrippedUnionMember(resolved) {
+	if !isStrippedUnionMember(resolved, ctx) {
 		return false
 	}
-	if isFunctionLikeKind(resolved.Kind) {
+	if isCallableValue(resolved, ctx) {
 		ctx.EmitDiagnosticSlot(SlotFunctionPropDropped, name)
 	} else {
 		ctx.EmitDiagnosticSlot(SlotNonSerializablePropDropped, name)
@@ -72,7 +80,7 @@ func strippedValueDrop(resolved *reflection.RunType, name string, ctx *EmitConte
 //     ABSORBED: the property drops with no diagnostic and the rest of the object still renders, the
 //     pre-DataOnly "property absorbs unsupported" contract. Returns false.
 func propertyChildFailed(ctx *EmitContext) (propagate bool) {
-	if isStrippedUnionMember(ctx.walker.UnsupportedLeaf) {
+	if isStrippedUnionMember(ctx.walker.UnsupportedLeaf, ctx) {
 		return true
 	}
 	ctx.walker.AbsorbUnsupported()
@@ -81,11 +89,11 @@ func propertyChildFailed(ctx *EmitContext) (propagate bool) {
 
 // strippedMemberLabel returns the user-facing label a dropped union member's Warning substitutes for {0},
 // in the user's own type vocabulary, never compiler-internal jargon.
-func strippedMemberLabel(resolved *reflection.RunType) string {
+func strippedMemberLabel(resolved *reflection.RunType, ctx *EmitContext) string {
 	if resolved == nil {
 		return "value"
 	}
-	if isFunctionLikeKind(resolved.Kind) {
+	if isCallableValue(resolved, ctx) {
 		return "function"
 	}
 	switch resolved.Kind {
@@ -125,7 +133,7 @@ func dataOnlyUnionMembers(rt *reflection.RunType, ctx *EmitContext) []*reflectio
 	}
 	strippedCount := 0
 	for _, ref := range children {
-		if isStrippedUnionMember(ctx.ResolveRef(ref)) {
+		if isStrippedUnionMember(ctx.ResolveRef(ref), ctx) {
 			strippedCount++
 		}
 	}
@@ -139,8 +147,8 @@ func dataOnlyUnionMembers(rt *reflection.RunType, ctx *EmitContext) []*reflectio
 	droppedLabels := make([]string, 0, strippedCount)
 	for _, ref := range children {
 		resolved := ctx.ResolveRef(ref)
-		if isStrippedUnionMember(resolved) {
-			droppedLabels = append(droppedLabels, strippedMemberLabel(resolved))
+		if isStrippedUnionMember(resolved, ctx) {
+			droppedLabels = append(droppedLabels, strippedMemberLabel(resolved, ctx))
 			continue
 		}
 		survivors = append(survivors, ref)

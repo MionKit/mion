@@ -257,5 +257,5 @@ func (RemoveUnknownKeysEmitter) DiagLabelForLeaf(leaf *reflection.RunType) strin
 	if leaf.Kind == reflection.KindClass && leaf.TypeName != "" {
 		return "class `" + leaf.TypeName + "`"
 	}
-	return "`" + strippedMemberLabel(leaf) + "`"
+	return "`" + strippedMemberLabel(leaf, nil) + "`"
 }

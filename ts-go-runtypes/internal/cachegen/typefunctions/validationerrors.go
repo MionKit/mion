@@ -847,7 +847,7 @@ func emitTemplateLiteralValidationErrors(rt *reflection.RunType, ctx *EmitContex
 // dispatch.go's cross-family fixpoint renders the entry, variant included, so no demand plumbing is needed here.
 func emitUnionValidationErrors(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	// DataOnly = never: compile one member so the walker latches its leaf and this family throws like validate.
-	if members := dataOnlyUnionMembers(rt, ctx); len(members) > 0 && isStrippedUnionMember(ctx.ResolveRef(members[0])) {
+	if members := dataOnlyUnionMembers(rt, ctx); len(members) > 0 && isStrippedUnionMember(ctx.ResolveRef(members[0]), ctx) {
 		return ctx.CompileChild(members[0], CodeS)
 	}
 	// Under checkUnknowns the plain validator accepts an undeclared key, so the strict error function must ask validateStrict.
