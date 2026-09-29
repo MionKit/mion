@@ -7,6 +7,7 @@ import {die, note, reportCliError, runOrThrow} from '../lib/proc.mjs';
 import {readProjects} from './test-batches.mjs';
 
 const DEFAULT_BASE = 'origin/main';
+const TEST_SKIP = 'scripts/core/test-skip.mjs';
 const SHOWN = 8;
 
 // Root-listed project configs sit at `packages/<dir>/…`.
@@ -54,14 +55,17 @@ const takeBase = (argv) => {
 export function main(argv = []) {
   const {base, rest} = takeBase(argv);
   const list = rest.includes('--list');
-  const passThrough = rest.filter((arg) => arg !== '--list');
+  const skipPassed = rest.includes('--skip-passed');
+  const passThrough = rest.filter((arg) => arg !== '--list' && arg !== '--skip-passed');
   const diff = changedFiles(base);
   const plan = buildPlan({files: diff.files, packages: readWorkspaceGraph(REPO_ROOT), projects: readProjects(REPO_ROOT)});
   report(plan, {base, ...diff});
   if (list) return;
+  if (plan.full && skipPassed) return runOrThrow('node', [TEST_SKIP, ...passThrough], {failMessage: 'core test-pr: the full suite failed'});
   if (plan.full) return runOrThrow('pnpm', ['exec', 'vitest', 'run', ...passThrough], {failMessage: 'core test-pr: the full suite failed'});
   if (plan.projects.length === 0) return note('test-pr: nothing to test');
   const projectFlags = plan.projects.flatMap((project) => ['--project', project]);
+  if (skipPassed) return runOrThrow('node', [TEST_SKIP, ...projectFlags, ...passThrough], {failMessage: 'core test-pr: the affected projects failed'});
   // An --exclude can empty a selected project (test-router-fuzz is all test/fuzz/).
   runOrThrow('pnpm', ['exec', 'vitest', 'run', ...projectFlags, '--passWithNoTests', ...passThrough], {failMessage: 'core test-pr: the affected projects failed'});
 }

@@ -96,8 +96,21 @@ export const AREAS = {
         flags: [
           ['--base <ref>', 'diff from its merge-base with HEAD (default origin/main); commits only'],
           ['--list', 'print the plan and stop'],
+          ['--skip-passed', 'also skip the files already passed at their exact code (see test-skip)'],
         ],
         build: (args) => !hasFlag(args, '--list'),
+      },
+      {
+        name: 'test-skip',
+        args: '[filters…]',
+        summary: 'vitest over only the files whose compiled code changed since they last passed',
+        flags: [
+          ['--project <name>', 'limit to a vitest project (repeatable)'],
+          ['--exclude <glob>', 'leave files out (repeatable)'],
+          ['--store <file>', 'the passed list (default node_modules/.cache/mion/vitest-passed.json)'],
+          ['--audit', 'run everything, and fail if a file the list would skip fails'],
+          ['--keys <file>', 'write every file key and run nothing'],
+        ],
       },
       {
         name: 'test-bun',
