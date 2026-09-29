@@ -34,8 +34,7 @@ const (
 // in the graph. Always an internal invariant breach, never a user error.
 const CodeCompositeMissingPrimitive = "JCP001"
 
-// CodeUnsupportedLeafNoCode: a type function met a kind it cannot compile that maps to no root code, so the entry
-// always throws with this code instead. Always an internal invariant breach, never a user error. Args: [kindLabel].
+// CodeUnsupportedLeafNoCode: alwaysThrow code for an uncompilable kind with no root code; an internal bug. Args: [kindLabel].
 const CodeUnsupportedLeafNoCode = "TFN001"
 
 // prepareForJson family.

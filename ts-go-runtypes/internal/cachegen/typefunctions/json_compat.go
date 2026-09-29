@@ -104,8 +104,7 @@ func jsonCompatRecursive(rt *reflection.RunType, ctx *EmitContext, visited map[s
 			return true
 		}
 		resolved := ctx.ResolveRef(rt.Child)
-		// The per-prop emit skips a function-typed property (emitPropertyPrepareForJson), so it contributes no transform
-		// and counts as compatible for the wrap decision.
+		// The per-prop emit skips a function-like property (a callable interface too), so it adds no transform.
 		if resolved != nil && isCallableValue(resolved, ctx) {
 			return true
 		}

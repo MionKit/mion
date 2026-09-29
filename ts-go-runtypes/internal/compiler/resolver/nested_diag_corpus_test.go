@@ -136,10 +136,8 @@ func corpusCodes(response protocol.Response, file string) []string {
 	return sortedKeys(seen)
 }
 
-// TestNestedDiagCorpus puts every trigger at every position, inline and named, under every family, in both inline
-// modes, and holds the dev scan to four rules: a throw is reported at the site, a reported always-throw code has
-// its throw, the inline and named child report the same codes in both modes, and a non-data trigger is never
-// dropped without a word. The build pass must then report what the scan did.
+// TestNestedDiagCorpus puts every trigger at every position, inline and named, under every family and inline mode.
+// A throw is reported, a reported throw ships, inline and named agree, non-data never drops silently, build equals scan.
 func TestNestedDiagCorpus(t *testing.T) {
 	for _, trigger := range corpusTriggers {
 		t.Run(trigger.name, func(t *testing.T) {

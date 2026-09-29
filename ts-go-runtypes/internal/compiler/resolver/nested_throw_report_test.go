@@ -292,8 +292,7 @@ func TestAdoptedFinding_RemoveUnknownKeysDoesNotAdopt(t *testing.T) {
 	}
 }
 
-// A JSON union picks its member with the validate entry of that union; when the encoder's own union throws too,
-// the site reports its own code once, never validate's second name for the same failure.
+// A JSON union picks its member via validate; when its own union throws too, validate's code would name the failure twice.
 const nativeUnionSite = `type NativeUnion = ArrayBuffer | SharedArrayBuffer;
 interface HasNativeUnion { x: NativeUnion; y: number }
 `
@@ -335,8 +334,7 @@ func TestElidedChildFinding_WarmDiskCache_Value(t *testing.T) {
 export const encode = createJsonEncoderFn(value, {strategy: 'mutate'});`)
 }
 
-// A site hears what its function reaches, not what its type contains: another file demanding `Tagged` directly
-// renders the entry, and the union site, whose function never calls it, must not hear that entry's finding.
+// A site hears what its function reaches, not its type: `Tagged` rendered for another file stays silent at the union site.
 func expectNotLeaked(t *testing.T, other, site, leaked string) {
 	t.Helper()
 	sources := nestedThrowSources(site)

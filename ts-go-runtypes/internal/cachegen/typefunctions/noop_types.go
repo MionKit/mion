@@ -247,12 +247,8 @@ func jsonNoopRecursive(rt *reflection.RunType, ctx *EmitContext, mode jsonNoopMo
 		if resolved == nil {
 			return true
 		}
-		// A DataOnly-stripped value (function-like / symbol / never / Promise / non-serializable native) is a
-		// dropped slot in both emitters, keyed on the same isStrippedUnionMember test strippedPropertyDrop uses.
-		// ONE exception on the prepare (mutate) side: a stripped value JSON.stringify would serialize AS DATA
-		// (a Promise, a typed array) is `delete`d from the live object so the output matches the data-only
-		// projection, and that delete is real code. The restore / compact side reads already-parsed JSON, where
-		// the key is gone, and drops it with empty code.
+		// A stripped value drops with empty code, as in strippedPropertyDrop, except one JSON.stringify would serialize
+		// (a Promise, a typed array): prepare (mutate) must `delete` it from the live object, and that is real code.
 		if isStrippedUnionMember(resolved, ctx) {
 			if mode == noopModePrepare && jsonStringifyLeaks(resolved) {
 				return false
@@ -341,10 +337,8 @@ func unionJsonNoop(rt *reflection.RunType, ctx *EmitContext) bool {
 	if len(children) == 0 {
 		children = rt.Children
 	}
-	// All-stripped fallback, mirroring dataOnlyUnionMembers (union_strip.go): when EVERY member projects to
-	// `never` the DataOnly union is `never`, so the emitter KEEPS the original member list, reaches a stripped
-	// member's CodeNS leaf and renders an alwaysThrow, not the identity. An all-dangling / empty union has no
-	// stripped member here (isStrippedUnionMember(nil, ctx) is false) and stays noop via the loop.
+	// As in dataOnlyUnionMembers: an all-stripped union is `never` and renders an alwaysThrow, not the identity.
+	// An all-dangling / empty union has no stripped member here and stays noop via the loop.
 	strippedCount := 0
 	for _, ref := range children {
 		if isStrippedUnionMember(ctx.ResolveRef(ref), ctx) {
