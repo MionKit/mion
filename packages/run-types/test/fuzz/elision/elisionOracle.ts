@@ -51,10 +51,7 @@ export function comparableModules(modules: Record<string, string>): Record<strin
   return out;
 }
 
-/** Strip call-site coordinates from embedded diagnostic text (alwaysThrow
- *  entries bake `(at <file>:<line>:<col>)` into their message). The two
- *  spellings place their calls at different source positions, so coordinates
- *  legitimately differ while everything else must stay byte-identical. **/
+/** The two spellings place their calls apart, so only the `(at file:line:col)` coordinates may differ. **/
 export function normalizeSitePositions(source: string): string {
   return source.replace(/\(at [^)\s,]+:\d+:\d+/g, '(at <site>');
 }

@@ -101,7 +101,7 @@ function diagnosticRule(ruleName: RuleName, description: string): RuleModule {
         Program: () => {
           const outcome = session.lintFileSync(file, text, options);
           if ('engineError' in outcome) {
-            // Never silently dropped: the rule that claimed the file reports it at the top of the file.
+            // Never silently dropped; reported by the rule that claimed the file.
             if (engineErrorClaims.get(file) === ruleName)
               context.report({message: `[mion] ${outcome.engineError}`, loc: {start: {line: 1, column: 0}}});
             return;

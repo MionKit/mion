@@ -324,7 +324,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
   const devPrint = (block: string): void =>
     viteLogger ? viteLogger.warn(block, {clear: false, timestamp: true}) : console.warn(`[@mionjs/devtools] ${block}`);
   const devReporter = new DevReporter(devPrint, () => cwdAbs || process.cwd());
-  // A regenerate failure mid-edit must not stop the dev server, and must not pass silently either.
+  // A regenerate failure mid-edit must neither stop the dev server nor pass silently.
   const devRegenerateFailed = (error: unknown): void =>
     devPrint(`@mionjs/devtools: regenerating after an edit failed: ${error instanceof Error ? error.message : String(error)}`);
 
@@ -441,8 +441,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
   function surfaceNewErrors(ctx: HostContext, diagnostics: Diagnostic[], activeFile: string): void {
     const cwd = cwdAbs || process.cwd();
     if (isDevServer()) {
-      // A fatal Error is thrown unprinted, since the host prints the throw and shows it in the overlay; a
-      // whole-program one only generate finds is thrown from its file's transform too.
+      // Thrown unprinted, as the host prints the throw; generate's whole-program Errors throw from their file too.
       const fatal = devReporter.fatalIn(activeFile, diagnostics);
       devReporter.add(
         diagnostics.filter((diagnostic) => diagnostic.level !== Level.Error),

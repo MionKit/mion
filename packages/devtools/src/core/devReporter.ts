@@ -1,5 +1,5 @@
 // A dev server prints only what breaks running code, once per session: Warnings collapse to one count line (the
-// editor shows them), Info never prints. It never stops; a transform of a file holding a fatal Error throws into the overlay.
+// editor shows them), Info never prints. It never stops; a fatal Error throws from its file's transform into the overlay.
 
 import path from 'node:path';
 import {isDowngraded, NONE, type DowngradeSet} from './downgradeErrors.ts';
@@ -11,7 +11,7 @@ export class DevReporter {
   private printed = new Set<string>();
   // Warnings the last count line covered, so a batch with no new one prints nothing.
   private warned = new Set<string>();
-  // The last update's fatal Errors by absolute file, so a transform of that file throws a whole-program one too.
+  // So a file's transform also throws the whole-program Errors the last update anchored there.
   private fatal = new Map<string, Diagnostic[]>();
 
   constructor(
