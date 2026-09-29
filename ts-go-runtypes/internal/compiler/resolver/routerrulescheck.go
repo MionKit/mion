@@ -9,17 +9,13 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 )
 
-// checkRouterRuleFiles is the Request.CheckRouterRules pass of OpScanFiles (FamilyMionRoute), off by
-// default with the lint plugin as its only caller: these are lint findings, a build must never fail on
-// one, while `mion compile` does exit non-zero on any Error-severity diagnostic it collects. Sites echo
-// the REQUESTED path, as the marker scanner and the enrichment pass do, so the consumer can key each
-// finding back to the file it asked about.
+// checkRouterRuleFiles runs only for the lint plugin (Request.CheckRouterRules): a build must never stop on these.
+// Sites echo the REQUESTED path so the consumer can key each finding back to the file it asked about.
 func (sess *Session) checkRouterRuleFiles(files []string) []diagnostics.Diagnostic {
 	return sess.checkEachFile(files, routerrules.CheckSourceFile)
 }
 
-// checkApiTypeImports runs SRV001 on every scan (linter, dev server) and on generate (build). A dependency's own
-// source is not the user's to fix, so its findings are dropped by TypeScript's own provenance, not by path.
+// checkApiTypeImports drops findings in dependency sources (not the user's to fix) by TypeScript's provenance, not path.
 func (sess *Session) checkApiTypeImports(files []string) []diagnostics.Diagnostic {
 	return sess.dropExternalLibraryDiagnostics(sess.checkEachFile(files, apimeta.ApiTypeImports))
 }

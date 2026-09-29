@@ -87,7 +87,6 @@ func TestApiTypeImports_EveryValueImportShapeIsFlagged(t *testing.T) {
 		"2 api ./server/api")
 }
 
-// A local alias is followed into its declaration, whatever it wraps.
 func TestApiTypeImports_LocalAliasIsFollowed(t *testing.T) {
 	assertFound(t, apiTypeImports(t, clientImport+
 		"import {MyApi} from './server/api';\n"+
@@ -105,7 +104,7 @@ func TestApiTypeImports_LocalAliasIsFollowed(t *testing.T) {
 		"export const a = initClient<Api>({baseURL: ''});\n"))
 }
 
-// A test that starts the server imports server code on purpose: only the API type's own import is judged.
+// A test that starts the server imports server code on purpose.
 func TestApiTypeImports_OtherServerImportsAreNotJudged(t *testing.T) {
 	assertFound(t, apiTypeImports(t, clientImport+
 		"import {startServer} from './server/api';\n"+

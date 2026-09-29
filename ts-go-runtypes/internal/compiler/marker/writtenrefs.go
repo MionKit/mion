@@ -16,14 +16,8 @@ const writtenRefNodeBudget = 4096
 // followed (not the user's to fix, and the bodies are huge).
 var bundledLibPrefix = tspath.NormalizePath(bundled.LibPath())
 
-// EachWrittenTypeRef visits every TypeReference written under root, then follows each one into the
-// interface, class or type-alias declaration it names and visits that declaration's syntax too, each
-// declaration once. `via` is the chain of declaration names the walk came through.
-//
-// It is the syntax-side twin of reflection.WalkGraph: a gate reading a declaration's OWN syntax only
-// is blind to the same failure one declaration deeper (`interface Payload {user: User}` over a
-// broken `User`), and both convert and enrich had exactly that gap. The bundled default lib and
-// node_modules are not followed: they are not the user's to fix.
+// EachWrittenTypeRef visits every TypeReference under root and in each declaration one names; `via` is the name chain.
+// Syntax-side twin of reflection.WalkGraph: a gate reading only a declaration's own syntax misses a broken type one deeper.
 func EachWrittenTypeRef(typeChecker *checker.Checker, root *ast.Node, visit func(reference *ast.Node, via []string)) {
 	eachWrittenNode(typeChecker, root, func(node *ast.Node, via []string) {
 		if ast.IsTypeReferenceNode(node) {
@@ -32,8 +26,7 @@ func EachWrittenTypeRef(typeChecker *checker.Checker, root *ast.Node, visit func
 	})
 }
 
-// EachWrittenTypeName visits the first identifier of every type reference and `typeof` query written under root,
-// following references into their declarations exactly as EachWrittenTypeRef does.
+// EachWrittenTypeName visits the first identifier of each type reference and `typeof` query EachWrittenTypeRef's walk meets.
 func EachWrittenTypeName(typeChecker *checker.Checker, root *ast.Node, visit func(name *ast.Node)) {
 	eachWrittenNode(typeChecker, root, func(node *ast.Node, _ []string) {
 		switch node.Kind {

@@ -99,8 +99,7 @@ func isInitClientCall(typeChecker *checker.Checker, markerOpts marker.Options, c
 	return isClientCall(typeChecker, markerOpts, call, InitClientName)
 }
 
-// ApiTypeImports reports, once per import statement of this file, each value import of a name the `initClient`
-// type argument is written with, local type aliases followed: that type is server code (SRV001).
+// ApiTypeImports reports SRV001 once per value import the `initClient` type argument names, local aliases followed.
 func ApiTypeImports(typeChecker *checker.Checker, markerOpts marker.Options, sourceFile *ast.SourceFile, filePath string) []diagnostics.Diagnostic {
 	if sourceFile == nil || sourceFile.IsDeclarationFile || !strings.Contains(sourceFile.Text(), InitClientName) {
 		return nil
