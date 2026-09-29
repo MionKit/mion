@@ -166,7 +166,7 @@ export function laneHashes(ref = 'HEAD', {cwd = REPO_ROOT} = {}) {
 }
 
 // An item is one independently provable piece of a lane (a database, a competitor); its own edits re-run only it.
-export const itemName = (lane, item) => `${lane}.${item}`;
+const itemName = (lane, item) => `${lane}.${item}`;
 export function itemFeeds(lane, item, path) {
   if (!matches(path, lane.paths)) return false;
   if (matches(path, lane.items[item].paths)) return true;

@@ -7,6 +7,7 @@ name: ci
 # suite is lighter than the full JS/vitest suite, so ALL the JS fuzz work rides
 # the Go runner to even the two out:
 #   go-fuzz — Go suite (gofmt/vet/test) + count-based JS fuzz sweep + race + time-boxed lanes (sequential)
+#             + the go-tools checks that need Go (codegen and drizzle-manifest drift, the build-gate tests)
 #   js-lint — check-format + lint/typecheck + code-import and examples gates + rest of the JS suite + bun:test
 # Both are CONTENT-GATED via the `lanes` job, same mechanism as `smoke`. Each lane
 # declares the paths that feed it (scripts/ci/lanes.mjs), hashes exactly those paths
@@ -16,11 +17,11 @@ name: ci
 # This replaced a DIFF gate (dorny/paths-filter against the pull request's base),
 # whose flaw was that one touched file under packages/ pinned the filter true for the
 # life of the branch: a later docs-only commit re-ran ~33 runner minutes for nothing.
-# Inside go-fuzz the two halves answer to their own lanes, so a packages-only change
-# runs the fuzz half without re-running the Go suite. The reverse does NOT hold: the
-# Go tree feeds EVERY lane, because the binary built from it is the engine they all
-# run on (the plugin tests spawn it, the container lanes mount it), so a Go change
-# still runs js-lint and the rest.
+# Inside go-fuzz each part answers to its own lane (go, js-fuzz, go-tools), so a
+# packages-only change runs the fuzz half without re-running the Go suite. The Go
+# files that compile into the binaries feed EVERY lane, because the binaries are the
+# engine they all run on; Go tests, testdata/ and the cmd/gen-* tools feed only go
+# and go-tools, so editing them re-runs nothing else.
 #
 # FUZZ BUDGETS: every lane runs on every PR at its QUICK tier — roughly 2x the
 # near-decorative defaults; see the FUZZ registry in scripts/miondevx.mjs — so
