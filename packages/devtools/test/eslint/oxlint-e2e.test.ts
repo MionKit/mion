@@ -381,6 +381,26 @@ describe.runIf(ready)('oxlint end to end with the tsconfig downgradeErrors key',
     expect(stdout).not.toContain('mion(runtime-error)');
     expect(exitCode).toBe(0);
   });
+
+  it('warns once on a code it does not know, and lowers nothing', {timeout: 120_000}, async () => {
+    const bad = makeFixtureProject({
+      'tsconfig.json': JSON.stringify({compilerOptions: {strict: true, plugins: [{name: 'mion', downgradeErrors: ['NOPE1']}]}}),
+      'symbol.ts': fs.readFileSync(path.join(project.dir, 'symbol.ts'), 'utf8'),
+      'other.ts': fs.readFileSync(path.join(project.dir, 'symbol.ts'), 'utf8'),
+      '.oxlintrc.json': fs.readFileSync(path.join(project.dir, '.oxlintrc.json'), 'utf8'),
+    });
+    try {
+      const {stdout, stderr} = await execFileAsync(OXLINT, ['-c', '.oxlintrc.json', '.'], {cwd: bad.dir}).then(
+        ({stdout, stderr}) => ({stdout, stderr}),
+        (error: {stdout?: string; stderr?: string}) => ({stdout: error.stdout ?? '', stderr: error.stderr ?? ''})
+      );
+      expect(stderr.split('NOPE1').length - 1).toBe(1);
+      expect(stdout).toContain('mion(runtime-error)');
+      expect(stdout).not.toContain('(downgraded)');
+    } finally {
+      bad.cleanup();
+    }
+  });
 });
 
 // A lint report carries no file: a lint of c.ts must not report the a.ts / b.ts override pair at c.ts positions.

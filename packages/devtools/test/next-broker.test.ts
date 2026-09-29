@@ -398,7 +398,8 @@ export const reflectedId = getRunTypeId(sample);
         try {
           const reply = await askBroker(handle.socketPath, entry, BAD_ENTRY);
           expect(reply.ok).toBe(false);
-          expect(String(reply.error)).toMatch(/build stopped on \d+ mion error/);
+          // The halt reaches the loader as the same Error, never wrapped in a second one.
+          expect(String(reply.error)).toMatch(/^Error: @mionjs\/devtools: build stopped on \d+ mion error/);
         } finally {
           await handle.close();
           fs.rmSync(root, {recursive: true, force: true});

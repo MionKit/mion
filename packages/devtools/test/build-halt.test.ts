@@ -6,7 +6,8 @@ import * as esbuild from 'esbuild';
 import {afterAll, beforeAll, describe, expect, it, vi} from 'vitest';
 import runtypesEsbuild from '../src/runtypes/esbuild.ts';
 import runtypesRollup from '../src/runtypes/rollup.ts';
-import type {HaltError} from '../src/core/surface.ts';
+import {haltError, type HaltError} from '../src/core/surface.ts';
+import {Family, Level, Severity, type Diagnostic} from '../src/core/protocol.ts';
 import {BIN, createMarkerProject, hasBinary} from './helpers/inline.ts';
 
 // MKR003 (marker in a generic function) is a fatal Error, VL002 (root `symbol`) a RuntimeError.
@@ -125,4 +126,57 @@ describe('esbuild stops on a finding only buildStart sees', () => {
     },
     120_000
   );
+});
+
+describe('the edits-mode re-sync', () => {
+  const register = hasBinary() ? it : it.skip;
+
+  register(
+    'stops the build on an error only the drifted source holds, instead of falling back',
+    async () => {
+      const dir = createMarkerProject('rt-resync-halt-');
+      const entry = path.join(dir, 'entry.ts');
+      fs.writeFileSync(entry, CLEAN_ENTRY_SRC);
+      const plugin = runtypesRollup({binary: BIN, cwd: dir, tsconfig: 'tsconfig.json', genDir: path.join(dir, '.mion')}) as any;
+      const ctx = {
+        warn: () => undefined,
+        error: (error: HaltError) => {
+          throw error;
+        },
+      };
+      // An upstream plugin appended a marker call in a generic function: MKR003 exists only in the code handed over.
+      const drifted = CLEAN_ENTRY_SRC + 'export function makeId<T>() {\n  return getRunTypeId<T>();\n}\n';
+      try {
+        await callHook(plugin.buildStart, ctx);
+        await expect(callHook(plugin.transform, ctx, drifted, entry) as Promise<unknown>).rejects.toThrow(
+          /build stopped on 1 mion error\. First: .*error MKR003: /
+        );
+      } finally {
+        await callHook(plugin.buildEnd, ctx);
+        fs.rmSync(dir, {recursive: true, force: true});
+      }
+    },
+    120_000
+  );
+});
+
+describe('haltError', () => {
+  const inB: Diagnostic = {
+    code: 'VL002',
+    family: Family.RunType,
+    level: Level.RuntimeError,
+    severity: Severity.Error,
+    args: ['Symbol'],
+    site: {filePath: 'src/b.ts', startLine: 3, startCol: 5},
+  };
+
+  it('names the file but leaves out the position when the error sits in another file than the one transformed', () => {
+    const error = haltError(inB, 1, 'src/a.ts', '/app');
+    expect(error.id).toBe('/app/src/b.ts');
+    expect(error.loc).toBeUndefined();
+  });
+
+  it('sets a 0-based column when the error sits in the file transformed', () => {
+    expect(haltError(inB, 1, 'src/b.ts', '/app').loc).toEqual({file: '/app/src/b.ts', line: 3, column: 4});
+  });
 });
