@@ -100,7 +100,7 @@ function runEnrichBatch(fileBase: string, spans: Record<string, CaseSpans>): Rec
   const byCaseKey: Record<string, GenSkeletons> = {};
   for (const [basename, skeletons] of Object.entries(byBasename)) {
     const caseKey = keyByBasename[basename];
-    if (!caseKey) throw new Error(`gen returned an unexpected file key: ${basename}`);
+    if (!caseKey) throw new Error(`enrich --files returned an unexpected file key: ${basename}`);
     byCaseKey[caseKey] = skeletons;
   }
   return byCaseKey;
