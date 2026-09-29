@@ -63,9 +63,6 @@ describe('referencesMarkerModule', () => {
   it('matches quoted import specifiers only, not path mentions in comments', () => {
     expect(referencesMarkerModule(`import {createValidateFn} from '@mionjs/run-types';`)).toBe(true);
     expect(referencesMarkerModule(`import {x} from "@mionjs/run-types/builders";`)).toBe(true);
-    // The deprecated `/schema` alias still resolves until 1.0, so a file
-    // importing it must still reach the diagnostics pass.
-    expect(referencesMarkerModule(`import {x} from "@mionjs/run-types/schema";`)).toBe(true);
     expect(referencesMarkerModule('// see packages/run-types/src for details')).toBe(false);
   });
 

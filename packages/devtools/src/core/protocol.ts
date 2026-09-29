@@ -287,9 +287,6 @@ export interface Request {
   // Opts into the `metrics` block: tsgo extendedDiagnostics counters, per-phase wall times, Go memory deltas.
   // Mirrors the Go-side Request.IncludeMetrics; zero measurement cost when unset.
   includeMetrics?: boolean;
-  // generate / transform: the resolved RunTypes output root (e.g. <srcDir>/.mion). `generate` writes modules
-  // under <outDir>/types/, `transform` injects imports relative to it. Empty keeps virtual specifiers.
-  outDir?: string;
   // scanFiles only: the enrichment-health pass (tag hygiene, FriendlyText/MockData content, breadcrumb drift),
   // appended to diagnostics as Family.Enrich. Off by default so the rewrite pipeline pays nothing; the lint plugin consumes it.
   checkEnrich?: boolean;

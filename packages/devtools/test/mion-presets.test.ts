@@ -51,11 +51,8 @@ describe('toRunTypesOptions — the mapping both presets share', () => {
     expect(toRunTypesOptions({patternSampleCount: 7}).patternSampleCount).toBe(7);
   });
 
-  it('maps tsConfig onto the resolver tsconfig key and accepts the outDir alias', () => {
+  it('maps tsConfig onto the resolver tsconfig key', () => {
     expect(toRunTypesOptions({tsConfig: '/p/tsconfig.json'}).tsconfig).toBe('/p/tsconfig.json');
-    expect(toRunTypesOptions({outDir: 'gen'}).genDir).toBe('gen');
-    // genDir wins when both are given — outDir is the pre-0.10 spelling.
-    expect(toRunTypesOptions({genDir: 'a', outDir: 'b'}).genDir).toBe('a');
   });
 });
 

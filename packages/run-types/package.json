@@ -86,17 +86,6 @@
                 "types": "./dist/cjs/builders/index.d.ts",
                 "default": "./dist/cjs/builders/index.js"
             }
-        },
-        "./schema": {
-            "source": "./src/builders/index.ts",
-            "import": {
-                "types": "./dist/builders/index.d.ts",
-                "default": "./dist/builders/index.js"
-            },
-            "require": {
-                "types": "./dist/cjs/builders/index.d.ts",
-                "default": "./dist/cjs/builders/index.js"
-            }
         }
     },
     "bin": {

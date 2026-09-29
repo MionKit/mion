@@ -56,9 +56,6 @@ export {
   type PluralTemplate,
   type TemplateLeaf,
 } from './enrich/friendlyText.ts';
-import type {FriendlyText} from './enrich/friendlyText.ts';
-/** @deprecated Renamed to `FriendlyText`. This alias is kept for one release; migrate `FriendlyType<T>` → `FriendlyText<T>`. */
-export type FriendlyType<T> = FriendlyText<T>;
 export {type MockData, type MockNode} from './enrich/mockData.ts';
 // Pure-data runtime: render `getValidationErrors` output into human messages.
 // `createFriendlyTextI18n` is the locale-selecting wrapper over the same walk — the source map is
