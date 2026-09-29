@@ -10,7 +10,7 @@
 import fs from 'node:fs';
 import {afterAll, beforeAll, describe, expect, it, vi} from 'vitest';
 import plugin, {meta, rules, sessionOptions} from '../../src/lint/index.ts';
-import {RULE_SPECS} from '../../src/lint/diagnosticRouting.ts';
+import {RULE_SPECS, type RuleName} from '../../src/lint/diagnosticRouting.ts';
 import {resetSharedSession} from '../../src/lint/session.ts';
 import {ResolverClient} from '../../src/core/resolver-client.ts';
 import {TODO_LINE, TODO_TAG} from '../../src/core/go-generated/runtypes-constants.generated.ts';
@@ -335,11 +335,11 @@ describe.runIf(hasBinary())(
       project.cleanup();
     });
 
-    function reportsFor(ruleName: string, rel: string): LintReportedProblem[] {
-      return runRule(rules[ruleName]!, abs.get(rel)!, texts[rel]!, settings);
+    function reportsFor(ruleName: RuleName, rel: string): LintReportedProblem[] {
+      return runRule(rules[ruleName], abs.get(rel)!, texts[rel]!, settings);
     }
 
-    function codesFor(ruleName: string, rel: string): string[] {
+    function codesFor(ruleName: RuleName, rel: string): string[] {
       return reportsFor(ruleName, rel).map((report) => report.message.match(/^\[([A-Z]+\d+)\]/)?.[1] ?? report.message);
     }
 
@@ -516,7 +516,7 @@ describe.runIf(hasBinary())(
     describe('scoping', () => {
       it('a hand-written file with a stray @todo comment never reaches the resolver (empty visitor)', () => {
         for (const ruleName of LEVEL_RULES) {
-          const visitor = rules[ruleName]!.create({
+          const visitor = rules[ruleName].create({
             physicalFilename: abs.get('plain.ts')!,
             filename: abs.get('plain.ts')!,
             sourceCode: {text: PLAIN_TS},
@@ -530,7 +530,7 @@ describe.runIf(hasBinary())(
       });
 
       it('unnamed virtual buffers are skipped', () => {
-        const visitor = rules['warning']!.create({
+        const visitor = rules['warning'].create({
           physicalFilename: '<input>',
           filename: '<input>',
           sourceCode: {text: MIRROR_DIRTY_TS},

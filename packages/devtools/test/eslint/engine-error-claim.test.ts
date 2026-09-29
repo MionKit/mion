@@ -17,8 +17,8 @@ describe('an engine failure with mion/error turned off', () => {
 
   it('is reported once, by the first enabled rule that lints the file', {timeout: 30_000}, () => {
     const file = `${project.dir}/a.ts`;
-    const warning = runRule(rules['warning']!, file, SOURCE, settings);
-    const runtimeError = runRule(rules['runtime-error']!, file, SOURCE, settings);
+    const warning = runRule(rules['warning'], file, SOURCE, settings);
+    const runtimeError = runRule(rules['runtime-error'], file, SOURCE, settings);
     expect(warning).toHaveLength(1);
     expect(warning[0]!.message).toMatch(/^\[mion\] /);
     expect(runtimeError).toEqual([]);

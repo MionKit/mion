@@ -3,21 +3,16 @@
 // esbuild and bun has neither.
 
 import path from 'node:path';
+import type {UnpluginContext, UnpluginMessage} from 'unplugin';
 import {renderHeadline} from './diagnosticCatalog.ts';
 import {DOWNGRADED_NOTE, isDowngraded, NONE, type DowngradeSet} from './downgradeErrors.ts';
 import {isShown} from './levels.ts';
 import {Severity, type Diagnostic} from './protocol.ts';
 
-export interface HostContext {
-  warn?: (message: string) => void;
-  error?: (error: string | HaltError) => unknown;
-}
+export type HostContext = Partial<UnpluginContext>;
 
 // vite and rollup read `id` and `loc` to show the file and position in the terminal and the browser overlay.
-export interface HaltError extends Error {
-  id?: string;
-  loc?: {file: string; line: number; column: number};
-}
+export type HaltError = Error & Pick<UnpluginMessage, 'id' | 'loc'>;
 
 const PREFIX = '[@mionjs/devtools]';
 
@@ -51,7 +46,7 @@ export function haltError(first: Diagnostic, count: number, activeFile?: string,
   return error;
 }
 
-export interface SurfaceOptions {
+interface SurfaceOptions {
   // A downgraded finding never halts, whatever this returns.
   halts: (diagnostic: Diagnostic) => boolean;
   downgrade?: DowngradeSet;
@@ -80,27 +75,25 @@ export function surfaceDiagnostics(ctx: HostContext | undefined, diagnostics: Di
 }
 
 // The one place that sets the `warning` label and the downgraded note together.
-export function formatDowngraded(d: Diagnostic): string {
-  return formatTscDiagnostic({...d, severity: Severity.Warning}, true);
+export function formatDowngraded(diagnostic: Diagnostic): string {
+  return formatTscDiagnostic({...diagnostic, severity: Severity.Warning}, true);
 }
 
 // Same line format `mion compile` prints; the wire carries only code + args, so the headline comes from the catalog.
-export function formatTscDiagnostic(d: Diagnostic, downgraded = false): string {
-  const label = severityLabel(d.severity);
-  const headline = renderHeadline(d.code, d.args);
+export function formatTscDiagnostic(diagnostic: Diagnostic, downgraded = false): string {
+  const {site, code} = diagnostic;
+  const headline = renderHeadline(code, diagnostic.args);
   // Without the note a downgraded finding reads like one that was always a warning.
   const suffix = downgraded ? ` ${DOWNGRADED_NOTE}` : '';
-  let line = `${d.site.filePath}(${d.site.startLine},${d.site.startCol}): ${label} ${d.code}: ${headline}${suffix}`;
-  if (d.related && d.related.length > 0) {
-    for (const r of d.related) {
-      line += `\n  Related: ${r.filePath}(${r.startLine},${r.startCol}): ${r.message}`;
-    }
+  let line = `${site.filePath}(${site.startLine},${site.startCol}): ${severityLabel(diagnostic.severity)} ${code}: ${headline}${suffix}`;
+  for (const related of diagnostic.related ?? []) {
+    line += `\n  Related: ${related.filePath}(${related.startLine},${related.startCol}): ${related.message}`;
   }
   return line;
 }
 
-function severityLabel(s: Severity): string {
-  switch (s) {
+function severityLabel(severity: Severity): string {
+  switch (severity) {
     case Severity.Error:
       return 'error';
     case Severity.Warning:
