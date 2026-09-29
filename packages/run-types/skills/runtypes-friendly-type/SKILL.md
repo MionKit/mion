@@ -116,9 +116,8 @@ Templates are plain strings with `$[…]` tokens the renderer substitutes:
 | `$[index]`      | array element index, for `rt$items` failures                                                                                                                                                                    |
 | _(type-driven)_ | `$[val]` renders by the bound's TYPE on the i18n path: an `isCurrency`-marked bound (`TF.Currency`) via the renderer's `currency` option, date-family bounds via `Intl.DateTimeFormat` — no per-template syntax |
 
-Unknown `$[…]` tokens are left verbatim (including any leftover colon-form
-`$[val:kind:name]` token — that named-format syntax was removed; `enrich --no-emit` flags it via
-FT005); a literal colon in prose (`ratio 3:1`) is never touched. `$[value]` (the actual
+Unknown `$[…]` tokens are left verbatim and `enrich --no-emit` flags them via FT005; a literal
+colon in prose (`ratio 3:1`) is never touched. `$[value]` (the actual
 received value) is out of scope for v1 — `RunTypeError` carries no value.
 
 ## Plural templates on count-bearing constraints
@@ -215,7 +214,7 @@ reports:
 | FT002 | Warning | key is not a field of `T` — stale (field renamed/removed), so nothing ever reads it                                                                                                                          |
 | FT003 | Warning | `rt$errors` key isn't a constraint this field's format declares (TS catches this first as an excess-property error)                                                                                          |
 | FT004 | Warning | structural mismatch (object node where `T` is scalar, or vice-versa)                                                                                                                                         |
-| FT005 | Warning | unknown `$[…]` placeholder for this constraint/context — checked per plural arm; also validates three-part format tokens (binding must be `val`/`index`; kind must be `number`/`date`/`relativeTime`/`list`) |
+| FT005 | Warning | unknown `$[…]` placeholder for this constraint/context — checked per plural arm |
 | FT006 | Warning | a plural object is missing the mandatory `other` arm                                                                                                                                                         |
 | FT007 | Warning | a plural-object arm key is not a CLDR category                                                                                                                                                               |
 | FT008 | Warning | a plural object on a non-count-bearing constraint (dead arms)                                                                                                                                                |

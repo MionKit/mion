@@ -244,7 +244,6 @@ export const AREAS = {
       {name: 'build', args: '[name]', summary: 'build the lanes'},
       {name: 'capture-env', summary: 'record the machine the numbers came from'},
       {name: 'shell', summary: 'debug shell inside the benchmark container'},
-      {name: 'clean', summary: 'remove the benchmark run artifacts (the image itself: container clean website)', ...noBuild},
       {
         name: 'servers',
         args: '<verb>',

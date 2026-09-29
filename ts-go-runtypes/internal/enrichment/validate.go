@@ -160,8 +160,8 @@ var friendlyPlaceholders = map[string]bool{
 }
 
 // placeholderPattern matches the closed `$[name]` token set the renderer substitutes.
-// The colon form parses ONLY so checkPlaceholders can flag it: `$[val:kind:name]` gave way to type-driven `$[val]` rendering.
-var placeholderPattern = regexp.MustCompile(`\$\[(\w+)((?::\w+)*)\]`)
+// A token name may hold colons, so `$[val:x]` flags FT005 as unknown instead of passing unnoticed.
+var placeholderPattern = regexp.MustCompile(`\$\[(\w+(?::\w+)*)\]`)
 
 // CheckFriendly walks an authored FriendlyText<T> literal paired with the RunType T resolves to, collecting Findings.
 // resolve follows KindRef sentinels in child slots; pass nil when the graph is fully inlined, the unit-test shape.
@@ -351,19 +351,10 @@ func allowedErrorKeys(fieldNode *reflection.RunType) map[string]bool {
 	return allowed
 }
 
-// checkPlaceholders emits FT005 for an unrecognised `$[name]` and for a leftover colon-form token.
+// checkPlaceholders emits FT005 for an unrecognised `$[name]`.
 func checkPlaceholders(findings *[]Finding, template, path string) {
 	for _, match := range placeholderPattern.FindAllStringSubmatch(template, -1) {
-		name, colonTail := match[1], match[2]
-		if colonTail != "" {
-			*findings = append(*findings, Finding{
-				Code:     "FT005",
-				Severity: Warning,
-				Path:     path,
-				Message:  "format token '$[" + name + colonTail + "]' is no longer supported — use plain $[val]; the bound renders by its type format (currency, date)",
-			})
-			continue
-		}
+		name := match[1]
 		if friendlyPlaceholders[name] {
 			continue
 		}

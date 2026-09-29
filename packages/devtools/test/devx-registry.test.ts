@@ -97,7 +97,6 @@ describe('devx registry — the build gate', () => {
     ['bench', [], true],
     ['bench', ['--quick'], true],
     ['bench', ['typecheck'], true],
-    ['bench', ['clean'], false],
     ['bench', ['servers', 'sweep'], true],
     ['bench', ['servers', 'pull'], false],
     ['bench', ['servers', 'aggregate'], false],

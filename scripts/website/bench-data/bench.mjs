@@ -12,7 +12,7 @@
 //
 // Commands: prep | build-image | bench | bench-one <name> | fullbench | serialization
 // | website-bench | build [<name>] | typecheck | smoke | audit | typecost |
-// compiletime | transform-wire | capture-env | shell | login | push | pull | clean.
+// compiletime | transform-wire | capture-env | shell | login | push | pull.
 // A `--quick` flag anywhere maps onto every stage's native fast lever.
 
 import {COMPETITORS} from './columns.mjs';
@@ -23,7 +23,7 @@ import {main as coreBuild} from '../../core/build.mjs';
 import * as image from '../../container/image.mjs';
 import {ghcrConfig} from '../../lib/engine.mjs';
 import {loadEnv, REPO_ROOT} from '../../lib/env.mjs';
-import {capture, die, hostGoArch, note, reportCliError, run, which} from '../../lib/proc.mjs';
+import {die, hostGoArch, note, reportCliError, run, which} from '../../lib/proc.mjs';
 import {main as mionBenchMain} from './mion-bench.mjs';
 
 // Env-independent paths.
@@ -48,9 +48,6 @@ function config(env = process.env) {
     runNetwork: env.MION_VALIDATION_BENCH_RUN_NETWORK || '',
     docdataDir: env.MION_VALIDATION_BENCH_DOCDATA || join(REPO_ROOT, '.docdata'),
     remoteImage: env.MION_VALIDATION_BENCH_REMOTE_IMAGE || `${registry}/${owner}/tsrt-website:latest`,
-    // typia's LEGACY plugin volume, from before the image baked the compiled plugin:
-    // only ever removed (`clean`), never mounted.
-    volTtsc: `${containerBase}-typia-ttsc`,
   };
 }
 
@@ -595,11 +592,6 @@ function cmdShell(cfg) {
   runInContainer(cfg, ['bash']);
 }
 
-function cmdClean(cfg) {
-  note("removing typia's legacy .ttsc volume, if any (the plugin is baked into the shared image now, which 'pnpm miondevx container clean' manages)");
-  capture(cfg.engine, ['volume', 'rm', '-f', cfg.volTtsc]);
-}
-
 // Map the single MION_VALIDATION_BENCH_QUICK knob onto each stage's native lever. Only fill a
 // lever that is UNSET (`${VAR+set}` test), so an explicit value wins.
 function applyQuick() {
@@ -638,8 +630,7 @@ function dispatch(cfg, args) {
     case 'login': return image.cmdLogin({env: benchImageEnv(cfg)});
     case 'push': return image.cmdPush({env: benchImageEnv(cfg)});
     case 'pull': return image.cmdPull({env: benchImageEnv(cfg)});
-    case 'clean': return (requireEngine(cfg), cmdClean(cfg));
-    default: die(`bench: unknown command '${cmd}'. Try: prep | build-image | bench | bench-one <name> | fullbench | serialization | website-bench | build [<name>] | typecheck | smoke | audit | engine-check | typecost | compiletime | transform-wire | capture-env | shell | login | push | pull | clean`);
+    default: die(`bench: unknown command '${cmd}'. Try: prep | build-image | bench | bench-one <name> | fullbench | serialization | website-bench | build [<name>] | typecheck | smoke | audit | engine-check | typecost | compiletime | transform-wire | capture-env | shell | login | push | pull`);
   }
 }
 

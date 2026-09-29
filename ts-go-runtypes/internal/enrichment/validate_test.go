@@ -435,17 +435,14 @@ func TestCheckFriendly_FT005InsidePluralArm(t *testing.T) {
 	}
 }
 
-func TestCheckFriendly_FT005FormatTokens(t *testing.T) {
-	// The colon-form `$[val:kind:name]` named-format tokens were REMOVED
-	// (bounds render type-driven — Currency / date formats — with plain
-	// `$[val]`): every leftover colon token flags FT005 so migrating templates
-	// get a pointer, while a literal colon in prose (`ratio 3:1`) outside a
-	// token never trips.
+func TestCheckFriendly_FT005ColonTokens(t *testing.T) {
+	// A token whose name holds colons is an unknown placeholder, while a literal
+	// colon in prose (`ratio 3:1`) outside a token never trips.
 	rt := objectRT(map[string]*reflection.RunType{"price": formatStringRT(map[string]any{"max": 100})})
 	view := newFakeView().obj("price", newFakeView().
 		obj("rt$errors", newFakeView().
-			str("type", "removed $[val:number:currency] but ratio 3:1 is prose").
-			str("max", "removed $[label:number:currency] and $[val:nope:x], plain $[val] fine")))
+			str("type", "bad $[val:number:currency] but ratio 3:1 is prose").
+			str("max", "bad $[label:number:currency] and $[val:nope:x], plain $[val] fine")))
 
 	findings := enrichment.CheckFriendly(rt, view, nil)
 	var ft005 []enrichment.Finding
@@ -455,11 +452,11 @@ func TestCheckFriendly_FT005FormatTokens(t *testing.T) {
 		}
 	}
 	if len(ft005) != 3 {
-		t.Fatalf("expected three FT005 (every leftover colon token), got %v", findings)
+		t.Fatalf("expected three FT005 (every colon token), got %v", findings)
 	}
 	for _, finding := range ft005 {
-		if !strings.Contains(finding.Message, "no longer supported") {
-			t.Errorf("FT005 message should point at the removal; got %q", finding.Message)
+		if !strings.Contains(finding.Message, "unknown placeholder") {
+			t.Errorf("FT005 message should name an unknown placeholder; got %q", finding.Message)
 		}
 	}
 }
