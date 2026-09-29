@@ -68,12 +68,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      # `submodules: recursive` + bootstrap is the repo's ONE setup: the Go
-      # resolver only builds once tsgolint's patches are applied to its vendored
-      # typescript-go, and bootstrap is what applies them.
+      # bootstrap is the repo's ONE setup: it fetches the tsgolint submodule and
+      # applies its patches, which the Go resolver build needs.
       - uses: actions/checkout@v5
-        with:
-          submodules: recursive
       - uses: ./.github/actions/free-disk
       - uses: ./.github/actions/bootstrap
       - name: Pull the prebuilt shared image (CI never builds it)
@@ -113,8 +110,6 @@ jobs:
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v5
-        with:
-          submodules: recursive
       - uses: ./.github/actions/free-disk
       - uses: ./.github/actions/bootstrap
       - name: Pull the prebuilt shared image (CI never builds it)
@@ -158,8 +153,6 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v5
-        with:
-          submodules: recursive
       - uses: ./.github/actions/free-disk
       - uses: ./.github/actions/bootstrap
       # mion-bin/mion FIRST: the @mionjs/* vite builds run the devtools plugin,

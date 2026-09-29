@@ -83,8 +83,6 @@ jobs:
         if: inputs.version != ''
         run: echo "Deploying docs after v${{ inputs.version }} went live (site builds from the repo, not npm)."
       - uses: actions/checkout@v5
-        with:
-          submodules: recursive # the Go resolver + playground WASM need the tsgolint submodule
       # Deploy guard, FIRST and cheap: the docs site builds from THIS repo, so refuse to
       # ship it unless the checked-out tree is the version actually LIVE on npm — every
       # published package in lockstep. A wrong-ref dispatch (main with an unpublished

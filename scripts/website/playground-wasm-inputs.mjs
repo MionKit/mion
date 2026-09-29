@@ -13,6 +13,7 @@
 // playground's input list; its bytes are unchanged by the move.
 
 import {goInputsDigest, isGoInput, readStamp} from '../lib/go-inputs.mjs';
+import {tsgolintCommit} from '../lib/tsgolint.mjs';
 
 // Every Go input the wasm links, repo-relative.
 export const WASM_INPUTS = ['ts-go-runtypes/cmd/mion-wasm', 'ts-go-runtypes/internal', 'ts-go-runtypes/go.mod', 'ts-go-runtypes/go.sum'];
@@ -22,6 +23,7 @@ export const WASM_INPUTS = ['ts-go-runtypes/cmd/mion-wasm', 'ts-go-runtypes/inte
 // trading a loud failure for silent coverage loss.
 export const isWasmInput = isGoInput;
 
-export const wasmInputsDigest = (repoRoot) => goInputsDigest(repoRoot, WASM_INPUTS);
+// The wasm links typescript-go too, so the tsgolint commit (which pins it and the patches) joins the digest.
+export const wasmInputsDigest = (repoRoot) => goInputsDigest(repoRoot, WASM_INPUTS, [tsgolintCommit()]);
 
 export const readWasmStamp = readStamp;
