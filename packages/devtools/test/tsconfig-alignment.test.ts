@@ -8,7 +8,7 @@
 //     broken/missing NAMED tsconfig fails the op loudly (CFG001) instead of
 //     silently degrading, healing on the next setSources once fixed.
 //   - eslint surface (makeFixtureProject/runRule): the same lib sensitivity
-//     routed through the rules, plus the CFG001 → broken-tsconfig rule route.
+//     routed through the rules, plus CFG001 reported under mion/error.
 //
 // Marker coverage rule (CLAUDE.md): fixtures use BOTH getRunTypeId call
 // shapes — static getRunTypeId<T>() and value-first getRunTypeId(value) —

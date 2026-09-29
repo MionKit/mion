@@ -12,10 +12,10 @@ import {
 const mion = createMionRouter();
 
 // ========================================
-// ✅ VALID EXAMPLES (these should NOT trigger mion/error)
+// ✅ VALID EXAMPLES (these should NOT trigger mion/runtime-error)
 // ========================================
 
-// start:strong-typed-valid-inline
+// start:typed-handlers-valid-inline
 mion.route((ctx, name: string): string => `hello ${name}`);
 mion.middleware((ctx, data: number): void => {
   console.log(data);
@@ -23,18 +23,18 @@ mion.middleware((ctx, data: number): void => {
 mion.headersFn((c: CallContext, {headers}: HeadersSubset<'auth'>): void => {
   // do something
 });
-// end:strong-typed-valid-inline
+// end:typed-handlers-valid-inline
 
-// start:strong-typed-valid-function-refs
+// start:typed-handlers-valid-function-refs
 function validHandler(ctx, name: string): string {
   return `hello ${name}`;
 }
 const validArrowHandler = (ctx, name: string): string => `hello ${name}`;
 mion.route(validHandler);
 mion.route(validArrowHandler);
-// end:strong-typed-valid-function-refs
+// end:typed-handlers-valid-function-refs
 
-// start:strong-typed-valid-type-annotations
+// start:typed-handlers-valid-type-annotations
 const typedHandler: Handler = (ctx, name: string): string => `hello ${name}`;
 const typedHeaderHandler: HeaderHandler = (
   c: CallContext,
@@ -43,9 +43,9 @@ const typedHeaderHandler: HeaderHandler = (
   const token = headers.auth;
   console.log(token);
 };
-// end:strong-typed-valid-type-annotations
+// end:typed-handlers-valid-type-annotations
 
-// start:strong-typed-valid-satisfies
+// start:typed-handlers-valid-satisfies
 const satisfiesHandler = ((ctx, name: string): string =>
   `hello ${name}`) satisfies Handler;
 const satisfiesHeaderHandler = ((
@@ -55,9 +55,9 @@ const satisfiesHeaderHandler = ((
   const token = headers.auth;
   console.log(token);
 }) satisfies HeaderHandler;
-// end:strong-typed-valid-satisfies
+// end:typed-handlers-valid-satisfies
 
-// start:strong-typed-valid-jsdoc
+// start:typed-handlers-valid-jsdoc
 /**
  * @mion:route
  */
@@ -82,17 +82,17 @@ function headersFnWithJSDoc(
   const token = headers.auth;
   console.log(token);
 }
-// end:strong-typed-valid-jsdoc
+// end:typed-handlers-valid-jsdoc
 
 // ========================================
-// ❌ INVALID EXAMPLES (these trigger mion/error when the lint rules are on)
+// ❌ INVALID EXAMPLES (these trigger mion/runtime-error when the lint rules are on)
 // ========================================
 
 // ========================================
 // MRT001 / MRT002: typed handlers
 // ========================================
 
-// start:strong-typed-invalid-inline
+// start:typed-handlers-invalid-inline
 mion.route((ctx, name) => `hello ${name}`); // Missing both param type and return type
 mion.middleware((ctx, data: number) => {
   console.log(data);
@@ -100,18 +100,18 @@ mion.middleware((ctx, data: number) => {
 mion.headersFn((c: CallContext, [token]): void => {
   // do something
 }); // Missing param type
-// end:strong-typed-invalid-inline
+// end:typed-handlers-invalid-inline
 
-// start:strong-typed-invalid-function-refs
+// start:typed-handlers-invalid-function-refs
 function invalidHandler(ctx, name) {
   return `hello ${name}`;
 }
 const invalidArrowHandler = (ctx, name) => `hello ${name}`;
 mion.route(invalidHandler); // Should error: missing both types
 mion.route(invalidArrowHandler); // Should error: missing both types
-// end:strong-typed-invalid-function-refs
+// end:typed-handlers-invalid-function-refs
 
-// start:strong-typed-invalid-type-annotations
+// start:typed-handlers-invalid-type-annotations
 // 3. Type annotations missing types
 const invalidTypedHandler: Handler = (ctx, name) => `hello ${name}`; // Missing both types
 const invalidTypedHeaderHandler: HeaderHandler = (
@@ -121,9 +121,9 @@ const invalidTypedHeaderHandler: HeaderHandler = (
   const token = headers.auth;
   console.log(token);
 }; // Missing return type
-// end:strong-typed-invalid-type-annotations
+// end:typed-handlers-invalid-type-annotations
 
-// start:strong-typed-invalid-satisfies
+// start:typed-handlers-invalid-satisfies
 // 4. Satisfies expressions missing types
 const invalidSatisfiesHandler = ((ctx, name) =>
   `hello ${name}`) satisfies Handler; // Missing both types
@@ -131,9 +131,9 @@ const invalidSatisfiesHeaderHandler = ((c: CallContext, {headers}): void => {
   const token = headers.auth;
   console.log(token);
 }) satisfies HeaderHandler; // Missing param type
-// end:strong-typed-invalid-satisfies
+// end:typed-handlers-invalid-satisfies
 
-// start:strong-typed-invalid-jsdoc
+// start:typed-handlers-invalid-jsdoc
 // 5. JSDoc tags missing types
 /**
  * @mion:route
@@ -156,13 +156,13 @@ function invalidHeadersFnJSDoc(c: CallContext, {headers}): void {
   const token = headers.auth;
   console.log(token);
 } // Missing param type
-// end:strong-typed-invalid-jsdoc
+// end:typed-handlers-invalid-jsdoc
 
 // ========================================
 // MRT003: return errors instead of throwing
 // ========================================
 
-// start:no-throw-valid
+// start:return-errors-valid
 // 1. Return the error, so it stays in the signature and the client gets it typed
 mion.route((ctx, id: string): string | RpcError<'not-found'> => {
   if (!id)
@@ -193,9 +193,9 @@ mion.route((ctx, id: string): string | RpcError<'db-error'> => {
     return new RpcError({type: 'db-error', publicMessage: 'Lookup failed'});
   }
 });
-// end:no-throw-valid
+// end:return-errors-valid
 
-// start:no-throw-invalid
+// start:return-errors-invalid
 // 1. Throwing drops the error from the signature, so the client cannot handle it typed
 mion.route((ctx, id: string): string => {
   throw new RpcError({type: 'not-found', publicMessage: 'No id given'});
@@ -216,13 +216,13 @@ mion.route((ctx, id: string): string => {
     throw err;
   }
 });
-// end:no-throw-invalid
+// end:return-errors-invalid
 
 // ========================================
 // MRT004: returned error types
 // ========================================
 
-// start:returned-error-valid
+// start:error-types-valid
 // 1. An RpcError lands in its own typed slot and the chain keeps running
 mion.route((ctx, id: string): string | RpcError<'not-found'> => {
   if (!id)
@@ -242,9 +242,9 @@ mion.middleware((ctx, id: string): void | FatalError<'not-authorized'> => {
 // 3. Your own subclass of RpcError keeps the brand, so it is fine as well
 class PetNotFound extends RpcError<'pet-not-found'> {}
 mion.route((ctx, id: string): string | PetNotFound => `hello ${id}`);
-// end:returned-error-valid
+// end:error-types-valid
 
-// start:returned-error-invalid
+// start:error-types-invalid
 // 1. A plain Error carries no mion brand, so it never reaches the typed slot
 mion.route((ctx, id: string): string | Error => new Error('no id'));
 
@@ -257,6 +257,6 @@ mion.route(
   (ctx, id: string): string | TypedError<'not-found'> =>
     new TypedError({type: 'not-found'})
 );
-// end:returned-error-invalid
+// end:error-types-invalid
 
 export {}; // Make this a module

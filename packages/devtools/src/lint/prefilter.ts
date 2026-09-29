@@ -23,14 +23,14 @@ const enrichConstAnnotationPattern = new RegExp(
   'm'
 );
 
-// looksLikeEnrichmentFile gates the enrichment rules, the JS twin of the authoritative Go-side
+// looksLikeEnrichmentFile admits enrichment files, the JS twin of the authoritative Go-side
 // mirror.IsEnrichmentFile guard: a reconcile marker in its EMIT form, or the DSL-annotated const declaration.
 // A file merely mentioning the tags or types in strings, prose or parameter annotations never matches.
 export function looksLikeEnrichmentFile(text: string): boolean {
   return text.includes(MARKER_COMMENT_PREFIX) || enrichConstAnnotationPattern.test(text);
 }
 
-// ROUTER_MODULE and ROUTER_HELPERS gate the mion route rules: a route file need not import the marker package
+// ROUTER_MODULE and ROUTER_HELPERS admit route files: a route file need not import the marker package
 // at all, so without this it would never reach the resolver. The helper names are matched WITH their opening
 // paren because the router is often imported from a relative module (`import {mion} from './mion.ts'`) and the
 // file then names the package nowhere. Permissive on purpose: one round trip on a file that merely spells

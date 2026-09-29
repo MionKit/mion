@@ -59,8 +59,7 @@ warning while the build still stops.
    - `RULE_SPECS` and the prefix routing in `packages/devtools/src/lint/diagnosticRouting.ts` shrink to the
      level mapping. `packages/devtools/oxlint-recommended.json`, `configs.recommended` and the website's
      `.oxlintrc.json` copy follow.
-   - Breaking change: every rule name changes. Note it in the changelog with the old to new mapping. If a
-     config names an old rule, say so clearly rather than failing with no hint, where the host allows it.
+   - Breaking change: every rule name changes. Note it in the changelog.
 
 ### Part 2: the linter reports the right findings
 
@@ -302,7 +301,7 @@ No fuzzing: this is a fix, and there is no cheap oracle beyond the tests above.
 
 ## What shipped (2026-09-29)
 
-Every item above landed except the old-rule-name hint, with these differences from the plan:
+Every item above landed, with these differences from the plan:
 
 - **Four lint rules, not three.** One rule per level, matching the catalog exactly: `mion/error`, `mion/runtime-error`,
   `mion/warning`, `mion/info`. Error and RuntimeError first shared `mion/error`, which made the linter the one
@@ -313,9 +312,8 @@ Every item above landed except the old-rule-name hint, with these differences fr
   dev server's build start no longer halts (it used to, which kept the server from starting). Info never prints
   in dev; Warnings and lowered errors give way to one count line when a new one appears. The reporter reads
   generate's list, which now holds every file's scan findings, so it can forget what is gone.
-- **Linter settings.** `settings.runtypes` still works for one release with a rename warning; its `levels` key
-  is gone and the tsconfig `levels` key no longer reaches the linter (turn on `mion/info`). The scanFiles
-  `levels` echo was removed with it.
+- **Linter settings.** The lint settings live under `settings.mion` (`timeoutMs`, `tsconfig`, `binary`,
+  `markers`); Info shows through the `mion/info` rule. Any other key warns as unknown.
 - **Directive judging.** A comment naming codes is judged per code (the catalog's `Raised` bits:
   `RaisedWholeProgram`, `RaisedBundleApi`). A bare comment is judged only by a pass that can raise every code,
   so neither the build nor the linter calls one unused any more; the docs already say to always name the code.
@@ -331,8 +329,6 @@ Every item above landed except the old-rule-name hint, with these differences fr
   EXP/DWN codes from oxlint's JSON output, `**/test-fixtures/**` is ignored, and the ESLint spec-file override
   turns the mion rules off. `eslint-disable @mionjs/...` comments became `@mion-expect-error MRT00x`. No separate
   enrichment-code check: raising `mion/warning` to an error covers those codes and every other Warning.
-- **No old-rule-name hint.** oxlint and ESLint reject a config naming an unknown plugin (`Plugin 'runtypes' not
-  found`) before any plugin code runs, so no host lets the plugin say more.
 - **Changelog.** No unreleased section exists, so the rule rename is the body of the `feat(devtools)!` commit,
   which the release changelog curator reads.
 - Items 6 and 13 shipped as one commit: the repo's own lint breaks between the rename and its configs.
