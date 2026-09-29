@@ -3,6 +3,7 @@ package typefunctions
 import (
 	"fmt"
 	"os"
+	"slices"
 	"sort"
 	"strings"
 
@@ -428,7 +429,13 @@ func renderEntryWithDeps(runType *reflection.RunType, settings constants.CacheMo
 				kindLabel := leafKindLabel(diagLeaf)
 				walker.EmitDiagnostic(diagCode, kindLabel)
 				// Never disk-cached: the message names this build's call site, which a warm hit would freeze.
-				argsText := renderAlwaysThrowEntry(runType, innerName, diagCode, kindLabel, throwSites(walker.throwProvenance(), opts.ThrowSitePath))
+				provenance := walker.throwProvenance()
+				// Only the first site is named, and the slice is the walker's own.
+				if opts.ThrowSitePath != nil && len(provenance) > 0 {
+					provenance = slices.Clone(provenance)
+					provenance[0].FilePath = opts.ThrowSitePath(provenance[0].FilePath)
+				}
+				argsText := renderAlwaysThrowEntry(runType, innerName, diagCode, kindLabel, provenance)
 				return entryRender{argsText: argsText}
 			}
 		}
@@ -788,19 +795,6 @@ func renderAlwaysThrowEntry(runType *reflection.RunType, innerName string, diagC
 		quoteJS(buildAlwaysThrowMessage(diagCode, kindLabel, provenance)),
 	}
 	return joinArgs(holeifyArgs(args))
-}
-
-// throwSites respells each site's file for the runtime message, so a bundle never carries a machine's path.
-func throwSites(sites []diagnostics.Site, spell func(string) string) []diagnostics.Site {
-	if spell == nil || len(sites) == 0 {
-		return sites
-	}
-	out := make([]diagnostics.Site, len(sites))
-	for i, site := range sites {
-		site.FilePath = spell(site.FilePath)
-		out[i] = site
-	}
-	return out
 }
 
 // buildAlwaysThrowMessage renders the headline here since no catalog ships in the marker package.

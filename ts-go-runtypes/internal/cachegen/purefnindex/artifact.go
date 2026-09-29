@@ -47,7 +47,7 @@ func RenderArtifactIndex(packageName, packageRoot string, entries []purefunction
 	}
 	rows := make([]ArtifactIndexRow, 0, len(entries))
 	for _, entry := range entries {
-		rows = append(rows, ArtifactIndexRow{ID: entry.ID, BindingName: entry.BindingName, File: relativeToRoot(packageRoot, entry.FilePath)})
+		rows = append(rows, ArtifactIndexRow{ID: entry.ID, BindingName: entry.BindingName, File: RelativeToRoot(packageRoot, entry.FilePath)})
 	}
 	sort.Slice(rows, func(i, j int) bool { return rows[i].ID < rows[j].ID })
 	var payload bytes.Buffer
@@ -209,7 +209,8 @@ func stringArray(node *ast.Node) ([]string, bool) {
 	return out, true
 }
 
-func relativeToRoot(root, path string) string {
+// RelativeToRoot spells path relative to root with forward slashes; a path outside root stays absolute.
+func RelativeToRoot(root, path string) string {
 	if path == "" || root == "" {
 		return ""
 	}

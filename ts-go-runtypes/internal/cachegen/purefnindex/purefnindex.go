@@ -368,7 +368,7 @@ func (store *Store) extractSource(idx *PackageIndex) {
 	for _, entry := range entries {
 		idx.rows[entry.Key()] = served(entry)
 		idx.addName(entry.BindingName, entry.Key())
-		if rel := relativeToRoot(idx.Root, entry.FilePath); rel != "" {
+		if rel := RelativeToRoot(idx.Root, entry.FilePath); rel != "" {
 			idx.rowFile[entry.Key()] = rel
 		}
 	}
