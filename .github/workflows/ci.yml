@@ -42,10 +42,9 @@ name: ci
 # (This used to be Go+shard-1 vs lint+shard-2 with `vitest --shard`; once oxlint
 # replaced the much heavier ESLint the lint side went light, so the even shards
 # left the Go job overloaded. Moving the fuzz suite — the JS heavyweight — onto
-# the otherwise-light Go runner rebalances.) Each job runs the `resolver` action,
-# which restores the prebuilt resolver binaries keyed on their Go inputs: a job
-# that only runs them sets up no Go at all, and on a miss the tsgolint-keyed Go
-# build cache keeps the rebuild fast, not minutes.
+# the otherwise-light Go runner rebalances.) Each job runs the `resolver` action:
+# a job that only runs the binaries sets up no Go, and a miss rebuilds fast on the
+# tsgolint-keyed Go build cache.
 #
 # A FOURTH job, `smoke`, runs the website serves-a-page + benchmark
 # competitor-build checks. It is content-gated (only when container inputs change,
@@ -195,16 +194,12 @@ jobs:
         if: fromJSON(needs.lanes.outputs.lanes)['js-fuzz'].run
         run: pnpm miondevx core fuzz cloning elision jsonsize nondata roundtrip secformat secgen sechttp secjson types value --quick
 
-      # The go-tools lane: the JS-side checks that need a Go toolchain, kept here so js-lint never sets Go up.
-      # The committed Go→TS mirrors have no other CI drift gate and can silently
-      # rot (scripts audit §3.3): regenerate + format them and fail on any diff.
-      # miondevx owns the generator list, so a new mirror is picked up here for free.
+      # go-tools: JS checks that need Go, kept here so js-lint never sets Go up.
+      # The Go→TS mirrors have no other CI drift gate; miondevx owns the generator list, so a new one is covered.
       - name: Codegen drift (Go→TS mirrors must be in sync)
         if: fromJSON(needs.lanes.outputs.lanes)['go-tools'].run
         run: pnpm miondevx core codegen all --check
-      # The drizzle proxy manifest is the other committed extraction: fail on
-      # drift against drizzle-orm's d.ts, on pending entries, and on migrated
-      # column fns missing from the proxy modules.
+      # The other committed extraction: fails on d.ts drift, pending entries, and migrated column fns the proxies miss.
       - name: Drizzle manifest drift (proxy coverage + no pending)
         if: fromJSON(needs.lanes.outputs.lanes)['go-tools'].run
         run: pnpm miondevx core drizzle-manifest --check
@@ -389,8 +384,7 @@ jobs:
       # Go build-cache restore, so the runner's root fs doesn't fill up.
       - uses: ./.github/actions/free-disk
       - uses: ./.github/actions/bootstrap
-      # Before the resolver: a wasm cache hit means this job never needs Go. Only the
-      # website item reads the wasm.
+      # Before the resolver: a wasm cache hit means no Go. Only the website item reads the wasm.
       - name: Cache the playground wasm
         id: wasm
         if: contains(fromJSON(needs.lanes.outputs.lanes).smoke.runItems, 'website')

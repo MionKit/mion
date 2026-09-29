@@ -19,8 +19,7 @@ export function changedFiles(base, {cwd = REPO_ROOT} = {}) {
   return {mergeBase, files};
 }
 
-// `global` paths sit outside every workspace package and force the full suite; a path
-// the js lane does not hash (docs, a Go test, a testdata fixture) cannot change a result.
+// A path outside every package forces the full suite, unless the js lane does not hash it (docs, a Go test).
 export function classifyPaths(files, packages) {
   const changed = new Set();
   const global = [];

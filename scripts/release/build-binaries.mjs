@@ -41,7 +41,7 @@ const GO_PKG = './cmd/mion';
 const STAGING_DIR = path.join(REPO_ROOT, 'dist-binaries');
 const LAUNCHER_SRC = path.join(REPO_ROOT, 'packages', 'bin-compiler');
 const LICENSE_SRC = path.join(REPO_ROOT, 'LICENSE');
-// Built binaries keyed by their inputs, so CI (actions/cache on this dir) can skip `go build` on an unchanged tree.
+// Keyed by inputs; CI caches this dir so an unchanged tree skips `go build`.
 const BIN_CACHE_DIR = path.join(REPO_ROOT, '.cache/release-bin');
 
 function readVersion() {
@@ -52,14 +52,13 @@ function readVersion() {
   return manifest.version;
 }
 
-// A fixed length, so the ldflags (and the cache digest below) never vary between clones.
+// Fixed length, so the ldflags and the cache digest never vary between clones.
 const readTsgoRevision = () => tsgolintCommit().slice(0, 7) || 'unknown';
 
 function releaseLdflags(version, tsgo) {
   return ['-s', '-w', `-X ${GO_MODULE}/internal/constants.Version=${version}`, `-X ${GO_MODULE}/internal/constants.TsgoVersion=${tsgo}`].join(' ');
 }
 
-// The resolver digest over this target's exact build flags.
 const binDigest = (platform, ldflags) =>
   resolverDigest(`${ldflags} -trimpath CGO_ENABLED=0 ${platform.goos}/${platform.goarch}${platform.goarm ? `v${platform.goarm}` : ''}`);
 
@@ -174,7 +173,7 @@ function parseArgs(args) {
   return {hostOnly: args.includes('--host-only'), cacheKey: args.includes('--cache-key')};
 }
 
-// The actions/cache key for BIN_CACHE_DIR: every selected platform's digest, computed with no Go.
+// The actions/cache key for BIN_CACHE_DIR; needs no Go.
 function binCacheKey(platforms, version, tsgo) {
   const ldflags = releaseLdflags(version, tsgo);
   const digests = platforms.map((platform) => binDigest(platform, ldflags)).join('\n');

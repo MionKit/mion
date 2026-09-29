@@ -43,22 +43,12 @@ import {capture, die, note, noteErr, reportCliError} from '../lib/proc.mjs';
 // in the always-on gate job instead, ungated by anything.
 export const FEEDS_NOTHING = ['docs/', 'tools/', 'assets/', '.claude/', '.vscode/', '.husky/', '.git-blame-ignore-revs', 'CHANGELOG.md', 'CLAUDE.md', 'README.md', 'SETUP.md', 'LICENSE'];
 
-// What the Go tree feeds a lane that only RUNS its binaries: everything but the
-// _test.go files and testdata/ the go tool never compiles, and the cmd/gen-* codegen
-// tools only the go-tools lane runs. The go lane (and go-tools) take the whole tree.
+// A lane that only RUNS the Go binaries skips what never compiles into them, and the cmd/gen-* codegen tools.
 const goBuildInput = (path) => isGoInput(path) && !path.startsWith('ts-go-runtypes/cmd/gen-');
 const GO_BUILD = {prefix: 'ts-go-runtypes/', keep: goBuildInput};
 
-// Inputs EVERY lane hashes: the Go tree the binaries are built from, the lockfile,
-// the workspace layout, the repo-wide tool config and the toolchain the bootstrap
-// action pins.
-//
-// The Go tree is here rather than on the `go` lane alone because the binaries built
-// from it are the engine every other lane runs on: the plugin tests spawn them, and
-// the container lanes mount them. Its third_party/ submodule rides along as a single
-// gitlink entry, so a submodule bump moves every hash, which is right. Repo-wide
-// config is here for the same reason, and changes rarely enough that the over-run
-// costs nothing.
+// Every lane hashes these: the Go binaries are the engine every lane runs (a submodule bump moves every hash).
+// Repo-wide config changes rarely enough that the over-run costs nothing.
 const REPO_CONFIG = ['package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'tsconfig.json', '.npmrc', '.editorconfig', '.prettierrc', '.prettierignore', '.gitignore', '.gitmodules', 'cliff.toml', 'commitlint.config.js', '.github/actions/'];
 const WORKSPACE = [GO_BUILD, ...REPO_CONFIG];
 const GO_TREE = ['ts-go-runtypes/', ...REPO_CONFIG];
@@ -89,12 +79,10 @@ export const LANES = {
   // Go tests compile against.
   go: {job: 'go tests + fuzz · the Go suite', paths: ['packages/run-types/', 'packages/drizzle-orm', ...GO_TREE]},
   'js-fuzz': {job: 'go tests + fuzz · the JS fuzz sweep', paths: JS},
-  // The JS-side checks that need a Go toolchain (codegen and drizzle-manifest drift, the
-  // build-gate tests): they run on the go-fuzz runner so js-lint never sets Go up.
+  // JS checks that need Go (codegen and drizzle-manifest drift, build-gate tests), so js-lint never sets Go up.
   'go-tools': {job: 'go tests + fuzz · the Go-backed JS checks', paths: [...JS, 'ts-go-runtypes/']},
   js: {job: 'js tests + lint', paths: JS},
-  // The site check and the competitor-map checks answer to different inputs; only the
-  // mion competitor and the site read our packages and the Go tree.
+  // Site and competitor-map checks have different inputs; only the site and mion's map read our packages and Go.
   smoke: {
     job: 'container smoke',
     paths: ['container/website/', 'container/benchmarks/', ...PACKED],
@@ -105,8 +93,7 @@ export const LANES = {
   },
   // pr-heavy.yml
   website: {job: 'build the docs site', paths: ['container/website/', ...PACKED]},
-  // One item per competitor: only mion's lane runs our packages and the binary, so a
-  // mion change re-runs only mion, and a competitor's own map re-runs only that one.
+  // One item per competitor: only mion's runs our packages and the binary, so a package change re-runs only mion.
   bench: {
     job: 'validation benchmarks',
     paths: ['container/benchmarks/', ...PACKED],
@@ -115,8 +102,7 @@ export const LANES = {
       ...Object.fromEntries(['zod', 'typebox', 'ajv', 'typia'].map((name) => [name, {paths: [`container/benchmarks/competitors/${name}/`, `container/benchmarks/_deps/competitors/${name}/`]}])),
     },
   },
-  // The three halves `release e2e` can switch off one by one (--no-matrix, --no-mion,
-  // --no-host-smoke). All three install every packed package, so a package change re-runs all.
+  // Items match `release e2e`'s --no-matrix / --no-mion / --no-host-smoke; each installs every packed package.
   e2e: {
     job: 'pre-publish e2e',
     paths: ['container/pre-publish-e2e/', '.github/verdaccio.yaml', ...PACKED],
@@ -127,8 +113,7 @@ export const LANES = {
     },
   },
   // drizzle-e2e.yml
-  // One item per database lane, so fixing one re-runs only that one. d1 and durable
-  // are Cloudflare drivers over the sqlite package, so they share its package.
+  // d1 and durable are Cloudflare drivers over sqlite, so they share its package.
   drizzle: {
     job: 'drizzle suites against real databases',
     paths: ['packages/drizzle-orm', 'packages/run-types/', 'packages/devtools/', 'packages/core/', 'packages/bin-compiler/', 'container/drizzle-e2e/', 'scripts/', 'drizzle-dialects.json', 'drizzle-suites.pin.json', ...WORKSPACE],
@@ -142,10 +127,7 @@ export const LANES = {
   },
 };
 
-// Prefix match, so a trailing slash means a directory and a bare name means that
-// file. A bare name is a prefix on purpose: 'packages/drizzle-orm' picks up the
-// four sibling dialect packages without naming each one. An entry can also be
-// {prefix, keep}, a prefix narrowed by a predicate on the full path.
+// A bare name is a prefix on purpose: 'packages/drizzle-orm' also picks up the dialect packages.
 const entryMatches = (path, entry) => (typeof entry === 'string' ? path.startsWith(entry) : path.startsWith(entry.prefix) && entry.keep(path));
 export const matches = (path, entries) => entries.some((entry) => entryMatches(path, entry));
 
@@ -183,9 +165,7 @@ export function laneHashes(ref = 'HEAD', {cwd = REPO_ROOT} = {}) {
   return {hashes, unknown};
 }
 
-// An item is one independently provable piece of a lane (a database, a competitor).
-// It hashes the lane's inputs minus the paths another item claims, so editing one
-// item's own files re-runs only that item.
+// An item is one independently provable piece of a lane (a database, a competitor); its own edits re-run only it.
 export const itemName = (lane, item) => `${lane}.${item}`;
 export function itemFeeds(lane, item, path) {
   if (!matches(path, lane.paths)) return false;
@@ -202,8 +182,7 @@ export const greenKey = (lane, hash) => `mion-lane-green-${lane}-${hash}`;
 // A push to main never accepts them, so main still runs the full suite once after the merge.
 export const PR_PROOF = {js: 'js-pr'};
 
-// Every marker key that could prove one of `wanted` green at its current hash: the
-// ones `decide` reads, so the caller can look each up exactly instead of listing all.
+// The keys `decide` reads, so the caller can look each up exactly instead of listing every cache.
 export function candidateKeys(wanted, {hashes, pr = false}) {
   return wanted.flatMap((name) => {
     if (!hashes[name]) die(`no such lane: ${name} (known lanes: ${Object.keys(LANES).join(', ')})`);
@@ -229,7 +208,7 @@ export function decide(wanted, {hashes, greenKeys = [], pr = false}) {
       lanes[name] = {run: !laneGreen, hash, reason: laneGreen ? 'these exact inputs already passed' : 'inputs not proven green yet'};
       continue;
     }
-    // The lane marker claims every item, so it skips them all; otherwise each item answers for itself.
+    // A lane marker covers every item; otherwise each item answers for itself.
     const items = Object.fromEntries(itemNames.map((item) => [item, {run: !laneGreen && !provenGreen(itemName(name, item)), hash: hashes[itemName(name, item)]}]));
     const runItems = itemNames.filter((item) => items[item].run);
     const run = runItems.length > 0;

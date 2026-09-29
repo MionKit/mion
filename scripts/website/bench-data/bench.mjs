@@ -54,9 +54,8 @@ function config(env = process.env) {
   };
 }
 
-// Competitors run in this order (columns.mjs, the list the generator and the gate
-// hold the datasets to); typia is included by default (MION_VALIDATION_BENCH_NO_TYPIA skips).
-// `--only a,b` narrows it further: CI runs just the competitors not yet proven green.
+// Order comes from columns.mjs, the list the generator and the gate hold the datasets to.
+// `--only a,b` exists so CI runs just the competitors not yet proven green.
 let onlyCompetitors = null;
 export function competitorList() {
   return COMPETITORS.filter((competitor) => competitor !== 'typia' || !process.env.MION_VALIDATION_BENCH_NO_TYPIA).filter((competitor) => !onlyCompetitors || onlyCompetitors.includes(competitor));
@@ -334,7 +333,7 @@ function cmdBench(cfg) {
   const competitors = competitorList();
   const broken = competitors.filter((competitor) => !buildAndRunOne(cfg, competitor));
   if (process.env.MION_VALIDATION_BENCH_CASE) return note(`MION_VALIDATION_BENCH_CASE='${process.env.MION_VALIDATION_BENCH_CASE}': per-case console output above; results JSON, aggregate and docdata left untouched.`);
-  // The tripwire reads mion's own results, so a run without the mion lane has nothing to check.
+  // The tripwire reads mion's own results.
   if (competitors.includes('mion')) {
     console.log('-------- engine branch --------');
     checkEngineBranch();
@@ -645,8 +644,6 @@ function dispatch(cfg, args) {
 }
 
 export function main(rawArgs) {
-  // Pull --quick (sets MION_VALIDATION_BENCH_QUICK) and --only <list> out of the args from any
-  // position; everything else is forwarded unchanged.
   const args = [];
   for (let i = 0; i < rawArgs.length; i++) {
     if (rawArgs[i] === '--quick') process.env.MION_VALIDATION_BENCH_QUICK = '1';

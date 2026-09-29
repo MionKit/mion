@@ -131,9 +131,7 @@ export function ensureMionDists() {
   }
 }
 
-// Stage the playground assets (resolver WASM + mion source overlay) the
-// /playground page fetches. build-playground.mjs is itself staleness-gated (instant
-// no-op when nothing changed, and needs no Go when the wasm stamp still matches), so we just invoke it before serving.
+// build-playground.mjs is staleness-gated and needs no Go while the wasm stamp matches, so always run it.
 function ensurePlayground(cfg) {
   if (cfg.skipPlayground) return note('MION_WEBSITE_SKIP_PLAYGROUND=1 - skipping playground assets');
   if (run('node', [join(WEBSITE_DIR, 'scripts/build-playground.mjs')]) !== 0) {

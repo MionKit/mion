@@ -46,9 +46,9 @@ export const isCheckedOutRepo = (dir) => {
 };
 export const submoduleInitialised = () => isCheckedOutRepo(TSGOLINT);
 export const headCommit = () => capture('git', ['-C', TSGOLINT, 'rev-parse', 'HEAD']).stdout.trim();
-// The commit the main repo records for the submodule: readable with no submodule checkout.
+// Readable with no submodule checkout.
 export const gitlinkCommit = () => capture('git', ['-C', REPO_ROOT, 'rev-parse', `HEAD:${rel(TSGOLINT)}`]).stdout.trim();
-// The tsgolint commit a Go build links: the checked-out one, else the recorded one.
+// The commit a Go build links.
 export const tsgolintCommit = () => (submoduleInitialised() ? headCommit() : gitlinkCommit());
 export const shortCommit = (ref = 'HEAD') => capture('git', ['-C', TSGOLINT, 'rev-parse', '--short', ref]).stdout.trim();
 export const describe = (dir = TSGOLINT) => capture('git', ['-C', dir, 'describe', '--tags', '--always']).stdout.trim();

@@ -23,7 +23,7 @@ export const WASM_INPUTS = ['ts-go-runtypes/cmd/mion-wasm', 'ts-go-runtypes/inte
 // trading a loud failure for silent coverage loss.
 export const isWasmInput = isGoInput;
 
-// The wasm links typescript-go too, so the tsgolint commit (which pins it and the patches) joins the digest.
+// The wasm links typescript-go, which the tsgolint commit pins along with its patches.
 export const wasmInputsDigest = (repoRoot) => goInputsDigest(repoRoot, WASM_INPUTS, [tsgolintCommit()]);
 
 export const readWasmStamp = readStamp;

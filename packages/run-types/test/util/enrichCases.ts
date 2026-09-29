@@ -20,9 +20,7 @@ export interface CaseSpans {
   mock: string;
 }
 
-// extractFnBodies spawns the Go extractor over a category file and returns the
-// raw arrow-function-body source text per case key. The extractor's JSON
-// mirrors the const's object nesting: `{ <caseKey>: { case: "<body text>" } }`.
+// The extractor's JSON mirrors the const's nesting: `{ <caseKey>: { case: "<body text>" } }`.
 function extractFnBodies(categoryFile: string, constName: string): Record<string, {case?: string}> {
   const result = spawnSync(EXTRACT_BIN, ['--file', categoryFile, '--identifier', constName], {
     encoding: 'utf8',

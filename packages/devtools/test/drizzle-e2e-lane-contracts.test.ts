@@ -1,9 +1,8 @@
 // Contract tests for the drizzle-e2e lanes.
 //
-// The lane list lives in THREE places that cannot import each other — the run
-// script inside the container, the release front door on the host, and the CI
-// lane items (scripts/ci/lanes.mjs) — so a new lane is easy to half-add: it runs locally and never runs in
-// CI, or CI asks for an image nothing builds. These pin the three to each other.
+// The lane list lives in THREE places that cannot import each other (the container run script, the host
+// release front door, the CI lane items in scripts/ci/lanes.mjs), so a new lane is easy to half-add: it
+// runs locally but never in CI, or CI asks for an image nothing builds. These pin the three to each other.
 //
 // The typecheck-normalization test is a REGRESSION, not a precaution. The lane
 // compares tsc over the translated tree against tsc over the control, and the

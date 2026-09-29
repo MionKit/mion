@@ -1,10 +1,8 @@
 name: cache cleanup
 
-# Keeps the Actions cache (10 GB per repo) for entries that can still be restored.
-# A closed pull request's caches can never be restored again, so they go at once,
-# except the lane green markers, which main reads after a merge. Once a week main
-# keeps only its newest prebuilt binaries and passed-test lists. GitHub itself still
-# evicts anything unused for 7 days. The rules live in scripts/ci/cache-cleanup.mjs.
+# Keeps the Actions cache (10 GB per repo) for what can still restore: a closed PR's caches go at once, except
+# the lane markers main reads after a merge, and weekly main keeps only its newest binaries and passed-test lists.
+# The rules live in scripts/ci/cache-cleanup.mjs.
 on:
   pull_request:
     types: [closed]
