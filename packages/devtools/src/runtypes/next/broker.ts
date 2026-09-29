@@ -142,8 +142,8 @@ export async function startBroker(root: string, options: NextOptions = {}): Prom
       if (collecting) collecting.push(text);
       else console.warn(`[@mionjs/devtools] ${text}`);
     },
-    error: (message: unknown) => {
-      throw new Error(String(message));
+    error: (error: unknown) => {
+      throw error instanceof Error ? error : new Error(String(error));
     },
     addWatchFile: (file: unknown) => {
       if (collectingDeps && typeof file === 'string') collectingDeps.push(file);
