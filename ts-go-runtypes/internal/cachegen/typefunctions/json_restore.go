@@ -200,7 +200,7 @@ func emitIndexSignatureRestoreFromJson(rt *reflection.RunType, ctx *EmitContext,
 	if resolved == nil {
 		return RTCode{Code: "", Type: CodeS}
 	}
-	if isFunctionLikeKind(resolved.Kind) {
+	if indexSignatureValueDrop(rt, resolved, ctx) {
 		return RTCode{Code: "", Type: CodeS}
 	}
 	keyRegexVar := indexSignatureKeyRegexVar(rt, ctx)

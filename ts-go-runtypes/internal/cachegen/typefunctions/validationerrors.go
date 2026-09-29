@@ -635,7 +635,7 @@ func emitIndexSignatureValidationErrors(rt *reflection.RunType, ctx *EmitContext
 	if resolved == nil {
 		return RTCode{Code: "", Type: CodeS}
 	}
-	if isFunctionLikeKind(resolved.Kind) {
+	if indexSignatureValueDrop(rt, resolved, ctx) {
 		return RTCode{Code: "", Type: CodeS}
 	}
 	// Template-literal key regex lifted into the closure prologue, same shape as the validate emit.

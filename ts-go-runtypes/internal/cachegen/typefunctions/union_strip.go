@@ -69,6 +69,28 @@ func strippedValueDrop(resolved *reflection.RunType, name string, ctx *EmitConte
 	return true
 }
 
+// indexSignatureValueDrop reports whether an index signature's value is a function, dropped with the family's …010 note.
+func indexSignatureValueDrop(signature, resolved *reflection.RunType, ctx *EmitContext) bool {
+	if !isCallableValue(resolved, ctx) {
+		return false
+	}
+	ctx.EmitDiagnosticSlot(SlotFunctionPropDropped, indexSignatureLabel(signature, ctx))
+	return true
+}
+
+// indexSignatureLabel names an index signature the way the user wrote it, `[key: string]`.
+func indexSignatureLabel(signature *reflection.RunType, ctx *EmitContext) string {
+	if index := ctx.ResolveRef(signature.Index); index != nil {
+		switch index.Kind {
+		case reflection.KindString:
+			return "[key: string]"
+		case reflection.KindNumber:
+			return "[key: number]"
+		}
+	}
+	return "[key]"
+}
+
 // strippedMemberLabel returns the user-facing label a dropped union member's Warning substitutes for {0},
 // in the user's own type vocabulary, never compiler-internal jargon.
 func strippedMemberLabel(resolved *reflection.RunType, ctx *EmitContext) string {

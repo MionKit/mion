@@ -1150,7 +1150,7 @@ func emitIndexSignatureValidate(rt *reflection.RunType, ctx *EmitContext, v stri
 	if resolved == nil {
 		return RTCode{Code: "", Type: CodeE}
 	}
-	if isFunctionLikeKind(resolved.Kind) {
+	if indexSignatureValueDrop(rt, resolved, ctx) {
 		return RTCode{Code: "", Type: CodeE}
 	}
 	keyRegexVar := ""
