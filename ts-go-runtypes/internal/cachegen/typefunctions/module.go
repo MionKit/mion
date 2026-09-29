@@ -311,6 +311,13 @@ func ReportReachedFindings(graph entrymodules.Graph, opts RenderOpts) {
 	for _, diagnostic := range *opts.DiagSink {
 		reported[reachedThrowKey(diagnostic.Code, diagnostic.Args, diagnostic.Site)] = true
 	}
+	report := func(finding entrymodules.Finding, site diagnostics.Site) {
+		reportKey := reachedThrowKey(finding.Code, finding.Args, site)
+		if !reported[reportKey] {
+			reported[reportKey] = true
+			*opts.DiagSink = append(*opts.DiagSink, diagnostics.New(finding.Code, site, finding.Args...))
+		}
+	}
 	keys := make([]string, 0, len(graph))
 	for key, entry := range graph {
 		if entry.Kind == entrymodules.KindTypeFn && entry.Throw == nil {
@@ -319,33 +326,42 @@ func ReportReachedFindings(graph entrymodules.Graph, opts RenderOpts) {
 	}
 	sort.Strings(keys)
 	for _, key := range keys {
-		entry := graph[key]
-		separator := strings.IndexByte(key, '_')
-		if separator < 0 {
-			continue
-		}
-		sites := opts.RootedSites[ProvenanceKey(key[separator+1:], entry.FamilyTag)]
+		sites := opts.RootedSites[entryProvenanceKey(graph[key])]
 		if len(sites) == 0 {
 			continue
 		}
-		for _, finding := range reachableFindings(graph, key) {
-			for _, site := range sites {
-				reportKey := reachedThrowKey(finding.Code, finding.Args, site)
-				if reported[reportKey] {
-					continue
+		throwing, adopted := reachableFindings(graph, key)
+		for _, site := range sites {
+			// A throw of another family (the validate entry a JSON union picks its member with) is news only when the
+			// site's own family reaches no throw: otherwise it names the same failure twice.
+			var own, foreign []entrymodules.Finding
+			for _, entry := range throwing {
+				if slices.Contains(opts.ProvenanceSites[entryProvenanceKey(entry)], site) {
+					own = append(own, *entry.Throw)
+				} else {
+					foreign = append(foreign, *entry.Throw)
 				}
-				reported[reportKey] = true
-				*opts.DiagSink = append(*opts.DiagSink, diagnostics.New(finding.Code, site, finding.Args...))
+			}
+			if len(own) == 0 {
+				own = foreign
+			}
+			for _, finding := range append(own, adopted...) {
+				report(finding, site)
 			}
 		}
 	}
 }
 
-// reachableFindings walks an entry's type-fn deps, same family or not, and returns in walk order the throw of every
-// alwaysThrow entry it reaches plus the findings of every entry in a family the root's family adopts.
-func reachableFindings(graph entrymodules.Graph, entryID string) []entrymodules.Finding {
+// entryProvenanceKey is the ProvenanceKey of a type-fn entry keyed `<fnHash>_<typeId>`.
+func entryProvenanceKey(entry *entrymodules.Entry) string {
+	separator := strings.IndexByte(entry.Key, '_')
+	return ProvenanceKey(entry.Key[separator+1:], entry.FamilyTag)
+}
+
+// reachableFindings walks an entry's type-fn deps, same family or not, and returns in walk order every alwaysThrow
+// entry it reaches plus the findings of every entry in a family the root's family adopts.
+func reachableFindings(graph entrymodules.Graph, entryID string) (throwing []*entrymodules.Entry, adoptedFindings []entrymodules.Finding) {
 	adopted := adoptsFindingsOf[graph[entryID].FamilyTag]
-	var found []entrymodules.Finding
 	visited := map[string]bool{entryID: true}
 	stack := []string{entryID}
 	for len(stack) > 0 {
@@ -365,21 +381,21 @@ func reachableFindings(graph entrymodules.Graph, entryID string) []entrymodules.
 				continue
 			}
 			if depEntry.Throw != nil {
-				found = append(found, *depEntry.Throw)
+				throwing = append(throwing, depEntry)
 				continue
 			}
 			if adopted[depEntry.FamilyTag] {
 				for _, finding := range depEntry.Findings {
 					// A root-scoped finding is about that entry as a marker's root, never about a site reaching it.
 					if diagnostics.ScopeOf(finding.Code) != diagnostics.ScopeRoot {
-						found = append(found, finding)
+						adoptedFindings = append(adoptedFindings, finding)
 					}
 				}
 			}
 			stack = append(stack, dep)
 		}
 	}
-	return found
+	return throwing, adoptedFindings
 }
 
 func reachedThrowKey(code string, args []string, site diagnostics.Site) string {

@@ -291,3 +291,27 @@ func TestAdoptedFinding_RemoveUnknownKeysDoesNotAdopt(t *testing.T) {
 		t.Errorf("removeUnknownKeys must not report validate's drop, got %v", sites)
 	}
 }
+
+// A JSON union picks its member with the validate entry of that union; when the encoder's own union throws too,
+// the site reports its own code once, never validate's second name for the same failure.
+const nativeUnionSite = `type NativeUnion = ArrayBuffer | SharedArrayBuffer;
+interface HasNativeUnion { x: NativeUnion; y: number }
+`
+
+func expectOwnThrowOnly(t *testing.T, site, own, foreign string) {
+	t.Helper()
+	response := wholeProgram(t, nestedThrowSources(nativeUnionSite+site))
+	expectReportedOnceAtSite(t, response, own)
+	if sites := diagSitesFor(response, foreign); len(sites) != 0 {
+		t.Errorf("%s names the same failure as %s, got it at %v", foreign, own, sites)
+	}
+}
+
+func TestNestedThrow_OwnFamilyThrowWins_Static(t *testing.T) {
+	expectOwnThrowOnly(t, `export const encode = createJsonEncoderFn<HasNativeUnion>();`, diagnostics.CodePJSNonSerializableRoot, diagnostics.CodeVLNonSerializableRoot)
+}
+
+func TestNestedThrow_OwnFamilyThrowWins_Value(t *testing.T) {
+	expectOwnThrowOnly(t, `declare const value: HasNativeUnion;
+export const encode = createJsonEncoderFn(value);`, diagnostics.CodePJSNonSerializableRoot, diagnostics.CodeVLNonSerializableRoot)
+}
