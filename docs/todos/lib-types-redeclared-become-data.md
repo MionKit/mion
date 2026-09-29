@@ -48,6 +48,27 @@ Performance, WebSocket), `bun-types` more. In the `packages/run-types` vitest pr
 
 Expected: each one is a not-data built-in, handled like `Int8Array` today.
 
+### Build errors and warnings these types raise today
+
+`removeUnknownKeys` now refuses a symbol-keyed member (RUK004, the factory always throws) and warns for every
+function member it shares (RUK010). Walked as plain objects, these types trip both. Measured in the
+`packages/run-types` vitest project with `createRemoveUnknownKeysFn<{field: X}>()`:
+
+| Field type `X` | Errors (the function always throws) | Warnings |
+| --- | --- | --- |
+| `URL` | RUK004 `[iterator]` (from `searchParams: URLSearchParams`) | RUK010 for append, delete, forEach, get, getAll, has, set, sort, toJSON, toString |
+| `URLSearchParams` | RUK004 `[iterator]` | RUK010 for append, delete, forEach, get, getAll, has, set, sort, toString |
+| `Headers` | RUK004 `[iterator]` | RUK010 for append, delete, forEach, get, getSetCookie, has, set |
+| `NodeJS.Timeout` | RUK004 `[toPrimitive]` | RUK010 for close, hasRef, ref, refresh, unref |
+| `EventEmitter` | RUK004 `[captureRejectionSymbol]` | none |
+| `AbortController` | none | RUK010 for abort, addEventListener, dispatchEvent, removeEventListener, throwIfAborted |
+| `TextEncoder` | none | RUK010 for encode, encodeInto |
+| `Blob`, `Request` | build error MKR009 (`ReadableStream` re-instantiates itself), in every family | none |
+
+`createValidateFn`, `createJsonEncoderFn` and `createJsonDecoderFn` of `{url: URL}` raise nothing at build time;
+they are wrong at runtime instead (see the table above). Once these types are not data, every row must show the
+not-data handling instead: RUK015 (shared, Warning) for removeUnknownKeys, with no RUK004, RUK010 or MKR009.
+
 ## Cause (verified)
 
 `declaringLibFile` (`ts-go-runtypes/internal/cachegen/runtype/typeid/typeid.go`), used by `LibDeclaredGlobalOf`
@@ -85,5 +106,5 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
 
 ## Done when
 
-- Every row of both tables shows the expected behaviour.
+- Every row of the three tables shows the expected behaviour, and the errors and warnings listed above are gone.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source file, each committed on its own.
