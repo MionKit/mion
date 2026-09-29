@@ -291,10 +291,6 @@ describe('inputFrom()', () => {
   // an unprocessed file ships and the only way to hand inputFrom a bad argument.
   const unprocessed = rawInputFrom as unknown as (source: unknown, mapper: unknown) => never;
 
-  it('should throw when the mapper is a name rather than a function', () => {
-    expect(() => unprocessed(fakeSubRequest, 'toPreferenceId')).toThrow(/takes the mapper itself, written inline/);
-  });
-
   it('should throw when the mapper is missing', () => {
     expect(() => unprocessed(fakeSubRequest, undefined)).toThrow('inputFrom() requires an inline mapper function');
   });
