@@ -36,6 +36,7 @@ runs:
 
     # Never `submodules: recursive`: it also pulls typescript-go's TypeScript corpus (~620 MB), which no build reads.
     # The resolver builds only with the patches applied; `git apply`, not `git am`, needs no committer identity on CI.
+    # `cd`, not `git -C`: bash expands the patch glob in its own directory, before git ever moves.
     - name: Fetch the tsgolint submodule without the TypeScript corpus, and apply its patches
       id: tsgo
       if: inputs.toolchain == 'true' || steps.restore.outputs.cache-hit != 'true'
@@ -43,7 +44,7 @@ runs:
       run: |
         git submodule update --init --depth 1 ts-go-runtypes/third_party/tsgolint
         git -C ts-go-runtypes/third_party/tsgolint submodule update --init --depth 1 typescript-go
-        git -C ts-go-runtypes/third_party/tsgolint/typescript-go apply --3way ../patches/*.patch
+        (cd ts-go-runtypes/third_party/tsgolint/typescript-go && git apply --3way ../patches/*.patch)
         echo "sha=$(git -C ts-go-runtypes/third_party/tsgolint rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
     # Before the cache restore so the installed Go version can join its key; cache: false leaves GOCACHE to us.
