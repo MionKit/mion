@@ -123,8 +123,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-        with:
-          submodules: recursive
       - uses: ./.github/actions/bootstrap
       # Fail-fast: cheap checks first. gofmt is instant; vet compiles (cache-warm)
       # and warms the compile cache the go-test + resolver-build steps reuse.
@@ -219,7 +217,6 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          submodules: recursive
           # The JS suite step diffs against HEAD^1, the PR merge commit's base tip.
           fetch-depth: 2
       - uses: ./.github/actions/bootstrap
@@ -368,8 +365,6 @@ jobs:
       packages: read
     steps:
       - uses: actions/checkout@v5
-        with:
-          submodules: recursive
       # Reclaim ~15-25 GB of preinstalled cruft before the multi-GB image pull +
       # Go build-cache restore, so the runner's root fs doesn't fill up.
       - uses: ./.github/actions/free-disk

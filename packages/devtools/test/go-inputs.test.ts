@@ -1,9 +1,9 @@
 // scripts/lib/go-inputs.mjs is the content digest behind two stamps: the
 // resolver binary's (mion-bin/.mion.stamp, scripts/core/build.mjs) and the playground
 // wasm's (container/website/scripts/build-playground.mjs). These pin what the
-// digest sees, that it is stable, and that the playground wrapper still produces
-// the same bytes it did before the helper was shared.
-import {mkdtempSync, rmSync, writeFileSync} from 'node:fs';
+// digest sees, that it is stable, and what the playground wrapper adds on top.
+import {execFileSync} from 'node:child_process';
+import {mkdirSync, mkdtempSync, rmSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {afterAll, describe, expect, it} from 'vitest';
@@ -11,6 +11,8 @@ import {afterAll, describe, expect, it} from 'vitest';
 import {goInputFiles, goInputsDigest, isGoInput, readStamp, writeStamp} from '../../../scripts/lib/go-inputs.mjs';
 // @ts-expect-error plain ESM dev script, no types
 import {WASM_INPUTS, isWasmInput, readWasmStamp, wasmInputsDigest} from '../../../scripts/website/playground-wasm-inputs.mjs';
+// @ts-expect-error plain ESM dev script, no types
+import {gitlinkCommit, isCheckedOutRepo, tsgolintCommit} from '../../../scripts/lib/tsgolint.mjs';
 
 const REPO_ROOT = join(__dirname, '../../..');
 const HEX64 = /^[0-9a-f]{64}$/;
@@ -60,16 +62,33 @@ describe('go-inputs — what the digest sees', () => {
   });
 });
 
-describe('go-inputs — the playground wrapper keeps its bytes', () => {
-  it('the wasm digest is the shared digest over the wasm input list, nothing added', () => {
+describe('go-inputs — the playground wrapper', () => {
+  it('the wasm digest is the shared digest over the wasm input list plus the tsgolint commit', () => {
     expect(WASM_INPUTS).toEqual([
       'ts-go-runtypes/cmd/mion-wasm',
       'ts-go-runtypes/internal',
       'ts-go-runtypes/go.mod',
       'ts-go-runtypes/go.sum',
     ]);
-    expect(wasmInputsDigest(REPO_ROOT)).toBe(goInputsDigest(REPO_ROOT, WASM_INPUTS));
+    expect(wasmInputsDigest(REPO_ROOT)).toBe(goInputsDigest(REPO_ROOT, WASM_INPUTS, [tsgolintCommit()]));
     expect(isWasmInput).toBe(isGoInput);
     expect(readWasmStamp).toBe(readStamp);
+  });
+});
+
+describe('go-inputs — the tsgolint commit a build links', () => {
+  it('an empty submodule dir is not a checkout, even though git answers from the parent repo', () => {
+    const parent = join(scratch, 'parent');
+    execFileSync('git', ['init', '-q', parent]);
+    const sub = join(parent, 'sub');
+    mkdirSync(sub);
+    expect(isCheckedOutRepo(sub)).toBe(false);
+    execFileSync('git', ['init', '-q', sub]);
+    expect(isCheckedOutRepo(sub)).toBe(true);
+  });
+
+  it('the recorded gitlink is readable without the submodule and matches the checkout here', () => {
+    expect(gitlinkCommit()).toMatch(/^[0-9a-f]{40}$/);
+    expect(tsgolintCommit()).toBe(gitlinkCommit());
   });
 });

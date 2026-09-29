@@ -114,8 +114,6 @@ jobs:
         lane: ${{ fromJSON(needs.pick.outputs.lanes) }}
     steps:
       - uses: actions/checkout@v5
-        with:
-          submodules: recursive
       - uses: ./.github/actions/bootstrap
       # miondevx builds what a lane needs itself, but doing it as its own step keeps a
       # build failure legible as a build failure rather than a soak failure.

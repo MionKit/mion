@@ -54,8 +54,6 @@ jobs:
       version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v5
-        with:
-          submodules: recursive
       - uses: ./.github/actions/bootstrap
       - id: version
         shell: bash
@@ -154,8 +152,6 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
-        with:
-          submodules: recursive
       - uses: ./.github/actions/bootstrap
       # The command spawns mion-bin/mion and the vitest project reads both
       # dists; a build failure should read as a build failure, not a conversion one.
@@ -223,8 +219,6 @@ jobs:
         lane: ${{ fromJSON(needs.pick.outputs.lanes) }}
     steps:
       - uses: actions/checkout@v5
-        with:
-          submodules: recursive
       - uses: ./.github/actions/bootstrap
       # miondevx builds what a lane needs itself, but doing it as its own step keeps a
       # build failure legible as a build failure rather than a soak failure.
@@ -348,8 +342,6 @@ jobs:
       packages: read
     steps:
       - uses: actions/checkout@v5
-        with:
-          submodules: recursive
       # Reclaim preinstalled cruft before the image pull + Go build-cache restore.
       - uses: ./.github/actions/free-disk
       - uses: ./.github/actions/bootstrap
@@ -389,8 +381,6 @@ jobs:
       packages: read
     steps:
       - uses: actions/checkout@v5
-        with:
-          submodules: recursive # tsgolint submodule - the playground WASM Go build needs it
       # Reclaim preinstalled cruft before the image pull + Go build-cache restore.
       - uses: ./.github/actions/free-disk
       # `container-build` runs on the HOST to drive the podman build AND to prebuild
