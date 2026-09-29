@@ -43,7 +43,7 @@ describe('the pre-publish-e2e lane mirrors the release gate', () => {
   it('packs a host-only set and runs the same front door as the gate', () => {
     expect(lane).toContain('run: pnpm miondevx release binaries --host-only');
     expect(lane).toContain('run: pnpm miondevx release pack');
-    expect(lane).toContain('run: pnpm miondevx release e2e --backend container');
+    expect(lane).toMatch(/run: >-\n\s+pnpm miondevx release e2e --backend container\n/);
     expect(gate).toContain('run: pnpm miondevx release e2e --backend ${{ matrix.backend }}');
   });
 

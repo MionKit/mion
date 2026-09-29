@@ -106,11 +106,17 @@ jobs:
           hash: ${{ fromJSON(needs.lanes.outputs.lanes).website.hash }}
 
   bench:
-    name: validation benchmarks
+    name: validation benchmarks · ${{ matrix.competitor }}
     needs: lanes
     if: contains(github.event.pull_request.labels.*.name, 'bench') && fromJSON(needs.lanes.outputs.lanes).bench.run
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        # Only the competitors not yet proven green at their own inputs: a mion
+        # change re-runs the mion lane alone.
+        competitor: ${{ fromJSON(needs.lanes.outputs.lanes).bench.runItems }}
     steps:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/free-disk
@@ -126,13 +132,28 @@ jobs:
       # --quick: a PR wants "the lanes still run and answer correctly", not
       # publishable numbers. Every lane still has to answer correctly AND reject
       # an invalid payload before it is measured, which is the part that catches
-      # a broken competitor after a rename.
+      # a broken competitor after a rename; a correctness failure fails the run.
       # typia runs here too: the prebuilt image bakes its compiled ttsc plugin, so
       # its lane builds in seconds like the others.
       - name: Run the benchmarks
-        run: pnpm miondevx bench --quick
-      - name: Record the benchmarks as green
+        run: pnpm miondevx bench --quick --only ${{ matrix.competitor }}
+      # This competitor's own marker: it claims only this item.
+      - name: Record this competitor as green
         uses: ./.github/actions/save-lane-green
+        with:
+          lane: bench.${{ matrix.competitor }}
+          hash: ${{ fromJSON(needs.lanes.outputs.lanes).bench.items[matrix.competitor].hash }}
+
+  # The lane marker claims every competitor, so it waits on every one that ran; the
+  # rest were already proven by their own item markers.
+  bench-green:
+    name: record the benchmarks as green
+    needs: [lanes, bench]
+    if: success()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/save-lane-green
         with:
           lane: bench
           hash: ${{ fromJSON(needs.lanes.outputs.lanes).bench.hash }}
@@ -226,9 +247,33 @@ jobs:
           # PAT (read:packages) can.
           password: ${{ secrets.GHCR_PAT }}
       # The ONE front door, the same script as the release gate and a local run.
+      # Only the halves not yet proven green at their own inputs run.
       - name: Pre-publish e2e (container backend)
-        run: pnpm miondevx release e2e --backend container
-      # The marker rides the job that PROVES the lane, not the one that packs for it.
+        run: >-
+          pnpm miondevx release e2e --backend container
+          ${{ !contains(fromJSON(needs.lanes.outputs.lanes).e2e.runItems, 'matrix') && '--no-matrix' || '' }}
+          ${{ !contains(fromJSON(needs.lanes.outputs.lanes).e2e.runItems, 'mion') && '--no-mion' || '' }}
+          ${{ !contains(fromJSON(needs.lanes.outputs.lanes).e2e.runItems, 'host-smoke') && '--no-host-smoke' || '' }}
+      # The markers ride the job that PROVES the lane, not the one that packs for it:
+      # one per half that ran, then the lane marker, which claims all three.
+      - name: Record the bundler matrix as green
+        if: success() && contains(fromJSON(needs.lanes.outputs.lanes).e2e.runItems, 'matrix')
+        uses: ./.github/actions/save-lane-green
+        with:
+          lane: e2e.matrix
+          hash: ${{ fromJSON(needs.lanes.outputs.lanes).e2e.items.matrix.hash }}
+      - name: Record the mion consumer lanes as green
+        if: success() && contains(fromJSON(needs.lanes.outputs.lanes).e2e.runItems, 'mion')
+        uses: ./.github/actions/save-lane-green
+        with:
+          lane: e2e.mion
+          hash: ${{ fromJSON(needs.lanes.outputs.lanes).e2e.items.mion.hash }}
+      - name: Record the host smoke as green
+        if: success() && contains(fromJSON(needs.lanes.outputs.lanes).e2e.runItems, 'host-smoke')
+        uses: ./.github/actions/save-lane-green
+        with:
+          lane: e2e.host-smoke
+          hash: ${{ fromJSON(needs.lanes.outputs.lanes).e2e.items['host-smoke'].hash }}
       - name: Record the pre-publish e2e as green
         uses: ./.github/actions/save-lane-green
         with:

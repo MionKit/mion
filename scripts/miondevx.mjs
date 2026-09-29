@@ -425,9 +425,10 @@ function benchArgs(args) {
   if (web.value) return ['website-bench', ...web.rest];
   const buildOnly = takeFlag(args, '--build-only');
   if (buildOnly.value) return ['build', ...buildOnly.rest];
-  const stray = args.find((a) => !a.startsWith('-'));
+  const only = takeFlag(args, '--only', {valued: true});
+  const stray = only.rest.find((a) => !a.startsWith('-'));
   if (stray) die(`unknown bench command '${stray}'. ${usage('bench')}`, 2);
-  return ['bench', ...args];
+  return ['bench', ...only.rest, ...(only.value === undefined ? [] : ['--only', only.value])];
 }
 // `miondevx bench servers …` is the OTHER benchmark family: the mion HTTP server
 // benchmarks, which run in their own mion-bench image. Everything after `servers` is

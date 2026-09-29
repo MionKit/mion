@@ -213,6 +213,7 @@ export const AREAS = {
       ['--website', 'the website subset'],
       ['--build-only', 'build the lanes, measure nothing'],
       ['--quick', 'the short run'],
+      ['--only <a,b>', 'only these competitors (the default run, typecheck, smoke and build)'],
     ],
     commands: [
       {name: 'audit', summary: 'audit every competitor map'},

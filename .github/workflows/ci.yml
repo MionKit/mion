@@ -389,18 +389,21 @@ jobs:
       # Go build-cache restore, so the runner's root fs doesn't fill up.
       - uses: ./.github/actions/free-disk
       - uses: ./.github/actions/bootstrap
-      # Before the resolver: a wasm cache hit means this job never needs Go.
+      # Before the resolver: a wasm cache hit means this job never needs Go. Only the
+      # website item reads the wasm.
       - name: Cache the playground wasm
         id: wasm
+        if: contains(fromJSON(needs.lanes.outputs.lanes).smoke.runItems, 'website')
         uses: ./.github/actions/cache-playground-wasm
       - uses: ./.github/actions/resolver
         with:
-          toolchain: ${{ steps.wasm.outputs.hit != 'true' }}
+          toolchain: ${{ contains(fromJSON(needs.lanes.outputs.lanes).smoke.runItems, 'website') && steps.wasm.outputs.hit != 'true' }}
       - name: Build the resolver + linux binaries for the container mounts
         run: pnpm miondevx core build all linux-go linux-extract --trust-stamp
       - name: Pull the prebuilt shared image (CI never builds it)
         uses: ./.github/actions/pull-shared-image
       - name: Website serves-a-page smoke
+        if: contains(fromJSON(needs.lanes.outputs.lanes).smoke.runItems, 'website')
         run: pnpm miondevx website check
       # The competitor maps declare themselves TOTAL over the shared case keys, and
       # nothing used to compile them (vite/esbuild strip types without checking), so a
@@ -409,11 +412,26 @@ jobs:
       # the same drift, and it includes typia — no .ttsc plugin is needed to
       # type-check, only to build, so MION_VALIDATION_BENCH_NO_TYPIA is deliberately NOT set here.
       - name: Benchmark competitor-map typecheck
+        if: contains(fromJSON(needs.lanes.outputs.lanes).smoke.runItems, 'bench')
         run: pnpm miondevx bench typecheck
       # typia included: the prebuilt image bakes its compiled ttsc plugin, so its
       # build is an esbuild pass like the others.
       - name: Benchmark competitor-build smoke
+        if: contains(fromJSON(needs.lanes.outputs.lanes).smoke.runItems, 'bench')
         run: pnpm miondevx bench smoke
+      # One marker per item that ran, then the lane marker, which claims both.
+      - name: Record the website smoke as green
+        if: success() && contains(fromJSON(needs.lanes.outputs.lanes).smoke.runItems, 'website')
+        uses: ./.github/actions/save-lane-green
+        with:
+          lane: smoke.website
+          hash: ${{ fromJSON(needs.lanes.outputs.lanes).smoke.items.website.hash }}
+      - name: Record the benchmark smoke as green
+        if: success() && contains(fromJSON(needs.lanes.outputs.lanes).smoke.runItems, 'bench')
+        uses: ./.github/actions/save-lane-green
+        with:
+          lane: smoke.bench
+          hash: ${{ fromJSON(needs.lanes.outputs.lanes).smoke.items.bench.hash }}
       - name: Record the container smoke as green
         uses: ./.github/actions/save-lane-green
         with:

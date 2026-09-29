@@ -170,6 +170,26 @@ describe('a competitor lane exits non-zero only when it did not really run', () 
   });
 });
 
+describe('the default bench run is a correctness gate', () => {
+  // Every lane must answer correctly AND reject an invalid payload before it is
+  // measured; a divergence used to be printed by aggregate and then ignored.
+  it('fails when aggregate reports a fail or errored case', () => {
+    const source = read('scripts/website/bench-data/bench.mjs');
+    const cmdBench = source.slice(source.indexOf('function cmdBench('), source.indexOf('function cmdBenchOne('));
+    expect(cmdBench).toContain("const aggregate = runInContainer(cfg, ['node', 'aggregate.mjs']);");
+    expect(cmdBench).toMatch(/if \(aggregate !== 0\) die\(/);
+  });
+
+  // `--only` is how CI runs just the competitors not yet proven green.
+  it('runs only the competitors --only names, and refuses an unknown one', async () => {
+    // @ts-expect-error plain ESM dev script, no types
+    const bench = await import('../../../scripts/website/bench-data/bench.mjs');
+    bench.setOnlyCompetitors('zod,ajv');
+    expect(bench.competitorList()).toEqual(['zod', 'ajv']);
+    expect(() => bench.setOnlyCompetitors('zod,nope')).toThrow(/--only takes a comma list/);
+  });
+});
+
 describe('aggregate.mjs survives the other artifacts that share results/', () => {
   // `bench-one` clears only <name>.json by design, so an audit / typecost /
   // compiletime run leaves its own files behind and aggregate used to die on the
@@ -229,6 +249,16 @@ describe('aggregate.mjs survives the other artifacts that share results/', () =>
     // The table renders the case's group + name, and the competitor as a column.
     expect(run.stdout).toContain('· ATOMIC');
     expect(run.stdout).toContain('zod');
+  });
+
+  // The half of the correctness gate aggregate owns: `bench` fails the run on this exit code.
+  it('exits non-zero when a competitor accepted invalid data or rejected valid data', () => {
+    const failing = JSON.parse(competitorResult('zod'));
+    failing.summary.fail = 1;
+    failing.cases[0].validate = {...failing.cases[0].validate, status: 'fail', detail: 'invalid[0] accepted'};
+    const run = runAggregate({'zod.json': JSON.stringify(failing)});
+    expect(run.status).toBe(1);
+    expect(run.stdout).toContain('zod / ATOMIC.string [validate]: fail');
   });
 
   it('names what it skipped, so a malformed competitor file is not dropped in silence', () => {

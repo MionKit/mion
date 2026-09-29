@@ -93,13 +93,53 @@ export const LANES = {
   // build-gate tests): they run on the go-fuzz runner so js-lint never sets Go up.
   'go-tools': {job: 'go tests + fuzz · the Go-backed JS checks', paths: [...JS, 'ts-go-runtypes/']},
   js: {job: 'js tests + lint', paths: JS},
-  smoke: {job: 'container smoke', paths: ['container/website/', 'container/benchmarks/', ...PACKED]},
+  // The site check and the competitor-map checks answer to different inputs; only the
+  // mion competitor and the site read our packages and the Go tree.
+  smoke: {
+    job: 'container smoke',
+    paths: ['container/website/', 'container/benchmarks/', ...PACKED],
+    items: {
+      website: {paths: ['container/website/', 'packages/', 'version.json', GO_BUILD]},
+      bench: {paths: ['container/benchmarks/']},
+    },
+  },
   // pr-heavy.yml
   website: {job: 'build the docs site', paths: ['container/website/', ...PACKED]},
-  bench: {job: 'validation benchmarks', paths: ['container/benchmarks/', ...PACKED]},
-  e2e: {job: 'pre-publish e2e', paths: ['container/pre-publish-e2e/', '.github/verdaccio.yaml', ...PACKED]},
+  // One item per competitor: only mion's lane runs our packages and the binary, so a
+  // mion change re-runs only mion, and a competitor's own map re-runs only that one.
+  bench: {
+    job: 'validation benchmarks',
+    paths: ['container/benchmarks/', ...PACKED],
+    items: {
+      mion: {paths: ['container/benchmarks/competitors/mion/', 'container/benchmarks/_deps/competitors/mion/', 'packages/', 'version.json', GO_BUILD]},
+      ...Object.fromEntries(['zod', 'typebox', 'ajv', 'typia'].map((name) => [name, {paths: [`container/benchmarks/competitors/${name}/`, `container/benchmarks/_deps/competitors/${name}/`]}])),
+    },
+  },
+  // The three halves `release e2e` can switch off one by one (--no-matrix, --no-mion,
+  // --no-host-smoke). All three install every packed package, so a package change re-runs all.
+  e2e: {
+    job: 'pre-publish e2e',
+    paths: ['container/pre-publish-e2e/', '.github/verdaccio.yaml', ...PACKED],
+    items: {
+      matrix: {paths: ['container/pre-publish-e2e/apps/', 'container/pre-publish-e2e/build-all.mjs', 'container/pre-publish-e2e/lint-all.mjs', 'container/pre-publish-e2e/test/', 'container/pre-publish-e2e/pure-fns/', 'container/pre-publish-e2e/_deps/']},
+      mion: {paths: ['container/pre-publish-e2e/mion-consumer/', 'container/pre-publish-e2e/mion-bun/', 'container/pre-publish-e2e/_deps-mion/']},
+      'host-smoke': {paths: ['container/pre-publish-e2e/host-smoke/']},
+    },
+  },
   // drizzle-e2e.yml
-  drizzle: {job: 'drizzle suites against real databases', paths: ['packages/drizzle-orm', 'packages/run-types/', 'packages/devtools/', 'packages/core/', 'packages/bin-compiler/', 'container/drizzle-e2e/', 'scripts/', 'drizzle-dialects.json', 'drizzle-suites.pin.json', ...WORKSPACE]},
+  // One item per database lane, so fixing one re-runs only that one. d1 and durable
+  // are Cloudflare drivers over the sqlite package, so they share its package.
+  drizzle: {
+    job: 'drizzle suites against real databases',
+    paths: ['packages/drizzle-orm', 'packages/run-types/', 'packages/devtools/', 'packages/core/', 'packages/bin-compiler/', 'container/drizzle-e2e/', 'scripts/', 'drizzle-dialects.json', 'drizzle-suites.pin.json', ...WORKSPACE],
+    items: {
+      pg: {paths: ['packages/drizzle-orm-pg-core/', 'container/drizzle-e2e/pg/', 'container/drizzle-e2e/shared/runners/pg.', 'container/drizzle-e2e/shared/addendum/pg.', 'container/drizzle-e2e/shared/stubs/pg/']},
+      mysql: {paths: ['packages/drizzle-orm-mysql-core/', 'container/drizzle-e2e/mysql/', 'container/drizzle-e2e/shared/runners/mysql.', 'container/drizzle-e2e/shared/addendum/mysql.']},
+      sqlite: {paths: ['packages/drizzle-orm-sqlite-core/', 'container/drizzle-e2e/sqlite/', 'container/drizzle-e2e/shared/runners/sqlite.', 'container/drizzle-e2e/shared/addendum/sqlite.']},
+      d1: {paths: ['packages/drizzle-orm-sqlite-core/', 'container/drizzle-e2e/cloudflare/', 'container/drizzle-e2e/shared/runners/d1.']},
+      durable: {paths: ['packages/drizzle-orm-sqlite-core/', 'container/drizzle-e2e/cloudflare/', 'container/drizzle-e2e/shared/runners/durable-']},
+    },
+  },
 };
 
 // Prefix match, so a trailing slash means a directory and a bare name means that
@@ -129,14 +169,28 @@ export function laneHashes(ref = 'HEAD', {cwd = REPO_ROOT} = {}) {
   const unknown = unclassified(entries.map((entry) => entry.path));
   const unknownSet = new Set(unknown);
   const hashes = {};
-  for (const [name, lane] of Object.entries(LANES)) {
+  const hashOf = (feeds) => {
     const digest = createHash('sha256');
     for (const entry of entries) {
-      if (matches(entry.path, lane.paths) || unknownSet.has(entry.path)) digest.update(`${entry.objectname} ${entry.path}\n`);
+      if (feeds(entry.path) || unknownSet.has(entry.path)) digest.update(`${entry.objectname} ${entry.path}\n`);
     }
-    hashes[name] = digest.digest('hex').slice(0, 32);
+    return digest.digest('hex').slice(0, 32);
+  };
+  for (const [name, lane] of Object.entries(LANES)) {
+    hashes[name] = hashOf((path) => matches(path, lane.paths));
+    for (const item of Object.keys(lane.items ?? {})) hashes[itemName(name, item)] = hashOf((path) => itemFeeds(lane, item, path));
   }
   return {hashes, unknown};
+}
+
+// An item is one independently provable piece of a lane (a database, a competitor).
+// It hashes the lane's inputs minus the paths another item claims, so editing one
+// item's own files re-runs only that item.
+export const itemName = (lane, item) => `${lane}.${item}`;
+export function itemFeeds(lane, item, path) {
+  if (!matches(path, lane.paths)) return false;
+  if (matches(path, lane.items[item].paths)) return true;
+  return !Object.entries(lane.items).some(([other, spec]) => other !== item && matches(path, spec.paths));
 }
 
 // The cache key a lane's job writes once it passes, and the same key this reads
@@ -155,6 +209,7 @@ export function candidateKeys(wanted, {hashes, pr = false}) {
     if (!hashes[name]) die(`no such lane: ${name} (known lanes: ${Object.keys(LANES).join(', ')})`);
     const keys = [greenKey(name, hashes[name])];
     if (pr && PR_PROOF[name] !== undefined) keys.push(greenKey(PR_PROOF[name], hashes[name]));
+    for (const item of Object.keys(LANES[name].items ?? {})) keys.push(greenKey(itemName(name, item), hashes[itemName(name, item)]));
     return keys;
   });
 }
@@ -163,13 +218,23 @@ export function candidateKeys(wanted, {hashes, pr = false}) {
 // empty key list (a fork pull request has no token) skips nothing.
 export function decide(wanted, {hashes, greenKeys = [], pr = false}) {
   const green = new Set(greenKeys);
+  const provenGreen = (name) => green.has(greenKey(name, hashes[name])) || (pr && PR_PROOF[name] !== undefined && green.has(greenKey(PR_PROOF[name], hashes[name])));
   const lanes = {};
   for (const name of wanted) {
     const hash = hashes[name];
     if (!hash) die(`no such lane: ${name} (known lanes: ${Object.keys(LANES).join(', ')})`);
-    const prProof = pr && PR_PROOF[name] !== undefined && green.has(greenKey(PR_PROOF[name], hash));
-    const run = !green.has(greenKey(name, hash)) && !prProof;
-    lanes[name] = {run, hash, reason: run ? 'inputs not proven green yet' : 'these exact inputs already passed'};
+    const laneGreen = provenGreen(name);
+    const itemNames = Object.keys(LANES[name].items ?? {});
+    if (itemNames.length === 0) {
+      lanes[name] = {run: !laneGreen, hash, reason: laneGreen ? 'these exact inputs already passed' : 'inputs not proven green yet'};
+      continue;
+    }
+    // The lane marker claims every item, so it skips them all; otherwise each item answers for itself.
+    const items = Object.fromEntries(itemNames.map((item) => [item, {run: !laneGreen && !provenGreen(itemName(name, item)), hash: hashes[itemName(name, item)]}]));
+    const runItems = itemNames.filter((item) => items[item].run);
+    const run = runItems.length > 0;
+    const reason = !run ? 'these exact inputs already passed' : `not proven green yet: ${runItems.join(', ')}`;
+    lanes[name] = {run, hash, reason, items, runItems};
   }
   return lanes;
 }
@@ -197,7 +262,10 @@ export function main(args) {
   const wanted = flagValues(args, '--decide');
   if (wanted.length === 0) {
     note(`lane inputs at ${ref}:`);
-    for (const [name, lane] of Object.entries(LANES)) console.log(`  ${name.padEnd(9)} ${hashes[name]}  ${lane.job}`);
+    for (const [name, lane] of Object.entries(LANES)) {
+      console.log(`  ${name.padEnd(16)} ${hashes[name]}  ${lane.job}`);
+      for (const item of Object.keys(lane.items ?? {})) console.log(`  ${itemName(name, item).padEnd(16)} ${hashes[itemName(name, item)]}`);
+    }
     return;
   }
 
@@ -209,11 +277,14 @@ export function main(args) {
     note(`could not read ${keyFile}, so every lane runs`);
   }
   const lanes = decide(wanted, {hashes, greenKeys, pr: args.includes('--pr')});
-  for (const [name, lane] of Object.entries(lanes)) note(`${name.padEnd(9)} ${lane.run ? 'RUN ' : 'skip'}  ${lane.reason}`);
+  for (const [name, lane] of Object.entries(lanes)) note(`${name.padEnd(16)} ${lane.run ? 'RUN ' : 'skip'}  ${lane.reason}`);
   if (!args.includes('--github')) return console.log(JSON.stringify(lanes, null, 2));
 
   appendFileSync(process.env.GITHUB_OUTPUT, `lanes=${JSON.stringify(lanes)}\n`);
-  const rows = Object.entries(lanes).map(([name, lane]) => `| ${name} | ${lane.run ? '**run**' : 'skip'} | ${lane.reason} | \`${lane.hash}\` |`);
+  const rows = Object.entries(lanes).flatMap(([name, lane]) => [
+    `| ${name} | ${lane.run ? '**run**' : 'skip'} | ${lane.reason} | \`${lane.hash}\` |`,
+    ...Object.entries(lane.items ?? {}).map(([item, verdict]) => `| ${itemName(name, item)} | ${verdict.run ? '**run**' : 'skip'} | | \`${verdict.hash}\` |`),
+  ]);
   appendFileSync(process.env.GITHUB_STEP_SUMMARY, ['### CI lanes', '', '| lane | | why | inputs |', '| --- | --- | --- | --- |', ...rows, ''].join('\n'));
 }
 
