@@ -865,6 +865,15 @@
       "example": null
     },
     {
+      "code": "TFN001",
+      "subsystem": "serialization",
+      "level": "runtimeError",
+      "headline": "Internal error: type `{0}` cannot be compiled here and has no diagnostic, so the function always throws; please file an issue.",
+      "summary": "The code mion generated for your type meets a kind of value it cannot handle and has no message for, so the function always throws. This is a bug in mion, not in your code: report it with the type and the call site named in the error.",
+      "fix": null,
+      "example": null
+    },
+    {
       "code": "UPN001",
       "subsystem": "serialization",
       "level": "warning",

@@ -231,11 +231,7 @@ func emitObjectCompactForJson(rt *reflection.RunType, ctx *EmitContext, v string
 		accessor := propertyAccessor(v, slot.name, slot.isSafeName)
 		expr, ok := safeChildExpr(slot.childRef, accessor, ctx)
 		if !ok {
-			if propertyChildFailed(ctx) {
-				return RTCode{Code: "", Type: CodeNS}
-			}
-			// Absorbed (a future kind with no emit): the decode side decides identically, so positions stay in lockstep.
-			continue
+			return RTCode{Code: "", Type: CodeNS}
 		}
 		if slot.nonEnumerable {
 			// A guarded (lib-global-inherited / `@nonEnumerable`) property holds its value only when it is own-enumerable on

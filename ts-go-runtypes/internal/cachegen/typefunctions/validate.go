@@ -1114,12 +1114,8 @@ func emitPropertyValidate(rt *reflection.RunType, ctx *EmitContext, v string) RT
 	childRT := ctx.CompileChild(rt.Child, CodeE)
 	ctx.SetChildAccessor("")
 	if childRT.Type == CodeNS {
-		// The value is NOT directly stripped (caught above). A DataOnly-stripped leaf reached through a propagating slot (symbol[],
-		// Map<string,symbol>) fails the object; any other unsupported kind is absorbed (F3). See propertyChildFailed.
-		if propertyChildFailed(ctx) {
-			return RTCode{Code: "", Type: CodeNS}
-		}
-		return RTCode{Code: "", Type: CodeE}
+		// Not directly stripped (caught above): a value DataOnly keeps as unrepresentable (symbol[]) fails the object.
+		return RTCode{Code: "", Type: CodeNS}
 	}
 	// A REQUIRED member whose type imposes NO value check (`unknown` / `any`) still imposes PRESENCE: `{}` is not assignable to
 	// `{foo: unknown}`. Dropping the slot would silently make the member optional and break looseCheckGate's "one required prop

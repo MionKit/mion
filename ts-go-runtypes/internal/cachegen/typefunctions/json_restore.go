@@ -173,11 +173,7 @@ func emitPropertyRestoreFromJson(rt *reflection.RunType, ctx *EmitContext, v str
 	childRT := ctx.CompileChild(rt.Child, CodeS)
 	ctx.SetChildAccessor("")
 	if childRT.Type == CodeNS {
-		// A stripped leaf in a propagating slot (symbol[], …) fails the object; any other unsupported kind is absorbed (F3).
-		if propertyChildFailed(ctx) {
-			return RTCode{Code: "", Type: CodeNS}
-		}
-		return RTCode{Code: "", Type: CodeS}
+		return RTCode{Code: "", Type: CodeNS}
 	}
 	if childRT.Code == "" {
 		return RTCode{Code: "", Type: CodeS}

@@ -39,7 +39,7 @@ const SUBSYSTEMS = [
     key: 'serialization',
     label: 'Serialization',
     description: 'From the JSON families, plus how classes are handled.',
-    prefixes: ['PJ', 'PJS', 'RJ', 'CLS', 'JCP', 'NE', 'UPN'],
+    prefixes: ['PJ', 'PJS', 'RJ', 'CLS', 'JCP', 'TFN', 'NE', 'UPN'],
   },
   {
     key: 'unknown-keys',

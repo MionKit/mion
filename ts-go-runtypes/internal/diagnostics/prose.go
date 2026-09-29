@@ -648,6 +648,10 @@ mion enrich --prune`,
 		Summary: "The JSON code mion generated for your type points to a piece that was never built, so it would crash when called and a production build stops. This is a bug in mion, not in your code: report it with the type and the call site named in the error.",
 	},
 
+	CodeUnsupportedLeafNoCode: {
+		Summary: "The code mion generated for your type meets a kind of value it cannot handle and has no message for, so the function always throws. This is a bug in mion, not in your code: report it with the type and the call site named in the error.",
+	},
+
 	// ──────────────────────── MockData files (MD) ─────────────────────────
 
 	CodeMockUnknownField: {

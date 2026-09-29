@@ -277,14 +277,6 @@ func memberLabel(rt *reflection.RunType) string {
 	return reflection.SymbolKeyLabel(rt.Name)
 }
 
-// AbsorbUnsupported clears the unsupported-leaf latch so the walker keeps compiling siblings. Used by
-// property / PropertySignature emits that drop an unsupported child instead of propagating its CodeNS; the
-// parent then returns plain empty code so its own parent's chain treats the slot as a no-op.
-func (w *Walker) AbsorbUnsupported() {
-	w.IsUnsupported = false
-	w.UnsupportedLeaf = nil
-}
-
 // EmitDiagnostic records a diagnostic against every call site the code belongs to (see diagnosticSites).
 // No-op when DiagSink is unwired, the code already fired for this walk, or no provenance sites are known.
 // `args` are positional substitution values for the JS-side catalog template.
