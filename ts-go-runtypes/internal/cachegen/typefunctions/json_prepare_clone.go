@@ -292,7 +292,7 @@ func emitObjectPrepareForJsonClone(rt *reflection.RunType, ctx *EmitContext, v s
 	// skip set is ALL declared named keys, not just the kept `props`: a DROPPED stripped prop
 	// (`p0: ArrayBuffer`) must still be skipped so the for-in does not copy it back in (G6).
 	if len(indexSigs) > 0 {
-		return buildSafeIndexSignatureObject(v, props, collectSiblingNamedKeys(rt, ctx), indexSigs, true, ctx)
+		return buildSafeIndexSignatureObject(v, props, collectSiblingNamedKeys(rt, ctx), indexSigs, ctx)
 	}
 
 	if len(props) == 0 {
@@ -320,18 +320,10 @@ func emitObjectPrepareForJsonClone(rt *reflection.RunType, ctx *EmitContext, v s
 	return RTCode{Code: "return " + clone.Code, Type: CodeRB}
 }
 
-// buildSafeIndexSignatureObject copies a key matching no pattern only with copyPatternMiss (validation refuses it).
-// removeUnknownKeys drops it instead: a by-reference copy would break `clone(x) !== x`.
-// The for-in loop skips declared keys, whose assignments come AFTER and would otherwise be
-// overridden by raw index-sig values.
-func buildSafeIndexSignatureObject(v string, props []safePropEmit, skipNames []string, indexSigs []*reflection.RunType, copyPatternMiss bool, ctx *EmitContext) RTCode {
-	var b strings.Builder
-	b.WriteString("const _r = {};")
-	type sigArm struct {
-		keyRegexVar string
-		valueExpr   string
-	}
-	arms := make([]sigArm, 0, len(indexSigs))
+// buildSafeIndexSignatureObject copies each index-signature key, and a key matching no pattern untouched (validation
+// refuses it). The for-in skips declared keys, whose assignments come AFTER and would otherwise be overridden.
+func buildSafeIndexSignatureObject(v string, props []safePropEmit, skipNames []string, indexSigs []*reflection.RunType, ctx *EmitContext) RTCode {
+	arms := make([]indexArm, 0, len(indexSigs))
 	keyVar := ctx.NextLocalVar("k")
 	for _, sig := range indexSigs {
 		if isSymbolKeyedIndexSig(sig, ctx) {
@@ -342,93 +334,76 @@ func buildSafeIndexSignatureObject(v string, props []safePropEmit, skipNames []s
 			continue
 		}
 		keyRegexVar := indexSignatureKeyRegexVar(sig, ctx)
-		accessor := v + "[" + keyVar + "]"
-		expr, ok := safeChildExpr(sig.Child, accessor, ctx)
+		expr, ok := safeChildExpr(sig.Child, v+"["+keyVar+"]", ctx)
 		if !ok {
 			return RTCode{Code: "", Type: CodeNS}
 		}
-		arms = append(arms, sigArm{keyRegexVar: keyRegexVar, valueExpr: expr})
+		arms = append(arms, indexArm{keyRegexVar: keyRegexVar, valueExpr: expr})
 	}
+	var builder strings.Builder
+	builder.WriteString("const _r = {};")
 	if len(arms) > 0 {
-		b.WriteString("for (const ")
-		b.WriteString(keyVar)
-		b.WriteString(" in ")
-		b.WriteString(v)
-		b.WriteString(") {")
-		// A prototype-named key is never written onto the fresh object.
-		b.WriteString(unsafeKeySkip(keyVar))
-		// Skip every declared key: the kept props' assignments below own their slot, and a DROPPED
-		// prop must not be copied back in by the index arm (G6). skipNames is the full declared
-		// name set (kept + dropped), a superset of `props`.
-		if len(skipNames) > 0 {
-			var declaredCheck strings.Builder
-			declaredCheck.WriteString("if (")
-			for i, name := range skipNames {
-				if i > 0 {
-					declaredCheck.WriteString(" || ")
-				}
-				declaredCheck.WriteString(keyVar)
-				declaredCheck.WriteString(" === ")
-				declaredCheck.WriteString(quoteJS(name))
-			}
-			declaredCheck.WriteString(") continue;")
-			b.WriteString(declaredCheck.String())
-		}
-		// A key matching no pattern is copied untouched after the last patterned arm, when the
-		// caller asked for it.
-		open := copyPatternMiss
+		writeIndexWalkOpen(&builder, v, keyVar, skipNames)
+		// A key matching no pattern is copied untouched after the last patterned arm.
+		copyRaw := true
 		for _, arm := range arms {
 			if arm.keyRegexVar != "" {
-				b.WriteString("if (")
-				b.WriteString(arm.keyRegexVar)
-				b.WriteString(".test(")
-				b.WriteString(keyVar)
-				b.WriteString(")) { _r[")
-				b.WriteString(keyVar)
-				b.WriteString("] = ")
-				b.WriteString(arm.valueExpr)
-				b.WriteString("; continue; }")
-			} else {
-				open = false
-				b.WriteString("_r[")
-				b.WriteString(keyVar)
-				b.WriteString("] = ")
-				b.WriteString(arm.valueExpr)
-				b.WriteString(";")
+				writePatternArm(&builder, keyVar, arm)
+				continue
 			}
+			copyRaw = false
+			builder.WriteString("_r[" + keyVar + "] = " + arm.valueExpr + ";")
 		}
-		if open {
-			b.WriteString("_r[" + keyVar + "] = " + v + "[" + keyVar + "];")
+		if copyRaw {
+			builder.WriteString("_r[" + keyVar + "] = " + v + "[" + keyVar + "];")
 		}
-		b.WriteString("}")
+		builder.WriteString("}")
 	}
-	// Declared-property assignments come AFTER the for-in so they win any conflict, and they are
-	// still needed when the arms list is empty.
-	for _, p := range props {
-		if p.optional {
-			b.WriteString("if (")
-			b.WriteString(p.accessor)
-			b.WriteString(" !== undefined")
-			if p.presenceGuard != "" {
-				b.WriteString(" && (")
-				b.WriteString(p.presenceGuard)
-				b.WriteString(")")
-			}
-			b.WriteString(") _r[")
-			b.WriteString(quoteJS(p.name))
-			b.WriteString("] = ")
-			b.WriteString(p.expr)
-			b.WriteString(";")
-		} else {
-			b.WriteString("_r[")
-			b.WriteString(quoteJS(p.name))
-			b.WriteString("] = ")
-			b.WriteString(p.expr)
-			b.WriteString(";")
+	writePropAssignments(&builder, props)
+	builder.WriteString("return _r")
+	return RTCode{Code: builder.String(), Type: CodeRB}
+}
+
+// indexArm is one index signature's copy: an optional key regex and the expression for `v[k]`.
+type indexArm struct {
+	keyRegexVar string
+	valueExpr   string
+}
+
+// writeIndexWalkOpen opens the for-in over v, skipping prototype-named keys and every declared key: the declared
+// props are assigned after the walk, and a DROPPED prop must not be copied back in by an index arm (G6).
+func writeIndexWalkOpen(builder *strings.Builder, v, keyVar string, skipNames []string) {
+	builder.WriteString("for (const " + keyVar + " in " + v + ") {")
+	builder.WriteString(unsafeKeySkip(keyVar))
+	var checks []string
+	for _, name := range skipNames {
+		// for...in never yields a symbol key, so tsgo's spelling of one is never compared.
+		if !reflection.IsSymbolKeyedName(name) {
+			checks = append(checks, keyVar+" === "+quoteJS(name))
 		}
 	}
-	b.WriteString("return _r")
-	return RTCode{Code: b.String(), Type: CodeRB}
+	if len(checks) > 0 {
+		builder.WriteString("if (" + strings.Join(checks, " || ") + ") continue;")
+	}
+}
+
+// writePatternArm copies a key matching the arm's pattern and moves to the next key.
+func writePatternArm(builder *strings.Builder, keyVar string, arm indexArm) {
+	builder.WriteString("if (" + arm.keyRegexVar + ".test(" + keyVar + ")) { _r[" + keyVar + "] = " + arm.valueExpr + "; continue; }")
+}
+
+// writePropAssignments writes `_r[name] = expr;` per declared prop, an optional one only when present.
+func writePropAssignments(builder *strings.Builder, props []safePropEmit) {
+	for _, prop := range props {
+		if prop.optional {
+			builder.WriteString("if (" + prop.accessor + " !== undefined")
+			if prop.presenceGuard != "" {
+				builder.WriteString(" && (" + prop.presenceGuard + ")")
+			}
+			builder.WriteString(") ")
+		}
+		builder.WriteString("_r[" + quoteJS(prop.name) + "] = " + prop.expr + ";")
+	}
 }
 
 // buildSafeObjectClone assembles the clone of the declared keys, built purely from the declared

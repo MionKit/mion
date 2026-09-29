@@ -620,7 +620,7 @@ func (computer *Computer) memberIDs(tsType *checker.Type, asClass bool) []string
 			continue
 		}
 		// Twin of the projection skip: a `#name` field folds in once, as the class's privateFieldsBit.
-		if reflection.IsPrivateName(propertySymbol.Name) {
+		if checker.IsPrivateIdentifierSymbol(propertySymbol) {
 			continue
 		}
 		out = append(out, computer.memberID(propertySymbol, asClass))
@@ -731,7 +731,7 @@ func fieldBit(field bool) string {
 // privateFieldsBit marks a class with `#name` fields, whose members list leaves them out.
 func (computer *Computer) privateFieldsBit(tsType *checker.Type) string {
 	for _, propertySymbol := range computer.typeChecker.GetPropertiesOfType(tsType) {
-		if reflection.IsPrivateName(propertySymbol.Name) {
+		if checker.IsPrivateIdentifierSymbol(propertySymbol) {
 			return "#pf"
 		}
 	}

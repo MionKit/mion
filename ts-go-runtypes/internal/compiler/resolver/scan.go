@@ -996,18 +996,15 @@ func computeSiteFn(typeChecker *checker.Checker, fnKey string, options validateO
 	if selected, swapped := validatorFamilyOperation(op, checkUnknowns, checkUnionUnknowns); swapped {
 		op = selected
 	}
-	if selected, swapped := removeUnknownKeysOperation(op, extractStringOption(typeChecker, call, lastIndex, argsCount, "sharedValues")); swapped {
-		op = selected
-	}
-	// Value-level JSON families: the strategy names the operation, and only the site's value counts (no project default).
-	if selected, swapped := jsonValueStrategyOperation(op, extractStrategyOption(typeChecker, call, lastIndex, argsCount)); swapped {
+	// A word option (`strategy`, `sharedValues`) names the operation, and only the site's value counts (no project default).
+	if selected, swapped := wordOptionOperation(typeChecker, call, lastIndex, argsCount, op); swapped {
 		op = selected
 	}
 	var optionNames []string
 	var strategy string
 	switch op.Axis {
 	case operations.AxisJsonStrategy:
-		strategy = extractStrategyOption(typeChecker, call, lastIndex, argsCount)
+		strategy = extractStringOption(typeChecker, call, lastIndex, argsCount, "strategy")
 	case operations.AxisValidateOptions:
 		optionNames = options.Names()
 	}
@@ -1203,11 +1200,6 @@ func numericLiteralText(node *ast.Node) (string, bool) {
 	return strconv.FormatFloat(value, 'g', -1, 64), true
 }
 
-// extractStrategyOption reads the JSON encoder/decoder `strategy`; "" makes the caller use the default strategy.
-func extractStrategyOption(typeChecker *checker.Checker, call *ast.Node, lastIndex, argsCount int) string {
-	return extractStringOption(typeChecker, call, lastIndex, argsCount, "strategy")
-}
-
 // extractStringOption reads a literal string option from the call-site options object; "" when absent or not a literal.
 func extractStringOption(typeChecker *checker.Checker, call *ast.Node, lastIndex, argsCount int, option string) string {
 	value := ""
@@ -1221,22 +1213,6 @@ func extractStringOption(typeChecker *checker.Checker, call *ast.Node, lastIndex
 		}
 	})
 	return value
-}
-
-// removeUnknownKeysOperations maps each `sharedValues` word to its family; absent or unknown keeps the warning default.
-var removeUnknownKeysOperations = map[string]string{"share": "removeUnknownKeysShared", "refuse": "removeUnknownKeysRefuse"}
-
-// removeUnknownKeysOperation swaps removeUnknownKeys for the family the site's `sharedValues` selects.
-func removeUnknownKeysOperation(op operations.Operation, sharedValues string) (operations.Operation, bool) {
-	if op.Name != "removeUnknownKeys" {
-		return op, false
-	}
-	name, mapped := removeUnknownKeysOperations[sharedValues]
-	if !mapped {
-		return op, false
-	}
-	resolved, ok := operations.ByName(name)
-	return resolved, ok
 }
 
 // extractRejectCircularOption reads a literal `rejectCircularRefs: true` from the call-site options object, in
@@ -1281,20 +1257,27 @@ func extractBoolValidateOption(typeChecker *checker.Checker, call *ast.Node, las
 	return enabled
 }
 
-// jsonValueStrategyOperations maps a value-level JSON family's DEFAULT operation to the one each non-default
-// `strategy` selects; `clone` IS the default, so it is absent here.
-var jsonValueStrategyOperations = map[string]map[string]string{
-	"prepareForJsonClone":  {"mutate": "prepareForJsonMutate", "compact": "compactForJson"},
-	"restoreFromJsonClone": {"mutate": "restoreFromJsonMutate", "compact": "compactFromJson"},
+// wordOption is a string option whose word picks the operation: the option's name, then each non-default word's operation.
+type wordOption struct {
+	option     string
+	operations map[string]string
 }
 
-// jsonValueStrategyOperation maps a value-level JSON `strategy` to its AxisNone operation; unknown or absent keeps 'clone'.
-func jsonValueStrategyOperation(op operations.Operation, strategy string) (operations.Operation, bool) {
-	byStrategy, isValueFamily := jsonValueStrategyOperations[op.Name]
-	if !isValueFamily {
+// wordOptionOperations maps a family's DEFAULT operation to its word option; the default word (`clone`, no
+// `sharedValues`) is absent, so an unknown or missing word keeps the default.
+var wordOptionOperations = map[string]wordOption{
+	"prepareForJsonClone":  {option: "strategy", operations: map[string]string{"mutate": "prepareForJsonMutate", "compact": "compactForJson"}},
+	"restoreFromJsonClone": {option: "strategy", operations: map[string]string{"mutate": "restoreFromJsonMutate", "compact": "compactFromJson"}},
+	"removeUnknownKeys":    {option: "sharedValues", operations: map[string]string{"share": "removeUnknownKeysShared", "refuse": "removeUnknownKeysRefuse"}},
+}
+
+// wordOptionOperation swaps op for the operation the site's word option selects.
+func wordOptionOperation(typeChecker *checker.Checker, call *ast.Node, lastIndex, argsCount int, op operations.Operation) (operations.Operation, bool) {
+	byWord, hasWordOption := wordOptionOperations[op.Name]
+	if !hasWordOption {
 		return op, false
 	}
-	name, mapped := byStrategy[strategy]
+	name, mapped := byWord.operations[extractStringOption(typeChecker, call, lastIndex, argsCount, byWord.option)]
 	if !mapped {
 		return op, false
 	}

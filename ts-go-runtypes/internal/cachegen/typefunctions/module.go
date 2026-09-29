@@ -507,8 +507,8 @@ func renderEntryWithDeps(runType *reflection.RunType, settings constants.CacheMo
 			diagLeaf := callableLeafSubstitute(walker.UnsupportedLeaf, walker.RefTable)
 			if diagCode := leafProvider.DiagCodeForLeaf(diagLeaf); diagCode != "" {
 				kindLabel := leafKindLabel(diagLeaf)
-				if labeler, ok := emitter.(LeafDiagLabelProvider); ok {
-					kindLabel = labeler.DiagLabelForLeaf(diagLeaf)
+				if removeUnknownKeys, ok := emitter.(RemoveUnknownKeysEmitter); ok {
+					kindLabel = removeUnknownKeys.DiagLabelForLeaf(diagLeaf)
 				}
 				walker.EmitDiagnostic(diagCode, kindLabel)
 				// Never disk-cached: the message names this build's call site, which a warm hit would freeze.

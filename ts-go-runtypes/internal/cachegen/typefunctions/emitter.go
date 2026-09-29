@@ -379,11 +379,6 @@ type LeafDiagCodeProvider interface {
 	DiagCodeForLeaf(leaf *reflection.RunType) string
 }
 
-// LeafDiagLabelProvider optionally names an alwaysThrow leaf in the user's words, instead of leafKindLabel's kind.
-type LeafDiagLabelProvider interface {
-	DiagLabelForLeaf(leaf *reflection.RunType) string
-}
-
 // DiagCodeFor returns the per-family diag code the current emitter registered for slot, or "" when it provides none.
 func (ctx *EmitContext) DiagCodeFor(slot DiagSlot) string {
 	if provider, ok := ctx.walker.Emitter.(DiagCodeProvider); ok {
