@@ -56,18 +56,16 @@ func runGenCheck(positional []string, genDirFlag string, asJSON, requireComplete
 	if len(positional) > 0 {
 		candidate := tspath.NormalizePath(mustAbs(positional[0]))
 		config := resolveEnrichConfig(candidate, genDirFlag, tsconfigPath, parsed)
-		// A path OUTSIDE the enrich dir is a SOURCE file (the `gen <source> --check`
-		// form): check ITS mirrors, not the source file itself — whose own
-		// `import type { … }` lines would otherwise be misread as breadcrumbs. A
-		// source file has one mirror per family, one translation per configured
-		// locale (plus, transitionally, a pre-split combined file at the legacy
-		// path); missing ones are skipped by collectMirrorFiles. A path inside
-		// the enrich dir (a mirror file, or the dir) is scanned directly.
+		// A path OUTSIDE the enrich dir is a SOURCE file: check ITS mirrors, not the
+		// source file itself — whose own `import type { … }` lines would otherwise
+		// be misread as breadcrumbs. A source file has one mirror per family and one
+		// translation per configured locale; missing ones are skipped by
+		// collectMirrorFiles. A path inside the enrich dir (a mirror file, or the
+		// dir) is scanned directly.
 		if info, err := os.Stat(candidate); err == nil && !info.IsDir() && !isUnder(config.EnrichDir, candidate) {
 			targets = []string{
 				config.MirrorPath(familyFriendly, candidate),
 				config.MirrorPath(familyMock, candidate),
-				config.LegacyMirrorPath(candidate),
 			}
 			for _, locale := range config.I18nLocales {
 				targets = append(targets, config.TranslationPathFor(locale, config.MirrorPath(familyFriendly, candidate)))
@@ -242,13 +240,12 @@ func checkMirrorFile(mirrorFile, genDirFlag, tsconfigPath string, parsed *progra
 	// GE001 — cosmetic location drift: the mirror file is not where the source's
 	// computed mirror path would put it. CLI-only (needs the enrich config).
 	// The config anchors at the MIRROR file — the project that owns the mirror
-	// tree — exactly like gen's write side, so the two can never disagree. (An
+	// tree — exactly like the enrich write lane, so the two can never disagree. (An
 	// anchor at the resolved source re-derives the config inside a DEPENDENCY
-	// for a node_modules-sourced type and flags gen's own output as drifted.)
+	// for a node_modules-sourced type and flags the write lane's own output as drifted.)
 	// The expected location depends on the file's FAMILY, read off its path
 	// segment under the enrich root (friendly/, mock/, or i18n/<locale>/); a
-	// file at none of them is a pre-split combined mirror (or a hand-moved one)
-	// and drifts against both family paths.
+	// file at none of them was moved by hand and drifts against both family paths.
 	resolvedSource := mirror.ResolveBreadcrumb(mirrorFile, breadcrumb.Spec)
 	config := resolveEnrichConfig(mirrorFile, genDirFlag, tsconfigPath, parsed)
 
@@ -280,7 +277,7 @@ func checkMirrorFile(mirrorFile, genDirFlag, tsconfigPath string, parsed *progra
 			File:     mirrorFile,
 			Severity: enrichment.Warning,
 			Code:     diagnostics.CodeGenMirrorDrift,
-			Message: fmt.Sprintf("mirror location drift: source maps to the per-family files %s + %s but this file is %s — re-run mion enrich to migrate/relocate",
+			Message: fmt.Sprintf("mirror location drift: source maps to the per-family files %s + %s but this file is %s — re-run mion enrich to relocate",
 				expectedFriendly, expectedMock, mirrorFile),
 			Args: []string{expectedFriendly + " + " + expectedMock, mirrorFile},
 			Line: line,
@@ -323,7 +320,7 @@ func localeMirrorOf(config enrichConfig, mirrorFile string) (string, bool) {
 
 // mirrorFamilyOf reads a mirror file's family off its path: the first segment
 // of its path relative to the enrich root must be a known family dir. ok=false
-// for a file outside the enrich root or at the pre-split combined location.
+// for a file outside the enrich root or with no family segment.
 func mirrorFamilyOf(enrichDir, mirrorFile string) (string, bool) {
 	rel, err := filepath.Rel(enrichDir, mirrorFile)
 	if err != nil || strings.HasPrefix(rel, "..") {

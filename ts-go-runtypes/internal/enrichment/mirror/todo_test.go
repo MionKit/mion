@@ -40,7 +40,7 @@ func TestConstBlock_EmitsTodoAfterMarker(t *testing.T) {
 		TypeID:      "uID",
 		ChildIDs:    map[string]string{"name": "nID"},
 	}
-	block := ConstBlock(named.FriendlyVar, "FriendlyType", named, "{rt$label: ''}")
+	block := ConstBlock(named.FriendlyVar, "FriendlyText", named, "{rt$label: ''}")
 
 	if strings.Count(block, "@todo") != 1 {
 		t.Errorf("a new const must carry exactly one @todo line:\n%s", block)
@@ -76,7 +76,7 @@ func TestConstBlock_EmitsTodoAfterMarker(t *testing.T) {
 // independent of whether the reconcile marker is present.
 func TestConstBlock_EmitsTodoWithoutMarker(t *testing.T) {
 	named := enrichment.NamedConst{TypeName: "Anon", FriendlyVar: "friendlyAnon"} // no TypeID
-	block := ConstBlock(named.FriendlyVar, "FriendlyType", named, "{rt$label: ''}")
+	block := ConstBlock(named.FriendlyVar, "FriendlyText", named, "{rt$label: ''}")
 	if strings.Contains(block, "@rtType") {
 		t.Fatalf("precondition: a const with no TypeID should have no @rtType marker:\n%s", block)
 	}
@@ -93,7 +93,7 @@ func TestConstBlock_EmitsTodoWithoutMarker(t *testing.T) {
 // mock alike (one per const).
 func TestAppendNewConsts_StampsTodo(t *testing.T) {
 	src := "import type { A } from './a';\n" +
-		"import type { FriendlyType, MockData } from '@mionjs/run-types';\n"
+		"import type { FriendlyText, MockData } from '@mionjs/run-types';\n"
 	index := mustParse(t, "/rt/gen/a.ts", src)
 	spec := Spec{
 		MirrorPath:   "/rt/gen/a.ts",
@@ -124,10 +124,10 @@ func TestAppendNewConsts_StampsTodo(t *testing.T) {
 func TestReconcile_DoesNotReAddTodo(t *testing.T) {
 	// friendlyUser: user cleared @todo and authored a value. mockUser: still has it.
 	existing := "import type { User } from '../../src/models';\n" +
-		"import type { FriendlyType, MockData } from '@mionjs/run-types';\n" +
+		"import type { FriendlyText, MockData } from '@mionjs/run-types';\n" +
 		"\n" +
 		"/** @rtType User#uID @rtIds {name: nID} */\n" +
-		"export const friendlyUser: FriendlyType<User> = {\n" +
+		"export const friendlyUser: FriendlyText<User> = {\n" +
 		"  rt$label: '',\n" +
 		"  name: {rt$label: 'Full name'},\n" +
 		"};\n" +
@@ -182,7 +182,7 @@ func TestReconcile_DoesNotReAddTodo(t *testing.T) {
 func TestPruneIgnoresTodo(t *testing.T) {
 	src := "/** @rtType User#uID */\n" +
 		todoLine + "\n" +
-		"export const friendlyUser: FriendlyType<User> = { rt$label: '' };\n"
+		"export const friendlyUser: FriendlyText<User> = { rt$label: '' };\n"
 	pruned, removed, _, _ := PruneOrphanBlocks(src)
 	if removed != 0 {
 		t.Errorf("--prune must ignore @todo (removed=%d):\n%s", removed, pruned)
@@ -234,7 +234,7 @@ func TestSkeletonBody_NoTodo(t *testing.T) {
 	// marker + @todo lines up to `export const`), leaves a body with no @todo —
 	// proving the flag never bleeds into the body the batch path emits.
 	named := enrichment.NamedConst{TypeName: "User", FriendlyVar: "friendlyUser", TypeID: "uID"}
-	block := ConstBlock(named.FriendlyVar, "FriendlyType", named, "{rt$label: ''}")
+	block := ConstBlock(named.FriendlyVar, "FriendlyText", named, "{rt$label: ''}")
 	body := block[strings.Index(block, "= ")+2:]
 	if strings.Contains(body, "@todo") {
 		t.Errorf("the @todo must live in the wrapper, never in the body:\n%s", body)

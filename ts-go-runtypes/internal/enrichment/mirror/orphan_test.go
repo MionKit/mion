@@ -37,10 +37,10 @@ func breadcrumbNames(text string) ([]string, bool) {
 // and indexes it by VAR NAME so the same named const reappearing can restore it.
 func TestIndexOrphanCarcasses(t *testing.T) {
 	src := "import type { A } from './a';\n" +
-		"import type { FriendlyType, MockData } from '@mionjs/run-types';\n" +
+		"import type { FriendlyText, MockData } from '@mionjs/run-types';\n" +
 		"\n" +
 		"/* @rtOrphan /** @rtType B#bID @rtIds {y: yid} *\\/\n" +
-		"export const friendlyB: FriendlyType<B> = {\n" +
+		"export const friendlyB: FriendlyText<B> = {\n" +
 		"  rt$label: '',\n" +
 		"  y: {rt$label: 'Year'},\n" +
 		"}; */\n"
@@ -67,7 +67,7 @@ func TestIndexOrphanCarcasses(t *testing.T) {
 // preserving the original verbatim and swallowing the trailing newline.
 func TestOrphanConstOp(t *testing.T) {
 	src := "/** @rtType B#bID @rtIds {y: yid} */\n" +
-		"export const friendlyB: FriendlyType<B> = {\n" +
+		"export const friendlyB: FriendlyText<B> = {\n" +
 		"  rt$label: '',\n" +
 		"  y: {rt$label: 'Year'},\n" +
 		"};\n"
@@ -98,7 +98,7 @@ func TestOrphanConstOp_FoldsLeadingComment(t *testing.T) {
 		"\n" +
 		"// hand-authored note about friendlyB\n" +
 		"/** @rtType B#bID */\n" +
-		"export const friendlyB: FriendlyType<B> = { rt$label: '' };\n"
+		"export const friendlyB: FriendlyText<B> = { rt$label: '' };\n"
 	index := mustParse(t, "/rt/gen/a.ts", src)
 	entry := index.byTypeForm[typeFormKey("bID", true)]
 	if entry == nil {
@@ -130,10 +130,10 @@ func TestOrphanConstOp_FoldsLeadingComment(t *testing.T) {
 // only, dropping `KeepMe` and breaking the hand-authored `const widget`.
 func TestSyncBreadcrumbClause_KeepsHandAuthoredName(t *testing.T) {
 	src := "import type { DropMe, KeepMe } from '../../src/models';\n" +
-		"import type { FriendlyType, MockData } from '@mionjs/run-types';\n" +
+		"import type { FriendlyText, MockData } from '@mionjs/run-types';\n" +
 		"\n" +
 		"/** @rtType DropMe#dropID */\n" +
-		"export const friendlyDropMe: FriendlyType<DropMe> = { rt$label: '' };\n" +
+		"export const friendlyDropMe: FriendlyText<DropMe> = { rt$label: '' };\n" +
 		"\n" +
 		"// hand-authored, not enrichment-owned — still uses KeepMe\n" +
 		"export const widget: KeepMe = { kind: 'k' };\n"
@@ -172,13 +172,13 @@ func TestSyncBreadcrumbClause_KeepsHandAuthoredName(t *testing.T) {
 // dropped. Confirms the ADD-only safety is a guard, not a blanket keep-all.
 func TestSyncBreadcrumbClause_DropsUnusedName(t *testing.T) {
 	src := "import type { DropMe, KeepMe } from '../../src/models';\n" +
-		"import type { FriendlyType, MockData } from '@mionjs/run-types';\n" +
+		"import type { FriendlyText, MockData } from '@mionjs/run-types';\n" +
 		"\n" +
 		"/** @rtType DropMe#dropID */\n" +
-		"export const friendlyDropMe: FriendlyType<DropMe> = { rt$label: '' };\n" +
+		"export const friendlyDropMe: FriendlyText<DropMe> = { rt$label: '' };\n" +
 		"\n" +
 		"/** @rtType KeepMe#keepID */\n" +
-		"export const friendlyKeepMe: FriendlyType<KeepMe> = { rt$label: '' };\n"
+		"export const friendlyKeepMe: FriendlyText<KeepMe> = { rt$label: '' };\n"
 
 	index := mustParse(t, "/rt/gen/models.ts", src)
 	dropEntry := index.byTypeForm[typeFormKey("dropID", true)]
@@ -221,10 +221,10 @@ func TestOrphanConsts_OutModeSkipsJudgement(t *testing.T) {
 	// — normally orphanConsts would orphan friendlyGone (source missing → no-op),
 	// but in --out mode it must skip entirely regardless.
 	src := "import type { Local } from './local';\n" +
-		"import type { FriendlyType, MockData } from '@mionjs/run-types';\n" +
+		"import type { FriendlyText, MockData } from '@mionjs/run-types';\n" +
 		"\n" +
 		"/** @rtType Gone#goneID */\n" +
-		"export const friendlyGone: FriendlyType<Gone> = { rt$label: '' };\n"
+		"export const friendlyGone: FriendlyText<Gone> = { rt$label: '' };\n"
 
 	index := mustParse(t, "/rt/gen/out.ts", src)
 	var ops []spliceOp
@@ -321,8 +321,8 @@ func TestPruneOrphanBlocks_MalformedCarcassSkipped(t *testing.T) {
 // nor pruned — it comes out byte-identical. The destructive twin of
 // TestScanDirtyTags_StringLiteralsNeverFire.
 func TestPruneOrphanBlocks_StringLiteralsNeverPruned(t *testing.T) {
-	authored := "import type { FriendlyType } from '@mionjs/run-types';\n" +
-		"export const friendlyDocs: FriendlyType<Docs> = {\n" +
+	authored := "import type { FriendlyText } from '@mionjs/run-types';\n" +
+		"export const friendlyDocs: FriendlyText<Docs> = {\n" +
 		"  snippet: {rt$label: 'Example: /* " + OrphanTag + " export const gone = {}; */'},\n" +
 		"  note: {rt$errors: {required: \"use /* " + OrphanChildTag + " old: 1, */ to mark it\"}},\n" +
 		"  // a /* " + OrphanTag + " export const alsoGone = {}; */ inside a line comment\n" +
@@ -379,10 +379,10 @@ func TestPruneOrphanBlocks_ParseErrorRefused(t *testing.T) {
 // restorable carcass — a restore-on-reappear keyed off string bytes would
 // splice the string's interior back in as live code.
 func TestIndexOrphanCarcasses_StringEmbeddedNeverIndexed(t *testing.T) {
-	src := "import type { FriendlyType } from '@mionjs/run-types';\n" +
+	src := "import type { FriendlyText } from '@mionjs/run-types';\n" +
 		"\n" +
 		"/** @rtType Docs#docsID */\n" +
-		"export const friendlyDocs: FriendlyType<Docs> = {\n" +
+		"export const friendlyDocs: FriendlyText<Docs> = {\n" +
 		"  snippet: {rt$label: 'x /* @rtOrphan export const friendlyGone = {}; */'},\n" +
 		"};\n"
 	index := mustParse(t, "/rt/gen/a.ts", src)
@@ -391,7 +391,7 @@ func TestIndexOrphanCarcasses_StringEmbeddedNeverIndexed(t *testing.T) {
 	}
 
 	// A REAL carcass in the same file still indexes.
-	withReal := src + "\n/* @rtOrphan /** @rtType Gone#goneID *\\/\nexport const friendlyGone: FriendlyType<Gone> = { rt$label: '' }; */\n"
+	withReal := src + "\n/* @rtOrphan /** @rtType Gone#goneID *\\/\nexport const friendlyGone: FriendlyText<Gone> = { rt$label: '' }; */\n"
 	indexReal := mustParse(t, "/rt/gen/a.ts", withReal)
 	if _, ok := indexReal.orphanCarcasses["friendlyGone"]; !ok {
 		t.Errorf("the real carcass must still index; have %d carcasses", len(indexReal.orphanCarcasses))

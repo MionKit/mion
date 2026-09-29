@@ -64,12 +64,8 @@ source folder (`rootDir`, else the folder all program files share), configurable
 file, anchored at the type's **definition** (not its call sites); the two families never
 share a file, and each family file imports only its own wrapper type.
 
-A pre-split combined mirror is migrated automatically on the next `enrich` run over that
-source: every const, marker, comment and `@rtOrphan` carcass is carried verbatim into its
-family's file, the source breadcrumb import is recomputed, and the old combined file is
-deleted (an existing family file is never overwritten — a warning is printed instead).
-`enrich --no-emit` flags a pre-split combined mirror as GE001 location drift. `--out` keeps the
-old combined single-file behavior as an explicit escape hatch.
+`enrich --no-emit` flags a mirror outside its family folder as GE001 location drift. `--out`
+writes one combined file instead, as an explicit escape hatch.
 
 Each family file holds a strict `import type` back to the source (the rename
 **breadcrumb**) and committed consts you import by name:

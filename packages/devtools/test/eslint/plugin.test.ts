@@ -407,7 +407,7 @@ describe.runIf(hasBinary())(
         const expected = locate(MIRROR_DIRTY_TS, TODO_TAG);
         expect(reports[0]).toMatchObject({line: expected.line, column: expected.column});
         expect(reports[0]!.endColumn).toBe(expected.column + TODO_TAG.length);
-        // The @todo sits above the FriendlyType const → the FT-family code.
+        // The @todo sits above the FriendlyText const → the FT-family code.
         expect(reports[0]!.message).toContain('[FT020]');
       });
 

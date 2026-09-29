@@ -65,9 +65,6 @@ func Reconcile(spec Spec, existing []byte, readSource func(string) (string, erro
 	// The type-name list is recomputed from the surviving consts, keeping `from '<src>'` byte-identical.
 	syncBreadcrumbClause(&ops, index, spec, orphanedEntries, renamedExisting)
 
-	// A file authored before the friendly-text rename migrates lazily here, on its next `enrich --update`.
-	migrateLegacyFriendlyWrapper(&ops, index, orphanedEntries)
-
 	// The in-place splices go first, all indexing the ORIGINAL bytes, then the appended consts and their imports.
 	merged, err := applySplices(index.raw, ops)
 	if err != nil {
@@ -472,39 +469,6 @@ func emitConstRename(ops *[]spliceOp, index *Index, rename constRename) {
 
 	if existing.body != nil {
 		mergeConstBody(ops, index, existing, body, metaKeys, named.ChildIDs, rename.friendly)
-	}
-}
-
-// migrateLegacyFriendlyWrapper splices a legacy `FriendlyType` wrapper, and its DSL import name, to `FriendlyText`,
-// so a file authored before the rename migrates in place on `enrich --update`.
-// The splices are AST-anchored and disjoint from the rename, marker and body edits.
-// An orphaned const is skipped, its whole-statement carcass splice would overlap; the import migrates only if a const did.
-func migrateLegacyFriendlyWrapper(ops *[]spliceOp, index *Index, orphaned []*constEntry) {
-	orphanedSet := map[*constEntry]bool{}
-	for _, entry := range orphaned {
-		orphanedSet[entry] = true
-	}
-	migrated := false
-	for _, entry := range index.consts {
-		if !entry.isFriendly || orphanedSet[entry] {
-			continue
-		}
-		if entry.annoWrapper == enrichment.FriendlyTypeName && entry.annoWrapperStart != entry.annoWrapperEnd {
-			*ops = append(*ops, spliceOp{start: entry.annoWrapperStart, end: entry.annoWrapperEnd, text: enrichment.FriendlyTextName})
-			migrated = true
-		}
-	}
-	if !migrated || index.dslImport == nil {
-		return
-	}
-	for i, name := range index.dslImport.names {
-		if name != enrichment.FriendlyTypeName || i >= len(index.dslImport.nameSpans) {
-			continue
-		}
-		span := index.dslImport.nameSpans[i]
-		if span[0] != span[1] {
-			*ops = append(*ops, spliceOp{start: span[0], end: span[1], text: enrichment.FriendlyTextName})
-		}
 	}
 }
 

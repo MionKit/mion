@@ -182,8 +182,7 @@ func TestResolveEnrichConfig_GarbageTsconfig(t *testing.T) {
 
 // TestMirrorPath verifies the per-family mirror path math, including the
 // family path segment, the .d.ts → .ts collapse, and the under-rootDir
-// relativization — plus the legacy (pre-split, no-family) path the migration
-// reads.
+// relativization — plus the family-less combined path an --out spec uses.
 func TestMirrorPath(t *testing.T) {
 	config := enrichConfig{
 		ProjectRoot: "/proj",
@@ -210,8 +209,8 @@ func TestMirrorPath(t *testing.T) {
 		})
 	}
 
-	if got, want := config.LegacyMirrorPath("/proj/src/models/user.ts"), "/proj/runtypes/generated/models/user.ts"; got != want {
-		t.Errorf("legacyMirrorPath = %q, want %q", got, want)
+	if got, want := config.CombinedMirrorPath("/proj/src/models/user.ts"), "/proj/runtypes/generated/models/user.ts"; got != want {
+		t.Errorf("combinedMirrorPath = %q, want %q", got, want)
 	}
 }
 
@@ -376,20 +375,11 @@ func TestResolveEnrichConfig_I18n(t *testing.T) {
 	if want := filepath.Join(dir, defaultGenDirName, enrichedSubdir, "i18n"); dormant.I18nDir != want {
 		t.Errorf("dormant I18nDir = %q, want %q", dormant.I18nDir, want)
 	}
-
-	// The i18n location is CONVENTION: a legacy `i18n.dir` key is ignored and
-	// translations stay at <genDir>/enriched/i18n.
-	writeTestFile(t, filepath.Join(dir, "tsconfig.json"),
-		`{ "compilerOptions": { "plugins": [{ "name": "mion", "i18n": { "dir": "translations" } }] } }`)
-	custom := resolveEnrichConfigTest(target, "")
-	if want := filepath.Join(dir, defaultGenDirName, enrichedSubdir, "i18n"); custom.I18nDir != want {
-		t.Errorf("legacy i18n.dir must be ignored; I18nDir = %q, want %q", custom.I18nDir, want)
-	}
 }
 
 // TestMirrorFamilyOf reads a mirror file's family off its path segment under
-// the enrich root; a legacy combined location (or a file outside the root) has
-// no family.
+// the enrich root; a file with no family segment (or outside the root) has no
+// family.
 func TestMirrorFamilyOf(t *testing.T) {
 	enrichDir := "/proj/runtypes/generated"
 	tests := []struct {
@@ -400,7 +390,7 @@ func TestMirrorFamilyOf(t *testing.T) {
 	}{
 		{"friendly file", "/proj/runtypes/generated/friendly/models/user.ts", familyFriendly, true},
 		{"mock file", "/proj/runtypes/generated/mock/user.ts", familyMock, true},
-		{"legacy combined", "/proj/runtypes/generated/models/user.ts", "", false},
+		{"no family segment", "/proj/runtypes/generated/models/user.ts", "", false},
 		{"outside root", "/elsewhere/user.ts", "", false},
 		{"friendly-named leaf at root", "/proj/runtypes/generated/friendly.ts", "", false},
 	}

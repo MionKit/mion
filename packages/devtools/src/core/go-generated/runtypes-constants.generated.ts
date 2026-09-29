@@ -127,8 +127,5 @@ export const TODO_LINE = '// @todo: generated skeleton — fill in real data, th
 export const ORPHAN_BLOCK_PATTERN_SOURCE = '/\\* @rtOrphan(?:Child)? .*? \\*/';
 // The mion DSL type names enrichment consts are annotated with —
 // part of the enrichment-file guard alongside the marker tags.
-// FRIENDLY_TYPE_NAME is the LEGACY spelling, still accepted by the file guard
-// so mirrors authored before the friendly-text rename are recognized.
 export const FRIENDLY_TEXT_NAME = 'FriendlyText';
-export const FRIENDLY_TYPE_NAME = 'FriendlyType';
 export const MOCK_DATA_NAME = 'MockData';

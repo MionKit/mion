@@ -8,7 +8,7 @@
 // mion-bin/mion).
 
 import {spawnSync} from 'node:child_process';
-import {existsSync, mkdirSync, writeFileSync} from 'node:fs';
+import {existsSync} from 'node:fs';
 import {dirname, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {describe, it, expect, afterAll} from 'vitest';
@@ -113,40 +113,6 @@ describe('enrichment reconcile — family split', () => {
     expect(mock).toContain('export const mockUser: MockData<User>');
     expect(mock).toContain("import type { MockData } from '@mionjs/run-types'");
     expect(mock).not.toContain('FriendlyText');
-  });
-
-  it('migrates a pre-split combined mirror in place, carrying authored values (idempotently)', () => {
-    const fixture = makeFixture('family-migrate', 'export interface User { name: string }\n');
-    // Hand-write a LEGACY combined mirror at the old (no-family) path.
-    const legacyPath = resolve(fixture.enrichDir, 'models.ts');
-    mkdirSync(dirname(legacyPath), {recursive: true});
-    writeFileSync(
-      legacyPath,
-      "import type { User } from '../../models';\n" +
-        "import type { FriendlyText, MockData } from '@mionjs/run-types';\n\n" +
-        'export const friendlyUser: FriendlyText<User> = {\n' +
-        "  rt$label: 'The user',\n" +
-        "  rt$errors: {type: ''},\n" +
-        "  name: {rt$label: 'Full name', rt$errors: {type: ''}},\n" +
-        '};\n\n' +
-        'export const mockUser: MockData<User> = {\n' +
-        "  name: {pool: ['Alice']},\n" +
-        '};\n'
-    );
-
-    runGen(fixture, 'User', ['--update']);
-
-    expect(existsSync(legacyPath), 'legacy combined file deleted').toBe(false);
-    const friendly = readMirror(fixture, 'friendly');
-    const mock = readMirror(fixture, 'mock');
-    expect(friendly, 'authored friendly label carried').toContain("rt$label: 'Full name'");
-    expect(mock, 'authored mock pool carried').toContain("pool: ['Alice']");
-    expect(friendly, 'breadcrumb recomputed one level deeper').toContain("from '../../../models'");
-
-    // A second --update over the migrated state is a byte-identical no-op.
-    const first = readMirrors(fixture);
-    runGen(fixture, 'User', ['--update']);
-    expect(readMirrors(fixture), 'post-migration re-run is byte-identical').toBe(first);
   });
 });
 

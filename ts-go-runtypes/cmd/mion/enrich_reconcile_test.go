@@ -26,7 +26,7 @@ func TestUpdate_FatalOnUnparseableFile(t *testing.T) {
 
 	dir := t.TempDir()
 	mirrorPath := filepath.Join(dir, "mirror.ts")
-	if err := os.WriteFile(mirrorPath, []byte("export const friendlyUser: FriendlyType<User> = {{{ ;\n"), 0o644); err != nil {
+	if err := os.WriteFile(mirrorPath, []byte("export const friendlyUser: FriendlyText<User> = {{{ ;\n"), 0o644); err != nil {
 		t.Fatalf("seed broken mirror: %v", err)
 	}
 

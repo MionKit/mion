@@ -259,8 +259,8 @@ func ScanBlankValues(text string) []TagFinding {
 	return NewScan(text).BlankValues()
 }
 
-// dslWrapperAlternation is shared by the annotation probes, so every one of them accepts a mirror authored before the rename.
-var dslWrapperAlternation = strings.Join(append(append([]string{}, enrichment.FriendlyWrapperNames...), enrichment.MockDataName), `|`)
+// dslWrapperAlternation is shared by the annotation probes.
+var dslWrapperAlternation = enrichment.FriendlyTextName + `|` + enrichment.MockDataName
 
 // annotationFamilyPattern is enrichConstAnnotationPattern with the DSL type name captured as group 1.
 var annotationFamilyPattern = regexp.MustCompile(
@@ -275,7 +275,7 @@ var carcassAnnotationPattern = regexp.MustCompile(
 var dslImportPattern = regexp.MustCompile(`import[ \t]+type[ \t]*\{([^}]*)\}[ \t]*from[ \t]*['"]@mionjs/run-types['"]`)
 
 // FamilyClassifier attributes findings in one mirror to a family, read off its const annotations or its DSL import.
-// A generated mirror carries ONE family; per-finding attribution is what still classifies a pre-split COMBINED file.
+// A generated mirror carries ONE family; per-finding attribution is what classifies a combined (--out) file.
 type FamilyClassifier struct {
 	text string
 	// offsets and families pair every live, non-comment DSL const annotation with its family, in text order.
@@ -350,13 +350,7 @@ func dslImportFamily(text string) MirrorFamily {
 		return FamilyUnknown
 	}
 	clause := match[1]
-	hasFriendly := false
-	for _, name := range enrichment.FriendlyWrapperNames { // FriendlyText, plus the legacy FriendlyType
-		if strings.Contains(clause, name) {
-			hasFriendly = true
-			break
-		}
-	}
+	hasFriendly := strings.Contains(clause, enrichment.FriendlyTextName)
 	hasMock := strings.Contains(clause, enrichment.MockDataName)
 	switch {
 	case hasFriendly && !hasMock:

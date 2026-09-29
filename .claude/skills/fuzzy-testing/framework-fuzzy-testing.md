@@ -22,7 +22,7 @@
 > Every step has runnable code, grounded in this repo's real fuzz harness
 > (`packages/run-types/test/fuzz/`). It is written to become a reusable
 > **skill** ("Make it a skill", below). Its first real test case is the
-> **FriendlyType / MockData sync pipeline** ("A real one", below) — we are the
+> **FriendlyText / MockData sync pipeline** ("A real one", below) — we are the
 > framework's first users.
 
 ---
@@ -665,7 +665,7 @@ like a stateful sync pipeline.
 > Grounded in the real pipeline: CLI at [`ts-go-runtypes/cmd/mion/enrich_cli.go`](../../../ts-go-runtypes/cmd/mion/enrich_cli.go)
 > (+ `enrich_reconcile.go`, `enrich_check.go`); the value-preserving merge in
 > [`ts-go-runtypes/internal/enrichment/mirror/reconcile.go`](../../../ts-go-runtypes/internal/enrichment/mirror/reconcile.go);
-> node shapes in [`packages/run-types/src/enrich/friendlyType.ts`](../../../packages/run-types/src/enrich/friendlyType.ts)
+> node shapes in [`packages/run-types/src/enrich/friendlyText.ts`](../../../packages/run-types/src/enrich/friendlyText.ts)
 >
 > - `mockData.ts`; comptime-args validation in
 >   [`ts-go-runtypes/internal/compiler/comptimeargs/comptimeargs.go`](../../../ts-go-runtypes/internal/compiler/comptimeargs/comptimeargs.go).
@@ -679,7 +679,7 @@ like a stateful sync pipeline.
 Two **coupled artifacts** evolve over time:
 
 - **T** — the source TypeScript type.
-- **E** — its committed enrichment sibling (`*.rt.ts`): the `FriendlyType<T>` map
+- **E** — its committed enrichment sibling (`*.rt.ts`): the `FriendlyText<T>` map
   (labels + error templates) and the `MockData<T>` map (sample pools/ranges),
   scaffolded by the compiler and filled by users/LLMs.
 
@@ -956,7 +956,7 @@ pieces** (an input maker, a replay seed, the loop, a shrinker), reusing what exi
 then **run it hard and pin every failure** as a regression test. The shortcut when an
 example test already exists: keep its call, turn its fixture into an input maker and
 its check into an always-true rule, and share one rule layer between the example and
-fuzz lanes. Applied to the **FriendlyType/MockData sync pipeline**, these steps turn
+fuzz lanes. Applied to the **FriendlyText/MockData sync pipeline**, these steps turn
 "keep the files consistent" into a concrete event-stream model-based fuzzer with
 consistency rules R1–R10 — implemented, green across thousands of runs, and packaged
 as a reusable skill.
