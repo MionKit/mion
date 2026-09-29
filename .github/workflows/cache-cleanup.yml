@@ -1,10 +1,12 @@
 name: cache cleanup
 
 # Keeps the Actions cache (10 GB per repo) for what can still restore: a closed PR's caches go at once, except
-# the lane markers main reads after a merge, and weekly main keeps only its newest binaries and passed-test lists.
+# the lane markers main reads after a merge, and weekly main keeps only its newest prebuilt Go binaries.
 # The rules live in scripts/ci/cache-cleanup.mjs.
 on:
-  pull_request:
+  # pull_request_target, not pull_request: a fork's pull_request token is read-only and deletes nothing.
+  # Safe here because the job checks out and runs only the base branch's code.
+  pull_request_target:
     types: [closed]
   schedule:
     - cron: '17 4 * * 1'
@@ -32,8 +34,7 @@ jobs:
       - name: Delete the caches no run can restore any more
         env:
           GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
         run: >-
           node scripts/ci/cache-cleanup.mjs
-          ${{ github.event_name == 'pull_request' && format('--closed-ref refs/pull/{0}/merge', github.event.pull_request.number) || '--trim' }}
+          ${{ github.event_name == 'pull_request_target' && format('--closed-ref refs/pull/{0}/merge', github.event.pull_request.number) || '--trim' }}
           ${{ inputs.dry-run && '--dry-run' || '' }}
