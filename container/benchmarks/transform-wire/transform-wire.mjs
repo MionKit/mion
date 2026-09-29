@@ -15,8 +15,6 @@
 // eliding it is the cheap milestone-0 win that narrows the comparison.
 //
 // The sourcesContent trim is a session flag, set when each mode's client is constructed.
-// Numbers recorded before that change read a few bytes high on the request side;
-// response sizes and timings are unaffected.
 //
 // Reusable both ways: `node transform-wire/transform-wire.mjs` on the host (the
 // binary + built @mionjs/devtools resolve locally) and in the bench container

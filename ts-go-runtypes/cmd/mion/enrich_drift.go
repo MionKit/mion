@@ -29,7 +29,7 @@ type driftFinding struct {
 
 // runMirrorDriftCheck is `enrich [<dir>] --no-emit [--json]`: breadcrumb drift, GE001 to GE003 (codes_mirror.go).
 // GE002/GE003 come from mirror.CheckBreadcrumbDrift; GE001 lives here, as only the CLI knows the genDir config.
-// With no argument it walks the enrich dir from cwd's tsconfig; genCheckExitCode picks the exit code.
+// With no argument it walks the enrich dir from cwd's tsconfig; mirrorDriftExitCode picks the exit code.
 func runMirrorDriftCheck(positional []string, genDirFlag string, asJSON, requireComplete bool, tsconfigFlag string) {
 	tsconfigPath, parsed := resolveEnrichProject(tsconfigFlag)
 	var targets []string
@@ -80,7 +80,7 @@ func runMirrorDriftCheck(positional []string, genDirFlag string, asJSON, require
 		return findings[left].Code < findings[right].Code
 	})
 
-	exitCode := genCheckExitCode(findings, requireComplete)
+	exitCode := mirrorDriftExitCode(findings, requireComplete)
 	if asJSON {
 		encoded, encodeErr := json.MarshalIndent(findings, "", "  ")
 		if encodeErr != nil {
@@ -96,12 +96,12 @@ func runMirrorDriftCheck(positional []string, genDirFlag string, asJSON, require
 	os.Exit(exitCode)
 }
 
-// genCheckExitCode is the tree walk's exit-code policy, the twin of the
+// mirrorDriftExitCode is the tree walk's exit-code policy, the twin of the
 // single-file lane's enrichFindingFails: a finding carrying the Completeness bit
 // fails only under --require-complete, and any Error-severity finding (a stale
 // carcass via hygieneSeverity, GE000/GE002/GE003 drift) fails both lanes. The
 // cosmetic GE001 location drift is a Warning and never fails.
-func genCheckExitCode(findings []driftFinding, requireComplete bool) int {
+func mirrorDriftExitCode(findings []driftFinding, requireComplete bool) int {
 	for _, finding := range findings {
 		if diagnostics.IsCompleteness(finding.Code) {
 			if requireComplete {

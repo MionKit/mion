@@ -95,8 +95,8 @@ export function readMirrors(fixture: ReconcileFixture): string {
 export function runEnrich(fixture: ReconcileFixture, typeName: string, extraArgs: string[] = []): void {
   const args = ['enrich', 'src/models.ts', typeName, ...extraArgs];
   const result = spawnSync(BIN, args, {cwd: fixture.dir, encoding: 'utf8'});
-  if (result.error) throw new Error(`gen failed to launch: ${result.error.message}`);
-  if (result.status !== 0) throw new Error(`gen ${args.join(' ')} exited ${result.status}: ${result.stderr}\n${result.stdout}`);
+  if (result.error) throw new Error(`enrich failed to launch: ${result.error.message}`);
+  if (result.status !== 0) throw new Error(`mion ${args.join(' ')} exited ${result.status}: ${result.stderr}\n${result.stdout}`);
 }
 
 // The whole mirror root, so carcasses in BOTH family files are swept.

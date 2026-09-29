@@ -42,10 +42,10 @@ func TestMirrorDriftExitCode(t *testing.T) {
 		diagnostics.CodeFriendlyBlankValue, diagnostics.CodeMockBlankValue,
 	} {
 		incomplete := []driftFinding{hygiene(code)}
-		if got := genCheckExitCode(incomplete, false); got != 0 {
+		if got := mirrorDriftExitCode(incomplete, false); got != 0 {
 			t.Errorf("default check must tolerate completeness code %s; exit=%d, want 0", code, got)
 		}
-		if got := genCheckExitCode(incomplete, true); got != 1 {
+		if got := mirrorDriftExitCode(incomplete, true); got != 1 {
 			t.Errorf("--require-complete must fail on completeness code %s; exit=%d, want 1", code, got)
 		}
 	}
@@ -55,31 +55,31 @@ func TestMirrorDriftExitCode(t *testing.T) {
 		diagnostics.CodeFriendlyOrphanField, diagnostics.CodeMockOrphanField,
 	} {
 		stale := []driftFinding{hygiene(code)}
-		if got := genCheckExitCode(stale, false); got != 1 {
+		if got := mirrorDriftExitCode(stale, false); got != 1 {
 			t.Errorf("%s must fail the default check; exit=%d, want 1", code, got)
 		}
-		if got := genCheckExitCode(stale, true); got != 1 {
+		if got := mirrorDriftExitCode(stale, true); got != 1 {
 			t.Errorf("%s must fail under --require-complete; exit=%d, want 1", code, got)
 		}
 	}
 
 	for _, code := range []string{diagnostics.CodeGenMirrorUnreadable, diagnostics.CodeGenSourceMissing, diagnostics.CodeGenTypeMissing} {
-		if got := genCheckExitCode([]driftFinding{finding(code, enrichment.Error)}, false); got != 1 {
+		if got := mirrorDriftExitCode([]driftFinding{finding(code, enrichment.Error)}, false); got != 1 {
 			t.Errorf("%s must fail the default check; exit=%d, want 1", code, got)
 		}
 	}
 
 	cosmetic := []driftFinding{finding(diagnostics.CodeGenMirrorDrift, enrichment.Warning)}
-	if got := genCheckExitCode(cosmetic, true); got != 0 {
+	if got := mirrorDriftExitCode(cosmetic, true); got != 0 {
 		t.Errorf("GE001 location drift is cosmetic and must not fail even --require-complete; exit=%d, want 0", got)
 	}
 
 	mixed := []driftFinding{hygiene(diagnostics.CodeFriendlyTodo), hygiene(diagnostics.CodeFriendlyOrphanField)}
-	if got := genCheckExitCode(mixed, false); got != 1 {
+	if got := mirrorDriftExitCode(mixed, false); got != 1 {
 		t.Errorf("a stale carcass must fail even when a @todo is present; exit=%d, want 1", got)
 	}
 
-	if got := genCheckExitCode(nil, true); got != 0 {
+	if got := mirrorDriftExitCode(nil, true); got != 0 {
 		t.Errorf("clean report must exit 0; exit=%d", got)
 	}
 }
