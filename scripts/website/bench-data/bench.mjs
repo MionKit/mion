@@ -56,8 +56,16 @@ function config(env = process.env) {
 
 // Competitors run in this order (columns.mjs, the list the generator and the gate
 // hold the datasets to); typia is included by default (MION_VALIDATION_BENCH_NO_TYPIA skips).
-function competitorList() {
-  return COMPETITORS.filter((competitor) => competitor !== 'typia' || !process.env.MION_VALIDATION_BENCH_NO_TYPIA);
+// `--only a,b` narrows it further: CI runs just the competitors not yet proven green.
+let onlyCompetitors = null;
+export function competitorList() {
+  return COMPETITORS.filter((competitor) => competitor !== 'typia' || !process.env.MION_VALIDATION_BENCH_NO_TYPIA).filter((competitor) => !onlyCompetitors || onlyCompetitors.includes(competitor));
+}
+export function setOnlyCompetitors(list) {
+  const names = list.split(',').filter(Boolean);
+  const unknown = names.filter((name) => !COMPETITORS.includes(name));
+  if (unknown.length > 0 || names.length === 0) die(`bench: --only takes a comma list of ${COMPETITORS.join(', ')}; got '${list}'`, 2);
+  onlyCompetitors = names;
 }
 
 const requireEngine = (cfg) => {
@@ -323,15 +331,20 @@ function cmdBench(cfg) {
   ensurePrereqs(cfg);
   // MION_VALIDATION_BENCH_CASE inspection run: leave the canonical results JSON untouched.
   if (!process.env.MION_VALIDATION_BENCH_CASE) clearResults((f) => f !== 'env.json');
-  const broken = competitorList().filter((competitor) => !buildAndRunOne(cfg, competitor));
+  const competitors = competitorList();
+  const broken = competitors.filter((competitor) => !buildAndRunOne(cfg, competitor));
   if (process.env.MION_VALIDATION_BENCH_CASE) return note(`MION_VALIDATION_BENCH_CASE='${process.env.MION_VALIDATION_BENCH_CASE}': per-case console output above; results JSON, aggregate and docdata left untouched.`);
-  console.log('-------- engine branch --------');
-  checkEngineBranch();
+  // The tripwire reads mion's own results, so a run without the mion lane has nothing to check.
+  if (competitors.includes('mion')) {
+    console.log('-------- engine branch --------');
+    checkEngineBranch();
+  }
   console.log('-------- aggregate --------');
-  runInContainer(cfg, ['node', 'aggregate.mjs']);
+  const aggregate = runInContainer(cfg, ['node', 'aggregate.mjs']);
   publishDocdata(cfg);
   // Aggregate + docdata first: the lanes that DID run still publish their results.
   if (broken.length > 0) die(brokenLanesMessage(broken));
+  if (aggregate !== 0) die('bench: a competitor accepted invalid data, rejected valid data or errored - see the list above aggregate exit');
 }
 
 function cmdBenchOne(cfg, name) {
@@ -632,12 +645,13 @@ function dispatch(cfg, args) {
 }
 
 export function main(rawArgs) {
-  // Pull --quick out of the args from any position (sets MION_VALIDATION_BENCH_QUICK); everything
-  // else is forwarded unchanged.
+  // Pull --quick (sets MION_VALIDATION_BENCH_QUICK) and --only <list> out of the args from any
+  // position; everything else is forwarded unchanged.
   const args = [];
-  for (const arg of rawArgs) {
-    if (arg === '--quick') process.env.MION_VALIDATION_BENCH_QUICK = '1';
-    else args.push(arg);
+  for (let i = 0; i < rawArgs.length; i++) {
+    if (rawArgs[i] === '--quick') process.env.MION_VALIDATION_BENCH_QUICK = '1';
+    else if (rawArgs[i] === '--only') setOnlyCompetitors(rawArgs[++i] ?? '');
+    else args.push(rawArgs[i]);
   }
   applyQuick();
   dispatch(config(), args);

@@ -2,7 +2,7 @@
 //
 // The lane list lives in THREE places that cannot import each other — the run
 // script inside the container, the release front door on the host, and the CI
-// matrix — so a new lane is easy to half-add: it runs locally and never runs in
+// lane items (scripts/ci/lanes.mjs) — so a new lane is easy to half-add: it runs locally and never runs in
 // CI, or CI asks for an image nothing builds. These pin the three to each other.
 //
 // The typecheck-normalization test is a REGRESSION, not a precaution. The lane
@@ -19,6 +19,8 @@ import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {diffTypeErrors, errorLines, isExactTypeAssertion} from '../../../container/drizzle-e2e/shared/baseline.mjs';
+// @ts-expect-error plain ESM dev script, no types
+import {LANES} from '../../../scripts/ci/lanes.mjs';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const read = (rel: string): string => readFileSync(path.join(REPO_ROOT, rel), 'utf8');
@@ -45,9 +47,9 @@ describe('drizzle-e2e lane wiring', () => {
     const fromFrontDoor = [...offered.matchAll(/'([a-z0-9]+)'/g)].map((match) => match[1]);
     expect(fromFrontDoor.sort()).toEqual([...lanes].sort());
 
-    const matrix = /dialect: \[([^\]]*)\]/.exec(workflow)?.[1] ?? '';
-    const fromCi = matrix.split(',').map((name) => name.trim());
-    expect(fromCi.sort()).toEqual([...lanes].sort());
+    // CI runs the unproven items of the drizzle lane, so the items ARE the CI list.
+    expect(workflow).toContain('dialect: ${{ fromJSON(needs.lanes.outputs.lanes).drizzle.runItems }}');
+    expect(Object.keys(LANES.drizzle.items).sort()).toEqual([...lanes].sort());
   });
 
   it('every lane resolves to an image the container script can build', () => {

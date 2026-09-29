@@ -9,10 +9,10 @@ description: >
 
 inputs:
   lane:
-    description: Lane name, as passed to ./.github/actions/ci-lanes
+    description: Lane name, as passed to ./.github/actions/ci-lanes, or `<lane>.<item>` for one item of it
     required: true
   hash:
-    description: That lane's hash from the ci-lanes output
+    description: That lane's (or item's) hash from the ci-lanes output
     required: true
 
 runs:

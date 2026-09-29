@@ -138,14 +138,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        dialect: [pg, mysql, sqlite, d1, durable]
-        # d1 and durable are the two Cloudflare storage DRIVERS, not dialects, so
-        # they share one image. Everything else about the lane is the same.
-        include:
-          - dialect: d1
-            image: cloudflare
-          - dialect: durable
-            image: cloudflare
+        # Only the databases not yet proven green at their own inputs (lanes.mjs items):
+        # fixing one dialect re-runs that one. No `include:` here, because an include
+        # entry that matches no listed dialect is ADDED as a new job.
+        dialect: ${{ fromJSON(needs.lanes.outputs.lanes).drizzle.runItems }}
+    # d1 and durable are the two Cloudflare storage DRIVERS, not dialects, so they
+    # share one image. Everything else about the lane is the same.
+    env:
+      IMAGE: ${{ (matrix.dialect == 'd1' || matrix.dialect == 'durable') && 'cloudflare' || matrix.dialect }}
     runs-on: ubuntu-latest
     # packages:read lets the job pull the prebuilt per-dialect image.
     permissions:
@@ -171,8 +171,8 @@ jobs:
       - name: Pull the prebuilt image
         uses: ./.github/actions/pull-shared-image
         with:
-          remote: ghcr.io/mionkit/mion-drizzle-${{ matrix.image || matrix.dialect }}:latest
-          local-tag: mion-drizzle-${{ matrix.image || matrix.dialect }}:dev
+          remote: ghcr.io/mionkit/mion-drizzle-${{ env.IMAGE }}:latest
+          local-tag: mion-drizzle-${{ env.IMAGE }}:dev
           # The images are PRIVATE, like tsrt-e2e: the repo GITHUB_TOKEN is denied
           # them, the PAT (read:packages) is not.
           password: ${{ secrets.GHCR_PAT }}
@@ -187,10 +187,16 @@ jobs:
           name: drizzle-e2e-${{ matrix.dialect }}
           path: logs/drizzle-e2e/
           if-no-files-found: ignore
+      # This dialect's own marker: it claims only this item, never its siblings.
+      - name: Record this dialect as green
+        uses: ./.github/actions/save-lane-green
+        with:
+          lane: drizzle.${{ matrix.dialect }}
+          hash: ${{ fromJSON(needs.lanes.outputs.lanes).drizzle.items[matrix.dialect].hash }}
 
-  # ONE marker for the whole matrix, so it is written only once ALL FIVE dialects
-  # have passed. Writing it per dialect would let one green lane stand in for the
-  # four that were still running, or that failed.
+  # The lane marker claims all five dialects, so it is written only once every
+  # dialect that ran has passed; the ones that did not run were already proven by
+  # their own item markers. A later run then skips the whole lane on one lookup.
   record-green:
     name: record drizzle as green
     needs: [lanes, drizzle-e2e]

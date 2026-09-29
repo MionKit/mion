@@ -12,16 +12,17 @@
 import {readFileSync} from 'node:fs';
 import path from 'node:path';
 import {describe, expect, it} from 'vitest';
-// @ts-expect-error — a plain .mjs repo script, no types.
 import {
   LANES,
   FEEDS_NOTHING,
   candidateKeys,
   decide,
   greenKey,
+  itemFeeds,
   laneHashes,
   matches,
   unclassified,
+  // @ts-expect-error — a plain .mjs repo script, no types.
 } from '../../../scripts/ci/lanes.mjs';
 // @ts-expect-error — a plain .mjs repo script, no types.
 import {SWEEPS} from '../../../scripts/ci/check-tree.mjs';
@@ -90,7 +91,7 @@ describe('the lane table', () => {
     expect(hashes.js).toBe(hashes['js-fuzz']);
     const distinct = new Set(
       Object.entries(hashes)
-        .filter(([name]) => name !== 'js-fuzz')
+        .filter(([name]) => name in LANES && name !== 'js-fuzz')
         .map(([, hash]) => hash)
     );
     expect(distinct.size).toBe(Object.keys(LANES).length - 1);
@@ -117,6 +118,54 @@ describe('the lane table', () => {
         expect(matches(path, lane.paths), `${name} misses ${path}`).toBe(true);
       }
     }
+  });
+
+  // An item hashes its own paths plus what no sibling claims, so a change re-runs
+  // exactly the items that read it.
+  it("feeds each item its own paths and the shared ones, never a sibling's", () => {
+    const feeds = (lane: string, path: string): string[] =>
+      Object.keys(LANES[lane].items).filter((item) => itemFeeds(LANES[lane], item, path));
+    expect(feeds('drizzle', 'packages/drizzle-orm-pg-core/src/columns.ts')).toEqual(['pg']);
+    expect(feeds('drizzle', 'packages/drizzle-orm-sqlite-core/src/columns.ts')).toEqual(['sqlite', 'd1', 'durable']);
+    expect(feeds('drizzle', 'container/drizzle-e2e/cloudflare/Containerfile')).toEqual(['d1', 'durable']);
+    expect(feeds('drizzle', 'packages/drizzle-orm/src/table.ts')).toEqual(['pg', 'mysql', 'sqlite', 'd1', 'durable']);
+    expect(feeds('bench', 'packages/core/src/errors.ts')).toEqual(['mion']);
+    expect(feeds('bench', 'ts-go-runtypes/internal/reflection/kind.go')).toEqual(['mion']);
+    expect(feeds('bench', 'container/benchmarks/competitors/zod/cases.ts')).toEqual(['zod']);
+    expect(feeds('bench', 'container/benchmarks/shared/cases/objects.ts')).toEqual(['mion', 'zod', 'typebox', 'ajv', 'typia']);
+    expect(feeds('e2e', 'container/pre-publish-e2e/host-smoke/src/main.ts')).toEqual(['host-smoke']);
+    expect(feeds('e2e', 'packages/core/src/errors.ts')).toEqual(['matrix', 'mion', 'host-smoke']);
+    expect(feeds('smoke', 'container/benchmarks/competitors/ajv/cases.ts')).toEqual(['bench']);
+  });
+
+  it('runs only the unproven items, and skips them all on the lane marker', () => {
+    const hashes = {
+      drizzle: 'lane',
+      'drizzle.pg': 'p',
+      'drizzle.mysql': 'm',
+      'drizzle.sqlite': 's',
+      'drizzle.d1': 'd',
+      'drizzle.durable': 'u',
+    };
+    const none = decide(['drizzle'], {hashes}).drizzle;
+    expect(none.run).toBe(true);
+    expect(none.runItems).toEqual(['pg', 'mysql', 'sqlite', 'd1', 'durable']);
+    const someGreen = decide(['drizzle'], {
+      hashes,
+      greenKeys: [greenKey('drizzle.pg', 'p'), greenKey('drizzle.d1', 'd')],
+    }).drizzle;
+    expect(someGreen.runItems).toEqual(['mysql', 'sqlite', 'durable']);
+    expect(someGreen.items.pg).toEqual({run: false, hash: 'p'});
+    // An item marker at an OLD hash proves nothing.
+    expect(decide(['drizzle'], {hashes, greenKeys: [greenKey('drizzle.pg', 'old')]}).drizzle.items.pg.run).toBe(true);
+    const laneGreen = decide(['drizzle'], {hashes, greenKeys: [greenKey('drizzle', 'lane')]}).drizzle;
+    expect(laneGreen.run).toBe(false);
+    expect(laneGreen.runItems).toEqual([]);
+    const allItems = ['pg', 'mysql', 'sqlite', 'd1', 'durable'].map((item) =>
+      greenKey(`drizzle.${item}`, hashes[`drizzle.${item}` as keyof typeof hashes])
+    );
+    expect(decide(['drizzle'], {hashes, greenKeys: allItems}).drizzle.run).toBe(false);
+    expect(candidateKeys(['drizzle'], {hashes})).toEqual([greenKey('drizzle', 'lane'), ...allItems]);
   });
 
   // Exact keys, so a marker can never fall off the end of a long cache listing.
@@ -274,13 +323,46 @@ describe('a marker is only ever written by work that actually ran and passed', (
     }
   });
 
-  // Five dialects share one marker, so it cannot ride any single dialect's job.
-  it('records drizzle green only after all five dialect lanes pass', () => {
+  // A dialect's own marker claims only that dialect; the lane marker claims all five,
+  // so it waits on every dialect job that ran (the rest were proven by their own markers).
+  it('records each drizzle dialect on its own, and the lane only after every dialect that ran passed', () => {
     const drizzle = read('.github/workflows/drizzle-e2e.yml');
+    const dialects = drizzle.slice(drizzle.indexOf('\n  drizzle-e2e:'), drizzle.indexOf('\n  record-green:'));
+    expect(dialects).toContain('dialect: ${{ fromJSON(needs.lanes.outputs.lanes).drizzle.runItems }}');
+    expect(dialects).toMatch(
+      /lane: drizzle\.\$\{\{ matrix\.dialect \}\}\n\s+hash: \$\{\{ fromJSON\(needs\.lanes\.outputs\.lanes\)\.drizzle\.items\[matrix\.dialect\]\.hash \}\}/
+    );
     const record = drizzle.slice(drizzle.indexOf('\n  record-green:'));
     expect(record).toContain('needs: [lanes, drizzle-e2e]');
     expect(record).toContain('if: success()');
-    expect(drizzle.indexOf('save-lane-green')).toBe(drizzle.lastIndexOf('save-lane-green'));
+    expect(record).toContain('lane: drizzle\n');
+  });
+
+  // An item that did not run proved nothing, so its save must re-check its own verdict.
+  it('guards every in-job item save on that item having run', () => {
+    for (const [file, lane, items] of [
+      ['ci.yml', 'smoke', ['website', 'bench']],
+      ['pr-heavy.yml', 'e2e', ['matrix', 'mion', 'host-smoke']],
+    ] as const) {
+      const workflow = read(`.github/workflows/${file}`);
+      for (const item of items) {
+        expect(workflow, `${file} saves ${lane}.${item} unguarded`).toMatch(
+          new RegExp(
+            `if: success\\(\\) && contains\\(fromJSON\\(needs\\.lanes\\.outputs\\.lanes\\)\\.${lane}\\.runItems, '${item}'\\)\\n\\s+uses: \\./\\.github/actions/save-lane-green\\n\\s+with:\\n\\s+lane: ${lane}\\.${item}\\n`
+          )
+        );
+      }
+    }
+  });
+
+  // Every item of a lane with items is reachable by the workflow that runs it.
+  it('declares items only on lanes whose workflow reads runItems', () => {
+    const workflows = Object.keys(WORKFLOWS)
+      .map((file) => read(`.github/workflows/${file}`))
+      .join('\n');
+    for (const [name, lane] of Object.entries(LANES) as [string, {items?: object}][]) {
+      if (lane.items) expect(workflows, `${name} has items nobody runs`).toContain(`.${name}.runItems`);
+    }
   });
 
   // A save placed mid-job would claim the lane green while the steps after it are
@@ -293,15 +375,16 @@ describe('a marker is only ever written by work that actually ran and passed', (
         const firstSave = job.indexOf('save-lane-green');
         if (firstSave === -1) continue;
         checked += 1;
-        // drizzle's record-green job runs nothing itself (it waits on the five
-        // dialect jobs), so "no work at all" is fine; work AFTER the save is not.
+        // The lane-marker jobs (drizzle's record-green, bench-green) run nothing
+        // themselves, so "no work at all" is fine; work AFTER the save is not.
         expect(firstSave, `${file}: a run step follows a save-lane-green step`).toBeGreaterThan(
           job.lastIndexOf('\n        run: ')
         );
       }
     }
-    // go-fuzz, js-lint, smoke, website, bench, pre-publish-e2e, record-green.
-    // The count catches a save step lost to an edit, which the loop above cannot.
-    expect(checked).toBe(7);
+    // go-fuzz, js-lint, smoke, website, bench, bench-green, pre-publish-e2e,
+    // drizzle-e2e, record-green. The count catches a save step lost to an edit,
+    // which the loop above cannot.
+    expect(checked).toBe(9);
   });
 });

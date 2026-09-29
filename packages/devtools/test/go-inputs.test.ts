@@ -11,7 +11,6 @@ import {afterAll, describe, expect, it} from 'vitest';
 import {goInputFiles, goInputsDigest, isGoInput, readStamp, writeStamp} from '../../../scripts/lib/go-inputs.mjs';
 // @ts-expect-error plain ESM dev script, no types
 import {WASM_INPUTS, isWasmInput, readWasmStamp, wasmInputsDigest} from '../../../scripts/website/playground-wasm-inputs.mjs';
-// @ts-expect-error plain ESM dev script, no types
 import {
   EXTRACT_INPUTS,
   RESOLVER_INPUTS,
@@ -20,6 +19,7 @@ import {
   goIdentity,
   pinnedGoVersion,
   resolverDigest,
+  // @ts-expect-error plain ESM dev script, no types
 } from '../../../scripts/core/build.mjs';
 // @ts-expect-error plain ESM dev script, no types
 import {gitlinkCommit, isCheckedOutRepo, tsgolintCommit} from '../../../scripts/lib/tsgolint.mjs';
