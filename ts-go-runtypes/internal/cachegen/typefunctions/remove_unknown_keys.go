@@ -7,16 +7,11 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// RemoveUnknownKeysEmitter rebuilds the declared shape from the type, never `{...v}`: `clone(x) !== x` at every object.
-// The result is typed `T`, so every declared member is on the copy and works, or the factory refuses (always throws):
-//   - data is copied; primitives and symbol VALUES are immutable, so the copy holds the same value;
-//   - a value it cannot copy (function, Promise, RegExp, a built-in that is not data) follows `sharedValues`;
-//   - a class copy keeps the input's prototype and never runs the constructor, so methods and accessors stay
-//     there (RUK011) and a class with `#private` fields, which only the constructor can create, refuses (RUK005);
-//   - a symbol-keyed property refuses (RUK004): the code cannot name the user's symbol, and copying every own
-//     symbol would keep undeclared ones. A `[k: symbol]: V` signature declares them all, so those are copied.
-//
-// `overrideRemoveUnknownKeys<T>()` is the escape hatch for custom copying.
+// RemoveUnknownKeysEmitter rebuilds the declared shape, never `{...v}`, so `clone(x) !== x` at every object. The
+// result is typed `T`: each declared member is copied, shared per `sharedValues`, or the factory always throws. A
+// class copy keeps the prototype but never runs the constructor, so `#private` fields refuse (RUK005). A symbol-keyed
+// property refuses (RUK004): the code cannot name the symbol, and copying every own symbol would keep undeclared
+// ones; a `[k: symbol]: V` signature declares them all. `overrideRemoveUnknownKeys<T>()` is the escape hatch.
 // No key-count gate: on V8, `Object.keys(x).length === N` costs more than the rebuild (1.6x slower).
 type RemoveUnknownKeysEmitter struct {
 	shared sharedValuesMode
@@ -35,8 +30,7 @@ func (RemoveUnknownKeysEmitter) Args() []ArgSpec {
 	return []ArgSpec{{Key: "vλl", Name: "v", Default: ""}}
 }
 
-// Supports mirrors the unknown-keys family gate, this being a member of it: functions / symbols /
-// promises are supported as opaque passthrough, NOT rejected the way the JSON serializers reject them.
+// Supports mirrors the unknown-keys family gate: functions and promises reach Emit, which shares or refuses them per `sharedValues`.
 func (RemoveUnknownKeysEmitter) Supports(rt *reflection.RunType) bool {
 	return unknownKeysSupports(rt)
 }
@@ -45,8 +39,7 @@ func (RemoveUnknownKeysEmitter) IsRTInlined(ctx *InlineContext) bool {
 	return DefaultIsRTInlined(ctx)
 }
 
-// IsNoopType: identity is sound exactly when the whole reachable subtree is immutable, where sharing is
-// observationally equivalent to copying; any mutable or shared-with-notice position forces a live body.
+// IsNoopType: identity is sound only when the reachable subtree is immutable; a mutable or shared one needs a body.
 func (RemoveUnknownKeysEmitter) IsNoopType(rt *reflection.RunType, ctx *EmitContext) bool {
 	return isNoopForRemoveUnknownKeys(rt, ctx)
 }
@@ -71,10 +64,8 @@ func (RemoveUnknownKeysEmitter) Finalize(raw string) (string, bool) {
 	return code, false
 }
 
-// Emit arms return CodeE (an expression evaluating to the clone), CodeRB (a self-returning block) or empty
-// CodeS (immutable passthrough). Parents check a child that can only be shared BEFORE compiling it
-// (shareOrRefuse), so the opaque arm below is reached at the root.
-// Composition rule as in prepareForJsonClone: an empty child emit means the child's clone IS its accessor.
+// Emit returns CodeE, a self-returning CodeRB, or empty CodeS, meaning the child's clone IS its accessor.
+// Parents share or refuse a child that can only be shared before compiling it, so the shared arm is reached at the root.
 func (e RemoveUnknownKeysEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ CodeType) RTCode {
 	if rt == nil {
 		return RTCode{Code: "", Type: CodeS}
@@ -94,8 +85,7 @@ func (e RemoveUnknownKeysEmitter) Emit(rt *reflection.RunType, ctx *EmitContext,
 	case reflection.KindClass:
 		switch rt.SubKind {
 		case reflection.SubKindNone:
-			// Prototype-preserving rebuild so `instanceof` survives; a custom serializer registration is a
-			// JSON-wire concern and does not apply to a value-level clone.
+			// Keeps the prototype so `instanceof` survives; a custom serializer registration is JSON-only and does not apply.
 			return e.emitObject(rt, ctx, v, true)
 		case reflection.SubKindMap, reflection.SubKindSet:
 			return e.emitNativeIterable(rt, ctx, v)
@@ -104,8 +94,7 @@ func (e RemoveUnknownKeysEmitter) Emit(rt *reflection.RunType, ctx *EmitContext,
 			return RTCode{Code: "new Date(" + v + ".getTime())", Type: CodeE}
 		}
 		if info, ok := reflection.TemporalInfoBySubKind(rt.SubKind); ok {
-			// Temporal objects are immutable, but a clone still hands back a fresh instance:
-			// `clone(x).field !== x.field` must hold for every object-typed field.
+			// Immutable, but still a fresh instance: `clone(x).field !== x.field` must hold for every object-typed field.
 			return RTCode{Code: "globalThis." + info.Builtin + ".from(" + v + ")", Type: CodeE}
 		}
 		return RTCode{Code: "", Type: CodeS}
@@ -123,15 +112,13 @@ func (e RemoveUnknownKeysEmitter) Emit(rt *reflection.RunType, ctx *EmitContext,
 	case reflection.KindUnion:
 		return e.emitUnion(rt, ctx)
 
-	// Immutable kinds (primitives, symbols, enums, literals, template literals, bigints, with no `.toString()`:
-	// this is a value-level clone, not a JSON projection) and any / unknown / object are shared by reference.
+	// Immutable kinds (a bigint is not `.toString()`ed: no JSON projection here) and any / unknown / object are shared.
 	default:
 		return RTCode{Code: "", Type: CodeS}
 	}
 }
 
-// sharedValueSlot reports a value the copy cannot rebuild and so can only share, and the warning it gets.
-// A symbol value is not here: it is a primitive, so the copy holding it IS a copy.
+// sharedValueSlot reports a value the copy can only share, and its warning; a symbol is a primitive, so it is not here.
 func sharedValueSlot(rt *reflection.RunType, ctx *EmitContext) (DiagSlot, bool) {
 	if rt == nil {
 		return "", false
@@ -155,8 +142,7 @@ func sharedValueSlot(rt *reflection.RunType, ctx *EmitContext) (DiagSlot, bool) 
 	return "", false
 }
 
-// shareOrRefuse applies `sharedValues` to a value the copy can only share. It returns false when the factory must
-// refuse; leaf is then latched so DiagCodeForLeaf names RUK006 and where.
+// shareOrRefuse returns false to refuse, with leaf latched so DiagCodeForLeaf names RUK006 and where.
 func (e RemoveUnknownKeysEmitter) shareOrRefuse(slot DiagSlot, where string, leaf *reflection.RunType, ctx *EmitContext) bool {
 	if e.shared == sharedValuesRefuse {
 		refuseWith(leaf, ctx)
@@ -178,8 +164,7 @@ func propertyWhere(member *reflection.RunType) string {
 	return "property `" + memberLabel(member) + "`"
 }
 
-// isPrototypeMember reports a class member that lives on the prototype, which the copy inherits: a method
-// (not a function-typed field) or a get / set accessor.
+// isPrototypeMember reports a class member the copy inherits from the prototype: a method or an accessor.
 func isPrototypeMember(member *reflection.RunType) bool {
 	if member.HasFlag(reflection.FlagAccessor) {
 		return true
@@ -287,8 +272,7 @@ func (e RemoveUnknownKeysEmitter) emitObject(rt *reflection.RunType, ctx *EmitCo
 		newObject = "Object.create(Object.getPrototypeOf(" + v + "))"
 	}
 	if len(indexSigs) > 0 {
-		// Keys matching an index signature are DECLARED shape and are copied onto the fresh object. A key
-		// matching no pattern is dropped: a by-reference copy would break clone(x) !== x.
+		// A key matching no signature is dropped: sharing it would break clone(x) !== x.
 		return e.buildIndexObject(v, newObject, props, collectSiblingNamedKeys(rt, ctx), indexSigs, ctx)
 	}
 	if asClass {
@@ -306,8 +290,7 @@ func (e RemoveUnknownKeysEmitter) emitObject(rt *reflection.RunType, ctx *EmitCo
 	return RTCode{Code: "return " + clone.Code, Type: CodeRB}
 }
 
-// buildClassRemoveUnknownKeys assigns the declared own props onto newObject, which carries the input's
-// prototype; accessors are never assigned, so no prototype setter runs.
+// buildClassRemoveUnknownKeys never assigns an accessor, so no prototype setter runs.
 func buildClassRemoveUnknownKeys(newObject string, props []safePropEmit) RTCode {
 	var b strings.Builder
 	b.WriteString("const _r = ")
@@ -340,8 +323,7 @@ func writePropAssignments(b *strings.Builder, props []safePropEmit) {
 	}
 }
 
-// buildIndexObject copies the index-signature keys, then the declared props (which win any clash). String and
-// number signatures walk `for...in`; a symbol signature walks the own enumerable symbols, all of them declared.
+// buildIndexObject copies the index-signature keys, then the declared props, which win any clash.
 func (e RemoveUnknownKeysEmitter) buildIndexObject(v, newObject string, props []safePropEmit, skipNames []string, indexSigs []*reflection.RunType, ctx *EmitContext) RTCode {
 	type sigArm struct {
 		keyRegexVar string
@@ -500,9 +482,7 @@ func (e RemoveUnknownKeysEmitter) emitTuple(rt *reflection.RunType, ctx *EmitCon
 	}
 	literal := "[" + strings.Join(parts, ",") + "]"
 	if hasOptional && restPart == "" {
-		// Absent TRAILING optional slots must stay absent, but the positional literal always materializes N
-		// slots, growing `[4n]` into `[4n, undefined]` and changing `.length`. Truncating to the input's
-		// length keeps present-but-undefined slots in place; extras beyond the declared arity still drop.
+		// The literal always has N slots, turning `[4n]` into `[4n, undefined]`: absent trailing optionals must stay absent.
 		return RTCode{Code: literal + ".slice(0, " + v + ".length)", Type: CodeE}
 	}
 	return RTCode{Code: literal, Type: CodeE}
@@ -611,14 +591,13 @@ func removeUnknownKeysNoopRecursive(rt *reflection.RunType, ctx *EmitContext, vi
 			return verdict
 		}
 		if _, seen := visited[rt.ID]; seen {
-			// A cycle necessarily passes through an object/class node, whose arm already returned false, so
-			// this is unreachable in practice: optimistic true keeps the walk total.
+			// Unreachable: a cycle passes an object/class node, which returned false; true keeps the walk total.
 			return true
 		}
 		visited[rt.ID] = struct{}{}
 	}
 	if _, shared := sharedValueSlot(rt, ctx); shared {
-		// Not identity-equivalent in spirit: the entry must compile so the warning fires, or the refusal throws.
+		// The entry must compile so the warning fires, or the refusal throws.
 		return false
 	}
 	switch rt.Kind {
@@ -667,7 +646,6 @@ func removeUnknownKeysNoopRecursive(rt *reflection.RunType, ctx *EmitContext, vi
 		}
 		return true
 	}
-	// Immutable (primitives, symbols, enums, literals, template literals, bigints, never/void/null/undefined)
-	// and any / unknown / object kinds are passthrough.
+	// Immutable kinds (primitives, symbols, enums, literals, bigints, void/null/undefined/never) and any/unknown/object.
 	return true
 }

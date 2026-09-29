@@ -301,9 +301,8 @@ type demandedRoot struct {
 	typeID  string
 }
 
-// reportReachedThrows reports, at a site whose entry works, the root code of an alwaysThrow entry it calls: the
-// body calls same-family deps unconditionally, so the site's function throws too. The walker only reports a root
-// code where the failing type was NAMED, which left `{inner: Inner}` silent when `Inner` always throws.
+// reportReachedThrows reports an alwaysThrow dep's root code at a working site that calls it: that site throws too.
+// The walker reports only where the failing type is named, so `{inner: Inner}` would stay silent.
 func reportReachedThrows(graph entrymodules.Graph, throwing map[string]*diskcache.CachedDiagnostic, roots []demandedRoot, familyTag string, opts RenderOpts) {
 	if len(throwing) == 0 || opts.DiagSink == nil {
 		return

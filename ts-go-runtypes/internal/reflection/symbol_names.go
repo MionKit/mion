@@ -19,8 +19,7 @@ func SymbolKeyLabel(name string) string {
 	return name
 }
 
-// IsPrivateName reports an ECMAScript `#name` class member, spelled `\xFE#<id>@#name` by tsgo: no code outside the
-// class can read or write it by key, so the projection leaves it out and flags the class with FlagPrivateFields.
+// IsPrivateName reports a `#name` class member (tsgo spells it `\xFE#<id>@#name`), which no outside code reads by key.
 func IsPrivateName(name string) bool {
 	return len(name) >= 2 && name[0] == 0xFE && name[1] == '#'
 }
@@ -29,7 +28,7 @@ func IsPrivateName(name string) bool {
 const (
 	// FlagAccessor marks a get / set accessor: it lives on the prototype, so an instance has no own value for it.
 	FlagAccessor = "accessor"
-	// FlagField marks a function-typed class member declared as a PROPERTY (`fn = () => 1`): an own value, not a prototype method.
+	// FlagField marks a function-typed class PROPERTY (`fn = () => 1`): an own value, not a prototype method.
 	FlagField = "field"
 	// FlagPrivateFields marks a class with `#name` fields, which only its constructor can create.
 	FlagPrivateFields = "privateFields"

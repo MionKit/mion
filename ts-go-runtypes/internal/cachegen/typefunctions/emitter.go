@@ -379,8 +379,7 @@ type LeafDiagCodeProvider interface {
 	DiagCodeForLeaf(leaf *reflection.RunType) string
 }
 
-// LeafDiagLabelProvider is the optional capability to name an alwaysThrow leaf in the user's words (a member,
-// a class) instead of leafKindLabel's kind name.
+// LeafDiagLabelProvider optionally names an alwaysThrow leaf in the user's words, instead of leafKindLabel's kind.
 type LeafDiagLabelProvider interface {
 	DiagLabelForLeaf(leaf *reflection.RunType) string
 }

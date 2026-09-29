@@ -6,8 +6,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 )
 
-// A site whose function calls an always-throw entry throws too, so it reports that entry's root code even though
-// it never named the failing type. Paired call shapes per the Marker test coverage rule.
+// A site calling an always-throw entry throws too, so it reports that root code; paired shapes per the Marker test rule.
 func TestNestedThrow_ReportsAtTheOuterSite(t *testing.T) {
 	const shared = `export interface Inner { s: symbol[] }
 export class Counter { #count = 0; label = ''; }
