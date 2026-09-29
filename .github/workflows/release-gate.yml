@@ -352,9 +352,8 @@ jobs:
       # Reclaim preinstalled cruft before the image pull + Go build-cache restore.
       - uses: ./.github/actions/free-disk
       - uses: ./.github/actions/bootstrap
+      # bench prep and the runs trust the restored binaries, so Go is set up only on a miss.
       - uses: ./.github/actions/resolver
-        with:
-          toolchain: 'true'
       - name: podman version
         run: podman --version
       # Builds the Go resolver binary + the marker/plugin packages on the runner
@@ -394,16 +393,17 @@ jobs:
       # Reclaim preinstalled cruft before the image pull + Go build-cache restore.
       - uses: ./.github/actions/free-disk
       # `container-build` runs on the HOST to drive podman and prebuild the playground assets (the resolver
-      # WASM + the vendored mion dist nuxt imports), which need Go + the patched tsgolint from the resolver.
+      # WASM + the vendored mion dist nuxt imports); building the WASM needs Go + the patched tsgolint.
       - uses: ./.github/actions/bootstrap
+      # Before the resolver: a cached wasm (skips the multi-minute rebuild) means this job needs no Go.
+      - name: Cache the playground wasm
+        id: wasm
+        uses: ./.github/actions/cache-playground-wasm
       - uses: ./.github/actions/resolver
         with:
-          toolchain: 'true'
+          toolchain: ${{ steps.wasm.outputs.hit != 'true' }}
       - name: podman version
         run: podman --version
-      # Cache the playground WASM so a UI-only change skips the multi-minute rebuild.
-      - name: Cache the playground wasm
-        uses: ./.github/actions/cache-playground-wasm
       - name: Pull the prebuilt shared image (CI never builds it)
         uses: ./.github/actions/pull-shared-image
         with:

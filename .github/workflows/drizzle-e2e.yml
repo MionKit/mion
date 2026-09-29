@@ -142,7 +142,7 @@ jobs:
         dialect: ${{ fromJSON(needs.lanes.outputs.lanes).drizzle.runItems }}
     # d1 and durable are Cloudflare storage DRIVERS, not dialects, so they share one image.
     env:
-      IMAGE: ${{ (matrix.dialect == 'd1' || matrix.dialect == 'durable') && 'cloudflare' || matrix.dialect }}
+      MION_DRIZZLE_IMAGE: ${{ (matrix.dialect == 'd1' || matrix.dialect == 'durable') && 'cloudflare' || matrix.dialect }}
     runs-on: ubuntu-latest
     # packages:read lets the job pull the prebuilt per-dialect image.
     permissions:
@@ -168,8 +168,8 @@ jobs:
       - name: Pull the prebuilt image
         uses: ./.github/actions/pull-shared-image
         with:
-          remote: ghcr.io/mionkit/mion-drizzle-${{ env.IMAGE }}:latest
-          local-tag: mion-drizzle-${{ env.IMAGE }}:dev
+          remote: ghcr.io/mionkit/mion-drizzle-${{ env.MION_DRIZZLE_IMAGE }}:latest
+          local-tag: mion-drizzle-${{ env.MION_DRIZZLE_IMAGE }}:dev
           # The images are PRIVATE, like tsrt-e2e: the repo GITHUB_TOKEN is denied
           # them, the PAT (read:packages) is not.
           password: ${{ secrets.GHCR_PAT }}

@@ -206,7 +206,7 @@ jobs:
       # Excluded from js-lint's suite: it runs real `go build`s.
       - name: Build-gate tests (need Go)
         if: fromJSON(needs.lanes.outputs.lanes)['go-tools'].run
-        run: pnpm exec vitest run packages/devtools/test/build-gate.test.ts
+        run: pnpm test packages/devtools/test/build-gate.test.ts
 
       # One marker per HALF, each written only when that half actually ran and
       # passed. A half that was skipped proved nothing, so it must not claim a
@@ -303,7 +303,7 @@ jobs:
             pnpm miondevx core test-pr --base HEAD^1 --exclude '**/test/fuzz/**' --exclude '**/devtools/test/build-gate.test.ts'
           else
             echo "scope=full" >> "$GITHUB_OUTPUT"
-            pnpm exec vitest run --exclude '**/test/fuzz/**' --exclude '**/devtools/test/build-gate.test.ts'
+            pnpm test --exclude '**/test/fuzz/**' --exclude '**/devtools/test/build-gate.test.ts'
           fi
       # platform-bun's suites are bun:test, so they cannot join the vitest
       # projects above and need their own step. Without this the whole bun
