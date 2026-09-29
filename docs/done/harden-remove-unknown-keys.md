@@ -1,7 +1,7 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-09-28
 ---
 
@@ -76,8 +76,8 @@ chose: keep the prototype copy for classes and refuse only what cannot work; ref
 
 | Declared member | Before | Now |
 | --- | --- | --- |
-| symbol-keyed property `[tag]: string` | dropped, RUK013 Info | refused: RUK004 (RuntimeError, always throws). RUK013 retired |
-| `[k: symbol]: V` index signature | values silently dropped | every own enumerable symbol key copied (it declares them all); a named symbol property it covers is copied too |
+| symbol-keyed property `[tag]: string`, or a symbol-keyed method on an object type or interface (`[Symbol.iterator](): Iterator<T>`) | dropped, RUK013 Info | refused: RUK004 (RuntimeError, always throws). RUK013 retired. A symbol-keyed CLASS method stays on the prototype (RUK011). Consequence: with `@types/node` loaded, `{url: URL}` refuses on `URLSearchParams`' `[Symbol.iterator]` until the lib-types follow-up lands |
+| `[k: symbol]: V` index signature | values silently dropped | every own enumerable symbol key copied with `V`'s rule (it declares them all). A named symbol property whose type is exactly `V` is copied by it; any other named symbol property refuses (RUK004), since `V`'s rule would drop its extra members |
 | class with `#private` fields | copied without them, so methods reading `this.#x` threw | refused: RUK005 |
 | class with only methods | `return {}`, prototype lost | `Object.create(proto)`, methods work |
 | class with an index signature | built on `{}`, prototype lost | built on `Object.create(proto)` |
@@ -85,6 +85,7 @@ chose: keep the prototype copy for classes and refuse only what cannot work; ref
 | function-typed class field (`fn = () => 1`) | read as a method and lost | copied, shared, RUK010 |
 | function / Promise / RegExp / not-data built-in | shared with a warning at property positions only; RegExp, array / tuple / Map / Set elements, index-signature values and roots were shared silently or dropped | same rule everywhere: `sharedValues` absent shares with RUK010 / RUK015 (Warning), `'share'` shares with RUK016 (Info), `'refuse'` makes the factory always throw with RUK006 |
 | function-typed root | callable interface threw RUK003, bare function passed through | both follow `sharedValues` like any shared value. RUK003 retired |
+| function inside a union (`string \| (() => void)`) | dropped by the union layout: identity, no notice | follows `sharedValues` like any shared value |
 | symbol VALUE | shared with RUK015 | copied as is (a primitive), no notice |
 | static member | skipped, RUK012 | unchanged |
 
@@ -101,11 +102,21 @@ Also fixed on the same path, each with its own commit and tests:
 
 `sharedValues` is compile-time: `removeUnknownKeysShared` (`ruks`) and `removeUnknownKeysRefuse` (`rukr`) are
 their own families, swapped in by the scanner, and `overrideRemoveUnknownKeys<T>()` applies to all three.
+The factory now takes `(value or RunType, options, id)` like the other option-carrying factories: the injected id
+moved from the 2nd to the 3rd argument, and `RemoveUnknownKeysOptions` is a new export.
 
-Tests: Go `class_member_flags_test.go`, `nested_throw_report_test.go`, the RUK examples and nested examples in
-`prose.go` run through the real scan; JS `privateClassFields.test.ts` and `removeUnknownKeysMembers.test.ts`
-(root and nested, both call shapes). Docs: the "Removing Unknown Keys" section of the validation guide, and the
-two linting pages' rule texts.
+Diagnostics: RUK004, RUK005 and RUK006 are RuntimeError at any depth (`ScopeGraph`, with an `Example` and a
+`NestedExample` each); RUK010, 011, 012, 015 and 016 carry both too. RUK001 stays a root code, so it has an
+`Example` only (the catalog forbids a nested twin on a root code). An always-throw entry is never disk-cached, so a
+warm build rebuilds it and still reports it at the outer call site.
 
-Follow-ups filed while doing this: an audit for other diagnostics hidden on nested positions, and standard
-types that stop being "not data" when any other file (for example `@types/node`) redeclares them.
+Tests: Go `remove_unknown_keys_rules_test.go` (every rule at the root and one level deeper, in paired call shapes,
+each `sharedValues` mode at every position), `nested_throw_report_test.go` (the outer-site report per family, paired,
+plus a warm disk-cache rerun), `class_member_flags_test.go` (paired, plus a same-id check for both call shapes), and
+the RUK examples and nested examples in `prose.go` through the real scan; JS `privateClassFields.test.ts`,
+`removeUnknownKeysMembers.test.ts` (root and nested, both call shapes) and the override suite under both modes. Docs: the "Removing Unknown Keys" section of the validation guide.
+
+Follow-ups filed while doing this: an audit for other diagnostics hidden on nested positions; standard types
+that stop being "not data" when any other file (for example `@types/node`) redeclares them; `overrideValidate`
+possibly skipped under `checkUnknowns` / `checkUnionUnknowns`; and giving the two option-less createX factories
+the same three parameters as the rest.
