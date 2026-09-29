@@ -11,7 +11,7 @@ import (
 )
 
 // TestUpdate_FatalOnUnparseableFile drives the parse-failure fatal through the
-// full gen --update CLI path on a real broken mirror file, confirming the binary
+// full enrich --update CLI path on a real broken mirror file, confirming the binary
 // refuses to touch it. updateMirrorFile (the CLI shim) calls fatal() (os.Exit)
 // when mirror.Reconcile returns a parse error, so the assertion runs in a
 // re-exec'd subprocess.

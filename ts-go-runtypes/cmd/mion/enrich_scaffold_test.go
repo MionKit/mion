@@ -10,7 +10,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment/mirror"
 )
 
-// TestWriteMirrorFile_CreateOnly_IdempotentTodo is the create-only first-gen
+// TestWriteMirrorFile_CreateOnly_IdempotentTodo is the create-only first-scaffold
 // idempotency guard for Task 1: a SECOND create-only write (writeMirrorFile, the
 // no --update path) over an already-populated mirror is a no-op (HasExport skip),
 // so it never duplicates or re-adds the `@todo`. The first write stamps exactly

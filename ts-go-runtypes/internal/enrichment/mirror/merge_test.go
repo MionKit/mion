@@ -65,7 +65,7 @@ func TestMerge_AddField(t *testing.T) {
 // property has NO trailing comma (Prettier-collapsed single-line) must inject a
 // separator comma so the result re-parses. Without it the merged body reads
 // `name: {…}\n  isActive: {…},` — two properties with no separator → syntax
-// error → the next gen --update fatals at parseMirror. This is the A1 regression.
+// error → the next enrich --update fatals at parseMirror. This is the A1 regression.
 func TestMerge_AddFieldNoTrailingComma(t *testing.T) {
 	existing := "{rt$label: '', name: {rt$label: 'Full name'}}"
 	desired := "{rt$label: '', name: {rt$label: ''}, isActive: {rt$label: ''}}"

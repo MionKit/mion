@@ -78,7 +78,7 @@ export const CIRCULAR = {
     // The depth-bounded `FriendlyText` / `MockData` TYPES can't model that cutoff
     // (they keep recursing to the depth budget), so each expected carries a trailing
     // divergence cast — enrichCases.ts `stripTrailingAs` removes it before the shape
-    // comparison, and `check` re-validates the stripped literal against the strict
+    // comparison, and `enrich --no-emit` re-validates the stripped literal against the strict
     // type via the Go CLI. Friendly's bare leaf still carries `{rt$label,rt$errors}` and
     // overlaps the node type, so a plain `as FriendlyText<Target>` suffices; mock's
     // leaf is the EMPTY `{}`, which shares no members with the rich node, so it needs

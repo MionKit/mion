@@ -481,8 +481,8 @@ code / stdout / stderr / JSON findings on both success and failure paths.
 
 - **enrich CLI sync** (`enrichModel.ts`, `enrichFuzzRunner.ts`,
   `enrichFuzz.integration.test.ts`) — random edits to a source type reconciled
-  into the FriendlyText/MockData mirror via `gen` / `gen --update` / `gen
---prune` / `check`. Invariants: idempotence, metamorphic change, authored-value
+  into the FriendlyText/MockData mirror via `enrich` / `enrich --update` / `enrich
+--prune` / `enrich --no-emit`. Invariants: idempotence, metamorphic change, authored-value
   preservation, orphan carcasses, prune scope, totality (`R1/R2/R3/R5/R6/R7a/R8/R10`).
 - **i18n sync** (`i18nModel.ts`, `i18nFuzzRunner.ts`,
   `i18nFuzz.integration.test.ts`) — the source type is canonical; translations
@@ -495,7 +495,7 @@ code / stdout / stderr / JSON findings on both success and failure paths.
   is ever lost (`NL`), root renames carry labels onto the live const (`RC`), a
   blank-valued twin reconciles to the same structure (`CB`), plus convergence /
   totality / parse-safety.
-- **race** (`enrichRace.test.ts`) — fires several concurrent `gen --update`
+- **race** (`enrichRace.test.ts`) — fires several concurrent `enrich --update`
   processes at one fixture to prove the atomic mirror write never tears. **Skips
   by default**; it self-enables only under `MION_FUZZ_RACE=1` (set by
   `miondevx core fuzz race`).

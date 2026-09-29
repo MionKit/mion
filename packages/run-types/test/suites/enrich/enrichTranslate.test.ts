@@ -11,7 +11,7 @@ import {existsSync, readFileSync, writeFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {dirname, resolve} from 'node:path';
 import {describe, it, expect, afterAll} from 'vitest';
-import {makeFixture, setSource, runGen, cleanupReconcileLane, type ReconcileFixture} from '../../util/enrichReconcile.ts';
+import {makeFixture, setSource, runEnrich, cleanupReconcileLane, type ReconcileFixture} from '../../util/enrichReconcile.ts';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const BIN = resolve(HERE, '../../../../../mion-bin/mion');
@@ -75,7 +75,7 @@ function runTranslate(fixture: ReconcileFixture, locale: string, extraArgs: stri
 describe('enrichment i18n — enrich --i18n', () => {
   it('scaffolds a same-tree per-locale file straight from the source type', () => {
     const fixture = i18nFixture('tr-scaffold', USER_SRC, ['pl']);
-    runGen(fixture, 'User'); // a source translates once it HAS a friendly mirror (discovery)
+    runEnrich(fixture, 'User'); // a source translates once it HAS a friendly mirror (discovery)
     runTranslate(fixture, 'pl');
 
     const translation = readTranslation(fixture, 'pl');
@@ -93,7 +93,7 @@ describe('enrichment i18n — enrich --i18n', () => {
 
   it('is create-only without --update: an authored file is left alone', () => {
     const fixture = i18nFixture('tr-create-only', USER_SRC, ['pl']);
-    runGen(fixture, 'User');
+    runEnrich(fixture, 'User');
     runTranslate(fixture, 'pl');
     editTranslation(fixture, 'pl', (text) => text.replace("name: {rt$label: ''", "name: {rt$label: 'Imię'"));
     const authored = readTranslation(fixture, 'pl');
@@ -103,7 +103,7 @@ describe('enrichment i18n — enrich --i18n', () => {
 
   it('reconciles value-preservingly from the src type, descending into rt$errors (the load-bearing case)', () => {
     const fixture = i18nFixture('tr-update', USER_SRC, ['pl']);
-    runGen(fixture, 'User');
+    runEnrich(fixture, 'User');
     runTranslate(fixture, 'pl');
 
     // The translator fills a plural arm + a label.
@@ -133,7 +133,7 @@ describe('enrichment i18n — enrich --i18n', () => {
 
   it('respects the authored rt$errors mode and author-owned keys on update', () => {
     const fixture = i18nFixture('tr-authored-mode', USER_SRC, ['pl']);
-    runGen(fixture, 'User');
+    runEnrich(fixture, 'User');
     runTranslate(fixture, 'pl');
 
     // The author converts name to the exclusive rt$default mode and plants an
@@ -162,7 +162,7 @@ describe('enrichment i18n — enrich --i18n', () => {
     const fixture = i18nFixture('tr-all', 'export interface User { name: string }\n', ['es', 'pt-BR']);
     // The no-arg walk discovers targets as "sources that have a friendly
     // mirror" (path math only), so generate the friendly mirror first.
-    runGen(fixture, 'User');
+    runEnrich(fixture, 'User');
     const {status, out} = runBin(fixture, ['enrich', '--i18n', 'all']);
     expect(status, out).toBe(0);
     expect(existsSync(translationPath(fixture, 'es'))).toBe(true);
@@ -172,11 +172,11 @@ describe('enrichment i18n — enrich --i18n', () => {
 
   it('--i18n --prune strips translation carcasses', () => {
     const fixture = i18nFixture('tr-prune', 'export interface User { name: string; age: number }\n', ['pl']);
-    runGen(fixture, 'User');
+    runEnrich(fixture, 'User');
     runTranslate(fixture, 'pl');
     // Source drops a field → the translation reconcile orphans it.
     setSource(fixture, 'export interface User { name: string }\n');
-    runGen(fixture, 'User', ['--update']);
+    runEnrich(fixture, 'User', ['--update']);
     runTranslate(fixture, 'pl', ['--update']);
     expect(readTranslation(fixture, 'pl')).toContain('@rtOrphanChild');
 
@@ -188,14 +188,14 @@ describe('enrichment i18n — enrich --i18n', () => {
 describe('enrichment i18n — enrich --i18n --no-emit', () => {
   it('reports blanks as warnings (exit 0) when lenient, errors (exit 1) when strict', () => {
     const lenient = i18nFixture('tr-check-lenient', 'export interface User { name: string }\n', ['pl'], false);
-    runGen(lenient, 'User');
+    runEnrich(lenient, 'User');
     runTranslate(lenient, 'pl');
     const lenientRun = runBin(lenient, ['enrich', '--i18n', 'pl', '--no-emit']);
     expect(lenientRun.out).toContain('TR002');
     expect(lenientRun.status, 'lenient gate never fails the build').toBe(0);
 
     const strict = i18nFixture('tr-check-strict', 'export interface User { name: string }\n', ['pl'], true);
-    runGen(strict, 'User');
+    runEnrich(strict, 'User');
     runTranslate(strict, 'pl');
     const strictRun = runBin(strict, ['enrich', '--i18n', 'pl', '--no-emit']);
     expect(strictRun.out).toContain('TR002');
@@ -204,7 +204,7 @@ describe('enrichment i18n — enrich --i18n --no-emit', () => {
 
   it('flags a missing translation file (TR001) and an out-of-date one (TR003, vs the src type)', () => {
     const fixture = i18nFixture('tr-check-missing', 'export interface User { name: string }\n', ['pl']);
-    runGen(fixture, 'User');
+    runEnrich(fixture, 'User');
     const missing = runBin(fixture, ['enrich', '--i18n', 'pl', '--no-emit']);
     expect(missing.out).toContain('TR001');
 

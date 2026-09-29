@@ -5,7 +5,7 @@ package diagnostics
 // comes from internal/enrichment/validate.go, the FT02x hygiene codes from the dirty-tag scan in
 // internal/enrichment/mirror/hygiene.go; all are opt-in (Request.CheckEnrich, `mion enrich
 // --no-emit`), never emitted by a build. MockData twins live in codes_mock.go, the mirror↔source
-// linkage codes in codes_gencheck.go.
+// linkage codes in codes_mirror.go.
 //
 // The levels ask what the reader of a rendered message SEES. Every content finding here only
 // degrades the text (to "value is invalid", the `other` plural arm, the raw field name, or a literal

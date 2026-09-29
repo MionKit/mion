@@ -15,14 +15,14 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment/mirror"
 )
 
-// runGenTranslate implements the `enrich --i18n <locale|all> [<src>]` verbs:
+// runI18nWrite implements the `enrich --i18n <locale|all> [<src>]` verbs:
 // scaffold (create-only), --update (the i18n reconcile), and --prune (strip
 // carcasses from the locale's translation files). Translations are SRC-DERIVED:
 // the desired side is emitted from the TYPE by the same EmitClosure walk as the
 // friendly mirror, parameterized per locale (const prefix, output path, plural
 // arms, sibling refs) — the friendly mirror is read for DISCOVERY only (which
 // types to emit), never for generation content.
-func runGenTranslate(translateValue string, positional []string, update, prune bool, genDirFlag, tsconfigFlag string) {
+func runI18nWrite(translateValue string, positional []string, update, prune bool, genDirFlag, tsconfigFlag string) {
 	tsconfigPath, parsed := resolveEnrichProject(tsconfigFlag)
 	config, sourceMirrors := translateTargets(positional, genDirFlag, tsconfigPath, parsed)
 	locales := resolveTranslateLocales(translateValue, config)
@@ -160,7 +160,7 @@ func discoverTranslationTypes(sourceMirror string) (translationDiscovery, bool) 
 // discovery, ONE Program over the decl file (amortized across every locale of
 // the run), then per locale a fresh EmitClosure — the TARGET locale drives the
 // emitted plural arm set — transformed into locale-prefixed mirror.Specs
-// grouped by decl file exactly like gen. ok=false (with a stderr note) when
+// grouped by decl file exactly like enrich. ok=false (with a stderr note) when
 // the mirror is unusable; the caller skips it.
 func buildTranslationSpecs(config enrichConfig, sourceMirror string, locales []string) (map[string][]mirror.Spec, bool) {
 	discovery, ok := discoverTranslationTypes(sourceMirror)
@@ -187,7 +187,7 @@ func buildTranslationSpecs(config enrichConfig, sourceMirror string, locales []s
 			fmt.Fprintf(os.Stderr, "enrich --i18n: %s: skipping type %s: %v\n", sourceMirror, typeName, resolveErr)
 			continue
 		}
-		// The rt$ prefix is RESERVED for enrichment meta keys (see gen).
+		// The rt$ prefix is RESERVED for enrichment meta keys (see enrichgen.Plan).
 		if collisions := enrichment.ReservedPropertyCollisions(resolved.Node, resolved.Resolve); len(collisions) > 0 {
 			fatal("enrich --i18n: %s: property %s collides with the reserved enrichment meta prefix 'rt$' — rename the property or exclude the type from enrichment", typeName, strings.Join(collisions, ", "))
 		}
@@ -251,14 +251,14 @@ type translationFinding struct {
 // remaining, it does not parse.
 var todoBlankPattern = regexp.MustCompile(`:\s*''`)
 
-// runCheckTranslate implements `enrich --i18n <locale|all> --no-emit`: the
+// runI18nCheck implements `enrich --i18n <locale|all> --no-emit`: the
 // non-writing completeness gate. Findings: TR001 missing translation file,
 // TR002 unfilled @todo blanks, TR003 out of date vs the src type (a src-derived
 // reconcile would change it), TR004 orphan carcasses awaiting --prune.
 // Severity is Warning unless the project sets tsconfig i18n.strict OR the caller
 // passes --require-complete (then everything is an Error and the exit code drives
 // CI). Rendering at runtime stays lenient either way.
-func runCheckTranslate(translateValue string, genDirFlag, tsconfigFlag string, requireComplete bool) {
+func runI18nCheck(translateValue string, genDirFlag, tsconfigFlag string, requireComplete bool) {
 	cwd := enrichCwd("enrich --i18n --no-emit")
 	tsconfigPath, parsed := resolveEnrichProject(tsconfigFlag)
 	config := resolveEnrichConfig(tspath.NormalizePath(filepath.Join(cwd, "_")), genDirFlag, tsconfigPath, parsed)

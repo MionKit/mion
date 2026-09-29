@@ -142,7 +142,7 @@ export function materializeSource(fixture: ReconcileFixture, model: I18nModel): 
 }
 
 // syncFriendlyMirror regenerates the friendly mirror from src (the ordinary
-// gen reconcile) and fills EVERY blank with an `SRC_`-prefixed token, keeping
+// enrich reconcile) and fills EVERY blank with an `SRC_`-prefixed token, keeping
 // it a realistic fully-authored source-language map. The mirror is only a
 // DISCOVERY input for the translate verbs — T2 asserts its text never leaks
 // into T, which is precisely the "generated files never feed generation"
@@ -383,7 +383,7 @@ export const I18N_COMMANDS: I18nCommand[] = [
       const free = NAME_POOL.filter((name) => !model.fields.has(name));
       model.fields.set(pick(free, rng), {pattern: rng() < 0.5});
       materializeSource(ctx.fixture, model);
-      controlledOr(syncFriendlyMirror(ctx.fixture, model), 'srcAddField(gen)', ctx, out);
+      controlledOr(syncFriendlyMirror(ctx.fixture, model), 'srcAddField(enrich)', ctx, out);
       return out;
     },
   },
@@ -396,7 +396,7 @@ export const I18N_COMMANDS: I18nCommand[] = [
       const name = pick([...model.fields.keys()], rng);
       model.fields.delete(name);
       materializeSource(ctx.fixture, model);
-      controlledOr(syncFriendlyMirror(ctx.fixture, model), 'srcDropField(gen)', ctx, out);
+      controlledOr(syncFriendlyMirror(ctx.fixture, model), 'srcDropField(enrich)', ctx, out);
       return out;
     },
   },
@@ -475,7 +475,7 @@ export const I18N_COMMANDS: I18nCommand[] = [
 ];
 
 // bootstrap lays down the project (tsconfig with the i18n object, the .ts
-// source, and the gen-produced friendly mirror — a source translates once it
+// source, and the enrich-produced friendly mirror — a source translates once it
 // HAS one) and scaffolds the initial translation.
 export function bootstrapI18n(fixture: ReconcileFixture, seed: number): {model: I18nModel; violations: I18nViolation[]} {
   const model = initialI18nModel();
@@ -496,7 +496,7 @@ export function bootstrapI18n(fixture: ReconcileFixture, seed: number): {model: 
   materializeSource(fixture, model);
 
   const ctx: I18nCtx = {fixture, seed, step: -1};
-  if (!controlledOr(syncFriendlyMirror(fixture, model), 'bootstrap(gen)', ctx, violations)) return {model, violations};
+  if (!controlledOr(syncFriendlyMirror(fixture, model), 'bootstrap(enrich)', ctx, violations)) return {model, violations};
   const result = runTranslateCli(fixture, ['enrich', '--i18n', LOCALE, 'src/models.ts']);
   if (!controlledOr(result, 'bootstrap', ctx, violations)) return {model, violations};
   if (!existsSync(translationPathOf(fixture))) {

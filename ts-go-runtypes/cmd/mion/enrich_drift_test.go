@@ -9,7 +9,7 @@ import (
 )
 
 // checkMirrorFileTest resolves the tsconfig from the (t.Chdir'd) cwd and runs
-// the drift check, the test twin of what runGenCheck does per mirror file.
+// the drift check, the test twin of what runMirrorDriftCheck does per mirror file.
 func checkMirrorFileTest(mirrorFile string) []driftFinding {
 	tsconfigPath, parsed := resolveEnrichProject("")
 	return checkMirrorFile(mirrorFile, "", tsconfigPath, parsed)
@@ -80,7 +80,7 @@ func TestParseBreadcrumb(t *testing.T) {
 }
 
 // TestSourceDeclaresType verifies the textual declaration scan across the
-// declaration forms gen tracks.
+// declaration forms enrich tracks.
 func TestSourceDeclaresType(t *testing.T) {
 	src := "export interface User { name: string }\n" +
 		"type Alias = string;\n" +
@@ -192,11 +192,11 @@ func TestCheckMirrorFile_Clean(t *testing.T) {
 }
 
 // TestCheckMirrorFile_NodeModulesSourceClean: a mirror for a type whose source
-// lives inside an installed package sits at the PROJECT's mirror location (gen's
+// lives inside an installed package sits at the PROJECT's mirror location (the enrich write lane's
 // base-name fallback for out-of-root sources). The check must anchor its config
-// at the mirror file like gen's write side — anchoring at the resolved source
+// at the mirror file like the enrich write lane — anchoring at the resolved source
 // would re-derive the config inside the dependency (its own tsconfig) and flag
-// gen's own output as drifted.
+// the write lane's own output as drifted.
 func TestCheckMirrorFile_NodeModulesSourceClean(t *testing.T) {
 	dir := canonicalTempDir(t)
 	t.Chdir(dir)
@@ -301,7 +301,7 @@ func TestCheckMirrorFile_GE003(t *testing.T) {
 	}
 }
 
-// TestIsUnder covers the source-vs-mirror gate that lets `gen <source> --check`
+// TestIsUnder covers the source-vs-mirror gate that lets `enrich <source> --no-emit`
 // redirect to the source's mirror instead of misreading the source as a mirror.
 func TestIsUnder(t *testing.T) {
 	dir := filepath.FromSlash("/repo/runtypes/generated")

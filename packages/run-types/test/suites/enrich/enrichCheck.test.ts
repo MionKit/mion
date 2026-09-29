@@ -1,6 +1,6 @@
 // Entry 2 of the AI-enrichment generation suite: synthesize a `.rt.ts` per case
-// from the authored `src` + `friendly` + `mock` spans, run `mion check`,
-// and assert ZERO findings. These maps are valid + tsc-checked, so `check` must
+// from the authored `src` + `friendly` + `mock` spans, run `mion enrich --no-emit`,
+// and assert ZERO findings. These maps are valid + tsc-checked, so `enrich --no-emit` must
 // not false-positive across the type ranges. (The "check catches real errors"
 // direction stays on the Go unit tests with deliberately-broken maps.)
 
@@ -9,7 +9,7 @@ import {checkCategory, cleanupTempDir, type CaseCheck} from '../../util/enrichGe
 import {ENRICH_CASES, ENRICH_CATEGORIES} from './cases/index.ts';
 import type {EnrichCase} from './cases/types.ts';
 
-afterAll(() => cleanupTempDir('check'));
+afterAll(() => cleanupTempDir('no-emit'));
 
 // Completeness codes — an unfilled @todo (FT020/MD020) or a blank scaffold value
 // (FT023/MD023). This suite's spans use blank placeholders, so these are expected;
