@@ -1,7 +1,7 @@
 ---
 type: chore
 spec: guidelines
-status: ready
+status: done
 created: 2026-09-29
 ---
 
@@ -136,3 +136,25 @@ Comments, test titles, helper lane names (`run-types/test/util/enrichGen.ts`, `e
 - Append the approved plan to the spec, reconcile it with what shipped, `git mv` it to `docs/done/`.
 - docs-simplifier over the renamed page + touched pages; comments-simplifier over touched source files; each committed on its own.
 - Push to `claude/magical-pascal-4q4k80`. PR (when asked) labelled `pre-publish-e2e` and `website`.
+
+## What shipped
+
+Everything in the approved plan landed, with these differences and additions:
+
+- `enrichgen.Config.LegacyMirrorPath` became `CombinedMirrorPath` (still used by `--out`); `Plan` / `PlanMany`
+  lost their unused `declFiles` return.
+- The colon-form `$[val:kind:name]` token is now an ordinary unknown placeholder (FT005 "unknown placeholder"),
+  so the placeholder regex keeps colons inside the token name.
+- `miondevx bench clean` only removed the typia `.ttsc` volume, so the whole command went (registry row,
+  `BENCH_SUB`, dispatch).
+- `image.mjs`: an image without the deps stamp is rebuilt on the local path; the pull path still reads a missing
+  stamp as "unknown", not drift.
+- Go renames: `enrich_gencheck*.go` → `enrich_drift*.go`, `runGenCheck` → `runMirrorDriftCheck`,
+  `runGenTranslate` / `runCheckTranslate` / `runGenBatch` → `runI18nWrite` / `runI18nCheck` / `runEnrichBatch`,
+  `codes_gencheck.go` → `codes_mirror.go`. `CodeGen*` diagnostic names stay.
+- Also removed: `internal/enrichment/mirror/cli_verb_test.go` (a test that only proved the `gen` verb is gone), the
+  `--translate` flag name in comments (now `--i18n`), stale `github.com/mionkit/run-types` links in the enrichment
+  skills, and the SETUP.md "Dev loop" section's `--one-shot` / `--daemon` flags (now `mion serve`).
+- Test helper lanes are `scaffold` / `no-emit` / `reconcile`; `runGen` → `runEnrich`.
+- Same PR, asked by the owner mid-task: the website "Type Reference" sections (11 pages under `01.rpc/`) and the 33
+  `// type-*-start` / `-end` source markers only they used are gone.
