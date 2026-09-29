@@ -138,12 +138,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Only the databases not yet proven green at their own inputs (lanes.mjs items):
-        # fixing one dialect re-runs that one. No `include:` here, because an include
-        # entry that matches no listed dialect is ADDED as a new job.
+        # The unproven lanes.mjs items. No `include:`: an entry matching no listed dialect is ADDED as a new job.
         dialect: ${{ fromJSON(needs.lanes.outputs.lanes).drizzle.runItems }}
-    # d1 and durable are the two Cloudflare storage DRIVERS, not dialects, so they
-    # share one image. Everything else about the lane is the same.
+    # d1 and durable are Cloudflare storage DRIVERS, not dialects, so they share one image.
     env:
       IMAGE: ${{ (matrix.dialect == 'd1' || matrix.dialect == 'durable') && 'cloudflare' || matrix.dialect }}
     runs-on: ubuntu-latest
@@ -187,16 +184,15 @@ jobs:
           name: drizzle-e2e-${{ matrix.dialect }}
           path: logs/drizzle-e2e/
           if-no-files-found: ignore
-      # This dialect's own marker: it claims only this item, never its siblings.
+      # Claims only this dialect, never its siblings.
       - name: Record this dialect as green
         uses: ./.github/actions/save-lane-green
         with:
           lane: drizzle.${{ matrix.dialect }}
           hash: ${{ fromJSON(needs.lanes.outputs.lanes).drizzle.items[matrix.dialect].hash }}
 
-  # The lane marker claims all five dialects, so it is written only once every
-  # dialect that ran has passed; the ones that did not run were already proven by
-  # their own item markers. A later run then skips the whole lane on one lookup.
+  # The lane marker claims all five, so a later run skips the lane on one lookup.
+  # It waits on every dialect that ran; the rest were proven by their own item markers.
   record-green:
     name: record drizzle as green
     needs: [lanes, drizzle-e2e]

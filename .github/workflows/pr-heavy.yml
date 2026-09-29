@@ -114,8 +114,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Only the competitors not yet proven green at their own inputs: a mion
-        # change re-runs the mion lane alone.
+        # The unproven lanes.mjs items: a mion change re-runs the mion lane alone.
         competitor: ${{ fromJSON(needs.lanes.outputs.lanes).bench.runItems }}
     steps:
       - uses: actions/checkout@v5
@@ -129,23 +128,18 @@ jobs:
           # (read:packages) is not. The input is `password`, not `github-token` —
           # a wrong key here is silently ignored and the pull fails on auth.
           password: ${{ secrets.GHCR_PAT }}
-      # --quick: a PR wants "the lanes still run and answer correctly", not
-      # publishable numbers. Every lane still has to answer correctly AND reject
-      # an invalid payload before it is measured, which is the part that catches
-      # a broken competitor after a rename; a correctness failure fails the run.
-      # typia runs here too: the prebuilt image bakes its compiled ttsc plugin, so
-      # its lane builds in seconds like the others.
+      # --quick: a PR needs correct answers, which catch a competitor broken by a rename, not publishable numbers.
+      # typia runs too: the prebuilt image bakes its ttsc plugin, so its lane builds in seconds like the others.
       - name: Run the benchmarks
         run: pnpm miondevx bench --quick --only ${{ matrix.competitor }}
-      # This competitor's own marker: it claims only this item.
+      # Claims only this competitor.
       - name: Record this competitor as green
         uses: ./.github/actions/save-lane-green
         with:
           lane: bench.${{ matrix.competitor }}
           hash: ${{ fromJSON(needs.lanes.outputs.lanes).bench.items[matrix.competitor].hash }}
 
-  # The lane marker claims every competitor, so it waits on every one that ran; the
-  # rest were already proven by their own item markers.
+  # Claims every competitor, so it waits on every one that ran; the rest had their own item markers.
   bench-green:
     name: record the benchmarks as green
     needs: [lanes, bench]
@@ -247,15 +241,14 @@ jobs:
           # PAT (read:packages) can.
           password: ${{ secrets.GHCR_PAT }}
       # The ONE front door, the same script as the release gate and a local run.
-      # Only the halves not yet proven green at their own inputs run.
+      # Runs only the halves not yet proven green.
       - name: Pre-publish e2e (container backend)
         run: >-
           pnpm miondevx release e2e --backend container
           ${{ !contains(fromJSON(needs.lanes.outputs.lanes).e2e.runItems, 'matrix') && '--no-matrix' || '' }}
           ${{ !contains(fromJSON(needs.lanes.outputs.lanes).e2e.runItems, 'mion') && '--no-mion' || '' }}
           ${{ !contains(fromJSON(needs.lanes.outputs.lanes).e2e.runItems, 'host-smoke') && '--no-host-smoke' || '' }}
-      # The markers ride the job that PROVES the lane, not the one that packs for it:
-      # one per half that ran, then the lane marker, which claims all three.
+      # Markers ride the job that PROVES the lane, not the packer: one per half that ran, then the lane's (all three).
       - name: Record the bundler matrix as green
         if: success() && contains(fromJSON(needs.lanes.outputs.lanes).e2e.runItems, 'matrix')
         uses: ./.github/actions/save-lane-green

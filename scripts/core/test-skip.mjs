@@ -1,22 +1,19 @@
-// `core test-skip`: run only the vitest files whose code changed since they last passed.
-// A file's key hashes the code it loads AFTER the vite transform (so the mion compiler's
-// output, not the Go source), the exact external package paths it imports (pnpm puts the
-// version in the path), and a salt for what no import records. A file that reaches outside
-// its import graph (child processes, the file system, the network) is never cached.
+// `core test-skip`: run only the vitest files whose code changed since they last passed. A file's key hashes
+// the code it loads AFTER the vite transform (the mion compiler's output, not the Go source), its external
+// package paths (pnpm puts the version there) and a salt. A file reaching outside its import graph is never cached.
 import {createHash} from 'node:crypto';
 import {existsSync, mkdirSync, readFileSync, writeFileSync} from 'node:fs';
 import {dirname, join, relative} from 'node:path';
 import {REPO_ROOT} from '../lib/env.mjs';
 import {die, note, reportCliError} from '../lib/proc.mjs';
 
-// An import of one of these means the file's result depends on something no key can see.
+// Importing one of these makes a result depend on something no key can see.
 const UNCACHEABLE = /^(node:)?(child_process|fs|fs\/promises|net|http|https|http2|worker_threads|cluster|dgram)$/;
-// Time-boxed fuzz lanes cover as much as the clock allows, so a rerun is never the same run.
+// Time-boxed fuzz runs cover what the clock allows, so a rerun is never the same run.
 const TIME_BOXED = /\/test\/fuzz\/.*\.integration\.test\.ts$/;
 const KEEP_PER_FILE = 3;
-// With no mock.seed the compiler draws new pattern samples on every build, on purpose, so
-// they are left out of generated code; a DECLARED pool lives in source and still counts.
-// Up to the FIRST `]`: a sample holding one cuts the strip short (a missed skip), never past the list.
+// Without mock.seed the compiler draws new samples every build, so they are stripped; a declared pool is in source.
+// Stops at the FIRST `]`: a sample holding one cuts the strip short (a missed skip), never past the list.
 const DRAWN_SAMPLES = /(mockSamples(?:\\?["'])?\s*:\s*\[)[^\]]*\]/g;
 const GENERATED = /\/\.mion[^/]*\//;
 export const stableCode = (path, code) => (GENERATED.test(path) ? code.replace(DRAWN_SAMPLES, '$1]') : code);
@@ -28,8 +25,7 @@ const sha = (...parts) => {
   return hash.digest('hex');
 };
 
-// Every module a file loads through vite's ssr environment, with its transformed code,
-// plus the imports vite leaves external. Same walk as vitest's own `--changed`.
+// Same walk as vitest's own `--changed`.
 export async function moduleGraph(project, file) {
   const env = project.vite.environments.ssr;
   const modules = new Map();
@@ -52,7 +48,7 @@ export async function moduleGraph(project, file) {
   return {modules, externals, reasons};
 }
 
-// Pure: the key of one file from its graph and the salt. Exported for the unit tests.
+// Exported for the unit tests.
 export function fileKey({modules, externals}, salt) {
   const parts = [salt];
   for (const path of [...modules.keys()].sort()) parts.push(relative(REPO_ROOT, path), modules.get(path));
@@ -60,7 +56,7 @@ export function fileKey({modules, externals}, salt) {
   return sha(...parts);
 }
 
-// What can change a result that no import records: the toolchain, the configs, the seeds.
+// What changes a result but no import records: toolchain, configs, fuzz seeds.
 function baseSalt(vitest) {
   const fuzzEnv = Object.keys(process.env)
     .filter((name) => name.startsWith('MION_FUZZ_'))
@@ -70,8 +66,7 @@ function baseSalt(vitest) {
   return sha(process.version, vitest.version, read(join(REPO_ROOT, 'vitest.config.ts')), read(join(REPO_ROOT, 'version.json')), ...fuzzEnv);
 }
 
-// A project's setup files and global setups run around every test file, so their whole
-// graphs join every file's key (the rpc-client test server, the bundles vercel builds).
+// Setup files run around every test file, so their graphs join every key (the rpc-client test server, vercel's bundles).
 async function projectSalt(project, base) {
   const setups = [project.config.config ?? '', ...(project.config.setupFiles ?? []), ...(project.config.globalSetup ?? [])].filter((path) => path && existsSync(path));
   const parts = [base, project.name];
@@ -82,7 +77,7 @@ async function projectSalt(project, base) {
   return sha(...parts);
 }
 
-// {moduleId: {key, reason}} for every spec; `reason` set means never cache it.
+// A set `reason` means never cache that file.
 export async function specKeys(vitest, specs) {
   const base = baseSalt(vitest);
   const salts = new Map();
@@ -105,7 +100,7 @@ export function readStore(path) {
   }
 }
 
-// Newest key first, a few per file, so switching branches back and forth still hits.
+// A few keys per file, so switching branches back and forth still hits.
 export function recordPass(store, id, key) {
   store[id] = [key, ...(store[id] ?? []).filter((old) => old !== key)].slice(0, KEEP_PER_FILE);
 }
@@ -124,8 +119,7 @@ async function openVitest({filters = [], projects = [], excludes = [], reporters
 
 const specId = (project, moduleId) => `${project.name}::${relative(REPO_ROOT, moduleId)}`;
 
-// Records the files that fully passed; a file with ANY skipped test proved less than it
-// claims (a `.skipIf(!HAS_BIN)` looks the same as a real skip), so it is never recorded.
+// A file with ANY skipped test is never recorded: a `.skipIf(!HAS_BIN)` looks the same as a real skip.
 function passRecorder() {
   const passed = new Set();
   const failed = new Set();
@@ -140,7 +134,7 @@ function passRecorder() {
   return {reporter, passed, failed};
 }
 
-// `--keys <file>`: compute and write every key, run nothing (the trial and debugging).
+// `--keys <file>`: for trials and debugging.
 async function writeKeys(out, scope) {
   const started = performance.now();
   const {vitest, specs} = await openVitest(scope);
@@ -152,9 +146,7 @@ async function writeKeys(out, scope) {
   note(`test-skip: ${specs.length} file(s) keyed in ${Math.round(performance.now() - started)} ms, ${uncached} never cached -> ${relative(REPO_ROOT, out)}`);
 }
 
-// Run the files not yet proven at their key, then record the ones that passed. With
-// `audit`, run everything instead and fail if a file the list would have skipped fails:
-// that file's key missed one of its inputs.
+// `audit` runs everything and fails when a file the list would skip fails: that file's key misses an input.
 async function runSkipping({store: storePath, audit, ...scope}) {
   const recorder = passRecorder();
   const {vitest, specs} = await openVitest({...scope, reporters: [recorder.reporter]});

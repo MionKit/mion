@@ -13,10 +13,8 @@ outputs:
 runs:
   using: composite
   steps:
-    # Keyed on the WASM's real inputs: the Go sources it links + the build script
-    # + the toolchain (bootstrap) pin. A Go change misses the key and rebuilds; a
-    # UI-only change hits it.
-    # The wasm links typescript-go, so the tsgolint gitlink (which pins it and the patches) joins the key.
+    # Keyed on the Go sources the wasm links, the build script and bootstrap, so a UI-only change hits.
+    # The tsgolint gitlink joins the key: it pins typescript-go, which the wasm links, and its patches.
     - id: tsgolint
       shell: bash
       run: echo "sha=$(git rev-parse HEAD:ts-go-runtypes/third_party/tsgolint)" >> "$GITHUB_OUTPUT"

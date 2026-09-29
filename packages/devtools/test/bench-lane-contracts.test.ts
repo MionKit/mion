@@ -171,8 +171,7 @@ describe('a competitor lane exits non-zero only when it did not really run', () 
 });
 
 describe('the default bench run is a correctness gate', () => {
-  // Every lane must answer correctly AND reject an invalid payload before it is
-  // measured; a divergence used to be printed by aggregate and then ignored.
+  // Regression: aggregate used to print a divergence and the run ignored it.
   it('fails when aggregate reports a fail or errored case', () => {
     const source = read('scripts/website/bench-data/bench.mjs');
     const cmdBench = source.slice(source.indexOf('function cmdBench('), source.indexOf('function cmdBenchOne('));

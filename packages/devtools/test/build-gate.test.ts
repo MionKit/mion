@@ -1,9 +1,6 @@
-// The stamp fast path of scripts/core/build.mjs: the entry point runs every
-// gated command through main(['all'], {trustStamp: true}), which must cost a
-// digest (no reference build) on a warm tree, and must fall back to the full
-// build-id compare the moment the stamp disagrees. Needs the Go toolchain + the
-// submodule (`node scripts/core/build.mjs go` is the first thing it runs), so CI runs
-// it in go-fuzz, never in js-lint.
+// The stamp fast path of scripts/core/build.mjs: main(['all'], {trustStamp: true}) must cost a digest on a
+// warm tree and fall back to the build-id compare when the stamp disagrees. Needs Go + the submodule, so CI
+// runs it in go-fuzz, never in js-lint.
 import {spawnSync} from 'node:child_process';
 import {existsSync, mkdtempSync, readFileSync, readdirSync, symlinkSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';

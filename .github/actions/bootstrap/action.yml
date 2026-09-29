@@ -1,8 +1,7 @@
 name: Bootstrap mion workspace
 description: Set up Node + pnpm and install workspace deps. Go and the tsgolint submodule live in ./.github/actions/resolver.
 
-# Requires the caller to have already run a plain actions/checkout (a local
-# composite action can only run once the repo, including this file, is on disk).
+# Needs a prior actions/checkout: a local composite action runs only once the repo is on disk.
 runs:
   using: composite
   steps:

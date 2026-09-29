@@ -1,10 +1,6 @@
-// cache-cleanup.mjs: keep the Actions cache small, for .github/workflows/cache-cleanup.yml.
-//
-// A pull request's caches are restorable only from that pull request, so once it closes
-// they are dead weight (a Go build cache is ~2 GB). The one exception is the lane green
-// markers: they are read by listing, from any ref, and a merged pull request's markers
-// let main skip the lanes whose inputs the merge did not change.
-//
+// For cache-cleanup.yml. A pull request's caches restore only from that pull request, so once it closes
+// they are dead weight (a Go build cache is ~2 GB), except the lane green markers: read from any ref,
+// a merged pull request's markers let main skip the lanes the merge did not change.
 // Usage: node scripts/ci/cache-cleanup.mjs --closed-ref <ref> | --trim  [--dry-run]
 import {capture, die, note, reportCliError} from '../lib/proc.mjs';
 
@@ -13,7 +9,6 @@ const MARKER = 'mion-lane-green-';
 export const KEEP_ON_MAIN = {'mion-go-bins-': 20, 'mion-release-bins-': 10, 'mion-vitest-passed-': 5};
 const MAIN = 'refs/heads/main';
 
-// Pure: the caches to delete. `closedRef` sweeps one closed pull request; otherwise trim main.
 export function planDeletions(caches, {closedRef} = {}) {
   if (closedRef) return caches.filter((cache) => cache.ref === closedRef && !cache.key.startsWith(MARKER));
   const doomed = [];
@@ -45,7 +40,7 @@ export function main(argv) {
   for (const cache of doomed) {
     console.log(`  ${cache.key}`);
     if (dryRun) continue;
-    // A cache another run deleted first is fine; anything else is reported but never fails the sweep.
+    // Never fails the sweep: another run may have deleted the cache first.
     const deleted = capture('gh', ['cache', 'delete', String(cache.id)]);
     if (deleted.status !== 0) note(`cache-cleanup: could not delete ${cache.key}: ${deleted.stderr.trim()}`);
   }

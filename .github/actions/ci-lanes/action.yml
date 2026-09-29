@@ -54,9 +54,8 @@ runs:
         GH_TOKEN: ${{ github.token }}
         LANES: ${{ inputs.lanes }}
       run: |
-        # One exact-key lookup per candidate marker (each lane's key at its hash, plus
-        # the PR-only proofs), so a marker is never lost off the end of a long listing.
-        # A failed lookup just leaves that key out: it re-runs a lane, never skips one.
+        # Exact-key lookups, so a marker is never lost off the end of a long listing.
+        # A failed lookup leaves its key out, which re-runs a lane, never skips one.
         PR_FLAG="${{ github.event_name == 'pull_request' && '--pr' || '' }}"
         : > lane-green-keys.txt
         for key in $(node scripts/ci/lanes.mjs --candidates $LANES $PR_FLAG); do

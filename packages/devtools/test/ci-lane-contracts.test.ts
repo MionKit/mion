@@ -97,8 +97,7 @@ describe('the lane table', () => {
     expect(distinct.size).toBe(Object.keys(LANES).length - 1);
   });
 
-  // A Go test, a testdata fixture or a code generator never reaches a binary the other
-  // lanes run, so editing one reruns only the lanes that run Go itself.
+  // None of these reaches a binary the other lanes run, so only the lanes that run Go itself re-run.
   it('keeps Go tests, testdata and the generators out of every lane that only runs the binaries', () => {
     for (const path of [
       'ts-go-runtypes/internal/reflection/kind_test.go',
@@ -120,8 +119,7 @@ describe('the lane table', () => {
     }
   });
 
-  // An item hashes its own paths plus what no sibling claims, so a change re-runs
-  // exactly the items that read it.
+  // A change re-runs exactly the items that read it.
   it("feeds each item its own paths and the shared ones, never a sibling's", () => {
     const feeds = (lane: string, path: string): string[] =>
       Object.keys(LANES[lane].items).filter((item) => itemFeeds(LANES[lane], item, path));
@@ -311,9 +309,7 @@ describe('every workflow gates on the lanes it declares', () => {
 describe('a marker is only ever written by work that actually ran and passed', () => {
   const ci = read('.github/workflows/ci.yml');
 
-  // go-fuzz runs when ANY of its lanes is due, so each lane's save must re-check its
-  // own lane. Without the guard, a run triggered by the Go half alone would mark
-  // the JS fuzz sweep green having never executed it.
+  // go-fuzz runs when ANY of its lanes is due, or a Go-only run would mark the JS fuzz sweep green unrun.
   it('guards the two go-fuzz halves on their own lane, not on the job', () => {
     for (const lane of ['go', "['js-fuzz']", "['go-tools']"]) {
       const reference = lane.startsWith('[')
@@ -323,8 +319,7 @@ describe('a marker is only ever written by work that actually ran and passed', (
     }
   });
 
-  // A dialect's own marker claims only that dialect; the lane marker claims all five,
-  // so it waits on every dialect job that ran (the rest were proven by their own markers).
+  // The lane marker claims all five, so it waits on every dialect job that ran; the rest had their own markers.
   it('records each drizzle dialect on its own, and the lane only after every dialect that ran passed', () => {
     const drizzle = read('.github/workflows/drizzle-e2e.yml');
     const dialects = drizzle.slice(drizzle.indexOf('\n  drizzle-e2e:'), drizzle.indexOf('\n  record-green:'));
@@ -355,7 +350,6 @@ describe('a marker is only ever written by work that actually ran and passed', (
     }
   });
 
-  // Every item of a lane with items is reachable by the workflow that runs it.
   it('declares items only on lanes whose workflow reads runItems', () => {
     const workflows = Object.keys(WORKFLOWS)
       .map((file) => read(`.github/workflows/${file}`))
@@ -375,16 +369,14 @@ describe('a marker is only ever written by work that actually ran and passed', (
         const firstSave = job.indexOf('save-lane-green');
         if (firstSave === -1) continue;
         checked += 1;
-        // The lane-marker jobs (drizzle's record-green, bench-green) run nothing
-        // themselves, so "no work at all" is fine; work AFTER the save is not.
+        // The lane-marker jobs (record-green, bench-green) do no work, so only work AFTER the save fails.
         expect(firstSave, `${file}: a run step follows a save-lane-green step`).toBeGreaterThan(
           job.lastIndexOf('\n        run: ')
         );
       }
     }
-    // go-fuzz, js-lint, smoke, website, bench, bench-green, pre-publish-e2e,
-    // drizzle-e2e, record-green. The count catches a save step lost to an edit,
-    // which the loop above cannot.
+    // go-fuzz, js-lint, smoke, website, bench, bench-green, pre-publish-e2e, drizzle-e2e, record-green.
+    // The count catches a save step lost to an edit, which the loop cannot.
     expect(checked).toBe(9);
   });
 });

@@ -393,11 +393,8 @@ jobs:
       - uses: actions/checkout@v5
       # Reclaim preinstalled cruft before the image pull + Go build-cache restore.
       - uses: ./.github/actions/free-disk
-      # `container-build` runs on the HOST to drive the podman build AND to prebuild
-      # the playground assets (build-playground.mjs: the resolver WASM + the vendored
-      # mion dist that nuxt build imports). bootstrap gives Node + pnpm + deps and
-      # the resolver action (toolchain) gives Go + the patched tsgolint; without them
-      # the WASM `go build` fails and nuxt build dies on the missing vendor dist.
+      # `container-build` runs on the HOST to drive podman and prebuild the playground assets (the resolver
+      # WASM + the vendored mion dist nuxt imports), which need Go + the patched tsgolint from the resolver.
       - uses: ./.github/actions/bootstrap
       - uses: ./.github/actions/resolver
         with:

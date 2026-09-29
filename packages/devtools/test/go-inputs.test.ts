@@ -1,7 +1,5 @@
-// scripts/lib/go-inputs.mjs is the content digest behind two stamps: the
-// resolver binary's (mion-bin/.mion.stamp, scripts/core/build.mjs) and the playground
-// wasm's (container/website/scripts/build-playground.mjs). These pin what the
-// digest sees, that it is stable, and what the playground wrapper adds on top.
+// scripts/lib/go-inputs.mjs is the content digest behind the Go binary stamps (scripts/core/build.mjs)
+// and the playground wasm's (container/website/scripts/build-playground.mjs).
 import {execFileSync} from 'node:child_process';
 import {mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
@@ -104,8 +102,7 @@ describe('go-inputs — the tsgolint commit a build links', () => {
 });
 
 describe('go-inputs — the CI cache key for the prebuilt binaries', () => {
-  // The key and the stamp must agree between the job that built the binaries (Go set
-  // up) and every job that restored them (no Go, no submodule, a runner Go on PATH).
+  // Key and stamp must match between the building job and every restoring one (no Go, no submodule, or a runner's Go).
   it('is computed with node and git only, and matches the in-process key', () => {
     const dir = join(scratch, 'no-go-bin');
     mkdirSync(dir);

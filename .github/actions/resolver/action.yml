@@ -39,8 +39,7 @@ runs:
           mion-bin/.extract-fn-bodies.stamp
         key: ${{ steps.key.outputs.key }}
 
-    # tsgolint and its typescript-go only, never `submodules: recursive`: that also pulls
-    # typescript-go/_submodules/TypeScript (~620 MB), a conformance corpus no build reads.
+    # Never `submodules: recursive`: it also pulls typescript-go's TypeScript corpus (~620 MB), which no build reads.
     - name: Fetch the tsgolint submodule (without the TypeScript test corpus)
       if: inputs.toolchain == 'true' || steps.restore.outputs.cache-hit != 'true'
       shell: bash
@@ -48,9 +47,7 @@ runs:
         git submodule update --init --depth 1 ts-go-runtypes/third_party/tsgolint
         git -C ts-go-runtypes/third_party/tsgolint submodule update --init --depth 1 typescript-go
 
-    # tsgolint vendors its typescript-go fork as a submodule + patch set; the Go
-    # resolver only builds once the patches are applied to the working tree.
-    # `git apply` (not `git am`) so no committer identity is needed on CI.
+    # The resolver builds only with the patches applied; `git apply`, not `git am`, needs no committer identity on CI.
     - name: Apply tsgolint patches to typescript-go
       if: inputs.toolchain == 'true' || steps.restore.outputs.cache-hit != 'true'
       shell: bash
@@ -72,13 +69,11 @@ runs:
         go-version-file: ts-go-runtypes/.go-version
         cache: false
 
-    # setup-go's cache keys only on go.sum, which a tsgolint bump never moves (tsgo deps come via local `replace`).
-    # So the key is the tsgolint pin, which also covers the nested typescript-go commit and the patches inside it.
+    # setup-go keys only on go.sum, which a tsgolint bump never moves (tsgo deps come via local `replace`).
+    # So the key is the tsgolint pin, which also pins typescript-go and its patches.
     # GOCACHE is content-addressed: our internal/ + cmd/ edits recompile cheaply on the cached tsgo objects.
-    # The Go version is in the key because each GOCACHE entry embeds it; ts-go-runtypes/.go-version pins it exactly.
-    # The arch is in the key: website-deploy runs on arm64, whose objects must never restore on x64.
-    # An exact-key hit never re-saves, so a stale cache never heals (~2 min tsgo recompile in every Go job).
-    # restore-keys stays inside the same Go version for the same reason.
+    # Each entry embeds its Go version, and website-deploy's arm64 objects must never restore on x64: both are keyed.
+    # An exact-key hit never re-saves, so a stale cache never heals; restore-keys stay within one Go version for that.
     # CACHE SALT (`v2`): action IDs embed absolute `replace`d package paths (no -trimpath); bump on a Go tree move.
     - name: Restore Go build cache (keyed on Go + the tsgolint pin, not our sources)
       if: inputs.toolchain == 'true' || steps.restore.outputs.cache-hit != 'true'
