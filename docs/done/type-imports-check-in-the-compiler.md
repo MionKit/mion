@@ -98,8 +98,9 @@ walk.
   naming `initClient` (`namesInitClient`), so lint time is unchanged.
 - **Repo fixes the check found**: the rpc-client specs imported `TestServerApi` as a value; they now use
   `import type`.
-- **Docs**: the linter page lost the old rule row and contrast, and gained an "API Type Imports" section; the
-  diagnostics catalog lists `SRV001` under a new "Client imports" group.
+- **Docs**: the linter page lost the old rule row and the tip contrasting it. It explains how the linter works,
+  not single rules, so `SRV001` is documented only in the generated diagnostics catalog, under a new "Client
+  imports" group.
 - **Tests**: Go unit tests (type-only passes, every value shape flagged, other server imports ignored, one report
   per import, another package's `initClient` ignored, local types pass), resolver tests (scan and generate both
   report; `@mion-expect-error SRV001` silences it), prefilter and plugin tests, and a real oxlint run showing
