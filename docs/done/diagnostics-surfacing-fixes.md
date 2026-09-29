@@ -1,7 +1,7 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-09-28
 ---
 
@@ -302,13 +302,14 @@ No fuzzing: this is a fix, and there is no cheap oracle beyond the tests above.
 
 ## What shipped (2026-09-29)
 
-Every item above landed, with these differences from the plan:
+Every item above landed except the old-rule-name hint, with these differences from the plan:
 
 - **Four lint rules, not three.** One rule per level, matching the catalog exactly: `mion/error`, `mion/runtime-error`,
   `mion/warning`, `mion/info`. Error and RuntimeError first shared `mion/error`, which made the linter the one
   place where the four levels did not map one to one.
 - **Dev server.** It never stops on a finding, a fatal Error included: the dev reporter prints each Error and
-  RuntimeError once, and the transform of a file with a fatal Error throws it, which puts it in the overlay. A
+  RuntimeError once, and the transform of a file with a fatal Error throws it, which puts it in the overlay. That
+  includes an Error only generate finds (MET002): the reporter keeps the last list's Errors per file. A
   dev server's build start no longer halts (it used to, which kept the server from starting). Info never prints
   in dev; Warnings and lowered errors give way to one count line when a new one appears. The reporter reads
   generate's list, which now holds every file's scan findings, so it can forget what is gone.
@@ -328,11 +329,16 @@ Every item above landed, with these differences from the plan:
   many other call sites share the entry; alwaysThrow entries are no longer disk-cached (format v18).
 - **This repo's lint.** `.oxlintrc.json` raises `mion/warning` to an error, `lint-directives.mjs` fails on the
   EXP/DWN codes from oxlint's JSON output, `**/test-fixtures/**` is ignored, and the ESLint spec-file override
-  turns the mion rules off. `eslint-disable @mionjs/...` comments became `@mion-expect-error MRT00x`.
-- **Changelog.** No unreleased section exists, so the rule rename is the `BREAKING CHANGE` of the
-  `feat(devtools)!` commit, which the release changelog picks up.
-- Items 8 and 9 shipped as one commit: they share the new `surface.ts`.
+  turns the mion rules off. `eslint-disable @mionjs/...` comments became `@mion-expect-error MRT00x`. No separate
+  enrichment-code check: raising `mion/warning` to an error covers those codes and every other Warning.
+- **No old-rule-name hint.** oxlint and ESLint reject a config naming an unknown plugin (`Plugin 'runtypes' not
+  found`) before any plugin code runs, so no host lets the plugin say more.
+- **Changelog.** No unreleased section exists, so the rule rename is the body of the `feat(devtools)!` commit,
+  which the release changelog curator reads.
+- Items 6 and 13 shipped as one commit: the repo's own lint breaks between the rename and its configs.
 
 Found on the way and fixed here: webpack, rspack, esbuild and bun builds never stopped on a finding; `mion
 compile` printed raw debug lines; the disk cache froze a runtime error's call site; generate lost the findings of
-files a scanFiles call reached first; the mion route checks never reached oxlint.
+files a scanFiles call reached first; the mion route checks never reached oxlint. The review added: an engine
+failure went unreported when a config turned `mion/error` off; a failed regenerate in dev hid the edit's
+findings; vite's edit path absorbed a file of the separate batch-source project into the server's sources.
