@@ -1,7 +1,7 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-09-28
 ---
 
@@ -64,3 +64,43 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
     function (…010 Info) in every mode;
   - with that handled, remove the absorb path (`propertyChildFailed` -> `AbsorbUnsupported`) so an unsupported
     property refuses instead of vanishing.
+
+## What shipped
+
+**The corpus.** `TestNestedDiagCorpus` (`ts-go-runtypes/internal/compiler/resolver/nested_diag_corpus_test.go`) runs in
+the normal Go suite, one parallel subtest per trigger (about 50 s on 4 cores). Triggers: symbol, `symbol[]`, function,
+callable interface (with and without a field), never, typed array, `#private` class, symbol-keyed interface, object
+union. Positions: property, optional property, array, tuple plain / optional / rest, Map key and value, Set, index
+signature, union member, intersection. Each as an inline and a named child, under all 16 family variants, in both
+inline modes, static call shape in both modes and value shape in the default mode. Rules checked per file: every
+runtime throw is reported at the site, every reported always-throw code has its throw, inline and named report the
+same codes in both modes, a non-data trigger is never dropped with no diagnostic, and the build pass reports what the
+dev scan did. The oracle reads the `[CODE]` prefix of the rendered alwaysThrow messages, so no cell has a hand-written
+expectation. The root-position case stays with `TestDiagExamples_TriggerTheirCode`.
+
+**Gaps found and fixed**, each with its own commit and paired tests:
+
+- A throw reached through ANOTHER family's entry was never reported: a validationErrors or removeUnknownKeys union calls
+  the validate entry of the union (`{u: symbol[] | string}` threw at runtime and built clean). The reach walk now runs
+  once after the cross-family fixpoint. A foreign throw is reported only when the site's own family reaches none,
+  so a JSON encoder whose union already reports PJS002 does not also get VL001.
+- An interface with a call signature and a field threw at a property when named and vanished with no diagnostic when
+  inlined, taking a throwing array element with it. It is now function-like everywhere: dropped with the family's
+  …010 note at a property, a reported throw elsewhere. The JSON noop and JSON-compat predicates mirror that, which also
+  fixed the clone encoder shipping it inside a Map or Set as `null`.
+- The absorb path (`propertyChildFailed` / `AbsorbUnsupported`) is gone: an unsupported property value makes the object
+  refuse. An entry whose failing kind has no root code used to be skipped, so the site ran the family identity; it now
+  throws under the new internal code `TFN001`.
+- A function-valued index signature was dropped with no note in every family; it now leaves the …010 note.
+- validationErrors had no way to show what the validate entry it delegates to drops (VL013 / VL014). Entries now keep
+  their own findings (persisted in the disk cache, format v19), and the validationErrors families adopt those of the
+  validate families.
+- A named child the noop gate left out was never rendered, so the in-place encoder hid its dropped symbol key. It is
+  now rendered for its findings only (pruned from the output) and the cache keeps the list for warm builds.
+- Findings reached a site through its TYPE, so a union site heard VE013 or RUK004 from an entry another file demanded
+  and its function never calls, and the build disagreed with the dev scan. A walk now reports only at the sites that
+  named its type, and `ReportReachedFindings` carries findings along the entry graph the site's function calls.
+- Found in passing on the same shortcut: the clone encoder copied Map and Set entries with `Array.from`, so object
+  values kept every undeclared key on the wire. The shortcut now also requires values that are safe to share.
+
+Docs: no page changed. The diagnostics catalog gained `TFN001` (prose, message, generated catalogs).
