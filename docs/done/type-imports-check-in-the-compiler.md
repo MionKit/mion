@@ -1,7 +1,7 @@
 ---
 type: chore
 spec: guidelines
-status: ready
+status: done
 created: 2026-09-29
 ---
 
@@ -71,3 +71,46 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
 - No file outside `docs/done/` and `CHANGELOG.md` names `enforce-type-imports`.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched
   source file, each committed on its own.
+
+## Plan, compiler check anchored on initClient (approved 2026-09-29)
+
+The approved plan dropped `backendSources` for a check with no setting: a client file is one that calls
+`initClient` or imports one that does, server code is a module whose value imports reach `@mionjs/router` or a
+platform package, and a value import of server code in a client file is flagged. Built and measured, it had two
+problems: every file with a local import needed a compiler pass in the linter (173 timeouts over the repo), and
+every test that starts a server and a client in one file was flagged, which stopped those test runs.
+
+## What shipped (amended with the user, 2026-09-29)
+
+The user narrowed the rule: only the type handed to `initClient` matters. There is no setting and no import-graph
+walk.
+
+- **`SRV001`** (`ts-go-runtypes/internal/diagnostics/codes_serverimport.go`, `LevelRuntimeError`, `FamilyMarker`):
+  a name used in an `initClient<T>()` type argument (a type reference or a `typeof` query) whose import is not
+  type-only. One report per import statement. Other server imports in the same file (a test starting the server)
+  are never judged.
+- **The check** lives in `ts-go-runtypes/internal/compiler/apiimports/`; `resolver/apiimportscheck.go` runs it on
+  every `scanFiles` (linter, dev server) and on `generate` (build, `mion compile`). `apimeta.IsInitClientCall` is
+  exported for it, so the call is matched by its declaring package, not its name.
+- **No autofix**: the message names the fix (`use import type`).
+- **Linter**: the plugin has exactly the four level rules; the rule file, its spec, its registration and the
+  `@typescript-eslint/utils` / `@typescript-eslint/rule-tester` dependencies are gone. The prefilter admits a file
+  naming `initClient` (`namesInitClient`), so lint time is unchanged.
+- **Repo fixes the check found**: the rpc-client specs imported `TestServerApi` as a value; they now use
+  `import type`.
+- **Docs**: the linter page lost the old rule row and contrast, and gained an "API Type Imports" section; the
+  diagnostics catalog lists `SRV001` under a new "Client imports" group.
+- **Tests**: Go unit tests (type-only passes, every value shape flagged, other server imports ignored, one report
+  per import, another package's `initClient` ignored, local types pass), resolver tests (scan and generate both
+  report; `@mion-expect-error SRV001` silences it), prefilter and plugin tests, and a real oxlint run showing
+  `[SRV001]` under `mion(runtime-error)`.
+
+## Done when (as shipped)
+
+- The plugin exports exactly `mion/error`, `mion/runtime-error`, `mion/warning` and `mion/info`, and nothing in
+  `packages/devtools/src/lint/` inspects source on its own.
+- A value import of the `initClient` API type is a compiler diagnostic, shown in the editor and reported by the
+  build, with Go and oxlint tests.
+- No file outside `docs/done/` and `CHANGELOG.md` names `enforce-type-imports`.
+- The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source file,
+  each committed on its own.
