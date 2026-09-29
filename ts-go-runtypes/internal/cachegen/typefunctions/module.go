@@ -196,7 +196,8 @@ func CollectFamilyEntries(dump protocol.Dump, settings constants.CacheModuleSett
 			entry.Findings = append(entry.Findings, entrymodules.Finding{Code: finding.Code, Args: finding.Args})
 		}
 		graph.Add(entry)
-		return rendered.deps, true
+		// An elided child is rendered for its findings only; pruning drops it from the output again.
+		return slices.Concat(rendered.deps, rendered.elided), true
 	}
 
 	// Strip the inner prefix so refTable resolves the child; variants are root-scoped, so every child renders plain.
@@ -462,6 +463,8 @@ type entryRender struct {
 	throws *diskcache.CachedDiagnostic
 	// findings are the entry's own diagnostics, live or from the disk cache, for a site that reaches it across families.
 	findings []diskcache.CachedDiagnostic
+	// elided are the children the noop gate left out of the body: queued for rendering, never linked as deps.
+	elided []string
 }
 
 // renderEntryWithDeps compiles one RunType into its tuple argument text and the dependency hashes alongside it
@@ -595,9 +598,9 @@ func renderEntryWithDeps(runType *reflection.RunType, settings constants.CacheMo
 		argsText := joinArgs(holeifyArgs(args))
 		if diskCacheable {
 			// A noop body emits no dep calls, so nothing is registered.
-			writeCachedEntry(runType, settings, cacheTag, innerPrefix, argsText, nil, nil, nil, true, entryDiagnostics(diagStart, walker.findings, opts), opts)
+			writeCachedEntry(runType, settings, cacheTag, innerPrefix, argsText, nil, walker.ElidedDependencies, nil, nil, true, entryDiagnostics(diagStart, walker.findings, opts), opts)
 		}
-		return entryRender{argsText: argsText, isNoop: true, findings: walker.findings}
+		return entryRender{argsText: argsText, isNoop: true, findings: walker.findings, elided: walker.ElidedDependencies}
 	}
 	createRTFn, factoryBody := WrapClosure(factoryName, walker.FnName, innerFn, walker.ContextLines())
 	// The `code` arg carries the factory BODY, the text between the
@@ -644,9 +647,9 @@ func renderEntryWithDeps(runType *reflection.RunType, settings constants.CacheMo
 	pureFnDeps := pureFnDepKeys(walker.PureFnDependencies)
 	argsText := joinArgs(args)
 	if diskCacheable {
-		writeCachedEntry(runType, settings, cacheTag, innerPrefix, argsText, deps, crossFamilyDeps, pureFnDeps, false, entryDiagnostics(diagStart, walker.findings, opts), opts)
+		writeCachedEntry(runType, settings, cacheTag, innerPrefix, argsText, deps, walker.ElidedDependencies, crossFamilyDeps, pureFnDeps, false, entryDiagnostics(diagStart, walker.findings, opts), opts)
 	}
-	return entryRender{argsText: argsText, deps: deps, crossFamilyDeps: crossFamilyDeps, pureFnDeps: pureFnDeps, findings: walker.findings}
+	return entryRender{argsText: argsText, deps: deps, crossFamilyDeps: crossFamilyDeps, pureFnDeps: pureFnDeps, findings: walker.findings, elided: walker.ElidedDependencies}
 }
 
 // entryDiagnostics slices out the findings THIS entry's walk appended to the shared sink, plus the walker's own
@@ -714,15 +717,13 @@ func tryReadCachedEntry(runType *reflection.RunType, settings constants.CacheMod
 	if entry.StructuralID != expectedStructural {
 		return entryRender{}, false
 	}
-	deps := make([]string, 0, len(entry.ChildRefs))
-	for _, ref := range entry.ChildRefs {
-		currentHash := opts.Lookup.HashForStructural(ref.StructuralID)
-		if currentHash == "" || currentHash != ref.Hash {
-			// The child was re-hashed (collision extension) or removed, so the
-			// cached body's baked hash is stale.
-			return entryRender{}, false
-		}
-		deps = append(deps, innerPrefix+currentHash)
+	deps, ok := liveChildHashes(entry.ChildRefs, innerPrefix, opts)
+	if !ok {
+		return entryRender{}, false
+	}
+	elided, ok := liveChildHashes(entry.ElidedRefs, innerPrefix, opts)
+	if !ok {
+		return entryRender{}, false
 	}
 	crossFamilyDeps := make([]string, 0, len(entry.CrossFamilyRefs))
 	for _, ref := range entry.CrossFamilyRefs {
@@ -747,7 +748,21 @@ func tryReadCachedEntry(runType *reflection.RunType, settings constants.CacheMod
 	}
 	pureFnDeps := append([]string(nil), entry.PureFnRefs...)
 	replayCachedDiagnostics(runType, settings.Tag, entry.Diagnostics, opts)
-	return entryRender{argsText: entry.ArgsText, deps: deps, crossFamilyDeps: crossFamilyDeps, pureFnDeps: pureFnDeps, isNoop: entry.IsNoop, findings: entry.Diagnostics}, true
+	return entryRender{argsText: entry.ArgsText, deps: deps, crossFamilyDeps: crossFamilyDeps, pureFnDeps: pureFnDeps, isNoop: entry.IsNoop, findings: entry.Diagnostics, elided: elided}, true
+}
+
+// liveChildHashes re-namespaces each cached child hash; ok=false when one was re-hashed (collision extension) or
+// removed, since the cached body's baked hash is then stale.
+func liveChildHashes(refs []diskcache.ChildRef, innerPrefix string, opts RenderOpts) ([]string, bool) {
+	hashes := make([]string, 0, len(refs))
+	for _, ref := range refs {
+		currentHash := opts.Lookup.HashForStructural(ref.StructuralID)
+		if currentHash == "" || currentHash != ref.Hash {
+			return nil, false
+		}
+		hashes = append(hashes, innerPrefix+currentHash)
+	}
+	return hashes, true
 }
 
 // replayCachedDiagnostics re-emits an entry's persisted findings on a cache hit, or a project's warnings would
@@ -789,7 +804,7 @@ func splitNamespacedHash(namespaced string) (prefix string, bareHash string, ok 
 // deps arrive namespaced, so the prefix is stripped to recover each bare hash and its structural id for the
 // ChildRefs record; a cross-family dep splits into its own foreign prefix plus hash. An unresolvable ref aborts
 // the write cleanly rather than persisting a record the reader can't verify.
-func writeCachedEntry(runType *reflection.RunType, settings constants.CacheModuleSettings, cacheTag string, innerPrefix string, argsText string, deps []string, crossFamilyDeps []string, pureFnDeps []string, isNoop bool, entryDiags []diskcache.CachedDiagnostic, opts RenderOpts) {
+func writeCachedEntry(runType *reflection.RunType, settings constants.CacheModuleSettings, cacheTag string, innerPrefix string, argsText string, deps []string, elided []string, crossFamilyDeps []string, pureFnDeps []string, isNoop bool, entryDiags []diskcache.CachedDiagnostic, opts RenderOpts) {
 	if opts.Store == nil || opts.Lookup == nil || runType == nil || runType.ID == "" {
 		return
 	}
@@ -807,22 +822,13 @@ func writeCachedEntry(runType *reflection.RunType, settings constants.CacheModul
 			return
 		}
 	}
-	childRefs := make([]diskcache.ChildRef, 0, len(deps))
-	for _, dep := range deps {
-		childHash := strings.TrimPrefix(dep, innerPrefix)
-		if childHash == dep {
-			// A dep that doesn't start with innerPrefix breaks the read-time hash
-			// translation, so persist nothing rather than an unverifiable record.
-			return
-		}
-		childStructural := opts.Lookup.StructuralForHash(childHash)
-		if childStructural == "" {
-			return
-		}
-		childRefs = append(childRefs, diskcache.ChildRef{
-			StructuralID: childStructural,
-			Hash:         childHash,
-		})
+	childRefs, ok := cachedChildRefs(deps, innerPrefix, opts)
+	if !ok {
+		return
+	}
+	elidedRefs, ok := cachedChildRefs(elided, innerPrefix, opts)
+	if !ok {
+		return
 	}
 	crossFamilyRefs := make([]diskcache.CrossFamilyRef, 0, len(crossFamilyDeps))
 	for _, dep := range crossFamilyDeps {
@@ -857,6 +863,7 @@ func writeCachedEntry(runType *reflection.RunType, settings constants.CacheModul
 		ArgsText:        argsText,
 		IsNoop:          isNoop,
 		ChildRefs:       childRefs,
+		ElidedRefs:      elidedRefs,
 		CrossFamilyRefs: crossFamilyRefs,
 		// Persisted verbatim, unlike ChildRefs / CrossFamilyRefs; the drift check
 		// is purefnids.Has at both ends.
@@ -869,6 +876,24 @@ func writeCachedEntry(runType *reflection.RunType, settings constants.CacheModul
 		// misconfiguration without spamming.
 		fmt.Fprintln(os.Stderr, "mion: disk-cache write failed:", err)
 	}
+}
+
+// cachedChildRefs records each namespaced child hash with its structural id; ok=false aborts the write, since a child
+// that doesn't start with innerPrefix or has no structural id breaks the read-time hash translation.
+func cachedChildRefs(children []string, innerPrefix string, opts RenderOpts) ([]diskcache.ChildRef, bool) {
+	refs := make([]diskcache.ChildRef, 0, len(children))
+	for _, child := range children {
+		childHash := strings.TrimPrefix(child, innerPrefix)
+		if childHash == child {
+			return nil, false
+		}
+		childStructural := opts.Lookup.StructuralForHash(childHash)
+		if childStructural == "" {
+			return nil, false
+		}
+		refs = append(refs, diskcache.ChildRef{StructuralID: childStructural, Hash: childHash})
+	}
+	return refs, true
 }
 
 // leafKindLabel returns the short label for an unsupported leaf, passed as the {0} substitution arg for

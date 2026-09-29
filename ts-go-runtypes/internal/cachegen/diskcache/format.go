@@ -32,7 +32,8 @@ package diskcache
 // their tags (rj / rjs) and cache basenames stay put; the header check is structural-id only, so a v16 payload would hit and feed the
 // runtime a key nothing registers.
 // v18 stops persisting alwaysThrow entries: their message names a live call site, so a hit replayed the site of the build that wrote it.
-// v19 also persists the findings of an entry no call site names, which a site of another family can adopt.
+// v19 also persists the findings of an entry no call site names, which a site of another family can adopt, and the
+// ElidedRefs a warm build needs to still render the children the noop gate skipped.
 const FormatVersion = 19
 
 // CachedDiagnostic is one build-time finding an entry's walk produced, stored so a cache hit can re-emit it.
@@ -76,6 +77,9 @@ type RTEntry struct {
 	IsNoop bool `json:"isNoop,omitempty"`
 	// ChildRefs is one entry per RT-dependency hash baked into ArgsText (walker.RTDependencies); empty for leaf entries.
 	ChildRefs []ChildRef `json:"childRefs"`
+	// ElidedRefs is one entry per child the noop gate left out of the body (walker.ElidedDependencies): never called,
+	// yet rendered so its own findings reach the site. Drift-checked like ChildRefs.
+	ElidedRefs []ChildRef `json:"elidedRefs,omitempty"`
 	// CrossFamilyRefs is one entry per cross-family edge the body reaches (walker.CrossFamilyDeps), so a hit rebuilds the crossFamilyDeps
 	// a fresh walk would produce; without it the demand-collection pass sees an empty set and misses the val_<member> roots.
 	CrossFamilyRefs []CrossFamilyRef `json:"crossFamilyRefs,omitempty"`
