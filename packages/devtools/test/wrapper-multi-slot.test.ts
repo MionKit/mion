@@ -12,7 +12,7 @@ import os from 'node:os';
 import path from 'node:path';
 import fs from 'node:fs';
 import runtypesRollup from '../src/runtypes/rollup.ts';
-import {BIN, hasBinary, writeMarkerPackage} from './helpers/inline.ts';
+import {BIN, callHook, hasBinary, writeMarkerPackage} from './helpers/inline.ts';
 
 const FIXTURE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-wrapper-multi-slot-'));
 const WRAPPER = path.join(FIXTURE_DIR, 'wrapper.ts');
@@ -60,8 +60,6 @@ const ctx = {
   },
   warn(): void {},
 };
-const callHook = (hook: any, thisArg: unknown, ...args: unknown[]): unknown =>
-  typeof hook === 'function' ? hook.apply(thisArg, args) : hook.handler.apply(thisArg, args);
 
 function makePlugin() {
   return runtypesRollup({binary: BIN, cwd: FIXTURE_DIR, tsconfig: 'tsconfig.json', genDir: OUT_DIR}) as any;

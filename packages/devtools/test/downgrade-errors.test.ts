@@ -25,7 +25,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import runtypesRollup from '../src/runtypes/rollup.ts';
 import runtypesVite from '../src/runtypes/vite.ts';
-import {BIN, hasBinary, writeMarkerPackage} from './helpers/inline.ts';
+import {BIN, callHook, hasBinary, writeMarkerPackage} from './helpers/inline.ts';
 
 const FIXTURE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-downgrade-errors-'));
 const OUT_DIR = path.join(FIXTURE_DIR, '.mion');
@@ -191,10 +191,6 @@ export const staticForm = getRunTypeId<Big>();
 const sample: Big = 'v0';
 export const reflectedForm = getRunTypeId(sample);
 `;
-
-type Hook = ((...args: unknown[]) => unknown) | {handler: (...args: unknown[]) => unknown};
-const callHook = (hook: Hook, thisArg: unknown, ...args: unknown[]): unknown =>
-  typeof hook === 'function' ? hook.apply(thisArg, args) : hook.handler.apply(thisArg, args);
 
 function makeCtx() {
   const warnings: string[] = [];

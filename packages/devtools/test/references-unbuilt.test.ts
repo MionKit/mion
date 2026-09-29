@@ -16,7 +16,7 @@ import os from 'node:os';
 import path from 'node:path';
 import fs from 'node:fs';
 import runtypesRollup from '../src/runtypes/rollup.ts';
-import {BIN, hasBinary, writeMarkerPackage} from './helpers/inline.ts';
+import {BIN, callHook, hasBinary, writeMarkerPackage} from './helpers/inline.ts';
 
 const FIXTURE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-references-unbuilt-'));
 const LIB_DIR = path.join(FIXTURE_DIR, 'lib');
@@ -75,10 +75,6 @@ const CONSUMER_SRC = `import {route} from '@fix/lib';
 
 export const lenRoute = route((ctx: unknown, name: string) => name.length);
 `;
-
-type Hook = ((...args: unknown[]) => unknown) | {handler: (...args: unknown[]) => unknown};
-const callHook = (hook: Hook, thisArg: unknown, ...args: unknown[]): unknown =>
-  typeof hook === 'function' ? hook.apply(thisArg, args) : hook.handler.apply(thisArg, args);
 
 const ctx = {
   error(message: string): never {

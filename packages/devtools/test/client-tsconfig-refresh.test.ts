@@ -10,7 +10,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {createServer, type ViteDevServer} from 'vite';
-import {BIN, hasBinary, writeMarkerPackage} from './helpers/inline.ts';
+import {BIN, hasBinary, waitFor, writeMarkerPackage} from './helpers/inline.ts';
 import {mionVitePlugin} from '../src/vite/index.ts';
 
 const register = hasBinary() ? describe : describe.skip;
@@ -62,15 +62,6 @@ function writeProject(base: string, name: string, files: Record<string, string>)
   fs.writeFileSync(path.join(dir, 'tsconfig.json'), TSCONFIG);
   for (const [rel, content] of Object.entries(files)) fs.writeFileSync(path.join(dir, 'src', rel), content);
   return dir;
-}
-
-async function waitFor(check: () => boolean | Promise<boolean>, what: string, timeoutMs = 15000): Promise<void> {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    if (await check()) return;
-    await new Promise((resolve) => setTimeout(resolve, 100));
-  }
-  throw new Error(`timed out waiting for ${what}`);
 }
 
 const batchIds = (file: string): string[] =>
