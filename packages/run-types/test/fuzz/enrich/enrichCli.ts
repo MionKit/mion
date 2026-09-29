@@ -19,8 +19,7 @@ export const BIN = resolve(REPO_ROOT, 'mion-bin/mion');
 const CLI_TIMEOUT_MS = 15_000;
 const MAX_BUFFER = 32 * 1024 * 1024;
 
-/** One `enrich --no-emit` finding — the real JSON shape the CLI emits (internal/enrichment
- *  validate.go `Finding`: lowercase keys, severity as a string). **/
+/** The JSON shape of internal/enrichment validate.go `Finding`: lowercase keys, severity as a string. **/
 export interface CheckFinding {
   file: string;
   code: string;
@@ -52,27 +51,22 @@ function runCli(cwd: string, args: string[]): CliResult {
   };
 }
 
-/** `enrich src/models.ts <Type>` — create-only scaffold of the mirror file.
- *  `extraArgs` appends extra CLI flags to the `enrich` invocation. **/
+/** Create-only scaffold of the mirror file. **/
 export function scaffold(fixture: ReconcileFixture, typeName: string, extraArgs: string[] = []): CliResult {
   return runCli(fixture.dir, ['enrich', 'src/models.ts', typeName, ...extraArgs]);
 }
 
-/** `enrich src/models.ts <Type> --update` — value-preserving reconcile.
- *  `extraArgs` appends extra CLI flags to the `enrich` invocation. **/
+/** Value-preserving reconcile. **/
 export function update(fixture: ReconcileFixture, typeName: string, extraArgs: string[] = []): CliResult {
   return runCli(fixture.dir, ['enrich', 'src/models.ts', typeName, '--update', ...extraArgs]);
 }
 
-/** `enrich --prune <enrichDir>` — strip @rtOrphan/@rtOrphanChild carcasses from
- *  the whole mirror root (sweeps BOTH family files). **/
+/** Strips @rtOrphan/@rtOrphanChild carcasses from the whole mirror root, both family files. **/
 export function prune(fixture: ReconcileFixture): CliResult {
   return runCli(fixture.dir, ['enrich', '--prune', fixture.enrichDir]);
 }
 
-/** `check <family mirror> --json` — returns the parsed findings plus the raw result.
- *  exit 0 (clean) / 1 (an Error-severity finding) are BOTH controlled; any other
- *  exit, a launch error, a timeout, or unparseable JSON is surfaced as a problem. **/
+/** Exit 0 (clean) and 1 (an Error finding) are controlled; any other exit, a timeout or bad JSON is a problem. **/
 export function check(
   fixture: ReconcileFixture,
   family: MirrorFamily
@@ -91,8 +85,7 @@ export function check(
   return {result, findings, controlled};
 }
 
-/** True when an `enrich` / `--update` / `--prune` run ended in a CONTROLLED way (exit 0,
- *  or a non-zero exit with a real diagnostic on stderr — not a panic/hang/internal bug). **/
+/** Controlled: exit 0, or non-zero with a real diagnostic on stderr, never a panic, hang or internal bug. **/
 export function isControlled(result: CliResult): boolean {
   if (result.timedOut || result.launchError) return false;
   // An "internal error" is the reconciler shouting that its own invariant broke

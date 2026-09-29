@@ -448,10 +448,7 @@ async function runBench(args) {
 
 // ── release: npm publish + orchestrate the site build/deploy ────────────────
 
-// Flags `release all` accepts. Anything else — an unknown flag, a
-// mistyped subcommand — must NOT reach it: the chain ends in an
-// irreversible npm publish, so it is the one default in this CLI that must
-// never run by accident.
+// Anything else must NOT reach `release all`: the chain ends in an irreversible npm publish.
 const UMBRELLA_FLAGS = new Set(['--preflight-only', '--no-website', '--dry-run']);
 
 function runRelease(args) {

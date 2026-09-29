@@ -413,17 +413,8 @@ const pruneProbe: Command = {
   },
 };
 
-// Negative-space probes (R5): splice ONE malformed edit into a single FAMILY's
-// mirror file, run `enrich --no-emit` against THAT file, and assert the SPECIFIC diagnostic
-// code fires (verified live: MD001 / FT002 / FT005), then REVERT so the sequence
-// continues from a valid state.
-//
-// Channel boundary (discovered by running it): the `enrich --no-emit` CLI does NOT look
-// inside a function-form `rt$errors` (opaque to the walk) and does NOT do MD003
-// pool-type checks — those are BUILD-time (CompTimeArgs CTA001/2/3, MD003), a
-// DIFFERENT observation channel. So a "non-literal node in comptime args" probe
-// (the CTA case) belongs to a future build-driven harness, not this one — `enrich --no-emit`
-// is the wrong instrument for it.
+// R5: break ONE family's mirror, expect the SPECIFIC code (MD001 / FT002 / FT005), then revert to a valid state.
+// `--no-emit` skips function-form `rt$errors` and MD003: those and CTA00x are build-time, out of this harness.
 function negativeProbe(
   name: string,
   family: MirrorFamily,

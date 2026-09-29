@@ -148,7 +148,7 @@ func (config Config) MirrorPath(family, absSourceFile string) string {
 	return filepath.Clean(filepath.Join(config.EnrichDir, family, config.MirrorRel(absSourceFile)))
 }
 
-// CombinedMirrorPath is <EnrichDir>/<rel>, with no family segment: where an --out combined spec resolves cross-file imports.
+// CombinedMirrorPath has no family segment: an --out combined spec resolves cross-file imports against it.
 func (config Config) CombinedMirrorPath(absSourceFile string) string {
 	return filepath.Clean(filepath.Join(config.EnrichDir, config.MirrorRel(absSourceFile)))
 }

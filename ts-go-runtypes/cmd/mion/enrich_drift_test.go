@@ -8,8 +8,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment/mirror"
 )
 
-// checkMirrorFileTest resolves the tsconfig from the (t.Chdir'd) cwd and runs
-// the drift check, the test twin of what runMirrorDriftCheck does per mirror file.
+// checkMirrorFileTest is what runMirrorDriftCheck does per mirror file, with the tsconfig read from the t.Chdir'd cwd.
 func checkMirrorFileTest(mirrorFile string) []driftFinding {
 	tsconfigPath, parsed := resolveEnrichProject("")
 	return checkMirrorFile(mirrorFile, "", tsconfigPath, parsed)
@@ -191,12 +190,8 @@ func TestCheckMirrorFile_Clean(t *testing.T) {
 	}
 }
 
-// TestCheckMirrorFile_NodeModulesSourceClean: a mirror for a type whose source
-// lives inside an installed package sits at the PROJECT's mirror location (the enrich write lane's
-// base-name fallback for out-of-root sources). The check must anchor its config
-// at the mirror file like the enrich write lane — anchoring at the resolved source
-// would re-derive the config inside the dependency (its own tsconfig) and flag
-// the write lane's own output as drifted.
+// TestCheckMirrorFile_NodeModulesSourceClean: the check anchors its config at the mirror, like the write lane;
+// anchoring at a node_modules source re-derives the dependency's config and flags the write lane's output.
 func TestCheckMirrorFile_NodeModulesSourceClean(t *testing.T) {
 	dir := canonicalTempDir(t)
 	t.Chdir(dir)

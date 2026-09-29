@@ -277,16 +277,8 @@ describe.skipIf(!hasBinary || !symlinksAvailable)('CLI surface — symlinked pro
   }, 60_000);
 });
 
-// The pre-publish e2e fixture drives this CLI (container/pre-publish-e2e/build-all.mjs
-// scaffolds the shared app's enrichment mirrors before any app builds), but nothing
-// on the host runs that script: no vitest project covers container/, so the fixture
-// is only exercised inside the release-gate container. The binary answers an unknown
-// verb with usage and exit 2, so a stale verb in the fixture kills the matrix before the
-// builds, the assertions and the lint transport, and nothing says so until release time.
-//
-// This is the cheap host-side guard for that class: read the argv the fixture ACTUALLY
-// passes and check every verb and long flag against the live binary's own help. It
-// needs no project, no container and no network — one --help per verb.
+// container/pre-publish-e2e/build-all.mjs drives this CLI, but only inside the release container, never on the host.
+// An unknown verb exits 2 there and kills the whole matrix, so check the fixture's verbs against this binary's help.
 describe.skipIf(!hasBinary)('CLI surface — the e2e fixture only uses verbs this binary has', () => {
   const E2E_DIR = resolve(REPO_ROOT, 'container/pre-publish-e2e');
 

@@ -5,8 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// One CallContext per request, still readable after the response: a handler may keep its context
-// past the response without reading nulls or another request's data.
+// A handler may keep its context past the response without reading nulls or another request's data.
 
 import {describe, it, expect, beforeEach} from 'vitest';
 import {createMionRouter, resetRouter} from '../src/router.ts';

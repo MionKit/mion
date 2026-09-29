@@ -1124,10 +1124,7 @@ createJsonEncoderFn<string>(undefined, {strategy: 'compact'});
 	}
 }
 
-// TestResolver_CompTimeArgs_NonLiteralDiagnostic pins the CTA001
-// diagnostic for a CompTimeArgs<T>-branded parameter filled with a
-// value the Go scanner cannot statically evaluate (a function-call
-// result here). Any branded param is covered, not just options-named ones.
+// TestResolver_CompTimeArgs_NonLiteralDiagnostic: CTA001 covers any branded param, not just options-named ones.
 func TestResolver_CompTimeArgs_NonLiteralDiagnostic(t *testing.T) {
 	const dts = `declare module '@mionjs/run-types' {
   export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
@@ -1220,9 +1217,7 @@ createJsonEncoderFn<string>(undefined, getOptions());
 	}
 }
 
-// TestResolver_CompTimeArgs_ConstChainAccepted pins that a module-scope
-// `const` whose initializer is itself a literal passes the CompTimeArgs
-// check, so users can DRY their option objects.
+// TestResolver_CompTimeArgs_ConstChainAccepted: a module-scope const of a literal passes, so users can DRY options.
 func TestResolver_CompTimeArgs_ConstChainAccepted(t *testing.T) {
 	const dts = `declare module '@mionjs/run-types' {
   export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};

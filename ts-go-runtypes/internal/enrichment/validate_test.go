@@ -436,8 +436,7 @@ func TestCheckFriendly_FT005InsidePluralArm(t *testing.T) {
 }
 
 func TestCheckFriendly_FT005ColonTokens(t *testing.T) {
-	// A token whose name holds colons is an unknown placeholder, while a literal
-	// colon in prose (`ratio 3:1`) outside a token never trips.
+	// A colon inside a token makes it unknown; a literal colon in prose (`ratio 3:1`) never trips.
 	rt := objectRT(map[string]*reflection.RunType{"price": formatStringRT(map[string]any{"max": 100})})
 	view := newFakeView().obj("price", newFakeView().
 		obj("rt$errors", newFakeView().

@@ -190,10 +190,7 @@ export function assertValidateDeserializeReflect(c: AssertableCase): void {
   });
 }
 
-/** Used by the value-first-define suite, which is
- *  not restructured into per-variant it()s. Runs all 5 validate variants
- *  in sequence so the single it() in that suite exercises the same matrix
- *  the validation suite splits across five it()s. **/
+/** Runs all 5 validate variants in one it(), for the value-first-define suite, which is not split per variant. **/
 export function assertValidate(c: AssertableCase): void {
   assertValidateStatic(c);
   assertValidateReflect(c);

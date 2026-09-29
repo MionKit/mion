@@ -14,6 +14,4 @@
 // setup.ts` and so future expansions (multiple test files needing
 // state isolation) drop in cleanly.
 //
-// Temporal needs no setup: the repo baseline is Node >= 26, which ships the
-// global `Temporal` unflagged (ES2026), the same native global production
-// consumers use.
+// Temporal needs no setup: Node >= 26 ships the global `Temporal` unflagged, as production consumers get it.

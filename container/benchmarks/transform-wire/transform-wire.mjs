@@ -14,8 +14,7 @@
 // 'go' is measured twice — with and without the sourcesContent map trim — since
 // eliding it is the cheap milestone-0 win that narrows the comparison.
 //
-// The sourcesContent trim is a session flag, so each mode's client is
-// constructed with it rather than passing it per call.
+// The sourcesContent trim is a session flag, set when each mode's client is constructed.
 // Numbers recorded before that change read a few bytes high on the request side;
 // response sizes and timings are unaffected.
 //

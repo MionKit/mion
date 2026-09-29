@@ -3,14 +3,8 @@
 // REJECTION, and a line that compiles again surfaces as TS2578. Not vitest's typecheck mode: that is global
 // and would surface a dozen unrelated preexisting errors. CI runs `tsc -p packages/run-types/tsconfig.json --noEmit`.
 
-// NOTE: imports use RELATIVE `../src/…` paths (not the `@mionjs/run-types/*` package
-// specifiers) so this file exercises the in-tree source directly. Import style
-// does not affect the vite plugin's transform scope (the gate is the
-// resolver's site-file set — a scan result, not text matching), so the
-// `getRunTypeId()` "no id injected" runtime-contract tests below call through a
-// TYPE-ERASED alias instead: the scanner matches calls by their resolved marker
-// signature, and an erased signature can never be rewritten. The assertion
-// bodies are type-only / never invoked, so the value builders here never run.
+// Relative imports test the in-tree source, but the transform scope is the resolver's scan, not import text.
+// So the "no id injected" `getRunTypeId()` tests call a TYPE-ERASED alias: an erased signature is never rewritten.
 import * as TF from '../../src/formats/index.ts';
 import * as TFT from '../../src/formats/datetime/temporalFormats.ts';
 import {describe, expect, test} from 'vitest';

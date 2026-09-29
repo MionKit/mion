@@ -141,12 +141,7 @@ export function materializeSource(fixture: ReconcileFixture, model: I18nModel): 
   writeFileSync(fixture.sourcePath, `export interface User {\n${decls.join('\n')}\n}\n`);
 }
 
-// syncFriendlyMirror regenerates the friendly mirror from src (the ordinary
-// enrich reconcile) and fills EVERY blank with an `SRC_`-prefixed token, keeping
-// it a realistic fully-authored source-language map. The mirror is only a
-// DISCOVERY input for the translate verbs — T2 asserts its text never leaks
-// into T, which is precisely the "generated files never feed generation"
-// contract of the src-derived design.
+// Fills EVERY blank with an `SRC_` token; the mirror is only discovery input, and T2 asserts its text never leaks into T.
 export function syncFriendlyMirror(fixture: ReconcileFixture, model: I18nModel): CliResult {
   const args = existsSync(fixture.friendlyPath)
     ? ['enrich', 'src/models.ts', 'User', '--friendly', '--update']
@@ -474,9 +469,7 @@ export const I18N_COMMANDS: I18nCommand[] = [
   },
 ];
 
-// bootstrap lays down the project (tsconfig with the i18n object, the .ts
-// source, and the enrich-produced friendly mirror — a source translates once it
-// HAS one) and scaffolds the initial translation.
+// A source translates only once it HAS a friendly mirror, so write one before scaffolding the translation.
 export function bootstrapI18n(fixture: ReconcileFixture, seed: number): {model: I18nModel; violations: I18nViolation[]} {
   const model = initialI18nModel();
   const violations: I18nViolation[] = [];

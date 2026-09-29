@@ -55,9 +55,7 @@ function authorSentinels(fixture: ReconcileFixture): string[] {
   return sentinels;
 }
 
-// spawnUpdate fires `enrich … --update` ASYNCHRONOUSLY so several run at once (the
-// spawnSync wrappers in enrichCli cannot overlap). Resolves with exit code + stderr; a
-// hung process is killed and surfaced as code=null so the controlled-check fails it.
+// Async so several run at once (enrichCli's spawnSync cannot overlap); a hung process is killed and resolves code=null.
 function spawnUpdate(dir: string): Promise<{code: number | null; stderr: string}> {
   return new Promise((resolveDone) => {
     const child = spawn(BIN, ['enrich', 'src/models.ts', ROOT, '--update'], {cwd: dir});

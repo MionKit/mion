@@ -8,8 +8,7 @@
 import {expect, test} from 'bun:test';
 import {runTypesLoader} from '../../loader/runtypes-loader';
 
-// runTypesLoader is a thin wrapper over @mionjs/devtools/runtypes/bun — the Bun counterpart of
-// mionVitePlugin. Upstream owns both of Bun's plugin hosts (Bun.build and the Bun.plugin runtime preload).
+// A thin wrapper: @mionjs/devtools/runtypes/bun owns both Bun plugin hosts (Bun.build and the Bun.plugin preload).
 
 test('runTypesLoader builds a Bun plugin with a name and setup hook', () => {
   const plugin = runTypesLoader({});

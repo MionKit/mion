@@ -15,13 +15,8 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment/mirror"
 )
 
-// runI18nWrite implements the `enrich --i18n <locale|all> [<src>]` verbs:
-// scaffold (create-only), --update (the i18n reconcile), and --prune (strip
-// carcasses from the locale's translation files). Translations are SRC-DERIVED:
-// the desired side is emitted from the TYPE by the same EmitClosure walk as the
-// friendly mirror, parameterized per locale (const prefix, output path, plural
-// arms, sibling refs) — the friendly mirror is read for DISCOVERY only (which
-// types to emit), never for generation content.
+// runI18nWrite implements `enrich --i18n <locale|all> [<src>]` scaffold, --update and --prune.
+// Translations are emitted from the TYPE; the friendly mirror only says which types to emit, never the content.
 func runI18nWrite(translateValue string, positional []string, update, prune bool, genDirFlag, tsconfigFlag string) {
 	tsconfigPath, parsed := resolveEnrichProject(tsconfigFlag)
 	config, sourceMirrors := translateTargets(positional, genDirFlag, tsconfigPath, parsed)
@@ -156,12 +151,8 @@ func discoverTranslationTypes(sourceMirror string) (translationDiscovery, bool) 
 	return translationDiscovery{declFile: declFile, typeNames: typeNames}, true
 }
 
-// buildTranslationSpecs runs the src-derived pipeline for one friendly mirror:
-// discovery, ONE Program over the decl file (amortized across every locale of
-// the run), then per locale a fresh EmitClosure — the TARGET locale drives the
-// emitted plural arm set — transformed into locale-prefixed mirror.Specs
-// grouped by decl file exactly like enrich. ok=false (with a stderr note) when
-// the mirror is unusable; the caller skips it.
+// buildTranslationSpecs shares ONE Program across locales but runs a fresh EmitClosure per locale: it picks the plurals.
+// ok=false (with a stderr note) when the mirror is unusable; the caller skips it.
 func buildTranslationSpecs(config enrichConfig, sourceMirror string, locales []string) (map[string][]mirror.Spec, bool) {
 	discovery, ok := discoverTranslationTypes(sourceMirror)
 	if !ok {

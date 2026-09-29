@@ -9,10 +9,8 @@
 
 import type {RunType} from '../../src/core/protocol.ts';
 
-// One evaluated entry-module tuple, indexed positionally — slot 0 the kind /
-// family tag, slot 1 the deps thunk (undefined when dep-less; never self),
-// slot 2 the ini fn, slot 3 the cache key, slot 4+ the positional args. Mirrors the layout contract in
-// packages/run-types/src/runtypes/entryTuple.ts.
+// Slots: 0 kind/family tag, 1 deps thunk (undefined when dep-less, never self), 2 ini fn, 3 cache key, 4+ args.
+// Mirrors the layout contract in packages/run-types/src/runtypes/entryTuple.ts.
 export type EntryTuple = readonly unknown[];
 
 const IMPORT_LINE = /^import \{(__rt_[A-Za-z0-9_$]+)\} from 'rtmod:\/(.+)\.js';\n/gm;
