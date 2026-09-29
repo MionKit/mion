@@ -3,23 +3,16 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {createUnplugin} from 'unplugin';
 import {getExePath} from '@mionjs/bin-compiler';
-import {renderHeadline} from './diagnosticCatalog.ts';
 import {DIAGNOSTIC_CATALOG} from './go-generated/diagnosticCatalog.generated.ts';
 import {ResolverClient, type GenerateResult} from './resolver-client.ts';
 import {applyEdits, sourceHash} from './apply-edits.ts';
-import {Level, Severity, type BatchSite, type Diagnostic, type PureFnSite} from './protocol.ts';
+import {Level, type BatchSite, type Diagnostic, type PureFnSite} from './protocol.ts';
 import {PURE_FN_ARTIFACT_DIR, type ModuleMode} from './go-generated/runtypes-constants.generated.ts';
 import {assertValidModuleMode} from './module-mode.ts';
 import {mayHoldMarkerCalls} from './markerImports.ts';
-import {
-  DOWNGRADED_NOTE,
-  isDowngraded,
-  resolveDowngradeErrors,
-  DOWNGRADE_ALL,
-  NONE,
-  type DowngradeSet,
-} from './downgradeErrors.ts';
-import {isShown, LEVELS_ALL, resolveShowInfo} from './levels.ts';
+import {isDowngraded, resolveDowngradeErrors, DOWNGRADE_ALL, type DowngradeSet} from './downgradeErrors.ts';
+import {LEVELS_ALL, resolveShowInfo} from './levels.ts';
+import {formatDowngraded, formatTscDiagnostic, hostHalt, hostWarn, surfaceDiagnostics} from './surface.ts';
 import {createTypeDepsIndex, depKey} from './type-deps.ts';
 import {warnBelowTypeScriptFloor} from './typescript-floor.ts';
 
@@ -444,7 +437,8 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
     if (!fileResult || typeof fileResult.code !== 'string') return null;
     declareTypeDeps(ctx, rel, fileResult.typeDeps);
     if (driftCheck && fileResult.sourceHash !== undefined && fileResult.sourceHash !== sourceHash(driftCheck.code)) {
-      ctx.warn?.(
+      hostWarn(
+        ctx,
         `@mionjs/devtools: transform 'go' source drift on ${rel} — the rewrite was applied to the resolver's copy, not the source another plugin handed us. ` +
           `Order @mionjs/devtools first among enforce:'pre' plugins so it sees pristine source.`
       );
@@ -467,7 +461,8 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
     if (!fileResult) return null;
 
     if (fileResult.sourceHash !== undefined && fileResult.sourceHash !== incomingHash) {
-      ctx.warn?.(
+      hostWarn(
+        ctx,
         `@mionjs/devtools: transform 'edits' source drift on ${rel} — re-syncing via setSources. ` +
           `An enforce:'pre' plugin likely edited this file before @mionjs/devtools; order @mionjs/devtools first to avoid the extra round-trip.`
       );
@@ -493,7 +488,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       return {code: applied.code, map: applied.map as any};
     } catch (error) {
       // A malformed edit set (should be impossible) must not break the build.
-      ctx.warn?.(`@mionjs/devtools: 'edits' apply failed on ${rel} (${String(error)}) — falling back to 'go' mode.`);
+      hostWarn(ctx, `@mionjs/devtools: 'edits' apply failed on ${rel} (${String(error)}) — falling back to 'go' mode.`);
       return transformViaGo(ctx, rel);
     }
   }
@@ -571,7 +566,8 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
     }
     if (stale.length === 0 && incomplete.length === 0) return;
     for (const stalePath of stale) {
-      ctx.warn?.(
+      hostWarn(
+        ctx,
         `@mionjs/devtools: enrichment mirror out of date or missing: ${stalePath} — run \`mion enrich --update\` and commit it.`
       );
     }
@@ -583,10 +579,10 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
         isDowngraded(downgrade, diagnostic) ||
         (DIAGNOSTIC_CATALOG[diagnostic.code]?.completeness === true && (downgrade.all || downgrade.codes.has(diagnostic.code)));
       if (standDown) {
-        ctx.warn?.(formatDowngraded(diagnostic));
+        hostWarn(ctx, formatDowngraded(diagnostic));
         continue;
       }
-      ctx.warn?.(formatTscDiagnostic(diagnostic));
+      hostWarn(ctx, formatTscDiagnostic(diagnostic));
       fatal += 1;
     }
     // The stale-mirror half carries no diagnostic code, so only the wildcard can
@@ -596,9 +592,12 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
     const parts: string[] = [];
     if (staleCount > 0) parts.push(`${staleCount} out of date or missing`);
     if (fatal > 0) parts.push(`${fatal} incomplete or stale (unfilled @todo / blank value / @rtOrphan carcass)`);
-    ctx.error?.(
-      `@mionjs/devtools: enrichment is not production-ready — ${parts.join(', ')}. ` +
-        `Run \`mion enrich --update\`, fill the blanks, and commit. (mirrors are never written during a production build)`
+    hostHalt(
+      ctx,
+      new Error(
+        `@mionjs/devtools: enrichment is not production-ready — ${parts.join(', ')}. ` +
+          `Run \`mion enrich --update\`, fill the blanks, and commit. (mirrors are never written during a production build)`
+      )
     );
   }
 
@@ -844,7 +843,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       try {
         options.onSiteFilesChanged(stale);
       } catch (error) {
-        ctx.warn?.(`@mionjs/devtools: onSiteFilesChanged threw — ${error instanceof Error ? error.message : String(error)}`);
+        hostWarn(ctx, `@mionjs/devtools: onSiteFilesChanged threw — ${error instanceof Error ? error.message : String(error)}`);
       }
     }
     return stale;
@@ -1105,78 +1104,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
 
 export default unplugin;
 
-// Routes diagnostics by SEVERITY, the label form of the level, so a fatal Error and a RuntimeError both
-// count towards the halt here and the LEVEL decides only whether `downgrade` can spare one:
-//
-//   - SeverityError ALWAYS gets `ctx.warn` too, so the log shows every error and not just the first, and
-//     `ctx.error()` fires ONCE with a summary so the failure sits below the full list.
-//   - SeverityWarning / SeverityInfo are intentional behaviours to know about, never a hard halt.
-//
-// `halt: false` is the HMR mode: a bad type mid-edit shouldn't kill the dev server, and the diagnostic
-// still reaches the editor's Problems panel through `ctx.warn`.
-//
-// Applying `downgrade` in this one loop is what makes every halt site follow from it: a downgraded error
-// prints with the `warning` label plus a `(downgraded)` note and stops counting. It is never hidden.
-function surfaceDiagnostics(
-  ctx: any,
-  diagnostics: Diagnostic[],
-  filter: (d: Diagnostic) => boolean,
-  options: {halt: boolean; downgrade?: DowngradeSet; showInfo?: boolean}
-): void {
-  let errorCount = 0;
-  for (const diagnostic of diagnostics) {
-    if (!filter(diagnostic) || !isShown(diagnostic, options.showInfo ?? false)) continue;
-    // NONE, not a skip, when no set is configured: a `@mion-downgrade-error` comment lowers its finding
-    // whatever the build was configured with.
-    const downgraded = isDowngraded(options.downgrade ?? NONE, diagnostic);
-    ctx.warn?.(downgraded ? formatDowngraded(diagnostic) : formatTscDiagnostic(diagnostic));
-    if (diagnostic.severity === Severity.Error && !downgraded) errorCount += 1;
-  }
-  if (options.halt && errorCount > 0) {
-    const noun = errorCount === 1 ? 'unsupported-type error' : 'unsupported-type errors';
-    ctx.error?.(`@mionjs/devtools: ${errorCount} ${noun} — build halted. See warnings above for the call sites.`);
-  }
-}
-
-// The `warning` label and the "configured down" note always travel together, so they are set in one place
-// rather than at each call site.
-export function formatDowngraded(d: Diagnostic): string {
-  return formatTscDiagnostic({...d, severity: Severity.Warning}, true);
-}
-
-// The canonical `tsc --pretty=false` line format, so VS Code's $tsc problem matcher recognises it:
-//   /abs/path(line,col): error PFE9004: headline text
-//     Related: /abs/path(line,col): related message
-// The wire carries only the code + positional args, so the headline comes from the generated catalog, and
-// the numeric severity becomes a word because the line format requires one.
-export function formatTscDiagnostic(d: Diagnostic, downgraded = false): string {
-  const label = severityLabel(d.severity);
-  const headline = renderHeadline(d.code, d.args);
-  // The note goes in the MESSAGE, after the code, so the `$tsc` matcher still reads the line; without it a
-  // configured-down finding is indistinguishable from one that was always a warning.
-  const suffix = downgraded ? ` ${DOWNGRADED_NOTE}` : '';
-  let line = `${d.site.filePath}(${d.site.startLine},${d.site.startCol}): ${label} ${d.code}: ${headline}${suffix}`;
-  if (d.related && d.related.length > 0) {
-    for (const r of d.related) {
-      line += `\n  Related: ${r.filePath}(${r.startLine},${r.startCol}): ${r.message}`;
-    }
-  }
-  return line;
-}
-
-function severityLabel(s: Severity): string {
-  switch (s) {
-    case Severity.Error:
-      return 'error';
-    case Severity.Warning:
-      return 'warning';
-    case Severity.Info:
-      return 'info';
-    default:
-      return 'info';
-  }
-}
-
+export {formatDowngraded, formatTscDiagnostic} from './surface.ts';
 export type {PluginOptions as Options};
 export type {BatchMapping, BatchSite, PureFnSite} from './protocol.ts';
 export {
