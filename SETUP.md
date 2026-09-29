@@ -269,29 +269,24 @@ pnpm run changelog:unreleased  # prepend just the unreleased section to CHANGELO
 
 ## Dev loop — running the Go binary directly
 
-### One-shot (stdio JSON)
+### `mion serve` (stdio JSON)
 
 ```bash
 printf '%s\n%s\n' \
   '{"op":"scanFiles","files":["ts-go-runtypes/internal/testfixtures/f17_runtype_id.ts"]}' \
   '{"op":"dump"}' \
-  | mion-bin/mion --one-shot --tsconfig ts-go-runtypes/internal/testfixtures/tsconfig.json \
+  | mion-bin/mion serve --tsconfig ts-go-runtypes/internal/testfixtures/tsconfig.json \
   > cache.json
-```
-
-### Daemon (Unix socket — used for HMR scenarios)
-
-```bash
-mion-bin/mion --daemon --tsconfig tsconfig.json --socket /tmp/mion.sock
 ```
 
 ### Flags reference
 
+`mion-bin/mion serve --help` lists every flag. The common ones:
+
 ```
---tsconfig PATH               required: path to project tsconfig.json
+--tsconfig PATH               path to project tsconfig.json (default: found like tsc)
 --cwd PATH                    default: current working directory
---one-shot | --daemon         choose stdio one-shot or socket daemon
---socket PATH                 daemon-only socket path
+--sources project|stdin|ops   where the startup Program comes from (default: project)
 --out-json PATH               also write cache JSON on dump
 --out-modules DIR             also write every per-entry virtual module on dump
 --hash-length N               default 7 (all type ids, literals included)
