@@ -1,8 +1,13 @@
 package resolver_test
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/microsoft/typescript-go/shim/tspath"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/resolver"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
@@ -12,8 +17,11 @@ import (
 func overridePairSources() map[string]string {
 	return map[string]string{
 		"runtypes.d.ts": overrideDTS,
-		"a.ts": `import {overrideValidate} from '@mionjs/run-types';
+		"a.ts": `import {overrideValidate, getRunTypeId} from '@mionjs/run-types';
 overrideValidate<string>((v) => typeof v === 'string');
+export const idStatic = getRunTypeId<{name: string}>();
+const sample = {name: 'Ada'};
+export const idReflected = getRunTypeId(sample);
 `,
 		"b.ts": `import {overrideValidate} from '@mionjs/run-types';
 overrideValidate<string>((v) => v !== null);
@@ -33,8 +41,8 @@ func codesAt(diags []diagnostics.Diagnostic, code string) []string {
 
 // TestScanFiles_ReportsOnlyTheRequestedFilesOverrideFindings: a linter would report b.ts's OVR001 at a.ts positions.
 func TestScanFiles_ReportsOnlyTheRequestedFilesOverrideFindings(t *testing.T) {
-	r := setupInline(t, overridePairSources())
-	resp := r.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"a.ts"}})
+	session := setupInline(t, overridePairSources())
+	resp := session.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"a.ts"}})
 	if resp.Error != "" {
 		t.Fatalf("scanFiles: %s", resp.Error)
 	}
@@ -43,7 +51,7 @@ func TestScanFiles_ReportsOnlyTheRequestedFilesOverrideFindings(t *testing.T) {
 			t.Fatalf("scanFiles(a.ts) returned %s anchored in %s", diagnostic.Code, diagnostic.Site.FilePath)
 		}
 	}
-	both := r.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"b.ts"}})
+	both := session.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"b.ts"}})
 	if got := codesAt(both.Diagnostics, diagnostics.CodeDuplicateOverride); len(got) != 1 || got[0] != "b.ts" {
 		t.Fatalf("scanFiles(b.ts) must return the OVR001 anchored in b.ts, got %v", got)
 	}
@@ -51,8 +59,8 @@ func TestScanFiles_ReportsOnlyTheRequestedFilesOverrideFindings(t *testing.T) {
 
 // TestTransform_ReportsOnlyTheRequestedFilesOverrideFindings: a dev server transforming several files prints each once.
 func TestTransform_ReportsOnlyTheRequestedFilesOverrideFindings(t *testing.T) {
-	r := setupInline(t, overridePairSources())
-	resp := r.Dispatch(protocol.Request{Op: protocol.OpTransform, Files: []string{"a.ts"}})
+	session := setupInline(t, overridePairSources())
+	resp := session.Dispatch(protocol.Request{Op: protocol.OpTransform, Files: []string{"a.ts"}})
 	if resp.Error != "" {
 		t.Fatalf("transform: %s", resp.Error)
 	}
@@ -63,8 +71,8 @@ func TestTransform_ReportsOnlyTheRequestedFilesOverrideFindings(t *testing.T) {
 
 // TestGenerate_ReportsOverrideFindings: OVR001 (RuntimeError) and the kept override's OVR010 (Info).
 func TestGenerate_ReportsOverrideFindings(t *testing.T) {
-	r := setupGen(t, overridePairSources(), t.TempDir())
-	resp := r.Dispatch(protocol.Request{Op: protocol.OpGenerate})
+	session := setupGen(t, overridePairSources(), t.TempDir())
+	resp := session.Dispatch(protocol.Request{Op: protocol.OpGenerate})
 	if resp.Error != "" {
 		t.Fatalf("generate: %s", resp.Error)
 	}
@@ -74,7 +82,7 @@ func TestGenerate_ReportsOverrideFindings(t *testing.T) {
 	if got := codesAt(resp.Diagnostics, diagnostics.CodeOverrideValidateCrossFamily); len(got) != 1 || got[0] != "a.ts" {
 		t.Fatalf("generate must report OVR010 for the kept validate override, got %v", got)
 	}
-	dump := r.Dispatch(protocol.Request{Op: protocol.OpDump})
+	dump := session.Dispatch(protocol.Request{Op: protocol.OpDump})
 	if got := codesAt(dump.Diagnostics, diagnostics.CodeDuplicateOverride); len(got) != 1 {
 		t.Fatalf("dump (mion compile --no-emit) must report the OVR001, got %v", got)
 	}
@@ -83,12 +91,12 @@ func TestGenerate_ReportsOverrideFindings(t *testing.T) {
 // generateAfterScanReportsMKR003 scans a.ts first, as a hot update does.
 func generateAfterScanReportsMKR003(t *testing.T, src string) {
 	t.Helper()
-	r := setupGen(t, map[string]string{"a.ts": src, "b.ts": "export const b = 1;\n"}, t.TempDir())
-	scan := r.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"a.ts"}})
+	session := setupGen(t, map[string]string{"a.ts": src, "b.ts": "export const b = 1;\n"}, t.TempDir())
+	scan := session.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"a.ts"}})
 	if got := codesAt(scan.Diagnostics, diagnostics.CodeMarkerFreeTypeParameter); len(got) != 1 {
 		t.Fatalf("scanFiles must report MKR003, got %v", got)
 	}
-	gen := r.Dispatch(protocol.Request{Op: protocol.OpGenerate})
+	gen := session.Dispatch(protocol.Request{Op: protocol.OpGenerate})
 	if gen.Error != "" {
 		t.Fatalf("generate: %s", gen.Error)
 	}
@@ -107,4 +115,33 @@ func TestGenerate_ReportsFilesAScanReachedFirst_ValueFirst(t *testing.T) {
 	generateAfterScanReportsMKR003(t, `import {getRunTypeId} from '@mionjs/run-types';
 export function describe<T>(value: T) { return getRunTypeId(value); }
 `)
+}
+
+// TestGenerateAndDump_ReportLibSelectionOnce: a lib with no ECMAScript edition is CFG002 once, at the first program file.
+func TestGenerateAndDump_ReportLibSelectionOnce(t *testing.T) {
+	source := `import {getRunTypeId} from '@mionjs/run-types';
+export const idStatic = getRunTypeId<{name: string}>();
+const sample = {name: 'Ada'};
+export const idReflected = getRunTypeId(sample);
+`
+	session := setupInlineWith(t, map[string]string{"a.ts": source}, func(programOpts *program.Options, resolverOpts *resolver.Options) {
+		programOpts.SingleThreaded = true
+		resolverOpts.SingleThreaded = true
+		resolverOpts.GenDir = t.TempDir()
+		tsconfig := `{"compilerOptions":{"target":"esnext","module":"esnext","moduleResolution":"bundler","strict":true,"lib":[]}}`
+		if err := os.WriteFile(tspath.ResolvePath(programOpts.Cwd, "tsconfig.json"), []byte(tsconfig), 0o644); err != nil {
+			t.Fatalf("write tsconfig: %v", err)
+		}
+		config, err := program.ParseInferredConfig(programOpts.Cwd, "tsconfig.json")
+		if err != nil {
+			t.Fatalf("ParseInferredConfig: %v", err)
+		}
+		programOpts.Config = config
+	})
+	for _, op := range []string{protocol.OpGenerate, protocol.OpDump} {
+		resp := session.Dispatch(protocol.Request{Op: op})
+		if got := codesAt(resp.Diagnostics, diagnostics.CodeUnsupportedLibSelection); len(got) != 1 {
+			t.Fatalf("%s must report CFG002 once, got %v", op, got)
+		}
+	}
 }

@@ -44,15 +44,10 @@ func throwSitesIn(t *testing.T, outDir string) []string {
 	return found
 }
 
-// throwSiteAfterScanning scans firstFile alone first, as a hot update does.
-func throwSiteAfterScanning(t *testing.T, firstFile string) string {
+// onlyThrowSite generates and returns the one runtime error site the generated modules name.
+func onlyThrowSite(t *testing.T, session *resolver.Session, outDir string) string {
 	t.Helper()
-	outDir := t.TempDir()
-	r := setupGen(t, sharedThrowSources(), outDir)
-	if resp := r.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{firstFile}}); resp.Error != "" {
-		t.Fatalf("scanFiles: %s", resp.Error)
-	}
-	if resp := r.Dispatch(protocol.Request{Op: protocol.OpGenerate}); resp.Error != "" {
+	if resp := session.Dispatch(protocol.Request{Op: protocol.OpGenerate}); resp.Error != "" {
 		t.Fatalf("generate: %s", resp.Error)
 	}
 	found := throwSitesIn(t, outDir)
@@ -62,6 +57,17 @@ func throwSiteAfterScanning(t *testing.T, firstFile string) string {
 	return found[0]
 }
 
+// throwSiteAfterScanning scans firstFile alone first, as a hot update does.
+func throwSiteAfterScanning(t *testing.T, firstFile string) string {
+	t.Helper()
+	outDir := t.TempDir()
+	session := setupGen(t, sharedThrowSources(), outDir)
+	if resp := session.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{firstFile}}); resp.Error != "" {
+		t.Fatalf("scanFiles: %s", resp.Error)
+	}
+	return onlyThrowSite(t, session, outDir)
+}
+
 // TestThrowProvenance_StableAcrossScanOrder: the named site must not depend on which file a scan reached first.
 func TestThrowProvenance_StableAcrossScanOrder(t *testing.T) {
 	fromA := throwSiteAfterScanning(t, "a.ts")
@@ -69,8 +75,9 @@ func TestThrowProvenance_StableAcrossScanOrder(t *testing.T) {
 	if fromA != fromB {
 		t.Fatalf("the named call site changed with scan order: %q vs %q", fromA, fromB)
 	}
-	if !regexp.MustCompile(`a\.ts:2:\d+, and 1 other call site\)$`).MatchString(fromA) {
-		t.Fatalf("expected the a.ts site plus the shared count, got %q", fromA)
+	// Relative to the project, so a bundle never carries a machine's path.
+	if !regexp.MustCompile(`^\(at a\.ts:2:\d+, and 1 other call site\)$`).MatchString(fromA) {
+		t.Fatalf("expected the relative a.ts site plus the shared count, got %q", fromA)
 	}
 }
 
@@ -79,21 +86,14 @@ func TestThrowProvenance_WarmCacheNamesTheLiveSite(t *testing.T) {
 	cacheDir := t.TempDir()
 	build := func(source string) string {
 		outDir := t.TempDir()
-		r := setupInlineWith(t, map[string]string{"a.ts": source}, func(programOpts *program.Options, resolverOpts *resolver.Options) {
+		session := setupInlineWith(t, map[string]string{"a.ts": source}, func(programOpts *program.Options, resolverOpts *resolver.Options) {
 			programOpts.SingleThreaded = true
 			resolverOpts.SingleThreaded = true
 			resolverOpts.GenDir = outDir
 			resolverOpts.TransformRelative = true
 			resolverOpts.CacheDir = cacheDir
 		})
-		if resp := r.Dispatch(protocol.Request{Op: protocol.OpGenerate}); resp.Error != "" {
-			t.Fatalf("generate: %s", resp.Error)
-		}
-		found := throwSitesIn(t, outDir)
-		if len(found) != 1 {
-			t.Fatalf("expected one runtime error site, got %v", found)
-		}
-		return found[0]
+		return onlyThrowSite(t, session, outDir)
 	}
 	const header = "import {createValidateFn, getRunTypeId} from '@mionjs/run-types';\n"
 	const rest = "export const isSymbol = createValidateFn<symbol>();\nexport const idStatic = getRunTypeId<{name: string}>();\nconst sample = {name: 'Ada'};\nexport const idReflected = getRunTypeId(sample);\n"
