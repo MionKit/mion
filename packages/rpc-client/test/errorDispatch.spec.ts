@@ -24,7 +24,7 @@ import {describe, it, expect} from 'vitest';
 import {initClient} from './lib/fetchingClient.ts';
 import {batch} from '../src/batch.ts';
 import {isRpcError, isFatalError, FatalError, RpcError, HeadersSubset} from '@mionjs/core';
-import {TestServerApi, ScopedAuthError} from '@mionjs/test-server';
+import {type TestServerApi, ScopedAuthError} from '@mionjs/test-server';
 import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
 
 function createAuthHeaders(token: string): HeadersSubset<'Authorization'> {

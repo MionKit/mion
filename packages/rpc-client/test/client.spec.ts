@@ -13,7 +13,7 @@ import {purgeHydratedMetadata} from '../src/lib/clientMethodsMetadata.ts';
 import {getMetadataStore} from '../src/lib/metadataStore.ts';
 import {isRpcError, HeadersSubset, routesCache, resetRoutesCache} from '@mionjs/core';
 import {resetJitFunctionsCache} from '@mionjs/core/testing';
-import {TestServerApi} from '@mionjs/test-server';
+import type {TestServerApi} from '@mionjs/test-server';
 import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
 
 // Helper to create auth headers for the test server's headersFn
