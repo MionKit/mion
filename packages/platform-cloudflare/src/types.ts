@@ -5,7 +5,6 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// type-cloudflare-handler-options-start
 export interface CloudflareHandlerOptions {
   /** Set of default response headers to add to every response */
   defaultResponseHeaders: Record<string, string>;
@@ -16,7 +15,6 @@ export interface CloudflareHandlerOptions {
   /** The platform's request ceiling in bytes that no option can raise; set it when your plan or the vendor differs. */
   maxBodySizeCap?: number;
 }
-// type-cloudflare-handler-options-end
 
 export interface CloudflareExecutionContext {
   waitUntil(promise: Promise<any>): void;

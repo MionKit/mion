@@ -12,13 +12,11 @@ import {MayReturnError} from './publicMethods.ts';
 
 // #######  Route Handlers #######
 
-// type-handler-start
 /** Route or Middleware Handler  */
 export type Handler<Context extends CallContext = any, Params extends any[] = any[], Ret = any> = (
   context: Context,
   ...parameters: Params
 ) => Ret | Promise<Ret>;
-// type-handler-end
 
 /** Headers Middleware Handler, for params sent in the header */
 export type HeaderHandler<

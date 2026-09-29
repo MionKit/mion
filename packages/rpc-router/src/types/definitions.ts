@@ -20,7 +20,6 @@ import type {RouterOptions} from './general.ts';
 /** The router options a definition was declared under, the widest shape by default. */
 export type DeclaredRouterOptions = Partial<RouterOptions>;
 
-// type-route-def-start
 export interface RouteDef<
   H extends Handler = any,
   RO extends RouteOptions = RouteOptions,
@@ -34,9 +33,7 @@ export interface RouteDef<
   /** type-only: the router options this route was declared under, never set at runtime */
   readonly routerOptions?: O;
 }
-// type-route-def-end
 
-// type-middleware-def-start
 /** Middleware definition: a step that runs in the ExecutionChain around the route. */
 export interface MiddlewareDef<
   H extends Handler = any,
@@ -51,9 +48,7 @@ export interface MiddlewareDef<
   /** type-only: the router options this middleware was declared under, never set at runtime */
   readonly routerOptions?: O;
 }
-// type-middleware-def-end
 
-// type-header-middleware-def-start
 /** Headers Middleware definition, used to handle header params */
 export interface HeadersMiddlewareDef<
   H extends HeaderHandler = any,
@@ -68,15 +63,12 @@ export interface HeadersMiddlewareDef<
   /** type-only: the router options this middleware was declared under, never set at runtime */
   readonly routerOptions?: O;
 }
-// type-header-middleware-def-end
 
-// type-raw-middleware-def-start
 /** Raw middleware: raw request/response access and call-context changes only, no extra parameters. */
 export interface RawMiddlewareDef<H extends RawMiddlewareHandler = any> {
   type: typeof HandlerType.rawMiddleware;
   handler: H;
   options?: RawMiddlewareOptions;
 }
-// type-raw-middleware-def-end
 
 export type AnyHandlerDef = RouteDef | MiddlewareDef | HeadersMiddlewareDef | RawMiddlewareDef;

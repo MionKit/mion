@@ -8,7 +8,6 @@
 import {type DataOnly} from '@mionjs/run-types';
 import {registerClassSerializer} from '@mionjs/run-types/runtime';
 
-// type-headers-subset-start
 /** Type-safe wrapper for HTTP headers */
 export class HeadersSubset<Required extends string, Optional extends string = never> {
   readonly headers: {[K in Required]: string} & {[K in Optional]?: string};
@@ -16,7 +15,6 @@ export class HeadersSubset<Required extends string, Optional extends string = ne
     this.headers = headers;
   }
 }
-// type-headers-subset-end
 
 // ############# HeadersSubset -> mion class serializer #############
 // Registered alongside the class so decoders rebuild a real instance: dispatch tests `instanceof HeadersSubset`.

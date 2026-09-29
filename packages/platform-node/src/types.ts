@@ -7,7 +7,6 @@
 
 import {ServerOptions} from 'https';
 
-// type-node-http-options-start
 export interface NodeHttpOptions {
   protocol: 'http' | 'https';
   port: number;
@@ -23,4 +22,3 @@ export interface NodeHttpOptions {
    *  `mionVitePlugin({server: {startScript}})` sets this for you. */
   asMiddleware: boolean;
 }
-// type-node-http-options-end

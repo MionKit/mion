@@ -85,7 +85,6 @@ export class TypedError<ErrType extends string> extends ErrorBase {
   }
 }
 
-// type-rpc-error-start
 export class RpcError<ErrType extends string, ErrData = any>
   extends TypedError<ErrType>
   implements RpcErrorParams<ErrType, ErrData>
@@ -129,9 +128,7 @@ export class RpcError<ErrType extends string, ErrData = any>
     Object.setPrototypeOf(this, new.target.prototype);
   }
 }
-// type-rpc-error-end
 
-// type-fatal-error-start
 /** A returned error that ENDS the request: the rest of the chain is skipped (only `alwaysRun` middlewares still run)
  *  and the error stays in the handler's own typed slot, so the client receives it strongly typed. Use it for gates
  *  such as auth. Same wire shape as `RpcError` (the brand never travels), so it decodes by its declared type. */
@@ -150,7 +147,6 @@ export class FatalError<ErrType extends string, ErrData = any> extends RpcError<
     });
   }
 }
-// type-fatal-error-end
 
 /** Stamps the halting brand on an error (non-enumerable, never serialized). Returns the same instance. */
 export function markFatal<Err extends RpcError<string>>(error: Err): Err {

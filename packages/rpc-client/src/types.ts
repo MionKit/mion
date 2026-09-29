@@ -13,15 +13,12 @@ import type {TypedEvent} from './lib/typedEvent.ts';
 import type {MIDDLEWARE_HOOKS} from './constants.ts';
 import type {StorageEngine} from './lib/storage.ts';
 
-// type-undeclared-error-start
 /** The `undeclared` slot: any error that is not part of a declared response: transport, platform,
  * framework, or an undeclared throw. A DECLARED error never lands here, a returned FatalError
  * included: those stay typed in their own route or middleware slot (and the onError listeners).
  * Open by nature, the code can be anything. **/
 export type UndeclaredError = RpcError<string>;
-// type-undeclared-error-end
 
-// type-result-start
 /** Result type for call() - 5-tuple pattern:
  * [routeResult, routeError (declared | ValidationError), undeclared, middlewareResults, middlewareErrors] **/
 export type Result<
@@ -36,9 +33,7 @@ export type Result<
   MiddlewaresResults | undefined,
   MiddlewaresErrors | undefined,
 ];
-// type-result-end
 
-// type-batch-result-start
 /** Result type for batch() - 5-tuple pattern:
  * [routeResults[], routeErrors[] (declared | ValidationError), undeclared (request-scoped, ONE slot), middlewareResults, middlewareErrors] **/
 export type BatchResult<Routes extends RouteSubRequest<any>[]> = [
@@ -48,21 +43,16 @@ export type BatchResult<Routes extends RouteSubRequest<any>[]> = [
   Record<string, unknown> | undefined,
   Record<string, RpcError<string, unknown>> | undefined,
 ];
-// type-batch-result-end
 
-// type-batch-route-results-start
 /** Extract success types from route subrequests as tuple */
 export type BatchRouteResults<Routes extends RouteSubRequest<any>[]> = {
   [K in keyof Routes]: Routes[K] extends RouteSubRequest<infer PH> ? HandlerSuccessResponse<PH> | undefined : never;
 };
-// type-batch-route-results-end
 
-// type-batch-route-errors-start
 /** Extract error types from route subrequests as tuple */
 export type BatchRouteErrors<Routes extends RouteSubRequest<any>[]> = {
   [K in keyof Routes]: Routes[K] extends RouteSubRequest<infer PH> ? Simplify<HandlerErrors<PH>> | undefined : never;
 };
-// type-batch-route-errors-end
 
 /** The client sets method, body and signal on every request. */
 export type ClientFetchOptions = Omit<RequestInit, 'method' | 'body' | 'signal'>;
@@ -126,7 +116,6 @@ export type ErrorOfType<E extends RpcError<string, any>, T extends E['type']> = 
     : never
   : never;
 
-// type-middleware-context-start
 /** Runs after each declared error of the middleware; a returned promise is awaited, any other value ignored */
 export type ErrorHandler<E extends RpcError<string, any>> = (error: E, context: MiddlewareContext) => unknown;
 
@@ -138,17 +127,13 @@ export interface MiddlewareContext extends CallContext {
   /** Sends the whole call again, once per middleware; false when that could run a mutation twice */
   retry(): boolean;
 }
-// type-middleware-context-end
 
-// type-request-handler-start
 /** Runs before each request with the middleware; no `call` sends it nothing, a throw or rejection stops the request */
 export type RequestHandler<P extends any[] = any[]> = (
   call: (...params: P) => void,
   context: CallContext
 ) => void | Promise<void>;
-// type-request-handler-end
 
-// type-call-context-start
 /** The request a RequestHandler runs for, read only */
 export interface CallContext {
   /** The route this request calls, undefined for a batch */
@@ -160,7 +145,6 @@ export interface CallContext {
   readonly options: ClientOptions;
   readonly signal?: AbortSignal;
 }
-// type-call-context-end
 
 /** Plain data for one call; onRequest hooks receive this same object through the read-only CallContext view */
 export interface ClientCallContext extends CallContext {
@@ -184,7 +168,6 @@ export type HandlerErrors<PH extends (...args: any[]) => Promise<any>> = Simplif
 // and so a `bundleApi` build reads which route of which API each dispatch point calls. Defaults keep
 // every `RouteSubRequest<H>` use compiling.
 
-// type-sub-request-start
 /** Represents a remote method (sub request) */
 export interface SubRequest<PH extends PublicHandler, Id extends string = string> {
   pointer: string[];
@@ -198,7 +181,6 @@ export interface SubRequest<PH extends PublicHandler, Id extends string = string
   /** inputFrom() refs passed as params; their slots hold null until the server maps them in */
   mappings?: InputFromRef[];
 }
-// type-sub-request-end
 
 /** Middleware params never go here: each middleware gets them from its onRequest hook */
 export interface CallSetup {
@@ -215,7 +197,6 @@ export interface BatchBuilder<Routes extends RouteSubRequest<any>[]> {
   call(setup?: CallSetup, apiMetadata?: InjectApiMetadata<ApiOf<Routes>, Routes[number]['id']>): Promise<BatchResult<Routes>>;
 }
 
-// type-route-sub-request-start
 /** structure returned from the proxy, containing info of the remote route to execute */
 export interface RouteSubRequest<
   PH extends PublicHandler,
@@ -231,13 +212,11 @@ export interface RouteSubRequest<
     apiMetadata?: InjectApiMetadata<RA, Id>
   ): Promise<Result<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>>>;
 }
-// type-route-sub-request-end
 
 /** A middleware's params for one request, built by the `call` its onRequest hook receives */
 export type MiddlewareSubRequest<PH extends PublicHandler, Id extends string = string> = SubRequest<PH, Id>;
 
 /* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/no-empty-object-type */
-// type-client-middleware-start
 /** The persistent hooks of a middleware, keyed by its id */
 export type MiddlewareEvents<PH extends PublicHandler> = TypedEvent<
   HandlerSuccessResponse<PH>,
@@ -258,7 +237,6 @@ export type ClientMiddlewareOf<H extends (ctx: any, ...params: any[]) => any> = 
 ) => infer R
   ? ClientMiddleware<(...params: P) => Promise<Awaited<R>>>
   : never;
-// type-client-middleware-end
 /* eslint-enable @typescript-eslint/no-unused-vars, @typescript-eslint/no-empty-object-type */
 
 // The mapped types below tell a route, a middleware and a group apart by the `type` discriminant every public

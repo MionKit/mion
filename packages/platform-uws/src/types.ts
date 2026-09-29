@@ -7,7 +7,6 @@
 
 import type {AppOptions} from '@mionjs/bin-uws';
 
-// type-uws-http-options-start
 export interface UwsHttpOptions {
   port: number;
   /** TLS options for uWebSockets.js' SSLApp: set means the server terminates TLS itself, omitted means plain HTTP. */
@@ -19,4 +18,3 @@ export interface UwsHttpOptions {
   /** The platform's request ceiling in bytes that no option can raise; unset here, this platform has none. */
   maxBodySizeCap?: number;
 }
-// type-uws-http-options-end

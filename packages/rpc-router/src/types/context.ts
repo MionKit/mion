@@ -11,7 +11,6 @@ import type {MethodsExecutionChain} from './remoteMethods.ts';
 
 // ####### Call Context #######
 
-// type-call-context-start
 /** The call Context object passed as first parameter to any middleware or route */
 export interface CallContext<ContextData extends Record<string, any> = any> {
   /** Route's path after internal transformation */
@@ -32,14 +31,12 @@ export interface CallContext<ContextData extends Record<string, any> = any> {
   /** Route ids a batch request is running, in call order. Exposed for consumers (logging, metrics). */
   readonly batchRouteIds?: string[];
 }
-// type-call-context-end
 
 // ####### REQUEST & RESPONSE #######
 
 /** Request body as the adapter hands it over: a JSON string, or an object a host already parsed */
 export type RawRequestBody = string | AnyObject;
 
-// type-mion-request-start
 /** Router's own request object, do not confuse with the underlying raw request */
 export interface MionRequest {
   readonly headers: Readonly<Omit<MionHeaders, 'append' | 'set' | 'delete'>>;
@@ -52,9 +49,7 @@ export interface MionRequest {
    *  without them being part of the route's type signature. */
   readonly thrownErrors?: Readonly<Record<string, RpcError<string>>>;
 }
-// type-mion-request-end
 
-// type-mion-response-start
 /** Router's own response object, do not confuse with the underlying raw response */
 export interface MionResponse {
   readonly statusCode: number;
@@ -66,11 +61,9 @@ export interface MionResponse {
   /** The error that ended the chain (thrown or a returned FatalError), first one wins. An `alwaysRun` logger reads it here. */
   readonly fatalError?: RpcError<string>;
 }
-// type-mion-response-end
 
 /** Header names must be case insensitive.
  *  @see https://developer.mozilla.org/en-US/docs/Web/API/Headers */
-// type-mion-headers-start
 export interface MionHeaders {
   append(name: string, value: string): void;
   delete(name: string): void;
@@ -81,14 +74,11 @@ export interface MionHeaders {
   keys(): IterableIterator<string>;
   values(): IterableIterator<string>;
 }
-// type-mion-headers-end
 
 /** Creates the context data object on each route call */
 export type ContextDataFactory<ContextData extends Record<string, any>> = () => ContextData;
 
-// type-response-body-start
 /** Response body, a record containing the result of each handler or an error. */
 export interface ResponseBody extends Record<string, any> {
   '@thrownErrors'?: Record<string, RpcError<string>>;
 }
-// type-response-body-end
