@@ -123,11 +123,11 @@ const packageVersion = (createRequire(import.meta.url)('../../package.json') as 
 
 export const meta = {name: 'mion', version: packageVersion};
 
-export const rules: Record<string, RuleModule> = {
+export const rules = {
   ...Object.fromEntries(RULE_SPECS.map((spec) => [spec.name, diagnosticRule(spec.name, spec.description)])),
   // Not in `recommended`: it does nothing until a `backendSources` option names the paths to keep out of the bundle.
   'enforce-type-imports': enforceTypeImports as unknown as RuleModule,
-};
+} as Record<RuleName | 'enforce-type-imports', RuleModule>;
 
 // oxlint reads its own preset, oxlint-recommended.json, and takes only `meta` + `rules` off this export.
 const plugin = {meta, rules, configs: {} as Record<string, unknown>};

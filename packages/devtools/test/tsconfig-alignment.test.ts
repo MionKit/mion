@@ -148,11 +148,11 @@ describe.runIf(hasBinary())('eslint surface — option-sensitive types and confi
   beforeEach(() => resetSharedSession());
 
   it('lib with ESNext.Temporal (default tsconfig.json): no mion/runtime-error report', () => {
-    expect(runRule(rules['runtime-error']!, consumerAbs, TEMPORAL_CONSUMER_SRC, {})).toEqual([]);
+    expect(runRule(rules['runtime-error'], consumerAbs, TEMPORAL_CONSUMER_SRC, {})).toEqual([]);
   });
 
   it('lib without Temporal: the TMP001 report fires under mion/runtime-error', () => {
-    const reports = runRule(rules['runtime-error']!, consumerAbs, TEMPORAL_CONSUMER_SRC, {
+    const reports = runRule(rules['runtime-error'], consumerAbs, TEMPORAL_CONSUMER_SRC, {
       mion: {tsconfig: 'tsconfig.nolib.json'},
     });
     expect(reports.length).toBeGreaterThan(0);
@@ -160,7 +160,7 @@ describe.runIf(hasBinary())('eslint surface — option-sensitive types and confi
   });
 
   it('a broken configured tsconfig reports as CFG001 under mion/error, not an engine failure', () => {
-    const reports = runRule(rules['error']!, consumerAbs, TEMPORAL_CONSUMER_SRC, {
+    const reports = runRule(rules['error'], consumerAbs, TEMPORAL_CONSUMER_SRC, {
       mion: {tsconfig: 'tsconfig.broken.json'},
     });
     expect(reports.length).toBe(1);

@@ -12,7 +12,15 @@ import {assertValidModuleMode} from './module-mode.ts';
 import {mayHoldMarkerCalls} from './markerImports.ts';
 import {isDowngraded, resolveDowngradeErrors, DOWNGRADE_ALL, type DowngradeSet} from './downgradeErrors.ts';
 import {LEVELS_ALL, resolveShowInfo} from './levels.ts';
-import {formatDowngraded, formatTscDiagnostic, haltError, hostHalt, hostWarn, surfaceDiagnostics} from './surface.ts';
+import {
+  formatDowngraded,
+  formatTscDiagnostic,
+  haltError,
+  hostHalt,
+  hostWarn,
+  surfaceDiagnostics,
+  type HostContext,
+} from './surface.ts';
 import {DevReporter} from './devReporter.ts';
 import {createTypeDepsIndex, depKey} from './type-deps.ts';
 import {warnBelowTypeScriptFloor} from './typescript-floor.ts';
@@ -311,7 +319,8 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
   // The lane question for RuntimeErrors (see PluginOptions.devServer): halting everywhere but here.
   const isDevServer = (): boolean => options.devServer ?? (viteCommand === 'serve' && viteMode !== 'test');
   // A RuntimeError spares only the dev server, where the generated function throws when called.
-  const halts = (d: Diagnostic): boolean => d.level === Level.Error || (d.level === Level.RuntimeError && !isDevServer());
+  const halts = (diagnostic: Diagnostic): boolean =>
+    diagnostic.level === Level.Error || (diagnostic.level === Level.RuntimeError && !isDevServer());
   const devPrint = (block: string): void =>
     viteLogger ? viteLogger.warn(block, {clear: false, timestamp: true}) : console.warn(`[@mionjs/devtools] ${block}`);
   const devReporter = new DevReporter(devPrint, () => cwdAbs || process.cwd());
@@ -429,20 +438,22 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
   // A file the buildStart scan couldn't have seen can introduce NEW error-level diagnostics (warnings were
   // already surfaced program-wide). Same lane rule as buildStart: a fatal Error fails the transform
   // everywhere, a RuntimeError everywhere but the dev server.
-  function surfaceNewErrors(ctx: any, diagnostics: Diagnostic[], activeFile: string): void {
+  function surfaceNewErrors(ctx: HostContext, diagnostics: Diagnostic[], activeFile: string): void {
     const cwd = cwdAbs || process.cwd();
     if (isDevServer()) {
       // A fatal Error is thrown unprinted, since the host prints the throw and shows it in the overlay; a
       // whole-program one only generate finds is thrown from its file's transform too.
       const fatal = devReporter.fatalIn(activeFile, diagnostics);
       devReporter.add(
-        diagnostics.filter((d) => d.level !== Level.Error),
+        diagnostics.filter((diagnostic) => diagnostic.level !== Level.Error),
         downgrade
       );
-      if (fatal.length > 0) hostHalt(ctx, haltError(fatal[0]!, fatal.length, activeFile, cwd));
+      if (fatal.length > 0) hostHalt(ctx, haltError(fatal[0], fatal.length, activeFile, cwd));
       return;
     }
-    const errors = diagnostics.filter((d) => d.level === Level.Error || d.level === Level.RuntimeError);
+    const errors = diagnostics.filter(
+      (diagnostic) => diagnostic.level === Level.Error || diagnostic.level === Level.RuntimeError
+    );
     surfaceDiagnostics(ctx, errors, {halts, downgrade, activeFile, cwd});
   }
 
