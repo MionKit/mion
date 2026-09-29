@@ -43,6 +43,11 @@ describe('elision oracles fire on broken output (negative controls)', () => {
     expect(a).toBe(b);
     const c = normalizeSitePositions("['rj',,'X','never',,'[RJ001] BOOM (at g.ts:3:27)']");
     expect(c).not.toBe(b);
+    // The shared-site count is not a coordinate: two spellings disagreeing on it must still differ.
+    const one = normalizeSitePositions("'[RJ001] boom (at g.ts:5:45, and 1 other call site)'");
+    const two = normalizeSitePositions("'[RJ001] boom (at g.ts:3:27, and 2 other call sites)'");
+    expect(one).toBe("'[RJ001] boom (at <site>, and 1 other call site)'");
+    expect(one).not.toBe(two);
   });
 
   it('the module filter keeps fn entries and pure fns, drops the bundle and facades', () => {
