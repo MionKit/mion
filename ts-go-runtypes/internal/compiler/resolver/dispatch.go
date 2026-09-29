@@ -594,7 +594,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		added := sess.cache.Added(before)
 		// The per-cache "did this scan change anything?" signal the Vite plugin's handleHotUpdate consumes.
 		addedRunTypes := len(added) > 0
-		combinedDiagnostics := append(append(append(append(append([]diagnostics.Diagnostic{}, pureFnDiagnostics...), batchDiagnostics...), apiDiagnostics...), markerDiagnostics...), sess.overrideDiagnostics...)
+		combinedDiagnostics := append(append(append(append(append([]diagnostics.Diagnostic{}, pureFnDiagnostics...), batchDiagnostics...), apiDiagnostics...), markerDiagnostics...), sess.diagnosticsInFiles(sess.overrideDiagnostics, request.Files)...)
 		combinedDiagnostics = sess.appendLibSelectionDiagnostic(combinedDiagnostics, request.Files)
 		// Opt-in enrichment-health pass for the lint surfaces. Runs AFTER cache.Added(before) so the types its
 		// content checks intern never leak into this response's added* HMR signals.
@@ -704,7 +704,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		pureFnGraph, pureFnsDiagnostics := sess.collectProgramPureFns(metrics)
 		// Marker diagnostics from the eager whole-program scan, surfaced as in OpGenerate: batchcompile
 		// consumes this response.
-		response.Diagnostics = append(response.Diagnostics, sess.programScanDiagnostics()...)
+		response.Diagnostics = append(response.Diagnostics, sess.programWideDiagnostics()...)
 		response.Diagnostics = append(response.Diagnostics, pureFnsDiagnostics...)
 		dumpBatchSites, dumpBatchDiagnostics := sess.collectProgramBatches()
 		response.Diagnostics = append(response.Diagnostics, dumpBatchDiagnostics...)
@@ -818,8 +818,8 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		genResponse.Diagnostics = append(genResponse.Diagnostics, genBatchDiagnostics...)
 		genResponse.Diagnostics = append(genResponse.Diagnostics, apiSiteDiagnostics...)
 		genResponse.Diagnostics = append(genResponse.Diagnostics, apiGenDiagnostics...)
-		// Every file's scan findings: buildStart consumes THIS response.
-		genResponse.Diagnostics = append(genResponse.Diagnostics, sess.programScanDiagnostics()...)
+		// Every file's scan findings plus the whole-program override and lib findings: buildStart consumes THIS response.
+		genResponse.Diagnostics = append(genResponse.Diagnostics, sess.programWideDiagnostics()...)
 		genResponse.Diagnostics = append(genResponse.Diagnostics, genPureFnsDiagnostics...)
 		genResponse.Diagnostics = append(genResponse.Diagnostics, genDiagnostics...)
 		// PFE9012: same dangling-dep guard on the disk-generation path.
@@ -946,7 +946,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 				TypeDeps:   sess.cache.DeclFilesForFiles([]string{file}),
 			}
 		}
-		combinedDiagnostics := append(append(append(append(append([]diagnostics.Diagnostic{}, pureFnDiagnostics...), batchDiagnostics...), apiDiagnostics...), markerDiagnostics...), sess.overrideDiagnostics...)
+		combinedDiagnostics := append(append(append(append(append([]diagnostics.Diagnostic{}, pureFnDiagnostics...), batchDiagnostics...), apiDiagnostics...), markerDiagnostics...), sess.diagnosticsInFiles(sess.overrideDiagnostics, request.Files)...)
 		combinedDiagnostics = sess.appendLibSelectionDiagnostic(combinedDiagnostics, request.Files)
 		response := protocol.Response{
 			Transformed:   transformed,
