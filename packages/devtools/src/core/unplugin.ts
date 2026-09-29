@@ -12,7 +12,8 @@ import {assertValidModuleMode} from './module-mode.ts';
 import {mayHoldMarkerCalls} from './markerImports.ts';
 import {isDowngraded, resolveDowngradeErrors, DOWNGRADE_ALL, type DowngradeSet} from './downgradeErrors.ts';
 import {LEVELS_ALL, resolveShowInfo} from './levels.ts';
-import {formatDowngraded, formatTscDiagnostic, hostHalt, hostWarn, surfaceDiagnostics} from './surface.ts';
+import {formatDowngraded, formatTscDiagnostic, haltError, hostHalt, hostWarn, surfaceDiagnostics} from './surface.ts';
+import {DevReporter} from './devReporter.ts';
 import {createTypeDepsIndex, depKey} from './type-deps.ts';
 import {warnBelowTypeScriptFloor} from './typescript-floor.ts';
 
@@ -305,10 +306,17 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
   let viteCommand = '';
   // Vitest runs the serve command in `test` mode, and a test run is a build lane, not a dev server.
   let viteMode = '';
+  // The dev server's logger; its `warn` takes `clear: false`, where a plugin's this.warn clears the terminal.
+  let viteLogger: {warn: (message: string, options?: {clear?: boolean; timestamp?: boolean}) => void} | undefined;
   // The lane question for RuntimeErrors (see PluginOptions.devServer): halting everywhere but here.
   const isDevServer = (): boolean => options.devServer ?? (viteCommand === 'serve' && viteMode !== 'test');
   // A fatal Error stops every lane; a RuntimeError every lane but the dev server, where the generated function throws when called.
   const halts = (d: Diagnostic): boolean => d.level === Level.Error || (d.level === Level.RuntimeError && !isDevServer());
+  const devReporter = new DevReporter(
+    (block) =>
+      viteLogger ? viteLogger.warn(block, {clear: false, timestamp: true}) : console.warn(`[@mionjs/devtools] ${block}`),
+    () => cwdAbs || process.cwd()
+  );
 
   // Idempotent, and called from two places: under Vite configResolved calls it early (to capture Vite's
   // resolved root), under every other bundler buildStart does.
@@ -421,8 +429,19 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
   // already surfaced program-wide). Same lane rule as buildStart: a fatal Error fails the transform
   // everywhere, a RuntimeError everywhere but the dev server.
   function surfaceNewErrors(ctx: any, diagnostics: Diagnostic[], activeFile: string): void {
+    const cwd = cwdAbs || process.cwd();
+    if (isDevServer()) {
+      // A fatal Error is thrown unprinted, since the host prints the throw and shows it in the overlay.
+      const fatal = diagnostics.filter((d) => d.level === Level.Error);
+      devReporter.add(
+        diagnostics.filter((d) => d.level !== Level.Error),
+        downgrade
+      );
+      if (fatal.length > 0) hostHalt(ctx, haltError(fatal[0]!, fatal.length, activeFile, cwd));
+      return;
+    }
     const errors = diagnostics.filter((d) => d.level === Level.Error || d.level === Level.RuntimeError);
-    surfaceDiagnostics(ctx, errors, {halts, downgrade, activeFile, cwd: cwdAbs || process.cwd()});
+    surfaceDiagnostics(ctx, errors, {halts, downgrade, activeFile, cwd});
   }
 
   // The 'go'-mode path, and the safe fallback for 'edits' mode when the source-consistency guard fails.
@@ -472,11 +491,13 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
         await resolver!.setSources({[rel]: code});
         result = await resolver!.transform([rel], {emitEdits: true});
         if (result.addedRunTypes || result.addedPureFns) await regenerate();
-        if (result.sites.length === 0 && (result.replacements?.length ?? 0) === 0) return null;
-        fileResult = result.transformed[rel];
       } catch {
         return transformViaGo(ctx, rel);
       }
+      // Outside the try: a halt must throw, never fall back to 'go' mode.
+      surfaceNewErrors(ctx, result.diagnostics ?? [], rel);
+      if (result.sites.length === 0 && (result.replacements?.length ?? 0) === 0) return null;
+      fileResult = result.transformed[rel];
       // Still divergent after a fresh upload — bail to 'go' mode for correctness.
       if (!fileResult || (fileResult.sourceHash !== undefined && fileResult.sourceHash !== incomingHash)) {
         return transformViaGo(ctx, rel);
@@ -704,13 +725,13 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
   }
 
   /** A batch-source edit: regenerate (the resolver rebuilds the client program) and report. */
-  async function onBatchSourceChange(ctx: any): Promise<void> {
+  async function onBatchSourceChange(): Promise<void> {
     if (!resolver) return;
     try {
       const gen = await regenerate();
       for (const file of gen.siteFiles) siteFiles.add(siteKey(file));
       reportGenerate(gen);
-      surfaceDiagnostics(ctx, gen.diagnostics ?? [], {halts: () => false, downgrade, showInfo});
+      devReporter.update(gen.diagnostics ?? [], downgrade);
     } catch {
       // A regenerate failure shouldn't tear down the dev server mid-edit.
     }
@@ -828,6 +849,8 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       // loop above would have just dropped it.
       for (const file of gen.siteFiles) siteFiles.add(siteKey(file));
       reportGenerate(gen);
+      // generate's list is every current finding, the edited file's scan included, so it is what the dev reporter reads.
+      if (isDevServer()) devReporter.update(gen.diagnostics ?? [], downgrade);
     } catch {
       // A regenerate failure shouldn't tear down the dev server mid-edit.
     }
@@ -835,9 +858,8 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
     // AFTER generate, so the resolver's Program already reflects the edit.
     if (anyEnrichFamily) await syncEnrich(rels);
 
-    // Re-emitted so the editor's problem panel updates as the user types; `halt: false` because HMR
-    // shouldn't tear down the dev server on a single bad type mid-edit.
-    surfaceDiagnostics(ctx, result.diagnostics ?? [], {halts: () => false, downgrade, showInfo});
+    // Outside a dev server (the Vue SFC pass of a build drives this leaf too) the scan's findings print as a build's do.
+    if (!isDevServer()) surfaceDiagnostics(ctx, result.diagnostics ?? [], {halts: () => false, downgrade, showInfo});
 
     const stale = staleSiteFiles(relevant.map((update) => update.file));
     // Reported from the SHARED leaf, so the contract does not depend on which host drove the update.
@@ -923,7 +945,8 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       // Every RuntimeError halts per the downgradeErrors contract in a build lane and only reports on a dev
       // server. The split is the LEVEL, never the diagnostic family: a fatal marker or batch code is not
       // pure-fn, and a purity violation still ships the compiled body, so it is a RuntimeError.
-      surfaceDiagnostics(this, gen.diagnostics ?? [], {halts, downgrade, showInfo, cwd: cwdAbs || process.cwd()});
+      if (isDevServer()) devReporter.update(gen.diagnostics ?? [], downgrade);
+      else surfaceDiagnostics(this, gen.diagnostics ?? [], {halts, downgrade, showInfo, cwd: cwdAbs || process.cwd()});
       // Dev/watch WRITES the mirrors up front, a whole-program pass so they exist before the first edit;
       // every other lane (a production build, a non-Vite bundler) takes the read-only drift gate instead.
       if (anyEnrichFamily) {
@@ -1033,8 +1056,9 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
 
       // The resolver is spawned eagerly here because the marker package's vitest relies on it existing as
       // soon as the workspace project initialises, before any test transform.
-      configResolved(cfg: {root: string; command?: string; mode?: string}) {
+      configResolved(cfg: {root: string; command?: string; mode?: string; logger?: typeof viteLogger}) {
         viteRoot = cfg.root;
+        viteLogger = cfg.logger;
         if (cfg.command) viteCommand = cfg.command;
         if (cfg.mode) viteMode = cfg.mode;
         ensureResolver();
@@ -1050,7 +1074,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
         for (const root of batchSourceRoots) watcher.add(root);
         const onChange = (file: string): void => {
           if (!isBatchSourcePath(file)) return;
-          void onBatchSourceChange({warn: (msg: string) => server.config?.logger?.warn?.(msg)});
+          void onBatchSourceChange();
         };
         // `add` fires for every file of a directory the moment it is registered, so a file the last
         // generate already listed is not news; one it never listed is.

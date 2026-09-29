@@ -551,6 +551,8 @@ describe('the dev server reports a RuntimeError without halting; every build lan
   });
   afterAll(() => fs.rmSync(FIXTURE_DIR, {recursive: true, force: true}));
 
+  // The dev server prints through its logger, so the resolved config carries one that records.
+  const devLog: string[] = [];
   function makeVitePlugin(entryDir: string, command: 'serve' | 'build', mode: string) {
     const plugin = runtypesVite({
       binary: BIN,
@@ -558,7 +560,9 @@ describe('the dev server reports a RuntimeError without halting; every build lan
       tsconfig: 'tsconfig.json',
       genDir: path.join(entryDir, '.mion'),
     }) as any;
-    callHook(plugin.configResolved, plugin, {root: entryDir, command, mode});
+    devLog.length = 0;
+    const logger = {warn: (message: string) => void devLog.push(message)};
+    callHook(plugin.configResolved, plugin, {root: entryDir, command, mode, logger});
     return plugin;
   }
 
@@ -567,7 +571,7 @@ describe('the dev server reports a RuntimeError without halting; every build lan
     const ctx = makeCtx();
     try {
       await callHook(plugin.buildStart, ctx); // ctx.error() throws, so returning at all means no halt
-      const all = ctx.warnings.join('\n');
+      const all = devLog.join('\n');
       // Reported with its real label: not downgraded, not hidden.
       expect(all).toContain('error VL002');
       expect(all).not.toContain('(downgraded)');
@@ -603,12 +607,13 @@ describe('the dev server reports a RuntimeError without halting; every build lan
     }
   });
 
-  register('a fatal Error (MKR014) halts on the dev server too: nothing was produced to serve', async () => {
+  // The dev server never stops on a finding: a fatal Error prints once, and the transform of its file throws.
+  register('a fatal Error (MKR014) prints on the dev server without stopping it', async () => {
     const plugin = makeVitePlugin(COLLISION_DIR, 'serve', 'development');
     const ctx = makeCtx();
     try {
-      await expect(callHook(plugin.buildStart, ctx) as Promise<void>).rejects.toThrow(/build stopped on \d+ mion error/);
-      expect(ctx.warnings.join('\n')).toContain('error MKR014');
+      await callHook(plugin.buildStart, ctx);
+      expect(devLog.join('\n')).toContain('error MKR014');
     } finally {
       await callHook(plugin.buildEnd, ctx);
     }
