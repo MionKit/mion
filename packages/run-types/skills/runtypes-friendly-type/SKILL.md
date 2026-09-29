@@ -17,7 +17,7 @@ A `FriendlyText<T>` is a combined, per-field map of:
 - **error-message templates** — `rt$errors`, one template per failed constraint.
 
 It is **pure data**. The shipped runtime renderer is
-[`createFriendlyText<T>(map)`](https://github.com/mionkit/run-types/blob/main/packages/run-types/src/enrich/createFriendlyText.ts);
+[`createFriendlyText<T>(map)`](https://github.com/MionKit/mion/blob/main/packages/run-types/src/enrich/createFriendlyText.ts);
 it turns `createGetValidationErrorsFn<T>()` output into readable messages. No type-id
 injection, no `rtUtils` — error rendering needs only `(map, errors)`.
 
@@ -37,10 +37,10 @@ map involved.
 
 - **Shipped:** the `FriendlyText<T>` DSL type with the plural types
   (`PluralTemplate`, `TemplateLeaf`, `PluralCategory`)
-  ([`friendlyType.ts`](https://github.com/mionkit/run-types/blob/main/packages/run-types/src/enrich/friendlyType.ts)); the
+  ([`friendlyText.ts`](https://github.com/MionKit/mion/blob/main/packages/run-types/src/enrich/friendlyText.ts)); the
   plural-aware `createFriendlyText<T>(map)` renderer plus `createFriendlyTextI18n`,
   and `resolveLocale`
-  ([`createFriendlyText.ts`](https://github.com/mionkit/run-types/blob/main/packages/run-types/src/enrich/createFriendlyText.ts)) —
+  ([`createFriendlyText.ts`](https://github.com/MionKit/mion/blob/main/packages/run-types/src/enrich/createFriendlyText.ts)) —
   all exported from `@mionjs/run-types`. The `enrich` / `enrich --no-emit` CLI (including `--i18n`)
   scaffolds and validates the committed maps — see the `rt-enrich-types` skill.
 - **Designed (not yet wired):** the `ShapeCheckedArgs<T>` compile-time axis and
@@ -90,7 +90,7 @@ every failable declared param is a REQUIRED key (blank `''` = no custom message)
 unknown key is an excess-property TYPE error (FT003's job, moved into the IDE), and
 non-failing params never become keys (`isCurrency`, `mockSamples`, and the transformers
 `trim` / `lowercase` / `uppercase` / `capitalize` / `replace` / `replaceAll` — the
-`NonFailingParams` union in `friendlyType.ts`, mirroring Go's `nonFailingParams`). A
+`NonFailingParams` union in `friendlyText.ts`, mirroring Go's `nonFailingParams`). A
 bare `name: string` takes `type` only; a richer friendly map requires a richer type
 annotation.
 

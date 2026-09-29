@@ -309,11 +309,6 @@ func ensureFamilyReadme(config enrichConfig, family string) {
 	_ = os.WriteFile(readme, []byte(text), 0o644)
 }
 
-// The mirror-path helpers (MirrorPath / LegacyMirrorPath / MirrorRel /
-// TranslationPathFor) and the forceTSExt / resolveUnder utilities now live as
-// methods on enrichgen.Config in internal/enrichment/enrichgen, shared with the
-// OpEnrich daemon op. Call them as config.MirrorPath(...) etc.
-
 // parseTsconfig reads and tolerantly parses a JSONC tsconfig.json (comments +
 // trailing commas stripped). Returns ok=false on read or parse failure so the
 // caller falls back to defaults.

@@ -122,7 +122,7 @@ func enrichAnnotation(typeChecker *checker.Checker, declaration *ast.Node, marke
 	}
 	var kind mapKind
 	switch {
-	case enrichment.IsFriendlyWrapperName(symbol.Name): // FriendlyText (+ legacy FriendlyType)
+	case symbol.Name == enrichment.FriendlyTextName:
 		kind = mapKindFriendly
 	case symbol.Name == enrichment.MockDataName:
 		kind = mapKindMock

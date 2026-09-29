@@ -1,12 +1,7 @@
 // Cheap text pre-filters the rules run BEFORE paying a resolver round trip: a file matching none of them can
 // produce no diagnostic, so the rules skip it, the common case for most files in a lint run.
 
-import {
-  FRIENDLY_TEXT_NAME,
-  FRIENDLY_TYPE_NAME,
-  MARKER_COMMENT_PREFIX,
-  MOCK_DATA_NAME,
-} from '../core/go-generated/runtypes-constants.generated.ts';
+import {FRIENDLY_TEXT_NAME, MARKER_COMMENT_PREFIX, MOCK_DATA_NAME} from '../core/go-generated/runtypes-constants.generated.ts';
 import {mayHoldMarkerCalls, type MarkerGateOptions} from '../core/markerImports.ts';
 
 // Gates the compiler-diagnostics pass with the build fallback's own gate, so lint and build admit the same files.
@@ -16,10 +11,9 @@ export function referencesMarkerModule(text: string, file?: string, markers?: Ma
 
 // enrichConstAnnotationPattern mirrors the Go-side guard's structural probe: a CONST declaration annotated with
 // a DSL type, the shape every scaffold emits. The Go guard masks comments first; this one does not, so a rare
-// comment-only match pays one round trip the authoritative Go guard then rejects. FRIENDLY_TYPE_NAME (legacy)
-// stays in the alternation so mirrors authored before the friendly-text rename still match.
+// comment-only match pays one round trip the authoritative Go guard then rejects.
 const enrichConstAnnotationPattern = new RegExp(
-  `^[ \\t]*(?:export[ \\t]+)?const[ \\t]+[A-Za-z_$][A-Za-z0-9_$]*[ \\t]*:\\s*(?:${FRIENDLY_TEXT_NAME}|${FRIENDLY_TYPE_NAME}|${MOCK_DATA_NAME})[ \\t]*<`,
+  `^[ \\t]*(?:export[ \\t]+)?const[ \\t]+[A-Za-z_$][A-Za-z0-9_$]*[ \\t]*:\\s*(?:${FRIENDLY_TEXT_NAME}|${MOCK_DATA_NAME})[ \\t]*<`,
   'm'
 );
 

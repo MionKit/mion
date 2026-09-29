@@ -6,7 +6,7 @@
 // non-failing params (isCurrency, transformers) never become keys.
 //
 // Each `it` compiles a representative snippet for ONE branch of `FriendlyNode`
-// (src/enrich/friendlyType.ts) and asserts valid maps are assignable + invalid
+// (src/enrich/friendlyText.ts) and asserts valid maps are assignable + invalid
 // maps rejected (a `@ts-expect-error` that fails to fire becomes TS2578, so a
 // too-loose type reds the test).
 //

@@ -30,7 +30,7 @@ func TestParseBreadcrumb(t *testing.T) {
 		{
 			name: "source breadcrumb after dsl import",
 			contents: "import type { User, Post } from '../../src/models/user';\n" +
-				"import type { FriendlyType, MockData } from '@mionjs/run-types';\n\n" +
+				"import type { FriendlyText, MockData } from '@mionjs/run-types';\n\n" +
 				"export const friendlyUser = {};\n",
 			wantNames: []string{"User", "Post"},
 			wantSpec:  "../../src/models/user",
@@ -38,7 +38,7 @@ func TestParseBreadcrumb(t *testing.T) {
 		},
 		{
 			name: "dsl import first still skipped",
-			contents: "import type { FriendlyType, MockData } from '@mionjs/run-types';\n" +
+			contents: "import type { FriendlyText, MockData } from '@mionjs/run-types';\n" +
 				"import type { Address } from './address';\n",
 			wantNames: []string{"Address"},
 			wantSpec:  "./address",
@@ -53,7 +53,7 @@ func TestParseBreadcrumb(t *testing.T) {
 		},
 		{
 			name:     "no source breadcrumb",
-			contents: "import type { FriendlyType } from '@mionjs/run-types';\nexport const x = {};\n",
+			contents: "import type { FriendlyText } from '@mionjs/run-types';\nexport const x = {};\n",
 			wantOK:   false,
 		},
 	}
@@ -183,7 +183,7 @@ func TestCheckMirrorFile_Clean(t *testing.T) {
 	writeTestFile(t, filepath.Join(dir, "src", "models", "user.ts"), "export interface User { name: string }")
 	mirror := filepath.Join(dir, "src", ".mion", "enriched", "friendly", "models", "user.ts")
 	writeTestFile(t, mirror, "import type { User } from '../../../../models/user';\n"+
-		"import type { FriendlyType } from '@mionjs/run-types';\n\nexport const friendlyUser = {};\n")
+		"import type { FriendlyText } from '@mionjs/run-types';\n\nexport const friendlyUser = {};\n")
 
 	findings := checkMirrorFileTest(mirror)
 	if len(findings) != 0 {
@@ -206,7 +206,7 @@ func TestCheckMirrorFile_NodeModulesSourceClean(t *testing.T) {
 	writeTestFile(t, filepath.Join(pkg, "src", "stringFormats.ts"), "export interface String {}")
 	mirror := filepath.Join(dir, "src", ".mion", "enriched", "friendly", "stringFormats.ts")
 	writeTestFile(t, mirror, "import type { String } from '../../../../node_modules/@x/pkg/src/stringFormats';\n"+
-		"import type { FriendlyType } from '@mionjs/run-types';\n\nexport const friendlyString = {};\n")
+		"import type { FriendlyText } from '@mionjs/run-types';\n\nexport const friendlyString = {};\n")
 
 	findings := checkMirrorFileTest(mirror)
 	if len(findings) != 0 {
@@ -251,21 +251,20 @@ func TestCheckMirrorFile_I18nRelocatedDrifts(t *testing.T) {
 	}
 }
 
-// TestCheckMirrorFile_LegacyCombinedDrifts: a pre-split combined mirror (no
-// family segment in its path) is flagged GE001 so the user re-runs gen to
-// migrate it into the per-family files.
-func TestCheckMirrorFile_LegacyCombinedDrifts(t *testing.T) {
+// TestCheckMirrorFile_NoFamilySegmentDrifts: a mirror moved out of its family
+// dir (no family segment in its path) is flagged GE001.
+func TestCheckMirrorFile_NoFamilySegmentDrifts(t *testing.T) {
 	dir := canonicalTempDir(t)
 	t.Chdir(dir)
 	writeTestFile(t, filepath.Join(dir, "tsconfig.json"), `{ "compilerOptions": { "rootDir": "src" } }`)
 	writeTestFile(t, filepath.Join(dir, "src", "models", "user.ts"), "export interface User { name: string }")
 	mirror := filepath.Join(dir, "src", ".mion", "enriched", "models", "user.ts")
 	writeTestFile(t, mirror, "import type { User } from '../../../models/user';\n"+
-		"import type { FriendlyType, MockData } from '@mionjs/run-types';\n\nexport const friendlyUser = {};\n")
+		"import type { FriendlyText, MockData } from '@mionjs/run-types';\n\nexport const friendlyUser = {};\n")
 
 	findings := checkMirrorFileTest(mirror)
 	if len(findings) != 1 || findings[0].Code != "GE001" {
-		t.Fatalf("legacy combined mirror should yield exactly one GE001; got %+v", findings)
+		t.Fatalf("a mirror with no family segment should yield exactly one GE001; got %+v", findings)
 	}
 }
 

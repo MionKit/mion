@@ -13,7 +13,6 @@ import (
 
 // Plan resolves typeName in absPath and builds its per-family mirror.Spec set; the caller runs Scaffold / Reconcile over them.
 // Disk-free, so CLI and daemon compute identical mirrors: the CLI writes the result, the daemon returns it on the wire.
-// declFiles is the files the closure spans, first appearance first; the CLI migrates each legacy mirror before writing.
 // A non-empty out is the CLI --out override: every const collapses into one combined single-file spec.
 func Plan(
 	prog *program.Program,
@@ -22,19 +21,19 @@ func Plan(
 	absPath, typeName, out string,
 	wantFriendly, wantMock bool,
 	cfg Config,
-) (specs []mirror.Spec, declFiles []string, err error) {
+) ([]mirror.Spec, error) {
 	resolved, err := enrichment.ResolveTypeRaw(prog, chk, cache, absPath, typeName)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	// A name that failed to resolve checked as `any`, and a mirror scaffolded from it would silently miss the degraded members.
 	if unresolved := enrichment.UnresolvedNameRefs(prog, chk, absPath, typeName); len(unresolved) > 0 {
-		return nil, nil, fmt.Errorf("%s: type reference %s did not resolve and checked as 'any' — fix the name or include the missing declaration in the tsconfig before enriching",
+		return nil, fmt.Errorf("%s: type reference %s did not resolve and checked as 'any' — fix the name or include the missing declaration in the tsconfig before enriching",
 			typeName, strings.Join(unresolved, ", "))
 	}
 	// rt$ is RESERVED for enrichment meta keys, so a colliding property makes the scaffold unrepresentable.
 	if collisions := enrichment.ReservedPropertyCollisions(resolved.Node, resolved.Resolve); len(collisions) > 0 {
-		return nil, nil, fmt.Errorf("%s: property %s collides with the reserved enrichment meta prefix 'rt$' — rename the property or exclude the type from enrichment",
+		return nil, fmt.Errorf("%s: property %s collides with the reserved enrichment meta prefix 'rt$' — rename the property or exclude the type from enrichment",
 			typeName, strings.Join(collisions, ", "))
 	}
 
@@ -45,8 +44,7 @@ func Plan(
 		SourceLocale: cfg.SourceLocale,
 	})
 
-	specs, declFiles = specsFromClosure(cfg, closure, absPath, out, wantFriendly, wantMock)
-	return specs, declFiles, nil
+	return specsFromClosure(cfg, closure, absPath, out, wantFriendly, wantMock), nil
 }
 
 // PlanMany merges the closures of several type names into ONE per-family spec set, what a combined `enrich --update` produces.
@@ -62,7 +60,7 @@ func PlanMany(
 	out string,
 	wantFriendly, wantMock bool,
 	cfg Config,
-) (specs []mirror.Spec, declFiles []string) {
+) []mirror.Spec {
 	var closure []enrichment.NamedConst
 	seenVar := map[string]bool{}
 	for _, typeName := range typeNames {
@@ -94,7 +92,7 @@ func PlanMany(
 }
 
 // specsFromClosure is the tail of Plan / PlanMany; the per-var decl-file map lets a referrer import a var homed elsewhere.
-func specsFromClosure(cfg Config, closure []enrichment.NamedConst, absPath, out string, wantFriendly, wantMock bool) (specs []mirror.Spec, declFiles []string) {
+func specsFromClosure(cfg Config, closure []enrichment.NamedConst, absPath, out string, wantFriendly, wantMock bool) []mirror.Spec {
 	groups := GroupByDeclFile(closure, absPath, out != "")
 
 	varDeclFile := map[string]string{}
@@ -107,16 +105,15 @@ func specsFromClosure(cfg Config, closure []enrichment.NamedConst, absPath, out 
 		varDeclFile[named.MockVar] = declFile
 	}
 
+	var specs []mirror.Spec
 	for _, group := range groups {
-		declFiles = append(declFiles, group.DeclFile)
 		specs = append(specs, BuildSpecs(cfg, group, varDeclFile, out, wantFriendly, wantMock)...)
 	}
-	return specs, declFiles
+	return specs
 }
 
 // BuildSpecs builds one spec PER wanted family for a source-file group, each with a family-matched MirrorPathFor.
 // That keeps a cross-file value import on a sibling of the SAME family; the out override collapses it into one file.
-// No legacy-mirror migration happens here, that disk pre-step is the CLI's alone.
 func BuildSpecs(cfg Config, group DeclFileGroup, varDeclFile map[string]string, out string, wantFriendly, wantMock bool) []mirror.Spec {
 	if out != "" {
 		return []mirror.Spec{{
@@ -127,7 +124,7 @@ func BuildSpecs(cfg Config, group DeclFileGroup, varDeclFile map[string]string, 
 			Out:           out,
 			WantFriendly:  wantFriendly,
 			WantMock:      wantMock,
-			MirrorPathFor: cfg.LegacyMirrorPath,
+			MirrorPathFor: cfg.CombinedMirrorPath,
 		}}
 	}
 

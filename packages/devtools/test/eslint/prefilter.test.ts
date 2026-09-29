@@ -17,7 +17,6 @@ import {
 } from '../../src/lint/prefilter.ts';
 import {
   FRIENDLY_TEXT_NAME,
-  FRIENDLY_TYPE_NAME,
   MARKER_COMMENT_PREFIX,
   MOCK_DATA_NAME,
   ORPHAN_BLOCK_PATTERN_SOURCE,
@@ -40,7 +39,6 @@ describe('constant sync with internal/enrichment/mirror/tags.go', () => {
     expect(TAGS_GO).toContain(`OrphanTag      = "${ORPHAN_TAG}"`);
     expect(ORPHAN_CHILD_TAG).toBe(`${ORPHAN_TAG}Child`);
     expect(NAMES_GO).toContain(`FriendlyTextName = "${FRIENDLY_TEXT_NAME}"`);
-    expect(NAMES_GO).toContain(`FriendlyTypeName = "${FRIENDLY_TYPE_NAME}"`); // legacy spelling still declared
     expect(NAMES_GO).toContain(`MockDataName     = "${MOCK_DATA_NAME}"`);
   });
 
@@ -185,16 +183,15 @@ describe('looksLikeEnrichmentFile', () => {
   it('matches the marker EMIT form and the annotation form', () => {
     expect(looksLikeEnrichmentFile(`${MARKER_COMMENT_PREFIX}User#a1 */\nexport const friendlyUser = {};`)).toBe(true);
     expect(looksLikeEnrichmentFile(`export const f: ${FRIENDLY_TEXT_NAME}<User> = {};`)).toBe(true);
-    expect(looksLikeEnrichmentFile(`export const f: ${FRIENDLY_TYPE_NAME}<User> = {};`)).toBe(true); // legacy spelling still recognized
     expect(looksLikeEnrichmentFile(`export const m:\n  ${MOCK_DATA_NAME}<User> = {};`)).toBe(true);
   });
 
   it('never matches bare tag strings, declarations, parameter annotations, or prose mentions', () => {
     expect(looksLikeEnrichmentFile(`export const RT_TYPE_TAG = '${RT_TYPE_TAG}';`)).toBe(false);
-    expect(looksLikeEnrichmentFile(`export type ${FRIENDLY_TYPE_NAME}<T> = unknown; // the \`${TODO_TAG}\` layer`)).toBe(false);
+    expect(looksLikeEnrichmentFile(`export type ${FRIENDLY_TEXT_NAME}<T> = unknown; // the \`${TODO_TAG}\` layer`)).toBe(false);
     expect(looksLikeEnrichmentFile(`// ${TODO_TAG}: refactor\nexport const a = 1;`)).toBe(false);
     // The runtime's own signature takes the map as a PARAMETER — not a mirror.
-    expect(looksLikeEnrichmentFile(`export function createFriendlyText<T>(map: ${FRIENDLY_TYPE_NAME}<T>) {}`)).toBe(false);
+    expect(looksLikeEnrichmentFile(`export function createFriendlyText<T>(map: ${FRIENDLY_TEXT_NAME}<T>) {}`)).toBe(false);
   });
 });
 
@@ -245,7 +242,7 @@ describe('declaresUnsafePropertyName', () => {
 describe('needsResolverPass', () => {
   it('is the union of all three gates', () => {
     expect(needsResolverPass(`import {getRunTypeId} from '@mionjs/run-types';`)).toBe(true);
-    expect(needsResolverPass(`export const f: ${FRIENDLY_TYPE_NAME}<User> = {};`)).toBe(true);
+    expect(needsResolverPass(`export const f: ${FRIENDLY_TEXT_NAME}<User> = {};`)).toBe(true);
     expect(needsResolverPass('export const a = 1;')).toBe(false);
   });
 

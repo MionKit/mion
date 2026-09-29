@@ -86,7 +86,7 @@ func (sess *Session) dispatchEnrich(request protocol.Request) protocol.Response 
 		if len(typeNames) == 0 {
 			continue
 		}
-		specs, _ := enrichgen.PlanMany(sess.Program, sess.checker, sess.cache, absPath, typeNames, "", wantFriendly, wantMock, cfg)
+		specs := enrichgen.PlanMany(sess.Program, sess.checker, sess.cache, absPath, typeNames, "", wantFriendly, wantMock, cfg)
 
 		for _, spec := range specs {
 			existing, _ := sess.Program.FS.ReadFile(spec.MirrorPath)

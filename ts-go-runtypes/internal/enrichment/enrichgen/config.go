@@ -148,8 +148,8 @@ func (config Config) MirrorPath(family, absSourceFile string) string {
 	return filepath.Clean(filepath.Join(config.EnrichDir, family, config.MirrorRel(absSourceFile)))
 }
 
-// LegacyMirrorPath is the pre-split COMBINED mirror location, read only: it is migrated from, never written to again.
-func (config Config) LegacyMirrorPath(absSourceFile string) string {
+// CombinedMirrorPath is <EnrichDir>/<rel>, with no family segment: where an --out combined spec resolves cross-file imports.
+func (config Config) CombinedMirrorPath(absSourceFile string) string {
 	return filepath.Clean(filepath.Join(config.EnrichDir, config.MirrorRel(absSourceFile)))
 }
 

@@ -14,7 +14,7 @@
 >   byte-identical idempotent re-run, and a destructive prune sweep (see
 >   [`enrich` semantics → `--update`](#enrich---update--reconcile-value-preserving-merge));
 > - the **per-family mirror split** (`<genDir>/enriched/friendly/` + `<genDir>/enriched/mock/`
->   subtrees, with a one-shot auto-migration of pre-split combined mirrors) and the
+>   subtrees) and the
 >   **FriendlyText i18n layer** — per-locale translation mirrors, generator-owned
 >   plural templates (checked by **FT006 / FT007 / FT008**), `createFriendlyTextI18n`,
 >   `enrich --i18n` / `enrich --i18n --no-emit` (see [Translations (i18n)](#translations-i18n)).
@@ -215,7 +215,7 @@ no custom message), an unknown key is an excess-property error (FT003 moves into
 the IDE), count-bearing keys accept a plural object, and non-failing params
 (`isCurrency` + the transformers `trim`/`lowercase`/`uppercase`/`capitalize`/
 `replace`/`replaceAll` — the `NonFailingParams` union in
-[`friendlyType.ts`](../packages/run-types/src/enrich/friendlyType.ts), mirrored
+[`friendlyText.ts`](../packages/run-types/src/enrich/friendlyText.ts), mirrored
 by `nonFailingParams` in [`ts-go-runtypes/internal/enrichment/enrich.go`](../ts-go-runtypes/internal/enrichment/enrich.go))
 never become keys. The richness of the friendly map is a function of how richly
 the type is annotated.
@@ -258,7 +258,7 @@ both legal in single-locale maps too:
   legal on a count-bearing constraint; `rt$label` is always a plain string.
   Type-side: `TemplateLeaf = string | PluralTemplate` (plus `PluralCategory`),
   exported from `@mionjs/run-types`; the TS `CountBearingKeys` union in
-  `friendlyType.ts` mirrors Go's `CountBearing` — the second TS↔Go sync point.
+  `friendlyText.ts` mirrors Go's `CountBearing` — the second TS↔Go sync point.
 - **Type-driven `$[val]` rendering.** On the `createFriendlyTextI18n` path the
   error's format payload says what the bound IS. A number with the `isCurrency`
   param (`TF.Currency<P>` = `Number<P & {isCurrency: true}>` — pure
@@ -326,7 +326,7 @@ type ConstraintTemplates<P> = { type: FriendlyTemplate } & {
   [K in Exclude<keyof P & string, NonFailingParams>]: K extends CountBearingKeys ? TemplateLeaf : FriendlyTemplate;
 } & { rt$default?: never };
 type DefaultOnlyTemplates = { rt$default: FriendlyTemplate; type?: never };
-export type ErrorTemplates<F = never> = /* bare `type`-only ⋁ DefaultOnly ⋁ Constraint<P> — see friendlyType.ts */ …;
+export type ErrorTemplates<F = never> = /* bare `type`-only ⋁ DefaultOnly ⋁ Constraint<P> — see friendlyText.ts */ …;
 
 interface FriendlyMeta<F = never> { rt$label: string; rt$errors: ErrorTemplates<F> }  // BOTH required
 type FriendlyLeaf = string | number | boolean | bigint | null | undefined | Date | RegExp;
@@ -653,20 +653,8 @@ generated file simply fails to compile and the user fixes the export. That same
 `import type` line doubles as the **breadcrumb** for drift detection (see
 [`enrich` semantics](#enrich-semantics)).
 
-**Migrating a pre-split combined mirror.** A legacy mirror (one file at the
-no-family path holding both `friendly*` and `mock*` consts) is migrated
-automatically — once — by the next `enrich` run over its source: every const, marker,
-hand-written comment and `@rtOrphan` carcass is carried VERBATIM into its family's
-file, the source breadcrumb is recomputed for the one-directory-deeper location
-(cross-mirror value-import specifiers are untouched — both endpoints move down one
-family segment, so the relative path between two mirror files is unchanged), and
-the legacy file is deleted (`SplitCombined` in
-[`ts-go-runtypes/internal/enrichment/mirror/split.go`](../ts-go-runtypes/internal/enrichment/mirror/split.go)). The
-guards are conservative: the legacy file's breadcrumb must resolve back to the
-same source, and an existing family file is never overwritten (a stderr warning
-asks for a hand-merge instead). Until migrated, `enrich --no-emit` flags a combined
-mirror as **GE001** location drift. `--out <path>` keeps the old combined
-single-file layout as an explicit escape hatch.
+`enrich --no-emit` flags a mirror outside its family folder as **GE001** location
+drift. `--out <path>` writes one combined file instead, as an explicit escape hatch.
 
 ### Named-type-driven emission (decided)
 

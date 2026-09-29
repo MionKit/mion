@@ -80,16 +80,11 @@ type constEntry struct {
 	varNameEnd    int
 	annoNameStart int
 	annoNameEnd   int
-	// annoWrapper is the annotation WRAPPER name and its bounds, so `enrich --update` can splice a legacy FriendlyType.
-	annoWrapper      string
-	annoWrapperStart int
-	annoWrapperEnd   int
 }
 
 // importEntry is one indexed import: its names, the statement's byte range, and the named-bindings clause range.
 type importEntry struct {
 	names      []string
-	nameSpans  [][2]int // each name's original identifier range, aligned with names, for the DSL-import lazy rename
 	specifier  string
 	tokenStart int
 	end        int
@@ -225,26 +220,22 @@ func (index *Index) indexVariableStatement(text string, statement *ast.Node) {
 
 		markerStart, markerEnd := markerBlockRange(text, ownStart, tokenStart)
 		typeName, annoStart, annoEnd := annotationTypeNameRange(declaration, index.sourceFile)
-		wrapperName, wrapperStart, wrapperEnd := annotationWrapperRange(declaration, index.sourceFile)
 		entry := &constEntry{
-			varName:          varName,
-			isFriendly:       isFriendly,
-			typeName:         typeName,
-			typeID:           typeID,
-			childIDs:         childIDs,
-			fullStart:        ownStart,
-			tokenStart:       tokenStart,
-			end:              statement.End(),
-			body:             body,
-			markerStart:      markerStart,
-			markerEnd:        markerEnd,
-			varNameStart:     scanner.GetTokenPosOfNode(nameNode, index.sourceFile, false),
-			varNameEnd:       nameNode.End(),
-			annoNameStart:    annoStart,
-			annoNameEnd:      annoEnd,
-			annoWrapper:      wrapperName,
-			annoWrapperStart: wrapperStart,
-			annoWrapperEnd:   wrapperEnd,
+			varName:       varName,
+			isFriendly:    isFriendly,
+			typeName:      typeName,
+			typeID:        typeID,
+			childIDs:      childIDs,
+			fullStart:     ownStart,
+			tokenStart:    tokenStart,
+			end:           statement.End(),
+			body:          body,
+			markerStart:   markerStart,
+			markerEnd:     markerEnd,
+			varNameStart:  scanner.GetTokenPosOfNode(nameNode, index.sourceFile, false),
+			varNameEnd:    nameNode.End(),
+			annoNameStart: annoStart,
+			annoNameEnd:   annoEnd,
 		}
 		index.consts = append(index.consts, entry)
 		index.byVar[varName] = entry
@@ -293,20 +284,6 @@ func annotationTypeNameRange(declaration *ast.Node, sourceFile *ast.SourceFile) 
 	return nameNode.Text(), scanner.GetTokenPosOfNode(nameNode, sourceFile, false), nameNode.End()
 }
 
-// annotationWrapperRange reads the annotation's WRAPPER name, not its `<T>` argument, and its range, so `enrich --update`
-// can splice a legacy `FriendlyType` to `FriendlyText`. The name is "" when the annotation is not a type reference.
-func annotationWrapperRange(declaration *ast.Node, sourceFile *ast.SourceFile) (name string, start, end int) {
-	typeNode := declaration.AsVariableDeclaration().Type
-	if typeNode == nil || !ast.IsTypeReferenceNode(typeNode) {
-		return "", 0, 0
-	}
-	nameNode := typeNode.AsTypeReferenceNode().TypeName
-	if nameNode == nil {
-		return "", 0, 0
-	}
-	return nameNode.Text(), scanner.GetTokenPosOfNode(nameNode, sourceFile, false), nameNode.End()
-}
-
 // indexImport records one import as the source breadcrumb, the DSL import, or a cross-file value import.
 func (index *Index) indexImport(text string, statement *ast.Node) {
 	importDecl := statement.AsImportDeclaration()
@@ -316,10 +293,9 @@ func (index *Index) indexImport(text string, statement *ast.Node) {
 	specifier := importDecl.ModuleSpecifier.Text()
 	tokenStart := scanner.GetTokenPosOfNode(statement, index.sourceFile, false)
 
-	names, nameSpans, clauseStart, clauseEnd := importedNames(text, importDecl, index.sourceFile)
+	names, clauseStart, clauseEnd := importedNames(text, importDecl, index.sourceFile)
 	entry := &importEntry{
 		names:       names,
-		nameSpans:   nameSpans,
 		specifier:   specifier,
 		tokenStart:  tokenStart,
 		end:         statement.End(),
@@ -343,29 +319,29 @@ func (index *Index) indexImport(text string, statement *ast.Node) {
 	}
 }
 
-// importedNames returns an import's names before any `as` alias, each name's own range, and the names-list range.
+// importedNames returns an import's names before any `as` alias, and the names-list range.
 // The list range is trimmed of trivia, so a splice replaces exactly `User, Post` and leaves the braces byte-identical.
-func importedNames(text string, importDecl *ast.ImportDeclaration, sourceFile *ast.SourceFile) (names []string, nameSpans [][2]int, clauseStart, clauseEnd int) {
+func importedNames(text string, importDecl *ast.ImportDeclaration, sourceFile *ast.SourceFile) (names []string, clauseStart, clauseEnd int) {
 	if importDecl.ImportClause == nil {
-		return nil, nil, 0, 0
+		return nil, 0, 0
 	}
 	clause := importDecl.ImportClause.AsImportClause()
 	if clause == nil || clause.NamedBindings == nil {
-		return nil, nil, 0, 0
+		return nil, 0, 0
 	}
 	if !ast.IsNamedImports(clause.NamedBindings) {
-		return nil, nil, 0, 0
+		return nil, 0, 0
 	}
 	named := clause.NamedBindings.AsNamedImports()
 	if named == nil || named.Elements == nil {
-		return nil, nil, 0, 0
+		return nil, 0, 0
 	}
 	for _, element := range named.Elements.Nodes {
 		if element == nil || !ast.IsImportSpecifier(element) {
 			continue
 		}
 		specifier := element.AsImportSpecifier()
-		// The ORIGINAL name node, so a splice rewrites `Foo` of `Foo as Bar` and never the local alias.
+		// The ORIGINAL name node: `Foo` of `Foo as Bar`, never the local alias.
 		nameNode := specifier.PropertyName
 		if nameNode == nil {
 			nameNode = element.Name()
@@ -376,12 +352,11 @@ func importedNames(text string, importDecl *ast.ImportDeclaration, sourceFile *a
 		name := nameNode.Text()
 		if name != "" {
 			names = append(names, name)
-			nameSpans = append(nameSpans, [2]int{scanner.GetTokenPosOfNode(nameNode, sourceFile, false), nameNode.End()})
 		}
 	}
 	// Trimming the span leaves the braces and their padding byte-identical when a reconcile rewrites only the names.
 	clauseStart, clauseEnd = trimRange(text, named.Elements.Pos(), named.Elements.End())
-	return names, nameSpans, clauseStart, clauseEnd
+	return names, clauseStart, clauseEnd
 }
 
 // trimRange shrinks a range past leading and trailing ASCII whitespace.

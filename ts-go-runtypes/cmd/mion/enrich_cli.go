@@ -215,7 +215,7 @@ func runEnrichScaffold(srcArg, typeName string, mock, friendly bool, out string,
 	if out != "" {
 		outPath = tspath.NormalizePath(mustAbs(out))
 	}
-	specs, declFiles, planErr := enrichgen.Plan(prog, res.Checker(), res.Cache(), absPath, typeName, outPath, wantFriendly, wantMock, config)
+	specs, planErr := enrichgen.Plan(prog, res.Checker(), res.Cache(), absPath, typeName, outPath, wantFriendly, wantMock, config)
 	// Release the source Program before the post-write health pass builds its own.
 	res.Close()
 	if planErr != nil {
@@ -233,13 +233,7 @@ func runEnrichScaffold(srcArg, typeName string, mock, friendly bool, out string,
 		os.Exit(reportEnrichDiagnostics(diags, asJSON, requireComplete, mustTsconfigShowInfo(tsconfigPath)))
 	}
 
-	// Write lane: migrate any pre-split combined mirror (CLI-only disk pre-step),
-	// then write / reconcile each family mirror.
-	if outPath == "" {
-		for _, declFile := range declFiles {
-			migrateLegacyMirror(config, declFile)
-		}
-	}
+	// Write lane: write / reconcile each family mirror.
 	written := 0
 	for _, spec := range specs {
 		var wrote bool
@@ -265,12 +259,7 @@ func runEnrichScaffold(srcArg, typeName string, mock, friendly bool, out string,
 	os.Exit(0)
 }
 
-// The spec planner (groupSpecs), the family list (wantedFamilies), and the
-// closure grouping (declFileGroup / groupByDeclFile) moved into
-// internal/enrichment/enrichgen (BuildSpecs / WantedFamilies / DeclFileGroup /
-// GroupByDeclFile) so the OpEnrich daemon op shares them. writeMirrorFile /
-// updateMirrorFile stay here as the CLI's disk shims around mirror.Scaffold /
-// mirror.Reconcile; migrateLegacyMirror stays as the CLI-only migration pre-step.
+// writeMirrorFile / updateMirrorFile are the CLI's disk shims around mirror.Scaffold / mirror.Reconcile.
 
 // writeMirrorFile emits (or appends to) one mirror file for a single source
 // file's consts. It returns true when it wrote anything, false when every

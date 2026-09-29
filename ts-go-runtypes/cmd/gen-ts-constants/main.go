@@ -166,10 +166,7 @@ func writeEnrichmentTagConstants(out *strings.Builder) {
 	fmt.Fprintf(out, "export const ORPHAN_BLOCK_PATTERN_SOURCE = %q;\n", mirror.OrphanBlockPatternSource)
 	out.WriteString("// The mion DSL type names enrichment consts are annotated with —\n")
 	out.WriteString("// part of the enrichment-file guard alongside the marker tags.\n")
-	out.WriteString("// FRIENDLY_TYPE_NAME is the LEGACY spelling, still accepted by the file guard\n")
-	out.WriteString("// so mirrors authored before the friendly-text rename are recognized.\n")
 	fmt.Fprintf(out, "export const FRIENDLY_TEXT_NAME = %q;\n", enrichment.FriendlyTextName)
-	fmt.Fprintf(out, "export const FRIENDLY_TYPE_NAME = %q;\n", enrichment.FriendlyTypeName)
 	fmt.Fprintf(out, "export const MOCK_DATA_NAME = %q;\n", enrichment.MockDataName)
 }
 

@@ -13,16 +13,16 @@ import (
 )
 
 // enrichFixture is the overlay project every test in this file scans: a fake
-// mion package (so the FriendlyType/MockData module gate passes), a
-// source type, and a DIRTY pre-split COMBINED mirror file — an unfilled @todo,
+// mion package (so the FriendlyText/MockData module gate passes), a
+// source type, and a DIRTY combined (--out) mirror file — an unfilled @todo,
 // an unknown field in each map form, and two orphan carcasses. Combined files
 // exercise every hygiene-attribution path at once: the @todo sits above the
-// FriendlyType const (nearest-after → FT020); the first carcass preserves its
-// const's FriendlyType annotation (carcass-interior wins over the MockData
+// FriendlyText const (nearest-after → FT020); the first carcass preserves its
+// const's FriendlyText annotation (carcass-interior wins over the MockData
 // const below it → FT021); the trailing carcass has no annotation and nothing
 // after it (nearest-before = the MockData const → MD021).
 const enrichIdx = `
-export type FriendlyType<T> = Record<string, unknown> & {readonly __rtFriendly?: T};
+export type FriendlyText<T> = Record<string, unknown> & {readonly __rtFriendly?: T};
 export type MockData<T> = Record<string, unknown> & {readonly __rtMock?: T};
 `
 
@@ -33,16 +33,16 @@ const enrichSource = `export interface User {
 `
 
 var enrichMirror = "import type { User } from './user';\n" +
-	"import type { FriendlyType, MockData } from '@mionjs/run-types';\n" +
+	"import type { FriendlyText, MockData } from '@mionjs/run-types';\n" +
 	"\n" +
 	"/** " + mirror.RtTypeTag + " User#u1 " + mirror.RtIdsTag + " {age: a1, name: n1} */\n" +
 	mirror.TodoLine + "\n" +
-	"export const friendlyUser: FriendlyType<User> = {\n" +
+	"export const friendlyUser: FriendlyText<User> = {\n" +
 	"  name: {rt$label: 'Name'},\n" +
 	"  nope: {rt$label: 'Gone'},\n" +
 	"};\n" +
 	"\n" +
-	"/* " + mirror.OrphanTag + " export const friendlyOld: FriendlyType<User> = {}; */\n" +
+	"/* " + mirror.OrphanTag + " export const friendlyOld: FriendlyText<User> = {}; */\n" +
 	"\n" +
 	"/** " + mirror.RtTypeTag + " User#u1 */\n" +
 	"export const mockUser: MockData<User> = {\n" +
@@ -117,8 +117,8 @@ func TestCheckEnrich_SinglePassFindings(t *testing.T) {
 		}
 	}
 
-	// The dirty mirror carries exactly: one @todo above the FriendlyType const
-	// (FT020), one carcass with a preserved FriendlyType annotation (FT021),
+	// The dirty mirror carries exactly: one @todo above the FriendlyText const
+	// (FT020), one carcass with a preserved FriendlyText annotation (FT021),
 	// one trailing annotation-less carcass attributed to the nearest-before
 	// MockData const (MD021), and one unknown field per family.
 	for code, want := range map[string]int{
@@ -195,9 +195,9 @@ func TestCheckEnrich_OptInAndGuards(t *testing.T) {
 // whose breadcrumb source never existed reports the orphaned-mirror error.
 func TestCheckEnrich_BreadcrumbDrift(t *testing.T) {
 	deadMirror := "import type { Ghost } from './ghost';\n" +
-		"import type { FriendlyType } from '@mionjs/run-types';\n" +
+		"import type { FriendlyText } from '@mionjs/run-types';\n" +
 		"/** " + mirror.RtTypeTag + " Ghost#g1 */\n" +
-		"export const friendlyGhost: FriendlyType<{name: string}> = {};\n"
+		"export const friendlyGhost: FriendlyText<{name: string}> = {};\n"
 	res := setupEnrichFixture(t, map[string]string{"dead-mirror.ts": deadMirror})
 
 	response := res.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"dead-mirror.ts"}, CheckEnrich: true})

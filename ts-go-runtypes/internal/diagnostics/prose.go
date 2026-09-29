@@ -630,7 +630,7 @@ mion enrich <source.ts> <Type> --update`,
 		Fix:     "mion enrich --no-emit",
 	},
 	CodeGenMirrorDrift: {
-		Summary: "Each source file has one expected path per file kind under the enrich folder (`friendly/`, `mock/`, and one per translation locale). This file sits somewhere else, usually because you moved the source, changed `genDir`, or still have an old single file holding both kinds. Run `mion enrich <source.ts> <Type> --update` to write the files at the right paths and split an old combined file.",
+		Summary: "Each source file has one expected path per file kind under the enrich folder (`friendly/`, `mock/`, and one per translation locale). This file sits somewhere else, usually because you moved the source or changed `genDir`. Run `mion enrich <source.ts> <Type> --update` to write the files at the right paths.",
 		Fix:     "mion enrich <source.ts> <Type> --update",
 	},
 	CodeGenSourceMissing: {

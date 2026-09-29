@@ -104,7 +104,7 @@ func enrichParityCLI(t *testing.T, absSrc, typeName string, config enrichConfig)
 		t.Fatalf("cli build program: %v", err)
 	}
 	defer res.Close()
-	specs, _, err := enrichgen.Plan(prog, res.Checker(), res.Cache(), absSrc, typeName, "", true, true, config)
+	specs, err := enrichgen.Plan(prog, res.Checker(), res.Cache(), absSrc, typeName, "", true, true, config)
 	if err != nil {
 		t.Fatalf("cli plan: %v", err)
 	}
