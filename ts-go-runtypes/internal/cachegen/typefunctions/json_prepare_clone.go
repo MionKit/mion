@@ -840,13 +840,13 @@ func emitMergedPropPrepareSafe(mp FlatMergedProp, accessor, discAccessor string,
 func emitNativeIterablePrepareForJsonClone(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	isMap := rt.SubKind == reflection.SubKindMap
 	innerTypes := iterableInnerTypes(rt, ctx)
-	// Fast path: every inner type JSON-compatible → just Array.from(v).
+	// Fast path: every inner type JSON-compatible and safe to share, since an object entry must still lose its undeclared keys.
 	allCompat := true
 	for _, t := range innerTypes {
 		if t == nil {
 			continue
 		}
-		if !isJsonCompatible(t, ctx) {
+		if !isJsonCompatible(t, ctx) || !isExtraProof(t, ctx) {
 			allCompat = false
 			break
 		}
