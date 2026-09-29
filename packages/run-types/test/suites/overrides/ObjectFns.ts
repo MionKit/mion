@@ -22,6 +22,22 @@ export function registerObjectFnsCase(): void {
     expect(out.cloned).toBe(true);
   });
 
+  it('ObjectFns — removeUnknownKeys override applies under both sharedValues modes', () => {
+    const value = {a: 1} as CesTarget;
+    const shared = createRemoveUnknownKeysFn<CesTarget>(undefined, {sharedValues: 'share'})(value) as unknown as {
+      cloned?: boolean;
+    };
+    const refused = createRemoveUnknownKeysFn<CesTarget>(undefined, {sharedValues: 'refuse'})(value) as unknown as {
+      cloned?: boolean;
+    };
+    expect(shared.cloned).toBe(true);
+    expect(refused.cloned).toBe(true);
+    const sharedValue = createRemoveUnknownKeysFn(value, {sharedValues: 'share'})(value) as unknown as {cloned?: boolean};
+    const refusedValue = createRemoveUnknownKeysFn(value, {sharedValues: 'refuse'})(value) as unknown as {cloned?: boolean};
+    expect(sharedValue.cloned).toBe(true);
+    expect(refusedValue.cloned).toBe(true);
+  });
+
   it('ObjectFns — formatTransform', () => {
     const out = createFormatTransformFn<FmtTarget>()({a: 1} as never) as {fmt?: boolean};
     expect(out.fmt).toBe(true);
