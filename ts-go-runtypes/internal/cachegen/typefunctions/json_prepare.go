@@ -273,12 +273,7 @@ func emitPropertyPrepareForJson(rt *reflection.RunType, ctx *EmitContext, v stri
 	childRT := ctx.CompileChild(rt.Child, CodeS)
 	ctx.SetChildAccessor("")
 	if childRT.Type == CodeNS {
-		// A DataOnly-stripped leaf reached through a propagating slot (symbol[],
-		// Map<string,symbol>) fails the object; any other unsupported kind is absorbed (F3).
-		if propertyChildFailed(ctx) {
-			return RTCode{Code: "", Type: CodeNS}
-		}
-		return RTCode{Code: "", Type: CodeS}
+		return RTCode{Code: "", Type: CodeNS}
 	}
 	if childRT.Code == "" {
 		return RTCode{Code: "", Type: CodeS}

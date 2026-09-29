@@ -594,11 +594,7 @@ func emitPropertyValidationErrors(rt *reflection.RunType, ctx *EmitContext, v st
 	ctx.SetChildAccessor("")
 	ctx.SetChildPathLiteral("")
 	if childRT.Type == CodeNS {
-		// A stripped leaf in a propagating slot (symbol[], …) fails the object; any other unsupported kind is absorbed (F3).
-		if propertyChildFailed(ctx) {
-			return RTCode{Code: "", Type: CodeNS}
-		}
-		return RTCode{Code: "", Type: CodeS}
+		return RTCode{Code: "", Type: CodeNS}
 	}
 	// Presence twin of emitPropertyValidate's: a REQUIRED member whose type imposes no VALUE check (`unknown` / `any`) must
 	// still REPORT a missing key, or validate rejects `{}` against `{foo: unknown}` while this family returns no errors.

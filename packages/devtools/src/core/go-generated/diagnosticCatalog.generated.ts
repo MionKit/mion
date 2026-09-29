@@ -799,6 +799,12 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     level: 'runtimeError',
     family: 'marker',
   },
+  TFN001: {
+    headline:
+      'Internal error: type `{0}` cannot be compiled here and has no diagnostic, so the function always throws; please file an issue.',
+    level: 'runtimeError',
+    family: 'runtype',
+  },
   TMP001: {
     headline:
       "Temporal type `{0}` resolved to `any`: the Temporal lib isn't in your tsconfig `lib`, so the generated validator would accept any value.",

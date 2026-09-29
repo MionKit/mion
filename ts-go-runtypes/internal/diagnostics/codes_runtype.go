@@ -34,6 +34,10 @@ const (
 // in the graph. Always an internal invariant breach, never a user error.
 const CodeCompositeMissingPrimitive = "JCP001"
 
+// CodeUnsupportedLeafNoCode: a type function met a kind it cannot compile that maps to no root code, so the entry
+// always throws with this code instead. Always an internal invariant breach, never a user error. Args: [kindLabel].
+const CodeUnsupportedLeafNoCode = "TFN001"
+
 // prepareForJson family.
 const (
 	CodePJNeverRoot               = "PJ001"
@@ -173,6 +177,8 @@ func init() {
 	// An internal bug: the site demand should have rendered the primitive, and the emitted
 	// `utl.getRT(key).fn` prologue would crash at runtime, so the build fails loudly here instead.
 	register(Definition{Code: CodeCompositeMissingPrimitive, Family: FamilyRunType, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "JSON composite references an unrendered primitive entry"})
+	// An internal bug too: without it the entry was skipped and the site ran the family identity (validate accepted everything).
+	register(Definition{Code: CodeUnsupportedLeafNoCode, Family: FamilyRunType, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "A type function cannot compile a kind that has no diagnostic code"})
 
 	// Child-position drops are LevelInfo: leaving out what is not data is the documented contract.
 	// RUK010 / RUK015 stay LevelWarning: a clone that SHARES a value with the original is a surprise, not a drop.

@@ -69,24 +69,6 @@ func strippedValueDrop(resolved *reflection.RunType, name string, ctx *EmitConte
 	return true
 }
 
-// propertyChildFailed decides what a property does when its compiled VALUE returned CodeNS and was NOT
-// directly stripped (strippedPropertyDrop handles that case before the compile), keying on the leaf that
-// produced the CodeNS:
-//
-//   - A DataOnly-stripped leaf reached through a propagating slot (symbol[], Map<string,symbol>, a tuple
-//     with a stripped slot) is one DataOnly KEEPS as an unrepresentable type, so the failure PROPAGATES
-//     and the object alwaysThrows, the "can't be safely dropped" case. Returns true.
-//   - Any OTHER unsupported leaf (a future kind with no emit, never produced by a real scan today) is
-//     ABSORBED: the property drops with no diagnostic and the rest of the object still renders, the
-//     pre-DataOnly "property absorbs unsupported" contract. Returns false.
-func propertyChildFailed(ctx *EmitContext) (propagate bool) {
-	if isStrippedUnionMember(ctx.walker.UnsupportedLeaf, ctx) {
-		return true
-	}
-	ctx.walker.AbsorbUnsupported()
-	return false
-}
-
 // strippedMemberLabel returns the user-facing label a dropped union member's Warning substitutes for {0},
 // in the user's own type vocabulary, never compiler-internal jargon.
 func strippedMemberLabel(resolved *reflection.RunType, ctx *EmitContext) string {

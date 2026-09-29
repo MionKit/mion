@@ -181,11 +181,7 @@ func emitObjectCompactFromJson(rt *reflection.RunType, ctx *EmitContext, v strin
 		childRT := ctx.CompileChild(slot.childRef, CodeS)
 		ctx.SetChildAccessor("")
 		if childRT.Type == CodeNS {
-			if propertyChildFailed(ctx) {
-				return RTCode{Code: "", Type: CodeNS}
-			}
-			// Absorbed (a future kind with no emit): no position, identical to the encode side, so positions stay in lockstep.
-			continue
+			return RTCode{Code: "", Type: CodeNS}
 		}
 		if slot.optional {
 			// The null placeholder maps back to absent, then the child transform runs only on a present value, as in

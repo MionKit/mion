@@ -8,6 +8,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/entrymodules"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
@@ -828,13 +829,14 @@ func TestValidateModule_UnsupportedKindSkipped(t *testing.T) {
 // entries in the same dump still render normally.
 func TestValidateModule_CodeNSPropagation(t *testing.T) {
 	stringRT := &reflection.RunType{ID: "str", Kind: reflection.KindString}
-	// KindIntersection is unsupported at the leaf — used here as a
-	// stand-in for "any future kind without an emit". We could equally
-	// well synthesize a brand-new ReflectionKind value; KindIntersection
-	// has the advantage of being a real cache shape today.
+	// KindIntersection stands in for a future kind with no emit: the checker resolves real intersections first.
 	unsupportedLeaf := &reflection.RunType{ID: "uns", Kind: reflection.KindIntersection}
+	// A kind with no root code still throws, under the internal TFN001, instead of shipping the identity fn.
+	throwsInternal := func(out, id, kind string) bool {
+		return strings.Contains(out, "init('"+valKey(id)+"','"+kind+"',,,,,,'["+diagnostics.CodeUnsupportedLeafNoCode+"]")
+	}
 
-	t.Run("array_of_unsupported_skipped", func(t *testing.T) {
+	t.Run("array_of_unsupported_throws", func(t *testing.T) {
 		arr := &reflection.RunType{
 			ID:    "ar1",
 			Kind:  reflection.KindArray,
@@ -842,19 +844,16 @@ func TestValidateModule_CodeNSPropagation(t *testing.T) {
 		}
 		dump := protocol.Dump{RunTypes: []*reflection.RunType{arr, unsupportedLeaf, stringRT}}
 		out := renderToString(t, dump)
-		if strings.Contains(out, "init('"+valKey("ar1")+"',") {
-			t.Errorf("array with unsupported child must be skipped, got:\n%s", out)
+		if !throwsInternal(out, "ar1", "array") {
+			t.Errorf("array with unsupported child must throw with TFN001, got:\n%s", out)
 		}
 		if !strings.Contains(out, "init('"+valKey("str")+"',") {
 			t.Errorf("supported sibling must still render, got:\n%s", out)
 		}
 	})
 
-	t.Run("object_with_one_unsupported_prop_renders_without_it", func(t *testing.T) {
-		// v2: property positions ABSORB unsupported children rather than
-		// propagating CodeNS to root. The object's emit drops the unsupported
-		// property from its AND chain and still renders for the supported
-		// siblings.
+	t.Run("object_with_one_unsupported_prop_throws", func(t *testing.T) {
+		// A property never drops an unsupported value silently: the object refuses instead.
 		propUns := &reflection.RunType{
 			ID:         "pU",
 			Kind:       reflection.KindPropertySignature,
@@ -879,20 +878,12 @@ func TestValidateModule_CodeNSPropagation(t *testing.T) {
 		}
 		dump := protocol.Dump{RunTypes: []*reflection.RunType{iface, propUns, propOk, unsupportedLeaf, stringRT}}
 		out := renderToString(t, dump)
-		if !strings.Contains(out, "init('"+valKey("if1")+"',") {
-			t.Errorf("object with one unsupported property must still render (absorption), got:\n%s", out)
-		}
-		// The body must NOT reference the dropped property's accessor.
-		if strings.Contains(out, "v.u") {
-			t.Errorf("rendered body should not reference dropped property 'u', got:\n%s", out)
-		}
-		// The supported sibling's accessor must be present.
-		if !strings.Contains(out, "v.o") {
-			t.Errorf("rendered body should reference surviving property 'o', got:\n%s", out)
+		if !throwsInternal(out, "if1", "objectLiteral") {
+			t.Errorf("object with an unsupported property must throw with TFN001, not drop it, got:\n%s", out)
 		}
 	})
 
-	t.Run("union_with_one_unsupported_member_skipped", func(t *testing.T) {
+	t.Run("union_with_one_unsupported_member_throws", func(t *testing.T) {
 		un := &reflection.RunType{
 			ID:   "un1",
 			Kind: reflection.KindUnion,
@@ -903,16 +894,12 @@ func TestValidateModule_CodeNSPropagation(t *testing.T) {
 		}
 		dump := protocol.Dump{RunTypes: []*reflection.RunType{un, unsupportedLeaf, stringRT}}
 		out := renderToString(t, dump)
-		if strings.Contains(out, "init('"+valKey("un1")+"',") {
-			t.Errorf("union with one unsupported member must be skipped, got:\n%s", out)
+		if !throwsInternal(out, "un1", "union") {
+			t.Errorf("union with one unsupported member must throw with TFN001, got:\n%s", out)
 		}
 	})
 
-	t.Run("nested_array_of_unsupported_skipped", func(t *testing.T) {
-		// Outer Array[Array[Unsupported]] — the inner array's child
-		// returns CodeNS; inner array propagates; outer array
-		// propagates. Net effect: both inner and outer factories
-		// silently absent from the rendered module.
+	t.Run("nested_array_of_unsupported_throws", func(t *testing.T) {
 		innerArr := &reflection.RunType{
 			ID:    "ai",
 			Kind:  reflection.KindArray,
@@ -925,11 +912,8 @@ func TestValidateModule_CodeNSPropagation(t *testing.T) {
 		}
 		dump := protocol.Dump{RunTypes: []*reflection.RunType{outerArr, innerArr, unsupportedLeaf}}
 		out := renderToString(t, dump)
-		if strings.Contains(out, "init('"+valKey("ao")+"',") {
-			t.Errorf("outer array of unsupported must be skipped, got:\n%s", out)
-		}
-		if strings.Contains(out, "init('"+valKey("ai")+"',") {
-			t.Errorf("inner array of unsupported must be skipped, got:\n%s", out)
+		if !throwsInternal(out, "ao", "array") || !throwsInternal(out, "ai", "array") {
+			t.Errorf("both arrays of unsupported must throw with TFN001, got:\n%s", out)
 		}
 	})
 

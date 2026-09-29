@@ -121,6 +121,7 @@ var headlineByCode = map[string]string{
 	"RUK015":  "The value in {0} cannot be copied (a Promise, a RegExp or a built-in that is not data): the copy shares it with the input.",
 	"RUK016":  "The value in {0} is shared with the input, as `sharedValues: 'share'` asks.",
 	"JCP001":  "Internal error: JSON composite `{0}` references primitive entry `{1}` (type `{2}`) which was never rendered; please file an issue.",
+	"TFN001":  "Internal error: type `{0}` cannot be compiled here and has no diagnostic, so the function always throws; please file an issue.",
 	"VL011":   "Method `{0}` is silently not validated by `validate`: methods aren't data.",
 	"VE011":   "Method `{0}` is silently not checked by `validationErrors`: methods aren't data.",
 	"PJ011":   "Method `{0}` is silently not encoded: methods aren't data.",

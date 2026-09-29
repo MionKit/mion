@@ -124,11 +124,7 @@ func emitObjectRebuildFromJson(rt *reflection.RunType, ctx *EmitContext, v strin
 		childRT := ctx.CompileChild(slot.childRef, CodeS)
 		ctx.SetChildAccessor("")
 		if childRT.Type == CodeNS {
-			if propertyChildFailed(ctx) {
-				return RTCode{Code: "", Type: CodeNS}
-			}
-			// Absorbed (a future kind with no emit): not part of the declared shape, so it is not copied either.
-			continue
+			return RTCode{Code: "", Type: CodeNS}
 		}
 		write := terminated(childRT.Code) + propertyAccessor(rVar, slot.name, slot.isSafeName) + " = " + accessor + ";"
 		if slot.optional {

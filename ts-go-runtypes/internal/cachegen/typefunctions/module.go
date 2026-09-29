@@ -506,28 +506,28 @@ func renderEntryWithDeps(runType *reflection.RunType, settings constants.CacheMo
 	innerFn, shapeNoop, isUnsupported := walker.Compile()
 	if isUnsupported {
 		// Report the alwaysThrow's code at build time too, so the user sees the cause before runtime.
-		// A leaf with no code (a future kind) is skipped silently; the KindMissing stub's identity fallback catches the miss.
-		if leafProvider, ok := emitter.(LeafDiagCodeProvider); ok && walker.UnsupportedLeaf != nil {
-			// A callable interface would be silently skipped (see callableLeafSubstitute); render it as an alwaysThrow.
-			diagLeaf := callableLeafSubstitute(walker.UnsupportedLeaf, walker.RefTable)
-			if diagCode := leafProvider.DiagCodeForLeaf(diagLeaf); diagCode != "" {
-				kindLabel := leafKindLabel(diagLeaf)
-				if removeUnknownKeys, ok := emitter.(RemoveUnknownKeysEmitter); ok {
-					kindLabel = removeUnknownKeys.DiagLabelForLeaf(diagLeaf)
-				}
-				walker.EmitDiagnostic(diagCode, kindLabel)
-				// Never disk-cached: the message names this build's call site, which a warm hit would freeze.
-				provenance := walker.throwProvenance()
-				// Only the first site is named, and the slice is the walker's own.
-				if opts.ThrowSitePath != nil && len(provenance) > 0 {
-					provenance = slices.Clone(provenance)
-					provenance[0].FilePath = opts.ThrowSitePath(provenance[0].FilePath)
-				}
-				argsText := renderAlwaysThrowEntry(runType, innerName, diagCode, kindLabel, provenance)
-				return entryRender{argsText: argsText, throws: &diskcache.CachedDiagnostic{Code: diagCode, Args: []string{kindLabel}}}
+		// A callable interface would otherwise map to no code (see callableLeafSubstitute).
+		diagLeaf := callableLeafSubstitute(walker.UnsupportedLeaf, walker.RefTable)
+		diagCode := diagnostics.CodeUnsupportedLeafNoCode
+		if leafProvider, ok := emitter.(LeafDiagCodeProvider); ok {
+			if code := leafProvider.DiagCodeForLeaf(diagLeaf); code != "" {
+				diagCode = code
 			}
 		}
-		return entryRender{}
+		kindLabel := leafKindLabel(diagLeaf)
+		if removeUnknownKeys, ok := emitter.(RemoveUnknownKeysEmitter); ok && diagCode != diagnostics.CodeUnsupportedLeafNoCode {
+			kindLabel = removeUnknownKeys.DiagLabelForLeaf(diagLeaf)
+		}
+		walker.EmitDiagnostic(diagCode, kindLabel)
+		// Never disk-cached: the message names this build's call site, which a warm hit would freeze.
+		provenance := walker.throwProvenance()
+		// Only the first site is named, and the slice is the walker's own.
+		if opts.ThrowSitePath != nil && len(provenance) > 0 {
+			provenance = slices.Clone(provenance)
+			provenance[0].FilePath = opts.ThrowSitePath(provenance[0].FilePath)
+		}
+		argsText := renderAlwaysThrowEntry(runType, innerName, diagCode, kindLabel, provenance)
+		return entryRender{argsText: argsText, throws: &diskcache.CachedDiagnostic{Code: diagCode, Args: []string{kindLabel}}}
 	}
 	// The noop VERDICT comes from the family's IsNoopType predicate over the TYPE
 	// GRAPH, never from the emitted text. The compiled shape survives only as the

@@ -258,12 +258,7 @@ func emitObjectPrepareForJsonClone(rt *reflection.RunType, ctx *EmitContext, v s
 		accessor := propertyAccessor(v, resolved.Name, resolved.IsSafeName)
 		expr, ok := safeChildExpr(resolved.Child, accessor, ctx)
 		if !ok {
-			// A DataOnly-stripped leaf in a propagating slot (symbol[], Map<string,symbol>) is
-			// KEPT by DataOnly, so fail the object; any other unsupported kind is absorbed (F3).
-			if propertyChildFailed(ctx) {
-				return RTCode{Code: "", Type: CodeNS}
-			}
-			continue
+			return RTCode{Code: "", Type: CodeNS}
 		}
 		if !isExtraProof(propResolved, ctx) {
 			allExtraProof = false
