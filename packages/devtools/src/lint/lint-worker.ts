@@ -84,8 +84,8 @@ async function ensureConnection(tsconfig: string, binary: string): Promise<Resol
 const connectionLostPattern = /resolver exited|spawn failed|resolver is closed/;
 
 async function lintOne(request: LintWorkerRequest): Promise<LintWorkerResponse> {
-  // One retry on a fresh connection, so a transient failure does not poison the whole run. No shim remains for
-  // the retry: the direct path is the fallback and may itself fail under host limits, which then reports.
+  // One retry on a fresh connection, so a transient failure does not poison the whole run. The direct path is the
+  // fallback and may itself fail under host limits, which then reports.
   for (let attempt = 0; ; attempt++) {
     let stage: 'connect' | 'scan' = 'connect';
     try {

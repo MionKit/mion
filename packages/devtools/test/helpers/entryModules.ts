@@ -11,8 +11,7 @@ import type {RunType} from '../../src/core/protocol.ts';
 
 // One evaluated entry-module tuple, indexed positionally — slot 0 the kind /
 // family tag, slot 1 the deps thunk (undefined when dep-less; never self),
-// slot 2 the ini fn, slot 3 the cache key, slot 4+ the legacy positional
-// args. Mirrors the layout contract in
+// slot 2 the ini fn, slot 3 the cache key, slot 4+ the positional args. Mirrors the layout contract in
 // packages/run-types/src/runtypes/entryTuple.ts.
 export type EntryTuple = readonly unknown[];
 

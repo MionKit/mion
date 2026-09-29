@@ -17,7 +17,7 @@ const REPO_ROOT = resolve(HERE, '../../../..');
 const BIN = resolve(REPO_ROOT, 'mion-bin/mion');
 const TMP_ROOT = resolve(HERE, '../suites/enrich/.tmp');
 // Enrich needs the package tsconfig's customConditions:["source"] to resolve `@mionjs/run-types/formats` to
-// in-tree src; the binary no longer forces that condition.
+// in-tree src; the binary does not force that condition.
 const TSCONFIG = resolve(REPO_ROOT, 'packages/run-types/tsconfig.json');
 
 // The two test entries (`enrichGen`, `enrichCheck`) run in parallel and

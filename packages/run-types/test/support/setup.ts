@@ -16,4 +16,4 @@
 //
 // Temporal needs no setup: the repo baseline is Node >= 26, which ships the
 // global `Temporal` unflagged (ES2026), the same native global production
-// consumers use. The old temporal-polyfill shim for Node < 26 is gone.
+// consumers use.

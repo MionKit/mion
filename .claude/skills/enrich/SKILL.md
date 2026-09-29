@@ -12,7 +12,7 @@ their content here — READ the relevant file before doing enrichment work:
 | Read this file | When the task is |
 | --- | --- |
 | [packages/run-types/skills/rt-enrich-types/SKILL.md](../../../packages/run-types/skills/rt-enrich-types/SKILL.md) | the WORKFLOW: running `enrich` / `enrich --update` / `enrich --prune` / `enrich --i18n` / `enrich --no-emit` / `enrich --require-complete`, the mirror directory layout, the `@rtType`/`@rtIds`/`@rtOrphan`/`@todo` tag contract, translations + the tsconfig `i18n` block |
-| [packages/run-types/skills/runtypes-friendly-type/SKILL.md](../../../packages/run-types/skills/runtypes-friendly-type/SKILL.md) | AUTHORING a `FriendlyText<T>`: the `{ rt$label, rt$errors, ...children }` node shape, param-precise error keys, the exclusive `rt$default` mode, the `$[…]` placeholder DSL, plurals, translations, `createFriendlyText` / `createFriendlyTextI18n` |
+| [packages/run-types/skills/runtypes-friendly-text/SKILL.md](../../../packages/run-types/skills/runtypes-friendly-text/SKILL.md) | AUTHORING a `FriendlyText<T>`: the `{ rt$label, rt$errors, ...children }` node shape, param-precise error keys, the exclusive `rt$default` mode, the `$[…]` placeholder DSL, plurals, translations, `createFriendlyText` / `createFriendlyTextI18n` |
 | [packages/run-types/skills/runtypes-mock-data/SKILL.md](../../../packages/run-types/skills/runtypes-mock-data/SKILL.md) | AUTHORING a `MockData<T>`: per-field `{ pool }` / `{ min, max }` / `{ rt$items, rt$length }` / `{ rt$optional }` nodes and the MD003 pool-validation rule |
 
 Two ground rules that apply across all three:

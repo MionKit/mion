@@ -965,8 +965,7 @@ func mockFormatTransformDemand() []protocol.SiteDemand {
 }
 
 // unresolvedFnNameDiagnostic reports a marker naming a family that does not exist (MKR015), with the closest real
-// name when there is one. The retired short tags land here, which makes the rename a build failure rather than a
-// silently missing function.
+// name when there is one: a misspelled family is a build failure rather than a silently missing function.
 func unresolvedFnNameDiagnostic(file string, call *ast.Node, fnKey string) diagnostics.Diagnostic {
 	suggestion := ""
 	if closest := operations.SuggestFnKey(fnKey); closest != "" {

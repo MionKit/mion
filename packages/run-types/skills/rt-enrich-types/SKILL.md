@@ -1,6 +1,6 @@
 ---
 name: rt-enrich-types
-description: Drive the RunTypes enrichment workflow — author and maintain the committed, type-keyed FriendlyText<T> (human labels + error messages) and MockData<T> (realistic sample data) for a type. Use when scaffolding or filling a type's enrichment file, when running the `mion` CLI (`enrich` / `enrich --update` / `enrich --prune` / `enrich --no-emit` / `enrich --require-complete`), when filling `@todo` blanks the compiler left, or when working with the enrichment JSDoc tags (`@rtType`, `@rtIds`, `@rtOrphan`, `@rtOrphanChild`, `@todo`). Covers the mirror directory, the compiler-scaffolds/agent-fills loop, the CLI verbs, and the tsconfig i18n block; the per-family authoring DSLs are the runtypes-friendly-type and runtypes-mock-data skills.
+description: Drive the RunTypes enrichment workflow — author and maintain the committed, type-keyed FriendlyText<T> (human labels + error messages) and MockData<T> (realistic sample data) for a type. Use when scaffolding or filling a type's enrichment file, when running the `mion` CLI (`enrich` / `enrich --update` / `enrich --prune` / `enrich --no-emit` / `enrich --require-complete`), when filling `@todo` blanks the compiler left, or when working with the enrichment JSDoc tags (`@rtType`, `@rtIds`, `@rtOrphan`, `@rtOrphanChild`, `@todo`). Covers the mirror directory, the compiler-scaffolds/agent-fills loop, the CLI verbs, and the tsconfig i18n block; the per-family authoring DSLs are the runtypes-friendly-text and runtypes-mock-data skills.
 ---
 
 # RunTypes enrichment — the compiler scaffolds, you fill the blanks
@@ -119,7 +119,7 @@ scaffold is always per-constraint; switch a node to `rt$default` by hand). Pure 
 rendered at runtime by `createFriendlyText<T>(map)`, or by `createFriendlyTextI18n` with
 committed translations. The full authoring DSL — node shape, constraint keys, the `$[…]`
 placeholder DSL, plural rules, the `rt$default` mode, the FT0xx checks, runtime
-rendering — is the **`runtypes-friendly-type`** skill; use it whenever you author or
+rendering — is the **`runtypes-friendly-text`** skill; use it whenever you author or
 fill a friendly map.
 
 ## Translations — per-locale friendly files
@@ -151,7 +151,7 @@ Without `<src.ts>`, targets are "sources that have a friendly mirror" — path m
 - **Scaffold + fill rules** — a scaffold is the type's tree with every string leaf and
   plural arm as an `@todo` blank (`''`); it NEVER copies source text as if translated.
   The authoring rules (translate only blank leaves, arms are locale-owned, prune
-  freely) are in the **`runtypes-friendly-type`** skill's Translations section.
+  freely) are in the **`runtypes-friendly-text`** skill's Translations section.
 - **`--update`** — the same value-preserving reconcile as `enrich --update` (one driver for
   every friendly-family file), including the one-level `rt$errors` descent: a newly
   declared constraint key arrives as a blank of the right kind (string, or a plural with
@@ -185,7 +185,7 @@ zero change when absent):
 
 Runtime rendering — `createFriendlyTextI18n`, `resolveLocale` matching, per-leaf fallback,
 type-driven `$[val]` rendering (Currency / date bounds) — is covered in the
-**`runtypes-friendly-type`** skill.
+**`runtypes-friendly-text`** skill.
 
 ## `MockData<T>` — realistic sample data
 
@@ -208,5 +208,5 @@ structure + format-correctness, you supply _believable_ values. The full authori
 --require-complete` for translations) — it fails until every `@todo` and blank is filled.
 - When the type changes, prefer `enrich --update` (keeps your values) over regenerating.
 - The family-specific rules — friendly constraint keys, plural arms, translation fill
-  discipline, mock pools/ranges — are in the **`runtypes-friendly-type`** and
+  discipline, mock pools/ranges — are in the **`runtypes-friendly-text`** and
   **`runtypes-mock-data`** skills' checklists.

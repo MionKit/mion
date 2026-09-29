@@ -7,7 +7,7 @@
 //     intentional close never respawns.
 //   - The unplugin closes the shared resolver only when the LAST plugin
 //     container tears down (vite runs one container per environment over one
-//     plugin instance), so a sibling container's buildEnd no longer kills the
+//     plugin instance), so a sibling container's buildEnd never kills the
 //     child under in-flight work.
 import {afterEach, beforeEach, describe, expect, it} from 'vitest';
 import path from 'node:path';

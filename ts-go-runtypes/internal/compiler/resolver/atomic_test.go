@@ -1127,9 +1127,7 @@ createJsonEncoderFn<string>(undefined, {strategy: 'compact'});
 // TestResolver_CompTimeArgs_NonLiteralDiagnostic pins the CTA001
 // diagnostic for a CompTimeArgs<T>-branded parameter filled with a
 // value the Go scanner cannot statically evaluate (a function-call
-// result here). The new marker family replaces the legacy MKR002
-// "options must be literal" check — broader, since any branded param
-// is covered, not just options-named ones.
+// result here). Any branded param is covered, not just options-named ones.
 func TestResolver_CompTimeArgs_NonLiteralDiagnostic(t *testing.T) {
 	const dts = `declare module '@mionjs/run-types' {
   export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
@@ -1222,12 +1220,9 @@ createJsonEncoderFn<string>(undefined, getOptions());
 	}
 }
 
-// TestResolver_CompTimeArgs_ConstChainAccepted pins the relaxation
-// from the legacy MKR002 path: a module-scope `const` whose
-// initializer is itself a literal must pass the CompTimeArgs check.
-// Under the old MKR002 rule any identifier was rejected; the new rule
-// accepts const-of-literal chains so users can DRY their option
-// objects.
+// TestResolver_CompTimeArgs_ConstChainAccepted pins that a module-scope
+// `const` whose initializer is itself a literal passes the CompTimeArgs
+// check, so users can DRY their option objects.
 func TestResolver_CompTimeArgs_ConstChainAccepted(t *testing.T) {
 	const dts = `declare module '@mionjs/run-types' {
   export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
