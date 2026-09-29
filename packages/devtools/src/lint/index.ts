@@ -8,8 +8,6 @@ import {anchoredIn, routeDiagnostic, RULE_SPECS, type RuleName} from './diagnost
 import {needsResolverPass} from './prefilter.ts';
 import {LINT_SETTING_KEYS} from './session-protocol.ts';
 import {prewarmSession, sharedSession, type LintSessionOptions} from './session.ts';
-// The one hand-written rule: bundle hygiene over import statements, which never needed the checker.
-import enforceTypeImports from './rules/enforce-type-imports.ts';
 
 // Hold the plugin load until the session's launcher child exists: a host that embeds the Rust linter in-process
 // (oxlint) reserves tens of GB of address space once linting starts, after which the resolver child can no
@@ -116,11 +114,9 @@ const packageVersion = (createRequire(import.meta.url)('../../package.json') as 
 
 export const meta = {name: 'mion', version: packageVersion};
 
-export const rules = {
-  ...Object.fromEntries(RULE_SPECS.map((spec) => [spec.name, diagnosticRule(spec.name, spec.description)])),
-  // Not in `recommended`: it does nothing until a `backendSources` option names the paths to keep out of the bundle.
-  'enforce-type-imports': enforceTypeImports as unknown as RuleModule,
-} as Record<RuleName | 'enforce-type-imports', RuleModule>;
+export const rules = Object.fromEntries(
+  RULE_SPECS.map((spec) => [spec.name, diagnosticRule(spec.name, spec.description)])
+) as Record<RuleName, RuleModule>;
 
 // oxlint reads its own preset, oxlint-recommended.json, and takes only `meta` + `rules` off this export.
 const plugin = {meta, rules, configs: {} as Record<string, unknown>};

@@ -232,15 +232,8 @@ describe('configs.recommended: the four level rules at their defaults', () => {
     expect(rec.rules).toEqual({'mion/error': 'error', 'mion/runtime-error': 'error', 'mion/warning': 'warn', 'mion/info': 'off'});
   });
 
-  // It reports nothing without a `backendSources` option, so a project opts in and configures it together.
-  it('keeps enforce-type-imports registered but out of recommended', () => {
-    const rec = plugin.configs['recommended'] as {rules: Record<string, string>};
-    expect(rules['enforce-type-imports']).toBeTruthy();
-    expect(rec.rules['mion/enforce-type-imports']).toBeUndefined();
-  });
-
-  it('exposes exactly the four level rules plus enforce-type-imports', () => {
-    expect(Object.keys(rules).sort()).toEqual(['enforce-type-imports', 'error', 'info', 'runtime-error', 'warning']);
+  it('exposes exactly the four level rules', () => {
+    expect(Object.keys(rules).sort()).toEqual(['error', 'info', 'runtime-error', 'warning']);
     expect(RULE_SPECS.map((spec) => spec.name)).toEqual(['error', 'runtime-error', 'warning', 'info']);
   });
 });

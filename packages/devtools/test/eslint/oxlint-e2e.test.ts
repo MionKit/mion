@@ -40,6 +40,13 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
         "import {createMionRouter} from '@mionjs/router';\n" +
         'const mion = createMionRouter();\n' +
         'export const noReturn = mion.route((ctx, name: string) => name);\n',
+      // The API type handed to initClient, imported without `type`: SRV001, a RuntimeError.
+      'api.ts':
+        "import {createMionRouter} from '@mionjs/router';\nexport const api = createMionRouter();\nexport type MyApi = typeof api;\n",
+      'client.ts':
+        "import {initClient} from '@mionjs/client';\n" +
+        "import {MyApi} from './api';\n" +
+        "export const {routes} = initClient<MyApi>({baseURL: ''});\n",
       // A RuntimeError: the build stops on it, so the lint run fails.
       'symbol.ts': "import {createValidateFn} from '@mionjs/run-types';\n\nexport const isSymbol = createValidateFn<symbol>();\n",
       // A lowered error: the build prints it as a warning, and so must the linter.
@@ -87,6 +94,7 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
     expect(stdout).toContain('mion(runtime-error)');
     expect(stdout).toContain('[VL002]');
     expect(stdout).toContain('[MRT001]');
+    expect(stdout).toMatch(/mion\(runtime-error\)[^\n]*\[SRV001\]/);
     expect(stdout).toContain('mion(warning)');
     expect(stdout).toContain('[FT020]');
     expect(stdout).toContain('[FT002]');
