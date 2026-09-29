@@ -31,6 +31,9 @@ interface RuleModule {
   create(context: RuleContext): Record<string, unknown>;
 }
 
+// An engine failure reports once per file, by the first enabled rule to lint it: a config may turn any rule off.
+const engineErrorClaims = new Map<string, RuleName>();
+
 // A config mistake warns once per run on stderr, not as a report on an arbitrary linted file.
 const warnedKeys = new Set<string>();
 
@@ -93,12 +96,13 @@ function diagnosticRule(ruleName: RuleName, description: string): RuleModule {
       if (!file || file.startsWith('<')) return {};
       if (!needsResolverPass(text, file, options.markers)) return {};
       const session = sharedSession();
+      if (!engineErrorClaims.has(file)) engineErrorClaims.set(file, ruleName);
       return {
         Program: () => {
           const outcome = session.lintFileSync(file, text, options);
           if ('engineError' in outcome) {
-            // Never silently dropped, and reported once: by the error rule, at the top of the file.
-            if (ruleName === 'error')
+            // Never silently dropped: the rule that claimed the file reports it at the top of the file.
+            if (engineErrorClaims.get(file) === ruleName)
               context.report({message: `[mion] ${outcome.engineError}`, loc: {start: {line: 1, column: 0}}});
             return;
           }
