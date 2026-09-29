@@ -17,6 +17,19 @@ This is the rule broken most often, so it comes first!! Any issue or blocker you
 
 **Absolute:** never let a finding slide and get lost, either fix it or delegate it to a parallel claude session. Ask if there are open questions you can't solve!
 
+## ⚠️ A removed thing leaves NO trace
+
+When an option, setting key, config key, lint rule, export, alias, CLI flag, env var or subpath is
+removed or renamed, it must look as if it never existed:
+
+- no fallback, alias or compatibility shim that still reads the old name;
+- no "was removed / renamed, use X instead" warning, error or hint;
+- no test for any of that;
+- no doc, comment, skill or spec line naming the old name (the history lives in git, `docs/done/`
+  and `CHANGELOG.md` only).
+
+An old name then fails the way any unknown name does (a typo warning, a host error), which is enough.
+
 ## Setup
 
 - Go ≥ 1.26
