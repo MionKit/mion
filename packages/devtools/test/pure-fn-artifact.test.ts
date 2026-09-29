@@ -16,7 +16,7 @@ import {
   PURE_FN_ARTIFACT_INDEX,
   PURE_FN_HASH_PREFIX,
 } from '../src/core/go-generated/runtypes-constants.generated.ts';
-import {BIN, hasBinary} from './helpers/inline.ts';
+import {BIN, callHook, hasBinary} from './helpers/inline.ts';
 
 const MARKER_PKG = path.resolve(__dirname, '../../run-types');
 
@@ -119,9 +119,6 @@ const ctx = {
   },
   warn(): void {},
 };
-
-const callHook = (hook: any, thisArg: unknown, ...args: unknown[]): unknown =>
-  typeof hook === 'function' ? hook.apply(thisArg, args) : hook.handler.apply(thisArg, args);
 
 async function withStarted(plugin: any, body: () => Promise<void>): Promise<void> {
   await callHook(plugin.buildStart, ctx);

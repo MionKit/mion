@@ -22,7 +22,7 @@ import os from 'node:os';
 import path from 'node:path';
 import fs from 'node:fs';
 import runtypesRollup from '../src/runtypes/rollup.ts';
-import {BIN, hasBinary, writeMarkerPackage} from './helpers/inline.ts';
+import {BIN, callHook, hasBinary, writeMarkerPackage} from './helpers/inline.ts';
 
 // Records every text-gate call while keeping the real verdict.
 const gateCalls: {text: string; file: string | undefined}[] = [];
@@ -81,10 +81,6 @@ export const lenRoute = route((ctx: unknown, name: string) => name.length);
 // must skip it without a resolver round-trip.
 const PLAIN_SRC = `export const answer = 42;
 `;
-
-type Hook = ((...args: unknown[]) => unknown) | {handler: (...args: unknown[]) => unknown};
-const callHook = (hook: Hook, thisArg: unknown, ...args: unknown[]): unknown =>
-  typeof hook === 'function' ? hook.apply(thisArg, args) : hook.handler.apply(thisArg, args);
 
 const ctx = {
   error(message: string): never {

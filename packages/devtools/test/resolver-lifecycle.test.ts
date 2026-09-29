@@ -15,7 +15,7 @@ import os from 'node:os';
 import fs from 'node:fs';
 import {ResolverClient} from '../src/core/resolver-client.ts';
 import runtypesRollup from '../src/runtypes/rollup.ts';
-import {BARE_CWD, BIN, hasBinary, MARKER_PACKAGE_OVERLAY, writeMarkerPackage} from './helpers/inline.ts';
+import {BARE_CWD, BIN, callHook, hasBinary, MARKER_PACKAGE_OVERLAY, writeMarkerPackage} from './helpers/inline.ts';
 
 const register = hasBinary() ? it : it.skip;
 
@@ -117,9 +117,6 @@ describe('resolver lifecycle: plugin refcounts containers', () => {
     },
     warn(): void {},
   };
-
-  const callHook = (hook: any, thisArg: unknown, ...args: unknown[]): unknown =>
-    typeof hook === 'function' ? hook.apply(thisArg, args) : hook.handler.apply(thisArg, args);
 
   beforeEach(() => {
     FIXTURE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-lifecycle-'));

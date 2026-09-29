@@ -3,7 +3,7 @@ import {afterEach, beforeEach, describe, expect, it} from 'vitest';
 import path from 'node:path';
 import fs from 'node:fs';
 import runtypesRollup from '../src/runtypes/rollup.ts';
-import {BIN, createMarkerProject, hasBinary} from './helpers/inline.ts';
+import {BIN, callHook, createMarkerProject, hasBinary} from './helpers/inline.ts';
 
 // Distinctive on purpose, so a default pool size can never pass by accident.
 const SAMPLE_COUNT = 7;
@@ -21,9 +21,6 @@ const ctx = {
   },
   warn(): void {},
 };
-
-const callHook = (hook: any, thisArg: unknown, ...args: unknown[]): unknown =>
-  typeof hook === 'function' ? hook.apply(thisArg, args) : hook.handler.apply(thisArg, args);
 
 function readTree(dir: string): string {
   return fs

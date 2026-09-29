@@ -331,3 +331,18 @@ export function runFiles(title: string, files: FilePaths, fn: (sources: InlineSo
     await metaStore.run(meta, () => Promise.resolve(fn(resolved)));
   });
 }
+
+// A plugin hook is a function or a `{handler}` object; tests call either with a plugin context.
+export type Hook = ((...args: unknown[]) => unknown) | {handler: (...args: unknown[]) => unknown};
+export const callHook = (hook: Hook, thisArg: unknown, ...args: unknown[]): unknown =>
+  typeof hook === 'function' ? hook.apply(thisArg, args) : hook.handler.apply(thisArg, args);
+
+// Polls check every 100 ms; a dev server reports asynchronously.
+export async function waitFor(check: () => boolean | Promise<boolean>, what: string, timeoutMs = 20000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (await check()) return;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  throw new Error(`timed out waiting for ${what}`);
+}

@@ -17,7 +17,7 @@ import os from 'node:os';
 import fs from 'node:fs';
 import runtypesRollup from '../src/runtypes/rollup.ts';
 import type {PureFnSite} from '../src/core/protocol.ts';
-import {BIN, hasBinary, writeMarkerPackage} from './helpers/inline.ts';
+import {BIN, callHook, hasBinary, writeMarkerPackage} from './helpers/inline.ts';
 import {PURE_FN_ARTIFACT_DIR, PURE_FN_MODULE_DIR} from '../src/core/go-generated/runtypes-constants.generated.ts';
 
 let FIXTURE_DIR = '';
@@ -47,9 +47,6 @@ const ctx = {
   },
   warn(): void {},
 };
-
-const callHook = (hook: any, thisArg: unknown, ...args: unknown[]): unknown =>
-  typeof hook === 'function' ? hook.apply(thisArg, args) : hook.handler.apply(thisArg, args);
 
 function makePlugin(extra: Record<string, unknown>) {
   return runtypesRollup({

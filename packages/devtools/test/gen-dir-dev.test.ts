@@ -6,7 +6,7 @@ import path from 'node:path';
 import {createLogger, createServer, type ViteDevServer} from 'vite';
 import {afterEach, describe, expect, it} from 'vitest';
 import {mionVitePlugin} from '../src/vite/index.ts';
-import {BIN, hasBinary, writeMarkerPackage} from './helpers/inline.ts';
+import {BIN, hasBinary, waitFor, writeMarkerPackage} from './helpers/inline.ts';
 
 const register = hasBinary() ? describe : describe.skip;
 
@@ -20,15 +20,6 @@ export const idStatic = getRunTypeId<{name: string}>();
 const sample = {name: 'Ada'};
 export const idReflected = getRunTypeId(sample);
 `;
-
-async function waitFor(check: () => boolean, what: string, timeoutMs = 20000): Promise<void> {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    if (check()) return;
-    await new Promise((resolve) => setTimeout(resolve, 100));
-  }
-  throw new Error(`timed out waiting for ${what}`);
-}
 
 register('the inferred generated folder stays put in vite dev', () => {
   let dir = '';

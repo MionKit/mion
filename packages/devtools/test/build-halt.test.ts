@@ -8,7 +8,7 @@ import runtypesEsbuild from '../src/runtypes/esbuild.ts';
 import runtypesRollup from '../src/runtypes/rollup.ts';
 import {haltError, type HaltError} from '../src/core/surface.ts';
 import {Family, Level, Severity, type Diagnostic} from '../src/core/protocol.ts';
-import {BIN, createMarkerProject, hasBinary} from './helpers/inline.ts';
+import {BIN, callHook, createMarkerProject, hasBinary} from './helpers/inline.ts';
 
 // MKR003 (marker in a generic function) is a fatal Error, VL002 (root `symbol`) a RuntimeError.
 // Both getRunTypeId shapes must resolve.
@@ -31,10 +31,6 @@ export const idReflected = getRunTypeId(sample);
 const UNIMPORTED_SRC = `import {createValidateFn} from '@mionjs/run-types';
 export const isSymbol = createValidateFn<symbol>();
 `;
-
-type Hook = ((...args: unknown[]) => unknown) | {handler: (...args: unknown[]) => unknown};
-const callHook = (hook: Hook, thisArg: unknown, ...args: unknown[]): unknown =>
-  typeof hook === 'function' ? hook.apply(thisArg, args) : hook.handler.apply(thisArg, args);
 
 describe('a build prints every finding, then stops once with the real error', () => {
   const register = hasBinary() ? it : it.skip;

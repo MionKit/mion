@@ -12,7 +12,7 @@ import {describe, expect, it} from 'vitest';
 import path from 'node:path';
 import fs from 'node:fs';
 import runtypesRollup from '../src/runtypes/rollup.ts';
-import {BIN, createMarkerProject, hasBinary} from './helpers/inline.ts';
+import {BIN, callHook, createMarkerProject, hasBinary} from './helpers/inline.ts';
 
 const FIXTURE = `import {createValidateFn} from '@mionjs/run-types';
 interface RollupThing {
@@ -23,9 +23,6 @@ export const isThing = createValidateFn<RollupThing>();
 
 // unplugin emits each Rollup hook as either a plain function or a { handler }
 // object; invoke either form with a Rollup-like plugin context.
-type Hook = ((...args: unknown[]) => unknown) | {handler: (...args: unknown[]) => unknown};
-const callHook = (hook: Hook, thisArg: unknown, ...args: unknown[]): unknown =>
-  typeof hook === 'function' ? hook.apply(thisArg, args) : hook.handler.apply(thisArg, args);
 
 describe('rollup build / @mionjs/devtools/runtypes/rollup entry', () => {
   const register = hasBinary() ? it : it.skip;
