@@ -1,5 +1,4 @@
-// An engine failure must reach the user even when a config turns `mion/error` off. A 1 ms budget cannot cover
-// the resolver start, so every lint in this file gets an engine error; the file runs in its own session.
+// A 1 ms budget cannot cover the resolver start, so every lint here gets an engine error; the file has its own session.
 import {afterAll, describe, expect, it} from 'vitest';
 import {rules} from '../../src/lint/index.ts';
 import {makeFixtureProject, runRule} from './fixture.ts';

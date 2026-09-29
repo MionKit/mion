@@ -354,8 +354,7 @@ overrideValidate<string>((v) => v !== null);
 	}
 }
 
-// TestExpectError_LintNeverJudgesABareComment: a bare comment may cover a whole-program code the lint pass cannot
-// raise, so even a scan with every opt-in family on leaves it unjudged.
+// TestExpectError_LintNeverJudgesABareComment: it may cover a whole-program code no lint scan can raise.
 func TestExpectError_LintNeverJudgesABareComment(t *testing.T) {
 	source := strings.Replace(vl002Source, "export const bad = createValidateFn<symbol>();", "// @mion-expect-error\nexport const good = createValidateFn<string>();", 1)
 	session := setupInline(t, map[string]string{"entry.ts": source})

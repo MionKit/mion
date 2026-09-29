@@ -140,7 +140,7 @@ describe('the edits-mode re-sync', () => {
           throw error;
         },
       };
-      // An upstream plugin appended a marker call in a generic function: MKR003 exists only in the code handed over.
+      // As if an upstream plugin added it: MKR003 exists only in the code handed over.
       const drifted = CLEAN_ENTRY_SRC + 'export function makeId<T>() {\n  return getRunTypeId<T>();\n}\n';
       try {
         await callHook(plugin.buildStart, ctx);
