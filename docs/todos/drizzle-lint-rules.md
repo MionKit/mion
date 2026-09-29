@@ -43,15 +43,15 @@ The implementer plans the details. What was checked:
   start. Params too. A drizzle type is one whose alias or declaration comes from `drizzle-orm`
   (`$inferSelect` / `$inferInsert` of a drizzle table, drizzle's `InferSelectModel`, a query result);
   decide whether nested members count. A plain object with the same fields is not flagged.
-- **Rule 2 is an import check**, likely hand-written like `packages/devtools/src/lint/rules/enforce-type-imports.ts`
-  (it reads import declarations, not types). Detect "a mion dialect is available" from the importing
-  package's dependencies. Allow the one thing that must stay on drizzle in a mixed setting (a view
-  built from a query builder, DRZ001) inside the drizzle file.
-- **Level:** register rule 1's MRT code at `LevelWarning` or `LevelInfo`
+- **Rule 2 is a compiler diagnostic too**, raised per file from the scan next to the route checks:
+  the lint plugin only shows compiler diagnostics and never checks source itself. It reads the
+  file's import declarations, and the importing package's dependencies to know a mion dialect is
+  installed. Allow the one thing that must stay on drizzle in a mixed setting (a view built from a
+  query builder, DRZ001) inside the drizzle file.
+- **Level:** register both rules' codes at `LevelWarning` or `LevelInfo`
   (`ts-go-runtypes/internal/diagnostics/catalog.go`); the level picks the lint rule. A Warning shows under
   `mion/warning` by default; an Info shows only once a project turns on `mion/info` (or sets `levels: 'all'`
-  for the build). Neither halts. Rule 2 has no resolver code, so it is a hand-written rule like
-  `enforce-type-imports`; decide whether `recommended` turns it on. Neither rule ever stops the build.
+  for the build). Neither rule ever stops the build.
 - **Split the files the rule will flag:** `packages/private-drizzle-example-app/src/db/*.{builders,types}.ts`
   put the slim schema and the `toDrizzle` side in one file; split each into a schema file and a db file
   (the `drizzle` variant files stay whole). Same for every example under
@@ -60,8 +60,7 @@ The implementer plans the details. What was checked:
 
 ## Docs
 
-`container/website/content/01.rpc/06.devtools/01.linter.md`: a section for rule 1 under "Route Checks",
-and rule 2 next to `enforce-type-imports` in "Lint Rules". `container/website/content/01.rpc/04.drizzle-orm/00.drizzle-overview.md`: the
+`container/website/content/01.rpc/06.devtools/01.linter.md`: a section for each rule under "Route Checks". `container/website/content/01.rpc/04.drizzle-orm/00.drizzle-overview.md`: the
 schema file / query file split in "Building the Drizzle Table", and a one-line tip pointing at the rules.
 
 Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagent) over every page and example this change touched, review its report against the code, and commit it as its own commit.
@@ -71,7 +70,8 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
 - A route whose written param or return type is a drizzle type gets rule 1 in the linter and editor; a
   route typed with the slim models gets nothing. Go tests for both, and a lint test through the plugin.
 - A file importing both `@mionjs/drizzle-orm*` and `drizzle-orm`, or a drizzle type that mion also has,
-  gets rule 2 with a message naming the fix. Lint tests for both.
+  gets rule 2 with a message naming the fix, from the compiler. Go tests for both, and a lint test
+  through the plugin.
 - The reference app and every drizzle example keep the schema and the `toDrizzle` side in separate
   files, and lint clean.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched
