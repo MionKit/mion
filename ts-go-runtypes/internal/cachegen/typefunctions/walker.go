@@ -175,6 +175,8 @@ type Walker struct {
 	diagSeen map[string]bool
 	// findings lists every distinct diagnostic of this walk, including those with no call site to report at.
 	findings []diskcache.CachedDiagnostic
+	// ElidedDependencies are the external children the noop gate left out of the body, namespaced like RTDependencies.
+	ElidedDependencies []string
 
 	// facts is the per-dispatch memo for the canonical-node subtree predicates; nil
 	// disables memoization (hand-constructed unit-test walkers). Shared across every
@@ -590,6 +592,7 @@ func (w *Walker) dispatch(rt *reflection.RunType, expectedCType CodeType) RTCode
 				childIsNoop := predicate.IsNoopType(rt, emitCtx)
 				w.putEmitContext(emitCtx)
 				if childIsNoop {
+					w.recordElided(w.InnerPrefix + rt.ID)
 					return RTCode{Code: "", Type: expectedCType}
 				}
 			}
@@ -611,6 +614,13 @@ func (w *Walker) dispatch(rt *reflection.RunType, expectedCType CodeType) RTCode
 	result := w.Emitter.Emit(rt, emitCtx, expectedCType)
 	w.putEmitContext(emitCtx)
 	return result
+}
+
+// recordElided keeps a child the noop gate left out, so the collect still renders it and its findings reach the site.
+func (w *Walker) recordElided(childID string) {
+	if !slices.Contains(w.ElidedDependencies, childID) {
+		w.ElidedDependencies = append(w.ElidedDependencies, childID)
+	}
 }
 
 // inlineWouldCycle reports whether id already sits on the walk stack BELOW the current frame (compileNode

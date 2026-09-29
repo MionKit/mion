@@ -315,3 +315,22 @@ func TestNestedThrow_OwnFamilyThrowWins_Value(t *testing.T) {
 	expectOwnThrowOnly(t, `declare const value: HasNativeUnion;
 export const encode = createJsonEncoderFn(value);`, diagnostics.CodePJSNonSerializableRoot, diagnostics.CodeVLNonSerializableRoot)
 }
+
+// The in-place encoder proves `Tagged` needs no work and leaves it out of the body, yet its dropped symbol key is still news.
+func TestElidedChildFinding_MutateEncoder_Static(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodePJSymbolKeyedDropped, `export const encode = createJsonEncoderFn<{tags: Tagged[]}>(undefined, {strategy: 'mutate'});`)
+}
+
+func TestElidedChildFinding_MutateEncoder_Value(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodePJSymbolKeyedDropped, `declare const value: {tags: Tagged[]};
+export const encode = createJsonEncoderFn(value, {strategy: 'mutate'});`)
+}
+
+func TestElidedChildFinding_WarmDiskCache_Static(t *testing.T) {
+	warmNestedThrow(t, diagnostics.CodePJSymbolKeyedDropped, `export const encode = createJsonEncoderFn<{tags: Tagged[]}>(undefined, {strategy: 'mutate'});`)
+}
+
+func TestElidedChildFinding_WarmDiskCache_Value(t *testing.T) {
+	warmNestedThrow(t, diagnostics.CodePJSymbolKeyedDropped, `declare const value: {tags: Tagged[]};
+export const encode = createJsonEncoderFn(value, {strategy: 'mutate'});`)
+}
