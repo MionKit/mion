@@ -233,10 +233,9 @@ type Session struct {
 	// Mutex-guarded: the parallel scan path can hit it from several checker groups. Dies with the Program.
 	unresolvedSpecifiersByFile map[string][]string
 	unresolvedSpecifiersMutex  sync.Mutex
-	// programScanDiagnostics keeps the marker diagnostics (MKR/CTA/TMP/PFN…) scanAllProgramFiles produced, which the
-	// OpGenerate/OpDump responses surface; without it that eager pass, the only scan most files ever get, would drop
-	// them silently. Files are never re-scanned, so each is recorded once. Dies with the Program.
-	programScanDiagnostics []diagnostics.Diagnostic
+	// scanDiagnosticsByFile keeps every scan's marker diagnostics (MKR/CTA/TMP/PFN…) per absolute scanned file, a
+	// rescan replacing its entry, so OpGenerate/OpDump report files a per-file scanFiles reached first. Dies with the Program.
+	scanDiagnosticsByFile map[string][]diagnostics.Diagnostic
 }
 
 // markerVerdict is one memoized marker.DetectAny result; typeArg is the brand's first type argument, nil when unmatched.
@@ -406,7 +405,7 @@ func (sess *Session) SetProgram(prog *program.Program) error {
 	sess.unresolvedSpecifiersMutex.Lock()
 	sess.unresolvedSpecifiersByFile = nil
 	sess.unresolvedSpecifiersMutex.Unlock()
-	sess.programScanDiagnostics = nil
+	sess.scanDiagnosticsByFile = nil
 	return nil
 }
 

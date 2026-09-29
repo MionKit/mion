@@ -3,6 +3,7 @@ package resolver
 import (
 	"fmt"
 	"math"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -61,11 +62,47 @@ func (sess *Session) scanAllProgramFiles() {
 		return
 	}
 	// A file the Program does not carry cannot be scanned and must not block the other files, so the dump
-	// returns whatever the successful scans reached. The marker diagnostics (MKR/CTA/TMP/PFN…) are PERSISTED on
-	// the session because this eager pass is the only scan most files ever get, per-file scans deduping against
-	// scannedFiles, so dropping them would hide every one from the responses buildStart consumes.
-	_, scanDiagnostics, _ := sess.dispatchScanFiles(files)
-	sess.programScanDiagnostics = append(sess.programScanDiagnostics, scanDiagnostics...)
+	// returns whatever the successful scans reached. dispatchScanFiles records the diagnostics per file.
+	_, _, _ = sess.dispatchScanFiles(files)
+}
+
+// recordScanDiagnostics stores one scan's diagnostics under the absolute path of the scanned file each is
+// anchored in; one anchored elsewhere (a declaration in another file) goes to the first scanned file.
+func (sess *Session) recordScanDiagnostics(files []string, diags []diagnostics.Diagnostic) {
+	if len(files) == 0 {
+		return
+	}
+	if sess.scanDiagnosticsByFile == nil {
+		sess.scanDiagnosticsByFile = map[string][]diagnostics.Diagnostic{}
+	}
+	scanned := make(map[string]bool, len(files))
+	for _, file := range files {
+		absolutePath := sess.absPath(file)
+		scanned[absolutePath] = true
+		sess.scanDiagnosticsByFile[absolutePath] = nil
+	}
+	fallback := sess.absPath(files[0])
+	for _, diagnostic := range diags {
+		owner := sess.absPath(diagnostic.Site.FilePath)
+		if !scanned[owner] {
+			owner = fallback
+		}
+		sess.scanDiagnosticsByFile[owner] = append(sess.scanDiagnosticsByFile[owner], diagnostic)
+	}
+}
+
+// programScanDiagnostics returns every recorded scan diagnostic of the current Program, in file order.
+func (sess *Session) programScanDiagnostics() []diagnostics.Diagnostic {
+	files := make([]string, 0, len(sess.scanDiagnosticsByFile))
+	for file := range sess.scanDiagnosticsByFile {
+		files = append(files, file)
+	}
+	sort.Strings(files)
+	var out []diagnostics.Diagnostic
+	for _, file := range files {
+		out = append(out, sess.scanDiagnosticsByFile[file]...)
+	}
+	return out
 }
 
 // dispatchScanFiles walks every CallExpression in each requested file and returns one Site per call whose resolved
@@ -105,6 +142,7 @@ func (sess *Session) dispatchScanFiles(files []string) ([]protocol.Site, []diagn
 	// like consumer code and would false-positive on the library's own internal generics, such as
 	// registerPureFnFactory's `CompTimeArgs<PureFnId>` used non-literally.
 	diags = sess.dropExternalLibraryDiagnostics(diags)
+	sess.recordScanDiagnostics(files, diags)
 	return sites, diags, err
 }
 
