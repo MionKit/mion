@@ -11,7 +11,7 @@ import {affectedClosure, pathTargets, readWorkspaceGraph} from '../../../scripts
 // @ts-expect-error — a plain .mjs repo script, no types.
 import {changedFiles, classifyPaths} from '../../../scripts/lib/branch-diff.mjs';
 // @ts-expect-error — a plain .mjs repo script, no types.
-import {buildPlan} from '../../../scripts/core/test-pr.mjs';
+import {buildPlan, suiteCommand} from '../../../scripts/core/test-pr.mjs';
 // @ts-expect-error — a plain .mjs repo script, no types.
 import {readProjects} from '../../../scripts/core/test-batches.mjs';
 
@@ -167,6 +167,13 @@ describe('the plan', () => {
     expect(result.ignored).toEqual(files);
   });
 
+  // An unclassified path joins every lane's hash, so it must never buy a free skip here.
+  it('runs the full suite for a path no lane classifies yet', () => {
+    const result = plan(['brand-new-dir/x.json', 'packages/c/test/c.spec.ts']);
+    expect(result.full).toBe(true);
+    expect(result.global).toEqual(['brand-new-dir/x.json']);
+  });
+
   it('runs the full suite for any other path outside the packages', () => {
     for (const file of [
       'ts-go-runtypes/internal/x.go',
@@ -180,6 +187,30 @@ describe('the plan', () => {
       expect(result.full, file).toBe(true);
       expect(result.global, file).toEqual([file]);
     }
+  });
+});
+
+describe('the command a plan runs', () => {
+  const partial = {full: false, projects: ['a-tests', 'b-tests']};
+
+  it('runs plain vitest by default', () => {
+    expect(suiteCommand(partial, {passThrough: ['--exclude', 'x']})).toEqual([
+      'pnpm',
+      ['exec', 'vitest', 'run', '--project', 'a-tests', '--project', 'b-tests', '--passWithNoTests', '--exclude', 'x'],
+    ]);
+    expect(suiteCommand({full: true, projects: []})).toEqual(['pnpm', ['exec', 'vitest', 'run']]);
+  });
+
+  it('hands the same scope to test-skip with --skip-passed', () => {
+    expect(suiteCommand(partial, {skipPassed: true, passThrough: ['--exclude', 'x']})).toEqual([
+      'node',
+      ['scripts/core/test-skip.mjs', '--project', 'a-tests', '--project', 'b-tests', '--exclude', 'x'],
+    ]);
+    expect(suiteCommand({full: true, projects: []}, {skipPassed: true})).toEqual(['node', ['scripts/core/test-skip.mjs']]);
+  });
+
+  it('runs nothing when no project is affected', () => {
+    expect(suiteCommand({full: false, projects: []}, {skipPassed: true})).toBeNull();
   });
 });
 
