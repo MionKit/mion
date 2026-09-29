@@ -109,6 +109,11 @@ func emitObjectRebuildFromJson(rt *reflection.RunType, ctx *EmitContext, v strin
 	var restore strings.Builder
 	restore.WriteString("if (" + unknownKeysObjectGuard(v) + ") {const " + rVar + " = {};")
 
+	for _, child := range objectMembers(rt) {
+		if signature := ctx.ResolveRef(child); signature != nil && signature.Kind == reflection.KindIndexSignature && signature.Child != nil && !isSymbolKeyedIndexSig(signature, ctx) {
+			indexSignatureValueDrop(signature, ctx.ResolveRef(signature.Child), ctx)
+		}
+	}
 	if signatures := liveIndexSignatures(rt, ctx); len(signatures) > 0 {
 		keyVar := ctx.NextLocalVar("k")
 		loop, ok := emitIndexSigRebuildLoop(signatures, ctx, v, rVar, keyVar, declaredNameSkipCode(collectSiblingNamedKeys(rt, ctx), keyVar))
@@ -155,7 +160,7 @@ func liveIndexSignatures(rt *reflection.RunType, ctx *EmitContext) []*reflection
 		if resolved == nil || resolved.Kind != reflection.KindIndexSignature || resolved.Child == nil || isSymbolKeyedIndexSig(resolved, ctx) {
 			continue
 		}
-		if value := ctx.ResolveRef(resolved.Child); value == nil || isFunctionLikeKind(value.Kind) {
+		if value := ctx.ResolveRef(resolved.Child); value == nil || isCallableValue(value, ctx) {
 			continue
 		}
 		live = append(live, resolved)

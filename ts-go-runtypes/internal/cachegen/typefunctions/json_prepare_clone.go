@@ -323,7 +323,7 @@ func buildSafeIndexSignatureObject(v string, props []safePropEmit, skipNames []s
 			continue
 		}
 		resolved := ctx.ResolveRef(sig.Child)
-		if resolved == nil || isFunctionLikeKind(resolved.Kind) {
+		if resolved == nil || indexSignatureValueDrop(sig, resolved, ctx) {
 			continue
 		}
 		keyRegexVar := indexSignatureKeyRegexVar(sig, ctx)
@@ -636,7 +636,7 @@ func emitIndexSignaturePrepareForJsonClone(rt *reflection.RunType, ctx *EmitCont
 		return RTCode{Code: "", Type: CodeS}
 	}
 	resolved := ctx.ResolveRef(rt.Child)
-	if resolved == nil || isFunctionLikeKind(resolved.Kind) {
+	if resolved == nil || indexSignatureValueDrop(rt, resolved, ctx) {
 		return RTCode{Code: "", Type: CodeS}
 	}
 	keyRegexVar := indexSignatureKeyRegexVar(rt, ctx)
