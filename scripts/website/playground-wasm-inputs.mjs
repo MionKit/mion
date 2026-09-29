@@ -16,7 +16,7 @@ import {goInputsDigest, isGoInput, readStamp} from '../lib/go-inputs.mjs';
 import {tsgolintCommit} from '../lib/tsgolint.mjs';
 
 // Every Go input the wasm links, repo-relative.
-export const WASM_INPUTS = ['ts-go-runtypes/cmd/mion-wasm', 'ts-go-runtypes/internal', 'ts-go-runtypes/go.mod', 'ts-go-runtypes/go.sum'];
+export const WASM_INPUTS = ['ts-go-runtypes/cmd/mion-wasm', 'ts-go-runtypes/internal', 'ts-go-runtypes/go.mod', 'ts-go-runtypes/go.sum', 'ts-go-runtypes/go.work', 'ts-go-runtypes/go.work.sum'];
 
 // The test loader SKIPS on a mismatch, so the filter matters: an over-broad
 // digest would drop the playground suites on any PR that touched a Go test,

@@ -9,7 +9,7 @@
 //
 // These pin the three halves to each other: the lane table in scripts/ci/lanes.mjs,
 // the `if:` that consults it, and the save step that writes the marker.
-import {readFileSync} from 'node:fs';
+import {globSync, readFileSync} from 'node:fs';
 import path from 'node:path';
 import {describe, expect, it} from 'vitest';
 import {
@@ -206,7 +206,7 @@ describe('the lane table', () => {
     const ci = read('.github/workflows/ci.yml');
     const suite = ci.slice(ci.indexOf('- name: JS suite (everything except test/fuzz)'));
     expect(suite).toMatch(/scope=partial"[^\n]*\n\s+pnpm miondevx core test-pr --base HEAD\^1/);
-    expect(suite).toMatch(/scope=full"[^\n]*\n\s+pnpm exec vitest run/);
+    expect(suite).toMatch(/scope=full"[^\n]*\n\s+pnpm test --exclude/);
     expect(ci).toMatch(
       /if: success\(\) && steps\.suite\.outputs\.scope == 'full'\n\s+uses: \.\/\.github\/actions\/save-lane-green\n\s+with:\n\s+lane: js\n/
     );
@@ -381,5 +381,69 @@ describe('a marker is only ever written by work that actually ran and passed', (
     // go-fuzz, js-lint, smoke, website, bench, bench-green, pre-publish-e2e, drizzle-e2e, record-green.
     // The count catches a save step lost to an edit, which the loop cannot.
     expect(checked).toBe(9);
+  });
+});
+
+// A job slice: from `\n  <name>:` to the next top-level job.
+const jobOf = (workflow: string, name: string): string => {
+  const start = workflow.indexOf(`\n  ${name}:\n`);
+  const next = workflow.slice(start + 1).search(/\n {2}[\w-]+:\n/);
+  return next === -1 ? workflow.slice(start) : workflow.slice(start, start + 1 + next);
+};
+
+describe('lane markers claim only what their job proved', () => {
+  it('never lets one drizzle dialect or one bench competitor save the whole lane', () => {
+    expect(jobOf(read('.github/workflows/drizzle-e2e.yml'), 'drizzle-e2e')).not.toContain('lane: drizzle\n');
+    expect(jobOf(read('.github/workflows/pr-heavy.yml'), 'bench')).not.toContain('lane: bench\n');
+  });
+
+  it('records each bench competitor on its own, and the lane only after every competitor that ran passed', () => {
+    const workflow = read('.github/workflows/pr-heavy.yml');
+    expect(jobOf(workflow, 'bench')).toMatch(
+      /lane: bench\.\$\{\{ matrix\.competitor \}\}\n\s+hash: \$\{\{ fromJSON\(needs\.lanes\.outputs\.lanes\)\.bench\.items\[matrix\.competitor\]\.hash \}\}/
+    );
+    const green = jobOf(workflow, 'bench-green');
+    expect(green).toContain('needs: [lanes, bench]');
+    expect(green).toContain('if: success()');
+    expect(green).toContain('lane: bench\n');
+  });
+});
+
+describe('the Go toolchain setup', () => {
+  const action = read('.github/actions/resolver/action.yml');
+
+  // website-deploy runs on arm64; its build objects must never restore on x64.
+  it('keys the Go build cache on the runner arch, in the key and the restore key', () => {
+    expect(action).toMatch(/key: \$\{\{ runner\.os \}\}-\$\{\{ runner\.arch \}\}-gocache-/);
+    expect(action).toMatch(/restore-keys: \|\n\s+\$\{\{ runner\.os \}\}-\$\{\{ runner\.arch \}\}-gocache-/);
+  });
+
+  // `submodules: recursive` also pulls typescript-go's ~620 MB TypeScript corpus, which no build reads.
+  it('never fetches the submodules recursively, and inits only tsgolint and its typescript-go', () => {
+    const files = globSync('.github/{workflows,actions}/**/*.yml', {cwd: REPO_ROOT});
+    expect(files.length).toBeGreaterThan(10);
+    for (const file of files) expect(read(file), file).not.toMatch(/^\s*submodules:\s*(recursive|true)/m);
+    expect(action).toContain('git submodule update --init --depth 1 ts-go-runtypes/third_party/tsgolint\n');
+    expect(action).toContain('git -C ts-go-runtypes/third_party/tsgolint submodule update --init --depth 1 typescript-go\n');
+    expect(action).not.toContain('--recursive');
+  });
+});
+
+// build-gate.test.ts runs real `go build`s, so it lives on the Go runner. The two jobs must
+// stay a complete, disjoint split of it: never run twice, never dropped.
+describe('the build-gate tests run on the Go runner and nowhere else', () => {
+  const ci = read('.github/workflows/ci.yml');
+
+  it('runs in go-fuzz under the go-tools lane', () => {
+    expect(jobOf(ci, 'go-fuzz')).toMatch(
+      /if: fromJSON\(needs\.lanes\.outputs\.lanes\)\['go-tools'\]\.run\n\s+run: pnpm test packages\/devtools\/test\/build-gate\.test\.ts/
+    );
+  });
+
+  it('is excluded from both js-lint suite commands', () => {
+    const suite = jobOf(ci, 'js-lint');
+    const commands = suite.split('\n').filter((line) => /core test-pr|pnpm test --exclude/.test(line));
+    expect(commands).toHaveLength(2);
+    for (const command of commands) expect(command).toContain("--exclude '**/devtools/test/build-gate.test.ts'");
   });
 });

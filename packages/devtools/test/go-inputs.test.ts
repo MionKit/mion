@@ -77,6 +77,8 @@ describe('go-inputs — the playground wrapper', () => {
       'ts-go-runtypes/internal',
       'ts-go-runtypes/go.mod',
       'ts-go-runtypes/go.sum',
+      'ts-go-runtypes/go.work',
+      'ts-go-runtypes/go.work.sum',
     ]);
     expect(wasmInputsDigest(REPO_ROOT)).toBe(goInputsDigest(REPO_ROOT, WASM_INPUTS, [tsgolintCommit()]));
     expect(isWasmInput).toBe(isGoInput);
