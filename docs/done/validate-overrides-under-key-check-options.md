@@ -1,7 +1,7 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-09-29
 ---
 
@@ -22,7 +22,7 @@ with either option on, the custom function is probably never used, and nothing s
 for these families (`ts-go-runtypes/internal/cachegen/operations/operations.go`, the fused validators block)
 says a family "honours overrides".
 
-Found by reading, not yet reproduced: confirm with a test first.
+Found by reading, then reproduced: the plain call ran the override, the two options did not.
 
 ## Direction
 
@@ -47,3 +47,23 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
 
 - A test shows what an override does under each option, and that behaviour is the intended one.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source file, each committed on its own.
+
+## Plan — run the override under both options (approved 2026-09-29)
+
+Decision: a key-checking validator runs the user's plain override, the same way the two `sharedValues`
+removeUnknownKeys families already did. The override owns the whole check for its type, so the unknown-key check
+skips that type; a parent object or union still checks its own keys.
+
+What shipped:
+
+- `overrideBaseOperation` in `override.go` maps `validateStrict` / `validateUnionKeys` to `validate` and
+  `validationErrorsStrict` / `validationErrorsUnionKeys` to `validationErrors`. That one map serves both the root
+  redirect and a nested child, since the walker reads the same op key.
+- The registry comment in `operations.go` now says which override the fused families run.
+- Go: `override_test.go` pins the op key of every option family.
+- JS: `KeyCheckOptions.ts` in the overrides suite runs fixed-answer overrides for validate and validationErrors through
+  plain, `checkUnknowns` and `checkUnionUnknowns`, both call shapes, at the root, nested in an object (the parent
+  still rejects its own extra key) and nested in a union member (the union still rejects a key only the other member
+  declares). A union's errors form only reports one `union` error when no member matches, so the override shows
+  there through which member matches.
+- Docs: one paragraph in the runtypes guide, "Overriding Generated Functions".

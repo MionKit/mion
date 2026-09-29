@@ -23,10 +23,14 @@ func overrideOpKeyForTag(tag string) string {
 	return op.Name
 }
 
-// overrideBaseOperation: a `sharedValues` family runs the one overrideRemoveUnknownKeys<T>() registration too.
+// overrideBaseOperation: an option-selected family runs its factory's one plain overrideX<T>() registration too.
 var overrideBaseOperation = map[string]string{
-	"removeUnknownKeysShared": "removeUnknownKeys",
-	"removeUnknownKeysRefuse": "removeUnknownKeys",
+	"validateStrict":            "validate",
+	"validateUnionKeys":         "validate",
+	"validationErrorsStrict":    "validationErrors",
+	"validationErrorsUnionKeys": "validationErrors",
+	"removeUnknownKeysShared":   "removeUnknownKeys",
+	"removeUnknownKeysRefuse":   "removeUnknownKeys",
 }
 
 // composedByOverride reports whether a primitive demand exists only for a JSON composite this type overrides.

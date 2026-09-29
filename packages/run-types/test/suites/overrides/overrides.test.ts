@@ -14,6 +14,7 @@ import {UNION_OVERRIDE} from './Unions.ts';
 import {CIRCULAR_OVERRIDE} from './Circular.ts';
 import {registerObjectFnsCase} from './ObjectFns.ts';
 import {registerJsonValueFnsCase} from './JsonValueFns.ts';
+import {registerKeyCheckOptionsCase} from './KeyCheckOptions.ts';
 import {registerOverrideCase} from './overrideAsserts.ts';
 
 describe('overrides', () => {
@@ -29,4 +30,5 @@ describe('overrides', () => {
   }
   registerObjectFnsCase();
   registerJsonValueFnsCase();
+  registerKeyCheckOptionsCase();
 });
