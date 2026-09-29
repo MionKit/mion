@@ -705,17 +705,7 @@ func tryReadCachedEntry(runType *reflection.RunType, settings constants.CacheMod
 	}
 	pureFnDeps := append([]string(nil), entry.PureFnRefs...)
 	replayCachedDiagnostics(runType, settings.Tag, entry.Diagnostics, opts)
-	return entryRender{argsText: entry.ArgsText, deps: deps, crossFamilyDeps: crossFamilyDeps, pureFnDeps: pureFnDeps, isNoop: entry.IsNoop, throws: cachedThrow(entry.Diagnostics)}, true
-}
-
-// cachedThrow recovers an alwaysThrow entry's root code from its persisted findings: the only RuntimeError it emits.
-func cachedThrow(cached []diskcache.CachedDiagnostic) *diskcache.CachedDiagnostic {
-	for i := range cached {
-		if diagnostics.ScopeOf(cached[i].Code) == diagnostics.ScopeRoot && diagnostics.LevelOf(cached[i].Code) == diagnostics.LevelRuntimeError {
-			return &cached[i]
-		}
-	}
-	return nil
+	return entryRender{argsText: entry.ArgsText, deps: deps, crossFamilyDeps: crossFamilyDeps, pureFnDeps: pureFnDeps, isNoop: entry.IsNoop}, true
 }
 
 // replayCachedDiagnostics re-emits an entry's persisted findings on a cache hit, or a project's warnings would
