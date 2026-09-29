@@ -1,5 +1,5 @@
 // For `core test-pr`. Commits only: the working tree never counts, so a local run and CI agree.
-import {FEEDS_NOTHING, matches} from '../ci/lanes.mjs';
+import {LANES, matches} from '../ci/lanes.mjs';
 import {REPO_ROOT} from './env.mjs';
 import {capture, die} from './proc.mjs';
 import {packageOf} from './workspace-graph.mjs';
@@ -19,7 +19,8 @@ export function changedFiles(base, {cwd = REPO_ROOT} = {}) {
   return {mergeBase, files};
 }
 
-// `global` paths sit outside every workspace package and force the full suite.
+// `global` paths sit outside every workspace package and force the full suite; a path
+// the js lane does not hash (docs, a Go test, a testdata fixture) cannot change a result.
 export function classifyPaths(files, packages) {
   const changed = new Set();
   const global = [];
@@ -27,7 +28,7 @@ export function classifyPaths(files, packages) {
   for (const file of files) {
     const dir = packageOf(file, packages);
     if (dir) changed.add(dir);
-    else if (matches(file, FEEDS_NOTHING)) ignored.push(file);
+    else if (!matches(file, LANES.js.paths)) ignored.push(file);
     else global.push(file);
   }
   return {packages: changed, global, ignored};

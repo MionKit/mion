@@ -23,6 +23,7 @@
 // Usage (via `pnpm miondevx core lanes`, or `node scripts/ci/lanes.mjs …`):
 //   lanes                             print the lane table with each lane's hash
 //   lanes --decide <lane…>            decide those lanes, print the JSON verdict
+//   lanes --candidates <lane…> [--pr] print the marker keys that could prove those lanes
 //   lanes --green-keys <file>         the marker keys already recorded green
 //   lanes --github                    also write `lanes=<json>` to $GITHUB_OUTPUT
 //                                     and a table to $GITHUB_STEP_SUMMARY
@@ -30,7 +31,8 @@
 import {createHash} from 'node:crypto';
 import {appendFileSync, readFileSync} from 'node:fs';
 import {REPO_ROOT} from '../lib/env.mjs';
-import {capture, die, note, reportCliError} from '../lib/proc.mjs';
+import {isGoInput} from '../lib/go-inputs.mjs';
+import {capture, die, note, noteErr, reportCliError} from '../lib/proc.mjs';
 
 // Paths that feed NO lane: read by people and agents, never by a build, a test or
 // a container. Adding a path here is the ONE way to buy a lane skip, so it has to
@@ -41,16 +43,25 @@ import {capture, die, note, reportCliError} from '../lib/proc.mjs';
 // in the always-on gate job instead, ungated by anything.
 export const FEEDS_NOTHING = ['docs/', 'tools/', 'assets/', '.claude/', '.vscode/', '.husky/', '.git-blame-ignore-revs', 'CHANGELOG.md', 'CLAUDE.md', 'README.md', 'SETUP.md', 'LICENSE'];
 
-// Inputs EVERY lane hashes: the Go resolver, the lockfile, the workspace layout,
-// the repo-wide tool config and the toolchain the bootstrap action pins.
+// What the Go tree feeds a lane that only RUNS its binaries: everything but the
+// _test.go files and testdata/ the go tool never compiles, and the cmd/gen-* codegen
+// tools only the go-tools lane runs. The go lane (and go-tools) take the whole tree.
+const goBuildInput = (path) => isGoInput(path) && !path.startsWith('ts-go-runtypes/cmd/gen-');
+const GO_BUILD = {prefix: 'ts-go-runtypes/', keep: goBuildInput};
+
+// Inputs EVERY lane hashes: the Go tree the binaries are built from, the lockfile,
+// the workspace layout, the repo-wide tool config and the toolchain the bootstrap
+// action pins.
 //
-// ts-go-runtypes/ is here rather than on the `go` lane alone because the binary
-// built from it is the engine every other lane runs on: the plugin tests spawn it,
-// and the container lanes mount it. Its third_party/ submodule rides along as a
-// single gitlink entry, so a submodule bump moves every hash, which is right.
-// Repo-wide config is here for the same reason, and changes rarely enough that the
-// over-run costs nothing.
-const WORKSPACE = ['ts-go-runtypes/', 'package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'tsconfig.json', '.npmrc', '.editorconfig', '.prettierrc', '.prettierignore', '.gitignore', '.gitmodules', 'cliff.toml', 'commitlint.config.js', '.github/actions/'];
+// The Go tree is here rather than on the `go` lane alone because the binaries built
+// from it are the engine every other lane runs on: the plugin tests spawn them, and
+// the container lanes mount them. Its third_party/ submodule rides along as a single
+// gitlink entry, so a submodule bump moves every hash, which is right. Repo-wide
+// config is here for the same reason, and changes rarely enough that the over-run
+// costs nothing.
+const REPO_CONFIG = ['package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'tsconfig.json', '.npmrc', '.editorconfig', '.prettierrc', '.prettierignore', '.gitignore', '.gitmodules', 'cliff.toml', 'commitlint.config.js', '.github/actions/'];
+const WORKSPACE = [GO_BUILD, ...REPO_CONFIG];
+const GO_TREE = ['ts-go-runtypes/', ...REPO_CONFIG];
 
 // The JS half of the repo. `container/` belongs here, not only to the container
 // lanes: check-code-imports reads every <code-import> in the docs content tree and
@@ -76,11 +87,11 @@ export const LANES = {
   // marker and drizzle packages as virtual node_modules (internal/testfixtures/
   // realmarker.go and realdrizzle.go), so editing their sources changes what the
   // Go tests compile against.
-  go: {job: 'go tests + fuzz · the Go suite', paths: ['packages/run-types/', 'packages/drizzle-orm', ...WORKSPACE]},
+  go: {job: 'go tests + fuzz · the Go suite', paths: ['packages/run-types/', 'packages/drizzle-orm', ...GO_TREE]},
   'js-fuzz': {job: 'go tests + fuzz · the JS fuzz sweep', paths: JS},
   // The JS-side checks that need a Go toolchain (codegen and drizzle-manifest drift, the
   // build-gate tests): they run on the go-fuzz runner so js-lint never sets Go up.
-  'go-tools': {job: 'go tests + fuzz · the Go-backed JS checks', paths: JS},
+  'go-tools': {job: 'go tests + fuzz · the Go-backed JS checks', paths: [...JS, 'ts-go-runtypes/']},
   js: {job: 'js tests + lint', paths: JS},
   smoke: {job: 'container smoke', paths: ['container/website/', 'container/benchmarks/', ...PACKED]},
   // pr-heavy.yml
@@ -93,8 +104,10 @@ export const LANES = {
 
 // Prefix match, so a trailing slash means a directory and a bare name means that
 // file. A bare name is a prefix on purpose: 'packages/drizzle-orm' picks up the
-// four sibling dialect packages without naming each one.
-export const matches = (path, prefixes) => prefixes.some((prefix) => path.startsWith(prefix));
+// four sibling dialect packages without naming each one. An entry can also be
+// {prefix, keep}, a prefix narrowed by a predicate on the full path.
+const entryMatches = (path, entry) => (typeof entry === 'string' ? path.startsWith(entry) : path.startsWith(entry.prefix) && entry.keep(path));
+export const matches = (path, entries) => entries.some((entry) => entryMatches(path, entry));
 
 // A tracked path that matches no lane and no FEEDS_NOTHING entry is an unknown
 // risk: it joins EVERY lane's hash, so adding a directory re-runs everything
@@ -135,6 +148,17 @@ export const greenKey = (lane, hash) => `mion-lane-green-${lane}-${hash}`;
 // A push to main never accepts them, so main still runs the full suite once after the merge.
 export const PR_PROOF = {js: 'js-pr'};
 
+// Every marker key that could prove one of `wanted` green at its current hash: the
+// ones `decide` reads, so the caller can look each up exactly instead of listing all.
+export function candidateKeys(wanted, {hashes, pr = false}) {
+  return wanted.flatMap((name) => {
+    if (!hashes[name]) die(`no such lane: ${name} (known lanes: ${Object.keys(LANES).join(', ')})`);
+    const keys = [greenKey(name, hashes[name])];
+    if (pr && PR_PROOF[name] !== undefined) keys.push(greenKey(PR_PROOF[name], hashes[name]));
+    return keys;
+  });
+}
+
 // Decide the asked-for lanes. Every unknown resolves to RUN: an unreadable or
 // empty key list (a fork pull request has no token) skips nothing.
 export function decide(wanted, {hashes, greenKeys = [], pr = false}) {
@@ -161,7 +185,14 @@ const flagValues = (args, flag) => {
 export function main(args) {
   const ref = flagValues(args, '--ref')[0] ?? 'HEAD';
   const {hashes, unknown} = laneHashes(ref);
-  if (unknown.length > 0) note(`${unknown.length} path(s) match no lane, so every lane hashes them: ${unknown.slice(0, 5).join(', ')}${unknown.length > 5 ? ' …' : ''}`);
+  // stderr: --candidates prints keys on stdout for a shell loop to read.
+  if (unknown.length > 0) noteErr(`${unknown.length} path(s) match no lane, so every lane hashes them: ${unknown.slice(0, 5).join(', ')}${unknown.length > 5 ? ' …' : ''}`);
+
+  const candidates = flagValues(args, '--candidates');
+  if (candidates.length > 0) {
+    for (const key of candidateKeys(candidates, {hashes, pr: args.includes('--pr')})) console.log(key);
+    return;
+  }
 
   const wanted = flagValues(args, '--decide');
   if (wanted.length === 0) {
