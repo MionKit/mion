@@ -3,7 +3,7 @@
 // wasm's (container/website/scripts/build-playground.mjs). These pin what the
 // digest sees, that it is stable, and what the playground wrapper adds on top.
 import {execFileSync} from 'node:child_process';
-import {mkdirSync, mkdtempSync, rmSync, writeFileSync} from 'node:fs';
+import {mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {afterAll, describe, expect, it} from 'vitest';
@@ -11,6 +11,16 @@ import {afterAll, describe, expect, it} from 'vitest';
 import {goInputFiles, goInputsDigest, isGoInput, readStamp, writeStamp} from '../../../scripts/lib/go-inputs.mjs';
 // @ts-expect-error plain ESM dev script, no types
 import {WASM_INPUTS, isWasmInput, readWasmStamp, wasmInputsDigest} from '../../../scripts/website/playground-wasm-inputs.mjs';
+// @ts-expect-error plain ESM dev script, no types
+import {
+  EXTRACT_INPUTS,
+  RESOLVER_INPUTS,
+  extractDigest,
+  goBinCacheKey,
+  goIdentity,
+  pinnedGoVersion,
+  resolverDigest,
+} from '../../../scripts/core/build.mjs';
 // @ts-expect-error plain ESM dev script, no types
 import {gitlinkCommit, isCheckedOutRepo, tsgolintCommit} from '../../../scripts/lib/tsgolint.mjs';
 
@@ -90,5 +100,37 @@ describe('go-inputs — the tsgolint commit a build links', () => {
   it('the recorded gitlink is readable without the submodule and matches the checkout here', () => {
     expect(gitlinkCommit()).toMatch(/^[0-9a-f]{40}$/);
     expect(tsgolintCommit()).toBe(gitlinkCommit());
+  });
+});
+
+describe('go-inputs — the CI cache key for the prebuilt binaries', () => {
+  // The key and the stamp must agree between the job that built the binaries (Go set
+  // up) and every job that restored them (no Go, no submodule, a runner Go on PATH).
+  it('is computed with node and git only, and matches the in-process key', () => {
+    const dir = join(scratch, 'no-go-bin');
+    mkdirSync(dir);
+    symlinkSync(process.execPath, join(dir, 'node'));
+    symlinkSync(execFileSync('which', ['git'], {encoding: 'utf8'}).trim(), join(dir, 'git'));
+    const key = execFileSync(process.execPath, [join(REPO_ROOT, 'scripts/core/build.mjs'), '--cache-key'], {
+      cwd: REPO_ROOT,
+      encoding: 'utf8',
+      env: {...process.env, PATH: dir},
+    }).trim();
+    expect(key).toMatch(/^mion-go-bins-[a-z0-9]+-[a-z0-9]+-[0-9a-f]{32}$/);
+    expect(key).toBe(goBinCacheKey());
+  });
+
+  it('names the pinned Go, the platform and the tsgolint commit, never the Go on PATH', () => {
+    const identity = goIdentity();
+    expect(identity[0]).toBe(pinnedGoVersion());
+    expect(pinnedGoVersion()).toMatch(/^go\d+\.\d+\.\d+$/);
+    expect(identity).toContain(`${process.platform}/${process.arch}`);
+    expect(identity).toContain(tsgolintCommit());
+  });
+
+  it('keys the resolver and the extractor on their own inputs', () => {
+    expect(RESOLVER_INPUTS[0]).toBe('ts-go-runtypes/cmd/mion');
+    expect(EXTRACT_INPUTS).toEqual(['ts-go-runtypes/cmd/extract-fn-bodies', ...RESOLVER_INPUTS.slice(1)]);
+    expect(resolverDigest()).not.toBe(extractDigest());
   });
 });

@@ -97,11 +97,20 @@ jobs:
     permissions:
       contents: read
     steps:
-      # bootstrap is the repo's ONE setup: it fetches the tsgolint submodule and
-      # applies its patches, which the Go resolver build needs.
       - uses: actions/checkout@v5
       - uses: ./.github/actions/free-disk
       - uses: ./.github/actions/bootstrap
+      # Before the resolver: with the release binary cached, this job never needs Go.
+      - id: release-key
+        run: echo "key=$(node scripts/release/build-binaries.mjs --cache-key --host-only)" >> "$GITHUB_OUTPUT"
+      - id: release-bins
+        uses: actions/cache/restore@v4
+        with:
+          path: .cache/release-bin
+          key: ${{ steps.release-key.outputs.key }}
+      - uses: ./.github/actions/resolver
+        with:
+          toolchain: ${{ steps.release-bins.outputs.cache-hit != 'true' }}
       # mion-bin/mion FIRST: the @mionjs/* vite builds run the devtools plugin,
       # which spawns it. Without this the dist build dies on @mionjs/core.
       - name: Build the resolver + dists
@@ -110,6 +119,11 @@ jobs:
         run: pnpm run build
       - name: Build the host platform binary package
         run: pnpm miondevx release binaries --host-only
+      - if: steps.release-bins.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .cache/release-bin
+          key: ${{ steps.release-key.outputs.key }}
       - name: Pack every package into tarballs/
         run: pnpm miondevx release pack
       - uses: actions/upload-artifact@v5

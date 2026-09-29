@@ -55,6 +55,9 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/bootstrap
+      - uses: ./.github/actions/resolver
+        with:
+          toolchain: 'true'
       - id: version
         shell: bash
         run: echo "version=$(node -p "require('./version.json').version")" >> "$GITHUB_OUTPUT"
@@ -153,6 +156,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/bootstrap
+      - uses: ./.github/actions/resolver
       # The command spawns mion-bin/mion and the vitest project reads both
       # dists; a build failure should read as a build failure, not a conversion one.
       - name: Build the resolver + dists
@@ -220,6 +224,9 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/bootstrap
+      - uses: ./.github/actions/resolver
+        with:
+          toolchain: 'true'
       # miondevx builds what a lane needs itself, but doing it as its own step keeps a
       # build failure legible as a build failure rather than a soak failure.
       - name: Build the resolver + dists (convertcli spawns the binary)
@@ -345,6 +352,9 @@ jobs:
       # Reclaim preinstalled cruft before the image pull + Go build-cache restore.
       - uses: ./.github/actions/free-disk
       - uses: ./.github/actions/bootstrap
+      - uses: ./.github/actions/resolver
+        with:
+          toolchain: 'true'
       - name: podman version
         run: podman --version
       # Builds the Go resolver binary + the marker/plugin packages on the runner
@@ -385,10 +395,13 @@ jobs:
       - uses: ./.github/actions/free-disk
       # `container-build` runs on the HOST to drive the podman build AND to prebuild
       # the playground assets (build-playground.mjs: the resolver WASM + the vendored
-      # mion dist that nuxt build imports). bootstrap gives the host Go +
-      # Node + pnpm + deps + the tsgolint patches all of that needs; without it the
-      # WASM `go build` fails and nuxt build dies on the missing vendor dist.
+      # mion dist that nuxt build imports). bootstrap gives Node + pnpm + deps and
+      # the resolver action (toolchain) gives Go + the patched tsgolint; without them
+      # the WASM `go build` fails and nuxt build dies on the missing vendor dist.
       - uses: ./.github/actions/bootstrap
+      - uses: ./.github/actions/resolver
+        with:
+          toolchain: 'true'
       - name: podman version
         run: podman --version
       # Cache the playground WASM so a UI-only change skips the multi-minute rebuild.

@@ -25,10 +25,13 @@
 //                 publish-tarballs.mjs refuses a tarball set missing a platform.
 
 import {execFileSync} from 'node:child_process';
+import {createHash} from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {resolverDigest} from '../core/build.mjs';
 import {platformPackageName, selectPlatforms} from '../lib/binary-platforms.mjs';
+import {tsgolintCommit} from '../lib/tsgolint.mjs';
 import {main as stageUwsPackages} from './build-uws-binaries.mjs';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -38,6 +41,8 @@ const GO_PKG = './cmd/mion';
 const STAGING_DIR = path.join(REPO_ROOT, 'dist-binaries');
 const LAUNCHER_SRC = path.join(REPO_ROOT, 'packages', 'bin-compiler');
 const LICENSE_SRC = path.join(REPO_ROOT, 'LICENSE');
+// Built binaries keyed by their inputs, so CI (actions/cache on this dir) can skip `go build` on an unchanged tree.
+const BIN_CACHE_DIR = path.join(REPO_ROOT, '.cache/release-bin');
 
 function readVersion() {
   const manifest = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'version.json'), 'utf8'));
@@ -47,15 +52,18 @@ function readVersion() {
   return manifest.version;
 }
 
-function readTsgoRevision() {
-  try {
-    return execFileSync('git', ['-C', path.join(GO_ROOT, 'third_party', 'tsgolint'), 'rev-parse', '--short', 'HEAD'], {
-      encoding: 'utf8',
-    }).trim();
-  } catch {
-    return 'unknown';
-  }
+// A fixed length, so the ldflags (and the cache digest below) never vary between clones.
+const readTsgoRevision = () => tsgolintCommit().slice(0, 7) || 'unknown';
+
+function releaseLdflags(version, tsgo) {
+  return ['-s', '-w', `-X ${GO_MODULE}/internal/constants.Version=${version}`, `-X ${GO_MODULE}/internal/constants.TsgoVersion=${tsgo}`].join(' ');
 }
+
+// The resolver digest over this target's exact build flags.
+const binDigest = (platform, ldflags) =>
+  resolverDigest(`${ldflags} -trimpath CGO_ENABLED=0 ${platform.goos}/${platform.goarch}${platform.goarm ? `v${platform.goarm}` : ''}`);
+
+const cachedBin = (platform, ldflags) => path.join(BIN_CACHE_DIR, `${platformPackageName(platform).replace('/', '_')}-${binDigest(platform, ldflags).slice(0, 32)}`, exeName(platform));
 
 function exeName(platform) {
   return platform.os === 'win32' ? 'mion.exe' : 'mion';
@@ -89,12 +97,7 @@ function buildPlatform(platform, version, tsgo, launcherPkg) {
   const libDir = path.join(pkgDir, 'lib');
   fs.mkdirSync(libDir, {recursive: true});
 
-  const ldflags = [
-    '-s',
-    '-w',
-    `-X ${GO_MODULE}/internal/constants.Version=${version}`,
-    `-X ${GO_MODULE}/internal/constants.TsgoVersion=${tsgo}`,
-  ].join(' ');
+  const ldflags = releaseLdflags(version, tsgo);
 
   const env = {...process.env, CGO_ENABLED: '0', GOOS: platform.goos, GOARCH: platform.goarch};
   if (platform.goarm) env.GOARM = platform.goarm;
@@ -102,11 +105,20 @@ function buildPlatform(platform, version, tsgo, launcherPkg) {
   const goarm = platform.goarm ? ` GOARM=${platform.goarm}` : '';
   console.log(`  - ${name}  (GOOS=${platform.goos} GOARCH=${platform.goarch}${goarm})`);
   const outFile = path.join(libDir, exeName(platform));
-  execFileSync('go', ['build', '-trimpath', `-ldflags=${ldflags}`, '-o', outFile, GO_PKG], {
-    cwd: GO_ROOT,
-    env,
-    stdio: 'inherit',
-  });
+  const cached = cachedBin(platform, ldflags);
+  if (fs.existsSync(cached)) {
+    console.log(`    reused ${path.relative(REPO_ROOT, cached)}`);
+    fs.copyFileSync(cached, outFile);
+    fs.chmodSync(outFile, 0o755);
+  } else {
+    execFileSync('go', ['build', '-trimpath', `-ldflags=${ldflags}`, '-o', outFile, GO_PKG], {
+      cwd: GO_ROOT,
+      env,
+      stdio: 'inherit',
+    });
+    fs.mkdirSync(path.dirname(cached), {recursive: true});
+    fs.copyFileSync(outFile, cached);
+  }
 
   const packageJson = {
     name,
@@ -157,16 +169,24 @@ function stageLauncher(version, tsgo, platformNames) {
 }
 
 function parseArgs(args) {
-  const unknown = args.find((arg) => arg !== '--host-only');
-  if (unknown) throw new Error(`build-binaries: unknown argument '${unknown}' (the only flag is --host-only).`);
-  return {hostOnly: args.includes('--host-only')};
+  const unknown = args.find((arg) => arg !== '--host-only' && arg !== '--cache-key');
+  if (unknown) throw new Error(`build-binaries: unknown argument '${unknown}' (flags: --host-only, --cache-key).`);
+  return {hostOnly: args.includes('--host-only'), cacheKey: args.includes('--cache-key')};
+}
+
+// The actions/cache key for BIN_CACHE_DIR: every selected platform's digest, computed with no Go.
+function binCacheKey(platforms, version, tsgo) {
+  const ldflags = releaseLdflags(version, tsgo);
+  const digests = platforms.map((platform) => binDigest(platform, ldflags)).join('\n');
+  return `mion-release-bins-${createHash('sha256').update(digests).digest('hex').slice(0, 32)}`;
 }
 
 async function main(args) {
-  const {hostOnly} = parseArgs(args);
+  const {hostOnly, cacheKey} = parseArgs(args);
   const platforms = selectPlatforms({hostOnly});
   const version = readVersion();
   const tsgo = readTsgoRevision();
+  if (cacheKey) return console.log(binCacheKey(platforms, version, tsgo));
   console.log(`Staging mion binary packages — version ${version}, tsgo ${tsgo}\n`);
   console.log(`Building plain go binaries (go build -trimpath, CGO_ENABLED=0)${hostOnly ? ' for the HOST platform only (--host-only: not a release set)' : ''}\n`);
 

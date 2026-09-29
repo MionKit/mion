@@ -20,7 +20,7 @@ import {SWEEPS} from '../../../scripts/ci/check-tree.mjs';
 const REPO_ROOT = path.resolve(__dirname, '../../..');
 const read = (rel: string): string => readFileSync(path.join(REPO_ROOT, rel), 'utf8');
 const WORKFLOWS = {
-  'ci.yml': ['go', 'js-fuzz', 'js', 'smoke'],
+  'ci.yml': ['go', 'js-fuzz', 'go-tools', 'js', 'smoke'],
   'pr-heavy.yml': ['website', 'bench', 'e2e'],
   'drizzle-e2e.yml': ['drizzle'],
 } as const;
@@ -80,15 +80,16 @@ describe('the lane table', () => {
 
   it('gives each lane its own hash unless the two read the same inputs', () => {
     const {hashes} = laneHashes('HEAD');
-    // js and js-fuzz are the two halves of one input set, split so each job half
-    // owns its own marker; everything else must be distinguishable.
+    // js, js-fuzz and go-tools read one input set, split so each piece of work owns
+    // its own marker; everything else must be distinguishable.
     expect(hashes.js).toBe(hashes['js-fuzz']);
+    expect(hashes.js).toBe(hashes['go-tools']);
     const distinct = new Set(
       Object.entries(hashes)
-        .filter(([name]) => name !== 'js-fuzz')
+        .filter(([name]) => name !== 'js-fuzz' && name !== 'go-tools')
         .map(([, hash]) => hash)
     );
-    expect(distinct.size).toBe(Object.keys(LANES).length - 1);
+    expect(distinct.size).toBe(Object.keys(LANES).length - 2);
   });
 
   it('is fail-safe: an unclassified path joins every lane, and an unknown marker list runs everything', () => {
@@ -225,11 +226,11 @@ describe('every workflow gates on the lanes it declares', () => {
 describe('a marker is only ever written by work that actually ran and passed', () => {
   const ci = read('.github/workflows/ci.yml');
 
-  // go-fuzz runs when EITHER half is due, so each half's save must re-check its
+  // go-fuzz runs when ANY of its lanes is due, so each lane's save must re-check its
   // own lane. Without the guard, a run triggered by the Go half alone would mark
   // the JS fuzz sweep green having never executed it.
   it('guards the two go-fuzz halves on their own lane, not on the job', () => {
-    for (const lane of ['go', "['js-fuzz']"]) {
+    for (const lane of ['go', "['js-fuzz']", "['go-tools']"]) {
       const reference = lane.startsWith('[')
         ? `fromJSON(needs.lanes.outputs.lanes)${lane}.run`
         : `fromJSON(needs.lanes.outputs.lanes).${lane}.run`;

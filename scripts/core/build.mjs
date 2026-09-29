@@ -6,12 +6,14 @@
 //
 // Targets (positional):
 //   go            mion-bin/mion matches cmd/ + internal/ (build-id compare).
+//   extract       mion-bin/extract-fn-bodies, the source-body extractor the enrich
+//                 tests spawn, same checks as `go`.
 //   linux-go      mion-bin/mion-linux-<arch> matches the host binary —
 //                 cross-compiled on macOS, copied on Linux. Used by the bench
 //                 container to mount a Linux ELF on the host.
-//   linux-extract mion-bin/extract-fn-bodies-linux-<arch> — the source-body extractor
-//                 as a Linux ELF, mounted into the bench container so the
-//                 in-container serialization bench needs no Go toolchain.
+//   linux-extract mion-bin/extract-fn-bodies-linux-<arch>, the same for the
+//                 extractor, mounted so the in-container serialization bench
+//                 needs no Go toolchain.
 //   marker-dist   packages/run-types/dist is internally consistent
 //                 (every .d.ts.map has a matching .d.ts, sentinel files present,
 //                 src not newer than dist). Repairs by wiping tsbuildinfo and
@@ -25,7 +27,7 @@
 //   uws           packages/bin-uws/.uws-cache holds the host's uWebSockets.js
 //                 prebuilt binary (fetched on demand, sha256-verified against
 //                 packages/bin-uws/uws-checksums.json by scripts/lib/fetch-uws.mjs).
-//   all           go + marker-dist + plugin-dist + uws.
+//   all           go + extract + marker-dist + plugin-dist + uws.
 //                 Default when no args given.
 //                 NOT linux-go — that's bench-only; the bench script asks for it
 //                 explicitly so `pnpm test` doesn't pay the cross-compile cost.
@@ -37,26 +39,30 @@
 // every subsequent incremental `tsc` skips emitting the missing .d.ts. Detecting
 // the orphan map + wiping the buildinfo forces tsc to emit from scratch.
 //
-// The stamp (mion-bin/.mion.stamp). Compiling the reference binary proves freshness
-// against ANY edit, but costs a full link, so the entry point's build gate runs
-// every command through main(targets, {trustStamp: true}) instead: checkGo then
-// trusts a stamp that matches the content digest of the resolver's inputs
-// (scripts/lib/go-inputs.mjs: cmd/mion + internal + the go.mod/go.sum/go.work
-// files, plus the tsgolint submodule commit and its patch state, the ldflags
-// string and the Go toolchain version) and skips the reference build, ~100ms.
-// The stamp is written after every verify or build. An explicit `miondevx core
-// build` never trusts it, so it remains the way to prove the binary against an
-// edit the digest cannot see (a hand edit inside third_party/ outside the patches).
+// The stamps (mion-bin/.mion.stamp, mion-bin/.extract-fn-bodies.stamp). Compiling a
+// reference binary proves freshness against ANY edit, but costs a full link, so the
+// entry point's build gate runs every command through main(targets, {trustStamp: true})
+// instead: a stamp that matches the content digest of the binary's inputs
+// (scripts/lib/go-inputs.mjs: its cmd/ + internal + the go.mod/go.sum/go.work files,
+// plus the tsgolint commit, any shim patch left unapplied, the ldflags, the pinned Go
+// version and the platform) is trusted and the reference build skipped, ~100ms. The digest
+// needs no Go and no submodule checkout (the gitlink and ts-go-runtypes/.go-version
+// stand in), so a binary restored from the CI cache (`--cache-key` prints its key)
+// is trusted on a runner with no Go at all. The stamp is written after every verify
+// or build. An explicit `miondevx core build` never trusts it, so it remains the way
+// to prove a binary against an edit the digest cannot see (a hand edit inside
+// third_party/ outside the patches).
 //
 // Exit codes: 0 = everything up to date or repaired; non-zero = a build itself
 // failed (toolchain broken, source error). Staleness alone is never a failure.
 
+import {createHash} from 'node:crypto';
 import {cpSync, existsSync, globSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync} from 'node:fs';
 import {dirname, join} from 'node:path';
 import {GO_ROOT, loadEnv, REPO_ROOT} from '../lib/env.mjs';
 import {goInputsDigest, readStamp, writeStamp} from '../lib/go-inputs.mjs';
 import {capture, die, hostGoArch, info, red, reportCliError, run, success, warn, which} from '../lib/proc.mjs';
-import {describe, headCommit, patchState, readPin, submoduleInitialised} from '../lib/tsgolint.mjs';
+import {describe, headCommit, patchState, readPin, rel, submoduleInitialised, tsgolintCommit} from '../lib/tsgolint.mjs';
 
 const GO_MODULE = 'github.com/mionkit/mion/ts-go-runtypes';
 const GO_BIN = join(REPO_ROOT, 'mion-bin/mion');
@@ -66,6 +72,10 @@ const GO_STAMP = join(REPO_ROOT, 'mion-bin/.mion.stamp');
 export const RESOLVER_INPUTS = ['ts-go-runtypes/cmd/mion', 'ts-go-runtypes/internal', 'ts-go-runtypes/go.mod', 'ts-go-runtypes/go.sum', 'ts-go-runtypes/go.work', 'ts-go-runtypes/go.work.sum'];
 const GO_PKG = './cmd/mion';
 const EXTRACT_PKG = './cmd/extract-fn-bodies';
+const EXTRACT_BIN = join(REPO_ROOT, 'mion-bin/extract-fn-bodies');
+const EXTRACT_STAMP = join(REPO_ROOT, 'mion-bin/.extract-fn-bodies.stamp');
+export const EXTRACT_INPUTS = ['ts-go-runtypes/cmd/extract-fn-bodies', ...RESOLVER_INPUTS.slice(1)];
+const GO_VERSION_FILE = join(GO_ROOT, '.go-version');
 const MARKER_PKG_DIR = join(REPO_ROOT, 'packages/run-types');
 const PLUGIN_PKG_DIR = join(REPO_ROOT, 'packages/devtools');
 
@@ -100,7 +110,8 @@ function goVersionLdflags() {
   } catch {
     version = 'dev';
   }
-  const tsgo = capture('git', ['-C', join(GO_ROOT, 'third_party/tsgolint'), 'rev-parse', '--short', 'HEAD']).stdout.trim() || 'dev';
+  // A fixed length: `--short` grows with the object count, which would move the digest between clones.
+  const tsgo = tsgolintCommit().slice(0, 7) || 'dev';
   return `-X ${GO_MODULE}/internal/constants.Version=${version} -X ${GO_MODULE}/internal/constants.TsgoVersion=${tsgo}`;
 }
 
@@ -127,133 +138,131 @@ function checkTsgolintPin() {
   warn(`tsgolint submodule is at ${describe()} (${head.slice(0, 7)}) but tsgolint.pin.json declares ${pin.ref} (${pin.commit.slice(0, 7)}). mion-bin/mion will build against a NON-pinned typescript-go — run \`pnpm miondevx core ensure-tsgolint\` to realign.`);
 }
 
-// The identity of everything mion-bin/mion is built from: the input files' content
-// plus what no file records (the submodule commit + whether each shim patch is
-// applied, the ldflags, the toolchain). Exported for the build-gate test.
-export function resolverDigest(ldflags = goVersionLdflags()) {
-  const tsgolint = submoduleInitialised() ? [headCommit(), ...patchState()] : ['no-submodule'];
-  const goVersion = capture('go', ['version']).stdout.trim();
-  return goInputsDigest(REPO_ROOT, RESOLVER_INPUTS, [ldflags, goVersion, ...tsgolint]);
+// The Go CI builds with. The digest names it rather than whatever `go` is on PATH: a
+// runner image ships its own Go, which would split one tree into two keys.
+export const pinnedGoVersion = () => `go${readFileSync(GO_VERSION_FILE, 'utf8').trim()}`;
+
+// Everything a Go binary depends on that no input file records. Computable with git and
+// node only: with no submodule the gitlink stands in for the checkout, whose patches are
+// pinned by that same commit, so only patches left UNapplied change the identity.
+export function goIdentity() {
+  const identity = [pinnedGoVersion(), `${process.platform}/${process.arch}`, tsgolintCommit()];
+  if (submoduleInitialised()) identity.push(...patchState().filter((state) => !state.endsWith('=applied')));
+  return identity;
+}
+
+// The identity of everything mion-bin/mion is built from. Exported for the build-gate test.
+export const resolverDigest = (ldflags = goVersionLdflags()) => goInputsDigest(REPO_ROOT, RESOLVER_INPUTS, [ldflags, ...goIdentity()]);
+export const extractDigest = () => goInputsDigest(REPO_ROOT, EXTRACT_INPUTS, goIdentity());
+
+// The CI cache key for the prebuilt Go binaries, computed with no Go and no submodule.
+export function goBinCacheKey() {
+  const combined = createHash('sha256').update(`${resolverDigest()}\n${extractDigest()}`).digest('hex');
+  return `mion-go-bins-${process.platform}-${process.arch}-${combined.slice(0, 32)}`;
 }
 
 export const readResolverStamp = () => readStamp(GO_STAMP);
 
-function checkGo({trustStamp = false} = {}) {
-  checkTsgolintPin();
-  if (!which('go')) fail(`Go toolchain not found on PATH (needed to build ${GO_BIN}).`);
-  const ldflags = goVersionLdflags();
-  const digest = resolverDigest(ldflags);
-
-  info('Checking mion-bin/mion...');
-  if (trustStamp && existsSync(GO_BIN) && readStamp(GO_STAMP) === digest) return success('mion-bin/mion is up to date (stamp).');
-  if (!existsSync(GO_BIN)) {
-    info('Building mion-bin/mion (missing; may take a moment on a cold cache)...');
-    mkdirSync(dirname(GO_BIN), {recursive: true});
-    if (run('go', ['build', '-ldflags', ldflags, '-o', GO_BIN, GO_PKG], {cwd: GO_ROOT}) !== 0) fail('Build failed.');
-    writeStamp(GO_STAMP, digest);
-    return success('Built mion-bin/mion.');
+// Build `pkg` into `bin` unless its stamp matches `digest` (trusted) or a reference
+// build has the same build ID. Go is only required past the trusted stamp.
+function checkStampedGoBin({bin, stamp, pkg, digest, ldflags, trustStamp}) {
+  const name = rel(bin);
+  const ldArgs = ldflags ? ['-ldflags', ldflags] : [];
+  info(`Checking ${name}...`);
+  if (trustStamp && existsSync(bin) && readStamp(stamp) === digest) return success(`${name} is up to date (stamp).`);
+  if (!which('go')) fail(`Go toolchain not found on PATH (needed to build ${name}).`);
+  if (!existsSync(bin)) {
+    info(`Building ${name} (missing; may take a moment on a cold cache)...`);
+    mkdirSync(dirname(bin), {recursive: true});
+    if (run('go', ['build', ...ldArgs, '-o', bin, pkg], {cwd: GO_ROOT}) !== 0) fail('Build failed.');
+    writeStamp(stamp, digest);
+    return success(`Built ${name}.`);
   }
 
   // Build a reference and compare build IDs. `go list .Stale` is unreliable when we
   // build with `-o` to a custom location, so buildid is the reliable signal.
-  info('Verifying mion-bin/mion matches current source...');
-  const tmpBin = tempBesideBin(GO_BIN);
+  info(`Verifying ${name} matches current source...`);
+  const tmpBin = tempBesideBin(bin);
   try {
-    if (run('go', ['build', '-ldflags', ldflags, '-o', tmpBin, GO_PKG], {cwd: GO_ROOT}) !== 0) fail('Reference build failed.');
-    const diskId = buildId(GO_BIN);
+    if (run('go', ['build', ...ldArgs, '-o', tmpBin, pkg], {cwd: GO_ROOT}) !== 0) fail('Reference build failed.');
+    const diskId = buildId(bin);
     const refId = buildId(tmpBin);
-    if (!diskId || !refId) fail('Could not read build IDs from mion-bin/mion or reference binary.');
+    if (!diskId || !refId) fail(`Could not read build IDs from ${name} or reference binary.`);
     if (diskId !== refId) {
-      info('Replacing mion-bin/mion (stale: build ID mismatch)...');
-      renameSync(tmpBin, GO_BIN);
-      success('Built mion-bin/mion.');
+      info(`Replacing ${name} (stale: build ID mismatch)...`);
+      renameSync(tmpBin, bin);
+      success(`Built ${name}.`);
     } else {
-      success('mion-bin/mion is up to date with source.');
+      success(`${name} is up to date with source.`);
     }
-    writeStamp(GO_STAMP, digest);
+    writeStamp(stamp, digest);
   } finally {
     rmSync(tmpBin, {force: true});
   }
 }
 
-// ── linux-go ────────────────────────────────────────────────────────────────
+function checkGo({trustStamp = false} = {}) {
+  checkTsgolintPin();
+  const ldflags = goVersionLdflags();
+  checkStampedGoBin({bin: GO_BIN, stamp: GO_STAMP, pkg: GO_PKG, digest: resolverDigest(ldflags), ldflags, trustStamp});
+}
 
-function checkLinuxGo() {
-  // The bench container is Linux; the host bin is Mach-O on macOS, so we need a
-  // parallel ELF at mion-bin/mion-linux-<arch>. On Linux hosts this is just a
-  // copy of the host binary that the bench mount finds at a stable name.
+// ── extract ─────────────────────────────────────────────────────────────────
+
+// The source-body extractor the enrich tests and the serialization bench spawn; prebuilt
+// so they need no Go toolchain.
+function checkExtract({trustStamp = false} = {}) {
+  checkStampedGoBin({bin: EXTRACT_BIN, stamp: EXTRACT_STAMP, pkg: EXTRACT_PKG, digest: extractDigest(), ldflags: '', trustStamp});
+}
+
+// ── linux-go / linux-extract ────────────────────────────────────────────────
+
+// The bench container is Linux; the host bin is Mach-O on macOS, so it needs a
+// parallel ELF at mion-bin/<name>-linux-<arch>. On Linux hosts that is just a copy
+// of the host binary the bench mount finds at a stable name.
+function checkLinuxCopy({hostBin, check, pkg, ldflags, name, opts}) {
   const goarch = hostGoArch();
-  const linuxBin = join(REPO_ROOT, `mion-bin/mion-linux-${goarch}`);
+  const linuxBin = join(REPO_ROOT, `mion-bin/${name}-linux-${goarch}`);
 
-  // The Go binary must be fresh first; otherwise we'd cross-compile (or copy) a
+  // The host binary must be fresh first; otherwise we'd cross-compile (or copy) a
   // stale host binary forward into the linux slot.
-  checkGo();
+  check(opts);
 
-  info(`Checking mion-bin/mion-linux-${goarch}...`);
+  info(`Checking mion-bin/${name}-linux-${goarch}...`);
+  const ldArgs = ldflags ? ['-ldflags', ldflags] : [];
   if (process.platform === 'darwin') {
+    if (!which('go')) fail('Go toolchain not found.');
     if (!existsSync(linuxBin) || statSync(linuxBin).size === 0) {
       info(`Cross-building (linux/${goarch})...`);
-      if (!which('go')) fail('Go toolchain not found.');
-      if (run('go', ['build', '-ldflags', goVersionLdflags(), '-o', linuxBin, GO_PKG], {cwd: GO_ROOT, env: {GOOS: 'linux', GOARCH: goarch}}) !== 0) fail('Cross-build failed.');
-      return success(`Built mion-bin/mion-linux-${goarch}.`);
+      if (run('go', ['build', ...ldArgs, '-o', linuxBin, pkg], {cwd: GO_ROOT, env: {GOOS: 'linux', GOARCH: goarch}}) !== 0) fail('Cross-build failed.');
+      return success(`Built mion-bin/${name}-linux-${goarch}.`);
     }
     // Compare against a freshly cross-compiled reference; same approach as `go`.
     const tmpBin = tempBesideBin(linuxBin);
     try {
-      if (run('go', ['build', '-ldflags', goVersionLdflags(), '-o', tmpBin, GO_PKG], {cwd: GO_ROOT, env: {GOOS: 'linux', GOARCH: goarch}}) !== 0) fail('Cross-build (reference) failed.');
+      if (run('go', ['build', ...ldArgs, '-o', tmpBin, pkg], {cwd: GO_ROOT, env: {GOOS: 'linux', GOARCH: goarch}}) !== 0) fail('Cross-build (reference) failed.');
       const diskId = buildId(linuxBin);
       const refId = buildId(tmpBin);
       if (!diskId || diskId !== refId) {
-        info(`Replacing mion-bin/mion-linux-${goarch} (stale)...`);
+        info(`Replacing mion-bin/${name}-linux-${goarch} (stale)...`);
         renameSync(tmpBin, linuxBin);
-        success(`Built mion-bin/mion-linux-${goarch}.`);
+        success(`Built mion-bin/${name}-linux-${goarch}.`);
       } else {
-        success(`mion-bin/mion-linux-${goarch} is up to date with source.`);
+        success(`mion-bin/${name}-linux-${goarch} is up to date with source.`);
       }
     } finally {
       rmSync(tmpBin, {force: true});
     }
+  } else if (!existsSync(linuxBin) || statSync(hostBin).mtimeMs > statSync(linuxBin).mtimeMs) {
+    cpSync(hostBin, linuxBin, {force: true});
+    success(`Synced mion-bin/${name}-linux-${goarch} from ${rel(hostBin)}.`);
   } else {
-    // Linux host: just keep the linux-tagged path in sync with the host bin.
-    if (!existsSync(linuxBin) || statSync(GO_BIN).mtimeMs > statSync(linuxBin).mtimeMs) {
-      cpSync(GO_BIN, linuxBin, {force: true});
-      success(`Synced mion-bin/mion-linux-${goarch} from mion-bin/mion.`);
-    } else {
-      success(`mion-bin/mion-linux-${goarch} is up to date with mion-bin/mion.`);
-    }
+    success(`mion-bin/${name}-linux-${goarch} is up to date with ${rel(hostBin)}.`);
   }
 }
 
-// ── linux-extract ────────────────────────────────────────────────────────────
-
-function checkLinuxExtract() {
-  // The serialization benchmark runs inside the Node 26 container (no Go
-  // toolchain), so `go run ./cmd/extract-fn-bodies` becomes a bind-mounted Linux
-  // ELF at mion-bin/extract-fn-bodies-linux-<arch>. No version ldflags (only mion
-  // embeds the cache version). A fresh reference build + build-id compare detects
-  // staleness; on a Linux host GOOS=linux is native.
-  const goarch = hostGoArch();
-  const linuxBin = join(REPO_ROOT, `mion-bin/extract-fn-bodies-linux-${goarch}`);
-  if (!which('go')) fail(`Go toolchain not found (needed to build ${linuxBin}).`);
-
-  info(`Checking mion-bin/extract-fn-bodies-linux-${goarch}...`);
-  const tmpBin = tempBesideBin(linuxBin);
-  try {
-    if (run('go', ['build', '-o', tmpBin, EXTRACT_PKG], {cwd: GO_ROOT, env: {GOOS: 'linux', GOARCH: goarch}}) !== 0) fail('Cross-build failed.');
-    const diskId = buildId(linuxBin);
-    const refId = buildId(tmpBin);
-    if (!existsSync(linuxBin) || !diskId || diskId !== refId) {
-      mkdirSync(dirname(linuxBin), {recursive: true});
-      info(`Replacing mion-bin/extract-fn-bodies-linux-${goarch} (stale or missing)...`);
-      renameSync(tmpBin, linuxBin);
-      success(`Built mion-bin/extract-fn-bodies-linux-${goarch}.`);
-    } else {
-      success(`mion-bin/extract-fn-bodies-linux-${goarch} is up to date with source.`);
-    }
-  } finally {
-    rmSync(tmpBin, {force: true});
-  }
-}
+const checkLinuxGo = (opts) => checkLinuxCopy({hostBin: GO_BIN, check: checkGo, pkg: GO_PKG, ldflags: goVersionLdflags(), name: 'mion', opts});
+const checkLinuxExtract = (opts) => checkLinuxCopy({hostBin: EXTRACT_BIN, check: checkExtract, pkg: EXTRACT_PKG, ldflags: '', name: 'extract-fn-bodies', opts});
 
 // ── marker-dist / plugin-dist ───────────────────────────────────────────────
 
@@ -323,13 +332,14 @@ function checkUws() {
 function runTarget(target, opts) {
   switch (target) {
     case 'go': return checkGo(opts);
-    case 'linux-go': return checkLinuxGo();
-    case 'linux-extract': return checkLinuxExtract();
+    case 'extract': return checkExtract(opts);
+    case 'linux-go': return checkLinuxGo(opts);
+    case 'linux-extract': return checkLinuxExtract(opts);
     case 'marker-dist': return checkMarkerDist();
     case 'plugin-dist': return checkPluginDist();
     case 'uws': return checkUws();
-    case 'all': checkGo(opts); checkMarkerDist(); checkPluginDist(); checkUws(); return;
-    default: fail(`unknown target '${target}'. Valid: go | linux-go | marker-dist | plugin-dist | uws | all`);
+    case 'all': checkGo(opts); checkExtract(opts); checkMarkerDist(); checkPluginDist(); checkUws(); return;
+    default: fail(`unknown target '${target}'. Valid: go | extract | linux-go | linux-extract | marker-dist | plugin-dist | uws | all`);
   }
 }
 
@@ -342,7 +352,8 @@ export function main(args, opts = {}) {
 if (import.meta.main) {
   loadEnv();
   try {
-    main(process.argv.slice(2));
+    if (process.argv[2] === '--cache-key') console.log(goBinCacheKey());
+    else main(process.argv.slice(2));
   } catch (err) {
     reportCliError(err);
   }

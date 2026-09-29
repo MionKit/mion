@@ -23,7 +23,7 @@ import {join} from 'node:path';
 import {ensureImage} from '../container/image.mjs';
 import {loadEnv, REPO_ROOT} from '../lib/env.mjs';
 import {requireEngine} from '../lib/engine.mjs';
-import {capture, die, note, reportCliError, run, sleep, warn, which} from '../lib/proc.mjs';
+import {capture, die, note, reportCliError, run, sleep, warn} from '../lib/proc.mjs';
 
 const WEBSITE_DIR = join(REPO_ROOT, 'container/website');
 // Source directories bind-mounted into /app (host is the source of truth).
@@ -133,13 +133,9 @@ export function ensureMionDists() {
 
 // Stage the playground assets (resolver WASM + mion source overlay) the
 // /playground page fetches. build-playground.mjs is itself staleness-gated (instant
-// no-op when nothing changed), so we just invoke it before serving.
+// no-op when nothing changed, and needs no Go when the wasm stamp still matches), so we just invoke it before serving.
 function ensurePlayground(cfg) {
   if (cfg.skipPlayground) return note('MION_WEBSITE_SKIP_PLAYGROUND=1 - skipping playground assets');
-  if (!which('go')) {
-    warn('Go toolchain not found - skipping playground build (the /playground page will 404). Install Go + bootstrap submodules (SETUP.md), or set MION_WEBSITE_SKIP_PLAYGROUND=1 to silence.');
-    return;
-  }
   if (run('node', [join(WEBSITE_DIR, 'scripts/build-playground.mjs')]) !== 0) {
     warn('playground build failed - the site will run but /playground will 404 (see output above; needs Go + bootstrapped submodule, SETUP.md).');
   }

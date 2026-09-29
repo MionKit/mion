@@ -115,6 +115,9 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/bootstrap
+      - uses: ./.github/actions/resolver
+        with:
+          toolchain: 'true'
       # miondevx builds what a lane needs itself, but doing it as its own step keeps a
       # build failure legible as a build failure rather than a soak failure.
       - name: Build the resolver + dists (convertcli spawns the binary)

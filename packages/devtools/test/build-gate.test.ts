@@ -1,11 +1,12 @@
 // The stamp fast path of scripts/core/build.mjs: the entry point runs every
 // gated command through main(['all'], {trustStamp: true}), which must cost a
 // digest (no reference build) on a warm tree, and must fall back to the full
-// build-id compare the moment the stamp disagrees. Needs the bootstrapped host
-// like every plugin test (Go toolchain + the submodule): `node scripts/core/build.mjs go`
-// is the first thing it runs.
+// build-id compare the moment the stamp disagrees. Needs the Go toolchain + the
+// submodule (`node scripts/core/build.mjs go` is the first thing it runs), so CI runs
+// it in go-fuzz, never in js-lint.
 import {spawnSync} from 'node:child_process';
-import {existsSync, readFileSync, readdirSync, writeFileSync} from 'node:fs';
+import {existsSync, mkdtempSync, readFileSync, readdirSync, symlinkSync, writeFileSync} from 'node:fs';
+import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {afterAll, beforeAll, describe, expect, it} from 'vitest';
 
@@ -19,6 +20,22 @@ const run = (code: string): {status: number | null; out: string} => {
 };
 const trusted = (): {status: number | null; out: string} =>
   run(`const {main} = await import(${JSON.stringify(BUILD)}); main(['go'], {trustStamp: true});`);
+// A PATH with node and git only: a CI job that restored the binaries and never set Go up.
+const noGoPath = (): string => {
+  const dir = mkdtempSync(join(tmpdir(), 'no-go-'));
+  symlinkSync(process.execPath, join(dir, 'node'));
+  symlinkSync(spawnSync('which', ['git'], {encoding: 'utf8'}).stdout.trim(), join(dir, 'git'));
+  return dir;
+};
+const trustedWithoutGo = (): {status: number | null; out: string} => {
+  const code = `const {main} = await import(${JSON.stringify(BUILD)}); main(['go'], {trustStamp: true});`;
+  const result = spawnSync(process.execPath, ['--input-type=module', '-e', code], {
+    cwd: REPO_ROOT,
+    encoding: 'utf8',
+    env: {...process.env, PATH: noGoPath()},
+  });
+  return {status: result.status, out: `${result.stdout ?? ''}${result.stderr ?? ''}`};
+};
 const refTemps = (): string[] => readdirSync(join(REPO_ROOT, 'mion-bin')).filter((name) => name.startsWith('.rt-build-ref-'));
 
 describe('build gate — the mion-bin/mion stamp', () => {
@@ -40,6 +57,20 @@ describe('build gate — the mion-bin/mion stamp', () => {
     expect(out).toContain('mion-bin/mion is up to date (stamp)');
     expect(out).not.toContain('Verifying mion-bin/mion matches current source');
     expect(refTemps()).toEqual([]);
+  }, 60_000);
+
+  it('a matching stamp is trusted with no Go on PATH, as a job that restored the binary from the cache', () => {
+    const {status, out} = trustedWithoutGo();
+    expect(status, out).toBe(0);
+    expect(out).toContain('mion-bin/mion is up to date (stamp)');
+  }, 60_000);
+
+  it('with no Go on PATH, a stamp that disagrees fails loudly instead of trusting the binary', () => {
+    writeFileSync(STAMP, 'not-the-digest\n');
+    const {status, out} = trustedWithoutGo();
+    writeFileSync(STAMP, original);
+    expect(status).not.toBe(0);
+    expect(out).toContain('Go toolchain not found on PATH (needed to build mion-bin/mion)');
   }, 60_000);
 
   it('a stamp that disagrees forces the full build-id compare, then re-stamps', () => {
