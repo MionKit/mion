@@ -4,6 +4,7 @@
 import {createHash} from 'node:crypto';
 import {existsSync, mkdirSync, readFileSync, writeFileSync} from 'node:fs';
 import {dirname, join, relative} from 'node:path';
+import {parseArgs} from 'node:util';
 import {REPO_ROOT} from '../lib/env.mjs';
 import {die, note, reportCliError} from '../lib/proc.mjs';
 
@@ -17,7 +18,7 @@ const KEEP_PER_FILE = 3;
 const DRAWN_SAMPLES = /(mockSamples(?:\\?["'])?\s*:\s*\[)[^\]]*\]/g;
 const GENERATED = /\/\.mion[^/]*\//;
 export const stableCode = (path, code) => (GENERATED.test(path) ? code.replace(DRAWN_SAMPLES, '$1]') : code);
-export const DEFAULT_STORE = join(REPO_ROOT, 'node_modules/.cache/mion/vitest-passed.json');
+const DEFAULT_STORE = join(REPO_ROOT, 'node_modules/.cache/mion/vitest-passed.json');
 
 const sha = (...parts) => {
   const hash = createHash('sha256');
@@ -77,22 +78,23 @@ async function projectSalt(project, base) {
   return sha(...parts);
 }
 
+const specId = (project, moduleId) => `${project.name}::${relative(REPO_ROOT, moduleId)}`;
+
 // A set `reason` means never cache that file.
-export async function specKeys(vitest, specs) {
+async function specKeys(vitest, specs) {
   const base = baseSalt(vitest);
   const salts = new Map();
   const keys = {};
   for (const spec of specs) {
     if (!salts.has(spec.project)) salts.set(spec.project, await projectSalt(spec.project, base));
-    const id = relative(REPO_ROOT, spec.moduleId);
     const graph = await moduleGraph(spec.project, spec.moduleId);
     const reason = TIME_BOXED.test(spec.moduleId) ? 'time-boxed fuzz' : [...graph.reasons][0] ?? '';
-    keys[`${spec.project.name}::${id}`] = {key: fileKey(graph, salts.get(spec.project)), reason};
+    keys[specId(spec.project, spec.moduleId)] = {key: fileKey(graph, salts.get(spec.project)), reason};
   }
   return keys;
 }
 
-export function readStore(path) {
+function readStore(path) {
   try {
     return JSON.parse(readFileSync(path, 'utf8'));
   } catch {
@@ -117,10 +119,8 @@ async function openVitest({filters = [], projects = [], excludes = [], reporters
   return {vitest, specs};
 }
 
-const specId = (project, moduleId) => `${project.name}::${relative(REPO_ROOT, moduleId)}`;
-
 // A file with ANY skipped test is never recorded: a `.skipIf(!HAS_BIN)` looks the same as a real skip.
-function passRecorder() {
+export function passRecorder() {
   const passed = new Set();
   const failed = new Set();
   const reporter = {
@@ -134,7 +134,7 @@ function passRecorder() {
   return {reporter, passed, failed};
 }
 
-// `--keys <file>`: for trials and debugging.
+// `--keys <file>`: a lasting debug tool, to see why a file re-ran or never caches.
 async function writeKeys(out, scope) {
   const started = performance.now();
   const {vitest, specs} = await openVitest(scope);
@@ -146,7 +146,10 @@ async function writeKeys(out, scope) {
   note(`test-skip: ${specs.length} file(s) keyed in ${Math.round(performance.now() - started)} ms, ${uncached} never cached -> ${relative(REPO_ROOT, out)}`);
 }
 
-// `audit` runs everything and fails when a file the list would skip fails: that file's key misses an input.
+// The proven files that failed anyway: each one's key misses an input.
+export const missedFiles = (provenIds, failed) => provenIds.filter((id) => failed.has(id));
+
+// `audit` runs everything and fails when a file the list would skip fails.
 async function runSkipping({store: storePath, audit, ...scope}) {
   const recorder = passRecorder();
   const {vitest, specs} = await openVitest({...scope, reporters: [recorder.reporter]});
@@ -158,37 +161,36 @@ async function runSkipping({store: storePath, audit, ...scope}) {
   if (toRun.length > 0) await vitest.runTestSpecifications(toRun, audit || proven.length === 0);
   const unhandled = vitest.state.getUnhandledErrors().length;
   await vitest.close();
-  for (const id of recorder.passed) if (keys[id] && !keys[id].reason) recordPass(store, id, keys[id].key);
-  mkdirSync(dirname(storePath), {recursive: true});
-  writeFileSync(storePath, `${JSON.stringify(store)}\n`);
-  const missed = audit ? proven.map((spec) => specId(spec.project, spec.moduleId)).filter((id) => recorder.failed.has(id)) : [];
+  // An unhandled error belongs to no file, so nothing from that run is trusted.
+  if (unhandled === 0) {
+    for (const id of recorder.passed) if (keys[id] && !keys[id].reason) recordPass(store, id, keys[id].key);
+    mkdirSync(dirname(storePath), {recursive: true});
+    writeFileSync(storePath, `${JSON.stringify(store)}\n`);
+  }
+  const missed = audit ? missedFiles(proven.map((spec) => specId(spec.project, spec.moduleId)), recorder.failed) : [];
   if (missed.length > 0) die(`core test-skip: ${missed.length} file(s) the passed list would have skipped FAILED, so their key misses an input: ${missed.join(', ')}`);
   if (recorder.failed.size > 0 || unhandled > 0) die(`core test-skip: ${recorder.failed.size} file(s) failed, ${unhandled} unhandled error(s)`);
 }
 
-const takeAll = (argv, flag) => {
-  const values = [];
-  const rest = [];
-  for (let i = 0; i < argv.length; i++) {
-    if (argv[i] === flag) values.push(argv[++i]);
-    else if (argv[i].startsWith(`${flag}=`)) values.push(argv[i].slice(flag.length + 1));
-    else rest.push(argv[i]);
+export function parseCli(argv) {
+  let parsed;
+  try {
+    parsed = parseArgs({
+      args: argv,
+      allowPositionals: true,
+      options: {keys: {type: 'string'}, store: {type: 'string'}, project: {type: 'string', multiple: true}, exclude: {type: 'string', multiple: true}, audit: {type: 'boolean'}},
+    });
+  } catch (err) {
+    die(`core test-skip: ${err.message}`, 2);
   }
-  return {values, rest};
-};
+  const {values, positionals} = parsed;
+  return {keys: values.keys, store: values.store ?? DEFAULT_STORE, audit: Boolean(values.audit), scope: {filters: positionals, projects: values.project ?? [], excludes: values.exclude ?? []}};
+}
 
 export async function main(argv = []) {
-  const keysOut = takeAll(argv, '--keys');
-  const storeArg = takeAll(keysOut.rest, '--store');
-  const projects = takeAll(storeArg.rest, '--project');
-  const excludes = takeAll(projects.rest, '--exclude');
-  const audit = excludes.rest.includes('--audit');
-  const filters = excludes.rest.filter((arg) => arg !== '--audit');
-  const unknown = filters.find((arg) => arg.startsWith('-'));
-  if (unknown) die(`core test-skip: unknown flag '${unknown}'`, 2);
-  const scope = {filters, projects: projects.values, excludes: excludes.values};
-  if (keysOut.values.length > 0) return writeKeys(keysOut.values[0], scope);
-  return runSkipping({...scope, audit, store: storeArg.values[0] ?? DEFAULT_STORE});
+  const cli = parseCli(argv);
+  if (cli.keys) return writeKeys(cli.keys, cli.scope);
+  return runSkipping({...cli.scope, audit: cli.audit, store: cli.store});
 }
 
 if (import.meta.main) {
