@@ -152,8 +152,7 @@ export const a = mion.route(noReturn);
 export const b = mion.route(thrower);
 `;
 
-// CLEAN_ROUTES_TS is the same file written correctly, plus two handler shapes
-// only a resolved call can see.
+// The same file written correctly, plus two handler shapes only a resolved call can see.
 const CLEAN_ROUTES_TS = `import {createMionRouter, type Handler} from '@mionjs/router';
 import {RpcError} from '@mionjs/core';
 const mion = createMionRouter();
@@ -165,11 +164,8 @@ export const caught = mion.route((ctx, name: string): string => {
 });
 `;
 
-// A format pattern that uses a JS-only lookbehind and carries a mockSample
-// that does NOT match the real regex. The resolver runs every pattern check
-// on a real JS engine (its node/bun sidecar), so the mismatch arrives as an
-// ordinary FMT001 diagnostic — the lint worker checks nothing itself. The local TypeFormat brand is recognised structurally, same as
-// the Go resolver tests.
+// The mockSample fails a JS-only lookbehind, which the resolver's JS sidecar reports as FMT001, not the lint worker.
+// The local TypeFormat brand is recognised structurally, as in the Go resolver tests.
 const UNCHECKED_PATTERN_TS = `import {createValidateFn} from '@mionjs/run-types';
 
 type TypeFormat<Base, Name extends string, Params> = Base & {

@@ -358,10 +358,8 @@ func TestPruneOrphanBlocks_StringLiteralsNeverPruned(t *testing.T) {
 	}
 }
 
-// TestPruneOrphanBlocks_ParseErrorRefused: prune is destructive, so text that
-// does not PARSE is refused whole (error, nothing removed, bytes untouched) —
-// the same stance ParseMirror takes for enrich --update. The CLI warns and skips
-// the file; the user fixes the syntax and re-runs.
+// TestPruneOrphanBlocks_ParseErrorRefused: prune is destructive, so unparseable text is refused whole, bytes untouched.
+// Same stance as ParseMirror for enrich --update; the CLI warns and skips the file.
 func TestPruneOrphanBlocks_ParseErrorRefused(t *testing.T) {
 	broken := "export const = {{{;\n/* " + OrphanTag + " export const gone = {}; */\n"
 	pruned, removed, skipped, pruneErr := PruneOrphanBlocks(broken)

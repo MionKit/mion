@@ -9,9 +9,7 @@ export function referencesMarkerModule(text: string, file?: string, markers?: Ma
   return mayHoldMarkerCalls(text, file, markers);
 }
 
-// enrichConstAnnotationPattern mirrors the Go-side guard's structural probe: a CONST declaration annotated with
-// a DSL type, the shape every scaffold emits. The Go guard masks comments first; this one does not, so a rare
-// comment-only match pays one round trip the authoritative Go guard then rejects.
+// Mirrors the Go guard's const-annotation probe without masking comments: a comment-only match costs one round trip.
 const enrichConstAnnotationPattern = new RegExp(
   `^[ \\t]*(?:export[ \\t]+)?const[ \\t]+[A-Za-z_$][A-Za-z0-9_$]*[ \\t]*:\\s*(?:${FRIENDLY_TEXT_NAME}|${MOCK_DATA_NAME})[ \\t]*<`,
   'm'

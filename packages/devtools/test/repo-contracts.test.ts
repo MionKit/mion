@@ -218,7 +218,6 @@ describe('published packages ship a README', () => {
       expect(lines.length).toBeLessThanOrEqual(THIN_README_MAX_LINES);
       // A separator row is what makes a markdown table a table.
       expect(lines.filter((line) => /^\s*\|\s*:?-{3,}/.test(line))).toEqual([]);
-      // No env vars.
       expect(readme).not.toMatch(/\bMION_[A-Z0-9_]+\b|process\.env/);
       expect(readme).toContain('https://mion.pages.dev/runtypes');
     });
@@ -745,8 +744,7 @@ describe('twoslash VFS mounts the packages the examples import', () => {
   });
 });
 
-// `miondevx release all` performs an IRREVERSIBLE action (preflight -> npm publish -> site build),
-// so help, a bare `release` and a typo must never reach it. These pin the guards.
+// `release all` publishes irreversibly, so help, a bare `release` and a typo must never reach it.
 describe('miondevx release — help and typos never reach the publish umbrella', () => {
   const miondevx = (args: string[]): {status: number | null; stdout: string; stderr: string} => {
     const result = spawnSync(process.execPath, [join(REPO_ROOT, 'scripts/miondevx.mjs'), ...args], {encoding: 'utf8'});
@@ -1332,8 +1330,7 @@ describe('mion server benchmarks stay wired end to end', () => {
     expect(Object.keys(manifest.dependencies ?? {})).toContain('pidusage');
   });
 
-  // The load generator is wrk: a node-based one competes with the server it measures on the
-  // same box and tops out before a bun server does.
+  // A node-based load generator competes with the server on the same box and tops out before a bun server does.
   it('the load generator is wrk, installed in the image', () => {
     expect(CONTAINERFILE, 'the image never installs wrk, so every lane would fail on PATH').toMatch(
       /apt-get install[^\n]*\bwrk\b/

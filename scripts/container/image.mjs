@@ -308,9 +308,7 @@ function resolvePublishedImage(cfg) {
   buildImage(cfg);
 }
 
-// Every file baked into a target's image: its Containerfile plus the manifests /
-// assets it COPYs. Sorted, so the hash below is stable across filesystems. The
-// ONE definition of "what makes this image out of date", read by the deps stamp.
+// The ONE definition of "what makes this image out of date"; sorted so depsHash is stable across filesystems.
 function targetSrcFiles(cfg) {
   const files = [join(cfg.dir, 'Containerfile')];
   if (cfg.target === 'website') files.push(join(DEPS_DIR, 'package.json'), join(DEPS_DIR, 'pnpm-lock.yaml'), join(DEPS_DIR, 'pnpm-workspace.yaml'), join(DEPS_DIR, '.npmrc'));
@@ -350,8 +348,7 @@ function depsHash(cfg) {
   return digest.digest('hex').slice(0, 16);
 }
 
-// The label carrying depsHash(). An image without it is 'unknown', which the pull path must NOT read as drift: forcing a local build on a
-// missing label would make every CI lane rebuild these images from scratch.
+// A missing label is 'unknown', never drift, or every CI lane would rebuild these images from scratch.
 const DEPS_LABEL = 'org.mionkit.deps-hash';
 
 function depsStampState(cfg) {
@@ -366,7 +363,6 @@ function depsStampState(cfg) {
   return 'drift';
 }
 
-// Local-image path: build when missing, and rebuild unless the deps stamp matches the tree.
 // Bind-mounted source never needs a rebuild (mounted live).
 function ensureImageLocal(cfg) {
   if (!imageExists(cfg.engine, cfg.image)) return buildImage(cfg);

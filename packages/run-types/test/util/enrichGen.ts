@@ -128,7 +128,7 @@ export async function generateCategory(fileBase: string, constName: string): Pro
   return out;
 }
 
-// One `enrich --no-emit` finding (the JSON shape the CLI emits per finding).
+// The JSON shape `enrich --no-emit` emits per finding.
 export interface CheckFinding {
   code: string;
   family?: number;
@@ -142,13 +142,8 @@ export interface CaseCheck {
   findings: CheckFinding[];
 }
 
-// checkCategory synthesizes a `.rt.ts` per case (the case's `src` declaration +
-// the authored `friendlyTarget` / `mockTarget` consts + the marker imports),
-// runs `enrich <file> --no-emit --json` over each, and returns the findings per case. These
-// are the valid, tsc-checked maps → `enrich --no-emit` must report ZERO findings (no false
-// positives across the type ranges). The `friendly` / `mock` initializers come
-// from the case spans WITH any `as MockData<Target>` cast already stripped, so
-// `enrich --no-emit` sees a bare object-literal initializer it will actually walk.
+// The maps are valid and tsc-checked, so `enrich --no-emit` must report ZERO findings on each synthesized `.rt.ts`.
+// The `as MockData<Target>` cast is stripped first, or the check would not walk the object literal.
 export function checkCategory(fileBase: string, constName: string): Record<string, CaseCheck> {
   const spans = loadCategorySpans(fileBase, constName);
   const dir = laneDir('no-emit');

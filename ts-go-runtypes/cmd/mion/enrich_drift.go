@@ -16,10 +16,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment/mirror"
 )
 
-// driftFinding is one breadcrumb-drift issue for the `enrich --no-emit` drift report.
-// Mirrors the enrichment.Finding shape (Code / Severity / Message) but is
-// file-anchored; Line/Col are the 1-based position of the breadcrumb import
-// (zero for file-level findings like GE000).
+// driftFinding mirrors enrichment.Finding but is file-anchored; Line/Col are 1-based, zero for file-level GE000.
 type driftFinding struct {
 	File     string              `json:"file"`
 	Severity enrichment.Severity `json:"severity"`
@@ -30,25 +27,9 @@ type driftFinding struct {
 	Col      int                 `json:"col,omitempty"`
 }
 
-// runMirrorDriftCheck implements the `enrich [<dir>] --no-emit [--json]` drift lane: it reads each mirror file's `import type { … } from '<src>'`
-// breadcrumb, resolves <src> relative to the mirror file, and reports drift:
-//
-//   - GE001 (warning) — the mirror file's location no longer matches the
-//     computed mirror-of(resolved src): cosmetic drift after an IDE rename.
-//   - GE002 (error)   — the breadcrumb resolves to a non-existent file (the
-//     source was deleted → orphaned mirror).
-//   - GE003 (error)   — the resolved source exists but no longer declares an
-//     imported type (renamed/removed type).
-//
-// GE002/GE003 detection is shared with `enrich --no-emit` and the resolver's checkEnrich
-// pass (mirror.CheckBreadcrumbDrift); GE001 lives here because only the CLI
-// knows the project's gen-dir config.
-//
-// The argument is a single mirror .ts file or a directory to walk. With no
-// argument, it walks the enrich dir resolved from the current directory's
-// tsconfig. Exits 1 when any WRONG/stale Error finding is present; a completeness
-// finding fails only under requireComplete (today every drift code is Tier 1, so
-// the filter is a forward-compatible no-op here).
+// runMirrorDriftCheck is `enrich [<dir>] --no-emit [--json]`: breadcrumb drift, GE001 to GE003 (codes_mirror.go).
+// GE002/GE003 come from mirror.CheckBreadcrumbDrift; GE001 lives here, as only the CLI knows the genDir config.
+// With no argument it walks the enrich dir from cwd's tsconfig; genCheckExitCode picks the exit code.
 func runMirrorDriftCheck(positional []string, genDirFlag string, asJSON, requireComplete bool, tsconfigFlag string) {
 	tsconfigPath, parsed := resolveEnrichProject(tsconfigFlag)
 	var targets []string
@@ -317,9 +298,7 @@ func localeMirrorOf(config enrichConfig, mirrorFile string) (string, bool) {
 	return segments[0], true
 }
 
-// mirrorFamilyOf reads a mirror file's family off its path: the first segment
-// of its path relative to the enrich root must be a known family dir. ok=false
-// for a file outside the enrich root or with no family segment.
+// mirrorFamilyOf reads the family off the first path segment under the enrich root; ok=false outside it or with none.
 func mirrorFamilyOf(enrichDir, mirrorFile string) (string, bool) {
 	rel, err := filepath.Rel(enrichDir, mirrorFile)
 	if err != nil || strings.HasPrefix(rel, "..") {

@@ -16,7 +16,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment/mirror"
 )
 
-// runEnrich is registered in main.go's top-level `commands` table (one args[0] dispatch convention for every mode).
+// runEnrich is registered in main.go's top-level `commands` table, like every mode.
 
 // buildProgram constructs an inferred Program + resolver over absPath. The
 // caller owns the resolver and MUST call res.Close() when done (it keeps the
@@ -66,11 +66,8 @@ func buildProgramMulti(absPaths []string, parsed *program.InferredConfig, hashLe
 	return prog, res, nil
 }
 
-// runEnrich is the enrichment verb — the ONE mirror-maintenance command. It owns the grammar: a scaffold target
-// (<file> <Type>, or a --prune / --i18n write flag) WRITES; --no-emit turns
-// any write lane into a diagnostics-only pass (tsc --noEmit-style); and a
-// check-only target (a bare file, a dir, or no positional) REQUIRES --no-emit,
-// which also disambiguates a <file> given without a <Type> to scaffold.
+// runEnrich: a scaffold target (<file> <Type>, --prune, --i18n) writes, and --no-emit makes it diagnostics-only.
+// A check-only target (bare file, dir, none) requires --no-emit, which is what tells a bare <file> from a scaffold.
 func runEnrich(args []string) {
 	fs := flag.NewFlagSet("enrich", flag.ExitOnError)
 	mock := fs.Bool("mock", false, "emit a MockData<T> skeleton")
@@ -257,8 +254,6 @@ func runEnrichScaffold(srcArg, typeName string, mock, friendly bool, out string,
 	os.Exit(0)
 }
 
-// writeMirrorFile / updateMirrorFile are the CLI's disk shims around mirror.Scaffold / mirror.Reconcile.
-
 // writeMirrorFile emits (or appends to) one mirror file for a single source
 // file's consts. It returns true when it wrote anything, false when every
 // requested export was already present (create-only skip). It is the thin CLI
@@ -295,10 +290,8 @@ func writeMirrorFile(spec mirror.Spec) bool {
 	return true
 }
 
-// runEnrichBatch is the `enrich --files a.ts,b.ts --type Target` path: ONE Program over
-// all files, resolve typeName per file, and print a JSON map
-// { <basename-without-ext> → {friendly, mock} } of object-literal skeletons. No
-// files are written. Used by the enrichment generation test harness.
+// runEnrichBatch is `enrich --files a.ts,b.ts --type Target`: ONE Program over all files, JSON skeletons, no writes.
+// Only the enrichment generation test harness uses it.
 func runEnrichBatch(files []string, typeName, tsconfigFlag string) {
 	absPaths := make([]string, 0, len(files))
 	for _, file := range files {

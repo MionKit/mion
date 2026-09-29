@@ -30,10 +30,7 @@ func TestHygieneSeverity(t *testing.T) {
 	}
 }
 
-// TestMirrorDriftExitCode is the tree walk's twin of the single-file gate contract:
-// a completeness finding fails only --require-complete, a stale carcass and the
-// breadcrumb drift errors fail both lanes, the cosmetic GE001 never does, and a
-// @todo next to a carcass never masks it.
+// TestMirrorDriftExitCode pins the single-file gate contract on the tree walk; a @todo never masks a carcass.
 func TestMirrorDriftExitCode(t *testing.T) {
 	finding := func(code string, severity enrichment.Severity) driftFinding {
 		return driftFinding{File: "mirror.ts", Code: code, Severity: severity}

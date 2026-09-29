@@ -5,9 +5,7 @@
 import {describe, expect, it} from 'vitest';
 import type {InjectTypeFnArgs} from '@mionjs/run-types';
 
-// SIX distinct families. If
-// markers.ts is narrowed below six type parameters, this alias reports
-// "Expected N type arguments, but got 7" and the typecheck fails.
+// Six families: if markers.ts takes fewer, this reports "Expected N type arguments, but got 7".
 type SixFamilyMarker = InjectTypeFnArgs<
   {id: number},
   'validationErrors',

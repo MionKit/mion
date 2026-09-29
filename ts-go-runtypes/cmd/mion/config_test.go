@@ -180,9 +180,7 @@ func TestResolveEnrichConfig_GarbageTsconfig(t *testing.T) {
 	}
 }
 
-// TestMirrorPath verifies the per-family mirror path math, including the
-// family path segment, the .d.ts → .ts collapse, and the under-rootDir
-// relativization — plus the family-less combined path an --out spec uses.
+// TestMirrorPath covers the family segment, the .d.ts → .ts collapse, rootDir relativization and the --out path.
 func TestMirrorPath(t *testing.T) {
 	config := enrichConfig{
 		ProjectRoot: "/proj",
@@ -377,9 +375,6 @@ func TestResolveEnrichConfig_I18n(t *testing.T) {
 	}
 }
 
-// TestMirrorFamilyOf reads a mirror file's family off its path segment under
-// the enrich root; a file with no family segment (or outside the root) has no
-// family.
 func TestMirrorFamilyOf(t *testing.T) {
 	enrichDir := "/proj/runtypes/generated"
 	tests := []struct {

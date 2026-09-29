@@ -259,7 +259,6 @@ func ScanBlankValues(text string) []TagFinding {
 	return NewScan(text).BlankValues()
 }
 
-// dslWrapperAlternation is shared by the annotation probes.
 var dslWrapperAlternation = enrichment.FriendlyTextName + `|` + enrichment.MockDataName
 
 // annotationFamilyPattern is enrichConstAnnotationPattern with the DSL type name captured as group 1.
