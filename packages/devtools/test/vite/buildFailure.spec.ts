@@ -27,12 +27,11 @@ import {writeMarkerPackage} from '../helpers/inline.ts';
 
 const FIXTURES = resolve(dirname(fileURLToPath(import.meta.url)), '../../test-fixtures');
 
-type BuildOutcome = {ok: boolean; codes: string[]; messages: string[]; error: string};
+type BuildOutcome = {ok: boolean; codes: string[]; messages: string[]; error: string; loc?: {file: string; line: number}};
 
 /** Runs one fixture through a real vite build with the mion plugin and reports what came out,
  *  instead of throwing. Diagnostics reach us as plugin WARNINGS (upstream's `ctx.warn`); the thrown
- *  error is only the generic "build halted" summary and carries no code, so the logger is where the
- *  evidence actually is. */
+ *  error names the first one and carries its place (`loc`), which vite's overlay reads. */
 async function buildFixture(name: string, runTypes: Partial<MionRunTypesOptions> = {}): Promise<BuildOutcome> {
   const dir = resolve(FIXTURES, name);
   const messages: string[] = [];
@@ -41,6 +40,7 @@ async function buildFixture(name: string, runTypes: Partial<MionRunTypesOptions>
 
   let ok = true;
   let error = '';
+  let loc: BuildOutcome['loc'];
   try {
     await build({
       root: dir,
@@ -59,9 +59,12 @@ async function buildFixture(name: string, runTypes: Partial<MionRunTypesOptions>
   } catch (e) {
     ok = false;
     error = String((e as Error)?.message ?? e);
+    // Vite 8 wraps each plugin error in the build's `errors` list.
+    const thrown = e as {loc?: BuildOutcome['loc']; errors?: {loc?: BuildOutcome['loc']}[]};
+    loc = thrown.loc ?? thrown.errors?.[0]?.loc;
   }
   const codes = [...new Set(messages.join('\n').match(/FMT\d{3}/g) ?? [])];
-  return {ok, codes, messages, error};
+  return {ok, codes, messages, error, loc};
 }
 
 describe('build halts on pattern diagnostics', () => {
@@ -82,6 +85,9 @@ describe('build halts on pattern diagnostics', () => {
     const result = await buildFixture('fmt003');
     expect(result.codes).toContain('FMT003');
     expect(result.ok).toBe(false);
+    // The thrown error names the code and carries the place, which is what the vite overlay shows.
+    expect(result.error).toMatch(/build stopped on 1 mion error\. First: .*FMT003/);
+    expect(result.loc).toMatchObject({file: resolve(FIXTURES, 'fmt003/index.ts'), line: expect.any(Number)});
   }, 60_000);
 
   it('FMT005: a pattern the sample generator cannot handle', async () => {

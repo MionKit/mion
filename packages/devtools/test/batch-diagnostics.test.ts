@@ -204,7 +204,7 @@ function expectHalted(
   reason?: string | RegExp
 ): string {
   expect(run.error, `build must halt on ${code}:\n${run.warns.join('\n')}`).not.toBeNull();
-  expect(run.error!.message).toMatch(/build halted/);
+  expect(run.error!.message).toMatch(/build stopped/);
   const hits = run.warns.filter((w) => w.includes(`error ${code}:`));
   expect(hits.length, `exactly one ${code}, got:\n${run.warns.join('\n')}`).toBe(1);
   const hit = hits[0];
@@ -562,7 +562,7 @@ describe('request-batch diagnostics and readable shapes', () => {
         `const prepared = [routes.users.getById(1)];\ndeclare const flag: boolean;\nexport const b = batch([...prepared, flag ? routes.users.getById(1) : routes.users.getById(2), routes.orders.list(1)]);\n`;
       await withBuild({'case.ts': source}, {}, async (run) => {
         expect(run.error).not.toBeNull();
-        expect(run.error!.message).toMatch(/2 unsupported-type errors/);
+        expect(run.error!.message).toMatch(/build stopped on 2 mion errors/);
         const hits = run.warns.filter((w) => w.includes('error BAT001:'));
         expect(hits.length).toBe(2);
         expect(hits[0]).toContain('spread element');

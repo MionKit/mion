@@ -267,7 +267,7 @@ describe('downgradeErrors — Error-severity diagnostics fail the build in every
     const plugin = makePlugin(ERROR_DIR);
     const ctx = makeCtx();
     try {
-      await expect(callHook(plugin.buildStart, ctx) as Promise<void>).rejects.toThrow(/unsupported-type error/);
+      await expect(callHook(plugin.buildStart, ctx) as Promise<void>).rejects.toThrow(/build stopped on \d+ mion error/);
       // Every diagnostic surfaced BEFORE the halt so the log names the call site.
       const all = ctx.warnings.join('\n');
       expect(all).toContain('error VL002');
@@ -316,7 +316,7 @@ describe('downgradeErrors — Error-severity diagnostics fail the build in every
     const plugin = makePlugin(UNRESOLVED_DIR, {downgradeErrors: ['VL002']});
     const ctx = makeCtx();
     try {
-      await expect(callHook(plugin.buildStart, ctx) as Promise<void>).rejects.toThrow(/unsupported-type error/);
+      await expect(callHook(plugin.buildStart, ctx) as Promise<void>).rejects.toThrow(/build stopped on \d+ mion error/);
       expect(ctx.warnings.join('\n')).toContain('error MKR007');
     } finally {
       await callHook(plugin.buildEnd, ctx);
@@ -416,7 +416,7 @@ describe('downgradeErrors — Error-severity diagnostics fail the build in every
     const plugin = makePlugin(UNRESOLVED_DIR);
     const ctx = makeCtx();
     try {
-      await expect(callHook(plugin.buildStart, ctx) as Promise<void>).rejects.toThrow(/unsupported-type error/);
+      await expect(callHook(plugin.buildStart, ctx) as Promise<void>).rejects.toThrow(/build stopped on \d+ mion error/);
       const all = ctx.warnings.join('\n');
       expect(all).toContain('error MKR007');
       expect(all).toContain('./missing-module');
@@ -430,7 +430,7 @@ describe('downgradeErrors — Error-severity diagnostics fail the build in every
     const plugin = makePlugin(COLLISION_DIR);
     const ctx = makeCtx();
     try {
-      await expect(callHook(plugin.buildStart, ctx) as Promise<void>).rejects.toThrow(/unsupported-type error/);
+      await expect(callHook(plugin.buildStart, ctx) as Promise<void>).rejects.toThrow(/build stopped on \d+ mion error/);
       const all = ctx.warnings.join('\n');
       expect(all).toContain('error MKR014');
       // The option to change, and the value to change it to (1 + 1).
@@ -501,7 +501,7 @@ describe('downgradeErrors — Error-severity diagnostics fail the build in every
     const plugin = makePlugin(TSCONFIG_DOWNGRADE_DIR, {downgradeErrors: ['MKR007']});
     const ctx = makeCtx();
     try {
-      await expect(callHook(plugin.buildStart, ctx) as Promise<void>).rejects.toThrow(/unsupported-type error/);
+      await expect(callHook(plugin.buildStart, ctx) as Promise<void>).rejects.toThrow(/build stopped on \d+ mion error/);
       expect(ctx.warnings.join('\n')).toContain('error VL002');
     } finally {
       await callHook(plugin.buildEnd, ctx);
@@ -586,7 +586,7 @@ describe('the dev server reports a RuntimeError without halting; every build lan
     const plugin = makeVitePlugin(ERROR_DIR, 'serve', 'test');
     const ctx = makeCtx();
     try {
-      await expect(callHook(plugin.buildStart, ctx) as Promise<void>).rejects.toThrow(/unsupported-type error/);
+      await expect(callHook(plugin.buildStart, ctx) as Promise<void>).rejects.toThrow(/build stopped on \d+ mion error/);
       expect(ctx.warnings.join('\n')).toContain('error VL002');
     } finally {
       await callHook(plugin.buildEnd, ctx);
@@ -597,7 +597,7 @@ describe('the dev server reports a RuntimeError without halting; every build lan
     const plugin = makeVitePlugin(ERROR_DIR, 'build', 'production');
     const ctx = makeCtx();
     try {
-      await expect(callHook(plugin.buildStart, ctx) as Promise<void>).rejects.toThrow(/unsupported-type error/);
+      await expect(callHook(plugin.buildStart, ctx) as Promise<void>).rejects.toThrow(/build stopped on \d+ mion error/);
     } finally {
       await callHook(plugin.buildEnd, ctx);
     }
@@ -607,7 +607,7 @@ describe('the dev server reports a RuntimeError without halting; every build lan
     const plugin = makeVitePlugin(COLLISION_DIR, 'serve', 'development');
     const ctx = makeCtx();
     try {
-      await expect(callHook(plugin.buildStart, ctx) as Promise<void>).rejects.toThrow(/unsupported-type error/);
+      await expect(callHook(plugin.buildStart, ctx) as Promise<void>).rejects.toThrow(/build stopped on \d+ mion error/);
       expect(ctx.warnings.join('\n')).toContain('error MKR014');
     } finally {
       await callHook(plugin.buildEnd, ctx);
@@ -627,7 +627,7 @@ describe('the dev server reports a RuntimeError without halting; every build lan
     callHook(plugin.configResolved, plugin, {root: ERROR_DIR, command: 'serve', mode: 'development'});
     const ctx = makeCtx();
     try {
-      await expect(callHook(plugin.buildStart, ctx) as Promise<void>).rejects.toThrow(/unsupported-type error/);
+      await expect(callHook(plugin.buildStart, ctx) as Promise<void>).rejects.toThrow(/build stopped on \d+ mion error/);
     } finally {
       await callHook(plugin.buildEnd, ctx);
     }

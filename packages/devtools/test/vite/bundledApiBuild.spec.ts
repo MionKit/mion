@@ -237,7 +237,7 @@ register('bundled API through a real vite build', () => {
   it('fails the build when a called route runs a middleware the client never sets up (MET008)', async () => {
     writeFileSync(path.join(root, 'src', 'a.ts'), CLIENT.replace(/^middlewares\.auth.*$/m, ''));
     const warnings: string[] = [];
-    await expect(buildClient(true, warnings)).rejects.toThrow(/build halted/);
+    await expect(buildClient(true, warnings)).rejects.toThrow(/build stopped/);
     expect(warnings.join('\n')).toMatch(/MET008.*`auth`/);
   });
 
@@ -251,7 +251,7 @@ register('bundled API through a real vite build', () => {
 
   it('stops a bundleApi: false build whose API serves no metadata to fetch (MET010)', async () => {
     const warnings: string[] = [];
-    await expect(buildClient(false, warnings)).rejects.toThrow(/build halted/);
+    await expect(buildClient(false, warnings)).rejects.toThrow(/build stopped/);
     expect(warnings.join('\n')).toMatch(/MET010/);
   });
 
