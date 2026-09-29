@@ -66,4 +66,4 @@ What shipped:
   still rejects its own extra key) and nested in a union member (the union still rejects a key only the other member
   declares). A union's errors form only reports one `union` error when no member matches, so the override shows
   there through which member matches.
-- Docs: one paragraph in the runtypes guide, "Overriding Generated Functions".
+- Docs: none. The guide already says every matching `createX` call returns the override, so this fix makes the code match it.
