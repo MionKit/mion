@@ -19,8 +19,8 @@ import (
 // --no-emit` grammar: tag hygiene (unfilled @todo scaffolds, stale @rtOrphan
 // carcasses), FriendlyText / MockData content validity, and breadcrumb drift
 // (GE002/GE003, gated on the generated-mirror marker). A DIRECTORY / no target
-// runs the mirror-tree drift walk (runGenCheck); `--translate` runs the i18n
-// completeness gate (runCheckTranslate) — both routed from runEnrich.
+// runs the mirror-tree drift walk (runMirrorDriftCheck); `--i18n` runs the i18n
+// completeness gate (runI18nCheck) — both routed from runEnrich.
 
 // runSingleFileCheck is the `enrich <file> --no-emit` lane: build a Program over
 // the mirror file and run the shared enrichgen.CheckFile, reporting its

@@ -1,6 +1,6 @@
 // AI-enrichment generation pipeline:
 // write each case's `src` span to its own temp module file under the in-repo
-// `.tmp/` dir, run ONE `gen --files … --type Target` batch over all of them,
+// `.tmp/` dir, run ONE `enrich --files … --type Target` batch over all of them,
 // then Prettier-normalize both the generated skeletons and the case-authored
 // expecteds so the comparison is about shape + keys, not formatting.
 
@@ -24,7 +24,7 @@ const TSCONFIG = resolve(REPO_ROOT, 'packages/run-types/tsconfig.json');
 // share `.tmp`, so each writes into its OWN lane subdir to avoid clobbering the
 // other's files (one entry's afterAll cleanup must not delete the other's temp
 // modules mid-run). `Lane` names the subdir.
-export type Lane = 'gen' | 'check' | 'reconcile';
+export type Lane = 'scaffold' | 'no-emit' | 'reconcile';
 
 // The lane subdir also carries the WORKER's pid. TMP_ROOT is anchored at
 // test/util, so every copy of a suite file resolves the same one — and the
@@ -39,7 +39,7 @@ const laneDir = (lane: Lane): string => resolve(TMP_ROOT, `${lane}-${process.pid
 // (a `type Target = …;` declaration) re-exported so the program keeps it.
 const TEMP_HEADER = "import type * as TF from '@mionjs/run-types/formats';\n";
 
-// What the gen CLI returns per file.
+// What the `enrich --files` CLI returns per file.
 interface GenSkeletons {
   friendly: string;
   mock: string;
@@ -76,8 +76,8 @@ export async function prettierNormalize(objLiteralText: string): Promise<string>
 }
 
 // The temp file names embed the case key, so the CLI's per-file JSON maps straight back to cases.
-function runGenBatch(fileBase: string, spans: Record<string, CaseSpans>): Record<string, GenSkeletons> {
-  const dir = laneDir('gen');
+function runEnrichBatch(fileBase: string, spans: Record<string, CaseSpans>): Record<string, GenSkeletons> {
+  const dir = laneDir('scaffold');
   mkdirSync(dir, {recursive: true});
   const files: string[] = [];
   const keyByBasename: Record<string, string> = {};
@@ -93,8 +93,8 @@ function runGenBatch(fileBase: string, spans: Record<string, CaseSpans>): Record
     encoding: 'utf8',
     maxBuffer: 32 * 1024 * 1024,
   });
-  if (result.error) throw new Error(`gen --files failed to launch: ${result.error.message}`);
-  if (result.status !== 0) throw new Error(`gen --files exited ${result.status}: ${result.stderr}\n${result.stdout}`);
+  if (result.error) throw new Error(`enrich --files failed to launch: ${result.error.message}`);
+  if (result.status !== 0) throw new Error(`enrich --files exited ${result.status}: ${result.stderr}\n${result.stdout}`);
 
   const byBasename = JSON.parse(result.stdout) as Record<string, GenSkeletons>;
   const byCaseKey: Record<string, GenSkeletons> = {};
@@ -111,12 +111,12 @@ function runGenBatch(fileBase: string, spans: Record<string, CaseSpans>): Record
 // every case (a typo'd / missing case yields no CLI row → throw here).
 export async function generateCategory(fileBase: string, constName: string): Promise<Record<string, CaseComparison>> {
   const spans = loadCategorySpans(fileBase, constName);
-  const generated = runGenBatch(fileBase, spans);
+  const generated = runEnrichBatch(fileBase, spans);
 
   const out: Record<string, CaseComparison> = {};
   for (const [caseKey, span] of Object.entries(spans)) {
     const gen = generated[caseKey];
-    if (!gen) throw new Error(`category ${fileBase}: case '${caseKey}' produced no gen output`);
+    if (!gen) throw new Error(`category ${fileBase}: case '${caseKey}' produced no enrich output`);
     out[caseKey] = {
       caseKey,
       genFriendly: await prettierNormalize(gen.friendly),
@@ -128,7 +128,7 @@ export async function generateCategory(fileBase: string, constName: string): Pro
   return out;
 }
 
-// One `check` finding (the JSON shape the CLI emits per finding).
+// One `enrich --no-emit` finding (the JSON shape the CLI emits per finding).
 export interface CheckFinding {
   code: string;
   family?: number;
@@ -144,14 +144,14 @@ export interface CaseCheck {
 
 // checkCategory synthesizes a `.rt.ts` per case (the case's `src` declaration +
 // the authored `friendlyTarget` / `mockTarget` consts + the marker imports),
-// runs `check <file> --json` over each, and returns the findings per case. These
-// are the valid, tsc-checked maps → `check` must report ZERO findings (no false
+// runs `enrich <file> --no-emit --json` over each, and returns the findings per case. These
+// are the valid, tsc-checked maps → `enrich --no-emit` must report ZERO findings (no false
 // positives across the type ranges). The `friendly` / `mock` initializers come
 // from the case spans WITH any `as MockData<Target>` cast already stripped, so
-// `check` sees a bare object-literal initializer it will actually walk.
+// `enrich --no-emit` sees a bare object-literal initializer it will actually walk.
 export function checkCategory(fileBase: string, constName: string): Record<string, CaseCheck> {
   const spans = loadCategorySpans(fileBase, constName);
-  const dir = laneDir('check');
+  const dir = laneDir('no-emit');
   mkdirSync(dir, {recursive: true});
 
   const out: Record<string, CaseCheck> = {};
@@ -170,10 +170,10 @@ export function checkCategory(fileBase: string, constName: string): Record<strin
       encoding: 'utf8',
       maxBuffer: 32 * 1024 * 1024,
     });
-    if (result.error) throw new Error(`check failed to launch: ${result.error.message}`);
-    // check exits 1 only on an Error-severity finding, so any other non-zero exit is a real failure.
+    if (result.error) throw new Error(`enrich --no-emit failed to launch: ${result.error.message}`);
+    // --no-emit exits 1 only on an Error-severity finding, so any other non-zero exit is a real failure.
     if (result.status !== 0 && result.status !== 1) {
-      throw new Error(`check exited ${result.status} for '${caseKey}': ${result.stderr}\n${result.stdout}`);
+      throw new Error(`enrich --no-emit exited ${result.status} for '${caseKey}': ${result.stderr}\n${result.stdout}`);
     }
     const parsed = JSON.parse(result.stdout || 'null') as CheckFinding[] | null;
     out[caseKey] = {caseKey, findings: parsed ?? []};

@@ -16,8 +16,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment/mirror"
 )
 
-// The describe / gen / check handlers below are registered in main.go's
-// top-level `commands` table (one args[0] dispatch convention for every mode).
+// runEnrich is registered in main.go's top-level `commands` table (one args[0] dispatch convention for every mode).
 
 // buildProgram constructs an inferred Program + resolver over absPath. The
 // caller owns the resolver and MUST call res.Close() when done (it keeps the
@@ -67,9 +66,8 @@ func buildProgramMulti(absPaths []string, parsed *program.InferredConfig, hashLe
 	return prog, res, nil
 }
 
-// runEnrich is the enrichment verb — the ONE mirror-maintenance command, folding
-// the former gen + check verbs together. It owns the grammar: a scaffold target
-// (<file> <Type>, or a --prune / --translate write flag) WRITES; --no-emit turns
+// runEnrich is the enrichment verb — the ONE mirror-maintenance command. It owns the grammar: a scaffold target
+// (<file> <Type>, or a --prune / --i18n write flag) WRITES; --no-emit turns
 // any write lane into a diagnostics-only pass (tsc --noEmit-style); and a
 // check-only target (a bare file, a dir, or no positional) REQUIRES --no-emit,
 // which also disambiguates a <file> given without a <Type> to scaffold.
@@ -124,9 +122,9 @@ Usage:
 			fatal("enrich: --i18n can only combine with --update / --prune / --gen-dir / --no-emit / --require-complete")
 		}
 		if checkOnly {
-			runCheckTranslate(*i18n, *genDirFlag, *tsconfigFlag, *requireComplete)
+			runI18nCheck(*i18n, *genDirFlag, *tsconfigFlag, *requireComplete)
 		} else {
-			runGenTranslate(*i18n, positional, *update, *prune, *genDirFlag, *tsconfigFlag)
+			runI18nWrite(*i18n, positional, *update, *prune, *genDirFlag, *tsconfigFlag)
 		}
 		return
 	}
@@ -149,7 +147,7 @@ Usage:
 		if *typeFlag == "" {
 			fatal("enrich --files: --type is required")
 		}
-		runGenBatch(strings.Split(*files, ","), *typeFlag, *tsconfigFlag)
+		runEnrichBatch(strings.Split(*files, ","), *typeFlag, *tsconfigFlag)
 		return
 	}
 
@@ -174,7 +172,7 @@ Usage:
 		runSingleFileCheck(positional[0], *tsconfigFlag, *asJSON, *requireComplete)
 		return
 	}
-	runGenCheck(positional, *genDirFlag, *asJSON, *requireComplete, *tsconfigFlag)
+	runMirrorDriftCheck(positional, *genDirFlag, *asJSON, *requireComplete, *tsconfigFlag)
 }
 
 // runEnrichScaffold is the `enrich <file> <Type>` write lane: resolve the type,
@@ -297,11 +295,11 @@ func writeMirrorFile(spec mirror.Spec) bool {
 	return true
 }
 
-// runGenBatch is the `gen --files a.ts,b.ts --type Target` path: ONE Program over
+// runEnrichBatch is the `enrich --files a.ts,b.ts --type Target` path: ONE Program over
 // all files, resolve typeName per file, and print a JSON map
 // { <basename-without-ext> → {friendly, mock} } of object-literal skeletons. No
 // files are written. Used by the enrichment generation test harness.
-func runGenBatch(files []string, typeName, tsconfigFlag string) {
+func runEnrichBatch(files []string, typeName, tsconfigFlag string) {
 	absPaths := make([]string, 0, len(files))
 	for _, file := range files {
 		trimmed := strings.TrimSpace(file)

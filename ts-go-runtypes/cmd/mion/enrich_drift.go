@@ -16,7 +16,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment/mirror"
 )
 
-// driftFinding is one breadcrumb-drift issue for the `check` drift report.
+// driftFinding is one breadcrumb-drift issue for the `enrich --no-emit` drift report.
 // Mirrors the enrichment.Finding shape (Code / Severity / Message) but is
 // file-anchored; Line/Col are the 1-based position of the breadcrumb import
 // (zero for file-level findings like GE000).
@@ -30,8 +30,7 @@ type driftFinding struct {
 	Col      int                 `json:"col,omitempty"`
 }
 
-// runGenCheck implements the `check [<dir>] [--json]` drift lane (formerly
-// `gen --check`): it reads each mirror file's `import type { … } from '<src>'`
+// runMirrorDriftCheck implements the `enrich [<dir>] --no-emit [--json]` drift lane: it reads each mirror file's `import type { … } from '<src>'`
 // breadcrumb, resolves <src> relative to the mirror file, and reports drift:
 //
 //   - GE001 (warning) — the mirror file's location no longer matches the
@@ -41,7 +40,7 @@ type driftFinding struct {
 //   - GE003 (error)   — the resolved source exists but no longer declares an
 //     imported type (renamed/removed type).
 //
-// GE002/GE003 detection is shared with `check` and the resolver's checkEnrich
+// GE002/GE003 detection is shared with `enrich --no-emit` and the resolver's checkEnrich
 // pass (mirror.CheckBreadcrumbDrift); GE001 lives here because only the CLI
 // knows the project's gen-dir config.
 //
@@ -50,7 +49,7 @@ type driftFinding struct {
 // tsconfig. Exits 1 when any WRONG/stale Error finding is present; a completeness
 // finding fails only under requireComplete (today every drift code is Tier 1, so
 // the filter is a forward-compatible no-op here).
-func runGenCheck(positional []string, genDirFlag string, asJSON, requireComplete bool, tsconfigFlag string) {
+func runMirrorDriftCheck(positional []string, genDirFlag string, asJSON, requireComplete bool, tsconfigFlag string) {
 	tsconfigPath, parsed := resolveEnrichProject(tsconfigFlag)
 	var targets []string
 	if len(positional) > 0 {

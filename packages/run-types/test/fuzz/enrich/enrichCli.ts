@@ -19,7 +19,7 @@ export const BIN = resolve(REPO_ROOT, 'mion-bin/mion');
 const CLI_TIMEOUT_MS = 15_000;
 const MAX_BUFFER = 32 * 1024 * 1024;
 
-/** One `check` finding — the real JSON shape the CLI emits (internal/enrichment
+/** One `enrich --no-emit` finding — the real JSON shape the CLI emits (internal/enrichment
  *  validate.go `Finding`: lowercase keys, severity as a string). **/
 export interface CheckFinding {
   file: string;
@@ -52,19 +52,19 @@ function runCli(cwd: string, args: string[]): CliResult {
   };
 }
 
-/** `gen src/models.ts <Type>` — create-only scaffold of the mirror file.
- *  `extraArgs` appends extra CLI flags to the `gen` invocation. **/
+/** `enrich src/models.ts <Type>` — create-only scaffold of the mirror file.
+ *  `extraArgs` appends extra CLI flags to the `enrich` invocation. **/
 export function scaffold(fixture: ReconcileFixture, typeName: string, extraArgs: string[] = []): CliResult {
   return runCli(fixture.dir, ['enrich', 'src/models.ts', typeName, ...extraArgs]);
 }
 
-/** `gen src/models.ts <Type> --update` — value-preserving reconcile.
- *  `extraArgs` appends extra CLI flags to the `gen` invocation. **/
+/** `enrich src/models.ts <Type> --update` — value-preserving reconcile.
+ *  `extraArgs` appends extra CLI flags to the `enrich` invocation. **/
 export function update(fixture: ReconcileFixture, typeName: string, extraArgs: string[] = []): CliResult {
   return runCli(fixture.dir, ['enrich', 'src/models.ts', typeName, '--update', ...extraArgs]);
 }
 
-/** `gen --prune <enrichDir>` — strip @rtOrphan/@rtOrphanChild carcasses from
+/** `enrich --prune <enrichDir>` — strip @rtOrphan/@rtOrphanChild carcasses from
  *  the whole mirror root (sweeps BOTH family files). **/
 export function prune(fixture: ReconcileFixture): CliResult {
   return runCli(fixture.dir, ['enrich', '--prune', fixture.enrichDir]);
@@ -91,7 +91,7 @@ export function check(
   return {result, findings, controlled};
 }
 
-/** True when a `gen`/`update`/`prune` run ended in a CONTROLLED way (exit 0,
+/** True when an `enrich` / `--update` / `--prune` run ended in a CONTROLLED way (exit 0,
  *  or a non-zero exit with a real diagnostic on stderr — not a panic/hang/internal bug). **/
 export function isControlled(result: CliResult): boolean {
   if (result.timedOut || result.launchError) return false;

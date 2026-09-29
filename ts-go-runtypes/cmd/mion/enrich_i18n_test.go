@@ -16,9 +16,8 @@ import (
 // discovery, locale expansion, the closure→spec transformation, and the
 // completeness findings. cmd tests build no checker Program (no precedent in
 // this package), so the Program-driven pipeline (buildTranslationSpecs's
-// resolve + EmitClosure arc, `gen --translate` end to end) is covered by the
-// JS e2e suite: packages/run-types/test/suites/enrich/enrichTranslate.test.ts
-// (rewritten src-derived in a later phase).
+// resolve + EmitClosure arc, `enrich --i18n` end to end) is covered by the
+// JS e2e suite: packages/run-types/test/suites/enrich/enrichTranslate.test.ts.
 
 // translateFixture lays down a project with a src type + a friendly source
 // mirror (the translate verbs' DISCOVERY input) and returns its config, the

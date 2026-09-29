@@ -1,10 +1,10 @@
-// Reconcile lane for the AI-enrichment suite: drives the `gen --update` /
-// `gen --prune` CLI over a throwaway temp project (tsconfig + a source file +
-// the enrich dir) and returns the resulting mirror-file text. Unlike the gen
+// Reconcile lane for the AI-enrichment suite: drives the `enrich --update` /
+// `enrich --prune` CLI over a throwaway temp project (tsconfig + a source file +
+// the enrich dir) and returns the resulting mirror-file text. Unlike the batch
 // lane (which compares stdout skeletons), this exercises the FULL reconcile path
 // on disk — property merge, rename, orphan, restore, prune — so the tests assert
 // authored-value preservation + marker behaviour end-to-end. See
-// docs/AI_ENRICHMENT.md → gen semantics.
+// docs/AI_ENRICHMENT.md → enrich semantics.
 
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
@@ -97,21 +97,21 @@ export function readMirrors(fixture: ReconcileFixture): string {
   return read(fixture.friendlyPath) + '\n<<<mock>>>\n' + read(fixture.mockPath);
 }
 
-// runGen runs `gen <source> <Type> [extraArgs…]` from the fixture's project
+// runEnrich runs `enrich <source> <Type> [extraArgs…]` from the fixture's project
 // root. Throws on a non-zero exit.
-export function runGen(fixture: ReconcileFixture, typeName: string, extraArgs: string[] = []): void {
+export function runEnrich(fixture: ReconcileFixture, typeName: string, extraArgs: string[] = []): void {
   const args = ['enrich', 'src/models.ts', typeName, ...extraArgs];
   const result = spawnSync(BIN, args, {cwd: fixture.dir, encoding: 'utf8'});
   if (result.error) throw new Error(`gen failed to launch: ${result.error.message}`);
   if (result.status !== 0) throw new Error(`gen ${args.join(' ')} exited ${result.status}: ${result.stderr}\n${result.stdout}`);
 }
 
-// runPrune runs `gen --prune <enrichDir>` from the fixture's project root —
+// runPrune runs `enrich --prune <enrichDir>` from the fixture's project root —
 // the whole mirror root, so carcasses in BOTH family files are swept.
 export function runPrune(fixture: ReconcileFixture): void {
   const result = spawnSync(BIN, ['enrich', '--prune', fixture.enrichDir], {cwd: fixture.dir, encoding: 'utf8'});
   if (result.error) throw new Error(`prune failed to launch: ${result.error.message}`);
-  if (result.status !== 0) throw new Error(`gen --prune exited ${result.status}: ${result.stderr}\n${result.stdout}`);
+  if (result.status !== 0) throw new Error(`enrich --prune exited ${result.status}: ${result.stderr}\n${result.stdout}`);
 }
 
 // cleanupReconcileLane removes only the fixtures THIS module instance created (never the

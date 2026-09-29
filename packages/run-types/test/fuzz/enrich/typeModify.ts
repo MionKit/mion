@@ -31,7 +31,7 @@ import {
 } from '../core/typeGen.ts';
 
 // A "rooted" type is the unit the gen CLI targets: a set of exported decls plus
-// the NAME of the one the `createX<Root>()` / `gen <Root>` site points at. A
+// the NAME of the one the `createX<Root>()` / `enrich <file> <Root>` site points at. A
 // whole-type rename changes `rootName`, so the driver always re-reads it.
 export interface RootedType {
   decls: Decl[];

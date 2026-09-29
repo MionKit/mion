@@ -683,8 +683,8 @@ Two **coupled artifacts** evolve over time:
   (labels + error templates) and the `MockData<T>` map (sample pools/ranges),
   scaffolded by the compiler and filled by users/LLMs.
 
-A **pipeline P** (the `mion` CLI: `gen` / `gen --update` / `gen --prune` /
-`check` / `describe`) keeps `E` consistent with `T`. **Events** mutate `T` or `E`.
+A **pipeline P** (the `mion` CLI: `enrich` / `enrich --update` / `enrich --prune` /
+`enrich --no-emit`) keeps `E` consistent with `T`. **Events** mutate `T` or `E`.
 The code under test is **P**, and the question is: _for any sequence of events, does
 P keep T and E consistent — preserving human work, syncing real changes, and
 rejecting nonsense with a clear diagnostic instead of silent corruption or a crash?_
@@ -708,7 +708,7 @@ add a format brand (e.g. email)            mark @rtOrphan / @rtOrphanChild
 reorder fields                             reorder nodes
 ```
 
-Interleaved with **commands**: `gen`, `gen --update`, `gen --prune`, `check`.
+Interleaved with **commands**: `enrich`, `enrich --update`, `enrich --prune`, `enrich --no-emit`.
 
 ### Building the pieces for the pipeline
 
@@ -734,12 +734,12 @@ The checklist sweep yields a concrete rule set:
 
 | #       | Archetype            | Rule (oracle) — with the real diagnostic codes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | ------- | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **R1**  | ③ idempotence        | `gen --update` run twice ⇒ **byte-identical** file. No drift, no re-stamped `@todo`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| **R1**  | ③ idempotence        | `enrich --update` run twice ⇒ **byte-identical** file. No drift, no re-stamped `@todo`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | **R2**  | ⑥ metamorphic        | **A single edit to T ⇒ a bounded, predictable change to E.** _add_ field → one new `@todo` scaffold node in both `friendly*` and `mock*`; _remove_ field → that node becomes an `@rtOrphanChild` carcass (authored value kept, **not** deleted); _rename_ → value carried under the new key via `@rtIds`; _retype_ → property-merged + MockData re-checked. _Local edit → local effect._                                                                                                                                                                                |
-| **R3**  | ⑦ preservation       | `gen --update` **never modifies an authored leaf value**. An _unrelated_ change to T leaves every other authored label/pool byte-identical.                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| **R4**  | ⑤ differential       | `check` and `gen --update` agree on structure: if `check` is clean (no `FT*/MD*/GE*` error) then `--update` makes **no structural change**; a missing/extra field is seen by both.                                                                                                                                                                                                                                                                                                                                                                                      |
+| **R3**  | ⑦ preservation       | `enrich --update` **never modifies an authored leaf value**. An _unrelated_ change to T leaves every other authored label/pool byte-identical.                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| **R4**  | ⑤ differential       | `enrich --no-emit` and `enrich --update` agree on structure: if `enrich --no-emit` is clean (no `FT*/MD*/GE*` error) then `--update` makes **no structural change**; a missing/extra field is seen by both.                                                                                                                                                                                                                                                                                                                                                                                      |
 | **R5**  | ⑧ negative space     | Every malformed edit yields a **specific code** — never a crash, never silent accept: unrelated field → **FT002 / MD001**; bad `$errors` constraint key → **FT003**; bad `$[placeholder]` → **FT005**; bad mock pool value → **MD003**; a forbidden construct in a comptime-args `$errors` function (a call / ternary / spread / computed key / template `${}`) → **CTA003** (non-literal → CTA001, too deep → CTA002); deleted source type → **GE002**; renamed type → **GE003**. _(The precise answer to "unrelated node in comptime args → then what": **CTA003**.)_ |
-| **R6**  | ③ convergence        | After `gen --update` (then `--prune`), the file is a **fixed point**: `check` passes and a second `--update` is a no-op.                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| **R6**  | ③ convergence        | After `enrich --update` (then `--prune`), the file is a **fixed point**: `enrich --no-emit` passes and a second `--update` is a no-op.                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | **R7**  | ②⑦ orphan round-trip | _remove_ X → `--update` keeps an `@rtOrphanChild` carcass; _re-add_ X → `--update` **restores the authored value** from it. But `--prune` in between deletes the carcass, so _remove → prune → re-add_ yields a fresh empty `@todo` (value gone). Both directions must hold exactly.                                                                                                                                                                                                                                                                                    |
 | **R8**  | invariant            | **`@todo` lifecycle:** emitted once on a new const; after the user deletes it, `--update` never re-adds it to an existing const, and `--prune` never removes it.                                                                                                                                                                                                                                                                                                                                                                                                        |
 | **R9**  | boundary             | **Markers are compiler-owned.** `@rtType`/`@rtIds` are _outputs_, not authored content — `--update` refreshes them on structural drift, so the generator must **not** treat hand-edits to them as R3 preservation targets.                                                                                                                                                                                                                                                                                                                                              |
@@ -852,7 +852,7 @@ test('enrichment sync stays consistent under any edit sequence', () => {
 ### What this buys us
 
 A failing run won't say "something's off." It will say: _"seed 0xC0FFEE: after
-`addField('x') → gen --update → renameField('y','z') → gen --update`, node `z`'s
+`addField('x') → enrich --update → renameField('y','z') → enrich --update`, node `z`'s
 authored label was lost (R3)"_ — already shrunk to the minimal sequence. That is the
 difference between fuzzing the pipeline and hoping.
 
@@ -880,16 +880,16 @@ Two things the framework surfaced **only because we ran it** — both about step
 what you can see (_the channel you observe through decides which rules you can
 express_):
 
-1. **`check` is the wrong instrument for the comptime-args case.** The precise answer
+1. **`enrich --no-emit` is the wrong instrument for the comptime-args case.** The precise answer
    to _"a non-literal node inside a comptime-args `$errors` function → then what?"_:
-   it is policed at **build/transform time** as **CTA001/002/003**, NOT by `check` —
-   `check` deliberately treats a function-form `$errors` as opaque and walks past it
+   it is policed at **build/transform time** as **CTA001/002/003**, NOT by `enrich --no-emit` —
+   `enrich --no-emit` deliberately treats a function-form `$errors` as opaque and walks past it
    ([`ts-go-runtypes/internal/enrichment/validate.go`](../../../ts-go-runtypes/internal/enrichment/validate.go)). **MD003**
    (pool value vs field type) is build-time too. So a _check-driven_ fuzzer expresses
    R5 for **FT002 / FT005 / MD001** (unknown field, bad placeholder, unknown mock
    field) but **cannot** see CTA/MD003 — those need a second, build-driven harness.
    _The channel you observe through bounds your rule set._
-2. **`check` silently returns zero findings when the type can't resolve.** A mirror
+2. **`enrich --no-emit` silently returns zero findings when the type can't resolve.** A mirror
    whose `mion` import doesn't resolve (e.g. a fixture placed _outside_ the
    workspace) makes the validator walk nothing and report clean — so a mislocated
    harness makes every negative-space rule **pass for the wrong reason**. That is the

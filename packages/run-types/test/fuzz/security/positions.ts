@@ -35,7 +35,7 @@ export interface Position {
   optional?: boolean;
 }
 
-/** Every attackable position of `gen` over the parsed JSON tree `tree`. **/
+/** Every attackable position of `enrich --files` over the parsed JSON tree `tree`. **/
 export function collectPositions(gen: GeneratedType, tree: unknown): Position[] {
   const decls = new Map<string, Decl>();
   for (const decl of gen.decls) decls.set(decl.name, decl);

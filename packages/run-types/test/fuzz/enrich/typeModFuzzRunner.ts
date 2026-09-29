@@ -3,7 +3,7 @@
 // deep type (typeGen) and then drives a random stream of OPERATIONS on it
 // (typeModify): rename the whole type, rename / add / delete / retype a property
 // anywhere in the tree, or corrupt the source mid-edit. After every operation it
-// reconciles the committed mirror with the real `gen --update` binary and asserts
+// reconciles the committed mirror with the real `enrich --update` binary and asserts
 // the reconciler's contracts — most importantly that NOTHING authored is ever
 // lost, on a far wider type space than the hand-written cases or the flat fuzzer
 // reach.
@@ -29,7 +29,7 @@
 //                    the FILLED one — filling labels never changes which fields move
 //                    where or whether it converges
 //   R6  convergence  after a valid edit a second `--update` is a byte-identical no-op
-//   R10 totality     every `gen --update` is controlled (no panic / internal error / hang)
+//   R10 totality     every `enrich --update` is controlled (no panic / internal error / hang)
 //   P   parse-safety a failed corruption reconcile leaves the mirror byte-identical
 // Type-RENAME ops (renameRoot / renameDecl / renameRootReshaped) run in the default
 // lane now that the const-level graph-parity matcher carries rename + reshape; the
@@ -210,12 +210,7 @@ export function runOneModSequence(seed: number, maxSteps: number): ModSequenceRe
         // Both family mirrors must still EXIST after a controlled reconcile — a
         // successful run that leaves a file missing is a write bug.
         if (!existsSync(fixture.friendlyPath) || !existsSync(fixture.mockPath)) {
-          record(
-            'R10',
-            result.op,
-            step,
-            `gen exited ${run.status} but a family mirror is GONE — stderr: ${run.stderr.slice(0, 200)}`
-          );
+          record('R10', result.op, step, `enrich exited  but a family mirror is GONE — stderr: ${run.stderr.slice(0, 200)}`);
           break;
         }
         const after = readMirrors(fixture);
@@ -245,7 +240,7 @@ export function runOneModSequence(seed: number, maxSteps: number): ModSequenceRe
         if (result.editClass !== 'valid') {
           // A deliberate source corruption. tsgo's parser ERROR-RECOVERS from many
           // of these (an unterminated literal swallows trailing tokens, a stray
-          // token is skipped), so gen may still SUCCEED on a recovered-but-different
+          // token is skipped), so enrich may still SUCCEED on a recovered-but-different
           // type. Don't assume the outcome — observe it:
           //   exit 0  → it recovered and wrote a valid mirror; nothing may be lost.
           //   exit ≠0 → a genuine failure; the write must be a byte-identical no-op

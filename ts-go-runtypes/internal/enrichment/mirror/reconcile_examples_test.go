@@ -1,7 +1,7 @@
 package mirror
 
 // Worked-example tests for the enrich-mirror reconciler — readable, one scenario
-// each, showing the committed mirror a user edited and what `gen --update`
+// each, showing the committed mirror a user edited and what `enrich --update`
 // produces. They double as documentation of the reconciler's behaviour on the
 // common edits. (The property test next door proves the same invariants hold over
 // random edit sequences; these spell out the headline cases in plain sight.)

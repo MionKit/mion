@@ -20,7 +20,7 @@ func readSourceFile(path string) (string, error) {
 }
 
 // updateMirrorFile reconciles an EXISTING committed mirror file against the
-// freshly regenerated desired set (the `gen --update` path). Unlike
+// freshly regenerated desired set (the `enrich --update` path). Unlike
 // writeMirrorFile (create-only — append missing exports, never touch present
 // ones), this parses the existing file's AST, matches each existing const to
 // its desired counterpart by the `@rtType` structural id, runs a fine-grained
@@ -29,7 +29,7 @@ func readSourceFile(path string) (string, error) {
 //
 // It returns true when it changed the file, false on a byte-identical no-op
 // (idempotent re-run). An empty / missing file falls back to the create-only
-// fresh-file path so a first `gen --update` seeds the mirror. The pure reconcile
+// fresh-file path so a first `enrich --update` seeds the mirror. The pure reconcile
 // lives in mirror.Reconcile; this shim owns the disk I/O, the change report, and
 // surfacing any index advisories to stderr.
 func updateMirrorFile(spec mirror.Spec) bool {
@@ -185,7 +185,7 @@ func collectPruneTargets(positional []string, genDirFlag, tsconfigFlag string) [
 // A malformed carcass that mirror.PruneOrphanBlocks refuses to remove (it would
 // span a live statement) is reported to stderr so the user fixes it by hand;
 // a file that does not PARSE is skipped whole with a warning (prune never
-// rewrites bytes it cannot confidently lex — same stance as gen --update).
+// rewrites bytes it cannot confidently lex — same stance as enrich --update).
 func pruneMirrorFile(mirrorFile string) int {
 	bytes, err := os.ReadFile(mirrorFile)
 	if err != nil {

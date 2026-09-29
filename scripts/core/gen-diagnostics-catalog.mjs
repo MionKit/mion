@@ -86,7 +86,7 @@ const SUBSYSTEMS = [
   {
     key: 'enrichment',
     label: 'Enrichment files',
-    description: 'From mion check and the lint rules over generated FriendlyText and MockData files.',
+    description: 'From mion enrich --no-emit and the lint rules over generated FriendlyText and MockData files.',
     prefixes: ['FT', 'MD', 'GE'],
   },
 ];

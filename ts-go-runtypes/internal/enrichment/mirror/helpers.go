@@ -48,7 +48,7 @@ func stripModuleExt(path string) string {
 }
 
 // ConstBlock wraps a rendered body in its `export const` declaration, behind the reconcile marker and a `@todo` line.
-// Both ride the const WRAPPER, never the body, which runGenBatch compares byte for byte.
+// Both ride the const WRAPPER, never the body, which runEnrichBatch compares byte for byte.
 // It is called only for a NEWLY-generated const, so a fresh `@todo` is right; reconcile never re-stamps an existing one.
 func ConstBlock(varName, wrapper string, named enrichment.NamedConst, body string) string {
 	marker := MarkerComment(named)

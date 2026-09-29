@@ -1,6 +1,6 @@
 // The model + the event/oracle command set for the enrichment-sync fuzzer.
 //
-// SUT: the `mion` gen/update/prune/check pipeline over a (source type T,
+// SUT: the `mion enrich` scaffold / --update / --prune / --no-emit pipeline over a (source type T,
 // generated mirror E) pair. We model just enough of (T, E) to state the oracles,
 // then drive RANDOM sequences of edit events and assert, after each, a rule that
 // the example suite (test/suites/enrich/enrichReconcile.test.ts) already PROVES
@@ -115,7 +115,7 @@ function v(rule: RuleId, command: string, ctx: Ctx, message: string): EnrichViol
   return {rule, command, step: ctx.step, seed: ctx.seed, message};
 }
 
-/** R10 — assert a gen/update/prune run was controlled (no panic / hang). **/
+/** R10 — assert an enrich scaffold / --update / --prune run was controlled (no panic / hang). **/
 function controlledOr(result: CliResult, command: string, ctx: Ctx, out: EnrichViolation[]): boolean {
   if (isControlled(result)) return true;
   const why = result.timedOut
@@ -414,15 +414,15 @@ const pruneProbe: Command = {
 };
 
 // Negative-space probes (R5): splice ONE malformed edit into a single FAMILY's
-// mirror file, run `check` against THAT file, and assert the SPECIFIC diagnostic
+// mirror file, run `enrich --no-emit` against THAT file, and assert the SPECIFIC diagnostic
 // code fires (verified live: MD001 / FT002 / FT005), then REVERT so the sequence
 // continues from a valid state.
 //
-// Channel boundary (discovered by running it): the `check` CLI does NOT look
+// Channel boundary (discovered by running it): the `enrich --no-emit` CLI does NOT look
 // inside a function-form `rt$errors` (opaque to the walk) and does NOT do MD003
 // pool-type checks — those are BUILD-time (CompTimeArgs CTA001/2/3, MD003), a
 // DIFFERENT observation channel. So a "non-literal node in comptime args" probe
-// (the CTA case) belongs to a future build-driven harness, not this one — `check`
+// (the CTA case) belongs to a future build-driven harness, not this one — `enrich --no-emit`
 // is the wrong instrument for it.
 function negativeProbe(
   name: string,

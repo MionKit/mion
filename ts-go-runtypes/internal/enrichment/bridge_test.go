@@ -126,7 +126,7 @@ func TestResolveType_UnknownTypeErrors(t *testing.T) {
 	}
 }
 
-// TestSkeletons_ObjectLiteralOnly pins the batch (`gen --files`) skeleton path:
+// TestSkeletons_ObjectLiteralOnly pins the batch (`enrich --files`) skeleton path:
 // FriendlySkeleton / MockSkeleton return ONLY the object literal (no
 // `export const … =` wrapper, no type annotation) so the test harness compares
 // against a case's authored initializer.

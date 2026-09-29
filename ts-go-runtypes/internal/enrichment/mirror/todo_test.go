@@ -211,7 +211,7 @@ func TestParseConstMarkers_IgnoresTodo(t *testing.T) {
 	}
 }
 
-// TestSkeletonBody_NoTodo is the batch-path (runGenBatch → the 287 vitest)
+// TestSkeletonBody_NoTodo is the batch-path (runEnrichBatch → the 287 vitest)
 // byte-identity guard: the `@todo` rides the const WRAPPER (constBlock), never the
 // skeleton BODY the batch path (FriendlySkeleton/MockSkeleton) emits and the
 // generation suite compares. The skeleton emitters live in internal/enrichment and
