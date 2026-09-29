@@ -81,9 +81,9 @@ async function ensureConnection(tsconfig: string, binary: string): Promise<Resol
   return connection;
 }
 
-// connectionLostPattern matches the transport's own connection-death strings (a dead child or socket), as
-// opposed to a per-file op error the resolver answered with.
-const connectionLostPattern = /resolver exited|spawn failed|socket closed|socket error|resolver is closed/;
+// connectionLostPattern matches the transport's own connection-death strings (a dead child), as opposed to a
+// per-file op error the resolver answered with.
+const connectionLostPattern = /resolver exited|spawn failed|resolver is closed/;
 
 async function lintOne(request: LintWorkerRequest): Promise<LintWorkerResponse> {
   // One retry on a fresh connection, so a transient failure does not poison the whole run. No shim remains for
@@ -141,7 +141,7 @@ requests.on('message', (request: LintWorkerRequest) => {
   });
 });
 
-// Session teardown: close the child/socket so the Go process exits promptly.
+// Session teardown: close the child so the Go process exits promptly.
 parentPort?.on('message', (message: {close?: boolean}) => {
   if (message?.close) {
     connection?.close();

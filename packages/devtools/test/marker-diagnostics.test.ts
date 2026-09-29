@@ -9,7 +9,7 @@
 //   3. Legitimate identifier-argument shapes (`createValidateFn(v)`) do NOT
 //      trigger the warning.
 //   4. The diagnostic wire format renders via formatTscDiagnostic into
-//      VS Code's `$tsc` problem-matcher line shape.
+//      `file(line,col): severity CODE: headline` line shape.
 //   5. The site is still emitted alongside the diagnostic — the
 //      validator works; the warning just nudges the user toward the
 //      anti-pattern-free idiom.
@@ -337,7 +337,7 @@ export const _ = createValidateFn(makeUser());
       const diagnostic = markerDiagsOf(response)[0];
       expect(diagnostic).toBeDefined();
       const line = formatTscDiagnostic(diagnostic);
-      // VS Code's $tsc problem matcher expects: path(line,col): severity code: msg
+      // The printed line shape: path(line,col): severity code: msg
       expect(line).toMatch(/^[^(]+\(\d+,\d+\):\s+warning\s+MKR001:\s+.+$/);
     });
   });

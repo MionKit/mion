@@ -392,8 +392,7 @@ export interface Response {
   transformed?: Record<string, TransformResult>;
   // Every non-fatal diagnostic the Go binary emits: pure-fn extractor (PFE9xxx), marker scanner (MKRxxx),
   // RT compiler (IT/TE/PJ/…/FB); the Family discriminator says which subsystem produced it.
-  // The Vite plugin re-emits each via `this.warn(formatTscDiagnostic(d))` for VS Code's $tsc problem matcher;
-  // the build never fails on these.
+  // The build plugin prints each as `formatTscDiagnostic(d)` and stops on the levels that halt (surface.ts).
   diagnostics?: Diagnostic[];
   // tsCompile only: wall-time (ms) of the embedded tsgo's bind + typecheck + emit pass on the current source
   // overlay, so a bench can show the pure-TypeScript compile cost next to mion's own work.
@@ -414,8 +413,8 @@ export const Level = {
 } as const;
 export type Level = (typeof Level)[keyof typeof Level];
 
-// Severity is the LABEL form of Level: the word the tsc-shaped output line and VS Code's problem matcher
-// need, so both error levels read as "error" here. Numeric on the wire to match the Go-side encoding; the
+// Severity is the LABEL form of Level: the word the printed line needs, so both error levels read as
+// "error" here. Numeric on the wire to match the Go-side encoding; the
 // `as const` literal-union shape lets consumers `switch (d.severity)` against the named values.
 export const Severity = {
   Error: 1,

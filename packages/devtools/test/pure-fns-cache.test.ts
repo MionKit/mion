@@ -13,7 +13,7 @@
 //      diagnostics for bad-shape calls (unresolvable dependency, an explicit id
 //      that disagrees with the computed one, collisions, impure bodies).
 //   5. The diagnostic wire format renders via formatTscDiagnostic into
-//      VS Code's `$tsc` problem-matcher line shape.
+//      `file(line,col): severity CODE: headline` line shape.
 
 import {describe, expect, it} from 'vitest';
 import {formatTscDiagnostic} from '../src/index.ts';
@@ -345,7 +345,7 @@ export const evilFn = registerPureFnFactory(function () {
       const diags = pureFnDiagsOf(response);
       const evalDiag = diags.find((d) => d.code === 'PFE9010' && d.args?.[0] === 'eval');
       expect(evalDiag).toBeDefined();
-      // Ensure the formatted line matches the $tsc problem-matcher regex
+      // Ensure the formatted line has the printed line shape
       // — VS Code parses build-task output through that pattern.
       const line = formatTscDiagnostic(evalDiag!);
       expect(line).toMatch(/^[^(]+\(\d+,\d+\):\s+error\s+PFE9010:/);
@@ -374,7 +374,7 @@ export const rounder = registerPureFnFactory(function () {
     });
   });
 
-  register('formatTscDiagnostic renders the canonical $tsc problem-matcher line', () => {
+  register('formatTscDiagnostic renders the file(line,col): severity CODE: headline line', () => {
     const line = formatTscDiagnostic({
       code: 'PFE9012',
       family: Family.PureFn,
@@ -394,7 +394,7 @@ export const rounder = registerPureFnFactory(function () {
     // shape: <path>(<line>,<col>): <severity> <code>: <headline-with-arg>
     expect(line).toMatch(/^\/abs\/path\/x\.ts\(12,5\): error PFE9012: /);
     expect(line).toContain('@acme/text#pf_9Zt1bRm4cVaPqL');
-    // VS Code's built-in $tsc problem matcher regex:
+    // The whole line: file(line,col): severity CODE: headline
     expect(line).toMatch(/^[^(]+\(\d+,\d+\):\s+(error|warning)\s+[A-Z]+\d+:\s+.+$/);
   });
 

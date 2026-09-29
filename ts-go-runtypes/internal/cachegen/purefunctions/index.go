@@ -42,7 +42,7 @@ func (idx *Index) Get(id string) (Entry, bool) {
 // the only one that works for a consumer whose program sees run-types as a .d.ts.
 //
 // Returns one PFE9012 per unique missing id: the RT compiler may register the same dep from
-// several emitters, and the editor's Problems panel should not show N copies of one complaint.
+// several emitters, and one complaint should not print N times.
 func ValidatePureFnDependencies(deps []protocol.PureFnDep, idx *Index) []diagnostics.Diagnostic {
 	if idx == nil {
 		return nil
