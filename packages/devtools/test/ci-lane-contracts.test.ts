@@ -9,7 +9,9 @@
 //
 // These pin the three halves to each other: the lane table in scripts/ci/lanes.mjs,
 // the `if:` that consults it, and the save step that writes the marker.
-import {globSync, readFileSync} from 'node:fs';
+import {spawnSync} from 'node:child_process';
+import {globSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import {describe, expect, it} from 'vitest';
 import {
@@ -425,6 +427,25 @@ describe('the Go toolchain setup', () => {
     expect(action).toContain('git submodule update --init --depth 1 ts-go-runtypes/third_party/tsgolint\n');
     expect(action).toContain('git -C ts-go-runtypes/third_party/tsgolint submodule update --init --depth 1 typescript-go\n');
     expect(action).not.toContain('--recursive');
+  });
+
+  // The step runs from the repo root, so a patch glob written relative to another directory matches nothing.
+  it('hands git apply every patch file, not the unexpanded glob', () => {
+    const applyLine = action.split('\n').find((line) => line.includes('patches/*.patch'));
+    expect(applyLine).toBeDefined();
+    const root = mkdtempSync(path.join(os.tmpdir(), 'resolver-patches-'));
+    try {
+      const tsgolint = path.join(root, 'ts-go-runtypes/third_party/tsgolint');
+      mkdirSync(path.join(tsgolint, 'typescript-go'), {recursive: true});
+      mkdirSync(path.join(tsgolint, 'patches'));
+      for (const name of ['0001-a.patch', '0002-b.patch']) writeFileSync(path.join(tsgolint, 'patches', name), '');
+      const script = `git() { printf '%s\\n' "$@"; }\n${applyLine}`;
+      const run = spawnSync('bash', ['-e', '-c', script], {cwd: root, encoding: 'utf8'});
+      expect(run.status, run.stderr).toBe(0);
+      expect(run.stdout.trim().split('\n')).toEqual(['apply', '--3way', '../patches/0001-a.patch', '../patches/0002-b.patch']);
+    } finally {
+      rmSync(root, {recursive: true, force: true});
+    }
   });
 });
 
