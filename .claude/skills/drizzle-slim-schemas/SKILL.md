@@ -81,8 +81,7 @@ record of the boundary and not as free-text notes:
 - `class or constant; passes through via export *` — generator-owned, never
   hand-written.
 
-EVERY `column` entry must end `migrated` — passthrough columns no longer exist
-(there is no export-star to fall through to).
+EVERY `column` entry must end `migrated` (there is no export-star to fall through to).
 
 **3. Precedent, then ask.** For each pending entry, read the SIBLING dialects'
 committed manifests and find what they decided for the same export, or for its

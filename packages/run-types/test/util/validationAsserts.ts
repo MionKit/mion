@@ -190,7 +190,7 @@ export function assertValidateDeserializeReflect(c: AssertableCase): void {
   });
 }
 
-/** Backwards-compat shim used by the value-first-define suite, which is
+/** Used by the value-first-define suite, which is
  *  not restructured into per-variant it()s. Runs all 5 validate variants
  *  in sequence so the single it() in that suite exercises the same matrix
  *  the validation suite splits across five it()s. **/

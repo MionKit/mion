@@ -12,8 +12,7 @@ import {TEST_SERVER_BASE_URL} from '../../globalSetup.ts';
 import type {TestServerApi} from '@mionjs/test-server';
 import {resetMetadataStore} from '../../src/lib/metadataStore.ts';
 
-// Client-side validation errors. mion no longer ships a friendly-errors layer — human-readable
-// rendering is RunTypes' `createFriendlyText` (from a committed `FriendlyText<T>` map). These
+// Client-side validation errors. Human-readable rendering is RunTypes' `createFriendlyText` (from a committed `FriendlyText<T>` map). These
 // tests pin what mion IS responsible for: `.typeErrors()` returning the raw validation-error shape
 // that any renderer (createFriendlyText or an app's own) consumes.
 

@@ -178,7 +178,7 @@ func TestStrongTypedRoutes_RawMiddlewareIsNotAHandler(t *testing.T) {
 	assertCodes(t, checkBody(t, "export const raw = mion.rawMiddleware((ctx, req) => undefined);"))
 }
 
-// The four handler shapes the syntactic rules could not see.
+// Four handler shapes only a resolved call can see.
 
 func TestStrongTypedRoutes_NamedFunctionReference(t *testing.T) {
 	assertCodes(t, checkBody(t, `
@@ -248,8 +248,7 @@ export const bad = declare_((ctx, name: string) => name);
 }
 
 func TestRouterShapes_LocalBarrel(t *testing.T) {
-	// The router is created in one module and imported from another — the shape
-	// the syntactic rule only handled by trusting a relative import specifier.
+	// The router is created in one module and imported from another.
 	assertCodes(t, check(t, map[string]string{
 		"mion.ts": `import {createMionRouter} from '@mionjs/router';
 export const mion = createMionRouter();
@@ -308,8 +307,7 @@ export const e = mion.route(fine);
 }
 
 // TestCrossModule_HandlersAreChecked pins that a handler imported from another
-// module is checked at all. The syntactic rules could only ever see a function
-// literal written into the call, so this whole layout went unchecked.
+// module is checked at all, not only a function literal written into the call.
 func TestCrossModule_HandlersAreChecked(t *testing.T) {
 	found := check(t, crossModuleFiles())
 	assertCodes(t, found,

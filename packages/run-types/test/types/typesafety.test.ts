@@ -5,7 +5,7 @@
 
 // NOTE: imports use RELATIVE `../src/…` paths (not the `@mionjs/run-types/*` package
 // specifiers) so this file exercises the in-tree source directly. Import style
-// no longer affects the vite plugin's transform scope (the gate is the
+// does not affect the vite plugin's transform scope (the gate is the
 // resolver's site-file set — a scan result, not text matching), so the
 // `getRunTypeId()` "no id injected" runtime-contract tests below call through a
 // TYPE-ERASED alias instead: the scanner matches calls by their resolved marker

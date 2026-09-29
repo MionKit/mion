@@ -1,8 +1,7 @@
 package diagnostics
 
 // mion route codes (MRTxxx), from the route-rule pass over a route, query, mutation, middleware or
-// headersFn handler. Unlike the hand-written ESLint rules they replace, the checker resolves the
-// call, so an alias, a namespace import, a local barrel, a named handler reference, a
+// headersFn handler. The checker resolves the call, so an alias, a namespace import, a local barrel, a named handler reference, a
 // `Handler`-typed const and a `@mion:route` JSDoc tag all reach the same rules.
 //
 // Emitted only when a caller opts in (Request.CheckRouterRules), so `mion compile` and the bundler

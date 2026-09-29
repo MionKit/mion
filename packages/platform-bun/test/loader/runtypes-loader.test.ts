@@ -8,10 +8,8 @@
 import {expect, test} from 'bun:test';
 import {runTypesLoader} from '../../loader/runtypes-loader';
 
-// The deepkit type-compiler loader is gone. runTypesLoader is now a thin wrapper over
-// @mionjs/devtools/runtypes/bun — the Bun counterpart of mionVitePlugin. mion's own onStart/onLoad
-// shims are gone: upstream owns both of Bun's plugin hosts (Bun.build and the Bun.plugin runtime
-// preload) since @mionjs/devtools 0.12.1.
+// runTypesLoader is a thin wrapper over @mionjs/devtools/runtypes/bun — the Bun counterpart of
+// mionVitePlugin. Upstream owns both of Bun's plugin hosts (Bun.build and the Bun.plugin runtime preload).
 
 test('runTypesLoader builds a Bun plugin with a name and setup hook', () => {
   const plugin = runTypesLoader({});

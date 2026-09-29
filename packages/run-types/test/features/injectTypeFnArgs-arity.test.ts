@@ -5,7 +5,7 @@
 import {describe, expect, it} from 'vitest';
 import type {InjectTypeFnArgs} from '@mionjs/run-types';
 
-// SIX distinct families — comfortably past the retired three-key cap. If
+// SIX distinct families. If
 // markers.ts is narrowed below six type parameters, this alias reports
 // "Expected N type arguments, but got 7" and the typecheck fails.
 type SixFamilyMarker = InjectTypeFnArgs<

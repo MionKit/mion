@@ -6,7 +6,7 @@ description: Author and use a `MockData<T>` for a RunTypes type — the committe
 # Authoring & using `MockData<T>`
 
 `MockData<T>` is one of two **AI-enrichment artifacts** in RunTypes (the other is
-`FriendlyText<T>` — see the `runtypes-friendly-type` skill). Unlike validators / codecs
+`FriendlyText<T>` — see the `runtypes-friendly-text` skill). Unlike validators / codecs
 (pure functions of the type, recomputed every build, never committed), enrichment is
 **authored once, committed, and validated against the type forever after**. The full
 design is [docs/AI_ENRICHMENT.md](https://github.com/MionKit/mion/blob/main/docs/AI_ENRICHMENT.md).

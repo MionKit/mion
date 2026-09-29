@@ -14,10 +14,8 @@
 // 'go' is measured twice — with and without the sourcesContent map trim — since
 // eliding it is the cheap milestone-0 win that narrows the comparison.
 //
-// RE-BASELINE (protocol startup-config audit): request wire sizes dropped by
-// the `outDir` + `omitSourcesContent` bytes that used to ride EVERY transform
-// request — both are spawn config now. The trim itself became a session flag,
-// so each mode's client is constructed with it rather than passing it per call.
+// The sourcesContent trim is a session flag, so each mode's client is
+// constructed with it rather than passing it per call.
 // Numbers recorded before that change read a few bytes high on the request side;
 // response sizes and timings are unaffected.
 //

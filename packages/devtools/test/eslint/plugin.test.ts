@@ -152,8 +152,8 @@ export const a = mion.route(noReturn);
 export const b = mion.route(thrower);
 `;
 
-// CLEAN_ROUTES_TS is the same file written correctly, plus the two handler
-// shapes the old syntactic rules could not see at all.
+// CLEAN_ROUTES_TS is the same file written correctly, plus two handler shapes
+// only a resolved call can see.
 const CLEAN_ROUTES_TS = `import {createMionRouter, type Handler} from '@mionjs/router';
 import {RpcError} from '@mionjs/core';
 const mion = createMionRouter();
@@ -168,8 +168,7 @@ export const caught = mion.route((ctx, name: string): string => {
 // A format pattern that uses a JS-only lookbehind and carries a mockSample
 // that does NOT match the real regex. The resolver runs every pattern check
 // on a real JS engine (its node/bun sidecar), so the mismatch arrives as an
-// ordinary FMT001 diagnostic — the lint worker no longer re-checks anything
-// itself. The local TypeFormat brand is recognised structurally, same as
+// ordinary FMT001 diagnostic — the lint worker checks nothing itself. The local TypeFormat brand is recognised structurally, same as
 // the Go resolver tests.
 const UNCHECKED_PATTERN_TS = `import {createValidateFn} from '@mionjs/run-types';
 
@@ -292,11 +291,10 @@ describe.runIf(hasBinary())(
       project.write('node_modules/@mionjs/drizzle-orm-pg-core/package.json', DIALECT_PACKAGE_JSON);
       project.write('node_modules/@mionjs/drizzle-orm-pg-core/index.d.ts', DIALECT_DTS);
       for (const rel of Object.keys(texts)) abs.set(rel, `${project.dir}/${rel}`);
-      // The plugin roots the resolver at process.cwd() (cwd is no longer
-      // configurable), exactly like a real editor/CI run from the project
-      // root — so drive this in-process suite from the fixture dir. Restored
-      // in afterAll. No binary setting: getExePath() resolves the built
-      // mion-bin/mion in this repo, the same path the old `binary` pointed at.
+      // The plugin roots the resolver at process.cwd(), exactly like a real
+      // editor/CI run from the project root — so drive this in-process suite
+      // from the fixture dir. Restored in afterAll. No binary setting:
+      // getExePath() resolves the built mion-bin/mion in this repo.
       originalCwd = process.cwd();
       process.chdir(project.dir);
       settings = {};
