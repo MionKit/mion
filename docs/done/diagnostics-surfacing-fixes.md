@@ -304,6 +304,9 @@ No fuzzing: this is a fix, and there is no cheap oracle beyond the tests above.
 
 Every item above landed, with these differences from the plan:
 
+- **Four lint rules, not three.** One rule per level, matching the catalog exactly: `mion/error`, `mion/runtime-error`,
+  `mion/warning`, `mion/info`. Error and RuntimeError first shared `mion/error`, which made the linter the one
+  place where the four levels did not map one to one.
 - **Dev server.** It never stops on a finding, a fatal Error included: the dev reporter prints each Error and
   RuntimeError once, and the transform of a file with a fatal Error throws it, which puts it in the overlay. A
   dev server's build start no longer halts (it used to, which kept the server from starting). Info never prints
