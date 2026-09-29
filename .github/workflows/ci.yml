@@ -42,9 +42,10 @@ name: ci
 # (This used to be Go+shard-1 vs lint+shard-2 with `vitest --shard`; once oxlint
 # replaced the much heavier ESLint the lint side went light, so the even shards
 # left the Go job overloaded. Moving the fuzz suite — the JS heavyweight — onto
-# the otherwise-light Go runner rebalances.) Each job re-runs `bootstrap`, which
-# restores the shared, tsgolint-keyed Go build cache, so the tsgo compile is a
-# cache hit and the per-job resolver build is fast, not minutes.
+# the otherwise-light Go runner rebalances.) Each job runs the `resolver` action,
+# which restores the prebuilt resolver binaries keyed on their Go inputs: a job
+# that only runs them sets up no Go at all, and on a miss the tsgolint-keyed Go
+# build cache keeps the rebuild fast, not minutes.
 #
 # A FOURTH job, `smoke`, runs the website serves-a-page + benchmark
 # competitor-build checks. It is content-gated (only when container inputs change,
@@ -104,7 +105,7 @@ jobs:
       - id: decide
         uses: ./.github/actions/ci-lanes
         with:
-          lanes: go js-fuzz js smoke
+          lanes: go js-fuzz go-tools js smoke
       # The whole-tree hygiene sweeps live HERE, in the one job nothing can skip,
       # because they read docs/, .claude/ and the root prose files — exactly the
       # paths every lane deliberately ignores. Gated on a lane they would miss the
@@ -119,11 +120,14 @@ jobs:
   go-fuzz:
     name: go tests + fuzz
     needs: lanes
-    if: (fromJSON(needs.lanes.outputs.lanes).go.run || fromJSON(needs.lanes.outputs.lanes)['js-fuzz'].run) && !contains(github.event.pull_request.labels.*.name, 'skip-defaults')
+    if: (fromJSON(needs.lanes.outputs.lanes).go.run || fromJSON(needs.lanes.outputs.lanes)['js-fuzz'].run || fromJSON(needs.lanes.outputs.lanes)['go-tools'].run) && !contains(github.event.pull_request.labels.*.name, 'skip-defaults')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/bootstrap
+      - uses: ./.github/actions/resolver
+        with:
+          toolchain: 'true'
       # Fail-fast: cheap checks first. gofmt is instant; vet compiles (cache-warm)
       # and warms the compile cache the go-test + resolver-build steps reuse.
       # Go-specific steps run only when the Go tree changed; a packages-only
@@ -191,6 +195,24 @@ jobs:
         if: fromJSON(needs.lanes.outputs.lanes)['js-fuzz'].run
         run: pnpm miondevx core fuzz cloning elision jsonsize nondata roundtrip secformat secgen sechttp secjson types value --quick
 
+      # The go-tools lane: the JS-side checks that need a Go toolchain, kept here so js-lint never sets Go up.
+      # The committed Go→TS mirrors have no other CI drift gate and can silently
+      # rot (scripts audit §3.3): regenerate + format them and fail on any diff.
+      # miondevx owns the generator list, so a new mirror is picked up here for free.
+      - name: Codegen drift (Go→TS mirrors must be in sync)
+        if: fromJSON(needs.lanes.outputs.lanes)['go-tools'].run
+        run: pnpm miondevx core codegen all --check
+      # The drizzle proxy manifest is the other committed extraction: fail on
+      # drift against drizzle-orm's d.ts, on pending entries, and on migrated
+      # column fns missing from the proxy modules.
+      - name: Drizzle manifest drift (proxy coverage + no pending)
+        if: fromJSON(needs.lanes.outputs.lanes)['go-tools'].run
+        run: pnpm miondevx core drizzle-manifest --check
+      # Excluded from js-lint's suite: it runs real `go build`s.
+      - name: Build-gate tests (need Go)
+        if: fromJSON(needs.lanes.outputs.lanes)['go-tools'].run
+        run: pnpm exec vitest run packages/devtools/test/build-gate.test.ts
+
       # One marker per HALF, each written only when that half actually ran and
       # passed. A half that was skipped proved nothing, so it must not claim a
       # marker that would skip it again next time.
@@ -206,6 +228,12 @@ jobs:
         with:
           lane: js-fuzz
           hash: ${{ fromJSON(needs.lanes.outputs.lanes)['js-fuzz'].hash }}
+      - name: Record the go-tools checks as green
+        if: success() && fromJSON(needs.lanes.outputs.lanes)['go-tools'].run
+        uses: ./.github/actions/save-lane-green
+        with:
+          lane: go-tools
+          hash: ${{ fromJSON(needs.lanes.outputs.lanes)['go-tools'].hash }}
 
   # ── js-lint: the rest of the JS suite + lint/typecheck/format ─────────────
   # Everything but the fuzz tree, plus the static checks; with go-fuzz, a complete disjoint partition of the JS suite.
@@ -220,6 +248,7 @@ jobs:
           # The JS suite step diffs against HEAD^1, the PR merge commit's base tip.
           fetch-depth: 2
       - uses: ./.github/actions/bootstrap
+      - uses: ./.github/actions/resolver
       # bun is NOT a workspace dependency — the devtools Bun adapter's tests
       # spawn it and skip themselves when it is absent, so without this step the
       # whole @mionjs/devtools/bun lane would silently never run in CI.
@@ -228,23 +257,13 @@ jobs:
         with:
           bun-version: 1.3.11
       # Fail-fast ordering — cheap checks before the suite.
+      # The gofmt half runs in go-fuzz, the job that has Go.
       - name: Check formatting (no build needed — runs first)
-        run: pnpm run check-format
+        run: pnpm run check-format:js
       # `pnpm run lint` runs typecheck, which reads the built dists; the JS suite
       # also spawns the binary — one build feeds both.
       - name: Build the resolver + dists (needed by lint + the JS suite)
         run: pnpm run check:builds
-      # The committed Go→TS mirrors have no other CI drift gate and can silently
-      # rot (scripts audit §3.3): regenerate + format them and fail on any diff.
-      # miondevx owns the generator list, so a new mirror is picked up here for free.
-      - name: Codegen drift (Go→TS mirrors must be in sync)
-        run: pnpm miondevx core codegen all --check
-      # The drizzle proxy manifest is the other committed extraction: fail on
-      # drift against drizzle-orm's d.ts, on pending entries, and on migrated
-      # column fns missing from the proxy modules.
-      - name: Drizzle manifest drift (proxy coverage + no pending)
-        run: pnpm miondevx core drizzle-manifest --check
-
       # The drizzle-orm version line: package versions, peer ranges and
       # manifest drizzleOrm fields must all match the installed drizzle-orm.
       - name: Drizzle version-line guard
@@ -280,15 +299,16 @@ jobs:
         run: pnpm run check-types-examples
       # On a pull request HEAD is GitHub's merge commit, so HEAD^1 is the base tip test-pr diffs against.
       # Its js-pr marker is accepted on pull requests only, so main still runs the full suite after the merge.
+      # build-gate.test.ts builds with Go, so it runs in go-fuzz; the two stay a disjoint partition.
       - name: JS suite (everything except test/fuzz)
         id: suite
         run: |
           if [ "${{ github.event_name }}" = pull_request ] && git rev-parse -q --verify HEAD^2 >/dev/null; then
             echo "scope=partial" >> "$GITHUB_OUTPUT"
-            pnpm miondevx core test-pr --base HEAD^1 --exclude '**/test/fuzz/**'
+            pnpm miondevx core test-pr --base HEAD^1 --exclude '**/test/fuzz/**' --exclude '**/devtools/test/build-gate.test.ts'
           else
             echo "scope=full" >> "$GITHUB_OUTPUT"
-            pnpm exec vitest run --exclude '**/test/fuzz/**'
+            pnpm exec vitest run --exclude '**/test/fuzz/**' --exclude '**/devtools/test/build-gate.test.ts'
           fi
       # platform-bun's suites are bun:test, so they cannot join the vitest
       # projects above and need their own step. Without this the whole bun
@@ -369,14 +389,17 @@ jobs:
       # Go build-cache restore, so the runner's root fs doesn't fill up.
       - uses: ./.github/actions/free-disk
       - uses: ./.github/actions/bootstrap
+      # Before the resolver: a wasm cache hit means this job never needs Go.
+      - name: Cache the playground wasm
+        id: wasm
+        uses: ./.github/actions/cache-playground-wasm
+      - uses: ./.github/actions/resolver
+        with:
+          toolchain: ${{ steps.wasm.outputs.hit != 'true' }}
       - name: Build the resolver + linux binaries for the container mounts
-        run: pnpm miondevx core build all linux-go linux-extract
+        run: pnpm miondevx core build all linux-go linux-extract --trust-stamp
       - name: Pull the prebuilt shared image (CI never builds it)
         uses: ./.github/actions/pull-shared-image
-      # Reuse the playground wasm so a PR that only touches the website / playground
-      # UI doesn't pay the ~8-min rebuild.
-      - name: Cache the playground wasm
-        uses: ./.github/actions/cache-playground-wasm
       - name: Website serves-a-page smoke
         run: pnpm miondevx website check
       # The competitor maps declare themselves TOTAL over the shared case keys, and

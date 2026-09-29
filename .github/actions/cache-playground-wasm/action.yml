@@ -5,6 +5,11 @@ description: >
   stamp on a hit so the mtime gate short-circuits after a fresh checkout. Use in
   any job that builds the docs site's playground assets on the host.
 
+outputs:
+  hit:
+    description: "'true' when the wasm came from the cache, so building it needs no Go"
+    value: ${{ steps.cache.outputs.cache-hit == 'true' }}
+
 runs:
   using: composite
   steps:

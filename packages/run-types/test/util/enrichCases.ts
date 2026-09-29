@@ -1,5 +1,5 @@
 // Shared harness for the AI-enrichment generation suite: extract every case's
-// `case()` arrow-function body from a category file via `ts-go-runtypes/cmd/extract-fn-bodies`,
+// `case()` arrow-function body from a category file via the prebuilt `mion-bin/extract-fn-bodies`,
 // then split each body by the `// ##### … #####` markers into its `src` /
 // `friendly` / `mock` spans.
 
@@ -8,7 +8,8 @@ import {fileURLToPath} from 'node:url';
 import {resolve, dirname} from 'node:path';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const GO_ROOT = resolve(HERE, '../../../../ts-go-runtypes');
+// Prebuilt by the build gate (`core build extract`), so this suite needs no Go toolchain.
+const EXTRACT_BIN = resolve(HERE, '../../../../mion-bin/extract-fn-bodies');
 const CASES_DIR = resolve(HERE, '../suites/enrich/cases');
 
 // The four marker-delimited spans of a `case()` body. `result` is the runtime
@@ -23,8 +24,7 @@ export interface CaseSpans {
 // raw arrow-function-body source text per case key. The extractor's JSON
 // mirrors the const's object nesting: `{ <caseKey>: { case: "<body text>" } }`.
 function extractFnBodies(categoryFile: string, constName: string): Record<string, {case?: string}> {
-  const result = spawnSync('go', ['run', './cmd/extract-fn-bodies', '--file', categoryFile, '--identifier', constName], {
-    cwd: GO_ROOT,
+  const result = spawnSync(EXTRACT_BIN, ['--file', categoryFile, '--identifier', constName], {
     encoding: 'utf8',
     maxBuffer: 32 * 1024 * 1024,
   });

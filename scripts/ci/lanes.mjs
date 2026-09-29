@@ -78,6 +78,9 @@ export const LANES = {
   // Go tests compile against.
   go: {job: 'go tests + fuzz · the Go suite', paths: ['packages/run-types/', 'packages/drizzle-orm', ...WORKSPACE]},
   'js-fuzz': {job: 'go tests + fuzz · the JS fuzz sweep', paths: JS},
+  // The JS-side checks that need a Go toolchain (codegen and drizzle-manifest drift, the
+  // build-gate tests): they run on the go-fuzz runner so js-lint never sets Go up.
+  'go-tools': {job: 'go tests + fuzz · the Go-backed JS checks', paths: JS},
   js: {job: 'js tests + lint', paths: JS},
   smoke: {job: 'container smoke', paths: ['container/website/', 'container/benchmarks/', ...PACKED]},
   // pr-heavy.yml

@@ -1,0 +1,109 @@
+name: Resolver binaries
+description: >
+  Restore the prebuilt mion-bin/mion + mion-bin/extract-fn-bodies (and their stamps)
+  from the Actions cache, keyed on the content of every Go input they link. The ONLY
+  place a job sets up Go and the tsgolint submodule: on a hit a job that only RUNS
+  the binaries skips the submodule, setup-go and the Go build cache entirely; on a
+  miss this builds them and saves the entry for every later job.
+
+  Needs Node (run ./.github/actions/bootstrap first): the key is computed by
+  `node scripts/core/build.mjs --cache-key`, with git and node only.
+
+inputs:
+  toolchain:
+    description: >
+      'true' sets up Go + the submodule + the Go build cache even on a hit, for a job
+      that runs `go test` / `go run` or builds other Go targets. 'false' (default)
+      sets them up only on a miss.
+    default: 'false'
+
+outputs:
+  hit:
+    description: "'true' when the binaries came from the cache"
+    value: ${{ steps.restore.outputs.cache-hit == 'true' }}
+
+runs:
+  using: composite
+  steps:
+    - id: key
+      shell: bash
+      run: echo "key=$(node scripts/core/build.mjs --cache-key)" >> "$GITHUB_OUTPUT"
+
+    - id: restore
+      uses: actions/cache/restore@v4
+      with:
+        path: |
+          mion-bin/mion
+          mion-bin/.mion.stamp
+          mion-bin/extract-fn-bodies
+          mion-bin/.extract-fn-bodies.stamp
+        key: ${{ steps.key.outputs.key }}
+
+    # tsgolint and its typescript-go only, never `submodules: recursive`: that also pulls
+    # typescript-go/_submodules/TypeScript (~620 MB), a conformance corpus no build reads.
+    - name: Fetch the tsgolint submodule (without the TypeScript test corpus)
+      if: inputs.toolchain == 'true' || steps.restore.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        git submodule update --init --depth 1 ts-go-runtypes/third_party/tsgolint
+        git -C ts-go-runtypes/third_party/tsgolint submodule update --init --depth 1 typescript-go
+
+    # tsgolint vendors its typescript-go fork as a submodule + patch set; the Go
+    # resolver only builds once the patches are applied to the working tree.
+    # `git apply` (not `git am`) so no committer identity is needed on CI.
+    - name: Apply tsgolint patches to typescript-go
+      if: inputs.toolchain == 'true' || steps.restore.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        cd ts-go-runtypes/third_party/tsgolint/typescript-go
+        git apply --3way ../patches/*.patch
+
+    - name: Resolve the tsgolint pin (for the Go build-cache key)
+      id: tsgo
+      if: inputs.toolchain == 'true' || steps.restore.outputs.cache-hit != 'true'
+      shell: bash
+      run: echo "sha=$(git -C ts-go-runtypes/third_party/tsgolint rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+    # Before the cache restore so the installed Go version can join its key; cache: false leaves GOCACHE to us.
+    - uses: actions/setup-go@v6
+      id: go
+      if: inputs.toolchain == 'true' || steps.restore.outputs.cache-hit != 'true'
+      with:
+        go-version-file: ts-go-runtypes/.go-version
+        cache: false
+
+    # setup-go's cache keys only on go.sum, which a tsgolint bump never moves (tsgo deps come via local `replace`).
+    # So the key is the tsgolint pin, which also covers the nested typescript-go commit and the patches inside it.
+    # GOCACHE is content-addressed: our internal/ + cmd/ edits recompile cheaply on the cached tsgo objects.
+    # The Go version is in the key because each GOCACHE entry embeds it; ts-go-runtypes/.go-version pins it exactly.
+    # The arch is in the key: website-deploy runs on arm64, whose objects must never restore on x64.
+    # An exact-key hit never re-saves, so a stale cache never heals (~2 min tsgo recompile in every Go job).
+    # restore-keys stays inside the same Go version for the same reason.
+    # CACHE SALT (`v2`): action IDs embed absolute `replace`d package paths (no -trimpath); bump on a Go tree move.
+    - name: Restore Go build cache (keyed on Go + the tsgolint pin, not our sources)
+      if: inputs.toolchain == 'true' || steps.restore.outputs.cache-hit != 'true'
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
+        key: ${{ runner.os }}-${{ runner.arch }}-gocache-v2-go${{ steps.go.outputs.go-version }}-${{ hashFiles('ts-go-runtypes/go.mod', 'ts-go-runtypes/go.sum') }}-${{ steps.tsgo.outputs.sha }}
+        restore-keys: |
+          ${{ runner.os }}-${{ runner.arch }}-gocache-v2-go${{ steps.go.outputs.go-version }}-
+
+    - name: Build the resolver binaries
+      if: steps.restore.outputs.cache-hit != 'true'
+      shell: bash
+      run: node scripts/core/build.mjs go extract
+
+    # Parallel misses race here; the loser's save is refused and harmless.
+    - name: Save the resolver binaries
+      if: steps.restore.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: |
+          mion-bin/mion
+          mion-bin/.mion.stamp
+          mion-bin/extract-fn-bodies
+          mion-bin/.extract-fn-bodies.stamp
+        key: ${{ steps.key.outputs.key }}

@@ -64,7 +64,7 @@ export const AREAS = {
       {
         name: 'build',
         args: '[targets…]',
-        summary: 'build the binary + dev dists if stale (go|linux-go|linux-extract|marker-dist|plugin-dist|uws|all)',
+        summary: 'build the binary + dev dists if stale (go|extract|linux-go|linux-extract|marker-dist|plugin-dist|uws|all)',
         flags: [['--trust-stamp', 'skip the reference build when mion-bin/.mion.stamp matches (the gate and the pre-hooks)']],
         ...noBuild,
       },
