@@ -317,8 +317,8 @@ func NewWithRelated(code string, site Site, args []string, related ...Related) D
 
 var headlineArgRE = regexp.MustCompile(`\{(\d+)\}`)
 
-// RenderHeadline is the twin of renderHeadline in packages/devtools/src/core/diagnosticCatalog.ts.
-func RenderHeadline(code string, args []string) string {
+// renderHeadline is the Go twin of renderHeadline in packages/devtools/src/core/diagnosticCatalog.ts.
+func renderHeadline(code string, args []string) string {
 	definition, ok := Definitions[code]
 	if !ok {
 		return "Unrecognised diagnostic code (" + code + ") — please file an issue."
@@ -345,7 +345,7 @@ func Format(diagnostic Diagnostic, downgraded bool) string {
 		diagnostic.Site.StartCol,
 		SeverityLabel(severity),
 		diagnostic.Code,
-		RenderHeadline(diagnostic.Code, diagnostic.Args),
+		renderHeadline(diagnostic.Code, diagnostic.Args),
 		suffix,
 	)
 	for _, related := range diagnostic.Related {
