@@ -67,7 +67,6 @@ describe('cache cleanup — the weekly trim of main', () => {
 
 describe('cache cleanup — the command', () => {
   const listed = [cache('Linux-X64-gocache-v2-a', PR), cache('mion-go-bins-linux-x64-1', PR), cache('mion-lane-green-js-a', PR)];
-  // A fake gh: answers the listing, then each delete with the status the test asks for.
   const fakeGh = (deleteResult: {status: number; stderr: string}) => {
     const calls: string[][] = [];
     const gh = (args: string[]) => {

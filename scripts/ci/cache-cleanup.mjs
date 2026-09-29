@@ -5,8 +5,8 @@
 import {capture, die, note, reportCliError} from '../lib/proc.mjs';
 
 const MARKER = 'mion-lane-green-';
-// Entries on main kept per family, newest first; a run that needs an older one rebuilds it. Only main
-// writes these families on main: the release binaries are saved from pull requests alone.
+// Newest entries kept per family on main; a run that needs an older one rebuilds it.
+// No release-bins family: those are saved from pull requests alone.
 export const KEEP_ON_MAIN = {'mion-go-bins-': 20};
 const MAIN = 'refs/heads/main';
 

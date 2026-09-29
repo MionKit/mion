@@ -59,7 +59,7 @@ export function releaseLdflags(version, tsgo) {
   return ['-s', '-w', `-X ${GO_MODULE}/internal/constants.Version=${version}`, `-X ${GO_MODULE}/internal/constants.TsgoVersion=${tsgo}`].join(' ');
 }
 
-// One place builds the go command and env, and the cache digest hashes exactly that.
+// The cache digest hashes exactly this command and env, so the two cannot drift.
 export function goBuild(platform, ldflags, outFile) {
   const env = {CGO_ENABLED: '0', GOOS: platform.goos, GOARCH: platform.goarch, ...(platform.goarm ? {GOARM: platform.goarm} : {})};
   return {args: ['build', '-trimpath', `-ldflags=${ldflags}`, '-o', outFile, GO_PKG], env};
@@ -73,7 +73,7 @@ export function cachedBinPath(platform, ldflags) {
 
 const runGoBuild = ({args, env}) => execFileSync('go', args, {cwd: GO_ROOT, env: {...process.env, ...env}, stdio: 'inherit'});
 
-// Reuses the cached binary for these exact build inputs, else builds and caches it. `build` is injectable for the tests.
+// `build` is injectable for the tests.
 export function stageBinary(platform, ldflags, outFile, build = runGoBuild) {
   const cached = cachedBinPath(platform, ldflags);
   if (fs.existsSync(cached)) {

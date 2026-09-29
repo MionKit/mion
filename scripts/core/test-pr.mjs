@@ -52,7 +52,7 @@ const takeBase = (argv) => {
   return {base: argv[at + 1], rest: argv.toSpliced(at, 2)};
 };
 
-// The command a plan runs, or null when nothing needs testing. Pure, for the tests.
+// Pure, for the tests.
 export function suiteCommand(plan, {skipPassed = false, passThrough = []} = {}) {
   if (!plan.full && plan.projects.length === 0) return null;
   const projectFlags = plan.full ? [] : plan.projects.flatMap((project) => ['--project', project]);
