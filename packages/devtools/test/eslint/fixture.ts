@@ -28,7 +28,7 @@ export declare class RpcError<T extends string = string> extends TypedError<T> {
 `;
 
 // The fake `@mionjs/client`: the API type import check only reads which module declares `initClient`.
-export const FIXTURE_CLIENT_DTS = `export declare function initClient<Api>(options: {baseURL: string}): {routes: Api};
+const FIXTURE_CLIENT_DTS = `export declare function initClient<Api>(options: {baseURL: string}): {routes: Api};
 `;
 
 export interface FixtureProject {
@@ -41,17 +41,19 @@ export interface FixtureProject {
 
 export function makeFixtureProject(files: Record<string, string> = {}): FixtureProject {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-lint-'));
-  const installPackage = (name: string, dts: string): void => {
+  const installPackage = (name: string, dts: string, dependencies: Record<string, string> = {}): void => {
     const pkgDir = path.join(dir, 'node_modules', '@mionjs', name);
     fs.mkdirSync(pkgDir, {recursive: true});
-    fs.writeFileSync(path.join(pkgDir, 'package.json'), `{"name":"@mionjs/${name}","exports":{".":"./index.d.ts"}}`);
+    const manifest = {name: `@mionjs/${name}`, exports: {'.': './index.d.ts'}, dependencies};
+    fs.writeFileSync(path.join(pkgDir, 'package.json'), JSON.stringify(manifest));
     fs.writeFileSync(path.join(pkgDir, 'index.d.ts'), dts);
   };
   writeMarkerPackage(dir);
   // The mion route rules read these two, the API type import check the client.
   installPackage('router', FIXTURE_ROUTER_DTS);
   installPackage('core', FIXTURE_CORE_DTS);
-  installPackage('client', FIXTURE_CLIENT_DTS);
+  // Like the real package, the client depends on the marker package, which is what sends a client file to the resolver.
+  installPackage('client', FIXTURE_CLIENT_DTS, {'@mionjs/run-types': '*'});
   const project: FixtureProject = {
     dir,
     write(rel, text) {
