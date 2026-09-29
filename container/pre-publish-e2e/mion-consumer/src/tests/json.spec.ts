@@ -8,7 +8,7 @@
 import {batch, inputFrom} from '@mionjs/client';
 import {initClient} from '@mionjs/client';
 import {isRpcError, HeadersSubset} from '@mionjs/core';
-import {TestServerApi} from '../server/server.ts';
+import type {TestServerApi} from '../server/server.ts';
 import {describe, it, expect} from 'vitest';
 
 

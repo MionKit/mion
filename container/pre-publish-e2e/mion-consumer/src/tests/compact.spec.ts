@@ -7,7 +7,7 @@
 
 import {initClient} from '@mionjs/client';
 import {isRpcError, HeadersSubset} from '@mionjs/core';
-import {TestServerApi} from '../server/server.ts';
+import type {TestServerApi} from '../server/server.ts';
 import {describe, it, expect, beforeEach, afterEach} from 'vitest';
 
 
