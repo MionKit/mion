@@ -69,6 +69,5 @@ func (set DowngradeSet) Empty() bool {
 }
 
 // DowngradedNote marks a finding `downgradeErrors` lowered, so it never reads as a warning that
-// always was one. `mion compile` prints it after FormatDebug; the bundler plugin puts it after the
-// message, where the `$tsc` problem matcher still parses the line.
+// always was one. `mion compile` (Format) and the bundler plugin print it after the message.
 const DowngradedNote = "(downgraded)"

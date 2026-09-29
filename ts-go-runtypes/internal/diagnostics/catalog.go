@@ -20,7 +20,7 @@ import (
 // Question 1 is per-SITE, not per-build: only CFG001 stops a whole run, every other fatal code
 // leaves one thing unbuilt while the build proceeds, which is what makes standing it down
 // meaningless. Severity is DERIVED from it (severityOf): the level is the verdict, severity the
-// word a tsc-shaped line and an editor's problem matcher need. Numeric to keep the wire compact.
+// word the printed line needs. Numeric to keep the wire compact.
 type Level uint8
 
 const (
@@ -43,8 +43,8 @@ const (
 	LevelInfo Level = 4
 )
 
-// Severity is DERIVED from Level, never authored per code: it is the label form the tsc-shaped line
-// and VS Code's problem matcher need, so both error levels read as "error". Code that must tell
+// Severity is DERIVED from Level, never authored per code: it is the label form the printed line
+// needs, so both error levels read as "error". Code that must tell
 // them apart reads Level. It controls nothing by itself; the consumer decides what to do with a
 // finding. Numeric to keep the wire compact.
 type Severity uint8
@@ -83,7 +83,7 @@ func LevelLabel(level Level) string {
 	return "error"
 }
 
-// SeverityLabel returns the lowercase word `tsc --pretty=false` and VS Code's $tsc matcher use.
+// SeverityLabel returns the lowercase word the printed line uses, as `tsc --pretty=false` does.
 func SeverityLabel(severity Severity) string {
 	switch severity {
 	case SeverityError:

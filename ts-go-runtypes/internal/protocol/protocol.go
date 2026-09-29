@@ -82,8 +82,7 @@ type Request struct {
 	// CheckRouterRules adds the mion route rules over this request's Files (missing handler annotations, a
 	// throw escaping a handler, a declared error that is not an RpcError, a property named after a prototype
 	// slot) to Response.Diagnostics as FamilyMionRoute entries. Off by default, and the devtools lint plugin
-	// is the only consumer: every code is Severity-Error, so a build running them would fail on a finding the
-	// team may have disabled in its lint config.
+	// is the only consumer: the build never runs them, since most are RuntimeErrors that would stop it.
 	CheckRouterRules bool `json:"checkRouterRules,omitempty"`
 	// IncludeRtDiagnostics renders the demanded entries for their RunType-family diagnostics (VL010, PJ001, …)
 	// but drops the module payload, so one lint scan returns the full picture a build would report.
@@ -197,8 +196,8 @@ type Response struct {
 	Transformed map[string]TransformResult `json:"transformed,omitempty"`
 	// Diagnostics is the one wire channel for every non-fatal diagnostic the binary emits: the Family
 	// discriminator names the subsystem, Code is the stable identifier, Severity classifies impact. A host
-	// re-emits each via `diagnostics.FormatTsc(d)` so VS Code's $tsc problem matcher picks them up. The schema
-	// mirrors the LSP Diagnostic shape.
+	// prints each as `file(line,col): severity CODE: headline` (diagnostics.Format, and formatTscDiagnostic in
+	// the bundler plugin). The schema mirrors the LSP Diagnostic shape.
 	Diagnostics []diagnostics.Diagnostic `json:"diagnostics,omitempty"`
 	// TsCompileMs is OpTsCompile's wall time in milliseconds, zero for every other op.
 	TsCompileMs float64 `json:"tsCompileMs,omitempty"`

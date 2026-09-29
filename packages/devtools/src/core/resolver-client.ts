@@ -127,7 +127,7 @@ function isTransportLoss(reason: string): boolean {
 const CLOSE_DRAIN_TIMEOUT_MS = 5000;
 
 // Common JSON-per-line framing, owning the in-flight request queue. Agnostic to whether the streams come from
-// a spawned child process or a Unix-socket connection.
+// a spawned child process or a pre-spawned launcher's pipes.
 class MessageTransport {
   private lines: Interface;
   private queue: Array<(r: Response) => void> = [];
@@ -165,7 +165,7 @@ class MessageTransport {
     return {bytesWritten: this.bytesWritten, bytesRead: this.bytesRead, requests: this.requestCount};
   }
 
-  // markClosed drains pending requests with an error; called by external close hooks (child 'exit', socket 'close').
+  // markClosed drains pending requests with an error; called by external close hooks (a child's 'exit').
   markClosed(reason: string): void {
     this.closed = true;
     this.clearDrainTimer();
@@ -308,7 +308,7 @@ export interface EnrichResult {
   diagnostics?: Diagnostic[];
 }
 
-// Common operation surface: spawn-based and socket-based clients both implement it, so a consumer can be typed
+// Common operation surface: the spawn-based and stream-based clients both implement it, so a consumer can be typed
 // against the connection without caring which transport is in use.
 export interface ResolverConnection {
   scanFiles(files: string[], opts?: ScanFilesOptions): Promise<ScanFilesResult>;
@@ -337,7 +337,7 @@ abstract class ResolverClientBase implements ResolverConnection {
   protected abstract transport: MessageTransport;
 
   // Single request path for every op: ResolverClient overrides it with the respawn-retry lane, the stream
-  // and socket clients keep the plain transport.
+  // client keeps the plain transport.
   protected send(req: Request): Promise<Response> {
     return this.transport.request(req);
   }
