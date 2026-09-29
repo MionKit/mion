@@ -1068,17 +1068,14 @@ func (cache *Cache) projectMembersInto(
 		if asClass && propertySymbol != nil && propertySymbol.Name == "prototype" {
 			continue
 		}
-		// The format / slot sentinels are never real properties: the collapse has already lifted them onto
-		// node.FormatAnnotation / the check slots, so projecting them too would surface them on the wire
-		// shape. Twin of the typeid.memberIDs skip.
+		// Sentinels already live in node.FormatAnnotation / the check slots; projecting them would leak onto the wire.
+		// Twin of the typeid.memberIDs skip.
 		if propertySymbol != nil &&
 			(typeid.IsFormatSentinelPropName(propertySymbol.Name) ||
 				typeid.IsContainsSentinelPropName(propertySymbol.Name) || typeid.IsLabelsSentinelPropName(propertySymbol.Name)) {
 			continue
 		}
-		// Members inherited from a default-lib global (Error's name/message/stack) are NOT excluded: they are
-		// projected NON-ENUMERABLE-GUARDED, and emitters gate the by-name write on a runtime enumerability
-		// check, so a vanilla error instance skips them (no stack leak) and an enumerable one serializes.
+		// Default-lib members (Error's name/message/stack) stay: emitters write them only if enumerable, so no stack leaks.
 		if checker.IsPrivateIdentifierSymbol(propertySymbol) {
 			// Twin of the typeid.memberIDs skip: a `#name` field has no key, so a by-name read would only ever see undefined.
 			if !slices.Contains(node.Flags, reflection.FlagPrivateFields) {

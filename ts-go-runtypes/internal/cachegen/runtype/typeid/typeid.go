@@ -611,10 +611,8 @@ func (computer *Computer) memberIDs(tsType *checker.Type, asClass bool) []string
 	properties := computer.typeChecker.GetPropertiesOfType(tsType)
 	out := make([]string, 0, len(properties))
 	for _, propertySymbol := range properties {
-		// The format / slot sentinels are never real properties: when an object ∧ sentinel intersection is
-		// hashed through the merged property walk they must stay out of the member list (the collapse folds them
-		// as a format key / slot fold instead). Mirrors the symbol-aware skip in serialize.go's
-		// projectMembersInto, which matches the late-bound `unique symbol` spelling too.
+		// Sentinels fold in as a format key / slot fold, never as members.
+		// Mirrors serialize.go's projectMembersInto skip, which also matches the late-bound `unique symbol` spelling.
 		if IsFormatSentinelPropName(propertySymbol.Name) ||
 			IsContainsSentinelPropName(propertySymbol.Name) || IsLabelsSentinelPropName(propertySymbol.Name) {
 			continue

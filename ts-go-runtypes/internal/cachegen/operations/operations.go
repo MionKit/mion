@@ -101,9 +101,8 @@ var registry = []Operation{
 		Strategies:      []string{"clone", "mutate", "compact"},
 	},
 
-	// JSON value-level primitives the composites wrap: one operation per prepare / restore `strategy`, picked by
-	// wordOptionOperation (resolver/scan.go); a framework's own marker reaches any by FnKey via getRTFunction.
-	// No runtime hashing: the resolver reads the plugin-injected plain fnHash.
+	// Primitives the JSON composites wrap, one per `strategy`, picked by wordOptionOperation (resolver/scan.go).
+	// A framework's marker reaches any by FnKey via getRTFunction; the resolver reads the injected fnHash, no runtime hashing.
 	{Name: "prepareForJsonMutate", Doc: "Turns a value into a JSON-safe value in place. Nothing is allocated and undeclared properties are kept.", Factory: "createPrepareForJsonFn", FamilyTag: "pj", Axis: AxisNone, Public: true, FnKey: "prepareForJsonMutate", CallOptions: "{strategy: 'mutate'}"},
 	{Name: "prepareForJsonClone", Doc: "Builds a new JSON-safe value from the declared shape, so undeclared properties are dropped.", Factory: "createPrepareForJsonFn", FamilyTag: "pjs", Axis: AxisNone, Public: true, FnKey: "prepareForJsonClone"},
 	{Name: "restoreFromJsonMutate", Doc: "Turns a JSON-safe value back into the typed shape in place, keeping undeclared properties.", Factory: "createRestoreFromJsonFn", FamilyTag: "rj", Axis: AxisNone, Public: true, FnKey: "restoreFromJsonMutate", CallOptions: "{strategy: 'mutate'}"},

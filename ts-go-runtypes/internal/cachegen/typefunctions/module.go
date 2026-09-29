@@ -494,14 +494,8 @@ func renderEntryWithDeps(runType *reflection.RunType, settings constants.CacheMo
 	}
 	innerFn, shapeNoop, isUnsupported := walker.Compile()
 	if isUnsupported {
-		// The parent positions propagated the unsupported leaf rather than
-		// absorbing it. Render an alwaysThrow factory keyed by the leaf's
-		// per-family diag code, and surface that code at build time too, so the
-		// user sees the cause before runtime.
-		//
-		// With no registered code for the leaf, fall back to a silent skip: the
-		// safety net for unknown future kinds, whose runtime cache miss
-		// createXxx<T>'s identity fallback catches via the KindMissing stub.
+		// Report the alwaysThrow's code at build time too, so the user sees the cause before runtime.
+		// A leaf with no code (a future kind) is skipped silently; the KindMissing stub's identity fallback catches the miss.
 		if leafProvider, ok := emitter.(LeafDiagCodeProvider); ok && walker.UnsupportedLeaf != nil {
 			// A callable interface would be silently skipped (see callableLeafSubstitute); render it as an alwaysThrow.
 			diagLeaf := callableLeafSubstitute(walker.UnsupportedLeaf, walker.RefTable)

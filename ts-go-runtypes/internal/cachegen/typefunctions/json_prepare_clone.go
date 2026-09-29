@@ -288,9 +288,8 @@ func emitObjectPrepareForJsonClone(rt *reflection.RunType, ctx *EmitContext, v s
 		props = append(props, prop)
 	}
 
-	// An index signature means walking every key on v at runtime, so the fastpath cannot apply. The
-	// skip set is ALL declared named keys, not just the kept `props`: a DROPPED stripped prop
-	// (`p0: ArrayBuffer`) must still be skipped so the for-in does not copy it back in (G6).
+	// An index signature walks every key at runtime, so the fastpath cannot apply.
+	// Skip ALL declared keys, not only kept props: a DROPPED one (`p0: ArrayBuffer`) must not be copied back in (G6).
 	if len(indexSigs) > 0 {
 		return buildSafeIndexSignatureObject(v, props, collectSiblingNamedKeys(rt, ctx), indexSigs, ctx)
 	}
@@ -320,8 +319,7 @@ func emitObjectPrepareForJsonClone(rt *reflection.RunType, ctx *EmitContext, v s
 	return RTCode{Code: "return " + clone.Code, Type: CodeRB}
 }
 
-// buildSafeIndexSignatureObject copies each index-signature key, and a key matching no pattern untouched (validation
-// refuses it). The for-in skips declared keys, whose assignments come AFTER and would otherwise be overridden.
+// buildSafeIndexSignatureObject copies a key matching no pattern untouched, since validation refuses it.
 func buildSafeIndexSignatureObject(v string, props []safePropEmit, skipNames []string, indexSigs []*reflection.RunType, ctx *EmitContext) RTCode {
 	arms := make([]indexArm, 0, len(indexSigs))
 	keyVar := ctx.NextLocalVar("k")
@@ -364,14 +362,13 @@ func buildSafeIndexSignatureObject(v string, props []safePropEmit, skipNames []s
 	return RTCode{Code: builder.String(), Type: CodeRB}
 }
 
-// indexArm is one index signature's copy: an optional key regex and the expression for `v[k]`.
+// indexArm's keyRegexVar is empty for a signature with no key pattern.
 type indexArm struct {
 	keyRegexVar string
 	valueExpr   string
 }
 
-// writeIndexWalkOpen opens the for-in over v, skipping prototype-named keys and every declared key: the declared
-// props are assigned after the walk, and a DROPPED prop must not be copied back in by an index arm (G6).
+// writeIndexWalkOpen skips declared keys: their props are assigned after the walk, and a DROPPED one must stay out (G6).
 func writeIndexWalkOpen(builder *strings.Builder, v, keyVar string, skipNames []string) {
 	builder.WriteString("for (const " + keyVar + " in " + v + ") {")
 	builder.WriteString(unsafeKeySkip(keyVar))
@@ -387,12 +384,10 @@ func writeIndexWalkOpen(builder *strings.Builder, v, keyVar string, skipNames []
 	}
 }
 
-// writePatternArm copies a key matching the arm's pattern and moves to the next key.
 func writePatternArm(builder *strings.Builder, keyVar string, arm indexArm) {
 	builder.WriteString("if (" + arm.keyRegexVar + ".test(" + keyVar + ")) { _r[" + keyVar + "] = " + arm.valueExpr + "; continue; }")
 }
 
-// writePropAssignments writes `_r[name] = expr;` per declared prop, an optional one only when present.
 func writePropAssignments(builder *strings.Builder, props []safePropEmit) {
 	for _, prop := range props {
 		if prop.optional {

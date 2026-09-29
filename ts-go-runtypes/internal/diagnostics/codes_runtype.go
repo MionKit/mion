@@ -157,8 +157,7 @@ const (
 )
 
 func init() {
-	// Root-position errors are LevelRuntimeError, not LevelError: the entry RENDERS as an alwaysThrow
-	// factory, so the module is written and the function throws the moment it is called.
+	// LevelRuntimeError, not LevelError: the entry renders as an alwaysThrow factory that throws when called.
 	// ScopeRoot: the same trigger inside a property is a child-position drop (the …01x warnings).
 	for _, code := range []string{
 		CodeVLNonSerializableRoot, CodeVLSymbolRoot, CodeVLFunctionRoot,

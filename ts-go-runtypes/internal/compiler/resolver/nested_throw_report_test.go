@@ -15,8 +15,8 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
-// A site calling an always-throw entry throws too, so it reports that root code even though it never named the
-// failing type. Each family gets a paired static / value test, per the Marker test coverage rule.
+// A site calling an always-throw entry reports its root code, though it never named the failing type.
+// Paired static / value tests per the Marker test coverage rule.
 
 const nestedThrowShared = `export interface Inner { s: symbol[] }
 export class Counter { #count = 0; label = ''; }
@@ -34,7 +34,6 @@ func nestedThrowSources(site string) map[string]string {
 	return map[string]string{"shared.ts": nestedThrowShared, "site.ts": nestedThrowImports + site + "\n"}
 }
 
-// expectReportedOnceAtSite asserts code is reported exactly once, at site.ts.
 func expectReportedOnceAtSite(t *testing.T, response protocol.Response, code string) {
 	t.Helper()
 	sites := diagSitesFor(response, code)
@@ -148,7 +147,7 @@ func TestNestedThrow_OtherFamilySiteStaysQuiet(t *testing.T) {
 	}
 }
 
-// warmNestedThrow builds the same sources twice on one disk cache: the second build reads every entry from disk.
+// warmNestedThrow's second build reads every entry from the first build's disk cache.
 func warmNestedThrow(t *testing.T, code, site string) {
 	t.Helper()
 	cacheDir := t.TempDir()
