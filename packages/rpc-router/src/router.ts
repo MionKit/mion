@@ -238,7 +238,7 @@ export function createMionRouter<const O extends RouterOptionsInput = RouterOpti
   };
 }
 
-/** Initializes the router options and the internal error routes. Once per app (`resetRouter()` clears it). */
+/** Once per app; `resetRouter()` clears it. */
 function initRouter(opts: RouterOptionsInput, buildVersion?: string): void {
   if (isRouterInitialized) throw new Error('Router has already been initialized');
   routerOptions = {...routerOptions, ...opts};
