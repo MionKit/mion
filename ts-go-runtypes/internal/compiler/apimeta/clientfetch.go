@@ -60,7 +60,7 @@ func initClientCallOf(typeChecker *checker.Checker, markerOpts marker.Options, e
 		expression = ast.SkipOuterExpressions(expression, ast.OEKAll)
 		switch expression.Kind {
 		case ast.KindCallExpression:
-			if isInitClientCall(typeChecker, markerOpts, expression) {
+			if IsInitClientCall(typeChecker, markerOpts, expression) {
 				return expression
 			}
 			return nil
@@ -103,7 +103,7 @@ func ClientApis(typeChecker *checker.Checker, markerOpts marker.Options, lookup 
 			continue
 		}
 		forEachCall(sourceFile, func(call *ast.Node) bool {
-			if !isInitClientCall(typeChecker, markerOpts, call) {
+			if !IsInitClientCall(typeChecker, markerOpts, call) {
 				return true
 			}
 			if _, apiType := BuildVersionParam(typeChecker, markerOpts, call); apiType != nil {

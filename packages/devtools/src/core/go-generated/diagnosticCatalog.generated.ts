@@ -793,6 +793,12 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     level: 'info',
     family: 'runtype',
   },
+  SRV001: {
+    headline:
+      '`{0}` is passed to `initClient` but imported as a value from "{1}", which puts that server module in the client bundle; use `import type`.',
+    level: 'runtimeError',
+    family: 'marker',
+  },
   TMP001: {
     headline:
       "Temporal type `{0}` resolved to `any`: the Temporal lib isn't in your tsconfig `lib`, so the generated validator would accept any value.",
