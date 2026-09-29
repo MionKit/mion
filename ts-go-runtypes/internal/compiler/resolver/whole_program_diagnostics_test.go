@@ -8,6 +8,19 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
+// overridePairSources holds an OVR001 pair across two files: a.ts overrides string, b.ts overrides it again.
+func overridePairSources() map[string]string {
+	return map[string]string{
+		"runtypes.d.ts": overrideDTS,
+		"a.ts": `import {overrideValidate} from '@mionjs/run-types';
+overrideValidate<string>((v) => typeof v === 'string');
+`,
+		"b.ts": `import {overrideValidate} from '@mionjs/run-types';
+overrideValidate<string>((v) => v !== null);
+`,
+	}
+}
+
 func codesAt(diags []diagnostics.Diagnostic, code string) []string {
 	var files []string
 	for _, diagnostic := range diags {
@@ -16,6 +29,58 @@ func codesAt(diags []diagnostics.Diagnostic, code string) []string {
 		}
 	}
 	return files
+}
+
+// TestScanFiles_ReportsOnlyTheRequestedFilesOverrideFindings: scanning a.ts must not return the OVR001 anchored in
+// b.ts, which a linter would otherwise report at a.ts positions.
+func TestScanFiles_ReportsOnlyTheRequestedFilesOverrideFindings(t *testing.T) {
+	r := setupInline(t, overridePairSources())
+	resp := r.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"a.ts"}})
+	if resp.Error != "" {
+		t.Fatalf("scanFiles: %s", resp.Error)
+	}
+	for _, diagnostic := range resp.Diagnostics {
+		if filepath.Base(diagnostic.Site.FilePath) != "a.ts" {
+			t.Fatalf("scanFiles(a.ts) returned %s anchored in %s", diagnostic.Code, diagnostic.Site.FilePath)
+		}
+	}
+	both := r.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"b.ts"}})
+	if got := codesAt(both.Diagnostics, diagnostics.CodeDuplicateOverride); len(got) != 1 || got[0] != "b.ts" {
+		t.Fatalf("scanFiles(b.ts) must return the OVR001 anchored in b.ts, got %v", got)
+	}
+}
+
+// TestTransform_ReportsOnlyTheRequestedFilesOverrideFindings: the transform lane filters the same way, so a dev
+// server transforming several files prints each override finding once.
+func TestTransform_ReportsOnlyTheRequestedFilesOverrideFindings(t *testing.T) {
+	r := setupInline(t, overridePairSources())
+	resp := r.Dispatch(protocol.Request{Op: protocol.OpTransform, Files: []string{"a.ts"}})
+	if resp.Error != "" {
+		t.Fatalf("transform: %s", resp.Error)
+	}
+	if got := codesAt(resp.Diagnostics, diagnostics.CodeDuplicateOverride); len(got) != 0 {
+		t.Fatalf("transform(a.ts) must not return b.ts's OVR001, got %v", got)
+	}
+}
+
+// TestGenerate_ReportsOverrideFindings: the build-start report carries OVR001 (RuntimeError) and the kept
+// override's OVR010 (Info).
+func TestGenerate_ReportsOverrideFindings(t *testing.T) {
+	r := setupGen(t, overridePairSources(), t.TempDir())
+	resp := r.Dispatch(protocol.Request{Op: protocol.OpGenerate})
+	if resp.Error != "" {
+		t.Fatalf("generate: %s", resp.Error)
+	}
+	if got := codesAt(resp.Diagnostics, diagnostics.CodeDuplicateOverride); len(got) != 1 || got[0] != "b.ts" {
+		t.Fatalf("generate must report the OVR001 once, anchored in b.ts, got %v", got)
+	}
+	if got := codesAt(resp.Diagnostics, diagnostics.CodeOverrideValidateCrossFamily); len(got) != 1 || got[0] != "a.ts" {
+		t.Fatalf("generate must report OVR010 for the kept validate override, got %v", got)
+	}
+	dump := r.Dispatch(protocol.Request{Op: protocol.OpDump})
+	if got := codesAt(dump.Diagnostics, diagnostics.CodeDuplicateOverride); len(got) != 1 {
+		t.Fatalf("dump (mion compile --no-emit) must report the OVR001, got %v", got)
+	}
 }
 
 // generateAfterScanReportsMKR003 scans a.ts first, as a hot update does, then checks generate still reports its

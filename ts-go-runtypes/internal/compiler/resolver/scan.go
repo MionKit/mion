@@ -105,6 +105,22 @@ func (sess *Session) programScanDiagnostics() []diagnostics.Diagnostic {
 	return out
 }
 
+// diagnosticsInFiles keeps the whole-program diagnostics anchored in one of the requested files, so a per-file
+// response never reports another file's finding at this file's positions.
+func (sess *Session) diagnosticsInFiles(diags []diagnostics.Diagnostic, files []string) []diagnostics.Diagnostic {
+	requested := make(map[string]bool, len(files))
+	for _, file := range files {
+		requested[sess.absPath(file)] = true
+	}
+	var out []diagnostics.Diagnostic
+	for _, diagnostic := range diags {
+		if requested[sess.absPath(diagnostic.Site.FilePath)] {
+			out = append(out, diagnostic)
+		}
+	}
+	return out
+}
+
 // dispatchScanFiles walks every CallExpression in each requested file and returns one Site per call whose resolved
 // signature has a trailing `InjectRunTypeId<T>` parameter with T concretely bound. Sites come back flat across
 // files, each tagged with .File. Per file, recordFileIDs then notes the reached wire ids in the cache's per-file
