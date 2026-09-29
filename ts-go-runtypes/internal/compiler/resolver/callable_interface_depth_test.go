@@ -76,3 +76,13 @@ func TestCallableInterfaceArrayElement_MutateEncoderThrowReported_Value(t *testi
 	expectCallableCode(t, `declare const value: {handlers: Handler[]};
 export const encode = createJsonEncoderFn(value, {strategy: 'mutate'});`, diagnostics.CodePJFunctionRoot)
 }
+
+// The clone encoder's all-JSON-safe shortcut once shipped `Array.from(map)`, turning each function into null.
+func TestCallableInterfaceMapValue_CloneEncoderThrowReported_Static(t *testing.T) {
+	expectCallableCode(t, `export const encode = createJsonEncoderFn<Map<string, Handler>>();`, diagnostics.CodePJSFunctionRoot)
+}
+
+func TestCallableInterfaceMapValue_CloneEncoderThrowReported_Value(t *testing.T) {
+	expectCallableCode(t, `declare const value: Map<string, Handler>;
+export const encode = createJsonEncoderFn(value);`, diagnostics.CodePJSFunctionRoot)
+}

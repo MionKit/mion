@@ -106,7 +106,7 @@ func jsonCompatRecursive(rt *reflection.RunType, ctx *EmitContext, visited map[s
 		resolved := ctx.ResolveRef(rt.Child)
 		// The per-prop emit skips a function-typed property (emitPropertyPrepareForJson), so it contributes no transform
 		// and counts as compatible for the wrap decision.
-		if resolved != nil && isFunctionLikeKind(resolved.Kind) {
+		if resolved != nil && isCallableValue(resolved, ctx) {
 			return true
 		}
 		return jsonCompatRecursive(resolved, ctx, visited)
@@ -118,6 +118,10 @@ func jsonCompatRecursive(rt *reflection.RunType, ctx *EmitContext, visited map[s
 		return jsonCompatRecursive(ctx.ResolveRef(rt.Child), ctx, visited)
 
 	case reflection.KindObjectLiteral:
+		// A callable interface is the emitters' CodeNS arm, so skipping its call signature would hide the throw.
+		if objectHasCallSignature(rt, ctx) {
+			return false
+		}
 		return objectChildrenCompat(objectMembers(rt), ctx, visited)
 
 	case reflection.KindIntersection:
