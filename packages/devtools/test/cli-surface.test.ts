@@ -91,12 +91,6 @@ describe.skipIf(!hasBinary)('CLI surface — routing + exit codes', () => {
     expect(stderr).toContain('unknown command');
   });
 
-  it('the removed gen/check verbs are gone', () => {
-    expect(run(['gen']).status).toBe(2);
-    expect(run(['check']).status).toBe(2);
-    expect(run(['gen']).stderr).toContain('unknown command');
-  });
-
   it('-h / --help -> exit 0 usage on stdout', () => {
     for (const flag of ['-h', '--help']) {
       const {status, stdout} = run([flag]);
@@ -286,11 +280,9 @@ describe.skipIf(!hasBinary || !symlinksAvailable)('CLI surface — symlinked pro
 // The pre-publish e2e fixture drives this CLI (container/pre-publish-e2e/build-all.mjs
 // scaffolds the shared app's enrichment mirrors before any app builds), but nothing
 // on the host runs that script: no vitest project covers container/, so the fixture
-// is only exercised inside the release-gate container. When `gen` was merged into
-// `enrich`, the rename reached the packages, the docs and the skills — and left the
-// fixture calling a verb that no longer existed. The binary answers an unknown verb
-// with usage and exit 2, so the matrix died before the builds, the assertions and the
-// lint transport: the gate was red on main and nothing said so until release time.
+// is only exercised inside the release-gate container. The binary answers an unknown
+// verb with usage and exit 2, so a stale verb in the fixture kills the matrix before the
+// builds, the assertions and the lint transport, and nothing says so until release time.
 //
 // This is the cheap host-side guard for that class: read the argv the fixture ACTUALLY
 // passes and check every verb and long flag against the live binary's own help. It

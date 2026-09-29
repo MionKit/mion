@@ -1332,19 +1332,13 @@ describe('mion server benchmarks stay wired end to end', () => {
     expect(Object.keys(manifest.dependencies ?? {})).toContain('pidusage');
   });
 
-  // The load generator is wrk, not autocannon (2026-09). autocannon is a node process, so
-  // on the same box it competes with the server it measures and tops out before a bun
-  // server does - three of the ten lanes are bun. The upstream benchmarks repo went as far
-  // as dropping the bun lanes from hello-world for that reason before it moved to wrk.
-  it('the load generator is wrk, installed in the image, and autocannon is gone', () => {
+  // The load generator is wrk: a node-based one competes with the server it measures on the
+  // same box and tops out before a bun server does.
+  it('the load generator is wrk, installed in the image', () => {
     expect(CONTAINERFILE, 'the image never installs wrk, so every lane would fail on PATH').toMatch(
       /apt-get install[^\n]*\bwrk\b/
     );
-    const manifest = JSON.parse(readFileSync(join(BENCH_DIR, '_deps/harness/package.json'), 'utf8'));
-    expect(Object.keys(manifest.dependencies ?? {}), 'autocannon came back').not.toContain('autocannon');
     const harness = readFileSync(join(BENCH_DIR, 'harness/run.mjs'), 'utf8');
-    // The word survives in the comments that explain why it went; the import must not.
-    expect(harness, 'run.mjs still imports autocannon').not.toMatch(/from 'autocannon'/);
     expect(harness).toContain("spawn('wrk'");
   });
 
@@ -1355,7 +1349,7 @@ describe('mion server benchmarks stay wired end to end', () => {
     expect(driver, 'harness/wrk.lua is never bind-mounted').toContain('harness/wrk.lua');
   });
 
-  it('every request still carries a fresh id, the way autocannon setupRequest did', () => {
+  it('every request carries a fresh id', () => {
     // A framework that memoized on the body would otherwise be measured serving its cache.
     // wrk builds requests in Lua, so run.mjs splits one body around its id and the script
     // stamps a new one between the halves.

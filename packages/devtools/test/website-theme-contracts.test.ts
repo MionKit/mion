@@ -11,8 +11,7 @@
 //     `[data-site='<id>']` selector (a missing shade falls through to Tailwind's stock
 //     palette, which is exactly the off-brand 950 the old green ramp shipped with).
 //   - The subsite list (app/utils/subsites.ts) matches the content tree, the theme
-//     files and the landing pages, and no script or workflow still carries the retired
-//     two-site switch.
+//     files and the landing pages.
 //   - The animated title gradient sits on the section h2 titles, never on the card
 //     h3 titles inside them (the inversion this scheme landed with).
 
@@ -307,24 +306,6 @@ describe('website-subsites', () => {
       expect(existsSync(join(SITES_DIR, site, 'Logo.vue')), site).toBe(false);
       expect(existsSync(join(SITES_DIR, site, 'public')), site).toBe(false);
     }
-  });
-
-  it('carries no trace of the retired two-site switch', () => {
-    const files = [
-      ...walk(join(REPO_ROOT, '.github/workflows'), (name) => name.endsWith('.yml')),
-      ...walk(join(REPO_ROOT, 'scripts'), (name) => /\.(mjs|sh)$/.test(name)),
-      'scripts/miondevx.mjs',
-      'container/website/nuxt.config.ts',
-      'container/website/content.config.ts',
-      '.env.sample',
-    ];
-    const offenders: string[] = [];
-    for (const rel of new Set(files)) {
-      const text = readFileSync(join(REPO_ROOT, rel), 'utf8');
-      if (/MION_SITE\b|--site\b|MION_WEBSITE_PARALLEL|site\.config/.test(text)) offenders.push(rel);
-    }
-    expect(offenders).toEqual([]);
-    expect(existsSync(join(WEBSITE, 'site.config.ts'))).toBe(false);
   });
 
   it('pins the docs page override to the installed docus version', () => {

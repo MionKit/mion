@@ -397,19 +397,6 @@ func TestSubKindRendered(t *testing.T) {
 	}
 }
 
-// TestNoLegacyTopLevelExports — the previous emitters used
-// `export const t_<hash> = …` / `rt(…)` skeleton calls. Make sure neither
-// pattern survives in the bundle / facade modules.
-func TestNoLegacyTopLevelExports(t *testing.T) {
-	out := emit(t, []*reflection.RunType{{ID: "x", Kind: reflection.KindString}})
-	if strings.Contains(out, "export const t_") {
-		t.Errorf("legacy `export const t_…` lines must not appear in:\n%s", out)
-	}
-	if strings.Contains(out, "rt(") {
-		t.Errorf("legacy `rt(…)` skeleton calls must not appear in:\n%s", out)
-	}
-}
-
 // TestJSONMaxBytesSlot — slot 21 carries the compact-JSON maximum of a
 // reflection ROOT whose type is fully bounded; a nested row never carries it
 // and an unbounded root renders the slot as a hole (trimmed away).

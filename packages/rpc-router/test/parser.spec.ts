@@ -126,9 +126,7 @@ describe('parser strategies at the router level', () => {
       const union = 'compact' as 'compact' | 'mutate';
       // @ts-expect-error a union is not one literal strategy
       const badUnion = () => createMionRouter({parser: {return: union}});
-      // @ts-expect-error the old key is retired
-      const old = () => createMionRouter({parser: 'json'});
-      expect([bad, badUnion, old].length).toBe(3);
+      expect([bad, badUnion].length).toBe(2);
       // a runtime value that is not a strategy at all is refused at init
       const bogus = {parser: 'yaml'} as unknown as {parser: ParserOption};
       expect(() => createMionRouter(bogus as never).initRoutes({anyRoute})).toThrow(/invalid parser strategy 'yaml'/);

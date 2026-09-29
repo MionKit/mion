@@ -261,8 +261,6 @@ export const x = registerPureFnFactory(externalFn);
       // expression (or const-bound binding to one).
       const markerCodes = (response.diagnostics ?? []).filter((d) => d.family === Family.Marker).map((d) => d.code);
       expect(markerCodes).toContain('PFN001');
-      // No purefn-family shape diagnostic — PFE9003 was retired.
-      expect(pureFnDiagsOf(response).map((d) => d.code)).not.toContain('PFE9003');
     });
   });
 

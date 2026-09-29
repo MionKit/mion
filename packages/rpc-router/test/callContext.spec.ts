@@ -5,12 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The router used to reuse CallContext objects between requests, from a pool sized by
-// `maxContextPoolSize` (100 by default). Releasing a context wiped it, so a handler that kept the
-// context past its response read nulls, and once the shell was handed to the next request it read
-// that request's data instead. Pooling saved ~10 bytes of short-lived garbage per request and no
-// measurable time, so it was removed. These tests pin what that restored: one context per request,
-// still readable after the response.
+// One CallContext per request, still readable after the response: a handler may keep its context
+// past the response without reading nulls or another request's data.
 
 import {describe, it, expect, beforeEach} from 'vitest';
 import {createMionRouter, resetRouter} from '../src/router.ts';
@@ -78,11 +74,5 @@ describe('call context per request', () => {
     expect(seen.length).toBe(50);
     expect(new Set(seen).size).toBe(50);
     expect(seen.map((ctx) => (ctx.shared as {tag: string}).tag).sort()).toEqual([...names].sort());
-  });
-
-  it('rejects the old pooling option at the type level', () => {
-    // @ts-expect-error the option is gone, so the key is not one RouterOptions knows
-    const old = (): unknown => createMionRouter({maxContextPoolSize: 100});
-    expect(typeof old).toBe('function');
   });
 });

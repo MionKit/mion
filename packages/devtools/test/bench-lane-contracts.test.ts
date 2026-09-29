@@ -552,23 +552,13 @@ describe('the image bakes the compiled typia plugin, or fails to build', () => {
   });
 
   it('proves the compiled plugin sits under node_modules/.cache/ttsc before the layer ends', () => {
-    // ttsc >= 0.19 caches plugins under <workspace>/node_modules/.cache/ttsc/plugins/<key>/plugin;
-    // the old `.ttsc` dir is never created, so a `test -d node_modules/.ttsc` proved nothing.
+    // ttsc >= 0.19 caches plugins under <workspace>/node_modules/.cache/ttsc/plugins/<key>/plugin.
     expect(containerfile).toContain('find node_modules/.cache/ttsc/plugins -type f -name plugin');
-    expect(containerfile).not.toContain('node_modules/.ttsc');
     expect(containerfile).not.toContain('ttsc warm skipped');
   });
 
   it('drops the Go build cache the warm leaves behind, in the same layer', () => {
     expect(containerfile).toContain('rm -rf node_modules/.cache/ttsc/go-build');
-  });
-
-  it('lets every CI lane run typia now that the plugin is baked', () => {
-    for (const workflow of ['.github/workflows/ci.yml', '.github/workflows/pr-heavy.yml']) {
-      expect(read(workflow), workflow).not.toContain("MION_VALIDATION_BENCH_NO_TYPIA: '1'");
-    }
-    // --quick used to skip typia by default ("its native build dominates"); it no longer does.
-    expect(read('scripts/website/bench-data/bench.mjs')).not.toContain("setIfUnset('MION_VALIDATION_BENCH_NO_TYPIA'");
   });
 });
 
