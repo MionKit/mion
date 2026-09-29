@@ -453,6 +453,15 @@ func (emitter RemoveUnknownKeysEmitter) emitTuple(rt *reflection.RunType, ctx *E
 
 // emitUnion refuses object members (RUK001): with no arm discrimination it could keep unknown keys.
 func (emitter RemoveUnknownKeysEmitter) emitUnion(rt *reflection.RunType, ctx *EmitContext) RTCode {
+	// The flat layout drops members DataOnly strips (functions, Promises), so share or refuse those here first.
+	for _, member := range rt.Children {
+		resolved := ctx.ResolveRef(member)
+		if slot, shared := sharedValueSlot(resolved, ctx); shared {
+			if !emitter.shareOrRefuse(slot, "union member `"+strippedMemberLabel(resolved)+"`", resolved, ctx) {
+				return RTCode{Code: "", Type: CodeNS}
+			}
+		}
+	}
 	layout := buildFlatLayout(rt, ctx)
 	if len(layout.ObjectMembers) > 0 {
 		return RTCode{Code: "", Type: CodeNS}
@@ -595,6 +604,11 @@ func removeUnknownKeysNoopRecursive(rt *reflection.RunType, ctx *EmitContext, vi
 
 	case reflection.KindUnion:
 		// An object-bearing union is unsupported, so never noop; an atomic union is identity iff every member is.
+		for _, member := range rt.Children {
+			if _, shared := sharedValueSlot(ctx.ResolveRef(member), ctx); shared {
+				return false
+			}
+		}
 		layout := buildFlatLayout(rt, ctx)
 		if len(layout.ObjectMembers) > 0 {
 			return false
