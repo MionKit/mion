@@ -11,6 +11,7 @@ import {afterAll, beforeAll, describe, expect, it} from 'vitest';
 import {
   declaresUnsafePropertyName,
   looksLikeEnrichmentFile,
+  namesInitClient,
   referencesRouter,
   needsResolverPass,
   referencesMarkerModule,
@@ -242,6 +243,17 @@ describe('declaresUnsafePropertyName', () => {
     expect(declaresUnsafePropertyName('type P = {IndexBuilder: {prototype: object}};')).toBe(false);
     expect(declaresUnsafePropertyName('class Box { constructor(size: number) {} }')).toBe(false);
     expect(declaresUnsafePropertyName('const c = value.constructor;')).toBe(false);
+  });
+});
+
+// The API type import check (SRV001) reads a client file that may name no marker at all.
+describe('namesInitClient', () => {
+  it('admits a file that calls initClient and nothing else', () => {
+    const client = `import {initClient} from '@mionjs/client';\nimport {MyApi} from '../server/api';\nexport const c = initClient<MyApi>({baseURL: ''});`;
+    expect(referencesMarkerModule(client)).toBe(false);
+    expect(namesInitClient(client)).toBe(true);
+    expect(needsResolverPass(client)).toBe(true);
+    expect(namesInitClient(`import {routes} from '../server/api';`)).toBe(false);
   });
 });
 

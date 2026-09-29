@@ -27,6 +27,10 @@ export const FIXTURE_CORE_DTS = `export declare class TypedError<T extends strin
 export declare class RpcError<T extends string = string> extends TypedError<T> { readonly publicMessage: string }
 `;
 
+// FIXTURE_CLIENT_DTS is the fake `@mionjs/client`: the API type import check only reads which module declares `initClient`.
+export const FIXTURE_CLIENT_DTS = `export declare function initClient<Api>(options: {baseURL: string}): {routes: Api};
+`;
+
 export interface FixtureProject {
   dir: string;
   // write adds/overwrites one file (relative path) and returns its abs path.
@@ -44,9 +48,10 @@ export function makeFixtureProject(files: Record<string, string> = {}): FixtureP
     fs.writeFileSync(path.join(pkgDir, 'index.d.ts'), dts);
   };
   writeMarkerPackage(dir);
-  // The mion route rules read these two.
+  // The mion route rules read these two, the API type import check the client.
   installPackage('router', FIXTURE_ROUTER_DTS);
   installPackage('core', FIXTURE_CORE_DTS);
+  installPackage('client', FIXTURE_CLIENT_DTS);
   const project: FixtureProject = {
     dir,
     write(rel, text) {

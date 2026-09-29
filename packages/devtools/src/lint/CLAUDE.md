@@ -13,11 +13,10 @@ whole-program finding (a batch id collision, a bundled-API check) only shows in 
    code reaches the editor with no routing change.
 3. Document the code where its feature is documented; the linter page lists the four rules, not the codes.
 
-Never write a rule that inspects the AST on its own to answer a type or resolver question: it
-would drift from the build. `enforce-type-imports` is the one hand-written rule, and only because
-it is import hygiene the checker never needed; it takes its own options and stays out of
-`recommended`. A rule that compares literals in a file (a `maxBodySize` against a platform
-ceiling, say) is still a resolver diagnostic: the resolver sees the call site.
+No check is ever written in the plugin: the four level rules are the only rules, and they read
+nothing but the resolver's diagnostics. A rule that inspects the source on its own drifts from the
+build, which never runs it. Import hygiene, a literal compared against a limit, anything: it is a
+resolver diagnostic, because the resolver sees the file too.
 
 ## Severity
 
