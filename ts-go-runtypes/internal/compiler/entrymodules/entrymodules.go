@@ -76,9 +76,16 @@ type Entry struct {
 	// to call its fn can elide the reference; the JSON composite collector drops dead primitive bindings on
 	// it. False for every other kind.
 	IsNoop bool
-	// ThrowCode is the root code of a KindTypeFn entry rendered as alwaysThrow, with its ThrowArgs; empty otherwise.
-	ThrowCode string
-	ThrowArgs []string
+	// Throw is the root code of a KindTypeFn entry rendered as alwaysThrow; nil otherwise.
+	Throw *Finding
+	// Findings are the diagnostics the entry's own walk produced, kept even when no call site names the entry.
+	Findings []Finding
+}
+
+// Finding is one build-time diagnostic of an entry, code and args only: the call site comes from whoever reaches it.
+type Finding struct {
+	Code string
+	Args []string
 }
 
 // allDeps iterates entry's hard + soft deps (callers dedup via sortedDeps).

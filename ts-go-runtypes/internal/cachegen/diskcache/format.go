@@ -32,7 +32,8 @@ package diskcache
 // their tags (rj / rjs) and cache basenames stay put; the header check is structural-id only, so a v16 payload would hit and feed the
 // runtime a key nothing registers.
 // v18 stops persisting alwaysThrow entries: their message names a live call site, so a hit replayed the site of the build that wrote it.
-const FormatVersion = 18
+// v19 also persists the findings of an entry no call site names, which a site of another family can adopt.
+const FormatVersion = 19
 
 // CachedDiagnostic is one build-time finding an entry's walk produced, stored so a cache hit can re-emit it.
 // Code + args only: the message text is rendered JS-side from the catalog and the location comes from the CURRENT build.
