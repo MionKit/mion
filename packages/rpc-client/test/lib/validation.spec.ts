@@ -7,7 +7,7 @@
 
 import {describe, it, expect, afterEach} from 'vitest';
 import {initClient} from './fetchingClient.ts';
-import {TestServerApi} from '@mionjs/test-server';
+import type {TestServerApi} from '@mionjs/test-server';
 import {TEST_SERVER_BASE_URL} from '../../globalSetup.ts';
 import type {MethodWithOptsAndJitFns} from '@mionjs/core';
 import {getResponseError} from '../../src/lib/validation.ts';

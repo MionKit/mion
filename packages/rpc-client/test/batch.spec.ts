@@ -10,7 +10,7 @@ import {initClient} from './lib/fetchingClient.ts';
 import {batch} from '../src/batch.ts';
 import type {CallContext, RouteSubRequest} from '../src/types.ts';
 import {HeadersSubset, RpcError, getRoutePath, routesCache} from '@mionjs/core';
-import {TestServerApi} from '@mionjs/test-server';
+import type {TestServerApi} from '@mionjs/test-server';
 import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
 // NAME-lane calls (string 2nd arg) resolve to the marker-free overload, so the vite
 // plugin never rewrites them; INLINE-mapper calls are extracted + hash-injected.
