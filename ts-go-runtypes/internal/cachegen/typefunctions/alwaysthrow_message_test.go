@@ -14,6 +14,10 @@ func TestRootThrowHeadline_PerFamily(t *testing.T) {
 		{diagnostics.CodePJNeverRoot, "Never", "Type `Never` can never be encoded to JSON — the generated function will always fail."},
 		{diagnostics.CodeRJSymbolRoot, "Symbol", "Type `Symbol` can never be decoded from JSON — the generated function will always fail."},
 		{diagnostics.CodeVLSymbolRoot, "Symbol", "Type `Symbol` can never be validated — the generated function will always fail."},
+		// A code whose headline is written about its argument throws that headline as is.
+		{diagnostics.CodeRUKSymbolKeyedMember, "property `[tag]`", "Symbol-keyed property `[tag]` cannot be copied: the generated code cannot name your symbol, so the function always throws."},
+		{diagnostics.CodeRUKPrivateFields, "class `Counter`", "The class `Counter` has `#private` fields, which only its constructor can create: a copy would break its methods, so the function always throws."},
+		{diagnostics.CodeRUKSharedRefused, "property `onClick`", "The value in property `onClick` can only be shared with the input and `sharedValues: 'refuse'` is set, so the function always throws."},
 	}
 	for _, c := range cases {
 		if got := rootThrowHeadline(c.code, c.kind); got != c.want {
@@ -35,6 +39,15 @@ func TestRootThrowWording_CoversEveryAlwaysThrowCode(t *testing.T) {
 	} {
 		if _, ok := rootThrowWording[code]; !ok {
 			t.Errorf("root-throw code %q has no throw wording", code)
+		}
+	}
+}
+
+// The removeUnknownKeys refusals throw their own headline, never the generic "not supported here" fallback.
+func TestRootThrowHeadline_RemoveUnknownKeysNeverFallsBack(t *testing.T) {
+	for _, code := range []string{diagnostics.CodeRUKSymbolKeyedMember, diagnostics.CodeRUKPrivateFields, diagnostics.CodeRUKSharedRefused} {
+		if headline := rootThrowHeadline(code, "x"); strings.Contains(headline, "is not supported here") {
+			t.Errorf("%s fell back to the generic headline: %q", code, headline)
 		}
 	}
 }

@@ -30,6 +30,8 @@ describe('class with a #private field', () => {
   test('validate accepts it one level deeper', () => {
     const isHolder = createValidateFn<{counter: Counter}>();
     expect(isHolder({counter})).toBe(true);
+    const holder = {counter};
+    expect(createValidateFn(holder)(holder)).toBe(true);
   });
 
   test('JSON writes only the declared data keys', () => {
@@ -38,5 +40,7 @@ describe('class with a #private field', () => {
     const json = encode({counter}) as string;
     expect(JSON.parse(json)).toEqual({counter: {label: 'clicks'}});
     expect((decode(json) as {counter: Counter}).counter.label).toBe('clicks');
+    const holder = {counter};
+    expect(JSON.parse(createJsonEncoderFn(holder)(holder) as string)).toEqual({counter: {label: 'clicks'}});
   });
 });
