@@ -245,7 +245,7 @@ describe('website-anchor-links', () => {
 
   it('finds the headings and anchor links it claims to check', () => {
     expect(headings.get('/rpc/server/routes')?.has('call-context')).toBe(true);
-    expect(headings.get('/rpc/server/request-and-response')?.has('mionrequest')).toBe(true);
+    expect(headings.get('/rpc/server/request-and-response')?.has('error-handling-in-responses')).toBe(true);
     // A heading nested inside an MDC card still publishes an id.
     expect(headings.get('/rpc/introduction/about-mion-rpc')?.has('rpc-like')).toBe(true);
     expect(links.length).toBeGreaterThan(20);

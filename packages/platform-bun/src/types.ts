@@ -9,7 +9,6 @@
 type BunServeOptions = Omit<Bun.Serve.BaseServeOptions<unknown>, 'error'> &
   Omit<Bun.Serve.HostnamePortServeOptions<unknown>, 'error'>;
 
-// type-bun-http-options-start
 export interface BunHttpOptions {
   port: number;
   /** Bun's native Server Options */
@@ -24,4 +23,3 @@ export interface BunHttpOptions {
    *  `mionVitePlugin({server: {startScript, platform: '@mionjs/platform-bun'}})` sets this for you. */
   asMiddleware: boolean;
 }
-// type-bun-http-options-end

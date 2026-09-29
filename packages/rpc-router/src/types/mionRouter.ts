@@ -129,7 +129,6 @@ export interface RawMiddlewareHelper<O extends RouterOptionsInput> {
   <H extends RawMiddlewareHandler<RouterCallContext<O>>>(handler: H, opts?: RawMiddlewareOptions): RawMiddlewareDef<H>;
 }
 
-// type-mion-router-start
 /** What `createMionRouter(opts)` returns: the route / middleware helpers plus `initRoutes`, all carrying the options type. */
 export interface MionRouter<O extends RouterOptionsInput = RouterOptionsInput> {
   /** The options given to the factory, frozen. */
@@ -146,4 +145,3 @@ export interface MionRouter<O extends RouterOptionsInput = RouterOptionsInput> {
    *  `buildVersion` is filled by the build, never by hand: the server answers with it so a client can spot stale routes. */
   initRoutes<R extends Routes>(routes: R, buildVersion?: InjectBuildVersion<PublicApi<R>>): PublicApi<R>;
 }
-// type-mion-router-end

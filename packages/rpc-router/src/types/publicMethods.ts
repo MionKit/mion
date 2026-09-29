@@ -59,12 +59,10 @@ export type PublicApi<Type extends Routes> = Prettify<{
         : never;
 }>;
 
-// type-remote-api-start
 /** Same as PublicApi but with no type mapping, for when strong types are not required. */
 export type RemoteApi = {
   [key: string]: PublicRoute<any, any, any> | PublicMiddleware<any, any, any> | PublicHeadersFn<any, any, any> | RemoteApi;
 };
-// type-remote-api-end
 
 /** The types the server compiled a method's validators and serializers from: the same aliases the route
  *  helpers hand to their markers, so a client build with `bundleApi` compiles the same functions under the

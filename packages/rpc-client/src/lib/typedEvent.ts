@@ -9,7 +9,6 @@ import type {RpcError} from '@mionjs/core';
 import type {HandlersRegistry} from './handlersRegistry.ts';
 import type {ErrorHandler, ErrorOfType, RequestHandler, ResponseHandler, SubRequest} from '../types.ts';
 
-// type-typed-event-start
 /** Persistent hooks of one middleware: its params before each request, its result or error after it */
 export class TypedEvent<S = void, E extends RpcError<string, any> = never, P extends any[] = any[]> {
   constructor(
@@ -75,4 +74,3 @@ export class TypedEvent<S = void, E extends RpcError<string, any> = never, P ext
     return this.registry.hasRequestHandler(this.handlerId);
   }
 }
-// type-typed-event-end
