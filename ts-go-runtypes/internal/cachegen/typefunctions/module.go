@@ -157,8 +157,6 @@ func CollectFamilyEntries(dump protocol.Dump, settings constants.CacheModuleSett
 	}
 
 	graph := make(entrymodules.Graph, len(dump.RunTypes))
-	throwing := map[string]*diskcache.CachedDiagnostic{}
-	var demandedRoots []demandedRoot
 
 	// renderEntry is idempotent via graph dedup; an unsupported child's CodeNS drops the factory (see codetype.go).
 	renderEntry := func(runType *reflection.RunType, suffix string, options []string, rejectCircular bool) ([]string, bool) {
@@ -180,10 +178,7 @@ func CollectFamilyEntries(dump protocol.Dump, settings constants.CacheModuleSett
 		if rendered.argsText == "" {
 			return nil, false
 		}
-		if rendered.throws != nil {
-			throwing[entryID] = rendered.throws
-		}
-		graph.Add(&entrymodules.Entry{
+		entry := &entrymodules.Entry{
 			Key:       entryID,
 			Kind:      entrymodules.KindTypeFn,
 			FamilyTag: settings.Tag,
@@ -193,7 +188,11 @@ func CollectFamilyEntries(dump protocol.Dump, settings constants.CacheModuleSett
 			Deps:     append([]string(nil), rendered.deps...),
 			SoftDeps: append(append([]string(nil), rendered.crossFamilyDeps...), rendered.pureFnDeps...),
 			IsNoop:   rendered.isNoop,
-		})
+		}
+		if rendered.throws != nil {
+			entry.ThrowCode, entry.ThrowArgs = rendered.throws.Code, rendered.throws.Args
+		}
+		graph.Add(entry)
 		return rendered.deps, true
 	}
 
@@ -241,10 +240,6 @@ func CollectFamilyEntries(dump protocol.Dump, settings constants.CacheModuleSett
 				}
 				if deps, ok := renderEntry(root, demanded.VariantSuffix, demanded.Options, demanded.RejectCircular); ok {
 					enqueueChildren(deps)
-					demandedRoots = append(demandedRoots, demandedRoot{
-						entryID: variantKey(settings, demanded.VariantSuffix, demanded.Options, root.ID, demanded.RejectCircular),
-						typeID:  root.ID,
-					})
 				}
 			}
 		}
@@ -281,7 +276,6 @@ func CollectFamilyEntries(dump protocol.Dump, settings constants.CacheModuleSett
 				enqueueChildren(deps)
 			}
 		}
-		reportReachedThrows(graph, throwing, demandedRoots, settings.Tag, opts)
 	} else {
 		// Unit-test path with no call-site demand; the resolver-level cascade prunes parents of unsupported children.
 		for _, runType := range dump.RunTypes {
@@ -295,46 +289,59 @@ func CollectFamilyEntries(dump protocol.Dump, settings constants.CacheModuleSett
 	return graph
 }
 
-// demandedRoot is one entry a call site asked for, by entry key and the type id its provenance is keyed on.
-type demandedRoot struct {
-	entryID string
-	typeID  string
-}
-
-// reportReachedThrows reports an alwaysThrow dep's root code at a working site that calls it: that site throws too.
-// The walker reports only where the failing type is named, so `{inner: Inner}` would stay silent.
-func reportReachedThrows(graph entrymodules.Graph, throwing map[string]*diskcache.CachedDiagnostic, roots []demandedRoot, familyTag string, opts RenderOpts) {
-	if len(throwing) == 0 || opts.DiagSink == nil {
+// ReportReachedThrows reports an alwaysThrow entry's root code at every site whose entry reaches it: that site throws too.
+// It runs once after the cross-family fixpoint, since a validationErrors union calls the validate entry of that union.
+func ReportReachedThrows(graph entrymodules.Graph, opts RenderOpts) {
+	if opts.DiagSink == nil {
+		return
+	}
+	throwing := false
+	for _, entry := range graph {
+		if entry.ThrowCode != "" {
+			throwing = true
+			break
+		}
+	}
+	if !throwing {
 		return
 	}
 	reported := map[string]bool{}
 	for _, diagnostic := range *opts.DiagSink {
 		reported[reachedThrowKey(diagnostic.Code, diagnostic.Args, diagnostic.Site)] = true
 	}
-	for _, root := range roots {
-		if throwing[root.entryID] != nil {
+	keys := make([]string, 0, len(graph))
+	for key, entry := range graph {
+		if entry.Kind == entrymodules.KindTypeFn && entry.ThrowCode == "" {
+			keys = append(keys, key)
+		}
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		entry := graph[key]
+		separator := strings.IndexByte(key, '_')
+		if separator < 0 {
 			continue
 		}
-		sites := opts.RootedSites[ProvenanceKey(root.typeID, familyTag)]
+		sites := opts.RootedSites[ProvenanceKey(key[separator+1:], entry.FamilyTag)]
 		if len(sites) == 0 {
 			continue
 		}
-		for _, thrown := range reachableThrows(graph, throwing, root.entryID) {
+		for _, thrown := range reachableThrows(graph, key) {
 			for _, site := range sites {
-				key := reachedThrowKey(thrown.Code, thrown.Args, site)
-				if reported[key] {
+				reportKey := reachedThrowKey(thrown.ThrowCode, thrown.ThrowArgs, site)
+				if reported[reportKey] {
 					continue
 				}
-				reported[key] = true
-				*opts.DiagSink = append(*opts.DiagSink, diagnostics.New(thrown.Code, site, thrown.Args...))
+				reported[reportKey] = true
+				*opts.DiagSink = append(*opts.DiagSink, diagnostics.New(thrown.ThrowCode, site, thrown.ThrowArgs...))
 			}
 		}
 	}
 }
 
-// reachableThrows walks an entry's same-family deps and returns the alwaysThrow findings it reaches, in walk order.
-func reachableThrows(graph entrymodules.Graph, throwing map[string]*diskcache.CachedDiagnostic, entryID string) []*diskcache.CachedDiagnostic {
-	var found []*diskcache.CachedDiagnostic
+// reachableThrows walks an entry's type-fn deps, same family or not, and returns the alwaysThrow entries it reaches in walk order.
+func reachableThrows(graph entrymodules.Graph, entryID string) []*entrymodules.Entry {
+	var found []*entrymodules.Entry
 	visited := map[string]bool{entryID: true}
 	stack := []string{entryID}
 	for len(stack) > 0 {
@@ -344,13 +351,17 @@ func reachableThrows(graph entrymodules.Graph, throwing map[string]*diskcache.Ca
 		if !ok {
 			continue
 		}
-		for _, dep := range entry.Deps {
+		for _, dep := range slices.Concat(entry.Deps, entry.SoftDeps) {
 			if visited[dep] {
 				continue
 			}
 			visited[dep] = true
-			if thrown := throwing[dep]; thrown != nil {
-				found = append(found, thrown)
+			depEntry, ok := graph[dep]
+			if !ok || depEntry.Kind != entrymodules.KindTypeFn {
+				continue
+			}
+			if depEntry.ThrowCode != "" {
+				found = append(found, depEntry)
 				continue
 			}
 			stack = append(stack, dep)

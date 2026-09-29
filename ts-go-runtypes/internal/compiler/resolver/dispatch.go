@@ -100,6 +100,7 @@ func (sess *Session) collectEntryModules(dump protocol.Dump, rtOpts typefunction
 	// baked skeleton and demands findCycle by body reference, and an unarmed cyclable type ships neither.
 
 	sess.resolveCrossFamilyEdges(graph, dump, rtOpts)
+	typefunctions.ReportReachedThrows(graph, rtOpts)
 	// Composite prologues bind primitives with an unguarded `utl.getRT(key).fn`, so assert post-fixpoint that every
 	// referenced primitive rendered: an invariant breach must fail the build instead of crashing at runtime.
 	// ProvenanceSites anchors any breach at the demanding createJsonEncoderFn/Decoder call site.

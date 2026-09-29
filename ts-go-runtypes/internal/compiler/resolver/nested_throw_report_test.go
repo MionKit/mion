@@ -209,3 +209,49 @@ func TestNestedThrow_WarmDiskCacheValidate_Value(t *testing.T) {
 	warmNestedThrow(t, diagnostics.CodeVLSymbolRoot, `declare const value: {inner: Inner};
 export const check = createValidateFn(value);`)
 }
+
+// A union arm that delegates to the validate entry of its union throws through that entry, a family the site never named.
+func TestNestedThrow_ValidationErrorsUnionThroughValidate_Static(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodeVLSymbolRoot, `export const errors = createGetValidationErrorsFn<{u: symbol[] | string}>();`)
+}
+
+func TestNestedThrow_ValidationErrorsUnionThroughValidate_Value(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodeVLSymbolRoot, `declare const value: {u: symbol[] | string};
+export const errors = createGetValidationErrorsFn(value);`)
+}
+
+func TestNestedThrow_StrictValidationErrorsUnionThroughValidate_Static(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodeVLSymbolRoot, `export const errors = createGetValidationErrorsFn<{u: symbol[] | string}>(undefined, {checkUnknowns: true});`)
+}
+
+func TestNestedThrow_StrictValidationErrorsUnionThroughValidate_Value(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodeVLSymbolRoot, `declare const value: {u: symbol[] | string};
+export const errors = createGetValidationErrorsFn(value, {checkUnknowns: true});`)
+}
+
+func TestNestedThrow_UnionKeysValidationErrorsUnionThroughValidate_Static(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodeVLSymbolRoot, `export const errors = createGetValidationErrorsFn<{u: symbol[] | string}>(undefined, {checkUnionUnknowns: true});`)
+}
+
+func TestNestedThrow_UnionKeysValidationErrorsUnionThroughValidate_Value(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodeVLSymbolRoot, `declare const value: {u: symbol[] | string};
+export const errors = createGetValidationErrorsFn(value, {checkUnionUnknowns: true});`)
+}
+
+func TestNestedThrow_RemoveUnknownKeysUnionThroughValidate_Static(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodeVLSymbolRoot, `export const strip = createRemoveUnknownKeysFn<{u: symbol[] | string}>();`)
+}
+
+func TestNestedThrow_RemoveUnknownKeysUnionThroughValidate_Value(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodeVLSymbolRoot, `declare const value: {u: symbol[] | string};
+export const strip = createRemoveUnknownKeysFn(value);`)
+}
+
+func TestNestedThrow_WarmDiskCacheCrossFamily_Static(t *testing.T) {
+	warmNestedThrow(t, diagnostics.CodeVLSymbolRoot, `export const errors = createGetValidationErrorsFn<{u: symbol[] | string}>();`)
+}
+
+func TestNestedThrow_WarmDiskCacheCrossFamily_Value(t *testing.T) {
+	warmNestedThrow(t, diagnostics.CodeVLSymbolRoot, `declare const value: {u: symbol[] | string};
+export const errors = createGetValidationErrorsFn(value);`)
+}
