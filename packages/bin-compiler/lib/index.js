@@ -10,34 +10,14 @@ const EXE_BASENAME = 'mion';
 // escape hatch the lint lane has; a bundler plugin's explicit `binary` option still wins over it.
 const OVERRIDE_ENV = 'MION_BIN';
 
-// The pre-MION_ spelling, still READ so an existing setup keeps working, and warned about once:
-// silently ignoring a path someone set would run a different binary than they asked for.
-const LEGACY_OVERRIDE_ENV = 'RT_BIN';
-let legacyOverrideNoticeShown = false;
-
 function exeName() {
   return process.platform === 'win32' ? `${EXE_BASENAME}.exe` : EXE_BASENAME;
-}
-
-function overrideRaw() {
-  const current = process.env[OVERRIDE_ENV];
-  if (current && current.trim() !== '') return current;
-  const legacy = process.env[LEGACY_OVERRIDE_ENV];
-  if (!legacy || legacy.trim() === '') return legacy;
-  if (!legacyOverrideNoticeShown) {
-    legacyOverrideNoticeShown = true;
-    console.warn(
-      `[mion] ${LEGACY_OVERRIDE_ENV} is deprecated and will be removed. ` +
-        `Rename it to ${OVERRIDE_ENV}; it is still being honoured for now.`
-    );
-  }
-  return legacy;
 }
 
 // An empty value is a no-op, so `MION_BIN=` in a .env behaves like not setting it at all.
 // A value that names no executable throws instead of falling through: a typo must fail loudly.
 function overrideExe() {
-  const raw = overrideRaw();
+  const raw = process.env[OVERRIDE_ENV];
   if (!raw || raw.trim() === '') return null;
   const exe = path.resolve(raw.trim());
   let stats;

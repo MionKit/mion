@@ -44,11 +44,6 @@ export function loadEnv() {
 //   task   the operation that needs it       |  '-' = optional knob (has a default)
 // Project-owned vars are prefixed MION_; external/standard names (GHCR_*, NPM_TOKEN,
 // CLOUDFLARE_*, CI) keep their conventional spelling so the tools that read them work.
-// The old RT_ prefix is retired. The five vars a CONSUMER sets (MION_BIN, MION_CACHE_DIR,
-// MION_JS_RUNTIME, MION_LINT_PRESPAWN, MION_NEXT_DEBUG) still READ their RT_ twin and warn
-// once, because neither end of a consumer's shell profile / CI job / .env is ours to move;
-// the alias is noted on each row rather than given a row of its own, so there stays exactly
-// one registry entry per knob.
 export const REGISTRY = [
   // — secrets (credentials: .env locally, GitHub secrets in CI) —
   {name: 'GHCR_PAT', scope: 'secret', task: 'push-image', desc: 'GitHub PAT for the shared images: write:packages to PUSH from local (pnpm miondevx container push, via .env) AND read:packages to PULL the private images in CI - the release gate / post-publish / website-deploy pass the GitHub secret to the pull-shared-image action, because tsrt-e2e is a private package the repo GITHUB_TOKEN is denied'},
@@ -175,9 +170,9 @@ export const REGISTRY = [
   {name: 'MION_FUZZ_RACE_FANOUT', scope: 'dev', task: '-', desc: 'enrich race fanout (default 6)'},
 
   // — resolver knobs (the mion Go binary) —
-  {name: 'MION_CACHE_DIR', scope: 'dev', task: '-', desc: 'DEPRECATED ALIAS: RT_CACHE_DIR is still read and warns. Internal disk-cache override (tests/power users): path forces it on there, "" forces it off, unset follows the tsconfig incremental/composite setting'},
-  {name: 'MION_BIN', scope: 'dev', task: '-', desc: "DEPRECATED ALIAS: RT_BIN is still read and warns. Path to the resolver binary @mionjs/bin-compiler's getExePath() should use, overriding the platform package (and the in-repo dev binary) for BOTH the bundler and lint lanes. Must name an executable file or the lookup throws. Its version folds into every typeId, so an override of a different version yields caches that diverge from a normal install"},
-  {name: 'MION_JS_RUNTIME', scope: 'dev', task: '-', desc: 'DEPRECATED ALIAS: RT_JS_RUNTIME is still read and warns. Path to the node/bun the resolver runs format-pattern checks on, consulted when no --js-runtime flag is passed (the bundler/lint plugins always pass their own process.execPath, so this matters for direct binary use: serve/compile by hand). Unset: the binary probes PATH for node, then bun'},
+  {name: 'MION_CACHE_DIR', scope: 'dev', task: '-', desc: 'Internal disk-cache override (tests/power users): path forces it on there, "" forces it off, unset follows the tsconfig incremental/composite setting'},
+  {name: 'MION_BIN', scope: 'dev', task: '-', desc: "Path to the resolver binary @mionjs/bin-compiler's getExePath() should use, overriding the platform package (and the in-repo dev binary) for BOTH the bundler and lint lanes. Must name an executable file or the lookup throws. Its version folds into every typeId, so an override of a different version yields caches that diverge from a normal install"},
+  {name: 'MION_JS_RUNTIME', scope: 'dev', task: '-', desc: 'Path to the node/bun the resolver runs format-pattern checks on, consulted when no --js-runtime flag is passed (the bundler/lint plugins always pass their own process.execPath, so this matters for direct binary use: serve/compile by hand). Unset: the binary probes PATH for node, then bun'},
 
   // — build/release knobs —
   {name: 'MION_NPM_PROVENANCE', scope: 'dev', task: 'publish-npm', desc: 'Attach npm provenance on the CI stage-publish (default off). Needs a PUBLIC repo — npm refuses provenance from a private source repo; set the CI repo variable to 1 once this repo is public'},
@@ -185,10 +180,10 @@ export const REGISTRY = [
   {name: 'MION_UPDATE_GOLDEN', scope: 'dev', task: '-', desc: 'Set to 1 to REWRITE the schema-document golden corpus instead of failing on drift (ts-go-runtypes/internal/convert/schemadocprobe_test.go). Only after an INTENTIONAL spelling change: the corpus is what catches an accidental one'},
 
   // — lint knobs (the @mionjs/devtools OXlint/ESLint plugin) —
-  {name: 'MION_LINT_PRESPAWN', scope: 'dev', task: '-', desc: "DEPRECATED ALIAS: RT_LINT_PRESPAWN is still read and warns. Set 0 to skip the lint plugin's load-time resolver pre-spawn (small hosts)"},
+  {name: 'MION_LINT_PRESPAWN', scope: 'dev', task: '-', desc: "Set 0 to skip the lint plugin's load-time resolver pre-spawn (small hosts)"},
 
   // — Next.js / Turbopack adapter knobs (@mionjs/devtools/runtypes/next) —
-  {name: 'MION_NEXT_DEBUG', scope: 'dev', task: '-', desc: "DEPRECATED ALIAS: RT_NEXT_DEBUG is still read and warns. Set 1 to trace the Next broker: owner election, buildStart, each absorbed edit batch, each stamp change. Turbopack gives the adapter no plugin log of its own, so a misbehaving dev loop is otherwise opaque"},
+  {name: 'MION_NEXT_DEBUG', scope: 'dev', task: '-', desc: "Set 1 to trace the Next broker: owner election, buildStart, each absorbed edit batch, each stamp change. Turbopack gives the adapter no plugin log of its own, so a misbehaving dev loop is otherwise opaque"},
 
   // — pre-publish e2e knobs (scripts/release/e2e.mjs + the fixture) —
   {name: 'MION_E2E_BINARY', scope: 'dev', task: '-', desc: 'Override the RunTypes plugin binary for the e2e apps (host iteration; unset in-container / in CI to test the published @mionjs/bin-compiler launcher). The lint lanes take no binary option, so their spawners forward it as MION_BIN'},
@@ -220,9 +215,9 @@ export const REGISTRY = [
   {name: 'MION_DRIZZLE_IMAGE', scope: 'internal', task: '-', desc: 'The drizzle-e2e.yml job env naming the image a lane pulls: the dialect, or `cloudflare` for the d1 and durable drivers, which share one image'},
   {name: 'MION_DRIZZLE_REGISTRY', scope: 'internal', task: '-', desc: 'Registry the drizzle-e2e lane installs the packages under test from (the in-container verdaccio on 127.0.0.1:4873)'},
   {name: 'MION_DRIZZLE_VERDACCIO_CONFIG', scope: 'internal', task: '-', desc: "verdaccio config path inside a drizzle-e2e container, read by drizzle-serve.sh (default /etc/verdaccio/config.yaml). scripts/release/drizzle-e2e.mjs points it at the bind-mounted /drizzle-src/registry/verdaccio.yaml so a config tweak needs no image rebuild"},
-  {name: 'PG_CONNECTION_STRING', scope: 'internal', task: '-', desc: "How drizzle's own pg suite reaches its database. The drizzle-e2e lane sets it to the container's own postgres, which is what makes the lane free of docker-in-docker (the suite falls back to its createDockerDB() helper only when this is unset). Drizzle-owned name, so no RT_ prefix"},
-  {name: 'MYSQL_CONNECTION_STRING', scope: 'internal', task: '-', desc: "How drizzle's own mysql suite reaches its database; the mysql twin of PG_CONNECTION_STRING. Drizzle-owned name, so no RT_ prefix"},
-  {name: 'SQLITE_DB_PATH', scope: 'internal', task: '-', desc: "The database FILE drizzle's own sqlite suite opens (its own default is :memory:). Drizzle-owned name, so no RT_ prefix"},
+  {name: 'PG_CONNECTION_STRING', scope: 'internal', task: '-', desc: "How drizzle's own pg suite reaches its database. The drizzle-e2e lane sets it to the container's own postgres, which is what makes the lane free of docker-in-docker (the suite falls back to its createDockerDB() helper only when this is unset). Drizzle-owned name, so no MION_ prefix"},
+  {name: 'MYSQL_CONNECTION_STRING', scope: 'internal', task: '-', desc: "How drizzle's own mysql suite reaches its database; the mysql twin of PG_CONNECTION_STRING. Drizzle-owned name, so no MION_ prefix"},
+  {name: 'SQLITE_DB_PATH', scope: 'internal', task: '-', desc: "The database FILE drizzle's own sqlite suite opens (its own default is :memory:). Drizzle-owned name, so no MION_ prefix"},
   {name: 'MION_DRIZZLE_MINIFLARE_DIR', scope: 'internal', task: '-', desc: "Where miniflare persists the D1 database and the Durable Object SQL storage for one tree of the Cloudflare drizzle-e2e lanes. run-suite.mjs gives the control, builders and types trees one each, which is how those lanes get the isolation the server lanes get from a separate database"},
   {name: 'MION_DRIZZLE_HOME', scope: 'internal', task: '-', desc: "Overrides the drizzle-e2e install root (/drizzle-e2e) for container/drizzle-e2e/shared/runners/durable-worker.mjs, so the Durable Objects harness can be smoke-tested on the host against .cache/drizzle-suites/<tag>-translated with no container"},
   {name: 'MION_DRIZZLE_SHARED', scope: 'internal', task: '-', desc: 'Overrides the mounted shared-assets dir (/drizzle-src) for durable-worker.mjs; the host twin of MION_DRIZZLE_HOME'},

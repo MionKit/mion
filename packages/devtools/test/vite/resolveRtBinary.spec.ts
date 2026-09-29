@@ -12,7 +12,7 @@ import {resolveRtBinary} from '../../src/vite/mionVitePlugin.ts';
 // @mionjs/bin-compiler's getExePath(), and it covers the ESLint lane too. A mion-side variable
 // never could, because the two lanes run in separate processes.
 
-const ENV_KEYS = ['MION_BIN', 'RT_BIN'] as const;
+const ENV_KEYS = ['MION_BIN'] as const;
 
 describe('resolveRtBinary', () => {
   let saved: Record<string, string | undefined>;
@@ -41,11 +41,6 @@ describe('resolveRtBinary', () => {
   it('does NOT read MION_BIN itself — it defers to getExePath(), which honours it', () => {
     process.env.MION_BIN = '/from/rt-bin';
     // Returning the path here would bypass getExePath() and re-introduce a mion-side lane.
-    expect(resolveRtBinary()).toBeUndefined();
-  });
-
-  it('does NOT read RT_BIN itself either — getExePath() owns the fallback', () => {
-    process.env.RT_BIN = '/from/rt-bin';
     expect(resolveRtBinary()).toBeUndefined();
   });
 });

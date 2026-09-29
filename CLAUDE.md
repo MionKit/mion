@@ -162,11 +162,10 @@ See [SETUP.md → Containerized apps](SETUP.md#containerized-apps-docs-website--
 ## Environment variables
 
 - **Single source of truth:** the `REGISTRY` array in [scripts/lib/env.mjs](scripts/lib/env.mjs) lists EVERY env var the project consumes (scripts, containers, CI, tests). `pnpm run check:env` prints it. Any new env var a script / container / CI step / test reads MUST be added there!
-- **Prefix EVERY project-owned var with `MION_`** (`MION_WEBSITE_*`, `MION_VALIDATION_BENCH_*`, `MION_FUZZ_*`, `MION_TEST_PORT`, …). The old `RT_` prefix is retired; never add a new one.
+- **Prefix EVERY project-owned var with `MION_`** (`MION_WEBSITE_*`, `MION_VALIDATION_BENCH_*`, `MION_FUZZ_*`, `MION_TEST_PORT`, …).
   Two `MION_*BENCH_*` families, kept apart on purpose: `MION_BENCH_*` drives the mion HTTP **server** benchmarks (the `mion-bench` image) and `MION_VALIDATION_BENCH_*` the validation benchmarks (the `tsrt-website` image). They never share a container.
   External/standard names keep their conventional spelling: `NPM_TOKEN`, `CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_ACCOUNT_ID`, `GHCR_*`, `CI`, `NODE_ENV`, `PORT`.
   `GENERATE_ROUTER_SPEC` is the one unprefixed exception: a public `@mionjs/router` knob read at runtime, renaming it would break consumers.
-- **Five vars still answer to their old `RT_` name, and warn once**: `MION_BIN`, `MION_CACHE_DIR`, `MION_JS_RUNTIME`, `MION_LINT_PRESPAWN`, `MION_NEXT_DEBUG`. They are read out of a CONSUMER's environment, where neither end is ours to move. The fallback lives in [envCompat.ts](packages/devtools/src/core/envCompat.ts) and [envcompat.go](ts-go-runtypes/internal/envcompat/envcompat.go); the alias is noted on the registry row rather than given a row of its own.
 - **Three scopes** (the registry's `SCOPE` column): `secret` (credential), `dev` (overridable knob with a default), `internal` (set by the scripts themselves). Mark new vars accordingly.
 - **`.env.sample` mirrors the user-settable rows only** (`secret` + `dev`); add new ones there too. NEVER list an `internal` var in `.env.sample` — setting it breaks the run.
 - **One credential, one load path:** secrets live directly in `.env` (loaded by `loadEnv()`); no file-path alternates or proxy/duplicate names.

@@ -14,7 +14,6 @@ import os from 'node:os';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
 import type {UnpluginContextMeta} from 'unplugin';
-import {readEnvCompat} from '../../core/envCompat.ts';
 import {unplugin, type PluginOptions} from '../../core/unplugin.ts';
 import {createLineReader, type BrokerReply, type BrokerRequest} from './wire.ts';
 
@@ -25,7 +24,7 @@ const STAMP_THROTTLE_MS = 100;
 const WATCH_DEBOUNCE_MS = 30;
 
 // The Next lane has no plugin log of its own, so without this trace a misbehaving dev loop is completely opaque.
-const debugEnabled = readEnvCompat('MION_NEXT_DEBUG') === '1';
+const debugEnabled = process.env.MION_NEXT_DEBUG === '1';
 function debug(message: string): void {
   if (debugEnabled) console.error(`[@mionjs/devtools:next] ${message}`);
 }
