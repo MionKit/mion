@@ -36,7 +36,7 @@ function assertErrors(title: string, getErrors: Errors): void {
   expect(errors[0].expected, title).toBe('override');
 }
 
-/** Registers the key-check option it()s (call inside a describe). */
+/** Call inside a describe. */
 export function registerKeyCheckOptionsCase(): void {
   it('KeyCheckOptions — validate override runs with and without the key-check options', () => {
     assertValidate('plain', createValidateFn<KeyTarget>());
