@@ -1,9 +1,15 @@
 // scripts/core/test-skip.mjs skips a vitest file whose key already passed. These pin what
 // the key sees, what it deliberately ignores, and which files it refuses to cache at all.
+import {join} from 'node:path';
 import {describe, expect, it} from 'vitest';
+
+const REPO_ROOT = join(__dirname, '../../..');
 import {
   fileKey,
   isProven,
+  moduleGraph,
+  parseCli,
+  passRecorder,
   recordPass,
   stableCode,
   // @ts-expect-error plain ESM dev script, no types
@@ -68,5 +74,80 @@ describe('test-skip — the passed list', () => {
     expect(isProven(store, 'a.test.ts', {key: 'k2', reason: ''})).toBe(false);
     expect(isProven(store, 'a.test.ts', {key: 'k1', reason: 'imports node:fs'})).toBe(false);
     expect(isProven(store, 'b.test.ts', {key: 'k1', reason: ''})).toBe(false);
+  });
+});
+
+// A fake vite ssr environment: each module's transformed code and the imports vite recorded.
+const fakeProject = (root: string, modules: Record<string, {code: string; deps?: string[]}>) => ({
+  name: 'fake',
+  config: {root},
+  vite: {
+    environments: {
+      ssr: {
+        moduleGraph: {getModuleById: () => undefined},
+        transformRequest: async (id: string) => modules[id] && {code: modules[id].code, deps: modules[id].deps ?? []},
+      },
+    },
+  },
+});
+
+describe('test-skip — files that reach outside their import graph', () => {
+  const root = join(REPO_ROOT, 'packages/devtools');
+  const file = join(root, 'test/test-skip.test.ts');
+
+  it.each(['node:child_process', 'child_process', 'node:fs', 'fs/promises', 'node:http', 'node:worker_threads'])(
+    'is never cached when the graph imports %s',
+    async (builtin) => {
+      const graph = await moduleGraph(fakeProject(root, {[file]: {code: 'x', deps: [builtin]}}), file);
+      expect([...graph.reasons]).toEqual([`imports ${builtin}`]);
+    }
+  );
+
+  it('keeps a pure graph cacheable, and records an external package by its versioned path', async () => {
+    const dep = '/@fs' + join(REPO_ROOT, 'node_modules/.pnpm/zod@4.1.5/node_modules/zod/index.js');
+    const graph = await moduleGraph(fakeProject(root, {[file]: {code: 'x', deps: ['node:path', dep]}}), file);
+    expect([...graph.reasons]).toEqual([]);
+    expect([...graph.externals]).toContain('node_modules/.pnpm/zod@4.1.5/node_modules/zod/index.js');
+  });
+});
+
+describe('test-skip — what a run records', () => {
+  const testModule = (state: string, testStates: string[]) => ({
+    project: {name: 'p'},
+    moduleId: join(REPO_ROOT, 'packages/a/test/a.test.ts'),
+    state: () => state,
+    children: {allTests: () => testStates.map((testState) => ({result: () => ({state: testState})}))},
+  });
+
+  it('records a file whose every test passed', () => {
+    const recorder = passRecorder();
+    recorder.reporter.onTestModuleEnd(testModule('passed', ['passed', 'passed']));
+    expect([...recorder.passed]).toEqual(['p::packages/a/test/a.test.ts']);
+  });
+
+  // A `.skipIf(!HAS_BIN)` looks the same as a real skip, so the file proved less than it claims.
+  it('never records a file with a skipped test, and never counts a skip as a failure', () => {
+    const recorder = passRecorder();
+    recorder.reporter.onTestModuleEnd(testModule('passed', ['passed', 'skipped']));
+    recorder.reporter.onTestModuleEnd(testModule('skipped', ['skipped']));
+    expect(recorder.passed.size).toBe(0);
+    expect(recorder.failed.size).toBe(0);
+  });
+
+  it('counts a failed file as failed', () => {
+    const recorder = passRecorder();
+    recorder.reporter.onTestModuleEnd(testModule('failed', ['passed', 'failed']));
+    expect([...recorder.failed]).toEqual(['p::packages/a/test/a.test.ts']);
+  });
+});
+
+describe('test-skip — the command line', () => {
+  it('takes repeatable projects and excludes, and leaves the rest as filters', () => {
+    const cli = parseCli(['--project', 'core', '--project', 'router', '--exclude', '**/fuzz/**', 'errors']);
+    expect(cli.scope).toEqual({filters: ['errors'], projects: ['core', 'router'], excludes: ['**/fuzz/**']});
+  });
+
+  it.each([['--keys'], ['--store'], ['--keys', '--project'], ['--nope']])('refuses %j', (...args) => {
+    expect(() => parseCli(args)).toThrow(/core test-skip:/);
   });
 });
