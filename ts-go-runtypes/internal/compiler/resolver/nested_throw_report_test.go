@@ -334,3 +334,35 @@ func TestElidedChildFinding_WarmDiskCache_Value(t *testing.T) {
 	warmNestedThrow(t, diagnostics.CodePJSymbolKeyedDropped, `declare const value: {tags: Tagged[]};
 export const encode = createJsonEncoderFn(value, {strategy: 'mutate'});`)
 }
+
+// A site hears what its function reaches, not what its type contains: another file demanding `Tagged` directly
+// renders the entry, and the union site, whose function never calls it, must not hear that entry's finding.
+func expectNotLeaked(t *testing.T, other, site, leaked string) {
+	t.Helper()
+	sources := nestedThrowSources(site)
+	sources["other.ts"] = nestedThrowImports + other + "\n"
+	response := wholeProgram(t, sources)
+	for _, file := range diagSitesFor(response, leaked) {
+		if file == "site.ts" {
+			t.Errorf("%s reached site.ts through an entry its function never calls; codes=%v", leaked, codesOf(response))
+		}
+	}
+}
+
+func TestUncalledEntryFinding_ValidationErrorsUnion_Static(t *testing.T) {
+	expectNotLeaked(t, `export const direct = createGetValidationErrorsFn<{t: Tagged}>();`, `export const errors = createGetValidationErrorsFn<{u: Tagged | string}>();`, diagnostics.CodeVESymbolKeyedDropped)
+}
+
+func TestUncalledEntryFinding_ValidationErrorsUnion_Value(t *testing.T) {
+	expectNotLeaked(t, `export const direct = createGetValidationErrorsFn<{t: Tagged}>();`, `declare const value: {u: Tagged | string};
+export const errors = createGetValidationErrorsFn(value);`, diagnostics.CodeVESymbolKeyedDropped)
+}
+
+func TestUncalledEntryFinding_RemoveUnknownKeysUnion_Static(t *testing.T) {
+	expectNotLeaked(t, `export const direct = createRemoveUnknownKeysFn<{t: Tagged}>();`, `export const strip = createRemoveUnknownKeysFn<{u: Tagged | string}>();`, diagnostics.CodeRUKSymbolKeyedMember)
+}
+
+func TestUncalledEntryFinding_RemoveUnknownKeysUnion_Value(t *testing.T) {
+	expectNotLeaked(t, `export const direct = createRemoveUnknownKeysFn<{t: Tagged}>();`, `declare const value: {u: Tagged | string};
+export const strip = createRemoveUnknownKeysFn(value);`, diagnostics.CodeRUKSymbolKeyedMember)
+}

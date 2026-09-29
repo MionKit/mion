@@ -309,19 +309,11 @@ func (w *Walker) EmitDiagnostic(code string, args ...string) {
 	}
 }
 
-// diagnosticSites picks which call sites a code may be reported at.
-//
-// A ScopeRoot code describes the ROOT of a marker call, so only a site that named this type reports it: the
-// same trigger one level in is a different, child-position code, and reporting the root code where the type
-// merely sits inside says the site's function fails when it works fine.
-//
-// Every other scope keeps the reaching sites, which is what tells a call about the types it pulls in: a
-// member dropped from `{pet: Pet}` is news at the site that asked for the object.
-func (w *Walker) diagnosticSites(code string) []diagnostics.Site {
-	if diagnostics.ScopeOf(code) == diagnostics.ScopeRoot {
-		return w.rootedProvenance
-	}
-	return w.rootProvenance
+// diagnosticSites picks the call sites a finding is reported at directly: the ones that named this entry's type.
+// A site that only reaches the entry hears it through ReportReachedFindings, which follows the entries its
+// function actually calls; the type graph alone reaches entries the function never runs.
+func (w *Walker) diagnosticSites(string) []diagnostics.Site {
+	return w.rootedProvenance
 }
 
 // throwProvenance is the site an alwaysThrow entry names in its runtime message: the site that NAMED the

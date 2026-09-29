@@ -61,12 +61,11 @@ type RenderOpts struct {
 	// reads both to tell disabled (count 0) from failed generation.
 	PatternSampleCount int
 	PatternGenFailures map[string]formats.PatternGenFailure
-	// ProvenanceSites maps each rendered entry (ProvenanceKey: type id + family tag) to the call sites that REACH it,
-	// the named type plus all under it; EmitDiagnostic fans one Diagnostic per site, else the warning has no location.
+	// ProvenanceSites maps each rendered entry (ProvenanceKey: type id + family tag) to the call sites whose TYPE
+	// reaches it, the named type plus all under it: the runtime throw message and the pure-fn deps name them.
 	ProvenanceSites map[string][]diagnostics.Site
-	// RootedSites narrows that map to the sites where the id is the type NAMED at
-	// the call. A ScopeRoot code is about the root of a marker call, so fanning it
-	// over the reaching sites would blame a call whose function is fine.
+	// RootedSites narrows that map to the sites where the id is the type NAMED at the call, the only sites a walk
+	// reports at; ReportReachedFindings carries a finding to the sites whose function calls the entry.
 	RootedSites map[string][]diagnostics.Site
 	// InlineMode selects the child-inlining policy: default inlines UNNAMED
 	// non-circular compounds and keeps named types external, allInternal inlines
@@ -195,6 +194,7 @@ func CollectFamilyEntries(dump protocol.Dump, settings constants.CacheModuleSett
 		for _, finding := range rendered.findings {
 			entry.Findings = append(entry.Findings, entrymodules.Finding{Code: finding.Code, Args: finding.Args})
 		}
+		entry.Elided = rendered.elided
 		graph.Add(entry)
 		// An elided child is rendered for its findings only; pruning drops it from the output again.
 		return slices.Concat(rendered.deps, rendered.elided), true
@@ -301,9 +301,9 @@ var adoptsFindingsOf = map[string]map[string]bool{
 	"veuk": {"val": true, "vst": true, "vuk": true},
 }
 
-// ReportReachedFindings reports, at every site whose entry reaches them, the root code of an alwaysThrow entry (that
-// site throws too) and the findings of an entry its family adopts. It runs once after the cross-family fixpoint,
-// since both travel through entries of another family that no site names.
+// ReportReachedFindings reports, at every site, what the entries its function reaches found: the root code of an
+// alwaysThrow entry (that site throws too) and the findings of an entry of its own family or one its family adopts.
+// It runs once after the cross-family fixpoint, since findings travel through entries of another family too.
 func ReportReachedFindings(graph entrymodules.Graph, opts RenderOpts) {
 	if opts.DiagSink == nil {
 		return
@@ -359,8 +359,8 @@ func entryProvenanceKey(entry *entrymodules.Entry) string {
 	return ProvenanceKey(entry.Key[separator+1:], entry.FamilyTag)
 }
 
-// reachableFindings walks an entry's type-fn deps, same family or not, and returns in walk order every alwaysThrow
-// entry it reaches plus the findings of every entry in a family the root's family adopts.
+// reachableFindings walks an entry's type-fn deps, same family or not, skipped children included, and returns in walk
+// order every alwaysThrow entry it reaches plus the findings of every entry of the root's family or one it adopts.
 func reachableFindings(graph entrymodules.Graph, entryID string) (throwing []*entrymodules.Entry, adoptedFindings []entrymodules.Finding) {
 	adopted := adoptsFindingsOf[graph[entryID].FamilyTag]
 	visited := map[string]bool{entryID: true}
@@ -372,7 +372,7 @@ func reachableFindings(graph entrymodules.Graph, entryID string) (throwing []*en
 		if !ok {
 			continue
 		}
-		for _, dep := range slices.Concat(entry.Deps, entry.SoftDeps) {
+		for _, dep := range slices.Concat(entry.Deps, entry.SoftDeps, entry.Elided) {
 			if visited[dep] {
 				continue
 			}
@@ -385,7 +385,7 @@ func reachableFindings(graph entrymodules.Graph, entryID string) (throwing []*en
 				throwing = append(throwing, depEntry)
 				continue
 			}
-			if adopted[depEntry.FamilyTag] {
+			if depEntry.FamilyTag == graph[entryID].FamilyTag || adopted[depEntry.FamilyTag] {
 				for _, finding := range depEntry.Findings {
 					// A root-scoped finding is about that entry as a marker's root, never about a site reaching it.
 					if diagnostics.ScopeOf(finding.Code) != diagnostics.ScopeRoot {
@@ -770,17 +770,13 @@ func liveChildHashes(refs []diskcache.ChildRef, innerPrefix string, opts RenderO
 //
 // Provenance comes from the live call sites, never from the cache: the same type can be demanded from elsewhere
 // next build, and a stale file:line would point at nothing. An entry whose call sites are gone emits nothing,
-// matching a fresh walk, including its per-code scope split (see Walker.diagnosticSites).
+// matching a fresh walk (see Walker.diagnosticSites).
 func replayCachedDiagnostics(runType *reflection.RunType, familyTag string, cached []diskcache.CachedDiagnostic, opts RenderOpts) {
 	if len(cached) == 0 || opts.DiagSink == nil || runType == nil {
 		return
 	}
-	key := ProvenanceKey(runType.ID, familyTag)
+	sites := opts.RootedSites[ProvenanceKey(runType.ID, familyTag)]
 	for _, entryDiag := range cached {
-		sites := opts.ProvenanceSites[key]
-		if diagnostics.ScopeOf(entryDiag.Code) == diagnostics.ScopeRoot {
-			sites = opts.RootedSites[key]
-		}
 		for _, site := range sites {
 			*opts.DiagSink = append(*opts.DiagSink, diagnostics.New(entryDiag.Code, site, entryDiag.Args...))
 		}

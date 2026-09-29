@@ -80,6 +80,8 @@ type Entry struct {
 	Throw *Finding
 	// Findings are the diagnostics the entry's own walk produced, kept even when no call site names the entry.
 	Findings []Finding
+	// Elided are the children the noop gate left out of the body: never imported, yet their findings still count.
+	Elided []string
 }
 
 // Finding is one build-time diagnostic of an entry, code and args only: the call site comes from whoever reaches it.
