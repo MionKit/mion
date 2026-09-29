@@ -30,7 +30,6 @@ declare const account: Account;
 getRunTypeId(account);
 `
 
-// assertAccountFlags checks the projection of Account: no #field member, the class flagged, each member's kind and flags.
 func assertAccountFlags(t *testing.T, site string) {
 	t.Helper()
 	resolver := setupInline(t, map[string]string{"account.ts": classMemberFlagsSource, "site.ts": site})
@@ -91,8 +90,7 @@ func TestClassMemberFlags_FormEquivalence(t *testing.T) {
 	}
 }
 
-// assertNoFamilyReadsPrivateField: reading `v['\xFE#…@#secret']` failed validate on every real instance and made
-// the encoder write a bogus key.
+// Reading `v['\xFE#…@#secret']` once failed validate on every real instance and made the encoder write a bogus key.
 func assertNoFamilyReadsPrivateField(t *testing.T, calls string) {
 	t.Helper()
 	resolver := setupInline(t, map[string]string{"account.ts": classMemberFlagsSource, "site.ts": `import {createValidateFn, createJsonEncoderFn, createJsonDecoderFn, createRemoveUnknownKeysFn} from '@mionjs/run-types';
@@ -135,8 +133,7 @@ var boxVariants = map[string]string{
 	"noFields": `export class Box {}`,
 }
 
-// assertBoxVariantsHaveDistinctIDs: a getter, a data property, a method, a function field and a #field of the same
-// name are different shapes, so they never share a cache entry.
+// A getter, data property, method, function field and #field of one name are different shapes: never one cache entry.
 func assertBoxVariantsHaveDistinctIDs(t *testing.T, site string) {
 	t.Helper()
 	seen := map[string]string{}

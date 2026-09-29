@@ -996,7 +996,7 @@ func computeSiteFn(typeChecker *checker.Checker, fnKey string, options validateO
 	if selected, swapped := validatorFamilyOperation(op, checkUnknowns, checkUnionUnknowns); swapped {
 		op = selected
 	}
-	// A word option (`strategy`, `sharedValues`) names the operation, and only the site's value counts (no project default).
+	// Word options (`strategy`, `sharedValues`) count only the site's value, never a project default.
 	if selected, swapped := wordOptionOperation(typeChecker, call, lastIndex, argsCount, op); swapped {
 		op = selected
 	}
@@ -1257,14 +1257,13 @@ func extractBoolValidateOption(typeChecker *checker.Checker, call *ast.Node, las
 	return enabled
 }
 
-// wordOption is a string option whose word picks the operation: the option's name, then each non-default word's operation.
+// wordOption is a string option whose word picks the operation.
 type wordOption struct {
 	option     string
 	operations map[string]string
 }
 
-// wordOptionOperations maps a family's DEFAULT operation to its word option; the default word (`clone`, no
-// `sharedValues`) is absent, so an unknown or missing word keeps the default.
+// wordOptionOperations omits the default word (`clone`, no `sharedValues`), so an unknown or missing word keeps it.
 var wordOptionOperations = map[string]wordOption{
 	"prepareForJsonClone":  {option: "strategy", operations: map[string]string{"mutate": "prepareForJsonMutate", "compact": "compactForJson"}},
 	"restoreFromJsonClone": {option: "strategy", operations: map[string]string{"mutate": "restoreFromJsonMutate", "compact": "compactFromJson"}},

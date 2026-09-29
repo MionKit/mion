@@ -299,9 +299,8 @@ func (emitter RemoveUnknownKeysEmitter) emitObject(rt *reflection.RunType, ctx *
 	return RTCode{Code: "return " + clone.Code, Type: CodeRB}
 }
 
-// buildIndexObject copies the index-signature keys onto newObject, then the declared props, which win any clash.
-// Pattern arms take a matching key first, then the FIRST plain signature takes the rest: a later plain signature is
-// a narrower key set (number under string) whose value type the first already covers.
+// buildIndexObject assigns the declared props after the index keys, so they win any clash.
+// Only the FIRST plain signature copies: a later one is a narrower key set (number under string) the first covers.
 func (emitter RemoveUnknownKeysEmitter) buildIndexObject(v, newObject string, props []safePropEmit, skipNames []string, indexSigs []*reflection.RunType, ctx *EmitContext) RTCode {
 	var arms []indexArm
 	symbolExpr := ""
