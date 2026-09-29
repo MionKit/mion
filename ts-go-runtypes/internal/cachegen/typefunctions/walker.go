@@ -2,6 +2,7 @@ package typefunctions
 
 import (
 	"fmt"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/diskcache"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"slices"
 	"strconv"
@@ -172,6 +173,8 @@ type Walker struct {
 	rootedProvenance []diagnostics.Site
 	// diagSeen keys on code AND args: a repeated leaf reports once, two members dropped under one code each report.
 	diagSeen map[string]bool
+	// findings lists every distinct diagnostic of this walk, including those with no call site to report at.
+	findings []diskcache.CachedDiagnostic
 
 	// facts is the per-dispatch memo for the canonical-node subtree predicates; nil
 	// disables memoization (hand-constructed unit-test walkers). Shared across every
@@ -292,6 +295,7 @@ func (w *Walker) EmitDiagnostic(code string, args ...string) {
 		w.diagSeen = map[string]bool{}
 	}
 	w.diagSeen[seenKey] = true
+	w.findings = append(w.findings, diskcache.CachedDiagnostic{Code: code, Args: append([]string(nil), args...)})
 	sites := w.diagnosticSites(code)
 	if len(sites) == 0 {
 		// Without provenance the Diagnostic renders as filePath="", useless to

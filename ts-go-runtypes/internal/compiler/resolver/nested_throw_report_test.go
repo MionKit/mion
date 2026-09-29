@@ -255,3 +255,39 @@ func TestNestedThrow_WarmDiskCacheCrossFamily_Value(t *testing.T) {
 	warmNestedThrow(t, diagnostics.CodeVLSymbolRoot, `declare const value: {u: symbol[] | string};
 export const errors = createGetValidationErrorsFn(value);`)
 }
+
+// A validationErrors union takes its verdict from the validate entry of the union, so that entry's drops are the site's.
+func TestAdoptedFinding_ValidationErrorsUnionMemberDropped_Static(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodeVLUnionMemberDropped, `export const errors = createGetValidationErrorsFn<{u: symbol | string}>();`)
+}
+
+func TestAdoptedFinding_ValidationErrorsUnionMemberDropped_Value(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodeVLUnionMemberDropped, `declare const value: {u: symbol | string};
+export const errors = createGetValidationErrorsFn(value);`)
+}
+
+func TestAdoptedFinding_StrictValidationErrorsSymbolKeyInUnion_Static(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodeVLSymbolKeyedDropped, `export const errors = createGetValidationErrorsFn<{u: Tagged | string}>(undefined, {checkUnknowns: true});`)
+}
+
+func TestAdoptedFinding_StrictValidationErrorsSymbolKeyInUnion_Value(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodeVLSymbolKeyedDropped, `declare const value: {u: Tagged | string};
+export const errors = createGetValidationErrorsFn(value, {checkUnknowns: true});`)
+}
+
+func TestAdoptedFinding_WarmDiskCache_Static(t *testing.T) {
+	warmNestedThrow(t, diagnostics.CodeVLUnionMemberDropped, `export const errors = createGetValidationErrorsFn<{u: symbol | string}>();`)
+}
+
+func TestAdoptedFinding_WarmDiskCache_Value(t *testing.T) {
+	warmNestedThrow(t, diagnostics.CodeVLUnionMemberDropped, `declare const value: {u: symbol | string};
+export const errors = createGetValidationErrorsFn(value);`)
+}
+
+// A removeUnknownKeys union also calls the validate entry, but only to pick a member: validate's drops are not its own.
+func TestAdoptedFinding_RemoveUnknownKeysDoesNotAdopt(t *testing.T) {
+	response := wholeProgram(t, nestedThrowSources(`export const strip = createRemoveUnknownKeysFn<{u: Tagged | string}>();`))
+	if sites := diagSitesFor(response, diagnostics.CodeVLSymbolKeyedDropped); len(sites) != 0 {
+		t.Errorf("removeUnknownKeys must not report validate's drop, got %v", sites)
+	}
+}

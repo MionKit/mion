@@ -190,7 +190,10 @@ func CollectFamilyEntries(dump protocol.Dump, settings constants.CacheModuleSett
 			IsNoop:   rendered.isNoop,
 		}
 		if rendered.throws != nil {
-			entry.ThrowCode, entry.ThrowArgs = rendered.throws.Code, rendered.throws.Args
+			entry.Throw = &entrymodules.Finding{Code: rendered.throws.Code, Args: rendered.throws.Args}
+		}
+		for _, finding := range rendered.findings {
+			entry.Findings = append(entry.Findings, entrymodules.Finding{Code: finding.Code, Args: finding.Args})
 		}
 		graph.Add(entry)
 		return rendered.deps, true
@@ -289,20 +292,19 @@ func CollectFamilyEntries(dump protocol.Dump, settings constants.CacheModuleSett
 	return graph
 }
 
-// ReportReachedThrows reports an alwaysThrow entry's root code at every site whose entry reaches it: that site throws too.
-// It runs once after the cross-family fixpoint, since a validationErrors union calls the validate entry of that union.
-func ReportReachedThrows(graph entrymodules.Graph, opts RenderOpts) {
+// adoptsFindingsOf names the families whose findings a site of another family inherits: a validationErrors union
+// takes its verdict from the validate entry of that union, so what that entry drops is dropped for the site too.
+var adoptsFindingsOf = map[string]map[string]bool{
+	"verr": {"val": true, "vst": true, "vuk": true},
+	"vest": {"val": true, "vst": true, "vuk": true},
+	"veuk": {"val": true, "vst": true, "vuk": true},
+}
+
+// ReportReachedFindings reports, at every site whose entry reaches them, the root code of an alwaysThrow entry (that
+// site throws too) and the findings of an entry its family adopts. It runs once after the cross-family fixpoint,
+// since both travel through entries of another family that no site names.
+func ReportReachedFindings(graph entrymodules.Graph, opts RenderOpts) {
 	if opts.DiagSink == nil {
-		return
-	}
-	throwing := false
-	for _, entry := range graph {
-		if entry.ThrowCode != "" {
-			throwing = true
-			break
-		}
-	}
-	if !throwing {
 		return
 	}
 	reported := map[string]bool{}
@@ -311,7 +313,7 @@ func ReportReachedThrows(graph entrymodules.Graph, opts RenderOpts) {
 	}
 	keys := make([]string, 0, len(graph))
 	for key, entry := range graph {
-		if entry.Kind == entrymodules.KindTypeFn && entry.ThrowCode == "" {
+		if entry.Kind == entrymodules.KindTypeFn && entry.Throw == nil {
 			keys = append(keys, key)
 		}
 	}
@@ -326,22 +328,24 @@ func ReportReachedThrows(graph entrymodules.Graph, opts RenderOpts) {
 		if len(sites) == 0 {
 			continue
 		}
-		for _, thrown := range reachableThrows(graph, key) {
+		for _, finding := range reachableFindings(graph, key) {
 			for _, site := range sites {
-				reportKey := reachedThrowKey(thrown.ThrowCode, thrown.ThrowArgs, site)
+				reportKey := reachedThrowKey(finding.Code, finding.Args, site)
 				if reported[reportKey] {
 					continue
 				}
 				reported[reportKey] = true
-				*opts.DiagSink = append(*opts.DiagSink, diagnostics.New(thrown.ThrowCode, site, thrown.ThrowArgs...))
+				*opts.DiagSink = append(*opts.DiagSink, diagnostics.New(finding.Code, site, finding.Args...))
 			}
 		}
 	}
 }
 
-// reachableThrows walks an entry's type-fn deps, same family or not, and returns the alwaysThrow entries it reaches in walk order.
-func reachableThrows(graph entrymodules.Graph, entryID string) []*entrymodules.Entry {
-	var found []*entrymodules.Entry
+// reachableFindings walks an entry's type-fn deps, same family or not, and returns in walk order the throw of every
+// alwaysThrow entry it reaches plus the findings of every entry in a family the root's family adopts.
+func reachableFindings(graph entrymodules.Graph, entryID string) []entrymodules.Finding {
+	adopted := adoptsFindingsOf[graph[entryID].FamilyTag]
+	var found []entrymodules.Finding
 	visited := map[string]bool{entryID: true}
 	stack := []string{entryID}
 	for len(stack) > 0 {
@@ -360,9 +364,17 @@ func reachableThrows(graph entrymodules.Graph, entryID string) []*entrymodules.E
 			if !ok || depEntry.Kind != entrymodules.KindTypeFn {
 				continue
 			}
-			if depEntry.ThrowCode != "" {
-				found = append(found, depEntry)
+			if depEntry.Throw != nil {
+				found = append(found, *depEntry.Throw)
 				continue
+			}
+			if adopted[depEntry.FamilyTag] {
+				for _, finding := range depEntry.Findings {
+					// A root-scoped finding is about that entry as a marker's root, never about a site reaching it.
+					if diagnostics.ScopeOf(finding.Code) != diagnostics.ScopeRoot {
+						found = append(found, finding)
+					}
+				}
 			}
 			stack = append(stack, dep)
 		}
@@ -432,6 +444,8 @@ type entryRender struct {
 	isNoop bool
 	// throws is the root code (and its args) of an alwaysThrow entry, so a parent that calls it can report it too.
 	throws *diskcache.CachedDiagnostic
+	// findings are the entry's own diagnostics, live or from the disk cache, for a site that reaches it across families.
+	findings []diskcache.CachedDiagnostic
 }
 
 // renderEntryWithDeps compiles one RunType into its tuple argument text and the dependency hashes alongside it
@@ -527,7 +541,7 @@ func renderEntryWithDeps(runType *reflection.RunType, settings constants.CacheMo
 			provenance[0].FilePath = opts.ThrowSitePath(provenance[0].FilePath)
 		}
 		argsText := renderAlwaysThrowEntry(runType, innerName, diagCode, kindLabel, provenance)
-		return entryRender{argsText: argsText, throws: &diskcache.CachedDiagnostic{Code: diagCode, Args: []string{kindLabel}}}
+		return entryRender{argsText: argsText, throws: &diskcache.CachedDiagnostic{Code: diagCode, Args: []string{kindLabel}}, findings: walker.findings}
 	}
 	// The noop VERDICT comes from the family's IsNoopType predicate over the TYPE
 	// GRAPH, never from the emitted text. The compiled shape survives only as the
@@ -565,9 +579,9 @@ func renderEntryWithDeps(runType *reflection.RunType, settings constants.CacheMo
 		argsText := joinArgs(holeifyArgs(args))
 		if diskCacheable {
 			// A noop body emits no dep calls, so nothing is registered.
-			writeCachedEntry(runType, settings, cacheTag, innerPrefix, argsText, nil, nil, nil, true, entryDiagnostics(diagStart, opts), opts)
+			writeCachedEntry(runType, settings, cacheTag, innerPrefix, argsText, nil, nil, nil, true, entryDiagnostics(diagStart, walker.findings, opts), opts)
 		}
-		return entryRender{argsText: argsText, isNoop: true}
+		return entryRender{argsText: argsText, isNoop: true, findings: walker.findings}
 	}
 	createRTFn, factoryBody := WrapClosure(factoryName, walker.FnName, innerFn, walker.ContextLines())
 	// The `code` arg carries the factory BODY, the text between the
@@ -614,18 +628,25 @@ func renderEntryWithDeps(runType *reflection.RunType, settings constants.CacheMo
 	pureFnDeps := pureFnDepKeys(walker.PureFnDependencies)
 	argsText := joinArgs(args)
 	if diskCacheable {
-		writeCachedEntry(runType, settings, cacheTag, innerPrefix, argsText, deps, crossFamilyDeps, pureFnDeps, false, entryDiagnostics(diagStart, opts), opts)
+		writeCachedEntry(runType, settings, cacheTag, innerPrefix, argsText, deps, crossFamilyDeps, pureFnDeps, false, entryDiagnostics(diagStart, walker.findings, opts), opts)
 	}
-	return entryRender{argsText: argsText, deps: deps, crossFamilyDeps: crossFamilyDeps, pureFnDeps: pureFnDeps}
+	return entryRender{argsText: argsText, deps: deps, crossFamilyDeps: crossFamilyDeps, pureFnDeps: pureFnDeps, findings: walker.findings}
 }
 
-// entryDiagnostics slices out the findings THIS entry's walk appended to the shared sink, as the code + args
-// pairs the cache persists. The site is dropped on purpose: a later build re-attaches its own provenance.
-func entryDiagnostics(diagStart int, opts RenderOpts) []diskcache.CachedDiagnostic {
-	if opts.DiagSink == nil || len(*opts.DiagSink) <= diagStart {
+// entryDiagnostics slices out the findings THIS entry's walk appended to the shared sink, plus the walker's own
+// (reported nowhere when no site named the entry), as the code + args pairs the cache persists. The site is
+// dropped on purpose: a later build re-attaches its own provenance.
+func entryDiagnostics(diagStart int, walkerFindings []diskcache.CachedDiagnostic, opts RenderOpts) []diskcache.CachedDiagnostic {
+	var emitted []diagnostics.Diagnostic
+	if opts.DiagSink != nil && len(*opts.DiagSink) > diagStart {
+		emitted = (*opts.DiagSink)[diagStart:]
+	}
+	for _, finding := range walkerFindings {
+		emitted = append(emitted, diagnostics.Diagnostic{Code: finding.Code, Args: finding.Args})
+	}
+	if len(emitted) == 0 {
 		return nil
 	}
-	emitted := (*opts.DiagSink)[diagStart:]
 	// One finding can already be fanned out across several call sites; the cache
 	// wants each DISTINCT one once, and the replay re-fans it.
 	seen := make(map[string]bool, len(emitted))
@@ -710,7 +731,7 @@ func tryReadCachedEntry(runType *reflection.RunType, settings constants.CacheMod
 	}
 	pureFnDeps := append([]string(nil), entry.PureFnRefs...)
 	replayCachedDiagnostics(runType, settings.Tag, entry.Diagnostics, opts)
-	return entryRender{argsText: entry.ArgsText, deps: deps, crossFamilyDeps: crossFamilyDeps, pureFnDeps: pureFnDeps, isNoop: entry.IsNoop}, true
+	return entryRender{argsText: entry.ArgsText, deps: deps, crossFamilyDeps: crossFamilyDeps, pureFnDeps: pureFnDeps, isNoop: entry.IsNoop, findings: entry.Diagnostics}, true
 }
 
 // replayCachedDiagnostics re-emits an entry's persisted findings on a cache hit, or a project's warnings would
