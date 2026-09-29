@@ -1,0 +1,41 @@
+name: cache cleanup
+
+# Keeps the Actions cache (10 GB per repo) for entries that can still be restored.
+# A closed pull request's caches can never be restored again, so they go at once,
+# except the lane green markers, which main reads after a merge. Once a week main
+# keeps only its newest prebuilt binaries and passed-test lists. GitHub itself still
+# evicts anything unused for 7 days. The rules live in scripts/ci/cache-cleanup.mjs.
+on:
+  pull_request:
+    types: [closed]
+  schedule:
+    - cron: '17 4 * * 1'
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: List what would be deleted, delete nothing
+        type: boolean
+        default: true
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  cleanup:
+    name: delete dead caches
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 26
+          package-manager-cache: false
+      - name: Delete the caches no run can restore any more
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: >-
+          node scripts/ci/cache-cleanup.mjs
+          ${{ github.event_name == 'pull_request' && format('--closed-ref refs/pull/{0}/merge', github.event.pull_request.number) || '--trim' }}
+          ${{ inputs.dry-run && '--dry-run' || '' }}
