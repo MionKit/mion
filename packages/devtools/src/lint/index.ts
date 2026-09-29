@@ -1,5 +1,5 @@
 // ONE module is both an OXlint JS plugin (the primary target) and an ESLint v9 flat-config plugin, so every rule
-// uses plain `create` and no oxlint-only lifecycle. The three `mion/<level>` rules are pure transport over ONE
+// uses plain `create` and no oxlint-only lifecycle. The four `mion/<level>` rules are pure transport over ONE
 // resolver pass per file, split by level in diagnosticRouting.ts; rules take no options.
 
 import {createRequire} from 'node:module';
@@ -46,8 +46,7 @@ function warnOnce(message: string): void {
 function warnUnknownSettings(bag: Record<string, unknown>): void {
   for (const key of Object.keys(bag)) {
     if ((LINT_SETTING_KEYS as string[]).includes(key)) continue;
-    const hint = key === 'levels' ? ", turn on the 'mion/info' rule to show Info" : '';
-    warnOnce(`[mion] ignoring unknown lint setting 'settings.mion.${key}' (supported: ${LINT_SETTING_KEYS.join(', ')})${hint}`);
+    warnOnce(`[mion] ignoring unknown lint setting 'settings.mion.${key}' (supported: ${LINT_SETTING_KEYS.join(', ')})`);
   }
 }
 
@@ -61,15 +60,9 @@ function lintDowngrade(value: string[] | undefined): DowngradeSet {
   }
 }
 
-// The working directory is NOT configurable; a `cwd` or `socket` key warns: a silently dropped key reads as working.
-// Exported for the transparency regression test.
+// An unknown key warns: a silently dropped key reads as working. Exported for the transparency regression test.
 export function sessionOptions(settings: Record<string, unknown> | undefined): LintSessionOptions {
-  let raw = settings?.['mion'];
-  // The old key still works for one release, with a warning.
-  if (raw === undefined && settings?.['runtypes'] !== undefined) {
-    warnOnce("[mion] 'settings.runtypes' is now 'settings.mion'; rename it");
-    raw = settings['runtypes'];
-  }
+  const raw = settings?.['mion'];
   if (!raw || typeof raw !== 'object') return {};
   const bag = raw as Record<string, unknown>;
   warnUnknownSettings(bag);
@@ -83,7 +76,7 @@ export function sessionOptions(settings: Record<string, unknown> | undefined): L
   return options;
 }
 
-// The shared session memoizes the file's resolver pass, so the three level rules cost one.
+// The shared session memoizes the file's resolver pass, so the four level rules cost one.
 function diagnosticRule(ruleName: RuleName, description: string): RuleModule {
   return {
     meta: {type: 'problem', docs: {description}},

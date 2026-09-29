@@ -125,10 +125,10 @@ const PLAIN_TS = `// ${TODO_TAG}: hand-written file, not enrichment
 export const answer = 42;
 `;
 
-// ROUTES_TS carries one finding of each mion route rule and NO runtypes marker,
+// ROUTES_TS carries one finding of each MRT code and NO runtypes marker,
 // which is the point of the fixture: a route file need not import the marker
 // package, so the pre-filter has to admit it on the router signals alone or the
-// rules would never run.
+// checks would never run.
 const ROUTES_TS = `import {createMionRouter} from '@mionjs/router';
 const mion = createMionRouter();
 export interface Wire { ok: number; __proto__: string }
@@ -181,12 +181,14 @@ type TypeFormat<Base, Name extends string, Params> = Base & {
 export const isCode = createValidateFn<TypeFormat<string, 'stringFormat', {pattern: {source: '(?<=x)y'; flags: ''; mockSamples: ['nope']}}>>();
 `;
 
-// cwd / socket are NOT read: the working directory is resolved automatically. Runs without the resolver binary.
+// Runs without the resolver binary.
 describe('sessionOptions: timeoutMs, tsconfig and binary are configurable', () => {
-  it('reads timeoutMs, tsconfig and binary, drops cwd and socket', () => {
-    expect(
-      sessionOptions({mion: {binary: '/x', cwd: '/y', socket: '/z', timeoutMs: 5000, tsconfig: './tsconfig.lint.json'}})
-    ).toEqual({binary: '/x', timeoutMs: 5000, tsconfig: './tsconfig.lint.json'});
+  it('reads timeoutMs, tsconfig and binary', () => {
+    expect(sessionOptions({mion: {binary: '/x', timeoutMs: 5000, tsconfig: './tsconfig.lint.json'}})).toEqual({
+      binary: '/x',
+      timeoutMs: 5000,
+      tsconfig: './tsconfig.lint.json',
+    });
   });
 
   // Once per key per run, so a lint of a thousand files is not drowned.
@@ -216,28 +218,6 @@ describe('sessionOptions: timeoutMs, tsconfig and binary are configurable', () =
     }
   });
 
-  it('points the removed levels key at the mion/info rule', () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    try {
-      expect(sessionOptions({mion: {levels: 'all'}})).toEqual({});
-      const messages = warn.mock.calls.map((call) => String(call[0]));
-      expect(messages.filter((message) => message.includes('settings.mion.levels'))).toHaveLength(1);
-      expect(messages[0]).toContain('mion/info');
-    } finally {
-      warn.mockRestore();
-    }
-  });
-
-  it('still reads the old settings.runtypes bag, with a rename warning', () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    try {
-      expect(sessionOptions({runtypes: {tsconfig: 'tsconfig.build.json'}})).toEqual({tsconfig: 'tsconfig.build.json'});
-      expect(warn.mock.calls.map((call) => String(call[0])).some((message) => message.includes("'settings.mion'"))).toBe(true);
-    } finally {
-      warn.mockRestore();
-    }
-  });
-
   it('is empty when settings are absent or carry no mion bag', () => {
     expect(sessionOptions(undefined)).toEqual({});
     expect(sessionOptions({other: {}})).toEqual({});
@@ -245,7 +225,7 @@ describe('sessionOptions: timeoutMs, tsconfig and binary are configurable', () =
 });
 
 // recommended is what the docs tell ESLint users to spread.
-describe('configs.recommended: the three level rules at their defaults', () => {
+describe('configs.recommended: the four level rules at their defaults', () => {
   it('registers the mion plugin and sets each level rule to its default', () => {
     const rec = plugin.configs['recommended'] as {plugins: Record<string, unknown>; rules: Record<string, string>};
     expect(rec.plugins).toEqual({mion: plugin});
@@ -259,7 +239,7 @@ describe('configs.recommended: the three level rules at their defaults', () => {
     expect(rec.rules['mion/enforce-type-imports']).toBeUndefined();
   });
 
-  it('exposes exactly the three level rules plus enforce-type-imports', () => {
+  it('exposes exactly the four level rules plus enforce-type-imports', () => {
     expect(Object.keys(rules).sort()).toEqual(['enforce-type-imports', 'error', 'info', 'runtime-error', 'warning']);
     expect(RULE_SPECS.map((spec) => spec.name)).toEqual(['error', 'runtime-error', 'warning', 'info']);
   });
