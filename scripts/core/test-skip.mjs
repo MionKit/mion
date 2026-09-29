@@ -115,6 +115,8 @@ async function openVitest({filters = [], projects = [], excludes = [], reporters
   if (projects.length > 0) options.project = projects;
   if (reporters.length > 0) options.reporters = ['default', ...reporters];
   const vitest = await createVitest('test', options);
+  // Sets the reporters up; a run started without it crashes the default reporter at the end.
+  if (reporters.length > 0) await vitest.standalone();
   const specs = await vitest.globTestSpecifications(filters);
   return {vitest, specs};
 }
