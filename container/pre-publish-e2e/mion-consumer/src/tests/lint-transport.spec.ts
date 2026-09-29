@@ -35,7 +35,7 @@ describe('mion eslint transport', () => {
             (file) => file.messages
         );
         const ruleIds = messages.map((message) => message.ruleId);
-        expect(ruleIds, `mion/error did not fire:\n${output.slice(0, 1200)}`).toContain('mion/error');
+        expect(ruleIds, `mion/runtime-error did not fire:\n${output.slice(0, 1200)}`).toContain('mion/runtime-error');
         // A compiler-fed rule reports a plain message carrying the stable code, not
         // an ESLint messageId, so the codes are what pin which finding fired.
         const codes = messages.flatMap((message) => message.message.match(/^\[(MRT\d+)\]/)?.[1] ?? []);

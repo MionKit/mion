@@ -12,6 +12,7 @@
   ],
   "rules": {
     "mion/error": "warn",
+    "mion/runtime-error": "warn",
     "mion/warning": "warn",
     "mion/info": "warn"
   }

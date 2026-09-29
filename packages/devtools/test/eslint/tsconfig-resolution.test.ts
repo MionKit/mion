@@ -114,7 +114,7 @@ describe.runIf(hasBinary())('eslint tsconfig resolution (integration through mio
 
   it('resolves a source-condition cross-package marker: no MKR007', () => {
     // settings: {} → tsconfig defaults to 'tsconfig.json' (customConditions:["source"]).
-    expect(runRule(rules['error']!, consumerAbs, CONSUMER_SRC, {})).toEqual([]);
+    expect(runRule(rules['runtime-error']!, consumerAbs, CONSUMER_SRC, {})).toEqual([]);
   });
 
   it('reports no skipped members for the resolved data type', () => {
@@ -123,7 +123,7 @@ describe.runIf(hasBinary())('eslint tsconfig resolution (integration through mio
   });
 
   it('honors settings.mion.tsconfig — a config without customConditions still flags the unresolved marker', () => {
-    const reports = runRule(rules['error']!, consumerAbs, CONSUMER_SRC, {
+    const reports = runRule(rules['runtime-error']!, consumerAbs, CONSUMER_SRC, {
       mion: {tsconfig: 'tsconfig.noconditions.json'},
     });
     expect(reports.length).toBeGreaterThan(0);

@@ -5,6 +5,7 @@
   ],
   "rules": {
     "mion/error": "error",
+    "mion/runtime-error": "error",
     "mion/warning": "warn",
     "mion/info": "warn"
   },

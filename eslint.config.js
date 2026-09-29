@@ -69,6 +69,7 @@ export default tseslint.config(
       // Tests build throwing handlers on purpose, to pin the thrown-to-undeclared-slot path,
       // and untyped ones to pin what the router does with a route that declares nothing.
       'mion/error': 'off',
+      'mion/runtime-error': 'off',
       'mion/warning': 'off',
     },
   }

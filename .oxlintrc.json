@@ -16,6 +16,7 @@
   ],
   "rules": {
     "mion/error": "error",
+    "mion/runtime-error": "error",
     "mion/warning": "error",
     "no-empty-function": "off",
     "typescript/no-empty-function": "off",

@@ -19,11 +19,11 @@ function diagnostic(partial: Partial<Diagnostic> & {code: string}): Diagnostic {
 const ruleOf = (partial: Partial<Diagnostic> & {code: string}) => routeDiagnostic(diagnostic(partial)).ruleName;
 
 describe('level routing (one rule per level, never per topic)', () => {
-  it('sends Error and RuntimeError to mion/error, whatever the family', () => {
+  it('sends Error to mion/error and RuntimeError to mion/runtime-error, whatever the family', () => {
     expect(ruleOf({code: 'MKR003', family: Family.Marker, level: Level.Error})).toBe('error');
-    expect(ruleOf({code: 'VL002', level: Level.RuntimeError})).toBe('error');
-    expect(ruleOf({code: 'MRT001', family: Family.MionRoute, level: Level.RuntimeError})).toBe('error');
     expect(ruleOf({code: 'FT011', family: Family.Enrich, level: Level.Error})).toBe('error');
+    expect(ruleOf({code: 'VL002', level: Level.RuntimeError})).toBe('runtime-error');
+    expect(ruleOf({code: 'MRT001', family: Family.MionRoute, level: Level.RuntimeError})).toBe('runtime-error');
   });
 
   it('sends Warning to mion/warning and Info to mion/info', () => {
@@ -46,7 +46,7 @@ describe('level routing (one rule per level, never per topic)', () => {
   });
 
   it('never drops a diagnostic: an unknown code reports at its wire level', () => {
-    expect(ruleOf({code: 'ZZ999', level: Level.RuntimeError})).toBe('error');
+    expect(ruleOf({code: 'ZZ999', level: Level.RuntimeError})).toBe('runtime-error');
     expect(ruleOf({code: 'ZZ999', level: Level.Warning})).toBe('warning');
   });
 });
@@ -57,7 +57,7 @@ describe('catalog coverage: every code routes to the rule of its level', () => {
   const levelEnum = {error: Level.Error, runtimeError: Level.RuntimeError, warning: Level.Warning, info: Level.Info} as const;
   const expected = {
     error: ['error', 'error'],
-    runtimeError: ['error', 'error'],
+    runtimeError: ['runtime-error', 'error'],
     warning: ['warning', 'warn'],
     info: ['info', 'off'],
   } as const;
