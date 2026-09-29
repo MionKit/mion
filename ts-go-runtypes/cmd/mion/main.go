@@ -36,7 +36,6 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/resolver"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/envcompat"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/jsengine"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
@@ -328,7 +327,7 @@ func resolveSharedConfig(fs *flag.FlagSet, s *sharedFlags, genDirFlag string, re
 	}
 
 	// MION_CACHE_DIR is the only cache control: unset follows incremental/composite, a path forces on, "" forces off.
-	cacheDirOverride, cacheDirSet := envcompat.LookupEnv("MION_CACHE_DIR")
+	cacheDirOverride, cacheDirSet := os.LookupEnv("MION_CACHE_DIR")
 
 	// The raw tsconfig genDir keeps the build lane's resolveOutDir in step with the CLI lanes; unset keeps <srcDir>/.mion.
 	tsconfigGenDir := strings.TrimSpace(plugin.GenDir)

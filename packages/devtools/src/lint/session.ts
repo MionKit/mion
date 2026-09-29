@@ -11,7 +11,6 @@ import {existsSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {MessageChannel, receiveMessageOnPort, Worker, type MessagePort} from 'node:worker_threads';
 import type {Diagnostic} from '../core/protocol.ts';
-import {readEnvCompat} from '../core/envCompat.ts';
 import {WAKE_INDEX, type LintSessionOptions, type LintWorkerRequest, type LintWorkerResponse} from './session-protocol.ts';
 
 export type {LintSessionOptions} from './session-protocol.ts';
@@ -175,7 +174,7 @@ export function sharedSession(): LintSession {
 // prewarmSession starts the shared worker at plugin load so the launcher forks while the host is still small;
 // the plugin entry top-level-awaits it. MION_LINT_PRESPAWN=0 starts the session on the first linted file instead.
 export function prewarmSession(): Promise<void> {
-  if (readEnvCompat('MION_LINT_PRESPAWN') === '0') return Promise.resolve();
+  if (process.env.MION_LINT_PRESPAWN === '0') return Promise.resolve();
   return sharedSession().start();
 }
 

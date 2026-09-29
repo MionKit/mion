@@ -218,8 +218,8 @@ describe('published packages ship a README', () => {
       expect(lines.length).toBeLessThanOrEqual(THIN_README_MAX_LINES);
       // A separator row is what makes a markdown table a table.
       expect(lines.filter((line) => /^\s*\|\s*:?-{3,}/.test(line))).toEqual([]);
-      // No env vars, under either the current MION_ prefix or the retired RT_ one.
-      expect(readme).not.toMatch(/\b(?:MION|RT)_[A-Z0-9_]+\b|process\.env/);
+      // No env vars.
+      expect(readme).not.toMatch(/\bMION_[A-Z0-9_]+\b|process\.env/);
       expect(readme).toContain('https://mion.pages.dev/runtypes');
     });
   }

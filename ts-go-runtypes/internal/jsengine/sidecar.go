@@ -17,8 +17,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/mionkit/mion/ts-go-runtypes/internal/envcompat"
 )
 
 // The committed sidecar bundle, generated from the private @mionjs/go-be-sidecar package by `pnpm miondevx core codegen sidecar` (drift-gated in CI).
@@ -209,7 +207,7 @@ func resolveRuntime(explicit string) (string, error) {
 	if explicit != "" {
 		return explicit, nil
 	}
-	if env := envcompat.Getenv(EnvRuntime); env != "" {
+	if env := os.Getenv(EnvRuntime); env != "" {
 		return env, nil
 	}
 	if path, err := exec.LookPath("node"); err == nil {

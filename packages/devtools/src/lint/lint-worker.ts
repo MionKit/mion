@@ -13,7 +13,6 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {parentPort, workerData} from 'node:worker_threads';
 import {getExePath} from '@mionjs/bin-compiler';
-import {readEnvCompat} from '../core/envCompat.ts';
 import {Family, Level, Severity, type Diagnostic} from '../core/protocol.ts';
 import {buildResolverArgs, ResolverClient, ResolverStreamClient, type ResolverConnection} from '../core/resolver-client.ts';
 import {
@@ -31,7 +30,7 @@ const signal = data.signal;
 // Pre-spawn the launcher NOW, while forking is still possible; the session awaits the shimReady signal below
 // before the plugin finishes loading. On failure (or opt-out) the direct spawn path serves small hosts.
 let shim: ChildProcess | null = null;
-if (readEnvCompat('MION_LINT_PRESPAWN') !== '0') {
+if (process.env.MION_LINT_PRESPAWN !== '0') {
   try {
     shim = spawn(process.execPath, [fileURLToPath(new URL('./spawn-shim.js', import.meta.url))], {
       stdio: ['pipe', 'pipe', 'inherit'],
