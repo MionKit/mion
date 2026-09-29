@@ -307,6 +307,8 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
   let viteMode = '';
   // The lane question for RuntimeErrors (see PluginOptions.devServer): halting everywhere but here.
   const isDevServer = (): boolean => options.devServer ?? (viteCommand === 'serve' && viteMode !== 'test');
+  // A fatal Error stops every lane; a RuntimeError every lane but the dev server, where the generated function throws when called.
+  const halts = (d: Diagnostic): boolean => d.level === Level.Error || (d.level === Level.RuntimeError && !isDevServer());
 
   // Idempotent, and called from two places: under Vite configResolved calls it early (to capture Vite's
   // resolved root), under every other bundler buildStart does.
@@ -418,9 +420,9 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
   // A file the buildStart scan couldn't have seen can introduce NEW error-level diagnostics (warnings were
   // already surfaced program-wide). Same lane rule as buildStart: a fatal Error fails the transform
   // everywhere, a RuntimeError everywhere but the dev server.
-  function surfaceNewErrors(ctx: any, diagnostics: Diagnostic[]): void {
-    surfaceDiagnostics(ctx, diagnostics, (d) => d.level === Level.Error, {halt: true});
-    surfaceDiagnostics(ctx, diagnostics, (d) => d.level === Level.RuntimeError, {halt: !isDevServer(), downgrade});
+  function surfaceNewErrors(ctx: any, diagnostics: Diagnostic[], activeFile: string): void {
+    const errors = diagnostics.filter((d) => d.level === Level.Error || d.level === Level.RuntimeError);
+    surfaceDiagnostics(ctx, errors, {halts, downgrade, activeFile, cwd: cwdAbs || process.cwd()});
   }
 
   // The 'go'-mode path, and the safe fallback for 'edits' mode when the source-consistency guard fails.
@@ -431,7 +433,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
     // A file outside the buildStart Program may add types or pure fns, whose modules must be on disk
     // before the bundler resolves the injected imports.
     if (result.addedRunTypes || result.addedPureFns) await regenerate();
-    surfaceNewErrors(ctx, result.diagnostics ?? []);
+    surfaceNewErrors(ctx, result.diagnostics ?? [], rel);
     if (result.sites.length === 0 && (result.replacements?.length ?? 0) === 0) return null;
     const fileResult = result.transformed[rel];
     if (!fileResult || typeof fileResult.code !== 'string') return null;
@@ -455,7 +457,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
     const incomingHash = sourceHash(code);
     let result = await resolver!.transform([rel], {emitEdits: true});
     if (result.addedRunTypes || result.addedPureFns) await regenerate();
-    surfaceNewErrors(ctx, result.diagnostics ?? []);
+    surfaceNewErrors(ctx, result.diagnostics ?? [], rel);
     if (result.sites.length === 0 && (result.replacements?.length ?? 0) === 0) return null;
     let fileResult = result.transformed[rel];
     if (!fileResult) return null;
@@ -708,7 +710,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       const gen = await regenerate();
       for (const file of gen.siteFiles) siteFiles.add(siteKey(file));
       reportGenerate(gen);
-      surfaceDiagnostics(ctx, gen.diagnostics ?? [], () => true, {halt: false, downgrade, showInfo});
+      surfaceDiagnostics(ctx, gen.diagnostics ?? [], {halts: () => false, downgrade, showInfo});
     } catch {
       // A regenerate failure shouldn't tear down the dev server mid-edit.
     }
@@ -835,7 +837,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
 
     // Re-emitted so the editor's problem panel updates as the user types; `halt: false` because HMR
     // shouldn't tear down the dev server on a single bad type mid-edit.
-    surfaceDiagnostics(ctx, result.diagnostics ?? [], () => true, {halt: false, downgrade, showInfo});
+    surfaceDiagnostics(ctx, result.diagnostics ?? [], {halts: () => false, downgrade, showInfo});
 
     const stale = staleSiteFiles(relevant.map((update) => update.file));
     // Reported from the SHARED leaf, so the contract does not depend on which host drove the update.
@@ -921,12 +923,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       // Every RuntimeError halts per the downgradeErrors contract in a build lane and only reports on a dev
       // server. The split is the LEVEL, never the diagnostic family: a fatal marker or batch code is not
       // pure-fn, and a purity violation still ships the compiled body, so it is a RuntimeError.
-      surfaceDiagnostics(this, gen.diagnostics ?? [], (d) => d.level === Level.Error, {halt: true});
-      surfaceDiagnostics(this, gen.diagnostics ?? [], (d) => d.level !== Level.Error, {
-        halt: !isDevServer(),
-        downgrade,
-        showInfo,
-      });
+      surfaceDiagnostics(this, gen.diagnostics ?? [], {halts, downgrade, showInfo, cwd: cwdAbs || process.cwd()});
       // Dev/watch WRITES the mirrors up front, a whole-program pass so they exist before the first edit;
       // every other lane (a production build, a non-Vite bundler) takes the read-only drift gate instead.
       if (anyEnrichFamily) {

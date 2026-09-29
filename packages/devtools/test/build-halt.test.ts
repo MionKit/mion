@@ -9,6 +9,7 @@ import * as esbuild from 'esbuild';
 import {afterAll, beforeAll, describe, expect, it, vi} from 'vitest';
 import runtypesEsbuild from '../src/runtypes/esbuild.ts';
 import runtypesRollup from '../src/runtypes/rollup.ts';
+import type {HaltError} from '../src/core/surface.ts';
 import {BIN, createMarkerProject, hasBinary} from './helpers/inline.ts';
 
 // MKR003 (a marker in a generic function) is a fatal Error; VL002 (a root `symbol`) a RuntimeError. Both call
@@ -37,7 +38,7 @@ type Hook = ((...args: unknown[]) => unknown) | {handler: (...args: unknown[]) =
 const callHook = (hook: Hook, thisArg: unknown, ...args: unknown[]): unknown =>
   typeof hook === 'function' ? hook.apply(thisArg, args) : hook.handler.apply(thisArg, args);
 
-describe('a host context with no warn or error', () => {
+describe('a build prints every finding, then stops once with the real error', () => {
   const register = hasBinary() ? it : it.skip;
   let dir: string;
 
@@ -51,14 +52,42 @@ describe('a host context with no warn or error', () => {
     runtypesRollup({binary: BIN, cwd: dir, tsconfig: 'tsconfig.json', genDir: path.join(dir, '.mion')}) as any;
 
   register(
+    'prints the RuntimeError before the fatal Error stops the build, and the halt carries code, id and loc',
+    async () => {
+      const plugin = makePlugin();
+      const warnings: string[] = [];
+      let halt: HaltError | undefined;
+      const ctx = {
+        warn: (message: string) => void warnings.push(message),
+        error: (error: HaltError) => {
+          halt = error;
+          throw error;
+        },
+      };
+      try {
+        await expect(callHook(plugin.buildStart, ctx) as Promise<void>).rejects.toThrow(/build stopped on 2 mion errors/);
+        expect(warnings.join('\n')).toContain('error MKR003');
+        expect(warnings.join('\n')).toContain('error VL002');
+        expect(halt!.message).toMatch(/First: .*entry\.ts\(\d+,\d+\): error (MKR003|VL002): /);
+        expect(halt!.id).toBe(path.join(dir, 'entry.ts'));
+        expect(halt!.loc).toMatchObject({file: path.join(dir, 'entry.ts'), line: expect.any(Number), column: expect.any(Number)});
+      } finally {
+        await callHook(plugin.buildEnd, ctx);
+      }
+    },
+    120_000
+  );
+
+  register(
     'a context with no warn or error prints to stderr and still throws',
     async () => {
       const plugin = makePlugin();
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
       try {
-        await expect(callHook(plugin.buildStart, {}) as Promise<void>).rejects.toThrow(/1 unsupported-type error — build halted/);
+        await expect(callHook(plugin.buildStart, {}) as Promise<void>).rejects.toThrow(/build stopped on 2 mion errors/);
         const printed = warn.mock.calls.map((call) => String(call[0])).join('\n');
         expect(printed).toContain('error MKR003');
+        expect(printed).toContain('error VL002');
       } finally {
         warn.mockRestore();
         await callHook(plugin.buildEnd, {});
@@ -90,7 +119,7 @@ describe('esbuild stops on a finding only buildStart sees', () => {
             external: ['@mionjs/run-types'],
             plugins: [runtypesEsbuild({binary: BIN, cwd: dir, tsconfig: 'tsconfig.json', genDir: path.join(dir, '.mion')})],
           })
-        ).rejects.toThrow(/1 unsupported-type error — build halted/);
+        ).rejects.toThrow(/build stopped on 1 mion error\. First: .*unimported\.ts.*VL002/);
         expect(warn.mock.calls.map((call) => String(call[0])).join('\n')).toContain('error VL002');
       } finally {
         warn.mockRestore();

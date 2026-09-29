@@ -1030,7 +1030,7 @@ describe('the serialization bench mounts the marker tsconfig chain', () => {
   // The marker package's test program deliberately contains Error-severity types
   // (the alwaysThrow suites), and buildStart scans everything the tsconfig
   // includes — so the strict default refuses to boot the project and the bench
-  // dies with "N unsupported-type errors — build halted" before measuring a
+  // dies with "build stopped on N mion errors" before measuring a
   // single case. Its vitest config opts out for exactly this reason; the bench
   // loads the same program through the same plugin and has to as well.
   it('downgrades every code, like the vitest config over the same program', () => {

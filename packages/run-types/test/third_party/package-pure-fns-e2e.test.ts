@@ -418,7 +418,7 @@ describe('pure fns served across packages: dist lane, src lane, and the unbuilt 
         // best-effort teardown
       }
     }
-    expect(halted, warnings.join('\n')).toContain('build halted');
+    expect(halted, warnings.join('\n')).toContain('build stopped on 1 mion error');
     const unbuilt = warnings.filter((line) => line.includes('PFE9016'));
     expect(unbuilt, warnings.join('\n')).toHaveLength(1);
     expect(unbuilt[0]).toContain('error PFE9016');

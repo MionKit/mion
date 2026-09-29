@@ -244,7 +244,7 @@ const ok = validate({a: 'x'});
         build: {write: false, rollupOptions: {input: path.join(root, 'src', 'entry.ts')}},
         plugins: [mionVitePlugin({runTypes: {tsConfig: path.join(root, 'tsconfig.json')}}), vue()],
       })
-    ).rejects.toThrow(/build halted|unsupported-type|MKR007/);
+    ).rejects.toThrow(/build stopped|MKR007/);
 
     rmSync(root, {recursive: true, force: true});
   }, 180_000);
