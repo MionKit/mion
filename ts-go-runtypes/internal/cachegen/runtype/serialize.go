@@ -9,6 +9,7 @@ package runtype
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -1078,9 +1079,9 @@ func (cache *Cache) projectMembersInto(
 		// Members inherited from a default-lib global (Error's name/message/stack) are NOT excluded: they are
 		// projected NON-ENUMERABLE-GUARDED, and emitters gate the by-name write on a runtime enumerability
 		// check, so a vanilla error instance skips them (no stack leak) and an enumerable one serializes.
-		if propertySymbol != nil && reflection.IsPrivateName(propertySymbol.Name) {
+		if checker.IsPrivateIdentifierSymbol(propertySymbol) {
 			// Twin of the typeid.memberIDs skip: a `#name` field has no key, so a by-name read would only ever see undefined.
-			if !node.HasFlag(reflection.FlagPrivateFields) {
+			if !slices.Contains(node.Flags, reflection.FlagPrivateFields) {
 				node.Flags = append(node.Flags, reflection.FlagPrivateFields)
 			}
 			continue

@@ -218,29 +218,29 @@ var removeUnknownKeysCodes = map[DiagSlot]string{
 }
 
 // DiagCodeFor: under `sharedValues: 'share'` both sharing slots become the quiet RUK016, since the caller asked for it.
-func (e RemoveUnknownKeysEmitter) DiagCodeFor(slot DiagSlot) string {
-	if e.shared == sharedValuesShare && (slot == SlotFunctionPropDropped || slot == SlotNonSerializablePropDropped) {
+func (emitter RemoveUnknownKeysEmitter) DiagCodeFor(slot DiagSlot) string {
+	if emitter.shared == sharedValuesShare && (slot == SlotFunctionPropDropped || slot == SlotNonSerializablePropDropped) {
 		return diagnostics.CodeRUKSharedAsAsked
 	}
 	return removeUnknownKeysCodes[slot]
 }
 
 // DiagCodeForLeaf names why the entry always throws, from the leaf refuseWith latched (or the walker's own).
-func (e RemoveUnknownKeysEmitter) DiagCodeForLeaf(leaf *reflection.RunType) string {
+func (emitter RemoveUnknownKeysEmitter) DiagCodeForLeaf(leaf *reflection.RunType) string {
 	if leaf == nil {
 		return ""
 	}
 	switch {
 	case leaf.Kind == reflection.KindUnion:
 		return diagnostics.CodeRUKUnionRoot
-	case leaf.Kind == reflection.KindClass && leaf.HasFlag(reflection.FlagPrivateFields):
+	case leaf.Kind == reflection.KindClass && hasFlag(leaf.Flags, reflection.FlagPrivateFields):
 		return diagnostics.CodeRUKPrivateFields
 	case reflection.IsSymbolKeyedName(leaf.Name):
 		return diagnostics.CodeRUKSymbolKeyedMember
-	case e.shared == sharedValuesRefuse:
+	case emitter.shared == sharedValuesRefuse:
 		return diagnostics.CodeRUKSharedRefused
 	}
-	return removeUnknownKeysRootCodes.codeFor(leaf)
+	return ""
 }
 
 // DiagLabelForLeaf is the always-throw message argument: the member or class the refusal is about.
@@ -258,11 +258,4 @@ func (RemoveUnknownKeysEmitter) DiagLabelForLeaf(leaf *reflection.RunType) strin
 		return "class `" + leaf.TypeName + "`"
 	}
 	return "`" + strippedMemberLabel(leaf) + "`"
-}
-
-var removeUnknownKeysRootCodes = rootCodeMap{
-	never:           "", // never is a noop arm (unknown-keys family parity)
-	nonSerializable: "", // shared by reference, with RUK015 or RUK016
-	function:        "", // shared with RUK010 / RUK016, or refused as RUK006
-	symbol:          "", // a symbol is a primitive, so it is its own copy
 }

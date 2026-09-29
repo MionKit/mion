@@ -19,11 +19,6 @@ func SymbolKeyLabel(name string) string {
 	return name
 }
 
-// IsPrivateName reports a `#name` class member (tsgo spells it `\xFE#<id>@#name`), which no outside code reads by key.
-func IsPrivateName(name string) bool {
-	return len(name) >= 2 && name[0] == 0xFE && name[1] == '#'
-}
-
 // Member / class flags the projection sets on a user class (cachegen/runtype/serialize.go), folded into the typeid too.
 const (
 	// FlagAccessor marks a get / set accessor: it lives on the prototype, so an instance has no own value for it.
@@ -33,16 +28,3 @@ const (
 	// FlagPrivateFields marks a class with `#name` fields, which only its constructor can create.
 	FlagPrivateFields = "privateFields"
 )
-
-// HasFlag reports whether a RunType carries one of the flags above.
-func (rt *RunType) HasFlag(flag string) bool {
-	if rt == nil {
-		return false
-	}
-	for _, existing := range rt.Flags {
-		if existing == flag {
-			return true
-		}
-	}
-	return false
-}

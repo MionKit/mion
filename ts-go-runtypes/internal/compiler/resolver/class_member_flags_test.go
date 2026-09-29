@@ -1,6 +1,7 @@
 package resolver_test
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -34,14 +35,14 @@ getRunTypeId(account);
 func TestClassMemberFlags_PrivateFieldsAccessorsAndFunctionFields(t *testing.T) {
 	for shape, site := range classMemberFlagsSites {
 		t.Run(shape, func(t *testing.T) {
-			r := setupInline(t, map[string]string{"account.ts": classMemberFlagsSource, "site.ts": site})
-			root := resolveFile(t, r, "site.ts")
-			types := dump(r)
-			if !root.HasFlag(reflection.FlagPrivateFields) {
+			resolver := setupInline(t, map[string]string{"account.ts": classMemberFlagsSource, "site.ts": site})
+			root := resolveFile(t, resolver, "site.ts")
+			types := dump(resolver)
+			if !slices.Contains(root.Flags, reflection.FlagPrivateFields) {
 				t.Errorf("class with a #field must carry %q, flags=%v", reflection.FlagPrivateFields, root.Flags)
 			}
 			for _, ref := range root.Children {
-				if member := deref(types, ref); member != nil && reflection.IsPrivateName(member.Name) {
+				if member := deref(types, ref); member != nil && strings.HasPrefix(member.Name, "\xFE#") {
 					t.Errorf("#field projected as member %q", member.Name)
 				}
 			}
@@ -66,10 +67,10 @@ func TestClassMemberFlags_PrivateFieldsAccessorsAndFunctionFields(t *testing.T) 
 				if member.Kind != want.kind {
 					t.Errorf("%s: kind %d, want %d", want.name, member.Kind, want.kind)
 				}
-				if want.flag != "" && !member.HasFlag(want.flag) {
+				if want.flag != "" && !slices.Contains(member.Flags, want.flag) {
 					t.Errorf("%s: missing flag %q, flags=%v", want.name, want.flag, member.Flags)
 				}
-				if want.notFlag != "" && member.HasFlag(want.notFlag) {
+				if want.notFlag != "" && slices.Contains(member.Flags, want.notFlag) {
 					t.Errorf("%s: unexpected flag %q", want.name, want.notFlag)
 				}
 			}
@@ -79,14 +80,14 @@ func TestClassMemberFlags_PrivateFieldsAccessorsAndFunctionFields(t *testing.T) 
 
 // Reading `v['\xFE#…@#secret']` failed validate on every real instance and made the encoder write a bogus key.
 func TestClassMemberFlags_NoFamilyReadsAPrivateField(t *testing.T) {
-	r := setupInline(t, map[string]string{"account.ts": classMemberFlagsSource, "site.ts": `import {createValidateFn, createJsonEncoderFn, createJsonDecoderFn, createRemoveUnknownKeysFn} from '@mionjs/run-types';
+	resolver := setupInline(t, map[string]string{"account.ts": classMemberFlagsSource, "site.ts": `import {createValidateFn, createJsonEncoderFn, createJsonDecoderFn, createRemoveUnknownKeysFn} from '@mionjs/run-types';
 import {Account} from './account.ts';
 export const isAccount = createValidateFn<Account>();
 export const encode = createJsonEncoderFn<Account>();
 export const decode = createJsonDecoderFn<Account>();
 export const holder = createRemoveUnknownKeysFn<{account: {id: number; inner: Account}}>();
 `})
-	resp := r.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"site.ts"}, IncludeEntryModules: true})
+	resp := resolver.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"site.ts"}, IncludeEntryModules: true})
 	if resp.Error != "" {
 		t.Fatalf("scan: %s", resp.Error)
 	}
@@ -107,11 +108,11 @@ func TestClassMemberFlags_AccessorAndFieldFoldIntoTheTypeID(t *testing.T) {
 		"private":  `export class Box { #hidden = 1; }`,
 		"noFields": `export class Box {}`,
 	} {
-		r := setupInline(t, map[string]string{"box.ts": source, "site.ts": `import {getRunTypeId} from '@mionjs/run-types';
+		resolver := setupInline(t, map[string]string{"box.ts": source, "site.ts": `import {getRunTypeId} from '@mionjs/run-types';
 import {Box} from './box.ts';
 getRunTypeId<Box>();
 `})
-		ids[label] = resolveFile(t, r, "site.ts").ID
+		ids[label] = resolveFile(t, resolver, "site.ts").ID
 	}
 	seen := map[string]string{}
 	for label, id := range ids {

@@ -76,7 +76,7 @@ var registry = []Operation{
 
 	// Option-less leaf families.
 	{Name: "removeUnknownKeys", Doc: "Copies a value keeping only the properties the type declares.", Factory: "createRemoveUnknownKeysFn", FamilyTag: "ruk", Axis: AxisNone, Public: true, FnKey: "removeUnknownKeys"},
-	// `sharedValues` families, like the fused validators; resolver/scan.go removeUnknownKeysOperation swaps them in.
+	// `sharedValues` families, like the fused validators; resolver/scan.go wordOptionOperation swaps them in.
 	{Name: "removeUnknownKeysShared", Doc: "Copies a value keeping only the declared properties, sharing a function or a value it cannot copy with the input, as asked.", Factory: "createRemoveUnknownKeysFn", FamilyTag: "ruks", Axis: AxisNone, Public: true, FnKey: "removeUnknownKeysShared", CallOptions: "{sharedValues: 'share'}"},
 	{Name: "removeUnknownKeysRefuse", Doc: "Copies a value keeping only the declared properties, and refuses a type holding a function or a value it cannot copy.", Factory: "createRemoveUnknownKeysFn", FamilyTag: "rukr", Axis: AxisNone, Public: true, FnKey: "removeUnknownKeysRefuse", CallOptions: "{sharedValues: 'refuse'}"},
 	{Name: "formatTransform", Doc: "Applies the type's format rules to a value, for example trimming a string or clamping a number.", Factory: "createFormatTransformFn", FamilyTag: "fmt", Axis: AxisNone, Public: true, FnKey: "formatTransform"},
@@ -102,7 +102,7 @@ var registry = []Operation{
 	},
 
 	// JSON value-level primitives the composites wrap: one operation per prepare / restore `strategy`, picked by
-	// jsonValueStrategyOperation (resolver/scan.go); a framework's own marker reaches any by FnKey via getRTFunction.
+	// wordOptionOperation (resolver/scan.go); a framework's own marker reaches any by FnKey via getRTFunction.
 	// No runtime hashing: the resolver reads the plugin-injected plain fnHash.
 	{Name: "prepareForJsonMutate", Doc: "Turns a value into a JSON-safe value in place. Nothing is allocated and undeclared properties are kept.", Factory: "createPrepareForJsonFn", FamilyTag: "pj", Axis: AxisNone, Public: true, FnKey: "prepareForJsonMutate", CallOptions: "{strategy: 'mutate'}"},
 	{Name: "prepareForJsonClone", Doc: "Builds a new JSON-safe value from the declared shape, so undeclared properties are dropped.", Factory: "createPrepareForJsonFn", FamilyTag: "pjs", Axis: AxisNone, Public: true, FnKey: "prepareForJsonClone"},
