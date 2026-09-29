@@ -249,7 +249,7 @@ describe('configs.recommended: the three level rules at their defaults', () => {
   it('registers the mion plugin and sets each level rule to its default', () => {
     const rec = plugin.configs['recommended'] as {plugins: Record<string, unknown>; rules: Record<string, string>};
     expect(rec.plugins).toEqual({mion: plugin});
-    expect(rec.rules).toEqual({'mion/error': 'error', 'mion/warning': 'warn', 'mion/info': 'off'});
+    expect(rec.rules).toEqual({'mion/error': 'error', 'mion/runtime-error': 'error', 'mion/warning': 'warn', 'mion/info': 'off'});
   });
 
   // It reports nothing without a `backendSources` option, so a project opts in and configures it together.
@@ -260,8 +260,8 @@ describe('configs.recommended: the three level rules at their defaults', () => {
   });
 
   it('exposes exactly the three level rules plus enforce-type-imports', () => {
-    expect(Object.keys(rules).sort()).toEqual(['enforce-type-imports', 'error', 'info', 'warning']);
-    expect(RULE_SPECS.map((spec) => spec.name)).toEqual(['error', 'warning', 'info']);
+    expect(Object.keys(rules).sort()).toEqual(['enforce-type-imports', 'error', 'info', 'runtime-error', 'warning']);
+    expect(RULE_SPECS.map((spec) => spec.name)).toEqual(['error', 'runtime-error', 'warning', 'info']);
   });
 });
 
@@ -343,7 +343,7 @@ describe.runIf(hasBinary())(
       return reportsFor(ruleName, rel).map((report) => report.message.match(/^\[([A-Z]+\d+)\]/)?.[1] ?? report.message);
     }
 
-    const LEVEL_RULES = ['error', 'warning', 'info'] as const;
+    const LEVEL_RULES = ['error', 'runtime-error', 'warning', 'info'] as const;
 
     it('exposes the mion namespace', () => {
       expect(meta.name).toBe('mion');
@@ -374,6 +374,7 @@ describe.runIf(hasBinary())(
         expect(reports[0]!.message).toContain('load');
         expect(reports[0]!.line).toBe(locate(BAD_FORM_TS, 'getRunTypeId(load())').line);
         expect(reportsFor('error', 'bad-form.ts')).toEqual([]);
+        expect(reportsFor('runtime-error', 'bad-form.ts')).toEqual([]);
       });
 
       it('routes an Error marker diagnostic (MKR003, marker in a generic function) to mion/error', () => {
@@ -403,6 +404,7 @@ describe.runIf(hasBinary())(
       it('reports the Info VL011 method drop only under mion/info', () => {
         expect(reportsFor('warning', 'widget.ts')).toEqual([]);
         expect(reportsFor('error', 'widget.ts')).toEqual([]);
+        expect(reportsFor('runtime-error', 'widget.ts')).toEqual([]);
         const reports = reportsFor('info', 'widget.ts');
         expect(reports).toEqual([
           expect.objectContaining({
@@ -412,8 +414,8 @@ describe.runIf(hasBinary())(
         ]);
       });
 
-      it('reports a JS-only-pattern sample mismatch as FMT001 under mion/error at the definition site', () => {
-        const reports = reportsFor('error', 'unchecked-pattern.ts');
+      it('reports a JS-only-pattern sample mismatch as FMT001 under mion/runtime-error at the definition site', () => {
+        const reports = reportsFor('runtime-error', 'unchecked-pattern.ts');
         expect(reports).toHaveLength(1);
         expect(reports[0]!.message).toContain('[FMT001]');
         // The resolver's JS engine ran the real regex — the sample 'nope'
@@ -458,8 +460,8 @@ describe.runIf(hasBinary())(
         expect(md001).toMatchObject(locate(MIRROR_DIRTY_TS, 'vanished:'));
       });
 
-      it('reports GE002 on a dead breadcrumb under mion/error, anchored to the import', () => {
-        const reports = reportsFor('error', 'mirror-drift.ts');
+      it('reports GE002 on a dead breadcrumb under mion/runtime-error, anchored to the import', () => {
+        const reports = reportsFor('runtime-error', 'mirror-drift.ts');
         expect(reports).toHaveLength(1);
         expect(reports[0]!.message).toContain('[GE002]');
         expect(reports[0]!.message).toContain('./ghost');
@@ -481,7 +483,8 @@ describe.runIf(hasBinary())(
     describe('mion route findings', () => {
       it('reports each finding at its level, on a file with no runtypes marker', () => {
         expect(ROUTES_TS).not.toContain('@mionjs/run-types');
-        expect(codesFor('error', 'routes.ts').sort()).toEqual(['MRT001', 'MRT002', 'MRT003', 'MRT004']);
+        expect(codesFor('runtime-error', 'routes.ts').sort()).toEqual(['MRT001', 'MRT002', 'MRT003', 'MRT004']);
+        expect(codesFor('error', 'routes.ts')).toEqual([]);
         expect(codesFor('warning', 'routes.ts')).toContain('MRT005');
       });
 
@@ -493,7 +496,7 @@ describe.runIf(hasBinary())(
 
       // A lint report carries no file, so a finding about a handler defined elsewhere must land at the ROUTE CALL.
       it('checks a handler imported from another module, and reports it at the route call', () => {
-        const reports = reportsFor('error', 'importing-routes.ts');
+        const reports = reportsFor('runtime-error', 'importing-routes.ts');
         expect(reports.map((one) => one.message.slice(0, 8)).sort()).toEqual(['[MRT001]', '[MRT003]']);
         const lines = IMPORTING_ROUTES_TS.split('\n');
         for (const report of reports) {
@@ -504,7 +507,9 @@ describe.runIf(hasBinary())(
       });
 
       it('reports nothing on the handler module by itself', () => {
-        expect(reportsFor('error', 'handlers.ts'), 'mion/error fired on a file that declares no route').toEqual([]);
+        expect(reportsFor('runtime-error', 'handlers.ts'), 'mion/runtime-error fired on a file that declares no route').toEqual(
+          []
+        );
       });
     });
 

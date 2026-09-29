@@ -17,7 +17,7 @@ const E2E_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BIN = path.join(E2E_ROOT, 'node_modules/.bin');
 
 // Wired: a real diagnostic in-container, or the `[mion]` engine line on a host without the platform binary.
-const WIRED = /mion[/(](?:error|warning|info)|\[mion\]|VL0\d\d/i;
+const WIRED = /mion[/(](?:error|runtime-error|warning|info)|\[mion\]|VL0\d\d/i;
 
 // A config failure is NEVER an acceptable outcome: it means the app's lint config
 // points the resolver at the wrong tsconfig (or none), so the lane would "pass" on

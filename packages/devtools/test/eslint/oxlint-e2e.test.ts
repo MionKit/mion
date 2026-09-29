@@ -57,7 +57,7 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
           // `cwd` is NOT a lint setting (the plugin runs in oxlint's cwd): it warns on stderr and changes no finding.
           // `mion/info` shows the Info VL011 these cases use as proof the engine ran.
           settings: {mion: {cwd: '/nonexistent/not-a-project'}},
-          rules: {'mion/error': 'error', 'mion/warning': 'warn', 'mion/info': 'warn'},
+          rules: {'mion/error': 'error', 'mion/runtime-error': 'error', 'mion/warning': 'warn', 'mion/info': 'warn'},
           ignorePatterns: ['node_modules/**'],
         },
         null,
@@ -84,7 +84,7 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
 
     // Error findings must fail the commit gate.
     expect(exitCode).toBe(1);
-    expect(stdout).toContain('mion(error)');
+    expect(stdout).toContain('mion(runtime-error)');
     expect(stdout).toContain('[VL002]');
     expect(stdout).toContain('[MRT001]');
     expect(stdout).toContain('mion(warning)');
@@ -222,9 +222,9 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
     const {diagnostics, stdout, exitCode} = await runPreset('.oxlintrc.extends.json');
     // Error findings fail the run; the engine ran.
     expect(exitCode).toBe(1);
-    expect(diagnostics.some((diagnostic) => diagnostic.code === 'mion(error)' && diagnostic.message.includes('[VL002]'))).toBe(
-      true
-    );
+    expect(
+      diagnostics.some((diagnostic) => diagnostic.code === 'mion(runtime-error)' && diagnostic.message.includes('[VL002]'))
+    ).toBe(true);
     expect(diagnostics.some((diagnostic) => diagnostic.code === 'mion(warning)' && diagnostic.message.includes('[FT020]'))).toBe(
       true
     );
@@ -290,7 +290,7 @@ describe.runIf(ready)('oxlint tsconfig resolution end to end (settings.mion.tsco
         categories: {correctness: 'off'},
         jsPlugins: [PLUGIN_DIST],
         settings,
-        rules: {'mion/error': 'error'},
+        rules: {'mion/error': 'error', 'mion/runtime-error': 'error'},
         ignorePatterns: ['node_modules/**'],
       },
       null,
@@ -330,7 +330,7 @@ describe.runIf(ready)('oxlint tsconfig resolution end to end (settings.mion.tsco
     const {stdout, exitCode} = await runOxlint('.oxlintrc.source.json');
     expect(stdout).not.toContain('resolver failed');
     expect(stdout).not.toContain('resolver unavailable');
-    expect(stdout).not.toContain('mion(error)');
+    expect(stdout).not.toContain('mion(runtime-error)');
     expect(stdout).not.toContain('MKR007');
     expect(exitCode).toBe(0);
   });
@@ -341,7 +341,7 @@ describe.runIf(ready)('oxlint tsconfig resolution end to end (settings.mion.tsco
     async () => {
       const {stdout, exitCode} = await runOxlint('.oxlintrc.default.json');
       expect(exitCode).toBe(1);
-      expect(stdout).toContain('mion(error)');
+      expect(stdout).toContain('mion(runtime-error)');
       expect(stdout).toContain('[MKR007]');
     }
   );
@@ -363,7 +363,7 @@ describe.runIf(ready)('oxlint end to end with the tsconfig downgradeErrors key',
       '.oxlintrc.json': JSON.stringify({
         categories: {correctness: 'off'},
         jsPlugins: [PLUGIN_DIST],
-        rules: {'mion/error': 'error', 'mion/warning': 'warn'},
+        rules: {'mion/error': 'error', 'mion/runtime-error': 'error', 'mion/warning': 'warn'},
         ignorePatterns: ['node_modules/**'],
       }),
     });
@@ -378,7 +378,7 @@ describe.runIf(ready)('oxlint end to end with the tsconfig downgradeErrors key',
     );
     expect(stdout).toContain('mion(warning)');
     expect(stdout).toMatch(/\[VL002\].*\(downgraded\)/);
-    expect(stdout).not.toContain('mion(error)');
+    expect(stdout).not.toContain('mion(runtime-error)');
     expect(exitCode).toBe(0);
   });
 });
@@ -400,7 +400,7 @@ describe.runIf(ready)('oxlint reports only the linted file findings', () => {
       '.oxlintrc.json': JSON.stringify({
         categories: {correctness: 'off'},
         jsPlugins: [PLUGIN_DIST],
-        rules: {'mion/error': 'error', 'mion/warning': 'warn', 'mion/info': 'warn'},
+        rules: {'mion/error': 'error', 'mion/runtime-error': 'error', 'mion/warning': 'warn', 'mion/info': 'warn'},
         ignorePatterns: ['node_modules/**'],
       }),
     });

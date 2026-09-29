@@ -147,12 +147,12 @@ describe.runIf(hasBinary())('eslint surface — option-sensitive types and confi
 
   beforeEach(() => resetSharedSession());
 
-  it('lib with ESNext.Temporal (default tsconfig.json): no mion/error report', () => {
-    expect(runRule(rules['error']!, consumerAbs, TEMPORAL_CONSUMER_SRC, {})).toEqual([]);
+  it('lib with ESNext.Temporal (default tsconfig.json): no mion/runtime-error report', () => {
+    expect(runRule(rules['runtime-error']!, consumerAbs, TEMPORAL_CONSUMER_SRC, {})).toEqual([]);
   });
 
-  it('lib without Temporal: the TMP001 report fires under mion/error', () => {
-    const reports = runRule(rules['error']!, consumerAbs, TEMPORAL_CONSUMER_SRC, {
+  it('lib without Temporal: the TMP001 report fires under mion/runtime-error', () => {
+    const reports = runRule(rules['runtime-error']!, consumerAbs, TEMPORAL_CONSUMER_SRC, {
       mion: {tsconfig: 'tsconfig.nolib.json'},
     });
     expect(reports.length).toBeGreaterThan(0);

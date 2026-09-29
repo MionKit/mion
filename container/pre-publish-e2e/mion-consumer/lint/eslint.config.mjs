@@ -16,6 +16,6 @@ export default [
     files: ['**/*.ts'],
     languageOptions: {parser: tsParser},
     plugins: {mion},
-    rules: {'mion/error': 'error'},
+    rules: {'mion/runtime-error': 'error'},
   },
 ];

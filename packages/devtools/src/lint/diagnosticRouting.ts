@@ -9,7 +9,7 @@ import {Level, type Diagnostic, type DiagnosticSite} from '../core/protocol.ts';
 
 // One rule per LEVEL, never per topic: a per-topic rule's severity could disagree with the level the checker gave.
 // A finding is changed with directive comments or tsconfig `downgradeErrors`, which the build reads too.
-export type RuleName = 'error' | 'warning' | 'info';
+export type RuleName = 'error' | 'runtime-error' | 'warning' | 'info';
 
 // index.ts builds `rules` and `recommended` from this table, so nothing lists the rules twice.
 export interface RuleSpec {
@@ -23,7 +23,13 @@ export const RULE_SPECS: readonly RuleSpec[] = [
     name: 'error',
     default: 'error',
     description:
-      'Every mion Error and RuntimeError: the build produced no code for the call, or the code it produced throws or no longer checks what you asked for. The build stops on each of them. Also reports a tsconfig that does not load and a checker that cannot run',
+      'Every mion Error: the build produced no code for the call, so it stops everywhere, the dev server included. Also reports a tsconfig that does not load and a checker that cannot run',
+  },
+  {
+    name: 'runtime-error',
+    default: 'error',
+    description:
+      'Every mion RuntimeError: the build produced code that throws or no longer checks what you asked for. Every build stops on it; a dev server prints it and keeps running. A comment or `downgradeErrors` can lower it to a warning',
   },
   {
     name: 'warning',
@@ -77,6 +83,8 @@ function ruleNameFor(diagnostic: Diagnostic): RuleName {
       return 'warning';
     case Level.Info:
       return 'info';
+    case Level.RuntimeError:
+      return 'runtime-error';
     default:
       return 'error';
   }
