@@ -1,5 +1,5 @@
 // For `core test-pr`. Commits only: the working tree never counts, so a local run and CI agree.
-import {LANES, matches} from '../ci/lanes.mjs';
+import {LANES, matches, unclassified} from '../ci/lanes.mjs';
 import {REPO_ROOT} from './env.mjs';
 import {capture, die} from './proc.mjs';
 import {packageOf} from './workspace-graph.mjs';
@@ -19,7 +19,8 @@ export function changedFiles(base, {cwd = REPO_ROOT} = {}) {
   return {mergeBase, files};
 }
 
-// A path outside every package forces the full suite, unless the js lane does not hash it (docs, a Go test).
+// A path outside every package forces the full suite, unless the js lane provably skips it (docs, a Go test);
+// an unclassified path joins every lane, so it forces the suite too.
 export function classifyPaths(files, packages) {
   const changed = new Set();
   const global = [];
@@ -27,7 +28,7 @@ export function classifyPaths(files, packages) {
   for (const file of files) {
     const dir = packageOf(file, packages);
     if (dir) changed.add(dir);
-    else if (!matches(file, LANES.js.paths)) ignored.push(file);
+    else if (!matches(file, LANES.js.paths) && unclassified([file]).length === 0) ignored.push(file);
     else global.push(file);
   }
   return {packages: changed, global, ignored};
