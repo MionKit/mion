@@ -9,8 +9,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
-// An interface with a call signature AND a field is a function to DataOnly: dropped with a note at a property,
-// a reported throw at an array element, the same whether the interface is inlined or its own entry.
+// A callable interface with a field is a function to DataOnly: a noted drop in a property, a throw in an array.
 
 const callableWithPropShared = `export interface Handler { (): void; label: string }
 `

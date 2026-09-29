@@ -282,9 +282,7 @@ func memberLabel(rt *reflection.RunType) string {
 	return reflection.SymbolKeyLabel(rt.Name)
 }
 
-// EmitDiagnostic records a diagnostic against every call site the code belongs to (see diagnosticSites).
-// No-op when DiagSink is unwired, the code already fired for this walk, or no provenance sites are known.
-// `args` are positional substitution values for the JS-side catalog template.
+// EmitDiagnostic records a finding once per walk, even with no site to report at; args fill the JS catalog template.
 func (w *Walker) EmitDiagnostic(code string, args ...string) {
 	if w.DiagSink == nil {
 		return
@@ -300,8 +298,7 @@ func (w *Walker) EmitDiagnostic(code string, args ...string) {
 	w.findings = append(w.findings, diskcache.CachedDiagnostic{Code: code, Args: append([]string(nil), args...)})
 	sites := w.diagnosticSites(code)
 	if len(sites) == 0 {
-		// Without provenance the Diagnostic renders as filePath="", useless to
-		// the user.
+		// A site-less Diagnostic renders with filePath="", useless to the user.
 		return
 	}
 	for _, site := range sites {
@@ -309,9 +306,8 @@ func (w *Walker) EmitDiagnostic(code string, args ...string) {
 	}
 }
 
-// diagnosticSites picks the call sites a finding is reported at directly: the ones that named this entry's type.
-// A site that only reaches the entry hears it through ReportReachedFindings, which follows the entries its
-// function actually calls; the type graph alone reaches entries the function never runs.
+// diagnosticSites returns only the sites that named this type; ReportReachedFindings serves those that reach it.
+// That pass follows the entries a function actually calls: the type graph alone reaches entries it never runs.
 func (w *Walker) diagnosticSites(string) []diagnostics.Site {
 	return w.rootedProvenance
 }

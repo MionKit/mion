@@ -61,11 +61,9 @@ type RenderOpts struct {
 	// reads both to tell disabled (count 0) from failed generation.
 	PatternSampleCount int
 	PatternGenFailures map[string]formats.PatternGenFailure
-	// ProvenanceSites maps each rendered entry (ProvenanceKey: type id + family tag) to the call sites whose TYPE
-	// reaches it, the named type plus all under it: the runtime throw message and the pure-fn deps name them.
+	// ProvenanceSites maps an entry (ProvenanceKey) to the sites whose TYPE reaches it, as throw messages and pure-fn deps name.
 	ProvenanceSites map[string][]diagnostics.Site
-	// RootedSites narrows that map to the sites where the id is the type NAMED at the call, the only sites a walk
-	// reports at; ReportReachedFindings carries a finding to the sites whose function calls the entry.
+	// RootedSites keeps the sites that NAME the id, the only ones a walk reports at; ReportReachedFindings covers the rest.
 	RootedSites map[string][]diagnostics.Site
 	// InlineMode selects the child-inlining policy: default inlines UNNAMED
 	// non-circular compounds and keeps named types external, allInternal inlines
@@ -293,17 +291,15 @@ func CollectFamilyEntries(dump protocol.Dump, settings constants.CacheModuleSett
 	return graph
 }
 
-// adoptsFindingsOf names the families whose findings a site of another family inherits: a validationErrors union
-// takes its verdict from the validate entry of that union, so what that entry drops is dropped for the site too.
+// adoptsFindingsOf: a validationErrors union takes its verdict from its validate entry, so that entry's drops are its own.
 var adoptsFindingsOf = map[string]map[string]bool{
 	"verr": {"val": true, "vst": true, "vuk": true},
 	"vest": {"val": true, "vst": true, "vuk": true},
 	"veuk": {"val": true, "vst": true, "vuk": true},
 }
 
-// ReportReachedFindings reports, at every site, what the entries its function reaches found: the root code of an
-// alwaysThrow entry (that site throws too) and the findings of an entry of its own family or one its family adopts.
-// It runs once after the cross-family fixpoint, since findings travel through entries of another family too.
+// ReportReachedFindings reports at each site the throws and findings of the entries its function reaches.
+// Runs once after the cross-family fixpoint: findings travel through entries of another family too.
 func ReportReachedFindings(graph entrymodules.Graph, opts RenderOpts) {
 	if opts.DiagSink == nil {
 		return
@@ -333,8 +329,7 @@ func ReportReachedFindings(graph entrymodules.Graph, opts RenderOpts) {
 		}
 		throwing, adopted := reachableFindings(graph, key)
 		for _, site := range sites {
-			// A throw of another family (the validate entry a JSON union picks its member with) is news only when the
-			// site's own family reaches no throw: otherwise it names the same failure twice.
+			// A foreign throw (the validate entry a JSON union picks its member with) would name the same failure twice.
 			var own, foreign []entrymodules.Finding
 			for _, entry := range throwing {
 				if slices.Contains(opts.ProvenanceSites[entryProvenanceKey(entry)], site) {
@@ -359,8 +354,7 @@ func entryProvenanceKey(entry *entrymodules.Entry) string {
 	return ProvenanceKey(entry.Key[separator+1:], entry.FamilyTag)
 }
 
-// reachableFindings walks an entry's type-fn deps, same family or not, skipped children included, and returns in walk
-// order every alwaysThrow entry it reaches plus the findings of every entry of the root's family or one it adopts.
+// reachableFindings returns, in walk order, the throws and own- or adopted-family findings reachable from an entry.
 func reachableFindings(graph entrymodules.Graph, entryID string) (throwing []*entrymodules.Entry, adoptedFindings []entrymodules.Finding) {
 	adopted := adoptsFindingsOf[graph[entryID].FamilyTag]
 	visited := map[string]bool{entryID: true}
@@ -652,9 +646,8 @@ func renderEntryWithDeps(runType *reflection.RunType, settings constants.CacheMo
 	return entryRender{argsText: argsText, deps: deps, crossFamilyDeps: crossFamilyDeps, pureFnDeps: pureFnDeps, findings: walker.findings, elided: walker.ElidedDependencies}
 }
 
-// entryDiagnostics slices out the findings THIS entry's walk appended to the shared sink, plus the walker's own
-// (reported nowhere when no site named the entry), as the code + args pairs the cache persists. The site is
-// dropped on purpose: a later build re-attaches its own provenance.
+// entryDiagnostics collects this entry's sink findings plus the walker's own (unreported when no site names the entry).
+// The site is dropped on purpose: a later build re-attaches its own provenance.
 func entryDiagnostics(diagStart int, walkerFindings []diskcache.CachedDiagnostic, opts RenderOpts) []diskcache.CachedDiagnostic {
 	var emitted []diagnostics.Diagnostic
 	if opts.DiagSink != nil && len(*opts.DiagSink) > diagStart {
@@ -751,8 +744,7 @@ func tryReadCachedEntry(runType *reflection.RunType, settings constants.CacheMod
 	return entryRender{argsText: entry.ArgsText, deps: deps, crossFamilyDeps: crossFamilyDeps, pureFnDeps: pureFnDeps, isNoop: entry.IsNoop, findings: entry.Diagnostics, elided: elided}, true
 }
 
-// liveChildHashes re-namespaces each cached child hash; ok=false when one was re-hashed (collision extension) or
-// removed, since the cached body's baked hash is then stale.
+// liveChildHashes fails when a child was re-hashed (collision extension) or removed: the cached body's baked hash is stale.
 func liveChildHashes(refs []diskcache.ChildRef, innerPrefix string, opts RenderOpts) ([]string, bool) {
 	hashes := make([]string, 0, len(refs))
 	for _, ref := range refs {
@@ -765,12 +757,8 @@ func liveChildHashes(refs []diskcache.ChildRef, innerPrefix string, opts RenderO
 	return hashes, true
 }
 
-// replayCachedDiagnostics re-emits an entry's persisted findings on a cache hit, or a project's warnings would
-// disappear from the second build onward and come back only after a cache wipe.
-//
-// Provenance comes from the live call sites, never from the cache: the same type can be demanded from elsewhere
-// next build, and a stale file:line would point at nothing. An entry whose call sites are gone emits nothing,
-// matching a fresh walk (see Walker.diagnosticSites).
+// replayCachedDiagnostics re-emits persisted findings on a cache hit, or warnings would vanish from the second build on.
+// Sites come from this build, as in a fresh walk (Walker.diagnosticSites): a cached file:line may point at nothing.
 func replayCachedDiagnostics(runType *reflection.RunType, familyTag string, cached []diskcache.CachedDiagnostic, opts RenderOpts) {
 	if len(cached) == 0 || opts.DiagSink == nil || runType == nil {
 		return
@@ -793,13 +781,8 @@ func splitNamespacedHash(namespaced string) (prefix string, bareHash string, ok 
 	return namespaced[:idx+1], namespaced[idx+1:], true
 }
 
-// writeCachedEntry persists the freshly-rendered entry so the next build can skip the walker for this
-// (typeID, fnTag) AND still reconstruct its cross-family edges and noop verdict on a hit. Failures are logged
-// to stderr and otherwise ignored: a read-only or full FS shouldn't break the build, and the next run re-attempts.
-//
-// deps arrive namespaced, so the prefix is stripped to recover each bare hash and its structural id for the
-// ChildRefs record; a cross-family dep splits into its own foreign prefix plus hash. An unresolvable ref aborts
-// the write cleanly rather than persisting a record the reader can't verify.
+// writeCachedEntry persists the entry so a hit skips the walker yet rebuilds its cross-family edges and noop verdict.
+// Failures are logged and ignored (a read-only or full FS must not break the build); an unresolvable ref aborts the write.
 func writeCachedEntry(runType *reflection.RunType, settings constants.CacheModuleSettings, cacheTag string, innerPrefix string, argsText string, deps []string, elided []string, crossFamilyDeps []string, pureFnDeps []string, isNoop bool, entryDiags []diskcache.CachedDiagnostic, opts RenderOpts) {
 	if opts.Store == nil || opts.Lookup == nil || runType == nil || runType.ID == "" {
 		return
@@ -861,8 +844,7 @@ func writeCachedEntry(runType *reflection.RunType, settings constants.CacheModul
 		ChildRefs:       childRefs,
 		ElidedRefs:      elidedRefs,
 		CrossFamilyRefs: crossFamilyRefs,
-		// Persisted verbatim, unlike ChildRefs / CrossFamilyRefs; the drift check
-		// is purefnids.Has at both ends.
+		// Persisted verbatim, unlike the other refs; the drift check is purefnids.Has at both ends.
 		PureFnRefs: append([]string(nil), pureFnDeps...),
 		// So a warm build reports the same findings a cold one does.
 		Diagnostics: entryDiags,
@@ -874,8 +856,7 @@ func writeCachedEntry(runType *reflection.RunType, settings constants.CacheModul
 	}
 }
 
-// cachedChildRefs records each namespaced child hash with its structural id; ok=false aborts the write, since a child
-// that doesn't start with innerPrefix or has no structural id breaks the read-time hash translation.
+// cachedChildRefs fails on a child without innerPrefix or a structural id: it would break the read-time hash translation.
 func cachedChildRefs(children []string, innerPrefix string, opts RenderOpts) ([]diskcache.ChildRef, bool) {
 	refs := make([]diskcache.ChildRef, 0, len(children))
 	for _, child := range children {
