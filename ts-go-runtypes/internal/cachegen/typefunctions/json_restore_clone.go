@@ -184,7 +184,7 @@ func objectDropsDeclaredMember(rt *reflection.RunType, ctx *EmitContext) bool {
 		if resolved.Child == nil {
 			continue
 		}
-		if propResolved := ctx.ResolveRef(resolved.Child); propResolved != nil && isStrippedUnionMember(propResolved) {
+		if propResolved := ctx.ResolveRef(resolved.Child); propResolved != nil && isStrippedUnionMember(propResolved, ctx) {
 			return true
 		}
 	}

@@ -44,10 +44,7 @@ func TestCallableInterface_FunctionLikeAtRoot(t *testing.T) {
 	}
 }
 
-// At a PROPERTY position the callable interface must NOT make the containing
-// object alwaysThrow — it is dropped (absorbed) like a function-valued property.
-// (The deeper "x is dropped, not serialized as an object" behavior is exercised
-// end-to-end by the non-data fuzz lane.)
+// At a PROPERTY position the callable interface drops like a function-valued property, with the family's …010 note.
 func TestCallableInterface_PropertyDoesNotFailObject(t *testing.T) {
 	parts := callableInterface("cal", true)
 	propX := &reflection.RunType{ID: "px", Kind: reflection.KindPropertySignature, Name: "x", Child: makeRef("cal")}
@@ -55,13 +52,21 @@ func TestCallableInterface_PropertyDoesNotFailObject(t *testing.T) {
 	outer := &reflection.RunType{ID: "obj", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("px"), makeRef("py")}}
 	dump := protocol.Dump{RunTypes: append(append([]*reflection.RunType{mkStr()}, parts...), propX, propY, outer)}
 
-	for _, fam := range []string{"validate", "prepareForJsonMutate", "prepareForJsonClone", "restoreFromJsonMutate", "restoreFromJsonClone"} {
-		out := renderModule(t, dump, fam)
-		// alwaysThrow renders the object entry as `_obj','<kind>',,,,,,'<message>'`
-		// (typeName then five holes, then a quoted `Cannot …` message); a dropped
-		// property leaves the object a noop or a real factory, never that.
+	functionDropCodes := map[string]string{
+		"validate":              "VL010",
+		"prepareForJsonMutate":  "PJ010",
+		"prepareForJsonClone":   "PJS010",
+		"restoreFromJsonMutate": "RJ010",
+		"restoreFromJsonClone":  "RJ010",
+	}
+	for fam, code := range functionDropCodes {
+		out, sink := renderWithDiag(t, dump, fam, "obj")
+		// alwaysThrow renders the object entry as `_obj','<kind>',,,,,,'<message>'`.
 		if strings.Contains(out, "_obj','objectLiteral',,,,,,'") {
 			t.Errorf("[%s] `{x: callableInterface; y: string}` should drop x, not alwaysThrow the object; got:\n%s", fam, out)
+		}
+		if _, ok := findCode(sink, code); !ok {
+			t.Errorf("[%s] dropping x must leave %s, got %v", fam, code, sink)
 		}
 	}
 }
