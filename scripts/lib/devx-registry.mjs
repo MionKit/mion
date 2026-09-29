@@ -65,7 +65,10 @@ export const AREAS = {
         name: 'build',
         args: '[targets…]',
         summary: 'build the binary + dev dists if stale (go|extract|linux-go|linux-extract|marker-dist|plugin-dist|uws|all)',
-        flags: [['--trust-stamp', 'skip the reference build when mion-bin/.mion.stamp matches (the gate and the pre-hooks)']],
+        flags: [
+          ['--trust-stamp', 'skip the reference build when mion-bin/.mion.stamp matches (the gate and the pre-hooks)'],
+          ['--cache-key', 'print the CI cache key of the prebuilt Go binaries, build nothing (needs no Go)'],
+        ],
         ...noBuild,
       },
       {name: 'smoke', summary: 'end-to-end smoke of the resolver + devtools'},

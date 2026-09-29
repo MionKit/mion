@@ -15,6 +15,8 @@ import {
   extractDigest,
   goBinCacheKey,
   goIdentity,
+  goVersionLdflags,
+  pendingPatches,
   pinnedGoVersion,
   resolverDigest,
   // @ts-expect-error plain ESM dev script, no types
@@ -133,6 +135,33 @@ describe('go-inputs — the CI cache key for the prebuilt binaries', () => {
     expect(action).toContain("'ts-go-runtypes/.go-version'");
     expect(action).toContain('rt-wasm-${{ steps.tsgolint.outputs.sha }}-');
   });
+
+  // constants.Version is folded into typeIDs, so a version bump must never restore an old binary.
+  it('carries the root package.json version and a fixed-length tsgo sha in the ldflags the key hashes', () => {
+    const version = JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'utf8')).version;
+    expect(goVersionLdflags()).toContain(`constants.Version=${version} `);
+    // `--short` grows with the object count, which would split one commit into two keys.
+    expect(goVersionLdflags()).toMatch(/constants\.TsgoVersion=[0-9a-f]{7}$/);
+    expect(resolverDigest(goVersionLdflags().replace(version, '0.0.0-other'))).not.toBe(resolverDigest());
+  });
+
+  // The builder applies every patch; the jobs that restore have no submodule at all.
+  it('names only the patches left unapplied', () => {
+    expect(pendingPatches(['0001-a.patch=applied', '0002-b.patch=pending'])).toEqual(['0002-b.patch=pending']);
+    expect(pendingPatches(['0001-a.patch=applied'])).toEqual([]);
+  });
+
+  it('gives two checkouts of one commit, with no submodule, the same key', () => {
+    const keyIn = (dir: string) =>
+      execFileSync(process.execPath, [join(dir, 'scripts/core/build.mjs'), '--cache-key'], {cwd: dir, encoding: 'utf8'}).trim();
+    const checkouts = [join(scratch, 'checkout-a'), join(scratch, 'nested/checkout-b')];
+    for (const dir of checkouts) execFileSync('git', ['-C', REPO_ROOT, 'worktree', 'add', '--detach', '-q', dir, 'HEAD']);
+    try {
+      expect(keyIn(checkouts[0])).toBe(keyIn(checkouts[1]));
+    } finally {
+      for (const dir of checkouts) execFileSync('git', ['-C', REPO_ROOT, 'worktree', 'remove', '--force', dir]);
+    }
+  }, 120_000);
 
   it('keys the resolver and the extractor on their own inputs', () => {
     expect(RESOLVER_INPUTS[0]).toBe('ts-go-runtypes/cmd/mion');

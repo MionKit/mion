@@ -92,7 +92,7 @@ function fail(msg) {
 // Embed the workspace version into the binary so the on-disk RT cache is isolated
 // across releases (internal/constants/version.go). The tsgo revision is pure
 // metadata (surfaced by --version), never folded into the typeID hash.
-function goVersionLdflags() {
+export function goVersionLdflags() {
   let version = 'dev';
   try {
     version = JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'utf8')).version || 'dev';
@@ -131,9 +131,11 @@ function checkTsgolintPin() {
 export const pinnedGoVersion = () => `go${readFileSync(GO_VERSION_FILE, 'utf8').trim()}`;
 
 // Needs no Go and no checkout: the gitlink pins the commit and its patches, so only UNapplied patches count.
+export const pendingPatches = (states) => states.filter((state) => !state.endsWith('=applied'));
+
 export function goIdentity() {
   const identity = [pinnedGoVersion(), `${process.platform}/${process.arch}`, tsgolintCommit()];
-  if (submoduleInitialised()) identity.push(...patchState().filter((state) => !state.endsWith('=applied')));
+  if (submoduleInitialised()) identity.push(...pendingPatches(patchState()));
   return identity;
 }
 
@@ -156,6 +158,9 @@ function checkStampedGoBin({bin, stamp, pkg, digest, ldflags, trustStamp}) {
   info(`Checking ${name}...`);
   if (trustStamp && existsSync(bin) && readStamp(stamp) === digest) return success(`${name} is up to date (stamp).`);
   if (!which('go')) fail(`Go toolchain not found on PATH (needed to build ${name}).`);
+  const localGo = capture('go', ['env', 'GOVERSION']).stdout.trim();
+  // The stamp names the pin, so a build with another Go is a binary CI would not make.
+  if (localGo && localGo !== pinnedGoVersion()) warn(`building ${name} with ${localGo}, but CI pins ${pinnedGoVersion()} (ts-go-runtypes/.go-version); the result can differ from the CI build.`);
   if (!existsSync(bin)) {
     info(`Building ${name} (missing; may take a moment on a cold cache)...`);
     mkdirSync(dirname(bin), {recursive: true});
@@ -324,6 +329,7 @@ function runTarget(target, opts) {
 
 // opts.trustStamp: the entry point's gate; an explicit `core build` never sets it.
 export function main(args, opts = {}) {
+  if (args.includes('--cache-key')) return console.log(goBinCacheKey());
   if (args.length === 0) return runTarget('all', opts);
   for (const target of args) runTarget(target, opts);
 }
@@ -331,8 +337,7 @@ export function main(args, opts = {}) {
 if (import.meta.main) {
   loadEnv();
   try {
-    if (process.argv[2] === '--cache-key') console.log(goBinCacheKey());
-    else main(process.argv.slice(2));
+    main(process.argv.slice(2));
   } catch (err) {
     reportCliError(err);
   }
