@@ -1,0 +1,16 @@
+import {createMionRouter, Routes} from '@mionjs/router';
+import {getAuthUser, type AuthUser} from './myAuth.ts';
+
+// the return type keeps `me` from being typed as `null` forever
+const newSharedData = (): {me: AuthUser | null} => ({me: null});
+
+const mion = createMionRouter({contextDataFactory: newSharedData});
+
+const routes = {
+  auth: mion.middleware(async (ctx, token: string): Promise<void> => {
+    ctx.shared.me = (await getAuthUser(token)) ?? null;
+  }),
+  sayHello: mion.route((ctx): string => `Hello ${ctx.shared.me?.name}`), // written by auth above
+} satisfies Routes;
+
+export const api = mion.initRoutes(routes);
