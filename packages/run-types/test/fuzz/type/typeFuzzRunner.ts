@@ -32,6 +32,7 @@ import {randomJunk} from '../value/fuzzRunner.ts';
 import type {ResolverClient} from '../../../../devtools/src/core/resolver-client.ts';
 import type {RunType} from '../../../src/runtypes/types.ts';
 import {compactNullRisk} from '../roundtrip/roundtripOracle.ts';
+import {checkDropNoted, checkReportedThrows, checkThrowReported, controlledCode, copyTree, droppedPaths} from './diagOracle.ts';
 import {
   checkCrossWire,
   checkErrorsAgree,
@@ -49,7 +50,7 @@ import {
  *  (`createMockDataFn` with nonDataTypes on, the DataOnly non-data lane). **/
 export type ValueSource = 'shape' | 'mock';
 
-const EXPECTED_FN_SITES = 6;
+const EXPECTED_FN_SITES = 9;
 const EXPECTED_REFLECTION_SITES = 1;
 const FN_KEYS: (keyof WiredFns)[] = [
   'validate',
@@ -58,6 +59,9 @@ const FN_KEYS: (keyof WiredFns)[] = [
   'jsonDecode',
   'compactEncode',
   'compactDecode',
+  'mutateEncode',
+  'mutateDecode',
+  'removeUnknownKeys',
 ];
 
 export interface TypeFuzzOptions {
@@ -314,6 +318,7 @@ function checkBehaviourTier(
   // serialize/fail tier is read off the resolver's own diagnostics.
   if (valueSource === 'mock') {
     checkMockBehaviour(compiled, seed, out, stats);
+    checkDiagnosticTruth(compiled, seed, out);
     return;
   }
   const serialisable = valueOracleSafe(compiled.gen);
@@ -510,4 +515,67 @@ function asFuzzTarget(compiled: CompiledType): FuzzTarget | null {
 
 function push(out: Violation[], violation: Violation | null): void {
   if (violation) out.push(violation);
+}
+
+// --- D1–D3: the diagnostics at each call site match what that function does when it runs ---
+function codesAtSite(compiled: CompiledType, key: keyof WiredFns): Set<string> {
+  const line = compiled.siteLines[key];
+  return new Set(
+    compiled.diagnostics.filter((diagnostic) => diagnostic.site.startLine === line).map((diagnostic) => diagnostic.code)
+  );
+}
+
+// A controlled throw from building the function or from running it once on `value`.
+function thrownCode(compiled: CompiledType, key: keyof WiredFns, value: unknown, hasValue: boolean): string | undefined {
+  const wireError = compiled.wireErrors[key];
+  if (wireError) return controlledCode(wireError);
+  const fn = compiled.wired[key] as ((input: unknown) => unknown) | undefined;
+  if (!fn || !hasValue) return undefined;
+  try {
+    fn(copyTree(value));
+  } catch (err) {
+    return err instanceof Error ? controlledCode(err.message) : undefined;
+  }
+  return undefined;
+}
+
+const ROUND_TRIPS: [keyof WiredFns, keyof WiredFns | undefined][] = [
+  ['jsonEncode', 'jsonDecode'],
+  ['compactEncode', 'compactDecode'],
+  ['mutateEncode', 'mutateDecode'],
+  ['removeUnknownKeys', undefined],
+];
+
+function checkDiagnosticTruth(compiled: CompiledType, seed: number, out: Violation[]): void {
+  if (compiled.resolverError || compiled.evalError || isRecursive(compiled.gen)) return;
+  const ctx = {target: compiled.title, seed, source: compiled.source};
+  let value: unknown;
+  let hasValue = false;
+  try {
+    value = compiled.wired.mock?.();
+    hasValue = compiled.wired.mock !== undefined;
+  } catch {
+    // No value (a stray `never`): D1 / D2 still read the build-time throws.
+  }
+  for (const key of FN_KEYS) {
+    if (compiled.siteLines[key] === undefined) continue;
+    const outcome = {key, codesAtSite: codesAtSite(compiled, key), thrownCode: thrownCode(compiled, key, value, hasValue)};
+    push(out, checkThrowReported(outcome, ctx));
+    push(out, checkReportedThrows(outcome, ctx));
+  }
+  if (!hasValue) return;
+  for (const [encodeKey, decodeKey] of ROUND_TRIPS) {
+    const encode = compiled.wired[encodeKey] as ((input: unknown) => unknown) | undefined;
+    const decode = decodeKey ? (compiled.wired[decodeKey] as ((input: unknown) => unknown) | undefined) : (x: unknown) => x;
+    if (!encode || !decode) continue;
+    const input = copyTree(value);
+    let output: unknown;
+    try {
+      output = decode(encode(copyTree(value)));
+    } catch {
+      continue; // a throw is D1's business
+    }
+    const codes = new Set([...codesAtSite(compiled, encodeKey), ...(decodeKey ? codesAtSite(compiled, decodeKey) : [])]);
+    push(out, checkDropNoted(encodeKey, droppedPaths(input, output), codes, ctx));
+  }
 }

@@ -117,7 +117,10 @@ export type OracleId =
   | 'TR1'
   | 'TR2'
   | 'TR3'
-  | 'TR4';
+  | 'TR4'
+  | 'D1'
+  | 'D2'
+  | 'D3';
 
 /** A detected expectation violation — everything needed to reproduce + triage. **/
 export interface Violation {
