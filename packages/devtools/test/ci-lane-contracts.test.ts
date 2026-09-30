@@ -463,6 +463,6 @@ describe('the build-gate tests run on the Go runner and nowhere else', () => {
     const suite = jobOf(ci, 'js-lint');
     const commands = suite.split('\n').filter((line) => /core test-pr|pnpm test --exclude/.test(line));
     expect(commands).toHaveLength(2);
-    for (const command of commands) expect(command).toContain("--exclude '**/devtools/test/build-gate.test.ts'");
+    for (const command of commands) expect(command).toContain("--exclude '**/build-gate.test.ts'");
   });
 });
