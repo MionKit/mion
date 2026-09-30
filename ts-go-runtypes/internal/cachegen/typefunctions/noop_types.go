@@ -183,7 +183,7 @@ func jsonNoopRecursive(rt *reflection.RunType, ctx *EmitContext, mode jsonNoopMo
 		// Mirrors the walker: nil / dangling children contribute no code.
 		return true
 	}
-	// Non-data is the emitters' CodeNS arm: never compatible, shareable or identity, or the shortcut hides the throw.
+	// Non-data renders a CodeNS throw, which any shortcut verdict here would hide.
 	if isStrippedUnionMember(rt, ctx) {
 		return false
 	}
@@ -600,7 +600,7 @@ func compactFromJsonNoopRecursive(rt *reflection.RunType, ctx *EmitContext, visi
 	if rt == nil {
 		return true
 	}
-	// Non-data is the emitters' CodeNS arm: never compatible, shareable or identity, or the shortcut hides the throw.
+	// Non-data renders a CodeNS throw, which any shortcut verdict here would hide.
 	if isStrippedUnionMember(rt, ctx) {
 		return false
 	}
@@ -713,7 +713,7 @@ func restoreJsonSafeNoopRecursive(rt *reflection.RunType, ctx *EmitContext, visi
 	if rt == nil {
 		return true
 	}
-	// Non-data is the emitters' CodeNS arm: never compatible, shareable or identity, or the shortcut hides the throw.
+	// Non-data renders a CodeNS throw, which any shortcut verdict here would hide.
 	if isStrippedUnionMember(rt, ctx) {
 		return false
 	}

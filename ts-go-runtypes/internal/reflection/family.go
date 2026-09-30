@@ -51,10 +51,8 @@ func FamilyOf(kind ReflectionKind) Family {
 	return FamilyUnknown
 }
 
-// PopulateFamily sets Family and NotSupported (NonDataOf) on runType and every node reachable through its ref slots.
-// Called at intern time (Cache.putNode), so a node carries both classifications before the JSON envelope is built.
-// Idempotent. resolve follows a ref to its interned node (an interface's call signature is a ref); a ref sentinel
-// carries no child slots, so it ends the recursion.
+// PopulateFamily stamps Family and NotSupported (NonDataOf) on runType and every node its ref slots reach. Idempotent.
+// resolve follows a ref (an interface's call signature is one); a ref sentinel has no slots, so it ends the recursion.
 func PopulateFamily(runType *RunType, resolve func(*RunType) *RunType) {
 	if runType == nil {
 		return

@@ -1,8 +1,5 @@
-// D1–D3: a build's diagnostics tell the truth about what each compiled function does when it runs.
-//
-//   D1 a function that throws a controlled `[CODE]` error (when created or called) has that code at its call site;
-//   D2 a call site reporting an always-throw code has a function that throws;
-//   D3 a value member an encode / decode round trip dropped has a drop note at the encoder or decoder site.
+// Diagnostics match what each compiled function does. D1: a controlled `[CODE]` throw (on create or call) is reported
+// at its call site; D2: a reported always-throw code means the function throws; D3: a round-trip drop has a drop note.
 
 import type {Violation} from '../value/fuzzOracle.ts';
 import {snapshot} from '../value/fuzzOracle.ts';
@@ -58,8 +55,8 @@ export function checkDropNoted(key: string, dropped: string[], codes: ReadonlySe
   );
 }
 
-/** Paths of the members `input` holds and `output` lacks; an `undefined` member is absent on the wire by design, and so
- *  is a `null` one under `nullMayVanish` (compact writes an absent optional as `null`, so it cannot tell them apart). **/
+/** Paths `input` holds and `output` lacks; `undefined` is absent on the wire by design, and so is `null` under
+ *  `nullMayVanish` (compact writes an absent optional as `null`). **/
 export function droppedPaths(input: unknown, output: unknown, nullMayVanish = false, path = '$'): string[] {
   if (input === null || typeof input !== 'object' || output === null || typeof output !== 'object') return [];
   if (input instanceof Map && output instanceof Map) {
@@ -88,8 +85,7 @@ export function droppedPaths(input: unknown, output: unknown, nullMayVanish = fa
   return dropped;
 }
 
-/** A structural copy of objects, arrays and Maps that keeps every leaf (functions and symbols included) by reference,
- *  so an in-place encoder cannot change the tree droppedPaths compares against. **/
+/** Copies containers but keeps leaves by reference, so an in-place encoder cannot change what droppedPaths compares. **/
 export function copyTree(value: unknown, seen = new WeakMap<object, unknown>()): unknown {
   if (value === null || typeof value !== 'object' || value instanceof Date || value instanceof Set) return value;
   if (seen.has(value)) return seen.get(value);

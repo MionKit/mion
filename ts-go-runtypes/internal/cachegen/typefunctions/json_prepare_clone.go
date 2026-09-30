@@ -498,7 +498,7 @@ func extraProofRecursive(rt *reflection.RunType, ctx *EmitContext, visited map[s
 	if rt == nil {
 		return false
 	}
-	// Non-data is the emitters' CodeNS arm: never compatible, shareable or identity, or the shortcut hides the throw.
+	// Non-data renders a CodeNS throw, which any shortcut verdict here would hide.
 	if isStrippedUnionMember(rt, ctx) {
 		return false
 	}

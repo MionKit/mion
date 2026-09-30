@@ -10,9 +10,8 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// Every kind the reflection model maps (reflection.FamilyOf) has a row here, and every family that throws on
-// non-data agrees with reflection.NonDataOf at the root: a non-data root throws with the family's own code, a data
-// root never falls to the internal TFN001. A kind added to the model fails this test until it gets a row.
+// Every family that throws on non-data agrees with reflection.NonDataOf at the root: a non-data root throws its own
+// code, a data root never falls to TFN001. A kind reflection.FamilyOf maps fails here until kindRoot has its row.
 
 // kindRoot builds a minimal root of one kind; a nil builder marks a kind that is only ever a member, never a root.
 var kindRoot = map[reflection.ReflectionKind]func() []*reflection.RunType{
@@ -92,7 +91,7 @@ func listRoot(kind reflection.ReflectionKind) func() []*reflection.RunType {
 func ownNonDataRule(emitter Emitter, nonData reflection.NonData) bool {
 	switch emitter.(type) {
 	case RemoveUnknownKeysEmitter:
-		// Copies an immutable value as is and shares or refuses the rest under its own sharedValues rules.
+		// Copies an immutable value as is; shares or refuses the rest under its sharedValues rules.
 		return true
 	case ValidateEmitter, ValidationErrorsEmitter, ValidateStrictEmitter, ValidationErrorsStrictEmitter, ValidateUnionKeysEmitter, ValidationErrorsUnionKeysEmitter:
 		// `never` compiles to a check that always fails, which is what the type asks for.

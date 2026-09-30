@@ -2,9 +2,8 @@ package reflection
 
 import "slices"
 
-// NonData is how DataOnly<T> (packages/run-types/src/runtypes/dataOnly.ts) treats one node: data it keeps, or the
-// class of non-data it strips. The emitters, their shortcut predicates, the root codes and the wire NotSupported flag
-// all read this one answer, so a kind cannot be data to one of them and stripped by another.
+// NonData is how DataOnly<T> (packages/run-types/src/runtypes/dataOnly.ts) treats a node: kept, or a stripped class.
+// Emitters, shortcut predicates, root codes and the wire NotSupported flag all read it, so none disagree on a kind.
 type NonData int
 
 const (

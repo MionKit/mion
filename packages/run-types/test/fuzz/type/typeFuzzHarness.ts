@@ -177,9 +177,7 @@ export async function compileType(client: ResolverClient, gen: GeneratedType): P
 
   let resp;
   try {
-    // The whole src/ tree rides along so the fixture preamble's `./src/...`
-    // imports (the SHIPPED format brands) resolve inside the resolver's
-    // virtual filesystem — no hand-written brand stand-ins (SRC_OVERLAY above).
+    // src/ goes along so the preamble's `./src/...` imports resolve to the SHIPPED format brands, no stand-ins.
     await client.setSources({...SRC_OVERLAY, ...MARKER_PACKAGE_OVERLAY, [FIXTURE]: source});
     resp = await client.scanFiles([FIXTURE], {includeEntryModules: true});
   } catch (err) {
@@ -203,9 +201,7 @@ export async function compileType(client: ResolverClient, gen: GeneratedType): P
     entryModuleCount: Object.keys(entryModules).length,
   };
 
-  // Evaluating the emitted modules executes the generated factory code (catches
-  // invalid-JS emit); instantiateRunTypes knots the reflection graph (catches
-  // dangling refs). Either throwing is a finding.
+  // Evaluating catches invalid-JS emit, instantiateRunTypes catches dangling refs; either throwing is a finding.
   let tuples: Record<string, readonly unknown[]>;
   try {
     tuples = evalEntryModules(entryModules);
@@ -214,9 +210,7 @@ export async function compileType(client: ResolverClient, gen: GeneratedType): P
     return {...partial, evalError: errMsg(err)};
   }
 
-  // Wire each factory independently. A non-serialisable type degrades to an
-  // alwaysThrow factory that may throw a CONTROLLED error here — captured per
-  // family rather than aborting (the runner decides if that's expected).
+  // An alwaysThrow factory may throw a controlled error here: record it per family, the runner decides if it is expected.
   const byKey = classifyFnSites(fnSites, tuples);
   const wired: WiredFns = {};
   const wireErrors: CompiledType['wireErrors'] = {};
@@ -277,14 +271,8 @@ export async function compileType(client: ResolverClient, gen: GeneratedType): P
     () => createRemoveUnknownKeysFn(undefined, undefined, tupleOf('removeUnknownKeys')) as WiredFns['removeUnknownKeys']
   );
 
-  // Mock value source — the REAL createMockDataFn driven off the reflection ENTRY
-  // TUPLE (the per-root facade, basename === the reflection site id). Passing
-  // the tuple mirrors what the plugin injects in production: createMockDataFn runs
-  // initFromTuple itself, linking the reflection runtype graph into the live
-  // rtUtils, then resolves the root by id. (The six function factories register
-  // their own demand-driven caches, not the reflection bundle, so the id alone
-  // isn't enough.) nonDataTypes:true makes the value carry the stripped members
-  // so the encoders exercise their drop / fail paths.
+  // Pass the reflection entry tuple as the plugin does: the function factories' caches never link the reflection graph.
+  // nonDataTypes:true makes the value carry the stripped members, so the encoders exercise their drop / fail paths.
   const reflectionId = reflectionSites[0]?.id;
   const reflectionTuple = reflectionId !== undefined ? tuples[reflectionId] : undefined;
   if (reflectionTuple !== undefined) {

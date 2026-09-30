@@ -447,8 +447,7 @@ func buildMergedProps(objectMembers []FlatObject, ctx *EmitContext, discValueByM
 			}
 		}
 		merged[i].HasStrippedCandidate = strippedByName[merged[i].Name]
-		// A stripped sibling means the prop is absent from one member's projection, so it can never be
-		// Required: the emit would otherwise mis-drop the `=== undefined` check.
+		// Absent from a stripped sibling's projection, so never Required, or the emit mis-drops the `=== undefined` check.
 		merged[i].Required = allPresent && !hasOptionalDecl[merged[i].Name] && !merged[i].HasStrippedCandidate
 	}
 	return merged

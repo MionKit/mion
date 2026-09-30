@@ -53,8 +53,7 @@ var corpusTriggers = []corpusTrigger{
 	{"unknown", "unknown"},
 }
 
-// `any` and `unknown` the author wrote are accepted on purpose, since third-party types carry them: at any position,
-// in any family, they may leave a note but never an error and never a throw.
+// Written `any` / `unknown` are accepted for third-party types: any position or family, a note but never an error or throw.
 var corpusAlwaysAccepted = map[string]bool{"any": true, "unknown": true}
 
 var corpusPositions = []corpusPosition{
