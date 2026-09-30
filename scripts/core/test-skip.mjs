@@ -25,9 +25,31 @@ export const stableCode = (path, code) => (GENERATED.test(path) ? code.replace(D
 const DEFAULT_STORE = join(REPO_ROOT, 'node_modules/.cache/mion/vitest-passed.json');
 export const GO_BINS = 'mion-bin';
 // Modules that reach outside the graph on purpose, and everything they reach; their builtin imports stop blocking a file.
+// A TypeScript program over run-types resolves its `source` condition into src, and its @types through the lockfile.
+const RUN_TYPES_PROGRAM = ['packages/run-types/src', 'packages/run-types/package.json', 'pnpm-lock.yaml'];
 export const DECLARED = {
   // Teardown only: it deletes the genDirs after the whole run.
   'scripts/lib/vitest-clean-gendir.ts': [],
+  // `mion enrich` over temp files typed against run-types, through the package's own tsconfig.
+  'packages/run-types/test/util/enrichGen.ts': [GO_BINS, ...RUN_TYPES_PROGRAM, 'packages/run-types/tsconfig.json', 'tsconfig.json'],
+  // `extract-fn-bodies` over a case file the test already imports.
+  'packages/run-types/test/util/enrichCases.ts': [GO_BINS],
+  'packages/run-types/test/types/compileHarness.ts': RUN_TYPES_PROGRAM,
+  'packages/run-types/test/types/builderCostHarness.ts': RUN_TYPES_PROGRAM,
+  // Reads only `ts.version`, for its report.
+  'packages/run-types/test/types/builderCost.compile.test.ts': RUN_TYPES_PROGRAM,
+  // Each reads one src file as text, and src is already declared.
+  'packages/run-types/test/types/dataonlyHarness.ts': RUN_TYPES_PROGRAM,
+  'packages/run-types/test/types/enrichHarness.ts': RUN_TYPES_PROGRAM,
+  'packages/run-types/test/types/stripMetaHarness.ts': RUN_TYPES_PROGRAM,
+  'packages/run-types/test/types/substituteSelfHarness.ts': RUN_TYPES_PROGRAM,
+  // Writes its report and reads nothing.
+  'packages/run-types/test/types/builderCostReport.ts': [],
+  'packages/devtools/src/core/resolver-client.ts': [GO_BINS],
+  // Serves on localhost only, and the server's code is already in the key of every file that talks to it.
+  'packages/platform-node/src/mionHttp.ts': [],
+  // Overlays the built run-types declarations and the Temporal fixture into temp projects it writes itself.
+  'packages/devtools/test/helpers/inline.ts': [GO_BINS, 'packages/run-types/dist', 'ts-go-runtypes/internal/testfixtures/temporal.d.ts'],
 };
 
 const sha = (...parts) => {
