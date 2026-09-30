@@ -1,5 +1,5 @@
-// Seeds the diagnostics lane (D1–D3) once failed on, replayed exactly: a symbol-keyed index signature dropped with
-// no note (1680075118), and call sites read off by a line (a non-ASCII name, 3063578975 with a U+2028 in a key).
+// Replays seeds the diagnostics lane (D1–D3) failed on: a symbol-keyed index signature dropped unnoted (1680075118),
+// and call sites read a line off (a non-ASCII name; 3063578975, a U+2028 in a key).
 
 import {describe, expect, it} from 'vitest';
 import {hasBinary} from './typeFuzzHarness.ts';
