@@ -368,10 +368,7 @@ func AssertCompositeSoftDeps(graph entrymodules.Graph, provenance map[string][]d
 			if target, ok := graph[dep]; ok && target != nil && target.Kind != entrymodules.KindMissing {
 				continue
 			}
-			_, typeID, ok := splitNamespacedHash(entry.Key)
-			if !ok {
-				typeID = entry.Key
-			}
+			typeID := entryTypeID(entry)
 			sites := provenance[ProvenanceKey(typeID, entry.FamilyTag)]
 			if len(sites) == 0 {
 				*diagSink = append(*diagSink, diagnostics.New(diagnostics.CodeCompositeMissingPrimitive, diagnostics.Site{}, entry.Key, dep, typeID))

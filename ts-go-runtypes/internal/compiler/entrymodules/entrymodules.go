@@ -21,6 +21,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/diskcache"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/jsquote"
 )
@@ -77,17 +78,11 @@ type Entry struct {
 	// it. False for every other kind.
 	IsNoop bool
 	// Throw is the root code of a KindTypeFn entry rendered as alwaysThrow; nil otherwise.
-	Throw *Finding
+	Throw *diskcache.CachedDiagnostic
 	// Findings are the diagnostics the entry's own walk produced, kept even when no call site names the entry.
-	Findings []Finding
+	Findings []diskcache.CachedDiagnostic
 	// Elided are the children the noop gate left out of the body: never imported, yet their findings still count.
 	Elided []string
-}
-
-// Finding is one build-time diagnostic of an entry, code and args only: the call site comes from whoever reaches it.
-type Finding struct {
-	Code string
-	Args []string
 }
 
 // allDeps iterates entry's hard + soft deps (callers dedup via sortedDeps).

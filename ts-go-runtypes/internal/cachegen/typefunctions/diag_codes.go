@@ -5,26 +5,11 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// rootCodeMap maps a non-data root leaf to one family's root-error code, one per reflection.NonData class.
-type rootCodeMap struct {
-	never           string
-	nonSerializable string
-	function        string
-	symbol          string
-}
+// rootCodeMap maps a non-data root leaf's reflection.NonData class to one family's root-error code.
+type rootCodeMap map[reflection.NonData]string
 
 func (m rootCodeMap) codeFor(leaf *reflection.RunType) string {
-	switch reflection.NonDataOf(leaf, nil) {
-	case reflection.NonDataNever:
-		return m.never
-	case reflection.NonDataOpaque:
-		return m.nonSerializable
-	case reflection.NonDataFunction:
-		return m.function
-	case reflection.NonDataSymbol:
-		return m.symbol
-	}
-	return ""
+	return m[reflection.NonDataOf(leaf, nil)]
 }
 
 // Per-emitter DiagCodeFor implementations, one flat slot-to-code map each, concentrated in this file so
@@ -46,10 +31,10 @@ var prepareForJsonCodes = map[DiagSlot]string{
 func (PrepareForJsonEmitter) DiagCodeFor(slot DiagSlot) string { return prepareForJsonCodes[slot] }
 
 var prepareForJsonRootCodes = rootCodeMap{
-	never:           diagnostics.CodePJNeverRoot,
-	nonSerializable: diagnostics.CodePJNonSerializableRoot,
-	function:        diagnostics.CodePJFunctionRoot,
-	symbol:          diagnostics.CodePJSymbolRoot,
+	reflection.NonDataNever:    diagnostics.CodePJNeverRoot,
+	reflection.NonDataOpaque:   diagnostics.CodePJNonSerializableRoot,
+	reflection.NonDataFunction: diagnostics.CodePJFunctionRoot,
+	reflection.NonDataSymbol:   diagnostics.CodePJSymbolRoot,
 }
 
 func (PrepareForJsonEmitter) DiagCodeForLeaf(leaf *reflection.RunType) string {
@@ -74,10 +59,10 @@ func (PrepareForJsonCloneEmitter) DiagCodeFor(slot DiagSlot) string {
 }
 
 var prepareForJsonCloneRootCodes = rootCodeMap{
-	never:           diagnostics.CodePJSNeverRoot,
-	nonSerializable: diagnostics.CodePJSNonSerializableRoot,
-	function:        diagnostics.CodePJSFunctionRoot,
-	symbol:          diagnostics.CodePJSSymbolRoot,
+	reflection.NonDataNever:    diagnostics.CodePJSNeverRoot,
+	reflection.NonDataOpaque:   diagnostics.CodePJSNonSerializableRoot,
+	reflection.NonDataFunction: diagnostics.CodePJSFunctionRoot,
+	reflection.NonDataSymbol:   diagnostics.CodePJSSymbolRoot,
 }
 
 func (PrepareForJsonCloneEmitter) DiagCodeForLeaf(leaf *reflection.RunType) string {
@@ -100,10 +85,10 @@ var restoreFromJsonCodes = map[DiagSlot]string{
 func (RestoreFromJsonEmitter) DiagCodeFor(slot DiagSlot) string { return restoreFromJsonCodes[slot] }
 
 var restoreFromJsonRootCodes = rootCodeMap{
-	never:           diagnostics.CodeRJNeverRoot,
-	nonSerializable: diagnostics.CodeRJNonSerializableRoot,
-	function:        diagnostics.CodeRJFunctionRoot,
-	symbol:          diagnostics.CodeRJSymbolRoot,
+	reflection.NonDataNever:    diagnostics.CodeRJNeverRoot,
+	reflection.NonDataOpaque:   diagnostics.CodeRJNonSerializableRoot,
+	reflection.NonDataFunction: diagnostics.CodeRJFunctionRoot,
+	reflection.NonDataSymbol:   diagnostics.CodeRJSymbolRoot,
 }
 
 func (RestoreFromJsonEmitter) DiagCodeForLeaf(leaf *reflection.RunType) string {
@@ -157,10 +142,10 @@ var validateCodes = map[DiagSlot]string{
 func (ValidateEmitter) DiagCodeFor(slot DiagSlot) string { return validateCodes[slot] }
 
 var validateRootCodes = rootCodeMap{
-	never:           "", // validate has its own never arm, "no inhabitants", so it is not unsupported
-	nonSerializable: diagnostics.CodeVLNonSerializableRoot,
-	function:        diagnostics.CodeVLFunctionRoot,
-	symbol:          diagnostics.CodeVLSymbolRoot,
+	// validate has its own never arm, "no inhabitants", so it is not unsupported
+	reflection.NonDataOpaque:   diagnostics.CodeVLNonSerializableRoot,
+	reflection.NonDataFunction: diagnostics.CodeVLFunctionRoot,
+	reflection.NonDataSymbol:   diagnostics.CodeVLSymbolRoot,
 }
 
 func (ValidateEmitter) DiagCodeForLeaf(leaf *reflection.RunType) string {
@@ -181,10 +166,9 @@ var validationErrorsCodes = map[DiagSlot]string{
 func (ValidationErrorsEmitter) DiagCodeFor(slot DiagSlot) string { return validationErrorsCodes[slot] }
 
 var validationErrorsRootCodes = rootCodeMap{
-	never:           "",
-	nonSerializable: diagnostics.CodeVENonSerializableRoot,
-	function:        diagnostics.CodeVEFunctionRoot,
-	symbol:          diagnostics.CodeVESymbolRoot,
+	reflection.NonDataOpaque:   diagnostics.CodeVENonSerializableRoot,
+	reflection.NonDataFunction: diagnostics.CodeVEFunctionRoot,
+	reflection.NonDataSymbol:   diagnostics.CodeVESymbolRoot,
 }
 
 func (ValidationErrorsEmitter) DiagCodeForLeaf(leaf *reflection.RunType) string {

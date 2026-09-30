@@ -175,8 +175,8 @@ type Walker struct {
 	diagSeen map[string]bool
 	// findings lists every distinct diagnostic of this walk, including those with no call site to report at.
 	findings []diskcache.CachedDiagnostic
-	// ElidedDependencies are the external children the noop gate left out of the body, namespaced like RTDependencies.
-	ElidedDependencies []string
+	// elidedDependencies are the external children the noop gate left out of the body, namespaced like RTDependencies.
+	elidedDependencies []string
 
 	// facts is the per-dispatch memo for the canonical-node subtree predicates; nil
 	// disables memoization (hand-constructed unit-test walkers). Shared across every
@@ -296,20 +296,10 @@ func (w *Walker) EmitDiagnostic(code string, args ...string) {
 	}
 	w.diagSeen[seenKey] = true
 	w.findings = append(w.findings, diskcache.CachedDiagnostic{Code: code, Args: append([]string(nil), args...)})
-	sites := w.diagnosticSites(code)
-	if len(sites) == 0 {
-		// A site-less Diagnostic renders with filePath="", useless to the user.
-		return
-	}
-	for _, site := range sites {
+	// Only the sites that named this type; ReportReachedFindings serves those whose function reaches the entry.
+	for _, site := range w.rootedProvenance {
 		*w.DiagSink = append(*w.DiagSink, diagnostics.New(code, site, args...))
 	}
-}
-
-// diagnosticSites returns only the sites that named this type; ReportReachedFindings serves those that reach it.
-// That pass follows the entries a function actually calls: the type graph alone reaches entries it never runs.
-func (w *Walker) diagnosticSites(string) []diagnostics.Site {
-	return w.rootedProvenance
 }
 
 // throwProvenance is the site an alwaysThrow entry names in its runtime message: the site that NAMED the
@@ -580,7 +570,10 @@ func (w *Walker) dispatch(rt *reflection.RunType, expectedCType CodeType) RTCode
 				childIsNoop := predicate.IsNoopType(rt, emitCtx)
 				w.putEmitContext(emitCtx)
 				if childIsNoop {
-					w.recordElided(w.InnerPrefix + rt.ID)
+					// Kept so the collect still renders the child and its findings reach the site.
+					if elidedID := w.InnerPrefix + rt.ID; !slices.Contains(w.elidedDependencies, elidedID) {
+						w.elidedDependencies = append(w.elidedDependencies, elidedID)
+					}
 					return RTCode{Code: "", Type: expectedCType}
 				}
 			}
@@ -602,13 +595,6 @@ func (w *Walker) dispatch(rt *reflection.RunType, expectedCType CodeType) RTCode
 	result := w.Emitter.Emit(rt, emitCtx, expectedCType)
 	w.putEmitContext(emitCtx)
 	return result
-}
-
-// recordElided keeps a child the noop gate left out, so the collect still renders it and its findings reach the site.
-func (w *Walker) recordElided(childID string) {
-	if !slices.Contains(w.ElidedDependencies, childID) {
-		w.ElidedDependencies = append(w.ElidedDependencies, childID)
-	}
 }
 
 // inlineWouldCycle reports whether id already sits on the walk stack BELOW the current frame (compileNode

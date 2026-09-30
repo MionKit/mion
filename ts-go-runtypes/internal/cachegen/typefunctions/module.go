@@ -186,12 +186,8 @@ func CollectFamilyEntries(dump protocol.Dump, settings constants.CacheModuleSett
 			SoftDeps: append(append([]string(nil), rendered.crossFamilyDeps...), rendered.pureFnDeps...),
 			IsNoop:   rendered.isNoop,
 		}
-		if rendered.throws != nil {
-			entry.Throw = &entrymodules.Finding{Code: rendered.throws.Code, Args: rendered.throws.Args}
-		}
-		for _, finding := range rendered.findings {
-			entry.Findings = append(entry.Findings, entrymodules.Finding{Code: finding.Code, Args: finding.Args})
-		}
+		entry.Throw = rendered.throws
+		entry.Findings = rendered.findings
 		entry.Elided = rendered.elided
 		graph.Add(entry)
 		// An elided child is rendered for its findings only; pruning drops it from the output again.
@@ -308,7 +304,7 @@ func ReportReachedFindings(graph entrymodules.Graph, opts RenderOpts) {
 	for _, diagnostic := range *opts.DiagSink {
 		reported[reachedThrowKey(diagnostic.Code, diagnostic.Args, diagnostic.Site)] = true
 	}
-	report := func(finding entrymodules.Finding, site diagnostics.Site) {
+	report := func(finding diskcache.CachedDiagnostic, site diagnostics.Site) {
 		reportKey := reachedThrowKey(finding.Code, finding.Args, site)
 		if !reported[reportKey] {
 			reported[reportKey] = true
@@ -330,7 +326,7 @@ func ReportReachedFindings(graph entrymodules.Graph, opts RenderOpts) {
 		throwing, adopted := reachableFindings(graph, key)
 		for _, site := range sites {
 			// A foreign throw (the validate entry a JSON union picks its member with) would name the same failure twice.
-			var own, foreign []entrymodules.Finding
+			var own, foreign []diskcache.CachedDiagnostic
 			for _, entry := range throwing {
 				if slices.Contains(opts.ProvenanceSites[entryProvenanceKey(entry)], site) {
 					own = append(own, *entry.Throw)
@@ -348,14 +344,20 @@ func ReportReachedFindings(graph entrymodules.Graph, opts RenderOpts) {
 	}
 }
 
-// entryProvenanceKey is the ProvenanceKey of a type-fn entry keyed `<fnHash>_<typeId>`.
+// entryTypeID is the type id of a type-fn entry keyed `<fnHash>_<typeId>`, or the whole key when it has no prefix.
+func entryTypeID(entry *entrymodules.Entry) string {
+	if _, typeID, ok := splitNamespacedHash(entry.Key); ok {
+		return typeID
+	}
+	return entry.Key
+}
+
 func entryProvenanceKey(entry *entrymodules.Entry) string {
-	separator := strings.IndexByte(entry.Key, '_')
-	return ProvenanceKey(entry.Key[separator+1:], entry.FamilyTag)
+	return ProvenanceKey(entryTypeID(entry), entry.FamilyTag)
 }
 
 // reachableFindings returns, in walk order, the throws and own- or adopted-family findings reachable from an entry.
-func reachableFindings(graph entrymodules.Graph, entryID string) (throwing []*entrymodules.Entry, adoptedFindings []entrymodules.Finding) {
+func reachableFindings(graph entrymodules.Graph, entryID string) (throwing []*entrymodules.Entry, adoptedFindings []diskcache.CachedDiagnostic) {
 	adopted := adoptsFindingsOf[graph[entryID].FamilyTag]
 	visited := map[string]bool{entryID: true}
 	stack := []string{entryID}
@@ -488,13 +490,6 @@ func renderEntryWithDeps(runType *reflection.RunType, settings constants.CacheMo
 		}
 	}
 
-	// The walk appends to the shared sink, so the tail from here on is exactly
-	// what THIS entry produced, which is what gets persisted for a warm build.
-	diagStart := 0
-	if opts.DiagSink != nil {
-		diagStart = len(*opts.DiagSink)
-	}
-
 	walker := NewWalker(runType, innerName, emitter)
 	walker.inlineCtx.InlineAllInternal = opts.InlineMode.AllInternal()
 	walker.RefTable = refTable
@@ -592,9 +587,9 @@ func renderEntryWithDeps(runType *reflection.RunType, settings constants.CacheMo
 		argsText := joinArgs(holeifyArgs(args))
 		if diskCacheable {
 			// A noop body emits no dep calls, so nothing is registered.
-			writeCachedEntry(runType, settings, cacheTag, innerPrefix, argsText, nil, walker.ElidedDependencies, nil, nil, true, entryDiagnostics(diagStart, walker.findings, opts), opts)
+			writeCachedEntry(runType, settings, cacheTag, innerPrefix, argsText, nil, walker.elidedDependencies, nil, nil, true, walker.findings, opts)
 		}
-		return entryRender{argsText: argsText, isNoop: true, findings: walker.findings, elided: walker.ElidedDependencies}
+		return entryRender{argsText: argsText, isNoop: true, findings: walker.findings, elided: walker.elidedDependencies}
 	}
 	createRTFn, factoryBody := WrapClosure(factoryName, walker.FnName, innerFn, walker.ContextLines())
 	// The `code` arg carries the factory BODY, the text between the
@@ -641,37 +636,9 @@ func renderEntryWithDeps(runType *reflection.RunType, settings constants.CacheMo
 	pureFnDeps := pureFnDepKeys(walker.PureFnDependencies)
 	argsText := joinArgs(args)
 	if diskCacheable {
-		writeCachedEntry(runType, settings, cacheTag, innerPrefix, argsText, deps, walker.ElidedDependencies, crossFamilyDeps, pureFnDeps, false, entryDiagnostics(diagStart, walker.findings, opts), opts)
+		writeCachedEntry(runType, settings, cacheTag, innerPrefix, argsText, deps, walker.elidedDependencies, crossFamilyDeps, pureFnDeps, false, walker.findings, opts)
 	}
-	return entryRender{argsText: argsText, deps: deps, crossFamilyDeps: crossFamilyDeps, pureFnDeps: pureFnDeps, findings: walker.findings, elided: walker.ElidedDependencies}
-}
-
-// entryDiagnostics collects this entry's sink findings plus the walker's own (unreported when no site names the entry).
-// The site is dropped on purpose: a later build re-attaches its own provenance.
-func entryDiagnostics(diagStart int, walkerFindings []diskcache.CachedDiagnostic, opts RenderOpts) []diskcache.CachedDiagnostic {
-	var emitted []diagnostics.Diagnostic
-	if opts.DiagSink != nil && len(*opts.DiagSink) > diagStart {
-		emitted = (*opts.DiagSink)[diagStart:]
-	}
-	for _, finding := range walkerFindings {
-		emitted = append(emitted, diagnostics.Diagnostic{Code: finding.Code, Args: finding.Args})
-	}
-	if len(emitted) == 0 {
-		return nil
-	}
-	// One finding can already be fanned out across several call sites; the cache
-	// wants each DISTINCT one once, and the replay re-fans it.
-	seen := make(map[string]bool, len(emitted))
-	out := make([]diskcache.CachedDiagnostic, 0, len(emitted))
-	for _, diagnostic := range emitted {
-		key := diagnostic.Code + "\x00" + strings.Join(diagnostic.Args, "\x01")
-		if seen[key] {
-			continue
-		}
-		seen[key] = true
-		out = append(out, diskcache.CachedDiagnostic{Code: diagnostic.Code, Args: append([]string(nil), diagnostic.Args...)})
-	}
-	return out
+	return entryRender{argsText: argsText, deps: deps, crossFamilyDeps: crossFamilyDeps, pureFnDeps: pureFnDeps, findings: walker.findings, elided: walker.elidedDependencies}
 }
 
 // pureFnDepKeys projects the walker's recorded deps down to the pure-fn ids the SoftDeps / disk cache carry.
@@ -758,7 +725,7 @@ func liveChildHashes(refs []diskcache.ChildRef, innerPrefix string, opts RenderO
 }
 
 // replayCachedDiagnostics re-emits persisted findings on a cache hit, or warnings would vanish from the second build on.
-// Sites come from this build, as in a fresh walk (Walker.diagnosticSites): a cached file:line may point at nothing.
+// Sites come from this build, the rooted ones as in a fresh walk: a cached file:line may point at nothing.
 func replayCachedDiagnostics(runType *reflection.RunType, familyTag string, cached []diskcache.CachedDiagnostic, opts RenderOpts) {
 	if len(cached) == 0 || opts.DiagSink == nil || runType == nil {
 		return

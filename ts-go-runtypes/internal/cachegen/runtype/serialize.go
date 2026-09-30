@@ -132,10 +132,7 @@ func (cache *Cache) putNode(id string, node *reflection.RunType) {
 
 // resolveNode follows a ref to its interned node, so PopulateFamily can see an interface's call signature.
 func (cache *Cache) resolveNode(ref *reflection.RunType) *reflection.RunType {
-	if ref == nil || ref.Kind != reflection.KindRef {
-		return ref
-	}
-	return cache.nodes[ref.ID]
+	return reflection.ResolveRef(ref, cache.nodes)
 }
 
 // NodesView returns the live id→node table for read-only ref resolution (the typefns walkers' RefTable).
