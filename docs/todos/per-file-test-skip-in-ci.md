@@ -97,3 +97,23 @@ The bar (at most 261s) is not met, so CI is not wired. Where the floor goes:
 
 - About 70s of every skip run is keying: each of the 483 files is transformed and hashed one after another before any test runs.
 - The 156 never-cached files cost 257 test-seconds. The long poles are `declarationEmit.test.ts` (43s, now correctly blocked because TypeScript reads the drizzle, core and router sources from disk), `bundleSplit.spec.ts` (30s, a vite build), `bodyDrain.spec.ts` (15s, a real uWS server) and `sfcTransform.spec.ts` (15s, a vite build).
+
+## Second trial (2026-09-30, after concurrent keying and the type-budget declarations)
+
+Same machine, same two synthetic edits, all runs back to back in one job. 149 files are never cached now.
+
+| Run | Files run | Wall time | Saved |
+|---|---|---|---|
+| Plain `vitest run` | 483 | 429s | |
+| No change | 149 | 219s | 49% |
+| JS-only (router.ts edit) | 215 | 296s | 31% |
+| Go-only (module.go edit) | 182 | 264s | 38% |
+
+The plain baseline is noisy on this machine: 392s, 318s and 429s in three runs of the same tree.
+
+Keying alone, serial against concurrent (identical keys in all four runs):
+
+| CPUs | One file at a time | 16 at a time |
+|---|---|---|
+| 4 (what CI's public `ubuntu-latest` runner has) | 45s | 37s |
+| 2 (`taskset -c 0,1`) | 57s | 51s |
