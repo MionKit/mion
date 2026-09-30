@@ -1,10 +1,12 @@
 import {createMionRouter, Routes} from '@mionjs/router';
-import {mionSyncRoutes} from '@mionjs/router/middlewares';
+import {mionMethodsMetadata, mionSyncRoutes} from '@mionjs/router/middlewares';
 
 const mion = createMionRouter();
 
 const routes = {
-  // first, so a stopped call runs nothing else
+  // only if you use it, and always first
+  mionMethodsMetadata,
+  // before your own middleware and routes, so a stopped call runs nothing else
   mionSyncRoutes,
   sayHello: mion.route((ctx, name: string): string => `Hello ${name}`),
 } satisfies Routes;
