@@ -7,7 +7,7 @@ import {capture, die, note, reportCliError} from '../lib/proc.mjs';
 const MARKER = 'mion-lane-green-';
 // Newest entries kept per family on main; a run that needs an older one rebuilds it.
 // No release-bins family: those are saved from pull requests alone.
-export const KEEP_ON_MAIN = {'mion-go-bins-': 20};
+export const KEEP_ON_MAIN = {'mion-go-bins-': 20, 'mion-vitest-passed-': 3};
 const MAIN = 'refs/heads/main';
 
 export function planDeletions(caches, {closedRef} = {}) {

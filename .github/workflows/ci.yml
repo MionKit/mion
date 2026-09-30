@@ -291,8 +291,16 @@ jobs:
       # need different module resolution, so they are separate programs.
       - name: Typecheck the mion examples
         run: pnpm run check-types-examples
+      # The list of test files already passed at their exact inputs; a pull request restores its own newest, else main's.
+      - name: Restore the passed test list
+        uses: actions/cache/restore@v4
+        with:
+          path: node_modules/.cache/mion/vitest-passed.json
+          key: mion-vitest-passed-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: mion-vitest-passed-
       # On a pull request HEAD is GitHub's merge commit, so HEAD^1 is the base tip test-pr diffs against.
       # Its js-pr marker is accepted on pull requests only, so main still runs the full suite after the merge.
+      # The full run is the audit: it runs every file and fails when one the passed list would have skipped fails.
       # build-gate.test.ts builds with Go, so it runs in go-fuzz; the two stay a disjoint partition.
       # An --exclude glob matches paths relative to each project's root, so it must not name the package dir.
       - name: JS suite (everything except test/fuzz)
@@ -300,11 +308,18 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = pull_request ] && git rev-parse -q --verify HEAD^2 >/dev/null; then
             echo "scope=partial" >> "$GITHUB_OUTPUT"
-            pnpm miondevx core test-pr --base HEAD^1 --exclude '**/test/fuzz/**' --exclude '**/build-gate.test.ts'
+            pnpm miondevx core test-pr --base HEAD^1 --skip-passed --exclude '**/test/fuzz/**' --exclude '**/build-gate.test.ts'
           else
             echo "scope=full" >> "$GITHUB_OUTPUT"
-            pnpm test --exclude '**/test/fuzz/**' --exclude '**/build-gate.test.ts'
+            pnpm miondevx core test-skip --audit --exclude '**/test/fuzz/**' --exclude '**/build-gate.test.ts'
           fi
+      # Only passes are ever recorded, so a partly failed suite still saves what it proved.
+      - name: Save the passed test list
+        if: always() && steps.suite.outcome != 'skipped'
+        uses: actions/cache/save@v4
+        with:
+          path: node_modules/.cache/mion/vitest-passed.json
+          key: mion-vitest-passed-${{ github.run_id }}-${{ github.run_attempt }}
       # platform-bun's suites are bun:test, so they cannot join the vitest
       # projects above and need their own step. Without this the whole bun
       # injection lane is unverified.

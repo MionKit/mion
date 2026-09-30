@@ -113,6 +113,7 @@ export const AREAS = {
           ['--exclude <glob>', 'leave files out (repeatable)'],
           ['--store <file>', 'the passed list (default node_modules/.cache/mion/vitest-passed.json)'],
           ['--keys <file>', 'write every file key and why a file never caches, run nothing (debugging)'],
+          ['--audit', 'run every file, and fail when one the passed list would have skipped fails (CI on main)'],
         ],
       },
       {
