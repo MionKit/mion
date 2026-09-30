@@ -10,13 +10,12 @@ const ALWAYS_THROW_CODE = /^(?:(?:VL|VE|PJ|PJS|RJ)00\d|RUK00[1456]|TFN001)$/;
 /** The notes a family leaves when it drops a member DataOnly strips. **/
 const DROP_NOTE_CODE = /^(?:(?:VL|VE|PJ|PJS|RJ|RUK)01\d|UPN001)$/;
 
-/** How a call ended: the controlled code it threw, or the message of an error with no code (a bug). **/
+/** An error with no code is a bug: no diagnostic can name it. **/
 export interface ThrowOutcome {
   thrownCode?: string;
   uncontrolledError?: string;
 }
 
-/** One compiled function: its call site's reported codes and how its call ended. **/
 export interface FnOutcome extends ThrowOutcome {
   key: keyof WiredFns;
   codesAtSite: ReadonlySet<string>;

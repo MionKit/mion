@@ -159,7 +159,6 @@ func corpusCodes(response protocol.Response, file string) []string {
 	return sortedKeys(seen)
 }
 
-// siteCodes scans site.ts alone and returns the codes reported there.
 func siteCodes(t *testing.T, sources map[string]string, allInternal bool) []string {
 	t.Helper()
 	setup := setupInline
@@ -174,7 +173,7 @@ func siteCodes(t *testing.T, sources map[string]string, allInternal bool) []stri
 }
 
 // TestNestedDiagCorpus puts every trigger at every position, inline and named, under every family and inline mode.
-// A throw is reported, a reported throw ships, inline, named and both call shapes agree, non-data never drops silently, build equals scan.
+// Throws and reports match both ways, inline, named and both call shapes agree, no silent non-data drop, build equals scan.
 func TestNestedDiagCorpus(t *testing.T) {
 	for _, trigger := range corpusTriggers {
 		t.Run(trigger.name, func(t *testing.T) {
@@ -372,8 +371,7 @@ func TestNestedDiagCorpus_CoversEveryNonDataKind(t *testing.T) {
 	}
 }
 
-// The grid wraps every position in `{w: …}`, so a written any or unknown as the call's own type is checked here:
-// every family accepts it with at most an Info, and the validators say so with their root Info.
+// The grid wraps every position in `{w: …}`, so only this test puts a written any or unknown at the call's root.
 func TestNestedDiagCorpus_WrittenAnyAtRoot(t *testing.T) {
 	rootInfo := map[string]string{"validate": diagnostics.CodeVLRootAnyUnknown, "validationErrors": diagnostics.CodeVERootAnyUnknown}
 	sources := map[string]string{"shared.ts": corpusShared}

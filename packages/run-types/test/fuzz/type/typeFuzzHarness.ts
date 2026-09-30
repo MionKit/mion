@@ -90,7 +90,7 @@ export type WiredFns = Partial<
 type FnKey = Exclude<keyof WiredFns, 'mock'>;
 type FnFactory = (value: undefined, options: undefined, tuple: never) => unknown;
 
-/** Each entry-tuple tag, the function it builds and the factory that wires it from the tuple. **/
+/** Entry-tuple tag to the function it builds and its factory. **/
 const WIRED_BY_TAG: Partial<Record<string, [FnKey, FnFactory]>> = {
   val: ['validate', createValidateFn as FnFactory],
   verr: ['getValidationErrors', createGetValidationErrorsFn as FnFactory],

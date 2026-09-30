@@ -5,7 +5,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// rootCodeMap maps a non-data root leaf's reflection.NonData class to one family's root-error code.
+// rootCodeMap is one family's root-error code per non-data class.
 type rootCodeMap map[reflection.NonData]string
 
 func (m rootCodeMap) codeFor(leaf *reflection.RunType) string {
@@ -142,7 +142,7 @@ var validateCodes = map[DiagSlot]string{
 func (ValidateEmitter) DiagCodeFor(slot DiagSlot) string { return validateCodes[slot] }
 
 var validateRootCodes = rootCodeMap{
-	// validate has its own never arm, "no inhabitants", so it is not unsupported
+	// No NonDataNever: validate has its own never arm ("no inhabitants").
 	reflection.NonDataOpaque:   diagnostics.CodeVLNonSerializableRoot,
 	reflection.NonDataFunction: diagnostics.CodeVLFunctionRoot,
 	reflection.NonDataSymbol:   diagnostics.CodeVLSymbolRoot,
