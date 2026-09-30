@@ -374,3 +374,15 @@ func TestUnionMemberMethodDropped_Value(t *testing.T) {
 	assertNestedThrow(t, diagnostics.CodePJSMethodDropped, `declare const value: {u: {m(): void; a: string} | string};
 export const encode = createJsonEncoderFn(value);`)
 }
+
+// A named class is its own union arm; only an unnamed one is merged, which is where its statics drop.
+func TestUnionMemberStaticDropped_Static(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodePJSStaticDropped, `const Anon = class { static s = 1; a = ''; };
+export const encode = createJsonEncoderFn<{u: InstanceType<typeof Anon> | string}>();`)
+}
+
+func TestUnionMemberStaticDropped_Value(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodePJSStaticDropped, `const Anon = class { static s = 1; a = ''; };
+declare const value: {u: InstanceType<typeof Anon> | string};
+export const encode = createJsonEncoderFn(value);`)
+}
