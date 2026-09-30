@@ -31,9 +31,9 @@ were taken and why.
 - `ReportReachedFindings` (typefunctions/module.go) is the one place findings travel from an entry to the sites whose
   function calls it; a walk reports only at sites that named its type. `adoptsFindingsOf` lets the validationErrors
   families take validate's findings. Children the noop gate skips are rendered for findings only (`recordElided`,
-  cache `ElidedRefs`, disk format v19).
+  cache `ElidedRefs`, disk format v20).
 - The fuzz lane (`packages/run-types/test/fuzz/type/`, `diagOracle.ts`) wires nine functions per random type and
-  checks D1 (a `[CODE]` throw is reported at its site), D2 (a reported always-throw really throws), D3 (a member a
+  checks D1 (every throw is a `[CODE]` reported at its site), D2 (a reported always-throw really throws), D3 (a member a
   round trip dropped left a note). `diagnosticTruth.smoke.test.ts` replays the seeds it failed on.
 - `TFN001` is the internal code for a failing kind with no root code (was a silent identity fallback).
 
