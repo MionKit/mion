@@ -21,6 +21,7 @@ export const DEFAULT_ROUTE_OPTIONS = {
   releaseRawBody: true,
   globalResponseHeaders: {},
   apiVersionCheck: true,
+  getAllRemoteMethodsMaxNumber: 100,
 } as Readonly<RouterOptions>;
 
 export const MAX_ROUTE_NESTING = 10;
