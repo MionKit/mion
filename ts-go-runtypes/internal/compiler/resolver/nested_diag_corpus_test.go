@@ -357,3 +357,43 @@ func TestNestedDiagCorpus_CoversEveryNonDataKind(t *testing.T) {
 		}
 	}
 }
+
+// The grid wraps every position in `{w: …}`, so a written any or unknown as the call's own type is checked here:
+// every family accepts it with at most an Info, and the validators say so with their root Info.
+func TestNestedDiagCorpus_WrittenAnyAtRoot(t *testing.T) {
+	rootInfo := map[string]string{"validate": diagnostics.CodeVLRootAnyUnknown, "validationErrors": diagnostics.CodeVERootAnyUnknown}
+	sources := map[string]string{"shared.ts": corpusShared}
+	var files []string
+	familyOf := map[string]corpusFamily{}
+	for _, trigger := range sortedKeys(corpusAlwaysAccepted) {
+		for _, family := range corpusFamilies {
+			for _, shape := range []string{"static", "value"} {
+				file := trigger + "__" + family.name + "__" + shape + ".ts"
+				sources[file] = corpusSite(family, "", trigger, shape == "value")
+				files = append(files, file)
+				familyOf[file] = family
+			}
+		}
+	}
+	session := setupInline(t, sources)
+	for _, file := range files {
+		response := session.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{file}, IncludeEntryModules: true})
+		if response.Error != "" {
+			t.Fatalf("%s: scanFiles: %s", file, response.Error)
+		}
+		codes := corpusCodes(response, file)
+		for _, code := range codes {
+			if level := diagnostics.Definitions[code].Level; level != diagnostics.LevelInfo {
+				t.Errorf("%s:\n%s\nreports %s, but a written any or unknown is at most an Info", file, sources[file], code)
+			}
+		}
+		for _, source := range response.EntryModules {
+			if match := alwaysThrowCode.FindStringSubmatch(source); match != nil {
+				t.Errorf("%s:\n%s\nships a function that throws %s", file, sources[file], match[1])
+			}
+		}
+		if info, ok := rootInfo[familyOf[file].name]; ok && !slices.Contains(codes, info) {
+			t.Errorf("%s: expected the root Info %s, got %v", file, info, codes)
+		}
+	}
+}
