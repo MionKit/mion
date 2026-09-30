@@ -11,8 +11,6 @@ import type {ErrorHandler, RequestHandler, ResponseHandler, SubRequest} from '..
 export interface RequestHandlerEntry {
   handler: RequestHandler<any>;
   createSubRequest: (params: any[]) => SubRequest<any>;
-  /** the installer that set it, like `useSyncRoutes` */
-  owner?: string;
 }
 
 /** Central registry for persistent middleware handlers: request, response and error */
@@ -78,17 +76,7 @@ export class HandlersRegistry {
     handler: RequestHandler<any>,
     createSubRequest: RequestHandlerEntry['createSubRequest']
   ): void {
-    const owner = this.requestHandlers.get(handlerId)?.owner;
-    // replacing an installer's hook would silently break it
-    if (owner)
-      throw new Error(`Middleware '${handlerId}' gets its onRequest from ${owner}, call offRequest() first to replace it`);
     this.requestHandlers.set(handlerId, {handler, createSubRequest});
-  }
-
-  /** A later onRequest then throws instead of replacing the installer's hook */
-  setRequestOwner(handlerId: string, owner: string): void {
-    const entry = this.requestHandlers.get(handlerId);
-    if (entry) entry.owner = owner;
   }
 
   unregisterRequest(handlerId: string): void {

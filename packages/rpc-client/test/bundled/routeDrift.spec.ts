@@ -240,13 +240,5 @@ describe('a client built against routes the server has since changed', () => {
       expect(relearned.fetches).toBe(3);
       expect(banners).toEqual([['stored']]);
     });
-
-    it('refuses a second onRequest on the route sync middleware until offRequest removes the built-in one', () => {
-      const {middlewares} = reloadClient();
-      expect(() => middlewares.mionSyncRoutes.onRequest((call) => call([]))).toThrow(
-        "Middleware 'mionSyncRoutes' gets its onRequest from useSyncRoutes, call offRequest() first to replace it"
-      );
-      expect(() => middlewares.mionSyncRoutes.offRequest().onRequest((call) => call([]))).not.toThrow();
-    });
   });
 });

@@ -66,15 +66,12 @@ proving `useSyncRoutes` still recovers a changed fetched route while a user hand
   already recorded the middleware id once, so no change was needed there.
 - `offError(type, handler)` and `offResponse(handler)` take the handler and remove only it. The handler-less
   forms are gone: the handler is a required argument.
-- `onRequest` stays single and replaceable (the existing "replace the onRequest hook" tests and use still
-  work). An installer can mark its `onRequest` as owned (`HandlersRegistry.setRequestOwner`); `useSyncRoutes`
-  does, so a second `onRequest` on `mionSyncRoutes` throws until `offRequest()` removes the built-in one.
-  `useMethodsMetadata` sets no `onRequest`, so it needed nothing.
+- `onRequest` stays single and a second one replaces the first, as before. The maintainer chose not to
+  special-case the middlewares an installer owns: registering hooks correctly is up to the app.
 - Tests: `test/isolatedMiddleware.spec.ts` (an app handler next to an installer's, two retries resend once,
   a throw does not stop the rest, every `onResponse` runs, `offError` removes only its own),
   `test/bundled/routeDrift.spec.ts` (a changed fetched route still recovers while an app
-  `route-types-mismatch` handler also runs; the owned `onRequest` throws). The recovery test fails on the
-  old code.
+  `route-types-mismatch` handler also runs). The recovery test fails on the old code.
 - Docs: the hook table and a tip in `01.rpc/03.client/00.client-overview.md`, and a tip under "Handling a
   Stopped Call" in `01.rpc/03.client/06.route-sync.md`. The `02.mion-sync-routes.md` page named above is not
   on `main` yet, so its `::warning` is left for the branch that adds it.
