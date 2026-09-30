@@ -1,30 +1,38 @@
-// Diagnostics match what each compiled function does. D1: a controlled `[CODE]` throw (on create or call) is reported
-// at its call site; D2: a reported always-throw code means the function throws; D3: a round-trip drop has a drop note.
+// Diagnostics match what each compiled function does. D1: every throw (on create or call) is a `[CODE]` reported at
+// its call site; D2: a reported always-throw code means the function throws; D3: a round-trip drop has a drop note.
 
 import type {Violation} from '../value/fuzzOracle.ts';
 import {snapshot} from '../value/fuzzOracle.ts';
+import type {WiredFns} from './typeFuzzHarness.ts';
 
 /** The codes an alwaysThrow entry carries (internal/diagnostics/codes_runtype.go). **/
-export const ALWAYS_THROW_CODE = /^(?:(?:VL|VE|PJ|PJS|RJ)00\d|RUK00[1456]|TFN001)$/;
+const ALWAYS_THROW_CODE = /^(?:(?:VL|VE|PJ|PJS|RJ)00\d|RUK00[1456]|TFN001)$/;
 /** The notes a family leaves when it drops a member DataOnly strips. **/
-export const DROP_NOTE_CODE = /^(?:(?:VL|VE|PJ|PJS|RJ|RUK)01\d|UPN001)$/;
+const DROP_NOTE_CODE = /^(?:(?:VL|VE|PJ|PJS|RJ|RUK)01\d|UPN001)$/;
 
-/** One compiled function: its call site's reported codes and the controlled code it threw, if any. **/
-export interface FnOutcome {
-  key: string;
-  codesAtSite: ReadonlySet<string>;
+/** How a call ended: the controlled code it threw, or the message of an error with no code (a bug). **/
+export interface ThrowOutcome {
   thrownCode?: string;
+  uncontrolledError?: string;
 }
 
-export interface DiagContext {
-  target: string;
-  seed: number;
-  source: string;
+/** One compiled function: its call site's reported codes and how its call ended. **/
+export interface FnOutcome extends ThrowOutcome {
+  key: keyof WiredFns;
+  codesAtSite: ReadonlySet<string>;
 }
+
+export type DiagContext = Pick<Violation, 'target' | 'seed'> & {source: string};
 
 /** The `[CODE]` a controlled alwaysThrow message opens with. **/
 export function controlledCode(message: string): string | undefined {
   return /^\[([A-Z][A-Z0-9]*)\]/.exec(message)?.[1];
+}
+
+export function classifyThrow(err: unknown): ThrowOutcome {
+  const message = err instanceof Error ? err.message : String(err);
+  const code = controlledCode(message);
+  return code ? {thrownCode: code} : {uncontrolledError: message};
 }
 
 function violation(oracle: 'D1' | 'D2' | 'D3', message: string, ctx: DiagContext): Violation {
@@ -32,6 +40,12 @@ function violation(oracle: 'D1' | 'D2' | 'D3', message: string, ctx: DiagContext
 }
 
 export function checkThrowReported(outcome: FnOutcome, ctx: DiagContext): Violation | null {
+  if (outcome.uncontrolledError !== undefined)
+    return violation(
+      'D1',
+      `${outcome.key} threw an error with no code, so no diagnostic can name it: ${outcome.uncontrolledError}`,
+      ctx
+    );
   if (!outcome.thrownCode || outcome.codesAtSite.has(outcome.thrownCode)) return null;
   return violation(
     'D1',
@@ -46,7 +60,12 @@ export function checkReportedThrows(outcome: FnOutcome, ctx: DiagContext): Viola
   return violation('D2', `${outcome.key}'s call site reports ${reported.join(', ')} but the function runs without throwing`, ctx);
 }
 
-export function checkDropNoted(key: string, dropped: string[], codes: ReadonlySet<string>, ctx: DiagContext): Violation | null {
+export function checkDropNoted(
+  key: keyof WiredFns,
+  dropped: string[],
+  codes: ReadonlySet<string>,
+  ctx: DiagContext
+): Violation | null {
   if (dropped.length === 0 || [...codes].some((code) => DROP_NOTE_CODE.test(code))) return null;
   return violation(
     'D3',
@@ -61,11 +80,20 @@ export function droppedPaths(input: unknown, output: unknown, nullMayVanish = fa
   if (input === null || typeof input !== 'object' || output === null || typeof output !== 'object') return [];
   if (input instanceof Map && output instanceof Map) {
     const dropped: string[] = [];
-    for (const [key, value] of input) {
-      if (output.has(key)) dropped.push(...droppedPaths(value, output.get(key), nullMayVanish, `${path}.get(${String(key)})`));
-    }
+    const outEntries = [...output];
+    [...input].forEach(([key, value], index) => {
+      const label = `${path}.get(${String(key)})`;
+      if (output.has(key)) dropped.push(...droppedPaths(value, output.get(key), nullMayVanish, label));
+      // A decoded object key is a new object, so pair it by position.
+      else if (typeof key === 'object' && key !== null && index < outEntries.length) {
+        const [outKey, outValue] = outEntries[index];
+        dropped.push(...droppedPaths(key, outKey, nullMayVanish, `${path}.keys()[${index}]`));
+        dropped.push(...droppedPaths(value, outValue, nullMayVanish, label));
+      }
+    });
     return dropped;
   }
+  if (input instanceof Set && output instanceof Set) return droppedPaths([...input], [...output], nullMayVanish, path);
   if (Array.isArray(input) && Array.isArray(output)) {
     return input.flatMap((item, index) =>
       index < output.length ? droppedPaths(item, output[index], nullMayVanish, `${path}[${index}]`) : []
@@ -87,12 +115,18 @@ export function droppedPaths(input: unknown, output: unknown, nullMayVanish = fa
 
 /** Copies containers but keeps leaves by reference, so an in-place encoder cannot change what droppedPaths compares. **/
 export function copyTree(value: unknown, seen = new WeakMap<object, unknown>()): unknown {
-  if (value === null || typeof value !== 'object' || value instanceof Date || value instanceof Set) return value;
+  if (value === null || typeof value !== 'object' || value instanceof Date) return value;
   if (seen.has(value)) return seen.get(value);
   if (value instanceof Map) {
     const copy = new Map();
     seen.set(value, copy);
-    for (const [key, item] of value) copy.set(key, copyTree(item, seen));
+    for (const [key, item] of value) copy.set(copyTree(key, seen), copyTree(item, seen));
+    return copy;
+  }
+  if (value instanceof Set) {
+    const copy = new Set();
+    seen.set(value, copy);
+    for (const item of value) copy.add(copyTree(item, seen));
     return copy;
   }
   if (Array.isArray(value)) {

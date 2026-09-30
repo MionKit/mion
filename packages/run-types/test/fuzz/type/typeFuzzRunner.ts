@@ -26,13 +26,22 @@ import {runFuzzLoop} from '../core/runLoop.ts';
 import {type CrashRecord} from '../core/crashGuard.ts';
 import {genType, describeType, isRecursive, DEFAULT_GEN_OPTIONS, type GeneratedType, type GenOptions} from '../core/typeGen.ts';
 import {genValidValue, validValue, corruptValue, valueOracleSafe} from '../value/shapeValue.ts';
-import {compileType, openClient, renderFixture, type CompiledType, type WiredFns} from './typeFuzzHarness.ts';
+import {compileType, openClient, renderFixture, FN_KEYS, type CompiledType, type WiredFns} from './typeFuzzHarness.ts';
 import {isValidTypeScript} from './tsValidate.ts';
 import {randomJunk} from '../value/fuzzRunner.ts';
 import type {ResolverClient} from '../../../../devtools/src/core/resolver-client.ts';
 import type {RunType} from '../../../src/runtypes/types.ts';
 import {compactNullRisk} from '../roundtrip/roundtripOracle.ts';
-import {checkDropNoted, checkReportedThrows, checkThrowReported, controlledCode, copyTree, droppedPaths} from './diagOracle.ts';
+import {
+  checkDropNoted,
+  checkReportedThrows,
+  checkThrowReported,
+  classifyThrow,
+  controlledCode,
+  copyTree,
+  droppedPaths,
+  type ThrowOutcome,
+} from './diagOracle.ts';
 import {
   checkCrossWire,
   checkErrorsAgree,
@@ -50,19 +59,8 @@ import {
  *  (`createMockDataFn` with nonDataTypes on, the DataOnly non-data lane). **/
 export type ValueSource = 'shape' | 'mock';
 
-const EXPECTED_FN_SITES = 9;
+const EXPECTED_FN_SITES = FN_KEYS.length;
 const EXPECTED_REFLECTION_SITES = 1;
-const FN_KEYS: (keyof WiredFns)[] = [
-  'validate',
-  'getValidationErrors',
-  'jsonEncode',
-  'jsonDecode',
-  'compactEncode',
-  'compactDecode',
-  'mutateEncode',
-  'mutateDecode',
-  'removeUnknownKeys',
-];
 
 export interface TypeFuzzOptions {
   seed?: number;
@@ -539,18 +537,20 @@ function codesAtSite(compiled: CompiledType, key: keyof WiredFns): Set<string> {
   );
 }
 
-// A controlled throw from building the function or from running it once on `value`.
-function thrownCode(compiled: CompiledType, key: keyof WiredFns, value: unknown, hasValue: boolean): string | undefined {
+// How building the function, or running it once on `value`, ended. TR4 already reports a wire error with no code.
+function runOnce(compiled: CompiledType, key: keyof WiredFns, value: unknown, hasValue: boolean): ThrowOutcome {
   const wireError = compiled.wireErrors[key];
-  if (wireError) return controlledCode(wireError);
+  if (wireError) return {thrownCode: controlledCode(wireError)};
   const fn = compiled.wired[key] as ((input: unknown) => unknown) | undefined;
-  if (!fn || !hasValue) return undefined;
+  if (!fn || !hasValue) return {};
   try {
     fn(copyTree(value));
   } catch (err) {
-    return err instanceof Error ? controlledCode(err.message) : undefined;
+    const outcome = classifyThrow(err);
+    // A decoder given the raw value instead of wire data may fail anyhow; the round trip checks it on real data.
+    return DECODE_KEYS.has(key) ? {thrownCode: outcome.thrownCode} : outcome;
   }
-  return undefined;
+  return {};
 }
 
 const ROUND_TRIPS: [keyof WiredFns, keyof WiredFns | undefined][] = [
@@ -559,6 +559,7 @@ const ROUND_TRIPS: [keyof WiredFns, keyof WiredFns | undefined][] = [
   ['mutateEncode', 'mutateDecode'],
   ['removeUnknownKeys', undefined],
 ];
+const DECODE_KEYS = new Set(ROUND_TRIPS.map(([, decodeKey]) => decodeKey));
 
 function checkDiagnosticTruth(compiled: CompiledType, seed: number, out: Violation[]): void {
   if (compiled.resolverError || compiled.evalError || isRecursive(compiled.gen)) return;
@@ -573,21 +574,25 @@ function checkDiagnosticTruth(compiled: CompiledType, seed: number, out: Violati
   }
   for (const key of FN_KEYS) {
     if (compiled.siteLines[key] === undefined) continue;
-    const outcome = {key, codesAtSite: codesAtSite(compiled, key), thrownCode: thrownCode(compiled, key, value, hasValue)};
+    const outcome = {key, codesAtSite: codesAtSite(compiled, key), ...runOnce(compiled, key, value, hasValue)};
     push(out, checkThrowReported(outcome, ctx));
     push(out, checkReportedThrows(outcome, ctx));
   }
   if (!hasValue) return;
-  for (const [encodeKey, decodeKey] of ROUND_TRIPS) {
-    const encode = compiled.wired[encodeKey] as ((input: unknown) => unknown) | undefined;
-    const decode = decodeKey ? (compiled.wired[decodeKey] as ((input: unknown) => unknown) | undefined) : (x: unknown) => x;
-    if (!encode || !decode) continue;
+  roundTrips: for (const [encodeKey, decodeKey] of ROUND_TRIPS) {
+    const steps = decodeKey ? [encodeKey, decodeKey] : [encodeKey];
     const input = copyTree(value);
-    let output: unknown;
-    try {
-      output = decode(encode(copyTree(value)));
-    } catch {
-      continue; // a throw is D1's business
+    let output = copyTree(value);
+    for (const stepKey of steps) {
+      const step = compiled.wired[stepKey] as ((input: unknown) => unknown) | undefined;
+      if (!step) continue roundTrips;
+      try {
+        output = step(output);
+      } catch (err) {
+        // A decoder runs on real wire data only here, so this is D1's one look at it.
+        push(out, checkThrowReported({key: stepKey, codesAtSite: codesAtSite(compiled, stepKey), ...classifyThrow(err)}, ctx));
+        continue roundTrips;
+      }
     }
     const codes = new Set([...codesAtSite(compiled, encodeKey), ...(decodeKey ? codesAtSite(compiled, decodeKey) : [])]);
     push(out, checkDropNoted(encodeKey, droppedPaths(input, output, encodeKey === 'compactEncode'), codes, ctx));

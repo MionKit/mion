@@ -1,7 +1,14 @@
 // Negative controls for D1–D3: each rule fires on a broken outcome and stays quiet on a sound one.
 
 import {describe, expect, it} from 'vitest';
-import {checkDropNoted, checkReportedThrows, checkThrowReported, controlledCode, droppedPaths} from './diagOracle.ts';
+import {
+  checkDropNoted,
+  checkReportedThrows,
+  checkThrowReported,
+  classifyThrow,
+  controlledCode,
+  droppedPaths,
+} from './diagOracle.ts';
 
 const ctx = {target: 'T', seed: 1, source: 'type T = …'};
 
@@ -10,6 +17,13 @@ describe('diagOracle', () => {
     expect(checkThrowReported({key: 'validate', codesAtSite: new Set(), thrownCode: 'VL002'}, ctx)?.oracle).toBe('D1');
     expect(checkThrowReported({key: 'validate', codesAtSite: new Set(['VL002']), thrownCode: 'VL002'}, ctx)).toBeNull();
     expect(checkThrowReported({key: 'validate', codesAtSite: new Set()}, ctx)).toBeNull();
+  });
+
+  it('D1 fires on an error with no code, which no diagnostic can name', () => {
+    const crash = classifyThrow(new TypeError('x is not a function'));
+    expect(crash).toEqual({uncontrolledError: 'x is not a function'});
+    expect(checkThrowReported({key: 'mutateDecode', codesAtSite: new Set(['RJ010']), ...crash}, ctx)?.oracle).toBe('D1');
+    expect(classifyThrow(new Error('[RJ002] never decoded'))).toEqual({thrownCode: 'RJ002'});
   });
 
   it('D2 fires on a reported always-throw code the function never threw', () => {
@@ -35,6 +49,14 @@ describe('diagOracle', () => {
     const output = {a: 1, nested: [{b: 'x'}]};
     expect(droppedPaths(input, output).sort()).toEqual(['$.[tag]', '$.f', '$.nested[0].g']);
     expect(droppedPaths({a: 1}, {a: 1})).toEqual([]);
+  });
+
+  it('looks inside Set elements and pairs object Map keys by position', () => {
+    expect(droppedPaths(new Set([{a: 1, f: () => 1}]), new Set([{a: 1}]))).toEqual(['$[0].f']);
+    const key = {id: 'k', f: () => 1};
+    const input = new Map([[key, {v: 1, g: () => 2}]]);
+    const output = new Map([[{id: 'k'}, {v: 1}]]);
+    expect(droppedPaths(input, output).sort()).toEqual(['$.get([object Object]).g', '$.keys()[0].f']);
   });
 
   it('lets a null member vanish only where compact cannot tell it from absent', () => {

@@ -249,8 +249,9 @@ DataOnly lane) run only on the serialisable subset — the tier is chosen from t
 resolver's own diagnostics, not guessed at generation time.
 
 The DataOnly lane also holds the diagnostics to what each of the nine compiled
-functions does when it runs (`diagOracle.ts`), per call site: **D1** a function
-that throws a `[CODE]` error has that code at its call site, **D2** a call site
+functions does when it runs (`diagOracle.ts`), per call site: **D1** every error
+a function throws, on the mock value or mid round trip, is a `[CODE]` its call
+site reports (a crash with no code always fails), **D2** a call site
 reporting an always-throw code has a function that throws, **D3** a member an
 encode / decode round trip (or `removeUnknownKeys`) dropped has a drop note.
 
