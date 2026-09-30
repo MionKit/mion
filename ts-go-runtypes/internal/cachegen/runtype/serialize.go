@@ -125,9 +125,17 @@ func (cache *Cache) Size() int { return len(cache.nodes) }
 
 // putNode stamps the derived Family / NotSupported fields once (entries are immutable after intern) and registers the node.
 func (cache *Cache) putNode(id string, node *reflection.RunType) {
-	reflection.PopulateFamily(node)
+	reflection.PopulateFamily(node, cache.resolveNode)
 	cache.nodes[id] = node
 	cache.insertOrder = append(cache.insertOrder, id)
+}
+
+// resolveNode follows a ref to its interned node, so PopulateFamily can see an interface's call signature.
+func (cache *Cache) resolveNode(ref *reflection.RunType) *reflection.RunType {
+	if ref == nil || ref.Kind != reflection.KindRef {
+		return ref
+	}
+	return cache.nodes[ref.ID]
 }
 
 // NodesView returns the live id→node table for read-only ref resolution (the typefns walkers' RefTable).
@@ -247,7 +255,7 @@ func (cache *Cache) serializeSyntheticUnion(members []*checker.Type) *reflection
 	}
 	cache.finalizeUnion(node)
 	// Re-stamp Family/NotSupported: the reserve above stamped a childless node.
-	reflection.PopulateFamily(node)
+	reflection.PopulateFamily(node, cache.resolveNode)
 	cache.nodes[id] = node
 	return reflection.NewRef(id)
 }
@@ -517,7 +525,7 @@ func (cache *Cache) assignID(tsType *checker.Type) string {
 		cache.stampOverrides(node, tsType)
 	}
 	// Replace the placeholder in place: insertOrder already holds id.
-	reflection.PopulateFamily(node)
+	reflection.PopulateFamily(node, cache.resolveNode)
 	cache.nodes[id] = node
 	return id
 }

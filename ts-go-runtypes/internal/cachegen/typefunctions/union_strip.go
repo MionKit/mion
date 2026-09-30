@@ -12,33 +12,22 @@ import (
 // member is stripped the projection is `never`, and dataOnlyUnionMembers returns the ORIGINAL list so the
 // emitter still reaches a CodeNS leaf and renders the alwaysThrow factory: one fallback, no per-emitter change.
 
-// isStrippedUnionMember reports whether a resolved union member is one DataOnly projects to `never`.
-// Mirrors the DataOnlyStripped set in packages/run-types/src/runtypes/dataOnly.ts.
-func isStrippedUnionMember(resolved *reflection.RunType, ctx *EmitContext) bool {
-	if resolved == nil {
-		return false
+// nonDataOf is reflection.NonDataOf with the walk's own ref resolution.
+func nonDataOf(resolved *reflection.RunType, ctx *EmitContext) reflection.NonData {
+	if ctx == nil {
+		return reflection.NonDataOf(resolved, nil)
 	}
-	if isCallableValue(resolved, ctx) {
-		return true
-	}
-	switch resolved.Kind {
-	case reflection.KindSymbol, reflection.KindNever, reflection.KindPromise, reflection.KindRegexp:
-		return true
-	case reflection.KindLiteral:
-		// A unique symbol is assignable to `symbol`, so DataOnly strips it like the bare kind.
-		return literalFlavour(resolved) == litSymbol
-	case reflection.KindClass:
-		return resolved.SubKind == reflection.SubKindNonSerializable
-	}
-	return false
+	return reflection.NonDataOf(resolved, ctx.ResolveRef)
 }
 
-// isCallableValue reports a function-like kind or an interface with a call signature, which DataOnly strips as a function.
+// isStrippedUnionMember reports whether a resolved member is one DataOnly projects to `never`.
+func isStrippedUnionMember(resolved *reflection.RunType, ctx *EmitContext) bool {
+	return nonDataOf(resolved, ctx) != reflection.Data
+}
+
+// isCallableValue reports a value DataOnly strips as a function, an interface with a call signature included.
 func isCallableValue(resolved *reflection.RunType, ctx *EmitContext) bool {
-	if isFunctionLikeKind(resolved.Kind) {
-		return true
-	}
-	return resolved.Kind == reflection.KindObjectLiteral && ctx != nil && objectHasCallSignature(resolved, ctx)
+	return nonDataOf(resolved, ctx) == reflection.NonDataFunction
 }
 
 // strippedPropertyDrop reports whether a property drops with a Warning while the object serializes (`{a: symbol}` -> `{}`).
@@ -94,27 +83,20 @@ func indexSignatureLabel(signature *reflection.RunType, ctx *EmitContext) string
 // strippedMemberLabel returns the user-facing label a dropped union member's Warning substitutes for {0},
 // in the user's own type vocabulary, never compiler-internal jargon.
 func strippedMemberLabel(resolved *reflection.RunType, ctx *EmitContext) string {
-	if resolved == nil {
-		return "value"
-	}
-	if isCallableValue(resolved, ctx) {
+	switch nonDataOf(resolved, ctx) {
+	case reflection.NonDataFunction:
 		return "function"
-	}
-	switch resolved.Kind {
-	case reflection.KindSymbol:
+	case reflection.NonDataSymbol:
 		return "symbol"
-	case reflection.KindLiteral:
-		if literalFlavour(resolved) == litSymbol {
-			return "symbol"
-		}
-		return "value"
-	case reflection.KindNever:
+	case reflection.NonDataNever:
 		return "never"
-	case reflection.KindPromise:
-		return "Promise"
-	case reflection.KindRegexp:
-		return "RegExp"
-	case reflection.KindClass:
+	case reflection.NonDataOpaque:
+		switch resolved.Kind {
+		case reflection.KindPromise:
+			return "Promise"
+		case reflection.KindRegexp:
+			return "RegExp"
+		}
 		if resolved.Name != "" {
 			return resolved.Name
 		}

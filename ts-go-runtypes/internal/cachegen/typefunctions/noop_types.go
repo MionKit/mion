@@ -183,6 +183,10 @@ func jsonNoopRecursive(rt *reflection.RunType, ctx *EmitContext, mode jsonNoopMo
 		// Mirrors the walker: nil / dangling children contribute no code.
 		return true
 	}
+	// Non-data is the emitters' CodeNS arm: never compatible, shareable or identity, or the shortcut hides the throw.
+	if isStrippedUnionMember(rt, ctx) {
+		return false
+	}
 	if rt.ID != "" {
 		if verdict, known := ctx.walker.factsLookup(mode.factKind(), rt.ID); known {
 			return verdict
@@ -268,10 +272,6 @@ func jsonNoopRecursive(rt *reflection.RunType, ctx *EmitContext, mode jsonNoopMo
 		return jsonNoopRecursive(rt.Child, ctx, mode, visited)
 
 	case reflection.KindObjectLiteral:
-		// A callable interface is the emitters' CodeNS arm, so skipping its call signature would hide the throw.
-		if objectHasCallSignature(rt, ctx) {
-			return false
-		}
 		return jsonNoopObjectChildren(objectMembers(rt), ctx, mode, visited)
 
 	case reflection.KindClass:
@@ -600,6 +600,10 @@ func compactFromJsonNoopRecursive(rt *reflection.RunType, ctx *EmitContext, visi
 	if rt == nil {
 		return true
 	}
+	// Non-data is the emitters' CodeNS arm: never compatible, shareable or identity, or the shortcut hides the throw.
+	if isStrippedUnionMember(rt, ctx) {
+		return false
+	}
 	if rt.ID != "" {
 		if verdict, known := ctx.walker.factsLookup(factNoopCompactFromJson, rt.ID); known {
 			return verdict
@@ -708,6 +712,10 @@ func restoreJsonSafeNoopRecursive(rt *reflection.RunType, ctx *EmitContext, visi
 	rt = ctx.ResolveRef(rt)
 	if rt == nil {
 		return true
+	}
+	// Non-data is the emitters' CodeNS arm: never compatible, shareable or identity, or the shortcut hides the throw.
+	if isStrippedUnionMember(rt, ctx) {
+		return false
 	}
 	if rt.ID != "" {
 		if verdict, known := ctx.walker.factsLookup(factNoopRestoreJsonSafe, rt.ID); known {
