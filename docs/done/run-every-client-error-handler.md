@@ -72,6 +72,6 @@ proving `useSyncRoutes` still recovers a changed fetched route while a user hand
   a throw does not stop the rest, every `onResponse` runs, `offError` removes only its own),
   `test/bundled/routeDrift.spec.ts` (a changed fetched route still recovers while an app
   `route-types-mismatch` handler also runs). The recovery test fails on the old code.
-- Docs: the hook table and a tip in `01.rpc/03.client/00.client-overview.md`, and a tip under "Handling a
-  Stopped Call" in `01.rpc/03.client/06.route-sync.md`. The `02.mion-sync-routes.md` page named above is not
-  on `main` yet, so its `::warning` is left for the branch that adds it.
+- Docs: the hook table in `01.rpc/03.client/00.client-overview.md` and the warning under "Middleware Errors"
+  in `01.rpc/03.client/01.error-handling.md`. Hook behaviour lives on those client pages only, so the route sync
+  pages carry no hook tip.
