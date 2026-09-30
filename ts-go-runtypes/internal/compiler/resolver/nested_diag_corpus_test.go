@@ -8,11 +8,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/resolver"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
 type corpusTrigger struct {
@@ -42,6 +44,11 @@ var corpusTriggers = []corpusTrigger{
 	{"privateFields", "Counter"},
 	{"symbolKeyed", "Tagged"},
 	{"objectUnion", "({a: string} | {b: number})"},
+	{"promise", "Promise<string>"},
+	{"regexp", "RegExp"},
+	{"uniqueSymbol", "(typeof uniq)"},
+	{"methodSignature", "{m(): void}"},
+	{"classMethod", "WithMethod"},
 }
 
 var corpusPositions = []corpusPosition{
@@ -84,11 +91,13 @@ export interface CallableWithProp { (): void; label: string }
 export class Counter { #count = 0; label = ''; }
 const tag = Symbol('tag');
 export interface Tagged { id: string; [tag]: string }
+export declare const uniq: unique symbol;
+export class WithMethod { label = ''; greet(): string { return this.label; } }
 `
 
 const corpusImports = `import {createValidateFn, createGetValidationErrorsFn, createJsonEncoderFn, createJsonDecoderFn, createRemoveUnknownKeysFn, createFormatTransformFn} from '@mionjs/run-types';
-import type {Callable, CallableWithProp, Tagged} from './shared.ts';
-import {Counter} from './shared.ts';
+import type {Callable, CallableWithProp, Tagged, uniq} from './shared.ts';
+import {Counter, WithMethod} from './shared.ts';
 `
 
 var alwaysThrowCode = regexp.MustCompile(`'\[([A-Z]+[0-9]+)\] `)
@@ -98,11 +107,20 @@ func corpusQuietAllowed(trigger corpusTrigger, family corpusFamily) bool {
 	if family.name == "formatTransform" {
 		return true
 	}
-	return family.factory == "createRemoveUnknownKeysFn" && (trigger.name == "symbol" || trigger.name == "symbolArray")
+	return family.factory == "createRemoveUnknownKeysFn" && (trigger.name == "symbol" || trigger.name == "symbolArray" || trigger.name == "uniqueSymbol")
 }
 
 // Non-data triggers: every family either drops them with a note or throws with a code, never says nothing.
-var corpusNonData = map[string]bool{"symbol": true, "symbolArray": true, "function": true, "callable": true, "callableWithProp": true, "nonSerializable": true, "symbolKeyed": true}
+var corpusNonData = map[string]bool{
+	"symbol": true, "symbolArray": true, "function": true, "callable": true, "callableWithProp": true, "nonSerializable": true,
+	"symbolKeyed": true, "promise": true, "regexp": true, "uniqueSymbol": true, "methodSignature": true, "classMethod": true,
+}
+
+// corpusExempt names the families the grid leaves out, each with the reason.
+var corpusExempt = map[string]string{
+	"jsc": "the JSON Schema family reports no diagnostics",
+	"csr": "internal to registerClassSerializer, it carries a class name only",
+}
 
 type corpusCell struct {
 	file   string
@@ -231,5 +249,96 @@ func TestNestedDiagCorpus(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// A family added without a grid row, or a non-data kind no trigger reaches, fails here instead of going untested.
+func TestNestedDiagCorpus_CoversEveryFamily(t *testing.T) {
+	sources := map[string]string{"shared.ts": corpusShared}
+	var files []string
+	for _, family := range corpusFamilies {
+		file := family.name + ".ts"
+		sources[file] = corpusSite(family, "", "{a: string}", false)
+		files = append(files, file)
+	}
+	session := setupInline(t, sources)
+	covered := map[string]bool{}
+	for _, file := range files {
+		response := session.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{file}})
+		if response.Error != "" {
+			t.Fatalf("%s: scanFiles: %s", file, response.Error)
+		}
+		for _, site := range response.Sites {
+			for _, demand := range site.Demand {
+				covered[demand.FamilyTag] = true
+			}
+		}
+	}
+	for _, spec := range typefunctions.Families {
+		tag := spec.Settings.Tag
+		reason, exempt := corpusExempt[tag]
+		if !covered[tag] && !exempt {
+			t.Errorf("family %s (%s) has no row in corpusFamilies: add its factory and options, or a reason to corpusExempt", spec.Key, tag)
+		}
+		if covered[tag] && exempt {
+			t.Errorf("family %s is in the grid and exempt (%s): drop the exemption", tag, reason)
+		}
+	}
+}
+
+func TestNestedDiagCorpus_CoversEveryNonDataKind(t *testing.T) {
+	sources := map[string]string{"shared.ts": corpusShared}
+	var files []string
+	for _, trigger := range corpusTriggers {
+		file := trigger.name + ".ts"
+		sources[file] = corpusImports + "import {getRunTypeId} from '@mionjs/run-types';\nexport const id = getRunTypeId<{w: " + trigger.inline + "; t: [" + trigger.inline + "]}>();\n"
+		files = append(files, file)
+	}
+	session := setupInline(t, sources)
+	nodes := map[string]*reflection.RunType{}
+	for _, file := range files {
+		response := session.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{file}, IncludeRunTypes: true})
+		if response.Error != "" {
+			t.Fatalf("%s: scanFiles: %s", file, response.Error)
+		}
+		for _, node := range response.RunTypes {
+			nodes[node.ID] = node
+		}
+	}
+	resolve := func(ref *reflection.RunType) *reflection.RunType {
+		if ref.Kind == reflection.KindRef {
+			return nodes[ref.ID]
+		}
+		return ref
+	}
+	shape := func(node *reflection.RunType) string {
+		switch {
+		case node.Kind == reflection.KindObjectLiteral:
+			return "callable interface"
+		case node.Kind == reflection.KindLiteral:
+			return "unique symbol"
+		case node.Kind == reflection.KindClass:
+			return "non-serializable class"
+		}
+		return fmt.Sprintf("kind %d", node.Kind)
+	}
+	reached := map[string]bool{}
+	for _, node := range nodes {
+		if reflection.NonDataOf(node, resolve) != reflection.Data {
+			reached[shape(node)] = true
+		}
+	}
+	required := []*reflection.RunType{
+		{Kind: reflection.KindObjectLiteral}, {Kind: reflection.KindLiteral}, {Kind: reflection.KindClass},
+	}
+	for kind := reflection.KindNever; kind < 256; kind++ {
+		if reflection.FamilyOf(kind) != reflection.FamilyUnknown && reflection.NonDataOf(&reflection.RunType{Kind: kind}, nil) != reflection.Data {
+			required = append(required, &reflection.RunType{Kind: kind})
+		}
+	}
+	for _, node := range required {
+		if !reached[shape(node)] {
+			t.Errorf("no corpus trigger reaches a non-data %s: add one to corpusTriggers", shape(node))
+		}
 	}
 }
