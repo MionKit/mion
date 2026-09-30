@@ -117,10 +117,19 @@ register('client.tsConfig — a separate client project, refreshed while the ser
     const transformed = await vite.transformRequest('/src/server.ts', {ssr: true});
     expect(transformed?.code).toContain('/.mion/rpc/batches.generated.js');
 
+    // a re-added root is re-scanned, and a file created during that scan never raises `add`
+    const addedPaths: string[] = [];
+    const watcherAdd = vite.watcher.add.bind(vite.watcher);
+    vite.watcher.add = (paths: string | readonly string[]) => {
+      addedPaths.push(...[paths].flat());
+      return watcherAdd(paths);
+    };
+
     // a client edit (outside the server root) regenerates: the second batch lands in the table
     fs.writeFileSync(path.join(client, 'src', 'a.ts'), CLIENT_TWO);
     await waitFor(() => batchIds(table).length === 2, 'the regenerated table after the client edit');
     expect(generatedMappers()).toEqual(mappers);
+    expect(addedPaths).not.toContain(path.join(client, 'src'));
 
     // a NEW client file with a batch, created while the dev server runs: the client's source
     // root is watched, so the table gains the id without a restart
