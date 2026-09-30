@@ -4,8 +4,8 @@ import type {MyApi} from './metadata-fetch.routes.ts';
 
 const {middlewares} = initClient<MyApi>({
   baseURL: 'http://localhost:3000',
-  // keep what the client learns for this page load only
-  storageEngine: 'memory',
+  // the default: keep what the client learns between visits
+  storageEngine: 'indexeddb',
 });
 useMethodsMetadata(middlewares.mionMethodsMetadata);
 
