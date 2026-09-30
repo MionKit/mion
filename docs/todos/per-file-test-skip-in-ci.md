@@ -81,3 +81,19 @@ None, because this is contributor-only CI; update the `test-skip` line in the ro
 5. Trial on a replayed Go-only and JS-only commit; if either saves less than a third, stop and report before wiring CI.
 6. CI: restore/save the passed list (`mion-vitest-passed-${run_id}`, prefix restore), `test-pr --skip-passed` on the partial branch, `test-skip --audit` on the full branch (runs everything, fails naming any file the list would have skipped that failed), `KEEP_ON_MAIN` gets the family.
 7. Root CLAUDE.md `test-skip` line, comment pass, spec to `docs/done/`.
+
+## Trial (2026-09-30, after steps 1 to 4)
+
+4 CPUs, CI's excludes (`**/test/fuzz/**`, `**/devtools/test/build-gate.test.ts`), 483 files, a warm passed list. No recent pure Go or pure JS commit reverts cleanly on this tree, so both changes are small synthetic edits:
+
+| Run | Files run | Wall time | Saved |
+|---|---|---|---|
+| Plain `vitest run` | 483 | 392s | |
+| No change | 156 | 289s | 26% |
+| JS-only: `export const trialMarker = 1;` appended to `packages/rpc-router/src/router.ts` | 216 | 299s | 24% |
+| Go-only: an unused `func trialMarker()` appended to `ts-go-runtypes/internal/cachegen/runtype/module.go` | 189 | 301s | 23% |
+
+The bar (at most 261s) is not met, so CI is not wired. Where the floor goes:
+
+- About 70s of every skip run is keying: each of the 483 files is transformed and hashed one after another before any test runs.
+- The 156 never-cached files cost 257 test-seconds. The long poles are `declarationEmit.test.ts` (43s, now correctly blocked because TypeScript reads the drizzle, core and router sources from disk), `bundleSplit.spec.ts` (30s, a vite build), `bodyDrain.spec.ts` (15s, a real uWS server) and `sfcTransform.spec.ts` (15s, a vite build).
