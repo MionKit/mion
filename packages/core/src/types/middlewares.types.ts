@@ -24,9 +24,9 @@ export interface RouteSyncErrorData {
 export type SyncRoutesHandler = (ctx: any, routeSyncIds?: string[]) => RouteSyncError | void;
 
 /** Either mode stops the call before its route; `all` answers every public method and the batch ids */
-export type MethodsMetadataMode = 'only' | 'all';
+export type FetchMetadataMode = 'only' | 'all';
 
-export interface MethodsMetadataOnlyData {
+export interface FetchMetadataOnlyData {
   metadata: SerializableMethodsData;
   /** ids the server does not know, with the reason */
   notFound?: Record<string, string>;
@@ -35,11 +35,11 @@ export interface MethodsMetadataOnlyData {
 }
 
 /** Stops the chain so the route never runs; carries the rows the client asked for */
-export type MethodsMetadataOnly = FatalError<'metadata-only', MethodsMetadataOnlyData>;
+export type FetchMetadataOnly = FatalError<'metadata-only', FetchMetadataOnlyData>;
 
 /** No mode and no ids, no answer: a call that asks nothing pays nothing */
-export type MethodsMetadataHandler = (
+export type FetchMetadataHandler = (
   ctx: any,
   methodsIds?: string[],
-  mode?: MethodsMetadataMode
-) => SerializableMethodsData | RpcError<'rpc-metadata-not-found'> | MethodsMetadataOnly | void;
+  mode?: FetchMetadataMode
+) => SerializableMethodsData | RpcError<'rpc-metadata-not-found'> | FetchMetadataOnly | void;

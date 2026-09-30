@@ -66,7 +66,7 @@ export interface RouterOptions<Req = any, ContextData extends Record<string, any
    *  the client's check off.
    *  @default true */
   apiVersionCheck: boolean;
-  /** Most methods the `mionMethodsMetadata` middleware lists when a client asks for all of them; past it, only the ids sent.
+  /** Most methods the `mionFetchMetadata` middleware lists when a client asks for all of them; past it, only the ids sent.
    *  @default 100 */
   getAllRemoteMethodsMaxNumber: number;
 }

@@ -6,7 +6,7 @@
  * ######## */
 
 import {FatalError, RpcError, SerializableMethodsData, StatusCodes} from '@mionjs/core';
-import type {MethodsMetadataHandler, MethodsMetadataMode, MethodsMetadataOnlyData} from '@mionjs/core/middlewares';
+import type {FetchMetadataHandler, FetchMetadataMode, FetchMetadataOnlyData} from '@mionjs/core/middlewares';
 import {
   getMiddlewareExecutable,
   getRouteExecutable,
@@ -23,13 +23,9 @@ import {RemoteMethod} from '../types/remoteMethods.ts';
 import {CallContext} from '../types/context.ts';
 
 /** Rows alongside the call; with a mode, rows alone and the call stopped before its route runs. */
-function methodsMetadata(
-  ctx: CallContext,
-  methodsIds?: string[],
-  mode?: MethodsMetadataMode
-): ReturnType<MethodsMetadataHandler> {
+function fetchMetadata(ctx: CallContext, methodsIds?: string[], mode?: FetchMetadataMode): ReturnType<FetchMetadataHandler> {
   if (mode) {
-    return new FatalError<'metadata-only', MethodsMetadataOnlyData>({
+    return new FatalError<'metadata-only', FetchMetadataOnlyData>({
       type: 'metadata-only',
       publicMessage: 'Route metadata only: the call was stopped before its route.',
       errorData: rowsFor(methodsIds ?? [], mode === 'all'),
@@ -49,7 +45,7 @@ function methodsMetadata(
 }
 
 /** With `all`, every public method instead of the given ids, plus the batch ids. */
-function rowsFor(methodsIds: string[], all: boolean): MethodsMetadataOnlyData {
+function rowsFor(methodsIds: string[], all: boolean): FetchMetadataOnlyData {
   const metadata: SerializableMethodsData = {methods: {}, deps: {}, purFnDeps: {}};
   const notFound: Record<string, string> = {};
   const shouldReturnAll = all && getTotalExecutables() <= getRouterOptions().getAllRemoteMethodsMaxNumber;
@@ -61,7 +57,7 @@ function rowsFor(methodsIds: string[], all: boolean): MethodsMetadataOnlyData {
   idsToReturn.forEach((id) => addRequiredRemoteMethodsToResponse(id, metadata, notFound));
   // A hand-written client can only send ids the build compiled in, so list them alongside the methods
   if (shouldReturnAll) metadata.batches = getBatchIds();
-  const answer: MethodsMetadataOnlyData = {metadata};
+  const answer: FetchMetadataOnlyData = {metadata};
   if (Object.keys(notFound).length) answer.notFound = notFound;
   if (all && !shouldReturnAll) answer.truncated = true;
   return answer;
@@ -91,8 +87,8 @@ function addRequiredRemoteMethodsToResponse(id: string, resp: SerializableMethod
 // Place it at the root, before any route: its `only` and `all` modes must stop the chain before the route.
 // Pins the built-in parser: a client asks before it knows any strategy.
 // In every chain with an unbounded `string[]`, so maxBodySize is a fixed share of each limit: room for a first call's ids.
-export const mionMethodsMetadata = markOnDemand(
-  middleware(methodsMetadata satisfies MethodsMetadataHandler, {
+export const mionFetchMetadata = markOnDemand(
+  middleware(fetchMetadata satisfies FetchMetadataHandler, {
     alwaysRun: true,
     parser: {params: 'clone', return: 'clone'},
     maxBodySize: 4096,

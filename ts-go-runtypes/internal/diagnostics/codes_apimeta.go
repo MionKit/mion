@@ -19,7 +19,7 @@ const (
 	CodeApiMetaRouteNotDeclared = "MET002"
 	// CodeApiMetaRouteWidened: a widened `string` route id, and the client never sets up fetching; reported at the site.
 	CodeApiMetaRouteWidened = "MET003"
-	// CodeApiMetaRouteWidenedFetched: as MET003, but the client sets up `useMethodsMetadata`, so the call fetches.
+	// CodeApiMetaRouteWidenedFetched: as MET003, but the client sets up `useFetchMetadata`, so the call fetches.
 	CodeApiMetaRouteWidenedFetched = "MET004"
 	// CodeApiMetaSourceAmbiguous: the program named by `apiTsconfig` has no single `initRoutes(...)`
 	// declaring the routes this client calls. Args: [0] the api tsconfig, [1] the candidate count.
@@ -36,10 +36,10 @@ const (
 	CodeApiMetaMiddlewareNotSetUp = "MET008"
 	// CodeApiMetaOptionalMiddlewareNotSetUp: like MET008, for a middleware whose params are all optional. Same args.
 	CodeApiMetaOptionalMiddlewareNotSetUp = "MET009"
-	// CodeApiMetaNoMetadataToFetch: the fetched API lacks `mionMethodsMetadata`.
-	// Reported at the fetching call: a widened site, `useMethodsMetadata`, or `initClient` when bundling is off.
+	// CodeApiMetaNoMetadataToFetch: the fetched API lacks `mionFetchMetadata`.
+	// Reported at the fetching call: a widened site, `useFetchMetadata`, or `initClient` when bundling is off.
 	CodeApiMetaNoMetadataToFetch = "MET010"
-	// CodeApiMetaFetchNotSetUp: bundling is off and the client never calls `useMethodsMetadata`; reported at `initClient`.
+	// CodeApiMetaFetchNotSetUp: bundling is off and the client never calls `useFetchMetadata`; reported at `initClient`.
 	CodeApiMetaFetchNotSetUp = "MET011"
 )
 

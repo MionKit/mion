@@ -8,7 +8,7 @@
 
 import {RpcError, FatalError, HeadersSubset} from '@mionjs/core';
 import {PublicApi, Routes, createMionRouter} from '@mionjs/router';
-import {mionMethodsMetadata} from '@mionjs/router/middlewares';
+import {mionFetchMetadata} from '@mionjs/router/middlewares';
 import {setNodeHttpOpts, startNodeServer} from '@mionjs/platform-node';
 import type {Server as HttpServer} from 'node:http';
 import type {Server as HttpsServer} from 'node:https';
@@ -234,7 +234,7 @@ const noteRuns: NoteRuns = {getNote: 0, saveNote: 0, touchNote: 0, clearNote: 0,
 
 const routes = {
   // the fetched-lane client tests ask this server for route metadata
-  mionMethodsMetadata,
+  mionFetchMetadata,
   // ============ Shared middleware ============
   // A gate: a present but WRONG token answers a FatalError, typed for the client and ending the
   // chain so the route never runs. A missing header fails header validation before the handler.

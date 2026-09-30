@@ -8,7 +8,7 @@
 import {afterAll, beforeAll, describe, expect, setDefaultTimeout, test} from 'bun:test';
 import type {Server} from 'bun';
 import {initClient} from '@mionjs/client';
-import {useMethodsMetadata} from '@mionjs/client/middlewares';
+import {useFetchMetadata} from '@mionjs/client/middlewares';
 import {isRpcError} from '@mionjs/core';
 import {setBunHttpOpts, startBunServer} from '@mionjs/platform-bun';
 // a value import: loading the routes file creates the router and initializes the routes
@@ -61,7 +61,7 @@ describe('published mion packages under bun', () => {
     test('round-trips JSON through the packaged client', async () => {
         const client = initClient<BunServerApi>({baseURL});
         // bun's runtime plugin may not bundle the API, so the client fetches route metadata
-        useMethodsMetadata(client.middlewares.mionMethodsMetadata);
+        useFetchMetadata(client.middlewares.mionFetchMetadata);
         const [greeting, error] = await client.routes.sayHello({name: 'Grace', age: 45}).call();
         expect(error).toBeUndefined();
         expect(greeting).toBe('Hello Grace');
@@ -69,7 +69,7 @@ describe('published mion packages under bun', () => {
 
     test('surfaces a typed RpcError through the packaged client', async () => {
         const client = initClient<BunServerApi>({baseURL});
-        useMethodsMetadata(client.middlewares.mionMethodsMetadata);
+        useFetchMetadata(client.middlewares.mionFetchMetadata);
         const [result, error] = await client.routes.mayFail(true).call();
         expect(result).toBeUndefined();
         expect(isRpcError(error)).toBe(true);
@@ -78,7 +78,7 @@ describe('published mion packages under bun', () => {
 
     test('round-trips the compact parser through the packaged client', async () => {
         const client = initClient<BunServerApi>({baseURL});
-        useMethodsMetadata(client.middlewares.mionMethodsMetadata);
+        useFetchMetadata(client.middlewares.mionFetchMetadata);
         const [echoed, echoError] = await client.routes.compact.echo('Hello Compact Bun!').call();
         expect(echoError).toBeUndefined();
         expect(echoed).toBe('Hello Compact Bun!');

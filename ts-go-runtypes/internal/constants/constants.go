@@ -420,9 +420,9 @@ type BundleApiMode string
 const (
 	// BundleApiUnset is the zero value: the CLI resolves it to BundleApiBundled, a session left at it bundles nothing.
 	BundleApiUnset BundleApiMode = ""
-	// BundleApiOff bundles nothing: the client fetches its metadata from the server, through `useMethodsMetadata`.
+	// BundleApiOff bundles nothing: the client fetches its metadata from the server, through `useFetchMetadata`.
 	BundleApiOff BundleApiMode = "off"
-	// BundleApiBundled (the default) bundles every called route; an unbundled one fails unless `useMethodsMetadata` is set up.
+	// BundleApiBundled (the default) bundles every called route; an unbundled one fails unless `useFetchMetadata` is set up.
 	BundleApiBundled BundleApiMode = "bundled"
 )
 

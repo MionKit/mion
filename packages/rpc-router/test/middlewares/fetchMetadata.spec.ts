@@ -6,7 +6,7 @@
  * ######## */
 
 import {describe, it, expect, expectTypeOf, afterEach} from 'vitest';
-import type {MethodsMetadataHandler, MethodsMetadataOnlyData} from '@mionjs/core/middlewares';
+import type {FetchMetadataHandler, FetchMetadataOnlyData} from '@mionjs/core/middlewares';
 import {MionHeaders} from '../../src/types/context.ts';
 import {createMionRouter, resetRouter, getRouteExecutable, getRouterOptions} from '../../src/router.ts';
 import {
@@ -24,14 +24,14 @@ import {
 } from '@mionjs/core';
 import {Routes} from '../../src/types/general.ts';
 import type {RouterOptionsInput} from '../../src/types/mionRouter.ts';
-import {mionMethodsMetadata} from '../../middlewares.ts';
+import {mionFetchMetadata} from '../../middlewares.ts';
 import {headersFromRecord} from '../../src/lib/headers.ts';
 import {dispatchRoute} from '../../src/dispatch.ts';
 import {createValidateFn, createGetValidationErrorsFn, createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
 import {getSerializableMethod} from '../../src/lib/remoteMethods.ts';
 
 const mion = createMionRouter();
-const methodsId = 'mionMethodsMetadata';
+const methodsId = 'mionFetchMetadata';
 // any route path works: a metadata-only request stops before its route
 const methodsPath = getRoutePath(['users', 'getUser'], {basePath: '', suffix: ''} as CoreRouterOptions);
 
@@ -131,7 +131,7 @@ describe('PublicMethods run type functionality', () => {
 const unwrap = (value: unknown): any => (Array.isArray(value) ? value[1] : value);
 /** The rows a metadata-only request gets back, inside the refusal that stopped its route. */
 const rowsOf = (response: {body: Record<string, unknown>}): SerializableMethodsData =>
-  (unwrap(response.body.mionMethodsMetadata) as RpcError<'metadata-only', MethodsMetadataOnlyData>).errorData!.metadata;
+  (unwrap(response.body.mionFetchMetadata) as RpcError<'metadata-only', FetchMetadataOnlyData>).errorData!.metadata;
 
 describe('Client Routes should', () => {
   const privateMiddleware = mion.middleware((ctx): void => undefined);
@@ -189,7 +189,7 @@ describe('Client Routes should', () => {
       syncId: expect.any(String),
       paramsCount: 0,
       paramNames: [],
-      middlewareIds: ['mionMethodsMetadata', 'auth', 'last'],
+      middlewareIds: ['mionFetchMetadata', 'auth', 'last'],
       pointer: ['users', 'getUser'],
       options: defaultRouteOpts,
     },
@@ -204,7 +204,7 @@ describe('Client Routes should', () => {
       syncId: expect.any(String),
       paramsCount: 0,
       paramNames: [],
-      middlewareIds: ['mionMethodsMetadata', 'auth', 'last'],
+      middlewareIds: ['mionFetchMetadata', 'auth', 'last'],
       pointer: ['users', 'setUser'],
       options: defaultRouteOpts,
     },
@@ -219,7 +219,7 @@ describe('Client Routes should', () => {
       syncId: expect.any(String),
       paramsCount: 0,
       paramNames: [],
-      middlewareIds: ['mionMethodsMetadata', 'auth', 'last'],
+      middlewareIds: ['mionFetchMetadata', 'auth', 'last'],
       pointer: ['users', 'pets', 'getUserPet'],
       options: defaultRouteOpts,
     },
@@ -234,7 +234,7 @@ describe('Client Routes should', () => {
       syncId: expect.any(String),
       paramsCount: 0,
       paramNames: [],
-      middlewareIds: ['mionMethodsMetadata', 'auth', 'last'],
+      middlewareIds: ['mionFetchMetadata', 'auth', 'last'],
       pointer: ['pets', 'getPet'],
       options: defaultRouteOpts,
     },
@@ -249,7 +249,7 @@ describe('Client Routes should', () => {
       syncId: expect.any(String),
       paramsCount: 0,
       paramNames: [],
-      middlewareIds: ['mionMethodsMetadata', 'auth', 'last'],
+      middlewareIds: ['mionFetchMetadata', 'auth', 'last'],
       pointer: ['pets', 'setPet'],
       options: defaultRouteOpts,
     },
@@ -283,7 +283,7 @@ describe('Client Routes should', () => {
     },
   } satisfies MethodsCache;
   // placed in the routes, the metadata middleware is described like any other public middleware
-  const metadataRow = expect.objectContaining({id: 'mionMethodsMetadata', type: HandlerType.middleware});
+  const metadataRow = expect.objectContaining({id: 'mionFetchMetadata', type: HandlerType.middleware});
 
   const isJitCompiledFn = createValidateFn<CompiledFnData>();
   // deps ride the (already parsed) JSON response; encode+decode replays the wire trip
@@ -295,7 +295,7 @@ describe('Client Routes should', () => {
   afterEach(() => resetRouter());
 
   it('get Remote Middlewares Only info from id', async () => {
-    createMionRouter({contextDataFactory: getSharedData}).initRoutes({mionMethodsMetadata, ...routes});
+    createMionRouter({contextDataFactory: getSharedData}).initRoutes({mionFetchMetadata, ...routes});
 
     const methodIdList = ['auth', 'last']; // all public middlewares
     const request: RawRequest = {
@@ -318,7 +318,7 @@ describe('Client Routes should', () => {
   });
 
   it('get Remote Route info from id, it should also return the middlewares from the ExecutionChain', async () => {
-    createMionRouter({contextDataFactory: getSharedData}).initRoutes({mionMethodsMetadata, ...routes});
+    createMionRouter({contextDataFactory: getSharedData}).initRoutes({mionFetchMetadata, ...routes});
 
     const methodIdList = ['users/getUser']; // all public methods
     const request: RawRequest = {
@@ -329,7 +329,7 @@ describe('Client Routes should', () => {
     };
     const response = await dispatchRoute(methodsPath, request.body, request.headers, headersFromRecord({}), request, {});
     const expectedMethods = {
-      mionMethodsMetadata: metadataRow,
+      mionFetchMetadata: metadataRow,
       auth: methodsMetadata.auth,
       'users/getUser': methodsMetadata['users/getUser'],
       last: methodsMetadata['last'],
@@ -344,14 +344,14 @@ describe('Client Routes should', () => {
   });
 
   it("get All Remote Methods info in 'all' mode", async () => {
-    createMionRouter({contextDataFactory: getSharedData}).initRoutes({mionMethodsMetadata, ...routes});
+    createMionRouter({contextDataFactory: getSharedData}).initRoutes({mionFetchMetadata, ...routes});
 
     const request: RawRequest = {
       headers: headersFromRecord({}),
       body: JSON.stringify({[methodsId]: [[], 'all']}),
     };
     const response = await dispatchRoute(methodsPath, request.body, request.headers, headersFromRecord({}), request, {});
-    const expectedMethods = {...methodsMetadata, mionMethodsMetadata: metadataRow};
+    const expectedMethods = {...methodsMetadata, mionFetchMetadata: metadataRow};
     const methodsData = rowsOf(response);
     const dependencies = methodsData.deps; // serializable data for jit functions that are used by the remote methods
     expect(methodsData.methods).toEqual(expectedMethods);
@@ -363,12 +363,12 @@ describe('Client Routes should', () => {
 
   it("flags an 'all' answer the method cap cut down to the given ids", async () => {
     createMionRouter({contextDataFactory: getSharedData, getAllRemoteMethodsMaxNumber: 1}).initRoutes({
-      mionMethodsMetadata,
+      mionFetchMetadata,
       ...routes,
     });
     const body = JSON.stringify({[methodsId]: [['auth'], 'all']});
     const response = await dispatchRoute(methodsPath, body, headersFromRecord({}), headersFromRecord({}), {body} as any, {});
-    const refusal = unwrap(response.body[methodsId]) as RpcError<'metadata-only', MethodsMetadataOnlyData>;
+    const refusal = unwrap(response.body[methodsId]) as RpcError<'metadata-only', FetchMetadataOnlyData>;
     expect(refusal.errorData!.truncated).toBe(true);
     expect(Object.keys(refusal.errorData!.metadata.methods)).toEqual(['auth']);
     expect(refusal.errorData!.metadata.batches).toBeUndefined();
@@ -385,16 +385,16 @@ describe('Client Routes should', () => {
         {body: allBody} as any,
         {}
       );
-      return (unwrap(response.body[methodsId]) as RpcError<'metadata-only', MethodsMetadataOnlyData>).errorData!;
+      return (unwrap(response.body[methodsId]) as RpcError<'metadata-only', FetchMetadataOnlyData>).errorData!;
     };
-    createMionRouter({getAllRemoteMethodsMaxNumber: 2}).initRoutes({mionMethodsMetadata, ...routes});
+    createMionRouter({getAllRemoteMethodsMaxNumber: 2}).initRoutes({mionFetchMetadata, ...routes});
     expect(getRouterOptions().getAllRemoteMethodsMaxNumber).toBe(2);
     const capped = await askAll();
     expect(capped.truncated).toBe(true);
     expect(Object.keys(capped.metadata.methods)).toEqual(['auth']);
     resetRouter();
 
-    createMionRouter().initRoutes({mionMethodsMetadata, ...routes});
+    createMionRouter().initRoutes({mionFetchMetadata, ...routes});
     expect(getRouterOptions().getAllRemoteMethodsMaxNumber).toBe(100);
     const full = await askAll();
     expect(full.truncated).toBeUndefined();
@@ -403,7 +403,7 @@ describe('Client Routes should', () => {
   });
 
   it('answers a metadata-only request as a success, not an HTTP error', async () => {
-    createMionRouter({contextDataFactory: getSharedData}).initRoutes({mionMethodsMetadata, ...routes});
+    createMionRouter({contextDataFactory: getSharedData}).initRoutes({mionFetchMetadata, ...routes});
     const body = JSON.stringify({[methodsId]: [['auth'], 'only']});
     const response = await dispatchRoute(methodsPath, body, headersFromRecord({}), headersFromRecord({}), {body} as any, {});
     expect(response.statusCode).toBe(200);
@@ -414,7 +414,7 @@ describe('Client Routes should', () => {
     const runs: string[] = [];
     const router = createMionRouter({contextDataFactory: getSharedData});
     router.initRoutes({
-      mionMethodsMetadata,
+      mionFetchMetadata,
       gate: router.middleware((ctx): void => void runs.push('gate')),
       ping: router.route((ctx): string => (runs.push('ping'), 'pong')),
     });
@@ -429,7 +429,7 @@ describe('Client Routes should', () => {
   it('refuses a mode it does not know instead of treating it as a mode', async () => {
     const runs: string[] = [];
     const router = createMionRouter({contextDataFactory: getSharedData});
-    router.initRoutes({mionMethodsMetadata, ping: router.route((ctx): string => (runs.push('ping'), 'pong'))});
+    router.initRoutes({mionFetchMetadata, ping: router.route((ctx): string => (runs.push('ping'), 'pong'))});
     const body = JSON.stringify({[methodsId]: [['ping'], 'bogus']});
     const response = await dispatchRoute('/ping', body, headersFromRecord({}), headersFromRecord({}), {body} as any, {});
     expect(runs).toEqual([]);
@@ -440,22 +440,22 @@ describe('Client Routes should', () => {
   it('must sit at the root, before any route or group', () => {
     const router = createMionRouter();
     const ping = router.route((ctx): string => 'pong');
-    expect(() => router.initRoutes({ping, mionMethodsMetadata})).toThrow(/at the root of your routes, before any route/);
+    expect(() => router.initRoutes({ping, mionFetchMetadata})).toThrow(/at the root of your routes, before any route/);
     resetRouter();
     const nested = createMionRouter();
-    expect(() => nested.initRoutes({users: {mionMethodsMetadata, ping: nested.route((ctx): string => 'pong')}})).toThrow(
+    expect(() => nested.initRoutes({users: {mionFetchMetadata, ping: nested.route((ctx): string => 'pong')}})).toThrow(
       /at the root of your routes/
     );
     resetRouter();
     const afterMiddleware = createMionRouter();
     const gate = afterMiddleware.middleware((ctx): void => undefined);
     expect(() =>
-      afterMiddleware.initRoutes({gate, mionMethodsMetadata, ping: afterMiddleware.route((ctx): string => 'pong')})
+      afterMiddleware.initRoutes({gate, mionFetchMetadata, ping: afterMiddleware.route((ctx): string => 'pong')})
     ).not.toThrow();
   });
 
   it('fail when remote method is private or not defined', async () => {
-    createMionRouter({contextDataFactory: getSharedData}).initRoutes({mionMethodsMetadata, ...routes});
+    createMionRouter({contextDataFactory: getSharedData}).initRoutes({mionFetchMetadata, ...routes});
 
     const methodIdList = ['parse', 'helloWorld']; // all public methods
     const request: RawRequest = {
@@ -480,10 +480,10 @@ describe('Client Routes should', () => {
   });
 
   it("names the unknown ids in 'only' mode and still answers the known ones", async () => {
-    createMionRouter({contextDataFactory: getSharedData}).initRoutes({mionMethodsMetadata, ...routes});
+    createMionRouter({contextDataFactory: getSharedData}).initRoutes({mionFetchMetadata, ...routes});
     const body = JSON.stringify({[methodsId]: [['users/getUser', 'helloWorld'], 'only']});
     const response = await dispatchRoute(methodsPath, body, headersFromRecord({}), headersFromRecord({}), {body} as any, {});
-    const refusal = unwrap(response.body[methodsId]) as RpcError<'metadata-only', MethodsMetadataOnlyData>;
+    const refusal = unwrap(response.body[methodsId]) as RpcError<'metadata-only', FetchMetadataOnlyData>;
     expect(refusal.errorData!.notFound).toEqual({helloWorld: 'Remote Method helloWorld not found'});
     expect(refusal.errorData!.metadata.methods).toHaveProperty('users/getUser');
   });
@@ -506,7 +506,7 @@ describe('Restore Client Routes jit functions', () => {
   afterEach(() => resetRouter());
 
   it('should restore jit functions', async () => {
-    mion.initRoutes({mionMethodsMetadata, ...routes});
+    mion.initRoutes({mionFetchMetadata, ...routes});
 
     const request: RawRequest = {
       headers: headersFromRecord({}),
@@ -518,13 +518,13 @@ describe('Restore Client Routes jit functions', () => {
   });
 });
 
-describe('the mionMethodsMetadata middleware answers on the json framing every chain uses', () => {
+describe('the mionFetchMetadata middleware answers on the json framing every chain uses', () => {
   afterEach(() => resetRouter());
 
   // The middleware pins the built-in default on its own wires, so its encoder never follows the route's.
   // Each route spells its serializer INLINE: a variable holding a build-time literal is a build error (CTA001).
   const expectMetadataInBody = async (routes: Routes) => {
-    mion.initRoutes({mionMethodsMetadata, ...routes});
+    mion.initRoutes({mionFetchMetadata, ...routes});
     const request: RawRequest = {
       headers: headersFromRecord({}),
       body: JSON.stringify({sayHello: ['World'], [methodsId]: [['sayHello']]}),
@@ -554,7 +554,7 @@ describe('the mionMethodsMetadata middleware answers on the json framing every c
     const routes = {
       sayHello: mion.route((ctx, name: string): string => `Hello, ${name}!`),
     } satisfies Routes;
-    mion.initRoutes({mionMethodsMetadata, ...routes});
+    mion.initRoutes({mionFetchMetadata, ...routes});
 
     const request: RawRequest = {
       headers: headersFromRecord({}),
@@ -572,7 +572,7 @@ describe('the mionMethodsMetadata middleware answers on the json framing every c
     const routes = {
       sayHello: mion.route((ctx, name: string): string => `Hello, ${name}!`),
     } satisfies Routes;
-    mion.initRoutes({mionMethodsMetadata, ...routes});
+    mion.initRoutes({mionFetchMetadata, ...routes});
 
     const request: RawRequest = {
       headers: headersFromRecord({}),
@@ -585,11 +585,11 @@ describe('the mionMethodsMetadata middleware answers on the json framing every c
     expect(response.body[MION_ROUTES.thrownErrors]?.[methodsId]?.type).toBe('validation-error');
   });
 
-  it('frames as json when methodsMetadata is not requested', async () => {
+  it('frames as json when mionFetchMetadata is not requested', async () => {
     const routes = {
       sayHello: mion.route((ctx, name: string): string => `Hello, ${name}!`),
     } satisfies Routes;
-    mion.initRoutes({mionMethodsMetadata, ...routes});
+    mion.initRoutes({mionFetchMetadata, ...routes});
 
     const request: RawRequest = {
       headers: headersFromRecord({}),
@@ -620,7 +620,7 @@ describe('metadata is generated for everything the client can call', () => {
   afterEach(() => resetRouter());
 
   async function describeAll(): Promise<SerializableMethodsData> {
-    createMionRouter({contextDataFactory: () => ({user: null})}).initRoutes({mionMethodsMetadata, ...routes});
+    createMionRouter({contextDataFactory: () => ({user: null})}).initRoutes({mionFetchMetadata, ...routes});
     const request: RawRequest = {
       headers: headersFromRecord({}),
       body: JSON.stringify({[methodsId]: [[], 'all']}),
@@ -631,18 +631,13 @@ describe('metadata is generated for everything the client can call', () => {
 
   it('lists every route and every param-taking or data-returning middleware, and nothing else', async () => {
     const data = await describeAll();
-    expect(Object.keys(data.methods).sort()).toEqual([
-      'mionMethodsMetadata',
-      'takesParams',
-      'users/getUser',
-      'users/returnsData',
-    ]);
+    expect(Object.keys(data.methods).sort()).toEqual(['mionFetchMetadata', 'takesParams', 'users/getUser', 'users/returnsData']);
   });
 
   // A build-version mismatch makes the client ask about the routes it is calling. The server answers with what
   // it declares now and filters nothing: only the client holds both rows, so only the client can compare them.
   it('answers with every row asked for, even one the client already holds unchanged', async () => {
-    createMionRouter({contextDataFactory: () => ({user: null})}).initRoutes({mionMethodsMetadata, ...routes});
+    createMionRouter({contextDataFactory: () => ({user: null})}).initRoutes({mionFetchMetadata, ...routes});
     const request: RawRequest = {
       headers: headersFromRecord({}),
       body: JSON.stringify({[methodsId]: [['users/getUser', 'takesParams'], 'only']}),
@@ -650,16 +645,11 @@ describe('metadata is generated for everything the client can call', () => {
     const response = await dispatchRoute(methodsPath, request.body, request.headers, headersFromRecord({}), request, {});
     const data = rowsOf(response);
     // users/returnsData rides along as a middleware of users/getUser's chain: a stale chain is stale metadata too
-    expect(Object.keys(data.methods).sort()).toEqual([
-      'mionMethodsMetadata',
-      'takesParams',
-      'users/getUser',
-      'users/returnsData',
-    ]);
+    expect(Object.keys(data.methods).sort()).toEqual(['mionFetchMetadata', 'takesParams', 'users/getUser', 'users/returnsData']);
   });
 
   it('answers a by-id request for a middleware with params but reports a raw or silent one as not found', async () => {
-    createMionRouter({contextDataFactory: () => ({user: null})}).initRoutes({mionMethodsMetadata, ...routes});
+    createMionRouter({contextDataFactory: () => ({user: null})}).initRoutes({mionFetchMetadata, ...routes});
     const request: RawRequest = {
       headers: headersFromRecord({}),
       body: JSON.stringify({takesParams: ['token'], [methodsId]: [['takesParams', 'raw', 'users/silent']], 'users/getUser': []}),
@@ -674,7 +664,7 @@ describe('metadata is generated for everything the client can call', () => {
 // the client installer is typed from core's copies, so they must never drift apart
 it("keeps core's metadata handler types equal to the handlers it runs", () => {
   type ParamsOf<F> = F extends (ctx: any, ...params: infer P) => any ? P : never;
-  type Middleware = (typeof mionMethodsMetadata)['handler'];
-  expectTypeOf<ParamsOf<Middleware>>().toEqualTypeOf<ParamsOf<MethodsMetadataHandler>>();
-  expectTypeOf<ReturnType<Middleware>>().toEqualTypeOf<ReturnType<MethodsMetadataHandler>>();
+  type Middleware = (typeof mionFetchMetadata)['handler'];
+  expectTypeOf<ParamsOf<Middleware>>().toEqualTypeOf<ParamsOf<FetchMetadataHandler>>();
+  expectTypeOf<ReturnType<Middleware>>().toEqualTypeOf<ReturnType<FetchMetadataHandler>>();
 });

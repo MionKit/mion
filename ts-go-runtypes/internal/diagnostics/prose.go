@@ -702,13 +702,13 @@ mion enrich <source.ts> <Type> --update`,
 		Summary: "The API type has no route with this id, usually because of a stale declaration file or a route id written by hand. Rebuild the API's declarations, or set `api.tsConfig` (`apiTsconfig` in tsconfig) to the API project so the build reads the routes from their source.",
 	},
 	CodeApiMetaRouteWidened: {
-		Summary: "A helper typed with `RouteSubRequest<any>` widens the route id to `string`, so the build cannot bundle the call inside it, and with no `useMethodsMetadata` set up that call fails. Keep the route id through a generic helper, or move the call out of it. Or set up `useMethodsMetadata` so the call asks the server for the route. That builds functions at runtime, which a strict Content Security Policy blocks.",
+		Summary: "A helper typed with `RouteSubRequest<any>` widens the route id to `string`, so the build cannot bundle the call inside it, and with no `useFetchMetadata` set up that call fails. Keep the route id through a generic helper, or move the call out of it. Or set up `useFetchMetadata` so the call asks the server for the route. That builds functions at runtime, which a strict Content Security Policy blocks.",
 		Fix: `function run<S extends RouteSubRequest<any>>(sub: S) { return sub.call() }
 // or fetch the route from the server
-useMethodsMetadata(middlewares.mionMethodsMetadata);`,
+useFetchMetadata(middlewares.mionFetchMetadata);`,
 	},
 	CodeApiMetaRouteWidenedFetched: {
-		Summary: "A helper typed with `RouteSubRequest<any>` widens the route id to `string`, so the build cannot bundle the call inside it. The call still works because the client sets up `useMethodsMetadata`: it fetches the route's metadata on first use and builds its functions at runtime. To bundle it too, keep the route id through a generic helper.",
+		Summary: "A helper typed with `RouteSubRequest<any>` widens the route id to `string`, so the build cannot bundle the call inside it. The call still works because the client sets up `useFetchMetadata`: it fetches the route's metadata on first use and builds its functions at runtime. To bundle it too, keep the route id through a generic helper.",
 		Fix:     "function run<S extends RouteSubRequest<any>>(sub: S) { return sub.call() }",
 	},
 	CodeApiMetaSourceAmbiguous: {
@@ -731,15 +731,15 @@ useMethodsMetadata(middlewares.mionMethodsMetadata);`,
 		Fix:     "middlewares.auth.onRequest((auth) => auth({headers: {Authorization: 'myToken-XYZ'}}));",
 	},
 	CodeApiMetaNoMetadataToFetch: {
-		Summary: "A call fetches its metadata when the build could not bundle it, or for every route when `bundleApi` is off. The server answers those fetches only through the `mionMethodsMetadata` middleware from `@mionjs/router/middlewares`, and this API does not add it. Add it first in the server's routes and set up its client half with `useMethodsMetadata`. Or, with bundling on, remove `useMethodsMetadata` and keep every route id a literal so every call is bundled.",
+		Summary: "A call fetches its metadata when the build could not bundle it, or for every route when `bundleApi` is off. The server answers those fetches only through the `mionFetchMetadata` middleware from `@mionjs/router/middlewares`, and this API does not add it. Add it first in the server's routes and set up its client half with `useFetchMetadata`. Or, with bundling on, remove `useFetchMetadata` and keep every route id a literal so every call is bundled.",
 		Fix: `// server
-mion.initRoutes({mionMethodsMetadata, ...routes});
+mion.initRoutes({mionFetchMetadata, ...routes});
 // client
-useMethodsMetadata(middlewares.mionMethodsMetadata);`,
+useFetchMetadata(middlewares.mionFetchMetadata);`,
 	},
 	CodeApiMetaFetchNotSetUp: {
 		Summary: "With bundling off, each call asks the server how its route works on first use, through the client half of the metadata middleware. Nothing in this program sets that up. Set it up once next to `initClient`, or build with `bundleApi: true` (the default) so every call is bundled.",
-		Fix:     "useMethodsMetadata(middlewares.mionMethodsMetadata);",
+		Fix:     "useFetchMetadata(middlewares.mionFetchMetadata);",
 	},
 
 	// ──────────────────── non-enumerable members (NE) ─────────────────────

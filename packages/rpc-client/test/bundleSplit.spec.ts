@@ -25,9 +25,9 @@ export const call = () => routes.sayHello({name: 'a', surname: 'b'}).call();
 
 // The same app with metadata fetching set up.
 const FETCHING_APP = `import {initClient} from '${path.join(packageRoot, 'index.ts')}';
-import {useMethodsMetadata} from '${path.join(packageRoot, 'middlewares.ts')}';
+import {useFetchMetadata} from '${path.join(packageRoot, 'middlewares.ts')}';
 const {routes, middlewares} = initClient<any>({baseURL: 'http://localhost:3000'});
-useMethodsMetadata(middlewares.mionMethodsMetadata);
+useFetchMetadata(middlewares.mionFetchMetadata);
 export const call = () => routes.sayHello({name: 'a', surname: 'b'}).call();
 `;
 
@@ -115,9 +115,9 @@ async function buildEagerApp(bundleApi?: boolean, entry = 'app.ts'): Promise<str
   return [...eager].map((name) => byName.get(name)?.code ?? '').join('\n');
 }
 
-// Only a client that sets up useMethodsMetadata ships the lane, and even then no build downloads it up front.
+// Only a client that sets up useFetchMetadata ships the lane, and even then no build downloads it up front.
 describe('the fetched metadata lane', () => {
-  it('a client that never sets up useMethodsMetadata ships none of it, in every mode', async () => {
+  it('a client that never sets up useFetchMetadata ships none of it, in every mode', async () => {
     for (const mode of MODES) {
       const code = await buildApp(mode);
       for (const marker of LANE_CODE_MARKERS) expect(code, `${mode}: ${marker}`).not.toContain(marker);

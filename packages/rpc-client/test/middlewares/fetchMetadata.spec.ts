@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// useMethodsMetadata against the in-process test server, which spreads mionMethodsMetadata first in its routes.
+// useFetchMetadata against the in-process test server, which spreads mionFetchMetadata first in its routes.
 // Each block is one row of the resend rules: a call is sent again once at most, and only when it is safe.
 
 import 'fake-indexeddb/auto';
@@ -15,7 +15,7 @@ import type {TestServerApi} from '@mionjs/test-server';
 import {initClient as initPlainClient} from '../../src/client.ts';
 import {initClient} from '../lib/fetchingClient.ts';
 import {batch} from '../../src/batch.ts';
-import {useMethodsMetadata} from '../../src/middlewares/methodsMetadata.ts';
+import {useFetchMetadata} from '../../src/middlewares/fetchMetadata.ts';
 import {MIDDLEWARE_TARGET, getMetadataFetcher} from '../../src/lib/metadataFetcher.ts';
 import {HandlersRegistry} from '../../src/lib/handlersRegistry.ts';
 import {DEFAULT_CLIENT_OPTIONS} from '../../src/constants.ts';
@@ -26,7 +26,7 @@ import {TEST_SERVER_BASE_URL} from '../../globalSetup.ts';
 
 const baseURL = TEST_SERVER_BASE_URL;
 const user = {name: 'John', surname: 'Doe'};
-const METADATA = 'mionMethodsMetadata';
+const METADATA = 'mionFetchMetadata';
 
 // a body the plain wire form cannot write (JSON.stringify throws) is rare, so it is forced here
 const plainBody = vi.hoisted(() => ({fails: false}));
@@ -55,7 +55,7 @@ function newClient() {
   return initialized;
 }
 
-describe('useMethodsMetadata', () => {
+describe('useFetchMetadata', () => {
   let watch: ReturnType<typeof watchFetch>;
 
   beforeEach(async () => {
@@ -151,7 +151,7 @@ describe('useMethodsMetadata', () => {
   });
 });
 
-describe('a client that never set up useMethodsMetadata', () => {
+describe('a client that never set up useFetchMetadata', () => {
   beforeEach(async () => {
     resetClientCaches();
     await resetMetadataStore();
@@ -164,7 +164,7 @@ describe('a client that never set up useMethodsMetadata', () => {
       const [result, , undeclared] = await routes.sayHello(user).call();
       expect(result).toBeUndefined();
       expect(undeclared?.type).toBe('route-metadata-not-found');
-      expect(undeclared?.publicMessage).toContain('useMethodsMetadata');
+      expect(undeclared?.publicMessage).toContain('useFetchMetadata');
       expect(watch.bodies()).toHaveLength(0);
     } finally {
       watch.restore();
@@ -180,7 +180,7 @@ describe('a client that never set up useMethodsMetadata', () => {
 describe('the rows a call carries', () => {
   function startCall() {
     const registry = new HandlersRegistry();
-    useMethodsMetadata({[MIDDLEWARE_TARGET]: {id: METADATA, registry}} as any);
+    useFetchMetadata({[MIDDLEWARE_TARGET]: {id: METADATA, registry}} as any);
     const context = {options: {...DEFAULT_CLIENT_OPTIONS, baseURL}, subRequestList: {}} as unknown as ClientCallContext;
     return getMetadataFetcher(registry)!.startCall(context);
   }
@@ -209,6 +209,6 @@ describe('the rows a call carries', () => {
 
 it('the installer takes a middleware from the client, nothing else', () => {
   const {middlewares} = initPlainClient<TestServerApi>({baseURL});
-  expect(() => useMethodsMetadata(middlewares.mionMethodsMetadata)).not.toThrow();
-  expect(() => useMethodsMetadata({} as any)).toThrow(/middleware from the client/);
+  expect(() => useFetchMetadata(middlewares.mionFetchMetadata)).not.toThrow();
+  expect(() => useFetchMetadata({} as any)).toThrow(/middleware from the client/);
 });

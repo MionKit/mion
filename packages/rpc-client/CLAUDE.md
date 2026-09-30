@@ -41,13 +41,13 @@ One thing rides slot 2 that the router never saw: a metadata cache write the bro
 eviction ran out of things to give up. The request itself succeeded, so it never rejects and never
 displaces a real error; it takes the first free undeclared slot on a later call and is reported once
 (`packages/rpc-client/src/lib/clientMethodsMetadata.ts`, `takeMetadataCacheError`, reached only through
-`useMethodsMetadata`'s internal hook).
+`useFetchMetadata`'s internal hook).
 
 ## Metadata fetching is one installer, never a dispatch special case
 
 Everything about fetching route metadata (the optimistic first call, the browser store, the version
-recovery, the one resend) lives behind `useMethodsMetadata` in
-[src/middlewares/methodsMetadata.ts](src/middlewares/methodsMetadata.ts). `dispatch.ts` only calls the
+recovery, the one resend) lives behind `useFetchMetadata` in
+[src/middlewares/fetchMetadata.ts](src/middlewares/fetchMetadata.ts). `dispatch.ts` only calls the
 optional internal hook in [src/lib/metadataFetcher.ts](src/lib/metadataFetcher.ts), which no public type
 names. Without the installer, `dispatch.ts` only reports `route-metadata-not-found` and a whole-API version
 mismatch. A client that never calls the installer ships none of it. Do not add a metadata branch back into
@@ -57,7 +57,7 @@ mismatch. A client that never calls the installer ships none of it. Do not add a
 
 `call()` and `batch().call()` take no middleware values. A middleware gets its params from its
 `onRequest` hook, which runs before every request whose chain includes it, and `middlewares.x`
-is hooks only. Do not add a second way to pass them. The one exception is `useMethodsMetadata`'s internal
+is hooks only. Do not add a second way to pass them. The one exception is `useFetchMetadata`'s internal
 hook, which writes the metadata middleware's params itself: the ids it asks for are only known mid-dispatch.
 
 ## Calls never throw

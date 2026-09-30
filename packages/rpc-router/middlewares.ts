@@ -7,5 +7,5 @@
 
 // Server halves of mion's isolated reusable middlewares; each has a client installer in `@mionjs/client/middlewares`.
 
-export {mionMethodsMetadata} from './src/middlewares/methodsMetadata.ts';
+export {mionFetchMetadata} from './src/middlewares/fetchMetadata.ts';
 export {mionSyncRoutes} from './src/middlewares/syncRoutes.ts';

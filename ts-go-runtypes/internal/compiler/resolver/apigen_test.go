@@ -44,7 +44,7 @@ const apiClientDTS = `declare module '@mionjs/client' {
   }
   export function batch<R extends RouteSubRequest<any>[]>(routes: [...R]): BatchBuilder<R>;
   export function initClient<RA>(o?: unknown, buildVersion?: InjectBuildVersion<RA>): {routes: ClientRoutes<RA>; middlewares: ClientMiddlewares<RA>};
-  export function useMethodsMetadata(middleware: ClientMiddleware<any>): void;
+  export function useFetchMetadata(middleware: ClientMiddleware<any>): void;
 }
 `
 
@@ -901,25 +901,25 @@ export const a = routes.ping().call();
 // metadataRouterDTS declares the metadata middleware the way @mionjs/router does, so the walk recognises it by its declaration.
 const metadataRouterDTS = `declare module '@mionjs/router' {
   type Opts = {alwaysRun: true; description: undefined; parser: {params: 'clone'; return: 'clone'}; sanitizeParams: undefined};
-  export const mionMethodsMetadata: {type: 2; handler: (ids?: string[]) => Promise<void>; options: Opts; types?: {params: [ids?: string[]]; return: void; headers: never; isAsync: false}};
+  export const mionFetchMetadata: {type: 2; handler: (ids?: string[]) => Promise<void>; options: Opts; types?: {params: [ids?: string[]]; return: void; headers: never; isAsync: false}};
 }
 `
 
 // metadataApiTS maps each routes object as PublicApi does, so members keep their routes entry's declaration.
-const metadataApiTS = optionalApiTS + `import {mionMethodsMetadata} from '@mionjs/router';
+const metadataApiTS = optionalApiTS + `import {mionFetchMetadata} from '@mionjs/router';
 type Ping = {type: 1; handler: () => Promise<string>; options: RouteOpts; types?: {params: []; return: string; headers: never; isAsync: false; sync: [[], string, 'json', 'json']}};
 declare const ping: Ping;
 type Mapped<R> = {[K in keyof R]: R[K]};
-const routes = {mionMethodsMetadata, ping};
+const routes = {mionFetchMetadata, ping};
 export type MetadataApi = Mapped<typeof routes>;
-const renamed = {meta: mionMethodsMetadata, ping};
+const renamed = {meta: mionFetchMetadata, ping};
 export type RenamedApi = Mapped<typeof renamed>;
-const served = {mionMethodsMetadata, note: {} as OptionalApi['note'], ping};
+const served = {mionFetchMetadata, note: {} as OptionalApi['note'], ping};
 export type ServedApi = Mapped<typeof served>;
 declare const computedKey: 'computed';
 const lookAlike = {
   [computedKey]: ping,
-  mionMethodsMetadata: {} as {type: 2; handler: (ids?: string[]) => Promise<void>; options: MfOpts; types?: {params: [ids?: string[]]; return: void; headers: never; isAsync: false}},
+  mionFetchMetadata: {} as {type: 2; handler: (ids?: string[]) => Promise<void>; options: MfOpts; types?: {params: [ids?: string[]]; return: void; headers: never; isAsync: false}},
   ping,
 };
 export type LookAlikeApi = Mapped<typeof lookAlike>;
@@ -940,7 +940,7 @@ func generateMetadataDiags(t *testing.T, mode constants.BundleApiMode, client st
 	return metDiags(gen.Diagnostics)
 }
 
-// TestApiGen_MetadataMiddleware: mion's own metadata middleware is set up by `useMethodsMetadata`, never reported as unset.
+// TestApiGen_MetadataMiddleware: mion's own metadata middleware is set up by `useFetchMetadata`, never reported as unset.
 func TestApiGen_MetadataMiddleware(t *testing.T) {
 	neverSetUp := func(api string) string {
 		return `import {initClient} from '@mionjs/client';
@@ -964,7 +964,7 @@ export const a = routes.ping().call();
 
 	t.Run("bundled, a look-alike the app declares is still a middleware to set up", func(t *testing.T) {
 		diags := generateMetadataDiags(t, constants.BundleApiBundled, neverSetUp("LookAlikeApi"))
-		if len(diags) != 1 || diags[0].Code != diagnostics.CodeApiMetaOptionalMiddlewareNotSetUp || diags[0].Args[0] != "mionMethodsMetadata" {
+		if len(diags) != 1 || diags[0].Code != diagnostics.CodeApiMetaOptionalMiddlewareNotSetUp || diags[0].Args[0] != "mionFetchMetadata" {
 			t.Fatalf("expected one MET009 for the look-alike, got %+v", diags)
 		}
 	})
@@ -972,7 +972,7 @@ export const a = routes.ping().call();
 
 // fetchingClient: `ping` is called directly on line 6, fetching set up on line 7, then a wide helper's call is widened.
 func fetchingClient(api string, setUp, widened bool) string {
-	source := `import {initClient, useMethodsMetadata} from '@mionjs/client';
+	source := `import {initClient, useFetchMetadata} from '@mionjs/client';
 import type {RouteSubRequest} from '@mionjs/client';
 import type {` + api + `} from './api.ts';
 export const {routes, middlewares} = initClient<` + api + `>({baseURL: 'http://x'});
@@ -980,7 +980,7 @@ middlewares.note.onRequest((call) => call());
 export const a = routes.ping().call();
 `
 	if setUp {
-		source += "useMethodsMetadata(middlewares.note as any);\n"
+		source += "useFetchMetadata(middlewares.note as any);\n"
 	}
 	if widened {
 		source += "function wide(sub: RouteSubRequest<any>) { return sub.call(); }\nexport const w = wide(routes.ping());\n"
@@ -1041,12 +1041,12 @@ func TestApiGen_MetadataFetchingSetup(t *testing.T) {
 	}
 }
 
-// TestApiGen_MetadataFetchingPerClient: `useMethodsMetadata` sets up the client its argument comes from, not every client.
+// TestApiGen_MetadataFetchingPerClient: `useFetchMetadata` sets up the client its argument comes from, not every client.
 func TestApiGen_MetadataFetchingPerClient(t *testing.T) {
-	const header = "import {initClient, useMethodsMetadata} from '@mionjs/client';\nimport type {RouteSubRequest} from '@mionjs/client';\nimport type {ServedApi, MetadataApi, OptionalApi} from './api.ts';\n"
+	const header = "import {initClient, useFetchMetadata} from '@mionjs/client';\nimport type {RouteSubRequest} from '@mionjs/client';\nimport type {ServedApi, MetadataApi, OptionalApi} from './api.ts';\n"
 	t.Run("off: the client that never sets it up is reported, at its own initClient", func(t *testing.T) {
 		client := header + `const served = initClient<ServedApi>({baseURL: 'http://x'});
-useMethodsMetadata(served.middlewares.note as any);
+useFetchMetadata(served.middlewares.note as any);
 served.middlewares.note.onRequest((call) => call());
 export const other = initClient<MetadataApi>({baseURL: 'http://y'});
 `
@@ -1056,7 +1056,7 @@ export const other = initClient<MetadataApi>({baseURL: 'http://y'});
 		}
 	})
 	t.Run("off: a setup the build cannot follow covers every client", func(t *testing.T) {
-		client := header + `export function setUp(middleware: unknown) { useMethodsMetadata(middleware as any); }
+		client := header + `export function setUp(middleware: unknown) { useFetchMetadata(middleware as any); }
 const served = initClient<ServedApi>({baseURL: 'http://x'});
 served.middlewares.note.onRequest((call) => call());
 export const other = initClient<MetadataApi>({baseURL: 'http://y'});
@@ -1067,7 +1067,7 @@ export const other = initClient<MetadataApi>({baseURL: 'http://y'});
 	})
 	t.Run("bundled: a widened call of a client that never sets it up fails", func(t *testing.T) {
 		client := header + `const served = initClient<ServedApi>({baseURL: 'http://x'});
-useMethodsMetadata(served.middlewares.note as any);
+useFetchMetadata(served.middlewares.note as any);
 served.middlewares.note.onRequest((call) => call());
 const bare = initClient<OptionalApi>({baseURL: 'http://y'});
 bare.middlewares.note.onRequest((call) => call());
@@ -1080,7 +1080,7 @@ export const w = wide(bare.routes.ping());
 		}
 	})
 	t.Run("bundled: a widened call that keeps its API answers from that API", func(t *testing.T) {
-		client := header + `export function setUp(middleware: unknown) { useMethodsMetadata(middleware as any); }
+		client := header + `export function setUp(middleware: unknown) { useFetchMetadata(middleware as any); }
 const served = initClient<ServedApi>({baseURL: 'http://x'});
 served.middlewares.note.onRequest((call) => call());
 const bare = initClient<OptionalApi>({baseURL: 'http://y'});
@@ -1164,7 +1164,7 @@ export const {routes, middlewares} = initClient<OptionalApi>({baseURL: 'http://x
 
 // TestApiGen_DirectiveAboveALineOpeningCall: a call opening its line is reported there, where the directive above reaches.
 func TestApiGen_DirectiveAboveALineOpeningCall(t *testing.T) {
-	client := strings.Replace(fetchingClient("OptionalApi", true, false), "useMethodsMetadata(", "// @mion-expect-error MET010\nuseMethodsMetadata(", 1)
+	client := strings.Replace(fetchingClient("OptionalApi", true, false), "useFetchMetadata(", "// @mion-expect-error MET010\nuseFetchMetadata(", 1)
 	if diags := generateMetadataDiags(t, constants.BundleApiBundled, client); len(diags) != 0 {
 		t.Fatalf("the directive silences MET010 at the setup call, got %+v", diags)
 	}

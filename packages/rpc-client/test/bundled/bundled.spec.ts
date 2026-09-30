@@ -12,7 +12,7 @@ import {describe, it, expect, beforeEach, afterEach, inject, vi} from 'vitest';
 import {HeadersSubset, routesCache} from '@mionjs/core';
 import type {TestServerApi} from '@mionjs/test-server';
 import {initClient} from '../../src/client.ts';
-import {useMethodsMetadata} from '../../src/middlewares/methodsMetadata.ts';
+import {useFetchMetadata} from '../../src/middlewares/fetchMetadata.ts';
 import {batch} from '../../src/batch.ts';
 import {resetClientCaches} from '../lib/testUtils.ts';
 import {resetBundledApi} from '../../src/lib/bundledApi.ts';
@@ -33,7 +33,7 @@ function useAuth(middlewares: ReturnType<typeof initClient<TestServerApi>>['midd
 }
 
 /** A helper typed with the wide subrequest: the build reports the widened id (MET004, a warning since this
- *  program sets up `useMethodsMetadata`) and bundles nothing for the call inside, which the client then fetches. */
+ *  program sets up `useFetchMetadata`) and bundles nothing for the call inside, which the client then fetches. */
 function callThroughWideHelper(sub: RouteSubRequest<any>) {
   return sub.call();
 }
@@ -49,7 +49,7 @@ function watchFetch() {
   globalThis.fetch = spy as any;
   return {
     calls: () => spy.mock.calls.length,
-    askedForMetadata: () => bodies.some((body) => body.includes('mionMethodsMetadata')),
+    askedForMetadata: () => bodies.some((body) => body.includes('mionFetchMetadata')),
     restore: () => {
       globalThis.fetch = realFetch;
     },
@@ -141,7 +141,7 @@ describe('a client built with bundleApi: true', () => {
       } as never);
       expect(result).toBeUndefined();
       expect(undeclared?.type).toBe('route-metadata-not-found');
-      expect(undeclared?.publicMessage).toContain('useMethodsMetadata');
+      expect(undeclared?.publicMessage).toContain('useFetchMetadata');
       expect(watch.calls()).toBe(0);
     } finally {
       watch.restore();
@@ -152,7 +152,7 @@ describe('a client built with bundleApi: true', () => {
   it('fetches a route the bundle lacks once metadata fetching is set up, loading the lane only then', async () => {
     const {client, middlewares} = initClient<TestServerApi>({baseURL});
     useAuth(middlewares);
-    useMethodsMetadata(middlewares.mionMethodsMetadata);
+    useFetchMetadata(middlewares.mionFetchMetadata);
     expect(loadedMetadataFromServer()).toBeUndefined();
     const [result, , undeclared] = await client.execute({
       pointer: ['flow', 'getOrgLabel'],
@@ -240,7 +240,7 @@ describe('a client built with bundleApi: true', () => {
 
   it('asks the server about a method the bundle does not carry, then validates against it', async () => {
     const {client, routes, middlewares} = initClient<TestServerApi>({baseURL});
-    useMethodsMetadata(middlewares.mionMethodsMetadata);
+    useFetchMetadata(middlewares.mionFetchMetadata);
     const watch = watchFetch();
     try {
       // client.typeErrors(...) takes already-built subrequests, so the build saw no dispatch point
@@ -256,7 +256,7 @@ describe('a client built with bundleApi: true', () => {
     it('uses the bundle for a route called through its own dispatch point', async () => {
       const {routes, middlewares} = initClient<TestServerApi>({baseURL});
       useAuth(middlewares);
-      useMethodsMetadata(middlewares.mionMethodsMetadata);
+      useFetchMetadata(middlewares.mionFetchMetadata);
       const watch = watchFetch();
       try {
         const [result] = await routes.utils.sumTwo(1).call();
@@ -272,7 +272,7 @@ describe('a client built with bundleApi: true', () => {
     it('fetches a route the bundle lacks, and stores only what it fetched', async () => {
       const {routes, middlewares} = initClient<TestServerApi>({baseURL});
       useAuth(middlewares);
-      useMethodsMetadata(middlewares.mionMethodsMetadata);
+      useFetchMetadata(middlewares.mionFetchMetadata);
       const watch = watchFetch();
       try {
         const [result] = await callThroughWideHelper(routes.flow.getOrgLabel('acme'));
@@ -292,7 +292,7 @@ describe('a client built with bundleApi: true', () => {
     it("keeps a bundled middleware out of the store when it rides a fetched route's chain", async () => {
       const {routes, middlewares} = initClient<TestServerApi>({baseURL});
       useAuth(middlewares);
-      useMethodsMetadata(middlewares.mionMethodsMetadata);
+      useFetchMetadata(middlewares.mionFetchMetadata);
       // a bundled dispatch point first, so the chain's auth middleware comes from the build
       await routes.utils.sumTwo(1).call();
       expect(isBundledMethod('auth')).toBe(true);
@@ -309,7 +309,7 @@ describe('a client built with bundleApi: true', () => {
     it('never lets a fetched answer replace a bundled entry', async () => {
       const {routes, middlewares} = initClient<TestServerApi>({baseURL});
       useAuth(middlewares);
-      useMethodsMetadata(middlewares.mionMethodsMetadata);
+      useFetchMetadata(middlewares.mionFetchMetadata);
       await routes.utils.sumTwo(1).call();
       const bundled = getMethod('utils/sumTwo');
       expect(bundled).toBeDefined();

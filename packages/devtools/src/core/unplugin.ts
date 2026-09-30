@@ -90,7 +90,7 @@ export interface PluginOptions {
   // Same key as the tsconfig entry's `apiTsconfig` and the CLI's `--api-tsconfig`.
   apiTsconfig?: string;
   // Default true; false fetches every route. Same key as tsconfig `bundleApi` and CLI `--bundle-api` (`off`).
-  // Under true, a route the build did not see is reported, and fetched only if the client sets up `useMethodsMetadata`.
+  // Under true, a route the build did not see is reported, and fetched only if the client sets up `useFetchMetadata`.
   bundleApi?: boolean;
   // Generated-output root, relative to cwd: cache modules under `<genDir>/types/` (gitignored), committed
   // enrichment under `<genDir>/enriched/`. Omitted, the resolver infers `<srcDir>/.mion` from the tsconfig.

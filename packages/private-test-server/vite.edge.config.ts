@@ -13,7 +13,7 @@ export default defineConfig({
         // first use — and workerd / Vercel's EdgeVM refuse that ("Code generation from
         // strings disallowed for this context"), so mion.initRoutes dies on the very first
         // route. 'both' also emits the live factory, so nothing is compiled at runtime;
-        // the code string stays in the bundle because the methods-metadata route
+        // the code string stays in the bundle because the fetch-metadata middleware
         // serializes it to mion clients.
         emitMode: 'both',
         // own genDir: the node lib build (vite.config.ts) and the two bundle builds share this

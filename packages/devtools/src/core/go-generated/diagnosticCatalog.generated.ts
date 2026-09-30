@@ -334,7 +334,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   MET003: {
     headline:
-      'The route id at this call is `string` (a generic helper erased it), so nothing is bundled for it, and this client never sets up `useMethodsMetadata`: the call fails.',
+      'The route id at this call is `string` (a generic helper erased it), so nothing is bundled for it, and this client never sets up `useFetchMetadata`: the call fails.',
     level: 'runtimeError',
     family: 'marker',
   },
@@ -375,13 +375,13 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   MET010: {
     headline:
-      'This client fetches route metadata, but the API it calls does not place `mionMethodsMetadata`, so every fetch fails.',
+      'This client fetches route metadata, but the API it calls does not place `mionFetchMetadata`, so every fetch fails.',
     level: 'runtimeError',
     family: 'marker',
   },
   MET011: {
     headline:
-      "This client builds with `bundleApi: false`, so every call fetches its route's metadata, but it never sets up `useMethodsMetadata`: every call fails.",
+      "This client builds with `bundleApi: false`, so every call fetches its route's metadata, but it never sets up `useFetchMetadata`: every call fails.",
     level: 'runtimeError',
     family: 'marker',
   },

@@ -11,7 +11,7 @@ import {describe, it, expect, beforeEach, afterEach, inject, vi} from 'vitest';
 import {BUILD_VERSION_HEADER} from '@mionjs/core';
 import type {TestServerApi} from '@mionjs/test-server';
 import {initClient} from '../../src/client.ts';
-import {useMethodsMetadata} from '../../src/middlewares/methodsMetadata.ts';
+import {useFetchMetadata} from '../../src/middlewares/fetchMetadata.ts';
 import {getApiBuildVersion} from '../../src/lib/apiBuildVersion.ts';
 import {isBundledMethod} from '../../src/lib/methods.ts';
 import {loadedMetadataFromServer} from '../../src/lib/metadataFromServerLoader.ts';
@@ -32,7 +32,7 @@ describe('the api version a bundled client compares', () => {
   it('is the one the server was built from', async () => {
     const {routes, middlewares} = initClient<TestServerApi>({baseURL});
     useAuth(middlewares);
-    useMethodsMetadata(middlewares.mionMethodsMetadata);
+    useFetchMetadata(middlewares.mionFetchMetadata);
     const clientVersion = getApiBuildVersion();
     expect(clientVersion).toMatch(/^[A-Za-z0-9]{12}$/);
     const response = await fetch(new URL('/sayHello', baseURL), {
@@ -47,7 +47,7 @@ describe('the api version a bundled client compares', () => {
   it('costs nothing when it matches: one request, and nothing is asked about', async () => {
     const {routes, middlewares} = initClient<TestServerApi>({baseURL});
     useAuth(middlewares);
-    useMethodsMetadata(middlewares.mionMethodsMetadata);
+    useFetchMetadata(middlewares.mionFetchMetadata);
     const watch = serveVersion(getApiBuildVersion()!);
     try {
       const [result] = await routes.sayHello(user).call();
@@ -63,7 +63,7 @@ describe('the api version a bundled client compares', () => {
   it('changes nothing when the server sends no version', async () => {
     const {routes, middlewares} = initClient<TestServerApi>({baseURL});
     useAuth(middlewares);
-    useMethodsMetadata(middlewares.mionMethodsMetadata);
+    useFetchMetadata(middlewares.mionFetchMetadata);
     const watch = serveVersion(null);
     try {
       const [result, , undeclared] = await routes.sayHello(user).call();
@@ -80,7 +80,7 @@ describe('the api version a bundled client compares', () => {
   it('resends a failed call once after a mismatch, never in a loop', async () => {
     const {routes, middlewares} = initClient<TestServerApi>({baseURL, validateParams: false});
     useAuth(middlewares);
-    useMethodsMetadata(middlewares.mionMethodsMetadata);
+    useFetchMetadata(middlewares.mionFetchMetadata);
     const watch = serveVersion('someOtherAp');
     try {
       const [result, error] = await routes.sayHello({name: 1} as any).call();
@@ -114,7 +114,7 @@ describe('the api version a bundled client compares', () => {
   it('asks about a route once after a mismatch, riding a call it was making anyway', async () => {
     const {routes, middlewares} = initClient<TestServerApi>({baseURL});
     useAuth(middlewares);
-    useMethodsMetadata(middlewares.mionMethodsMetadata);
+    useFetchMetadata(middlewares.mionFetchMetadata);
     const watch = serveVersion('someOtherAp');
     try {
       // first call: the mismatch is only visible in its response, so it asks nothing
@@ -143,7 +143,7 @@ describe('the api version a bundled client compares', () => {
   it('keeps a bundled row the server no longer agrees with, and reports it once', async () => {
     const {routes, middlewares} = initClient<TestServerApi>({baseURL});
     useAuth(middlewares);
-    useMethodsMetadata(middlewares.mionMethodsMetadata);
+    useFetchMetadata(middlewares.mionFetchMetadata);
     // The lane server IS this build's server, so forge the difference on the wire; only the sync id decides.
     const watch = serveVersion('someOtherAp', (methods) => {
       if (methods.sayHello) methods.sayHello.syncId = 'changed';

@@ -1,6 +1,6 @@
 import type {Server} from 'node:http';
 import {setNodeHttpOpts, startNodeServer} from '@mionjs/platform-node';
-import {mionMethodsMetadata} from '@mionjs/router/middlewares';
+import {mionFetchMetadata} from '@mionjs/router/middlewares';
 import type {PublicApi} from '@mionjs/router';
 import {mion} from './mion.ts';
 import {pgBuildersRoutes} from './pg.builders.routes.ts';
@@ -14,7 +14,7 @@ import {sqliteTypesRoutes} from './sqlite.types.routes.ts';
 import {sqliteDrizzleRoutes} from './sqlite.drizzle.routes.ts';
 
 const routes = {
-  mionMethodsMetadata,
+  mionFetchMetadata,
   pg: {drizzle: pgDrizzleRoutes, types: pgTypesRoutes, builders: pgBuildersRoutes},
   mysql: {drizzle: mysqlDrizzleRoutes, types: mysqlTypesRoutes, builders: mysqlBuildersRoutes},
   sqlite: {drizzle: sqliteDrizzleRoutes, types: sqliteTypesRoutes, builders: sqliteBuildersRoutes},

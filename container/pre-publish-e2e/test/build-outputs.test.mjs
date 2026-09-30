@@ -102,7 +102,7 @@ test('mion-next: the app serves its own mion API, on both wires and in a batch',
   assert.equal(batch.sum, 3);
 });
 
-// A bundled client with useMethodsMetadata ships the fetch lane, downloaded only for an unseen route or a moved-on server.
+// A bundled client with useFetchMetadata ships the fetch lane, downloaded only for an unseen route or a moved-on server.
 // Turbopack has no plugin API, so the lane is a plain dynamic import; only a REAL build shows Turbopack kept that split.
 test('mion-next: a bundled Turbopack build keeps the metadata lane out of the page', () => {
   const dist = path.join(APPS, 'mion-next', 'dist/next-bundled');

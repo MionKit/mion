@@ -11,7 +11,7 @@ import type {MethodWithOptsAndJitFns} from '@mionjs/core';
 import type {RouteSyncError, SyncRoutesHandler} from '@mionjs/core/middlewares';
 import type {CallContext, ClientMiddlewareOf, ClientOptions, MiddlewareContext, SubRequest} from '../../src/types.ts';
 import {useSyncRoutes} from '../../src/middlewares/syncRoutes.ts';
-import {useMethodsMetadata} from '../../src/middlewares/methodsMetadata.ts';
+import {useFetchMetadata} from '../../src/middlewares/fetchMetadata.ts';
 import {MIDDLEWARE_TARGET} from '../../src/lib/metadataFetcher.ts';
 import {installMethodRows, resetMetadataCacheState} from '../../src/lib/clientMethodsMetadata.ts';
 import {hasMethod, resetBundledMethods, setBundledMethod} from '../../src/lib/methods.ts';
@@ -30,7 +30,7 @@ function installed(fetchesMetadata = true) {
   const middleware = Object.assign(new TypedEvent(ID, registry, () => ({}) as SubRequest<any>), {
     [MIDDLEWARE_TARGET]: {id: ID, registry},
   });
-  if (fetchesMetadata) useMethodsMetadata({[MIDDLEWARE_TARGET]: {id: 'mionMethodsMetadata', registry}} as any);
+  if (fetchesMetadata) useFetchMetadata({[MIDDLEWARE_TARGET]: {id: 'mionFetchMetadata', registry}} as any);
   useSyncRoutes(middleware as unknown as ClientMiddlewareOf<SyncRoutesHandler>);
   const sent = (context: Partial<CallContext>) => {
     let ids: string[] | undefined;
@@ -62,7 +62,7 @@ describe('useSyncRoutes', () => {
       fetches++;
       const rows = {methods: {users: methodRow('users', 'fresh')}, deps: {}, purFnDeps: {}};
       const answer = new FatalError({type: 'metadata-only', publicMessage: 'rows', errorData: {metadata: rows}});
-      return new Response(JSON.stringify({mionMethodsMetadata: [1, answer]}), {headers: {'content-type': 'application/json'}});
+      return new Response(JSON.stringify({mionFetchMetadata: [1, answer]}), {headers: {'content-type': 'application/json'}});
     }) as typeof fetch;
   });
 
@@ -110,7 +110,7 @@ describe('useSyncRoutes', () => {
     expect(retried).toBe(1);
   });
 
-  it('without useMethodsMetadata, a route whose types changed is neither refetched nor resent', async () => {
+  it('without useFetchMetadata, a route whose types changed is neither refetched nor resent', async () => {
     installMethodRows({methods: {users: methodRow('users', 'stale')}, deps: {}, purFnDeps: {}}, options);
     const {onError} = installed(false);
     let retried = 0;

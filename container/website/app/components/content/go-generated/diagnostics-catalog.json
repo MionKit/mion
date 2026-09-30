@@ -1255,9 +1255,9 @@
       "code": "MET003",
       "subsystem": "bundled-api",
       "level": "runtimeError",
-      "headline": "The route id at this call is `string` (a generic helper erased it), so nothing is bundled for it, and this client never sets up `useMethodsMetadata`: the call fails.",
-      "summary": "A helper typed with `RouteSubRequest<any>` widens the route id to `string`, so the build cannot bundle the call inside it, and with no `useMethodsMetadata` set up that call fails. Keep the route id through a generic helper, or move the call out of it. Or set up `useMethodsMetadata` so the call asks the server for the route. That builds functions at runtime, which a strict Content Security Policy blocks.",
-      "fix": "function run<S extends RouteSubRequest<any>>(sub: S) { return sub.call() }\n// or fetch the route from the server\nuseMethodsMetadata(middlewares.mionMethodsMetadata);",
+      "headline": "The route id at this call is `string` (a generic helper erased it), so nothing is bundled for it, and this client never sets up `useFetchMetadata`: the call fails.",
+      "summary": "A helper typed with `RouteSubRequest<any>` widens the route id to `string`, so the build cannot bundle the call inside it, and with no `useFetchMetadata` set up that call fails. Keep the route id through a generic helper, or move the call out of it. Or set up `useFetchMetadata` so the call asks the server for the route. That builds functions at runtime, which a strict Content Security Policy blocks.",
+      "fix": "function run<S extends RouteSubRequest<any>>(sub: S) { return sub.call() }\n// or fetch the route from the server\nuseFetchMetadata(middlewares.mionFetchMetadata);",
       "example": null
     },
     {
@@ -1265,7 +1265,7 @@
       "subsystem": "bundled-api",
       "level": "info",
       "headline": "The route id at this call is `string` (a generic helper erased it); the call fetches its metadata from the server instead of using the bundle.",
-      "summary": "A helper typed with `RouteSubRequest<any>` widens the route id to `string`, so the build cannot bundle the call inside it. The call still works because the client sets up `useMethodsMetadata`: it fetches the route's metadata on first use and builds its functions at runtime. To bundle it too, keep the route id through a generic helper.",
+      "summary": "A helper typed with `RouteSubRequest<any>` widens the route id to `string`, so the build cannot bundle the call inside it. The call still works because the client sets up `useFetchMetadata`: it fetches the route's metadata on first use and builds its functions at runtime. To bundle it too, keep the route id through a generic helper.",
       "fix": "function run<S extends RouteSubRequest<any>>(sub: S) { return sub.call() }",
       "example": null
     },
@@ -1318,18 +1318,18 @@
       "code": "MET010",
       "subsystem": "bundled-api",
       "level": "runtimeError",
-      "headline": "This client fetches route metadata, but the API it calls does not place `mionMethodsMetadata`, so every fetch fails.",
-      "summary": "A call fetches its metadata when the build could not bundle it, or for every route when `bundleApi` is off. The server answers those fetches only through the `mionMethodsMetadata` middleware from `@mionjs/router/middlewares`, and this API does not add it. Add it first in the server's routes and set up its client half with `useMethodsMetadata`. Or, with bundling on, remove `useMethodsMetadata` and keep every route id a literal so every call is bundled.",
-      "fix": "// server\nmion.initRoutes({mionMethodsMetadata, ...routes});\n// client\nuseMethodsMetadata(middlewares.mionMethodsMetadata);",
+      "headline": "This client fetches route metadata, but the API it calls does not place `mionFetchMetadata`, so every fetch fails.",
+      "summary": "A call fetches its metadata when the build could not bundle it, or for every route when `bundleApi` is off. The server answers those fetches only through the `mionFetchMetadata` middleware from `@mionjs/router/middlewares`, and this API does not add it. Add it first in the server's routes and set up its client half with `useFetchMetadata`. Or, with bundling on, remove `useFetchMetadata` and keep every route id a literal so every call is bundled.",
+      "fix": "// server\nmion.initRoutes({mionFetchMetadata, ...routes});\n// client\nuseFetchMetadata(middlewares.mionFetchMetadata);",
       "example": null
     },
     {
       "code": "MET011",
       "subsystem": "bundled-api",
       "level": "runtimeError",
-      "headline": "This client builds with `bundleApi: false`, so every call fetches its route's metadata, but it never sets up `useMethodsMetadata`: every call fails.",
+      "headline": "This client builds with `bundleApi: false`, so every call fetches its route's metadata, but it never sets up `useFetchMetadata`: every call fails.",
       "summary": "With bundling off, each call asks the server how its route works on first use, through the client half of the metadata middleware. Nothing in this program sets that up. Set it up once next to `initClient`, or build with `bundleApi: true` (the default) so every call is bundled.",
-      "fix": "useMethodsMetadata(middlewares.mionMethodsMetadata);",
+      "fix": "useFetchMetadata(middlewares.mionFetchMetadata);",
       "example": null
     },
     {
