@@ -49,7 +49,13 @@ var corpusTriggers = []corpusTrigger{
 	{"uniqueSymbol", "(typeof uniq)"},
 	{"methodSignature", "{m(): void}"},
 	{"classMethod", "WithMethod"},
+	{"any", "any"},
+	{"unknown", "unknown"},
 }
+
+// `any` and `unknown` the author wrote are accepted on purpose, since third-party types carry them: at any position,
+// in any family, they may leave a note but never an error and never a throw.
+var corpusAlwaysAccepted = map[string]bool{"any": true, "unknown": true}
 
 var corpusPositions = []corpusPosition{
 	{"root", func(child string) string { return child }},
@@ -226,6 +232,16 @@ func TestNestedDiagCorpus(t *testing.T) {
 					family := corpusFamilies[slices.IndexFunc(corpusFamilies, func(candidate corpusFamily) bool {
 						return strings.Contains(file, "__"+candidate.name+"__")
 					})]
+					if corpusAlwaysAccepted[trigger.name] {
+						for _, code := range cell.codes {
+							if level := diagnostics.Definitions[code].Level; level == diagnostics.LevelRuntimeError || level == diagnostics.LevelError {
+								t.Errorf("%s\nreports %s, but a written %s must be accepted", label, code, trigger.name)
+							}
+						}
+						if len(cell.thrown) > 0 {
+							t.Errorf("%s\nships a function that throws %v, but a written %s must be accepted", label, sortedKeys(cell.thrown), trigger.name)
+						}
+					}
 					if corpusNonData[trigger.name] && len(cell.codes) == 0 && !corpusQuietAllowed(trigger, family) {
 						t.Errorf("%s\ndrops a non-data value with no diagnostic", label)
 					}
