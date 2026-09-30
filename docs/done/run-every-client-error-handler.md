@@ -1,7 +1,7 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-09-30
 ---
 
@@ -54,3 +54,27 @@ Decision (from the maintainer): **run all registered handlers** for an error typ
 
 Adding your own error handler to a middleware never disables another handler for the same error, with a test
 proving `useSyncRoutes` still recovers a changed fetched route while a user handler also runs.
+
+## Plan (approved 2026-09-30, as shipped)
+
+- `HandlersRegistry` keeps a list per middleware and error type, and a list of `onResponse` handlers per
+  middleware. The dispatch runs every one in registration order, each with its own `retry()` window.
+- A handler that throws or rejects does not stop the next one. The first failure is the one reported
+  (`middleware-on-error-failed` / `middleware-on-response-failed`), and as before a failed handler cancels
+  the resend.
+- `retry()` from several handlers for the same failure still resends once per middleware: `requestRetry`
+  already recorded the middleware id once, so no change was needed there.
+- `offError(type, handler)` and `offResponse(handler)` take the handler and remove only it. The handler-less
+  forms are gone: the handler is a required argument.
+- `onRequest` stays single and replaceable (the existing "replace the onRequest hook" tests and use still
+  work). An installer can mark its `onRequest` as owned (`HandlersRegistry.setRequestOwner`); `useSyncRoutes`
+  does, so a second `onRequest` on `mionSyncRoutes` throws until `offRequest()` removes the built-in one.
+  `useMethodsMetadata` sets no `onRequest`, so it needed nothing.
+- Tests: `test/isolatedMiddleware.spec.ts` (an app handler next to an installer's, two retries resend once,
+  a throw does not stop the rest, every `onResponse` runs, `offError` removes only its own),
+  `test/bundled/routeDrift.spec.ts` (a changed fetched route still recovers while an app
+  `route-types-mismatch` handler also runs; the owned `onRequest` throws). The recovery test fails on the
+  old code.
+- Docs: the hook table and a tip in `01.rpc/03.client/00.client-overview.md`, and a tip under "Handling a
+  Stopped Call" in `01.rpc/03.client/06.route-sync.md`. The `02.mion-sync-routes.md` page named above is not
+  on `main` yet, so its `::warning` is left for the branch that adds it.
