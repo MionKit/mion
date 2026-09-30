@@ -78,3 +78,13 @@ func TestIndexSignatureSymbolKey_CloneDecoder_Value(t *testing.T) {
 	expectIndexSignatureNote(t, `declare const value: {[k: symbol]: number; a: string};
 export const decode = createJsonDecoderFn(value);`, diagnostics.CodeRJSymbolKeyedDropped)
 }
+
+// The in-place codecs merge index signatures that share a value type, which once skipped the symbol one unnoted.
+func TestIndexSignatureSymbolKey_MutateEncoder_Static(t *testing.T) {
+	expectIndexSignatureNote(t, `export const encode = createJsonEncoderFn<{p0: number; [k: string | symbol]: number}>(undefined, {strategy: 'mutate'});`, diagnostics.CodePJSymbolKeyedDropped)
+}
+
+func TestIndexSignatureSymbolKey_MutateEncoder_Value(t *testing.T) {
+	expectIndexSignatureNote(t, `declare const value: {p0: number; [k: string | symbol]: number};
+export const encode = createJsonEncoderFn(value, {strategy: 'mutate'});`, diagnostics.CodePJSymbolKeyedDropped)
+}

@@ -200,6 +200,10 @@ func emitObjectJsonChildren(rt *reflection.RunType, ctx *EmitContext) RTCode {
 		// — and these codecs MUTATE in place (double-wrap on encode, "invalid union index" on
 		// decode). One sweep per distinct value type is correct and sufficient.
 		if resolved.Kind == reflection.KindIndexSignature {
+			// Before the dedup: a symbol sig sharing the string sig's value type would be skipped with no note.
+			if symbolKeyedIndexSignatureDrop(resolved, ctx) {
+				continue
+			}
 			valueID := indexSigValueID(resolved, ctx)
 			if valueID != "" {
 				if seenIndexValueIDs[valueID] {
