@@ -373,7 +373,8 @@ function createMappingMethod(mapping: BatchMapping): RemoteMethod {
 
 function createMappingHandler(mapping: BatchMapping) {
   return (ctx: CallContext) => {
-    const sourceOutput = ctx.response.body[mapping.fromId];
+    // own key only: a source named like `toString` that stored nothing would feed Object.prototype's function
+    const sourceOutput = Object.hasOwn(ctx.response.body, mapping.fromId) ? ctx.response.body[mapping.fromId] : undefined;
     // A source that answered a DECLARED error has no output to map, so the target gets a typed error of
     // its own instead of running on the null placeholder and failing validation as if the params were bad.
     if (isRpcError(sourceOutput)) {
@@ -407,8 +408,9 @@ function createMappingHandler(mapping: BatchMapping) {
       });
     }
     // the client sent a null placeholder at paramIndex
-    const targetParams = ctx.request.body[mapping.toId] as any[];
-    if (targetParams) targetParams[mapping.paramIndex] = mappedValue;
+    // an array check, not truthiness: an id like `toString` finds a prototype function, a wire value may be a string
+    const targetParams = ctx.request.body[mapping.toId];
+    if (Array.isArray(targetParams)) targetParams[mapping.paramIndex] = mappedValue;
   };
 }
 

@@ -253,3 +253,15 @@ describe('an error the route does not declare rides as native json, whatever the
     });
   });
 });
+
+describe('a route named like an Object.prototype member', () => {
+  beforeEach(() => resetRouter());
+
+  it('leaves no slot in the response when it never ran', () => {
+    createMionRouter({}).initRoutes({valueOf: mion.route((ctx): string => 'hi')});
+    const context = getNewJsonContext('/valueOf', {valueOf: []});
+    void serializeResponseBody(context, getRouterOptions());
+    expect(Object.hasOwn(context.response.body, 'valueOf')).toBe(false);
+    expect(context.response.hasErrors).toBe(false);
+  });
+});

@@ -998,3 +998,44 @@ describe('a params slot that is not an array', () => {
     expect(runs).toBe(0);
   });
 });
+
+describe('a method id that names an Object.prototype member', () => {
+  beforeEach(() => resetRouter());
+
+  const dispatchBody = (path: string, body: string) =>
+    dispatchRoute(path, body, headersFromRecord({}), headersFromRecord({}), {body} as any, {});
+
+  it('a middleware with no slot in the body runs with no params', async () => {
+    const mion = createMionRouter();
+    let runs = 0;
+    mion.initRoutes({
+      toString: mion.middleware((ctx): void => void runs++),
+      valueOf: mion.middleware((ctx, a?: string): void => void runs++),
+      hello: mion.route((ctx): string => 'hi'),
+    });
+    const response = await dispatchBody('/hello', JSON.stringify({hello: []}));
+    expect(response.hasErrors).toBe(false);
+    expect(response.body.hello).toBe('hi');
+    expect(runs).toBe(2);
+  });
+
+  it('a middleware with its own slot in the body reads its params', async () => {
+    const mion = createMionRouter();
+    mion.initRoutes({
+      hasOwnProperty: mion.middleware((ctx, a: string): string => `got ${a}`),
+      hello: mion.route((ctx): string => 'hi'),
+    });
+    const response = await dispatchBody('/hello', JSON.stringify({hasOwnProperty: ['x'], hello: []}));
+    expect(response.hasErrors).toBe(false);
+    expect(response.body.hasOwnProperty).toBe('got x');
+    expect(response.body.hello).toBe('hi');
+  });
+
+  it('a route with no slot in the body runs with no params', async () => {
+    const mion = createMionRouter();
+    mion.initRoutes({toString: mion.route((ctx): string => 'hi')});
+    const response = await dispatchBody('/toString', JSON.stringify({}));
+    expect(response.hasErrors).toBe(false);
+    expect(response.body.toString).toBe('hi');
+  });
+});

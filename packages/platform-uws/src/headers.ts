@@ -12,7 +12,9 @@ import type {HttpRequest} from '@mionjs/bin-uws';
 export function headersFromUwsRequest(req: HttpRequest): MionHeaders {
   const record: Record<string, string> = {};
   req.forEach((name, value) => {
-    record[name] = record[name] === undefined ? value : `${record[name]}, ${value}`;
+    // a string check, not undefined: a `constructor` header would otherwise find Object.prototype's function
+    const previous = record[name];
+    record[name] = typeof previous === 'string' ? `${previous}, ${value}` : value;
   });
   return headersFromRecord(record, true);
 }

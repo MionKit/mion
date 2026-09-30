@@ -915,5 +915,43 @@ describe('batches', () => {
         type: 'batch-mapping-invalid-target',
       });
     });
+
+    it('a target named like an Object.prototype member with no slot in the body writes nothing onto the prototype', async () => {
+      resetRouter();
+      mion.initRoutes({valueOf: source, toString: target});
+      registerMapper(`${MAPPER}protoTarget`, 'return (value) => value.id;');
+      registerBatches({
+        protoTarget: {
+          routes: ['valueOf', 'toString'],
+          mappings: [{fromId: 'valueOf', toId: 'toString', mapperKey: `${MAPPER}protoTarget`, paramIndex: 0}],
+        },
+      });
+
+      const response = await dispatchBatch(getDefaultRequest({valueOf: []}), 'id=protoTarget');
+
+      expect(Object.hasOwn(Object.prototype.toString, 0)).toBe(false);
+      expect(response.body.valueOf).toEqual({id: 7});
+      // the target had no slot, so it failed validation like any route called without its params
+      expect(thrownErrors(response)['toString'].type).toBe('validation-error');
+    });
+
+    it('a source named like an Object.prototype member that stored nothing feeds undefined, never the prototype function', async () => {
+      resetRouter();
+      const voidSource = mion.route((ctx): void => undefined);
+      const kindTarget = mion.route((ctx, kind: string | null): string => `${kind}`);
+      mion.initRoutes({toString: voidSource, kindTarget});
+      registerMapper(`${MAPPER}protoSource`, 'return (value) => typeof value;');
+      registerBatches({
+        protoSource: {
+          routes: ['toString', 'kindTarget'],
+          mappings: [{fromId: 'toString', toId: 'kindTarget', mapperKey: `${MAPPER}protoSource`, paramIndex: 0}],
+        },
+      });
+
+      const response = await dispatchBatch(getDefaultRequest({toString: [], kindTarget: [null]}), 'id=protoSource');
+
+      expect(response.hasErrors).toBe(false);
+      expect(response.body.kindTarget).toBe('undefined');
+    });
   });
 });

@@ -105,8 +105,10 @@ function isUndeclaredError(method: RemoteMethod, value: unknown): boolean {
 function prepareBodyForJson(context: CallContext, executionChain: RemoteMethod[], respBody: ResponseBody): void {
   for (let i = 0; i < executionChain.length; i++) {
     const method = executionChain[i];
+    // own key only: a skipped member named like `toString` would otherwise encode Object.prototype's function
+    if (!method.hasReturnData || !Object.hasOwn(respBody, method.id)) continue;
     const returnValue = respBody[method.id];
-    if (!method.hasReturnData || typeof returnValue === 'undefined') continue;
+    if (typeof returnValue === 'undefined') continue;
     try {
       const preparedValue = prepareHandlerReturnValue(method, returnValue);
       if (preparedValue !== undefined) (respBody as Mutable<ResponseBody>)[method.id] = preparedValue;

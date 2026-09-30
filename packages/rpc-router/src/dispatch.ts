@@ -233,7 +233,9 @@ const EMPTY_PARAMS: any[] = [];
 Object.freeze(EMPTY_PARAMS);
 
 function deserializeBodyParamsOrThrow(request: MionRequest, executable: RemoteMethod): any[] {
-  const params = request.body[executable.id] as any[] | undefined;
+  // own key only: an id like `toString` would otherwise read Object.prototype off the parsed body
+  const body = request.body;
+  const params = (Object.hasOwn(body, executable.id) ? body[executable.id] : undefined) as any[] | undefined;
   // EMPTY_PARAMS is frozen and the decoders mutate what they are handed, so decoding the sentinel would
   // report a raw serialization error where validation should refuse the missing body.
   if (!params) return EMPTY_PARAMS;
@@ -249,8 +251,9 @@ function deserializeBodyParamsOrThrow(request: MionRequest, executable: RemoteMe
   const {decode} = executable.paramsJitFns.json;
   if (decode.isNoop) return params;
   try {
-    (request.body as Mutable<MionRequest['body']>)[executable.id] = decode.fn(params);
-    return request.body[executable.id] as any[];
+    const decoded = decode.fn(params);
+    (body as Mutable<MionRequest['body']>)[executable.id] = decoded;
+    return decoded;
   } catch (e: any) {
     if (isStackOverflow(e)) throw nestingTooDeep(executable, e);
     // Fixed wire text: the decoder's message quotes internal detail; the original stays on `originalError`.
