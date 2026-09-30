@@ -643,6 +643,17 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
   const batchSourceFiles = new Set<string>();
   const batchSourceRoots = new Set<string>();
   let batchSourceWatcher: {add: (file: string) => void} | undefined;
+  // chokidar re-scans a root on every add() and treats a file created during that scan as initial, which
+  // vite's ignoreInitial swallows: a new client file then never regenerates. So each root is added once.
+  const watchedBatchRoots = new Set<string>();
+  function watchBatchRoots(): void {
+    if (!batchSourceWatcher) return;
+    for (const root of batchSourceRoots) {
+      if (watchedBatchRoots.has(root)) continue;
+      watchedBatchRoots.add(root);
+      batchSourceWatcher.add(root);
+    }
+  }
 
   const SOURCE_FILE_RE = /\.[mc]?[jt]sx?$/;
   function isBatchSourcePath(file: string): boolean {
@@ -726,7 +737,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
     for (const root of roots) batchSourceRoots.add(root);
     // roots cover their files (chokidar watches a directory recursively), so
     // registering the roots is what makes a created file visible
-    for (const root of roots) batchSourceWatcher?.add(root);
+    watchBatchRoots();
     options.onGenerate?.({
       outDir: gen.outDir,
       batchesModule: gen.batchesModule,
@@ -1087,7 +1098,8 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
         const watcher = server?.watcher;
         if (!watcher?.add || !watcher?.on) return;
         batchSourceWatcher = watcher;
-        for (const root of batchSourceRoots) watcher.add(root);
+        watchedBatchRoots.clear();
+        watchBatchRoots();
         const onChange = (file: string): void => {
           if (!isBatchSourcePath(file)) return;
           void onBatchSourceChange();
