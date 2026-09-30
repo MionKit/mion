@@ -160,7 +160,7 @@ func corpusCodes(response protocol.Response, file string) []string {
 }
 
 // TestNestedDiagCorpus puts every trigger at every position, inline and named, under every family and inline mode.
-// A throw is reported, a reported throw ships, inline and named agree, non-data never drops silently, build equals scan.
+// A throw is reported, a reported throw ships, inline, named and both call shapes agree, non-data never drops silently, build equals scan.
 func TestNestedDiagCorpus(t *testing.T) {
 	for _, trigger := range corpusTriggers {
 		t.Run(trigger.name, func(t *testing.T) {
@@ -190,7 +190,7 @@ func TestNestedDiagCorpus(t *testing.T) {
 								file := depth + "__" + position.name + "__" + family.name + "__" + shape + ".ts"
 								sources[file] = corpusSite(family, decl, siteType, valueShape)
 								files = append(files, file)
-								caseOf[file] = position.name + "/" + family.name + "/" + shape
+								caseOf[file] = position.name + "/" + family.name
 							}
 						}
 					}
