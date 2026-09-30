@@ -34,6 +34,10 @@ func jsonCompatRecursive(rt *reflection.RunType, ctx *EmitContext, visited map[s
 	if rt == nil {
 		return false
 	}
+	// Non-data is the emitters' CodeNS arm: never compatible, shareable or identity, or the shortcut hides the throw.
+	if isStrippedUnionMember(rt, ctx) {
+		return false
+	}
 	if rt.ID != "" {
 		// A completed top-level verdict is context-free, so it is reusable at any depth.
 		if verdict, known := ctx.walker.factsLookup(factJsonCompat, rt.ID); known {
@@ -66,17 +70,7 @@ func jsonCompatRecursive(rt *reflection.RunType, ctx *EmitContext, visited map[s
 		}
 		return true
 
-	case reflection.KindBigInt,
-		reflection.KindSymbol,
-		reflection.KindUndefined,
-		reflection.KindVoid,
-		reflection.KindRegexp,
-		reflection.KindNever,
-		reflection.KindPromise,
-		reflection.KindFunction,
-		reflection.KindMethod,
-		reflection.KindMethodSignature,
-		reflection.KindCallSignature:
+	case reflection.KindBigInt, reflection.KindUndefined, reflection.KindVoid:
 		return false
 
 	case reflection.KindArray:
@@ -117,10 +111,6 @@ func jsonCompatRecursive(rt *reflection.RunType, ctx *EmitContext, visited map[s
 		return jsonCompatRecursive(ctx.ResolveRef(rt.Child), ctx, visited)
 
 	case reflection.KindObjectLiteral:
-		// A callable interface is the emitters' CodeNS arm, so skipping its call signature would hide the throw.
-		if objectHasCallSignature(rt, ctx) {
-			return false
-		}
 		return objectChildrenCompat(objectMembers(rt), ctx, visited)
 
 	case reflection.KindIntersection:

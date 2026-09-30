@@ -51,31 +51,15 @@ func FamilyOf(kind ReflectionKind) Family {
 	return FamilyUnknown
 }
 
-// IsNotSupportedKind reports whether a node's Kind (+ SubKind) is one the type-function emitters cannot
-// faithfully validate or serialise: functions and their signature kinds (no value form), symbols (identity
-// doesn't round-trip), RegExp values (a pattern is code the receiver would run, never data; only a `pattern`
-// format carries one, fixed at build time), never (no inhabitants) and non-serialisable classes (WeakMap,
-// typed arrays, …). KindPromise is deliberately absent: a thenable is a real runtime value, so it is data.
-func IsNotSupportedKind(kind ReflectionKind, subKind ReflectionSubKind) bool {
-	switch kind {
-	case KindNever, KindSymbol, KindRegexp,
-		KindFunction, KindMethod, KindMethodSignature, KindCallSignature:
-		return true
-	case KindClass:
-		return subKind == SubKindNonSerializable
-	}
-	return false
-}
-
-// PopulateFamily sets Family and NotSupported on runType and every node reachable through its ref slots.
-// Called at intern time (Cache.putNode), so a node carries both Kind-derived classifications before the JSON
-// envelope is built. Idempotent. A ref sentinel carries no child slots, so it ends the recursion; its
-// canonical node is populated separately when the same walk reaches it via cache.nodes.
-func PopulateFamily(runType *RunType) {
+// PopulateFamily sets Family and NotSupported (NonDataOf) on runType and every node reachable through its ref slots.
+// Called at intern time (Cache.putNode), so a node carries both classifications before the JSON envelope is built.
+// Idempotent. resolve follows a ref to its interned node (an interface's call signature is a ref); a ref sentinel
+// carries no child slots, so it ends the recursion.
+func PopulateFamily(runType *RunType, resolve func(*RunType) *RunType) {
 	if runType == nil {
 		return
 	}
 	runType.Family = FamilyOf(runType.Kind)
-	runType.NotSupported = IsNotSupportedKind(runType.Kind, runType.SubKind)
-	runType.EachRefSlot(PopulateFamily)
+	runType.NotSupported = NonDataOf(runType, resolve) != Data
+	runType.EachRefSlot(func(child *RunType) { PopulateFamily(child, resolve) })
 }

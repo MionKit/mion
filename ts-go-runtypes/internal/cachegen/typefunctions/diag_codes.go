@@ -5,42 +5,24 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// rootCodeMap maps an unsupported root leaf kind to one family's root-error code. A kind left "" falls back
-// to the renderer's silent skip, so an unknown future kind raises no diagnostic without a registered code.
+// rootCodeMap maps a non-data root leaf to one family's root-error code, one per reflection.NonData class.
 type rootCodeMap struct {
-	never           string // KindNever
-	nonSerializable string // KindPromise + KindRegexp + KindClass.SubKindNonSerializable
-	function        string // KindFunction / KindMethod / KindMethodSignature / KindCallSignature
-	symbol          string // KindSymbol
+	never           string
+	nonSerializable string
+	function        string
+	symbol          string
 }
 
 func (m rootCodeMap) codeFor(leaf *reflection.RunType) string {
-	if leaf == nil {
-		return ""
-	}
-	switch leaf.Kind {
-	case reflection.KindNever:
+	switch reflection.NonDataOf(leaf, nil) {
+	case reflection.NonDataNever:
 		return m.never
-	case reflection.KindPromise, reflection.KindRegexp:
+	case reflection.NonDataOpaque:
 		return m.nonSerializable
-	case reflection.KindFunction,
-		reflection.KindMethod,
-		reflection.KindMethodSignature,
-		reflection.KindCallSignature:
+	case reflection.NonDataFunction:
 		return m.function
-	case reflection.KindSymbol:
+	case reflection.NonDataSymbol:
 		return m.symbol
-	case reflection.KindLiteral:
-		// A symbol-flavored literal is refused like the bare kind, so it takes the same root code.
-		for _, flag := range leaf.Flags {
-			if flag == "symbol" {
-				return m.symbol
-			}
-		}
-	case reflection.KindClass:
-		if leaf.SubKind == reflection.SubKindNonSerializable {
-			return m.nonSerializable
-		}
 	}
 	return ""
 }

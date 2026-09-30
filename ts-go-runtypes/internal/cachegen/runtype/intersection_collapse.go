@@ -313,13 +313,13 @@ func (cache *Cache) serializeFoldedSlot(fold *typeid.SlotFold) *reflection.RunTy
 			node.Children = append(node.Children, cache.serializeFoldedSlot(arm))
 		}
 		cache.finalizeUnion(node)
-		reflection.PopulateFamily(node)
+		reflection.PopulateFamily(node, cache.resolveNode)
 		cache.nodes[id] = node
 		return reflection.NewRef(id)
 	}
 	cache.projectPrimitiveInto(fold.Base, node)
 	node.FormatAnnotation = fold.Annotation
-	reflection.PopulateFamily(node)
+	reflection.PopulateFamily(node, cache.resolveNode)
 	cache.putNode(id, node)
 	return reflection.NewRef(id)
 }

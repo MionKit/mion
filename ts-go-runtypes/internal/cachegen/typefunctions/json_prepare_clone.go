@@ -498,6 +498,10 @@ func extraProofRecursive(rt *reflection.RunType, ctx *EmitContext, visited map[s
 	if rt == nil {
 		return false
 	}
+	// Non-data is the emitters' CodeNS arm: never compatible, shareable or identity, or the shortcut hides the throw.
+	if isStrippedUnionMember(rt, ctx) {
+		return false
+	}
 	if rt.ID != "" {
 		if verdict, known := ctx.walker.factsLookup(factExtraProof, rt.ID); known {
 			return verdict
