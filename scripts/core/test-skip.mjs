@@ -1,6 +1,6 @@
 // `core test-skip`: run only the vitest files whose code changed since they last passed. A file's key hashes
 // the code it loads AFTER the vite transform (the mion compiler's output, not the Go source), its external
-// package paths (pnpm puts the version there) and a salt. A file reaching outside its import graph is never cached.
+// packages by version, its declared inputs and a salt. A file reaching outside its import graph undeclared is never cached.
 import {createHash} from 'node:crypto';
 import {existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync} from 'node:fs';
 import {dirname, join, relative} from 'node:path';
@@ -11,6 +11,9 @@ import {die, note, reportCliError} from '../lib/proc.mjs';
 
 // Importing one of these makes a result depend on something no key can see.
 const UNCACHEABLE = /^(node:)?(child_process|fs|fs\/promises|net|http|https|http2|worker_threads|cluster|dgram)$/;
+// Packages that read files on the caller's behalf (a TypeScript program, a bundler build, a linter run).
+const READS_FILES = /^(typescript|vite|rollup|rolldown|esbuild|webpack|@rspack\/core|eslint|oxlint)@/;
+const PACKAGE = /^(.*node_modules\/)((?:@[^/]+\/)?[^/]+)/;
 // Time-boxed fuzz runs cover what the clock allows, so a rerun is never the same run.
 const TIME_BOXED = /\/test\/fuzz\/.*\.integration\.test\.ts$/;
 const KEEP_PER_FILE = 3;
@@ -47,11 +50,13 @@ export async function moduleGraph(project, file, declared = DECLARED) {
     if (!transformed) return;
     modules.set(filepath, stableCode(filepath, transformed.code));
     for (const dep of [...(transformed.deps ?? []), ...(transformed.dynamicDeps ?? [])]) {
-      const own = declared[relative(REPO_ROOT, filepath)];
-      if (UNCACHEABLE.test(dep) && own) for (const input of own) inputs.add(input);
-      else if (UNCACHEABLE.test(dep)) reasons.add(`imports ${dep}`);
       const fsPath = dep.startsWith('/@fs/') ? dep.slice(4) : join(project.config.root, dep);
-      if (fsPath.includes('node_modules') || !existsSync(fsPath)) externals.add(dep.startsWith('/@fs/') ? relative(REPO_ROOT, fsPath) : dep);
+      const external = fsPath.includes('node_modules') || !existsSync(fsPath);
+      const id = external ? externalId(dep.startsWith('/@fs/') ? relative(REPO_ROOT, fsPath) : dep) : '';
+      const own = declared[relative(REPO_ROOT, filepath)];
+      if ((UNCACHEABLE.test(dep) || READS_FILES.test(id)) && own) for (const input of own) inputs.add(input);
+      else if (UNCACHEABLE.test(dep) || READS_FILES.test(id)) reasons.add(`imports ${id}`);
+      if (external) externals.add(id);
       else await visit(fsPath);
     }
   };
@@ -136,6 +141,17 @@ function mapIndexes(value, byId) {
   return value;
 }
 
+const versions = new Map();
+// The hoisted node_modules layout puts no version in a path, so an external is keyed as `name@version`.
+export function externalId(path) {
+  const match = PACKAGE.exec(path);
+  if (!match) return path;
+  const manifest = join(REPO_ROOT, match[1], match[2], 'package.json');
+  if (!versions.has(manifest))
+    versions.set(manifest, existsSync(manifest) ? JSON.parse(readFileSync(manifest, 'utf8')).version : 'missing');
+  return `${match[2]}@${versions.get(manifest)}`;
+}
+
 // Exported for the unit tests.
 export function fileKey({modules, externals, inputs = new Set()}, salt) {
   const parts = [salt];
@@ -172,12 +188,22 @@ function baseSalt(vitest) {
     .sort()
     .map((name) => `${name}=${process.env[name]}`);
   const read = (path) => (existsSync(path) ? readFileSync(path, 'utf8') : '');
-  return sha(process.version, vitest.version, read(join(REPO_ROOT, 'vitest.config.ts')), read(join(REPO_ROOT, 'version.json')), ...fuzzEnv);
+  return sha(
+    process.version,
+    vitest.version,
+    read(join(REPO_ROOT, 'vitest.config.ts')),
+    read(join(REPO_ROOT, 'version.json')),
+    ...fuzzEnv
+  );
 }
 
 // Setup files run around every test file, so their graphs join every key and their reasons block every file.
 export async function projectSalt(project, base, declared = DECLARED) {
-  const setups = [project.config.config ?? '', ...(project.config.setupFiles ?? []), ...(project.config.globalSetup ?? [])].filter((path) => path && existsSync(path));
+  const setups = [
+    project.config.config ?? '',
+    ...(project.config.setupFiles ?? []),
+    ...(project.config.globalSetup ?? []),
+  ].filter((path) => path && existsSync(path));
   const parts = [base, project.name];
   let reason = '';
   for (const setup of setups) {
@@ -241,7 +267,8 @@ export function passRecorder() {
       const id = specId(testModule.project, testModule.moduleId);
       const tests = [...testModule.children.allTests()];
       if (testModule.state() === 'failed') failed.add(id);
-      else if (testModule.state() === 'passed' && tests.length > 0 && tests.every((test) => test.result().state === 'passed')) passed.add(id);
+      else if (testModule.state() === 'passed' && tests.length > 0 && tests.every((test) => test.result().state === 'passed'))
+        passed.add(id);
     },
   };
   return {reporter, passed, failed};
@@ -256,7 +283,9 @@ async function writeKeys(out, scope) {
   mkdirSync(dirname(out), {recursive: true});
   writeFileSync(out, `${JSON.stringify(keys, null, 2)}\n`);
   const uncached = Object.values(keys).filter((entry) => entry.reason).length;
-  note(`test-skip: ${specs.length} file(s) keyed in ${Math.round(performance.now() - started)} ms, ${uncached} never cached -> ${relative(REPO_ROOT, out)}`);
+  note(
+    `test-skip: ${specs.length} file(s) keyed in ${Math.round(performance.now() - started)} ms, ${uncached} never cached -> ${relative(REPO_ROOT, out)}`
+  );
 }
 
 // A failed file the list would have skipped: its key misses an input.
@@ -270,7 +299,9 @@ async function runSkipping({store: storePath, audit, ...scope}) {
   const proven = (spec) => isProven(store, specId(spec.project, spec.moduleId), keys[specId(spec.project, spec.moduleId)]);
   const toRun = audit ? specs : specs.filter((spec) => !proven(spec));
   const skippable = specs.filter(proven).length;
-  note(`test-skip: ${specs.length} file(s), ${skippable} already passed at these exact inputs, running ${toRun.length}${audit ? ' (audit)' : ''}`);
+  note(
+    `test-skip: ${specs.length} file(s), ${skippable} already passed at these exact inputs, running ${toRun.length}${audit ? ' (audit)' : ''}`
+  );
   if (toRun.length > 0) await vitest.runTestSpecifications(toRun, toRun.length === specs.length);
   const unhandled = vitest.state.getUnhandledErrors().length;
   await vitest.close();
@@ -281,8 +312,12 @@ async function runSkipping({store: storePath, audit, ...scope}) {
     writeFileSync(storePath, `${JSON.stringify(store)}\n`);
   }
   const missed = audit ? missedInputs(store, keys, recorder.failed) : [];
-  if (missed.length > 0) die(`core test-skip --audit: ${missed.length} failed file(s) the passed list would have skipped, so their keys miss an input:\n  ${missed.join('\n  ')}`);
-  if (recorder.failed.size > 0 || unhandled > 0) die(`core test-skip: ${recorder.failed.size} file(s) failed, ${unhandled} unhandled error(s)`);
+  if (missed.length > 0)
+    die(
+      `core test-skip --audit: ${missed.length} failed file(s) the passed list would have skipped, so their keys miss an input:\n  ${missed.join('\n  ')}`
+    );
+  if (recorder.failed.size > 0 || unhandled > 0)
+    die(`core test-skip: ${recorder.failed.size} file(s) failed, ${unhandled} unhandled error(s)`);
 }
 
 export function parseCli(argv) {
@@ -291,13 +326,24 @@ export function parseCli(argv) {
     parsed = parseArgs({
       args: argv,
       allowPositionals: true,
-      options: {keys: {type: 'string'}, store: {type: 'string'}, audit: {type: 'boolean'}, project: {type: 'string', multiple: true}, exclude: {type: 'string', multiple: true}},
+      options: {
+        keys: {type: 'string'},
+        store: {type: 'string'},
+        audit: {type: 'boolean'},
+        project: {type: 'string', multiple: true},
+        exclude: {type: 'string', multiple: true},
+      },
     });
   } catch (err) {
     die(`core test-skip: ${err.message}`, 2);
   }
   const {values, positionals} = parsed;
-  return {keys: values.keys, store: values.store ?? DEFAULT_STORE, audit: values.audit ?? false, scope: {filters: positionals, projects: values.project ?? [], excludes: values.exclude ?? []}};
+  return {
+    keys: values.keys,
+    store: values.store ?? DEFAULT_STORE,
+    audit: values.audit ?? false,
+    scope: {filters: positionals, projects: values.project ?? [], excludes: values.exclude ?? []},
+  };
 }
 
 export async function main(argv = []) {

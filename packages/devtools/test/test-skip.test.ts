@@ -1,6 +1,6 @@
 // scripts/core/test-skip.mjs skips a vitest file whose key already passed. These pin what
 // the key sees, what it deliberately ignores, and which files it refuses to cache at all.
-import {mkdirSync, mkdtempSync, writeFileSync} from 'node:fs';
+import {mkdirSync, mkdtempSync, readFileSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join, relative} from 'node:path';
 import {describe, expect, it} from 'vitest';
@@ -8,6 +8,7 @@ import {describe, expect, it} from 'vitest';
 const REPO_ROOT = join(__dirname, '../../..');
 import {
   bundleDigest,
+  externalId,
   fileKey,
   inputDigest,
   isProven,
@@ -20,6 +21,9 @@ import {
   stableCode,
   // @ts-expect-error plain ESM dev script, no types
 } from '../../../scripts/core/test-skip.mjs';
+
+const externalVersion = (name: string) =>
+  JSON.parse(readFileSync(join(REPO_ROOT, 'node_modules', name, 'package.json'), 'utf8')).version;
 
 const graph = (modules: Record<string, string>, externals: string[] = []) => ({
   modules: new Map(Object.entries(modules)),
@@ -212,11 +216,27 @@ describe('test-skip — files that reach outside their import graph', () => {
     expect((await projectSalt(project, 'base', {[relative(REPO_ROOT, setup)]: []})).reason).toBe('');
   });
 
-  it('keeps a pure graph cacheable, and records an external package by its versioned path', async () => {
-    const dep = '/@fs' + join(REPO_ROOT, 'node_modules/.pnpm/zod@4.1.5/node_modules/zod/index.js');
+  // The hoisted layout puts no version in the path, so the version comes from the package's own manifest.
+  it('keeps a pure graph cacheable, and records an external package by name and version', async () => {
+    const dep = '/@fs' + join(REPO_ROOT, 'node_modules/vitest/dist/index.js');
     const graph = await moduleGraph(fakeProject(root, {[file]: {code: 'x', deps: ['node:path', dep]}}), file);
     expect([...graph.reasons]).toEqual([]);
-    expect([...graph.externals]).toContain('node_modules/.pnpm/zod@4.1.5/node_modules/zod/index.js');
+    expect([...graph.externals]).toEqual(['node:path', `vitest@${externalVersion('vitest')}`]);
+    expect(externalId('node_modules/@vitejs/plugin-vue/dist/index.mjs')).toBe(
+      `@vitejs/plugin-vue@${externalVersion('@vitejs/plugin-vue')}`
+    );
+  });
+
+  it('is never cached when the graph imports a package that reads files itself, unless the importer is declared', async () => {
+    const dep = '/@fs' + join(REPO_ROOT, 'node_modules/typescript/lib/typescript.js');
+    const modules = {[file]: {code: 'x', deps: [dep]}};
+    const typescript = `typescript@${externalVersion('typescript')}`;
+    expect([...(await moduleGraph(fakeProject(root, modules), file, {})).reasons]).toEqual([`imports ${typescript}`]);
+    const declared = await moduleGraph(fakeProject(root, modules), file, {
+      [relative(REPO_ROOT, file)]: ['packages/run-types/src'],
+    });
+    expect([...declared.reasons]).toEqual([]);
+    expect([...declared.inputs]).toEqual(['packages/run-types/src']);
   });
 });
 
