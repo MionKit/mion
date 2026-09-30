@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
 // A function-valued index signature drops like a function-valued property: with the family's …010 note, never silently.
@@ -15,11 +14,7 @@ const indexSignatureFunctionImports = `import {createValidateFn, createJsonEncod
 
 func expectIndexSignatureNote(t *testing.T, site, code string) {
 	t.Helper()
-	response := setupInline(t, map[string]string{"site.ts": indexSignatureFunctionImports + site + "\n"}).Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"site.ts"}, IncludeEntryModules: true})
-	if response.Error != "" {
-		t.Fatalf("scanFiles: %s", response.Error)
-	}
-	if codes := codesOf(response); !slices.Contains(codes, code) {
+	if codes := siteCodes(t, map[string]string{"site.ts": indexSignatureFunctionImports + site + "\n"}, false); !slices.Contains(codes, code) {
 		t.Errorf("want %s for the dropped index signature, got %v", code, codes)
 	}
 }
