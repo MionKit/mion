@@ -31,7 +31,7 @@ const graph = (modules: Record<string, string>, externals: string[] = []) => ({
   reasons: new Set<string>(),
 });
 
-// A runtypes.js in the resolver's layout: `ini` lines keyed by row id, rows sorted by id, rels pointing by row index.
+// A runtypes.js in the resolver's layout: `ini` lines by row id, rows sorted by id, rels by row index.
 const bundle = (rows: string[], rels: string, ini: string[] = []) =>
   `function ini(rtu){const c=(id)=>rtu.useRunType(id);\n${ini.join('\n')}\n}\nexport const __rt_runtypes=[4,,ini,'rts_x',[${rows.join(',\n')}],[${rels}]];\n`;
 
@@ -226,7 +226,7 @@ describe('test-skip — files that reach outside their import graph', () => {
     expect((await projectSalt(project, 'base', {[relative(REPO_ROOT, setup)]: []})).reason).toBe('');
   });
 
-  // The hoisted layout puts no version in the path, so the version comes from the package's own manifest.
+  // The hoisted layout puts no version in the path; it comes from the package's manifest.
   it('keeps a pure graph cacheable, and records an external package by name and version', async () => {
     const dep = '/@fs' + join(REPO_ROOT, 'node_modules/vitest/dist/index.js');
     const graph = await moduleGraph(fakeProject(root, {[file]: {code: 'x', deps: ['node:path', dep]}}), file);

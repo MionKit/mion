@@ -218,8 +218,8 @@ describe('the lane table', () => {
   });
 });
 
-// A pull request skips what the list proved; main runs everything and fails on any file the list would have skipped
-// that fails, so a key missing an input cannot hide. Both halves share one list, keyed per run so every run saves.
+// PRs skip what the list proved; main runs everything, so a key missing an input fails there instead of hiding.
+// Both halves share one list, keyed per run so every run saves.
 describe('js-lint — the passed test list', () => {
   const job = () => jobOf(read('.github/workflows/ci.yml'), 'js-lint');
   const step = (name: string) =>
