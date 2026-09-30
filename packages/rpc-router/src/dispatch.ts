@@ -133,6 +133,7 @@ async function runExecutionChain(
         continue; // like a thrown one: it belongs in @thrownErrors, never in the body
       }
       if (executable.headersReturn && result instanceof HeadersSubset) {
+        validateReturnedHeadersOrThrow(result, executable as HeadersMethod);
         // own keys only: a HeadersSubset built over a parsed body must not turn inherited keys into headers
         const headersMap = result.headers;
         for (const name of Object.keys(headersMap)) {
@@ -303,6 +304,18 @@ function validateParametersOrThrow(params: any[], executable: RemoteMethod): voi
     });
     throw validationError;
   }
+}
+
+// A returned header off its declared type is a handler bug: it fails the call like any undeclared error
+function validateReturnedHeadersOrThrow(headers: HeadersSubset<string, string>, executable: HeadersMethod): void {
+  const jitFns = executable.headersReturn!.jitFns;
+  if (jitFns.isType.fn(headers)) return;
+  throw new FatalError({
+    statusCode: StatusCodes.UNEXPECTED_ERROR,
+    type: 'response-validation-error',
+    publicMessage: `Invalid headers returned by '${executable.id}', validation failed.`,
+    errorData: {typeErrors: jitFns.typeErrors.fn(headers)},
+  });
 }
 
 function validateHeaderParamsOrThrow(headers: HeadersSubset<string, string>, executable: HeadersMethod): void {

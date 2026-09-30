@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RpcError} from '@mionjs/core';
+import {HeadersSubset, RpcError} from '@mionjs/core';
 import {getMethod, useMethodFns} from './methods.ts';
 import type {JitCompiledFunctions, RunTypeError, ValidationErrorData} from '@mionjs/core';
 import type {CallContext, RequestErrors, SubRequest} from '../types.ts';
@@ -49,7 +49,13 @@ export function validateSubRequest(id: string, subRequest: SubRequest<any>, erro
 /** An answer the return type does not describe; undefined when it matches or the method returns nothing. */
 export function getResponseError(id: string, value: unknown) {
   const method = useMethodFns(id);
-  if (!method.hasReturnData || method.headersReturn) return;
+  if (!method.hasReturnData) return;
+  if (method.headersReturn) {
+    // no header on the wire can be a valid void return, so only headers that came back are checked
+    if (!(value instanceof HeadersSubset)) return;
+    const jitFns = method.headersReturn.jitFns as JitCompiledFunctions;
+    return checkValue(method.id, jitFns, value, 'response-validation-error', 'response-validation-error', 'headers from');
+  }
   return checkValue(
     method.id,
     method.returnJitFns,
