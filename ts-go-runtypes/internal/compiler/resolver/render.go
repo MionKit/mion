@@ -71,8 +71,8 @@ type demandedSite struct {
 
 // buildProvenanceSites converts the resolver's protocol.Site list into the ProvenanceKey → sites maps the
 // typefns walker fans per-call-site diagnostics out with, both keyed by (type id + family tag): rooted
-// holds only the sites that NAMED each id, reaching adds every site the id is reachable from. A ScopeRoot
-// code reads the first, everything else the second, see Walker.diagnosticSites.
+// holds only the sites that NAMED each id, reaching adds every site the id is reachable from. Findings go to
+// the rooted sites; reaching names a throw's site and tells a site's own throws from another family's.
 func (sess *Session) buildProvenanceSites() (rooted, reaching map[string][]diagnostics.Site) {
 	if sess == nil || sess.Program == nil {
 		return nil, nil

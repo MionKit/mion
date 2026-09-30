@@ -96,7 +96,7 @@ type RTEntry struct {
 	IsNoop bool `json:"isNoop,omitempty"`
 	// ChildRefs is one entry per RT-dependency hash baked into ArgsText (walker.RTDependencies); empty for leaf entries.
 	ChildRefs []ChildRef `json:"childRefs"`
-	// ElidedRefs are children the noop gate left out (walker.ElidedDependencies), rendered only for their findings.
+	// ElidedRefs are children the noop gate left out (walker.elidedDependencies), rendered only for their findings.
 	ElidedRefs []ChildRef `json:"elidedRefs,omitempty"`
 	// CrossFamilyRefs is one entry per cross-family edge the body reaches (walker.CrossFamilyDeps), so a hit rebuilds the crossFamilyDeps
 	// a fresh walk would produce; without it the demand-collection pass sees an empty set and misses the val_<member> roots.
