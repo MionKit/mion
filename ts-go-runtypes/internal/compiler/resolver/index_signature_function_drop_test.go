@@ -79,7 +79,7 @@ func TestIndexSignatureSymbolKey_CloneDecoder_Value(t *testing.T) {
 export const decode = createJsonDecoderFn(value);`, diagnostics.CodeRJSymbolKeyedDropped)
 }
 
-// The in-place codecs merge index signatures that share a value type, which once skipped the symbol one unnoted.
+// The in-place codecs dedup index signatures by value type; the symbol one must still get its note.
 func TestIndexSignatureSymbolKey_MutateEncoder_Static(t *testing.T) {
 	expectIndexSignatureNote(t, `export const encode = createJsonEncoderFn<{p0: number; [k: string | symbol]: number}>(undefined, {strategy: 'mutate'});`, diagnostics.CodePJSymbolKeyedDropped)
 }

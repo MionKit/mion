@@ -215,7 +215,7 @@ export async function compileType(client: ResolverClient, gen: GeneratedType): P
   const wired: WiredFns = {};
   const wireErrors: CompiledType['wireErrors'] = {};
   const siteLines: CompiledType['siteLines'] = {};
-  // Site positions are UTF-8 byte offsets, and diagnostic lines break where TypeScript does (U+2028 / U+2029 too).
+  // Site positions are UTF-8 byte offsets; lines break where TypeScript's do.
   const sourceBytes = Buffer.from(source, 'utf8');
   for (const [key, {site}] of Object.entries(byKey) as [keyof WiredFns, {site: Site}][]) {
     siteLines[key] = sourceBytes
