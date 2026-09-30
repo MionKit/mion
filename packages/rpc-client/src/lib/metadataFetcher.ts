@@ -5,14 +5,14 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Internal hooks between the dispatch and `useMethodsMetadata`. Never exported from the package: the public
+// Internal hooks between the dispatch and `useFetchMetadata`. Never exported from the package: the public
 // middleware type stays hooks only, and a client that never sets metadata fetching up ships none of it.
 
 import type {RpcError} from '@mionjs/core';
 import type {ClientCallContext, ClientOptions, RequestErrors} from '../types.ts';
 import type {HandlersRegistry} from './handlersRegistry.ts';
 
-/** What `useMethodsMetadata` hands the dispatch, once per client. */
+/** What `useFetchMetadata` hands the dispatch, once per client. */
 export interface MetadataFetcher {
   /** Rows for the given ids without running any route; route sync refetches through it. */
   fetchRows(ids: string[], routePointer: string[], options: ClientOptions, signal?: AbortSignal): Promise<void>;
@@ -51,7 +51,7 @@ const readTarget = (middleware: object) => (middleware as {[MIDDLEWARE_TARGET]?:
 
 export function middlewareTargetOf(middleware: object): MiddlewareTarget {
   const target = readTarget(middleware);
-  if (!target) throw new Error('Expected a middleware from the client, like middlewares.mionMethodsMetadata');
+  if (!target) throw new Error('Expected a middleware from the client, like middlewares.mionFetchMetadata');
   return target;
 }
 

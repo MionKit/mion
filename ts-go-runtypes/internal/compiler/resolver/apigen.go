@@ -116,7 +116,7 @@ func (sess *Session) widenedSiteDiag(site apimeta.Site) diagnostics.Diagnostic {
 	if tree := sess.clientApiTree(site.Checker, site.ApiType); tree != nil {
 		if !sess.fetchingFor(site.ApiType) {
 			code = diagnostics.CodeApiMetaRouteWidened
-		} else if !tree.HasMethodsMetadata() {
+		} else if !tree.HasFetchMetadata() {
 			code = diagnostics.CodeApiMetaNoMetadataToFetch
 		}
 		return diagnostics.New(code, site.DiagSite())
@@ -130,7 +130,7 @@ func (sess *Session) widenedSiteDiag(site apimeta.Site) diagnostics.Diagnostic {
 	return diagnostics.New(code, site.DiagSite())
 }
 
-// fetchingFor reports whether apiType's client sets up fetching; an untraced `useMethodsMetadata` covers every client.
+// fetchingFor reports whether apiType's client sets up fetching; an untraced `useFetchMetadata` covers every client.
 func (sess *Session) fetchingFor(apiType *checker.Type) bool {
 	_, setUps := sess.clientFacts()
 	return slices.ContainsFunc(setUps, func(setUp apimeta.FetchSetUp) bool { return setUp.ApiType == nil || setUp.ApiType == apiType })
@@ -142,7 +142,7 @@ func (sess *Session) fetchingApisLackMetadata() bool {
 	lacks := false
 	for _, client := range clients {
 		if tree := sess.clientApiTree(sess.checker, client.ApiType); tree != nil && sess.fetchingFor(client.ApiType) {
-			if tree.HasMethodsMetadata() {
+			if tree.HasFetchMetadata() {
 				return false
 			}
 			lacks = true
@@ -178,7 +178,7 @@ func (sess *Session) fetchMemo() *apiFetchMemo {
 	return sess.apiFetch
 }
 
-// clientFacts lists the program's `initClient` calls and its `useMethodsMetadata` calls.
+// clientFacts lists the program's `initClient` calls and its `useFetchMetadata` calls.
 func (sess *Session) clientFacts() ([]apimeta.ClientApi, []apimeta.FetchSetUp) {
 	memo := sess.fetchMemo()
 	if !memo.factsDone {
@@ -216,7 +216,7 @@ func (sess *Session) clientApiTree(typeChecker *checker.Checker, apiType *checke
 	return tree
 }
 
-// fetchSetupDiags checks a fetching client has the server's metadata middleware and its `useMethodsMetadata`.
+// fetchSetupDiags checks a fetching client has the server's metadata middleware and its `useFetchMetadata`.
 // Bundled, widened sites reported themselves, and with none only a setup whose API lacks the middleware is wrong.
 // Off, every call fetches, so each API reports once at its first `initClient`, readable or not.
 func (sess *Session) fetchSetupDiags(sites []apimeta.Site) []diagnostics.Diagnostic {
@@ -236,7 +236,7 @@ func (sess *Session) fetchSetupDiags(sites []apimeta.Site) []diagnostics.Diagnos
 			lacks := sess.fetchingApisLackMetadata()
 			if setUp.ApiType != nil {
 				tree := sess.clientApiTree(sess.checker, setUp.ApiType)
-				lacks = tree != nil && !tree.HasMethodsMetadata()
+				lacks = tree != nil && !tree.HasFetchMetadata()
 			}
 			if lacks {
 				diags = append(diags, diagnostics.New(diagnostics.CodeApiMetaNoMetadataToFetch, setUp.DiagSite))
@@ -250,7 +250,7 @@ func (sess *Session) fetchSetupDiags(sites []apimeta.Site) []diagnostics.Diagnos
 			continue
 		}
 		reported[client.ApiType] = true
-		if tree := sess.clientApiTree(sess.checker, client.ApiType); tree != nil && !tree.HasMethodsMetadata() {
+		if tree := sess.clientApiTree(sess.checker, client.ApiType); tree != nil && !tree.HasFetchMetadata() {
 			diags = append(diags, diagnostics.New(diagnostics.CodeApiMetaNoMetadataToFetch, client.DiagSite))
 		} else if !sess.fetchingFor(client.ApiType) {
 			diags = append(diags, diagnostics.New(diagnostics.CodeApiMetaFetchNotSetUp, client.DiagSite))
@@ -291,8 +291,8 @@ func (sess *Session) unsetMiddlewareDiags(order []string, uses map[string]middle
 		if !ok || reads[id] {
 			continue
 		}
-		// mion's own metadata middleware is set up by `useMethodsMetadata`, which fetchSetupDiags checks
-		if use.method.MethodsMetadata {
+		// mion's own metadata middleware is set up by `useFetchMetadata`, which fetchSetupDiags checks
+		if use.method.FetchMetadata {
 			continue
 		}
 		code := diagnostics.CodeApiMetaOptionalMiddlewareNotSetUp

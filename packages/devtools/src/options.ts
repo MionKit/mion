@@ -28,7 +28,7 @@ export interface MionRunTypesOptions {
    *  @mionjs/run-types turns into a function with `new Function` on first use; workerd, Vercel Edge and any CSP
    *  without 'unsafe-eval' refuse that, so initRoutes dies on the first route with "Code generation from
    *  strings disallowed for this context". 'both' emits the live factory ALONGSIDE the string, so nothing is
-   *  compiled at runtime and the string is still there for the methods-metadata route to serialize to clients.
+   *  compiled at runtime and the string is still there for the fetch-metadata middleware to serialize to clients.
    *  It costs bundle size, roughly +30% raw and +15% gzipped.
    *
    *  RunTypes' third mode, 'functions', omits `code` and throws here at config time: mion's client story is
@@ -112,7 +112,7 @@ export interface MionPresetOptions {
   client?: MionClientPointer;
   /** The separate project declaring the API this client calls. See MionApiPointer. */
   api?: MionApiPointer;
-  /** Default true. `false` fetches all routes: needs client `useMethodsMetadata` and server `mionMethodsMetadata`. */
+  /** Default true. `false` fetches all routes: needs client `useFetchMetadata` and server `mionFetchMetadata`. */
   bundleApi?: TsRuntypesPluginOptions['bundleApi'];
 }
 

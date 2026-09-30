@@ -23,7 +23,7 @@ import {
 import type {BatchDefinition} from '@mionjs/core';
 import {getRTUtils} from '@mionjs/run-types/runtime';
 import {headersFromRecord} from '../src/lib/headers.ts';
-import {mionMethodsMetadata} from '../middlewares.ts';
+import {mionFetchMetadata} from '../middlewares.ts';
 import {
   registerBatches,
   getBatch,
@@ -467,10 +467,10 @@ describe('batches', () => {
     });
 
     it('the metadata route lists the batch ids when all methods are requested', async () => {
-      mion.initRoutes({mionMethodsMetadata, ...routes});
+      mion.initRoutes({mionFetchMetadata, ...routes});
       registerBatches({a: {routes: ['route1']}, b: {routes: ['route1', 'routeX2']}});
 
-      const methodsId = 'mionMethodsMetadata';
+      const methodsId = 'mionFetchMetadata';
       const request = getDefaultRequest({[methodsId]: [[], 'all']});
       const response = await dispatchRoute('/route1', request.body, request.headers, headersFromRecord({}), request, {});
 
@@ -478,10 +478,10 @@ describe('batches', () => {
     });
 
     it('the metadata route omits the batch ids when only some methods are requested', async () => {
-      mion.initRoutes({mionMethodsMetadata, ...routes});
+      mion.initRoutes({mionFetchMetadata, ...routes});
       registerBatches({a: {routes: ['route1']}});
 
-      const methodsId = 'mionMethodsMetadata';
+      const methodsId = 'mionFetchMetadata';
       const request = getDefaultRequest({[methodsId]: [['route1'], 'only']});
       const response = await dispatchRoute('/route1', request.body, request.headers, headersFromRecord({}), request, {});
 

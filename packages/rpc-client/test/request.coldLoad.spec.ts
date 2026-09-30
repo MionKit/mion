@@ -47,7 +47,7 @@ function watchFetch() {
   return {
     bodies,
     calls: () => spy.mock.calls.length,
-    guessedTheWire: () => bodies.some((body) => body.includes('mionMethodsMetadata')),
+    guessedTheWire: () => bodies.some((body) => body.includes('mionFetchMetadata')),
     restore: () => {
       globalThis.fetch = realFetch;
     },
@@ -165,8 +165,8 @@ describe('stored metadata the server has moved on from', () => {
       expect(result).toContain('John');
       // the first went out trusting the store, the retry relearned from the server
       expect(bodies).toHaveLength(2);
-      expect(bodies[0]).not.toContain('mionMethodsMetadata');
-      expect(bodies[1]).toContain('mionMethodsMetadata');
+      expect(bodies[0]).not.toContain('mionFetchMetadata');
+      expect(bodies[1]).toContain('mionFetchMetadata');
       expect(wasHydratedFromCache('sayHello', {baseURL} as ClientOptions)).toBe(false);
     } finally {
       globalThis.fetch = realFetch;

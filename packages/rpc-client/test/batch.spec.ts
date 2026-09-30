@@ -796,11 +796,11 @@ describe('batch runtime behaviour', () => {
     const response = await fetch(url, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({mionMethodsMetadata: [[], 'all']}),
+      body: JSON.stringify({mionFetchMetadata: [[], 'all']}),
     });
     // the middleware answers a union, which the wire encodes as [memberIndex, value]
     const body = (await response.json()) as Record<string, unknown>;
-    const envelope = body['mionMethodsMetadata'] as any;
+    const envelope = body['mionFetchMetadata'] as any;
     const refusal = Array.isArray(envelope) ? envelope[1] : envelope;
     expect(refusal.type).toBe('metadata-only');
     expect(body.sayHello).toBeUndefined();

@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [
     mionVitePlugin({
       runTypes: {tsConfig: resolve(__dirname, 'tsconfig.json')},
-      // nothing bundled: every route is fetched through useMethodsMetadata
+      // nothing bundled: every route is fetched through useFetchMetadata
       bundleApi: false,
     }),
   ],

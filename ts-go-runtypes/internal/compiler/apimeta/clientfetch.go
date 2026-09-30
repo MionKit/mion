@@ -11,9 +11,9 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/textpos"
 )
 
-const useMethodsMetadataName = "useMethodsMetadata"
+const useFetchMetadataName = "useFetchMetadata"
 
-// maxClientTrace caps the hops from a `useMethodsMetadata` argument back to its `initClient` call.
+// maxClientTrace caps the hops from a `useFetchMetadata` argument back to its `initClient` call.
 const maxClientTrace = 16
 
 // ClientApi is one `initClient<Api>` call: the API it names and where to report about it.
@@ -22,23 +22,23 @@ type ClientApi struct {
 	DiagSite diagnostics.Site
 }
 
-// FetchSetUp is one `useMethodsMetadata(...)` call; ApiType is nil when the build cannot follow its argument to an `initClient`.
+// FetchSetUp is one `useFetchMetadata(...)` call; ApiType is nil when the build cannot follow its argument to an `initClient`.
 type FetchSetUp struct {
 	ApiType  *checker.Type
 	DiagSite diagnostics.Site
 }
 
-// FetchSetUps returns every `useMethodsMetadata(...)` call of `files` declared by the client package.
+// FetchSetUps returns every `useFetchMetadata(...)` call of `files` declared by the client package.
 func FetchSetUps(typeChecker *checker.Checker, markerOpts marker.Options, lookup purefunctions.SourceFileLookup, files []string) []FetchSetUp {
 	markerOpts = marker.WithDefaults(markerOpts)
 	var out []FetchSetUp
 	for _, filePath := range files {
 		sourceFile := lookup.SourceFile(filePath)
-		if sourceFile == nil || sourceFile.IsDeclarationFile || !strings.Contains(sourceFile.Text(), useMethodsMetadataName) {
+		if sourceFile == nil || sourceFile.IsDeclarationFile || !strings.Contains(sourceFile.Text(), useFetchMetadataName) {
 			continue
 		}
 		forEachCall(sourceFile, func(call *ast.Node) bool {
-			if !isClientCall(typeChecker, markerOpts, call, useMethodsMetadataName) {
+			if !isClientCall(typeChecker, markerOpts, call, useFetchMetadataName) {
 				return true
 			}
 			setUp := FetchSetUp{DiagSite: textpos.NodeSite(sourceFile.FileName(), sourceFile, call)}

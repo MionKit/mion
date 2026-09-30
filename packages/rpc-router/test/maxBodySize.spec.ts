@@ -18,7 +18,7 @@ import {createCallContext} from '../src/callContext.ts';
 import {headersFromRecord} from '../src/lib/headers.ts';
 import {getSerializableMethod} from '../src/lib/remoteMethods.ts';
 import {DEFAULT_ROUTE_OPTIONS} from '../src/constants.ts';
-import {mionMethodsMetadata} from '../middlewares.ts';
+import {mionFetchMetadata} from '../middlewares.ts';
 import {DEFAULT_MAX_BODY_SIZE, MION_ROUTES, RpcError, SerializerModes, StatusCodes} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
 
@@ -34,7 +34,7 @@ const ITEM_BYTES = 1 + 5 + (2 + 6 * 36) + 1 + 6 + 24 + 1; // {"id":…,"qty":…
 const PAGE_BYTES = 2 + 3 * ITEM_BYTES + 2; // [ 3 items ]
 const BOUNDED_PARAMS_BYTES = 2 + (2 + 6 * 36) + 1 + PAGE_BYTES; // [orderId, items]
 // the metadata middleware, once placed, sits in every chain and declares a fixed contribution
-const METADATA_SLOT = JSON.stringify('mionMethodsMetadata').length + 1 + 4096;
+const METADATA_SLOT = JSON.stringify('mionFetchMetadata').length + 1 + 4096;
 
 /** The keyed body `{"<route>":<params>}` at its largest, plus the metadata slot when placed, times the factor. */
 function derivedLimit(routeId: string, paramsBytes: number, withMetadata = false): number {
@@ -146,7 +146,7 @@ describe('per-route request limits', () => {
   });
 
   it('the metadata middleware adds its fixed slot only once placed in the routes', () => {
-    mion.initRoutes({mionMethodsMetadata, bounded});
+    mion.initRoutes({mionFetchMetadata, bounded});
     expect(getRouteExecutionChain('/bounded')!.maxBodySize).toBe(derivedLimit('bounded', BOUNDED_PARAMS_BYTES, true));
   });
 

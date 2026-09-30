@@ -39,12 +39,12 @@ type Method struct {
 	MiddlewareIds []string
 	// NeedsParams is true when the client must send something: a required param, or a required header.
 	NeedsParams bool
-	// MethodsMetadata marks mion's own metadata middleware, `mionMethodsMetadata` placed in the routes.
-	MethodsMetadata bool
+	// FetchMetadata marks mion's own metadata middleware, `mionFetchMetadata` placed in the routes.
+	FetchMetadata bool
 }
 
-// methodsMetadataName is the router's metadata middleware, recognised by where it is declared, whatever key holds it.
-const methodsMetadataName = "mionMethodsMetadata"
+// fetchMetadataName is the router's metadata middleware, recognised by where it is declared, whatever key holds it.
+const fetchMetadataName = "mionFetchMetadata"
 
 // Tree is a walked PublicApi type: every public method in checker order, and the checker their type ids must be assigned under.
 type Tree struct {
@@ -56,10 +56,10 @@ type Tree struct {
 // tsgo names a symbol-keyed member with this internal prefix; a symbol key is never a route.
 const symbolKeyPrefix = "\xFE@"
 
-// HasMethodsMetadata reports whether the API places mion's metadata middleware.
-func (tree *Tree) HasMethodsMetadata() bool {
+// HasFetchMetadata reports whether the API places mion's metadata middleware.
+func (tree *Tree) HasFetchMetadata() bool {
 	for _, method := range tree.Methods {
-		if method.MethodsMetadata {
+		if method.FetchMetadata {
 			return true
 		}
 	}
@@ -127,7 +127,7 @@ func (walker *treeWalker) level(levelType *checker.Type, pointer []string, nestL
 			if problem != "" {
 				return problem
 			}
-			method.MethodsMetadata = method.Type == TypeMiddleware && walker.routerDeclares(property, methodsMetadataName)
+			method.FetchMetadata = method.Type == TypeMiddleware && walker.routerDeclares(property, fetchMetadataName)
 			entries = append(entries, levelEntry{key: property.Name, method: method})
 			continue
 		}

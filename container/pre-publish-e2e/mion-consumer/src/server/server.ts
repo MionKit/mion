@@ -7,7 +7,7 @@
 
 import {RpcError, HeadersSubset} from '@mionjs/core';
 import {PublicApi, Routes, createMionRouter} from '@mionjs/router';
-import {mionMethodsMetadata} from '@mionjs/router/middlewares';
+import {mionFetchMetadata} from '@mionjs/router/middlewares';
 import {setNodeHttpOpts, startNodeServer} from '@mionjs/platform-node';
 
 // ============ Router ============
@@ -57,7 +57,7 @@ const compactRoutes = {
 
 const routes = {
     // serves route metadata to a client that fetches it; a bundled client never asks
-    mionMethodsMetadata,
+    mionFetchMetadata,
     // Middleware
     auth: mion.headersFn((ctx, h: HeadersSubset<'Authorization'>): void => {
         ctx.shared.user = {name: 'John', surname: 'Doe'};

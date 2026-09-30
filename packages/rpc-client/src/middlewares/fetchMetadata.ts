@@ -7,7 +7,7 @@
 
 import {isRpcError, RpcError} from '@mionjs/core';
 import type {SerializableMethodsData} from '@mionjs/core';
-import type {MethodsMetadataHandler as Handler} from '@mionjs/core/middlewares';
+import type {FetchMetadataHandler as Handler} from '@mionjs/core/middlewares';
 import type {ClientCallContext, ClientMiddlewareOf, RequestErrors, SubRequest} from '../types.ts';
 import {getRoutePointers} from '../callContext.ts';
 import {hasApiVersionMismatch} from '../lib/apiBuildVersion.ts';
@@ -15,8 +15,8 @@ import {hasMethod} from '../lib/methods.ts';
 import {loadedMetadataFromServer, loadMetadataFromServer} from '../lib/metadataFromServerLoader.ts';
 import {middlewareTargetOf, setMetadataFetcher, type MetadataCall, type MetadataFetcher} from '../lib/metadataFetcher.ts';
 
-/** Client half of `mionMethodsMetadata`: fetches unbundled routes' rows on first use. */
-export function useMethodsMetadata(middleware: ClientMiddlewareOf<Handler>): void {
+/** Client half of `mionFetchMetadata`: fetches unbundled routes' rows on first use. */
+export function useFetchMetadata(middleware: ClientMiddlewareOf<Handler>): void {
   const {id, registry} = middlewareTargetOf(middleware);
   setMetadataFetcher(registry, createFetcher(id));
 }

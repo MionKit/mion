@@ -158,7 +158,7 @@ func registerSharedFlags(fs *flag.FlagSet) *sharedFlags {
 	fs.StringVar(&s.apiTsconfig, "api-tsconfig", "",
 		"tsconfig `PATH` of the SEPARATE project declaring the mion API this client calls: under --bundle-api the routes' types resolve in that program, so the client emits the server's exact runtypes (default: the tsconfig apiTsconfig plugin key, else this program)")
 	fs.StringVar(&s.bundleApi, "bundle-api", "",
-		"bundle the metadata + compiled functions of every route this client calls: bundled (a route the build cannot see is fetched only when the client sets up useMethodsMetadata) | off (every route fetched) (default: the tsconfig bundleApi plugin key, else bundled)")
+		"bundle the metadata + compiled functions of every route this client calls: bundled (a route the build cannot see is fetched only when the client sets up useFetchMetadata) | off (every route fetched) (default: the tsconfig bundleApi plugin key, else bundled)")
 	fs.StringVar(&s.cwd, "cwd", "", "working directory (default: $PWD)")
 	fs.IntVar(&s.hashLength, "hash-length", 0, "short-id length for type hashes (0 = default 7)")
 	fs.BoolVar(&s.singleThreaded, "single-threaded", false, "single-threaded mode (also disables the parallel scan + renders)")

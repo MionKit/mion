@@ -6,11 +6,11 @@
  * ######## */
 
 import {initClient as initPlainClient} from '../../src/client.ts';
-import {useMethodsMetadata} from '../../src/middlewares/methodsMetadata.ts';
+import {useFetchMetadata} from '../../src/middlewares/fetchMetadata.ts';
 
 /** The fetched-lane specs' client: sets up metadata fetching, as an app with `bundleApi: false` does. */
 export const initClient: typeof initPlainClient = (options, buildVersion) => {
   const client = initPlainClient(options, buildVersion);
-  useMethodsMetadata((client.middlewares as any).mionMethodsMetadata);
+  useFetchMetadata((client.middlewares as any).mionFetchMetadata);
   return client;
 };

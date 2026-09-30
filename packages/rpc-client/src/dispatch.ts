@@ -35,7 +35,7 @@ import {takeBundledApiError} from '#bundled-api';
 interface DispatchState {
   readonly context: ClientCallContext;
   readonly handlersRegistry: HandlersRegistry;
-  /** set only when the client set up `useMethodsMetadata` */
+  /** set only when the client set up `useFetchMetadata` */
   readonly metadata: MetadataCall | undefined;
   /** middlewares whose onRequest already ran, so a retry never asks twice */
   readonly askedRequestHandlers: Set<string>;
@@ -224,7 +224,7 @@ async function loadMethodsMetadata(metadata: MetadataCall | undefined, methodIds
     type: 'route-metadata-not-found',
     publicMessage:
       `No metadata for ${missing.map((id) => `'${id}'`).join(', ')}: the build did not bundle it and the client does not fetch it. ` +
-      `Call the route where the build can see it, or set up useMethodsMetadata from '@mionjs/client/middlewares'.`,
+      `Call the route where the build can see it, or set up useFetchMetadata from '@mionjs/client/middlewares'.`,
   });
 }
 

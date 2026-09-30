@@ -42,10 +42,10 @@ async function serverRows(baseURL: string): Promise<SerializableMethodsData> {
   const response = await fetch(url, {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({mionMethodsMetadata: [[], 'all']}),
+    body: JSON.stringify({mionFetchMetadata: [[], 'all']}),
   });
   const body = (await response.json()) as Record<string, any>;
-  const envelope = body['mionMethodsMetadata'];
+  const envelope = body['mionFetchMetadata'];
   const refusal = Array.isArray(envelope) ? envelope[1] : envelope;
   expect(refusal?.type).toBe('metadata-only');
   return refusal.errorData.metadata as SerializableMethodsData;
