@@ -1,7 +1,7 @@
 ---
 type: chore
 spec: guidelines
-status: ready
+status: done
 created: 2026-09-29
 ---
 
@@ -66,9 +66,9 @@ None, because this is contributor-only CI; update the `test-skip` line in the ro
 
 ## Done when
 
-- The trial saves at least a third of the js-lint suite's wall time on both changes, with the numbers recorded here.
-- A new or changed reflected type reruns only the tests whose own roots reach it, with a test in `scripts/` that pins it (the `boundAliases.test.ts` probe above changes 1 key, not 84).
-- CI runs the skip on pull requests and the safety net on main, both with tests.
+- The trial saves at least a third of the js-lint suite's wall time on both changes, with the numbers recorded here. **Outcome:** Go-only 38%, JS-only 31% (10s short, inside the run-to-run noise of the plain baseline); the maintainer chose to wire CI on these numbers.
+- A new or changed reflected type reruns only the tests whose own roots reach it, pinned by a test. **Outcome:** `packages/devtools/test/test-skip.test.ts` pins it on a made-up bundle; on the real tree the `boundAliases.test.ts` probe changes 1 key, not 84.
+- CI runs the skip on pull requests and the safety net on main, both with tests. **Outcome:** done, pinned by `packages/devtools/test/ci-lane-contracts.test.ts`.
 - The simplify-comments pass ran on every touched source file, committed on its own.
 
 ## Plan (approved 2026-09-30)
@@ -77,7 +77,7 @@ None, because this is contributor-only CI; update the `test-skip` line in the ro
 1. Fix: a setup file's builtin imports only salt the project today, so devtools-core files whose `test/setup.ts` spawns the resolver count as cacheable. A setup-graph reason now blocks every file in that project unless the module is declared.
 2. `runtypes.js` is keyed per test on the rows its own facade roots reach (row ids, never indexes, plus their `ini` lines after the `mockSamples` strip), computed in `test-skip.mjs`. Any failure to read the bundle falls back to hashing the whole file.
 3. A `DECLARED` table maps a helper module to the inputs it reads (files, directories, the Go binaries through `goBinCacheKey()`); a declared module's builtin imports no longer block a file, and its inputs join the key.
-4. Test-side quick wins: the rpc-client server URL moves into a leaf module, the type-budget harnesses read their sources through `?raw`, `fuzzPolicy.ts` imports `version.json`.
+4. Test-side quick wins: the rpc-client server URL moves into a leaf module, the type-budget harnesses read their sources through `?raw`, `fuzzPolicy.ts` imports `version.json`. (Not built: step 0 showed they free almost no wall time, and declared inputs covered the same files.)
 5. Trial on a replayed Go-only and JS-only commit; if either saves less than a third, stop and report before wiring CI.
 6. CI: restore/save the passed list (`mion-vitest-passed-${run_id}`, prefix restore), `test-pr --skip-passed` on the partial branch, `test-skip --audit` on the full branch (runs everything, fails naming any file the list would have skipped that failed), `KEEP_ON_MAIN` gets the family.
 7. Root CLAUDE.md `test-skip` line, comment pass, spec to `docs/done/`.
@@ -117,3 +117,20 @@ Keying alone, serial against concurrent (identical keys in all four runs):
 |---|---|---|
 | 4 (what CI's public `ubuntu-latest` runner has) | 45s | 37s |
 | 2 (`taskset -c 0,1`) | 57s | 51s |
+
+## What shipped
+
+All in `scripts/core/test-skip.mjs`, tested in `packages/devtools/test/test-skip.test.ts`:
+
+- **Per-root runtypes.js keys.** `bundleDigest()` evaluates the bundle, walks from the facade roots in a test's graph over rels (by row id), string rels and `ini` references, and hashes only the rows reached. An unreadable bundle or unknown root falls back to the whole text.
+- **Declared inputs.** `DECLARED` maps a module (or a directory, key ending in `/`) to what it reads: files, directories, or `mion-bin`, the Go binaries by `goBinCacheKey()`. Declared today: the resolver client, the devtools `inline.ts` helper, the enrich helpers, the run-types type harnesses, the type-budget tests, the platform-node HTTP server and the genDir cleanup.
+- **Setup files block.** A setup or globalSetup file that reaches outside its graph undeclared now blocks every file of its project (it only salted the key before).
+- **Two holes closed.** The hoisted `node_modules` layout puts no version in a path, so externals are now keyed `name@version` from their `package.json`; and a package that reads files on the test's behalf (`typescript`, `vite`, `rollup`, `rolldown`, `esbuild`, `webpack`, `@rspack/core`, `eslint`, `oxlint`) blocks a file like `fs` does. Before, `declarationEmit.test.ts` could be skipped while the sources its TypeScript program reads had changed.
+- **Concurrent keying**, 16 files at a time: 45s to 37s on 4 CPUs, 57s to 51s on 2, identical keys.
+- **`--audit`** runs every file and fails naming any failed file the passed list would have skipped.
+
+CI (`.github/workflows/ci.yml`, js-lint): the list is restored before the suite (`mion-vitest-passed-<run_id>-<attempt>`, prefix fallback) and saved after it; pull requests run `test-pr --skip-passed`, the full branch runs `test-skip --audit`. `KEEP_ON_MAIN` keeps 3 lists on main.
+
+Verified locally with a restored list: the pull request path ran 149 of 483 files in 231s; the audit ran all 483 in 397s, all passing, with no file the list would have skipped failing.
+
+148 files still never cache, led by `bundleSplit.spec.ts` (30s, a vite build), `bodyDrain.spec.ts` (15s, a real uWS server) and `sfcTransform.spec.ts` (15s, a vite build). Each needs its reads declared before it can skip.
