@@ -37,7 +37,7 @@ The implementer plans the details. What was checked:
   error by the rule's severity. Decide whether it covers every marker (`createValidateFn<T>()`
   included) or only mion route / middleware params and return types, and whether a route with an
   explicit `maxBodySize` option is exempt.
-- **Docs:** the linter page (`container/website/content/01.rpc/06.devtools/01.linter.md`) and a
+- **Docs:** the linter page (`container/website/content/01.rpc/07.devtools/01.linter.md`) and a
   pointer from the security page's request-limit section.
 - **Tests:** the diagnostic through the real scan (the trigger at the root and one object deeper),
   the routing test in `packages/devtools/test/`, and the ESLint / OXlint plugin tests.

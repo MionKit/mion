@@ -10,8 +10,8 @@ created: 2026-09-22
 ## Intent
 
 mion has no CORS surface at all. `Access-Control-Expose-Headers` appears nowhere in the repo, and the
-security page lists CORS under what stays the app's job
-(`container/website/content/01.rpc/02.server/09.security.md:97`). The only examples that set any CORS
+middleware page lists CORS as work for your own middleware
+(`container/website/content/01.rpc/02.server/02.middleware.md`, intro). The only examples that set any CORS
 header do it through the generic `defaultResponseHeaders` knob
 (`packages/private-examples/src/vercel/vercel-config.ts:5`).
 
@@ -102,13 +102,11 @@ comes first, because it widens a public type.
 
 ## Docs
 
-A new `middlewares` subdirectory under `container/website/content/01.rpc/`, sibling to `02.server/`,
-holding one page per middleware mion ships. CORS is the first; expect more. The `NN.` prefix only
-sets the sidebar order and never reaches the URL, so placing it after the server section means
-renumbering the dirs that follow.
+A new page in `container/website/content/01.rpc/03.middlewares/`, the directory holding one page per
+middleware mion ships, named after the middleware's export (like `01.mion-methods-metadata.md`).
 
-`container/website/content/01.rpc/02.server/09.security.md` currently lists CORS under *What Stays
-Your Job*; that line changes and points at the new page.
+The intro of `container/website/content/01.rpc/02.server/02.middleware.md` lists CORS as work for
+your own middleware; that line changes and points at the new page.
 
 Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagent) over every page and example this change touched, review its report against the code, and commit it as its own commit.
 
