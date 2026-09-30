@@ -103,7 +103,7 @@ comes first, because it widens a public type.
 ## Docs
 
 A new page in `container/website/content/01.rpc/03.middlewares/`, the directory holding one page per
-middleware mion ships, named after the middleware's export (like `01.mion-methods-metadata.md`).
+middleware mion ships, named after the middleware's export without the `mion` prefix (like `01.fetch-metadata.md`).
 
 The intro of `container/website/content/01.rpc/02.server/02.middleware.md` lists CORS as work for
 your own middleware; that line changes and points at the new page.
