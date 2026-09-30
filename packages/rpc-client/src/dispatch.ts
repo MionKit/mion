@@ -544,37 +544,43 @@ async function runMiddlewareResponses(
     const isErrorHandler = !!middlewareError;
     if (isErrorHandler && context.thrownErrorIds.has(id)) continue;
     if (!isErrorHandler && middleware.resolvedValue === undefined) continue;
-    // a retry asked after the handler finished belongs to no attempt
-    let isOpen = true;
-    const middlewareContext: MiddlewareContext = {...baseContext, retry: () => isOpen && requestRetry(id)};
     const handlerName = isErrorHandler ? 'onError' : 'onResponse';
-    const fail = (error: unknown) => {
-      isOpen = false;
-      errors ??= new Map();
-      if (!errors.has(CLIENT_REQUEST_ERROR_ID))
-        errors.set(CLIENT_REQUEST_ERROR_ID, middlewareHandlerError(handlerName, id, error));
-    };
-    let returned: unknown;
-    try {
-      returned = isErrorHandler
-        ? handlersRegistry.executeHandler(id, middlewareError, middlewareContext)
-        : handlersRegistry.executeResponseHandler(id, middleware.resolvedValue, middlewareContext);
-    } catch (error) {
-      fail(error);
-      continue;
+    const handlers = isErrorHandler
+      ? handlersRegistry.getErrorHandlers(id, middlewareError.type)
+      : handlersRegistry.getResponseHandlers(id);
+    // all run in order, one that fails does not stop the rest; the first failure is the one reported
+    for (const handler of handlers) {
+      // a retry asked after the handler finished belongs to no attempt
+      let isOpen = true;
+      const middlewareContext: MiddlewareContext = {...baseContext, retry: () => isOpen && requestRetry(id)};
+      const fail = (error: unknown) => {
+        isOpen = false;
+        errors ??= new Map();
+        if (!errors.has(CLIENT_REQUEST_ERROR_ID))
+          errors.set(CLIENT_REQUEST_ERROR_ID, middlewareHandlerError(handlerName, id, error));
+      };
+      let returned: unknown;
+      try {
+        returned = isErrorHandler
+          ? handler(middlewareError, middlewareContext)
+          : handler(middleware.resolvedValue, middlewareContext);
+      } catch (error) {
+        fail(error);
+        continue;
+      }
+      if (!isPromiseLike(returned)) {
+        isOpen = false;
+        continue;
+      }
+      pending.push(
+        Promise.resolve(returned).then(
+          () => {
+            isOpen = false;
+          },
+          (error) => fail(error)
+        )
+      );
     }
-    if (!isPromiseLike(returned)) {
-      isOpen = false;
-      continue;
-    }
-    pending.push(
-      Promise.resolve(returned).then(
-        () => {
-          isOpen = false;
-        },
-        (error) => fail(error)
-      )
-    );
   }
   if (pending.length) await Promise.all(pending);
   // a failed handler ends the call: its error is the answer, not a resend

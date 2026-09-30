@@ -278,12 +278,11 @@ describe('client', () => {
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
       let successCallCount = 0;
+      const countSuccess = () => {
+        successCallCount++;
+      };
 
-      const typedEvent = middlewares.session
-        .onRequest((session) => session('valid-token'))
-        .onResponse(() => {
-          successCallCount++;
-        });
+      const typedEvent = middlewares.session.onRequest((session) => session('valid-token')).onResponse(countSuccess);
 
       middlewares.auth.onRequest((auth) => auth(authHeaders));
 
@@ -291,7 +290,7 @@ describe('client', () => {
       await routes.sayHello(someUser).call();
       expect(successCallCount).toBe(1);
 
-      typedEvent.offResponse();
+      typedEvent.offResponse(countSuccess);
 
       // Second request - handler should NOT be called
       await routes.sayHello(someUser).call();
@@ -327,14 +326,12 @@ describe('client', () => {
     it('offRequest, offResponse and offError each remove only their own handler', async () => {
       const {middlewares} = initClient<MyApi>({baseURL});
 
+      const onResponse = () => {};
+      const onSessionExpired = () => {};
       const typedEvent = middlewares.session
         .onRequest((session) => session('valid-token'))
-        .onResponse(() => {
-          // Handler registered
-        })
-        .onError('session-expired', () => {
-          // Handler registered
-        });
+        .onResponse(onResponse)
+        .onError('session-expired', onSessionExpired);
 
       expect(typedEvent.hasRequestHandler()).toBe(true);
       expect(typedEvent.hasResponseHandler()).toBe(true);
@@ -345,7 +342,7 @@ describe('client', () => {
       expect(typedEvent.hasResponseHandler()).toBe(true);
       expect(typedEvent.hasErrorHandler('session-expired')).toBe(true);
 
-      middlewares.session.offResponse().offError('session-expired');
+      middlewares.session.offResponse(onResponse).offError('session-expired', onSessionExpired);
       expect(typedEvent.hasResponseHandler()).toBe(false);
       expect(typedEvent.hasErrorHandler('session-expired')).toBe(false);
     });

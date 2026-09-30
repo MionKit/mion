@@ -121,8 +121,9 @@ describe('isolated reusable middleware types', () => {
         expectTypeOf(context.retry).returns.toEqualTypeOf<boolean>();
       });
     expect(installer).toBeTypeOf('function');
-    middlewares.session.onResponse((_session, context) => expectTypeOf(context).toMatchTypeOf<CallContext>());
-    middlewares.session.offResponse();
+    const onSession = (_session: unknown, context: MiddlewareContext) => expectTypeOf(context).toMatchTypeOf<CallContext>();
+    middlewares.session.onResponse(onSession);
+    middlewares.session.offResponse(onSession);
   });
 
   it('gives onError the whole error when it is declared with several types', () => {

@@ -220,5 +220,33 @@ describe('a client built against routes the server has since changed', () => {
       expect(relearned.value[4]?.mionSyncRoutes).toBeUndefined();
       expect(relearned.fetches).toBe(3);
     });
+
+    it('still relearns a changed fetched route when the app adds its own handler for the same error', async () => {
+      await resetMetadataStore();
+      serve(oldRoutes, 'old');
+      const {routes, middlewares} = reloadClient();
+      await callWide(routes.stored(3));
+      const learned = routesCache.getMetadata('stored')!;
+      serve(newRoutes, 'new');
+      routesCache.setMetadata('stored', learned);
+      const banners: string[][] = [];
+      middlewares.mionSyncRoutes.onError('route-types-mismatch', (refusal) => {
+        banners.push(refusal.errorData?.routeIds ?? []);
+      });
+
+      const relearned = await counted(() => callWide(routes.stored(3)));
+      expect(relearned.value[0]).toBe('3');
+      expect(relearned.value[4]?.mionSyncRoutes).toBeUndefined();
+      expect(relearned.fetches).toBe(3);
+      expect(banners).toEqual([['stored']]);
+    });
+
+    it('refuses a second onRequest on the route sync middleware until offRequest removes the built-in one', () => {
+      const {middlewares} = reloadClient();
+      expect(() => middlewares.mionSyncRoutes.onRequest((call) => call([]))).toThrow(
+        "Middleware 'mionSyncRoutes' gets its onRequest from useSyncRoutes, call offRequest() first to replace it"
+      );
+      expect(() => middlewares.mionSyncRoutes.offRequest().onRequest((call) => call([]))).not.toThrow();
+    });
   });
 });

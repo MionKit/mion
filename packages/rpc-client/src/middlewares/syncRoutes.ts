@@ -9,11 +9,13 @@ import type {SyncRoutesHandler} from '@mionjs/core/middlewares';
 import type {CallContext, ClientMiddlewareOf} from '../types.ts';
 import {getMethod, isBundledMethod} from '../lib/methods.ts';
 import {loadMetadataFromServer} from '../lib/metadataFromServerLoader.ts';
-import {metadataFetcherOf} from '../lib/metadataFetcher.ts';
+import {metadataFetcherOf, middlewareTargetOf} from '../lib/metadataFetcher.ts';
 
 /** Client half of `mionSyncRoutes`: sends each route's sync id, and resends once when the server asks for it. */
 export function useSyncRoutes(middleware: ClientMiddlewareOf<SyncRoutesHandler>): void {
   middleware.onRequest((call, context) => call(routeSyncIds(context)));
+  const {id, registry} = middlewareTargetOf(middleware);
+  registry.setRequestOwner(id, 'useSyncRoutes');
 
   // no route ran, so a resend is always allowed
   middleware.onError('route-sync-required', async (refusal, context) => {
