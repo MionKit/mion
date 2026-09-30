@@ -537,7 +537,7 @@ function codesAtSite(compiled: CompiledType, key: keyof WiredFns): Set<string> {
   );
 }
 
-// How building the function, or running it once on `value`, ended. TR4 already reports a wire error with no code.
+// Covers building and one run on `value`; TR4 already reports a wire error with no code.
 function runOnce(compiled: CompiledType, key: keyof WiredFns, value: unknown, hasValue: boolean): ThrowOutcome {
   const wireError = compiled.wireErrors[key];
   if (wireError) return {thrownCode: controlledCode(wireError)};

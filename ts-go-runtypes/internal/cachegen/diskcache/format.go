@@ -35,11 +35,10 @@ import "encoding/json"
 // runtime a key nothing registers.
 // v18 stops persisting alwaysThrow entries: their message names a live call site, so a hit replayed the site of the build that wrote it.
 // v19 persists an unnamed entry's findings (another family's site may adopt them) and ElidedRefs (noop-gated children).
-// v20 stores structural ids as base64 (StructuralText): a JSON string turned a symbol key's 0xFE byte into U+FFFD, so every such entry missed.
+// v20 stores structural ids as base64 (StructuralText): JSON turned a symbol key's 0xFE into U+FFFD, so those entries missed.
 const FormatVersion = 20
 
-// StructuralText is a structural id on disk. It can hold tsgo's raw 0xFE symbol-key byte, which a JSON string cannot carry,
-// so it is stored as base64 bytes and reads back exactly.
+// StructuralText is a structural id stored as base64: a JSON string cannot carry tsgo's raw 0xFE symbol-key byte.
 type StructuralText string
 
 func (text StructuralText) MarshalJSON() ([]byte, error) {

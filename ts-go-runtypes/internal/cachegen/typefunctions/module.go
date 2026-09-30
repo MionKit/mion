@@ -344,7 +344,7 @@ func ReportReachedFindings(graph entrymodules.Graph, opts RenderOpts) {
 	}
 }
 
-// entryTypeID is the type id of a type-fn entry keyed `<fnHash>_<typeId>`, or the whole key when it has no prefix.
+// entryTypeID strips the `<fnHash>_` prefix off a type-fn entry key, if it has one.
 func entryTypeID(entry *entrymodules.Entry) string {
 	if _, typeID, ok := splitNamespacedHash(entry.Key); ok {
 		return typeID
