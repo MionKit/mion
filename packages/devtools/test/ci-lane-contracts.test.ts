@@ -207,14 +207,46 @@ describe('the lane table', () => {
   it('js-lint saves the full js marker only for a full run, and js-pr for a partial one', () => {
     const ci = read('.github/workflows/ci.yml');
     const suite = ci.slice(ci.indexOf('- name: JS suite (everything except test/fuzz)'));
-    expect(suite).toMatch(/scope=partial"[^\n]*\n\s+pnpm miondevx core test-pr --base HEAD\^1/);
-    expect(suite).toMatch(/scope=full"[^\n]*\n\s+pnpm test --exclude/);
+    expect(suite).toMatch(/scope=partial"[^\n]*\n\s+pnpm miondevx core test-pr --base HEAD\^1 --skip-passed /);
+    expect(suite).toMatch(/scope=full"[^\n]*\n\s+pnpm miondevx core test-skip --audit /);
     expect(ci).toMatch(
       /if: success\(\) && steps\.suite\.outputs\.scope == 'full'\n\s+uses: \.\/\.github\/actions\/save-lane-green\n\s+with:\n\s+lane: js\n/
     );
     expect(ci).toMatch(
       /if: success\(\) && steps\.suite\.outputs\.scope == 'partial'\n\s+uses: \.\/\.github\/actions\/save-lane-green\n\s+with:\n\s+lane: js-pr\n/
     );
+  });
+});
+
+// A pull request skips what the list proved; main runs everything and fails on any file the list would have skipped
+// that fails, so a key missing an input cannot hide. Both halves share one list, keyed per run so every run saves.
+describe('js-lint — the passed test list', () => {
+  const job = () => jobOf(read('.github/workflows/ci.yml'), 'js-lint');
+  const step = (name: string) =>
+    job()
+      .slice(job().indexOf(`- name: ${name}`))
+      .split(/\n\s+- name: /)[0];
+
+  it('restores the list before the suite and saves it after, under one per-run key with a prefix fallback', () => {
+    const restore = step('Restore the passed test list');
+    const save = step('Save the passed test list');
+    const key = 'key: mion-vitest-passed-${{ github.run_id }}-${{ github.run_attempt }}';
+    expect(restore).toContain('uses: actions/cache/restore@v4');
+    expect(restore).toContain('path: node_modules/.cache/mion/vitest-passed.json');
+    expect(restore).toContain(key);
+    expect(restore).toContain('restore-keys: mion-vitest-passed-');
+    expect(save).toContain('uses: actions/cache/save@v4');
+    expect(save).toContain('path: node_modules/.cache/mion/vitest-passed.json');
+    expect(save).toContain(key);
+    expect(save).toContain("if: always() && steps.suite.outcome != 'skipped'");
+    expect(job().indexOf('Restore the passed test list')).toBeLessThan(job().indexOf('- name: JS suite'));
+    expect(job().indexOf('- name: JS suite')).toBeLessThan(job().indexOf('Save the passed test list'));
+  });
+
+  it('keeps a few of the lists on main, where every pull request restores from', async () => {
+    // @ts-expect-error plain ESM dev script, no types
+    const {KEEP_ON_MAIN} = await import('../../../scripts/ci/cache-cleanup.mjs');
+    expect(KEEP_ON_MAIN['mion-vitest-passed-']).toBeGreaterThan(0);
   });
 });
 
@@ -461,7 +493,7 @@ describe('the build-gate tests run on the Go runner and nowhere else', () => {
 
   it('is excluded from both js-lint suite commands', () => {
     const suite = jobOf(ci, 'js-lint');
-    const commands = suite.split('\n').filter((line) => /core test-pr|pnpm test --exclude/.test(line));
+    const commands = suite.split('\n').filter((line) => /core test-pr|core test-skip/.test(line));
     expect(commands).toHaveLength(2);
     for (const command of commands) expect(command).toContain("--exclude '**/build-gate.test.ts'");
   });
