@@ -58,18 +58,21 @@ export function checkDropNoted(key: string, dropped: string[], codes: ReadonlySe
   );
 }
 
-/** Paths of the members `input` holds and `output` lacks; an `undefined` member is absent on the wire by design. **/
-export function droppedPaths(input: unknown, output: unknown, path = '$'): string[] {
+/** Paths of the members `input` holds and `output` lacks; an `undefined` member is absent on the wire by design, and so
+ *  is a `null` one under `nullMayVanish` (compact writes an absent optional as `null`, so it cannot tell them apart). **/
+export function droppedPaths(input: unknown, output: unknown, nullMayVanish = false, path = '$'): string[] {
   if (input === null || typeof input !== 'object' || output === null || typeof output !== 'object') return [];
   if (input instanceof Map && output instanceof Map) {
     const dropped: string[] = [];
     for (const [key, value] of input) {
-      if (output.has(key)) dropped.push(...droppedPaths(value, output.get(key), `${path}.get(${String(key)})`));
+      if (output.has(key)) dropped.push(...droppedPaths(value, output.get(key), nullMayVanish, `${path}.get(${String(key)})`));
     }
     return dropped;
   }
   if (Array.isArray(input) && Array.isArray(output)) {
-    return input.flatMap((item, index) => (index < output.length ? droppedPaths(item, output[index], `${path}[${index}]`) : []));
+    return input.flatMap((item, index) =>
+      index < output.length ? droppedPaths(item, output[index], nullMayVanish, `${path}[${index}]`) : []
+    );
   }
   if (Array.isArray(input) || Array.isArray(output) || input instanceof Date || input instanceof Set) return [];
   const dropped: string[] = [];
@@ -77,9 +80,10 @@ export function droppedPaths(input: unknown, output: unknown, path = '$'): strin
   const outRecord = output as Record<PropertyKey, unknown>;
   for (const key of Reflect.ownKeys(record)) {
     if (!Object.prototype.propertyIsEnumerable.call(record, key) || record[key] === undefined) continue;
+    if (nullMayVanish && record[key] === null) continue;
     const name = typeof key === 'symbol' ? `[${key.description ?? 'symbol'}]` : key;
     if (!Reflect.has(outRecord, key)) dropped.push(`${path}.${name}`);
-    else dropped.push(...droppedPaths(record[key], outRecord[key], `${path}.${name}`));
+    else dropped.push(...droppedPaths(record[key], outRecord[key], nullMayVanish, `${path}.${name}`));
   }
   return dropped;
 }
