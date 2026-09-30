@@ -11,9 +11,10 @@ import type {MethodsExecutionChain} from './remoteMethods.ts';
 
 // ####### Call Context #######
 
+// start-call-context-type
 /** The call Context object passed as first parameter to any middleware or route */
 export interface CallContext<ContextData extends Record<string, any> = any> {
-  /** Route's path after internal transformation */
+  /** The route's URL path, like `/users/getUser` */
   readonly path: string;
   readonly request: MionRequest;
   readonly response: MionResponse;
@@ -44,9 +45,7 @@ export interface MionRequest {
   readonly bodyType: SerializerCode;
   /** The parsed request body */
   readonly body: Readonly<AnyObject>;
-  /** Errors outside the route's return type: validation, (de)serialization, thrown by user code, route not found.
-   *  Sent apart from the route response, in the thrownErrors middleware slot, so the client decodes them
-   *  without them being part of the route's type signature. */
+  /** Errors outside the route's return type (validation, serialization, thrown), sent in `@thrownErrors` */
   readonly thrownErrors?: Readonly<Record<string, RpcError<string>>>;
 }
 
@@ -61,6 +60,7 @@ export interface MionResponse {
   /** The error that ended the chain (thrown or a returned FatalError), first one wins. An `alwaysRun` logger reads it here. */
   readonly fatalError?: RpcError<string>;
 }
+// end-call-context-type
 
 /** Header names must be case insensitive.
  *  @see https://developer.mozilla.org/en-US/docs/Web/API/Headers */
