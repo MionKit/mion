@@ -643,8 +643,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
   const batchSourceFiles = new Set<string>();
   const batchSourceRoots = new Set<string>();
   let batchSourceWatcher: {add: (file: string) => void} | undefined;
-  // chokidar re-scans a root on every add() and treats a file created during that scan as initial, which
-  // vite's ignoreInitial swallows: a new client file then never regenerates. So each root is added once.
+  // Add each root once: chokidar re-scans on every add(), and ignoreInitial swallows a file created mid-scan.
   const watchedBatchRoots = new Set<string>();
   function watchBatchRoots(): void {
     if (!batchSourceWatcher) return;
@@ -735,8 +734,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
     for (const file of files) batchSourceFiles.add(file);
     batchSourceRoots.clear();
     for (const root of roots) batchSourceRoots.add(root);
-    // roots cover their files (chokidar watches a directory recursively), so
-    // registering the roots is what makes a created file visible
+    // Roots, not files, are watched: chokidar watches a directory recursively, so a created file shows up.
     watchBatchRoots();
     options.onGenerate?.({
       outDir: gen.outDir,
@@ -1091,9 +1089,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
         ensureResolver();
       },
 
-      // Nothing in vite's graph names the separate batch source's files, so they are registered on the
-      // watcher as each generate echoes them. Files of THIS program never land here (the echo is empty for
-      // a shared program), so the ordinary handleHotUpdate path is untouched.
+      // Vite's graph never sees the batch source's files, so they are watched here; this program's never are.
       configureServer(server: any) {
         const watcher = server?.watcher;
         if (!watcher?.add || !watcher?.on) return;
@@ -1104,8 +1100,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
           if (!isBatchSourcePath(file)) return;
           void onBatchSourceChange();
         };
-        // `add` fires for every file of a directory the moment it is registered, so a file the last
-        // generate already listed is not news; one it never listed is.
+        // `add` fires for every file of a newly registered directory; only one the last generate never listed is new.
         const onAdd = (file: string): void => {
           if (batchSourceFiles.has(path.resolve(file))) return;
           onChange(file);
