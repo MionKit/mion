@@ -1143,7 +1143,7 @@ func emitIndexSignatureValidate(rt *reflection.RunType, ctx *EmitContext, v stri
 	if rt.Child == nil {
 		return RTCode{Code: "", Type: CodeE}
 	}
-	if isSymbolKeyedIndexSig(rt, ctx) {
+	if symbolKeyedIndexSignatureDrop(rt, ctx) {
 		return RTCode{Code: "", Type: CodeE}
 	}
 	resolved := ctx.ResolveRef(rt.Child)

@@ -193,7 +193,7 @@ func emitIndexSignatureRestoreFromJson(rt *reflection.RunType, ctx *EmitContext,
 	if rt.Child == nil {
 		return RTCode{Code: "", Type: CodeS}
 	}
-	if isSymbolKeyedIndexSig(rt, ctx) {
+	if symbolKeyedIndexSignatureDrop(rt, ctx) {
 		return RTCode{Code: "", Type: CodeS}
 	}
 	resolved := ctx.ResolveRef(rt.Child)

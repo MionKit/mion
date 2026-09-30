@@ -67,6 +67,15 @@ func indexSignatureValueDrop(signature, resolved *reflection.RunType, ctx *EmitC
 	return true
 }
 
+// symbolKeyedIndexSignatureDrop reports a `[key: symbol]` signature, dropped with the family's symbol-key note.
+func symbolKeyedIndexSignatureDrop(signature *reflection.RunType, ctx *EmitContext) bool {
+	if !isSymbolKeyedIndexSig(signature, ctx) {
+		return false
+	}
+	ctx.EmitDiagnosticSlot(SlotSymbolKeyedDropped, "[key: symbol]")
+	return true
+}
+
 // indexSignatureLabel names an index signature the way the user wrote it, `[key: string]`.
 func indexSignatureLabel(signature *reflection.RunType, ctx *EmitContext) string {
 	if index := ctx.ResolveRef(signature.Index); index != nil {
