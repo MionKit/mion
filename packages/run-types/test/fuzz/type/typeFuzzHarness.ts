@@ -19,7 +19,13 @@
 // lets the runner pick the right oracle tier from them.
 
 import path from 'node:path';
-import {createValidateFn, createGetValidationErrorsFn, createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
+import {
+  createValidateFn,
+  createGetValidationErrorsFn,
+  createJsonEncoderFn,
+  createJsonDecoderFn,
+  createRemoveUnknownKeysFn,
+} from '@mionjs/run-types';
 import {createMockDataFn} from '@mionjs/run-types/mocking';
 import {ResolverClient} from '../../../../devtools/src/core/resolver-client.ts';
 import {
@@ -68,13 +74,30 @@ export const SRC_OVERLAY: Readonly<Record<string, string>> = (() => {
   return overlay;
 })();
 
-const ENCODER_TAGS = new Set(['jeCL', 'jeMU']);
-const DECODER_TAGS = new Set(['jdCL', 'jdMU']);
-
 /** `mock` is the REAL product mock (nonDataTypes on), the behaviour tier's value source, so it is not in FN_KEYS. **/
 export type WiredFns = Partial<
-  Pick<FuzzTarget, 'validate' | 'getValidationErrors' | 'jsonEncode' | 'jsonDecode' | 'compactEncode' | 'compactDecode' | 'mock'>
+  Pick<
+    FuzzTarget,
+    'validate' | 'getValidationErrors' | 'jsonEncode' | 'jsonDecode' | 'compactEncode' | 'compactDecode' | 'mock'
+  > & {
+    mutateEncode: FuzzTarget['jsonEncode'];
+    mutateDecode: FuzzTarget['jsonDecode'];
+    removeUnknownKeys: (value: unknown) => unknown;
+  }
 >;
+
+/** The function each entry-tuple tag builds. **/
+const KEY_BY_TAG: Record<string, keyof WiredFns> = {
+  val: 'validate',
+  verr: 'getValidationErrors',
+  jeCL: 'jsonEncode',
+  jdCL: 'jsonDecode',
+  jeCO: 'compactEncode',
+  jdCO: 'compactDecode',
+  jeMU: 'mutateEncode',
+  jdMU: 'mutateDecode',
+  ruk: 'removeUnknownKeys',
+};
 
 export interface CompiledType {
   gen: GeneratedType;
@@ -95,6 +118,8 @@ export interface CompiledType {
   wired: WiredFns;
   /** Per-family controlled wire failures (alwaysThrow factories may throw). **/
   wireErrors: Partial<Record<keyof WiredFns, string>>;
+  /** The line of each function's call site in `source`, where its diagnostics are reported. **/
+  siteLines: Partial<Record<keyof WiredFns, number>>;
 }
 
 export function openClient(): ResolverClient {
@@ -111,6 +136,7 @@ export function renderFixture(gen: GeneratedType): string {
   createGetValidationErrorsFn,
   createJsonEncoderFn,
   createJsonDecoderFn,
+  createRemoveUnknownKeysFn,
   getRunTypeId,
 } from '@mionjs/run-types';
 ${decls}
@@ -121,6 +147,9 @@ createJsonEncoderFn<T>();
 createJsonDecoderFn<T>();
 createJsonEncoderFn<T>(undefined, {strategy: 'compact'});
 createJsonDecoderFn<T>(undefined, {strategy: 'compact'});
+createJsonEncoderFn<T>(undefined, {strategy: 'mutate'});
+createJsonDecoderFn<T>(undefined, {strategy: 'mutate'});
+createRemoveUnknownKeysFn<T>();
 getRunTypeId<T>();
 `;
 }
@@ -143,6 +172,7 @@ export async function compileType(client: ResolverClient, gen: GeneratedType): P
     entryModuleCount: 0,
     wired: {},
     wireErrors: {},
+    siteLines: {},
   };
 
   let resp;
@@ -187,44 +217,62 @@ export async function compileType(client: ResolverClient, gen: GeneratedType): P
   // Wire each factory independently. A non-serialisable type degrades to an
   // alwaysThrow factory that may throw a CONTROLLED error here — captured per
   // family rather than aborting (the runner decides if that's expected).
-  const byFamily = classifyFnSites(fnSites, tuples);
+  const byKey = classifyFnSites(fnSites, tuples);
   const wired: WiredFns = {};
   const wireErrors: CompiledType['wireErrors'] = {};
-  wire(
-    wired,
-    wireErrors,
-    'validate',
-    () => createValidateFn(undefined, undefined, byFamily.val as never) as WiredFns['validate']
-  );
+  const siteLines: CompiledType['siteLines'] = {};
+  for (const [key, {site}] of Object.entries(byKey) as [keyof WiredFns, {site: Site}][]) {
+    siteLines[key] = source.slice(0, site.pos).split('\n').length;
+  }
+  const tupleOf = (key: keyof WiredFns) => byKey[key]?.tuple as never;
+  wire(wired, wireErrors, 'validate', () => createValidateFn(undefined, undefined, tupleOf('validate')) as WiredFns['validate']);
   wire(
     wired,
     wireErrors,
     'getValidationErrors',
-    () => createGetValidationErrorsFn(undefined, undefined, byFamily.verr as never) as WiredFns['getValidationErrors']
+    () => createGetValidationErrorsFn(undefined, undefined, tupleOf('getValidationErrors')) as WiredFns['getValidationErrors']
   );
   wire(
     wired,
     wireErrors,
     'jsonEncode',
-    () => createJsonEncoderFn(undefined, undefined, byFamily.jenc as never) as WiredFns['jsonEncode']
+    () => createJsonEncoderFn(undefined, undefined, tupleOf('jsonEncode')) as WiredFns['jsonEncode']
   );
   wire(
     wired,
     wireErrors,
     'jsonDecode',
-    () => createJsonDecoderFn(undefined, undefined, byFamily.jdec as never) as WiredFns['jsonDecode']
+    () => createJsonDecoderFn(undefined, undefined, tupleOf('jsonDecode')) as WiredFns['jsonDecode']
   );
   wire(
     wired,
     wireErrors,
     'compactEncode',
-    () => createJsonEncoderFn(undefined, undefined, byFamily.jencCO as never) as WiredFns['compactEncode']
+    () => createJsonEncoderFn(undefined, undefined, tupleOf('compactEncode')) as WiredFns['compactEncode']
   );
   wire(
     wired,
     wireErrors,
     'compactDecode',
-    () => createJsonDecoderFn(undefined, undefined, byFamily.jdecCO as never) as WiredFns['compactDecode']
+    () => createJsonDecoderFn(undefined, undefined, tupleOf('compactDecode')) as WiredFns['compactDecode']
+  );
+  wire(
+    wired,
+    wireErrors,
+    'mutateEncode',
+    () => createJsonEncoderFn(undefined, undefined, tupleOf('mutateEncode')) as WiredFns['mutateEncode']
+  );
+  wire(
+    wired,
+    wireErrors,
+    'mutateDecode',
+    () => createJsonDecoderFn(undefined, undefined, tupleOf('mutateDecode')) as WiredFns['mutateDecode']
+  );
+  wire(
+    wired,
+    wireErrors,
+    'removeUnknownKeys',
+    () => createRemoveUnknownKeysFn(undefined, undefined, tupleOf('removeUnknownKeys')) as WiredFns['removeUnknownKeys']
   );
 
   // Mock value source — the REAL createMockDataFn driven off the reflection ENTRY
@@ -244,7 +292,7 @@ export async function compileType(client: ResolverClient, gen: GeneratedType): P
     });
   }
 
-  return {...partial, wired, wireErrors};
+  return {...partial, wired, wireErrors, siteLines};
 }
 
 function wire<K extends keyof WiredFns>(
@@ -260,27 +308,15 @@ function wire<K extends keyof WiredFns>(
   }
 }
 
-interface FamilyTuples {
-  val?: readonly unknown[];
-  verr?: readonly unknown[];
-  jenc?: readonly unknown[];
-  jdec?: readonly unknown[];
-  jencCO?: readonly unknown[];
-  jdecCO?: readonly unknown[];
-}
-
-function classifyFnSites(fnSites: Site[], tuples: Record<string, readonly unknown[]>): FamilyTuples {
-  const out: FamilyTuples = {};
+function classifyFnSites(
+  fnSites: Site[],
+  tuples: Record<string, readonly unknown[]>
+): Partial<Record<keyof WiredFns, {site: Site; tuple: readonly unknown[]}>> {
+  const out: Partial<Record<keyof WiredFns, {site: Site; tuple: readonly unknown[]}>> = {};
   for (const site of fnSites) {
     const tuple = tuples[`${site.fnId}_${site.id}`];
-    if (!tuple) continue;
-    const tag = tuple[0];
-    if (tag === 'val') out.val = tuple;
-    else if (tag === 'verr') out.verr = tuple;
-    else if (tag === 'jeCO') out.jencCO = tuple;
-    else if (tag === 'jdCO') out.jdecCO = tuple;
-    else if (typeof tag === 'string' && ENCODER_TAGS.has(tag)) out.jenc = tuple;
-    else if (typeof tag === 'string' && DECODER_TAGS.has(tag)) out.jdec = tuple;
+    const key = tuple && typeof tuple[0] === 'string' ? KEY_BY_TAG[tuple[0]] : undefined;
+    if (key) out[key] = {site, tuple};
   }
   return out;
 }
