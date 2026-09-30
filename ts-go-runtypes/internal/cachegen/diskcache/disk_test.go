@@ -32,6 +32,32 @@ func TestStore_NewEmpty(t *testing.T) {
 	}
 }
 
+// A symbol-keyed member puts tsgo's raw 0xFE byte in the structural id; a JSON string would turn it into U+FFFD.
+func TestStore_RoundTripSymbolKeyStructural(t *testing.T) {
+	store := New(t.TempDir(), "fp1")
+	const symbolKeyed = StructuralText("30{32:id:5,32:\xfe@tag:5}")
+	in := RTEntry{
+		Format:          FormatVersion,
+		StructuralID:    symbolKeyed,
+		ChildRefs:       []ChildRef{{StructuralID: symbolKeyed, Hash: "abc"}},
+		ElidedRefs:      []ChildRef{{StructuralID: symbolKeyed, Hash: "def"}},
+		CrossFamilyRefs: []CrossFamilyRef{{Prefix: "val_", StructuralID: symbolKeyed, Hash: "ghi"}},
+	}
+	if err := store.WriteRT("abc123", "val", in); err != nil {
+		t.Fatalf("WriteRT: %v", err)
+	}
+	out, ok, err := store.ReadRT("abc123", "val")
+	if err != nil || !ok {
+		t.Fatalf("ReadRT: ok=%v err=%v", ok, err)
+	}
+	got := []StructuralText{out.StructuralID, out.ChildRefs[0].StructuralID, out.ElidedRefs[0].StructuralID, out.CrossFamilyRefs[0].StructuralID}
+	for i, structural := range got {
+		if structural != symbolKeyed {
+			t.Errorf("structural id %d: got %q want %q", i, structural, symbolKeyed)
+		}
+	}
+}
+
 // TestStore_RoundTrip — write an entry, read it back, expect every field
 // preserved byte-for-byte.
 func TestStore_RoundTrip(t *testing.T) {

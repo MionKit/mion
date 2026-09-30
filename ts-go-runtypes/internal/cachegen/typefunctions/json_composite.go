@@ -312,7 +312,7 @@ func tryReadCachedCompositeEntry(runType *reflection.RunType, tag string, opts R
 	if err != nil || !ok || entry == nil {
 		return "", false
 	}
-	if entry.StructuralID != expectedStructural {
+	if string(entry.StructuralID) != expectedStructural {
 		return "", false
 	}
 	return entry.ArgsText, true
@@ -330,7 +330,7 @@ func writeCachedCompositeEntry(runType *reflection.RunType, tag string, argsText
 	}
 	entry := diskcache.RTEntry{
 		Format:       diskcache.FormatVersion,
-		StructuralID: structural,
+		StructuralID: diskcache.StructuralText(structural),
 		ArgsText:     argsText,
 	}
 	_ = opts.Store.WriteRT(runType.ID, tag, entry)

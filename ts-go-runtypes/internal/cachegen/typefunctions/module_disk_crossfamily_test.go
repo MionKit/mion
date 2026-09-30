@@ -96,7 +96,7 @@ func TestRenderFnModule_DiskCache_CrossFamilyRoundTrip(t *testing.T) {
 		}
 		// StructuralID must match the lookup's structural id for the bare hash
 		// (the drift anchor); the reader revalidates against it.
-		if ref.StructuralID != lookup.StructuralForHash(ref.Hash) {
+		if string(ref.StructuralID) != lookup.StructuralForHash(ref.Hash) {
 			t.Errorf("CrossFamilyRef sid for %q: got %q want %q", ref.Hash, ref.StructuralID, lookup.StructuralForHash(ref.Hash))
 		}
 		gotRefDeps = append(gotRefDeps, ref.Prefix+ref.Hash)

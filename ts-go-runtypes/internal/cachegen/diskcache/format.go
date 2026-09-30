@@ -7,6 +7,8 @@
 // child in the cached body; the reader re-resolves them against the live runtype.Cache and treats any mismatch as a miss.
 package diskcache
 
+import "encoding/json"
+
 // FormatVersion identifies the on-disk JSON layout. Bump it whenever an older binary's files must be read as misses, which is on
 // two counts: a payload this reader would misread, and a payload that still registers but emits DIFFERENT bytes than a cold walk
 // (emitted bytes must never depend on cache temperature). The history below is one line per bump, with the reason it forced one.
@@ -33,7 +35,25 @@ package diskcache
 // runtime a key nothing registers.
 // v18 stops persisting alwaysThrow entries: their message names a live call site, so a hit replayed the site of the build that wrote it.
 // v19 persists an unnamed entry's findings (another family's site may adopt them) and ElidedRefs (noop-gated children).
-const FormatVersion = 19
+// v20 stores structural ids as base64 (StructuralText): a JSON string turned a symbol key's 0xFE byte into U+FFFD, so every such entry missed.
+const FormatVersion = 20
+
+// StructuralText is a structural id on disk. It can hold tsgo's raw 0xFE symbol-key byte, which a JSON string cannot carry,
+// so it is stored as base64 bytes and reads back exactly.
+type StructuralText string
+
+func (text StructuralText) MarshalJSON() ([]byte, error) {
+	return json.Marshal([]byte(text))
+}
+
+func (text *StructuralText) UnmarshalJSON(data []byte) error {
+	var raw []byte
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	*text = StructuralText(raw)
+	return nil
+}
 
 // CachedDiagnostic is one build-time finding an entry's walk produced, stored so a cache hit can re-emit it.
 // Code + args only: the message text is rendered JS-side from the catalog and the location comes from the CURRENT build.
@@ -45,8 +65,8 @@ type CachedDiagnostic struct {
 // ChildRef captures one (structuralID, hash) pair referenced inside a cached factory body, so the reader can re-resolve it against
 // the live dict and bail to a miss when the hash differs or the structural id is unknown to this build.
 type ChildRef struct {
-	StructuralID string `json:"sid"`
-	Hash         string `json:"hash"`
+	StructuralID StructuralText `json:"sid"`
+	Hash         string         `json:"hash"`
 }
 
 // CrossFamilyRef is a cached body's dep with a FOREIGN family prefix, such as `val_<memberHash>` in a `pj` union.
@@ -55,7 +75,7 @@ type CrossFamilyRef struct {
 	// Prefix is the namespaced family prefix: everything up to and including the first `_` (e.g. "val_").
 	Prefix string `json:"prefix"`
 	// StructuralID is the referenced member's structural id at write time, for detecting hash drift (same rule as ChildRef).
-	StructuralID string `json:"sid"`
+	StructuralID StructuralText `json:"sid"`
 	// Hash is the bare member hash, the namespaced dep with Prefix stripped, as baked into the body at write time.
 	Hash string `json:"hash"`
 }
@@ -68,7 +88,7 @@ type RTEntry struct {
 	// Format is the layout version; a file disagreeing with the current FormatVersion is a miss.
 	Format int `json:"version"`
 	// StructuralID is the typeID's structural id at write time; a live cache disagreeing (hash drift, collision extension) is a miss.
-	StructuralID string `json:"structuralID"`
+	StructuralID StructuralText `json:"structuralID"`
 	// ArgsText is the entry tuple's positional args from the cache key onward, as rendered.
 	// No placeholders: the hashes are baked in, so reusing the text requires every ChildRef to still resolve.
 	ArgsText string `json:"argsText"`
