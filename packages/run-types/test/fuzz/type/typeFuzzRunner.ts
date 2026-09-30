@@ -155,6 +155,20 @@ export async function runTypeFuzz(options: TypeFuzzOptions = {}): Promise<TypeFu
   }
 }
 
+/** Replays exact per-type seeds, the ones a report prints, without the loop's seed derivation. **/
+export async function replayTypeFuzzSeeds(seeds: number[], options: TypeFuzzOptions = {}): Promise<Violation[]> {
+  const gen: GenOptions = {...DEFAULT_GEN_OPTIONS, ...options.gen};
+  const violations: Violation[] = [];
+  const stats: FuzzStats = {skippedInvalidTypes: 0, strongOracleRuns: 0};
+  const holder = new ClientHolder();
+  try {
+    for (const seed of seeds) await fuzzOneType(holder, seed, gen, options.valueSource ?? 'shape', violations, stats);
+    return violations;
+  } finally {
+    holder.close();
+  }
+}
+
 export async function runTypeFuzzForDuration(
   durationMs: number,
   options: TypeFuzzOptions = {},
