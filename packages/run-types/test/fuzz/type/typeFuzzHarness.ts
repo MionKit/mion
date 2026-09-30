@@ -25,6 +25,7 @@ import {
   createJsonEncoderFn,
   createJsonDecoderFn,
   createRemoveUnknownKeysFn,
+  type RemoveUnknownKeysFn,
 } from '@mionjs/run-types';
 import {createMockDataFn} from '@mionjs/run-types/mocking';
 import {ResolverClient} from '../../../../devtools/src/core/resolver-client.ts';
@@ -82,22 +83,30 @@ export type WiredFns = Partial<
   > & {
     mutateEncode: FuzzTarget['jsonEncode'];
     mutateDecode: FuzzTarget['jsonDecode'];
-    removeUnknownKeys: (value: unknown) => unknown;
+    removeUnknownKeys: RemoveUnknownKeysFn;
   }
 >;
 
-/** The function each entry-tuple tag builds. **/
-const KEY_BY_TAG: Record<string, keyof WiredFns> = {
-  val: 'validate',
-  verr: 'getValidationErrors',
-  jeCL: 'jsonEncode',
-  jdCL: 'jsonDecode',
-  jeCO: 'compactEncode',
-  jdCO: 'compactDecode',
-  jeMU: 'mutateEncode',
-  jdMU: 'mutateDecode',
-  ruk: 'removeUnknownKeys',
+type FnKey = Exclude<keyof WiredFns, 'mock'>;
+type FnFactory = (value: undefined, options: undefined, tuple: never) => unknown;
+
+/** Each entry-tuple tag, the function it builds and the factory that wires it from the tuple. **/
+const WIRED_BY_TAG: Partial<Record<string, [FnKey, FnFactory]>> = {
+  val: ['validate', createValidateFn as FnFactory],
+  verr: ['getValidationErrors', createGetValidationErrorsFn as FnFactory],
+  jeCL: ['jsonEncode', createJsonEncoderFn as FnFactory],
+  jdCL: ['jsonDecode', createJsonDecoderFn as FnFactory],
+  jeCO: ['compactEncode', createJsonEncoderFn as FnFactory],
+  jdCO: ['compactDecode', createJsonDecoderFn as FnFactory],
+  jeMU: ['mutateEncode', createJsonEncoderFn as FnFactory],
+  jdMU: ['mutateDecode', createJsonDecoderFn as FnFactory],
+  ruk: ['removeUnknownKeys', createRemoveUnknownKeysFn as FnFactory],
 };
+
+/** The compiled functions every fixture has a call site for. **/
+export const FN_KEYS: FnKey[] = Object.values(WIRED_BY_TAG).map((wiring) => wiring![0]);
+
+type FnSites = Partial<Record<FnKey, {site: Site; tuple: readonly unknown[]}>>;
 
 export interface CompiledType {
   gen: GeneratedType;
@@ -217,62 +226,15 @@ export async function compileType(client: ResolverClient, gen: GeneratedType): P
   const siteLines: CompiledType['siteLines'] = {};
   // Site positions are UTF-8 byte offsets; lines break where TypeScript's do.
   const sourceBytes = Buffer.from(source, 'utf8');
-  for (const [key, {site}] of Object.entries(byKey) as [keyof WiredFns, {site: Site}][]) {
+  for (const [key, {site}] of Object.entries(byKey) as [FnKey, {site: Site}][]) {
     siteLines[key] = sourceBytes
       .subarray(0, site.pos)
       .toString('utf8')
       .split(/\r\n|[\n\r\u2028\u2029]/).length;
   }
-  const tupleOf = (key: keyof WiredFns) => byKey[key]?.tuple as never;
-  wire(wired, wireErrors, 'validate', () => createValidateFn(undefined, undefined, tupleOf('validate')) as WiredFns['validate']);
-  wire(
-    wired,
-    wireErrors,
-    'getValidationErrors',
-    () => createGetValidationErrorsFn(undefined, undefined, tupleOf('getValidationErrors')) as WiredFns['getValidationErrors']
-  );
-  wire(
-    wired,
-    wireErrors,
-    'jsonEncode',
-    () => createJsonEncoderFn(undefined, undefined, tupleOf('jsonEncode')) as WiredFns['jsonEncode']
-  );
-  wire(
-    wired,
-    wireErrors,
-    'jsonDecode',
-    () => createJsonDecoderFn(undefined, undefined, tupleOf('jsonDecode')) as WiredFns['jsonDecode']
-  );
-  wire(
-    wired,
-    wireErrors,
-    'compactEncode',
-    () => createJsonEncoderFn(undefined, undefined, tupleOf('compactEncode')) as WiredFns['compactEncode']
-  );
-  wire(
-    wired,
-    wireErrors,
-    'compactDecode',
-    () => createJsonDecoderFn(undefined, undefined, tupleOf('compactDecode')) as WiredFns['compactDecode']
-  );
-  wire(
-    wired,
-    wireErrors,
-    'mutateEncode',
-    () => createJsonEncoderFn(undefined, undefined, tupleOf('mutateEncode')) as WiredFns['mutateEncode']
-  );
-  wire(
-    wired,
-    wireErrors,
-    'mutateDecode',
-    () => createJsonDecoderFn(undefined, undefined, tupleOf('mutateDecode')) as WiredFns['mutateDecode']
-  );
-  wire(
-    wired,
-    wireErrors,
-    'removeUnknownKeys',
-    () => createRemoveUnknownKeysFn(undefined, undefined, tupleOf('removeUnknownKeys')) as WiredFns['removeUnknownKeys']
-  );
+  for (const [key, factory] of Object.values(WIRED_BY_TAG) as [FnKey, FnFactory][]) {
+    wire(wired, wireErrors, key, () => factory(undefined, undefined, byKey[key]?.tuple as never) as never);
+  }
 
   // Pass the reflection entry tuple as the plugin does: the function factories' caches never link the reflection graph.
   // nonDataTypes:true makes the value carry the stripped members, so the encoders exercise their drop / fail paths.
@@ -301,14 +263,11 @@ function wire<K extends keyof WiredFns>(
   }
 }
 
-function classifyFnSites(
-  fnSites: Site[],
-  tuples: Record<string, readonly unknown[]>
-): Partial<Record<keyof WiredFns, {site: Site; tuple: readonly unknown[]}>> {
-  const out: Partial<Record<keyof WiredFns, {site: Site; tuple: readonly unknown[]}>> = {};
+function classifyFnSites(fnSites: Site[], tuples: Record<string, readonly unknown[]>): FnSites {
+  const out: FnSites = {};
   for (const site of fnSites) {
     const tuple = tuples[`${site.fnId}_${site.id}`];
-    const key = tuple && typeof tuple[0] === 'string' ? KEY_BY_TAG[tuple[0]] : undefined;
+    const key = tuple && typeof tuple[0] === 'string' ? WIRED_BY_TAG[tuple[0]]?.[0] : undefined;
     if (key) out[key] = {site, tuple};
   }
   return out;
