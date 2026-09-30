@@ -37,7 +37,9 @@ function installed(fetchesMetadata = true) {
     registry.getRequestHandler(ID)!.handler((value?: string[]) => (ids = value), {options, subRequestList: {}, ...context});
     return ids;
   };
-  const onError = (refusal: RouteSyncError, context: MiddlewareContext) => registry.executeHandler(ID, refusal, context);
+  const onError = async (refusal: RouteSyncError, context: MiddlewareContext) => {
+    for (const handler of registry.getErrorHandlers(ID, refusal.type)) await handler(refusal, context);
+  };
   return {sent, onError};
 }
 

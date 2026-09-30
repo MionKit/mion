@@ -94,6 +94,49 @@ describe('isolated reusable middleware', () => {
       expect(middlewareErrors?.['notes/csrf']?.type).toBe('csrf-expired');
       expect((await runs(client.routes)).saveNote).toBe(0);
     });
+
+    it("an app's own handler for the same error runs next to the installer's, which still retries", async () => {
+      const csrfState = installCsrf(client);
+      const seen: string[] = [];
+      client.middlewares.notes.csrf.onError('csrf-expired', (error) => {
+        seen.push(error.type);
+      });
+      const [result, , undeclared] = await client.routes.notes.saveNote('hi').call();
+      expect(undeclared).toBeUndefined();
+      expect(result).toBe('saved hi (1)');
+      expect(seen).toEqual(['csrf-expired']);
+      expect(csrfState.sent).toHaveLength(2);
+    });
+
+    it('two handlers asking a retry for the same failure resend once', async () => {
+      const order: string[] = [];
+      const retries: boolean[] = [];
+      client.middlewares.notes.csrf
+        .onRequest((call) => call('always-stale'))
+        .onError('csrf-expired', (_error, context) => {
+          order.push('first');
+          retries.push(context.retry());
+        })
+        .onError('csrf-expired', (_error, context) => {
+          order.push('second');
+          retries.push(context.retry());
+        });
+      await client.routes.notes.saveNote('hi').call();
+      // both run on each attempt, in order; the second attempt gets no resend
+      expect(order).toEqual(['first', 'second', 'first', 'second']);
+      expect(retries).toEqual([true, true, false, false]);
+      expect((await runs(client.routes)).saveNote).toBe(0);
+    });
+
+    it('offError removes only the handler it is given', async () => {
+      const csrfState = installCsrf(client);
+      const own = () => {};
+      const csrf = client.middlewares.notes.csrf.onError('csrf-expired', own).offError('csrf-expired', own);
+      expect(csrf.hasErrorHandler('csrf-expired')).toBe(true);
+      const [result] = await client.routes.notes.saveNote('hi').call();
+      expect(result).toBe('saved hi (1)');
+      expect(csrfState.sent).toHaveLength(2);
+    });
   });
 
   describe('retry rule: a succeeded mutation or plain route is never sent twice', () => {
@@ -201,8 +244,45 @@ describe('isolated reusable middleware', () => {
       expect((await runs(client.routes)).getNote).toBe(1);
     });
 
+    it('a throwing onError hook does not stop the next one, and the first failure is reported', async () => {
+      const ran: string[] = [];
+      client.middlewares.notes.audit
+        .onError('audit-flagged', () => {
+          ran.push('first');
+          throw new Error('first boom');
+        })
+        .onError('audit-flagged', async () => {
+          ran.push('second');
+          throw new Error('second boom');
+        })
+        .onError('audit-flagged', () => {
+          ran.push('third');
+        });
+      const [, , undeclared] = await client.routes.notes.getNote('a').call();
+      expect(ran).toEqual(['first', 'second', 'third']);
+      expect(undeclared?.publicMessage).toContain('first boom');
+    });
+
+    it('every onResponse hook runs, in order, and offResponse removes only its own', async () => {
+      const ran: string[] = [];
+      const first = () => {
+        ran.push('first');
+      };
+      client.middlewares.notes.audit.offRequest().onRequest(() => undefined);
+      client.middlewares.session
+        .onRequest((call) => call('valid'))
+        .onResponse(first)
+        .onResponse(() => {
+          ran.push('second');
+        });
+      await client.routes.notes.getNote('a').call();
+      client.middlewares.session.offResponse(first);
+      await client.routes.notes.getNote('a').call();
+      expect(ran).toEqual(['first', 'second', 'second']);
+    });
+
     it('a rejecting onResponse hook lands in undeclared', async () => {
-      client.middlewares.notes.audit.onRequest(() => undefined);
+      client.middlewares.notes.audit.offRequest().onRequest(() => undefined);
       client.middlewares.session
         .onRequest((call) => call('valid'))
         .onResponse(async () => {

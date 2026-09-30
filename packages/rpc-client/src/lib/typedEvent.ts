@@ -30,27 +30,27 @@ export class TypedEvent<S = void, E extends RpcError<string, any> = never, P ext
     return this;
   }
 
-  /** Register a persistent handler for this middleware's successful result */
+  /** Register a persistent handler for this middleware's successful result; every one registered runs, in order */
   onResponse(handler: ResponseHandler<S>): TypedEvent<S, E, P> {
     this.registry.registerResponse(this.handlerId, handler);
     return this;
   }
 
-  /** Remove a previously registered response handler from HandlersRegistry */
-  offResponse(): TypedEvent<S, E, P> {
-    this.registry.unregisterResponse(this.handlerId);
+  /** Remove this response handler; the others on this middleware stay */
+  offResponse(handler: ResponseHandler<S>): TypedEvent<S, E, P> {
+    this.registry.unregisterResponse(this.handlerId, handler);
     return this;
   }
 
-  /** Register a persistent error handler for this middleware */
+  /** Register a persistent error handler for this middleware; every one registered for the type runs, in order */
   onError<T extends E['type']>(errorType: T, handler: ErrorHandler<ErrorOfType<E, T>>): TypedEvent<S, E, P> {
     this.registry.register(this.handlerId, errorType, handler as ErrorHandler<any>);
     return this;
   }
 
-  /** Remove a previously registered error handler from HandlersRegistry */
-  offError<T extends E['type']>(errorType: T): TypedEvent<S, E, P> {
-    this.registry.unregister(this.handlerId, errorType);
+  /** Remove this error handler; the others for the type stay */
+  offError<T extends E['type']>(errorType: T, handler: ErrorHandler<ErrorOfType<E, T>>): TypedEvent<S, E, P> {
+    this.registry.unregister(this.handlerId, errorType, handler as ErrorHandler<any>);
     return this;
   }
 
