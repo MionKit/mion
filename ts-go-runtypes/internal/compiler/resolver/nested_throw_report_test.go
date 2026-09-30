@@ -147,25 +147,57 @@ func TestNestedThrow_OtherFamilySiteStaysQuiet(t *testing.T) {
 	}
 }
 
-// warmNestedThrow's second build reads every entry from the first build's disk cache.
-func warmNestedThrow(t *testing.T, code, site string) {
+// generateTwice builds cold, then again with every entry read from the first build's disk cache.
+func generateTwice(t *testing.T, sources map[string]string) (cold, warm protocol.Response) {
 	t.Helper()
 	cacheDir := t.TempDir()
 	withCache := func(_ *program.Options, resolverOpts *resolver.Options) {
 		resolverOpts.CacheDir = cacheDir
 	}
 	generate := func() protocol.Response {
-		response := setupInlineWith(t, nestedThrowSources(site), withCache).Dispatch(protocol.Request{Op: protocol.OpGenerate})
+		response := setupInlineWith(t, sources, withCache).Dispatch(protocol.Request{Op: protocol.OpGenerate})
 		if response.Error != "" {
 			t.Fatalf("generate: %s", response.Error)
 		}
 		return response
 	}
-	expectReportedOnceAtSite(t, generate(), code)
+	cold = generate()
 	if cachedEntryCount(t, cacheDir) == 0 {
 		t.Fatalf("the cold build persisted no entry, so the warm build would not read from disk")
 	}
-	expectReportedOnceAtSite(t, generate(), code)
+	written := cacheFiles(t, cacheDir)
+	warm = generate()
+	// A miss renders again and rewrites its file through a rename, so a new inode means the warm build walked it.
+	for path, before := range written {
+		if after, err := os.Stat(path); err != nil || !os.SameFile(before, after) {
+			t.Fatalf("the warm build missed the cache for %s", path)
+		}
+	}
+	return cold, warm
+}
+
+func cacheFiles(t *testing.T, root string) map[string]fs.FileInfo {
+	t.Helper()
+	files := map[string]fs.FileInfo{}
+	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil || entry.IsDir() {
+			return err
+		}
+		info, err := os.Stat(path)
+		files[path] = info
+		return err
+	})
+	if err != nil {
+		t.Fatalf("walking %s: %v", root, err)
+	}
+	return files
+}
+
+func warmNestedThrow(t *testing.T, code, site string) {
+	t.Helper()
+	cold, warm := generateTwice(t, nestedThrowSources(site))
+	expectReportedOnceAtSite(t, cold, code)
+	expectReportedOnceAtSite(t, warm, code)
 }
 
 func cachedEntryCount(t *testing.T, root string) int {
@@ -335,11 +367,14 @@ export const encode = createJsonEncoderFn(value, {strategy: 'mutate'});`)
 }
 
 // A site hears what its function reaches, not its type: `Tagged` rendered for another file stays silent at the union site.
-func expectNotLeaked(t *testing.T, other, site, leaked string) {
-	t.Helper()
+func leakSources(other, site string) map[string]string {
 	sources := nestedThrowSources(site)
 	sources["other.ts"] = nestedThrowImports + other + "\n"
-	response := wholeProgram(t, sources)
+	return sources
+}
+
+func expectNotLeaked(t *testing.T, response protocol.Response, leaked string) {
+	t.Helper()
 	for _, file := range diagSitesFor(response, leaked) {
 		if file == "site.ts" {
 			t.Errorf("%s reached site.ts through an entry its function never calls; codes=%v", leaked, codesOf(response))
@@ -347,22 +382,55 @@ func expectNotLeaked(t *testing.T, other, site, leaked string) {
 	}
 }
 
+func assertNotLeaked(t *testing.T, other, site, leaked string) {
+	t.Helper()
+	expectNotLeaked(t, wholeProgram(t, leakSources(other, site)), leaked)
+}
+
+// A cache hit replays its findings too, so it must replay them at the same sites.
+func assertNotLeakedWarm(t *testing.T, other, site, leaked string) {
+	t.Helper()
+	cold, warm := generateTwice(t, leakSources(other, site))
+	expectNotLeaked(t, cold, leaked)
+	expectNotLeaked(t, warm, leaked)
+	if len(diagSitesFor(warm, leaked)) == 0 {
+		t.Errorf("%s must still reach other.ts on a warm build; codes=%v", leaked, codesOf(warm))
+	}
+}
+
+const (
+	leakOtherValidationErrors = `export const direct = createGetValidationErrorsFn<{t: Tagged}>();`
+	leakSiteValidationErrors  = `export const errors = createGetValidationErrorsFn<{u: Tagged | string}>();`
+	leakValueValidationErrors = `declare const value: {u: Tagged | string};
+export const errors = createGetValidationErrorsFn(value);`
+	leakOtherRemoveUnknownKeys = `export const direct = createRemoveUnknownKeysFn<{t: Tagged}>();`
+	leakSiteRemoveUnknownKeys  = `export const strip = createRemoveUnknownKeysFn<{u: Tagged | string}>();`
+	leakValueRemoveUnknownKeys = `declare const value: {u: Tagged | string};
+export const strip = createRemoveUnknownKeysFn(value);`
+)
+
 func TestUncalledEntryFinding_ValidationErrorsUnion_Static(t *testing.T) {
-	expectNotLeaked(t, `export const direct = createGetValidationErrorsFn<{t: Tagged}>();`, `export const errors = createGetValidationErrorsFn<{u: Tagged | string}>();`, diagnostics.CodeVESymbolKeyedDropped)
+	assertNotLeaked(t, leakOtherValidationErrors, leakSiteValidationErrors, diagnostics.CodeVESymbolKeyedDropped)
 }
 
 func TestUncalledEntryFinding_ValidationErrorsUnion_Value(t *testing.T) {
-	expectNotLeaked(t, `export const direct = createGetValidationErrorsFn<{t: Tagged}>();`, `declare const value: {u: Tagged | string};
-export const errors = createGetValidationErrorsFn(value);`, diagnostics.CodeVESymbolKeyedDropped)
+	assertNotLeaked(t, leakOtherValidationErrors, leakValueValidationErrors, diagnostics.CodeVESymbolKeyedDropped)
 }
 
 func TestUncalledEntryFinding_RemoveUnknownKeysUnion_Static(t *testing.T) {
-	expectNotLeaked(t, `export const direct = createRemoveUnknownKeysFn<{t: Tagged}>();`, `export const strip = createRemoveUnknownKeysFn<{u: Tagged | string}>();`, diagnostics.CodeRUKSymbolKeyedMember)
+	assertNotLeaked(t, leakOtherRemoveUnknownKeys, leakSiteRemoveUnknownKeys, diagnostics.CodeRUKSymbolKeyedMember)
 }
 
 func TestUncalledEntryFinding_RemoveUnknownKeysUnion_Value(t *testing.T) {
-	expectNotLeaked(t, `export const direct = createRemoveUnknownKeysFn<{t: Tagged}>();`, `declare const value: {u: Tagged | string};
-export const strip = createRemoveUnknownKeysFn(value);`, diagnostics.CodeRUKSymbolKeyedMember)
+	assertNotLeaked(t, leakOtherRemoveUnknownKeys, leakValueRemoveUnknownKeys, diagnostics.CodeRUKSymbolKeyedMember)
+}
+
+func TestUncalledEntryFinding_WarmDiskCache_Static(t *testing.T) {
+	assertNotLeakedWarm(t, leakOtherValidationErrors, leakSiteValidationErrors, diagnostics.CodeVESymbolKeyedDropped)
+}
+
+func TestUncalledEntryFinding_WarmDiskCache_Value(t *testing.T) {
+	assertNotLeakedWarm(t, leakOtherValidationErrors, leakValueValidationErrors, diagnostics.CodeVESymbolKeyedDropped)
 }
 
 // A union's object member drops its methods with the same note a standalone object gives.
