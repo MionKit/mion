@@ -576,6 +576,6 @@ function checkDiagnosticTruth(compiled: CompiledType, seed: number, out: Violati
       continue; // a throw is D1's business
     }
     const codes = new Set([...codesAtSite(compiled, encodeKey), ...(decodeKey ? codesAtSite(compiled, decodeKey) : [])]);
-    push(out, checkDropNoted(encodeKey, droppedPaths(input, output), codes, ctx));
+    push(out, checkDropNoted(encodeKey, droppedPaths(input, output, encodeKey === 'compactEncode'), codes, ctx));
   }
 }

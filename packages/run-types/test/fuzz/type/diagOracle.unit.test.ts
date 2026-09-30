@@ -36,4 +36,9 @@ describe('diagOracle', () => {
     expect(droppedPaths(input, output).sort()).toEqual(['$.[tag]', '$.f', '$.nested[0].g']);
     expect(droppedPaths({a: 1}, {a: 1})).toEqual([]);
   });
+
+  it('lets a null member vanish only where compact cannot tell it from absent', () => {
+    expect(droppedPaths({a: 1, n: null}, {a: 1})).toEqual(['$.n']);
+    expect(droppedPaths({a: 1, n: null}, {a: 1}, true)).toEqual([]);
+  });
 });

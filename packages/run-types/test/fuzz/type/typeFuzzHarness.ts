@@ -221,8 +221,10 @@ export async function compileType(client: ResolverClient, gen: GeneratedType): P
   const wired: WiredFns = {};
   const wireErrors: CompiledType['wireErrors'] = {};
   const siteLines: CompiledType['siteLines'] = {};
+  // Site positions are UTF-8 byte offsets: a non-ASCII name would shift a character count.
+  const sourceBytes = Buffer.from(source, 'utf8');
   for (const [key, {site}] of Object.entries(byKey) as [keyof WiredFns, {site: Site}][]) {
-    siteLines[key] = source.slice(0, site.pos).split('\n').length;
+    siteLines[key] = sourceBytes.subarray(0, site.pos).toString('utf8').split('\n').length;
   }
   const tupleOf = (key: keyof WiredFns) => byKey[key]?.tuple as never;
   wire(wired, wireErrors, 'validate', () => createValidateFn(undefined, undefined, tupleOf('validate')) as WiredFns['validate']);
