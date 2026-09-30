@@ -71,14 +71,17 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
 the normal Go suite, one parallel subtest per trigger (about 50 s on 4 cores). Triggers: symbol, `symbol[]`, function,
 callable interface (with and without a field), never, typed array, `#private` class, symbol-keyed interface, object
 union. Positions: property, optional property, array, tuple plain / optional / rest, Map key and value, Set, index
-signature, union member, intersection. Each as an inline and a named child, under all 16 family variants, in both
+signature, union member, intersection, each under a `{w: …}` property (so `property` is two deep). Each as an inline and
+a named child, under all 16 family variants, in both
 inline modes, static call shape in both modes and value shape in the default mode. Rules checked per file: every
 runtime throw is reported at the site, every reported always-throw code has its throw, inline and named report the
-same codes in both modes, a non-data trigger is never dropped with no diagnostic, and the build pass reports what the
-dev scan did. The oracle reads the `[CODE]` prefix of the rendered alwaysThrow messages, so no cell has a hand-written
+same codes in both modes and both call shapes, a non-data trigger is never dropped with no diagnostic (formatTransform
+never touches these types and removeUnknownKeys copies a symbol as is, so those two may stay quiet), and the build pass
+reports what the dev scan did. The oracle reads the `[CODE]` prefix of the rendered alwaysThrow messages, so no cell has a hand-written
 expectation. The root-position case stays with `TestDiagExamples_TriggerTheirCode`.
 
-**Gaps found and fixed**, each with its own commit and paired tests:
+**Gaps found and fixed**, each with its own commit and test, paired static / value wherever a call site is involved
+(no user type reaches `TFN001`, so its test feeds the renderer directly):
 
 - A throw reached through ANOTHER family's entry was never reported: a validationErrors or removeUnknownKeys union calls
   the validate entry of the union (`{u: symbol[] | string}` threw at runtime and built clean). The reach walk now runs
@@ -126,12 +129,30 @@ So this class of bug fails a test instead of reaching a user, four safeguards sh
   per random type (in-place JSON and removeUnknownKeys added) and checks per call site: a runtime `[CODE]` throw was
   reported there (D1), a reported always-throw code really throws (D2), a member a round trip dropped left a note (D3).
   Each rule is proven by a negative control. Its first soak found a symbol-keyed index signature
-  (`[k: string | symbol]`) losing its keys in every encoder with no note; fixed with paired tests.
+  (`[k: string | symbol]`) losing its keys in every encoder with no note; the second found the in-place codecs merging
+  that signature into the string one before noting it. Both fixed with paired tests, and
+  `diagnosticTruth.smoke.test.ts` replays the seeds. Call-site lines are counted from UTF-8 byte offsets and break
+  where TypeScript breaks (U+2028 / U+2029 included).
 
 ## any and unknown
 
 Nothing here changed them; the decision already in the code is now written down and pinned. A written `any` or
 `unknown` is data, kept for third-party types: accepted at every position in every family (a required member only
 needs its key), an Info at a root, never an error. An `any` that came from an unresolved name, import or lib is a
-RuntimeError (`MKR007`, `MKR013`, `TMP001`, `CFG002`). The grid now fails if a written one ever throws or errors, and
-the rule is on the website validation page and in the root `CLAUDE.md`.
+RuntimeError (`MKR007`, `MKR013`, `TMP001`, `CFG002`). The grid now fails if a written one ever throws or errors,
+`TestNestedDiagCorpus_WrittenAnyAtRoot` pins the root Info, `writtenAnyUnknown.test.ts` pins the runtime acceptance
+(the required key included), and the rule is on the website validation page and in the root `CLAUDE.md`.
+
+## Review fixes
+
+A review of the branch found gaps in the shipped work itself; each is fixed with its own commit:
+
+- The warm-cache tests never read the cache for a type with a symbol key: the structural id holds tsgo's raw `0xFE`
+  byte, which a JSON string turned into U+FFFD, so every such entry missed. Structural ids are now stored as base64
+  (disk format v20), and the warm helper fails when the second build rewrites any cache file.
+- Tests added: statics a union's object member drops (only an unnamed class reaches that path), a warm build keeping
+  findings off sites that never call the entry, and the grid holding both call shapes to the same codes.
+- `TFN001` is registered `ScopeGraph`, since a type walk raises it at any depth.
+- A declared reflection kind with no family now fails a test, so the per-kind gates cannot skip a new kind.
+- The fuzz lane's D1 now fails on a crash with no `[CODE]`, including a decoder crashing on real wire data mid round
+  trip, and D3 looks inside Set elements and object-keyed Map entries.
