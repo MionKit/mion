@@ -51,7 +51,7 @@ export function getResponseError(id: string, value: unknown) {
   const method = useMethodFns(id);
   if (!method.hasReturnData) return;
   if (method.headersReturn) {
-    // no header on the wire can be a valid void return, so only headers that came back are checked
+    // no header on the wire can be a valid void return
     if (!(value instanceof HeadersSubset)) return;
     const jitFns = method.headersReturn.jitFns as JitCompiledFunctions;
     return checkValue(method.id, jitFns, value, 'response-validation-error', 'response-validation-error', 'headers from');

@@ -306,7 +306,7 @@ function validateParametersOrThrow(params: any[], executable: RemoteMethod): voi
   }
 }
 
-// A returned header off its declared type is a handler bug: it fails the call like any undeclared error
+// A returned header off its type is a handler bug, so it fails like an undeclared error
 function validateReturnedHeadersOrThrow(headers: HeadersSubset<string, string>, executable: HeadersMethod): void {
   const jitFns = executable.headersReturn!.jitFns;
   if (jitFns.isType.fn(headers)) return;
