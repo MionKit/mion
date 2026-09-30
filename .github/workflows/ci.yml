@@ -294,15 +294,16 @@ jobs:
       # On a pull request HEAD is GitHub's merge commit, so HEAD^1 is the base tip test-pr diffs against.
       # Its js-pr marker is accepted on pull requests only, so main still runs the full suite after the merge.
       # build-gate.test.ts builds with Go, so it runs in go-fuzz; the two stay a disjoint partition.
+      # An --exclude glob matches paths relative to each project's root, so it must not name the package dir.
       - name: JS suite (everything except test/fuzz)
         id: suite
         run: |
           if [ "${{ github.event_name }}" = pull_request ] && git rev-parse -q --verify HEAD^2 >/dev/null; then
             echo "scope=partial" >> "$GITHUB_OUTPUT"
-            pnpm miondevx core test-pr --base HEAD^1 --exclude '**/test/fuzz/**' --exclude '**/devtools/test/build-gate.test.ts'
+            pnpm miondevx core test-pr --base HEAD^1 --exclude '**/test/fuzz/**' --exclude '**/build-gate.test.ts'
           else
             echo "scope=full" >> "$GITHUB_OUTPUT"
-            pnpm test --exclude '**/test/fuzz/**' --exclude '**/devtools/test/build-gate.test.ts'
+            pnpm test --exclude '**/test/fuzz/**' --exclude '**/build-gate.test.ts'
           fi
       # platform-bun's suites are bun:test, so they cannot join the vitest
       # projects above and need their own step. Without this the whole bun
