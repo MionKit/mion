@@ -294,7 +294,7 @@ describe('published packages point at this repository', () => {
         '--',
         'packages/rpc-client/src',
         'packages/private-examples/src/client',
-        'container/website/content/01.rpc/03.client',
+        'container/website/content/01.rpc/04.client',
         ':!*.spec.ts',
       ],
       {cwd: REPO_ROOT, encoding: 'utf8'}

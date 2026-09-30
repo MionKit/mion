@@ -76,7 +76,7 @@ The implementer plans the details. What was checked:
 `02.runtypes/08.diagnostics/01.error-levels.md` (existing sections "Disabling Errors" and
 "Downgrading Errors in Config": slugs in every example, one line saying a code works too),
 `02.all-diagnostics.md` (a slug column), and the linting pages
-(`02.runtypes/04.tooling/01.linting.md`, `01.rpc/06.devtools/01.linter.md`) where they show a
+(`02.runtypes/04.tooling/01.linting.md`, `01.rpc/07.devtools/01.linter.md`) where they show a
 comment.
 
 Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagent) over every page and example this change touched, review its report against the code, and commit it as its own commit.

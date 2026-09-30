@@ -60,7 +60,7 @@ The implementer plans the details. What was checked:
 
 ## Docs
 
-`container/website/content/01.rpc/06.devtools/01.linter.md`: a section for each rule under "Route Checks". `container/website/content/01.rpc/04.drizzle-orm/00.drizzle-overview.md`: the
+`container/website/content/01.rpc/07.devtools/01.linter.md`: a section for each rule under "Route Checks". `container/website/content/01.rpc/05.drizzle-orm/00.drizzle-overview.md`: the
 schema file / query file split in "Building the Drizzle Table", and a one-line tip pointing at the rules.
 
 Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagent) over every page and example this change touched, review its report against the code, and commit it as its own commit.
