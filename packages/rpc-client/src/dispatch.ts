@@ -548,7 +548,7 @@ async function runMiddlewareResponses(
     const handlers = isErrorHandler
       ? handlersRegistry.getErrorHandlers(id, middlewareError.type)
       : handlersRegistry.getResponseHandlers(id);
-    // all run in order, one that fails does not stop the rest; the first failure is the one reported
+    // a failing handler does not stop the rest, only the first failure is reported
     for (const handler of handlers) {
       // a retry asked after the handler finished belongs to no attempt
       let isOpen = true;

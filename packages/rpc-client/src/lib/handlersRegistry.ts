@@ -46,7 +46,7 @@ export class HandlersRegistry {
     return handlerMap?.has(errorType) ?? false;
   }
 
-  /** In registration order; a copy, so a handler that adds or removes one does not change this run */
+  /** A copy, so a handler that adds or removes one leaves this run unchanged */
   getErrorHandlers(handlerId: string, errorType: string): ErrorHandler<any>[] {
     return [...(this.errorHandlers.get(handlerId)?.get(errorType) ?? [])];
   }
@@ -68,7 +68,7 @@ export class HandlersRegistry {
     return this.responseHandlers.has(handlerId);
   }
 
-  /** In registration order; a copy, so a handler that adds or removes one does not change this run */
+  /** A copy, so a handler that adds or removes one leaves this run unchanged */
   getResponseHandlers(handlerId: string): ResponseHandler<any>[] {
     return [...(this.responseHandlers.get(handlerId) ?? [])];
   }
@@ -79,13 +79,13 @@ export class HandlersRegistry {
     createSubRequest: RequestHandlerEntry['createSubRequest']
   ): void {
     const owner = this.requestHandlers.get(handlerId)?.owner;
-    // replacing an installer's hook would silently break it, so only an explicit offRequest() may drop it
+    // replacing an installer's hook would silently break it
     if (owner)
       throw new Error(`Middleware '${handlerId}' gets its onRequest from ${owner}, call offRequest() first to replace it`);
     this.requestHandlers.set(handlerId, {handler, createSubRequest});
   }
 
-  /** Marks the current onRequest as an installer's, so a later onRequest throws instead of replacing it */
+  /** A later onRequest then throws instead of replacing the installer's hook */
   setRequestOwner(handlerId: string, owner: string): void {
     const entry = this.requestHandlers.get(handlerId);
     if (entry) entry.owner = owner;
@@ -132,7 +132,7 @@ export class HandlersRegistry {
   }
 }
 
-/** Removes the first match only, so a handler registered twice needs two removals */
+/** A handler registered twice needs two removals */
 function removeFrom<H>(handlers: H[], handler: H): void {
   const index = handlers.indexOf(handler);
   if (index !== -1) handlers.splice(index, 1);
