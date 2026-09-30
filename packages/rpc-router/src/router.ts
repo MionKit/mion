@@ -364,9 +364,7 @@ function recursiveFlatRoutes(
         );
       routeEntry = getExecutableFromAnyMiddleware(item, newPointer, nestLevel);
       if (middlewareNames.has(routeEntry.id))
-        throw new Error(
-          `Invalid middleware: ${joinPath(...newPointer)}. Naming collision, Naming collision, duplicated middleware.`
-        );
+        throw new Error(`Invalid middleware: ${joinPath(...newPointer)}. Naming collision, duplicated middleware.`);
       middlewareNames.add(routeEntry.id);
     } else if (isRoute(item)) {
       routeEntry = getExecutableFromRoute(item, newPointer, nestLevel);
