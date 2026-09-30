@@ -707,7 +707,7 @@ func tryReadCachedEntry(runType *reflection.RunType, settings constants.CacheMod
 	if err != nil || !ok || entry == nil {
 		return entryRender{}, false
 	}
-	if entry.StructuralID != expectedStructural {
+	if string(entry.StructuralID) != expectedStructural {
 		return entryRender{}, false
 	}
 	deps, ok := liveChildHashes(entry.ChildRefs, innerPrefix, opts)
@@ -720,7 +720,7 @@ func tryReadCachedEntry(runType *reflection.RunType, settings constants.CacheMod
 	}
 	crossFamilyDeps := make([]string, 0, len(entry.CrossFamilyRefs))
 	for _, ref := range entry.CrossFamilyRefs {
-		currentHash := opts.Lookup.HashForStructural(ref.StructuralID)
+		currentHash := opts.Lookup.HashForStructural(string(ref.StructuralID))
 		if currentHash == "" || currentHash != ref.Hash {
 			// Same drift rule as ChildRefs: the member's hash changed across
 			// builds, so the whole entry is stale.
@@ -748,7 +748,7 @@ func tryReadCachedEntry(runType *reflection.RunType, settings constants.CacheMod
 func liveChildHashes(refs []diskcache.ChildRef, innerPrefix string, opts RenderOpts) ([]string, bool) {
 	hashes := make([]string, 0, len(refs))
 	for _, ref := range refs {
-		currentHash := opts.Lookup.HashForStructural(ref.StructuralID)
+		currentHash := opts.Lookup.HashForStructural(string(ref.StructuralID))
 		if currentHash == "" || currentHash != ref.Hash {
 			return nil, false
 		}
@@ -823,7 +823,7 @@ func writeCachedEntry(runType *reflection.RunType, settings constants.CacheModul
 		}
 		crossFamilyRefs = append(crossFamilyRefs, diskcache.CrossFamilyRef{
 			Prefix:       prefix,
-			StructuralID: crossStructural,
+			StructuralID: diskcache.StructuralText(crossStructural),
 			Hash:         bareHash,
 		})
 	}
@@ -838,7 +838,7 @@ func writeCachedEntry(runType *reflection.RunType, settings constants.CacheModul
 	}
 	entry := diskcache.RTEntry{
 		Format:          diskcache.FormatVersion,
-		StructuralID:    structural,
+		StructuralID:    diskcache.StructuralText(structural),
 		ArgsText:        argsText,
 		IsNoop:          isNoop,
 		ChildRefs:       childRefs,
@@ -868,7 +868,7 @@ func cachedChildRefs(children []string, innerPrefix string, opts RenderOpts) ([]
 		if childStructural == "" {
 			return nil, false
 		}
-		refs = append(refs, diskcache.ChildRef{StructuralID: childStructural, Hash: childHash})
+		refs = append(refs, diskcache.ChildRef{StructuralID: diskcache.StructuralText(childStructural), Hash: childHash})
 	}
 	return refs, true
 }

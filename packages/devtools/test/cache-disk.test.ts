@@ -81,7 +81,7 @@ skipUnlessBinary('disk RT cache (end-to-end)', () => {
     expect(rtFiles.length).toBeGreaterThan(0);
     const parsed = JSON.parse(fs.readFileSync(rtFiles[0], 'utf8'));
     // Mirrors disk.FormatVersion (internal/cachegen/diskcache/format.go), whose history lists every bump.
-    expect(parsed.version).toBe(19);
+    expect(parsed.version).toBe(20);
     expect(typeof parsed.structuralID).toBe('string');
     expect(parsed.structuralID.length).toBeGreaterThan(0);
     expect(typeof parsed.argsText).toBe('string');
