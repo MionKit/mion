@@ -258,12 +258,22 @@ describe('every unknown-key family agrees', () => {
   });
 
   // A Map or Set entry is rebuilt like an array element: a shortcut that copied the entries kept every undeclared key.
-  it('drops an undeclared key from a Map value and a Set entry in the clone encoder', () => {
+  it('drops an undeclared key from a Map value and a Set entry in the clone encoder (static)', () => {
     const map = new Map([['k', {a: 'x', evil: 1} as Inner]]);
     const set = new Set([{a: 'x', evil: 1} as Inner]);
 
     const mapWire = createJsonEncoderFn<Map<string, Inner>>(undefined, {strategy: 'clone'})(map) as string;
     const setWire = createJsonEncoderFn<Set<Inner>>(undefined, {strategy: 'clone'})(set) as string;
+    expect(JSON.parse(mapWire), "Map encoder {strategy: 'clone'}").toStrictEqual([['k', {a: 'x'}]]);
+    expect(JSON.parse(setWire), "Set encoder {strategy: 'clone'}").toStrictEqual([{a: 'x'}]);
+  });
+
+  it('drops an undeclared key from a Map value and a Set entry in the clone encoder (value)', () => {
+    const map: Map<string, Inner> = new Map([['k', {a: 'x', evil: 1} as Inner]]);
+    const set: Set<Inner> = new Set([{a: 'x', evil: 1} as Inner]);
+
+    const mapWire = createJsonEncoderFn(map, {strategy: 'clone'})(map) as string;
+    const setWire = createJsonEncoderFn(set, {strategy: 'clone'})(set) as string;
     expect(JSON.parse(mapWire), "Map encoder {strategy: 'clone'}").toStrictEqual([['k', {a: 'x'}]]);
     expect(JSON.parse(setWire), "Set encoder {strategy: 'clone'}").toStrictEqual([{a: 'x'}]);
   });
