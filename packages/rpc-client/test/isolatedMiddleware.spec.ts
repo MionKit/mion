@@ -122,7 +122,7 @@ describe('isolated reusable middleware', () => {
           retries.push(context.retry());
         });
       await client.routes.notes.saveNote('hi').call();
-      // both run on each attempt, in order; the second attempt gets no resend
+      // the second attempt gets no resend
       expect(order).toEqual(['first', 'second', 'first', 'second']);
       expect(retries).toEqual([true, true, false, false]);
       expect((await runs(client.routes)).saveNote).toBe(0);

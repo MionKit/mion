@@ -286,13 +286,11 @@ describe('client', () => {
 
       middlewares.auth.onRequest((auth) => auth(authHeaders));
 
-      // First request - handler should be called
       await routes.sayHello(someUser).call();
       expect(successCallCount).toBe(1);
 
       typedEvent.offResponse(countSuccess);
 
-      // Second request - handler should NOT be called
       await routes.sayHello(someUser).call();
       expect(successCallCount).toBe(1); // Still 1
     });

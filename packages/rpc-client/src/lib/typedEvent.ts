@@ -30,7 +30,7 @@ export class TypedEvent<S = void, E extends RpcError<string, any> = never, P ext
     return this;
   }
 
-  /** Register a persistent handler for this middleware's successful result; every one registered runs, in order */
+  /** Persistent handler for this middleware's successful result; every one registered runs, in order */
   onResponse(handler: ResponseHandler<S>): TypedEvent<S, E, P> {
     this.registry.registerResponse(this.handlerId, handler);
     return this;
@@ -42,7 +42,7 @@ export class TypedEvent<S = void, E extends RpcError<string, any> = never, P ext
     return this;
   }
 
-  /** Register a persistent error handler for this middleware; every one registered for the type runs, in order */
+  /** Persistent error handler; every one registered for the type runs, in order */
   onError<T extends E['type']>(errorType: T, handler: ErrorHandler<ErrorOfType<E, T>>): TypedEvent<S, E, P> {
     this.registry.register(this.handlerId, errorType, handler as ErrorHandler<any>);
     return this;
