@@ -194,6 +194,16 @@ describe('test-skip — files that reach outside their import graph', () => {
     expect((await moduleGraph(fakeProject(root, modules), file, {})).reasons.size).toBe(1);
   });
 
+  it('lets a declared directory cover every module under it', async () => {
+    const helper = join(root, 'test/helpers/inline.ts');
+    const modules = {[file]: {code: 'x', deps: ['/@fs' + helper]}, [helper]: {code: 'spawn', deps: ['node:child_process']}};
+    const covered = await moduleGraph(fakeProject(root, modules), file, {'packages/devtools/test/': ['version.json']});
+    expect([...covered.reasons]).toEqual([]);
+    expect([...covered.inputs]).toEqual(['version.json']);
+    const elsewhere = await moduleGraph(fakeProject(root, modules), file, {'packages/devtools/src/': ['version.json']});
+    expect([...elsewhere.reasons]).toEqual(['imports node:child_process']);
+  });
+
   it('digests a declared file by its bytes and a directory by every file in it', () => {
     const dir = mkdtempSync(join(tmpdir(), 'test-skip-'));
     const write = (name: string, content: string) => {

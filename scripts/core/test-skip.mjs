@@ -17,6 +17,7 @@ const PACKAGE = /^(.*node_modules\/)((?:@[^/]+\/)?[^/]+)/;
 // Time-boxed fuzz runs cover what the clock allows, so a rerun is never the same run.
 const TIME_BOXED = /\/test\/fuzz\/.*\.integration\.test\.ts$/;
 const KEEP_PER_FILE = 3;
+const KEY_CONCURRENCY = 16;
 // Without mock.seed the compiler draws new samples every build, so they are stripped; a declared pool is in source.
 // Stops at the FIRST `]`: a sample holding one cuts the strip short (a missed skip), never past the list.
 const DRAWN_SAMPLES = /(mockSamples(?:\\?["'])?\s*:\s*\[)[^\]]*\]/g;
@@ -24,9 +25,18 @@ const GENERATED = /\/\.mion[^/]*\//;
 export const stableCode = (path, code) => (GENERATED.test(path) ? code.replace(DRAWN_SAMPLES, '$1]') : code);
 const DEFAULT_STORE = join(REPO_ROOT, 'node_modules/.cache/mion/vitest-passed.json');
 export const GO_BINS = 'mion-bin';
+// A TypeScript program resolves a workspace package's `source` condition into its sources, and its @types through the lockfile.
+const sources = (pkg, entries = []) => [`packages/${pkg}/src`, `packages/${pkg}/package.json`, ...entries.map((entry) => `packages/${pkg}/${entry}`)];
+const RUN_TYPES_PROGRAM = [...sources('run-types'), 'pnpm-lock.yaml'];
+const MION_PROGRAM = [
+  ...RUN_TYPES_PROGRAM,
+  ...sources('core', ['index.ts', 'middlewares.ts', 'testing.ts', '__runtypes']),
+  ...sources('rpc-router', ['index.ts', 'middlewares.ts', '__runtypes']),
+  ...sources('rpc-client', ['index.ts', 'middlewares.ts']),
+  ...['drizzle-orm', 'drizzle-orm-pg-core', 'drizzle-orm-mysql-core', 'drizzle-orm-sqlite-core'].flatMap((pkg) => sources(pkg)),
+];
 // Modules that reach outside the graph on purpose, and everything they reach; their builtin imports stop blocking a file.
-// A TypeScript program over run-types resolves its `source` condition into src, and its @types through the lockfile.
-const RUN_TYPES_PROGRAM = ['packages/run-types/src', 'packages/run-types/package.json', 'pnpm-lock.yaml'];
+// A key ending in `/` covers every module under that directory.
 export const DECLARED = {
   // Teardown only: it deletes the genDirs after the whole run.
   'scripts/lib/vitest-clean-gendir.ts': [],
@@ -45,6 +55,9 @@ export const DECLARED = {
   'packages/run-types/test/types/substituteSelfHarness.ts': RUN_TYPES_PROGRAM,
   // Writes its report and reads nothing.
   'packages/run-types/test/types/builderCostReport.ts': [],
+  'packages/run-types/test/types/dataonlyTemporalPosture.test.ts': ['packages/run-types/dist', 'ts-go-runtypes/internal/testfixtures/temporal.d.ts'],
+  // TypeScript programs over the mion packages; the files read only their own package.json and write reports.
+  'packages/private-type-budget/test/': [...MION_PROGRAM, 'packages/private-type-budget/package.json'],
   'packages/devtools/src/core/resolver-client.ts': [GO_BINS],
   // Serves on localhost only, and the server's code is already in the key of every file that talks to it.
   'packages/platform-node/src/mionHttp.ts': [],
@@ -71,20 +84,28 @@ export async function moduleGraph(project, file, declared = DECLARED) {
     const transformed = env.moduleGraph.getModuleById(filepath)?.transformResult || (await env.transformRequest(filepath));
     if (!transformed) return;
     modules.set(filepath, stableCode(filepath, transformed.code));
+    const children = [];
     for (const dep of [...(transformed.deps ?? []), ...(transformed.dynamicDeps ?? [])]) {
       const fsPath = dep.startsWith('/@fs/') ? dep.slice(4) : join(project.config.root, dep);
       const external = fsPath.includes('node_modules') || !existsSync(fsPath);
       const id = external ? externalId(dep.startsWith('/@fs/') ? relative(REPO_ROOT, fsPath) : dep) : '';
-      const own = declared[relative(REPO_ROOT, filepath)];
+      const own = declaredInputs(declared, relative(REPO_ROOT, filepath));
       if ((UNCACHEABLE.test(dep) || READS_FILES.test(id)) && own) for (const input of own) inputs.add(input);
       else if (UNCACHEABLE.test(dep) || READS_FILES.test(id)) reasons.add(`imports ${id}`);
       if (external) externals.add(id);
-      else await visit(fsPath);
+      else children.push(visit(fsPath));
     }
+    await Promise.all(children);
   };
   await visit(file);
   keyBundlesByRoots(modules);
   return {modules, externals, reasons, inputs};
+}
+
+function declaredInputs(declared, path) {
+  if (declared[path]) return declared[path];
+  const dir = Object.keys(declared).find((key) => key.endsWith('/') && path.startsWith(key));
+  return dir ? declared[dir] : undefined;
 }
 
 const BUNDLE = /\/\.mion[^/]*\/types\/runtypes\.js$/;
@@ -239,18 +260,31 @@ export async function projectSalt(project, base, declared = DECLARED) {
 const specId = (project, moduleId) => `${project.name}::${relative(REPO_ROOT, moduleId)}`;
 
 // A set `reason` means never cache that file.
+// Transforming is nearly all of the keying time, and vite runs transforms concurrently.
+async function inPool(items, size, fn) {
+  const results = new Array(items.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const index = next++;
+      results[index] = await fn(items[index]);
+    }
+  };
+  await Promise.all(Array.from({length: size}, worker));
+  return results;
+}
+
 async function specKeys(vitest, specs) {
   const base = baseSalt(vitest);
-  const salts = new Map();
-  const keys = {};
-  for (const spec of specs) {
-    if (!salts.has(spec.project)) salts.set(spec.project, await projectSalt(spec.project, base));
+  const projects = [...new Set(specs.map((spec) => spec.project))];
+  const salts = new Map(await inPool(projects, KEY_CONCURRENCY, async (project) => [project, await projectSalt(project, base)]));
+  const entries = await inPool(specs, KEY_CONCURRENCY, async (spec) => {
     const {salt, reason: setupReason} = salts.get(spec.project);
     const graph = await moduleGraph(spec.project, spec.moduleId);
-    const reason = TIME_BOXED.test(spec.moduleId) ? 'time-boxed fuzz' : ([...graph.reasons][0] ?? setupReason);
-    keys[specId(spec.project, spec.moduleId)] = {key: fileKey(graph, salt), reason};
-  }
-  return keys;
+    const reason = TIME_BOXED.test(spec.moduleId) ? 'time-boxed fuzz' : ([...graph.reasons].sort()[0] ?? setupReason);
+    return [specId(spec.project, spec.moduleId), {key: fileKey(graph, salt), reason}];
+  });
+  return Object.fromEntries(entries);
 }
 
 function readStore(path) {
