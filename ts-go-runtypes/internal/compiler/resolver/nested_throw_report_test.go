@@ -364,3 +364,13 @@ func TestUncalledEntryFinding_RemoveUnknownKeysUnion_Value(t *testing.T) {
 	expectNotLeaked(t, `export const direct = createRemoveUnknownKeysFn<{t: Tagged}>();`, `declare const value: {u: Tagged | string};
 export const strip = createRemoveUnknownKeysFn(value);`, diagnostics.CodeRUKSymbolKeyedMember)
 }
+
+// A union's object member drops its methods with the same note a standalone object gives.
+func TestUnionMemberMethodDropped_Static(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodePJSMethodDropped, `export const encode = createJsonEncoderFn<{u: {m(): void; a: string} | string}>();`)
+}
+
+func TestUnionMemberMethodDropped_Value(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodePJSMethodDropped, `declare const value: {u: {m(): void; a: string} | string};
+export const encode = createJsonEncoderFn(value);`)
+}
