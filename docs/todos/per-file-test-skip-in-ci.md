@@ -70,3 +70,14 @@ None, because this is contributor-only CI; update the `test-skip` line in the ro
 - A new or changed reflected type reruns only the tests whose own roots reach it, with a test in `scripts/` that pins it (the `boundAliases.test.ts` probe above changes 1 key, not 84).
 - CI runs the skip on pull requests and the safety net on main, both with tests.
 - The simplify-comments pass ran on every touched source file, committed on its own.
+
+## Plan (approved 2026-09-30)
+
+0. Time one full run (CI's excludes) with vitest's json reporter and rank the never-cached files by duration; that picks which declared inputs below are worth adding.
+1. Fix: a setup file's builtin imports only salt the project today, so devtools-core files whose `test/setup.ts` spawns the resolver count as cacheable. A setup-graph reason now blocks every file in that project unless the module is declared.
+2. `runtypes.js` is keyed per test on the rows its own facade roots reach (row ids, never indexes, plus their `ini` lines after the `mockSamples` strip), computed in `test-skip.mjs`. Any failure to read the bundle falls back to hashing the whole file.
+3. A `DECLARED` table maps a helper module to the inputs it reads (files, directories, the Go binaries through `goBinCacheKey()`); a declared module's builtin imports no longer block a file, and its inputs join the key.
+4. Test-side quick wins: the rpc-client server URL moves into a leaf module, the type-budget harnesses read their sources through `?raw`, `fuzzPolicy.ts` imports `version.json`.
+5. Trial on a replayed Go-only and JS-only commit; if either saves less than a third, stop and report before wiring CI.
+6. CI: restore/save the passed list (`mion-vitest-passed-${run_id}`, prefix restore), `test-pr --skip-passed` on the partial branch, `test-skip --audit` on the full branch (runs everything, fails naming any file the list would have skipped that failed), `KEEP_ON_MAIN` gets the family.
+7. Root CLAUDE.md `test-skip` line, comment pass, spec to `docs/done/`.
