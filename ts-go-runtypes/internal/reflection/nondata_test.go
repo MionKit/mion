@@ -50,10 +50,7 @@ func TestNonDataOf_UnresolvedCallSignatureRef(t *testing.T) {
 	}
 }
 
-// TestPopulateFamilySetsNotSupported — a method member node is flagged
-// notSupported, while its data sibling AND the method's own parameter /
-// return children are NOT (only the node itself carries the flag, never
-// its children).
+// NotSupported sits on the method node only: not its data sibling, not its own parameter / return children.
 func TestPopulateFamilySetsNotSupported(t *testing.T) {
 	dataProp := &RunType{ID: "a", Kind: KindPropertySignature, Name: "a", Child: NewRef("s")}
 	methodParam := &RunType{ID: "p", Kind: KindParameter, Name: "x", Child: NewRef("s")}

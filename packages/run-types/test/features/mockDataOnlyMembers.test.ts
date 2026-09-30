@@ -1,5 +1,4 @@
-// A mock picks only union members DataOnly keeps: a Promise or a callable interface member is stripped by
-// every compiled function, so a mock that drew one would fail its own validator.
+// Every compiled function strips a Promise or callable-interface member, so a mock drawing one would fail its validator.
 
 import {describe, expect, it} from 'vitest';
 import {createValidateFn} from '@mionjs/run-types';

@@ -78,10 +78,8 @@ type RunType struct {
 	// needs TypeName on anonymous declarations (deferred).
 	IsCircular bool `json:"isCircular,omitempty"`
 
-	// NotSupported flags a "non-data" node (NonDataOf in nondata.go). Such nodes are KEPT in the
-	// reflected tree so reflection stays complete, but validators and serializers drop them at property
-	// positions and throw at propagating ones. Stamped by PopulateFamily at intern time, on the node itself
-	// only, never its children.
+	// NotSupported flags a non-data node (NonDataOf), kept so reflection stays complete.
+	// Emitters drop it at property positions and throw at propagating ones; stamped at intern time, never on children.
 	NotSupported bool `json:"notSupported,omitempty"`
 
 	// TypeLiteral

@@ -89,8 +89,7 @@ func indexSignatureLabel(signature *reflection.RunType, ctx *EmitContext) string
 	return "[key]"
 }
 
-// strippedMemberLabel returns the user-facing label a dropped union member's Warning substitutes for {0},
-// in the user's own type vocabulary, never compiler-internal jargon.
+// strippedMemberLabel names a dropped union member for its Warning's {0}, in the user's type vocabulary.
 func strippedMemberLabel(resolved *reflection.RunType, ctx *EmitContext) string {
 	switch nonDataOf(resolved, ctx) {
 	case reflection.NonDataFunction:
