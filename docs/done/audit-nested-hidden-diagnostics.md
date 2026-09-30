@@ -103,4 +103,35 @@ expectation. The root-position case stays with `TestDiagExamples_TriggerTheirCod
 - Found in passing on the same shortcut: the clone encoder copied Map and Set entries with `Array.from`, so object
   values kept every undeclared key on the wire. The shortcut now also requires values that are safe to share.
 
-Docs: no page changed. The diagnostics catalog gained `TFN001` (prose, message, generated catalogs).
+Docs: the diagnostics catalog gained `TFN001` (prose, message, generated catalogs).
+
+## Prevention (asked for after the audit)
+
+So this class of bug fails a test instead of reaching a user, four safeguards shipped on the same branch:
+
+- **One "is it data?" decision.** `reflection.NonDataOf` mirrors `DataOnly<T>` and now drives the strip checks, the root
+  codes, the JSON noop / compat / safe-to-share shortcuts and the wire `NotSupported` flag. That flag still took a
+  Promise or a callable interface for data, so a mock could draw a union member every validator refuses; fixed, with a
+  JS test. `nondata_agreement_test.go` loops over every reflection kind and fails when one has no row or a family's
+  root disagrees with `NonDataOf` (the two deliberate exceptions, removeUnknownKeys and the validators' `never`, are
+  named in the test).
+- **Grid coverage gates.** `TestNestedDiagCorpus_CoversEveryFamily` fails when a family has no grid row (JSON Schema
+  and the class-serializer card are exempt, with reasons), `TestNestedDiagCorpus_CoversEveryNonDataKind` when no
+  trigger reaches a non-data kind. They added five triggers (Promise, RegExp, unique symbol, method signature, class
+  method), which found that a union's object member dropped its methods and statics with no note; fixed.
+- **The add-diagnostic skill** (`.claude/skills/add-diagnostic/SKILL.md`): the checklist for a new diagnostic or emit
+  arm (scope and level, both examples, `NonDataOf`, report through the walker, no silent fallback, shortcuts in step,
+  grid row). `ts-go-runtypes/CLAUDE.md` gained the two rules it enforces and points at it.
+- **A runtime-truth fuzzer.** The non-data type lane (`packages/run-types/test/fuzz/type/`) now wires nine functions
+  per random type (in-place JSON and removeUnknownKeys added) and checks per call site: a runtime `[CODE]` throw was
+  reported there (D1), a reported always-throw code really throws (D2), a member a round trip dropped left a note (D3).
+  Each rule is proven by a negative control. Its first soak found a symbol-keyed index signature
+  (`[k: string | symbol]`) losing its keys in every encoder with no note; fixed with paired tests.
+
+## any and unknown
+
+Nothing here changed them; the decision already in the code is now written down and pinned. A written `any` or
+`unknown` is data, kept for third-party types: accepted at every position in every family (a required member only
+needs its key), an Info at a root, never an error. An `any` that came from an unresolved name, import or lib is a
+RuntimeError (`MKR007`, `MKR013`, `TMP001`, `CFG002`). The grid now fails if a written one ever throws or errors, and
+the rule is on the website validation page and in the root `CLAUDE.md`.
