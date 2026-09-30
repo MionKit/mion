@@ -84,7 +84,7 @@ None, because this is contributor-only CI; update the `test-skip` line in the ro
 
 ## Trial (2026-09-30, after steps 1 to 4)
 
-4 CPUs, CI's excludes (`**/test/fuzz/**`, `**/devtools/test/build-gate.test.ts`), 483 files, a warm passed list. No recent pure Go or pure JS commit reverts cleanly on this tree, so both changes are small synthetic edits:
+4 CPUs, CI's excludes (`**/test/fuzz/**`, `**/devtools/test/build-gate.test.ts`), 483 files, a warm passed list. That build-gate pattern matched nothing (an exclude is relative to each project's root; main has since switched to `**/build-gate.test.ts`), so every run here, plain and skipping alike, also ran `build-gate.test.ts`. No recent pure Go or pure JS commit reverts cleanly on this tree, so both changes are small synthetic edits:
 
 | Run | Files run | Wall time | Saved |
 |---|---|---|---|
