@@ -92,7 +92,7 @@ describe('node http router', () => {
 
     it('fails the call instead of sending a returned header holding a line break', async () => {
       const response = await fetch(`http://127.0.0.1:${port}/api/badHeader`, {method: 'POST', body: '{}'});
-      const reply = await response.json();
+      const reply = (await response.json()) as Record<string, Record<string, PublicRpcError<string>>>;
       expect(response.status).toEqual(StatusCodes.UNEXPECTED_ERROR);
       expect(response.headers.get('x-tag')).toBeNull();
       expect(reply[MION_ROUTES.thrownErrors].badHeader.type).toEqual('unknown-error');
