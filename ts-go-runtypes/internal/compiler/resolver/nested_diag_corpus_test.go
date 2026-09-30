@@ -159,6 +159,20 @@ func corpusCodes(response protocol.Response, file string) []string {
 	return sortedKeys(seen)
 }
 
+// siteCodes scans site.ts alone and returns the codes reported there.
+func siteCodes(t *testing.T, sources map[string]string, allInternal bool) []string {
+	t.Helper()
+	setup := setupInline
+	if allInternal {
+		setup = setupInlineModeAllInternal
+	}
+	response := setup(t, sources).Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"site.ts"}, IncludeEntryModules: true})
+	if response.Error != "" {
+		t.Fatalf("scanFiles: %s", response.Error)
+	}
+	return corpusCodes(response, "site.ts")
+}
+
 // TestNestedDiagCorpus puts every trigger at every position, inline and named, under every family and inline mode.
 // A throw is reported, a reported throw ships, inline, named and both call shapes agree, non-data never drops silently, build equals scan.
 func TestNestedDiagCorpus(t *testing.T) {
