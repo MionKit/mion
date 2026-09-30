@@ -319,7 +319,7 @@ func buildSafeIndexSignatureObject(v string, props []safePropEmit, skipNames []s
 	arms := make([]indexArm, 0, len(indexSigs))
 	keyVar := ctx.NextLocalVar("k")
 	for _, sig := range indexSigs {
-		if isSymbolKeyedIndexSig(sig, ctx) {
+		if symbolKeyedIndexSignatureDrop(sig, ctx) {
 			continue
 		}
 		resolved := ctx.ResolveRef(sig.Child)
@@ -636,7 +636,7 @@ func emitIndexSignaturePrepareForJsonClone(rt *reflection.RunType, ctx *EmitCont
 	if rt.Child == nil {
 		return RTCode{Code: "", Type: CodeS}
 	}
-	if isSymbolKeyedIndexSig(rt, ctx) {
+	if symbolKeyedIndexSignatureDrop(rt, ctx) {
 		return RTCode{Code: "", Type: CodeS}
 	}
 	resolved := ctx.ResolveRef(rt.Child)

@@ -50,3 +50,31 @@ func TestIndexSignatureFunction_CloneDecoder_Value(t *testing.T) {
 	expectIndexSignatureNote(t, `declare const value: {handlers: {[key: string]: () => void}};
 export const decode = createJsonDecoderFn(value);`, diagnostics.CodeRJFunctionPropDropped)
 }
+
+// A symbol key never reaches JSON or a for-in loop, so its index signature drops with the symbol-key note.
+func TestIndexSignatureSymbolKey_Validate_Static(t *testing.T) {
+	expectIndexSignatureNote(t, `export const check = createValidateFn<{p0: number; [k: string | symbol]: number}>();`, diagnostics.CodeVLSymbolKeyedDropped)
+}
+
+func TestIndexSignatureSymbolKey_Validate_Value(t *testing.T) {
+	expectIndexSignatureNote(t, `declare const value: {p0: number; [k: string | symbol]: number};
+export const check = createValidateFn(value);`, diagnostics.CodeVLSymbolKeyedDropped)
+}
+
+func TestIndexSignatureSymbolKey_CloneEncoder_Static(t *testing.T) {
+	expectIndexSignatureNote(t, `export const encode = createJsonEncoderFn<{p0: number; [k: string | symbol]: number}>();`, diagnostics.CodePJSSymbolKeyedDropped)
+}
+
+func TestIndexSignatureSymbolKey_CloneEncoder_Value(t *testing.T) {
+	expectIndexSignatureNote(t, `declare const value: {p0: number; [k: string | symbol]: number};
+export const encode = createJsonEncoderFn(value);`, diagnostics.CodePJSSymbolKeyedDropped)
+}
+
+func TestIndexSignatureSymbolKey_CloneDecoder_Static(t *testing.T) {
+	expectIndexSignatureNote(t, `export const decode = createJsonDecoderFn<{[k: symbol]: number; a: string}>();`, diagnostics.CodeRJSymbolKeyedDropped)
+}
+
+func TestIndexSignatureSymbolKey_CloneDecoder_Value(t *testing.T) {
+	expectIndexSignatureNote(t, `declare const value: {[k: symbol]: number; a: string};
+export const decode = createJsonDecoderFn(value);`, diagnostics.CodeRJSymbolKeyedDropped)
+}

@@ -110,7 +110,7 @@ func emitObjectRebuildFromJson(rt *reflection.RunType, ctx *EmitContext, v strin
 	restore.WriteString("if (" + unknownKeysObjectGuard(v) + ") {const " + rVar + " = {};")
 
 	for _, child := range objectMembers(rt) {
-		if signature := ctx.ResolveRef(child); signature != nil && signature.Kind == reflection.KindIndexSignature && signature.Child != nil && !isSymbolKeyedIndexSig(signature, ctx) {
+		if signature := ctx.ResolveRef(child); signature != nil && signature.Kind == reflection.KindIndexSignature && signature.Child != nil && !symbolKeyedIndexSignatureDrop(signature, ctx) {
 			indexSignatureValueDrop(signature, ctx.ResolveRef(signature.Child), ctx)
 		}
 	}

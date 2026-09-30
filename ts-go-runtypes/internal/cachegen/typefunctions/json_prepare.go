@@ -295,7 +295,7 @@ func emitIndexSignaturePrepareForJson(rt *reflection.RunType, ctx *EmitContext, 
 	// keys anyway, so the loop body would be dead, and emitting it would corrupt unrelated string /
 	// number keys when the value type is non-noop (`[k: symbol]: Date` running `new Date(v[k])`
 	// over every enumerable key).
-	if isSymbolKeyedIndexSig(rt, ctx) {
+	if symbolKeyedIndexSignatureDrop(rt, ctx) {
 		return RTCode{Code: "", Type: CodeS}
 	}
 	resolved := ctx.ResolveRef(rt.Child)
