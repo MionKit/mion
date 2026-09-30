@@ -1,7 +1,7 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-09-30
 ---
 
@@ -31,3 +31,13 @@ It passed in the other 4 runs. The failing run had 4 workers busy on long files 
 
 - The cause is found and fixed, with a test that fails before the fix.
 - The file passes repeated runs under load.
+
+## Plan — root cause and fix (approved 2026-09-30)
+
+**Cause: a real missed event, not slowness.** Every generate called `watcher.add(root)` again for each client source root (`reportGenerate` in `packages/devtools/src/core/unplugin.ts`). chokidar re-scans a directory on every `add()`, and a file it finds during that scan is treated as an INITIAL file, which vite's `ignoreInitial: true` never reports. The file is then marked as known, so the later directory event raises nothing either. In the test, the client edit's regenerate re-added `client/src` right as `later.ts` was written, so under load the add could land inside that scan and be swallowed.
+
+Reproduced with vite's own watcher: writing 40 new files 0-4 ms after `watcher.add(root)` missed 3 of 40; the same loop without the re-add missed 0.
+
+**Fix:** a `watchedBatchRoots` set; `watchBatchRoots()` adds each root once per watcher (cleared when `configureServer` hands over a new watcher). Both `reportGenerate` and `configureServer` go through it.
+
+**Test:** `client-tsconfig-refresh.test.ts` spies on `vite.watcher.add` after the first generate and checks the client edit's regenerate does not re-add `client/src`. It fails before the fix and passes after. The file also passed repeated runs under CPU load.
