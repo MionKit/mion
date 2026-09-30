@@ -11,7 +11,7 @@ import {die, note, reportCliError} from '../lib/proc.mjs';
 
 // Importing one of these makes a result depend on something no key can see.
 const UNCACHEABLE = /^(node:)?(child_process|fs|fs\/promises|net|http|https|http2|worker_threads|cluster|dgram)$/;
-// Packages that read files on the caller's behalf (a TypeScript program, a bundler build, a linter run).
+// Packages that read files on the caller's behalf.
 const READS_FILES = /^(typescript|vite|rollup|rolldown|esbuild|webpack|@rspack\/core|eslint|oxlint)@/;
 const PACKAGE = /^(.*node_modules\/)((?:@[^/]+\/)?[^/]+)/;
 // Time-boxed fuzz runs cover what the clock allows, so a rerun is never the same run.
@@ -25,7 +25,7 @@ const GENERATED = /\/\.mion[^/]*\//;
 export const stableCode = (path, code) => (GENERATED.test(path) ? code.replace(DRAWN_SAMPLES, '$1]') : code);
 const DEFAULT_STORE = join(REPO_ROOT, 'node_modules/.cache/mion/vitest-passed.json');
 export const GO_BINS = 'mion-bin';
-// A TypeScript program resolves a workspace package's `source` condition into its sources, and its @types through the lockfile.
+// A TS program follows the `source` condition into a package's src, and gets its @types through the lockfile.
 const sources = (pkg, entries = []) => [`packages/${pkg}/src`, `packages/${pkg}/package.json`, ...entries.map((entry) => `packages/${pkg}/${entry}`)];
 const RUN_TYPES_PROGRAM = [...sources('run-types'), 'pnpm-lock.yaml'];
 const MION_PROGRAM = [
@@ -35,10 +35,10 @@ const MION_PROGRAM = [
   ...sources('rpc-client', ['index.ts', 'middlewares.ts']),
   ...['drizzle-orm', 'drizzle-orm-pg-core', 'drizzle-orm-mysql-core', 'drizzle-orm-sqlite-core'].flatMap((pkg) => sources(pkg)),
 ];
-// Modules that reach outside the graph on purpose, and everything they reach; their builtin imports stop blocking a file.
-// A key ending in `/` covers every module under that directory.
+// Modules that reach outside the graph on purpose, and what they reach: keyed instead of blocking the file.
+// A key ending in `/` covers its whole directory.
 export const DECLARED = {
-  // Teardown only: it deletes the genDirs after the whole run.
+  // Teardown only: deletes the genDirs after the whole run.
   'scripts/lib/vitest-clean-gendir.ts': [],
   // `mion enrich` over temp files typed against run-types, through the package's own tsconfig.
   'packages/run-types/test/util/enrichGen.ts': [GO_BINS, ...RUN_TYPES_PROGRAM, 'packages/run-types/tsconfig.json', 'tsconfig.json'],
@@ -59,7 +59,7 @@ export const DECLARED = {
   // TypeScript programs over the mion packages; the files read only their own package.json and write reports.
   'packages/private-type-budget/test/': [...MION_PROGRAM, 'packages/private-type-budget/package.json'],
   'packages/devtools/src/core/resolver-client.ts': [GO_BINS],
-  // Serves on localhost only, and the server's code is already in the key of every file that talks to it.
+  // Localhost only; the server's code is already in the key of every file that talks to it.
   'packages/platform-node/src/mionHttp.ts': [],
   // Overlays the built run-types declarations and the Temporal fixture into temp projects it writes itself.
   'packages/devtools/test/helpers/inline.ts': [GO_BINS, 'packages/run-types/dist', 'ts-go-runtypes/internal/testfixtures/temporal.d.ts'],
@@ -177,7 +177,6 @@ export function bundleDigest(code, rootIds) {
   return sha(...parts.sort());
 }
 
-// Swaps each row index in a rels row for the row's id, leaving inline literals untouched.
 function mapIndexes(value, byId) {
   if (typeof value === 'number') return byId(value);
   if (Array.isArray(value)) return Array.from(value, (item) => mapIndexes(item, byId));
@@ -205,7 +204,7 @@ export function fileKey({modules, externals, inputs = new Set()}, salt) {
 }
 
 const inputDigests = new Map();
-// The Go binaries by the digest of their sources (the CI cache key), a file by its bytes, a directory by every file in it.
+// The Go binaries hash as the CI cache key, the digest of their sources.
 export function inputDigest(input) {
   if (inputDigests.has(input)) return inputDigests.get(input);
   const digest = input === GO_BINS ? goBinCacheKey() : pathDigest(join(REPO_ROOT, input));
@@ -259,7 +258,6 @@ export async function projectSalt(project, base, declared = DECLARED) {
 
 const specId = (project, moduleId) => `${project.name}::${relative(REPO_ROOT, moduleId)}`;
 
-// A set `reason` means never cache that file.
 // Transforming is nearly all of the keying time, and vite runs transforms concurrently.
 async function inPool(items, size, fn) {
   const results = new Array(items.length);
@@ -274,6 +272,7 @@ async function inPool(items, size, fn) {
   return results;
 }
 
+// A set `reason` means never cache that file.
 async function specKeys(vitest, specs) {
   const base = baseSalt(vitest);
   const projects = [...new Set(specs.map((spec) => spec.project))];
