@@ -8,7 +8,7 @@ import {describe, it, expect, beforeAll, afterAll} from 'vitest';
 import {createMionRouter, resetRouter} from '@mionjs/router';
 import {setNodeHttpOpts, resetNodeHttpOpts, startNodeServer} from '../src/mionHttp.ts';
 import type {CallContext, Route} from '@mionjs/router';
-import {StatusCodes, type PublicRpcError} from '@mionjs/core';
+import {HeadersSubset, MION_ROUTES, StatusCodes, type PublicRpcError} from '@mionjs/core';
 import type {Server} from 'http';
 
 describe('node http router', () => {
@@ -42,6 +42,10 @@ describe('node http router', () => {
     context.response.headers.set('server', 'my-server');
   });
 
+  const badHeader: Route = mion.route((context: Context): HeadersSubset<'x-tag'> => {
+    return new HeadersSubset({'x-tag': 'one\r\ntwo'});
+  });
+
   const closeServer = (s: Server) => {
     return new Promise<void>((resolve, reject) => {
       s.close((err) => {
@@ -68,7 +72,7 @@ describe('node http router', () => {
   describe('with the default encoder', () => {
     beforeAll(async () => {
       resetRouter();
-      mion.initRoutes({changeUserName, getDate, updateHeaders});
+      mion.initRoutes({changeUserName, getDate, updateHeaders, badHeader});
     });
 
     it('get an ok response from a route', async () => {
@@ -84,6 +88,14 @@ describe('node http router', () => {
       expect(headers['content-type']).toEqual('application/json; charset=utf-8');
       expect(headers['content-length']).toEqual('47');
       expect(headers['server']).toEqual('@mionjs');
+    });
+
+    it('fails the call instead of sending a returned header holding a line break', async () => {
+      const response = await fetch(`http://127.0.0.1:${port}/api/badHeader`, {method: 'POST', body: '{}'});
+      const reply = await response.json();
+      expect(response.status).toEqual(StatusCodes.UNEXPECTED_ERROR);
+      expect(response.headers.get('x-tag')).toBeNull();
+      expect(reply[MION_ROUTES.thrownErrors].badHeader.type).toEqual('unknown-error');
     });
 
     it('get an error when sending invalid parameters', async () => {

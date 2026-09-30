@@ -9,7 +9,7 @@ import {describe, it, expect, afterEach} from 'vitest';
 import {initClient} from './fetchingClient.ts';
 import type {TestServerApi} from '@mionjs/test-server';
 import {TEST_SERVER_BASE_URL} from '../../globalSetup.ts';
-import type {MethodWithOptsAndJitFns} from '@mionjs/core';
+import {HeadersSubset, type MethodWithOptsAndJitFns} from '@mionjs/core';
 import {getResponseError} from '../../src/lib/validation.ts';
 import {resetBundledMethods, setBundledMethod} from '../../src/lib/methods.ts';
 
@@ -62,5 +62,35 @@ describe('getResponseError', () => {
     expect(error?.publicMessage).toBe(
       `Could not validate response from Route or Middleware 'deep': Maximum call stack size exceeded`
     );
+  });
+
+  describe('returned headers', () => {
+    const isTag = (subset: HeadersSubset<'X-Tag'>) => typeof subset.headers['X-Tag'] === 'string';
+    const jitFns = {
+      isType: {isNoop: false, fn: isTag},
+      typeErrors: {isNoop: false, fn: () => [{path: ['X-Tag'], expected: 'string'}]},
+    };
+    const setHeadersMethod = () => {
+      const method = {id: 'tagged', hasReturnData: true, headersReturn: {headerNames: ['X-Tag'], jitHash: '', jitFns}};
+      setBundledMethod('tagged', method as unknown as MethodWithOptsAndJitFns);
+    };
+
+    it('passes headers that match their type', () => {
+      setHeadersMethod();
+      expect(getResponseError('tagged', new HeadersSubset({'X-Tag': 'a'}))).toBeUndefined();
+    });
+
+    it('reports headers that do not match their type', () => {
+      setHeadersMethod();
+      const error = getResponseError('tagged', new HeadersSubset({} as {'X-Tag': string}));
+      expect(error?.type).toBe('response-validation-error');
+      expect(error?.publicMessage).toBe(`Invalid headers from Route or Middleware 'tagged', validation failed.`);
+      expect(error?.errorData?.typeErrors).toEqual([{path: ['X-Tag'], expected: 'string'}]);
+    });
+
+    it('skips the check when no header came back, since a void return is valid', () => {
+      setHeadersMethod();
+      expect(getResponseError('tagged', undefined)).toBeUndefined();
+    });
   });
 });

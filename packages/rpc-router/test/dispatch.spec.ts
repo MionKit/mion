@@ -123,6 +123,61 @@ describe('Dispatch routes', () => {
       expect(response.headers.get('user-id')).toEqual('MyUser-Id');
     });
 
+    describe('returned headers are checked against their declared type', () => {
+      const callChangeUserName = () =>
+        dispatchRoute(
+          '/changeUserName',
+          JSON.stringify({changeUserName: [{name: 'Leo', surname: 'Tungsten'}]}),
+          headersFromRecord({Authorization: '1234'}),
+          headersFromRecord({}),
+          {},
+          {}
+        );
+
+      it('sends a returned header that matches its type', async () => {
+        const auth = mion.headersFn((ctx, h: HeadersSubset<'Authorization'>): HeadersSubset<'User-Id'> => {
+          return new HeadersSubset({'User-Id': 'MyUser-Id'});
+        });
+        mion.initRoutes({auth, changeUserName});
+        const response = await callChangeUserName();
+        expect(response.hasErrors).toBeFalsy();
+        expect(response.headers.get('user-id')).toEqual('MyUser-Id');
+      });
+
+      it('fails the call and never sends a header whose value is not a string', async () => {
+        const auth = mion.headersFn((ctx, h: HeadersSubset<'Authorization'>): HeadersSubset<'User-Id'> => {
+          return new HeadersSubset({'User-Id': 1234 as any as string});
+        });
+        mion.initRoutes({auth, changeUserName});
+        const response = await callChangeUserName();
+        expect(response.hasErrors).toBe(true);
+        expect(response.statusCode).toBe(StatusCodes.UNEXPECTED_ERROR);
+        expect(response.headers.get('user-id')).toBeUndefined();
+        expect(response.body.changeUserName).toBeUndefined();
+        const thrown = response.body[MION_ROUTES.thrownErrors]?.auth as RpcError<string>;
+        expect(thrown?.type).toBe('response-validation-error');
+        expect(thrown?.publicMessage).toBe(`Invalid headers returned by 'auth', validation failed.`);
+      });
+
+      it('fails the call when a required header is missing', async () => {
+        const auth = mion.headersFn((ctx, h: HeadersSubset<'Authorization'>): HeadersSubset<'User-Id'> => {
+          return new HeadersSubset({} as {'User-Id': string});
+        });
+        mion.initRoutes({auth, changeUserName});
+        const response = await callChangeUserName();
+        expect(response.hasErrors).toBe(true);
+        expect((response.body[MION_ROUTES.thrownErrors]?.auth as RpcError<string>)?.type).toBe('response-validation-error');
+      });
+
+      it('checks headers returned by a route too', async () => {
+        const getTag = mion.route((ctx): HeadersSubset<'X-Tag'> => new HeadersSubset({'X-Tag': null as any as string}));
+        mion.initRoutes({getTag});
+        const response = await dispatchRoute('/getTag', '{}', headersFromRecord({}), headersFromRecord({}), {}, {});
+        expect(response.hasErrors).toBe(true);
+        expect((response.body[MION_ROUTES.thrownErrors]?.getTag as RpcError<string>)?.type).toBe('response-validation-error');
+      });
+    });
+
     it('should be able to accept request headers and regular rpc params', async () => {
       const auth = mion.headersFn((ctx, h: HeadersSubset<'Authorization'>, userId: string): string => userId);
       mion.initRoutes({auth, changeUserName});
