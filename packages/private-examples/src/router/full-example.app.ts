@@ -76,10 +76,8 @@ export const myApp = {
   db: myDbService,
   cloudLogs: myCloudLogsService,
 };
-export const shared = {
-  me: null as any as User,
-};
-export const getSharedData = (): typeof shared => shared;
+// a new object per request, so one request never sees another's user
+export const getSharedData = (): {me: User | null} => ({me: null});
 
 export type ContextData = ReturnType<typeof getSharedData>;
 export type Context = CallContext<ContextData>;
