@@ -1,15 +1,21 @@
 // scripts/core/test-skip.mjs skips a vitest file whose key already passed. These pin what
 // the key sees, what it deliberately ignores, and which files it refuses to cache at all.
-import {join} from 'node:path';
+import {mkdirSync, mkdtempSync, writeFileSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join, relative} from 'node:path';
 import {describe, expect, it} from 'vitest';
 
 const REPO_ROOT = join(__dirname, '../../..');
 import {
+  bundleDigest,
   fileKey,
+  inputDigest,
   isProven,
+  missedInputs,
   moduleGraph,
   parseCli,
   passRecorder,
+  projectSalt,
   recordPass,
   stableCode,
   // @ts-expect-error plain ESM dev script, no types
@@ -20,6 +26,10 @@ const graph = (modules: Record<string, string>, externals: string[] = []) => ({
   externals: new Set(externals),
   reasons: new Set<string>(),
 });
+
+// A runtypes.js in the resolver's layout: `ini` lines keyed by row id, rows sorted by id, rels pointing by row index.
+const bundle = (rows: string[], rels: string, ini: string[] = []) =>
+  `function ini(rtu){const c=(id)=>rtu.useRunType(id);\n${ini.join('\n')}\n}\nexport const __rt_runtypes=[4,,ini,'rts_x',[${rows.join(',\n')}],[${rels}]];\n`;
 
 describe('test-skip — the key of one test file', () => {
   const base = {'/repo/packages/a/test/a.test.ts': 'import "./x"', '/repo/packages/a/.mion/types/t.js': 'export const t = 1'};
@@ -58,6 +68,71 @@ describe('test-skip — the randomly drawn pattern samples', () => {
 
   it('never strips past the end of the list, so a sample holding `]` costs a skip, not a missed change', () => {
     expect(stableCode('/repo/.mion/types/t.js', '{"mockSamples":["a]b"],"after":1}')).toBe('{"mockSamples":[]b"],"after":1}');
+  });
+});
+
+describe('test-skip — the shared runtypes.js, keyed per root', () => {
+  const base = bundle([`['A',32,,,'a']`, `['B',1]`, `['C',2]`], '[1],,');
+
+  it('ignores a row added elsewhere, even though it shifts every later row index', () => {
+    const shifted = bundle([`['A',32,,,'a']`, `['A0',7]`, `['B',1]`, `['C',2]`], '[2],,,');
+    expect(bundleDigest(shifted, ['A'])).toBe(bundleDigest(base, ['A']));
+    expect(bundleDigest(shifted, ['C'])).toBe(bundleDigest(base, ['C']));
+  });
+
+  it('changes with a row reached through a relation, and only for the roots that reach it', () => {
+    const changed = bundle([`['A',32,,,'a']`, `['B',9]`, `['C',2]`], '[1],,');
+    expect(bundleDigest(changed, ['A'])).not.toBe(bundleDigest(base, ['A']));
+    expect(bundleDigest(changed, ['C'])).toBe(bundleDigest(base, ['C']));
+  });
+
+  it('changes with a relation that now points somewhere else', () => {
+    expect(bundleDigest(bundle([`['A',32,,,'a']`, `['B',1]`, `['C',2]`], '[2],,'), ['A'])).not.toBe(bundleDigest(base, ['A']));
+  });
+
+  it('follows ini lines, their references to other rows, and ids inside inline literals', () => {
+    const withIni = (value: number) =>
+      bundle([`['A',32]`, `['B',1]`, `['C',2]`], ",,[{'kind':23,'id':'A'}]", [
+        `c('B').contains = c('A');`,
+        `c('A').literal = BigInt('${value}');`,
+      ]);
+    expect(bundleDigest(withIni(2), ['B'])).not.toBe(bundleDigest(withIni(1), ['B']));
+    expect(bundleDigest(withIni(2), ['C'])).not.toBe(bundleDigest(withIni(1), ['C']));
+  });
+
+  it('ignores drawn samples in the ini lines, like everywhere else in generated code', () => {
+    const drawn = (sample: string) =>
+      bundle([`['A',32]`], '', [
+        `c('A').formatAnnotation = {"params":{"pattern":{"mockSamples":["${sample}"],"source":"^x$"}}};`,
+      ]);
+    expect(bundleDigest(drawn('ab'), ['A'])).toBe(bundleDigest(drawn('zz'), ['A']));
+  });
+
+  it('gives up on a bundle it cannot read or a root it cannot find, so the caller hashes the whole file', () => {
+    expect(bundleDigest('export const __rt_runtypes=[4,,ini', ['A'])).toBeNull();
+    expect(bundleDigest(base, ['missing'])).toBeNull();
+  });
+
+  it('keys a test graph on the rows its facades reach, not the bundle text', async () => {
+    const dir = join(mkdtempSync(join(tmpdir(), 'test-skip-')), '.mion/types');
+    mkdirSync(dir, {recursive: true});
+    const facade = (root: string) =>
+      `import {__rt_runtypes} from './runtypes.js';\nexport const __rt_${root}=[5,()=>[__rt_runtypes],,'${root}'];\n`;
+    writeFileSync(join(dir, 'A.js'), facade('A'));
+    writeFileSync(join(dir, 'C.js'), facade('C'));
+    const test = join(dir, '../../a.test.ts');
+    const keyWith = async (bundleCode: string, root: string) => {
+      writeFileSync(join(dir, 'runtypes.js'), bundleCode);
+      const modules = {
+        [test]: {code: 'x', deps: ['/@fs' + join(dir, `${root}.js`)]},
+        [join(dir, `${root}.js`)]: {code: facade(root), deps: ['/@fs' + join(dir, 'runtypes.js')]},
+        [join(dir, 'runtypes.js')]: {code: 'bundle text'},
+      };
+      return fileKey(await moduleGraph(fakeProject(dir, modules), test), 'salt');
+    };
+    const key = await keyWith(base, 'A');
+    expect(await keyWith(bundle([`['A',32,,,'a']`, `['A0',7]`, `['B',1]`, `['C',2]`], '[2],,,'), 'A')).toBe(key);
+    expect(await keyWith(bundle([`['A',32,,,'a']`, `['B',9]`, `['C',2]`], '[1],,'), 'A')).not.toBe(key);
   });
 });
 
@@ -103,6 +178,40 @@ describe('test-skip — files that reach outside their import graph', () => {
     }
   );
 
+  it('forgives a declared module its builtins, and keys the file on what that module declares instead', async () => {
+    const helper = join(root, 'test/helpers/inline.ts');
+    const input = relative(REPO_ROOT, join(mkdtempSync(join(tmpdir(), 'test-skip-')), 'fixture.txt'));
+    writeFileSync(join(REPO_ROOT, input), 'one');
+    const declared = {[relative(REPO_ROOT, helper)]: [input]};
+    const modules = {[file]: {code: 'x', deps: ['/@fs' + helper]}, [helper]: {code: 'spawn', deps: ['node:child_process']}};
+    const graph = await moduleGraph(fakeProject(root, modules), file, declared);
+    expect([...graph.reasons]).toEqual([]);
+    expect([...graph.inputs]).toEqual([input]);
+    expect((await moduleGraph(fakeProject(root, modules), file, {})).reasons.size).toBe(1);
+  });
+
+  it('digests a declared file by its bytes and a directory by every file in it', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'test-skip-'));
+    const write = (name: string, content: string) => {
+      mkdirSync(join(dir, name, '..'), {recursive: true});
+      writeFileSync(join(dir, name), content);
+      return relative(REPO_ROOT, join(dir, name));
+    };
+    expect(inputDigest(write('a.txt', 'one'))).toBe(inputDigest(write('b.txt', 'one')));
+    expect(inputDigest(write('c.txt', 'two'))).not.toBe(inputDigest(write('d.txt', 'one')));
+    write('x/one/f.txt', 'one');
+    write('y/one/f.txt', 'two');
+    expect(inputDigest(relative(REPO_ROOT, join(dir, 'x')))).not.toBe(inputDigest(relative(REPO_ROOT, join(dir, 'y'))));
+    expect(inputDigest(relative(REPO_ROOT, join(dir, 'missing')))).toBe('missing');
+  });
+
+  it('blocks every file of a project whose setup file reaches outside its graph', async () => {
+    const setup = join(root, 'test/setup.ts');
+    const project = {...fakeProject(root, {[setup]: {code: 'x', deps: ['node:fs']}}), config: {root, setupFiles: [setup]}};
+    expect((await projectSalt(project, 'base', {})).reason).toBe(`setup ${relative(REPO_ROOT, setup)} imports node:fs`);
+    expect((await projectSalt(project, 'base', {[relative(REPO_ROOT, setup)]: []})).reason).toBe('');
+  });
+
   it('keeps a pure graph cacheable, and records an external package by its versioned path', async () => {
     const dep = '/@fs' + join(REPO_ROOT, 'node_modules/.pnpm/zod@4.1.5/node_modules/zod/index.js');
     const graph = await moduleGraph(fakeProject(root, {[file]: {code: 'x', deps: ['node:path', dep]}}), file);
@@ -141,13 +250,30 @@ describe('test-skip — what a run records', () => {
   });
 });
 
+describe('test-skip — the audit on main', () => {
+  it('names a failed file the passed list would have skipped, and never one it would have run', () => {
+    const store = {'p::a.test.ts': ['k1'], 'p::b.test.ts': ['k1']};
+    const keys = {
+      'p::a.test.ts': {key: 'k1', reason: ''},
+      'p::b.test.ts': {key: 'k2', reason: ''},
+      'p::c.test.ts': {key: 'k1', reason: ''},
+    };
+    expect(missedInputs(store, keys, new Set(['p::a.test.ts', 'p::b.test.ts', 'p::c.test.ts']))).toEqual(['p::a.test.ts']);
+  });
+});
+
 describe('test-skip — the command line', () => {
   it('takes repeatable projects and excludes, and leaves the rest as filters', () => {
     const cli = parseCli(['--project', 'core', '--project', 'router', '--exclude', '**/fuzz/**', 'errors']);
     expect(cli.scope).toEqual({filters: ['errors'], projects: ['core', 'router'], excludes: ['**/fuzz/**']});
   });
 
-  it.each([['--keys'], ['--store'], ['--keys', '--project'], ['--nope']])('refuses %j', (...args) => {
+  it('turns the audit on with --audit, and leaves it off by default', () => {
+    expect(parseCli(['--audit']).audit).toBe(true);
+    expect(parseCli([]).audit).toBe(false);
+  });
+
+  it.each([['--keys'], ['--store'], ['--keys', '--project'], ['--nope'], ['--audit=yes']])('refuses %j', (...args) => {
     expect(() => parseCli(args)).toThrow(/core test-skip:/);
   });
 });
