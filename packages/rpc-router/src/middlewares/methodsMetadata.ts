@@ -18,16 +18,9 @@ import {
 import {markOnDemand, middleware, mionInternalRouteIds} from '../lib/handlers.ts';
 import {isPublicExecutable} from '../types/guards.ts';
 import {getBatchIds} from '../batches.ts';
-import {RouterOptions} from '../types/general.ts';
 import {getSerializableMethod, serializeMethodDeps} from '../lib/remoteMethods.ts';
 import {RemoteMethod} from '../types/remoteMethods.ts';
 import {CallContext} from '../types/context.ts';
-
-interface MethodsMetadataOptions extends RouterOptions {
-  getAllRemoteMethodsMaxNumber?: number;
-}
-
-const DEFAULT_ALL_REMOTE_METHODS_MAX_NUMBER = 100;
 
 /** Rows alongside the call; with a mode, rows alone and the call stopped before its route runs. */
 function methodsMetadata(
@@ -59,9 +52,7 @@ function methodsMetadata(
 function rowsFor(methodsIds: string[], all: boolean): MethodsMetadataOnlyData {
   const metadata: SerializableMethodsData = {methods: {}, deps: {}, purFnDeps: {}};
   const notFound: Record<string, string> = {};
-  const maxMethods =
-    getRouterOptions<MethodsMetadataOptions>().getAllRemoteMethodsMaxNumber || DEFAULT_ALL_REMOTE_METHODS_MAX_NUMBER;
-  const shouldReturnAll = all && getTotalExecutables() <= maxMethods;
+  const shouldReturnAll = all && getTotalExecutables() <= getRouterOptions().getAllRemoteMethodsMaxNumber;
   const idsToReturn = shouldReturnAll
     ? getAllExecutablesIds().filter(
         (id) => !mionInternalRouteIds.has(id) && isPublicExecutable(getAnyExecutable(id) as RemoteMethod)

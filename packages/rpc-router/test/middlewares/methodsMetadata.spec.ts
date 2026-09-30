@@ -8,7 +8,7 @@
 import {describe, it, expect, expectTypeOf, afterEach} from 'vitest';
 import type {MethodsMetadataHandler, MethodsMetadataOnlyData} from '@mionjs/core/middlewares';
 import {MionHeaders} from '../../src/types/context.ts';
-import {createMionRouter, resetRouter, getRouteExecutable} from '../../src/router.ts';
+import {createMionRouter, resetRouter, getRouteExecutable, getRouterOptions} from '../../src/router.ts';
 import {
   getRoutePath,
   SerializableMethodsData,
@@ -23,6 +23,7 @@ import {
   DEFAULT_MAX_BODY_SIZE,
 } from '@mionjs/core';
 import {Routes} from '../../src/types/general.ts';
+import type {RouterOptionsInput} from '../../src/types/mionRouter.ts';
 import {mionMethodsMetadata} from '../../middlewares.ts';
 import {headersFromRecord} from '../../src/lib/headers.ts';
 import {dispatchRoute} from '../../src/dispatch.ts';
@@ -361,17 +362,44 @@ describe('Client Routes should', () => {
   });
 
   it("flags an 'all' answer the method cap cut down to the given ids", async () => {
-    // a router option only this middleware reads, so the router's own type does not list it
-    const options = {contextDataFactory: getSharedData, getAllRemoteMethodsMaxNumber: 1} as {
-      contextDataFactory: typeof getSharedData;
-    };
-    createMionRouter(options).initRoutes({mionMethodsMetadata, ...routes});
+    createMionRouter({contextDataFactory: getSharedData, getAllRemoteMethodsMaxNumber: 1}).initRoutes({
+      mionMethodsMetadata,
+      ...routes,
+    });
     const body = JSON.stringify({[methodsId]: [['auth'], 'all']});
     const response = await dispatchRoute(methodsPath, body, headersFromRecord({}), headersFromRecord({}), {body} as any, {});
     const refusal = unwrap(response.body[methodsId]) as RpcError<'metadata-only', MethodsMetadataOnlyData>;
     expect(refusal.errorData!.truncated).toBe(true);
     expect(Object.keys(refusal.errorData!.metadata.methods)).toEqual(['auth']);
     expect(refusal.errorData!.metadata.batches).toBeUndefined();
+  });
+
+  it('takes the method cap as a typed router option, 100 by default', async () => {
+    const allBody = JSON.stringify({[methodsId]: [['auth'], 'all']});
+    const askAll = async () => {
+      const response = await dispatchRoute(
+        methodsPath,
+        allBody,
+        headersFromRecord({}),
+        headersFromRecord({}),
+        {body: allBody} as any,
+        {}
+      );
+      return (unwrap(response.body[methodsId]) as RpcError<'metadata-only', MethodsMetadataOnlyData>).errorData!;
+    };
+    createMionRouter({getAllRemoteMethodsMaxNumber: 2}).initRoutes({mionMethodsMetadata, ...routes});
+    expect(getRouterOptions().getAllRemoteMethodsMaxNumber).toBe(2);
+    const capped = await askAll();
+    expect(capped.truncated).toBe(true);
+    expect(Object.keys(capped.metadata.methods)).toEqual(['auth']);
+    resetRouter();
+
+    createMionRouter().initRoutes({mionMethodsMetadata, ...routes});
+    expect(getRouterOptions().getAllRemoteMethodsMaxNumber).toBe(100);
+    const full = await askAll();
+    expect(full.truncated).toBeUndefined();
+    expect(Object.keys(full.metadata.methods).length).toBeGreaterThan(2);
+    expectTypeOf<RouterOptionsInput['getAllRemoteMethodsMaxNumber']>().toEqualTypeOf<number | undefined>();
   });
 
   it('answers a metadata-only request as a success, not an HTTP error', async () => {
