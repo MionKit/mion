@@ -360,7 +360,11 @@ func buildMergedProps(objectMembers []FlatObject, ctx *EmitContext, discValueByM
 		}
 		for _, propRef := range m.Resolved.Children {
 			prop := ctx.ResolveRef(propRef)
-			if prop == nil || prop.IsStatic {
+			if prop == nil {
+				continue
+			}
+			if prop.IsStatic {
+				ctx.EmitDiagnosticSlot(SlotStaticDropped, memberLabel(prop))
 				continue
 			}
 			if reflection.IsUnsafePropertyName(prop.Name) {
@@ -372,8 +376,8 @@ func buildMergedProps(objectMembers []FlatObject, ctx *EmitContext, discValueByM
 				continue
 			}
 			// The stripped-child branch below never sees a method, yet its key holds a function, so guard a same-name survivor.
-			// No diagnostic: methods are silent skip slots in the standalone object walks too.
 			if isFunctionLikeKind(prop.Kind) {
+				ctx.EmitDiagnosticSlot(SlotMethodDropped, memberLabel(prop))
 				if prop.Name != "" {
 					strippedByName[prop.Name] = true
 				}
