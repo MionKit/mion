@@ -112,8 +112,7 @@ register('client.tsConfig — a separate client project, refreshed while the ser
     const mappers = generatedMappers();
     expect(mappers).toHaveLength(1);
 
-    // the server's router-init module gets the import appended (vite's SSR transform has already
-    // turned the relative specifier into a root-relative one by the time it hands the code back)
+    // router-init gets the import; vite's SSR transform has already made its specifier root-relative
     const transformed = await vite.transformRequest('/src/server.ts', {ssr: true});
     expect(transformed?.code).toContain('/.mion/rpc/batches.generated.js');
 
@@ -131,16 +130,14 @@ register('client.tsConfig — a separate client project, refreshed while the ser
     expect(generatedMappers()).toEqual(mappers);
     expect(addedPaths).not.toContain(path.join(client, 'src'));
 
-    // a NEW client file with a batch, created while the dev server runs: the client's source
-    // root is watched, so the table gains the id without a restart
+    // a NEW client file, created while the dev server runs, lands without a restart: its root is watched
     fs.writeFileSync(
       path.join(client, 'src', 'later.ts'),
       "import {batch} from '@mionjs/client';\nimport {routes} from './routes.ts';\nexport const d = batch([routes.users.getById(2), routes.orders.list(2)]);\n"
     );
     await waitFor(() => batchIds(table).length === 3, 'the regenerated table after a new client file');
 
-    // deleting every batch file removes rpc/ and re-transforms the router-init module, which
-    // drops the import it no longer has a target for
+    // deleting every batch file removes rpc/, and the re-transformed router-init module drops the import
     fs.rmSync(path.join(client, 'src', 'a.ts'));
     fs.rmSync(path.join(client, 'src', 'later.ts'));
     await waitFor(() => !fs.existsSync(table), 'rpc/ removed after the last batch file went away');
