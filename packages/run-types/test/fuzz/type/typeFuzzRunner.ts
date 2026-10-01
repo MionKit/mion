@@ -4,7 +4,7 @@
 //
 //   Tier A — resolver/emit robustness (TR1–TR4), checked on EVERY type:
 //     TR1 no resolver crash
-//     TR2 every createX<T>() resolved to a site (6 fn + 1 reflection)
+//     TR2 every createX<T>() resolved to a site (15 fn + 2 reflection)
 //     TR3 every emitted module is valid JS (evaluates) + the reflection graph
 //         knots (no dangling ref)
 //     TR4 a CLEAN type (no Error diagnostics) wires every factory without
@@ -44,6 +44,8 @@ import {
   controlledCode,
   copyTree,
   droppedPaths,
+  isDropNote,
+  type DiagContext,
   type ThrowOutcome,
 } from './diagOracle.ts';
 import {
@@ -333,9 +335,11 @@ function checkBehaviourTier(
   // DataOnly non-data lane: values come from the REAL product mock and the
   // serialize/fail tier is read off the resolver's own diagnostics.
   if (valueSource === 'mock') {
-    checkMockBehaviour(compiled, seed, out, stats);
-    checkDiagnosticTruth(compiled, seed, out);
-    for (const violation of dataOnlyViolations(compiled, seed)) out.push(violation);
+    // One draw for every check: a mock can be slow, and each check needs the same conforming value anyway.
+    const drawn = drawMock(compiled.wired.mock);
+    checkMockBehaviour(compiled, drawn, seed, out, stats);
+    checkDiagnosticTruth(compiled, drawn, seed, out);
+    for (const violation of dataOnlyViolations(compiled, seed, drawn)) out.push(violation);
     return;
   }
   const serialisable = valueOracleSafe(compiled.gen);
@@ -435,35 +439,34 @@ function runRobustnessProbe(compiled: CompiledType, seed: number, out: Violation
 
 // --- Tier B (mock lane): values from the REAL createMockDataFn (nonDataTypes on).
 // Serialize-vs-fail comes from the encoders, not diagnostics: the resolver also reports Errors inside DROPPED subtrees.
-function checkMockBehaviour(compiled: CompiledType, seed: number, out: Violation[], stats: FuzzStats): void {
-  const target = asFuzzTarget(compiled);
-  const mock = compiled.wired.mock;
-  if (!target || !mock) {
-    // Some factory failed to wire (a wire-time alwaysThrow on a collapse type —
-    // controlled-ness already policed by TR4). Behaviour is robustness-only.
-    runRobustnessProbe(compiled, seed, out);
-    return;
-  }
-  let value: unknown;
+/** A mock value, or none when the mock is missing or cannot build one (a stray `never` deep inside a shell). **/
+interface DrawnMock {
+  value?: unknown;
+  hasValue: boolean;
+}
+
+function drawMock(mock: (() => unknown) | undefined): DrawnMock {
+  if (!mock) return {hasValue: false};
   try {
-    value = mock();
+    return {value: mock(), hasValue: true};
   } catch {
-    // The mock can't always build a value (e.g. a stray `never` deep inside a
-    // serialisable shell); fall back to robustness rather than risk a false find.
+    return {hasValue: false};
+  }
+}
+
+function checkMockBehaviour(compiled: CompiledType, drawn: DrawnMock, seed: number, out: Violation[], stats: FuzzStats): void {
+  const target = asFuzzTarget(compiled);
+  if (!target || !drawn.hasValue) {
+    // A factory failed to wire (TR4 polices that it was controlled) or no value exists: robustness only.
     runRobustnessProbe(compiled, seed, out);
     return;
   }
+  const value = drawn.value;
   const base = {target: compiled.title, seed, phase: 'valid' as const, value: snapshot(value)};
 
   const serialized = probeStrategies(target, value, base, out);
-  if (serialized === undefined) return;
-
-  // Both encoders alwaysThrow: a collapse must carry an Error-severity diagnostic.
-  if (!serialized) {
-    if (compiled.errorDiagnostics.length === 0)
-      out.push({oracle: 'O10', message: 'both encoders alwaysThrow but no Error-severity diagnostic was emitted', ...base});
-    return;
-  }
+  // Both encoders always throw: D1 checks that each throw is a code reported at its own site.
+  if (!serialized) return;
 
   // Serialize tier — the stripped members are dropped; the round-trips must be
   // wire-stable and the two wires must agree on the decoded value.
@@ -475,6 +478,10 @@ function checkMockBehaviour(compiled: CompiledType, seed: number, out: Violation
   push(out, checkJsonStable(target, value, ctx)); // O5 + O7 (JSON wire-stable)
   // O12: compact collapses a present `null` optional to absent by design.
   if (!compactNullRisk(compiled.gen)) push(out, checkCrossWire(target, value, ctx));
+  // O2: with nothing dropped at the validate site, a corrupted value must be refused, as on the wild lane.
+  const dropNoted = [...codesAtSite(compiled, 'validate')].some(isDropNote);
+  const corrupted = dropNoted ? undefined : corruptValue(compiled.gen, value);
+  if (corrupted) push(out, checkInvalidRejected(target, corrupted.value, {seed, phase: 'invalid'}));
 }
 
 type ViolationBase = Omit<Violation, 'oracle' | 'message'>;
@@ -563,20 +570,16 @@ const ROUND_TRIPS: [keyof WiredFns, keyof WiredFns | undefined][] = [
   ['compactEncode', 'compactDecode'],
   ['mutateEncode', 'mutateDecode'],
   ['removeUnknownKeys', undefined],
+  ['removeUnknownKeysShared', undefined],
+  ['removeUnknownKeysRefuse', undefined],
 ];
 const DECODE_KEYS = new Set(ROUND_TRIPS.map(([, decodeKey]) => decodeKey));
 
-function checkDiagnosticTruth(compiled: CompiledType, seed: number, out: Violation[]): void {
+// A non-data value makes its entry throw when the function is created, never on a later call, so one run settles D2.
+function checkDiagnosticTruth(compiled: CompiledType, drawn: DrawnMock, seed: number, out: Violation[]): void {
   if (compiled.resolverError || compiled.evalError || isRecursive(compiled.gen)) return;
   const ctx = {target: compiled.title, seed, source: compiled.source};
-  let value: unknown;
-  let hasValue = false;
-  try {
-    value = compiled.wired.mock?.();
-    hasValue = compiled.wired.mock !== undefined;
-  } catch {
-    // No value (a stray `never`): D1 / D2 still read the build-time throws.
-  }
+  const {value, hasValue} = drawn;
   for (const key of FN_KEYS) {
     if (compiled.siteLines[key] === undefined) continue;
     const outcome = {key, codesAtSite: codesAtSite(compiled, key), ...runOnce(compiled, key, value, hasValue)};
@@ -584,6 +587,13 @@ function checkDiagnosticTruth(compiled: CompiledType, seed: number, out: Violati
     push(out, checkReportedThrows(outcome, ctx));
   }
   if (!hasValue) return;
+  checkRoundTripDrops(compiled, value, ctx, out);
+  // A second draw with every optional member present, so a member the first draw left out is checked too.
+  const full = drawMock(compiled.wired.mockFull);
+  if (full.hasValue) checkRoundTripDrops(compiled, full.value, ctx, out);
+}
+
+function checkRoundTripDrops(compiled: CompiledType, value: unknown, ctx: DiagContext, out: Violation[]): void {
   roundTrips: for (const [encodeKey, decodeKey] of ROUND_TRIPS) {
     const steps = decodeKey ? [encodeKey, decodeKey] : [encodeKey];
     const input = copyTree(value);
@@ -605,7 +615,7 @@ function checkDiagnosticTruth(compiled: CompiledType, seed: number, out: Violati
 }
 
 // --- D4: DataOnly<T> and the Go side's non-data decision agree ---
-export function dataOnlyViolations(compiled: CompiledType, seed: number): Violation[] {
+export function dataOnlyViolations(compiled: CompiledType, seed: number, drawn = drawMock(compiled.wired.mock)): Violation[] {
   const {type: typeId, dataOnly: dataOnlyId} = compiled.reflectionIds;
   if (compiled.resolverError || compiled.evalError || isRecursive(compiled.gen) || !typeId || !dataOnlyId) return [];
   const ctx = {target: compiled.title, seed, source: compiled.source};
@@ -613,12 +623,7 @@ export function dataOnlyViolations(compiled: CompiledType, seed: number): Violat
   const typeRoot = getRunType(undefined, typeId as never) as RunType;
   const dataOnlyRoot = getRunType(undefined, dataOnlyId as never) as RunType;
   const derefKind = (node: RunType) => (node.kind === -1 ? resolve(node)?.kind : node.kind) as number;
-  let value: unknown;
-  try {
-    value = compiled.wired.mock?.();
-  } catch {
-    value = undefined;
-  }
+  const value = drawn.value;
   const validate = compiled.wired.validate as ((input: unknown) => unknown) | undefined;
   const typeThrows = compiled.wireErrors.validate !== undefined || runVerdict(validate, value) === 'throws';
   const root = checkDataOnlyRoot(derefKind(typeRoot), derefKind(dataOnlyRoot), typeThrows, ctx);

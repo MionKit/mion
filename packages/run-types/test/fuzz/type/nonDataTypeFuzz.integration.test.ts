@@ -7,9 +7,9 @@
 //   • a type the resolver accepts (no Error diagnostic) SERIALIZES — the stripped
 //     members are dropped and the clone + compact JSON round-trips are
 //     wire-stable and agree with each other (O1/O3/O4/O5/O12/O14);
-//   • a type the resolver rejects (Error diagnostic) COLLAPSES — every encoder
-//     refuses (controlled `[CODE]` at wire or call), never silently serializing
-//     (O10).
+//   • a type the resolver rejects COLLAPSES — every encoder refuses with a
+//     `[CODE]` its own call site reports (D1), never silently serializing;
+//   • DataOnly<T> agrees with the Go side's non-data decision (D4).
 //
 // The serialize-vs-fail tier is read off the resolver's own diagnostics, so the
 // oracles never false-positive from a model drifting against the Go type switch.
