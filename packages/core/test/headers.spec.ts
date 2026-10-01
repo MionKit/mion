@@ -6,6 +6,7 @@
  * ######## */
 
 import {describe, expect, it} from 'vitest';
+import {createJsonDecoderFn} from '@mionjs/run-types';
 import {HeadersSubset, trustedHeadersSubset} from '../src/headers.ts';
 import {isFatalError, type RpcError} from '../src/errors.ts';
 
@@ -51,6 +52,12 @@ describe('HeadersSubset checks itself when built', () => {
     expect(subset.headers).toEqual({Authorization: 'token'});
   });
 
+  it('builds unchecked in a generic function when undefined fills the check slot', () => {
+    const withHeader = <Name extends string>(headers: Record<Name, string>): HeadersSubset<Name> =>
+      new HeadersSubset<Name>(headers, undefined);
+    expect(withHeader({Authorization: 1 as unknown as string}).headers).toEqual({Authorization: 1});
+  });
+
   it('skips the check when the build injected nothing', () => {
     const Unchecked: new (headers: Record<string, unknown>) => HeadersSubset<string> = HeadersSubset as any;
     expect(new Unchecked({Authorization: 1}).headers).toEqual({Authorization: 1});
@@ -62,5 +69,14 @@ describe('trustedHeadersSubset', () => {
     const subset = trustedHeadersSubset<'Authorization'>({Authorization: 1 as unknown as string});
     expect(subset instanceof HeadersSubset).toBe(true);
     expect(subset.headers).toEqual({Authorization: 1});
+  });
+});
+
+describe('HeadersSubset class deserializer', () => {
+  it('rebuilds a decoded subset with no check, leaving it to the route params check', () => {
+    const decode = createJsonDecoderFn<HeadersSubset<'Authorization'>>();
+    const decoded = decode('{"headers":{"Authorization":1}}');
+    expect(decoded instanceof HeadersSubset).toBe(true);
+    expect(decoded.headers).toEqual({Authorization: 1});
   });
 });
