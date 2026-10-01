@@ -6,11 +6,12 @@
       "file": "a.ts",
       "pos": 28,
       "id": "Hld0001",
+      "paramIndex": 1,
       "noArgList": true
     }
   ],
   "replacements": [],
-  "expectedCode": "import {__rt_Hld0001} from 'rtmod:/Hld0001.js';\nconst h = new Holder<string>(__rt_Hld0001);\n",
+  "expectedCode": "import {__rt_Hld0001} from 'rtmod:/Hld0001.js';\nconst h = new Holder<string>(undefined, __rt_Hld0001);\n",
   "expectedMap": {
     "version": 3,
     "sources": [
@@ -20,6 +21,6 @@
       "const h = new Holder<string>;\n"
     ],
     "names": [],
-    "mappings": ";AAAA,KAAK,CAAC,CAAC,CAAC,CAAC,CAAC,GAAG,CAAC,MAAM,CAAC,MAAM,eAAC;"
+    "mappings": ";AAAA,KAAK,CAAC,CAAC,CAAC,CAAC,CAAC,GAAG,CAAC,MAAM,CAAC,MAAM,0BAAC;"
   }
 }

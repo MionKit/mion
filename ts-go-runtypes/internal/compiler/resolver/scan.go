@@ -624,11 +624,7 @@ func (state scanState) analyzeCall(file string, call *ast.Node) ([]pendingCall, 
 	// SINGLE TRAILING MARKER: the full path, with reflect-form, comptime options, annotation honoring and the
 	// Temporal-not-loaded guard.
 	if len(injecting) == 1 && injecting[0].paramIndex == lastIndex {
-		// Options come only from a compile-time slot, so `new HeadersSubset({strategy: x})` never reads a header as one.
-		optionsArgsCount := argsCount
-		if lastIndex == 0 || !compTimeSlots[lastIndex-1] {
-			optionsArgsCount = 0
-		}
+		optionsArgsCount := optionsArgsCountFor(call, compTimeSlots, lastIndex, argsCount)
 		pending, extra, ok := state.analyzeTrailingInjection(file, call, parameters, injecting[0], lastIndex, argsCount, optionsArgsCount, trailingComma)
 		diags = append(diags, extra...)
 		if !ok {
@@ -658,7 +654,7 @@ func (state scanState) analyzeCall(file string, call *ast.Node) ([]pendingCall, 
 	// MULTI-SLOT INJECTION: several marker parameters, or a single non-trailing one, each injecting at their own
 	// index. No reflect-form or comptime options, since a wrapper call passes T through explicit type arguments
 	// and forwards no options bag.
-	pendings, extra := state.analyzeMultiSlotInjection(file, call, injecting, argsCount, trailingComma)
+	pendings, extra := state.analyzeMultiSlotInjection(file, call, injecting, compTimeSlots, argsCount, trailingComma)
 	diags = append(diags, extra...)
 	return pendings, diags
 }
@@ -843,7 +839,7 @@ func (state scanState) analyzeTrailingInjection(file string, call *ast.Node, par
 // check, and emits its own pendingCall at the call's closing paren; the transform then groups all slots of one
 // call, same Pos, into a single positional insertion, filling non-marker optional gaps with `undefined`.
 // A wrapper call forwards no comptime options, so fn ids resolve with default options.
-func (state scanState) analyzeMultiSlotInjection(file string, call *ast.Node, injecting []injectMarker, argsCount int, trailingComma bool) ([]pendingCall, []diagnostics.Diagnostic) {
+func (state scanState) analyzeMultiSlotInjection(file string, call *ast.Node, injecting []injectMarker, compTimeSlots []bool, argsCount int, trailingComma bool) ([]pendingCall, []diagnostics.Diagnostic) {
 	var diags []diagnostics.Diagnostic
 	sourceFile := ast.GetSourceFileOfNode(call)
 	// One per-call walk classifies every written type reference into the guard that owns it (TMP001 / MKR013),
@@ -904,7 +900,7 @@ func (state scanState) analyzeMultiSlotInjection(file string, call *ast.Node, in
 		var fnIds []string
 		var demand []protocol.SiteDemand
 		for _, fnKey := range fnKeys {
-			fnId, fnDemand, fnDiags := computeSiteFn(state.scanChecker, fnKey, validateOptions{}, call, m.paramIndex, argsCount, file)
+			fnId, fnDemand, fnDiags := computeSiteFn(state.scanChecker, fnKey, validateOptions{}, call, m.paramIndex, optionsArgsCountFor(call, compTimeSlots, m.paramIndex, argsCount), file)
 			fnIds = append(fnIds, fnId)
 			demand = append(demand, fnDemand...)
 			diags = append(diags, fnDiags...)
@@ -1327,7 +1323,7 @@ func validatorFamilyOperation(op operations.Operation, checkUnknowns, checkUnion
 // transparent, so the walk continues past it.
 func (state scanState) enclosedByInjectionMarker(call *ast.Node) bool {
 	for parent := call.Parent; parent != nil; parent = parent.Parent {
-		if !isCallOrNew(parent) {
+		if !ast.IsCallOrNewExpression(parent) {
 			continue
 		}
 		signature := checker.Checker_getResolvedSignature(state.scanChecker, parent, nil, 0)
@@ -1593,10 +1589,6 @@ func (state scanState) declaredTypeFromIdentifier(node *ast.Node) (*checker.Type
 	return checker.Checker_getTypeFromTypeNode(state.scanChecker, typeNode), true
 }
 
-// isCallOrNew reports a node a marker parameter can be filled on.
-func isCallOrNew(node *ast.Node) bool {
-	return node.Kind == ast.KindCallExpression || node.Kind == ast.KindNewExpression
-}
 
 // injectionPos is the closing `)` (End is one past it), or the end of a paren-less `new X`, which needs noArgList.
 func injectionPos(call *ast.Node) (pos int, noArgList bool) {
@@ -1604,6 +1596,16 @@ func injectionPos(call *ast.Node) (pos int, noArgList bool) {
 		return call.End(), true
 	}
 	return call.End() - 1, false
+}
+
+// optionsArgsCountFor is the argsCount the options readers see for the marker at markerIndex. A constructor's argument
+// before the marker is usually data (`new HeadersSubset({strategy: x})`), so it counts only from a compile-time slot;
+// a call keeps the plain options-before-the-marker convention.
+func optionsArgsCountFor(call *ast.Node, compTimeSlots []bool, markerIndex, argsCount int) int {
+	if call.Kind != ast.KindNewExpression || (markerIndex > 0 && compTimeSlots[markerIndex-1]) {
+		return argsCount
+	}
+	return 0
 }
 
 // paramZeroCarriesT reports a reflect-form signature: parameter 0 is the marker's T, or RunType<T>.
@@ -1629,32 +1631,16 @@ func (state scanState) paramZeroCarriesT(parameters []*ast.Symbol, typeArgument 
 
 // forEachCallOrNewExpression also visits `new`, for the marker scan only; the router, api and batch scans stay on calls.
 func forEachCallOrNewExpression(sourceFile *ast.SourceFile, cb func(*ast.Node) bool) {
-	if sourceFile == nil {
-		return
-	}
-	root := sourceFile.AsNode()
-	if root == nil {
-		return
-	}
-	var visit ast.Visitor
-	visit = func(node *ast.Node) bool {
-		if node == nil {
-			return false
-		}
-		if isCallOrNew(node) {
-			if !cb(node) {
-				return false
-			}
-		}
-		node.ForEachChild(visit)
-		return false
-	}
-	root.ForEachChild(visit)
+	forEachNodeWhere(sourceFile, ast.IsCallOrNewExpression, cb)
 }
 
 // forEachCallExpression invokes cb for every CallExpression in sourceFile, in depth-first source order, nested
 // calls included, and stops descending into a node when cb returns false.
 func forEachCallExpression(sourceFile *ast.SourceFile, cb func(*ast.Node) bool) {
+	forEachNodeWhere(sourceFile, ast.IsCallExpression, cb)
+}
+
+func forEachNodeWhere(sourceFile *ast.SourceFile, match func(*ast.Node) bool, cb func(*ast.Node) bool) {
 	if sourceFile == nil {
 		return
 	}
@@ -1667,7 +1653,7 @@ func forEachCallExpression(sourceFile *ast.SourceFile, cb func(*ast.Node) bool) 
 		if node == nil {
 			return false
 		}
-		if node.Kind == ast.KindCallExpression {
+		if match(node) {
 			if !cb(node) {
 				return false
 			}

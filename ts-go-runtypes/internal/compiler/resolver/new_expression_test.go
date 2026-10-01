@@ -22,19 +22,26 @@ export class Wrap<T> {
 export class Data {
   constructor(readonly data: {checkUnknowns: boolean}, fns?: InjectTypeFnArgs<Data, 'validate'>) {}
 }
+export class TwoSlots {
+  constructor(readonly data: {checkUnknowns: boolean}, fns?: InjectTypeFnArgs<TwoSlots, 'validate'>, id?: InjectRunTypeId<TwoSlots>) {}
+}
+`
+
+const staticBox = `import {Box} from './box';
+new Box<'A'>({A: 'x'});
 `
 
 func scanNewSites(t *testing.T, sources map[string]string) (map[string][]protocol.Site, []diagnostics.Diagnostic) {
 	t.Helper()
 	sources["box.ts"] = newExpressionBox
-	r := setupInline(t, sources)
+	session := setupInline(t, sources)
 	var files []string
 	for name := range sources {
 		if name != "box.ts" {
 			files = append(files, name)
 		}
 	}
-	resp := r.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: files})
+	resp := session.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: files})
 	if resp.Error != "" {
 		t.Fatalf("scanFiles: %s", resp.Error)
 	}
@@ -60,9 +67,7 @@ func oneSite(t *testing.T, byFile map[string][]protocol.Site, file string) proto
 }
 
 func TestNewExpression_StaticForm(t *testing.T) {
-	byFile, _ := scanNewSites(t, map[string]string{"static.ts": `import {Box} from './box';
-new Box<'A'>({A: 'x'});
-`})
+	byFile, _ := scanNewSites(t, map[string]string{"static.ts": staticBox})
 	site := oneSite(t, byFile, "static.ts")
 	if site.ID == "" || len(site.FnIds) != 2 {
 		t.Fatalf("expected an id and two fn ids, got %+v", site)
@@ -74,9 +79,7 @@ new Box<'A'>({A: 'x'});
 
 func TestNewExpression_InferredFromReturnType(t *testing.T) {
 	byFile, _ := scanNewSites(t, map[string]string{
-		"static.ts": `import {Box} from './box';
-new Box<'A'>({A: 'x'});
-`,
+		"static.ts": staticBox,
 		"inferred.ts": `import {Box} from './box';
 export function handler(): Box<'A'> {
   return new Box({A: 'x'});
@@ -108,9 +111,7 @@ export function handler(): Box<'A', 'B'> {
 
 func TestNewExpression_InferredContexts(t *testing.T) {
 	byFile, _ := scanNewSites(t, map[string]string{
-		"static.ts": `import {Box} from './box';
-new Box<'A'>({A: 'x'});
-`,
+		"static.ts": staticBox,
 		"async.ts": `import {Box} from './box';
 export async function handler(): Promise<Box<'A'>> {
   return new Box({A: 'x'});
@@ -196,9 +197,7 @@ export function make<T>() {
 // Argument 0 of Box is data, so its annotation never replaces the class type the constructor resolved.
 func TestNewExpression_AnnotatedDataArgumentKeepsT(t *testing.T) {
 	byFile, diags := scanNewSites(t, map[string]string{
-		"static.ts": `import {Box} from './box';
-new Box<'A'>({A: 'x'});
-`,
+		"static.ts": staticBox,
 		"annotated.ts": `import {Box} from './box';
 const map: {A: string} = {A: 'x'};
 export const box: Box<'A'> = new Box(map);
@@ -251,4 +250,43 @@ new Wrap(value);
 	if reflect.ArgsCount != 1 || reflect.ParamIndex != 1 {
 		t.Fatalf("reflect form injects after the value, got %+v", reflect)
 	}
+}
+
+// The multi-slot path reads options the same way, so TwoSlots' data never picks the fn variant either.
+func TestNewExpression_MultiSlotOptionsNotReadFromDataArgument(t *testing.T) {
+	byFile, _ := scanNewSites(t, map[string]string{"two.ts": `import {TwoSlots} from './box';
+new TwoSlots({checkUnknowns: true});
+`})
+	for name, sites := range byFile {
+		if !strings.HasSuffix(name, "two.ts") {
+			continue
+		}
+		for _, site := range sites {
+			if site.FnId != "" && site.FnId != leafFnHash(t, "validate") {
+				t.Fatalf("FnId %q, want the plain validate fn %q", site.FnId, leafFnHash(t, "validate"))
+			}
+		}
+		return
+	}
+	t.Fatal("two.ts: no site")
+}
+
+// A call keeps reading the argument before its marker as options, whatever that parameter's declared type.
+func TestNewExpression_CallStillReadsPlainOptions(t *testing.T) {
+	byFile, _ := scanNewSites(t, map[string]string{"wrapper.ts": `import type {InjectTypeFnArgs} from '@mionjs/run-types';
+declare function check<T>(val?: T, options?: {checkUnknowns?: boolean}, id?: InjectTypeFnArgs<T, 'validate'>): unknown;
+check<{a: string}>(undefined, {checkUnknowns: true});
+`})
+	if site := oneSite(t, byFile, "wrapper.ts"); site.FnId == leafFnHash(t, "validate") {
+		t.Fatalf("checkUnknowns must still pick the strict validator for a call, got the plain one %q", site.FnId)
+	}
+}
+
+// A builder nested in a marker-bearing `new` is reflected by it, so it needs no id of its own.
+func TestNewExpression_EnclosesNestedBuilder(t *testing.T) {
+	byFile, _ := scanNewSites(t, map[string]string{"nested.ts": `import {Wrap} from './box';
+import * as TF from '@mionjs/run-types/formats';
+export const wrapped = new Wrap(TF.string());
+`})
+	oneSite(t, byFile, "nested.ts")
 }
