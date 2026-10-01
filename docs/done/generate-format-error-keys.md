@@ -1,7 +1,7 @@
 ---
 type: fix
 spec: full-plan
-status: ready
+status: done
 created: 2026-10-01
 ---
 
@@ -59,9 +59,9 @@ All error code goes through `FormatErrCallWith`, which always writes `formatPath
   reconcile, and FT003 (validate.go:340-351).
 - `knownConstraintKeys` (mirror/merge.go:325-335) becomes `type` plus the union of every format's keys from
   step 3, so a stale key of any format is orphaned on sync (17 real keys are missing from it today).
-- New warning, "missing message key": a format field's `rt$errors` lacks a scanned key and has no
-  `rt$default`. Warning, like FT003; next free FT code. Follow the add-diagnostic skill and run
-  `pnpm miondevx core codegen diag`. Needed because the TS type stops requiring keys (step 4).
+- New warning **FT012** "missing message key": a format field's `rt$errors` lacks a scanned key and has no
+  `rt$default`. Warning, like FT003. (FT004 was not used: the enrichment docs already reserve it for a
+  planned structural-mismatch check.) Needed because the TS type stops requiring keys (step 4).
 
 ### 3. Sample params: the one hand-maintained input, hard-failing
 
@@ -85,15 +85,15 @@ code of a set of sample param maps per format.
 
 ### 4. Codegen: the keys reach TS
 
-Extend `cmd/gen-type-formats` (walks `formats.Registered()`, writes
-`packages/run-types/src/go-generated/typeFormats.generated.ts`) to also emit:
+A new generator `cmd/gen-format-error-keys` writes `packages/run-types/src/go-generated/formatErrorKeys.generated.ts`
+(no imports, so the type harness inlines it whole), registered as the `errorkeys` codegen target:
 
     export type FormatErrorKeys = {numberFormat: 'integer' | 'max' | ...; creditCard: 'creditCard' | 'networks'; ...};
     export const FORMAT_ERROR_KEYS = {...} as const;
     export type FormatSampledParams = {...};   // step 3
 
-It stays under `pnpm miondevx core codegen typeformats [--check]` (scripts/miondevx.mjs:161), already checked
-in CI (`.github/workflows/ci.yml:200`). Extend `TestTypeFormatsFileInSync` (`cmd/gen-type-formats/gen_test.go`).
+`pnpm miondevx core codegen errorkeys [--check]`; CI's `codegen all --check` covers it. `TestFormatErrorKeysFileInSync`
+is the Go-level companion.
 
 ### 5. TS: the type allows only real keys, requires none
 
@@ -167,3 +167,20 @@ outside `AllErrorKeys(name)`. A hit means the samples miss a branch.
 - The CreditCard, `exclusiveMinimum`, Hostname, EmailAddress and IP cases scaffold the right keys.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source
   file, each committed on its own.
+
+## What shipped
+
+Built as planned, with these differences:
+
+- The generator is its own command (`cmd/gen-format-error-keys`, codegen target `errorkeys`), not an
+  extension of `gen-type-formats`.
+- The missing-key warning is **FT012**.
+- The scaffold quotes keys that are not identifiers (`'@'`), and a mirror test pins that the sync keeps them.
+- `ErrorKeysForParams` recovers from an emitter panic and returns no keys, so enrichment never crashes.
+- Extra guard: `TestErrorKeySamples_NoStaleFormat` fails when samples name a format that no longer exists.
+- The enrichment package and the mirror package blank-import `formats/all`, so any binary using them has
+  the registry filled.
+- Every FriendlyText compile budget went DOWN (for example 204 → 174, 368 → 356); budgets were lowered.
+- Writing the samples exposed that the domain pattern path ignores `allowedValues`, `maxParts` and
+  `minParts` in validation itself. That was handed to a parallel session with its own PR; the domain
+  samples reflect today's behaviour and gain keys when that fix merges.
