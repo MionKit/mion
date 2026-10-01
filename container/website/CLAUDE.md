@@ -93,7 +93,8 @@ Read it before writing or restyling any page on any subsite.
   Keep tables apart only when their columns genuinely differ.
 - **Tip or note where something is done a particular way.** A default, a fixed order, a
   gotcha, a recommended form: add a short `::tip` or `::note` right where it applies, one
-  or two sentences, never a paragraph.
+  or two sentences, never a paragraph. A `::tip` tells the reader how to do something; a
+  `::note` only gives information.
 
 ### The ideal section
 
