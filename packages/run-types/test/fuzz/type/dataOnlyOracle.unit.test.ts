@@ -67,6 +67,16 @@ describe('dataOnlyOracle', () => {
     expect(memberMismatches(userClass, object(prop('x', str)), noRefs)).toEqual([]);
   });
 
+  it('members: a kept native stays that native, while a projected one fires', () => {
+    const url = () => node(RunTypeKind.class, {subKind: RunTypeSubKind.url, typeName: 'URL'});
+    expect(memberMismatches(object(prop('link', url())), object(prop('link', url())), noRefs)).toEqual([]);
+    expect(
+      memberMismatches(object(prop('link', url())), object(prop('link', object(prop('href', node(RunTypeKind.string))))), noRefs)
+    ).toEqual(['$.link: the native URL in T is kind objectLiteral in DataOnly<T>']);
+    const date = node(RunTypeKind.class, {subKind: RunTypeSubKind.date, typeName: 'Date'});
+    expect(memberMismatches(date, url(), noRefs)).toEqual(['$: the native Date in T is kind class in DataOnly<T>']);
+  });
+
   it('mutates by removing and mistyping each member down a few levels', () => {
     const labels = mutationsOf({a: 1, nested: {b: 'x'}}).map((mutation) => mutation.label);
     expect(labels).toEqual([
