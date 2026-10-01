@@ -53,6 +53,7 @@ slugs and file names.
 - Rename the examples: `guide/serialization-*.ts` -> `guide/json-round-trip-*.ts`
   (`serialization-roundtrip.ts` -> `json-round-trip-calls.ts`), `run-types/serialization-union.ts` ->
   `json-round-trip-union.ts`, `_homepage/json-roundtrip.ts` -> `_homepage/json-round-trip.ts`.
+  (Shipped differently: `run-types/serialization-union.ts` was deleted, see below.)
 - Reword only the text that names the feature or means the whole round trip. Comments: only the ones that
   name the feature.
 
@@ -62,8 +63,14 @@ slugs and file names.
   call context page, "JSON Round Trip in a Batch"), and the feature wording across about 30 pages,
   `index.md` included. The about page keeps its sentence case headings, so its section reads
   "JSON round trip".
-- Examples: renamed as planned, with the `code-import` paths, `tsconfig.json`, `tsconfig.runtypes.json`,
-  `eslint.config.js` and the two pre-publish e2e header comments updated, plus the `@annotate` lines.
+- Redirects: the 7 `public/_redirects` rules that pointed at the old guide or benchmark page now point at
+  `json-round-trip`. The three old URLs have no redirect. Catch-all rules (`/server/*` in
+  `public/_redirects`, `/*` and `/benchmarks/*` in `legacy-runtypes/_redirects`) still map older paths
+  such as `/server/serialization` onto the removed URLs, so those 404 too, by the same choice.
+- Examples: renamed as planned, except `run-types/serialization-union.ts`, which no page imported (the
+  guide page already covers unions with `guide/json-wire-format.ts`), so it was deleted. The
+  `code-import` paths, `tsconfig.json`, `tsconfig.runtypes.json`, `eslint.config.js` and the two
+  pre-publish e2e header comments are updated, plus the `@annotate` lines.
 - Source comments: about 20 comments across `core`, `devtools`, `rpc-client`, `rpc-router`, `run-types`
   and `private-test-server`, plus the website's bench bars component, `subsites.ts` and
   `scripts/website/check-static.mjs`.
