@@ -269,7 +269,7 @@ function addParamlessMiddlewares(context: ClientCallContext): void {
   }
 }
 
-/** Reads every answer from the nested response; a thrown validation error is typed, so it moves to its path */
+/** A thrown validation error is typed, so it moves to its path */
 function resolveSubRequests(context: ClientCallContext, deserialized: ResponseBody, errors: RequestErrors): void {
   const {response, subRequestList} = context;
   for (const [id, value] of Object.entries(deserialized)) {
@@ -568,7 +568,7 @@ async function runMiddlewareResponses(
     const handlers = isErrorHandler
       ? handlersRegistry.getErrorHandlers(id, middlewareError.type)
       : handlersRegistry.getResponseHandlers(id);
-    // a failing handler does not stop the rest, only the first failure is reported
+    // a failing handler does not stop the rest
     for (const handler of handlers) {
       // a retry asked after the handler finished belongs to no attempt
       let isOpen = true;

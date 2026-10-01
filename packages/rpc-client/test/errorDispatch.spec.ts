@@ -31,7 +31,7 @@ function createAuthHeaders(token: string): HeadersSubset<'Authorization'> {
   return new HeadersSubset({Authorization: token});
 }
 
-/** Answers every request in `run` with `body` and `headers`, for answers the test server never sends */
+/** Fakes fetch inside `run`, for answers the test server never sends */
 async function withServerAnswer<T>(body: unknown, headers: Record<string, string>, run: () => Promise<T>): Promise<T> {
   const realFetch = globalThis.fetch;
   globalThis.fetch = (async () =>
