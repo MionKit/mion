@@ -363,3 +363,27 @@ describe('checkUnknowns — unions of named interfaces', () => {
     }
   });
 });
+
+// A dropped non-data member is not a key: counting it let `{b, x}` pass the key-count check for `{a: symbol; b}`.
+describe('checkUnknowns — a dropped non-data member', () => {
+  type WithSymbol = {a: symbol; b: number};
+  const sample: WithSymbol = {a: Symbol('a'), b: 1};
+
+  it('rejects an extra key standing in for the dropped member (static shape)', () => {
+    const isStrict = createValidateFn<WithSymbol>(undefined, {checkUnknowns: true});
+    expect(isStrict({b: 1})).toBe(true);
+    expect(isStrict({b: 1, x: 1})).toBe(false);
+  });
+
+  it('rejects an extra key standing in for the dropped member (value shape)', () => {
+    const isStrict = createValidateFn(sample, {checkUnknowns: true});
+    expect(isStrict({b: 1})).toBe(true);
+    expect(isStrict({b: 1, x: 1})).toBe(false);
+  });
+
+  it('treats a Promise member like a function member', () => {
+    const isStrict = createValidateFn<{p: Promise<number>; b: number}>(undefined, {checkUnknowns: true});
+    const isWithFn = createValidateFn<{p: () => void; b: number}>(undefined, {checkUnknowns: true});
+    for (const value of [{b: 1}, {b: 1, x: 1}, {b: 1, p: 1}]) expect(isStrict(value)).toBe(isWithFn(value));
+  });
+});
