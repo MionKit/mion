@@ -228,7 +228,7 @@ func (sess *Session) dispatchScanFilesSerial(files []string) ([]protocol.Site, [
 			return nil, nil, err
 		}
 		fileStart := len(sites)
-		forEachCallExpression(sourceFile, func(call *ast.Node) bool {
+		forEachCallOrNewExpression(sourceFile, func(call *ast.Node) bool {
 			pendings, diags := state.analyzeCall(file, call)
 			if len(diags) > 0 {
 				diagnostics = append(diagnostics, diags...)
@@ -338,6 +338,8 @@ type pendingCall struct {
 	// `createValidateFn(\n  schema,\n)`). The TS-side injector then splices the binding WITHOUT a leading comma:
 	// the existing comma plus an injected `, …` would make an empty argument `f(a, , …)`, which is invalid JS.
 	trailingComma bool
+	// noArgList marks a `new X` written without parens: the rewrite adds them around the injected args.
+	noArgList bool
 	// mockSeed is the literal mock.seed hint from a CompTimeHints options slot, "" for none.
 	mockSeed     string
 	typeArgument *checker.Type
@@ -417,6 +419,7 @@ func (sess *Session) commitPending(pending pendingCall) (protocol.Site, []diagno
 		FnIds:         pending.fnIds,
 		Demand:        pending.demand,
 		TrailingComma: pending.trailingComma,
+		NoArgList:     pending.noArgList,
 		MockSeed:      pending.mockSeed,
 	}, diags, true
 }
@@ -492,15 +495,17 @@ func (state scanState) analyzeCall(file string, call *ast.Node) ([]pendingCall, 
 		return nil, nil
 	}
 	lastIndex := len(parameters) - 1
-	callExpression := call.AsCallExpression()
+	// ArgumentList is nil for `new X` written without parens; calls and `new` share every read below.
+	arguments := call.ArgumentList()
 	argsCount := 0
 	trailingComma := false
-	if callExpression != nil && callExpression.Arguments != nil {
-		argsCount = len(callExpression.Arguments.Nodes)
+	if arguments != nil {
+		argsCount = len(arguments.Nodes)
 		// The AST's own record of the trailing comma survives comments and whitespace, so the TS-side
 		// injector never has to scan source bytes backward.
-		trailingComma = callExpression.Arguments.HasTrailingComma()
+		trailingComma = arguments.HasTrailingComma()
 	}
+	compTimeSlots := make([]bool, len(parameters))
 	// The CompTimeArgs / PureFunction validation below is independent of injection: registerPureFnFactory and any
 	// other non-injection branded function must be checked too.
 	var diags []diagnostics.Diagnostic
@@ -545,10 +550,11 @@ func (state scanState) analyzeCall(file string, call *ast.Node) ([]pendingCall, 
 		case marker.KindCompTimeArgs, marker.KindCompTimeFnArgs:
 			// Both validate the argument is fully literal (CTA0xx). CompTimeFnArgs additionally marks the
 			// fn-selecting slot, whose value the scanner reads positionally.
+			compTimeSlots[paramIndex] = true
 			if paramIndex >= argsCount {
 				continue
 			}
-			argumentNode := callExpression.Arguments.Nodes[paramIndex]
+			argumentNode := arguments.Nodes[paramIndex]
 			if argumentNode == nil {
 				continue
 			}
@@ -561,7 +567,7 @@ func (state scanState) analyzeCall(file string, call *ast.Node) ([]pendingCall, 
 			if paramIndex >= argsCount {
 				continue
 			}
-			argumentNode := callExpression.Arguments.Nodes[paramIndex]
+			argumentNode := arguments.Nodes[paramIndex]
 			if argumentNode == nil {
 				continue
 			}
@@ -609,15 +615,22 @@ func (state scanState) analyzeCall(file string, call *ast.Node) ([]pendingCall, 
 			continue
 		}
 		mockShaped = true
-		if paramIndex < argsCount && callExpression != nil && callExpression.Arguments != nil {
-			mockSeed = extractMockSeedHint(state.scanChecker, callExpression.Arguments.Nodes[paramIndex])
+		compTimeSlots[paramIndex] = true
+		if paramIndex < argsCount {
+			mockSeed = extractMockSeedHint(state.scanChecker, arguments.Nodes[paramIndex])
 		}
 		break
 	}
 	// SINGLE TRAILING MARKER: the full path, with reflect-form, comptime options, annotation honoring and the
 	// Temporal-not-loaded guard.
 	if len(injecting) == 1 && injecting[0].paramIndex == lastIndex {
-		pending, extra, ok := state.analyzeTrailingInjection(file, call, callExpression, injecting[0], lastIndex, argsCount, trailingComma)
+		// The options bag is read only from a slot declared compile-time, so a constructor whose argument 0 is
+		// data (`new HeadersSubset({strategy: x})`) never has a header taken for an option.
+		optionsArgsCount := argsCount
+		if lastIndex == 0 || !compTimeSlots[lastIndex-1] {
+			optionsArgsCount = 0
+		}
+		pending, extra, ok := state.analyzeTrailingInjection(file, call, parameters, injecting[0], lastIndex, argsCount, optionsArgsCount, trailingComma)
 		diags = append(diags, extra...)
 		if !ok {
 			return nil, diags
@@ -654,7 +667,7 @@ func (state scanState) analyzeCall(file string, call *ast.Node) ([]pendingCall, 
 // analyzeTrailingInjection is the single-marker injection path: one marker in the trailing parameter slot, with
 // the reflect-form / comptime-options / annotation-honoring handling a value-first `createX(value)` and an
 // options-carrying call depend on.
-func (state scanState) analyzeTrailingInjection(file string, call *ast.Node, callExpression *ast.CallExpression, slot injectMarker, lastIndex, argsCount int, trailingComma bool) (pendingCall, []diagnostics.Diagnostic, bool) {
+func (state scanState) analyzeTrailingInjection(file string, call *ast.Node, parameters []*ast.Symbol, slot injectMarker, lastIndex, argsCount, optionsArgsCount int, trailingComma bool) (pendingCall, []diagnostics.Diagnostic, bool) {
 	var diags []diagnostics.Diagnostic
 	sourceFile := ast.GetSourceFileOfNode(call)
 	injectionTypeArgument := slot.typeArg
@@ -716,8 +729,8 @@ func (state scanState) analyzeTrailingInjection(file string, call *ast.Node, cal
 	// us the error type, which on the type side is indistinguishable from a legal `getRunTypeId<any>()`.
 	// Only a SYNTACTIC walk over the written type-argument nodes catches it; Related points at the first
 	// default-less parameter in the chain.
-	if callExpression != nil && sourceFile != nil {
-		if missing, found := findMissingTypeArgs(state.scanChecker, callExpression.TypeArguments); found {
+	if sourceFile != nil {
+		if missing, found := findMissingTypeArgs(state.scanChecker, call.TypeArgumentList()); found {
 			diags = append(diags, diagnostics.NewWithRelated(
 				diagnostics.CodeMarkerUnresolvedGenericType,
 				textpos.NodeSite(file, sourceFile, call),
@@ -728,13 +741,12 @@ func (state scanState) analyzeTrailingInjection(file string, call *ast.Node, cal
 		}
 	}
 	// REFLECT-FORM CHECKS fire only when T was inferred from a value argument: no written type-argument list,
-	// and at least one value argument present.
-	inReflectForm := callExpression != nil &&
-		(callExpression.TypeArguments == nil || len(callExpression.TypeArguments.Nodes) == 0) &&
-		argsCount > 0 && callExpression.Arguments != nil &&
-		len(callExpression.Arguments.Nodes) > 0
+	// at least one value argument present, and parameter 0 typed as the marker's T (or RunType<T>). A
+	// constructor taking data in argument 0 (`new HeadersSubset(map)`) keeps the T its signature resolved.
+	inReflectForm := len(call.TypeArguments()) == 0 && argsCount > 0 &&
+		state.paramZeroCarriesT(parameters, injectionTypeArgument)
 	if inReflectForm {
-		argZero := callExpression.Arguments.Nodes[0]
+		argZero := call.Arguments()[0]
 		// FUNCTION-CALL-ARGUMENT ANTI-PATTERN: a call expression as the reflect-form value
 		// (`createValidateFn(getX())`) invokes the function at runtime purely for type inference, firing side
 		// effects, exceptions and async work for nothing. The validator still works, T coming from the
@@ -760,7 +772,7 @@ func (state scanState) analyzeTrailingInjection(file string, call *ast.Node, cal
 			typeArgument = annotated
 		}
 	}
-	options := extractValidateOptions(state.scanChecker, call, lastIndex, argsCount)
+	options := extractValidateOptions(state.scanChecker, call, lastIndex, optionsArgsCount)
 	// numberMode is the one field merged from the project-wide defaults, the site's own value winning.
 	// isFinite, the default and any unrecognized value, adds no variant name, so plain keys stay stable.
 	effectiveNumberMode := options.numberMode
@@ -796,7 +808,7 @@ func (state scanState) analyzeTrailingInjection(file string, call *ast.Node, cal
 	var fnIds []string
 	var demand []protocol.SiteDemand
 	for _, fnKey := range injectionFnKeys {
-		fnId, fnDemand, fnDiags := computeSiteFn(state.scanChecker, fnKey, options, call, lastIndex, argsCount, file)
+		fnId, fnDemand, fnDiags := computeSiteFn(state.scanChecker, fnKey, options, call, lastIndex, optionsArgsCount, file)
 		fnIds = append(fnIds, fnId)
 		demand = append(demand, fnDemand...)
 		diags = append(diags, fnDiags...)
@@ -811,12 +823,12 @@ func (state scanState) analyzeTrailingInjection(file string, call *ast.Node, cal
 	if len(fnIds) > 1 {
 		multiFnIds = fnIds
 	}
+	pos, noArgList := injectionPos(call)
 	return pendingCall{
-		file: file,
-		site: textpos.NodeSite(file, sourceFile, call),
-		// call.End() is exclusive, one past the closing `)`, so End()-1 is the paren offset the TS-side
-		// patcher inserts at.
-		pos:           call.End() - 1,
+		file:          file,
+		site:          textpos.NodeSite(file, sourceFile, call),
+		pos:           pos,
+		noArgList:     noArgList,
 		paramIndex:    lastIndex,
 		argsCount:     argsCount,
 		fnId:          fnId,
@@ -843,7 +855,7 @@ func (state scanState) analyzeMultiSlotInjection(file string, call *ast.Node, in
 	temporalDiags, nameRefDiags := detectWrittenTypeRefGuards(state.scanChecker, file, call)
 	diags = append(diags, temporalDiags...)
 	importFired := false
-	pos := call.End() - 1
+	pos, noArgList := injectionPos(call)
 	var pendings []pendingCall
 	for _, m := range injecting {
 		// Silent-any guard per slot (MKR007): a wrapper slot whose T checked as `any` because this file has
@@ -912,6 +924,7 @@ func (state scanState) analyzeMultiSlotInjection(file string, call *ast.Node, in
 			file:          file,
 			site:          textpos.NodeSite(file, sourceFile, call),
 			pos:           pos,
+			noArgList:     noArgList,
 			paramIndex:    m.paramIndex,
 			argsCount:     argsCount,
 			fnId:          fnId,
@@ -1040,14 +1053,11 @@ func optionsArgumentAt(call *ast.Node, lastIndex, argsCount int) *ast.Node {
 	if argsCount <= optionsIndex {
 		return nil
 	}
-	callExpression := call.AsCallExpression()
-	if callExpression == nil || callExpression.Arguments == nil {
+	arguments := call.Arguments()
+	if len(arguments) <= optionsIndex {
 		return nil
 	}
-	if len(callExpression.Arguments.Nodes) <= optionsIndex {
-		return nil
-	}
-	return callExpression.Arguments.Nodes[optionsIndex]
+	return arguments[optionsIndex]
 }
 
 // eachOptionProperty visits every named PropertyAssignment of the options object literal at the options slot as a
@@ -1320,7 +1330,7 @@ func validatorFamilyOperation(op operations.Operation, checkUnknowns, checkUnion
 // transparent, so the walk continues past it.
 func (state scanState) enclosedByInjectionMarker(call *ast.Node) bool {
 	for parent := call.Parent; parent != nil; parent = parent.Parent {
-		if parent.Kind != ast.KindCallExpression {
+		if !isCallOrNew(parent) {
 			continue
 		}
 		signature := checker.Checker_getResolvedSignature(state.scanChecker, parent, nil, 0)
@@ -1584,6 +1594,67 @@ func (state scanState) declaredTypeFromIdentifier(node *ast.Node) (*checker.Type
 		return nil, false
 	}
 	return checker.Checker_getTypeFromTypeNode(state.scanChecker, typeNode), true
+}
+
+// isCallOrNew reports the two node kinds a marker parameter is filled on: a call and a `new` expression.
+func isCallOrNew(node *ast.Node) bool {
+	return node.Kind == ast.KindCallExpression || node.Kind == ast.KindNewExpression
+}
+
+// injectionPos is where the marker args go: the closing `)` (End is one past it), or the end of a `new X` /
+// `new X<T>` written without parens, where noArgList asks the rewrite to add the parens.
+func injectionPos(call *ast.Node) (pos int, noArgList bool) {
+	if call.ArgumentList() == nil {
+		return call.End(), true
+	}
+	return call.End() - 1, false
+}
+
+// paramZeroCarriesT reports a reflect-form signature: parameter 0 is the marker's T, or RunType<T>.
+func (state scanState) paramZeroCarriesT(parameters []*ast.Symbol, typeArgument *checker.Type) bool {
+	if len(parameters) == 0 || parameters[0] == nil {
+		return false
+	}
+	// An untrusted brand resolves no T to compare, and argument 0's annotation is then the only source of it.
+	if typeArgument == nil {
+		return true
+	}
+	paramType := checker.Checker_getTypeOfSymbol(state.scanChecker, parameters[0])
+	if paramType == nil {
+		return false
+	}
+	if builders.IsRunType(paramType, state.sess.marker) {
+		return true
+	}
+	return checker.Checker_isTypeIdenticalTo(state.scanChecker,
+		checker.Checker_GetNonNullableType(state.scanChecker, paramType),
+		checker.Checker_GetNonNullableType(state.scanChecker, typeArgument))
+}
+
+// forEachCallOrNewExpression is forEachCallExpression widened to `new` expressions, for the marker scan only;
+// the router, api and batch scans stay on calls.
+func forEachCallOrNewExpression(sourceFile *ast.SourceFile, cb func(*ast.Node) bool) {
+	if sourceFile == nil {
+		return
+	}
+	root := sourceFile.AsNode()
+	if root == nil {
+		return
+	}
+	var visit ast.Visitor
+	visit = func(node *ast.Node) bool {
+		if node == nil {
+			return false
+		}
+		if isCallOrNew(node) {
+			if !cb(node) {
+				return false
+			}
+		}
+		node.ForEachChild(visit)
+		return false
+	}
+	root.ForEachChild(visit)
 }
 
 // forEachCallExpression invokes cb for every CallExpression in sourceFile, in depth-first source order, nested

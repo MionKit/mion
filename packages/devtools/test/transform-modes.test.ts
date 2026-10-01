@@ -78,6 +78,65 @@ getRunTypeId(u);
     }
   );
 
+  // `new` expressions take marker args like calls; both shapes per the marker rule, plus a paren-less `new`.
+  const holderClass = `import {type InjectRunTypeId} from '@mionjs/run-types';
+export class Holder<T> {
+  constructor(value?: T, id?: InjectRunTypeId<T>) {}
+}
+`;
+
+  runTest(
+    'static new Holder<T>(): edits mode reproduces go mode byte-for-byte',
+    {
+      'holder.ts': holderClass,
+      'new-static.ts': `import {Holder} from './holder';
+type User = {id: number};
+export const holder = new Holder<User>();
+`,
+    },
+    async (sources) => {
+      await withInlineSources(sources, async ({client}) => {
+        const {applied} = await assertModeParity(client, 'new-static.ts', sources['new-static.ts']);
+        expect(applied.code).toMatch(/new Holder<User>\(undefined, __rt_[A-Za-z0-9]+\);/);
+      });
+    }
+  );
+
+  runTest(
+    'reflect new Holder(value): edits mode reproduces go mode byte-for-byte',
+    {
+      'holder.ts': holderClass,
+      'new-reflect.ts': `import {Holder} from './holder';
+type User = {id: number};
+const user: User = {id: 1};
+export const holder = new Holder(user);
+`,
+    },
+    async (sources) => {
+      await withInlineSources(sources, async ({client}) => {
+        const {applied} = await assertModeParity(client, 'new-reflect.ts', sources['new-reflect.ts']);
+        expect(applied.code).toMatch(/new Holder\(user, __rt_[A-Za-z0-9]+\);/);
+      });
+    }
+  );
+
+  runTest(
+    'paren-less new Holder<T> gets its own parens (edits==go)',
+    {
+      'holder.ts': holderClass,
+      'new-bare.ts': `import {Holder} from './holder';
+type User = {id: number};
+export const holder = new Holder<User>;
+`,
+    },
+    async (sources) => {
+      await withInlineSources(sources, async ({client}) => {
+        const {applied} = await assertModeParity(client, 'new-bare.ts', sources['new-bare.ts']);
+        expect(applied.code).toMatch(/new Holder<User>\(undefined, __rt_[A-Za-z0-9]+\);/);
+      });
+    }
+  );
+
   // Regression (two marker calls with the same typeid in one statement):
   // a marker call passed as an argument to an unrelated GENERIC function whose
   // parameter INFERS the branded marker type must still inject — in BOTH wire

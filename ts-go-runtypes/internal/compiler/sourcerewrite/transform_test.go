@@ -124,3 +124,14 @@ func dumpPtrSlice(s []*string) string {
 	out, _ := json.Marshal(s)
 	return string(out)
 }
+
+func TestBuildGroupInsertion_NoArgListWrapsInParens(t *testing.T) {
+	reflectSite := protocol.Site{File: "a.ts", ID: "Abc1234", ParamIndex: 0, NoArgList: true}
+	if got := buildGroupInsertion([]protocol.Site{reflectSite}); got != "(__rt_Abc1234)" {
+		t.Fatalf("got %q, want the binding inside its own parens", got)
+	}
+	padded := protocol.Site{File: "a.ts", ID: "Abc1234", ParamIndex: 1, NoArgList: true}
+	if got := buildGroupInsertion([]protocol.Site{padded}); got != "(undefined, __rt_Abc1234)" {
+		t.Fatalf("got %q, want the pad and the binding inside parens", got)
+	}
+}

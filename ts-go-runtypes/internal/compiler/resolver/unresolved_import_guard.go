@@ -38,11 +38,7 @@ func (state scanState) detectAnyFromUnresolvedImport(file string, call *ast.Node
 
 // hasExplicitBroadKeywordTypeArg reports a broad keyword written directly in the call's type-argument list.
 func hasExplicitBroadKeywordTypeArg(call *ast.Node) bool {
-	callExpression := call.AsCallExpression()
-	if callExpression == nil || callExpression.TypeArguments == nil {
-		return false
-	}
-	for _, typeArgNode := range callExpression.TypeArguments.Nodes {
+	for _, typeArgNode := range call.TypeArguments() {
 		if typeArgNode != nil && (typeArgNode.Kind == ast.KindAnyKeyword || typeArgNode.Kind == ast.KindUnknownKeyword) {
 			return true
 		}
