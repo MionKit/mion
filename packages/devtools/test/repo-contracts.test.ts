@@ -26,6 +26,8 @@ import {testsPerFile, swallowedFiles} from '../../../scripts/core/test-bun.mjs';
 // @ts-expect-error — a plain .mjs repo script, no types.
 import * as coverage from '../../../scripts/core/typecheck-coverage.mjs';
 // @ts-expect-error — a plain .mjs repo script, no types.
+import {unusedExamples, UNUSED_EXCEPTIONS} from '../../../scripts/check-code-imports.mjs';
+// @ts-expect-error — a plain .mjs repo script, no types.
 import {directiveFiles, failingDiagnostics} from '../../../scripts/core/lint-directives.mjs';
 import {ALL_RULE_NAMES} from '../src/lint/diagnosticRouting.ts';
 
@@ -349,6 +351,46 @@ describe('no file outside docs/todos and docs/done names a todo or done spec', (
   it('a bare directory mention is not a reference', () => {
     const text = 'specs live under docs/todos/ and move to docs/done/ when shipped';
     expect(specReferenceOffenders([{file: 'CLAUDE.md', text}])).toEqual([]);
+  });
+});
+
+describe('check-code-imports fails on an example no page uses', () => {
+  const src = 'packages/private-examples/src';
+  const fixture = (files: Record<string, string>): string => {
+    const root = mkdtempSync(join(tmpdir(), 'unused-examples-'));
+    for (const [rel, text] of Object.entries(files)) {
+      mkdirSync(dirname(join(root, rel)), {recursive: true});
+      writeFileSync(join(root, rel), text);
+    }
+    return root;
+  };
+
+  it('reports an orphan but not a helper an imported example reaches', () => {
+    const root = fixture({
+      [`${src}/a/page.ts`]: "import {x} from '../b/helper.ts';\nimport type {Y} from './types';",
+      [`${src}/a/types.ts`]: "export type {Z} from '../c/deep.js';",
+      [`${src}/b/helper.ts`]: 'export const x = 1;',
+      [`${src}/c/deep.ts`]: 'export type Z = 1;',
+      [`${src}/c/orphan.ts`]: 'export const o = 1;',
+    });
+    expect(unusedExamples(root, new Set([`${src}/a/page.ts`]), {})).toEqual({
+      unused: [`${src}/c/orphan.ts`],
+      staleExceptions: [],
+    });
+  });
+
+  it('an exception hides an orphan, and fails once it is missing or imported', () => {
+    const root = fixture({[`${src}/page.ts`]: '', [`${src}/kept.ts`]: ''});
+    const used = new Set([`${src}/page.ts`]);
+    expect(unusedExamples(root, used, {[`${src}/kept.ts`]: 'why'})).toEqual({unused: [], staleExceptions: []});
+    expect(unusedExamples(root, used, {[`${src}/gone.ts`]: 'why', [`${src}/page.ts`]: 'why'}).staleExceptions).toEqual([
+      `${src}/gone.ts`,
+      `${src}/page.ts`,
+    ]);
+  });
+
+  it('every exception gives a reason', () => {
+    for (const [file, reason] of Object.entries(UNUSED_EXCEPTIONS as Record<string, string>)) expect(reason, file).not.toBe('');
   });
 });
 
