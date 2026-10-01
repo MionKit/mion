@@ -1,7 +1,9 @@
 // The all-strategy round-trip oracle: one conforming data-only value per random type, run through every lane.
 //   RT-VALIDATE   validate(value) and validate(roundtrip) are both true.
-//   RT-AGREE      each lane's decoded value re-encodes through CLONE to the original's clone wire; a wire compare,
-//                 as JSON normalisation (dropped undefined, vanished optionals, -0 → 0) is not deep-equal.
+//   RT-AGREE      each lane's decoded value re-encodes through CLONE and through MUTATE to the original's wire on that
+//                 lane; a wire compare, as JSON normalisation (dropped undefined, vanished optionals, -0 → 0) is not
+//                 deep-equal. Two references, because a lossy clone encoder agrees with itself: mutate writes a native
+//                 class through its own toJSON, so it does not share the clone encoder's arm.
 //   RT-STABLE     encode(decode(encode v)) == encode(v) on the lane's own wire.
 //   RT-FAILAGREE  a type one lane refuses, every lane refuses.
 //   RT-NATIVE     native JSON.parse reads the keyed encoders' output back to the same JSON-safe value.
@@ -115,6 +117,9 @@ export function checkRoundtrip(compiled: CompiledCodecs, value: unknown, seed: n
   const cloneRun = runs.find((r) => r.id === 'clone' && !r.refused && !r.undefinedRoot);
   const cloneCodec = compiled.codecs.clone;
   const refWire = cloneRun?.wire;
+  const mutateRun = runs.find((r) => r.id === 'mutate' && !r.refused && !r.undefinedRoot);
+  const mutateCodec = compiled.codecs.mutate;
+  const mutateRefWire = mutateRun?.wire;
 
   // Native ground truth for RT-NATIVE (JSON-safe values only).
   const nativeSafe = jsonRoundTripSafe(value);
@@ -174,6 +179,24 @@ export function checkRoundtrip(compiled: CompiledCodecs, value: unknown, seed: n
         }
       } catch (err) {
         record(out, 'RT-THROW', id, ctx, `clone re-encode of the ${id} round-trip threw: ${errMsg(err)}`, decoded);
+      }
+    }
+
+    if (mutateCodec && mutateRefWire !== undefined) {
+      try {
+        const viaMutate = mutateCodec.encode(deepCloneForRoundTrip(decoded));
+        if (viaMutate === undefined || !cloneWiresAgree(viaMutate, mutateRefWire)) {
+          record(
+            out,
+            'RT-AGREE',
+            id,
+            ctx,
+            `${id} disagrees with mutate on the decoded value:\n  mutate =${cut(mutateRefWire)}\n  ${id} =${cut(String(viaMutate))}`,
+            decoded
+          );
+        }
+      } catch (err) {
+        record(out, 'RT-THROW', id, ctx, `mutate re-encode of the ${id} round-trip threw: ${errMsg(err)}`, decoded);
       }
     }
 
@@ -280,7 +303,9 @@ function safe(value: unknown, seen: Set<object>): boolean {
   if (t === 'string' || t === 'boolean') return true;
   if (t === 'bigint' || t === 'symbol' || t === 'function' || t === 'undefined') return false;
   if (t !== 'object') return false;
-  if (value instanceof Date || value instanceof RegExp || value instanceof Map || value instanceof Set) return false;
+  if (value instanceof Date || value instanceof URL || value instanceof RegExp || value instanceof Map || value instanceof Set) {
+    return false;
+  }
   if (seen.has(value as object)) return false; // a cycle would throw in JSON.stringify
   seen.add(value as object);
   if (Array.isArray(value)) return value.every((v) => safe(v, seen));
