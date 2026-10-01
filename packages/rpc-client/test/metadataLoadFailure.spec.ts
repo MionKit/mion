@@ -6,7 +6,7 @@
  * ######## */
 
 // The fetched lane arrives as its own chunk and a chunk can fail to load; a call never throws, so
-// that failure comes back in the result's undeclared slot like any error the router never saw.
+// that failure comes back in the result's @thrownErrors like any error the router never saw.
 
 import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest';
 import type {TestServerApi} from '@mionjs/test-server';
@@ -27,16 +27,16 @@ describe('a fetched lane that cannot be loaded', () => {
     vi.resetModules();
   });
 
-  it('comes back in the undeclared slot, never as a throw', async () => {
+  it('comes back in @thrownErrors, never as a throw', async () => {
     const {resetMetadataFromServer} = await import('../src/lib/metadataFromServerLoader.ts');
     resetMetadataFromServer();
     const {initClient} = await import('./lib/fetchingClient.ts');
     const {routes} = initClient<TestServerApi>({baseURL});
 
-    const [result, error, undeclared] = await routes.sayHello(user).call();
+    const [result, error, response] = await routes.sayHello(user).call();
 
     expect(result).toBeUndefined();
     expect(error).toBeUndefined();
-    expect(undeclared?.type).toBe('metadata-load-error');
+    expect(response['@thrownErrors']?.[0]?.type).toBe('metadata-load-error');
   });
 });

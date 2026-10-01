@@ -36,8 +36,8 @@ describe('one program: client and API share this build', () => {
   it('round-trips a batch against the in-process server', async () => {
     const {routes, middlewares} = initClient<TestServerApi>({baseURL: TEST_SERVER_BASE_URL});
     middlewares.auth.onRequest((auth) => auth(new HeadersSubset({Authorization: 'XWYZ-TOKEN'})));
-    const [[age, sum], [ageError, sumError], fatal] = await batch([routes.calculateAge(1990), routes.utils.sumTwo(5)]).call();
-    expect(fatal).toBeUndefined();
+    const [[age, sum], [ageError, sumError], response] = await batch([routes.calculateAge(1990), routes.utils.sumTwo(5)]).call();
+    expect(response['@thrownErrors']).toBeUndefined();
     expect(ageError).toBeUndefined();
     expect(sumError).toBeUndefined();
     expect(age).toEqual(new Date().getFullYear() - 1990);

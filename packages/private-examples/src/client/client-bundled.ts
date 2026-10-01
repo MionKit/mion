@@ -14,7 +14,7 @@ async function callWithRetry<S extends RouteSubRequest<any>>(
   let last: Awaited<ReturnType<S['call']>> | undefined;
   for (let i = 0; i < tries; i++) {
     last = (await sub.call()) as Awaited<ReturnType<S['call']>>;
-    if (!last[2]) break; // no undeclared error: done
+    if (!last[2]['@thrownErrors']) break; // no untyped error: done
   }
   return last!;
 }

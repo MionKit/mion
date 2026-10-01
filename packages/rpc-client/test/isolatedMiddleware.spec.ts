@@ -6,7 +6,7 @@
  * ######## */
 
 import {describe, it, expect, afterEach, beforeEach} from 'vitest';
-import {HeadersSubset} from '@mionjs/core';
+import {HeadersSubset, RpcError} from '@mionjs/core';
 import type {TestServerApi} from '@mionjs/test-server';
 import {initClient} from './lib/fetchingClient.ts';
 import {batch} from '../src/batch.ts';
@@ -63,9 +63,10 @@ describe('isolated reusable middleware', () => {
   describe('installer', () => {
     it('refreshes a stale token and retries, asking onRequest again for the new one', async () => {
       const csrfState = installCsrf(client);
-      const [result, , undeclared, , middlewareErrors] = await client.routes.notes.saveNote('hi').call();
-      expect(undeclared).toBeUndefined();
-      expect(middlewareErrors).toEqual({});
+      const [result, , response] = await client.routes.notes.saveNote('hi').call();
+      expect(response['@thrownErrors']).toBeUndefined();
+      // the retry starts a fresh response, so the first attempt's csrf error is gone
+      expect(response.notes?.csrf).toBeUndefined();
       expect(result).toBe('saved hi (1)');
       expect(csrfState.sent).toEqual(['stale', await serverToken(client.routes)]);
       // the route was skipped on the first attempt, so the mutation ran once
@@ -76,8 +77,8 @@ describe('isolated reusable middleware', () => {
       installCsrf(client, 'admin');
       // the notes-level csrf also runs for admin routes, so it needs its own hook
       client.middlewares.notes.csrf.onRequest(async (call) => call(await serverToken(client.routes)));
-      const [result, , undeclared] = await client.routes.notes.admin.getNote('a').call();
-      expect(undeclared).toBeUndefined();
+      const [result, , response] = await client.routes.notes.admin.getNote('a').call();
+      expect(response['@thrownErrors']).toBeUndefined();
       expect(result).toBe('admin note a (1)');
     });
 
@@ -88,10 +89,10 @@ describe('isolated reusable middleware', () => {
         .onError('csrf-expired', (_error, context) => {
           retries.push(context.retry());
         });
-      const [result, , , , middlewareErrors] = await client.routes.notes.saveNote('hi').call();
+      const [result, , response] = await client.routes.notes.saveNote('hi').call();
       expect(retries).toEqual([true, false]);
       expect(result).toBeUndefined();
-      expect(middlewareErrors?.['notes/csrf']?.type).toBe('csrf-expired');
+      expect((response.notes?.csrf as RpcError<string> | undefined)?.type).toBe('csrf-expired');
       expect((await runs(client.routes)).saveNote).toBe(0);
     });
 
@@ -101,8 +102,8 @@ describe('isolated reusable middleware', () => {
       client.middlewares.notes.csrf.onError('csrf-expired', (error) => {
         seen.push(error.type);
       });
-      const [result, , undeclared] = await client.routes.notes.saveNote('hi').call();
-      expect(undeclared).toBeUndefined();
+      const [result, , response] = await client.routes.notes.saveNote('hi').call();
+      expect(response['@thrownErrors']).toBeUndefined();
       expect(result).toBe('saved hi (1)');
       expect(seen).toEqual(['csrf-expired']);
       expect(csrfState.sent).toHaveLength(2);
@@ -217,10 +218,10 @@ describe('isolated reusable middleware', () => {
         .onError('audit-flagged', (_error, context) => {
           checkedRetries.push(context.retry());
         });
-      const [result, , undeclared] = await routes.notes.wrongNote('a').call();
+      const [result, , response] = await routes.notes.wrongNote('a').call();
       checkingClient.destroy();
       expect(result).toBeUndefined();
-      expect(undeclared?.type).toBe('response-validation-error');
+      expect(response['@thrownErrors']?.[0]?.type).toBe('response-validation-error');
       expect(checkedRetries).toEqual([false]);
       expect((await runs(client.routes)).wrongNote).toBe(1);
     });
@@ -233,14 +234,14 @@ describe('isolated reusable middleware', () => {
       client.middlewares.notes.audit.onRequest((call) => call(true));
     });
 
-    it('a throwing onError hook lands in undeclared and never retries', async () => {
+    it('a throwing onError hook lands in @thrownErrors and never retries', async () => {
       client.middlewares.notes.audit.onError('audit-flagged', (_error, context) => {
         context.retry();
         throw new Error('boom');
       });
-      const [, , undeclared] = await client.routes.notes.getNote('a').call();
-      expect(undeclared?.type).toBe('middleware-on-error-failed');
-      expect(undeclared?.publicMessage).toContain("onError for middleware 'notes/audit' failed: boom");
+      const [, , response] = await client.routes.notes.getNote('a').call();
+      expect(response['@thrownErrors']?.[0]?.type).toBe('middleware-on-error-failed');
+      expect(response['@thrownErrors']?.[0]?.publicMessage).toContain("onError for middleware 'notes/audit' failed: boom");
       expect((await runs(client.routes)).getNote).toBe(1);
     });
 
@@ -258,9 +259,9 @@ describe('isolated reusable middleware', () => {
         .onError('audit-flagged', () => {
           ran.push('third');
         });
-      const [, , undeclared] = await client.routes.notes.getNote('a').call();
+      const [, , response] = await client.routes.notes.getNote('a').call();
       expect(ran).toEqual(['first', 'second', 'third']);
-      expect(undeclared?.publicMessage).toContain('first boom');
+      expect(response['@thrownErrors']?.[0]?.publicMessage).toContain('first boom');
     });
 
     it('every onResponse hook runs, in order, and offResponse removes only its own', async () => {
@@ -281,17 +282,17 @@ describe('isolated reusable middleware', () => {
       expect(ran).toEqual(['first', 'second', 'second']);
     });
 
-    it('a rejecting onResponse hook lands in undeclared', async () => {
+    it('a rejecting onResponse hook lands in @thrownErrors', async () => {
       client.middlewares.notes.audit.offRequest().onRequest(() => undefined);
       client.middlewares.session
         .onRequest((call) => call('valid'))
         .onResponse(async () => {
           throw new Error('late boom');
         });
-      const [result, , undeclared] = await client.routes.notes.getNote('a').call();
+      const [result, , response] = await client.routes.notes.getNote('a').call();
       expect(result).toBe('note a (1)');
-      expect(undeclared?.type).toBe('middleware-on-response-failed');
-      expect(undeclared?.publicMessage).toContain("onResponse for middleware 'session' failed: late boom");
+      expect(response['@thrownErrors']?.[0]?.type).toBe('middleware-on-response-failed');
+      expect(response['@thrownErrors']?.[0]?.publicMessage).toContain("onResponse for middleware 'session' failed: late boom");
     });
 
     it('a retry asked after an async hook finished is ignored', async () => {

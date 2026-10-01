@@ -1,4 +1,4 @@
-import {HeadersSubset} from '@mionjs/core';
+import {HeadersSubset, isRpcError} from '@mionjs/core';
 import {initClient} from '@mionjs/client';
 import type {MyApi} from './middleware-hooks.routes.ts';
 
@@ -28,14 +28,13 @@ middlewares.auth
   });
 
 // no middleware data in call(), onRequest sends it
-const [sum, error, undeclared, middlewareResults, middlewareErrors] =
-  await routes.utils.sum(5, 2).call();
+const [sum, error, response] = await routes.utils.sum(5, 2).call();
 
-// the tuple also keeps what the hooks got, by middleware id
-if (middlewareErrors?.auth)
-  console.log('Auth error from tuple:', middlewareErrors.auth.publicMessage);
-if (middlewareResults?.trace)
-  console.log('Trace from tuple:', middlewareResults.trace);
-if (undeclared)
-  console.log('Undeclared (nobody declared it):', undeclared.publicMessage);
+// the response also keeps what the hooks got, at each middleware's path
+if (isRpcError(response.auth))
+  console.log('Auth error from response:', response.auth.publicMessage);
+if (response.trace && !isRpcError(response.trace))
+  console.log('Trace from response:', response.trace.traceId);
+for (const thrown of response['@thrownErrors'] ?? [])
+  console.log('Nobody declared it:', thrown.publicMessage);
 if (!error) console.log(sum); // 7

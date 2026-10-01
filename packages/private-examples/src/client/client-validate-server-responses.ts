@@ -7,9 +7,9 @@ const {routes} = initClient<MyApi>({
   validateServerResponses: true,
 });
 
-// a wrong answer is dropped and reported in the third slot
-const [greeting, error, undeclared] = await routes.sayHello('John').call();
+// a wrong answer is dropped and reported in @thrownErrors
+const [greeting, error, response] = await routes.sayHello('John').call();
+const [thrown] = response['@thrownErrors'] ?? [];
 
-if (undeclared?.type === 'response-validation-error')
-  console.log(undeclared.errorData);
+if (thrown?.type === 'response-validation-error') console.log(thrown.errorData);
 else console.log(greeting, error);

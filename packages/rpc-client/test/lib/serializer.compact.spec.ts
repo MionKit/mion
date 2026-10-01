@@ -107,20 +107,20 @@ describe('Compact encoder E2E', () => {
 
   it('a compact middleware in the chain takes and returns data on the compact wire', async () => {
     middlewares.compact.stamp.onRequest((stamp) => stamp('release'));
-    const [user, error, , middlewareResults] = await routes.compact.getSimpleUser('Ada', 36).call();
+    const [user, error, response] = await routes.compact.getSimpleUser('Ada', 36).call();
     expect(error).toBeUndefined();
     expect(user).toEqual({name: 'Ada', age: 36});
-    const stamp = middlewareResults?.['compact/stamp'] as {tag: string; when: Date} | undefined;
+    const stamp = response.compact?.stamp as {tag: string; when: Date} | undefined;
     expect(stamp?.tag).toBe('release');
     expect(stamp?.when).toBeInstanceOf(Date);
   });
 
   it('a plain middleware with no encoder of its own still rides a compact route', async () => {
     middlewares.compact.plainStamp.onRequest((plainStamp) => plainStamp('kept'));
-    const [user, error, fatal, middlewareResults] = await routes.compact.getSimpleUser('Ada', 36).call();
+    const [user, error, response] = await routes.compact.getSimpleUser('Ada', 36).call();
     expect(error).toBeUndefined();
-    expect(fatal).toBeUndefined();
+    expect(response['@thrownErrors']).toBeUndefined();
     expect(user).toEqual({name: 'Ada', age: 36});
-    expect(middlewareResults?.['compact/plainStamp']).toEqual({note: 'kept'});
+    expect(response.compact?.plainStamp).toEqual({note: 'kept'});
   });
 });

@@ -6,15 +6,13 @@ const {routes} = initClient<MyApi>({
   baseURL: 'http://localhost:3000',
 });
 
-// [routeResult, routeError, undeclared, middlewareResults, middlewareErrors]
+// [routeResult, routeError, response]
 // - error: the route's DECLARED errors | ValidationError (strongly typed, CLOSED union)
-// - undeclared: anything NOBODY declared - transport, platform, framework,
-//   an undeclared throw, or an error for a middleware that
-//   was not part of the request (OPEN RpcError<string>)
-// - middlewareErrors: each middleware's DECLARED errors, by middleware id
-const [user, error, undeclared, , middlewareErrors] = await routes.users
-  .getById('USER-404')
-  .call();
+// - response.auth: the auth middleware's answer or DECLARED error, by its path
+// - response['@thrownErrors']: anything NOBODY declared - transport, platform,
+//   framework or an undeclared throw (OPEN RpcError<string>[])
+const [user, error, response] = await routes.users.getById('USER-404').call();
+const thrown = response['@thrownErrors'];
 
 // error.type is the discriminator, never the HTTP status code
 if (error) {
@@ -27,12 +25,12 @@ if (error) {
       console.log('type errors:', error.errorData?.typeErrors.length);
       break;
   }
-} else if (middlewareErrors?.auth) {
+} else if (isRpcError(response.auth)) {
   // the middleware's declared error; its onError hook gets it strongly typed
-  console.log('auth failed:', middlewareErrors.auth.type);
-} else if (undeclared) {
+  console.log('auth failed:', response.auth.type);
+} else if (thrown) {
   // transport, platform or any undeclared error lands here
-  if (isRpcError(undeclared)) console.log('request failed:', undeclared.type);
+  console.log('request failed:', thrown[0].type);
 } else {
   console.log(user?.name); // John
 }

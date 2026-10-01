@@ -57,16 +57,10 @@ export function batch<Routes extends RouteSubRequest<any>[]>(
     // `apiMetadata` is filled by the build under `bundleApi`, never by hand
     async call(setup?: CallSetup, apiMetadata?: InjectedApiMetadata) {
       client.useBundledApi(apiMetadata);
-      const [results, errors, undeclared, middlewareResults, middlewareErrors] = await client.execute(
-        undefined,
-        routes as any,
-        batchId,
-        setup?.signal,
-        setup?.timeout
-      );
+      const [results, errors, response] = await client.execute(undefined, routes as any, batchId, setup?.signal, setup?.timeout);
       const emptyResults = routes.map(() => undefined);
       const emptyErrors = routes.map(() => undefined);
-      return [results ?? emptyResults, errors ?? emptyErrors, undeclared, middlewareResults, middlewareErrors] as any;
+      return [results ?? emptyResults, errors ?? emptyErrors, response] as any;
     },
   };
 }

@@ -41,24 +41,24 @@ describe.each(DIALECTS)('%s', (dialect) => {
 
     it('listUsers', async () => {
       queueRows([fx.user(ANN, 'Ann', 42n)]);
-      const [rows, error, fatal] = await api().listUsers(18).call();
-      expect({error, fatal}).toEqual({error: undefined, fatal: undefined});
+      const [rows, error, response] = await api().listUsers(18).call();
+      expect({error, thrown: response['@thrownErrors']}).toEqual({error: undefined, thrown: undefined});
       expect(rows).toEqual([expectedUser(ANN, 'Ann', 42n)]);
       done('listUsers');
     });
 
     it('userNames', async () => {
       queueRows([[ANN, 'Ann']]);
-      const [rows, error, fatal] = await api().userNames('admin').call();
-      expect({error, fatal}).toEqual({error: undefined, fatal: undefined});
+      const [rows, error, response] = await api().userNames('admin').call();
+      expect({error, thrown: response['@thrownErrors']}).toEqual({error: undefined, thrown: undefined});
       expect(rows).toEqual([{id: ANN, name: 'Ann'}]);
       done('userNames');
     });
 
     it('postsWithAuthor', async () => {
       queueRows([[...fx.post(false), ANN, 'Ann']]);
-      const [rows, error, fatal] = await api().postsWithAuthor().call();
-      expect({error, fatal}).toEqual({error: undefined, fatal: undefined});
+      const [rows, error, response] = await api().postsWithAuthor().call();
+      expect({error, thrown: response['@thrownErrors']}).toEqual({error: undefined, thrown: undefined});
       expect(rows).toEqual([{post: expectedPost(false), author: {id: ANN, name: 'Ann'}}]);
       done('postsWithAuthor');
     });
@@ -68,8 +68,8 @@ describe.each(DIALECTS)('%s', (dialect) => {
         [...fx.user(ANN, 'Ann', 42n), ...fx.post(true)],
         [...fx.user(BOB, 'Bob', 0n), null, null, null, null, null, null],
       ]);
-      const [rows, error, fatal] = await api().usersAndPosts().call();
-      expect({error, fatal}).toEqual({error: undefined, fatal: undefined});
+      const [rows, error, response] = await api().usersAndPosts().call();
+      expect({error, thrown: response['@thrownErrors']}).toEqual({error: undefined, thrown: undefined});
       expect(rows).toEqual([
         {users: expectedUser(ANN, 'Ann', 42n), posts: expectedPost(true)},
         {users: expectedUser(BOB, 'Bob', 0n), posts: null},
@@ -79,8 +79,8 @@ describe.each(DIALECTS)('%s', (dialect) => {
 
     it('roleStats', async () => {
       queueRows([fx.stats.raw]);
-      const [rows, error, fatal] = await api().roleStats().call();
-      expect({error, fatal}).toEqual({error: undefined, fatal: undefined});
+      const [rows, error, response] = await api().roleStats().call();
+      expect({error, thrown: response['@thrownErrors']}).toEqual({error: undefined, thrown: undefined});
       expect(rows).toEqual([{role: 'admin', total: 2, avgAge: fx.stats.avgAge, maxAge: 40}]);
       done('roleStats');
     });
@@ -98,8 +98,8 @@ describe.each(DIALECTS)('%s', (dialect) => {
         balance: 42n,
         createdAt: CREATED,
       };
-      const [row, error, fatal] = await api().createUser(newUser).call();
-      expect({error, fatal}).toEqual({error: undefined, fatal: undefined});
+      const [row, error, response] = await api().createUser(newUser).call();
+      expect({error, thrown: response['@thrownErrors']}).toEqual({error: undefined, thrown: undefined});
       expect(row).toEqual(expectedUser(ANN, 'Ann', 42n));
       expect(driverCalls[0].sql).toMatch(/^insert into [`"]users[`"]/);
       done('createUser');
@@ -108,64 +108,64 @@ describe.each(DIALECTS)('%s', (dialect) => {
     it('renameUser', async () => {
       if (readBack) queueRows(MYSQL_WRITE);
       queueRows([[ANN, 'Anna']]);
-      const [row, error, fatal] = await api().renameUser(ANN, {name: 'Anna'}).call();
-      expect({error, fatal}).toEqual({error: undefined, fatal: undefined});
+      const [row, error, response] = await api().renameUser(ANN, {name: 'Anna'}).call();
+      expect({error, thrown: response['@thrownErrors']}).toEqual({error: undefined, thrown: undefined});
       expect(row).toEqual({id: ANN, name: 'Anna'});
       done('renameUser');
     });
 
     it('usersWithPosts', async () => {
       queueRows([[...fx.user(ANN, 'Ann', 42n), fx.nestedPosts([fx.nestedPost(true)])]]);
-      const [rows, error, fatal] = await api().usersWithPosts().call();
-      expect({error, fatal}).toEqual({error: undefined, fatal: undefined});
+      const [rows, error, response] = await api().usersWithPosts().call();
+      expect({error, thrown: response['@thrownErrors']}).toEqual({error: undefined, thrown: undefined});
       expect(rows).toEqual([{...expectedUser(ANN, 'Ann', 42n), posts: [expectedPost(true)]}]);
       done('usersWithPosts');
     });
 
     it('adults', async () => {
       queueRows([[ANN, 'Ann', 30]]);
-      const [rows, error, fatal] = await api().adults().call();
-      expect({error, fatal}).toEqual({error: undefined, fatal: undefined});
+      const [rows, error, response] = await api().adults().call();
+      expect({error, thrown: response['@thrownErrors']}).toEqual({error: undefined, thrown: undefined});
       expect(rows).toEqual([{id: ANN, name: 'Ann', age: 30}]);
       done('adults');
     });
 
     it('busyAuthors', async () => {
       queueRows([[ANN, 150]]);
-      const [rows, error, fatal] = await api().busyAuthors().call();
-      expect({error, fatal}).toEqual({error: undefined, fatal: undefined});
+      const [rows, error, response] = await api().busyAuthors().call();
+      expect({error, thrown: response['@thrownErrors']}).toEqual({error: undefined, thrown: undefined});
       expect(rows).toEqual([{authorId: ANN, views: 150}]);
       done('busyAuthors');
     });
 
     it('moveBalance', async () => {
       queueRows([fx.balance(ANN, 32n)], [fx.balance(BOB, 52n)]);
-      const [result, error, fatal] = await api().moveBalance(ANN, BOB, 10n).call();
+      const [result, error, response] = await api().moveBalance(ANN, BOB, 10n).call();
       expect(error).toBeUndefined();
       if (dialect === 'sqlite') {
-        expect(fatal).toBeUndefined();
+        expect(response['@thrownErrors']).toBeUndefined();
         expect(result).toEqual({from: {id: ANN, balance: 32n}, to: {id: BOB, balance: 52n}});
       } else {
         // drizzle's pg-proxy and mysql-proxy drivers refuse transactions; flips once drizzle supports them
-        expect(fatal?.type).toBe('unknown-error');
+        expect(response['@thrownErrors']?.[0]?.type).toBe('unknown-error');
       }
       done('moveBalance');
     });
 
     it('authorCards', async () => {
       queueRows([[...fx.user(ANN, 'Ann', 42n), fx.nestedPosts([fx.nestedPost(false)])]]);
-      const [cards, error, fatal] = await api().authorCards().call();
-      expect({error, fatal}).toEqual({error: undefined, fatal: undefined});
+      const [cards, error, response] = await api().authorCards().call();
+      expect({error, thrown: response['@thrownErrors']}).toEqual({error: undefined, thrown: undefined});
       expect(cards).toEqual([{author: {id: ANN, name: 'Ann', since: CREATED}, postCount: 1, titles: ['Hello']}]);
       done('authorCards');
     });
 
     it('a row that breaks a column format', async () => {
       queueRows([fx.user(ANN, 'x'.repeat(101), 42n)]);
-      const [, , fatal] = await api().listUsers(18).call();
+      const [, , response] = await api().listUsers(18).call();
       // the slim models keep maxLength 100, so the client rejects it; plain drizzle types have no formats
-      if (variant === 'drizzle') expect(fatal).toBeUndefined();
-      else expect(fatal?.type).toBe('response-validation-error');
+      if (variant === 'drizzle') expect(response['@thrownErrors']).toBeUndefined();
+      else expect(response['@thrownErrors']?.[0]?.type).toBe('response-validation-error');
     });
   });
 

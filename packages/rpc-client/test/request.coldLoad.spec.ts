@@ -80,9 +80,9 @@ describe('a cold page with a warm store', () => {
 
     const watcher = watchFetch();
     try {
-      const [result, error, undeclared] = await callSayHello(initClient<TestServerApi>({baseURL}));
+      const [result, error, response] = await callSayHello(initClient<TestServerApi>({baseURL}));
       expect(error).toBeUndefined();
-      expect(undeclared).toBeUndefined();
+      expect(response['@thrownErrors']).toBeUndefined();
       expect(result).toContain('John');
 
       // one request, and it went out knowing the route rather than guessing at it
@@ -208,14 +208,14 @@ describe('a cache write that could not be stored', () => {
     expect(errorSpy).toHaveBeenCalled();
 
     // and the next call carries the failure where request-scoped errors live
-    const [secondResult, secondError, undeclared] = await callSayHello(client);
+    const [secondResult, secondError, response] = await callSayHello(client);
     expect(secondResult).toContain('John');
     expect(secondError).toBeUndefined();
-    expect(undeclared?.type).toBe('metadata-cache-error');
+    expect(response['@thrownErrors']?.[0]?.type).toBe('metadata-cache-error');
 
     // reported once, never on every call after
-    const [, , stillThere] = await callSayHello(client);
-    expect(stillThere).toBeUndefined();
+    const [, , response2] = await callSayHello(client);
+    expect(response2['@thrownErrors']).toBeUndefined();
   });
 });
 

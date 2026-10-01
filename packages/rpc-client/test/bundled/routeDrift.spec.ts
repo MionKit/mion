@@ -12,11 +12,11 @@ import {describe, it, expect, beforeAll, afterAll} from 'vitest';
 import {createServer, type Server} from 'node:http';
 import {routesCache} from '@mionjs/core';
 import {createMionRouter, resetRouter} from '@mionjs/router';
-import type {MionRouter, PublicApi} from '@mionjs/router';
+import type {MionRouter, PublicApi, RemoteApi} from '@mionjs/router';
 import {mionFetchMetadata, mionSyncRoutes} from '@mionjs/router/middlewares';
 import {httpRequestHandler} from '@mionjs/platform-node';
 import {initClient} from '../../src/client.ts';
-import type {RouteSubRequest} from '../../src/types.ts';
+import type {ClientResponse, RouteSubRequest} from '../../src/types.ts';
 import {resetBundledApi} from '../../src/lib/bundledApi.ts';
 import {useSyncRoutes} from '../../src/middlewares/syncRoutes.ts';
 import {useFetchMetadata} from '../../src/middlewares/fetchMetadata.ts';
@@ -153,9 +153,9 @@ describe('a client built against routes the server has since changed', () => {
     });
 
     it('runs a route whose options changed, and ignores a route the server added', async () => {
-      const [value, , undeclared] = await reloadClient().routes.optionsChanged(2).call();
+      const [value, , response] = await reloadClient().routes.optionsChanged(2).call();
       expect(value).toBe(4);
-      expect(undeclared).toBeUndefined();
+      expect(response['@thrownErrors']).toBeUndefined();
     });
 
     // one literal call site each, so the build bundles the old row for it
@@ -163,18 +163,18 @@ describe('a client built against routes the server has since changed', () => {
       ['params', 'paramsChanged', () => reloadClient().routes.paramsChanged('Ana').call()],
       ['return', 'returnChanged', () => reloadClient().routes.returnChanged('Ana').call()],
       ['wire format', 'parserChanged', () => reloadClient().routes.parserChanged('Ana').call()],
-    ] as [string, string, () => Promise<readonly unknown[]>][])(
+    ] as [string, string, () => Promise<readonly [unknown, unknown, ClientResponse<RemoteApi>]>][])(
       'refuses a bundled route whose %s changed: nothing to relearn, so no resend and no handler run',
       async (_, id, call) => {
         const before = handlerCalls[id];
         const refused = await counted(call);
         expect(refused.value[0]).toBeUndefined();
-        // a middleware's returned error: its own slot, never the undeclared one
-        expect((refused.value[4] as Record<string, unknown> | undefined)?.mionSyncRoutes).toMatchObject({
+        // a middleware's returned error: its own path, never @thrownErrors
+        expect(refused.value[2].mionSyncRoutes).toMatchObject({
           type: 'route-types-mismatch',
           errorData: {routeIds: [id]},
         });
-        expect(refused.value[2]).toBeUndefined();
+        expect(refused.value[2]['@thrownErrors']).toBeUndefined();
         expect(refused.fetches).toBe(1);
         expect(handlerCalls[id]).toBe(before);
       }
@@ -185,16 +185,16 @@ describe('a client built against routes the server has since changed', () => {
       const {routes, middlewares} = reloadClient();
       middlewares.secured.token.onRequest((token) => token('t'));
       const result = await routes.secured.data().call();
-      expect(result[4]?.mionSyncRoutes).toBeUndefined();
-      expect(result[4]?.['secured/token']).toMatchObject({type: 'validation-error'});
+      expect(result[2].mionSyncRoutes).toBeUndefined();
+      expect(result[2].secured?.token).toMatchObject({type: 'validation-error'});
       expect(handlerCalls['secured/data']).toBe(before);
     });
 
     it('relearns a saved row older than the server instead of refusing it on every reload', async () => {
       const relearned = await counted(() => callWide(reloadClient().routes.stored(3)));
       expect(relearned.value[0]).toBe('3');
-      expect(relearned.value[2]).toBeUndefined();
-      expect(relearned.value[4]?.mionSyncRoutes).toBeUndefined();
+      expect(relearned.value[2]['@thrownErrors']).toBeUndefined();
+      expect(relearned.value[2].mionSyncRoutes).toBeUndefined();
       // refused for the stale id, the fresh row fetched, then sent with the fresh id
       expect(relearned.fetches).toBe(3);
       // and saved: the next page load sends the fresh id straight away
@@ -216,8 +216,8 @@ describe('a client built against routes the server has since changed', () => {
 
       const relearned = await counted(() => callWide(routes.stored(3)));
       expect(relearned.value[0]).toBe('3');
-      expect(relearned.value[2]).toBeUndefined();
-      expect(relearned.value[4]?.mionSyncRoutes).toBeUndefined();
+      expect(relearned.value[2]['@thrownErrors']).toBeUndefined();
+      expect(relearned.value[2].mionSyncRoutes).toBeUndefined();
       expect(relearned.fetches).toBe(3);
     });
 
@@ -236,7 +236,7 @@ describe('a client built against routes the server has since changed', () => {
 
       const relearned = await counted(() => callWide(routes.stored(3)));
       expect(relearned.value[0]).toBe('3');
-      expect(relearned.value[4]?.mionSyncRoutes).toBeUndefined();
+      expect(relearned.value[2].mionSyncRoutes).toBeUndefined();
       expect(relearned.fetches).toBe(3);
       expect(banners).toEqual([['stored']]);
     });

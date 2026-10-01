@@ -50,8 +50,8 @@ describe('middleware onRequest', () => {
     });
 
     for (let i = 0; i < 3; i++) {
-      const [greeting, error, undeclared] = await routes.sayHello(user).call();
-      expect(undeclared).toBeUndefined();
+      const [greeting, error, response] = await routes.sayHello(user).call();
+      expect(response['@thrownErrors']).toBeUndefined();
       expect(error).toBeUndefined();
       expect(greeting).toBe('Hello John Doe');
     }
@@ -89,8 +89,8 @@ describe('middleware onRequest', () => {
       auth(authHeaders);
     });
 
-    const [results, errors, undeclared] = await batch([routes.sayHello(user), routes.utils.sumTwo(1)]).call();
-    expect(undeclared).toBeUndefined();
+    const [results, errors, response] = await batch([routes.sayHello(user), routes.utils.sumTwo(1)]).call();
+    expect(response['@thrownErrors']).toBeUndefined();
     expect(errors).toEqual([undefined, undefined]);
     expect(results).toEqual(['Hello John Doe', 3]);
     expect(contexts).toHaveLength(1);
@@ -104,14 +104,14 @@ describe('middleware onRequest', () => {
     const scopeTag = vi.fn((call: (tag?: string) => void) => call('tagged'));
     middlewares.utils.scopeTag.onRequest(scopeTag);
 
-    const [, , , outside] = await routes.sayHello(user).call();
+    const [, , response] = await routes.sayHello(user).call();
     expect(scopeTag).not.toHaveBeenCalled();
-    expect(outside?.['utils/scopeTag']).toBeUndefined();
+    expect(response.utils?.scopeTag).toBeUndefined();
 
-    const [sum, , , inside] = await routes.utils.sumTwo(5).call();
+    const [sum, , response2] = await routes.utils.sumTwo(5).call();
     expect(sum).toBe(7);
     expect(scopeTag).toHaveBeenCalledTimes(1);
-    expect(inside?.['utils/scopeTag']).toBe('tagged');
+    expect(response2.utils?.scopeTag).toBe('tagged');
   });
 
   it('not calling `call` sends nothing for that middleware', async () => {
@@ -125,11 +125,11 @@ describe('middleware onRequest', () => {
     expect(greeting).toBe('Hello John Doe');
 
     sendAuth = false;
-    const [result, routeError, undeclared] = await routes.sayHello(user).call();
-    // the server's auth headers check fails, which no route declares
+    const [result, routeError, response] = await routes.sayHello(user).call();
+    // the server's auth headers check fails: the auth middleware's own validation error
     expect(result).toBeUndefined();
     expect(routeError).toBeUndefined();
-    expect(undeclared?.publicMessage).toContain('auth');
+    expect((response.auth as RpcError<string> | undefined)?.publicMessage).toContain('auth');
   });
 
   it('calling `call` twice keeps the last params', async () => {
@@ -140,10 +140,9 @@ describe('middleware onRequest', () => {
       session('valid-token');
     });
 
-    const [, , undeclared, middlewareResults, middlewareErrors] = await routes.sayHello(user).call();
-    expect(undeclared).toBeUndefined();
-    expect(middlewareErrors).toEqual({});
-    expect(middlewareResults?.session).toEqual(expect.objectContaining({userId: 'user-123'}));
+    const [, , response] = await routes.sayHello(user).call();
+    expect(response['@thrownErrors']).toBeUndefined();
+    expect(response.session).toEqual(expect.objectContaining({userId: 'user-123'}));
   });
 
   it('a `call` made after the handler finished belongs to no request', async () => {
@@ -157,11 +156,11 @@ describe('middleware onRequest', () => {
     });
 
     await routes.sayHello(user).call();
-    const [, , undeclared] = await routes.sayHello(user).call();
-    expect(undeclared?.publicMessage).toContain('auth');
+    const [, , response] = await routes.sayHello(user).call();
+    expect((response.auth as RpcError<string> | undefined)?.publicMessage).toContain('auth');
     lateCall?.(authHeaders);
-    const [, , stillMissing] = await routes.sayHello(user).call();
-    expect(stillMissing?.publicMessage).toContain('auth');
+    const [, , response2] = await routes.sayHello(user).call();
+    expect((response2.auth as RpcError<string> | undefined)?.publicMessage).toContain('auth');
   });
 
   it('awaits an async handler', async () => {
@@ -173,11 +172,11 @@ describe('middleware onRequest', () => {
     middlewares.session.onRequest((session) => session('valid-token'));
 
     const calls = await spyOnFetch(async () => {
-      const [greeting, error, undeclared, middlewareResults] = await routes.sayHello(user).call();
-      expect(undeclared).toBeUndefined();
+      const [greeting, error, response] = await routes.sayHello(user).call();
+      expect(response['@thrownErrors']).toBeUndefined();
       expect(error).toBeUndefined();
       expect(greeting).toBe('Hello John Doe');
-      expect(middlewareResults?.session).toEqual(expect.objectContaining({userId: 'user-123'}));
+      expect(response.session).toEqual(expect.objectContaining({userId: 'user-123'}));
     });
     expect((calls[calls.length - 1].init.headers as Record<string, string>).Authorization).toBe('ASYNC-TOKEN');
   });
@@ -193,17 +192,17 @@ describe('middleware onRequest', () => {
       ['rejects', () => Promise.reject(new Error('no token'))],
     ];
     for (const [name, handler] of cases) {
-      it(`${name}: the error lands in undeclared and nothing is sent`, async () => {
+      it(`${name}: the error lands in @thrownErrors and nothing is sent`, async () => {
         const {routes, middlewares} = newClient();
         await routes.sayHello(user).typeErrors(); // learn the metadata first, so a fetch can only be the request
         middlewares.auth.onRequest(handler).onError('not-authorized', () => expect.fail('not a declared error'));
 
         const calls = await spyOnFetch(async () => {
-          const [result, routeError, undeclared] = await routes.sayHello(user).call();
+          const [result, routeError, response] = await routes.sayHello(user).call();
           expect(result).toBeUndefined();
           expect(routeError).toBeUndefined();
-          expect(undeclared?.type).toBe('middleware-on-request-failed');
-          expect(undeclared?.publicMessage).toBe("onRequest for middleware 'auth' failed: no token");
+          expect(response['@thrownErrors']?.[0]?.type).toBe('middleware-on-request-failed');
+          expect(response['@thrownErrors']?.[0]?.publicMessage).toBe("onRequest for middleware 'auth' failed: no token");
         });
         expect(calls).toHaveLength(0);
       });
@@ -215,8 +214,8 @@ describe('middleware onRequest', () => {
       middlewares.auth.onRequest(() => {
         throw loggedOut;
       });
-      const [, , undeclared] = await routes.sayHello(user).call();
-      expect(undeclared).toBe(loggedOut);
+      const [, , response] = await routes.sayHello(user).call();
+      expect(response['@thrownErrors']?.[0]).toBe(loggedOut);
     });
   });
 
@@ -231,18 +230,18 @@ describe('middleware onRequest', () => {
       .onResponse(onResponse)
       .onError('session-expired', onError);
 
-    const [, , , results] = await routes.sayHello(user).call();
+    const [, , response] = await routes.sayHello(user).call();
     expect(onResponse).toHaveBeenCalledWith(
       expect.objectContaining({userId: 'user-123'}),
       expect.objectContaining({retry: expect.any(Function)})
     );
-    expect(results?.session).toEqual(expect.objectContaining({userId: 'user-123'}));
+    expect(response.session).toEqual(expect.objectContaining({userId: 'user-123'}));
 
     token = 'expired';
-    const [, , undeclared, , errors] = await routes.sayHello(user).call();
-    expect(undeclared).toBeUndefined();
+    const [, , response2] = await routes.sayHello(user).call();
+    expect(response2['@thrownErrors']).toBeUndefined();
     expect(onError).toHaveBeenCalledTimes(1);
-    expect(errors?.session?.type).toBe('session-expired');
+    expect((response2.session as RpcError<string> | undefined)?.type).toBe('session-expired');
   });
 
   it('offRequest and destroy stop the handler', async () => {
@@ -267,11 +266,11 @@ describe('middleware onRequest', () => {
     await forgetMetadata(baseURL, 'utils/sumTwo');
 
     const calls = await spyOnFetch(async () => {
-      const [sum, error, undeclared, middlewareResults] = await routes.utils.sumTwo(5).call();
-      expect(undeclared).toBeUndefined();
+      const [sum, error, response] = await routes.utils.sumTwo(5).call();
+      expect(response['@thrownErrors']).toBeUndefined();
       expect(error).toBeUndefined();
       expect(sum).toBe(7);
-      expect(middlewareResults?.['utils/scopeTag']).toBe('tagged');
+      expect(response.utils?.scopeTag).toBe('tagged');
     });
     expect(calls).toHaveLength(1);
     expect(calls[0].body['utils/scopeTag']).toEqual(['tagged']);
@@ -287,12 +286,12 @@ describe('middleware onRequest', () => {
         pageInfos.push(info);
       });
 
-      const [items, error, undeclared, middlewareResults] = await routes.paramless.list(2).call();
+      const [items, error, response] = await routes.paramless.list(2).call();
 
       expect(error).toBeUndefined();
-      expect(undeclared).toBeUndefined();
+      expect(response['@thrownErrors']).toBeUndefined();
       expect(items).toEqual([20, 21]);
-      expect(middlewareResults?.['paramless/pageInfo']).toEqual({page: 2, total: 100});
+      expect(response.paramless?.pageInfo).toEqual({page: 2, total: 100});
       expect(pageInfos).toEqual([{page: 2, total: 100}]);
     });
 
@@ -301,11 +300,11 @@ describe('middleware onRequest', () => {
       const {routes, middlewares} = newClient();
       middlewares.auth.onRequest((auth) => auth(authHeaders));
 
-      const [items, , undeclared, middlewareResults] = await routes.paramless.list(3).call();
+      const [items, , response] = await routes.paramless.list(3).call();
 
-      expect(undeclared).toBeUndefined();
+      expect(response['@thrownErrors']).toBeUndefined();
       expect(items).toEqual([30, 31]);
-      expect(middlewareResults?.['paramless/pageInfo']).toEqual({page: 3, total: 100});
+      expect(response.paramless?.pageInfo).toEqual({page: 3, total: 100});
     });
 
     it('never writes the middleware into the request body', async () => {
@@ -331,15 +330,12 @@ describe('middleware onRequest', () => {
         answers++;
       });
 
-      const [[greeting, items], , undeclared, middlewareResults] = await batch([
-        routes.sayHello(user),
-        routes.paramless.list(5),
-      ]).call();
+      const [[greeting, items], , response] = await batch([routes.sayHello(user), routes.paramless.list(5)]).call();
 
-      expect(undeclared).toBeUndefined();
+      expect(response['@thrownErrors']).toBeUndefined();
       expect(greeting).toBe('Hello John Doe');
       expect(items).toEqual([50, 51]);
-      expect(middlewareResults?.['paramless/pageInfo']).toEqual({page: 5, total: 100});
+      expect(response.paramless?.pageInfo).toEqual({page: 5, total: 100});
       expect(answers).toBe(1);
     });
   });

@@ -10,6 +10,7 @@ const resultPromise = routes.sayHello('John').call({signal: controller.signal});
 // e.g. on component unmount or a user action
 controller.abort();
 
-const [greeting, , undeclared] = await resultPromise;
-if (undeclared?.type === 'request-aborted') console.log('Request was canceled');
+const [greeting, , response] = await resultPromise;
+if (response['@thrownErrors']?.[0].type === 'request-aborted')
+  console.log('Request was canceled');
 else console.log(greeting);

@@ -36,16 +36,16 @@
         {
           "step": 5,
           "label": "initClient",
-          "delta": 3065,
+          "delta": 3080,
           "budget": 3179,
-          "cumulative": 6076
+          "cumulative": 6091
         },
         {
           "step": 6,
           "label": "db query (toDrizzle)",
-          "delta": 8466,
-          "budget": 8466,
-          "cumulative": 14542
+          "delta": 8470,
+          "budget": 8470,
+          "cumulative": 14561
         }
       ],
       "totalBudget": 14718,
@@ -90,16 +90,16 @@
         {
           "step": 5,
           "label": "initClient",
-          "delta": 3065,
+          "delta": 3080,
           "budget": 3179,
-          "cumulative": 6092
+          "cumulative": 6107
         },
         {
           "step": 6,
           "label": "db query (toDrizzle)",
-          "delta": 7139,
-          "budget": 7139,
-          "cumulative": 13231
+          "delta": 7143,
+          "budget": 7143,
+          "cumulative": 13250
         }
       ],
       "totalBudget": 13407,
@@ -144,16 +144,16 @@
         {
           "step": 5,
           "label": "initClient",
-          "delta": 3065,
+          "delta": 3080,
           "budget": 3179,
-          "cumulative": 6091
+          "cumulative": 6106
         },
         {
           "step": 6,
           "label": "db query (toDrizzle)",
-          "delta": 7313,
-          "budget": 7313,
-          "cumulative": 13404
+          "delta": 7317,
+          "budget": 7317,
+          "cumulative": 13423
         }
       ],
       "totalBudget": 13580,

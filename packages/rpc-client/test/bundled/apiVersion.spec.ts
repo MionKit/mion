@@ -66,9 +66,9 @@ describe('the api version a bundled client compares', () => {
     useFetchMetadata(middlewares.mionFetchMetadata);
     const watch = serveVersion(null);
     try {
-      const [result, , undeclared] = await routes.sayHello(user).call();
+      const [result, , clientResponse] = await routes.sayHello(user).call();
       expect(result).toBe('Hello John Doe');
-      expect(undeclared).toBeUndefined();
+      expect(clientResponse['@thrownErrors']).toBeUndefined();
       expect(watch.calls()).toBe(1);
       expect(watch.verifyAsks()).toEqual([]);
     } finally {
@@ -97,12 +97,12 @@ describe('the api version a bundled client compares', () => {
     useAuth(middlewares);
     const watch = serveVersion('someOtherAp');
     try {
-      const [first, , firstUndeclared] = await routes.sayHello(user).call();
+      const [first, , firstResponse] = await routes.sayHello(user).call();
       expect(first).toBe('Hello John Doe');
-      expect(firstUndeclared?.type).toBe('api-version-mismatch');
-      const [second, , secondUndeclared] = await routes.sayHello(user).call();
+      expect(firstResponse['@thrownErrors']?.[0]?.type).toBe('api-version-mismatch');
+      const [second, , secondResponse] = await routes.sayHello(user).call();
       expect(second).toBe('Hello John Doe');
-      expect(secondUndeclared).toBeUndefined();
+      expect(secondResponse['@thrownErrors']).toBeUndefined();
       // nothing can be asked without the metadata middleware's client half
       expect(watch.calls()).toBe(2);
       expect(watch.verifyAsks()).toEqual([]);
@@ -123,13 +123,13 @@ describe('the api version a bundled client compares', () => {
 
       // second call: the question rides it, so there is still one request, not two
       const before = watch.calls();
-      const [second, , undeclared] = await routes.sayHello(user).call();
+      const [second, , clientResponse] = await routes.sayHello(user).call();
       expect(second).toBe('Hello John Doe');
       expect(watch.calls() - before).toBe(1);
       expect(watch.verifyAsks()).toHaveLength(1);
       expect(watch.verifyAsks()[0]).toContain('sayHello');
       // the server's row for sayHello matches this build's, so nothing was replaced and nothing is reported
-      expect(undeclared).toBeUndefined();
+      expect(clientResponse['@thrownErrors']).toBeUndefined();
       expect(isBundledMethod('sayHello')).toBe(true);
 
       // third call: sayHello is confirmed, so it is not asked about again
@@ -150,16 +150,16 @@ describe('the api version a bundled client compares', () => {
     });
     try {
       await routes.sayHello(user).call();
-      const [result, , undeclared] = await routes.sayHello(user).call();
+      const [result, , clientResponse] = await routes.sayHello(user).call();
       expect(result).toBe('Hello John Doe');
-      expect(undeclared?.type).toBe('api-version-mismatch');
-      expect(undeclared?.publicMessage).toContain('sayHello');
+      expect(clientResponse['@thrownErrors']?.[0]?.type).toBe('api-version-mismatch');
+      expect(clientResponse['@thrownErrors']?.[0]?.publicMessage).toContain('sayHello');
       // the calling code was built against it: reported, never swapped
       expect(isBundledMethod('sayHello')).toBe(true);
 
       // reported once: a later call carries no second copy of the same news
-      const [, , stillUndeclared] = await routes.sayHello(user).call();
-      expect(stillUndeclared).toBeUndefined();
+      const [, , stillResponse] = await routes.sayHello(user).call();
+      expect(stillResponse['@thrownErrors']).toBeUndefined();
     } finally {
       watch.restore();
     }

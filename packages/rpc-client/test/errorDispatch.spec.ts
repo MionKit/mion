@@ -8,16 +8,16 @@
 /**
  * Contract tests for the client error dispatch rules.
  *
- * The result tuple is [result, error, undeclared, middlewareResults, middlewareErrors]:
- * - R1 route returned its own declared error            -> slot 1 (that route's index in a flow)
- * - R2 param validation failed for a route              -> slot 1 (client- or server-side)
- * - R3 middleware declared error / validation error       -> slot 4 under its id AND its onError listener
- * - R4 anything thrown / undeclared, or an error for a  -> slot 2 (undeclared) only, NO listener fires;
- *      middleware that was not part of the request           several undeclared: first in execution order
- * - R5 route produced a result                          -> slot 0 keeps it, whatever else failed
- * - R6 an error the route did not declare               -> never appears in slot 1
- * - R7 with validateServerResponses, an answer its type -> slot 2, the value is dropped and NO listener fires
- *      does not describe
+ * The result is [result, error, response]; `response` is the decoded body with ids nested by group:
+ * - R1 route returned its own declared error              -> slot 1 (its index in a batch) AND its path in slot 2
+ * - R2 param validation failed for a route                -> slot 1 AND its path, client- or server-side
+ * - R3 middleware declared error / validation error       -> its path in slot 2 AND its onError listener
+ * - R4 anything not strongly typed (a throw, transport,   -> `response['@thrownErrors']` only, NO listener fires;
+ *      platform, a failed hook, an unreadable answer)          every one is kept, in the order it happened
+ * - R5 route produced a result                            -> slot 0 keeps it, whatever else failed
+ * - R6 an error the route did not declare                 -> never appears in slot 1
+ * - R7 with validateServerResponses, an answer its type   -> removed from its path, its error in `@thrownErrors`,
+ *      does not describe                                        and NO listener fires
  */
 
 import {describe, it, expect} from 'vitest';
@@ -42,35 +42,37 @@ describe('client error dispatch contract', () => {
   const baseURL = TEST_SERVER_BASE_URL;
 
   describe('single route calls', () => {
-    it('T1 (R1): route returns its declared error -> slot 1 only', async () => {
+    it('T1 (R1): route returns its declared error -> slot 1 and its path', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       useAuth(middlewares);
-      const [result, routeError, fatal] = await routes.alwaysFails(someUser).call();
+      const [result, routeError, response] = await routes.alwaysFails(someUser).call();
 
       expect(result).toBeUndefined();
       expect(routeError?.type).toBe('unknown-error');
-      expect(fatal).toBeUndefined();
+      expect((response as any).alwaysFails).toBe(routeError);
+      expect(response['@thrownErrors']).toBeUndefined();
     });
 
-    it('T2 (R2): route param validation fails client-side -> slot 1 holds validation-error', async () => {
+    it('T2 (R2): route param validation fails client-side -> slot 1 and its path hold validation-error', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       useAuth(middlewares);
-      const [result, routeError, fatal] = await routes.calculateAge('nope' as unknown as number).call();
+      const [result, routeError, response] = await routes.calculateAge('nope' as unknown as number).call();
 
       expect(result).toBeUndefined();
       expect(routeError?.type).toBe('validation-error');
-      expect(fatal).toBeUndefined();
+      expect((response as any).calculateAge).toBe(routeError);
+      expect(response['@thrownErrors']).toBeUndefined();
     });
 
-    it('T2b (R2): route param validation fails server-side -> still slot 1 (thrown carve-out)', async () => {
-      // validation-error is thrown server-side but is part of every route's expected union
+    it('T2b (R2): route param validation fails server-side -> moved from @thrownErrors to slot 1 and its path', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL, validateParams: false});
       useAuth(middlewares);
-      const [result, routeError, fatal] = await routes.calculateAge('nope' as unknown as number).call();
+      const [result, routeError, response] = await routes.calculateAge('nope' as unknown as number).call();
 
       expect(result).toBeUndefined();
       expect(routeError?.type).toBe('validation-error');
-      expect(fatal).toBeUndefined();
+      expect((response as any).calculateAge).toBe(routeError);
+      expect(response['@thrownErrors']).toBeUndefined();
     });
 
     it('T3 (R5, pins the masking bug): route succeeds while a middleware fails -> slot 0 keeps the result', async () => {
@@ -78,14 +80,14 @@ describe('client error dispatch contract', () => {
       useAuth(middlewares);
       middlewares.session.onRequest((session) => session('expired'));
 
-      const [result, routeError, fatal, , middlewareErrors] = await routes.sayHello(someUser).call();
+      const [result, routeError, response] = await routes.sayHello(someUser).call();
 
       // the server ran the route (a RETURNED middleware error does not abort the chain),
       // so the caller must see the result even though the session middleware failed
       expect(result).toBe('Hello John Doe');
       expect(routeError).toBeUndefined();
-      expect(fatal).toBeUndefined();
-      expect(middlewareErrors?.session?.type).toBe('session-expired');
+      expect(response['@thrownErrors']).toBeUndefined();
+      expect((response.session as RpcError<string>)?.type).toBe('session-expired');
     });
 
     it('T4 (R6, pins the hijack bug): a middleware error never appears in the typed route slot', async () => {
@@ -93,71 +95,131 @@ describe('client error dispatch contract', () => {
       useAuth(middlewares);
       middlewares.session.onRequest((session) => session('expired'));
 
-      const [, routeError, fatal, , middlewareErrors] = await routes.sayHello(someUser).call();
+      const [, routeError, response] = await routes.sayHello(someUser).call();
 
       expect(routeError).toBeUndefined();
-      expect(fatal).toBeUndefined();
-      expect(middlewareErrors?.session?.type).toBe('session-expired');
+      expect(response['@thrownErrors']).toBeUndefined();
+      expect((response.session as RpcError<string>)?.type).toBe('session-expired');
     });
 
-    it('T5 (R4): timeout -> slot 2 holds request-timeout; slots 0 and 1 stay empty', async () => {
+    it('T5 (R4): timeout -> @thrownErrors holds request-timeout; slots 0 and 1 stay empty', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       useAuth(middlewares);
 
-      const [result, routeError, fatal] = await routes.sleep(5000).call({timeout: 100});
+      const [result, routeError, response] = await routes.sleep(5000).call({timeout: 100});
 
       expect(result).toBeUndefined();
       expect(routeError).toBeUndefined();
-      expect(fatal?.type).toBe('request-timeout');
+      expect(response['@thrownErrors']?.map((error) => error.type)).toEqual(['request-timeout']);
     });
 
-    it('T6 (R4): abort -> slot 2 holds request-aborted', async () => {
+    it('T6 (R4): abort -> @thrownErrors holds request-aborted', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       useAuth(middlewares);
-      const [result, routeError, fatal] = await routes.sleep(5000).call({signal: AbortSignal.abort()});
+      const [result, routeError, response] = await routes.sleep(5000).call({signal: AbortSignal.abort()});
 
       expect(result).toBeUndefined();
       expect(routeError).toBeUndefined();
-      expect(fatal?.type).toBe('request-aborted');
+      expect(response['@thrownErrors']?.map((error) => error.type)).toEqual(['request-aborted']);
     });
 
-    it('T7 (R4): platform error -> slot 2 only', async () => {
+    it('T7 (R4): platform error -> @thrownErrors only', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       useAuth(middlewares);
-      const [result, routeError, fatal, middlewareResults] = await routes.getRequestInfo('x'.repeat(300_000)).call();
+      const [result, routeError, response] = await routes.getRequestInfo('x'.repeat(300_000)).call();
 
       expect(result).toBeUndefined();
       expect(routeError).toBeUndefined();
-      expect(fatal?.type).toBe('request-payload-too-large');
-      expect(middlewareResults).toEqual({});
+      expect(Object.keys(response)).toEqual(['@thrownErrors']);
+      expect(response['@thrownErrors']?.[0]?.type).toBe('request-payload-too-large');
     });
 
-    it('T8 (R4): unreachable server -> slot 2 holds the wrapped network failure', async () => {
+    it('T8 (R4): unreachable server -> @thrownErrors holds the wrapped network failure', async () => {
       const {routes} = initClient<MyApi>({baseURL: 'http://127.0.0.1:59987'});
-      const [result, routeError, fatal] = await routes.calculateAge(1990).call();
+      const [result, routeError, response] = await routes.calculateAge(1990).call();
 
       expect(result).toBeUndefined();
       expect(routeError).toBeUndefined();
-      expect(fatal).toBeDefined();
-      expect(isRpcError(fatal)).toBe(true);
+      expect(response['@thrownErrors']?.length).toBe(1);
+      expect(isRpcError(response['@thrownErrors']?.[0])).toBe(true);
     });
 
-    it('T9 (R4): route THROWS an undeclared error server-side -> slot 2, never slot 1', async () => {
+    it('T9 (R4): route THROWS an undeclared error server-side -> @thrownErrors, never slot 1 nor its path', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       useAuth(middlewares);
-      const [result, routeError, fatal] = await routes.throwsUnexpectedly('boom').call();
+      const [result, routeError, response] = await routes.throwsUnexpectedly('boom').call();
 
       expect(result).toBeUndefined();
       expect(routeError).toBeUndefined();
-      expect(fatal?.type).toBe('db-connection-lost');
+      expect('throwsUnexpectedly' in response).toBe(false);
+      expect(response['@thrownErrors']?.map((error) => error.type)).toEqual(['db-connection-lost']);
+    });
+
+    it('T26 (R4): a failing onRequest hook is reported in @thrownErrors and nothing is sent', async () => {
+      const {routes, middlewares} = initClient<MyApi>({baseURL});
+      useAuth(middlewares);
+      middlewares.session.onRequest(() => {
+        throw new Error('no token');
+      });
+
+      const [result, routeError, response] = await routes.sayHello(someUser).call();
+
+      expect(result).toBeUndefined();
+      expect(routeError).toBeUndefined();
+      expect(response['@thrownErrors']?.map((error) => error.type)).toEqual(['middleware-on-request-failed']);
+    });
+
+    it('T27 (R4): every failing hook is kept, not only the first', async () => {
+      const {routes, middlewares} = initClient<MyApi>({baseURL});
+      useAuth(middlewares);
+      middlewares.session
+        .onRequest((session) => session('valid-token'))
+        .onResponse(() => {
+          throw new Error('first');
+        })
+        .onResponse(() => {
+          throw new Error('second');
+        });
+
+      const [result, , response] = await routes.sayHello(someUser).call();
+
+      expect(result).toBe('Hello John Doe');
+      expect(response['@thrownErrors']?.map((error) => error.publicMessage)).toEqual([
+        `onResponse for middleware 'session' failed: first`,
+        `onResponse for middleware 'session' failed: second`,
+      ]);
+    });
+  });
+
+  describe('the response is the body, nested by group', () => {
+    it('T28: ids become nested paths, and the route keeps its own entry', async () => {
+      const {routes, middlewares} = initClient<MyApi>({baseURL});
+      useAuth(middlewares);
+
+      const [result, , response] = await routes.paramless.list(2).call();
+
+      expect(result).toEqual([20, 21]);
+      expect(response.paramless?.pageInfo).toEqual({page: 2, total: 100});
+      expect((response.paramless as any)?.list).toEqual([20, 21]);
+      expect(Object.keys(response).some((key) => key.includes('/'))).toBe(false);
+    });
+
+    it('T29: an answer sent as HTTP headers sits at its path', async () => {
+      const {routes, middlewares} = initClient<MyApi>({baseURL});
+      useAuth(middlewares);
+
+      const [echo, , response] = await routes.respondHeaders('tag-1').call();
+
+      expect(echo?.headers['x-mion-echo']).toBe('tag-1');
+      expect((response as any).respondHeaders).toBe(echo);
     });
   });
 
   describe('batch calls', () => {
-    it('T10 (R1): one route fails, another succeeds -> each stays in its own index; slot 2 empty', async () => {
+    it('T10 (R1): one route fails, another succeeds -> each stays in its own index; @thrownErrors empty', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       useAuth(middlewares);
-      const [[failResult, sum], [failError, sumError], fatal] = await batch([
+      const [[failResult, sum], [failError, sumError], response] = await batch([
         routes.alwaysFails(someUser),
         routes.utils.sumTwo(5),
       ]).call();
@@ -166,23 +228,26 @@ describe('client error dispatch contract', () => {
       expect(failError?.type).toBe('unknown-error');
       expect(sum).toBe(7);
       expect(sumError).toBeUndefined();
-      expect(fatal).toBeUndefined();
+      expect(response['@thrownErrors']).toBeUndefined();
+      // one nested object for the whole batch
+      expect((response as any).alwaysFails).toBe(failError);
+      expect((response as any).utils?.sumTwo).toBe(7);
     });
 
-    it('T11 (R4, pins the unreachable-fatal bug): flow timeout -> ONE request-scoped fatal error', async () => {
+    it('T11 (R4, pins the unreachable-fatal bug): flow timeout -> ONE request-scoped error', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       useAuth(middlewares);
 
-      const [results, errors, fatal] = await batch([routes.sleep(5000), routes.utils.sumTwo(5)]).call({
+      const [results, errors, response] = await batch([routes.sleep(5000), routes.utils.sumTwo(5)]).call({
         timeout: 100,
       });
 
       expect(results).toEqual([undefined, undefined]);
       expect(errors).toEqual([undefined, undefined]);
-      expect(fatal?.type).toBe('request-timeout');
+      expect(response['@thrownErrors']?.map((error) => error.type)).toEqual(['request-timeout']);
     });
 
-    it('T12 (R3): flow + failing middleware -> its middlewareErrors slot + listener; per-route slots stay empty', async () => {
+    it('T12 (R3): flow + failing middleware -> its path + listener; per-route slots stay empty', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       let listenerError: any;
       useAuth(middlewares);
@@ -190,11 +255,11 @@ describe('client error dispatch contract', () => {
         .onRequest((session) => session('expired'))
         .onError('session-expired', (error) => (listenerError = error));
 
-      const [, [greetingError], fatal, , middlewareErrors] = await batch([routes.sayHello(someUser)]).call();
+      const [, [greetingError], response] = await batch([routes.sayHello(someUser)]).call();
 
       expect(greetingError).toBeUndefined();
-      expect(fatal).toBeUndefined();
-      expect(middlewareErrors?.session?.type).toBe('session-expired');
+      expect(response['@thrownErrors']).toBeUndefined();
+      expect((response.session as RpcError<string>)?.type).toBe('session-expired');
       expect(listenerError?.type).toBe('session-expired');
     });
 
@@ -202,16 +267,16 @@ describe('client error dispatch contract', () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       useAuth(middlewares);
 
-      const [, , singleUnexpected] = await routes.sleep(5000).call({timeout: 100});
-      const [, , batchUnexpected] = await batch([routes.sleep(5000)]).call({timeout: 100});
+      const [, , single] = await routes.sleep(5000).call({timeout: 100});
+      const [, , batched] = await batch([routes.sleep(5000)]).call({timeout: 100});
 
-      expect(singleUnexpected?.type).toBe('request-timeout');
-      expect(batchUnexpected?.type).toBe('request-timeout');
+      expect(single['@thrownErrors']?.[0]?.type).toBe('request-timeout');
+      expect(batched['@thrownErrors']?.[0]?.type).toBe('request-timeout');
     });
   });
 
   describe('listeners', () => {
-    it('T14 (R3): a middleware declared error reaches BOTH its listener and its middlewareErrors slot', async () => {
+    it('T14 (R3): a middleware declared error reaches BOTH its listener and its path', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       let listenerError: any;
       middlewares.session
@@ -219,27 +284,27 @@ describe('client error dispatch contract', () => {
         .onError('session-expired', (error) => (listenerError = error));
       useAuth(middlewares);
 
-      const [, routeError, fatal, , middlewareErrors] = await routes.sayHello(someUser).call();
+      const [, routeError, response] = await routes.sayHello(someUser).call();
 
       expect(routeError).toBeUndefined();
-      expect(fatal).toBeUndefined();
-      expect(middlewareErrors?.session?.type).toBe('session-expired');
+      expect(response['@thrownErrors']).toBeUndefined();
+      expect(response.session).toBe(listenerError);
       expect(listenerError?.type).toBe('session-expired');
     });
 
-    it('T24 (R3): a middleware with no params needs no onRequest; its declared error still reaches its slot and listener', async () => {
+    it('T24 (R3): a middleware with no params needs no onRequest; its declared error still reaches its path and listener', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       let listenerError: any;
       useAuth(middlewares);
       middlewares.paramless.pageInfo.onError('page-out-of-range', (error) => (listenerError = error));
 
-      const [result, routeError, fatal, , middlewareErrors] = await routes.paramless.list(12).call();
+      const [result, routeError, response] = await routes.paramless.list(12).call();
 
       // a plain RpcError from a middleware after the route keeps the route's answer
       expect(result).toEqual([120, 121]);
       expect(routeError).toBeUndefined();
-      expect(fatal).toBeUndefined();
-      expect(middlewareErrors?.['paramless/pageInfo']?.type).toBe('page-out-of-range');
+      expect(response['@thrownErrors']).toBeUndefined();
+      expect((response.paramless?.pageInfo as RpcError<string>)?.type).toBe('page-out-of-range');
       expect(listenerError?.type).toBe('page-out-of-range');
     });
 
@@ -250,9 +315,9 @@ describe('client error dispatch contract', () => {
       middlewares.session.onRequest((session) => session('valid-token'));
       (middlewares.session as any).onError('request-timeout', () => (listenerFired = true));
 
-      const [, , fatal] = await routes.sleep(5000).call({timeout: 100});
+      const [, , response] = await routes.sleep(5000).call({timeout: 100});
 
-      expect(fatal?.type).toBe('request-timeout');
+      expect(response['@thrownErrors']?.[0]?.type).toBe('request-timeout');
       expect(listenerFired).toBe(false);
     });
 
@@ -268,78 +333,74 @@ describe('client error dispatch contract', () => {
       expect(listenerError?.type).toBe('session-expired');
     });
 
-    it('T16 (D7): no internal mion route id is observable anywhere in the tuple on a platform error', async () => {
+    it('T16 (D7): no internal mion route id is observable anywhere in the response on a platform error', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       useAuth(middlewares);
-      const result = await routes.getRequestInfo('x'.repeat(300_000)).call();
+      const [, , response] = await routes.getRequestInfo('x'.repeat(300_000)).call();
 
-      const [, , fatal, middlewareResults, middlewareErrors] = result;
-      expect(fatal?.type).toBe('request-payload-too-large');
-      expect(Object.keys(middlewareResults ?? {})).toEqual([]);
-      expect(Object.keys(middlewareErrors ?? {})).toEqual([]);
-      expect(JSON.stringify([...Object.keys(result[3] ?? {}), ...Object.keys(result[4] ?? {})])).not.toContain('mion@');
+      expect(response['@thrownErrors']?.[0]?.type).toBe('request-payload-too-large');
+      expect(Object.keys(response)).toEqual(['@thrownErrors']);
+      expect(JSON.stringify(Object.keys(response))).not.toContain('mion@');
     });
 
-    it('T17: a failing middleware AND a throwing route lose NO information - each error keeps its slot', async () => {
+    it('T17: a failing middleware AND a throwing route lose NO information - each error keeps its place', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       let auditListenerError: any;
       useAuth(middlewares);
       middlewares.audit.onRequest((audit) => audit(true)).onError('audit-failed', (error) => (auditListenerError = error));
 
-      // the audit middleware (alwaysRun) fails with its DECLARED error and the route throws
-      // an undeclared one - separating the slots means BOTH stay visible
-      const [result, routeError, fatal, , middlewareErrors] = await routes.throwsUnexpectedly('boom').call();
+      // the audit middleware (alwaysRun) fails with its DECLARED error and the route throws an undeclared one
+      const [result, routeError, response] = await routes.throwsUnexpectedly('boom').call();
 
       expect(result).toBeUndefined();
       expect(routeError).toBeUndefined();
-      // the undeclared route throw is the fatal error
-      expect(fatal?.type).toBe('db-connection-lost');
-      // the declared middleware error keeps its own slot AND reaches its typed listener
-      expect(middlewareErrors?.audit?.type).toBe('audit-failed');
+      expect(response['@thrownErrors']?.map((error) => error.type)).toEqual(['db-connection-lost']);
+      // the declared middleware error keeps its own path AND reaches its typed listener
+      expect((response.audit as RpcError<string>)?.type).toBe('audit-failed');
       expect(auditListenerError?.type).toBe('audit-failed');
     });
   });
 
   describe('fatal errors (a returned FatalError halts the chain, typed)', () => {
-    it('T19 (R3): a middleware FatalError reaches its typed slot and listener; the skipped route leaves every route slot empty', async () => {
+    it('T19 (R3): a middleware FatalError reaches its typed path and listener; the skipped route leaves every route slot empty', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       let listenerError: any;
       useAuth(middlewares, 'WRONG-TOKEN');
       middlewares.auth.onError('not-authorized', (error) => (listenerError = error));
 
-      const [result, routeError, fatal, , middlewareErrors] = await routes.sayHello(someUser).call();
+      const [result, routeError, response] = await routes.sayHello(someUser).call();
 
       // the route never ran on the server, and that is a server detail: no slot pretends otherwise
       expect(result).toBeUndefined();
       expect(routeError).toBeUndefined();
-      expect(fatal).toBeUndefined();
-      // the gate's error is DECLARED, so it is typed: its own slot and its listener, never the undeclared slot
-      expect(middlewareErrors?.auth?.type).toBe('not-authorized');
+      expect(response['@thrownErrors']).toBeUndefined();
+      // the gate's error is DECLARED, so it is typed: its own path and its listener, never @thrownErrors
+      expect((response.auth as RpcError<string>)?.type).toBe('not-authorized');
       expect(listenerError?.type).toBe('not-authorized');
-      expect(isRpcError(middlewareErrors?.auth)).toBe(true);
+      expect(isRpcError(response.auth)).toBe(true);
     });
 
-    it('T25 (R3): a FatalError from a gate with no params, and no onRequest, reaches its typed slot and listener', async () => {
+    it('T25 (R3): a FatalError from a gate with no params, and no onRequest, reaches its typed path and listener', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL, fetchOptions: {headers: {'x-gate': 'closed'}}});
       let listenerError: any;
       useAuth(middlewares);
       middlewares.paramless.gate.onError('gate-closed', (error) => (listenerError = error));
 
-      const [result, routeError, fatal, , middlewareErrors] = await routes.paramless.list(1).call();
+      const [result, routeError, response] = await routes.paramless.list(1).call();
 
       expect(result).toBeUndefined();
       expect(routeError).toBeUndefined();
-      expect(fatal).toBeUndefined();
-      expect(middlewareErrors?.['paramless/gate']?.type).toBe('gate-closed');
+      expect(response['@thrownErrors']).toBeUndefined();
+      expect((response.paramless?.gate as RpcError<string>)?.type).toBe('gate-closed');
       expect(listenerError?.type).toBe('gate-closed');
     });
 
     it('T20: a FatalError answered under a declared RpcError decodes by the declared type', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       useAuth(middlewares);
-      const [result, routeError, fatal] = await routes.fatalAsRpcError('closed').call();
+      const [result, routeError, response] = await routes.fatalAsRpcError('closed').call();
       expect(result).toBeUndefined();
-      expect(fatal).toBeUndefined();
+      expect(response['@thrownErrors']).toBeUndefined();
       expect(routeError?.type).toBe('gate-closed');
       expect(routeError instanceof RpcError).toBe(true);
       expect(routeError instanceof FatalError).toBe(false);
@@ -349,9 +410,9 @@ describe('client error dispatch contract', () => {
     it('T21: a declared FatalError decodes back to a real FatalError', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       useAuth(middlewares);
-      const [result, routeError, fatal] = await routes.fatalDeclared('closed').call();
+      const [result, routeError, response] = await routes.fatalDeclared('closed').call();
       expect(result).toBeUndefined();
-      expect(fatal).toBeUndefined();
+      expect(response['@thrownErrors']).toBeUndefined();
       expect(routeError?.type).toBe('gate-closed');
       expect(routeError instanceof FatalError).toBe(true);
       expect(isFatalError(routeError)).toBe(true);
@@ -426,67 +487,67 @@ describe('client error dispatch contract', () => {
     it('is off by default, so a wrong answer reaches the caller', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       useAuth(middlewares);
-      const [result, routeError, undeclared] = await routes.wrongAnswers.wrongAnswer(someUser).call();
+      const [result, routeError, response] = await routes.wrongAnswers.wrongAnswer(someUser).call();
       expect(result).toEqual({name: 'John', surname: 42});
       expect(routeError).toBeUndefined();
-      expect(undeclared).toBeUndefined();
+      expect(response['@thrownErrors']).toBeUndefined();
     });
 
     it('lets an answer that matches the return type through', async () => {
       const {routes} = checkingClient();
-      const [result, routeError, undeclared] = await routes.createProduct({id: 'p1', name: 'Pen', price: 2}).call();
+      const [result, routeError, response] = await routes.createProduct({id: 'p1', name: 'Pen', price: 2}).call();
       expect(routeError).toBeUndefined();
-      expect(undeclared).toBeUndefined();
+      expect(response['@thrownErrors']).toBeUndefined();
       expect(result).toMatchObject({id: 'p1', name: 'Pen', price: 2});
     });
 
-    it('drops a wrong answer and reports it in slot 2', async () => {
+    it('drops a wrong answer from its path and reports it in @thrownErrors', async () => {
       const {routes} = checkingClient();
-      const [result, routeError, undeclared] = await routes.wrongAnswers.wrongAnswer(someUser).call();
+      const [result, routeError, response] = await routes.wrongAnswers.wrongAnswer(someUser).call();
+      const [thrown] = response['@thrownErrors'] ?? [];
       expect(result).toBeUndefined();
       expect(routeError).toBeUndefined();
-      expect(undeclared?.type).toBe('response-validation-error');
-      expect(undeclared?.publicMessage).toBe(
+      expect((response.wrongAnswers as any)?.wrongAnswer).toBeUndefined();
+      expect(thrown?.type).toBe('response-validation-error');
+      expect(thrown?.publicMessage).toBe(
         `Invalid response from Route or Middleware 'wrongAnswers/wrongAnswer', validation failed.`
       );
-      expect(undeclared?.errorData?.typeErrors?.length).toBeGreaterThan(0);
+      expect(thrown?.errorData?.typeErrors?.length).toBeGreaterThan(0);
     });
 
     it('checks an answer the server left out, since a missing value is a wrong one too', async () => {
       const {routes} = checkingClient();
-      const [result, , undeclared] = await routes.wrongAnswers.missingAnswer().call();
+      const [result, , response] = await routes.wrongAnswers.missingAnswer().call();
       expect(result).toBeUndefined();
-      expect(undeclared?.type).toBe('response-validation-error');
+      expect(response['@thrownErrors']?.[0]?.type).toBe('response-validation-error');
     });
 
     it('never checks a member a stopped chain did not run', async () => {
       const {routes} = checkingClient('WRONG-TOKEN');
-      const [result, , undeclared, , middlewareErrors] = await routes.wrongAnswers.missingAnswer().call();
+      const [result, , response] = await routes.wrongAnswers.missingAnswer().call();
       expect(result).toBeUndefined();
-      expect(undeclared).toBeUndefined();
-      expect(middlewareErrors?.auth?.type).toBe('not-authorized');
+      expect(response['@thrownErrors']).toBeUndefined();
+      expect((response.auth as RpcError<string>)?.type).toBe('not-authorized');
     });
 
     it('decodes before it checks, so Date, Map and Set answers pass', async () => {
       const {routes} = checkingClient();
-      const [stamp, routeError, undeclared] = await routes.flow.getStamp(5).call();
+      const [stamp, routeError, response] = await routes.flow.getStamp(5).call();
       expect(routeError).toBeUndefined();
-      expect(undeclared).toBeUndefined();
+      expect(response['@thrownErrors']).toBeUndefined();
       expect(stamp?.when).toBeInstanceOf(Date);
       expect(stamp?.counts).toBeInstanceOf(Map);
     });
 
-    it("a middleware's wrong answer goes to slot 2, fires no listener and keeps the route result", async () => {
+    it("a middleware's wrong answer goes to @thrownErrors, fires no listener and keeps the route result", async () => {
       const {routes, middlewares} = checkingClient();
       const heard: unknown[] = [];
       middlewares.wrongAnswers.wrongMiddleware.onRequest((call) => call('x')).onResponse((answer) => void heard.push(answer));
-      const [result, routeError, undeclared, middlewareResults, middlewareErrors] = await routes.wrongAnswers
-        .rightAnswer('ok')
-        .call();
-      expect(undeclared?.type).toBe('response-validation-error');
-      expect(undeclared?.publicMessage).toContain(`'wrongAnswers/wrongMiddleware'`);
-      expect(middlewareErrors?.['wrongAnswers/wrongMiddleware']).toBeUndefined();
-      expect(middlewareResults?.['wrongAnswers/wrongMiddleware']).toBeUndefined();
+      const [result, routeError, response] = await routes.wrongAnswers.rightAnswer('ok').call();
+      const [thrown] = response['@thrownErrors'] ?? [];
+      expect(thrown?.type).toBe('response-validation-error');
+      expect(thrown?.publicMessage).toContain(`'wrongAnswers/wrongMiddleware'`);
+      expect(response.wrongAnswers?.wrongMiddleware).toBeUndefined();
       expect(heard).toEqual([]);
       expect(routeError).toBeUndefined();
       expect(result).toBe('ok');
