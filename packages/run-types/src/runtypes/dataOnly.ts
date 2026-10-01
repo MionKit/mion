@@ -33,8 +33,9 @@ export interface DataOnlyNativeExtra {}
  *  receiver would run), so it is stripped instead. Deliberately NOT here:
  *   - `ArrayBuffer` / `SharedArrayBuffer` / `DataView` + every typed array, `SubKindNonSerializable` in the
  *     emitter, so `DataOnly` STRIPS them;
- *   - `URL` / `URLSearchParams` / `Blob` / `File` / `FileList` / `FormData`, plain classes the emitter validates
- *     STRUCTURALLY, so they fall through to the object branch and project to their data shape. **/
+ *   - `URL` / `URLSearchParams` / `Blob` / `Error` and every other standard-library class: the emitter skips any
+ *     class the lib declares, but a type cannot tell where a class was declared, so they fall through to the
+ *     object branch and project to their data shape. The one known gap; the D4 fuzz rule draws no lib class. **/
 type DataOnlyNative = Date | DataOnlyNativeExtra[keyof DataOnlyNativeExtra];
 
 /** Kinds the AOT validator treats as NON-DATA and strips: `symbol` (runtime identity, not round-trippable),
@@ -72,9 +73,9 @@ type _DataOnlyDepth = [never, 0, 1, 2, 3, 4, 5, 6, 7, 8];
 /** The data-only projection of `T` — the exact shape `createValidateFn<T>()` /
  *  `createGetValidationErrorsFn<T>()` validate. It walks `T` and DROPS every member the AOT emitter treats as
  *  non-data (see CLAUDE.md "validate contract — serializable data only"). Every class NOT enumerated in
- *  `DataOnlyNative` / `DataOnlyStripped` (`URL`, `Blob`, `FormData`, any user class) falls through to the object
- *  branch and PROJECTS to its data shape, mirroring the emitter's structural (`ClassRef{Name}`) validation — so
- *  this module names no `lib.dom` types. NO `infer` on the hot path: every arm is a bare `extends` test or a
+ *  `DataOnlyNative` / `DataOnlyStripped` falls through to the object branch and PROJECTS to its data shape,
+ *  mirroring the emitter's structural (`ClassRef{Name}`) validation of a user class — so this module names no
+ *  `lib.dom` types. NO `infer` on the hot path: every arm is a bare `extends` test or a
  *  homomorphic map, which preserves array / tuple structure and `readonly` / `?` modifiers for free. Recursion
  *  is BOUNDED by the `Depth` budget, so a self- or mutually-referential type resolves to a finite instantiation
  *  rather than tripping TS2589; beyond the budget the remaining sub-tree is kept as-is, and 8 levels covers any
