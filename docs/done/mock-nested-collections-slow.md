@@ -1,7 +1,7 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-10-01
 ---
 
@@ -45,4 +45,6 @@ soak's 30 s slow-iteration ceiling.
 - Tests: `test/features/mockNestedCollections.test.ts` (both shapes under 100 ms per value, leaf count bounded,
   every draw validated, seeded determinism, `arrayLength` still applies at every level) and
   `test/fuzz/type/nonDataMockSpeed.smoke.test.ts` (seed 3635804914 replayed under `NONDATA_GEN_OPTIONS`).
-- Docs: the website's mock options table describes `maxRandomItemsLength`; note the per-level shrink there.
+- Docs: the `maxRandomItemsLength` row of the mock options table (`02.runtypes/02.guide/07.mocking.md`) now says each
+  nested level divides the cap by four.
+- Shipped: both shapes now mock in about 10 ms per value (was 0.2 s and 3 to 8 s), and the seed replay passes.
