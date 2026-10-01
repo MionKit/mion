@@ -14,8 +14,7 @@ type MetadataFromServer = typeof import('./metadataFromServer.ts');
 let laneModule: MetadataFromServer | undefined;
 let loading: Promise<MetadataFromServer> | undefined;
 
-/** Loads the lane once per process. Callers await it inside the request path's own try, so a failed
- *  load goes to that call's @thrownErrors; the failure is forgotten so a later call retries. */
+/** Awaited inside the request's own try, so a failed load reaches @thrownErrors; it is forgotten for a retry. */
 export function loadMetadataFromServer(): Promise<MetadataFromServer> {
   if (laneModule) return Promise.resolve(laneModule);
   loading ??= (import('#metadata-from-server') as Promise<MetadataFromServer>)

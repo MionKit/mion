@@ -16,8 +16,7 @@ export function createClientResponse(): ClientResponse<RemoteApi> {
   return {};
 }
 
-/** Ids become nested paths, then each validation error moves from the thrown record to its own path.
- *  Returns the thrown errors left, by id, so the dispatch can still tell whose they were. */
+/** Validation errors move from the thrown record to their path; the rest return by id so dispatch knows whose. */
 export function nestResponseBody(response: ClientResponse<RemoteApi>, body: ResponseBody): Record<string, RpcError<string>> {
   for (const [id, value] of Object.entries(body)) {
     if (id !== MION_ROUTES.thrownErrors) setResponseValue(response, id, value);

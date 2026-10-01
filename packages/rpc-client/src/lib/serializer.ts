@@ -140,7 +140,7 @@ async function deserializeJsonResponseBody(response: Response, takeRaw: TakeRaw 
       try {
         deserializedBody[methodId] = parseHandlerJsonReturnValue(method, returnValue);
       } catch (e: any) {
-        // the client could not read the answer, so it is untyped: thrown, never the method's declared value
+        // an unreadable answer is untyped: thrown, never the method's declared value
         (thrownErrors ??= {})[methodId] = new RpcError({
           type: 'deserialization-error',
           publicMessage: `Invalid response from Route or Middleware '${method.id}', can not deserialize return value: ${e.message}`,

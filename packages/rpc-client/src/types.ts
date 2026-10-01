@@ -50,7 +50,7 @@ export interface ClientOptions {
   fetchOptions: ClientFetchOptions;
   /** enable automatic parameter validation, defaults to true */
   validateParams: boolean;
-  /** Check answers against their return type; a mismatch is dropped and reported in `@thrownErrors` as a `response-validation-error`. Defaults to false. */
+  /** Validate answers by return type; a wrong answer is dropped, its `response-validation-error` in `@thrownErrors`. Default false. */
   validateServerResponses: boolean;
   /** Apply a route's declared format transforms (trim / case / replace / stripSeparators) to its
    *  params locally, before local validation and before sending, for routes the server registered
@@ -266,7 +266,7 @@ export type ClientMiddlewares<RA, Prefix extends string = ''> = Prettify<{
       : ClientMiddlewares<RA[Property], `${Prefix}${Property & string}/`>;
 }>;
 
-/** Slot 2: every middleware of the API nested by group, each its whole return or a ValidationError, plus every untyped error */
+/** Slot 2: every middleware nested by group, each its whole return or a ValidationError, plus every untyped error */
 export type ClientResponse<RA> = string extends keyof RA
   ? // the API erased (`RemoteApi`): every concrete response is assignable to it
     {[key: string]: unknown; '@thrownErrors'?: RpcError<string>[]}
