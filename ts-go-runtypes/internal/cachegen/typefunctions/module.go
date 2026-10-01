@@ -291,7 +291,7 @@ func CollectFamilyEntries(dump protocol.Dump, settings constants.CacheModuleSett
 var adoptsFindingsOf = func() map[string]string {
 	adopts := map[string]string{}
 	for _, op := range operations.All() {
-		if from, ok := operations.ByName(op.VerdictFrom); ok && op.VerdictFrom != "" {
+		if from, ok := operations.ByName(op.VerdictFrom); ok {
 			adopts[op.FamilyTag] = from.FamilyTag
 		}
 	}

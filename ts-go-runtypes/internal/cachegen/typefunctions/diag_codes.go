@@ -192,7 +192,7 @@ func (emitter RemoveUnknownKeysEmitter) DiagCodeFor(slot DiagSlot) string {
 }
 
 // DiagCodeForLeaf names why the entry always throws, from the leaf refuseWith latched (or the walker's own).
-func (emitter RemoveUnknownKeysEmitter) DiagCodeForLeaf(leaf *reflection.RunType, resolve RefResolver) string {
+func (emitter RemoveUnknownKeysEmitter) DiagCodeForLeaf(leaf *reflection.RunType, _ RefResolver) string {
 	if leaf == nil {
 		return ""
 	}
