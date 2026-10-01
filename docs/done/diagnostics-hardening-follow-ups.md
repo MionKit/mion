@@ -213,4 +213,5 @@ over the touched files.
 **Found on the way, delegated.** `createMockDataFn` took seconds for a nested `Set<Map<…>>` (seed 3635804914 tripped
 the soak's slow-round ceiling). Fixed in its own PR, MionKit/mion#416, which merges before this one.
 
-**Soaks.** A 10-minute soak on 2026-10-01 (seed 20261001, 3,980 types) found the D1 gap above, now fixed and pinned.
+**Soaks.** A 10-minute soak on 2026-10-01 (seed 20261001, 3,980 types) found the D1 gap above, now fixed and pinned. A second
+10-minute soak on the final branch (seed 20261002) found nothing, with no slow round.
