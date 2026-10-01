@@ -330,8 +330,7 @@ func ReportReachedFindings(graph entrymodules.Graph, opts RenderOpts) {
 		}
 		throwing, adopted := reachableFindings(graph, key)
 		for _, site := range sites {
-			// A foreign throw (the validate entry a JSON union picks its member with) naming a kind an own throw already
-			// names is the same failure twice; a foreign throw of another kind is a failure of its own.
+			// Skip a foreign throw (the validate entry a JSON union picks its member with) whose kind an own throw names.
 			var own, foreign []diskcache.CachedDiagnostic
 			for _, entry := range throwing {
 				if slices.Contains(opts.ProvenanceSites[entryProvenanceKey(entry)], site) {

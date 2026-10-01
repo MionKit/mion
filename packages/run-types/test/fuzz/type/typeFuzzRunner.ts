@@ -617,8 +617,8 @@ function checkRoundTripDrops(compiled: CompiledType, value: unknown, ctx: DiagCo
 // --- D4: DataOnly<T> and the Go side's non-data decision agree ---
 export function dataOnlyViolations(compiled: CompiledType, seed: number, drawn = drawMock(compiled.wired.mock)): Violation[] {
   const {type: typeId, dataOnly: dataOnlyId} = compiled.reflectionIds;
-  // A lost site (TR2) would wire the surviving `val` site by order and blame DataOnly for it.
   if (compiled.resolverError || compiled.evalError || isRecursive(compiled.gen) || !typeId || !dataOnlyId) return [];
+  // A lost site (TR2) would wire the surviving `val` site by order and blame DataOnly.
   if (compiled.fnSiteCount !== FN_KEYS.length) return [];
   const ctx = {target: compiled.title, seed, source: compiled.source};
   const resolve = (node: RunType) => getRTUtils().getRunType(node.id as string) as RunType | undefined;

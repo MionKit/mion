@@ -338,7 +338,7 @@ function runCore(args) {
   // lane is `miondevx release drizzle-e2e`.
   if (sub === 'drizzle-translate') return proxy('node', ['scripts/core/drizzle-translate.mjs', ...rest]);
   // release-gate.yml and fuzz-soak.yml build their matrices from this, so it needs bare node only: no deps, build or env.
-  // `--all` keeps the lanes with a workflow of their own too: fuzz-soak.yml's `all` soaks every lane.
+  // fuzz-soak.yml's `all` passes `--all` to soak the lanes with their own workflow too.
   if (sub === 'fuzz-lanes') {
     const all = rest.includes('--all');
     process.stdout.write(`${JSON.stringify(Object.keys(FUZZ).filter((lane) => FUZZ[lane].soak && (all || !FUZZ[lane].soakWorkflow)).sort())}\n`);
