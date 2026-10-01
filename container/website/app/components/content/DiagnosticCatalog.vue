@@ -7,6 +7,8 @@ interface CodeEntry {
   subsystem: string;
   /** The level: did the build produce the code, and does it work. */
   level: 'error' | 'runtimeError' | 'warning' | 'info';
+  /** Only a bug in mion raises it. */
+  internal?: boolean;
   headline: string;
   summary: string;
   example: string | null;
@@ -120,6 +122,7 @@ const levelOptions: Level[] = ['error', 'runtimeError', 'warning', 'info'];
         <header class="diag-entry__head">
           <a :href="`#${entry.code}`" class="diag-entry__code">{{ entry.code }}</a>
           <span :class="['diag-badge', `diag-badge--${levelClass[entry.level]}`]">{{ levelLabel[entry.level] }}</span>
+          <span v-if="entry.internal" class="diag-badge diag-badge--internal">Internal error</span>
         </header>
 
         <pre class="diag-entry__headline"><code>{{ entry.headline }}</code></pre>

@@ -1256,6 +1256,12 @@ section[data-slot='root']:not(.home-subsite-card)::before {
   color: var(--ui-text-muted);
 }
 
+/* A code only a bug in mion raises: off the level ramp, like info. */
+.diag-badge--internal {
+  color: var(--ui-text-muted);
+  border-style: dashed;
+}
+
 /* Frontmatter `navigation.class: nav-subpage` indents a page under the one before it, no folder needed. */
 .nav-subpage {
   padding-inline-start: 1.75rem;
