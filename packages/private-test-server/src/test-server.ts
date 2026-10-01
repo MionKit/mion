@@ -327,7 +327,7 @@ const routes = {
     processUser: route((ctx, user: User): string => `Processed: ${user.name} ${user.surname}`),
   },
 
-  // middlewares with NO params: the client gets their answers and declared errors without any onRequest hook
+  // no params: the client gets these answers and declared errors with no onRequest hook
   paramless: {
     gate: middleware((ctx): void | FatalError<'gate-closed'> => {
       if (ctx.request.headers.get('x-gate') === 'closed')
@@ -337,7 +337,7 @@ const routes = {
       ctx.shared.page = page;
       return [page * 10, page * 10 + 1];
     }),
-    // after the route: reports what the route left in the context
+    // after the route, so it reads the route's page
     pageInfo: middleware((ctx): {page: number; total: number} | RpcError<'page-out-of-range'> => {
       const page = ctx.shared.page ?? 0;
       if (page > 9) return new RpcError({publicMessage: 'No such page', type: 'page-out-of-range'});

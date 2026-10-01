@@ -256,7 +256,7 @@ function setUndeclaredError(context: ClientCallContext, id: string, error: RpcEr
   context.thrownErrorIds.add(id);
 }
 
-/** A chain middleware with no params never needs an onRequest call, yet its answer and declared errors are the caller's */
+/** A middleware with no params gets no onRequest call, yet its answer and declared errors are the caller's */
 function addParamlessMiddlewares(context: ClientCallContext): void {
   const routeIds = new Set(getRouteIds(context));
   for (const routeId of routeIds) {

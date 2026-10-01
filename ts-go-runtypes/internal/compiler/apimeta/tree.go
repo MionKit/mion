@@ -39,7 +39,7 @@ type Method struct {
 	MiddlewareIds []string
 	// NeedsParams is true when the client must send something: a required param, or a required header.
 	NeedsParams bool
-	// TakesParams is false for a middleware with no params and no headers: the client needs no onRequest for it.
+	// TakesParams is false with no params and no headers: such a middleware needs no client onRequest.
 	TakesParams bool
 	// FetchMetadata marks mion's own metadata middleware, `mionFetchMetadata` placed in the routes.
 	FetchMetadata bool
@@ -236,7 +236,7 @@ func hasRequiredElement(params *checker.Type) bool {
 	return false
 }
 
-// hasElement reports whether a params tuple has any element, required or optional.
+// hasElement reports whether a params tuple has any element.
 func hasElement(params *checker.Type) bool {
 	return params != nil && params.IsTupleType() && len(params.TargetTupleType().ElementFlags()) > 0
 }

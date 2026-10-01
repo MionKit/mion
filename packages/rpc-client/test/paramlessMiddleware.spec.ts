@@ -18,7 +18,7 @@ import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
 const baseURL = TEST_SERVER_BASE_URL;
 const authHeaders = new HeadersSubset({Authorization: 'XWYZ-TOKEN'});
 
-/** Drops what the client learned about these methods, so the next call is an optimistic first call */
+/** Makes the next call to these methods an optimistic first call */
 async function forgetMetadata(...ids: string[]): Promise<void> {
   const cache = routesCache.getCache();
   ids.forEach((id) => delete cache[id]);
@@ -79,7 +79,7 @@ describe('middleware with no params', () => {
 
     const [items, error, undeclared, , middlewareErrors] = await routes.paramless.list(12).call();
 
-    // a plain RpcError from a middleware after the route leaves the route's answer in place
+    // a plain RpcError from a middleware after the route keeps the route's answer
     expect(items).toEqual([120, 121]);
     expect(error).toBeUndefined();
     expect(undeclared).toBeUndefined();

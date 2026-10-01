@@ -801,7 +801,7 @@ func TestApiGen_MirrorShipsBuiltInPureFnsAsFunctions(t *testing.T) {
 	}
 }
 
-// optionalApiTS adds an API with a middleware that takes optional params, for MET009, and one that takes none.
+// optionalApiTS adds an API with one middleware taking optional params (MET009) and one taking none.
 const optionalApiTS = apiTypeTS + `export type OptionalApi = {
   note: {type: 2; handler: (tag?: string) => Promise<void>; options: MfOpts; types?: {params: [tag?: string]; return: void; headers: never; isAsync: false}};
   stamp: {type: 2; handler: () => Promise<number>; options: MfOpts; types?: {params: []; return: number; headers: never; isAsync: false}};
