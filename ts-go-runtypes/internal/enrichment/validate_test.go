@@ -559,7 +559,7 @@ func TestCheckFriendly_FT003NeverFailingParam(t *testing.T) {
 	}
 }
 
-// TestCheckFriendly_FT012MissingKey: a key the field can fail on but the record leaves out warns, unless rt$default is used.
+// TestCheckFriendly_FT012MissingKey: a missing key the field can fail on warns, unless rt$default is used.
 func TestCheckFriendly_FT012MissingKey(t *testing.T) {
 	field := &reflection.RunType{Kind: reflection.KindNumber, FormatAnnotation: &reflection.FormatAnnotation{Name: "numberFormat", Params: map[string]any{"min": 0.0, "max": 10.0}}}
 	rt := objectRT(map[string]*reflection.RunType{"age": field})

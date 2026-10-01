@@ -20,7 +20,7 @@ func main() {
 	fmt.Fprint(os.Stdout, Generate())
 }
 
-// outputPath is the committed file; the repo root is three dirs above this one.
+// outputPath is the committed generated file.
 func outputPath() string {
 	_, thisFile, _, _ := runtime.Caller(0)
 	root := filepath.Join(filepath.Dir(thisFile), "..", "..", "..")
@@ -55,7 +55,7 @@ func union(keys []string) string {
 	return strings.Join(quoted(keys), " | ")
 }
 
-// Generate renders the module. It has no imports so the FriendlyText type harness can inline it.
+// Generate renders the module with no imports, so the FriendlyText type harness can inline it.
 func Generate() string {
 	names := formatNames()
 	var out strings.Builder

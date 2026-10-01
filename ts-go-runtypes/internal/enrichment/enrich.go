@@ -178,8 +178,7 @@ func argumentChild(ctx *walkCtx, rt *reflection.RunType, index int) *reflection.
 	return wrapper.Child
 }
 
-// formatConstraintKeys returns the error keys a format node can produce, read from its own validation-errors code.
-// These are exactly the `rt$errors` keys the renderer can match; the base `type` failure is added by the caller.
+// formatConstraintKeys are the `rt$errors` keys the renderer can match; the caller adds the base `type` key.
 func formatConstraintKeys(rt *reflection.RunType) []string {
 	return formats.ErrorKeysFor(rt)
 }

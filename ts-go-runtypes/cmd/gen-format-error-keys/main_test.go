@@ -23,7 +23,7 @@ func TestFormatErrorKeysFileInSync(t *testing.T) {
 	}
 }
 
-// compact drops whitespace and trailing commas, so the formatter's line wrapping does not matter.
+// compact makes the check blind to the formatter's line wrapping.
 func compact(text string) string {
 	return strings.ReplaceAll(strings.Join(strings.Fields(text), ""), ",]", "]")
 }

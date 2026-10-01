@@ -1,8 +1,6 @@
 package formats
 
-// errorKeySamples holds, per format, param maps that reach every branch of its validation-errors code.
-// AllErrorKeys unions the keys they emit. Adding a format or a param without a sample (or an
-// excludedParams entry) fails the coverage tests, on purpose.
+// errorKeySamples must reach every validation-errors branch; a param in neither it nor excludedParams fails the tests.
 var errorKeySamples = map[string][]map[string]any{
 	"numberFormat": {
 		{"integer": true, "min": 0.0, "max": 10.0, "lt": 11.0, "gt": -1.0, "multipleOf": 0.5, "multipleOfTolerance": 0.001, "isCurrency": true},
@@ -87,7 +85,6 @@ var errorKeySamples = map[string][]map[string]any{
 	},
 }
 
-// boundAliasReason is why the JSON Schema bound spellings need no sample: they are renamed to min/max/gt/lt first.
 const boundAliasReason = "renamed to min/max/gt/lt before any emitter runs"
 
 // excludedParams are params deliberately left out of the samples, each with the reason.

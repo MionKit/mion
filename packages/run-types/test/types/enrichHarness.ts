@@ -37,7 +37,7 @@ type ExpectFalse<T extends false> = T;
 type Assignable<A, B> = A extends B ? true : false;
 `;
 
-// The generated error-key table has no imports, so it is inlined whole; the region reads `FormatErrorKeys` from it.
+// The generated error-key table has no imports, so it can be inlined whole.
 const ERROR_KEYS_PREAMBLE = readFileSync(ERROR_KEYS_TS, 'utf8').replace(/^export (type|interface) /gm, '$1 ');
 
 const FRIENDLY_PREAMBLE = `${SENTINEL_KEYS_PREAMBLE}\n${ERROR_KEYS_PREAMBLE}\n${extractRegion(FRIENDLY_TS, 'friendlytext-extract')}\n${ASSERT_PREAMBLE}\n`;
