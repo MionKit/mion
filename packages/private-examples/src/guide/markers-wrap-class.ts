@@ -9,8 +9,8 @@ class Described<T> {
   }
 }
 
-new Described<{id: number; name: string}>();
+new Described<{id: number; name: string}>(); // explicit T
 const tags: string[] = ['a', 'b'];
-new Described(tags);
+new Described(tags); // inferred T, still gets the id
 
 export {Described};
