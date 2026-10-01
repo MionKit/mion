@@ -143,7 +143,7 @@ export const AREAS = {
       },
       {
         name: 'codegen',
-        args: '[all|constants|kind|fnhashes|fncatalog|typeformats|errorkeys|diag|builtinpurefns|pluginkeys|sidecar]',
+        args: '[all|<target>...]',
         summary: 'regenerate the Go→TS mirrors, the pure-fn ids and the sidecar bundle (one or more targets)',
         flags: [['--check', 'regenerate, then fail if a committed output drifted']],
       },
@@ -540,7 +540,8 @@ function splitLong(word, width) {
   let current = '';
   for (const piece of word.split('|')) {
     const next = current ? `${current}|${piece}` : piece;
-    if (current && next.length > width) {
+    // +1: a broken part keeps its trailing '|'.
+    if (current && next.length + 1 > width) {
       parts.push(`${current}|`);
       current = piece;
     } else current = next;
