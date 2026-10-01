@@ -26,11 +26,15 @@ import {runFuzzLoop} from '../core/runLoop.ts';
 import {type CrashRecord} from '../core/crashGuard.ts';
 import {genType, describeType, isRecursive, DEFAULT_GEN_OPTIONS, type GeneratedType, type GenOptions} from '../core/typeGen.ts';
 import {genValidValue, validValue, corruptValue, valueOracleSafe} from '../value/shapeValue.ts';
+import {getRunType} from '@mionjs/run-types';
+import {getRTUtils} from '../../../src/runtypes/rtUtils.ts';
+import {checkDataOnlyAnswers, checkDataOnlyMembers, checkDataOnlyRoot, mutationsOf, runVerdict} from './dataOnlyOracle.ts';
 import {compileType, openClient, renderFixture, FN_KEYS, type CompiledType, type WiredFns} from './typeFuzzHarness.ts';
 import {isValidTypeScript} from './tsValidate.ts';
 import {randomJunk} from '../value/fuzzRunner.ts';
 import type {ResolverClient} from '../../../../devtools/src/core/resolver-client.ts';
 import type {RunType} from '../../../src/runtypes/types.ts';
+import {RunTypeKind} from '../../../src/go-generated/runTypeKind.generated.ts';
 import {compactNullRisk} from '../roundtrip/roundtripOracle.ts';
 import {
   checkDropNoted,
@@ -60,7 +64,7 @@ import {
 export type ValueSource = 'shape' | 'mock';
 
 const EXPECTED_FN_SITES = FN_KEYS.length;
-const EXPECTED_REFLECTION_SITES = 1;
+const EXPECTED_REFLECTION_SITES = 2;
 
 export interface TypeFuzzOptions {
   seed?: number;
@@ -331,6 +335,7 @@ function checkBehaviourTier(
   if (valueSource === 'mock') {
     checkMockBehaviour(compiled, seed, out, stats);
     checkDiagnosticTruth(compiled, seed, out);
+    for (const violation of dataOnlyViolations(compiled, seed)) out.push(violation);
     return;
   }
   const serialisable = valueOracleSafe(compiled.gen);
@@ -597,4 +602,41 @@ function checkDiagnosticTruth(compiled: CompiledType, seed: number, out: Violati
     const codes = new Set([...codesAtSite(compiled, encodeKey), ...(decodeKey ? codesAtSite(compiled, decodeKey) : [])]);
     push(out, checkDropNoted(encodeKey, droppedPaths(input, output, encodeKey === 'compactEncode'), codes, ctx));
   }
+}
+
+// --- D4: DataOnly<T> and the Go side's non-data decision agree ---
+export function dataOnlyViolations(compiled: CompiledType, seed: number): Violation[] {
+  const {type: typeId, dataOnly: dataOnlyId} = compiled.reflectionIds;
+  if (compiled.resolverError || compiled.evalError || isRecursive(compiled.gen) || !typeId || !dataOnlyId) return [];
+  const ctx = {target: compiled.title, seed, source: compiled.source};
+  const resolve = (node: RunType) => getRTUtils().getRunType(node.id as string) as RunType | undefined;
+  const typeRoot = getRunType(undefined, typeId as never) as RunType;
+  const dataOnlyRoot = getRunType(undefined, dataOnlyId as never) as RunType;
+  const derefKind = (node: RunType) => (node.kind === -1 ? resolve(node)?.kind : node.kind) as number;
+  let value: unknown;
+  try {
+    value = compiled.wired.mock?.();
+  } catch {
+    value = undefined;
+  }
+  const validate = compiled.wired.validate as ((input: unknown) => unknown) | undefined;
+  const typeThrows = compiled.wireErrors.validate !== undefined || runVerdict(validate, value) === 'throws';
+  const root = checkDataOnlyRoot(derefKind(typeRoot), derefKind(dataOnlyRoot), typeThrows, ctx);
+  if (root) return [root];
+  // A throwing T has no data validator to compare, and DataOnly keeps a propagating slot T refuses (`{a: symbol[]}`).
+  if (typeThrows || derefKind(dataOnlyRoot) === RunTypeKind.never) return [];
+  const out: Violation[] = [];
+  const validateDataOnly = compiled.wired.validateDataOnly as ((input: unknown) => unknown) | undefined;
+  const samples = [{label: 'mock', value}, ...mutationsOf(value)];
+  push(
+    out,
+    checkDataOnlyAnswers(
+      samples,
+      (sample) => runVerdict(validate, sample),
+      (sample) => runVerdict(validateDataOnly, sample),
+      ctx
+    )
+  );
+  push(out, checkDataOnlyMembers(typeRoot, dataOnlyRoot, resolve, ctx));
+  return out;
 }

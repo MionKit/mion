@@ -84,6 +84,8 @@ export type WiredFns = Partial<
     mutateEncode: FuzzTarget['jsonEncode'];
     mutateDecode: FuzzTarget['jsonDecode'];
     removeUnknownKeys: RemoveUnknownKeysFn;
+    /** `createValidateFn<DataOnly<T>>()`, which D4 holds against `validate`. **/
+    validateDataOnly: FuzzTarget['validate'];
   }
 >;
 
@@ -103,8 +105,15 @@ const WIRED_BY_TAG: Partial<Record<string, [FnKey, FnFactory]>> = {
   ruk: ['removeUnknownKeys', createRemoveUnknownKeysFn as FnFactory],
 };
 
-/** The compiled functions every fixture has a call site for. **/
-export const FN_KEYS: FnKey[] = Object.values(WIRED_BY_TAG).map((wiring) => wiring![0]);
+/** The compiled functions every fixture has a call site for; the second `val` site is the DataOnly one. **/
+export const FN_KEYS: FnKey[] = [...Object.values(WIRED_BY_TAG).map((wiring) => wiring![0]), 'validateDataOnly'];
+
+/** What the fixture's `DataOnly<T>` sites name: the shipped type, or a stand-in a negative control declares. **/
+export interface DataOnlySpelling {
+  name: string;
+  decl?: string;
+}
+const SHIPPED_DATA_ONLY: DataOnlySpelling = {name: 'DataOnly'};
 
 type FnSites = Partial<Record<FnKey, {site: Site; tuple: readonly unknown[]}>>;
 
@@ -129,6 +138,8 @@ export interface CompiledType {
   wireErrors: Partial<Record<keyof WiredFns, string>>;
   /** The line of each function's call site in `source`, where its diagnostics are reported. **/
   siteLines: Partial<Record<keyof WiredFns, number>>;
+  /** The reflection ids of `getRunTypeId<T>()` and `getRunTypeId<DataOnly<T>>()`. **/
+  reflectionIds: {type?: string; dataOnly?: string};
 }
 
 export function openClient(): ResolverClient {
@@ -138,7 +149,7 @@ export function openClient(): ResolverClient {
 
 /** Render the full fixture: import block, named decls, `type T = root`, and one
  *  call site per family + the getRunTypeId reflection site. **/
-export function renderFixture(gen: GeneratedType): string {
+export function renderFixture(gen: GeneratedType, dataOnly: DataOnlySpelling = SHIPPED_DATA_ONLY): string {
   const {decls, rootExpr} = renderGenerated(gen);
   return `import {
   createValidateFn,
@@ -147,8 +158,9 @@ export function renderFixture(gen: GeneratedType): string {
   createJsonDecoderFn,
   createRemoveUnknownKeysFn,
   getRunTypeId,
+  type DataOnly,
 } from '@mionjs/run-types';
-${decls}
+${decls}${dataOnly.decl ? `\n${dataOnly.decl}` : ''}
 type T = ${rootExpr};
 createValidateFn<T>();
 createGetValidationErrorsFn<T>();
@@ -160,13 +172,19 @@ createJsonEncoderFn<T>(undefined, {strategy: 'mutate'});
 createJsonDecoderFn<T>(undefined, {strategy: 'mutate'});
 createRemoveUnknownKeysFn<T>();
 getRunTypeId<T>();
+createValidateFn<${dataOnly.name}<T>>();
+getRunTypeId<${dataOnly.name}<T>>();
 `;
 }
 
 /** Drive the full pipeline for one generated type. Never throws — every failure
  *  mode is captured on the result. **/
-export async function compileType(client: ResolverClient, gen: GeneratedType): Promise<CompiledType> {
-  const source = renderFixture(gen);
+export async function compileType(
+  client: ResolverClient,
+  gen: GeneratedType,
+  dataOnly: DataOnlySpelling = SHIPPED_DATA_ONLY
+): Promise<CompiledType> {
+  const source = renderFixture(gen, dataOnly);
   const title = describeType(gen);
   const base: CompiledType = {
     gen,
@@ -182,6 +200,7 @@ export async function compileType(client: ResolverClient, gen: GeneratedType): P
     wired: {},
     wireErrors: {},
     siteLines: {},
+    reflectionIds: {},
   };
 
   let resp;
@@ -195,8 +214,9 @@ export async function compileType(client: ResolverClient, gen: GeneratedType): P
 
   const diagnostics = resp.diagnostics ?? [];
   const sites = resp.sites ?? [];
-  const fnSites = sites.filter((s) => s.fnId);
-  const reflectionSites = sites.filter((s) => !s.fnId);
+  // Source order tells the two `val` sites and the two reflection sites apart.
+  const fnSites = sites.filter((s) => s.fnId).sort((a, b) => a.pos - b.pos);
+  const reflectionSites = sites.filter((s) => !s.fnId).sort((a, b) => a.pos - b.pos);
   const entryModules = resp.entryModules ?? {};
   const partial: CompiledType = {
     ...base,
@@ -235,6 +255,14 @@ export async function compileType(client: ResolverClient, gen: GeneratedType): P
   for (const [key, factory] of Object.values(WIRED_BY_TAG) as [FnKey, FnFactory][]) {
     wire(wired, wireErrors, key, () => factory(undefined, undefined, byKey[key]?.tuple as never) as never);
   }
+  const validateFactory = createValidateFn as FnFactory;
+  wire(
+    wired,
+    wireErrors,
+    'validateDataOnly',
+    () => validateFactory(undefined, undefined, byKey.validateDataOnly?.tuple as never) as never
+  );
+  const reflectionIds = {type: reflectionSites[0]?.id, dataOnly: reflectionSites[1]?.id};
 
   // Pass the reflection entry tuple as the plugin does: the function factories' caches never link the reflection graph.
   // nonDataTypes:true makes the value carry the stripped members, so the encoders exercise their drop / fail paths.
@@ -247,7 +275,7 @@ export async function compileType(client: ResolverClient, gen: GeneratedType): P
     });
   }
 
-  return {...partial, wired, wireErrors, siteLines};
+  return {...partial, wired, wireErrors, siteLines, reflectionIds};
 }
 
 function wire<K extends keyof WiredFns>(
@@ -267,7 +295,8 @@ function classifyFnSites(fnSites: Site[], tuples: Record<string, readonly unknow
   const out: FnSites = {};
   for (const site of fnSites) {
     const tuple = tuples[`${site.fnId}_${site.id}`];
-    const key = tuple && typeof tuple[0] === 'string' ? WIRED_BY_TAG[tuple[0]]?.[0] : undefined;
+    const tagged = tuple && typeof tuple[0] === 'string' ? WIRED_BY_TAG[tuple[0]]?.[0] : undefined;
+    const key = tagged === 'validate' && out.validate ? 'validateDataOnly' : tagged;
     if (key) out[key] = {site, tuple};
   }
   return out;
