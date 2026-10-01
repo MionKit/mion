@@ -526,6 +526,7 @@ func (emitter RemoveUnknownKeysEmitter) emitNativeIterable(rt *reflection.RunTyp
 }
 
 // isNoopForRemoveUnknownKeys must mirror the Emit arms, or the noop fastpath shares a mutable position.
+// No NonDataOf guard: this family copies or shares non-data by sharedValueSlot, which the walk below asks instead.
 func isNoopForRemoveUnknownKeys(rt *reflection.RunType, ctx *EmitContext) bool {
 	rt = ctx.ResolveRef(rt)
 	if rt == nil {
