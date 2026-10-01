@@ -1,7 +1,7 @@
 import {createMionRouter, Routes} from '@mionjs/router';
 import {getAuthUser, type AuthUser} from './myAuth.ts';
 
-// the return type keeps `me` from being typed as `null` forever
+// without this return type, `me` would be typed as only `null`
 const newSharedData = (): {me: AuthUser | null} => ({me: null});
 
 const mion = createMionRouter({contextDataFactory: newSharedData});

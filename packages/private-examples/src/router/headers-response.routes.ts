@@ -9,7 +9,7 @@ const routes = {
     (ctx): HeadersSubset<'Cache-Control'> =>
       new HeadersSubset({'Cache-Control': 'no-store'})
   ),
-  // reads a request header and answers with a response header
+  // reads a request header and returns a response header
   locale: mion.headersFn(
     (
       ctx,
