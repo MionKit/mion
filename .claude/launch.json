@@ -1,4 +1,11 @@
 {
   "version": "0.0.1",
-  "configurations": []
+  "configurations": [
+    {
+      "name": "website",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["miondevx", "website", "dev"],
+      "port": 3000
+    }
+  ]
 }
