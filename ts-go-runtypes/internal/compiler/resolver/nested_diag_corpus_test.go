@@ -2,6 +2,7 @@ package resolver_test
 
 import (
 	"fmt"
+	"os"
 	"regexp"
 	"slices"
 	"sort"
@@ -172,6 +173,11 @@ func siteCodes(t *testing.T, sources map[string]string, allInternal bool) []stri
 	return corpusCodes(response, "site.ts")
 }
 
+// gridValueShapes runs the value call shape too. It is a third of the grid, so the release gate and a full local run
+// set MION_DIAG_GRID_FULL=1; a PR keeps the static shape, and every value-first marker has its own paired tests.
+// Measured on 4 cores: 74 s alone with value shapes, 30 s without; the whole Go suite 301 s, 128 s with no grid.
+var gridValueShapes = os.Getenv("MION_DIAG_GRID_FULL") == "1"
+
 // TestNestedDiagCorpus puts every trigger at every position, inline and named, under every family and inline mode.
 // Throws and reports match both ways, inline, named and both call shapes agree, no silent non-data drop, build equals scan.
 func TestNestedDiagCorpus(t *testing.T) {
@@ -193,7 +199,7 @@ func TestNestedDiagCorpus(t *testing.T) {
 						}
 						for _, family := range corpusFamilies {
 							for _, valueShape := range []bool{false, true} {
-								if valueShape && allInternal {
+								if valueShape && (allInternal || !gridValueShapes) {
 									continue
 								}
 								shape := "static"

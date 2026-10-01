@@ -69,6 +69,9 @@ jobs:
         run: pnpm run check:builds
       - name: Go test suite
         working-directory: ts-go-runtypes
+        # The diagnostics grid's value call shapes, which PR CI leaves out to keep the Go step short.
+        env:
+          MION_DIAG_GRID_FULL: '1'
         run: go test ./internal/... ./cmd/...
       - name: Go formatting + vet (our code only; never third_party)
         working-directory: ts-go-runtypes

@@ -142,6 +142,7 @@ export const REGISTRY = [
   // — fuzz test knobs (the harness; `miondevx core fuzz <lane> [--quick|--soak]`
   //   sets them per lane from the FUZZ registry in scripts/miondevx.mjs) —
   {name: 'MION_FUZZ_SEED', scope: 'dev', task: '-', desc: 'Fuzz PRNG seed (default: derived from the package version + lane)'},
+  {name: 'MION_DIAG_GRID_FULL', scope: 'dev', task: '-', desc: "set to 1 to run TestNestedDiagCorpus's value call shapes too (the release gate does; PRs run the static half)"},
   {name: 'MION_FUZZ_ITER', scope: 'dev', task: '-', desc: 'fuzz sweep iteration count — drives both convert lanes (Go sweeps default 6, the CLI twin 5) and apiids (default 5)'},
   {name: 'MION_FUZZ_SOAK_MS', scope: 'dev', task: '-', desc: 'value fuzz soak duration in ms'},
   {name: 'MION_FUZZ_TYPES_SOAK_MS', scope: 'dev', task: '-', desc: 'type fuzz soak duration in ms'},
