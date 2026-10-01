@@ -216,7 +216,7 @@ func collectCompactDeclaredSlots(rt *reflection.RunType, ctx *EmitContext) []com
 // emitObjectCompactForJson is the positional-array object encode: declared properties take positions 0..N-1 in canonical
 // order and an absent optional holds the `null` placeholder, so later positions stay aligned.
 func emitObjectCompactForJson(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
-	if objectHasCallSignature(rt, ctx) {
+	if isCallableValue(rt, ctx) {
 		return RTCode{Code: "", Type: CodeNS}
 	}
 

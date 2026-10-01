@@ -46,3 +46,13 @@ func TestNonDataValueSites_FormatSkipsCallableProperty(t *testing.T) {
 		t.Errorf("emitPropertyFormat on a callable-interface property = %+v, want an empty CodeS", code)
 	}
 }
+
+func TestNonDataValueSites_CallableLeafLabelsAsFunction(t *testing.T) {
+	ctx, types := valueSiteTypes(t)
+	if got := leafKindLabel(types["cal"], ctx.ResolveRef); got != "Function" {
+		t.Errorf("leafKindLabel(callable interface) = %q, want Function", got)
+	}
+	if got := leafKindLabel(types["cal"], nil); got != "Unsupported" {
+		t.Errorf("leafKindLabel without a resolver = %q, want Unsupported: the call signature sits behind a ref", got)
+	}
+}

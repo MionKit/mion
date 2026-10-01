@@ -133,7 +133,8 @@ func TestNonDataAgreement_RootThrowsWithItsOwnCode(t *testing.T) {
 			for _, node := range nodes {
 				refTable[node.ID] = node
 			}
-			nonData := reflection.NonDataOf(root, func(ref *reflection.RunType) *reflection.RunType { return refTable[ref.ID] })
+			resolve := func(ref *reflection.RunType) *reflection.RunType { return refTable[ref.ID] }
+			nonData := reflection.NonDataOf(root, resolve)
 			out, _ := renderWithDiag(t, protocol.Dump{RunTypes: nodes}, spec.Key, "root")
 			throwsInternal := strings.Contains(out, "'["+diagnostics.CodeUnsupportedLeafNoCode+"] ")
 			if throwsInternal {
@@ -142,7 +143,7 @@ func TestNonDataAgreement_RootThrowsWithItsOwnCode(t *testing.T) {
 			if nonData == reflection.Data || ownNonDataRule(spec.Emitter, nonData) {
 				continue
 			}
-			code := provider.DiagCodeForLeaf(callableLeafSubstitute(root, refTable))
+			code := provider.DiagCodeForLeaf(root, resolve)
 			if code == "" {
 				t.Errorf("[%s] %s is non-data (class %d) and the family has no root code for it", spec.Key, name, nonData)
 				continue

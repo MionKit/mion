@@ -528,15 +528,14 @@ func renderEntryWithDeps(runType *reflection.RunType, settings constants.CacheMo
 	innerFn, shapeNoop, isUnsupported := walker.Compile()
 	if isUnsupported {
 		// Report the alwaysThrow's code at build time too, so the user sees the cause before runtime.
-		// A callable interface would otherwise map to no code (see callableLeafSubstitute).
-		diagLeaf := callableLeafSubstitute(walker.UnsupportedLeaf, walker.RefTable)
+		diagLeaf := walker.UnsupportedLeaf
 		diagCode := diagnostics.CodeUnsupportedLeafNoCode
 		if leafProvider, ok := emitter.(LeafDiagCodeProvider); ok {
-			if code := leafProvider.DiagCodeForLeaf(diagLeaf); code != "" {
+			if code := leafProvider.DiagCodeForLeaf(diagLeaf, walker.resolveRef); code != "" {
 				diagCode = code
 			}
 		}
-		kindLabel := leafKindLabel(diagLeaf)
+		kindLabel := leafKindLabel(diagLeaf, walker.resolveRef)
 		if removeUnknownKeys, ok := emitter.(RemoveUnknownKeysEmitter); ok && diagCode != diagnostics.CodeUnsupportedLeafNoCode {
 			kindLabel = removeUnknownKeys.DiagLabelForLeaf(diagLeaf)
 		}
@@ -842,9 +841,12 @@ func cachedChildRefs(children []string, innerPrefix string, opts RenderOpts) ([]
 
 // leafKindLabel returns the short label for an unsupported leaf, passed as the {0} substitution arg for
 // root-throw diagnostics. It is family-independent; per-family wording lives in the catalog entry.
-func leafKindLabel(leaf *reflection.RunType) string {
+func leafKindLabel(leaf *reflection.RunType, resolve RefResolver) string {
 	if leaf == nil {
 		return "Unsupported"
+	}
+	if reflection.NonDataOf(leaf, resolve) == reflection.NonDataFunction {
+		return "Function"
 	}
 	switch leaf.Kind {
 	case reflection.KindNever:
@@ -859,11 +861,6 @@ func leafKindLabel(leaf *reflection.RunType) string {
 		return "Promise"
 	case reflection.KindRegexp:
 		return "RegExp"
-	case reflection.KindFunction,
-		reflection.KindMethod,
-		reflection.KindMethodSignature,
-		reflection.KindCallSignature:
-		return "Function"
 	case reflection.KindClass:
 		if leaf.SubKind == reflection.SubKindNonSerializable {
 			return "NonSerializableClass"
