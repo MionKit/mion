@@ -161,22 +161,28 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
 ## What shipped
 
 **1. Decided once.**
-- `isFunctionLikeKind` is gone. 16 member-shape calls read `isMethodMember`; the 7 value calls read the `NonDataOf`
-  helpers. That fixed a real bug: a `checkUnknowns` validator counted a dropped symbol / RegExp / Promise member as
-  a key, so `{a: symbol; b: number}` rejected `{b: 1}`. Those members now behave like function members (the
-  validator works on the data-only view, so a present non-data member is an unknown key).
+- `isFunctionLikeKind` is gone. 16 member-shape calls read `isMethodMember`. Six value calls read the `NonDataOf`
+  helpers; the seventh (`validate_union_keys.go`) was dead and went, since its list is already the DataOnly
+  projection.
+- That fixed a real bug: a `checkUnknowns` validator counted a dropped symbol / RegExp / Promise member as a key, so
+  `{a: symbol; b: number}` rejected `{b: 1}`. Those members now behave like function members: the validator works on
+  the data-only view, so a present non-data member is an unknown key (pinned in `checkUnknowns.test.ts`).
+- A callable-interface value in an index signature or a formatted property now acts like a function there too
+  (`formatTransformCallable.test.ts`).
 - `DiagCodeForLeaf` and `leafKindLabel` take a resolver; `callableLeafSubstitute` and `objectHasCallSignature` are gone.
 - The four unguarded noop predicates say why next to them. The agreement test stays on roots: the grid's
   `CoversEveryNonDataKind` gate already runs every non-data kind at every member position (recorded in its header).
 
 **2. D4.** `packages/run-types/test/fuzz/type/dataOnlyOracle.ts`, with unit negative controls and an end-to-end
-control (a `NoStrip<X> = X` stand-in fires it). It found two `DataOnly` bugs, both fixed in `dataOnly.ts`:
-an optional non-data member projected to `p?: undefined`, and a type whose members are all optional passed the
-broad-`object` test and was kept as is, functions included. The fix costs 1 to 8% more type instantiations on the
-branches with dropped members; the budgets in `dataonly.compile.test.ts` were raised to the measured numbers, a
-reviewed exception. Standard-library classes (`URL`, `Error`, `Blob`) stay the one known gap: the Go side skips any
-lib-declared class and a type cannot tell where a class was declared. Recorded in `dataOnly.ts` and the oracle header;
-the generator draws none. Seeds pinned in `dataOnlyAgreement.smoke.test.ts`.
+control (a `NoStrip<X> = X` stand-in fires it, in `diagnosticTruth.smoke.test.ts`). It found three `DataOnly` bugs,
+all fixed in `dataOnly.ts`: an optional non-data member projected to `p?: undefined` (seeds 2649564061, 3811392738);
+a type whose members are all optional passed the broad-`object` test and was kept as is, functions included (seed
+360858409); and, found in review, a template-pattern index key read as an optional member and dropped its signature.
+The fixes cost 1 to 10% more type instantiations on the branches with dropped members; the budgets in
+`dataonly.compile.test.ts` were raised to the measured numbers, a reviewed exception. Standard-library classes
+(`URL`, `Error`, `Blob`) stay the one known gap: the Go side skips any lib-declared class and a type cannot tell
+where a class was declared. It needs a design decision, so it is filed as its own todo with the options; until then
+`dataOnly.ts` and the oracle header record it and the generator draws none.
 
 **3. The lane.**
 - Lazy throws do not exist: a non-data value that cannot compile makes its entry throw when the function is created
@@ -186,19 +192,25 @@ the generator draws none. Seeds pinned in `dataOnlyAgreement.smoke.test.ts`.
 - O10 removed; O2 runs on the mock lane when the validate site notes no drop.
 - One mock draw is shared by every check (a slow mock otherwise ran three or four times per type).
 - Only `typeFuzzHarness.ts` maps positions to lines; the byte-offset and line-break rule is in the add-diagnostic skill.
+- The long soak found one more D1 gap (seed 2357953336): a foreign throw was hidden whenever the site's own family
+  threw, even for another failure. A foreign throw is now hidden only when an own throw names the same kind.
 
-**4. Budgets.** The non-data lane soaks 10 minutes in `.github/workflows/fuzz-nondata-soak.yml` (release PRs and
-manual runs), out of the release gate's matrix through `soakWorkflow` on its `FUZZ` entry. The grid measured 74 s alone
-on 4 cores (the Go suite 301 s, 128 s without it); its value call shapes are more than half of that, so they run only
-with `MION_DIAG_GRID_FULL=1`, which the release gate sets. Splitting the grid into its own CI job was ruled out: the Go
-lane's green marker would then claim a result its job did not prove. The reach walk is timed in the render metrics
+**4. Budgets.** The non-data lane soaks 10 minutes in `.github/workflows/fuzz-nondata-soak.yml`, which the release
+gate calls as its `fuzz-soak-nondata` job (`soakWorkflow` on the `FUZZ` entry keeps it out of the matrix;
+`fuzz-lanes --all` keeps it in fuzz-soak.yml's `all`). The grid measured 74 s alone on 4 cores (the Go suite 301 s,
+128 s without it); its value call shapes are more than half of that, so they run only with `MION_DIAG_GRID_FULL=1`,
+which pushes to main and the release gate set. Splitting the grid into its own CI job was ruled out: the Go lane's
+green marker would then claim a result its job did not prove. The reach walk is timed in the render metrics
 (`RenderMs.reachedFindings`): 1.4 ms, and the elided renders about 15 ms, of a 198 ms request over 120 types x 5
 families, both under the 10% bar, so neither changed (numbers next to `ReportReachedFindings`).
 
 **5. Decisions.** `VerdictFrom` on the operations registry builds `adoptsFindingsOf` (now the three one-to-one
-pairs, not a cross product), pinned by `TestVerdictFrom_MatchesTheUnionDelegate`. `Internal` on `Definition` marks
-TFN001 and JCP001; the catalog page badges them. The validation page names promises as skipped and gives `any` /
-`unknown` a short section. Long old comments were left to the comments pass over the touched files.
+pairs, not a cross product), pinned by `TestVerdictFrom_MatchesTheUnionDelegate`. TFN001 and JCP001 get an
+"Internal error" badge on the catalog page, derived from their "Internal error:" headline. The validation page names
+promises as skipped and gives `any` / `unknown` a short section. Long old comments were left to the comments pass
+over the touched files.
 
-**Found on the way, delegated.** `createMockDataFn` takes seconds for a nested `Set<Map<…>>` (seed 3635804914 tripped
-the soak's slow-round ceiling). Filed as its own todo and fixed in a parallel session's PR.
+**Found on the way, delegated.** `createMockDataFn` took seconds for a nested `Set<Map<…>>` (seed 3635804914 tripped
+the soak's slow-round ceiling). Fixed in its own PR, MionKit/mion#416, which merges before this one.
+
+**Soaks.** A 10-minute soak on 2026-10-01 (seed 20261001, 3,980 types) found the D1 gap above, now fixed and pinned.
