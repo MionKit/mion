@@ -108,16 +108,14 @@ constructor(
 
 ## Docs
 
-- `container/website/content/01.rpc/02.server/02.middleware.md`, existing section "Optional Headers"
-  (its warning): returned headers are checked when the `HeadersSubset` is built, inside the handler, and
-  fail with `headers-validation-error`.
-- `container/website/content/01.rpc/03.client/00.client-overview.md`, existing section "Checking Server
+- `container/website/content/01.rpc/02.server/04.headers.md`, existing section "Sending Response Headers":
+  returned headers are checked when the `HeadersSubset` is built, inside the handler, and fail with
+  `headers-validation-error`.
+- `container/website/content/01.rpc/04.client/00.client-overview.md`, existing section "Checking Server
   Responses": drop "the server checks only the headers a route returns".
 - `container/website/content/02.runtypes/02.guide/10.compiler-markers.md`: markers also work on constructor
   calls, `new X<T>()` and `new X(value)`.
 - Check the MKR003 / MKR010 wording in `02.runtypes/08.diagnostics/02.all-diagnostics.md`.
-- If the Headers page (`01.rpc/02.server/04.headers.md`) has landed on `main` by then, its "Sending
-  Response Headers" section gets the same line as the middleware page.
 
 Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagent) over every page and example this change touched, review its report against the code, and commit it as its own commit.
 
