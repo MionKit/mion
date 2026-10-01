@@ -13,10 +13,10 @@ const DATA_ONLY_DEPTH = 8;
 const MAX_MUTATIONS = 16;
 const MUTATION_DEPTH = 3;
 
-export type Resolve = (node: RunType) => RunType | undefined;
+type Resolve = (node: RunType) => RunType | undefined;
 
 /** A validator's verdict, or the code-less marker for a throw. **/
-export type Verdict = boolean | 'throws';
+type Verdict = boolean | 'throws';
 
 function violation(message: string, ctx: DiagContext, value: unknown = ctx.source): Violation {
   return {oracle: 'D4', target: ctx.target, seed: ctx.seed, phase: 'valid', message, value: snapshot(value)};
@@ -160,7 +160,7 @@ function isSymbolKeyedName(name: string): boolean {
   return name.startsWith('@@') || ((name.charCodeAt(0) === 0xfe || name.charCodeAt(0) === 0xfffd) && name[1] === '@');
 }
 
-function deref(node: RunType | undefined, resolve: Resolve): RunType | undefined {
+export function deref(node: RunType | undefined, resolve: Resolve): RunType | undefined {
   let current = node;
   for (let hops = 0; current && current.kind === RunTypeKind.ref && hops < 16; hops++) current = resolve(current);
   return current;
