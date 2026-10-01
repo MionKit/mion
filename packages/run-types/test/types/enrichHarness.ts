@@ -15,6 +15,7 @@ export type {MeasureResult};
 
 const FRIENDLY_TS = fileURLToPath(new URL('../../src/enrich/friendlyText.ts', import.meta.url));
 const MOCK_TS = fileURLToPath(new URL('../../src/enrich/mockData.ts', import.meta.url));
+const ERROR_KEYS_TS = fileURLToPath(new URL('../../src/go-generated/formatErrorKeys.generated.ts', import.meta.url));
 
 /** Slice a `#region <name> … #endregion <name>` block out of a source file and
  *  drop `export` modifiers so it can live in a non-module snippet. **/
@@ -36,7 +37,10 @@ type ExpectFalse<T extends false> = T;
 type Assignable<A, B> = A extends B ? true : false;
 `;
 
-const FRIENDLY_PREAMBLE = `${SENTINEL_KEYS_PREAMBLE}\n${extractRegion(FRIENDLY_TS, 'friendlytext-extract')}\n${ASSERT_PREAMBLE}\n`;
+// The generated error-key table has no imports, so it is inlined whole; the region reads `FormatErrorKeys` from it.
+const ERROR_KEYS_PREAMBLE = readFileSync(ERROR_KEYS_TS, 'utf8').replace(/^export (type|interface) /gm, '$1 ');
+
+const FRIENDLY_PREAMBLE = `${SENTINEL_KEYS_PREAMBLE}\n${ERROR_KEYS_PREAMBLE}\n${extractRegion(FRIENDLY_TS, 'friendlytext-extract')}\n${ASSERT_PREAMBLE}\n`;
 const MOCK_PREAMBLE = `${SENTINEL_KEYS_PREAMBLE}\n${extractRegion(MOCK_TS, 'mockdata-extract')}\n${ASSERT_PREAMBLE}\n`;
 
 /** Compile `FRIENDLY_PREAMBLE + snippet`; report errors + raw/net instantiations. **/
