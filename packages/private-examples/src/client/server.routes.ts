@@ -7,9 +7,6 @@ const mion = createMionRouter();
 export type User = {id: string; name: string; surname: string};
 export type Order = {id: string; date: Date; userId: string; totalUSD: number};
 
-// returned by the auth middleware, strongly typed in the client onResponse hook
-export type {SessionInfo};
-
 // Error data types - these will be strongly typed in the client!
 export type UserNotFoundData = {requestedId: string; suggestedIds?: string[]};
 export type OrderNotFoundData = {requestedId: string};
