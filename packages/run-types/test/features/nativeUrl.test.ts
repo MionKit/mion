@@ -1,5 +1,4 @@
-// The native URL class as data: validated by instanceof, sent as its href, rebuilt with `new URL()` behind
-// `URL.canParse`, re-wrapped on clone, and the nativeUrl format checking the href with the url params.
+// URL as data: instanceof validate, href on the wire, `URL.canParse`-guarded rebuild, re-wrap on clone, href formats.
 
 import type * as TF from '@mionjs/run-types/formats';
 import {describe, expect, it} from 'vitest';

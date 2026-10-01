@@ -115,8 +115,7 @@ export function memberMismatches(
     );
     return out;
   }
-  // A kept native (Date, URL, Map, Set, Temporal) must stay that native: a structural projection of it validates the
-  // same instances through prototype getters, so the answers check alone cannot see the difference.
+  // A projected native validates the same instances through prototype getters, so the answers check alone misses it.
   if (isKeptNative(typeNode) && (dataOnlyNode.kind !== typeNode.kind || dataOnlyNode.subKind !== typeNode.subKind))
     return [
       `${path}: the native ${String(typeNode.typeName ?? typeNode.subKind)} in T is kind ${kindName(dataOnlyNode)} in DataOnly<T>`,

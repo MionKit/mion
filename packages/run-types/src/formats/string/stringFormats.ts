@@ -585,11 +585,10 @@ export type UrlHttp<P extends Override<UrlParams, 'pattern'> = {}> = PresetForma
 export type UrlFile<P extends Override<UrlParams, 'pattern'> = {}> = PresetFormat<'url', DEFAULT_URL_FILE_PARAMS, P>;
 
 // ───────────────────────────── URL objects ──────────────────────────
-// The url params over a URL OBJECT: sent as its href string, rebuilt with `new URL()`, and the length and
-// pattern params check its href. `transform` is left out because a URL object is never rewritten.
+// A URL object travels as its href, rebuilt with `new URL()`; length and pattern params check the href.
+// No `transform`: a URL object is never rewritten.
 
-/** The platform `URL` instance type, read off `globalThis` so the published `.d.ts` works without `dom` or
- *  `@types/node`; `never` there, since without a `URL` global there is no URL value to describe. **/
+/** Read off `globalThis` so the published `.d.ts` needs neither `dom` nor `@types/node`; `never` without them. **/
 type UrlInstance = typeof globalThis extends {URL: {prototype: infer I}} ? I : never;
 export type NativeUrlParams = Omit<UrlParams, 'transform'>;
 /** The brand is written inline, not through `TypeFormat`, so the root `TypeFormatBase` never names `URL`. **/

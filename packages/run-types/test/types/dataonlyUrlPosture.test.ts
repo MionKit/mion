@@ -1,6 +1,5 @@
-// URL posture pin: the built dist reads `URL` off `typeof globalThis`, so it must compile for a consumer with
-// neither `dom` nor `@types/node`, and keep URL verbatim (DataOnly, the NativeUrl formats) for a consumer with
-// either. Compiled against the BUILT dist through the real TypeScript compiler, like dataonlyTemporalPosture.
+// The built dist reads `URL` off `typeof globalThis`: it must compile with neither `dom` nor `@types/node`, and keep
+// URL verbatim with either. Compiled against the BUILT dist by real tsc, like dataonlyTemporalPosture.
 
 import {describe, it, expect} from 'vitest';
 import * as ts from 'typescript';

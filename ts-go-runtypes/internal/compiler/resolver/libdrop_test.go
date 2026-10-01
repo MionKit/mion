@@ -44,9 +44,7 @@ func setupUnderDomLib(t *testing.T, sources map[string]string) *resolver.Session
 // still validates and still serialises.
 //
 // Info, not Error, is the contract: an Error means the generated function
-// throws at runtime, and this one does not. Before this, a lib-class property
-// silently compiled a validator over the class's members, which is the failure
-// mode this replaces.
+// throws at runtime, and this one does not.
 func TestDiag_LibClassPropertyIsAnnouncedNotSilent(t *testing.T) {
 	const code = `import {createValidateFn, createJsonEncoderFn} from '@mionjs/run-types';
 interface Bookmark {id: number; title: string; link: URLSearchParams}

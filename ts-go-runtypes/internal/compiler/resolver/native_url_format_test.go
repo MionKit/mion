@@ -10,8 +10,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// native_url_format_test.go covers the nativeUrl family (NativeUrl<P>): the brand is lifted off `URL & {brand}`
-// onto the SubKindUrl node, and the url format's length and pattern checks run over the URL's href.
+// NativeUrl<P>: the brand lifts off `URL & {brand}` onto the SubKindUrl node, and length / pattern checks run on href.
 
 func scanNativeUrl(t *testing.T, params string) protocol.Response {
 	t.Helper()

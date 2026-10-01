@@ -95,10 +95,8 @@ function stringifyHandlerParams(method: MethodWithJitFns, params: any[], validat
   }
 }
 
-/** The plain wire forms the server's JSON decoders accept, applied recursively. Date, URL and Temporal need no
- *  arm, their own toJSON writes the text their decoders rebuild from. A union member's `[index, value]`
- *  envelope is deliberately not written: the index needs the metadata, and every transforming decoder guards
- *  its wire shape, so the server refuses the bare value instead of misreading it and the client retries. */
+/** The wire forms the server's JSON decoders accept; Date, URL and Temporal need no arm, their own toJSON writes it.
+ *  No union `[index, value]` envelope: the index needs metadata, so the server's guarded decoder refuses and the client retries. */
 export function wireFormReplacer(this: unknown, key: string, value: unknown): unknown {
   if (value instanceof Map) return [...value];
   if (value instanceof Set) return [...value];
