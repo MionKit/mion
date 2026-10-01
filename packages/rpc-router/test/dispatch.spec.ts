@@ -190,7 +190,9 @@ describe('Dispatch routes', () => {
     it('checks request headers once, with the headers function own check', async () => {
       const auth = mion.headersFn((ctx, h: HeadersSubset<'Authorization'>): void => undefined);
       mion.initRoutes({auth, changeUserName});
-      const isType = (getMiddlewareExecutable('auth') as HeadersMethod).headersParam.jitFns.isType as {fn: (value: unknown) => boolean};
+      const isType = (getMiddlewareExecutable('auth') as HeadersMethod).headersParam.jitFns.isType as {
+        fn: (value: unknown) => boolean;
+      };
       const check = isType.fn;
       let checks = 0;
       isType.fn = (value) => (checks++, check(value));
