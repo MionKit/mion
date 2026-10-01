@@ -44,6 +44,14 @@ interface CircPartB {
 
 const targets: CloneFuzzTarget[] = [];
 
+/** The clone keeps a non-data member the strict validator rejects as unknown, so drop that one key before checking. **/
+function strictWithout(key: string, strict: (value: unknown) => boolean): (value: unknown) => boolean {
+  return (value) => {
+    const {[key]: _dropped, ...data} = value as Record<string, unknown>;
+    return strict(data);
+  };
+}
+
 // --- target: flat object of primitives ---
 {
   interface FlatUser {
@@ -274,11 +282,7 @@ const targets: CloneFuzzTarget[] = [];
     schema: getRunType<RegExpProp>(),
     mock: createMockDataFn<RegExpProp>(undefined, {mock: {nonDataTypes: true}}),
     validate: createValidateFn<RegExpProp>(),
-    // Same as FnProp: the clone shares the RegExp, which the strict validator rejects as a key outside the data shape.
-    validateStrict: (value) => {
-      const {pattern: _pattern, ...data} = value as RegExpProp;
-      return strictRegExpProp(data);
-    },
+    validateStrict: strictWithout('pattern', strictRegExpProp),
     clone: createRemoveUnknownKeysFn<RegExpProp>(),
   });
 }
@@ -447,11 +451,7 @@ const targets: CloneFuzzTarget[] = [];
     // reference contract is exercised (default mocks skip non-data members).
     mock: createMockDataFn<FnProp>(undefined, {mock: {nonDataTypes: true}}),
     validate: createValidateFn<FnProp>(),
-    // The clone keeps function members (RUK010), which the strict validator rejects; drop the declared one first.
-    validateStrict: (value) => {
-      const {onClick: _onClick, ...data} = value as FnProp;
-      return strictFnProp(data);
-    },
+    validateStrict: strictWithout('onClick', strictFnProp),
     clone: createRemoveUnknownKeysFn<FnProp>(),
   });
 }
@@ -469,11 +469,7 @@ const targets: CloneFuzzTarget[] = [];
     schema: getRunType<BigintSymbol>(),
     mock: createMockDataFn<BigintSymbol>(),
     validate: createValidateFn<BigintSymbol>(),
-    // Same as FnProp: the clone keeps the symbol, which the strict validator rejects as a key outside the data shape.
-    validateStrict: (value) => {
-      const {sym: _sym, ...data} = value as BigintSymbol;
-      return strictBigintSymbol(data);
-    },
+    validateStrict: strictWithout('sym', strictBigintSymbol),
     clone: createRemoveUnknownKeysFn<BigintSymbol>(),
   });
 }

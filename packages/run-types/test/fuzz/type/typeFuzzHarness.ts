@@ -120,14 +120,11 @@ const WIRED_BY_TAG: Partial<Record<string, [FnKey, FnFactory]>> = {
 };
 
 /** The compiled functions every fixture has a call site for; the second `val` site is the DataOnly one. **/
-export const FN_KEYS: FnKey[] = [...Object.values(WIRED_BY_TAG).map((wiring) => wiring![0]), 'validateDataOnly'];
-
-/** What the fixture's `DataOnly<T>` sites name: the shipped type, or a stand-in a negative control declares. **/
-export interface DataOnlySpelling {
-  name: string;
-  decl?: string;
-}
-const SHIPPED_DATA_ONLY: DataOnlySpelling = {name: 'DataOnly'};
+const WIRED: [FnKey, FnFactory][] = [
+  ...(Object.values(WIRED_BY_TAG) as [FnKey, FnFactory][]),
+  ['validateDataOnly', createValidateFn as FnFactory],
+];
+export const FN_KEYS: FnKey[] = WIRED.map(([key]) => key);
 
 type FnSites = Partial<Record<FnKey, {site: Site; tuple: readonly unknown[]}>>;
 
@@ -162,7 +159,7 @@ export function openClient(): ResolverClient {
 }
 
 /** One call site per family, then the T and DataOnly<T> reflection sites: compileType tells them apart by order. **/
-export function renderFixture(gen: GeneratedType, dataOnly: DataOnlySpelling = SHIPPED_DATA_ONLY): string {
+export function renderFixture(gen: GeneratedType, dataOnly: {name: string; decl?: string} = {name: 'DataOnly'}): string {
   const {decls, rootExpr} = renderGenerated(gen);
   return `import {
   createValidateFn,
@@ -200,7 +197,7 @@ getRunTypeId<${dataOnly.name}<T>>();
 export async function compileType(
   client: ResolverClient,
   gen: GeneratedType,
-  dataOnly: DataOnlySpelling = SHIPPED_DATA_ONLY
+  dataOnly: {name: string; decl?: string} = {name: 'DataOnly'}
 ): Promise<CompiledType> {
   const source = renderFixture(gen, dataOnly);
   const title = describeType(gen);
@@ -233,8 +230,8 @@ export async function compileType(
   const diagnostics = resp.diagnostics ?? [];
   const sites = resp.sites ?? [];
   // Source order tells the two `val` sites and the two reflection sites apart.
-  const fnSites = sites.filter((s) => s.fnId).sort((a, b) => a.pos - b.pos);
-  const reflectionSites = sites.filter((s) => !s.fnId).sort((a, b) => a.pos - b.pos);
+  const fnSites = sites.filter((site) => site.fnId).sort((left, right) => left.pos - right.pos);
+  const reflectionSites = sites.filter((site) => !site.fnId).sort((left, right) => left.pos - right.pos);
   const entryModules = resp.entryModules ?? {};
   const partial: CompiledType = {
     ...base,
@@ -270,16 +267,9 @@ export async function compileType(
       .toString('utf8')
       .split(/\r\n|[\n\r\u2028\u2029]/).length;
   }
-  for (const [key, factory] of Object.values(WIRED_BY_TAG) as [FnKey, FnFactory][]) {
+  for (const [key, factory] of WIRED) {
     wire(wired, wireErrors, key, () => factory(undefined, undefined, byKey[key]?.tuple as never) as never);
   }
-  const validateFactory = createValidateFn as FnFactory;
-  wire(
-    wired,
-    wireErrors,
-    'validateDataOnly',
-    () => validateFactory(undefined, undefined, byKey.validateDataOnly?.tuple as never) as never
-  );
   const reflectionIds = {type: reflectionSites[0]?.id, dataOnly: reflectionSites[1]?.id};
 
   // Pass the reflection entry tuple as the plugin does: the function factories' caches never link the reflection graph.

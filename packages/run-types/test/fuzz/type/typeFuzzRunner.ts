@@ -28,7 +28,7 @@ import {genType, describeType, isRecursive, DEFAULT_GEN_OPTIONS, type GeneratedT
 import {genValidValue, validValue, corruptValue, valueOracleSafe} from '../value/shapeValue.ts';
 import {getRunType} from '@mionjs/run-types';
 import {getRTUtils} from '../../../src/runtypes/rtUtils.ts';
-import {checkDataOnlyAnswers, checkDataOnlyMembers, checkDataOnlyRoot, mutationsOf, runVerdict} from './dataOnlyOracle.ts';
+import {checkDataOnlyAnswers, checkDataOnlyMembers, checkDataOnlyRoot, deref, mutationsOf, runVerdict} from './dataOnlyOracle.ts';
 import {compileType, openClient, renderFixture, FN_KEYS, type CompiledType, type WiredFns} from './typeFuzzHarness.ts';
 import {isValidTypeScript} from './tsValidate.ts';
 import {randomJunk} from '../value/fuzzRunner.ts';
@@ -617,12 +617,14 @@ function checkRoundTripDrops(compiled: CompiledType, value: unknown, ctx: DiagCo
 // --- D4: DataOnly<T> and the Go side's non-data decision agree ---
 export function dataOnlyViolations(compiled: CompiledType, seed: number, drawn = drawMock(compiled.wired.mock)): Violation[] {
   const {type: typeId, dataOnly: dataOnlyId} = compiled.reflectionIds;
+  // A lost site (TR2) would wire the surviving `val` site by order and blame DataOnly for it.
   if (compiled.resolverError || compiled.evalError || isRecursive(compiled.gen) || !typeId || !dataOnlyId) return [];
+  if (compiled.fnSiteCount !== FN_KEYS.length) return [];
   const ctx = {target: compiled.title, seed, source: compiled.source};
   const resolve = (node: RunType) => getRTUtils().getRunType(node.id as string) as RunType | undefined;
   const typeRoot = getRunType(undefined, typeId as never) as RunType;
   const dataOnlyRoot = getRunType(undefined, dataOnlyId as never) as RunType;
-  const derefKind = (node: RunType) => (node.kind === -1 ? resolve(node)?.kind : node.kind) as number;
+  const derefKind = (node: RunType) => deref(node, resolve)?.kind as number;
   const value = drawn.value;
   const validate = compiled.wired.validate as ((input: unknown) => unknown) | undefined;
   const typeThrows = compiled.wireErrors.validate !== undefined || runVerdict(validate, value) === 'throws';
