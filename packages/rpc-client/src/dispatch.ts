@@ -597,9 +597,10 @@ function isRetrySafe(state: DispatchState, errors: RequestErrors | undefined): b
 }
 
 /** A void route answers nothing, so any error in the response counts it as failed */
-function routeSucceeded(context: ClientCallContext, routeId: string, errors: RequestErrors | undefined): boolean {
-  // the server ran the route; only its answer was refused
-  if (errors?.get(routeId)?.type === 'response-validation-error') return true;
+export function routeSucceeded(context: ClientCallContext, routeId: string, errors: RequestErrors | undefined): boolean {
+  const errorType = errors?.get(routeId)?.type;
+  // the handler ran: its answer was refused, or the headers it built failed their check
+  if (errorType === 'response-validation-error' || errorType === 'headers-validation-error') return true;
   if (errors?.has(routeId)) return false;
   if (context.subRequestList[routeId]?.resolvedValue !== undefined) return true;
   return !errors?.size;
