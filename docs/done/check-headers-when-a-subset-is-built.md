@@ -150,12 +150,23 @@ Built as planned, with these differences:
 - `analyzeCall` and the guard helpers read `call.ArgumentList()` / `call.TypeArguments()` straight off the node
   instead of taking a new `{args, typeArgs, hasArgList}` struct. `callExpressionName` was left alone: it only
   names a call written as argument 0, never the `new` site itself.
-- Reflect-form gate (`paramZeroCarriesT`): parameter 0 must be the marker's T (undefined stripped) or `RunType<T>`.
-  An untrusted brand resolves no T, so it keeps the old annotation swap.
-- Options bag: read only when the slot before the marker is CompTimeArgs / CompTimeFnArgs / CompTimeHints.
-- The constructor caches its check fns in a `WeakMap` keyed on the FIRST entry tuple, not the injected array:
-  the array is a fresh literal at every call.
-- The JSON rewrite fixtures replay in the Go `sourcerewrite` tests (both modes); the JS mode-parity test got its
-  own `new Holder<T>()`, `new Holder(value)` and paren-less `new Holder<T>` cases.
+- The marker scan and the router scans share one walker (`forEachNodeWhere`); the marker scan matches
+  `ast.IsCallOrNewExpression`, the others stay on calls.
+- Reflect-form gate (`paramZeroCarriesT`): parameter 0 must be the marker's T or `RunType<T>`, compared with null and
+  undefined stripped. An untrusted brand resolves no T, so it keeps the old annotation swap.
+- Options bag (`optionsArgsCountFor`): a `new` site reads options only when the slot before the marker is
+  CompTimeArgs / CompTimeFnArgs / CompTimeHints, on the single-marker AND the multi-slot path. A call keeps the
+  plain options-before-the-marker convention, so a wrapper typing its options slot plainly still works.
+- No cache in the constructor: `getRTFunction` already caches the resolved fns per entry tuple.
+- No exported error alias: the constructor throws `FatalError<'headers-validation-error', ValidationErrorData>`.
+- The rewrite fixture `new_no_parens.json` (marker at parameter 1, so it also pads) replays in the Go `sourcerewrite`
+  tests in both modes; a separate `new_expression.json` added nothing over the existing call fixtures. The JS
+  mode-parity test got `new Holder<T>()`, `new Holder(value)` (same id asserted) and paren-less `new Holder<T>`.
+- The parallel scan is pinned by a `new` file in `parallelFixtureSources()`.
+- A `headers-validation-error` counts as "the handler ran" in the client's `routeSucceeded`, like
+  `response-validation-error`, so a mutation that failed its headers check is never resent.
+- Generic code: `new HeadersSubset<N>(map)` inside a generic function still stops the build with MKR003 / MKR010,
+  like any marker. `new HeadersSubset<N>(map, undefined)` builds it unchecked; the headers page says so. This is a
+  breaking change for such code, marked on the `feat(core)!` commit.
 - MKR003 / MKR010 wording already fits `new`, so no change.
 - The compiler markers page shows a constructor example (`markers-wrap-class.ts`).
