@@ -137,7 +137,7 @@ describe('client-side validation errors', () => {
     it('missing required auth header sits at the auth path, not the route slot', async () => {
       const {routes} = initClient<MyApi>({baseURL});
 
-      // Call without required auth middleware - the auth validation error is typed for the auth middleware
+      // no auth: the validation error belongs to the auth middleware
       const [, routeError, response] = await routes.sayHello({name: 'John', surname: 'Doe'}).call();
 
       expect(routeError).toBeUndefined();

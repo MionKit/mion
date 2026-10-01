@@ -89,7 +89,7 @@ describe('JSON Serialization E2E', () => {
 
         middlewares.auth.offRequest();
 
-        // The auth middleware got no headers: its own validation error, at its path.
+        // No headers: the auth middleware's own validation error, at its path.
         const [, , clientResponse] = await routes.sayHello(someUser).call();
         expect(isRpcError(clientResponse.auth)).toBe(true);
         expect(clientResponse.auth).toMatchObject({type: 'validation-error'});

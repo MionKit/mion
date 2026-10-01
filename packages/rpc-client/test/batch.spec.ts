@@ -730,8 +730,7 @@ describe('batch runtime behaviour', () => {
     // the source answered (null) and has no error of its own
     expect(maybeValue).toBeNull();
     expect(maybeError).toBeUndefined();
-    // the mapper step threw: nobody declared it, so it is the ONE entry in @thrownErrors, naming the two
-    // routes but never the mapper's id; the target never ran
+    // the undeclared mapper throw is ONE @thrownErrors entry naming both routes, not the mapper; the target never ran
     expect(org).toBeUndefined();
     expect(orgError).toBeUndefined();
     expect(clientResponse['@thrownErrors']?.[0]?.type).toBe('batch-mapper-failed');

@@ -146,7 +146,7 @@ describe('client', () => {
 
     const [, routeError, clientResponse] = await routes.sayHello(someUser).call();
 
-    // The unsent auth fails the server's headers check: a validation error, typed, so it sits at the auth path
+    // The unsent auth fails the server's headers check: a typed validation error at the auth path
     const authError = clientResponse.auth as RpcError<string> | undefined;
     expect(routeError).toBeUndefined();
     expect(clientResponse['@thrownErrors']).toBeUndefined();
@@ -361,7 +361,6 @@ describe('client', () => {
 
       middlewares.auth.onRequest((auth) => auth(authHeaders));
 
-      // call() should return both the route result AND the middleware answers
       const [greeting, routeError, clientResponse] = await routes.sayHello(someUser).call();
 
       // Route should succeed
@@ -394,7 +393,7 @@ describe('client', () => {
 
       middlewares.auth.onRequest((auth) => auth(authHeaders));
 
-      // a middleware's DECLARED error sits at its path, never in the route's typed slot or @thrownErrors
+      // a middleware's DECLARED error sits at its path, never in the route slot or @thrownErrors
       const [, routeError, clientResponse] = await routes.sayHello(someUser).call();
 
       expect(routeError).toBeUndefined();
@@ -426,7 +425,6 @@ describe('client', () => {
       // The route always fails; its middleware still runs and succeeds
       const [result, routeError, clientResponse] = await routes.alwaysFails(someUser).call();
 
-      // Route should fail with its DECLARED error in the typed slot; nothing is untyped
       expect(result).toBeUndefined();
       expect(routeError).toBeDefined();
       expect(routeError?.type).toBe('unknown-error');
@@ -494,8 +492,7 @@ describe('client', () => {
 
       const [, routeError, clientResponse] = await routes.sayHello(someUser).call();
 
-      // A middleware's DECLARED error: its own slot in clientResponse, never the typed route slot,
-      // and not in @thrownErrors (it was declared by somebody)
+      // A middleware's DECLARED error: its own path, never the route slot or @thrownErrors
       expect(routeError).toBeUndefined();
       expect(clientResponse['@thrownErrors']).toBeUndefined();
       expect((clientResponse.session as RpcError<string> | undefined)?.type).toBe('session-expired');
@@ -528,8 +525,7 @@ describe('client', () => {
       // Session middleware with expired token will fail
       const [result, routeError, clientResponse] = await routes.sayHello(someUser).call();
 
-      // The middleware failure lands in its own clientResponse slot; whatever result the route
-      // produced is preserved in slot 0 (never masked by another subrequest's error)
+      // another subrequest's error never masks the route's result in slot 0
       expect(routeError).toBeUndefined();
       expect(clientResponse['@thrownErrors']).toBeUndefined();
       expect((clientResponse.session as RpcError<string> | undefined)?.type).toBe('session-expired');
@@ -648,7 +644,6 @@ describe('client', () => {
       expect(routeError).toBeDefined();
       expect(routeError?.type).toBe('validation-error');
       expect(clientResponse['@thrownErrors']).toBeUndefined();
-      // the response is always present
       expect(clientResponse).toBeDefined();
     });
   });
@@ -891,7 +886,7 @@ describe('client', () => {
 
       middlewares.auth.offRequest();
 
-      // Call should now fail (no auth) -> the auth validation error sits at the auth path
+      // no auth now: the validation error sits at the auth path
       const [, , response2] = await routes.sayHello(someUser).call();
       expect((response2.auth as RpcError<string> | undefined)?.type).toBe('validation-error');
     });
@@ -1371,12 +1366,7 @@ describe('client', () => {
   });
 
   // ========== Platform Error Dispatch Tests ==========
-  // A "platform error" is set by the platform adapter (e.g. payload too large) BEFORE the router
-  // ever runs. It is request-scoped and nobody's declared response, so the client's contract
-  // (dispatch rules R4/R6) is to surface it ONCE, in @thrownErrors, never in the route's
-  // typed error slot, never in per-route flow slots, and never keyed to a middleware. This describe
-  // block locks in that single-slot contract (it deliberately reverses the previous fan-out-to-
-  // every-slot behaviour).
+  // Platform errors precede the router and nobody declares them: ONCE in @thrownErrors, no route or middleware slot (R4/R6)
   describe('platform error dispatch', () => {
     // The test server's routes take `string` params with no maximum, so they take the node adapter's
     // maxBodySize (128 KB by default). A 300_000-char string in a JSON body exceeds it and reliably

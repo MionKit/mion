@@ -263,7 +263,7 @@ function handlePlatformError(context: ClientCallContext, deserialized: ResponseB
   return true;
 }
 
-/** An error nothing typed: it only reaches `@thrownErrors`, never a typed slot or a listener */
+/** An untyped error: only `@thrownErrors`, never a typed slot or a listener */
 function setThrownError(context: ClientCallContext, id: string, error: RpcError<string>, errors: RequestErrors): void {
   errors.set(id, error);
   context.thrownErrorIds.add(id);
@@ -279,7 +279,7 @@ function addParamlessMiddlewares(context: ClientCallContext): void {
   }
 }
 
-/** Reads every answer from the nested response; validation errors already sit at their path, the rest of the thrown ones are untyped */
+/** Validation errors already sit at their path; the thrown errors left are untyped */
 function resolveSubRequests(
   context: ClientCallContext,
   deserialized: ResponseBody,
@@ -470,7 +470,7 @@ function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
   return !!value && typeof (value as PromiseLike<unknown>).then === 'function';
 }
 
-/** Kept or wrapped, the error lands in @thrownErrors */
+/** The result lands in @thrownErrors */
 function requestHandlerError(id: string, error: unknown): RpcError<string> {
   if (isRpcError(error)) return error;
   const message = error instanceof Error ? error.message : String(error);
@@ -544,7 +544,7 @@ interface MiddlewareResponsesOutcome {
   retryIds: string[];
 }
 
-/** onError fires only for a middleware's declared (returned) errors; thrown ones reach @thrownErrors only */
+/** onError fires only for declared (returned) errors; thrown ones reach @thrownErrors only */
 async function runMiddlewareResponses(
   state: DispatchState,
   middlewareSubRequests: MiddlewareSubRequest<any>[],
@@ -665,7 +665,7 @@ function resetAttempt(state: DispatchState): void {
   state.sent = false;
 }
 
-/** Kept or wrapped, the error lands in @thrownErrors */
+/** The result lands in @thrownErrors */
 function middlewareHandlerError(handlerName: 'onResponse' | 'onError', id: string, error: unknown): RpcError<string> {
   if (isRpcError(error)) return error;
   const message = error instanceof Error ? error.message : String(error);

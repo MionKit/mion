@@ -5,8 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The fetched lane arrives as its own chunk and a chunk can fail to load; a call never throws, so
-// that failure comes back in the result's @thrownErrors like any error the router never saw.
+// The fetched lane is its own chunk, which can fail to load; a call never throws, so it comes back in @thrownErrors.
 
 import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest';
 import type {TestServerApi} from '@mionjs/test-server';

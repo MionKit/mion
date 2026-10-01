@@ -239,8 +239,7 @@ describe('a client built with bundleApi: true', () => {
   it('reports a payload the build did not write in @thrownErrors, never by throwing', async () => {
     const {client, routes, middlewares} = initClient<TestServerApi>({baseURL});
     useAuth(middlewares);
-    // the cast stands in for the build, the only thing that fills this slot: the envelope is right and
-    // the method row is not, as a `<genDir>/api/` tree from another @mionjs/devtools version would write it
+    // the cast stands in for the build: right envelope, wrong method row, as another devtools version would write
     const stale = {methods: [{id: 'sayHello'}]} as unknown as InjectedApiMetadata;
     expect(() => client.useBundledApi(stale)).not.toThrow();
 
