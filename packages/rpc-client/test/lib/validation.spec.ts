@@ -9,7 +9,7 @@ import {describe, it, expect, afterEach} from 'vitest';
 import {initClient} from './fetchingClient.ts';
 import type {TestServerApi} from '@mionjs/test-server';
 import {TEST_SERVER_BASE_URL} from '../../globalSetup.ts';
-import {HeadersSubset, type MethodWithOptsAndJitFns} from '@mionjs/core';
+import {HeadersSubset, trustedHeadersSubset, type MethodWithOptsAndJitFns} from '@mionjs/core';
 import {getResponseError} from '../../src/lib/validation.ts';
 import {resetBundledMethods, setBundledMethod} from '../../src/lib/methods.ts';
 
@@ -82,7 +82,7 @@ describe('getResponseError', () => {
 
     it('reports headers that do not match their type', () => {
       setHeadersMethod();
-      const error = getResponseError('tagged', new HeadersSubset({} as {'X-Tag': string}));
+      const error = getResponseError('tagged', trustedHeadersSubset({} as {'X-Tag': string}));
       expect(error?.type).toBe('response-validation-error');
       expect(error?.publicMessage).toBe(`Invalid headers from Route or Middleware 'tagged', validation failed.`);
       expect(error?.errorData?.typeErrors).toEqual([{path: ['X-Tag'], expected: 'string'}]);

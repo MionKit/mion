@@ -6,7 +6,7 @@
  * ######## */
 
 import {describe, it, expect, beforeEach} from 'vitest';
-import {createMionRouter, resetRouter, getRouteExecutable} from '../src/router.ts';
+import {createMionRouter, resetRouter, getRouteExecutable, getMiddlewareExecutable} from '../src/router.ts';
 import {dispatchRoute} from '../src/dispatch.ts';
 import type {Email, Transform} from '@mionjs/run-types/formats';
 import {CallContext, MionHeaders} from '../src/types/context.ts';
@@ -123,7 +123,7 @@ describe('Dispatch routes', () => {
       expect(response.headers.get('user-id')).toEqual('MyUser-Id');
     });
 
-    describe('returned headers are checked against their declared type', () => {
+    describe('returned headers are checked when the HeadersSubset is built', () => {
       const callChangeUserName = () =>
         dispatchRoute(
           '/changeUserName',
@@ -155,8 +155,8 @@ describe('Dispatch routes', () => {
         expect(response.headers.get('user-id')).toBeUndefined();
         expect(response.body.changeUserName).toBeUndefined();
         const thrown = response.body[MION_ROUTES.thrownErrors]?.auth as RpcError<string>;
-        expect(thrown?.type).toBe('response-validation-error');
-        expect(thrown?.publicMessage).toBe(`Invalid headers returned by 'auth', validation failed.`);
+        expect(thrown?.type).toBe('headers-validation-error');
+        expect(thrown?.publicMessage).toBe('Invalid headers, validation failed.');
       });
 
       it('fails the call when a required header is missing', async () => {
@@ -166,7 +166,7 @@ describe('Dispatch routes', () => {
         mion.initRoutes({auth, changeUserName});
         const response = await callChangeUserName();
         expect(response.hasErrors).toBe(true);
-        expect((response.body[MION_ROUTES.thrownErrors]?.auth as RpcError<string>)?.type).toBe('response-validation-error');
+        expect((response.body[MION_ROUTES.thrownErrors]?.auth as RpcError<string>)?.type).toBe('headers-validation-error');
       });
 
       it('checks headers returned by a route too', async () => {
@@ -174,8 +174,32 @@ describe('Dispatch routes', () => {
         mion.initRoutes({getTag});
         const response = await dispatchRoute('/getTag', '{}', headersFromRecord({}), headersFromRecord({}), {}, {});
         expect(response.hasErrors).toBe(true);
-        expect((response.body[MION_ROUTES.thrownErrors]?.getTag as RpcError<string>)?.type).toBe('response-validation-error');
+        expect((response.body[MION_ROUTES.thrownErrors]?.getTag as RpcError<string>)?.type).toBe('headers-validation-error');
       });
+    });
+
+    it('checks request headers once, with the headers function own check', async () => {
+      const auth = mion.headersFn((ctx, h: HeadersSubset<'Authorization'>): void => undefined);
+      mion.initRoutes({auth, changeUserName});
+      const isType = getMiddlewareExecutable('auth')!.headersParam!.jitFns.isType as {fn: (value: unknown) => boolean};
+      const check = isType.fn;
+      let checks = 0;
+      isType.fn = (value) => (checks++, check(value));
+      const call = (headers: Record<string, string>) =>
+        dispatchRoute(
+          '/changeUserName',
+          JSON.stringify({changeUserName: [{name: 'Leo', surname: 'Tungsten'}]}),
+          headersFromRecord(headers),
+          headersFromRecord({}),
+          {},
+          {}
+        );
+      expect((await call({Authorization: '1234'})).hasErrors).toBeFalsy();
+      expect(checks).toBe(1);
+      const response = await call({});
+      // the request map is wrapped unchecked, so the error is the headers function's own, never the constructor's
+      expect((response.body[MION_ROUTES.thrownErrors]?.auth as RpcError<string>)?.type).toBe('validation-error');
+      expect(checks).toBe(2);
     });
 
     it('should be able to accept request headers and regular rpc params', async () => {
