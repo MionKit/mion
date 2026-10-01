@@ -6,7 +6,6 @@
  * ######## */
 
 import {MION_BATCH_KEY, getRoutePath} from '@mionjs/core';
-import {createClientResponse} from './lib/clientResponse.ts';
 import type {ClientCallContext, ClientOptions, RouteSubRequest, SubRequest} from './types.ts';
 
 /** `batchId` is build-injected and only ends up in the batch path */
@@ -31,7 +30,7 @@ export function createCallContext(
     options,
     signal,
     httpResponse: undefined,
-    response: createClientResponse(),
+    response: {},
     thrownErrorIds: new Set<string>(),
   };
   if (isBatch) batchSubRequests.forEach((subRequest) => addSubRequest(context, subRequest));

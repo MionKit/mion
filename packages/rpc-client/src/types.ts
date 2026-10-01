@@ -14,10 +14,10 @@ import type {MIDDLEWARE_HOOKS} from './constants.ts';
 import type {StorageEngine} from './lib/storage.ts';
 
 /** Result type for call(): [routeResult, routeError (declared | ValidationError), response] **/
-export type Result<RouteSuccess, RouteError, Response = ClientResponse<RemoteApi>> = [
+export type Result<RouteSuccess, RouteError, RA = RemoteApi> = [
   RouteSuccess | undefined,
   RouteError | undefined,
-  Response,
+  ClientResponse<RA>,
 ];
 
 /** Result type for batch(): [routeResults[], routeErrors[] (declared | ValidationError), response] **/
@@ -195,7 +195,7 @@ export interface RouteSubRequest<
   call(
     setup?: CallSetup,
     apiMetadata?: InjectApiMetadata<RA, Id>
-  ): Promise<Result<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>, ClientResponse<RA>>>;
+  ): Promise<Result<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>, RA>>;
 }
 
 /** A middleware's params for one request, built by the `call` its onRequest hook receives */
@@ -267,13 +267,13 @@ export type ClientMiddlewares<RA, Prefix extends string = ''> = Prettify<{
 }>;
 
 /** Slot 2: every middleware nested by group, each its whole return or a ValidationError, plus every untyped error */
-export type ClientResponse<RA> = string extends keyof RA
+export type ClientResponse<RA> = (string extends keyof RA
   ? // the API erased (`RemoteApi`): every concrete response is assignable to it
-    {[key: string]: unknown; '@thrownErrors'?: RpcError<string>[]}
-  : MiddlewareResponses<RA> & {'@thrownErrors'?: RpcError<string>[]};
+    {[key: string]: unknown}
+  : ClientMiddlewareResponses<RA>) & {'@thrownErrors'?: RpcError<string>[]};
 
 /** Built like `ClientMiddlewares`, every key optional: only what the response carried is there */
-export type MiddlewareResponses<RA> = {
+type ClientMiddlewareResponses<RA> = {
   [Property in keyof RA & string as RA[Property] extends NonClientMiddleware ? never : Property]?: RA[Property] extends {
     type: typeof HandlerType.middleware | typeof HandlerType.headersMiddleware;
     handler: infer H extends PublicHandler;
@@ -281,7 +281,7 @@ export type MiddlewareResponses<RA> = {
     ? HandlerResponse<H> | ValidationError
     : RA[Property] extends AnyLeaf
       ? never
-      : MiddlewareResponses<RA[Property]>;
+      : ClientMiddlewareResponses<RA[Property]>;
 };
 
 export type Cleaned<RMS extends RemoteApi> = {

@@ -15,8 +15,9 @@ that is what keeps slot 1 a closed, strongly typed union.
 
 Slot 2 is built once per attempt ([src/lib/clientResponse.ts](src/lib/clientResponse.ts)), in this order, as soon as
 the body arrives: decode it, nest the ids, then move each `validation-error` out of the server's `@thrownErrors`
-record to its own path (a validation error is typed, every handler's type includes it). That same object is what the
-rest of the dispatch reads and what the call returns; a retry starts a new one. Strongly typed things sit at their
+record to its own path (a validation error is typed, every handler's type includes it). Every answer is read from
+that object and it is what the call returns; the raw body only feeds the retry and check rules. A retry starts a new
+one. Response keys are untrusted: the path helpers never walk a `__proto__` segment or into a non-object. Strongly typed things sit at their
 path: body values (the route's own entry too), declared errors, validation errors from either side, an answer sent
 as HTTP headers. Everything else is pushed to `@thrownErrors`, every one kept, in the order it happened.
 

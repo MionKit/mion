@@ -29,15 +29,7 @@ import {sanitizeSubRequests} from './lib/sanitize.ts';
 import {serializeRequestBody, deserializeResponseBody} from './lib/serializer.ts';
 import {MAX_GET_URL_LENGTH, CLIENT_REQUEST_ERROR_ID} from './constants.ts';
 import {extractRequestHeaders, headersToRecord, reconstructHeadersSubsetFromResponse} from './lib/headers.ts';
-import {
-  addThrownError,
-  createClientResponse,
-  deleteResponseValue,
-  getResponseValue,
-  hasResponseValue,
-  nestResponseBody,
-  setResponseValue,
-} from './lib/clientResponse.ts';
+import {addThrownError, deleteResponseValue, getResponseValue, hasResponseValue, setResponseValue} from './lib/clientResponse.ts';
 import {takeBundledApiError} from '#bundled-api';
 
 /** One call's retry state: it belongs to the dispatch, never to the context onRequest hooks see */
@@ -82,8 +74,7 @@ export async function dispatchCall(
       resetAttempt(state);
       continue;
     }
-    const middlewares = getMiddlewareSubRequests(context);
-    const hooks = await runMiddlewareResponses(state, middlewares, errors, retriedBy);
+    const hooks = await runMiddlewareResponses(state, getMiddlewareSubRequests(context), errors, retriedBy);
     if (!hooks.retryIds.length) return buildResult(state, hooks.errors);
     hooks.retryIds.forEach((id) => retriedBy.add(id));
     resetForMiddlewareRetry(state);
@@ -218,8 +209,7 @@ async function makeCall(state: DispatchState, skipOptimistic?: boolean): Promise
     if (noteServerApiVersion(options.baseURL, response.headers.get(BUILD_VERSION_HEADER)) && !metadata)
       reportApiVersionMismatch(options.baseURL);
     addParamlessMiddlewares(context);
-    const thrownErrors = nestResponseBody(context.response, deserialized);
-    resolveSubRequests(context, deserialized, thrownErrors, errors);
+    resolveSubRequests(context, deserialized, errors);
     if (errors.size) return Promise.reject(errors);
     return deserialized;
   } catch (error) {
@@ -279,32 +269,29 @@ function addParamlessMiddlewares(context: ClientCallContext): void {
   }
 }
 
-/** Validation errors already sit at their path; the thrown errors left are untyped */
-function resolveSubRequests(
-  context: ClientCallContext,
-  deserialized: ResponseBody,
-  thrownErrors: Record<string, RpcError<string>>,
-  errors: RequestErrors
-): void {
-  const {response} = context;
-  Object.entries(thrownErrors).forEach(([id, thrownError]) => {
-    const subRequest = context.subRequestList[id];
+/** Reads every answer from the nested response; a thrown validation error is typed, so it moves to its path */
+function resolveSubRequests(context: ClientCallContext, deserialized: ResponseBody, errors: RequestErrors): void {
+  const {response, subRequestList} = context;
+  for (const [id, value] of Object.entries(deserialized)) {
+    if (id !== MION_ROUTES.thrownErrors) setResponseValue(response, id, value);
+  }
+  for (const [id, thrownError] of Object.entries(deserialized[MION_ROUTES.thrownErrors] ?? {})) {
+    // a response key is untrusted: only an own entry is one of this request's subrequests
+    const subRequest = Object.hasOwn(subRequestList, id) ? subRequestList[id] : undefined;
     if (subRequest) {
       subRequest.isResolved = true;
       subRequest.error = thrownError;
     }
-    setThrownError(context, id, thrownError, errors);
-  });
+    if (thrownError.type === 'validation-error' && setResponseValue(response, id, thrownError)) errors.set(id, thrownError);
+    else setThrownError(context, id, thrownError, errors);
+  }
 
   const checkAnswers = context.options.validateServerResponses;
   // the halting brand never travels, so after any error an absent member may never have run
-  const mayHaveStopped =
-    checkAnswers &&
-    (errors.size > 0 ||
-      !!deserialized[MION_ROUTES.thrownErrors] ||
-      Object.values(deserialized).some((value) => isRpcError(value)));
-  Object.entries(context.subRequestList).forEach(([id, methodMeta]) => {
+  const mayHaveStopped = checkAnswers && (errors.size > 0 || Object.values(deserialized).some((value) => isRpcError(value)));
+  Object.entries(subRequestList).forEach(([id, methodMeta]) => {
     if (errors.has(id)) return;
+    // a headers answer proves the member ran, so it is checked like a body one
     const headersSubset = reconstructHeadersSubsetFromResponse(id, (context.httpResponse as Response).headers);
     if (headersSubset) setResponseValue(response, id, headersSubset);
     const resp = headersSubset ?? getResponseValue(response, id);
@@ -326,11 +313,10 @@ function resolveSubRequests(
   });
 
   // an error for an id this request never asked for stays at its path; the map only feeds the retry rules
-  const serverThrown = deserialized[MION_ROUTES.thrownErrors] ?? {};
-  for (const [id, value] of [...Object.entries(deserialized), ...Object.entries(serverThrown)]) {
-    if (id === MION_ROUTES.thrownErrors || id in context.subRequestList || errors.has(id)) continue;
+  Object.entries(deserialized).forEach(([id, value]) => {
+    if (id === MION_ROUTES.thrownErrors || Object.hasOwn(subRequestList, id)) return;
     if (isRpcError(value)) errors.set(id, value);
-  }
+  });
 }
 
 function onError(context: ClientCallContext, error: any, stageMessage: string, errors: RequestErrors): void {
@@ -589,10 +575,8 @@ async function runMiddlewareResponses(
       const middlewareContext: MiddlewareContext = {...baseContext, retry: () => isOpen && requestRetry(id)};
       const fail = (error: unknown) => {
         isOpen = false;
-        const handlerError = middlewareHandlerError(handlerName, id, error);
         errors ??= new Map();
-        if (!errors.has(CLIENT_REQUEST_ERROR_ID)) errors.set(CLIENT_REQUEST_ERROR_ID, handlerError);
-        addThrownError(context.response, handlerError);
+        setThrownError(context, CLIENT_REQUEST_ERROR_ID, middlewareHandlerError(handlerName, id, error), errors);
       };
       let returned: unknown;
       try {
@@ -661,7 +645,7 @@ function resetAttempt(state: DispatchState): void {
   });
   context.thrownErrorIds.clear();
   context.httpResponse = undefined;
-  context.response = createClientResponse();
+  context.response = {};
   state.sent = false;
 }
 

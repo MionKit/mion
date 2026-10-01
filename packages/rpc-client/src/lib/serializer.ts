@@ -139,12 +139,12 @@ async function deserializeJsonResponseBody(response: Response, takeRaw: TakeRaw 
       const method = useMethodFns(methodId);
       try {
         deserializedBody[methodId] = parseHandlerJsonReturnValue(method, returnValue);
-      } catch (e: any) {
+      } catch (decodeError: any) {
         // an unreadable answer is untyped: thrown, never the method's declared value
         (thrownErrors ??= {})[methodId] = new RpcError({
           type: 'deserialization-error',
-          publicMessage: `Invalid response from Route or Middleware '${method.id}', can not deserialize return value: ${e.message}`,
-          errorData: e?.errors,
+          publicMessage: `Invalid response from Route or Middleware '${method.id}', can not deserialize return value: ${decodeError.message}`,
+          errorData: decodeError?.errors,
         });
       }
     });
@@ -174,7 +174,8 @@ function extractThrownErrors(parsedBody: any): {
     const platformError = isRpcError(globalErrorValue) ? new RpcError<string>(globalErrorValue) : globalErrorValue;
     return {platformError};
   }
-  const thrownErrors: Record<string, RpcError<string>> = {};
+  // keyed by whatever the response says, so a `__proto__` key stays a plain entry
+  const thrownErrors: Record<string, RpcError<string>> = Object.create(null);
   Object.entries(rawThrownErrors).forEach(([id, value]) => {
     thrownErrors[id] = isRpcError(value) ? new RpcError<string>(value) : (value as RpcError<string>);
   });
