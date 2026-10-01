@@ -87,9 +87,8 @@ export interface RunType<T = unknown> extends SchemaChecks {
   isSafeName?: unknown;
   position?: unknown;
   isCircular?: boolean;
-  /** True for the "non-data" kinds (function / method / call-signature / symbol / never / non-serialisable
-   *  class) validation and the JSON round trip ignore. The node is kept in the reflected tree so reflection stays
-   *  complete; only the node itself is flagged, never its children. */
+  /** Kinds validation and the JSON round trip skip (function-like, symbol, never, non-serialisable class), not their children.
+   *  Kept in the tree so reflection stays complete. */
   notSupported?: boolean;
   /** The largest compact-JSON byte size a valid value of this type can have, computed at build time (the Go
    *  `jsonsize` walk). Present only on a reflection ROOT whose type is fully bounded (every string, array, Map

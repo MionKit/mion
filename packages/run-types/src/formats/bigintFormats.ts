@@ -1,6 +1,5 @@
-// BigInt-format TYPE aliases; validation, JSON round trip and mocking are emitted elsewhere. `TypeFormat` is a value
-// import (not `import type`) so each brand alias's reflection metadata stays reachable for tsgo.
-// (ref: packages/type-formats/src/bigint/{bigIntFormat.runtype.ts,defaultBigNumberFormats.ts}).
+// TYPE aliases only, their functions are emitted elsewhere. `TypeFormat` is a value import (not `import type`)
+// so each brand alias's reflection metadata stays reachable for tsgo.
 
 import {TypeFormat} from '../runtypes/typeFormat.ts';
 import {presetBuilder} from '../runtypes/builderCore.ts';

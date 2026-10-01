@@ -67,8 +67,7 @@ export type UserWithFormats = {
 type SessionInfo = {userId: string; role: 'admin' | 'user'; expiresAt: number};
 
 // ============ Drizzle-derived models ============
-// Route-level e2e for the dialect packages: the routes below take and return the DERIVED types,
-// and validation plus the Date JSON round trip are generated from those types alone.
+// Route-level e2e for the dialect packages: validation and the Date JSON round trip come from DERIVED types alone.
 const dbUsersTable = pgTable('users', {
   id: uuid('id', {primaryKey: true, defaultRandom: true}),
   name: varchar('name', {length: 100, notNull: true}),
@@ -280,8 +279,7 @@ const routes = {
   sumNumbers: route((_ctx, numbers: number[]): number => numbers.reduce((a, b) => a + b, 0)),
   greetUser: route((_ctx, name: string, greeting?: string): string => `${greeting || 'Hello'} ${name}`),
 
-  // The in-memory store stands in for the database; the point is the WIRE: payloads validate
-  // against the derived types and Dates survive the JSON round trip.
+  // An in-memory store stands in for the database; the test is the WIRE: validation and Dates surviving the round trip.
   dbUsers: {
     insert: route((_ctx, user: NewDbUser): DbUser => {
       const row: DbUser = {

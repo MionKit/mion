@@ -1,6 +1,5 @@
-// Number-format TYPE aliases; validation, JSON round trip and mocking are emitted elsewhere. `TypeFormat` is a value
-// import (not `import type`) so each brand alias's reflection metadata stays reachable for tsgo.
-// (ref: packages/type-formats/src/number/{numberFormat.runtype.ts,defaultNumberFormats.ts}).
+// TYPE aliases only, their functions are emitted elsewhere. `TypeFormat` is a value import (not `import type`)
+// so each brand alias's reflection metadata stays reachable for tsgo.
 
 import {TypeFormat} from '../runtypes/typeFormat.ts';
 import {presetBuilder} from '../runtypes/builderCore.ts';
@@ -28,12 +27,9 @@ export interface NumberParams {
   exclusiveMinimum?: number;
   /** JSON Schema alias of `lt` (exclusive upper bound). Normalised to `lt`. */
   exclusiveMaximum?: number;
-  /** Marks the value as a monetary amount: PURE PRESENTATION METADATA, the only number param with no
-   *  failable constraint, so validation, JSON round trip and mocking ignore it and it never becomes an
-   *  `rt$errors` template key. The emitter echoes it onto every error the field produces, so
-   *  `createFriendlyTextI18n` renders a violated bound via `Intl.NumberFormat(locale, {style:
-   *  'currency', currency})` with the app-supplied `currency` renderer option. WHICH currency a value
-   *  is in is runtime data, deliberately never a type param. */
+  /** PRESENTATION ONLY: no failable constraint, so validation, JSON and mocking ignore it and no `rt$errors` key.
+   *  Echoed onto the field's errors so `createFriendlyTextI18n` renders bounds with its `currency` renderer option.
+   *  WHICH currency is runtime data, deliberately never a type param. */
   isCurrency?: boolean;
 }
 

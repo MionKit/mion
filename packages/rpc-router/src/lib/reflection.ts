@@ -112,8 +112,7 @@ export function getHandlerReflection(
   }
 }
 
-/** Raw middlewares receive the raw request / response and handle their own JSON round trip, so they
- *  carry no type info at all. */
+/** Raw middlewares parse the raw request / response themselves, so they carry no type info. */
 export function getRawMethodReflection(
   handler: Handler,
   routeId: string, // eslint-disable-line @typescript-eslint/no-unused-vars

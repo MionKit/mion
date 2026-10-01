@@ -28,8 +28,7 @@ type BenchSection = AggregateSection & {cases: BenchCase[]};
 type BenchIndex = {
   label?: string;
   unit?: BenchUnit;
-  /** true when a competitor's two measured paths are accept and reject (validation),
-   *  rather than two halves of one operation (the JSON round trip's encode and decode). */
+  /** True when the two paths are accept and reject (validation), not encode and decode (the JSON round trip). */
   showInvalid?: boolean;
   showStrategy?: boolean;
   metrics: BenchMetric[];
@@ -118,10 +117,7 @@ function bars(metric: BenchMetric, rowKey: string): Bar[] {
   const showStrategy = idx.showStrategy !== false && idx.unit !== 'count';
   const entries = competitorsFor(metric.key).map((name) => {
     const value = values[name]?.valid ?? null;
-    // A second number rides along only where the page explains it: on the JSON round trip page
-    // the two paths are the encode and decode passes, and the prose says so. On the
-    // validation benches they are the accept and reject paths, and an unlabelled
-    // second figure there reads as noise, which is what these charts replaced.
+    // Only the JSON round trip page's prose explains a second number (encode, decode); elsewhere it reads as noise.
     const second = idx.showInvalid === true ? null : (values[name]?.invalid ?? null);
     const version = shortVersion(idx.versions?.[name]);
     return {
@@ -217,9 +213,7 @@ onMounted(async () => {
           </a>
         </h3>
 
-        <!-- One card per metric, side by side: the JSON round trip page compares speed
-             and payload size, and two cards read as two questions rather than one
-             panel the reader has to divide. -->
+        <!-- One card per metric: speed and payload size read as two questions, not one panel to divide. -->
         <div class="runtypes-bench-cards">
           <div v-for="metric in metrics" :key="metric.key" class="runtypes-bench-card">
             <table class="runtypes-bench-chart">
@@ -300,8 +294,7 @@ onMounted(async () => {
   color: var(--ui-primary);
 }
 
-/* One card per metric. Two of them (the JSON round trip page: speed and bytes) sit
-   side by side while there is room, and stack on a narrow screen. */
+/* The JSON round trip page has two cards (speed and bytes): side by side, stacked on a narrow screen. */
 .runtypes-bench-cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr));

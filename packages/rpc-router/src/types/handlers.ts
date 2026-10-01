@@ -38,8 +38,7 @@ export type RawMiddlewareHandler<
 export type AnyHandler<Context extends CallContext = any, Params extends any[] = any, Ret = any> = Handler<Context, Params, Ret>;
 
 // #######  Type-level extraction for mion markers #######
-// These are instantiated by the type checker AT EACH route()/middleware() CALL SITE;
-// the RunTypes resolver then compiles validation and JSON round trip functions for the result.
+// Instantiated by the type checker AT EACH route()/middleware() CALL SITE; the resolver compiles validation and the JSON round trip for the result.
 
 /** The handler's public params tuple: everything after the leading CallContext param. Keeps tuple labels (= param names). */
 export type HandlerParams<H extends AnyHandler> = Parameters<H> extends [any, ...infer P] ? P : [];
