@@ -219,9 +219,12 @@ In-container scripts (what the commands above ultimately run): `pnpm run dev`,
   `01.rpc/`, `02.runtypes/`, `03.benchmarks/`. Each subsite dir has a `.navigation.yml`
   (its title and icon) and an `index.md` (its landing page).
 - Sections use numbered prefix directories for ordering. The rpc tree:
-  `01.introduction/`, `02.server/`, `03.client/`, `04.drizzle-orm/`, `05.platforms/`,
-  `06.devtools/`, `09.articles/`. The runtypes tree: `01.introduction/`,
-  `02.guide/`, `03.type-formats/`, `04.tooling/`, `05.ai-integration/`, `06.articles/`, `08.diagnostics/`. The benchmarks tree: `01.introduction/`,
+  `01.introduction/`, `02.server/`, `03.middlewares/`, `04.client/`, `05.drizzle-orm/`,
+  `06.platforms/`, `07.devtools/`. The runtypes tree: `01.introduction/`,
+  `02.guide/`, `03.type-formats/`, `04.tooling/`, `05.ai-integration/`, `08.diagnostics/`.
+- `03.middlewares/` holds one page per middleware mion ships, named after its export without the
+  `mion` prefix (`fetch-metadata`). Its client half is the next page (`fetch-metadata-client`), with
+  `navigation.class: nav-subpage` so the sidebar shows it indented under the server page. The benchmarks tree: `01.introduction/`,
   `02.rpc/` and `03.runtypes/`, one group per family.
 - Every root-relative link carries its subsite prefix (`/rpc/server/routes`,
   `/runtypes/guide/validation`, `/benchmarks/rpc/hello-world`); `website-links.test.ts`
