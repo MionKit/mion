@@ -89,6 +89,19 @@ function decayOptionsForNesting(options: RunTypeMockOptions, nestLevel: number):
   return {...options, mock: next};
 }
 
+// Each collection level divides the item cap by this, so nested Sets / Maps / arrays / records stay small:
+// a flat cap multiplies per level (60^4 entries for four levels) and one mock took seconds.
+const NESTED_ITEMS_DIVISOR = 4;
+
+/** Options for a collection's items: the item cap shrinks, never below 1 unless the caller set 0 or 1.
+ *  An explicit `arrayLength` or `rt$length` still wins, since both are read before the cap. **/
+function shrinkForNestedItems(options: RunTypeMockOptions): RunTypeMockOptions {
+  const mOps = options.mock as MockOptions;
+  if (mOps.maxRandomItemsLength <= 1) return options;
+  const maxRandomItemsLength = Math.max(1, Math.floor(mOps.maxRandomItemsLength / NESTED_ITEMS_DIVISOR));
+  return {...options, mock: {...mOps, maxRandomItemsLength}};
+}
+
 // ─────────────────────── MockData node threading ───────────────────────
 // The walker carries the current MockData node in `options.dataNode`, descended by property name or `rt$items` at
 // each recursion. Everything below is a strict no-op without a data node, so behaviour is byte-identical.
@@ -280,7 +293,7 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
         arrayParams,
         dataArrayLength(dataNode, random) ?? mOps.arrayLength ?? random.int(0, mOps.maxRandomItemsLength)
       );
-      const childOpts = withDataNode(options, asDataNode(dataNode?.rt$items));
+      const childOpts = withDataNode(shrinkForNestedItems(options), asDataNode(dataNode?.rt$items));
       // Contains entries splice exactly `min` CHILD MOCKS (valid by the mock soundness invariant) among fillers
       // the loose matcher DEFINITIVELY rejects, so per-entry counts are exact by construction.
       // Provable contradictions (min > max, or a matched item the element type definitively rejects) throw.
@@ -420,8 +433,9 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
       if (!child) return undefined;
       if (Array.isArray(runType.flags) && (runType.flags as unknown[]).includes('rest') && child.kind !== RunTypeKind.rest) {
         const length = random.int(0, mOps.maxRandomItemsLength);
+        const itemOpts = shrinkForNestedItems(options);
         const items: unknown[] = [];
-        for (let i = 0; i < length; i++) items.push(mockRunType(child, options, stack));
+        for (let i = 0; i < length; i++) items.push(mockRunType(child, itemOpts, stack));
         return items;
       }
       if (runType.optional && !isRestTupleMember(runType)) {
@@ -433,8 +447,9 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
       const child = runType.child as RunType | undefined;
       if (!child) return [];
       const length = random.int(0, mOps.maxRandomItemsLength);
+      const itemOpts = shrinkForNestedItems(options);
       const items: unknown[] = [];
-      for (let i = 0; i < length; i++) items.push(mockRunType(child, options, stack));
+      for (let i = 0; i < length; i++) items.push(mockRunType(child, itemOpts, stack));
       return items;
     }
     case RunTypeKind.objectLiteral:
@@ -459,6 +474,7 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
       const keyType = runType.index as RunType | undefined;
       if (!child || !keyType) return {};
       const length = random.int(0, mOps.maxRandomItemsLength);
+      const valueOpts = shrinkForNestedItems(options);
       const parent: Record<string | number | symbol, unknown> = mOps.parentObj ?? {};
       const keyKind = keyType.kind as number;
       for (let i = 0; i < length; i++) {
@@ -486,7 +502,7 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
           default:
             throw new Error(`Invalid index signature key kind: ${keyKind}`);
         }
-        parent[propName as string] = mockRunType(child, options, stack);
+        parent[propName as string] = mockRunType(child, valueOpts, stack);
       }
       return parent;
     }
@@ -634,11 +650,12 @@ function buildObjectLiteral(
   const patternProps = (runType.patternProps ?? []) as {source: string; key?: RunType; value: RunType}[];
   if (patternProps.length > 0) {
     const regexes = patternProps.map((entry) => new RegExp(entry.source));
+    const valueOpts = shrinkForNestedItems(options);
     for (const key of Object.keys(parent)) {
       const matching = patternProps.filter((_entry, index) => regexes[index].test(key));
       // One matching pattern regenerates the value from ITS child, sound by construction.
       // Overlapping patterns would need a value satisfying ALL of them, so the key drops instead.
-      if (matching.length === 1) parent[key] = mockRunType(matching[0].value, options, stack);
+      if (matching.length === 1) parent[key] = mockRunType(matching[0].value, valueOpts, stack);
       else if (matching.length > 1) delete parent[key];
     }
     patternProps.forEach((entry, index) => {
@@ -646,7 +663,7 @@ function buildObjectLiteral(
       const generated = mockRunType(entry.key, options, stack);
       if (typeof generated === 'string' && regexes[index].test(generated) && !(generated in parent)) {
         const others = patternProps.some((_other, otherIndex) => otherIndex !== index && regexes[otherIndex].test(generated));
-        if (!others) parent[generated] = mockRunType(entry.value, options, stack);
+        if (!others) parent[generated] = mockRunType(entry.value, valueOpts, stack);
       }
     });
   }
@@ -805,6 +822,7 @@ function mockMap(runType: RunType, options: RunTypeMockOptions, stack: RunType[]
   const result = new Map<unknown, unknown>();
   if (!keyType || !valueType) return result;
   const mapParams = structuralParamsOf(runType, 'formattedMap');
+  const entryOpts = shrinkForNestedItems(options);
   const entries = drawCollectionEntries<[unknown, unknown]>({
     length: clampToItemBounds(mapParams, mOps.arrayLength ?? random.int(0, mOps.maxRandomItemsLength)),
     containsChecks: (runType.contains ?? []) as ContainsEntry[],
@@ -813,10 +831,10 @@ function mockMap(runType: RunType, options: RunTypeMockOptions, stack: RunType[]
     // half": a draw the Map's own key / value type rejects is REDRAWN from that type and the repaired pair
     // re-checked, so only a pair that still fails is a real contradiction.
     drawMatch: (child) => {
-      const drawn = mockRunType(child, options, stack);
+      const drawn = mockRunType(child, entryOpts, stack);
       const pair: [unknown, unknown] = Array.isArray(drawn) && drawn.length === 2 ? [drawn[0], drawn[1]] : [undefined, undefined];
-      if (!childSchemaMatches(pair[0], keyType)) pair[0] = mockRunType(keyType, options, stack);
-      if (!childSchemaMatches(pair[1], valueType)) pair[1] = mockRunType(valueType, options, stack);
+      if (!childSchemaMatches(pair[0], keyType)) pair[0] = mockRunType(keyType, entryOpts, stack);
+      if (!childSchemaMatches(pair[1], valueType)) pair[1] = mockRunType(valueType, entryOpts, stack);
       if (!childSchemaMatches(pair, child)) {
         throw new Error(
           'Cannot mock contains: the contains child and the Map entry type are contradictory (a Map entry is its ' +
@@ -825,7 +843,7 @@ function mockMap(runType: RunType, options: RunTypeMockOptions, stack: RunType[]
       }
       return pair;
     },
-    drawFiller: () => [mockRunType(keyType, options, stack), mockRunType(valueType, options, stack)],
+    drawFiller: () => [mockRunType(keyType, entryOpts, stack), mockRunType(valueType, entryOpts, stack)],
     insertKeyOf: (pair) => pair[0],
     collapseError:
       'Cannot mock contains: a Map holds one entry per key, so the drawn matches collapsed and minContains cannot ' +
@@ -844,12 +862,13 @@ function mockSet(runType: RunType, options: RunTypeMockOptions, stack: RunType[]
   const elementType = args[0]?.child as RunType | undefined;
   if (!elementType) return new Set<unknown>();
   const setParams = structuralParamsOf(runType, 'formattedSet');
+  const memberOpts = shrinkForNestedItems(options);
   const members = drawCollectionEntries<unknown>({
     length: clampToItemBounds(setParams, mOps.arrayLength ?? random.int(0, mOps.maxRandomItemsLength)),
     containsChecks: (runType.contains ?? []) as ContainsEntry[],
     unique: setParams?.uniqueItems === true,
     drawMatch: (child) => {
-      const item = mockRunType(child, options, stack);
+      const item = mockRunType(child, memberOpts, stack);
       if (!childSchemaMatches(item, elementType)) {
         throw new Error(
           'Cannot mock contains: the contains child and the Set member type are contradictory. ' +
@@ -858,7 +877,7 @@ function mockSet(runType: RunType, options: RunTypeMockOptions, stack: RunType[]
       }
       return item;
     },
-    drawFiller: () => mockRunType(elementType, options, stack),
+    drawFiller: () => mockRunType(elementType, memberOpts, stack),
     insertKeyOf: (member) => member,
     collapseError:
       'Cannot mock contains: a Set holds one copy of a member, so the drawn matches collapsed and minContains ' +
