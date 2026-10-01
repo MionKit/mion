@@ -101,7 +101,6 @@ export type OracleId =
   | 'O4'
   | 'O5'
   | 'O7'
-  | 'O10'
   | 'O12'
   | 'O14'
   | 'O15'

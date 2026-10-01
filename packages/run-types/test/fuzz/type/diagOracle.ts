@@ -10,6 +10,11 @@ const ALWAYS_THROW_CODE = /^(?:(?:VL|VE|PJ|PJS|RJ)00\d|RUK00[1456]|TFN001)$/;
 /** The notes a family leaves when it drops a member DataOnly strips. **/
 const DROP_NOTE_CODE = /^(?:(?:VL|VE|PJ|PJS|RJ|RUK)01\d|UPN001)$/;
 
+/** Whether a code is a family's drop note. **/
+export function isDropNote(code: string): boolean {
+  return DROP_NOTE_CODE.test(code);
+}
+
 /** An error with no code is a bug: no diagnostic can name it. **/
 export interface ThrowOutcome {
   thrownCode?: string;

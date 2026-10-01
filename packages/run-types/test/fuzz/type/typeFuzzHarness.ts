@@ -25,6 +25,7 @@ import {
   createJsonEncoderFn,
   createJsonDecoderFn,
   createRemoveUnknownKeysFn,
+  createFormatTransformFn,
   type RemoveUnknownKeysFn,
 } from '@mionjs/run-types';
 import {createMockDataFn} from '@mionjs/run-types/mocking';
@@ -84,12 +85,19 @@ export type WiredFns = Partial<
     mutateEncode: FuzzTarget['jsonEncode'];
     mutateDecode: FuzzTarget['jsonDecode'];
     removeUnknownKeys: RemoveUnknownKeysFn;
+    validateStrict: FuzzTarget['validate'];
+    validateUnionKeys: FuzzTarget['validate'];
+    removeUnknownKeysShared: RemoveUnknownKeysFn;
+    removeUnknownKeysRefuse: RemoveUnknownKeysFn;
+    formatTransform: (value: unknown) => unknown;
+    /** The mock with every optional member drawn, so D3 sees the members a plain mock may leave out. **/
+    mockFull: FuzzTarget['mock'];
     /** `createValidateFn<DataOnly<T>>()`, which D4 holds against `validate`. **/
     validateDataOnly: FuzzTarget['validate'];
   }
 >;
 
-type FnKey = Exclude<keyof WiredFns, 'mock'>;
+type FnKey = Exclude<keyof WiredFns, 'mock' | 'mockFull'>;
 type FnFactory = (value: undefined, options: undefined, tuple: never) => unknown;
 
 /** Entry-tuple tag to the function it builds and its factory. **/
@@ -103,6 +111,12 @@ const WIRED_BY_TAG: Partial<Record<string, [FnKey, FnFactory]>> = {
   jeMU: ['mutateEncode', createJsonEncoderFn as FnFactory],
   jdMU: ['mutateDecode', createJsonDecoderFn as FnFactory],
   ruk: ['removeUnknownKeys', createRemoveUnknownKeysFn as FnFactory],
+  vst: ['validateStrict', createValidateFn as FnFactory],
+  vuk: ['validateUnionKeys', createValidateFn as FnFactory],
+  ruks: ['removeUnknownKeysShared', createRemoveUnknownKeysFn as FnFactory],
+  rukr: ['removeUnknownKeysRefuse', createRemoveUnknownKeysFn as FnFactory],
+  // The option-less families take the tuple second.
+  fmt: ['formatTransform', ((_value, _options, tuple) => createFormatTransformFn(undefined, tuple)) as FnFactory],
 };
 
 /** The compiled functions every fixture has a call site for; the second `val` site is the DataOnly one. **/
@@ -157,6 +171,7 @@ export function renderFixture(gen: GeneratedType, dataOnly: DataOnlySpelling = S
   createJsonEncoderFn,
   createJsonDecoderFn,
   createRemoveUnknownKeysFn,
+  createFormatTransformFn,
   getRunTypeId,
   type DataOnly,
 } from '@mionjs/run-types';
@@ -171,6 +186,11 @@ createJsonDecoderFn<T>(undefined, {strategy: 'compact'});
 createJsonEncoderFn<T>(undefined, {strategy: 'mutate'});
 createJsonDecoderFn<T>(undefined, {strategy: 'mutate'});
 createRemoveUnknownKeysFn<T>();
+createValidateFn<T>(undefined, {checkUnknowns: true});
+createValidateFn<T>(undefined, {checkUnionUnknowns: true});
+createRemoveUnknownKeysFn<T>(undefined, {sharedValues: 'share'});
+createRemoveUnknownKeysFn<T>(undefined, {sharedValues: 'refuse'});
+createFormatTransformFn<T>();
 getRunTypeId<T>();
 createValidateFn<${dataOnly.name}<T>>();
 getRunTypeId<${dataOnly.name}<T>>();
@@ -272,6 +292,10 @@ export async function compileType(
     wire(wired, wireErrors, 'mock', () => {
       const mockFn = createMockDataFn(undefined, {mock: {nonDataTypes: true}}, reflectionTuple as never);
       return (() => mockFn()) as WiredFns['mock'];
+    });
+    wire(wired, wireErrors, 'mockFull', () => {
+      const mockFn = createMockDataFn(undefined, {mock: {nonDataTypes: true, optionalProbability: 1}}, reflectionTuple as never);
+      return (() => mockFn()) as WiredFns['mockFull'];
     });
   }
 
