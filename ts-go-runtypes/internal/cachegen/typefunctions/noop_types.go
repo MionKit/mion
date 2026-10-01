@@ -113,7 +113,7 @@ func restoreKeyGuardRecursive(rt *reflection.RunType, ctx *EmitContext, visited 
 			return false
 		}
 		child := ctx.ResolveRef(rt.Child)
-		return child != nil && !isMethodMember(child.Kind)
+		return child != nil && !isCallableValue(child, ctx)
 	case reflection.KindObjectLiteral:
 		return restoreKeyGuardInMembers(rt, ctx, visited)
 	case reflection.KindClass:
@@ -489,7 +489,7 @@ func formatNoopRecursive(rt *reflection.RunType, ctx *EmitContext, visited map[s
 			return true
 		}
 		resolved := ctx.ResolveRef(rt.Child)
-		if resolved == nil || isMethodMember(resolved.Kind) {
+		if resolved == nil || isCallableValue(resolved, ctx) {
 			// Skipped slots in emitPropertyFormat.
 			return true
 		}
@@ -786,7 +786,7 @@ func restoreJsonSafeNoopRecursive(rt *reflection.RunType, ctx *EmitContext, visi
 		if rt.Child == nil || isSymbolKeyedIndexSig(rt, ctx) {
 			return true
 		}
-		if resolved := ctx.ResolveRef(rt.Child); resolved != nil && isMethodMember(resolved.Kind) {
+		if resolved := ctx.ResolveRef(rt.Child); resolved != nil && isCallableValue(resolved, ctx) {
 			return true
 		}
 		return false

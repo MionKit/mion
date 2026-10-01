@@ -123,22 +123,13 @@ func sharedValueSlot(rt *reflection.RunType, ctx *EmitContext) (DiagSlot, bool) 
 	if rt == nil {
 		return "", false
 	}
-	if isMethodMember(rt.Kind) {
+	switch nonDataOf(rt, ctx) {
+	case reflection.NonDataFunction:
 		return SlotFunctionPropDropped, true
-	}
-	switch rt.Kind {
-	case reflection.KindPromise, reflection.KindRegexp:
+	case reflection.NonDataOpaque:
 		return SlotNonSerializablePropDropped, true
-	case reflection.KindClass:
-		if rt.SubKind == reflection.SubKindNonSerializable {
-			return SlotNonSerializablePropDropped, true
-		}
-	case reflection.KindObjectLiteral:
-		// A callable interface is a function with properties bolted on.
-		if objectHasCallSignature(rt, ctx) {
-			return SlotFunctionPropDropped, true
-		}
 	}
+	// A `never` value cannot exist, so there is nothing to share.
 	return "", false
 }
 

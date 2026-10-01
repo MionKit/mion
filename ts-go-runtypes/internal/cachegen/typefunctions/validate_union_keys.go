@@ -31,7 +31,7 @@ type ValidationErrorsUnionKeysEmitter struct{ ValidationErrorsEmitter }
 func (ValidationErrorsUnionKeysEmitter) ChecksUnionMemberKeys() {}
 
 // unionChecksMemberKeys reports whether this union qualifies: two or more members that can carry per-name properties.
-// Counted over the SAME child list the arms are emitted from, so the count and the arms can never disagree.
+// Counted over the SAME child list the arms are emitted from (already the DataOnly projection), so the two never disagree.
 func unionChecksMemberKeys(children []*reflection.RunType, ctx *EmitContext) bool {
 	keyBearing := 0
 	for _, child := range children {
@@ -39,7 +39,7 @@ func unionChecksMemberKeys(children []*reflection.RunType, ctx *EmitContext) boo
 		if resolved == nil {
 			continue
 		}
-		if unionMemberBearsKeys(resolved) && !isMethodMember(resolved.Kind) {
+		if unionMemberBearsKeys(resolved) {
 			keyBearing++
 			if keyBearing > 1 {
 				return true
