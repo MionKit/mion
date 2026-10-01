@@ -257,3 +257,24 @@ func TestEmitFriendlyCyclic(t *testing.T) {
 		t.Fatalf("expected a bounded non-empty emit for a cyclic type, got %d bytes", len(got))
 	}
 }
+
+// TestFriendlySkeleton_NonFailingParamsSkipped: params that never fail (`float`, `isCurrency`) scaffold no rt$errors key.
+func TestFriendlySkeleton_NonFailingParamsSkipped(t *testing.T) {
+	fixture := &reflection.RunType{
+		ID: "order", Kind: reflection.KindObjectLiteral,
+		Children: []*reflection.RunType{
+			prop("ratio", fmtLeaf(reflection.KindNumber, "numberFormat", map[string]any{"float": true})),
+			prop("total", fmtLeaf(reflection.KindNumber, "numberFormat", map[string]any{"lt": 100, "isCurrency": true})),
+		},
+	}
+	got := FriendlySkeleton(fixture, nil)
+	want := `{
+  rt$label: '',
+  rt$errors: {type: ''},
+  ratio: {rt$label: '', rt$errors: {type: ''}},
+  total: {rt$label: '', rt$errors: {type: '', lt: {one: '', other: ''}}},
+}`
+	if got != want {
+		t.Errorf("FriendlySkeleton mismatch:\n--- got ---\n%s\n--- want ---\n%s", got, want)
+	}
+}

@@ -28,8 +28,9 @@ export type PluralTemplate = {other: FriendlyTemplate} & Partial<Record<PluralCa
  *  and the Go checker enforces it, so the kind is locale-invariant. */
 export type TemplateLeaf = FriendlyTemplate | PluralTemplate;
 
-/** Params that never fail; any other is a REQUIRED `rt$errors` key. MIRROR of Go's `nonFailingParams` (enrichment/enrich.go). */
-type NonFailingParams = 'isCurrency' | 'mockSamples' | 'multipleOfTolerance' | 'transform';
+/** Format params that never fail; any other is a REQUIRED `rt$errors` key. Twin of Go's `nonFailingParams` (enrichment/enrich.go), kept equal by a test. */
+export const NON_FAILING_PARAMS = ['float', 'isCurrency', 'mockSamples', 'multipleOfTolerance', 'transform'] as const;
+type NonFailingParams = (typeof NON_FAILING_PARAMS)[number];
 
 /** The count-bearing constraint keys — the only ones whose template may be a
  *  plural object. Mirror of Go's `CountBearing` (internal/enrichment/classify.go). */

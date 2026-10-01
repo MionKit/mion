@@ -179,37 +179,38 @@ func TestCheckFriendly_FT003UnknownConstraint(t *testing.T) {
 	}
 }
 
-// TestCheckFriendly_FT003PresentationParam pins the presentation-param carve
-// out: `isCurrency` is the one number param with NO failable constraint, so it
-// never becomes a valid `rt$errors` key — authoring one is flagged FT003 exactly
-// like any other undeclared constraint.
-func TestCheckFriendly_FT003PresentationParam(t *testing.T) {
-	formatted := &reflection.RunType{
-		Kind: reflection.KindNumber,
-		FormatAnnotation: &reflection.FormatAnnotation{
-			Name:   "numberFormat",
-			Params: map[string]any{"max": 100, "isCurrency": true},
-		},
-	}
-	rt := objectRT(map[string]*reflection.RunType{"price": formatted})
-	view := newFakeView().obj("price", newFakeView().
-		obj("rt$errors", newFakeView().
-			str("type", "bad type").
-			str("max", "too much").          // declared constraint — OK
-			str("isCurrency", "not money"))) // presentation metadata — FT003
+// TestCheckFriendly_FT003NonFailingParam: a param that never fails (`isCurrency`, `float`) is never a valid `rt$errors` key, so authoring one is FT003.
+func TestCheckFriendly_FT003NonFailingParam(t *testing.T) {
+	for _, param := range []string{"isCurrency", "float"} {
+		t.Run(param, func(t *testing.T) {
+			formatted := &reflection.RunType{
+				Kind: reflection.KindNumber,
+				FormatAnnotation: &reflection.FormatAnnotation{
+					Name:   "numberFormat",
+					Params: map[string]any{"max": 100, param: true},
+				},
+			}
+			rt := objectRT(map[string]*reflection.RunType{"price": formatted})
+			view := newFakeView().obj("price", newFakeView().
+				obj("rt$errors", newFakeView().
+					str("type", "bad type").
+					str("max", "too much").
+					str(param, "never shown")))
 
-	findings := enrichment.CheckFriendly(rt, view, nil)
-	var ft003 []enrichment.Finding
-	for _, finding := range findings {
-		if finding.Code == "FT003" {
-			ft003 = append(ft003, finding)
-		}
-	}
-	if len(ft003) != 1 {
-		t.Fatalf("expected exactly one FT003 (isCurrency); got %v", findings)
-	}
-	if ft003[0].Path != "price.rt$errors.isCurrency" {
-		t.Errorf("FT003 path = %q, want %q", ft003[0].Path, "price.rt$errors.isCurrency")
+			findings := enrichment.CheckFriendly(rt, view, nil)
+			var ft003 []enrichment.Finding
+			for _, finding := range findings {
+				if finding.Code == "FT003" {
+					ft003 = append(ft003, finding)
+				}
+			}
+			if len(ft003) != 1 {
+				t.Fatalf("expected exactly one FT003 (%s); got %v", param, findings)
+			}
+			if want := "price.rt$errors." + param; ft003[0].Path != want {
+				t.Errorf("FT003 path = %q, want %q", ft003[0].Path, want)
+			}
+		})
 	}
 }
 

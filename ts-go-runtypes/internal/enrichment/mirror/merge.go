@@ -329,7 +329,7 @@ var knownConstraintKeys = map[string]bool{
 	"allowedChars": true, "disallowedChars": true, "allowedValues": true, "disallowedValues": true,
 	// number / bigint family
 	"min": true, "max": true, "lt": true, "gt": true,
-	"integer": true, "float": true, "multipleOf": true,
+	"integer": true, "multipleOf": true,
 	// datetime family + uuid
 	"date": true, "time": true, "splitChar": true, "version": true,
 }

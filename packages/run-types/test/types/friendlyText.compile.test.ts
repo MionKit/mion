@@ -3,7 +3,7 @@
 // optional root meta) — including the PARAM-PRECISE `rt$errors` typing: a branded
 // field's failable format params become REQUIRED template keys, count-bearing
 // keys may pluralize, `rt$default` is the mutually exclusive catch-all mode, and
-// non-failing params (isCurrency, transformers) never become keys.
+// non-failing params (float, isCurrency, transformers) never become keys.
 //
 // Each `it` compiles a representative snippet for ONE branch of `FriendlyNode`
 // (src/enrich/friendlyText.ts) and asserts valid maps are assignable + invalid
@@ -123,6 +123,21 @@ describe('FriendlyText<T> — per-branch correctness (total contract)', () => {
         code: { rt$label: '', rt$errors: { type: '', transform: 'x' } } };
       `,
       204
+    );
+  });
+
+  it('float never fails, so it is neither required nor allowed as an rt$errors key', () => {
+    check(
+      BRAND +
+        `
+      interface Ratio { value: Fmt<number, {float: true}> }
+      const _ok: FriendlyText<Ratio> = { rt$label: '', rt$errors: {type: ''},
+        value: { rt$label: '', rt$errors: { type: '' } } };
+      const _floatKey: FriendlyText<Ratio> = { rt$label: '', rt$errors: {type: ''},
+        // @ts-expect-error — float is not a template key
+        value: { rt$label: '', rt$errors: { type: '', float: 'x' } } };
+      `,
+      110
     );
   });
 

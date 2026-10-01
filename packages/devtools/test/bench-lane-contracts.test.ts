@@ -13,7 +13,7 @@
 // the website's gen-docs.mjs) have for the non-competitor artifacts that share
 // `results/`, and the miondevx -> bench.mjs verb wiring.
 
-import {describe, it, expect} from 'vitest';
+import {describe, it, expect, beforeAll} from 'vitest';
 import {spawnSync} from 'node:child_process';
 import {readFileSync, readdirSync, existsSync, mkdtempSync, writeFileSync} from 'node:fs';
 import {fileURLToPath, pathToFileURL} from 'node:url';
@@ -106,10 +106,14 @@ describe('the shared cases never assert a presentation-only format tag as failab
   // suites keep their own copy, and a wrong label fails nothing until two libraries
   // disagree. This pins the whole class instead of that one case.
   //
-  // The non-failable tags are DERIVED from the format sources rather than listed here,
-  // so a newly added presentation-only param is covered the day it lands.
-  const FORMATS_DIR = join(REPO_ROOT, 'packages/run-types/src/formats');
-  const NON_FAILABLE_DOC = /NEVER a failable constraint|PURE PRESENTATION METADATA/;
+  // The tags come from run-types' NON_FAILING_PARAMS, the list the enrichment scaffold also reads.
+  // Loaded by path at runtime: devtools must never depend on @mionjs/run-types.
+  const FRIENDLY_TEXT_SRC = join(REPO_ROOT, 'packages/run-types/src/enrich/friendlyText.ts');
+  let nonFailableTags: Set<string>;
+  beforeAll(async () => {
+    const {NON_FAILING_PARAMS} = (await import(pathToFileURL(FRIENDLY_TEXT_SRC).href)) as {NON_FAILING_PARAMS: readonly string[]};
+    nonFailableTags = new Set(NON_FAILING_PARAMS);
+  });
 
   function tsFiles(dir: string): string[] {
     return readdirSync(dir, {withFileTypes: true}).flatMap((entry) => {
@@ -119,18 +123,8 @@ describe('the shared cases never assert a presentation-only format tag as failab
     });
   }
 
-  // Every param whose own JSDoc block declares it non-failable: take the identifier that
-  // opens the declaration right after the block's `*/`.
-  const nonFailableTags = new Set(
-    tsFiles(FORMATS_DIR).flatMap((file) =>
-      [...readFileSync(file, 'utf8').matchAll(/\/\*\*([\s\S]*?)\*\/\s*([A-Za-z_$][\w$]*)\??\s*:/g)]
-        .filter((match) => NON_FAILABLE_DOC.test(match[1]))
-        .map((match) => match[2])
-    )
-  );
-
-  it('finds the documented non-failable tags, so the derivation cannot go quietly empty', () => {
-    expect([...nonFailableTags].sort()).toEqual(['float', 'isCurrency']);
+  it('loads the presentation-only number tags, so the check cannot go quietly empty', () => {
+    expect([...nonFailableTags]).toEqual(expect.arrayContaining(['float', 'isCurrency']));
   });
 
   it('declares no expectedFormatErrors on any of them', () => {
