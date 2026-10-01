@@ -3,16 +3,16 @@ import {HeadersSubset} from '@mionjs/core';
 
 const mion = createMionRouter();
 
-const authWithOptionalAgent = mion.headersFn(
+const traceWithOptionalAgent = mion.headersFn(
   async (
     ctx,
-    {headers}: HeadersSubset<'Authorization', 'User-Agent'>
+    {headers}: HeadersSubset<'X-Trace-Id', 'User-Agent'>
   ): Promise<void> => {
-    const token = headers.Authorization; // always present
+    const traceId = headers['X-Trace-Id']; // always present
     const userAgent = headers['User-Agent']; // may be undefined
 
-    console.log(`Token: ${token}, Agent: ${userAgent ?? 'unknown'}`);
+    console.log(`Trace: ${traceId}, Agent: ${userAgent ?? 'unknown'}`);
   }
 );
 
-export {authWithOptionalAgent};
+export {traceWithOptionalAgent};

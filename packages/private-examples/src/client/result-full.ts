@@ -1,14 +1,9 @@
-import {HeadersSubset} from '@mionjs/core';
 import {initClient} from '@mionjs/client';
 import type {MyApi} from './auth-user.routes.ts';
 
-const {routes, middlewares} = initClient<MyApi>({
+const {routes} = initClient<MyApi>({
   baseURL: 'http://localhost:3000',
 });
-
-middlewares.auth.onRequest((auth) =>
-  auth(new HeadersSubset({Authorization: 'myToken-XYZ'}))
-);
 
 const [user, error, undeclared, middlewareResults, middlewareErrors] =
   await routes.users.getById('USER-123').call();

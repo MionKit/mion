@@ -22,7 +22,7 @@ const accessLog = mion.rawMiddleware(
   {alwaysRun: true}
 );
 
-// no alwaysRun: no session is loaded and no token checked for a request refused anyway
+// no alwaysRun: no session is loaded for a request refused anyway
 const loadSession = mion.rawMiddleware((ctx): void => {
   console.log('loading the session for', ctx.path);
 });
@@ -34,8 +34,9 @@ addEndMiddlewares({accessLog});
 const sayHello = mion.route((ctx, name: string): string => `Hello ${name}`);
 
 // declared beside the routes, so it never runs on either 404
-const auth = mion.middleware((ctx, token: string): void => {
-  if (token !== 'secret') throw new Error('unauthorized');
+const auth = mion.middleware((ctx): void => {
+  if (!ctx.request.headers.get('cookie')?.includes('session='))
+    throw new Error('unauthorized');
 });
 
 mion.initRoutes({auth, sayHello});

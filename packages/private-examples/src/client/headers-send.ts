@@ -8,8 +8,8 @@ const {routes, middlewares} = initClient<HeadersApi>({
 });
 
 // the HeadersSubset is sent as HTTP headers, not in the body
-middlewares.auth.onRequest((auth) =>
-  auth(new HeadersSubset({Authorization: 'Bearer my-token'}))
+middlewares.trace.onRequest((trace) =>
+  trace(new HeadersSubset({'X-Trace-Id': crypto.randomUUID()}))
 );
 
 await routes.getDownloadUrl('report-42').call();

@@ -1,4 +1,4 @@
-import {RpcError, FatalError, HeadersSubset} from '@mionjs/core';
+import {RpcError, FatalError} from '@mionjs/core';
 import {createMionRouter, Routes} from '@mionjs/router';
 import {NewUser, myApp, getSharedData} from './full-example.app.ts';
 import {User} from './full-example.app.ts';
@@ -53,20 +53,16 @@ const deleteUser = mion.route(
 
 // a gate: the returned FatalError ends the request, so no route below runs,
 // and being declared it reaches the client strongly typed
-const auth = mion.headersFn(
-  (
-    ctx,
-    {headers}: HeadersSubset<'Authorization'>
-  ): void | RpcError<'not-authorized'> => {
-    const token = headers.Authorization;
-    if (!myApp.auth.isAuthorized(token))
-      return new FatalError({
-        publicMessage: 'Not Authorized',
-        type: 'not-authorized',
-      });
-    ctx.shared.me = myApp.auth.getIdentity(token) as User;
-  }
-);
+const auth = mion.middleware((ctx): void | RpcError<'not-authorized'> => {
+  // the HttpOnly session cookie, sent by the browser and never read by client code
+  const user = myApp.auth.getSessionUser(ctx.request.headers.get('cookie'));
+  if (!user)
+    return new FatalError({
+      publicMessage: 'Not Authorized',
+      type: 'not-authorized',
+    });
+  ctx.shared.me = user;
+});
 
 const log = mion.rawMiddleware((ctx): void =>
   console.log('rawMiddleware', ctx.path)

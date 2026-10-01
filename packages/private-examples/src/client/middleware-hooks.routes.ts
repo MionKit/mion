@@ -1,31 +1,40 @@
 import {HeadersSubset, FatalError} from '@mionjs/core';
 import {createMionRouter, Routes} from '@mionjs/router';
 import type {CallContext} from '@mionjs/router';
+import {getSession, type SessionInfo} from './session.ts';
 
 const mion = createMionRouter();
 
-// returned on success, strongly typed in the client onResponse hook
-export type SessionInfo = {userId: string; role: 'admin' | 'user'};
-export type NotAuthorizedData = {reason: 'missing-token' | 'invalid-token'};
+export type TraceInfo = {traceId: string; receivedAt: Date};
+export type NotAuthorizedData = {reason: 'no-session' | 'expired-session'};
 
 // a plain handler, so a client installer can take its type
-export function authHandler(
+export function traceHandler(
   ctx: CallContext,
-  h: HeadersSubset<'Authorization'>
+  h: HeadersSubset<'X-Trace-Id'>
+): TraceInfo {
+  return {traceId: h.headers['X-Trace-Id'], receivedAt: new Date()};
+}
+
+// no params: the browser sends the HttpOnly session cookie, JavaScript never reads it
+export function authHandler(
+  ctx: CallContext
 ): SessionInfo | FatalError<'not-authorized', NotAuthorizedData> {
+  const session = getSession(ctx.request.headers.get('cookie'));
   // a returned FatalError ends the request (no route runs) and stays typed
-  if (!h.headers.Authorization) {
+  if (!session) {
     return new FatalError({
       publicMessage: 'Not Authorized',
       type: 'not-authorized',
-      errorData: {reason: 'missing-token'},
+      errorData: {reason: 'no-session'},
     });
   }
-  return {userId: 'USER-123', role: 'admin'};
+  return session;
 }
 
 const routes = {
-  auth: mion.headersFn(authHandler),
+  trace: mion.headersFn(traceHandler),
+  auth: mion.middleware(authHandler),
   utils: {
     sum: mion.route((ctx, a: number, b: number): number => a + b),
   },

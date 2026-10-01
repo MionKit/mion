@@ -1,4 +1,4 @@
-import {HeadersSubset, FatalError} from '@mionjs/core';
+import {FatalError} from '@mionjs/core';
 import {createMionRouter, Routes} from '@mionjs/router';
 
 export type User = {id: string; name: string; surname: string};
@@ -8,20 +8,16 @@ const mion = createMionRouter({basePath: 'api/v1'});
 
 // parameters are validated before each function runs
 const routes = {
-  auth: mion.headersFn(
-    (
-      ctx,
-      h: HeadersSubset<'Authorization'>
-    ): void | FatalError<'not-authorized'> => {
-      const token = h.headers.Authorization;
-      // a FatalError ends the request: sayHello never runs, and the client gets it typed
-      if (!token)
-        return new FatalError({
-          publicMessage: 'Not Authorized',
-          type: 'not-authorized',
-        });
-    }
-  ),
+  // reads the HttpOnly session cookie the browser sends, client code never touches it
+  auth: mion.middleware((ctx): void | FatalError<'not-authorized'> => {
+    const cookie = ctx.request.headers.get('cookie');
+    // a FatalError ends the request: sayHello never runs, and the client gets it typed
+    if (!cookie?.includes('session='))
+      return new FatalError({
+        publicMessage: 'Not Authorized',
+        type: 'not-authorized',
+      });
+  }),
   users: {
     sayHello: mion.route(
       (ctx, user: User): string => `Hello ${user.name} ${user.surname}`

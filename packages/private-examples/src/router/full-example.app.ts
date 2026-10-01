@@ -31,12 +31,11 @@ export const memoryStoreService = {
   },
 };
 
-// user is authorized if token === 'ABCD'
+// finds the user behind the HttpOnly session cookie, here only `session=ABCD`
 export const myAuthService = {
-  isAuthorized: (token: string): boolean => token === 'ABCD',
-  getIdentity: (token: string): User | null =>
-    token === 'ABCD'
-      ? ({id: 0, name: 'admin', surname: 'admin'} as User)
+  getSessionUser: (cookieHeader: string | null | undefined): User | null =>
+    cookieHeader?.includes('session=ABCD')
+      ? {id: 0, name: 'admin', surname: 'admin'}
       : null,
 };
 export interface Pet {

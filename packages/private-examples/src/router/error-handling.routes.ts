@@ -1,4 +1,4 @@
-import {RpcError, FatalError, HeadersSubset} from '@mionjs/core';
+import {RpcError, FatalError} from '@mionjs/core';
 import {createMionRouter, Route} from '@mionjs/router';
 import type {Pet} from './full-example.app.ts';
 import {myApp} from './full-example.app.ts';
@@ -22,12 +22,9 @@ export const getPet = mion.route(
 
 // start:fatal-error
 // ends the request: the route behind this middleware never runs
-export const auth = mion.headersFn(
-  (
-    ctx,
-    h: HeadersSubset<'Authorization'>
-  ): void | FatalError<'not-authorized'> => {
-    if (!myApp.auth.isAuthorized(h.headers.Authorization))
+export const auth = mion.middleware(
+  (ctx): void | FatalError<'not-authorized'> => {
+    if (!myApp.auth.getSessionUser(ctx.request.headers.get('cookie')))
       return new FatalError({
         publicMessage: 'Not Authorized',
         type: 'not-authorized',

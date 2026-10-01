@@ -6,21 +6,23 @@ const {routes, middlewares} = initClient<MyApi>({
   baseURL: 'http://localhost:3000',
 });
 
-const authHeaders = new HeadersSubset({Authorization: 'my-token'});
-// runs once per batch
-middlewares.auth.onRequest((auth) => auth(authHeaders));
+// runs once per batch, so the whole batch shares one trace id
+middlewares.trace.onRequest((trace) =>
+  trace(new HeadersSubset({'X-Trace-Id': crypto.randomUUID()}))
+);
 
 const [
   [sum, greeting],
   [sumError, greetingError],
   undeclared,
-  ,
+  middlewareResults,
   middlewareErrors,
 ] = await batch([routes.utils.sum(5, 2), routes.sayHello('John')]).call();
 
 // declared middleware errors arrive by id, anything else once as undeclared
 if (middlewareErrors?.auth)
   console.log('Auth failed:', middlewareErrors.auth.publicMessage);
+if (middlewareResults?.trace) console.log('Trace:', middlewareResults.trace);
 if (undeclared) console.log('Request failed:', undeclared.publicMessage);
 
 if (!sumError) console.log('Sum:', sum);

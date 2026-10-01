@@ -1,24 +1,22 @@
-import {HeadersSubset, RpcError, FatalError} from '@mionjs/core';
+import {RpcError, FatalError} from '@mionjs/core';
 import {createMionRouter, Routes} from '@mionjs/router';
+import {getSession} from './session.ts';
 
 const mion = createMionRouter();
 
 export type User = {id: string; name: string};
-export type NotAuthorizedData = {reason: 'missing-token' | 'invalid-token'};
+export type NotAuthorizedData = {reason: 'no-session' | 'expired-session'};
 export type UserNotFoundData = {requestedId: string};
 
 const routes = {
-  // a returned FatalError ends the request and reaches the client typed, errorData included
-  auth: mion.headersFn(
-    (
-      ctx,
-      h: HeadersSubset<'Authorization'>
-    ): void | FatalError<'not-authorized', NotAuthorizedData> => {
-      if (!h.headers.Authorization) {
+  // reads the HttpOnly session cookie; a returned FatalError ends the request and reaches the client typed
+  auth: mion.middleware(
+    (ctx): void | FatalError<'not-authorized', NotAuthorizedData> => {
+      if (!getSession(ctx.request.headers.get('cookie'))) {
         return new FatalError({
           publicMessage: 'Not Authorized',
           type: 'not-authorized',
-          errorData: {reason: 'missing-token'},
+          errorData: {reason: 'no-session'},
         });
       }
     }

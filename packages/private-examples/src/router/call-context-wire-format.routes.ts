@@ -3,8 +3,8 @@ import {createMionRouter, Routes} from '@mionjs/router';
 const mion = createMionRouter();
 
 const routes = {
-  // takes a token and returns the seconds left on the session
-  auth: mion.middleware((ctx, token: string): number => 3600),
+  // takes a trace id and returns the time the server got the request
+  trace: mion.middleware((ctx, traceId: string): number => Date.now()),
   users: {
     getUser: mion.route((ctx, id: number): {id: number; name: string} => ({
       id,
