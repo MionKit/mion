@@ -63,8 +63,7 @@ middleware that sends and receives data on every call, and every page still teac
 - Every example under `packages/private-examples/src/{client,router,introduction}` that sent or read a token
   was switched; `guide/remove-unknown-keys.ts` keeps its `token` key (it is the value being stripped).
   The orphan `client.ts` lost its "per-request data" example, which only made sense with the old token.
-- New tip on the middleware page: keep auth tokens out of client JavaScript, use an HttpOnly cookie,
-  `credentials: 'include'` for another origin.
+- No tip on where auth data should live: one was written, then dropped at the user's request in review.
 - **Added at the user's request**: a pagination example in its own subsection, after Middleware Scope on the middleware
   page (`router/pagination.routes.ts` + `client/pagination-client.ts`): the route returns only the items, a
   middleware declared after it in the same group returns the page info it left in the context, and the
