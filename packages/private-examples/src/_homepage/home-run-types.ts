@@ -20,7 +20,7 @@ const user = mockUser();
 // @annotate: Validate data at runtime
 
 isUser(user);
-// @annotate: Serialize complex types (Date, Set, unions) to JSON
+// @annotate: JSON round trip for complex types (Date, Set, unions)
 
 const json = encodeUser(user);
 //     ^?

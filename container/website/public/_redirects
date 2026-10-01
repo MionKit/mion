@@ -16,12 +16,12 @@
 /platforms/*     /rpc/platforms/:splat     301
 # Binary serialization was removed (2026-09): its guide, the articles section and the formats benchmark.
 # The JSON serialization page then merged into the serialization page.
-/articles/*           /runtypes/guide/serialization  301
-/rpc/articles/*       /runtypes/guide/serialization  301
-/runtypes/articles/*  /runtypes/guide/serialization  301
-/runtypes/guide/binary-serialization         /runtypes/guide/serialization       301
-/runtypes/guide/json-serialization           /runtypes/guide/serialization       301
-/benchmarks/runtypes/serialization-formats  /benchmarks/runtypes/serialization  301
+/articles/*           /runtypes/guide/json-round-trip  301
+/rpc/articles/*       /runtypes/guide/json-round-trip  301
+/runtypes/articles/*  /runtypes/guide/json-round-trip  301
+/runtypes/guide/binary-serialization         /runtypes/guide/json-round-trip       301
+/runtypes/guide/json-serialization           /runtypes/guide/json-round-trip       301
+/benchmarks/runtypes/serialization-formats  /benchmarks/runtypes/json-round-trip  301
 # Each subsite root redirects to its home page, a docs page inside the sidebar
 # (app/pages/<id>/index.vue does the same for the app router).
 /rpc         /rpc/introduction/about-mion-rpc              301
@@ -57,7 +57,7 @@
 # The RunTypes guide split into sections (2026-09): Type Formats became its own
 # section with a page per family, and linting plus source conversion moved to Tooling.
 /runtypes/guide/type-formats              /runtypes/type-formats/overview      301
-/runtypes/guide/decoding-untrusted-input  /runtypes/guide/serialization        301
+/runtypes/guide/decoding-untrusted-input  /runtypes/guide/json-round-trip        301
 /runtypes/guide/json-schema-generation    /runtypes/guide/json-schemas         301
 /runtypes/guide/linting                   /runtypes/tooling/linting            301
 /runtypes/guide/source-conversion         /runtypes/tooling/source-conversion  301

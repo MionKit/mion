@@ -8,7 +8,7 @@
 //     on mount and renders a tidy "Benchmark data not generated yet" notice when the
 //     file is missing. Right for a fresh clone, wrong for a deploy: a benchmark stage
 //     that dies mid-run ships a green build whose pages are empty (exactly what happened
-//     to the serialization pages). Prerendered HTML can't reveal it either, since the
+//     to the JSON round trip pages). Prerendered HTML can't reveal it either, since the
 //     table only appears after hydration. So the gate replays what the browser does,
 //     over HTTP, against the real artifact: the component shell is in the HTML, the
 //     index.json holds real, renderable numbers (mirroring BenchTable's own cell logic,
@@ -52,7 +52,7 @@ const CONTENT_DIR = join(REPO_ROOT, 'container/website/content');
 // ── page discovery ───────────────────────────────────────────────────────────
 
 // Nuxt Content drops the numeric ordering prefix from every path segment:
-// content/03.benchmarks/02.runtypes/05.serialization.md -> /benchmarks/runtypes/serialization.
+// content/03.benchmarks/03.runtypes/05.json-round-trip.md -> /benchmarks/runtypes/json-round-trip.
 const routeSegment = (name) => name.replace(/^\d+\./, '').replace(/\.md$/, '');
 
 /** The route of a content file: `index.md` is the landing page of its dir (`/` at the

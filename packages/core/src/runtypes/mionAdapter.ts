@@ -28,7 +28,7 @@ import type {CompiledPureFunction} from '../types/pureFunctions.types.ts';
 // ############# mion <-> mion adapter #############
 // The helpers createMionRouter returns declare trailing mion injection markers that the @mionjs/devtools vite
 // plugin fills at build time. This module turns those payloads into the JitCompiledFunctions / reflection
-// shapes the router already consumes, so dispatch and serialization code stay untouched.
+// shapes the router already consumes, so dispatch and JSON round trip code stay untouched.
 
 /** The VOCABULARY of fn keys a route marker may name; the helpers pick which ones each call requests from its
  *  `parser`. Order is irrelevant, the payload is projected by fn key.
@@ -212,7 +212,7 @@ export function buildJitFnsFromMarker(injected: unknown, typeId: string, label: 
     );
   const fns = byFnKey(injected);
   // FAIL CLOSED on a partial payload: a present-but-short array means plugin/marker version
-  // skew — falling back would silently DISABLE validation/serialization for this method.
+  // skew — falling back would silently DISABLE validation and the JSON round trip for this method.
   const strategy = strategyFromFamilies(fns, label);
   const row: ParseModeRow = PARSE_MODES[strategy];
   if (fns[row.validationErrors] === undefined)

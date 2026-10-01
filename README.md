@@ -13,7 +13,7 @@
 
 # mion : Full Stack APIs at the speed of light 🚀
 
-mion is a lightweight TypeScript-based framework designed for building serverless APIs. It aims to provide a great developer experience and is optimized for serverless environments. With mion, you can quickly build APIs that are type-safe, with automatic validation and serialization out of the box.
+mion is a lightweight TypeScript-based framework designed for building serverless APIs. It aims to provide a great developer experience and is optimized for serverless environments. With mion, you can quickly build APIs that are type-safe, with automatic validation and JSON round trip out of the box.
 
 ## Check Out The [Website And Documentation](http://mion.io) 📚
 
@@ -21,7 +21,7 @@ mion is a lightweight TypeScript-based framework designed for building serverles
 
 ## Why Another Framework?
 
-Serverless applications have different requirements compared to conventional server apps and there are not many frameworks that offer type-safe APIs with automatic validation and serialization by default.
+Serverless applications have different requirements compared to conventional server apps and there are not many frameworks that offer type-safe APIs with automatic validation and JSON round trip by default.
 
 mion addresses these challenges by offering a lightweight and opinionated framework focused on simplicity and developer experience.
 
@@ -31,7 +31,7 @@ mion addresses these challenges by offering a lightweight and opinionated framew
 | ------ | --------------------------- | ------------------------------------------------------------- |
 | ✅     | RPC-like Router             | Provides an RPC-style router for handling API requests        |
 | ✅     | Automatic Validation        | Automatically validates data received by the API              |
-| ✅     | Automatic Serialization     | Automatically serializes data sent by the API                 |
+| ✅     | Automatic JSON Round Trip   | Data sent by the API comes back as the same values            |
 | ✅     | AWS Lambda Handler          | Seamless integration with AWS Lambda for serverless execution |
 | ✅     | HTTP Server                 | Includes an HTTP server module for handling API requests      |
 | ✅     | Automatic TypeScript Client | Fully typed client without need of compilation                |
@@ -64,15 +64,15 @@ Apis are composed of routes and middleware, declared through the helpers `create
 
 To learn more about the router, refer to the [Router Documentation](./packages/rpc-router/).
 
-## Automatic Serialization & Validation
+## Automatic JSON Round Trip & Validation
 
-mion utilizes RunTypes for automatic validation and serialization. RunTypes enables type information to be available at runtime, allowing for automatic validation and serialization of data.
+mion utilizes RunTypes for automatic validation and JSON round trip. RunTypes enables type information to be available at runtime, allowing for automatic validation and JSON round trip of data.
 
-By leveraging runtime types, mion offers advanced capabilities such as request validation and response/request serialization that typically involves using multiple framework and loads of code or boilerplate to be manually written by developers.
+By leveraging runtime types, mion offers advanced capabilities such as request validation and the request/response JSON round trip that typically involves using multiple framework and loads of code or boilerplate to be manually written by developers.
 
 ## RunTypes: developed in this repo
 
-This monorepo is also the home of **RunTypes** (the `RunTypes/*` npm packages): the compile-time runtime-type resolver built on TypeScript 7 / typescript-go that powers mion's validation and serialization. It was developed for a while in a separate repository; that full history has been merged back here.
+This monorepo is also the home of **RunTypes** (the `RunTypes/*` npm packages): the compile-time runtime-type resolver built on TypeScript 7 / typescript-go that powers mion's validation and JSON round trip. It was developed for a while in a separate repository; that full history has been merged back here.
 
 RunTypes has its own docs section: **[mion.pages.dev/runtypes](https://mion.pages.dev/runtypes)**. Its code lives under [packages/run-types\*](./packages/) and [ts-go-runtypes/](./ts-go-runtypes/).
 
@@ -81,7 +81,7 @@ RunTypes has its own docs section: **[mion.pages.dev/runtypes](https://mion.page
 ![type safes apis](https://raw.githubusercontent.com/MionKit/mion/main/assets/public/type-safe-apis.gif)
 
 Thats it 👆, thats all you need to write a Fully Type Safe Api and Client &nbsp; 🚀  
-All parameters and return values will also be automatically validated and serialized without any extra code required.
+All parameters and return values will also be automatically validated and make the JSON round trip without any extra code required.
 
 ## Contributing
 

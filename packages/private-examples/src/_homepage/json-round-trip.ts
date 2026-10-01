@@ -1,6 +1,6 @@
 import {createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
 
-// start-roundtrip
+// start-round-trip
 type Session = {
   user: string;
   expiresAt: Date;
@@ -19,6 +19,6 @@ const back = fromJson(wire);
 
 const expiresAt: Date = back.expiresAt; // a real Date again
 const roles: Set<string> = back.roles; // a real Set again
-// end-roundtrip
+// end-round-trip
 
 export {wire, back, expiresAt, roles};

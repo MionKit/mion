@@ -29,7 +29,7 @@ type BenchIndex = {
   label?: string;
   unit?: BenchUnit;
   /** true when a competitor's two measured paths are accept and reject (validation),
-   *  rather than two halves of one operation (serialization's encode and decode). */
+   *  rather than two halves of one operation (the JSON round trip's encode and decode). */
   showInvalid?: boolean;
   showStrategy?: boolean;
   metrics: BenchMetric[];
@@ -118,7 +118,7 @@ function bars(metric: BenchMetric, rowKey: string): Bar[] {
   const showStrategy = idx.showStrategy !== false && idx.unit !== 'count';
   const entries = competitorsFor(metric.key).map((name) => {
     const value = values[name]?.valid ?? null;
-    // A second number rides along only where the page explains it: on serialization
+    // A second number rides along only where the page explains it: on the JSON round trip page
     // the two paths are the encode and decode passes, and the prose says so. On the
     // validation benches they are the accept and reject paths, and an unlabelled
     // second figure there reads as noise, which is what these charts replaced.
@@ -217,7 +217,7 @@ onMounted(async () => {
           </a>
         </h3>
 
-        <!-- One card per metric, side by side: the serialization pages compare speed
+        <!-- One card per metric, side by side: the JSON round trip page compares speed
              and payload size, and two cards read as two questions rather than one
              panel the reader has to divide. -->
         <div class="runtypes-bench-cards">
@@ -300,7 +300,7 @@ onMounted(async () => {
   color: var(--ui-primary);
 }
 
-/* One card per metric. Two of them (the serialization pages: speed and bytes) sit
+/* One card per metric. Two of them (the JSON round trip page: speed and bytes) sit
    side by side while there is room, and stack on a narrow screen. */
 .runtypes-bench-cards {
   display: grid;

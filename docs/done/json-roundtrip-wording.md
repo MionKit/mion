@@ -1,7 +1,7 @@
 ---
 type: docs
 spec: guidelines
-status: ready
+status: done
 created: 2026-09-30
 ---
 
@@ -42,3 +42,42 @@ Use "JSON round trip" everywhere a reader meets the idea, one spelling across th
 No page, heading, example comment or source comment calls the feature "serialization" where it means the
 JSON round trip, every link and anchor still lands (`packages/devtools/test/website-links.test.ts`), and the
 one spelling is used everywhere.
+
+## Plan (approved 2026-10-01)
+
+One spelling: "JSON round trip" in prose, "JSON Round Trip" in Title Case headings, `json-round-trip` in
+slugs and file names.
+
+- Rename the three pages to `json-round-trip` (new URLs, no redirect from the old ones). Older redirect
+  rules in `public/_redirects` that pointed at the old pages now point at the new ones.
+- Rename the examples: `guide/serialization-*.ts` -> `guide/json-round-trip-*.ts`
+  (`serialization-roundtrip.ts` -> `json-round-trip-calls.ts`), `run-types/serialization-union.ts` ->
+  `json-round-trip-union.ts`, `_homepage/json-roundtrip.ts` -> `_homepage/json-round-trip.ts`.
+- Reword only the text that names the feature or means the whole round trip. Comments: only the ones that
+  name the feature.
+
+## What shipped
+
+- Pages: the three renamed pages, every link to them, two section titles ("JSON Round Trip Steps" in the
+  call context page, "JSON Round Trip in a Batch"), and the feature wording across about 30 pages,
+  `index.md` included. The about page keeps its sentence case headings, so its section reads
+  "JSON round trip".
+- Examples: renamed as planned, with the `code-import` paths, `tsconfig.json`, `tsconfig.runtypes.json`,
+  `eslint.config.js` and the two pre-publish e2e header comments updated, plus the `@annotate` lines.
+- Source comments: about 20 comments across `core`, `devtools`, `rpc-client`, `rpc-router`, `run-types`
+  and `private-test-server`, plus the website's bench bars component, `subsites.ts` and
+  `scripts/website/check-static.mjs`.
+- Also reworded (readers meet them too): the root `README.md`, the `rpc-client`, `rpc-router` and
+  `run-types` READMEs, and `docs/FUZZING.md`.
+- Kept on purpose: "serializable" (data that fits JSON), the class serializer API, one way wording
+  (encoder, decoder, "encode responses"), the network "round trip" of a batch, competitor code in the
+  benchmark snippets, test file and suite names, and pure function code serialization.
+
+### API names left for the maintainer
+
+These read "serialize" next to the new wording. Renaming them was out of scope:
+
+- `registerClassSerializer` and its `serialize` / `deserialize` options (also `unregisterClassSerializer`).
+- `SerializerCode`.
+- The `serialization-error` error code.
+- The `bench="serialization"` data key and the `bench-data/serialization/` directory.

@@ -2,7 +2,7 @@ import {createMionRouter, Routes} from '@mionjs/router';
 import {startNodeServer} from '@mionjs/platform-node';
 
 const mion = createMionRouter();
-// @annotate: Automatic Validation and Serialization from Typescript types
+// @annotate: Automatic Validation and JSON Round Trip from Typescript types
 
 interface User {
   id: number;

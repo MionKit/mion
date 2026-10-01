@@ -20,7 +20,7 @@ Modern client for mion APIs:
 
 - Strongly typed apis with autocompletion ans static type checking.
 - Fully typed list of remote methods with it's parameters and return values.
-- Automattic Validation and Serialization out of the box.
+- Automatic Validation and JSON Round Trip out of the box.
 - Local Validation (no need to make a server request to validate parameters)
 - Middleware hooks that set their data before every request.
 - No compilation needed

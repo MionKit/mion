@@ -1,4 +1,4 @@
-// BigInt-format TYPE aliases; validation, serialization and mocking are emitted elsewhere. `TypeFormat` is a value
+// BigInt-format TYPE aliases; validation, JSON round trip and mocking are emitted elsewhere. `TypeFormat` is a value
 // import (not `import type`) so each brand alias's reflection metadata stays reachable for tsgo.
 // (ref: packages/type-formats/src/bigint/{bigIntFormat.runtype.ts,defaultBigNumberFormats.ts}).
 

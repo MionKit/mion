@@ -94,8 +94,8 @@ export function resolveRtBinary(explicit?: string): string | undefined {
 
 /** The SEPARATE project that declares the mion API this client calls, the mirror of MionClientPointer.
  *
- *  A client built with `bundleApi` compiles, for every route it calls, the same validators and serializers the
- *  server holds. They come from the route's TypeScript types, and a type resolved under different compiler
+ *  A client built with `bundleApi` compiles, for every route it calls, the same validation and JSON round trip
+ *  functions the server holds. They come from the route's TypeScript types, and a type resolved under different compiler
  *  settings (another `lib`, `strictNullChecks` off, other path mappings) can differ from what the server
  *  compiled, so this pointer makes the resolver read the routes' types in a program built over THAT tsconfig.
  *  A client sharing its program with the API needs no pointer. The same pointer is the tsconfig plugin key

@@ -15,7 +15,7 @@ if (user) {
   user.createdAt;
   //         ^?
 
-  // @annotate: Native Classes Like Set are automatically serialized/deserialized
+  // @annotate: Native Classes Like Set Make the JSON Round Trip Automatically
 
   user.tags;
   //    ^?

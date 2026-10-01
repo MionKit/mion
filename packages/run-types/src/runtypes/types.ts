@@ -88,7 +88,7 @@ export interface RunType<T = unknown> extends SchemaChecks {
   position?: unknown;
   isCircular?: boolean;
   /** True for the "non-data" kinds (function / method / call-signature / symbol / never / non-serialisable
-   *  class) the validators and serializers ignore. The node is kept in the reflected tree so reflection stays
+   *  class) validation and the JSON round trip ignore. The node is kept in the reflected tree so reflection stays
    *  complete; only the node itself is flagged, never its children. */
   notSupported?: boolean;
   /** The largest compact-JSON byte size a valid value of this type can have, computed at build time (the Go

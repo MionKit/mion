@@ -17,8 +17,8 @@ import {
 import type {InjectedApiMetadata} from '../types.ts';
 import {isBundledMethod, resetBundledMethods, setBundledMethod} from './methods.ts';
 
-// The bundled-API lane (the build's `bundleApi` option): the build compiles the same validators and
-// serializers the server holds and injects, at each dispatch point, a module carrying the route plus its
+// The bundled-API lane (the build's `bundleApi` option): the build compiles the same validation and
+// JSON round trip functions the server holds and injects, at each dispatch point, a module carrying the route plus its
 // chain's middlewares, as metadata rows and live marker payloads. Registering one goes through the same
 // reflection the router runs at initRoutes, so a bundled method looks exactly like a fetched one.
 

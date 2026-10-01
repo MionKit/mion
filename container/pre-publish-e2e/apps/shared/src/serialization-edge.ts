@@ -1,4 +1,4 @@
-// Family 5, serialization edge. Mirrors guide/serialization-circular.ts + serialization-class.ts.
+// Family 5, JSON round trip edge cases. Mirrors guide/json-round-trip-circular.ts + json-round-trip-class.ts.
 import {createJsonEncoderFn, createJsonDecoderFn, CircularReferenceError, type DataOnly} from '@mionjs/run-types';
 import {registerClassSerializer} from '@mionjs/run-types/runtime';
 import {type CheckResult, ok} from './check';

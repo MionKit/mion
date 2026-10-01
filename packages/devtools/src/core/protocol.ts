@@ -40,7 +40,7 @@ export interface RunType {
   typeName?: string;
   typeArguments?: RunType[];
   isCircular?: boolean;
-  // True for the non-data kinds validators and serializers ignore: function / method / call-signature /
+  // True for the non-data kinds validation and the JSON round trip ignore: function / method / call-signature /
   // symbol / never / non-serialisable class. The node stays in the tree; only it is flagged, never its children.
   notSupported?: boolean;
 
