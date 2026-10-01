@@ -199,6 +199,7 @@ const codes = goRecords.map((record) => {
     code: record.code,
     subsystem,
     level: record.level,
+    ...(record.internal ? {internal: true} : {}),
     headline: record.headline,
     summary: record.summary,
     fix: record.fix ?? null,

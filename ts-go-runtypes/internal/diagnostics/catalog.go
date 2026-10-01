@@ -188,6 +188,8 @@ type Definition struct {
 	// so the next build re-derives it instead of replaying a load spike as a permanent error. The
 	// finding still fails the build it was raised in.
 	Transient bool
+	// Internal marks a code that only a bug in mion can raise; the website lists it with an "internal error" badge.
+	Internal bool
 	// Scope is where the trigger can sit in the marker's type (see Scope).
 	// Required: register panics without it.
 	Scope Scope
