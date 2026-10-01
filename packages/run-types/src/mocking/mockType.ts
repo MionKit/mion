@@ -68,7 +68,7 @@ function decayOptionsForNesting(options: RunTypeMockOptions, nestLevel: number):
   const maxDepth = mOps.maxMockRecursion;
   const divisor = nestLevel;
   const newProv = nestLevel >= maxDepth ? 0 : mOps.optionalProbability / divisor;
-  const newMaxLength = nestLevel >= maxDepth ? 0 : Math.round(mOps.maxRandomItemsLength / divisor);
+  const newMaxLength = nestLevel >= maxDepth ? 0 : decayItemsLength(mOps.maxRandomItemsLength, nestLevel);
   const next: MockOptions = {
     ...mOps,
     optionalProbability: newProv,
@@ -83,21 +83,39 @@ function decayOptionsForNesting(options: RunTypeMockOptions, nestLevel: number):
     next.optionalPropertyProbability = Object.fromEntries(entries);
   }
   if (mOps.arrayLength !== undefined) {
-    next.arrayLength = nestLevel >= maxDepth ? 0 : Math.round(mOps.arrayLength / divisor);
+    next.arrayLength = nestLevel >= maxDepth ? 0 : decayItemsLength(mOps.arrayLength, nestLevel);
   }
   if (mOps.parentObj) next.parentObj = {};
   return {...options, mock: next};
 }
 
-// Per-level item cap divisor: a flat cap multiplies per level (60^4 entries at four levels), so one mock took seconds.
-const NESTED_ITEMS_DIVISOR = 4;
+/** The one item-length decay, shared by recursive re-entry and nested collections. **/
+function decayItemsLength(length: number, nestLevel: number): number {
+  return Math.round(length / nestLevel);
+}
 
-/** An explicit `arrayLength` or `rt$length` still wins: both are read before the cap. **/
-function shrinkForNestedItems(options: RunTypeMockOptions): RunTypeMockOptions {
+/** True for a node that holds a variable number of items. **/
+function isItemCollection(runType: RunType): boolean {
+  const kind = runType.kind as number;
+  if (kind === RunTypeKind.array || kind === RunTypeKind.rest || kind === RunTypeKind.indexSignature) return true;
+  if (kind === RunTypeKind.tupleMember || kind === RunTypeKind.parameter) {
+    return Array.isArray(runType.flags) && (runType.flags as unknown[]).includes('rest');
+  }
+  const subKind = runType.subKind as number | undefined;
+  return kind === RunTypeKind.class && (subKind === RunTypeSubKind.map || subKind === RunTypeSubKind.set);
+}
+
+// Each enclosing collection adds this to the decay level: a step of 1 (60, 30, 10, 3) still mocked a
+// four-level Record / Set / Map shape at ~80 ms, a step of 2 (60, 20, 4, 1) at ~10 ms.
+const COLLECTION_LEVEL_STEP = 2;
+
+/** A flat cap multiplies per level (60^4 entries at four levels), so a collection's items decay through the same
+ *  helper as a recursive re-entry. An explicit `arrayLength` or `rt$length` still wins. **/
+function shrinkForNestedItems(options: RunTypeMockOptions, stack: RunType[]): RunTypeMockOptions {
+  let nestLevel = 1;
+  for (let i = 0; i < stack.length; i++) if (isItemCollection(stack[i])) nestLevel += COLLECTION_LEVEL_STEP;
   const mOps = options.mock as MockOptions;
-  if (mOps.maxRandomItemsLength <= 1) return options;
-  const maxRandomItemsLength = Math.max(1, Math.floor(mOps.maxRandomItemsLength / NESTED_ITEMS_DIVISOR));
-  return {...options, mock: {...mOps, maxRandomItemsLength}};
+  return {...options, mock: {...mOps, maxRandomItemsLength: decayItemsLength(mOps.maxRandomItemsLength, nestLevel)}};
 }
 
 // ─────────────────────── MockData node threading ───────────────────────
@@ -291,7 +309,7 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
         arrayParams,
         dataArrayLength(dataNode, random) ?? mOps.arrayLength ?? random.int(0, mOps.maxRandomItemsLength)
       );
-      const childOpts = withDataNode(shrinkForNestedItems(options), asDataNode(dataNode?.rt$items));
+      const childOpts = withDataNode(shrinkForNestedItems(options, stack), asDataNode(dataNode?.rt$items));
       // Contains entries splice exactly `min` CHILD MOCKS (valid by the mock soundness invariant) among fillers
       // the loose matcher DEFINITIVELY rejects, so per-entry counts are exact by construction.
       // Provable contradictions (min > max, or a matched item the element type definitively rejects) throw.
@@ -431,7 +449,7 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
       if (!child) return undefined;
       if (Array.isArray(runType.flags) && (runType.flags as unknown[]).includes('rest') && child.kind !== RunTypeKind.rest) {
         const length = random.int(0, mOps.maxRandomItemsLength);
-        const itemOpts = shrinkForNestedItems(options);
+        const itemOpts = shrinkForNestedItems(options, stack);
         const items: unknown[] = [];
         for (let i = 0; i < length; i++) items.push(mockRunType(child, itemOpts, stack));
         return items;
@@ -445,7 +463,7 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
       const child = runType.child as RunType | undefined;
       if (!child) return [];
       const length = random.int(0, mOps.maxRandomItemsLength);
-      const itemOpts = shrinkForNestedItems(options);
+      const itemOpts = shrinkForNestedItems(options, stack);
       const items: unknown[] = [];
       for (let i = 0; i < length; i++) items.push(mockRunType(child, itemOpts, stack));
       return items;
@@ -472,7 +490,7 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
       const keyType = runType.index as RunType | undefined;
       if (!child || !keyType) return {};
       const length = random.int(0, mOps.maxRandomItemsLength);
-      const valueOpts = shrinkForNestedItems(options);
+      const valueOpts = shrinkForNestedItems(options, stack);
       const parent: Record<string | number | symbol, unknown> = mOps.parentObj ?? {};
       const keyKind = keyType.kind as number;
       for (let i = 0; i < length; i++) {
@@ -648,7 +666,7 @@ function buildObjectLiteral(
   const patternProps = (runType.patternProps ?? []) as {source: string; key?: RunType; value: RunType}[];
   if (patternProps.length > 0) {
     const regexes = patternProps.map((entry) => new RegExp(entry.source));
-    const valueOpts = shrinkForNestedItems(options);
+    const valueOpts = shrinkForNestedItems(options, stack);
     for (const key of Object.keys(parent)) {
       const matching = patternProps.filter((_entry, index) => regexes[index].test(key));
       // One matching pattern regenerates the value from ITS child, sound by construction.
@@ -820,7 +838,7 @@ function mockMap(runType: RunType, options: RunTypeMockOptions, stack: RunType[]
   const result = new Map<unknown, unknown>();
   if (!keyType || !valueType) return result;
   const mapParams = structuralParamsOf(runType, 'formattedMap');
-  const entryOpts = shrinkForNestedItems(options);
+  const entryOpts = shrinkForNestedItems(options, stack);
   const entries = drawCollectionEntries<[unknown, unknown]>({
     length: clampToItemBounds(mapParams, mOps.arrayLength ?? random.int(0, mOps.maxRandomItemsLength)),
     containsChecks: (runType.contains ?? []) as ContainsEntry[],
@@ -860,7 +878,7 @@ function mockSet(runType: RunType, options: RunTypeMockOptions, stack: RunType[]
   const elementType = args[0]?.child as RunType | undefined;
   if (!elementType) return new Set<unknown>();
   const setParams = structuralParamsOf(runType, 'formattedSet');
-  const memberOpts = shrinkForNestedItems(options);
+  const memberOpts = shrinkForNestedItems(options, stack);
   const members = drawCollectionEntries<unknown>({
     length: clampToItemBounds(setParams, mOps.arrayLength ?? random.int(0, mOps.maxRandomItemsLength)),
     containsChecks: (runType.contains ?? []) as ContainsEntry[],
