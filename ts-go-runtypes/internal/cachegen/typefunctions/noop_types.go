@@ -432,6 +432,7 @@ func isNoopForPrepareJsonSafe(rt *reflection.RunType, ctx *EmitContext) bool {
 // fmt is publicly overridable, so a node carrying Overrides["fmt"] is never identity, the walker dep-calling
 // its cfn redirect. The dispatch gate skips the predicate for the DIRECT override child, but a deeper
 // descendant's override must falsify the walk here, or the gate would elide the subtree reaching the redirect.
+// No non-data guard: fmt never throws, it leaves a value it does not format as it is, so identity is its real answer.
 func isNoopForFormatTransform(rt *reflection.RunType, ctx *EmitContext) bool {
 	rt = ctx.ResolveRef(rt)
 	if rt == nil {
@@ -544,6 +545,7 @@ func formatNoopObjectChildren(children []*reflection.RunType, ctx *EmitContext, 
 /** isNoopForValidate reports whether the val entry for rt is `() => true`. **/
 // Mirrors ValidateEmitter.Emit: only a root any / unknown emits the bare `true`, every other kind emitting a
 // load-bearing check. Identical for every ValidateOptions variant: options cannot make any/unknown check more.
+// No non-data guard: only any / unknown answer yes, and neither is non-data.
 func isNoopForValidate(rt *reflection.RunType, ctx *EmitContext) bool {
 	rt = ctx.ResolveRef(rt)
 	if rt == nil {
@@ -559,6 +561,7 @@ func isNoopForValidate(rt *reflection.RunType, ctx *EmitContext) bool {
 /** isNoopForValidationErrors reports whether the verr entry for rt is the
  *  error-list passthrough. **/
 // Mirrors ValidationErrorsEmitter.Emit: only root any/unknown emit nothing.
+// No non-data guard: only any / unknown answer yes, and neither is non-data.
 func isNoopForValidationErrors(rt *reflection.RunType, ctx *EmitContext) bool {
 	rt = ctx.ResolveRef(rt)
 	if rt == nil {
