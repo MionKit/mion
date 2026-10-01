@@ -42,13 +42,11 @@ describe('JSON Serialization E2E', () => {
         const authHeaders = createAuthHeaders('XWYZ-TOKEN');
         middlewares.auth.onRequest((auth) => auth(authHeaders));
 
-        const [greeting, routeError, fatal, middlewareResults, middlewareErrors] = await routes.sayHello(someUser).call();
+        const [greeting, routeError, clientResponse] = await routes.sayHello(someUser).call();
 
         expect(greeting).toBe('Hello John Doe');
         expect(routeError).toBeUndefined();
-        expect(fatal).toBeUndefined();
-        expect(middlewareResults).toBeDefined();
-        expect(middlewareErrors).toBeDefined();
+        expect(clientResponse['@thrownErrors']).toBeUndefined();
     });
 
     it('call() with middlewares should return error on route failure', async () => {
@@ -91,10 +89,10 @@ describe('JSON Serialization E2E', () => {
 
         middlewares.auth.offRequest();
 
-        // A middleware sent no data fails request-scoped, so it lands in the fatal slot.
-        const [, , fatal] = await routes.sayHello(someUser).call();
-        expect(fatal).toBeDefined();
-        expect(isRpcError(fatal)).toBe(true);
+        // The auth middleware got no headers: its own validation error, at its path.
+        const [, , clientResponse] = await routes.sayHello(someUser).call();
+        expect(isRpcError(clientResponse.auth)).toBe(true);
+        expect(clientResponse.auth).toMatchObject({type: 'validation-error'});
     });
 
     it('call() with onRequest middlewares should return session middleware data', async () => {
@@ -103,14 +101,14 @@ describe('JSON Serialization E2E', () => {
 
         middlewares.auth.onRequest((auth) => auth(authHeaders));
         middlewares.session.onRequest((session) => session('valid-token'));
-        const [greeting, routeError, fatal, middlewareResults, middlewareErrors] = await routes.sayHello(someUser).call();
+        const [greeting, routeError, clientResponse] = await routes.sayHello(someUser).call();
 
         expect(greeting).toBe('Hello John Doe');
         expect(routeError).toBeUndefined();
-        expect(fatal).toBeUndefined();
-        expect(middlewareErrors?.auth).toBeUndefined();
-        expect(middlewareResults?.session).toBeDefined();
-        expect((middlewareResults?.session as {userId?: string} | undefined)?.userId).toBe('user-123');
+        expect(clientResponse['@thrownErrors']).toBeUndefined();
+        expect(clientResponse.auth).toBeUndefined();
+        expect(clientResponse.session).toBeDefined();
+        expect((clientResponse.session as {userId?: string} | undefined)?.userId).toBe('user-123');
     });
 
     it('batch should execute multiple routes', async () => {

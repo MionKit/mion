@@ -94,12 +94,12 @@ describe('Compact Serialization E2E', () => {
 
     it('carries a plain middleware (no parser of its own) on the compact wire', async () => {
         middlewares.compact.session.onRequest((session) => session('valid-token'));
-        const [result, error, fatal, middlewaresResults] = await routes.compact.echo('test').call();
+        const [result, error, response] = await routes.compact.echo('test').call();
         middlewares.compact.session.offRequest();
 
         expect(error).toBeUndefined();
-        expect(fatal).toBeUndefined();
+        expect(response['@thrownErrors']).toBeUndefined();
         expect(result).toBe('test');
-        expect(middlewaresResults?.['compact/session']).toEqual({valid: true, userId: 'user-123'});
+        expect(response.compact?.session).toEqual({valid: true, userId: 'user-123'});
     });
 });

@@ -13,35 +13,18 @@ import type {TypedEvent} from './lib/typedEvent.ts';
 import type {MIDDLEWARE_HOOKS} from './constants.ts';
 import type {StorageEngine} from './lib/storage.ts';
 
-/** The `undeclared` slot: any error that is not part of a declared response: transport, platform,
- * framework, or an undeclared throw. A DECLARED error never lands here, a returned FatalError
- * included: those stay typed in their own route or middleware slot (and the onError listeners).
- * Open by nature, the code can be anything. **/
-export type UndeclaredError = RpcError<string>;
-
-/** Result type for call() - 5-tuple pattern:
- * [routeResult, routeError (declared | ValidationError), undeclared, middlewareResults, middlewareErrors] **/
-export type Result<
-  RouteSuccess,
-  RouteError,
-  MiddlewaresResults extends Record<string, unknown> = Record<string, unknown>,
-  MiddlewaresErrors extends Record<string, unknown> = Record<string, RpcError<string, unknown>>,
-> = [
+/** Result type for call(): [routeResult, routeError (declared | ValidationError), response] **/
+export type Result<RouteSuccess, RouteError, Response = ClientResponse<RemoteApi>> = [
   RouteSuccess | undefined,
   RouteError | undefined,
-  UndeclaredError | undefined,
-  MiddlewaresResults | undefined,
-  MiddlewaresErrors | undefined,
+  Response,
 ];
 
-/** Result type for batch() - 5-tuple pattern:
- * [routeResults[], routeErrors[] (declared | ValidationError), undeclared (request-scoped, ONE slot), middlewareResults, middlewareErrors] **/
+/** Result type for batch(): [routeResults[], routeErrors[] (declared | ValidationError), response] **/
 export type BatchResult<Routes extends RouteSubRequest<any>[]> = [
   BatchRouteResults<Routes>,
   BatchRouteErrors<Routes>,
-  UndeclaredError | undefined,
-  Record<string, unknown> | undefined,
-  Record<string, RpcError<string, unknown>> | undefined,
+  ClientResponse<ApiOf<Routes>>,
 ];
 
 /** Extract success types from route subrequests as tuple */
@@ -67,7 +50,7 @@ export interface ClientOptions {
   fetchOptions: ClientFetchOptions;
   /** enable automatic parameter validation, defaults to true */
   validateParams: boolean;
-  /** Check answers against their return type; a mismatch is dropped as an undeclared `response-validation-error`. Defaults to false. */
+  /** Check answers against their return type; a mismatch is dropped and reported in `@thrownErrors` as a `response-validation-error`. Defaults to false. */
   validateServerResponses: boolean;
   /** Apply a route's declared format transforms (trim / case / replace / stripSeparators) to its
    *  params locally, before local validation and before sending, for routes the server registered
@@ -153,7 +136,9 @@ export interface ClientCallContext extends CallContext {
   readonly subRequestList: Record<string, SubRequest<any>>;
   /** ids whose error is thrown/undeclared rather than a declared response */
   readonly thrownErrorIds: Set<string>;
-  response: Response | undefined;
+  httpResponse: Response | undefined;
+  /** Slot 2 of the result, one object per attempt */
+  response: ClientResponse<RemoteApi>;
 }
 
 /** Utility type to force TypeScript to evaluate/resolve the type */
@@ -201,16 +186,16 @@ export interface BatchBuilder<Routes extends RouteSubRequest<any>[]> {
 export interface RouteSubRequest<
   PH extends PublicHandler,
   Id extends string = string,
-  RA extends RemoteApi = RemoteApi,
+  RA extends RemoteApi = any,
 > extends SubRequest<PH, Id> {
   /** Validates Route's parameters and returns type errors */
   typeErrors(apiMetadata?: InjectApiMetadata<RA, Id>): Promise<RunTypeError[]>;
 
-  /** Calls a remote route and returns a Result 5-tuple */
+  /** Calls a remote route and returns [result, error, response] */
   call(
     setup?: CallSetup,
     apiMetadata?: InjectApiMetadata<RA, Id>
-  ): Promise<Result<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>>>;
+  ): Promise<Result<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>, ClientResponse<RA>>>;
 }
 
 /** A middleware's params for one request, built by the `call` its onRequest hook receives */
@@ -280,6 +265,24 @@ export type ClientMiddlewares<RA, Prefix extends string = ''> = Prettify<{
       ? never
       : ClientMiddlewares<RA[Property], `${Prefix}${Property & string}/`>;
 }>;
+
+/** Slot 2: every middleware of the API nested by group, each its whole return or a ValidationError, plus every untyped error */
+export type ClientResponse<RA> = string extends keyof RA
+  ? // the API erased (`RemoteApi`): every concrete response is assignable to it
+    {[key: string]: unknown; '@thrownErrors'?: RpcError<string>[]}
+  : MiddlewareResponses<RA> & {'@thrownErrors'?: RpcError<string>[]};
+
+/** Built like `ClientMiddlewares`, every key optional: only what the response carried is there */
+export type MiddlewareResponses<RA> = {
+  [Property in keyof RA & string as RA[Property] extends NonClientMiddleware ? never : Property]?: RA[Property] extends {
+    type: typeof HandlerType.middleware | typeof HandlerType.headersMiddleware;
+    handler: infer H extends PublicHandler;
+  }
+    ? HandlerResponse<H> | ValidationError
+    : RA[Property] extends AnyLeaf
+      ? never
+      : MiddlewareResponses<RA[Property]>;
+};
 
 export type Cleaned<RMS extends RemoteApi> = {
   [Property in keyof RMS as RMS[Property] extends never ? never : Property]: RMS[Property];

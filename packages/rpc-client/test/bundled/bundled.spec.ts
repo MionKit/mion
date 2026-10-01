@@ -86,8 +86,8 @@ describe('a client built with bundleApi: true', () => {
     const watch = watchFetch();
     try {
       middlewares.auth.onRequest((auth) => auth(new HeadersSubset({Authorization: 'XWYZ-TOKEN'})));
-      const [result, error, fatal] = await routes.sayHello(user).call();
-      expect(fatal).toBeUndefined();
+      const [result, error, response] = await routes.sayHello(user).call();
+      expect(response['@thrownErrors']).toBeUndefined();
       expect(error).toBeUndefined();
       expect(result).toBe('Hello John Doe');
       expect(watch.calls()).toBe(1);
@@ -104,10 +104,10 @@ describe('a client built with bundleApi: true', () => {
   it('checks answers with the return validator the build bundled', async () => {
     const {routes, middlewares} = initClient<TestServerApi>({baseURL, validateServerResponses: true});
     useAuth(middlewares);
-    const [result, , undeclared] = await routes.wrongAnswers.wrongAnswer(user).call();
+    const [result, , response] = await routes.wrongAnswers.wrongAnswer(user).call();
     expect(isBundledMethod('wrongAnswers/wrongAnswer')).toBe(true);
     expect(result).toBeUndefined();
-    expect(undeclared?.type).toBe('response-validation-error');
+    expect(response['@thrownErrors']?.[0]?.type).toBe('response-validation-error');
   });
 
   it('neither reads nor writes the metadata store', async () => {
@@ -133,15 +133,15 @@ describe('a client built with bundleApi: true', () => {
     useAuth(middlewares);
     const watch = watchFetch();
     try {
-      const [result, , undeclared] = await client.execute({
+      const [result, , response] = await client.execute({
         pointer: ['flow', 'getOrgLabel'],
         id: 'flow/getOrgLabel',
         isResolved: false,
         params: ['acme'],
       } as never);
       expect(result).toBeUndefined();
-      expect(undeclared?.type).toBe('route-metadata-not-found');
-      expect(undeclared?.publicMessage).toContain('useFetchMetadata');
+      expect(response['@thrownErrors']?.[0]?.type).toBe('route-metadata-not-found');
+      expect(response['@thrownErrors']?.[0]?.publicMessage).toContain('useFetchMetadata');
       expect(watch.calls()).toBe(0);
     } finally {
       watch.restore();
@@ -154,13 +154,13 @@ describe('a client built with bundleApi: true', () => {
     useAuth(middlewares);
     useFetchMetadata(middlewares.mionFetchMetadata);
     expect(loadedMetadataFromServer()).toBeUndefined();
-    const [result, , undeclared] = await client.execute({
+    const [result, , response] = await client.execute({
       pointer: ['flow', 'getOrgLabel'],
       id: 'flow/getOrgLabel',
       isResolved: false,
       params: ['acme'],
     } as never);
-    expect(undeclared).toBeUndefined();
+    expect(response['@thrownErrors']).toBeUndefined();
     expect(result).toBeDefined();
     expect(loadedMetadataFromServer()).toBeDefined();
     expect(isBundledMethod('flow/getOrgLabel')).toBe(false);
@@ -191,9 +191,9 @@ describe('a client built with bundleApi: true', () => {
     const watch = watchFetch();
     try {
       middlewares.auth.onRequest((auth) => auth(new HeadersSubset({Authorization: 'XWYZ-TOKEN'})));
-      const [results, errors, fatal] = await batch([routes.sayHello(user), routes.utils.sumTwo(1)]).call();
+      const [results, errors, response] = await batch([routes.sayHello(user), routes.utils.sumTwo(1)]).call();
       // the hook fed auth, unnamed by the call
-      expect(fatal).toBeUndefined();
+      expect(response['@thrownErrors']).toBeUndefined();
       expect(errors).toEqual([undefined, undefined]);
       expect(results).toEqual(['Hello John Doe', 3]);
       expect(watch.askedForMetadata()).toBe(false);
@@ -207,11 +207,11 @@ describe('a client built with bundleApi: true', () => {
     const watch = watchFetch();
     try {
       useAuth(middlewares);
-      const [items, error, fatal, middlewareResults] = await routes.paramless.list(2).call();
-      expect(fatal).toBeUndefined();
+      const [items, error, response] = await routes.paramless.list(2).call();
+      expect(response['@thrownErrors']).toBeUndefined();
       expect(error).toBeUndefined();
       expect(items).toEqual([20, 21]);
-      expect(middlewareResults?.['paramless/pageInfo']).toEqual({page: 2, total: 100});
+      expect(response.paramless?.pageInfo).toEqual({page: 2, total: 100});
       expect(watch.askedForMetadata()).toBe(false);
     } finally {
       watch.restore();
@@ -236,7 +236,7 @@ describe('a client built with bundleApi: true', () => {
     expect(result?.headers['x-mion-echo']).toBe('bundled');
   });
 
-  it('reports a payload the build did not write in the undeclared slot, never by throwing', async () => {
+  it('reports a payload the build did not write in @thrownErrors, never by throwing', async () => {
     const {client, routes, middlewares} = initClient<TestServerApi>({baseURL});
     useAuth(middlewares);
     // the cast stands in for the build, the only thing that fills this slot: the envelope is right and
@@ -244,14 +244,14 @@ describe('a client built with bundleApi: true', () => {
     const stale = {methods: [{id: 'sayHello'}]} as unknown as InjectedApiMetadata;
     expect(() => client.useBundledApi(stale)).not.toThrow();
 
-    const [result, error, undeclared] = await routes.sayHello(user).call();
+    const [result, error, response] = await routes.sayHello(user).call();
     expect(result).toBe('Hello John Doe');
     expect(error).toBeUndefined();
-    expect(undeclared?.type).toBe('bundle-api-invalid-payload');
+    expect(response['@thrownErrors']?.[0]?.type).toBe('bundle-api-invalid-payload');
 
     // reported once, so it never displaces a real error on every later call
-    const [, , second] = await routes.sayHello(user).call();
-    expect(second).toBeUndefined();
+    const [, , response2] = await routes.sayHello(user).call();
+    expect(response2['@thrownErrors']).toBeUndefined();
   });
 
   it('asks the server about a method the bundle does not carry, then validates against it', async () => {

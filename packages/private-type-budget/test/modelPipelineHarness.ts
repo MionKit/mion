@@ -303,15 +303,16 @@ export const PIPELINE_DIALECTS: PipelineDialect[] = [
       // 3052 -> 3179: a REVIEWED EXCEPTION, the client maps the models derived from props.
       3179,
       // 7857 -> 8571: a REVIEWED EXCEPTION, toDrizzle derives each column's flags from props. 8571 -> 8471: rows keep their formats.
-      8466,
+      // 8466 -> 8470: a REVIEWED EXCEPTION, the client result shrank to three slots and the step after it moved, not the query.
+      8470,
     ],
     // 13580 -> 14818: a REVIEWED EXCEPTION, the single-call steps above. 14818 -> 14718: rows keep their formats.
     total: 14718,
     // 1784 -> 1605: lowered to the measurement, which rose from 1495 because the consumer derives the flags from props.
     consumer: 1633,
   }),
-  pipelineDialect(MYSQL, {steps: [903, 1079, 545, 525, 3179, 7139], total: 13407, consumer: 1630}),
-  pipelineDialect(SQLITE, {steps: [908, 1074, 545, 524, 3179, 7313], total: 13580, consumer: 1602}),
+  pipelineDialect(MYSQL, {steps: [903, 1079, 545, 525, 3179, 7143], total: 13407, consumer: 1630}),
+  pipelineDialect(SQLITE, {steps: [908, 1074, 545, 524, 3179, 7317], total: 13580, consumer: 1602}),
 ];
 
 /** The cumulative snippet of `pipeline` up to (and including) `index`. **/

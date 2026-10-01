@@ -134,16 +134,15 @@ describe('client-side validation errors', () => {
   });
 
   describe('middleware validation errors', () => {
-    it('missing required auth header surfaces in the undeclared slot, not the route slot', async () => {
+    it('missing required auth header sits at the auth path, not the route slot', async () => {
       const {routes} = initClient<MyApi>({baseURL});
 
-      // Call without required auth middleware - the auth validation error is not the route's
-      // declared error, so it lands in the undeclared slot
-      const [, routeError, fatal] = await routes.sayHello({name: 'John', surname: 'Doe'}).call();
+      // Call without required auth middleware - the auth validation error is typed for the auth middleware
+      const [, routeError, response] = await routes.sayHello({name: 'John', surname: 'Doe'}).call();
 
       expect(routeError).toBeUndefined();
-      expect(fatal).toBeDefined();
-      expect(fatal?.type).toBe('validation-error');
+      expect(response['@thrownErrors']).toBeUndefined();
+      expect(response.auth).toMatchObject({type: 'validation-error'});
     });
   });
 });

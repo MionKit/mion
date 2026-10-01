@@ -131,14 +131,24 @@ async function deserializeJsonResponseBody(response: Response, takeRaw: TakeRaw 
     const parsedBody = await response.json();
     const rawEntries = parsedBody && typeof parsedBody === 'object' ? takeRaw?.(parsedBody) : undefined;
     // kept out of the body, so the wire's returned-vs-thrown split survives
-    const {platformError, thrownErrors} = extractThrownErrors(parsedBody);
-    if (platformError) return {[MION_ROUTES.platformError]: platformError};
+    const extracted = extractThrownErrors(parsedBody);
+    if (extracted.platformError) return {[MION_ROUTES.platformError]: extracted.platformError};
+    let thrownErrors = extracted.thrownErrors;
     const deserializedBody: ResponseBody = {};
     Object.entries(parsedBody).forEach(([methodId, returnValue]) => {
       const method = useMethodFns(methodId);
-      deserializedBody[methodId] = parseHandlerJsonReturnValue(method, returnValue);
+      try {
+        deserializedBody[methodId] = parseHandlerJsonReturnValue(method, returnValue);
+      } catch (e: any) {
+        // the client could not read the answer, so it is untyped: thrown, never the method's declared value
+        (thrownErrors ??= {})[methodId] = new RpcError({
+          type: 'deserialization-error',
+          publicMessage: `Invalid response from Route or Middleware '${method.id}', can not deserialize return value: ${e.message}`,
+          errorData: e?.errors,
+        });
+      }
     });
-    if (thrownErrors) deserializedBody[MION_ROUTES.thrownErrors] = thrownErrors as any;
+    if (thrownErrors) deserializedBody[MION_ROUTES.thrownErrors] = thrownErrors;
     if (rawEntries) Object.assign(deserializedBody, rawEntries);
     return deserializedBody;
   } catch (err: any) {
@@ -181,15 +191,7 @@ function parseHandlerJsonReturnValue(method: MethodWithJitFns, returnValue: any)
   const {decode} = method.returnJitFns.json;
   if (decode.isNoop || !returnValue) return returnValue;
 
-  try {
-    if (returnValue instanceof RpcError) return returnValue;
-    if (isRpcError(returnValue)) return new RpcError(returnValue);
-    return decode.fn(returnValue);
-  } catch (e: any) {
-    return new RpcError({
-      type: 'deserialization-error',
-      publicMessage: `Invalid response from Route or Middleware '${method.id}', can not deserialize return value: ${e.message}`,
-      errorData: e?.errors,
-    });
-  }
+  if (returnValue instanceof RpcError) return returnValue;
+  if (isRpcError(returnValue)) return new RpcError(returnValue);
+  return decode.fn(returnValue);
 }

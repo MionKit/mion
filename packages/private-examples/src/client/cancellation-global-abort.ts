@@ -10,11 +10,13 @@ const p2 = routes.utils.sum(5, 2).call();
 
 client.abort();
 
-// both come back as 'request-aborted' in the undeclared slot
-const [, , fatal1] = await p1;
-const [, , fatal2] = await p2;
-if (fatal1?.type === 'request-aborted') console.log('first request canceled');
-if (fatal2?.type === 'request-aborted') console.log('second request canceled');
+// both come back as 'request-aborted' in @thrownErrors
+const [, , response1] = await p1;
+const [, , response2] = await p2;
+if (response1['@thrownErrors']?.[0].type === 'request-aborted')
+  console.log('first request canceled');
+if (response2['@thrownErrors']?.[0].type === 'request-aborted')
+  console.log('second request canceled');
 
 // new requests work normally after abort
 const [greeting] = await routes.sayHello('John').call();

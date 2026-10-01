@@ -278,32 +278,6 @@ describe('published packages point at this repository', () => {
     });
   }
 
-  it("the client's undeclared slot is never called the fatal slot", () => {
-    // Slot 2 holds what NOBODY declared, unlike the declared `FatalError`, so it is `undeclared` everywhere.
-    // Only the slot's old names: "fatal slot" / "fatal error part" / `fatalPart`, and a tuple item named `fatal`.
-    const res = spawnSync(
-      'git',
-      [
-        'grep',
-        '-I',
-        '-n',
-        '-i',
-        '-E',
-        '-e',
-        '\\bfatal[ _-]?(error[ _-]?)?(slot|part|position)',
-        '-e',
-        '\\[[^]]*,\\s*fatal\\s*[],]',
-        '--',
-        'packages/rpc-client/src',
-        'packages/private-examples/src/client',
-        'container/website/content/01.rpc/04.client',
-        ':!*.spec.ts',
-      ],
-      {cwd: REPO_ROOT, encoding: 'utf8'}
-    );
-    expect(res.stdout.trim().split('\n').filter(Boolean)).toEqual([]);
-  });
-
   it('the generated binary-package README links this repository', () => {
     const source = readFileSync(join(REPO_ROOT, 'scripts/release/build-binaries.mjs'), 'utf8');
     expect(source).toContain(`${REPO_URL})`);

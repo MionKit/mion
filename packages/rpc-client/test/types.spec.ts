@@ -21,6 +21,7 @@ import type {TestServerApi, csrf} from '@mionjs/test-server';
 import type {InjectApiMetadata, InjectBuildVersion} from '@mionjs/run-types';
 import type {RouteSyncError, SyncRoutesHandler} from '@mionjs/core/middlewares';
 import {HeadersSubset} from '@mionjs/core';
+import type {RpcError, ValidationError} from '@mionjs/core';
 
 // The route id rides the subrequest TYPE (the key path joined with `/`) next to the API, so it
 // survives destructuring and aliasing, and a build reads which route of which API a dispatch point
@@ -134,4 +135,31 @@ describe('isolated reusable middleware types', () => {
     };
     expect(installer).toBeTypeOf('function');
   });
+});
+
+describe('the response slot is typed from the middlewares of the API', () => {
+  // never run: the type check is the point
+  const typeOnly = async () => {
+    const [, , response] = await routes.paramless.list(1).call();
+    expectTypeOf(response.paramless?.pageInfo).toEqualTypeOf<
+      {page: number; total: number} | RpcError<'page-out-of-range'> | ValidationError | undefined
+    >();
+    expectTypeOf(response.session).toEqualTypeOf<
+      | {userId: string; role: 'admin' | 'user'; expiresAt: number}
+      | RpcError<'session-expired'>
+      | null
+      | ValidationError
+      | undefined
+    >();
+    expectTypeOf(response['@thrownErrors']).toEqualTypeOf<RpcError<string>[] | undefined>();
+    // routes are slot 0, so the type names middlewares only
+    // @ts-expect-error a route is not part of the response type
+    void response.sayHello;
+    // @ts-expect-error a group holding only routes is left out
+    void response.flow;
+
+    const [, , batchResponse] = await batch([routes.sayHello({name: 'a', surname: 'b'})]).call();
+    expectTypeOf(batchResponse).toEqualTypeOf(response);
+  };
+  it('compiles', () => expect(typeOnly).toBeTypeOf('function'));
 });

@@ -53,7 +53,7 @@ export function reportApiVersionMismatch(baseURL: string): void {
   });
 }
 
-/** Held for the next call's undeclared slot, beside the bundled-API error: the call itself ran. */
+/** Held for the next call's @thrownErrors, beside the bundled-API error: the call itself ran. */
 export function stashApiVersionError(error: RpcError<'api-version-mismatch'>): void {
   mismatchError = error;
 }

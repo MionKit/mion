@@ -29,6 +29,15 @@ import {sanitizeSubRequests} from './lib/sanitize.ts';
 import {serializeRequestBody, deserializeResponseBody} from './lib/serializer.ts';
 import {MAX_GET_URL_LENGTH, CLIENT_REQUEST_ERROR_ID} from './constants.ts';
 import {extractRequestHeaders, headersToRecord, reconstructHeadersSubsetFromResponse} from './lib/headers.ts';
+import {
+  addThrownError,
+  createClientResponse,
+  deleteResponseValue,
+  getResponseValue,
+  hasResponseValue,
+  nestResponseBody,
+  setResponseValue,
+} from './lib/clientResponse.ts';
 import {takeBundledApiError} from '#bundled-api';
 
 /** One call's retry state: it belongs to the dispatch, never to the context onRequest hooks see */
@@ -75,7 +84,7 @@ export async function dispatchCall(
     }
     const middlewares = getMiddlewareSubRequests(context);
     const hooks = await runMiddlewareResponses(state, middlewares, errors, retriedBy);
-    if (!hooks.retryIds.length) return buildResult(state, middlewares, hooks.errors);
+    if (!hooks.retryIds.length) return buildResult(state, hooks.errors);
     hooks.retryIds.forEach((id) => retriedBy.add(id));
     resetForMiddlewareRetry(state);
   }
@@ -158,6 +167,8 @@ async function makeCall(state: DispatchState, skipOptimistic?: boolean): Promise
       await loadMethodsMetadata(metadata, allIds, signal);
       sanitizeSubRequests(allIds, context);
       validateSubRequests(allIds, context, errors);
+      // a validation error is typed, so it sits at its own path like a returned one
+      errors.forEach((error, id) => setResponseValue(context.response, id, error));
       if (errors.size) return Promise.reject(errors);
     }
   } catch (error: any) {
@@ -189,7 +200,7 @@ async function makeCall(state: DispatchState, skipOptimistic?: boolean): Promise
     );
     state.sent = true;
     response = await fetch(url, fetchOptions);
-    context.response = response;
+    context.httpResponse = response;
   } catch (error: any) {
     onError(context, error, 'Error executing request', errors);
     return Promise.reject(errors);
@@ -207,7 +218,8 @@ async function makeCall(state: DispatchState, skipOptimistic?: boolean): Promise
     if (noteServerApiVersion(options.baseURL, response.headers.get(BUILD_VERSION_HEADER)) && !metadata)
       reportApiVersionMismatch(options.baseURL);
     addParamlessMiddlewares(context);
-    resolveSubRequests(context, deserialized, errors);
+    const thrownErrors = nestResponseBody(context.response, deserialized);
+    resolveSubRequests(context, deserialized, thrownErrors, errors);
     if (errors.size) return Promise.reject(errors);
     return deserialized;
   } catch (error) {
@@ -247,13 +259,15 @@ function handlePlatformError(context: ClientCallContext, deserialized: ResponseB
   if (!(MION_ROUTES.platformError in deserialized)) return false;
   const platformError = deserialized[MION_ROUTES.platformError];
   Object.values(context.subRequestList).forEach((methodMeta) => (methodMeta.isResolved = true));
-  setUndeclaredError(context, CLIENT_REQUEST_ERROR_ID, platformError as RpcError<string>, errors);
+  setThrownError(context, CLIENT_REQUEST_ERROR_ID, platformError as RpcError<string>, errors);
   return true;
 }
 
-function setUndeclaredError(context: ClientCallContext, id: string, error: RpcError<string>, errors: RequestErrors): void {
+/** An error nothing typed: it only reaches `@thrownErrors`, never a typed slot or a listener */
+function setThrownError(context: ClientCallContext, id: string, error: RpcError<string>, errors: RequestErrors): void {
   errors.set(id, error);
   context.thrownErrorIds.add(id);
+  addThrownError(context.response, error);
 }
 
 /** A middleware with no params gets no onRequest call, yet its answer and declared errors are the caller's */
@@ -265,45 +279,58 @@ function addParamlessMiddlewares(context: ClientCallContext): void {
   }
 }
 
-/** Body entries are declared, [MION_ROUTES.thrownErrors] unexpected; 'validation-error' is thrown yet always declared */
-function resolveSubRequests(context: ClientCallContext, deserialized: ResponseBody, errors: RequestErrors): void {
-  const thrownErrors = (deserialized[MION_ROUTES.thrownErrors] ?? {}) as Record<string, RpcError<string>>;
+/** Reads every answer from the nested response; validation errors already sit at their path, the rest of the thrown ones are untyped */
+function resolveSubRequests(
+  context: ClientCallContext,
+  deserialized: ResponseBody,
+  thrownErrors: Record<string, RpcError<string>>,
+  errors: RequestErrors
+): void {
+  const {response} = context;
   Object.entries(thrownErrors).forEach(([id, thrownError]) => {
     const subRequest = context.subRequestList[id];
     if (subRequest) {
       subRequest.isResolved = true;
       subRequest.error = thrownError;
     }
-    errors.set(id, thrownError);
-    if (thrownError.type !== 'validation-error') context.thrownErrorIds.add(id);
+    setThrownError(context, id, thrownError, errors);
   });
 
   const checkAnswers = context.options.validateServerResponses;
   // the halting brand never travels, so after any error an absent member may never have run
-  const mayHaveStopped = checkAnswers && (errors.size > 0 || Object.values(deserialized).some((value) => isRpcError(value)));
+  const mayHaveStopped =
+    checkAnswers &&
+    (errors.size > 0 ||
+      !!deserialized[MION_ROUTES.thrownErrors] ||
+      Object.values(deserialized).some((value) => isRpcError(value)));
   Object.entries(context.subRequestList).forEach(([id, methodMeta]) => {
     if (errors.has(id)) return;
-    const resp = getResponseValueFromBodyOrHeader(id, deserialized, (context.response as Response).headers);
+    const headersSubset = reconstructHeadersSubsetFromResponse(id, (context.httpResponse as Response).headers);
+    if (headersSubset) setResponseValue(response, id, headersSubset);
+    const resp = headersSubset ?? getResponseValue(response, id);
     methodMeta.isResolved = true;
     if (isRpcError(resp)) {
       methodMeta.error = resp;
       errors.set(id, resp);
       return;
     }
-    const responseError = checkAnswers && (id in deserialized || !mayHaveStopped) ? getResponseError(id, resp) : undefined;
+    const responseError =
+      checkAnswers && (hasResponseValue(response, id) || !mayHaveStopped) ? getResponseError(id, resp) : undefined;
     if (responseError) {
       methodMeta.error = responseError;
-      setUndeclaredError(context, id, responseError, errors);
+      deleteResponseValue(response, id);
+      setThrownError(context, id, responseError, errors);
     } else {
       methodMeta.resolvedValue = resp;
     }
   });
 
-  Object.entries(deserialized).forEach(([id, value]) => {
-    if (id === MION_ROUTES.thrownErrors) return;
-    // an error for an id this request never asked for is nobody's declared response
-    if (!(id in context.subRequestList) && isRpcError(value)) setUndeclaredError(context, id, value, errors);
-  });
+  // an error for an id this request never asked for stays at its path; the map only feeds the retry rules
+  const serverThrown = deserialized[MION_ROUTES.thrownErrors] ?? {};
+  for (const [id, value] of [...Object.entries(deserialized), ...Object.entries(serverThrown)]) {
+    if (id === MION_ROUTES.thrownErrors || id in context.subRequestList || errors.has(id)) continue;
+    if (isRpcError(value)) errors.set(id, value);
+  }
 }
 
 function onError(context: ClientCallContext, error: any, stageMessage: string, errors: RequestErrors): void {
@@ -311,7 +338,7 @@ function onError(context: ClientCallContext, error: any, stageMessage: string, e
   const reason = context.signal?.aborted ? context.signal.reason : undefined;
   if (reason instanceof DOMException) {
     if (reason.name === 'TimeoutError') {
-      setUndeclaredError(
+      setThrownError(
         context,
         CLIENT_REQUEST_ERROR_ID,
         new RpcError({
@@ -324,7 +351,7 @@ function onError(context: ClientCallContext, error: any, stageMessage: string, e
       return;
     }
     if (reason.name === 'AbortError') {
-      setUndeclaredError(
+      setThrownError(
         context,
         CLIENT_REQUEST_ERROR_ID,
         new RpcError({
@@ -338,11 +365,11 @@ function onError(context: ClientCallContext, error: any, stageMessage: string, e
     }
   }
   if (isRpcError(error)) {
-    setUndeclaredError(context, CLIENT_REQUEST_ERROR_ID, error, errors);
+    setThrownError(context, CLIENT_REQUEST_ERROR_ID, error, errors);
     return;
   }
   const message = error?.message ? `${stageMessage}: ${error.message}` : `${stageMessage}: Unknown Error`;
-  setUndeclaredError(
+  setThrownError(
     context,
     CLIENT_REQUEST_ERROR_ID,
     new RpcError({
@@ -352,12 +379,6 @@ function onError(context: ClientCallContext, error: any, stageMessage: string, e
     }),
     errors
   );
-}
-
-function getResponseValueFromBodyOrHeader(id: string, respBody: ResponseBody, headers: Headers): any {
-  const headersSubset = reconstructHeadersSubsetFromResponse(id, headers);
-  if (headersSubset) return headersSubset;
-  return respBody[id];
 }
 
 function isQueryRoute(context: ClientCallContext): boolean {
@@ -378,7 +399,7 @@ function getChainMiddlewareIds(context: ClientCallContext, errors?: RequestError
     if (!methodMeta) {
       // without errors (after the answer) a missing row only means no chain to read
       if (errors) {
-        setUndeclaredError(
+        setThrownError(
           context,
           routeId,
           new RpcError({
@@ -449,7 +470,7 @@ function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
   return !!value && typeof (value as PromiseLike<unknown>).then === 'function';
 }
 
-/** Kept or wrapped, the error lands in the undeclared slot */
+/** Kept or wrapped, the error lands in @thrownErrors */
 function requestHandlerError(id: string, error: unknown): RpcError<string> {
   if (isRpcError(error)) return error;
   const message = error instanceof Error ? error.message : String(error);
@@ -523,7 +544,7 @@ interface MiddlewareResponsesOutcome {
   retryIds: string[];
 }
 
-/** onError fires only for a middleware's declared (returned) errors; thrown ones reach the undeclared slot only */
+/** onError fires only for a middleware's declared (returned) errors; thrown ones reach @thrownErrors only */
 async function runMiddlewareResponses(
   state: DispatchState,
   middlewareSubRequests: MiddlewareSubRequest<any>[],
@@ -568,9 +589,10 @@ async function runMiddlewareResponses(
       const middlewareContext: MiddlewareContext = {...baseContext, retry: () => isOpen && requestRetry(id)};
       const fail = (error: unknown) => {
         isOpen = false;
+        const handlerError = middlewareHandlerError(handlerName, id, error);
         errors ??= new Map();
-        if (!errors.has(CLIENT_REQUEST_ERROR_ID))
-          errors.set(CLIENT_REQUEST_ERROR_ID, middlewareHandlerError(handlerName, id, error));
+        if (!errors.has(CLIENT_REQUEST_ERROR_ID)) errors.set(CLIENT_REQUEST_ERROR_ID, handlerError);
+        addThrownError(context.response, handlerError);
       };
       let returned: unknown;
       try {
@@ -638,11 +660,12 @@ function resetAttempt(state: DispatchState): void {
     subRequest.error = undefined;
   });
   context.thrownErrorIds.clear();
-  context.response = undefined;
+  context.httpResponse = undefined;
+  context.response = createClientResponse();
   state.sent = false;
 }
 
-/** Kept or wrapped, the error lands in the undeclared slot */
+/** Kept or wrapped, the error lands in @thrownErrors */
 function middlewareHandlerError(handlerName: 'onResponse' | 'onError', id: string, error: unknown): RpcError<string> {
   if (isRpcError(error)) return error;
   const message = error instanceof Error ? error.message : String(error);
@@ -653,81 +676,32 @@ function middlewareHandlerError(handlerName: 'onResponse' | 'onError', id: strin
   });
 }
 
-/** Slot rules are pinned in test/errorDispatch.spec.ts; slot 2 takes the first undeclared error, middlewares first */
+/** Slot rules are pinned in test/errorDispatch.spec.ts */
 function buildResult(
   state: DispatchState,
-  middlewares: MiddlewareSubRequest<any>[],
   errors: RequestErrors | undefined
 ): BatchResult<RouteSubRequest<any>[]> | Result<any, any> {
-  const {context} = state;
-  const {route: routeSubRequest, batchSubRequests, thrownErrorIds} = context;
-  const middlewaresResults = {} as Record<string, any>;
-  const processedIds = new Set<string>();
-  const expectedErrorFor = (id: string): RpcError<string> | undefined => {
+  const {route: routeSubRequest, batchSubRequests, thrownErrorIds, response} = state.context;
+  const declaredErrorFor = (id: string): RpcError<string> | undefined => {
     const error = errors?.get(id);
     return error && !thrownErrorIds.has(id) ? error : undefined;
   };
 
   let routeResultPart: any;
   let routeErrorPart: any;
-  const routeIds: string[] = [];
-
   if (routeSubRequest) {
-    routeIds.push(routeSubRequest.id);
-    routeErrorPart = expectedErrorFor(routeSubRequest.id);
+    routeErrorPart = declaredErrorFor(routeSubRequest.id);
     routeResultPart = routeSubRequest.resolvedValue;
   } else if (batchSubRequests) {
-    const routeResults: any[] = [];
-    const routeErrors: any[] = [];
-    for (const batchRoute of batchSubRequests) {
-      routeIds.push(batchRoute.id);
-      routeErrors.push(expectedErrorFor(batchRoute.id));
-      routeResults.push(batchRoute.resolvedValue);
-    }
+    const routeResults = batchSubRequests.map((batchRoute) => batchRoute.resolvedValue);
+    const routeErrors = batchSubRequests.map((batchRoute) => declaredErrorFor(batchRoute.id));
     routeResultPart = routeResults.some((r) => r !== undefined) ? routeResults : undefined;
     routeErrorPart = routeErrors.some((e) => e !== undefined) ? routeErrors : undefined;
   }
-  routeIds.forEach((id) => processedIds.add(id));
 
-  const middlewaresErrors = {} as Record<string, any>;
-  let undeclaredPart: RpcError<string> | undefined;
-  for (const middleware of middlewares) {
-    const name = middleware.id;
-    processedIds.add(name);
-    if (middleware.resolvedValue !== undefined) middlewaresResults[name] = middleware.resolvedValue;
-    const middlewareError = errors?.get(middleware.id);
-    if (!middlewareError) continue;
-    if (thrownErrorIds.has(middleware.id)) {
-      // a middleware's thrown error is undeclared, its typed record cannot carry it
-      if (undeclaredPart === undefined) undeclaredPart = middlewareError;
-    } else {
-      middlewaresErrors[name] = middlewareError;
-    }
-  }
+  // framework errors the router never saw: the call ran, so they are reported here rather than rejecting
+  const frameworkErrors = [takeBundledApiError(), takeApiVersionError(), state.metadata?.takeError()];
+  frameworkErrors.forEach((error) => error && addThrownError(response, error));
 
-  if (errors && undeclaredPart === undefined) {
-    for (const id of routeIds) {
-      const routeThrownError = errors.get(id);
-      if (routeThrownError && thrownErrorIds.has(id)) {
-        undeclaredPart = routeThrownError;
-        break;
-      }
-    }
-  }
-  if (errors && undeclaredPart === undefined) {
-    // request-scoped errors (transport, platform, framework) and ids outside this request
-    for (const [id, error] of errors) {
-      if (!processedIds.has(id)) {
-        undeclaredPart = error;
-        break;
-      }
-    }
-  }
-
-  // Framework errors the router never saw take the first free undeclared slot rather than rejecting: the call ran.
-  if (undeclaredPart === undefined) undeclaredPart = takeBundledApiError();
-  if (undeclaredPart === undefined) undeclaredPart = takeApiVersionError();
-  if (undeclaredPart === undefined) undeclaredPart = state.metadata?.takeError();
-
-  return [routeResultPart, routeErrorPart, undeclaredPart, middlewaresResults, middlewaresErrors] as any;
+  return [routeResultPart, routeErrorPart, response] as any;
 }

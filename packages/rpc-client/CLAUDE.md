@@ -1,47 +1,44 @@
 # @mionjs/client guidelines
 
-## The call result is a 5-tuple, and the order is deliberate
+## The call result is `[result, error, response]`, and what goes where is deliberate
 
-`call()` resolves to `[result, error, undeclared, middlewareResults, middlewareErrors]`
-([src/types.ts](src/types.ts), `Result`; `batch()` returns the same layout with arrays in
-the first two slots, `BatchResult`). Do not "tidy" the shape or the order: it encodes WHO
-can produce each error, and that is what makes slot 1 a closed, strongly typed union.
+`call()` resolves to `[result, error, response]` ([src/types.ts](src/types.ts), `Result`; `batch()` returns the
+same layout with arrays in the first two slots, `BatchResult`). The split encodes WHO can produce each error, and
+that is what keeps slot 1 a closed, strongly typed union.
 
-| slot | holds                                                        | who produced it                                                                                                                                                                   |
-| ---- | ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0    | the route's value                                            | the route handler, whenever it ran and succeeded                                                                                                                                  |
-| 1    | the route's DECLARED errors + `ValidationError`              | the route (or its param validation), a CLOSED union                                                                                                                               |
-| 2    | `UndeclaredError`, an OPEN `RpcError<string>`                | anything outside the declared contract: transport (timeout, abort, network), platform, framework, an undeclared throw, an error for a middleware that was not part of the request |
-| 3    | middleware results, by middleware id                         | each middleware sent with the request                                                                                                                                             |
-| 4    | each middleware's DECLARED errors + `ValidationError`, by id | each middleware, one entry per id so several failures are never collapsed into one                                                                                                |
+| slot | holds                                                                           | who produced it                                                                                                                                                                           |
+| ---- | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0    | the route's value                                                               | the route handler, whenever it ran and succeeded                                                                                                                                          |
+| 1    | the route's DECLARED errors + `ValidationError`                                 | the route (or its param validation), a CLOSED union                                                                                                                                       |
+| 2    | the decoded response body, ids nested by group (`'a/b'` becomes `response.a.b`) | everything the router answered, typed per middleware (`ClientResponse<RA>`)                                                                                                               |
+| 2    | `response['@thrownErrors']`, an array of OPEN `RpcError<string>`                | anything not strongly typed: a server throw, transport (timeout, abort, network), platform, a failed hook, an answer the client could not decode or that failed `validateServerResponses` |
 
-Why `undeclared` sits BEFORE the middleware slots, which looks odd at first:
+Slot 2 is built once per attempt ([src/lib/clientResponse.ts](src/lib/clientResponse.ts)), in this order, as soon as
+the body arrives: decode it, nest the ids, then move each `validation-error` out of the server's `@thrownErrors`
+record to its own path (a validation error is typed, every handler's type includes it). That same object is what the
+rest of the dispatch reads and what the call returns; a retry starts a new one. Strongly typed things sit at their
+path: body values (the route's own entry too), declared errors, validation errors from either side, an answer sent
+as HTTP headers. Everything else is pushed to `@thrownErrors`, every one kept, in the order it happened.
 
-- Everything the ROUTER runs, the route and every middleware, has a slot of its own, typed from
-  what the handler declared. `undeclared` is the one slot for "anything else", and anything
-  else can be a network error the router never saw. Reading order follows frequency: the
-  route's own value and error first, then the catch-all a user MUST check before trusting
-  `result === undefined`, then the middleware outcomes.
 - Middleware outcomes are meant to be handled by the middleware's own hooks
-  (`middlewares.x.onResponse()` / `.onError()`). The two trailing slots exist so a call site
-  CAN still read them, keyed by middleware id and loosely typed; they are not the primary way.
-  Prefer the hooks and leave the tuple positions alone.
+  (`middlewares.x.onResponse()` / `.onError()`). Hooks never see slot 2: a hook only handles its own middleware.
+- The type of slot 2 names middlewares only (routes are slot 0) and is built like `ClientMiddlewares`, once per
+  API, never per route. Keep it that cheap.
 
 The dispatch rules (which error lands where) are pinned by
 [test/errorDispatch.spec.ts](test/errorDispatch.spec.ts); the header of that file lists them.
 Two of them exist because of real bugs, keep them in mind when touching request handling:
 
 - A middleware failing NEVER masks a route result that the server did produce (a returned,
-  non-fatal middleware error does not abort the chain), so slot 0 keeps the value while slot 4
-  carries the middleware error.
+  non-fatal middleware error does not abort the chain), so slot 0 keeps the value while the middleware's path
+  holds its error.
 - A middleware error NEVER appears in slot 1. Slot 1 is the route's declared union and nothing
   else, otherwise the typing of that slot would be a lie.
 
-One thing rides slot 2 that the router never saw: a metadata cache write the browser refused, after
-eviction ran out of things to give up. The request itself succeeded, so it never rejects and never
-displaces a real error; it takes the first free undeclared slot on a later call and is reported once
-(`packages/rpc-client/src/lib/clientMethodsMetadata.ts`, `takeMetadataCacheError`, reached only through
-`useFetchMetadata`'s internal hook).
+One thing reaches `@thrownErrors` that the router never saw: a metadata cache write the browser refused, after
+eviction ran out of things to give up. The request itself succeeded, so it never rejects; it is added to a later
+call's `@thrownErrors` and reported once (`packages/rpc-client/src/lib/clientMethodsMetadata.ts`,
+`takeMetadataCacheError`, reached only through `useFetchMetadata`'s internal hook).
 
 ## Metadata fetching is one installer, never a dispatch special case
 
@@ -62,7 +59,7 @@ hook, which writes the metadata middleware's params itself: the ids it asks for 
 
 ## Calls never throw
 
-Every failure comes back inside the tuple. The ONE method that throws is `typeErrors()`,
+Every failure comes back inside the result. The ONE method that throws is `typeErrors()`,
 which validates params locally and is documented as such. Never add a throwing path to
 `call()` / `batch().call()`.
 

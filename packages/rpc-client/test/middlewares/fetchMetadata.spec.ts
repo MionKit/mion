@@ -71,8 +71,8 @@ describe('useFetchMetadata', () => {
 
   it('a success is never sent again: one request, and the rows it brought are kept', async () => {
     const {routes} = newClient();
-    const [result, , undeclared] = await routes.sayHello(user).call();
-    expect(undeclared).toBeUndefined();
+    const [result, , response] = await routes.sayHello(user).call();
+    expect(response['@thrownErrors']).toBeUndefined();
     expect(result).toBe('Hello John Doe');
     expect(watch.bodies()).toHaveLength(1);
     // the route and the middlewares an onRequest hook sent along
@@ -145,8 +145,8 @@ describe('useFetchMetadata', () => {
 
   it('a network error is never sent again', async () => {
     const {routes} = initClient<TestServerApi>({baseURL: 'http://127.0.0.1:1', storageEngine: 'memory'});
-    const [, , undeclared] = await routes.sayHello(user).call();
-    expect(undeclared).toBeDefined();
+    const [, , response] = await routes.sayHello(user).call();
+    expect(response['@thrownErrors']?.length).toBeGreaterThan(0);
     expect(watch.bodies()).toHaveLength(1);
   });
 });
@@ -161,10 +161,10 @@ describe('a client that never set up useFetchMetadata', () => {
     const watch = watchFetch();
     try {
       const {routes} = initPlainClient<TestServerApi>({baseURL, storageEngine: 'memory'});
-      const [result, , undeclared] = await routes.sayHello(user).call();
+      const [result, , response] = await routes.sayHello(user).call();
       expect(result).toBeUndefined();
-      expect(undeclared?.type).toBe('route-metadata-not-found');
-      expect(undeclared?.publicMessage).toContain('useFetchMetadata');
+      expect(response['@thrownErrors']?.[0]?.type).toBe('route-metadata-not-found');
+      expect(response['@thrownErrors']?.[0]?.publicMessage).toContain('useFetchMetadata');
       expect(watch.bodies()).toHaveLength(0);
     } finally {
       watch.restore();

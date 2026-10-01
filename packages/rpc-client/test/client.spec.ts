@@ -9,7 +9,7 @@ import {describe, it, expect, beforeEach, vi} from 'vitest';
 import {initClient} from './lib/fetchingClient.ts';
 import {isMiddlewareInScope} from '../src/dispatch.ts';
 import type {RouteSubRequest} from '../src/types.ts';
-import {isRpcError, HeadersSubset, resetRoutesCache} from '@mionjs/core';
+import {isRpcError, HeadersSubset, resetRoutesCache, RpcError} from '@mionjs/core';
 import {resetJitFunctionsCache} from '@mionjs/core/testing';
 import type {TestServerApi} from '@mionjs/test-server';
 import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
@@ -87,12 +87,12 @@ describe('client', () => {
     const authHeaders = createAuthHeaders('XWYZ-TOKEN');
     middlewares.auth.onRequest((auth) => auth(authHeaders));
 
-    const [greeting, error, fatal, middlewareResults] = await routes.sayHello(someUser).call();
+    const [greeting, error, clientResponse] = await routes.sayHello(someUser).call();
 
     expect(greeting).toEqual(`Hello John Doe`); // Test server returns: Hello ${user.name} ${user.surname}
     expect(error).toBeUndefined();
-    expect(fatal).toBeUndefined();
-    expect(middlewareResults).toBeDefined();
+    expect(clientResponse['@thrownErrors']).toBeUndefined();
+    expect(clientResponse).toBeDefined();
   });
 
   it('make a route call with middlewares', async () => {
@@ -100,11 +100,11 @@ describe('client', () => {
     const authHeaders = createAuthHeaders('XWYZ-TOKEN');
     middlewares.auth.onRequest((auth) => auth(authHeaders));
 
-    const [greeting, routeError, fatal] = await routes.sayHello(someUser).call();
+    const [greeting, routeError, clientResponse] = await routes.sayHello(someUser).call();
 
     expect(greeting).toEqual(`Hello John Doe`); // Test server returns: Hello ${user.name} ${user.surname}
     expect(routeError).toBeUndefined();
-    expect(fatal).toBeUndefined();
+    expect(clientResponse['@thrownErrors']).toBeUndefined();
   });
 
   it('return error in result if a route call fails', async () => {
@@ -144,14 +144,15 @@ describe('client', () => {
     // same call should fail after removing the hook
     middlewares.auth.offRequest();
 
-    const [, routeError, fatal] = await routes.sayHello(someUser).call();
+    const [, routeError, clientResponse] = await routes.sayHello(someUser).call();
 
-    // The unsent auth fails the server's headers check, which the route never declared: undeclared slot
+    // The unsent auth fails the server's headers check: a validation error, typed, so it sits at the auth path
+    const authError = clientResponse.auth as RpcError<string> | undefined;
     expect(routeError).toBeUndefined();
-    expect(fatal).toBeDefined();
-    expect(isRpcError(fatal)).toBe(true);
-    expect(fatal?.['mion@isΣrrθr']).toBe(true);
-    expect(fatal?.publicMessage).toContain('auth');
+    expect(clientResponse['@thrownErrors']).toBeUndefined();
+    expect(isRpcError(authError)).toBe(true);
+    expect(authError?.type).toBe('validation-error');
+    expect(authError?.publicMessage).toContain('auth');
   });
 
   // ========== Result Pattern Tests (using call() with an auth onRequest hook) ==========
@@ -344,7 +345,7 @@ describe('client', () => {
       expect(typedEvent.hasErrorHandler('session-expired')).toBe(false);
     });
 
-    it('call() with onRequest hooks should return middlewareResults/middlewareErrors AND trigger TypedEvent handlers', async () => {
+    it('call() with onRequest hooks should return the middleware answers AND trigger TypedEvent handlers', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
@@ -360,16 +361,16 @@ describe('client', () => {
 
       middlewares.auth.onRequest((auth) => auth(authHeaders));
 
-      // call() should return both route result AND middleware results in the 4-tuple
-      const [greeting, routeError, fatal, middlewareResults] = await routes.sayHello(someUser).call();
+      // call() should return both the route result AND the middleware answers
+      const [greeting, routeError, clientResponse] = await routes.sayHello(someUser).call();
 
       // Route should succeed
       expect(greeting).toBe('Hello John Doe');
       expect(routeError).toBeUndefined();
-      expect(fatal).toBeUndefined();
+      expect(clientResponse['@thrownErrors']).toBeUndefined();
 
       // Filled by the hook fed middleware
-      expect(middlewareResults).toBeDefined();
+      expect(clientResponse).toBeDefined();
 
       // TypedEvent handler should ALSO have been called
       expect(typedEventSuccessCalled).toBe(true);
@@ -377,7 +378,7 @@ describe('client', () => {
       expect(typedEventReceivedSession.userId).toBe('user-123');
     });
 
-    it('call() with onRequest hooks should surface the middleware error in middlewareErrors AND trigger TypedEvent error handlers', async () => {
+    it('call() with onRequest hooks should put the middleware error at its path AND trigger TypedEvent error handlers', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
@@ -393,13 +394,12 @@ describe('client', () => {
 
       middlewares.auth.onRequest((auth) => auth(authHeaders));
 
-      // a middleware's DECLARED error lands in the middlewareErrors record, never in the
-      // route's typed slot and never in the undeclared slot
-      const [, routeError, fatal, , middlewareErrors] = await routes.sayHello(someUser).call();
+      // a middleware's DECLARED error sits at its path, never in the route's typed slot or @thrownErrors
+      const [, routeError, clientResponse] = await routes.sayHello(someUser).call();
 
       expect(routeError).toBeUndefined();
-      expect(fatal).toBeUndefined();
-      expect(middlewareErrors?.session?.type).toBe('session-expired');
+      expect(clientResponse['@thrownErrors']).toBeUndefined();
+      expect((clientResponse.session as RpcError<string> | undefined)?.type).toBe('session-expired');
 
       // TypedEvent error handler should ALSO have been called
       expect(typedEventErrorCalled).toBe(true);
@@ -424,17 +424,17 @@ describe('client', () => {
       middlewares.auth.onRequest((auth) => auth(authHeaders));
 
       // The route always fails; its middleware still runs and succeeds
-      const [result, routeError, fatal, middlewareResults] = await routes.alwaysFails(someUser).call();
+      const [result, routeError, clientResponse] = await routes.alwaysFails(someUser).call();
 
-      // Route should fail with its DECLARED error in the typed slot; nothing is fatal
+      // Route should fail with its DECLARED error in the typed slot; nothing is untyped
       expect(result).toBeUndefined();
       expect(routeError).toBeDefined();
       expect(routeError?.type).toBe('unknown-error');
       expect(routeError?.publicMessage).toBe('Something fails');
-      expect(fatal).toBeUndefined();
+      expect(clientResponse['@thrownErrors']).toBeUndefined();
 
       // Filled even though the route failed
-      expect(middlewareResults).toBeDefined();
+      expect(clientResponse).toBeDefined();
 
       // Each middleware's handler fires on its own success, whatever the route's outcome
       expect(typedEventSuccessCalled).toBe(true);
@@ -451,12 +451,12 @@ describe('client', () => {
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
       middlewares.auth.onRequest((auth) => auth(authHeaders));
 
-      const [greeting, routeError, fatal, middlewareResults] = await routes.sayHello(someUser).call();
+      const [greeting, routeError, clientResponse] = await routes.sayHello(someUser).call();
 
       expect(greeting).toBe('Hello John Doe');
       expect(routeError).toBeUndefined();
-      expect(fatal).toBeUndefined();
-      expect(middlewareResults).toBeDefined();
+      expect(clientResponse['@thrownErrors']).toBeUndefined();
+      expect(clientResponse).toBeDefined();
     });
 
     it('call() should return middleware data on success', async () => {
@@ -465,13 +465,13 @@ describe('client', () => {
       middlewares.auth.onRequest((auth) => auth(authHeaders));
       middlewares.session.onRequest((session) => session('valid-token'));
 
-      const [greeting, routeError, fatal, middlewareResults] = await routes.sayHello(someUser).call();
+      const [greeting, routeError, clientResponse] = await routes.sayHello(someUser).call();
 
       expect(greeting).toBe('Hello John Doe');
       expect(routeError).toBeUndefined();
-      expect(fatal).toBeUndefined();
-      expect(middlewareResults?.session).toBeDefined();
-      expect((middlewareResults?.session as {userId: string} | undefined)?.userId).toBe('user-123');
+      expect(clientResponse['@thrownErrors']).toBeUndefined();
+      expect(clientResponse.session).toBeDefined();
+      expect((clientResponse.session as {userId: string} | undefined)?.userId).toBe('user-123');
     });
 
     it('call() should return route error on failure', async () => {
@@ -486,20 +486,20 @@ describe('client', () => {
       expect(routeError?.type).toBe('unknown-error');
     });
 
-    it('call() should surface a middleware failure in middlewareErrors under its id', async () => {
+    it('call() should put a middleware failure at its path', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
       middlewares.auth.onRequest((auth) => auth(authHeaders));
       middlewares.session.onRequest((session) => session('expired'));
 
-      const [, routeError, fatal, , middlewareErrors] = await routes.sayHello(someUser).call();
+      const [, routeError, clientResponse] = await routes.sayHello(someUser).call();
 
-      // A middleware's DECLARED error: its own slot in middlewareErrors, never the typed route slot,
-      // and not fatal (it was declared by somebody)
+      // A middleware's DECLARED error: its own slot in clientResponse, never the typed route slot,
+      // and not in @thrownErrors (it was declared by somebody)
       expect(routeError).toBeUndefined();
-      expect(fatal).toBeUndefined();
-      expect(middlewareErrors?.session?.type).toBe('session-expired');
-      expect(middlewareErrors?.auth).toBeUndefined();
+      expect(clientResponse['@thrownErrors']).toBeUndefined();
+      expect((clientResponse.session as RpcError<string> | undefined)?.type).toBe('session-expired');
+      expect(clientResponse.auth).toBeUndefined();
     });
 
     it('call() should never throw', async () => {
@@ -526,13 +526,13 @@ describe('client', () => {
       middlewares.session.onRequest((session) => session('expired'));
 
       // Session middleware with expired token will fail
-      const [result, routeError, fatal, , middlewareErrors] = await routes.sayHello(someUser).call();
+      const [result, routeError, clientResponse] = await routes.sayHello(someUser).call();
 
-      // The middleware failure lands in its own middlewareErrors slot; whatever result the route
+      // The middleware failure lands in its own clientResponse slot; whatever result the route
       // produced is preserved in slot 0 (never masked by another subrequest's error)
       expect(routeError).toBeUndefined();
-      expect(fatal).toBeUndefined();
-      expect(middlewareErrors?.session?.type).toBe('session-expired');
+      expect(clientResponse['@thrownErrors']).toBeUndefined();
+      expect((clientResponse.session as RpcError<string> | undefined)?.type).toBe('session-expired');
       if (result !== undefined) expect(result).toBe('Hello John Doe');
     });
 
@@ -542,10 +542,10 @@ describe('client', () => {
       middlewares.auth.onRequest((auth) => auth(authHeaders));
       middlewares.session.onRequest((session) => session('valid-token'));
 
-      const [, , , middlewareResults] = await routes.sayHello(someUser).call();
+      const [, , clientResponse] = await routes.sayHello(someUser).call();
 
-      expect(middlewareResults?.session).toBeDefined();
-      expect((middlewareResults?.session as {userId: string} | undefined)?.userId).toBe('user-123');
+      expect(clientResponse.session).toBeDefined();
+      expect((clientResponse.session as {userId: string} | undefined)?.userId).toBe('user-123');
     });
 
     it('call() should work with multiple middlewares', async () => {
@@ -554,12 +554,12 @@ describe('client', () => {
       middlewares.auth.onRequest((auth) => auth(authHeaders));
       middlewares.session.onRequest((session) => session('valid-token'));
 
-      const [greeting, routeError, fatal, middlewareResults] = await routes.sayHello(someUser).call();
+      const [greeting, routeError, clientResponse] = await routes.sayHello(someUser).call();
 
       expect(greeting).toBe('Hello John Doe');
       expect(routeError).toBeUndefined();
-      expect(fatal).toBeUndefined();
-      expect(middlewareResults?.session).toBeDefined();
+      expect(clientResponse['@thrownErrors']).toBeUndefined();
+      expect(clientResponse.session).toBeDefined();
     });
 
     it('call() result should have correct types', async () => {
@@ -608,13 +608,13 @@ describe('client', () => {
       // We need to bypass TypeScript type checking to send wrong type
       const wrongParams = 'not-a-number' as unknown as number;
 
-      const [result, routeError, fatal] = await routes.calculateAge(wrongParams).call();
+      const [result, routeError, clientResponse] = await routes.calculateAge(wrongParams).call();
 
-      // ValidationError is part of the route's expected union: slot 1, not the undeclared slot
+      // ValidationError is part of the route's expected union: slot 1, not @thrownErrors
       expect(result).toBeUndefined();
       expect(routeError).toBeDefined();
       expect(routeError?.type).toBe('validation-error');
-      expect(fatal).toBeUndefined();
+      expect(clientResponse['@thrownErrors']).toBeUndefined();
     });
 
     it('validation error for wrong object structure lands in the typed route error slot', async () => {
@@ -625,12 +625,12 @@ describe('client', () => {
       // Send an object with wrong structure (missing surname)
       const wrongUser = {name: 'John'} as unknown as {name: string; surname: string};
 
-      const [result, routeError, fatal] = await routes.sayHello(wrongUser).call();
+      const [result, routeError, clientResponse] = await routes.sayHello(wrongUser).call();
 
       expect(result).toBeUndefined();
       expect(routeError).toBeDefined();
       expect(routeError?.type).toBe('validation-error');
-      expect(fatal).toBeUndefined();
+      expect(clientResponse['@thrownErrors']).toBeUndefined();
     });
 
     it('validation error lands in the typed route error slot for call() with onRequest hooks', async () => {
@@ -642,14 +642,14 @@ describe('client', () => {
       // Send wrong param type
       const wrongParams = 'not-a-number' as unknown as number;
 
-      const [result, routeError, fatal, middlewareResults] = await routes.calculateAge(wrongParams).call();
+      const [result, routeError, clientResponse] = await routes.calculateAge(wrongParams).call();
 
       expect(result).toBeUndefined();
       expect(routeError).toBeDefined();
       expect(routeError?.type).toBe('validation-error');
-      expect(fatal).toBeUndefined();
-      // middleware results record is always present in the 4-tuple
-      expect(middlewareResults).toBeDefined();
+      expect(clientResponse['@thrownErrors']).toBeUndefined();
+      // the response is always present
+      expect(clientResponse).toBeDefined();
     });
   });
 
@@ -873,11 +873,10 @@ describe('client', () => {
     it('call() without auth should fail in optimistic mode (auth required by server)', async () => {
       const {routes} = initClient<MyApi>({baseURL});
 
-      // the missing auth middleware's error is not the route's declared error -> undeclared slot
-      const [, routeError, fatal] = await routes.sayHello(someUser).call();
+      // the missing auth header is the auth middleware's validation error, never the route's
+      const [, routeError, clientResponse] = await routes.sayHello(someUser).call();
       expect(routeError).toBeUndefined();
-      expect(fatal).toBeDefined();
-      expect(isRpcError(fatal)).toBe(true);
+      expect((clientResponse.auth as RpcError<string> | undefined)?.type).toBe('validation-error');
     });
 
     it('offRequest should cause subsequent optimistic calls to fail', async () => {
@@ -892,10 +891,9 @@ describe('client', () => {
 
       middlewares.auth.offRequest();
 
-      // Call should now fail (no auth) -> the auth error lands in the undeclared slot
-      const [, , fatal2] = await routes.sayHello(someUser).call();
-      expect(fatal2).toBeDefined();
-      expect(isRpcError(fatal2)).toBe(true);
+      // Call should now fail (no auth) -> the auth validation error sits at the auth path
+      const [, , response2] = await routes.sayHello(someUser).call();
+      expect((response2.auth as RpcError<string> | undefined)?.type).toBe('validation-error');
     });
 
     async function spyOnFetch(run: () => Promise<void>): Promise<{init: RequestInit; body: any}[]> {
@@ -963,11 +961,11 @@ describe('client', () => {
       await forgetMetadata(baseURL, 'sayHello');
 
       const calls = await spyOnFetch(async () => {
-        const [greeting, error, fatal, middlewareResults] = await routes.sayHello(someUser).call();
+        const [greeting, error, clientResponse] = await routes.sayHello(someUser).call();
         expect(error).toBeUndefined();
-        expect(fatal).toBeUndefined();
+        expect(clientResponse['@thrownErrors']).toBeUndefined();
         expect(greeting).toBe('Hello John Doe');
-        expect(middlewareResults?.session).toEqual(expect.objectContaining({userId: 'user-123'}));
+        expect(clientResponse.session).toEqual(expect.objectContaining({userId: 'user-123'}));
       });
 
       expect(calls).toHaveLength(1);
@@ -983,22 +981,22 @@ describe('client', () => {
 
       // a top-level route: the utils-scoped middleware is not in its group, so it is never sent
       const topLevelCalls = await spyOnFetch(async () => {
-        const [greeting, error, fatal, middlewareResults] = await routes.sayHello(someUser).call();
+        const [greeting, error, clientResponse] = await routes.sayHello(someUser).call();
         expect(error).toBeUndefined();
-        expect(fatal).toBeUndefined();
+        expect(clientResponse['@thrownErrors']).toBeUndefined();
         expect(greeting).toBe('Hello John Doe');
-        expect(middlewareResults?.['utils/scopeTag']).toBeUndefined();
+        expect(clientResponse.utils?.scopeTag).toBeUndefined();
       });
       expect(topLevelCalls).toHaveLength(1);
       expect(topLevelCalls[0].body['utils/scopeTag']).toBeUndefined();
 
       // a route of the group: the scoped middleware and the top-level auth both ride along, one round trip
       const scopedCalls = await spyOnFetch(async () => {
-        const [sum, error, fatal, middlewareResults] = await routes.utils.sumTwo(5).call();
+        const [sum, error, clientResponse] = await routes.utils.sumTwo(5).call();
         expect(error).toBeUndefined();
-        expect(fatal).toBeUndefined();
+        expect(clientResponse['@thrownErrors']).toBeUndefined();
         expect(sum).toBe(7);
-        expect(middlewareResults?.['utils/scopeTag']).toBe('tagged');
+        expect(clientResponse.utils?.scopeTag).toBe('tagged');
       });
       expect(scopedCalls).toHaveLength(1);
       expect(scopedCalls[0].body['utils/scopeTag']).toEqual(['tagged']);
@@ -1232,11 +1230,11 @@ describe('client', () => {
       middlewares.auth.onRequest((auth) => auth(authHeaders));
 
       const signal = AbortSignal.abort();
-      const [result, routeError, fatal] = await routes.sleep(5000).call({signal});
+      const [result, routeError, clientResponse] = await routes.sleep(5000).call({signal});
       expect(result).toBeUndefined();
       expect(routeError).toBeUndefined();
-      expect(fatal).toBeDefined();
-      expect(fatal!.type).toBe('request-aborted');
+      expect(clientResponse['@thrownErrors']?.length).toBeGreaterThan(0);
+      expect(clientResponse['@thrownErrors']![0].type).toBe('request-aborted');
     });
 
     it('per-request abort signal cancels in-flight request', async () => {
@@ -1249,12 +1247,12 @@ describe('client', () => {
       const promise = routes.sleep(5000).call({signal: controller.signal});
       setTimeout(() => controller.abort(), 50);
 
-      const [result, routeError, fatal] = await promise;
+      const [result, routeError, clientResponse] = await promise;
       expect(result).toBeUndefined();
       expect(routeError).toBeUndefined();
-      expect(fatal).toBeDefined();
-      expect(isRpcError(fatal)).toBe(true);
-      expect(fatal!.type).toBe('request-aborted');
+      expect(clientResponse['@thrownErrors']?.length).toBeGreaterThan(0);
+      expect(isRpcError(clientResponse['@thrownErrors']?.[0])).toBe(true);
+      expect(clientResponse['@thrownErrors']![0].type).toBe('request-aborted');
     });
 
     it('per-request timeout produces request-timeout error', async () => {
@@ -1263,12 +1261,12 @@ describe('client', () => {
       middlewares.auth.onRequest((auth) => auth(authHeaders));
 
       // sleep(5000) ensures the request outlasts the 100ms timeout
-      const [result, routeError, fatal] = await routes.sleep(5000).call({timeout: 100});
+      const [result, routeError, clientResponse] = await routes.sleep(5000).call({timeout: 100});
       expect(result).toBeUndefined();
       expect(routeError).toBeUndefined();
-      expect(fatal).toBeDefined();
-      expect(isRpcError(fatal)).toBe(true);
-      expect(fatal!.type).toBe('request-timeout');
+      expect(clientResponse['@thrownErrors']?.length).toBeGreaterThan(0);
+      expect(isRpcError(clientResponse['@thrownErrors']?.[0])).toBe(true);
+      expect(clientResponse['@thrownErrors']![0].type).toBe('request-timeout');
     });
 
     it('client-level default timeout applies to all requests', async () => {
@@ -1276,11 +1274,11 @@ describe('client', () => {
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
       middlewares.auth.onRequest((auth) => auth(authHeaders));
 
-      const [result, routeError, fatal] = await routes.sleep(5000).call();
+      const [result, routeError, clientResponse] = await routes.sleep(5000).call();
       expect(result).toBeUndefined();
       expect(routeError).toBeUndefined();
-      expect(fatal).toBeDefined();
-      expect(fatal!.type).toBe('request-timeout');
+      expect(clientResponse['@thrownErrors']?.length).toBeGreaterThan(0);
+      expect(clientResponse['@thrownErrors']![0].type).toBe('request-timeout');
     });
 
     it('per-request timeout overrides client-level default', async () => {
@@ -1289,10 +1287,10 @@ describe('client', () => {
       middlewares.auth.onRequest((auth) => auth(authHeaders));
 
       // Client has 30s default, but per-request 100ms should take effect
-      const [result, , fatal] = await routes.sleep(5000).call({timeout: 100});
+      const [result, , clientResponse] = await routes.sleep(5000).call({timeout: 100});
       expect(result).toBeUndefined();
-      expect(fatal).toBeDefined();
-      expect(fatal!.type).toBe('request-timeout');
+      expect(clientResponse['@thrownErrors']?.length).toBeGreaterThan(0);
+      expect(clientResponse['@thrownErrors']![0].type).toBe('request-timeout');
     });
 
     it('global client.abort() cancels all in-flight requests', async () => {
@@ -1304,12 +1302,12 @@ describe('client', () => {
       const p2 = routes.sleep(5000).call();
       setTimeout(() => client.abort(), 50);
 
-      const [, , fatal1] = await p1;
-      const [, , fatal2] = await p2;
-      expect(fatal1).toBeDefined();
-      expect(fatal1!.type).toBe('request-aborted');
-      expect(fatal2).toBeDefined();
-      expect(fatal2!.type).toBe('request-aborted');
+      const [, , response1] = await p1;
+      const [, , response2] = await p2;
+      expect(response1['@thrownErrors']?.length).toBeGreaterThan(0);
+      expect(response1['@thrownErrors']![0].type).toBe('request-aborted');
+      expect(response2['@thrownErrors']?.length).toBeGreaterThan(0);
+      expect(response2['@thrownErrors']![0].type).toBe('request-aborted');
     });
 
     it('new requests work normally after client.abort()', async () => {
@@ -1332,9 +1330,9 @@ describe('client', () => {
       const p1 = routes.sleep(5000).call();
       setTimeout(() => client.destroy(), 50);
 
-      const [, , fatal] = await p1;
-      expect(fatal).toBeDefined();
-      expect(fatal!.type).toBe('request-aborted');
+      const [, , clientResponse] = await p1;
+      expect(clientResponse['@thrownErrors']?.length).toBeGreaterThan(0);
+      expect(clientResponse['@thrownErrors']![0].type).toBe('request-aborted');
     });
 
     it('cancellation works with an onRequest hook, which never runs for an aborted call', async () => {
@@ -1347,12 +1345,12 @@ describe('client', () => {
       });
 
       const signal = AbortSignal.abort();
-      const [result, routeError, fatal] = await routes.sleep(5000).call({signal});
+      const [result, routeError, clientResponse] = await routes.sleep(5000).call({signal});
       expect(hookCalls).toBe(0);
       expect(result).toBeUndefined();
       expect(routeError).toBeUndefined();
-      expect(fatal).toBeDefined();
-      expect(fatal!.type).toBe('request-aborted');
+      expect(clientResponse['@thrownErrors']?.length).toBeGreaterThan(0);
+      expect(clientResponse['@thrownErrors']![0].type).toBe('request-aborted');
     });
 
     it('cancellation works with batch', async () => {
@@ -1363,19 +1361,19 @@ describe('client', () => {
       const {batch} = await import('../src/batch.ts');
       const signal = AbortSignal.abort();
 
-      const [, errors, fatal] = await batch([routes.sleep(5000), routes.utils.sumTwo(5)]).call({signal});
+      const [, errors, clientResponse] = await batch([routes.sleep(5000), routes.utils.sumTwo(5)]).call({signal});
 
-      // The abort is request-scoped: ONE fatal error, per-route slots stay empty
+      // The abort is request-scoped: ONE untyped error, per-route slots stay empty
       expect(errors).toEqual([undefined, undefined]);
-      expect(fatal).toBeDefined();
-      expect(fatal!.type).toBe('request-aborted');
+      expect(clientResponse['@thrownErrors']?.length).toBeGreaterThan(0);
+      expect(clientResponse['@thrownErrors']![0].type).toBe('request-aborted');
     });
   });
 
   // ========== Platform Error Dispatch Tests ==========
   // A "platform error" is set by the platform adapter (e.g. payload too large) BEFORE the router
   // ever runs. It is request-scoped and nobody's declared response, so the client's contract
-  // (dispatch rules R4/R6) is to surface it ONCE, in the undeclared slot — never in the route's
+  // (dispatch rules R4/R6) is to surface it ONCE, in @thrownErrors, never in the route's
   // typed error slot, never in per-route flow slots, and never keyed to a middleware. This describe
   // block locks in that single-slot contract (it deliberately reverses the previous fan-out-to-
   // every-slot behaviour).
@@ -1385,18 +1383,18 @@ describe('client', () => {
     // triggers a 'request-payload-too-large' platform error.
     const HUGE_PAYLOAD = 'x'.repeat(300_000);
 
-    it('platform error appears in the undeclared slot on a single route call', async () => {
+    it('platform error appears in @thrownErrors on a single route call', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
       middlewares.auth.onRequest((auth) => auth(authHeaders));
 
-      const [result, routeError, fatal] = await routes.getRequestInfo(HUGE_PAYLOAD).call();
+      const [result, routeError, clientResponse] = await routes.getRequestInfo(HUGE_PAYLOAD).call();
 
       expect(result).toBeUndefined();
       expect(routeError).toBeUndefined();
-      expect(fatal).toBeDefined();
-      expect(isRpcError(fatal)).toBe(true);
-      expect(fatal?.type).toBe('request-payload-too-large');
+      expect(clientResponse['@thrownErrors']?.length).toBeGreaterThan(0);
+      expect(isRpcError(clientResponse['@thrownErrors']?.[0])).toBe(true);
+      expect(clientResponse['@thrownErrors']?.[0]?.type).toBe('request-payload-too-large');
     });
 
     it('platform error in a batch is ONE fatal error, not one per route', async () => {
@@ -1407,13 +1405,13 @@ describe('client', () => {
       const {batch} = await import('../src/batch.ts');
       // Mix the oversized-payload route with a normal one — the request-scoped platform error
       // must not leak into any route's positional slot
-      const [results, errors, fatal] = await batch([routes.getRequestInfo(HUGE_PAYLOAD), routes.utils.sumTwo(5)]).call();
+      const [results, errors, clientResponse] = await batch([routes.getRequestInfo(HUGE_PAYLOAD), routes.utils.sumTwo(5)]).call();
 
       expect(results).toEqual([undefined, undefined]);
       expect(errors).toEqual([undefined, undefined]);
-      expect(fatal).toBeDefined();
-      expect(isRpcError(fatal)).toBe(true);
-      expect(fatal?.type).toBe('request-payload-too-large');
+      expect(clientResponse['@thrownErrors']?.length).toBeGreaterThan(0);
+      expect(isRpcError(clientResponse['@thrownErrors']?.[0])).toBe(true);
+      expect(clientResponse['@thrownErrors']?.[0]?.type).toBe('request-payload-too-large');
     });
 
     it('platform error is never keyed to a middleware fed by its onRequest hook', async () => {
@@ -1421,14 +1419,13 @@ describe('client', () => {
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
       middlewares.auth.onRequest((auth) => auth(authHeaders));
 
-      const [result, routeError, fatal, middlewareResults, middlewareErrors] = await routes.getRequestInfo(HUGE_PAYLOAD).call();
+      const [result, routeError, clientResponse] = await routes.getRequestInfo(HUGE_PAYLOAD).call();
 
       expect(result).toBeUndefined();
       expect(routeError).toBeUndefined();
-      expect(fatal).toBeDefined();
-      expect(fatal?.type).toBe('request-payload-too-large');
-      expect(middlewareResults).toEqual({});
-      expect(middlewareErrors).toEqual({});
+      expect(clientResponse['@thrownErrors']?.length).toBeGreaterThan(0);
+      expect(clientResponse['@thrownErrors']?.[0]?.type).toBe('request-payload-too-large');
+      expect(Object.keys(clientResponse)).toEqual(['@thrownErrors']);
     });
   });
 });

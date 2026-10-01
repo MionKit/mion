@@ -12,11 +12,11 @@ middlewares.trace.onRequest((trace) =>
 );
 
 // cancellation works with middleware
-const [greeting, , undeclared] = await routes.sayHello('John').call({
+const [greeting, , response] = await routes.sayHello('John').call({
   timeout: 5000,
   signal: controller.signal,
 });
-if (!undeclared) console.log(greeting);
+if (!response['@thrownErrors']) console.log(greeting);
 
 // and with a batch
 const [[sum, greeting2], [sumError, greetingError]] = await batch([

@@ -27,9 +27,9 @@ function client() {
 describe('drizzle-derived models over real routes', () => {
   it('insert accepts a valid payload and returns server-generated id + Date', async () => {
     const {routes} = client();
-    const [row, routeError, fatal] = await routes.dbUsers.insert({name: 'Anna Smith', age: 30}).call();
+    const [row, routeError, response] = await routes.dbUsers.insert({name: 'Anna Smith', age: 30}).call();
     expect(routeError).toBeUndefined();
-    expect(fatal).toBeUndefined();
+    expect(response['@thrownErrors']).toBeUndefined();
     expect(row?.name).toBe('Anna Smith');
     expect(row?.age).toBe(30);
     expect(typeof row?.id).toBe('string');

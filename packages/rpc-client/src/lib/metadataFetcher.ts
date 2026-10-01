@@ -33,7 +33,7 @@ export interface MetadataCall {
   readRows(parsedBody: Record<string, unknown>): Record<string, RpcError<string>> | undefined;
   /** After a failed attempt: true when a resend with fresh rows can fix it. Called at most once per call. */
   shouldResend(errors: RequestErrors): Promise<boolean>;
-  /** a store write the browser refused, reported once in a later call's undeclared slot */
+  /** a store write the browser refused, reported once in a later call's @thrownErrors */
   takeError(): RpcError<string> | undefined;
 }
 

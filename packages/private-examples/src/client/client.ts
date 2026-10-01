@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
+import {isRpcError} from '@mionjs/core';
 import {initClient} from '@mionjs/client';
 // importing only the RemoteApi type from server
 import type {MyApi} from './server.routes.ts';
@@ -38,7 +39,7 @@ middlewares.auth
 
 // ========== Example 1: Route with strongly-typed errorData ==========
 // getById returns User | RpcError<'user-not-found', UserNotFoundData>
-// call() returns 5-tuple: [routeResult, routeError, undeclared, middlewareResults, middlewareErrors]
+// call() returns [routeResult, routeError, response]
 const [user1, error1] = await routes.users.getById('USER-123').call();
 if (error1 && error1.type === 'user-not-found') {
   // error1.errorData is strongly typed as UserNotFoundData!
@@ -73,31 +74,32 @@ const [result, error3] = await routes.users.sayHello(john).call();
 // sayHello never has an error type, so we can use the result directly
 console.log(result); // Hello John Doe
 
-// ========== Example 5: Middleware outcomes in the result tuple ==========
-// the tuple also keeps each middleware's outcome by id, loosely typed; prefer the typed hooks
-const [user4, routeError4, fatal4, middlewareResults4, middlewareErrors4] =
-  await routes.users.getById('USER-123').call();
+// ========== Example 5: Middleware outcomes in the response ==========
+// the response also keeps each middleware's outcome at its path, typed; the hooks are still the main way
+const [user4, routeError4, response4] = await routes.users
+  .getById('USER-123')
+  .call();
 // Check for route errors (the route's DECLARED errors | ValidationError)
 if (routeError4?.type === 'user-not-found') {
   console.log('User not found:', routeError4.errorData?.requestedId);
 }
-// the same declared errors the onError hooks got, by id
-if (middlewareErrors4?.auth?.type === 'not-authorized') {
-  console.log('Auth failed:', middlewareErrors4.auth.publicMessage);
+// the same declared errors the onError hooks got, at the middleware's path
+const auth4 = response4.auth;
+if (isRpcError(auth4) && auth4.type === 'not-authorized') {
+  console.log('Auth failed:', auth4.publicMessage);
 }
 // Anything NOBODY declared (transport, platform, an undeclared throw) lands here, untyped
-if (fatal4) {
-  console.log('Request failed:', fatal4.type, fatal4.publicMessage);
+for (const thrown of response4['@thrownErrors'] ?? []) {
+  console.log('Request failed:', thrown.type, thrown.publicMessage);
 }
 // Access success data
 if (user4) console.log('Found user:', user4.name);
-console.log(middlewareResults4); // { auth: ... }
+console.log(response4.auth); // SessionInfo, or its error
 
 // ========== Example 7: Using call() with async/await (recommended) ==========
-// call() returns 5-tuple: [routeResult, routeError, undeclared, middlewareResults, middlewareErrors]
+// call() returns [routeResult, routeError, response]
 // This is the standard pattern for all route calls
-// call() never throws - returns a 5-tuple
-// Partial destructuring still works for backward compatibility
+// call() never throws
 const [user6, error6] = await routes.users.getById('USER-999').call();
 if (error6) {
   // TypeScript knows error is the typed error here
