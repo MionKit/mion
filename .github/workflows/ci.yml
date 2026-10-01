@@ -162,6 +162,8 @@ jobs:
         working-directory: ts-go-runtypes
         env:
           MION_FUZZ_ITER: '30'
+          # The diagnostics grid's value call shapes: a push to main runs them, a PR keeps the static half for speed.
+          MION_DIAG_GRID_FULL: ${{ github.event_name == 'push' && '1' || '' }}
         run: go test ./internal/... ./cmd/...
       # The count-based JS fuzz lanes at their QUICK budgets (fixed coverage, so
       # vitest's file parallelism only costs wall clock), plus the fuzz-adjacent

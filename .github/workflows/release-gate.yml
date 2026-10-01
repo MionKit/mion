@@ -246,6 +246,10 @@ jobs:
           echo "replay this run: MION_FUZZ_SEED=$MION_FUZZ_SEED pnpm miondevx core fuzz ${{ matrix.lane }} --soak"
           pnpm miondevx core fuzz ${{ matrix.lane }} --soak
 
+  # The non-data lane soaks 10 minutes in its own workflow (out of the matrix above); calling it here keeps it a gate job.
+  fuzz-soak-nondata:
+    uses: ./.github/workflows/fuzz-nondata-soak.yml
+
   e2e:
     name: e2e ${{ matrix.pkg }}
     needs: build

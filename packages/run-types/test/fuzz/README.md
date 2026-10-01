@@ -553,8 +553,8 @@ is the release tier, run by the **`fuzz-soak` job** of
 per lane, on release PRs, on the push to `prod`, and on demand via
 `gh workflow run release-gate.yml --ref <branch>` — or off the release path with
 `gh workflow run fuzz-soak.yml`. The `nondata` lane is the exception: it soaks 10 minutes in its own
-[fuzz-nondata-soak.yml](../../../../.github/workflows/fuzz-nondata-soak.yml), beside the gate on every release PR
-(`soakWorkflow` on its `FUZZ` entry keeps it out of the gate's matrix). Those jobs seed each lane from the run id and
+[fuzz-nondata-soak.yml](../../../../.github/workflows/fuzz-nondata-soak.yml), which the gate calls as a job of its own
+(`soakWorkflow` on its `FUZZ` entry keeps it out of the gate's matrix; `fuzz-lanes --all` keeps it in fuzz-soak.yml's `all`). Those jobs seed each lane from the run id and
 echo the value, so a CI finding replays verbatim; the per-PR tier keeps the
 version-derived seed instead, so a red lane belongs to that PR.
 

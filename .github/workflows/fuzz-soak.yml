@@ -90,7 +90,7 @@ jobs:
           LANE: ${{ inputs.lane }}
         run: |
           if [ "$LANE" = 'all' ]; then
-            lanes="$(node scripts/miondevx.mjs core fuzz-lanes)"
+            lanes="$(node scripts/miondevx.mjs core fuzz-lanes --all)"
           else
             lanes="[\"$LANE\"]"
           fi

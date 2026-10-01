@@ -106,12 +106,22 @@ describe('the lane list has one source of truth: the miondevx FUZZ registry', ()
     expect((JSON.parse(emitted.stdout) as string[]).sort()).toEqual(matrixLanes);
   });
 
-  for (const [name, source] of [
-    ['release-gate.yml', releaseGate],
-    ['fuzz-soak.yml', fuzzSoak],
+  it('`miondevx core fuzz-lanes --all` emits every soak lane (fuzz-soak.yml `all`)', () => {
+    const emitted = spawnSync('node', ['scripts/miondevx.mjs', 'core', 'fuzz-lanes', '--all'], {
+      cwd: REPO_ROOT,
+      encoding: 'utf8',
+      timeout: 30_000,
+    });
+    expect(emitted.status).toBe(0);
+    expect((JSON.parse(emitted.stdout) as string[]).sort()).toEqual(soakLanes);
+  });
+
+  for (const [name, source, command] of [
+    ['release-gate.yml', releaseGate, 'node scripts/miondevx.mjs core fuzz-lanes)'],
+    ['fuzz-soak.yml', fuzzSoak, 'node scripts/miondevx.mjs core fuzz-lanes --all)'],
   ] as const) {
     it(`${name} derives its matrix from the emitter`, () => {
-      expect(source).toContain('node scripts/miondevx.mjs core fuzz-lanes');
+      expect(source).toContain(command);
       expect(source).toContain('lane: ${{ fromJSON(needs.pick.outputs.lanes) }}');
     });
   }
@@ -120,10 +130,13 @@ describe('the lane list has one source of truth: the miondevx FUZZ registry', ()
     expect(dispatchOptions).toEqual(soakLanes);
   });
 
-  it('a lane with its own soak workflow has that workflow, and it soaks exactly that lane', () => {
+  it('a lane with its own soak workflow has that workflow, the gate calls it, and it soaks exactly that lane', () => {
     expect(ownWorkflowLanes).toContain('nondata');
     for (const lane of ownWorkflowLanes) {
-      const source = read(`.github/workflows/${registry[lane].soakWorkflow}`);
+      const workflow = registry[lane].soakWorkflow;
+      expect(releaseGate).toContain(`uses: ./.github/workflows/${workflow}`);
+      const source = read(`.github/workflows/${workflow}`);
+      expect(source).toContain('workflow_call:');
       expect(source).toContain(`pnpm miondevx core fuzz ${lane} --soak`);
       expect(source).toContain('MION_FUZZ_SEED: ${{ inputs.seed || github.run_id }}');
       expect(source).toContain(`replay this run: MION_FUZZ_SEED=$MION_FUZZ_SEED pnpm miondevx core fuzz ${lane} --soak`);
