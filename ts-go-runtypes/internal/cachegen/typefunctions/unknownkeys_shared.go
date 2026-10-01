@@ -60,13 +60,13 @@ func collectObjectChildNames(rt *reflection.RunType, ctx *EmitContext) (rtNames 
 		if reflection.IsUnsafePropertyName(resolved.Name) {
 			continue
 		}
-		if isFunctionLikeKind(resolved.Kind) {
+		if isMethodMember(resolved.Kind) {
 			continue
 		}
 		// A property wrapping a function-typed child: the parent's RT chain drops it too.
 		if (resolved.Kind == reflection.KindProperty || resolved.Kind == reflection.KindPropertySignature) && resolved.Child != nil {
 			grandchild := ctx.ResolveRef(resolved.Child)
-			if grandchild != nil && isFunctionLikeKind(grandchild.Kind) {
+			if grandchild != nil && isMethodMember(grandchild.Kind) {
 				continue
 			}
 		}
@@ -172,7 +172,7 @@ func countFastPathN(rt *reflection.RunType, ctx *EmitContext) (int, bool) {
 		if reflection.IsUnsafePropertyName(resolved.Name) {
 			continue
 		}
-		if resolved.IsStatic || isFunctionLikeKind(resolved.Kind) {
+		if resolved.IsStatic || isMethodMember(resolved.Kind) {
 			continue
 		}
 		if resolved.Optional {

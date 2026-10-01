@@ -17,8 +17,8 @@ func isObjectLikeKind(kind reflection.ReflectionKind) bool {
 	return false
 }
 
-// isFunctionLikeKind reports whether kind emits a function-shape check, or is skipped as a property's wrapped child.
-func isFunctionLikeKind(kind reflection.ReflectionKind) bool {
+// isMethodMember tests a MEMBER entry's shape (method, call signature); a member's VALUE goes through NonDataOf instead.
+func isMethodMember(kind reflection.ReflectionKind) bool {
 	switch kind {
 	case reflection.KindFunction, reflection.KindMethod,
 		reflection.KindMethodSignature, reflection.KindCallSignature:

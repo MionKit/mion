@@ -112,7 +112,7 @@ func emitObjectFormat(rt *reflection.RunType, ctx *EmitContext, _ string) RTCode
 	var parts []string
 	for _, child := range objectMembers(rt) {
 		resolved := ctx.ResolveRef(child)
-		if resolved == nil || resolved.IsStatic || isFunctionLikeKind(resolved.Kind) {
+		if resolved == nil || resolved.IsStatic || isMethodMember(resolved.Kind) {
 			continue
 		}
 		childRT := ctx.CompileChild(child, CodeS)
@@ -132,7 +132,7 @@ func emitPropertyFormat(rt *reflection.RunType, ctx *EmitContext, v string) RTCo
 		return RTCode{Code: "", Type: CodeS}
 	}
 	resolved := ctx.ResolveRef(rt.Child)
-	if resolved == nil || isFunctionLikeKind(resolved.Kind) {
+	if resolved == nil || isMethodMember(resolved.Kind) {
 		return RTCode{Code: "", Type: CodeS}
 	}
 	accessor := propertyAccessor(v, rt.Name, rt.IsSafeName)

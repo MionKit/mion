@@ -57,7 +57,7 @@ func compactUnionMemberTransforms(resolved *reflection.RunType, ctx *EmitContext
 	}
 	for _, childRef := range resolved.Children {
 		member := ctx.ResolveRef(childRef)
-		if member == nil || member.IsStatic || isFunctionLikeKind(member.Kind) {
+		if member == nil || member.IsStatic || isMethodMember(member.Kind) {
 			continue
 		}
 		switch member.Kind {

@@ -190,7 +190,7 @@ func objectChildrenCompat(children []*reflection.RunType, ctx *EmitContext, visi
 		if resolved.IsStatic {
 			continue
 		}
-		if isFunctionLikeKind(resolved.Kind) {
+		if isMethodMember(resolved.Kind) {
 			continue
 		}
 		if !jsonCompatRecursive(resolved, ctx, visited) {

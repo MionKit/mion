@@ -113,7 +113,7 @@ func restoreKeyGuardRecursive(rt *reflection.RunType, ctx *EmitContext, visited 
 			return false
 		}
 		child := ctx.ResolveRef(rt.Child)
-		return child != nil && !isFunctionLikeKind(child.Kind)
+		return child != nil && !isMethodMember(child.Kind)
 	case reflection.KindObjectLiteral:
 		return restoreKeyGuardInMembers(rt, ctx, visited)
 	case reflection.KindClass:
@@ -149,7 +149,7 @@ func restoreKeyGuardRecursive(rt *reflection.RunType, ctx *EmitContext, visited 
 func restoreKeyGuardInMembers(rt *reflection.RunType, ctx *EmitContext, visited map[string]struct{}) bool {
 	for _, childRef := range objectMembers(rt) {
 		member := ctx.ResolveRef(childRef)
-		if member == nil || member.IsStatic || isFunctionLikeKind(member.Kind) {
+		if member == nil || member.IsStatic || isMethodMember(member.Kind) {
 			continue
 		}
 		if restoreKeyGuardRecursive(member, ctx, visited) {
@@ -316,7 +316,7 @@ func jsonNoopObjectChildren(children []*reflection.RunType, ctx *EmitContext, mo
 		if resolved.IsStatic {
 			continue
 		}
-		if isFunctionLikeKind(resolved.Kind) {
+		if isMethodMember(resolved.Kind) {
 			continue
 		}
 		if !jsonNoopRecursive(resolved, ctx, mode, visited) {
@@ -489,7 +489,7 @@ func formatNoopRecursive(rt *reflection.RunType, ctx *EmitContext, visited map[s
 			return true
 		}
 		resolved := ctx.ResolveRef(rt.Child)
-		if resolved == nil || isFunctionLikeKind(resolved.Kind) {
+		if resolved == nil || isMethodMember(resolved.Kind) {
 			// Skipped slots in emitPropertyFormat.
 			return true
 		}
@@ -531,7 +531,7 @@ func formatNoopObjectChildren(children []*reflection.RunType, ctx *EmitContext, 
 		if resolved.IsStatic {
 			continue
 		}
-		if isFunctionLikeKind(resolved.Kind) {
+		if isMethodMember(resolved.Kind) {
 			continue
 		}
 		if !formatNoopRecursive(resolved, ctx, visited) {
@@ -786,7 +786,7 @@ func restoreJsonSafeNoopRecursive(rt *reflection.RunType, ctx *EmitContext, visi
 		if rt.Child == nil || isSymbolKeyedIndexSig(rt, ctx) {
 			return true
 		}
-		if resolved := ctx.ResolveRef(rt.Child); resolved != nil && isFunctionLikeKind(resolved.Kind) {
+		if resolved := ctx.ResolveRef(rt.Child); resolved != nil && isMethodMember(resolved.Kind) {
 			return true
 		}
 		return false

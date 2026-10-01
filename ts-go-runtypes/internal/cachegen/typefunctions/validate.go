@@ -1033,7 +1033,7 @@ func emitObjectValidate(rt *reflection.RunType, ctx *EmitContext, v string) RTCo
 		if resolved.Kind == reflection.KindIndexSignature {
 			hasIndexSig = true
 		}
-		if isFunctionLikeKind(resolved.Kind) {
+		if isMethodMember(resolved.Kind) {
 			ctx.EmitDiagnosticSlot(SlotMethodDropped, memberLabel(resolved))
 			continue
 		}

@@ -376,7 +376,7 @@ func buildMergedProps(objectMembers []FlatObject, ctx *EmitContext, discValueByM
 				continue
 			}
 			// The stripped-child branch below never sees a method, yet its key holds a function, so guard a same-name survivor.
-			if isFunctionLikeKind(prop.Kind) {
+			if isMethodMember(prop.Kind) {
 				ctx.EmitDiagnosticSlot(SlotMethodDropped, memberLabel(prop))
 				if prop.Name != "" {
 					strippedByName[prop.Name] = true

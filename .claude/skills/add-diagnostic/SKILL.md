@@ -32,6 +32,9 @@ scan.
 - What counts as data is `reflection.NonDataOf` (`internal/reflection/nondata.go`), the Go mirror of `DataOnly<T>`.
   Never test kinds by hand (`Kind == KindFunction`, a symbol flag, a call-signature scan) in an emitter or a shortcut:
   call `isStrippedUnionMember` / `isCallableValue` / `nonDataOf`.
+- Two questions, two helpers. Is this MEMBER entry a method or call signature (an object's own member shape)?
+  `isMethodMember(kind)`. Is this VALUE (a property's child, an index-signature value, a union member) data?
+  The `NonDataOf` helpers above, since only they see a callable interface or a Promise.
 - A new non-data shape goes into `NonDataOf` AND `dataOnly.ts`, together.
 - `TestNonDataAgreement_*` (`cachegen/typefunctions/nondata_agreement_test.go`) fails when a kind has no row or a
   family's root disagrees with `NonDataOf`.
@@ -58,7 +61,7 @@ The noop, JSON-compat and safe-to-share predicates (`noop_types.go`, `json_compa
 "no work needed" WITHOUT walking. When one says yes, the child is never compiled.
 
 - A kind the emitter refuses must answer "no" there too (the `NonDataOf` guard at the top does this for non-data).
-- A child the noop gate skips is still rendered for its findings (`recordElided`); keep new gates on that path.
+- A child the noop gate skips is still rendered for its findings (the `elided` list in `module.go`); keep new gates on that path.
 - The runtime tripwire `noop-predicate mismatch` on stderr means a predicate and an emitter disagree: fix the arm.
 
 ## 7. Add it to the grid

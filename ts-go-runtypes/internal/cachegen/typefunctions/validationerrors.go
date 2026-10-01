@@ -510,7 +510,7 @@ func emitObjectValidationErrors(rt *reflection.RunType, ctx *EmitContext, v stri
 		if resolved.Kind == reflection.KindIndexSignature {
 			hasIndexSig = true
 		}
-		if isFunctionLikeKind(resolved.Kind) {
+		if isMethodMember(resolved.Kind) {
 			// Method-shaped members on the shape are skipped; the callable case is covered by the typeof guard below.
 			ctx.EmitDiagnosticSlot(SlotMethodDropped, memberLabel(resolved))
 			continue
