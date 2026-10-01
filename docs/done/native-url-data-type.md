@@ -1,7 +1,7 @@
 ---
 type: feature
 spec: full-plan
-status: ready
+status: done
 created: 2026-10-01
 ---
 
@@ -44,9 +44,9 @@ families, clone, jsonsize, schema doc, convert and the TS mock / DataOnly side a
 - `reflection/runtype.go:248-252`: doc of `ClassRef.Builtin`. `reflection/nondata.go` needs no change (add a row to `nondata_test.go:33`).
 
 ### 2. Detection (before `NotDataBuiltinOf`)
-One predicate, e.g. `typeid.IsNativeUrl(tsType)`: symbol name `URL` AND (global, i.e. no module parent, which covers
-lib.dom and @types/node's global) OR the class exported by `node:url` / `url`. A user's own module-scoped
-`class URL` stays a user class. Use it in:
+One predicate, `typeid.IsNativeUrl(tsType)` (`typeid/nativeurl.go`): an interface or class symbol named `URL` whose
+declarations ALL sit in declaration files. That covers lib.dom, @types/node's global and the `node:url` class; a
+user's `class URL`, or a `declare global` augmentation written in a `.ts` file, stays the author's shape. Use it in:
 - `typeid/typeid.go:512-556` (structural id, before the `NotDataBuiltinOf` branch at `:556`) and `:1176-1191`
   (`objectKind` → `KindClass`).
 - `typeid/intersection_collapse.go:279` and `cachegen/runtype/intersection_collapse.go:363`: add `URL` to
@@ -81,21 +81,25 @@ lib.dom and @types/node's global) OR the class exported by `node:url` / `url`. A
 - Composes like nativeDate (`datetime/nativeDate.go:32-45`): base `instanceof URL` ANDed with the href checks (`validate.go:131-138`).
 - Error keys: `"nativeUrl"` row in `formats/errorkeys_samples.go`, `pnpm miondevx core codegen errorkeys`, and the
   `ParamsByFormat` row in `packages/run-types/test/types/formatErrorKeysCoverage.test.ts`. `cmd/gen-type-formats` regenerates `typeFormats.generated.ts`.
-- TS types, new file `packages/run-types/src/formats/url/nativeUrlFormats.ts`, exported from the root `formats` surface
-  (URL exists in both dom and @types/node, so no opt-in subpath):
+- TS types and builders live in the URL section of `packages/run-types/src/formats/string/stringFormats.ts` (they
+  reuse its private url defaults), exported from the root `formats` surface (no opt-in subpath):
   - `type NativeUrlParams = Omit<UrlParams, 'transform'>` (`stringFormats.ts:546`).
   - `NativeUrl<P = {}, BrandName = never>`: no default pattern (any URL `new URL` accepts).
     Presets `NativeUrlHttp<P>` / `NativeUrlFile<P>` default to `URL_HTTP_PATTERN` / `URL_FILE_PATTERN` (`string-patterns.ts:50-63`), like `UrlHttp` / `UrlFile`.
-  - Written as an INLINE intersection `UrlInstance & FormatBrand<'nativeUrl', P>` (+ optional `NominalBrand`), NOT
-    `TypeFormat<URL,…>`: `TypeFormatBase` (`runtypes/typeFormat.ts:9`) would have to name `URL` in a root module.
-    `UrlInstance` is a `typeof globalThis extends {URL: {prototype: infer I}} ? I : unknown` probe, as
-    `temporalFormats.ts:32-47` does. Check the probe for circularity against @types/node's own conditional `var URL`.
-  - Builders `nativeUrl(P?, brand?)`, `nativeUrlHttp`, `nativeUrlFile`, copying the `date` builder overloads (`formats/scalars.ts:104-123`), not `presetFormatBuilder`.
-  - Rows: `builderTypes.ts:34-46` (`LeafTypeByFormatName`), `refineFormat.ts:16-43` (`RefinableParamsByFamily`, `FormatBaseOf`).
+  - Written as an INLINE intersection `NativeUrlFormat<P, B>` = `UrlInstance & FormatBrand<'nativeUrl', P>` (+ optional
+    `NominalBrand`), NOT `TypeFormat<URL,…>`: `TypeFormatBase` (`runtypes/typeFormat.ts:9`) would have to name `URL`
+    in a root module. `UrlInstance` is a `typeof globalThis extends {URL: {prototype: infer I}} ? I : never` probe:
+    `never`, not `unknown`, since without a URL global there is no URL value to describe. No circularity with
+    @types/node's conditional `var URL` (pinned by `test/types/dataonlyUrlPosture.test.ts`).
+  - Builder `nativeUrl(P?, brand?)` copies the `date` overloads; the presets `nativeUrlHttp` / `nativeUrlFile` reuse
+    `presetFormatBuilder` under a `NativeUrlPresetBuilder` type.
+  - Row in `builderTypes.ts` `LeafTypeByFormatName`. NOT refinable: `RefinableParamsByFamily` has no `nativeUrl` row
+    (a refinement rebuilds through `TypeFormat`, which cannot name URL), so refining a `NativeUrl` is a compile error.
   - No `TransformParamsByFormat` row, so `Transform<NativeUrl>` stays an error.
 
 ### 5. TS type-level projections
-- `dataOnly.ts:30-34`: add a `never`-fallback URL probe to `DataOnlyNative`; rewrite the comment calling URL "the one known gap".
+- `dataOnly.ts`: `DataOnlyNativeExtra` now declares a built-in `url` row (a `never`-fallback probe), which also makes
+  `JSONShape` read URL as `string`; the comment calling URL "the one known gap" is rewritten.
   Budget test harness `test/types/dataonlyHarness.ts:32-67` needs an ambient URL stub (it compiles with `lib.es2023`
   only, `compileHarness.ts:5,46`); re-measure every ceiling in `dataonly.compile.test.ts`.
 - `jsonShape.ts:49-50,111-112` (URL → `string`), `stripRunTypeMeta.ts:191-192`, `enrich/mockData.ts:42-43`,
@@ -112,7 +116,7 @@ lib.dom and @types/node's global) OR the class exported by `node:url` / `url`. A
 ### 7. Diagnostics prose
 `ts-go-runtypes/internal/diagnostics/prose.go`: every line that lists the supported natives or uses URL as the
 non-data example (`:83,154,172,227,792-915,951,987-992`). The RUK example (`:987-992`, `url: URL`) must switch to
-another non-data class (e.g. `Blob`), checking the lib `diag_examples_test.go:87` compiles with. Regenerate the
+another non-data class (shipped: `RegExp`; the prose names `URLSearchParams` as the lib example), checking the lib `diag_examples_test.go:87` compiles with. Regenerate the
 diagnostics catalog (`cmd/gen-diag-catalog`).
 
 ## Tests
@@ -178,3 +182,20 @@ Good candidate, cheap oracle (round trip by href, D4 DataOnly agreement):
 - No diagnostic or page still calls URL non-data.
 - Go tests, `pnpm test`, `pnpm run lint`, the fuzz suites and the codegen `--check` pass; PR labelled `website` and `pre-publish-e2e`.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source file, each committed on its own.
+
+## What shipped beyond the plan
+
+Negative controls (breaking the URL code on purpose) showed three fuzz oracles could not see a URL bug, fixed here:
+
+- `test/fuzz/type/tsValidate.ts` loaded no `URL`, so every URL type read as invalid TS and its findings were dropped.
+  It now loads `@types/node`, like the resolver program.
+- The round-trip oracle compared lanes against the clone encoder only, so a lossy clone encoder agreed with itself.
+  RT-AGREE now also re-encodes through mutate, which writes natives through their own `toJSON`.
+- D4 never compared a kept native (Date, URL, Map, Set, Temporal) with what `DataOnly<T>` made of it; a structural
+  projection validates the same instances through prototype getters, so the answers check missed it.
+
+Also: SJ-PROTO treats a real URL as a leaf (its WebIDL getters are enumerable on the prototype by spec); the clone
+fuzz corpus has a `Links` target; `JS-URL` joins `docs/json-schema-2020-12-javascript.md`. A raw `TypeError` from a
+decoder is only counted by the secjson lane, never a violation, so the `URL.canParse` guard is pinned by
+`test/features/nativeUrl.test.ts` and `native_url_emit_test.go` instead.
+
