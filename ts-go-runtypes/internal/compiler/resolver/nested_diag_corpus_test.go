@@ -414,3 +414,24 @@ func TestNestedDiagCorpus_WrittenAnyAtRoot(t *testing.T) {
 		}
 	}
 }
+
+// A foreign throw of another kind than the site's own throws is its own failure: the errors union asks validate,
+// whose DataView member throws VL001, while the errors family's own throw is the symbol array's VE002.
+const foreignKindDecl = "export type WithSymbols = {s: symbol[]};\nexport type Members = {k: 'a'; d: DataView[]} | {k: 'b'; n: number};\n"
+const foreignKindType = "{w: WithSymbols; u: Members}"
+
+func TestReachedThrows_ForeignOfAnotherKindIsReported_Static(t *testing.T) {
+	codes := siteCodes(t, map[string]string{"shared.ts": corpusShared, "site.ts": corpusImports + foreignKindDecl +
+		"export const fn = createGetValidationErrorsFn<" + foreignKindType + ">();\n"}, false)
+	if !slices.Contains(codes, "VE002") || !slices.Contains(codes, "VL001") {
+		t.Errorf("want both the own VE002 and the foreign VL001 at the site, got %v", codes)
+	}
+}
+
+func TestReachedThrows_ForeignOfAnotherKindIsReported_Value(t *testing.T) {
+	codes := siteCodes(t, map[string]string{"shared.ts": corpusShared, "site.ts": corpusImports + foreignKindDecl +
+		"declare const value: " + foreignKindType + ";\nexport const fn = createGetValidationErrorsFn(value);\n"}, false)
+	if !slices.Contains(codes, "VE002") || !slices.Contains(codes, "VL001") {
+		t.Errorf("want both the own VE002 and the foreign VL001 at the site, got %v", codes)
+	}
+}
