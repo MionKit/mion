@@ -346,7 +346,7 @@ func (RestoreFromJsonEmitter) Finalize(raw string) (string, bool) {
 	return code, false
 }
 
-// restoreUrl: `new URL` throws on a bad string (unlike `new Date`), so canParse gates it and validate refuses the rest.
+// restoreUrl: like `Temporal.X.from`, `new URL` throws on a bad string; a decoder may throw on bad input.
 func restoreUrl(v string) string {
-	return v + " = typeof " + v + " === 'string' && URL.canParse(" + v + ") ? new URL(" + v + ") : " + v
+	return v + " = typeof " + v + " === 'string' ? new URL(" + v + ") : " + v
 }

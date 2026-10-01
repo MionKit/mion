@@ -187,7 +187,7 @@ export const ATTACK_DICTIONARY: readonly AttackEntry[] = [
   e({id: 'date.array', kind: 'date', class: 'type-confusion', expect: 'any', json: () => []}),
   e({id: 'date.negative-year', kind: 'date', class: 'transform', expect: 'any', json: () => '-000001-01-01T00:00:00Z'}),
 
-  // ---- URL (its href on the JSON wire; `new URL` throws, so only a parsable string converts) ----
+  // ---- URL (its href on the JSON wire; `new URL` throws on a bad string, like Temporal.X.from) ----
   e({id: 'url.garbage', kind: 'url', class: 'transform', expect: 'reject', json: () => 'garbage'}),
   e({id: 'url.empty', kind: 'url', class: 'transform', expect: 'reject', json: () => ''}),
   e({id: 'url.relative', kind: 'url', class: 'transform', expect: 'reject', json: () => '/a/b?c=1'}),

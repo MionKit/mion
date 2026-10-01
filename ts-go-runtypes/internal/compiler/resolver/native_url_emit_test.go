@@ -37,7 +37,7 @@ export const urlErrors = createGetValidationErrorsFn<URL>();
 	assertFamilyContains(t, response, "validationErrors", "instanceof URL")
 }
 
-// The restore guard: `new URL(bad)` throws, so a string is converted only when URL.canParse accepts it.
+// The restore guard: only a string reaches `new URL` (MustValidateJson); a bad string throws, like Temporal.X.from.
 func TestNativeUrl_EmitRestoreIsGuarded(t *testing.T) {
 	response := emitUnderDom(t, `import {createJsonDecoderFn} from '@mionjs/run-types';
 export const decodeMutate = createJsonDecoderFn<{link: URL}>(undefined, {strategy: 'mutate'});
@@ -46,8 +46,7 @@ export const decodeCompact = createJsonDecoderFn<{link: URL}>(undefined, {strate
 `)
 	for _, family := range []string{"restoreFromJsonMutate", "restoreFromJsonClone", "compactFromJson"} {
 		// The entry body is a quoted string, so its quotes are escaped.
-		assertFamilyContains(t, response, family, `=== \'string\' && URL.canParse(`)
-		assertFamilyContains(t, response, family, "new URL(")
+		assertFamilyContains(t, response, family, `=== \'string\' ? new URL(`)
 	}
 }
 

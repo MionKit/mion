@@ -1,4 +1,4 @@
-// URL as data: instanceof validate, href on the wire, `URL.canParse`-guarded rebuild, re-wrap on clone, href formats.
+// URL as data: instanceof validate, href on the wire, `new URL()` rebuild from a string, re-wrap on clone, href formats.
 
 import type * as TF from '@mionjs/run-types/formats';
 import {describe, expect, it} from 'vitest';
@@ -70,14 +70,21 @@ describe('URL JSON round trip', () => {
     expect(decoded.link.href).toBe(home.href);
   });
 
-  // `new URL(bad)` throws, so the decoder leaves anything it cannot parse for validate to refuse.
-  it('leaves an unparsable or non-string wire value in place, without throwing', () => {
+  it('leaves a non-string wire value in place for validate to refuse', () => {
     const decode = createJsonDecoderFn<Link>();
     const validate = createValidateFn<Link>();
-    for (const wire of ['not a url', '/relative/path', 42, null, {href: home.href}]) {
+    for (const wire of [42, null, {href: home.href}]) {
       const decoded = decode(JSON.stringify({title: 'x', link: wire})) as unknown as {link: unknown};
       expect(decoded.link).toEqual(wire);
       expect(validate(decoded)).toBe(false);
+    }
+  });
+
+  // Like Temporal.X.from, `new URL(bad)` throws: a decoder may throw on bad input.
+  it('throws on a string that is not a URL', () => {
+    const decode = createJsonDecoderFn<Link>();
+    for (const wire of ['not a url', '/relative/path']) {
+      expect(() => decode(JSON.stringify({title: 'x', link: wire}))).toThrow(TypeError);
     }
   });
 });

@@ -63,8 +63,8 @@ user's `class URL`, or a `declare global` augmentation written in a `.ts` file, 
 - JSON encode: `json_prepare.go:83-90` no-op (`URL#toJSON()` is href); `json_prepare_clone.go:101-107` and
   `json_compact.go:88-93` emit `v.href`.
 - JSON decode: `json_restore.go:80-87` and `json_compact_restore.go:85-91`:
-  `v = typeof v === 'string' && URL.canParse(v) ? new URL(v) : v`. `new URL(bad)` THROWS (unlike `new Date(bad)`),
-  so the `canParse` guard is required; a bad string is left for validate to refuse. `json_restore_clone.go` delegates, no change.
+  `v = typeof v === 'string' ? new URL(v) : v`. `new URL(bad)` throws, like `Temporal.X.from`: a decoder may throw on
+  bad input, so no `URL.canParse` check (it would cost a second parse). `json_restore_clone.go` delegates, no change.
 - No-op / compat: `noop_types.go:277-298` (prepare no-op, like Date), `json_compat.go:145-158` (false).
 - Clone: `remove_unknown_keys.go:85-100` (`new URL(v.href)`), `:574-581` (not a no-op).
 - jsonsize: `jsonsize/jsonsize.go:497-531` reuse `stringBytes` so `maxLength` bounds it.
@@ -137,7 +137,7 @@ Paired static / value-first shapes per the Marker test coverage rule.
   `jsonSchemaOutput.proto.ts`, `enrich/cases/Native.ts`.
 - JS static: `dataonly.compile.test.ts`, a URL posture test, `stripmeta`, `mockData`, `friendlyText`,
   `refineFormat`, `jsonShape`, `decodeReturnType`, `formatErrorKeysCoverage`.
-- Restore edge cases: invalid string (`'not a url'`) is left as-is and validate fails (no throw); non-string left as-is;
+- Restore edge cases: an invalid string (`'not a url'`) throws, like Temporal; a non-string is left as-is;
   relative string (`'/a'`) rejected; round trip `restore(JSON.parse(JSON.stringify(x))).href === x.href`.
 
 ## Docs
@@ -195,7 +195,5 @@ Negative controls (breaking the URL code on purpose) showed three fuzz oracles c
   projection validates the same instances through prototype getters, so the answers check missed it.
 
 Also: SJ-PROTO treats a real URL as a leaf (its WebIDL getters are enumerable on the prototype by spec); the clone
-fuzz corpus has a `Links` target; `JS-URL` joins `docs/json-schema-2020-12-javascript.md`. A raw `TypeError` from a
-decoder is only counted by the secjson lane, never a violation, so the `URL.canParse` guard is pinned by
-`test/features/nativeUrl.test.ts` and `native_url_emit_test.go` instead.
+fuzz corpus has a `Links` target; `JS-URL` joins `docs/json-schema-2020-12-javascript.md`.
 
