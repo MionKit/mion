@@ -1,7 +1,6 @@
-// Compile-time gate for the generated FriendlyText error keys: every format the Go registry generates must be
-// mapped to its params type here, and every one of its params must be sampled (or excluded with a reason) in
-// ts-go-runtypes/internal/cachegen/typefunctions/formats/errorkeys_samples.go. A new format or a new param fails
-// `pnpm run typecheck` until then. Type-only bodies, referenced by `test` so lint leaves them.
+// Typecheck gate: every Go format maps to its params type here, and each param is sampled or excluded with a reason
+// in ts-go-runtypes/internal/cachegen/typefunctions/formats/errorkeys_samples.go. The type-only value is
+// referenced by `test` so lint leaves it.
 
 import {expect, test} from 'vitest';
 import type {FormatSampledParams} from '../../src/go-generated/formatErrorKeys.generated.ts';

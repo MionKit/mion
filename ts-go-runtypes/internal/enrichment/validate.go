@@ -180,7 +180,7 @@ func CheckMock(rt *reflection.RunType, literal LiteralView, resolve func(id stri
 	return findings
 }
 
-// TODO(refine): FT012 / MD002 (value-shape mismatch) stay with the TS checker, whose mapped types already reject a
+// TODO(refine): FT004 / MD002 (value-shape mismatch) stay with the TS checker, whose mapped types already reject a
 // wrong-shaped value at the call site. MD003 (pool value validates against the field) needs the runtime validator.
 // MD004 (min > max) and FT010 / MD010 (authored-vs-current drift hash) are unimplemented: none of the six is registered.
 
@@ -298,8 +298,7 @@ func checkFriendlyErrors(findings *[]Finding, errorsView LiteralView, fieldNode 
 	checkMissingErrorKeys(findings, keys, fieldNode, path)
 }
 
-// checkMissingErrorKeys reports FT012 for each error key the field can produce but the record leaves out.
-// rt$default covers them all; a blank value counts as present (FT023 reports it).
+// checkMissingErrorKeys reports FT012; a blank value counts as present because FT023 already reports it.
 func checkMissingErrorKeys(findings *[]Finding, keys []string, fieldNode *reflection.RunType, path string) {
 	present := make(map[string]bool, len(keys))
 	for _, key := range keys {

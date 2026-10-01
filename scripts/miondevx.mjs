@@ -159,8 +159,7 @@ const CODEGEN = {
   // each emitter under internal/cachegen/typefunctions/formats registers, so a
   // reflection consumer keys off `typeFormats` instead of re-declaring the names.
   typeformats: {run: [...GO_RUN, './cmd/gen-type-formats'], stdoutTo: 'packages/run-types/src/go-generated/typeFormats.generated.ts', outputs: ['packages/run-types/src/go-generated/typeFormats.generated.ts'], fmt: ['packages/run-types/src/go-generated/typeFormats.generated.ts']},
-  // Per-format FriendlyText error keys, read from each format's own validation-errors code, plus the params
-  // its samples cover (a type test fails on any param outside them).
+  // Per-format FriendlyText error keys plus the params the samples cover (a type test fails on any other param).
   errorkeys: {run: [...GO_RUN, './cmd/gen-format-error-keys'], stdoutTo: 'packages/run-types/src/go-generated/formatErrorKeys.generated.ts', outputs: ['packages/run-types/src/go-generated/formatErrorKeys.generated.ts'], fmt: ['packages/run-types/src/go-generated/formatErrorKeys.generated.ts']},
   // Compiled-function catalog for the docs site: every function the build can
   // compile for a type, with the name a marker calls it by, its factory and its

@@ -10,9 +10,8 @@
 // maps rejected (a `@ts-expect-error` that fails to fire becomes TS2578, so a
 // too-loose type reds the test).
 //
-// Snippets brand fields with a LOCAL name + params carrier (`ErrorTemplates<F>`
-// reads the name) so the harness slice stays self-contained; the real `TF.*`
-// aliases resolve to the same shape.
+// Snippets brand fields with a LOCAL carrier so the harness slice stays
+// self-contained; the real `TF.*` aliases resolve to the same shape.
 //
 // Each budget IS the branch's current net instantiation count — a one-way
 // ratchet, exactly like dataonly.compile.test.ts: after ANY change to the
@@ -27,7 +26,7 @@
 import {describe, it, expect} from 'vitest';
 import {measureFriendly} from './enrichHarness.ts';
 
-// Local format-brand carrier for snippets (matches TypeFormat's name + params sentinels).
+// Matches TypeFormat's name + params sentinels.
 const BRAND = `
       type Fmt<Base, P extends object, Name = Base extends number ? 'numberFormat' : 'stringFormat'> = Base & {
         readonly [__rtFormatName]?: Name;

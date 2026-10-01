@@ -98,10 +98,7 @@ describe('typia competitor map calls real typia exports', () => {
 });
 
 describe('the shared cases only assert error keys a format can produce', () => {
-  // How a permanent fake correctness failure shipped: the shared `number_float` case listed [1, 0, -2] as
-  // invalid under a `float` error, but `float` never fails (a float legally holds 2.0), so the lane reported a
-  // divergence against itself on every run. The shared cases are data no unit test runs, so this checks every
-  // asserted tail against the error keys generated from the formats' own validation code.
+  // The shared cases are data no unit test runs: a never-failing `float` error once made the lane diverge every run.
   // Loaded by path at runtime: devtools must never depend on @mionjs/run-types.
   const ERROR_KEYS_SRC = join(REPO_ROOT, 'packages/run-types/src/go-generated/formatErrorKeys.generated.ts');
   let errorKeys = new Set<string>();

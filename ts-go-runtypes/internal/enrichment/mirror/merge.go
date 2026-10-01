@@ -323,8 +323,7 @@ func isDefaultOnly(errors *objectView) bool {
 	return len(errors.order) == 1 && errors.props["rt$default"] != nil
 }
 
-// knownConstraintKeys are the rt$errors keys attributable to the TYPE: `type` plus every format's error keys.
-// Only a key in this catalog is ever orphaned; anything else is author-owned and untouched.
+// knownConstraintKeys are the only rt$errors keys ever orphaned; any other key is author-owned and untouched.
 var knownConstraintKeys = func() map[string]bool {
 	keys := map[string]bool{"type": true}
 	for _, key := range formats.EveryErrorKey() {

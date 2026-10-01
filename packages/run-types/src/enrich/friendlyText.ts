@@ -3,8 +3,7 @@
 // The recursive `FriendlyNode` follows the `DataOnly<T>` construction (src/runtypes/dataOnly.ts):
 // depth-bounded via a tuple-decrement budget, NO `infer` on the hot path, scalar-before-object gates,
 // homomorphic child map. The `#region friendlytext-extract` block is sliced VERBATIM by
-// test/types/enrichHarness.ts, so it may reference only `lib` types, the sentinel keys, the generated
-// `FormatErrorKeys` and its own declarations.
+// test/types/enrichHarness.ts, so it may reference only `lib` types, sentinel keys, `FormatErrorKeys` and own decls.
 
 import type {__rtFormatName} from '../runtypes/sentinelKeys.ts';
 import type {FormatErrorKeys} from '../go-generated/formatErrorKeys.generated.ts';
@@ -34,9 +33,8 @@ export type TemplateLeaf = FriendlyTemplate | PluralTemplate;
  *  plural object. Mirror of Go's `CountBearing` (internal/enrichment/classify.go). */
 type CountBearingKeys = 'minLength' | 'maxLength' | 'min' | 'max' | 'lt' | 'gt';
 
-/** Per-constraint mode: `type` plus an optional key per error the format can produce (FormatErrorKeys is
- *  generated from each format's validation code). The compiler warns about a missing key (FT004); NO index
- *  signature, so an unknown key is an excess-property error in the IDE (FT003). `rt$default` belongs to the mode below. */
+/** Keys are optional because the compiler warns about a missing one (FT012).
+ *  No index signature, so an unknown key is an excess-property error in the IDE (FT003). */
 type ConstraintTemplates<Name extends keyof FormatErrorKeys> = {type: FriendlyTemplate} & {
   [K in FormatErrorKeys[Name]]?: K extends CountBearingKeys ? TemplateLeaf : FriendlyTemplate;
 } & {rt$default?: never};
@@ -49,9 +47,7 @@ type DefaultOnlyTemplates = {rt$default: FriendlyTemplate; type?: never};
 /** Unbranded fields (plain `string` / `number` / …) can only fail as `type`. */
 type BareTemplates = DefaultOnlyTemplates | ({type: FriendlyTemplate} & {rt$default?: never});
 
-/** Per-field error templates derived from the field type `F`: a branded leaf accepts the error keys its
- *  format can produce, an unbranded leaf takes `type` only, either may use `rt$default` instead.
- *  Pure data: an inline-function form would be opaque to translation, reconcile and the checker. */
+/** Pure data: an inline-function form would be opaque to translation, reconcile and the checker. */
 export type ErrorTemplates<F = never> = [F] extends [never]
   ? BareTemplates
   : F extends {readonly [__rtFormatName]?: infer Name}
@@ -60,11 +56,8 @@ export type ErrorTemplates<F = never> = [F] extends [never]
       : BareTemplates
     : BareTemplates;
 
-/** Label and error templates are both REQUIRED, so every node must be addressed; that the VALUES are
- *  filled is enforced by the `@todo` / diagnostic layer, which TS can't see. `F` is the FIELD's own type,
- *  threaded through so `rt$errors` accepts exactly the keys its format can produce. `rt$typeName`
- *  gives a NAMED type a friendly name, defaulting to the reflected one. The `rt$` prefix is RESERVED in
- *  enriched types (`mion enrich` refuses / FT011 flags a colliding property), so the child map can't shadow it. */
+/** Blank values are caught by the `@todo` / diagnostic layer, not TS; `rt$typeName` defaults to the reflected name.
+ *  The `rt$` prefix is reserved (`mion enrich` refuses, FT011 flags it), so the child map can't shadow it. */
 export interface FriendlyMeta<F = never> {
   rt$label: string;
   rt$errors: ErrorTemplates<F>;
