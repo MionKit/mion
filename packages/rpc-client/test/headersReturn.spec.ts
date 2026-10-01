@@ -23,4 +23,13 @@ describe('a route returning a HeadersSubset', () => {
     expect(result).toBeInstanceOf(HeadersSubset);
     expect(result?.headers['x-mion-echo']).toBe('fetched');
   });
+
+  it('checks the headers on the fetched lane when the client validates server responses', async () => {
+    const {routes, middlewares} = initClient<TestServerApi>({baseURL: TEST_SERVER_BASE_URL, validateServerResponses: true});
+    middlewares.auth.onRequest((auth) => auth(new HeadersSubset({Authorization: 'XWYZ-TOKEN'})));
+    const [result, error, response] = await routes.respondHeaders('checked').call();
+    expect(error).toBeUndefined();
+    expect(response['@thrownErrors']).toBeUndefined();
+    expect(result?.headers['x-mion-echo']).toBe('checked');
+  });
 });

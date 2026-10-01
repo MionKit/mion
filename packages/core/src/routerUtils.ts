@@ -74,8 +74,9 @@ export const routesCache = {
     const headersParam = metadata.headersParam
       ? {...metadata.headersParam, jitFns: getHeaderJitFunctionsFromHash(metadata.headersParam.jitHash)}
       : undefined;
+    // the return type IS the headers subset, so it is checked with the return's own fns, as the server's reflection does
     const headersReturn = metadata.headersReturn
-      ? {...metadata.headersReturn, jitFns: getHeaderJitFunctionsFromHash(metadata.headersReturn.jitHash)}
+      ? {...metadata.headersReturn, jitFns: {isType: returnJitFns.isType, typeErrors: returnJitFns.typeErrors}}
       : undefined;
 
     const result: MethodWithOptsAndJitFns = {
