@@ -652,8 +652,7 @@ func (state scanState) analyzeCall(file string, call *ast.Node) ([]pendingCall, 
 		return []pendingCall{pending}, diags
 	}
 	// MULTI-SLOT INJECTION: several marker parameters, or a single non-trailing one, each injecting at their own
-	// index. No reflect-form or comptime options, since a wrapper call passes T through explicit type arguments
-	// and forwards no options bag.
+	// index. No reflect-form: a wrapper call passes T through explicit type arguments.
 	pendings, extra := state.analyzeMultiSlotInjection(file, call, injecting, compTimeSlots, argsCount, trailingComma)
 	diags = append(diags, extra...)
 	return pendings, diags
@@ -838,7 +837,7 @@ func (state scanState) analyzeTrailingInjection(file string, call *ast.Node, par
 // non-trailing one. Each injecting slot resolves independently, with its own type argument, fn keys and MKR003
 // check, and emits its own pendingCall at the call's closing paren; the transform then groups all slots of one
 // call, same Pos, into a single positional insertion, filling non-marker optional gaps with `undefined`.
-// A wrapper call forwards no comptime options, so fn ids resolve with default options.
+// Fn ids read only strategy and flag options from the argument before each marker; numberMode stays at its default.
 func (state scanState) analyzeMultiSlotInjection(file string, call *ast.Node, injecting []injectMarker, compTimeSlots []bool, argsCount int, trailingComma bool) ([]pendingCall, []diagnostics.Diagnostic) {
 	var diags []diagnostics.Diagnostic
 	sourceFile := ast.GetSourceFileOfNode(call)
@@ -1589,7 +1588,6 @@ func (state scanState) declaredTypeFromIdentifier(node *ast.Node) (*checker.Type
 	return checker.Checker_getTypeFromTypeNode(state.scanChecker, typeNode), true
 }
 
-
 // injectionPos is the closing `)` (End is one past it), or the end of a paren-less `new X`, which needs noArgList.
 func injectionPos(call *ast.Node) (pos int, noArgList bool) {
 	if call.ArgumentList() == nil {
@@ -1598,9 +1596,7 @@ func injectionPos(call *ast.Node) (pos int, noArgList bool) {
 	return call.End() - 1, false
 }
 
-// optionsArgsCountFor is the argsCount the options readers see for the marker at markerIndex. A constructor's argument
-// before the marker is usually data (`new HeadersSubset({strategy: x})`), so it counts only from a compile-time slot;
-// a call keeps the plain options-before-the-marker convention.
+// optionsArgsCountFor: a constructor's argument before the marker is usually data (`new HeadersSubset({strategy: x})`).
 func optionsArgsCountFor(call *ast.Node, compTimeSlots []bool, markerIndex, argsCount int) int {
 	if call.Kind != ast.KindNewExpression || (markerIndex > 0 && compTimeSlots[markerIndex-1]) {
 		return argsCount

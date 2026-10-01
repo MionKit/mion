@@ -252,7 +252,7 @@ new Wrap(value);
 	}
 }
 
-// The multi-slot path reads options the same way, so TwoSlots' data never picks the fn variant either.
+// On the multi-slot path too, a `new` data argument never picks the fn variant.
 func TestNewExpression_MultiSlotOptionsNotReadFromDataArgument(t *testing.T) {
 	byFile, _ := scanNewSites(t, map[string]string{"two.ts": `import {TwoSlots} from './box';
 new TwoSlots({checkUnknowns: true});
@@ -282,7 +282,7 @@ check<{a: string}>(undefined, {checkUnknowns: true});
 	}
 }
 
-// A builder nested in a marker-bearing `new` is reflected by it, so it needs no id of its own.
+// A builder nested in a marker-bearing `new` needs no id: the `new` reflects it.
 func TestNewExpression_EnclosesNestedBuilder(t *testing.T) {
 	byFile, _ := scanNewSites(t, map[string]string{"nested.ts": `import {Wrap} from './box';
 import * as TF from '@mionjs/run-types/formats';
