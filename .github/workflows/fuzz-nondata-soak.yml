@@ -1,0 +1,39 @@
+name: prod · non-data fuzz soak
+
+# The non-data type lane's 10-minute soak, on its own runner and in its own workflow so it runs beside the release
+# gate instead of inside it. Two hand-run 10-minute soaks each found a real gap that a 60 s budget would likely miss,
+# so this lane soaks longer than the rest. `miondevx core fuzz-lanes` leaves it out of the gate's matrix
+# (`soakWorkflow` on its FUZZ entry); a manual fuzz-soak.yml run can still pick it.
+on:
+  pull_request:
+    branches: [prod]
+  workflow_dispatch:
+    inputs:
+      seed:
+        description: 'MION_FUZZ_SEED — blank derives one from the run id (fresh ground)'
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  soak:
+    name: fuzz soak · nondata
+    runs-on: ubuntu-latest
+    # 10 minutes of fuzzing plus the build and the soak headroom; an overrun is a finding.
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/bootstrap
+      - uses: ./.github/actions/resolver
+        with:
+          toolchain: 'true'
+      - name: Build the resolver + dists
+        run: pnpm run check:builds
+      - name: Soak nondata
+        env:
+          MION_FUZZ_SEED: ${{ inputs.seed || github.run_id }}
+        run: |
+          echo "replay this run: MION_FUZZ_SEED=$MION_FUZZ_SEED pnpm miondevx core fuzz nondata --soak"
+          pnpm miondevx core fuzz nondata --soak
