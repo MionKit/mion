@@ -28,7 +28,7 @@ import {csrf, getCsrfToken, rotateCsrfToken} from './csrf.middleware.ts';
 // them injected.
 type TestSharedData = {user: {name: string; surname: string} | null; httpMethod: string | null; page: number | null};
 const getSharedData = (): TestSharedData => ({user: null, httpMethod: null, page: null});
-// above the default 100, so the metadata middleware's 'all' mode still answers every method of this server
+// The default 100 is too few for the metadata 'all' mode to answer every method here
 const mion = createMionRouter({contextDataFactory: getSharedData, getAllRemoteMethodsMaxNumber: 200});
 const {route, headersFn, middleware, query, mutation, rawMiddleware} = mion;
 
