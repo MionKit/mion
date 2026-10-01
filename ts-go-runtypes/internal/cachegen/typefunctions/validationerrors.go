@@ -220,6 +220,9 @@ func baseKindGuard(rt *reflection.RunType, vλl, numberMode string) string {
 		if rt.SubKind == reflection.SubKindSet {
 			return vλl + " instanceof Set"
 		}
+		if rt.SubKind == reflection.SubKindUrl {
+			return vλl + " instanceof URL"
+		}
 		// Native Date format: guard the min/max bound check so it runs only on a valid Date — `.getTime()` on a non-Date would throw.
 		return vλl + " instanceof Date && !isNaN(" + vλl + ".getTime())"
 	case reflection.KindArray, reflection.KindTuple:
@@ -345,6 +348,9 @@ func (ValidationErrorsEmitter) emitKindDefault(rt *reflection.RunType, ctx *Emit
 				Code: "if (!(" + v + " instanceof Date) || isNaN(" + v + ".getTime())) " + callRTErr(ctx, "date", ""),
 				Type: CodeS,
 			}
+		}
+		if rt.SubKind == reflection.SubKindUrl {
+			return RTCode{Code: "if (!(" + v + " instanceof URL)) " + callRTErr(ctx, "URL", ""), Type: CodeS}
 		}
 		if info, ok := reflection.TemporalInfoBySubKind(rt.SubKind); ok {
 			// Temporal types have no invalid state, so instanceof suffices; the expected-name carries the qualified type.

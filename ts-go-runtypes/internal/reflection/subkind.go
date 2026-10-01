@@ -21,6 +21,8 @@ const (
 	SubKindMap             ReflectionSubKind = 2002
 	SubKindSet             ReflectionSubKind = 2003
 	SubKindNonSerializable ReflectionSubKind = 2004
+	// The platform `URL` class: KindClass + ClassRef.Builtin "URL", its href string on the wire.
+	SubKindUrl ReflectionSubKind = 2005
 
 	// Temporal API SubKinds (2101–2108). NOT mirrored from the reference — Temporal predates its adoption
 	// here, so mion owns this numbering. Each is encoded as KindClass + this SubKind + ClassRef.Builtin =

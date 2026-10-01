@@ -24,6 +24,7 @@ func noopPredicateTypes(t *testing.T) (*EmitContext, map[string]*reflection.RunT
 	voidT := &reflection.RunType{ID: "vd", Kind: reflection.KindVoid}
 	bigint := &reflection.RunType{ID: "big", Kind: reflection.KindBigInt}
 	date := &reflection.RunType{ID: "dat", Kind: reflection.KindClass, SubKind: reflection.SubKindDate}
+	url := &reflection.RunType{ID: "url", Kind: reflection.KindClass, SubKind: reflection.SubKindUrl}
 	mapT := &reflection.RunType{ID: "mp", Kind: reflection.KindClass, SubKind: reflection.SubKindMap}
 	fn := &reflection.RunType{ID: "fn", Kind: reflection.KindFunction}
 
@@ -102,7 +103,7 @@ func noopPredicateTypes(t *testing.T) (*EmitContext, map[string]*reflection.RunT
 	setStr := &reflection.RunType{ID: "stStr", Kind: reflection.KindClass, SubKind: reflection.SubKindSet, Arguments: []*reflection.RunType{makeRef("siStr")}}
 
 	all := []*reflection.RunType{
-		str, num, undef, voidT, bigint, date, mapT, fn,
+		str, num, undef, voidT, bigint, date, url, mapT, fn,
 		propA, propBig, propDate, propFn,
 		objCompat, objBig, objDate, objFnOnly,
 		arrCompatObj, arrStr, arrDate,
@@ -143,6 +144,7 @@ func TestNoopType_PrepareVsRestore(t *testing.T) {
 		{"vd", false, false},  // both halves rebind
 		{"big", false, false}, // toString / BigInt()
 		{"dat", true, false},  // encode rides toJSON; decode rebuilds new Date(v)
+		{"url", true, false},  // encode rides toJSON (href); decode rebuilds new URL(v)
 		{"mp", false, false},
 		{"objCompat", true, true},
 		{"objBig", false, false},
@@ -192,6 +194,7 @@ func TestNoopType_PrepareJsonSafe(t *testing.T) {
 		{"ncls", false},
 		{"uAt", false},
 		{"dat", false}, // pjs eagerly emits toISOString()
+		{"url", false}, // pjs eagerly emits .href
 	}
 	for _, c := range cases {
 		t.Run(c.id, func(t *testing.T) {
@@ -428,6 +431,7 @@ func TestNoopType_CompactFromJson(t *testing.T) {
 		{"objCompat", false}, // rj says true — the delegation trap
 		{"arrCO", false},     // array of objects — positional elements
 		{"dat", false},
+		{"url", false},
 		{"und", false},
 		{"lit", true},
 	}
@@ -471,6 +475,7 @@ func TestNoopType_RestoreFromJsonClone(t *testing.T) {
 		{"objCompat", false},  // every object rebuilds, that is what strips
 		{"arrCO", false},      // array of objects — each element rebuilds
 		{"dat", false},
+		{"url", false},
 		{"und", false},
 		{"lit", true},
 	}
@@ -499,6 +504,7 @@ func TestNoopType_RemoveUnknownKeys(t *testing.T) {
 		"fn":        false, // shared or refused per sharedValues: the entry must compile to warn or throw
 		"uAt":       true,  // string | number — every member immutable
 		"dat":       false, // Date is mutable (setTime) — re-wrapped
+		"url":       false, // URL is mutable (component setters) — re-wrapped
 		"mp":        false, // Map is a mutable container — always fresh
 		"arrStr":    false, // arrays are mutable containers — fresh via slice
 		"arrDat":    false,
@@ -625,6 +631,7 @@ func TestNoopType_FormatTransform(t *testing.T) {
 		{"arrStr", true},
 		{"uTrim", true}, // MVP: unions are identity even with formatted members
 		{"dat", true},
+		{"url", true},
 		{"mp", true},
 		{"ncls", true}, // user class with a plain string prop
 		{"fn", true},

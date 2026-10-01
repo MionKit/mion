@@ -490,7 +490,7 @@ func subEnvelopeBytes(candidates int) int {
 	return 1 + len(strconv.Itoa(candidates-1)) + 1 + 1
 }
 
-// classBytes: the builtins with a fixed JSON spelling are constants; a Map is
+// classBytes: the builtins with a fixed JSON spelling are constants, a URL is its href string; a Map is
 // an array of `[key,value]` pairs and a Set an array of items, both bounded
 // only by a `maxItems` (the count key of their structural bag); a plain user
 // class is unbounded.
@@ -498,6 +498,11 @@ func (w *walker) classBytes(rt *reflection.RunType, path string, depth int) Resu
 	switch rt.SubKind {
 	case reflection.SubKindDate:
 		return bounded(dateBytes)
+	case reflection.SubKindUrl:
+		if n, ok := maxLengthParam(rt, "length", "maxLength"); ok {
+			return bounded(2 + stringUnitBytes*n)
+		}
+		return unbounded(path, "URL without maxLength")
 	case reflection.SubKindMap:
 		count, ok := maxLengthParam(rt, "length", "maxItems")
 		if !ok {

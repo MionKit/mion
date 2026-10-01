@@ -516,6 +516,11 @@ func (computer *Computer) objectID(tsType *checker.Type) string {
 		return strconv.Itoa(int(info.SubKind))
 	}
 
+	// Checked before NotDataBuiltinOf, which would otherwise take the lib.dom URL whole as non-data.
+	if IsNativeUrl(tsType) {
+		return strconv.Itoa(int(reflection.SubKindUrl))
+	}
+
 	// Built-in classes — Date / Map / Set — get their own subKind id: the numeric prefix is the SubKind
 	// (2001 / 2002 / 2003), not KindClass.
 	if symbol := tsType.Symbol(); symbol != nil {
@@ -1176,6 +1181,9 @@ func objectKind(typeChecker *checker.Checker, tsType *checker.Type) reflection.R
 	// tsgo reports builtin Temporal types (namespace-member interfaces) as object literals; we treat them as
 	// classes (atomic builtins).
 	if _, ok := TemporalInfoForType(tsType); ok {
+		return reflection.KindClass
+	}
+	if IsNativeUrl(tsType) {
 		return reflection.KindClass
 	}
 	if symbol := tsType.Symbol(); symbol != nil {

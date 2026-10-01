@@ -325,9 +325,12 @@ func containsIDKey(childID string, minCount, maxCount float64) string {
 }
 
 // isBuiltinClassMemberID is the id-side mirror of isBuiltinClassMember: a brandable builtin class is a
-// top-level Date/Map/Set/RegExp OR a namespace-qualified Temporal type.
+// top-level Date/Map/Set/RegExp, the native URL OR a namespace-qualified Temporal type.
 func (computer *Computer) isBuiltinClassMemberID(member *checker.Type) bool {
 	if _, ok := TemporalInfoForType(member); ok {
+		return true
+	}
+	if IsNativeUrl(member) {
 		return true
 	}
 	symbol := member.Symbol()

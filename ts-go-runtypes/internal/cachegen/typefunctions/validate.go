@@ -64,7 +64,7 @@ func validationSupports(rt *reflection.RunType) bool {
 		// Date is atomic, a plain class shares the interface emit, and Map / Set get their own arms.
 		// NonSerializable IS supported so the renderer emits a throw-factory for it, mirroring the reference's throwing emitIsType.
 		switch rt.SubKind {
-		case reflection.SubKindDate, reflection.SubKindNone, reflection.SubKindMap, reflection.SubKindSet,
+		case reflection.SubKindDate, reflection.SubKindUrl, reflection.SubKindNone, reflection.SubKindMap, reflection.SubKindSet,
 			reflection.SubKindNonSerializable:
 			return true
 		}
@@ -420,6 +420,10 @@ func (ValidateEmitter) emitKindDefault(rt *reflection.RunType, ctx *EmitContext,
 				Code: "(" + v + " instanceof Date && !isNaN(" + v + ".getTime()))",
 				Type: CodeE,
 			}
+		}
+		if rt.SubKind == reflection.SubKindUrl {
+			// A URL cannot be built invalid (its constructor throws), so instanceof suffices.
+			return RTCode{Code: "(" + v + " instanceof URL)", Type: CodeE}
 		}
 		if info, ok := reflection.TemporalInfoBySubKind(rt.SubKind); ok {
 			// Temporal types are always valid once constructed (`from` throws instead), so a bare instanceof suffices.

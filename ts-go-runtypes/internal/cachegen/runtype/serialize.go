@@ -794,6 +794,11 @@ func (cache *Cache) projectObjectType(tsType *checker.Type, node *reflection.Run
 		cache.projectClass(tsType, node)
 		return
 	}
+	// Before NotDataBuiltinOf below, which takes the lib.dom URL whole as non-data.
+	if typeid.IsNativeUrl(tsType) {
+		cache.projectClass(tsType, node)
+		return
+	}
 
 	if symbol := tsType.Symbol(); symbol != nil {
 		if reflection.IsPromiseSymbol(symbol.Name) {
@@ -920,6 +925,12 @@ func (cache *Cache) projectClass(tsType *checker.Type, node *reflection.RunType)
 		node.TypeName = info.Name
 		node.SubKind = info.SubKind
 		node.ClassRef = &reflection.ClassRef{Builtin: info.Builtin}
+		return
+	}
+	if typeid.IsNativeUrl(tsType) {
+		node.TypeName = typeid.NativeUrlName
+		node.SubKind = reflection.SubKindUrl
+		node.ClassRef = &reflection.ClassRef{Builtin: typeid.NativeUrlName}
 		return
 	}
 	var symbolName string

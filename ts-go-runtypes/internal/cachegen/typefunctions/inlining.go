@@ -50,7 +50,8 @@ func DefaultIsRTInlined(ctx *InlineContext) bool {
 	}
 	switch ctx.RT.Kind {
 	case reflection.KindClass:
-		if ctx.RT.SubKind == reflection.SubKindDate || reflection.IsTemporalSubKind(ctx.RT.SubKind) {
+		if ctx.RT.SubKind == reflection.SubKindDate || ctx.RT.SubKind == reflection.SubKindUrl ||
+			reflection.IsTemporalSubKind(ctx.RT.SubKind) {
 			return true
 		}
 		return ctx.RT.TypeName == ""

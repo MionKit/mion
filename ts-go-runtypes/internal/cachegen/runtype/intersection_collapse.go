@@ -398,11 +398,14 @@ func splitBuiltinClassBrand(typeChecker *checker.Checker, objectMembers []*check
 	return classMember, annotation, containsSpecs
 }
 
-// isBuiltinClassMember reports whether member is a brandable builtin class: a top-level Date/Map/Set/RegExp or
+// isBuiltinClassMember reports whether member is a brandable builtin class: a top-level Date/Map/Set/RegExp, the native URL or
 // a namespace-qualified Temporal type (`FormatTemporalX<P>` lowers to `Temporal.X & {brand}`), both of which
 // projectClass and the id computer already special-case.
 func isBuiltinClassMember(member *checker.Type) bool {
 	if _, ok := typeid.TemporalInfoForType(member); ok {
+		return true
+	}
+	if typeid.IsNativeUrl(member) {
 		return true
 	}
 	symbol := member.Symbol()

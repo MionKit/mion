@@ -27,6 +27,7 @@ var jsonDecodeFamilies = []string{"restoreFromJsonMutate", "compactFromJson", "r
 // transformCalls capture the wire variable a constructor is called on.
 var transformCalls = []*regexp.Regexp{
 	regexp.MustCompile(`new Date\((\w+)\)`),
+	regexp.MustCompile(`new URL\((\w+)\)`),
 	regexp.MustCompile(`BigInt\((\w+)\)`),
 	regexp.MustCompile(`Temporal\.\w+\.from\((\w+)\)`),
 	regexp.MustCompile(`new Map\((\w+)\)`),
@@ -106,6 +107,7 @@ func flaggedDumps() map[string]protocol.Dump {
 	dumps := map[string]protocol.Dump{
 		"big":  {RunTypes: []*reflection.RunType{{ID: "big", Kind: reflection.KindBigInt}}},
 		"dat":  {RunTypes: []*reflection.RunType{mkDate()}},
+		"url":  {RunTypes: []*reflection.RunType{{ID: "url", Kind: reflection.KindClass, SubKind: reflection.SubKindUrl}}},
 		"lbig": {RunTypes: []*reflection.RunType{{ID: "lbig", Kind: reflection.KindLiteral, Literal: "12", Flags: []string{"bigint"}}}},
 		"col":  mkIterable(reflection.SubKindSet, mkStr()),
 	}
