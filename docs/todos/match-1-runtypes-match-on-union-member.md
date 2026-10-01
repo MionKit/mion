@@ -12,14 +12,12 @@ created: 2026-09-06
 A `match()` that branches on WHICH member of a union a value is, with the member check
 generated at build time from the type. Today that decision exists only inside the JSON
 walkers and the validators; it is never a function a user can call. Exposing it gives one
-opinionated way to branch on any union anywhere in user code, and it is the foundation the
-mion client needs to replace the call result tuple with a plain union of the route's value
-and its declared errors (a separate todo).
+opinionated way to branch on any union anywhere in user code.
 
 The shape agreed on:
 
 ```ts
-match(outcome)                                       // outcome: User | NotFound | ValidationError | UndeclaredError
+match(value)                                         // value: User | NotFound | RangeError | RpcError<string>
   .when<User>(user => ...)                             // a VALUE member, by type: generated member check
   .catch<RangeError>(e => ...)                         // an ERROR member, by class: E extends Error
   .catchTyped('user-not-found', e => e.errorData.id)   // a TAGGED error, by tag: pure TS narrowing
@@ -47,9 +45,7 @@ match(outcome)                                       // outcome: User | NotFound
   `RpcError` from `@mionjs/core` included (core depends on run-types, never the reverse, so
   run-types must not name them). The runtime check is one property read. The tag alone
   narrows the subject's union (`Extract<U, {type: Tag}>`), so the payload (`errorData` for
-  an RpcError) is inferred and `E` is only spelled out on an `unknown` subject. A second
-  callback argument carries the source (`'route' | middlewareName`, or the batch slot) when
-  the same tag can come from several places.
+  an RpcError) is inferred and `E` is only spelled out on an `unknown` subject.
 - The chain returns the branch's return value, so state or JSX can come straight out of it.
 - First hit wins, exactly one branch runs, async branches pass their promise through
   untouched (all sync or all async).
@@ -64,8 +60,7 @@ type level and the proposal's runtime, not a departure from it. Reading the unio
 input also keeps the build trivial (the union is a real checker type, one marker on the
 subject) and gives exhaustiveness for free. The one thing an outside rule still adds is
 strictness a type cannot express, such as "every declared error gets its own branch rather
-than falling into `otherwise`"; that is a consumer's rule (the mion client's, in its own
-todo), not part of `match`.
+than falling into `otherwise`"; that is the consumer's own rule, not part of `match`.
 
 ## Direction
 
@@ -111,7 +106,7 @@ The implementer plans the details. Pointers verified at the time of writing:
     them must go or the order is the intent. The safe-order pass already computes the
     subset relation between union members (`SafeUnionChildren`), reuse it rather than
     writing a second overlap check.
-- An open error (`type: string`, the mion undeclared error) can never be a branch, so a
+- An open error (`type: string`) can never be a branch, so a
   chain that expects one always needs `otherwise`.
 - Docs: a new page under the runtypes site tree, plus an example file in
   `packages/private-examples/src/` so the snippet typechecks. Fuzz candidate: the generated index
