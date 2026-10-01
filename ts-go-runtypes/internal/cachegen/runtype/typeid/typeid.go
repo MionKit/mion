@@ -531,16 +531,9 @@ func (computer *Computer) objectID(tsType *checker.Type) string {
 			return strconv.Itoa(int(reflection.SubKindSet))
 		}
 	}
-	// Non-serialisable globals (Error, WeakMap, typed arrays, …) are tagged with SubKindNonSerializable and
-	// use that as their structural prefix, matching the `subKind || kind` rule. Identity is the CONSTRUCTOR
-	// NAME (plus any type arguments), never the lib member surface, in lockstep with projectClass: walking
-	// the members made the id UNSTABLE — a typed array's `subarray()` returns its own type, and whether the
-	// checker hands back the SAME pointer (cycle token) or a fresh instantiation (one more unrolled level)
-	// depends on how the type was reached, so `Uint8Array` and `typeof someUint8Array` hashed differently —
-	// and it discriminated no better (`Error` and `EvalError` are structurally identical).
-	// Matched through NotDataBuiltinOf, so a type qualifies by its own name OR by inheriting from one of the
-	// base-set families. The id keeps the TYPE's name, not the matched base's, and the `#name` suffix is what
-	// keeps two distinct `Uint8Array` subclasses apart (classRef uses the matched base's name — projectClass).
+	// Id: the `subKind || kind` prefix, the type's name and arguments, never its members; in lockstep with projectClass.
+	// Members made ids unstable: `subarray()` gives a cycle token or a fresh instantiation, by how it was reached.
+	// The type's own name, not the matched base's, keeps two `Uint8Array` subclasses apart; classRef uses the base's.
 	if _, ok := NotDataBuiltinOf(computer.typeChecker, computer.environment, tsType); ok {
 		id := strconv.Itoa(int(reflection.SubKindNonSerializable))
 		if tsType.ObjectFlags()&checker.ObjectFlagsReference != 0 {

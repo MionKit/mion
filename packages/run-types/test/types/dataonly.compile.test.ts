@@ -92,11 +92,8 @@ describe('DataOnly<T> — per-branch correctness + instantiation budget', () => 
     );
   });
 
-  // ArrayBuffer / SharedArrayBuffer / DataView + every typed array are
-  // SubKindNonSerializable in the emitter (unsupported for validate/getValidationErrors
-  // and every serializer) → DataOnly strips them to `never`. (The other platform classes
-  // Blob/File/FormData/URLSearchParams are not asserted: DataOnly projects them via the object branch, since a type
-  // cannot see where a class was declared, and they need lib.dom, which the harness omits.)
+  // Buffers, DataView and typed arrays are SubKindNonSerializable in the emitter, so DataOnly strips them to `never`.
+  // Blob/File/FormData/URLSearchParams are not asserted: DataOnly keeps their object shape, and the harness omits lib.dom.
   it('non-serialisable built-ins stripped to never (buffers + typed arrays)', () => {
     check(
       `

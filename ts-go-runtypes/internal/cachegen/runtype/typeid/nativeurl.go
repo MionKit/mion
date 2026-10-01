@@ -9,8 +9,7 @@ import (
 const NativeUrlName = "URL"
 
 // IsNativeUrl reports whether tsType is the platform `URL`: lib.dom's, @types/node's global or `node:url`'s class.
-// A `.d.ts` declares it; a consumer's `.ts` merge that adds nothing leaves it the platform's, one that adds a member makes
-// it theirs, the same rule declaredByPlatform applies to every other platform class.
+// Platform means a `.d.ts` declares it; a `.ts` merge that adds a member makes it the author's, as in declaredByPlatform.
 func IsNativeUrl(tsType *checker.Type) bool {
 	if tsType == nil {
 		return false

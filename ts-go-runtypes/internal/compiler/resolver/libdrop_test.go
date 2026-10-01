@@ -350,8 +350,7 @@ func TestDiag_PlatformClass_NotInTypesStaysData(t *testing.T) {
 	}
 }
 
-// URL is a supported native, so every family keeps it as data wherever it comes from: lib.dom, a runtime package
-// restating the global, `node:url`, and an empty merge in a `.ts` file.
+// Every family keeps URL as data from lib.dom, a runtime package's global, `node:url` and an empty `.ts` merge.
 func TestDiag_UrlFromEverySourceIsData(t *testing.T) {
 	for _, valueShape := range []bool{false, true} {
 		cases := platformCases([]string{"URL"}, valueShape)

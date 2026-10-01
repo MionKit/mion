@@ -8,9 +8,8 @@ import (
 	"github.com/microsoft/typescript-go/shim/tspath"
 )
 
-// bundledLibDir membership is the only trustworthy "this file is a standard library file" test: a basename
-// check (`lib.` + `.d.ts`) also matches a consumer's own `src/lib.d.ts`. Same rule as
-// internal/cachegen/runtype/typeid.NotDataBuiltinOf. A var, not a const, so tests can stage a lib dir.
+// bundledLibDir membership is the only sound lib-file test: a basename check also matches a consumer's `src/lib.d.ts`.
+// Same rule as typeid.NotDataBuiltinOf. A var, not a const, so tests can stage a lib dir.
 var bundledLibDir = tspath.NormalizePath(bundled.LibPath())
 
 // LibSet is the standard library a Program actually loaded, read from its source files rather than from

@@ -7,7 +7,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/testfixtures"
 )
 
-// Where a type is declared decides if it is data: a platform type stays not data unless another file adds a member to it.
+// Where a type is declared decides if it is data: a platform type stays not data unless another file adds a member.
 
 type platformIntent struct {
 	// Extra tsconfig compiler options; empty lists the staged runtime packages in `types`.
@@ -428,8 +428,8 @@ func TestPlatformDeclared_BinaryViewExtendedByRuntimePackage_Value(t *testing.T)
 	}
 }
 
-// URL is data, a supported native, from every place it is declared: lib.dom, a runtime package restating the global,
-// `node:url`'s class, and an empty merge, even one in a `.ts` file. Only a merge that adds a member makes it the author's.
+// URL is data, a supported native, from lib.dom, a runtime package's global, `node:url` and an empty `.ts` merge.
+// Only a merge that adds a member makes it the author's.
 type urlCase struct {
 	imports, siteType string
 	extra             map[string]string

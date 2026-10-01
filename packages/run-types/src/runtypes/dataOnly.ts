@@ -29,10 +29,9 @@ export interface DataOnlyNativeExtra {
   url: DataOnlyUrl;
 }
 
-/** Kept verbatim: validated by IDENTITY, with a data form on the wire (`Map` / `Set` have own branches, `RegExp`
- *  and buffers strip). Known limit, no list: other platform classes (`Blob`, `Error`, what the tsconfig `types` loads)
- *  project to their data shape though the emitter skips them, since a type cannot see where a class was declared;
- *  the D4 fuzz rule draws none. **/
+/** Kept verbatim: validated by IDENTITY, with a data form on the wire (`Map` / `Set` have own branches).
+ *  Known limit: other platform classes (`Blob`, `Error`) keep their data shape though the emitter skips them.
+ *  A type cannot see where a class was declared, so the D4 fuzz rule draws none. **/
 type DataOnlyNative = Date | DataOnlyNativeExtra[keyof DataOnlyNativeExtra];
 
 /** Kinds the AOT validator treats as NON-DATA and strips: `symbol` (runtime identity, not round-trippable),
@@ -67,12 +66,10 @@ type DataOnlyStripped =
  *  finite instantiation instead of tripping the TS2589 depth cap. **/
 type _DataOnlyDepth = [never, 0, 1, 2, 3, 4, 5, 6, 7, 8];
 
-/** The exact shape `createValidateFn<T>()` / `createGetValidationErrorsFn<T>()` validate (CLAUDE.md "validate
- *  contract"). A class not in `DataOnlyNative` / `DataOnlyStripped` projects to its data shape, right for a class the
- *  author or a library wrote, so this module names no `lib.dom` type. NO `infer` on the hot path: every
- *  arm is a bare `extends` or a homomorphic map, which keeps array / tuple structure and `readonly` / `?` for free.
- *  `Depth` bounds recursion against TS2589; past 8 levels the sub-tree is kept as is. A non-data root is `never`
- *  here but an always-throw factory in the emitter, an intended divergence. **/
+/** The exact shape `createValidateFn<T>()` validates (CLAUDE.md "validate contract").
+ *  An unlisted class keeps its data shape, right for an authored class, so this module names no `lib.dom` type.
+ *  NO `infer` on the hot path: bare `extends` and homomorphic maps keep tuples, `readonly` and `?` for free.
+ *  A non-data root is `never` here but an always-throw factory in the emitter, on purpose. **/
 export type DataOnly<T, Depth extends number = 8> = Depth extends 0
   ? T // budget exhausted — keep the remaining sub-tree as-is (best effort)
   : unknown extends T
