@@ -202,6 +202,22 @@ describe('a client built with bundleApi: true', () => {
     }
   });
 
+  it('gives a middleware with no params its answer from the bundled chain, with no onRequest hook', async () => {
+    const {routes, middlewares} = initClient<TestServerApi>({baseURL});
+    const watch = watchFetch();
+    try {
+      useAuth(middlewares);
+      const [items, error, fatal, middlewareResults] = await routes.paramless.list(2).call();
+      expect(fatal).toBeUndefined();
+      expect(error).toBeUndefined();
+      expect(items).toEqual([20, 21]);
+      expect(middlewareResults?.['paramless/pageInfo']).toEqual({page: 2, total: 100});
+      expect(watch.askedForMetadata()).toBe(false);
+    } finally {
+      watch.restore();
+    }
+  });
+
   it('sends a query route as GET, the bundled options say so', async () => {
     const {routes, middlewares} = initClient<TestServerApi>({baseURL});
     useAuth(middlewares);

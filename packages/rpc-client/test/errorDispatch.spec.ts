@@ -227,6 +227,22 @@ describe('client error dispatch contract', () => {
       expect(listenerError?.type).toBe('session-expired');
     });
 
+    it('T24 (R3): a middleware with no params needs no onRequest; its declared error still reaches its slot and listener', async () => {
+      const {routes, middlewares} = initClient<MyApi>({baseURL});
+      let listenerError: any;
+      useAuth(middlewares);
+      middlewares.paramless.pageInfo.onError('page-out-of-range', (error) => (listenerError = error));
+
+      const [result, routeError, fatal, , middlewareErrors] = await routes.paramless.list(12).call();
+
+      // a plain RpcError from a middleware after the route keeps the route's answer
+      expect(result).toEqual([120, 121]);
+      expect(routeError).toBeUndefined();
+      expect(fatal).toBeUndefined();
+      expect(middlewareErrors?.['paramless/pageInfo']?.type).toBe('page-out-of-range');
+      expect(listenerError?.type).toBe('page-out-of-range');
+    });
+
     it('T15 (R4): transport failures never fire listeners, even ones registered for that code', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       let listenerFired = false;
@@ -301,6 +317,21 @@ describe('client error dispatch contract', () => {
       expect(middlewareErrors?.auth?.type).toBe('not-authorized');
       expect(listenerError?.type).toBe('not-authorized');
       expect(isRpcError(middlewareErrors?.auth)).toBe(true);
+    });
+
+    it('T25 (R3): a FatalError from a gate with no params, and no onRequest, reaches its typed slot and listener', async () => {
+      const {routes, middlewares} = initClient<MyApi>({baseURL, fetchOptions: {headers: {'x-gate': 'closed'}}});
+      let listenerError: any;
+      useAuth(middlewares);
+      middlewares.paramless.gate.onError('gate-closed', (error) => (listenerError = error));
+
+      const [result, routeError, fatal, , middlewareErrors] = await routes.paramless.list(1).call();
+
+      expect(result).toBeUndefined();
+      expect(routeError).toBeUndefined();
+      expect(fatal).toBeUndefined();
+      expect(middlewareErrors?.['paramless/gate']?.type).toBe('gate-closed');
+      expect(listenerError?.type).toBe('gate-closed');
     });
 
     it('T20: a FatalError answered under a declared RpcError decodes by the declared type', async () => {

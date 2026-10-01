@@ -6,14 +6,13 @@
  * ######## */
 
 import {describe, it, expect, expectTypeOf, vi, afterEach} from 'vitest';
-import {HeadersSubset, RpcError, routesCache} from '@mionjs/core';
+import {HeadersSubset, RpcError} from '@mionjs/core';
 import type {TestServerApi} from '@mionjs/test-server';
 import {initClient} from './lib/fetchingClient.ts';
 import {batch} from '../src/batch.ts';
-import {purgeHydratedMetadata} from '../src/lib/clientMethodsMetadata.ts';
-import {getMetadataStore} from '../src/lib/metadataStore.ts';
-import type {CallContext, ClientOptions} from '../src/types.ts';
+import type {CallContext} from '../src/types.ts';
 import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
+import {forgetMetadata} from './lib/testUtils.ts';
 
 const baseURL = TEST_SERVER_BASE_URL;
 const user = {name: 'John', surname: 'Doe'};
@@ -30,18 +29,6 @@ async function spyOnFetch(run: () => Promise<void>): Promise<{init: RequestInit;
   } finally {
     fetchSpy.mockRestore();
   }
-}
-
-/** Drops what the client learned about these methods, so the next call is an optimistic first call */
-async function forgetMetadata(...ids: string[]): Promise<void> {
-  const cache = routesCache.getCache();
-  ids.forEach((id) => delete cache[id]);
-  await purgeHydratedMetadata(ids, {baseURL} as ClientOptions);
-  const store = await getMetadataStore();
-  await store.remove(
-    baseURL,
-    ids.map((id) => ['m', id] as ['m', string])
-  );
 }
 
 describe('middleware onRequest', () => {
@@ -277,7 +264,7 @@ describe('middleware onRequest', () => {
     const {routes, middlewares} = newClient();
     middlewares.auth.onRequest((auth) => auth(authHeaders));
     middlewares.utils.scopeTag.onRequest((scopeTag) => scopeTag('tagged'));
-    await forgetMetadata('utils/sumTwo');
+    await forgetMetadata(baseURL, 'utils/sumTwo');
 
     const calls = await spyOnFetch(async () => {
       const [sum, error, undeclared, middlewareResults] = await routes.utils.sumTwo(5).call();
@@ -289,6 +276,72 @@ describe('middleware onRequest', () => {
     expect(calls).toHaveLength(1);
     expect(calls[0].body['utils/scopeTag']).toEqual(['tagged']);
     expect((calls[0].init.headers as Record<string, string>).Authorization).toBe('XWYZ-TOKEN');
+  });
+
+  describe('a middleware with no params needs no onRequest', () => {
+    it('its answer reaches the tuple and onResponse', async () => {
+      const {routes, middlewares} = newClient();
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
+      const pageInfos: {page: number; total: number}[] = [];
+      middlewares.paramless.pageInfo.onResponse((info) => {
+        pageInfos.push(info);
+      });
+
+      const [items, error, undeclared, middlewareResults] = await routes.paramless.list(2).call();
+
+      expect(error).toBeUndefined();
+      expect(undeclared).toBeUndefined();
+      expect(items).toEqual([20, 21]);
+      expect(middlewareResults?.['paramless/pageInfo']).toEqual({page: 2, total: 100});
+      expect(pageInfos).toEqual([{page: 2, total: 100}]);
+    });
+
+    it('works on an optimistic first call, before the client has the route metadata', async () => {
+      await forgetMetadata(baseURL, 'paramless/list', 'paramless/pageInfo', 'paramless/gate');
+      const {routes, middlewares} = newClient();
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
+
+      const [items, , undeclared, middlewareResults] = await routes.paramless.list(3).call();
+
+      expect(undeclared).toBeUndefined();
+      expect(items).toEqual([30, 31]);
+      expect(middlewareResults?.['paramless/pageInfo']).toEqual({page: 3, total: 100});
+    });
+
+    it('never writes the middleware into the request body', async () => {
+      const {routes, middlewares} = newClient();
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
+      await routes.paramless.list(1).call();
+
+      const calls = await spyOnFetch(async () => {
+        await routes.paramless.list(4).call();
+      });
+
+      expect(calls).toHaveLength(1);
+      expect(Object.keys(calls[0].body)).toEqual(['paramless/list']);
+    });
+
+    it('answers in a batch', async () => {
+      // inline: the build reads a batch's routes only from the proxy initClient returns in this file
+      const {client, routes, middlewares} = initClient<TestServerApi>({baseURL});
+      destroy = () => client.destroy();
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
+      let answers = 0;
+      middlewares.paramless.pageInfo.onResponse(() => {
+        answers++;
+      });
+
+      const [[greeting, items], , undeclared, middlewareResults] = await batch([
+        routes.sayHello(user),
+        routes.paramless.list(5),
+      ]).call();
+
+      expect(undeclared).toBeUndefined();
+      expect(greeting).toBe('Hello John Doe');
+      expect(items).toEqual([50, 51]);
+      expect(middlewareResults?.['paramless/pageInfo']).toEqual({page: 5, total: 100});
+      expect(answers).toBe(1);
+    });
   });
 
   it('types: call takes the middleware params and returns void, and the middleware is hooks only', () => {

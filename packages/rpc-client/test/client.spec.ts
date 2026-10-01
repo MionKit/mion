@@ -8,13 +8,12 @@
 import {describe, it, expect, beforeEach, vi} from 'vitest';
 import {initClient} from './lib/fetchingClient.ts';
 import {isMiddlewareInScope} from '../src/dispatch.ts';
-import type {ClientOptions, RouteSubRequest} from '../src/types.ts';
-import {purgeHydratedMetadata} from '../src/lib/clientMethodsMetadata.ts';
-import {getMetadataStore} from '../src/lib/metadataStore.ts';
-import {isRpcError, HeadersSubset, routesCache, resetRoutesCache} from '@mionjs/core';
+import type {RouteSubRequest} from '../src/types.ts';
+import {isRpcError, HeadersSubset, resetRoutesCache} from '@mionjs/core';
 import {resetJitFunctionsCache} from '@mionjs/core/testing';
 import type {TestServerApi} from '@mionjs/test-server';
 import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
+import {forgetMetadata} from './lib/testUtils.ts';
 
 // Helper to create auth headers for the test server's headersFn
 function createAuthHeaders(token: string): HeadersSubset<'Authorization'> {
@@ -899,21 +898,6 @@ describe('client', () => {
       expect(isRpcError(fatal2)).toBe(true);
     });
 
-    /** The metadata cache is shared by every client in the process; forgetting the ids under test
-     * makes the next call a route's FIRST call again, whatever ran before */
-    /** A client that has never seen these methods: forgotten in memory AND in the store, so the call
-     *  really does have to guess the wire. */
-    async function forgetMetadata(...ids: string[]): Promise<void> {
-      const cache = routesCache.getCache();
-      ids.forEach((id) => delete cache[id]);
-      await purgeHydratedMetadata(ids, {baseURL} as ClientOptions);
-      const store = await getMetadataStore();
-      await store.remove(
-        baseURL,
-        ids.map((id) => ['m', id] as ['m', string])
-      );
-    }
-
     async function spyOnFetch(run: () => Promise<void>): Promise<{init: RequestInit; body: any}[]> {
       const fetchSpy = vi.spyOn(globalThis, 'fetch');
       try {
@@ -932,7 +916,7 @@ describe('client', () => {
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
       middlewares.auth.onRequest((auth) => auth(authHeaders));
       // a scalar param, the simplest case of the optimistic path
-      await forgetMetadata('calculateAge');
+      await forgetMetadata(baseURL, 'calculateAge');
 
       const calls = await spyOnFetch(async () => {
         const [age, error] = await routes.calculateAge(1990).call();
@@ -957,7 +941,7 @@ describe('client', () => {
         await Promise.resolve();
         auth(authHeaders);
       });
-      await forgetMetadata('sayHello', 'auth');
+      await forgetMetadata(baseURL, 'sayHello', 'auth');
 
       const calls = await spyOnFetch(async () => {
         const [greeting, error] = await routes.sayHello(someUser).call();
@@ -976,7 +960,7 @@ describe('client', () => {
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
       middlewares.auth.onRequest((auth) => auth(authHeaders));
       middlewares.session.onRequest((session) => session('valid-token'));
-      await forgetMetadata('sayHello');
+      await forgetMetadata(baseURL, 'sayHello');
 
       const calls = await spyOnFetch(async () => {
         const [greeting, error, fatal, middlewareResults] = await routes.sayHello(someUser).call();
@@ -995,7 +979,7 @@ describe('client', () => {
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
       middlewares.auth.onRequest((auth) => auth(authHeaders));
       middlewares.utils.scopeTag.onRequest((scopeTag) => scopeTag('tagged'));
-      await forgetMetadata('sayHello', 'utils/sumTwo');
+      await forgetMetadata(baseURL, 'sayHello', 'utils/sumTwo');
 
       // a top-level route: the utils-scoped middleware is not in its group, so it is never sent
       const topLevelCalls = await spyOnFetch(async () => {

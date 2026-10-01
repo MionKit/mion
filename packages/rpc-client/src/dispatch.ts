@@ -258,14 +258,10 @@ function setUndeclaredError(context: ClientCallContext, id: string, error: RpcEr
 
 /** A middleware with no params gets no onRequest call, yet its answer and declared errors are the caller's */
 function addParamlessMiddlewares(context: ClientCallContext): void {
-  const routeIds = new Set(getRouteIds(context));
-  for (const routeId of routeIds) {
-    for (const id of getMethod(routeId)?.middlewareIds ?? []) {
-      if (!id || routeIds.has(id) || context.subRequestList[id]) continue;
-      const method = getMethod(id);
-      if (!method || method.paramsCount || method.headersParam || !method.hasReturnData) continue;
-      addSubRequest(context, {pointer: id.split(ROUTER_ITEM_SEPARATOR_CHAR), id, isResolved: false, params: []});
-    }
+  for (const id of getChainMiddlewareIds(context)) {
+    const method = getMethod(id);
+    if (context.subRequestList[id] || !method || method.paramsCount || method.headersParam || !method.hasReturnData) continue;
+    addSubRequest(context, {pointer: method.pointer, id, isResolved: false, params: []});
   }
 }
 
@@ -374,21 +370,24 @@ function isQueryRoute(context: ClientCallContext): boolean {
 // ############# ON REQUEST HOOKS #############
 
 /** The middlewares the cached metadata lists in the route's chain (standard flow) */
-function getChainMiddlewareIds(context: ClientCallContext, errors: RequestErrors): string[] {
+function getChainMiddlewareIds(context: ClientCallContext, errors?: RequestErrors): string[] {
   const routeIds = new Set(getRouteIds(context));
   const chainIds = new Set<string>();
   for (const routeId of routeIds) {
     const methodMeta = getMethod(routeId);
     if (!methodMeta) {
-      setUndeclaredError(
-        context,
-        routeId,
-        new RpcError({
-          type: 'route-metadata-not-found',
-          publicMessage: `Metadata for Route '${routeId}' not found.`,
-        }),
-        errors
-      );
+      // without errors (after the answer) a missing row only means no chain to read
+      if (errors) {
+        setUndeclaredError(
+          context,
+          routeId,
+          new RpcError({
+            type: 'route-metadata-not-found',
+            publicMessage: `Metadata for Route '${routeId}' not found.`,
+          }),
+          errors
+        );
+      }
       continue;
     }
     methodMeta.middlewareIds?.forEach((id) => !!id && !routeIds.has(id) && chainIds.add(id));

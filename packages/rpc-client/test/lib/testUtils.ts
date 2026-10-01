@@ -8,7 +8,9 @@
 import {routesCache} from '@mionjs/core';
 import type {MethodWithOptions} from '@mionjs/core';
 import {resetJitFnCaches, resetJitFunctionsCache} from '@mionjs/core/testing';
-import {resetMetadataCacheState} from '../../src/lib/clientMethodsMetadata.ts';
+import {purgeHydratedMetadata, resetMetadataCacheState} from '../../src/lib/clientMethodsMetadata.ts';
+import {getMetadataStore} from '../../src/lib/metadataStore.ts';
+import type {ClientOptions} from '../../src/types.ts';
 
 /** Resets all client caches. Only for testing — simulates app restart.
  *  Leaves the stored cache alone: a page reload keeps it, which is the point of it. */
@@ -18,6 +20,18 @@ export function resetClientCaches() {
   resetJitFnCaches();
   resetJitFunctionsCache();
   resetMetadataCacheState();
+}
+
+/** Forgets these methods in memory AND in the store, so the next call is their optimistic first call */
+export async function forgetMetadata(baseURL: string, ...ids: string[]): Promise<void> {
+  const cache = routesCache.getCache();
+  ids.forEach((id) => delete cache[id]);
+  await purgeHydratedMetadata(ids, {baseURL} as ClientOptions);
+  const store = await getMetadataStore();
+  await store.remove(
+    baseURL,
+    ids.map((id) => ['m', id] as ['m', string])
+  );
 }
 
 /** A metadata row with only the fields the client reads. */
