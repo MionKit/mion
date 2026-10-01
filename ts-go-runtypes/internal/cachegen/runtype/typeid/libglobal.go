@@ -36,9 +36,16 @@ func platformDeclaredGlobalOf(typeChecker *checker.Checker, environment Environm
 
 // declaredByPlatform: some declaration is the platform's and no other adds a member or extends; an empty merge stays so.
 func declaredByPlatform(typeChecker *checker.Checker, environment Environment, tsType *checker.Type, symbol *ast.Symbol) bool {
+	return declaredBy(typeChecker, tsType, symbol, func(declaration *ast.Node) bool {
+		return isPlatformDeclaration(declaration, environment)
+	})
+}
+
+// declaredBy is declaredByPlatform for any notion of the platform's declarations (IsNativeUrl passes `.d.ts` files).
+func declaredBy(typeChecker *checker.Checker, tsType *checker.Type, symbol *ast.Symbol, isPlatform func(*ast.Node) bool) bool {
 	hasPlatform, hasAuthored := false, false
 	for _, declaration := range symbol.Declarations {
-		if isPlatformDeclaration(declaration, environment) {
+		if isPlatform(declaration) {
 			hasPlatform = true
 		} else {
 			hasAuthored = true
@@ -47,9 +54,9 @@ func declaredByPlatform(typeChecker *checker.Checker, environment Environment, t
 	if !hasPlatform || !hasAuthored {
 		return hasPlatform
 	}
-	platformMembers := platformMemberNames(typeChecker, environment, tsType, symbol)
+	platformMembers := platformMemberNames(typeChecker, tsType, symbol, isPlatform)
 	for _, declaration := range symbol.Declarations {
-		if !isPlatformDeclaration(declaration, environment) && addsMembers(declaration, platformMembers) {
+		if !isPlatform(declaration) && addsMembers(declaration, platformMembers) {
 			return false
 		}
 	}
@@ -86,10 +93,10 @@ func insideGlobalAugmentation(declaration *ast.Node) bool {
 
 // platformMemberNames is every member name the platform declarations give the type, own and inherited.
 // Authored heritage is refused by addsMembers first, so the base types here are the platform's.
-func platformMemberNames(typeChecker *checker.Checker, environment Environment, tsType *checker.Type, symbol *ast.Symbol) map[string]bool {
+func platformMemberNames(typeChecker *checker.Checker, tsType *checker.Type, symbol *ast.Symbol, isPlatform func(*ast.Node) bool) map[string]bool {
 	names := map[string]bool{}
 	for _, declaration := range symbol.Declarations {
-		if !isPlatformDeclaration(declaration, environment) {
+		if !isPlatform(declaration) {
 			continue
 		}
 		for _, member := range shapeMembers(declaration) {

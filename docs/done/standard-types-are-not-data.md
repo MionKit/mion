@@ -140,5 +140,10 @@ is not data; check no other platform type still hits it.
   `@types/node`).
 - A typed array a runtime package restates with no new member now keeps its own lib name as `classRef` instead of the
   `Uint8Array` stand-in; one that adds a member still gets the stand-in.
+- `URL` became a supported native on `main` while this was in review (`typeid.IsNativeUrl`, recognised before
+  `NotDataBuiltinOf`), so the `URL` rows in the tables above now read as data, not as not data. It comes from any `.d.ts`
+  (lib.dom, the `@types/node` global, `node:url`'s class) and shares the merge rule (`declaredBy`): an empty merge, even
+  in a `.ts` file, keeps it the native, and only a merge that adds a member makes it the author's. Pinned by the `Url*`
+  pairs in `platform_declared_test.go` and `TestDiag_UrlFromEverySourceIsData`; the platform examples moved to `Headers`.
 - The rule and the `DataOnly<T>` limit are written in `libglobal.go`, `ts-go-runtypes/CLAUDE.md`, `dataOnly.ts` and the
   runtypes validation page.

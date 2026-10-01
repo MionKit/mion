@@ -76,10 +76,10 @@ func assertPlatformNode(t *testing.T, intent platformIntent, node *reflection.Ru
 func globals(content string) map[string]string { return map[string]string{"globals.d.ts": content} }
 
 var (
-	emptyMerge      = platformIntent{spelled: "URL", extra: globals("interface URL {}\n"), notData: true, builtin: "URL"}
-	restatedMembers = platformIntent{spelled: "URL", extra: globals("interface URL {href: string}\n"), notData: true, builtin: "URL"}
-	varOnly         = platformIntent{spelled: "URL", extra: globals("declare var URL: {new (url: string): URL};\n"), notData: true, builtin: "URL"}
-	packageRestates = platformIntent{spelled: "URL", notData: true, builtin: "URL"}
+	emptyMerge      = platformIntent{spelled: "Headers", extra: globals("interface Headers {}\n"), notData: true, builtin: "Headers"}
+	restatedMembers = platformIntent{spelled: "Headers", extra: globals("interface Headers {get(name: string): string | null}\n"), notData: true, builtin: "Headers"}
+	varOnly         = platformIntent{spelled: "Headers", extra: globals("declare var Headers: {new (): Headers};\n"), notData: true, builtin: "Headers"}
+	packageRestates = platformIntent{spelled: "Headers", notData: true, builtin: "Headers"}
 	ambientModule   = platformIntent{spelled: "EventEmitter", imports: "import {EventEmitter} from 'events';\n", notData: true, builtin: "EventEmitter"}
 	globalNamespace = platformIntent{spelled: "NodeJS.Timeout", notData: true, builtin: "Timeout"}
 	declareGlobal   = platformIntent{spelled: "RuntimeHandle", notData: true, builtin: "RuntimeHandle"}
@@ -89,11 +89,11 @@ var (
 		extra: globals("interface AbortSignal {dispatchEvent(event: Event): boolean}\n"),
 	}
 	// A second declaration of an existing method name counts as a restatement, whatever its parameters.
-	addedOverload = platformIntent{spelled: "URL", extra: globals("interface URL {toString(radix: number): string}\n"), notData: true, builtin: "URL"}
+	addedOverload = platformIntent{spelled: "Headers", extra: globals("interface Headers {get(name: string, fallback: string): string}\n"), notData: true, builtin: "Headers"}
 
-	addedMember      = platformIntent{spelled: "URL", extra: globals("interface URL {mine: string}\n")}
-	addedCallSig     = platformIntent{spelled: "URL", extra: globals("interface URL {(): void}\n")}
-	interfaceExtends = platformIntent{spelled: "URL", extra: globals("interface Base {a: string}\ninterface URL extends Base {}\n")}
+	addedMember      = platformIntent{spelled: "Headers", extra: globals("interface Headers {mine: string}\n")}
+	addedCallSig     = platformIntent{spelled: "Headers", extra: globals("interface Headers {(): void}\n")}
+	interfaceExtends = platformIntent{spelled: "Headers", extra: globals("interface Base {a: string}\ninterface Headers extends Base {}\n")}
 	classExtends     = platformIntent{spelled: "RuntimeHandle", extra: globals("declare class Base {a: string}\ndeclare class RuntimeHandle extends Base {}\n")}
 	userOnlyShape    = platformIntent{spelled: "Widget", extra: globals("interface Widget {id: string}\ndeclare var Widget: {new (): Widget};\n")}
 	userOnlyClass    = platformIntent{spelled: "Emitter", extra: globals("declare class Emitter {on(): void}\n")}
@@ -105,7 +105,7 @@ var (
 	notInTypes      = platformIntent{spelled: "RuntimeHandle", options: `"types":[]`}
 	namespaceNotIn  = platformIntent{spelled: "NodeJS.Timeout", options: `"types":[]`}
 	noTypesList     = platformIntent{spelled: "RuntimeHandle", options: `"noEmit":true`}
-	libWithoutTypes = platformIntent{spelled: "URL", options: `"noEmit":true`, extra: globals("interface URL {}\n"), notData: true, builtin: "URL"}
+	libWithoutTypes = platformIntent{spelled: "Headers", options: `"noEmit":true`, extra: globals("interface Headers {}\n"), notData: true, builtin: "Headers"}
 	ambientLibrary  = platformIntent{
 		spelled: "AmbientDto", imports: "import {AmbientDto} from 'ambient-lib';\n",
 		extra: map[string]string{"node_modules/ambient-lib/index.d.ts": ambientLibraryDTS},
@@ -425,5 +425,97 @@ func TestPlatformDeclared_BinaryViewExtendedByRuntimePackage_Static(t *testing.T
 func TestPlatformDeclared_BinaryViewExtendedByRuntimePackage_Value(t *testing.T) {
 	if got := binaryViewBuiltin(t, "interface Float32Array {extra(): void}\n", true); got != "Uint8Array" {
 		t.Errorf("builtin = %q, want Uint8Array standing in for a view the lib alone does not declare", got)
+	}
+}
+
+// URL is data, a supported native, from every place it is declared: lib.dom, a runtime package restating the global,
+// `node:url`'s class, and an empty merge, even one in a `.ts` file. Only a merge that adds a member makes it the author's.
+type urlCase struct {
+	imports, siteType string
+	extra             map[string]string
+	native            bool
+}
+
+var (
+	urlFromLib         = urlCase{siteType: "URL", extra: map[string]string{}, native: true}
+	urlRestatedByNode  = urlCase{siteType: "URL", native: true}
+	urlFromNodeModule  = urlCase{imports: "import {URL as NodeURL} from 'node:url';\n", siteType: "NodeURL", native: true}
+	urlEmptyMergeInTs  = urlCase{siteType: "URL", extra: map[string]string{"augment.ts": "export {};\ndeclare global {\n  interface URL {}\n}\n"}, native: true}
+	urlAddedMemberInTs = urlCase{siteType: "URL", extra: map[string]string{"augment.ts": "export {};\ndeclare global {\n  interface URL {mine: string}\n}\n"}}
+	urlEmptyMergeInDts = urlCase{siteType: "URL", extra: globals("interface URL {}\n"), native: true}
+)
+
+func (urlTest urlCase) check(t *testing.T, valueShape bool, property bool) {
+	t.Helper()
+	intent := platformIntent{spelled: urlTest.siteType, imports: urlTest.imports, extra: urlTest.extra}
+	if urlTest.extra != nil && len(urlTest.extra) == 0 {
+		intent.options = `"types":[]`
+	}
+	siteType := urlTest.siteType
+	if property {
+		siteType = "{id: number; field: " + siteType + "}"
+	}
+	root, nodes := dumpUnderLib(t, "esnext,dom", intent.tsconfigOptions(), intent.source(valueShape, siteType), intent.files())
+	node := root
+	if property {
+		if node = fieldOf(root, nodes); node == nil {
+			t.Fatalf("%s: no `field` property", urlTest.siteType)
+		}
+	}
+	if isNative := node.SubKind == reflection.SubKindUrl; isNative != urlTest.native {
+		t.Fatalf("%s: native URL = %v, want %v (subKind %d)", urlTest.siteType, isNative, urlTest.native, node.SubKind)
+	}
+	if node.SubKind == reflection.SubKindNonSerializable {
+		t.Fatalf("%s: URL must never be taken whole as not data", urlTest.siteType)
+	}
+}
+
+func TestPlatformDeclared_UrlFromLib_Static(t *testing.T) { urlFromLib.check(t, false, false) }
+func TestPlatformDeclared_UrlFromLib_Value(t *testing.T)  { urlFromLib.check(t, true, false) }
+
+func TestPlatformDeclared_UrlRestatedByRuntimePackage_Static(t *testing.T) {
+	urlRestatedByNode.check(t, false, false)
+}
+func TestPlatformDeclared_UrlRestatedByRuntimePackage_Value(t *testing.T) {
+	urlRestatedByNode.check(t, true, false)
+}
+
+func TestPlatformDeclared_UrlFromNodeModule_Static(t *testing.T) {
+	urlFromNodeModule.check(t, false, false)
+}
+func TestPlatformDeclared_UrlFromNodeModule_Value(t *testing.T) {
+	urlFromNodeModule.check(t, true, false)
+}
+
+func TestPlatformDeclared_UrlEmptyMergeInTs_Static(t *testing.T) {
+	urlEmptyMergeInTs.check(t, false, false)
+}
+func TestPlatformDeclared_UrlEmptyMergeInTs_Value(t *testing.T) {
+	urlEmptyMergeInTs.check(t, true, false)
+}
+
+func TestPlatformDeclared_UrlEmptyMergeInDts_Static(t *testing.T) {
+	urlEmptyMergeInDts.check(t, false, false)
+}
+func TestPlatformDeclared_UrlEmptyMergeInDts_Value(t *testing.T) {
+	urlEmptyMergeInDts.check(t, true, false)
+}
+
+func TestPlatformDeclared_UrlAddedMemberIsTheAuthors_Static(t *testing.T) {
+	urlAddedMemberInTs.check(t, false, false)
+}
+func TestPlatformDeclared_UrlAddedMemberIsTheAuthors_Value(t *testing.T) {
+	urlAddedMemberInTs.check(t, true, false)
+}
+
+func TestPlatformDeclared_UrlOneLevelDeeper_Static(t *testing.T) {
+	for _, urlTest := range []urlCase{urlFromLib, urlRestatedByNode, urlFromNodeModule, urlEmptyMergeInTs, urlAddedMemberInTs} {
+		urlTest.check(t, false, true)
+	}
+}
+
+func TestPlatformDeclared_UrlOneLevelDeeper_Value(t *testing.T) {
+	for _, urlTest := range []urlCase{urlFromLib, urlRestatedByNode, urlFromNodeModule, urlEmptyMergeInTs, urlAddedMemberInTs} {
+		urlTest.check(t, true, true)
 	}
 }

@@ -9,8 +9,8 @@ import (
 const NativeUrlName = "URL"
 
 // IsNativeUrl reports whether tsType is the platform `URL`: lib.dom's, @types/node's global or `node:url`'s class.
-// @types/node's sits outside the bundled lib, so LibDeclaredGlobalOf never sees it.
-// Every declaration must be in a .d.ts, so a consumer's own `class URL` or .ts `declare global` stays theirs.
+// A `.d.ts` declares it; a consumer's `.ts` merge that adds nothing leaves it the platform's, one that adds a member makes
+// it theirs, the same rule declaredByPlatform applies to every other platform class.
 func IsNativeUrl(tsType *checker.Type) bool {
 	if tsType == nil {
 		return false
@@ -22,11 +22,8 @@ func IsNativeUrl(tsType *checker.Type) bool {
 	if symbol.Flags&(ast.SymbolFlagsInterface|ast.SymbolFlagsClass) == 0 {
 		return false
 	}
-	for _, declaration := range symbol.Declarations {
+	return declaredBy(nil, tsType, symbol, func(declaration *ast.Node) bool {
 		sourceFile := ast.GetSourceFileOfNode(declaration)
-		if sourceFile == nil || !sourceFile.IsDeclarationFile {
-			return false
-		}
-	}
-	return true
+		return sourceFile != nil && sourceFile.IsDeclarationFile
+	})
 }
