@@ -295,7 +295,7 @@ func (sess *Session) unsetMiddlewareDiags(order []string, uses map[string]middle
 		if use.method.FetchMetadata {
 			continue
 		}
-		// nothing to send: the client picks up its answer without any setup
+		// nothing to send: the client gets its answer with no setup
 		if !use.method.TakesParams {
 			continue
 		}
