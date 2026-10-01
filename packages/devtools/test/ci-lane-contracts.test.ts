@@ -197,6 +197,60 @@ describe('the lane table', () => {
     expect(decide(['js'], {hashes, greenKeys: [greenKey('js-pr', 'def')], pr: true}).js.run).toBe(true);
   });
 
+  // A docs-only pull request merged onto an unproven main must not re-run the code lanes.
+  it('skips a lane whose inputs equal the pull request base, items included, and runs the rest', () => {
+    const hashes = {js: 'new', go: 'same', drizzle: 'same', 'drizzle.pg': 'same-pg', 'drizzle.mysql': 'new-mysql'};
+    const baseHashes = {js: 'old', go: 'same', drizzle: 'same', 'drizzle.pg': 'same-pg', 'drizzle.mysql': 'old-mysql'};
+    const lanes = decide(['js', 'go'], {hashes, baseHashes, pr: true});
+    expect(lanes.js.run).toBe(true);
+    expect(lanes.go.run).toBe(false);
+    expect(decide(['go'], {hashes}).go.run).toBe(true);
+    const drizzle = decide(['drizzle'], {hashes: {...hashes, drizzle: 'changed'}, baseHashes, pr: true}).drizzle;
+    expect(drizzle.items.pg.run).toBe(false);
+    expect(drizzle.items.mysql.run).toBe(true);
+    expect(decide(['drizzle'], {hashes, baseHashes, pr: true}).drizzle.runItems).toEqual([]);
+  });
+
+  it('hashes a docs-only change identically to its base for every lane, and a source change differently', () => {
+    const repo = mkdtempSync(path.join(os.tmpdir(), 'lanes-base-'));
+    const git = (...args: string[]) =>
+      spawnSync('git', ['-c', 'user.email=a@b.c', '-c', 'user.name=t', ...args], {cwd: repo, encoding: 'utf8'});
+    try {
+      git('init', '-q');
+      mkdirSync(path.join(repo, 'docs/todos'), {recursive: true});
+      mkdirSync(path.join(repo, 'packages/x'), {recursive: true});
+      writeFileSync(path.join(repo, 'docs/todos/a.md'), 'a');
+      writeFileSync(path.join(repo, 'packages/x/a.ts'), 'a');
+      git('add', '.');
+      git('commit', '-qm', 'base');
+      writeFileSync(path.join(repo, 'docs/todos/a.md'), 'b');
+      writeFileSync(path.join(repo, 'CLAUDE.md'), 'b');
+      git('add', '.');
+      git('commit', '-qm', 'docs');
+      writeFileSync(path.join(repo, 'packages/x/a.ts'), 'b');
+      git('add', '.');
+      git('commit', '-qm', 'src');
+      const base = laneHashes('HEAD~2', {cwd: repo}).hashes;
+      expect(laneHashes('HEAD~1', {cwd: repo}).hashes).toEqual(base);
+      const changed = laneHashes('HEAD', {cwd: repo}).hashes;
+      expect(changed.js).not.toBe(base.js);
+      expect(changed.go).toBe(base.go);
+    } finally {
+      rmSync(repo, {recursive: true, force: true});
+    }
+  });
+
+  it('ci-lanes passes --base HEAD^1 only on a pull_request, and every gate job checks out two commits', () => {
+    const action = read('.github/actions/ci-lanes/action.yml');
+    expect(action).toContain(`BASE_FLAG="\${{ github.event_name == 'pull_request' && '--base HEAD^1' || '' }}"`);
+    expect(action).toContain('--github $PR_FLAG $BASE_FLAG');
+    for (const file of Object.keys(WORKFLOWS)) {
+      expect(read(`.github/workflows/${file}`), file).toMatch(
+        /- uses: actions\/checkout@v5\n\s+with:\n\s+fetch-depth: 2\n\s+- id: decide/
+      );
+    }
+  });
+
   it('ci-lanes passes --pr only on a pull_request event', () => {
     const action = read('.github/actions/ci-lanes/action.yml');
     expect(action).toContain(`PR_FLAG="\${{ github.event_name == 'pull_request' && '--pr' || '' }}"`);
