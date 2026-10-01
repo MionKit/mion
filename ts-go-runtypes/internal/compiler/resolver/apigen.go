@@ -295,6 +295,10 @@ func (sess *Session) unsetMiddlewareDiags(order []string, uses map[string]middle
 		if use.method.FetchMetadata {
 			continue
 		}
+		// nothing to send: the client picks up its answer without any setup
+		if !use.method.TakesParams {
+			continue
+		}
 		code := diagnostics.CodeApiMetaOptionalMiddlewareNotSetUp
 		if use.method.NeedsParams {
 			code = diagnostics.CodeApiMetaMiddlewareNotSetUp

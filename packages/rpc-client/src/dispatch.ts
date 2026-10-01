@@ -206,6 +206,7 @@ async function makeCall(state: DispatchState, skipOptimistic?: boolean): Promise
     // without the metadata middleware the client cannot check routes one by one, so the whole API is reported
     if (noteServerApiVersion(options.baseURL, response.headers.get(BUILD_VERSION_HEADER)) && !metadata)
       reportApiVersionMismatch(options.baseURL);
+    addParamlessMiddlewares(context);
     resolveSubRequests(context, deserialized, errors);
     if (errors.size) return Promise.reject(errors);
     return deserialized;
@@ -253,6 +254,19 @@ function handlePlatformError(context: ClientCallContext, deserialized: ResponseB
 function setUndeclaredError(context: ClientCallContext, id: string, error: RpcError<string>, errors: RequestErrors): void {
   errors.set(id, error);
   context.thrownErrorIds.add(id);
+}
+
+/** A chain middleware with no params never needs an onRequest call, yet its answer and declared errors are the caller's */
+function addParamlessMiddlewares(context: ClientCallContext): void {
+  const routeIds = new Set(getRouteIds(context));
+  for (const routeId of routeIds) {
+    for (const id of getMethod(routeId)?.middlewareIds ?? []) {
+      if (!id || routeIds.has(id) || context.subRequestList[id]) continue;
+      const method = getMethod(id);
+      if (!method || method.paramsCount || method.headersParam || !method.hasReturnData) continue;
+      addSubRequest(context, {pointer: id.split(ROUTER_ITEM_SEPARATOR_CHAR), id, isResolved: false, params: []});
+    }
+  }
 }
 
 /** Body entries are declared, [MION_ROUTES.thrownErrors] unexpected; 'validation-error' is thrown yet always declared */

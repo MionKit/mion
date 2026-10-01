@@ -39,6 +39,8 @@ type Method struct {
 	MiddlewareIds []string
 	// NeedsParams is true when the client must send something: a required param, or a required header.
 	NeedsParams bool
+	// TakesParams is false for a middleware with no params and no headers: the client needs no onRequest for it.
+	TakesParams bool
 	// FetchMetadata marks mion's own metadata middleware, `mionFetchMetadata` placed in the routes.
 	FetchMetadata bool
 }
@@ -206,6 +208,7 @@ func (walker *treeWalker) method(memberType *checker.Type, id string, pointer []
 		}
 	}
 	method.NeedsParams = hasRequiredElement(method.Params) || walker.hasRequiredHeader(method.Headers)
+	method.TakesParams = hasElement(method.Params) || method.Headers != nil
 	method.Sync = walker.compiledType(typesType, "sync")
 	isAsync := typeChecker.GetTypeOfPropertyOfType(typesType, "isAsync")
 	if isAsync == nil || checker.Type_flags(isAsync)&checker.TypeFlagsBooleanLiteral == 0 {
@@ -231,6 +234,11 @@ func hasRequiredElement(params *checker.Type) bool {
 		}
 	}
 	return false
+}
+
+// hasElement reports whether a params tuple has any element, required or optional.
+func hasElement(params *checker.Type) bool {
+	return params != nil && params.IsTupleType() && len(params.TargetTupleType().ElementFlags()) > 0
 }
 
 // hasRequiredHeader reports whether a HeadersSubset type lists a header that is not optional.

@@ -801,9 +801,10 @@ func TestApiGen_MirrorShipsBuiltInPureFnsAsFunctions(t *testing.T) {
 	}
 }
 
-// optionalApiTS adds an API whose only middleware takes optional params, for MET009.
+// optionalApiTS adds an API with a middleware that takes optional params, for MET009, and one that takes none.
 const optionalApiTS = apiTypeTS + `export type OptionalApi = {
   note: {type: 2; handler: (tag?: string) => Promise<void>; options: MfOpts; types?: {params: [tag?: string]; return: void; headers: never; isAsync: false}};
+  stamp: {type: 2; handler: () => Promise<number>; options: MfOpts; types?: {params: []; return: number; headers: never; isAsync: false}};
   ping: {type: 1; handler: () => Promise<string>; options: RouteOpts; types?: {params: []; return: string; headers: never; isAsync: false; sync: [[], string, 'json', 'json']}};
 };
 `
@@ -882,6 +883,18 @@ export const a = routes.ping().call();
 		}
 		if diags[0].Level != diagnostics.LevelRuntimeError {
 			t.Errorf("MET009 stops the build, got level %v", diags[0].Level)
+		}
+	})
+
+	t.Run("no params, never set up: nothing to report", func(t *testing.T) {
+		diags := generateMetDiags(t, `import {initClient} from '@mionjs/client';
+import type {OptionalApi} from './api.ts';
+export const {routes, middlewares} = initClient<OptionalApi>({baseURL: 'http://x'});
+middlewares.note.onRequest((call) => call('tag'));
+export const a = routes.ping().call();
+`)
+		if len(diags) != 0 {
+			t.Fatalf("stamp takes no params, so it needs no setup, got %+v", diags)
 		}
 	})
 

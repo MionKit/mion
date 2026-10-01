@@ -724,11 +724,11 @@ useFetchMetadata(middlewares.mionFetchMetadata);`,
 	},
 	CodeApiMetaMiddlewareNotSetUp: {
 		Summary: "A middleware gets its params on the client from its `onRequest` hook. The build found no use of this middleware in the client program, neither a hook nor an installer, so every call sends nothing and the middleware rejects it. Set it up once next to `initClient` with `middlewares.<name>.onRequest(...)`, or pass it to the installer it ships with.",
-		Fix:     "middlewares.auth.onRequest((auth) => auth({headers: {Authorization: 'myToken-XYZ'}}));",
+		Fix:     "middlewares.trace.onRequest((trace) => trace({headers: {'X-Trace-Id': crypto.randomUUID()}}));",
 	},
 	CodeApiMetaOptionalMiddlewareNotSetUp: {
-		Summary: "All of this middleware's params are optional, so calls still go out, but the middleware never gets anything from this client. The build found no use of it in the client program, neither an `onRequest` hook nor an installer. Set it up with `middlewares.<name>.onRequest(...)` or its installer. If sending nothing is on purpose, add `// @mion-expect-error MET009` above the call.",
-		Fix:     "middlewares.auth.onRequest((auth) => auth({headers: {Authorization: 'myToken-XYZ'}}));",
+		Summary: "All of this middleware's params are optional, so calls still go out, but the middleware never gets anything from this client. The build found no use of it in the client program, neither an `onRequest` hook nor an installer. Set it up with `middlewares.<name>.onRequest(...)` or its installer. A middleware with no params at all needs no setup. If sending nothing is on purpose, add `// @mion-expect-error MET009` above the call.",
+		Fix:     "middlewares.trace.onRequest((trace) => trace({headers: {'X-Trace-Id': crypto.randomUUID()}}));",
 	},
 	CodeApiMetaNoMetadataToFetch: {
 		Summary: "A call fetches its metadata when the build could not bundle it, or for every route when `bundleApi` is off. The server answers those fetches only through the `mionFetchMetadata` middleware from `@mionjs/router/middlewares`, and this API does not add it. Add it first in the server's routes and set up its client half with `useFetchMetadata`. Or, with bundling on, remove `useFetchMetadata` and keep every route id a literal so every call is bundled.",

@@ -1304,7 +1304,7 @@
       "level": "runtimeError",
       "headline": "The route `{1}` runs the middleware `{0}`, which needs params, but this client never sets it up; every call to the route fails its validation.",
       "summary": "A middleware gets its params on the client from its `onRequest` hook. The build found no use of this middleware in the client program, neither a hook nor an installer, so every call sends nothing and the middleware rejects it. Set it up once next to `initClient` with `middlewares.<name>.onRequest(...)`, or pass it to the installer it ships with.",
-      "fix": "middlewares.auth.onRequest((auth) => auth({headers: {Authorization: 'myToken-XYZ'}}));",
+      "fix": "middlewares.trace.onRequest((trace) => trace({headers: {'X-Trace-Id': crypto.randomUUID()}}));",
       "example": null
     },
     {
@@ -1312,8 +1312,8 @@
       "subsystem": "bundled-api",
       "level": "runtimeError",
       "headline": "The route `{1}` runs the middleware `{0}`, but this client never sets it up, so the middleware never gets its params.",
-      "summary": "All of this middleware's params are optional, so calls still go out, but the middleware never gets anything from this client. The build found no use of it in the client program, neither an `onRequest` hook nor an installer. Set it up with `middlewares.<name>.onRequest(...)` or its installer. If sending nothing is on purpose, add `// @mion-expect-error MET009` above the call.",
-      "fix": "middlewares.auth.onRequest((auth) => auth({headers: {Authorization: 'myToken-XYZ'}}));",
+      "summary": "All of this middleware's params are optional, so calls still go out, but the middleware never gets anything from this client. The build found no use of it in the client program, neither an `onRequest` hook nor an installer. Set it up with `middlewares.<name>.onRequest(...)` or its installer. A middleware with no params at all needs no setup. If sending nothing is on purpose, add `// @mion-expect-error MET009` above the call.",
+      "fix": "middlewares.trace.onRequest((trace) => trace({headers: {'X-Trace-Id': crypto.randomUUID()}}));",
       "example": null
     },
     {
