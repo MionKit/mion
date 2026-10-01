@@ -16,7 +16,7 @@ const [[sum, greeting], [sumError, greetingError], response] = await batch([
   routes.sayHello('John'),
 ]).call();
 
-// one response for the whole batch: middleware answers at their path, untyped errors in @thrownErrors
+// one response for the whole batch
 if (isRpcError(response.auth))
   console.log('Auth failed:', response.auth.publicMessage);
 if (response.trace) console.log('Trace:', response.trace);
