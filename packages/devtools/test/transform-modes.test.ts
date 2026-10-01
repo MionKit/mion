@@ -103,9 +103,13 @@ export const holder = new Holder<User>();
   );
 
   runTest(
-    'reflect new Holder(value): edits mode reproduces go mode byte-for-byte',
+    'reflect new Holder(value): edits mode reproduces go mode byte-for-byte, same id as the static form',
     {
       'holder.ts': holderClass,
+      'new-static.ts': `import {Holder} from './holder';
+type User = {id: number};
+export const holder = new Holder<User>();
+`,
       'new-reflect.ts': `import {Holder} from './holder';
 type User = {id: number};
 const user: User = {id: 1};
@@ -114,8 +118,12 @@ export const holder = new Holder(user);
     },
     async (sources) => {
       await withInlineSources(sources, async ({client}) => {
-        const {applied} = await assertModeParity(client, 'new-reflect.ts', sources['new-reflect.ts']);
-        expect(applied.code).toMatch(/new Holder\(user, __rt_[A-Za-z0-9]+\);/);
+        const reflect = await assertModeParity(client, 'new-reflect.ts', sources['new-reflect.ts']);
+        const reflectId = reflect.applied.code.match(/new Holder\(user, (__rt_[A-Za-z0-9]+)\);/)?.[1];
+        const staticForm = await assertModeParity(client, 'new-static.ts', sources['new-static.ts']);
+        const staticId = staticForm.applied.code.match(/new Holder<User>\(undefined, (__rt_[A-Za-z0-9]+)\);/)?.[1];
+        expect(reflectId).toBeDefined();
+        expect(reflectId).toBe(staticId);
       });
     }
   );
