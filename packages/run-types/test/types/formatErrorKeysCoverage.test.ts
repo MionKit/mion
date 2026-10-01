@@ -8,8 +8,8 @@ import type {FormatName} from '../../src/go-generated/typeFormats.generated.ts';
 import type {NumberParams} from '../../src/formats/numberFormats.ts';
 import type {BigIntParams} from '../../src/formats/bigintFormats.ts';
 import type {
-  DomainParams,
-  EmailParams,
+  DomainPartsParams,
+  EmailPartsParams,
   IPParams,
   StringParams,
   UrlParams,
@@ -30,8 +30,8 @@ type ParamsByFormat = Exhaustive<{
   uuid: UUIDParams;
   ip: IPParams;
   creditCard: CreditCardParams;
-  email: EmailParams;
-  domain: DomainParams;
+  email: EmailPartsParams;
+  domain: DomainPartsParams;
   date: DateParams;
   time: TimeParams;
   dateTime: DateTimeParams;
