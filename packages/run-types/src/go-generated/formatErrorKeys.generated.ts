@@ -17,6 +17,7 @@ export type FormatErrorKeys = {
   formattedSet: 'maxItems' | 'minItems' | 'uniqueItems';
   ip: 'version';
   nativeDate: 'gt' | 'lt' | 'max' | 'min';
+  nativeUrl: 'maxLength' | 'minLength' | 'pattern';
   numberFormat: 'gt' | 'integer' | 'lt' | 'max' | 'min' | 'multipleOf';
   stringFormat:
     | 'allowedChars'
@@ -54,6 +55,7 @@ export const FORMAT_ERROR_KEYS = {
   formattedSet: ['maxItems', 'minItems', 'uniqueItems'],
   ip: ['version'],
   nativeDate: ['gt', 'lt', 'max', 'min'],
+  nativeUrl: ['maxLength', 'minLength', 'pattern'],
   numberFormat: ['gt', 'integer', 'lt', 'max', 'min', 'multipleOf'],
   stringFormat: [
     'allowedChars',
@@ -121,6 +123,7 @@ export type FormatSampledParams = {
   formattedSet: 'contains' | 'maxContains' | 'maxItems' | 'minContains' | 'minItems' | 'uniqueItems';
   ip: 'allowLocalHost' | 'allowPort' | 'transform' | 'version';
   nativeDate: 'exclusiveMaximum' | 'exclusiveMinimum' | 'gt' | 'lt' | 'max' | 'maximum' | 'min' | 'minimum';
+  nativeUrl: 'maxLength' | 'minLength' | 'mockSamples' | 'pattern';
   numberFormat:
     | 'exclusiveMaximum'
     | 'exclusiveMinimum'

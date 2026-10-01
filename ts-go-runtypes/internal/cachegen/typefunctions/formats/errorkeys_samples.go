@@ -21,6 +21,9 @@ var errorKeySamples = map[string][]map[string]any{
 	"url": {
 		{"maxLength": 10.0, "minLength": 1.0, "pattern": samplePattern, "mockSamples": []any{"a"}, "transform": map[string]any{"trim": true}},
 	},
+	"nativeUrl": {
+		{"maxLength": 10.0, "minLength": 1.0, "pattern": samplePattern, "mockSamples": []any{"https://a.co/"}},
+	},
 	"uuid": {
 		{"version": "4"},
 		{"version": "any"},

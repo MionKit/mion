@@ -12,11 +12,16 @@ import (
 // formatErrWithType is FormatErrCall plus an OPTIONAL `errorType`, "" leaving the field off.
 // The composite formats (domain / email) use it to say WHICH PART of the value a sub-constraint error belongs to.
 func formatErrWithType(pathExpr, errorsArr, fmtName, paramName, paramValLiteral, errorTypeExpr string) string {
+	return formatErrAs("string", pathExpr, errorsArr, fmtName, paramName, paramValLiteral, errorTypeExpr)
+}
+
+// formatErrAs is formatErrWithType for a host that is not a string (the nativeUrl format checks a URL's href).
+func formatErrAs(expected, pathExpr, errorsArr, fmtName, paramName, paramValLiteral, errorTypeExpr string) string {
 	extra := ""
 	if errorTypeExpr != "" {
 		extra = formats.FormatErrorTypeProp(errorTypeExpr)
 	}
-	return formats.FormatErrCallWith(pathExpr, errorsArr, "string", fmtName, paramName, paramValLiteral, extra)
+	return formats.FormatErrCallWith(pathExpr, errorsArr, expected, fmtName, paramName, paramValLiteral, extra)
 }
 
 // regexpEscape escapes the precise set the char-class / value-set regex sources need, so a literal char matches

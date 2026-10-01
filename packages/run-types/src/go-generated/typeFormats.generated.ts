@@ -43,6 +43,7 @@ export const typeFormats = {
   formattedSet: {name: 'formattedSet', kind: RunTypeKind.class},
   ip: {name: 'ip', kind: RunTypeKind.string},
   nativeDate: {name: 'nativeDate', kind: RunTypeKind.class},
+  nativeUrl: {name: 'nativeUrl', kind: RunTypeKind.class},
   numberFormat: {name: 'numberFormat', kind: RunTypeKind.number},
   stringFormat: {name: 'stringFormat', kind: RunTypeKind.string},
   temporalInstant: {name: 'temporalInstant', kind: RunTypeKind.class},
