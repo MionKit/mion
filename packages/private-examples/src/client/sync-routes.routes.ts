@@ -4,7 +4,6 @@ import {mionFetchMetadata, mionSyncRoutes} from '@mionjs/router/middlewares';
 const mion = createMionRouter();
 
 const routes = {
-  // only if you use it, and always first
   mionFetchMetadata,
   // before your own middleware and routes, so a stopped call runs nothing else
   mionSyncRoutes,
