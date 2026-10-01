@@ -119,10 +119,20 @@ slots. Type cost measured with the type-budget package before and after.
 
 ## What shipped
 
-- As planned. Two details the plan did not name:
+- As planned. Details the plan did not name:
   - `RouteSubRequest`'s API parameter now defaults to `any`, so a route typed by a real API still fits a
     `RouteSubRequest<any>` once its result names that API's response type.
   - Every failing `onResponse` / `onError` hook is reported in `@thrownErrors`, not only the first one.
+  - `ClientCallContext.response` is now slot 2; the HTTP `Response` moved to `httpResponse`.
+  - Response keys are untrusted: a `__proto__` segment, a top-level `@thrownErrors` key or a walk into a
+    non-object never becomes a path, and such an error goes to `@thrownErrors` instead.
+  - A middleware answer sent only as HTTP headers is checked by `validateServerResponses` even after another
+    error, since the headers prove it ran.
+  - The bundled API, API version and metadata cache errors are added to `@thrownErrors` last, not when they
+    happen (decided not to matter: they rarely meet another untyped error).
+- Found and fixed on the way: on the fetched lane a headers answer was checked with functions the server never
+  sends, so any route answering in headers crashed the whole response under `validateServerResponses`
+  (`@mionjs/core` `routesCache.getMethodJitFns`, now the return's own functions, as the server does).
 - A missing auth header (the server's headers validation) is the auth middleware's validation error, so it
   sits at `response.auth`, never in `@thrownErrors`.
 - Type cost (type-budget package, `5 + initClient` step): 3065 before, 3080 after. The map itself costs about
