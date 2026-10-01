@@ -3,8 +3,7 @@
   // tsconfig.build.json: `paths` is cleared so `@mionjs/*` resolve through the `source` export
   // condition, which needs no built dists, and gives every package one module identity.
   // A CI gate (pull-requests.yml runs `check-types`); it must stay at 0 errors.
-  // twoslash-test holds deliberate-error demos and comparison-typia needs uninstalled external
-  // deps, so both stay out. bun-types is in `types` because resolving @mionjs/* to source pulls
+  // bun-types is in `types` because resolving @mionjs/* to source pulls
   // platform-bun source into the program, and the root tsconfig only lists `node`.
   // The runtypes examples share this src/ tree but need bundler resolution against the built
   // dists, so they are excluded here and type-checked by tsconfig.runtypes.json instead. The two
@@ -28,11 +27,8 @@
   "exclude": [
     "node_modules",
     ".dist",
-    "src/twoslash-test",
-    "src/run-types/comparison-typia.ts",
     "src/enrich",
     "src/guide",
-    "src/suites",
     "src/_homepage/define-builder.ts",
     "src/_homepage/define-type.ts",
     "src/_homepage/formats-builder.ts",
@@ -41,14 +37,9 @@
     "src/_homepage/reflection-value.ts",
     "src/_homepage/reflection.ts",
     "src/_homepage/showcase.ts",
-    "src/introduction/manual-install-vite-config.ts",
-    "src/introduction/one-type-one-id.ts",
     "src/introduction/quick-start-next-config.ts",
     "src/introduction/quick-start-rollup-config.ts",
     "src/introduction/quick-start-validate.ts",
     "src/introduction/quick-start-vite-config.ts",
-    "src/introduction/whatis-duality.ts",
-    "src/introduction/whatis-reflection.ts",
-    "src/introduction/whatis-taste.ts"
   ]
 }
