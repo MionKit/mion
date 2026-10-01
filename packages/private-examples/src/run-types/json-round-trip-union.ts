@@ -2,9 +2,7 @@ import {createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
 
 type Result = string | number | {error: string};
 
-// createJsonEncoderFn / createJsonDecoderFn are the public JSON round trip API.
-// The encoder walks the type of `Result` and produces a JSON string; the decoder
-// parses it back to the correct union member.
+// the decoder rebuilds the right union member
 const encode = createJsonEncoderFn<Result>();
 const decode = createJsonDecoderFn<Result>();
 
