@@ -173,9 +173,8 @@ func siteCodes(t *testing.T, sources map[string]string, allInternal bool) []stri
 	return corpusCodes(response, "site.ts")
 }
 
-// gridValueShapes runs the value call shape too. It is a third of the grid, so the release gate and a full local run
-// set MION_DIAG_GRID_FULL=1; a PR keeps the static shape, and every value-first marker has its own paired tests.
-// Measured on 4 cores: 74 s alone with value shapes, 30 s without; the whole Go suite 301 s, 128 s with no grid.
+// gridValueShapes adds the value call shape (a third of the grid): only the release gate and full local runs set it.
+// PRs skip it, as every value-first marker has its own paired tests. On 4 cores: 74 s with value shapes, 30 s without.
 var gridValueShapes = os.Getenv("MION_DIAG_GRID_FULL") == "1"
 
 // TestNestedDiagCorpus puts every trigger at every position, inline and named, under every family and inline mode.

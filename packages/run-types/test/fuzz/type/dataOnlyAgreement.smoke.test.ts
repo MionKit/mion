@@ -1,6 +1,4 @@
-// D4 end to end: the rule fires when the DataOnly side keeps a member the Go side strips, and the seeds it once
-// failed on stay green. 360858409, 2649564061 and 3811392738 carried an optional non-data member DataOnly kept as
-// `p?: undefined`.
+// D4 end to end; each pinned seed carried an optional non-data member DataOnly once kept as `p?: undefined`.
 import {describe, it, expect} from 'vitest';
 import {openClient, compileType, hasBinary} from './typeFuzzHarness.ts';
 import {dataOnlyViolations, replayTypeFuzzSeeds} from './typeFuzzRunner.ts';

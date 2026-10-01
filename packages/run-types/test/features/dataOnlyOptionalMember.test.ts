@@ -1,4 +1,4 @@
-// An optional non-data member drops from DataOnly<T> as from the validator: never `p?: undefined`, never kept by an all-optional type.
+// An optional non-data member drops from DataOnly<T> as from the validator, never as `p?: undefined`.
 
 import {describe, expect, it} from 'vitest';
 import {createValidateFn, type DataOnly} from '@mionjs/run-types';

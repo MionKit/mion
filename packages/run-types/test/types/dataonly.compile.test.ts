@@ -36,13 +36,7 @@
 import {describe, it, expect} from 'vitest';
 import {measureDataOnly} from './dataonlyHarness.ts';
 
-/** Compile `snippet`, assert it type-checks AND its net instantiation count is
- *  within `budget`. Returns the net count (handy when tuning). Budgets were
- *  last raised for dropping an OPTIONAL non-data member (one more check per
- *  member that projects to `never` or `undefined`, +1-8% on those branches),
- *  and before that ratcheted for the sentinel-kept guard (M8: DataOnly keeps
- *  format-branded / slotted containers verbatim — one Extract per object-ish
- *  node, shape probes on records only; ~3-5% net across the profiles). **/
+/** Asserts `snippet` type-checks within `budget` net instantiations; returns the count for tuning budgets. **/
 function check(snippet: string, budget: number): number {
   const r = measureDataOnly(snippet);
   expect(r.errors, `snippet should type-check cleanly:\n${snippet}\n→ ${r.errors.join('\n  ')}`).toEqual([]);

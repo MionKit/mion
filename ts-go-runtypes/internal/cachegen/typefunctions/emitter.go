@@ -372,9 +372,8 @@ type DiagCodeProvider interface {
 	DiagCodeFor(slot DiagSlot) string
 }
 
-// LeafDiagCodeProvider is the optional capability for per-family diagnostic codes at unsupported root
-// leaves; the walker hands the leaf over when finalising an alwaysThrow factory. Returning "" preserves the
-// silent-skip path, the safety net for an unknown future kind with no registered code.
+// LeafDiagCodeProvider names the code of an alwaysThrow factory's unsupported root leaf.
+// "" keeps the silent skip, the safety net for a future kind with no registered code.
 type LeafDiagCodeProvider interface {
 	DiagCodeForLeaf(leaf *reflection.RunType, resolve RefResolver) string
 }

@@ -337,9 +337,7 @@ function runCore(args) {
   // suites onto the slim packages so the translation can be inspected. The full
   // lane is `miondevx release drizzle-e2e`.
   if (sub === 'drizzle-translate') return proxy('node', ['scripts/core/drizzle-translate.mjs', ...rest]);
-  // The machine-readable soak lane list (every FUZZ entry with a soak budget and no workflow of its own),
-  // as sorted JSON. release-gate.yml and fuzz-soak.yml build their matrices
-  // from this — bare node, no deps, no build, no env needed.
+  // release-gate.yml and fuzz-soak.yml build their matrices from this, so it needs bare node only: no deps, build or env.
   if (sub === 'fuzz-lanes') {
     process.stdout.write(`${JSON.stringify(Object.keys(FUZZ).filter((lane) => FUZZ[lane].soak && !FUZZ[lane].soakWorkflow).sort())}\n`);
     return;

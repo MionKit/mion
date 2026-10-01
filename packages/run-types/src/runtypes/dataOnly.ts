@@ -27,15 +27,10 @@ import type {__rtFormatName, __rtContains, __rtPatternProps, __rtPropNames} from
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface DataOnlyNativeExtra {}
 
-/** Built-in classes `DataOnly` KEEPS verbatim — only the ones the AOT validator checks by IDENTITY AND that have
- *  a data form on the wire, so with nothing augmenting `DataOnlyNativeExtra` this is just `Date`; `Map` / `Set`
- *  have their own branches below. `RegExp` is validated by identity too but is NOT data (a pattern is code the
- *  receiver would run), so it is stripped instead. Deliberately NOT here:
- *   - `ArrayBuffer` / `SharedArrayBuffer` / `DataView` + every typed array, `SubKindNonSerializable` in the
- *     emitter, so `DataOnly` STRIPS them;
- *   - `URL` / `URLSearchParams` / `Blob` / `Error` and every other standard-library class: the emitter skips any
- *     class the lib declares, but a type cannot tell where a class was declared, so they fall through to the
- *     object branch and project to their data shape. The one known gap; the D4 fuzz rule draws no lib class. **/
+/** Classes `DataOnly` KEEPS verbatim: validated by IDENTITY and with a data form on the wire, so just `Date` unless
+ *  augmented (`Map` / `Set` have own branches; `RegExp` and the binary buffers are stripped). `URL` / `Blob` / `Error`
+ *  and every other lib class project to their data shape although the emitter skips them: a type cannot tell where a
+ *  class was declared. The one known gap; the D4 fuzz rule draws no lib class. **/
 type DataOnlyNative = Date | DataOnlyNativeExtra[keyof DataOnlyNativeExtra];
 
 /** Kinds the AOT validator treats as NON-DATA and strips: `symbol` (runtime identity, not round-trippable),
@@ -70,17 +65,12 @@ type DataOnlyStripped =
  *  finite instantiation instead of tripping the TS2589 depth cap. **/
 type _DataOnlyDepth = [never, 0, 1, 2, 3, 4, 5, 6, 7, 8];
 
-/** The data-only projection of `T` — the exact shape `createValidateFn<T>()` /
- *  `createGetValidationErrorsFn<T>()` validate. It walks `T` and DROPS every member the AOT emitter treats as
- *  non-data (see CLAUDE.md "validate contract — serializable data only"). Every class NOT enumerated in
- *  `DataOnlyNative` / `DataOnlyStripped` falls through to the object branch and PROJECTS to its data shape,
- *  mirroring the emitter's structural (`ClassRef{Name}`) validation of a user class — so this module names no
- *  `lib.dom` types. NO `infer` on the hot path: every arm is a bare `extends` test or a
- *  homomorphic map, which preserves array / tuple structure and `readonly` / `?` modifiers for free. Recursion
- *  is BOUNDED by the `Depth` budget, so a self- or mutually-referential type resolves to a finite instantiation
- *  rather than tripping TS2589; beyond the budget the remaining sub-tree is kept as-is, and 8 levels covers any
- *  realistic data shape. A root-level non-data kind collapses to `never`, which the emitter renders as an
- *  always-throw factory — those cases are intentionally `DataOnly`-divergent. **/
+/** The exact shape `createValidateFn<T>()` / `createGetValidationErrorsFn<T>()` validate (CLAUDE.md "validate
+ *  contract"). A class not in `DataOnlyNative` / `DataOnlyStripped` projects to its data shape, as the emitter
+ *  validates a user class structurally, so this module names no `lib.dom` type. NO `infer` on the hot path: every
+ *  arm is a bare `extends` or a homomorphic map, which keeps array / tuple structure and `readonly` / `?` for free.
+ *  `Depth` bounds recursion against TS2589; past 8 levels the sub-tree is kept as is. A non-data root is `never`
+ *  here but an always-throw factory in the emitter, an intended divergence. **/
 export type DataOnly<T, Depth extends number = 8> = Depth extends 0
   ? T // budget exhausted — keep the remaining sub-tree as-is (best effort)
   : unknown extends T
@@ -133,10 +123,9 @@ type DataOnlyLadder<T, Depth extends number> =
         ? {-readonly [K in keyof T]: DataOnly<T[K], _DataOnlyDepth[Depth]>} // array + tuple
         : T extends object
           ? [keyof T] extends [never]
-            ? T // broad `object` / `{}` — keep (the emitter accepts the broad kind); not `object extends T`, which an all-optional type passes
+            ? T // broad `object` / `{}`, kept as the emitter accepts it; `object extends T` also matches an all-optional type
             : {
-                // Drop symbol keys, `__proto__` (writing that key swaps a prototype
-                // instead of storing a value) and never-valued (⊇ method) props
+                // Drop symbol keys, `__proto__` (writing it swaps the prototype) and never-valued props, methods included
                 [K in keyof T as K extends symbol | '__proto__'
                   ? never
                   : [DataOnly<T[K], _DataOnlyDepth[Depth]>] extends [undefined]
@@ -148,9 +137,8 @@ type DataOnlyLadder<T, Depth extends number> =
                     : K]: DataOnly<T[K], _DataOnlyDepth[Depth]>;
               }
           : T;
-// An OPTIONAL member reads as `X | undefined`, so `{p?: Promise<1>}` projects to `p?: undefined` instead of
-// dropping p as the emitter does. Only reached when the projection is exactly `undefined`: a written `undefined`,
-// a required `X | undefined` (the emitter keeps its `undefined` too) and an index key all stay.
+// Drops an optional member projecting to just `undefined` (`{p?: Promise<1>}`), as the emitter does.
+// Stay: a written `undefined`, an index key, a required `X | undefined` (the emitter keeps its `undefined` too).
 type DataOnlyOptionalStripped<T, K extends keyof T> = [T[K]] extends [undefined]
   ? false
   : string extends K

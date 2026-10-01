@@ -161,8 +161,7 @@ export function openClient(): ResolverClient {
   return new ResolverClient(BIN, REPO_ROOT, '', {serverMode: true, emitMode: 'both'});
 }
 
-/** Render the full fixture: import block, named decls, `type T = root`, and one
- *  call site per family + the getRunTypeId reflection site. **/
+/** One call site per family, then the T and DataOnly<T> reflection sites: compileType tells them apart by order. **/
 export function renderFixture(gen: GeneratedType, dataOnly: DataOnlySpelling = SHIPPED_DATA_ONLY): string {
   const {decls, rootExpr} = renderGenerated(gen);
   return `import {
@@ -197,8 +196,7 @@ getRunTypeId<${dataOnly.name}<T>>();
 `;
 }
 
-/** Drive the full pipeline for one generated type. Never throws — every failure
- *  mode is captured on the result. **/
+/** Never throws: every failure mode is captured on the result. **/
 export async function compileType(
   client: ResolverClient,
   gen: GeneratedType,

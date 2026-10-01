@@ -67,10 +67,8 @@ var registry = []Operation{
 	{Name: "validateStrict", Doc: "Answers whether a value matches the type AND carries no undeclared properties, in a single walk.", Factory: "createValidateFn", FamilyTag: "vst", Axis: AxisValidateOptions, Public: true, FnKey: "validateStrict", CircularGuarded: true, CallOptions: "{checkUnknowns: true}"},
 	{Name: "validationErrorsStrict", Doc: "Returns the reasons a value does not match, including undeclared properties, in a single walk.", Factory: "createGetValidationErrorsFn", FamilyTag: "vest", Axis: AxisValidateOptions, Public: true, FnKey: "validationErrorsStrict", CircularGuarded: true, CallOptions: "{checkUnknowns: true}", VerdictFrom: "validateStrict"},
 
-	// The UNION-SCOPED validators (`{checkUnionUnknowns: true}`): narrower than the fused pair above on purpose, since a
-	// stripping decoder already removes a plain object's undeclared keys but cannot remove one a sibling union member
-	// declares, and removes nothing at all once a member carries an index signature. Families rather than variants for the
-	// same reason as the fused pair.
+	// Narrower than the fused pair on purpose: a stripping decoder already drops a plain object's undeclared keys,
+	// but not one a sibling union member declares, nor any once a member has an index signature. Families, as above.
 	{Name: "validateUnionKeys", Doc: "Answers whether a value matches the type AND carries no property the matched union member leaves undeclared.", Factory: "createValidateFn", FamilyTag: "vuk", Axis: AxisValidateOptions, Public: true, FnKey: "validateUnionKeys", CircularGuarded: true, CallOptions: "{checkUnionUnknowns: true}"},
 	{Name: "validationErrorsUnionKeys", Doc: "Returns the reasons a value does not match, counting a property the matched union member leaves undeclared.", Factory: "createGetValidationErrorsFn", FamilyTag: "veuk", Axis: AxisValidateOptions, Public: true, FnKey: "validationErrorsUnionKeys", CircularGuarded: true, CallOptions: "{checkUnionUnknowns: true}", VerdictFrom: "validateUnionKeys"},
 

@@ -1,22 +1,8 @@
-// DataOnly non-data lane: generate random types that deliberately carry the
-// DataOnly-stripped kinds (symbol / function / property method / callable
-// interface / Promise / declare class / non-serialisable natives), build a REAL
-// value for each via createMockDataFn (nonDataTypes:true), and assert the DataOnly
-// serialization contract:
-//
-//   • a type the resolver accepts (no Error diagnostic) SERIALIZES — the stripped
-//     members are dropped and the clone + compact JSON round-trips are
-//     wire-stable and agree with each other (O1/O3/O4/O5/O12/O14);
-//   • a type the resolver rejects COLLAPSES — every encoder refuses with a
-//     `[CODE]` its own call site reports (D1), never silently serializing;
-//   • DataOnly<T> agrees with the Go side's non-data decision (D4).
-//
-// The serialize-vs-fail tier is read off the resolver's own diagnostics, so the
-// oracles never false-positive from a model drifting against the Go type switch.
-//
-// Needs the Go binary (spawned by the runner's ResolverClient); skipped when it
-// isn't built. Kept a SEPARATE lane from the WILD sweep so it can't destabilise
-// the default fuzz run.
+// DataOnly non-data lane: random types carrying the DataOnly-stripped kinds, with REAL values from createMockDataFn
+// (nonDataTypes: true). An accepted type serializes with the stripped members dropped and both round-trips stable and
+// agreeing (O1/O3/O4/O5/O12/O14); a rejected one makes every encoder throw a `[CODE]` its own site reports (D1);
+// DataOnly<T> agrees with the Go non-data decision (D4). The tier is read off the resolver's own diagnostics, so no
+// model can drift from the Go type switch. Separate from the WILD sweep so it cannot destabilise the default run.
 
 import {describe, it, expect} from 'vitest';
 import {hasBinary} from './typeFuzzHarness.ts';

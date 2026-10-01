@@ -1,8 +1,6 @@
 // D4: `DataOnly<T>` (TypeScript) and `reflection.NonDataOf` (Go) make one decision twice, so they must agree on a
-// random T. Root: a `never` projection means T's validator throws. Answers: both validators give the same verdict on
-// the mock and its mutations. Members: each object keeps the same member names, the DataOnly side read off its own
-// reflection and the T side off the `notSupported` flags the Go side sets. Standard-library classes (`URL`, `Error`)
-// are the one known gap, so the generator never draws one: the Go side skips them, DataOnly cannot tell them apart.
+// random T. Standard-library classes (`URL`, `Error`) are the one known gap, so the generator never draws one: the
+// Go side skips them, DataOnly cannot tell them apart.
 
 import type {RunType} from '../../../src/runtypes/types.ts';
 import {RunTypeKind, RunTypeSubKind} from '../../../src/go-generated/runTypeKind.generated.ts';
@@ -132,7 +130,7 @@ function isObjectShape(node: RunType): boolean {
   return node.kind === RunTypeKind.objectLiteral || (node.kind === RunTypeKind.class && node.subKind === RunTypeSubKind.none);
 }
 
-/** The members a node keeps as data; only T's side reads the Go `notSupported` flags, DataOnly's side keeps what it reflects. **/
+/** Only T's side reads the Go `notSupported` flags; DataOnly's side keeps what it reflects. **/
 function keptMembers(
   node: RunType,
   resolve: Resolve,

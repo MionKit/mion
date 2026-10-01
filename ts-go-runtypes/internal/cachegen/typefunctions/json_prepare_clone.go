@@ -210,8 +210,7 @@ type safePropEmit struct {
 // only, with transformed leaves. The Approach 3 fastpath short-circuits to `return v` when
 // `Object.keys(v).length === N`, and only when every prop is required and extra-proof.
 func emitObjectPrepareForJsonClone(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
-	// A callable interface is function-like (DataOnly = never); treat it like a
-	// bare function (alwaysThrow at root, dropped at a property), not an object.
+	// A callable interface is DataOnly never: like a bare function, alwaysThrow at root and dropped at a property.
 	if isCallableValue(rt, ctx) {
 		return RTCode{Code: "", Type: CodeNS}
 	}
