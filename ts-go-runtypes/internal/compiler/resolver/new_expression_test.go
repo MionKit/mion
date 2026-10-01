@@ -8,8 +8,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
-// newExpressionBox declares classes whose constructors carry a trailing marker parameter: Box takes data in
-// argument 0 (the HeadersSubset shape), Wrap takes the marker's T (the getRunTypeId shape).
+// newExpressionBox: Box takes data in argument 0 (HeadersSubset shape), Wrap takes the marker's T (getRunTypeId shape).
 const newExpressionBox = `import type {InjectRunTypeId, InjectTypeFnArgs} from '@mionjs/run-types';
 export class Box<Required extends string, Optional extends string = never> {
   constructor(
@@ -25,7 +24,6 @@ export class Data {
 }
 `
 
-// scanNewSites scans every file of sources but box.ts and returns the sites per file.
 func scanNewSites(t *testing.T, sources map[string]string) (map[string][]protocol.Site, []diagnostics.Diagnostic) {
 	t.Helper()
 	sources["box.ts"] = newExpressionBox
@@ -47,7 +45,6 @@ func scanNewSites(t *testing.T, sources map[string]string) (map[string][]protoco
 	return byFile, resp.Diagnostics
 }
 
-// oneSite returns the single site scanned in file.
 func oneSite(t *testing.T, byFile map[string][]protocol.Site, file string) protocol.Site {
 	t.Helper()
 	for name, sites := range byFile {

@@ -380,7 +380,7 @@ export function getHeaderNamesFromRunType(runType: RunType<unknown>): string[] |
   return propNodes.map((prop) => prop.name).filter((name): name is string => typeof name === 'string');
 }
 
-/** The raw validate pair of a 2-key ('validate','validationErrors') HeadersSubset marker payload, failing closed on a partial one. */
+/** The unresolved validate pair of a HeadersSubset marker payload; throws on a missing or partial one. */
 export function headerCheckFnsFromMarker(
   injected: unknown,
   label: string
