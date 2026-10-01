@@ -49,6 +49,7 @@ var errorKeySamples = map[string][]map[string]any{
 		{"maxLength": 253.0, "minLength": 5.0, "pattern": samplePattern, "allowedValues": map[string]any{"val": []any{"a.com"}}, "mockSamples": []any{"a.com"}, "transform": map[string]any{"lowercase": true}},
 		{"idna": "ascii", "maxLength": 253.0},
 		{"maxParts": 4.0, "minParts": 2.0, "names": map[string]any{"maxLength": 63.0, "pattern": samplePattern}, "tld": map[string]any{"minLength": 2.0}},
+		{"allowedValues": map[string]any{"val": []any{"a.com"}}, "names": map[string]any{"maxLength": 63.0}, "tld": map[string]any{"minLength": 2.0}},
 	},
 	"date": {
 		{"format": "ISO", "min": "2020-01-01", "max": "2030-01-01", "gt": "2019-12-31", "lt": "2030-01-02"},

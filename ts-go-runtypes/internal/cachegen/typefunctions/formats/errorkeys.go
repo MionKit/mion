@@ -125,3 +125,26 @@ func emitterByName(name string) (Emitter, bool) {
 	}
 	return nil, false
 }
+
+// EveryErrorKey returns the union of AllErrorKeys over every registered format.
+func EveryErrorKey() []string {
+	seen := map[string]bool{}
+	for _, emitter := range Registered() {
+		for _, key := range AllErrorKeys(emitter.Name()) {
+			seen[key] = true
+		}
+	}
+	return sortedKeys(seen)
+}
+
+// SampledFormatNames returns every format name errorKeySamples or excludedParams mentions.
+func SampledFormatNames() []string {
+	seen := map[string]bool{}
+	for name := range errorKeySamples {
+		seen[name] = true
+	}
+	for name := range excludedParams {
+		seen[name] = true
+	}
+	return sortedKeys(seen)
+}
