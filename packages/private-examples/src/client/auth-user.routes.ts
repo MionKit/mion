@@ -9,7 +9,7 @@ export type NotAuthorizedData = {reason: 'no-session' | 'expired-session'};
 export type UserNotFoundData = {requestedId: string};
 
 const routes = {
-  // reads the HttpOnly session cookie; a returned FatalError ends the request and reaches the client typed
+  // reads the HttpOnly session cookie; a returned FatalError ends the request and reaches the client typed, errorData included
   auth: mion.middleware(
     (ctx): void | FatalError<'not-authorized', NotAuthorizedData> => {
       if (!getSession(ctx.request.headers.get('cookie'))) {

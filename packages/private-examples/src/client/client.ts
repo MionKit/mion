@@ -9,7 +9,7 @@ const {routes, middlewares} = initClient<MyApi>({
 });
 
 // ========== Middleware Hooks with Typed Success Return and Error Handling ==========
-// auth takes no params: the browser sends the HttpOnly session cookie, so there is no onRequest
+// auth takes no params, so there is no onRequest
 // The auth middleware returns SessionInfo on success or FatalError<'not-authorized', NotAuthorizedData>
 middlewares.auth
   // onResponse receives the strongly typed SessionInfo

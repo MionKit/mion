@@ -16,7 +16,7 @@ export function traceHandler(
   return {traceId: h.headers['X-Trace-Id'], receivedAt: new Date()};
 }
 
-// no params: the browser sends the HttpOnly session cookie, JavaScript never reads it
+// no params: it reads the HttpOnly session cookie the browser sends
 export function authHandler(
   ctx: CallContext
 ): SessionInfo | FatalError<'not-authorized', NotAuthorizedData> {

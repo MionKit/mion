@@ -22,7 +22,7 @@ const usersDb: Record<string, User> = {
 };
 
 const routes = {
-  // reads the HttpOnly session cookie the browser sends, JavaScript never sees it.
+  // reads the HttpOnly session cookie the browser sends.
   // A returned FatalError ends the request (no route runs) and stays typed
   auth: mion.middleware(
     (ctx): SessionInfo | FatalError<'not-authorized', NotAuthorizedData> => {
