@@ -10,6 +10,9 @@ import (
 	"github.com/microsoft/typescript-go/shim/parser"
 	"github.com/microsoft/typescript-go/shim/scanner"
 	"github.com/microsoft/typescript-go/shim/tspath"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats"
+	// Registers every format emitter before knownConstraintKeys is built.
+	_ "github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats/all"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/jsquote"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
@@ -320,19 +323,15 @@ func isDefaultOnly(errors *objectView) bool {
 	return len(errors.order) == 1 && errors.props["rt$default"] != nil
 }
 
-// knownConstraintKeys are the rt$errors keys attributable to the TYPE, every family's failable params plus `type`.
+// knownConstraintKeys are the rt$errors keys attributable to the TYPE: `type` plus every format's error keys.
 // Only a key in this catalog is ever orphaned; anything else is author-owned and untouched.
-var knownConstraintKeys = map[string]bool{
-	"type": true,
-	// string family
-	"minLength": true, "maxLength": true, "length": true, "pattern": true,
-	"allowedChars": true, "disallowedChars": true, "allowedValues": true, "disallowedValues": true,
-	// number / bigint family
-	"min": true, "max": true, "lt": true, "gt": true,
-	"integer": true, "float": true, "multipleOf": true,
-	// datetime family + uuid
-	"date": true, "time": true, "splitChar": true, "version": true,
-}
+var knownConstraintKeys = func() map[string]bool {
+	keys := map[string]bool{"type": true}
+	for _, key := range formats.EveryErrorKey() {
+		keys[key] = true
+	}
+	return keys
+}()
 
 // mergePluralObject merges one plural template under the asymmetric rule that arms are LOCALE-OWNED: an extra arm is
 // never orphaned and never rename-paired, so a dropped `one` cannot relabel into an added `few`.

@@ -90,9 +90,9 @@ func emitFriendlyNode(b *strings.Builder, ctx *walkCtx, rt *reflection.RunType, 
 	}
 	if rt.FormatAnnotation != nil {
 		b.WriteString("{rt$label: '', rt$errors: {type: ''")
-		for _, key := range formatConstraintKeys(rt.FormatAnnotation) {
+		for _, key := range formatConstraintKeys(rt) {
 			b.WriteString(", ")
-			b.WriteString(key)
+			b.WriteString(errorKeyLiteral(key))
 			b.WriteString(": ")
 			writeErrorLeafSkeleton(b, ctx, key)
 		}
@@ -230,6 +230,14 @@ func emitMockObject(b *strings.Builder, ctx *walkCtx, rt *reflection.RunType, de
 	}
 	b.WriteString(strings.Repeat("  ", depth))
 	b.WriteString("}")
+}
+
+// errorKeyLiteral renders an rt$errors key bare when safe, else single-quoted (email's `@`).
+func errorKeyLiteral(key string) string {
+	if reflection.IsSafeName(key) {
+		return key
+	}
+	return jsquote.Single(key)
 }
 
 // propKey renders a property key bare when the name is dot-access safe, else single-quoted.

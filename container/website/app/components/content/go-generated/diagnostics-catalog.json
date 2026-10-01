@@ -1416,6 +1416,15 @@
       "example": null
     },
     {
+      "code": "FT012",
+      "subsystem": "enrichment",
+      "level": "warning",
+      "headline": "Error key `{0}` has no message: this failure shows a generic one.",
+      "summary": "Each failure a field can produce needs its own `rt$errors` key, unless the record uses `rt$default`. A missing key shows a generic message for that failure. Add the key, or run `mion enrich <source.ts> <Type> --update` to add it as a blank to fill in.",
+      "fix": "mion enrich <source.ts> <Type> --update",
+      "example": null
+    },
+    {
       "code": "FT020",
       "subsystem": "enrichment",
       "level": "warning",

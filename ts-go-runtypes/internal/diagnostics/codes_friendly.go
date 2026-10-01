@@ -21,6 +21,7 @@ const (
 	CodeFriendlyPluralNoCount     = "FT008"
 	CodeFriendlyDefaultNotAlone   = "FT009"
 	CodeFriendlyReservedProp      = "FT011"
+	CodeFriendlyMissingConstraint = "FT012"
 	CodeFriendlyTodo              = "FT020"
 	CodeFriendlyOrphanConst       = "FT021"
 	CodeFriendlyOrphanField       = "FT022"
@@ -37,6 +38,7 @@ func init() {
 		{Code: CodeFriendlyPluralNoCount, Family: FamilyEnrich, Level: LevelInfo, Scope: ScopeNotSource, Title: "FriendlyText plural template on a constraint that carries no count"},
 		{Code: CodeFriendlyDefaultNotAlone, Family: FamilyEnrich, Level: LevelWarning, Scope: ScopeNotSource, Title: "FriendlyText rt$default is mutually exclusive with per-constraint messages"},
 		{Code: CodeFriendlyReservedProp, Family: FamilyEnrich, Level: LevelError, Scope: ScopeNotSource, Title: "Type property collides with the reserved rt$ enrichment prefix (FriendlyText)"},
+		{Code: CodeFriendlyMissingConstraint, Family: FamilyEnrich, Level: LevelWarning, Scope: ScopeNotSource, Title: "FriendlyText rt$errors has no message for a failure the field can produce"},
 		{Code: CodeFriendlyTodo, Family: FamilyEnrich, Level: LevelWarning, Completeness: true, Scope: ScopeNotSource, Title: "Unfilled @todo scaffold placeholder in a FriendlyText mirror file"},
 		{Code: CodeFriendlyOrphanConst, Family: FamilyEnrich, Level: LevelWarning, Scope: ScopeNotSource, Title: "Stale @rtOrphan const carcass in a FriendlyText mirror file"},
 		{Code: CodeFriendlyOrphanField, Family: FamilyEnrich, Level: LevelWarning, Scope: ScopeNotSource, Title: "Stale @rtOrphanChild field carcass in a FriendlyText mirror file"},
