@@ -22,7 +22,7 @@ export function resetClientCaches() {
   resetMetadataCacheState();
 }
 
-/** Forgets these methods in memory AND in the store, so the next call is their optimistic first call */
+/** So the next call to these methods is an optimistic first call */
 export async function forgetMetadata(baseURL: string, ...ids: string[]): Promise<void> {
   const cache = routesCache.getCache();
   ids.forEach((id) => delete cache[id]);
