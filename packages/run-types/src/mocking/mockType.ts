@@ -89,12 +89,12 @@ function decayOptionsForNesting(options: RunTypeMockOptions, nestLevel: number):
   return {...options, mock: next};
 }
 
-/** The one item-length decay, shared by recursive re-entry and nested collections. **/
+/** Shared by recursive re-entry and nested collections. **/
 function decayItemsLength(length: number, nestLevel: number): number {
   return Math.round(length / nestLevel);
 }
 
-/** True for a node that holds a variable number of items. **/
+/** A node with a variable item count. **/
 function isItemCollection(runType: RunType): boolean {
   const kind = runType.kind as number;
   if (kind === RunTypeKind.array || kind === RunTypeKind.rest || kind === RunTypeKind.indexSignature) return true;
@@ -105,12 +105,10 @@ function isItemCollection(runType: RunType): boolean {
   return kind === RunTypeKind.class && (subKind === RunTypeSubKind.map || subKind === RunTypeSubKind.set);
 }
 
-// Each enclosing collection adds this to the decay level: a step of 1 (60, 30, 10, 3) still mocked a
-// four-level Record / Set / Map shape at ~80 ms, a step of 2 (60, 20, 4, 1) at ~10 ms.
+// Step 1 (60, 30, 10, 3) mocked a four-level Record / Set / Map in ~80 ms, step 2 (60, 20, 4, 1) in ~10 ms.
 const COLLECTION_LEVEL_STEP = 2;
 
-/** A flat cap multiplies per level (60^4 entries at four levels), so a collection's items decay through the same
- *  helper as a recursive re-entry. An explicit `arrayLength` or `rt$length` still wins. **/
+/** A flat cap multiplies per level (60^4 entries at four levels); an explicit `arrayLength` or `rt$length` wins. **/
 function shrinkForNestedItems(options: RunTypeMockOptions, stack: RunType[]): RunTypeMockOptions {
   let nestLevel = 1;
   for (let i = 0; i < stack.length; i++) if (isItemCollection(stack[i])) nestLevel += COLLECTION_LEVEL_STEP;
