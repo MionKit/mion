@@ -210,8 +210,7 @@ browser-driven verification.
 
 In-container scripts (what the commands above ultimately run): `pnpm run dev`,
 `pnpm run dev:fresh`, `pnpm run build`, `pnpm run preview`, plus
-`pnpm run check-links` (broken code-import paths) and
-`pnpm run check-unused-examples`.
+`pnpm run check-links` (broken code-import paths).
 
 ## Content organization
 

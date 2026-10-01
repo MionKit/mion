@@ -283,7 +283,7 @@ jobs:
         run: pnpm run lint
       # A dangling <code-import> path or comment marker does not fail the website
       # build — it renders an error placeholder in place of the example. This makes
-      # it loud.
+      # it loud, and fails on an example no page imports.
       - name: Code-import check
         run: pnpm run check-code-imports
       # Source-resolution typecheck of the mion half of packages/private-examples. The
