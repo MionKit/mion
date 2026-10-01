@@ -89,6 +89,7 @@ function cloneNode(rawNode: RunType, value: unknown, table: RefTable): unknown {
     case kind.class: {
       const subKind = (node.subKind as number | undefined) ?? sub.none;
       if (subKind === sub.date) return new Date((value as Date).getTime());
+      if (subKind === sub.url) return new URL((value as URL).href);
       if (subKind === sub.map) return cloneMap(node, value as Map<unknown, unknown>, table);
       if (subKind === sub.set) return cloneSet(node, value as Set<unknown>, table);
       const temporalName = TEMPORAL_BUILTIN[subKind];
@@ -314,6 +315,7 @@ function cloneUnion(node: RunType, value: unknown, table: RefTable): unknown {
         throw new Error('referenceClone: class-bearing unions are out of scope for the v1 corpus');
       }
       if (subKind === sub.date && value instanceof Date) return cloneNode(member, value, table);
+      if (subKind === sub.url && value instanceof URL) return cloneNode(member, value, table);
       if (subKind === sub.map && value instanceof Map) return cloneNode(member, value, table);
       if (subKind === sub.set && value instanceof Set) return cloneNode(member, value, table);
     }

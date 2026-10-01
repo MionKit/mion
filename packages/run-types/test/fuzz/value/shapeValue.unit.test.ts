@@ -27,6 +27,8 @@ function conforms(shape: TypeShape, value: unknown, decls: Map<string, Decl>): b
       return value === undefined;
     case 'date':
       return value instanceof Date && !Number.isNaN(value.getTime());
+    case 'url':
+      return value instanceof URL;
     case 'regexp':
       return value instanceof RegExp;
     case 'literal':

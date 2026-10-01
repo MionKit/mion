@@ -369,7 +369,7 @@ that must hold for every input, hostile or not. Two lanes, one shared
 vulnerability dictionary.
 
 - `attackDictionary.ts` — the **vulnerability dictionary**: for every kind of
-  data a decoder rebuilds (string, number, bigint, boolean, Date,
+  data a decoder rebuilds (string, number, bigint, boolean, Date, URL,
   Temporal, literal, enum, union, array, tuple, object, record, Map, Set,
   any, optional, string / number formats), the known and possible attacks
   with concrete payloads, each tagged with a vulnerability class (memory,
@@ -433,7 +433,7 @@ every loop that writes wire keys onto a fresh object carries the
 prototype-name guard and nothing calls `Object.assign` (GC-REBUILD), every
 `new RegExp(` takes a build-time literal (GC-REGEXP), no property access
 spells a non-identifier name bare (GC-ACCESS), and a JSON decoder converts a
-wire value (`new Date(x)`, `BigInt(x)`, `Temporal.X.from(x)`, `new Map(x)`,
+wire value (`new Date(x)`, `new URL(x)`, `BigInt(x)`, `Temporal.X.from(x)`, `new Map(x)`,
 `new Set(x)`, a symbol literal, the union envelope) only after a shape check on
 the same variable (GC-GUARD, the JS twin of the resolver's `MustValidateJson`
 table). `generatedCodeOracle.unit.test.ts`

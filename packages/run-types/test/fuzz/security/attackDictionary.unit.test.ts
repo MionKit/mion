@@ -22,6 +22,7 @@ const KINDS: AttackKind[] = [
   'bigint',
   'boolean',
   'date',
+  'url',
   'literal',
   'enum',
   'union',

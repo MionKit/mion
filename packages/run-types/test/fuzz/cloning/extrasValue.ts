@@ -51,6 +51,7 @@ function isPlainRecordValue(value: unknown): value is Record<string | number, un
     !(value instanceof Map) &&
     !(value instanceof Set) &&
     !(value instanceof Date) &&
+    !(value instanceof URL) &&
     !(value instanceof RegExp)
   );
 }
@@ -166,6 +167,7 @@ function atPath(root: unknown, path: Array<string | number>): unknown {
 export function deepCopyValue(value: unknown): unknown {
   if (value === null || typeof value !== 'object') return value;
   if (value instanceof Date) return new Date(value.getTime());
+  if (value instanceof URL) return new URL(value.href);
   if (value instanceof RegExp) {
     const copy = new RegExp(value.source, value.flags);
     copy.lastIndex = value.lastIndex;
