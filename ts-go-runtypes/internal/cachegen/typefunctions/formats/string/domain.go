@@ -9,10 +9,11 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// domainEmitter implements the format named "domain", FormatDomain / FormatDomainStrict, over two paths:
+// domainEmitter implements the format named "domain", FormatDomain / FormatDomainParts, over three paths:
 //
-//   - pattern path: the type carries the domain regex, so one baked regex test plus length bounds.
-//   - decomposition path: the type carries `names`/`tld` sub-formats, so the value is split on '.', each label
+//   - pattern path: the type carries the domain regex, so one baked regex test plus length bounds and allowedValues.
+//   - IDNA path: `idna` routes to the isIdnHostname pure fn, with the same whole-value checks.
+//   - parts path: the type carries `names`/`tld` sub-formats, so the value is split on '.', each label
 //     is validated as a sub-StringFormat, hyphen edges are rejected and the segment count bounded.
 //
 // validate emits the decomposition as an IIFE expression so it AND-chains after the base-kind check;
@@ -31,9 +32,9 @@ func (domainEmitter) EmitValidateCheck(annotation *reflection.FormatAnnotation, 
 		return domainValidateExprFor(ctx, annotation.Params, vλl)
 	}
 	if annotation != nil && domainHasIdna(annotation.Params) {
-		return idnaCheckExpr(ctx, annotation.Params, vλl)
+		return joinConditions(idnaCheckExpr(ctx, annotation.Params, vλl), allowedValuesCondition(ctx, annotation.Params, vλl))
 	}
-	return namedPatternValidate(ctx, annotation, vλl)
+	return joinConditions(namedPatternValidate(ctx, annotation, vλl), allowedValuesCondition(ctx, annotation.Params, vλl))
 }
 
 func (domainEmitter) EmitValidationErrorsCheck(annotation *reflection.FormatAnnotation, vλl, pathExpr, errorsArr string, ctx formats.EmitContext) string {
@@ -41,9 +42,42 @@ func (domainEmitter) EmitValidationErrorsCheck(annotation *reflection.FormatAnno
 		return domainErrorsBlockFor(ctx, annotation.Params, vλl, pathExpr, errorsArr, "")
 	}
 	if annotation != nil && domainHasIdna(annotation.Params) {
-		return idnaErrorsBlock(ctx, annotation.Params, vλl, pathExpr, errorsArr)
+		return joinStatements(idnaErrorsBlock(ctx, annotation.Params, vλl, pathExpr, errorsArr),
+			allowedValuesErrorStatement(ctx, annotation.Params, vλl, pathExpr, errorsArr))
 	}
-	return namedPatternErrors(ctx, annotation, vλl, pathExpr, errorsArr, "domain")
+	return joinStatements(namedPatternErrors(ctx, annotation, vλl, pathExpr, errorsArr, "domain"),
+		allowedValuesErrorStatement(ctx, annotation.Params, vλl, pathExpr, errorsArr))
+}
+
+// allowedValuesCondition is the whole-value allowedValues test for the pattern and IDNA paths; the parts path gets it
+// from stringConditions over the root params.
+func allowedValuesCondition(ctx formats.EmitContext, params map[string]any, vλl string) string {
+	vals, flags, ok := readValuesParam(params, "allowedValues")
+	if !ok {
+		return ""
+	}
+	return emitPatternTest(ctx, valuesSource(vals), flags, vλl)
+}
+
+func allowedValuesErrorStatement(ctx formats.EmitContext, params map[string]any, vλl, pathExpr, errorsArr string) string {
+	condition := allowedValuesCondition(ctx, params, vλl)
+	if condition == "" {
+		return ""
+	}
+	return "if (!(" + condition + ")) " + formatErrWithType(pathExpr, errorsArr, "domain", "allowedValues", messageLiteral(params, "allowedValues"), "")
+}
+
+func joinConditions(parts ...string) string { return joinNonEmpty(parts, " && ") }
+func joinStatements(parts ...string) string { return joinNonEmpty(parts, ";") }
+
+func joinNonEmpty(parts []string, sep string) string {
+	kept := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if part != "" {
+			kept = append(kept, part)
+		}
+	}
+	return strings.Join(kept, sep)
 }
 
 // EmitFormatTransform applies the declared `transform`; `{lowercase: true}` is the usual one for a domain.
@@ -70,6 +104,7 @@ func (domainEmitter) ValidateParams(annotation *reflection.FormatAnnotation) []s
 	if (hasNames || hasTld) && hasPattern {
 		errs = append(errs, "FormatDomain: cannot combine `pattern` with `names`/`tld`")
 	}
+	errs = append(errs, partsBoundsWithoutNames(params, "FormatDomain")...)
 	if value, ok := formats.ReadNumberParam(params, "maxLength"); ok && value > 253 {
 		errs = append(errs, "FormatDomain: `maxLength` cannot be greater than 253")
 	}
@@ -80,6 +115,21 @@ func (domainEmitter) ValidateParams(annotation *reflection.FormatAnnotation) []s
 		errs = append(errs, "FormatDomain: `minParts` cannot be less than 2")
 	}
 	errs = append(errs, formats.ValidateTransformParams(params, "FormatDomain")...)
+	return errs
+}
+
+// partsBoundsWithoutNames rejects maxParts / minParts on a domain that is not split into names/tld: only the parts
+// path counts labels, so on the pattern or IDNA path they would be silently ignored.
+func partsBoundsWithoutNames(params map[string]any, prefix string) []string {
+	if domainHasNames(params) {
+		return nil
+	}
+	var errs []string
+	for _, key := range []string{"maxParts", "minParts"} {
+		if _, ok := params[key]; ok {
+			errs = append(errs, prefix+": `"+key+"` needs `names`/`tld` (use DomainParts)")
+		}
+	}
 	return errs
 }
 

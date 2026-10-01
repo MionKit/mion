@@ -10,13 +10,13 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// emailEmitter implements the format named "email", FormatEmail / FormatEmailStrict. Three paths, one per
+// emailEmitter implements the format named "email", FormatEmail / FormatEmailParts. Three paths, one per
 // params road; ValidateParams rejects the decomposition alongside pattern or emailRfc:
 //
 //   - pattern path: a single baked email regex (FormatEmail).
 //   - RFC path: `emailRfc` runs the isEmailAddress pure fn (EmailAddress / IdnEmail).
 //   - decomposition path: split on the LAST '@' into localPart + domain
-//     (FormatEmailStrict); localPart is validated as a sub-StringFormat
+//     (FormatEmailParts); localPart is validated as a sub-StringFormat
 //     and domain as a sub-domain (which may itself decompose).
 //
 // validate emits an IIFE expression; validationErrors emits a statement block.
@@ -191,6 +191,9 @@ func (emailEmitter) ValidateParams(annotation *reflection.FormatAnnotation) []st
 	}
 	if emailHasRfc(params) && (hasLocalPart || hasDomain) {
 		errs = append(errs, "FormatEmail: cannot combine `emailRfc` with `localPart`/`domain`")
+	}
+	if domainParams, ok := params["domain"].(map[string]any); ok {
+		errs = append(errs, partsBoundsWithoutNames(domainParams, "FormatEmail domain")...)
 	}
 	if value, ok := formats.ReadNumberParam(params, "maxLength"); ok && value > 254 {
 		errs = append(errs, "FormatEmail: `maxLength` cannot be greater than 254")
