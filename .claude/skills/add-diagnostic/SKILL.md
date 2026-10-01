@@ -35,7 +35,8 @@ scan.
 - Two questions, two helpers. Is this MEMBER entry a method or call signature (an object's own member shape)?
   `isMethodMember(kind)`. Is this VALUE (a property's child, an index-signature value, a union member) data?
   The `NonDataOf` helpers above, since only they see a callable interface or a Promise.
-- A new non-data shape goes into `NonDataOf` AND `dataOnly.ts`, together.
+- A new non-data shape goes into `NonDataOf` AND `dataOnly.ts`, together. Then run `pnpm miondevx core fuzz nondata`:
+  its D4 rule (`packages/run-types/test/fuzz/type/dataOnlyOracle.ts`) fails when the two disagree on a random type.
 - `TestNonDataAgreement_*` (`cachegen/typefunctions/nondata_agreement_test.go`) fails when a kind has no row or a
   family's root disagrees with `NonDataOf`.
 
