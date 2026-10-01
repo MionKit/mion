@@ -3,12 +3,14 @@
 // The recursive `FriendlyNode` follows the `DataOnly<T>` construction (src/runtypes/dataOnly.ts):
 // depth-bounded via a tuple-decrement budget, NO `infer` on the hot path, scalar-before-object gates,
 // homomorphic child map. The `#region friendlytext-extract` block is sliced VERBATIM by
-// test/types/enrichHarness.ts, so it must reference only `lib` types + its own declarations.
+// test/types/enrichHarness.ts, so it may reference only `lib` types, the sentinel keys, the generated
+// `FormatErrorKeys` and its own declarations.
 
-import type {__rtFormatParams} from '../runtypes/sentinelKeys.ts';
+import type {__rtFormatName} from '../runtypes/sentinelKeys.ts';
+import type {FormatErrorKeys} from '../go-generated/formatErrorKeys.generated.ts';
 
 // #region friendlytext-extract — FriendlyText machinery; sliced verbatim between
-// these markers by test/types/enrichHarness.ts. Self-contained: `lib` + own decls only.
+// these markers by test/types/enrichHarness.ts, which also inlines the sentinel keys and `FormatErrorKeys`.
 
 /** A template string with the `$[…]` placeholders the renderer substitutes: `$[label]` (the field's
  *  label, or its raw name), `$[val]` (the failed constraint's bound), `$[path]`, `$[index]`. */
@@ -28,18 +30,15 @@ export type PluralTemplate = {other: FriendlyTemplate} & Partial<Record<PluralCa
  *  and the Go checker enforces it, so the kind is locale-invariant. */
 export type TemplateLeaf = FriendlyTemplate | PluralTemplate;
 
-/** Params that never fail; any other is a REQUIRED `rt$errors` key. MIRROR of Go's `nonFailingParams` (enrichment/enrich.go). */
-type NonFailingParams = 'isCurrency' | 'mockSamples' | 'multipleOfTolerance' | 'transform';
-
 /** The count-bearing constraint keys — the only ones whose template may be a
  *  plural object. Mirror of Go's `CountBearing` (internal/enrichment/classify.go). */
 type CountBearingKeys = 'minLength' | 'maxLength' | 'min' | 'max' | 'lt' | 'gt';
 
-/** Per-constraint mode: `type` plus one REQUIRED key per failable format param. A blank `''` is the
- *  opt-out (deleting a key just gets it re-scaffolded by `mion enrich --update`). NO index signature, so
- *  an unknown key is an excess-property error in the IDE (FT003). `rt$default` belongs to the mode below. */
-type ConstraintTemplates<P> = {type: FriendlyTemplate} & {
-  [K in Exclude<keyof P & string, NonFailingParams>]: K extends CountBearingKeys ? TemplateLeaf : FriendlyTemplate;
+/** Per-constraint mode: `type` plus an optional key per error the format can produce (FormatErrorKeys is
+ *  generated from each format's validation code). The compiler warns about a missing key (FT004); NO index
+ *  signature, so an unknown key is an excess-property error in the IDE (FT003). `rt$default` belongs to the mode below. */
+type ConstraintTemplates<Name extends keyof FormatErrorKeys> = {type: FriendlyTemplate} & {
+  [K in FormatErrorKeys[Name]]?: K extends CountBearingKeys ? TemplateLeaf : FriendlyTemplate;
 } & {rt$default?: never};
 
 /** `rt$default` mode: ONE message for the whole field, whatever failed. MUTUALLY EXCLUSIVE with
@@ -50,20 +49,20 @@ type DefaultOnlyTemplates = {rt$default: FriendlyTemplate; type?: never};
 /** Unbranded fields (plain `string` / `number` / …) can only fail as `type`. */
 type BareTemplates = DefaultOnlyTemplates | ({type: FriendlyTemplate} & {rt$default?: never});
 
-/** Per-field error templates derived from the field type `F`: a branded leaf REQUIRES one key per
- *  failable param it declares, an unbranded leaf takes `type` only, either may use `rt$default` instead.
+/** Per-field error templates derived from the field type `F`: a branded leaf accepts the error keys its
+ *  format can produce, an unbranded leaf takes `type` only, either may use `rt$default` instead.
  *  Pure data: an inline-function form would be opaque to translation, reconcile and the checker. */
 export type ErrorTemplates<F = never> = [F] extends [never]
   ? BareTemplates
-  : F extends {readonly [__rtFormatParams]?: infer P}
-    ? [NonNullable<P>] extends [object]
-      ? DefaultOnlyTemplates | ConstraintTemplates<NonNullable<P>>
+  : F extends {readonly [__rtFormatName]?: infer Name}
+    ? [NonNullable<Name>] extends [keyof FormatErrorKeys]
+      ? DefaultOnlyTemplates | ConstraintTemplates<NonNullable<Name>>
       : BareTemplates
     : BareTemplates;
 
 /** Label and error templates are both REQUIRED, so every node must be addressed; that the VALUES are
  *  filled is enforced by the `@todo` / diagnostic layer, which TS can't see. `F` is the FIELD's own type,
- *  threaded through so `rt$errors` demands exactly the keys its format params declare. `rt$typeName`
+ *  threaded through so `rt$errors` accepts exactly the keys its format can produce. `rt$typeName`
  *  gives a NAMED type a friendly name, defaulting to the reflected one. The `rt$` prefix is RESERVED in
  *  enriched types (`mion enrich` refuses / FT011 flags a colliding property), so the child map can't shadow it. */
 export interface FriendlyMeta<F = never> {

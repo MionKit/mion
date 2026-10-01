@@ -1,18 +1,18 @@
 // Per-branch correctness test for `FriendlyText<T>` (total contract: every field
 // required; `rt$label` + `rt$errors` required on every node; `rt$typeName`
-// optional root meta) — including the PARAM-PRECISE `rt$errors` typing: a branded
-// field's failable format params become REQUIRED template keys, count-bearing
+// optional root meta) — including the `rt$errors` typing: a branded field accepts
+// the error keys its format can produce (generated, all optional), count-bearing
 // keys may pluralize, `rt$default` is the mutually exclusive catch-all mode, and
-// non-failing params (isCurrency, transformers) never become keys.
+// params that never fail (isCurrency, transformers) never become keys.
 //
 // Each `it` compiles a representative snippet for ONE branch of `FriendlyNode`
 // (src/enrich/friendlyText.ts) and asserts valid maps are assignable + invalid
 // maps rejected (a `@ts-expect-error` that fails to fire becomes TS2578, so a
 // too-loose type reds the test).
 //
-// Snippets brand fields with a LOCAL `__rtFormatParams` carrier (the only
-// sentinel `ErrorTemplates<F>` reads) so the harness slice stays
-// self-contained — the real `TF.*` aliases resolve to the same shape.
+// Snippets brand fields with a LOCAL name + params carrier (`ErrorTemplates<F>`
+// reads the name) so the harness slice stays self-contained; the real `TF.*`
+// aliases resolve to the same shape.
 //
 // Each budget IS the branch's current net instantiation count — a one-way
 // ratchet, exactly like dataonly.compile.test.ts: after ANY change to the
@@ -27,9 +27,12 @@
 import {describe, it, expect} from 'vitest';
 import {measureFriendly} from './enrichHarness.ts';
 
-// Local format-brand carrier for snippets (matches TypeFormat's params sentinel).
+// Local format-brand carrier for snippets (matches TypeFormat's name + params sentinels).
 const BRAND = `
-      type Fmt<Base, P extends object> = Base & {readonly [__rtFormatParams]?: P};
+      type Fmt<Base, P extends object, Name = Base extends number ? 'numberFormat' : 'stringFormat'> = Base & {
+        readonly [__rtFormatName]?: Name;
+        readonly [__rtFormatParams]?: P;
+      };
 `;
 
 function check(snippet: string, budget: number): number {
@@ -67,7 +70,7 @@ describe('FriendlyText<T> — per-branch correctness (total contract)', () => {
     );
   });
 
-  it('param-precise rt$errors: declared format params become REQUIRED keys', () => {
+  it('rt$errors accepts the error keys the format can produce, all optional', () => {
     check(
       BRAND +
         `
@@ -78,17 +81,17 @@ describe('FriendlyText<T> — per-branch correctness (total contract)', () => {
         name: { rt$label: 'Name', rt$errors: {
           type: 'must be text',
           minLength: 'min $[val] chars',
-          maxLength: '', // blank = no custom message; the key is still REQUIRED
+          maxLength: '',
         } },
         age: { rt$label: 'Age', rt$errors: {type: 'must be a number'} },
       };
+      // a missing key is the compiler's warning (FT012), not a type error
       const _missingKey: FriendlyText<User> = { rt$label: '', rt$errors: {type: ''},
-        // @ts-expect-error — maxLength is declared by the format, so its key is required
         name: { rt$label: '', rt$errors: { type: '', minLength: '' } },
         age: { rt$label: '', rt$errors: {type: ''} } };
       const _unknownKey: FriendlyText<User> = { rt$label: '', rt$errors: {type: ''},
-        // @ts-expect-error — 'pattern' is not a constraint of this field (no index signature)
-        name: { rt$label: '', rt$errors: { type: '', minLength: '', maxLength: '', pattern: 'x' } },
+        // @ts-expect-error — a string format never fails as 'min' (no index signature)
+        name: { rt$label: '', rt$errors: { type: '', minLength: '', min: 'x' } },
         age: { rt$label: '', rt$errors: {type: ''} } };
       const _bareWithKeys: FriendlyText<User> = { rt$label: '', rt$errors: {type: ''},
         name: { rt$label: '', rt$errors: { type: '', minLength: '', maxLength: '' } },
@@ -99,7 +102,35 @@ describe('FriendlyText<T> — per-branch correctness (total contract)', () => {
         name: { rt$label: '', rt$errors: { rt$default: 'Enter a valid name' } },
         age: { rt$label: '', rt$errors: {type: ''} } };
       `,
-      153
+      137
+    );
+  });
+
+  it('keys follow the format, not the params: creditCard, renamed bounds, float', () => {
+    check(
+      BRAND +
+        `
+      interface Pay {
+        card: Fmt<string, {separators: ' -'}, 'creditCard'>;
+        amount: Fmt<number, {exclusiveMinimum: 0; float: true}>;
+      }
+      const _ok: FriendlyText<Pay> = { rt$label: '', rt$errors: {type: ''},
+        card: { rt$label: '', rt$errors: { type: '', creditCard: 'not a card number' } },
+        amount: { rt$label: '', rt$errors: { type: '', gt: 'more than $[val]' } } };
+      const _separators: FriendlyText<Pay> = { rt$label: '', rt$errors: {type: ''},
+        // @ts-expect-error — separators never fails
+        card: { rt$label: '', rt$errors: { type: '', separators: 'x' } },
+        amount: { rt$label: '', rt$errors: { type: '' } } };
+      const _alias: FriendlyText<Pay> = { rt$label: '', rt$errors: {type: ''},
+        card: { rt$label: '', rt$errors: { type: '' } },
+        // @ts-expect-error — exclusiveMinimum is renamed to gt before validation
+        amount: { rt$label: '', rt$errors: { type: '', exclusiveMinimum: 'x' } } };
+      const _float: FriendlyText<Pay> = { rt$label: '', rt$errors: {type: ''},
+        card: { rt$label: '', rt$errors: { type: '' } },
+        // @ts-expect-error — float never fails
+        amount: { rt$label: '', rt$errors: { type: '', float: 'x' } } };
+      `,
+      175
     );
   });
 
@@ -122,7 +153,7 @@ describe('FriendlyText<T> — per-branch correctness (total contract)', () => {
         // @ts-expect-error — transform is the value rewrite, not a template key
         code: { rt$label: '', rt$errors: { type: '', transform: 'x' } } };
       `,
-      204
+      174
     );
   });
 
@@ -142,7 +173,7 @@ describe('FriendlyText<T> — per-branch correctness (total contract)', () => {
       // @ts-expect-error — 'extra' is not a field of User
       const _bad: FriendlyText<User> = { rt$label: '', rt$errors: {type: ''}, name: { rt$label: '', rt$errors: {type: '', minLength: ''} }, age: { rt$label: '', rt$errors: {type: ''} }, extra: { rt$label: 'x', rt$errors: {type: ''} } };
       `,
-      139
+      127
     );
   });
 
@@ -162,7 +193,7 @@ describe('FriendlyText<T> — per-branch correctness (total contract)', () => {
         },
       };
       `,
-      242
+      218
     );
   });
 
@@ -178,7 +209,7 @@ describe('FriendlyText<T> — per-branch correctness (total contract)', () => {
       };
       type _arr = Expect<Assignable<{rt$label: ''; rt$errors: {type: ''}; rt$items: {rt$label: ''; rt$errors: {type: 't'}}}, FriendlyText<string[]>>>;
       `,
-      222
+      210
     );
   });
 
@@ -197,7 +228,7 @@ describe('FriendlyText<T> — per-branch correctness (total contract)', () => {
       // a tuple does NOT accept rt$items
       type _noitems = ExpectFalse<Assignable<{rt$label: 'x'; rt$errors: {type: 't'}; rt$items: {rt$label: 'x'; rt$errors: {type: 't'}}}, FriendlyText<[string, number]>>>;
       `,
-      180
+      168
     );
   });
 
@@ -212,7 +243,7 @@ describe('FriendlyText<T> — per-branch correctness (total contract)', () => {
         rt$values: { rt$label: 'Value', rt$errors: { type: '', min: 'too small' } },
       };
       `,
-      368
+      356
     );
   });
 
@@ -226,7 +257,7 @@ describe('FriendlyText<T> — per-branch correctness (total contract)', () => {
         rt$values: { rt$label: 'Tag', rt$errors: { type: '', minLength: 'too short' } },
       };
       `,
-      318
+      306
     );
   });
 
@@ -264,7 +295,7 @@ describe('FriendlyText<T> — per-branch correctness (total contract)', () => {
       // @ts-expect-error — 'type' stays a plain string template
       const _pluralType: FriendlyText<User> = { rt$label: '', rt$errors: {type: {other: ''}}, name: { rt$label: '', rt$errors: {type: '', minLength: ''} } };
       `,
-      157
+      131
     );
   });
 
@@ -281,7 +312,7 @@ describe('FriendlyText<T> — per-branch correctness (total contract)', () => {
         // @ts-expect-error — 'integer' never pluralizes (only min/max/lt/gt/minLength/maxLength do)
         age: { rt$label: '', rt$errors: { type: '', integer: {one: '', other: ''}, max: '' } } };
       `,
-      160
+      114
     );
   });
 
