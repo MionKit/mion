@@ -7,7 +7,7 @@
  * ######## */
 
 /**
- * Validates every <code-import> block in the docs content tree
+ * Validates every <code-import> and ::twoslash-code block in the docs content tree
  * (container/website/content).
  *
  * A broken block does NOT fail the website build: processCodeImports() catches the error and
@@ -19,8 +19,7 @@
  * `commentStart`/`commentEnd` are given — that both markers exist in that file. Marker drift is
  * the failure mode the original sweep missed: the path resolved, the marker did not exist.
  *
- * It also fails on an example under packages/private-examples/src that no block imports, directly
- * or through a relative import of an imported example: nobody reads it, so it drifts unseen.
+ * It also fails on an example no block reaches, directly or by relative import: unread, it drifts unseen.
  *
  * Host-side and container-free on purpose: it is a cheap pull-request gate, unlike the
  * in-container `check-links`, which needs the image up.
@@ -35,7 +34,7 @@ const ROOT = resolve(fileURLToPath(import.meta.url), '../..');
 const CONTENT_DIRS = [join(ROOT, 'container/website/content')];
 const EXAMPLES_DIR = 'packages/private-examples/src';
 const CODE_IMPORT_REGEX = /<code-import\s+([^>]*?)\s*\/>/g;
-// The other way a page shows an example: a ::twoslash-code block whose frontmatter names `path:`.
+// The other way a page shows an example.
 const TWOSLASH_PATH_REGEX = /:{2,}twoslash-code[^\n]*\n\s*---\n(?:(?!\s*---\n)[^\n]*\n)*?\s*path:\s*(\S+)/g;
 
 /** Mirrors parseAttributes() in container/website/server/utils/code-import.ts */
@@ -61,7 +60,7 @@ function markdownFiles(dir) {
     return out;
 }
 
-// Examples kept although no page imports them, each with the reason.
+// Examples kept although no page imports them.
 export const UNUSED_EXCEPTIONS = {
     'packages/private-examples/src/client/client.ts': 'the client overview links the client/ folder as the full client example',
     'packages/private-examples/src/client/server.routes.ts': 'the server half of that full client example',
@@ -70,7 +69,6 @@ export const UNUSED_EXCEPTIONS = {
 
 const RELATIVE_IMPORT_REGEX = /(?:from|import)\s*\(?\s*['"](\.{1,2}\/[^'"]+)['"]/g;
 
-/** Every file under dir, recursively, as a root-relative path */
 function filesUnder(root, dir) {
     const out = [];
     for (const entry of readdirSync(join(root, dir))) {
@@ -81,14 +79,13 @@ function filesUnder(root, dir) {
     return out;
 }
 
-/** The root-relative file a relative specifier names, trying the .ts spellings a .js or bare one stands for */
+/** A .js or bare specifier stands for its .ts file. */
 function resolveRelative(root, fromFile, specifier) {
     const base = join(dirname(fromFile), specifier);
     const candidates = [base, base.replace(/\.js$/, '.ts'), `${base}.ts`, `${base}/index.ts`];
     return candidates.find((candidate) => existsSync(join(root, candidate)) && statSync(join(root, candidate)).isFile());
 }
 
-/** Example files no code-import reaches, minus the exceptions; also exceptions that are missing or in use */
 export function unusedExamples(root, importedPaths, exceptions = UNUSED_EXCEPTIONS) {
     const examples = filesUnder(root, EXAMPLES_DIR);
     const reached = new Set();

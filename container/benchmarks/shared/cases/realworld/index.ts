@@ -249,5 +249,5 @@ export const REALWORLD = {
       };
     },
   },
-  // Realworld cases carry samples only (no title/description); the runner reads getSamples alone.
+  // The runner reads getSamples alone.
 } as const satisfies Record<string, Pick<SharedCase, 'getSamples'>>;
