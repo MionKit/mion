@@ -5,8 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {describe, it, expect} from 'vitest';
-import {headersToRecord} from '../../src/lib/headers.ts';
+import {describe, it, expect, afterEach} from 'vitest';
+import {HeadersSubset, type MethodWithOptsAndJitFns} from '@mionjs/core';
+import {headersToRecord, reconstructHeadersSubsetFromResponse} from '../../src/lib/headers.ts';
+import {resetBundledMethods, setBundledMethod} from '../../src/lib/methods.ts';
 
 // `fetchOptions.headers` is typed `HeadersInit`, so a caller may legitimately pass
 // a Headers instance or an array of pairs. Both used to be spread straight into the
@@ -43,5 +45,24 @@ describe('headersToRecord', () => {
     const copy = headersToRecord(original);
     copy['x-api-key'] = 'changed';
     expect(original['x-api-key']).toBe('abc');
+  });
+});
+
+describe('HeadersSubset on the client', () => {
+  afterEach(() => resetBundledMethods());
+
+  it('checks request headers when the subset is built', () => {
+    expect(() => new HeadersSubset<'Authorization'>({Authorization: 1 as unknown as string})).toThrow(
+      'Invalid headers, validation failed.'
+    );
+    expect(new HeadersSubset<'Authorization'>({Authorization: 'token'}).headers).toEqual({Authorization: 'token'});
+  });
+
+  it('rebuilds response headers without a check, leaving it to the response validation', () => {
+    const method = {id: 'tagged', hasReturnData: true, headersReturn: {headerNames: ['X-Tag'], jitHash: ''}};
+    setBundledMethod('tagged', method as unknown as MethodWithOptsAndJitFns);
+    const rebuilt = reconstructHeadersSubsetFromResponse('tagged', new Headers({'X-Tag': 'a'}));
+    expect(rebuilt instanceof HeadersSubset).toBe(true);
+    expect(rebuilt?.headers).toEqual({'X-Tag': 'a'});
   });
 });

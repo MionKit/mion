@@ -10,7 +10,7 @@ import {type RouterOptions} from './types/general.ts';
 import {HeadersMethod, RemoteMethod, RawMethod} from './types/remoteMethods.ts';
 import type {MethodsExecutionChain} from './types/remoteMethods.ts';
 import {getRouterOptions, getAlwaysAwait} from './router.ts';
-import {Mutable, AnyObject, StatusCodes, HeadersSubset, SerializerCode, MION_ROUTES} from '@mionjs/core';
+import {Mutable, AnyObject, StatusCodes, HeadersSubset, SerializerCode, MION_ROUTES, trustedHeadersSubset} from '@mionjs/core';
 import {RpcError, FatalError, HandlerType, ValidationError, isNativeError} from '@mionjs/core';
 import {UNSAFE_PROPERTY_NAME_MESSAGE} from '@mionjs/run-types';
 import {markResponseFailed, recordUndeclaredError} from './lib/dispatchError.ts';
@@ -133,7 +133,6 @@ async function runExecutionChain(
         continue; // like a thrown one: it belongs in @thrownErrors, never in the body
       }
       if (executable.headersReturn && result instanceof HeadersSubset) {
-        validateReturnedHeadersOrThrow(result, executable as HeadersMethod);
         // own keys only: a HeadersSubset built over a parsed body must not turn inherited keys into headers
         const headersMap = result.headers;
         for (const name of Object.keys(headersMap)) {
@@ -179,7 +178,7 @@ function runHeadersMiddleware(context: CallContext, executable: HeadersMethod, r
     const value = request.headers.get(name);
     if (value) headersMap[name] = value;
   });
-  const headersSubset = new HeadersSubset(headersMap);
+  const headersSubset = trustedHeadersSubset(headersMap);
   validateHeaderParamsOrThrow(headersSubset, executable as HeadersMethod);
   validateParametersOrThrow(params, executable as HeadersMethod);
 
@@ -307,18 +306,6 @@ function validateParametersOrThrow(params: any[], executable: RemoteMethod): voi
     });
     throw validationError;
   }
-}
-
-// A returned header off its type is a handler bug, so it fails like an undeclared error
-function validateReturnedHeadersOrThrow(headers: HeadersSubset<string, string>, executable: HeadersMethod): void {
-  const jitFns = executable.headersReturn!.jitFns;
-  if (jitFns.isType.fn(headers)) return;
-  throw new FatalError({
-    statusCode: StatusCodes.UNEXPECTED_ERROR,
-    type: 'response-validation-error',
-    publicMessage: `Invalid headers returned by '${executable.id}', validation failed.`,
-    errorData: {typeErrors: jitFns.typeErrors.fn(headers)},
-  });
 }
 
 function validateHeaderParamsOrThrow(headers: HeadersSubset<string, string>, executable: HeadersMethod): void {

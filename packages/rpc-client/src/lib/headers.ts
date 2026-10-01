@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {HandlerType, HeadersSubset, RpcError} from '@mionjs/core';
+import {HandlerType, HeadersSubset, RpcError, trustedHeadersSubset} from '@mionjs/core';
 import {getMethod} from './methods.ts';
 import type {CallContext} from '../types.ts';
 
@@ -88,7 +88,7 @@ export function reconstructHeadersSubsetFromResponse(
   }
 
   if (Object.keys(headersMap).length > 0) {
-    return new HeadersSubset(headersMap);
+    return trustedHeadersSubset(headersMap);
   }
 
   return undefined;

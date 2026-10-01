@@ -382,12 +382,11 @@ export function getHeaderNamesFromRunType(runType: RunType<unknown>): string[] |
   return propNodes.map((prop) => prop.name).filter((name): name is string => typeof name === 'string');
 }
 
-/** Builds the isType/typeErrors pair from a 2-key ('validate','validationErrors') HeadersSubset marker payload. */
-export function buildHeaderJitFnsFromMarker(
+/** The raw validate pair of a 2-key ('validate','validationErrors') HeadersSubset marker payload, failing closed on a partial one. */
+export function headerCheckFnsFromMarker(
   injected: unknown,
-  typeId: string,
   label: string
-): Pick<JitCompiledFunctions, 'isType' | 'typeErrors'> {
+): {isType: ValidateFn; typeErrors: GetValidationErrorsFn} {
   if (!isInjectedFnsArray(injected))
     throw new Error(
       `RunTypes: no compiled header type functions injected for '${label}'. ` +
@@ -400,8 +399,19 @@ export function buildHeaderJitFnsFromMarker(
       `RunTypes: incomplete compiled-fn payload for '${label}' (val/verr required). ` +
         `Rebuild with a matching @mionjs/devtools + RunTypes version.`
     );
-  const isType = getRTFunction<'validate'>(fns.validate, alwaysTrue);
-  const typeErrors = getRTFunction<'validationErrors'>(fns.validationErrors, noErrors);
+  return {
+    isType: getRTFunction<'validate'>(fns.validate, alwaysTrue),
+    typeErrors: getRTFunction<'validationErrors'>(fns.validationErrors, noErrors),
+  };
+}
+
+/** Builds the isType/typeErrors pair from a 2-key ('validate','validationErrors') HeadersSubset marker payload. */
+export function buildHeaderJitFnsFromMarker(
+  injected: unknown,
+  typeId: string,
+  label: string
+): Pick<JitCompiledFunctions, 'isType' | 'typeErrors'> {
+  const {isType, typeErrors} = headerCheckFnsFromMarker(injected, label);
   const hashes: JitFunctionsHashes = getJitFnHashes(typeId, 'mutate');
   return {
     isType: resolveFn(isType as AnyFn, 'isType', label, hashes.isType),
