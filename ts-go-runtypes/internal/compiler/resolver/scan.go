@@ -624,8 +624,7 @@ func (state scanState) analyzeCall(file string, call *ast.Node) ([]pendingCall, 
 	// SINGLE TRAILING MARKER: the full path, with reflect-form, comptime options, annotation honoring and the
 	// Temporal-not-loaded guard.
 	if len(injecting) == 1 && injecting[0].paramIndex == lastIndex {
-		// The options bag is read only from a slot declared compile-time, so a constructor whose argument 0 is
-		// data (`new HeadersSubset({strategy: x})`) never has a header taken for an option.
+		// Options come only from a compile-time slot, so `new HeadersSubset({strategy: x})` never reads a header as one.
 		optionsArgsCount := argsCount
 		if lastIndex == 0 || !compTimeSlots[lastIndex-1] {
 			optionsArgsCount = 0
@@ -740,9 +739,7 @@ func (state scanState) analyzeTrailingInjection(file string, call *ast.Node, par
 			return pendingCall{}, diags, false
 		}
 	}
-	// REFLECT-FORM CHECKS fire only when T was inferred from a value argument: no written type-argument list,
-	// at least one value argument present, and parameter 0 typed as the marker's T (or RunType<T>). A
-	// constructor taking data in argument 0 (`new HeadersSubset(map)`) keeps the T its signature resolved.
+	// REFLECT-FORM CHECKS need T inferred from argument 0, so `new HeadersSubset(map)` keeps the T its signature resolved.
 	inReflectForm := len(call.TypeArguments()) == 0 && argsCount > 0 &&
 		state.paramZeroCarriesT(parameters, injectionTypeArgument)
 	if inReflectForm {
@@ -1596,13 +1593,12 @@ func (state scanState) declaredTypeFromIdentifier(node *ast.Node) (*checker.Type
 	return checker.Checker_getTypeFromTypeNode(state.scanChecker, typeNode), true
 }
 
-// isCallOrNew reports the two node kinds a marker parameter is filled on: a call and a `new` expression.
+// isCallOrNew reports a node a marker parameter can be filled on.
 func isCallOrNew(node *ast.Node) bool {
 	return node.Kind == ast.KindCallExpression || node.Kind == ast.KindNewExpression
 }
 
-// injectionPos is where the marker args go: the closing `)` (End is one past it), or the end of a `new X` /
-// `new X<T>` written without parens, where noArgList asks the rewrite to add the parens.
+// injectionPos is the closing `)` (End is one past it), or the end of a paren-less `new X`, which needs noArgList.
 func injectionPos(call *ast.Node) (pos int, noArgList bool) {
 	if call.ArgumentList() == nil {
 		return call.End(), true
@@ -1631,8 +1627,7 @@ func (state scanState) paramZeroCarriesT(parameters []*ast.Symbol, typeArgument 
 		checker.Checker_GetNonNullableType(state.scanChecker, typeArgument))
 }
 
-// forEachCallOrNewExpression is forEachCallExpression widened to `new` expressions, for the marker scan only;
-// the router, api and batch scans stay on calls.
+// forEachCallOrNewExpression also visits `new`, for the marker scan only; the router, api and batch scans stay on calls.
 func forEachCallOrNewExpression(sourceFile *ast.SourceFile, cb func(*ast.Node) bool) {
 	if sourceFile == nil {
 		return
