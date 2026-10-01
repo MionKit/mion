@@ -103,6 +103,9 @@ func TestParallelRender_MetricsPerFamily(t *testing.T) {
 	if got, want := renderMsKeys(parallelResponse.Metrics), renderMsKeys(serialResponse.Metrics); got != want {
 		t.Fatalf("RenderMs key sets diverged: parallel %s, serial %s", got, want)
 	}
+	if _, ok := serialResponse.Metrics.RenderMs["reachedFindings"]; !ok {
+		t.Errorf("RenderMs must time the reach walk under reachedFindings, got %s", renderMsKeys(serialResponse.Metrics))
+	}
 }
 
 func renderMsKeys(metrics *protocol.Metrics) string {
