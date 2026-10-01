@@ -844,8 +844,7 @@ func cachedChildRefs(children []string, innerPrefix string, opts RenderOpts) ([]
 	return refs, true
 }
 
-// leafKindLabel returns the short label for an unsupported leaf, passed as the {0} substitution arg for
-// root-throw diagnostics. It is family-independent; per-family wording lives in the catalog entry.
+// leafKindLabel is the family-independent {0} arg of root-throw diagnostics; per-family wording lives in the catalog.
 func leafKindLabel(leaf *reflection.RunType, resolve RefResolver) string {
 	if leaf == nil {
 		return "Unsupported"

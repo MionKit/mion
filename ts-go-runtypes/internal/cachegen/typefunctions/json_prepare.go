@@ -118,8 +118,7 @@ func (PrepareForJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ Co
 
 	case reflection.KindFunction, reflection.KindMethod,
 		reflection.KindMethodSignature, reflection.KindCallSignature:
-		// Only a root, union-member or tuple-slot function reaches this arm: object / property children of
-		// function type are filtered out by the parent emit.
+		// Only a root, union-member or tuple-slot function gets here: the parent emit drops object / property ones.
 		return RTCode{Code: "", Type: CodeNS}
 
 	case reflection.KindUnion:
@@ -168,8 +167,7 @@ func emitLiteralPrepareForJson(rt *reflection.RunType, v string) RTCode {
 // encode / decode difference lives in the child emits. A child returning CodeNS short-circuits the
 // whole entry.
 func emitObjectJsonChildren(rt *reflection.RunType, ctx *EmitContext) RTCode {
-	// A callable interface is function-like (DataOnly = never); treat it like a
-	// bare function (alwaysThrow at root, dropped at a property), not an object.
+	// A callable interface is DataOnly never: like a bare function, alwaysThrow at root and dropped at a property.
 	if isCallableValue(rt, ctx) {
 		return RTCode{Code: "", Type: CodeNS}
 	}

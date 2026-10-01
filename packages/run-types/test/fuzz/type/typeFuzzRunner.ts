@@ -335,7 +335,7 @@ function checkBehaviourTier(
   // DataOnly non-data lane: values come from the REAL product mock and the
   // serialize/fail tier is read off the resolver's own diagnostics.
   if (valueSource === 'mock') {
-    // One draw for every check: a mock can be slow, and each check needs the same conforming value anyway.
+    // One draw for every check: a mock can be slow.
     const drawn = drawMock(compiled.wired.mock);
     checkMockBehaviour(compiled, drawn, seed, out, stats);
     checkDiagnosticTruth(compiled, drawn, seed, out);
@@ -588,7 +588,7 @@ function checkDiagnosticTruth(compiled: CompiledType, drawn: DrawnMock, seed: nu
   }
   if (!hasValue) return;
   checkRoundTripDrops(compiled, value, ctx, out);
-  // A second draw with every optional member present, so a member the first draw left out is checked too.
+  // A second draw with every optional member present, to check the ones the first draw left out.
   const full = drawMock(compiled.wired.mockFull);
   if (full.hasValue) checkRoundTripDrops(compiled, full.value, ctx, out);
 }
