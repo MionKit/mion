@@ -90,7 +90,8 @@ const FUZZ = {
   value: {patterns: ['value/fuzz.integration'], quick: {MION_FUZZ_SOAK_MS: '10000'}, soak: {MION_FUZZ_SOAK_MS: '60000'}},
   types: {patterns: ['type/typeFuzz.integration'], quick: {MION_FUZZ_TYPES_SOAK_MS: '10000'}, soak: {MION_FUZZ_TYPES_SOAK_MS: '60000'}},
   cloning: {patterns: ['cloneFuzz.integration'], quick: {MION_FUZZ_CLONE_SOAK_MS: '10000'}, soak: {MION_FUZZ_CLONE_SOAK_MS: '60000'}},
-  nondata: {patterns: ['nonDataTypeFuzz.integration'], quick: {MION_FUZZ_NONDATA_SOAK_MS: '10000'}, soak: {MION_FUZZ_NONDATA_SOAK_MS: '60000'}},
+  // Soaks 10 minutes in its own workflow, beside the release gate rather than in its matrix.
+  nondata: {patterns: ['nonDataTypeFuzz.integration'], soakWorkflow: 'fuzz-nondata-soak.yml', quick: {MION_FUZZ_NONDATA_SOAK_MS: '10000'}, soak: {MION_FUZZ_NONDATA_SOAK_MS: '600000'}},
   roundtrip: {patterns: ['allStrategyRoundtrip.integration'], quick: {MION_FUZZ_ROUNDTRIP_SOAK_MS: '10000'}, soak: {MION_FUZZ_ROUNDTRIP_SOAK_MS: '60000'}},
   elision: {patterns: ['elision/elisionFuzz.integration'], quick: {MION_FUZZ_ELISION_SOAK_MS: '10000'}, soak: {MION_FUZZ_ELISION_SOAK_MS: '60000'}},
   // The JSON size bound: the build-time jsonMaxBytes against what the serializer really emits (test/fuzz/type/jsonSizeBound).
@@ -336,11 +337,11 @@ function runCore(args) {
   // suites onto the slim packages so the translation can be inspected. The full
   // lane is `miondevx release drizzle-e2e`.
   if (sub === 'drizzle-translate') return proxy('node', ['scripts/core/drizzle-translate.mjs', ...rest]);
-  // The machine-readable soak lane list (every FUZZ entry with a soak budget),
+  // The machine-readable soak lane list (every FUZZ entry with a soak budget and no workflow of its own),
   // as sorted JSON. release-gate.yml and fuzz-soak.yml build their matrices
   // from this — bare node, no deps, no build, no env needed.
   if (sub === 'fuzz-lanes') {
-    process.stdout.write(`${JSON.stringify(Object.keys(FUZZ).filter((lane) => FUZZ[lane].soak).sort())}\n`);
+    process.stdout.write(`${JSON.stringify(Object.keys(FUZZ).filter((lane) => FUZZ[lane].soak && !FUZZ[lane].soakWorkflow).sort())}\n`);
     return;
   }
   if (sub === 'fuzz') return runFuzz(rest);

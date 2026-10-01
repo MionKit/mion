@@ -34,7 +34,7 @@ const ci = read('.github/workflows/ci.yml');
 
 // One registry entry per line (the registry comment pins that layout for this
 // parser's sake): name, then the tier blocks parsed out of the body.
-type Lane = {patterns: string[]; quick: Record<string, string>; soak: Record<string, string>};
+type Lane = {patterns: string[]; quick: Record<string, string>; soak: Record<string, string>; soakWorkflow?: string};
 const registry = ((): Record<string, Lane> => {
   const start = miondevx.indexOf('const FUZZ = {');
   const block = miondevx.slice(start, miondevx.indexOf('\n};', start));
@@ -45,7 +45,8 @@ const registry = ((): Record<string, Lane> => {
       return match ? Object.fromEntries([...match[1].matchAll(/(\w+): '([^']*)'/g)].map(([, k, v]) => [k, v])) : {};
     };
     const patterns = [...(/\bpatterns: \[([^\]]*)\]/.exec(body)?.[1] ?? '').matchAll(/'([^']*)'/g)].map(([, p]) => p);
-    lanes[lane] = {patterns, quick: tier('quick'), soak: tier('soak')};
+    const soakWorkflow = /\bsoakWorkflow: '([^']*)'/.exec(body)?.[1];
+    lanes[lane] = {patterns, quick: tier('quick'), soak: tier('soak'), soakWorkflow};
   }
   return lanes;
 })();
@@ -53,6 +54,9 @@ const registry = ((): Record<string, Lane> => {
 const soakLanes = Object.keys(registry)
   .filter((lane) => Object.keys(registry[lane].soak).length > 0)
   .sort();
+// A lane with a soak workflow of its own soaks there, never in the shared matrices.
+const ownWorkflowLanes = soakLanes.filter((lane) => registry[lane].soakWorkflow);
+const matrixLanes = soakLanes.filter((lane) => !registry[lane].soakWorkflow);
 // The scheduling split the budgets encode: time-boxed lanes (a *_SOAK_MS wall
 // clock — must never share CPU) vs count-based lanes (fixed coverage).
 const timeBoxedLanes = soakLanes.filter((lane) => Object.keys(registry[lane].soak).some((k) => k.endsWith('_SOAK_MS'))).sort();
@@ -92,14 +96,14 @@ describe('the lane list has one source of truth: the miondevx FUZZ registry', ()
     expect(countBasedLanes.length).toBeGreaterThan(2);
   });
 
-  it('`miondevx core fuzz-lanes` emits exactly the soak lanes (the matrix source)', () => {
+  it('`miondevx core fuzz-lanes` emits exactly the soak lanes without a workflow of their own (the matrix source)', () => {
     const emitted = spawnSync('node', ['scripts/miondevx.mjs', 'core', 'fuzz-lanes'], {
       cwd: REPO_ROOT,
       encoding: 'utf8',
       timeout: 30_000,
     });
     expect(emitted.status).toBe(0);
-    expect((JSON.parse(emitted.stdout) as string[]).sort()).toEqual(soakLanes);
+    expect((JSON.parse(emitted.stdout) as string[]).sort()).toEqual(matrixLanes);
   });
 
   for (const [name, source] of [
@@ -114,6 +118,16 @@ describe('the lane list has one source of truth: the miondevx FUZZ registry', ()
 
   it('fuzz-soak.yml offers exactly the soak lanes as dispatch choices (the one underivable copy)', () => {
     expect(dispatchOptions).toEqual(soakLanes);
+  });
+
+  it('a lane with its own soak workflow has that workflow, and it soaks exactly that lane', () => {
+    expect(ownWorkflowLanes).toContain('nondata');
+    for (const lane of ownWorkflowLanes) {
+      const source = read(`.github/workflows/${registry[lane].soakWorkflow}`);
+      expect(source).toContain(`pnpm miondevx core fuzz ${lane} --soak`);
+      expect(source).toContain('MION_FUZZ_SEED: ${{ inputs.seed || github.run_id }}');
+      expect(source).toContain(`replay this run: MION_FUZZ_SEED=$MION_FUZZ_SEED pnpm miondevx core fuzz ${lane} --soak`);
+    }
   });
 
   it('fuzz-soak.yml offers `all` as the default choice', () => {
