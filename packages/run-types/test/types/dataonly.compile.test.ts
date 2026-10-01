@@ -82,13 +82,21 @@ describe('DataOnly<T> — per-branch correctness + instantiation budget', () => 
     );
   });
 
+  it('URL kept verbatim by identity (the built-in DataOnlyNativeExtra row)', () => {
+    check(
+      `
+      type _01 = Expect<Equal<DataOnly<URL>, URL>>;
+      type _02 = Expect<Equal<DataOnly<{link: URL; name: string}>, {link: URL; name: string}>>;
+      `,
+      233
+    );
+  });
+
   // ArrayBuffer / SharedArrayBuffer / DataView + every typed array are
   // SubKindNonSerializable in the emitter (unsupported for validate/getValidationErrors
-  // and every serializer) → DataOnly strips them to `never`. (The DOM classes
-  // URL/Blob/File/FileList/FormData/URLSearchParams are NOT here: the emitter
-  // validates them STRUCTURALLY as plain classes, so DataOnly projects them via
-  // the object branch — same path as the `objects` case below. They aren't
-  // asserted here because they require lib.dom, which the harness omits.)
+  // and every serializer) → DataOnly strips them to `never`. (The other lib classes
+  // Blob/File/FormData/URLSearchParams are not asserted: they need lib.dom, which
+  // the harness omits.)
   it('non-serialisable built-ins stripped to never (buffers + typed arrays)', () => {
     check(
       `

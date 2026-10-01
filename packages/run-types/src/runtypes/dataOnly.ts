@@ -20,17 +20,22 @@ import type {__rtFormatName, __rtContains, __rtPatternProps, __rtPropNames} from
 // #region dataonly-extract — DataOnly machinery; sliced verbatim between these
 // markers by test/types/dataonlyHarness.ts to build the per-branch budget test.
 
-/** Augmentation hook for native / host classes `DataOnly` must KEEP verbatim (the RT validates them by identity,
- *  never by structural projection) but that this core module cannot NAME without forcing their lib onto every
- *  consumer. The opt-in `@mionjs/run-types/formats/temporal` subpath augments it with the 8 TC39 `Temporal`
- *  types; with nothing augmenting it the `DataOnlyNative` tail below stays `never`. One row per kept class. **/
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface DataOnlyNativeExtra {}
+/** The platform `URL` instance, read off `globalThis` so this module never names `URL`: `never` without `dom` or
+ *  `@types/node`, so it vanishes from the keep union instead of absorbing it. **/
+type DataOnlyUrl = typeof globalThis extends {URL: {prototype: infer I}} ? I : never;
 
-/** Classes `DataOnly` KEEPS verbatim: validated by IDENTITY and with a data form on the wire, so just `Date` unless
- *  augmented (`Map` / `Set` have own branches; `RegExp` and the binary buffers are stripped). `URL` / `Blob` / `Error`
- *  and every other lib class project to their data shape although the emitter skips them: a type cannot tell where a
- *  class was declared. The one known gap; the D4 fuzz rule draws no lib class. **/
+/** Native / host classes `DataOnly` must KEEP verbatim (the RT validates them by identity, never by structural
+ *  projection) but that this core module cannot NAME without forcing their lib onto every consumer. `URL` is
+ *  built in; the opt-in `@mionjs/run-types/formats/temporal` subpath augments it with the 8 TC39 `Temporal`
+ *  types. One row per kept class, each `never` when its lib is absent. **/
+export interface DataOnlyNativeExtra {
+  url: DataOnlyUrl;
+}
+
+/** Classes `DataOnly` KEEPS verbatim: validated by IDENTITY and with a data form on the wire, so `Date` plus the
+ *  `DataOnlyNativeExtra` rows (`Map` / `Set` have own branches; `RegExp` and the binary buffers are stripped).
+ *  `Blob` / `Error` and every other lib class project to their data shape although the emitter skips them: a type
+ *  cannot tell where a class was declared. The one known gap; the D4 fuzz rule draws no other lib class. **/
 type DataOnlyNative = Date | DataOnlyNativeExtra[keyof DataOnlyNativeExtra];
 
 /** Kinds the AOT validator treats as NON-DATA and strips: `symbol` (runtime identity, not round-trippable),

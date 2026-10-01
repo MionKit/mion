@@ -46,6 +46,21 @@ function check(snippet: string, budget: number): number {
 }
 
 describe('FriendlyText<T> — per-branch correctness (total contract)', () => {
+  // The URL global is declared in the snippet (the harness loads no dom or @types/node).
+  it('a URL is a leaf: label + errors, no per-member children', () => {
+    check(
+      `
+      declare global {
+        interface URL {href: string; pathname: string; toJSON(): string}
+        var URL: {prototype: URL; new (url: string): URL};
+      }
+      type _01 = Expect<Assignable<{rt$label: 'u'; rt$errors: {type: 't'}}, FriendlyText<URL>>>;
+      type _02 = ExpectFalse<Assignable<'href', keyof FriendlyText<URL>>>;
+      `,
+      30
+    );
+  });
+
   it('scalar leaves carry rt$label + rt$errors (both required); rt$default is the exclusive mode', () => {
     check(
       `

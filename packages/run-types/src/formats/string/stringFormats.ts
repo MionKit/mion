@@ -4,7 +4,7 @@
 // brand alias's reflection metadata reachable for tsgo.
 
 import {TypeFormat} from '../../runtypes/typeFormat.ts';
-import type {FormatNameOf, FormatParamsOf, FormatBrandNameOf} from '../../runtypes/typeFormat.ts';
+import type {FormatNameOf, FormatParamsOf, FormatBrandNameOf, FormatBrand, NominalBrand} from '../../runtypes/typeFormat.ts';
 import type {FormatPattern, StringPatternArgs} from '../../runtypes/formatPattern.ts';
 // Type-only on purpose: a value import would ship the whole pattern table to every browser.
 // The Go scanner recovers {source, flags, mockSamples} from each const's literal type.
@@ -35,9 +35,9 @@ import type {
   IRI_REFERENCE_PATTERN,
   URI_TEMPLATE_PATTERN,
 } from './string-patterns.ts';
-import {builderResult, presetBuilder} from '../../runtypes/builderCore.ts';
+import {builderResult, lastInjectedId, presetBuilder} from '../../runtypes/builderCore.ts';
 import type {RunType} from '../../runtypes/types.ts';
-import type {ExactParams} from '../../runtypes/builderTypes.ts';
+import type {BrandArg, ExactParams} from '../../runtypes/builderTypes.ts';
 import type {InjectRunTypeId, CompTimeArgs} from '../../markers.ts';
 import type {
   StringDate,
@@ -584,6 +584,29 @@ export type Url<P extends Override<UrlParams> = {}> = PresetFormat<'url', DEFAUL
 export type UrlHttp<P extends Override<UrlParams, 'pattern'> = {}> = PresetFormat<'url', DEFAULT_URL_HTTP_PARAMS, P>;
 export type UrlFile<P extends Override<UrlParams, 'pattern'> = {}> = PresetFormat<'url', DEFAULT_URL_FILE_PARAMS, P>;
 
+// ───────────────────────────── URL objects ──────────────────────────
+// The url params over a URL OBJECT: sent as its href string, rebuilt with `new URL()`, and the length and
+// pattern params check its href. `transform` is left out because a URL object is never rewritten.
+
+/** The platform `URL` instance type, read off `globalThis` so the published `.d.ts` works without `dom` or
+ *  `@types/node`; `never` there, since without a `URL` global there is no URL value to describe. **/
+type UrlInstance = typeof globalThis extends {URL: {prototype: infer I}} ? I : never;
+export type NativeUrlParams = Omit<UrlParams, 'transform'>;
+/** The brand is written inline, not through `TypeFormat`, so the root `TypeFormatBase` never names `URL`. **/
+export type NativeUrlFormat<P extends object, BrandName extends string = never> = UrlInstance &
+  FormatBrand<'nativeUrl', P> &
+  ([BrandName] extends [never] ? unknown : NominalBrand<BrandName>);
+/** A URL object, `NativeUrl<{maxLength: 200}>`; no pattern by default, so any URL `new URL()` accepts passes. **/
+export type NativeUrl<P extends NativeUrlParams = {}, BrandName extends string = never> = NativeUrlFormat<P, BrandName>;
+/** An HTTP(S) URL object, the `UrlHttp` defaults over its href. **/
+export type NativeUrlHttp<P extends Override<NativeUrlParams, 'pattern'> = {}> = NativeUrlFormat<
+  FormatDefaults<DEFAULT_URL_HTTP_PARAMS, P>
+>;
+/** A file:// URL object, the `UrlFile` defaults over its href. **/
+export type NativeUrlFile<P extends Override<NativeUrlParams, 'pattern'> = {}> = NativeUrlFormat<
+  FormatDefaults<DEFAULT_URL_FILE_PARAMS, P>
+>;
+
 /** Any RFC 3986 URI, whatever the scheme (`mailto:`, `urn:`, `tel:`) — what
  *  `format: 'uri'` means. `Url` is the narrower web-address form. **/
 export type Uri<P extends Override<UrlParams, 'pattern'> = {}> = PresetFormat<'url', DEFAULT_URI_PARAMS, P>;
@@ -833,6 +856,39 @@ export const url = presetFormatBuilder<'url', DEFAULT_URL_PARAMS, Override<UrlPa
 export const urlHttp = presetFormatBuilder<'url', DEFAULT_URL_HTTP_PARAMS, Override<UrlParams, 'pattern'>>('url');
 /** file:// URL (`UrlFile`). **/
 export const urlFile = presetFormatBuilder<'url', DEFAULT_URL_FILE_PARAMS, Override<UrlParams, 'pattern'>>('url');
+
+/** A URL object field (`NativeUrl`); `nativeUrl({maxLength: 200})` checks its href. **/
+export function nativeUrl(id?: InjectRunTypeId<UrlInstance>): RunType<UrlInstance>;
+export function nativeUrl<const P extends NativeUrlParams>(
+  formatParams: CompTimeArgs<ExactParams<P, NativeUrlParams>>,
+  id?: InjectRunTypeId<NativeUrl<P>>
+): RunType<NativeUrl<P>>;
+export function nativeUrl<const P extends NativeUrlParams, const B extends string>(
+  formatParams: CompTimeArgs<ExactParams<P, NativeUrlParams>>,
+  brandTag: BrandArg<B>,
+  id?: InjectRunTypeId<NativeUrl<P, B>>
+): RunType<NativeUrl<P, B>>;
+export function nativeUrl(
+  formatParamsOrId?: NativeUrlParams | InjectRunTypeId<UrlInstance>,
+  brandOrId?: BrandArg<string> | InjectRunTypeId<UrlInstance>,
+  id?: InjectRunTypeId<UrlInstance>
+): RunType<UrlInstance> {
+  const formatParams = typeof formatParamsOrId === 'object' && !Array.isArray(formatParamsOrId) ? formatParamsOrId : {};
+  return builderResult(lastInjectedId(formatParamsOrId, brandOrId, id), {type: 'nativeUrl', formatParams});
+}
+
+/** The call shape of the two URL object presets. **/
+export interface NativeUrlPresetBuilder<Defaults extends object> {
+  (id?: InjectRunTypeId<NativeUrlFormat<Defaults>>): RunType<NativeUrlFormat<Defaults>>;
+  <const P extends Override<NativeUrlParams, 'pattern'>>(
+    formatParams: CompTimeArgs<ExactParams<P, Override<NativeUrlParams, 'pattern'>>>,
+    id?: InjectRunTypeId<NativeUrlFormat<FormatDefaults<Defaults, P>>>
+  ): RunType<NativeUrlFormat<FormatDefaults<Defaults, P>>>;
+}
+/** HTTP(S) URL object (`NativeUrlHttp`); `nativeUrlHttp({maxLength: 100})` retunes the bound. **/
+export const nativeUrlHttp = presetFormatBuilder('nativeUrl') as unknown as NativeUrlPresetBuilder<DEFAULT_URL_HTTP_PARAMS>;
+/** file:// URL object (`NativeUrlFile`). **/
+export const nativeUrlFile = presetFormatBuilder('nativeUrl') as unknown as NativeUrlPresetBuilder<DEFAULT_URL_FILE_PARAMS>;
 
 /** A string-date field (`StringDate`); `stringDate({format: 'DD-MM-YYYY'})`
  *  picks the layout and may add min/max bounds. **/
