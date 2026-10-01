@@ -26,8 +26,8 @@ import {csrf, getCsrfToken, rotateCsrfToken} from './csrf.middleware.ts';
 // ============ Router ============
 // Every route / middleware below comes from these helpers: plain closures, so destructuring keeps
 // them injected.
-type TestSharedData = {user: {name: string; surname: string} | null; httpMethod: string | null};
-const getSharedData = (): TestSharedData => ({user: null, httpMethod: null});
+type TestSharedData = {user: {name: string; surname: string} | null; httpMethod: string | null; page: number | null};
+const getSharedData = (): TestSharedData => ({user: null, httpMethod: null, page: null});
 const mion = createMionRouter({contextDataFactory: getSharedData});
 const {route, headersFn, middleware, query, mutation, rawMiddleware} = mion;
 
@@ -325,6 +325,24 @@ const routes = {
     sumTwo: route((ctx, a: number): number => a + 2),
     multiply: route((ctx, a: number, b: number): number => a * b),
     processUser: route((ctx, user: User): string => `Processed: ${user.name} ${user.surname}`),
+  },
+
+  // middlewares with NO params: the client gets their answers and declared errors without any onRequest hook
+  paramless: {
+    gate: middleware((ctx): void | FatalError<'gate-closed'> => {
+      if (ctx.request.headers.get('x-gate') === 'closed')
+        return new FatalError({publicMessage: 'Gate closed', type: 'gate-closed'});
+    }),
+    list: route((ctx, page: number): number[] => {
+      ctx.shared.page = page;
+      return [page * 10, page * 10 + 1];
+    }),
+    // after the route: reports what the route left in the context
+    pageInfo: middleware((ctx): {page: number; total: number} | RpcError<'page-out-of-range'> => {
+      const page = ctx.shared.page ?? 0;
+      if (page > 9) return new RpcError({publicMessage: 'No such page', type: 'page-out-of-range'});
+      return {page, total: 100};
+    }),
   },
 
   createUserProfile: route((_ctx, user: UserProfile): UserProfile => user),
