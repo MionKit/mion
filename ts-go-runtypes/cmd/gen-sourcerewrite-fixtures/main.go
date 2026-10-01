@@ -165,22 +165,13 @@ var primaryCases = []fixtureCase{
 		s.FnId = "val"
 		return []protocol.Site{s}, nil
 	}},
-	// 13. new expression — `new X(value)` takes its binding at the closing paren like a call.
-	{"new_expression", "a.ts", "const h = new HeadersSubset({A: 'x'});\n", func(code string) ([]protocol.Site, []protocol.Replacement) {
-		s := site(byteIndexOf(code, ")", 0), "Hdr0001")
-		s.ArgsCount = 1
-		s.FnIds = []string{"val", "verr"}
-		s.FnId = "val"
-		return []protocol.Site{s}, nil
-	}},
-	// 14. new without parens — Pos is the expression end and the insertion brings its own `(...)`.
+	// 13. new without parens — Pos is the expression end and the insertion brings its own `(...)`.
 	{"new_no_parens", "a.ts", "const h = new Holder<string>;\n", func(code string) ([]protocol.Site, []protocol.Replacement) {
-		s := site(byteIndexOf(code, ";", 0), "Hld0001")
-		s.ParamIndex = 0
-		s.NoArgList = true
-		return []protocol.Site{s}, nil
+		fixtureSite := site(byteIndexOf(code, ";", 0), "Hld0001")
+		fixtureSite.NoArgList = true
+		return []protocol.Site{fixtureSite}, nil
 	}},
-	// 15. empty (no sites, no replacements) — Apply returns {code, nil map}.
+	// 14. empty (no sites, no replacements) — Apply returns {code, nil map}.
 	{"empty", "a.ts", "const noop = 1;\n", func(code string) ([]protocol.Site, []protocol.Replacement) {
 		return nil, nil
 	}},

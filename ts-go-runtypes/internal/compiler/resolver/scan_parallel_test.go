@@ -124,6 +124,15 @@ export const enc = createJsonEncoderFn<WithFn>();
 const w: WithFn = {name: 'x', onClick: () => {}};
 export const idReflect = getRunTypeId(w);
 `,
+		"j_new.ts": `import {type InjectRunTypeId} from '@mionjs/run-types';
+export class Holder<T> {
+  constructor(value?: T, id?: InjectRunTypeId<T>) {}
+}
+export interface Item {sku: string; qty: number}
+export const holderStatic = new Holder<Item>();
+const item: Item = {sku: 'a', qty: 1};
+export const holderReflect = new Holder(item);
+`,
 	}
 }
 
@@ -132,7 +141,7 @@ func parallelFixtureFiles() []string {
 	return []string{
 		"a_objects.ts", "b_unions.ts", "c_large.ts", "d_shared.ts",
 		"e_diags.ts", "f_enum_literals.ts", "g_reflect.ts", "h_classes.ts",
-		"i_dropped.ts",
+		"i_dropped.ts", "j_new.ts",
 	}
 }
 
@@ -359,5 +368,19 @@ func TestParallelScan_DumpEquivalence(t *testing.T) {
 	}
 	if len(serialResponse.Sites) == 0 {
 		t.Fatalf("dump produced no sites — eager scan did not run")
+	}
+}
+
+// The parallel scan visits `new` expressions too, both marker shapes resolving to one id.
+func TestParallelScan_NewExpressions(t *testing.T) {
+	response := setupParallelResolver(t, parallelFixtureSources()).Dispatch(scanAllRequest(parallelFixtureFiles()))
+	var ids []string
+	for _, site := range response.Sites {
+		if strings.HasSuffix(site.File, "j_new.ts") {
+			ids = append(ids, site.ID)
+		}
+	}
+	if len(ids) != 2 || ids[0] != ids[1] {
+		t.Fatalf("expected two `new Holder` sites sharing one id, got %v", ids)
 	}
 }
