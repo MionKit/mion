@@ -10,34 +10,32 @@ created: 2026-10-01
 ## Intent
 
 `packages/private-examples/src/` exists so website pages can `<code-import>` compiled examples. In
-`packages/private-examples/src/run-types/`, 10 of the 12 files are imported by no page under
+`packages/private-examples/src/run-types/`, 9 of the 11 files are imported by no page under
 `container/website/content/`:
 
 - `comparison-mion.ts`, `comparison-schema-first.ts`, `comparison-type-first.ts`, `comparison-typia.ts`
-- `complete-example.ts`, `json-restore.ts`, `json-round-trip-union.ts`, `json-stringify.ts`
+- `complete-example.ts`, `json-restore.ts`, `json-stringify.ts`
 - `mock-data.ts`, `pure-functions.ts`
 
 Only `validation-is-type.ts` and `validation-type-errors.ts` are used (by
 `01.rpc/02.server/06.validation.md`). Dead examples still cost typecheck time and drift without anyone
 noticing, since no reader sees them.
 
-Repro:
-
-```bash
-for f in packages/private-examples/src/run-types/*.ts; do
-  grep -rqF "${f#packages/}" container/website/content || echo "unused: $f"
-done
-```
+Repro: `container/website/scripts/check-unused-examples.mts` (the in-container
+`pnpm run check-unused-examples`) lists every example under `packages/private-examples/src/` that no
+`<code-import>` uses. It always exits 0 and nothing runs it, which is how these files piled up.
 
 ## Direction
 
 - Decide per file: delete it, or import it from the page it belongs to (some may duplicate a `guide/`
   example that a page already uses).
-- A deleted file also leaves the lists that name it: `packages/private-examples/tsconfig.json`,
-  `tsconfig.runtypes.json`, `eslint.config.js`, and `scripts/core/typecheck-coverage.mjs`
-  (`comparison-typia.ts` has an entry there).
-- Run the same sweep over the other `src/` subdirectories (`guide/`, `router/`, `_homepage/` ...), and
-  consider a check (a `repo-contracts.test.ts` case, for instance) that fails on an example no page imports.
+- Deleting `comparison-typia.ts` also drops its `exclude` line in `packages/private-examples/tsconfig.json`
+  and its entry in `scripts/core/typecheck-coverage.mjs`. The other eight come in through the `src` include
+  and are named nowhere.
+- The same script finds unused files in the other `src/` subdirectories too (`client/`, `guide/`,
+  `introduction/`, `router/`, `enrich/`, `suites/`). Settle those the same way.
+- Make the existing check fail: give it an exceptions list, exit 1, and run it in CI (or move its logic into
+  a `repo-contracts.test.ts` case and delete the script). Do not add a second check.
 - The implementer plans the details.
 
 ## Docs
