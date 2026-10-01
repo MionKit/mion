@@ -64,7 +64,6 @@ function markdownFiles(dir) {
 export const UNUSED_EXCEPTIONS = {
     'packages/private-examples/src/client/client.ts': 'the client overview links the client/ folder as the full client example',
     'packages/private-examples/src/client/server.routes.ts': 'the server half of that full client example',
-    'packages/private-examples/src/run-types/serialization-union.ts': 'deleted by the pull request that rewrites the serialization page',
 };
 
 const RELATIVE_IMPORT_REGEX = /(?:from|import)\s*\(?\s*['"](\.{1,2}\/[^'"]+)['"]/g;
