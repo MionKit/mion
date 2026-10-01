@@ -128,7 +128,7 @@ func (sess *Session) foldOverrideMap(raws []rawOverride) (map[string]map[string]
 	prev := map[string]map[string]string{}
 	baseKeys := make([]string, len(raws))
 	for iteration := 0; iteration < maxOverrideFoldIterations; iteration++ {
-		computer := typeid.NewWithOverrides(sess.checker, prev)
+		computer := typeid.NewWithOverrides(sess.checker, prev).SetEnvironment(sess.Program.EnvironmentFile)
 		next := map[string]map[string]string{}
 		for i, raw := range raws {
 			baseKey := computer.BaseStructuralKey(raw.typeArg)

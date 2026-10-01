@@ -70,6 +70,17 @@ type Computer struct {
 	// overridden type hashes differently from its twin and the override propagates to every containing type.
 	// Nil = no folding (the plain id path; unit tests / the early override-collection pass).
 	overrides map[string]map[string]string
+	// Which declaration files the project loads (NotDataBuiltinOf).
+	environment Environment
+}
+
+// Environment reports whether the tsconfig loads a declaration file (program.EnvironmentFile); nil is the lib alone.
+type Environment func(*ast.SourceFile) bool
+
+// SetEnvironment returns the computer so a constructor call can chain it.
+func (computer *Computer) SetEnvironment(environment Environment) *Computer {
+	computer.environment = environment
+	return computer
 }
 
 // New returns a fresh Computer bound to the supplied checker.
@@ -274,34 +285,6 @@ func (computer *Computer) classifySpiral() string {
 // they wrote is worse than saying nothing. A var, not a const, so the package's own tests can stage a lib
 // file (export_test.go); nothing in production ever assigns it.
 var bundledLibPrefix = tspath.NormalizePath(bundled.LibPath())
-
-// declaringLibFile returns the standard-library file a symbol is declared in, or "" when it is declared
-// anywhere else. EVERY declaration must be a lib one: a symbol that merges a lib declaration with a user's
-// own augmentation is partly the author's, so it keeps MKR009's actionable advice. Only the basename is
-// reported — the absolute path is a bundled tsgo location that means nothing to a consumer.
-func declaringLibFile(symbol *ast.Symbol) string {
-	if symbol == nil || len(symbol.Declarations) == 0 {
-		return ""
-	}
-	libFile := ""
-	for _, declaration := range symbol.Declarations {
-		sourceFile := ast.GetSourceFileOfNode(declaration)
-		if sourceFile == nil {
-			return ""
-		}
-		fileName := sourceFile.FileName()
-		if !strings.HasPrefix(tspath.NormalizePath(fileName), bundledLibPrefix) || !isDefaultLibFileName(fileName) {
-			return ""
-		}
-		if libFile == "" {
-			libFile = fileName
-			if i := strings.LastIndexAny(fileName, "/\\"); i >= 0 {
-				libFile = fileName[i+1:]
-			}
-		}
-	}
-	return libFile
-}
 
 // spiralIdentity buckets a stack frame for spiral classification: the alias symbol when the type came from
 // a named alias instantiation, else the type's own symbol. Internal/anonymous names identify nothing.
@@ -558,7 +541,7 @@ func (computer *Computer) objectID(tsType *checker.Type) string {
 	// Matched through NotDataBuiltinOf, so a type qualifies by its own name OR by inheriting from one of the
 	// base-set families. The id keeps the TYPE's name, not the matched base's, and the `#name` suffix is what
 	// keeps two distinct `Uint8Array` subclasses apart (classRef uses the matched base's name — projectClass).
-	if _, ok := NotDataBuiltinOf(computer.typeChecker, tsType); ok {
+	if _, ok := NotDataBuiltinOf(computer.typeChecker, computer.environment, tsType); ok {
 		id := strconv.Itoa(int(reflection.SubKindNonSerializable))
 		if tsType.ObjectFlags()&checker.ObjectFlagsReference != 0 {
 			if typeArguments := computer.typeChecker.GetTypeArguments(tsType); len(typeArguments) > 0 {

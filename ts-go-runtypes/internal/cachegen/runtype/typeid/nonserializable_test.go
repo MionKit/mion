@@ -169,7 +169,7 @@ func TestNonSerializable_LibSpiralIsTakenWholeNotWalked(t *testing.T) {
 }
 `,
 	}
-	res, response := scanUnderLibIn(t, cwd, "esnext", `import {getRunTypeId} from '@mionjs/run-types';
+	res, response := scanUnderLibIn(t, cwd, "esnext", "", `import {getRunTypeId} from '@mionjs/run-types';
 export const id = getRunTypeId<LibSpiral<string>>();
 `, staged)
 	codes := make([]string, 0, len(response.Diagnostics))

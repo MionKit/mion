@@ -1,6 +1,6 @@
 // D4: `DataOnly<T>` (TypeScript) and `reflection.NonDataOf` (Go) make one decision twice, so they must agree on a
-// random T. `URL` is drawn (both sides keep it). Other standard-library classes (`Error`, `Blob`) are the one known
-// gap, so the generator never draws one: the Go side skips them, DataOnly cannot tell them apart.
+// random T. `URL` is drawn (both sides keep it). Other platform classes (`Error`, `Blob`, `EventEmitter`) are the one
+// known gap, so the generator never draws one: the Go side skips them, DataOnly cannot see where a class was declared.
 
 import type {RunType} from '../../../src/runtypes/types.ts';
 import {RunTypeKind, RunTypeSubKind} from '../../../src/go-generated/runTypeKind.generated.ts';

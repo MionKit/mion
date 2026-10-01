@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"sync"
 
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/bundled"
@@ -46,6 +47,9 @@ type Program struct {
 	Cwd string
 	// Overlay is kept so a SECOND program built off this one sees the same in-memory files, not just disk.
 	Overlay map[string]string
+
+	environmentOnce sync.Once
+	environment     map[tspath.Path]bool
 }
 
 // New builds a ts-go Program using the supplied tsconfig.

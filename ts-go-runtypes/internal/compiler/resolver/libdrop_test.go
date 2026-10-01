@@ -2,6 +2,8 @@ package resolver_test
 
 import (
 	"os"
+	"slices"
+	"strings"
 	"testing"
 
 	"github.com/microsoft/typescript-go/shim/tspath"
@@ -17,10 +19,20 @@ import (
 // ECMAScript edition alone and none of these types exist.
 func setupUnderDomLib(t *testing.T, sources map[string]string) *resolver.Session {
 	t.Helper()
+	return setupUnderDomLibWithTypes(t, sources, nil)
+}
+
+// setupUnderDomLibWithTypes adds the tsconfig `types` list that makes a runtime package the platform.
+func setupUnderDomLibWithTypes(t *testing.T, sources map[string]string, types []string) *resolver.Session {
+	t.Helper()
+	typesOption := ""
+	if types != nil {
+		typesOption = `,"types":["` + strings.Join(types, `","`) + `"]`
+	}
 	return setupInlineWith(t, sources, func(programOpts *program.Options, resolverOpts *resolver.Options) {
 		programOpts.SingleThreaded = true
 		resolverOpts.SingleThreaded = true
-		tsconfig := `{"compilerOptions":{"target":"esnext","module":"esnext","moduleResolution":"bundler","strict":true,"lib":["esnext","dom"]}}`
+		tsconfig := `{"compilerOptions":{"target":"esnext","module":"esnext","moduleResolution":"bundler","strict":true,"lib":["esnext","dom"]` + typesOption + `}}`
 		if err := os.WriteFile(tspath.ResolvePath(programOpts.Cwd, "tsconfig.json"), []byte(tsconfig), 0o644); err != nil {
 			t.Fatalf("write tsconfig: %v", err)
 		}
@@ -123,5 +135,203 @@ export const isLink = createValidateFn<URLSearchParams>();
 	}
 	if root.Severity != diagnostics.SeverityError {
 		t.Errorf("severity = %v, want Error (the generated guard would always fail)", root.Severity)
+	}
+}
+
+// A platform-declared type is not data however many files redeclare it: a property is dropped, the root refused.
+
+// runtimeTypes loads the staged runtime packages as the environment.
+var runtimeTypes = []string{"node", "handles"}
+
+var platformTypes = []string{
+	"URL", "URLSearchParams", "Headers", "AbortController", "TextEncoder", "Blob", "Request",
+	"NodeJS.Timeout", "EventEmitter", "RuntimeHandle",
+}
+
+// platformFamily: drop is the property note, root the root code (the clone shares the value instead of throwing).
+type platformFamily struct {
+	family       corpusFamily
+	drop         string
+	dropSeverity diagnostics.Severity
+	root         string
+	rootSeverity diagnostics.Severity
+}
+
+var platformFamilies = []platformFamily{
+	{corpusFamily{"validate", "createValidateFn", ""}, diagnostics.CodeVLNonSerializablePropDrop, diagnostics.SeverityInfo, diagnostics.CodeVLNonSerializableRoot, diagnostics.SeverityError},
+	{corpusFamily{"encode", "createJsonEncoderFn", "{strategy: 'mutate'}"}, diagnostics.CodePJNonSerializablePropDrop, diagnostics.SeverityInfo, diagnostics.CodePJNonSerializableRoot, diagnostics.SeverityError},
+	{corpusFamily{"decode", "createJsonDecoderFn", "{strategy: 'mutate'}"}, diagnostics.CodeRJNonSerializablePropDrop, diagnostics.SeverityInfo, diagnostics.CodeRJNonSerializableRoot, diagnostics.SeverityError},
+	{corpusFamily{"removeUnknownKeys", "createRemoveUnknownKeysFn", ""}, diagnostics.CodeRUKNonSerializablePropDrop, diagnostics.SeverityWarning, diagnostics.CodeRUKNonSerializablePropDrop, diagnostics.SeverityWarning},
+}
+
+// platformForbidden are the errors and warnings walking the members used to raise.
+var platformForbidden = []string{
+	diagnostics.CodeRUKSymbolKeyedMember, diagnostics.CodeRUKFunctionPropDropped, diagnostics.CodeMarkerSelfInstantiatingGeneric,
+}
+
+// platformScan returns the runtype diagnostics of one file per case, keyed by file name.
+func platformScan(t *testing.T, types []string, variant map[string]string, cases map[string]string) map[string][]diagnostics.Diagnostic {
+	t.Helper()
+	sources := corpusSources()
+	for name, content := range variant {
+		sources[name] = content
+	}
+	files := make([]string, 0, len(cases))
+	for name, content := range cases {
+		sources[name] = content
+		files = append(files, name)
+	}
+	slices.Sort(files)
+	session := setupUnderDomLibWithTypes(t, sources, types)
+	byFile := map[string][]diagnostics.Diagnostic{}
+	for _, file := range files {
+		response := session.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{file}, IncludeEntryModules: true})
+		if response.Error != "" {
+			t.Fatalf("%s: scanFiles: %s", file, response.Error)
+		}
+		for _, diagnostic := range runtypeDiagsOf(response.Diagnostics) {
+			if strings.HasSuffix(diagnostic.Site.FilePath, file) {
+				byFile[file] = append(byFile[file], diagnostic)
+			}
+		}
+	}
+	return byFile
+}
+
+const platformImports = "import {EventEmitter} from 'events';\n"
+
+func platformCases(types []string, valueShape bool) map[string]string {
+	cases := map[string]string{}
+	for _, platformType := range types {
+		for _, entry := range platformFamilies {
+			for _, position := range []string{"property", "root"} {
+				siteType := platformType
+				if position == "property" {
+					siteType = "{id: number; field: " + platformType + "}"
+				}
+				shape := "static"
+				if valueShape {
+					shape = "value"
+				}
+				name := strings.ReplaceAll(platformType, ".", "_") + "__" + position + "__" + entry.family.name + "__" + shape + ".ts"
+				cases[name] = platformImports + corpusSite(entry.family, "", siteType, valueShape)
+			}
+		}
+	}
+	return cases
+}
+
+func checkPlatformDiagnostics(t *testing.T, byFile map[string][]diagnostics.Diagnostic) {
+	t.Helper()
+	for file, found := range byFile {
+		parts := strings.Split(strings.TrimSuffix(file, ".ts"), "__")
+		position, familyName := parts[1], parts[2]
+		entry := platformFamilies[slices.IndexFunc(platformFamilies, func(candidate platformFamily) bool {
+			return candidate.family.name == familyName
+		})]
+		seen := map[string]diagnostics.Diagnostic{}
+		for _, diagnostic := range found {
+			seen[diagnostic.Code] = diagnostic
+		}
+		for _, forbidden := range platformForbidden {
+			if _, ok := seen[forbidden]; ok {
+				t.Errorf("%s: %s must not fire, the type is taken whole", file, forbidden)
+			}
+		}
+		switch {
+		case position == "property":
+			drop, ok := seen[entry.drop]
+			if !ok {
+				t.Errorf("%s: expected %s naming the dropped property, got %v", file, entry.drop, sortedKeys(codeSet(found)))
+				continue
+			}
+			if drop.Severity != entry.dropSeverity {
+				t.Errorf("%s: %s severity = %v, want %v", file, entry.drop, drop.Severity, entry.dropSeverity)
+			}
+			if len(drop.Args) != 1 || !strings.Contains(drop.Args[0], "field") {
+				t.Errorf("%s: %s args = %v, want the property name", file, entry.drop, drop.Args)
+			}
+			for _, root := range []string{diagnostics.CodeVLNonSerializableRoot, diagnostics.CodePJNonSerializableRoot, diagnostics.CodeRJNonSerializableRoot} {
+				if _, ok := seen[root]; ok {
+					t.Errorf("%s: %s must not fire, the property is dropped, not failed", file, root)
+				}
+			}
+		default:
+			root, ok := seen[entry.root]
+			if !ok {
+				t.Errorf("%s: a platform class at the root must be reported with %s, got %v", file, entry.root, sortedKeys(codeSet(found)))
+			} else if root.Severity != entry.rootSeverity {
+				t.Errorf("%s: %s severity = %v, want %v", file, entry.root, root.Severity, entry.rootSeverity)
+			}
+		}
+	}
+}
+
+func codeSet(found []diagnostics.Diagnostic) map[string]bool {
+	set := map[string]bool{}
+	for _, diagnostic := range found {
+		set[diagnostic.Code] = true
+	}
+	return set
+}
+
+// An empty merge of the consumer's own never turns a platform class into the author's.
+var platformMerge = map[string]string{"globals.d.ts": "interface URL {}\ninterface Headers {}\ndeclare var Headers: {new (): Headers};\n"}
+
+func TestDiag_PlatformClass_Static(t *testing.T) {
+	checkPlatformDiagnostics(t, platformScan(t, runtimeTypes, platformMerge, platformCases(platformTypes, false)))
+}
+
+func TestDiag_PlatformClass_Value(t *testing.T) {
+	checkPlatformDiagnostics(t, platformScan(t, runtimeTypes, platformMerge, platformCases(platformTypes, true)))
+}
+
+// Each way a declaration can restate a platform class without adding to it still leaves it not data.
+func TestDiag_PlatformClass_MergesThatAddNothing(t *testing.T) {
+	for label, variant := range map[string]map[string]string{
+		"restated members":     {"globals.d.ts": "interface URL {href: string}\n"},
+		"var only":             {"globals.d.ts": "declare var URL: {new (url: string): URL};\n"},
+		"runtime package only": nil,
+	} {
+		t.Run(label, func(t *testing.T) {
+			checkPlatformDiagnostics(t, platformScan(t, runtimeTypes, variant, platformCases([]string{"URL"}, false)))
+		})
+	}
+}
+
+// A class the consumer or an ordinary library declares is data in every family and position, in both call shapes.
+func TestDiag_PlatformClass_UserDeclaredStayData(t *testing.T) {
+	for _, valueShape := range []bool{false, true} {
+		cases := map[string]string{}
+		for _, spelled := range []string{"Dto", "Emitter", "Widget"} {
+			for _, entry := range platformFamilies {
+				for _, siteType := range []string{spelled, "{field: " + spelled + "}"} {
+					name := spelled + "__" + entry.family.name + "__" + strings.NewReplacer("{", "p", "}", "", ":", "", " ", "").Replace(siteType) + ".ts"
+					decl := "declare class Emitter {on(): void}\ninterface Widget {id: string}\ndeclare var Widget: {new (): Widget};\n"
+					cases[name] = "import {Dto} from 'dto-lib';\n" + corpusSite(entry.family, decl, siteType, valueShape)
+				}
+			}
+		}
+		for file, found := range platformScan(t, runtimeTypes, nil, cases) {
+			for _, diagnostic := range found {
+				if strings.Contains(diagnostic.Code, "015") || strings.HasSuffix(diagnostic.Code, "001") || strings.HasSuffix(diagnostic.Code, "002") {
+					t.Errorf("%s (value shape %v): a type the user or an ordinary library declared is data, got %s %v", file, valueShape, diagnostic.Code, diagnostic.Args)
+				}
+			}
+		}
+	}
+}
+
+// A runtime package missing from the tsconfig `types` is no platform: its classes stay data.
+// `handles` is left out: the shared corpus loads it with a first-party `/// <reference types>`.
+func TestDiag_PlatformClass_NotInTypesStaysData(t *testing.T) {
+	for _, valueShape := range []bool{false, true} {
+		for file, found := range platformScan(t, []string{}, nil, platformCases([]string{"NodeJS.Timeout", "EventEmitter"}, valueShape)) {
+			for _, diagnostic := range found {
+				if strings.Contains(diagnostic.Code, "015") || strings.HasSuffix(diagnostic.Code, "001") || strings.HasSuffix(diagnostic.Code, "002") {
+					t.Errorf("%s: a package outside the tsconfig `types` is no platform, got %s %v", file, diagnostic.Code, diagnostic.Args)
+				}
+			}
+		}
 	}
 }

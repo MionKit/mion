@@ -327,6 +327,7 @@ func New(prog *program.Program, opts Options) (*Session, error) {
 		HashLength: opts.HashLength,
 	})
 	cache.SetMarkerOptions(markerOpts)
+	cache.SetEnvironment(prog.EnvironmentFile)
 	sess := &Session{
 		Program:                 prog,
 		cache:                   cache,
@@ -400,6 +401,7 @@ func (sess *Session) SetProgram(prog *program.Program) error {
 	sess.bindPureFnIndex()
 	sess.cache.Rebind(typeChecker)
 	sess.cache.SetMarkerOptions(sess.marker)
+	sess.cache.SetEnvironment(prog.EnvironmentFile)
 	sess.sites = sess.sites[:0]
 	sess.resetProgramMemos()
 	sess.unresolvedSpecifiersMutex.Lock()

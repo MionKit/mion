@@ -16,6 +16,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/testfixtures"
 )
 
 type corpusTrigger struct {
@@ -42,6 +43,7 @@ var corpusTriggers = []corpusTrigger{
 	{"callableWithProp", "CallableWithProp"},
 	{"never", "never"},
 	{"nonSerializable", "Uint8Array"},
+	{"platformClass", "RuntimeHandle"},
 	{"privateFields", "Counter"},
 	{"symbolKeyed", "Tagged"},
 	{"objectUnion", "({a: string} | {b: number})"},
@@ -92,7 +94,8 @@ var corpusFamilies = []corpusFamily{
 	{"formatTransform", "createFormatTransformFn", ""},
 }
 
-const corpusShared = `export interface Callable { (): void }
+const corpusShared = `/// <reference types="handles" />
+export interface Callable { (): void }
 export interface CallableWithProp { (): void; label: string }
 export class Counter { #count = 0; label = ''; }
 const tag = Symbol('tag');
@@ -100,6 +103,20 @@ export interface Tagged { id: string; [tag]: string }
 export declare const uniq: unique symbol;
 export class WithMethod { label = ''; greet(): string { return this.label; } }
 `
+
+// corpusSources is the shared declarations plus a runtime types package declaring a platform class.
+func corpusSources() map[string]string {
+	sources := testfixtures.RuntimePackages()
+	sources["shared.ts"] = corpusShared
+	return sources
+}
+
+func withCorpusSources(sources map[string]string) map[string]string {
+	for name, content := range corpusSources() {
+		sources[name] = content
+	}
+	return sources
+}
 
 const corpusImports = `import {createValidateFn, createGetValidationErrorsFn, createJsonEncoderFn, createJsonDecoderFn, createRemoveUnknownKeysFn, createFormatTransformFn} from '@mionjs/run-types';
 import type {Callable, CallableWithProp, Tagged, uniq} from './shared.ts';
@@ -118,7 +135,7 @@ func corpusQuietAllowed(trigger corpusTrigger, family corpusFamily) bool {
 
 // Non-data triggers: every family either drops them with a note or throws with a code, never says nothing.
 var corpusNonData = map[string]bool{
-	"symbol": true, "symbolArray": true, "function": true, "callable": true, "callableWithProp": true, "nonSerializable": true,
+	"symbol": true, "symbolArray": true, "function": true, "callable": true, "callableWithProp": true, "nonSerializable": true, "platformClass": true,
 	"symbolKeyed": true, "promise": true, "regexp": true, "uniqueSymbol": true, "methodSignature": true, "classMethod": true,
 }
 
@@ -185,7 +202,7 @@ func TestNestedDiagCorpus(t *testing.T) {
 			t.Parallel()
 			byCase := map[string][]corpusCell{}
 			for _, allInternal := range []bool{false, true} {
-				sources := map[string]string{"shared.ts": corpusShared}
+				sources := corpusSources()
 				var files []string
 				caseOf := map[string]string{}
 				for _, named := range []bool{false, true} {
@@ -287,7 +304,7 @@ func TestNestedDiagCorpus(t *testing.T) {
 
 // A family added without a grid row, or a non-data kind no trigger reaches, fails here instead of going untested.
 func TestNestedDiagCorpus_CoversEveryFamily(t *testing.T) {
-	sources := map[string]string{"shared.ts": corpusShared}
+	sources := corpusSources()
 	var files []string
 	for _, family := range corpusFamilies {
 		file := family.name + ".ts"
@@ -320,7 +337,7 @@ func TestNestedDiagCorpus_CoversEveryFamily(t *testing.T) {
 }
 
 func TestNestedDiagCorpus_CoversEveryNonDataKind(t *testing.T) {
-	sources := map[string]string{"shared.ts": corpusShared}
+	sources := corpusSources()
 	var files []string
 	for _, trigger := range corpusTriggers {
 		file := trigger.name + ".ts"
@@ -379,7 +396,7 @@ func TestNestedDiagCorpus_CoversEveryNonDataKind(t *testing.T) {
 // The grid wraps every position in `{w: …}`, so only this test puts a written any or unknown at the call's root.
 func TestNestedDiagCorpus_WrittenAnyAtRoot(t *testing.T) {
 	rootInfo := map[string]string{"validate": diagnostics.CodeVLRootAnyUnknown, "validationErrors": diagnostics.CodeVERootAnyUnknown}
-	sources := map[string]string{"shared.ts": corpusShared}
+	sources := corpusSources()
 	var files []string
 	familyOf := map[string]corpusFamily{}
 	for _, trigger := range sortedKeys(corpusAlwaysAccepted) {
@@ -420,16 +437,16 @@ const foreignKindDecl = "export type WithSymbols = {s: symbol[]};\nexport type M
 const foreignKindType = "{w: WithSymbols; u: Members}"
 
 func TestReachedThrows_ForeignOfAnotherKindIsReported_Static(t *testing.T) {
-	codes := siteCodes(t, map[string]string{"shared.ts": corpusShared, "site.ts": corpusImports + foreignKindDecl +
-		"export const fn = createGetValidationErrorsFn<" + foreignKindType + ">();\n"}, false)
+	codes := siteCodes(t, withCorpusSources(map[string]string{"site.ts": corpusImports + foreignKindDecl +
+		"export const fn = createGetValidationErrorsFn<" + foreignKindType + ">();\n"}), false)
 	if !slices.Contains(codes, "VE002") || !slices.Contains(codes, "VL001") {
 		t.Errorf("want both the own VE002 and the foreign VL001 at the site, got %v", codes)
 	}
 }
 
 func TestReachedThrows_ForeignOfAnotherKindIsReported_Value(t *testing.T) {
-	codes := siteCodes(t, map[string]string{"shared.ts": corpusShared, "site.ts": corpusImports + foreignKindDecl +
-		"declare const value: " + foreignKindType + ";\nexport const fn = createGetValidationErrorsFn(value);\n"}, false)
+	codes := siteCodes(t, withCorpusSources(map[string]string{"site.ts": corpusImports + foreignKindDecl +
+		"declare const value: " + foreignKindType + ";\nexport const fn = createGetValidationErrorsFn(value);\n"}), false)
 	if !slices.Contains(codes, "VE002") || !slices.Contains(codes, "VL001") {
 		t.Errorf("want both the own VE002 and the foreign VL001 at the site, got %v", codes)
 	}
