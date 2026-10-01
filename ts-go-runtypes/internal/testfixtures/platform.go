@@ -1,6 +1,6 @@
 package testfixtures
 
-// RuntimePackages stages node_modules overlays: a script-file package, a `declare global` module package and an ordinary library.
+// RuntimePackages stages a script-file package, a `declare global` module package and an ordinary library.
 func RuntimePackages() map[string]string {
 	return map[string]string{
 		"node_modules/@types/node/index.d.ts": `declare module "events" {

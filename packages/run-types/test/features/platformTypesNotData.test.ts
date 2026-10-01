@@ -1,4 +1,4 @@
-// A platform-declared type (`@types/node` redeclares lib globals too) is not data: a property is dropped, the root refused.
+// A platform-declared type (`@types/node` redeclares lib globals too) is not data: properties drop, roots are refused.
 
 import {EventEmitter} from 'node:events';
 import {URL as NodeURL} from 'node:url';

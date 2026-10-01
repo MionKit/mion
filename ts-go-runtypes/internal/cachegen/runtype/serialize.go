@@ -122,7 +122,7 @@ func NewCache(typeChecker *checker.Checker, opts Options) *Cache {
 // The resolver re-calls it on every program swap so the gate reads package.json from the current overlay.
 func (cache *Cache) SetMarkerOptions(markerOpts marker.Options) { cache.markerOpts = markerOpts }
 
-// SetEnvironment must run on every program swap, before any AssignID: it decides which types are not data, so their ids.
+// SetEnvironment must run on every program swap, before any AssignID: which types are not data changes their ids.
 func (cache *Cache) SetEnvironment(environment typeid.Environment) {
 	cache.environment = environment
 	if cache.typeChecker != nil {
@@ -549,9 +549,7 @@ func (cache *Cache) stampOverrides(node *reflection.RunType, tsType *checker.Typ
 	if cache.idComputer == nil || len(cache.overrides) == 0 {
 		return
 	}
-	// The lookup key must come from a COLD computer, exactly as the fold pass built the map's keys: a warm
-	// computer's cache legitimately holds ROOT-FORM spellings of cycle members, and a base key composed from
-	// those differs from the fold key even though both strings are valid.
+	// A COLD computer, as the fold pass used: a warm one holds root-form spellings of cycle members, so its key differs.
 	stamper := cache.newComputer(cache.typeChecker)
 	families := stamper.OverridesForBaseKey(stamper.BaseStructuralKey(tsType))
 	if len(families) == 0 {
@@ -835,9 +833,7 @@ func (cache *Cache) projectObjectType(tsType *checker.Type, node *reflection.Run
 			cache.projectClass(tsType, node)
 			return
 		}
-		// Everything that is NOT data, taken whole: the supported natives are dispatched above, so anything
-		// binary or standard-library declared reaching here is promoted to KindClass + SubKindNonSerializable,
-		// and its members are never walked.
+		// Natives are dispatched above, so a binary or platform type here is not data: taken whole, members never walked.
 		if _, ok := typeid.NotDataBuiltinOf(cache.typeChecker, cache.environment, tsType); ok {
 			cache.projectClass(tsType, node)
 			return
@@ -965,9 +961,7 @@ func (cache *Cache) projectClass(tsType *checker.Type, node *reflection.RunType)
 		case "RegExp":
 			node.ClassRef = &reflection.ClassRef{Builtin: symbolName}
 		default:
-			// The BUILTIN name, not symbolName: a type can qualify through its base chain (`class MyBytes extends
-			// Uint8Array`), and the footer's `classType = globalThis.<name>` resolves to undefined for the
-			// subclass's own name, while the matched base always exists.
+			// The BUILTIN name: the footer's `globalThis.<name>` is undefined for a subclass (`MyBytes extends Uint8Array`).
 			if builtin, ok := typeid.NotDataBuiltinOf(cache.typeChecker, cache.environment, tsType); ok {
 				node.ClassRef = &reflection.ClassRef{Builtin: builtin}
 				node.SubKind = reflection.SubKindNonSerializable

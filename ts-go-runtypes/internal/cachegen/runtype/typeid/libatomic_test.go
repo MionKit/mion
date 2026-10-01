@@ -119,13 +119,9 @@ export const id = getRunTypeId<Readonly<Address>>();
 	}
 }
 
-// TestLibAtomic_AugmentedLibInterfaceIsTheAuthorsAgain — declaration merging.
 // Adding a member the platform lacks to a lib interface makes the whole symbol the author's, so it is walked.
 // A merge that adds nothing leaves it the platform's (platform_declared_test.go).
-//
-// The cost is a large projection for a type that is mostly lib surface, which is
-// the honest trade. Silently dropping a member the author just declared would be
-// the worse one.
+// The projection gets large, but dropping a member the author just declared would be worse.
 func TestLibAtomic_AugmentedLibInterfaceIsTheAuthorsAgain(t *testing.T) {
 	structural := structuralUnderLib(t, "esnext,dom", `import {getRunTypeId} from '@mionjs/run-types';
 declare global {

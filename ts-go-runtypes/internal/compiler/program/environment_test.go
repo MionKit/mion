@@ -8,8 +8,7 @@ import (
 	"github.com/microsoft/typescript-go/shim/tspath"
 )
 
-// Real files on disk: only there does the compiler flag a dependency as an external library, whose
-// `/// <reference types>` the environment must still follow.
+// Real files on disk: only there is a dependency flagged an external library, whose `/// <reference types>` still counts.
 
 func environmentProject(t *testing.T, types string, files map[string]string) map[string]bool {
 	t.Helper()

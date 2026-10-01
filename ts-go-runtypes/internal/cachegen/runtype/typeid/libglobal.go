@@ -24,7 +24,7 @@ func platformDeclaredGlobalOf(typeChecker *checker.Checker, environment Environm
 	if symbol == nil || symbol.Name == "" {
 		return "", false
 	}
-	// Interfaces and classes only: an alias or mapped type is the consumer's own shape even when built from a lib alias.
+	// Interfaces and classes only: an alias or mapped type is the consumer's shape, even one built from a lib alias.
 	if symbol.Flags&(ast.SymbolFlagsInterface|ast.SymbolFlagsClass) == 0 {
 		return "", false
 	}
@@ -34,14 +34,14 @@ func platformDeclaredGlobalOf(typeChecker *checker.Checker, environment Environm
 	return symbol.Name, true
 }
 
-// declaredByPlatform: some declaration is the platform's and no other adds a member or extends; an empty merge stays so.
+// declaredByPlatform: a platform declaration exists and no other one adds a member or a heritage clause.
 func declaredByPlatform(typeChecker *checker.Checker, environment Environment, tsType *checker.Type, symbol *ast.Symbol) bool {
 	return declaredBy(typeChecker, tsType, symbol, func(declaration *ast.Node) bool {
 		return isPlatformDeclaration(declaration, environment)
 	})
 }
 
-// declaredBy is declaredByPlatform for any notion of the platform's declarations (IsNativeUrl passes `.d.ts` files).
+// declaredBy is declaredByPlatform with a caller-chosen platform test (IsNativeUrl passes `.d.ts` files).
 func declaredBy(typeChecker *checker.Checker, tsType *checker.Type, symbol *ast.Symbol, isPlatform func(*ast.Node) bool) bool {
 	hasPlatform, hasAuthored := false, false
 	for _, declaration := range symbol.Declarations {
@@ -63,7 +63,7 @@ func declaredBy(typeChecker *checker.Checker, tsType *checker.Type, symbol *ast.
 	return true
 }
 
-// isPlatformDeclaration: lib or environment globals only, so a class a loaded package exports from a module stays data.
+// isPlatformDeclaration: lib or environment globals only; a module export of a loaded package stays data.
 func isPlatformDeclaration(declaration *ast.Node, environment Environment) bool {
 	if declaration == nil {
 		return false
@@ -121,7 +121,7 @@ func shapeMembers(declaration *ast.Node) []*ast.Node {
 	return nil
 }
 
-// addsMembers: adds a member the platform lacks or extends something; matched by name, so an extra overload is a restatement.
+// addsMembers matches by name, so an extra overload is a restatement, not an added member.
 func addsMembers(declaration *ast.Node, platformMembers map[string]bool) bool {
 	switch declaration.Kind {
 	case ast.KindInterfaceDeclaration:
@@ -156,9 +156,9 @@ func symbolForLibLookup(tsType *checker.Type) *ast.Symbol {
 	return tsType.Symbol()
 }
 
-// NotDataBuiltinOf is the one "not data, take it whole" predicate: binary view, raw-buffer subclass or platform class.
+// NotDataBuiltinOf is the one "not data, take it whole" test: binary view, raw-buffer subclass or platform class.
 // Run it AFTER the supported natives (`Date`, `URL`, `Map`, `Set`, arrays...), which are lib-declared too.
-// The name is written as `classType = globalThis.<name>`; nothing reads it for not-data, so `EventEmitter` may be undefined.
+// The name becomes `globalThis.<name>`, which nothing reads for not-data, so it may be undefined (`EventEmitter`).
 func NotDataBuiltinOf(typeChecker *checker.Checker, environment Environment, tsType *checker.Type) (string, bool) {
 	if IsBinaryViewShape(typeChecker, tsType) {
 		return binaryViewClassRef(typeChecker, tsType), true
@@ -192,7 +192,7 @@ func IsBinaryViewShape(typeChecker *checker.Checker, tsType *checker.Type) bool 
 	return true
 }
 
-// binaryViewClassRef is the `globalThis.<name>` the emitter writes for a view; `Uint8Array` stands in for a non-lib one.
+// binaryViewClassRef is the view's `globalThis.<name>`; `Uint8Array` stands in for a non-lib one.
 func binaryViewClassRef(typeChecker *checker.Checker, tsType *checker.Type) string {
 	// Lib only: a name a runtime types package declares (`Buffer`) is no global in every runtime.
 	if name, ok := platformDeclaredGlobalOf(typeChecker, nil, tsType); ok {

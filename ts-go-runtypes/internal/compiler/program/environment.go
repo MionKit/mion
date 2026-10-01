@@ -24,7 +24,7 @@ func (p *Program) collectEnvironment() {
 			queue = append(queue, sourceFile)
 		}
 	}
-	// All keys: the `types` list's synthetic containing file and any dependency's reference (`@types/express` loads `node`).
+	// All keys: the `types` list's synthetic file and any dependency's reference (`@types/express` loads `node`).
 	for _, resolutions := range p.TS.GetResolvedTypeReferenceDirectives() {
 		for _, resolution := range resolutions {
 			if resolution != nil && resolution.IsResolved() {
