@@ -62,7 +62,7 @@ func TestEmailRfc_LengthBoundFoldsInAsLength(t *testing.T) {
 
 // ── email, decomposition path ────────────────────────────────────────
 
-func TestEmailStrict_EachHalfNamesItself(t *testing.T) {
+func TestEmailParts_EachHalfNamesItself(t *testing.T) {
 	ctx := newCardStubCtx()
 	params := map[string]any{
 		"localPart": map[string]any{"maxLength": 64.0},
@@ -105,7 +105,7 @@ func TestDomainIdna_ErrorsLaneReportsTheRule(t *testing.T) {
 
 // ── domain, decomposition path ───────────────────────────────────────
 
-func TestDomainStrict_LabelsAndTldNameThemselves(t *testing.T) {
+func TestDomainParts_LabelsAndTldNameThemselves(t *testing.T) {
 	ctx := newCardStubCtx()
 	params := map[string]any{
 		"names":    map[string]any{"maxLength": 63.0},
@@ -123,7 +123,7 @@ func TestDomainStrict_LabelsAndTldNameThemselves(t *testing.T) {
 
 // Inside an email, the domain half's errors carry the `domain` format name;
 // its label / tld checks name themselves and its whole-domain bound stays bare.
-func TestEmailStrict_NestedDomainKeepsLabelAndTld(t *testing.T) {
+func TestEmailParts_NestedDomainKeepsLabelAndTld(t *testing.T) {
 	ctx := newCardStubCtx()
 	params := map[string]any{
 		"localPart": map[string]any{"minLength": 1.0},

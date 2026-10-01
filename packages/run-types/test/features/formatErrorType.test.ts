@@ -112,7 +112,7 @@ describe('email — which PART of the address is wrong', () => {
   });
 
   it('names the half on the decomposition path, and the domain half by its own format name', () => {
-    const getErrors = createGetValidationErrorsFn<TF.EmailStrict>();
+    const getErrors = createGetValidationErrorsFn<TF.EmailParts>();
     expect(getErrors('joe.bloggs@example.com')).toEqual([]);
     expect(formatErrorOf(getErrors('joe'))?.errorType).toBe('format');
     const local = formatErrorOf(getErrors('jo e@example.com'));
@@ -169,7 +169,7 @@ describe('domain — which rule the name broke', () => {
   });
 
   it('names the label or the tld on the decomposition path, and nothing for a whole-name bound', () => {
-    const getErrors = createGetValidationErrorsFn<TF.DomainStrict>();
+    const getErrors = createGetValidationErrorsFn<TF.DomainParts>();
     expect(getErrors('example.com')).toEqual([]);
     expect(formatErrorOf(getErrors('a.com'))?.errorType).toBe('label');
     expect(formatErrorOf(getErrors('-ab.com'))?.errorType).toBe('label');

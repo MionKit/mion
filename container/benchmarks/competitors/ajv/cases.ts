@@ -2630,7 +2630,7 @@ export const cases: CompetitorCases = {
       return (value: unknown) => validate(value) === true;
     },
   },
-  'STRING_FORMAT.domainStrict': {
+  'STRING_FORMAT.domainParts': {
     build: () => {
       const ajv = new Ajv({strict: false, allowUnionTypes: true});
       addFormats(ajv, {mode: 'full'});
@@ -2694,7 +2694,7 @@ export const cases: CompetitorCases = {
       return (value: unknown) => validate(value) === true;
     },
   },
-  'STRING_FORMAT.emailStrict': {
+  'STRING_FORMAT.emailParts': {
     build: () => {
       const ajv = new Ajv({strict: false, allowUnionTypes: true});
       addFormats(ajv, {mode: 'full'});

@@ -91,7 +91,7 @@ type TaggedPair = {a: string; b: symbol};
 type Loose = {a: any};
 type Thing = {a: object};
 type Mail = TF.Email;
-type MailBoundedLocal = TF.Email<{localPart: {maxLength: 64}}>;
+type MailParts = TF.EmailParts;
 type Short = TF.String<{minLength: 3}>;
 type Code = TF.String<{pattern: {source: '^ab+c$'; flags: ''}}>;
 type CodeInsensitive = TF.String<{pattern: {source: '^ab+c$'; flags: 'i'}}>;
@@ -290,9 +290,9 @@ describe('json-schema-2020-12-javascript — the dialect spec', () => {
   rule('RT-FORMAT-PARAMS', 'rtFormatParams carries ALL the family params, localPart included', () => {
     // `localPart` has no standard keyword; every param folds into the
     // identity, so carrying only the leftovers would change what the type is.
-    expect(createJsonSchemaFn<MailBoundedLocal>()()).toMatchObject({
+    expect(createJsonSchemaFn<MailParts>()()).toMatchObject({
       rtFormat: 'email',
-      rtFormatParams: {localPart: {maxLength: 64}, maxLength: 254, minLength: 7},
+      rtFormatParams: {localPart: {maxLength: 64, minLength: 1}, maxLength: 254, domain: {maxParts: 6}},
     });
   });
 

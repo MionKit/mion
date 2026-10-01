@@ -2132,7 +2132,7 @@ export const cases: CompetitorCases = {
       return (v) => val(v).success;
     },
   },
-  'STRING_FORMAT.domainStrict': {
+  'STRING_FORMAT.domainParts': {
     build: () => {
       const check = typia.createIs<string & tags.Pattern<'^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\\.){1,5}[a-zA-Z]{2,}$'>>();
       return (v) => check(v);
@@ -2168,7 +2168,7 @@ export const cases: CompetitorCases = {
       return (v) => val(v).success;
     },
   },
-  'STRING_FORMAT.emailStrict': {
+  'STRING_FORMAT.emailParts': {
     build: () => {
       const check = typia.createIs<
         string & tags.Pattern<'^[a-zA-Z0-9._-]+@(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\\.)+[a-zA-Z]{2,}$'>

@@ -26,6 +26,7 @@ test('type-only assertions are referenced (no runtime work here)', () => {
   expect(typeof assertionsFormatBranding).toBe('function');
   expect(typeof assertionsValueFirstBranding).toBe('function');
   expect(typeof assertionsEmailPresetRoads).toBe('function');
+  expect(typeof assertionsQuickPresetsRejectParts).toBe('function');
 });
 
 // Runtime contract: the markers throw at runtime when no id is injected
@@ -273,12 +274,32 @@ function assertionsEmailPresetRoads(): void {
   // @ts-expect-error — same on the idn builder.
   TF.idnEmail({domain: {maxLength: 253}});
 
-  // EmailStrict owns the split and pins the two keys: they ARE its strictness.
-  const strict: TF.EmailStrict = 'joe@example.com' as TF.EmailStrict;
-  void strict;
-  // @ts-expect-error — `localPart` is EmailStrict's identity, not an override.
-  type StrictRetuned = TF.EmailStrict<{localPart: {maxLength: 8}}>;
-  void (undefined as unknown as StrictRetuned);
+  // EmailParts owns the split and pins the two keys: they ARE the format.
+  const parts: TF.EmailParts = 'joe@example.com' as TF.EmailParts;
+  void parts;
+  // @ts-expect-error — `localPart` is EmailParts's identity, not an override.
+  type PartsRetuned = TF.EmailParts<{localPart: {maxLength: 8}}>;
+  void (undefined as unknown as PartsRetuned);
+}
+
+// The quick presets check the pattern only: the split keys belong to DomainParts / EmailParts.
+function assertionsQuickPresetsRejectParts(): void {
+  // @ts-expect-error — `maxParts` needs the split, use DomainParts.
+  type DomainMaxParts = TF.Domain<{maxParts: 2}>;
+  // @ts-expect-error — `names` too.
+  type HostnameNames = TF.Hostname<{names: {maxLength: 10}}>;
+  // @ts-expect-error — `localPart` needs the split, use EmailParts.
+  type EmailLocalPart = TF.Email<{localPart: {maxLength: 8}}>;
+  // @ts-expect-error — `domain` too.
+  type PunycodeDomain = TF.EmailPunycode<{domain: {maxLength: 100}}>;
+  void (undefined as unknown as [DomainMaxParts, HostnameNames, EmailLocalPart, PunycodeDomain]);
+  // @ts-expect-error — the builders reject the same keys.
+  TF.domain({maxLength: 100, maxParts: 2});
+  // @ts-expect-error — same on the email builder.
+  TF.email({maxLength: 100, localPart: {maxLength: 8}});
+  // allowedValues is a whole-value check, so the quick domain keeps it.
+  TF.domain({allowedValues: {val: ['example.com']}});
+  TF.domainParts({maxParts: 4});
 }
 
 function assertionsComposers(): void {

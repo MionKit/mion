@@ -274,8 +274,8 @@ export const STRING_FORMAT = {
     }),
     expectedFormatErrors: () => [{name: 'domain'}, null, null, null, null, null],
   },
-  domainStrict: {
-    title: 'FormatDomainStrict — names/tld decomposition, maxParts, hyphen-edge',
+  domainParts: {
+    title: 'FormatDomainParts — names/tld decomposition, maxParts, hyphen-edge',
     getSamples: () => ({
       valid: ['mion.io', 'sub.example.com', 'aa.bb.cc.dd.ee.com'],
       invalid: ['-bad.com', 'aa.bb.cc.dd.ee.ff.com', 'example.123', 'ex_ample.com', 'localhost'],
@@ -295,8 +295,8 @@ export const STRING_FORMAT = {
     getSamples: () => ({valid: ['john@example.xn--fiqs8s'], invalid: ['not-an-email']}),
     expectedFormatErrors: () => [{name: 'email'}],
   },
-  emailStrict: {
-    title: 'FormatEmailStrict — localPart + domain decomposition',
+  emailParts: {
+    title: 'FormatEmailParts — localPart + domain decomposition',
     getSamples: () => ({
       valid: ['john@example.com', 'jane.doe@mion.io'],
       invalid: ['a+b@x.com', 'a b@example.com', 'john@@example.com', 'john@bad_domain.com', 'no-at-symbol'],

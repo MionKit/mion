@@ -41,7 +41,7 @@ func TestEmail_ValidateParams_RejectsRfcWithParts(t *testing.T) {
 		}
 	}
 
-	// These are the preset shapes: EmailAddress / IdnEmail carry emailRfc alone, EmailStrict the decomposition.
+	// These are the preset shapes: EmailAddress / IdnEmail carry emailRfc alone, EmailParts the split.
 	accepted := []map[string]any{
 		{"emailRfc": "ascii", "maxLength": 254.0},
 		{"localPart": map[string]any{"maxLength": 64.0}, "domain": map[string]any{"maxLength": 253.0}},

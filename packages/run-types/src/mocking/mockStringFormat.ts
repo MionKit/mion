@@ -16,8 +16,8 @@ import {
 import {RunTypeKind} from '../go-generated/runTypeKind.generated.ts';
 import type {FormatAnnotation} from '../runtypes/formatAnnotation.ts';
 import type {
-  DomainParams,
-  EmailParams,
+  DomainPartsParams,
+  EmailPartsParams,
   IPParams,
   UUIDParams,
   UrlParams,
@@ -52,9 +52,9 @@ function mockStringFormat(annotation: FormatAnnotation, random: MockRandom = nat
     case 'ip':
       return mockIp(params as Partial<IPParams>, random);
     case 'domain':
-      return lengthFiltered(params, () => mockDomain(params as DomainParams, random));
+      return lengthFiltered(params, () => mockDomain(params as DomainPartsParams, random));
     case 'email':
-      return lengthFiltered(params, () => mockEmail(params as EmailParams, random));
+      return lengthFiltered(params, () => mockEmail(params as EmailPartsParams, random));
     case 'url':
       return lengthFiltered(params, () => mockUrl(params as UrlParams, random));
     default:
@@ -262,13 +262,13 @@ function randomPort(random: MockRandom): number {
 
 // ─────────────────────────── Domain / Email ─────────────────────────
 
-function mockDomain(params: DomainParams, random: MockRandom): string {
+function mockDomain(params: DomainPartsParams, random: MockRandom): string {
   // allowedValues wins outright: the emitted validator accepts only these exact domains, as in mockStringParams.
   if (params.allowedValues) {
     const allowed = pickSample(params.allowedValues.val, random);
     if (allowed !== undefined) return allowed;
   }
-  // names/tld decomposition (DomainStrict): the samples live under `<part>.pattern.mockSamples`, or a bare mockSamples.
+  // names/tld parts (DomainParts): the samples live under `<part>.pattern.mockSamples`, or a bare mockSamples.
   if (params.names || params.tld) {
     const name = pickSample(domainPartSamples(params.names), random) ?? 'example';
     const tld = pickSample(domainPartSamples(params.tld), random) ?? 'com';
@@ -303,7 +303,7 @@ function lengthFiltered(params: object, draw: () => string): string {
   );
 }
 
-function mockEmail(params: EmailParams, random: MockRandom): string {
+function mockEmail(params: EmailPartsParams, random: MockRandom): string {
   if (params.localPart || params.domain) {
     const local = params.localPart ? mockStringParams(params.localPart, random) : 'user';
     const domain = params.domain ? mockDomain(params.domain, random) : 'example.com';

@@ -30,7 +30,7 @@ function leafCases(): void {
   // domain: IDNA and the names / tld decomposition set modes; the pattern preset never does
   assertMutual<FormatErrorsOf<TF.Hostname>, TypeFormatError<'domain', DomainErrorType>>();
   assertMutual<FormatErrorsOf<TF.IdnHostname>, TypeFormatError<'domain', DomainErrorType>>();
-  assertMutual<FormatErrorsOf<TF.DomainStrict>, TypeFormatError<'domain', DomainErrorType>>();
+  assertMutual<FormatErrorsOf<TF.DomainParts>, TypeFormatError<'domain', DomainErrorType>>();
   assertMutual<FormatErrorsOf<TF.Domain>, TypeFormatError<'domain', never>>();
   // ip: only with allowPort
   assertMutual<FormatErrorsOf<TF.IPv4WithPort>, TypeFormatError<'ip', IpErrorType>>();
@@ -42,9 +42,9 @@ function leafCases(): void {
 }
 
 // The decomposed email also reports its domain half under the `domain` name.
-function emailStrictCases(): void {
+function emailPartsCases(): void {
   assertMutual<
-    FormatErrorsOf<TF.EmailStrict>,
+    FormatErrorsOf<TF.EmailParts>,
     TypeFormatError<'email', EmailErrorType> | TypeFormatError<'domain', DomainErrorType>
   >();
 }
@@ -106,7 +106,7 @@ function narrowingCases(): void {
 
 test('FormatErrorsOf compile-time contract', () => {
   expect(typeof leafCases).toBe('function');
-  expect(typeof emailStrictCases).toBe('function');
+  expect(typeof emailPartsCases).toBe('function');
   expect(typeof shapeCases).toBe('function');
   expect(typeof narrowingCases).toBe('function');
 });
