@@ -38,7 +38,9 @@ import {measureDataOnly} from './dataonlyHarness.ts';
 
 /** Compile `snippet`, assert it type-checks AND its net instantiation count is
  *  within `budget`. Returns the net count (handy when tuning). Budgets were
- *  last ratcheted for the sentinel-kept guard (M8: DataOnly keeps
+ *  last raised for dropping an OPTIONAL non-data member (one more check per
+ *  member that projects to `never` or `undefined`, +1-8% on those branches),
+ *  and before that ratcheted for the sentinel-kept guard (M8: DataOnly keeps
  *  format-branded / slotted containers verbatim — one Extract per object-ish
  *  node, shape probes on records only; ~3-5% net across the profiles). **/
 function check(snippet: string, budget: number): number {
@@ -72,7 +74,7 @@ describe('DataOnly<T> — per-branch correctness + instantiation budget', () => 
       type _13 = Expect<Equal<DataOnly<object>, object>>;
       type _14 = Expect<Equal<DataOnly<symbol>, never>>;
       `,
-      551
+      549
     );
   });
 
@@ -82,7 +84,7 @@ describe('DataOnly<T> — per-branch correctness + instantiation budget', () => 
       type _01 = Expect<Equal<DataOnly<Date>, Date>>;
       type _02 = Expect<Equal<DataOnly<RegExp>, never>>;
       `,
-      101
+      98
     );
   });
 
@@ -128,7 +130,7 @@ describe('DataOnly<T> — per-branch correctness + instantiation budget', () => 
       type _01 = Expect<Equal<DataOnly<Buffer>, never>>;
       type _02 = Expect<Equal<DataOnly<{id: number; blob: Buffer}>, {id: number}>>;
       `,
-      252
+      271
     );
   });
 
@@ -141,7 +143,7 @@ describe('DataOnly<T> — per-branch correctness + instantiation budget', () => 
       type _04 = Expect<Equal<DataOnly<Temporal.Duration>, Temporal.Duration>>;
       type _05 = Expect<Equal<DataOnly<{at: Temporal.Instant; name: string}>, {at: Temporal.Instant; name: string}>>;
       `,
-      346
+      347
     );
   });
 
@@ -182,7 +184,7 @@ describe('DataOnly<T> — per-branch correctness + instantiation budget', () => 
       // a function-typed value collapses the value type to never:
       type _07 = Expect<Equal<DataOnly<Map<string, () => void>>, Map<string, never>>>;
       `,
-      1865
+      1873
     );
   });
 
@@ -201,7 +203,7 @@ describe('DataOnly<T> — per-branch correctness + instantiation budget', () => 
       // PROOF the method key is gone from the projected child — it cannot be accessed:
       type _06 = Expect<Equal<'greet' extends keyof DataOnly<WithMethod> ? true : false, false>>;
       `,
-      2904
+      2934
     );
   });
 
@@ -214,7 +216,7 @@ describe('DataOnly<T> — per-branch correctness + instantiation budget', () => 
       type _04 = Expect<Equal<DataOnly<(() => void)[]>, never[]>>;
       type _05 = Expect<Equal<DataOnly<{a: string; fn: () => void}[]>, {a: string}[]>>;
       `,
-      958
+      977
     );
   });
 
@@ -229,7 +231,7 @@ describe('DataOnly<T> — per-branch correctness + instantiation budget', () => 
       type _06 = Expect<Equal<DataOnly<[]>, []>>;
       type _07 = Expect<Equal<DataOnly<Parameters<(a: string, b: number) => void>>, [a: string, b: number]>>;
       `,
-      2952
+      2948
     );
   });
 
@@ -243,8 +245,13 @@ describe('DataOnly<T> — per-branch correctness + instantiation budget', () => 
       type _05 = Expect<Equal<DataOnly<{readonly a: string; b?: number}>, {readonly a: string; b?: number}>>;
       type _06 = Expect<Equal<DataOnly<{outer: {inner: string; fn: () => void}}>, {outer: {inner: string}}>>;
       type _07 = Expect<Equal<DataOnly<{p: Promise<string>; a: number}>, {a: number}>>;
+      type _08 = Expect<Equal<DataOnly<{a: string; cb?: () => void; m?(): void}>, {a: string}>>;
+      type _09 = Expect<Equal<DataOnly<{a: string; p?: Promise<1>; s?: symbol}>, {a: string}>>;
+      type _10 = Expect<Equal<DataOnly<{a: string; u?: undefined}>, {a: string; u?: undefined}>>;
+      type _11 = Expect<Equal<DataOnly<{a: string; s: symbol | undefined}>, {a: string; s: undefined}>>;
+      type _12 = Expect<Equal<DataOnly<{cb?: () => void; name?: string}>, {name?: string}>>;
       `,
-      1137
+      2367
     );
   });
 
@@ -257,7 +264,7 @@ describe('DataOnly<T> — per-branch correctness + instantiation budget', () => 
       type _04 = Expect<Equal<DataOnly<string | number>, string | number>>;
       type _05 = Expect<Equal<DataOnly<{a: string} | {b: number}>, {a: string} | {b: number}>>;
       `,
-      392
+      395
     );
   });
 
@@ -267,7 +274,7 @@ describe('DataOnly<T> — per-branch correctness + instantiation budget', () => 
       type _01 = Expect<Equal<DataOnly<{a: string} & {b: number}>, {a: string; b: number}>>;
       type _02 = Expect<Equal<DataOnly<{a: string} & {fn: () => void}>, {a: string}>>;
       `,
-      368
+      389
     );
   });
 
@@ -279,7 +286,7 @@ describe('DataOnly<T> — per-branch correctness + instantiation budget', () => 
       type _02 = Expect<Assignable<LinkedList, DataOnly<LinkedList>>>;
       type _03 = Expect<Equal<DataOnly<LinkedList>['value'], number>>;
       `,
-      658
+      673
     );
   });
 
@@ -292,7 +299,7 @@ describe('DataOnly<T> — per-branch correctness + instantiation budget', () => 
       type _02 = Expect<Equal<DataOnly<NodeB>['y'], number>>;
       type _03 = Expect<Assignable<DataOnly<NodeA>, NodeA>>;
       `,
-      1218
+      1249
     );
   });
 
@@ -303,7 +310,7 @@ describe('DataOnly<T> — per-branch correctness + instantiation budget', () => 
       type _01 = Expect<Equal<keyof DataOnly<Tree>, 'name' | 'children'>>;
       type _02 = Expect<Equal<DataOnly<Tree>['children'], DataOnly<Tree>[]>>;
       `,
-      658
+      719
     );
   });
 
@@ -314,7 +321,7 @@ describe('DataOnly<T> — per-branch correctness + instantiation budget', () => 
       type _01 = Expect<Equal<DataOnly<TupleCircular>[0], number>>;
       type _02 = Expect<Assignable<DataOnly<TupleCircular>, readonly unknown[]>>;
       `,
-      587
+      583
     );
   });
 
@@ -325,7 +332,7 @@ describe('DataOnly<T> — per-branch correctness + instantiation budget', () => 
       type _01 = Expect<Assignable<DataOnly<Json>, Json>>;
       type _02 = Expect<Assignable<Json, DataOnly<Json>>>;
       `,
-      1152
+      676
     );
   });
 
@@ -373,7 +380,7 @@ describe('DataOnly<T> — per-branch correctness + instantiation budget', () => 
       // (Map values recurse), so assert the Map shape, not the raw value type.
       type _04 = Expect<DataOnly<Deep>['bag']['index'] extends Map<string, any> ? true : false>;
       `,
-      2516
+      2707
     );
   });
 });
