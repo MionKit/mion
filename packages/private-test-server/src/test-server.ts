@@ -68,7 +68,7 @@ type SessionInfo = {userId: string; role: 'admin' | 'user'; expiresAt: number};
 
 // ============ Drizzle-derived models ============
 // Route-level e2e for the dialect packages: the routes below take and return the DERIVED types,
-// and validation plus Date serialization are generated from those types alone.
+// and validation plus the Date JSON round trip are generated from those types alone.
 const dbUsersTable = pgTable('users', {
   id: uuid('id', {primaryKey: true, defaultRandom: true}),
   name: varchar('name', {length: 100, notNull: true}),
@@ -281,7 +281,7 @@ const routes = {
   greetUser: route((_ctx, name: string, greeting?: string): string => `${greeting || 'Hello'} ${name}`),
 
   // The in-memory store stands in for the database; the point is the WIRE: payloads validate
-  // against the derived types and Dates survive the JSON serializer both directions.
+  // against the derived types and Dates survive the JSON round trip.
   dbUsers: {
     insert: route((_ctx, user: NewDbUser): DbUser => {
       const row: DbUser = {
@@ -392,7 +392,7 @@ const routes = {
   validateUUID: route((_ctx, uuid: UUIDv4): string => `Valid UUID: ${uuid}`),
   getUserById: route((_ctx, userId: UUIDv4): {id: UUIDv4; name: string} => ({id: userId, name: 'Test User'})),
 
-  // serialization of complex types
+  // JSON round trip of complex types
   getSameDate: route((_ctx, date: Date): Date => date),
   getDatePlusDays: route((_ctx, date: Date, days: number): Date => {
     const result = new Date(date);

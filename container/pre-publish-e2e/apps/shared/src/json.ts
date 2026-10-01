@@ -1,4 +1,4 @@
-// Family 4, JSON codec. Mirrors guide/serialization-overview.ts + json-strategies.ts + serialization-data-only.ts.
+// Family 4, JSON codec. Mirrors guide/json-round-trip-overview.ts + json-strategies.ts + json-round-trip-data-only.ts.
 import {createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
 import {type CheckResult, ok} from './check';
 

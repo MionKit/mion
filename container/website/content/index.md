@@ -24,7 +24,7 @@ blur: 150px
 
   #body
     ::::div{class="home-intro"}
-    Write a plain TypeScript function, and it is an API route. Params are validated, and params and results are serialized for you. The client calls remote routes like local async functions, with full types and autocompletion.
+    Write a plain TypeScript function, and it is an API route. Params are validated, and params and results make the JSON round trip for you. The client calls remote routes like local async functions, with full types and autocompletion.
 
       :::::div{class="home-links"}
         ::::::u-button
@@ -67,7 +67,7 @@ blur: 150px
       :::::div{class="home-pitch"}
       ## RunTypes<br>One type, many functions
 
-      Your validator already knows the exact shape of your data. RunTypes turns that same knowledge into validation, JSON serialization, mock data and reflection, generated at build time straight from your TypeScript types. No schemas, no drift.
+      Your validator already knows the exact shape of your data. RunTypes turns that same knowledge into validation, JSON round trip, mock data and reflection, generated at build time straight from your TypeScript types. No schemas, no drift.
 
         ::::::div{class="home-links"}
           :::::::u-button
@@ -102,7 +102,7 @@ blur: 150px
       :::::div{class="home-pitch"}
       ## Performance from the ground up!
 
-      Speed and memory efficiency are a design goal, measured from the first commit. Validation and serialization are compiled at build time, so your app imports no runtime library for them: smaller bundles, faster cold starts and less memory, which makes mion a natural fit for edge and serverless runtimes. The RPC server is benchmarked against express, fastify, hono and friends, and RunTypes against the fastest validators. Every number is generated on deploy from the code in this repository.
+      Speed and memory efficiency are a design goal, measured from the first commit. Validation and the JSON round trip are compiled at build time, so your app imports no runtime library for them: smaller bundles, faster cold starts and less memory, which makes mion a natural fit for edge and serverless runtimes. The RPC server is benchmarked against express, fastify, hono and friends, and RunTypes against the fastest validators. Every number is generated on deploy from the code in this repository.
 
         ::::::div{class="home-links"}
           :::::::u-button
@@ -132,7 +132,7 @@ blur: 150px
       :::::div{class="home-pitch"}
       ## Tested to the highest standard
 
-      Every function mion generates for you is tested, and so is the build step that writes them. The suite covers validation, JSON serialization, mock data and reflection, on every type shape we could think of.
+      Every function mion generates for you is tested, and so is the build step that writes them. The suite covers validation, JSON round trip, mock data and reflection, on every type shape we could think of.
       :::::
 
       :home-test-tiles

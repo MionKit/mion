@@ -19,7 +19,7 @@ import {route, rawMiddleware} from '../lib/handlers.ts';
 const DEFAULT_WIRE = {parser: {params: 'clone', return: 'clone'}} as const;
 
 export const mionErrorsRoutes = {
-  /** A route only to reuse the router's (de)serialization: "@thrownErrors" is a response body field holding
+  /** A route only to reuse the router's JSON round trip: "@thrownErrors" is a response body field holding
    *  every thrown error, none strongly typed, all carried as RpcError<string>. Registering it also stops a
    *  user route taking the same name. */
   [MION_ROUTES.thrownErrors]: route((ctx: CallContext): Record<string, RpcError<string>> => {

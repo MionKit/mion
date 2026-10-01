@@ -112,7 +112,7 @@ export function getHandlerReflection(
   }
 }
 
-/** Raw middlewares receive the raw request / response and handle their own (de)serialization, so they
+/** Raw middlewares receive the raw request / response and handle their own JSON round trip, so they
  *  carry no type info at all. */
 export function getRawMethodReflection(
   handler: Handler,

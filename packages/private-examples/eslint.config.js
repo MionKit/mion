@@ -21,7 +21,7 @@ export default tseslint.config(
       'src/_homepage/define-type.ts',
       'src/_homepage/formats-builder.ts',
       'src/_homepage/formats-type.ts',
-      'src/_homepage/json-roundtrip.ts',
+      'src/_homepage/json-round-trip.ts',
       'src/_homepage/reflection-value.ts',
       'src/_homepage/reflection.ts',
       'src/_homepage/showcase.ts',

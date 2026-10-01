@@ -1,6 +1,6 @@
 # Fuzzing & hardening
 
-Autonomous, reproducible fuzzing of the runtime validation/serialization
+Autonomous, reproducible fuzzing of the runtime validation and JSON round trip
 functions. The harness reuses the reflection graph the library already builds:
 because every `RunType` is walkable at runtime, the same giant-switch design as
 the mock walker drives both _valid_ and _invalid_ data generation, and a small

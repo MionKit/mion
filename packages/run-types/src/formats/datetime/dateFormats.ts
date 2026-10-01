@@ -1,8 +1,8 @@
 // Native `Date` format TYPE aliases: `Date<P>` brands the JS `Date` OBJECT (not a string) with the
 // SAME min/max bound params the string date/time formats use (./dateTimeParams.ts), so both read
 // identically. Validation is emitted on the Go side
-// (internal/cachegen/typefunctions/formats/datetime/nativeDate.go); serialization needs no new work,
-// Date already round-trips through the default serialisers. `TypeFormat` IS imported as a value (not
+// (internal/cachegen/typefunctions/formats/datetime/nativeDate.go); the JSON round trip needs no new work,
+// Date already makes it through the default encoder and decoder. `TypeFormat` IS imported as a value (not
 // `import type`) to keep each brand alias's reflection metadata reachable for tsgo.
 
 import {TypeFormat} from '../../runtypes/typeFormat.ts';

@@ -6,7 +6,7 @@
   </picture>
 </p>
 <p align="center">
-  <strong>RPC Like router with automatic Validation and Serialization.
+  <strong>RPC Like router with automatic Validation and JSON Round Trip.
   </strong>
 </p>
 <p align=center>
@@ -17,7 +17,7 @@
 
 # `@mionjs/router`
 
-🚀 Lightweight and fast HTTP router with automatic validation and serialization out of the box.
+🚀 Lightweight and fast HTTP router with automatic validation and JSON round trip out of the box.
 
 Thanks to it's **Remote Method Call** routing style is quite performant as there is no need to parse URLs or match regular expressions when finding a route. Just a direct mapping from url to the route handler.
 

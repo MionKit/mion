@@ -40,7 +40,7 @@ export const MION_ROUTES = {
   notFound: 'mion@notFound',
   /** not-found chain for a batch request whose id names no registered batch */
   batchNotFound: 'mion@batchNotFound',
-  /** Not a route: the key untyped thrown errors are stored under, declared here to reuse the router's serialization. */
+  /** Not a route: the key untyped thrown errors are stored under, declared here to reuse the router's JSON round trip. */
   thrownErrors: '@thrownErrors',
 } as const;
 

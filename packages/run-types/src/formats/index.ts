@@ -1,5 +1,5 @@
 // Public entry for the `@mionjs/run-types/formats` subpath: the format TYPE aliases plus the pure-fn
-// registrations. Formats are JS-only types; validation / serialization / coercion are emitted on the Go
+// registrations. Formats are JS-only types; validation / JSON round trip / coercion are emitted on the Go
 // side, keyed off the format name carried in the wire-protocol FormatAnnotation. The side-effect imports
 // below MUST evaluate before any format module reaching a pure fn at runtime: emitted code looks one up
 // by HASH and an absent key answers undefined, so a format check would silently accept everything.

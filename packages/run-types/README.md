@@ -4,7 +4,7 @@
 
 TypeScript throws your types away before your code ever runs. RunTypes reads them
 first, at build time, and hands the runtime back what it lost: validators, JSON
-(de)serializers, mock data, and reflection.
+round trip functions, mock data, and reflection.
 
 This is the runtime package: the sentinel markers the compiler looks for, plus the
 small helper runtime the generated code calls into. It has **zero dependencies**.
