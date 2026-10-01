@@ -115,6 +115,7 @@ Names the JavaScript type the validated wire form decodes to. Always a sibling o
 | --- | --- | --- | --- |
 | `JS-BIGINT` | `bigint` | `{"type": "string", "pattern": "^-?[0-9]+$"}` | `bigint` |
 | `JS-DATE` | `Date` | `{"type": "string", "format": "date-time"}` | `Date` |
+| `JS-URL` | `URL` | `{"type": "string", "format": "uri"}` | `URL` |
 | `JS-REGEXP` | `RegExp` | `{"type": "string"}` | `RegExp` |
 
 A `RegExp` encodes as `String(re)`, so the wire value carries the delimiters and flags (`"/^ab?c$/gi"`).

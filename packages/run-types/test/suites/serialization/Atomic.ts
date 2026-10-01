@@ -203,6 +203,29 @@ export const ATOMIC = {
       ],
     }),
   },
+  url: {
+    title: 'URL',
+    description: 'Root `URL` round-trips through JSON, returning a real URL instance on decode.',
+    serializeNotes: 'JSON serializes a URL to its href string and revives it with `new URL(...)`.',
+    mutateEncoder: () => createJsonEncoderFn<URL>(undefined, {strategy: 'mutate'}),
+    cloneEncoder: () => createJsonEncoderFn<URL>(undefined, {strategy: 'clone'}),
+    compactEncoder: () => createJsonEncoderFn<URL>(undefined, {strategy: 'compact'}),
+    cloneDecoder: () => createJsonDecoderFn<URL>(),
+    mutateDecoder: () => createJsonDecoderFn<URL>(undefined, {strategy: 'mutate'}),
+    compactDecoder: () => createJsonDecoderFn<URL>(undefined, {strategy: 'compact'}),
+    schemaEncoder: () => createJsonEncoderFn(TF.nativeUrl()),
+    schemaDecoder: () => createJsonDecoderFn(TF.nativeUrl()),
+    // A query, a fragment, credentials, a non-ASCII host and a non-http scheme must all survive the href round-trip.
+    getTestData: () => ({
+      values: [
+        new URL('https://example.com/a?b=1#c'),
+        new URL('https://user:pass@example.com:8080/'),
+        new URL('https://münchen.de/straße'),
+        new URL('mailto:someone@example.com'),
+        new URL('file:///tmp/a.txt'),
+      ],
+    }),
+  },
   enum_color: {
     title: 'enum',
     description:

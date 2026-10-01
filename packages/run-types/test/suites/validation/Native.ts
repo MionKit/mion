@@ -260,4 +260,47 @@ export const NATIVE = {
       [{path: [], expected: 'string'}],
     ],
   },
+  url: {
+    title: 'URL',
+    description: 'A `URL` instance is required; its string form is not a URL.',
+    validateNotes: [
+      'Must be an actual URL instance (instanceof URL).',
+      'A string, even a valid address, is rejected: decode JSON first, the decoder rebuilds the URL from its href.',
+    ],
+    validate: () => createValidateFn<URL>(),
+    standardSchema: () => createStandardSchema<URL>(),
+    validateDataOnly: () => createValidateFn<DataOnly<URL>>(),
+    validateSchema: () => createValidateFn(TF.nativeUrl()),
+    deserializeValidate: () => deserializeValidate<URL>(),
+    validateReflect: () => {
+      const v: URL = new URL('https://example.com');
+      return createValidateFn(v);
+    },
+    deserializeValidateReflect: () => {
+      const v: URL = new URL('https://example.com');
+      return deserializeValidate(v);
+    },
+    getValidationErrors: () => createGetValidationErrorsFn<URL>(),
+    getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<URL>>(),
+    getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.nativeUrl()),
+    deserializeGetValidationErrors: () => deserializeGetValidationErrors<URL>(),
+    getValidationErrorsReflect: () => {
+      const v: URL = new URL('https://example.com');
+      return createGetValidationErrorsFn(v);
+    },
+    deserializeGetValidationErrorsReflect: () => {
+      const v: URL = new URL('https://example.com');
+      return deserializeGetValidationErrors(v);
+    },
+    mockType: () => createMockDataFn<URL>(),
+    mockTypeReflect: () => {
+      const v: URL = new URL('https://example.com');
+      return createMockDataFn(v);
+    },
+    getSamples: () => ({
+      valid: [new URL('https://example.com/a?b=1#c'), new URL('mailto:someone@example.com'), new URL('file:///tmp/a.txt')],
+      invalid: ['https://example.com/', {href: 'https://example.com/'}, null],
+    }),
+    getExpectedErrors: () => [[{path: [], expected: 'URL'}], [{path: [], expected: 'URL'}], [{path: [], expected: 'URL'}]],
+  },
 } as const satisfies Record<string, ValidationCase>;

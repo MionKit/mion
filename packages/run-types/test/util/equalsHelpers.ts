@@ -57,6 +57,13 @@ export function normalizeForComparison(actual: any, expected: any): {actual: any
       expected: isTemporalInstance(expected) ? {__temporal: expected.toString()} : expected,
     };
   }
+  // A URL has no enumerable own keys either: compare by href.
+  if (actual instanceof URL || expected instanceof URL) {
+    return {
+      actual: actual instanceof URL ? {__url: actual.href} : actual,
+      expected: expected instanceof URL ? {__url: expected.href} : expected,
+    };
+  }
   // Map / Set instances have zero enumerable own keys (contents live in
   // internal slots), so the object branch below would collapse both sides to
   // `{}` and pass trivially — masking whether the decoder actually restored
@@ -183,6 +190,7 @@ export function deepCloneForRoundTrip(value: any): any {
   // before the encoder sees them. Pass through unchanged, like symbols above.
   if (isTemporalInstance(value)) return value;
   if (value instanceof Date) return new Date(value.getTime());
+  if (value instanceof URL) return new URL(value.href);
   if (value instanceof RegExp) return new RegExp(value.source, value.flags);
   if (value instanceof Map) {
     const out = new Map();
