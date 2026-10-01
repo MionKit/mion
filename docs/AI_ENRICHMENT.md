@@ -208,17 +208,15 @@ enrichment makes `$[val]` resolve uniformly to the declared bound.
 
 **Constraint granularity is bounded by the type — and the type ENFORCES it.**
 A bare `name: string` can only fail as `type`; you only get `minLength`/`maxLength`
-keys because the field is `FormatString<{minLength; maxLength}>`. The typing is
-param-precise: `ErrorTemplates<F>` reads the field's `__rtFormatParams` brand and
-derives the exact key set — every failable param is a REQUIRED key (blank `''` =
-no custom message), an unknown key is an excess-property error (FT003 moves into
-the IDE), count-bearing keys accept a plural object, and non-failing params
-(`isCurrency` + the transformers `trim`/`lowercase`/`uppercase`/`capitalize`/
-`replace`/`replaceAll` — the `NonFailingParams` union in
-[`friendlyText.ts`](../packages/run-types/src/enrich/friendlyText.ts), mirrored
-by `nonFailingParams` in [`ts-go-runtypes/internal/enrichment/enrich.go`](../ts-go-runtypes/internal/enrichment/enrich.go))
-never become keys. The richness of the friendly map is a function of how richly
-the type is annotated.
+keys because the field is `FormatString<{minLength; maxLength}>`. The keys come
+from each format's own validation-errors code: Go scans it (`formats.ErrorKeysFor`)
+for the scaffold, the sync and the checks, and the generated `FormatErrorKeys`
+table gives `ErrorTemplates<F>` the keys the field's format NAME can produce. Every
+key is optional in the type, an unknown key is an excess-property error, count-bearing
+keys accept a plural object, and `enrich --no-emit` reports a missing key (FT012) or
+one the field can never fail on (FT003). Params that never fail (`float`,
+`isCurrency`, the transformers, ...) never become keys. The richness of the friendly
+map is a function of how richly the type is annotated.
 
 ### Aggregation: errors accumulate
 
@@ -320,10 +318,10 @@ verbatim-sliced region with a per-branch **instantiation-budget** compile test
 ```ts
 type TemplateLeaf = FriendlyTemplate | PluralTemplate;   // plural only on count-bearing keys
 
-// Param-precise: the leaf arm threads the FIELD's own type F; its
-// `__rtFormatParams` brand decides the exact key set. Two exclusive modes:
-type ConstraintTemplates<P> = { type: FriendlyTemplate } & {
-  [K in Exclude<keyof P & string, NonFailingParams>]: K extends CountBearingKeys ? TemplateLeaf : FriendlyTemplate;
+// The leaf arm threads the FIELD's own type F; its `__rtFormatName` brand picks the
+// generated key set. Two exclusive modes:
+type ConstraintTemplates<Name extends keyof FormatErrorKeys> = { type: FriendlyTemplate } & {
+  [K in FormatErrorKeys[Name]]?: K extends CountBearingKeys ? TemplateLeaf : FriendlyTemplate;
 } & { rt$default?: never };
 type DefaultOnlyTemplates = { rt$default: FriendlyTemplate; type?: never };
 export type ErrorTemplates<F = never> = /* bare `type`-only ⋁ DefaultOnly ⋁ Constraint<P> — see friendlyText.ts */ …;
@@ -457,13 +455,14 @@ trigger differs (CLI vs build scan).
 | Code      | Severity | Status | Meaning                                                                       |
 | --------- | -------- | ------ | ---------------------------------------------------------------------------- |
 | **FT002** | Error    | ✅ `enrich --no-emit` | key is not a field of `T` — stale (field renamed/removed)              |
-| **FT003** | Warning  | ✅ `enrich --no-emit` | `rt$errors` key isn't a constraint this field's format declares (Go has `FormatAnnotation.Params`, so the exact set is known) |
+| **FT003** | Warning  | ✅ `enrich --no-emit` | `rt$errors` key is not an error this field can produce (Go scans the field's validation-errors code, so the exact set is known) |
 | **FT005** | Warning  | ✅ `enrich --no-emit` | unknown `$[…]` placeholder for this constraint/context — covers each plural ARM's placeholders; any leftover colon-form `$[val:kind:name]` token (the REMOVED named-format syntax) is flagged with a pointer to plain `$[val]` |
 | **FT006** | Error    | ✅ `enrich --no-emit` | plural template missing the mandatory `other` arm (the render backstop) |
 | **FT007** | Warning  | ✅ `enrich --no-emit` | plural arm key is not a CLDR cardinal category (`zero`/`one`/`two`/`few`/`many`/`other`) |
 | **FT008** | Warning  | ✅ `enrich --no-emit` | plural object on a non-count-bearing constraint — dead arms, only `other` ever renders; use a plain string |
 | **FT009** | Error    | ✅ `enrich --no-emit` | `rt$default` beside any other `rt$errors` key — the catch-all and per-constraint modes are mutually exclusive |
 | **FT011** | Error    | ✅ `enrich --no-emit` | a property of `T` is named `rt$…` — collides with the reserved enrichment meta prefix (`enrich` refuses such a type up front) |
+| **FT012** | Warning  | ✅ `enrich --no-emit` | a failure the field can produce has no `rt$errors` key and no `rt$default`, so it renders a generic message |
 | **FT001** | Info     | deferred | field of `T` has no label (renders the raw name)                       |
 | **FT004** | Error    | deferred (TS catches) | structural mismatch (object node where `T` is scalar)     |
 | **FT010** | Info     | deferred | `T`'s structural id changed since authored — review for semantic drift |

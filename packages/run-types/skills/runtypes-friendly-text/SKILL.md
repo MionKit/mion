@@ -85,14 +85,15 @@ the template by the error's `(format.name, formatPath-tail)` discriminator:
   - datetime: `date`, `time`, `splitChar`
   - `Date` bound: `min` / `max`; `uuid`: `version`
 
-**The typing is param-precise.** `ErrorTemplates<F>` reads the field's format brand:
-every failable declared param is a REQUIRED key (blank `''` = no custom message), an
-unknown key is an excess-property TYPE error (FT003's job, moved into the IDE), and
-non-failing params never become keys (`isCurrency`, `mockSamples`, and the transformers
-`trim` / `lowercase` / `uppercase` / `capitalize` / `replace` / `replaceAll` — the
-`NonFailingParams` union in `friendlyText.ts`, mirroring Go's `nonFailingParams`). A
-bare `name: string` takes `type` only; a richer friendly map requires a richer type
-annotation.
+**The keys come from the format's own error code.** `ErrorTemplates<F>` reads the field's
+format NAME and allows the keys in the generated `FormatErrorKeys` table
+(`src/go-generated/formatErrorKeys.generated.ts`, built from each format's validation-errors
+code). Every key is optional in the type; an unknown key is an excess-property TYPE error,
+`enrich --no-emit` reports a missing key (FT012) or one this field can never fail on (FT003),
+and `enrich --update` adds missing keys as blanks. Params that never fail (`float`,
+`isCurrency`, `mockSamples`, `separators`, the transformers) never become keys, and the JSON
+Schema bounds (`minimum`, `exclusiveMinimum`, ...) use `min` / `max` / `gt` / `lt`. A bare
+`name: string` takes `type` only; a richer friendly map requires a richer type annotation.
 
 **`rt$default` — the exclusive catch-all mode.** `rt$errors: {rt$default: '…'}` yields
 ONE message for the whole field, whatever failed. It never mixes with per-constraint keys
@@ -212,7 +213,7 @@ reports:
 | ----- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
 | FT001 | Warning | a field of `T` has no label (renders the raw name)                                                                                          |
 | FT002 | Warning | key is not a field of `T` — stale (field renamed/removed), so nothing ever reads it                                                         |
-| FT003 | Warning | `rt$errors` key isn't a constraint this field's format declares (TS catches this first as an excess-property error)                         |
+| FT003 | Warning | `rt$errors` key is not an error this field can produce (TS catches keys the FORMAT never produces as an excess-property error)              |
 | FT004 | Warning | structural mismatch (object node where `T` is scalar, or vice-versa)                                                                        |
 | FT005 | Warning | unknown `$[…]` placeholder for this constraint/context — checked per plural arm                                                             |
 | FT006 | Warning | a plural object is missing the mandatory `other` arm                                                                                        |
@@ -221,6 +222,7 @@ reports:
 | FT009 | Warning | `rt$default` beside any other `rt$errors` key — the modes are mutually exclusive, and the catch-all silently wins                           |
 | FT010 | Warning | `T`'s structural id changed since authored — review for drift                                                                               |
 | FT011 | Error   | a property of `T` is named `rt$…` — the reserved meta prefix (`enrich` refuses the type up front and writes no mirror; rename the property) |
+| FT012 | Warning | a failure this field can produce has no `rt$errors` key (and no `rt$default`), so it shows a generic message                                |
 
 Almost every content check is a **Warning**: the message still renders, it just falls
 back to something less specific (the generic "value is invalid", the `other` plural arm,

@@ -36,6 +36,14 @@ Validation runs on the RESTORED value, after decode, so the decoder is the one c
 - The table of kinds that convert is [reflection/must_validate_json.go](internal/reflection/must_validate_json.go) (`MustValidateJson`). Adding a kind whose decoder calls a constructor on a wire value means adding it there AND guarding the arm on every JSON road (`json_restore.go`, `json_compact_restore.go`, `json_restore_safe.go`).
 - Two checks fail otherwise: `must_validate_json_test.go` in [cachegen/typefunctions](internal/cachegen/typefunctions/) (per kind, and the inverse: a transform under an unflagged kind) and the `GC-GUARD` generated-code oracle on the JS side (`packages/run-types/test/fuzz/security/generatedCodeOracle.ts`, run over the nasty corpus in `pnpm test` and by the `secgen` fuzz lane).
 
+## ⚠️ A new format or param needs error-key samples, or CI fails
+
+FriendlyText `rt$errors` keys are read from each format's own validation-errors code (`formats.ErrorKeysFor`, [cachegen/typefunctions/formats/errorkeys.go](internal/cachegen/typefunctions/formats/errorkeys.go)), never from a hand list. The editor's per-format key list is the union over sample params in [errorkeys_samples.go](internal/cachegen/typefunctions/formats/errorkeys_samples.go), so:
+
+- A new format needs samples reaching every branch of its error code (`TestErrorKeySamples_EveryFormat` fails otherwise), and a row in `ParamsByFormat` in `packages/run-types/test/types/formatErrorKeysCoverage.test.ts` (typecheck fails otherwise).
+- A new param needs a sample, or an `excludedParams` entry with a written reason; `formatErrorKeysCoverage.test.ts` fails typecheck until then.
+- Then run `pnpm miondevx core codegen errorkeys`; CI's `codegen all --check` fails on a stale `formatErrorKeys.generated.ts`.
+
 ## ⚠️ A rule that holds for a whole type is implemented as a walk, never as a look at the root
 
 Rules kept landing on the root node only (the prototype-named property check, the circular-reference skeleton for a Map or Set, the silent-`any` guards, the bare-generic check), each found by accident when a member one object deeper slipped through. Three things make that class of bug a failing test instead of a review question:
