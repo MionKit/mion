@@ -381,9 +381,34 @@ describe('checkUnknowns — a dropped non-data member', () => {
     expect(isStrict({b: 1, x: 1})).toBe(false);
   });
 
-  it('treats a Promise member like a function member', () => {
+  // The validator checks the data-only view, so a present non-data member is an unknown key, as a function member is.
+  it('rejects a value carrying the dropped member (static shape)', () => {
+    expect(createValidateFn<WithSymbol>(undefined, {checkUnknowns: true})(sample)).toBe(false);
+    expect(
+      createValidateFn<{p: Promise<number>; b: number}>(undefined, {checkUnknowns: true})({p: Promise.resolve(1), b: 1})
+    ).toBe(false);
+    expect(createValidateFn<{r: RegExp; b: number}>(undefined, {checkUnknowns: true})({r: /x/, b: 1})).toBe(false);
+  });
+
+  it('rejects a value carrying the dropped member (value shape)', () => {
+    expect(createValidateFn(sample, {checkUnknowns: true})(sample)).toBe(false);
+    const withPromise: {p: Promise<number>; b: number} = {p: Promise.resolve(1), b: 1};
+    expect(createValidateFn(withPromise, {checkUnknowns: true})(withPromise)).toBe(false);
+    const withRegExp: {r: RegExp; b: number} = {r: /x/, b: 1};
+    expect(createValidateFn(withRegExp, {checkUnknowns: true})(withRegExp)).toBe(false);
+  });
+
+  it('treats a Promise member like a function member (static shape)', () => {
     const isStrict = createValidateFn<{p: Promise<number>; b: number}>(undefined, {checkUnknowns: true});
     const isWithFn = createValidateFn<{p: () => void; b: number}>(undefined, {checkUnknowns: true});
+    for (const value of [{b: 1}, {b: 1, x: 1}, {b: 1, p: 1}]) expect(isStrict(value)).toBe(isWithFn(value));
+  });
+
+  it('treats a Promise member like a function member (value shape)', () => {
+    const withPromise: {p: Promise<number>; b: number} = {p: Promise.resolve(1), b: 1};
+    const withFn: {p: () => void; b: number} = {p: () => undefined, b: 1};
+    const isStrict = createValidateFn(withPromise, {checkUnknowns: true});
+    const isWithFn = createValidateFn(withFn, {checkUnknowns: true});
     for (const value of [{b: 1}, {b: 1, x: 1}, {b: 1, p: 1}]) expect(isStrict(value)).toBe(isWithFn(value));
   });
 });
