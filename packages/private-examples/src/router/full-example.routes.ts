@@ -54,7 +54,7 @@ const deleteUser = mion.route(
 // a gate: the returned FatalError ends the request, so no route below runs,
 // and being declared it reaches the client strongly typed
 const auth = mion.middleware((ctx): void | RpcError<'not-authorized'> => {
-  // the HttpOnly session cookie, sent by the browser and never read by client code
+  // the HttpOnly session cookie the browser sends
   const user = myApp.auth.getSessionUser(ctx.request.headers.get('cookie'));
   if (!user)
     return new FatalError({

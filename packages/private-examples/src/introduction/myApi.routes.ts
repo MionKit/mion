@@ -8,7 +8,7 @@ const mion = createMionRouter({basePath: 'api/v1'});
 
 // parameters are validated before each function runs
 const routes = {
-  // reads the HttpOnly session cookie the browser sends, client code never touches it
+  // reads the HttpOnly session cookie the browser sends
   auth: mion.middleware((ctx): void | FatalError<'not-authorized'> => {
     const cookie = ctx.request.headers.get('cookie');
     // a FatalError ends the request: sayHello never runs, and the client gets it typed
