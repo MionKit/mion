@@ -131,16 +131,33 @@ type DataOnlyLadder<T, Depth extends number> =
       : T extends readonly unknown[]
         ? {-readonly [K in keyof T]: DataOnly<T[K], _DataOnlyDepth[Depth]>} // array + tuple
         : T extends object
-          ? object extends T
-            ? T // broad `object` / `{}` — keep (the emitter accepts the broad kind)
+          ? [keyof T] extends [never]
+            ? T // broad `object` / `{}` — keep (the emitter accepts the broad kind); not `object extends T`, which an all-optional type passes
             : {
                 // Drop symbol keys, `__proto__` (writing that key swaps a prototype
                 // instead of storing a value) and never-valued (⊇ method) props
                 [K in keyof T as K extends symbol | '__proto__'
                   ? never
-                  : [DataOnly<T[K], _DataOnlyDepth[Depth]>] extends [never]
-                    ? never
+                  : [DataOnly<T[K], _DataOnlyDepth[Depth]>] extends [undefined]
+                    ? [DataOnly<T[K], _DataOnlyDepth[Depth]>] extends [never]
+                      ? never
+                      : DataOnlyOptionalStripped<T, K> extends true
+                        ? never
+                        : K
                     : K]: DataOnly<T[K], _DataOnlyDepth[Depth]>;
               }
           : T;
+// An OPTIONAL member reads as `X | undefined`, so `{p?: Promise<1>}` projects to `p?: undefined` instead of
+// dropping p as the emitter does. Only reached when the projection is exactly `undefined`: a written `undefined`,
+// a required `X | undefined` (the emitter keeps its `undefined` too) and an index key all stay.
+type DataOnlyOptionalStripped<T, K extends keyof T> = [T[K]] extends [undefined]
+  ? false
+  : string extends K
+    ? false
+    : number extends K
+      ? false
+      : // eslint-disable-next-line @typescript-eslint/no-empty-object-type -- `{}` is the standard optional-key probe
+        {} extends Pick<T, K>
+        ? true
+        : false;
 // #endregion dataonly-extract
