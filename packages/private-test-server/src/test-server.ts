@@ -338,6 +338,11 @@ const routes = {
       ctx.shared.page = page;
       return [page * 10, page * 10 + 1];
     }),
+    // answers in HTTP headers only, so a check of a headers answer can be pinned
+    pageHeaders: route((ctx, page: number): HeadersSubset<'x-page' | 'x-total'> => {
+      ctx.shared.page = page;
+      return new HeadersSubset({'x-page': `${page}`, 'x-total': '100'});
+    }),
     // after the route, so it reads the route's page
     pageInfo: middleware((ctx): {page: number; total: number} | RpcError<'page-out-of-range'> => {
       const page = ctx.shared.page ?? 0;

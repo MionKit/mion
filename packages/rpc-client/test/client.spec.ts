@@ -1387,7 +1387,7 @@ describe('client', () => {
       expect(clientResponse['@thrownErrors']?.[0]?.type).toBe('request-payload-too-large');
     });
 
-    it('platform error in a batch is ONE fatal error, not one per route', async () => {
+    it('platform error in a batch is ONE @thrownErrors entry, not one per route', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
       middlewares.auth.onRequest((auth) => auth(authHeaders));

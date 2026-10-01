@@ -23,12 +23,24 @@
 import {describe, it, expect} from 'vitest';
 import {initClient} from './lib/fetchingClient.ts';
 import {batch} from '../src/batch.ts';
-import {isRpcError, isFatalError, FatalError, RpcError, HeadersSubset} from '@mionjs/core';
+import {isRpcError, isFatalError, FatalError, RpcError, HeadersSubset, routesCache} from '@mionjs/core';
 import {type TestServerApi, ScopedAuthError} from '@mionjs/test-server';
 import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
 
 function createAuthHeaders(token: string): HeadersSubset<'Authorization'> {
   return new HeadersSubset({Authorization: token});
+}
+
+/** Answers every request in `run` with `body` and `headers`, for answers the test server never sends */
+async function withServerAnswer<T>(body: unknown, headers: Record<string, string>, run: () => Promise<T>): Promise<T> {
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (async () =>
+    new Response(JSON.stringify(body), {headers: {'content-type': 'application/json', ...headers}})) as typeof fetch;
+  try {
+    return await run();
+  } finally {
+    globalThis.fetch = realFetch;
+  }
 }
 
 /** Every route of the test server runs behind the root-level `auth` headers middleware. */
@@ -189,6 +201,31 @@ describe('client error dispatch contract', () => {
         `onResponse for middleware 'session' failed: second`,
       ]);
     });
+
+    it('T30 (R4): an answer the client cannot decode -> @thrownErrors, never slot 1 nor its path', async () => {
+      const {routes, middlewares} = initClient<MyApi>({baseURL});
+      useAuth(middlewares);
+      await routes.flow.getStamp(5).call();
+      const {json} = routesCache.useMethodJitFns('flow/getStamp').returnJitFns;
+      const decode = json.decode;
+      json.decode = {
+        ...decode,
+        isNoop: false,
+        fn: () => {
+          throw new Error('not a stamp');
+        },
+      };
+      try {
+        const [stamp, routeError, response] = await routes.flow.getStamp(5).call();
+
+        expect(stamp).toBeUndefined();
+        expect(routeError).toBeUndefined();
+        expect((response as any).flow?.getStamp).toBeUndefined();
+        expect(response['@thrownErrors']?.map((error) => error.type)).toEqual(['deserialization-error']);
+      } finally {
+        json.decode = decode;
+      }
+    });
   });
 
   describe('the response is the body, nested by group', () => {
@@ -272,6 +309,20 @@ describe('client error dispatch contract', () => {
 
       expect(single['@thrownErrors']?.[0]?.type).toBe('request-timeout');
       expect(batched['@thrownErrors']?.[0]?.type).toBe('request-timeout');
+    });
+
+    it('T31 (R2): a client-side validation error in a batch sits at its nested path', async () => {
+      const {routes, middlewares} = initClient<MyApi>({baseURL});
+      useAuth(middlewares);
+      const [, [sumError, greetingError], response] = await batch([
+        routes.utils.sumTwo('x' as unknown as number),
+        routes.sayHello(someUser),
+      ]).call();
+
+      expect(sumError?.type).toBe('validation-error');
+      expect(greetingError).toBeUndefined();
+      expect((response as any).utils?.sumTwo).toBe(sumError);
+      expect(response['@thrownErrors']).toBeUndefined();
     });
   });
 
@@ -551,6 +602,48 @@ describe('client error dispatch contract', () => {
       expect(heard).toEqual([]);
       expect(routeError).toBeUndefined();
       expect(result).toBe('ok');
+    });
+
+    it('checks an answer sent only as HTTP headers, even after another error', async () => {
+      const {routes} = checkingClient();
+      const [pages] = await routes.paramless.pageHeaders(2).call();
+      expect(pages?.headers).toEqual({'x-page': '2', 'x-total': '100'});
+
+      const pageError = new RpcError({type: 'page-out-of-range', publicMessage: 'No such page'});
+      const [result, routeError, response] = await withServerAnswer({'paramless/pageInfo': pageError}, {'x-page': '12'}, () =>
+        routes.paramless.pageHeaders(12).call()
+      );
+      // `x-total` is missing, which only the check can tell
+      expect(result).toBeUndefined();
+      expect(routeError).toBeUndefined();
+      expect((response.paramless?.pageInfo as RpcError<string>)?.type).toBe('page-out-of-range');
+      expect((response.paramless as any)?.pageHeaders).toBeUndefined();
+      expect(response['@thrownErrors']?.[0]?.publicMessage).toContain(`'paramless/pageHeaders'`);
+    });
+  });
+
+  describe('a response the client cannot trust', () => {
+    it('T32 (R4): thrown-record keys never write the prototype or replace @thrownErrors, and call() still resolves', async () => {
+      const {routes, middlewares} = initClient<MyApi>({baseURL});
+      useAuth(middlewares);
+      await routes.calculateAge(1990).call();
+      const validation = {type: 'validation-error', publicMessage: 'bad', 'mion@isΣrrθr': true};
+      const body = {
+        calculateAge: 36,
+        '@thrownErrors': {'__proto__/polluted': validation, '@thrownErrors': validation, ['__proto__']: validation},
+      };
+
+      const [age, routeError, response] = await withServerAnswer(body, {}, () => routes.calculateAge(1990).call());
+
+      expect(({} as any).polluted).toBeUndefined();
+      expect(({} as any).isResolved).toBeUndefined();
+      expect(age).toBe(36);
+      expect(routeError).toBeUndefined();
+      expect(response['@thrownErrors']?.map((error) => error.type)).toEqual([
+        'validation-error',
+        'validation-error',
+        'validation-error',
+      ]);
     });
   });
 });

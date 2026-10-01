@@ -789,7 +789,7 @@ describe('batch runtime behaviour', () => {
     expect((caught as RpcError<string>).publicMessage).toContain('index 2');
   });
 
-  it('timeout in a batch with mappings is ONE request-scoped fatal, per-route slots stay empty', async () => {
+  it('timeout in a batch with mappings is ONE @thrownErrors entry, per-route slots stay empty', async () => {
     const slow = routes.sleep(3000);
     const [results, errors, clientResponse] = await batch([slow, routes.flow.getOrg(inputFrom(slow, (ms) => ms!).asArg())]).call({
       timeout: 100,
@@ -799,7 +799,7 @@ describe('batch runtime behaviour', () => {
     expect(clientResponse['@thrownErrors']?.[0]?.type).toBe('request-timeout');
   });
 
-  it('abort in a batch with mappings is ONE request-scoped fatal, per-route slots stay empty', async () => {
+  it('abort in a batch with mappings is ONE @thrownErrors entry, per-route slots stay empty', async () => {
     const slow = routes.sleep(3000);
     const [results, errors, clientResponse] = await batch([slow, routes.flow.getOrg(inputFrom(slow, (ms) => ms!).asArg())]).call({
       signal: AbortSignal.abort(),
