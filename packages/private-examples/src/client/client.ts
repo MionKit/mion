@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import {initClient} from '@mionjs/client';
-import {HeadersSubset} from '@mionjs/core';
 // importing only the RemoteApi type from server
 import type {MyApi} from './server.routes.ts';
 
@@ -10,18 +9,12 @@ const {routes, middlewares} = initClient<MyApi>({
 });
 
 // ========== Middleware Hooks with Typed Success Return and Error Handling ==========
-// onRequest gives auth its params before every request that runs it
-// The auth middleware returns SessionInfo on success (when returnSession=true) or FatalError<'not-authorized', NotAuthorizedData>
-const authHeaders = new HeadersSubset({Authorization: 'Bearer myToken-XYZ'});
+// auth takes no params: the browser sends the HttpOnly session cookie, so there is no onRequest
+// The auth middleware returns SessionInfo on success or FatalError<'not-authorized', NotAuthorizedData>
 middlewares.auth
-  .onRequest((auth) => auth(authHeaders, true)) // returnSession=true to get SessionInfo back
-  // onResponse receives the strongly typed SessionInfo (or void when returnSession=false)
+  // onResponse receives the strongly typed SessionInfo
   .onResponse((sessionInfo) => {
-    // Since we passed returnSession=true, we know sessionInfo is SessionInfo
-    // TypeScript infers: sessionInfo is SessionInfo | void, so we narrow it
-    if (!sessionInfo) return;
-    // Now TypeScript knows sessionInfo is SessionInfo!
-    // sessionInfo.role is 'admin' | 'user' | 'guest'
+    // sessionInfo.role is 'admin' | 'user'
     console.log('Logged in as:', sessionInfo.userId);
     console.log('Role:', sessionInfo.role);
     // Use session info to configure app state
@@ -31,14 +24,12 @@ middlewares.auth
   })
   .onError('not-authorized', (error) => {
     // error.errorData is strongly typed as NotAuthorizedData!
-    // TypeScript knows: error.errorData?.reason is 'missing-token' | 'invalid-token' | 'expired-token'
+    // TypeScript knows: error.errorData?.reason is 'no-session' | 'expired-session'
     const reason = error.errorData?.reason;
-    if (reason === 'expired-token') {
-      console.log('Token expired, refreshing...');
-    } else if (reason === 'missing-token') {
-      console.log('No token provided, redirecting to login...');
+    if (reason === 'expired-session') {
+      console.log('Session expired, redirecting to login...');
     } else {
-      console.log('Invalid token:', error.publicMessage);
+      console.log('No session, redirecting to login...');
     }
   })
   .onError('validation-error', (error) => {
@@ -82,16 +73,7 @@ const [result, error3] = await routes.users.sayHello(john).call();
 // sayHello never has an error type, so we can use the result directly
 console.log(result); // Hello John Doe
 
-// ========== Example 5: Per-request middleware data ==========
-// the context lets onRequest pick the data per request
-const tempAuthHeaders: HeadersSubset<'Authorization'> = {
-  headers: {Authorization: 'Bearer temp-token-ABC'},
-};
-middlewares.auth.onRequest((auth, context) => {
-  const isOrderRequest = context.route?.id.startsWith('orders/');
-  auth(isOrderRequest ? tempAuthHeaders : authHeaders, true);
-});
-
+// ========== Example 5: Middleware outcomes in the result tuple ==========
 // the tuple also keeps each middleware's outcome by id, loosely typed; prefer the typed hooks
 const [user4, routeError4, fatal4, middlewareResults4, middlewareErrors4] =
   await routes.users.getById('USER-123').call();

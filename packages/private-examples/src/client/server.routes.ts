@@ -1,5 +1,6 @@
-import {RpcError, FatalError, HeadersSubset} from '@mionjs/core';
+import {RpcError, FatalError} from '@mionjs/core';
 import {createMionRouter, Routes} from '@mionjs/router';
+import {getSession, type SessionInfo} from './session.ts';
 
 const mion = createMionRouter();
 
@@ -7,13 +8,13 @@ export type User = {id: string; name: string; surname: string};
 export type Order = {id: string; date: Date; userId: string; totalUSD: number};
 
 // returned by the auth middleware, strongly typed in the client onResponse hook
-export type SessionInfo = {userId: string; role: 'admin' | 'user' | 'guest'};
+export type {SessionInfo};
 
 // Error data types - these will be strongly typed in the client!
 export type UserNotFoundData = {requestedId: string; suggestedIds?: string[]};
 export type OrderNotFoundData = {requestedId: string};
 export type NotAuthorizedData = {
-  reason: 'missing-token' | 'invalid-token' | 'expired-token';
+  reason: 'no-session' | 'expired-session';
 };
 
 const usersDb: Record<string, User> = {
@@ -21,25 +22,19 @@ const usersDb: Record<string, User> = {
 };
 
 const routes = {
-  // reads the Authorization header, returns a session when asked for one.
+  // reads the HttpOnly session cookie the browser sends, JavaScript never sees it.
   // A returned FatalError ends the request (no route runs) and stays typed
-  auth: mion.headersFn(
-    (
-      ctx,
-      h: HeadersSubset<'Authorization'>,
-      returnSession = false
-    ): SessionInfo | void | FatalError<'not-authorized', NotAuthorizedData> => {
-      const token = h.headers.Authorization;
-      if (!token) {
+  auth: mion.middleware(
+    (ctx): SessionInfo | FatalError<'not-authorized', NotAuthorizedData> => {
+      const session = getSession(ctx.request.headers.get('cookie'));
+      if (!session || session.expiresAt < new Date()) {
         return new FatalError({
           publicMessage: 'Not Authorized',
           type: 'not-authorized',
-          errorData: {reason: 'missing-token'},
+          errorData: {reason: session ? 'expired-session' : 'no-session'},
         });
       }
-      if (returnSession) {
-        return {userId: 'USER-123', role: 'admin'};
-      }
+      return session;
     }
   ),
   users: {

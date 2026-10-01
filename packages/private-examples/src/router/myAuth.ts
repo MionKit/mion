@@ -6,16 +6,11 @@ export interface AuthUser {
   roles: string[];
 }
 
-/** Resolves the user behind a token (and optionally a user id header) */
-export async function getAuthUser(
-  token?: string,
-  userId?: string
+/** Resolves the user behind the HttpOnly `session` cookie the browser sent */
+export async function getSessionUser(
+  cookieHeader: string | null | undefined
 ): Promise<AuthUser | undefined> {
-  if (!token) return undefined;
-  return {id: Number(userId ?? 1), name: 'John', roles: ['user']};
-}
-
-/** True when the resolved user may proceed */
-export function isAuthorized(user: AuthUser | undefined): boolean {
-  return !!user && user.roles.length > 0;
+  const sessionId = cookieHeader?.match(/(?:^|;\s*)session=([^;]+)/)?.[1];
+  if (!sessionId) return undefined;
+  return {id: 1, name: 'John', roles: ['user']};
 }

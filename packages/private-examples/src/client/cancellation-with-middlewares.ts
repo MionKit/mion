@@ -7,8 +7,8 @@ const {routes, middlewares} = initClient<MyApi>({
 });
 
 const controller = new AbortController();
-middlewares.auth.onRequest((auth) =>
-  auth(new HeadersSubset({Authorization: 'myToken-XYZ'}))
+middlewares.trace.onRequest((trace) =>
+  trace(new HeadersSubset({'X-Trace-Id': crypto.randomUUID()}))
 );
 
 // cancellation works with middleware

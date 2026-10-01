@@ -1,7 +1,7 @@
 ---
 type: docs
 spec: guidelines
-status: ready
+status: done
 created: 2026-09-30
 ---
 
@@ -48,3 +48,30 @@ receives its own data on every request, next to the route) with data that is saf
 
 No example or page sends a token read by JavaScript, the middleware examples show one consistent safe
 middleware that sends and receives data on every call, and every page still teaches what it taught before.
+
+## Plan (approved 2026-10-01), as shipped
+
+- **Trace id** is the one "client sends, server answers" middleware: the client sends a fresh `X-Trace-Id`
+  header from `onRequest`, the server echoes it back (`trace`, a headers function). Used in the hooks,
+  headers, batch, cancellation, init and wire-format examples.
+- **Auth reads an HttpOnly cookie on the server** (`auth`, a middleware with no params that reads
+  `ctx.request.headers.get('cookie')`). The client keeps its typed `onResponse` / `onError` hooks and never
+  touches the session. Typed reasons are now `no-session` / `expired-session`. Stand-ins:
+  `packages/private-examples/src/client/session.ts` and `router/myAuth.ts` (`getSessionUser`).
+- Every example under `packages/private-examples/src/{client,router,introduction}` that sent or read a token
+  was switched; `guide/remove-unknown-keys.ts` keeps its `token` key (it is the value being stripped).
+  The orphan `client.ts` lost its "per-request data" example, which only made sense with the old token.
+- New tip on the middleware page: keep auth tokens out of client JavaScript, use an HttpOnly cookie,
+  `credentials: 'include'` for another origin.
+- **Added at the user's request**: a pagination example in the middleware page's "Middleware Scope" section
+  (`router/pagination.routes.ts` + `client/pagination-client.ts`): the route returns only the items, a
+  middleware declared after it in the same group returns the page info it left in the context, and the
+  client reads both from one call.
+- **Fixed on the way** (the cookie and pagination examples depended on it): the client dropped the answer of
+  a middleware with no params unless an `onRequest` hook asked for it, so its result, hooks and declared
+  errors never arrived (its declared error even landed in `undeclared`). `rpc-client/src/dispatch.ts` now
+  adds such chain middlewares after the answer arrives, and the Go build check no longer reports `MET009`
+  for a middleware that takes no params (`apimeta.Method.TakesParams`). Tests:
+  `rpc-client/test/paramlessMiddleware.spec.ts` (tuple, hooks, optimistic first call, declared errors,
+  request body, batch) and a Go subtest in `apigen_test.go`. The `MET008` / `MET009` fix hints now show the
+  trace id instead of a token.

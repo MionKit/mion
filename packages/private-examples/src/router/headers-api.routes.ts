@@ -4,11 +4,9 @@ import {createMionRouter, Routes} from '@mionjs/router';
 const mion = createMionRouter();
 
 const routes = {
-  auth: mion.headersFn(
-    (ctx, {headers}: HeadersSubset<'Authorization'>): void => {
-      console.log('token', headers.Authorization);
-    }
-  ),
+  trace: mion.headersFn((ctx, {headers}: HeadersSubset<'X-Trace-Id'>): void => {
+    console.log('trace', headers['X-Trace-Id']);
+  }),
   // returns a header, not a body value
   getDownloadUrl: mion.route(
     (ctx, fileId: string): HeadersSubset<'x-download-url'> =>

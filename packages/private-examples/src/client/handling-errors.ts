@@ -1,14 +1,10 @@
-import {HeadersSubset, isRpcError} from '@mionjs/core';
+import {isRpcError} from '@mionjs/core';
 import {initClient} from '@mionjs/client';
 import type {MyApi} from './auth-user.routes.ts';
 
-const {routes, middlewares} = initClient<MyApi>({
+const {routes} = initClient<MyApi>({
   baseURL: 'http://localhost:3000',
 });
-
-middlewares.auth.onRequest((auth) =>
-  auth(new HeadersSubset({Authorization: 'myToken-XYZ'}))
-);
 
 // [routeResult, routeError, undeclared, middlewareResults, middlewareErrors]
 // - error: the route's DECLARED errors | ValidationError (strongly typed, CLOSED union)

@@ -20,9 +20,11 @@ mion.route((ctx, name: string): string => `hello ${name}`);
 mion.middleware((ctx, data: number): void => {
   console.log(data);
 });
-mion.headersFn((c: CallContext, {headers}: HeadersSubset<'auth'>): void => {
-  // do something
-});
+mion.headersFn(
+  (c: CallContext, {headers}: HeadersSubset<'x-trace-id'>): void => {
+    // do something
+  }
+);
 // end:typed-handlers-valid-inline
 
 // start:typed-handlers-valid-function-refs
@@ -38,10 +40,10 @@ mion.route(validArrowHandler);
 const typedHandler: Handler = (ctx, name: string): string => `hello ${name}`;
 const typedHeaderHandler: HeaderHandler = (
   c: CallContext,
-  {headers}: HeadersSubset<'auth'>
+  {headers}: HeadersSubset<'x-trace-id'>
 ): void => {
-  const token = headers.auth;
-  console.log(token);
+  const traceId = headers['x-trace-id'];
+  console.log(traceId);
 };
 // end:typed-handlers-valid-type-annotations
 
@@ -50,10 +52,10 @@ const satisfiesHandler = ((ctx, name: string): string =>
   `hello ${name}`) satisfies Handler;
 const satisfiesHeaderHandler = ((
   c: CallContext,
-  {headers}: HeadersSubset<'auth'>
+  {headers}: HeadersSubset<'x-trace-id'>
 ): void => {
-  const token = headers.auth;
-  console.log(token);
+  const traceId = headers['x-trace-id'];
+  console.log(traceId);
 }) satisfies HeaderHandler;
 // end:typed-handlers-valid-satisfies
 
@@ -77,10 +79,10 @@ const middlewareWithJSDoc = (ctx, data: number): void => {
  */
 function headersFnWithJSDoc(
   c: CallContext,
-  {headers}: HeadersSubset<'auth'>
+  {headers}: HeadersSubset<'x-trace-id'>
 ): void {
-  const token = headers.auth;
-  console.log(token);
+  const traceId = headers['x-trace-id'];
+  console.log(traceId);
 }
 // end:typed-handlers-valid-jsdoc
 
@@ -97,7 +99,7 @@ mion.route((ctx, name) => `hello ${name}`); // Missing both param type and retur
 mion.middleware((ctx, data: number) => {
   console.log(data);
 }); // Missing return type
-mion.headersFn((c: CallContext, [token]): void => {
+mion.headersFn((c: CallContext, [traceId]): void => {
   // do something
 }); // Missing param type
 // end:typed-handlers-invalid-inline
@@ -116,10 +118,10 @@ mion.route(invalidArrowHandler); // Should error: missing both types
 const invalidTypedHandler: Handler = (ctx, name) => `hello ${name}`; // Missing both types
 const invalidTypedHeaderHandler: HeaderHandler = (
   c: CallContext,
-  {headers}: HeadersSubset<'auth'>
+  {headers}: HeadersSubset<'x-trace-id'>
 ) => {
-  const token = headers.auth;
-  console.log(token);
+  const traceId = headers['x-trace-id'];
+  console.log(traceId);
 }; // Missing return type
 // end:typed-handlers-invalid-type-annotations
 
@@ -128,8 +130,8 @@ const invalidTypedHeaderHandler: HeaderHandler = (
 const invalidSatisfiesHandler = ((ctx, name) =>
   `hello ${name}`) satisfies Handler; // Missing both types
 const invalidSatisfiesHeaderHandler = ((c: CallContext, {headers}): void => {
-  const token = headers.auth;
-  console.log(token);
+  const traceId = headers['x-trace-id'];
+  console.log(traceId);
 }) satisfies HeaderHandler; // Missing param type
 // end:typed-handlers-invalid-satisfies
 
@@ -153,8 +155,8 @@ const invalidMiddlewareJSDoc = (ctx, data: number) => {
  * @mion:headersFn
  */
 function invalidHeadersFnJSDoc(c: CallContext, {headers}): void {
-  const token = headers.auth;
-  console.log(token);
+  const traceId = headers['x-trace-id'];
+  console.log(traceId);
 } // Missing param type
 // end:typed-handlers-invalid-jsdoc
 
@@ -171,18 +173,13 @@ mion.route((ctx, id: string): string | RpcError<'not-found'> => {
 });
 
 // 2. A gate returns a FatalError, which ends the request
-mion.headersFn(
-  (
-    ctx,
-    {headers}: HeadersSubset<'auth'>
-  ): void | FatalError<'not-authorized'> => {
-    if (!headers.auth)
-      return new FatalError({
-        type: 'not-authorized',
-        publicMessage: 'Not Authorized',
-      });
-  }
-);
+mion.middleware((ctx): void | FatalError<'not-authorized'> => {
+  if (!ctx.request.headers.get('cookie'))
+    return new FatalError({
+      type: 'not-authorized',
+      publicMessage: 'Not Authorized',
+    });
+});
 
 // 3. A throw caught inside the handler never reaches the router
 mion.route((ctx, id: string): string | RpcError<'db-error'> => {
