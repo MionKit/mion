@@ -173,7 +173,7 @@ func siteCodes(t *testing.T, sources map[string]string, allInternal bool) []stri
 	return corpusCodes(response, "site.ts")
 }
 
-// gridValueShapes adds the value call shape (a third of the grid): only the release gate and full local runs set it.
+// gridValueShapes adds the value call shape (a third of the grid): main pushes, the release gate and full local runs set it.
 // PRs skip it, as every value-first marker has its own paired tests. On 4 cores: 74 s with value shapes, 30 s without.
 var gridValueShapes = os.Getenv("MION_DIAG_GRID_FULL") == "1"
 

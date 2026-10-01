@@ -70,7 +70,7 @@ The noop, JSON-compat and safe-to-share predicates (`noop_types.go`, `json_compa
 
 `TestNestedDiagCorpus` (`compiler/resolver/nested_diag_corpus_test.go`) puts every trigger at every position, inline
 and named, under every family and both inline modes (the value call shape only with `MION_DIAG_GRID_FULL=1`, which
-the release gate sets), and checks: a throw is reported, a reported throw exists, inline
+main pushes and the release gate set), and checks: a throw is reported, a reported throw exists, inline
 and named agree, non-data is never dropped silently, the build pass equals the dev scan.
 
 - A new non-data shape gets a row in `corpusTriggers`; a new family, a row in `corpusFamilies`. The two

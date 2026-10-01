@@ -135,7 +135,12 @@ export const AREAS = {
           ['--soak', 'the release tier (release-gate.yml / fuzz-soak.yml)'],
         ],
       },
-      {name: 'fuzz-lanes', summary: "print the soak lane list as JSON (the workflows' matrix source)", ...noBuild},
+      {
+        name: 'fuzz-lanes',
+        summary: "print the soak lane list as JSON (the workflows' matrix source)",
+        flags: [['--all', 'include the lanes that soak in a workflow of their own (soakWorkflow)']],
+        ...noBuild,
+      },
       {
         name: 'codegen',
         args: '[all|constants|kind|fnhashes|fncatalog|typeformats|diag|builtinpurefns|pluginkeys|sidecar]',

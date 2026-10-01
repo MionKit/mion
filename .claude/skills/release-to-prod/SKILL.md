@@ -181,8 +181,8 @@ gate is where latent bugs surface — including ones the release did not introdu
 it" carve-out: the finding is real, it is reproducible from the seed the job
 printed, and a release is the worst moment to start trusting an unfixed oracle
 violation. Fix forward on `main` and re-cut, exactly as above. The `nondata` lane soaks
-10 minutes in its own workflow, `fuzz-nondata-soak.yml`, beside the gate on the release
-PR; a red run there blocks the same way.
+10 minutes in its own workflow, `fuzz-nondata-soak.yml`, which the gate calls as its
+`fuzz-soak-nondata` job; a red run there blocks the same way.
 
 **Never re-roll the seed to get green.** A second run on a fresh seed that passes is
 not evidence the bug is gone, only that the new seed did not reach it — the lane
