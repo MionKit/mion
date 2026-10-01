@@ -23,6 +23,7 @@ export type AttackKind =
   | 'bigint'
   | 'boolean'
   | 'date'
+  | 'url'
   | 'literal'
   | 'enum'
   | 'union'
@@ -185,6 +186,16 @@ export const ATTACK_DICTIONARY: readonly AttackEntry[] = [
   e({id: 'date.object', kind: 'date', class: 'type-confusion', expect: 'reject', json: () => ({})}),
   e({id: 'date.array', kind: 'date', class: 'type-confusion', expect: 'any', json: () => []}),
   e({id: 'date.negative-year', kind: 'date', class: 'transform', expect: 'any', json: () => '-000001-01-01T00:00:00Z'}),
+
+  // ---- URL (its href on the JSON wire; `new URL` throws, so only a parsable string converts) ----
+  e({id: 'url.garbage', kind: 'url', class: 'transform', expect: 'reject', json: () => 'garbage'}),
+  e({id: 'url.empty', kind: 'url', class: 'transform', expect: 'reject', json: () => ''}),
+  e({id: 'url.relative', kind: 'url', class: 'transform', expect: 'reject', json: () => '/a/b?c=1'}),
+  e({id: 'url.no-host', kind: 'url', class: 'transform', expect: 'reject', json: () => 'https://'}),
+  e({id: 'url.javascript', kind: 'url', class: 'transform', expect: 'any', json: () => 'javascript:alert(1)'}),
+  e({id: 'url.number', kind: 'url', class: 'type-confusion', expect: 'reject', json: () => 1}),
+  e({id: 'url.href-object', kind: 'url', class: 'type-confusion', expect: 'reject', json: () => ({href: 'https://a.co/'})}),
+  e({id: 'url.array', kind: 'url', class: 'type-confusion', expect: 'reject', json: () => ['https://a.co/']}),
 
   // ---- Temporal (an ISO string on the JSON wire) ---------------------------
   e({id: 'temporal.garbage', kind: 'temporal', class: 'transform', expect: 'reject', json: () => 'garbage'}),
@@ -551,6 +562,9 @@ export function expectWrongType(kind: AttackKind, sampleKind: string): Expect {
     case 'bigint':
       // Wire form is a decimal string; a whole number is the one lenient spelling, anything else reaches validate.
       return sampleKind === 'bigintString' || sampleKind === 'number' ? 'any' : 'reject';
+    case 'url':
+      // The wire form is the href; a string that does not parse stays a string and validate refuses it.
+      return sampleKind === 'string' || sampleKind === 'bigintString' || sampleKind === 'dateString' ? 'any' : 'reject';
     case 'date':
       // The wire form is an ISO string; the restore arm transforms only
       // strings, so a number, boolean or null is not coerced into a Date.

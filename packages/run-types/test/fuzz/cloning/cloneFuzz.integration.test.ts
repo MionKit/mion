@@ -270,6 +270,23 @@ function strictWithout(key: string, strict: (value: unknown) => boolean): (value
   });
 }
 
+// --- target: URL properties (mutable through its setters: re-wrapped, never shared) ---
+{
+  interface Links {
+    home: URL;
+    mirrors: URL[];
+    docs?: URL;
+  }
+  targets.push({
+    title: 'Links',
+    schema: getRunType<Links>(),
+    mock: createMockDataFn<Links>(),
+    validate: createValidateFn<Links>(),
+    validateStrict: createValidateFn<Links>(undefined, {checkUnknowns: true}),
+    clone: createRemoveUnknownKeysFn<Links>(),
+  });
+}
+
 // --- target: RegExp property (not data: shared by reference, like a function) ---
 {
   interface RegExpProp {

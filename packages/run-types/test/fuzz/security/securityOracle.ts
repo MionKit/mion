@@ -285,6 +285,8 @@ function findPrototypeProblem(value: unknown, seen: Set<unknown>, depth: number)
   if (proto !== null && !BUILTIN_PROTOTYPES.has(proto) && !isClassPrototype(proto)) {
     return `object with a foreign prototype (${renderValue(proto)}) at ${renderValue(value)}`;
   }
+  // A real URL is a leaf: its WebIDL getters (`href`, `toString`) are enumerable on URL.prototype by spec.
+  if (proto === URL.prototype) return null;
   for (const key in value as Record<string, unknown>) {
     if (!Object.prototype.hasOwnProperty.call(value, key)) return `inherited enumerable key '${key}' on ${renderValue(value)}`;
   }

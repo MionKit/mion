@@ -18,6 +18,7 @@
 
 import type {Decl, GeneratedType, IndexKeyKind, PropShape, TypeShape} from '../core/typeGen.ts';
 import {FORMAT_LEAVES} from '../core/typeGen.ts';
+import {deepCloneForRoundTrip} from '../../util/equalsHelpers.ts';
 
 function rnd(): number {
   return Math.random();
@@ -93,6 +94,8 @@ function valueOf(shape: TypeShape, ctx: ValueCtx): unknown {
       return undefined;
     case 'date':
       return new Date(Date.UTC(2000 + int(40), int(12), 1 + int(28), int(24), int(60), int(60)));
+    case 'url':
+      return new URL(pick(URL_SAMPLES));
     case 'regexp':
       return new RegExp(pick(['ab+c', '^x$', '[0-9]+', '.*']), pick(['', 'g', 'i', 'gi']));
     case 'literal':
@@ -243,6 +246,8 @@ function floorValue(shape: TypeShape): unknown {
       return null;
     case 'date':
       return new Date(0);
+    case 'url':
+      return new URL('https://example.com/');
     case 'regexp':
       return /x/;
     case 'literal':
@@ -285,7 +290,17 @@ function floorValue(shape: TypeShape): unknown {
 // path as an interface. Object properties that the validator DROPS (methods / function-typed
 // props, a build-time Warning) are fine — value-gen omits them too.
 
-const SAFE_LEAF = new Set(['number', 'string', 'boolean', 'bigint', 'null', 'undefined', 'date', 'literal']);
+const SAFE_LEAF = new Set(['number', 'string', 'boolean', 'bigint', 'null', 'undefined', 'date', 'url', 'literal']);
+
+/** A query, a fragment, credentials, a non-ASCII host and non-http schemes: the parts an href round trip must keep. **/
+const URL_SAMPLES = [
+  'https://example.com/a?b=1#c',
+  'https://user:pass@example.com:8080/',
+  'https://münchen.de/straße',
+  'mailto:someone@example.com',
+  'file:///tmp/a.txt',
+  'urn:isbn:0451450523',
+];
 
 /** A property the validator silently drops (so omitting it in value-gen is
  *  faithful). Methods and bare function-typed props only — symbols / promises
@@ -434,7 +449,8 @@ export interface Corruption {
 /** Corrupt a valid value at exactly one provably-invalid position. Returns null
  *  when no such position exists. The input is not mutated. **/
 export function corruptValue(gen: GeneratedType, value: unknown): Corruption | null {
-  const clone = structuredClone(value);
+  // Not structuredClone: it throws on a URL.
+  const clone = deepCloneForRoundTrip(value);
   const holder = {root: clone};
   const sites: CorruptionSite[] = [];
   collectSites(gen.root, clone, (v) => (holder.root = v), declMap(gen), sites);

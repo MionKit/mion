@@ -69,6 +69,8 @@ function walk(
       return push(out, {...base, kind: 'boolean'});
     case 'date':
       return push(out, {...base, kind: 'date'});
+    case 'url':
+      return push(out, {...base, kind: 'url'});
     case 'literal':
       return push(out, {...base, kind: 'literal', literal: shape.value});
     case 'null':
@@ -229,6 +231,7 @@ function matches(shape: TypeShape, node: unknown, decls: Map<string, Decl>): boo
   switch (shape.kind) {
     case 'string':
     case 'date':
+    case 'url':
     case 'bigint':
     case 'format':
       return typeof node === 'string' || (shape.kind === 'format' && typeof node === 'number');

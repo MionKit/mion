@@ -37,6 +37,7 @@ export type TypeShape =
   | {kind: 'null'}
   | {kind: 'undefined'}
   | {kind: 'date'}
+  | {kind: 'url'}
   | {kind: 'regexp'}
   | {kind: 'literal'; value: string | number | boolean}
   | {kind: 'any'}
@@ -1231,6 +1232,8 @@ function genLeaf(ctx: Ctx): TypeShape {
     // Format brands — serialisable (JSON codecs see the base kind) and
     // validate-relevant.
     () => ({kind: 'format', name: pick(ctx.opts.formatLeafPool ?? FORMAT_LEAF_NAMES)}),
+    // Appended so the leaves above keep their draw index; a URL's href has no maximum, so the bounded lane skips it.
+    ...(bounded ? [] : [(): TypeShape => ({kind: 'url'})]),
   ];
   // Broad / edge kinds — adversarial but not "non-data" per se (any/unknown are
   // passthrough; never/void have their own arms). Gated on `wild`.
@@ -1493,6 +1496,8 @@ export function renderType(shape: TypeShape): string {
       return 'undefined';
     case 'date':
       return 'Date';
+    case 'url':
+      return 'URL';
     case 'regexp':
       return 'RegExp';
     case 'literal':

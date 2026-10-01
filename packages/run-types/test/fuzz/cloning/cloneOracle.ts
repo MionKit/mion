@@ -223,7 +223,7 @@ function isTemporalInstance(value: object): boolean {
   return false;
 }
 
-/** Structural deep equality for clone outputs. Handles Map/Set/Date/RegExp/
+/** Structural deep equality for clone outputs. Handles Map/Set/Date/URL/RegExp/
  *  NaN and Temporal; functions, symbols and promises compare by identity
  *  (they are pass-through in the clone contract, so both sides hold the
  *  same reference). Key PRESENCE matters (`{a: undefined}` ≠ `{}`), and
@@ -235,6 +235,9 @@ export function deepEqual(a: unknown, b: unknown): boolean {
   if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
   if (a instanceof Date || b instanceof Date) {
     return a instanceof Date && b instanceof Date && Object.is(a.getTime(), b.getTime());
+  }
+  if (a instanceof URL || b instanceof URL) {
+    return a instanceof URL && b instanceof URL && a.href === b.href;
   }
   if (a instanceof RegExp || b instanceof RegExp) {
     return (
@@ -315,7 +318,7 @@ function collectMutableRefs(value: unknown, out: Set<object>, seen: Set<object>)
   if (isOpaqueHandle(value)) return;
   if (value instanceof RegExp) return; // not data — shared by reference, never a fresh copy
   out.add(value);
-  if (value instanceof Date) return;
+  if (value instanceof Date || value instanceof URL) return;
   if (value instanceof Map) {
     for (const [entryKey, entryValue] of value) {
       collectMutableRefs(entryKey, out, seen);

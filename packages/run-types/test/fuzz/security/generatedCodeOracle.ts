@@ -180,13 +180,14 @@ export function checkGeneratedCode(body: EmittedBody, markers: readonly string[]
 }
 
 /** Every constructor an emitted body may name on the right of `instanceof`.
- *  Mirrors the Go emitters: Date / RegExp from the atomic leaf checks, Map /
+ *  Mirrors the Go emitters: Date / RegExp / URL from the atomic leaf checks, Map /
  *  Set from the iterable arms, and the Temporal classes from the subkind
  *  table (derived, so a new Temporal type is allowed the day it is added
  *  rather than tripping this rule). **/
 const BUILTIN_CONSTRUCTORS = new Set<string>([
   'Date',
   'RegExp',
+  'URL',
   'Map',
   'Set',
   ...Object.keys(RunTypeSubKind)
@@ -206,6 +207,7 @@ const JSON_DECODER_FAMILIES = new Set(['rj', 'rjs', 'cjr', 'jdCL', 'jdMU', 'jdCO
 /** Every way an emitted decoder turns a wire value into something else; group 1 is the wire variable. **/
 const WIRE_TRANSFORMS = [
   /new Date\((\w+)\)/g,
+  /new URL\((\w+)\)/g,
   /BigInt\((\w+)\)/g,
   /Temporal\.\w+\.from\((\w+)\)/g,
   /new Map\((\w+)\)/g,

@@ -512,7 +512,7 @@ function survivingPlantedKeys(
   depth = 0
 ): RTValidationErrorPathSegment[][] {
   if (depth > 12 || value === null || typeof value !== 'object') return [];
-  if (value instanceof Date || value instanceof RegExp) return [];
+  if (value instanceof Date || value instanceof URL || value instanceof RegExp) return [];
   const out: RTValidationErrorPathSegment[][] = [];
   if (value instanceof Map) {
     let index = 0;
@@ -654,7 +654,7 @@ function withoutKeys(
   depth = 0
 ): unknown {
   if (depth > 12 || value === null || typeof value !== 'object') return value;
-  if (value instanceof Date || value instanceof RegExp) return value;
+  if (value instanceof Date || value instanceof URL || value instanceof RegExp) return value;
   if (value instanceof Map) {
     const out = new Map<unknown, unknown>();
     let index = 0;
@@ -730,7 +730,7 @@ function droppedKeyPaths(before: unknown, after: unknown, path: RTValidationErro
     for (let i = 0; i < before.length && i < after.length; i++) out.push(...droppedKeyPaths(before[i], after[i], [...path, i]));
     return out;
   }
-  if (Array.isArray(after) || before instanceof Date || before instanceof RegExp) return out;
+  if (Array.isArray(after) || before instanceof Date || before instanceof URL || before instanceof RegExp) return out;
   const beforeRecord = before as Record<string, unknown>;
   const afterRecord = after as Record<string, unknown>;
   for (const key of Object.keys(beforeRecord)) {

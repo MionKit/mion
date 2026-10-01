@@ -18,6 +18,8 @@ function safeStructuredClone(input: unknown): {ok: true; snapshot: unknown} | {o
   // values are immutable, so there's no mutation to catch — skip the snapshot,
   // same as the throw path below (cycles, symbols, …).
   if (isTemporalInstance(input)) return {ok: false};
+  // structuredClone throws on a URL, so a root URL is snapshot by its href.
+  if (input instanceof URL) return {ok: true, snapshot: new URL(input.href)};
   try {
     return {ok: true, snapshot: structuredClone(input)};
   } catch {
