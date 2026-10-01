@@ -95,7 +95,7 @@ function stringifyHandlerParams(method: MethodWithJitFns, params: any[], validat
   }
 }
 
-/** The plain wire forms the server's JSON decoders accept, applied recursively. Date and Temporal need no
+/** The plain wire forms the server's JSON decoders accept, applied recursively. Date, URL and Temporal need no
  *  arm, their own toJSON writes the text their decoders rebuild from. A union member's `[index, value]`
  *  envelope is deliberately not written: the index needs the metadata, and every transforming decoder guards
  *  its wire shape, so the server refuses the bare value instead of misreading it and the client retries. */

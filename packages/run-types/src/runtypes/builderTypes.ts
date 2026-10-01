@@ -8,6 +8,7 @@ import {TypeFormat} from './typeFormat.ts';
 import type {RunType} from './types.ts';
 import type {InjectRunTypeId, CompTimeArgs} from '../markers.ts';
 import type {MinMax} from '../formats/datetime/dateTimeParams.ts';
+import type {NativeUrlFormat} from '../formats/string/stringFormats.ts';
 import type {
   Instant,
   ZonedDateTime,
@@ -36,6 +37,7 @@ export interface LeafTypeByFormatName<P extends object, BrandName extends string
   numberFormat: TypeFormat<number, 'numberFormat', P, BrandName>;
   bigintFormat: TypeFormat<bigint, 'bigintFormat', P, BrandName>;
   nativeDate: TypeFormat<Date, 'nativeDate', P, BrandName>;
+  nativeUrl: NativeUrlFormat<P, BrandName>;
   // Temporal leaves are unbranded: branding them needs a brand slot in the `FormatTemporal*` aliases and in `temporalBuilder`.
   temporalInstant: P extends MinMax ? Instant<P> : never;
   temporalZonedDateTime: P extends MinMax ? ZonedDateTime<P> : never;

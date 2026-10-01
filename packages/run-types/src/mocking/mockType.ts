@@ -17,6 +17,7 @@ import type {MockRandom} from './mockRandom.ts';
 import {stringCharSet} from './constants.mock.ts';
 import {mockBoundedNativeDate} from './mockDateTimeBounds.ts';
 import {mockTemporal, isTemporalSubKind, temporalBoundsFromAnnotation} from './mockTemporal.ts';
+import {mockNativeUrl} from './mockStringFormat.ts';
 
 /** Public entry; the cycle detector is reference identity, since the runTypes cache shares one object per cyclic ref. **/
 export function mockRunType(runType: RunType, options: RunTypeMockOptions, stack: RunType[] = []): unknown {
@@ -283,6 +284,7 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
       // parent node must not leak into key / value / element generation.
       if (subKind === RunTypeSubKind.map) return mockMap(runType, withDataNode(options, undefined), stack);
       if (subKind === RunTypeSubKind.set) return mockSet(runType, withDataNode(options, undefined), stack);
+      if (subKind === RunTypeSubKind.url) return mockNativeUrl(runType.formatAnnotation, random);
       if (isTemporalSubKind(subKind)) {
         // FormatTemporalX<{min,max,gt,lt}> bounds must be honored so the mock re-passes validate.
         const bounds = temporalBoundsFromAnnotation(runType.formatAnnotation);

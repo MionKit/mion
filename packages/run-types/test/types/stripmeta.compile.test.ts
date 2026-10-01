@@ -55,6 +55,24 @@ describe('StripRunTypeMeta<T> — per-branch correctness + instantiation budget'
     );
   });
 
+  // The URL global is declared in the snippet (the harness loads no dom or @types/node), so only this case pays for it.
+  it('a NativeUrl brand collapses to the bare URL; a plain URL passes through', () => {
+    check(
+      BRAND_PREAMBLE +
+        `
+      declare global {
+        interface URL {href: string; pathname: string; toJSON(): string}
+        var URL: {prototype: URL; new (url: string): URL};
+      }
+      type LinkFmt = Wide<URL, 'nativeUrl', {maxLength: 20}>;
+      type _01 = Expect<Equal<StripRunTypeMeta<LinkFmt>, URL>>;
+      type _02 = Expect<Equal<StripRunTypeMeta<URL>, URL>>;
+      type _03 = Expect<Equal<StripRunTypeMeta<{link: LinkFmt}>, {link: URL}>>;
+      `,
+      296
+    );
+  });
+
   it('wide format brands collapse to their base; nominal brands collapse too', () => {
     check(
       BRAND_PREAMBLE +

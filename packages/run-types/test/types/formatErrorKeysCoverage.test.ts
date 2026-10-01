@@ -11,6 +11,7 @@ import type {
   DomainPartsParams,
   EmailPartsParams,
   IPParams,
+  NativeUrlParams,
   StringParams,
   UrlParams,
   UUIDParams,
@@ -27,6 +28,7 @@ type ParamsByFormat = Exhaustive<{
   bigintFormat: BigIntParams;
   stringFormat: StringParams;
   url: UrlParams;
+  nativeUrl: NativeUrlParams;
   uuid: UUIDParams;
   ip: IPParams;
   creditCard: CreditCardParams;

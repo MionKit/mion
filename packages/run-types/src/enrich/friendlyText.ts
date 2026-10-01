@@ -65,7 +65,10 @@ export interface FriendlyMeta<F = never> {
 }
 
 /** Scalar / native kinds that carry only meta (no child fields). */
-type FriendlyLeaf = string | number | boolean | bigint | null | undefined | Date | RegExp;
+type FriendlyLeaf = string | number | boolean | bigint | null | undefined | Date | RegExp | FriendlyUrl;
+
+/** The platform `URL` instance, `never` without `dom` or `@types/node`. */
+type FriendlyUrl = typeof globalThis extends {URL: {prototype: infer I}} ? I : never;
 
 /** Recursion-budget decrement (`[0]` is `never`, unreachable — the `Depth extends 0` guard stops first),
  *  bounding circular / mutually-recursive types to a finite instantiation (no TS2589). */

@@ -39,6 +39,9 @@ type StripMetaSentinelKeys =
   | typeof __rtPatternProps
   | typeof __rtPropNames;
 
+/** The platform `URL` instance, `never` without `dom` or `@types/node`. **/
+type StripMetaUrl = typeof globalThis extends {URL: {prototype: infer I}} ? I : never;
+
 /** Recursion-budget decrement, same discipline as `DataOnly`: bounded depth lets circular types resolve
  *  finitely, and the floor keeps the remaining sub-tree verbatim instead of tripping TS2589. **/
 type _StripMetaDepth = [never, 0, 1, 2, 3, 4, 5, 6, 7, 8];
@@ -240,7 +243,7 @@ type StripMetaObject<T extends object, Depth extends number> =
   Extract<keyof T, StripMetaSentinelKeys> extends never
     ? keyof T extends never
       ? T // the broad `object` — nothing to map
-      : T extends ReadonlyMap<any, any> | ReadonlySet<any>
+      : T extends ReadonlyMap<any, any> | ReadonlySet<any> | StripMetaUrl
         ? T
         : {
             // Inline on purpose: an ANONYMOUS mapped type is displayed expanded,
@@ -257,17 +260,19 @@ type StripMetaObject<T extends object, Depth extends number> =
           }
     : T extends ReadonlyMap<any, any> | ReadonlySet<any>
       ? StripMetaUnbrandCollection<T> // a FormattedMap / FormattedSet → the bare collection
-      : Exclude<keyof T, StripMetaSentinelKeys | symbol> extends never
-        ? unknown // every key was metadata — the base was the broad kind
-        : {
-            [K in keyof T as K extends symbol ? never : K]: string extends K
-              ? StripMetaNoNamedKeys<T> extends true
-                ? StripRunTypeMeta<T[K], _StripMetaDepth[Depth]>
-                : unknown
-              : number extends K
+      : T extends StripMetaUrl
+        ? StripMetaUrl // a NativeUrl<…> → the bare URL
+        : Exclude<keyof T, StripMetaSentinelKeys | symbol> extends never
+          ? unknown // every key was metadata — the base was the broad kind
+          : {
+              [K in keyof T as K extends symbol ? never : K]: string extends K
                 ? StripMetaNoNamedKeys<T> extends true
                   ? StripRunTypeMeta<T[K], _StripMetaDepth[Depth]>
                   : unknown
-                : StripRunTypeMeta<T[K], _StripMetaDepth[Depth]>;
-          };
+                : number extends K
+                  ? StripMetaNoNamedKeys<T> extends true
+                    ? StripRunTypeMeta<T[K], _StripMetaDepth[Depth]>
+                    : unknown
+                  : StripRunTypeMeta<T[K], _StripMetaDepth[Depth]>;
+            };
 // #endregion stripmeta-extract

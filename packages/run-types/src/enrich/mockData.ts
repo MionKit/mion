@@ -11,6 +11,9 @@
 /** Recursion-budget decrement, bounding circular / mutually-recursive types to a finite instantiation. */
 type _MockDepth = [never, 0, 1, 2, 3, 4, 5, 6, 7, 8];
 
+/** The platform `URL` instance, `never` without `dom` or `@types/node`. */
+type MockDataUrl = typeof globalThis extends {URL: {prototype: infer I}} ? I : never;
+
 /** Recursive mock-data node — structural per solution A (docs/AI_ENRICHMENT.md): composite kinds reflect
  *  their structure. An object's `rt$optional` is the present-probability for its optional members. The
  *  `Map` / `Set` gates run BEFORE the array check, fronted by a cheap test so `infer` stays off the hot
@@ -41,20 +44,22 @@ export type MockNode<T, Depth extends number = 8> = Depth extends 0
             ? {pool: string[]}
             : T extends Date
               ? {pool: Date[]; min?: Date; max?: Date}
-              : T extends RegExp
-                ? {pool: RegExp[]}
-                : // boolean / bigint BEFORE the object branch and BEFORE the fallback:
-                  // `boolean` is `true | false`, so a fallback `{pool: T[]}` would
-                  // distribute to `{pool: true[]} | {pool: false[]}`. A branch whose
-                  // result element type is FIXED (`boolean` / `bigint`, not `T`)
-                  // collapses back to one node on reassembly.
-                  T extends boolean
-                  ? {pool: boolean[]}
-                  : T extends bigint
-                    ? {pool: bigint[]}
-                    : T extends object
-                      ? {[K in keyof T]-?: MockNode<T[K], _MockDepth[Depth]>} & {rt$optional?: number}
-                      : {pool: T[]};
+              : T extends MockDataUrl
+                ? {pool: MockDataUrl[]}
+                : T extends RegExp
+                  ? {pool: RegExp[]}
+                  : // boolean / bigint BEFORE the object branch and BEFORE the fallback:
+                    // `boolean` is `true | false`, so a fallback `{pool: T[]}` would
+                    // distribute to `{pool: true[]} | {pool: false[]}`. A branch whose
+                    // result element type is FIXED (`boolean` / `bigint`, not `T`)
+                    // collapses back to one node on reassembly.
+                    T extends boolean
+                    ? {pool: boolean[]}
+                    : T extends bigint
+                      ? {pool: bigint[]}
+                      : T extends object
+                        ? {[K in keyof T]-?: MockNode<T[K], _MockDepth[Depth]>} & {rt$optional?: number}
+                        : {pool: T[]};
 
 /** The mock-data map for `T`: every pool / range value is checked against the field's type and format
  *  at scan time (the MD003 rule). */

@@ -46,7 +46,7 @@ type JSONShapeStripped =
   | SharedArrayBuffer
   | ArrayBufferView;
 
-/** Natives whose wire form is their canonical STRING; Temporal rides the same `DataOnlyNativeExtra` augmentation `DataOnly` uses. **/
+/** Natives whose wire form is their canonical STRING; URL and Temporal ride the same `DataOnlyNativeExtra` rows `DataOnly` uses. **/
 type JSONShapeStringNative = Date | DataOnlyNativeExtra[keyof DataOnlyNativeExtra];
 
 /** Recursion budget — same discipline as `DataOnly` / `StripRunTypeMeta`. **/
@@ -109,7 +109,7 @@ type JSONShapeNode<T, Depth extends number> = T extends JSONShapeStripped
           : T extends null | undefined | void
             ? null // a declared undefined / void LEAF is null on the wire
             : T extends JSONShapeStringNative
-              ? string // Date / Temporal — canonical string form
+              ? string // Date / URL / Temporal — canonical string form
               : JSONShapeLadder<T, Depth>;
 
 type JSONShapeLadder<T, Depth extends number> =
