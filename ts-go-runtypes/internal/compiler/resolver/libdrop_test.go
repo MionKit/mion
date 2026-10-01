@@ -144,7 +144,7 @@ export const isLink = createValidateFn<URLSearchParams>();
 var runtimeTypes = []string{"node", "handles"}
 
 var platformTypes = []string{
-	"URL", "URLSearchParams", "Headers", "AbortController", "TextEncoder", "Blob", "Request",
+	"URLSearchParams", "Headers", "AbortController", "TextEncoder", "Blob", "Request",
 	"NodeJS.Timeout", "EventEmitter", "RuntimeHandle",
 }
 
@@ -189,6 +189,8 @@ func platformScan(t *testing.T, types []string, variant map[string]string, cases
 		if response.Error != "" {
 			t.Fatalf("%s: scanFiles: %s", file, response.Error)
 		}
+		// Every case gets an entry, so a file whose expected diagnostic is missing still reaches the checks.
+		byFile[file] = nil
 		for _, diagnostic := range runtypeDiagsOf(response.Diagnostics) {
 			if strings.HasSuffix(diagnostic.Site.FilePath, file) {
 				byFile[file] = append(byFile[file], diagnostic)
@@ -278,6 +280,18 @@ func codeSet(found []diagnostics.Diagnostic) map[string]bool {
 // An empty merge of the consumer's own never turns a platform class into the author's.
 var platformMerge = map[string]string{"globals.d.ts": "interface URL {}\ninterface Headers {}\ndeclare var Headers: {new (): Headers};\n"}
 
+// noNotDataDiagnostics fails on any drop or refusal: the type must be handled as data.
+func noNotDataDiagnostics(t *testing.T, label string, byFile map[string][]diagnostics.Diagnostic) {
+	t.Helper()
+	for file, found := range byFile {
+		for _, diagnostic := range found {
+			if strings.Contains(diagnostic.Code, "015") || strings.HasSuffix(diagnostic.Code, "001") || strings.HasSuffix(diagnostic.Code, "002") {
+				t.Errorf("%s %s: URL is data, got %s %v", label, file, diagnostic.Code, diagnostic.Args)
+			}
+		}
+	}
+}
+
 func TestDiag_PlatformClass_Static(t *testing.T) {
 	checkPlatformDiagnostics(t, platformScan(t, runtimeTypes, platformMerge, platformCases(platformTypes, false)))
 }
@@ -289,12 +303,12 @@ func TestDiag_PlatformClass_Value(t *testing.T) {
 // Each way a declaration can restate a platform class without adding to it still leaves it not data.
 func TestDiag_PlatformClass_MergesThatAddNothing(t *testing.T) {
 	for label, variant := range map[string]map[string]string{
-		"restated members":     {"globals.d.ts": "interface URL {href: string}\n"},
-		"var only":             {"globals.d.ts": "declare var URL: {new (url: string): URL};\n"},
+		"restated members":     {"globals.d.ts": "interface Headers {get(name: string): string | null}\n"},
+		"var only":             {"globals.d.ts": "declare var Headers: {new (): Headers};\n"},
 		"runtime package only": nil,
 	} {
 		t.Run(label, func(t *testing.T) {
-			checkPlatformDiagnostics(t, platformScan(t, runtimeTypes, variant, platformCases([]string{"URL"}, false)))
+			checkPlatformDiagnostics(t, platformScan(t, runtimeTypes, variant, platformCases([]string{"Headers"}, false)))
 		})
 	}
 }
@@ -333,5 +347,20 @@ func TestDiag_PlatformClass_NotInTypesStaysData(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+// URL is a supported native, so every family keeps it as data wherever it comes from: lib.dom, a runtime package
+// restating the global, `node:url`, and an empty merge in a `.ts` file.
+func TestDiag_UrlFromEverySourceIsData(t *testing.T) {
+	for _, valueShape := range []bool{false, true} {
+		cases := platformCases([]string{"URL"}, valueShape)
+		for name, content := range platformCases([]string{"NodeURL"}, valueShape) {
+			cases[name] = "import {URL as NodeURL} from 'node:url';\n" + content
+		}
+		noNotDataDiagnostics(t, "runtime types", platformScan(t, runtimeTypes, platformMerge, cases))
+		noNotDataDiagnostics(t, "no types", platformScan(t, []string{}, nil, platformCases([]string{"URL"}, valueShape)))
+		tsMerge := map[string]string{"augment.ts": "export {};\ndeclare global {\n  interface URL {}\n}\n"}
+		noNotDataDiagnostics(t, "empty .ts merge", platformScan(t, runtimeTypes, tsMerge, platformCases([]string{"URL"}, valueShape)))
 	}
 }

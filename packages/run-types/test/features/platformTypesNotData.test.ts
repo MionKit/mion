@@ -1,6 +1,7 @@
 // A platform-declared type (`@types/node` redeclares lib globals too) is not data: a property is dropped, the root refused.
 
 import {EventEmitter} from 'node:events';
+import {URL as NodeURL} from 'node:url';
 import {describe, expect, it} from 'vitest';
 import {createJsonDecoderFn, createJsonEncoderFn, createRemoveUnknownKeysFn, createValidateFn} from '@mionjs/run-types';
 
@@ -34,15 +35,15 @@ describe('platform types are not data', () => {
   it('JSON leaves them out instead of writing their object shape', () => {
     const encode = createJsonEncoderFn<Job>(undefined, {strategy: 'clone'});
     expect(JSON.parse(encode(makeJob()) as string)).toEqual({id: 'a'});
-    const decode = createJsonDecoderFn<{url: URL; id: number}>();
-    expect(decode('{"id":1,"url":{"href":"x"}}')).toEqual({id: 1});
+    const decode = createJsonDecoderFn<{query: URLSearchParams; id: number}>();
+    expect(decode('{"id":1,"query":{"size":1}}')).toEqual({id: 1});
   });
 
   it('removeUnknownKeys builds with no error and shares the platform value', () => {
-    const clone = createRemoveUnknownKeysFn<{id: string; url: URL; headers: Headers}>();
-    const value = {id: 'a', url: new URL('https://mion.io'), headers: new Headers()};
+    const clone = createRemoveUnknownKeysFn<{id: string; query: URLSearchParams; headers: Headers}>();
+    const value = {id: 'a', query: new URLSearchParams('a=1'), headers: new Headers()};
     const out = clone(value);
-    expect(out.url).toBe(value.url);
+    expect(out.query).toBe(value.query);
     expect(out.headers).toBe(value.headers);
     expect(() => createRemoveUnknownKeysFn<{timer: NodeJS.Timeout}>()).not.toThrow();
     expect(() => createRemoveUnknownKeysFn<{events: EventEmitter}>()).not.toThrow();
@@ -68,9 +69,15 @@ describe('platform types are not data', () => {
 
   it('the root is refused like a lib class', () => {
     // @mion-downgrade-error VL001
-    expect(() => createValidateFn<URL>()).toThrow(/VL001/);
+    expect(() => createValidateFn<Headers>()).toThrow(/VL001/);
     // @mion-downgrade-error VL001
     expect(() => createValidateFn<EventEmitter>()).toThrow(/VL001/);
+  });
+
+  it('URL is data, from the global and from node:url alike', () => {
+    const validate = createValidateFn<{link: URL; other: NodeURL}>();
+    expect(validate({link: new URL('https://mion.io'), other: new NodeURL('https://mion.io')})).toBe(true);
+    expect(validate({link: 'https://mion.io', other: new NodeURL('https://mion.io')})).toBe(false);
   });
 
   it('a class the author declares stays data', () => {

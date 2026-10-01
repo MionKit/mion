@@ -18,9 +18,19 @@ declare namespace NodeJS {
     [Symbol.toPrimitive](): number;
   }
 }
+interface Headers {
+  get(name: string): string | null;
+}
 interface URL {
   readonly href: string;
   toString(): string;
+}
+declare module "node:url" {
+  export class URL {
+    constructor(input: string);
+    readonly href: string;
+    toString(): string;
+  }
 }
 `,
 		"node_modules/@types/handles/index.d.ts": `export {};
