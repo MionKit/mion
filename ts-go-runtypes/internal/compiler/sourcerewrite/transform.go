@@ -304,6 +304,10 @@ func buildGroupInsertion(group []protocol.Site) string {
 		}
 	}
 	body := strings.Join(parts, ", ")
+	// A `new X` written without parens has no list to splice into, so the insertion brings its own.
+	if slots[0].NoArgList {
+		return "(" + body + ")"
+	}
 	// No leading comma when the position already sits right after a separator (`(` or `,`).
 	if argsCount == 0 || trailingComma {
 		return body

@@ -129,6 +129,8 @@ export interface Site {
   // True when the argument list was already written with a trailing comma, so the injector splices WITHOUT a leading one.
   // Otherwise the two commas produce an empty argument `f(a, , …)`, which is invalid JS.
   trailingComma?: boolean;
+  // True for a `new X` written without parens: pos is the expression end and the inserted args carry their own `(...)`.
+  noArgList?: boolean;
   // allSingle mode: the bundle-module BASENAME to import the binding from (`rtmod:/<module>.js`) instead of the entry's
   // own module; the clause shape is identical either way. Mirrors modules[0] when both are set.
   module?: string;

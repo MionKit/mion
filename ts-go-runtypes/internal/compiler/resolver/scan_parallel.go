@@ -100,7 +100,7 @@ func (sess *Session) dispatchScanFilesParallel(files []string) ([]protocol.Site,
 			for _, fileIndex := range group.fileIndexes {
 				file := files[fileIndex]
 				var calls []analyzedCall
-				forEachCallExpression(sourceFiles[fileIndex], func(call *ast.Node) bool {
+				forEachCallOrNewExpression(sourceFiles[fileIndex], func(call *ast.Node) bool {
 					pendings, diags := state.analyzeCall(file, call)
 					if len(pendings) > 0 || len(diags) > 0 {
 						calls = append(calls, analyzedCall{pendings: pendings, diagnostics: diags})

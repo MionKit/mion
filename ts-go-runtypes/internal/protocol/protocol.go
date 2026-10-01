@@ -201,8 +201,8 @@ type Response struct {
 	Error   string   `json:"error,omitempty"`
 }
 
-// Site records one transformer-injection point. Pos is the byte offset of the call expression's closing `)`,
-// where the patcher inserts. ParamIndex is the 0-based slot the injected id occupies; when ArgsCount (the
+// Site records one transformer-injection point. Pos is the byte offset of the call or `new` expression's closing
+// `)`, where the patcher inserts. ParamIndex is the 0-based slot the injected id occupies; when ArgsCount (the
 // arguments the user wrote) is lower, the patcher pads with `undefined` so the id lands in the right slot.
 type Site struct {
 	File       string `json:"file"`
@@ -227,6 +227,9 @@ type Site struct {
 	// TrailingComma is true when the call's argument list was written with a trailing comma. The injector then
 	// splices the binding WITHOUT a leading comma: the two commas would produce `f(a, , …)`, which is invalid JS.
 	TrailingComma bool `json:"trailingComma,omitempty"`
+	// NoArgList is true for a `new X` / `new X<T>` written without parens: Pos is the expression's end and the
+	// injector wraps the args it inserts in `(...)`.
+	NoArgList bool `json:"noArgList,omitempty"`
 	// Module, when non-empty, is the bundle-module BASENAME this site's entry rides in (allSingle mode): the
 	// rewrite imports the binding from `rtmod:/<Module>.js` instead of the entry's own module, with an identical
 	// clause shape either way (export name == the binding). Empty in default/allModules mode. Derived statically

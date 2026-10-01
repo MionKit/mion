@@ -20,11 +20,7 @@ import (
 
 // detectWrittenTypeRefGuards returns TMP001 and MKR013 separately, so callers keep their per-family suppression rules.
 func detectWrittenTypeRefGuards(scanChecker *checker.Checker, file string, call *ast.Node) (temporalDiags, nameDiags []diagnostics.Diagnostic) {
-	callExpression := call.AsCallExpression()
-	if callExpression == nil || callExpression.TypeArguments == nil {
-		return nil, nil
-	}
-	for _, typeArgNode := range callExpression.TypeArguments.Nodes {
+	for _, typeArgNode := range call.TypeArguments() {
 		walkWrittenTypeRefs(scanChecker, file, typeArgNode, &temporalDiags, &nameDiags)
 	}
 	return temporalDiags, nameDiags
@@ -110,12 +106,9 @@ func entityNameText(entity *ast.Node) (string, bool) {
 
 // reflectValueLabel names the reflect-form call's value argument for the diagnostic message.
 func reflectValueLabel(call *ast.Node) string {
-	callExpression := call.AsCallExpression()
-	if callExpression != nil && callExpression.Arguments != nil {
-		for _, argument := range callExpression.Arguments.Nodes {
-			if argument != nil && argument.Kind == ast.KindIdentifier {
-				return argument.Text()
-			}
+	for _, argument := range call.Arguments() {
+		if argument != nil && argument.Kind == ast.KindIdentifier {
+			return argument.Text()
 		}
 	}
 	return "value"
