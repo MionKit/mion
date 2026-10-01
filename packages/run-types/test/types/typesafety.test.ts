@@ -254,8 +254,7 @@ function assertionsExactParams(): void {
   RT.propMod({optionl: true}, TF.string({maxLength: 8}));
 }
 
-// Mixing the RFC road (`emailRfc`, the EmailAddress / IdnEmail default) with the localPart/domain
-// split used to check one and report the other, so the RFC presets pin both split keys shut.
+// The RFC presets (`emailRfc`) never split, so they reject the localPart/domain keys.
 function assertionsEmailPresetRoads(): void {
   // The pins must leave the preset's other params overridable.
   const bounded: TF.EmailAddress<{minLength: 10}> = 'joe@example.com' as TF.EmailAddress<{minLength: 10}>;
@@ -274,7 +273,7 @@ function assertionsEmailPresetRoads(): void {
   // @ts-expect-error — same on the idn builder.
   TF.idnEmail({domain: {maxLength: 253}});
 
-  // EmailParts owns the split and pins the two keys: they ARE the format.
+  // EmailParts pins its split keys: they ARE the format.
   const parts: TF.EmailParts = 'joe@example.com' as TF.EmailParts;
   void parts;
   // @ts-expect-error — `localPart` is EmailParts's identity, not an override.
@@ -282,7 +281,7 @@ function assertionsEmailPresetRoads(): void {
   void (undefined as unknown as PartsRetuned);
 }
 
-// The quick presets check the pattern only: the split keys belong to DomainParts / EmailParts.
+// The quick presets never split, so they reject the split keys.
 function assertionsQuickPresetsRejectParts(): void {
   // @ts-expect-error — `maxParts` needs the split, use DomainParts.
   type DomainMaxParts = TF.Domain<{maxParts: 2}>;

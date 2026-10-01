@@ -44,11 +44,7 @@ describe('variable-width format length overrides converge across authoring modes
   });
 });
 
-// The named VARIANTS of those families (urlHttp, emailPunycode, domainParts,
-// ipv4, base64, …) used to be take-it-or-leave-it presets: the type accepted no
-// override and the builder took no params. They now ride the same merge as their
-// generic sibling, so the preset's own defaults survive whatever the caller
-// leaves out.
+// Named variants ride their generic sibling's merge, so a partial override keeps the preset's own defaults.
 describe('every predefined string format accepts an override', () => {
   it('urlHttp: the override retunes the bound and KEEPS the http(s) pattern', () => {
     const typeFirst = getRunTypeId<TF.UrlHttp<{maxLength: 100}>>();

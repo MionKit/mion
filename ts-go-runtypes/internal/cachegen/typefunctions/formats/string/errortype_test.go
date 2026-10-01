@@ -117,12 +117,11 @@ func TestDomainParts_LabelsAndTldNameThemselves(t *testing.T) {
 		`formatPath:['hyphen'],val:'name',errorType:"label"`,
 		`formatPath:['maxLength'],val:63,errorType:"label"`,
 		`formatPath:['minLength'],val:2,errorType:"tld"`)
-	// A whole-name bound names itself through formatPath and carries no part.
+	// A whole-name bound sets no errorType.
 	mustContain(t, "errors", got, "formatPath:['maxParts'],val:4}")
 }
 
-// Inside an email, the domain half's errors carry the `domain` format name;
-// its label / tld checks name themselves and its whole-domain bound stays bare.
+// The nested domain half keeps its label/tld errorType; its whole-domain bound stays bare.
 func TestEmailParts_NestedDomainKeepsLabelAndTld(t *testing.T) {
 	ctx := newCardStubCtx()
 	params := map[string]any{

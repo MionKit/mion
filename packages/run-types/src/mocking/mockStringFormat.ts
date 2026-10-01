@@ -263,12 +263,12 @@ function randomPort(random: MockRandom): number {
 // ─────────────────────────── Domain / Email ─────────────────────────
 
 function mockDomain(params: DomainPartsParams, random: MockRandom): string {
-  // allowedValues wins outright: the emitted validator accepts only these exact domains, as in mockStringParams.
+  // The validator accepts only these exact domains, as in mockStringParams.
   if (params.allowedValues) {
     const allowed = pickSample(params.allowedValues.val, random);
     if (allowed !== undefined) return allowed;
   }
-  // names/tld parts (DomainParts): the samples live under `<part>.pattern.mockSamples`, or a bare mockSamples.
+  // DomainParts: the samples live per part, not on the root.
   if (params.names || params.tld) {
     const name = pickSample(domainPartSamples(params.names), random) ?? 'example';
     const tld = pickSample(domainPartSamples(params.tld), random) ?? 'com';

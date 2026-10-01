@@ -9,15 +9,8 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// domainEmitter implements the format named "domain", FormatDomain / FormatDomainParts, over three paths:
-//
-//   - pattern path: the type carries the domain regex, so one baked regex test plus length bounds and allowedValues.
-//   - IDNA path: `idna` routes to the isIdnHostname pure fn, with the same whole-value checks.
-//   - parts path: the type carries `names`/`tld` sub-formats, so the value is split on '.', each label
-//     is validated as a sub-StringFormat, hyphen edges are rejected and the segment count bounded.
-//
-// validate emits the decomposition as an IIFE expression so it AND-chains after the base-kind check;
-// validationErrors emits an error-accumulating statement block.
+// domainEmitter implements "domain" over three paths: a baked pattern, the IDNA pure fn, or names/tld parts split on '.'.
+// validate emits the parts path as an IIFE so it AND-chains after the base-kind check.
 type domainEmitter struct{}
 
 func init() {
@@ -49,8 +42,7 @@ func (domainEmitter) EmitValidationErrorsCheck(annotation *reflection.FormatAnno
 		allowedValuesErrorStatement(ctx, annotation.Params, vλl, pathExpr, errorsArr))
 }
 
-// allowedValuesCondition is the whole-value allowedValues test for the pattern and IDNA paths; the parts path gets it
-// from stringConditions over the root params.
+// allowedValuesCondition serves the pattern and IDNA paths; the parts path gets allowedValues from stringConditions.
 func allowedValuesCondition(ctx formats.EmitContext, params map[string]any, vλl string) string {
 	vals, flags, ok := readValuesParam(params, "allowedValues")
 	if !ok {
@@ -88,7 +80,6 @@ func (domainEmitter) EmitFormatTransform(annotation *reflection.FormatAnnotation
 	return formats.EmitStringTransform(annotation.Params, vλl)
 }
 
-// ValidateParams: names/tld travel together, are mutually exclusive with pattern, and the bounds stay in range.
 func (domainEmitter) ValidateParams(annotation *reflection.FormatAnnotation) []string {
 	if annotation == nil {
 		return nil
@@ -118,8 +109,7 @@ func (domainEmitter) ValidateParams(annotation *reflection.FormatAnnotation) []s
 	return errs
 }
 
-// partsBoundsWithoutNames rejects maxParts / minParts on a domain that is not split into names/tld: only the parts
-// path counts labels, so on the pattern or IDNA path they would be silently ignored.
+// partsBoundsWithoutNames rejects maxParts / minParts without names/tld, where nothing counts labels to check them.
 func partsBoundsWithoutNames(params map[string]any, prefix string) []string {
 	if domainHasNames(params) {
 		return nil

@@ -132,7 +132,7 @@
     {
       "group": "string-preset",
       "label": "email()",
-      "fixed": 126,
+      "fixed": 120,
       "fixedBudget": 126,
       "marginal": 9,
       "marginalBudget": 9
@@ -140,7 +140,7 @@
     {
       "group": "string-preset",
       "label": "email({maxLength})",
-      "fixed": 284,
+      "fixed": 274,
       "fixedBudget": 284,
       "marginal": 46,
       "marginalBudget": 46
@@ -172,7 +172,7 @@
     {
       "group": "string-preset",
       "label": "domain({maxLength})",
-      "fixed": 299,
+      "fixed": 279,
       "fixedBudget": 299,
       "marginal": 46,
       "marginalBudget": 46
