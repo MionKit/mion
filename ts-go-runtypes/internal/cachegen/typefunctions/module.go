@@ -330,7 +330,8 @@ func ReportReachedFindings(graph entrymodules.Graph, opts RenderOpts) {
 		}
 		throwing, adopted := reachableFindings(graph, key)
 		for _, site := range sites {
-			// A foreign throw (the validate entry a JSON union picks its member with) would name the same failure twice.
+			// A foreign throw (the validate entry a JSON union picks its member with) naming a kind an own throw already
+			// names is the same failure twice; a foreign throw of another kind is a failure of its own.
 			var own, foreign []diskcache.CachedDiagnostic
 			for _, entry := range throwing {
 				if slices.Contains(opts.ProvenanceSites[entryProvenanceKey(entry)], site) {
@@ -339,10 +340,13 @@ func ReportReachedFindings(graph entrymodules.Graph, opts RenderOpts) {
 					foreign = append(foreign, *entry.Throw)
 				}
 			}
-			if len(own) == 0 {
-				own = foreign
+			toReport := slices.Clone(own)
+			for _, throw := range foreign {
+				if !slices.ContainsFunc(own, func(ownThrow diskcache.CachedDiagnostic) bool { return slices.Equal(ownThrow.Args, throw.Args) }) {
+					toReport = append(toReport, throw)
+				}
 			}
-			for _, finding := range append(own, adopted...) {
+			for _, finding := range append(toReport, adopted...) {
 				report(finding, site)
 			}
 		}
