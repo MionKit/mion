@@ -141,12 +141,11 @@ type DataOnlyLadder<T, Depth extends number> =
 // Stay: a written `undefined`, an index key, a required `X | undefined` (the emitter keeps its `undefined` too).
 type DataOnlyOptionalStripped<T, K extends keyof T> = [T[K]] extends [undefined]
   ? false
-  : string extends K
+  : // eslint-disable-next-line @typescript-eslint/no-empty-object-type -- an index key (string, number, template) is never optional
+    {} extends Record<K, never>
     ? false
-    : number extends K
-      ? false
-      : // eslint-disable-next-line @typescript-eslint/no-empty-object-type -- `{}` is the standard optional-key probe
-        {} extends Pick<T, K>
-        ? true
-        : false;
+    : // eslint-disable-next-line @typescript-eslint/no-empty-object-type -- `{}` is the standard optional-key probe
+      {} extends Pick<T, K>
+      ? true
+      : false;
 // #endregion dataonly-extract

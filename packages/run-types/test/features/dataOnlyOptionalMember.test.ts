@@ -30,8 +30,29 @@ describe('DataOnly — an optional non-data member', () => {
     expect(createValidateFn(sample)({cb: () => undefined})).toBe(true);
   });
 
-  it('keeps a written optional undefined', () => {
+  it('keeps a written optional undefined (static shape)', () => {
     const isDataOnly = createValidateFn<DataOnly<{a: string; u?: undefined}>>();
     expect(isDataOnly({a: 'x', u: 1})).toBe(false);
+  });
+
+  it('keeps a written optional undefined (value shape)', () => {
+    const sample: DataOnly<{a: string; u?: undefined}> = {a: 'x'};
+    expect(createValidateFn(sample)({a: 'x', u: 1})).toBe(false);
+  });
+
+  // An index key is never an optional member, whatever its pattern, so the signature stays as the emitter keeps it.
+  type PatternRecord = {[key: `x-${string}`]: Promise<number> | undefined};
+
+  it('keeps a template-pattern index signature (static shape)', () => {
+    const isType = createValidateFn<PatternRecord>();
+    const isDataOnly = createValidateFn<DataOnly<PatternRecord>>();
+    expect(isType({'x-a': 1})).toBe(false);
+    expect(isDataOnly({'x-a': 1})).toBe(false);
+    expect(isDataOnly({'x-a': undefined})).toBe(true);
+  });
+
+  it('keeps a template-pattern index signature (value shape)', () => {
+    const sample: DataOnly<PatternRecord> = {'x-a': undefined};
+    expect(createValidateFn(sample)({'x-a': 1})).toBe(false);
   });
 });
