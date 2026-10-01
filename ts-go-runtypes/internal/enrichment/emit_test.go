@@ -258,7 +258,7 @@ func TestEmitFriendlyCyclic(t *testing.T) {
 	}
 }
 
-// TestFriendlySkeleton_NonFailingParamsSkipped: params that never fail (`float`, `isCurrency`) scaffold no rt$errors key.
+// TestFriendlySkeleton_NonFailingParamsSkipped: a param that never fails scaffolds no rt$errors key.
 func TestFriendlySkeleton_NonFailingParamsSkipped(t *testing.T) {
 	fixture := &reflection.RunType{
 		ID: "order", Kind: reflection.KindObjectLiteral,

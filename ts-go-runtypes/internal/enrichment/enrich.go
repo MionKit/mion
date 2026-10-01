@@ -194,7 +194,7 @@ func formatConstraintKeys(fa *reflection.FormatAnnotation) []string {
 }
 
 // nonFailingParams are format params carrying NO failable constraint, so the scaffold skips them and FT003 rejects them.
-// Twin of `NON_FAILING_PARAMS` in packages/run-types/src/enrich/friendlyText.ts; a run-types test fails when they differ.
+// Twin of `NON_FAILING_PARAMS` in packages/run-types/src/enrich/friendlyText.ts, pinned equal by a run-types test.
 var nonFailingParams = map[string]bool{
 	"float":               true,
 	"isCurrency":          true,

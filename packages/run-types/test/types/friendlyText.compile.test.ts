@@ -1,28 +1,8 @@
-// Per-branch correctness test for `FriendlyText<T>` (total contract: every field
-// required; `rt$label` + `rt$errors` required on every node; `rt$typeName`
-// optional root meta) — including the PARAM-PRECISE `rt$errors` typing: a branded
-// field's failable format params become REQUIRED template keys, count-bearing
-// keys may pluralize, `rt$default` is the mutually exclusive catch-all mode, and
-// non-failing params (float, isCurrency, transformers) never become keys.
-//
-// Each `it` compiles a representative snippet for ONE branch of `FriendlyNode`
-// (src/enrich/friendlyText.ts) and asserts valid maps are assignable + invalid
-// maps rejected (a `@ts-expect-error` that fails to fire becomes TS2578, so a
-// too-loose type reds the test).
-//
-// Snippets brand fields with a LOCAL `__rtFormatParams` carrier (the only
-// sentinel `ErrorTemplates<F>` reads) so the harness slice stays
-// self-contained — the real `TF.*` aliases resolve to the same shape.
-//
-// Each budget IS the branch's current net instantiation count — a one-way
-// ratchet, exactly like dataonly.compile.test.ts: after ANY change to the
-// FriendlyText machinery, uncomment the log in `check`, compare each printed
-// `net` to its budget, LOWER budgets that went down, and treat a raise as a
-// cost regression to fix (never raise a budget to make the suite pass).
-// Baseline (2026-07-03): the total-contract + param-precise `rt$errors` flip —
-// measured 171 → 482 on the 4-field prototype; per-branch nets below. The
-// counts are TERMINAL (a FriendlyText instantiates once per mirror const and
-// never propagates through consumer code the way DataOnly does).
+// Per-branch type tests for `FriendlyText<T>`; a `@ts-expect-error` that stops firing is TS2578, so a loose type fails.
+// Snippets brand fields with a local `__rtFormatParams` carrier, the only sentinel `ErrorTemplates<F>` reads.
+// Budgets are a one-way ratchet as in dataonly.compile.test.ts: after any FriendlyText change, uncomment the log in
+// `check`, lower budgets that went down, and fix a raise, never raise a budget to pass.
+// Counts are terminal: a FriendlyText instantiates once per mirror const, never through consumer code like DataOnly.
 
 import {describe, it, expect} from 'vitest';
 import {measureFriendly} from './enrichHarness.ts';

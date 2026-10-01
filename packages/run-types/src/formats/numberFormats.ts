@@ -28,12 +28,9 @@ export interface NumberParams {
   exclusiveMinimum?: number;
   /** JSON Schema alias of `lt` (exclusive upper bound). Normalised to `lt`. */
   exclusiveMaximum?: number;
-  /** Marks the value as a monetary amount: PURE PRESENTATION METADATA with no failable
-   *  constraint, so validation, serialization and mocking ignore it and it never becomes an
-   *  `rt$errors` template key. The emitter echoes it onto every error the field produces, so
-   *  `createFriendlyTextI18n` renders a violated bound via `Intl.NumberFormat(locale, {style:
-   *  'currency', currency})` with the app-supplied `currency` renderer option. WHICH currency a value
-   *  is in is runtime data, deliberately never a type param. */
+  /** Monetary amount, presentation only: validation, serialization and mocking ignore it; never an `rt$errors` key.
+   *  Echoed onto the field's errors, so `createFriendlyTextI18n` formats bounds with the app's `currency` option.
+   *  Which currency is runtime data, never a type param. */
   isCurrency?: boolean;
 }
 

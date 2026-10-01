@@ -179,7 +179,7 @@ func TestCheckFriendly_FT003UnknownConstraint(t *testing.T) {
 	}
 }
 
-// TestCheckFriendly_FT003NonFailingParam: a param that never fails (`isCurrency`, `float`) is never a valid `rt$errors` key, so authoring one is FT003.
+// TestCheckFriendly_FT003NonFailingParam: a never-failing param is no valid `rt$errors` key, so authoring one is FT003.
 func TestCheckFriendly_FT003NonFailingParam(t *testing.T) {
 	for _, param := range []string{"isCurrency", "float"} {
 		t.Run(param, func(t *testing.T) {

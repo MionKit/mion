@@ -28,7 +28,8 @@ export type PluralTemplate = {other: FriendlyTemplate} & Partial<Record<PluralCa
  *  and the Go checker enforces it, so the kind is locale-invariant. */
 export type TemplateLeaf = FriendlyTemplate | PluralTemplate;
 
-/** Format params that never fail; any other is a REQUIRED `rt$errors` key. Twin of Go's `nonFailingParams` (enrichment/enrich.go), kept equal by a test. */
+/** Never-failing format params; any other is a REQUIRED `rt$errors` key.
+ *  Twin of Go's `nonFailingParams` (enrichment/enrich.go), kept equal by a test. */
 export const NON_FAILING_PARAMS = ['float', 'isCurrency', 'mockSamples', 'multipleOfTolerance', 'transform'] as const;
 type NonFailingParams = (typeof NON_FAILING_PARAMS)[number];
 

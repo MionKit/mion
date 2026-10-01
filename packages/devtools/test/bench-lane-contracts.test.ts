@@ -98,16 +98,8 @@ describe('typia competitor map calls real typia exports', () => {
 });
 
 describe('the shared cases never assert a presentation-only format tag as failable', () => {
-  // How a permanent fake correctness failure shipped: the shared `number_float` case
-  // titled FormatFloat "non-integer only" and listed [1, 0, -2] as invalid, but `float`
-  // is a generation/presentation tag that NEVER fails (a float legally holds 2.0), so
-  // RunTypes accepted all three and the lane reported a divergence against itself on
-  // every run. No unit test could catch it: the shared cases are data, the packages/
-  // suites keep their own copy, and a wrong label fails nothing until two libraries
-  // disagree. This pins the whole class instead of that one case.
-  //
-  // The tags come from run-types' NON_FAILING_PARAMS, the list the enrichment scaffold also reads.
-  // Loaded by path at runtime: devtools must never depend on @mionjs/run-types.
+  // Shared cases are data no unit test runs: a `float` case once listed [1, 0, -2] as invalid and diverged every run.
+  // Tags come from run-types' NON_FAILING_PARAMS, loaded by path: devtools must never depend on @mionjs/run-types.
   const FRIENDLY_TEXT_SRC = join(REPO_ROOT, 'packages/run-types/src/enrich/friendlyText.ts');
   let nonFailableTags: Set<string>;
   beforeAll(async () => {
