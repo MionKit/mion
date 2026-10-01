@@ -22,7 +22,7 @@ type ClientApi struct {
 	DiagSite diagnostics.Site
 }
 
-// FetchSetUp is one `useFetchMetadata(...)` call; ApiType is nil when the build cannot follow its argument to an `initClient`.
+// FetchSetUp is one `useFetchMetadata(...)` call; ApiType is nil when its argument does not trace to an `initClient`.
 type FetchSetUp struct {
 	ApiType  *checker.Type
 	DiagSite diagnostics.Site
