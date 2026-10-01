@@ -268,12 +268,17 @@ const targets: CloneFuzzTarget[] = [];
     pattern: RegExp;
     note: string;
   }
+  const strictRegExpProp = createValidateFn<Omit<RegExpProp, 'pattern'>>(undefined, {checkUnknowns: true});
   targets.push({
     title: 'RegExpProp',
     schema: getRunType<RegExpProp>(),
     mock: createMockDataFn<RegExpProp>(undefined, {mock: {nonDataTypes: true}}),
     validate: createValidateFn<RegExpProp>(),
-    validateStrict: createValidateFn<RegExpProp>(undefined, {checkUnknowns: true}),
+    // Same as FnProp: the clone shares the RegExp, which the strict validator rejects as a key outside the data shape.
+    validateStrict: (value) => {
+      const {pattern: _pattern, ...data} = value as RegExpProp;
+      return strictRegExpProp(data);
+    },
     clone: createRemoveUnknownKeysFn<RegExpProp>(),
   });
 }
@@ -458,12 +463,17 @@ const targets: CloneFuzzTarget[] = [];
     sym: symbol;
     label: string;
   }
+  const strictBigintSymbol = createValidateFn<Omit<BigintSymbol, 'sym'>>(undefined, {checkUnknowns: true});
   targets.push({
     title: 'BigintSymbol',
     schema: getRunType<BigintSymbol>(),
     mock: createMockDataFn<BigintSymbol>(),
     validate: createValidateFn<BigintSymbol>(),
-    validateStrict: createValidateFn<BigintSymbol>(undefined, {checkUnknowns: true}),
+    // Same as FnProp: the clone keeps the symbol, which the strict validator rejects as a key outside the data shape.
+    validateStrict: (value) => {
+      const {sym: _sym, ...data} = value as BigintSymbol;
+      return strictBigintSymbol(data);
+    },
     clone: createRemoveUnknownKeysFn<BigintSymbol>(),
   });
 }

@@ -63,10 +63,10 @@ func collectObjectChildNames(rt *reflection.RunType, ctx *EmitContext) (rtNames 
 		if isMethodMember(resolved.Kind) {
 			continue
 		}
-		// A property wrapping a function-typed child: the parent's RT chain drops it too.
+		// A property whose value strippedPropertyDrop drops is no key of the data shape either.
 		if (resolved.Kind == reflection.KindProperty || resolved.Kind == reflection.KindPropertySignature) && resolved.Child != nil {
 			grandchild := ctx.ResolveRef(resolved.Child)
-			if grandchild != nil && isMethodMember(grandchild.Kind) {
+			if grandchild != nil && isStrippedUnionMember(grandchild, ctx) {
 				continue
 			}
 		}
