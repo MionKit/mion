@@ -1,7 +1,7 @@
 ---
 type: feature
 spec: guidelines
-status: ready
+status: done
 created: 2026-10-01
 ---
 
@@ -93,3 +93,39 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
   new slots; nothing names the old slots.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched
   source file, each committed on its own.
+
+## Plan (approved 2026-10-01)
+
+Decisions taken with the user while planning:
+
+- Slot 2 is always defined. Per attempt, as soon as the body arrives: decode it, turn ids into nested
+  objects, then move each `validation-error` from the server's `@thrownErrors` record to its own path.
+  That one object is shared by the rest of the dispatch and returned; a retry starts a new one.
+- Strongly typed goes to its path: every body value (the route's own entry too), declared errors,
+  validation errors from the server or the client, and a middleware answer sent as HTTP headers.
+- Everything else goes to the `@thrownErrors` array, every one kept, in the order it happened: the
+  server's other thrown errors (ids dropped), platform error, timeout, abort, network failure, a failed
+  `onRequest` / `onResponse` / `onError` hook, `route-metadata-not-found`, a `validateServerResponses`
+  failure (its wrong answer is removed from its path), a decode failure (`deserialization-error`, which
+  used to land in the typed slot), and the bundled API, API version and metadata cache errors.
+- Hooks do not see slot 2: a hook only handles its own middleware.
+- Each middleware's type is its whole return or a `ValidationError`. The type names middlewares only;
+  routes are slot 0.
+
+Build: `types.ts` (3-slot `Result` / `BatchResult`, `ClientResponse<RA>` built like `ClientMiddlewares`),
+a new `lib/clientResponse.ts` (nesting and path helpers), `dispatch.ts`, `batch.ts`, `serializer.ts`,
+the client CLAUDE.md slot rules, the contract suite and every test, example and page that read the old
+slots. Type cost measured with the type-budget package before and after.
+
+## What shipped
+
+- As planned. Two details the plan did not name:
+  - `RouteSubRequest`'s API parameter now defaults to `any`, so a route typed by a real API still fits a
+    `RouteSubRequest<any>` once its result names that API's response type.
+  - Every failing `onResponse` / `onError` hook is reported in `@thrownErrors`, not only the first one.
+- A missing auth header (the server's headers validation) is the auth middleware's validation error, so it
+  sits at `response.auth`, never in `@thrownErrors`.
+- Type cost (type-budget package, `5 + initClient` step): 3065 before, 3080 after. The map itself costs about
+  30; the shorter result saves 15. The next step (`6 + db query`) moved by 4 in every dialect without touching
+  the query, and its budget records that as a reviewed exception.
+- The repo contract that kept the old slot from being called "fatal" was removed with the slot.
