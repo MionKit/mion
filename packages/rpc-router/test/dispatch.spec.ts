@@ -11,7 +11,8 @@ import {dispatchRoute} from '../src/dispatch.ts';
 import type {Email, Transform} from '@mionjs/run-types/formats';
 import {CallContext, MionHeaders} from '../src/types/context.ts';
 import {Routes} from '../src/types/general.ts';
-import {HeadersSubset, RpcError, TypedError, MION_ROUTES, StatusCodes, toBase64Url} from '@mionjs/core';
+import type {HeadersMethod} from '../src/types/remoteMethods.ts';
+import {HeadersSubset, RpcError, TypedError, MION_ROUTES, StatusCodes, toBase64Url, trustedHeadersSubset} from '@mionjs/core';
 import {headersFromRecord} from '../src/lib/headers.ts';
 import {decodeQueryBody} from '../src/lib/queryBody.ts';
 import {findMionQueryParam} from '../src/lib/urlQuery.ts';
@@ -176,12 +177,20 @@ describe('Dispatch routes', () => {
         expect(response.hasErrors).toBe(true);
         expect((response.body[MION_ROUTES.thrownErrors]?.getTag as RpcError<string>)?.type).toBe('headers-validation-error');
       });
+
+      it('runs no check after the handler returns', async () => {
+        const getTag = mion.route((ctx): HeadersSubset<'X-Tag'> => trustedHeadersSubset({} as {'X-Tag': string}));
+        mion.initRoutes({getTag});
+        const response = await dispatchRoute('/getTag', '{}', headersFromRecord({}), headersFromRecord({}), {}, {});
+        expect(response.hasErrors).toBeFalsy();
+        expect(response.headers.get('x-tag')).toBeUndefined();
+      });
     });
 
     it('checks request headers once, with the headers function own check', async () => {
       const auth = mion.headersFn((ctx, h: HeadersSubset<'Authorization'>): void => undefined);
       mion.initRoutes({auth, changeUserName});
-      const isType = getMiddlewareExecutable('auth')!.headersParam!.jitFns.isType as {fn: (value: unknown) => boolean};
+      const isType = (getMiddlewareExecutable('auth') as HeadersMethod).headersParam.jitFns.isType as {fn: (value: unknown) => boolean};
       const check = isType.fn;
       let checks = 0;
       isType.fn = (value) => (checks++, check(value));

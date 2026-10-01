@@ -5,12 +5,11 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {type DataOnly, type GetValidationErrorsFn, type InjectTypeFnArgs, type ValidateFn} from '@mionjs/run-types';
+import {type DataOnly, type InjectTypeFnArgs} from '@mionjs/run-types';
 import {registerClassSerializer} from '@mionjs/run-types/runtime';
-import {FatalError} from './errors.ts';
+import {FatalError, type ValidationErrorData} from './errors.ts';
 import {StatusCodes} from './constants.ts';
 import {headerCheckFnsFromMarker} from './runtypes/mionAdapter.ts';
-import type {RunTypeError} from './types/general.types.ts';
 
 /** Type-safe wrapper for HTTP headers, checked against its own type when built by a mion build */
 export class HeadersSubset<Required extends string, Optional extends string = never> {
@@ -25,38 +24,22 @@ export class HeadersSubset<Required extends string, Optional extends string = ne
   }
 }
 
-/** Thrown when a HeadersSubset is built with a missing or invalid header. */
-export type HeadersValidationError = FatalError<'headers-validation-error', {typeErrors: RunTypeError[]}>;
-
-type HeaderCheckFns = {isType: ValidateFn; typeErrors: GetValidationErrorsFn};
-
-// The injected array is a fresh literal per call, so the cache keys on its first entry tuple, a module constant.
-const checkFnsCache = new WeakMap<object, HeaderCheckFns>();
-
 function checkHeadersOrThrow(subset: HeadersSubset<string, string>, fns: unknown): void {
-  const cacheKey = Array.isArray(fns) && typeof fns[0] === 'object' && fns[0] !== null ? (fns[0] as object) : undefined;
-  let checkFns = cacheKey ? checkFnsCache.get(cacheKey) : undefined;
-  if (!checkFns) {
-    checkFns = headerCheckFnsFromMarker(fns, 'HeadersSubset');
-    if (cacheKey) checkFnsCache.set(cacheKey, checkFns);
-  }
+  const checkFns = headerCheckFnsFromMarker(fns, 'HeadersSubset');
   if (checkFns.isType(subset)) return;
-  const error: HeadersValidationError = new FatalError({
+  throw new FatalError<'headers-validation-error', ValidationErrorData>({
     statusCode: StatusCodes.UNEXPECTED_ERROR,
     type: 'headers-validation-error',
     publicMessage: 'Invalid headers, validation failed.',
     errorData: {typeErrors: checkFns.typeErrors(subset)},
   });
-  throw error;
 }
 
 /** Builds a HeadersSubset with no check, for a map already checked elsewhere; keeps `instanceof`. */
 export function trustedHeadersSubset<Required extends string, Optional extends string = never>(
-  headers: {[K in Required]: string} & {[K in Optional]?: string}
+  headers: HeadersSubset<Required, Optional>['headers']
 ): HeadersSubset<Required, Optional> {
-  const subset = Object.create(HeadersSubset.prototype) as {headers: typeof headers};
-  subset.headers = headers;
-  return subset as HeadersSubset<Required, Optional>;
+  return Object.assign(Object.create(HeadersSubset.prototype), {headers});
 }
 
 // ############# HeadersSubset -> mion class serializer #############
