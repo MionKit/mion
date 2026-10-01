@@ -4,7 +4,6 @@ import type {HeadersApi} from '../router/headers-api.routes.ts';
 
 const {routes, middlewares} = initClient<HeadersApi>({
   baseURL: 'http://localhost:3000',
-  // plain headers sent with every request
   fetchOptions: {headers: {'Accept-Language': 'en'}},
 });
 
