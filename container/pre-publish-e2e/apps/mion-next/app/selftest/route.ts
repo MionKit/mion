@@ -24,7 +24,7 @@ export async function GET(request: Request): Promise<Response> {
   // Compact wire: the same client, a route whose parser is positional.
   const [sum, sumError] = await routes.addNumbers(40, 2).call();
   // Batch: one request carrying both, run by the id this build baked into the server.
-  const [[batched, batchedSum], [batchedError, batchedSumError], batchFatal] = await batch([
+  const [[batched, batchedSum], [batchedError, batchedSumError], batchResponse] = await batch([
     routes.sayHello('batch'),
     routes.addNumbers(1, 2),
   ]).call();
@@ -35,7 +35,7 @@ export async function GET(request: Request): Promise<Response> {
     batch: {
       message: batched?.message,
       sum: batchedSum,
-      error: String(batchedError ?? batchedSumError ?? batchFatal ?? ''),
+      error: String(batchedError ?? batchedSumError ?? batchResponse['@thrownErrors']?.[0] ?? ''),
     },
   });
 }
