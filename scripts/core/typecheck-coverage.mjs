@@ -19,9 +19,7 @@ const SOURCE_DIRS = ['src', 'lib', 'bin'];
 export const EXEMPT = {};
 
 // Shipped files a project leaves out on purpose, each with the reason.
-export const NOT_CHECKED = {
-  'private-examples/src/run-types/comparison-typia.ts': 'compares against typia, which the workspace does not install',
-};
+export const NOT_CHECKED = {};
 
 // Takes the root so the contract test can drive it against the real tree or a fixture.
 export function readPackages(repoRoot = REPO_ROOT) {
