@@ -28,6 +28,7 @@
 //   lanes --github                    also write `lanes=<json>` to $GITHUB_OUTPUT
 //                                     and a table to $GITHUB_STEP_SUMMARY
 //   lanes --ref <ref>                 hash that tree instead of HEAD
+//   lanes --base <ref>                skip every lane whose inputs equal that tree's (a pull request's base)
 import {createHash} from 'node:crypto';
 import {appendFileSync, readFileSync} from 'node:fs';
 import {REPO_ROOT} from '../lib/env.mjs';
@@ -194,21 +195,28 @@ export function candidateKeys(wanted, {hashes, pr = false}) {
 
 // Decide the asked-for lanes. Every unknown resolves to RUN: an unreadable or
 // empty key list (a fork pull request has no token) skips nothing.
-export function decide(wanted, {hashes, greenKeys = [], pr = false}) {
+export function decide(wanted, {hashes, greenKeys = [], pr = false, baseHashes}) {
   const green = new Set(greenKeys);
+  // A pull request that leaves a lane's inputs identical to its base cannot break it; the push to main proves the base.
+  const unchangedFromBase = (key) => baseHashes !== undefined && baseHashes[key] === hashes[key];
   const provenGreen = (name) => green.has(greenKey(name, hashes[name])) || (pr && PR_PROOF[name] !== undefined && green.has(greenKey(PR_PROOF[name], hashes[name])));
   const lanes = {};
   for (const name of wanted) {
     const hash = hashes[name];
     if (!hash) die(`no such lane: ${name} (known lanes: ${Object.keys(LANES).join(', ')})`);
     const laneGreen = provenGreen(name);
+    if (unchangedFromBase(name)) {
+      const items = Object.fromEntries(Object.keys(LANES[name].items ?? {}).map((item) => [item, {run: false, hash: hashes[itemName(name, item)]}]));
+      lanes[name] = {run: false, hash, reason: 'this pull request changes nothing the lane reads', items, runItems: []};
+      continue;
+    }
     const itemNames = Object.keys(LANES[name].items ?? {});
     if (itemNames.length === 0) {
       lanes[name] = {run: !laneGreen, hash, reason: laneGreen ? 'these exact inputs already passed' : 'inputs not proven green yet'};
       continue;
     }
     // A lane marker covers every item; otherwise each item answers for itself.
-    const items = Object.fromEntries(itemNames.map((item) => [item, {run: !laneGreen && !provenGreen(itemName(name, item)), hash: hashes[itemName(name, item)]}]));
+    const items = Object.fromEntries(itemNames.map((item) => [item, {run: !laneGreen && !provenGreen(itemName(name, item)) && !unchangedFromBase(itemName(name, item)), hash: hashes[itemName(name, item)]}]));
     const runItems = itemNames.filter((item) => items[item].run);
     const run = runItems.length > 0;
     const reason = !run ? 'these exact inputs already passed' : `not proven green yet: ${runItems.join(', ')}`;
@@ -224,6 +232,16 @@ const flagValues = (args, flag) => {
   const end = rest.findIndex((arg) => arg.startsWith('--'));
   return end === -1 ? rest : rest.slice(0, end);
 };
+
+// An unreadable base returns undefined, which skips nothing.
+function readBaseHashes(base) {
+  if (!base) return undefined;
+  if (capture('git', ['rev-parse', '-q', '--verify', `${base}^{commit}`], {cwd: REPO_ROOT}).status !== 0) {
+    noteErr(`base ${base} is not available, so no lane is skipped for being unchanged`);
+    return undefined;
+  }
+  return laneHashes(base).hashes;
+}
 
 export function main(args) {
   const ref = flagValues(args, '--ref')[0] ?? 'HEAD';
@@ -254,7 +272,7 @@ export function main(args) {
   } catch {
     note(`could not read ${keyFile}, so every lane runs`);
   }
-  const lanes = decide(wanted, {hashes, greenKeys, pr: args.includes('--pr')});
+  const lanes = decide(wanted, {hashes, greenKeys, pr: args.includes('--pr'), baseHashes: readBaseHashes(flagValues(args, '--base')[0])});
   for (const [name, lane] of Object.entries(lanes)) note(`${name.padEnd(16)} ${lane.run ? 'RUN ' : 'skip'}  ${lane.reason}`);
   if (!args.includes('--github')) return console.log(JSON.stringify(lanes, null, 2));
 

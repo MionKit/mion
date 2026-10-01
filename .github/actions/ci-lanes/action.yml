@@ -11,7 +11,10 @@ description: >
 
   On a pull request the checked-out tree is the MERGE ref, so a lane's hash covers
   the base branch too: main moving re-runs the lane, which is exactly what a "diff
-  against the last green commit" rule would have got wrong.
+  against the last green commit" rule would have got wrong. The one diff rule kept
+  is against the base itself: a lane whose inputs equal the base's skips, since the
+  push to main owns proving the base (without it a docs-only pull request re-ran
+  every lane whenever main's own run was still going or got cancelled).
 
   Needs `permissions: actions: read` on the calling job to list the markers. The
   job that RUNS a lane must save its marker on success with ./.github/actions/save-lane-green.
@@ -57,10 +60,12 @@ runs:
         # Exact-key lookups, so a marker is never lost off the end of a long listing.
         # A failed lookup leaves its key out, which re-runs a lane, never skips one.
         PR_FLAG="${{ github.event_name == 'pull_request' && '--pr' || '' }}"
+        # HEAD^1 of the merge ref is the base tip: a lane this pull request leaves untouched skips without a marker.
+        BASE_FLAG="${{ github.event_name == 'pull_request' && '--base HEAD^1' || '' }}"
         : > lane-green-keys.txt
         for key in $(node scripts/ci/lanes.mjs --candidates $LANES $PR_FLAG); do
           gh cache list --key "$key" --limit 1 --json key --jq '.[].key' >> lane-green-keys.txt || :
         done
         # Only a pull request accepts the narrower PR markers (PR_PROOF in lanes.mjs).
-        node scripts/ci/lanes.mjs --decide $LANES --green-keys lane-green-keys.txt --github $PR_FLAG
+        node scripts/ci/lanes.mjs --decide $LANES --green-keys lane-green-keys.txt --github $PR_FLAG $BASE_FLAG
         rm -f lane-green-keys.txt
