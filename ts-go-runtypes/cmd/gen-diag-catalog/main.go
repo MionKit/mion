@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strings"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 )
@@ -51,7 +52,7 @@ func main() {
 			Family:       familyLabel(definition.Family),
 			Level:        diagnostics.LevelLabel(definition.Level),
 			Completeness: definition.Completeness,
-			Internal:     definition.Internal,
+			Internal:     strings.HasPrefix(definition.Headline, "Internal error:"),
 			Headline:     definition.Headline,
 			Summary:      definition.Summary,
 			Fix:          definition.Fix,

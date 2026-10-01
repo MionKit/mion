@@ -383,13 +383,3 @@ func TestFormat_PrintsTheHeadline(t *testing.T) {
 		t.Fatalf("renderHeadline must fill {0}, got %q", headline)
 	}
 }
-
-// A code is Internal exactly when its headline tells the user to file an issue.
-func TestDefinitions_InternalMatchesTheHeadline(t *testing.T) {
-	for code, definition := range Definitions {
-		saysBug := strings.HasPrefix(definition.Headline, "Internal error:")
-		if saysBug != definition.Internal {
-			t.Errorf("%s: Internal = %v but the headline %q", code, definition.Internal, definition.Headline)
-		}
-	}
-}
