@@ -1,4 +1,4 @@
-// cloning / DateTime — Date plus all 8 TC39 Temporal types. Every one comes
+// cloning / DateTime — Date, URL and all 8 TC39 Temporal types. Every one comes
 // back as a FRESH instance (`clone(x) !== x`): Date re-wraps via
 // `new Date(v.getTime())`; Temporal types — immutable, but identity
 // freshness wins — re-materialize via their static `from()`
@@ -37,6 +37,21 @@ export const DATETIME = {
     getTestData: () => ({
       values: [{at: new Date('2021-05-06T07:08:09.000Z'), note: 'n', extra: 1}],
       expected: [{at: new Date('2021-05-06T07:08:09.000Z'), note: 'n'}],
+    }),
+  },
+  url: {
+    title: 'URL',
+    description: 'URLs are mutable (every part has a setter): the clone always re-wraps, a fresh instance with the same href.',
+    clone: () => createRemoveUnknownKeysFn<URL>(),
+    getTestData: () => ({values: [new URL('https://example.com/a?b=1#c'), new URL('mailto:someone@example.com')]}),
+  },
+  urlInObject: {
+    title: 'URL property',
+    description: 'A URL inside a rebuilt object is itself re-wrapped: changing `clone.link.pathname` never touches the input.',
+    clone: () => createRemoveUnknownKeysFn<{link: URL; note: string}>(),
+    getTestData: () => ({
+      values: [{link: new URL('https://example.com/a'), note: 'n', extra: 1}],
+      expected: [{link: new URL('https://example.com/a'), note: 'n'}],
     }),
   },
   temporalInstant: {

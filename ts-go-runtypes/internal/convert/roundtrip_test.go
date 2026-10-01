@@ -245,6 +245,25 @@ func TestChain_NamedFormatPresets(t *testing.T) {
 	convertAndCheckIDs(t, builderForm, convert.TargetType)
 }
 
+func TestChain_NativeUrl(t *testing.T) {
+	source := "import * as TF from '@mionjs/run-types/formats';\n" +
+		"export type Link = URL;\n" +
+		"type Short = TF.NativeUrl<{maxLength: 200}>;\n" +
+		"type Web = TF.NativeUrlHttp;\n"
+	builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
+	for _, expected := range []string{"TF.nativeUrl()", "TF.nativeUrl({maxLength: 200})"} {
+		if !strings.Contains(builderForm, expected) {
+			t.Errorf("builder form missing %q:\n%s", expected, builderForm)
+		}
+	}
+	typeForm := convertAndCheckIDs(t, builderForm, convert.TargetType)
+	for _, expected := range []string{"export type Link = URL;", "TF.NativeUrl<{maxLength: 200}>"} {
+		if !strings.Contains(typeForm, expected) {
+			t.Errorf("type form missing %q:\n%s", expected, typeForm)
+		}
+	}
+}
+
 func TestChain_RegexPresetEscapesGenericSpelling(t *testing.T) {
 	// The regex family's params carry the preset-internal `isRegex` engine
 	// flag, which the PUBLIC string builder/alias reject (ExactParams) — the

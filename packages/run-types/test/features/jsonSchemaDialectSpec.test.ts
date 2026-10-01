@@ -157,6 +157,18 @@ describe('json-schema-2020-12-javascript — the dialect spec', () => {
     expect(createJsonSchemaFn<Stamp>()()).toEqual(DATE_DOC);
   });
 
+  rule('JS-URL', 'a URL travels as its href, a uri string', () => {
+    expect(createJsonSchemaFn<URL>()()).toEqual({type: 'string', format: 'uri', jsType: 'URL'});
+    // A NativeUrl names its family instead, its length params on the standard keywords and in rtFormatParams.
+    expect(createJsonSchemaFn<TF.NativeUrl<{maxLength: 200}>>()()).toEqual({
+      type: 'string',
+      format: 'uri',
+      maxLength: 200,
+      rtFormat: 'nativeUrl',
+      rtFormatParams: {maxLength: 200},
+    });
+  });
+
   rule('JS-BIGINT-LITERAL', 'a bigint literal pins the wire value under const', () => {
     const doc = createJsonSchemaFn<Build>()();
     expect(doc).toEqual({type: 'string', const: '4096', jsType: 'bigint'});
