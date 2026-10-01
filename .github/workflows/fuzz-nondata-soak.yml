@@ -1,9 +1,7 @@
 name: prod · non-data fuzz soak
 
-# The non-data type lane's 10-minute soak. Two hand-run 10-minute soaks each found a real gap that a 60 s budget would
-# likely miss, so this lane soaks longer than the rest, in its own workflow: release-gate.yml calls it as a job beside
-# its soak matrix (`soakWorkflow` on the lane's FUZZ entry keeps it out of that matrix), so a red soak blocks the
-# release like any gate job. It can also run by hand.
+# The non-data type lane soaks 10 minutes, not 60 s: two hand-run 10-minute soaks each found a real gap. release-gate.yml
+# calls it as a gate job (`soakWorkflow` on its FUZZ entry keeps it out of the soak matrix), so a red soak blocks release.
 on:
   workflow_call:
     inputs:

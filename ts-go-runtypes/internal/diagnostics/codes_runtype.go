@@ -173,8 +173,7 @@ func init() {
 		register(Definition{Code: code, Family: FamilyRunType, Level: LevelRuntimeError, Scope: ScopeRoot, Title: "RunType root-position error"})
 	}
 
-	// An internal bug: the site demand should have rendered the primitive, and the emitted
-	// `utl.getRT(key).fn` prologue would crash at runtime, so the build fails loudly here instead.
+	// An internal bug: fail the build, or the `utl.getRT(key).fn` prologue of the unrendered primitive crashes at runtime.
 	register(Definition{Code: CodeCompositeMissingPrimitive, Family: FamilyRunType, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "JSON composite references an unrendered primitive entry"})
 	// An internal bug too: without it the entry was skipped and the site ran the family identity (validate accepted everything).
 	register(Definition{Code: CodeUnsupportedLeafNoCode, Family: FamilyRunType, Level: LevelRuntimeError, Scope: ScopeGraph, Title: "A type function cannot compile a kind that has no diagnostic code"})

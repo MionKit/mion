@@ -381,7 +381,7 @@ describe('checkUnknowns — a dropped non-data member', () => {
     expect(isStrict({b: 1, x: 1})).toBe(false);
   });
 
-  // The validator checks the data-only view, so a present non-data member is an unknown key, as a function member is.
+  // The validator checks the data-only view, so a present non-data member is an unknown key.
   it('rejects a value carrying the dropped member (static shape)', () => {
     expect(createValidateFn<WithSymbol>(undefined, {checkUnknowns: true})(sample)).toBe(false);
     expect(

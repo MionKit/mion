@@ -173,7 +173,7 @@ func siteCodes(t *testing.T, sources map[string]string, allInternal bool) []stri
 	return corpusCodes(response, "site.ts")
 }
 
-// gridValueShapes adds the value call shape (a third of the grid): main pushes, the release gate and full local runs set it.
+// gridValueShapes adds the value call shape: main pushes, the release gate and full local runs set it.
 // PRs skip it, as every value-first marker has its own paired tests. On 4 cores: 74 s with value shapes, 30 s without.
 var gridValueShapes = os.Getenv("MION_DIAG_GRID_FULL") == "1"
 
@@ -415,8 +415,7 @@ func TestNestedDiagCorpus_WrittenAnyAtRoot(t *testing.T) {
 	}
 }
 
-// A foreign throw of another kind than the site's own throws is its own failure: the errors union asks validate,
-// whose DataView member throws VL001, while the errors family's own throw is the symbol array's VE002.
+// The errors union asks validate, whose DataView member throws VL001; the family's own throw is the symbol array's VE002.
 const foreignKindDecl = "export type WithSymbols = {s: symbol[]};\nexport type Members = {k: 'a'; d: DataView[]} | {k: 'b'; n: number};\n"
 const foreignKindType = "{w: WithSymbols; u: Members}"
 
