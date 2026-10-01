@@ -50,6 +50,8 @@ type Operation struct {
 	// CallOptions is the options literal selecting this operation at its Factory, for the docs catalog; empty for a bare call.
 	// AxisJsonStrategy rows leave it empty: the catalog spells their Strategies.
 	CallOptions string
+	// VerdictFrom names the operation a union of this one asks for its verdict, so that entry's findings count as its own.
+	VerdictFrom string
 }
 
 // registry is the complete operation set: the createX-backed operations plus the JSON value-level primitives the composites and
@@ -57,20 +59,20 @@ type Operation struct {
 var registry = []Operation{
 	// Validators (ValidateOptions axis). Both guard circular refs.
 	{Name: "validate", Doc: "Answers whether a value matches the type. The cheapest check, and the one every other validator builds on.", Factory: "createValidateFn", FamilyTag: "val", Axis: AxisValidateOptions, Public: true, FnKey: "validate", CircularGuarded: true},
-	{Name: "validationErrors", Doc: "Returns the list of reasons a value does not match the type, with the path to each one.", Factory: "createGetValidationErrorsFn", FamilyTag: "verr", Axis: AxisValidateOptions, Public: true, FnKey: "validationErrors", CircularGuarded: true},
+	{Name: "validationErrors", Doc: "Returns the list of reasons a value does not match the type, with the path to each one.", Factory: "createGetValidationErrorsFn", FamilyTag: "verr", Axis: AxisValidateOptions, Public: true, FnKey: "validationErrors", CircularGuarded: true, VerdictFrom: "validate"},
 
 	// Fused `{checkUnknowns: true}` validators are separate families, not ValidateOptions variants:
 	// a variant's children dispatch to plain entries, it is never disk-cached and it skips overrides.
 	// The marker still says 'val' / 'verr'; resolver/scan.go computeSiteFn swaps the operation on `checkUnknowns`.
 	{Name: "validateStrict", Doc: "Answers whether a value matches the type AND carries no undeclared properties, in a single walk.", Factory: "createValidateFn", FamilyTag: "vst", Axis: AxisValidateOptions, Public: true, FnKey: "validateStrict", CircularGuarded: true, CallOptions: "{checkUnknowns: true}"},
-	{Name: "validationErrorsStrict", Doc: "Returns the reasons a value does not match, including undeclared properties, in a single walk.", Factory: "createGetValidationErrorsFn", FamilyTag: "vest", Axis: AxisValidateOptions, Public: true, FnKey: "validationErrorsStrict", CircularGuarded: true, CallOptions: "{checkUnknowns: true}"},
+	{Name: "validationErrorsStrict", Doc: "Returns the reasons a value does not match, including undeclared properties, in a single walk.", Factory: "createGetValidationErrorsFn", FamilyTag: "vest", Axis: AxisValidateOptions, Public: true, FnKey: "validationErrorsStrict", CircularGuarded: true, CallOptions: "{checkUnknowns: true}", VerdictFrom: "validateStrict"},
 
 	// The UNION-SCOPED validators (`{checkUnionUnknowns: true}`): narrower than the fused pair above on purpose, since a
 	// stripping decoder already removes a plain object's undeclared keys but cannot remove one a sibling union member
 	// declares, and removes nothing at all once a member carries an index signature. Families rather than variants for the
 	// same reason as the fused pair.
 	{Name: "validateUnionKeys", Doc: "Answers whether a value matches the type AND carries no property the matched union member leaves undeclared.", Factory: "createValidateFn", FamilyTag: "vuk", Axis: AxisValidateOptions, Public: true, FnKey: "validateUnionKeys", CircularGuarded: true, CallOptions: "{checkUnionUnknowns: true}"},
-	{Name: "validationErrorsUnionKeys", Doc: "Returns the reasons a value does not match, counting a property the matched union member leaves undeclared.", Factory: "createGetValidationErrorsFn", FamilyTag: "veuk", Axis: AxisValidateOptions, Public: true, FnKey: "validationErrorsUnionKeys", CircularGuarded: true, CallOptions: "{checkUnionUnknowns: true}"},
+	{Name: "validationErrorsUnionKeys", Doc: "Returns the reasons a value does not match, counting a property the matched union member leaves undeclared.", Factory: "createGetValidationErrorsFn", FamilyTag: "veuk", Axis: AxisValidateOptions, Public: true, FnKey: "validationErrorsUnionKeys", CircularGuarded: true, CallOptions: "{checkUnionUnknowns: true}", VerdictFrom: "validateUnionKeys"},
 
 	// Option-less leaf families.
 	{Name: "removeUnknownKeys", Doc: "Copies a value keeping only the properties the type declares.", Factory: "createRemoveUnknownKeysFn", FamilyTag: "ruk", Axis: AxisNone, Public: true, FnKey: "removeUnknownKeys"},

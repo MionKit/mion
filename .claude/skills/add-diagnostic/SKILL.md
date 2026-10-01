@@ -46,8 +46,9 @@ scan.
   `ReportReachedFindings` (`cachegen/typefunctions/module.go`) carries the finding to every site whose function calls
   the entry, across families. Never append to the sink with sites from `ProvenanceSites`: the type graph reaches
   entries a function never runs.
-- A family that takes its verdict from another family's entry (validationErrors from validate) lists it in
-  `adoptsFindingsOf`.
+- A family that takes its verdict from another family's entry (validationErrors from validate) names it in its
+  `VerdictFrom` field (`cachegen/operations/operations.go`); `adoptsFindingsOf` is built from it, and
+  `TestVerdictFrom_MatchesTheUnionDelegate` fails when the emitter calls a different entry.
 
 ## 5. No silent fallback
 

@@ -287,12 +287,16 @@ func CollectFamilyEntries(dump protocol.Dump, settings constants.CacheModuleSett
 	return graph
 }
 
-// adoptsFindingsOf: a validationErrors union takes its verdict from its validate entry, so that entry's drops are its own.
-var adoptsFindingsOf = map[string]map[string]bool{
-	"verr": {"val": true, "vst": true, "vuk": true},
-	"vest": {"val": true, "vst": true, "vuk": true},
-	"veuk": {"val": true, "vst": true, "vuk": true},
-}
+// adoptsFindingsOf maps a family tag to the tag it takes its union verdict from (operations.Operation.VerdictFrom).
+var adoptsFindingsOf = func() map[string]string {
+	adopts := map[string]string{}
+	for _, op := range operations.All() {
+		if from, ok := operations.ByName(op.VerdictFrom); ok && op.VerdictFrom != "" {
+			adopts[op.FamilyTag] = from.FamilyTag
+		}
+	}
+	return adopts
+}()
 
 // ReportReachedFindings reports at each site the throws and findings of the entries its function reaches.
 // Runs once after the cross-family fixpoint: findings travel through entries of another family too.
@@ -381,7 +385,7 @@ func reachableFindings(graph entrymodules.Graph, entryID string) (throwing []*en
 				throwing = append(throwing, depEntry)
 				continue
 			}
-			if depEntry.FamilyTag == graph[entryID].FamilyTag || adopted[depEntry.FamilyTag] {
+			if depEntry.FamilyTag == graph[entryID].FamilyTag || (adopted != "" && depEntry.FamilyTag == adopted) {
 				for _, finding := range depEntry.Findings {
 					// A root-scoped finding is about that entry as a marker's root, never about a site reaching it.
 					if diagnostics.ScopeOf(finding.Code) != diagnostics.ScopeRoot {

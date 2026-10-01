@@ -127,3 +127,26 @@ func TestUnionKeys_ErrorsDelegateToTheirOwnValidator(t *testing.T) {
 		t.Fatalf("the errors family delegates to the PLAIN validator:\n%s", body)
 	}
 }
+
+// Every family that names a VerdictFrom operation delegates its union verdict to exactly that operation's entry.
+func TestVerdictFrom_MatchesTheUnionDelegate(t *testing.T) {
+	for _, op := range operations.All() {
+		if op.VerdictFrom == "" {
+			continue
+		}
+		t.Run(op.Name, func(t *testing.T) {
+			body := renderUnion(t, op.Name, twoObjectUnion())
+			want := "utl.getRT(\\'" + operations.VariantHash(op.VerdictFrom, nil) + "_uni1\\')"
+			if !strings.Contains(body, want) {
+				t.Fatalf("%s's union arm must delegate to %s (its VerdictFrom):\n%s", op.Name, op.VerdictFrom, body)
+			}
+			from, _ := operations.ByName(op.VerdictFrom)
+			if adoptsFindingsOf[op.FamilyTag] != from.FamilyTag {
+				t.Errorf("adoptsFindingsOf[%s] = %q, want %q", op.FamilyTag, adoptsFindingsOf[op.FamilyTag], from.FamilyTag)
+			}
+		})
+	}
+	if len(adoptsFindingsOf) != 3 {
+		t.Errorf("want the three validationErrors families in adoptsFindingsOf, got %v", adoptsFindingsOf)
+	}
+}
