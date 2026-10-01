@@ -89,12 +89,10 @@ function decayOptionsForNesting(options: RunTypeMockOptions, nestLevel: number):
   return {...options, mock: next};
 }
 
-// Each collection level divides the item cap by this, so nested Sets / Maps / arrays / records stay small:
-// a flat cap multiplies per level (60^4 entries for four levels) and one mock took seconds.
+// Per-level item cap divisor: a flat cap multiplies per level (60^4 entries at four levels), so one mock took seconds.
 const NESTED_ITEMS_DIVISOR = 4;
 
-/** Options for a collection's items: the item cap shrinks, never below 1 unless the caller set 0 or 1.
- *  An explicit `arrayLength` or `rt$length` still wins, since both are read before the cap. **/
+/** An explicit `arrayLength` or `rt$length` still wins: both are read before the cap. **/
 function shrinkForNestedItems(options: RunTypeMockOptions): RunTypeMockOptions {
   const mOps = options.mock as MockOptions;
   if (mOps.maxRandomItemsLength <= 1) return options;

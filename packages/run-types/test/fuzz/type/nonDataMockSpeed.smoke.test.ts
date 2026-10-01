@@ -1,4 +1,4 @@
-// Replays the non-data lane seed whose nested Set / Map mock took ~8 s per call and broke the soak's slow-round ceiling.
+// This seed's nested Set / Map mock took ~8 s per call and broke the soak's slow-round ceiling.
 
 import {describe, expect, it} from 'vitest';
 import {hasBinary} from './typeFuzzHarness.ts';

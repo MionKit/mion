@@ -1,4 +1,4 @@
-// Nested Sets / Maps / records once drew up to 60 items at every level, so one mock held about a million leaves.
+// Nested collections once drew up to 60 items per level, about a million leaves per mock.
 
 import {describe, expect, it} from 'vitest';
 import {createValidateFn} from '@mionjs/run-types';
@@ -9,7 +9,6 @@ type RecordOfSetOfMaps = Record<string, Set<Map<string, Record<string, string>>>
 
 const SAMPLES = 20;
 
-/** Leaves (non-container values) inside a mocked value. **/
 function countLeaves(value: unknown): number {
   if (value instanceof Set) return [...value].reduce((sum: number, item) => sum + countLeaves(item), 0);
   if (value instanceof Map) return [...value].reduce((sum: number, [key, item]) => sum + countLeaves(key) + countLeaves(item), 0);
@@ -18,7 +17,6 @@ function countLeaves(value: unknown): number {
   return 1;
 }
 
-/** Mean ms per mock and the largest leaf count over SAMPLES seeded draws, every draw validated. **/
 function measure<T>(mock: (options?: {mock?: {seed?: number}}) => T, validate: (value: T) => boolean) {
   let maxLeaves = 0;
   const start = performance.now();
