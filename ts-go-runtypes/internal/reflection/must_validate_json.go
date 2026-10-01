@@ -3,7 +3,7 @@ package reflection
 // MustValidateJson reports whether a kind's JSON decoder REBUILDS its value from a different wire form, and
 // therefore must check the wire shape before it converts.
 //
-// The decode contract: a decoder converts only the exact form the encoder writes (a Date from a string, a
+// The decode contract: a decoder converts only the exact form the encoder writes (a Date or URL from a string, a
 // bigint from a whole-number string, a Map or Set from an array, a union from its `[index, value]` envelope)
 // and leaves anything else untouched for validate to refuse. The union is the one kind that refuses instead
 // (the typed `[mion]` union error): a bare value is never its wire form, and left in place validate could
@@ -33,7 +33,7 @@ func MustValidateJson(rt *RunType) bool {
 		if _, ok := TemporalInfoBySubKind(rt.SubKind); ok {
 			return true
 		}
-		return rt.SubKind == SubKindDate || rt.SubKind == SubKindMap || rt.SubKind == SubKindSet
+		return rt.SubKind == SubKindDate || rt.SubKind == SubKindMap || rt.SubKind == SubKindSet || rt.SubKind == SubKindUrl
 	}
 	return false
 }

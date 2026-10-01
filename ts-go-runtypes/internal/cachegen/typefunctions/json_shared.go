@@ -48,7 +48,7 @@ func jsonWireSupports(rt *reflection.RunType) bool {
 		return true
 	case reflection.KindClass:
 		switch rt.SubKind {
-		case reflection.SubKindDate, reflection.SubKindNone,
+		case reflection.SubKindDate, reflection.SubKindUrl, reflection.SubKindNone,
 			reflection.SubKindMap, reflection.SubKindSet,
 			reflection.SubKindNonSerializable:
 			return true

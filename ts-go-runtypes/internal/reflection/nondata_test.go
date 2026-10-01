@@ -31,6 +31,7 @@ func TestNonDataOf(t *testing.T) {
 		{"string literal", &RunType{Kind: KindLiteral}, Data},
 		{"plain interface", &RunType{Kind: KindObjectLiteral, Children: []*RunType{{Kind: KindPropertySignature}}}, Data},
 		{"Date", &RunType{Kind: KindClass, SubKind: SubKindDate}, Data},
+		{"URL", &RunType{Kind: KindClass, SubKind: SubKindUrl}, Data},
 		{"Map", &RunType{Kind: KindClass, SubKind: SubKindMap}, Data},
 		{"user class", &RunType{Kind: KindClass}, Data},
 		{"property", &RunType{Kind: KindProperty}, Data},

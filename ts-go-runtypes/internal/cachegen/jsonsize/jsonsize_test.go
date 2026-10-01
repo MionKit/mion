@@ -323,3 +323,12 @@ func TestMaxBytes_NonSerializableIsWireBound(t *testing.T) {
 	// `[` + `null` + `,` + `false` + `]`
 	expectBounded(t, "tuple member", MaxBytes(tuple, noRefs), 2+4+1+5)
 }
+
+// A URL is its href string on the wire: a nativeUrl format's maxLength bounds it like a string, nothing else does.
+func TestMaxBytes_UrlIsItsHref(t *testing.T) {
+	bare := &reflection.RunType{Kind: reflection.KindClass, SubKind: reflection.SubKindUrl}
+	expectUnbounded(t, "bare URL", MaxBytes(bare, noRefs), ": URL without maxLength")
+	formatted := &reflection.RunType{Kind: reflection.KindClass, SubKind: reflection.SubKindUrl,
+		FormatAnnotation: &reflection.FormatAnnotation{Name: "nativeUrl", Params: map[string]any{"maxLength": 10.0}}}
+	expectBounded(t, "URL with maxLength", MaxBytes(formatted, noRefs), MaxBytes(stringFmt(map[string]any{"maxLength": 10.0}), noRefs).Bytes)
+}

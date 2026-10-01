@@ -149,6 +149,7 @@ func jsonCompatRecursive(rt *reflection.RunType, ctx *EmitContext, visited map[s
 		}
 		switch rt.SubKind {
 		case reflection.SubKindDate,
+			reflection.SubKindUrl,
 			reflection.SubKindMap,
 			reflection.SubKindSet,
 			reflection.SubKindNonSerializable:

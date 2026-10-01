@@ -74,6 +74,7 @@ export const REFLECTION_SUB_KIND = {
   map: 2002,
   set: 2003,
   nonSerializable: 2004,
+  url: 2005,
   temporalInstant: 2101,
   temporalZonedDateTime: 2102,
   temporalPlainDate: 2103,

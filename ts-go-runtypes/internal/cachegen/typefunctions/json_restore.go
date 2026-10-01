@@ -84,6 +84,8 @@ func (RestoreFromJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ C
 		switch rt.SubKind {
 		case reflection.SubKindDate:
 			return RTCode{Code: v + " = typeof " + v + " === 'string' ? new Date(" + v + ") : " + v, Type: CodeE}
+		case reflection.SubKindUrl:
+			return RTCode{Code: restoreUrl(v), Type: CodeE}
 		case reflection.SubKindNone:
 			structural := emitObjectJsonChildren(rt, ctx)
 			return wrapRestoreWithClassSerializer(rt, ctx, v, structural)
@@ -342,4 +344,10 @@ func (RestoreFromJsonEmitter) Finalize(raw string) (string, bool) {
 		return "return v", true
 	}
 	return code, false
+}
+
+// restoreUrl rebuilds a URL from its href. `new URL` throws on a bad string (unlike `new Date`), so canParse
+// gates it and anything else is left for validate to refuse.
+func restoreUrl(v string) string {
+	return v + " = typeof " + v + " === 'string' && URL.canParse(" + v + ") ? new URL(" + v + ") : " + v
 }

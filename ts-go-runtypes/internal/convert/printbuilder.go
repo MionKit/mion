@@ -127,6 +127,8 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 		switch node.SubKind {
 		case reflection.SubKindDate:
 			return tf("date()")
+		case reflection.SubKindUrl:
+			return tf("nativeUrl()")
 		case reflection.SubKindMap:
 			arguments := ctx.nativeArguments(node)
 			if len(arguments) != 2 {

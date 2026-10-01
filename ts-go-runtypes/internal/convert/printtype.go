@@ -237,6 +237,8 @@ func (ctx *printContext) typeExprCore(node *reflection.RunType) (string, *Diagno
 		switch node.SubKind {
 		case reflection.SubKindDate:
 			return "Date", nil
+		case reflection.SubKindUrl:
+			return "URL", nil
 		case reflection.SubKindMap:
 			arguments := ctx.nativeArguments(node)
 			if len(arguments) != 2 {

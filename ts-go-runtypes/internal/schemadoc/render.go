@@ -284,6 +284,8 @@ func (r *docRenderer) classText(node *reflection.RunType) string {
 	switch node.SubKind {
 	case reflection.SubKindDate:
 		return "{type: 'string', format: 'date-time', jsType: 'Date'}"
+	case reflection.SubKindUrl:
+		return "{type: 'string', format: 'uri', jsType: 'URL'}"
 	case reflection.SubKindMap:
 		arguments := r.nativeArguments(node)
 		if len(arguments) != 2 {

@@ -12,7 +12,7 @@ import (
 )
 
 // setupUnderDomLib is setupInline with a real tsconfig selecting the dom lib,
-// which is the only way to get `URL` and the rest of the web platform into the
+// which is the only way to get `URLSearchParams` and the rest of the web platform into the
 // program. The default inferred config has no `lib`, so tsgo picks the latest
 // ECMAScript edition alone and none of these types exist.
 func setupUnderDomLib(t *testing.T, sources map[string]string) *resolver.Session {
@@ -37,19 +37,19 @@ func setupUnderDomLib(t *testing.T, sources map[string]string) *resolver.Session
 // list on the TypeScript side.
 //
 // `DataOnly<T>` cannot ask "was this declared in the standard library" (there is
-// no such predicate in TypeScript), so for a lib class like `URL` the two sides
+// no such predicate in TypeScript), so for a lib class like `URLSearchParams` the two sides
 // disagree: Go strips it, `DataOnly<T>` keeps its data shape. The build says so
 // out loud instead. A property whose value has no data form raises the
 // per-family …015 drop (Info) naming the property, and the rest of the object
 // still validates and still serialises.
 //
 // Info, not Error, is the contract: an Error means the generated function
-// throws at runtime, and this one does not. Before this, the same `URL` property
-// silently compiled a forty-member validator over `href`, `searchParams` and
-// friends, which is the failure mode this replaces.
+// throws at runtime, and this one does not. Before this, a lib-class property
+// silently compiled a validator over the class's members, which is the failure
+// mode this replaces.
 func TestDiag_LibClassPropertyIsAnnouncedNotSilent(t *testing.T) {
 	const code = `import {createValidateFn, createJsonEncoderFn} from '@mionjs/run-types';
-interface Bookmark {id: number; title: string; link: URL}
+interface Bookmark {id: number; title: string; link: URLSearchParams}
 export const isBookmark = createValidateFn<Bookmark>();
 export const encode = createJsonEncoderFn<Bookmark>(undefined, {strategy: 'mutate'});
 `
@@ -75,7 +75,7 @@ export const encode = createJsonEncoderFn<Bookmark>(undefined, {strategy: 'mutat
 	} {
 		drop, ok := seen[expected]
 		if !ok {
-			t.Fatalf("expected %s naming the dropped URL property, got %v", expected, codes)
+			t.Fatalf("expected %s naming the dropped URLSearchParams property, got %v", expected, codes)
 		}
 		if drop.Severity != diagnostics.SeverityInfo {
 			t.Errorf("%s severity = %v, want Info (the object still validates without the property)", expected, drop.Severity)
@@ -102,7 +102,7 @@ export const encode = createJsonEncoderFn<Bookmark>(undefined, {strategy: 'mutat
 // gets an Error.
 func TestDiag_LibClassAtRootThrows(t *testing.T) {
 	const code = `import {createValidateFn} from '@mionjs/run-types';
-export const isLink = createValidateFn<URL>();
+export const isLink = createValidateFn<URLSearchParams>();
 `
 	resolverSession := setupUnderDomLib(t, map[string]string{"r.ts": code})
 	response := resolverSession.Dispatch(protocol.Request{
@@ -121,7 +121,7 @@ export const isLink = createValidateFn<URL>();
 		}
 	}
 	if root == nil {
-		t.Fatalf("a URL at root must be refused with %s", diagnostics.CodeVLNonSerializableRoot)
+		t.Fatalf("a URLSearchParams at root must be refused with %s", diagnostics.CodeVLNonSerializableRoot)
 	}
 	if root.Severity != diagnostics.SeverityError {
 		t.Errorf("severity = %v, want Error (the generated guard would always fail)", root.Severity)

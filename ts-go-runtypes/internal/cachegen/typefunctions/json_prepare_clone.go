@@ -105,6 +105,8 @@ func (PrepareForJsonCloneEmitter) Emit(rt *reflection.RunType, ctx *EmitContext,
 		switch rt.SubKind {
 		case reflection.SubKindDate:
 			return RTCode{Code: v + ".toISOString()", Type: CodeE}
+		case reflection.SubKindUrl:
+			return RTCode{Code: v + ".href", Type: CodeE}
 		case reflection.SubKindNone:
 			structural := emitObjectPrepareForJsonClone(rt, ctx, v)
 			return wrapSafeWithClassSerializer(rt, ctx, v, structural)

@@ -87,6 +87,8 @@ func (PrepareForJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ Co
 		switch rt.SubKind {
 		case reflection.SubKindDate:
 			return RTCode{Code: "", Type: CodeS}
+		case reflection.SubKindUrl:
+			return RTCode{Code: "", Type: CodeS}
 		case reflection.SubKindNone:
 			structural := emitObjectJsonChildren(rt, ctx)
 			return wrapPrepareWithClassSerializer(rt, ctx, v, structural)
@@ -446,9 +448,10 @@ func isInlinableLeafValidateKind(member *reflection.RunType) bool {
 		reflection.KindMethodSignature, reflection.KindCallSignature:
 		return true
 	case reflection.KindClass:
-		// Date and the Temporal builtins emit a bare `instanceof` with no CompileChild; Map / Set
+		// Date, URL and the Temporal builtins emit a bare `instanceof` with no CompileChild; Map / Set
 		// and a plain user class recurse through CompileChild, NonSerializable emits CodeNS.
-		return member.SubKind == reflection.SubKindDate || reflection.IsTemporalSubKind(member.SubKind)
+		return member.SubKind == reflection.SubKindDate || member.SubKind == reflection.SubKindUrl ||
+			reflection.IsTemporalSubKind(member.SubKind)
 	}
 	return false
 }

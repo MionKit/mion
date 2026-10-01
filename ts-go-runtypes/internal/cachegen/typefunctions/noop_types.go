@@ -280,8 +280,8 @@ func jsonNoopRecursive(rt *reflection.RunType, ctx *EmitContext, mode jsonNoopMo
 			return mode == noopModePrepare
 		}
 		switch rt.SubKind {
-		case reflection.SubKindDate:
-			// Encode uses Date#toJSON, decode rebuilds via new Date(v).
+		case reflection.SubKindDate, reflection.SubKindUrl:
+			// Encode uses the builtin toJSON(), decode rebuilds via new Date(v) / new URL(v).
 			return mode == noopModePrepare
 		case reflection.SubKindMap, reflection.SubKindSet:
 			// Iterable ↔ array-of-entries transforms on both halves.

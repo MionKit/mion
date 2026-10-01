@@ -92,6 +92,9 @@ func (emitter RemoveUnknownKeysEmitter) Emit(rt *reflection.RunType, ctx *EmitCo
 		case reflection.SubKindDate:
 			// Dates are mutable (setTime & friends), so always re-wrap.
 			return RTCode{Code: "new Date(" + v + ".getTime())", Type: CodeE}
+		case reflection.SubKindUrl:
+			// Mutable (every component has a setter), so always re-wrap.
+			return RTCode{Code: "new URL(" + v + ".href)", Type: CodeE}
 		}
 		if info, ok := reflection.TemporalInfoBySubKind(rt.SubKind); ok {
 			// Immutable, but still a fresh instance: `clone(x).field !== x.field` must hold for every object-typed field.
@@ -572,7 +575,7 @@ func removeUnknownKeysNoopRecursive(rt *reflection.RunType, ctx *EmitContext, vi
 
 	case reflection.KindClass:
 		switch rt.SubKind {
-		case reflection.SubKindNone, reflection.SubKindMap, reflection.SubKindSet, reflection.SubKindDate:
+		case reflection.SubKindNone, reflection.SubKindMap, reflection.SubKindSet, reflection.SubKindDate, reflection.SubKindUrl:
 			return false
 		}
 		if reflection.IsTemporalSubKind(rt.SubKind) {

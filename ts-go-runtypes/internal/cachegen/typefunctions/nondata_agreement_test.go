@@ -70,6 +70,9 @@ var shapeRoots = map[string]func() []*reflection.RunType{
 	"Date": func() []*reflection.RunType {
 		return []*reflection.RunType{{ID: "root", Kind: reflection.KindClass, SubKind: reflection.SubKindDate}}
 	},
+	"URL": func() []*reflection.RunType {
+		return []*reflection.RunType{{ID: "root", Kind: reflection.KindClass, SubKind: reflection.SubKindUrl}}
+	},
 }
 
 func bareRoot(kind reflection.ReflectionKind) func() []*reflection.RunType {

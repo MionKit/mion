@@ -249,7 +249,7 @@ type SchemaChecks struct {
 // footer emits `t.classType = globalThis.<Builtin>`; for a user class, Module and Name record where it came
 // from, for a footer that imports it.
 type ClassRef struct {
-	Builtin string `json:"builtin,omitempty"` // "Date" | "Map" | "Set" | "RegExp"
+	Builtin string `json:"builtin,omitempty"` // "Date" | "Map" | "Set" | "RegExp" | "URL"
 	Name    string `json:"name,omitempty"`    // user-class export name
 	Module  string `json:"module,omitempty"`  // originating module path
 }

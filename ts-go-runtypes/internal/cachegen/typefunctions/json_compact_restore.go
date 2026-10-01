@@ -89,6 +89,8 @@ func (CompactFromJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ C
 		switch rt.SubKind {
 		case reflection.SubKindDate:
 			return RTCode{Code: v + " = typeof " + v + " === 'string' ? new Date(" + v + ") : " + v, Type: CodeE}
+		case reflection.SubKindUrl:
+			return RTCode{Code: restoreUrl(v), Type: CodeE}
 		case reflection.SubKindNone:
 			structural := emitObjectCompactFromJson(rt, ctx, v)
 			return wrapRestoreWithClassSerializer(rt, ctx, v, structural)
