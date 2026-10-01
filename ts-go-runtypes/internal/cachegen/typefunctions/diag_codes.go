@@ -8,8 +8,8 @@ import (
 // rootCodeMap is one family's root-error code per non-data class.
 type rootCodeMap map[reflection.NonData]string
 
-func (m rootCodeMap) codeFor(leaf *reflection.RunType) string {
-	return m[reflection.NonDataOf(leaf, nil)]
+func (m rootCodeMap) codeFor(leaf *reflection.RunType, resolve RefResolver) string {
+	return m[reflection.NonDataOf(leaf, resolve)]
 }
 
 // Per-emitter DiagCodeFor implementations, one flat slot-to-code map each, concentrated in this file so
@@ -37,8 +37,8 @@ var prepareForJsonRootCodes = rootCodeMap{
 	reflection.NonDataSymbol:   diagnostics.CodePJSymbolRoot,
 }
 
-func (PrepareForJsonEmitter) DiagCodeForLeaf(leaf *reflection.RunType) string {
-	return prepareForJsonRootCodes.codeFor(leaf)
+func (PrepareForJsonEmitter) DiagCodeForLeaf(leaf *reflection.RunType, resolve RefResolver) string {
+	return prepareForJsonRootCodes.codeFor(leaf, resolve)
 }
 
 var prepareForJsonCloneCodes = map[DiagSlot]string{
@@ -65,8 +65,8 @@ var prepareForJsonCloneRootCodes = rootCodeMap{
 	reflection.NonDataSymbol:   diagnostics.CodePJSSymbolRoot,
 }
 
-func (PrepareForJsonCloneEmitter) DiagCodeForLeaf(leaf *reflection.RunType) string {
-	return prepareForJsonCloneRootCodes.codeFor(leaf)
+func (PrepareForJsonCloneEmitter) DiagCodeForLeaf(leaf *reflection.RunType, resolve RefResolver) string {
+	return prepareForJsonCloneRootCodes.codeFor(leaf, resolve)
 }
 
 var restoreFromJsonCodes = map[DiagSlot]string{
@@ -91,8 +91,8 @@ var restoreFromJsonRootCodes = rootCodeMap{
 	reflection.NonDataSymbol:   diagnostics.CodeRJSymbolRoot,
 }
 
-func (RestoreFromJsonEmitter) DiagCodeForLeaf(leaf *reflection.RunType) string {
-	return restoreFromJsonRootCodes.codeFor(leaf)
+func (RestoreFromJsonEmitter) DiagCodeForLeaf(leaf *reflection.RunType, resolve RefResolver) string {
+	return restoreFromJsonRootCodes.codeFor(leaf, resolve)
 }
 
 // The `compact` walks reuse prepareForJsonClone / restoreFromJsonMutate arm by arm, so they delegate their
@@ -105,16 +105,16 @@ func (CompactForJsonEmitter) DiagCodeFor(slot DiagSlot) string {
 	return prepareForJsonCloneCodes[slot]
 }
 
-func (CompactForJsonEmitter) DiagCodeForLeaf(leaf *reflection.RunType) string {
-	return prepareForJsonCloneRootCodes.codeFor(leaf)
+func (CompactForJsonEmitter) DiagCodeForLeaf(leaf *reflection.RunType, resolve RefResolver) string {
+	return prepareForJsonCloneRootCodes.codeFor(leaf, resolve)
 }
 
 func (CompactFromJsonEmitter) DiagCodeFor(slot DiagSlot) string {
 	return restoreFromJsonCodes[slot]
 }
 
-func (CompactFromJsonEmitter) DiagCodeForLeaf(leaf *reflection.RunType) string {
-	return restoreFromJsonRootCodes.codeFor(leaf)
+func (CompactFromJsonEmitter) DiagCodeForLeaf(leaf *reflection.RunType, resolve RefResolver) string {
+	return restoreFromJsonRootCodes.codeFor(leaf, resolve)
 }
 
 // restoreFromJsonClone changes no leaf's serializability, a rebuild or a guard around one of
@@ -123,8 +123,8 @@ func (RestoreFromJsonCloneEmitter) DiagCodeFor(slot DiagSlot) string {
 	return restoreFromJsonCodes[slot]
 }
 
-func (RestoreFromJsonCloneEmitter) DiagCodeForLeaf(leaf *reflection.RunType) string {
-	return restoreFromJsonRootCodes.codeFor(leaf)
+func (RestoreFromJsonCloneEmitter) DiagCodeForLeaf(leaf *reflection.RunType, resolve RefResolver) string {
+	return restoreFromJsonRootCodes.codeFor(leaf, resolve)
 }
 
 var validateCodes = map[DiagSlot]string{
@@ -148,8 +148,8 @@ var validateRootCodes = rootCodeMap{
 	reflection.NonDataSymbol:   diagnostics.CodeVLSymbolRoot,
 }
 
-func (ValidateEmitter) DiagCodeForLeaf(leaf *reflection.RunType) string {
-	return validateRootCodes.codeFor(leaf)
+func (ValidateEmitter) DiagCodeForLeaf(leaf *reflection.RunType, resolve RefResolver) string {
+	return validateRootCodes.codeFor(leaf, resolve)
 }
 
 var validationErrorsCodes = map[DiagSlot]string{
@@ -171,8 +171,8 @@ var validationErrorsRootCodes = rootCodeMap{
 	reflection.NonDataSymbol:   diagnostics.CodeVESymbolRoot,
 }
 
-func (ValidationErrorsEmitter) DiagCodeForLeaf(leaf *reflection.RunType) string {
-	return validationErrorsRootCodes.codeFor(leaf)
+func (ValidationErrorsEmitter) DiagCodeForLeaf(leaf *reflection.RunType, resolve RefResolver) string {
+	return validationErrorsRootCodes.codeFor(leaf, resolve)
 }
 
 var removeUnknownKeysCodes = map[DiagSlot]string{
@@ -192,7 +192,7 @@ func (emitter RemoveUnknownKeysEmitter) DiagCodeFor(slot DiagSlot) string {
 }
 
 // DiagCodeForLeaf names why the entry always throws, from the leaf refuseWith latched (or the walker's own).
-func (emitter RemoveUnknownKeysEmitter) DiagCodeForLeaf(leaf *reflection.RunType) string {
+func (emitter RemoveUnknownKeysEmitter) DiagCodeForLeaf(leaf *reflection.RunType, resolve RefResolver) string {
 	if leaf == nil {
 		return ""
 	}

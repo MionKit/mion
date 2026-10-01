@@ -150,7 +150,7 @@ func (CompactFromJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ C
 // the SAME canonical order the encoder used (shared collectCompactDeclaredSlots), then rebuilds the keyed object and
 // REBINDS the accessor to it. An object carrying an index signature arrived keyed, so it restores in place instead.
 func emitObjectCompactFromJson(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
-	if objectHasCallSignature(rt, ctx) {
+	if isCallableValue(rt, ctx) {
 		return RTCode{Code: "", Type: CodeNS}
 	}
 

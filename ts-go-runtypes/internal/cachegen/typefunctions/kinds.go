@@ -27,45 +27,6 @@ func isMethodMember(kind reflection.ReflectionKind) bool {
 	return false
 }
 
-// objectHasCallSignature reports whether an object-like RunType carries a KindCallSignature member, which
-// makes the whole interface function-like: DataOnly strips it to `never` and validate guards it with
-// `typeof === 'function'`. The serializers therefore answer CodeNS for it (alwaysThrow at the root, dropped
-// at a property position) rather than walk it as a plain object and disagree with validate.
-func objectHasCallSignature(rt *reflection.RunType, ctx *EmitContext) bool {
-	if rt == nil {
-		return false
-	}
-	for _, child := range rt.Children {
-		resolved := ctx.ResolveRef(child)
-		if resolved != nil && resolved.Kind == reflection.KindCallSignature {
-			return true
-		}
-	}
-	return false
-}
-
-// callableLeafSubstitute swaps a callable interface for its call signature so DiagCodeForLeaf yields a FUNCTION code.
-// A "" code silently skips the entry: a JSON composite binds that dangling dep with an unguarded `utl.getRT(key).fn`.
-// A nil refTable or unresolvable ref returns the leaf, keeping the silent skip as the unknown-future-kind safety net.
-func callableLeafSubstitute(leaf *reflection.RunType, refTable map[string]*reflection.RunType) *reflection.RunType {
-	if leaf == nil || leaf.Kind != reflection.KindObjectLiteral {
-		return leaf
-	}
-	for _, child := range leaf.Children {
-		resolved := child
-		if child != nil && child.Kind == reflection.KindRef {
-			if refTable == nil {
-				continue
-			}
-			resolved = refTable[child.ID]
-		}
-		if resolved != nil && resolved.Kind == reflection.KindCallSignature {
-			return resolved
-		}
-	}
-	return leaf
-}
-
 // isRestTupleMember reports whether a tuple member carries the "rest" flag the projection sets on `[A, ...B[]]`.
 func isRestTupleMember(rt *reflection.RunType) bool {
 	if rt == nil || rt.Kind != reflection.KindTupleMember {

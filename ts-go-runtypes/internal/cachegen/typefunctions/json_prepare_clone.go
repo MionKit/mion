@@ -212,7 +212,7 @@ type safePropEmit struct {
 func emitObjectPrepareForJsonClone(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	// A callable interface is function-like (DataOnly = never); treat it like a
 	// bare function (alwaysThrow at root, dropped at a property), not an object.
-	if objectHasCallSignature(rt, ctx) {
+	if isCallableValue(rt, ctx) {
 		return RTCode{Code: "", Type: CodeNS}
 	}
 	var props []safePropEmit

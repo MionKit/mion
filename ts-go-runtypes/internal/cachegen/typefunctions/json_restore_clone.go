@@ -92,7 +92,7 @@ func terminated(code string) string {
 // delegates to the in-place walk, which then removes nothing a rebuild would.
 // Decided BEFORE the slots are collected so the drop diagnostics are emitted once (as in emitObjectCompactForJson).
 func emitObjectRestoreFromJsonClone(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
-	if objectHasCallSignature(rt, ctx) {
+	if isCallableValue(rt, ctx) {
 		return RTCode{Code: "", Type: CodeNS}
 	}
 	if indexSigAdmitsEveryKey(rt, ctx) {

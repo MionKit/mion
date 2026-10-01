@@ -376,21 +376,16 @@ type DiagCodeProvider interface {
 // leaves; the walker hands the leaf over when finalising an alwaysThrow factory. Returning "" preserves the
 // silent-skip path, the safety net for an unknown future kind with no registered code.
 type LeafDiagCodeProvider interface {
-	DiagCodeForLeaf(leaf *reflection.RunType) string
+	DiagCodeForLeaf(leaf *reflection.RunType, resolve RefResolver) string
 }
+
+// RefResolver follows a ref to its node, so a callable interface behind a ref still reads as a function.
+type RefResolver = func(*reflection.RunType) *reflection.RunType
 
 // DiagCodeFor returns the per-family diag code the current emitter registered for slot, or "" when it provides none.
 func (ctx *EmitContext) DiagCodeFor(slot DiagSlot) string {
 	if provider, ok := ctx.walker.Emitter.(DiagCodeProvider); ok {
 		return provider.DiagCodeFor(slot)
-	}
-	return ""
-}
-
-// DiagCodeForLeaf returns the per-family code the current emitter associates with an unsupported leaf kind, or "".
-func (ctx *EmitContext) DiagCodeForLeaf(leaf *reflection.RunType) string {
-	if provider, ok := ctx.walker.Emitter.(LeafDiagCodeProvider); ok {
-		return provider.DiagCodeForLeaf(leaf)
 	}
 	return ""
 }
