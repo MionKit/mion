@@ -1,6 +1,6 @@
 // D4: `DataOnly<T>` (TypeScript) and `reflection.NonDataOf` (Go) make one decision twice, so they must agree on a
-// random T. Standard-library classes (`URL`, `Error`) are the one known gap, so the generator never draws one: the
-// Go side skips them, DataOnly cannot tell them apart.
+// random T. `URL` is drawn (both sides keep it). Other standard-library classes (`Error`, `Blob`) are the one known
+// gap, so the generator never draws one: the Go side skips them, DataOnly cannot tell them apart.
 
 import type {RunType} from '../../../src/runtypes/types.ts';
 import {RunTypeKind, RunTypeSubKind} from '../../../src/go-generated/runTypeKind.generated.ts';
@@ -115,6 +115,12 @@ export function memberMismatches(
     );
     return out;
   }
+  // A kept native (Date, URL, Map, Set, Temporal) must stay that native: a structural projection of it validates the
+  // same instances through prototype getters, so the answers check alone cannot see the difference.
+  if (isKeptNative(typeNode) && (dataOnlyNode.kind !== typeNode.kind || dataOnlyNode.subKind !== typeNode.subKind))
+    return [
+      `${path}: the native ${String(typeNode.typeName ?? typeNode.subKind)} in T is kind ${kindName(dataOnlyNode)} in DataOnly<T>`,
+    ];
   if (typeNode.kind === RunTypeKind.array && dataOnlyNode.kind === RunTypeKind.array)
     return recurse(typeNode.child, dataOnlyNode.child, `${path}[]`);
   if (typeNode.kind === RunTypeKind.tuple && dataOnlyNode.kind === RunTypeKind.tuple)
@@ -125,7 +131,17 @@ export function memberMismatches(
   return [];
 }
 
-/** Plain objects and user classes; Date / Map / Set / Temporal ride a SubKind and are not member lists. **/
+/** A native class both sides keep whole, told apart by its SubKind. **/
+function isKeptNative(node: RunType): boolean {
+  return (
+    node.kind === RunTypeKind.class &&
+    node.subKind !== undefined &&
+    node.subKind !== RunTypeSubKind.none &&
+    node.subKind !== RunTypeSubKind.nonSerializable
+  );
+}
+
+/** Plain objects and user classes; Date / URL / Map / Set / Temporal ride a SubKind and are not member lists. **/
 function isObjectShape(node: RunType): boolean {
   return node.kind === RunTypeKind.objectLiteral || (node.kind === RunTypeKind.class && node.subKind === RunTypeSubKind.none);
 }
