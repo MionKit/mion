@@ -7,6 +7,6 @@ const {routes, middlewares} = initClient<MyApi>({
 });
 useFetchMetadata(middlewares.mionFetchMetadata);
 
-// the first call asks the server how sayHello works
+// the first call also fetches the metadata of sayHello
 const [greeting] = await routes.sayHello('Ana').call();
 console.log(greeting);

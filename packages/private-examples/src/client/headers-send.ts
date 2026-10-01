@@ -7,7 +7,7 @@ const {routes, middlewares} = initClient<HeadersApi>({
   fetchOptions: {headers: {'Accept-Language': 'en'}},
 });
 
-// the HeadersSubset travels as HTTP headers, not in the body
+// the HeadersSubset is sent as HTTP headers, not in the body
 middlewares.auth.onRequest((auth) =>
   auth(new HeadersSubset({Authorization: 'Bearer my-token'}))
 );

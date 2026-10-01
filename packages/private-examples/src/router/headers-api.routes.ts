@@ -9,7 +9,7 @@ const routes = {
       console.log('token', headers.Authorization);
     }
   ),
-  // answers with a header, not a body value
+  // returns a header, not a body value
   getDownloadUrl: mion.route(
     (ctx, fileId: string): HeadersSubset<'x-download-url'> =>
       new HeadersSubset({'x-download-url': `/files/${fileId}`})
