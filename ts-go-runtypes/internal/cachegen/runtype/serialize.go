@@ -96,6 +96,8 @@ type Cache struct {
 	// `overrideX<T>(pureFn)` table: BASE structural key → family op key → cfn body hash. Threaded into every
 	// id computer so structural ids fold the override suffix; SetOverrides MUST run before any AssignID.
 	overrides map[string]map[string]string
+	// The project's environment files, read by typeid.NotDataBuiltinOf.
+	environment typeid.Environment
 }
 
 // NewCache constructs an empty Cache bound to the supplied checker.
@@ -119,6 +121,19 @@ func NewCache(typeChecker *checker.Checker, opts Options) *Cache {
 // SetMarkerOptions records the accepted marker package set plus the program's filesystem for the package-name gate.
 // The resolver re-calls it on every program swap so the gate reads package.json from the current overlay.
 func (cache *Cache) SetMarkerOptions(markerOpts marker.Options) { cache.markerOpts = markerOpts }
+
+// SetEnvironment must run on every program swap, before any AssignID: it decides which types are not data, so their ids.
+func (cache *Cache) SetEnvironment(environment typeid.Environment) {
+	cache.environment = environment
+	if cache.typeChecker != nil {
+		cache.idComputer = cache.newComputer(cache.typeChecker)
+	}
+	cache.foreignComputers = nil
+}
+
+func (cache *Cache) newComputer(typeChecker *checker.Checker) *typeid.Computer {
+	return typeid.NewWithOverrides(typeChecker, cache.overrides).SetEnvironment(cache.environment)
+}
 
 // Size returns the number of distinct types currently interned.
 func (cache *Cache) Size() int { return len(cache.nodes) }
@@ -158,7 +173,7 @@ func (cache *Cache) Clear() {
 	cache.circularIDs = make(map[string]bool)
 	cache.overrides = nil
 	if cache.typeChecker != nil {
-		cache.idComputer = typeid.New(cache.typeChecker)
+		cache.idComputer = cache.newComputer(cache.typeChecker)
 	}
 }
 
@@ -168,7 +183,7 @@ func (cache *Cache) Clear() {
 func (cache *Cache) SetOverrides(overrides map[string]map[string]string) {
 	cache.overrides = overrides
 	if cache.typeChecker != nil {
-		cache.idComputer = typeid.NewWithOverrides(cache.typeChecker, overrides)
+		cache.idComputer = cache.newComputer(cache.typeChecker)
 	}
 	cache.foreignComputers = nil
 }
@@ -179,7 +194,7 @@ func (cache *Cache) SetOverrides(overrides map[string]map[string]string) {
 func (cache *Cache) Rebind(typeChecker *checker.Checker) {
 	cache.typeChecker = typeChecker
 	if typeChecker != nil {
-		cache.idComputer = typeid.NewWithOverrides(typeChecker, cache.overrides)
+		cache.idComputer = cache.newComputer(typeChecker)
 	} else {
 		cache.idComputer = nil
 	}
@@ -338,7 +353,7 @@ func (cache *Cache) computerFor(typeChecker *checker.Checker) *typeid.Computer {
 	}
 	computer, ok := cache.foreignComputers[typeChecker]
 	if !ok {
-		computer = typeid.NewWithOverrides(typeChecker, cache.overrides)
+		computer = cache.newComputer(typeChecker)
 		cache.foreignComputers[typeChecker] = computer
 	}
 	return computer
@@ -537,7 +552,7 @@ func (cache *Cache) stampOverrides(node *reflection.RunType, tsType *checker.Typ
 	// The lookup key must come from a COLD computer, exactly as the fold pass built the map's keys: a warm
 	// computer's cache legitimately holds ROOT-FORM spellings of cycle members, and a base key composed from
 	// those differs from the fold key even though both strings are valid.
-	stamper := typeid.NewWithOverrides(cache.typeChecker, cache.overrides)
+	stamper := cache.newComputer(cache.typeChecker)
 	families := stamper.OverridesForBaseKey(stamper.BaseStructuralKey(tsType))
 	if len(families) == 0 {
 		return
@@ -823,7 +838,7 @@ func (cache *Cache) projectObjectType(tsType *checker.Type, node *reflection.Run
 		// Everything that is NOT data, taken whole: the supported natives are dispatched above, so anything
 		// binary or standard-library declared reaching here is promoted to KindClass + SubKindNonSerializable,
 		// and its members are never walked.
-		if _, ok := typeid.NotDataBuiltinOf(cache.typeChecker, tsType); ok {
+		if _, ok := typeid.NotDataBuiltinOf(cache.typeChecker, cache.environment, tsType); ok {
 			cache.projectClass(tsType, node)
 			return
 		}
@@ -953,7 +968,7 @@ func (cache *Cache) projectClass(tsType *checker.Type, node *reflection.RunType)
 			// The BUILTIN name, not symbolName: a type can qualify through its base chain (`class MyBytes extends
 			// Uint8Array`), and the footer's `classType = globalThis.<name>` resolves to undefined for the
 			// subclass's own name, while the matched base always exists.
-			if builtin, ok := typeid.NotDataBuiltinOf(cache.typeChecker, tsType); ok {
+			if builtin, ok := typeid.NotDataBuiltinOf(cache.typeChecker, cache.environment, tsType); ok {
 				node.ClassRef = &reflection.ClassRef{Builtin: builtin}
 				node.SubKind = reflection.SubKindNonSerializable
 			} else {

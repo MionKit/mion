@@ -120,10 +120,8 @@ export const id = getRunTypeId<Readonly<Address>>();
 }
 
 // TestLibAtomic_AugmentedLibInterfaceIsTheAuthorsAgain — declaration merging.
-// Once a consumer adds a member to a lib interface, one of its declarations
-// lives in their own file, and the rule reports "not standard library" for the
-// whole symbol. That is deliberate: they wrote part of this type, so the
-// projection treats it as theirs and walks it, added member included.
+// Adding a member the platform lacks to a lib interface makes the whole symbol the author's, so it is walked.
+// A merge that adds nothing leaves it the platform's (platform_declared_test.go).
 //
 // The cost is a large projection for a type that is mostly lib surface, which is
 // the honest trade. Silently dropping a member the author just declared would be

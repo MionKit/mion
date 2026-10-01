@@ -1,25 +1,22 @@
+// A platform class is not data, decided by where it is declared, never by its name. The platform is the bundled lib
+// plus what the tsconfig `types` list or any `/// <reference types>` loads (program.EnvironmentFile); importing a
+// library never makes it platform. Limits: an ambient `declare module` class in a loaded package counts
+// (`EventEmitter`), `types: ["*"]` loads every `@types` package, and with no `types` list only the lib and what a
+// reference loads count. Pinned by platform_declared_test.go and program/environment_test.go; keep
+// ts-go-runtypes/CLAUDE.md and the runtypes validation page in step.
 package typeid
 
 import (
+	"strings"
+
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
+	"github.com/microsoft/typescript-go/shim/tspath"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// LibDeclaredGlobalOf reports whether tsType is an interface or class declared ENTIRELY inside the bundled
-// TypeScript standard library, returning its name. This is the closed-contract test that replaces the name
-// lists it grew out of: "is this one of the globals we know are NOT data" enumerates an open set, so the
-// list fell behind every edition of the standard library (the ESNext iterator objects, then `PromiseLike`)
-// and each catch-up shipped as a build break for somebody. The finite question instead: a type is data when
-// it is a shape the consumer wrote, or one of the natives we deliberately support (`Date`, `RegExp`, `Map`,
-// `Set`, `URL`, Temporal, binary). A standard-library interface is neither, so it is not data — with no name
-// anywhere. Callers must run this AFTER the supported natives are dispatched, or it would swallow them:
-// they are lib-declared too. Two properties make it safe: a type ALIAS can never be caught (`Partial<T>`,
-// `Record<K, V>`, `Readonly<T>`, `Pick`, `Omit` resolve to a mapped type whose symbol is not interface- or
-// class-flagged, so the consumer's own shape keeps being walked), and declaration merging keeps the
-// author's side (declaringLibFile returns "" when ANY declaration sits outside the lib directory, so a
-// consumer augmenting a lib interface has written part of it and it stays data).
-func LibDeclaredGlobalOf(tsType *checker.Type) (string, bool) {
+// platformDeclaredGlobalOf finds a lib or environment class; run it AFTER the supported natives.
+func platformDeclaredGlobalOf(typeChecker *checker.Checker, environment Environment, tsType *checker.Type) (string, bool) {
 	if tsType == nil {
 		return "", false
 	}
@@ -27,15 +24,117 @@ func LibDeclaredGlobalOf(tsType *checker.Type) (string, bool) {
 	if symbol == nil || symbol.Name == "" {
 		return "", false
 	}
-	// Interfaces and classes only. An alias, a mapped type or an anonymous object literal is the consumer's
-	// own shape even when the checker materialised it from a lib alias.
+	// Interfaces and classes only: an alias or mapped type is the consumer's own shape even when built from a lib alias.
 	if symbol.Flags&(ast.SymbolFlagsInterface|ast.SymbolFlagsClass) == 0 {
 		return "", false
 	}
-	if declaringLibFile(symbol) == "" {
+	if !declaredByPlatform(typeChecker, environment, tsType, symbol) {
 		return "", false
 	}
 	return symbol.Name, true
+}
+
+// declaredByPlatform: some declaration is the platform's and no other adds a member or extends; an empty merge stays so.
+func declaredByPlatform(typeChecker *checker.Checker, environment Environment, tsType *checker.Type, symbol *ast.Symbol) bool {
+	hasPlatform, hasAuthored := false, false
+	for _, declaration := range symbol.Declarations {
+		if isPlatformDeclaration(declaration, environment) {
+			hasPlatform = true
+		} else {
+			hasAuthored = true
+		}
+	}
+	if !hasPlatform || !hasAuthored {
+		return hasPlatform
+	}
+	platformMembers := platformMemberNames(typeChecker, environment, tsType, symbol)
+	for _, declaration := range symbol.Declarations {
+		if !isPlatformDeclaration(declaration, environment) && addsMembers(declaration, platformMembers) {
+			return false
+		}
+	}
+	return true
+}
+
+// isPlatformDeclaration: lib or environment globals only, so a class a loaded package exports from a module stays data.
+func isPlatformDeclaration(declaration *ast.Node, environment Environment) bool {
+	if declaration == nil {
+		return false
+	}
+	sourceFile := ast.GetSourceFileOfNode(declaration)
+	if sourceFile == nil {
+		return false
+	}
+	fileName := sourceFile.FileName()
+	if isDefaultLibFileName(fileName) && strings.HasPrefix(tspath.NormalizePath(fileName), bundledLibPrefix) {
+		return true
+	}
+	if environment == nil || !sourceFile.IsDeclarationFile || !environment(sourceFile) {
+		return false
+	}
+	return !ast.IsExternalModule(sourceFile) || insideGlobalAugmentation(declaration)
+}
+
+func insideGlobalAugmentation(declaration *ast.Node) bool {
+	for node := declaration.Parent; node != nil; node = node.Parent {
+		if ast.IsGlobalScopeAugmentation(node) {
+			return true
+		}
+	}
+	return false
+}
+
+// platformMemberNames is every member name the platform declarations give the type, own and inherited.
+// Authored heritage is refused by addsMembers first, so the base types here are the platform's.
+func platformMemberNames(typeChecker *checker.Checker, environment Environment, tsType *checker.Type, symbol *ast.Symbol) map[string]bool {
+	names := map[string]bool{}
+	for _, declaration := range symbol.Declarations {
+		if !isPlatformDeclaration(declaration, environment) {
+			continue
+		}
+		for _, member := range shapeMembers(declaration) {
+			if memberSymbol := member.Symbol(); memberSymbol != nil {
+				names[memberSymbol.Name] = true
+			}
+		}
+	}
+	for _, baseType := range BaseTypesOf(typeChecker, tsType) {
+		for _, property := range typeChecker.GetPropertiesOfType(baseType) {
+			names[property.Name] = true
+		}
+	}
+	return names
+}
+
+// shapeMembers are the member nodes of an interface or class declaration; a `var`, function or namespace has none.
+func shapeMembers(declaration *ast.Node) []*ast.Node {
+	if declaration.Kind == ast.KindInterfaceDeclaration || declaration.Kind == ast.KindClassDeclaration {
+		return declaration.Members()
+	}
+	return nil
+}
+
+// addsMembers: adds a member the platform lacks or extends something; matched by name, so an extra overload is a restatement.
+func addsMembers(declaration *ast.Node, platformMembers map[string]bool) bool {
+	switch declaration.Kind {
+	case ast.KindInterfaceDeclaration:
+		if declaration.AsInterfaceDeclaration().HeritageClauses != nil {
+			return true
+		}
+	case ast.KindClassDeclaration:
+		if declaration.AsClassDeclaration().HeritageClauses != nil {
+			return true
+		}
+	default:
+		return false
+	}
+	for _, member := range shapeMembers(declaration) {
+		memberSymbol := member.Symbol()
+		if memberSymbol == nil || !platformMembers[memberSymbol.Name] {
+			return true
+		}
+	}
+	return false
 }
 
 // symbolForLibLookup resolves the declaration symbol behind a possibly
@@ -50,23 +149,17 @@ func symbolForLibLookup(tsType *checker.Type) *ast.Symbol {
 	return tsType.Symbol()
 }
 
-// NotDataBuiltinOf is the single "this is not data, take it whole" predicate, and the one every projection
-// site should ask. Three rules, in order: it is shaped like a view over bytes (IsBinaryViewShape — every
-// typed array, `DataView`, Node's `Buffer`, and any subclass a consumer writes); it inherits from a raw
-// buffer (BinaryRootBaseOf), the one binary case with no member shape to test for; it is declared in the
-// standard library (LibDeclaredGlobalOf). The last rule is the contract: data is the closed set the
-// projection walks, so nothing is enumerated and a new lib edition cannot leave a list behind. Callers must
-// dispatch the supported natives (`Date`, `URL`, `Map`, `Set`, `RegExp`, Promise, Temporal, arrays) BEFORE asking,
-// since those are lib-declared too. The returned name becomes ClassRef.Builtin, which the emitter writes as
-// `classType = globalThis.<name>`, so it is always a name that exists at runtime, never a subclass name.
-func NotDataBuiltinOf(typeChecker *checker.Checker, tsType *checker.Type) (string, bool) {
+// NotDataBuiltinOf is the one "not data, take it whole" predicate: binary view, raw-buffer subclass or platform class.
+// Run it AFTER the supported natives (`Date`, `URL`, `Map`, `Set`, arrays...), which are lib-declared too.
+// The name is written as `classType = globalThis.<name>`; nothing reads it for not-data, so `EventEmitter` may be undefined.
+func NotDataBuiltinOf(typeChecker *checker.Checker, environment Environment, tsType *checker.Type) (string, bool) {
 	if IsBinaryViewShape(typeChecker, tsType) {
-		return binaryViewClassRef(tsType), true
+		return binaryViewClassRef(typeChecker, tsType), true
 	}
 	if name, ok := BinaryRootBaseOf(typeChecker, tsType); ok {
 		return name, true
 	}
-	return LibDeclaredGlobalOf(tsType)
+	return platformDeclaredGlobalOf(typeChecker, environment, tsType)
 }
 
 // IsBinaryViewShape reports whether tsType satisfies the lib's `ArrayBufferView` shape: it carries
@@ -92,13 +185,10 @@ func IsBinaryViewShape(typeChecker *checker.Checker, tsType *checker.Type) bool 
 	return true
 }
 
-// binaryViewClassRef names the runtime global for a binary view. The emitter writes the returned name as
-// `classType = globalThis.<name>`, so a type declared outside the lib (Node's `Buffer`, a user subclass)
-// cannot use its own name — `globalThis.Buffer` is undefined off Node, and a user subclass is not a global
-// at all. `Uint8Array` exists in every runtime and stands in for "some view over bytes"; a lib-declared
-// view keeps its own name.
-func binaryViewClassRef(tsType *checker.Type) string {
-	if name, ok := LibDeclaredGlobalOf(tsType); ok {
+// binaryViewClassRef is the `globalThis.<name>` the emitter writes for a view; `Uint8Array` stands in for a non-lib one.
+func binaryViewClassRef(typeChecker *checker.Checker, tsType *checker.Type) string {
+	// Lib only: a name a runtime types package declares (`Buffer`) is no global in every runtime.
+	if name, ok := platformDeclaredGlobalOf(typeChecker, nil, tsType); ok {
 		return name
 	}
 	return "Uint8Array"

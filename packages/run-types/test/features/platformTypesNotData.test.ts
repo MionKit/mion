@@ -1,0 +1,81 @@
+// A platform-declared type (`@types/node` redeclares lib globals too) is not data: a property is dropped, the root refused.
+
+import {EventEmitter} from 'node:events';
+import {describe, expect, it} from 'vitest';
+import {createJsonDecoderFn, createJsonEncoderFn, createRemoveUnknownKeysFn, createValidateFn} from '@mionjs/run-types';
+
+interface Job {
+  id: string;
+  timer: NodeJS.Timeout;
+  events: EventEmitter;
+  headers: Headers;
+  abort: AbortController;
+}
+
+class Point {
+  x = 1;
+  y = 2;
+}
+
+function makeJob(): Job {
+  const timer = setTimeout(() => {}, 0);
+  clearTimeout(timer);
+  return {id: 'a', timer, events: new EventEmitter(), headers: new Headers({a: 'b'}), abort: new AbortController()};
+}
+
+describe('platform types are not data', () => {
+  it('validate ignores the platform members of a real Job', () => {
+    const validate = createValidateFn<Job>();
+    expect(validate(makeJob())).toBe(true);
+    expect(validate({id: 'a'})).toBe(true);
+    expect(validate({id: 1})).toBe(false);
+  });
+
+  it('JSON leaves them out instead of writing their object shape', () => {
+    const encode = createJsonEncoderFn<Job>(undefined, {strategy: 'clone'});
+    expect(JSON.parse(encode(makeJob()) as string)).toEqual({id: 'a'});
+    const decode = createJsonDecoderFn<{url: URL; id: number}>();
+    expect(decode('{"id":1,"url":{"href":"x"}}')).toEqual({id: 1});
+  });
+
+  it('removeUnknownKeys builds with no error and shares the platform value', () => {
+    const clone = createRemoveUnknownKeysFn<{id: string; url: URL; headers: Headers}>();
+    const value = {id: 'a', url: new URL('https://mion.io'), headers: new Headers()};
+    const out = clone(value);
+    expect(out.url).toBe(value.url);
+    expect(out.headers).toBe(value.headers);
+    expect(() => createRemoveUnknownKeysFn<{timer: NodeJS.Timeout}>()).not.toThrow();
+    expect(() => createRemoveUnknownKeysFn<{events: EventEmitter}>()).not.toThrow();
+  });
+
+  it('Blob and Request are taken whole in every family, not walked', () => {
+    const validate = createValidateFn<{blob: Blob; request: Request}>();
+    expect(validate({blob: new Blob(['x']), request: new Request('https://mion.io')})).toBe(true);
+    expect(validate({blob: 1, request: 'nope'})).toBe(true);
+    const encode = createJsonEncoderFn<{id: number; response: Response}>(undefined, {strategy: 'clone'});
+    expect(JSON.parse(encode({id: 1, response: new Response()}) as string)).toEqual({id: 1});
+    const decode = createJsonDecoderFn<{id: number; blob: Blob}>();
+    expect(decode('{"id":1}')).toEqual({id: 1});
+    expect(() => createRemoveUnknownKeysFn<{blob: Blob; request: Request}>()).not.toThrow();
+  });
+
+  it('the value call shape reads the same type as the static one', () => {
+    const job = makeJob();
+    const validate = createValidateFn(job);
+    expect(validate(makeJob())).toBe(true);
+    expect(validate({id: 1})).toBe(false);
+  });
+
+  it('the root is refused like a lib class', () => {
+    // @mion-downgrade-error VL001
+    expect(() => createValidateFn<URL>()).toThrow(/VL001/);
+    // @mion-downgrade-error VL001
+    expect(() => createValidateFn<EventEmitter>()).toThrow(/VL001/);
+  });
+
+  it('a class the author declares stays data', () => {
+    const validate = createValidateFn<{point: Point}>();
+    expect(validate({point: {x: 1, y: 2}})).toBe(true);
+    expect(validate({point: {x: 1}})).toBe(false);
+  });
+});
