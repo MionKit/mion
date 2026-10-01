@@ -1,7 +1,7 @@
 ---
 type: feature
 spec: full-plan
-status: ready
+status: done
 created: 2026-09-30
 ---
 
@@ -142,3 +142,20 @@ call-site plumbing, covered by the paired Go tests and the mode-parity corpus.
 - `pnpm test`, `go -C ts-go-runtypes test ./internal/... ./cmd/...`, `pnpm run lint` green.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source
   file, each committed on its own.
+
+## What shipped (2026-10-01)
+
+Built as planned, with these differences:
+
+- `analyzeCall` and the guard helpers read `call.ArgumentList()` / `call.TypeArguments()` straight off the node
+  instead of taking a new `{args, typeArgs, hasArgList}` struct. `callExpressionName` was left alone: it only
+  names a call written as argument 0, never the `new` site itself.
+- Reflect-form gate (`paramZeroCarriesT`): parameter 0 must be the marker's T (undefined stripped) or `RunType<T>`.
+  An untrusted brand resolves no T, so it keeps the old annotation swap.
+- Options bag: read only when the slot before the marker is CompTimeArgs / CompTimeFnArgs / CompTimeHints.
+- The constructor caches its check fns in a `WeakMap` keyed on the FIRST entry tuple, not the injected array:
+  the array is a fresh literal at every call.
+- The JSON rewrite fixtures replay in the Go `sourcerewrite` tests (both modes); the JS mode-parity test got its
+  own `new Holder<T>()`, `new Holder(value)` and paren-less `new Holder<T>` cases.
+- MKR003 / MKR010 wording already fits `new`, so no change.
+- The compiler markers page shows a constructor example (`markers-wrap-class.ts`).
