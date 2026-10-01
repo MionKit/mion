@@ -4,16 +4,10 @@
 // Every content page must have prerendered, and every benchmark component on it must
 // have the data it fetches at runtime:
 //
-//   `::bench-table` (the runtypes benchmark pages) fetches /bench-data/<bench>/*.json
-//     on mount and renders a tidy "Benchmark data not generated yet" notice when the
-//     file is missing. Right for a fresh clone, wrong for a deploy: a benchmark stage
-//     that dies mid-run ships a green build whose pages are empty (exactly what happened
-//     to the JSON round trip pages). Prerendered HTML can't reveal it either, since the
-//     table only appears after hydration. So the gate replays what the browser does,
-//     over HTTP, against the real artifact: the component shell is in the HTML, the
-//     index.json holds real, renderable numbers (mirroring BenchTable's own cell logic,
-//     so a dataset that would paint every cell `n-a` fails here), and one hover-panel
-//     detail file per section is present.
+//   `::bench-table` (the runtypes benchmark pages) fetches /bench-data/<bench>/*.json on mount and shows a
+//     "not generated yet" notice when it is missing, so a dead benchmark stage ships empty pages on a green build.
+//     The table only appears after hydration, so the gate replays the fetch over HTTP: shell in the HTML,
+//     index.json cells renderable (BenchTable's own cell logic), one hover-panel detail file per section.
 //   `:server-bench-bars` (the rpc benchmark pages) fetches /bench-data/<bench>/index.json
 //     the same way: the component's shell is in the HTML and the dataset (or each
 //     named section of it) has rows.
@@ -51,8 +45,7 @@ const CONTENT_DIR = join(REPO_ROOT, 'container/website/content');
 
 // ── page discovery ───────────────────────────────────────────────────────────
 
-// Nuxt Content drops the numeric ordering prefix from every path segment:
-// content/03.benchmarks/03.runtypes/05.json-round-trip.md -> /benchmarks/runtypes/json-round-trip.
+// Nuxt Content drops the numeric ordering prefix from every path segment.
 const routeSegment = (name) => name.replace(/^\d+\./, '').replace(/\.md$/, '');
 
 /** The route of a content file: `index.md` is the landing page of its dir (`/` at the

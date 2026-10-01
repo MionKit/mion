@@ -92,14 +92,10 @@ export function resolveRtBinary(explicit?: string): string | undefined {
   return explicit; // otherwise @mionjs/bin-compiler getExePath() takes over (MION_BIN → platform binary)
 }
 
-/** The SEPARATE project that declares the mion API this client calls, the mirror of MionClientPointer.
- *
- *  A client built with `bundleApi` compiles, for every route it calls, the same validation and JSON round trip
- *  functions the server holds. They come from the route's TypeScript types, and a type resolved under different compiler
- *  settings (another `lib`, `strictNullChecks` off, other path mappings) can differ from what the server
- *  compiled, so this pointer makes the resolver read the routes' types in a program built over THAT tsconfig.
- *  A client sharing its program with the API needs no pointer. The same pointer is the tsconfig plugin key
- *  `apiTsconfig` and the CLI flag `--api-tsconfig`. */
+/** The SEPARATE project declaring the mion API this client calls, the mirror of MionClientPointer.
+ *  A `bundleApi` client compiles the server's functions from route types read under THAT tsconfig, since other
+ *  settings (`lib`, `strictNullChecks`, paths) can resolve them differently. Not needed when sharing the API's program.
+ *  Also the tsconfig plugin key `apiTsconfig` and the CLI flag `--api-tsconfig`. */
 export interface MionApiPointer {
   /** Path to the API project's tsconfig (absolute, or relative to the vite root / Next cwd). */
   tsConfig: string;

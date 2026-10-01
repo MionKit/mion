@@ -79,7 +79,7 @@ export interface MiddlewareOptionsWithParser extends MiddlewareOptionsBase {
 export type MiddlewareOptions = PlainMiddlewareOptions | MiddlewareOptionsWithParser;
 export type PlainHeadersMiddlewareOptions = PlainMiddlewareOptions;
 export type HeadersMiddlewareOptions = MiddlewareOptions;
-// RawMiddlewareOptions doesn't need encoding - raw middlewares handle their own JSON round trip
+// No parser: raw middlewares handle their own JSON round trip.
 export type RawMiddlewareOptions = Partial<Pick<RawMethod['options'], 'description' | 'alwaysRun'>>;
 
 export interface MethodsExecutionChain {

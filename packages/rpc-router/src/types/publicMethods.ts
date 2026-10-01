@@ -64,9 +64,8 @@ export type RemoteApi = {
   [key: string]: PublicRoute<any, any, any> | PublicMiddleware<any, any, any> | PublicHeadersFn<any, any, any> | RemoteApi;
 };
 
-/** The types the server compiled a method's validation and JSON round trip functions from: the same aliases the route
- *  helpers hand to their markers, so a client build with `bundleApi` compiles the same functions under the
- *  same ids. Type-only: never set at runtime. */
+/** The aliases the route helpers hand their markers, so a `bundleApi` client compiles the same functions and ids.
+ *  Type-only: never set at runtime. */
 export interface MethodTypes {
   /** the params tuple the server validates (a headers middleware's start after its HeadersSubset) */
   params: unknown;

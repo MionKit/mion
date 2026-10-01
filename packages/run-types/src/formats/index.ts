@@ -1,8 +1,5 @@
-// Public entry for the `@mionjs/run-types/formats` subpath: the format TYPE aliases plus the pure-fn
-// registrations. Formats are JS-only types; validation / JSON round trip / coercion are emitted on the Go
-// side, keyed off the format name carried in the wire-protocol FormatAnnotation. The side-effect imports
-// below MUST evaluate before any format module reaching a pure fn at runtime: emitted code looks one up
-// by HASH and an absent key answers undefined, so a format check would silently accept everything.
+// Formats are JS-only types; Go emits their functions, keyed off the FormatAnnotation's format name. The side-effect
+// imports below MUST evaluate first: emitted code looks a pure fn up by HASH, and a missing one accepts everything.
 import './string/string-formats-pure-fns.ts';
 // Split out of the string pure fns: the card format carries more machinery than the rest of the family.
 import './string/credit-card-pure-fns.ts';

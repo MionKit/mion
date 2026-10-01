@@ -230,20 +230,12 @@ export type InjectBatchId<Routes> = string & {
 };
 
 /**
- * API metadata injection marker for a mion client built with `bundleApi`. A client dispatch point
- * (`routes.x(...).call()`, `routes.x(...).typeErrors()`, `batch([...]).call()`)
- * declares it as its trailing parameter, typed with the API and the id of the route it calls
- * (`call(setup?, apiMetadata?: InjectApiMetadata<Api, Id>)`). The build resolves that route (plus
- * every middleware in its chain) out of the API type, compiles the same validation and JSON round trip functions the
- * server holds, and fills the slot with an import of the generated module carrying them. Without the
- * build option nothing is injected and the client fetches its metadata from the server as before.
- *
- * Whether the API is bundled is a build option, not a call-site fact: a module every `initClient` file imports sets it.
- *
- * `Api` and `Id` are phantom, read by the build; the injected runtime value is the generated
- * module's export (an object holding the method rows), NOT a string like `InjectRunTypeId`, and the
- * type is the brand alone to stay honest about that — the scanner matches a marker by its name,
- * module and brand property, never by what it wraps.
+ * Trailing param of a `bundleApi` client dispatch point (`call()`, `typeErrors()`, `batch([...]).call()`): the build
+ * fills it with a generated module holding the server's compiled functions for the route and its middlewares.
+ * Without the option nothing is injected and the client fetches its metadata from the server.
+ * Bundling is a build option set by a module every `initClient` file imports, not a call-site fact.
+ * The runtime value is a module export object, NOT a string, so the type is the brand alone; the scanner matches
+ * a marker by name, module and brand property, never by what it wraps.
  */
 export type InjectApiMetadata<Api, Id extends string> = {
   readonly __rtInjectApiMetadataBrand?: [Api, Id];
