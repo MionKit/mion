@@ -132,7 +132,7 @@ func emitPropertyFormat(rt *reflection.RunType, ctx *EmitContext, v string) RTCo
 		return RTCode{Code: "", Type: CodeS}
 	}
 	resolved := ctx.ResolveRef(rt.Child)
-	if resolved == nil || isMethodMember(resolved.Kind) {
+	if resolved == nil || isCallableValue(resolved, ctx) {
 		return RTCode{Code: "", Type: CodeS}
 	}
 	accessor := propertyAccessor(v, rt.Name, rt.IsSafeName)
