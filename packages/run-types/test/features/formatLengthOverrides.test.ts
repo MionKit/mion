@@ -44,7 +44,7 @@ describe('variable-width format length overrides converge across authoring modes
   });
 });
 
-// The named VARIANTS of those families (urlHttp, emailPunycode, domainStrict,
+// The named VARIANTS of those families (urlHttp, emailPunycode, domainParts,
 // ipv4, base64, …) used to be take-it-or-leave-it presets: the type accepted no
 // override and the builder took no params. They now ride the same merge as their
 // generic sibling, so the preset's own defaults survive whatever the caller
@@ -68,12 +68,12 @@ describe('every predefined string format accepts an override', () => {
     expect(getRunTypeId(TF.domainUnicode({maxLength: 120}))).toBe(getRunTypeId<TF.DomainUnicode<{maxLength: 120}>>());
   });
 
-  it('domainStrict / emailStrict keep their decomposition while bounds retune', () => {
-    expect(getRunTypeId(TF.domainStrict({maxLength: 120}))).toBe(getRunTypeId<TF.DomainStrict<{maxLength: 120}>>());
-    expect(getRunTypeId(TF.emailStrict({maxLength: 120}))).toBe(getRunTypeId<TF.EmailStrict<{maxLength: 120}>>());
-    const isStrict = createValidateFn(TF.domainStrict({maxLength: 120}));
-    expect(isStrict('sub.example.com')).toBe(true);
-    expect(isStrict('-bad-.example.com')).toBe(false);
+  it('domainParts / emailParts keep their decomposition while bounds retune', () => {
+    expect(getRunTypeId(TF.domainParts({maxLength: 120}))).toBe(getRunTypeId<TF.DomainParts<{maxLength: 120}>>());
+    expect(getRunTypeId(TF.emailParts({maxLength: 120}))).toBe(getRunTypeId<TF.EmailParts<{maxLength: 120}>>());
+    const isDomainParts = createValidateFn(TF.domainParts({maxLength: 120}));
+    expect(isDomainParts('sub.example.com')).toBe(true);
+    expect(isDomainParts('-bad-.example.com')).toBe(false);
   });
 
   it('ipv4: the override adds a port while the version stays pinned', () => {
@@ -96,7 +96,7 @@ describe('every predefined string format accepts an override', () => {
 
   it('the bare spelling of every preset is unchanged by gaining the override', () => {
     expect(getRunTypeId(TF.urlHttp())).toBe(getRunTypeId<TF.UrlHttp>());
-    expect(getRunTypeId(TF.emailStrict())).toBe(getRunTypeId<TF.EmailStrict>());
+    expect(getRunTypeId(TF.emailParts())).toBe(getRunTypeId<TF.EmailParts>());
     expect(getRunTypeId(TF.ipv4())).toBe(getRunTypeId<TF.IPv4>());
     expect(getRunTypeId(TF.base32())).toBe(getRunTypeId<TF.Base32>());
     expect(getRunTypeId(TF.domainPunycode())).toBe(getRunTypeId<TF.DomainPunycode>());

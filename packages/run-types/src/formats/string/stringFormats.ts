@@ -367,30 +367,34 @@ export interface DomainPartParams {
  *  host-name rules), `'punycode'` (an `xn--` label does not decode, or is not
  *  the canonical spelling of what it decodes to), `'bidi'` (the right-to-left
  *  rule across the whole name) or `'length'` (the name or a label is too long,
- *  or a declared length bound fails). On the decomposition path
- *  (`DomainStrict`): `'label'` for a name label, `'tld'` for the last one;
+ *  or a declared length bound fails). On the parts path
+ *  (`DomainParts`): `'label'` for a name label, `'tld'` for the last one;
  *  whole-name bounds (`maxParts`, a root `maxLength`) leave it unset since
  *  `formatPath` already names them. The plain pattern path (`Domain`) has one
  *  way to fail per param and never sets it. **/
 export type DomainErrorType = 'label' | 'tld' | 'punycode' | 'bidi' | 'length';
 
-// Pattern path (single baked regex) OR names+tld decomposition, never both (Go FMT002 enforces it).
+// The quick road: one baked regex plus whole-value checks. Splitting into parts is `DomainPartsParams` only.
 /** A failing value reports WHICH PART failed in the error's `errorType`, one of
  *  `DomainErrorType` (see it for which path sets which). **/
 export interface DomainParams {
   maxLength?: number;
   minLength?: number;
-  maxParts?: number;
-  minParts?: number;
   pattern?: PatternParam | {val: RegExp};
   mockSamples?: readonly string[];
-  names?: DomainPartParams;
-  tld?: DomainPartParams;
   // Enum-like restriction: only these exact domains validate. Mocks draw from it FIRST, since a
   // synthesized domain would fail its own validator.
   allowedValues?: AllowedValuesParam;
   /** Value rewrite (`{lowercase: true}` is the usual one). Off by default. **/
   transform?: StringTransformParams;
+}
+
+// The parts road: split on '.', check each label and the tld, bound the label count. Never with `pattern` (Go FMT002).
+export interface DomainPartsParams extends DomainParams {
+  maxParts?: number;
+  minParts?: number;
+  names?: DomainPartParams;
+  tld?: DomainPartParams;
 }
 
 type DEFAULT_DOMAIN_PARAMS = {pattern: typeof DOMAIN_PATTERN; maxLength: 253; minLength: 5};
@@ -412,7 +416,7 @@ export type DomainPunycode<P extends Override<DomainParams, 'pattern'> = {}> = P
 >;
 /* eslint-enable @typescript-eslint/no-empty-object-type */
 
-export type DEFAULT_STRICT_DOMAIN_PARAMS = {
+export type DEFAULT_DOMAIN_PARTS_PARAMS = {
   maxParts: 6;
   minParts: 2;
   maxLength: 253;
@@ -420,12 +424,12 @@ export type DEFAULT_STRICT_DOMAIN_PARAMS = {
   names: {maxLength: 63; minLength: 2; pattern: typeof DOMAIN_NAME_PATTERN};
   tld: {maxLength: 12; minLength: 2; pattern: typeof DOMAIN_TLD_PATTERN};
 };
-// ≤6 labels, ≥2 parts, no hyphen-edge labels, alphabetical tld. The label/tld decomposition IS the
-// strictness, so those two stay pinned; bounds and samples are retunable.
+// ≤6 labels, ≥2 parts, no hyphen-edge labels, alphabetical tld. Splitting into labels and tld IS
+// the format, so those two stay pinned; bounds and samples are retunable.
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export type DomainStrict<P extends Override<DomainParams, 'names' | 'tld'> = {}> = PresetFormat<
+export type DomainParts<P extends Override<DomainPartsParams, 'names' | 'tld'> = {}> = PresetFormat<
   'domain',
-  DEFAULT_STRICT_DOMAIN_PARAMS,
+  DEFAULT_DOMAIN_PARTS_PARAMS,
   P
 >;
 
@@ -475,15 +479,14 @@ export type Transform<T extends string, P extends TransformParamsOf<T>> = [Forma
  *  `IdnEmail`): `'format'` (no `@` at all), `'localPart'` (the part before the
  *  last `@`), `'domain'` (a named domain after it), `'addressLiteral'` (a
  *  bracketed IP literal after it) or `'length'` (a declared length bound
- *  fails). On the decomposition path (`EmailStrict`): `'format'` for a missing
+ *  fails). On the parts path (`EmailParts`): `'format'` for a missing
  *  `@` and `'localPart'` for the local half; the domain half's errors carry the
  *  `domain` format name and its own `DomainErrorType`. Whole-address bounds
  *  leave it unset since `formatPath` already names them. The plain pattern
  *  path (`Email`) has one way to fail per param and never sets it. **/
 export type EmailErrorType = 'format' | 'localPart' | 'domain' | 'addressLiteral' | 'length';
 
-// EmailParams — pattern path, or localPart + domain decomposition.
-// The RFC presets add a third road, `emailRfc`, which Go FMT002 rejects alongside localPart/domain.
+// The quick road: one baked regex, or the `emailRfc` engine of the RFC presets. Splitting is `EmailPartsParams` only.
 /** A failing value reports WHICH PART failed in the error's `errorType`, one of
  *  `EmailErrorType` (see it for which path sets which). **/
 export interface EmailParams {
@@ -491,11 +494,15 @@ export interface EmailParams {
   minLength?: number;
   pattern?: PatternParam | {val: RegExp};
   mockSamples?: readonly string[];
-  localPart?: StringParams;
-  domain?: DomainParams;
   /** Value rewrite (`{trim: true, lowercase: true}` is the usual one). Off by default: an email's local
    *  part is case-sensitive by the letter of the RFC, so lowercasing is the field's decision. **/
   transform?: StringTransformParams;
+}
+
+// The parts road: split on the last '@', check the local part and the domain (which may split again).
+export interface EmailPartsParams extends EmailParams {
+  localPart?: StringParams;
+  domain?: DomainPartsParams;
 }
 
 type DEFAULT_EMAIL_PARAMS = {pattern: typeof EMAIL_PATTERN; maxLength: 254; minLength: 7};
@@ -519,18 +526,14 @@ export type Email<P extends Override<EmailParams> = {}> = PresetFormat<'email', 
  *  a quoted local part (`"joe bloggs"@example.com`) and an address literal
  *  (`joe@[127.0.0.1]`) both pass. One practical narrowing shared with `Email`:
  *  a NAMED domain must be dotted (`joe@tld` is RFC-legal but rejected). **/
-export type EmailAddress<P extends Override<EmailParams, 'pattern' | 'localPart' | 'domain'> = {}> = PresetFormat<
+export type EmailAddress<P extends Override<EmailParams, 'pattern'> = {}> = PresetFormat<
   'email',
   DEFAULT_EMAIL_ADDRESS_PARAMS,
   P
 >;
 /** The same grammar with the local part and domain in any script — what
  *  `format: 'idn-email'` means. **/
-export type IdnEmail<P extends Override<EmailParams, 'pattern' | 'localPart' | 'domain'> = {}> = PresetFormat<
-  'email',
-  DEFAULT_IDN_EMAIL_PARAMS,
-  P
->;
+export type IdnEmail<P extends Override<EmailParams, 'pattern'> = {}> = PresetFormat<'email', DEFAULT_IDN_EMAIL_PARAMS, P>;
 export type EmailPunycode<P extends Override<EmailParams, 'pattern'> = {}> = PresetFormat<
   'email',
   DEFAULT_EMAIL_PUNYCODE_PARAMS,
@@ -538,7 +541,7 @@ export type EmailPunycode<P extends Override<EmailParams, 'pattern'> = {}> = Pre
 >;
 /* eslint-enable @typescript-eslint/no-empty-object-type */
 
-export type DEFAULT_STRICT_EMAIL_PARAMS = {
+export type DEFAULT_EMAIL_PARTS_PARAMS = {
   maxLength: 254;
   localPart: {
     maxLength: 64;
@@ -549,14 +552,14 @@ export type DEFAULT_STRICT_EMAIL_PARAMS = {
       mockSamples: 'abcdefghijklmnopqrstuvwxyz0123456789._-';
     };
   };
-  domain: DEFAULT_STRICT_DOMAIN_PARAMS;
+  domain: DEFAULT_DOMAIN_PARTS_PARAMS;
 };
-// Split on the last '@', local part rejects spaces / brackets / aliasing chars, domain validated
-// strictly. Both halves of that split are the strictness, so both stay pinned.
+// Split on the last '@', local part rejects spaces / brackets / aliasing chars, domain checked
+// as `DomainParts`. That split IS the format, so both halves stay pinned.
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export type EmailStrict<P extends Override<EmailParams, 'localPart' | 'domain'> = {}> = PresetFormat<
+export type EmailParts<P extends Override<EmailPartsParams, 'localPart' | 'domain'> = {}> = PresetFormat<
   'email',
-  DEFAULT_STRICT_EMAIL_PARAMS,
+  DEFAULT_EMAIL_PARTS_PARAMS,
   P
 >;
 
@@ -820,35 +823,29 @@ export const domainUnicode = presetFormatBuilder<'domain', DEFAULT_DOMAIN_UNICOD
 export const domainPunycode = presetFormatBuilder<'domain', DEFAULT_DOMAIN_PUNYCODE_PARAMS, Override<DomainParams, 'pattern'>>(
   'domain'
 );
-/** Strict domain — ≤6 labels, ≥2 parts, alphabetical tld (`DomainStrict`). **/
-export const domainStrict = presetFormatBuilder<'domain', DEFAULT_STRICT_DOMAIN_PARAMS, Override<DomainParams, 'names' | 'tld'>>(
-  'domain'
-);
+/** Domain checked part by part — ≤6 labels, ≥2 parts, alphabetical tld (`DomainParts`). **/
+export const domainParts = presetFormatBuilder<
+  'domain',
+  DEFAULT_DOMAIN_PARTS_PARAMS,
+  Override<DomainPartsParams, 'names' | 'tld'>
+>('domain');
 
 /** Email (`Email`); `email({maxLength: 100})` overrides bounds, keeping the
  *  built-in pattern. **/
 export const email = presetFormatBuilder<'email', DEFAULT_EMAIL_PARAMS, Override<EmailParams>>('email');
 /** Full RFC 5321 address (`EmailAddress`). **/
-export const emailAddress = presetFormatBuilder<
-  'email',
-  DEFAULT_EMAIL_ADDRESS_PARAMS,
-  Override<EmailParams, 'pattern' | 'localPart' | 'domain'>
->('email');
+export const emailAddress = presetFormatBuilder<'email', DEFAULT_EMAIL_ADDRESS_PARAMS, Override<EmailParams, 'pattern'>>('email');
 /** Internationalized address (`IdnEmail`). **/
-export const idnEmail = presetFormatBuilder<
-  'email',
-  DEFAULT_IDN_EMAIL_PARAMS,
-  Override<EmailParams, 'pattern' | 'localPart' | 'domain'>
->('email');
+export const idnEmail = presetFormatBuilder<'email', DEFAULT_IDN_EMAIL_PARAMS, Override<EmailParams, 'pattern'>>('email');
 /** Punycode-domain email (`EmailPunycode`). **/
 export const emailPunycode = presetFormatBuilder<'email', DEFAULT_EMAIL_PUNYCODE_PARAMS, Override<EmailParams, 'pattern'>>(
   'email'
 );
-/** Strict email — strict local part + strict domain (`EmailStrict`). **/
-export const emailStrict = presetFormatBuilder<
+/** Email checked part by part — local part + `DomainParts` domain (`EmailParts`). **/
+export const emailParts = presetFormatBuilder<
   'email',
-  DEFAULT_STRICT_EMAIL_PARAMS,
-  Override<EmailParams, 'localPart' | 'domain'>
+  DEFAULT_EMAIL_PARTS_PARAMS,
+  Override<EmailPartsParams, 'localPart' | 'domain'>
 >('email');
 
 /** URL (`Url`); `url({maxLength: 100})` overrides bounds, keeping the built-in

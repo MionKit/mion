@@ -23,6 +23,16 @@ isDomain('example.com'); // true
 isDomain('localhost'); // false, needs a dot
 isHostname('localhost'); // true
 isIdnHostname('실례.테스트'); // true
+
+const isOurSite =
+  createValidateFn<
+    TF.Domain<{allowedValues: {val: ['example.com', 'mion.io']}}>
+  >();
+const isShortDomain = createValidateFn<TF.DomainParts<{maxParts: 3}>>();
+
+isOurSite('mion.io'); // true
+isOurSite('other.org'); // false, not in the list
+isShortDomain('aa.bb.example.com'); // false, more than 3 parts
 // end-hosts
 
 // start-ip

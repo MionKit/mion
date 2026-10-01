@@ -2967,7 +2967,7 @@ export const cases: CompetitorCases = {
       };
     },
   },
-  'STRING_FORMAT.domainStrict': {
+  'STRING_FORMAT.domainParts': {
     build: () => {
       const schema = Type.String({pattern: '^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?[.]){1,5}[a-zA-Z]{2,}$'});
       const check = TypeCompiler.Compile(schema);
@@ -3020,7 +3020,7 @@ export const cases: CompetitorCases = {
       };
     },
   },
-  'STRING_FORMAT.emailStrict': {
+  'STRING_FORMAT.emailParts': {
     build: () => {
       const schema = Type.String({
         pattern: '^[a-zA-Z0-9.][a-zA-Z0-9._-]{0,62}@([a-zA-Z0-9]{2,}([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?[.])+[a-zA-Z]{2,}$',

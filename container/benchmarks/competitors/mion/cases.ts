@@ -1959,10 +1959,10 @@ export const cases: CompetitorCases = {
       return (value: unknown) => getErrors(value).length === 0;
     },
   },
-  'STRING_FORMAT.domainStrict': {
-    build: () => createValidateFn<TF.DomainStrict>(),
+  'STRING_FORMAT.domainParts': {
+    build: () => createValidateFn<TF.DomainParts>(),
     buildErrors: () => {
-      const getErrors = createGetValidationErrorsFn<TF.DomainStrict>();
+      const getErrors = createGetValidationErrorsFn<TF.DomainParts>();
       return (value: unknown) => getErrors(value).length === 0;
     },
   },
@@ -1980,10 +1980,10 @@ export const cases: CompetitorCases = {
       return (value: unknown) => getErrors(value).length === 0;
     },
   },
-  'STRING_FORMAT.emailStrict': {
-    build: () => createValidateFn<TF.EmailStrict>(),
+  'STRING_FORMAT.emailParts': {
+    build: () => createValidateFn<TF.EmailParts>(),
     buildErrors: () => {
-      const getErrors = createGetValidationErrorsFn<TF.EmailStrict>();
+      const getErrors = createGetValidationErrorsFn<TF.EmailParts>();
       return (value: unknown) => getErrors(value).length === 0;
     },
   },

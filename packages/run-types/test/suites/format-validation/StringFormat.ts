@@ -2430,44 +2430,44 @@ export const STRING_FORMAT = {
     }),
     expectedFormatErrors: () => [{name: 'domain'}, null, null, null, null, null],
   },
-  domainStrict: {
-    title: 'Domain strict',
+  domainParts: {
+    title: 'Domain parts',
     description:
-      'TF.DomainStrict (format `domain`) stricter than TF.Domain with ≤6 labels, ≥2 parts, strict name/TLD patterns, and hyphen-edge rejection.',
+      'TF.DomainParts (format `domain`) splits the name and checks each part: ≤6 labels, ≥2 parts, name/TLD patterns, and hyphen-edge rejection.',
     validateNotes: [
       'Up to 6 labels pass (`mion.io`, `sub.example.com`, `aa.bb.cc.dd.ee.com`).',
       'Rejected: a leading-hyphen label (`-bad.com`), more than 6 labels (`aa.bb.cc.dd.ee.ff.com`), a numeric TLD (`example.123`), an underscore in a label (`ex_ample.com`), and a single-part name (`localhost`). The format error is `{name: domain}` (no `val`).',
     ],
-    validate: () => createValidateFn<TF.DomainStrict>(),
-    standardSchema: () => createStandardSchema<TF.DomainStrict>(),
+    validate: () => createValidateFn<TF.DomainParts>(),
+    standardSchema: () => createStandardSchema<TF.DomainParts>(),
     validateReflect: () => {
-      const v: TF.DomainStrict = 'mion.io';
+      const v: TF.DomainParts = 'mion.io';
       return createValidateFn(v);
     },
-    deserializeValidate: () => deserializeValidate<TF.DomainStrict>(),
+    deserializeValidate: () => deserializeValidate<TF.DomainParts>(),
     deserializeValidateReflect: () => {
-      const v: TF.DomainStrict = 'mion.io';
+      const v: TF.DomainParts = 'mion.io';
       return deserializeValidate(v);
     },
     getValidationErrorsReflect: () => {
-      const v: TF.DomainStrict = 'mion.io';
+      const v: TF.DomainParts = 'mion.io';
       return createGetValidationErrorsFn(v);
     },
-    deserializeGetValidationErrors: () => deserializeGetValidationErrors<TF.DomainStrict>(),
+    deserializeGetValidationErrors: () => deserializeGetValidationErrors<TF.DomainParts>(),
     deserializeGetValidationErrorsReflect: () => {
-      const v: TF.DomainStrict = 'mion.io';
+      const v: TF.DomainParts = 'mion.io';
       return deserializeGetValidationErrors(v);
     },
     mockTypeReflect: () => {
-      const v: TF.DomainStrict = 'mion.io';
+      const v: TF.DomainParts = 'mion.io';
       return createMockDataFn(v);
     },
-    validateDataOnly: () => createValidateFn<DataOnly<TF.DomainStrict>>(),
-    validateSchema: () => createValidateFn(TF.domainStrict()),
-    getValidationErrors: () => createGetValidationErrorsFn<TF.DomainStrict>(),
-    getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.DomainStrict>>(),
-    getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.domainStrict()),
-    mockType: () => createMockDataFn<TF.DomainStrict>(),
+    validateDataOnly: () => createValidateFn<DataOnly<TF.DomainParts>>(),
+    validateSchema: () => createValidateFn(TF.domainParts()),
+    getValidationErrors: () => createGetValidationErrorsFn<TF.DomainParts>(),
+    getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.DomainParts>>(),
+    getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.domainParts()),
+    mockType: () => createMockDataFn<TF.DomainParts>(),
     getSamples: () => ({
       valid: ['mion.io', 'sub.example.com', 'aa.bb.cc.dd.ee.com'],
       invalid: ['-bad.com', 'aa.bb.cc.dd.ee.ff.com', 'example.123', 'ex_ample.com', 'localhost'],
@@ -2564,45 +2564,45 @@ export const STRING_FORMAT = {
     }),
     expectedFormatErrors: () => [{name: 'email'}, {name: 'email'}, {name: 'email'}],
   },
-  emailStrict: {
-    title: 'Email strict',
+  emailParts: {
+    title: 'Email parts',
     description:
-      'TF.EmailStrict (format `email`) that splits on the last `@` then applies a strict local-part pattern plus strict domain.',
+      'TF.EmailParts (format `email`) that splits on the last `@` then checks the local part and the domain as TF.DomainParts.',
     validateNotes: [
       'Plain addresses pass (`john@example.com`, `jane.doe@mion.io`).',
       'A disallowed local-part char (`a+b@x.com`) fails with `val` `Invalid characters in email local part`.',
       'Also rejected: a space in the local part (`a b@example.com`), a doubled `@` (`john@@example.com`), an underscore in the domain (`john@bad_domain.com`), and no `@` at all (`no-at-symbol`).',
     ],
-    validate: () => createValidateFn<TF.EmailStrict>(),
-    standardSchema: () => createStandardSchema<TF.EmailStrict>(),
+    validate: () => createValidateFn<TF.EmailParts>(),
+    standardSchema: () => createStandardSchema<TF.EmailParts>(),
     validateReflect: () => {
-      const v: TF.EmailStrict = 'john@example.com';
+      const v: TF.EmailParts = 'john@example.com';
       return createValidateFn(v);
     },
-    deserializeValidate: () => deserializeValidate<TF.EmailStrict>(),
+    deserializeValidate: () => deserializeValidate<TF.EmailParts>(),
     deserializeValidateReflect: () => {
-      const v: TF.EmailStrict = 'john@example.com';
+      const v: TF.EmailParts = 'john@example.com';
       return deserializeValidate(v);
     },
     getValidationErrorsReflect: () => {
-      const v: TF.EmailStrict = 'john@example.com';
+      const v: TF.EmailParts = 'john@example.com';
       return createGetValidationErrorsFn(v);
     },
-    deserializeGetValidationErrors: () => deserializeGetValidationErrors<TF.EmailStrict>(),
+    deserializeGetValidationErrors: () => deserializeGetValidationErrors<TF.EmailParts>(),
     deserializeGetValidationErrorsReflect: () => {
-      const v: TF.EmailStrict = 'john@example.com';
+      const v: TF.EmailParts = 'john@example.com';
       return deserializeGetValidationErrors(v);
     },
     mockTypeReflect: () => {
-      const v: TF.EmailStrict = 'john@example.com';
+      const v: TF.EmailParts = 'john@example.com';
       return createMockDataFn(v);
     },
-    validateDataOnly: () => createValidateFn<DataOnly<TF.EmailStrict>>(),
-    validateSchema: () => createValidateFn(TF.emailStrict()),
-    getValidationErrors: () => createGetValidationErrorsFn<TF.EmailStrict>(),
-    getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.EmailStrict>>(),
-    getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.emailStrict()),
-    mockType: () => createMockDataFn<TF.EmailStrict>(),
+    validateDataOnly: () => createValidateFn<DataOnly<TF.EmailParts>>(),
+    validateSchema: () => createValidateFn(TF.emailParts()),
+    getValidationErrors: () => createGetValidationErrorsFn<TF.EmailParts>(),
+    getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.EmailParts>>(),
+    getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.emailParts()),
+    mockType: () => createMockDataFn<TF.EmailParts>(),
     getSamples: () => ({
       valid: ['john@example.com', 'jane.doe@mion.io'],
       invalid: ['a+b@x.com', 'a b@example.com', 'john@@example.com', 'john@bad_domain.com', 'no-at-symbol'],
