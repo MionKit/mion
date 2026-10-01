@@ -123,7 +123,7 @@ func sharedValueSlot(rt *reflection.RunType, ctx *EmitContext) (DiagSlot, bool) 
 	if rt == nil {
 		return "", false
 	}
-	if isFunctionLikeKind(rt.Kind) {
+	if isMethodMember(rt.Kind) {
 		return SlotFunctionPropDropped, true
 	}
 	switch rt.Kind {
@@ -236,7 +236,7 @@ func (emitter RemoveUnknownKeysEmitter) emitObject(rt *reflection.RunType, ctx *
 			accessor:   accessor,
 			expr:       accessor,
 		}
-		if isFunctionLikeKind(resolved.Kind) {
+		if isMethodMember(resolved.Kind) {
 			// An object-literal method or a class function field is an own value: the copy shares it.
 			if !emitter.shareOrRefuse(SlotFunctionPropDropped, propertyWhere(resolved), resolved, ctx) {
 				return RTCode{Code: "", Type: CodeNS}

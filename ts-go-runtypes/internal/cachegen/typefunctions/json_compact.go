@@ -182,7 +182,7 @@ func collectCompactDeclaredSlots(rt *reflection.RunType, ctx *EmitContext) []com
 			ctx.EmitDiagnosticSlot(SlotStaticDropped, memberLabel(resolved))
 			continue
 		}
-		if isFunctionLikeKind(resolved.Kind) {
+		if isMethodMember(resolved.Kind) {
 			ctx.EmitDiagnosticSlot(SlotMethodDropped, memberLabel(resolved))
 			continue
 		}

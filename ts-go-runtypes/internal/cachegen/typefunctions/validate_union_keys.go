@@ -39,7 +39,7 @@ func unionChecksMemberKeys(children []*reflection.RunType, ctx *EmitContext) boo
 		if resolved == nil {
 			continue
 		}
-		if unionMemberBearsKeys(resolved) && !isFunctionLikeKind(resolved.Kind) {
+		if unionMemberBearsKeys(resolved) && !isMethodMember(resolved.Kind) {
 			keyBearing++
 			if keyBearing > 1 {
 				return true

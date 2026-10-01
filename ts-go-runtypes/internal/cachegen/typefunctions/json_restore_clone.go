@@ -176,7 +176,7 @@ func objectDropsDeclaredMember(rt *reflection.RunType, ctx *EmitContext) bool {
 		if resolved == nil || resolved.Kind == reflection.KindIndexSignature {
 			continue
 		}
-		if resolved.IsStatic || isFunctionLikeKind(resolved.Kind) {
+		if resolved.IsStatic || isMethodMember(resolved.Kind) {
 			return true
 		}
 		if resolved.Kind != reflection.KindProperty && resolved.Kind != reflection.KindPropertySignature {

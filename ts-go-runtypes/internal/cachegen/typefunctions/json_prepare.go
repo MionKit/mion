@@ -118,8 +118,8 @@ func (PrepareForJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ Co
 
 	case reflection.KindFunction, reflection.KindMethod,
 		reflection.KindMethodSignature, reflection.KindCallSignature:
-		// Only a ROOT or union-member function reaches this arm: object / property children of
-		// function type are filtered out by the parent emit, tuple members by isFunctionLikeKind.
+		// Only a root, union-member or tuple-slot function reaches this arm: object / property children of
+		// function type are filtered out by the parent emit.
 		return RTCode{Code: "", Type: CodeNS}
 
 	case reflection.KindUnion:
@@ -190,7 +190,7 @@ func emitObjectJsonChildren(rt *reflection.RunType, ctx *EmitContext) RTCode {
 			ctx.EmitDiagnosticSlot(SlotStaticDropped, memberLabel(resolved))
 			continue
 		}
-		if isFunctionLikeKind(resolved.Kind) {
+		if isMethodMember(resolved.Kind) {
 			ctx.EmitDiagnosticSlot(SlotMethodDropped, memberLabel(resolved))
 			continue
 		}
