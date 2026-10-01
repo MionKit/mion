@@ -21,7 +21,7 @@ mion.middleware((ctx, data: number): void => {
   console.log(data);
 });
 mion.headersFn(
-  (c: CallContext, {headers}: HeadersSubset<'x-trace-id'>): void => {
+  (ctx: CallContext, {headers}: HeadersSubset<'x-trace-id'>): void => {
     // do something
   }
 );
@@ -39,7 +39,7 @@ mion.route(validArrowHandler);
 // start:typed-handlers-valid-type-annotations
 const typedHandler: Handler = (ctx, name: string): string => `hello ${name}`;
 const typedHeaderHandler: HeaderHandler = (
-  c: CallContext,
+  ctx: CallContext,
   {headers}: HeadersSubset<'x-trace-id'>
 ): void => {
   const traceId = headers['x-trace-id'];
@@ -51,7 +51,7 @@ const typedHeaderHandler: HeaderHandler = (
 const satisfiesHandler = ((ctx, name: string): string =>
   `hello ${name}`) satisfies Handler;
 const satisfiesHeaderHandler = ((
-  c: CallContext,
+  ctx: CallContext,
   {headers}: HeadersSubset<'x-trace-id'>
 ): void => {
   const traceId = headers['x-trace-id'];
@@ -78,7 +78,7 @@ const middlewareWithJSDoc = (ctx, data: number): void => {
  * @mion:headersFn
  */
 function headersFnWithJSDoc(
-  c: CallContext,
+  ctx: CallContext,
   {headers}: HeadersSubset<'x-trace-id'>
 ): void {
   const traceId = headers['x-trace-id'];
@@ -99,7 +99,7 @@ mion.route((ctx, name) => `hello ${name}`); // Missing both param type and retur
 mion.middleware((ctx, data: number) => {
   console.log(data);
 }); // Missing return type
-mion.headersFn((c: CallContext, [traceId]): void => {
+mion.headersFn((ctx: CallContext, [traceId]): void => {
   // do something
 }); // Missing param type
 // end:typed-handlers-invalid-inline
@@ -117,7 +117,7 @@ mion.route(invalidArrowHandler); // Should error: missing both types
 // 3. Type annotations missing types
 const invalidTypedHandler: Handler = (ctx, name) => `hello ${name}`; // Missing both types
 const invalidTypedHeaderHandler: HeaderHandler = (
-  c: CallContext,
+  ctx: CallContext,
   {headers}: HeadersSubset<'x-trace-id'>
 ) => {
   const traceId = headers['x-trace-id'];
@@ -129,7 +129,7 @@ const invalidTypedHeaderHandler: HeaderHandler = (
 // 4. Satisfies expressions missing types
 const invalidSatisfiesHandler = ((ctx, name) =>
   `hello ${name}`) satisfies Handler; // Missing both types
-const invalidSatisfiesHeaderHandler = ((c: CallContext, {headers}): void => {
+const invalidSatisfiesHeaderHandler = ((ctx: CallContext, {headers}): void => {
   const traceId = headers['x-trace-id'];
   console.log(traceId);
 }) satisfies HeaderHandler; // Missing param type
@@ -154,7 +154,7 @@ const invalidMiddlewareJSDoc = (ctx, data: number) => {
 /**
  * @mion:headersFn
  */
-function invalidHeadersFnJSDoc(c: CallContext, {headers}): void {
+function invalidHeadersFnJSDoc(ctx: CallContext, {headers}): void {
   const traceId = headers['x-trace-id'];
   console.log(traceId);
 } // Missing param type

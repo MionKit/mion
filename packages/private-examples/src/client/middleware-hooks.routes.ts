@@ -11,9 +11,9 @@ export type NotAuthorizedData = {reason: 'no-session' | 'expired-session'};
 // a plain handler, so a client installer can take its type
 export function traceHandler(
   ctx: CallContext,
-  h: HeadersSubset<'X-Trace-Id'>
+  {headers}: HeadersSubset<'X-Trace-Id'>
 ): TraceInfo {
-  return {traceId: h.headers['X-Trace-Id'], receivedAt: new Date()};
+  return {traceId: headers['X-Trace-Id'], receivedAt: new Date()};
 }
 
 // no params: it reads the HttpOnly session cookie the browser sends
