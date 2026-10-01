@@ -5,9 +5,11 @@
 package enrichment
 
 import (
-	"sort"
 	"strings"
 
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats"
+	// Registers every format emitter, so ErrorKeysFor finds them in any binary that imports enrichment.
+	_ "github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats/all"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment/cldr"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
@@ -176,28 +178,8 @@ func argumentChild(ctx *walkCtx, rt *reflection.RunType, index int) *reflection.
 	return wrapper.Child
 }
 
-// formatConstraintKeys returns a format node's candidate failed-constraint keys, sorted for deterministic output.
-// These are exactly the `rt$errors` template keys the renderer can match; the base `type` failure is added by the caller.
-func formatConstraintKeys(fa *reflection.FormatAnnotation) []string {
-	if fa == nil || len(fa.Params) == 0 {
-		return nil
-	}
-	keys := make([]string, 0, len(fa.Params))
-	for key := range fa.Params {
-		if nonFailingParams[key] {
-			continue
-		}
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	return keys
-}
-
-// nonFailingParams are format params carrying NO failable constraint, so the scaffold skips them and FT003 rejects them.
-// MIRROR of the `NonFailingParams` union in packages/run-types/src/enrich/friendlyText.ts, the one sync point.
-var nonFailingParams = map[string]bool{
-	"isCurrency":          true,
-	"mockSamples":         true,
-	"multipleOfTolerance": true,
-	"transform":           true,
+// formatConstraintKeys returns the error keys a format node can produce, read from its own validation-errors code.
+// These are exactly the `rt$errors` keys the renderer can match; the base `type` failure is added by the caller.
+func formatConstraintKeys(rt *reflection.RunType) []string {
+	return formats.ErrorKeysFor(rt)
 }

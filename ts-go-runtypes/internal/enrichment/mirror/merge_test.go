@@ -767,3 +767,22 @@ func TestMerge_MockChildTypeChanged_StillReplaces(t *testing.T) {
 	}
 	assertReparses(t, got)
 }
+
+// TestMerge_QuotedErrorKey: an rt$errors key that is not an identifier (email's `@`) keeps its value and is
+// added quoted when missing, never orphaned or duplicated.
+func TestMerge_QuotedErrorKey(t *testing.T) {
+	existing := "{rt$label: '', email: {rt$label: '', rt$errors: {type: '', '@': 'needs an @'}}}"
+	desired := "{rt$label: '', email: {rt$label: '', rt$errors: {type: '', '@': '', maxLength: ''}}}"
+	got := mergeFriendly(t, existing, desired)
+	if strings.Count(got, "'@'") != 1 || !strings.Contains(got, "'@': 'needs an @'") {
+		t.Errorf("quoted key not kept once with its value:\n%s", got)
+	}
+	if !strings.Contains(got, "maxLength: ''") {
+		t.Errorf("missing key not added:\n%s", got)
+	}
+
+	added := mergeFriendly(t, "{rt$label: '', email: {rt$label: '', rt$errors: {type: ''}}}", desired)
+	if !strings.Contains(added, "'@': ''") {
+		t.Errorf("missing quoted key not added quoted:\n%s", added)
+	}
+}

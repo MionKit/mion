@@ -541,3 +541,55 @@ func TestReservedPropertyCollisions_NestedPaths(t *testing.T) {
 		t.Fatalf("clean type reported collisions: %v", clean)
 	}
 }
+
+// TestCheckFriendly_FT003NeverFailingParam: a param with no error (separators, float) is no valid key.
+func TestCheckFriendly_FT003NeverFailingParam(t *testing.T) {
+	cases := map[string]*reflection.RunType{
+		"separators": {Kind: reflection.KindString, FormatAnnotation: &reflection.FormatAnnotation{Name: "creditCard", Params: map[string]any{"separators": " -"}}},
+		"float":      {Kind: reflection.KindNumber, FormatAnnotation: &reflection.FormatAnnotation{Name: "numberFormat", Params: map[string]any{"float": true}}},
+	}
+	for key, field := range cases {
+		t.Run(key, func(t *testing.T) {
+			rt := objectRT(map[string]*reflection.RunType{"field": field})
+			view := newFakeView().obj("field", newFakeView().obj("rt$errors", newFakeView().str("type", "bad").str(key, "never shown")))
+			if !hasFinding(enrichment.CheckFriendly(rt, view, nil), "FT003", "field.rt$errors."+key) {
+				t.Fatalf("expected FT003 on %s", key)
+			}
+		})
+	}
+}
+
+// TestCheckFriendly_FT012MissingKey: a key the field can fail on but the record leaves out warns, unless rt$default is used.
+func TestCheckFriendly_FT012MissingKey(t *testing.T) {
+	field := &reflection.RunType{Kind: reflection.KindNumber, FormatAnnotation: &reflection.FormatAnnotation{Name: "numberFormat", Params: map[string]any{"min": 0.0, "max": 10.0}}}
+	rt := objectRT(map[string]*reflection.RunType{"age": field})
+
+	partial := newFakeView().obj("age", newFakeView().obj("rt$errors", newFakeView().str("type", "bad").str("min", "too low")))
+	findings := enrichment.CheckFriendly(rt, partial, nil)
+	var missing []string
+	for _, finding := range findings {
+		if finding.Code == "FT012" {
+			missing = append(missing, finding.Args...)
+			if finding.Severity != enrichment.Warning || finding.Path != "age.rt$errors" {
+				t.Errorf("FT012 = %+v, want a Warning at age.rt$errors", finding)
+			}
+		}
+	}
+	if len(missing) != 1 || missing[0] != "max" {
+		t.Fatalf("FT012 keys = %v, want [max]; findings %v", missing, findings)
+	}
+
+	catchAll := newFakeView().obj("age", newFakeView().obj("rt$errors", newFakeView().str("rt$default", "invalid age")))
+	if hasFinding(enrichment.CheckFriendly(rt, catchAll, nil), "FT012", "age.rt$errors") {
+		t.Fatal("rt$default covers every key, so no FT012")
+	}
+}
+
+func hasFinding(findings []enrichment.Finding, code, path string) bool {
+	for _, finding := range findings {
+		if finding.Code == code && finding.Path == path {
+			return true
+		}
+	}
+	return false
+}

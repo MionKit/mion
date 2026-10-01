@@ -555,6 +555,10 @@ export const friendlyUser: FriendlyText<User> = {
   },
 };`,
 	},
+	CodeFriendlyMissingConstraint: {
+		Summary: "Each failure a field can produce needs its own `rt$errors` key, unless the record uses `rt$default`. A missing key shows a generic message for that failure. Add the key, or run `mion enrich <source.ts> <Type> --update` to add it as a blank to fill in.",
+		Fix:     "mion enrich <source.ts> <Type> --update",
+	},
 	CodeFriendlyBadPlaceholder: {
 		Summary: "Error messages fill in only the four placeholders listed above; any other `$[name]` shows as plain text. A format suffix such as `$[val:currency]` is not supported either, since plain `$[val]` already formats by the field's type. Use a supported placeholder, or drop the `$[...]` wrapper.",
 		Fix:     "rt$errors: {minLength: '$[label] is too short'}",

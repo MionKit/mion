@@ -241,6 +241,11 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     level: 'error',
     family: 'enrich',
   },
+  FT012: {
+    headline: 'Error key `{0}` has no message: this failure shows a generic one.',
+    level: 'warning',
+    family: 'enrich',
+  },
   FT020: {
     headline: 'Unfilled `@todo` placeholder; fill in the real labels/messages, then delete the `@todo` line.',
     level: 'warning',

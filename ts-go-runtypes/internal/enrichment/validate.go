@@ -180,7 +180,7 @@ func CheckMock(rt *reflection.RunType, literal LiteralView, resolve func(id stri
 	return findings
 }
 
-// TODO(refine): FT004 / MD002 (value-shape mismatch) stay with the TS checker, whose mapped types already reject a
+// TODO(refine): FT012 / MD002 (value-shape mismatch) stay with the TS checker, whose mapped types already reject a
 // wrong-shaped value at the call site. MD003 (pool value validates against the field) needs the runtime validator.
 // MD004 (min > max) and FT010 / MD010 (authored-vs-current drift hash) are unimplemented: none of the six is registered.
 
@@ -295,6 +295,30 @@ func checkFriendlyErrors(findings *[]Finding, errorsView LiteralView, fieldNode 
 			checkPluralLeaf(findings, plural, key, keyPath)
 		}
 	}
+	checkMissingErrorKeys(findings, keys, fieldNode, path)
+}
+
+// checkMissingErrorKeys reports FT012 for each error key the field can produce but the record leaves out.
+// rt$default covers them all; a blank value counts as present (FT023 reports it).
+func checkMissingErrorKeys(findings *[]Finding, keys []string, fieldNode *reflection.RunType, path string) {
+	present := make(map[string]bool, len(keys))
+	for _, key := range keys {
+		present[key] = true
+	}
+	if present["rt$default"] || fieldNode == nil {
+		return
+	}
+	for _, key := range formatConstraintKeys(fieldNode) {
+		if !present[key] {
+			*findings = append(*findings, Finding{
+				Code:     "FT012",
+				Severity: Warning,
+				Path:     joinPath(path, "rt$errors"),
+				Message:  "error key '" + key + "' has no message: this failure shows a generic one",
+				Args:     []string{key},
+			})
+		}
+	}
 }
 
 // checkPluralLeaf validates one plural template: the mandatory `other` backstop (FT006), CLDR arm keys (FT007),
@@ -344,7 +368,7 @@ func allowedErrorKeys(fieldNode *reflection.RunType) map[string]bool {
 		allowed[key] = true
 	}
 	if fieldNode != nil {
-		for _, constraint := range formatConstraintKeys(fieldNode.FormatAnnotation) {
+		for _, constraint := range formatConstraintKeys(fieldNode) {
 			allowed[constraint] = true
 		}
 	}

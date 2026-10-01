@@ -157,6 +157,7 @@ var headlineByCode = map[string]string{
 
 	CodeFriendlyUnknownField:      "Unknown field `{0}`: the type does not declare it, so this FriendlyText entry is dead.",
 	CodeFriendlyUnknownConstraint: "Error key `{0}` is not a declared constraint of this field: the message can never fire.",
+	CodeFriendlyMissingConstraint: "Error key `{0}` has no message: this failure shows a generic one.",
 	CodeFriendlyBadPlaceholder:    "Unknown placeholder `$[{0}]`: expected one of `$[label]`, `$[val]`, `$[path]`, `$[index]`.",
 	CodeFriendlyPluralNoOther:     "Plural error template is missing the mandatory `other` arm: the render has no backstop.",
 	CodeFriendlyPluralBadArm:      "Unknown plural arm `{0}`: CLDR categories are `zero`, `one`, `two`, `few`, `many`, `other`.",
