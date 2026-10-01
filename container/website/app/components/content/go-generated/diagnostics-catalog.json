@@ -410,7 +410,7 @@
       "subsystem": "validation",
       "level": "runtimeError",
       "headline": "Type `{0}` can never be validated: the generated function will always fail.",
-      "summary": "Same as `VL001`, for `createGetValidationErrorsFn`. Your type is a built-in class with no JSON form, such as `URL`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, `RegExp`, `Buffer` or a typed array like `Uint8Array`. Only `Date`, `Map`, `Set` and the Temporal types are supported. Check plain data instead, or convert the value first (`url.href`, `Array.from(bytes)`).",
+      "summary": "Same as `VL001`, for `createGetValidationErrorsFn`. Your type is a built-in class with no JSON form, such as `URLSearchParams`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, `RegExp`, `Buffer` or a typed array like `Uint8Array`. Only `Date`, `Map`, `Set`, `URL` and the Temporal types are supported. Check plain data instead, or convert the value first (`params.toString()`, `Array.from(bytes)`).",
       "fix": "const bytes = Array.from(myUint8Array);\nconst errorsOf = createGetValidationErrorsFn<number[]>();",
       "example": "import {createGetValidationErrorsFn} from '@mionjs/run-types';\nexport const errorsOf = createGetValidationErrorsFn<Uint8Array>();"
     },
@@ -473,7 +473,7 @@
       "subsystem": "validation",
       "level": "info",
       "headline": "Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): `validationErrors` drops it, so this property is silently not checked.",
-      "summary": "Same as `VL015`, for `createGetValidationErrorsFn`. A property holding a symbol, a `Promise` or a built-in class with no data form (a typed array, `ArrayBuffer`, `URL` and similar) is left out of the error report, and the other properties are still checked. A value that holds one inside, like `symbol[]` or `Map<string, symbol>`, cannot be dropped, so the whole type fails with the matching error, such as `VE002`.",
+      "summary": "Same as `VL015`, for `createGetValidationErrorsFn`. A property holding a symbol, a `Promise` or a built-in class with no data form (a typed array, `ArrayBuffer`, `URLSearchParams` and similar) is left out of the error report, and the other properties are still checked. A value that holds one inside, like `symbol[]` or `Map<string, symbol>`, cannot be dropped, so the whole type fails with the matching error, such as `VE002`.",
       "fix": null,
       "example": "import {createGetValidationErrorsFn} from '@mionjs/run-types';\ninterface Box { id: symbol; name: string; }\nexport const errorsOf = createGetValidationErrorsFn<Box>();"
     },
@@ -491,7 +491,7 @@
       "subsystem": "validation",
       "level": "runtimeError",
       "headline": "Type `{0}` can never be validated: the generated function will always fail.",
-      "summary": "Your type is a built-in class with no JSON form, such as `URL`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, `RegExp`, `Buffer` or a typed array like `Uint8Array`. Only `Date`, `Map`, `Set` and the Temporal types are supported. Validate plain data instead, or convert the value first (`url.href`, `Array.from(bytes)`).",
+      "summary": "Your type is a built-in class with no JSON form, such as `URLSearchParams`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, `RegExp`, `Buffer` or a typed array like `Uint8Array`. Only `Date`, `Map`, `Set`, `URL` and the Temporal types are supported. Validate plain data instead, or convert the value first (`params.toString()`, `Array.from(bytes)`).",
       "fix": "const bytes = Array.from(myUint8Array);\nconst isData = createValidateFn<number[]>();",
       "example": "import {createValidateFn} from '@mionjs/run-types';\nexport const isData = createValidateFn<Uint8Array>();"
     },
@@ -563,7 +563,7 @@
       "subsystem": "validation",
       "level": "info",
       "headline": "Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): `validate` drops it, so this property is silently not validated.",
-      "summary": "A property holding a symbol, a `Promise` or a built-in class with no data form (a typed array, `ArrayBuffer`, `URL` and similar) is skipped, so `{ id: symbol }` validates as `{}`. The other properties are still checked. A value that holds one inside, like `symbol[]` or `Map<string, symbol>`, cannot be dropped, so the whole type fails with the matching error, such as `VL002`.",
+      "summary": "A property holding a symbol, a `Promise` or a built-in class with no data form (a typed array, `ArrayBuffer`, `URLSearchParams` and similar) is skipped, so `{ id: symbol }` validates as `{}`. The other properties are still checked. A value that holds one inside, like `symbol[]` or `Map<string, symbol>`, cannot be dropped, so the whole type fails with the matching error, such as `VL002`.",
       "fix": null,
       "example": "import {createValidateFn} from '@mionjs/run-types';\ninterface Box { id: symbol; name: string; }\nexport const isBox = createValidateFn<Box>();"
     },
@@ -609,8 +609,8 @@
       "subsystem": "serialization",
       "level": "runtimeError",
       "headline": "Type `{0}` can never be encoded to JSON: the generated function will always fail.",
-      "summary": "Standard library classes have no JSON form, except `Date`, `Map`, `Set` and the Temporal types. When your type is `URL`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, `RegExp`, a typed array or `Buffer` (or an array of them), there is nothing to encode. Convert the value to plain data, like a string for a URL or a number array for a typed array. Inside an object, such a property is dropped instead (PJ015).",
-      "fix": "const home: string = yourUrl.href; // not a URL\nconst bytes: number[] = Array.from(yourBuffer); // not a typed array",
+      "summary": "Standard library classes have no JSON form, except `Date`, `Map`, `Set`, `URL` and the Temporal types. When your type is `URLSearchParams`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, `RegExp`, a typed array or `Buffer` (or an array of them), there is nothing to encode. Convert the value to plain data, like a string for a `URLSearchParams` or a number array for a typed array. Inside an object, such a property is dropped instead (PJ015).",
+      "fix": "const query: string = yourParams.toString(); // not a URLSearchParams\nconst bytes: number[] = Array.from(yourBuffer); // not a typed array",
       "example": null
     },
     {
@@ -672,7 +672,7 @@
       "subsystem": "serialization",
       "level": "info",
       "headline": "Union member(s) of type `{0}` can't be represented as data: the JSON encoder drops them, so the union is encoded as its remaining members.",
-      "summary": "Symbols, functions, `never`, `Promise`, `RegExp` and standard library classes such as `URL` or typed arrays have no JSON form, so the encoder drops them from the union: `Date | symbol` encodes as `Date`. If every member is dropped, you get the error for the whole type instead (such as PJ005), and the encoder always fails.",
+      "summary": "Symbols, functions, `never`, `Promise`, `RegExp` and standard library classes such as `URLSearchParams` or typed arrays have no JSON form, so the encoder drops them from the union: `Date | symbol` encodes as `Date`. If every member is dropped, you get the error for the whole type instead (such as PJ005), and the encoder always fails.",
       "fix": null,
       "example": null
     },
@@ -681,7 +681,7 @@
       "subsystem": "serialization",
       "level": "info",
       "headline": "Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): the JSON encoder drops it, so this property is silently not encoded.",
-      "summary": "A property holding a symbol, `never`, a `Promise`, a `RegExp` or a standard library class such as a typed array, `ArrayBuffer`, `URL` or `Intl.DateTimeFormat` has no JSON form, so the encoder drops it and leaves the rest of the object alone: `{a: symbol}` encodes as `{}`. A property holding such a value inside an array or a Map, like `symbol[]` or `Map<string, symbol>`, cannot be dropped: you get an error instead (such as PJ005), and the encoder always fails.",
+      "summary": "A property holding a symbol, `never`, a `Promise`, a `RegExp` or a standard library class such as a typed array, `ArrayBuffer`, `URLSearchParams` or `Intl.DateTimeFormat` has no JSON form, so the encoder drops it and leaves the rest of the object alone: `{a: symbol}` encodes as `{}`. A property holding such a value inside an array or a Map, like `symbol[]` or `Map<string, symbol>`, cannot be dropped: you get an error instead (such as PJ005), and the encoder always fails.",
       "fix": null,
       "example": null
     },
@@ -699,8 +699,8 @@
       "subsystem": "serialization",
       "level": "runtimeError",
       "headline": "Type `{0}` can never be encoded to JSON: the generated function will always fail.",
-      "summary": "Standard library classes have no JSON form, except `Date`, `Map`, `Set` and the Temporal types. When your type is `URL`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, `RegExp`, a typed array or `Buffer` (or an array of them), there is nothing to encode. Convert the value to plain data, like a string for a URL or a number array for a typed array. Inside an object, such a property is dropped instead (PJS015).",
-      "fix": "const home: string = yourUrl.href; // not a URL\nconst bytes: number[] = Array.from(yourBuffer); // not a typed array",
+      "summary": "Standard library classes have no JSON form, except `Date`, `Map`, `Set`, `URL` and the Temporal types. When your type is `URLSearchParams`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, `RegExp`, a typed array or `Buffer` (or an array of them), there is nothing to encode. Convert the value to plain data, like a string for a `URLSearchParams` or a number array for a typed array. Inside an object, such a property is dropped instead (PJS015).",
+      "fix": "const query: string = yourParams.toString(); // not a URLSearchParams\nconst bytes: number[] = Array.from(yourBuffer); // not a typed array",
       "example": null
     },
     {
@@ -762,7 +762,7 @@
       "subsystem": "serialization",
       "level": "info",
       "headline": "Union member(s) of type `{0}` can't be represented as data: the JSON encoder drops them, so the union is encoded as its remaining members.",
-      "summary": "Symbols, functions, `never`, `Promise`, `RegExp` and standard library classes such as `URL` or typed arrays have no JSON form, so the encoder drops them from the union: `Date | symbol` encodes as `Date`. If every member is dropped, you get the error for the whole type instead (such as PJS005), and the encoder always fails.",
+      "summary": "Symbols, functions, `never`, `Promise`, `RegExp` and standard library classes such as `URLSearchParams` or typed arrays have no JSON form, so the encoder drops them from the union: `Date | symbol` encodes as `Date`. If every member is dropped, you get the error for the whole type instead (such as PJS005), and the encoder always fails.",
       "fix": null,
       "example": null
     },
@@ -771,7 +771,7 @@
       "subsystem": "serialization",
       "level": "info",
       "headline": "Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): the JSON encoder drops it, so this property is silently not encoded.",
-      "summary": "A property holding a symbol, `never`, a `Promise`, a `RegExp` or a standard library class such as a typed array, `ArrayBuffer`, `URL` or `Intl.DateTimeFormat` has no JSON form, so the encoder drops it and leaves the rest of the object alone: `{a: symbol}` encodes as `{}`. A property holding such a value inside an array or a Map, like `symbol[]` or `Map<string, symbol>`, cannot be dropped: you get an error instead (such as PJS005), and the encoder always fails.",
+      "summary": "A property holding a symbol, `never`, a `Promise`, a `RegExp` or a standard library class such as a typed array, `ArrayBuffer`, `URLSearchParams` or `Intl.DateTimeFormat` has no JSON form, so the encoder drops it and leaves the rest of the object alone: `{a: symbol}` encodes as `{}`. A property holding such a value inside an array or a Map, like `symbol[]` or `Map<string, symbol>`, cannot be dropped: you get an error instead (such as PJS005), and the encoder always fails.",
       "fix": null,
       "example": null
     },
@@ -789,8 +789,8 @@
       "subsystem": "serialization",
       "level": "runtimeError",
       "headline": "Type `{0}` can never be decoded from JSON: the generated function will always fail.",
-      "summary": "Standard library classes have no JSON form, except `Date`, `Map`, `Set` and the Temporal types. When your type is `URL`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, `RegExp`, a typed array or `Buffer` (or an array of them), there is nothing to decode. Convert the value to plain data, like a string for a URL or a number array for a typed array. Inside an object, such a property is dropped instead (RJ015).",
-      "fix": "const home: string = yourUrl.href; // not a URL\nconst bytes: number[] = Array.from(yourBuffer); // not a typed array",
+      "summary": "Standard library classes have no JSON form, except `Date`, `Map`, `Set`, `URL` and the Temporal types. When your type is `URLSearchParams`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, `RegExp`, a typed array or `Buffer` (or an array of them), there is nothing to decode. Convert the value to plain data, like a string for a `URLSearchParams` or a number array for a typed array. Inside an object, such a property is dropped instead (RJ015).",
+      "fix": "const query: string = yourParams.toString(); // not a URLSearchParams\nconst bytes: number[] = Array.from(yourBuffer); // not a typed array",
       "example": null
     },
     {
@@ -852,7 +852,7 @@
       "subsystem": "serialization",
       "level": "info",
       "headline": "Union member(s) of type `{0}` can't be represented as data: the JSON decoder drops them, so the union is decoded as its remaining members.",
-      "summary": "Symbols, functions, `never`, `Promise`, `RegExp` and standard library classes such as `URL` or typed arrays have no JSON form, so the decoder drops them from the union: `Date | symbol` decodes as `Date`. If every member is dropped, you get the error for the whole type instead (such as RJ005), and the decoder always fails.",
+      "summary": "Symbols, functions, `never`, `Promise`, `RegExp` and standard library classes such as `URLSearchParams` or typed arrays have no JSON form, so the decoder drops them from the union: `Date | symbol` decodes as `Date`. If every member is dropped, you get the error for the whole type instead (such as RJ005), and the decoder always fails.",
       "fix": null,
       "example": null
     },
@@ -861,7 +861,7 @@
       "subsystem": "serialization",
       "level": "info",
       "headline": "Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): the JSON decoder drops it, so this property is silently not decoded.",
-      "summary": "A property holding a symbol, `never`, a `Promise`, a `RegExp` or a standard library class such as a typed array, `ArrayBuffer`, `URL` or `Intl.DateTimeFormat` has no JSON form, so the decoder drops it and leaves the rest of the object alone: `{a: symbol}` decodes as `{}`. A property holding such a value inside an array or a Map, like `symbol[]` or `Map<string, symbol>`, cannot be dropped: you get an error instead (such as RJ005), and the decoder always fails.",
+      "summary": "A property holding a symbol, `never`, a `Promise`, a `RegExp` or a standard library class such as a typed array, `ArrayBuffer`, `URLSearchParams` or `Intl.DateTimeFormat` has no JSON form, so the decoder drops it and leaves the rest of the object alone: `{a: symbol}` decodes as `{}`. A property holding such a value inside an array or a Map, like `symbol[]` or `Map<string, symbol>`, cannot be dropped: you get an error instead (such as RJ005), and the decoder always fails.",
       "fix": null,
       "example": null
     },
@@ -916,7 +916,7 @@
       "subsystem": "unknown-keys",
       "level": "runtimeError",
       "headline": "The value in {0} can only be shared with the input and `sharedValues: 'refuse'` is set, so the function always throws.",
-      "summary": "With `sharedValues: 'refuse'`, a value the copy cannot rebuild (a function, a `Promise`, a `RegExp` or a built-in like `URL`) makes the function always throw instead of sharing it with the input. Remove the option to share it with a warning, or change the type.",
+      "summary": "With `sharedValues: 'refuse'`, a value the copy cannot rebuild (a function, a `Promise`, a `RegExp` or a built-in like `URLSearchParams`) makes the function always throw instead of sharing it with the input. Remove the option to share it with a warning, or change the type.",
       "fix": null,
       "example": "import {createRemoveUnknownKeysFn} from '@mionjs/run-types';\ninterface Button { label: string; onClick: () => void }\nexport const removeButtonKeys = createRemoveUnknownKeysFn<Button>(undefined, {sharedValues: 'refuse'});"
     },
@@ -952,9 +952,9 @@
       "subsystem": "unknown-keys",
       "level": "warning",
       "headline": "The value in {0} cannot be copied (a Promise, a RegExp or a built-in that is not data): the copy shares it with the input.",
-      "summary": "`removeUnknownKeys` never removes a declared property. A value it cannot copy, like a `Promise`, a `RegExp` or a built-in like `URL`, is shared with the input, so a change through it shows on both. Pass `sharedValues: 'share'` to say this is fine, `'refuse'` to make it an error, or register `overrideRemoveUnknownKeys<T>()` to copy it yourself.",
+      "summary": "`removeUnknownKeys` never removes a declared property. A value it cannot copy, like a `Promise`, a `RegExp` or a built-in like `URLSearchParams`, is shared with the input, so a change through it shows on both. Pass `sharedValues: 'share'` to say this is fine, `'refuse'` to make it an error, or register `overrideRemoveUnknownKeys<T>()` to copy it yourself.",
       "fix": null,
-      "example": "import {createRemoveUnknownKeysFn} from '@mionjs/run-types';\ninterface Link { title: string; url: URL }\nexport const removeLinkKeys = createRemoveUnknownKeysFn<Link>();"
+      "example": "import {createRemoveUnknownKeysFn} from '@mionjs/run-types';\ninterface Link { title: string; pattern: RegExp }\nexport const removeLinkKeys = createRemoveUnknownKeysFn<Link>();"
     },
     {
       "code": "RUK016",
