@@ -1393,8 +1393,7 @@ describe('client', () => {
       middlewares.auth.onRequest((auth) => auth(authHeaders));
 
       const {batch} = await import('../src/batch.ts');
-      // Mix the oversized-payload route with a normal one — the request-scoped platform error
-      // must not leak into any route's positional slot
+      // the request-scoped platform error must not leak into any route's positional slot
       const [results, errors, clientResponse] = await batch([routes.getRequestInfo(HUGE_PAYLOAD), routes.utils.sumTwo(5)]).call();
 
       expect(results).toEqual([undefined, undefined]);

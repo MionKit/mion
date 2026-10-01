@@ -35,7 +35,7 @@ export function setResponseValue(response: ClientResponse<RemoteApi>, id: string
   return !!parent;
 }
 
-/** Drops the value, and every group it leaves empty, so the response never holds what the body did not */
+/** Also drops every group it leaves empty: the response never holds what the body did not */
 export function deleteResponseValue(response: ClientResponse<RemoteApi>, id: string): void {
   const pointer = id.split(ROUTER_ITEM_SEPARATOR_CHAR);
   for (let depth = pointer.length; depth > 0; depth--) {
