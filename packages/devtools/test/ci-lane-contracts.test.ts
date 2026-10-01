@@ -217,13 +217,13 @@ describe('the lane table', () => {
       spawnSync('git', ['-c', 'user.email=a@b.c', '-c', 'user.name=t', ...args], {cwd: repo, encoding: 'utf8'});
     try {
       git('init', '-q');
-      mkdirSync(path.join(repo, 'docs/todos'), {recursive: true});
+      mkdirSync(path.join(repo, 'docs/notes'), {recursive: true});
       mkdirSync(path.join(repo, 'packages/x'), {recursive: true});
-      writeFileSync(path.join(repo, 'docs/todos/a.md'), 'a');
+      writeFileSync(path.join(repo, 'docs/notes/a.md'), 'a');
       writeFileSync(path.join(repo, 'packages/x/a.ts'), 'a');
       git('add', '.');
       git('commit', '-qm', 'base');
-      writeFileSync(path.join(repo, 'docs/todos/a.md'), 'b');
+      writeFileSync(path.join(repo, 'docs/notes/a.md'), 'b');
       writeFileSync(path.join(repo, 'CLAUDE.md'), 'b');
       git('add', '.');
       git('commit', '-qm', 'docs');
