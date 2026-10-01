@@ -74,6 +74,8 @@ and named agree, non-data is never dropped silently, the build pass equals the d
 
 - A new non-data shape gets a row in `corpusTriggers`; a new family, a row in `corpusFamilies`. The two
   `TestNestedDiagCorpus_Covers*` gates fail until you do.
+- A test that maps a call site to its diagnostics' line reads `Site.pos` as a UTF-8 BYTE offset and breaks lines where
+  TypeScript does (`\r\n`, `\r`, `\n`, U+2028, U+2029); `typeFuzzHarness.ts` is the one that does today.
 - Pin the specific case with a paired test too (static `createX<T>()` and value `createX(value)`), per the Marker test
   coverage rule.
 
