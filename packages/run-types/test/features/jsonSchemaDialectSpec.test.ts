@@ -288,8 +288,7 @@ describe('json-schema-2020-12-javascript — the dialect spec', () => {
   });
 
   rule('RT-FORMAT-PARAMS', 'rtFormatParams carries ALL the family params, localPart included', () => {
-    // `localPart` has no standard keyword; every param folds into the
-    // identity, so carrying only the leftovers would change what the type is.
+    // Every param folds into the identity, so carrying only those without a standard keyword would change it.
     expect(createJsonSchemaFn<MailParts>()()).toMatchObject({
       rtFormat: 'email',
       rtFormatParams: {localPart: {maxLength: 64, minLength: 1}, maxLength: 254, domain: {maxParts: 6}},

@@ -27,7 +27,7 @@ function leafCases(): void {
   assertMutual<FormatErrorsOf<TF.EmailAddress>, TypeFormatError<'email', EmailErrorType>>();
   assertMutual<FormatErrorsOf<TF.IdnEmail>, TypeFormatError<'email', EmailErrorType>>();
   assertMutual<FormatErrorsOf<TF.Email>, TypeFormatError<'email', never>>();
-  // domain: IDNA and the names / tld decomposition set modes; the pattern preset never does
+  // domain: IDNA and the parts split set modes; the pattern preset never does
   assertMutual<FormatErrorsOf<TF.Hostname>, TypeFormatError<'domain', DomainErrorType>>();
   assertMutual<FormatErrorsOf<TF.IdnHostname>, TypeFormatError<'domain', DomainErrorType>>();
   assertMutual<FormatErrorsOf<TF.DomainParts>, TypeFormatError<'domain', DomainErrorType>>();
@@ -41,7 +41,6 @@ function leafCases(): void {
   assertMutual<FormatErrorsOf<TF.UrlHttp>, TypeFormatError<'url', never>>();
 }
 
-// The decomposed email also reports its domain half under the `domain` name.
 function emailPartsCases(): void {
   assertMutual<
     FormatErrorsOf<TF.EmailParts>,

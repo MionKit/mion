@@ -1489,9 +1489,7 @@ export const cases: CompetitorCases = {
       return (value: unknown) => schema.safeParse(value).success;
     },
   },
-  // domainParts: 2-6 labels, no leading/trailing hyphen per label, no digit-only TLD, no underscore
-  // valid: 'mion.io','sub.example.com','aa.bb.cc.dd.ee.com' (6 labels)
-  // invalid: 'aa.bb.cc.dd.ee.ff.com' (7 labels), '-bad.com', 'example.123', 'ex_ample.com', 'localhost'
+  // domainParts: 2-6 labels, no hyphen-edge label, no digit-only TLD
   'STRING_FORMAT.domainParts': {
     buildErrors: () => {
       const schema = z.string().refine((s) => {
@@ -1530,7 +1528,7 @@ export const cases: CompetitorCases = {
       return (value: unknown) => schema.safeParse(value).success;
     },
   },
-  // emailParts: no + in local part, no spaces, no double @, no underscore in domain
+  // emailParts: no + in the local part, no underscore in the domain
   'STRING_FORMAT.emailParts': {
     buildErrors: () => {
       const schema = z.string().regex(/^[a-zA-Z0-9.]+@[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,}$/);

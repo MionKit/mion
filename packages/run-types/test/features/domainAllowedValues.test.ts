@@ -1,5 +1,3 @@
-// `allowedValues` on the quick domain presets (`Domain`, `Hostname`): one whole-value check beside the pattern,
-// with validate and validation errors agreeing.
 // Marker coverage rule: static `createX<T>()` and value-first `createX(builder)` as paired tests.
 
 import {describe, it, expect} from 'vitest';

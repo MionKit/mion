@@ -2700,7 +2700,7 @@ export const cases: CompetitorCases = {
       addFormats(ajv, {mode: 'full'});
       const validate = ajv.compile({
         type: 'string',
-        // strict: no + in local, no _ in domain, 2+ char domain label, 2+ char TLD
+        // no + in local, no _ in domain
         pattern: '^[a-zA-Z0-9.\\-]+@(?:[a-zA-Z0-9](?:[a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])?\\.)*[a-zA-Z0-9]{2,}\\.[a-zA-Z]{2,}$',
       });
       return (value: unknown) => validate(value) === true;
@@ -2710,7 +2710,7 @@ export const cases: CompetitorCases = {
       addFormats(ajv, {mode: 'full'});
       const validate = ajv.compile({
         type: 'string',
-        // strict: no + in local, no _ in domain, 2+ char domain label, 2+ char TLD
+        // no + in local, no _ in domain
         pattern: '^[a-zA-Z0-9.\\-]+@(?:[a-zA-Z0-9](?:[a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])?\\.)*[a-zA-Z0-9]{2,}\\.[a-zA-Z]{2,}$',
       });
       return (value: unknown) => validate(value) === true;

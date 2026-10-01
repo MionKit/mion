@@ -362,34 +362,25 @@ export interface DomainPartParams {
   mockSamples?: Samples;
 }
 
-/** The failure modes a `domain` format reports in `TypeFormatError.errorType`.
- *  On the IDNA path (`Hostname` / `IdnHostname`): `'label'` (a label breaks the
- *  host-name rules), `'punycode'` (an `xn--` label does not decode, or is not
- *  the canonical spelling of what it decodes to), `'bidi'` (the right-to-left
- *  rule across the whole name) or `'length'` (the name or a label is too long,
- *  or a declared length bound fails). On the parts path
- *  (`DomainParts`): `'label'` for a name label, `'tld'` for the last one;
- *  whole-name bounds (`maxParts`, a root `maxLength`) leave it unset since
- *  `formatPath` already names them. The plain pattern path (`Domain`) has one
- *  way to fail per param and never sets it. **/
+/** Which rule a `domain` value broke, in `TypeFormatError.errorType`; the pattern path (`Domain`) never sets it.
+ *  IDNA path (`Hostname` / `IdnHostname`): 'label', 'punycode' (undecodable or non-canonical `xn--`), 'bidi', 'length'.
+ *  Parts path (`DomainParts`): 'label' or 'tld'; whole-name bounds leave it unset, `formatPath` names them. **/
 export type DomainErrorType = 'label' | 'tld' | 'punycode' | 'bidi' | 'length';
 
-// The quick road: one baked regex plus whole-value checks. Splitting into parts is `DomainPartsParams` only.
-/** A failing value reports WHICH PART failed in the error's `errorType`, one of
- *  `DomainErrorType` (see it for which path sets which). **/
+// The quick road: one regex plus whole-value checks; the split keys live on `DomainPartsParams` only.
+/** A failure names the part in `errorType`, see `DomainErrorType`. **/
 export interface DomainParams {
   maxLength?: number;
   minLength?: number;
   pattern?: PatternParam | {val: RegExp};
   mockSamples?: readonly string[];
-  // Enum-like restriction: only these exact domains validate. Mocks draw from it FIRST, since a
-  // synthesized domain would fail its own validator.
+  // Mocks draw from it first: a synthesized domain would fail its own validator.
   allowedValues?: AllowedValuesParam;
   /** Value rewrite (`{lowercase: true}` is the usual one). Off by default. **/
   transform?: StringTransformParams;
 }
 
-// The parts road: split on '.', check each label and the tld, bound the label count. Never with `pattern` (Go FMT002).
+// The parts road: split on '.' and check each label and the tld. Never with `pattern` (Go FMT002).
 export interface DomainPartsParams extends DomainParams {
   maxParts?: number;
   minParts?: number;
@@ -424,8 +415,7 @@ export type DEFAULT_DOMAIN_PARTS_PARAMS = {
   names: {maxLength: 63; minLength: 2; pattern: typeof DOMAIN_NAME_PATTERN};
   tld: {maxLength: 12; minLength: 2; pattern: typeof DOMAIN_TLD_PATTERN};
 };
-// ≤6 labels, ≥2 parts, no hyphen-edge labels, alphabetical tld. Splitting into labels and tld IS
-// the format, so those two stay pinned; bounds and samples are retunable.
+// Rejects hyphen-edge labels. names/tld ARE the format, so only those two stay pinned.
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export type DomainParts<P extends Override<DomainPartsParams, 'names' | 'tld'> = {}> = PresetFormat<
   'domain',
@@ -474,32 +464,24 @@ export type Transform<T extends string, P extends TransformParamsOf<T>> = [Forma
 
 // ─────────────────────────────── Email ──────────────────────────────
 
-/** The failure modes an `email` format reports in `TypeFormatError.errorType`,
- *  naming WHICH PART of the address is wrong. On the RFC path (`EmailAddress` /
- *  `IdnEmail`): `'format'` (no `@` at all), `'localPart'` (the part before the
- *  last `@`), `'domain'` (a named domain after it), `'addressLiteral'` (a
- *  bracketed IP literal after it) or `'length'` (a declared length bound
- *  fails). On the parts path (`EmailParts`): `'format'` for a missing
- *  `@` and `'localPart'` for the local half; the domain half's errors carry the
- *  `domain` format name and its own `DomainErrorType`. Whole-address bounds
- *  leave it unset since `formatPath` already names them. The plain pattern
- *  path (`Email`) has one way to fail per param and never sets it. **/
+/** Which part of an `email` is wrong, in `TypeFormatError.errorType`; the pattern path (`Email`) never sets it.
+ *  RFC path (`EmailAddress` / `IdnEmail`): 'format' (no `@`), 'localPart', 'domain', 'addressLiteral', 'length'.
+ *  Parts path (`EmailParts`): 'format' or 'localPart'; the domain half reports as `domain` with its own `DomainErrorType`.
+ *  Whole-address bounds leave it unset, `formatPath` names them. **/
 export type EmailErrorType = 'format' | 'localPart' | 'domain' | 'addressLiteral' | 'length';
 
-// The quick road: one baked regex, or the `emailRfc` engine of the RFC presets. Splitting is `EmailPartsParams` only.
-/** A failing value reports WHICH PART failed in the error's `errorType`, one of
- *  `EmailErrorType` (see it for which path sets which). **/
+// The quick road: one regex, or the RFC presets' `emailRfc` engine; the split keys live on `EmailPartsParams` only.
+/** A failure names the part in `errorType`, see `EmailErrorType`. **/
 export interface EmailParams {
   maxLength?: number;
   minLength?: number;
   pattern?: PatternParam | {val: RegExp};
   mockSamples?: readonly string[];
-  /** Value rewrite (`{trim: true, lowercase: true}` is the usual one). Off by default: an email's local
-   *  part is case-sensitive by the letter of the RFC, so lowercasing is the field's decision. **/
+  /** Usually `{trim: true, lowercase: true}`; off by default since the RFC makes the local part case-sensitive. **/
   transform?: StringTransformParams;
 }
 
-// The parts road: split on the last '@', check the local part and the domain (which may split again).
+// The parts road: split on the last '@'; the domain half may split again.
 export interface EmailPartsParams extends EmailParams {
   localPart?: StringParams;
   domain?: DomainPartsParams;
@@ -522,17 +504,14 @@ type DEFAULT_IDN_EMAIL_PARAMS = {
 type DEFAULT_EMAIL_PUNYCODE_PARAMS = {pattern: typeof EMAIL_PUNYCODE_PATTERN; maxLength: 254; minLength: 7};
 /* eslint-disable @typescript-eslint/no-empty-object-type */
 export type Email<P extends Override<EmailParams> = {}> = PresetFormat<'email', DEFAULT_EMAIL_PARAMS, P>;
-/** A full RFC 5321 address — what `format: 'email'` means. Wider than `Email`:
- *  a quoted local part (`"joe bloggs"@example.com`) and an address literal
- *  (`joe@[127.0.0.1]`) both pass. One practical narrowing shared with `Email`:
- *  a NAMED domain must be dotted (`joe@tld` is RFC-legal but rejected). **/
+/** Full RFC 5321 address, what `format: 'email'` means: quoted local parts and address literals pass.
+ *  Like `Email`, a named domain must be dotted (`joe@tld` is RFC-legal but rejected). **/
 export type EmailAddress<P extends Override<EmailParams, 'pattern'> = {}> = PresetFormat<
   'email',
   DEFAULT_EMAIL_ADDRESS_PARAMS,
   P
 >;
-/** The same grammar with the local part and domain in any script — what
- *  `format: 'idn-email'` means. **/
+/** The same grammar in any script, what `format: 'idn-email'` means. **/
 export type IdnEmail<P extends Override<EmailParams, 'pattern'> = {}> = PresetFormat<'email', DEFAULT_IDN_EMAIL_PARAMS, P>;
 export type EmailPunycode<P extends Override<EmailParams, 'pattern'> = {}> = PresetFormat<
   'email',
@@ -554,8 +533,7 @@ export type DEFAULT_EMAIL_PARTS_PARAMS = {
   };
   domain: DEFAULT_DOMAIN_PARTS_PARAMS;
 };
-// Split on the last '@', local part rejects spaces / brackets / aliasing chars, domain checked
-// as `DomainParts`. That split IS the format, so both halves stay pinned.
+// The split IS the format, so both halves stay pinned.
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export type EmailParts<P extends Override<EmailPartsParams, 'localPart' | 'domain'> = {}> = PresetFormat<
   'email',
@@ -823,7 +801,7 @@ export const domainUnicode = presetFormatBuilder<'domain', DEFAULT_DOMAIN_UNICOD
 export const domainPunycode = presetFormatBuilder<'domain', DEFAULT_DOMAIN_PUNYCODE_PARAMS, Override<DomainParams, 'pattern'>>(
   'domain'
 );
-/** Domain checked part by part — ≤6 labels, ≥2 parts, alphabetical tld (`DomainParts`). **/
+/** Domain checked label by label (`DomainParts`). **/
 export const domainParts = presetFormatBuilder<
   'domain',
   DEFAULT_DOMAIN_PARTS_PARAMS,
@@ -841,7 +819,7 @@ export const idnEmail = presetFormatBuilder<'email', DEFAULT_IDN_EMAIL_PARAMS, O
 export const emailPunycode = presetFormatBuilder<'email', DEFAULT_EMAIL_PUNYCODE_PARAMS, Override<EmailParams, 'pattern'>>(
   'email'
 );
-/** Email checked part by part — local part + `DomainParts` domain (`EmailParts`). **/
+/** Email checked part by part (`EmailParts`). **/
 export const emailParts = presetFormatBuilder<
   'email',
   DEFAULT_EMAIL_PARTS_PARAMS,

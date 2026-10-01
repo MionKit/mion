@@ -10,16 +10,8 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// emailEmitter implements the format named "email", FormatEmail / FormatEmailParts. Three paths, one per
-// params road; ValidateParams rejects the decomposition alongside pattern or emailRfc:
-//
-//   - pattern path: a single baked email regex (FormatEmail).
-//   - RFC path: `emailRfc` runs the isEmailAddress pure fn (EmailAddress / IdnEmail).
-//   - decomposition path: split on the LAST '@' into localPart + domain
-//     (FormatEmailParts); localPart is validated as a sub-StringFormat
-//     and domain as a sub-domain (which may itself decompose).
-//
-// validate emits an IIFE expression; validationErrors emits a statement block.
+// emailEmitter implements "email" over three paths: a baked pattern, the `emailRfc` pure fn, or a split on the LAST '@'
+// into localPart + a domain that may split again. ValidateParams rejects the split beside pattern or emailRfc.
 type emailEmitter struct{}
 
 func init() {
@@ -176,7 +168,6 @@ func (emailEmitter) EmitFormatTransform(annotation *reflection.FormatAnnotation,
 	return formats.EmitStringTransform(annotation.Params, vλl)
 }
 
-// ValidateParams: pattern is mutually exclusive with the localPart/domain decomposition, and maxLength stays in range.
 func (emailEmitter) ValidateParams(annotation *reflection.FormatAnnotation) []string {
 	if annotation == nil {
 		return nil

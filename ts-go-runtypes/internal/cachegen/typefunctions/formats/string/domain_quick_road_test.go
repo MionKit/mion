@@ -2,8 +2,6 @@ package string
 
 import "testing"
 
-// The quick roads (pattern, IDNA) check allowedValues on both lanes; parts bounds without names/tld fail the build.
-
 func TestDomainPattern_AllowedValuesOnBothLanes(t *testing.T) {
 	params := map[string]any{
 		"pattern":       map[string]any{"source": "^[a-z.]+$"},

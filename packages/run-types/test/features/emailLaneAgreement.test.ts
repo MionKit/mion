@@ -9,7 +9,7 @@ import {describe, expect, it} from 'vitest';
 import {createValidateFn, createGetValidationErrorsFn, getRunTypeId} from '@mionjs/run-types';
 import '@mionjs/run-types/formats';
 
-// A local part one character over EmailParts's 64, so the split road rejects it.
+// One character over EmailParts's 64-char local part.
 const LONG_LOCAL_PART = `${'a'.repeat(65)}@example.com`;
 
 function expectAgreement<T>(validate: (v: unknown) => boolean, errors: (v: unknown) => unknown[], values: string[]) {
@@ -44,7 +44,7 @@ describe('the email lanes agree on every road (O4)', () => {
     const errors = createGetValidationErrorsFn<TF.EmailParts>();
     expect(validate('joe@example.com')).toBe(true);
     expect(errors('joe@example.com')).toEqual([]);
-    // The bug's shape: an over-long local part must show up in BOTH lanes.
+    // The original bug's shape.
     expect(validate(LONG_LOCAL_PART)).toBe(false);
     expect(errors(LONG_LOCAL_PART).length).toBeGreaterThan(0);
     expectAgreement(validate, errors, ['joe@example.com', LONG_LOCAL_PART, 'no-at-sign', 'joe@tld', '']);

@@ -118,7 +118,6 @@ describe('email — which PART of the address is wrong', () => {
     const local = formatErrorOf(getErrors('jo e@example.com'));
     expect(local?.name).toBe('email');
     expect(local?.errorType).toBe('localPart');
-    // The domain half reports under `domain`, with that format's own modes.
     const label = formatErrorOf(getErrors('joe@a.com'));
     expect(label?.name).toBe('domain');
     expect(label?.errorType).toBe('label');
@@ -174,7 +173,7 @@ describe('domain — which rule the name broke', () => {
     expect(formatErrorOf(getErrors('a.com'))?.errorType).toBe('label');
     expect(formatErrorOf(getErrors('-ab.com'))?.errorType).toBe('label');
     expect(formatErrorOf(getErrors('example.c'))?.errorType).toBe('tld');
-    // Too many parts: formatPath already names the bound, no part to blame.
+    // formatPath already names the bound; no part to blame.
     const parts = formatErrorOf(getErrors('aa.bb.cc.dd.ee.ff.com'));
     expect(parts?.formatPath).toEqual(['maxParts']);
     expect(parts?.errorType).toBeUndefined();
