@@ -244,8 +244,11 @@ describe('DataOnly<T> — per-branch correctness + instantiation budget', () => 
       type _10 = Expect<Equal<DataOnly<{a: string; u?: undefined}>, {a: string; u?: undefined}>>;
       type _11 = Expect<Equal<DataOnly<{a: string; s: symbol | undefined}>, {a: string; s: undefined}>>;
       type _12 = Expect<Equal<DataOnly<{cb?: () => void; name?: string}>, {name?: string}>>;
+      type _13 = Expect<Equal<DataOnly<{a: any; p?: any; u?: unknown; f?: () => void}>, {a: any; p?: any; u?: unknown}>>;
+      type _14 = Expect<Equal<DataOnly<{[k: string]: Promise<1> | undefined}>, {[k: string]: undefined}>>;
+      type _15 = Expect<Equal<DataOnly<{[k: \`x-\${string}\`]: Promise<1> | undefined}>, {[k: \`x-\${string}\`]: undefined}>>;
       `,
-      2367
+      3070
     );
   });
 
