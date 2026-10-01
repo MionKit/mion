@@ -8,10 +8,9 @@ import (
 // NativeUrlName is the runtime global the native URL class is reached through (`globalThis.URL`).
 const NativeUrlName = "URL"
 
-// IsNativeUrl reports whether tsType is the platform `URL` class: lib.dom's global, @types/node's global
-// (declared outside the bundled lib, so LibDeclaredGlobalOf never sees it) or the class `node:url` exports.
-// Every declaration must sit in a declaration file, so a consumer's own `class URL` or a `declare global`
-// augmentation written in a .ts file stays the author's shape and is walked.
+// IsNativeUrl reports whether tsType is the platform `URL`: lib.dom's, @types/node's global or `node:url`'s class.
+// @types/node's sits outside the bundled lib, so LibDeclaredGlobalOf never sees it.
+// Every declaration must be in a .d.ts, so a consumer's own `class URL` or .ts `declare global` stays theirs.
 func IsNativeUrl(tsType *checker.Type) bool {
 	if tsType == nil {
 		return false

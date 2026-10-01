@@ -8,8 +8,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// nodeUrlDTS mirrors how @types/node declares URL: a class in the `node:url` module plus a global interface and
-// var re-exposing it, all outside the bundled lib. Kept hermetic instead of depending on @types/node.
+// nodeUrlDTS mirrors @types/node's URL (a `node:url` class re-exposed as a global), kept hermetic instead of depending on it.
 var nodeUrlDTS = map[string]string{
 	"node-url.d.ts": `declare module "node:url" {
   class URL {
@@ -51,8 +50,7 @@ export const id = getRunTypeId<URL>();
 	assertNativeUrl(t, "lib dom", root)
 }
 
-// Node's global URL is declared outside the bundled lib, so the lib-global test never sees it; before URL was a
-// native it was walked member by member.
+// Node's global URL is declared outside the bundled lib, so the lib-global test never sees it.
 func TestNativeUrl_NodeTypesOnly(t *testing.T) {
 	res, response := scanUnderLibWith(t, "esnext", `import {getRunTypeId} from '@mionjs/run-types';
 export const id = getRunTypeId<URL>();

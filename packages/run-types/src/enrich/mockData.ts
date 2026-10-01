@@ -49,10 +49,7 @@ export type MockNode<T, Depth extends number = 8> = Depth extends 0
                 : T extends RegExp
                   ? {pool: RegExp[]}
                   : // boolean / bigint BEFORE the object branch and BEFORE the fallback:
-                    // `boolean` is `true | false`, so a fallback `{pool: T[]}` would
-                    // distribute to `{pool: true[]} | {pool: false[]}`. A branch whose
-                    // result element type is FIXED (`boolean` / `bigint`, not `T`)
-                    // collapses back to one node on reassembly.
+                    // `{pool: T[]}` would split `boolean` into `{pool: true[]} | {pool: false[]}`; a fixed element type stays one node.
                     T extends boolean
                     ? {pool: boolean[]}
                     : T extends bigint

@@ -1,9 +1,8 @@
 // The all-strategy round-trip oracle: one conforming data-only value per random type, run through every lane.
 //   RT-VALIDATE   validate(value) and validate(roundtrip) are both true.
-//   RT-AGREE      each lane's decoded value re-encodes through CLONE and through MUTATE to the original's wire on that
-//                 lane; a wire compare, as JSON normalisation (dropped undefined, vanished optionals, -0 → 0) is not
-//                 deep-equal. Two references, because a lossy clone encoder agrees with itself: mutate writes a native
-//                 class through its own toJSON, so it does not share the clone encoder's arm.
+//   RT-AGREE      each lane's decoded value re-encodes through CLONE and MUTATE to the original's wire on that lane;
+//                 a wire compare, as JSON normalisation (dropped undefined, -0 → 0) is not deep-equal. MUTATE too
+//                 because a lossy clone encoder agrees with itself, and mutate writes a native through its own toJSON.
 //   RT-STABLE     encode(decode(encode v)) == encode(v) on the lane's own wire.
 //   RT-FAILAGREE  a type one lane refuses, every lane refuses.
 //   RT-NATIVE     native JSON.parse reads the keyed encoders' output back to the same JSON-safe value.

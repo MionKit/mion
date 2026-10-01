@@ -55,8 +55,7 @@ interface DataOnlyNativeExtra {
 }
 `;
 
-// Minimal `URL` global (the harness loads no dom or @types/node), so the built-in `url` keep row resolves. Inside
-// `declare global` because each snippet compiles as a module, and the row reads `URL` off `typeof globalThis`.
+// The harness loads no dom or @types/node; `declare global` because each snippet is a module and the row reads `globalThis`.
 const URL_PREAMBLE = `
 declare global {
   interface URL { href: string; readonly origin: string; pathname: string; toJSON(): string; }

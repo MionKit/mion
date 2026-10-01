@@ -346,8 +346,7 @@ func (RestoreFromJsonEmitter) Finalize(raw string) (string, bool) {
 	return code, false
 }
 
-// restoreUrl rebuilds a URL from its href. `new URL` throws on a bad string (unlike `new Date`), so canParse
-// gates it and anything else is left for validate to refuse.
+// restoreUrl: `new URL` throws on a bad string (unlike `new Date`), so canParse gates it and validate refuses the rest.
 func restoreUrl(v string) string {
 	return v + " = typeof " + v + " === 'string' && URL.canParse(" + v + ") ? new URL(" + v + ") : " + v
 }

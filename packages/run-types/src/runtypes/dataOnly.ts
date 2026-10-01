@@ -20,22 +20,18 @@ import type {__rtFormatName, __rtContains, __rtPatternProps, __rtPropNames} from
 // #region dataonly-extract — DataOnly machinery; sliced verbatim between these
 // markers by test/types/dataonlyHarness.ts to build the per-branch budget test.
 
-/** The platform `URL` instance, read off `globalThis` so this module never names `URL`: `never` without `dom` or
- *  `@types/node`, so it vanishes from the keep union instead of absorbing it. **/
+/** Read off `globalThis` so this module never names `URL`; `never` without `dom` / `@types/node`, so it drops out. **/
 type DataOnlyUrl = typeof globalThis extends {URL: {prototype: infer I}} ? I : never;
 
-/** Native / host classes `DataOnly` must KEEP verbatim (the RT validates them by identity, never by structural
- *  projection) but that this core module cannot NAME without forcing their lib onto every consumer. `URL` is
- *  built in; the opt-in `@mionjs/run-types/formats/temporal` subpath augments it with the 8 TC39 `Temporal`
- *  types. One row per kept class, each `never` when its lib is absent. **/
+/** Kept classes this module cannot NAME without forcing their lib on every consumer; one row each, `never` when absent.
+ *  `URL` is built in; the `@mionjs/run-types/formats/temporal` subpath adds the 8 TC39 `Temporal` types. **/
 export interface DataOnlyNativeExtra {
   url: DataOnlyUrl;
 }
 
-/** Classes `DataOnly` KEEPS verbatim: validated by IDENTITY and with a data form on the wire, so `Date` plus the
- *  `DataOnlyNativeExtra` rows (`Map` / `Set` have own branches; `RegExp` and the binary buffers are stripped).
- *  `Blob` / `Error` and every other lib class project to their data shape although the emitter skips them: a type
- *  cannot tell where a class was declared. The one known gap; the D4 fuzz rule draws no other lib class. **/
+/** Kept verbatim: validated by IDENTITY, with a data form on the wire (`Map` / `Set` have own branches, `RegExp`
+ *  and buffers strip). Known gap: other lib classes (`Blob`, `Error`) project to their data shape though the emitter
+ *  skips them, since a type cannot tell where a class was declared; the D4 fuzz rule draws none. **/
 type DataOnlyNative = Date | DataOnlyNativeExtra[keyof DataOnlyNativeExtra];
 
 /** Kinds the AOT validator treats as NON-DATA and strips: `symbol` (runtime identity, not round-trippable),

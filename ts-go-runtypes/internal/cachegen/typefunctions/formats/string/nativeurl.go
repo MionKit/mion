@@ -5,10 +5,8 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// nativeUrlEmitter implements the format named "nativeUrl": NativeUrl / NativeUrlHttp / NativeUrlFile, the url
-// format's length and pattern checks run over a URL object's href. Kind is KindClass because splitBuiltinClassBrand
-// lifts the brand off `URL & {brand}` onto the SubKindUrl node, whose class arm emits the base instanceof check.
-// Lives beside the url emitter so it reuses the unexported pattern helpers.
+// nativeUrlEmitter runs the url format's checks over a URL object's href; it lives here for the unexported pattern helpers.
+// KindClass because splitBuiltinClassBrand lifts the brand onto the SubKindUrl node, whose class arm emits the instanceof.
 type nativeUrlEmitter struct{}
 
 func init() {
