@@ -75,7 +75,7 @@ const [result, error3] = await routes.users.sayHello(john).call();
 console.log(result); // Hello John Doe
 
 // ========== Example 5: Middleware outcomes in the response ==========
-// the response also keeps each middleware's outcome at its path, typed; the hooks are still the main way
+// the response also keeps each middleware's outcome at its path; prefer the hooks
 const [user4, routeError4, response4] = await routes.users
   .getById('USER-123')
   .call();

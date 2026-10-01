@@ -6,11 +6,6 @@ const {routes} = initClient<MyApi>({
   baseURL: 'http://localhost:3000',
 });
 
-// [routeResult, routeError, response]
-// - error: the route's DECLARED errors | ValidationError (strongly typed, CLOSED union)
-// - response.auth: the auth middleware's answer or DECLARED error, by its path
-// - response['@thrownErrors']: anything NOBODY declared - transport, platform,
-//   framework or an undeclared throw (OPEN RpcError<string>[])
 const [user, error, response] = await routes.users.getById('USER-404').call();
 const thrown = response['@thrownErrors'];
 

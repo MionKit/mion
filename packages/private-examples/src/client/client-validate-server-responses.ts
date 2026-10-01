@@ -7,7 +7,7 @@ const {routes} = initClient<MyApi>({
   validateServerResponses: true,
 });
 
-// a wrong answer is dropped and reported in @thrownErrors
+// a wrong answer is dropped and reported
 const [greeting, error, response] = await routes.sayHello('John').call();
 const [thrown] = response['@thrownErrors'] ?? [];
 

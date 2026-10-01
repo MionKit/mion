@@ -10,7 +10,7 @@ const p2 = routes.utils.sum(5, 2).call();
 
 client.abort();
 
-// both come back as 'request-aborted' in @thrownErrors
+// both come back as 'request-aborted'
 const [, , response1] = await p1;
 const [, , response2] = await p2;
 if (response1['@thrownErrors']?.[0].type === 'request-aborted')
