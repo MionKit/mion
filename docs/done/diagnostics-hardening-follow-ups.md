@@ -1,7 +1,7 @@
 ---
 type: chore
 spec: guidelines
-status: ready
+status: done
 created: 2026-09-30
 ---
 
@@ -188,8 +188,12 @@ the generator draws none. Seeds pinned in `dataOnlyAgreement.smoke.test.ts`.
 - Only `typeFuzzHarness.ts` maps positions to lines; the byte-offset and line-break rule is in the add-diagnostic skill.
 
 **4. Budgets.** The non-data lane soaks 10 minutes in `.github/workflows/fuzz-nondata-soak.yml` (release PRs and
-manual runs), out of the release gate's matrix through `soakWorkflow` on its `FUZZ` entry. The reach walk is timed in
-the render metrics (`RenderMs.reachedFindings`).
+manual runs), out of the release gate's matrix through `soakWorkflow` on its `FUZZ` entry. The grid measured 74 s alone
+on 4 cores (the Go suite 301 s, 128 s without it); its value call shapes are more than half of that, so they run only
+with `MION_DIAG_GRID_FULL=1`, which the release gate sets. Splitting the grid into its own CI job was ruled out: the Go
+lane's green marker would then claim a result its job did not prove. The reach walk is timed in the render metrics
+(`RenderMs.reachedFindings`): 1.4 ms, and the elided renders about 15 ms, of a 198 ms request over 120 types x 5
+families, both under the 10% bar, so neither changed (numbers next to `ReportReachedFindings`).
 
 **5. Decisions.** `VerdictFrom` on the operations registry builds `adoptsFindingsOf` (now the three one-to-one
 pairs, not a cross product), pinned by `TestVerdictFrom_MatchesTheUnionDelegate`. `Internal` on `Definition` marks
