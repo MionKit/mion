@@ -135,7 +135,7 @@ slots. Type cost measured with the type-budget package before and after.
   (`@mionjs/core` `routesCache.getMethodJitFns`, now the return's own functions, as the server does).
 - A missing auth header (the server's headers validation) is the auth middleware's validation error, so it
   sits at `response.auth`, never in `@thrownErrors`.
-- Type cost (type-budget package, `5 + initClient` step): 3065 before, 3080 after. The map itself costs about
+- Type cost (type-budget package, `5 + initClient` step): 3065 before, 3083 after. The map itself costs about
   30; the shorter result saves 15. The next step (`6 + db query`) moved by 4 in every dialect without touching
   the query, and its budget records that as a reviewed exception.
 - The repo contract that kept the old slot from being called "fatal" was removed with the slot.
