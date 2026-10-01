@@ -6,6 +6,7 @@ interface Meetup {
   startsAt: Date;
   guests: Map<string, number>;
   tags: Set<string>;
+  site: URL;
   slot: [string, string?];
   note?: string;
 }
@@ -17,9 +18,10 @@ encodeMeetup({
   startsAt: new Date('2024-05-01T10:00:00.000Z'),
   guests: new Map([['ana', 2]]),
   tags: new Set(['work']),
+  site: new URL('https://example.com/meetup'),
   slot: ['am', undefined],
 });
-// {"id":"42","startsAt":"2024-05-01T10:00:00.000Z","guests":[["ana",2]],"tags":["work"],"slot":["am",null]}
+// {"id":"42","startsAt":"2024-05-01T10:00:00.000Z","guests":[["ana",2]],"tags":["work"],"site":"https://example.com/meetup","slot":["am",null]}
 // end-types
 
 // start-unions

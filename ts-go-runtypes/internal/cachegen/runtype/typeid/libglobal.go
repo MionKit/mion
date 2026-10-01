@@ -12,7 +12,7 @@ import (
 // list fell behind every edition of the standard library (the ESNext iterator objects, then `PromiseLike`)
 // and each catch-up shipped as a build break for somebody. The finite question instead: a type is data when
 // it is a shape the consumer wrote, or one of the natives we deliberately support (`Date`, `RegExp`, `Map`,
-// `Set`, Temporal, binary). A standard-library interface is neither, so it is not data — with no name
+// `Set`, `URL`, Temporal, binary). A standard-library interface is neither, so it is not data — with no name
 // anywhere. Callers must run this AFTER the supported natives are dispatched, or it would swallow them:
 // they are lib-declared too. Two properties make it safe: a type ALIAS can never be caught (`Partial<T>`,
 // `Record<K, V>`, `Readonly<T>`, `Pick`, `Omit` resolve to a mapped type whose symbol is not interface- or
@@ -56,7 +56,7 @@ func symbolForLibLookup(tsType *checker.Type) *ast.Symbol {
 // buffer (BinaryRootBaseOf), the one binary case with no member shape to test for; it is declared in the
 // standard library (LibDeclaredGlobalOf). The last rule is the contract: data is the closed set the
 // projection walks, so nothing is enumerated and a new lib edition cannot leave a list behind. Callers must
-// dispatch the supported natives (`Date`, `Map`, `Set`, `RegExp`, Promise, Temporal, arrays) BEFORE asking,
+// dispatch the supported natives (`Date`, `URL`, `Map`, `Set`, `RegExp`, Promise, Temporal, arrays) BEFORE asking,
 // since those are lib-declared too. The returned name becomes ClassRef.Builtin, which the emitter writes as
 // `classType = globalThis.<name>`, so it is always a name that exists at runtime, never a subclass name.
 func NotDataBuiltinOf(typeChecker *checker.Checker, tsType *checker.Type) (string, bool) {
