@@ -75,14 +75,19 @@ func namedPatternValidate(ctx formats.EmitContext, annotation *reflection.Format
 
 // namedPatternErrors is the validationErrors twin of namedPatternValidate, each error tagged with the format name.
 func namedPatternErrors(ctx formats.EmitContext, annotation *reflection.FormatAnnotation, vλl, pathExpr, errorsArr, name string) string {
+	return namedPatternErrorsAs(ctx, annotation, vλl, pathExpr, errorsArr, "string", name)
+}
+
+// namedPatternErrorsAs is namedPatternErrors reporting `expected` for a host that is not a string.
+func namedPatternErrorsAs(ctx formats.EmitContext, annotation *reflection.FormatAnnotation, vλl, pathExpr, errorsArr, expected, name string) string {
 	if annotation == nil {
 		return ""
 	}
-	statements := lengthErrorStatements(ctx, annotation.Params, vλl, pathExpr, errorsArr, name, "")
+	statements := lengthErrorStatements(ctx, annotation.Params, vλl, pathExpr, errorsArr, expected, name, "")
 	if source, flags, ok := recoverPattern(annotation.Params); ok {
 		test := emitPatternTest(ctx, source, flags, vλl)
 		statements = append(statements,
-			"if (!("+test+")) "+formats.FormatErrCall(pathExpr, errorsArr, "string", name, "pattern", "'pattern'"))
+			"if (!("+test+")) "+formats.FormatErrCall(pathExpr, errorsArr, expected, name, "pattern", "'pattern'"))
 	}
 	return strings.Join(statements, ";")
 }

@@ -199,31 +199,31 @@ func valuesSource(vals []string) string {
 // fmtName tags the emitted format error (stringFormat / domain / email / url …).
 // The failure conditions are the negation of lengthConditions and keep the same `.length` short-circuit, so the
 // exact code-point count is asked for only to confirm a failure.
-func lengthErrorStatements(ctx formats.EmitContext, params map[string]any, vλl, pathExpr, errorsArr, fmtName, errorTypeExpr string) []string {
+func lengthErrorStatements(ctx formats.EmitContext, params map[string]any, vλl, pathExpr, errorsArr, expected, fmtName, errorTypeExpr string) []string {
 	var statements []string
 	if isRegex, _ := params["isRegex"].(bool); isRegex {
 		statements = append(statements,
 			"if (!"+formats.PureFnAlias(ctx, purefnids.IsEcmaRegex)+"("+vλl+")) "+
-				formatErrWithType(pathExpr, errorsArr, fmtName, "isRegex", "true", errorTypeExpr))
+				formatErrAs(expected, pathExpr, errorsArr, fmtName, "isRegex", "true", errorTypeExpr))
 	}
 	codePointLength := formats.PureFnAlias(ctx, purefnids.CodePointLength) + "(" + vλl + ")"
 	if value, ok := formats.ReadNumberParam(params, "maxLength"); ok {
 		bound := formats.FormatNumber(value)
 		doubled := formats.FormatNumber(2 * value)
 		statements = append(statements,
-			"if ("+vλl+".length > "+bound+" && ("+vλl+".length > "+doubled+" || "+codePointLength+" > "+bound+")) "+formatErrWithType(pathExpr, errorsArr, fmtName, "maxLength", bound, errorTypeExpr))
+			"if ("+vλl+".length > "+bound+" && ("+vλl+".length > "+doubled+" || "+codePointLength+" > "+bound+")) "+formatErrAs(expected, pathExpr, errorsArr, fmtName, "maxLength", bound, errorTypeExpr))
 	}
 	if value, ok := formats.ReadNumberParam(params, "minLength"); ok {
 		bound := formats.FormatNumber(value)
 		doubled := formats.FormatNumber(2 * value)
 		statements = append(statements,
-			"if ("+vλl+".length < "+bound+" || ("+vλl+".length < "+doubled+" && "+codePointLength+" < "+bound+")) "+formatErrWithType(pathExpr, errorsArr, fmtName, "minLength", bound, errorTypeExpr))
+			"if ("+vλl+".length < "+bound+" || ("+vλl+".length < "+doubled+" && "+codePointLength+" < "+bound+")) "+formatErrAs(expected, pathExpr, errorsArr, fmtName, "minLength", bound, errorTypeExpr))
 	}
 	if value, ok := formats.ReadNumberParam(params, "length"); ok {
 		bound := formats.FormatNumber(value)
 		doubled := formats.FormatNumber(2 * value)
 		statements = append(statements,
-			"if ("+vλl+".length < "+bound+" || "+vλl+".length > "+doubled+" || "+codePointLength+" !== "+bound+") "+formatErrWithType(pathExpr, errorsArr, fmtName, "length", bound, errorTypeExpr))
+			"if ("+vλl+".length < "+bound+" || "+vλl+".length > "+doubled+" || "+codePointLength+" !== "+bound+") "+formatErrAs(expected, pathExpr, errorsArr, fmtName, "length", bound, errorTypeExpr))
 	}
 	return statements
 }
@@ -253,7 +253,7 @@ func stringErrorStatements(ctx formats.EmitContext, params map[string]any, vλl,
 			"if (!("+jsonParseCheck(params, vλl)+")) "+
 				formatErrWithType(pathExpr, errorsArr, fmtName, "contentMediaType", strconv.Quote(contentMediaTypeJSON), errorTypeExpr))
 	}
-	statements = append(statements, lengthErrorStatements(ctx, params, vλl, pathExpr, errorsArr, fmtName, errorTypeExpr)...)
+	statements = append(statements, lengthErrorStatements(ctx, params, vλl, pathExpr, errorsArr, "string", fmtName, errorTypeExpr)...)
 	if source, flags, ok := recoverPattern(params); ok {
 		test := emitPatternTest(ctx, source, flags, vλl)
 		statements = append(statements,

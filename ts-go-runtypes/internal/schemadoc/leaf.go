@@ -50,6 +50,7 @@ var FormatFamilies = map[string]FormatFamily{
 	"time":         {Exact: true, Base: "string"},
 	"dateTime":     {Exact: true, Base: "string"},
 	"nativeDate":   {BuilderFn: "date", TypeAlias: "Date", Base: "Date"},
+	"nativeUrl":    {BuilderFn: "nativeUrl", TypeAlias: "NativeUrl", Base: "URL"},
 	// The orderable Temporal families (registry: internal/reflection/temporal.go);
 	// PlainMonthDay / Duration carry no brand (no-params only).
 	"temporalInstant":        {BuilderFn: "instant", TypeAlias: "Instant", Temporal: true},

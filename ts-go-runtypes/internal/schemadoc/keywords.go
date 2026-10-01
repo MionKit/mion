@@ -198,7 +198,7 @@ func StandardFormatName(name string) string {
 		return "uuid"
 	case "domain":
 		return "hostname"
-	case "url":
+	case "url", "nativeUrl":
 		return "uri"
 	case "date":
 		return "date"
