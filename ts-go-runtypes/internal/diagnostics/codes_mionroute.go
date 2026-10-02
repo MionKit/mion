@@ -1,16 +1,9 @@
 package diagnostics
 
-// mion route codes (MRTxxx) over route, query, mutation, middleware and headersMiddleware handlers. The checker resolves
-// the call, so an alias, a namespace import, a local barrel, a named reference, a `Handler` const and `@mion:route` count.
-//
-// Emitted only when a caller opts in (Request.CheckRouterRules), so `mion compile` and the bundler
-// plugins never fail a build on one: a rule turned off in an eslint config must mean off.
-//
-// MRT001-MRT004 are LevelRuntimeError despite being lint-only: the build emits, and each describes a
-// route that is BROKEN once it runs, since mion compiles the DECLARED types. A missing annotation
-// leaves nothing validating the input or serializing the response (MRT001 / MRT002), and a throw or
-// a non-RpcError arm makes the declared return type untrue (MRT003 / MRT004). MRT005 is a warning:
-// a dropped member still leaves a working type.
+// mion route codes (MRTxxx) over route, query, mutation, middleware and headersMiddleware handlers, resolved by the checker.
+// Emitted only when a caller opts in (Request.CheckRouterRules), so a build never fails on one: off in eslint must mean off.
+// MRT001-MRT004 are LevelRuntimeError despite being lint-only: the build emits, but mion compiles the DECLARED types,
+// so the route is broken at runtime. MRT005 is a warning: a dropped member still leaves a working type.
 const (
 	// CodeRouteMissingReturnType: a handler with no written return type. The build compiles the
 	// DECLARED type, so an inferred one leaves nothing to validate or serialize against. Args: [0]
