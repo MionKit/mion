@@ -446,10 +446,7 @@ export type PresetFormat<Tag extends string, Defaults extends object, P = {}> = 
   never
 >;
 
-/** What a preset accepts as an override: its params family, minus the key(s) that ARE the preset's
- *  identity. `stringUrlHttp({maxLength: 100})` retunes the bound, while swapping its pattern is just
- *  `stringUrl({pattern})` under a misleading name, so the pinned key is rejected at the call site instead of
- *  quietly producing a format whose name no longer describes it. **/
+/** A preset's params minus the pinned key(s) that define it, so `stringUrlHttp({pattern})` fails at the call site. **/
 // Instantiated per call site (it rides every preset alias's generic bound), so keep it to one pass over Params.
 export type Override<Params, Pinned extends keyof Params = never> = Omit<Partial<Params>, Pinned>;
 
@@ -606,8 +603,7 @@ export type UrlFile<P extends Override<UrlObjectParams, 'pattern'> = {}> = UrlOb
   FormatDefaults<DEFAULT_URL_FILE_PARAMS, P>
 >;
 
-/** Any RFC 3986 URI, whatever the scheme (`mailto:`, `urn:`, `tel:`) — what
- *  `format: 'uri'` means. `StringUrl` is the narrower web-address form. **/
+/** Any RFC 3986 URI (`mailto:`, `urn:`, `tel:`), what `format: 'uri'` means; `StringUrl` is web addresses only. **/
 export type Uri<P extends Override<UrlParams, 'pattern'> = {}> = PresetFormat<'url', DEFAULT_URI_PARAMS, P>;
 /** An RFC 3986 URI reference: a URI, or a relative one like `../a` or `#frag`. **/
 export type UriReference<P extends Override<UrlParams, 'pattern'> = {}> = PresetFormat<'url', DEFAULT_URI_REFERENCE_PARAMS, P>;
@@ -658,12 +654,9 @@ export type RelativeJsonPointer<P extends Override<StringParams, 'pattern'> = {}
 /* eslint-enable @typescript-eslint/no-empty-object-type */
 
 // ───────────────────── Predefined string builders ───────────────────
-// Value-first builder per named alias, each carrying the CONCRETE alias above so the value-first id
-// converges with the type-first `createValidateFn<Email>()`. EVERY predefined string builder takes the
-// SAME optional params bag its type does, layered over that preset's own defaults:
-// `stringUrlHttp({maxLength: 100})` keeps the HTTP(S) pattern and replaces only the bound. The one exception
-// is the UUID family, whose only param is the version each alias exists to pin. For constraints no
-// preset covers, use `TF.string({…})`.
+// Each builder carries the CONCRETE alias above so its id converges with the type-first `createValidateFn<Email>()`.
+// Each takes its type's optional params over the preset defaults, except UUID, whose only param is the pinned version.
+// For constraints no preset covers, use `TF.string({…})`.
 
 /** The call shape every predefined string builder shares. **/
 export interface PresetFormatBuilder<Tag extends string, Defaults extends object, Params> {
@@ -848,8 +841,7 @@ export const emailParts = presetFormatBuilder<
   Override<EmailPartsParams, 'localPart' | 'domain'>
 >('email');
 
-/** URL string (`StringUrl`); `stringUrl({maxLength: 100})` overrides bounds, keeping the built-in
- *  pattern. **/
+/** URL string (`StringUrl`); `stringUrl({maxLength: 100})` overrides bounds, keeping the built-in pattern. **/
 export const stringUrl = presetFormatBuilder<'url', DEFAULT_URL_PARAMS, Override<UrlParams>>('url');
 /** HTTP(S) URL string (`StringUrlHttp`); `stringUrlHttp({maxLength: 100})` retunes the bound. **/
 export const stringUrlHttp = presetFormatBuilder<'url', DEFAULT_URL_HTTP_PARAMS, Override<UrlParams, 'pattern'>>('url');
