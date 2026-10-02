@@ -1344,6 +1344,15 @@
       "example": null
     },
     {
+      "code": "MET014",
+      "subsystem": "bundled-api",
+      "level": "warning",
+      "headline": "This program builds with moduleMode `allSingle`, one module per family for the whole program, so the client bundle carries every server type.",
+      "summary": "In `default` mode each source file gets its own module of compiled types, so a client bundle only holds the types of the files it imports. `allSingle` puts every type of the program in one module per family, server types included, and the client bundle loads all of them. Use the `default` mode for an app with a client and a server.",
+      "fix": "runTypes: {moduleMode: 'default'}",
+      "example": null
+    },
+    {
       "code": "SRV001",
       "subsystem": "client-imports",
       "level": "runtimeError",

@@ -11,6 +11,7 @@
 
 import {type PluginOptions as TsRuntypesPluginOptions} from './core/unplugin.ts';
 import {assertValidClientRoutes} from './core/client-routes.ts';
+import {MODULE_MODE_ALL_SINGLE} from './core/go-generated/runtypes-constants.generated.ts';
 
 /** Options for the mion powered type transformation. */
 export interface MionRunTypesOptions {
@@ -104,6 +105,13 @@ export function toRunTypesOptions(options: MionPresetOptions = {}): TsRuntypesPl
       `[mion] emitMode: 'functions' is not supported. mion serializes compiled fns to the client as ` +
         `code strings, and 'functions' omits the code, so every client would fail on first validate. ` +
         `Use 'code' (default) or 'both'.`
+    );
+  }
+  // One module per family for the whole program would put every server type in the client bundle.
+  if (rt.moduleMode === MODULE_MODE_ALL_SINGLE) {
+    throw new Error(
+      `[mion] moduleMode: 'allSingle' is not supported. It puts every type of the program in one module per ` +
+        `family, so the client bundle would carry the server's types. Use 'default' or 'allModules'.`
     );
   }
   assertValidClientRoutes(options.client?.routes);

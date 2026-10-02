@@ -394,6 +394,12 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     level: 'warning',
     family: 'marker',
   },
+  MET014: {
+    headline:
+      'This program builds with moduleMode `allSingle`, one module per family for the whole program, so the client bundle carries every server type.',
+    level: 'warning',
+    family: 'marker',
+  },
   MKR001: {
     headline:
       '`{0}()` is being called at runtime just so the marker can read its return type: side effects, throws, or async work run for nothing.',
