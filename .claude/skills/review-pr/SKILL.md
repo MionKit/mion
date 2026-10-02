@@ -1,11 +1,11 @@
 ---
 name: review-pr
-description: Review a PR or branch against this repo's rules in a fresh reviewer subagent, with an approved checklist, reporting findings and never editing. Use when asked to review a PR, branch or diff.
+description: Review a PR or branch against this repo's rules in a fresh reviewer subagent, with no checklist approval, then fix the findings automatically or let the user pick. Use when asked to review a PR, branch or diff.
 ---
 
 # review-pr
 
-Judge a change the way this repo judges one. **The review always runs in a `pr-reviewer` subagent**, never in the session that asked for it. That session runs the two simplify passes first, spawns the reviewer, carries the checklist to the user, fans the approved groups out to one agent each, and afterwards decides what to fix.
+Judge a change the way this repo judges one. **The review always runs in a `pr-reviewer` subagent**, never in the session that asked for it. That session asks the user which mode to run in, runs the two simplify passes, spawns the reviewer, fans the checklist groups out to one agent each, and then triages the findings. The checklist is never shown to the user for approval: only the findings are.
 
 The split exists for one reason: the author's memory of why a line exists is exactly what talks a real finding out of a report. A reviewer that never wrote the code cannot make that mistake. So the reviewer reads the diff, builds the checklist and verifies the findings in a context that knows nothing but what is on disk. For the same reason each checklist group is checked by its own agent: a group that cannot see another group's work cannot talk its finding away.
 
@@ -15,7 +15,7 @@ The review produces a **findings report**, never edits.
 
 This document has two halves. Read the one you are:
 
-- **[Calling session](#calling-session)** - you were asked to review something. Six steps, and none of them is reviewing.
+- **[Calling session](#calling-session)** - you were asked to review something. Six steps, and none of them is reviewing. Everything after the first question runs on its own.
 - **[Reviewer](#reviewer)** - you are a `pr-reviewer` agent, in one of three roles: the checklist builder, a group checker, or the merger.
 
 ---
@@ -24,7 +24,16 @@ This document has two halves. Read the one you are:
 
 You do not review. You do not read the diff to "check" a finding, and you do not build the checklist. Doing any of it puts the context back that the split removed.
 
-### 1. Run the two simplify passes first
+### 1. Ask the mode
+
+Ask once with AskUserQuestion, before anything else:
+
+- **Automatic**: the whole review runs, and you decide what to fix and fix it, without asking again. The user gets a final summary.
+- **Reviewed by you**: the whole review runs, you present every finding, and the user picks what to fix.
+
+If the user already said which one in the request ("review it and fix what matters"), skip the question. In both modes the user never sees or approves the checklist.
+
+### 2. Run the two simplify passes
 
 Documentation and comments are reviewed by their own agents, not by the reviewer, and they are reviewed by editing. Run them before the review so the reviewer reads the diff as it will be merged, not a draft of it.
 
@@ -45,39 +54,26 @@ Then do what those skills require of a caller, because neither agent commits its
 
 Only then spawn the reviewer. Reviewing before this leaves the reviewer judging prose that is about to change.
 
-### 2. Spawn the checklist reviewer
+### 3. Spawn the checklist reviewer
 
 One agent, `subagent_type: pr-reviewer`, with the target and nothing else:
 
 ```
 Review <the current branch against origin/main | branch <name> | PR #<n>>.
 Follow the review-pr skill, the reviewer's half, from step 1.
+No approval is coming: return the final checklist, one block per group.
 ```
 
 Add anything the user said they are worried about, in their words. Do not add your own summary of the change: the reviewer reads it from disk, and your summary is the context the split exists to keep out.
 
 If the agent type is not found (agent definitions load at session start), spawn `general-purpose` with the body of `.claude/agents/pr-reviewer.md` as the prompt plus the instruction to read this skill first.
 
-### 3. Carry the checklist to the user
-
-The reviewer stops after the checklist and hands it back. Its message is not shown to the user, so relay it **whole**: the intent, every item with its id and source, the per-file rule counts, and the groups it dropped with its reasons. Do not trim it, and do not judge it.
-
-Then ask with AskUserQuestion: run it as is, add items, or drop a group. This is the moment the user steers the review, and an item they add matters even when no rulebook mentions it, because their attention is a signal about where the change is risky.
-
-Send the answer back to the **same** agent with SendMessage, so it continues with its context intact:
-
-```
-Approved. Return the final checklist, one block per group.
-```
-
-or the amendments in the user's words. A fresh Agent call would start over and rebuild the list. The agent folds in the amendments and returns the final checklist: the pinned merge-base, the intent, and one block per group. A user addition that fits no group comes back as its own group, `U`.
-
 ### 4. Fan the groups out, one agent each
 
-Spawn one `pr-reviewer` agent per group in the final checklist, all in **one message** so they run at once. Copy each group's block **verbatim**; copying is not editing. Nothing else goes in: no summary of the change, and no other group's items.
+The checklist builder ends its first turn with the final checklist: the pinned merge-base, the intent, and one block per group. A user request that fits no group becomes group `U`. Spawn one `pr-reviewer` agent per group, all in **one message** so they run at once. Copy each group's block **verbatim**; copying is not editing. Nothing else goes in: no summary of the change, and no other group's items.
 
 ```
-Check group <X> of the approved checklist for <the target>.
+Check group <X> of the checklist for <the target>.
 Follow the review-pr skill, the reviewer's half, role "Group checker".
 Merge base: <sha>
 Intent: <the intent paragraph, verbatim>
@@ -89,7 +85,7 @@ Each returns its answers and its verified findings. Relay nothing yet.
 
 ### 5. Send the group reports to the merger
 
-Send every group report, whole and unedited, back to the **checklist reviewer** with SendMessage:
+Send every group report, whole and unedited, back to the **checklist reviewer** with SendMessage (a fresh Agent call would lose the context):
 
 ```
 Group reports follow. Merge them into the report, step 7.
@@ -100,25 +96,32 @@ It merges duplicates across groups and writes the one report. It is the merger b
 
 ### 6. Triage the report
 
-The reviewer reports everything that survived verification. **Relay all of it to the user.** You filter fixes, never findings: a finding the user never sees is one they can never decide about, and summarising the list hides findings just as effectively as deleting them.
+The reviewer reports everything that survived verification. Never summarise or cut the report before the next step: a finding hidden by shortening is lost just like a deleted one.
 
-Then decide what to do with each, with the user. The root [CLAUDE.md](../../../CLAUDE.md) sets where a finding goes, and it is not a menu:
+**Reviewed by you.** Present **every** finding to the user, in the reviewer's order, then ask what to fix. You filter fixes, never findings. Do not recommend dropping any; recommending is fine, dropping is the user's call.
 
-- **Related to this change** - fix it here, in this PR, with its own commit and its own test.
-- **Unrelated** - hand it to a parallel background agent through the [delegate-finding skill](../delegate-finding/). Never a backlog note.
-- **You disagree** - say so to the user with the reason and let them settle it. Disagreeing is not the same as dropping.
+**Automatic.** You trim and decide, then fix, without asking. Read the code at each cited line first, then sort every finding into one of these:
+
+- **Fix now**: it is right and related to this change. Fix it here, in this PR, with its own commit and its own test.
+- **Delegate**: it is right but unrelated. Hand it to a parallel background agent through the [delegate-finding skill](../delegate-finding/). Never a backlog note.
+- **Drop**: it is wrong, already fixed, or pure taste. Write down why, one line each.
+
+**Read every nit for what it says, not what it is called.** Nits have turned out to hold real problems: a wrong name that hides a bug, a missing case, a rule broken in a small way. Treat the label as the reviewer's guess. A nit is dropped only after you read it and can say why it is wrong or why both readings are fine. When unsure, fix it.
+
+When done, tell the user in a short summary: what you fixed, what you delegated, and each finding you dropped with its reason. Nothing is dropped silently.
 
 If the user wants the findings on GitHub, post them as inline review comments, and resolve a thread only once it is actually fixed.
 
-Fixes are a separate step, after the user picks them. Reviewing and fixing in one motion is how a review turns into a rewrite.
+In reviewed mode, fixing is a separate step after the user picks. Do not fix before that.
 
 ### What the calling session must NOT do
 
 - **Do not skip the simplify passes**, and do not run either of them yourself. Each needs a context that did not write the prose, which is the same reason the review does.
-- **Do not review.** Not before spawning, not to double-check a finding, not "just the diff stat". Checking a simplifier's rewrite against the code is not reviewing: it is the caller's job, and it is about facts, not style.
-- **Do not build or edit the checklist yourself.** Amendments come from the user and go to the reviewer verbatim.
-- **Do not drop a finding** because it is small, because you disagree, or because the report is long. That is the user's call.
-- **Do not start a new checklist reviewer** for the amendments or the merge. SendMessage to the first one; the group agents are the only other reviewers.
+- **Do not review.** Not before spawning, not "just the diff stat". Checking a simplifier's rewrite against the code is not reviewing, and neither is reading a finding's cited lines during triage: both are the caller's job.
+- **Do not build or edit the checklist yourself.**
+- **Do not drop a finding silently.** In reviewed mode only the user drops one. In automatic mode you drop only after reading it, and you list each drop with its reason.
+- **Do not show the checklist to the user or ask them to approve it**, in either mode.
+- **Do not start a new checklist reviewer** for the merge. SendMessage to the first one; the group agents are the only other reviewers.
 - **Do not trim a group's block** when you fan it out, and do not hand one agent two groups.
 
 ---
@@ -129,10 +132,10 @@ You are a `pr-reviewer` agent. You read, you judge, you report. You never edit, 
 
 The review runs in two halves, split over three roles. Your prompt says which one you are:
 
-1. **Agree what to check.** The **checklist builder** builds one filtered list from the diff: the rules in the CLAUDE.md files that govern the changed files, plus the general engineering checks those files do not cover. It hands the list back for approval (steps 1 to 4).
+1. **Agree what to check.** The **checklist builder** builds one filtered list from the diff: the rules in the CLAUDE.md files that govern the changed files, plus the general engineering checks those files do not cover. It hands the list back, grouped, with no approval step (steps 1 to 4).
 2. **Check it.** One **group checker** per group works that group's items, verifies what it finds, and answers item by item (steps 5 and 6). The checklist builder, resumed as the **merger**, then turns the group reports into one report (step 7).
 
-Why the list comes first: a review with no agreed scope reads as opinion, and nobody can tell what it skipped. An approved list makes the review auditable, lets the user add or drop items before the work happens, and gives every finding a number to point at.
+Why the list comes first: a review with no written scope reads as opinion, and nobody can tell what it skipped. A written list makes the review auditable and gives every finding a number to point at.
 
 The bias throughout: **fewer committed lines**. A new type that could be derived, a new file that could be three lines in an existing one, an abstraction with one caller. Each of those is a finding.
 
@@ -145,7 +148,7 @@ Missing documentation is deliberately not a finding here. Documentation written 
 1. **Scope** the change. One script does it. *(checklist builder)*
 2. **Frame** it: read the spec and the PR description, write the intent. *(checklist builder)*
 3. **Build** the review list, filtered to what this diff actually contains. *(checklist builder)*
-4. **Hand it back**, wait for approval, return the final list by group. *(checklist builder)*
+4. **Hand it back** by group. *(checklist builder)*
 5. **Check your group.** *(group checker)*
 6. **Verify** every finding against the diff. *(group checker)*
 7. **Merge and report** against the list. *(merger)*
@@ -234,9 +237,7 @@ whoever is allowed to edit that page.
 
 ### Step 4 - Hand the checklist back
 
-End your turn with the checklist as your whole message: the intent, every item with its id and source, the per-file rule counts, the groups you dropped and why ("no C group, the diff adds no comments"), and a closing line saying you are waiting for approval before you check anything.
-
-The caller relays it to the user and sends back either an approval or amendments. Fold in what comes back: place a user addition in the group it belongs to, or in its own group `U` when it fits none, and keep the user's words in the item. Then end your turn with the **final checklist**: the pinned merge-base, the intent, and one block per group, each block holding only that group's items with their ids and sources. The caller copies each block to its own group checker.
+End your turn with the **final checklist**: the pinned merge-base, the intent, the per-file rule counts, the groups you dropped and why ("no C group, the diff adds no comments"), and one block per group, each holding only that group's items with their ids and sources. Anything the caller's prompt said worries the user goes in as items, in the user's words, in the group it fits or in its own group `U`. Nobody approves the list; the caller copies each block to its own group checker.
 
 You never check items yourself. Steps 1 to 3 are reading and listing; step 4 is a full stop, and your next job is step 7.
 
@@ -285,7 +286,7 @@ You are the checklist builder again, now holding every group's report. You do no
 Answer the list. Order by severity, not by group.
 
 **Report every finding that survived step 6. Filtering is not yours to do.** A verified finding is dropped
-only by the user, and the caller is the one who asks them. You do not get to leave one out because it is
+only by the caller, who reads each one first. You do not get to leave one out because it is
 small, because it is the second one from the same item, because another finding is in the same file,
 because the report is getting long, or because you privately disagree: disagreeing is what the severity
 levels are for. If a finding is too small to write a line for, it was too small to verify, so it should
@@ -324,8 +325,9 @@ Your final message is the report, nothing else. The caller decides what happens 
 
 ### What the reviewer must NOT do
 
+- **Do not wait for approval of the checklist.** Hand it back and stop.
 - **Do not check items as the checklist builder**, and do not check another group's items as a group checker.
-- **Do not edit code.** This skill reviews. Fixes happen after the user picks them, as their own step.
+- **Do not edit code.** This skill reviews. Fixes are the caller's job, after the report.
 - **Do not filter the findings.** Every finding that survives verification goes in the report, each with its own entry. Summarising the list IS filtering it.
 - **Do not run tests, builds or lint, and never report a test result you did not produce.** This review reads. The host is often not bootstrapped, and "tests pass" from an unbuilt host is a false claim. Reporting that a behaviour has no test is fine and expected.
 - **Do not build the list from the catalog alone.** The CLAUDE.md files are the guidelines; the catalog only covers what they do not.
