@@ -6,9 +6,7 @@
     "outDir": "dist-cli",
     "rewriteRelativeImportExtensions": true
   },
-  // src/tests/ is out of the SERVER program on purpose, and not just to keep specs out of a
-  // production emit: this compile names a separate client project with --client-tsconfig, so the
-  // batch table is built from THAT program and a `batch()` written here would never reach it.
-  // json.spec.ts has two, and the build reports each one fatally (BAT008).
-  "exclude": ["node_modules", "dist", "dist-cli", "src/tests"]
+  // The production program: the server and its bundling client. The specs are not shipped, and the
+  // fetch lane's client is compiled on its own by tsconfig.compile-fetch.json.
+  "exclude": ["node_modules", "dist", "dist-cli", "dist-cli-fetch", "src/tests", "src/client/fetchFlow.ts"]
 }
