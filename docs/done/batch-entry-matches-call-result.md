@@ -1,7 +1,7 @@
 ---
 type: feature
 spec: full-plan
-status: ready
+status: done
 created: 2026-10-02
 ---
 
@@ -111,10 +111,13 @@ New tests that pin the contract:
 
 - **Shape** (`batch.spec.ts`): the result length equals the number of routes, every entry has 3 items, and
   every entry's slot 2 is the SAME object (`toBe`, not `toEqual`).
-- **Parity with a single call** (`errorDispatch.spec.ts`, beside T13): for a success, a declared error and a
-  validation error, the batch entry's slots 0 and 1 deep-equal what `route.call()` returns for the same route.
-- **Whole-call failure** (timeout, abort, unknown batch id): every entry is `[undefined, undefined, response]`,
-  and the error is in `response['@thrownErrors']` once, not once per entry.
+- **Parity with a single call** (`errorDispatch.spec.ts`, T33): for a success, a declared error and a
+  validation error, the batch entry's slots 0 and 1 equal what `route.call()` returns for the same route (error
+  ids left out, they are generated per error). The validation case runs in a batch of its own: wrong params stop
+  the whole request client-side, so the other routes would never run. A route is listed once per batch (BAT005).
+- **Whole-call failure** (`batch.spec.ts`, timeout): every entry is `[undefined, undefined, response]`, and the
+  error is in `response['@thrownErrors']` once, not once per entry. The existing abort and unknown id tests
+  assert the same empty slots per entry.
 - **Types** (`types.spec.ts`): an entry's type equals the single call's result type,
   `expectTypeOf(entry).toEqualTypeOf<Awaited<ReturnType<typeof subRequest.call>>>()`. Also check that a
   3-route batch types each entry by its own route.
@@ -136,9 +139,16 @@ Page `container/website/content/01.rpc/04.client/03.batch.md`, existing sections
 
 - Intro (:7): one entry per route, in order, each the same `[result, error, response]` as a single call.
 - Add a tip there: every entry shares the same response object.
+- Added on request while building: the page stresses that slots 0 and 1 are strongly typed, and that both are
+  `undefined` when the error happened outside the route. **Error Handling in a Batch** was rewritten around one
+  table of what each slot holds per case (success, declared or validation error, a middleware failing before the
+  route, a timeout / abort / network failure / undeclared throw, another route's wrong params stopping the batch),
+  plus a tip that an empty result is not always a success. The warning now says a route failing on the server
+  does not stop the others.
+- `batch-basic.ts` and `cancellation-with-middlewares.ts` check `response['@thrownErrors']` instead of reading
+  an empty error slot as a success.
 - **Batch vs Single Route** (:100-112): rewrite the table. The result row becomes "one `[result, error,
   response]` per route", and the separate error row goes.
-- **Error Handling in a Batch** (:141-153): rewrite the sentence and the inline snippet to the per-entry shape.
 - **JSON Round Trip in a Batch** (:178): fix the inline snippet.
 
 Label the PR `website` and `pre-publish-e2e`.
