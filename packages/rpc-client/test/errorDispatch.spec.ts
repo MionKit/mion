@@ -9,7 +9,7 @@
  * Contract tests for the client error dispatch rules.
  *
  * The result is [result, error, response]; `response` is the decoded body with ids nested by group:
- * - R1 route returned its own declared error              -> slot 1 (its index in a batch) AND its path in slot 2
+ * - R1 route returned its own declared error              -> slot 1 (of its own entry in a batch) AND its path in slot 2
  * - R2 param validation failed for a route                -> slot 1 AND its path, client- or server-side
  * - R3 middleware declared error / validation error       -> its path in slot 2 AND its onError listener
  * - R4 anything not strongly typed (a throw, transport,   -> `response['@thrownErrors']` only, NO listener fires;
@@ -253,10 +253,10 @@ describe('client error dispatch contract', () => {
   });
 
   describe('batch calls', () => {
-    it('T10 (R1): one route fails, another succeeds -> each stays in its own index; @thrownErrors empty', async () => {
+    it('T10 (R1): one route fails, another succeeds -> each stays in its own entry; @thrownErrors empty', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       useAuth(middlewares);
-      const [[failResult, sum], [failError, sumError], response] = await batch([
+      const [[failResult, failError, response], [sum, sumError]] = await batch([
         routes.alwaysFails(someUser),
         routes.utils.sumTwo(5),
       ]).call();
@@ -275,12 +275,13 @@ describe('client error dispatch contract', () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       useAuth(middlewares);
 
-      const [results, errors, response] = await batch([routes.sleep(5000), routes.utils.sumTwo(5)]).call({
+      const entries = await batch([routes.sleep(5000), routes.utils.sumTwo(5)]).call({
         timeout: 100,
       });
+      const [[, , response]] = entries;
 
-      expect(results).toEqual([undefined, undefined]);
-      expect(errors).toEqual([undefined, undefined]);
+      expect(entries.map(([value]) => value)).toEqual([undefined, undefined]);
+      expect(entries.map(([, error]) => error)).toEqual([undefined, undefined]);
       expect(response['@thrownErrors']?.map((error) => error.type)).toEqual(['request-timeout']);
     });
 
@@ -292,7 +293,7 @@ describe('client error dispatch contract', () => {
         .onRequest((session) => session('expired'))
         .onError('session-expired', (error) => (listenerError = error));
 
-      const [, [greetingError], response] = await batch([routes.sayHello(someUser)]).call();
+      const [[, greetingError, response]] = await batch([routes.sayHello(someUser)]).call();
 
       expect(greetingError).toBeUndefined();
       expect(response['@thrownErrors']).toBeUndefined();
@@ -305,7 +306,7 @@ describe('client error dispatch contract', () => {
       useAuth(middlewares);
 
       const [, , single] = await routes.sleep(5000).call({timeout: 100});
-      const [, , batched] = await batch([routes.sleep(5000)]).call({timeout: 100});
+      const [[, , batched]] = await batch([routes.sleep(5000)]).call({timeout: 100});
 
       expect(single['@thrownErrors']?.[0]?.type).toBe('request-timeout');
       expect(batched['@thrownErrors']?.[0]?.type).toBe('request-timeout');
@@ -314,7 +315,7 @@ describe('client error dispatch contract', () => {
     it('T31 (R2): a client-side validation error in a batch sits at its nested path', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       useAuth(middlewares);
-      const [, [sumError, greetingError], response] = await batch([
+      const [[, sumError, response], [, greetingError]] = await batch([
         routes.utils.sumTwo('x' as unknown as number),
         routes.sayHello(someUser),
       ]).call();
@@ -323,6 +324,27 @@ describe('client error dispatch contract', () => {
       expect(greetingError).toBeUndefined();
       expect((response as any).utils?.sumTwo).toBe(sumError);
       expect(response['@thrownErrors']).toBeUndefined();
+    });
+
+    it('T33 (R1/R2/R5): each batch entry holds what a single call() of that route returns', async () => {
+      const {routes, middlewares} = initClient<MyApi>({baseURL});
+      useAuth(middlewares);
+      // error ids are generated per error, so compare everything else
+      const slots = ([value, error]: readonly [unknown, RpcError<string> | undefined, unknown]) => [
+        value,
+        error && {type: error.type, publicMessage: error.publicMessage, errorData: error.errorData},
+      ];
+
+      const ran = await batch([routes.utils.sumTwo(5), routes.alwaysFails(someUser)]).call();
+      const ranSingles = [await routes.utils.sumTwo(5).call(), await routes.alwaysFails(someUser).call()];
+      expect(ran.map(([, error]) => error?.type)).toEqual([undefined, 'unknown-error']);
+      expect(ran.map(slots)).toEqual(ranSingles.map(slots));
+
+      // a client-side validation error stops the request, so it gets a batch of its own
+      const [invalid] = await batch([routes.sayHello({name: 1} as any)]).call();
+      const invalidSingle = await routes.sayHello({name: 1} as any).call();
+      expect(invalid[1]?.type).toBe('validation-error');
+      expect(slots(invalid)).toEqual(slots(invalidSingle));
     });
   });
 

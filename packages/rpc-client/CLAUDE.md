@@ -2,8 +2,8 @@
 
 ## The call result is `[result, error, response]`, and what goes where is deliberate
 
-`call()` resolves to `[result, error, response]` ([src/types.ts](src/types.ts), `Result`; `batch()` returns the
-same layout with arrays in the first two slots, `BatchResult`). The split encodes WHO can produce each error, and
+`call()` resolves to `[result, error, response]` ([src/types.ts](src/types.ts), `Result`; `batch()` returns one
+`Result` per route, in order, every entry sharing the same response object, `BatchResult`). The split encodes WHO can produce each error, and
 that is what keeps slot 1 a closed, strongly typed union.
 
 | slot | holds                                                                           | who produced it                                                                                                                                                                           |

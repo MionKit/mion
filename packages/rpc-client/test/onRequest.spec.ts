@@ -89,10 +89,11 @@ describe('middleware onRequest', () => {
       auth(authHeaders);
     });
 
-    const [results, errors, response] = await batch([routes.sayHello(user), routes.utils.sumTwo(1)]).call();
+    const entries = await batch([routes.sayHello(user), routes.utils.sumTwo(1)]).call();
+    const [[, , response]] = entries;
     expect(response['@thrownErrors']).toBeUndefined();
-    expect(errors).toEqual([undefined, undefined]);
-    expect(results).toEqual(['Hello John Doe', 3]);
+    expect(entries.map(([, error]) => error)).toEqual([undefined, undefined]);
+    expect(entries.map(([value]) => value)).toEqual(['Hello John Doe', 3]);
     expect(contexts).toHaveLength(1);
     expect(contexts[0].route).toBeUndefined();
     expect(contexts[0].batchSubRequests?.map((subRequest) => subRequest.id)).toEqual(['sayHello', 'utils/sumTwo']);
@@ -330,7 +331,7 @@ describe('middleware onRequest', () => {
         answers++;
       });
 
-      const [[greeting, items], , response] = await batch([routes.sayHello(user), routes.paramless.list(5)]).call();
+      const [[greeting, , response], [items]] = await batch([routes.sayHello(user), routes.paramless.list(5)]).call();
 
       expect(response['@thrownErrors']).toBeUndefined();
       expect(greeting).toBe('Hello John Doe');

@@ -191,11 +191,12 @@ describe('a client built with bundleApi: true', () => {
     const watch = watchFetch();
     try {
       middlewares.auth.onRequest((auth) => auth(new HeadersSubset({Authorization: 'XWYZ-TOKEN'})));
-      const [results, errors, response] = await batch([routes.sayHello(user), routes.utils.sumTwo(1)]).call();
+      const entries = await batch([routes.sayHello(user), routes.utils.sumTwo(1)]).call();
+      const [[, , response]] = entries;
       // the hook fed auth, unnamed by the call
       expect(response['@thrownErrors']).toBeUndefined();
-      expect(errors).toEqual([undefined, undefined]);
-      expect(results).toEqual(['Hello John Doe', 3]);
+      expect(entries.map(([, error]) => error)).toEqual([undefined, undefined]);
+      expect(entries.map(([value]) => value)).toEqual(['Hello John Doe', 3]);
       expect(watch.askedForMetadata()).toBe(false);
     } finally {
       watch.restore();
