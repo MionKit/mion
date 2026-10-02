@@ -459,25 +459,23 @@ with `MION_FUZZ_SEED=<seed> pnpm miondevx core fuzz sechttp`.
 
 ### `apiids/` — a bundled mion client ships the server's runtypes
 
-The mion side of the id story. With `bundleApi` on, a client build compiles the
-validators and serializers of every route it calls, and with `apiTsconfig` it
-resolves the route types in the server's own program. The lane drives the real
-binary over two real temp projects per generated data type: a SERVER (strict,
-one `initRoutes` call over two routes taking and returning the type) and a
-CLIENT (`strictNullChecks` off, an older lib, calling both routes).
+The mion side of the id story. With `client.routes: 'bundle'`, a client build compiles the
+validators and serializers of every route it calls. The lane drives the real binary over one
+real temp project per generated data type, holding the server (one `initRoutes` call over two
+routes taking and returning the type) and a client calling both routes, and builds it twice into
+two gen dirs, the way a release builds the server and the client.
 
 - **A1** the server manifest's `paramsId` / `returnId` equal the ids the
   reflection marker assigns to the same types (a probes file, both
   `getRunTypeId` call shapes), so the API tree walk and the marker scanner
   agree.
-- **A2** the client build reports no `MET` diagnostic and bundles exactly the
-  routes it calls.
-- **A3** `mion api-check` over the two gen dirs exits 0: the client shipped the
-  server's exact runtypes, tsconfig differences and all.
+- **A2** the client build reports no `MET` diagnostic, bundles exactly the
+  routes it calls, and writes the same `api/` tree as the server build.
+- **A3** `mion api-check` over the server manifest of one build and the client
+  manifest of the other exits 0.
 
-The negative control is a fixed test beside the sweep: a type with an explicit
-`| undefined` member, built WITHOUT the pointer under the client's tsconfig,
-fails api-check on `paramsId`. Runner: `apiIdsFuzz.ts`; replay with
+The negative control is a fixed test beside the sweep: a client manifest from a build before a
+server-side type edit fails api-check on `paramsId`. Runner: `apiIdsFuzz.ts`; replay with
 `MION_FUZZ_SEED`, widen with `MION_FUZZ_ITER`.
 
 ### `enrich/` — model-based (stateful) fuzzers
