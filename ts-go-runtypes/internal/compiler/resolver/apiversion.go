@@ -38,6 +38,11 @@ func (sess *Session) apiVersionReplacements(files []string) []protocol.Replaceme
 	return out
 }
 
+// ApiVersionReplacements is every build-version splice in the program, the only rewrite a declaration emit keeps.
+func (sess *Session) ApiVersionReplacements() []protocol.Replacement {
+	return sess.apiVersionReplacements(sess.programSourceFiles())
+}
+
 // apiVersionSites walks files for marked calls, or answers nothing when apiVersionOn is false.
 func (sess *Session) apiVersionSites(files []string) []apiVersionSite {
 	if sess.Program == nil || sess.Program.TS == nil || len(files) == 0 || !sess.apiVersionOn() {
