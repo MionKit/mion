@@ -11,7 +11,7 @@ middlewares.trace.onRequest((trace) =>
   trace(new HeadersSubset({'X-Trace-Id': crypto.randomUUID()}))
 );
 
-const [[sum, greeting], [sumError, greetingError], response] = await batch([
+const [[sum, sumError, response], [greeting, greetingError]] = await batch([
   routes.utils.sum(5, 2),
   routes.sayHello('John'),
 ]).call();

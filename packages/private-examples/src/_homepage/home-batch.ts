@@ -7,7 +7,7 @@ const orderReq = routes.getOrder('ORDER-123');
 const userIdMapping = inputFrom(orderReq, (order) => order!.userId);
 const userReq = routes.getUser(userIdMapping.asArg());
 
-const [[order, user]] = await batch([orderReq, userReq]).call();
+const [[order], [user]] = await batch([orderReq, userReq]).call();
 if (order && user) {
   console.log(`Order ${order.id} placed by ${user.name}`);
 }

@@ -117,7 +117,7 @@ describe('JSON Serialization E2E', () => {
 
         middlewares.auth.onRequest((auth) => auth(authHeaders));
 
-        const [[greeting, age, sum], [greetingError, ageError, sumError]] = await batch([
+        const [[greeting, greetingError], [age, ageError], [sum, sumError]] = await batch([
             routes.sayHello(someUser),
             routes.calculateAge(1990),
             routes.utils.sumTwo(5),
@@ -142,7 +142,7 @@ describe('JSON Serialization E2E', () => {
         // between the two calls — so this asserts the whole build-time transport survives packing.
         // The param resolves server-side, hence the `!` (same convention as the docs examples).
         const customer = routes.getCustomerById(7);
-        const [[customerData, prefs], [customerError, prefsError]] = await batch([
+        const [[customerData, customerError], [prefs, prefsError]] = await batch([
             customer,
             routes.getPreferencesById(inputFrom(customer, (customerValue) => customerValue!.preferenceId).asArg()),
         ]).call();

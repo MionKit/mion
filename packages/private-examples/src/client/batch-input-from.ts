@@ -9,7 +9,7 @@ const mapping = inputFrom(orderReq, (order) => order!.userId);
 // a typed placeholder for the value the server maps in
 const userReq = routes.users.getById(mapping.asArg());
 
-const [[orderData, userData]] = await batch([orderReq, userReq]).call();
+const [[orderData], [userData]] = await batch([orderReq, userReq]).call();
 if (orderData && userData) {
   console.log(`Order ${orderData.id} placed by ${userData.name}`);
 }

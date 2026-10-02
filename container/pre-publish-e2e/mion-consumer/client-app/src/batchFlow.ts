@@ -21,9 +21,9 @@ export async function runInlineMapperBatch(baseURL: string): Promise<{customer: 
     // No session token to send, but a bundled build refuses a middleware left alone (MET009).
     middlewares.session.onRequest(() => undefined);
     const customer = routes.getCustomerById(7);
-    const [[customerData, prefs], errors] = await batch([
+    const [[customerData, customerError], [prefs, prefsError]] = await batch([
         customer,
         routes.getPreferencesById(inputFrom(customer, (customerValue) => customerValue!.preferenceId).asArg()),
     ]).call();
-    return {customer: customerData, prefs, errors: [...errors]};
+    return {customer: customerData, prefs, errors: [customerError, prefsError]};
 }
