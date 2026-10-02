@@ -10,6 +10,7 @@ import {setNodeHttpOpts, resetNodeHttpOpts, startNodeServer} from '../src/mionHt
 import type {CallContext, Route} from '@mionjs/router';
 import {HeadersSubset, MION_ROUTES, StatusCodes, type PublicRpcError} from '@mionjs/core';
 import type {Server} from 'http';
+import {createConnection} from 'net';
 
 describe('node http router', () => {
   type SimpleUser = {name: string; surname: string};
@@ -90,16 +91,31 @@ describe('node http router', () => {
       expect(headers['server']).toEqual('@mionjs');
     });
 
-    it('answers a HEAD request with the headers only, and keeps serving', async () => {
-      const response = await fetch(`http://127.0.0.1:${port}/api/getDate`, {method: 'HEAD'});
-      expect(response.status).toEqual(StatusCodes.OK);
-      expect(response.headers.get('content-type')).toEqual('application/json; charset=utf-8');
-      expect(response.headers.get('content-length')).toEqual('47');
-      expect(await response.text()).toEqual('');
-
-      const next = await fetch(`http://127.0.0.1:${port}/api/getDate`, {method: 'POST', body: '{}'});
-      expect(next.status).toEqual(StatusCodes.OK);
-      expect(await next.json()).toEqual({getDate: {date: '2022-04-22T00:17:00.000Z'}});
+    it('answers a HEAD request with the headers only, and keeps serving on the same connection', async () => {
+      const head = 'HEAD /api/getDate HTTP/1.1\r\nHost: x\r\n\r\n';
+      const post = 'POST /api/getDate HTTP/1.1\r\nHost: x\r\nContent-Length: 2\r\n\r\n{}';
+      const dateBody = '{"getDate":{"date":"2022-04-22T00:17:00.000Z"}}';
+      const wire = await new Promise<string>((resolve, reject) => {
+        let data = '';
+        const socket = createConnection({host: '127.0.0.1', port}, () => socket.write(head + post));
+        socket.setEncoding('latin1');
+        socket.on('data', (chunk) => {
+          data += chunk;
+          if (data.endsWith(dateBody)) {
+            socket.destroy();
+            resolve(data);
+          }
+        });
+        socket.on('error', reject);
+      });
+      const split = wire.indexOf('\r\n\r\n');
+      const headAnswer = wire.slice(0, split);
+      const postAnswer = wire.slice(split + 4);
+      expect(headAnswer).toMatch(/^HTTP\/1\.1 200/);
+      expect(headAnswer).toMatch(/content-length: 47/i);
+      // a leaked HEAD body would sit here, before the POST answer
+      expect(postAnswer).toMatch(/^HTTP\/1\.1 200/);
+      expect(postAnswer.endsWith(dateBody)).toBe(true);
     });
 
     it('fails the call instead of sending a returned header holding a line break', async () => {
