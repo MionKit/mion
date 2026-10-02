@@ -36,7 +36,7 @@ export const priceId = getRunTypeId<Price>();
 
 var runTypeIdBindingRE = regexp.MustCompile(`export const (\w+) = getRunTypeId\((?:\w+|undefined), (__rt_[A-Za-z0-9_$]+)\)`)
 
-// buildOverrideLibrary compiles the library with declarations and returns its dist dir and the id its own build gave Cents.
+// buildOverrideLibrary builds the library with declarations, returning its dist dir and the id its build gave Cents.
 func buildOverrideLibrary(t *testing.T) (string, string) {
 	dist, ids := buildOverrideLibraryIDs(t)
 	return dist, ids["centsId"]
@@ -76,8 +76,7 @@ func emittedRunTypeIds(t *testing.T, js string) map[string]string {
 	return out
 }
 
-// TestCompile_PackageOverrideReachesItsConsumer: a consumer reading an overridden type from a mion-built package's .d.ts
-// gets the id the package's own build gave it, for both getRunTypeId call shapes, and its validator runs the override.
+// TestCompile_PackageOverrideReachesItsConsumer: both call shapes get the package's own id; its validator runs the override.
 func TestCompile_PackageOverrideReachesItsConsumer(t *testing.T) {
 	dist, libraryID := buildOverrideLibrary(t)
 	index, err := os.ReadFile(filepath.Join(dist, "mion-pure-fns", "index.json"))
@@ -103,8 +102,7 @@ func TestCompile_PackageOverrideReachesItsConsumer(t *testing.T) {
 	}
 }
 
-// TestCompile_DeclarationIDsAgreeWithSource: a class, a format pattern and an overridden type read from a mion-built
-// package's .d.ts get the ids the package's own build gave them from source.
+// TestCompile_DeclarationIDsAgreeWithSource: a class, a format pattern and an overridden type keep their ids via a .d.ts.
 func TestCompile_DeclarationIDsAgreeWithSource(t *testing.T) {
 	dist, libraryIDs := buildOverrideLibraryIDs(t)
 	consumer := writeProject(t, map[string]string{"main.ts": overrideConsumerTS})
@@ -118,8 +116,7 @@ func TestCompile_DeclarationIDsAgreeWithSource(t *testing.T) {
 	}
 }
 
-// TestCompile_PackageWithoutOverrideArtifactKeepsPlainIDs: a package published without its artifact gives the
-// consumer nothing to seed from, so the overridden type gets its plain id.
+// TestCompile_PackageWithoutOverrideArtifactKeepsPlainIDs: with no artifact, the consumer has nothing to seed from.
 func TestCompile_PackageWithoutOverrideArtifactKeepsPlainIDs(t *testing.T) {
 	dist, libraryID := buildOverrideLibrary(t)
 	consumer := writeProject(t, map[string]string{"main.ts": overrideConsumerTS})

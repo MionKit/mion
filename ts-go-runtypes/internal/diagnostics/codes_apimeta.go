@@ -41,14 +41,12 @@ const (
 	CodeApiMetaNoMetadataToFetch = "MET010"
 	// CodeApiMetaFetchNotSetUp: routes are fetched and the client never calls `useFetchMetadata`; reported at `initClient`.
 	CodeApiMetaFetchNotSetUp = "MET011"
-	// CodeApiMetaServerVersionMismatch: the API type carries the server build's version (`ApiBuildVersion`) and this
-	// client hashes its ids to another. Args: [0] the client's version, [1] the server's; reported at `initClient`.
+	// CodeApiMetaServerVersionMismatch: the client's ids hash to another version than the API type's `ApiBuildVersion`.
+	// Args: [0] the client's version, [1] the server's; reported at `initClient`.
 	CodeApiMetaServerVersionMismatch = "MET012"
-	// CodeApiMetaNoServerVersion: a client reading its API from declarations whose type carries no server version.
-	// Reported at `initClient`.
+	// CodeApiMetaNoServerVersion: the client's API comes from declarations with no server version; reported at `initClient`.
 	CodeApiMetaNoServerVersion = "MET013"
-	// CodeApiMetaSharedModules: a program holding client and server builds with moduleMode allSingle, which puts
-	// every type in one module per family, so the client bundle carries the server's types. Reported at `initClient`.
+	// CodeApiMetaSharedModules: allSingle puts server types in a client sharing their program; reported at `initClient`.
 	CodeApiMetaSharedModules = "MET014"
 )
 

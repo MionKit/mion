@@ -118,8 +118,7 @@ func ClientApis(typeChecker *checker.Checker, markerOpts marker.Options, lookup 
 // apiBuildVersionKey is the router's unique-symbol key, `ApiBuildVersion`'s one member, as the checker names it.
 const apiBuildVersionKey = symbolKeyPrefix + "apiBuildVersion@"
 
-// ServerBuildVersion reads the server build version an API type carries in its `ApiBuildVersion` member; "" when the
-// type holds none or only `string`, as when the build that wrote the type filled no version.
+// ServerBuildVersion reads an API type's `ApiBuildVersion` literal; "" for none or plain `string` (no version filled).
 func ServerBuildVersion(typeChecker *checker.Checker, apiType *checker.Type) string {
 	if apiType == nil {
 		return ""

@@ -125,8 +125,7 @@ func ApiTypeImports(typeChecker *checker.Checker, markerOpts marker.Options, sou
 	return found
 }
 
-// ApiTypeFromDeclarations reports whether a name written in the call's type arguments, imports followed, is declared
-// in a .d.ts outside the TypeScript libs and mion's own packages: an API read from a published package.
+// ApiTypeFromDeclarations reports whether a type argument names a third-party .d.ts declaration: a published API.
 func ApiTypeFromDeclarations(typeChecker *checker.Checker, call *ast.Node) bool {
 	found := false
 	var visit ast.Visitor
@@ -155,7 +154,7 @@ func ApiTypeFromDeclarations(typeChecker *checker.Checker, call *ast.Node) bool 
 	return found
 }
 
-// declaredInPackageTypes resolves a written entity name and reports whether a declaration of it sits in a third-party .d.ts.
+// declaredInPackageTypes reports whether name is declared in a .d.ts outside the TypeScript libs and @mionjs packages.
 func declaredInPackageTypes(typeChecker *checker.Checker, name *ast.Node) bool {
 	if name.Kind == ast.KindQualifiedName {
 		name = name.AsQualifiedName().Right

@@ -40,13 +40,11 @@ const (
 	// KindMissing — a stub for a demanded key whose entry was dropped. The module resolves so the injected
 	// import never breaks the build, and the runtime falls back to the family identity fn (tuple slot 0 = 3).
 	KindMissing Kind = 3
-	// KindRunTypeBundle — a module's runtype data: slot 3 a content-hash key, slot 4 the headless runtype rows
-	// of the module's roots, slot 2 the ONE combined footer initializer. The runtime's processed-keys guard sees
-	// that content hash, not the fixed module name, so an evolved module re-registers its new rows (tuple slot 0 = 4).
+	// KindRunTypeBundle — a module's runtype data: slot 3 a content-hash key, slot 4 its roots' rows, slot 2 the footer.
+	// The processed-keys guard sees the hash, not the module name, so an evolved module re-registers (slot 0 = 4).
 	KindRunTypeBundle Kind = 4
-	// KindRunTypeFacade — the per-reflection-root alias, registering nothing; it exists so the rewrite's
-	// binding-only injection keeps working, the root id in the key slot and the module's data entry in the
-	// deps thunk (tuple slot 0 = 5).
+	// KindRunTypeFacade — a per-root alias registering nothing, so the rewrite's binding-only injection works.
+	// It holds the root id in the key slot and the module's data entry in the deps thunk (tuple slot 0 = 5).
 	KindRunTypeFacade Kind = 5
 )
 
@@ -82,8 +80,7 @@ type Entry struct {
 	Findings []diskcache.CachedDiagnostic
 	// Elided are the children the noop gate left out of the body: never imported, yet their findings still count.
 	Elided []string
-	// Module is the module a runtype data entry or facade renders in, one per source file: the same root can sit
-	// in several files, so its Key carries the module and Export the name the call sites import.
+	// Module is the per-file module a runtype entry renders in; a root in several files gets a Key per module.
 	Module string
 	// Export, when set, is the export name's basename in place of the Key's.
 	Export string
@@ -244,8 +241,7 @@ func ImportSpecifier(basename string) string {
 	return constants.EntryModulePrefix + basename + constants.EntryModuleSuffix
 }
 
-// Grouping returns the bundle BASENAME an entry with no Module rides in as a named export, or empty for its own
-// per-entry module; a nil Grouping leaves every such entry per-entry.
+// Grouping returns the bundle basename for an entry with no Module, or empty for its own module; nil means per-entry.
 type Grouping func(*Entry) string
 
 // ExportName is BindingName over the entry's per-entry basename, so the identifier the rewrite splices at

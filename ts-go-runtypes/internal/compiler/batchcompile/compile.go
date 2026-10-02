@@ -279,9 +279,8 @@ func writeMessageChain(builder *strings.Builder, chain []*ast.Diagnostic, level 
 	}
 }
 
-// emitVersionedDeclarations writes the .d.ts from the source plus the build-version splices alone: the injected
-// marker arguments of the full rewrite import untyped modules, which widen every route's inferred types, while the
-// version literal is what a client built from the published types checks itself against.
+// emitVersionedDeclarations emits the .d.ts from source plus the version splices only, the literal a client checks.
+// The full rewrite's marker arguments import untyped modules, which would widen every route's inferred types.
 func emitVersionedDeclarations(cwd, tsconfigPath string, original *program.Program, splices []protocol.Replacement, writeFile compiler.WriteFile) error {
 	byFile := map[string][]protocol.Replacement{}
 	for _, splice := range splices {

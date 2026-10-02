@@ -116,7 +116,7 @@ func TestApiVersion_RouterPackageOwnFilesAreTrusted(t *testing.T) {
 	}
 }
 
-// packageApiDTS is the .d.ts a server package built with `mion compile` publishes, carrying version as its build version.
+// packageApiDTS is the .d.ts a `mion compile` server package publishes, with version as its build version.
 func packageApiDTS(version string) string {
 	return `declare module '@acme/api' {
   import type {ApiBuildVersion, PublicApi} from '@mionjs/router';
@@ -144,7 +144,7 @@ func serverVersion(t *testing.T) string {
 	return version
 }
 
-// packageClient builds a client reading the API from a package .d.ts whose type carries version, and returns its MET diagnostics.
+// packageClient builds a client from a package .d.ts carrying version and returns its MET diagnostics.
 func packageClient(t *testing.T, version string, routesMode constants.ClientRoutesMode) (*resolver.Session, []diagnostics.Diagnostic) {
 	t.Helper()
 	sources := map[string]string{
@@ -161,7 +161,7 @@ func packageClient(t *testing.T, version string, routesMode constants.ClientRout
 	return session, metDiags(generated.Diagnostics)
 }
 
-// TestApiVersion_DeclarationVersionMatches: a client built from the server's published types hashes to the version they carry.
+// TestApiVersion_DeclarationVersionMatches: a client built from the server's published types hashes to their version.
 func TestApiVersion_DeclarationVersionMatches(t *testing.T) {
 	server := serverVersion(t)
 	client, diags := packageClient(t, "'"+server+"'", constants.ClientRoutesBundle)
@@ -185,7 +185,7 @@ func TestApiVersion_DeclarationVersionDiffers(t *testing.T) {
 	}
 }
 
-// TestApiVersion_DeclarationWithoutVersionWarns: types written without a version still build, warned, with the client's own hash.
+// TestApiVersion_DeclarationWithoutVersionWarns: types without a version build with a warning and the client's own hash.
 func TestApiVersion_DeclarationWithoutVersionWarns(t *testing.T) {
 	server := serverVersion(t)
 	client, diags := packageClient(t, "string", constants.ClientRoutesBundle)
@@ -197,7 +197,7 @@ func TestApiVersion_DeclarationWithoutVersionWarns(t *testing.T) {
 	}
 }
 
-// TestApiVersion_FetchClientGetsNone: a client fetching its routes bundles no ids, so it has no version to inject or compare.
+// TestApiVersion_FetchClientGetsNone: a client fetching its routes bundles no ids, so it has no version to compare.
 func TestApiVersion_FetchClientGetsNone(t *testing.T) {
 	client, diags := packageClient(t, "'notTheServer'", constants.ClientRoutesFetch)
 	for _, diag := range diags {
@@ -210,8 +210,7 @@ func TestApiVersion_FetchClientGetsNone(t *testing.T) {
 	}
 }
 
-// TestApiVersion_SourceTypedClientComparesNothing: an API type written in this program carries no server version, so
-// the client injects its own hash and nothing is reported.
+// TestApiVersion_SourceTypedClientComparesNothing: a source-typed API has no server version; the client injects its own.
 func TestApiVersion_SourceTypedClientComparesNothing(t *testing.T) {
 	client := setupApi(t, map[string]string{"client.d.ts": versionClientDTS, "client.ts": versionClientTS}, t.TempDir(), constants.ClientRoutesBundle)
 	generated := client.Dispatch(protocol.Request{Op: protocol.OpGenerate})
@@ -351,8 +350,7 @@ func TestApiGen_InitClientFilesFollowAnEdit(t *testing.T) {
 	}
 }
 
-// TestApiVersion_AllSingleWarnsSharedModules: allSingle has one module per family for the whole program, so a client
-// sharing its program with the router is warned that its bundle carries the server's types; default mode is not.
+// TestApiVersion_AllSingleWarnsSharedModules: a client sharing the router's program is warned under allSingle only.
 func TestApiVersion_AllSingleWarnsSharedModules(t *testing.T) {
 	generate := func(mode string) []diagnostics.Diagnostic {
 		session := setupInlineWith(t, fullstackSources(false), func(programOpts *program.Options, resolverOpts *resolver.Options) {

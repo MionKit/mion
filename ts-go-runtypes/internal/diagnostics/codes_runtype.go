@@ -135,9 +135,8 @@ const (
 	// Args: [pattern source, reason, offending sub-expression].
 	CodeFMTPatternUnsafe = "FMT008"
 
-	// CodeFMTPatternUnreadable: a `pattern` param the build cannot read as a literal, typically a RegExp value or a
-	// `FormatPattern`-typed const read from a .d.ts, where only the type survives. The validator would silently
-	// stop checking the pattern. Args: [the pattern's type as written].
+	// CodeFMTPatternUnreadable: the validator would skip an unreadable `pattern`, e.g. a RegExp or a .d.ts `FormatPattern` const.
+	// Args: [the pattern's type as written].
 	CodeFMTPatternUnreadable = "FMT009"
 )
 

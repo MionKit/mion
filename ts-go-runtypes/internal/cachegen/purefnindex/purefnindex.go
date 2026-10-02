@@ -196,9 +196,8 @@ func (store *Store) Package(root string) *PackageIndex {
 	return idx
 }
 
-// Overrides returns the override rows the package at root ships, read from its index files only: unlike Package it
-// never falls back to the sources, so asking costs a directory walk. Rows keyed by another compiler version are
-// skipped with a problem, since a structural key is only comparable within one version.
+// Overrides reads root's override rows from its index files only, never the sources, so asking costs a directory walk.
+// Rows keyed by another compiler version are skipped with a problem: a structural key only compares within one version.
 func (store *Store) Overrides(root string) ([]ArtifactOverrideRow, []ArtifactProblem) {
 	root = tspath.NormalizePath(root)
 	if cached, ok := store.overrides[root]; ok {

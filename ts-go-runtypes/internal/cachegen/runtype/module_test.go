@@ -82,8 +82,8 @@ func keysOfModules(modules map[string]string) []string {
 
 func intPtr(n int) *int { return &n }
 
-// TestBundleShape — a module holds its data tuple [4,<hole>,<ini|hole>,'rts_<hash>',[rows…],[rels…]] and one
-// facade export per root, [5,()=>[__rt_runtypes],<hole>,'<rootId>'], referencing the data tuple directly.
+// TestBundleShape — a module holds the data tuple [4,<hole>,<ini|hole>,'rts_<hash>',[rows…],[rels…]].
+// Each root's facade export, [5,()=>[__rt_runtypes],<hole>,'<rootId>'], references that tuple directly.
 func TestBundleShape(t *testing.T) {
 	modules := emitModules(t, []string{"x1"}, []*reflection.RunType{{ID: "x1", Kind: reflection.KindString}})
 	bundle := bundleOf(t, modules)
@@ -119,8 +119,7 @@ func emitFileModules(t *testing.T, siteFiles map[string]string, runTypes []*refl
 	return modules
 }
 
-// TestCollectEntries_PerFileGroups — each file's module holds only its own roots' closure: a client file never
-// carries a server file's rows.
+// TestCollectEntries_PerFileGroups — each file's module holds only its own roots' closure, never another file's rows.
 func TestCollectEntries_PerFileGroups(t *testing.T) {
 	modules := emitFileModules(t, map[string]string{"clientRoot": "client", "serverRoot": "server"}, []*reflection.RunType{
 		{ID: "clientRoot", Kind: reflection.KindProperty, Name: "c", Child: reflection.NewRef("clientChild")},
@@ -168,8 +167,7 @@ func TestCollectEntries_SameRootInTwoFiles(t *testing.T) {
 	}
 }
 
-// TestCollectEntries_KeyCoversJSONMax — the tuple key changes with a root's size limit, so a module whose rows are
-// the same but whose limits moved still re-registers after an HMR reload.
+// TestCollectEntries_KeyCoversJSONMax — a moved root size limit changes the tuple key, so HMR re-registers the module.
 func TestCollectEntries_KeyCoversJSONMax(t *testing.T) {
 	key := func(jsonMaxBytes bool) string {
 		module := emitFileModules(t, map[string]string{"x1": "a"}, []*reflection.RunType{{ID: "x1", Kind: reflection.KindBoolean}}, jsonMaxBytes)["rt/a"]
@@ -198,8 +196,7 @@ func TestCollectEntries_SoftDepsScopedToFile(t *testing.T) {
 	}
 }
 
-// TestCollectEntries_EmptyClosureExportsOnly — a root missing from the dump still gets its facade, so the injected
-// import resolves, and no empty data tuple is emitted.
+// TestCollectEntries_EmptyClosureExportsOnly — a root missing from the dump gets its facade but no empty data tuple.
 func TestCollectEntries_EmptyClosureExportsOnly(t *testing.T) {
 	module := emitFileModules(t, map[string]string{"gone1": "a"}, nil, false)["rt/a"]
 	if !strings.Contains(module, "export const __rt_gone1=[5,,,'gone1'];") || strings.Contains(module, "[4,") {
