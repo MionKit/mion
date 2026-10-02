@@ -145,8 +145,7 @@ describe('@mionjs/devtools / type-dependency invalidation', () => {
         const secondId = injectedId(secondUses?.code);
         expect(secondId).not.toBe(firstId);
 
-        const generated = fs
-          .readdirSync(path.join(root, '.mion/types'))
+        const generated = (fs.readdirSync(path.join(root, '.mion/types'), {recursive: true}) as string[])
           .filter((name) => name.endsWith('.js'))
           .map((name) => fs.readFileSync(path.join(root, '.mion/types', name), 'utf8'))
           .join('\n');
