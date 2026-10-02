@@ -89,6 +89,21 @@ Treat the shape as if batch were brand new: no migration notes, no breaking-chan
 
 A plain `feat(client):` subject, no `!`: the shape is described as new, not as a break.
 
+### Mapping errors leave the target's slots (found while building)
+
+The docs pass showed a route fed by `inputFrom` broke the slot rule: when its source failed, its error slot held
+`batch-mapping-source-failed`, an error its type does not declare. Decided with the user: it goes to
+`@thrownErrors` instead, and both of the target's slots stay empty.
+
+- `packages/rpc-router/src/lib/dispatchError.ts`: `addThrownError` (non-fatal, the batch keeps going) and
+  `hasThrownError`, shared with `recordUndeclaredError`.
+- `packages/rpc-router/src/batches.ts`: the mapping step records the error under the target's id, and the
+  target guard reads it from there. A source that was itself skipped counts as failed, so a chain A -> B -> C
+  with A failing skips B and C instead of crashing the second mapper.
+- `serializer.routes.ts`: the undeclared-error case stays, for a handler whose type does not match what it
+  returns; its comment and test no longer name the mapping step.
+- Tests: the router mapping test, a new A -> B -> C chain test, and the client mapped-source test.
+
 ## Tests
 
 Rewrite every batch destructuring to the per-entry shape. Where a test asserted the whole `results` or `errors`
@@ -161,7 +176,7 @@ route) has a small, fixed input set, and the parity test above covers it.
 - Named routes (`batch({user: ..., orders: ...})`). That needs the build to read object literals and put the
   keys in the batch id.
 - A throwing variant (`callOrThrow`) or an exported `unwrap` helper.
-- Any change to what goes into slots 0, 1 or 2, or to `@thrownErrors`.
+- Any other change to what goes into slots 0, 1 or 2.
 - The server side, the wire format and batch id discovery: none of them depend on the client's result shape.
 
 ## Done when
