@@ -10,7 +10,7 @@ if (error?.type === 'user-not-found')
   console.log('User not found:', error.errorData?.requestedId);
 else console.log('User:', user?.name);
 
-// returns one [result, error, response] per route, all sharing one response
+// returns one [result, error, response] per route
 const [[user2, userError], [order, orderError]] = await batch([
   routes.users.getById('USER-123'),
   routes.orders.getById('ORDER-1'),
