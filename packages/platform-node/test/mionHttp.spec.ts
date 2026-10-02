@@ -90,6 +90,18 @@ describe('node http router', () => {
       expect(headers['server']).toEqual('@mionjs');
     });
 
+    it('answers a HEAD request with the headers only, and keeps serving', async () => {
+      const response = await fetch(`http://127.0.0.1:${port}/api/getDate`, {method: 'HEAD'});
+      expect(response.status).toEqual(StatusCodes.OK);
+      expect(response.headers.get('content-type')).toEqual('application/json; charset=utf-8');
+      expect(response.headers.get('content-length')).toEqual('47');
+      expect(await response.text()).toEqual('');
+
+      const next = await fetch(`http://127.0.0.1:${port}/api/getDate`, {method: 'POST', body: '{}'});
+      expect(next.status).toEqual(StatusCodes.OK);
+      expect(await next.json()).toEqual({getDate: {date: '2022-04-22T00:17:00.000Z'}});
+    });
+
     it('fails the call instead of sending a returned header holding a line break', async () => {
       const response = await fetch(`http://127.0.0.1:${port}/api/badHeader`, {method: 'POST', body: '{}'});
       const reply = (await response.json()) as Record<string, Record<string, PublicRpcError<string>>>;
