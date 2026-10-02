@@ -3,13 +3,16 @@
 // runs it in go-fuzz, never in js-lint.
 import {spawnSync} from 'node:child_process';
 import {existsSync, mkdtempSync, readFileSync, readdirSync, symlinkSync, writeFileSync} from 'node:fs';
-import {tmpdir} from 'node:os';
+import {arch, tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {afterAll, beforeAll, describe, expect, it} from 'vitest';
 
 const REPO_ROOT = join(__dirname, '../../..');
 const STAMP = join(REPO_ROOT, 'mion-bin/.mion.stamp');
 const BUILD = join(REPO_ROOT, 'scripts/core/build.mjs');
+const isMac = process.platform === 'darwin';
+const GOARCH = arch() === 'arm64' ? 'arm64' : 'amd64';
+const LINUX_STAMP = join(REPO_ROOT, `mion-bin/.mion-linux-${GOARCH}.stamp`);
 
 const run = (code: string, env?: NodeJS.ProcessEnv): {status: number | null; out: string} => {
   const result = spawnSync(process.execPath, ['--input-type=module', '-e', code], {cwd: REPO_ROOT, encoding: 'utf8', env});
@@ -56,10 +59,44 @@ describe('build gate — the mion-bin/mion stamp', () => {
 
   // The smoke job copies the restored binaries into the linux slots the containers mount.
   it('fills the linux slots from trusted binaries with no Go on PATH', () => {
+    // A Mac cross-builds the slots, so only a slot it already built and stamped needs no Go.
+    if (isMac) expect(trusted(['linux-go', 'linux-extract']).status).toBe(0);
     const {status, out} = trusted(['linux-go', 'linux-extract'], withoutGo());
     expect(status, out).toBe(0);
     expect(out).toContain('mion-bin/extract-fn-bodies is up to date (stamp)');
-  }, 60_000);
+    if (isMac) expect(out).toContain(`mion-bin/mion-linux-${GOARCH} is up to date (stamp)`);
+    if (isMac) expect(out).toContain(`mion-bin/extract-fn-bodies-linux-${GOARCH} is up to date (stamp)`);
+  }, 300_000);
+
+  it.runIf(isMac)(
+    'a linux slot stamp that disagrees forces the cross-build compare, then re-stamps',
+    () => {
+      expect(trusted(['linux-go']).status).toBe(0);
+      const linuxOriginal = readFileSync(LINUX_STAMP, 'utf8');
+      writeFileSync(LINUX_STAMP, 'not-the-digest\n');
+      const {status, out} = trusted(['linux-go']);
+      expect(status, out).toBe(0);
+      expect(out).not.toContain(`mion-bin/mion-linux-${GOARCH} is up to date (stamp)`);
+      expect(out).toContain(`mion-bin/mion-linux-${GOARCH} is up to date with source`);
+      expect(readFileSync(LINUX_STAMP, 'utf8')).toBe(linuxOriginal);
+      expect(refTemps()).toEqual([]);
+    },
+    300_000
+  );
+
+  it.runIf(isMac)(
+    'with no Go on PATH, a linux slot stamp that disagrees fails loudly',
+    () => {
+      expect(trusted(['linux-go']).status).toBe(0);
+      const linuxOriginal = readFileSync(LINUX_STAMP, 'utf8');
+      writeFileSync(LINUX_STAMP, 'not-the-digest\n');
+      const {status, out} = trusted(['linux-go'], withoutGo());
+      writeFileSync(LINUX_STAMP, linuxOriginal);
+      expect(status).not.toBe(0);
+      expect(out).toContain(`Go toolchain not found on PATH (needed to build mion-bin/mion-linux-${GOARCH})`);
+    },
+    300_000
+  );
 
   it('with no Go on PATH, a stamp that disagrees fails loudly instead of trusting the binary', () => {
     writeFileSync(STAMP, 'not-the-digest\n');
