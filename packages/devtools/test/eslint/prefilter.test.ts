@@ -209,6 +209,7 @@ describe('referencesRouter', () => {
     expect(referencesRouter(relative)).toBe(true);
     // A destructured helper is the same story without the dot.
     expect(referencesRouter(`const {route} = mion;\nexport const r = route(handler);`)).toBe(true);
+    expect(referencesRouter(`const {headersMiddleware} = mion;\nexport const r = headersMiddleware(handler);`)).toBe(true);
   });
 
   it('matches the JSDoc handler tags', () => {
