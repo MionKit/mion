@@ -262,7 +262,7 @@ jobs:
           # host-native binary smoke only (the bundler matrix is OS-agnostic and
           # does not repeat per-OS).
           - {runner: ubuntu-latest, pkg: linux-x64, backend: container}
-          - {runner: macos-14, pkg: darwin-arm64, backend: host-npx}
+          - {runner: macos-15, pkg: darwin-arm64, backend: host-npx}
           - {runner: windows-latest, pkg: win32-x64, backend: host-npx}
     runs-on: ${{ matrix.runner }}
     # packages:read lets the container backend (ubuntu) pull the prebuilt shared image.
