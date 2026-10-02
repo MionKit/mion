@@ -1,6 +1,6 @@
 # The groups
 
-How to work each group of the approved checklist. Each group runs in its own
+How to work each group of the checklist. Each group runs in its own
 agent, so read the section for your group, plus the two general sections.
 
 **A group never restates a repo rule.** The items carry what to check, and a
