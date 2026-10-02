@@ -4,7 +4,7 @@ import {mionVitePlugin} from '@mionjs/devtools/vite';
 export default defineConfig({
   plugins: [
     mionVitePlugin({
-      // one tsconfig for the client and the server code; this is the default
+      // one tsconfig for client and server code (the default)
       tsConfig: 'tsconfig.json',
       server: {
         entry: 'src/server.ts',
