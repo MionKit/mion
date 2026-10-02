@@ -31,7 +31,7 @@ const noGoPath = (): string => {
   return dir;
 };
 const withoutGo = (): NodeJS.ProcessEnv => ({...process.env, PATH: noGoPath()});
-// A Mac cross-builds the linux slots, so a test that needs one filled and stamped builds it first, with Go.
+// A Mac cross-builds the linux slots, so a test needing one filled and stamped builds it first, with Go.
 const fillLinuxSlots = (targets = ['linux-go']): void => {
   const {status, out} = trusted(targets);
   expect(status, out).toBe(0);

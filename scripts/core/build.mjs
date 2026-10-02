@@ -36,8 +36,8 @@
 // every subsequent incremental `tsc` skips emitting the missing .d.ts. Detecting
 // the orphan map + wiping the buildinfo forces tsc to emit from scratch.
 //
-// The stamps (mion-bin/.mion.stamp, .extract-fn-bodies.stamp, and on macOS one per cross-built linux copy) let
-// the build gate ({trustStamp: true}) skip the reference build, a full link, when the inputs digest
+// The stamps (mion-bin/.mion.stamp, .extract-fn-bodies.stamp, one per macOS linux slot) let the build gate
+// ({trustStamp: true}) skip the reference build, a full link, when the inputs digest
 // (scripts/lib/go-inputs.mjs) matches, ~100ms.
 // The digest needs no Go and no submodule, so a binary restored from the CI cache (`--cache-key`) is
 // trusted on a runner without Go. An explicit `miondevx core build` never trusts a stamp, so it still
@@ -178,7 +178,7 @@ function checkStampedGoBin({bin, stamp, pkg, digest, ldflags, trustStamp, env}) 
     if (run('go', ['build', ...ldArgs, '-o', tmpBin, pkg], {cwd: GO_ROOT, env}) !== 0) fail('Reference build failed.');
     const diskId = buildId(bin);
     const refId = buildId(tmpBin);
-    // An unreadable binary on disk is just stale; only the fresh reference must have an ID.
+    // An unreadable binary on disk is just stale; only the reference must have an ID.
     if (!refId) fail(`Could not read the build ID of the ${name} reference binary.`);
     if (diskId !== refId) {
       info(`Replacing ${name} (stale: build ID mismatch)...`);
@@ -217,7 +217,7 @@ function checkLinuxCopy({hostBin, check, pkg, ldflags, digest, name, opts}) {
   check(opts);
 
   if (process.platform === 'darwin') {
-    // The host digest also fingerprints the cross-build: its target is fixed to linux/<host arch>.
+    // Reuses the host digest: the cross-build target is always linux/<host arch>.
     const stamp = join(REPO_ROOT, `mion-bin/.${name}-linux-${goarch}.stamp`);
     return checkStampedGoBin({bin: linuxBin, stamp, pkg, digest, ldflags, trustStamp: opts.trustStamp, env: {GOOS: 'linux', GOARCH: goarch}});
   }
