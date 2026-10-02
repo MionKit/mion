@@ -68,8 +68,8 @@ name: ci
 # untested: it is a trust knob for the maintainer, never a default. The push to
 # main after the merge runs everything, since the label only exists on the PR.
 # `labeled` / `unlabeled` are in the trigger types so the label takes effect
-# without a new commit. The label is read live from the PR (the `lanes` job),
-# never the event payload. Pinned by ci-skip-defaults-contracts.test.ts.
+# without a new commit. The `lanes` job reads the label live, not from the event payload.
+# Pinned by ci-skip-defaults-contracts.test.ts.
 on:
   pull_request:
     branches: [main]
