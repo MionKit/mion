@@ -179,8 +179,7 @@ func TestModuleMode_AllSingle_SiteModuleStamping(t *testing.T) {
 	}
 }
 
-// TestModuleMode_Default_StampsOnlyReflectionSites: a reflection site imports its file's runtype module; a createX
-// site keeps its per-entry module.
+// TestModuleMode_Default_StampsOnlyReflectionSites: a reflection site imports its file's module, a createX site its own.
 func TestModuleMode_Default_StampsOnlyReflectionSites(t *testing.T) {
 	r := setupInline(t, map[string]string{"a.ts": pairedSource})
 	resp := scanWithModules(t, r, []string{"a.ts"})

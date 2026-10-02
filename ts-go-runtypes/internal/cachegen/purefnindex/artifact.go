@@ -31,8 +31,8 @@ type ArtifactIndex struct {
 	Overrides []ArtifactOverrideRow `json:"overrides,omitempty"`
 }
 
-// ArtifactOverrideRow is one `overrideX<T>(fn)` the package's build folded: T's structural key before hashing, the
-// family and the override fn's id. A consumer reading T from a `.d.ts` finds no call there, so it seeds its fold with these.
+// ArtifactOverrideRow is one folded `overrideX<T>(fn)`: T's structural key before hashing, the family and the fn id.
+// A `.d.ts` keeps no overrideX call, so a consumer seeds its fold with these rows.
 type ArtifactOverrideRow struct {
 	BaseKey string `json:"baseKey"`
 	Family  string `json:"family"`
@@ -50,8 +50,8 @@ type ArtifactIndexRow struct {
 // ErrArtifactNewerFormat marks an index written by a newer compiler.
 var ErrArtifactNewerFormat = errors.New("newer artifact format")
 
-// RenderArtifactIndex renders the index from the package's OWN entries and override rows (the caller filters them),
-// sorted so the bytes are stable across runs; nil when empty, so an app with no pure fn gets no directory.
+// RenderArtifactIndex renders the package's OWN entries and override rows (caller-filtered), sorted for stable bytes.
+// It answers nil with no entries, so an app with no pure fn gets no directory.
 func RenderArtifactIndex(packageName, packageRoot string, entries []purefunctions.Entry, overrides []ArtifactOverrideRow) []byte {
 	if len(entries) == 0 {
 		return nil

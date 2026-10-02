@@ -7,8 +7,7 @@ import (
 	"testing"
 )
 
-// versionedRouterDTS stands in for @mionjs/router: a route helper whose marker slot depends on the handler, and an
-// initRoutes returning the build version in its type.
+// versionedRouterDTS stands in for @mionjs/router: a handler-dependent marker slot and a versioned initRoutes type.
 const versionedRouterDTS = `declare module '@mionjs/router' {
   import type {InjectBuildVersion, InjectRunTypeId, InjectTypeFnArgs} from '@mionjs/run-types';
   type Ctx = {path: string};
@@ -30,8 +29,7 @@ export const api = initRoutes({sum: route((ctx, a: number, b: number): number =>
 
 var injectedVersionRE = regexp.MustCompile(`, '([A-Za-z0-9]{12})'\)`)
 
-// TestCompile_DeclarationsKeepRouteTypesAndCarryTheVersion: the .d.ts a client builds from keeps every route's
-// handler type, which the injected marker arguments would widen, and names the version the server injects.
+// TestCompile_DeclarationsKeepRouteTypesAndCarryTheVersion: the injected marker arguments must not widen route types.
 func TestCompile_DeclarationsKeepRouteTypesAndCarryTheVersion(t *testing.T) {
 	dir := writeProject(t, map[string]string{"router.d.ts": versionedRouterDTS, "server.ts": versionedServerTS})
 	writeFile(t, filepath.Join(dir, "tsconfig.json"), strings.Replace(projectTsconfigJSON, `"strict": true,`, `"strict": true, "declaration": true,`, 1))

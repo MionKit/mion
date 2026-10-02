@@ -386,12 +386,10 @@ const (
 	// router, and the relativizers that turn `rtmod:/` into a path under <outDir>/types turn this one into a path
 	// under <outDir>/rpc.
 	RpcModulePrefix = "rtrpc:/"
-	// RunTypesBundleBasename names the runtype data module for reflection sites with no source file (the bundled
-	// client routes, a test's synthetic sites) and for allSingle mode. The name cannot collide with hash-keyed
-	// basenames (hash ids are short) or pure-fn basenames (always under PureFnModuleDir).
+	// RunTypesBundleBasename names the data module of allSingle and of file-less sites (bundled client routes, tests).
+	// It cannot collide with hash-keyed basenames (hash ids are short) or pure-fn ones (always under PureFnModuleDir).
 	RunTypesBundleBasename = "runtypes"
-	// RunTypesFileModuleDir holds one runtype data module per source file with reflection calls
-	// (`rtmod:/rt/<hash of the file path>.js`), so a bundle only carries the types of the files it imports.
+	// RunTypesFileModuleDir holds a module per source file (`rt/<path hash>`), so a bundle carries only imported files' types.
 	RunTypesFileModuleDir = "rt"
 	// FnsBundleDir is the basename directory prefix for per-family fn-entry bundle modules in allSingle mode
 	// (`fns/<familyTag>`): every entry of a family rides the family's bundle as a NAMED export
@@ -402,8 +400,7 @@ const (
 // ModuleMode selects how cache entries are grouped into virtual modules. Mirrored to TS so the plugin option
 // validates against the same set.
 const (
-	// ModuleModeDefault — runtype nodes ride one data module per source file (`rt/<hash>`, the facades as named
-	// exports); every fn-family / composite / pure-fn entry is its own per-entry module.
+	// ModuleModeDefault — one runtype data module per source file (`rt/<hash>`, facades as named exports), all else per-entry.
 	ModuleModeDefault = "default"
 	// ModuleModeAllSingle — bundle EVERYTHING: one bundle module per family tag (`fns/<tag>`), one `pf` bundle
 	// for pure fns, and the reflection facades folded into the runtypes bundle as named exports. Fewest modules;

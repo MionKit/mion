@@ -119,9 +119,8 @@ func (sess *Session) ensureOverrides() {
 	sess.cache.SetOverrides(overrides)
 }
 
-// packageOverrideSeed reads the override rows of every installed package the program reads declarations from: a
-// `.d.ts` keeps no `overrideX` call, so without them a type gets a different id than the package's own build gave it.
-// Only a package that depends on the marker package can register one, which keeps the walk off every other package.
+// packageOverrideSeed reads installed packages' override rows: a `.d.ts` keeps no overrideX call, so ids would differ.
+// Only a package depending on the marker package can register one, which keeps the walk off the rest.
 func (sess *Session) packageOverrideSeed() (map[string]map[string]string, []diagnostics.Diagnostic) {
 	if sess.pureFnIndex == nil {
 		return nil, nil
@@ -199,9 +198,8 @@ func (sess *Session) overrideIDs() map[string]bool {
 	return out
 }
 
-// foldOverrideMap iterates the base-key computation to a fixpoint, returning the map plus each raw's final
-// base key; the seed (installed packages' rows) comes first, then the first raw in source order wins a
-// (baseKey, opName) pair, conflicts go to overrideDiagnostics.
+// foldOverrideMap iterates base keys to a fixpoint, returning the map and each raw's final base key.
+// The seed wins first, then the first raw in source order per (baseKey, opName); conflicts go to overrideDiagnostics.
 func (sess *Session) foldOverrideMap(raws []rawOverride, seed map[string]map[string]string) (map[string]map[string]string, []string) {
 	prev := cloneOverrideMap(seed)
 	baseKeys := make([]string, len(raws))

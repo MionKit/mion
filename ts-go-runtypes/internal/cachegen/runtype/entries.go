@@ -17,19 +17,14 @@ import (
 // and it changes whenever the row set does, so 10 dictionary chars is plenty.
 const bundleKeyLength = 10
 
-// CollectEntries builds the runtype side of the entry-module graph: per module (one per source file with reflection
-// sites, moduleOf picks it; nil puts every site in one), ONE data entry carrying the closure of that module's
-// reflection ROOTS as headless tuple rows with one combined footer, plus one facade per root, the binding the
-// rewrite's injection imports. A bundle therefore carries the types of the files it imports and nothing else; a row
-// two files reach ships in both, and the runtime registers it once. Demand-driven: a dump with no reflection sites
-// emits NO runtype modules. Rows are sorted by id. The data entry's tuple KEY is a content hash over the row ids and
-// the roots' size limits, so the runtime's processed-keys guard re-registers an evolved module after an HMR reload.
+// CollectEntries emits per module (nil moduleOf means one) a data entry of its roots' closure and a facade per root.
+// A row two files reach ships in both modules, and the runtime registers it once.
+// The tuple key hashes the row ids and root size limits, so an evolved module re-registers after an HMR reload.
 // jsonMaxBytes false leaves slot 21 off every root row, so a consumer not deriving request limits pays nothing.
 func CollectEntries(dump protocol.Dump, jsonMaxBytes bool, moduleOf func(protocol.Site) string) entrymodules.Graph {
 	graph := entrymodules.Graph{}
 	nodes := indexNodes(dump.RunTypes)
-	// Circular createX types contribute no rows: the circular-reference guard is a compile-time option that
-	// bakes a path skeleton into the armed factory, so it needs no RunType graph at runtime.
+	// Circular createX types add no rows: their guard is a path skeleton baked into the armed factory.
 	for _, group := range reflectionGroups(dump.Sites, moduleOf) {
 		collectModule(graph, group, nodes, jsonMaxBytes)
 	}
@@ -79,8 +74,7 @@ func collectModule(graph entrymodules.Graph, group reflectionGroup, nodes map[st
 	}
 	rootJSONMax := rootJSONMaxBytes(group.roots, nodes, jsonMaxBytes)
 	dataKey := group.module + moduleKeySeparator + dataEntryName
-	// A facade is emitted even for a root whose node never made it into the dump: the injected import must
-	// resolve, and the runtime degrades to a registry miss.
+	// A root missing from the dump still gets a facade so the injected import resolves; the runtime sees a registry miss.
 	var facadeDeps []string
 	if len(rows) > 0 {
 		var rowsText strings.Builder
@@ -95,8 +89,7 @@ func collectModule(graph entrymodules.Graph, group reflectionGroup, nodes map[st
 			rowsText.WriteByte('[')
 			rowsText.WriteString(strings.Join(renderFactoryArgs(nodes[id], rootJSONMax[id]), ","))
 			rowsText.WriteByte(']')
-			// Ref relations ride the parallel `rels` array as row INDICES (renderRelations); only expression-specials
-			// land in the residual footer, so the ini slot is a hole for the common object/array/union node.
+			// Refs ride the parallel `rels` array as row indices; only expression-specials need the footer, so ini is mostly a hole.
 			relRows[i] = renderRelations(nodes[id], indexOf)
 			if hasBundleSpecials(nodes[id]) {
 				writeBundleSpecials(&footer, nodes[id])
@@ -138,7 +131,6 @@ func collectModule(graph entrymodules.Graph, group reflectionGroup, nodes map[st
 // moduleKeySeparator joins a module to an entry name in a graph key; no module path or type id contains it.
 const moduleKeySeparator = "#"
 
-// dataEntryName is the graph-key name of a module's data entry.
 const dataEntryName = "rts"
 
 // reflectionSiteDemandKeys maps each reflection root id to the deduped, sorted cache-entry keys its sites demand

@@ -48,8 +48,7 @@ export const isSku = createValidateFn(sku);`)
 	}
 }
 
-// TestFormatPattern_DeclaredLiteralPatternIsRead: the .d.ts shape of an unannotated registerFormatPattern const keeps
-// its source as a literal type, so it is read and nothing is reported.
+// TestFormatPattern_DeclaredLiteralPatternIsRead: an unannotated registerFormatPattern const keeps its source in a .d.ts.
 func TestFormatPattern_DeclaredLiteralPatternIsRead(t *testing.T) {
 	resp := scanPatternDecl(t, `declare const p: {readonly source: '^[A-Z]{3}-[0-9]{4}$'; readonly flags: ''};`, `export const isSku = createValidateFn<Sku>();`)
 	if found := findDiag(resp, diagnostics.CodeFMTPatternUnreadable); found != nil {

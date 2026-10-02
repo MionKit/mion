@@ -185,8 +185,7 @@ func TestRpc_GenerateWritesTableAndMappers(t *testing.T) {
 	}
 }
 
-// TestRpc_TableLeavesUnreferencedPureFnsOut: one program holds every pure fn, but rpc/ ships only the mappers a batch
-// names, so a registered fn and a client-only helper no batch reaches stay out of the server's table.
+// TestRpc_TableLeavesUnreferencedPureFnsOut: rpc/ ships only the mappers a batch names, not every pure fn in the program.
 func TestRpc_TableLeavesUnreferencedPureFnsOut(t *testing.T) {
 	sources := rpcSources()
 	sources["decoy.ts"] = `import {registerPureFn} from '@mionjs/run-types/runtime';

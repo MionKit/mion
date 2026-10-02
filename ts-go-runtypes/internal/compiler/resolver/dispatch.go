@@ -495,9 +495,8 @@ func (sess *Session) moduleGrouping() entrymodules.Grouping {
 	}
 }
 
-// reflectionModuleFor is the module a reflection site's root renders in: one per source file, named by a hash of
-// the file's path from the working dir, so a bundle carries the types of the files it imports and a rewrite and the
-// module it imports agree whichever path form the scan saw. A site with no file, and allSingle, use one module.
+// reflectionModuleFor hashes the site file's cwd-relative path, so a rewrite and its module agree on any path form.
+// A site with no file, and allSingle, use the one shared module.
 func (sess *Session) reflectionModuleFor(site protocol.Site) string {
 	if sess.opts.ModuleMode == constants.ModuleModeAllSingle || site.File == "" || sess.Program == nil {
 		return constants.RunTypesBundleBasename

@@ -31,8 +31,7 @@ func siteIDsIn(resp protocol.Response, file string) []string {
 	return ids
 }
 
-// TestPerFileModules_ClientLacksServerRows: in one program, the module the client file imports carries only the
-// client's types, so a client bundle never ships a server type it does not use, and the reverse.
+// TestPerFileModules_ClientLacksServerRows: in one program, the client file's module holds no server type, and the reverse.
 func TestPerFileModules_ClientLacksServerRows(t *testing.T) {
 	dump := setupInline(t, splitSources).Dispatch(protocol.Request{Op: protocol.OpDump})
 	if dump.Error != "" {
@@ -52,8 +51,7 @@ func TestPerFileModules_ClientLacksServerRows(t *testing.T) {
 	}
 }
 
-// TestPerFileModules_ScanMatchesGenerate: the module a dev scan of one file emits is byte-identical to the one the
-// whole-program dump writes, so a dev reload and a build agree.
+// TestPerFileModules_ScanMatchesGenerate: a one-file dev scan emits the same module bytes as the whole-program dump.
 func TestPerFileModules_ScanMatchesGenerate(t *testing.T) {
 	session := setupInline(t, splitSources)
 	scan := session.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"client.ts"}, IncludeEntryModules: true})
