@@ -556,8 +556,8 @@ describe('the build-gate tests run on the Go runner and nowhere else', () => {
 describe('the converted-suites refusal count runs per PR', () => {
   const ci = read('.github/workflows/ci.yml');
 
-  it('runs the count in ci.yml on the go-tools lane', () => {
-    expect(ci).toMatch(
+  it('runs the count in go-fuzz under the go-tools lane', () => {
+    expect(jobOf(ci, 'go-fuzz')).toMatch(
       /if: fromJSON\(needs\.lanes\.outputs\.lanes\)\['go-tools'\]\.run\n\s+run: pnpm miondevx core converted-suites --refusals-only\n/
     );
   });
