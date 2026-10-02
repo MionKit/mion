@@ -122,7 +122,7 @@ export interface RunTypeRecord extends RunTypeRowRecord {
   ini: RunTypeIni | undefined;
 }
 
-/** THE runtype data-bundle module (`rtmod:/runtypes.js`): every reflection-demanded node as one headless row,
+/** A runtype data module (`rtmod:/rt/<hash>.js`, one per source file): each node its roots reach as one headless row,
  *  a parallel `rels` array wiring each node's ref-bearing slots by ROW INDEX, and a residual `ini` carrying only
  *  the rare expression-specials (classType / bigint-symbol literal / formatAnnotation). `key` is a CONTENT hash
  *  over the row ids, so the processed-keys guard re-registers new rows after an HMR reload of the bundle. **/
@@ -419,11 +419,13 @@ export function initFromTuple(root: EntryTuple): void {
 function wireBundleRelations(utils: RTUtils, tuple: RunTypeBundleTuple): void {
   const rows = (tuple[SLOT_ROWS] ?? []) as readonly RunTypeRow[];
   const rels = (tuple[SLOT_RELS] ?? []) as readonly (RunTypeRelRow | undefined)[];
-  if (rels.length === 0) return;
+  const added = addedRows.get(tuple);
+  if (rels.length === 0 || !added) return;
   const byIndex = rows.map((row) => utils.getRunType(row[0] as string));
   const resolve = (rel: unknown): unknown =>
     typeof rel === 'number' ? byIndex[rel] : typeof rel === 'string' ? utils.getRunType(rel) : rel;
-  for (let i = 0; i < rels.length; i++) {
+  // Only the rows this module registered: a row another module already wired may be in use.
+  for (const i of added) {
     const relRow = rels[i];
     if (!relRow) continue; // leaf row: no relations
     const runType = byIndex[i];
@@ -512,19 +514,28 @@ function registerRunTypeTuple(utils: RTUtils, tuple: RunTypeTuple): boolean {
   return true;
 }
 
-// registerRunTypeBundle registers every headless row of the data bundle. Rows an earlier bundle generation
-// already registered are skipped, so footer-patched entries are never reset while in use; the combined ini
-// re-runs over them anyway, which is safe — footer assignments are deterministic constants.
+// The rows each data module registered itself, so its relations wire only those.
+const addedRows = new WeakMap<RunTypeBundleTuple, number[]>();
+
+// registerRunTypeBundle registers every headless row of a data module. A row another module or an earlier generation
+// already registered is skipped, so footer-patched entries are never reset while in use; the combined ini re-runs
+// over them anyway, which is safe: footer assignments are deterministic constants. A root's size limit rides only
+// the module that reflects it as a root, so it is copied onto a row an earlier module registered without one.
 function registerRunTypeBundle(utils: RTUtils, tuple: RunTypeBundleTuple): boolean {
   const rows = (tuple[SLOT_ROWS] ?? []) as readonly RunTypeRow[];
-  let added = false;
-  for (const row of rows) {
+  const added: number[] = [];
+  rows.forEach((row, index) => {
     const record = tupleToRecord<RunTypeRowRecord>(RUN_TYPE_FIELD_KEYS, row);
-    if (utils.hasRunType(record.id)) continue;
-    utils.addRunType(record.id, runTypeEntryFromRecord(record));
-    added = true;
-  }
-  return added;
+    const existing = utils.getRunType(record.id);
+    if (!existing) {
+      utils.addRunType(record.id, runTypeEntryFromRecord(record));
+      added.push(index);
+    } else if (existing.jsonMaxBytes === undefined && record.jsonMaxBytes !== undefined) {
+      existing.jsonMaxBytes = record.jsonMaxBytes;
+    }
+  });
+  if (added.length) addedRows.set(tuple, added);
+  return added.length > 0;
 }
 
 // registerTypeFnTuple joins the tuple's wire fields with the family metadata keyed by its family tag.
