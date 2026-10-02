@@ -1,12 +1,11 @@
 import {defineConfig} from 'vite';
-import {resolve} from 'path';
 import {mionVitePlugin} from '@mionjs/devtools/vite';
 
 export default defineConfig({
   plugins: [
     mionVitePlugin({
-      runTypes: {tsConfig: resolve(__dirname, 'tsconfig.json')},
-      bundleApi: false,
+      // every route's metadata and compiled functions come from the server on first use
+      client: {routes: 'fetch'},
     }),
   ],
 });

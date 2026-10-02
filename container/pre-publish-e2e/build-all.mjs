@@ -333,7 +333,7 @@ async function buildMionNext(app) {
   execFileSync(process.execPath, [nextBin, 'build'], {
     cwd: appDir,
     stdio: 'inherit',
-    env: {...process.env, NODE_ENV: 'production', MION_E2E_BUNDLE_API: 'bundled'},
+    env: {...process.env, NODE_ENV: 'production', MION_E2E_CLIENT_ROUTES: 'bundle'},
   });
 }
 

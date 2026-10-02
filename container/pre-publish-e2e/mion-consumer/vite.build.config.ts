@@ -8,9 +8,7 @@ import {mionVitePlugin} from '@mionjs/devtools/vite';
 export default defineConfig({
   plugins: [
     mionVitePlugin({
-      runTypes: {
-        tsConfig: resolve(__dirname, 'tsconfig.json'),
-      },
+      tsConfig: resolve(__dirname, 'tsconfig.json'),
     }),
   ],
   build: {

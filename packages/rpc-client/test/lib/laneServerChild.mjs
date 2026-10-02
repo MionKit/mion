@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// One bundleApi lane's test server in its own process, started by laneServer.ts with the lane's vitest config:
+// One client-routes lane's test server in its own process, started by laneServer.ts with the lane's vitest config:
 // vite transforms the entry with the lane's own plugin and program, so it runs what that resolver compiled
 // (batch table included). Plain JavaScript so nothing has to transform this file.
 import {createServer, createServerModuleRunner} from 'vite';

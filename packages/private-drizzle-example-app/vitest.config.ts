@@ -8,10 +8,8 @@ export default defineConfig({
   ssr: {resolve: {conditions: ['source']}},
   plugins: [
     mionVitePlugin({
-      runTypes: {
-        tsConfig: resolve(__dirname, 'tsconfig.json'),
-      },
-      bundleApi: false,
+      tsConfig: resolve(__dirname, 'tsconfig.json'),
+      client: {routes: 'fetch'},
     }),
   ],
   test: {

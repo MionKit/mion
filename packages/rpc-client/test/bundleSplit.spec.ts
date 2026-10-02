@@ -31,7 +31,7 @@ useFetchMetadata(middlewares.mionFetchMetadata);
 export const call = () => routes.sayHello({name: 'a', surname: 'b'}).call();
 `;
 
-const MODES = [false, true];
+const MODES = ['fetch', 'bundle'] as const;
 
 /** Names only the fetched lane puts in an artifact. */
 const LANE_MARKERS = ['indexedDB', 'mion:client', 'requestIdleCallback'];
@@ -74,7 +74,7 @@ afterAll(() => rmSync(root, {recursive: true, force: true}));
 
 type Chunk = {type: string; code?: string; fileName: string; isEntry?: boolean; imports?: string[]};
 
-async function buildChunks(bundleApi?: boolean, entry = 'app.ts'): Promise<Chunk[]> {
+async function buildChunks(routes?: 'bundle' | 'fetch', entry = 'app.ts'): Promise<Chunk[]> {
   const result = await build({
     root,
     configFile: false,
@@ -82,8 +82,9 @@ async function buildChunks(bundleApi?: boolean, entry = 'app.ts'): Promise<Chunk
     resolve: {conditions: ['source']},
     plugins: [
       mionVitePlugin({
-        runTypes: {tsConfig: path.join(packageRoot, 'tsconfig.bundled.json'), genDir: path.join(root, '.mion')},
-        bundleApi,
+        tsConfig: path.join(packageRoot, 'tsconfig.bundled.json'),
+        runTypes: {genDir: path.join(root, '.mion')},
+        client: {routes},
       }),
     ],
     build: {
@@ -97,13 +98,13 @@ async function buildChunks(bundleApi?: boolean, entry = 'app.ts'): Promise<Chunk
 }
 
 /** Every chunk concatenated: a lane split into its own chunk is still shipped. */
-async function buildApp(bundleApi?: boolean, entry = 'app.ts'): Promise<string> {
-  return (await buildChunks(bundleApi, entry)).map((chunk) => chunk.code ?? '').join('\n');
+async function buildApp(routes?: 'bundle' | 'fetch', entry = 'app.ts'): Promise<string> {
+  return (await buildChunks(routes, entry)).map((chunk) => chunk.code ?? '').join('\n');
 }
 
 /** What a browser runs before the first call: the entry and everything it imports statically. */
-async function buildEagerApp(bundleApi?: boolean, entry = 'app.ts'): Promise<string> {
-  const chunks = await buildChunks(bundleApi, entry);
+async function buildEagerApp(routes?: 'bundle' | 'fetch', entry = 'app.ts'): Promise<string> {
+  const chunks = await buildChunks(routes, entry);
   const byName = new Map(chunks.map((chunk) => [chunk.fileName, chunk]));
   const eager = new Set<string>();
   const walk = (name: string): void => {
@@ -146,12 +147,12 @@ describe('what a default client leaves out', () => {
     for (const marker of PATTERN_MARKERS) expect(code, marker).not.toContain(marker);
   }, 120_000);
 
-  it('carries no bundled-API registration when bundleApi is off', async () => {
-    const code = await buildApp(false);
+  it('carries no bundled-API registration when routes are fetched', async () => {
+    const code = await buildApp('fetch');
     for (const marker of BUNDLED_API_MARKERS) expect(code, marker).not.toContain(marker);
   }, 120_000);
 
-  it('a bundleApi build, the default, still gets the real registration', async () => {
+  it('a bundling build, the default, still gets the real registration', async () => {
     const code = await buildApp();
     for (const marker of BUNDLED_API_MARKERS) expect(code, marker).toContain(marker);
   }, 120_000);
@@ -169,7 +170,7 @@ describe('the api version check', () => {
   }, 360_000);
 
   it('ships the recovery in the same chunk as the fetch, so one download covers both', async () => {
-    const chunks = await buildChunks(true, 'fetching-app.ts');
+    const chunks = await buildChunks('bundle', 'fetching-app.ts');
     const withRecovery = chunks.filter((chunk) => (chunk.code ?? '').includes('rowsAgree'));
     expect(withRecovery).toHaveLength(1);
     for (const marker of LANE_CODE_MARKERS) expect(withRecovery[0].code ?? '', marker).toContain(marker);

@@ -43,13 +43,13 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any> impl
     });
   }
 
-  /** `apiMetadata` is filled by the build under `bundleApi`, never by hand. */
+  /** `apiMetadata` is filled by the build when routes are bundled, never by hand. */
   call(setup?: CallSetup, apiMetadata?: InjectedApiMetadata): Promise<any> {
     this.client.useBundledApi(apiMetadata);
     return this.client.execute(this as unknown as RouteSubRequest<any>, undefined, undefined, setup?.signal, setup?.timeout);
   }
 
-  /** `apiMetadata` is filled by the build under `bundleApi`, never by hand. */
+  /** `apiMetadata` is filled by the build when routes are bundled, never by hand. */
   typeErrors(apiMetadata?: InjectedApiMetadata): Promise<RunTypeError[]> {
     this.client.useBundledApi(apiMetadata);
     return this.client

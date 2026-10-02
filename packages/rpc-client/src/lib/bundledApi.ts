@@ -17,7 +17,7 @@ import {
 import type {InjectedApiMetadata} from '../types.ts';
 import {isBundledMethod, resetBundledMethods, setBundledMethod} from './methods.ts';
 
-// With `bundleApi` the build injects, at each dispatch point, the route and its middlewares with the server's
+// With bundled routes the build injects, at each dispatch point, the route and its middlewares with the server's
 // compiled functions. Registering one runs the router's initRoutes reflection, so it looks exactly like a fetched one.
 
 /** One method of a bundled payload: the `MethodWithOptions` members the build can answer from the API type,

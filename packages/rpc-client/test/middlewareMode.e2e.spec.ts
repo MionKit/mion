@@ -39,8 +39,8 @@ describe('mion API mounted in-process (middleware mode)', () => {
       ssr: {resolve: {conditions: ['source']}},
       plugins: [
         mionVitePlugin({
-          runTypes: {tsConfig: resolve(TEST_SERVER_DIR, 'tsconfig.json')},
-          server: {startScript: START_SCRIPT},
+          tsConfig: resolve(TEST_SERVER_DIR, 'tsconfig.json'),
+          server: {entry: START_SCRIPT},
         }),
       ],
     });

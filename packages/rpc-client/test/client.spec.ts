@@ -29,7 +29,7 @@ describe('client', () => {
 
   // middleware hooks are per client, so each test's fresh client starts with none
 
-  it('knows its API is not bundled: this project builds with bundleApi: false', () => {
+  it('knows its API is not bundled: this project builds with client routes fetched', () => {
     const {client} = initClient<MyApi>({baseURL});
     expect(client.isApiBundled).toBe(false);
   });

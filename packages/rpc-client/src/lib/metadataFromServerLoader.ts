@@ -44,7 +44,7 @@ function laneLoadError(error: unknown): RpcError<'metadata-load-error'> {
   return new RpcError({
     type: 'metadata-load-error',
     publicMessage:
-      'Could not load the code that asks the server how a route works. Build with bundleApi to ship every route the client calls, or check that the app can load its own chunks.',
+      'Could not load the code that asks the server how a route works. Build with client routes bundled to ship every route the client calls, or check that the app can load its own chunks.',
     originalError: error instanceof Error ? error : undefined,
   });
 }
