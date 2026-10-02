@@ -148,7 +148,7 @@
       "code": "BAT007",
       "subsystem": "markers",
       "level": "runtimeError",
-      "headline": "Batch mapper `{0}` has no generated pure function in the batch source program; the server build cannot register it.",
+      "headline": "Batch mapper `{0}` has no generated pure function in this program; the server build cannot register it.",
       "summary": "Each inline `inputFrom(source, (value) => ...)` mapper becomes a pure function the server build copies next to the batch table. This one produced nothing, so the server would answer the batch with a missing mapper error. Fix the pure function errors (PFN or PFE codes) at its `inputFrom()` call, or use the name of a mapper registered on the server.",
       "fix": "inputFrom(user, 'toOrgId')",
       "example": null

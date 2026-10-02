@@ -6,8 +6,8 @@ export default defineConfig({
   plugins: [
     mionVitePlugin({
       tsConfig: resolve(__dirname, 'tsconfig.build.json'),
-      // No `client` pointer: @mionjs/client's own program pulls this entry in through the `source`
-      // export condition, so THAT build generates the batch table and injects it. One program.
+      // @mionjs/client's own program pulls this entry in through the `source` export condition, so
+      // THAT build generates the batch table and injects it. One program.
     }),
   ],
   resolve: {conditions: ['source']},

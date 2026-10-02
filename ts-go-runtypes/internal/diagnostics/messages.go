@@ -53,7 +53,7 @@ var headlineByCode = map[string]string{
 	"MRT004":  "mion `{1}` handler declares it can answer with `{0}`, which is not an `RpcError`; only an `RpcError` (or a subclass such as `FatalError`) carries the mion brand.",
 	"MRT005":  "Property `{0}` can never be data and is dropped from every compiled function; rename it.",
 	"SRV001":  "`{0}` is passed to `initClient` but imported as a value from \"{1}\", which can put that server module in the client bundle; use `import type`.",
-	"BAT007":  "Batch mapper `{0}` has no generated pure function in the batch source program; the server build cannot register it.",
+	"BAT007":  "Batch mapper `{0}` has no generated pure function in this program; the server build cannot register it.",
 	"PFN001":  "`PureFunction<F>` argument must be an INLINE arrow or function expression.",
 	"PFN002":  "`PureFunction<F>` literal must not be imported or exported: the compiled copy must be the only one that can run.",
 	"MKR003":  "Marker call is inside a generic function: the type argument is unresolved, so no id can be computed at build time.",

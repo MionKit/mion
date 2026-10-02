@@ -223,8 +223,7 @@ export interface PluginOptions {
   // Paths are absolute and forward-slashed.
   onSiteFilesChanged?: (siteFiles: string[]) => void;
   // Fired after every generate with what the resolver wrote and echoed: the output root, the batch
-  // transport's module (when one was written), the separate batch source's files (already watched by the
-  // plugin under vite) and the router-init modules. A host uses it to re-transform the router-init modules
+  // transport's module (when one was written) and the router-init modules. A host uses it to re-transform the router-init modules
   // when the batch module first appears after they were loaded without it.
   onGenerate?: (info: GenerateInfo) => void;
   // Enrichment auto-sync (opt-in, default OFF). Bundler-plugin-only, a host/dev-loop behavior, so it has
