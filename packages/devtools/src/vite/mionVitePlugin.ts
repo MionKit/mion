@@ -5,6 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import path from 'node:path';
 import tsRuntypes from '../runtypes/vite.ts';
 import {mionMiddlewarePlugin} from './middlewareMode.ts';
 import {createVirtualSiteMap, mionSfcPlugins} from './sfcTransform.ts';
@@ -154,6 +155,9 @@ export function mionVitePlugin(options: MionPluginOptions = {}): PluginOption[] 
   } satisfies Plugin);
   if (options.server) {
     const server = options.server;
+    if (typeof server.entry !== 'string' || !server.entry) {
+      throw new Error('[mionVitePlugin] server.entry must name the server entry file.');
+    }
     // In-process: nothing is spawned, and nothing happens outside `vite dev`. `onReady`/`onError` only feed
     // the 503 path, no promise leaves this preset.
     extraPlugins.unshift(
@@ -191,7 +195,9 @@ function findRtPlugin(created: unknown): Plugin | undefined {
 function serverBundlePlugin(server: MionServerOptions, build: MionServerBuildOptions): Plugin {
   return {
     name: 'mion-server-bundle',
-    config() {
+    config(userConfig) {
+      // vite resolves only its own defaults against root, rollupOptions.input is taken as written.
+      const root = path.resolve(userConfig.root ?? process.cwd());
       return {
         builder: {sharedConfigBuild: true, sharedPlugins: true},
         environments: {
@@ -201,7 +207,7 @@ function serverBundlePlugin(server: MionServerOptions, build: MionServerBuildOpt
             build: {
               outDir: build.outDir ?? 'dist-server',
               emptyOutDir: true,
-              rollupOptions: {input: server.entry},
+              rollupOptions: {input: path.resolve(root, server.entry)},
             },
           },
         },

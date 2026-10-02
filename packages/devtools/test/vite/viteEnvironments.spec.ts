@@ -108,7 +108,7 @@ register('one config, two bundles', () => {
   }
 
   /** Runs the whole app build exactly as the `vite build` CLI does. */
-  async function buildApp(binary: string, serverOutDir?: string): Promise<void> {
+  async function buildApp(binary: string, serverOutDir?: string, entry = path.join(root, 'src', 'server.ts')): Promise<void> {
     const builder = await createBuilderLikeCli({
       root,
       configFile: false,
@@ -120,7 +120,7 @@ register('one config, two bundles', () => {
         tsConfig: path.join(root, 'tsconfig.json'),
         runTypes: {binary, genDir: path.join(root, '.mion')},
         server: {
-          entry: path.join(root, 'src', 'server.ts'),
+          entry,
           build: serverOutDir ? {outDir: serverOutDir} : {},
         },
       }),
@@ -161,6 +161,13 @@ register('one config, two bundles', () => {
     const {binary, spawns} = countingBinary();
     await buildApp(binary);
     expect(spawns()).toBe(1);
+  });
+
+  it('resolves a relative server.entry against the vite root, not the working directory', async () => {
+    expect(root).not.toBe(process.cwd());
+    const {binary} = countingBinary();
+    await buildApp(binary, undefined, 'src/server.ts');
+    expect(readFileSync(serverBundleIn(path.join(root, 'dist-server')), 'utf8')).toContain('__serverRan');
   });
 
   it('honours server.build.outDir', async () => {

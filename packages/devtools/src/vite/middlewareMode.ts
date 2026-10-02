@@ -21,6 +21,7 @@ import type {MionServerOptions} from './mionVitePlugin.ts';
 type NodeHandler = (req: IncomingMessage, res: ServerResponse) => void;
 /** Fetch-style handler, as exported by @mionjs/platform-bun and buildable from the edge adapters. */
 type FetchHandler = (req: Request) => Response | Promise<Response>;
+type RequestHandlers = {node?: NodeHandler; fetch?: FetchHandler};
 
 /** Export names searched for a handler on the entry module, and on the node adapter when nothing else gave one. */
 const NODE_HANDLER_EXPORTS = ['httpRequestHandler'];
@@ -62,10 +63,13 @@ export function mionMiddlewarePlugin(options: MionServerOptions, signals: Middle
   let mountPath = '';
   let staleSince: number | undefined;
   let routerModule: Record<string, any> | undefined;
+  let closed = false;
 
   /** Loads the entry through vite's SSR pipeline and resolves its handler + mount path. */
   async function load(server: ViteDevServer): Promise<void> {
     const router = await server.ssrLoadModule('@mionjs/router');
+    // A warm-up load still in flight when the server closes must not leave the process-wide flag set.
+    if (closed) return;
     routerModule = router;
     router.setHostOwnsSocket(true);
     const entry = await server.ssrLoadModule(entryPath);
@@ -115,6 +119,7 @@ export function mionMiddlewarePlugin(options: MionServerOptions, signals: Middle
 
     // The flag is process-wide, so a later server started in the same process (a test runner) listens again.
     closeBundle() {
+      closed = true;
       routerModule?.setHostOwnsSocket(false);
     },
 
@@ -206,22 +211,24 @@ function assertNotListening(router: Record<string, any>): void {
 async function pickHandler(
   server: ViteDevServer,
   entry: Record<string, any>,
-  hostHandler: {node?: NodeHandler; fetch?: FetchHandler} | undefined
-): Promise<{node?: NodeHandler; fetch?: FetchHandler}> {
+  hostHandler: RequestHandlers | undefined
+): Promise<RequestHandlers> {
   const fromEntry = handlerExportOf(entry);
   if (fromEntry) return fromEntry;
   if (hostHandler?.node) return {node: hostHandler.node};
   if (hostHandler?.fetch) return {fetch: hostHandler.fetch};
-  const nodeAdapter = await server.ssrLoadModule(DEFAULT_PLATFORM).catch(() => undefined);
+  let loadError: unknown;
+  const nodeAdapter = await server.ssrLoadModule(DEFAULT_PLATFORM).catch((error: unknown) => void (loadError = error));
   const fromAdapter = nodeAdapter && handlerExportOf(nodeAdapter);
   if (fromAdapter) return fromAdapter;
   throw new Error(
     `[mionVitePlugin] middleware mode found no request handler. Start a mion platform adapter in the server ` +
-      `entry, or export one of ${[...NODE_HANDLER_EXPORTS, ...FETCH_HANDLER_EXPORTS].join(', ')} from it.`
+      `entry, or export one of ${[...NODE_HANDLER_EXPORTS, ...FETCH_HANDLER_EXPORTS].join(', ')} from it.`,
+    {cause: loadError}
   );
 }
 
-function handlerExportOf(source: Record<string, any>): {node?: NodeHandler; fetch?: FetchHandler} | undefined {
+function handlerExportOf(source: Record<string, any>): RequestHandlers | undefined {
   const node = NODE_HANDLER_EXPORTS.map((name) => source[name]).find((fn) => typeof fn === 'function');
   if (node) return {node};
   const fetch = FETCH_HANDLER_EXPORTS.map((name) => source[name]).find((fn) => typeof fn === 'function');
