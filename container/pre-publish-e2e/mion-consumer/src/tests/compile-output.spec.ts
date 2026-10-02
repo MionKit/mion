@@ -11,32 +11,29 @@ import {dirname, relative, resolve} from 'path';
 import {pathToFileURL} from 'url';
 import {spawn, type ChildProcess} from 'child_process';
 
-// Runs AFTER the two `mion compile` runs of the PUBLISHED binary (scripts/release/e2e.mjs):
+// Runs AFTER the `mion compile` runs of the PUBLISHED binary (scripts/release/e2e.mjs):
 //
-//   mion compile --tsconfig tsconfig.compile.json --client-tsconfig client-app/tsconfig.json --gen-dir .mion-cli
-//   mion compile --cwd client-app --tsconfig tsconfig.json --gen-dir .mion-cli
+//   mion compile --tsconfig tsconfig.compile.json --gen-dir .mion-cli
+//   mion compile --tsconfig tsconfig.compile-fetch.json --gen-dir .mion-cli-fetch --client-routes fetch
 //
-// The server and the client are SEPARATE projects here: the server compile generates the batch
-// table and the inline inputFrom mapper modules from the client-app program into .mion-cli/rpc/,
-// appends the table's import to the emitted router-init module, and the client compile splices
-// the batch id and mapper id into the emitted flow. The last test boots the emitted server
-// under plain node and runs the emitted client flow against it.
-//
-// tsconfig.compile.json excludes src/tests/ so the server program carries no batch of its own:
-// with a client pointer set, one written here never reaches the table and the build says so
-// fatally (BAT008).
+// One program holds the server and its client: the first compile generates the batch table and the
+// inline inputFrom mapper module from it, appends the table's import to the emitted router-init
+// module and splices the batch id and mapper id into the emitted client flow. The second builds the
+// same server with a client that bundles nothing and fetches every route. Both emitted servers boot
+// under plain node and answer their emitted client.
 
 const rootDir = resolve(__dirname, '../..');
 const outDir = resolve(rootDir, 'dist-cli');
 const genDir = resolve(rootDir, '.mion-cli');
 const serverJs = resolve(outDir, 'src/server/server.js');
-// client-app's rootDir is the consumer root (its program reaches the server's types), so its
-// out dir mirrors that layout
-const flowJs = resolve(rootDir, 'client-app/dist-cli/client-app/src/batchFlow.js');
+const flowJs = resolve(outDir, 'src/client/batchFlow.js');
 const tableJs = resolve(genDir, 'rpc/batches.generated.js');
 const PORT = 8087;
+const fetchOutDir = resolve(rootDir, 'dist-cli-fetch');
+const fetchGenDir = resolve(rootDir, '.mion-cli-fetch');
+const FETCH_PORT = 8088;
 
-let server: ChildProcess | undefined;
+const servers: ChildProcess[] = [];
 
 /** Every file under dir, recursively. */
 function filesUnder(dir: string): string[] {
@@ -47,8 +44,17 @@ function filesUnder(dir: string): string[] {
     });
 }
 
-const anyFileContains = (dir: string, needle: string): boolean => filesUnder(dir).some((file) => readFileSync(file, 'utf-8').includes(needle));
-afterAll(() => server?.kill('SIGTERM'));
+afterAll(() => servers.forEach((server) => server.kill('SIGTERM')));
+
+function bootServer(file: string, port: number): ChildProcess {
+    const server = spawn(process.execPath, [file], {
+        cwd: rootDir,
+        env: {...process.env, MION_TEST_PORT: String(port), MION_TEST_SERVER_AUTO_START: 'true'},
+        stdio: ['ignore', 'inherit', 'inherit'],
+    });
+    servers.push(server);
+    return server;
+}
 
 async function waitForPort(port: number, child: ChildProcess, timeoutMs = 60000): Promise<void> {
     const deadline = Date.now() + timeoutMs;
@@ -84,7 +90,7 @@ describe('mion compile output', () => {
         }
         expect(table).not.toContain(rootDir);
         expect(table).not.toContain('clientRoot');
-        // the table comes from the client project alone, and that project holds exactly one batch
+        // the program's one batch, src/client/batchFlow.ts (the specs are not part of this compile)
         const ids = [...table.matchAll(/"(b_[A-Za-z0-9_-]+)"/g)].map((m) => m[1]);
         expect(ids).toHaveLength(1);
         // one generated pure-fn module, under the path its id names: the package
@@ -93,25 +99,8 @@ describe('mion compile output', () => {
         const mappers = filesUnder(resolve(genDir, 'rpc/pf'));
         expect(mappers).toHaveLength(1);
         expect(mappers[0]).toMatch(/[\\/]pf[\\/].+[\\/][A-Za-z0-9_-]{14}\.js$/);
-        // the mapper body authored in client-app/src/batchFlow.ts
+        // the mapper body authored in src/client/batchFlow.ts
         expect(readFileSync(mappers[0], 'utf-8')).toContain('customerValue.preferenceId');
-    });
-
-    it('copies the inline mapper and nothing else of the client project', () => {
-        // client-app/src/decoys.ts declares a reflection marker and a pure function of its own;
-        // the server pass over the client program must not compile either of them
-        // Both decoys are looked for by their BODY. An id is a hash now, so neither
-        // the binding name nor the source file reaches a generated name or path, and
-        // a check for either would pass whatever the compile copied.
-        expect(anyFileContains(resolve(genDir, 'types'), 'clientOnlyField')).toBe(false);
-        expect(anyFileContains(resolve(genDir, 'rpc'), 'value * 2')).toBe(false);
-        expect(filesUnder(resolve(genDir, 'rpc/pf'))).toHaveLength(1);
-        // the decoys are live: the client's own compile generates both
-        const clientGenDir = resolve(rootDir, 'client-app/.mion-cli');
-        expect(anyFileContains(resolve(clientGenDir, 'types'), 'clientOnlyField')).toBe(true);
-        // by its BODY, not its name: an id is a hash, so the binding name the source
-        // used reaches no generated file.
-        expect(anyFileContains(resolve(clientGenDir, 'types'), 'value * 2')).toBe(true);
     });
 
     it('the emitted server imports the table by itself, relativized to the gen dir', () => {
@@ -136,12 +125,7 @@ describe('mion compile output', () => {
     });
 
     it('answers a batch with an inline mapper from the compiled client, under plain node', async () => {
-        server = spawn(process.execPath, [serverJs], {
-            cwd: rootDir,
-            env: {...process.env, MION_TEST_PORT: String(PORT), MION_TEST_SERVER_AUTO_START: 'true'},
-            stdio: ['ignore', 'inherit', 'inherit'],
-        });
-        await waitForPort(PORT, server);
+        await waitForPort(PORT, bootServer(serverJs, PORT));
         const flow = (await import(pathToFileURL(flowJs).href)) as {
             runInlineMapperBatch: (baseURL: string) => Promise<{customer: unknown; prefs: unknown; errors: unknown[]}>;
         };
@@ -149,5 +133,33 @@ describe('mion compile output', () => {
         expect(result.errors.filter(Boolean)).toEqual([]);
         expect(result.customer).toEqual({id: 7, name: 'Test Customer', preferenceId: 107});
         expect(result.prefs).toEqual({id: 107, userId: 7, theme: 'light'});
+    });
+
+    it('writes the server and the client manifests from one build, for mion api-check', () => {
+        const server = JSON.parse(readFileSync(resolve(genDir, 'api/manifest.json'), 'utf-8')) as {kind: string};
+        const client = JSON.parse(readFileSync(resolve(genDir, 'api/client-manifest.json'), 'utf-8')) as {
+            kind: string;
+            methods: Record<string, unknown>;
+        };
+        expect(server.kind).toBe('server');
+        expect(client.kind).toBe('client');
+        expect(Object.keys(client.methods)).toContain('getCustomerById');
+    });
+});
+
+describe('mion compile output, client routes fetched', () => {
+    it('bundles nothing for the client', () => {
+        expect(existsSync(resolve(fetchGenDir, 'api/client-manifest.json'))).toBe(false);
+        expect(readFileSync(resolve(fetchOutDir, 'src/client/fetchFlow.js'), 'utf-8')).not.toContain('.mion-cli-fetch/api/');
+    });
+
+    it('answers a call whose metadata the client fetched from the server, under plain node', async () => {
+        await waitForPort(FETCH_PORT, bootServer(resolve(fetchOutDir, 'src/server/server.js'), FETCH_PORT));
+        const flow = (await import(pathToFileURL(resolve(fetchOutDir, 'src/client/fetchFlow.js')).href)) as {
+            runFetchedCall: (baseURL: string) => Promise<{customer: unknown; error: unknown}>;
+        };
+        const result = await flow.runFetchedCall(`http://127.0.0.1:${FETCH_PORT}`);
+        expect(result.error).toBeUndefined();
+        expect(result.customer).toEqual({id: 7, name: 'Test Customer', preferenceId: 107});
     });
 });
