@@ -62,6 +62,9 @@ both events fired, so the label already exists when it asks the API, in either o
   `pull-requests: read`.
 - Every gate reads `contains(fromJSON(needs.lanes.outputs.labels), '<label>')`: the three `pr-heavy` lanes,
   the three `skip-defaults` guards in `ci.yml`, and `drizzle-e2e.yml`'s `decide` job (now `needs: lanes`).
-- Tests: `packages/devtools/test/label-gate-contracts.test.ts` pins that no workflow reads the payload
-  labels, that every reader needs `lanes`, and runs the label script with a fake `gh` (labels returned,
-  `[]` off a PR, a failed read fails). The two existing label tests follow the new expression.
+- The PR number reaches the step as `MION_PR_NUMBER` (registered `internal` in `scripts/lib/env.mjs`).
+- Tests: a new describe in `packages/devtools/test/ci-lane-contracts.test.ts` pins that no workflow or action
+  reads the payload labels, that every reader needs `lanes`, that drizzle's `LABELLED` tests its own label, and
+  runs the label script with a fake `gh` (labels returned, `[]` off a PR, a failed read fails). The existing
+  lanes-job test also checks `pull-requests: read` and the `labels` output. The two existing label tests follow
+  the new expression.

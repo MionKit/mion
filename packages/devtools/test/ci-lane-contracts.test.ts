@@ -393,6 +393,8 @@ describe('every workflow gates on the lanes it declares', () => {
         workflow.indexOf('\n    steps:', workflow.indexOf('\n  lanes:'))
       );
       expect(job, `${file}'s lanes job cannot list caches without actions: read`).toContain('actions: read');
+      expect(job, `${file}'s lanes job cannot read the labels without pull-requests: read`).toContain('pull-requests: read');
+      expect(job).toContain('labels: ${{ steps.decide.outputs.labels }}');
     });
   }
 });
@@ -571,5 +573,75 @@ describe('the converted-suites refusal count runs per PR', () => {
       'scripts/core/converted-suites.mjs',
     ])
       expect(matches(input, LANES['go-tools'].paths), input).toBe(true);
+  });
+});
+
+// Opening a PR with a label fires `opened` and `labeled` together and concurrency cancels one; the
+// `opened` payload has no labels, so every label gate reads the live labels ci-lanes emits instead.
+describe('label gates read the live labels, never the event payload', () => {
+  const LIVE_LABELS = 'fromJSON(needs.lanes.outputs.labels)';
+  const action = read('.github/actions/ci-lanes/action.yml');
+  const step = action.slice(action.indexOf('id: labels'));
+  const labelScript = (/run: \|\n((?: {8}.*\n?)+)/.exec(step)?.[1] ?? '').replace(/^ {8}/gm, '');
+  // A real file for GITHUB_OUTPUT: on Linux node hands bash a socket, which /dev/stdout cannot reopen.
+  const runLabelScript = (prNumber: string, gh: string) => {
+    const dir = mkdtempSync(path.join(os.tmpdir(), 'label-gate-'));
+    try {
+      const output = path.join(dir, 'output');
+      writeFileSync(output, '');
+      const env = {PATH: process.env.PATH, MION_PR_NUMBER: prNumber, GITHUB_OUTPUT: output};
+      const script = `gh() { ${gh}; }\n${labelScript}`;
+      const run = spawnSync('bash', ['--noprofile', '--norc', '-eo', 'pipefail', '-c', script], {env, encoding: 'utf8'});
+      return {status: run.status, output: readFileSync(output, 'utf8')};
+    } finally {
+      rmSync(dir, {recursive: true, force: true});
+    }
+  };
+
+  it('no workflow or action reads labels from the event payload', () => {
+    const files = globSync('.github/{workflows,actions}/**/*.yml', {cwd: REPO_ROOT});
+    expect(files.length).toBeGreaterThan(10);
+    for (const file of files) expect(read(file), file).not.toContain('github.event.pull_request.labels');
+  });
+
+  it('every job reading the labels needs the lanes job', () => {
+    let checked = 0;
+    for (const file of Object.keys(WORKFLOWS)) {
+      for (const job of read(`.github/workflows/${file}`).split(/\n  (?=[\w-]+:\n)/)) {
+        if (!job.includes(LIVE_LABELS)) continue;
+        checked += 1;
+        expect(/^ {4}needs: (.+)$/m.exec(job)?.[1], `${file}: ${job.slice(0, job.indexOf(':'))}`).toMatch(
+          /^(lanes|\[.*\blanes\b.*\])$/
+        );
+      }
+    }
+    // website, bench, pre-publish-build, go-fuzz, js-lint, smoke, decide.
+    expect(checked).toBe(7);
+  });
+
+  it('drizzle-e2e decides on its own label', () => {
+    expect(jobOf(read('.github/workflows/drizzle-e2e.yml'), 'decide')).toContain(
+      `LABELLED: \${{ contains(${LIVE_LABELS}, 'drizzle-e2e') }}`
+    );
+  });
+
+  it('ci-lanes exposes the labels it reads for this pull request', () => {
+    expect(action).toMatch(/\n {2}labels:\n.*\n {4}value: \$\{\{ steps\.labels\.outputs\.labels \}\}\n/);
+    expect(action).toContain('MION_PR_NUMBER: ${{ github.event.pull_request.number }}');
+    expect(labelScript).toContain('gh pr view "$MION_PR_NUMBER" --json labels');
+  });
+
+  it('emits the label names the API returns', () => {
+    expect(runLabelScript('436', `echo '["bench","website"]'`)).toEqual({status: 0, output: 'labels=["bench","website"]\n'});
+  });
+
+  it('emits [] off a pull request, without calling the API', () => {
+    expect(runLabelScript('', 'return 1')).toEqual({status: 0, output: 'labels=[]\n'});
+  });
+
+  it('fails the gate when the API read fails, never emitting a guess', () => {
+    const run = runLabelScript('436', 'echo boom >&2; return 1');
+    expect(run.status).not.toBe(0);
+    expect(run.output).toBe('');
   });
 });
