@@ -68,7 +68,8 @@ name: ci
 # untested: it is a trust knob for the maintainer, never a default. The push to
 # main after the merge runs everything, since the label only exists on the PR.
 # `labeled` / `unlabeled` are in the trigger types so the label takes effect
-# without a new commit. Pinned by ci-skip-defaults-contracts.test.ts.
+# without a new commit. The label is read live from the PR (the `lanes` job),
+# never the event payload. Pinned by ci-skip-defaults-contracts.test.ts.
 on:
   pull_request:
     branches: [main]
@@ -96,8 +97,11 @@ jobs:
       contents: read
       # listing the green markers is an Actions cache read
       actions: read
+      # reading the live labels
+      pull-requests: read
     outputs:
       lanes: ${{ steps.decide.outputs.lanes }}
+      labels: ${{ steps.decide.outputs.labels }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -120,7 +124,7 @@ jobs:
   go-fuzz:
     name: go tests + fuzz
     needs: lanes
-    if: (fromJSON(needs.lanes.outputs.lanes).go.run || fromJSON(needs.lanes.outputs.lanes)['js-fuzz'].run || fromJSON(needs.lanes.outputs.lanes)['go-tools'].run) && !contains(github.event.pull_request.labels.*.name, 'skip-defaults')
+    if: (fromJSON(needs.lanes.outputs.lanes).go.run || fromJSON(needs.lanes.outputs.lanes)['js-fuzz'].run || fromJSON(needs.lanes.outputs.lanes)['go-tools'].run) && !contains(fromJSON(needs.lanes.outputs.labels), 'skip-defaults')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -242,7 +246,7 @@ jobs:
   js-lint:
     name: js tests + lint
     needs: lanes
-    if: fromJSON(needs.lanes.outputs.lanes).js.run && !contains(github.event.pull_request.labels.*.name, 'skip-defaults')
+    if: fromJSON(needs.lanes.outputs.lanes).js.run && !contains(fromJSON(needs.lanes.outputs.labels), 'skip-defaults')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -396,7 +400,7 @@ jobs:
   smoke:
     name: container smoke
     needs: lanes
-    if: fromJSON(needs.lanes.outputs.lanes).smoke.run && !contains(github.event.pull_request.labels.*.name, 'skip-defaults')
+    if: fromJSON(needs.lanes.outputs.lanes).smoke.run && !contains(fromJSON(needs.lanes.outputs.labels), 'skip-defaults')
     runs-on: ubuntu-latest
     permissions:
       contents: read

@@ -16,8 +16,15 @@ description: >
   push to main owns proving the base (without it a docs-only pull request re-ran
   every lane whenever main's own run was still going or got cancelled).
 
-  Needs `permissions: actions: read` on the calling job to list the markers. The
-  job that RUNS a lane must save its marker on success with ./.github/actions/save-lane-green.
+  Also emits `labels`, the pull request's labels read live from the API (`[]` off a
+  pull request), so a label gate never trusts the event payload: opening a PR with a
+  label fires `opened` and `labeled` together, concurrency cancels one, and the
+  `opened` payload carries no labels. The run that survives was queued after both,
+  so the live read always sees the label.
+
+  Needs `permissions: actions: read` (to list the markers) and `pull-requests: read`
+  (to read the labels) on the calling job. The job that RUNS a lane must save its
+  marker on success with ./.github/actions/save-lane-green.
 
 inputs:
   lanes:
@@ -28,6 +35,9 @@ outputs:
   lanes:
     description: 'JSON map of {lane: {run, hash, reason}}'
     value: ${{ steps.decide.outputs.lanes }}
+  labels:
+    description: "JSON array of the pull request's current label names, [] off a pull request"
+    value: ${{ steps.labels.outputs.labels }}
 
 runs:
   using: composite
@@ -69,3 +79,15 @@ runs:
         # Only a pull request accepts the narrower PR markers (PR_PROOF in lanes.mjs).
         node scripts/ci/lanes.mjs --decide $LANES --green-keys lane-green-keys.txt --github $PR_FLAG $BASE_FLAG
         rm -f lane-green-keys.txt
+
+    # A failed read fails the gate (red), never falls back to the payload's labels.
+    - name: Read the pull request's current labels
+      id: labels
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+      run: |
+        if [ -z "$PR_NUMBER" ]; then echo 'labels=[]' >> "$GITHUB_OUTPUT"; exit 0; fi
+        labels=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name]')
+        echo "labels=$labels" >> "$GITHUB_OUTPUT"
