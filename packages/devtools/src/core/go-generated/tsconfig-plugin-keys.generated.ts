@@ -7,9 +7,7 @@
 // bundler PluginOptions so a project option added to only one side fails CI.
 
 export const TSCONFIG_PLUGIN_KEYS = [
-  'apiTsconfig',
-  'bundleApi',
-  'clientTsconfig',
+  'clientRoutes',
   'downgradeErrors',
   'emitMode',
   'genDir',

@@ -459,39 +459,37 @@ func mustMkdirAll(t *testing.T, dir string) {
 	}
 }
 
-// TestResolveBundleApi: the flag beats the tsconfig key, the key is a boolean, and nothing set means bundled.
-func TestResolveBundleApi(t *testing.T) {
-	decode := func(raw string) bundleApiKey {
-		var key bundleApiKey
-		if err := json.Unmarshal([]byte(raw), &key); err != nil {
+// TestResolveClientRoutes: the flag beats the tsconfig key, and nothing set means bundle.
+func TestResolveClientRoutes(t *testing.T) {
+	decode := func(raw string) string {
+		var plugin tsRuntypesPlugin
+		if err := json.Unmarshal([]byte(`{"clientRoutes":`+raw+`}`), &plugin); err != nil {
 			t.Fatalf("decode %s: %v", raw, err)
 		}
-		return key
+		return plugin.ClientRoutes
 	}
 	for _, tc := range []struct {
 		flag string
 		key  string
-		want constants.BundleApiMode
+		want constants.ClientRoutesMode
 	}{
-		{"", `null`, constants.BundleApiBundled},
-		{"", `true`, constants.BundleApiBundled},
-		{"", `false`, constants.BundleApiOff},
-		{"bundled", `false`, constants.BundleApiBundled},
-		{"off", `true`, constants.BundleApiOff},
+		{"", `null`, constants.ClientRoutesBundle},
+		{"", `"bundle"`, constants.ClientRoutesBundle},
+		{"", `"fetch"`, constants.ClientRoutesFetch},
+		{"bundle", `"fetch"`, constants.ClientRoutesBundle},
+		{"fetch", `"bundle"`, constants.ClientRoutesFetch},
 	} {
-		got, ok := resolveBundleApi(tc.flag, decode(tc.key))
+		got, ok := resolveClientRoutes(tc.flag, decode(tc.key))
 		if !ok || got != tc.want {
 			t.Errorf("flag %q, key %s: got %q (ok %v), want %q", tc.flag, tc.key, got, ok, tc.want)
 		}
 	}
-	if _, ok := resolveBundleApi("fetched", ""); ok {
-		t.Errorf("an unknown mode is refused")
-	}
-	for _, raw := range []string{`"yes"`, `1`, `{}`, `[]`} {
-		var key bundleApiKey
-		err := json.Unmarshal([]byte(raw), &key)
-		if err == nil || !strings.Contains(err.Error(), "true or false") {
-			t.Errorf("key %s: got %v, want a refusal naming true or false", raw, err)
+	for _, mode := range []string{"bundled", "off", "fetched"} {
+		if _, ok := resolveClientRoutes(mode, ""); ok {
+			t.Errorf("flag %q: an unknown mode is refused", mode)
+		}
+		if _, ok := resolveClientRoutes("", mode); ok {
+			t.Errorf("key %q: an unknown mode is refused", mode)
 		}
 	}
 }

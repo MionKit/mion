@@ -214,8 +214,8 @@ type Raised uint8
 const (
 	// RaisedWholeProgram: only a whole-program pass (generate, dump) sees it, never a per-file scan.
 	RaisedWholeProgram Raised = 1 << iota
-	// RaisedBundleApi: a per-file scan raises it only with the bundleApi lane on (the linter runs with it off).
-	RaisedBundleApi
+	// RaisedBundledRoutes: a per-file scan raises it only with the bundled-routes lane on (the linter runs with it off).
+	RaisedBundledRoutes
 )
 
 // Definitions holds every registered code, keyed by Code; the codes_*.go files fill it from init()

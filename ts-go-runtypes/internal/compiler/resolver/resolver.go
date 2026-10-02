@@ -42,15 +42,9 @@ type Options struct {
 	// TsconfigGenDir is the tsconfig `genDir` (absolute, empty when unset), preferred over the inferred <srcDir>/.mion.
 	// An explicit per-request outDir still wins.
 	TsconfigGenDir string
-	// ClientTsconfig is the SEPARATE client project this server session generates the batch transport from (`<outDir>/rpc/`).
-	// Empty means the batch source is this program; the client program is built lazily and rebuilt when a stamped file changes.
-	ClientTsconfig string
-	// ApiTsconfig is the SEPARATE project declaring the API this client's dispatch sites call; empty means this program.
-	// Under BundleApi ids come from that peer program's checker, so a different `lib` or `strictNullChecks` cannot change one.
-	ApiTsconfig string
-	// BundleApi turns the client apimeta lane on: each called route's metadata and compiled fns go under <outDir>/api/,
-	// injected at the dispatch sites, with the mode literal injected at initClient. The zero value skips the lane.
-	BundleApi constants.BundleApiMode
+	// ClientRoutes turns the client apimeta lane on (`bundle`): each called route's metadata and compiled fns go under
+	// <outDir>/api/, injected at the dispatch sites, with the mode literal injected at initClient. The zero value skips the lane.
+	ClientRoutes constants.ClientRoutesMode
 	// GenDir is the EXPLICIT output-root override (serve --gen-dir), preferred over TsconfigGenDir.
 	// Session config, never a wire field: every op reads the output root through resolveOutDir.
 	GenDir string
@@ -179,13 +173,7 @@ type Session struct {
 	batchFileCache *requestbatch.FileCache
 	// routerInitFileCache memoises per-file `createMionRouter` detection: the modules the batch import is appended to.
 	routerInitFileCache *routerinit.FileCache
-	// batchPeer is the SEPARATE program the batch transport is generated from when Options.ClientTsconfig names one;
-	// its session stays nil while unbuilt and when the batch source is this program. See rpcgen.go and peerProgram.
-	batchPeer peerProgram
-	// apiPeer is the SEPARATE program a CLIENT build resolves its API's routes in (the bundleApi lane); same
-	// lifecycle as batchPeer. See apigen.go.
-	apiPeer peerProgram
-	// apiFileCache memoises per-file dispatch-site extraction (the bundleApi lane), dropped with the Program.
+	// apiFileCache memoises per-file dispatch-site extraction (the bundled-routes lane), dropped with the Program.
 	apiFileCache *apimeta.FileCache
 	// apiInitFileCache memoises which files call `initClient`, the modules the lane import is appended to.
 	apiInitFileCache *apimeta.InitFileCache
@@ -193,8 +181,7 @@ type Session struct {
 	apiMiddlewareReadsCache *apimeta.MiddlewareReadsCache
 	// apiFetch memoises the program-wide facts the metadata-fetching checks read (MET003 / MET004 / MET010 / MET011).
 	apiFetch *apiFetchMemo
-	// hasBatchesMemo is the transform's switch for appending the batch import; reset with the Program (own-program
-	// case) and whenever the batch source is rebuilt.
+	// hasBatchesMemo is the transform's switch for appending the batch import; reset with the Program.
 	// importsRouterMemo caches whether any own source file names `@mionjs/router` (see rpcgen.go); reset with the Program.
 	hasBatchesMemo    *bool
 	importsRouterMemo *bool
@@ -474,8 +461,6 @@ func (sess *Session) resetProgramMemos() {
 }
 
 func (sess *Session) Close() {
-	sess.closeBatchSource()
-	sess.apiPeer.close()
 	if sess.releaseLease != nil {
 		sess.releaseLease()
 		sess.releaseLease = nil

@@ -173,13 +173,6 @@ type Response struct {
 	// BatchesModule is the absolute path of `<OutDir>/rpc/batches.generated.js` when OpGenerate wrote one, empty
 	// otherwise. The host uses it to know the module appeared or vanished; it never parses the file.
 	BatchesModule string `json:"batchesModule,omitempty"`
-	// BatchSourceFiles lists the files the batch table was read from when the batch source is a SEPARATE program
-	// (Options.ClientTsconfig). A dev host watches them, since they sit outside its own program; empty when the
-	// batch source is the session's own program, already watched.
-	BatchSourceFiles []string `json:"batchSourceFiles,omitempty"`
-	// BatchSourceRoots is the separate batch source program's source root(s), so a dev host also watches for
-	// files CREATED there and not only for edits to the ones it knows.
-	BatchSourceRoots []string `json:"batchSourceRoots,omitempty"`
 	// RouterInitFiles lists the program files calling `createMionRouter`, the modules the transform appends the
 	// batch import to. A dev host re-transforms them when BatchesModule first appears after they loaded without it.
 	RouterInitFiles []string `json:"routerInitFiles,omitempty"`
@@ -485,12 +478,6 @@ func (response Response) MarshalJSON() ([]byte, error) {
 	}
 	if response.BatchesModule != "" {
 		out["batchesModule"] = response.BatchesModule
-	}
-	if len(response.BatchSourceFiles) > 0 {
-		out["batchSourceFiles"] = response.BatchSourceFiles
-	}
-	if len(response.BatchSourceRoots) > 0 {
-		out["batchSourceRoots"] = response.BatchSourceRoots
 	}
 	if len(response.RouterInitFiles) > 0 {
 		out["routerInitFiles"] = response.RouterInitFiles

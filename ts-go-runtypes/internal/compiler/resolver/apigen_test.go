@@ -80,15 +80,14 @@ func apiSources(client string) map[string]string {
 	return map[string]string{"client.d.ts": apiClientDTS, "api.ts": apiTypeTS, "client.ts": client}
 }
 
-func setupApi(t *testing.T, sources map[string]string, genDir string, mode constants.BundleApiMode, apiTsconfig string) *resolver.Session {
+func setupApi(t *testing.T, sources map[string]string, genDir string, mode constants.ClientRoutesMode) *resolver.Session {
 	t.Helper()
 	return setupInlineWith(t, sources, func(programOpts *program.Options, resolverOpts *resolver.Options) {
 		programOpts.SingleThreaded = true
 		resolverOpts.SingleThreaded = true
 		resolverOpts.GenDir = genDir
 		resolverOpts.TransformRelative = true
-		resolverOpts.BundleApi = mode
-		resolverOpts.ApiTsconfig = apiTsconfig
+		resolverOpts.ClientRoutes = mode
 	})
 }
 
@@ -131,7 +130,7 @@ func listGenerated(t *testing.T, dir string) []string {
 // route.
 func TestApiGen_GenerateWritesUsedRoutesWithTheirChains(t *testing.T) {
 	genDir := t.TempDir()
-	r := setupApi(t, apiSources(apiClientTS), genDir, constants.BundleApiBundled, "")
+	r := setupApi(t, apiSources(apiClientTS), genDir, constants.ClientRoutesBundle)
 	gen := r.Dispatch(protocol.Request{Op: protocol.OpGenerate})
 	if gen.Error != "" {
 		t.Fatalf("generate: %s", gen.Error)
@@ -240,7 +239,7 @@ func TestApiGen_GenerateWritesUsedRoutesWithTheirChains(t *testing.T) {
 // TestApiGen_TransformInjectsLaneImportAndSiteBindings: each dispatch site imports its module relative to the file.
 func TestApiGen_TransformInjectsLaneImportAndSiteBindings(t *testing.T) {
 	genDir := t.TempDir()
-	r := setupApi(t, apiSources(apiClientTS), genDir, constants.BundleApiBundled, "")
+	r := setupApi(t, apiSources(apiClientTS), genDir, constants.ClientRoutesBundle)
 	tr := r.Dispatch(protocol.Request{Op: protocol.OpTransform, Files: []string{"client.ts"}})
 	if tr.Error != "" {
 		t.Fatalf("transform: %s", tr.Error)
@@ -269,7 +268,7 @@ func TestApiGen_TransformInjectsLaneImportAndSiteBindings(t *testing.T) {
 	}
 }
 
-// TestApiGen_OffMeansNothing: without bundleApi the sites are not sites, no
+// TestApiGen_OffMeansNothing: without bundled routes the sites are not sites, no
 // module is written and a stale api/ tree is removed.
 func TestApiGen_OffMeansNothing(t *testing.T) {
 	genDir := t.TempDir()
@@ -280,7 +279,7 @@ func TestApiGen_OffMeansNothing(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(stale, "old.js"), []byte("export const x = 1;\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	r := setupApi(t, apiSources(apiClientTS), genDir, constants.BundleApiOff, "")
+	r := setupApi(t, apiSources(apiClientTS), genDir, constants.ClientRoutesFetch)
 	tr := r.Dispatch(protocol.Request{Op: protocol.OpTransform, Files: []string{"client.ts"}})
 	if tr.Error != "" {
 		t.Fatalf("transform: %s", tr.Error)
@@ -303,7 +302,7 @@ func TestApiGen_OffMeansNothing(t *testing.T) {
 // writes them.
 func TestApiGen_ModuleSetFollowsTheCalls(t *testing.T) {
 	genDir := t.TempDir()
-	full := setupApi(t, apiSources(apiClientTS), genDir, constants.BundleApiBundled, "")
+	full := setupApi(t, apiSources(apiClientTS), genDir, constants.ClientRoutesBundle)
 	if gen := full.Dispatch(protocol.Request{Op: protocol.OpGenerate}); gen.Error != "" {
 		t.Fatalf("generate: %s", gen.Error)
 	}
@@ -315,7 +314,7 @@ func TestApiGen_ModuleSetFollowsTheCalls(t *testing.T) {
 import type {Api} from './api.ts';
 export const {routes} = initClient<Api>({baseURL: 'http://x'});
 export const a = routes.users.getById(1).call();
-`), genDir, constants.BundleApiBundled, "")
+`), genDir, constants.ClientRoutesBundle)
 	if gen := fewer.Dispatch(protocol.Request{Op: protocol.OpGenerate}); gen.Error != "" {
 		t.Fatalf("generate: %s", gen.Error)
 	}
@@ -329,7 +328,7 @@ export const a = routes.users.getById(1).call();
 	none := setupApi(t, apiSources(`import {initClient} from '@mionjs/client';
 import type {Api} from './api.ts';
 export const {routes} = initClient<Api>({baseURL: 'http://x'});
-`), genDir, constants.BundleApiBundled, "")
+`), genDir, constants.ClientRoutesBundle)
 	if gen := none.Dispatch(protocol.Request{Op: protocol.OpGenerate}); gen.Error != "" {
 		t.Fatalf("generate: %s", gen.Error)
 	}
@@ -347,7 +346,7 @@ func TestApiGen_ReportsUnreadableApiAndUndeclaredRoute(t *testing.T) {
 type Api = {sum: {type: 1; handler: (n: number) => Promise<number>; options: any; types?: unknown}};
 export const {routes} = initClient<Api>({baseURL: 'http://x'});
 export const a = routes.sum(1).call();
-`}, genDir, constants.BundleApiBundled, "")
+`}, genDir, constants.ClientRoutesBundle)
 	gen := loose.Dispatch(protocol.Request{Op: protocol.OpGenerate})
 	if gen.Error != "" {
 		t.Fatalf("generate: %s", gen.Error)
@@ -364,7 +363,7 @@ middlewares.auth.onRequest((call) => call({headers: {authorization: 'x'}}));
 declare const ghost: {call(setup?: unknown, apiMetadata?: InjectApiMetadata<Api, 'users/ghost'>): Promise<unknown>};
 export const a = ghost.call();
 export const b = routes.sum(1, 2).call();
-`}, t.TempDir(), constants.BundleApiBundled, "")
+`}, t.TempDir(), constants.ClientRoutesBundle)
 	gen = undeclared.Dispatch(protocol.Request{Op: protocol.OpGenerate})
 	if gen.Error != "" {
 		t.Fatalf("generate: %s", gen.Error)
@@ -376,8 +375,7 @@ export const b = routes.sum(1, 2).call();
 }
 
 // apiServerRouterDTS is an ambient router whose initRoutes returns the
-// PublicApi shape, for the on-disk API project the apiTsconfig pointer names
-// and for the inline "server build" session of the manifest tests.
+// PublicApi shape, for the inline "server build" session of the manifest tests.
 const apiServerRouterDTS = `declare module '@mionjs/router' {
   type Handler = (...args: any[]) => any;
   type Opts = {alwaysRun: false; description: undefined; parser: {params: 'clone'; return: 'clone'}; isMutation: undefined; sanitizeParams: undefined};
@@ -391,11 +389,9 @@ const apiServerRouterDTS = `declare module '@mionjs/router' {
 }
 `
 
-// apiServerRoutesTS is the API project's source: initCalls `initRoutes`
-// calls over the same two routes. getById's params tuple carries a boolean
-// the client's own declaration lacks, so a validator mentioning `boolean`
-// proves the ids came from this program; extraParam adds a third parameter,
-// the kind of server-side edit api-check exists to catch.
+// apiServerRoutesTS is the API's source: initCalls `initRoutes` calls over the
+// same two routes; extraParam adds a third parameter to getById, the kind of
+// server-side edit api-check exists to catch.
 func apiServerRoutesTS(initCalls int, extraParam bool) string {
 	getById := "handler: (id: number, verbose: boolean): {id: number; name: string} => ({id, name: ''})"
 	if extraParam {
@@ -408,21 +404,6 @@ func apiServerRoutesTS(initCalls int, extraParam bool) string {
 	return source
 }
 
-// writeApiServerProject writes the on-disk API project the apiTsconfig
-// pointer can name: the ambient router and a source file initializing the
-// routes initCalls times.
-func writeApiServerProject(t *testing.T, dir string, initCalls int) string {
-	t.Helper()
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	tsconfig := filepath.Join(dir, "tsconfig.json")
-	writeFile(t, tsconfig, `{"compilerOptions": {"strict": true, "target": "ES2022", "module": "ESNext", "moduleResolution": "Bundler", "noEmit": true}, "include": ["*.ts"]}`)
-	writeFile(t, filepath.Join(dir, "router.d.ts"), apiServerRouterDTS)
-	writeFile(t, filepath.Join(dir, "routes.ts"), apiServerRoutesTS(initCalls, false))
-	return tsconfig
-}
-
 func writeFile(t *testing.T, path, content string) {
 	t.Helper()
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
@@ -430,113 +411,38 @@ func writeFile(t *testing.T, path, content string) {
 	}
 }
 
-// apiPeerClientTS is the client whose API declaration (numbers only) differs
-// from the server project's (a boolean too), with the same route ids.
-const apiPeerClientTS = `import {initClient} from '@mionjs/client';
-type RouteOpts = {alwaysRun: false; description: undefined; parser: {params: 'clone'; return: 'clone'}; isMutation: undefined; sanitizeParams: undefined};
-type Api = {
-  users: {getById: {type: 1; handler: (id: number) => Promise<{id: number; name: string}>; options: RouteOpts; types?: {params: [id: number]; return: {id: number; name: string}; headers: never; isAsync: false}}};
-  sum: {type: 1; handler: (a: number, b: number) => Promise<number>; options: RouteOpts; types?: {params: [a: number, b: number]; return: number; headers: never; isAsync: false}};
-};
-export const {routes} = initClient<Api>({baseURL: 'http://x'});
-export const a = routes.users.getById(1).call();
-`
-
-func paramsValidatorsMentionBoolean(t *testing.T, apiDir string) bool {
-	t.Helper()
-	for _, file := range listGenerated(t, apiDir) {
-		if strings.HasPrefix(file, "types/") && strings.HasSuffix(file, ".js") && strings.Contains(readGenerated(t, apiDir, file), "boolean") {
-			return true
-		}
-	}
-	return false
-}
-
-// TestApiGen_ApiTsconfigResolvesTypesInTheApiProgram: with the pointer the
-// route types come from the API project's own program (the boolean the client
-// never declared shows up); without it the client's declaration is used.
-func TestApiGen_ApiTsconfigResolvesTypesInTheApiProgram(t *testing.T) {
-	serverTsconfig := writeApiServerProject(t, filepath.Join(t.TempDir(), "server"), 1)
-	genDir := t.TempDir()
-	peer := setupApi(t, map[string]string{"client.d.ts": apiClientDTS, "client.ts": apiPeerClientTS}, genDir, constants.BundleApiBundled, serverTsconfig)
-	gen := peer.Dispatch(protocol.Request{Op: protocol.OpGenerate})
-	if gen.Error != "" {
-		t.Fatalf("generate: %s", gen.Error)
-	}
-	if diags := metDiags(gen.Diagnostics); len(diags) != 0 {
-		t.Fatalf("unexpected MET diagnostics: %+v", diags)
-	}
-	apiDir := filepath.Join(genDir, constants.ApiModuleDir)
-	if !paramsValidatorsMentionBoolean(t, apiDir) {
-		t.Errorf("the API program's params (with a boolean) were not the ones compiled:\n%s", strings.Join(listGenerated(t, apiDir), "\n"))
-	}
-	ownDir := t.TempDir()
-	own := setupApi(t, map[string]string{"client.d.ts": apiClientDTS, "client.ts": apiPeerClientTS}, ownDir, constants.BundleApiBundled, "")
-	if gen := own.Dispatch(protocol.Request{Op: protocol.OpGenerate}); gen.Error != "" {
-		t.Fatalf("generate: %s", gen.Error)
-	}
-	if paramsValidatorsMentionBoolean(t, filepath.Join(ownDir, constants.ApiModuleDir)) {
-		t.Errorf("without the pointer the client's own declaration (no boolean) must be compiled")
-	}
-}
-
-// TestApiGen_ApiTsconfigFollowsAnEditToTheApiProject: the API project's routes are read again once it changes, with no client edit.
-func TestApiGen_ApiTsconfigFollowsAnEditToTheApiProject(t *testing.T) {
-	serverDir := filepath.Join(t.TempDir(), "server")
-	serverTsconfig := writeApiServerProject(t, serverDir, 1)
-	sess := setupApi(t, map[string]string{"client.d.ts": apiClientDTS, "client.ts": apiPeerClientTS}, t.TempDir(), constants.BundleApiBundled, serverTsconfig)
-	if diags := metDiags(sess.Dispatch(protocol.Request{Op: protocol.OpGenerate}).Diagnostics); len(diags) != 0 {
-		t.Fatalf("one matching initRoutes, got %+v", diags)
-	}
-	writeFile(t, filepath.Join(serverDir, "routes.ts"), apiServerRoutesTS(2, false))
-	diags := metDiags(sess.Dispatch(protocol.Request{Op: protocol.OpGenerate}).Diagnostics)
-	if len(diags) != 1 || diags[0].Code != diagnostics.CodeApiMetaSourceAmbiguous {
-		t.Fatalf("the edit made two matching initRoutes, expected MET005, got %+v", diags)
-	}
-}
-
-// TestApiGen_ApiTsconfigNeedsOneMatchingInitRoutes: two initRoutes calls
-// declaring the same routes, or none, are MET005.
-func TestApiGen_ApiTsconfigNeedsOneMatchingInitRoutes(t *testing.T) {
-	two := writeApiServerProject(t, filepath.Join(t.TempDir(), "server"), 2)
-	r := setupApi(t, map[string]string{"client.d.ts": apiClientDTS, "client.ts": apiPeerClientTS}, t.TempDir(), constants.BundleApiBundled, two)
-	gen := r.Dispatch(protocol.Request{Op: protocol.OpGenerate})
-	if gen.Error != "" {
-		t.Fatalf("generate: %s", gen.Error)
-	}
-	diags := metDiags(gen.Diagnostics)
-	if len(diags) != 1 || diags[0].Code != diagnostics.CodeApiMetaSourceAmbiguous || !strings.Contains(strings.Join(diags[0].Args, " "), "2") {
-		t.Fatalf("expected one MET005 naming 2 candidates, got %+v", diags)
-	}
-	none := writeApiServerProject(t, filepath.Join(t.TempDir(), "server"), 0)
-	r = setupApi(t, map[string]string{"client.d.ts": apiClientDTS, "client.ts": apiPeerClientTS}, t.TempDir(), constants.BundleApiBundled, none)
-	gen = r.Dispatch(protocol.Request{Op: protocol.OpGenerate})
-	if gen.Error != "" {
-		t.Fatalf("generate: %s", gen.Error)
-	}
-	diags = metDiags(gen.Diagnostics)
-	if len(diags) != 1 || diags[0].Code != diagnostics.CodeApiMetaSourceAmbiguous {
-		t.Fatalf("expected one MET005, got %+v", diags)
-	}
-}
-
 func readManifest(t *testing.T, genDir string) *apimeta.Manifest {
 	t.Helper()
-	manifest, err := apimeta.ReadManifest(filepath.Join(genDir, constants.ApiModuleDir, constants.ApiManifestFile))
+	return readManifestFile(t, genDir, constants.ApiManifestFile)
+}
+
+func readClientManifest(t *testing.T, genDir string) *apimeta.Manifest {
+	t.Helper()
+	return readManifestFile(t, genDir, constants.ApiClientManifestFile)
+}
+
+func readManifestFile(t *testing.T, genDir, name string) *apimeta.Manifest {
+	t.Helper()
+	manifest, err := apimeta.ReadManifest(filepath.Join(genDir, constants.ApiModuleDir, name))
 	if err != nil {
-		t.Fatalf("reading the manifest under %s: %v", genDir, err)
+		t.Fatalf("reading %s under %s: %v", name, genDir, err)
 	}
 	return manifest
+}
+
+func manifestExists(genDir, name string) bool {
+	_, err := os.Stat(filepath.Join(genDir, constants.ApiModuleDir, name))
+	return err == nil
 }
 
 // TestApiGen_ClientManifestListsTheBundledMethods: exactly the bundled methods, with their ids, families, options and chains.
 func TestApiGen_ClientManifestListsTheBundledMethods(t *testing.T) {
 	genDir := t.TempDir()
-	r := setupApi(t, apiSources(apiClientTS), genDir, constants.BundleApiBundled, "")
+	r := setupApi(t, apiSources(apiClientTS), genDir, constants.ClientRoutesBundle)
 	if gen := r.Dispatch(protocol.Request{Op: protocol.OpGenerate}); gen.Error != "" {
 		t.Fatalf("generate: %s", gen.Error)
 	}
-	manifest := readManifest(t, genDir)
+	manifest := readClientManifest(t, genDir)
 	if manifest.Kind != apimeta.ManifestKindClient {
 		t.Fatalf("expected a client manifest, got kind %q", manifest.Kind)
 	}
@@ -568,40 +474,54 @@ func TestApiGen_ClientManifestListsTheBundledMethods(t *testing.T) {
 	}
 }
 
-// TestApiGen_ManifestsAgreeAcrossProjects: the server build's manifest (kind
-// server, from its initRoutes call) and a client built with apiTsconfig over
-// the same project compare equal; a server-side edit of a handler no longer
-// does, on exactly the field that changed.
-func TestApiGen_ManifestsAgreeAcrossProjects(t *testing.T) {
-	serverTsconfig := writeApiServerProject(t, filepath.Join(t.TempDir(), "server"), 1)
-	serverGen := t.TempDir()
-	server := setupApi(t, map[string]string{"router.d.ts": apiServerRouterDTS, "routes.ts": apiServerRoutesTS(1, false)}, serverGen, "", "")
-	if gen := server.Dispatch(protocol.Request{Op: protocol.OpGenerate}); gen.Error != "" {
-		t.Fatalf("server generate: %s", gen.Error)
+// apiFullstackClientTS calls the API of routes.ts from the same program, the fullstack shape.
+func apiFullstackClientTS(extraParam bool) string {
+	args := "1, true"
+	if extraParam {
+		args += ", 't'"
 	}
-	serverManifest := readManifest(t, serverGen)
+	return "import {initClient} from '@mionjs/client';\nimport type {api0} from './routes.ts';\n" +
+		"export const {routes} = initClient<typeof api0>({baseURL: 'http://x'});\n" +
+		"export const a = routes.users.getById(" + args + ").call();\n"
+}
+
+func fullstackSources(extraParam bool) map[string]string {
+	return map[string]string{
+		"router.d.ts": versionRouterDTS,
+		"routes.ts":   apiServerRoutesTS(1, extraParam),
+		"client.d.ts": apiClientDTS,
+		"client.ts":   apiFullstackClientTS(extraParam),
+	}
+}
+
+// TestApiGen_FullstackBuildWritesBothManifests: one program holding the API and a bundling client writes
+// the server's manifest AND the client's, and they compare equal; a later server build that grows a
+// parameter no longer matches the earlier client, on exactly the field that changed.
+func TestApiGen_FullstackBuildWritesBothManifests(t *testing.T) {
+	genDir := t.TempDir()
+	build := setupApi(t, fullstackSources(false), genDir, constants.ClientRoutesBundle)
+	if gen := build.Dispatch(protocol.Request{Op: protocol.OpGenerate}); gen.Error != "" {
+		t.Fatalf("generate: %s", gen.Error)
+	}
+	serverManifest := readManifest(t, genDir)
 	if serverManifest.Kind != apimeta.ManifestKindServer || len(serverManifest.Methods) != 2 || len(serverManifest.Ambiguous) != 0 {
 		t.Fatalf("server manifest: %+v", serverManifest)
 	}
-	clientGen := t.TempDir()
-	client := setupApi(t, map[string]string{"client.d.ts": apiClientDTS, "client.ts": apiPeerClientTS}, clientGen, constants.BundleApiBundled, serverTsconfig)
-	if gen := client.Dispatch(protocol.Request{Op: protocol.OpGenerate}); gen.Error != "" {
-		t.Fatalf("client generate: %s", gen.Error)
-	}
-	clientManifest := readManifest(t, clientGen)
-	if clientManifest.Kind != apimeta.ManifestKindClient || clientManifest.ApiTsconfig != serverTsconfig || len(clientManifest.Methods) != 1 {
+	clientManifest := readClientManifest(t, genDir)
+	if clientManifest.Kind != apimeta.ManifestKindClient || len(clientManifest.Methods) != 1 {
 		t.Fatalf("client manifest: %+v", clientManifest)
 	}
+	if serverManifest.BuildVersion == "" || clientManifest.BuildVersion != serverManifest.BuildVersion {
+		t.Fatalf("one program's two manifests carry different versions: server %q, client %q", serverManifest.BuildVersion, clientManifest.BuildVersion)
+	}
 	if mismatches := apimeta.Compare(clientManifest, serverManifest); len(mismatches) != 0 {
-		t.Fatalf("the two builds disagree: %v", mismatches)
+		t.Fatalf("the two manifests of one build disagree: %v", mismatches)
 	}
 
-	// the server grows a parameter: its manifest moves, the client's (built
-	// against the old server) no longer matches on paramsId
 	editedGen := t.TempDir()
-	edited := setupApi(t, map[string]string{"router.d.ts": apiServerRouterDTS, "routes.ts": apiServerRoutesTS(1, true)}, editedGen, "", "")
+	edited := setupApi(t, fullstackSources(true), editedGen, constants.ClientRoutesBundle)
 	if gen := edited.Dispatch(protocol.Request{Op: protocol.OpGenerate}); gen.Error != "" {
-		t.Fatalf("edited server generate: %s", gen.Error)
+		t.Fatalf("edited generate: %s", gen.Error)
 	}
 	mismatches := apimeta.Compare(clientManifest, readManifest(t, editedGen))
 	if len(mismatches) != 1 || mismatches[0].Id != "users/getById" || mismatches[0].Field != "paramsId" {
@@ -609,11 +529,42 @@ func TestApiGen_ManifestsAgreeAcrossProjects(t *testing.T) {
 	}
 }
 
+// TestApiGen_ManifestsFollowWhatTheBuildHolds: a server-only build writes only the server's manifest, a
+// fetching build drops a client manifest an earlier bundling build left behind.
+func TestApiGen_ManifestsFollowWhatTheBuildHolds(t *testing.T) {
+	genDir := t.TempDir()
+	bundling := setupApi(t, fullstackSources(false), genDir, constants.ClientRoutesBundle)
+	if gen := bundling.Dispatch(protocol.Request{Op: protocol.OpGenerate}); gen.Error != "" {
+		t.Fatalf("generate: %s", gen.Error)
+	}
+	if !manifestExists(genDir, constants.ApiClientManifestFile) {
+		t.Fatal("a bundling build writes the client manifest")
+	}
+	fetching := setupApi(t, fullstackSources(false), genDir, constants.ClientRoutesFetch)
+	if gen := fetching.Dispatch(protocol.Request{Op: protocol.OpGenerate}); gen.Error != "" {
+		t.Fatalf("generate: %s", gen.Error)
+	}
+	if manifestExists(genDir, constants.ApiClientManifestFile) {
+		t.Fatal("a fetching build must remove the stale client manifest")
+	}
+	if !manifestExists(genDir, constants.ApiManifestFile) {
+		t.Fatal("the server manifest stays")
+	}
+	serverOnly := t.TempDir()
+	server := setupApi(t, map[string]string{"router.d.ts": apiServerRouterDTS, "routes.ts": apiServerRoutesTS(1, false)}, serverOnly, constants.ClientRoutesBundle)
+	if gen := server.Dispatch(protocol.Request{Op: protocol.OpGenerate}); gen.Error != "" {
+		t.Fatalf("generate: %s", gen.Error)
+	}
+	if !manifestExists(serverOnly, constants.ApiManifestFile) || manifestExists(serverOnly, constants.ApiClientManifestFile) {
+		t.Fatal("a server-only build writes only the server manifest")
+	}
+}
+
 // TestApiGen_ServerManifestFlagsAnAmbiguousId: two initRoutes calls declaring
 // one id with different types list it as ambiguous; equal declarations do not.
 func TestApiGen_ServerManifestFlagsAnAmbiguousId(t *testing.T) {
 	sameGen := t.TempDir()
-	same := setupApi(t, map[string]string{"router.d.ts": apiServerRouterDTS, "routes.ts": apiServerRoutesTS(2, false)}, sameGen, "", "")
+	same := setupApi(t, map[string]string{"router.d.ts": apiServerRouterDTS, "routes.ts": apiServerRoutesTS(2, false)}, sameGen, "")
 	if gen := same.Dispatch(protocol.Request{Op: protocol.OpGenerate}); gen.Error != "" {
 		t.Fatalf("generate: %s", gen.Error)
 	}
@@ -622,7 +573,7 @@ func TestApiGen_ServerManifestFlagsAnAmbiguousId(t *testing.T) {
 	}
 	differGen := t.TempDir()
 	source := apiServerRoutesTS(1, false) + strings.Replace(strings.TrimPrefix(apiServerRoutesTS(1, true), apiServerRoutesTS(0, true)), "api0", "api1", 1)
-	differ := setupApi(t, map[string]string{"router.d.ts": apiServerRouterDTS, "routes.ts": source}, differGen, "", "")
+	differ := setupApi(t, map[string]string{"router.d.ts": apiServerRouterDTS, "routes.ts": source}, differGen, "")
 	if gen := differ.Dispatch(protocol.Request{Op: protocol.OpGenerate}); gen.Error != "" {
 		t.Fatalf("generate: %s", gen.Error)
 	}
@@ -652,7 +603,7 @@ export const valueId = getRunTypeId(params);
 // TestApiGen_LaneRidesAModuleNotTheInitClientCall: nothing is spliced into the call, so no caller can claim a bundle.
 func TestApiGen_LaneRidesAModuleNotTheInitClientCall(t *testing.T) {
 	genDir := t.TempDir()
-	r := setupApi(t, apiSources(apiClientTS), genDir, constants.BundleApiBundled, "")
+	r := setupApi(t, apiSources(apiClientTS), genDir, constants.ClientRoutesBundle)
 	if gen := r.Dispatch(protocol.Request{Op: protocol.OpGenerate}); gen.Error != "" {
 		t.Fatalf("generate: %s", gen.Error)
 	}
@@ -681,7 +632,7 @@ func TestApiGen_LaneRidesAModuleNotTheInitClientCall(t *testing.T) {
 // route's manifest row carries: a client bundles the very type the ids name.
 func TestApiGen_MarkerFormsAgreeWithTheBundledParamsId(t *testing.T) {
 	genDir := t.TempDir()
-	r := setupApi(t, apiSources(apiMarkerClientTS), genDir, constants.BundleApiBundled, "")
+	r := setupApi(t, apiSources(apiMarkerClientTS), genDir, constants.ClientRoutesBundle)
 	tr := r.Dispatch(protocol.Request{Op: protocol.OpTransform, Files: []string{"client.ts"}})
 	if tr.Error != "" {
 		t.Fatalf("transform: %s", tr.Error)
@@ -699,7 +650,7 @@ func TestApiGen_MarkerFormsAgreeWithTheBundledParamsId(t *testing.T) {
 	if gen := r.Dispatch(protocol.Request{Op: protocol.OpGenerate}); gen.Error != "" {
 		t.Fatalf("generate: %s", gen.Error)
 	}
-	if paramsId := readManifest(t, genDir).Methods["users/getById"].ParamsId; paramsId != staticForm {
+	if paramsId := readClientManifest(t, genDir).Methods["users/getById"].ParamsId; paramsId != staticForm {
 		t.Fatalf("the bundled route's paramsId %q must be the id both marker forms name, %q", paramsId, staticForm)
 	}
 }
@@ -719,7 +670,7 @@ export const valueId = getRunTypeId(pair);
 // A method whose router declares no pair carries none.
 func TestApiGen_BundledRowCarriesTheSyncIdOfItsParamsReturnPair(t *testing.T) {
 	genDir := t.TempDir()
-	r := setupApi(t, apiSources(apiSyncClientTS), genDir, constants.BundleApiBundled, "")
+	r := setupApi(t, apiSources(apiSyncClientTS), genDir, constants.ClientRoutesBundle)
 	tr := r.Dispatch(protocol.Request{Op: protocol.OpTransform, Files: []string{"client.ts"}})
 	if tr.Error != "" {
 		t.Fatalf("transform: %s", tr.Error)
@@ -761,7 +712,7 @@ func TestApiGen_NoApiMeansNoApiDir(t *testing.T) {
 		t.Fatal(err)
 	}
 	writeFile(t, filepath.Join(stale, constants.ApiManifestFile), "{}")
-	r := setupApi(t, map[string]string{"a.ts": "import {getRunTypeId} from '@mionjs/run-types';\nexport const id = getRunTypeId<{a: number}>();\n"}, genDir, "", "")
+	r := setupApi(t, map[string]string{"a.ts": "import {getRunTypeId} from '@mionjs/run-types';\nexport const id = getRunTypeId<{a: number}>();\n"}, genDir, "")
 	if gen := r.Dispatch(protocol.Request{Op: protocol.OpGenerate}); gen.Error != "" {
 		t.Fatalf("generate: %s", gen.Error)
 	}
@@ -778,7 +729,7 @@ func TestApiGen_NoApiMeansNoApiDir(t *testing.T) {
 // API precisely to run without dynamic code.
 func TestApiGen_MirrorShipsBuiltInPureFnsAsFunctions(t *testing.T) {
 	genDir := t.TempDir()
-	r := setupApi(t, apiSources(apiClientTS), genDir, constants.BundleApiBundled, "")
+	r := setupApi(t, apiSources(apiClientTS), genDir, constants.ClientRoutesBundle)
 	if gen := r.Dispatch(protocol.Request{Op: protocol.OpGenerate}); gen.Error != "" {
 		t.Fatalf("generate: %s", gen.Error)
 	}
@@ -811,7 +762,7 @@ const optionalApiTS = apiTypeTS + `export type OptionalApi = {
 
 func generateMetDiags(t *testing.T, client string) []diagnostics.Diagnostic {
 	t.Helper()
-	sess := setupApi(t, map[string]string{"client.d.ts": apiClientDTS, "api.ts": optionalApiTS, "client.ts": client}, t.TempDir(), constants.BundleApiBundled, "")
+	sess := setupApi(t, map[string]string{"client.d.ts": apiClientDTS, "api.ts": optionalApiTS, "client.ts": client}, t.TempDir(), constants.ClientRoutesBundle)
 	gen := sess.Dispatch(protocol.Request{Op: protocol.OpGenerate})
 	if gen.Error != "" {
 		t.Fatalf("generate: %s", gen.Error)
@@ -938,13 +889,13 @@ const lookAlike = {
 export type LookAlikeApi = Mapped<typeof lookAlike>;
 `
 
-func metadataSession(t *testing.T, mode constants.BundleApiMode, client string) *resolver.Session {
+func metadataSession(t *testing.T, mode constants.ClientRoutesMode, client string) *resolver.Session {
 	t.Helper()
 	sources := map[string]string{"client.d.ts": apiClientDTS, "router.d.ts": metadataRouterDTS, "api.ts": metadataApiTS, "client.ts": client}
-	return setupApi(t, sources, t.TempDir(), mode, "")
+	return setupApi(t, sources, t.TempDir(), mode)
 }
 
-func generateMetadataDiags(t *testing.T, mode constants.BundleApiMode, client string) []diagnostics.Diagnostic {
+func generateMetadataDiags(t *testing.T, mode constants.ClientRoutesMode, client string) []diagnostics.Diagnostic {
 	t.Helper()
 	gen := metadataSession(t, mode, client).Dispatch(protocol.Request{Op: protocol.OpGenerate})
 	if gen.Error != "" {
@@ -964,19 +915,19 @@ export const a = routes.ping().call();
 	}
 
 	t.Run("bundled, never set up: nothing to report", func(t *testing.T) {
-		if diags := generateMetadataDiags(t, constants.BundleApiBundled, neverSetUp("MetadataApi")); len(diags) != 0 {
+		if diags := generateMetadataDiags(t, constants.ClientRoutesBundle, neverSetUp("MetadataApi")); len(diags) != 0 {
 			t.Fatalf("a bundled client never asks for metadata, got %+v", diags)
 		}
 	})
 
 	t.Run("bundled, under another key: still recognised", func(t *testing.T) {
-		if diags := generateMetadataDiags(t, constants.BundleApiBundled, neverSetUp("RenamedApi")); len(diags) != 0 {
+		if diags := generateMetadataDiags(t, constants.ClientRoutesBundle, neverSetUp("RenamedApi")); len(diags) != 0 {
 			t.Fatalf("the middleware is the router's whatever key holds it, got %+v", diags)
 		}
 	})
 
 	t.Run("bundled, a look-alike the app declares is still a middleware to set up", func(t *testing.T) {
-		diags := generateMetadataDiags(t, constants.BundleApiBundled, neverSetUp("LookAlikeApi"))
+		diags := generateMetadataDiags(t, constants.ClientRoutesBundle, neverSetUp("LookAlikeApi"))
 		if len(diags) != 1 || diags[0].Code != diagnostics.CodeApiMetaOptionalMiddlewareNotSetUp || diags[0].Args[0] != "mionFetchMetadata" {
 			t.Fatalf("expected one MET009 for the look-alike, got %+v", diags)
 		}
@@ -1006,24 +957,24 @@ func TestApiGen_MetadataFetchingSetup(t *testing.T) {
 	const served, bare = "ServedApi", "OptionalApi"
 	for _, tc := range []struct {
 		name    string
-		mode    constants.BundleApiMode
+		mode    constants.ClientRoutesMode
 		api     string
 		setUp   bool
 		widened bool
 		want    []string
 		line    int
 	}{
-		{"bundled, not set up, widened call fails", constants.BundleApiBundled, served, false, true, []string{diagnostics.CodeApiMetaRouteWidened}, 7},
-		{"bundled, not set up, API without middleware: same", constants.BundleApiBundled, bare, false, true, []string{diagnostics.CodeApiMetaRouteWidened}, 7},
-		{"bundled, not set up, nothing widened: nothing to check", constants.BundleApiBundled, bare, false, false, nil, 0},
-		{"bundled, set up, widened call fetches", constants.BundleApiBundled, served, true, true, []string{diagnostics.CodeApiMetaRouteWidenedFetched}, 8},
-		{"bundled, set up, nothing widened: fine", constants.BundleApiBundled, served, true, false, nil, 0},
-		{"bundled, set up, API without middleware: the fetching call fails", constants.BundleApiBundled, bare, true, true, []string{diagnostics.CodeApiMetaNoMetadataToFetch}, 8},
-		{"bundled, set up, API without middleware, nothing widened: the setup fails", constants.BundleApiBundled, bare, true, false, []string{diagnostics.CodeApiMetaNoMetadataToFetch}, 7},
-		{"off, set up: fine", constants.BundleApiOff, served, true, true, nil, 0},
-		{"off, set up, API without middleware", constants.BundleApiOff, bare, true, false, []string{diagnostics.CodeApiMetaNoMetadataToFetch}, 4},
-		{"off, not set up", constants.BundleApiOff, served, false, false, []string{diagnostics.CodeApiMetaFetchNotSetUp}, 4},
-		{"off, not set up, API without middleware", constants.BundleApiOff, bare, false, true, []string{diagnostics.CodeApiMetaNoMetadataToFetch}, 4},
+		{"bundled, not set up, widened call fails", constants.ClientRoutesBundle, served, false, true, []string{diagnostics.CodeApiMetaRouteWidened}, 7},
+		{"bundled, not set up, API without middleware: same", constants.ClientRoutesBundle, bare, false, true, []string{diagnostics.CodeApiMetaRouteWidened}, 7},
+		{"bundled, not set up, nothing widened: nothing to check", constants.ClientRoutesBundle, bare, false, false, nil, 0},
+		{"bundled, set up, widened call fetches", constants.ClientRoutesBundle, served, true, true, []string{diagnostics.CodeApiMetaRouteWidenedFetched}, 8},
+		{"bundled, set up, nothing widened: fine", constants.ClientRoutesBundle, served, true, false, nil, 0},
+		{"bundled, set up, API without middleware: the fetching call fails", constants.ClientRoutesBundle, bare, true, true, []string{diagnostics.CodeApiMetaNoMetadataToFetch}, 8},
+		{"bundled, set up, API without middleware, nothing widened: the setup fails", constants.ClientRoutesBundle, bare, true, false, []string{diagnostics.CodeApiMetaNoMetadataToFetch}, 7},
+		{"off, set up: fine", constants.ClientRoutesFetch, served, true, true, nil, 0},
+		{"off, set up, API without middleware", constants.ClientRoutesFetch, bare, true, false, []string{diagnostics.CodeApiMetaNoMetadataToFetch}, 4},
+		{"off, not set up", constants.ClientRoutesFetch, served, false, false, []string{diagnostics.CodeApiMetaFetchNotSetUp}, 4},
+		{"off, not set up, API without middleware", constants.ClientRoutesFetch, bare, false, true, []string{diagnostics.CodeApiMetaNoMetadataToFetch}, 4},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			client := fetchingClient(tc.api, tc.setUp, tc.widened)
@@ -1043,7 +994,7 @@ func TestApiGen_MetadataFetchingSetup(t *testing.T) {
 					t.Errorf("%s must stop the build, got level %v", diag.Code, diag.Level)
 				}
 			}
-			if tc.mode == constants.BundleApiBundled && tc.widened {
+			if tc.mode == constants.ClientRoutesBundle && tc.widened {
 				scan := metadataSession(t, tc.mode, client).Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"client.ts"}})
 				scanDiags := metDiags(scan.Diagnostics)
 				if len(scanDiags) != 1 || scanDiags[0].Code != tc.want[0] || scanDiags[0].Site.StartLine != tc.line {
@@ -1063,7 +1014,7 @@ useFetchMetadata(served.middlewares.note as any);
 served.middlewares.note.onRequest((call) => call());
 export const other = initClient<MetadataApi>({baseURL: 'http://y'});
 `
-		diags := generateMetadataDiags(t, constants.BundleApiOff, client)
+		diags := generateMetadataDiags(t, constants.ClientRoutesFetch, client)
 		if len(diags) != 1 || diags[0].Code != diagnostics.CodeApiMetaFetchNotSetUp || diags[0].Site.StartLine != 7 {
 			t.Fatalf("expected one MET011 at the second initClient, got %+v", diags)
 		}
@@ -1074,7 +1025,7 @@ const served = initClient<ServedApi>({baseURL: 'http://x'});
 served.middlewares.note.onRequest((call) => call());
 export const other = initClient<MetadataApi>({baseURL: 'http://y'});
 `
-		if diags := generateMetadataDiags(t, constants.BundleApiOff, client); len(diags) != 0 {
+		if diags := generateMetadataDiags(t, constants.ClientRoutesFetch, client); len(diags) != 0 {
 			t.Fatalf("an untraced setup may belong to any client, got %+v", diags)
 		}
 	})
@@ -1087,7 +1038,7 @@ bare.middlewares.note.onRequest((call) => call());
 function wide(sub: RouteSubRequest<any, string, OptionalApi>) { return sub.call(); }
 export const w = wide(bare.routes.ping());
 `
-		diags := generateMetadataDiags(t, constants.BundleApiBundled, client)
+		diags := generateMetadataDiags(t, constants.ClientRoutesBundle, client)
 		if len(diags) != 1 || diags[0].Code != diagnostics.CodeApiMetaRouteWidened || diags[0].Site.StartLine != 9 {
 			t.Fatalf("expected MET003 at the helper's call, got %+v", diags)
 		}
@@ -1101,14 +1052,14 @@ bare.middlewares.note.onRequest((call) => call());
 function wide(sub: RouteSubRequest<any, string, OptionalApi>) { return sub.call(); }
 export const w = wide(bare.routes.ping());
 `
-		diags := generateMetadataDiags(t, constants.BundleApiBundled, client)
+		diags := generateMetadataDiags(t, constants.ClientRoutesBundle, client)
 		if len(diags) != 1 || diags[0].Code != diagnostics.CodeApiMetaNoMetadataToFetch || diags[0].Site.StartLine != 9 {
 			t.Fatalf("expected MET010 from OptionalApi, not the served client's fallback, got %+v", diags)
 		}
 	})
 	t.Run("off: an API the build cannot read still needs its setup", func(t *testing.T) {
 		client := "import {initClient} from '@mionjs/client';\nexport const loose = initClient<{nothing: string}>({baseURL: 'http://x'});\n"
-		diags := generateMetadataDiags(t, constants.BundleApiOff, client)
+		diags := generateMetadataDiags(t, constants.ClientRoutesFetch, client)
 		if len(diags) != 1 || diags[0].Code != diagnostics.CodeApiMetaFetchNotSetUp || diags[0].Site.StartLine != 2 {
 			t.Fatalf("expected MET011 at initClient, got %+v", diags)
 		}
@@ -1118,12 +1069,12 @@ export const w = wide(bare.routes.ping());
 // TestApiGen_MetadataFetchingReportsOncePerApi: two clients of one API get one report, at the first `initClient`.
 func TestApiGen_MetadataFetchingReportsOncePerApi(t *testing.T) {
 	client := fetchingClient("ServedApi", false, false) + "export const second = initClient<ServedApi>({baseURL: 'http://y'});\n"
-	diags := generateMetadataDiags(t, constants.BundleApiOff, client)
+	diags := generateMetadataDiags(t, constants.ClientRoutesFetch, client)
 	if len(diags) != 1 || diags[0].Code != diagnostics.CodeApiMetaFetchNotSetUp || diags[0].Site.StartLine != 4 {
 		t.Fatalf("expected one MET011 at the first initClient, got %+v", diags)
 	}
 	bare := fetchingClient("OptionalApi", true, false) + "export const second = initClient<OptionalApi>({baseURL: 'http://y'});\n"
-	diags = generateMetadataDiags(t, constants.BundleApiOff, bare)
+	diags = generateMetadataDiags(t, constants.ClientRoutesFetch, bare)
 	if len(diags) != 1 || diags[0].Code != diagnostics.CodeApiMetaNoMetadataToFetch || diags[0].Site.StartLine != 4 {
 		t.Fatalf("expected one MET010 at the first initClient, got %+v", diags)
 	}
@@ -1131,7 +1082,7 @@ func TestApiGen_MetadataFetchingReportsOncePerApi(t *testing.T) {
 
 // TestApiGen_MetadataFetchingNeedsAClient: an off build that never calls `initClient` checks nothing.
 func TestApiGen_MetadataFetchingNeedsAClient(t *testing.T) {
-	if diags := generateMetadataDiags(t, constants.BundleApiOff, "export const x = 1;\n"); len(diags) != 0 {
+	if diags := generateMetadataDiags(t, constants.ClientRoutesFetch, "export const x = 1;\n"); len(diags) != 0 {
 		t.Fatalf("a program with no client has nothing to fetch, got %+v", diags)
 	}
 }
@@ -1139,7 +1090,7 @@ func TestApiGen_MetadataFetchingNeedsAClient(t *testing.T) {
 // TestApiGen_MetadataFetchingSurvivesAnEdit: the fetching facts drop with the Program, so adding the setup clears MET011.
 func TestApiGen_MetadataFetchingSurvivesAnEdit(t *testing.T) {
 	sources := map[string]string{"client.d.ts": apiClientDTS, "router.d.ts": metadataRouterDTS, "api.ts": metadataApiTS, "client.ts": fetchingClient("ServedApi", false, false)}
-	sess := setupApi(t, sources, t.TempDir(), constants.BundleApiOff, "")
+	sess := setupApi(t, sources, t.TempDir(), constants.ClientRoutesFetch)
 	if diags := metDiags(sess.Dispatch(protocol.Request{Op: protocol.OpGenerate}).Diagnostics); len(diags) != 1 {
 		t.Fatalf("expected MET011 before the edit, got %+v", diags)
 	}
@@ -1162,7 +1113,7 @@ export const {routes, middlewares} = initClient<OptionalApi>({baseURL: 'http://x
 `
 	}
 	sources := map[string]string{"client.d.ts": apiClientDTS, "router.d.ts": metadataRouterDTS, "api.ts": metadataApiTS, "client.ts": client("")}
-	sess := setupApi(t, sources, t.TempDir(), constants.BundleApiBundled, "")
+	sess := setupApi(t, sources, t.TempDir(), constants.ClientRoutesBundle)
 	if diags := metDiags(sess.Dispatch(protocol.Request{Op: protocol.OpGenerate}).Diagnostics); len(diags) != 1 || diags[0].Code != diagnostics.CodeApiMetaOptionalMiddlewareNotSetUp {
 		t.Fatalf("expected MET009 before the edit, got %+v", diags)
 	}
@@ -1178,7 +1129,7 @@ export const {routes, middlewares} = initClient<OptionalApi>({baseURL: 'http://x
 // TestApiGen_DirectiveAboveALineOpeningCall: a call opening its line is reported there, where the directive above reaches.
 func TestApiGen_DirectiveAboveALineOpeningCall(t *testing.T) {
 	client := strings.Replace(fetchingClient("OptionalApi", true, false), "useFetchMetadata(", "// @mion-expect-error MET010\nuseFetchMetadata(", 1)
-	if diags := generateMetadataDiags(t, constants.BundleApiBundled, client); len(diags) != 0 {
+	if diags := generateMetadataDiags(t, constants.ClientRoutesBundle, client); len(diags) != 0 {
 		t.Fatalf("the directive silences MET010 at the setup call, got %+v", diags)
 	}
 }

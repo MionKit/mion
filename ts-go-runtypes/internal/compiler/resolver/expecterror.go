@@ -67,7 +67,7 @@ func (sess *Session) directiveScope(request protocol.Request) diagnostics.PassSc
 		}
 		lacks := diagnostics.RaisedWholeProgram
 		if !sess.apiLaneOn() {
-			lacks |= diagnostics.RaisedBundleApi
+			lacks |= diagnostics.RaisedBundledRoutes
 		}
 		return diagnostics.PassScope{Reports: true, Files: files, Families: families, Lacks: lacks}
 	}

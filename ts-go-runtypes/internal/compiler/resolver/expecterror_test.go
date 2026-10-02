@@ -287,7 +287,7 @@ func TestExpectError_TypoIsReportedToTheLinter(t *testing.T) {
 	}
 }
 
-// buildOnlyDirectiveSource takes a code only the build raises: whole-program (BAT003) or bundleApi-only (MET006).
+// buildOnlyDirectiveSource takes a code only the build raises: whole-program (BAT003) or bundled-routes-only (MET006).
 func buildOnlyDirectiveSource(code string) string {
 	return `import {getRunTypeId} from '@mionjs/run-types';
 // @mion-expect-error ` + code + `

@@ -592,7 +592,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		// pure fn's id, and the BAT0xx diagnostics flow unconditionally.
 		batchSites, batchDiagnostics, batchReplacements := sess.extractBatchesForScan(request.Files)
 		sess.noteOwnBatches(batchSites)
-		// A bundled-API dispatch site (a client built with bundleApi) splices its module binding the same way;
+		// A bundled-API dispatch site (a client that bundles its routes) splices its module binding the same way;
 		// MET0xx diagnostics flow with them.
 		_, apiDiagnostics, apiReplacements := sess.extractApiSitesForScan(request.Files)
 		prepStart := time.Now()
@@ -754,7 +754,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		if genErr != nil {
 			return protocol.Response{Error: genErr.Error()}
 		}
-		// The bundleApi lane resolves every dispatch site of the program and writes it under <outDir>/api/.
+		// The bundled-routes lane resolves every dispatch site of the program and writes it under <outDir>/api/.
 		// Their files join SiteFiles: a file whose only marker use is `.call()` still needs the transform.
 		// With the lane off, a stale api/ tree is removed.
 		apiSites, apiSiteDiagnostics := sess.collectProgramApiSites()
@@ -766,7 +766,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		// still needs the transform), and a cross-file BAT003 collision is visible only from here.
 		genBatchSites, genBatchDiagnostics := sess.collectProgramBatches()
 		// The batch transport: a server program (it creates the router, or at least names `@mionjs/router`)
-		// reads the batch source, this program or the clientTsconfig one, and writes <outDir>/rpc/.
+		// reads its own batches and writes <outDir>/rpc/.
 		// Router-init modules are the ones the transform appends the batch import to, so they join SiteFiles too.
 		// A program that never names the router has nothing to serve the table to: none is written, a stale one
 		// is removed. A server whose router hides behind a wrapper the detector cannot see gets the table plus a
@@ -774,10 +774,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		routerInitFiles := sess.routerInitFiles()
 		var rpc rpcCollection
 		if len(routerInitFiles) > 0 || sess.importsRouter() {
-			var rpcErr error
-			if rpc, rpcErr = sess.collectRpc(); rpcErr != nil {
-				return protocol.Response{Error: "generate: " + rpcErr.Error()}
-			}
+			rpc = sess.collectRpc()
 		}
 		batchesModule, rpcGenErr := generateRpc(outDir, rpc, sess.opts.EmitMode)
 		if rpcGenErr != nil {
@@ -788,10 +785,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		siteFiles = append(siteFiles, sess.apiVersionFiles(sess.programSourceFiles(), routerInitFiles)...)
 		genResponse := protocol.Response{Generated: manifest, OutDir: outDir, SiteFiles: uniqueSiteFiles(genDump.Sites, siteFiles)}
 		genResponse.BatchesModule = batchesModule
-		genResponse.BatchSourceFiles = rpc.files
-		genResponse.BatchSourceRoots = rpc.roots
 		genResponse.RouterInitFiles = routerInitFiles
-		genResponse.Diagnostics = append(genResponse.Diagnostics, rpc.sourceDiags...)
 		genResponse.Diagnostics = append(genResponse.Diagnostics, rpc.mapperDiags...)
 		if batchesModule != "" && len(routerInitFiles) == 0 {
 			genResponse.Diagnostics = append(genResponse.Diagnostics, diagnostics.New(diagnostics.CodeBatchNoRouterInit, diagnostics.Site{}, batchesModule))

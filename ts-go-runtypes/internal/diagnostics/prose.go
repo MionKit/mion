@@ -470,9 +470,6 @@ routes.orders.getById(inputFrom(user, 'toUserId'));`,
 		Summary: "Each inline `inputFrom(source, (value) => ...)` mapper becomes a pure function the server build copies next to the batch table. This one produced nothing, so the server would answer the batch with a missing mapper error. Fix the pure function errors (PFN or PFE codes) at its `inputFrom()` call, or use the name of a mapper registered on the server.",
 		Fix:     "inputFrom(user, 'toOrgId')",
 	},
-	CodeBatchOwnBatchIgnored: {
-		Summary: "When `clientTsconfig` is set (`client.tsConfig` on the build plugin, `--client-tsconfig` on the command line), the server build reads batches only from that client project. A `batch()` call in the server's own code, such as a test or a script, is not registered, so the server answers it with an unknown batch id error. Move the batch into the client project, or remove the client setting when client and server are one project.",
-	},
 	CodeBatchNoRouterInit: {
 		Summary: "The build adds the batch table import to every module that calls `createMionRouter` from `@mionjs/router`, following aliases, namespace imports and local re-export files. It found none, for example because a wrapper from another package creates the router, so the server never loads the table. Import the table yourself in the module that creates the router (path relative to that module), or call `createMionRouter` from a source file of this project.",
 		Fix:     "import './<genDir>/rpc/batches.generated.js';",
@@ -699,11 +696,11 @@ mion enrich <source.ts> <Type> --update`,
 	// ───────────────────────── bundled API (MET) ──────────────────────────
 
 	CodeApiMetaUnreadable: {
-		Summary: "With `bundleApi` on, the build reads each called route's handler types, options and middlewares from the client's API type. Only `PublicApi<typeof routes>`, the type the router exports, has them; a loose `RemoteApi`, an `any`, or a member without its compiled types does not. Type the client with `PublicApi<typeof routes>`.",
+		Summary: "When routes are bundled (`client.routes: 'bundle'`, the default), the build reads each called route's handler types, options and middlewares from the client's API type. Only `PublicApi<typeof routes>`, the type the router exports, has them; a loose `RemoteApi`, an `any`, or a member without its compiled types does not. Type the client with `PublicApi<typeof routes>`.",
 		Fix:     "initClient<PublicApi<typeof routes>>({baseURL});",
 	},
 	CodeApiMetaRouteNotDeclared: {
-		Summary: "The API type has no route with this id, usually because of a stale declaration file or a route id written by hand. Rebuild the API's declarations, or set `api.tsConfig` (`apiTsconfig` in tsconfig) to the API project so the build reads the routes from their source.",
+		Summary: "The API type has no route with this id, usually because of a route id written by hand or a stale declaration file. Fix the route id, or rebuild the API's declarations.",
 	},
 	CodeApiMetaRouteWidened: {
 		Summary: "A helper typed with `RouteSubRequest<any>` widens the route id to `string`, so the build cannot bundle the call inside it, and with no `useFetchMetadata` set up that call fails. Keep the route id through a generic helper, or move the call out of it. Or set up `useFetchMetadata` so the call asks the server for the route. That builds functions at runtime, which a strict Content Security Policy blocks.",
@@ -714,9 +711,6 @@ useFetchMetadata(middlewares.mionFetchMetadata);`,
 	CodeApiMetaRouteWidenedFetched: {
 		Summary: "A helper typed with `RouteSubRequest<any>` widens the route id to `string`, so the build cannot bundle the call inside it. The call still works because the client sets up `useFetchMetadata`: it fetches the route's metadata on first use and builds its functions at runtime. To bundle it too, keep the route id through a generic helper.",
 		Fix:     "function run<S extends RouteSubRequest<any>>(sub: S) { return sub.call() }",
-	},
-	CodeApiMetaSourceAmbiguous: {
-		Summary: "With `api.tsConfig` (`apiTsconfig`) set, the build reads route types from the API project, starting at the `mion.initRoutes(routes)` call that declares the routes this client calls. It found none, or more than one. Point it at a tsconfig whose program initializes the API once (a separate tsconfig for the server entry works), or remove it when the client and the API share one program.",
 	},
 	CodeApiMetaOptionWidened: {
 		Summary: "The bundled metadata copies each route's options from the API type, which holds only literal values. A value computed at runtime, like a variable or a call, is left unset on the client, while the server may set it. Write the option as a literal on the route or the router.",
@@ -735,14 +729,14 @@ useFetchMetadata(middlewares.mionFetchMetadata);`,
 		Fix:     "middlewares.trace.onRequest((trace) => trace({headers: {'X-Trace-Id': crypto.randomUUID()}}));",
 	},
 	CodeApiMetaNoMetadataToFetch: {
-		Summary: "A call fetches its metadata when the build could not bundle it, or for every route when `bundleApi` is off. The server answers those fetches only through the `mionFetchMetadata` middleware from `@mionjs/router/middlewares`, and this API does not add it. Add it first in the server's routes and set up its client half with `useFetchMetadata`. Or, with bundling on, remove `useFetchMetadata` and keep every route id a literal so every call is bundled.",
+		Summary: "A call fetches its metadata when the build could not bundle it, or for every route when `client.routes` is `'fetch'`. The server answers those fetches only through the `mionFetchMetadata` middleware from `@mionjs/router/middlewares`, and this API does not add it. Add it first in the server's routes and set up its client half with `useFetchMetadata`. Or, with bundling on, remove `useFetchMetadata` and keep every route id a literal so every call is bundled.",
 		Fix: `// server
 mion.initRoutes({mionFetchMetadata, ...routes});
 // client
 useFetchMetadata(middlewares.mionFetchMetadata);`,
 	},
 	CodeApiMetaFetchNotSetUp: {
-		Summary: "With bundling off, each call asks the server how its route works on first use, through the client half of the metadata middleware. Nothing in this program sets that up. Set it up once next to `initClient`, or build with `bundleApi: true` (the default) so every call is bundled.",
+		Summary: "With `client.routes: 'fetch'`, each call asks the server how its route works on first use, through the client half of the metadata middleware. Nothing in this program sets that up. Set it up once next to `initClient`, or build with `client.routes: 'bundle'` (the default) so every call is bundled.",
 		Fix:     "useFetchMetadata(middlewares.mionFetchMetadata);",
 	},
 

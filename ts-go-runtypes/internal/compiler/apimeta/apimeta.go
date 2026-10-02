@@ -1,4 +1,4 @@
-// Package apimeta extracts the dispatch points of a mion client built with `bundleApi`: calls whose
+// Package apimeta extracts the dispatch points of a mion client built with `client.routes: 'bundle'`: calls whose
 // resolved signature carries the InjectApiMetadata<Api, Id> marker as trailing parameter. A site says
 // only WHAT to bundle; resolving the ids into modules is internal/compiler/resolver/apigen.go, and the
 // server half of the lane is internal/compiler/requestbatch.
@@ -19,7 +19,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/textpos"
 )
 
-// RouterModule is the package whose `initRoutes` call roots the API walk in the program `apiTsconfig` names.
+// RouterModule is the package whose `initRoutes` call roots the API walk.
 const RouterModule = "@mionjs/router"
 
 // InitRoutesName is the router method whose resolved return type is the instantiated PublicApi the walk reads.
@@ -39,7 +39,7 @@ type Site struct {
 	TrailingComma bool
 	// Route / middleware ids the site calls, sorted and unique; several for a batch.
 	Ids []string
-	// ApiType comes from Checker, the program's checker that materialized it; the resolver walks it or its `apiTsconfig` twin.
+	// ApiType comes from Checker, the program's checker that materialized it; the resolver walks it.
 	ApiType *checker.Type
 	Checker *checker.Checker
 	// CalleeName is the dispatch method (`call`, `typeErrors`), for reports.

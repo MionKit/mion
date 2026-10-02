@@ -189,7 +189,7 @@ func (walker *treeWalker) method(memberType *checker.Type, id string, pointer []
 	}
 	method.Type = int(number)
 	if handlerType := typeChecker.GetTypeOfPropertyOfType(memberType, "handler"); handlerType == nil || checker.IsTypeAny(handlerType) {
-		return nil, "`" + id + "` has an untyped handler; bundleApi needs the API's PublicApi type"
+		return nil, "`" + id + "` has an untyped handler; bundling needs the API's PublicApi type"
 	}
 	typesType := typeChecker.GetTypeOfPropertyOfType(memberType, "types")
 	if typesType == nil {
@@ -199,7 +199,7 @@ func (walker *treeWalker) method(memberType *checker.Type, id string, pointer []
 	method.Params = walker.compiledType(typesType, "params")
 	method.Return = walker.compiledType(typesType, "return")
 	if method.Params == nil || method.Return == nil {
-		return nil, "`" + id + "` has no compiled params or return type; bundleApi needs the API's PublicApi type"
+		return nil, "`" + id + "` has no compiled params or return type; bundling needs the API's PublicApi type"
 	}
 	if method.Type == TypeHeadersMiddleware {
 		method.Headers = walker.compiledType(typesType, "headers")
@@ -212,7 +212,7 @@ func (walker *treeWalker) method(memberType *checker.Type, id string, pointer []
 	method.Sync = walker.compiledType(typesType, "sync")
 	isAsync := typeChecker.GetTypeOfPropertyOfType(typesType, "isAsync")
 	if isAsync == nil || checker.Type_flags(isAsync)&checker.TypeFlagsBooleanLiteral == 0 {
-		return nil, "`" + id + "` does not say whether its handler is async; bundleApi needs the API's PublicApi type"
+		return nil, "`" + id + "` does not say whether its handler is async; bundling needs the API's PublicApi type"
 	}
 	method.IsAsync = typeChecker.TypeToString(isAsync) == "true"
 	optionsType := typeChecker.GetTypeOfPropertyOfType(memberType, "options")
