@@ -10,8 +10,8 @@ if (error?.type === 'user-not-found') {
   // the route's own error, narrowed by its type
   console.log('no user with that id');
 } else if (error) {
-  // a validation error, or anything else that failed
-  console.log('call failed:', error.publicMessage);
-} else {
-  console.log('User:', user?.name);
+  // the only other typed error: the params failed validation
+  console.log('invalid params:', error.publicMessage);
+} else if (user) {
+  console.log('User:', user.name);
 }
