@@ -8,6 +8,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefunctions"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/apimeta"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/textpos"
@@ -77,8 +78,13 @@ func (sess *Session) apiVersions(files []string) (routes, client string, diags [
 			clients = append(clients, site)
 		}
 	}
+	// allSingle has no per-file modules, so a client sharing its program with the router bundles the server's types.
+	sharedModules := sess.opts.ModuleMode == constants.ModuleModeAllSingle && sess.importsRouter()
 	// Only an API read from a .d.ts can carry a server version; one typed from source has nothing to compare against.
 	for _, site := range clients {
+		if sharedModules {
+			diags = append(diags, diagnostics.New(diagnostics.CodeApiMetaSharedModules, site.diagSite))
+		}
 		switch {
 		case site.serverVersion != "" && site.serverVersion != site.version:
 			diags = append(diags, diagnostics.New(diagnostics.CodeApiMetaServerVersionMismatch, site.diagSite, site.version, site.serverVersion))

@@ -750,6 +750,10 @@ useFetchMetadata(middlewares.mionFetchMetadata);`,
 		Summary: "The API types this client reads come from a `.d.ts` without a server build version, for example one written by plain `tsc`. The client still builds, but if its ids differ from the server's, you only find out at runtime. Build the API package with `mion compile` so its types carry the version and the client build checks it.",
 		Fix:     "mion compile --tsconfig tsconfig.build.json",
 	},
+	CodeApiMetaSharedModules: {
+		Summary: "In `default` mode each source file gets its own module of compiled types, so a client bundle only holds the types of the files it imports. `allSingle` puts every type of the program in one module per family, server types included, and the client bundle loads all of them. Use the `default` mode for an app with a client and a server.",
+		Fix:     "runTypes: {moduleMode: 'default'}",
+	},
 	CodeApiMetaFetchNotSetUp: {
 		Summary: "With `client.routes: 'fetch'`, each call asks the server how its route works on first use, through the client half of the metadata middleware. Nothing in this program sets that up. Set it up once next to `initClient`, or build with `client.routes: 'bundle'` (the default) so every call is bundled.",
 		Fix:     "useFetchMetadata(middlewares.mionFetchMetadata);",

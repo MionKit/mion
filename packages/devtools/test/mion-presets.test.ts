@@ -93,6 +93,11 @@ describe('client.routes — how the client gets each route', () => {
     expect(toRunTypesOptions({client: {}}).clientRoutes).toBeUndefined();
   });
 
+  it('refuses moduleMode allSingle, whose shared modules would carry server types into the client', () => {
+    expect(() => toRunTypesOptions({runTypes: {moduleMode: 'allSingle'}})).toThrow(/moduleMode: 'allSingle' is not supported/);
+    expect(() => mionVitePlugin({runTypes: {moduleMode: 'allSingle'}})).toThrow(/allSingle/);
+  });
+
   it('rejects an unknown mode', () => {
     expect(() => toRunTypesOptions({client: {routes: 'all' as never}})).toThrow(/client routes must be 'bundle' or 'fetch'/);
   });

@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/resolver"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
@@ -347,5 +348,30 @@ func TestApiGen_InitClientFilesFollowAnEdit(t *testing.T) {
 	}
 	if code := transform(); strings.Count(code, "api/lane.js") != 1 {
 		t.Fatalf("the edit added initClient, so exactly one lane import belongs in the file:\n%s", code)
+	}
+}
+
+// TestApiVersion_AllSingleWarnsSharedModules: allSingle has one module per family for the whole program, so a client
+// sharing its program with the router is warned that its bundle carries the server's types; default mode is not.
+func TestApiVersion_AllSingleWarnsSharedModules(t *testing.T) {
+	generate := func(mode string) []diagnostics.Diagnostic {
+		session := setupInlineWith(t, fullstackSources(false), func(programOpts *program.Options, resolverOpts *resolver.Options) {
+			programOpts.SingleThreaded = true
+			resolverOpts.SingleThreaded = true
+			resolverOpts.GenDir = t.TempDir()
+			resolverOpts.ClientRoutes = constants.ClientRoutesBundle
+			resolverOpts.ModuleMode = mode
+		})
+		generated := session.Dispatch(protocol.Request{Op: protocol.OpGenerate})
+		if generated.Error != "" {
+			t.Fatalf("generate: %s", generated.Error)
+		}
+		return generated.Diagnostics
+	}
+	if !hasDiagCode(generate(constants.ModuleModeAllSingle), diagnostics.CodeApiMetaSharedModules) {
+		t.Error("allSingle in a program holding client and server must warn MET014")
+	}
+	if hasDiagCode(generate(constants.ModuleModeDefault), diagnostics.CodeApiMetaSharedModules) {
+		t.Error("default mode splits the modules per file, so nothing is reported")
 	}
 }
