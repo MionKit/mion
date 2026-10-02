@@ -89,6 +89,10 @@ Three things that trip people up:
 
 `Completeness` is deliberately NOT a level: the unfilled-scaffold codes are warnings (a mirror with blank labels still runs), and that bit is what `enrich --require-complete` and the bundler's production enrichment gate promote. A gate keying on the level instead silently stops working.
 
+## Readonly is part of the type id, though no type function reads it
+
+`readonly` on a property, an index signature, a tuple or an array changes no generated code, yet it is in the structural id (`readonlyBit` in [typeid.go](internal/cachegen/runtype/typeid/typeid.go)) and in reflection. Equal ids share ONE node, so a flag left out of the id would make reflection, the `jsonSchema` doc's `tsReadonly` and `mion convert` report whichever twin was projected first. A new readonly position goes in the projection and the id together, through one shared predicate (`typeid.IsReadonlyCollection`).
+
 ## ⚠️ Marker test coverage rule
 
 Applies to any test exercising the marker API — Go under [internal/](internal/) AND the JS plugin under [packages/devtools/test/](../packages/devtools/test/):
