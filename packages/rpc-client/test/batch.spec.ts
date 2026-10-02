@@ -702,12 +702,13 @@ describe('batch runtime behaviour', () => {
 
     expect(userValue).toBeUndefined();
     expect(userError?.type).toBe('user-not-found');
-    // A returned error does not stop the chain: the mapping step answers the target, whose handler never runs.
+    // The target never runs and its slots stay empty: the mapping error is untyped for it, so it is a thrown one.
     expect(org).toBeUndefined();
-    expect(orgError?.type).toBe('batch-mapping-source-failed');
-    expect(orgError?.publicMessage).toContain("'flow/getUser'");
-    expect(orgError?.publicMessage).toContain("'flow/getOrg'");
-    expect(clientResponse['@thrownErrors']).toBeUndefined();
+    expect(orgError).toBeUndefined();
+    const thrown = clientResponse['@thrownErrors'];
+    expect(thrown?.map((error) => error.type)).toEqual(['batch-mapping-source-failed']);
+    expect(thrown?.[0].publicMessage).toContain("'flow/getUser'");
+    expect(thrown?.[0].publicMessage).toContain("'flow/getOrg'");
 
     const [greeting, greetingError, greetingResponse] = await routes.sayHello(someUser).call();
     expect(greeting).toBe('Hello John Doe');

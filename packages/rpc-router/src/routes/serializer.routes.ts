@@ -94,10 +94,10 @@ export function serializeResponseBody(context: CallContext, opts: RouterOptions)
   prepareBodyForJson(context, context.executionChain.methods, respBody);
 }
 
-/** True when a slot holds an error the route's return type does not declare (a batch mapping step answers
- *  the target's slot with its own typed error). The route's encoder is built for the success value and would
- *  turn such an error into nonsense, so it rides as native JSON: the client reads the error brand off the raw
- *  value before decoding. A DECLARED error is part of the return union, so its own encoder keeps it. */
+/** True when a slot holds an error the route's return type does not declare (a handler whose type does not
+ *  match what it returns). The route's encoder is built for the success value and would turn such an error
+ *  into nonsense, so it rides as native JSON: the client reads the error brand off the raw value before
+ *  decoding. A DECLARED error is part of the return union, so its own encoder keeps it. */
 function isUndeclaredError(method: RemoteMethod, value: unknown): boolean {
   return isRpcError(value) && !method.returnJitFns.isType.fn(value);
 }
