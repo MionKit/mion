@@ -77,7 +77,8 @@ The smallest fullstack config is `mionVitePlugin({server: {entry: 'src/server.ts
 Each block says which side it affects:
 
 - `tsConfig` (top level, moved out of `runTypes`): the ONE tsconfig whose program holds client and server
-  code. Defaults to `tsconfig.json` at the vite root (Next: its cwd). A tsconfig whose program has no files
+  code. Defaults to the nearest `tsconfig.json` searched upward from the vite root (Next: its cwd), like
+  tsc. A tsconfig whose program has no files
   (a solution-style one with only `references`, as the Vite starters ship) fails with a clear error asking
   for the tsconfig that covers both.
 - `client`: settings about how the client talks to the API. Today only `routes`, replacing `bundleApi`:
@@ -96,7 +97,7 @@ Removed from `server`, as duplicates:
   the only one.
 - `platform`: the plugin finds the platform adapter from the entry's own imports. Platform adapters must
   then learn they run inside `vite dev` (and must not open a port) without being told before the entry
-  loads, for example through a flag `@mionjs/core` exposes that the plugin sets first.
+  loads, for example through a flag `@mionjs/router` exposes that the plugin sets first.
 
 Next.js (`withMion`) takes the same `tsConfig`, `client` and `runTypes` (plus its own `cwd`), and has no
 `server` block: the API is a Next route file, served and bundled by Next. Both presets read the shared
@@ -184,7 +185,7 @@ example this change touched, review its report against the code, and commit it a
   `server.platform`. `src/vite/index.ts` drops the pointer exports. `src/next/index.ts`: same shared shape;
   the `server` guard error loses its `client.tsConfig` clause.
 - Removing `server.platform` (middleware mode, `src/vite/middlewareMode.ts`):
-  - `@mionjs/core`: a host flag on `getOrCreateGlobal` (`packages/core/src/utils.ts:10`), e.g.
+  - `@mionjs/router`: a host flag on `getOrCreateGlobal`, e.g.
     `setHostOwnsSocket()` / `hostOwnsSocket()`. The plugin sets it before `ssrLoadModule(entry)`, no adapter
     import needed.
   - platform-node `startNodeServer` / platform-bun `startBunServer` skip `listen` when the flag is set (same
@@ -275,11 +276,12 @@ Built as planned, with these additions and changes found along the way:
   (server) and `api/client-manifest.json` (client) side by side, each removed when the build has none,
   and api-check reads the client one. The use case it serves: an older shipped client checked against a
   newer server build.
-- **`server.platform` removal** uses a router-level host flag (`setHostOwnsSocket` / `hostOwnsSocket`
-  and `setHostRequestHandler` / `getHostRequestHandler` in `@mionjs/router`, kept on a `getOrCreateGlobal`
-  slot that survives `resetRouter`). The vite plugin sets it before loading `server.entry`; platform-node
-  and platform-bun then skip listening and hand over their handler, platform-uws throws. The plugin clears
-  it in `closeBundle`. An entry that starts no adapter still falls back to `@mionjs/platform-node`.
+- **`server.platform` removal** uses a router-level host flag (`setHostOwnsSocket` / `hostOwnsSocket`,
+  `handOverToHost` / `getHostRequestHandler` in `@mionjs/router`, kept on a `getOrCreateGlobal` slot that
+  survives `resetRouter`). The vite plugin sets it before loading `server.entry`; platform-node and
+  platform-bun call `handOverToHost(handler)` as they start and skip listening while it answers true,
+  without writing `asMiddleware` into their options, and platform-uws throws. The plugin clears the flag in
+  `closeBundle`. An entry that starts no adapter still falls back to `@mionjs/platform-node`.
 - **`server.entry`** resolves against the vite root (it was an absolute path before).
 - **Empty-program tsconfig** (`files: []` plus `references`) now fails in `program.New` with an error
   naming the file.
@@ -287,9 +289,18 @@ Built as planned, with these additions and changes found along the way:
 - **Pre-publish e2e consumer** is one program: `client-app/` is gone, `src/client/batchFlow.ts` sits in the
   main program, and a second compile (`tsconfig.compile-fetch.json`, `--client-routes fetch`) proves a
   fetching client against the same server under plain node. The lane also runs the published
-  `mion api-check` over one build's two manifests.
-- **apiids fuzz** builds one project twice (server gen dir, client gen dir): A2 also checks the two `api/`
-  trees are byte-identical. The negative control is now a client manifest from before a server type edit.
+  `mion api-check` over one build's two manifests, and across the two builds.
+- **apiids fuzz** builds the server alone (a tsconfig without the client's files) and then the whole
+  program, and api-check compares the two builds. The negative control is now a client manifest from
+  before a server type edit.
 - **Examples:** `vite-bundled-client.config.ts` and `next-bundled-config.ts` deleted; `next-fetched-config.ts`
   added for the Next options section.
 - **`MION_E2E_BUNDLE_API`** renamed to `MION_E2E_CLIENT_ROUTES` (values `bundle`, unset for fetch).
+- **A client built from a published API `.d.ts`** checks the server build at build time. `initRoutes`
+  returns `PublicApi<R> & ApiBuildVersion<V>`, `V` inferred from the version the build injects, so the
+  `.d.ts` `mion compile` writes names the server's build version. A client hashes its own ids and fails with
+  `MET012` when they differ; types without a version (plain `tsc`) build with the warning `MET013`. `mion
+  compile` writes declarations from the source plus the version splice alone: the full rewrite's injected
+  marker arguments widened every route's types in the `.d.ts`. A new pre-publish e2e lane
+  (`mion-api-types/`) packs a real API library, builds a client against the tarball with Vite and with
+  `mion compile`, runs it against the installed server, and covers the plain-tsc and drifted cases.
