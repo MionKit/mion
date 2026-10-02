@@ -3,7 +3,7 @@ import type {MyApi} from './auth-user.routes.ts';
 
 const {routes} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 
-// the route ran: you get its result or its error, both strongly typed
+// strongly typed: the route's own result or error
 const [user, error] = await routes.users.getById('USER-404').call();
 
 if (error)
