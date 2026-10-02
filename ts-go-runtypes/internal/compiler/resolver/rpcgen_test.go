@@ -185,6 +185,30 @@ func TestRpc_GenerateWritesTableAndMappers(t *testing.T) {
 	}
 }
 
+// TestRpc_TableLeavesUnreferencedPureFnsOut: one program holds every pure fn, but rpc/ ships only the mappers a batch
+// names, so a registered fn and a client-only helper no batch reaches stay out of the server's table.
+func TestRpc_TableLeavesUnreferencedPureFnsOut(t *testing.T) {
+	sources := rpcSources()
+	sources["decoy.ts"] = `import {registerPureFn} from '@mionjs/run-types/runtime';
+export const doubleIt = registerPureFn((value: number) => value * 2);
+export function clientOnlyHelper(value: string) { return value.trim(); }
+`
+	outDir := t.TempDir()
+	generate(t, setupGen(t, sources, outDir))
+	mappers := 0
+	for rel, content := range readTree(t, filepath.Join(outDir, "rpc")) {
+		if strings.HasPrefix(rel, "pf/") {
+			mappers++
+		}
+		if strings.Contains(content, "value * 2") || strings.Contains(content, "clientOnlyHelper") {
+			t.Errorf("rpc/%s carries a pure fn no batch names:\n%s", rel, content)
+		}
+	}
+	if mappers != 1 {
+		t.Errorf("rpc/pf must hold exactly the one referenced mapper, got %d modules", mappers)
+	}
+}
+
 // TestRpc_TransformAppendsImportToRouterInit: the router-init module gets the
 // table import appended, relativized in files mode and virtual otherwise, in
 // both wire modes; a program without batches gets nothing.

@@ -547,6 +547,13 @@ func TestApiGen_ManifestsFollowWhatTheBuildHolds(t *testing.T) {
 	if !manifestExists(genDir, constants.ApiManifestFile) {
 		t.Fatal("the server manifest stays")
 	}
+	clientOnly := setupApi(t, apiSources(apiClientTS), genDir, constants.ClientRoutesBundle)
+	if gen := clientOnly.Dispatch(protocol.Request{Op: protocol.OpGenerate}); gen.Error != "" {
+		t.Fatalf("generate: %s", gen.Error)
+	}
+	if manifestExists(genDir, constants.ApiManifestFile) || !manifestExists(genDir, constants.ApiClientManifestFile) {
+		t.Fatal("a client-only build into the same gen dir removes the stale server manifest and writes its own")
+	}
 	serverOnly := t.TempDir()
 	server := setupApi(t, map[string]string{"router.d.ts": apiServerRouterDTS, "routes.ts": apiServerRoutesTS(1, false)}, serverOnly, constants.ClientRoutesBundle)
 	if gen := server.Dispatch(protocol.Request{Op: protocol.OpGenerate}); gen.Error != "" {

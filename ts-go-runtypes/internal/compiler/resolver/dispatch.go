@@ -774,7 +774,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		routerInitFiles := sess.routerInitFiles()
 		var rpc rpcCollection
 		if len(routerInitFiles) > 0 || sess.importsRouter() {
-			rpc = sess.collectRpc()
+			rpc = sess.collectRpc(genBatchSites)
 		}
 		batchesModule, rpcGenErr := generateRpc(outDir, rpc, sess.opts.EmitMode)
 		if rpcGenErr != nil {

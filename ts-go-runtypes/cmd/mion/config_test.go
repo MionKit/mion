@@ -484,7 +484,7 @@ func TestResolveClientRoutes(t *testing.T) {
 			t.Errorf("flag %q, key %s: got %q (ok %v), want %q", tc.flag, tc.key, got, ok, tc.want)
 		}
 	}
-	for _, mode := range []string{"bundled", "off", "fetched"} {
+	for _, mode := range []string{"fetched", "all"} {
 		if _, ok := resolveClientRoutes(mode, ""); ok {
 			t.Errorf("flag %q: an unknown mode is refused", mode)
 		}
