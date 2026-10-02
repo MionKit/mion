@@ -108,7 +108,7 @@ export const LANES = {
     paths: ['container/pre-publish-e2e/', '.github/verdaccio.yaml', ...PACKED],
     items: {
       matrix: {paths: ['container/pre-publish-e2e/apps/', 'container/pre-publish-e2e/build-all.mjs', 'container/pre-publish-e2e/lint-all.mjs', 'container/pre-publish-e2e/test/', 'container/pre-publish-e2e/pure-fns/', 'container/pre-publish-e2e/_deps/']},
-      mion: {paths: ['container/pre-publish-e2e/mion-consumer/', 'container/pre-publish-e2e/mion-bun/', 'container/pre-publish-e2e/_deps-mion/']},
+      mion: {paths: ['container/pre-publish-e2e/mion-consumer/', 'container/pre-publish-e2e/mion-api-types/', 'container/pre-publish-e2e/mion-bun/', 'container/pre-publish-e2e/_deps-mion/']},
       'host-smoke': {paths: ['container/pre-publish-e2e/host-smoke/']},
     },
   },
