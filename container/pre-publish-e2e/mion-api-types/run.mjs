@@ -1,8 +1,5 @@
-// Proves a client built apart from its server, from the server's published .d.ts, checks the server build version:
-// @acme/api is built with `mion compile` and packed, a second copy is built with plain tsc and packed under a
-// prerelease version, and one client source is built against each tarball (Vite preset and `mion compile`), plus a
-// drifted copy whose tsconfig changes the ids. Runs from the mion consumer root (/e2e-mion in the container), which
-// holds the published @mionjs/* plus vite and typescript; everything the assertions read lands under out/.
+// Proves a client built from its server's published .d.ts checks the server build version. Runs from the mion
+// consumer root (/e2e-mion in the container), which holds the published @mionjs/* plus vite and typescript.
 import {execFileSync, spawn, spawnSync} from 'node:child_process';
 import {cpSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync} from 'node:fs';
 import path from 'node:path';
@@ -86,7 +83,6 @@ function clientCopy(name, tsconfigEdit) {
   return dir;
 }
 
-// Both builds of one client, their full output saved for the test.
 function buildClient(name, dir, tarball) {
   npmInstall(dir, [tarball]);
   const vite = capture(process.execPath, [path.join(HERE, 'vite-build.mjs'), dir], HERE);

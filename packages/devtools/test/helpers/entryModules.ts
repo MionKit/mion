@@ -17,13 +17,9 @@ const IMPORT_LINE = /^import \{(__rt_[A-Za-z0-9_$]+)\} from 'rtmod:\/(.+)\.js';\
 const EXPORT_LINE = /^export const (__rt_[A-Za-z0-9_$]+)=/gm;
 const BINDING_PREFIX = '__rt_';
 
-// evalEntryModules evaluates every virtual module source into its exported tuples, keyed by binding name without
-// the `__rt_` prefix (a facade by its root id, a per-entry module by its basename); a module with one export is also
-// keyed by its basename. Imports between modules are emulated with LIVE bindings: each module body runs inside a
-// `with` scope whose proxy resolves the imported binding identifiers (`__rt_<dep>`) lazily at access time, so by the
-// time any deps() thunk dereferences them every module has evaluated and recursive type graphs behave exactly as
-// real ESM cycles do. A module's own exports shadow the proxy as locals, and the factory `code` strings are never
-// touched (no identifier rewriting).
+// evalEntryModules keys each export by its binding minus `__rt_`, and a one-export module also by its basename.
+// Imports are LIVE: a `with` proxy resolves them at access time, so recursive type graphs behave as real ESM cycles.
+// The factory `code` strings are never rewritten.
 export function evalEntryModules(modules: Record<string, string>): Record<string, EntryTuple> {
   const tuples: Record<string, EntryTuple> = {};
   const byBinding: Record<string, EntryTuple> = {};

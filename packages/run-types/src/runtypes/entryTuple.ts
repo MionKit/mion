@@ -122,10 +122,9 @@ export interface RunTypeRecord extends RunTypeRowRecord {
   ini: RunTypeIni | undefined;
 }
 
-/** A runtype data module (`rtmod:/rt/<hash>.js`, one per source file): each node its roots reach as one headless row,
- *  a parallel `rels` array wiring each node's ref-bearing slots by ROW INDEX, and a residual `ini` carrying only
- *  the rare expression-specials (classType / bigint-symbol literal / formatAnnotation). `key` is a CONTENT hash
- *  over the row ids, so the processed-keys guard re-registers new rows after an HMR reload of the bundle. **/
+/** A runtype data module (`rtmod:/rt/<hash>.js`, one per source file): the nodes its roots reach as headless rows,
+ *  `rels` wiring them by ROW INDEX, and an `ini` for the rare expression-specials (classType / bigint-symbol literal
+ *  / formatAnnotation). `key` hashes the row ids, so the processed-keys guard re-registers new rows on HMR reload. **/
 export interface RunTypeBundleRecord {
   entryKind: typeof KIND_RUN_TYPE_BUNDLE;
   deps: EntryDepsThunk | undefined;
@@ -517,10 +516,9 @@ function registerRunTypeTuple(utils: RTUtils, tuple: RunTypeTuple): boolean {
 // The rows each data module registered itself, so its relations wire only those.
 const addedRows = new WeakMap<RunTypeBundleTuple, number[]>();
 
-// registerRunTypeBundle registers every headless row of a data module. A row another module or an earlier generation
-// already registered is skipped, so footer-patched entries are never reset while in use; the combined ini re-runs
-// over them anyway, which is safe: footer assignments are deterministic constants. A root's size limit rides only
-// the module that reflects it as a root, so it is copied onto a row an earlier module registered without one.
+// registerRunTypeBundle skips a row already registered, so a footer-patched entry in use is never reset.
+// The combined ini re-running over it is safe: footer assignments are deterministic constants.
+// A root's size limit rides only the module reflecting it as a root, so it is copied onto a row registered without one.
 function registerRunTypeBundle(utils: RTUtils, tuple: RunTypeBundleTuple): boolean {
   const rows = (tuple[SLOT_ROWS] ?? []) as readonly RunTypeRow[];
   const added: number[] = [];

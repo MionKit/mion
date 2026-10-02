@@ -107,7 +107,6 @@ export function toRunTypesOptions(options: MionPresetOptions = {}): TsRuntypesPl
         `Use 'code' (default) or 'both'.`
     );
   }
-  // One module per family for the whole program would put every server type in the client bundle.
   if (rt.moduleMode === MODULE_MODE_ALL_SINGLE) {
     throw new Error(
       `[mion] moduleMode: 'allSingle' is not supported. It puts every type of the program in one module per ` +

@@ -321,8 +321,7 @@ const myAPI = getRunTypeId(routes);
       return dump.entryModules ?? {};
     });
 
-    // Runtype nodes ride as rows of the file's data module (tuple slot 0 === 4; dep-less, so slot 1 is a hole);
-    // the reflection root gets a facade export whose deps thunk references that data tuple.
+    // Runtype rows live in the file's data module (dep-less, so slot 1 is a hole); the root gets a facade export.
     const moduleSources = Object.values(entryModules);
     expect(moduleSources.length).toBeGreaterThan(0);
     expect(moduleSources.some((s) => /export const __rt_runtypes=\[4,,/.test(s))).toBe(true);

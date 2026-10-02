@@ -170,16 +170,13 @@ export async function startBroker(root: string, options: NextOptions = {}): Prom
     });
 
   // ── invalidation stamp ────────────────────────────────────────────────────
-  // A file's rewrite depends on types declared in OTHER files, which Turbopack cannot see: it only knows the
-  // imports. `TransformResult.typeDeps` names those files when the resolver could attribute them; the stamp is
-  // the coarse fallback for when it could not. The broker tracks the generated module set, whose names are
-  // content-addressed (a per-file runtype module by its content hash), so a changed type means a changed listing, and every rewritten file
-  // declares the stamp, so any type change re-runs every marker-bearing file. Bounded: only files the scan
-  // found sites in are transformed at all, and a transform is a couple of milliseconds.
-  // `rpc/` is in the listing one step removed: a Next app hosting the mion API gets the batch table's import
-  // appended to its route handler, and that import appears or vanishes when a client adds its first batch or
-  // drops its last, a change with no import edge to follow, exactly like an ambient type. The mapper modules
-  // under `rpc/pf/` are content-addressed like `types/`, hence the recursive listing.
+  // A rewrite depends on types in OTHER files, which Turbopack cannot see: `TransformResult.typeDeps` names them
+  // when the resolver can, and the stamp is the fallback. It hashes the generated listing, whose names are
+  // content-addressed (a `types/rt/` entry adds a content hash), and every rewritten file declares it, so any type
+  // change re-runs every marker-bearing file. Bounded: only files with sites are transformed, a few ms each.
+  // `rpc/` is listed because a Next app hosting the mion API gets the batch table's import appended to its route
+  // handler, which appears or vanishes on a client's first or last batch with no import edge to follow.
+  // The mapper modules under `rpc/pf/` are content-addressed like `types/`, hence the recursive listing.
   function countGenerated(): number {
     try {
       return fs.readdirSync(path.join(genDirAbs, 'types')).filter((name) => name.endsWith('.js')).length;
@@ -188,8 +185,8 @@ export async function startBroker(root: string, options: NextOptions = {}): Prom
     }
   }
 
-  /** `types/` plus `rpc/`, each entry prefixed by its half so a name cannot collide across them. A per-file runtype
-   *  module (`types/rt/`) keeps its name when its types change, so its entry carries a hash of its content too. */
+  /** `types/` plus `rpc/`, each entry prefixed by its half so a name cannot collide across them. A `types/rt/`
+   *  module keeps its name when its types change, so its entry adds a content hash. */
   function generatedListing(): string[] {
     const listing: string[] = [];
     for (const half of ['types', 'rpc']) {
