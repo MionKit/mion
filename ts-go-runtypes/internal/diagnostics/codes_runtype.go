@@ -134,6 +134,11 @@ const (
 	// hatch when the check reads a pattern wrongly: `unsafePattern: true` on the pattern params.
 	// Args: [pattern source, reason, offending sub-expression].
 	CodeFMTPatternUnsafe = "FMT008"
+
+	// CodeFMTPatternUnreadable: a `pattern` param the build cannot read as a literal, typically a RegExp value or a
+	// `FormatPattern`-typed const read from a .d.ts, where only the type survives. The validator would silently
+	// stop checking the pattern. Args: [the pattern's type as written].
+	CodeFMTPatternUnreadable = "FMT009"
 )
 
 // removeUnknownKeys never drops a declared member: copied, shared (RUK010/015/016) or it throws (RUK001/004-006).
@@ -225,4 +230,5 @@ func init() {
 	register(Definition{Code: CodeFMTSampleConflict, Family: FamilyRunType, Level: LevelRuntimeError, Scope: ScopeGraph, Title: "two sites declare different mockSamples for one shared format entry"})
 	register(Definition{Code: CodeFMTPatternTimeout, Family: FamilyRunType, Level: LevelRuntimeError, Scope: ScopeGraph, Transient: true, Title: "format pattern evaluation timed out"})
 	register(Definition{Code: CodeFMTPatternUnsafe, Family: FamilyRunType, Level: LevelRuntimeError, Scope: ScopeGraph, Title: "format pattern can be made to backtrack exponentially"})
+	register(Definition{Code: CodeFMTPatternUnreadable, Family: FamilyRunType, Level: LevelRuntimeError, Scope: ScopeGraph, Title: "format pattern is a value the build cannot read"})
 }

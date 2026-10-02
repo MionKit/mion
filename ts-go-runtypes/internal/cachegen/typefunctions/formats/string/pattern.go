@@ -30,6 +30,19 @@ func recoverPattern(params map[string]any) (source, flags string, ok bool) {
 	return src, flagStr, true
 }
 
+// reportUnrecoveredPattern raises FMT009 for a `pattern` the type walk marked unreadable; it returns whether it did.
+func reportUnrecoveredPattern(ctx formats.EmitContext, params map[string]any) bool {
+	pattern, isMap := params["pattern"].(map[string]any)
+	if !isMap {
+		return false
+	}
+	written, unrecovered := pattern["unrecovered"].(string)
+	if unrecovered {
+		ctx.EmitDiagnostic(diagnostics.CodeFMTPatternUnreadable, written)
+	}
+	return unrecovered
+}
+
 // recoverSamples reads the pattern object's own mockSamples first, where samples live with the regex they
 // validate, then falls back to a top-level mockSamples. Both the array form and a single string are accepted.
 func recoverSamples(params map[string]any) []string {
@@ -69,6 +82,8 @@ func namedPatternValidate(ctx formats.EmitContext, annotation *reflection.Format
 		validatePatternSafety(ctx, annotation.Params, source, flags)
 		validateSamples(ctx, source, flags, recoverSamples(annotation.Params))
 		conditions = append(conditions, emitPatternTest(ctx, source, flags, vλl))
+	} else {
+		reportUnrecoveredPattern(ctx, annotation.Params)
 	}
 	return strings.Join(conditions, " && ")
 }

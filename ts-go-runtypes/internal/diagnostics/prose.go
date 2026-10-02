@@ -534,6 +534,13 @@ type B = String<{maxLength: 5; mockSamples: ['aaa']}>; // same samples
 // only if the check is wrong:
 type Safe = String<{pattern: {source: '...'; unsafePattern: true}}>;`,
 	},
+	CodeFMTPatternUnreadable: {
+		Summary: "The build reads a `pattern` from its type. A RegExp value, or a const typed as plain `FormatPattern`, keeps no source in its type, and a `.d.ts` keeps only the type. The validator would then not check the pattern at all. Use a `registerFormatPattern` const without a type annotation, or write the source as a literal.",
+		Fix: `const sku = registerFormatPattern({source: '^[A-Z]{3}-[0-9]{4}$'});
+type Sku = String<{pattern: typeof sku}>;
+// or
+type Sku = String<{pattern: {source: '^[A-Z]{3}-[0-9]{4}$'}}>;`,
+	},
 
 	// ────────────────────── FriendlyText files (FT) ───────────────────────
 

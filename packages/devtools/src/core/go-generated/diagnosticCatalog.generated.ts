@@ -194,6 +194,11 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     level: 'runtimeError',
     family: 'runtype',
   },
+  FMT009: {
+    headline: 'TypeFormat pattern `{0}` is a value the build cannot read, so the validator would not check it.',
+    level: 'runtimeError',
+    family: 'runtype',
+  },
   FT002: {
     headline: 'Unknown field `{0}`: the type does not declare it, so this FriendlyText entry is dead.',
     level: 'warning',

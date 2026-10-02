@@ -65,17 +65,15 @@ func TestFormatPattern_SamePatternSameID(t *testing.T) {
 	}
 }
 
-// Boundary: a `declare const p: FormatPattern` (no initializer — the
-// shape a published .d.ts ships) is NOT traceable. The pattern object
-// then carries no recovered source. Documents the limit of AST
-// recovery: it needs a visible literal initializer, which is why the
-// built-in formats use an inline string-literal source instead.
-func TestFormatPattern_DeclareConstNotRecovered(t *testing.T) {
+// Boundary: a `declare const p: FormatPattern` (no initializer, the shape a published .d.ts ships for an annotated
+// const) is NOT traceable. The pattern is marked unrecovered, which the emitter reports as FMT009.
+func TestFormatPattern_DeclareConstMarkedUnrecovered(t *testing.T) {
 	_, pattern := scanFormatPattern(t, `declare const p: FormatPattern;`)
-	if pattern != nil {
-		if _, ok := pattern["source"]; ok {
-			t.Fatalf("a declare-const FormatPattern has no initializer and must NOT yield a source: %#v", pattern)
-		}
+	if _, ok := pattern["source"]; ok {
+		t.Fatalf("a declare-const FormatPattern has no initializer and must NOT yield a source: %#v", pattern)
+	}
+	if written, _ := pattern["unrecovered"].(string); written == "" {
+		t.Fatalf("the unread pattern must be marked unrecovered: %#v", pattern)
 	}
 }
 

@@ -88,6 +88,8 @@ func stringConditions(ctx formats.EmitContext, params map[string]any, vλl strin
 		validatePatternSafety(ctx, params, source, flags)
 		validateSamples(ctx, source, flags, recoverSamples(params))
 		conditions = append(conditions, emitPatternTest(ctx, source, flags, vλl))
+	} else {
+		reportUnrecoveredPattern(ctx, params)
 	}
 	if val, flags, ok := readCharParam(params, "allowedChars"); ok {
 		conditions = append(conditions, emitPatternTest(ctx, allowedCharsSource(val), flags, vλl))

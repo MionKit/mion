@@ -23,6 +23,7 @@ var headlineByCode = map[string]string{
 	"FMT005":  "Cannot auto-generate mockSamples for pattern /{0}/: {1}; declare mockSamples explicitly.",
 	"FMT007":  "TypeFormat pattern /{0}/ could not be evaluated in time: {1}; the build was not able to tell whether the pattern is safe.",
 	"FMT008":  "TypeFormat pattern /{0}/ can be made to backtrack exponentially: {1} (`{2}`); a crafted input would hang the validator.",
+	"FMT009":  "TypeFormat pattern `{0}` is a value the build cannot read, so the validator would not check it.",
 	"FMT006":  "Two sites share one cache entry for format `{0}` but declare different mockSamples: `{1}` here vs `{2}` at {3}. Make the pools identical, or declare one and leave the other out.",
 	"MKR001":  "`{0}()` is being called at runtime just so the marker can read its return type: side effects, throws, or async work run for nothing.",
 	"CTA001":  "`CompTimeArgs<T>` argument must be a literal at the call site, or a `const` whose initializer is itself entirely literal (a same-module or imported `const` both work).",
