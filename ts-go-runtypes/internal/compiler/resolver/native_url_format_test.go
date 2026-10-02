@@ -106,7 +106,7 @@ func TestNativeUrl_StructuralIDIncludesParams(t *testing.T) {
 		t.Fatal("no nativeUrl node")
 	}
 	if short.ID == long.ID {
-		t.Fatalf("NativeUrl<{maxLength: 20}> and NativeUrl<{maxLength: 30}> must not share a cache id (%q)", short.ID)
+		t.Fatalf("Url<{maxLength: 20}> and Url<{maxLength: 30}> must not share a cache id (%q)", short.ID)
 	}
 }
 

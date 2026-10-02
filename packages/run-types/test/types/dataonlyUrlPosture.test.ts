@@ -33,6 +33,15 @@ plain.href.toUpperCase();
 http.pathname.toUpperCase();
 `;
 
+// An unused expect-error is itself a diagnostic, so this probe fails if either family starts accepting the other's value.
+const SPLIT_PROBE = `${PRELUDE}
+import type {Url, StringUrl} from '@mionjs/run-types/formats';
+// @ts-expect-error a string is not a URL object
+const asObject: Url = 'https://example.com';
+// @ts-expect-error a URL object is not a url string
+const asString: StringUrl = new URL('https://example.com');
+`;
+
 const PROBE_PATH = '/__url_posture_probe__.ts';
 
 function compileProbe(probe: string, lib: string[], types: string[]): string[] {
@@ -84,5 +93,9 @@ describe('URL in DataOnly and the Url object formats, in every lib posture (agai
 
   it('with @types/node only: URL is kept verbatim', () => {
     expect(compileProbe(KEEP_PROBE, ['lib.es2022.d.ts'], ['node'])).toEqual([]);
+  });
+
+  it('Url is the URL object and StringUrl the string: neither accepts the other', () => {
+    expect(compileProbe(SPLIT_PROBE, ['lib.es2022.d.ts', 'lib.dom.d.ts'], [])).toEqual([]);
   });
 });
