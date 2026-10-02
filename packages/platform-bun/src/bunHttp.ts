@@ -20,8 +20,7 @@ import {
   getMaxRouteBodySize,
   readRequestBody,
   BodyReadStrategy,
-  hostOwnsSocket,
-  setHostRequestHandler,
+  handOverToHost,
 } from '@mionjs/router';
 import {DEFAULT_BUN_HTTP_OPTIONS} from './constants.ts';
 import type {BunHttpOptions} from './types.ts';
@@ -118,22 +117,20 @@ export async function startBunServer(options?: Partial<BunHttpOptions>): Promise
   const isTest = getENV('NODE_ENV') === 'test';
 
   if (options) setBunHttpOpts(options);
-  if (hostOwnsSocket()) {
-    setBunHttpOpts({asMiddleware: true});
-    setHostRequestHandler({fetch: bunRequestHandler});
-  }
+  // Local, never written back: a later server in the same process listens once the host lets go of the socket.
+  const asMiddleware = handOverToHost({fetch: bunRequestHandler}) || !!httpOptions.asMiddleware;
 
   const port = httpOptions.port !== 80 ? `:${httpOptions.port}` : '';
   const url = `http://localhost${port}`;
   // no Bun.serve() and NO shutdown handlers: ours calls process.exit(0) and would kill the host on a signal it handles
-  if (httpOptions.asMiddleware) {
+  if (asMiddleware) {
     if (!isTest) console.log('mion running as middleware: routes are registered, mion did NOT open a port.');
-    setPlatformConfig(serializablePlatformConfig());
+    setPlatformConfig({...serializablePlatformConfig(), asMiddleware});
     return undefined;
   }
   if (!isTest) console.log(`mion bun server running on ${url}`);
   // published BEFORE the server is sized: the routes whose types could not say take this number
-  setPlatformConfig(serializablePlatformConfig());
+  setPlatformConfig({...serializablePlatformConfig(), asMiddleware});
   const server = Bun.serve({
     port: httpOptions.port,
     ...httpOptions.options,

@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {describe, it, expect, beforeAll, afterAll} from 'vitest';
-import {createMionRouter, resetRouter} from '@mionjs/router';
+import {createMionRouter, resetRouter, setHostOwnsSocket} from '@mionjs/router';
 import {setUwsHttpOpts, resetUwsHttpOpts, startUwsServer, type UwsServer} from '../src/uwsHttp.ts';
 import type {CallContext, Route} from '@mionjs/router';
 import {MION_ROUTES, StatusCodes, type PublicRpcError} from '@mionjs/core';
@@ -281,8 +281,13 @@ describe('uws http router', () => {
   });
 
   describe('middleware mode is not supported on this platform', () => {
-    it('setUwsHttpOpts refuses asMiddleware with a clear error', () => {
-      expect(() => setUwsHttpOpts({asMiddleware: true} as any)).toThrow(/does not support middleware mode/);
+    it('refuses to start while a dev host owns the socket', async () => {
+      setHostOwnsSocket(true);
+      try {
+        await expect(startUwsServer()).rejects.toThrow(/does not support middleware mode/);
+      } finally {
+        setHostOwnsSocket(false);
+      }
     });
   });
 });
