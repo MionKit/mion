@@ -61,6 +61,23 @@ describe('bun asMiddleware should', () => {
     }
   });
 
+  test('listen again once the host lets the socket go: the flag never sticks to the options', async () => {
+    setBunHttpOpts({asMiddleware: false});
+    setHostOwnsSocket(true);
+    try {
+      expect(await startBunServer({port: 8083})).toBeUndefined();
+    } finally {
+      setHostOwnsSocket(false);
+    }
+    const server = await startBunServer({port: 8083});
+    try {
+      expect(server.port).toBe(8083);
+      expect(getPlatformConfig()).toMatchObject({asMiddleware: false, port: 8083});
+    } finally {
+      void server.stop(true);
+    }
+  });
+
   test('serve the same routes through bunRequestHandler mounted on the host', async () => {
     host = Bun.serve({port: 0, fetch: bunRequestHandler});
     const response = await fetch(`http://127.0.0.1:${host.port}/api/changeUserName`, {

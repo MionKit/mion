@@ -73,6 +73,6 @@ export interface RouterOptions<Req = any, ContextData extends Record<string, any
 
 /** The request handler a platform adapter hands to a dev host that owns the socket: node-style or fetch-style. */
 export interface HostRequestHandler {
-  node?(req: any, res: any): void;
+  node?(req: unknown, res: unknown): void;
   fetch?(req: Request): Response | Promise<Response>;
 }

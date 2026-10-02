@@ -29,7 +29,10 @@ const ROUTER_STUB = (basePath: string) => `
 globalThis.__mion = globalThis.__mion ?? {loads: 0, resets: 0, platformConfig: undefined, host: {}};
 export const setHostOwnsSocket = (owns) => {globalThis.__mion.host = owns ? {...globalThis.__mion.host, owns} : {};};
 export const hostOwnsSocket = () => globalThis.__mion.host.owns === true;
-export const setHostRequestHandler = (handler) => {globalThis.__mion.host.handler = handler;};
+export const handOverToHost = (handler) => {
+  if (globalThis.__mion.host.owns) globalThis.__mion.host.handler = handler;
+  return globalThis.__mion.host.owns === true;
+};
 export const getHostRequestHandler = () => globalThis.__mion.host.handler;
 export const getRouterOptions = () => ({basePath: ${JSON.stringify(basePath)}});
 export const getPlatformConfig = () => globalThis.__mion.platformConfig;
@@ -45,15 +48,12 @@ const CORE_STUB = `export const registerInputMapperTuple = () => {};
 
 /** Node-style adapter stub: same export names @mionjs/platform-node uses, and the same reaction to the host flag. */
 const NODE_PLATFORM_STUB = `
-import {setPlatformConfig, hostOwnsSocket, setHostRequestHandler} from '@mionjs/router';
+import {setPlatformConfig, handOverToHost} from '@mionjs/router';
 let opts = {asMiddleware: false};
 export const setNodeHttpOpts = (patch) => (opts = {...opts, ...patch});
 export const startNodeServer = () => {
-    if (hostOwnsSocket()) {
-        opts = {...opts, asMiddleware: true};
-        setHostRequestHandler({node: httpRequestHandler});
-    }
-    setPlatformConfig({...opts});
+    const asMiddleware = handOverToHost({node: httpRequestHandler}) || opts.asMiddleware;
+    setPlatformConfig({...opts, asMiddleware});
 };
 export function httpRequestHandler(req, res) {
     res.statusCode = 200;
@@ -64,15 +64,12 @@ export function httpRequestHandler(req, res) {
 
 /** Fetch-style adapter stub: same shape as @mionjs/platform-bun's bunRequestHandler. */
 const FETCH_PLATFORM_STUB = `
-import {setPlatformConfig, hostOwnsSocket, setHostRequestHandler} from '@mionjs/router';
+import {setPlatformConfig, handOverToHost} from '@mionjs/router';
 let opts = {asMiddleware: false};
 export const setBunHttpOpts = (patch) => (opts = {...opts, ...patch});
 export const startBunServer = () => {
-    if (hostOwnsSocket()) {
-        opts = {...opts, asMiddleware: true};
-        setHostRequestHandler({fetch: bunRequestHandler});
-    }
-    setPlatformConfig({...opts});
+    const asMiddleware = handOverToHost({fetch: bunRequestHandler}) || opts.asMiddleware;
+    setPlatformConfig({...opts, asMiddleware});
 };
 export async function bunRequestHandler(req) {
     const body = req.method === 'GET' ? null : await req.text();
@@ -320,7 +317,7 @@ export function requestHandler() {
     await startDevServer({basePath: '/api'});
     await fetch(`${baseUrl}/api/users.get`);
     expect((globalThis as any).__mion.host.owns).toBe(true);
-    await vite!.close();
+    await (vite as ViteDevServer).close();
     vite = undefined;
     expect((globalThis as any).__mion.host.owns).toBeUndefined();
   });

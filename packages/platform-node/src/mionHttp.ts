@@ -17,8 +17,7 @@ import {
   setPlatformConfig,
   getResponseDefaults,
   requestPayloadTooLarge,
-  hostOwnsSocket,
-  setHostRequestHandler,
+  handOverToHost,
 } from '@mionjs/router';
 import type {MethodsExecutionChain} from '@mionjs/router';
 import {createServer as createHttp} from 'http';
@@ -65,13 +64,12 @@ export async function startNodeServer(options?: Partial<NodeHttpOptions>): Promi
   const isTest = getENV('NODE_ENV') === 'test';
 
   if (options) setNodeHttpOpts(options);
-  if (hostOwnsSocket()) {
-    setNodeHttpOpts({asMiddleware: true});
-    setHostRequestHandler({node: httpRequestHandler});
-  }
+  // Local, never written back: a later server in the same process listens once the host lets go of the socket.
+  const asMiddleware = handOverToHost({node: httpRequestHandler}) || !!httpOptions.asMiddleware;
+  const platformConfig = () => setPlatformConfig({...serializablePlatformConfig(), asMiddleware});
   const port = httpOptions.port !== 80 ? `:${httpOptions.port}` : '';
   const url = `${httpOptions.protocol}://localhost${port}`;
-  if (!isTest && !httpOptions.asMiddleware)
+  if (!isTest && !asMiddleware)
     console.log(`mion node server running on ${url}`, {
       port: httpOptions.port,
       httpOptions,
@@ -84,9 +82,9 @@ export async function startNodeServer(options?: Partial<NodeHttpOptions>): Promi
         : createHttp(httpOptions.options, httpRequestHandler);
 
     // no listen() and NO shutdown handlers: ours calls process.exit(0) and would kill the host on the Ctrl-C it handles
-    if (httpOptions.asMiddleware) {
+    if (asMiddleware) {
       if (!isTest) console.log('mion running as middleware: routes are registered, mion did NOT open a port.');
-      setPlatformConfig(serializablePlatformConfig());
+      platformConfig();
       return resolve(server);
     }
 
@@ -95,7 +93,7 @@ export async function startNodeServer(options?: Partial<NodeHttpOptions>): Promi
     });
 
     server.listen(httpOptions.port, () => {
-      setPlatformConfig(serializablePlatformConfig());
+      platformConfig();
       resolve(server);
     });
 

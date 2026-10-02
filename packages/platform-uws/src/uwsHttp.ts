@@ -54,8 +54,6 @@ export function resetUwsHttpOpts() {
 }
 
 export function setUwsHttpOpts(options?: Partial<UwsHttpOptions>) {
-  // uWS is its own C++ event loop and owns its listen socket, so it cannot mount on a host node server.
-  if ((options as {asMiddleware?: boolean} | undefined)?.asMiddleware) throwNoMiddlewareMode();
   httpOptions = {
     ...httpOptions,
     ...options,
@@ -71,18 +69,17 @@ function serializablePlatformConfig(): Record<string, unknown> {
   return serializableConfig;
 }
 
-function throwNoMiddlewareMode(): never {
-  throw new Error(
-    '@mionjs/platform-uws does not support middleware mode: uWebSockets.js owns its own listen ' +
-      'socket and cannot mount on a host node server. Use @mionjs/platform-node for middleware mode.'
-  );
-}
-
 export async function startUwsServer(options?: Partial<UwsHttpOptions>): Promise<UwsServer> {
   const isTest = getENV('NODE_ENV') === 'test';
 
   if (options) setUwsHttpOpts(options);
-  if (hostOwnsSocket()) throwNoMiddlewareMode();
+  // uWS is its own C++ event loop and owns its listen socket, so it cannot mount on a host node server.
+  if (hostOwnsSocket()) {
+    throw new Error(
+      '@mionjs/platform-uws does not support middleware mode: uWebSockets.js owns its own listen ' +
+        'socket and cannot mount on a host node server. Use @mionjs/platform-node for middleware mode.'
+    );
+  }
   const protocol = httpOptions.ssl ? 'https' : 'http';
   const port = httpOptions.port !== 80 ? `:${httpOptions.port}` : '';
   const url = `${protocol}://localhost${port}`;
@@ -134,7 +131,7 @@ function drainRequestBody(res: HttpResponse) {
   res.onData(() => {});
 }
 
-// exported for tests and for mounting on a hand-built uWS app; NOT a middleware handler (see setUwsHttpOpts).
+// exported for tests and for mounting on a hand-built uWS app; NOT a middleware handler (see startUwsServer).
 // uWS contract: `req` is valid only synchronously here, so the async dispatch snapshots it before the first await.
 export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
   const state = {replied: false, aborted: false};

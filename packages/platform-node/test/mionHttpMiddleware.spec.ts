@@ -83,6 +83,15 @@ describe('startNodeServer({asMiddleware: true})', () => {
     expect(getHostRequestHandler()).toBeUndefined();
   });
 
+  it('listens again once the host lets the socket go: the flag never sticks to the options', async () => {
+    setHostOwnsSocket(true);
+    expect((await startNodeServer({port: 8082})).listening).toBe(false);
+    setHostOwnsSocket(false);
+    host = await startNodeServer({port: 8082});
+    expect(host.listening).toBe(true);
+    expect(getPlatformConfig()).toMatchObject({asMiddleware: false, port: 8082});
+  });
+
   it('still serves routes through httpRequestHandler mounted on the host', async () => {
     await startNodeServer({asMiddleware: true});
     host = createServer(httpRequestHandler);
