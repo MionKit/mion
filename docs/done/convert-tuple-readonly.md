@@ -1,7 +1,7 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-10-02
 ---
 
@@ -61,3 +61,12 @@ Readonly stays part of the id and of reflection, the way property readonly alrea
 - Convert: type form prints `readonly [..]`, `readonly T[]` and `readonly [k: K]: V`; builder form wraps with `RT.readonly(...)`, or uses the `getRunType<T>()` escape when that spelling does not reflect back.
 - Tests: Go id/projection and convert tests for every shape above, a JS feature test with both marker shapes, `converted-suites` count re-checked.
 - Docs: the source-conversion page; one line in `ts-go-runtypes/CLAUDE.md`.
+
+## What shipped
+
+- Root cause: reflection never recorded readonly on a tuple or array, and the id ignored it (and index-signature readonly was projected but not in the id, so first-wins). Readonly changes no generated code, but equal ids share one node, so it has to be in the id for reflection, `tsReadonly` and convert to be right. Kept in the id on purpose, decided with the owner.
+- Reflection and id: `typeid.IsReadonlyCollection` feeds both `projectTuple` / the array branch and `tupleID` / the array id; tuple intersections merge to readonly only when every member is; the index-signature id gained `readonlyBit`.
+- Convert: type form prints `readonly [..]`, `readonly T[]`, `readonly [key: K]: V` (a readonly index skips the `Record<>` shortcut); builder form wraps with `RT.readonly(...)`. A readonly labeled tuple uses the `getRunType<T>()` escape (or the lazy pair inside a cycle), because `Readonly<>` over the labels carrier intersection is no longer a tuple. A readonly formatted array or a readonly index with a structural bag also escapes.
+- `Recursive<Body>` (builders/static.ts) keeps a readonly tuple or array readonly when it rebuilds it inside `RT.circular`.
+- No refusals added; `converted-suites` stays at 21.
+- Tests: Go `typeid/readonly_test.go` and `convert/readonly_test.go`, devtools `collections.test.ts` (both marker shapes, twins in one cache). The two readonly suite cases now spell their builder form with `RT.readonly`.
