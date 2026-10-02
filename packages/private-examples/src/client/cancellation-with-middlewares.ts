@@ -19,8 +19,10 @@ const [greeting, , response] = await routes.sayHello('John').call({
 if (!response['@thrownErrors']) console.log(greeting);
 
 // and with a batch
-const [[sum, greeting2], [sumError, greetingError]] = await batch([
-  routes.utils.sum(5, 2),
-  routes.sayHello('Jane'),
-]).call({timeout: 10_000});
-if (!sumError && !greetingError) console.log(sum, greeting2);
+const [[sum, sumError, batchResponse], [greeting2, greetingError]] =
+  await batch([routes.utils.sum(5, 2), routes.sayHello('Jane')]).call({
+    timeout: 10_000,
+  });
+if (batchResponse['@thrownErrors'])
+  console.log('Batch failed:', batchResponse['@thrownErrors'][0].publicMessage);
+else if (!sumError && !greetingError) console.log(sum, greeting2);
