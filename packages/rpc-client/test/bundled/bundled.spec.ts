@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The bundled lane: this project is built with `bundleApi: true`, so every route these specs call came in
+// The bundled lane: this project is built with `client: {routes: 'bundle'}`, so every route these specs call came in
 // with its call site and evaluates no code string; only a route the build never saw reaches the server.
 
 import {describe, it, expect, beforeEach, afterEach, inject, vi} from 'vitest';
@@ -56,7 +56,7 @@ function watchFetch() {
   };
 }
 
-describe('a client built with bundleApi: true', () => {
+describe('a client built with client routes bundled', () => {
   let store: MemoryMetadataStore;
 
   beforeEach(async () => {

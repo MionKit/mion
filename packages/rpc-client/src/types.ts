@@ -138,7 +138,7 @@ export type HandlerErrors<PH extends (...args: any[]) => Promise<any>> = Simplif
 
 // A subrequest takes the handler, the route id as a literal (the key path the proxy joins with `/`) and the
 // whole API. The proxy mints the id at runtime; the literal exists so it survives destructuring and aliasing,
-// and so a `bundleApi` build reads which route of which API each dispatch point calls. Defaults keep
+// and so a bundling build reads which route of which API each dispatch point calls. Defaults keep
 // every `RouteSubRequest<H>` use compiling.
 
 /** Represents a remote method (sub request) */

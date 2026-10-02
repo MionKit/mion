@@ -1,13 +1,13 @@
 import {defineConfig} from 'vite';
-import {resolve} from 'path';
 import {mionVitePlugin} from '@mionjs/devtools/vite';
 
 export default defineConfig({
   plugins: [
     mionVitePlugin({
-      runTypes: {tsConfig: resolve(__dirname, 'tsconfig.json')},
+      // one tsconfig for the client and the server code; this is the default
+      tsConfig: 'tsconfig.json',
       server: {
-        startScript: resolve(__dirname, '../server/src/init.ts'),
+        entry: 'src/server.ts',
         // opt in to the API bundle; leave it out and `vite build` emits the client half only
         build: {outDir: 'dist-server'},
       },

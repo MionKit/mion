@@ -5,8 +5,8 @@ import {mionVitePlugin} from '@mionjs/devtools/vite';
 export default defineConfig({
   plugins: [
     mionVitePlugin({
+      tsConfig: resolve(__dirname, 'tsconfig.json'),
       runTypes: {
-        tsConfig: resolve(__dirname, 'tsconfig.json'),
         // required on Workers: no `new Function` at runtime
         emitMode: 'both',
       },

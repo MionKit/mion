@@ -12,9 +12,7 @@ export default defineConfig({
     // untracked runtime-key APIs, so they no longer trip the scanner and this
     // package has no CTA003/PFN001 left to stand down.
     mionVitePlugin({
-      runTypes: {
-        tsConfig: resolve(__dirname, 'tsconfig.json'),
-      },
+      tsConfig: resolve(__dirname, 'tsconfig.json'),
     }),
   ],
   test: {

@@ -230,7 +230,7 @@ export type InjectBatchId<Routes> = string & {
 };
 
 /**
- * Trailing param of a `bundleApi` client dispatch point (`call()`, `typeErrors()`, `batch([...]).call()`): the build
+ * Trailing param of a bundling client dispatch point (`call()`, `typeErrors()`, `batch([...]).call()`): the build
  * fills it with a generated module holding the server's compiled functions for the route and its middlewares.
  * Without the option nothing is injected and the client fetches its metadata from the server.
  * Bundling is a build option set by a module every `initClient` file imports, not a call-site fact.

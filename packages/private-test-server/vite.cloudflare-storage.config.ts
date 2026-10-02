@@ -11,8 +11,8 @@ import {mionVitePlugin} from '../devtools/src/vite/index.ts';
 export default defineConfig({
   plugins: [
     mionVitePlugin({
+      tsConfig: resolve(__dirname, 'tsconfig.build.json'),
       runTypes: {
-        tsConfig: resolve(__dirname, 'tsconfig.build.json'),
         // 'both' is REQUIRED for edge targets, exactly as in vite.cloudflare.config.ts:
         // the default 'code' ships each compiled fn as a source STRING that
         // @mionjs/run-types materializes with `new Function` on first use, and

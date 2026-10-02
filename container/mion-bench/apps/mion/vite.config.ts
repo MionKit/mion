@@ -9,7 +9,7 @@ import {defineConfig} from 'vite';
 import {mionVitePlugin} from '@mionjs/devtools/vite';
 
 export default defineConfig({
-  plugins: [mionVitePlugin({runTypes: {tsConfig: resolve(import.meta.dirname, 'tsconfig.json')}})],
+  plugins: [mionVitePlugin({tsConfig: resolve(import.meta.dirname, 'tsconfig.json')})],
   // Deliberately NOT resolving the packages' `source` condition. Their raw TypeScript
   // needs the plugin's type-id injection, which only happens when the plugin builds
   // that package - consuming it here would load a @mionjs/core whose class serializers

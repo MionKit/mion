@@ -1,7 +1,7 @@
 {
   // The program of the bundled-lane client project: the client sources, the test server they pull in
   // through the `source` condition, and only THIS lane's specs. The fetched-lane specs stay out:
-  // they type subrequests as the wide `RouteSubRequest<any>` on purpose, which under bundleApi is a
+  // they type subrequests as the wide `RouteSubRequest<any>` on purpose, which under bundled routes is a
   // reported widened id.
   "extends": "./tsconfig.json",
   "compilerOptions": {

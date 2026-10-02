@@ -12,11 +12,9 @@ export default defineConfig({
   environments: {__vitest__: {resolve: {conditions: ['source']}}},
   plugins: [
     mionVitePlugin({
-      runTypes: {
-        tsConfig: resolve(__dirname, 'tsconfig.json'),
-      },
+      tsConfig: resolve(__dirname, 'tsconfig.json'),
       // the fetched lane: every spec here sets up useFetchMetadata through test/lib/fetchingClient.ts
-      bundleApi: false,
+      client: {routes: 'fetch'},
       // No `server` block: globalSetup.ts starts the API in THIS process. That also makes this
       // program the batch source — it already pulls the test server in through the `source` export
       // condition — so the resolver writes `rpc/` under this package's genDir and appends the

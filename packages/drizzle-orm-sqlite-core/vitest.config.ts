@@ -7,9 +7,7 @@ export default defineConfig({
   ssr: {resolve: {conditions: ['source']}},
   plugins: [
     mionVitePlugin({
-      runTypes: {
-        tsConfig: resolve(__dirname, 'tsconfig.json'),
-      },
+      tsConfig: resolve(__dirname, 'tsconfig.json'),
     }),
   ],
   test: {

@@ -54,7 +54,7 @@ export function batch<Routes extends RouteSubRequest<any>[]>(
   }
 
   return {
-    // `apiMetadata` is filled by the build under `bundleApi`, never by hand
+    // `apiMetadata` is filled by the build when routes are bundled, never by hand
     async call(setup?: CallSetup, apiMetadata?: InjectedApiMetadata) {
       client.useBundledApi(apiMetadata);
       return client.execute(undefined, routes, batchId, setup?.signal, setup?.timeout);
