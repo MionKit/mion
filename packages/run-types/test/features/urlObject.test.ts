@@ -107,7 +107,7 @@ describe('Url object formats', () => {
     expect(validate('https://example.com/')).toBe(false);
   });
 
-  it('reports the failing param under the nativeUrl name', () => {
+  it('reports the failing param under the url object format name', () => {
     const getErrors = createGetValidationErrorsFn<TF.Url<{maxLength: 22}>>();
     expect(getErrors(new URL('https://example.com/ab'))).toEqual([]);
     expect(getErrors(new URL('https://example.com/abc'))).toEqual([
@@ -132,11 +132,26 @@ describe('Url object formats', () => {
     expect(getRunTypeId(TFB.urlFile({maxLength: 100}))).toBe(getRunTypeId<TF.UrlFile<{maxLength: 100}>>());
   });
 
+  it('a value typed as a url object resolves to the type-first id', () => {
+    const link: TF.Url<{maxLength: 22}> = new URL('https://example.com/ab');
+    const web: TF.UrlHttp = new URL('https://example.com/');
+    expect(getRunTypeId(link)).toBe(getRunTypeId<TF.Url<{maxLength: 22}>>());
+    expect(getRunTypeId(web)).toBe(getRunTypeId<TF.UrlHttp>());
+  });
+
   it('the string and object families keep different ids', () => {
     expect(getRunTypeId<TF.StringUrl>()).not.toBe(getRunTypeId<TF.Url>());
     expect(getRunTypeId(TFB.stringUrl())).toBe(getRunTypeId<TF.StringUrl>());
     expect(getRunTypeId(TFB.stringUrlHttp())).toBe(getRunTypeId<TF.StringUrlHttp>());
     expect(getRunTypeId(TFB.stringUrlFile())).toBe(getRunTypeId<TF.StringUrlFile>());
+  });
+
+  it('a value typed as a url string resolves to the type-first id, apart from the object', () => {
+    const text: TF.StringUrl = 'https://example.com' as TF.StringUrl;
+    const link: TF.Url = new URL('https://example.com');
+    expect(getRunTypeId(text)).toBe(getRunTypeId<TF.StringUrl>());
+    expect(getRunTypeId(link)).toBe(getRunTypeId<TF.Url>());
+    expect(getRunTypeId(text)).not.toBe(getRunTypeId(link));
   });
 
   it('the value-first builder validates like the type', () => {
