@@ -695,13 +695,22 @@ export function socketAttacks(rng: Rng): SocketAttack[] {
   ];
 }
 
-export function rawSocketRequest(
-  port: number,
-  request: string,
-  timeoutMs = 3000
-): Promise<{status: number; headers: string; body: string; closed: boolean}> {
+export interface SocketAnswer {
+  status: number;
+  headers: string;
+  body: string;
+  closed: boolean;
+}
+
+// how long a HEAD read keeps listening after the headers, so a body the server should not send still shows
+const HEAD_BODY_GRACE_MS = 50;
+
+const isHeadRequest = (request: string) => request.startsWith('HEAD ');
+
+export function rawSocketRequest(port: number, request: string, timeoutMs = 3000): Promise<SocketAnswer> {
   // a HEAD answer keeps the content-length a full answer would have, but never sends the body
-  const head = request.startsWith('HEAD ');
+  const headRequest = isHeadRequest(request);
+  let headGrace: ReturnType<typeof setTimeout> | undefined;
   return new Promise((resolve) => {
     let data = '';
     let done = false;
@@ -722,7 +731,13 @@ export function rawSocketRequest(
     socket.on('data', (chunk) => {
       data += chunk;
       // one response is enough: the server may keep the connection open
-      if (/^HTTP\/1\.1 \d{3}/.test(data) && /\r\n\r\n/.test(data) && bodyComplete(data, head)) {
+      if (!/^HTTP\/1\.1 \d{3}/.test(data) || !/\r\n\r\n/.test(data)) return;
+      if (headRequest) {
+        headGrace ??= setTimeout(() => {
+          socket.destroy();
+          finish(false);
+        }, HEAD_BODY_GRACE_MS);
+      } else if (bodyComplete(data)) {
         socket.destroy();
         finish(false);
       }
@@ -736,8 +751,7 @@ export function rawSocketRequest(
   });
 }
 
-function bodyComplete(data: string, head: boolean): boolean {
-  if (head) return true;
+function bodyComplete(data: string): boolean {
   const length = /content-length: (\d+)/i.exec(data);
   if (!length) return true;
   const split = data.indexOf('\r\n\r\n');
@@ -749,6 +763,28 @@ export interface SocketReport {
   violations: HttpViolation[];
   applied: Record<string, number>;
   close: () => Promise<void>;
+}
+
+/** The per-answer oracles over a raw socket answer. */
+export function checkSocketAnswer(request: string, answer: SocketAnswer): Array<[HttpOracleId, string]> {
+  const out: Array<[HttpOracleId, string]> = [];
+  // node itself answers 400/431 for what it cannot parse; a mion answer is a JSON envelope
+  if (answer.status === 0) out.push(['SH-ENVELOPE', `no HTTP response (closed=${answer.closed})`]);
+  if (answer.status >= 500) out.push(['SH-NO5XX', `status ${answer.status}`]);
+  if (isHeadRequest(request)) {
+    if (answer.body !== '') out.push(['SH-ENVELOPE', 'a HEAD answer carries a body']);
+  } else if (/content-type: application\/json/i.test(answer.headers)) {
+    try {
+      const body = JSON.parse(answer.body);
+      const thrown = body[MION_ROUTES.thrownErrors];
+      if (answer.status >= 400 && (!thrown || typeof thrown !== 'object'))
+        out.push(['SH-ENVELOPE', 'an error status without a @thrownErrors object']);
+    } catch {
+      out.push(['SH-ENVELOPE', 'a JSON response that does not parse']);
+    }
+  }
+  if (LEAK_PHRASES.some((phrase) => phrase.test(answer.body))) out.push(['SH-NOLEAK', 'response text carries engine text']);
+  return out;
 }
 
 /** Starts the node adapter over the fixture router on a free port and runs every socket attack,
@@ -778,22 +814,7 @@ export async function runSocketAttacks(
       const answer = await rawSocketRequest(port, attack.request);
       if (performance.now() - started > REQUEST_BUDGET_MS * 2)
         push('SH-TIME', `took ${Math.round(performance.now() - started)} ms`);
-      // node itself answers 400/431 for what it cannot parse; a mion answer is a JSON envelope
-      if (answer.status === 0) push('SH-ENVELOPE', `no HTTP response (closed=${answer.closed})`);
-      if (answer.status >= 500) push('SH-NO5XX', `status ${answer.status}`);
-      if (attack.request.startsWith('HEAD ')) {
-        if (answer.body !== '') push('SH-ENVELOPE', 'a HEAD answer carries a body');
-      } else if (/content-type: application\/json/i.test(answer.headers)) {
-        try {
-          const body = JSON.parse(answer.body);
-          const thrown = body[MION_ROUTES.thrownErrors];
-          if (answer.status >= 400 && (!thrown || typeof thrown !== 'object'))
-            push('SH-ENVELOPE', 'an error status without a @thrownErrors object');
-        } catch {
-          push('SH-ENVELOPE', 'a JSON response that does not parse');
-        }
-      }
-      if (LEAK_PHRASES.some((phrase) => phrase.test(answer.body))) push('SH-NOLEAK', 'response text carries engine text');
+      for (const [oracle, message] of checkSocketAnswer(attack.request, answer)) push(oracle, message);
       const probe = await rawSocketRequest(port, alive);
       if (probe.status !== 200) push('SH-ALIVE', `the next request got ${probe.status || 'no answer'}`);
     }
