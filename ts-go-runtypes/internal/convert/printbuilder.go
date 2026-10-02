@@ -105,6 +105,10 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 			return "", diag
 		}
 		if hasStructuralPayload(node) {
+			// `Readonly<>` over the branded array is not the written `readonly` formatted array.
+			if node.Readonly {
+				return ctx.builderEscape(node)
+			}
 			// Params outside the public bag surface escape whole: the generic bag would resolve a
 			// different brand and move the id.
 			if !structuralParamsPubliclySpellable(node.FormatAnnotation) {
@@ -116,7 +120,7 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 			}
 			return rt(fmt.Sprintf("array(%s, {%s})", childText, strings.Join(parts, ", ")))
 		}
-		return rt(fmt.Sprintf("array(%s)", childText))
+		return ctx.readonlyBuilder(node, ctx.names.RT+".array("+childText+")")
 	case reflection.KindPromise:
 		childText, diag := ctx.builderExpr(node.Child)
 		if diag != nil {
@@ -228,6 +232,9 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 				// escape.
 				return ctx.builderEscape(node)
 			}
+			if indexes[0].readonly && bagText != "" {
+				return ctx.builderEscape(node)
+			}
 			valueText, valueDiag := ctx.builderExpr(indexes[0].value)
 			if valueDiag != nil {
 				return "", valueDiag
@@ -239,6 +246,9 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 				recordText = fmt.Sprintf("%s.record(%s%s)", ctx.names.RT, valueText, bagText)
 			default:
 				recordText = fmt.Sprintf("%s.record(%s, %s%s)", ctx.names.RT, keyText, valueText, bagText)
+			}
+			if indexes[0].readonly {
+				recordText = fmt.Sprintf("%s.readonly(%s)", ctx.names.RT, recordText)
 			}
 			if len(members) == 0 {
 				ctx.needs.useRT = true
@@ -278,6 +288,10 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 		// rebuilt `rest: RT.never()` does not resolve back to: the group spelling is NOT id-exact
 		// here, while the type-argument escape is.
 		if shape.rest != nil && shape.rest.Kind == reflection.KindNever {
+			return ctx.builderEscape(node)
+		}
+		// `Readonly<>` over the labels carrier intersection is no longer a tuple, so only the escape keeps it.
+		if node.Readonly && shape.labeled {
 			return ctx.builderEscape(node)
 		}
 		// Every tuple prints the GROUP form and only the groups it has, since naming them is what
@@ -323,7 +337,7 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 			}
 			groups = append(groups, "rest: "+restText)
 		}
-		return rt(fmt.Sprintf("tuple({%s})", strings.Join(groups, ", ")))
+		return ctx.readonlyBuilder(node, fmt.Sprintf("%s.tuple({%s})", ctx.names.RT, strings.Join(groups, ", ")))
 	case reflection.KindFunction:
 		// All-required named parameters print the slot form, which converges with the written
 		// signature because parameter names fold into the id. An optional, rest or defaulted
@@ -392,11 +406,11 @@ func (ctx *printContext) builderEscape(node *reflection.RunType) (string, *Diagn
 
 // recordKeyText spells the KEY argument of `record(key, value)`: "" for the lone string key, which
 // is record's implicit default, a single key's builder otherwise, and a union when a shape carries
-// several signatures. keyed is false when the signatures carry DIFFERENT value types, which one
-// `record` cannot say.
+// several signatures. keyed is false when the signatures carry DIFFERENT value types or readonly
+// marks, which one `record` cannot say.
 func (ctx *printContext) recordKeyText(indexes []indexSignature) (string, *Diagnostic, bool) {
 	for _, index := range indexes[1:] {
-		if index.value.ID != indexes[0].value.ID {
+		if index.value.ID != indexes[0].value.ID || index.readonly != indexes[0].readonly {
 			return "", nil, false
 		}
 	}
@@ -435,4 +449,13 @@ func (ctx *printContext) collectionBuilder(node *reflection.RunType, builder, ar
 	}
 	ctx.needs.useRT = true
 	return ctx.names.RT + "." + fmt.Sprintf("%s(%s, {%s})", builder, argsText, strings.Join(parts, ", ")), nil
+}
+
+// readonlyBuilder wraps a readonly tuple or array in `RT.readonly(...)`, whose `Readonly<[..]>` is `readonly [..]`.
+func (ctx *printContext) readonlyBuilder(node *reflection.RunType, text string) (string, *Diagnostic) {
+	ctx.needs.useRT = true
+	if node.Readonly {
+		return fmt.Sprintf("%s.readonly(%s)", ctx.names.RT, text), nil
+	}
+	return text, nil
 }
