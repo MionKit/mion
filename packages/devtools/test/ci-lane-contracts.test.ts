@@ -552,3 +552,24 @@ describe('the build-gate tests run on the Go runner and nowhere else', () => {
     for (const command of commands) expect(command).toContain("--exclude '**/build-gate.test.ts'");
   });
 });
+
+describe('the converted-suites refusal count runs per PR', () => {
+  const ci = read('.github/workflows/ci.yml');
+
+  it('runs the count in ci.yml on the go-tools lane', () => {
+    expect(ci).toMatch(
+      /if: fromJSON\(needs\.lanes\.outputs\.lanes\)\['go-tools'\]\.run\n\s+run: pnpm miondevx core converted-suites --refusals-only\n/
+    );
+  });
+
+  it('feeds the go-tools lane every input that moves the count', () => {
+    for (const input of [
+      'packages/run-types/test/suites/strict-validation/Strict.ts',
+      'packages/run-types/src/index.ts',
+      'packages/run-types/test/features/unsupported-conversion.test.ts',
+      'ts-go-runtypes/internal/convert/print.go',
+      'scripts/core/converted-suites.mjs',
+    ])
+      expect(matches(input, LANES['go-tools'].paths), input).toBe(true);
+  });
+});

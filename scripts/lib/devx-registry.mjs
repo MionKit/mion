@@ -162,6 +162,7 @@ export const AREAS = {
         flags: [
           ['--target <form>', 'the form to convert into'],
           ['--keep', 'keep the converted tree afterwards'],
+          ['--refusals-only', 'check the refusal count and that each is documented, skip the test run'],
         ],
       },
       {
