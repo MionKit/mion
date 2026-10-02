@@ -270,7 +270,7 @@ export const NATIVE = {
     validate: () => createValidateFn<URL>(),
     standardSchema: () => createStandardSchema<URL>(),
     validateDataOnly: () => createValidateFn<DataOnly<URL>>(),
-    validateSchema: () => createValidateFn(TF.nativeUrl()),
+    validateSchema: () => createValidateFn(TF.url()),
     deserializeValidate: () => deserializeValidate<URL>(),
     validateReflect: () => {
       const v: URL = new URL('https://example.com');
@@ -282,7 +282,7 @@ export const NATIVE = {
     },
     getValidationErrors: () => createGetValidationErrorsFn<URL>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<URL>>(),
-    getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.nativeUrl()),
+    getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.url()),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<URL>(),
     getValidationErrorsReflect: () => {
       const v: URL = new URL('https://example.com');

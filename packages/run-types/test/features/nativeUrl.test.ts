@@ -99,16 +99,16 @@ describe('URL clone (removeUnknownKeys)', () => {
   });
 });
 
-describe('NativeUrl formats', () => {
-  it('NativeUrl<P> checks the href length', () => {
-    const validate = createValidateFn<TF.NativeUrl<{maxLength: 22}>>();
+describe('Url object formats', () => {
+  it('Url<P> checks the href length', () => {
+    const validate = createValidateFn<TF.Url<{maxLength: 22}>>();
     expect(validate(new URL('https://example.com/ab'))).toBe(true);
     expect(validate(new URL('https://example.com/abc'))).toBe(false);
     expect(validate('https://example.com/')).toBe(false);
   });
 
   it('reports the failing param under the nativeUrl name', () => {
-    const getErrors = createGetValidationErrorsFn<TF.NativeUrl<{maxLength: 22}>>();
+    const getErrors = createGetValidationErrorsFn<TF.Url<{maxLength: 22}>>();
     expect(getErrors(new URL('https://example.com/ab'))).toEqual([]);
     expect(getErrors(new URL('https://example.com/abc'))).toEqual([
       {path: [], expected: 'URL', format: {name: 'nativeUrl', formatPath: ['maxLength'], val: 22}},
@@ -116,24 +116,31 @@ describe('NativeUrl formats', () => {
     expect(getErrors('https://example.com/')).toEqual([{path: [], expected: 'URL'}]);
   });
 
-  it('NativeUrlHttp and NativeUrlFile reuse the url patterns', () => {
-    const isHttp = createValidateFn<TF.NativeUrlHttp>();
+  it('UrlHttp and UrlFile reuse the url patterns', () => {
+    const isHttp = createValidateFn<TF.UrlHttp>();
     expect(isHttp(new URL('https://example.com/'))).toBe(true);
     expect(isHttp(new URL('ftp://example.com/'))).toBe(false);
-    const isFile = createValidateFn<TF.NativeUrlFile>();
+    const isFile = createValidateFn<TF.UrlFile>();
     expect(isFile(new URL('file:///tmp/a.txt'))).toBe(true);
     expect(isFile(new URL('https://example.com/'))).toBe(false);
   });
 
   it('value-first builders resolve to the type-first ids', () => {
-    expect(getRunTypeId(TFB.nativeUrl())).toBe(getRunTypeId<URL>());
-    expect(getRunTypeId(TFB.nativeUrl({maxLength: 22}))).toBe(getRunTypeId<TF.NativeUrl<{maxLength: 22}>>());
-    expect(getRunTypeId(TFB.nativeUrlHttp())).toBe(getRunTypeId<TF.NativeUrlHttp>());
-    expect(getRunTypeId(TFB.nativeUrlFile({maxLength: 100}))).toBe(getRunTypeId<TF.NativeUrlFile<{maxLength: 100}>>());
+    expect(getRunTypeId(TFB.url())).toBe(getRunTypeId<URL>());
+    expect(getRunTypeId(TFB.url({maxLength: 22}))).toBe(getRunTypeId<TF.Url<{maxLength: 22}>>());
+    expect(getRunTypeId(TFB.urlHttp())).toBe(getRunTypeId<TF.UrlHttp>());
+    expect(getRunTypeId(TFB.urlFile({maxLength: 100}))).toBe(getRunTypeId<TF.UrlFile<{maxLength: 100}>>());
+  });
+
+  it('the string and object families keep different ids', () => {
+    expect(getRunTypeId<TF.StringUrl>()).not.toBe(getRunTypeId<TF.Url>());
+    expect(getRunTypeId(TFB.stringUrl())).toBe(getRunTypeId<TF.StringUrl>());
+    expect(getRunTypeId(TFB.stringUrlHttp())).toBe(getRunTypeId<TF.StringUrlHttp>());
+    expect(getRunTypeId(TFB.stringUrlFile())).toBe(getRunTypeId<TF.StringUrlFile>());
   });
 
   it('the value-first builder validates like the type', () => {
-    const validate = createValidateFn(TFB.nativeUrl({maxLength: 22}));
+    const validate = createValidateFn(TFB.url({maxLength: 22}));
     expect(validate(new URL('https://example.com/ab'))).toBe(true);
     expect(validate(new URL('https://example.com/abc'))).toBe(false);
   });
@@ -150,11 +157,11 @@ describe('URL mock data', () => {
     }
   });
 
-  it('mocks NativeUrl formats that pass their own checks', () => {
-    const mockHttp = createMockDataFn<TF.NativeUrlHttp<{maxLength: 60}>>();
-    const isHttp = createValidateFn<TF.NativeUrlHttp<{maxLength: 60}>>();
-    const mockFile = createMockDataFn<TF.NativeUrlFile>();
-    const isFile = createValidateFn<TF.NativeUrlFile>();
+  it('mocks Url object formats that pass their own checks', () => {
+    const mockHttp = createMockDataFn<TF.UrlHttp<{maxLength: 60}>>();
+    const isHttp = createValidateFn<TF.UrlHttp<{maxLength: 60}>>();
+    const mockFile = createMockDataFn<TF.UrlFile>();
+    const isFile = createValidateFn<TF.UrlFile>();
     for (let i = 0; i < 20; i++) {
       expect(isHttp(mockHttp())).toBe(true);
       expect(isFile(mockFile())).toBe(true);

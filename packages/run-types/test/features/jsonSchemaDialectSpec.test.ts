@@ -159,8 +159,8 @@ describe('json-schema-2020-12-javascript — the dialect spec', () => {
 
   rule('JS-URL', 'a URL travels as its href, a uri string', () => {
     expect(createJsonSchemaFn<URL>()()).toEqual({type: 'string', format: 'uri', jsType: 'URL'});
-    // A NativeUrl names its family instead, its length params on the standard keywords and in rtFormatParams.
-    expect(createJsonSchemaFn<TF.NativeUrl<{maxLength: 200}>>()()).toEqual({
+    // A Url object names its family instead, its length params on the standard keywords and in rtFormatParams.
+    expect(createJsonSchemaFn<TF.Url<{maxLength: 200}>>()()).toEqual({
       type: 'string',
       format: 'uri',
       maxLength: 200,

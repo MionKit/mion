@@ -56,7 +56,7 @@ describe('StripRunTypeMeta<T> — per-branch correctness + instantiation budget'
   });
 
   // The URL global is declared in the snippet (the harness loads no dom or @types/node), so only this case pays for it.
-  it('a NativeUrl brand collapses to the bare URL; a plain URL passes through', () => {
+  it('a Url object brand collapses to the bare URL; a plain URL passes through', () => {
     check(
       BRAND_PREAMBLE +
         `

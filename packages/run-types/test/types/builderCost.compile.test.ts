@@ -303,10 +303,10 @@ const CALL_CASES: CallCase[] = [
   },
   {
     group: 'string-preset',
-    label: 'url({maxLength})',
+    label: 'stringUrl({maxLength})',
     fixed: 274,
     marginal: 46,
-    mk: (i) => `const s${i} = TF.url({maxLength: ${i + 10}}); type S${i} = InferType<typeof s${i}>;`,
+    mk: (i) => `const s${i} = TF.stringUrl({maxLength: ${i + 10}}); type S${i} = InferType<typeof s${i}>;`,
   },
   {
     group: 'string-preset',

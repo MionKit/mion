@@ -178,7 +178,7 @@ type MyType = {
   id: string;
   name: string;
   price: TF.Positive;
-  url: TF.Url;
+  url: TF.StringUrl;
   currency: 'USD' | 'EUR' | 'GBP';
   inStock: boolean;
   categories: string[];
@@ -191,7 +191,7 @@ const product = RT.object({
   id: TF.string(),
   name: TF.string(),
   price: TF.positive(),
-  url: TF.url(),
+  url: TF.stringUrl(),
   currency: RT.union([RT.literal('USD'), RT.literal('EUR'), RT.literal('GBP')]),
   inStock: RT.boolean(),
   categories: RT.array(TF.string()),

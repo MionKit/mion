@@ -1988,23 +1988,23 @@ export const cases: CompetitorCases = {
     },
   },
   'STRING_FORMAT.url': {
-    build: () => createValidateFn<TF.Url>(),
+    build: () => createValidateFn<TF.StringUrl>(),
     buildErrors: () => {
-      const getErrors = createGetValidationErrorsFn<TF.Url>();
+      const getErrors = createGetValidationErrorsFn<TF.StringUrl>();
       return (value: unknown) => getErrors(value).length === 0;
     },
   },
   'STRING_FORMAT.urlHttp': {
-    build: () => createValidateFn<TF.UrlHttp>(),
+    build: () => createValidateFn<TF.StringUrlHttp>(),
     buildErrors: () => {
-      const getErrors = createGetValidationErrorsFn<TF.UrlHttp>();
+      const getErrors = createGetValidationErrorsFn<TF.StringUrlHttp>();
       return (value: unknown) => getErrors(value).length === 0;
     },
   },
   'STRING_FORMAT.urlFile': {
-    build: () => createValidateFn<TF.UrlFile>(),
+    build: () => createValidateFn<TF.StringUrlFile>(),
     buildErrors: () => {
-      const getErrors = createGetValidationErrorsFn<TF.UrlFile>();
+      const getErrors = createGetValidationErrorsFn<TF.StringUrlFile>();
       return (value: unknown) => getErrors(value).length === 0;
     },
   },

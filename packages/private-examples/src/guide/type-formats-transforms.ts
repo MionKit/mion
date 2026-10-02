@@ -25,8 +25,8 @@ const emailRt = transform(email(), {trim: true, lowercase: true});
 const isEmail = createValidateFn<Email>();
 isEmail('John@Example.COM'); // true, and not lowercased
 
-// Email, Domain, IP and Url keep their case unless asked: a URL path and, per the RFC, an email local part are case-sensitive
-const asIs = createFormatTransformFn<TF.Url>();
+// Email, Domain, IP and StringUrl keep their case unless asked: a URL path and, per the RFC, an email local part are case-sensitive
+const asIs = createFormatTransformFn<TF.StringUrl>();
 asIs('https://Example.com/Path'); // 'https://Example.com/Path'
 
 export {isEmail, sanitize, asIs, emailRt};

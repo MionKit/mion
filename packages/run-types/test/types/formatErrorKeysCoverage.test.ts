@@ -11,8 +11,8 @@ import type {
   DomainPartsParams,
   EmailPartsParams,
   IPParams,
-  NativeUrlParams,
   StringParams,
+  UrlObjectParams,
   UrlParams,
   UUIDParams,
 } from '../../src/formats/string/stringFormats.ts';
@@ -28,7 +28,7 @@ type ParamsByFormat = Exhaustive<{
   bigintFormat: BigIntParams;
   stringFormat: StringParams;
   url: UrlParams;
-  nativeUrl: NativeUrlParams;
+  nativeUrl: UrlObjectParams;
   uuid: UUIDParams;
   ip: IPParams;
   creditCard: CreditCardParams;

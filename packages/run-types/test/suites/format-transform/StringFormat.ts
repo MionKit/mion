@@ -110,13 +110,13 @@ export const STRING_FORMAT = {
     getCases: () => [{input: '2001:DB8::1', expected: '2001:db8::1'}],
   },
   url_identity_by_default: {
-    title: 'TF.Url — no rewrite unless the type asks: a URL path is case-sensitive',
-    formatTransform: () => createFormatTransformFn<TF.Url>(),
+    title: 'TF.StringUrl — no rewrite unless the type asks: a URL path is case-sensitive',
+    formatTransform: () => createFormatTransformFn<TF.StringUrl>(),
     getCases: () => [{input: 'https://Example.com/Path', expected: 'https://Example.com/Path'}],
   },
   url_opt_in_lowercase: {
-    title: 'TF.Url<{transform: {lowercase}}> — lowercases the whole URL when asked',
-    formatTransform: () => createFormatTransformFn<TF.Url<{transform: {lowercase: true}}>>(),
+    title: 'TF.StringUrl<{transform: {lowercase}}> — lowercases the whole URL when asked',
+    formatTransform: () => createFormatTransformFn<TF.StringUrl<{transform: {lowercase: true}}>>(),
     getCases: () => [{input: 'https://Example.com/Path', expected: 'https://example.com/path'}],
   },
   creditCard_strip_separators: {

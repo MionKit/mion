@@ -155,7 +155,7 @@
     },
     {
       "group": "string-preset",
-      "label": "url({maxLength})",
+      "label": "stringUrl({maxLength})",
       "fixed": 274,
       "fixedBudget": 274,
       "marginal": 46,

@@ -315,7 +315,7 @@ function mockEmail(params: EmailPartsParams, random: MockRandom): string {
 // ──────────────────────────────── URL ───────────────────────────────
 
 /** A URL object for the native URL class, honouring a `nativeUrl` format's params. **/
-export function mockNativeUrl(annotation: FormatAnnotation | undefined, random: MockRandom = nativeMockRandom): URL {
+export function mockUrlObject(annotation: FormatAnnotation | undefined, random: MockRandom = nativeMockRandom): URL {
   const params = (annotation?.name === 'nativeUrl' ? annotation.params : undefined) ?? {};
   // Bounds are checked on the href, which normalises the drawn text (a trailing slash, a lowercased host).
   return new URL(lengthFiltered(params, () => new URL(mockUrl(params as UrlParams, random)).href));

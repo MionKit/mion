@@ -23,12 +23,12 @@ type _drop = Expect<Equal<DataOnly<Dirty>, {a: string}>>;
 `;
 
 const KEEP_PROBE = `${PRELUDE}
-import type {NativeUrl, NativeUrlHttp} from '@mionjs/run-types/formats';
+import type {Url, UrlHttp} from '@mionjs/run-types/formats';
 type _keep = Expect<Equal<DataOnly<URL>, URL>>;
 type _keepNested = Expect<Equal<DataOnly<{link: URL; name: string}>, {link: URL; name: string}>>;
 type _wire = Expect<Equal<JSONShape<{link: URL}>, {link: string}>>;
-const plain: NativeUrl<{maxLength: 200}> = new URL('https://example.com');
-const http: NativeUrlHttp = new URL('https://example.com');
+const plain: Url<{maxLength: 200}> = new URL('https://example.com');
+const http: UrlHttp = new URL('https://example.com');
 plain.href.toUpperCase();
 http.pathname.toUpperCase();
 `;
@@ -69,7 +69,7 @@ function compileProbe(probe: string, lib: string[], types: string[]): string[] {
   });
 }
 
-describe('URL in DataOnly and the NativeUrl formats, in every lib posture (against the built dist)', () => {
+describe('URL in DataOnly and the Url object formats, in every lib posture (against the built dist)', () => {
   it('has the built dist to compile against', () => {
     expect(existsSync(resolve(DIST, 'index.d.ts')), `missing ${DIST} — run 'pnpm run check:builds'`).toBe(true);
   });

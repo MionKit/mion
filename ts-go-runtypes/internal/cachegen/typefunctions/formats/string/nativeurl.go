@@ -32,12 +32,12 @@ func (nativeUrlEmitter) ValidateParams(annotation *reflection.FormatAnnotation) 
 	params := annotation.Params
 	var errs []string
 	if _, present := params["transform"]; present {
-		errs = append(errs, "NativeUrl: `transform` is not supported, a URL object is never rewritten")
+		errs = append(errs, "Url: `transform` is not supported, a URL object is never rewritten")
 	}
 	maxLen, hasMax := formats.ReadNumberParam(params, "maxLength")
 	minLen, hasMin := formats.ReadNumberParam(params, "minLength")
 	if hasMax && hasMin && maxLen < minLen {
-		errs = append(errs, "NativeUrl: `maxLength` cannot be less than `minLength`")
+		errs = append(errs, "Url: `maxLength` cannot be less than `minLength`")
 	}
 	return errs
 }

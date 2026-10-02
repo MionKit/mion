@@ -232,7 +232,7 @@ func TestChain_NamedFormatPresets(t *testing.T) {
 		"export type Contact = TF.Email;\n" +
 		"type Uid = TF.UUIDv4;\n" +
 		"type AnyUid = TF.UUID;\n" +
-		"type Site = TF.Url;\n" +
+		"type Site = TF.StringUrl;\n" +
 		"type Host = TF.Hostname;\n" +
 		"type Day = TF.StringDate;\n" +
 		"type When = TF.Date<{min: 'now'}>;\n"
@@ -245,19 +245,19 @@ func TestChain_NamedFormatPresets(t *testing.T) {
 	convertAndCheckIDs(t, builderForm, convert.TargetType)
 }
 
-func TestChain_NativeUrl(t *testing.T) {
+func TestChain_UrlObject(t *testing.T) {
 	source := "import * as TF from '@mionjs/run-types/formats';\n" +
 		"export type Link = URL;\n" +
-		"type Short = TF.NativeUrl<{maxLength: 200}>;\n" +
-		"type Web = TF.NativeUrlHttp;\n"
+		"type Short = TF.Url<{maxLength: 200}>;\n" +
+		"type Web = TF.UrlHttp;\n"
 	builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
-	for _, expected := range []string{"TF.nativeUrl()", "TF.nativeUrl({maxLength: 200})"} {
+	for _, expected := range []string{"TF.url()", "TF.url({maxLength: 200})"} {
 		if !strings.Contains(builderForm, expected) {
 			t.Errorf("builder form missing %q:\n%s", expected, builderForm)
 		}
 	}
 	typeForm := convertAndCheckIDs(t, builderForm, convert.TargetType)
-	for _, expected := range []string{"export type Link = URL;", "TF.NativeUrl<{maxLength: 200}>"} {
+	for _, expected := range []string{"export type Link = URL;", "TF.Url<{maxLength: 200}>"} {
 		if !strings.Contains(typeForm, expected) {
 			t.Errorf("type form missing %q:\n%s", expected, typeForm)
 		}

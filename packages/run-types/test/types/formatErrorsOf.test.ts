@@ -38,7 +38,7 @@ function leafCases(): void {
   assertMutual<FormatErrorsOf<TF.IPv4>, TypeFormatError<'ip', never>>();
   // a single-mode format never sets it
   assertMutual<FormatErrorsOf<TF.UUIDv4>, TypeFormatError<'uuid', never>>();
-  assertMutual<FormatErrorsOf<TF.UrlHttp>, TypeFormatError<'url', never>>();
+  assertMutual<FormatErrorsOf<TF.StringUrlHttp>, TypeFormatError<'url', never>>();
 }
 
 function emailPartsCases(): void {

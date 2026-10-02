@@ -261,7 +261,7 @@ type StripMetaObject<T extends object, Depth extends number> =
     : T extends ReadonlyMap<any, any> | ReadonlySet<any>
       ? StripMetaUnbrandCollection<T> // a FormattedMap / FormattedSet → the bare collection
       : T extends StripMetaUrl
-        ? StripMetaUrl // a NativeUrl<…> → the bare URL
+        ? StripMetaUrl // a Url<…> → the bare URL
         : Exclude<keyof T, StripMetaSentinelKeys | symbol> extends never
           ? unknown // every key was metadata — the base was the broad kind
           : {
