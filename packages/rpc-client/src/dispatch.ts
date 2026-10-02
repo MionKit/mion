@@ -677,6 +677,8 @@ function buildResult(
 
   // every batch entry is a single call's Result, all pointing at the same response
   if (batchSubRequests)
-    return batchSubRequests.map((batchRoute) => [batchRoute.resolvedValue, declaredErrorFor(batchRoute.id), response]) as any;
-  return [routeSubRequest?.resolvedValue, routeSubRequest && declaredErrorFor(routeSubRequest.id), response] as any;
+    return batchSubRequests.map(
+      (batchRoute): Result<any, any> => [batchRoute.resolvedValue, declaredErrorFor(batchRoute.id), response]
+    );
+  return [routeSubRequest?.resolvedValue, routeSubRequest && declaredErrorFor(routeSubRequest.id), response];
 }
