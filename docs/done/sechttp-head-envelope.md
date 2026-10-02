@@ -1,7 +1,7 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-10-02
 ---
 
@@ -42,3 +42,30 @@ A HEAD response carries no body by the HTTP spec, so one of two things is wrong:
 
 - The replay above passes.
 - A plain test covers a HEAD request on a route.
+
+## Plan, oracle fix (approved 2026-10-02)
+
+The replay showed the node adapter is right. Its HEAD answer is valid HTTP: the headers a full answer would carry,
+`content-length` included, and no body.
+
+```
+HTTP/1.1 422 Unprocessable Entity
+content-type: application/json; charset=utf-8
+content-length: 242
+```
+
+The oracle was wrong in two places, both in `httpFuzzRunner.ts`:
+
+- `rawSocketRequest` waited for the 242 body bytes until its 3 s timeout (the second violation, `SH-TIME`).
+- the envelope check then parsed the empty body as JSON (`SH-ENVELOPE`).
+
+What shipped:
+
+- `rawSocketRequest` treats a HEAD answer as complete once the headers end.
+- the envelope check skips the JSON parse for a HEAD request and flags a HEAD answer that carries a body instead.
+- `runSocketAttacks` takes an optional attack list, so a plain test runs the HEAD attack with no seed
+  (`httpFuzz.integration.test.ts`).
+- `platform-node/test/mionHttp.spec.ts` pins the adapter side: HEAD on a route answers headers only and the next
+  request still answers.
+
+No adapter change.
