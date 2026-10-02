@@ -5,13 +5,18 @@ description: Build a docs/todos/ spec end to end, from an approved plan to the g
 
 # implement-todo
 
-Take one spec from `docs/todos/` and carry it through its whole life cycle: planning, building, review, simplification, an open PR, and a green CI. The job ends when the PR is open and green, not before. The specs in that directory range from full plans (Problem / Plan / Tests / Done-when with real `file:line` pointers) to loose pointers and open questions. Your job is to figure out which kind you have, fill any gaps, and get an **approved plan** before touching code — then build it to the spec's own "Done when" bar.
+Take one spec from `docs/todos/` and carry it through its whole life cycle: planning, building, review, simplification, an open PR, and a green CI. The job ends when the PR is open and green, not before.
+
+**Two modes, asked once in step 1.** Planning (steps 1 to 6) always asks the user questions, in both. The mode only decides what happens after the plan is approved:
+
+- **Automatic**: steps 7 to 13 run on their own, with no more questions, until the PR is open and CI is green. Where a step would ask, you decide, pick the safer option, and list each such decision in the final message. The review runs in its automatic mode.
+- **Manual**: the user stays in the loop. Forks are asked, and the review runs in its reviewed-by-you mode, so the user picks what to fix. The specs in that directory range from full plans (Problem / Plan / Tests / Done-when with real `file:line` pointers) to loose pointers and open questions. Your job is to figure out which kind you have, fill any gaps, and get an **approved plan** before touching code — then build it to the spec's own "Done when" bar.
 
 **The one hard gate: no file edits until the user has approved a plan via the plan tool.** Everything in steps 1-6 is reading, investigating, and asking — analysis only. Implementation (step 7) starts only after approval. If you are not already in plan mode, enter it (EnterPlanMode) after the todo is chosen so the invariant holds by construction and your clarifying questions read as planning.
 
 ## The arc
 
-1. **Pick** the todo (AskUserQuestion, unless the user already named one).
+1. **Pick** the todo (AskUserQuestion, unless the user already named one), and **ask the mode**.
 2. **Read** it fully and **summarize** it back to the user.
 3. **Classify** from the metadata `spec`: a ready-to-build plan, or guidelines you must plan from?
 4. **Decide** the tests / docs / fuzzing obligations.
@@ -25,11 +30,12 @@ Take one spec from `docs/todos/` and carry it through its whole life cycle: plan
 12. **Open the PR**.
 13. **Drive CI to green**.
 
-## Step 1 — Pick the todo
+## Step 1 — Pick the todo and the mode
 
 The source is **`docs/todos/*.md` only**. The sibling dirs are not candidates: `docs/done/` is finished, `docs/maybe/` is parked and deliberately not ready. Ignore `.gitkeep`.
 
 - **If the user already named a todo** — a filename, a path under `docs/todos/`, or an unambiguous description ("the union guard dedup one") — skip the question, confirm which file you landed on, and move to step 2.
+- **Ask the mode** in the same AskUserQuestion round (or its own if the user named the todo): automatic or manual, as described above.
 - **Otherwise ask with AskUserQuestion.** AskUserQuestion caps at 4 options, and there are often more todos than that, so: first list **every** todo in prose (one line each — filename, a one-line gist, and its status if the file states one like `READY`), then offer a curated set as options (prefer the `READY`/next-release ones) with "Other" covering the rest of the listed set. That way the user sees the full menu even though only a few are one-click.
 
 ## Step 2 — Read it fully, then summarize
@@ -101,7 +107,7 @@ Mirror the todo's own **Done when** so approval is measured against the author's
   - **Related** — it sits on the same code path, or the todo's fix is incomplete or wrong without it. Fix it here; that is the ideal, a clean fix rather than a half one that spawns a follow-up.
   - **Unrelated** — delegate it to a parallel background agent via the [delegate-finding skill](../delegate-finding/): guidelines todo, stable commit, background session in the Mion cloud environment, own branch and own PR — merged BEFORE this todo's PR.
   - **Genuinely cannot land now in either lane** (needs an upstream release, or a decision only the user can make)? File a `docs/todos/` spec with the evidence and a concrete fix plan, and tell the user it is still work owed rather than work closed out.
-  - **Needs a decision you cannot make alone?** Ask the user in this session and carry out the answer.
+  - **Needs a decision you cannot make alone?** Manual: ask the user in this session and carry out the answer. Automatic: choose the safer, smaller option and record it for the final message.
 
 ## Step 8 — PR-readiness gate, then finish
 
@@ -115,7 +121,7 @@ Run the gate before calling it done:
 
 ## Step 9 — Review (always, with the review-pr skill)
 
-Run the [review-pr skill](../review-pr/) over the branch, once the gate in step 8 is green. It asks the user whether the review is automatic or reviewed by them, and it fixes or presents the findings as that mode says. This skill's own simplification passes come after it, so the review does not run them and they run only once.
+Run the [review-pr skill](../review-pr/) over the branch, once the gate in step 8 is green. Tell it the mode from step 1, so it does not ask again: automatic fixes the findings itself, manual presents them and the user picks. This skill's own simplification passes come after it, so the review does not run them and they run only once.
 
 When the review's fixes are committed, re-run the step 8 gate (tests, lint, format) before moving on.
 
@@ -157,7 +163,7 @@ The PR is yours until it is green. Right after opening it, call `mcp__claude-cod
 - Answer review comments the way step 9 sorts findings: fix, delegate, or reply with a reason.
 - Add any missing label from step 12 if a lane did not start.
 
-Finish only when CI is green on the latest commit and there is no conflict. Then tell the user it is green. If only human approval is left, say so once.
+Finish only when CI is green on the latest commit and there is no conflict. Then tell the user it is green, and in automatic mode list the decisions you made along the way. If only human approval is left, say so once.
 
 ## What NOT to do
 
@@ -173,7 +179,7 @@ Finish only when CI is green on the latest commit and there is no conflict. Then
 - **Do not let an *unrelated* issue end as a filed-and-forgotten spec** — delegate it via the [delegate-finding skill](../delegate-finding/) (parallel agent, own PR, merged before this todo's PR); a spec is only for what truly cannot land in either lane, and it is a commitment to finish, not a way to close the loop.
 - **Do not let a diverged spec move unchanged** — if what shipped differs from the plan, update the todo to reflect reality before `git mv`-ing it to `docs/done/`.
 - **Do not reference a todo or done doc from any other file.** Not from docs, skills, workflows or code comments: those specs get deleted eventually. Write the reasoning where it is needed; if a spec lists documents that may go stale after merge, that list lives in the spec itself.
-- **Do not answer the skill's own AskUserQuestion for the user** — this skill is interactive by design; it needs the human's choices.
+- **Do not answer the planning questions for the user** — steps 1 to 6 are interactive in both modes. Only after the plan is approved, and only in automatic mode, do you decide for yourself.
 
 ## Gotchas
 
