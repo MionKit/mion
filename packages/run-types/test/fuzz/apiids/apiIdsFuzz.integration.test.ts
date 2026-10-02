@@ -13,7 +13,7 @@ function iterations(fallback: number): number {
 }
 
 describe('bundled API ids fuzz (CLI end to end)', () => {
-  register('two builds of one program ship the same ids to the client and the server', {timeout: 900_000}, async () => {
+  register('a client and a separately built server ship the same ids', {timeout: 900_000}, async () => {
     const report = await runApiIdsFuzz({
       seed: entrySeed('apiids'),
       iterations: iterations(5),
@@ -26,19 +26,21 @@ describe('bundled API ids fuzz (CLI end to end)', () => {
     const project = createApiProject();
     try {
       writeTypes(project, 'export type Root = {id: number; note: string | undefined};\n');
-      const first = compile(project, project.clientGen);
+      const first = compile(project, 'client');
       expect(first.status, first.stderr).toBe(0);
       const shipped = path.join(project.dir, 'shipped-client-manifest.json');
       fs.copyFileSync(path.join(project.clientGen, 'api', 'client-manifest.json'), shipped);
 
       writeTypes(project, 'export type Root = {id: number; note: string | undefined; tags: string[]};\n');
-      const rebuilt = compile(project, project.serverGen);
+      const rebuilt = compile(project, 'server');
       expect(rebuilt.status, rebuilt.stderr).toBe(0);
       const failing = apiCheck(project, project.serverGen, shipped);
       expect(failing.status).toBe(1);
       expect(failing.stderr).toContain('r0: paramsId differs');
 
-      const passing = apiCheck(project, project.serverGen, project.serverGen);
+      const current = compile(project, 'client');
+      expect(current.status, current.stderr).toBe(0);
+      const passing = apiCheck(project, project.serverGen, project.clientGen);
       expect(passing.status, passing.stderr).toBe(0);
     } finally {
       destroyApiProject(project);

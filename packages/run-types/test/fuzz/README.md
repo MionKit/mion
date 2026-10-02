@@ -462,17 +462,18 @@ with `MION_FUZZ_SEED=<seed> pnpm miondevx core fuzz sechttp`.
 The mion side of the id story. With `client.routes: 'bundle'`, a client build compiles the
 validators and serializers of every route it calls. The lane drives the real binary over one
 real temp project per generated data type, holding the server (one `initRoutes` call over two
-routes taking and returning the type) and a client calling both routes, and builds it twice into
-two gen dirs, the way a release builds the server and the client.
+routes taking and returning the type) and a client calling both routes. It builds the server
+alone into one gen dir, then the whole program into another, the way a release builds the server
+and the client apart.
 
 - **A1** the server manifest's `paramsId` / `returnId` equal the ids the
   reflection marker assigns to the same types (a probes file, both
   `getRunTypeId` call shapes), so the API tree walk and the marker scanner
   agree.
-- **A2** the client build reports no `MET` diagnostic, bundles exactly the
-  routes it calls, and writes the same `api/` tree as the server build.
-- **A3** `mion api-check` over the server manifest of one build and the client
-  manifest of the other exits 0.
+- **A2** the client build reports no `MET` diagnostic and bundles exactly the
+  routes it calls.
+- **A3** `mion api-check` over the server manifest of the server build and the
+  client manifest of the client build exits 0.
 
 The negative control is a fixed test beside the sweep: a client manifest from a build before a
 server-side type edit fails api-check on `paramsId`. Runner: `apiIdsFuzz.ts`; replay with

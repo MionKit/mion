@@ -1,7 +1,7 @@
-// The bundled-API id lane: the real `mion` binary builds one temp fullstack project twice per generated type,
-// into a SERVER then a CLIENT gen dir. A1: every server manifest row's ids equal a reflection-marker probe's
-// (both getRunTypeId call shapes). A2: the client build reports no MET diagnostic, bundles exactly the routes
-// it calls and writes a byte-identical api/ tree. A3: `mion api-check` over the two manifests exits 0.
+// The bundled-API id lane: the real `mion` binary builds one temp project twice per generated type, the server
+// alone into a SERVER gen dir, then the whole program into a CLIENT one. A1: every server manifest row's ids equal a
+// reflection-marker probe's (both getRunTypeId call shapes). A2: the client build reports no MET diagnostic and
+// bundles exactly the routes it calls. A3: `mion api-check` over the two separate builds' manifests exits 0.
 // The negative control lives in the integration test.
 
 import fs from 'node:fs';
@@ -106,7 +106,7 @@ export const b = routes.users.r1(rootValue).call();
 /** The route ids the client calls, in manifest order. **/
 export const CALLED_ROUTE_IDS = ['r0', 'users/r1'] as const;
 
-function tsconfig(extra: Record<string, unknown>): string {
+function tsconfig(exclude: string[]): string {
   const compilerOptions = {
     target: 'ES2022',
     module: 'ESNext',
@@ -116,12 +116,12 @@ function tsconfig(extra: Record<string, unknown>): string {
     strict: true,
     allowImportingTsExtensions: true,
     rewriteRelativeImportExtensions: true,
-    ...extra,
   };
-  return JSON.stringify({compilerOptions, include: ['src']}, null, 2) + '\n';
+  return JSON.stringify({compilerOptions, include: ['src'], exclude}, null, 2) + '\n';
 }
 
-export const PROJECT_TSCONFIG = tsconfig({});
+/** The server builds without the client's files, so it writes only the server manifest. **/
+const SERVER_TSCONFIG = 'tsconfig.server.json';
 
 /** Renders the generated type as the project's `types.ts`. **/
 export function renderTypesModule(gen: GeneratedType): string {
@@ -142,7 +142,8 @@ export function createApiProject(): ApiProject {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-apiids-fuzz-'));
   fs.mkdirSync(path.join(dir, 'src'), {recursive: true});
   writeMarkerPackage(dir);
-  fs.writeFileSync(path.join(dir, 'tsconfig.json'), PROJECT_TSCONFIG);
+  fs.writeFileSync(path.join(dir, 'tsconfig.json'), tsconfig([]));
+  fs.writeFileSync(path.join(dir, SERVER_TSCONFIG), tsconfig(['src/app.ts', 'src/client.d.ts']));
   const files = {
     'router.d.ts': ROUTER_DTS,
     'server.ts': SERVER_TS,
@@ -175,10 +176,11 @@ function runMion(args: string[], cwd: string): CliResult {
   return {status: result.status ?? -1, stdout: result.stdout ?? '', stderr: result.stderr ?? ''};
 }
 
-/** One build of the project into genDir, routes bundled. **/
-export function compile(project: ApiProject, genDir: string): CliResult {
+/** The server alone into serverGen, or the whole program into clientGen with its routes bundled. **/
+export function compile(project: ApiProject, side: 'server' | 'client'): CliResult {
+  const [tsconfigFile, genDir] = side === 'server' ? [SERVER_TSCONFIG, project.serverGen] : ['tsconfig.json', project.clientGen];
   return runMion(
-    ['compile', '--cwd', project.dir, '--tsconfig', 'tsconfig.json', '--gen-dir', genDir, '--client-routes', 'bundle'],
+    ['compile', '--cwd', project.dir, '--tsconfig', tsconfigFile, '--gen-dir', genDir, '--client-routes', 'bundle'],
     project.dir
   );
 }
@@ -201,18 +203,6 @@ interface Manifest {
 
 export function readManifest(genDir: string, file: 'manifest.json' | 'client-manifest.json'): Manifest {
   return JSON.parse(fs.readFileSync(path.join(genDir, 'api', file), 'utf8')) as Manifest;
-}
-
-/** Every file under dir, relative path to content. **/
-function readTree(dir: string, prefix = ''): Map<string, string> {
-  const out = new Map<string, string>();
-  for (const entry of fs.readdirSync(dir, {withFileTypes: true})) {
-    const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
-    const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) for (const [file, content] of readTree(full, rel)) out.set(file, content);
-    else out.set(rel, fs.readFileSync(full, 'utf8'));
-  }
-  return out;
 }
 
 /** The transform's import binding for a cache entry is `__rt_` plus the id
@@ -264,7 +254,7 @@ export function checkServerManifestAgainstProbes(project: ApiProject): void {
   }
 }
 
-/** A2: no MET diagnostic, exactly the called routes bundled, and the server build's api/ tree. **/
+/** A2: no MET diagnostic and exactly the called routes bundled. **/
 export function checkClientBundle(project: ApiProject, build: CliResult): void {
   if (build.status !== 0) throw new Error(`client compile exited ${build.status}\n--- stderr ---\n${build.stderr}`);
   const met = build.stderr.split('\n').filter((line) => /\bMET\d{3}\b/.test(line));
@@ -274,13 +264,6 @@ export function checkClientBundle(project: ApiProject, build: CliResult): void {
   const bundled = Object.keys(manifest.methods).sort();
   if (bundled.join(',') !== [...CALLED_ROUTE_IDS].sort().join(','))
     throw new Error(`A2: bundled ${bundled.join(',')}, expected ${CALLED_ROUTE_IDS.join(',')}`);
-  const serverTree = readTree(path.join(project.serverGen, 'api'));
-  const clientTree = readTree(path.join(project.clientGen, 'api'));
-  const files = new Set([...serverTree.keys(), ...clientTree.keys()]);
-  for (const file of files) {
-    if (serverTree.get(file) !== clientTree.get(file))
-      throw new Error(`A2: api/${file} differs between the two builds of one program`);
-  }
 }
 
 /** A3: api-check passes: the client's ids, families, options and chains are
@@ -308,10 +291,12 @@ export function runApiIdsIteration(project: ApiProject, gen: GeneratedType): voi
   const typesSource = renderTypesModule(gen);
   writeTypes(project, typesSource);
   try {
-    const server = compile(project, project.serverGen);
+    const server = compile(project, 'server');
     if (server.status !== 0) throw new Error(`server compile exited ${server.status}\n--- stderr ---\n${server.stderr}`);
+    if (fs.existsSync(path.join(project.serverGen, 'api', 'client-manifest.json')))
+      throw new Error('the server build holds no client, so it writes no client manifest');
     checkServerManifestAgainstProbes(project);
-    checkClientBundle(project, compile(project, project.clientGen));
+    checkClientBundle(project, compile(project, 'client'));
     checkApiCheckPasses(project);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
