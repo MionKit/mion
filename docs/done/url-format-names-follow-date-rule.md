@@ -51,8 +51,9 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
 
 ## Done when
 
-- The table above holds: no `NativeUrl*` / `nativeUrl*` name and no string-form `TF.Url*` / `TF.url*` name is left in
-  the TypeScript surface, docs, examples or tests.
+- The table above holds: no `NativeUrl*` / `nativeUrl*` identifier, type or builder name (the format name string
+  `'nativeUrl'` stays) and no string-form `TF.Url*` / `TF.url*` name is left in the TypeScript surface, docs, examples
+  or tests.
 - Ids and generated code for both families are unchanged (only spellings move).
 - `pnpm test`, the Go tests, `pnpm run lint` and `typecheck` pass; the PR carries `website`, `bench` and
   `pre-publish-e2e`.
@@ -61,7 +62,7 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
 
 ## What shipped
 
-- The table above, as written. The helper types behind the object family were renamed too (`NativeUrlParams` -> `UrlObjectParams`, `NativeUrlFormat` -> `UrlObjectFormat`, `NativeUrlPresetBuilder` -> `UrlObjectPresetBuilder`), and the mock helper `mockNativeUrl` -> `mockUrlObject`, so no `NativeUrl*` name is left in the TypeScript.
+- The table above, as written. The helper types behind the object family were renamed too (`NativeUrlParams` -> `UrlObjectParams`, `NativeUrlFormat` -> `UrlObjectFormat`, `NativeUrlPresetBuilder` -> `UrlObjectPresetBuilder`), and the mock helper `mockNativeUrl` -> `mockUrlObject`, so no `NativeUrl*` identifier, type or builder name is left in the TypeScript. The format name string `'nativeUrl'` stays, as a Go name. The test file is now `urlObject.test.ts` and the example `type-formats-url-object.ts`.
 - Go: `FormatFamilies["nativeUrl"]` now prints builder `url` and alias `Url`; the convert printer writes `url()`; the two error texts say `Url:`. The Go format names (`url`, `nativeUrl`) are untouched, so ids, error keys and `rtFormat` did not move.
-- Tests: the existing suites moved to the new names, and a new test pins that `TF.StringUrl` and `TF.Url` keep different ids.
+- Tests: the existing suites moved to the new names, and new tests pin that `TF.StringUrl` and `TF.Url` keep different ids (both `getRunTypeId` call shapes), that a string no longer fits `TF.Url` (a compile probe), and that the two Go error texts start with `Url:`.
 - The CHANGELOG is generated from commit subjects, so the rename is recorded by a `feat(run-types)!:` commit with a `BREAKING CHANGE:` footer.

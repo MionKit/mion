@@ -1,7 +1,7 @@
 import type * as TF from '@mionjs/run-types/formats';
 import {createJsonDecoderFn, createValidateFn} from '@mionjs/run-types';
 
-// start-native-url
+// start-url-object
 interface Bookmark {
   page: URL; // any URL object
   api: TF.UrlHttp<{maxLength: 200}>; // http(s) only, href up to 200 chars
@@ -17,4 +17,4 @@ const bookmark = decodeBookmark(
 bookmark.api.pathname; // '/v1', a real URL object
 isBookmark(bookmark); // true
 isBookmark({...bookmark, api: 'https://example.com/v1'}); // false, a string is not a URL
-// end-native-url
+// end-url-object
