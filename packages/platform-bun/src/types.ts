@@ -20,6 +20,6 @@ export interface BunHttpOptions {
   /** The platform's request ceiling in bytes that no option can raise; unset here, this platform has none. */
   maxBodySizeCap?: number;
   /** The HOST owns the socket: no `Bun.serve()` and no SIGINT/SIGTERM handlers; mount `bunRequestHandler` yourself.
-   *  `mionVitePlugin({server: {startScript, platform: '@mionjs/platform-bun'}})` sets this for you. */
+   *  Under `mionVitePlugin({server: {entry}})` it is set for you. */
   asMiddleware: boolean;
 }

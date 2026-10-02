@@ -68,7 +68,7 @@ export type RemoteApi = {
     | RemoteApi;
 };
 
-/** The aliases the route helpers hand their markers, so a `bundleApi` client compiles the same functions and ids.
+/** The aliases the route helpers hand their markers, so a bundling client compiles the same functions and ids.
  *  Type-only: never set at runtime. */
 export interface MethodTypes {
   /** the params tuple the server validates (a headers middleware's start after its HeadersSubset) */

@@ -20,6 +20,8 @@ import {
   getMaxRouteBodySize,
   readRequestBody,
   BodyReadStrategy,
+  hostOwnsSocket,
+  setHostRequestHandler,
 } from '@mionjs/router';
 import {DEFAULT_BUN_HTTP_OPTIONS} from './constants.ts';
 import type {BunHttpOptions} from './types.ts';
@@ -116,6 +118,10 @@ export async function startBunServer(options?: Partial<BunHttpOptions>): Promise
   const isTest = getENV('NODE_ENV') === 'test';
 
   if (options) setBunHttpOpts(options);
+  if (hostOwnsSocket()) {
+    setBunHttpOpts({asMiddleware: true});
+    setHostRequestHandler({fetch: bunRequestHandler});
+  }
 
   const port = httpOptions.port !== 80 ? `:${httpOptions.port}` : '';
   const url = `http://localhost${port}`;

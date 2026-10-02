@@ -8,7 +8,7 @@
 /** Vite plugin for mion — a thin preset over the runtypes core */
 export {mionVitePlugin, resolveRtBinary} from './mionVitePlugin.ts';
 export type {
-  MionClientPointer,
+  MionClientOptions,
   MionPluginOptions,
   MionRunTypesOptions,
   MionServerBuildOptions,

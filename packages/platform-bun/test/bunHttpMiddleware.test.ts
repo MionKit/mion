@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {expect, test, beforeAll, afterAll, describe, setDefaultTimeout} from 'bun:test';
-import {createMionRouter, resetRouter, getPlatformConfig} from '@mionjs/router';
+import {createMionRouter, resetRouter, getPlatformConfig, setHostOwnsSocket, getHostRequestHandler} from '@mionjs/router';
 import {setBunHttpOpts, resetBunHttpOpts, startBunServer, bunRequestHandler} from '../src/bunHttp.ts';
 import {CallContext} from '@mionjs/router';
 import {Server} from 'bun';
@@ -46,6 +46,19 @@ describe('bun asMiddleware should', () => {
     expect(getPlatformConfig()).toMatchObject({asMiddleware: true, port: 8081});
     // nothing is listening on the port it was configured with
     expect(fetch('http://127.0.0.1:8081/api/changeUserName')).rejects.toThrow();
+  });
+
+  test('register without listening when a dev host owns the socket, handing it the handler', async () => {
+    setBunHttpOpts({asMiddleware: false});
+    setHostOwnsSocket(true);
+    try {
+      const server = await startBunServer({port: 8082});
+      expect(server).toBeUndefined();
+      expect(getPlatformConfig()).toMatchObject({asMiddleware: true, port: 8082});
+      expect(getHostRequestHandler()).toEqual({fetch: bunRequestHandler});
+    } finally {
+      setHostOwnsSocket(false);
+    }
   });
 
   test('serve the same routes through bunRequestHandler mounted on the host', async () => {

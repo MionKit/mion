@@ -114,7 +114,7 @@ function devServer(root: string, sfc?: boolean): Promise<ViteDevServer> {
     appType: 'custom',
     resolve: markerAlias(root),
     server: {middlewareMode: true},
-    plugins: [mionVitePlugin({runTypes: {tsConfig: path.join(root, 'tsconfig.json'), sfc}}), vue()],
+    plugins: [mionVitePlugin({tsConfig: path.join(root, 'tsconfig.json'), runTypes: {sfc}}), vue()],
   });
 }
 
@@ -242,7 +242,7 @@ const ok = validate({a: 'x'});
         logLevel: 'silent',
         resolve: markerAlias(root),
         build: {write: false, rollupOptions: {input: path.join(root, 'src', 'entry.ts')}},
-        plugins: [mionVitePlugin({runTypes: {tsConfig: path.join(root, 'tsconfig.json')}}), vue()],
+        plugins: [mionVitePlugin({tsConfig: path.join(root, 'tsconfig.json')}), vue()],
       })
     ).rejects.toThrow(/build stopped|MKR007/);
 

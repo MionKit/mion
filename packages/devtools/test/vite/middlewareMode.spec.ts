@@ -20,13 +20,17 @@ import type {Plugin} from 'vite';
 // exists inside `configureServer`, so nothing short of an actual dev server + an actual HTTP request
 // proves it forwards, falls through, or fails the way it claims.
 //
-// `@mionjs/router` and the platform adapter are STUBBED through resolve.alias (the isolation trick
+// `@mionjs/router` and the platform adapters are STUBBED through resolve.alias (the isolation trick
 // batchesBuild.spec.ts uses): what is under test is the mount mechanism — which module is
 // loaded, what is asked of it, and which requests reach it — not route dispatch, which would drag
 // the mion resolver and a real program into a dev-server test.
 
 const ROUTER_STUB = (basePath: string) => `
-globalThis.__mion = globalThis.__mion ?? {loads: 0, resets: 0, platformConfig: undefined};
+globalThis.__mion = globalThis.__mion ?? {loads: 0, resets: 0, platformConfig: undefined, host: {}};
+export const setHostOwnsSocket = (owns) => {globalThis.__mion.host = owns ? {...globalThis.__mion.host, owns} : {};};
+export const hostOwnsSocket = () => globalThis.__mion.host.owns === true;
+export const setHostRequestHandler = (handler) => {globalThis.__mion.host.handler = handler;};
+export const getHostRequestHandler = () => globalThis.__mion.host.handler;
 export const getRouterOptions = () => ({basePath: ${JSON.stringify(basePath)}});
 export const getPlatformConfig = () => globalThis.__mion.platformConfig;
 export const setPlatformConfig = (config) => {globalThis.__mion.platformConfig = config;};
@@ -39,12 +43,18 @@ export const replaceBatches = (table) => {globalThis.__mion.batches = table;};
 const CORE_STUB = `export const registerInputMapperTuple = () => {};
 `;
 
-/** Node-style adapter stub: same export names @mionjs/platform-node uses. */
+/** Node-style adapter stub: same export names @mionjs/platform-node uses, and the same reaction to the host flag. */
 const NODE_PLATFORM_STUB = `
-import {setPlatformConfig} from '@mionjs/router';
+import {setPlatformConfig, hostOwnsSocket, setHostRequestHandler} from '@mionjs/router';
 let opts = {asMiddleware: false};
 export const setNodeHttpOpts = (patch) => (opts = {...opts, ...patch});
-export const startNodeServer = () => setPlatformConfig({...opts});
+export const startNodeServer = () => {
+    if (hostOwnsSocket()) {
+        opts = {...opts, asMiddleware: true};
+        setHostRequestHandler({node: httpRequestHandler});
+    }
+    setPlatformConfig({...opts});
+};
 export function httpRequestHandler(req, res) {
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');
@@ -54,10 +64,16 @@ export function httpRequestHandler(req, res) {
 
 /** Fetch-style adapter stub: same shape as @mionjs/platform-bun's bunRequestHandler. */
 const FETCH_PLATFORM_STUB = `
-import {setPlatformConfig} from '@mionjs/router';
+import {setPlatformConfig, hostOwnsSocket, setHostRequestHandler} from '@mionjs/router';
 let opts = {asMiddleware: false};
 export const setBunHttpOpts = (patch) => (opts = {...opts, ...patch});
-export const startBunServer = () => setPlatformConfig({...opts});
+export const startBunServer = () => {
+    if (hostOwnsSocket()) {
+        opts = {...opts, asMiddleware: true};
+        setHostRequestHandler({fetch: bunRequestHandler});
+    }
+    setPlatformConfig({...opts});
+};
 export async function bunRequestHandler(req) {
     const body = req.method === 'GET' ? null : await req.text();
     return new Response(JSON.stringify({served: 'fetch', url: req.url, method: req.method, body}), {
@@ -87,7 +103,7 @@ describe('middleware mode (in-process vite dev server)', () => {
   beforeEach(() => {
     root = mkdtempSync(path.join(tmpdir(), 'mion-middleware-'));
     mkdirSync(path.join(root, 'src'), {recursive: true});
-    (globalThis as any).__mion = {loads: 0, resets: 0, platformConfig: undefined};
+    (globalThis as any).__mion = {loads: 0, resets: 0, platformConfig: undefined, host: {}};
     ready = {resolved: false};
   });
 
@@ -111,21 +127,23 @@ describe('middleware mode (in-process vite dev server)', () => {
     const routerPath = path.join(root, 'router-stub.js');
     const corePath = path.join(root, 'core-stub.js');
     const platformPath = path.join(root, 'platform-stub.js');
+    const nodePlatformPath = path.join(root, 'platform-node-stub.js');
     const entryPath = path.join(root, 'src', 'entry.ts');
     writeFileSync(routerPath, ROUTER_STUB(opts.basePath ?? '/api'));
     writeFileSync(corePath, CORE_STUB);
     writeFileSync(platformPath, opts.platformStub ?? NODE_PLATFORM_STUB);
+    writeFileSync(nodePlatformPath, NODE_PLATFORM_STUB);
     writeFileSync(path.join(root, 'src', 'routes.ts'), ROUTES);
     writeFileSync(entryPath, opts.entry ?? ENTRY(platformPath));
 
-    const serverOptions: MionServerOptions = {startScript: entryPath, platform: platformPath, ...opts.server};
+    const serverOptions: MionServerOptions = {entry: entryPath, ...opts.server};
     vite = await createServer({
       root,
       configFile: false,
       logLevel: 'silent',
       appType: 'custom', // no SPA fallback: an unmatched request must 404, not return index.html
       server: {middlewareMode: true},
-      resolve: {alias: {'@mionjs/router': routerPath, '@mionjs/core': corePath}},
+      resolve: {alias: {'@mionjs/router': routerPath, '@mionjs/core': corePath, '@mionjs/platform-node': nodePlatformPath}},
       plugins: [
         mionMiddlewarePlugin(serverOptions, {
           onReady: () => (ready.resolved = true),
@@ -235,6 +253,33 @@ setPlatformConfig({port: 8076, asMiddleware: false});
     expect((globalThis as any).__mion.platformConfig).toMatchObject({asMiddleware: true});
   });
 
+  it('takes the handler from the entry itself before any adapter', async () => {
+    const entry = `
+globalThis.__mion.loads += 1;
+export function requestHandler() {
+    return new Response(JSON.stringify({served: 'entry'}), {headers: {'content-type': 'application/json'}});
+}
+`;
+    await startDevServer({basePath: '/api', entry});
+    const res = await fetch(`${baseUrl}/api/users.get`);
+    expect(((await res.json()) as {served: string}).served).toBe('entry');
+  });
+
+  it('serves an entry that only registers routes through the node adapter', async () => {
+    await startDevServer({basePath: '/api', entry: `import './routes.ts';\nglobalThis.__mion.loads += 1;\n`});
+    const res = await fetch(`${baseUrl}/api/users.get`);
+    expect(((await res.json()) as {served: string}).served).toBe('node');
+  });
+
+  it('clears the host flag when the dev server closes, so a later server in the process listens', async () => {
+    await startDevServer({basePath: '/api'});
+    await fetch(`${baseUrl}/api/users.get`);
+    expect((globalThis as any).__mion.host.owns).toBe(true);
+    await vite!.close();
+    vite = undefined;
+    expect((globalThis as any).__mion.host.owns).toBeUndefined();
+  });
+
   it('re-loads the API after a source change, resetting the router first', async () => {
     await startDevServer({basePath: '/api'});
     await fetch(`${baseUrl}/api/users.get`);
@@ -337,7 +382,7 @@ startNodeServer();
     // which is the assertion.
     const plugins = (
       mionVitePlugin({
-        server: {startScript: path.join(root, 'src', 'entry.ts'), platform: '/nope.js'},
+        server: {entry: path.join(root, 'src', 'entry.ts')},
       }) as unknown as Plugin[]
     )
       .flat()
@@ -363,7 +408,7 @@ startNodeServer();
   });
 
   it('keeps @mionjs/* in one SSR instance', () => {
-    const plugin = mionMiddlewarePlugin({startScript: '/srv.ts'}, {onReady: () => {}, onError: () => {}});
+    const plugin = mionMiddlewarePlugin({entry: '/srv.ts'}, {onReady: () => {}, onError: () => {}});
     const config = (plugin.config as (c: unknown, e: unknown) => {ssr: {noExternal: RegExp[]}}).call(
       plugin,
       {},
@@ -378,11 +423,11 @@ describe('the server block mounts in-process, and only in-process', () => {
     (mionVitePlugin({server: options}) as unknown as Plugin[]).flat().map((plugin) => (plugin as Plugin)?.name);
 
   it('mounts in-process — one program, one process, no lane to choose', () => {
-    expect(pluginNames({startScript: '/srv.ts'})).toContain('mion-middleware-server');
+    expect(pluginNames({entry: '/srv.ts'})).toContain('mion-middleware-server');
   });
 
   it('adds the server-bundle plugin only when server.build asks for it', () => {
-    expect(pluginNames({startScript: '/srv.ts'})).not.toContain('mion-server-bundle');
-    expect(pluginNames({startScript: '/srv.ts', build: {}})).toContain('mion-server-bundle');
+    expect(pluginNames({entry: '/srv.ts'})).not.toContain('mion-server-bundle');
+    expect(pluginNames({entry: '/srv.ts', build: {}})).toContain('mion-server-bundle');
   });
 });

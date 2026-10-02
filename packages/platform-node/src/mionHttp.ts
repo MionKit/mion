@@ -17,6 +17,8 @@ import {
   setPlatformConfig,
   getResponseDefaults,
   requestPayloadTooLarge,
+  hostOwnsSocket,
+  setHostRequestHandler,
 } from '@mionjs/router';
 import type {MethodsExecutionChain} from '@mionjs/router';
 import {createServer as createHttp} from 'http';
@@ -63,6 +65,10 @@ export async function startNodeServer(options?: Partial<NodeHttpOptions>): Promi
   const isTest = getENV('NODE_ENV') === 'test';
 
   if (options) setNodeHttpOpts(options);
+  if (hostOwnsSocket()) {
+    setNodeHttpOpts({asMiddleware: true});
+    setHostRequestHandler({node: httpRequestHandler});
+  }
   const port = httpOptions.port !== 80 ? `:${httpOptions.port}` : '';
   const url = `${httpOptions.protocol}://localhost${port}`;
   if (!isTest && !httpOptions.asMiddleware)

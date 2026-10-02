@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {Route, RouterOptions, Routes, RouterEntry} from './types/general.ts';
+import type {HostRequestHandler, Route, RouterOptions, Routes, RouterEntry} from './types/general.ts';
 import type {
   RemoteMethod,
   MethodsExecutionChain,
@@ -174,6 +174,28 @@ export function setPlatformConfig(config: Record<string, unknown>): void {
 }
 
 export const getPlatformConfig = (): Readonly<Record<string, unknown>> | undefined => platformConfig;
+
+// Survives resetRouter on purpose: a dev host reloads the entry after a reset and still owns the socket.
+const devHost = getOrCreateGlobal('mion.router.devHost', () => ({
+  ownsSocket: false,
+  handler: undefined as HostRequestHandler | undefined,
+}));
+
+/** Set by a dev host that owns the socket (the mion vite plugin) BEFORE it loads the server entry, so whatever
+ *  platform adapter the entry starts registers its routes and hands over its handler instead of listening. */
+export function setHostOwnsSocket(ownsSocket: boolean): void {
+  devHost.ownsSocket = ownsSocket;
+  if (!ownsSocket) devHost.handler = undefined;
+}
+
+export const hostOwnsSocket = (): boolean => devHost.ownsSocket;
+
+/** Called by a platform adapter started while a dev host owns the socket. */
+export function setHostRequestHandler(handler: HostRequestHandler): void {
+  devHost.handler = handler;
+}
+
+export const getHostRequestHandler = (): HostRequestHandler | undefined => devHost.handler;
 
 export const resetRouter = () => {
   flatRouter.clear();

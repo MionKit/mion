@@ -17,12 +17,8 @@ the tsconfig then writes nothing.
 only and writes nothing (tsc --noEmit-style).
 
 Flags:
-  --api-tsconfig PATH
-    	tsconfig PATH of the SEPARATE project declaring the mion API this client calls: under --bundle-api the routes' types resolve in that program, so the client emits the server's exact runtypes (default: the tsconfig apiTsconfig plugin key, else this program)
-  --bundle-api string
-    	bundle the metadata + compiled functions of every route this client calls: bundled (a route the build cannot see is fetched only when the client sets up useFetchMetadata) | off (every route fetched) (default: the tsconfig bundleApi plugin key, else bundled)
-  --client-tsconfig PATH
-    	tsconfig PATH of a SEPARATE mion client project: this (server) build generates the batch transport (<genDir>/rpc/) from its batch() calls and inline inputFrom mappers (default: the tsconfig clientTsconfig plugin key, else this program)
+  --client-routes string
+    	how this client gets the metadata + compiled functions of the routes it calls: bundle (a route the build cannot see is fetched only when the client sets up useFetchMetadata) | fetch (every route fetched) (default: the tsconfig clientRoutes plugin key, else bundle)
   --cwd string
     	working directory (default: $PWD)
   --emit-mode string
@@ -132,12 +128,8 @@ default), stdin (a {"sources":{…}} handshake line, one inferred Program), or o
 (no startup Program; the client drives setSources / scanFiles / dump).
 
 Flags:
-  --api-tsconfig PATH
-    	tsconfig PATH of the SEPARATE project declaring the mion API this client calls: under --bundle-api the routes' types resolve in that program, so the client emits the server's exact runtypes (default: the tsconfig apiTsconfig plugin key, else this program)
-  --bundle-api string
-    	bundle the metadata + compiled functions of every route this client calls: bundled (a route the build cannot see is fetched only when the client sets up useFetchMetadata) | off (every route fetched) (default: the tsconfig bundleApi plugin key, else bundled)
-  --client-tsconfig PATH
-    	tsconfig PATH of a SEPARATE mion client project: this (server) build generates the batch transport (<genDir>/rpc/) from its batch() calls and inline inputFrom mappers (default: the tsconfig clientTsconfig plugin key, else this program)
+  --client-routes string
+    	how this client gets the metadata + compiled functions of the routes it calls: bundle (a route the build cannot see is fetched only when the client sets up useFetchMetadata) | fetch (every route fetched) (default: the tsconfig clientRoutes plugin key, else bundle)
   --cwd string
     	working directory (default: $PWD)
   --emit-mode string
@@ -223,7 +215,7 @@ Run  mion <command> -h  for a command's own options.
 
 Shared options (same meaning under every command):
     --tsconfig PATH     tsconfig.json to load (default: discover upward from --cwd)
-    --client-tsconfig PATH  a separate mion client project's tsconfig; the batch transport (<genDir>/rpc/) is generated from it
+    --client-routes MODE  route metadata in a client build: bundle (default) | fetch
     --cwd PATH          working directory (default: $PWD)
     --hash-length N     short-id length for type hashes (default 7)
     --emit-mode MODE    fn-entry code/factory slots: code (default) | functions | both

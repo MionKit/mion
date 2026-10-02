@@ -43,7 +43,7 @@ register('the inferred generated folder stays put in vite dev', () => {
       configFile: false,
       customLogger: createLogger('silent'),
       server: {middlewareMode: true},
-      plugins: mionVitePlugin({runTypes: {tsConfig: path.join(dir, 'tsconfig.json'), binary: BIN}}),
+      plugins: mionVitePlugin({tsConfig: path.join(dir, 'tsconfig.json'), runTypes: {binary: BIN}}),
     });
     const inferred = path.join(dir, 'src', '.mion', 'types');
     await waitFor(() => fs.existsSync(inferred), 'the build-start output under src/.mion');

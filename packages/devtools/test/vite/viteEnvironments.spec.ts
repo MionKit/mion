@@ -117,9 +117,10 @@ register('one config, two bundles', () => {
         alias: {'@mionjs/router': path.join(root, 'router-stub.js'), '@mionjs/run-types': path.join(root, 'marker-stub.js')},
       },
       plugins: mionVitePlugin({
-        runTypes: {tsConfig: path.join(root, 'tsconfig.json'), binary, genDir: path.join(root, '.mion')},
+        tsConfig: path.join(root, 'tsconfig.json'),
+        runTypes: {binary, genDir: path.join(root, '.mion')},
         server: {
-          startScript: path.join(root, 'src', 'server.ts'),
+          entry: path.join(root, 'src', 'server.ts'),
           build: serverOutDir ? {outDir: serverOutDir} : {},
         },
       }),
@@ -179,8 +180,9 @@ register('one config, two bundles', () => {
         alias: {'@mionjs/router': path.join(root, 'router-stub.js'), '@mionjs/run-types': path.join(root, 'marker-stub.js')},
       },
       plugins: mionVitePlugin({
-        runTypes: {tsConfig: path.join(root, 'tsconfig.json'), binary, genDir: path.join(root, '.mion')},
-        server: {startScript: path.join(root, 'src', 'server.ts')},
+        tsConfig: path.join(root, 'tsconfig.json'),
+        runTypes: {binary, genDir: path.join(root, '.mion')},
+        server: {entry: path.join(root, 'src', 'server.ts')},
       }),
       build: {minify: false},
     });

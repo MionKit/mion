@@ -19,6 +19,6 @@ export interface NodeHttpOptions {
   /** The platform's request ceiling in bytes that no option can raise; unset here, this platform has none. */
   maxBodySizeCap?: number;
   /** The HOST owns the socket: no `listen()` and no SIGINT/SIGTERM handlers; mount `httpRequestHandler` yourself.
-   *  `mionVitePlugin({server: {startScript}})` sets this for you. */
+   *  Under `mionVitePlugin({server: {entry}})` it is set for you. */
   asMiddleware: boolean;
 }

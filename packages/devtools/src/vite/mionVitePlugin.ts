@@ -14,14 +14,13 @@ import type {Plugin, PluginOption} from 'vite';
 import {
   resolveRtBinary,
   toRunTypesOptions,
-  type MionApiPointer,
-  type MionClientPointer,
+  type MionClientOptions,
   type MionPresetOptions,
   type MionRunTypesOptions,
 } from '../options.ts';
 
 export {resolveRtBinary};
-export type {MionApiPointer, MionClientPointer, MionRunTypesOptions};
+export type {MionClientOptions, MionRunTypesOptions};
 
 // ############# mion vite plugin #############
 // A thin preset over the runtypes core, adding mion's own choices: the in-process API, the server bundle,
@@ -30,18 +29,14 @@ export type {MionApiPointer, MionClientPointer, MionRunTypesOptions};
 /** The mion API behind this vite run: ONE program, ONE process. In dev it is mounted as middleware with no
  *  port of its own, so a test that needs a real socket starts the API itself in its globalSetup. */
 export interface MionServerOptions {
-  /** Absolute path to the server entry: SSR-loaded in dev, the server bundle's input when `build` is set. */
-  startScript: string;
+  /** Path to the server entry (absolute, or relative to the vite root): SSR-loaded in dev, the server bundle's
+   *  input when `build` is set. */
+  entry: string;
   /** Opt in to the SERVER bundle: `vite build` then emits BOTH the client files and the API, from this one
    *  config. Off by default, so a `build.lib` project is untouched. */
   build?: MionServerBuildOptions;
-  /** DEV: mount prefix, defaulting to the router's own `basePath`, which is what route paths already carry.
-   *  With no basePath at all mion serves at the root and `exclude` decides what reaches vite instead. */
-  basePath?: string;
-  /** DEV: where the request handler comes from (default '@mionjs/platform-node', node-style, no Request is
-   *  materialized). A fetch-style adapter such as '@mionjs/platform-bun' is bridged from node req/res. */
-  platform?: string;
-  /** DEV + no basePath: paths NOT served by mion, so vite's internals and static assets still work. */
+  /** DEV + no router `basePath`: paths NOT served by mion, so vite's internals and static assets still work.
+   *  With a basePath the router's prefix decides what reaches mion. */
   exclude?: RegExp[];
   /** DEV: re-load the API when its sources change (default true); the reload resets the router first, since
    *  `initRoutes` refuses to run twice. */
@@ -56,21 +51,11 @@ export interface MionServerBuildOptions {
 }
 
 // Batch transport needs no config: the SERVER build's resolver does it all inside the transform, so this
-// preset only forwards the pointer and handles vite's module graph.
+// preset only handles vite's module graph.
 // The wire carries only the batch id, so the server runs exactly the batches and mappers its own build baked in.
 
 /** Options for the unified mion vite plugin. */
-export interface MionPluginOptions {
-  /** mion type transformation options. */
-  runTypes?: MionRunTypesOptions;
-  /** The separate client project this API serves batches to; unset when client and server share
-   *  this program. See MionClientPointer. */
-  client?: MionClientPointer;
-  /** The separate project declaring the API this client calls; unset when they share this program.
-   *  See MionApiPointer. */
-  api?: MionApiPointer;
-  /** Default true. See MionPresetOptions.bundleApi. */
-  bundleApi?: MionPresetOptions['bundleApi'];
+export interface MionPluginOptions extends MionPresetOptions {
   /** The mion API this run hosts: mounted inside the dev server, and optionally emitted as a second
    *  bundle by `vite build`. One program, one process. */
   server?: MionServerOptions;
@@ -85,7 +70,7 @@ export interface MionPluginOptions {
  * import {mionVitePlugin} from '@mionjs/devtools/vite';
  *
  * export default defineConfig({
- *   plugins: [mionVitePlugin({runTypes: {tsConfig: resolve(__dirname, 'tsconfig.json')}})],
+ *   plugins: [mionVitePlugin({server: {entry: 'src/server.ts'}})],
  * });
  * ```
  */
@@ -148,7 +133,7 @@ export function mionVitePlugin(options: MionPluginOptions = {}): PluginOption[] 
   };
 
   const rtPluginOptions: TsRuntypesPluginOptions = {
-    ...toRunTypesOptions(rt, options.client, {api: options.api, bundleApi: options.bundleApi}),
+    ...toRunTypesOptions(options),
     onGenerate: transport.onGenerate,
     // Editing a type in ANOTHER file leaves every file reflecting it serving a validator for the old shape:
     // the import that named it was erased, so vite has no edge to follow and the resolver reports the stale
@@ -217,7 +202,7 @@ function serverBundlePlugin(server: MionServerOptions, build: MionServerBuildOpt
             build: {
               outDir: build.outDir ?? 'dist-server',
               emptyOutDir: true,
-              rollupOptions: {input: server.startScript},
+              rollupOptions: {input: server.entry},
             },
           },
         },

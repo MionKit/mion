@@ -6,7 +6,14 @@
  * ######## */
 import {describe, it, expect, beforeEach, afterEach} from 'vitest';
 import {createServer, type Server} from 'http';
-import {createMionRouter, resetRouter, getPlatformConfig} from '@mionjs/router';
+import {
+  createMionRouter,
+  resetRouter,
+  getPlatformConfig,
+  setHostOwnsSocket,
+  hostOwnsSocket,
+  getHostRequestHandler,
+} from '@mionjs/router';
 import {setNodeHttpOpts, resetNodeHttpOpts, startNodeServer, httpRequestHandler} from '../src/mionHttp.ts';
 import type {CallContext, Route} from '@mionjs/router';
 
@@ -36,6 +43,7 @@ describe('startNodeServer({asMiddleware: true})', () => {
   afterEach(async () => {
     if (host) await new Promise<void>((resolve) => host!.close(() => resolve()));
     host = undefined;
+    setHostOwnsSocket(false);
     resetNodeHttpOpts();
   });
 
@@ -52,12 +60,28 @@ describe('startNodeServer({asMiddleware: true})', () => {
   });
 
   it('keeps the flag when a later start passes only other options', async () => {
-    // This is the plugin's path: it flips the flag through setNodeHttpOpts before loading the
-    // entry, and the entry then calls startNodeServer({port}) as it always did.
     setNodeHttpOpts({asMiddleware: true});
     const server = await startNodeServer({port: 8079});
     expect(server.listening).toBe(false);
     expect(getPlatformConfig()).toMatchObject({asMiddleware: true, port: 8079});
+  });
+
+  it('does not listen when a dev host owns the socket, and hands it the handler', async () => {
+    // The vite plugin's path: it sets the router's host flag before loading the entry, which then
+    // calls startNodeServer({port}) as it always did.
+    setHostOwnsSocket(true);
+    const server = await startNodeServer({port: 8080});
+    expect(server.listening).toBe(false);
+    expect(getPlatformConfig()).toMatchObject({asMiddleware: true, port: 8080});
+    expect(getHostRequestHandler()).toEqual({node: httpRequestHandler});
+  });
+
+  it('forgets the handed-over handler once the host flag is cleared', async () => {
+    setHostOwnsSocket(true);
+    await startNodeServer({port: 8081});
+    setHostOwnsSocket(false);
+    expect(hostOwnsSocket()).toBe(false);
+    expect(getHostRequestHandler()).toBeUndefined();
   });
 
   it('still serves routes through httpRequestHandler mounted on the host', async () => {
