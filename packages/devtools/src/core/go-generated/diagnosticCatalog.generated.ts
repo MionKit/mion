@@ -377,6 +377,18 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     level: 'runtimeError',
     family: 'marker',
   },
+  MET012: {
+    headline:
+      'This client hashes its API ids to the build version {0}, but the API types it reads come from a server build with {1}: every call reports a version mismatch.',
+    level: 'runtimeError',
+    family: 'marker',
+  },
+  MET013: {
+    headline:
+      'The API types this client reads carry no server build version, so a client and server built with different ids are only caught at runtime.',
+    level: 'warning',
+    family: 'marker',
+  },
   MKR001: {
     headline:
       '`{0}()` is being called at runtime just so the marker can read its return type: side effects, throws, or async work run for nothing.',

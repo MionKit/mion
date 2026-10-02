@@ -59,6 +59,12 @@ export type PublicApi<Type extends Routes> = Prettify<{
         : never;
 }>;
 
+declare const apiBuildVersion: unique symbol;
+
+/** The server build version `initRoutes` returns in its type, so a published `.d.ts` carries it: a client built from
+ *  that `.d.ts` compares it with its own at build time. `string` when the build filled no version. Type-only. */
+export type ApiBuildVersion<Version extends string> = {readonly [apiBuildVersion]?: Version};
+
 /** Same as PublicApi but with no type mapping, for when strong types are not required. */
 export type RemoteApi = {
   [key: string]:

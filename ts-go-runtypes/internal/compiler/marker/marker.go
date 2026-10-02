@@ -353,7 +353,8 @@ func matchedByBrand(typeChecker *checker.Checker, paramType *checker.Type, spec 
 // typeArgumentFromBrand recovers T from the phantom brand when a user alias hid the marker's alias name.
 // nil unless the trusted marker package declared the brand, so a project's own look-alike stays inert.
 func typeArgumentFromBrand(typeChecker *checker.Checker, paramType *checker.Type, spec Spec, opts Options) *checker.Type {
-	if spec.Kind != KindInjectRunTypeId && spec.Kind != KindInjectTypeFnArgs {
+	// InjectBuildVersion is intersected with initRoutes' version literal, which hides the alias the same way.
+	if spec.Kind != KindInjectRunTypeId && spec.Kind != KindInjectTypeFnArgs && spec.Kind != KindInjectBuildVersion {
 		return nil
 	}
 	return trustedBrandType(typeChecker, paramType, spec.BrandProperty, opts)

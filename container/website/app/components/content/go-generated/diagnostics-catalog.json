@@ -1317,6 +1317,24 @@
       "example": null
     },
     {
+      "code": "MET012",
+      "subsystem": "bundled-api",
+      "level": "runtimeError",
+      "headline": "This client hashes its API ids to the build version {0}, but the API types it reads come from a server build with {1}: every call reports a version mismatch.",
+      "summary": "A server built with `mion compile` writes its build version into the API type of its `.d.ts`. This client computed different ids from those types, usually because its tsconfig or a library version differs from the server's, so the server would answer every call with a version mismatch. Build the client with the server's tsconfig and library versions, or use `client: {routes: 'fetch'}` to read the routes from the server at runtime.",
+      "fix": "mionVitePlugin({client: {routes: 'fetch'}})",
+      "example": null
+    },
+    {
+      "code": "MET013",
+      "subsystem": "bundled-api",
+      "level": "warning",
+      "headline": "The API types this client reads carry no server build version, so a client and server built with different ids are only caught at runtime.",
+      "summary": "The API types this client reads come from a `.d.ts` without a server build version, for example one written by plain `tsc`. The client still builds, but if its ids differ from the server's, you only find out at runtime. Build the API package with `mion compile` so its types carry the version and the client build checks it.",
+      "fix": "mion compile --tsconfig tsconfig.build.json",
+      "example": null
+    },
+    {
       "code": "SRV001",
       "subsystem": "client-imports",
       "level": "runtimeError",

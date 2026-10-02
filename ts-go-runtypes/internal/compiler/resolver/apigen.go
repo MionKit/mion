@@ -51,7 +51,7 @@ func (sess *Session) extractApiSitesForScan(files []string) ([]apimeta.Site, []d
 
 // apiVersionFiles lists the version-slot files, so one whose only marker use is `initRoutes` / `initClient` is still transformed.
 func (sess *Session) apiVersionFiles(files, routerInitFiles []string) []string {
-	if sess.Program == nil || !sess.apiVersionTrusted() {
+	if sess.Program == nil || !sess.apiVersionOn() {
 		return nil
 	}
 	initClientFiles := apimeta.InitFiles(apimeta.InitSitesFromProgramCached(sess.checker, sess.marker, sess.Program, files, sess.apiInitFileCache))

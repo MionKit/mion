@@ -22,7 +22,11 @@ const versionRouterDTS = `declare module '@mionjs/router' {
       ? {type: T; handler: H; options: Opts; types?: {params: Parameters<H>; return: Awaited<ReturnType<H>>; headers: never; isAsync: false}}
       : PublicApi<R[K]>;
   };
-  export interface MionRouter { initRoutes<R>(routes: R, buildVersion?: InjectBuildVersion<PublicApi<R>>): PublicApi<R> }
+  const apiBuildVersion: unique symbol;
+  export type ApiBuildVersion<V extends string> = {readonly [apiBuildVersion]?: V};
+  export interface MionRouter {
+    initRoutes<R, const V extends string = string>(routes: R, buildVersion?: InjectBuildVersion<PublicApi<R>> & V): PublicApi<R> & ApiBuildVersion<V>;
+  }
   export function createMionRouter(): MionRouter;
 }
 `
@@ -111,12 +115,113 @@ func TestApiVersion_RouterPackageOwnFilesAreTrusted(t *testing.T) {
 	}
 }
 
-// TestApiVersion_UntrustedClientGetsNone: a client whose program does not hold the router resolved the API's
-// types under its own settings, so its ids may differ with nothing wrong; it injects nothing.
-func TestApiVersion_UntrustedClientGetsNone(t *testing.T) {
-	client := setupApi(t, map[string]string{"client.d.ts": versionClientDTS, "client.ts": versionClientTS}, t.TempDir(), constants.ClientRoutesBundle)
+// packageApiDTS is the .d.ts a server package built with `mion compile` publishes, carrying version as its build version.
+func packageApiDTS(version string) string {
+	return `declare module '@acme/api' {
+  import type {ApiBuildVersion, PublicApi} from '@mionjs/router';
+  type Routes = {
+    users: {getById: {type: 1; handler: (id: number, verbose: boolean) => {id: number; name: string}}};
+    sum: {type: 1; handler: (a: number, b: number) => number};
+  };
+  export const api: PublicApi<Routes> & ApiBuildVersion<` + version + `>;
+}
+`
+}
+
+const packageClientTS = `import {initClient} from '@mionjs/client';
+import type {api} from '@acme/api';
+export const {routes} = initClient<typeof api>({baseURL: 'http://x'});
+`
+
+// serverVersion builds the server from source and returns what its initRoutes injects.
+func serverVersion(t *testing.T) string {
+	t.Helper()
+	version := transformedVersion(t, setupApi(t, map[string]string{"router.d.ts": versionRouterDTS, "routes.ts": apiServerRoutesTS(1, false)}, t.TempDir(), ""), "routes.ts")
+	if version == "" {
+		t.Fatal("the server got no version")
+	}
+	return version
+}
+
+// packageClient builds a client reading the API from a package .d.ts whose type carries version, and returns its MET diagnostics.
+func packageClient(t *testing.T, version string, routesMode constants.ClientRoutesMode) (*resolver.Session, []diagnostics.Diagnostic) {
+	t.Helper()
+	sources := map[string]string{
+		"router.d.ts": versionRouterDTS,
+		"client.d.ts": versionClientDTS,
+		"acme.d.ts":   packageApiDTS(version),
+		"client.ts":   packageClientTS,
+	}
+	session := setupApi(t, sources, t.TempDir(), routesMode)
+	generated := session.Dispatch(protocol.Request{Op: protocol.OpGenerate})
+	if generated.Error != "" {
+		t.Fatalf("generate: %s", generated.Error)
+	}
+	return session, metDiags(generated.Diagnostics)
+}
+
+// TestApiVersion_DeclarationVersionMatches: a client built from the server's published types hashes to the version they carry.
+func TestApiVersion_DeclarationVersionMatches(t *testing.T) {
+	server := serverVersion(t)
+	client, diags := packageClient(t, "'"+server+"'", constants.ClientRoutesBundle)
+	if len(diags) != 0 {
+		t.Fatalf("a client matching its server's build reports nothing, got %+v", diags)
+	}
+	if version := transformedVersion(t, client, "client.ts"); version != server {
+		t.Fatalf("the client must inject the server's version %q, got %q", server, version)
+	}
+}
+
+// TestApiVersion_DeclarationVersionDiffers: ids computed apart from the server's build fail the client build, naming both.
+func TestApiVersion_DeclarationVersionDiffers(t *testing.T) {
+	server := serverVersion(t)
+	_, diags := packageClient(t, "'notTheServer'", constants.ClientRoutesBundle)
+	if len(diags) != 1 || diags[0].Code != diagnostics.CodeApiMetaServerVersionMismatch {
+		t.Fatalf("expected one MET012, got %+v", diags)
+	}
+	if diags[0].Args[0] != server || diags[0].Args[1] != "notTheServer" || !strings.HasSuffix(diags[0].Site.FilePath, "client.ts") {
+		t.Fatalf("MET012 must sit at initClient and name the client's then the server's version, got %+v", diags[0])
+	}
+}
+
+// TestApiVersion_DeclarationWithoutVersionWarns: types written without a version still build, warned, with the client's own hash.
+func TestApiVersion_DeclarationWithoutVersionWarns(t *testing.T) {
+	server := serverVersion(t)
+	client, diags := packageClient(t, "string", constants.ClientRoutesBundle)
+	if len(diags) != 1 || diags[0].Code != diagnostics.CodeApiMetaNoServerVersion {
+		t.Fatalf("expected one MET013, got %+v", diags)
+	}
+	if version := transformedVersion(t, client, "client.ts"); version != server {
+		t.Fatalf("the client injects its own hash, equal to the server's here: want %q, got %q", server, version)
+	}
+}
+
+// TestApiVersion_FetchClientGetsNone: a client fetching its routes bundles no ids, so it has no version to inject or compare.
+func TestApiVersion_FetchClientGetsNone(t *testing.T) {
+	client, diags := packageClient(t, "'notTheServer'", constants.ClientRoutesFetch)
+	for _, diag := range diags {
+		if diag.Code == diagnostics.CodeApiMetaServerVersionMismatch || diag.Code == diagnostics.CodeApiMetaNoServerVersion {
+			t.Fatalf("a fetching client compares nothing, got %+v", diag)
+		}
+	}
 	if version := transformedVersion(t, client, "client.ts"); version != "" {
-		t.Fatalf("an untrusted client claimed version %q", version)
+		t.Fatalf("a fetching client injects no version, got %q", version)
+	}
+}
+
+// TestApiVersion_SourceTypedClientComparesNothing: an API type written in this program carries no server version, so
+// the client injects its own hash and nothing is reported.
+func TestApiVersion_SourceTypedClientComparesNothing(t *testing.T) {
+	client := setupApi(t, map[string]string{"client.d.ts": versionClientDTS, "client.ts": versionClientTS}, t.TempDir(), constants.ClientRoutesBundle)
+	generated := client.Dispatch(protocol.Request{Op: protocol.OpGenerate})
+	if generated.Error != "" {
+		t.Fatalf("generate: %s", generated.Error)
+	}
+	if diags := metDiags(generated.Diagnostics); len(diags) != 0 {
+		t.Fatalf("expected no MET diagnostics, got %+v", diags)
+	}
+	if version := transformedVersion(t, client, "client.ts"); version != serverVersion(t) {
+		t.Fatalf("the client's own hash must equal the server's for the same routes, got %q", version)
 	}
 }
 

@@ -125,6 +125,66 @@ func ApiTypeImports(typeChecker *checker.Checker, markerOpts marker.Options, sou
 	return found
 }
 
+// ApiTypeFromDeclarations reports whether a name written in the call's type arguments, imports followed, is declared
+// in a .d.ts outside the TypeScript libs and mion's own packages: an API read from a published package.
+func ApiTypeFromDeclarations(typeChecker *checker.Checker, call *ast.Node) bool {
+	found := false
+	var visit ast.Visitor
+	visit = func(node *ast.Node) bool {
+		if found || node == nil {
+			return found
+		}
+		var name *ast.Node
+		switch node.Kind {
+		case ast.KindTypeQuery:
+			name = node.AsTypeQueryNode().ExprName
+		case ast.KindTypeReference:
+			name = node.AsTypeReferenceNode().TypeName
+		}
+		if name != nil && declaredInPackageTypes(typeChecker, name) {
+			found = true
+			return true
+		}
+		return node.ForEachChild(visit)
+	}
+	for _, typeArgument := range call.TypeArguments() {
+		if visit(typeArgument) {
+			break
+		}
+	}
+	return found
+}
+
+// declaredInPackageTypes resolves a written entity name and reports whether a declaration of it sits in a third-party .d.ts.
+func declaredInPackageTypes(typeChecker *checker.Checker, name *ast.Node) bool {
+	if name.Kind == ast.KindQualifiedName {
+		name = name.AsQualifiedName().Right
+	}
+	symbol := typeChecker.GetSymbolAtLocation(name)
+	if symbol == nil {
+		return false
+	}
+	if resolved := checker.SkipAlias(symbol, typeChecker); resolved != nil {
+		symbol = resolved
+	}
+	for _, declaration := range symbol.Declarations {
+		sourceFile := ast.GetSourceFileOfNode(declaration)
+		if sourceFile == nil || !sourceFile.IsDeclarationFile || isLibFileName(sourceFile.FileName()) {
+			continue
+		}
+		if !strings.HasPrefix(marker.DeclaringModuleOfNode(declaration, nil), "@mionjs/") {
+			return true
+		}
+	}
+	return false
+}
+
+// isLibFileName reports a TypeScript default lib (`lib.es5.d.ts`, `lib.dom.d.ts`) by its basename.
+func isLibFileName(fileName string) bool {
+	base := fileName[strings.LastIndexAny(fileName, "/\\")+1:]
+	return strings.HasPrefix(base, "lib.") && strings.HasSuffix(base, ".d.ts")
+}
+
 // valueImportOf returns name's import statement and specifier, or nil for a type-only or non-import binding.
 func valueImportOf(typeChecker *checker.Checker, name *ast.Node) (*ast.Node, string) {
 	if name == nil || !ast.IsIdentifier(name) {

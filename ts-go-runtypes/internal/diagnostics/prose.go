@@ -735,6 +735,14 @@ mion.initRoutes({mionFetchMetadata, ...routes});
 // client
 useFetchMetadata(middlewares.mionFetchMetadata);`,
 	},
+	CodeApiMetaServerVersionMismatch: {
+		Summary: "A server built with `mion compile` writes its build version into the API type of its `.d.ts`. This client computed different ids from those types, usually because its tsconfig or a library version differs from the server's, so the server would answer every call with a version mismatch. Build the client with the server's tsconfig and library versions, or use `client: {routes: 'fetch'}` to read the routes from the server at runtime.",
+		Fix:     "mionVitePlugin({client: {routes: 'fetch'}})",
+	},
+	CodeApiMetaNoServerVersion: {
+		Summary: "The API types this client reads come from a `.d.ts` without a server build version, for example one written by plain `tsc`. The client still builds, but if its ids differ from the server's, you only find out at runtime. Build the API package with `mion compile` so its types carry the version and the client build checks it.",
+		Fix:     "mion compile --tsconfig tsconfig.build.json",
+	},
 	CodeApiMetaFetchNotSetUp: {
 		Summary: "With `client.routes: 'fetch'`, each call asks the server how its route works on first use, through the client half of the metadata middleware. Nothing in this program sets that up. Set it up once next to `initClient`, or build with `client.routes: 'bundle'` (the default) so every call is bundled.",
 		Fix:     "useFetchMetadata(middlewares.mionFetchMetadata);",

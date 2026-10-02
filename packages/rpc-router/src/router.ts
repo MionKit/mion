@@ -14,7 +14,7 @@ import type {
   MiddlewareMethod,
   RouteMethod,
 } from './types/remoteMethods.ts';
-import type {PublicApi, PrivateDef, MiddlewaresCollection} from './types/publicMethods.ts';
+import type {ApiBuildVersion, PublicApi, PrivateDef, MiddlewaresCollection} from './types/publicMethods.ts';
 import type {InjectBuildVersion} from '@mionjs/run-types';
 import type {HeadersMiddlewareDef, MiddlewareDef, RawMiddlewareDef} from './types/definitions.ts';
 import {DEFAULT_ROUTE_OPTIONS, MAX_ROUTE_NESTING} from './constants.ts';
@@ -250,7 +250,10 @@ export function createMionRouter<const O extends RouterOptionsInput = RouterOpti
     middleware: middleware as MiddlewareHelper<O>,
     headersMiddleware: headersMiddleware as HeadersMiddlewareHelper<O>,
     rawMiddleware: rawMiddleware as RawMiddlewareHelper<O>,
-    initRoutes<R extends Routes>(routes: R, buildVersion?: InjectBuildVersion<PublicApi<R>>): PublicApi<R> {
+    initRoutes<R extends Routes, const Version extends string = string>(
+      routes: R,
+      buildVersion?: InjectBuildVersion<PublicApi<R>> & Version
+    ): PublicApi<R> & ApiBuildVersion<Version> {
       initRouter(options, buildVersion);
       const api = registerRoutes(routes);
       if (platformConfig) applyMaxBodySizeCap();

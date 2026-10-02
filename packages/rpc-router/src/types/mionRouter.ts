@@ -29,7 +29,7 @@ import type {
   HeadersMiddlewareOptions,
   RouteOptions,
 } from './remoteMethods.ts';
-import type {PublicApi} from './publicMethods.ts';
+import type {ApiBuildVersion, PublicApi} from './publicMethods.ts';
 
 // ####### The typed router factory #######
 // `createMionRouter(opts)` is the ONE way to initialize the router and declare routes / middlewares.
@@ -143,5 +143,8 @@ export interface MionRouter<O extends RouterOptionsInput = RouterOptionsInput> {
   readonly rawMiddleware: RawMiddlewareHelper<O>;
   /** Once per app, and synchronous: the compiled type functions were injected at build time, so nothing loads here.
    *  `buildVersion` is filled by the build, never by hand: the server answers with it so a client can spot stale routes. */
-  initRoutes<R extends Routes>(routes: R, buildVersion?: InjectBuildVersion<PublicApi<R>>): PublicApi<R>;
+  initRoutes<R extends Routes, const Version extends string = string>(
+    routes: R,
+    buildVersion?: InjectBuildVersion<PublicApi<R>> & Version
+  ): PublicApi<R> & ApiBuildVersion<Version>;
 }
