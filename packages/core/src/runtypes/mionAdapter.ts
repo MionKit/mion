@@ -426,7 +426,7 @@ export function getHeadersReflectionFromMarkers(
   if (!rtFns || rtFns.headersId === undefined)
     throw new Error(
       `RunTypes: headers middleware '${methodId}' has no injected header type information. ` +
-        `Handlers must be declared through the mion.headersFn() helper createMionRouter returns (2nd param a HeadersSubset) ` +
+        `Handlers must be declared through the mion.headersMiddleware() helper createMionRouter returns (2nd param a HeadersSubset) ` +
         `and built with mionVitePlugin active.`
     );
   const headersTypeId = resolveInjectedTypeId(rtFns.headersId, `${methodId}#headers`);

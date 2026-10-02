@@ -33,7 +33,7 @@ export function authHandler(
 }
 
 const routes = {
-  trace: mion.headersFn(traceHandler),
+  trace: mion.headersMiddleware(traceHandler),
   auth: mion.middleware(authHandler),
   utils: {
     sum: mion.route((ctx, a: number, b: number): number => a + b),

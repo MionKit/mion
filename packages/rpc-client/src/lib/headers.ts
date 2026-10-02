@@ -47,7 +47,7 @@ function extractHeadersFromParams(params: any[]): Record<string, string> {
   if (!params || params.length === 0) {
     throw new RpcError({
       type: 'missing-headers-param',
-      publicMessage: 'HeadersFn requires a HeadersSubset parameter.',
+      publicMessage: 'HeadersMiddleware requires a HeadersSubset parameter.',
     });
   }
 
@@ -63,7 +63,7 @@ function extractHeadersFromParams(params: any[]): Record<string, string> {
 
   throw new RpcError({
     type: 'invalid-headers-param',
-    publicMessage: 'HeadersFn first parameter must be a HeadersSubset instance or object with headers property.',
+    publicMessage: 'HeadersMiddleware first parameter must be a HeadersSubset instance or object with headers property.',
   });
 }
 

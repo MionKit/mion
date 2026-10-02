@@ -9,7 +9,7 @@ import {describe, it, expect} from 'vitest';
 import {Routes} from '../../src/types/general.ts';
 import {createMionRouter} from '../../src/router.ts';
 import {dispatchRoute} from '../../src/dispatch.ts';
-import {route, headersFn, middleware, rawMiddleware, query, mutation} from '../../src/lib/handlers.ts';
+import {route, headersMiddleware, middleware, rawMiddleware, query, mutation} from '../../src/lib/handlers.ts';
 import {MionHeaders} from '../../src/types/context.ts';
 import {headersFromRecord} from '../../src/lib/headers.ts';
 import {HandlerType, HeadersSubset} from '@mionjs/core';
@@ -21,7 +21,7 @@ describe('route & middlewares init functions', () => {
   };
 
   const routes = {
-    auth: headersFn(
+    auth: headersMiddleware(
       (ctx, h: HeadersSubset<'Authorization'>): HeadersSubset<'x-user-id'> => new HeadersSubset({'x-user-id': 'user-1234'})
     ),
     timestamp: middleware((ctx, time: number): string => `time: ${time}`),

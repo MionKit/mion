@@ -38,7 +38,7 @@ interface User {
 }
 
 const routes = {
-  auth: mion.headersFn((ctx, h: HeadersSubset<'auth'>): void => {}),
+  auth: mion.headersMiddleware((ctx, h: HeadersSubset<'auth'>): void => {}),
   users: {
     updateUser: mion.route((ctx, user: User): User => ({...user, lastActivity})),
   },

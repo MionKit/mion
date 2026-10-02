@@ -28,7 +28,7 @@ export function looksLikeEnrichmentFile(text: string): boolean {
 // file then names the package nowhere. Permissive on purpose: one round trip on a file that merely spells
 // `route(`, and the Go side stays authoritative about what is really a route.
 const ROUTER_MODULE = '@mionjs/router';
-const ROUTER_HELPERS = ['route', 'query', 'mutation', 'middleware', 'headersFn'];
+const ROUTER_HELPERS = ['route', 'query', 'mutation', 'middleware', 'headersMiddleware'];
 const routerHelperCallPattern = new RegExp(`(?:^|[^A-Za-z0-9_$])(?:${ROUTER_HELPERS.join('|')})\\s*\\(`);
 
 export function referencesRouter(text: string): boolean {

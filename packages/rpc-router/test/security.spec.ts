@@ -213,7 +213,7 @@ describe('security: error envelope', () => {
   it('a headers middleware only writes its own keys, never inherited ones', async () => {
     const poisoned = Object.create({'x-inherited': 'leak'}) as Record<string, string>;
     poisoned['x-own'] = 'ok';
-    const setHeaders = mion.headersFn(
+    const setHeaders = mion.headersMiddleware(
       (ctx, h: HeadersSubset<'x-req'>): HeadersSubset<'x-own'> => new HeadersSubset(poisoned as any)
     );
     const hello = mion.route((ctx): string => 'hello');

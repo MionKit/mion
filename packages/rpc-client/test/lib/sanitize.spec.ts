@@ -22,7 +22,7 @@ describe('client sanitizeParams', () => {
   type MyApi = TestServerApi;
   const RAW = ' John@Example.COM ';
   const CLEAN = 'john@example.com';
-  // the test server's auth headersFn guards every route, so give it its headers before a call()
+  // the test server's auth headersMiddleware guards every route, so give it its headers before a call()
   const withAuth = (client: ReturnType<typeof initClient<MyApi>>) => {
     client.middlewares.auth.onRequest((auth) => auth(new HeadersSubset({Authorization: 'SANITIZE-TOKEN'})));
     return client;

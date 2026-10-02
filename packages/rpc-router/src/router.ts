@@ -55,7 +55,7 @@ import {getPublicApi, resetRemoteMethodsMetadata} from './lib/remoteMethods.ts';
 import {mionErrorsRoutes, notFoundMiddleware, batchNotFoundMiddleware} from './routes/errors.routes.ts';
 import {capBatchBodySizes, clearBatches, getMaxBatchBodySize, refreshBatchChainBodyLimits} from './batches.ts';
 import {
-  headersFn,
+  headersMiddleware,
   isOnDemandMiddleware,
   middleware,
   mionInternalRouteIds,
@@ -65,7 +65,7 @@ import {
   route,
 } from './lib/handlers.ts';
 import type {
-  HeadersFnHelper,
+  HeadersMiddlewareHelper,
   MiddlewareHelper,
   MionRouter,
   RawMiddlewareHelper,
@@ -226,7 +226,7 @@ export function createMionRouter<const O extends RouterOptionsInput = RouterOpti
     query: query as RouteHelper<O, false>,
     mutation: mutation as RouteHelper<O, true>,
     middleware: middleware as MiddlewareHelper<O>,
-    headersFn: headersFn as HeadersFnHelper<O>,
+    headersMiddleware: headersMiddleware as HeadersMiddlewareHelper<O>,
     rawMiddleware: rawMiddleware as RawMiddlewareHelper<O>,
     initRoutes<R extends Routes>(routes: R, buildVersion?: InjectBuildVersion<PublicApi<R>>): PublicApi<R> {
       initRouter(options, buildVersion);

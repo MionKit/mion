@@ -17,7 +17,7 @@ import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
 import {inputFrom as rawInputFrom} from '../src/batch.ts';
 import {inputFrom} from '../src/batch.ts';
 
-// Helper to create auth headers for the test server's headersFn
+// Helper to create auth headers for the test server's headersMiddleware
 function createAuthHeaders(token: string): HeadersSubset<'Authorization'> {
   return new HeadersSubset({Authorization: token});
 }
@@ -42,7 +42,7 @@ describe('batch', () => {
       expect(greetingError).toBeUndefined();
     });
 
-    it('the first batch call with an auth headersFn onRequest hook is one round trip (no retry)', async () => {
+    it('the first batch call with an auth headersMiddleware onRequest hook is one round trip (no retry)', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
       middlewares.auth.onRequest((auth) => auth(authHeaders));

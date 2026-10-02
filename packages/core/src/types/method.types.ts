@@ -29,9 +29,9 @@ export interface MethodMetadata {
   paramsJitHash: string;
   /**  JIT  hash of the method return value */
   returnJitHash: string;
-  /** Information about headers used by the method, used by HeadersFn */
+  /** Information about headers used by the method, used by HeadersMiddleware */
   headersParam?: HeadersMetaData;
-  /** Information about headers returned by the method, used by HeadersFn and when any other middleware returns headers */
+  /** Information about headers returned by the method, used by HeadersMiddleware and when any other middleware returns headers */
   headersReturn?: HeadersMetaData;
   /** Type id of the handler's `[params, return]` pair; a synced call sends the route's */
   syncId?: string;

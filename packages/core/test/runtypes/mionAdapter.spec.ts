@@ -88,12 +88,12 @@ function fakeCloneRoute<H extends AnyHandler>(
   return {handler, rtFns: {paramsFns, returnFns, paramsId, returnId}};
 }
 
-// A mion-headersFn-like wrapper; the param split mirrors HeaderHandlerParams<H> in @mionjs/router.
+// A mion-headersMiddleware-like wrapper; the param split mirrors HeaderHandlerParams<H> in @mionjs/router.
 type AnyHeaderHandler = (ctx: any, headers: any, ...params: any[]) => any;
 type HeaderHandlerParams<H extends AnyHeaderHandler> = Parameters<H> extends [any, any, ...infer P] ? P : [];
 type HeaderHandlerHeaders<H extends AnyHeaderHandler> = Parameters<H> extends [any, infer Headers, ...any[]] ? Headers : never;
 
-function fakeHeadersFn<H extends AnyHeaderHandler>(
+function fakeHeadersMiddleware<H extends AnyHeaderHandler>(
   handler: H,
   headersFns?: InjectTypeFnArgs<HeaderHandlerHeaders<H>, 'validate', 'validationErrors'>,
   paramsFns?: InjectTypeFnArgs<
@@ -419,10 +419,10 @@ describe('mionAdapter: formatTransform (sanitizeParams) fn', () => {
 });
 
 describe('mionAdapter: headers middleware reflection', () => {
-  const authAndSave = fakeHeadersFn(
+  const authAndSave = fakeHeadersMiddleware(
     (ctx: unknown, headers: HeadersSubset<'authorization', 'x-trace'>, pet: Pet, notes?: string): void => undefined
   );
-  const authOnly = fakeHeadersFn((ctx: unknown, headers: HeadersSubset<'authorization'>): void => undefined);
+  const authOnly = fakeHeadersMiddleware((ctx: unknown, headers: HeadersSubset<'authorization'>): void => undefined);
 
   // paramsCount rides the client methods-metadata payload, so its value here is public behaviour
   it('counts the body params only, never ctx or the HeadersSubset', () => {

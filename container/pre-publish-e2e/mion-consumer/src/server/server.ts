@@ -59,7 +59,7 @@ const routes = {
     // serves route metadata to a client that fetches it; a bundled client never asks
     mionFetchMetadata,
     // Middleware
-    auth: mion.headersFn((ctx, h: HeadersSubset<'Authorization'>): void => {
+    auth: mion.headersMiddleware((ctx, h: HeadersSubset<'Authorization'>): void => {
         ctx.shared.user = {name: 'John', surname: 'Doe'};
     }),
     session: mion.middleware((ctx, sessionToken?: string): SessionInfo | RpcError<'session-expired'> | null => {

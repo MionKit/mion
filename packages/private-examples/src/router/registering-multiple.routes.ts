@@ -11,7 +11,7 @@ const authRoutes = {
 } satisfies Routes;
 
 const routes = {
-  trace: mion.headersFn(
+  trace: mion.headersMiddleware(
     (ctx, headers: HeadersSubset<'X-Trace-Id'>): void => undefined
   ),
   sayHello: mion.route((ctx, name: string): string => 'hello ' + name),

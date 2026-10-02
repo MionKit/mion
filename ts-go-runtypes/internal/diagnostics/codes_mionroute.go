@@ -1,6 +1,6 @@
 package diagnostics
 
-// mion route codes (MRTxxx) over route, query, mutation, middleware and headersFn handlers. The checker resolves
+// mion route codes (MRTxxx) over route, query, mutation, middleware and headersMiddleware handlers. The checker resolves
 // the call, so an alias, a namespace import, a local barrel, a named reference, a `Handler` const and `@mion:route` count.
 //
 // Emitted only when a caller opts in (Request.CheckRouterRules), so `mion compile` and the bundler

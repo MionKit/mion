@@ -20,7 +20,7 @@ mion.route((ctx, name: string): string => `hello ${name}`);
 mion.middleware((ctx, data: number): void => {
   console.log(data);
 });
-mion.headersFn(
+mion.headersMiddleware(
   (ctx: CallContext, {headers}: HeadersSubset<'x-trace-id'>): void => {
     // do something
   }
@@ -75,9 +75,9 @@ const middlewareWithJSDoc = (ctx, data: number): void => {
 };
 
 /**
- * @mion:headersFn
+ * @mion:headersMiddleware
  */
-function headersFnWithJSDoc(
+function headersMiddlewareWithJSDoc(
   ctx: CallContext,
   {headers}: HeadersSubset<'x-trace-id'>
 ): void {
@@ -99,7 +99,7 @@ mion.route((ctx, name) => `hello ${name}`); // Missing both param type and retur
 mion.middleware((ctx, data: number) => {
   console.log(data);
 }); // Missing return type
-mion.headersFn((ctx: CallContext, [traceId]): void => {
+mion.headersMiddleware((ctx: CallContext, [traceId]): void => {
   // do something
 }); // Missing param type
 // end:typed-handlers-invalid-inline
@@ -152,9 +152,9 @@ const invalidMiddlewareJSDoc = (ctx, data: number) => {
 }; // Missing return type
 
 /**
- * @mion:headersFn
+ * @mion:headersMiddleware
  */
-function invalidHeadersFnJSDoc(ctx: CallContext, {headers}): void {
+function invalidHeadersMiddlewareJSDoc(ctx: CallContext, {headers}): void {
   const traceId = headers['x-trace-id'];
   console.log(traceId);
 } // Missing param type

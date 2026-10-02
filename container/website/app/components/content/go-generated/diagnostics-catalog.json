@@ -44,7 +44,7 @@
     {
       "key": "mion-routes",
       "label": "mion routes",
-      "description": "From the rules over mion route, middleware and headersFn handlers, reported as you write them."
+      "description": "From the rules over mion route, middleware and headersMiddleware handlers, reported as you write them."
     },
     {
       "key": "bundled-api",
@@ -1204,7 +1204,7 @@
       "subsystem": "mion-routes",
       "level": "runtimeError",
       "headline": "mion `{1}` handler parameter `{0}` has no type annotation; every parameter after the call context travels on the wire and must declare its type.",
-      "summary": "Every handler parameter after the call context is part of the route's public input, so mion builds a validator and a decoder from its declared type. The call context (the first parameter, the first two for `headersFn`) never goes over the network. Add a type to the parameter.",
+      "summary": "Every handler parameter after the call context is part of the route's public input, so mion builds a validator and a decoder from its declared type. The call context (the first parameter, the first two for `headersMiddleware`) never goes over the network. Add a type to the parameter.",
       "fix": "mion.route((ctx, name: string): string => `hello ${name}`);",
       "example": null
     },

@@ -51,7 +51,7 @@ export type PublicApi<Type extends Routes> = Prettify<{
     : Type[Property] extends {type: typeof HandlerType.route; handler: infer H extends Handler; options?: infer RO; routerOptions?: infer O}
     ? PublicRoute<PublicHandler<H>, ResolvedRouteOptions<RO, O>, HandlerMethodTypes<H, RO, O>>
     : Type[Property] extends {type: typeof HandlerType.headersMiddleware; handler: infer H extends HeaderHandler; options?: infer RO; routerOptions?: infer O}
-    ? PublicHeadersFn<PublicHandler<H>, ResolvedMiddlewareOptions<RO, O>, HeadersHandlerMethodTypes<H, RO, O>>
+    ? PublicHeadersMiddleware<PublicHandler<H>, ResolvedMiddlewareOptions<RO, O>, HeadersHandlerMethodTypes<H, RO, O>>
     : Type[Property] extends {type: typeof HandlerType.middleware; handler: infer H extends Handler; options?: infer RO; routerOptions?: infer O}
     ? PublicMiddleware<PublicHandler<H>, ResolvedMiddlewareOptions<RO, O>, HandlerMethodTypes<H, RO, O>>
         : Type[Property] extends Routes // Routes & PureRoutes (recursion)
@@ -61,7 +61,11 @@ export type PublicApi<Type extends Routes> = Prettify<{
 
 /** Same as PublicApi but with no type mapping, for when strong types are not required. */
 export type RemoteApi = {
-  [key: string]: PublicRoute<any, any, any> | PublicMiddleware<any, any, any> | PublicHeadersFn<any, any, any> | RemoteApi;
+  [key: string]:
+    | PublicRoute<any, any, any>
+    | PublicMiddleware<any, any, any>
+    | PublicHeadersMiddleware<any, any, any>
+    | RemoteApi;
 };
 
 /** The aliases the route helpers hand their markers, so a `bundleApi` client compiles the same functions and ids.
@@ -118,8 +122,12 @@ export interface PublicMiddleware<H extends Handler = any, Opts = RemoteMethodOp
   readonly types?: Types;
 }
 
-/** Public HeadersFn: the same handler without the context parameter */
-export interface PublicHeadersFn<H extends Handler = any, Opts = RemoteMethodOpts, Types = MethodTypes> extends MethodMetadata {
+/** Public HeadersMiddleware: the same handler without the context parameter */
+export interface PublicHeadersMiddleware<
+  H extends Handler = any,
+  Opts = RemoteMethodOpts,
+  Types = MethodTypes,
+> extends MethodMetadata {
   type: typeof HandlerType.headersMiddleware;
   headerNames: string[];
   handler: H;

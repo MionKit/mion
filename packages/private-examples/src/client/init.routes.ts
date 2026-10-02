@@ -7,7 +7,7 @@ export type User = {id: string; name: string};
 
 // bodies left out on purpose, this is about the shape the client gets
 const routes = {
-  trace: mion.headersFn(
+  trace: mion.headersMiddleware(
     (ctx, headers: HeadersSubset<'X-Trace-Id'>): void => undefined
   ),
   users: {

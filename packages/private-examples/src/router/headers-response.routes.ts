@@ -10,7 +10,7 @@ const routes = {
       new HeadersSubset({'Cache-Control': 'no-store'})
   ),
   // reads a request header and returns a response header
-  locale: mion.headersFn(
+  locale: mion.headersMiddleware(
     (
       ctx,
       {headers}: HeadersSubset<never, 'Accept-Language'>
