@@ -382,9 +382,12 @@ type SubstituteInto<T, P extends [unknown]> =
           : T extends readonly unknown[]
             ? number extends T['length']
               ? T extends readonly (infer E)[]
-                ? CarryOnto<SubstituteSelf<E, P>[], T, P>
+                ? CarryOnto<T extends unknown[] ? SubstituteSelf<E, P>[] : readonly SubstituteSelf<E, P>[], T, P>
                 : never
-              : SubstituteTuple<T, P>
+              : // The rebuild is mutable; a readonly source wraps back, readonly being part of the id.
+                T extends unknown[]
+                ? SubstituteTuple<T, P>
+                : Readonly<SubstituteTuple<T, P>>
             : T extends object
               ? HasCarried<T> extends true
                 ? {[K in keyof T as K extends CarriedKey ? never : K]: SubstituteSelf<T[K], P>} & CarrySlots<T, P>

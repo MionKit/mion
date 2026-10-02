@@ -464,7 +464,7 @@ func (computer *Computer) tupleID(tsType *checker.Type, labelOverride []string) 
 		}
 		ids = append(ids, child)
 	}
-	return collectionID(int(reflection.KindTuple), ids, true)
+	return collectionID(int(reflection.KindTuple), ids, true) + readonlyBit(IsReadonlyCollection(tsType))
 }
 
 func (computer *Computer) objectID(tsType *checker.Type) string {
@@ -479,7 +479,7 @@ func (computer *Computer) objectID(tsType *checker.Type) string {
 		typeArguments := computer.typeChecker.GetTypeArguments(tsType)
 		if len(typeArguments) > 0 {
 			child := computer.Compute(typeArguments[0])
-			return memberID(int(reflection.KindArray), "0", false, child)
+			return memberID(int(reflection.KindArray), "0", false, child) + readonlyBit(IsReadonlyCollection(tsType))
 		}
 	}
 
@@ -607,7 +607,7 @@ func (computer *Computer) memberIDs(tsType *checker.Type, asClass bool) []string
 	for _, indexInfo := range computer.typeChecker.GetIndexInfosOfType(tsType) {
 		keyID := computer.Compute(indexInfo.KeyType())
 		valueID := computer.Compute(indexInfo.ValueType())
-		out = append(out, strconv.Itoa(int(reflection.KindIndexSignature))+":"+keyID+":"+valueID)
+		out = append(out, strconv.Itoa(int(reflection.KindIndexSignature))+":"+keyID+":"+valueID+readonlyBit(indexInfo.IsReadonly()))
 	}
 	return out
 }
@@ -868,6 +868,30 @@ func TupleElementLabel(info checker.TupleElementInfo) string {
 		return ""
 	}
 	return nameNode.Text()
+}
+
+// IsReadonlyCollection reports a `readonly` tuple or a `ReadonlyArray` reference (`readonly T[]`). Shared by the
+// projection and the id so a readonly collection never shares a node with its mutable twin.
+func IsReadonlyCollection(tsType *checker.Type) bool {
+	if tsType == nil || tsType.ObjectFlags()&checker.ObjectFlagsReference == 0 {
+		return false
+	}
+	if checker.IsTupleType(tsType) {
+		return tsType.TargetTupleType().IsReadonly()
+	}
+	target := tsType.Target()
+	return target != nil && target.Symbol() != nil && target.Symbol().Name == "ReadonlyArray"
+}
+
+// AllReadonlyCollections reports a tuple intersection whose every member is readonly: one mutable member makes the
+// merge mutable, as in TypeScript.
+func AllReadonlyCollections(members []*checker.Type) bool {
+	for _, member := range members {
+		if !IsReadonlyCollection(member) {
+			return false
+		}
+	}
+	return len(members) > 0
 }
 
 // NonEnumerableTagName is the JSDoc tag (`@nonEnumerable`) a user writes to mark a property whose runtime
