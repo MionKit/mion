@@ -67,7 +67,8 @@ export const staticId = getRunTypeId<${type}>();
 
 const countModules = (genDir: string): number => {
   try {
-    return fs.readdirSync(path.join(genDir, 'types')).filter((name) => name.endsWith('.js')).length;
+    const files = fs.readdirSync(path.join(genDir, 'types'), {recursive: true}) as string[];
+    return files.filter((name) => name.endsWith('.js')).length;
   } catch {
     return -1;
   }
