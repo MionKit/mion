@@ -169,14 +169,23 @@ func Run(opts Options) (*Result, error) {
 
 	// tsgo calls WriteFile INSTEAD of writing to disk, so the bytes are transformed before we write them.
 	capture := newEmitCapture()
-	emitResult := p2.TS.Emit(context.Background(), compiler.EmitOptions{
-		WriteFile: func(fileName, text string, _ *compiler.WriteFileData) error {
-			capture.add(fileName, text)
-			return nil
-		},
-	})
+	writeFile := func(fileName, text string, _ *compiler.WriteFileData) error {
+		capture.add(fileName, text)
+		return nil
+	}
+	emitDeclarations := p2.TS.Options().GetEmitDeclarations()
+	emitOnly := compiler.EmitAll
+	if emitDeclarations {
+		emitOnly = compiler.EmitOnlyJs
+	}
+	emitResult := p2.TS.Emit(context.Background(), compiler.EmitOptions{EmitOnly: emitOnly, WriteFile: writeFile})
 	if emitResult != nil && emitResult.EmitSkipped {
 		return nil, errors.New("compile: tsgo emit was skipped")
+	}
+	if emitDeclarations {
+		if err := emitVersionedDeclarations(cwd, opts.TsconfigPath, p1, r1.ApiVersionReplacements(), writeFile); err != nil {
+			return nil, err
+		}
 	}
 
 	// A new map, so nothing is mutated while ranging.
@@ -268,6 +277,39 @@ func writeMessageChain(builder *strings.Builder, chain []*ast.Diagnostic, level 
 		builder.WriteString("\n" + strings.Repeat("  ", level) + link.String())
 		writeMessageChain(builder, link.MessageChain(), level+1)
 	}
+}
+
+// emitVersionedDeclarations writes the .d.ts from the source plus the build-version splices alone: the injected
+// marker arguments of the full rewrite import untyped modules, which widen every route's inferred types, while the
+// version literal is what a client built from the published types checks itself against.
+func emitVersionedDeclarations(cwd, tsconfigPath string, original *program.Program, splices []protocol.Replacement, writeFile compiler.WriteFile) error {
+	byFile := map[string][]protocol.Replacement{}
+	for _, splice := range splices {
+		byFile[splice.File] = append(byFile[splice.File], splice)
+	}
+	overlay := make(map[string]string, len(byFile))
+	for file, fileSplices := range byFile {
+		sourceFile := original.SourceFile(file)
+		if sourceFile == nil {
+			continue
+		}
+		// Back to front, so an earlier offset still points into the original text.
+		sort.Slice(fileSplices, func(i, j int) bool { return fileSplices[i].Start > fileSplices[j].Start })
+		text := sourceFile.Text()
+		for _, splice := range fileSplices {
+			text = text[:splice.Start] + splice.Text + text[splice.End:]
+		}
+		overlay[absOf(cwd, file)] = text
+	}
+	declarations, err := program.New(program.Options{Cwd: cwd, TsconfigPath: tsconfigPath, Overlay: overlay})
+	if err != nil {
+		return fmt.Errorf("compile: declaration program: %w", err)
+	}
+	result := declarations.TS.Emit(context.Background(), compiler.EmitOptions{EmitOnly: compiler.EmitOnlyDts, WriteFile: writeFile})
+	if result != nil && result.EmitSkipped {
+		return errors.New("compile: tsgo declaration emit was skipped")
+	}
+	return nil
 }
 
 // isWithinDir reports whether target sits under dir, or is dir itself, on cleaned absolute paths.
