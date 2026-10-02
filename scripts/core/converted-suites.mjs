@@ -40,6 +40,8 @@ function documentedFragments() {
 
 const args = process.argv.slice(2);
 const keep = args.includes('--keep');
+// The per-PR check (ci.yml): the count and the documented list only, without the vitest run over the tree.
+const refusalsOnly = args.includes('--refusals-only');
 const only = args.includes('--target') ? args[args.indexOf('--target') + 1] : '';
 const targets = only ? TARGETS.filter((target) => target.name === only) : TARGETS;
 if (targets.length === 0) {
@@ -101,7 +103,7 @@ let generatedAll = true;
 try {
   for (const target of targets) generatedAll = generate(target) && generatedAll;
   if (!generatedAll) throw new Error('converted-suites: refusal count changed');
-  execFileSync('pnpm', ['exec', 'vitest', 'run', '--config', VITEST_CONFIG], {cwd: REPO_ROOT, stdio: 'inherit'});
+  if (!refusalsOnly) execFileSync('pnpm', ['exec', 'vitest', 'run', '--config', VITEST_CONFIG], {cwd: REPO_ROOT, stdio: 'inherit'});
 } catch (error) {
   if (process.exitCode === undefined || process.exitCode === 0) process.exitCode = 1;
   if (!(error && typeof error === 'object' && 'status' in error)) console.error(String(error?.message ?? error));
