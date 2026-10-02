@@ -36,8 +36,9 @@
 // every subsequent incremental `tsc` skips emitting the missing .d.ts. Detecting
 // the orphan map + wiping the buildinfo forces tsc to emit from scratch.
 //
-// The stamps (mion-bin/.mion.stamp, .extract-fn-bodies.stamp) let the build gate ({trustStamp: true}) skip
-// the reference build, a full link, when the inputs digest (scripts/lib/go-inputs.mjs) matches, ~100ms.
+// The stamps (mion-bin/.mion.stamp, .extract-fn-bodies.stamp, and on macOS one per cross-built linux copy) let
+// the build gate ({trustStamp: true}) skip the reference build, a full link, when the inputs digest
+// (scripts/lib/go-inputs.mjs) matches, ~100ms.
 // The digest needs no Go and no submodule, so a binary restored from the CI cache (`--cache-key`) is
 // trusted on a runner without Go. An explicit `miondevx core build` never trusts a stamp, so it still
 // catches what the digest cannot see (a hand edit inside third_party/ outside the patches).
@@ -206,9 +207,11 @@ function checkExtract({trustStamp = false} = {}) {
 // ── linux-go / linux-extract ────────────────────────────────────────────────
 
 // The bench container needs a Linux ELF: cross-built on macOS (Mach-O host), a copy under a stable name on Linux.
-function checkLinuxCopy({hostBin, check, pkg, ldflags, name, opts}) {
+function checkLinuxCopy({hostBin, check, pkg, ldflags, digest, name, opts}) {
   const goarch = hostGoArch();
   const linuxBin = join(REPO_ROOT, `mion-bin/${name}-linux-${goarch}`);
+  // The host digest also fingerprints the cross-build: its target is fixed to linux/<host arch>.
+  const linuxStamp = join(REPO_ROOT, `mion-bin/.${name}-linux-${goarch}.stamp`);
 
   // Host binary first, or a stale one is carried forward into the linux slot.
   check(opts);
@@ -216,10 +219,13 @@ function checkLinuxCopy({hostBin, check, pkg, ldflags, name, opts}) {
   info(`Checking mion-bin/${name}-linux-${goarch}...`);
   const ldArgs = ldflags ? ['-ldflags', ldflags] : [];
   if (process.platform === 'darwin') {
-    if (!which('go')) fail('Go toolchain not found.');
-    if (!existsSync(linuxBin) || statSync(linuxBin).size === 0) {
+    const filled = existsSync(linuxBin) && statSync(linuxBin).size > 0;
+    if (opts.trustStamp && filled && readStamp(linuxStamp) === digest) return success(`mion-bin/${name}-linux-${goarch} is up to date (stamp).`);
+    if (!which('go')) fail(`Go toolchain not found on PATH (needed to build mion-bin/${name}-linux-${goarch}).`);
+    if (!filled) {
       info(`Cross-building (linux/${goarch})...`);
       if (run('go', ['build', ...ldArgs, '-o', linuxBin, pkg], {cwd: GO_ROOT, env: {GOOS: 'linux', GOARCH: goarch}}) !== 0) fail('Cross-build failed.');
+      writeStamp(linuxStamp, digest);
       return success(`Built mion-bin/${name}-linux-${goarch}.`);
     }
     const tmpBin = tempBesideBin(linuxBin);
@@ -234,6 +240,7 @@ function checkLinuxCopy({hostBin, check, pkg, ldflags, name, opts}) {
       } else {
         success(`mion-bin/${name}-linux-${goarch} is up to date with source.`);
       }
+      writeStamp(linuxStamp, digest);
     } finally {
       rmSync(tmpBin, {force: true});
     }
@@ -245,8 +252,11 @@ function checkLinuxCopy({hostBin, check, pkg, ldflags, name, opts}) {
   }
 }
 
-const checkLinuxGo = (opts) => checkLinuxCopy({hostBin: GO_BIN, check: checkGo, pkg: GO_PKG, ldflags: goVersionLdflags(), name: 'mion', opts});
-const checkLinuxExtract = (opts) => checkLinuxCopy({hostBin: EXTRACT_BIN, check: checkExtract, pkg: EXTRACT_PKG, ldflags: '', name: 'extract-fn-bodies', opts});
+function checkLinuxGo(opts) {
+  const ldflags = goVersionLdflags();
+  checkLinuxCopy({hostBin: GO_BIN, check: checkGo, pkg: GO_PKG, ldflags, digest: resolverDigest(ldflags), name: 'mion', opts});
+}
+const checkLinuxExtract = (opts) => checkLinuxCopy({hostBin: EXTRACT_BIN, check: checkExtract, pkg: EXTRACT_PKG, ldflags: '', digest: extractDigest(), name: 'extract-fn-bodies', opts});
 
 // ── marker-dist / plugin-dist ───────────────────────────────────────────────
 
