@@ -31,7 +31,7 @@ Ask once with AskUserQuestion, before anything else:
 - **Automatic**: the whole review runs, and you decide what to fix and fix it, without asking again. The user gets a final summary.
 - **Reviewed by you**: the whole review runs, you present every finding, and the user picks what to fix.
 
-If the user already said which one in the request ("review it and fix what matters"), skip the question. In both modes the user never sees or approves the checklist.
+If the user already said which one in the request ("review it and fix what matters"), or the calling skill passed the mode, skip the question. In both modes the user never sees or approves the checklist.
 
 ### 2. Spawn the checklist reviewer
 
