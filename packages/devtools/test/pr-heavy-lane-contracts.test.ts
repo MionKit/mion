@@ -16,7 +16,7 @@ const read = (rel: string): string => readFileSync(path.join(REPO_ROOT, rel), 'u
 
 describe('pr-heavy label lanes', () => {
   const workflow = read('.github/workflows/pr-heavy.yml');
-  const gated = [...workflow.matchAll(/contains\(github\.event\.pull_request\.labels\.\*\.name, '([a-z0-9-]+)'\)/g)].map(
+  const gated = [...workflow.matchAll(/contains\(fromJSON\(needs\.lanes\.outputs\.labels\), '([a-z0-9-]+)'\)/g)].map(
     (match) => match[1]
   );
   const header = workflow.slice(0, workflow.indexOf('\non:'));

@@ -13,7 +13,7 @@ import {describe, expect, it} from 'vitest';
 const REPO_ROOT = path.resolve(__dirname, '../../..');
 const ci = readFileSync(path.join(REPO_ROOT, '.github/workflows/ci.yml'), 'utf8');
 const LABEL = 'skip-defaults';
-const GUARD = `!contains(github.event.pull_request.labels.*.name, '${LABEL}')`;
+const GUARD = `!contains(fromJSON(needs.lanes.outputs.labels), '${LABEL}')`;
 
 /** The `if:` line of one job, or undefined when the job has none. */
 function jobCondition(job: string): string | undefined {

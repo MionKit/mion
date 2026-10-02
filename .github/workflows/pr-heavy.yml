@@ -33,6 +33,8 @@ name: pr · website + benchmarks + pre-publish e2e (label-gated)
 on:
   # `labeled` fires when the label is added; `synchronize` re-runs while the
   # label is still on, so a labelled PR keeps being checked as it grows.
+  # The jobs read the PR's live labels (the `lanes` job), never the event payload:
+  # an `opened` run that cancels its `labeled` twin carries no labels.
   pull_request:
     types: [opened, synchronize, reopened, labeled]
 
@@ -52,8 +54,11 @@ jobs:
     permissions:
       contents: read
       actions: read
+      # reading the live labels
+      pull-requests: read
     outputs:
       lanes: ${{ steps.decide.outputs.lanes }}
+      labels: ${{ steps.decide.outputs.labels }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -66,7 +71,7 @@ jobs:
   website:
     name: build the docs site
     needs: lanes
-    if: contains(github.event.pull_request.labels.*.name, 'website') && fromJSON(needs.lanes.outputs.lanes).website.run
+    if: contains(fromJSON(needs.lanes.outputs.labels), 'website') && fromJSON(needs.lanes.outputs.lanes).website.run
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -110,7 +115,7 @@ jobs:
   bench:
     name: validation benchmarks · ${{ matrix.competitor }}
     needs: lanes
-    if: contains(github.event.pull_request.labels.*.name, 'bench') && fromJSON(needs.lanes.outputs.lanes).bench.run
+    if: contains(fromJSON(needs.lanes.outputs.labels), 'bench') && fromJSON(needs.lanes.outputs.lanes).bench.run
     runs-on: ubuntu-latest
     timeout-minutes: 120
     strategy:
@@ -167,7 +172,7 @@ jobs:
   pre-publish-build:
     name: pre-publish e2e · build + pack
     needs: lanes
-    if: contains(github.event.pull_request.labels.*.name, 'pre-publish-e2e') && fromJSON(needs.lanes.outputs.lanes).e2e.run
+    if: contains(fromJSON(needs.lanes.outputs.labels), 'pre-publish-e2e') && fromJSON(needs.lanes.outputs.lanes).e2e.run
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:

@@ -26,6 +26,8 @@ on:
   # `synchronize` re-runs it on every new commit while the label is still on, so
   # a labelled PR keeps being checked. Deliberately NOT pull_request_target: that
   # would hand secrets and write permissions to fork code.
+  # The label is read live from the PR (the `lanes` job), never the event payload:
+  # an `opened` run that cancels its `labeled` twin carries no labels.
   pull_request:
     types: [opened, synchronize, reopened, labeled]
 
@@ -46,8 +48,11 @@ jobs:
     permissions:
       contents: read
       actions: read
+      # reading the live labels
+      pull-requests: read
     outputs:
       lanes: ${{ steps.decide.outputs.lanes }}
+      labels: ${{ steps.decide.outputs.labels }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -63,6 +68,7 @@ jobs:
   # false} means "cannot tell", which MUST run the lane — never skip on doubt.
   decide:
     name: should the lane run
+    needs: lanes
     runs-on: ubuntu-latest
     outputs:
       run: ${{ steps.check.outputs.run }}
@@ -76,7 +82,7 @@ jobs:
       - id: check
         shell: bash
         env:
-          LABELLED: ${{ contains(github.event.pull_request.labels.*.name, 'drizzle-e2e') }}
+          LABELLED: ${{ contains(fromJSON(needs.lanes.outputs.labels), 'drizzle-e2e') }}
           BASE_REF: ${{ github.base_ref }}
         # The decision lives in the front door, not in yaml, so it can be read and
         # run locally: `node scripts/release/drizzle-e2e.mjs --should-run`.
