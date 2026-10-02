@@ -153,19 +153,20 @@ export function goBinCacheKey() {
 export const readResolverStamp = () => readStamp(GO_STAMP);
 
 // Go is checked only after the stamp, so a trusted cached binary needs no toolchain.
-function checkStampedGoBin({bin, stamp, pkg, digest, ldflags, trustStamp}) {
+function checkStampedGoBin({bin, stamp, pkg, digest, ldflags, trustStamp, env}) {
   const name = rel(bin);
   const ldArgs = ldflags ? ['-ldflags', ldflags] : [];
+  const filled = existsSync(bin) && statSync(bin).size > 0;
   info(`Checking ${name}...`);
-  if (trustStamp && existsSync(bin) && readStamp(stamp) === digest) return success(`${name} is up to date (stamp).`);
+  if (trustStamp && filled && readStamp(stamp) === digest) return success(`${name} is up to date (stamp).`);
   if (!which('go')) fail(`Go toolchain not found on PATH (needed to build ${name}).`);
   const localGo = capture('go', ['env', 'GOVERSION']).stdout.trim();
   // The stamp names the pin, so a build with another Go is a binary CI would not make.
   if (localGo && localGo !== pinnedGoVersion()) warn(`building ${name} with ${localGo}, but CI pins ${pinnedGoVersion()} (ts-go-runtypes/.go-version); the result can differ from the CI build.`);
-  if (!existsSync(bin)) {
+  if (!filled) {
     info(`Building ${name} (missing; may take a moment on a cold cache)...`);
     mkdirSync(dirname(bin), {recursive: true});
-    if (run('go', ['build', ...ldArgs, '-o', bin, pkg], {cwd: GO_ROOT}) !== 0) fail('Build failed.');
+    if (run('go', ['build', ...ldArgs, '-o', bin, pkg], {cwd: GO_ROOT, env}) !== 0) fail('Build failed.');
     writeStamp(stamp, digest);
     return success(`Built ${name}.`);
   }
@@ -174,10 +175,11 @@ function checkStampedGoBin({bin, stamp, pkg, digest, ldflags, trustStamp}) {
   info(`Verifying ${name} matches current source...`);
   const tmpBin = tempBesideBin(bin);
   try {
-    if (run('go', ['build', ...ldArgs, '-o', tmpBin, pkg], {cwd: GO_ROOT}) !== 0) fail('Reference build failed.');
+    if (run('go', ['build', ...ldArgs, '-o', tmpBin, pkg], {cwd: GO_ROOT, env}) !== 0) fail('Reference build failed.');
     const diskId = buildId(bin);
     const refId = buildId(tmpBin);
-    if (!diskId || !refId) fail(`Could not read build IDs from ${name} or reference binary.`);
+    // An unreadable binary on disk is just stale; only the fresh reference must have an ID.
+    if (!refId) fail(`Could not read the build ID of the ${name} reference binary.`);
     if (diskId !== refId) {
       info(`Replacing ${name} (stale: build ID mismatch)...`);
       renameSync(tmpBin, bin);
@@ -210,41 +212,17 @@ function checkExtract({trustStamp = false} = {}) {
 function checkLinuxCopy({hostBin, check, pkg, ldflags, digest, name, opts}) {
   const goarch = hostGoArch();
   const linuxBin = join(REPO_ROOT, `mion-bin/${name}-linux-${goarch}`);
-  // The host digest also fingerprints the cross-build: its target is fixed to linux/<host arch>.
-  const linuxStamp = join(REPO_ROOT, `mion-bin/.${name}-linux-${goarch}.stamp`);
 
   // Host binary first, or a stale one is carried forward into the linux slot.
   check(opts);
 
-  info(`Checking mion-bin/${name}-linux-${goarch}...`);
-  const ldArgs = ldflags ? ['-ldflags', ldflags] : [];
   if (process.platform === 'darwin') {
-    const filled = existsSync(linuxBin) && statSync(linuxBin).size > 0;
-    if (opts.trustStamp && filled && readStamp(linuxStamp) === digest) return success(`mion-bin/${name}-linux-${goarch} is up to date (stamp).`);
-    if (!which('go')) fail(`Go toolchain not found on PATH (needed to build mion-bin/${name}-linux-${goarch}).`);
-    if (!filled) {
-      info(`Cross-building (linux/${goarch})...`);
-      if (run('go', ['build', ...ldArgs, '-o', linuxBin, pkg], {cwd: GO_ROOT, env: {GOOS: 'linux', GOARCH: goarch}}) !== 0) fail('Cross-build failed.');
-      writeStamp(linuxStamp, digest);
-      return success(`Built mion-bin/${name}-linux-${goarch}.`);
-    }
-    const tmpBin = tempBesideBin(linuxBin);
-    try {
-      if (run('go', ['build', ...ldArgs, '-o', tmpBin, pkg], {cwd: GO_ROOT, env: {GOOS: 'linux', GOARCH: goarch}}) !== 0) fail('Cross-build (reference) failed.');
-      const diskId = buildId(linuxBin);
-      const refId = buildId(tmpBin);
-      if (!diskId || diskId !== refId) {
-        info(`Replacing mion-bin/${name}-linux-${goarch} (stale)...`);
-        renameSync(tmpBin, linuxBin);
-        success(`Built mion-bin/${name}-linux-${goarch}.`);
-      } else {
-        success(`mion-bin/${name}-linux-${goarch} is up to date with source.`);
-      }
-      writeStamp(linuxStamp, digest);
-    } finally {
-      rmSync(tmpBin, {force: true});
-    }
-  } else if (!existsSync(linuxBin) || statSync(hostBin).mtimeMs > statSync(linuxBin).mtimeMs) {
+    // The host digest also fingerprints the cross-build: its target is fixed to linux/<host arch>.
+    const stamp = join(REPO_ROOT, `mion-bin/.${name}-linux-${goarch}.stamp`);
+    return checkStampedGoBin({bin: linuxBin, stamp, pkg, digest, ldflags, trustStamp: opts.trustStamp, env: {GOOS: 'linux', GOARCH: goarch}});
+  }
+  info(`Checking mion-bin/${name}-linux-${goarch}...`);
+  if (!existsSync(linuxBin) || statSync(hostBin).mtimeMs > statSync(linuxBin).mtimeMs) {
     cpSync(hostBin, linuxBin, {force: true});
     success(`Synced mion-bin/${name}-linux-${goarch} from ${rel(hostBin)}.`);
   } else {
