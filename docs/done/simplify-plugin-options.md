@@ -1,7 +1,7 @@
 ---
 type: chore
 spec: guidelines
-status: ready
+status: done
 created: 2026-10-01
 ---
 
@@ -265,3 +265,31 @@ The apiids suite already exists; it is reworked (section 5), no new fuzz suite.
 Old names gone everywhere; batch page explains precompiled batches; both presets take the new shape with
 tests; a fetch-mode client is covered; Go and JS suites pass; PR labelled `pre-publish-e2e` + `website`;
 both simplification passes committed on their own.
+
+## What Shipped
+
+Built as planned, with these additions and changes found along the way:
+
+- **`mion api-check` kept working for fullstack builds.** A one-program build used to write only the
+  server manifest, so api-check had nothing to compare. The build now writes `api/manifest.json`
+  (server) and `api/client-manifest.json` (client) side by side, each removed when the build has none,
+  and api-check reads the client one. The use case it serves: an older shipped client checked against a
+  newer server build.
+- **`server.platform` removal** uses a router-level host flag (`setHostOwnsSocket` / `hostOwnsSocket`
+  and `setHostRequestHandler` / `getHostRequestHandler` in `@mionjs/router`, kept on a `getOrCreateGlobal`
+  slot that survives `resetRouter`). The vite plugin sets it before loading `server.entry`; platform-node
+  and platform-bun then skip listening and hand over their handler, platform-uws throws. The plugin clears
+  it in `closeBundle`. An entry that starts no adapter still falls back to `@mionjs/platform-node`.
+- **`server.entry`** resolves against the vite root (it was an absolute path before).
+- **Empty-program tsconfig** (`files: []` plus `references`) now fails in `program.New` with an error
+  naming the file.
+- **Retired diagnostics:** MET005 and BAT008, each with a one-line "retired" note, the repo's convention.
+- **Pre-publish e2e consumer** is one program: `client-app/` is gone, `src/client/batchFlow.ts` sits in the
+  main program, and a second compile (`tsconfig.compile-fetch.json`, `--client-routes fetch`) proves a
+  fetching client against the same server under plain node. The lane also runs the published
+  `mion api-check` over one build's two manifests.
+- **apiids fuzz** builds one project twice (server gen dir, client gen dir): A2 also checks the two `api/`
+  trees are byte-identical. The negative control is now a client manifest from before a server type edit.
+- **Examples:** `vite-bundled-client.config.ts` and `next-bundled-config.ts` deleted; `next-fetched-config.ts`
+  added for the Next options section.
+- **`MION_E2E_BUNDLE_API`** renamed to `MION_E2E_CLIENT_ROUTES` (values `bundle`, unset for fetch).
