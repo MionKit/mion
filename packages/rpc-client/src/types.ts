@@ -20,7 +20,7 @@ export type Result<RouteSuccess, RouteError, RA = RemoteApi> = [
   ClientResponse<RA>,
 ];
 
-/** Result type for batch(): one call() Result per route, in order, all sharing the same response **/
+/** batch() result: one call() Result per route, all sharing the same response **/
 export type BatchResult<Routes extends RouteSubRequest<any>[]> = {
   [K in keyof Routes]: Routes[K] extends RouteSubRequest<any> ? Awaited<ReturnType<Routes[K]['call']>> : never;
 };

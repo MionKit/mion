@@ -119,7 +119,6 @@ describe('batch', () => {
 
       const [[failResult, failError]] = await batch([routes.alwaysFails(someUser)]).call();
 
-      // The failing route should have an error
       expect(failError).toBeDefined();
       expect(failError?.type).toBe('unknown-error');
       expect(failResult).toBeUndefined();
@@ -249,14 +248,11 @@ describe('batch', () => {
       expect(greetingError).toBeUndefined();
       expect(ageError).toBeUndefined();
 
-      // Date result
       expect(sameDate).toBeInstanceOf(Date);
       expect(sameDate?.toISOString()).toEqual('2024-06-15T12:30:00.000Z');
 
-      // String result
       expect(greeting).toEqual('Hello John Doe');
 
-      // Number result
       expect(age).toEqual(new Date().getFullYear() - 1990);
     });
   });
@@ -339,12 +335,8 @@ describe('inputFrom e2e in batch', () => {
     const authHeaders = createAuthHeaders('XWYZ-TOKEN');
     middlewares.auth.onRequest((auth) => auth(authHeaders));
 
-    // the mapper body is authored HERE (client flow code), extracted at build time,
-    // and executed by the server via the generated batch module the plugin writes into its root.
-    // NOTE: the mapper param is inferred as `resolvedValue | undefined` (the value
-    // resolves server-side), hence the `!` — same convention as the docs examples.
-    // the same routes as the test above with a different mapper: the mappings are part of the
-    // batch id, so this is its own batch
+    // The build extracts this client-written mapper into the generated batch module the server runs.
+    // The mapper param is `value | undefined` (it resolves server-side), hence the `!`.
     const customer = routes.getCustomerById(7);
     const [[customerData, customerError], [prefs, prefsError]] = await batch([
       customer,
@@ -497,8 +489,7 @@ describe('inputFrom mapping shapes end to end', () => {
   });
 
   it('two batches whose mappers differ only in body', async () => {
-    // Each inline mapper is its own pure fn, so the two batches carry different
-    // mapper ids and different batch ids even though the routes match.
+    // Different mapper bodies give different mapper ids, so different batch ids for the same routes.
     const user = routes.flow.getUser(15);
     const entries = await batch([user, routes.flow.getOrg(inputFrom(user, (userValue) => userValue!.orgId + 0).asArg())]).call();
     const [[, , clientResponse], [org]] = entries;
@@ -580,8 +571,7 @@ describe('inputFrom mapping shapes end to end', () => {
     ]);
   });
 
-  // The next two tests are the SAME batch written twice (same routes, same mapping): both call sites
-  // hash to the same id and both must work.
+  // The next two tests write the SAME batch twice: both call sites hash to the same id and both must work.
   it('the same batch written twice in the file: first site', async () => {
     const user = routes.flow.getUser(20);
     const entries = await batch([user, routes.flow.getOrg(inputFrom(user, (userValue) => userValue!.orgId).asArg())]).call();
@@ -639,7 +629,6 @@ describe('inputFrom mapping shapes end to end', () => {
     expect(clientResponse['@thrownErrors']).toBeUndefined();
     expect(entries.map(([, error]) => error)).toEqual([undefined, undefined]);
     expect(org).toEqual({id: 250, name: 'Org 250'});
-    // the hook fed middleware is reported under its own id
     expect((clientResponse as Record<string, any>).session).toMatchObject({userId: 'user-123', role: 'admin'});
   });
 
@@ -669,9 +658,8 @@ describe('inputFrom mapping shapes end to end', () => {
     expect(sameDate?.toISOString()).toBe('2024-01-05T00:00:00.000Z');
   });
 
-  // A mapped param travels as a `null` placeholder. The compiled JSON stringifier for a Map / Set
-  // param iterates it, so a mapped subrequest falls back to the plain wire forms (lib/serializer.ts).
-  // The metadata is primed first so the compiled stringifier, not the optimistic JSON.stringify, runs.
+  // A mapped Map/Set param is a `null` the compiled stringifier would iterate, so it falls back (lib/serializer.ts).
+  // The first call primes metadata so the compiled stringifier runs, not the optimistic JSON.stringify.
   it('a Map placeholder is sent once metadata is cached, and the mapped Map arrives intact', async () => {
     await routes.getSameMap(new Map([['x', 1]])).call();
     const stamp = routes.flow.getStamp(5);
@@ -712,18 +700,15 @@ describe('batch runtime behaviour', () => {
       routes.flow.getOrg(inputFrom(user, (userValue) => userValue!.orgId).asArg()),
     ]).call();
 
-    // the source's own declared error stays in its slot
     expect(userValue).toBeUndefined();
     expect(userError?.type).toBe('user-not-found');
-    // a returned error does not stop the chain, but the target has nothing to map from: the mapping
-    // step answers it with a typed error naming both routes and the target handler never runs
+    // A returned error does not stop the chain: the mapping step answers the target, whose handler never runs.
     expect(org).toBeUndefined();
     expect(orgError?.type).toBe('batch-mapping-source-failed');
     expect(orgError?.publicMessage).toContain("'flow/getUser'");
     expect(orgError?.publicMessage).toContain("'flow/getOrg'");
     expect(clientResponse['@thrownErrors']).toBeUndefined();
 
-    // the server is still up: the next request answers normally
     const [greeting, greetingError, greetingResponse] = await routes.sayHello(someUser).call();
     expect(greeting).toBe('Hello John Doe');
     expect(greetingError).toBeUndefined();
@@ -737,7 +722,6 @@ describe('batch runtime behaviour', () => {
       routes.flow.getOrg(inputFrom(maybe, (userValue) => userValue!.orgId).asArg()),
     ]).call();
 
-    // the source answered (null) and has no error of its own
     expect(maybeValue).toBeNull();
     expect(maybeError).toBeUndefined();
     // the undeclared mapper throw is ONE @thrownErrors entry naming both routes, not the mapper; the target never ran

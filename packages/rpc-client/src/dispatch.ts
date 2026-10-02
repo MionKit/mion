@@ -675,7 +675,7 @@ function buildResult(
   const frameworkErrors = [takeBundledApiError(), takeApiVersionError(), state.metadata?.takeError()];
   frameworkErrors.forEach((error) => error && addThrownError(response, error));
 
-  // every batch entry is a single call's Result, all pointing at the same response
+  // every batch entry is a call() Result sharing the same response
   if (batchSubRequests)
     return batchSubRequests.map(
       (batchRoute): Result<any, any> => [batchRoute.resolvedValue, declaredErrorFor(batchRoute.id), response]
