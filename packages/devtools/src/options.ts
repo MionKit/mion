@@ -5,10 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Everything the mion PRESETS share, so the vite and Next lanes cannot drift apart: the same `tsConfig`,
-// `client` and `runTypes` options, mapped to the same resolver options. What stays behind in each preset is only
-// what its host has, so vite keeps the Vue SFC pass, middleware mode and module-graph invalidation, and Next
-// keeps nothing extra (the broker's typeDeps + stamp cover staleness, and Next runs its own dev server).
+// What the mion PRESETS share, so vite and Next cannot drift: the same options mapped to the same resolver options.
+// Each preset keeps only what its host has: vite the Vue SFC pass, middleware mode and module-graph invalidation;
+// Next nothing (the broker's typeDeps + stamp cover staleness, and Next runs its own dev server).
 
 import {assertValidClientRoutes, type PluginOptions as TsRuntypesPluginOptions} from './core/unplugin.ts';
 
@@ -63,11 +62,10 @@ export interface MionRunTypesOptions {
   sfc?: boolean;
 }
 
-/** How the client gets what it needs to call each route: its metadata and compiled functions. */
+/** How the client gets each route's metadata and compiled functions. */
 export interface MionClientOptions {
-  /** 'bundle' (default) puts every called route's metadata and compiled functions in the client bundle; a route
-   *  the build cannot see is fetched only when the client sets up `useFetchMetadata`. 'fetch' gets every route's
-   *  from the server on first use, which needs client `useFetchMetadata` and server `mionFetchMetadata`. */
+  /** 'bundle' (default) bundles every called route; an unseen one is fetched only with client `useFetchMetadata`.
+   *  'fetch' gets every route from the server on first use: needs `useFetchMetadata` and server `mionFetchMetadata`. */
   routes?: 'bundle' | 'fetch';
 }
 
@@ -86,15 +84,14 @@ export function resolveRtBinary(explicit?: string): string | undefined {
 
 /** The options both mion presets read. */
 export interface MionPresetOptions {
-  /** The ONE tsconfig whose program holds the client and the server code (absolute, or relative to the vite
-   *  root / Next cwd). Unset, `tsconfig.json` is searched upward from there, like tsc. */
+  /** The ONE tsconfig holding client and server code (absolute, or relative to the vite root / Next cwd).
+   *  Unset, `tsconfig.json` is searched upward from there, like tsc. */
   tsConfig?: string;
   client?: MionClientOptions;
   runTypes?: MionRunTypesOptions;
 }
 
-/** Maps the shared preset options onto the resolver's own. Shared by BOTH presets, so a knob added here
- *  reaches the vite lane and the Next lane in the same commit.
+/** Maps the preset options onto the resolver's own; shared by BOTH presets so a new knob reaches vite and Next at once.
  *
  *  Host-specific hooks are NOT set here: `onSiteFilesChanged` and `onGenerate` are vite's module-graph
  *  invalidation, and the Next lane needs no equivalent (the broker declares typeDeps plus a stamp instead). */

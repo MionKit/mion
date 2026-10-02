@@ -42,8 +42,8 @@ type Options struct {
 	// TsconfigGenDir is the tsconfig `genDir` (absolute, empty when unset), preferred over the inferred <srcDir>/.mion.
 	// An explicit per-request outDir still wins.
 	TsconfigGenDir string
-	// ClientRoutes turns the client apimeta lane on (`bundle`): each called route's metadata and compiled fns go under
-	// <outDir>/api/, injected at the dispatch sites, with the mode literal injected at initClient. The zero value skips the lane.
+	// ClientRoutes `bundle` turns the apimeta lane on: called routes go under <outDir>/api/, injected at the dispatch
+	// sites, the mode literal at initClient. The zero value skips the lane.
 	ClientRoutes constants.ClientRoutesMode
 	// GenDir is the EXPLICIT output-root override (serve --gen-dir), preferred over TsconfigGenDir.
 	// Session config, never a wire field: every op reads the output root through resolveOutDir.

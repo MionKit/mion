@@ -10,9 +10,8 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/hashid"
 )
 
-// `<genDir>/api/manifest.json`, the id table BOTH builds write: the server from its `initRoutes(...)`
-// calls, a bundling client from the routes it bundled. `mion api-check` compares the two files,
-// so a split deployment can prove before a release that the client's bundled validators are the server's.
+// The `<genDir>/api/` id tables: the server's from its `initRoutes(...)` calls, a bundling client's from the routes
+// it bundled. `mion api-check` compares them, so a split deployment proves the client's validators are the server's.
 
 const (
 	ManifestKindServer = "server"

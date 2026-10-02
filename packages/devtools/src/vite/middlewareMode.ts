@@ -13,11 +13,9 @@ import {serveFetchHandler} from './nodeWebBridge.ts';
 import type {MionServerOptions} from './mionVitePlugin.ts';
 
 // ############# in-process (middleware) server mode #############
-// Runs the mion API INSIDE the vite dev server: the entry is loaded through `ssrLoadModule`, so it shares the
-// module graph with the app, and its handler is mounted as connect middleware. One process, one port. The
-// "don't open a port" half is the router's host flag, set before the entry loads: whatever platform adapter
-// the entry starts then skips listening and hands over its handler, so an unchanged
-// `initRoutes(routes); startNodeServer();` entry works as written.
+// The entry is `ssrLoadModule`d, sharing the app's module graph, and its handler mounted as connect middleware.
+// The router's host flag, set before the entry loads, makes any adapter it starts skip listening and hand over
+// its handler, so an unchanged `initRoutes(routes); startNodeServer();` entry works as written.
 
 /** Node-style handler, as exported by @mionjs/platform-node. */
 type NodeHandler = (req: IncomingMessage, res: ServerResponse) => void;
@@ -191,8 +189,7 @@ export function mionMiddlewarePlugin(options: MionServerOptions, signals: Middle
   };
 }
 
-/** Fails loudly when the entry opened a port anyway, which means the entry got a DIFFERENT copy of the router
- *  than the one the host flag was set on. */
+/** An entry that opened a port anyway got a DIFFERENT router copy than the one the host flag was set on. */
 function assertNotListening(router: Record<string, any>): void {
   const platformConfig = router.getPlatformConfig?.();
   // No adapter was started at all (a pure initRoutes entry): nothing to check.
@@ -205,8 +202,7 @@ function assertNotListening(router: Record<string, any>): void {
   );
 }
 
-/** The entry's own export wins, then the handler the started adapter handed over, then the node adapter's for an
- *  entry that only calls initRoutes. A node-style handler wins when both exist: no Request/Response is built for it. */
+/** A node-style handler wins when both exist: no Request/Response is built for it. */
 async function pickHandler(
   server: ViteDevServer,
   entry: Record<string, any>,

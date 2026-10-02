@@ -389,9 +389,7 @@ const apiServerRouterDTS = `declare module '@mionjs/router' {
 }
 `
 
-// apiServerRoutesTS is the API's source: initCalls `initRoutes` calls over the
-// same two routes; extraParam adds a third parameter to getById, the kind of
-// server-side edit api-check exists to catch.
+// apiServerRoutesTS repeats `initRoutes` initCalls times; extraParam grows getById, the edit api-check exists to catch.
 func apiServerRoutesTS(initCalls int, extraParam bool) string {
 	getById := "handler: (id: number, verbose: boolean): {id: number; name: string} => ({id, name: ''})"
 	if extraParam {
@@ -494,9 +492,8 @@ func fullstackSources(extraParam bool) map[string]string {
 	}
 }
 
-// TestApiGen_FullstackBuildWritesBothManifests: one program holding the API and a bundling client writes
-// the server's manifest AND the client's, and they compare equal; a later server build that grows a
-// parameter no longer matches the earlier client, on exactly the field that changed.
+// TestApiGen_FullstackBuildWritesBothManifests: one program writes matching server and client manifests; a later
+// server build that grows a parameter fails against the earlier client on exactly that field.
 func TestApiGen_FullstackBuildWritesBothManifests(t *testing.T) {
 	genDir := t.TempDir()
 	build := setupApi(t, fullstackSources(false), genDir, constants.ClientRoutesBundle)

@@ -11,16 +11,9 @@ import {dirname, relative, resolve} from 'path';
 import {pathToFileURL} from 'url';
 import {spawn, type ChildProcess} from 'child_process';
 
-// Runs AFTER the `mion compile` runs of the PUBLISHED binary (scripts/release/e2e.mjs):
-//
-//   mion compile --tsconfig tsconfig.compile.json --gen-dir .mion-cli
-//   mion compile --tsconfig tsconfig.compile-fetch.json --gen-dir .mion-cli-fetch --client-routes fetch
-//
-// One program holds the server and its client: the first compile generates the batch table and the
-// inline inputFrom mapper module from it, appends the table's import to the emitted router-init
-// module and splices the batch id and mapper id into the emitted client flow. The second builds the
-// same server with a client that bundles nothing and fetches every route. Both emitted servers boot
-// under plain node and answer their emitted client.
+// Runs AFTER scripts/release/e2e.mjs compiles with the PUBLISHED binary: tsconfig.compile.json into .mion-cli,
+// then tsconfig.compile-fetch.json into .mion-cli-fetch with `--client-routes fetch`.
+// Both emitted servers boot under plain node and answer their emitted client.
 
 const rootDir = resolve(__dirname, '../..');
 const outDir = resolve(rootDir, 'dist-cli');
@@ -90,7 +83,7 @@ describe('mion compile output', () => {
         }
         expect(table).not.toContain(rootDir);
         expect(table).not.toContain('clientRoot');
-        // the program's one batch, src/client/batchFlow.ts (the specs are not part of this compile)
+        // one batch, src/client/batchFlow.ts: the specs are not part of this compile
         const ids = [...table.matchAll(/"(b_[A-Za-z0-9_-]+)"/g)].map((m) => m[1]);
         expect(ids).toHaveLength(1);
         // one generated pure-fn module, under the path its id names: the package

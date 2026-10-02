@@ -1,10 +1,5 @@
-// The batch transport through `mion compile`, the tsc-like CLI lane, over a real
-// fullstack project on disk: the compile writes `<genDir>/rpc/` from the program's
-// own batches, appends the relativized table import to its emitted router-init
-// module, and splices the batch id and the mapper id into the emitted client `.js`.
-// The project declares the mion packages ambiently (the pattern of
-// compile-cli.test.ts), so no built framework package is needed; the markers come
-// from the real marker package.
+// The batch transport through `mion compile` over a real fullstack project on disk. The mion packages are
+// declared ambiently (as in compile-cli.test.ts), so no built framework package is needed.
 import {describe, expect, it} from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -216,9 +211,8 @@ describe('mion compile — a pure fn that imports another pure fn id', () => {
   });
 });
 
-// The bundled-API lane through the same CLI: one fullstack project whose build writes the server
-// manifest (from its initRoutes call) AND the client manifest (from the routes it bundled), and
-// `mion api-check` comparing an earlier client build against a later server build.
+// The bundled-API lane through the same CLI: one build writes the server AND client manifests, then
+// `mion api-check` compares an earlier client build against a later server build.
 const API_ROUTER_DTS = `declare module '@mionjs/router' {
   type Handler = (...args: any[]) => any;
   type Opts = {alwaysRun: false; description: undefined; parser: {params: 'clone'; return: 'clone'}; isMutation: undefined; sanitizeParams: undefined};

@@ -50,8 +50,7 @@ export interface MionServerBuildOptions {
   outDir?: string;
 }
 
-// Batch transport needs no config: the SERVER build's resolver does it all inside the transform, so this
-// preset only handles vite's module graph.
+// No batch config: the SERVER build's resolver does it in the transform; this preset only wires vite's module graph.
 // The wire carries only the batch id, so the server runs exactly the batches and mappers its own build baked in.
 
 /** Options for the unified mion vite plugin. */

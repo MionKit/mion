@@ -5,9 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The client half of the fullstack program, with an inline inputFrom mapper: one compile generates
-// the batch table and this mapper's module from it, and src/tests/compile-output.spec.ts runs the
-// compiled flow below against the compiled server.
+// One compile generates the batch table and this mapper's module; src/tests/compile-output.spec.ts runs the result.
 import {batch, initClient, inputFrom} from '@mionjs/client';
 import {HeadersSubset} from '@mionjs/core';
 import type {TestServerApi} from '../server/server.ts';
