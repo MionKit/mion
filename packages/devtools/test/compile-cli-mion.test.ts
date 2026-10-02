@@ -214,6 +214,7 @@ describe('mion compile — a pure fn that imports another pure fn id', () => {
 // The bundled-API lane through the same CLI: one build writes the server AND client manifests, then
 // `mion api-check` compares an earlier client build against a later server build.
 const API_ROUTER_DTS = `declare module '@mionjs/router' {
+  import type {InjectBuildVersion} from '@mionjs/run-types';
   type Handler = (...args: any[]) => any;
   type Opts = {alwaysRun: false; description: undefined; parser: {params: 'clone'; return: 'clone'}; isMutation: undefined; sanitizeParams: undefined};
   export type PublicApi<R> = {
@@ -221,7 +222,11 @@ const API_ROUTER_DTS = `declare module '@mionjs/router' {
       ? {type: T; handler: H; options: Opts; types?: {params: Parameters<H>; return: Awaited<ReturnType<H>>; headers: never; isAsync: false}}
       : PublicApi<R[K]>;
   };
-  export interface MionRouter { initRoutes<R>(routes: R): PublicApi<R> }
+  const apiBuildVersion: unique symbol;
+  export type ApiBuildVersion<V extends string> = {readonly [apiBuildVersion]?: V};
+  export interface MionRouter {
+    initRoutes<R, const V extends string = string>(routes: R, buildVersion?: InjectBuildVersion<PublicApi<R>> & V): PublicApi<R> & ApiBuildVersion<V>;
+  }
   export function createMionRouter(): MionRouter;
 }
 `;
@@ -235,7 +240,7 @@ export const api = mion.initRoutes({users: {getById: {type: 1 as const, ${getByI
 `;
 }
 const API_CLIENT_DTS = `declare module '@mionjs/client' {
-  import type {InjectApiMetadata} from '@mionjs/run-types';
+  import type {InjectApiMetadata, InjectBuildVersion} from '@mionjs/run-types';
   export interface RouteSubRequest<PH, Id extends string = string, RA = any> {
     id: Id;
     call(setup?: unknown, apiMetadata?: InjectApiMetadata<RA, Id>): Promise<unknown>;
@@ -246,7 +251,7 @@ const API_CLIENT_DTS = `declare module '@mionjs/client' {
       ? (...params: Parameters<H>) => RouteSubRequest<H, \`\${Prefix}\${K & string}\`, Root>
       : ClientRoutes<RA[K], \`\${Prefix}\${K & string}/\`, Root>;
   };
-  export function initClient<RA>(o?: unknown): {routes: ClientRoutes<RA>};
+  export function initClient<RA>(o?: unknown, buildVersion?: InjectBuildVersion<RA>): {routes: ClientRoutes<RA>};
   export function setApiBundled(): void;
 }
 `;
@@ -318,6 +323,76 @@ describe('mion compile + api-check — a bundled client against its server', () 
       const missing = apiCheck(genDir, path.join(base, 'nowhere'));
       expect(missing.status).toBe(2);
       expect(missing.stderr).toContain('client manifest');
+    } finally {
+      fs.rmSync(base, {recursive: true, force: true});
+    }
+  });
+});
+
+// A client built apart from its server, reading the API from the .d.ts the server's `mion compile` published.
+const PACKAGE_CLIENT_TS = `import {initClient} from '@mionjs/client';
+import type {api} from '@acme/api';
+export const {routes} = initClient<typeof api>({baseURL: 'http://x'});
+export const a = routes.users.getById(1, true).call();
+`;
+const BUILD_VERSION = /init(?:Routes|Client)\([\s\S]*?, ['"]([A-Za-z0-9]{12})['"]\)/;
+
+function injectedVersion(file: string): string {
+  return fs.readFileSync(file, 'utf8').match(BUILD_VERSION)?.[1] ?? '';
+}
+
+describe('mion compile + api-check — a client built from the published API types', () => {
+  register('the server version rides the .d.ts; a matching client builds, a drifted one fails', () => {
+    const base = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-compile-apitypes-'));
+    try {
+      const server = writeProject(base, 'server', {'router.d.ts': API_ROUTER_DTS, 'server.ts': apiServerTs(false)});
+      const tsconfig = JSON.parse(fs.readFileSync(path.join(server, 'tsconfig.json'), 'utf8'));
+      tsconfig.compilerOptions.declaration = true;
+      fs.writeFileSync(path.join(server, 'tsconfig.json'), JSON.stringify(tsconfig));
+      const serverGen = path.join(server, '.mion');
+      const built = runCli(['compile', '--cwd', server, '--tsconfig', 'tsconfig.json', '--gen-dir', serverGen], {
+        label: 'apitypes-server',
+      });
+      expect(built.status, built.report).toBe(0);
+      const serverVersion = injectedVersion(path.join(server, 'dist', 'server.js'));
+      expect(serverVersion).not.toBe('');
+      const publishedDts = fs.readFileSync(path.join(server, 'dist', 'server.d.ts'), 'utf8');
+      expect(publishedDts).toContain(`ApiBuildVersion<"${serverVersion}">`);
+
+      const client = writeProject(base, 'client', {
+        'router.d.ts': API_ROUTER_DTS,
+        'client.d.ts': API_CLIENT_DTS,
+        'a.ts': PACKAGE_CLIENT_TS,
+      });
+      const apiPackage = path.join(client, 'node_modules', '@acme', 'api');
+      fs.mkdirSync(apiPackage, {recursive: true});
+      fs.writeFileSync(path.join(apiPackage, 'package.json'), JSON.stringify({name: '@acme/api', types: 'index.d.ts'}));
+      const publish = (dts: string) => fs.writeFileSync(path.join(apiPackage, 'index.d.ts'), dts);
+      const clientGen = path.join(client, '.mion');
+      const compileClient = () =>
+        runCli(['compile', '--cwd', client, '--tsconfig', 'tsconfig.json', '--gen-dir', clientGen], {label: 'apitypes-client'});
+
+      publish(publishedDts);
+      const matching = compileClient();
+      expect(matching.status, matching.report).toBe(0);
+      expect(matching.stdout + matching.stderr).not.toMatch(/MET01[23]/);
+      expect(injectedVersion(path.join(client, 'dist', 'a.js'))).toBe(serverVersion);
+      const check = runCli(['api-check', '--server-gen-dir', serverGen, '--client-gen-dir', clientGen], {
+        label: 'apitypes-check',
+      });
+      expect(check.status, check.report).toBe(0);
+
+      // types written by plain tsc carry no version: the client builds, warned
+      publish(publishedDts.replace(`ApiBuildVersion<"${serverVersion}">`, 'ApiBuildVersion<string>'));
+      const unversioned = compileClient();
+      expect(unversioned.status, unversioned.report).toBe(0);
+      expect(unversioned.stdout + unversioned.stderr).toContain('MET013');
+
+      // a route type that changed after the server build: the client's ids no longer hash to the server's version
+      publish(publishedDts.replace('verbose: boolean', 'verbose: string'));
+      const drifted = compileClient();
+      expect(drifted.status).not.toBe(0);
+      expect(drifted.stdout + drifted.stderr).toContain('MET012');
     } finally {
       fs.rmSync(base, {recursive: true, force: true});
     }

@@ -11,6 +11,8 @@ package diagnostics
 // MET008 bundles the call, which then fails the middleware's validation on every request: LevelRuntimeError.
 // MET009 bundles a call whose middleware silently gets nothing: LevelRuntimeError.
 // MET010 / MET011 build a client whose fetching cannot work (no server half, no client half): LevelRuntimeError.
+// MET012 builds a client every call of which reports a version mismatch: LevelRuntimeError.
+// MET013 builds a client that works but is checked against its server only at runtime: LevelWarning.
 const (
 	// CodeApiMetaUnreadable: the API type a dispatch site names cannot be read as a mion PublicApi.
 	// Args: [0] what could not be read.
@@ -38,6 +40,12 @@ const (
 	CodeApiMetaNoMetadataToFetch = "MET010"
 	// CodeApiMetaFetchNotSetUp: routes are fetched and the client never calls `useFetchMetadata`; reported at `initClient`.
 	CodeApiMetaFetchNotSetUp = "MET011"
+	// CodeApiMetaServerVersionMismatch: the API type carries the server build's version (`ApiBuildVersion`) and this
+	// client hashes its ids to another. Args: [0] the client's version, [1] the server's; reported at `initClient`.
+	CodeApiMetaServerVersionMismatch = "MET012"
+	// CodeApiMetaNoServerVersion: a client reading its API from declarations whose type carries no server version.
+	// Reported at `initClient`.
+	CodeApiMetaNoServerVersion = "MET013"
 )
 
 func init() {
@@ -52,6 +60,8 @@ func init() {
 		{Code: CodeApiMetaOptionalMiddlewareNotSetUp, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Raised: RaisedWholeProgram, Title: "A called route runs a middleware with optional params, and the client never sets it up"},
 		{Code: CodeApiMetaNoMetadataToFetch, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Raised: RaisedBundledRoutes, Title: "A client fetches route metadata from an API that does not serve it"},
 		{Code: CodeApiMetaFetchNotSetUp, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Raised: RaisedWholeProgram, Title: "A client built with `client.routes: 'fetch'` never sets up metadata fetching"},
+		{Code: CodeApiMetaServerVersionMismatch, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Raised: RaisedWholeProgram, Title: "A client's API ids differ from the server build whose types it reads"},
+		{Code: CodeApiMetaNoServerVersion, Family: FamilyMarker, Level: LevelWarning, Scope: ScopeNotSource, Raised: RaisedWholeProgram, Title: "A client reads API types that carry no server build version"},
 	} {
 		register(definition)
 	}

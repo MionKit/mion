@@ -13,7 +13,7 @@ import {HandlerType, HeadersSubset} from '@mionjs/core';
 import type {CallContext} from '../src/types/context.ts';
 import type {Routes} from '../src/types/general.ts';
 import type {MionRouter, RouterCallContext, RouteHelper} from '../src/types/mionRouter.ts';
-import type {PublicApi, RemoteApi} from '../src/types/publicMethods.ts';
+import type {ApiBuildVersion, PublicApi, RemoteApi} from '../src/types/publicMethods.ts';
 
 type SharedData = {user: string | null; visits: number};
 const getSharedData = (): SharedData => ({user: null, visits: 0});
@@ -108,6 +108,12 @@ describe('createMionRouter types', () => {
     type Bare = MionRouter<{basePath: 'x'}>;
     expectTypeOf<RouterCallContext<Bare['options']>>().toEqualTypeOf<CallContext<any>>();
     expectTypeOf<Parameters<Bare['initRoutes']>[0]>().toEqualTypeOf<Routes>();
+  });
+
+  it('returns the build version the build filled in its type, so a published .d.ts carries it', () => {
+    type VersionOf<Api> = Api extends ApiBuildVersion<infer Version> ? Version : never;
+    expectTypeOf<VersionOf<ReturnType<typeof mion.initRoutes<typeof routes, 'k3Jd92xQaP1z'>>>>().toEqualTypeOf<'k3Jd92xQaP1z'>();
+    expectTypeOf<VersionOf<ReturnType<typeof mion.initRoutes<typeof routes>>>>().toEqualTypeOf<string>();
   });
 
   it('still accepts a handler annotated with a plain CallContext', () => {

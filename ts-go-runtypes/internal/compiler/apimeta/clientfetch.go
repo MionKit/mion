@@ -115,6 +115,31 @@ func ClientApis(typeChecker *checker.Checker, markerOpts marker.Options, lookup 
 	return out
 }
 
+// apiBuildVersionKey is the router's unique-symbol key, `ApiBuildVersion`'s one member, as the checker names it.
+const apiBuildVersionKey = symbolKeyPrefix + "apiBuildVersion@"
+
+// ServerBuildVersion reads the server build version an API type carries in its `ApiBuildVersion` member; "" when the
+// type holds none or only `string`, as when the build that wrote the type filled no version.
+func ServerBuildVersion(typeChecker *checker.Checker, apiType *checker.Type) string {
+	if apiType == nil {
+		return ""
+	}
+	for _, property := range typeChecker.GetPropertiesOfType(apiType) {
+		if !strings.HasPrefix(property.Name, apiBuildVersionKey) || len(property.Declarations) == 0 {
+			continue
+		}
+		if marker.DeclaringModuleOfNode(property.Declarations[0], nil) != RouterModule {
+			continue
+		}
+		versionType := typeChecker.GetNonNullableType(typeChecker.GetTypeOfSymbol(property))
+		if versionType != nil && checker.Type_flags(versionType)&checker.TypeFlagsStringLiteral != 0 {
+			version, _ := versionType.AsLiteralType().Value().(string)
+			return version
+		}
+	}
+	return ""
+}
+
 // BuildVersionParam returns the index of the call's InjectBuildVersion parameter and the API it names; -1 and nil without one.
 func BuildVersionParam(typeChecker *checker.Checker, markerOpts marker.Options, call *ast.Node) (int, *checker.Type) {
 	signature := checker.Checker_getResolvedSignature(typeChecker, call, nil, 0)

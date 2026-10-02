@@ -251,8 +251,8 @@ func TestApiGen_TransformInjectsLaneImportAndSiteBindings(t *testing.T) {
 	if !strings.Contains(code, "import '../001/api/lane.js';") {
 		t.Errorf("the file calling initClient did not get the lane import:\n%s", code)
 	}
-	if strings.Contains(code, "initClient<Api>({baseURL: 'http://x'},") {
-		t.Errorf("initClient takes no injected argument any more:\n%s", code)
+	if !strings.Contains(code, "initClient<Api>({baseURL: 'http://x'}, '") {
+		t.Errorf("a bundling client gets its build version:\n%s", code)
 	}
 	if !strings.Contains(code, ".call(undefined, __rt_s$2Fusers$2FgetById)") {
 		t.Errorf("the route call did not receive its binding:\n%s", code)

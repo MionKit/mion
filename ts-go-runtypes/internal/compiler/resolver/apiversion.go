@@ -15,17 +15,20 @@ import (
 
 // Both ends inject one hash over the API type's method rows into the InjectBuildVersion slot of initRoutes / initClient.
 
-// apiVersionSite is one marked call and the value its empty slot takes.
+// apiVersionSite is one marked call and the value its empty slot takes; serverVersion is what the API type carries.
 type apiVersionSite struct {
-	filePath string
-	injectAt int
-	text     string
-	callee   string
-	version  string
-	diagSite diagnostics.Site
+	filePath      string
+	injectAt      int
+	text          string
+	callee        string
+	version       string
+	serverVersion string
+	// fromDeclarations: the call's API type comes from a .d.ts.
+	fromDeclarations bool
+	diagSite         diagnostics.Site
 }
 
-// apiVersionReplacements returns the splices for every marked call in files, or nothing when apiVersionTrusted is false.
+// apiVersionReplacements returns the splices for every marked call in files, or nothing when apiVersionOn is false.
 func (sess *Session) apiVersionReplacements(files []string) []protocol.Replacement {
 	sites := sess.apiVersionSites(files)
 	out := make([]protocol.Replacement, 0, len(sites))
@@ -35,9 +38,9 @@ func (sess *Session) apiVersionReplacements(files []string) []protocol.Replaceme
 	return out
 }
 
-// apiVersionSites walks files for marked calls, or answers nothing when apiVersionTrusted is false.
+// apiVersionSites walks files for marked calls, or answers nothing when apiVersionOn is false.
 func (sess *Session) apiVersionSites(files []string) []apiVersionSite {
-	if sess.Program == nil || sess.Program.TS == nil || len(files) == 0 || !sess.apiVersionTrusted() {
+	if sess.Program == nil || sess.Program.TS == nil || len(files) == 0 || !sess.apiVersionOn() {
 		return nil
 	}
 	versions := map[*checker.Type]string{}
@@ -69,8 +72,17 @@ func (sess *Session) apiVersions(files []string) (routes, client string, diags [
 			clients = append(clients, site)
 		}
 	}
+	// Only an API read from a .d.ts can carry a server version; one typed from source has nothing to compare against.
+	for _, site := range clients {
+		switch {
+		case site.serverVersion != "" && site.serverVersion != site.version:
+			diags = append(diags, diagnostics.New(diagnostics.CodeApiMetaServerVersionMismatch, site.diagSite, site.version, site.serverVersion))
+		case site.serverVersion == "" && site.fromDeclarations:
+			diags = append(diags, diagnostics.New(diagnostics.CodeApiMetaNoServerVersion, site.diagSite))
+		}
+	}
 	if routes == "" {
-		return routes, client, nil
+		return routes, client, diags
 	}
 	// after the walk: comparing as it goes let a later client hide an earlier one
 	for _, site := range clients {
@@ -81,10 +93,9 @@ func (sess *Session) apiVersions(files []string) (routes, client string, diags [
 	return routes, client, diags
 }
 
-// apiVersionTrusted reports whether ids match the server's: only when the program imports the router, so it holds the API.
-// Any other program resolves the API under its own lib and strictness, so it injects nothing rather than a wrong version.
-func (sess *Session) apiVersionTrusted() bool {
-	return sess.importsRouter()
+// apiVersionOn reports whether this program injects versions: a server always, a client only when it bundles its routes.
+func (sess *Session) apiVersionOn() bool {
+	return sess.apiLaneOn() || sess.importsRouter()
 }
 
 // apiVersionSitesIn walks one file's calls; versions memoises per API type because each walk assigns ids for every method.
@@ -128,12 +139,14 @@ func (sess *Session) apiVersionSiteOf(sourceFile *ast.SourceFile, call *ast.Node
 	// TrailingArgText quotes the value and pads any slot the call left empty before it.
 	text := purefunctions.TrailingArgText(version, callExpr.Arguments.HasTrailingComma(), versionIndex-len(callExpr.Arguments.Nodes))
 	return apiVersionSite{
-		filePath: sourceFile.FileName(),
-		injectAt: call.End() - 1,
-		callee:   marker.CalleeIdentifierName(callExpr),
-		version:  version,
-		diagSite: textpos.NodeSite(sourceFile.FileName(), sourceFile, call),
-		text:     text,
+		filePath:         sourceFile.FileName(),
+		injectAt:         call.End() - 1,
+		callee:           marker.CalleeIdentifierName(callExpr),
+		version:          version,
+		serverVersion:    apimeta.ServerBuildVersion(sess.checker, apiType),
+		fromDeclarations: apimeta.ApiTypeFromDeclarations(sess.checker, call),
+		diagSite:         textpos.NodeSite(sourceFile.FileName(), sourceFile, call),
+		text:             text,
 	}, true
 }
 

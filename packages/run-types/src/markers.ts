@@ -246,8 +246,8 @@ export type InjectApiMetadata<Api, Id extends string> = {
  * `initClient(options, buildVersion?)`: the build hashes the compiled ids of the API type's methods into the
  * slot. Derived from the types alone, never from a build stamp, so two builds of one API agree.
  *
- * The slot stays empty for a client reading the API without `api.tsConfig` and without importing the router:
- * it resolved those types under its own compiler settings, so its ids may differ with nothing wrong.
+ * A client reading the API from a `.d.ts` that carries the server's version (`ApiBuildVersion`) must hash to the
+ * same value, or its build fails.
  *
  * `Api` is phantom; the `string & {brand}` shape matches `InjectRunTypeId` so the Go scanner resolves it identically.
  */
