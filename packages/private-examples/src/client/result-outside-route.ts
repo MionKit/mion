@@ -8,7 +8,7 @@ const [user, error, response] = await routes.users
   .getById('USER-123')
   .call({timeout: 5000});
 
-// a middleware error, a timeout or a thrown error: both are undefined
+// both undefined: the error came from outside the route
 if (!user && !error) {
   // a middleware's declared error, typed, under its name
   if (isRpcError(response.auth))
