@@ -1,0 +1,7 @@
+{
+  "name": "@acme/api-client",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Third-party API e2e fixture: a client built apart from its server, reading the API type from the installed @acme/api tarball. Built by run.mjs with the mion Vite preset and with `mion compile`. Declares no dependency on purpose: run.mjs installs the tarball with --no-save."
+}

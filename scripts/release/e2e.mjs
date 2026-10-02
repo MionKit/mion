@@ -190,7 +190,8 @@ node --test pure-fns/test/*.test.mjs`;
 // fixture keeps its own package.json so a maintainer can run the lane on a host.
 const MION_SCRIPT = `set -eu
 cd /e2e-mion
-rm -rf /e2e-mion/src /e2e-mion/lint /e2e-mion/dist /e2e-mion/.mion /e2e-mion/.mion
+rm -rf /e2e-mion/src /e2e-mion/lint /e2e-mion/dist /e2e-mion/.mion /e2e-mion/mion-api-types
+cp -a /e2e-src/mion-api-types /e2e-mion/
 cp -a /e2e-src/mion-consumer/src /e2e-src/mion-consumer/lint /e2e-src/mion-consumer/globalSetup.ts /e2e-src/mion-consumer/tsconfig.json /e2e-src/mion-consumer/vitest.config.ts /e2e-src/mion-consumer/vitest.build-output.config.ts /e2e-src/mion-consumer/vite.build.config.ts /e2e-src/mion-consumer/tsconfig.compile.json /e2e-src/mion-consumer/tsconfig.compile-fetch.json /e2e-src/mion-consumer/vitest.compile-output.config.ts /e2e-mion/
 echo "e2e-mion: installing the framework packages @ $MION_E2E_MION_VERSION + the type-system packages @ $MION_E2E_VERSION from $MION_E2E_REGISTRY"
 npm install $MION_E2E_MION_PKGS "@mionjs/run-types@$MION_E2E_VERSION" "@mionjs/bin-compiler@$MION_E2E_VERSION" --registry "$MION_E2E_REGISTRY" --no-audit --no-fund --legacy-peer-deps
@@ -206,7 +207,10 @@ npx mion compile --tsconfig tsconfig.compile-fetch.json --gen-dir .mion-cli-fetc
 echo "e2e-mion: api-check over the server and client manifests one build wrote"
 npx mion api-check --server-gen-dir .mion-cli --client-gen-dir .mion-cli
 echo "e2e-mion: asserting the compiled server generated the table, imports it, and answers both compiled clients under plain node"
-npx vitest run --config vitest.compile-output.config.ts`;
+npx vitest run --config vitest.compile-output.config.ts
+echo "e2e-mion: a client built from a packed API's .d.ts checks the server build version (matching, plain tsc, drifted)"
+node mion-api-types/run.mjs
+node --test mion-api-types/test/*.test.mjs`;
 
 // The bun lane installs into its OWN directory rather than /e2e-mion: bun resolves
 // node_modules by walking up from the entry, and a bun tree sharing a root with the

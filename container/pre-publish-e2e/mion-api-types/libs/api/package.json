@@ -1,0 +1,23 @@
+{
+  "name": "@acme/api",
+  "version": "0.0.0",
+  "private": false,
+  "type": "module",
+  "description": "Third-party API e2e fixture: a mion server built with `mion compile`, so its published .d.ts carries the server build version a separately built client checks against. Its gen dir sits inside dist, so the server's manifest ships with it.",
+  "files": [
+    "dist"
+  ],
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "peerDependencies": {
+    "@mionjs/core": "*",
+    "@mionjs/router": "*",
+    "@mionjs/platform-node": "*",
+    "@mionjs/run-types": "*"
+  }
+}
