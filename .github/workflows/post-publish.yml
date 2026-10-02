@@ -75,7 +75,7 @@ jobs:
           # smoke only — the per-OS binary axis (the bundler matrix is OS-agnostic
           # and does not repeat per-OS).
           - {runner: ubuntu-latest, pkg: linux-x64, extra: ''}
-          - {runner: macos-14, pkg: darwin-arm64, extra: '--no-matrix'}
+          - {runner: macos-15, pkg: darwin-arm64, extra: '--no-matrix'}
           - {runner: windows-latest, pkg: win32-x64, extra: '--no-matrix'}
     runs-on: ${{ matrix.runner }}
     # packages:read lets the ubuntu lane pull the prebuilt e2e toolchain image.
