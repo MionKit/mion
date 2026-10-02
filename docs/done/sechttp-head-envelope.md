@@ -61,11 +61,14 @@ The oracle was wrong in two places, both in `httpFuzzRunner.ts`:
 
 What shipped:
 
-- `rawSocketRequest` treats a HEAD answer as complete once the headers end.
-- the envelope check skips the JSON parse for a HEAD request and flags a HEAD answer that carries a body instead.
-- `runSocketAttacks` takes an optional attack list, so a plain test runs the HEAD attack with no seed
-  (`httpFuzz.integration.test.ts`).
-- `platform-node/test/mionHttp.spec.ts` pins the adapter side: HEAD on a route answers headers only and the next
-  request still answers.
+- `rawSocketRequest` treats a HEAD answer as complete shortly after the headers end (a 50 ms wait, so a body the
+  server should not send still shows), instead of waiting for `content-length` bytes.
+- the per-answer checks moved into `checkSocketAnswer`. For a HEAD request it skips the JSON parse and flags an answer
+  that carries a body instead.
+- `runSocketAttacks` takes an optional attack builder `(rng) => SocketAttack[]`, so a plain test runs the HEAD attack
+  with no seed (`httpFuzz.integration.test.ts`). A second test feeds the reader a fake server that sends a body after
+  the HEAD headers and expects the check to flag it.
+- `platform-node/test/mionHttp.spec.ts` pins the adapter side on the wire: HEAD then POST on one connection, the HEAD
+  answer has no body and the POST still answers.
 
 No adapter change.
