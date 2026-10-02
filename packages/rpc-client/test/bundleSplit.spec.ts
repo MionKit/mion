@@ -74,7 +74,7 @@ afterAll(() => rmSync(root, {recursive: true, force: true}));
 
 type Chunk = {type: string; code?: string; fileName: string; isEntry?: boolean; imports?: string[]};
 
-async function buildChunks(routes?: 'bundle' | 'fetch', entry = 'app.ts'): Promise<Chunk[]> {
+async function buildChunks(routes?: (typeof MODES)[number], entry = 'app.ts'): Promise<Chunk[]> {
   const result = await build({
     root,
     configFile: false,
@@ -98,12 +98,12 @@ async function buildChunks(routes?: 'bundle' | 'fetch', entry = 'app.ts'): Promi
 }
 
 /** Every chunk concatenated: a lane split into its own chunk is still shipped. */
-async function buildApp(routes?: 'bundle' | 'fetch', entry = 'app.ts'): Promise<string> {
+async function buildApp(routes?: (typeof MODES)[number], entry = 'app.ts'): Promise<string> {
   return (await buildChunks(routes, entry)).map((chunk) => chunk.code ?? '').join('\n');
 }
 
 /** What a browser runs before the first call: the entry and everything it imports statically. */
-async function buildEagerApp(routes?: 'bundle' | 'fetch', entry = 'app.ts'): Promise<string> {
+async function buildEagerApp(routes?: (typeof MODES)[number], entry = 'app.ts'): Promise<string> {
   const chunks = await buildChunks(routes, entry);
   const byName = new Map(chunks.map((chunk) => [chunk.fileName, chunk]));
   const eager = new Set<string>();

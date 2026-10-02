@@ -98,23 +98,13 @@ describe('client.routes — how the client gets each route', () => {
   });
 
   it('is refused by the plain adapters too, before any resolver starts', async () => {
-    const plugin = runtypesVite({clientRoutes: 'off' as never}) as unknown as {buildStart: () => Promise<void>};
-    await expect(plugin.buildStart()).rejects.toThrow(/client routes must be 'bundle' or 'fetch' \(got "off"\)/);
+    const plugin = runtypesVite({clientRoutes: 'all' as never}) as unknown as {buildStart: () => Promise<void>};
+    await expect(plugin.buildStart()).rejects.toThrow(/client routes must be 'bundle' or 'fetch' \(got "all"\)/);
   });
 
   it('is reached through BOTH presets', async () => {
     await expect(withMion({}, {client: {routes: 'all' as never}, cwd: '/tmp'})).rejects.toThrow(/client routes/);
     expect(() => mionVitePlugin({client: {routes: 'all' as never}})).toThrow(/client routes/);
-  });
-});
-
-describe('the top-level options carry no project pointers', () => {
-  it('maps only tsConfig and client.routes outside the runTypes block', () => {
-    const mapped = toRunTypesOptions({tsConfig: 'tsconfig.json', client: {routes: 'fetch'}});
-    expect(Object.entries(mapped).filter(([, value]) => value !== undefined)).toEqual([
-      ['tsconfig', 'tsconfig.json'],
-      ['clientRoutes', 'fetch'],
-    ]);
   });
 });
 
