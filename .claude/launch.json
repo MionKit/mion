@@ -4,8 +4,8 @@
     {
       "name": "website",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["miondevx", "website", "dev", "--agent"],
-      "port": 3100
+      "runtimeArgs": ["miondevx", "website", "dev"],
+      "port": 3000
     }
   ]
 }
