@@ -283,6 +283,7 @@ describe('client error dispatch contract', () => {
       expect(entries.map(([value]) => value)).toEqual([undefined, undefined]);
       expect(entries.map(([, error]) => error)).toEqual([undefined, undefined]);
       expect(response['@thrownErrors']?.map((error) => error.type)).toEqual(['request-timeout']);
+      expect(entries[1][2]).toBe(response);
     });
 
     it('T12 (R3): flow + failing middleware -> its path + listener; per-route slots stay empty', async () => {

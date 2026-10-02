@@ -423,7 +423,7 @@ describe('batch build shapes end to end', () => {
   it('const sub-proxy: const flow = routes.flow, as element AND as mapping source', async () => {
     const flow = routes.flow;
     const user = flow.getUser(7);
-    const entries = await batch([user, flow.getOrg(inputFrom(user, (u) => u!.orgId).asArg())]).call();
+    const entries = await batch([user, flow.getOrg(inputFrom(user, (userValue) => userValue!.orgId).asArg())]).call();
     const [[userValue, , clientResponse], [org]] = entries;
     expect(clientResponse['@thrownErrors']).toBeUndefined();
     expect(entries.map(([, error]) => error)).toEqual([undefined, undefined]);
@@ -444,7 +444,7 @@ describe('batch build shapes end to end', () => {
     // only the route identity is static; the values travel at runtime like any other call
     async function loadUserWithOrg(userId: number) {
       const user = routes.flow.getUser(userId);
-      return batch([user, routes.flow.getOrg(inputFrom(user, (u) => u!.orgId).asArg())]).call();
+      return batch([user, routes.flow.getOrg(inputFrom(user, (userValue) => userValue!.orgId).asArg())]).call();
     }
     const entries9 = await loadUserWithOrg(9);
     const entries11 = await loadUserWithOrg(11);
@@ -470,7 +470,7 @@ describe('inputFrom mapping shapes end to end', () => {
 
   it('.asArg() with an inline mapper', async () => {
     const user = routes.flow.getUser(12);
-    const entries = await batch([user, routes.flow.getOrg(inputFrom(user, (u) => u!.orgId).asArg())]).call();
+    const entries = await batch([user, routes.flow.getOrg(inputFrom(user, (userValue) => userValue!.orgId).asArg())]).call();
     const [[, , clientResponse], [org]] = entries;
     expect(clientResponse['@thrownErrors']).toBeUndefined();
     expect(entries.map(([, error]) => error)).toEqual([undefined, undefined]);
@@ -479,7 +479,7 @@ describe('inputFrom mapping shapes end to end', () => {
 
   it('a bare inputFrom ref passed straight as the argument (no .asArg())', async () => {
     const user = routes.flow.getUser(13);
-    const entries = await batch([user, routes.flow.getOrg(inputFrom(user, (u) => u!.orgId) as never)]).call();
+    const entries = await batch([user, routes.flow.getOrg(inputFrom(user, (userValue) => userValue!.orgId) as never)]).call();
     const [[, , clientResponse], [org]] = entries;
     expect(clientResponse['@thrownErrors']).toBeUndefined();
     expect(entries.map(([, error]) => error)).toEqual([undefined, undefined]);
@@ -488,7 +488,7 @@ describe('inputFrom mapping shapes end to end', () => {
 
   it('a mapping bound to a const first', async () => {
     const user = routes.flow.getUser(14);
-    const orgId = inputFrom(user, (u) => u!.orgId).asArg();
+    const orgId = inputFrom(user, (userValue) => userValue!.orgId).asArg();
     const entries = await batch([user, routes.flow.getOrg(orgId)]).call();
     const [[, , clientResponse], [org]] = entries;
     expect(clientResponse['@thrownErrors']).toBeUndefined();
@@ -500,14 +500,17 @@ describe('inputFrom mapping shapes end to end', () => {
     // Each inline mapper is its own pure fn, so the two batches carry different
     // mapper ids and different batch ids even though the routes match.
     const user = routes.flow.getUser(15);
-    const entries = await batch([user, routes.flow.getOrg(inputFrom(user, (u) => u!.orgId + 0).asArg())]).call();
+    const entries = await batch([user, routes.flow.getOrg(inputFrom(user, (userValue) => userValue!.orgId + 0).asArg())]).call();
     const [[, , clientResponse], [org]] = entries;
     expect(clientResponse['@thrownErrors']).toBeUndefined();
     expect(entries.map(([, error]) => error)).toEqual([undefined, undefined]);
     expect(org).toEqual({id: 150, name: 'Org 150'});
 
     const other = routes.flow.getUser(16);
-    const otherEntries = await batch([other, routes.flow.getOrg(inputFrom(other, (u) => u!.orgId + 0 + 0).asArg())]).call();
+    const otherEntries = await batch([
+      other,
+      routes.flow.getOrg(inputFrom(other, (userValue) => userValue!.orgId + 0 + 0).asArg()),
+    ]).call();
     const [[, , otherResponse], [otherOrg]] = otherEntries;
     expect(otherResponse['@thrownErrors']).toBeUndefined();
     expect(otherEntries.map(([, error]) => error)).toEqual([undefined, undefined]);
@@ -516,7 +519,10 @@ describe('inputFrom mapping shapes end to end', () => {
 
   it('a mapping at param index 1, the literal at index 0 stays as sent', async () => {
     const order = routes.flow.getOrder(2);
-    const entries = await batch([order, routes.flow.getProduct(77, inputFrom(order, (o) => o!.currency).asArg())]).call();
+    const entries = await batch([
+      order,
+      routes.flow.getProduct(77, inputFrom(order, (orderValue) => orderValue!.currency).asArg()),
+    ]).call();
     const [[orderValue, , clientResponse], [product]] = entries;
     expect(clientResponse['@thrownErrors']).toBeUndefined();
     expect(entries.map(([, error]) => error)).toEqual([undefined, undefined]);
@@ -530,7 +536,10 @@ describe('inputFrom mapping shapes end to end', () => {
     const entries = await batch([
       user,
       order,
-      routes.flow.getProduct(inputFrom(user, (u) => u!.id).asArg(), inputFrom(order, (o) => o!.currency).asArg()),
+      routes.flow.getProduct(
+        inputFrom(user, (userValue) => userValue!.id).asArg(),
+        inputFrom(order, (orderValue) => orderValue!.currency).asArg()
+      ),
     ]).call();
     const [[, , clientResponse], , [product]] = entries;
     expect(clientResponse['@thrownErrors']).toBeUndefined();
@@ -540,8 +549,12 @@ describe('inputFrom mapping shapes end to end', () => {
 
   it('a three-route chain A -> B -> C, C fed by B which was fed by A', async () => {
     const user = routes.flow.getUser(18);
-    const org = routes.flow.getOrg(inputFrom(user, (u) => u!.orgId).asArg());
-    const entries = await batch([user, org, routes.flow.getOrgLabel(inputFrom(org, (o) => o!.name).asArg())]).call();
+    const org = routes.flow.getOrg(inputFrom(user, (userValue) => userValue!.orgId).asArg());
+    const entries = await batch([
+      user,
+      org,
+      routes.flow.getOrgLabel(inputFrom(org, (orgValue) => orgValue!.name).asArg()),
+    ]).call();
     const [[userValue, , clientResponse], [orgValue], [label]] = entries;
     expect(clientResponse['@thrownErrors']).toBeUndefined();
     expect(entries.map(([, error]) => error)).toEqual([undefined, undefined, undefined]);
@@ -554,8 +567,8 @@ describe('inputFrom mapping shapes end to end', () => {
     const user = routes.flow.getUser(19);
     const entries = await batch([
       user,
-      routes.flow.getOrg(inputFrom(user, (u) => u!.orgId).asArg()),
-      routes.flow.getTags(inputFrom(user, (u) => u!.tagIds).asArg()),
+      routes.flow.getOrg(inputFrom(user, (userValue) => userValue!.orgId).asArg()),
+      routes.flow.getTags(inputFrom(user, (userValue) => userValue!.tagIds).asArg()),
     ]).call();
     const [[, , clientResponse], [org], [tags]] = entries;
     expect(clientResponse['@thrownErrors']).toBeUndefined();
@@ -571,7 +584,7 @@ describe('inputFrom mapping shapes end to end', () => {
   // hash to the same id and both must work.
   it('the same batch written twice in the file: first site', async () => {
     const user = routes.flow.getUser(20);
-    const entries = await batch([user, routes.flow.getOrg(inputFrom(user, (u) => u!.orgId).asArg())]).call();
+    const entries = await batch([user, routes.flow.getOrg(inputFrom(user, (userValue) => userValue!.orgId).asArg())]).call();
     const [[, , clientResponse], [org]] = entries;
     expect(clientResponse['@thrownErrors']).toBeUndefined();
     expect(entries.map(([, error]) => error)).toEqual([undefined, undefined]);
@@ -580,7 +593,7 @@ describe('inputFrom mapping shapes end to end', () => {
 
   it('the same batch written twice in the file: second site', async () => {
     const user = routes.flow.getUser(21);
-    const entries = await batch([user, routes.flow.getOrg(inputFrom(user, (u) => u!.orgId).asArg())]).call();
+    const entries = await batch([user, routes.flow.getOrg(inputFrom(user, (userValue) => userValue!.orgId).asArg())]).call();
     const [[, , clientResponse], [org]] = entries;
     expect(clientResponse['@thrownErrors']).toBeUndefined();
     expect(entries.map(([, error]) => error)).toEqual([undefined, undefined]);
@@ -589,10 +602,10 @@ describe('inputFrom mapping shapes end to end', () => {
 
   it('the same routes with different mappings are two batches, both work', async () => {
     const userA = routes.flow.getUser(22);
-    const byOrgId = await batch([userA, routes.flow.getOrg(inputFrom(userA, (u) => u!.orgId).asArg())]).call();
+    const byOrgId = await batch([userA, routes.flow.getOrg(inputFrom(userA, (userValue) => userValue!.orgId).asArg())]).call();
     const userB = routes.flow.getUser(23);
     // the second mapper picks a DIFFERENT value, so the two ids cannot be confused
-    const inline = await batch([userB, routes.flow.getOrg(inputFrom(userB, (u) => u!.id).asArg())]).call();
+    const inline = await batch([userB, routes.flow.getOrg(inputFrom(userB, (userValue) => userValue!.id).asArg())]).call();
     expect(byOrgId[0][2]['@thrownErrors']).toBeUndefined();
     expect(inline[0][2]['@thrownErrors']).toBeUndefined();
     expect(byOrgId[1][0]).toEqual({id: 220, name: 'Org 220'});
@@ -603,7 +616,7 @@ describe('inputFrom mapping shapes end to end', () => {
     middlewares.session.onRequest((session) => session('valid-token'));
     try {
       const user = routes.flow.getUser(24);
-      const entries = await batch([user, routes.flow.getOrg(inputFrom(user, (u) => u!.orgId).asArg())]).call();
+      const entries = await batch([user, routes.flow.getOrg(inputFrom(user, (userValue) => userValue!.orgId).asArg())]).call();
       const [[, , clientResponse], [org]] = entries;
       expect(clientResponse['@thrownErrors']).toBeUndefined();
       expect(entries.map(([, error]) => error)).toEqual([undefined, undefined]);
@@ -621,7 +634,7 @@ describe('inputFrom mapping shapes end to end', () => {
     m.session.onRequest((session) => session('valid-token'));
 
     const user = r.flow.getUser(25);
-    const entries = await batch([user, r.flow.getOrg(inputFrom(user, (u) => u!.orgId).asArg())]).call();
+    const entries = await batch([user, r.flow.getOrg(inputFrom(user, (userValue) => userValue!.orgId).asArg())]).call();
     const [[, , clientResponse], [org]] = entries;
     expect(clientResponse['@thrownErrors']).toBeUndefined();
     expect(entries.map(([, error]) => error)).toEqual([undefined, undefined]);
@@ -645,7 +658,7 @@ describe('inputFrom mapping shapes end to end', () => {
 
   it('a Date survives through a mapped route', async () => {
     const stamp = routes.flow.getStamp(5);
-    const entries = await batch([stamp, routes.getSameDate(inputFrom(stamp, (s) => s!.when).asArg())]).call();
+    const entries = await batch([stamp, routes.getSameDate(inputFrom(stamp, (stampValue) => stampValue!.when).asArg())]).call();
     const [[stampValue, , clientResponse], [sameDate]] = entries;
     expect(clientResponse['@thrownErrors']).toBeUndefined();
     expect(entries.map(([, error]) => error)).toEqual([undefined, undefined]);
@@ -664,7 +677,7 @@ describe('inputFrom mapping shapes end to end', () => {
     const stamp = routes.flow.getStamp(5);
     const [[, , clientResponse], [sameMap, mapError]] = await batch([
       stamp,
-      routes.getSameMap(inputFrom(stamp, (s) => s!.counts).asArg()),
+      routes.getSameMap(inputFrom(stamp, (stampValue) => stampValue!.counts).asArg()),
     ]).call();
     expect(clientResponse['@thrownErrors']).toBeUndefined();
     expect(mapError).toBeUndefined();
@@ -692,22 +705,11 @@ describe('batch runtime behaviour', () => {
     expect(entries[2][2]).toBe(response);
   });
 
-  it('a failure outside the routes leaves every entry [undefined, undefined, response] and reports it once', async () => {
-    const entries = await batch([routes.sleep(3000), routes.utils.sumTwo(5)]).call({timeout: 100});
-    const [[, , response]] = entries;
-    expect(entries).toEqual([
-      [undefined, undefined, response],
-      [undefined, undefined, response],
-    ]);
-    expect(entries[1][2]).toBe(response);
-    expect(response['@thrownErrors']?.map((error) => error.type)).toEqual(['request-timeout']);
-  });
-
   it('a source route answering a DECLARED error: pins what every slot receives, and the server keeps serving', async () => {
     const user = routes.flow.getUser(-1);
     const [[userValue, userError, clientResponse], [org, orgError]] = await batch([
       user,
-      routes.flow.getOrg(inputFrom(user, (u) => u!.orgId).asArg()),
+      routes.flow.getOrg(inputFrom(user, (userValue) => userValue!.orgId).asArg()),
     ]).call();
 
     // the source's own declared error stays in its slot
@@ -732,7 +734,7 @@ describe('batch runtime behaviour', () => {
     const maybe = routes.flow.getUserOrNull(0);
     const [[maybeValue, maybeError, clientResponse], [org, orgError]] = await batch([
       maybe,
-      routes.flow.getOrg(inputFrom(maybe, (u) => u!.orgId).asArg()),
+      routes.flow.getOrg(inputFrom(maybe, (userValue) => userValue!.orgId).asArg()),
     ]).call();
 
     // the source answered (null) and has no error of its own
