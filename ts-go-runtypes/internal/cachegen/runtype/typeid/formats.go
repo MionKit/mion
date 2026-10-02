@@ -471,7 +471,14 @@ func formatTypeValueOptions(typeChecker *checker.Checker) comptimeargs.TypeValue
 			}
 			// AST fallback: the value-first path (`pattern: /…/`, or a registerFormatPattern({…}) const in scan
 			// scope) where the literal lives only in the declaring AST, not the type.
-			return formatPatternFromSymbol(typeChecker, symbol)
+			if pattern, ok := formatPatternFromSymbol(typeChecker, symbol); ok {
+				return pattern, true
+			}
+			// Neither road read it: marked so the emitter reports FMT009 instead of a validator that skips the check.
+			if symbol.Name == "pattern" && patternType != nil && patternType.Flags()&checker.TypeFlagsObject != 0 {
+				return map[string]any{"unrecovered": typeChecker.TypeToString(patternType)}, true
+			}
+			return nil, false
 		},
 		NonLiteralFallback: func(tsType *checker.Type) any {
 			return typeChecker.TypeToString(tsType)

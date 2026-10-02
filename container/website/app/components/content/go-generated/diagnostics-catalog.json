@@ -1029,6 +1029,15 @@
       "example": null
     },
     {
+      "code": "FMT009",
+      "subsystem": "formats",
+      "level": "runtimeError",
+      "headline": "TypeFormat pattern `{0}` is a value the build cannot read, so the validator would not check it.",
+      "summary": "The build reads a `pattern` from its type. A RegExp value, or a const typed as plain `FormatPattern`, keeps no source in its type, and a `.d.ts` keeps only the type. The validator would then not check the pattern at all. Use a `registerFormatPattern` const without a type annotation, or write the source as a literal.",
+      "fix": "const sku = registerFormatPattern({source: '^[A-Z]{3}-[0-9]{4}$'});\ntype Sku = String<{pattern: typeof sku}>;\n// or\ntype Sku = String<{pattern: {source: '^[A-Z]{3}-[0-9]{4}$'}}>;",
+      "example": null
+    },
+    {
       "code": "PFE9005",
       "subsystem": "pure-functions",
       "level": "error",
