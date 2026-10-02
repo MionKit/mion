@@ -9,7 +9,7 @@ change; anything copied in here would go stale silently.
 
 There is no documentation group and no comments group, and nothing about a page
 or a comment belongs in another group either. The `docs-simplifier` and
-`comments-simplifier` agents own both and ran before this review. Missing
+`comments-simplifier` agents own both and run after this review. Missing
 documentation is deliberately not a finding: the simplify pass is built to cut
 rather than add, against the bias of writing docs beside the code, and a
 reviewer asking for more pages undoes that.

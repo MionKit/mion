@@ -5,17 +5,17 @@ description: Review a PR or branch against this repo's rules in a fresh reviewer
 
 # review-pr
 
-Judge a change the way this repo judges one. **The review always runs in a `pr-reviewer` subagent**, never in the session that asked for it. That session asks the user which mode to run in, runs the two simplify passes, spawns the reviewer, fans the checklist groups out to one agent each, and then triages the findings. The checklist is never shown to the user for approval: only the findings are.
+Judge a change the way this repo judges one. **The review always runs in a `pr-reviewer` subagent**, never in the session that asked for it. That session asks the user which mode to run in, spawns the reviewer, fans the checklist groups out to one agent each, and then triages the findings. The checklist is never shown to the user for approval: only the findings are.
 
 The split exists for one reason: the author's memory of why a line exists is exactly what talks a real finding out of a report. A reviewer that never wrote the code cannot make that mistake. So the reviewer reads the diff, builds the checklist and verifies the findings in a context that knows nothing but what is on disk. For the same reason each checklist group is checked by its own agent: a group that cannot see another group's work cannot talk its finding away.
 
-**Documentation and comments are not the reviewer's job.** The `docs-simplifier` and `comments-simplifier` agents own them, each with its own rulebook and its own fresh context, and they run before the review so their edits are in the diff the reviewer reads. The reviewer skips both.
+**Documentation and comments are not the reviewer's job.** The `docs-simplifier` and `comments-simplifier` agents own them, each with its own rulebook and its own fresh context, and they run once, after the review and its fixes, so they see the final text. The review skill never runs them. The reviewer skips both.
 
 The review produces a **findings report**, never edits.
 
 This document has two halves. Read the one you are:
 
-- **[Calling session](#calling-session)** - you were asked to review something. Six steps, and none of them is reviewing. Everything after the first question runs on its own.
+- **[Calling session](#calling-session)** - you were asked to review something. Five steps, and none of them is reviewing. Everything after the first question runs on its own.
 - **[Reviewer](#reviewer)** - you are a `pr-reviewer` agent, in one of three roles: the checklist builder, a group checker, or the merger.
 
 ---
@@ -33,28 +33,7 @@ Ask once with AskUserQuestion, before anything else:
 
 If the user already said which one in the request ("review it and fix what matters"), skip the question. In both modes the user never sees or approves the checklist.
 
-### 2. Run the two simplify passes
-
-Documentation and comments are reviewed by their own agents, not by the reviewer, and they are reviewed by editing. Run them before the review so the reviewer reads the diff as it will be merged, not a draft of it.
-
-List what the branch touched:
-
-```bash
-git diff --name-only $(git merge-base origin/main HEAD)..HEAD -- container/website/content packages/private-examples/src
-git diff --name-only $(git merge-base origin/main HEAD)..HEAD -- '*.ts' '*.go' '*.mjs' '*.js' '*.vue'
-```
-
-Spawn both agents in **one message** so they run at once, `subagent_type: docs-simplifier` and `subagent_type: comments-simplifier`, each with its own list of paths. They never touch the same files: `packages/private-examples/` belongs to the docs pass, everything else to the comments pass. An empty list means that pass is a no-op; say so and skip it.
-
-Then do what those skills require of a caller, because neither agent commits its own work:
-
-- Read each report and **check every rewrite against the code**. A simplification that dropped a condition, a code, a default or a limit is wrong, so restore the fact in plain words.
-- Re-run what the passes can break: `pnpm run typecheck` and `pnpm exec vitest run website-links` for the docs pass, `pnpm run lint` and `go -C ts-go-runtypes vet ./internal/... ./cmd/...` for the comments pass.
-- Commit each on its own: `docs(simplify): <page>` and `chore(comments): <area>`.
-
-Only then spawn the reviewer. Reviewing before this leaves the reviewer judging prose that is about to change.
-
-### 3. Spawn the checklist reviewer
+### 2. Spawn the checklist reviewer
 
 One agent, `subagent_type: pr-reviewer`, with the target and nothing else:
 
@@ -68,7 +47,7 @@ Add anything the user said they are worried about, in their words. Do not add yo
 
 If the agent type is not found (agent definitions load at session start), spawn `general-purpose` with the body of `.claude/agents/pr-reviewer.md` as the prompt plus the instruction to read this skill first.
 
-### 4. Fan the groups out, one agent each
+### 3. Fan the groups out, one agent each
 
 The checklist builder ends its first turn with the final checklist: the pinned merge-base, the intent, and one block per group. A user request that fits no group becomes group `U`. Spawn one `pr-reviewer` agent per group, all in **one message** so they run at once. Copy each group's block **verbatim**; copying is not editing. Nothing else goes in: no summary of the change, and no other group's items.
 
@@ -83,7 +62,7 @@ Items:
 
 Each returns its answers and its verified findings. Relay nothing yet.
 
-### 5. Send the group reports to the merger
+### 4. Send the group reports to the merger
 
 Send every group report, whole and unedited, back to the **checklist reviewer** with SendMessage (a fresh Agent call would lose the context):
 
@@ -94,7 +73,7 @@ Group reports follow. Merge them into the report, step 7.
 
 It merges duplicates across groups and writes the one report. It is the merger because it built the list and already knows the change; the group agents do not.
 
-### 6. Triage the report
+### 5. Triage the report
 
 The reviewer reports everything that survived verification. Never summarise or cut the report before the next step: a finding hidden by shortening is lost just like a deleted one.
 
@@ -116,8 +95,7 @@ In reviewed mode, fixing is a separate step after the user picks. Do not fix bef
 
 ### What the calling session must NOT do
 
-- **Do not skip the simplify passes**, and do not run either of them yourself. Each needs a context that did not write the prose, which is the same reason the review does.
-- **Do not review.** Not before spawning, not "just the diff stat". Checking a simplifier's rewrite against the code is not reviewing, and neither is reading a finding's cited lines during triage: both are the caller's job.
+- **Do not review.** Not before spawning, not "just the diff stat". Reading a finding's cited lines during triage is not reviewing: it is the caller's job.
 - **Do not build or edit the checklist yourself.**
 - **Do not drop a finding silently.** In reviewed mode only the user drops one. In automatic mode you drop only after reading it, and you list each drop with its reason.
 - **Do not show the checklist to the user or ask them to approve it**, in either mode.
@@ -139,7 +117,7 @@ Why the list comes first: a review with no written scope reads as opinion, and n
 
 The bias throughout: **fewer committed lines**. A new type that could be derived, a new file that could be three lines in an existing one, an abstraction with one caller. Each of those is a finding.
 
-**Documentation and comments are out of your scope, completely.** The `docs-simplifier` and `comments-simplifier` agents own them and ran before you, so their edits are in the diff you read. Build no items for either, and report nothing about a page, a doc block or a comment: not its wording, and not its absence.
+**Documentation and comments are out of your scope, completely.** The `docs-simplifier` and `comments-simplifier` agents own them and run after the review. Build no items for either, and report nothing about a page, a doc block or a comment: not its wording, and not its absence.
 
 Missing documentation is deliberately not a finding here. Documentation written beside a change comes out long and full of internals, so the simplify pass is built to cut rather than add, on purpose, against that bias. A reviewer asking for more pages pushes straight back the other way, and this repo would rather ship a feature undocumented than ship one over-documented by a reviewer who never has to read it again.
 

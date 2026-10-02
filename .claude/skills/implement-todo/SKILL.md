@@ -1,11 +1,11 @@
 ---
 name: implement-todo
-description: Build a docs/todos/ spec end to end, from an approved plan to the gate, docs/done/ and the docs and comment simplification passes. Use when the user wants to implement or pick a todo.
+description: Build a docs/todos/ spec end to end, from an approved plan to the gate, docs/done/ the review-pr review, the docs and comment simplification passes, the PR, and a green CI. Use when the user wants to implement or pick a todo.
 ---
 
 # implement-todo
 
-Take one spec from `docs/todos/` and carry it to a finished, PR-ready change. The specs in that directory range from full plans (Problem / Plan / Tests / Done-when with real `file:line` pointers) to loose pointers and open questions. Your job is to figure out which kind you have, fill any gaps, and get an **approved plan** before touching code — then build it to the spec's own "Done when" bar.
+Take one spec from `docs/todos/` and carry it through its whole life cycle: planning, building, review, simplification, an open PR, and a green CI. The job ends when the PR is open and green, not before. The specs in that directory range from full plans (Problem / Plan / Tests / Done-when with real `file:line` pointers) to loose pointers and open questions. Your job is to figure out which kind you have, fill any gaps, and get an **approved plan** before touching code — then build it to the spec's own "Done when" bar.
 
 **The one hard gate: no file edits until the user has approved a plan via the plan tool.** Everything in steps 1-6 is reading, investigating, and asking — analysis only. Implementation (step 7) starts only after approval. If you are not already in plan mode, enter it (EnterPlanMode) after the todo is chosen so the invariant holds by construction and your clarifying questions read as planning.
 
@@ -19,8 +19,11 @@ Take one spec from `docs/todos/` and carry it to a finished, PR-ready change. Th
 6. **Present the plan** for approval — always, even for a complete spec.
 7. **Implement** to the plan and the spec's Done-when.
 8. **Gate + finish**: tests green, docs updated, the spec reconciled with what actually shipped, then `git mv` into `docs/done/`.
-9. **Documentation simplification**: the `docs-simplifier` subagent runs the simplify-docs skill over every page and example this change touched. Always, never by you.
-10. **Comment simplification**: the `comments-simplifier` subagent runs the simplify-comments skill over every source file this change touched. Always, never by you. Steps 9 and 10 run at the same time.
+9. **Review**: the review-pr skill runs over the branch and its findings are fixed.
+10. **Documentation simplification**: the `docs-simplifier` subagent runs the simplify-docs skill over every page and example this change touched. Always, never by you.
+11. **Comment simplification**: the `comments-simplifier` subagent runs the simplify-comments skill over every source file this change touched. Always, never by you. Steps 10 and 11 run at the same time.
+12. **Open the PR**.
+13. **Drive CI to green**.
 
 ## Step 1 — Pick the todo
 
@@ -60,7 +63,7 @@ The header's `type` orients this: a `fix` or `feature` always needs tests, a `do
 - Marker API (`getRunTypeId`, the `createX` factories) → cover **both** call shapes (static `getRunTypeId<T>()` and value-first `getRunTypeId(value)`) per the Marker test coverage rule in [ts-go-runtypes/CLAUDE.md](../../../ts-go-runtypes/CLAUDE.md).
 - A pure docs or chore todo may legitimately have no code test — say so explicitly rather than skipping silently.
 
-**Docs — decide when the answer is clear, ask when it is not.** A new or changed feature almost always needs docs: the website (`container/website/content/`). A fix usually needs docs only if it changes documented behavior. If you cannot tell whether a change is user-visible enough to document, **ask** (AskUserQuestion). Name the page AND the placement in the plan: an existing section (which one) or a new section, decided with the *Where a change goes* table in [container/website/CLAUDE.md](../../../container/website/CLAUDE.md). When you write it, follow the ideal section template there and the language rules in the *Website Documentation* section of [CLAUDE.md](../../../CLAUDE.md), and read the wrong / right pairs in [the simplify-docs skill](../simplify-docs/examples.md) first. The simplification pass in step 9 is the check on that, not a substitute for it.
+**Docs — decide when the answer is clear, ask when it is not.** A new or changed feature almost always needs docs: the website (`container/website/content/`). A fix usually needs docs only if it changes documented behavior. If you cannot tell whether a change is user-visible enough to document, **ask** (AskUserQuestion). Name the page AND the placement in the plan: an existing section (which one) or a new section, decided with the *Where a change goes* table in [container/website/CLAUDE.md](../../../container/website/CLAUDE.md). When you write it, follow the ideal section template there and the language rules in the *Website Documentation* section of [CLAUDE.md](../../../CLAUDE.md), and read the wrong / right pairs in [the simplify-docs skill](../simplify-docs/examples.md) first. The simplification pass in step 10 is the check on that, not a substitute for it.
 
 **Fuzzing — for features, judge candidacy, then propose.** RunTypes has a real property-test harness (`packages/run-types/test/fuzz/`, run via `pnpm miondevx core fuzz <suite>`), and many features here have a cheap correctness oracle that makes fuzzing pay off. Quickly gut-check the feature for one:
 - **round-trip** (an encode/decode or serialize/parse pair should return the value),
@@ -110,9 +113,15 @@ Run the gate before calling it done:
 - **Reconcile the spec with what shipped.** If the implementation diverged from the original todo — a different approach, a narrower or wider outcome, a decision the spec did not anticipate — edit the todo file so it describes what was **actually built** before it moves. A stale spec landing in `docs/done/` misleads the next reader.
 - **Move the spec.** `git mv` it from `docs/todos/` into `docs/done/` and update it to match what shipped. This is a hard PR-readiness requirement, not an afterthought. If you deliberately shipped only PART of it, SPLIT rather than park: the moved doc records what landed and why the rest was cut, and the remainder becomes a NEW `docs/todos/` spec that reads on its own. There is no half-done lane.
 
-## Step 9 — Documentation simplification (always, by a subagent)
+## Step 9 — Review (always, with the review-pr skill)
 
-The last step before the change is PR ready, and it runs even when the docs change is one sentence. It is a subagent pass on purpose: this session knows why every sentence exists and will defend it, and that is exactly how the complex wording gets through. A fresh context reads the page the way its reader will.
+Run the [review-pr skill](../review-pr/) over the branch, once the gate in step 8 is green. It asks the user whether the review is automatic or reviewed by them, and it fixes or presents the findings as that mode says. This skill's own simplification passes come after it, so the review does not run them and they run only once.
+
+When the review's fixes are committed, re-run the step 8 gate (tests, lint, format) before moving on.
+
+## Step 10 — Documentation simplification (always, by a subagent)
+
+It runs after the review, so it sees the text the review fixes left, and it runs even when the docs change is one sentence. It is a subagent pass on purpose: this session knows why every sentence exists and will defend it, and that is exactly how the complex wording gets through. A fresh context reads the page the way its reader will.
 
 1. List what the branch touched: `git diff --name-only $(git merge-base origin/main HEAD)..HEAD -- container/website/content packages/private-examples/src`. Nothing listed means the step is a no-op; say so and stop here.
 2. Spawn the agent with the Agent tool, `subagent_type: docs-simplifier`, and give it those paths (or "the branch"). Do not run the skill yourself, and do not tell the agent why a sentence is there. If the tool answers that the type is not found (agent definitions load at session start), spawn `general-purpose` instead with the body of `.claude/agents/docs-simplifier.md` as the prompt plus the instruction to read `.claude/skills/simplify-docs/SKILL.md` first; same paths, same rules.
@@ -120,9 +129,9 @@ The last step before the change is PR ready, and it runs even when the docs chan
 4. Re-run what the pass can break: `pnpm run typecheck` (the examples) and `pnpm exec vitest run website-links` (renamed anchors).
 5. Commit the pass on its own: `docs(simplify): <page>`.
 
-## Step 10 — Comment simplification (always, by a subagent)
+## Step 11 — Comment simplification (always, by a subagent)
 
-Same shape as step 9, for the comments in the code this change touched. Spawn it in the same message as step 9's agent so the two run at once; they never touch the same files (`packages/private-examples/` belongs to the docs pass, everything else to this one).
+Same shape as step 10, for the comments in the code this change touched. Spawn it in the same message as step 10's agent so the two run at once; they never touch the same files (`packages/private-examples/` belongs to the docs pass, everything else to this one).
 
 1. List what the branch touched: `git diff --name-only $(git merge-base origin/main HEAD)..HEAD -- '*.ts' '*.go' '*.mjs' '*.js' '*.vue'`. Nothing listed means the step is a no-op; say so.
 2. Spawn the agent with the Agent tool, `subagent_type: comments-simplifier`, and give it those paths (or "the branch"). Do not run the skill yourself, and do not tell the agent why a comment is there. If the type is not found (agent definitions load at session start), spawn `general-purpose` with the body of `.claude/agents/comments-simplifier.md` as the prompt plus the instruction to read `.claude/skills/simplify-comments/SKILL.md` first.
@@ -130,7 +139,25 @@ Same shape as step 9, for the comments in the code this change touched. Spawn it
 4. Re-run what the pass can break: `pnpm run lint`, and `go -C ts-go-runtypes vet ./internal/... ./cmd/...` when a Go file changed. Run the skill's diff guard once more: nothing but comment lines may have changed.
 5. Commit the pass on its own: `chore(comments): <area>`.
 
-Close by telling the user what shipped versus the todo's Done-when, and flag anything you consciously left for a follow-up.
+## Step 12 — Open the PR
+
+The last step. Open it only once steps 9 to 11 are committed and the gate is green.
+
+1. Check for a PR template (`.github/pull_request_template.md` and the other places the system prompt lists) and fill it in from the diff.
+2. Create it with `mcp__github__create_pull_request`, base `main`, head the current branch.
+3. Add the labels the diff needs, per *PR readiness* in [CLAUDE.md](../../../CLAUDE.md), at open time so the lanes run.
+4. Give the user the link, and say what shipped versus the todo's Done-when, flagging anything left for a follow-up.
+
+## Step 13 — Drive CI to green
+
+The PR is yours until it is green. Right after opening it, call `mcp__claude-code-remote__subscribe_pr_activity` for it, then follow the PR rules in the system prompt:
+
+- A red check is work now. Reproduce it, fix it, run the repo's fast checks, push, and repeat until every check is green. Never skip or disable a test to get there.
+- A merge conflict is also work now: rebase onto `origin/main` and push with `--force-with-lease`, never merge main in.
+- Answer review comments the way step 9 sorts findings: fix, delegate, or reply with a reason.
+- Add any missing label from step 12 if a lane did not start.
+
+Finish only when CI is green on the latest commit and there is no conflict. Then tell the user it is green. If only human approval is left, say so once.
 
 ## What NOT to do
 
@@ -140,6 +167,8 @@ Close by telling the user what shipped versus the todo's Done-when, and flag any
 - **Do not add fuzzing without asking**, and do not hand-roll the fuzzer — route to the fuzzy-testing skill.
 - **Do not pull candidates from `docs/done/` or `docs/maybe/`** — only `docs/todos/` holds ready work.
 - **Do not exceed the todo's stated Out-of-scope**, and do not leave the spec sitting in `docs/todos/` after you finish it.
+- **Do not skip the review, and do not open the PR before the review and both simplification passes are committed.**
+- **Do not stop at an open PR.** A red check or a conflict means the todo is not done.
 - **Do not skip either simplification pass, do not run one in this session, and do not accept a result that changed a fact.** Even a one-sentence docs change goes through the `docs-simplifier` subagent and even a one-comment code change through the `comments-simplifier` subagent (the one exception is a branch that touched nothing of that kind), and each report is reviewed against the code, line by line, before it is committed.
 - **Do not let an *unrelated* issue end as a filed-and-forgotten spec** — delegate it via the [delegate-finding skill](../delegate-finding/) (parallel agent, own PR, merged before this todo's PR); a spec is only for what truly cannot land in either lane, and it is a commitment to finish, not a way to close the loop.
 - **Do not let a diverged spec move unchanged** — if what shipped differs from the plan, update the todo to reflect reality before `git mv`-ing it to `docs/done/`.
