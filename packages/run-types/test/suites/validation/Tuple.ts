@@ -807,7 +807,7 @@ export const TUPLE = {
     validate: () => createValidateFn<readonly [string, number]>(),
     standardSchema: () => createStandardSchema<readonly [string, number]>(),
     validateDataOnly: () => createValidateFn<DataOnly<readonly [string, number]>>(),
-    validateSchema: () => createValidateFn(RT.tuple({required: [TF.string(), TF.number()]})),
+    validateSchema: () => createValidateFn(RT.readonly(RT.tuple({required: [TF.string(), TF.number()]}))),
     deserializeValidate: () => deserializeValidate<readonly [string, number]>(),
     validateReflect: () => {
       const v: readonly [string, number] = ['x', 1];
@@ -819,7 +819,7 @@ export const TUPLE = {
     },
     getValidationErrors: () => createGetValidationErrorsFn<readonly [string, number]>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<readonly [string, number]>>(),
-    getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.tuple({required: [TF.string(), TF.number()]})),
+    getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.readonly(RT.tuple({required: [TF.string(), TF.number()]}))),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<readonly [string, number]>(),
     getValidationErrorsReflect: () => {
       const v: readonly [string, number] = ['x', 1];

@@ -1045,7 +1045,7 @@ export const ARRAY = {
     validate: () => createValidateFn<ReadonlyArray<string>>(),
     standardSchema: () => createStandardSchema<ReadonlyArray<string>>(),
     validateDataOnly: () => createValidateFn<DataOnly<ReadonlyArray<string>>>(),
-    validateSchema: () => createValidateFn(RT.array(TF.string())),
+    validateSchema: () => createValidateFn(RT.readonly(RT.array(TF.string()))),
     deserializeValidate: () => deserializeValidate<ReadonlyArray<string>>(),
     validateReflect: () => {
       const v: ReadonlyArray<string> = [];
@@ -1057,7 +1057,7 @@ export const ARRAY = {
     },
     getValidationErrors: () => createGetValidationErrorsFn<ReadonlyArray<string>>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<ReadonlyArray<string>>>(),
-    getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.array(TF.string())),
+    getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.readonly(RT.array(TF.string()))),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<ReadonlyArray<string>>(),
     getValidationErrorsReflect: () => {
       const v: ReadonlyArray<string> = [];
