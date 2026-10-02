@@ -220,4 +220,61 @@ getRunTypeId(value);
     expect((idx!.index as RunType).kind).toBe(ReflectionKind.string);
     expect((idx!.child as RunType).kind).toBe(ReflectionKind.number);
   }
+  // ---- readonly tuple / array: the flag rides the collection node ---------
+
+  runTest(
+    'readonly tuple and array static',
+    {
+      'ro.ts': `import {getRunTypeId} from '@mionjs/run-types';
+getRunTypeId<{pair: readonly [number, string]; list: readonly string[]; generic: ReadonlyArray<number>}>();
+`,
+    },
+    async (sources) => {
+      const cache = await evalCacheFor(sources);
+      assertReadonlyCollections(cache);
+    }
+  );
+
+  runTest(
+    'readonly tuple and array reflect',
+    {
+      'ro.ts': `import {getRunTypeId} from '@mionjs/run-types';
+declare const value: {pair: readonly [number, string]; list: readonly string[]; generic: ReadonlyArray<number>};
+getRunTypeId(value);
+`,
+    },
+    async (sources) => {
+      const cache = await evalCacheFor(sources);
+      assertReadonlyCollections(cache);
+    }
+  );
+
+  function assertReadonlyCollections(cache: Parameters<typeof getTypeFor>[0]) {
+    const root = getTypeFor(cache, 'ro.ts');
+    const childOf = (name: string) => root.children?.find((m) => m.name === name)?.child as RunType;
+    expect(childOf('pair').kind).toBe(ReflectionKind.tuple);
+    expect(childOf('pair').readonly).toBe(true);
+    expect(childOf('list').kind).toBe(ReflectionKind.array);
+    expect(childOf('list').readonly).toBe(true);
+    expect(childOf('generic').readonly).toBe(true);
+  }
+
+  // One cache holding both twins: a shared entry would hand one of them the other's flag.
+  runTest(
+    'readonly and mutable tuple twins keep their own flag',
+    {
+      'ro.ts': `import {getRunTypeId} from '@mionjs/run-types';
+getRunTypeId<readonly [number, string]>();
+`,
+      'rw.ts': `import {getRunTypeId} from '@mionjs/run-types';
+const pair: [number, string] = [1, 'a'];
+getRunTypeId(pair);
+`,
+    },
+    async (sources) => {
+      const cache = await evalCacheFor(sources);
+      expect(getTypeFor(cache, 'ro.ts').readonly).toBe(true);
+      expect(getTypeFor(cache, 'rw.ts').readonly).toBeUndefined();
+    }
+  );
 });
