@@ -37,7 +37,7 @@ func FuzzArtifactRoundTrip(f *testing.F) {
 		if strings.Contains(hash, "#") {
 			// A hash never holds the separator: such an id is not this package's, and the parser must say so.
 			id := "@acme/text" + constants.PureFnHashPrefix + hash
-			if _, err := ParseArtifactIndex(RenderArtifactIndex("@acme/text", "/pkg", []purefunctions.Entry{{ID: id}})); err == nil && PackageOfID(id) != "@acme/text" {
+			if _, err := ParseArtifactIndex(RenderArtifactIndex("@acme/text", "/pkg", []purefunctions.Entry{{ID: id}}, nil)); err == nil && PackageOfID(id) != "@acme/text" {
 				t.Fatalf("an id owned by another package was accepted: %q", id)
 			}
 			return
@@ -58,8 +58,8 @@ func FuzzArtifactRoundTrip(f *testing.F) {
 		if param == "" {
 			entry.ParamNames = nil
 		}
-		first := RenderArtifactIndex("@acme/text", "/pkg", []purefunctions.Entry{entry})
-		if !bytes.Equal(first, RenderArtifactIndex("@acme/text", "/pkg", []purefunctions.Entry{entry})) {
+		first := RenderArtifactIndex("@acme/text", "/pkg", []purefunctions.Entry{entry}, nil)
+		if !bytes.Equal(first, RenderArtifactIndex("@acme/text", "/pkg", []purefunctions.Entry{entry}, nil)) {
 			t.Fatal("two index renders differ")
 		}
 		if !bytes.HasSuffix(first, []byte("\n")) {
@@ -120,7 +120,7 @@ func parsesAsBody(paramNames []string, code string) bool {
 
 // Nothing to write means nothing: an app with no pure fn gets no directory.
 func TestRenderArtifactIndex_EmptyIsNil(t *testing.T) {
-	if got := RenderArtifactIndex("@acme/app", "/app", nil); got != nil {
+	if got := RenderArtifactIndex("@acme/app", "/app", nil, nil); got != nil {
 		t.Errorf("expected nil, got %q", got)
 	}
 }

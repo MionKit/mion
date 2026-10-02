@@ -23,6 +23,8 @@ test('@acme/api ships its .d.ts and its server manifest, and the .d.ts carries t
   const version = serverVersion();
   assert.match(version, /^[A-Za-z0-9]{12}$/);
   assert.ok(readFileSync(path.join(INSTALLED, 'index.d.ts'), 'utf8').includes(`ApiBuildVersion<"${version}">`), 'the API type names the version');
+  const overrides = readJson(path.join(INSTALLED, 'mion-pure-fns/index.json')).overrides ?? [];
+  assert.equal(overrides.length, 1, 'the Note override ships, since a .d.ts keeps no override call');
 });
 
 for (const kind of BUILDS) {

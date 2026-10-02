@@ -603,8 +603,8 @@ func TestArtifact_EqualsSourceExtraction(t *testing.T) {
 	if err != nil || len(diags) != 0 || len(raw) != 3 {
 		t.Fatalf("extract: err=%v diags=%+v entries=%d", err, diags, len(raw))
 	}
-	rendered := RenderArtifactIndex("@acme/dates", datesRoot, raw)
-	if !reflect.DeepEqual(rendered, RenderArtifactIndex("@acme/dates", datesRoot, append([]purefunctions.Entry{raw[2], raw[0]}, raw[1]))) {
+	rendered := RenderArtifactIndex("@acme/dates", datesRoot, raw, nil)
+	if !reflect.DeepEqual(rendered, RenderArtifactIndex("@acme/dates", datesRoot, append([]purefunctions.Entry{raw[2], raw[0]}, raw[1]), nil)) {
 		t.Error("the render must not depend on entry order")
 	}
 	// What a dates build's dist ships: its modules in each emit mode, plus the index.
@@ -768,5 +768,34 @@ func TestMarker_BothLanesAgreeOnIds(t *testing.T) {
 	}
 	if !reflect.DeepEqual(sessionIDs, purefnids.All()) {
 		t.Errorf("ids extracted from the sources differ from the generated constants (regenerate: pnpm miondevx core codegen builtinpurefns)")
+	}
+}
+
+// TestStore_OverridesRoundTrip: the rows a build writes are the rows a consumer reads, from the index alone.
+func TestStore_OverridesRoundTrip(t *testing.T) {
+	rows := []ArtifactOverrideRow{{BaseKey: "{amount:number}", Family: "validate", ID: "@acme/money#pf_abc"}}
+	index := RenderArtifactIndex("@acme/money", "/money", []purefunctions.Entry{{ID: "@acme/money#pf_abc"}}, rows)
+	store := storeOver(map[string]string{
+		"/money/package.json":                  `{"name": "@acme/money"}`,
+		"/money/dist/mion-pure-fns/index.json": string(index),
+	})
+	got, problems := store.Overrides("/money")
+	if len(problems) != 0 || !reflect.DeepEqual(got, rows) {
+		t.Fatalf("want %v, got %v (problems %v)", rows, got, problems)
+	}
+}
+
+// TestStore_OverridesOfAnotherCompilerAreSkipped: a structural key is only comparable within one compiler version.
+func TestStore_OverridesOfAnotherCompilerAreSkipped(t *testing.T) {
+	rows := []ArtifactOverrideRow{{BaseKey: "{amount:number}", Family: "validate", ID: "@acme/money#pf_abc"}}
+	index := strings.Replace(string(RenderArtifactIndex("@acme/money", "/money", []purefunctions.Entry{{ID: "@acme/money#pf_abc"}}, rows)),
+		`"compiler": "`+constants.Version+`"`, `"compiler": "0.0.0-other"`, 1)
+	store := storeOver(map[string]string{
+		"/money/package.json":                  `{"name": "@acme/money"}`,
+		"/money/dist/mion-pure-fns/index.json": index,
+	})
+	got, problems := store.Overrides("/money")
+	if len(got) != 0 || len(problems) != 1 || !strings.Contains(problems[0].Reason, "0.0.0-other") {
+		t.Fatalf("rows of another compiler must be skipped with a problem naming it, got %v %v", got, problems)
 	}
 }

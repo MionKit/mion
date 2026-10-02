@@ -209,6 +209,9 @@ type Session struct {
 	// overrideEntries holds the cfn pure-fn entries the override pass extracted, one per distinct override body,
 	// merged into the pure-fn module emission so the type-fn redirects resolve their dep.
 	overrideEntries []purefunctions.Entry
+	// overrideMap is the folded override map (structural key → family → override fn id), installed packages' rows
+	// included; a build writes its own rows into the package artifact from it.
+	overrideMap map[string]map[string]string
 	// overrideDiagnostics holds the override pass's OVR0xx diagnostics (OVR001 duplicate-override, OVR010 validate
 	// cross-family), surfaced on every scan response for the current Program.
 	overrideDiagnostics []diagnostics.Diagnostic
@@ -456,6 +459,7 @@ func (sess *Session) resetProgramMemos() {
 	sess.verdictsByChecker = map[*checker.Checker]map[*checker.Type]markerVerdict{}
 	sess.overridesBuilt = false
 	sess.overrideEntries = nil
+	sess.overrideMap = nil
 	sess.overrideDiagnostics = nil
 	sess.overrideArgSpansByFile = nil
 }
