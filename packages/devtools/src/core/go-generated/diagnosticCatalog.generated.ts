@@ -59,8 +59,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     family: 'marker',
   },
   BAT007: {
-    headline:
-      'Batch mapper `{0}` has no generated pure function in the batch source program; the server build cannot register it.',
+    headline: 'Batch mapper `{0}` has no generated pure function in this program; the server build cannot register it.',
     level: 'runtimeError',
     family: 'marker',
   },
