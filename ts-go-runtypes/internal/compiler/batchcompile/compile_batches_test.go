@@ -1,9 +1,6 @@
 package batchcompile
 
-// The batch transport through the tsc-like lane: a fullstack project holding
-// both halves ends up with `<genDir>/rpc/` and an emitted router-init module
-// that imports the table by a relative path, and its emitted client `.js`
-// carries the batch id and the mapper hash.
+// The batch transport through the tsc-like lane, over a fullstack project holding both halves.
 
 import (
 	"os"
@@ -119,9 +116,8 @@ func readEmitted(t *testing.T, dir, name string) string {
 	return string(content)
 }
 
-// TestCompile_FullstackGeneratesBatchTransport: the compile writes rpc/ from
-// the program's own batches and appends the relativized table import to the
-// emitted router-init module.
+// TestCompile_FullstackGeneratesBatchTransport: rpc/ comes from the program's own batches, imported relatively
+// by the emitted router-init module.
 func TestCompile_FullstackGeneratesBatchTransport(t *testing.T) {
 	serverDir := writeProject(t, map[string]string{"router.d.ts": routerDTS, "server.ts": serverTS, "client.d.ts": batchClientDTS, "routes.ts": clientRoutesTS, "a.ts": clientBatchTS})
 

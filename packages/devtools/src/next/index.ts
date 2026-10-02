@@ -28,8 +28,7 @@ export {
   RUNTYPES_LOADER,
 } from '../runtypes/next/index.ts';
 
-/** Same `tsConfig`, `client` and `runTypes` options the vite preset takes. No `server` block (Next runs its own
- *  dev server), and the Vue SFC switch has no meaning under Next. */
+/** The vite preset's options minus `server` (Next runs its own dev server); the Vue SFC switch means nothing here. */
 export interface MionNextOptions extends MionPresetOptions {
   /** Project root the broker scans. Defaults to `process.cwd()`, where Next evaluates `next.config`. */
   cwd?: string;

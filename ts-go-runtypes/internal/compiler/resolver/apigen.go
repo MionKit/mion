@@ -25,14 +25,10 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
-// The bundled-API lane (mion's `client.routes: 'bundle'` option). On generate it resolves every dispatch
-// site's routes out of the API type walked in this program, selects each route plus the middlewares in its
-// chain, assigns the params / return / headers type ids under the checker that owns them (`AssignIDUnder`),
-// demands per type exactly the families the server's marker
-// slots name (types/parser.ts MarkerSlots), and renders a SELF-CONTAINED module tree under
-// <outDir>/api/ in `functions` emit mode whatever the program's own mode, a client never evaluating code
-// strings, plus the client manifest `mion api-check` reads. The transform needs none of that: a dispatch
-// site's injection is decided by its ids alone, so a client file rewrites before generate ever ran.
+// The bundled-API lane (`client.routes: 'bundle'`): generate renders a SELF-CONTAINED tree under <outDir>/api/ in
+// `functions` emit mode whatever the program's mode, so a client never evaluates code strings. Ids are assigned
+// under the checker that owns each type (`AssignIDUnder`), demanding exactly the families the server's marker slots
+// name (types/parser.ts MarkerSlots). A site's injection depends on its ids alone, so a file rewrites before generate.
 
 // apiLaneOn reports whether this session bundles API metadata.
 func (sess *Session) apiLaneOn() bool {

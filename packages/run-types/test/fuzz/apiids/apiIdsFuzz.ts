@@ -1,22 +1,8 @@
-// The bundled-API id lane — the real `mion` binary over one real temp fullstack
-// project, built twice the way a release builds it, per generated type:
-//
-//   generate a data type (core/typeGen.ts) → write it as the params and return
-//   types of two routes, and a client in the same program calling them
-//     → `mion compile` into the SERVER gen dir: its initRoutes call yields the
-//       server manifest; a probes file resolves the same params / return types
-//       through the ordinary reflection marker (BOTH getRunTypeId call shapes),
-//       the road every runtypes id travels
-//     → A1: every manifest row's paramsId / returnId equals the marker probe's
-//       id (the API tree walk and the marker scanner agree)
-//     → `mion compile` again into the CLIENT gen dir, a separate run
-//     → A2: no MET diagnostic, the client bundled exactly the routes it calls,
-//       and the two runs wrote byte-identical api/ trees
-//     → A3: `mion api-check` over the server manifest of the first run and the
-//       client manifest of the second exits 0.
-//
-// The negative control lives in the integration test: a client manifest from a
-// build before a server-side type edit fails api-check on the field that moved.
+// The bundled-API id lane: the real `mion` binary builds one temp fullstack project twice per generated type,
+// into a SERVER then a CLIENT gen dir. A1: every server manifest row's ids equal a reflection-marker probe's
+// (both getRunTypeId call shapes). A2: the client build reports no MET diagnostic, bundles exactly the routes
+// it calls and writes a byte-identical api/ tree. A3: `mion api-check` over the two manifests exits 0.
+// The negative control lives in the integration test.
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -49,9 +35,7 @@ export const API_IDS_GEN_OPTIONS: GenOptions = {
 
 // --- the fixture sources -------------------------------------------------------
 
-/** The API's two routes: r0 takes the generated type and returns a list of it,
- *  r1 (in a group) takes it twice, the second time optionally, and returns an
- *  object around it. **/
+/** The API's two routes; r1 sits in the `users` group. **/
 const ROUTE_HANDLERS = {
   r0: '(input: Root) => Root[]',
   r1: '(a: Root, b?: Root[]) => {items: Root[]; count: number}',
@@ -153,8 +137,7 @@ export interface ApiProject {
   clientGen: string;
 }
 
-/** One project per run, reused across iterations (the marker dist copy is the
- *  expensive part); each iteration rewrites types.ts. **/
+/** One project per run, reused across iterations: the marker dist copy is the expensive part. **/
 export function createApiProject(): ApiProject {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-apiids-fuzz-'));
   fs.mkdirSync(path.join(dir, 'src'), {recursive: true});
@@ -281,8 +264,7 @@ export function checkServerManifestAgainstProbes(project: ApiProject): void {
   }
 }
 
-/** A2: the client build reported no MET diagnostic, bundled exactly the routes
- *  it calls, and wrote the same api/ tree as the server build. **/
+/** A2: no MET diagnostic, exactly the called routes bundled, and the server build's api/ tree. **/
 export function checkClientBundle(project: ApiProject, build: CliResult): void {
   if (build.status !== 0) throw new Error(`client compile exited ${build.status}\n--- stderr ---\n${build.stderr}`);
   const met = build.stderr.split('\n').filter((line) => /\bMET\d{3}\b/.test(line));
@@ -321,8 +303,7 @@ export interface ApiIdsFuzzOptions {
   iterations: number;
 }
 
-/** One iteration over an already-created project: generate, write, build it
- *  twice, run the three oracles. Throws with the full context on a failure. **/
+/** Builds the project twice for one generated type and runs A1-A3; throws with the full context on a failure. **/
 export function runApiIdsIteration(project: ApiProject, gen: GeneratedType): void {
   const typesSource = renderTypesModule(gen);
   writeTypes(project, typesSource);

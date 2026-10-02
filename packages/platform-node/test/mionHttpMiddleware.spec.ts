@@ -67,8 +67,7 @@ describe('startNodeServer({asMiddleware: true})', () => {
   });
 
   it('does not listen when a dev host owns the socket, and hands it the handler', async () => {
-    // The vite plugin's path: it sets the router's host flag before loading the entry, which then
-    // calls startNodeServer({port}) as it always did.
+    // The vite plugin sets the host flag before loading the entry, which then calls startNodeServer({port}) unchanged.
     setHostOwnsSocket(true);
     const server = await startNodeServer({port: 8080});
     expect(server.listening).toBe(false);

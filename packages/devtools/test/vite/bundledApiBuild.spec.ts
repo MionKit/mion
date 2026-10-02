@@ -14,12 +14,9 @@ type RollupOutput = Extract<Awaited<ReturnType<typeof build>>, {output: unknown}
 import {mionVitePlugin} from '../../src/vite/mionVitePlugin.ts';
 import {BIN, hasBinary, writeMarkerPackage} from '../helpers/inline.ts';
 
-// The bundled-API lane through a REAL vite build over a REAL program: with `client.routes: 'bundle'`, the
-// resolver writes `<genDir>/api/` (one module per route or middleware the program calls, the site
-// modules, the manifest), the transform imports the lane module into the file calling initClient
-// and injects each site's module at
-// its dispatch call, and rollup inlines it all into a self-contained artifact that carries live
-// functions and no code string, so it runs where dynamic code is forbidden.
+// The bundled-API lane through a REAL vite build over a REAL program, with `client.routes: 'bundle'`: rollup
+// inlines `<genDir>/api/` into a self-contained artifact with live functions and no code string, so it runs
+// where dynamic code is forbidden.
 //
 // `@mionjs/client` resolves to an ambient declaration for the compiler (the dispatch methods carry
 // the real marker) and to a runtime stub for rollup that records what the build injected, so the

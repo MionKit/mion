@@ -7,9 +7,7 @@
 import {describe, it, expect, afterEach} from 'vitest';
 import {getHostRequestHandler, hostOwnsSocket, resetRouter, setHostOwnsSocket, setHostRequestHandler} from '../src/router.ts';
 
-// The dev-host flag: a host that owns the socket (the mion vite plugin) sets it before loading the
-// server entry, and every platform adapter the entry starts reads it instead of an option the host
-// would have to name.
+// A dev host sets the flag before loading the entry; every adapter reads it instead of an option the host must name.
 describe('the dev-host flag', () => {
   afterEach(() => setHostOwnsSocket(false));
 

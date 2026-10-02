@@ -270,8 +270,7 @@ export interface GenerateResult {
   modules: string[];
   outDir: string;
   siteFiles: string[];
-  // The batch transport echo, see Response.batchesModule / routerInitFiles.
-  // `batchesModule` is '' when no table was written.
+  // Echo of Response.batchesModule / routerInitFiles; `batchesModule` is '' when no table was written.
   batchesModule: string;
   routerInitFiles: string[];
   diagnostics?: Diagnostic[];

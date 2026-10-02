@@ -369,10 +369,9 @@ export interface Response {
   // The output root `generate` actually wrote to: with outDir left empty the resolver infers <srcDir>/.mion
   // from the tsconfig and echoes the absolute path here, so the plugin can adopt it.
   outDir?: string;
-  // The batch transport, `generate` only. `batchesModule` is the absolute `<outDir>/rpc/batches.generated.js`,
-  // absent unless the program holds a batch and creates the router. `routerInitFiles` are the createMionRouter
-  // files the transform appends the table import to.
+  // `generate` only: the absolute `<outDir>/rpc/batches.generated.js`, absent unless a batch and the router exist.
   batchesModule?: string;
+  // The createMionRouter files the transform appends the table import to.
   routerInitFiles?: string[];
   // tsconfig `downgradeErrors` echo on `generate` and `scanFiles` for a dependency-free host; the plugin's option wins.
   downgradeErrors?: string[];

@@ -1,9 +1,5 @@
-// The bundled-API id sweep — real binary, one real fullstack project built twice,
-// the generated data-type space. See apiIdsFuzz.ts for the oracles: the server
-// manifest agrees with the reflection marker (A1), the client build bundles
-// exactly what it calls with no diagnostic and writes the server build's api/
-// tree (A2), and `mion api-check` passes (A3). Replay a reported failure with
-// MION_FUZZ_SEED; widen with MION_FUZZ_ITER.
+// The bundled-API id sweep over the generated data-type space; oracles A1-A3 live in apiIdsFuzz.ts.
+// Replay a reported failure with MION_FUZZ_SEED; widen with MION_FUZZ_ITER.
 import fs from 'node:fs';
 import path from 'node:path';
 import {describe, expect, it} from 'vitest';
@@ -25,9 +21,7 @@ describe('bundled API ids fuzz (CLI end to end)', () => {
     expect(report.failures, report.failures.join('\n\n')).toEqual([]);
   });
 
-  // The negative control: the oracle has to be able to fire. A client shipped
-  // before a server-side type edit no longer matches the rebuilt server, and
-  // api-check says so on the field that moved.
+  // Proves the oracle can fire.
   register('negative control: a client from before a server type edit fails api-check on it', {timeout: 300_000}, () => {
     const project = createApiProject();
     try {

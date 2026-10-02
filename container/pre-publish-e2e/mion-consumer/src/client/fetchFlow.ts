@@ -5,8 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The client of the fetch lane: compiled with `--client-routes fetch`, so nothing about the routes is
-// bundled and every call gets its metadata and compiled functions from the server's mionFetchMetadata.
+// Compiled with `--client-routes fetch`: every call gets its metadata from the server's mionFetchMetadata.
 import {initClient} from '@mionjs/client';
 import {useFetchMetadata} from '@mionjs/client/middlewares';
 import {HeadersSubset} from '@mionjs/core';

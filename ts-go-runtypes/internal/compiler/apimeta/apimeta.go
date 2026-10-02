@@ -1,7 +1,6 @@
-// Package apimeta extracts the dispatch points of a mion client built with `client.routes: 'bundle'`: calls whose
-// resolved signature carries the InjectApiMetadata<Api, Id> marker as trailing parameter. A site says
-// only WHAT to bundle; resolving the ids into modules is internal/compiler/resolver/apigen.go, and the
-// server half of the lane is internal/compiler/requestbatch.
+// Package apimeta extracts the dispatch points of a client built with `client.routes: 'bundle'`: calls whose
+// signature ends in the InjectApiMetadata<Api, Id> marker. A site says only WHAT to bundle; resolver/apigen.go
+// resolves it, and internal/compiler/requestbatch is the server half.
 package apimeta
 
 import (
