@@ -32,7 +32,7 @@ export interface SiteShape {
   id: string;
 }
 
-/** The runtype data module of sites with no source file; a file's own data module sits under `rt/`. **/
+/** The shared runtype data module (allSingle, or a fileless site); a file's own one sits under `rt/`. **/
 export const RUNTYPES_BUNDLE_BASENAME = 'runtypes';
 const RUNTYPES_FILE_MODULE_PREFIX = 'rt/';
 

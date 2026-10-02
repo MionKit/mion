@@ -190,8 +190,7 @@ export function setHostOwnsSocket(ownsSocket: boolean): void {
 
 export const hostOwnsSocket = (): boolean => devHost.ownsSocket;
 
-/** Called by every platform adapter as it starts: hands its handler to a dev host that owns the socket, and reports
- *  whether one does, in which case the adapter must not listen. */
+/** Every platform adapter calls it on start; true means a dev host owns the socket and the adapter must not listen. */
 export function handOverToHost(handler: HostRequestHandler): boolean {
   if (devHost.ownsSocket) devHost.handler = handler;
   return devHost.ownsSocket;

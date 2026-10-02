@@ -1,7 +1,6 @@
-// The bundled-API id lane: the real `mion` binary builds one temp project twice per generated type, the server
-// alone into a SERVER gen dir, then the whole program into a CLIENT one. A1: every server manifest row's ids equal a
-// reflection-marker probe's (both getRunTypeId call shapes). A2: the client build reports no MET diagnostic and
-// bundles exactly the routes it calls. A3: `mion api-check` over the two separate builds' manifests exits 0.
+// The bundled-API id lane: per generated type, the real `mion` binary builds the server alone, then the whole program.
+// A1: every server manifest row's ids equal a reflection-marker probe's (both getRunTypeId call shapes). A2: the
+// client build reports no MET diagnostic and bundles exactly the routes it calls. A3: `mion api-check` passes.
 // The negative control lives in the integration test.
 
 import fs from 'node:fs';

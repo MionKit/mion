@@ -1,6 +1,4 @@
-// One runtype data module per source file: a type two files reach ships in both modules, and the runtime must
-// register it once, keep the first module's wiring while it is in use, and take a root's size limit from whichever
-// module reflects it as a root.
+// With one runtype data module per source file, a type two files reach ships in both modules.
 
 import {describe, expect, it} from 'vitest';
 import {initFromTuple, type EntryTuple} from '../../src/runtypes/entryTuple.ts';
@@ -11,7 +9,7 @@ function dataModule(key: string, rows: unknown[][], rels: (unknown[] | undefined
   return [4, undefined, undefined, key, rows, rels] as unknown as EntryTuple;
 }
 
-// A headless row with jsonMaxBytes in its trailing slot (index 21).
+// Slot 21 of a headless row is jsonMaxBytes.
 function rootRow(id: string, jsonMaxBytes: number): unknown[] {
   const row: unknown[] = [id, 5];
   row[21] = jsonMaxBytes;
