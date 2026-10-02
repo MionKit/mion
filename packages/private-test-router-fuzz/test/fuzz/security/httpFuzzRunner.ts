@@ -702,7 +702,7 @@ export interface SocketAnswer {
   closed: boolean;
 }
 
-// how long a HEAD read keeps listening after the headers, so a body the server should not send still shows
+// a HEAD read keeps listening past the headers so a body the server should not send still shows
 const HEAD_BODY_GRACE_MS = 50;
 
 const isHeadRequest = (request: string) => request.startsWith('HEAD ');
@@ -765,7 +765,6 @@ export interface SocketReport {
   close: () => Promise<void>;
 }
 
-/** The per-answer oracles over a raw socket answer. */
 export function checkSocketAnswer(request: string, answer: SocketAnswer): Array<[HttpOracleId, string]> {
   const out: Array<[HttpOracleId, string]> = [];
   // node itself answers 400/431 for what it cannot parse; a mion answer is a JSON envelope
@@ -787,8 +786,7 @@ export function checkSocketAnswer(request: string, answer: SocketAnswer): Array<
   return out;
 }
 
-/** Starts the node adapter over the fixture router on a free port and runs every socket attack,
- *  probing liveness after each one. Call `close()` when done. */
+/** Runs the socket attacks against the node adapter on a free port, probing liveness after each; call `close()` when done. */
 export async function runSocketAttacks(
   seed: number,
   rounds = 2,
