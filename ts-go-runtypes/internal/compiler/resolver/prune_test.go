@@ -134,10 +134,10 @@ func TestPrune_ReflectionAndPureFnModulesUntouched(t *testing.T) {
 	resp := scopeScan(t, `import {getRunTypeId} from '@mionjs/run-types';
 export const id = getRunTypeId<{a: string}>();
 `)
-	if entryModule(resp, "runtypes") == "" {
+	if !hasRunTypeData(resp) {
 		t.Error("the runtype data bundle must never be pruned")
 	}
-	if resp.Sites[0].ID == "" || entryModule(resp, resp.Sites[0].ID) == "" {
+	if resp.Sites[0].ID == "" || reflectionModule(resp, resp.Sites[0].ID) == "" {
 		t.Error("the reflection facade for the demanded root must never be pruned")
 	}
 }

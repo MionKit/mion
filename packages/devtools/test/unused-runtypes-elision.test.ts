@@ -78,7 +78,10 @@ export const isX = createValidateFn(myRT);
       expect(builderSite.id).toBe(validateSite.id);
 
       const entryModules = response.entryModules ?? {};
-      expect(Object.keys(entryModules)).toContain('runtypes');
+      expect(
+        Object.keys(entryModules).some((name) => name.startsWith('rt/')),
+        'the file gets its own data module'
+      ).toBe(true);
       const tuples = evalEntryModules(entryModules);
       const byHash = instantiateRunTypes(tuples);
       expect(byHash[builderSite.id], 'the runtype graph must instantiate for the value-used builder').toBeDefined();

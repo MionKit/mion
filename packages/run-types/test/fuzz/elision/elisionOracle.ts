@@ -32,19 +32,24 @@ export interface SiteShape {
   id: string;
 }
 
-/** The runtype data bundle's fixed module basename (entrymodules.ModuleName
- *  special-cases KindRunTypeBundle). **/
+/** The runtype data module of sites with no source file; a file's own data module sits under `rt/`. **/
 export const RUNTYPES_BUNDLE_BASENAME = 'runtypes';
+const RUNTYPES_FILE_MODULE_PREFIX = 'rt/';
+
+/** True for a runtype data module, shared or per file. **/
+export function isRunTypeDataModule(basename: string): boolean {
+  return basename === RUNTYPES_BUNDLE_BASENAME || basename.startsWith(RUNTYPES_FILE_MODULE_PREFIX);
+}
 
 /** Restrict an entry-module map to the FUNCTION side — the modules E1 may
  *  byte-compare: fn-entry modules (`<fnHash>_<typeId>` basenames carry one
- *  underscore) and pure-fn modules (`pf/…`). Excluded: the `runtypes` bundle
- *  (content-hashed over its rows, so it moves with the reflection payload) and
+ *  underscore) and pure-fn modules (`pf/…`). Excluded: the runtype data modules
+ *  (content-hashed over their rows, so they move with the reflection payload) and
  *  bare-id facade modules (reflection-lane plumbing). **/
 export function comparableModules(modules: Record<string, string>): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [basename, source] of Object.entries(modules)) {
-    if (basename === RUNTYPES_BUNDLE_BASENAME) continue;
+    if (isRunTypeDataModule(basename)) continue;
     if (!basename.includes('_') && !basename.startsWith('pf/')) continue;
     out[basename] = normalizeSitePositions(source);
   }
@@ -135,7 +140,7 @@ export function checkStaticRootSiteGone(
 
 /** E2 (static side, declaration-free fixtures only) — with no named
  *  declarations there is nothing to escape, so the static form must emit ZERO
- *  reflection payload: no `runtypes` bundle module and no reflection site at
+ *  reflection payload: no runtype data module and no reflection site at
  *  all. **/
 export function checkStaticZeroReflection(
   seed: number,
@@ -143,12 +148,13 @@ export function checkStaticZeroReflection(
   modules: Record<string, string>,
   sites: SiteShape[]
 ): ElisionViolation | undefined {
-  if (RUNTYPES_BUNDLE_BASENAME in modules) {
+  const dataModule = Object.keys(modules).find(isRunTypeDataModule);
+  if (dataModule) {
     return {
       oracle: 'E2-static-reflection',
       seed,
       title,
-      message: `a declaration-free static form emitted the '${RUNTYPES_BUNDLE_BASENAME}' bundle module`,
+      message: `a declaration-free static form emitted the '${dataModule}' runtype data module`,
     };
   }
   const reflectionSites = sites.filter((site) => !site.fnId).length;

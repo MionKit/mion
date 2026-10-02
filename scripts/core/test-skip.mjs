@@ -98,7 +98,6 @@ export async function moduleGraph(project, file, declared = DECLARED) {
     await Promise.all(children);
   };
   await visit(file);
-  keyBundlesByRoots(modules);
   return {modules, externals, reasons, inputs};
 }
 
@@ -106,81 +105,6 @@ function declaredInputs(declared, path) {
   if (declared[path]) return declared[path];
   const dir = Object.keys(declared).find((key) => key.endsWith('/') && path.startsWith(key));
   return dir ? declared[dir] : undefined;
-}
-
-const BUNDLE = /\/\.mion[^/]*\/types\/runtypes\.js$/;
-const FACADE = /^export const __rt_\w+=\[5,.*,'([^']+)'\];$/m;
-const INI_LINE = /^c\('([^']+)'\)\./;
-const INI_REF = /c\('([^']+)'\)/g;
-
-// The shared bundle holds every reflected type of the program, so a test is keyed only on the rows its facades reach.
-function keyBundlesByRoots(modules) {
-  for (const bundlePath of [...modules.keys()].filter((path) => BUNDLE.test(path))) {
-    const dir = dirname(bundlePath);
-    const roots = [];
-    for (const path of modules.keys()) {
-      if (dirname(path) !== dir || path === bundlePath) continue;
-      const root = FACADE.exec(readFileSync(path, 'utf8'))?.[1];
-      if (root) roots.push(root);
-    }
-    const digest = bundleDigest(readFileSync(bundlePath, 'utf8'), roots);
-    if (digest) modules.set(bundlePath, `rows reached from ${roots.length} root(s): ${digest}`);
-    else note(`test-skip: could not read ${relative(REPO_ROOT, bundlePath)}, keying on its whole text`);
-  }
-}
-
-// Rows are followed by id, never by row index, so a row added elsewhere shifts nothing here; null means unreadable.
-export function bundleDigest(code, rootIds) {
-  let record;
-  try {
-    record = new Function(code.replace(/^export const __rt_runtypes=/m, 'return '))();
-  } catch {
-    return null;
-  }
-  const [rows, rels] = [record?.[4], record?.[5]];
-  if (!Array.isArray(rows)) return null;
-  const indexOf = new Map(rows.map((row, index) => [row[0], index]));
-  const iniLines = new Map();
-  for (const line of code.slice(0, code.search(/^export const __rt_runtypes=/m)).split('\n')) {
-    const id = INI_LINE.exec(line)?.[1];
-    if (id) iniLines.set(id, [...(iniLines.get(id) ?? []), line.replace(DRAWN_SAMPLES, '$1]')]);
-  }
-  const seen = new Set();
-  const queue = [...rootIds];
-  const parts = [];
-  const byId = (value) => (typeof value === 'number' ? (rows[value]?.[0] ?? `#${value}`) : value);
-  const edges = (value, out) => {
-    if (typeof value === 'number') out.push(byId(value));
-    else if (typeof value === 'string' && indexOf.has(value)) out.push(value);
-    else if (Array.isArray(value)) for (const item of value) edges(item, out);
-    else if (value && typeof value === 'object') for (const item of Object.values(value)) inlineEdges(item, out);
-    return out;
-  };
-  // Numbers inside an inline literal are kinds and flags, not row indexes; only its id strings link rows.
-  const inlineEdges = (value, out) => {
-    if (typeof value === 'string' && indexOf.has(value)) out.push(value);
-    else if (value && typeof value === 'object') for (const item of Object.values(value)) inlineEdges(item, out);
-  };
-  while (queue.length > 0) {
-    const id = queue.shift();
-    if (seen.has(id)) continue;
-    seen.add(id);
-    const index = indexOf.get(id);
-    if (index === undefined) return null;
-    const lines = iniLines.get(id) ?? [];
-    const next = edges(rels?.[index], []);
-    inlineEdges(rows[index].slice(1), next);
-    for (const line of lines) for (const match of line.slice(line.indexOf(')') + 1).matchAll(INI_REF)) next.push(match[1]);
-    parts.push([id, JSON.stringify(rows[index]), JSON.stringify(mapIndexes(rels?.[index], byId)) ?? '', ...lines].join('\n'));
-    queue.push(...next.filter((target) => indexOf.has(target)));
-  }
-  return sha(...parts.sort());
-}
-
-function mapIndexes(value, byId) {
-  if (typeof value === 'number') return byId(value);
-  if (Array.isArray(value)) return Array.from(value, (item) => mapIndexes(item, byId));
-  return value;
 }
 
 const versions = new Map();

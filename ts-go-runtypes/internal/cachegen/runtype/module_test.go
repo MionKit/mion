@@ -45,7 +45,7 @@ func emitModulesWith(t *testing.T, roots []string, runTypes []*reflection.RunTyp
 	for _, root := range roots {
 		sites = append(sites, protocol.Site{ID: root})
 	}
-	graph := CollectEntries(protocol.Dump{RunTypes: runTypes, Sites: sites}, jsonMaxBytes)
+	graph := CollectEntries(protocol.Dump{RunTypes: runTypes, Sites: sites}, jsonMaxBytes, nil)
 	modules, err := entrymodules.RenderGrouped(graph, nil)
 	if err != nil {
 		t.Fatalf("entrymodules.Render: %v", err)
@@ -82,11 +82,8 @@ func keysOfModules(modules map[string]string) []string {
 
 func intPtr(n int) *int { return &n }
 
-// TestBundleShape — all nodes land as rows of ONE bundle module
-// (`rtmod:/runtypes.js`) with tuple head [4,<hole>,<ini|hole>,'rts_<hash>',
-// [rows…],[rels…]] (the bundle is dep-less — rows are inline; an atomic node
-// has no relations, so `rels` is empty), and each root gets a facade module
-// [5,()=>[__rt_runtypes],<hole>,'<rootId>'] whose single dep imports the bundle.
+// TestBundleShape — a module holds its data tuple [4,<hole>,<ini|hole>,'rts_<hash>',[rows…],[rels…]] and one
+// facade export per root, [5,()=>[__rt_runtypes],<hole>,'<rootId>'], referencing the data tuple directly.
 func TestBundleShape(t *testing.T) {
 	modules := emitModules(t, []string{"x1"}, []*reflection.RunType{{ID: "x1", Kind: reflection.KindString}})
 	bundle := bundleOf(t, modules)
@@ -97,19 +94,116 @@ func TestBundleShape(t *testing.T) {
 		t.Errorf("expected single row [['x1',5]] + empty rels, got:\n%s", bundle)
 	}
 	if strings.Contains(bundle, "import ") {
-		t.Errorf("bundle must have no imports, got:\n%s", bundle)
+		t.Errorf("a module's facades reference its data tuple directly, so it imports nothing:\n%s", bundle)
 	}
+	if !strings.Contains(bundle, "export const __rt_x1=[5,()=>[__rt_runtypes],,'x1'];") {
+		t.Errorf("facade tuple mismatch, got:\n%s", bundle)
+	}
+	if len(modules) != 1 {
+		t.Errorf("the facades fold into the module, got %v", keysOfModules(modules))
+	}
+}
 
-	facade, ok := modules["x1"]
-	if !ok {
-		t.Fatalf("expected facade module x1, got %v", keysOfModules(modules))
+// emitFileModules renders one dump whose reflection sites sit in the files named by siteFiles (root → file).
+func emitFileModules(t *testing.T, siteFiles map[string]string, runTypes []*reflection.RunType, jsonMaxBytes bool) map[string]string {
+	t.Helper()
+	sites := make([]protocol.Site, 0, len(siteFiles))
+	for root, file := range siteFiles {
+		sites = append(sites, protocol.Site{ID: root, File: file})
 	}
-	wantImport := "import {__rt_runtypes} from 'rtmod:/" + constants.RunTypesBundleBasename + ".js';\n"
-	if !strings.HasPrefix(facade, wantImport) {
-		t.Errorf("facade must import the bundle:\n got: %q\nwant prefix: %q", facade, wantImport)
+	graph := CollectEntries(protocol.Dump{RunTypes: runTypes, Sites: sites}, jsonMaxBytes, func(site protocol.Site) string { return "rt/" + site.File })
+	modules, err := entrymodules.RenderGrouped(graph, nil)
+	if err != nil {
+		t.Fatalf("render: %v", err)
 	}
-	if !strings.Contains(facade, "export const __rt_x1=[5,()=>[__rt_runtypes],,'x1'];") {
-		t.Errorf("facade tuple mismatch, got:\n%s", facade)
+	return modules
+}
+
+// TestCollectEntries_PerFileGroups — each file's module holds only its own roots' closure: a client file never
+// carries a server file's rows.
+func TestCollectEntries_PerFileGroups(t *testing.T) {
+	modules := emitFileModules(t, map[string]string{"clientRoot": "client", "serverRoot": "server"}, []*reflection.RunType{
+		{ID: "clientRoot", Kind: reflection.KindProperty, Name: "c", Child: reflection.NewRef("clientChild")},
+		{ID: "clientChild", Kind: reflection.KindString},
+		{ID: "serverRoot", Kind: reflection.KindProperty, Name: "s", Child: reflection.NewRef("serverChild")},
+		{ID: "serverChild", Kind: reflection.KindNumber},
+	}, false)
+	client, server := modules["rt/client"], modules["rt/server"]
+	if !strings.Contains(client, "'clientChild'") || strings.Contains(client, "server") {
+		t.Errorf("the client module carries only its own closure:\n%s", client)
+	}
+	if !strings.Contains(server, "'serverChild'") || strings.Contains(server, "client") {
+		t.Errorf("the server module carries only its own closure:\n%s", server)
+	}
+}
+
+// TestCollectEntries_SharedRowInBothModules — a type two files reach ships in both modules, each one self-contained.
+func TestCollectEntries_SharedRowInBothModules(t *testing.T) {
+	modules := emitFileModules(t, map[string]string{"aRoot": "a", "bRoot": "b"}, []*reflection.RunType{
+		{ID: "aRoot", Kind: reflection.KindProperty, Name: "a", Child: reflection.NewRef("shared")},
+		{ID: "bRoot", Kind: reflection.KindProperty, Name: "b", Child: reflection.NewRef("shared")},
+		{ID: "shared", Kind: reflection.KindString},
+	}, false)
+	for _, module := range []string{"rt/a", "rt/b"} {
+		if !strings.Contains(modules[module], "['shared',5]") || strings.Contains(modules[module], "import ") {
+			t.Errorf("%s must carry the shared row and import nothing:\n%s", module, modules[module])
+		}
+	}
+}
+
+// TestCollectEntries_SameRootInTwoFiles — one root reflected in two files gets a facade in each module.
+func TestCollectEntries_SameRootInTwoFiles(t *testing.T) {
+	graph := CollectEntries(protocol.Dump{
+		RunTypes: []*reflection.RunType{{ID: "root1", Kind: reflection.KindString}},
+		Sites:    []protocol.Site{{ID: "root1", File: "a"}, {ID: "root1", File: "b"}},
+	}, false, func(site protocol.Site) string { return "rt/" + site.File })
+	modules, err := entrymodules.RenderGrouped(graph, nil)
+	if err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	for _, module := range []string{"rt/a", "rt/b"} {
+		if !strings.Contains(modules[module], "export const __rt_root1=[5,") {
+			t.Errorf("%s must export the root's facade:\n%s", module, modules[module])
+		}
+	}
+}
+
+// TestCollectEntries_KeyCoversJSONMax — the tuple key changes with a root's size limit, so a module whose rows are
+// the same but whose limits moved still re-registers after an HMR reload.
+func TestCollectEntries_KeyCoversJSONMax(t *testing.T) {
+	key := func(jsonMaxBytes bool) string {
+		module := emitFileModules(t, map[string]string{"x1": "a"}, []*reflection.RunType{{ID: "x1", Kind: reflection.KindBoolean}}, jsonMaxBytes)["rt/a"]
+		start := strings.Index(module, "'rts_")
+		return module[start : start+16]
+	}
+	if key(true) == key(false) {
+		t.Errorf("a size limit change must move the tuple key, both %s", key(true))
+	}
+}
+
+// TestCollectEntries_SoftDepsScopedToFile — a mock-data demand rides only the facade of the file that made it.
+func TestCollectEntries_SoftDepsScopedToFile(t *testing.T) {
+	graph := CollectEntries(protocol.Dump{
+		RunTypes: []*reflection.RunType{{ID: "root1", Kind: reflection.KindString}},
+		Sites: []protocol.Site{
+			{ID: "root1", File: "mocks", Demand: []protocol.SiteDemand{{FnHash: "fmtx"}}},
+			{ID: "root1", File: "plain"},
+		},
+	}, false, func(site protocol.Site) string { return "rt/" + site.File })
+	if deps := graph["rt/mocks#root1"].SoftDeps; len(deps) != 1 {
+		t.Errorf("the mocking file's facade carries its demand, got %v", deps)
+	}
+	if deps := graph["rt/plain#root1"].SoftDeps; len(deps) != 0 {
+		t.Errorf("the plain file's facade carries nothing, got %v", deps)
+	}
+}
+
+// TestCollectEntries_EmptyClosureExportsOnly — a root missing from the dump still gets its facade, so the injected
+// import resolves, and no empty data tuple is emitted.
+func TestCollectEntries_EmptyClosureExportsOnly(t *testing.T) {
+	module := emitFileModules(t, map[string]string{"gone1": "a"}, nil, false)["rt/a"]
+	if !strings.Contains(module, "export const __rt_gone1=[5,,,'gone1'];") || strings.Contains(module, "[4,") {
+		t.Errorf("expected a dep-less facade and no data tuple, got:\n%s", module)
 	}
 }
 
@@ -138,7 +232,7 @@ func TestNoReflectionRoots(t *testing.T) {
 	graph := CollectEntries(protocol.Dump{
 		RunTypes: []*reflection.RunType{{ID: "x1", Kind: reflection.KindString}},
 		Sites:    []protocol.Site{{ID: "x1", FnId: "Qm3p"}}, // createX site, not reflection
-	}, true)
+	}, true, nil)
 	if len(graph) != 0 {
 		t.Fatalf("expected empty graph for fn-only sites, got %d entries", len(graph))
 	}

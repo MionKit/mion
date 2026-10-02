@@ -138,6 +138,7 @@ func writeEntryModuleConstants(out *strings.Builder) {
 	fmt.Fprintf(out, "export const RPC_MODULE_DIR = %q;\n", constants.RpcModuleDir)
 	fmt.Fprintf(out, "export const BATCHES_MODULE_FILE = %q;\n", constants.BatchesModuleFile)
 	fmt.Fprintf(out, "export const RUNTYPES_BUNDLE_BASENAME = %q;\n", constants.RunTypesBundleBasename)
+	fmt.Fprintf(out, "export const RUNTYPES_FILE_MODULE_DIR = %q;\n", constants.RunTypesFileModuleDir)
 	fmt.Fprintf(out, "export const FNS_BUNDLE_DIR = %q;\n", constants.FnsBundleDir)
 	out.WriteString("// Module-mode values for the --module-mode flag / plugin moduleMode option.\n")
 	fmt.Fprintf(out, "export const MODULE_MODE_DEFAULT = %q;\n", constants.ModuleModeDefault)

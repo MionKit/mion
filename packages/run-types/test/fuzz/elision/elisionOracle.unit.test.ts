@@ -55,6 +55,7 @@ describe('elision oracles fire on broken output (negative controls)', () => {
       abc_X: 'fn entry',
       'pf/rt/findCycle': 'pure fn',
       [RUNTYPES_BUNDLE_BASENAME]: 'bundle',
+      'rt/a1B2c3D4e5': 'file data module',
       Xyz123: 'facade',
     });
     expect(Object.keys(filtered).sort()).toEqual(['abc_X', 'pf/rt/findCycle']);
@@ -83,6 +84,7 @@ describe('elision oracles fire on broken output (negative controls)', () => {
 
   it('E2 strict fires on any reflection payload in a declaration-free fixture', () => {
     expect(checkStaticZeroReflection(1, 't', {[RUNTYPES_BUNDLE_BASENAME]: 'x'}, [])?.oracle).toBe('E2-static-reflection');
+    expect(checkStaticZeroReflection(1, 't', {'rt/a1B2c3D4e5': 'x'}, [])?.oracle).toBe('E2-static-reflection');
     expect(checkStaticZeroReflection(1, 't', {}, [{fnId: '', id: 'Root1'}])?.oracle).toBe('E2-static-reflection');
     expect(checkStaticZeroReflection(1, 't', {abc_X: 'fn'}, [{fnId: 'abc', id: 'X'}])).toBeUndefined();
   });

@@ -42,7 +42,7 @@ getRunTypeId<User>();
         // Static form has no value argument — the value slot is padded with
         // `undefined` so the injected entry-module binding lands in slot 1,
         // with the matching import at offset 0.
-        expect(out).toContain(`import {__rt_${sites[0].id}} from 'rtmod:/${sites[0].id}.js';`);
+        expect(out).toMatch(new RegExp(`import \\{__rt_${sites[0].id}\\} from 'rtmod:/rt/[A-Za-z0-9_-]+\\.js';`));
         expect(out).toContain(`getRunTypeId<User>(undefined, __rt_${sites[0].id});`);
       });
     }
@@ -64,7 +64,7 @@ getRunTypeId(u);
         expect(sites.length).toBe(1);
         expect(sites[0].id).toMatch(/^[A-Za-z][A-Za-z0-9]+$/);
         // Reflect form: `u` is arg 0, the injected binding is arg 1.
-        expect(out).toContain(`import {__rt_${sites[0].id}} from 'rtmod:/${sites[0].id}.js';`);
+        expect(out).toMatch(new RegExp(`import \\{__rt_${sites[0].id}\\} from 'rtmod:/rt/[A-Za-z0-9_-]+\\.js';`));
         expect(out).toContain(`getRunTypeId(u, __rt_${sites[0].id});`);
       });
     }
@@ -321,9 +321,8 @@ const myAPI = getRunTypeId(routes);
       return dump.entryModules ?? {};
     });
 
-    // Per-entry emitter — runtype nodes ride as rows of the single data
-    // bundle (tuple slot 0 === 4; dep-less, so slot 1 is a hole); the reflection
-    // root gets a facade module whose inlined deps thunk imports the bundle.
+    // Runtype nodes ride as rows of the file's data module (tuple slot 0 === 4; dep-less, so slot 1 is a hole);
+    // the reflection root gets a facade export whose deps thunk references that data tuple.
     const moduleSources = Object.values(entryModules);
     expect(moduleSources.length).toBeGreaterThan(0);
     expect(moduleSources.some((s) => /export const __rt_runtypes=\[4,,/.test(s))).toBe(true);
@@ -374,7 +373,7 @@ const myAPI = getRunTypeId(routes);
         }
       );
       expect(out.status).toBe(0);
-      const written = fs.readdirSync(tmpDir).filter((name) => name.endsWith('.js'));
+      const written = (fs.readdirSync(tmpDir, {recursive: true}) as string[]).filter((name) => name.endsWith('.js'));
       expect(written.length).toBeGreaterThan(0);
       const sample = fs.readFileSync(path.join(tmpDir, written[0]), 'utf8');
       expect(sample).toContain('export const __rt_');
