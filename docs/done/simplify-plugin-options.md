@@ -304,3 +304,19 @@ Built as planned, with these additions and changes found along the way:
   marker arguments widened every route's types in the `.d.ts`. A new pre-publish e2e lane
   (`mion-api-types/`) packs a real API library, builds a client against the tarball with Vite and with
   `mion compile`, runs it against the installed server, and covers the plain-tsc and drifted cases.
+- **Same type id from a `.d.ts` and from source.** A package built with mion ships its override rows
+  (`overrides` in `mion-pure-fns/index.json`, keyed by compiler version) and their function bodies, and a
+  consumer seeds its override map from the installed packages that depend on `@mionjs/run-types`, so an
+  overridden type keeps its id across the package boundary. Overriding a package's type again is `OVR001`;
+  rows from another compiler version are skipped with `PFE9017`. A format `pattern` the build cannot read
+  (a plain `RegExp`, a widened `FormatPattern`) is now the RuntimeError `FMT009` instead of a check that
+  silently stopped. Private fields were split out into their own todo.
+- **One runtype data module per source file.** The single `types/runtypes.js` gave every bundle the
+  reflection types of the whole program, so a client got every server route's types. Each source file
+  with reflection sites now gets `types/rt/<hash of its path>.js`: its roots' closure rows plus one export
+  per root, replacing the per-root facades. A row two files share is written in both (measured on
+  private-test-server: 1,632 rows written against 1,336 distinct, 83 KB over 7 modules), and the runtime
+  wires only the rows each module adds. Sites with no file keep `types/runtypes.js`. The mion presets
+  refuse `moduleMode: 'allSingle'`, which puts both sides back in one module, and a program holding both
+  client and server warns with `MET014` when the tsconfig sets it. The planned row-count build metrics
+  were not added: the measured repeat was small enough that shared modules are not needed.
