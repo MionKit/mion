@@ -71,14 +71,13 @@ export function recordUndeclaredError(context: CallContext, key: string, err: an
   addThrownError(context, key, rpcError);
 }
 
-/** Puts an untyped error in `@thrownErrors` under `key` without ending the request. */
+/** Unlike recordUndeclaredError, does not end the request. */
 export function addThrownError(context: CallContext, key: string, rpcError: RpcError<string>) {
   const thrownErrors = context.request.thrownErrors || ({} as Record<string, RpcError<string>>);
   thrownErrors[key] = rpcError;
   (context.request as Mutable<MionRequest>).thrownErrors = thrownErrors;
 }
 
-/** True when `key` already has an untyped error in `@thrownErrors`. */
 export function hasThrownError(context: CallContext, key: string): boolean {
   const thrownErrors = context.request.thrownErrors;
   return !!thrownErrors && Object.hasOwn(thrownErrors, key);

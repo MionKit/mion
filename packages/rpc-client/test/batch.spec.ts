@@ -702,7 +702,7 @@ describe('batch runtime behaviour', () => {
 
     expect(userValue).toBeUndefined();
     expect(userError?.type).toBe('user-not-found');
-    // The target never runs and its slots stay empty: the mapping error is untyped for it, so it is a thrown one.
+    // The mapping error is not in the target's type, so it is a thrown one.
     expect(org).toBeUndefined();
     expect(orgError).toBeUndefined();
     const thrown = clientResponse['@thrownErrors'];
