@@ -386,12 +386,13 @@ const (
 	// router, and the relativizers that turn `rtmod:/` into a path under <outDir>/types turn this one into a path
 	// under <outDir>/rpc.
 	RpcModulePrefix = "rtrpc:/"
-	// RunTypesBundleBasename names the SINGLE runtype data module (`rtmod:/runtypes.js`): every
-	// reflection-demanded node lives there as one tuple row, deduplicated app-wide, with per-root facade modules
-	// aliasing into it. Unlike every other entry module it is NOT content-addressed, so a host invalidates it
-	// when a scan reports addedRunTypes. The name cannot collide with hash-keyed basenames (hash ids are short)
-	// or pure-fn basenames (always under PureFnModuleDir).
+	// RunTypesBundleBasename names the runtype data module for reflection sites with no source file (the bundled
+	// client routes, a test's synthetic sites) and for allSingle mode. The name cannot collide with hash-keyed
+	// basenames (hash ids are short) or pure-fn basenames (always under PureFnModuleDir).
 	RunTypesBundleBasename = "runtypes"
+	// RunTypesFileModuleDir holds one runtype data module per source file with reflection calls
+	// (`rtmod:/rt/<hash of the file path>.js`), so a bundle only carries the types of the files it imports.
+	RunTypesFileModuleDir = "rt"
 	// FnsBundleDir is the basename directory prefix for per-family fn-entry bundle modules in allSingle mode
 	// (`fns/<familyTag>`): every entry of a family rides the family's bundle as a NAMED export
 	// (`export const <BindingName(key)>=[…]`) instead of its own module.
@@ -401,8 +402,8 @@ const (
 // ModuleMode selects how cache entries are grouped into virtual modules. Mirrored to TS so the plugin option
 // validates against the same set.
 const (
-	// ModuleModeDefault — runtype nodes ride THE single data bundle (plus per-root facade modules); every
-	// fn-family / composite / pure-fn entry is its own per-entry module.
+	// ModuleModeDefault — runtype nodes ride one data module per source file (`rt/<hash>`, the facades as named
+	// exports); every fn-family / composite / pure-fn entry is its own per-entry module.
 	ModuleModeDefault = "default"
 	// ModuleModeAllSingle — bundle EVERYTHING: one bundle module per family tag (`fns/<tag>`), one `pf` bundle
 	// for pure fns, and the reflection facades folded into the runtypes bundle as named exports. Fewest modules;

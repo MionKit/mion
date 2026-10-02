@@ -179,12 +179,17 @@ func TestModuleMode_AllSingle_SiteModuleStamping(t *testing.T) {
 	}
 }
 
-func TestModuleMode_Default_NoSiteModuleStamping(t *testing.T) {
+// TestModuleMode_Default_StampsOnlyReflectionSites: a reflection site imports its file's runtype module; a createX
+// site keeps its per-entry module.
+func TestModuleMode_Default_StampsOnlyReflectionSites(t *testing.T) {
 	r := setupInline(t, map[string]string{"a.ts": pairedSource})
 	resp := scanWithModules(t, r, []string{"a.ts"})
 	for _, site := range resp.Sites {
-		if site.Module != "" {
-			t.Fatalf("default mode must not stamp Site.Module; got %q", site.Module)
+		switch {
+		case site.FnId != "" && site.Module != "":
+			t.Fatalf("default mode must not stamp a createX site; got %q", site.Module)
+		case site.FnId == "" && (!strings.HasPrefix(site.Module, constants.RunTypesFileModuleDir+"/") || resp.EntryModules[site.Module] == ""):
+			t.Fatalf("a reflection site must import its file's emitted runtype module; got %q", site.Module)
 		}
 	}
 	if _, ok := resp.EntryModules[constants.FnsBundleDir+"/val"]; ok {

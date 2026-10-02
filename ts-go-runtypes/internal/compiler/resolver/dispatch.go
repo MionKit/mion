@@ -12,6 +12,7 @@ import (
 
 	"github.com/microsoft/typescript-go/shim/compiler"
 	"github.com/microsoft/typescript-go/shim/tspath"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/hashid"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/operations"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefunctions"
@@ -81,7 +82,7 @@ func (sess *Session) collectEntryModules(dump protocol.Dump, rtOpts typefunction
 	if sess.opts.ModuleMode == constants.ModuleModeAllModules {
 		graph = runtype.CollectEntriesPerNode(dump, sess.opts.JSONMaxBytes)
 	} else {
-		graph = runtype.CollectEntries(dump, sess.opts.JSONMaxBytes)
+		graph = runtype.CollectEntries(dump, sess.opts.JSONMaxBytes, sess.reflectionModuleFor)
 	}
 
 	familyGraphs, err := sess.collectFamilies(dump, rtOpts, metrics)
@@ -472,7 +473,7 @@ func pruneUnreachableTypeFnEntries(graph entrymodules.Graph, demanded []string) 
 }
 
 // moduleGrouping returns the entrymodules.Grouping for the resolver's module mode. Nil under default/allModules
-// leaves everything per-entry, the runtype bundle shaping its own module via CollectEntries.
+// leaves every fn and pure-fn entry per-entry; a runtype data entry and its facades carry their own Module.
 // A missing stub with no demanding site keeps its own resolvable module.
 func (sess *Session) moduleGrouping() entrymodules.Grouping {
 	if sess.opts.ModuleMode != constants.ModuleModeAllSingle {
@@ -489,12 +490,25 @@ func (sess *Session) moduleGrouping() entrymodules.Grouping {
 			return ""
 		case entrymodules.KindPureFn:
 			return constants.PureFnModuleDir
-		case entrymodules.KindRunTypeBundle, entrymodules.KindRunTypeFacade:
-			return constants.RunTypesBundleBasename
 		}
 		return ""
 	}
 }
+
+// reflectionModuleFor is the module a reflection site's root renders in: one per source file, named by a hash of
+// the file's path from the working dir, so a bundle carries the types of the files it imports and a rewrite and the
+// module it imports agree whichever path form the scan saw. A site with no file, and allSingle, use one module.
+func (sess *Session) reflectionModuleFor(site protocol.Site) string {
+	if sess.opts.ModuleMode == constants.ModuleModeAllSingle || site.File == "" || sess.Program == nil {
+		return constants.RunTypesBundleBasename
+	}
+	cwd := sess.Program.Cwd
+	relative := tspath.ConvertToRelativePath(tspath.GetNormalizedAbsolutePath(site.File, cwd), tspath.ComparePathsOptions{CurrentDirectory: cwd})
+	return constants.RunTypesFileModuleDir + "/" + hashid.QuickHash(relative, fileModuleHashLength)
+}
+
+// fileModuleHashLength sizes the per-file module name: it only has to be unique among one program's files.
+const fileModuleHashLength = 10
 
 // siteFamilyTag is the family tag one fnId of a site renders under, "" when the site demands nothing under it.
 // Shared by the two callers that must agree on the mapping, stampSiteModules (which bundle the rewrite imports the
@@ -515,9 +529,10 @@ func siteFamilyTag(site protocol.Site, fnId string) string {
 // A multi-fn site spans SEVERAL families, each with its own allSingle bundle, which the scalar Module cannot
 // address: every fnId gets a basename in Modules, and Module keeps mirroring FnIds[0] so the single-fn wire is unchanged.
 func (sess *Session) stampSiteModules(sites []protocol.Site) []protocol.Site {
-	if sess.opts.ModuleMode != constants.ModuleModeAllSingle || len(sites) == 0 {
+	if sess.opts.ModuleMode == constants.ModuleModeAllModules || len(sites) == 0 {
 		return sites
 	}
+	allSingle := sess.opts.ModuleMode == constants.ModuleModeAllSingle
 	bundleFor := func(site protocol.Site, fnId string) string {
 		if tag := siteFamilyTag(site, fnId); tag != "" {
 			return constants.FnsBundleDir + "/" + tag
@@ -531,7 +546,10 @@ func (sess *Session) stampSiteModules(sites []protocol.Site) []protocol.Site {
 			continue
 		}
 		if out[i].FnId == "" {
-			out[i].Module = constants.RunTypesBundleBasename
+			out[i].Module = sess.reflectionModuleFor(out[i])
+			continue
+		}
+		if !allSingle {
 			continue
 		}
 		out[i].Module = bundleFor(out[i], out[i].FnId)

@@ -107,6 +107,7 @@ export const PURE_FN_ARTIFACT_INDEX = 'index.json';
 export const RPC_MODULE_DIR = 'rpc';
 export const BATCHES_MODULE_FILE = 'batches.generated.js';
 export const RUNTYPES_BUNDLE_BASENAME = 'runtypes';
+export const RUNTYPES_FILE_MODULE_DIR = 'rt';
 export const FNS_BUNDLE_DIR = 'fns';
 // Module-mode values for the --module-mode flag / plugin moduleMode option.
 export const MODULE_MODE_DEFAULT = 'default';

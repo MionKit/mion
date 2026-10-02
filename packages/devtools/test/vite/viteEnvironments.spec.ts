@@ -49,22 +49,26 @@ const MARKER_STUB = `export const createValidateFn = (_a, _b, tuple) => {
   if (!tuple) throw new Error('MARKER NOT TRANSFORMED');
   return new Function(tuple[5])();
 };
+export const getRunTypeId = (_value, facade) => facade;
 `;
 // The API entry. `createValidateFn` gives it a marker site, so a build that skipped the transform
 // for this environment would fall through to the throwing stub.
 const SERVER = `import {createMionRouter} from '@mionjs/router';
-import {createValidateFn} from '@mionjs/run-types';
+import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
 export type Account = {id: number; label: string};
 export const mion = createMionRouter();
 export const api = mion.initRoutes({});
 export const isAccount = createValidateFn<Account>();
 globalThis.__serverRan = isAccount({id: 1, label: 'a'});
+// A reflected type only the server uses: its field name must never reach the client bundle.
+export const auditId = getRunTypeId<{serverOnlyAuditTrail: string}>();
 `;
 // The browser half, a plain module with its own marker site.
-const CLIENT = `import {createValidateFn} from '@mionjs/run-types';
+const CLIENT = `import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
 export type Session = {token: string};
 const isSession = createValidateFn<Session>();
 export const ok = isSession({token: 'x'});
+globalThis.__clientForm = getRunTypeId<{clientOnlyDraftField: string}>();
 `;
 const INDEX_HTML = `<!doctype html><html><body><script type="module" src="/src/main.ts"></script></body></html>`;
 
@@ -145,6 +149,18 @@ register('one config, two bundles', () => {
     expect(readFileSync(path.join(root, 'dist', 'assets', clientChunk), 'utf8')).toMatch(/__rt_[A-Za-z0-9_-]+ = \[/);
     expect(serverCode).toMatch(/__rt_[A-Za-z0-9_-]+ = \[/);
     expect(serverCode).toContain('__serverRan');
+  });
+
+  it('keeps the reflected types of each side out of the other bundle', async () => {
+    const {binary} = countingBinary();
+    await buildApp(binary);
+    const clientChunk = readdirSync(path.join(root, 'dist', 'assets')).find((name) => name.endsWith('.js'))!;
+    const client = readFileSync(path.join(root, 'dist', 'assets', clientChunk), 'utf8');
+    const server = readFileSync(serverBundleIn(path.join(root, 'dist-server')), 'utf8');
+    expect(client).toContain('clientOnlyDraftField');
+    expect(client).not.toContain('serverOnlyAuditTrail');
+    expect(server).toContain('serverOnlyAuditTrail');
+    expect(server).not.toContain('clientOnlyDraftField');
   });
 
   it('runs: the server bundle boots and carries its compiled type id', async () => {

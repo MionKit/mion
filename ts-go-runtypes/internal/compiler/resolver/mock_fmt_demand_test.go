@@ -41,7 +41,7 @@ export const mock = createMockDataFn<Tag>();
 		t.Fatal("a createMockDataFn site must demand the fmt family for its type")
 	}
 	rootID := strings.SplitN(fmtKeys[0], "_", 2)[1]
-	facade := entryModule(resp, rootID)
+	facade := reflectionModule(resp, rootID)
 	if facade == "" {
 		t.Fatalf("no reflection facade module for mock root %q (basenames: %v)", rootID, moduleBasenames(resp))
 	}

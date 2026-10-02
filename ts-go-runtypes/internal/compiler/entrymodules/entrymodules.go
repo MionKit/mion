@@ -2,7 +2,7 @@
 // each exporting one positional tuple under its binding name. The SAME name binds an entry everywhere: the
 // export, every importer's clause and the call-site binding the rewrite injects, so nothing is ever renamed.
 // Runtype nodes are denser than fn entries (one tiny row per node, heavily shared), so they ship as ROWS of
-// THE single data bundle (`rtmod:/runtypes.js`) aliased by one facade module per reflection root; see
+// one data module per source file, exporting one facade per reflection root; see
 // internal/cachegen/runtype.CollectEntries. The tuple head is fixed: slot 0 the kind discriminator (a QUOTED
 // family tag for type-fn entries), slot 1 the deps thunk, inlined so an import cycle never hits TDZ, slot 2
 // the initEntry fn, slot 3+ the positional args with the cache key always at slot 3; an absent head slot is
@@ -40,13 +40,12 @@ const (
 	// KindMissing — a stub for a demanded key whose entry was dropped. The module resolves so the injected
 	// import never breaks the build, and the runtime falls back to the family identity fn (tuple slot 0 = 3).
 	KindMissing Kind = 3
-	// KindRunTypeBundle — THE single runtype data module: slot 3 a content-hash key, slot 4 the headless
-	// runtype rows deduplicated app-wide, slot 2 the ONE combined footer initializer. The runtime's
-	// processed-keys guard sees that content hash, not the fixed module name, so an evolved bundle
-	// re-registers its new rows (tuple slot 0 = 4).
+	// KindRunTypeBundle — a module's runtype data: slot 3 a content-hash key, slot 4 the headless runtype rows
+	// of the module's roots, slot 2 the ONE combined footer initializer. The runtime's processed-keys guard sees
+	// that content hash, not the fixed module name, so an evolved module re-registers its new rows (tuple slot 0 = 4).
 	KindRunTypeBundle Kind = 4
-	// KindRunTypeFacade — the per-reflection-root alias module, registering nothing; it exists so the
-	// rewrite's binding-only injection keeps working, the root id in the key slot and the bundle in the
+	// KindRunTypeFacade — the per-reflection-root alias, registering nothing; it exists so the rewrite's
+	// binding-only injection keeps working, the root id in the key slot and the module's data entry in the
 	// deps thunk (tuple slot 0 = 5).
 	KindRunTypeFacade Kind = 5
 )
@@ -83,6 +82,11 @@ type Entry struct {
 	Findings []diskcache.CachedDiagnostic
 	// Elided are the children the noop gate left out of the body: never imported, yet their findings still count.
 	Elided []string
+	// Module is the module a runtype data entry or facade renders in, one per source file: the same root can sit
+	// in several files, so its Key carries the module and Export the name the call sites import.
+	Module string
+	// Export, when set, is the export name's basename in place of the Key's.
+	Export string
 }
 
 // allDeps iterates entry's hard + soft deps (callers dedup via sortedDeps).
@@ -240,13 +244,16 @@ func ImportSpecifier(basename string) string {
 	return constants.EntryModulePrefix + basename + constants.EntryModuleSuffix
 }
 
-// Grouping returns the bundle BASENAME an entry rides in as a named export, or empty for its own per-entry
-// module; a nil Grouping means everything per-entry.
+// Grouping returns the bundle BASENAME an entry with no Module rides in as a named export, or empty for its own
+// per-entry module; a nil Grouping leaves every such entry per-entry.
 type Grouping func(*Entry) string
 
 // ExportName is BindingName over the entry's per-entry basename, so the identifier the rewrite splices at
 // call sites IS the export name and bundle imports never rename.
 func ExportName(entry *Entry) string {
+	if entry.Export != "" {
+		return BindingName(entry.Export)
+	}
 	return BindingName(ModuleName(entry.Key, entry.Kind))
 }
 
@@ -264,12 +271,15 @@ func RenderGrouped(graph Graph, grouping Grouping) (map[string]string, error) {
 
 	groupOf := make(map[string]string, len(graph))
 	bundles := make(map[string][]string)
-	if grouping != nil {
-		for _, key := range keys {
-			if bundle := grouping(graph[key]); bundle != "" {
-				groupOf[key] = bundle
-				bundles[bundle] = append(bundles[bundle], key)
-			}
+	for _, key := range keys {
+		// An entry naming its Module always renders there; the grouping places the rest.
+		bundle := graph[key].Module
+		if bundle == "" && grouping != nil {
+			bundle = grouping(graph[key])
+		}
+		if bundle != "" {
+			groupOf[key] = bundle
+			bundles[bundle] = append(bundles[bundle], key)
 		}
 	}
 

@@ -2,11 +2,13 @@ package runtype
 
 import (
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/hashid"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/jsonsize"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/entrymodules"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
@@ -15,77 +17,129 @@ import (
 // and it changes whenever the row set does, so 10 dictionary chars is plenty.
 const bundleKeyLength = 10
 
-// CollectEntries builds the runtype side of the entry-module graph: ONE data bundle (`rtmod:/runtypes.js`)
-// carrying every reflection-demanded node as a headless tuple row with one combined footer, plus one facade
-// module per reflection ROOT (`rtmod:/<rootId>.js`), which the rewrite's binding-only injection imports.
-// The bundle imports nothing and a facade imports only the bundle, so the runtype graph is self-contained, and
-// every node row exists exactly once app-wide. Demand-driven: a dump with no reflection sites emits NO runtype
-// modules. Rows are the closure of every root over the ref-bearing slots, sorted by id.
-// The bundle's tuple KEY is a content hash over the row ids, which embed shape and binary version, so it
-// changes exactly when the content does and the runtime's processed-keys guard re-registers an evolved bundle
-// after an HMR reload (the module NAME stays fixed; the Vite plugin invalidates it on addedRunTypes).
+// CollectEntries builds the runtype side of the entry-module graph: per module (one per source file with reflection
+// sites, moduleOf picks it; nil puts every site in one), ONE data entry carrying the closure of that module's
+// reflection ROOTS as headless tuple rows with one combined footer, plus one facade per root, the binding the
+// rewrite's injection imports. A bundle therefore carries the types of the files it imports and nothing else; a row
+// two files reach ships in both, and the runtime registers it once. Demand-driven: a dump with no reflection sites
+// emits NO runtype modules. Rows are sorted by id. The data entry's tuple KEY is a content hash over the row ids and
+// the roots' size limits, so the runtime's processed-keys guard re-registers an evolved module after an HMR reload.
 // jsonMaxBytes false leaves slot 21 off every root row, so a consumer not deriving request limits pays nothing.
-func CollectEntries(dump protocol.Dump, jsonMaxBytes bool) entrymodules.Graph {
+func CollectEntries(dump protocol.Dump, jsonMaxBytes bool, moduleOf func(protocol.Site) string) entrymodules.Graph {
 	graph := entrymodules.Graph{}
 	nodes := indexNodes(dump.RunTypes)
 	// Circular createX types contribute no rows: the circular-reference guard is a compile-time option that
 	// bakes a path skeleton into the armed factory, so it needs no RunType graph at runtime.
-	facadeRoots := reflectionRoots(dump.Sites)
-	rowRoots := facadeRoots
-	if len(rowRoots) == 0 {
-		return graph
+	for _, group := range reflectionGroups(dump.Sites, moduleOf) {
+		collectModule(graph, group, nodes, jsonMaxBytes)
 	}
-	rows := closureRows(rowRoots, nodes)
+	return graph
+}
+
+// reflectionGroup is one module's reflection sites and their deduped, sorted roots.
+type reflectionGroup struct {
+	module string
+	sites  []protocol.Site
+	roots  []string
+}
+
+// reflectionGroups splits the reflection sites by module, sorted by module name so the graph is deterministic.
+func reflectionGroups(sites []protocol.Site, moduleOf func(protocol.Site) string) []reflectionGroup {
+	byModule := map[string]*reflectionGroup{}
+	for _, site := range sites {
+		if site.ID == "" || site.FnId != "" {
+			continue
+		}
+		module := constants.RunTypesBundleBasename
+		if moduleOf != nil {
+			module = moduleOf(site)
+		}
+		group := byModule[module]
+		if group == nil {
+			group = &reflectionGroup{module: module}
+			byModule[module] = group
+		}
+		group.sites = append(group.sites, site)
+	}
+	out := make([]reflectionGroup, 0, len(byModule))
+	for _, group := range byModule {
+		group.roots = reflectionRoots(group.sites)
+		out = append(out, *group)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].module < out[j].module })
+	return out
+}
+
+// collectModule adds one module's data entry and facades to graph.
+func collectModule(graph entrymodules.Graph, group reflectionGroup, nodes map[string]*reflection.RunType, jsonMaxBytes bool) {
+	rows := closureRows(group.roots, nodes)
 	indexOf := make(map[string]int, len(rows))
 	for i, id := range rows {
 		indexOf[id] = i
 	}
-	rootJSONMax := rootJSONMaxBytes(rowRoots, nodes, jsonMaxBytes)
-
-	var rowsText strings.Builder
-	var footer strings.Builder
-	relRows := make([]string, len(rows))
-	for i, id := range rows {
-		if i > 0 {
-			// One row per line: newlines in an array literal are inert, and bundleKey hashes the ids, not this text.
-			rowsText.WriteString(",\n")
-		}
-		rowsText.WriteByte('[')
-		rowsText.WriteString(strings.Join(renderFactoryArgs(nodes[id], rootJSONMax[id]), ","))
-		rowsText.WriteByte(']')
-		// Ref relations ride the parallel `rels` array as row INDICES (renderRelations); only expression-specials
-		// land in the residual footer, so the ini slot is a hole for the common object/array/union node.
-		relRows[i] = renderRelations(nodes[id], indexOf)
-		if hasBundleSpecials(nodes[id]) {
-			writeBundleSpecials(&footer, nodes[id])
-		}
-	}
-	// Trailing leaf rows carry no relations: trimmed, the runtime's `rels[i]` read returns undefined for them.
-	relEnd := len(relRows)
-	for relEnd > 0 && relRows[relEnd-1] == "" {
-		relEnd--
-	}
-	bundleKey := "rts_" + hashid.QuickHash(strings.Join(rows, ","), bundleKeyLength)
-	graph.Add(&entrymodules.Entry{
-		Key:      bundleKey,
-		Kind:     entrymodules.KindRunTypeBundle,
-		ArgsText: quoteJS(bundleKey) + ",[" + rowsText.String() + "],[" + strings.Join(relRows[:relEnd], ",") + "]",
-		InitBody: footer.String(),
-	})
+	rootJSONMax := rootJSONMaxBytes(group.roots, nodes, jsonMaxBytes)
+	dataKey := group.module + moduleKeySeparator + dataEntryName
 	// A facade is emitted even for a root whose node never made it into the dump: the injected import must
 	// resolve, and the runtime degrades to a registry miss.
-	extraDeps := reflectionSiteDemandKeys(dump.Sites)
-	for _, root := range facadeRoots {
+	var facadeDeps []string
+	if len(rows) > 0 {
+		var rowsText strings.Builder
+		var footer strings.Builder
+		relRows := make([]string, len(rows))
+		keyParts := make([]string, len(rows))
+		for i, id := range rows {
+			if i > 0 {
+				// One row per line: newlines in an array literal are inert, and the tuple key hashes the ids, not this text.
+				rowsText.WriteString(",\n")
+			}
+			rowsText.WriteByte('[')
+			rowsText.WriteString(strings.Join(renderFactoryArgs(nodes[id], rootJSONMax[id]), ","))
+			rowsText.WriteByte(']')
+			// Ref relations ride the parallel `rels` array as row INDICES (renderRelations); only expression-specials
+			// land in the residual footer, so the ini slot is a hole for the common object/array/union node.
+			relRows[i] = renderRelations(nodes[id], indexOf)
+			if hasBundleSpecials(nodes[id]) {
+				writeBundleSpecials(&footer, nodes[id])
+			}
+			keyParts[i] = id
+			if max, bounded := rootJSONMax[id]; bounded {
+				keyParts[i] += ":" + strconv.Itoa(max)
+			}
+		}
+		// Trailing leaf rows carry no relations: trimmed, the runtime's `rels[i]` read returns undefined for them.
+		relEnd := len(relRows)
+		for relEnd > 0 && relRows[relEnd-1] == "" {
+			relEnd--
+		}
+		tupleKey := "rts_" + hashid.QuickHash(strings.Join(keyParts, ","), bundleKeyLength)
 		graph.Add(&entrymodules.Entry{
-			Key:      root,
+			Key:      dataKey,
+			Kind:     entrymodules.KindRunTypeBundle,
+			Module:   group.module,
+			ArgsText: quoteJS(tupleKey) + ",[" + rowsText.String() + "],[" + strings.Join(relRows[:relEnd], ",") + "]",
+			InitBody: footer.String(),
+		})
+		facadeDeps = []string{dataKey}
+	}
+	extraDeps := reflectionSiteDemandKeys(group.sites)
+	for _, root := range group.roots {
+		graph.Add(&entrymodules.Entry{
+			Key:      group.module + moduleKeySeparator + root,
 			Kind:     entrymodules.KindRunTypeFacade,
+			Module:   group.module,
+			Export:   root,
 			ArgsText: quoteJS(root),
-			Deps:     []string{bundleKey},
+			Deps:     facadeDeps,
 			SoftDeps: extraDeps[root],
 		})
 	}
-	return graph
 }
+
+// moduleKeySeparator joins a module to an entry name in a graph key; no module path or type id contains it.
+const moduleKeySeparator = "#"
+
+// dataEntryName is the graph-key name of a module's data entry.
+const dataEntryName = "rts"
 
 // reflectionSiteDemandKeys maps each reflection root id to the deduped, sorted cache-entry keys its sites demand
 // BEYOND the runtype graph: today the fmt (formatTransform) entry a createMockDataFn-shaped site needs so

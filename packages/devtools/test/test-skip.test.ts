@@ -7,7 +7,6 @@ import {describe, expect, it} from 'vitest';
 
 const REPO_ROOT = join(__dirname, '../../..');
 import {
-  bundleDigest,
   externalId,
   fileKey,
   inputDigest,
@@ -30,10 +29,6 @@ const graph = (modules: Record<string, string>, externals: string[] = []) => ({
   externals: new Set(externals),
   reasons: new Set<string>(),
 });
-
-// A runtypes.js in the resolver's layout: `ini` lines by row id, rows sorted by id, rels by row index.
-const bundle = (rows: string[], rels: string, ini: string[] = []) =>
-  `function ini(rtu){const c=(id)=>rtu.useRunType(id);\n${ini.join('\n')}\n}\nexport const __rt_runtypes=[4,,ini,'rts_x',[${rows.join(',\n')}],[${rels}]];\n`;
 
 describe('test-skip — the key of one test file', () => {
   const base = {'/repo/packages/a/test/a.test.ts': 'import "./x"', '/repo/packages/a/.mion/types/t.js': 'export const t = 1'};
@@ -72,71 +67,6 @@ describe('test-skip — the randomly drawn pattern samples', () => {
 
   it('never strips past the end of the list, so a sample holding `]` costs a skip, not a missed change', () => {
     expect(stableCode('/repo/.mion/types/t.js', '{"mockSamples":["a]b"],"after":1}')).toBe('{"mockSamples":[]b"],"after":1}');
-  });
-});
-
-describe('test-skip — the shared runtypes.js, keyed per root', () => {
-  const base = bundle([`['A',32,,,'a']`, `['B',1]`, `['C',2]`], '[1],,');
-
-  it('ignores a row added elsewhere, even though it shifts every later row index', () => {
-    const shifted = bundle([`['A',32,,,'a']`, `['A0',7]`, `['B',1]`, `['C',2]`], '[2],,,');
-    expect(bundleDigest(shifted, ['A'])).toBe(bundleDigest(base, ['A']));
-    expect(bundleDigest(shifted, ['C'])).toBe(bundleDigest(base, ['C']));
-  });
-
-  it('changes with a row reached through a relation, and only for the roots that reach it', () => {
-    const changed = bundle([`['A',32,,,'a']`, `['B',9]`, `['C',2]`], '[1],,');
-    expect(bundleDigest(changed, ['A'])).not.toBe(bundleDigest(base, ['A']));
-    expect(bundleDigest(changed, ['C'])).toBe(bundleDigest(base, ['C']));
-  });
-
-  it('changes with a relation that now points somewhere else', () => {
-    expect(bundleDigest(bundle([`['A',32,,,'a']`, `['B',1]`, `['C',2]`], '[2],,'), ['A'])).not.toBe(bundleDigest(base, ['A']));
-  });
-
-  it('follows ini lines, their references to other rows, and ids inside inline literals', () => {
-    const withIni = (value: number) =>
-      bundle([`['A',32]`, `['B',1]`, `['C',2]`], ",,[{'kind':23,'id':'A'}]", [
-        `c('B').contains = c('A');`,
-        `c('A').literal = BigInt('${value}');`,
-      ]);
-    expect(bundleDigest(withIni(2), ['B'])).not.toBe(bundleDigest(withIni(1), ['B']));
-    expect(bundleDigest(withIni(2), ['C'])).not.toBe(bundleDigest(withIni(1), ['C']));
-  });
-
-  it('ignores drawn samples in the ini lines, like everywhere else in generated code', () => {
-    const drawn = (sample: string) =>
-      bundle([`['A',32]`], '', [
-        `c('A').formatAnnotation = {"params":{"pattern":{"mockSamples":["${sample}"],"source":"^x$"}}};`,
-      ]);
-    expect(bundleDigest(drawn('ab'), ['A'])).toBe(bundleDigest(drawn('zz'), ['A']));
-  });
-
-  it('gives up on a bundle it cannot read or a root it cannot find, so the caller hashes the whole file', () => {
-    expect(bundleDigest('export const __rt_runtypes=[4,,ini', ['A'])).toBeNull();
-    expect(bundleDigest(base, ['missing'])).toBeNull();
-  });
-
-  it('keys a test graph on the rows its facades reach, not the bundle text', async () => {
-    const dir = join(mkdtempSync(join(tmpdir(), 'test-skip-')), '.mion/types');
-    mkdirSync(dir, {recursive: true});
-    const facade = (root: string) =>
-      `import {__rt_runtypes} from './runtypes.js';\nexport const __rt_${root}=[5,()=>[__rt_runtypes],,'${root}'];\n`;
-    writeFileSync(join(dir, 'A.js'), facade('A'));
-    writeFileSync(join(dir, 'C.js'), facade('C'));
-    const test = join(dir, '../../a.test.ts');
-    const keyWith = async (bundleCode: string, root: string) => {
-      writeFileSync(join(dir, 'runtypes.js'), bundleCode);
-      const modules = {
-        [test]: {code: 'x', deps: ['/@fs' + join(dir, `${root}.js`)]},
-        [join(dir, `${root}.js`)]: {code: facade(root), deps: ['/@fs' + join(dir, 'runtypes.js')]},
-        [join(dir, 'runtypes.js')]: {code: 'bundle text'},
-      };
-      return fileKey(await moduleGraph(fakeProject(dir, modules), test), 'salt');
-    };
-    const key = await keyWith(base, 'A');
-    expect(await keyWith(bundle([`['A',32,,,'a']`, `['A0',7]`, `['B',1]`, `['C',2]`], '[2],,,'), 'A')).toBe(key);
-    expect(await keyWith(bundle([`['A',32,,,'a']`, `['B',9]`, `['C',2]`], '[1],,'), 'A')).not.toBe(key);
   });
 });
 

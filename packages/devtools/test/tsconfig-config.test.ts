@@ -4,7 +4,7 @@
 //
 // The signal is moduleMode: in 'allSingle' a getRunTypeId site rides the
 // shared runtypes bundle (site.module === RUNTYPES_BUNDLE_BASENAME); in the
-// default layout it rides a per-root facade (a different module). Driving
+// default layout it rides its own file's data module (a different module). Driving
 // moduleMode ONLY through tsconfig (no moduleMode forwarded) means the bundle
 // routing can ONLY come from the build path having read the tsconfig.
 //

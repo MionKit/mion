@@ -16,9 +16,11 @@ import {createHash} from 'node:crypto';
 import type {UnpluginContextMeta} from 'unplugin';
 import {unplugin, type PluginOptions} from '../../core/unplugin.ts';
 import {createLineReader, type BrokerReply, type BrokerRequest} from './wire.ts';
+import {RUNTYPES_FILE_MODULE_DIR} from '../../core/go-generated/runtypes-constants.generated.ts';
 
 // The check is a cheap readdir, but on a large project it would still run once per file without a throttle.
 const STAMP_THROTTLE_MS = 100;
+const FILE_MODULE_PREFIX = `types/${RUNTYPES_FILE_MODULE_DIR}/`;
 
 // How long an edit may settle before absorbing it: several files saved at once (a formatter) are ONE batch.
 const WATCH_DEBOUNCE_MS = 30;
@@ -171,7 +173,7 @@ export async function startBroker(root: string, options: NextOptions = {}): Prom
   // A file's rewrite depends on types declared in OTHER files, which Turbopack cannot see: it only knows the
   // imports. `TransformResult.typeDeps` names those files when the resolver could attribute them; the stamp is
   // the coarse fallback for when it could not. The broker tracks the generated module set, whose names are
-  // content-addressed, so a changed type means a changed name and a changed listing, and every rewritten file
+  // content-addressed (a per-file runtype module by its content hash), so a changed type means a changed listing, and every rewritten file
   // declares the stamp, so any type change re-runs every marker-bearing file. Bounded: only files the scan
   // found sites in are transformed at all, and a transform is a couple of milliseconds.
   // `rpc/` is in the listing one step removed: a Next app hosting the mion API gets the batch table's import
@@ -186,7 +188,8 @@ export async function startBroker(root: string, options: NextOptions = {}): Prom
     }
   }
 
-  /** `types/` plus `rpc/`, each entry prefixed by its half so a name cannot collide across them. */
+  /** `types/` plus `rpc/`, each entry prefixed by its half so a name cannot collide across them. A per-file runtype
+   *  module (`types/rt/`) keeps its name when its types change, so its entry carries a hash of its content too. */
   function generatedListing(): string[] {
     const listing: string[] = [];
     for (const half of ['types', 'rpc']) {
@@ -196,9 +199,23 @@ export async function startBroker(root: string, options: NextOptions = {}): Prom
       } catch {
         continue; // this half has not been generated
       }
-      for (const name of names) listing.push(`${half}/${name}`);
+      for (const name of names) {
+        const entry = `${half}/${name}`;
+        listing.push(entry.startsWith(FILE_MODULE_PREFIX) && entry.endsWith('.js') ? `${entry}#${contentHash(entry)}` : entry);
+      }
     }
     return listing.sort();
+  }
+
+  function contentHash(entry: string): string {
+    try {
+      return createHash('sha256')
+        .update(fs.readFileSync(path.join(genDirAbs, entry)))
+        .digest('hex')
+        .slice(0, 16);
+    } catch {
+      return '';
+    }
   }
 
   let lastStamp = '';
