@@ -39,10 +39,8 @@ type rpcCollection struct {
 	mapperDiags []diagnostics.Diagnostic
 }
 
-// collectRpc reads the program's batches: every batch site and the inline mappers they reference with the
-// pure fns those call.
-func (sess *Session) collectRpc() rpcCollection {
-	sites, _ := sess.collectProgramBatches()
+// collectRpc reads the program's batch sites: the inline mappers they reference with the pure fns those call.
+func (sess *Session) collectRpc(sites []requestbatch.Site) rpcCollection {
 	sess.setHasBatches(len(sites) > 0)
 	out := rpcCollection{sites: sites}
 	if len(sites) == 0 {
@@ -80,7 +78,7 @@ func (sess *Session) collectRpc() rpcCollection {
 		sort.Slice(out.entries, func(i, j int) bool { return out.entries[i].Key() < out.entries[j].Key() })
 		for _, key := range referenced {
 			if _, ok := byKey[key]; !ok {
-				out.mapperDiags = append(out.mapperDiags, missingMapperDiag(sess, sites, key))
+				out.mapperDiags = append(out.mapperDiags, sess.missingMapperDiag(sites, key))
 			}
 		}
 	}
@@ -104,23 +102,19 @@ func referencedMapperKeys(sites []requestbatch.Site) []string {
 	return keys
 }
 
-// batchSiteOf turns a batch site into a diagnostic location on its program.
-func batchSiteOf(source *Session, site requestbatch.Site) diagnostics.Site {
-	diagSite := diagnostics.Site{FilePath: site.FilePath}
-	if sourceFile := source.Program.SourceFile(site.FilePath); sourceFile != nil {
-		diagSite.StartLine, diagSite.StartCol = textpos.LineCol(sourceFile, site.Start)
-		diagSite.EndLine, diagSite.EndCol = textpos.LineCol(sourceFile, site.End)
-	}
-	return diagSite
-}
-
 // missingMapperDiag reports BAT007 at the first batch call naming key.
-func missingMapperDiag(source *Session, sites []requestbatch.Site, key string) diagnostics.Diagnostic {
+func (sess *Session) missingMapperDiag(sites []requestbatch.Site, key string) diagnostics.Diagnostic {
 	for _, site := range sites {
 		for _, mapping := range site.Mappings {
-			if mapping.MapperKey == key {
-				return diagnostics.New(diagnostics.CodeBatchMapperMissing, batchSiteOf(source, site), key)
+			if mapping.MapperKey != key {
+				continue
 			}
+			diagSite := diagnostics.Site{FilePath: site.FilePath}
+			if sourceFile := sess.Program.SourceFile(site.FilePath); sourceFile != nil {
+				diagSite.StartLine, diagSite.StartCol = textpos.LineCol(sourceFile, site.Start)
+				diagSite.EndLine, diagSite.EndCol = textpos.LineCol(sourceFile, site.End)
+			}
+			return diagnostics.New(diagnostics.CodeBatchMapperMissing, diagSite, key)
 		}
 	}
 	return diagnostics.New(diagnostics.CodeBatchMapperMissing, diagnostics.Site{}, key)
