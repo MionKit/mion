@@ -19,11 +19,8 @@ const TSCONFIG = path.join(PACKAGE_ROOT, 'tsconfig.json');
 const VITEST_CONFIG = path.join(PACKAGE_ROOT, 'vitest.converted.config.ts');
 const UNSUPPORTED_LIST = path.join(PACKAGE_ROOT, 'test/features/unsupported-conversion.test.ts');
 
-// Per target: the tree it generates, and the number of declarations convert is
-// expected to refuse. Every refusal is a documented limitation with a row in
-// packages/run-types/test/features/unsupported-conversion.test.ts. A
-// BUILDER has to come out as a TypeScript expression, so a shape with no
-// factory spelling has nowhere to go.
+// Every expected refusal is a row in packages/run-types/test/features/unsupported-conversion.test.ts.
+// A builder must be a TypeScript expression, so a shape with no factory spelling is refused.
 const TARGETS = [
   {name: 'builders', dir: path.join(PACKAGE_ROOT, 'test/converted-builders'), expectedRefusals: 21},
 ];
@@ -40,7 +37,7 @@ function documentedFragments() {
 
 const args = process.argv.slice(2);
 const keep = args.includes('--keep');
-// The per-PR check (ci.yml): the count and the documented list only, without the vitest run over the tree.
+// ci.yml's per-PR check: still checks the refusals, skips only the vitest run.
 const refusalsOnly = args.includes('--refusals-only');
 const only = args.includes('--target') ? args[args.indexOf('--target') + 1] : '';
 const targets = only ? TARGETS.filter((target) => target.name === only) : TARGETS;
@@ -108,8 +105,7 @@ try {
   if (process.exitCode === undefined || process.exitCode === 0) process.exitCode = 1;
   if (!(error && typeof error === 'object' && 'status' in error)) console.error(String(error?.message ?? error));
 } finally {
-  // Always — a failing run must not leave a half-generated tree behind for
-  // `pnpm test` to trip over. `--keep` opts out so a failure can be inspected.
+  // A failed run must not leave a half-generated tree for `pnpm test` to trip over; --keep is for inspecting one.
   if (keep) console.log(`-> --keep: left ${targets.map((t) => path.relative(REPO_ROOT, t.dir)).join(', ')} in place`);
   else removeTrees();
 }

@@ -149,10 +149,7 @@ jobs:
   # assertions are identical to the originals, so a failure here means the
   # CONVERSION changed behaviour — it cannot mean anything else.
   #
-  # Not in ci.yml: running the converted tree is not a per-PR cost. Here it rides
-  # the pre-publish gate, where the question "do the three notations still agree?"
-  # is exactly what wants answering. ci.yml checks only the refusal count, with
-  # `--refusals-only`, so a PR that moves it fails before a release cut does.
+  # Not in ci.yml: running the converted tree is too slow per PR; ci.yml checks only the refusal count.
   converted-suites:
     name: suite tree in the value forms
     runs-on: ubuntu-latest
