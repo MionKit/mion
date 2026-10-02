@@ -3,7 +3,15 @@
 // a 5xx, never carry engine text, and the router must keep answering.
 
 import {describe, it, expect} from 'vitest';
-import {runHttpFuzz, runHttpFuzzForDuration, runSocketAttacks, renderHttpViolations} from './httpFuzzRunner.ts';
+import {createServer, type AddressInfo, type Socket} from 'net';
+import {
+  runHttpFuzz,
+  runHttpFuzzForDuration,
+  runSocketAttacks,
+  renderHttpViolations,
+  rawSocketRequest,
+  checkSocketAnswer,
+} from './httpFuzzRunner.ts';
 import {soakTestTimeout, pathologyReport} from '../../../../run-types/test/fuzz/core/soakBudget.ts';
 import {entrySeed} from '../../../../run-types/test/fuzz/core/fuzzPolicy.ts';
 import {renderCrashes} from '../../../../run-types/test/fuzz/core/crashGuard.ts';
@@ -36,9 +44,10 @@ describe('fuzz / security / http — hostile requests never crash, hang, leak or
     }
   }, 120_000);
 
+  const HEAD_REQUEST = 'HEAD /echoUser HTTP/1.1\r\nHost: x\r\nContent-Length: 0\r\n\r\n';
+
   it('reads a HEAD answer as headers only, without waiting for a body it never gets', async () => {
-    const head = {id: 'sock.method', request: 'HEAD /echoUser HTTP/1.1\r\nHost: x\r\nContent-Length: 0\r\n\r\n'};
-    const report = await runSocketAttacks(0, 1, () => [head]);
+    const report = await runSocketAttacks(0, 1, () => [{id: 'sock.method', request: HEAD_REQUEST}]);
     try {
       expect(renderHttpViolations(report.violations)).toBe('');
       expect(report.applied).toEqual({'sock.method': 1});
@@ -46,6 +55,24 @@ describe('fuzz / security / http — hostile requests never crash, hang, leak or
       await report.close();
     }
   }, 30_000);
+
+  it('flags a HEAD answer that sends a body after its headers', async () => {
+    const sockets: Socket[] = [];
+    const server = createServer((socket) => {
+      sockets.push(socket);
+      socket.write('HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: 2\r\n\r\n');
+      setTimeout(() => socket.write('{}'), 10);
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    try {
+      const answer = await rawSocketRequest((server.address() as AddressInfo).port, HEAD_REQUEST);
+      expect(answer.body).toBe('{}');
+      expect(checkSocketAnswer(HEAD_REQUEST, answer)).toEqual([['SH-ENVELOPE', 'a HEAD answer carries a body']]);
+    } finally {
+      for (const socket of sockets) socket.destroy();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
 
   const soakMs = Number(process.env.MION_FUZZ_SECHTTP_SOAK_MS ?? 0);
   it.runIf(soakMs > 0)(
