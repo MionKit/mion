@@ -14,7 +14,7 @@ const skuPattern = registerFormatPattern({source: '^[A-Z]{3}-[0-9]{4}$'});
 
 // The .d.ts keeps no override call: a client gets it from the package's artifact, or its ids miss the server's.
 export type Note = string & {readonly __brand: 'Note'};
-overrideValidate<Note>((value) => typeof value === 'string' && value.length <= 20);
+overrideValidate<Note>((value): value is Note => typeof value === 'string' && value.length <= 20);
 
 export class Product {
     constructor(
