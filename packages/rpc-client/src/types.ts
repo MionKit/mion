@@ -20,21 +20,11 @@ export type Result<RouteSuccess, RouteError, RA = RemoteApi> = [
   ClientResponse<RA>,
 ];
 
-/** Result type for batch(): [routeResults[], routeErrors[] (declared | ValidationError), response] **/
-export type BatchResult<Routes extends RouteSubRequest<any>[]> = [
-  BatchRouteResults<Routes>,
-  BatchRouteErrors<Routes>,
-  ClientResponse<ApiOf<Routes>>,
-];
-
-/** Extract success types from route subrequests as tuple */
-export type BatchRouteResults<Routes extends RouteSubRequest<any>[]> = {
-  [K in keyof Routes]: Routes[K] extends RouteSubRequest<infer PH> ? HandlerSuccessResponse<PH> | undefined : never;
-};
-
-/** Extract error types from route subrequests as tuple */
-export type BatchRouteErrors<Routes extends RouteSubRequest<any>[]> = {
-  [K in keyof Routes]: Routes[K] extends RouteSubRequest<infer PH> ? Simplify<HandlerErrors<PH>> | undefined : never;
+/** Result type for batch(): one call() Result per route, in order, all sharing the same response **/
+export type BatchResult<Routes extends RouteSubRequest<any>[]> = {
+  [K in keyof Routes]: Routes[K] extends RouteSubRequest<infer PH>
+    ? Result<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>, ApiOf<Routes>>
+    : never;
 };
 
 /** The client sets method, body and signal on every request. */

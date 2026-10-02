@@ -125,7 +125,7 @@ describe('useFetchMetadata', () => {
   it('a batch where a mutation succeeded is never sent again, even when another route failed on the wire', async () => {
     const {routes, middlewares} = initClient<TestServerApi>({baseURL, storageEngine: 'memory'});
     middlewares.auth.onRequest((auth) => auth(new HeadersSubset({Authorization: 'XWYZ-TOKEN'})));
-    const [[sum], [sumError, helloError]] = await batch([routes.utils.sumTwo(1), routes.sayHello({name: 1} as any)]).call();
+    const [[sum, sumError], [, helloError]] = await batch([routes.utils.sumTwo(1), routes.sayHello({name: 1} as any)]).call();
     expect(sumError).toBeUndefined();
     expect(sum).toBe(3);
     expect(helloError?.type).toBe('validation-error');

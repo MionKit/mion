@@ -158,8 +158,26 @@ describe('the response slot is typed from the middlewares of the API', () => {
     // @ts-expect-error a group holding only routes is left out
     void response.flow;
 
-    const [, , batchResponse] = await batch([routes.sayHello({name: 'a', surname: 'b'})]).call();
+    const [[, , batchResponse]] = await batch([routes.sayHello({name: 'a', surname: 'b'})]).call();
     expectTypeOf(batchResponse).toEqualTypeOf(response);
+  };
+  it('compiles', () => expect(typeOnly).toBeTypeOf('function'));
+});
+
+describe('every batch entry is typed as the single call() result of its own route', () => {
+  // never run: the type check is the point
+  const typeOnly = async () => {
+    const hello = routes.sayHello({name: 'a', surname: 'b'});
+    const sum = routes.utils.sumTwo(1);
+    const fails = routes.alwaysFails({name: 'a', surname: 'b'});
+    const entries = await batch([hello, sum, fails]).call();
+    expectTypeOf(entries).toEqualTypeOf<
+      [Awaited<ReturnType<typeof hello.call>>, Awaited<ReturnType<typeof sum.call>>, Awaited<ReturnType<typeof fails.call>>]
+    >();
+    const [[greeting], [total], [, failError]] = entries;
+    expectTypeOf(greeting).toEqualTypeOf<string | undefined>();
+    expectTypeOf(total).toEqualTypeOf<number | undefined>();
+    expectTypeOf(failError?.type).toEqualTypeOf<'unknown-error' | 'validation-error' | undefined>();
   };
   it('compiles', () => expect(typeOnly).toBeTypeOf('function'));
 });

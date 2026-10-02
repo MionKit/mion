@@ -671,21 +671,12 @@ function buildResult(
     return error && !thrownErrorIds.has(id) ? error : undefined;
   };
 
-  let routeResultPart: any;
-  let routeErrorPart: any;
-  if (routeSubRequest) {
-    routeErrorPart = declaredErrorFor(routeSubRequest.id);
-    routeResultPart = routeSubRequest.resolvedValue;
-  } else if (batchSubRequests) {
-    const routeResults = batchSubRequests.map((batchRoute) => batchRoute.resolvedValue);
-    const routeErrors = batchSubRequests.map((batchRoute) => declaredErrorFor(batchRoute.id));
-    routeResultPart = routeResults.some((r) => r !== undefined) ? routeResults : undefined;
-    routeErrorPart = routeErrors.some((e) => e !== undefined) ? routeErrors : undefined;
-  }
-
   // framework errors the router never saw: the call ran, so they are reported here rather than rejecting
   const frameworkErrors = [takeBundledApiError(), takeApiVersionError(), state.metadata?.takeError()];
   frameworkErrors.forEach((error) => error && addThrownError(response, error));
 
-  return [routeResultPart, routeErrorPart, response] as any;
+  // every batch entry is a single call's Result, all pointing at the same response
+  if (batchSubRequests)
+    return batchSubRequests.map((batchRoute) => [batchRoute.resolvedValue, declaredErrorFor(batchRoute.id), response]) as any;
+  return [routeSubRequest?.resolvedValue, routeSubRequest && declaredErrorFor(routeSubRequest.id), response] as any;
 }

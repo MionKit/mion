@@ -1356,10 +1356,11 @@ describe('client', () => {
       const {batch} = await import('../src/batch.ts');
       const signal = AbortSignal.abort();
 
-      const [, errors, clientResponse] = await batch([routes.sleep(5000), routes.utils.sumTwo(5)]).call({signal});
+      const entries = await batch([routes.sleep(5000), routes.utils.sumTwo(5)]).call({signal});
+      const [[, , clientResponse]] = entries;
 
       // The abort is request-scoped: ONE untyped error, per-route slots stay empty
-      expect(errors).toEqual([undefined, undefined]);
+      expect(entries.map(([, error]) => error)).toEqual([undefined, undefined]);
       expect(clientResponse['@thrownErrors']?.length).toBeGreaterThan(0);
       expect(clientResponse['@thrownErrors']![0].type).toBe('request-aborted');
     });
@@ -1394,10 +1395,11 @@ describe('client', () => {
 
       const {batch} = await import('../src/batch.ts');
       // the request-scoped platform error must not leak into any route's positional slot
-      const [results, errors, clientResponse] = await batch([routes.getRequestInfo(HUGE_PAYLOAD), routes.utils.sumTwo(5)]).call();
+      const entries = await batch([routes.getRequestInfo(HUGE_PAYLOAD), routes.utils.sumTwo(5)]).call();
+      const [[, , clientResponse]] = entries;
 
-      expect(results).toEqual([undefined, undefined]);
-      expect(errors).toEqual([undefined, undefined]);
+      expect(entries.map(([value]) => value)).toEqual([undefined, undefined]);
+      expect(entries.map(([, error]) => error)).toEqual([undefined, undefined]);
       expect(clientResponse['@thrownErrors']?.length).toBeGreaterThan(0);
       expect(isRpcError(clientResponse['@thrownErrors']?.[0])).toBe(true);
       expect(clientResponse['@thrownErrors']?.[0]?.type).toBe('request-payload-too-large');
