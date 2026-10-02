@@ -39,18 +39,14 @@ Treat the shape as if batch were brand new: no migration notes, no breaking-chan
 
 ### Types, `packages/rpc-client/src/types.ts`
 
-- `BatchResult` (:23-28) becomes a mapped tuple of `Result`, one per route, all sharing the batch's API for slot 2:
+- `BatchResult` (:23-28) becomes a mapped tuple, each entry derived from the route's own `call()` result, so
+  the two can never drift and a single-call helper accepts an entry:
 
   ```ts
   export type BatchResult<Routes extends RouteSubRequest<any>[]> = {
-    [K in keyof Routes]: Routes[K] extends RouteSubRequest<infer PH>
-      ? Result<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>, ApiOf<Routes>>
-      : never;
+    [K in keyof Routes]: Routes[K] extends RouteSubRequest<any> ? Awaited<ReturnType<Routes[K]['call']>> : never;
   };
   ```
-
-  Each entry must be the exact type `RouteSubRequest.call()` returns (:195-198), so a single-call helper
-  accepts it.
 - Delete `BatchRouteResults` and `BatchRouteErrors` (:30-38). They are public through `index.ts:8`
   (`export * from './src/types.ts'`). Per the repo rule, they leave no trace: no alias, no note.
 - Update the JSDoc on `BatchResult` and on `Result` (:16) to the new shape.
@@ -115,8 +111,8 @@ New tests that pin the contract:
   validation error, the batch entry's slots 0 and 1 equal what `route.call()` returns for the same route (error
   ids left out, they are generated per error). The validation case runs in a batch of its own: wrong params stop
   the whole request client-side, so the other routes would never run. A route is listed once per batch (BAT005).
-- **Whole-call failure** (`batch.spec.ts`, timeout): every entry is `[undefined, undefined, response]`, and the
-  error is in `response['@thrownErrors']` once, not once per entry. The existing abort and unknown id tests
+- **Whole-call failure**: T11 in `errorDispatch.spec.ts` (timeout) pins every entry empty, the error once in
+  `response['@thrownErrors']`, and the shared response by reference. The existing abort and unknown id tests
   assert the same empty slots per entry.
 - **Types** (`types.spec.ts`): an entry's type equals the single call's result type,
   `expectTypeOf(entry).toEqualTypeOf<Awaited<ReturnType<typeof subRequest.call>>>()`. Also check that a
