@@ -24,7 +24,7 @@ const mion = createMionRouter({basePath: 'api', contextDataFactory: getSharedDat
 const {route: destructuredRoute, middleware: destructuredMiddleware} = mion;
 
 const routes = {
-  auth: mion.headersFn(
+  auth: mion.headersMiddleware(
     (ctx, h: HeadersSubset<'Authorization'>): HeadersSubset<'x-user-id'> => new HeadersSubset({'x-user-id': 'user-1234'})
   ),
   timestamp: mion.middleware((ctx, time: number): string => `time: ${time}`),
@@ -65,7 +65,7 @@ describe('createMionRouter helpers', () => {
     });
   });
 
-  it('injects through mion.middleware and mion.headersFn', () => {
+  it('injects through mion.middleware and mion.headersMiddleware', () => {
     expect(routes.timestamp).toEqual({type: HandlerType.middleware, handler: expect.any(Function), rtFns: expectedRtFns});
     expect(routes.auth).toEqual({
       type: HandlerType.headersMiddleware,
@@ -128,8 +128,8 @@ describe('createMionRouter types', () => {
     });
   });
 
-  it('types the handler context from contextDataFactory in headersFn', () => {
-    mion.headersFn((ctx, {headers}: HeadersSubset<'Authorization'>): string => {
+  it('types the handler context from contextDataFactory in headersMiddleware', () => {
+    mion.headersMiddleware((ctx, {headers}: HeadersSubset<'Authorization'>): string => {
       expectTypeOf(ctx.shared).toEqualTypeOf<SharedData>();
       // @ts-expect-error not a field of the shared data
       void ctx.shared.nope;

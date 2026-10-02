@@ -22,14 +22,14 @@ const routerDts = `declare module '@mionjs/router' {
   export interface RouteDef<H> { handler: H }
   export interface RouteHelper { <H extends Handler>(handler: H, opts?: unknown): RouteDef<H> }
   export interface MiddlewareHelper { <H extends Handler>(handler: H, opts?: unknown): RouteDef<H> }
-  export interface HeadersFnHelper { <H extends HeaderHandler>(handler: H, opts?: unknown): RouteDef<H> }
+  export interface HeadersMiddlewareHelper { <H extends HeaderHandler>(handler: H, opts?: unknown): RouteDef<H> }
   export interface RawMiddlewareHelper { <H extends (...a: any[]) => any>(handler: H, opts?: unknown): RouteDef<H> }
   export interface MionRouter {
     readonly route: RouteHelper;
     readonly query: RouteHelper;
     readonly mutation: RouteHelper;
     readonly middleware: MiddlewareHelper;
-    readonly headersFn: HeadersFnHelper;
+    readonly headersMiddleware: HeadersMiddlewareHelper;
     readonly rawMiddleware: RawMiddlewareHelper;
   }
   export function createMionRouter(opts?: unknown): MionRouter;
@@ -167,9 +167,9 @@ func TestStrongTypedRoutes_InlineHandler(t *testing.T) {
 func TestStrongTypedRoutes_ContextParamsAreExempt(t *testing.T) {
 	// The context is never annotated in real code and never crosses the wire.
 	assertCodes(t, checkBody(t, "export const ok = mion.route((ctx): string => 'x');"))
-	// headersFn takes TWO context parameters.
-	assertCodes(t, checkBody(t, "export const ok = mion.headersFn((ctx, headers): void => undefined);"))
-	assertCodes(t, checkBody(t, "export const bad = mion.headersFn((ctx, headers, id): void => undefined);"),
+	// headersMiddleware takes TWO context parameters.
+	assertCodes(t, checkBody(t, "export const ok = mion.headersMiddleware((ctx, headers): void => undefined);"))
+	assertCodes(t, checkBody(t, "export const bad = mion.headersMiddleware((ctx, headers, id): void => undefined);"),
 		diagnostics.CodeRouteMissingParamType)
 }
 
@@ -214,7 +214,7 @@ func TestStrongTypedRoutes_JsdocTag(t *testing.T) {
 export const bad = (ctx: unknown, name: string) => name;
 `}), diagnostics.CodeRouteMissingReturnType)
 	assertCodes(t, check(t, map[string]string{"routes.ts": `
-/** @mion:headersFn */
+/** @mion:headersMiddleware */
 export function ok(ctx: unknown, headers: unknown): void {}
 `}))
 }

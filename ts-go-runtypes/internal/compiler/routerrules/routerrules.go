@@ -32,9 +32,9 @@ const CoreModule = "@mionjs/core"
 // type. This is the WHOLE table: the router writes each helper signature once on one of these interfaces
 // and its own `lib/handlers.ts` bodies are consts TYPED BY them, so no helper is matched by name.
 var helperInterfaces = map[string]int{
-	"RouteHelper":      1,
-	"MiddlewareHelper": 1,
-	"HeadersFnHelper":  2,
+	"RouteHelper":             1,
+	"MiddlewareHelper":        1,
+	"HeadersMiddlewareHelper": 2,
 }
 
 // handlerTypes are the annotations that declare a handler without a helper call, to the same count.
@@ -48,15 +48,15 @@ var jsdocTags = map[string]struct {
 	label     string
 	ctxParams int
 }{
-	"@mion:route":      {"route", 1},
-	"@mion:middleware": {"middleware", 1},
-	"@mion:headersFn":  {"headersFn", 2},
+	"@mion:route":             {"route", 1},
+	"@mion:middleware":        {"middleware", 1},
+	"@mion:headersMiddleware": {"headersMiddleware", 2},
 }
 
 // textSignals is the per-file pre-filter: a file naming none of them declares no handler this pass can
 // find. The helper names carry their opening paren so the word `route` in prose does not force a walk.
 var textSignals = []string{
-	RouterModule, "route(", "query(", "mutation(", "middleware(", "headersFn(",
+	RouterModule, "route(", "query(", "mutation(", "middleware(", "headersMiddleware(",
 	"Handler", "@mion:",
 }
 

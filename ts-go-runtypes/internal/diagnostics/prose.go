@@ -1013,7 +1013,7 @@ export const removeToolbarKeys = createRemoveUnknownKeysFn<Toolbar>(undefined, {
 		Fix:     "mion.route((ctx, name: string): string => `hello ${name}`);",
 	},
 	CodeRouteMissingParamType: {
-		Summary: "Every handler parameter after the call context is part of the route's public input, so mion builds a validator and a decoder from its declared type. The call context (the first parameter, the first two for `headersFn`) never goes over the network. Add a type to the parameter.",
+		Summary: "Every handler parameter after the call context is part of the route's public input, so mion builds a validator and a decoder from its declared type. The call context (the first parameter, the first two for `headersMiddleware`) never goes over the network. Add a type to the parameter.",
 		Fix:     "mion.route((ctx, name: string): string => `hello ${name}`);",
 	},
 	CodeRouteThrowInHandler: {

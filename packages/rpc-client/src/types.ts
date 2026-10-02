@@ -7,7 +7,7 @@
 
 import {HandlerType, RpcError} from '@mionjs/core';
 import type {InputFromRef, Prettify, RunTypeError, ValidationError} from '@mionjs/core';
-import type {PublicHeadersFn, PublicMiddleware, RemoteApi, PublicRoute} from '@mionjs/router';
+import type {PublicHeadersMiddleware, PublicMiddleware, RemoteApi, PublicRoute} from '@mionjs/router';
 import type {InjectApiMetadata} from '@mionjs/run-types';
 import type {TypedEvent} from './lib/typedEvent.ts';
 import type {MIDDLEWARE_HOOKS} from './constants.ts';
@@ -71,7 +71,7 @@ export interface ClientOptions {
 export type InjectedApiMetadata = InjectApiMetadata<RemoteApi, string>;
 
 type PublicHandler = (...args: any[]) => Promise<any>;
-type PublicMethod = PublicRoute | PublicMiddleware | PublicHeadersFn;
+type PublicMethod = PublicRoute | PublicMiddleware | PublicHeadersMiddleware;
 type ExtractHandler<PM extends PublicMethod> = PM extends {handler: infer H} ? H : never;
 
 export type InitClientOptions = Partial<ClientOptions> & {baseURL: string};
@@ -80,7 +80,7 @@ export type RequestBody = {[key: string]: any[]};
 
 export type RouteParamsType<PM extends PublicMethod> = Parameters<ExtractHandler<PM>>;
 export type RouteParamType<PM extends PublicMethod, Index extends number> = Parameters<ExtractHandler<PM>>[Index];
-export type HeadersParamsType<PM extends PublicHeadersFn> = Parameters<ExtractHandler<PM>>[0];
+export type HeadersParamsType<PM extends PublicHeadersMiddleware> = Parameters<ExtractHandler<PM>>[0];
 export type RouteReturnType<PM extends PublicMethod> = HandlerSuccessResponse<ExtractHandler<PM>>;
 
 export type HandlerResponse<PH extends PublicHandler> = Awaited<ReturnType<PH>>;

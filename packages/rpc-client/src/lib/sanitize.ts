@@ -26,12 +26,12 @@ export function sanitizeSubRequests(subRequestIds: string[], context: CallContex
     const method = useMethodFns(id);
     const formatTransform = method.paramsJitFns.formatTransform;
     if (!method.options?.sanitizeParams || !method.paramsCount || !formatTransform || formatTransform.isNoop) continue;
-    // a headersFn's first param is the HeadersSubset, never part of the body params type
-    const isHeadersFn = method.type === HandlerType.headersMiddleware && !!method.headersParam;
-    const body = isHeadersFn ? params.slice(1) : params;
+    // a headersMiddleware's first param is the HeadersSubset, never part of the body params type
+    const isHeadersMiddleware = method.type === HandlerType.headersMiddleware && !!method.headersParam;
+    const body = isHeadersMiddleware ? params.slice(1) : params;
     try {
       const sanitized = formatTransform.fn(body) as any[];
-      subRequest.params = isHeadersFn ? [params[0], ...sanitized] : sanitized;
+      subRequest.params = isHeadersMiddleware ? [params[0], ...sanitized] : sanitized;
       sanitizedParams.add(subRequest.params);
     } catch {
       // validation reports the real error

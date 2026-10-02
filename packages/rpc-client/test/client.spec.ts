@@ -15,7 +15,7 @@ import type {TestServerApi} from '@mionjs/test-server';
 import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
 import {forgetMetadata} from './lib/testUtils.ts';
 
-// Helper to create auth headers for the test server's headersFn
+// Helper to create auth headers for the test server's headersMiddleware
 function createAuthHeaders(token: string): HeadersSubset<'Authorization'> {
   return new HeadersSubset({Authorization: token});
 }
@@ -824,7 +824,7 @@ describe('client', () => {
   // ========== Optimistic Mode with onRequest Hooks & Headers Tests ==========
 
   describe('optimistic mode with onRequest hooks and headers', () => {
-    it('call() with an auth headersFn onRequest hook should succeed in optimistic mode', async () => {
+    it('call() with an auth headersMiddleware onRequest hook should succeed in optimistic mode', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
       middlewares.auth.onRequest((auth) => auth(authHeaders));
@@ -904,7 +904,7 @@ describe('client', () => {
       }
     }
 
-    it('first optimistic call with an auth headersFn onRequest hook is one round trip (no retry)', async () => {
+    it('first optimistic call with an auth headersMiddleware onRequest hook is one round trip (no retry)', async () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
       middlewares.auth.onRequest((auth) => auth(authHeaders));

@@ -3,7 +3,7 @@ import {HeadersSubset} from '@mionjs/core';
 
 const mion = createMionRouter();
 
-const traceWithOptionalAgent = mion.headersFn(
+const traceWithOptionalAgent = mion.headersMiddleware(
   async (
     ctx,
     {headers}: HeadersSubset<'X-Trace-Id', 'User-Agent'>

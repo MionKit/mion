@@ -30,7 +30,7 @@ type TestSharedData = {user: {name: string; surname: string} | null; httpMethod:
 const getSharedData = (): TestSharedData => ({user: null, httpMethod: null, page: null});
 // The default 100 is too few for the metadata 'all' mode to answer every method here
 const mion = createMionRouter({contextDataFactory: getSharedData, getAllRemoteMethodsMaxNumber: 200});
-const {route, headersFn, middleware, query, mutation, rawMiddleware} = mion;
+const {route, headersMiddleware, middleware, query, mutation, rawMiddleware} = mion;
 
 // ============ Batch chain fixtures (flow/*) ============
 // A small graph the batch e2e tests chain with inputFrom: user -> org, user -> tags, order -> product
@@ -238,7 +238,7 @@ const routes = {
   // ============ Shared middleware ============
   // A gate: a present but WRONG token answers a FatalError, typed for the client and ending the
   // chain so the route never runs. A missing header fails header validation before the handler.
-  auth: headersFn((ctx, h: HeadersSubset<'Authorization'>): void | RpcError<'not-authorized'> => {
+  auth: headersMiddleware((ctx, h: HeadersSubset<'Authorization'>): void | RpcError<'not-authorized'> => {
     if (h.headers.Authorization === 'WRONG-TOKEN') {
       return new FatalError({publicMessage: 'Not Authorized', type: 'not-authorized', statusCode: 401});
     }

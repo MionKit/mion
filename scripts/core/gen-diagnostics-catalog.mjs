@@ -68,7 +68,7 @@ const SUBSYSTEMS = [
   {
     key: 'mion-routes',
     label: 'mion routes',
-    description: 'From the rules over mion route, middleware and headersFn handlers, reported as you write them.',
+    description: 'From the rules over mion route, middleware and headersMiddleware handlers, reported as you write them.',
     prefixes: ['MRT'],
   },
   {

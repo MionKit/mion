@@ -29,7 +29,9 @@ const routes = {
   thenableReturn: mion.route((): {then: string} => ({then: 'not a method'})),
   syncMiddleware: mion.middleware((): void => undefined),
   asyncMiddleware: mion.middleware(async (): Promise<void> => undefined),
-  promiseHeadersFn: mion.headersFn((_ctx, _h: HeadersSubset<'authorization'>): Promise<void> => Promise.resolve()),
+  promiseHeadersMiddleware: mion.headersMiddleware(
+    (_ctx, _h: HeadersSubset<'authorization'>): Promise<void> => Promise.resolve()
+  ),
 } satisfies Routes;
 
 resetRouter();
@@ -46,7 +48,7 @@ describe('isAsync should', () => {
   it('be true for a plain function that returns a promise', () => {
     // the case handler.constructor.name cannot see
     expect(isAsyncOf('promiseArrow')).toBe(true);
-    expect(isAsyncOf('promiseHeadersFn')).toBe(true);
+    expect(isAsyncOf('promiseHeadersMiddleware')).toBe(true);
   });
 
   it('be true when only one arm of the return union is a promise', () => {

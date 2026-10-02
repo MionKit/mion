@@ -65,7 +65,7 @@ describe('fatal dispatch', () => {
       if (mode === 'fatal') return fatal();
       if (mode === 'throw') throw new RpcError({publicMessage: 'thrown', type: 'thrown-error'});
     }),
-    gate: mion.headersFn(
+    gate: mion.headersMiddleware(
       (_ctx: CallContext, h: HeadersSubset<'X-Mode'>): void | RpcError<'declared-error' | 'not-authorized'> => {
         ran.push('gate');
         if (h.headers['X-Mode'] === 'return') return declared();
@@ -110,7 +110,7 @@ describe('fatal dispatch', () => {
       expect(response.body[MION_ROUTES.thrownErrors]).toBeUndefined();
     });
 
-    it('from a headersFn keeps the chain running', async () => {
+    it('from a headersMiddleware keeps the chain running', async () => {
       const response = await dispatch('/target', request({first: ['ok'], target: ['ok']}, {'X-Mode': 'return'}));
       expect(ran).toEqual(['first', 'gate', 'target', 'after', 'always']);
       expect(response.hasErrors).toBe(false);
@@ -142,7 +142,7 @@ describe('fatal dispatch', () => {
       expect(isFatalError(seenFatal)).toBe(true);
     });
 
-    it('from a headersFn halts the chain', async () => {
+    it('from a headersMiddleware halts the chain', async () => {
       const response = await dispatch('/target', request({first: ['ok'], target: ['ok']}, {'X-Mode': 'fatal'}));
       expect(ran).toEqual(['first', 'gate', 'always']);
       expect(response.hasErrors).toBe(true);

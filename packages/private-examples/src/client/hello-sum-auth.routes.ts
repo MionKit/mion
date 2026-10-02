@@ -6,7 +6,7 @@ const mion = createMionRouter();
 
 const routes = {
   // the client sends a trace id with every request, the server echoes it back
-  trace: mion.headersFn(
+  trace: mion.headersMiddleware(
     (ctx, {headers}: HeadersSubset<'X-Trace-Id'>): string =>
       headers['X-Trace-Id']
   ),

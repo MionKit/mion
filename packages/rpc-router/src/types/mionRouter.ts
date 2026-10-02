@@ -99,17 +99,17 @@ export interface MiddlewareHelper<O extends RouterOptionsInput> {
 }
 
 /**
- * `mion.headersFn`: declares a headers middleware with the context typed from the router options.
+ * `mion.headersMiddleware`: declares a headers middleware with the context typed from the router options.
  * The handler's 2nd param must be a HeadersSubset<Required, Optional>, whose header names are read at
  * build time from its runtype graph. A HeadersSubset return gets its headers written onto the response.
  * @example
  * ```ts
- * mion.headersFn((ctx, h: HeadersSubset<'authorization'>): void => {
+ * mion.headersMiddleware((ctx, h: HeadersSubset<'authorization'>): void => {
  *   // h.headers.authorization contains the value of the 'authorization' header
  * })
  * ```
  */
-export interface HeadersFnHelper<O extends RouterOptionsInput> {
+export interface HeadersMiddlewareHelper<O extends RouterOptionsInput> {
   <H extends HeaderHandler<RouterCallContext<O>>, const RO extends HeadersMiddlewareOptions = PlainHeadersMiddlewareOptions>(
     handler: H,
     opts?: CompTimeArgs<RO>,
@@ -139,7 +139,7 @@ export interface MionRouter<O extends RouterOptionsInput = RouterOptionsInput> {
   /** Route that changes data: always sent as a POST. */
   readonly mutation: RouteHelper<O, true>;
   readonly middleware: MiddlewareHelper<O>;
-  readonly headersFn: HeadersFnHelper<O>;
+  readonly headersMiddleware: HeadersMiddlewareHelper<O>;
   readonly rawMiddleware: RawMiddlewareHelper<O>;
   /** Once per app, and synchronous: the compiled type functions were injected at build time, so nothing loads here.
    *  `buildVersion` is filled by the build, never by hand: the server answers with it so a client can spot stale routes. */

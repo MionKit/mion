@@ -7,7 +7,7 @@
 
 import {HandlerType, MION_ROUTES} from '@mionjs/core';
 import type {
-  HeadersFnHelper,
+  HeadersMiddlewareHelper,
   MiddlewareHelper,
   PinnedMutation,
   RawMiddlewareHelper,
@@ -72,7 +72,7 @@ export const middleware: MiddlewareHelper<RouterOptionsInput> = (
   rtFns: {paramsFns, returnFns, paramsId, returnId, isAsyncId, syncId},
 });
 
-export const headersFn: HeadersFnHelper<RouterOptionsInput> = (
+export const headersMiddleware: HeadersMiddlewareHelper<RouterOptionsInput> = (
   handler,
   opts,
   headersFns,

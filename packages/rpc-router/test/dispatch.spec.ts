@@ -52,7 +52,7 @@ describe('Dispatch routes', () => {
     return data;
   });
 
-  const auth = mion.headersFn((ctx, h: HeadersSubset<'Authorization'>): void | RpcError<'not-authorized'> => {
+  const auth = mion.headersMiddleware((ctx, h: HeadersSubset<'Authorization'>): void | RpcError<'not-authorized'> => {
     const token = h.headers.Authorization;
     if (token !== '1234')
       return new RpcError({
@@ -108,7 +108,7 @@ describe('Dispatch routes', () => {
     });
 
     it('request and response headers are case insensitive', async () => {
-      const auth = mion.headersFn((ctx, h: HeadersSubset<'Authorization'>): HeadersSubset<'User-Id'> => {
+      const auth = mion.headersMiddleware((ctx, h: HeadersSubset<'Authorization'>): HeadersSubset<'User-Id'> => {
         const token = h.headers.Authorization;
         return new HeadersSubset({'User-Id': token === '1234' ? 'MyUser-Id' : 'Unknown'});
       });
@@ -136,7 +136,7 @@ describe('Dispatch routes', () => {
         );
 
       it('sends a returned header that matches its type', async () => {
-        const auth = mion.headersFn((ctx, h: HeadersSubset<'Authorization'>): HeadersSubset<'User-Id'> => {
+        const auth = mion.headersMiddleware((ctx, h: HeadersSubset<'Authorization'>): HeadersSubset<'User-Id'> => {
           return new HeadersSubset({'User-Id': 'MyUser-Id'});
         });
         mion.initRoutes({auth, changeUserName});
@@ -146,7 +146,7 @@ describe('Dispatch routes', () => {
       });
 
       it('fails the call and never sends a header whose value is not a string', async () => {
-        const auth = mion.headersFn((ctx, h: HeadersSubset<'Authorization'>): HeadersSubset<'User-Id'> => {
+        const auth = mion.headersMiddleware((ctx, h: HeadersSubset<'Authorization'>): HeadersSubset<'User-Id'> => {
           return new HeadersSubset({'User-Id': 1234 as any as string});
         });
         mion.initRoutes({auth, changeUserName});
@@ -161,7 +161,7 @@ describe('Dispatch routes', () => {
       });
 
       it('fails the call when a required header is missing', async () => {
-        const auth = mion.headersFn((ctx, h: HeadersSubset<'Authorization'>): HeadersSubset<'User-Id'> => {
+        const auth = mion.headersMiddleware((ctx, h: HeadersSubset<'Authorization'>): HeadersSubset<'User-Id'> => {
           return new HeadersSubset({} as {'User-Id': string});
         });
         mion.initRoutes({auth, changeUserName});
@@ -187,8 +187,8 @@ describe('Dispatch routes', () => {
       });
     });
 
-    it('checks request headers once, with the headers function own check', async () => {
-      const auth = mion.headersFn((ctx, h: HeadersSubset<'Authorization'>): void => undefined);
+    it('checks request headers once, with the headers middleware own check', async () => {
+      const auth = mion.headersMiddleware((ctx, h: HeadersSubset<'Authorization'>): void => undefined);
       mion.initRoutes({auth, changeUserName});
       const isType = (getMiddlewareExecutable('auth') as HeadersMethod).headersParam.jitFns.isType as {
         fn: (value: unknown) => boolean;
@@ -208,13 +208,13 @@ describe('Dispatch routes', () => {
       expect((await call({Authorization: '1234'})).hasErrors).toBeFalsy();
       expect(checks).toBe(1);
       const response = await call({});
-      // the request map is wrapped unchecked, so the error is the headers function's own, never the constructor's
+      // the request map is wrapped unchecked, so the error is the headers middleware's own, never the constructor's
       expect((response.body[MION_ROUTES.thrownErrors]?.auth as RpcError<string>)?.type).toBe('validation-error');
       expect(checks).toBe(2);
     });
 
     it('should be able to accept request headers and regular rpc params', async () => {
-      const auth = mion.headersFn((ctx, h: HeadersSubset<'Authorization'>, userId: string): string => userId);
+      const auth = mion.headersMiddleware((ctx, h: HeadersSubset<'Authorization'>, userId: string): string => userId);
       mion.initRoutes({auth, changeUserName});
 
       const request: RawRequest = {
@@ -232,7 +232,7 @@ describe('Dispatch routes', () => {
 
     it('validates the regular rpc params of a headers middleware', async () => {
       let runs = 0;
-      const auth = mion.headersFn((ctx, h: HeadersSubset<'Authorization'>, userId: string): string => (runs++, userId));
+      const auth = mion.headersMiddleware((ctx, h: HeadersSubset<'Authorization'>, userId: string): string => (runs++, userId));
       mion.initRoutes({auth, changeUserName});
 
       const request: RawRequest = {
@@ -909,8 +909,8 @@ describe('sanitizeParams', () => {
     });
   });
 
-  it('a headersFn sanitizes its body params and leaves the headers alone', async () => {
-    const withHeader = mion.headersFn(
+  it('a headersMiddleware sanitizes its body params and leaves the headers alone', async () => {
+    const withHeader = mion.headersMiddleware(
       (ctx, h: HeadersSubset<'x-tag'>, email: CleanEmail): string => `${h.headers['x-tag']}|${email}`,
       {sanitizeParams: true}
     );

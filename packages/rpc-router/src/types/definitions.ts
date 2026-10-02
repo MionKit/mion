@@ -58,7 +58,7 @@ export interface HeadersMiddlewareDef<
   type: typeof HandlerType.headersMiddleware;
   handler: H;
   options?: RO;
-  /** build-time injected mion payload (filled by the headersFn() factory) */
+  /** build-time injected mion payload (filled by the headersMiddleware() factory) */
   rtFns?: RtMarkerPayload;
   /** type-only: the router options this middleware was declared under, never set at runtime */
   readonly routerOptions?: O;
