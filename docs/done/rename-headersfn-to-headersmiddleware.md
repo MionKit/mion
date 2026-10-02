@@ -1,7 +1,7 @@
 ---
 type: chore
 spec: guidelines
-status: ready
+status: done
 created: 2026-10-01
 ---
 
@@ -54,3 +54,7 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
 - The PR carries the `pre-publish-e2e` label (public API rename) and `website`.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched
   source file, each committed on its own.
+
+## Shipped
+
+Renamed as planned across router, client, core, compiler, lint prefilter, docs, examples and tests. The `headersFns` rtFns slot was left as is. The diagnostics catalog was regenerated.
