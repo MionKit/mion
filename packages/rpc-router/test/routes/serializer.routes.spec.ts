@@ -206,17 +206,17 @@ describe('serialize Response Body with the mutate encoder (json framing)', () =>
   });
 });
 
-// A batch mapping step answers the TARGET route's slot with a typed error of its own, so a slot can
-// hold an error the route never declared. The route's encoder is built for its success value, so it
-// must not touch such an error: the client reads the error brand off the raw value.
+// A handler whose type does not match what it returns can leave an undeclared error in its slot. The
+// route's encoder is built for its success value, so it must not touch such an error: the client reads
+// the error brand off the raw value.
 describe('an error the route does not declare rides as native json, whatever the strategy', () => {
   beforeEach(() => resetRouter());
 
   const mappingError = () =>
     new RpcError({
       statusCode: StatusCodes.UNEXPECTED_ERROR,
-      type: 'batch-mapping-source-failed',
-      publicMessage: `Route 'a' returned an error, so the input it feeds into 'getUser' could not be computed.`,
+      type: 'not-declared',
+      publicMessage: 'An error getUser does not declare.',
     });
 
   it('a compact route keeps it keyed and branded instead of encoding it positionally', () => {
@@ -231,7 +231,7 @@ describe('an error the route does not declare rides as native json, whatever the
     expect(isRpcError(encoded)).toBe(true);
     expect(JSON.parse(JSON.stringify(encoded))).toMatchObject({
       'mion@isΣrrθr': true,
-      type: 'batch-mapping-source-failed',
+      type: 'not-declared',
       statusCode: StatusCodes.UNEXPECTED_ERROR,
     });
   });
@@ -248,7 +248,7 @@ describe('an error the route does not declare rides as native json, whatever the
     expect(isRpcError(encoded)).toBe(true);
     expect(JSON.parse(JSON.stringify(encoded))).toMatchObject({
       'mion@isΣrrθr': true,
-      type: 'batch-mapping-source-failed',
+      type: 'not-declared',
       statusCode: StatusCodes.UNEXPECTED_ERROR,
     });
   });

@@ -21,6 +21,7 @@ import type {BatchDefinition, BatchMapping} from '@mionjs/core';
 import {getRouteExecutionChain, getPlatformRequestCap, getRouterOptions, startMiddlewares, endMiddlewares} from './router.ts';
 import {getMethodCaller} from './dispatch.ts';
 import {findMionQueryParam} from './lib/urlQuery.ts';
+import {addThrownError, hasThrownError} from './lib/dispatchError.ts';
 import {RouterOptions} from './types/general.ts';
 import {MethodsExecutionChain, RemoteMethod} from './types/remoteMethods.ts';
 import type {CallContext} from './types/context.ts';
@@ -315,8 +316,8 @@ function insertMappingMethods(entry: BatchEntry, middleMethods: RemoteMethod[]):
     }
 
     insertions.push({index: fromIndex + 1, method: createMappingMethod(mapping)});
-    // The target runs only when every mapping into it produced a value: the mapping step answers
-    // the target itself when its source failed, and this guard keeps the route from running on top.
+    // The target runs only when every mapping into it produced a value: the mapping step records an error
+    // for the target when its source failed, and this guard keeps the route from running on top.
     middleMethods[toIndex] = guardMappedTarget(middleMethods[toIndex]);
   }
 
@@ -325,7 +326,7 @@ function insertMappingMethods(entry: BatchEntry, middleMethods: RemoteMethod[]):
   for (const {index, method} of insertions) middleMethods.splice(index, 0, method);
 }
 
-/** Skips the handler when a mapping step already answered the target with an error. A copy, never a
+/** Skips the handler when a mapping step recorded that its source failed. A copy, never a
  *  mutation: the route's own RemoteMethod is shared with every plain call to that route. */
 function guardMappedTarget(target: RemoteMethod): RemoteMethod {
   if ((target as GuardedTarget).mappedTargetOf) return target;
@@ -335,7 +336,7 @@ function guardMappedTarget(target: RemoteMethod): RemoteMethod {
     // the guard below is async whatever the target is, so the dispatcher must await this member
     isAsync: true,
     methodCaller: async (context: CallContext, executable: RemoteMethod, ...args: unknown[]) => {
-      if (isRpcError(context.response.body[executable.id])) return undefined;
+      if (hasThrownError(context, executable.id)) return undefined;
       // the shared method carries its caller from registration, same as the dispatcher reads
       return getMethodCaller(target)(context, executable, ...args);
     },
@@ -375,15 +376,19 @@ function createMappingHandler(mapping: BatchMapping) {
   return (ctx: CallContext) => {
     // own key only: a source named like `toString` that stored nothing would feed Object.prototype's function
     const sourceOutput = Object.hasOwn(ctx.response.body, mapping.fromId) ? ctx.response.body[mapping.fromId] : undefined;
-    // A source that answered a DECLARED error has no output to map, so the target gets a typed error of
-    // its own instead of running on the null placeholder and failing validation as if the params were bad.
-    if (isRpcError(sourceOutput)) {
-      (ctx.response.body as Record<string, unknown>)[mapping.toId] = new RpcError({
-        statusCode: StatusCodes.UNEXPECTED_ERROR,
-        type: 'batch-mapping-source-failed',
-        publicMessage: `Route '${mapping.fromId}' returned an error, so the input it feeds into '${mapping.toId}' could not be computed.`,
-        errorData: {fromId: mapping.fromId, toId: mapping.toId, paramIndex: mapping.paramIndex},
-      });
+    // A source that answered an error, or was itself skipped, has no output to map. The target never runs, and
+    // the error goes to @thrownErrors: the target's own slots only ever hold what its type declares.
+    if (isRpcError(sourceOutput) || hasThrownError(ctx, mapping.fromId)) {
+      addThrownError(
+        ctx,
+        mapping.toId,
+        new RpcError({
+          statusCode: StatusCodes.UNEXPECTED_ERROR,
+          type: 'batch-mapping-source-failed',
+          publicMessage: `Route '${mapping.fromId}' failed, so the input it feeds into '${mapping.toId}' could not be computed.`,
+          errorData: {fromId: mapping.fromId, toId: mapping.toId, paramIndex: mapping.paramIndex},
+        })
+      );
       return;
     }
     const pureFn = getInputMapper(mapping.mapperKey);

@@ -779,7 +779,7 @@ describe('batches', () => {
       expect(mappingIndex).toBeLessThan(targetIndex);
     });
 
-    it('a source that returns a DECLARED error answers the target with batch-mapping-source-failed and skips its handler', async () => {
+    it('a source that returns a DECLARED error puts batch-mapping-source-failed in @thrownErrors and skips the target', async () => {
       let targetRuns = 0;
       const failingSource = mion.route(
         (ctx): {id: number} | RpcError<'source-error'> => new RpcError({type: 'source-error', publicMessage: 'no source'})
@@ -800,7 +800,9 @@ describe('batches', () => {
       // a union return travels as its `[index, value]` envelope once serialized
       const unwrap = (value: unknown): RpcError<string> => (Array.isArray(value) ? value[1] : value) as RpcError<string>;
       expect(unwrap(response.body.source).type).toBe('source-error');
-      const targetError = unwrap(response.body.target);
+      // the target's own slot stays empty: it only ever holds what the target declares
+      expect(response.body.target).toBeUndefined();
+      const targetError = thrownErrors(response).target;
       expect(targetError.type).toBe('batch-mapping-source-failed');
       expect(targetError.publicMessage).toContain("'source'");
       expect(targetError.publicMessage).toContain("'target'");
@@ -816,6 +818,44 @@ describe('batches', () => {
       );
       expect(plain.body.target).toBe(40);
       expect(targetRuns).toBe(1);
+    });
+
+    it('a chain A -> B -> C whose first source fails skips B and C, each with its own @thrownErrors entry', async () => {
+      let runs = 0;
+      const failingSource = mion.route(
+        (ctx): {id: number} | RpcError<'source-error'> => new RpcError({type: 'source-error', publicMessage: 'no source'})
+      );
+      const middle = mion.route((ctx, id: number | null): {id: number} => {
+        runs++;
+        return {id: id ?? -1};
+      });
+      const last = mion.route((ctx, id: number | null): number => {
+        runs++;
+        return id ?? -1;
+      });
+      resetRouter();
+      mion.initRoutes({source: failingSource, middle, last});
+      registerMapper(`${MAPPER}chainFirst`, 'return (value) => value.id;');
+      registerMapper(`${MAPPER}chainSecond`, 'return (value) => value.id;');
+      registerBatches({
+        chain: {
+          routes: ['source', 'middle', 'last'],
+          mappings: [
+            {fromId: 'source', toId: 'middle', mapperKey: `${MAPPER}chainFirst`, paramIndex: 0},
+            {fromId: 'middle', toId: 'last', mapperKey: `${MAPPER}chainSecond`, paramIndex: 0},
+          ],
+        },
+      });
+
+      const response = await dispatchBatch(getDefaultRequest({source: [], middle: [null], last: [null]}), 'id=chain');
+
+      expect(response.hasErrors).toBe(false);
+      expect(runs).toBe(0);
+      expect(response.body.middle).toBeUndefined();
+      expect(response.body.last).toBeUndefined();
+      expect(thrownErrors(response).middle.type).toBe('batch-mapping-source-failed');
+      expect(thrownErrors(response).last.type).toBe('batch-mapping-source-failed');
+      expect(thrownErrors(response).last.publicMessage).toContain("'middle'");
     });
 
     it('a mapper that THROWS is the typed batch-mapper-failed fatal, without the registry id', async () => {
