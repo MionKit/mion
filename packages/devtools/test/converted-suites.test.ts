@@ -1,4 +1,4 @@
-// The per-PR half of scripts/core/converted-suites.mjs: --refusals-only must still run both refusal checks and skip only the test run.
+// --refusals-only is the per-PR half of scripts/core/converted-suites.mjs.
 import {spawnSync} from 'node:child_process';
 import {existsSync} from 'node:fs';
 import path from 'node:path';

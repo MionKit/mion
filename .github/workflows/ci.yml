@@ -210,7 +210,7 @@ jobs:
       - name: Build-gate tests (need Go)
         if: fromJSON(needs.lanes.outputs.lanes)['go-tools'].run
         run: pnpm test packages/devtools/test/build-gate.test.ts
-      # The full converted-suites run lives in release-gate.yml; the refusal count alone takes seconds, so a PR that moves it fails here.
+      # The full run is in release-gate.yml; the refusal count takes seconds, so a PR that moves it fails here.
       - name: Converted-suites refusal count
         if: fromJSON(needs.lanes.outputs.lanes)['go-tools'].run
         run: pnpm miondevx core converted-suites --refusals-only
