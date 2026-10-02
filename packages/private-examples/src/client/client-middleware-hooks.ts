@@ -11,6 +11,7 @@ declare function redirectToLogin(): void;
 // a fresh id for every request, the server echoes it back
 middlewares.trace
   .onRequest((trace) => {
+    // the remote middleware call: same params as the server's traceHandler
     trace(new HeadersSubset({'X-Trace-Id': crypto.randomUUID()}));
   })
   .onResponse((info) => {
