@@ -206,9 +206,7 @@ describe('serialize Response Body with the mutate encoder (json framing)', () =>
   });
 });
 
-// A handler whose type does not match what it returns can leave an undeclared error in its slot. The
-// route's encoder is built for its success value, so it must not touch such an error: the client reads
-// the error brand off the raw value.
+// A mistyped handler can leave an undeclared error in its slot; the success encoder must leave it raw for the client.
 describe('an error the route does not declare rides as native json, whatever the strategy', () => {
   beforeEach(() => resetRouter());
 

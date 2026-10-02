@@ -316,8 +316,7 @@ function insertMappingMethods(entry: BatchEntry, middleMethods: RemoteMethod[]):
     }
 
     insertions.push({index: fromIndex + 1, method: createMappingMethod(mapping)});
-    // The target runs only when every mapping into it produced a value: the mapping step records an error
-    // for the target when its source failed, and this guard keeps the route from running on top.
+    // Run the target only when every mapping into it produced a value: a failed source leaves it a thrown error.
     middleMethods[toIndex] = guardMappedTarget(middleMethods[toIndex]);
   }
 
@@ -326,14 +325,13 @@ function insertMappingMethods(entry: BatchEntry, middleMethods: RemoteMethod[]):
   for (const {index, method} of insertions) middleMethods.splice(index, 0, method);
 }
 
-/** Skips the handler when a mapping step recorded that its source failed. A copy, never a
- *  mutation: the route's own RemoteMethod is shared with every plain call to that route. */
+/** A copy, never a mutation: the route's own RemoteMethod is shared with every plain call to that route. */
 function guardMappedTarget(target: RemoteMethod): RemoteMethod {
   if ((target as GuardedTarget).mappedTargetOf) return target;
   const guarded = {
     ...target,
     mappedTargetOf: target,
-    // the guard below is async whatever the target is, so the dispatcher must await this member
+    // async whatever the target is, so the dispatcher must await this member
     isAsync: true,
     methodCaller: async (context: CallContext, executable: RemoteMethod, ...args: unknown[]) => {
       if (hasThrownError(context, executable.id)) return undefined;
@@ -376,8 +374,7 @@ function createMappingHandler(mapping: BatchMapping) {
   return (ctx: CallContext) => {
     // own key only: a source named like `toString` that stored nothing would feed Object.prototype's function
     const sourceOutput = Object.hasOwn(ctx.response.body, mapping.fromId) ? ctx.response.body[mapping.fromId] : undefined;
-    // A source that answered an error, or was itself skipped, has no output to map. The target never runs, and
-    // the error goes to @thrownErrors: the target's own slots only ever hold what its type declares.
+    // A failed or skipped source has nothing to map: the error goes to @thrownErrors, the target's slots hold only what it declares.
     if (isRpcError(sourceOutput) || hasThrownError(ctx, mapping.fromId)) {
       addThrownError(
         ctx,

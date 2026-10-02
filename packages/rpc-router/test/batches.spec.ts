@@ -800,7 +800,7 @@ describe('batches', () => {
       // a union return travels as its `[index, value]` envelope once serialized
       const unwrap = (value: unknown): RpcError<string> => (Array.isArray(value) ? value[1] : value) as RpcError<string>;
       expect(unwrap(response.body.source).type).toBe('source-error');
-      // the target's own slot stays empty: it only ever holds what the target declares
+      // the target's slot only ever holds what the target declares
       expect(response.body.target).toBeUndefined();
       const targetError = thrownErrors(response).target;
       expect(targetError.type).toBe('batch-mapping-source-failed');
