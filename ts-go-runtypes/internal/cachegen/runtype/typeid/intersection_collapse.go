@@ -251,7 +251,7 @@ func (computer *Computer) collapsedIntersectionID(tsType *checker.Type) string {
 				}
 				ids = append(ids, child)
 			}
-			return collectionID(int(reflection.KindTuple), ids, true) + containsKey + formatKey
+			return collectionID(int(reflection.KindTuple), ids, true) + readonlyBit(AllReadonlyCollections(restMembers)) + containsKey + formatKey
 		}
 		// Object × object — the checker already merged properties on the intersection type. Hash the merged
 		// members directly rather than routing through objectID: the intersection is neither a Reference nor a
