@@ -26,6 +26,17 @@ type ArtifactIndex struct {
 	Format  int                `json:"format"`
 	Package string             `json:"package"`
 	PureFns []ArtifactIndexRow `json:"pureFns"`
+	// Compiler is the binary version that keyed Overrides: a structural key is only comparable within one version.
+	Compiler  string                `json:"compiler,omitempty"`
+	Overrides []ArtifactOverrideRow `json:"overrides,omitempty"`
+}
+
+// ArtifactOverrideRow is one `overrideX<T>(fn)` the package's build folded: T's structural key before hashing, the
+// family and the override fn's id. A consumer reading T from a `.d.ts` finds no call there, so it seeds its fold with these.
+type ArtifactOverrideRow struct {
+	BaseKey string `json:"baseKey"`
+	Family  string `json:"family"`
+	ID      string `json:"id"`
 }
 
 // ArtifactIndexRow is one pure fn: its id verbatim (a consumer never recomputes it), the binding an untyped
@@ -39,9 +50,9 @@ type ArtifactIndexRow struct {
 // ErrArtifactNewerFormat marks an index written by a newer compiler.
 var ErrArtifactNewerFormat = errors.New("newer artifact format")
 
-// RenderArtifactIndex renders the index from the package's OWN entries (the caller filters them), sorted by id
-// so the bytes are stable across runs; nil when empty, so an app with no pure fn gets no directory.
-func RenderArtifactIndex(packageName, packageRoot string, entries []purefunctions.Entry) []byte {
+// RenderArtifactIndex renders the index from the package's OWN entries and override rows (the caller filters them),
+// sorted so the bytes are stable across runs; nil when empty, so an app with no pure fn gets no directory.
+func RenderArtifactIndex(packageName, packageRoot string, entries []purefunctions.Entry, overrides []ArtifactOverrideRow) []byte {
 	if len(entries) == 0 {
 		return nil
 	}
@@ -55,7 +66,16 @@ func RenderArtifactIndex(packageName, packageRoot string, entries []purefunction
 	// Nothing serves this as HTML, and escaping `<` or `&` in a path or name would only make it unreadable.
 	encoder.SetEscapeHTML(false)
 	encoder.SetIndent("", "  ")
-	if err := encoder.Encode(ArtifactIndex{Format: ArtifactFormat, Package: packageName, PureFns: rows}); err != nil {
+	index := ArtifactIndex{Format: ArtifactFormat, Package: packageName, PureFns: rows}
+	if len(overrides) > 0 {
+		index.Compiler = constants.Version
+		index.Overrides = append([]ArtifactOverrideRow(nil), overrides...)
+		sort.Slice(index.Overrides, func(i, j int) bool {
+			left, right := index.Overrides[i], index.Overrides[j]
+			return left.BaseKey < right.BaseKey || (left.BaseKey == right.BaseKey && left.Family < right.Family)
+		})
+	}
+	if err := encoder.Encode(index); err != nil {
 		// Strings always marshal; this cannot happen.
 		panic(fmt.Sprintf("render %s: %v", constants.PureFnArtifactIndexFile, err))
 	}
@@ -81,6 +101,11 @@ func ParseArtifactIndex(content []byte) (ArtifactIndex, error) {
 	for _, row := range index.PureFns {
 		if PackageOfID(row.ID) != index.Package {
 			return ArtifactIndex{}, fmt.Errorf("row %q is not owned by %q", row.ID, index.Package)
+		}
+	}
+	for _, row := range index.Overrides {
+		if PackageOfID(row.ID) != index.Package {
+			return ArtifactIndex{}, fmt.Errorf("override %q is not owned by %q", row.ID, index.Package)
 		}
 	}
 	return index, nil

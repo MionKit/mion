@@ -307,13 +307,22 @@ func (sess *Session) renderPureFnArtifact(graph entrymodules.Graph, metrics *pro
 	}
 	entries, _, _ := sess.extractProgramPureFns(metrics)
 	var own []purefunctions.Entry
-	for _, entry := range entries {
+	// Override fn bodies ship too: a consumer reading the overridden type from a .d.ts serves them from here.
+	for _, entry := range append(entries, sess.overrideEntries...) {
 		if purefnindex.PackageOfID(entry.Key()) == ownPackage && graph[entry.Key()] != nil {
 			own = append(own, entry)
 		}
 	}
 	if len(own) == 0 {
 		return nil, nil
+	}
+	var overrides []purefnindex.ArtifactOverrideRow
+	for baseKey, families := range sess.overrideMap {
+		for family, id := range families {
+			if purefnindex.PackageOfID(id) == ownPackage {
+				overrides = append(overrides, purefnindex.ArtifactOverrideRow{BaseKey: baseKey, Family: family, ID: id})
+			}
+		}
 	}
 	// Every pure-fn entry (a dep's module is imported by name) plus the stubs for deps nothing answered.
 	slice := entrymodules.Graph{}
@@ -326,7 +335,7 @@ func (sess *Session) renderPureFnArtifact(graph entrymodules.Graph, metrics *pro
 	if err != nil {
 		return nil, err
 	}
-	files := map[string]string{constants.PureFnArtifactIndexFile: string(purefnindex.RenderArtifactIndex(ownPackage, ownRoot, own))}
+	files := map[string]string{constants.PureFnArtifactIndexFile: string(purefnindex.RenderArtifactIndex(ownPackage, ownRoot, own, overrides))}
 	for _, entry := range own {
 		basename := entrymodules.ModuleName(entry.Key(), entrymodules.KindPureFn)
 		files[purefnindex.ModulePath(entry.Key())] = relativizeModuleImports(basename, modules[basename])

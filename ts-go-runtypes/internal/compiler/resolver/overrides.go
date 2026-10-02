@@ -1,12 +1,16 @@
 package resolver
 
 import (
+	"encoding/json"
 	"sort"
 	"strings"
 
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
+	"github.com/microsoft/typescript-go/shim/tspath"
+	"github.com/microsoft/typescript-go/shim/vfs"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/operations"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnindex"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefunctions"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/runtype/typeid"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
@@ -98,18 +102,91 @@ func (sess *Session) ensureOverrides() {
 	}
 	sess.overrideEntries = entries
 	sess.overrideArgSpansByFile = argSpans
-	if len(raws) == 0 {
+	seed, seedDiags := sess.packageOverrideSeed()
+	sess.overrideDiagnostics = seedDiags
+	if len(raws) == 0 && len(seed) == 0 {
 		return
 	}
 
 	// Phase 2: a target whose base key contains another overridden type needs the inner fold applied first,
 	// so each iteration recomputes base keys against the previous map until they stabilize.
-	overrides, baseKeys := sess.foldOverrideMap(raws)
+	overrides, baseKeys := sess.foldOverrideMap(raws, seed)
 
 	// Phase 3 runs on the FINAL, stable base keys.
-	sess.overrideDiagnostics = overrideDiagnostics(raws, baseKeys)
+	sess.overrideDiagnostics = append(sess.overrideDiagnostics, overrideDiagnostics(raws, baseKeys, seed)...)
 
+	sess.overrideMap = overrides
 	sess.cache.SetOverrides(overrides)
+}
+
+// packageOverrideSeed reads the override rows of every installed package the program reads declarations from: a
+// `.d.ts` keeps no `overrideX` call, so without them a type gets a different id than the package's own build gave it.
+// Only a package that depends on the marker package can register one, which keeps the walk off every other package.
+func (sess *Session) packageOverrideSeed() (map[string]map[string]string, []diagnostics.Diagnostic) {
+	if sess.pureFnIndex == nil {
+		return nil, nil
+	}
+	_, ownRoot := sess.ownPackage()
+	seed := map[string]map[string]string{}
+	var diags []diagnostics.Diagnostic
+	visited := map[string]bool{}
+	for _, sourceFile := range sess.Program.TS.SourceFiles() {
+		if sourceFile == nil || !sourceFile.IsDeclarationFile {
+			continue
+		}
+		_, root := marker.PackageOfFile(sourceFile.FileName(), sess.Program.FS)
+		if root == "" || root == ownRoot || visited[root] {
+			continue
+		}
+		visited[root] = true
+		if !dependsOnMarkerPackage(sess.Program.FS, root) {
+			continue
+		}
+		rows, problems := sess.pureFnIndex.Overrides(root)
+		for _, problem := range problems {
+			diags = append(diags, diagnostics.New(diagnostics.CodePureFnArtifactUnreadable, diagnostics.Site{}, problem.File, problem.Reason))
+		}
+		for _, row := range rows {
+			if seed[row.BaseKey] == nil {
+				seed[row.BaseKey] = map[string]string{}
+			}
+			if _, taken := seed[row.BaseKey][row.Family]; !taken {
+				seed[row.BaseKey][row.Family] = row.ID
+			}
+		}
+	}
+	return seed, diags
+}
+
+// dependsOnMarkerPackage reads a package.json's dependency lists for the marker package.
+func dependsOnMarkerPackage(fileSystem vfs.FS, root string) bool {
+	content, ok := fileSystem.ReadFile(tspath.CombinePaths(root, "package.json"))
+	if !ok {
+		return false
+	}
+	var manifest struct {
+		Dependencies     map[string]string `json:"dependencies"`
+		PeerDependencies map[string]string `json:"peerDependencies"`
+	}
+	if json.Unmarshal([]byte(content), &manifest) != nil {
+		return false
+	}
+	_, dependency := manifest.Dependencies[purefnindex.MarkerPackageName]
+	_, peer := manifest.PeerDependencies[purefnindex.MarkerPackageName]
+	return dependency || peer
+}
+
+// cloneOverrideMap copies the two levels, so a fold iteration never writes into the seed.
+func cloneOverrideMap(source map[string]map[string]string) map[string]map[string]string {
+	out := make(map[string]map[string]string, len(source))
+	for baseKey, families := range source {
+		copied := make(map[string]string, len(families))
+		for family, id := range families {
+			copied[family] = id
+		}
+		out[baseKey] = copied
+	}
+	return out
 }
 
 // overrideIDs is the set of pure-fn ids the override pass extracted; an override's id is shaped like any
@@ -123,13 +200,14 @@ func (sess *Session) overrideIDs() map[string]bool {
 }
 
 // foldOverrideMap iterates the base-key computation to a fixpoint, returning the map plus each raw's final
-// base key; the first raw in source order wins a (baseKey, opName) pair, conflicts go to overrideDiagnostics.
-func (sess *Session) foldOverrideMap(raws []rawOverride) (map[string]map[string]string, []string) {
-	prev := map[string]map[string]string{}
+// base key; the seed (installed packages' rows) comes first, then the first raw in source order wins a
+// (baseKey, opName) pair, conflicts go to overrideDiagnostics.
+func (sess *Session) foldOverrideMap(raws []rawOverride, seed map[string]map[string]string) (map[string]map[string]string, []string) {
+	prev := cloneOverrideMap(seed)
 	baseKeys := make([]string, len(raws))
 	for iteration := 0; iteration < maxOverrideFoldIterations; iteration++ {
 		computer := typeid.NewWithOverrides(sess.checker, prev).SetEnvironment(sess.Program.EnvironmentFile)
-		next := map[string]map[string]string{}
+		next := cloneOverrideMap(seed)
 		for i, raw := range raws {
 			baseKey := computer.BaseStructuralKey(raw.typeArg)
 			baseKeys[i] = baseKey
@@ -172,10 +250,15 @@ func overrideMapsEqual(a, b map[string]map[string]string) bool {
 // overrideDiagnostics derives OVR001 / OVR010 from the raws and their final base keys. OVR001 is STRICT:
 // any second override of the same (type, family) is an error whatever its body. OVR010 warns once per
 // distinct validate override, for its cross-family reach.
-func overrideDiagnostics(raws []rawOverride, baseKeys []string) []diagnostics.Diagnostic {
+func overrideDiagnostics(raws []rawOverride, baseKeys []string, seed map[string]map[string]string) []diagnostics.Diagnostic {
 	var diags []diagnostics.Diagnostic
 	firstIndex := map[string]int{} // "<baseKey>|<opName>" → index of the winning raw
 	for i, raw := range raws {
+		// An installed package's override of the same type and family won first.
+		if _, packaged := seed[baseKeys[i]][raw.opName]; packaged {
+			diags = append(diags, diagnostics.New(diagnostics.CodeDuplicateOverride, raw.site, raw.opName))
+			continue
+		}
 		key := baseKeys[i] + "|" + raw.opName
 		if winner, exists := firstIndex[key]; exists {
 			diags = append(diags, diagnostics.NewWithRelated(
