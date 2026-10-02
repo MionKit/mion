@@ -26,8 +26,7 @@ on:
   # `synchronize` re-runs it on every new commit while the label is still on, so
   # a labelled PR keeps being checked. Deliberately NOT pull_request_target: that
   # would hand secrets and write permissions to fork code.
-  # The label is read live from the PR (the `lanes` job), never the event payload:
-  # an `opened` run that cancels its `labeled` twin carries no labels.
+  # The `lanes` job reads labels live: an `opened` run that cancels its `labeled` twin has none in its payload.
   pull_request:
     types: [opened, synchronize, reopened, labeled]
 

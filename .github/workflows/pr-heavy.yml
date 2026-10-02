@@ -33,8 +33,7 @@ name: pr · website + benchmarks + pre-publish e2e (label-gated)
 on:
   # `labeled` fires when the label is added; `synchronize` re-runs while the
   # label is still on, so a labelled PR keeps being checked as it grows.
-  # The jobs read the PR's live labels (the `lanes` job), never the event payload:
-  # an `opened` run that cancels its `labeled` twin carries no labels.
+  # The `lanes` job reads labels live: an `opened` run that cancels its `labeled` twin has none in its payload.
   pull_request:
     types: [opened, synchronize, reopened, labeled]
 
