@@ -363,7 +363,7 @@ func randomFormatLeaf(rng *rand.Rand) string {
 // carrying a pattern object.
 func randomStringFormatLeaf(rng *rand.Rand) string {
 	named := []string{
-		"TF.Email", "TF.UUID", "TF.UUIDv4", "TF.UUIDv7", "TF.Url", "TF.Domain",
+		"TF.Email", "TF.UUID", "TF.UUIDv4", "TF.UUIDv7", "TF.StringUrl", "TF.Domain",
 		"TF.IP", "TF.IPv4", "TF.StringDateTime", "TF.StringDate", "TF.StringTime",
 		"TF.Alpha", "TF.AlphaNumeric", "TF.Numeric", "TF.Base64", "TF.Base32", "TF.Base16",
 		"TF.Lowercase", "TF.Uppercase", "TF.Capitalize",

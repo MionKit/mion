@@ -233,7 +233,7 @@ describe('ip — the address or the port', () => {
 
 describe('formats with one way to fail per param leave errorType unset', () => {
   it('url', () => {
-    expect(formatErrorOf(createGetValidationErrorsFn<TF.UrlHttp>()('not a url'))?.errorType).toBeUndefined();
+    expect(formatErrorOf(createGetValidationErrorsFn<TF.StringUrlHttp>()('not a url'))?.errorType).toBeUndefined();
   });
   it('a plain string format', () => {
     expect(formatErrorOf(createGetValidationErrorsFn<TF.String<{maxLength: 2}>>()('abc'))?.errorType).toBeUndefined();

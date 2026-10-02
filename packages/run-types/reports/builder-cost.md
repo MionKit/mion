@@ -52,7 +52,7 @@ Budgets may only ever be lowered.
 | string-preset | `email()` | 120 | 126 | 9 | 9 |
 | string-preset | `email({maxLength})` | 274 | 284 | 46 | 46 |
 | string-preset | `uuid()` | 41 | 41 | 9 | 9 |
-| string-preset | `url({maxLength})` | 274 | 274 | 46 | 46 |
+| string-preset | `stringUrl({maxLength})` | 274 | 274 | 46 | 46 |
 | string-preset | `ip({allowLocalHost})` | 269 | 269 | 46 | 46 |
 | string-preset | `domain({maxLength})` | 279 | 299 | 46 | 46 |
 | string-preset | `alpha({maxLength})` | 333 | 358 | 49 | 49 |

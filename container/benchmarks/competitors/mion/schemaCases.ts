@@ -542,9 +542,9 @@ export const schemaCases: CompetitorCases = {
   'STRING_FORMAT.email': () => createValidateFn(TF.email()),
   'STRING_FORMAT.emailPunycode': () => createValidateFn(TF.emailPunycode()),
   'STRING_FORMAT.emailParts': () => createValidateFn(TF.emailParts()),
-  'STRING_FORMAT.url': () => createValidateFn(TF.url()),
-  'STRING_FORMAT.urlHttp': () => createValidateFn(TF.urlHttp()),
-  'STRING_FORMAT.urlFile': () => createValidateFn(TF.urlFile()),
+  'STRING_FORMAT.url': () => createValidateFn(TF.stringUrl()),
+  'STRING_FORMAT.urlHttp': () => createValidateFn(TF.stringUrlHttp()),
+  'STRING_FORMAT.urlFile': () => createValidateFn(TF.stringUrlFile()),
   'STRING_FORMAT.pattern_slug': () =>
     createValidateFn(
       TF.string({

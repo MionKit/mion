@@ -1,7 +1,7 @@
 ---
 type: feature
 spec: guidelines
-status: ready
+status: done
 created: 2026-10-01
 ---
 
@@ -58,3 +58,10 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
   `pre-publish-e2e`.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source file, each
   committed on its own.
+
+## What shipped
+
+- The table above, as written. The helper types behind the object family were renamed too (`NativeUrlParams` -> `UrlObjectParams`, `NativeUrlFormat` -> `UrlObjectFormat`, `NativeUrlPresetBuilder` -> `UrlObjectPresetBuilder`), and the mock helper `mockNativeUrl` -> `mockUrlObject`, so no `NativeUrl*` name is left in the TypeScript.
+- Go: `FormatFamilies["nativeUrl"]` now prints builder `url` and alias `Url`; the convert printer writes `url()`; the two error texts say `Url:`. The Go format names (`url`, `nativeUrl`) are untouched, so ids, error keys and `rtFormat` did not move.
+- Tests: the existing suites moved to the new names, and a new test pins that `TF.StringUrl` and `TF.Url` keep different ids.
+- The CHANGELOG is generated from commit subjects, so the rename is recorded by a `feat(run-types)!:` commit with a `BREAKING CHANGE:` footer.

@@ -447,8 +447,8 @@ export type PresetFormat<Tag extends string, Defaults extends object, P = {}> = 
 >;
 
 /** What a preset accepts as an override: its params family, minus the key(s) that ARE the preset's
- *  identity. `urlHttp({maxLength: 100})` retunes the bound, while swapping its pattern is just
- *  `url({pattern})` under a misleading name, so the pinned key is rejected at the call site instead of
+ *  identity. `stringUrlHttp({maxLength: 100})` retunes the bound, while swapping its pattern is just
+ *  `stringUrl({pattern})` under a misleading name, so the pinned key is rejected at the call site instead of
  *  quietly producing a format whose name no longer describes it. **/
 // Instantiated per call site (it rides every preset alias's generic bound), so keep it to one pass over Params.
 export type Override<Params, Pinned extends keyof Params = never> = Omit<Partial<Params>, Pinned>;
@@ -580,9 +580,9 @@ type DEFAULT_URL_PARAMS = {pattern: typeof URL_PATTERN; maxLength: 2048};
 type DEFAULT_URL_HTTP_PARAMS = {pattern: typeof URL_HTTP_PATTERN; maxLength: 2048};
 type DEFAULT_URL_FILE_PARAMS = {pattern: typeof URL_FILE_PATTERN; maxLength: 2048};
 /* eslint-disable @typescript-eslint/no-empty-object-type */
-export type Url<P extends Override<UrlParams> = {}> = PresetFormat<'url', DEFAULT_URL_PARAMS, P>;
-export type UrlHttp<P extends Override<UrlParams, 'pattern'> = {}> = PresetFormat<'url', DEFAULT_URL_HTTP_PARAMS, P>;
-export type UrlFile<P extends Override<UrlParams, 'pattern'> = {}> = PresetFormat<'url', DEFAULT_URL_FILE_PARAMS, P>;
+export type StringUrl<P extends Override<UrlParams> = {}> = PresetFormat<'url', DEFAULT_URL_PARAMS, P>;
+export type StringUrlHttp<P extends Override<UrlParams, 'pattern'> = {}> = PresetFormat<'url', DEFAULT_URL_HTTP_PARAMS, P>;
+export type StringUrlFile<P extends Override<UrlParams, 'pattern'> = {}> = PresetFormat<'url', DEFAULT_URL_FILE_PARAMS, P>;
 
 // ───────────────────────────── URL objects ──────────────────────────
 // A URL object travels as its href, rebuilt with `new URL()`; length and pattern params check the href.
@@ -590,24 +590,24 @@ export type UrlFile<P extends Override<UrlParams, 'pattern'> = {}> = PresetForma
 
 /** Read off `globalThis` so the published `.d.ts` needs neither `dom` nor `@types/node`; `never` without them. **/
 type UrlInstance = typeof globalThis extends {URL: {prototype: infer I}} ? I : never;
-export type NativeUrlParams = Omit<UrlParams, 'transform'>;
+export type UrlObjectParams = Omit<UrlParams, 'transform'>;
 /** The brand is written inline, not through `TypeFormat`, so the root `TypeFormatBase` never names `URL`. **/
-export type NativeUrlFormat<P extends object, BrandName extends string = never> = UrlInstance &
+export type UrlObjectFormat<P extends object, BrandName extends string = never> = UrlInstance &
   FormatBrand<'nativeUrl', P> &
   ([BrandName] extends [never] ? unknown : NominalBrand<BrandName>);
-/** A URL object, `NativeUrl<{maxLength: 200}>`; no pattern by default, so any URL `new URL()` accepts passes. **/
-export type NativeUrl<P extends NativeUrlParams = {}, BrandName extends string = never> = NativeUrlFormat<P, BrandName>;
-/** An HTTP(S) URL object, the `UrlHttp` defaults over its href. **/
-export type NativeUrlHttp<P extends Override<NativeUrlParams, 'pattern'> = {}> = NativeUrlFormat<
+/** A URL object, `Url<{maxLength: 200}>`; no pattern by default, so any URL `new URL()` accepts passes. **/
+export type Url<P extends UrlObjectParams = {}, BrandName extends string = never> = UrlObjectFormat<P, BrandName>;
+/** An HTTP(S) URL object, the `StringUrlHttp` defaults over its href. **/
+export type UrlHttp<P extends Override<UrlObjectParams, 'pattern'> = {}> = UrlObjectFormat<
   FormatDefaults<DEFAULT_URL_HTTP_PARAMS, P>
 >;
-/** A file:// URL object, the `UrlFile` defaults over its href. **/
-export type NativeUrlFile<P extends Override<NativeUrlParams, 'pattern'> = {}> = NativeUrlFormat<
+/** A file:// URL object, the `StringUrlFile` defaults over its href. **/
+export type UrlFile<P extends Override<UrlObjectParams, 'pattern'> = {}> = UrlObjectFormat<
   FormatDefaults<DEFAULT_URL_FILE_PARAMS, P>
 >;
 
 /** Any RFC 3986 URI, whatever the scheme (`mailto:`, `urn:`, `tel:`) — what
- *  `format: 'uri'` means. `Url` is the narrower web-address form. **/
+ *  `format: 'uri'` means. `StringUrl` is the narrower web-address form. **/
 export type Uri<P extends Override<UrlParams, 'pattern'> = {}> = PresetFormat<'url', DEFAULT_URI_PARAMS, P>;
 /** An RFC 3986 URI reference: a URI, or a relative one like `../a` or `#frag`. **/
 export type UriReference<P extends Override<UrlParams, 'pattern'> = {}> = PresetFormat<'url', DEFAULT_URI_REFERENCE_PARAMS, P>;
@@ -661,7 +661,7 @@ export type RelativeJsonPointer<P extends Override<StringParams, 'pattern'> = {}
 // Value-first builder per named alias, each carrying the CONCRETE alias above so the value-first id
 // converges with the type-first `createValidateFn<Email>()`. EVERY predefined string builder takes the
 // SAME optional params bag its type does, layered over that preset's own defaults:
-// `urlHttp({maxLength: 100})` keeps the HTTP(S) pattern and replaces only the bound. The one exception
+// `stringUrlHttp({maxLength: 100})` keeps the HTTP(S) pattern and replaces only the bound. The one exception
 // is the UUID family, whose only param is the version each alias exists to pin. For constraints no
 // preset covers, use `TF.string({…})`.
 
@@ -848,27 +848,27 @@ export const emailParts = presetFormatBuilder<
   Override<EmailPartsParams, 'localPart' | 'domain'>
 >('email');
 
-/** URL (`Url`); `url({maxLength: 100})` overrides bounds, keeping the built-in
+/** URL string (`StringUrl`); `stringUrl({maxLength: 100})` overrides bounds, keeping the built-in
  *  pattern. **/
-export const url = presetFormatBuilder<'url', DEFAULT_URL_PARAMS, Override<UrlParams>>('url');
-/** HTTP(S) URL (`UrlHttp`); `urlHttp({maxLength: 100})` retunes the bound. **/
-export const urlHttp = presetFormatBuilder<'url', DEFAULT_URL_HTTP_PARAMS, Override<UrlParams, 'pattern'>>('url');
-/** file:// URL (`UrlFile`). **/
-export const urlFile = presetFormatBuilder<'url', DEFAULT_URL_FILE_PARAMS, Override<UrlParams, 'pattern'>>('url');
+export const stringUrl = presetFormatBuilder<'url', DEFAULT_URL_PARAMS, Override<UrlParams>>('url');
+/** HTTP(S) URL string (`StringUrlHttp`); `stringUrlHttp({maxLength: 100})` retunes the bound. **/
+export const stringUrlHttp = presetFormatBuilder<'url', DEFAULT_URL_HTTP_PARAMS, Override<UrlParams, 'pattern'>>('url');
+/** file:// URL string (`StringUrlFile`). **/
+export const stringUrlFile = presetFormatBuilder<'url', DEFAULT_URL_FILE_PARAMS, Override<UrlParams, 'pattern'>>('url');
 
-/** A URL object field (`NativeUrl`); `nativeUrl({maxLength: 200})` checks its href. **/
-export function nativeUrl(id?: InjectRunTypeId<UrlInstance>): RunType<UrlInstance>;
-export function nativeUrl<const P extends NativeUrlParams>(
-  formatParams: CompTimeArgs<ExactParams<P, NativeUrlParams>>,
-  id?: InjectRunTypeId<NativeUrl<P>>
-): RunType<NativeUrl<P>>;
-export function nativeUrl<const P extends NativeUrlParams, const B extends string>(
-  formatParams: CompTimeArgs<ExactParams<P, NativeUrlParams>>,
+/** A URL object field (`Url`); `url({maxLength: 200})` checks its href. **/
+export function url(id?: InjectRunTypeId<UrlInstance>): RunType<UrlInstance>;
+export function url<const P extends UrlObjectParams>(
+  formatParams: CompTimeArgs<ExactParams<P, UrlObjectParams>>,
+  id?: InjectRunTypeId<Url<P>>
+): RunType<Url<P>>;
+export function url<const P extends UrlObjectParams, const B extends string>(
+  formatParams: CompTimeArgs<ExactParams<P, UrlObjectParams>>,
   brandTag: BrandArg<B>,
-  id?: InjectRunTypeId<NativeUrl<P, B>>
-): RunType<NativeUrl<P, B>>;
-export function nativeUrl(
-  formatParamsOrId?: NativeUrlParams | InjectRunTypeId<UrlInstance>,
+  id?: InjectRunTypeId<Url<P, B>>
+): RunType<Url<P, B>>;
+export function url(
+  formatParamsOrId?: UrlObjectParams | InjectRunTypeId<UrlInstance>,
   brandOrId?: BrandArg<string> | InjectRunTypeId<UrlInstance>,
   id?: InjectRunTypeId<UrlInstance>
 ): RunType<UrlInstance> {
@@ -877,17 +877,17 @@ export function nativeUrl(
 }
 
 /** The call shape of the two URL object presets. **/
-export interface NativeUrlPresetBuilder<Defaults extends object> {
-  (id?: InjectRunTypeId<NativeUrlFormat<Defaults>>): RunType<NativeUrlFormat<Defaults>>;
-  <const P extends Override<NativeUrlParams, 'pattern'>>(
-    formatParams: CompTimeArgs<ExactParams<P, Override<NativeUrlParams, 'pattern'>>>,
-    id?: InjectRunTypeId<NativeUrlFormat<FormatDefaults<Defaults, P>>>
-  ): RunType<NativeUrlFormat<FormatDefaults<Defaults, P>>>;
+export interface UrlObjectPresetBuilder<Defaults extends object> {
+  (id?: InjectRunTypeId<UrlObjectFormat<Defaults>>): RunType<UrlObjectFormat<Defaults>>;
+  <const P extends Override<UrlObjectParams, 'pattern'>>(
+    formatParams: CompTimeArgs<ExactParams<P, Override<UrlObjectParams, 'pattern'>>>,
+    id?: InjectRunTypeId<UrlObjectFormat<FormatDefaults<Defaults, P>>>
+  ): RunType<UrlObjectFormat<FormatDefaults<Defaults, P>>>;
 }
-/** HTTP(S) URL object (`NativeUrlHttp`); `nativeUrlHttp({maxLength: 100})` retunes the bound. **/
-export const nativeUrlHttp = presetFormatBuilder('nativeUrl') as unknown as NativeUrlPresetBuilder<DEFAULT_URL_HTTP_PARAMS>;
-/** file:// URL object (`NativeUrlFile`). **/
-export const nativeUrlFile = presetFormatBuilder('nativeUrl') as unknown as NativeUrlPresetBuilder<DEFAULT_URL_FILE_PARAMS>;
+/** HTTP(S) URL object (`UrlHttp`); `urlHttp({maxLength: 100})` retunes the bound. **/
+export const urlHttp = presetFormatBuilder('nativeUrl') as unknown as UrlObjectPresetBuilder<DEFAULT_URL_HTTP_PARAMS>;
+/** file:// URL object (`UrlFile`). **/
+export const urlFile = presetFormatBuilder('nativeUrl') as unknown as UrlObjectPresetBuilder<DEFAULT_URL_FILE_PARAMS>;
 
 /** A string-date field (`StringDate`); `stringDate({format: 'DD-MM-YYYY'})`
  *  picks the layout and may add min/max bounds. **/

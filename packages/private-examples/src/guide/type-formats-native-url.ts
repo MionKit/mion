@@ -4,8 +4,8 @@ import {createJsonDecoderFn, createValidateFn} from '@mionjs/run-types';
 // start-native-url
 interface Bookmark {
   page: URL; // any URL object
-  api: TF.NativeUrlHttp<{maxLength: 200}>; // http(s) only, href up to 200 chars
-  backup: TF.NativeUrlFile; // file:// only
+  api: TF.UrlHttp<{maxLength: 200}>; // http(s) only, href up to 200 chars
+  backup: TF.UrlFile; // file:// only
 }
 
 const isBookmark = createValidateFn<Bookmark>();

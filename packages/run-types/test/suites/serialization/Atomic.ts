@@ -213,8 +213,8 @@ export const ATOMIC = {
     cloneDecoder: () => createJsonDecoderFn<URL>(),
     mutateDecoder: () => createJsonDecoderFn<URL>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<URL>(undefined, {strategy: 'compact'}),
-    schemaEncoder: () => createJsonEncoderFn(TF.nativeUrl()),
-    schemaDecoder: () => createJsonDecoderFn(TF.nativeUrl()),
+    schemaEncoder: () => createJsonEncoderFn(TF.url()),
+    schemaDecoder: () => createJsonDecoderFn(TF.url()),
     // A query, a fragment, credentials, a non-ASCII host and a non-http scheme must all survive the href round-trip.
     getTestData: () => ({
       values: [
