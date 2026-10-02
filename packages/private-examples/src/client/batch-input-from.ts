@@ -1,5 +1,5 @@
 import {initClient, batch, inputFrom} from '@mionjs/client';
-import type {MyApi} from './batch-orders.routes.ts';
+import type {MyApi} from './batch-chain.routes.ts';
 
 const {routes} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 
