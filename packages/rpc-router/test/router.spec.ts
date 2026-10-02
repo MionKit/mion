@@ -384,7 +384,7 @@ describe('Create routes should', () => {
     );
   });
 
-  it('Headers Functions should be considered public (non-private)', async () => {
+  it('A headers middleware should be considered public (non-private)', async () => {
     const routesWithHeadersMiddleware = {
       auth: mion.headersMiddleware((ctx, h: HeadersSubset<'Authorization'>): void => {
         // Headers Middleware with no return data and no body params

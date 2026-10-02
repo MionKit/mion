@@ -217,6 +217,21 @@ export const bad = (ctx: unknown, name: string) => name;
 /** @mion:headersMiddleware */
 export function ok(ctx: unknown, headers: unknown): void {}
 `}))
+	// Only a recognised tag gives the handler two context parameters, so a third unannotated one is reported.
+	assertCodes(t, check(t, map[string]string{"routes.ts": `
+/** @mion:headersMiddleware */
+export function bad(ctx: unknown, headers: unknown, id): void {}
+`}), diagnostics.CodeRouteMissingParamType)
+}
+
+// A file that never names the router package is only picked up by the helper call text.
+func TestStrongTypedRoutes_HeadersMiddlewareCallSignal(t *testing.T) {
+	assertCodes(t, check(t, map[string]string{
+		"mion.ts": prelude + "export {mion};\n",
+		"routes.ts": `import {mion} from './mion';
+export const bad = mion.headersMiddleware((ctx, headers, id): void => undefined);
+`,
+	}), diagnostics.CodeRouteMissingParamType)
 }
 
 // The router shapes an import-reading rule could not see.
