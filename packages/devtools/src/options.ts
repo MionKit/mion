@@ -5,17 +5,15 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Everything the mion PRESETS share, so the vite and Next lanes cannot drift apart: the same `runTypes`
-// options and `client` pointer, mapped to the same resolver options. What stays behind in each preset is only
+// Everything the mion PRESETS share, so the vite and Next lanes cannot drift apart: the same `tsConfig`,
+// `client` and `runTypes` options, mapped to the same resolver options. What stays behind in each preset is only
 // what its host has, so vite keeps the Vue SFC pass, middleware mode and module-graph invalidation, and Next
 // keeps nothing extra (the broker's typeDeps + stamp cover staleness, and Next runs its own dev server).
 
-import {assertValidBundleApi, type PluginOptions as TsRuntypesPluginOptions} from './core/unplugin.ts';
+import {assertValidClientRoutes, type PluginOptions as TsRuntypesPluginOptions} from './core/unplugin.ts';
 
 /** Options for the mion powered type transformation. */
 export interface MionRunTypesOptions {
-  /** Path to tsconfig.json (absolute, or relative to the vite root). */
-  tsConfig?: string;
   /** Explicit path to the mion resolver binary; unset, @mionjs/bin-compiler getExePath() takes MION_BIN, then
    *  the published platform binary. MION_BIN also covers the ESLint lane, so prefer it when both must match. */
   binary?: string;
@@ -65,18 +63,12 @@ export interface MionRunTypesOptions {
   sfc?: boolean;
 }
 
-/** A SEPARATE mion client project this API's build generates the batch transport from.
- *
- *  A batch is written in client code, but the server must know its id, its routes and its inline `inputFrom()`
- *  mappers before it runs one. The SERVER build reads them: its resolver builds the client project's tsconfig
- *  program next to its own, writes `<genDir>/rpc/batches.generated.js` plus one `<genDir>/rpc/pf/…` module per
- *  inline mapper with relative imports only, and appends the table's import to whichever module calls
- *  createMionRouter. Nothing is written into another project and no path leaks into a generated file. A server
- *  sharing its program with its client (fullstack, middleware mode) needs no pointer. The same pointer is the
- *  tsconfig plugin key `clientTsconfig` and the CLI flag `--client-tsconfig`. */
-export interface MionClientPointer {
-  /** Path to the client project's tsconfig (absolute, or relative to the vite root / Next cwd). */
-  tsConfig: string;
+/** How the client gets what it needs to call each route: its metadata and compiled functions. */
+export interface MionClientOptions {
+  /** 'bundle' (default) puts every called route's metadata and compiled functions in the client bundle; a route
+   *  the build cannot see is fetched only when the client sets up `useFetchMetadata`. 'fetch' gets every route's
+   *  from the server on first use, which needs client `useFetchMetadata` and server `mionFetchMetadata`. */
+  routes?: 'bundle' | 'fetch';
 }
 
 /** Resolves the mion resolver binary: explicit option, else @mionjs/bin-compiler getExePath(), which honours
@@ -92,39 +84,22 @@ export function resolveRtBinary(explicit?: string): string | undefined {
   return explicit; // otherwise @mionjs/bin-compiler getExePath() takes over (MION_BIN → platform binary)
 }
 
-/** The SEPARATE project declaring the mion API this client calls, the mirror of MionClientPointer.
- *  A `bundleApi` client compiles the server's functions from route types read under THAT tsconfig, since other
- *  settings (`lib`, `strictNullChecks`, paths) can resolve them differently. Not needed when sharing the API's program.
- *  Also the tsconfig plugin key `apiTsconfig` and the CLI flag `--api-tsconfig`. */
-export interface MionApiPointer {
-  /** Path to the API project's tsconfig (absolute, or relative to the vite root / Next cwd). */
-  tsConfig: string;
-}
-
-/** The subset of a mion preset's options that both lanes read. */
+/** The options both mion presets read. */
 export interface MionPresetOptions {
+  /** The ONE tsconfig whose program holds the client and the server code (absolute, or relative to the vite
+   *  root / Next cwd). Unset, `tsconfig.json` is searched upward from there, like tsc. */
+  tsConfig?: string;
+  client?: MionClientOptions;
   runTypes?: MionRunTypesOptions;
-  /** The separate client project this API serves batches to. See MionClientPointer. */
-  client?: MionClientPointer;
-  /** The separate project declaring the API this client calls. See MionApiPointer. */
-  api?: MionApiPointer;
-  /** Default true. `false` fetches all routes: needs client `useFetchMetadata` and server `mionFetchMetadata`. */
-  bundleApi?: TsRuntypesPluginOptions['bundleApi'];
 }
 
-/** The client-side half of MionPresetOptions: what a client build bundles and where its API lives. */
-export type MionClientBundleOptions = Pick<MionPresetOptions, 'api' | 'bundleApi'>;
-
-/** Maps mion's `runTypes` block and `client` pointer onto the resolver's own options. Shared by BOTH presets,
- *  so a knob added here reaches the vite lane and the Next lane in the same commit.
+/** Maps the shared preset options onto the resolver's own. Shared by BOTH presets, so a knob added here
+ *  reaches the vite lane and the Next lane in the same commit.
  *
  *  Host-specific hooks are NOT set here: `onSiteFilesChanged` and `onGenerate` are vite's module-graph
  *  invalidation, and the Next lane needs no equivalent (the broker declares typeDeps plus a stamp instead). */
-export function toRunTypesOptions(
-  rt: MionRunTypesOptions = {},
-  client?: MionClientPointer,
-  bundle: MionClientBundleOptions = {}
-): TsRuntypesPluginOptions {
+export function toRunTypesOptions(options: MionPresetOptions = {}): TsRuntypesPluginOptions {
+  const rt = options.runTypes ?? {};
   // The type says 'code' | 'both', but configs are plain JS/JSON often written by hand.
   if ((rt.emitMode as string) === 'functions') {
     throw new Error(
@@ -133,22 +108,12 @@ export function toRunTypesOptions(
         `Use 'code' (default) or 'both'.`
     );
   }
-  if (client !== undefined && !client.tsConfig) {
-    throw new Error(`[mion] client.tsConfig must name the client project's tsconfig (absolute, or relative to the root).`);
-  }
-  if (bundle.api !== undefined && !bundle.api.tsConfig) {
-    throw new Error(`[mion] api.tsConfig must name the API project's tsconfig (absolute, or relative to the root).`);
-  }
-  assertValidBundleApi(bundle.bundleApi);
+  assertValidClientRoutes(options.client?.routes);
   // Project `references` in the tsconfig are fine: the resolver drops them when building its scan program.
   return {
     binary: resolveRtBinary(rt.binary),
-    tsconfig: rt.tsConfig,
-    // Forwarded as given: the resolver resolves a relative path against its own cwd, like `tsconfig` above.
-    clientTsconfig: client?.tsConfig,
-    // The client-side pair, forwarded as given like the client pointer above.
-    apiTsconfig: bundle.api?.tsConfig,
-    bundleApi: bundle.bundleApi,
+    tsconfig: options.tsConfig,
+    clientRoutes: options.client?.routes,
     genDir: rt.genDir,
     emitMode: rt.emitMode,
     moduleMode: rt.moduleMode,

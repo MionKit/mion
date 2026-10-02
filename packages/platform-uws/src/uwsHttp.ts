@@ -17,6 +17,7 @@ import {
   setPlatformConfig,
   getResponseDefaults,
   requestPayloadTooLarge,
+  hostOwnsSocket,
 } from '@mionjs/router';
 import {STATUS_CODES} from 'http';
 import {loadUws} from '@mionjs/bin-uws';
@@ -54,13 +55,7 @@ export function resetUwsHttpOpts() {
 
 export function setUwsHttpOpts(options?: Partial<UwsHttpOptions>) {
   // uWS is its own C++ event loop and owns its listen socket, so it cannot mount on a host node server.
-  // The vite plugin discovers this setter generically, so the flag is refused loudly here.
-  if ((options as {asMiddleware?: boolean} | undefined)?.asMiddleware) {
-    throw new Error(
-      '@mionjs/platform-uws does not support middleware mode: uWebSockets.js owns its own listen ' +
-        'socket and cannot mount on a host node server. Use @mionjs/platform-node for middleware mode.'
-    );
-  }
+  if ((options as {asMiddleware?: boolean} | undefined)?.asMiddleware) throwNoMiddlewareMode();
   httpOptions = {
     ...httpOptions,
     ...options,
@@ -76,10 +71,18 @@ function serializablePlatformConfig(): Record<string, unknown> {
   return serializableConfig;
 }
 
+function throwNoMiddlewareMode(): never {
+  throw new Error(
+    '@mionjs/platform-uws does not support middleware mode: uWebSockets.js owns its own listen ' +
+      'socket and cannot mount on a host node server. Use @mionjs/platform-node for middleware mode.'
+  );
+}
+
 export async function startUwsServer(options?: Partial<UwsHttpOptions>): Promise<UwsServer> {
   const isTest = getENV('NODE_ENV') === 'test';
 
   if (options) setUwsHttpOpts(options);
+  if (hostOwnsSocket()) throwNoMiddlewareMode();
   const protocol = httpOptions.ssl ? 'https' : 'http';
   const port = httpOptions.port !== 80 ? `:${httpOptions.port}` : '';
   const url = `${protocol}://localhost${port}`;

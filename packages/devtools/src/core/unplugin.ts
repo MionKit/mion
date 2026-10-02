@@ -56,15 +56,13 @@ export interface GenerateInfo {
   outDir: string;
   // `<outDir>/rpc/batches.generated.js`, or '' when no batch table was written.
   batchesModule: string;
-  batchSourceFiles: string[];
-  batchSourceRoots: string[];
   routerInitFiles: string[];
 }
 
-/** A non-boolean bundleApi would otherwise read as truthy. */
-export function assertValidBundleApi(bundleApi: unknown): void {
-  if (bundleApi !== undefined && typeof bundleApi !== 'boolean') {
-    throw new Error(`[mion] bundleApi must be true or false (got ${JSON.stringify(bundleApi)}).`);
+/** Configs are often plain JS, so an unknown mode is refused here rather than read as the default. */
+export function assertValidClientRoutes(clientRoutes: unknown): void {
+  if (clientRoutes !== undefined && clientRoutes !== 'bundle' && clientRoutes !== 'fetch') {
+    throw new Error(`[mion] client routes must be 'bundle' or 'fetch' (got ${JSON.stringify(clientRoutes)}).`);
   }
 }
 
@@ -79,19 +77,9 @@ export interface PluginOptions {
   cwd?: string;
   // Relative to cwd; unset, searched upward from cwd like tsc.
   tsconfig?: string;
-  // The SEPARATE mion client project this one serves batches to (relative to cwd, or absolute): the resolver
-  // builds that program next to its own and generates the batch table + inline inputFrom mappers under `<genDir>/rpc/`.
-  // Leave it unset when client and server share one program — the program is then the batch source.
-  // Same key as the tsconfig entry's `clientTsconfig` and the CLI's `--client-tsconfig`.
-  clientTsconfig?: string;
-  // The SEPARATE project declaring the mion API this client calls (relative to cwd, or absolute).
-  // Under `bundleApi` every route's types are resolved THERE, so the client emits exactly the server's
-  // runtypes whatever this project's own `lib` or strictness. Unset when client and API share one program.
-  // Same key as the tsconfig entry's `apiTsconfig` and the CLI's `--api-tsconfig`.
-  apiTsconfig?: string;
-  // Default true; false fetches every route. Same key as tsconfig `bundleApi` and CLI `--bundle-api` (`off`).
-  // Under true, a route the build did not see is reported, and fetched only if the client sets up `useFetchMetadata`.
-  bundleApi?: boolean;
+  // Default 'bundle'; 'fetch' fetches every route. Same key as tsconfig `clientRoutes` and CLI `--client-routes`.
+  // Under 'bundle', a route the build did not see is reported, and fetched only if the client sets up `useFetchMetadata`.
+  clientRoutes?: 'bundle' | 'fetch';
   // Generated-output root, relative to cwd: cache modules under `<genDir>/types/` (gitignored), committed
   // enrichment under `<genDir>/enriched/`. Omitted, the resolver infers `<srcDir>/.mion` from the tsconfig.
   // It lives in the project rather than node_modules so a dev watcher sees regenerated modules.
@@ -341,7 +329,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
     //
     // Surface a config typo at the host boundary (the binary validates the merged value too).
     assertValidModuleMode(options.moduleMode);
-    assertValidBundleApi(options.bundleApi);
+    assertValidClientRoutes(options.clientRoutes);
     // getExePath throws with a clear message when no platform binary is installed.
     const binaryPath = options.binary ?? getExePath();
     // Forward ONLY an explicit options.tsconfig: the Go side hard errors when it is missing or broken,
@@ -369,9 +357,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       // imports (the generated modules are real files on disk), and locales/sourceLocale default from the
       // tsconfig i18n block.
       ...(genDirAbs ? {genDir: genDirAbs} : {}),
-      ...(options.clientTsconfig ? {clientTsconfig: options.clientTsconfig} : {}),
-      ...(options.apiTsconfig ? {apiTsconfig: options.apiTsconfig} : {}),
-      ...(options.bundleApi !== undefined ? {bundleApi: options.bundleApi ? 'bundled' : 'off'} : {}),
+      ...(options.clientRoutes ? {clientRoutes: options.clientRoutes} : {}),
       transformRelative: true,
       ...(options.sourcesContent === false ? {omitSourcesContent: true} : {}),
       ...(enrichFriendly ? {enrichFriendly: true} : {}),
@@ -636,33 +622,6 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
     );
   }
 
-  // The separate batch source (the `clientTsconfig` program), absolute, as the last generate echoed it.
-  // It sits OUTSIDE this program, so the dev server is told to watch it (see configureServer): an edit or
-  // deletion of a known file, or a file CREATED under a root, regenerates. The resolver then rewrites
-  // `<genDir>/rpc/`, which the router-init module imports, so vite reloads it as an ordinary change.
-  const batchSourceFiles = new Set<string>();
-  const batchSourceRoots = new Set<string>();
-  let batchSourceWatcher: {add: (file: string) => void} | undefined;
-  // Add each root once: chokidar re-scans on every add(), and ignoreInitial swallows a file created mid-scan.
-  const watchedBatchRoots = new Set<string>();
-  function watchBatchRoots(): void {
-    if (!batchSourceWatcher) return;
-    for (const root of batchSourceRoots) {
-      if (watchedBatchRoots.has(root)) continue;
-      watchedBatchRoots.add(root);
-      batchSourceWatcher.add(root);
-    }
-  }
-
-  const SOURCE_FILE_RE = /\.[mc]?[jt]sx?$/;
-  function isBatchSourcePath(file: string): boolean {
-    const resolved = path.resolve(file);
-    if (batchSourceFiles.has(resolved)) return true;
-    if (!SOURCE_FILE_RE.test(resolved) || resolved.includes(`${path.sep}node_modules${path.sep}`)) return false;
-    for (const root of batchSourceRoots) if (resolved.startsWith(root + path.sep)) return true;
-    return false;
-  }
-
   // Every generate goes through here, so the artifact always tracks the last whole-program render.
   async function regenerate(): Promise<GenerateResult> {
     const gen = await resolver!.generate();
@@ -728,34 +687,11 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
   }
 
   function reportGenerate(gen: GenerateResult): void {
-    const files = gen.batchSourceFiles.map((file) => path.resolve(file));
-    const roots = gen.batchSourceRoots.map((root) => path.resolve(root));
-    batchSourceFiles.clear();
-    for (const file of files) batchSourceFiles.add(file);
-    batchSourceRoots.clear();
-    for (const root of roots) batchSourceRoots.add(root);
-    // Roots, not files, are watched: chokidar watches a directory recursively, so a created file shows up.
-    watchBatchRoots();
     options.onGenerate?.({
       outDir: gen.outDir,
       batchesModule: gen.batchesModule,
-      batchSourceFiles: files,
-      batchSourceRoots: roots,
       routerInitFiles: gen.routerInitFiles.map((file) => path.resolve(file)),
     });
-  }
-
-  /** A batch-source edit: regenerate (the resolver rebuilds the client program) and report. */
-  async function onBatchSourceChange(): Promise<void> {
-    if (!resolver) return;
-    try {
-      const gen = await regenerate();
-      for (const file of gen.siteFiles) siteFiles.add(siteKey(file));
-      reportGenerate(gen);
-      devReporter.update(gen.diagnostics ?? [], downgrade);
-    } catch (error) {
-      devRegenerateFailed(error);
-    }
   }
 
   // The in-memory mirror of the project's sources, seeded on the FIRST incremental update rather than at
@@ -1002,7 +938,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
     // NEVER declared on bun: unplugin registers one `onResolve({filter: /.*/})` for the whole plugin as soon
     // as any resolveId hook exists, and bun's loader then fails every module this plugin returns null for,
     // entry point included. The stub is only a size win, so bun keeps the real module.
-    ...(meta.framework !== 'bun' && options.bundleApi === false
+    ...(meta.framework !== 'bun' && options.clientRoutes === 'fetch'
       ? {
           // nothing injected reaches a dispatch point, so stubbing the dead registration lane drops core's marker reflection too
           resolveId(id: string) {
@@ -1089,27 +1025,6 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
         ensureResolver();
       },
 
-      // Vite's graph never sees the batch source's files, so they are watched here; this program's never are.
-      configureServer(server: any) {
-        const watcher = server?.watcher;
-        if (!watcher?.add || !watcher?.on) return;
-        batchSourceWatcher = watcher;
-        watchedBatchRoots.clear();
-        watchBatchRoots();
-        const onChange = (file: string): void => {
-          if (!isBatchSourcePath(file)) return;
-          void onBatchSourceChange();
-        };
-        // `add` fires for every file of a newly registered directory; only one the last generate never listed is new.
-        const onAdd = (file: string): void => {
-          if (batchSourceFiles.has(path.resolve(file))) return;
-          onChange(file);
-        };
-        watcher.on('change', onChange);
-        watcher.on('unlink', onChange);
-        watcher.on('add', onAdd);
-      },
-
       // The HMR pivot: pushing the new contents into the resolver rebuilds the whole Program, the biggest
       // HMR cost. Generated module names are content-addressed and written only-on-change, so the watcher
       // reloads exactly the modules whose bytes moved and the re-transformed user file imports any new ones.
@@ -1121,8 +1036,6 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
         // reloading nothing is what keeps the auto-sync writes out of a reload loop.
         if (suppressEnrichHmr && isUnderEnrichedDir(file)) return [];
         if (!/\.[mc]?[jt]sx?$/.test(file)) return;
-        // configureServer's watcher already regenerates for a batch source file.
-        if (isBatchSourcePath(file)) return;
         const content = typeof ctx.read === 'function' ? await ctx.read() : undefined;
         const stale = await applyHotUpdate(this, [{file, content}]);
         if (stale.length === 0) return;

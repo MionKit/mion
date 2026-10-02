@@ -71,9 +71,9 @@ export interface LintWorkerResponse {
   fatal?: boolean;
 }
 
-// bundleApi off: lint scans one file, and the bundled-API and metadata-fetching checks need the whole program
+// Routes fetched: lint scans one file, and the bundled-API and metadata-fetching checks need the whole program
 export const LINT_RESOLVER_OPTIONS = {
   serverMode: true,
   singleThreaded: true,
-  bundleApi: 'off',
+  clientRoutes: 'fetch',
 } as const satisfies ResolverClientOptions;

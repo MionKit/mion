@@ -52,7 +52,7 @@ async function buildFixture(name: string, runTypes: Partial<MionRunTypesOptions>
         // The marker package is installed as types only; its runtime is never bundled here.
         rollupOptions: {external: [/^@mionjs\/run-types/]},
       },
-      plugins: [mionVitePlugin({runTypes: {tsConfig: resolve(dir, 'tsconfig.json'), ...runTypes}}) as never],
+      plugins: [mionVitePlugin({tsConfig: resolve(dir, 'tsconfig.json'), runTypes}) as never],
     });
   } catch (e) {
     ok = false;

@@ -14,7 +14,7 @@ type RollupOutput = Extract<Awaited<ReturnType<typeof build>>, {output: unknown}
 import {mionVitePlugin} from '../../src/vite/mionVitePlugin.ts';
 import {BIN, hasBinary, writeMarkerPackage} from '../helpers/inline.ts';
 
-// The bundled-API lane through a REAL vite build over a REAL program: with `bundleApi` on, the
+// The bundled-API lane through a REAL vite build over a REAL program: with `client.routes: 'bundle'`, the
 // resolver writes `<genDir>/api/` (one module per route or middleware the program calls, the site
 // modules, the manifest), the transform imports the lane module into the file calling initClient
 // and injects each site's module at
@@ -114,7 +114,7 @@ register('bundled API through a real vite build', () => {
   afterEach(() => rmSync(root, {recursive: true, force: true}));
 
   /** Builds the fixture client through the real preset and returns the single emitted chunk. */
-  async function buildClient(bundleApi?: boolean, warnings: string[] = []): Promise<string> {
+  async function buildClient(routes?: 'bundle' | 'fetch', warnings: string[] = []): Promise<string> {
     const result = await build({
       root,
       configFile: false,
@@ -129,8 +129,9 @@ register('bundled API through a real vite build', () => {
         hasWarned: false,
       },
       plugins: mionVitePlugin({
-        runTypes: {tsConfig: path.join(root, 'tsconfig.json'), binary: BIN, genDir: path.join(root, '.mion')},
-        bundleApi,
+        tsConfig: path.join(root, 'tsconfig.json'),
+        runTypes: {binary: BIN, genDir: path.join(root, '.mion')},
+        client: {routes},
       }),
       resolve: {alias: {'@mionjs/client': path.join(root, 'client-stub.js')}},
       build: {
@@ -174,14 +175,14 @@ register('bundled API through a real vite build', () => {
   }
 
   it('writes api/ under the gen dir: the called methods with their chains, the site modules, the manifest', async () => {
-    await buildClient(true);
+    await buildClient('bundle');
     const api = path.join(root, '.mion', 'api');
     const files = walk(api);
     expect(files.filter((file) => file.startsWith('m/'))).toEqual(['m/auth.js', 'm/users/getById.js']);
     // a middleware is no dispatch point, it rides its route's chain
     expect(files.filter((file) => file.startsWith('s/'))).toEqual(['s/users/getById.js']);
     expect(files.some((file) => file.startsWith('types/'))).toBe(true);
-    const manifest = JSON.parse(readFileSync(path.join(api, 'manifest.json'), 'utf8')) as {
+    const manifest = JSON.parse(readFileSync(path.join(api, 'client-manifest.json'), 'utf8')) as {
       kind: string;
       methods: Record<string, unknown>;
     };
@@ -196,7 +197,7 @@ register('bundled API through a real vite build', () => {
   });
 
   it('inlines the bundle into a self-contained artifact: live factories, no code string, nothing for the uncalled route', async () => {
-    const code = await buildClient(true);
+    const code = await buildClient('bundle');
     expect(code).toContain('setApiBundled()');
     expect(code).toContain('"users/getById"');
     expect(code).not.toContain('users/remove');
@@ -210,7 +211,7 @@ register('bundled API through a real vite build', () => {
   });
 
   it('runs with dynamic code disabled: the artifact hands each dispatch point its bundle', async () => {
-    const globals = await runArtifact(await buildClient(true));
+    const globals = await runArtifact(await buildClient('bundle'));
     expect(globals.__bundled).toBe(true);
     const bundles = globals.__bundles ?? {};
     expect(Object.keys(bundles).sort()).toEqual(['users/getById']);
@@ -237,7 +238,7 @@ register('bundled API through a real vite build', () => {
   it('fails the build when a called route runs a middleware the client never sets up (MET008)', async () => {
     writeFileSync(path.join(root, 'src', 'a.ts'), CLIENT.replace(/^middlewares\.auth.*$/m, ''));
     const warnings: string[] = [];
-    await expect(buildClient(true, warnings)).rejects.toThrow(/build stopped/);
+    await expect(buildClient('bundle', warnings)).rejects.toThrow(/build stopped/);
     expect(warnings.join('\n')).toMatch(/MET008.*`auth`/);
   });
 
@@ -249,18 +250,18 @@ register('bundled API through a real vite build', () => {
     expect(globals.__bundles?.['users/getById']).toBeDefined();
   });
 
-  it('stops a bundleApi: false build whose API serves no metadata to fetch (MET010)', async () => {
+  it('stops a fetching build whose API serves no metadata to fetch (MET010)', async () => {
     const warnings: string[] = [];
-    await expect(buildClient(false, warnings)).rejects.toThrow(/build stopped/);
+    await expect(buildClient('fetch', warnings)).rejects.toThrow(/build stopped/);
     expect(warnings.join('\n')).toMatch(/MET010/);
   });
 
-  it('writes nothing and injects nothing with bundleApi: false', async () => {
+  it('writes nothing and injects nothing when routes are fetched', async () => {
     writeFileSync(
       path.join(root, 'src', 'a.ts'),
       CLIENT.replace('export const {routes', '// @mion-expect-error MET010\nexport const {routes')
     );
-    const code = await buildClient(false);
+    const code = await buildClient('fetch');
     expect(existsSync(path.join(root, '.mion', 'api'))).toBe(false);
     expect(code).not.toContain('setApiBundled');
     expect(code).not.toContain('__rt_s$2F');

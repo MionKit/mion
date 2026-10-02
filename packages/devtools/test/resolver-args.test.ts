@@ -205,8 +205,8 @@ describe('buildResolverArgs — marker package gate', () => {
 describe('buildResolverArgs — the lint lane', () => {
   it('turns bundling off: the bundled-API and fetching checks read the whole program, lint scans one file', () => {
     const args = buildResolverArgs('/proj', '', LINT_RESOLVER_OPTIONS);
-    const idx = args.indexOf('--bundle-api');
+    const idx = args.indexOf('--client-routes');
     expect(idx).toBeGreaterThanOrEqual(0);
-    expect(args[idx + 1]).toBe('off');
+    expect(args[idx + 1]).toBe('fetch');
   });
 });

@@ -15,17 +15,20 @@ import type {MionServerOptions} from './mionVitePlugin.ts';
 // ############# in-process (middleware) server mode #############
 // Runs the mion API INSIDE the vite dev server: the entry is loaded through `ssrLoadModule`, so it shares the
 // module graph with the app, and its handler is mounted as connect middleware. One process, one port. The
-// "don't open a port" half is an ordinary platform option (`asMiddleware`) the plugin sets on the adapter
-// before loading the entry, so an unchanged `initRoutes(routes); startNodeServer();` entry works as written.
+// "don't open a port" half is the router's host flag, set before the entry loads: whatever platform adapter
+// the entry starts then skips listening and hands over its handler, so an unchanged
+// `initRoutes(routes); startNodeServer();` entry works as written.
 
 /** Node-style handler, as exported by @mionjs/platform-node. */
 type NodeHandler = (req: IncomingMessage, res: ServerResponse) => void;
 /** Fetch-style handler, as exported by @mionjs/platform-bun and buildable from the edge adapters. */
 type FetchHandler = (req: Request) => Response | Promise<Response>;
 
-/** Export names searched for a handler, entry module first, then the platform module. */
+/** Export names searched for a handler on the entry module, and on the node adapter when nothing else gave one. */
 const NODE_HANDLER_EXPORTS = ['httpRequestHandler'];
 const FETCH_HANDLER_EXPORTS = ['requestHandler', 'bunRequestHandler', 'fetch'];
+/** Serves an entry that registers routes but starts no adapter. */
+const DEFAULT_PLATFORM = '@mionjs/platform-node';
 
 /** Paths never sent to mion when the router has no basePath, the same shape as @hono/vite-dev-server's
  *  defaults: vite internals, HMR pings and static assets must reach vite's own middlewares. */
@@ -50,8 +53,8 @@ export interface MiddlewareReadySignals {
 
 /** The vite plugin that mounts the mion API in-process — the one way the preset runs it. */
 export function mionMiddlewarePlugin(options: MionServerOptions, signals: MiddlewareReadySignals): Plugin {
-  const startScript = path.resolve(options.startScript);
-  const platformId = options.platform ?? '@mionjs/platform-node';
+  // A relative entry is the vite root's, settled in configResolved.
+  let entryPath = path.resolve(options.entry);
   const exclude = options.exclude ?? DEFAULT_MIDDLEWARE_EXCLUDE;
   let mounted = false;
   let initPromise: Promise<void> | undefined;
@@ -60,19 +63,20 @@ export function mionMiddlewarePlugin(options: MionServerOptions, signals: Middle
   let fetchHandler: FetchHandler | undefined;
   let mountPath = '';
   let staleSince: number | undefined;
+  let routerModule: Record<string, any> | undefined;
 
   /** Loads the entry through vite's SSR pipeline and resolves its handler + mount path. */
   async function load(server: ViteDevServer): Promise<void> {
-    const platform = await server.ssrLoadModule(platformId);
-    setAsMiddleware(platform, platformId);
-    const entry = await server.ssrLoadModule(startScript);
+    const router = await server.ssrLoadModule('@mionjs/router');
+    routerModule = router;
+    router.setHostOwnsSocket(true);
+    const entry = await server.ssrLoadModule(entryPath);
     // `mion.initRoutes()` is synchronous, but an entry may still export a promise of its own (a
     // platform start it did not await); awaiting those keeps the first request from racing it.
     await Promise.all(Object.values(entry).filter((value): value is Promise<unknown> => value instanceof Promise));
-    const router = await server.ssrLoadModule('@mionjs/router');
-    assertNotListening(router, platformId);
-    mountPath = normalizeMountPath(options.basePath ?? router.getRouterOptions?.().basePath);
-    const handlers = pickHandler(entry, platform, platformId);
+    assertNotListening(router);
+    mountPath = normalizeMountPath(router.getRouterOptions?.().basePath);
+    const handlers = await pickHandler(server, entry, router.getHostRequestHandler?.());
     nodeHandler = handlers.node;
     fetchHandler = handlers.fetch;
   }
@@ -83,7 +87,7 @@ export function mionMiddlewarePlugin(options: MionServerOptions, signals: Middle
       () => signals.onReady(),
       (err) => {
         initError = err instanceof Error ? err : new Error(String(err));
-        console.error(`[mion] middleware mode failed to load ${startScript}:`, initError);
+        console.error(`[mion] middleware mode failed to load ${entryPath}:`, initError);
         signals.onError(initError);
       }
     );
@@ -97,7 +101,7 @@ export function mionMiddlewarePlugin(options: MionServerOptions, signals: Middle
     // legacy mixed-graph module node leaves the next ssrLoadModule serving the cached, stale entry.
     const ssrGraph = (server as any).environments?.ssr?.moduleGraph;
     const graph = ssrGraph ?? server.moduleGraph;
-    const entryModule = await graph.getModuleByUrl(startScript, true);
+    const entryModule = await graph.getModuleByUrl(entryPath, true);
     if (entryModule) invalidateOwnModules(server, graph, entryModule);
     const router = await server.ssrLoadModule('@mionjs/router');
     router.resetRouter?.();
@@ -106,6 +110,15 @@ export function mionMiddlewarePlugin(options: MionServerOptions, signals: Middle
 
   return {
     name: 'mion-middleware-server',
+
+    configResolved(config) {
+      entryPath = path.resolve(config.root, options.entry);
+    },
+
+    // The flag is process-wide, so a later server started in the same process (a test runner) listens again.
+    closeBundle() {
+      routerModule?.setHostOwnsSocket(false);
+    },
 
     config() {
       // The API and the app share one SSR module graph here, and two @mionjs/core instances mean two route
@@ -178,49 +191,46 @@ export function mionMiddlewarePlugin(options: MionServerOptions, signals: Middle
   };
 }
 
-/** Tells the platform adapter the HOST owns the socket, before the entry can call it. */
-function setAsMiddleware(platform: Record<string, any>, platformId: string): void {
-  const setter = Object.keys(platform).find((key) => /^set[A-Za-z]*Opts$/.test(key) && typeof platform[key] === 'function');
-  if (!setter) {
-    throw new Error(
-      `[mionVitePlugin] ${platformId} exports no set…Opts() function, so middleware mode cannot tell it to skip ` +
-        `listen(). Point server.platform at a mion platform adapter (@mionjs/platform-node by default).`
-    );
-  }
-  platform[setter]({asMiddleware: true});
-}
-
-/** Fails loudly when the entry opened a port anyway — which means the plugin and the entry got
- *  DIFFERENT copies of the adapter module, so the flag above never reached the one that listened. */
-function assertNotListening(router: Record<string, any>, platformId: string): void {
+/** Fails loudly when the entry opened a port anyway, which means the entry got a DIFFERENT copy of the router
+ *  than the one the host flag was set on. */
+function assertNotListening(router: Record<string, any>): void {
   const platformConfig = router.getPlatformConfig?.();
   // No adapter was started at all (a pure initRoutes entry): nothing to check.
   if (!platformConfig) return;
   if (platformConfig.asMiddleware === true) return;
   throw new Error(
-    `[mionVitePlugin] middleware mode: the server entry opened its own port — ${platformId} was loaded twice, so ` +
-      `the asMiddleware option never reached the copy the entry used. Make sure ssr.noExternal keeps @mionjs/* ` +
+    `[mionVitePlugin] middleware mode: the server entry opened its own port. @mionjs/router was loaded twice, ` +
+      `so the platform adapter never saw that vite owns the socket. Make sure ssr.noExternal keeps @mionjs/* ` +
       `in one instance (the plugin adds /@mionjs\\// for you; a custom ssr.noExternal must not drop it).`
   );
 }
 
-/** Node-style handler wins when both exist: no Request/Response is materialized for it. */
-function pickHandler(
+/** The entry's own export wins, then the handler the started adapter handed over, then the node adapter's for an
+ *  entry that only calls initRoutes. A node-style handler wins when both exist: no Request/Response is built for it. */
+async function pickHandler(
+  server: ViteDevServer,
   entry: Record<string, any>,
-  platform: Record<string, any>,
-  platformId: string
-): {node?: NodeHandler; fetch?: FetchHandler} {
-  for (const source of [entry, platform]) {
-    const node = NODE_HANDLER_EXPORTS.map((name) => source[name]).find((fn) => typeof fn === 'function');
-    if (node) return {node};
-    const fetch = FETCH_HANDLER_EXPORTS.map((name) => source[name]).find((fn) => typeof fn === 'function');
-    if (fetch) return {fetch};
-  }
+  hostHandler: {node?: NodeHandler; fetch?: FetchHandler} | undefined
+): Promise<{node?: NodeHandler; fetch?: FetchHandler}> {
+  const fromEntry = handlerExportOf(entry);
+  if (fromEntry) return fromEntry;
+  if (hostHandler?.node) return {node: hostHandler.node};
+  if (hostHandler?.fetch) return {fetch: hostHandler.fetch};
+  const nodeAdapter = await server.ssrLoadModule(DEFAULT_PLATFORM).catch(() => undefined);
+  const fromAdapter = nodeAdapter && handlerExportOf(nodeAdapter);
+  if (fromAdapter) return fromAdapter;
   throw new Error(
-    `[mionVitePlugin] middleware mode found no request handler. Expected one of ` +
-      `${[...NODE_HANDLER_EXPORTS, ...FETCH_HANDLER_EXPORTS].join(', ')} exported by ${platformId} or by the ` +
-      `server entry itself (export your adapter's handler as \`requestHandler\` to use any other platform).`
+    `[mionVitePlugin] middleware mode found no request handler. Start a mion platform adapter in the server ` +
+      `entry, or export one of ${[...NODE_HANDLER_EXPORTS, ...FETCH_HANDLER_EXPORTS].join(', ')} from it.`
   );
+}
+
+function handlerExportOf(source: Record<string, any>): {node?: NodeHandler; fetch?: FetchHandler} | undefined {
+  const node = NODE_HANDLER_EXPORTS.map((name) => source[name]).find((fn) => typeof fn === 'function');
+  if (node) return {node};
+  const fetch = FETCH_HANDLER_EXPORTS.map((name) => source[name]).find((fn) => typeof fn === 'function');
+  if (fetch) return {fetch};
+  return undefined;
 }
 
 /** '', 'api/v1' and '/api/v1/' all normalize to the prefix route paths actually carry ('/api/v1'). */

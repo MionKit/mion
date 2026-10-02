@@ -105,7 +105,8 @@ register('batch transport through a real vite build', () => {
       configFile: false,
       logLevel: 'silent',
       plugins: mionVitePlugin({
-        runTypes: {tsConfig: path.join(root, 'tsconfig.json'), binary: BIN, genDir: path.join(root, '.mion')},
+        tsConfig: path.join(root, 'tsconfig.json'),
+        runTypes: {binary: BIN, genDir: path.join(root, '.mion')},
       }),
       resolve: {alias: {'@mionjs/router': path.join(root, 'router-stub.js'), '@mionjs/core': path.join(root, 'core-stub.js')}},
       build: {

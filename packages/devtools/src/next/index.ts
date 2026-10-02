@@ -28,8 +28,8 @@ export {
   RUNTYPES_LOADER,
 } from '../runtypes/next/index.ts';
 
-/** Same `runTypes` block and `client` pointer the vite preset takes. No `server` block (Next runs its own dev
- *  server), and the Vue SFC switch and the run modes have no meaning under Next. */
+/** Same `tsConfig`, `client` and `runTypes` options the vite preset takes. No `server` block (Next runs its own
+ *  dev server), and the Vue SFC switch has no meaning under Next. */
 export interface MionNextOptions extends MionPresetOptions {
   /** Project root the broker scans. Defaults to `process.cwd()`, where Next evaluates `next.config`. */
   cwd?: string;
@@ -53,14 +53,12 @@ export async function withMion(nextConfig: NextConfigLike = {}, options: MionNex
   if ((options as Record<string, unknown>).server !== undefined) {
     throw new Error(
       `[withMion] there is no \`server\` option: Next runs its own dev server and builds your API route ` +
-        `with everything else. Serve the API from an \`app/api/[...mion]/route.ts\` handler, or, when it is a ` +
-        `separate project, point that project's plugin at this app's tsconfig with \`client.tsConfig\`.`
+        `with everything else. Serve the API from an \`app/api/[...mion]/route.ts\` handler.`
     );
   }
-  const rt = options.runTypes ?? {};
   const root = options.cwd ?? process.cwd();
   const resolverOptions: NextOptions = {
-    ...toRunTypesOptions(rt, options.client, {api: options.api, bundleApi: options.bundleApi}),
+    ...toRunTypesOptions(options),
     cwd: root,
   };
   return withRunTypes(nextConfig, resolverOptions);

@@ -79,15 +79,8 @@ export interface ResolverClientOptions {
   // since EVERY op needing the root resolves it the same way (flag > tsconfig genDir > inferred <srcDir>/.mion);
   // undefined lets the Go side resolve it and echo the result back on GenerateResult.outDir.
   genDir?: string;
-  // Forwarded as --client-tsconfig: the tsconfig of a SEPARATE mion client project this (server) session generates
-  // the batch transport from (`<outDir>/rpc/`); relative paths resolve against the resolver's cwd.
-  // Undefined means the program itself is the batch source.
-  clientTsconfig?: string;
-  // Forwarded as --api-tsconfig: the tsconfig of the SEPARATE project declaring the API this (client) session calls,
-  // where the bundleApi lane resolves the routes' types. Undefined means the API is in this program.
-  apiTsconfig?: string;
-  // Forwarded as --bundle-api; unset leaves the binary's default, 'bundled'.
-  bundleApi?: 'bundled' | 'off';
+  // Forwarded as --client-routes; unset leaves the binary's default, 'bundle'.
+  clientRoutes?: 'bundle' | 'fetch';
   // Forwarded as --transform-relative: rewrite the injected import block's `rtmod:` specifiers to paths relative to
   // the resolved output root (files mode). The bundler plugin always sets it; the virtual-module lanes (batchcompile
   // pass 1, the transform-wire bench, the inline test lane) leave it off. Session config: every consumer is homogeneous.
@@ -277,11 +270,9 @@ export interface GenerateResult {
   modules: string[];
   outDir: string;
   siteFiles: string[];
-  // The batch transport echo, see Response.batchesModule / batchSourceFiles / routerInitFiles.
+  // The batch transport echo, see Response.batchesModule / routerInitFiles.
   // `batchesModule` is '' when no table was written.
   batchesModule: string;
-  batchSourceFiles: string[];
-  batchSourceRoots: string[];
   routerInitFiles: string[];
   diagnostics?: Diagnostic[];
   // Whole-program pure-fn build report, present only when the resolver's report is enabled: the plugin's
@@ -396,8 +387,6 @@ abstract class ResolverClientBase implements ResolverConnection {
       outDir: resp.outDir ?? '',
       siteFiles: resp.siteFiles ?? [],
       batchesModule: resp.batchesModule ?? '',
-      batchSourceFiles: resp.batchSourceFiles ?? [],
-      batchSourceRoots: resp.batchSourceRoots ?? [],
       routerInitFiles: resp.routerInitFiles ?? [],
       diagnostics: resp.diagnostics,
       pureFnSites: resp.pureFnSites,
@@ -489,9 +478,7 @@ export function buildResolverArgs(cwd: string, tsconfigPath: string, opts: Resol
   if (opts.pureFnReportFile) args.push('--pure-fn-report-file');
   // Session config the wire deliberately does not carry: the output-root override and the OpEnrich family / i18n selection.
   if (opts.genDir) args.push('--gen-dir', opts.genDir);
-  if (opts.clientTsconfig) args.push('--client-tsconfig', opts.clientTsconfig);
-  if (opts.apiTsconfig) args.push('--api-tsconfig', opts.apiTsconfig);
-  if (opts.bundleApi) args.push('--bundle-api', opts.bundleApi);
+  if (opts.clientRoutes) args.push('--client-routes', opts.clientRoutes);
   if (opts.transformRelative) args.push('--transform-relative');
   if (opts.omitSourcesContent) args.push('--omit-sources-content');
   if (opts.enrichFriendly) args.push('--enrich-friendly');

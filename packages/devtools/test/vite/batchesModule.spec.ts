@@ -19,8 +19,6 @@ import type {Plugin} from 'vite';
 const info = (batchesModule: string, routerInitFiles: string[] = ['/app/src/server.ts']): GenerateInfo => ({
   outDir: '/app/.mion',
   batchesModule,
-  batchSourceFiles: [],
-  batchSourceRoots: [],
   routerInitFiles,
 });
 
@@ -78,18 +76,5 @@ describe('mionVitePlugin — the batch transport needs no plugin of its own', ()
   it('registers no batch plugin: generation and injection happen in the resolver', () => {
     const names = (mionVitePlugin({}) as unknown as Plugin[]).flat().map((plugin) => (plugin as Plugin)?.name);
     expect(names.some((name) => /batch/i.test(name ?? ''))).toBe(false);
-  });
-
-  it('accepts the client pointer beside the server block', () => {
-    expect(() =>
-      mionVitePlugin({
-        client: {tsConfig: '../client/tsconfig.json'},
-        server: {startScript: '/srv.ts'},
-      })
-    ).not.toThrow();
-  });
-
-  it('rejects an empty client pointer, which can only be a config mistake', () => {
-    expect(() => mionVitePlugin({client: {tsConfig: ''}})).toThrow(/client\.tsConfig/);
   });
 });
