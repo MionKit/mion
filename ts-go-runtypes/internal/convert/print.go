@@ -799,8 +799,9 @@ type objectMember struct {
 
 // indexSignature is one `[key: K]: V` member.
 type indexSignature struct {
-	key   *reflection.RunType
-	value *reflection.RunType
+	key      *reflection.RunType
+	value    *reflection.RunType
+	readonly bool
 }
 
 // objectMembers collects an object shape's members: properties, method and call signatures (which
@@ -824,7 +825,7 @@ func (ctx *printContext) objectMembers(node *reflection.RunType) ([]*objectMembe
 			// A non-string key, several signatures and named members beside an index all SPELL fine
 			// as a type; only the value-first form lacks a word for them, and it escapes (see
 			// indexShape).
-			indexes = append(indexes, indexSignature{key: indexKey, value: indexValue})
+			indexes = append(indexes, indexSignature{key: indexKey, value: indexValue, readonly: member.Readonly})
 			continue
 		}
 		if reflection.IsSymbolKeyedName(member.Name) {

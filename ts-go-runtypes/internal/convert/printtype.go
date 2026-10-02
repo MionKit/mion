@@ -114,10 +114,13 @@ func (ctx *printContext) typeExpr(node *reflection.RunType) (string, *Diagnostic
 }
 
 // typeSuffixNeedsParens marks spellings binding looser than a postfix `[]` / `?`: unions, metadata
-// intersections and arrow types.
+// intersections, arrow types and the `readonly` operator.
 func typeSuffixNeedsParens(node *reflection.RunType) bool {
 	if node == nil {
 		return false
+	}
+	if node.Readonly && (node.Kind == reflection.KindArray || node.Kind == reflection.KindTuple) {
+		return true
 	}
 	if len(node.TypeMeta) > 0 {
 		return true
@@ -215,18 +218,19 @@ func (ctx *printContext) typeExprCore(node *reflection.RunType) (string, *Diagno
 			return "", diag
 		}
 		childText = wrapForSuffix(childNode, childText)
+		arrayText := readonlyPrefix(node) + childText + "[]"
 		if hasStructuralPayload(node) {
 			if !structuralParamsPubliclySpellable(node.FormatAnnotation) {
-				return ctx.rawStructuralBrandType(node, childText+"[]")
+				return ctx.rawStructuralBrandType(node, arrayText)
 			}
 			parts, partsDiag := ctx.structuralParts(node, structuralAnnotationParams(node), ctx.typeExpr, TargetType)
 			if partsDiag != nil {
 				return "", partsDiag
 			}
 			ctx.needs.useTF = true
-			return fmt.Sprintf("%s.FormattedArray<%s[], {%s}>", ctx.names.TF, childText, strings.Join(parts, ", ")), nil
+			return fmt.Sprintf("%s.FormattedArray<%s, {%s}>", ctx.names.TF, arrayText, strings.Join(parts, ", ")), nil
 		}
-		return childText + "[]", nil
+		return arrayText, nil
 	case reflection.KindPromise:
 		childText, diag := ctx.typeExpr(node.Child)
 		if diag != nil {
@@ -388,7 +392,7 @@ func (ctx *printContext) typeExprCore(node *reflection.RunType) (string, *Diagno
 				return "", diag
 			}
 		}
-		return "[" + strings.Join(parts, ", ") + "]", nil
+		return readonlyPrefix(node) + "[" + strings.Join(parts, ", ") + "]", nil
 	case reflection.KindFunction:
 		return ctx.functionTypeText(node)
 	case reflection.KindTemplateLiteral:
@@ -602,15 +606,19 @@ func (ctx *printContext) objectLiteralText(members []*objectMember, indexes []in
 			return "", valueDiag
 		}
 		// The parameter NAME is not part of the type's identity, so `key` keeps the output stable.
-		parts = append(parts, fmt.Sprintf("[key: %s]: %s", keyText, valueText))
+		readonlyMark := ""
+		if index.readonly {
+			readonlyMark = "readonly "
+		}
+		parts = append(parts, fmt.Sprintf("%s[key: %s]: %s", readonlyMark, keyText, valueText))
 	}
 	return "{" + strings.Join(parts, "; ") + "}", nil
 }
 
 // plainStringIndex reports the shape the value-first `record(...)` can say directly: exactly one
-// string-keyed index signature with no named members beside it.
+// string-keyed, mutable index signature with no named members beside it (`Record<>` cannot say `readonly`).
 func plainStringIndex(members []*objectMember, indexes []indexSignature) bool {
-	return len(indexes) == 1 && len(members) == 0 && indexes[0].key.Kind == reflection.KindString
+	return len(indexes) == 1 && len(members) == 0 && indexes[0].key.Kind == reflection.KindString && !indexes[0].readonly
 }
 
 // collectionSpelling wraps a Map / Set spelling in its structural wrapper when the node carries the
@@ -629,4 +637,12 @@ func (ctx *printContext) collectionSpelling(node *reflection.RunType, baseText, 
 	}
 	ctx.needs.useTF = true
 	return fmt.Sprintf("%s.%s<%s, {%s}>", ctx.names.TF, wrapper, baseText, strings.Join(parts, ", ")), nil
+}
+
+// readonlyPrefix spells a readonly tuple or array (`readonly [..]`, `readonly T[]`).
+func readonlyPrefix(node *reflection.RunType) string {
+	if node.Readonly {
+		return "readonly "
+	}
+	return ""
 }
