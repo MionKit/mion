@@ -12,6 +12,7 @@ import path from 'node:path';
 import {build} from 'vite';
 type RollupOutput = Extract<Awaited<ReturnType<typeof build>>, {output: unknown}>;
 import {mionVitePlugin} from '../../src/vite/mionVitePlugin.ts';
+import type {MionClientOptions} from '../../src/options.ts';
 import {BIN, hasBinary, writeMarkerPackage} from '../helpers/inline.ts';
 
 // The bundled-API lane through a REAL vite build over a REAL program, with `client.routes: 'bundle'`: rollup
@@ -111,7 +112,7 @@ register('bundled API through a real vite build', () => {
   afterEach(() => rmSync(root, {recursive: true, force: true}));
 
   /** Builds the fixture client through the real preset and returns the single emitted chunk. */
-  async function buildClient(routes?: 'bundle' | 'fetch', warnings: string[] = []): Promise<string> {
+  async function buildClient(routes?: MionClientOptions['routes'], warnings: string[] = []): Promise<string> {
     const result = await build({
       root,
       configFile: false,

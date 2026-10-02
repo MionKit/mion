@@ -7,8 +7,9 @@ import {DIAGNOSTIC_CATALOG} from './go-generated/diagnosticCatalog.generated.ts'
 import {ResolverClient, type GenerateResult} from './resolver-client.ts';
 import {applyEdits, sourceHash} from './apply-edits.ts';
 import {Level, type BatchSite, type Diagnostic, type PureFnSite} from './protocol.ts';
-import {PURE_FN_ARTIFACT_DIR, type ModuleMode} from './go-generated/runtypes-constants.generated.ts';
+import {PURE_FN_ARTIFACT_DIR, type ClientRoutes, type ModuleMode} from './go-generated/runtypes-constants.generated.ts';
 import {assertValidModuleMode} from './module-mode.ts';
+import {assertValidClientRoutes} from './client-routes.ts';
 import {mayHoldMarkerCalls} from './markerImports.ts';
 import {isDowngraded, resolveDowngradeErrors, DOWNGRADE_ALL, type DowngradeSet} from './downgradeErrors.ts';
 import {LEVELS_ALL, resolveShowInfo} from './levels.ts';
@@ -59,13 +60,6 @@ export interface GenerateInfo {
   routerInitFiles: string[];
 }
 
-/** Configs are often plain JS, so an unknown mode is refused here rather than read as the default. */
-export function assertValidClientRoutes(clientRoutes: unknown): void {
-  if (clientRoutes !== undefined && clientRoutes !== 'bundle' && clientRoutes !== 'fetch') {
-    throw new Error(`[mion] client routes must be 'bundle' or 'fetch' (got ${JSON.stringify(clientRoutes)}).`);
-  }
-}
-
 // The host-plugin surface. tsconfig's `mion` plugin entry is the canonical home of the PROJECT knobs
 // (emitMode, moduleMode, inlineMode, hashLength, parallelScan/Render, singleThreaded); set here they
 // override one build, tsc-style. `binary` / `cwd` / `tsconfig` / `genDir` have no tsconfig equivalent.
@@ -79,7 +73,7 @@ export interface PluginOptions {
   tsconfig?: string;
   // Default 'bundle'; 'fetch' fetches every route. Same key as tsconfig `clientRoutes` and CLI `--client-routes`.
   // Under 'bundle', a route the build did not see is reported, and fetched only if the client sets up `useFetchMetadata`.
-  clientRoutes?: 'bundle' | 'fetch';
+  clientRoutes?: ClientRoutes;
   // Generated-output root, relative to cwd: cache modules under `<genDir>/types/` (gitignored), committed
   // enrichment under `<genDir>/enriched/`. Omitted, the resolver infers `<srcDir>/.mion` from the tsconfig.
   // It lives in the project rather than node_modules so a dev watcher sees regenerated modules.

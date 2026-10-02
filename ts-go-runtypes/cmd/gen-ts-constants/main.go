@@ -144,6 +144,10 @@ func writeEntryModuleConstants(out *strings.Builder) {
 	fmt.Fprintf(out, "export const MODULE_MODE_ALL_SINGLE = %q;\n", constants.ModuleModeAllSingle)
 	fmt.Fprintf(out, "export const MODULE_MODE_ALL_MODULES = %q;\n", constants.ModuleModeAllModules)
 	out.WriteString("export type ModuleMode = typeof MODULE_MODE_DEFAULT | typeof MODULE_MODE_ALL_SINGLE | typeof MODULE_MODE_ALL_MODULES;\n")
+	out.WriteString("// Client-routes values for the --client-routes flag / plugin clientRoutes option.\n")
+	fmt.Fprintf(out, "export const CLIENT_ROUTES_BUNDLE = %q;\n", constants.ClientRoutesBundle)
+	fmt.Fprintf(out, "export const CLIENT_ROUTES_FETCH = %q;\n", constants.ClientRoutesFetch)
+	out.WriteString("export type ClientRoutes = typeof CLIENT_ROUTES_BUNDLE | typeof CLIENT_ROUTES_FETCH;\n")
 }
 
 // writeEnrichmentTagConstants emits the enrichment-mirror tag literals from

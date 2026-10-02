@@ -14,6 +14,7 @@ import type {
   Site,
   TransformResult,
 } from './protocol.ts';
+import type {ClientRoutes} from './go-generated/runtypes-constants.generated.ts';
 
 export interface ResolverClientOptions {
   // Spawns `serve --sources stdin` and writes this map as the first stdin line (JSON `{"sources": …}`) before any
@@ -80,7 +81,7 @@ export interface ResolverClientOptions {
   // undefined lets the Go side resolve it and echo the result back on GenerateResult.outDir.
   genDir?: string;
   // Forwarded as --client-routes; unset leaves the binary's default, 'bundle'.
-  clientRoutes?: 'bundle' | 'fetch';
+  clientRoutes?: ClientRoutes;
   // Forwarded as --transform-relative: rewrite the injected import block's `rtmod:` specifiers to paths relative to
   // the resolved output root (files mode). The bundler plugin always sets it; the virtual-module lanes (batchcompile
   // pass 1, the transform-wire bench, the inline test lane) leave it off. Session config: every consumer is homogeneous.

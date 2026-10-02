@@ -113,6 +113,10 @@ export const MODULE_MODE_DEFAULT = 'default';
 export const MODULE_MODE_ALL_SINGLE = 'allSingle';
 export const MODULE_MODE_ALL_MODULES = 'allModules';
 export type ModuleMode = typeof MODULE_MODE_DEFAULT | typeof MODULE_MODE_ALL_SINGLE | typeof MODULE_MODE_ALL_MODULES;
+// Client-routes values for the --client-routes flag / plugin clientRoutes option.
+export const CLIENT_ROUTES_BUNDLE = 'bundle';
+export const CLIENT_ROUTES_FETCH = 'fetch';
+export type ClientRoutes = typeof CLIENT_ROUTES_BUNDLE | typeof CLIENT_ROUTES_FETCH;
 
 // Enrichment mirror tags (internal/enrichment/mirror/tags.go): the reconcile
 // markers hygiene must never flag, the dirty-state tags it reports, and

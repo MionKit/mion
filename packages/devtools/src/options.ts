@@ -9,7 +9,8 @@
 // Each preset keeps only what its host has: vite the Vue SFC pass, middleware mode and module-graph invalidation;
 // Next nothing (the broker's typeDeps + stamp cover staleness, and Next runs its own dev server).
 
-import {assertValidClientRoutes, type PluginOptions as TsRuntypesPluginOptions} from './core/unplugin.ts';
+import {type PluginOptions as TsRuntypesPluginOptions} from './core/unplugin.ts';
+import {assertValidClientRoutes} from './core/client-routes.ts';
 
 /** Options for the mion powered type transformation. */
 export interface MionRunTypesOptions {
@@ -66,7 +67,7 @@ export interface MionRunTypesOptions {
 export interface MionClientOptions {
   /** 'bundle' (default) bundles every called route; an unseen one is fetched only with client `useFetchMetadata`.
    *  'fetch' gets every route from the server on first use: needs `useFetchMetadata` and server `mionFetchMetadata`. */
-  routes?: 'bundle' | 'fetch';
+  routes?: TsRuntypesPluginOptions['clientRoutes'];
 }
 
 /** Resolves the mion resolver binary: explicit option, else @mionjs/bin-compiler getExePath(), which honours
