@@ -36,6 +36,17 @@ describe('fuzz / security / http — hostile requests never crash, hang, leak or
     }
   }, 120_000);
 
+  it('reads a HEAD answer as headers only, without waiting for a body it never gets', async () => {
+    const head = {id: 'sock.method', request: 'HEAD /echoUser HTTP/1.1\r\nHost: x\r\nContent-Length: 0\r\n\r\n'};
+    const report = await runSocketAttacks(0, 1, () => [head]);
+    try {
+      expect(renderHttpViolations(report.violations)).toBe('');
+      expect(report.applied).toEqual({'sock.method': 1});
+    } finally {
+      await report.close();
+    }
+  }, 30_000);
+
   const soakMs = Number(process.env.MION_FUZZ_SECHTTP_SOAK_MS ?? 0);
   it.runIf(soakMs > 0)(
     'soak — keep attacking the router and log every finding',

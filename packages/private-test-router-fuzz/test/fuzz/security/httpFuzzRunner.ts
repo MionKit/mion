@@ -700,6 +700,8 @@ export function rawSocketRequest(
   request: string,
   timeoutMs = 3000
 ): Promise<{status: number; headers: string; body: string; closed: boolean}> {
+  // a HEAD answer keeps the content-length a full answer would have, but never sends the body
+  const head = request.startsWith('HEAD ');
   return new Promise((resolve) => {
     let data = '';
     let done = false;
@@ -720,7 +722,7 @@ export function rawSocketRequest(
     socket.on('data', (chunk) => {
       data += chunk;
       // one response is enough: the server may keep the connection open
-      if (/^HTTP\/1\.1 \d{3}/.test(data) && /\r\n\r\n/.test(data) && bodyComplete(data)) {
+      if (/^HTTP\/1\.1 \d{3}/.test(data) && /\r\n\r\n/.test(data) && bodyComplete(data, head)) {
         socket.destroy();
         finish(false);
       }
@@ -734,7 +736,8 @@ export function rawSocketRequest(
   });
 }
 
-function bodyComplete(data: string): boolean {
+function bodyComplete(data: string, head: boolean): boolean {
+  if (head) return true;
   const length = /content-length: (\d+)/i.exec(data);
   if (!length) return true;
   const split = data.indexOf('\r\n\r\n');
@@ -750,7 +753,11 @@ export interface SocketReport {
 
 /** Starts the node adapter over the fixture router on a free port and runs every socket attack,
  *  probing liveness after each one. Call `close()` when done. */
-export async function runSocketAttacks(seed: number, rounds = 2): Promise<SocketReport> {
+export async function runSocketAttacks(
+  seed: number,
+  rounds = 2,
+  attacks: (rng: Rng) => SocketAttack[] = socketAttacks
+): Promise<SocketReport> {
   await openLane();
   resetNodeHttpOpts();
   // resetNodeHttpOpts resets the router too: register again on the fresh state
@@ -763,7 +770,7 @@ export async function runSocketAttacks(seed: number, rounds = 2): Promise<Socket
   const rng = makeRng(seed);
   const alive = JSON_POST('/echoUser', JSON.stringify(validBodies.echoUser));
   for (let round = 0; round < rounds; round++) {
-    for (const attack of socketAttacks(rng)) {
+    for (const attack of attacks(rng)) {
       applied[attack.id] = (applied[attack.id] ?? 0) + 1;
       const push = (oracle: HttpOracleId, message: string) =>
         violations.push({oracle, attack: attack.id, seed, message, input: attack.request.slice(0, 200)});
@@ -774,7 +781,9 @@ export async function runSocketAttacks(seed: number, rounds = 2): Promise<Socket
       // node itself answers 400/431 for what it cannot parse; a mion answer is a JSON envelope
       if (answer.status === 0) push('SH-ENVELOPE', `no HTTP response (closed=${answer.closed})`);
       if (answer.status >= 500) push('SH-NO5XX', `status ${answer.status}`);
-      if (/content-type: application\/json/i.test(answer.headers)) {
+      if (attack.request.startsWith('HEAD ')) {
+        if (answer.body !== '') push('SH-ENVELOPE', 'a HEAD answer carries a body');
+      } else if (/content-type: application\/json/i.test(answer.headers)) {
         try {
           const body = JSON.parse(answer.body);
           const thrown = body[MION_ROUTES.thrownErrors];
