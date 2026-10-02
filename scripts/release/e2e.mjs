@@ -204,8 +204,9 @@ npx vitest run --config vitest.build-output.config.ts
 echo "e2e-mion: tsc-like compile with the published mion CLI: the fullstack program, then the same server with a fetching client"
 npx mion compile --tsconfig tsconfig.compile.json --gen-dir .mion-cli
 npx mion compile --tsconfig tsconfig.compile-fetch.json --gen-dir .mion-cli-fetch --client-routes fetch
-echo "e2e-mion: api-check over the server and client manifests one build wrote"
+echo "e2e-mion: api-check over the server and client manifests one build wrote, then across the two builds"
 npx mion api-check --server-gen-dir .mion-cli --client-gen-dir .mion-cli
+npx mion api-check --server-gen-dir .mion-cli-fetch --client-gen-dir .mion-cli
 echo "e2e-mion: asserting the compiled server generated the table, imports it, and answers both compiled clients under plain node"
 npx vitest run --config vitest.compile-output.config.ts
 echo "e2e-mion: a client built from a packed API's .d.ts checks the server build version (matching, plain tsc, drifted)"
