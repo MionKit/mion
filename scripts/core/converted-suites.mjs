@@ -25,7 +25,7 @@ const UNSUPPORTED_LIST = path.join(PACKAGE_ROOT, 'test/features/unsupported-conv
 // BUILDER has to come out as a TypeScript expression, so a shape with no
 // factory spelling has nowhere to go.
 const TARGETS = [
-  {name: 'builders', dir: path.join(PACKAGE_ROOT, 'test/converted-builders'), expectedRefusals: 22},
+  {name: 'builders', dir: path.join(PACKAGE_ROOT, 'test/converted-builders'), expectedRefusals: 21},
 ];
 
 // The `says` fragments of the documented list, read off the test file itself so
