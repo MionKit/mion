@@ -307,7 +307,6 @@ func TestLevelsThatMoved(t *testing.T) {
 		CodeFriendlyUnknownField:          LevelWarning, // a dead map entry nothing reads
 		// Up from Warning: the build emits something broken.
 		CodeMarkerUntrustedPackage: LevelRuntimeError, // reflects `unknown`, accepts everything
-		CodeBatchOwnBatchIgnored:   LevelRuntimeError, // an id no table row matches, every request 404s
 		CodeBatchNoRouterInit:      LevelRuntimeError, // the table is written, nothing imports it
 		// Down to Info: what ships is the documented behaviour, or the finding is advice.
 		CodeMarkerDuplicateFnKey:         LevelInfo, // the scan dedupes; output is sane

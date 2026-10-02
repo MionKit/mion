@@ -64,12 +64,6 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     level: 'runtimeError',
     family: 'marker',
   },
-  BAT008: {
-    headline:
-      'This `batch()` is ignored: the batch table is generated from the client project `{0}`, and batches written in the server program itself never reach it.',
-    level: 'runtimeError',
-    family: 'marker',
-  },
   BAT009: {
     headline:
       'The batch table {0} was written, but no module of this program calls `createMionRouter` directly, so nothing imports it; import it by hand in the module that creates the router.',
@@ -328,7 +322,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   MET001: {
     headline:
-      'The API type at this dispatch site cannot be read as a mion PublicApi ({0}); bundleApi needs `PublicApi<typeof routes>`.',
+      'The API type at this dispatch site cannot be read as a mion PublicApi ({0}); bundling needs `PublicApi<typeof routes>`.',
     level: 'error',
     family: 'marker',
   },
@@ -347,12 +341,6 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     headline:
       'The route id at this call is `string` (a generic helper erased it); the call fetches its metadata from the server instead of using the bundle.',
     level: 'info',
-    family: 'marker',
-  },
-  MET005: {
-    headline:
-      'The API program {0} has {1} `initRoutes(...)` call(s) declaring the routes this client calls; bundleApi needs exactly one.',
-    level: 'error',
     family: 'marker',
   },
   MET006: {
@@ -386,7 +374,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   MET011: {
     headline:
-      "This client builds with `bundleApi: false`, so every call fetches its route's metadata, but it never sets up `useFetchMetadata`: every call fails.",
+      "This client builds with `client.routes: 'fetch'`, so every call fetches its route's metadata, but it never sets up `useFetchMetadata`: every call fails.",
     level: 'runtimeError',
     family: 'marker',
   },

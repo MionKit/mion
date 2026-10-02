@@ -25,11 +25,10 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
-// The bundled-API lane (mion's `bundleApi` client option). On generate it resolves every dispatch site's
-// routes out of the API type (walked in this program, or in the `apiTsconfig` program rooted at its
-// `initRoutes` call), selects each route plus the middlewares in its chain, assigns the params / return /
-// headers type ids under the checker that owns them (`AssignIDUnder`, so an API resolved in another
-// program still lands in this session's cache), demands per type exactly the families the server's marker
+// The bundled-API lane (mion's `client.routes: 'bundle'` option). On generate it resolves every dispatch
+// site's routes out of the API type walked in this program, selects each route plus the middlewares in its
+// chain, assigns the params / return / headers type ids under the checker that owns them (`AssignIDUnder`),
+// demands per type exactly the families the server's marker
 // slots name (types/parser.ts MarkerSlots), and renders a SELF-CONTAINED module tree under
 // <outDir>/api/ in `functions` emit mode whatever the program's own mode, a client never evaluating code
 // strings, plus the client manifest `mion api-check` reads. The transform needs none of that: a dispatch
@@ -37,13 +36,13 @@ import (
 
 // apiLaneOn reports whether this session bundles API metadata.
 func (sess *Session) apiLaneOn() bool {
-	return sess.opts.BundleApi == constants.BundleApiBundled
+	return sess.opts.ClientRoutes == constants.ClientRoutesBundle
 }
 
 // extractApiSitesForScan returns the requested files' dispatch sites, their diagnostics and the point
 // insertions for the user's source, memoised per file; nothing when the lane is off.
 func (sess *Session) extractApiSitesForScan(files []string) ([]apimeta.Site, []diagnostics.Diagnostic, []protocol.Replacement) {
-	// Filled whatever the bundleApi lane: a server build never sets bundleApi, yet its `initRoutes` answers every client.
+	// Filled whatever the bundled-routes lane: a server-only build never bundles, yet its `initRoutes` answers every client.
 	versions := sess.apiVersionReplacements(files)
 	if !sess.apiLaneOn() || sess.Program == nil || len(files) == 0 {
 		return nil, nil, versions
@@ -151,11 +150,9 @@ func (sess *Session) fetchingApisLackMetadata() bool {
 	return lacks
 }
 
-// apiFetchMemo holds what the fetching checks read, dropped with the Program; peerTrees also go when the peer reopens.
+// apiFetchMemo holds what the fetching checks read, dropped with the Program.
 type apiFetchMemo struct {
 	walks     map[*checker.Type]apiWalk
-	peer      *Session
-	peerTrees map[string]peerMatch
 	factsDone bool
 	clients   []apimeta.ClientApi
 	setUps    []apimeta.FetchSetUp
@@ -164,11 +161,6 @@ type apiFetchMemo struct {
 type apiWalk struct {
 	tree    *apimeta.Tree
 	problem string
-}
-
-type peerMatch struct {
-	tree       *apimeta.Tree
-	candidates string
 }
 
 func (sess *Session) fetchMemo() *apiFetchMemo {
@@ -201,16 +193,10 @@ func (sess *Session) walkApi(typeChecker *checker.Checker, apiType *checker.Type
 	return walk.tree, walk.problem
 }
 
-// clientApiTree walks the API a client names, or its `apiTsconfig` twin; nil when unreadable, which MET001 owns.
+// clientApiTree walks the API a client names; nil when unreadable, which MET001 owns.
 func (sess *Session) clientApiTree(typeChecker *checker.Checker, apiType *checker.Type) *apimeta.Tree {
 	tree, problem := sess.walkApi(typeChecker, apiType)
 	if tree == nil || problem != "" {
-		return nil
-	}
-	if sess.opts.ApiTsconfig != "" {
-		if peerTree, _, err := sess.apiSourceTree(tree.Ids()); err == nil {
-			return peerTree
-		}
 		return nil
 	}
 	return tree
@@ -351,39 +337,30 @@ func (bundle *apiBundle) syntheticSites() []protocol.Site {
 	return sites
 }
 
-// generateApiBundle writes the bundled-API tree under <outDir>/api/ plus the manifest: the server's when
-// this program initializes an API, else the client's. The dir is removed when neither applies.
+// generateApiBundle writes the bundled-API tree under <outDir>/api/ plus the manifests: the server's when
+// this program initializes an API, the client's when it bundles routes. The dir is removed when neither applies.
 func (sess *Session) generateApiBundle(outDir string, sites []apimeta.Site) ([]diagnostics.Diagnostic, error) {
 	routesVersion, clientVersion, diags := sess.apiVersions(sess.programSourceFiles())
 	apiDir := filepath.Join(outDir, constants.ApiModuleDir)
-	bundle, bundleDiags, err := sess.resolveApiBundle(sites)
+	bundle, bundleDiags := sess.resolveApiBundle(sites)
 	diags = append(diags, bundleDiags...)
 	diags = append(diags, sess.fetchSetupDiags(sites)...)
-	if err != nil {
-		return diags, err
-	}
-	manifest := sess.serverApiManifest()
-	// The value this program's own calls carry, so a report names what shipped, not a second hash of it
-	buildVersion := routesVersion
-	if manifest == nil {
-		buildVersion = clientVersion
-	}
-	if bundle.empty() && manifest == nil {
+	serverManifest := sess.serverApiManifest()
+	if bundle.empty() && serverManifest == nil {
 		if err := os.RemoveAll(apiDir); err != nil {
 			return diags, unwritableOutDirError(apiDir, err)
 		}
 		return diags, nil
 	}
 	files := map[string]string{}
+	var clientManifest *apimeta.Manifest
 	if !bundle.empty() {
 		renderDiags, renderErr := sess.renderApiBundle(bundle, files)
 		diags = append(diags, renderDiags...)
 		if renderErr != nil {
 			return diags, renderErr
 		}
-		if manifest == nil {
-			manifest = bundle.clientManifest(sess.opts)
-		}
+		clientManifest = bundle.clientManifest()
 		files[constants.ApiLaneFile] = renderApiLaneModule()
 	}
 	if err := os.MkdirAll(apiDir, 0o755); err != nil {
@@ -395,16 +372,35 @@ func (sess *Session) generateApiBundle(outDir string, sites []apimeta.Site) ([]d
 	if err := pruneStaleModules(apiDir, files); err != nil {
 		return diags, unwritableOutDirError(apiDir, err)
 	}
-	manifest.BuildVersion = buildVersion
-	if err := writeIfChanged(filepath.Join(apiDir, constants.ApiManifestFile), manifest.Render()); err != nil {
-		return diags, unwritableOutDirError(apiDir, err)
+	// Each build version is the value this program's own calls carry, so a report names what shipped.
+	if err := writeManifest(apiDir, constants.ApiManifestFile, serverManifest, routesVersion); err != nil {
+		return diags, err
+	}
+	if err := writeManifest(apiDir, constants.ApiClientManifestFile, clientManifest, clientVersion); err != nil {
+		return diags, err
 	}
 	return diags, nil
 }
 
+// writeManifest writes one manifest under apiDir, or removes a stale one when this build has none.
+func writeManifest(apiDir, name string, manifest *apimeta.Manifest, buildVersion string) error {
+	path := filepath.Join(apiDir, name)
+	if manifest == nil {
+		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+			return unwritableOutDirError(apiDir, err)
+		}
+		return nil
+	}
+	manifest.BuildVersion = buildVersion
+	if err := writeIfChanged(path, manifest.Render()); err != nil {
+		return unwritableOutDirError(apiDir, err)
+	}
+	return nil
+}
+
 // renderApiLaneModule renders `api/lane.js`, a side-effect import, so only the build that made the bundle sets the flag.
 func renderApiLaneModule() string {
-	return "// GENERATED by mion (the bundleApi lane). Do not edit.\n" +
+	return "// GENERATED by mion (the bundled-routes lane). Do not edit.\n" +
 		"import {setApiBundled} from '" + apimeta.ClientModule + "';\n" +
 		"setApiBundled();\n"
 }
@@ -439,7 +435,7 @@ func (sess *Session) renderApiBundle(bundle *apiBundle, files map[string]string)
 	apiDump := protocol.Dump{RunTypes: sess.cache.Dump(), Sites: stamped}
 	typeModules, _, err := sess.collectEntryModules(apiDump, renderOpts, pureFnGraph, nil)
 	if err != nil {
-		return renderDiags, fmt.Errorf("bundleApi: %w", err)
+		return renderDiags, fmt.Errorf("bundled routes: %w", err)
 	}
 	for basename, source := range typeModules {
 		files[typesSubdir+"/"+basename] = relativizeModuleImports(basename, source)
@@ -454,9 +450,9 @@ func (sess *Session) renderApiBundle(bundle *apiBundle, files map[string]string)
 	return renderDiags, nil
 }
 
-// clientManifest is what a client build writes: the bundled methods and the API pointer it resolved them through.
-func (bundle *apiBundle) clientManifest(opts Options) *apimeta.Manifest {
-	manifest := &apimeta.Manifest{Kind: apimeta.ManifestKindClient, ApiTsconfig: opts.ApiTsconfig, Methods: map[string]apimeta.ManifestMethod{}}
+// clientManifest is what a client build writes: the bundled methods.
+func (bundle *apiBundle) clientManifest() *apimeta.Manifest {
+	manifest := &apimeta.Manifest{Kind: apimeta.ManifestKindClient, Methods: map[string]apimeta.ManifestMethod{}}
 	for _, id := range bundle.order {
 		manifest.Methods[id] = bundle.methods[id].manifestRow()
 	}
@@ -542,7 +538,7 @@ func (sess *Session) userPureFnEntries(entries []purefunctions.Entry) []purefunc
 
 // resolveApiBundle walks the API type(s) the sites name, selects their
 // methods and assigns the type ids.
-func (sess *Session) resolveApiBundle(sites []apimeta.Site) (*apiBundle, []diagnostics.Diagnostic, error) {
+func (sess *Session) resolveApiBundle(sites []apimeta.Site) (*apiBundle, []diagnostics.Diagnostic) {
 	bundle := &apiBundle{methods: map[string]*apiMethodEntry{}, siteMethods: map[string][]string{}}
 	var diags []diagnostics.Diagnostic
 	widenedReported := map[string]bool{}
@@ -555,18 +551,6 @@ func (sess *Session) resolveApiBundle(sites []apimeta.Site) (*apiBundle, []diagn
 		if tree == nil {
 			diags = append(diags, diagnostics.New(diagnostics.CodeApiMetaUnreadable, site.DiagSite(), problem))
 			continue
-		}
-		if sess.opts.ApiTsconfig != "" {
-			// The API project's program answers from its initRoutes call; the client's walk only picks the routes to match.
-			peerTree, candidates, err := sess.apiSourceTree(tree.Ids())
-			if err != nil {
-				return nil, diags, err
-			}
-			if peerTree == nil {
-				diags = append(diags, diagnostics.New(diagnostics.CodeApiMetaSourceAmbiguous, site.DiagSite(), sess.absPath(sess.opts.ApiTsconfig), candidates))
-				continue
-			}
-			tree = peerTree
 		}
 		methods, missing := tree.Select(site.Ids)
 		for _, id := range missing {
@@ -599,7 +583,7 @@ func (sess *Session) resolveApiBundle(sites []apimeta.Site) (*apiBundle, []diagn
 		bundle.siteMethods[site.ModuleBasename()] = ids
 	}
 	diags = append(diags, sess.unsetMiddlewareDiags(bundle.order, middlewareUses)...)
-	return bundle, diags, nil
+	return bundle, diags
 }
 
 // routeRunning names the first route of a site whose chain runs the middleware.
@@ -610,47 +594,6 @@ func routeRunning(tree *apimeta.Tree, routeIds []string, middlewareId string) st
 		}
 	}
 	return routeIds[0]
-}
-
-// apiSourceTree walks the ONE `apiTsconfig` `initRoutes` whose routes equal the client's; nil for none or several (MET005).
-func (sess *Session) apiSourceTree(clientIds []string) (*apimeta.Tree, string, error) {
-	tsconfig := sess.absPath(sess.opts.ApiTsconfig)
-	peer, err := sess.apiPeer.open(sess, tsconfig, "apiTsconfig", nil)
-	if err != nil {
-		return nil, "", err
-	}
-	wanted := strings.Join(clientIds, "\n")
-	memo := sess.fetchMemo()
-	if memo.peer != peer {
-		memo.peer, memo.peerTrees = peer, map[string]peerMatch{}
-	}
-	if match, ok := memo.peerTrees[wanted]; ok {
-		return match.tree, match.candidates, nil
-	}
-	var matches []*apimeta.Tree
-	for _, sourceFile := range peer.Program.TS.SourceFiles() {
-		if sourceFile == nil || sourceFile.IsDeclarationFile || strings.Contains(sourceFile.FileName(), "/node_modules/") {
-			continue
-		}
-		if !strings.Contains(sourceFile.Text(), apimeta.InitRoutesName) {
-			continue
-		}
-		for _, apiType := range initRoutesApiTypes(peer.checker, peer.marker, sourceFile) {
-			tree, problem := apimeta.WalkApi(peer.checker, apiType)
-			if problem != "" || tree == nil {
-				continue
-			}
-			if strings.Join(tree.Ids(), "\n") == wanted {
-				matches = append(matches, tree)
-			}
-		}
-	}
-	match := peerMatch{candidates: fmt.Sprint(len(matches))}
-	if len(matches) == 1 {
-		match.tree = matches[0]
-	}
-	memo.peerTrees[wanted] = match
-	return match.tree, match.candidates, nil
 }
 
 // initRoutesApiTypes returns the instantiated PublicApi of every `initRoutes(...)` call whose signature
@@ -794,7 +737,7 @@ func (row parseModeRow) returnMarkerKeys() []string {
 func renderApiMethodModule(basename string, entry *apiMethodEntry) string {
 	method := entry.method
 	var out strings.Builder
-	out.WriteString("// GENERATED by mion (bundleApi). Do not edit.\n")
+	out.WriteString("// GENERATED by mion (bundled routes). Do not edit.\n")
 	imports := map[string]map[string]bool{}
 	addImports := func(site protocol.Site) {
 		for _, siteImport := range sourcerewrite.SiteImports(site) {
@@ -858,7 +801,7 @@ func renderApiMethodModule(basename string, entry *apiMethodEntry) string {
 // renderApiSiteModule renders `api/s/<id>.js`: the method rows a dispatch site registers, in tree order.
 func renderApiSiteModule(basename string, ids []string) string {
 	var out strings.Builder
-	out.WriteString("// GENERATED by mion (bundleApi). Do not edit.\n")
+	out.WriteString("// GENERATED by mion (bundled routes). Do not edit.\n")
 	bindings := make([]string, 0, len(ids))
 	for _, id := range ids {
 		methodBasename := apimeta.MethodModuleBasename(id)

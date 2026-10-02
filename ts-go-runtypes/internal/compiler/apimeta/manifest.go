@@ -11,7 +11,7 @@ import (
 )
 
 // `<genDir>/api/manifest.json`, the id table BOTH builds write: the server from its `initRoutes(...)`
-// calls, a client under `bundleApi` from the routes it bundled. `mion api-check` compares the two files,
+// calls, a bundling client from the routes it bundled. `mion api-check` compares the two files,
 // so a split deployment can prove before a release that the client's bundled validators are the server's.
 
 const (
@@ -60,12 +60,11 @@ func BuildVersion(methods map[string]ManifestMethod) string {
 	return hashid.QuickHash(input.String(), BuildVersionLength)
 }
 
-// Manifest is the file's shape; ApiTsconfig is set on a client manifest only.
+// Manifest is the file's shape.
 // Ambiguous ids are initialized more than once with differing rows: the first in file order is kept, a client row never passes.
 type Manifest struct {
-	Kind        string                    `json:"kind"`
-	ApiTsconfig string                    `json:"apiTsconfig,omitempty"`
-	Methods     map[string]ManifestMethod `json:"methods"`
+	Kind    string                    `json:"kind"`
+	Methods map[string]ManifestMethod `json:"methods"`
 	// BuildVersion is what this build injects at its `initRoutes` / `initClient` call, so a report can name it.
 	BuildVersion string   `json:"buildVersion,omitempty"`
 	Ambiguous    []string `json:"ambiguous,omitempty"`

@@ -16,11 +16,12 @@ const apiCheckUsage = `mion api-check — compare a client's bundled API against
 Usage:
   mion api-check --server-gen-dir <dir> --client-gen-dir <dir>
 
-Reads <dir>/api/manifest.json from both build outputs (each flag may also name
-the manifest file itself) and checks every method the client bundled against
-the server: same type ids, compiled-function families, options and middleware
-chain. Two JSON files, no network, no TypeScript: run it in CI before a release
-of a split client / server deployment.
+Reads the server's <dir>/api/manifest.json and the client's
+<dir>/api/client-manifest.json (each flag may also name the manifest file
+itself) and checks every method the client bundled against the server: same
+type ids, compiled-function families, options and middleware chain. One build
+of a fullstack program writes both. Two JSON files, no network, no TypeScript:
+run it in CI before releasing a server that clients built earlier still call.
 
 Exit codes: 0 every bundled method matches; 1 a mismatch (one line each);
 2 a manifest is missing, unreadable, or not the expected kind.
@@ -41,8 +42,8 @@ func runApiCheck(args []string) {
 		fs.Usage()
 		os.Exit(apiCheckExitUsage)
 	}
-	server := readManifestOrExit(*serverDir, apimeta.ManifestKindServer)
-	client := readManifestOrExit(*clientDir, apimeta.ManifestKindClient)
+	server := readManifestOrExit(*serverDir, constants.ApiManifestFile, apimeta.ManifestKindServer)
+	client := readManifestOrExit(*clientDir, constants.ApiClientManifestFile, apimeta.ManifestKindClient)
 	mismatches := apimeta.Compare(client, server)
 	for _, mismatch := range mismatches {
 		fmt.Fprintln(os.Stderr, "api-check: "+mismatch.String())
@@ -56,10 +57,10 @@ func runApiCheck(args []string) {
 
 // readManifestOrExit reads the manifest a flag names (a gen dir, or the file
 // itself) and checks its kind, exiting 2 on any problem.
-func readManifestOrExit(arg, kind string) *apimeta.Manifest {
+func readManifestOrExit(arg, name, kind string) *apimeta.Manifest {
 	path := arg
 	if !strings.HasSuffix(path, ".json") {
-		path = filepath.Join(path, constants.ApiModuleDir, constants.ApiManifestFile)
+		path = filepath.Join(path, constants.ApiModuleDir, name)
 	}
 	manifest, err := apimeta.ReadManifest(path)
 	if err != nil {

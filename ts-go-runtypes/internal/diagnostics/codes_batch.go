@@ -5,9 +5,9 @@ package diagnostics
 //
 // The levels split on whether the id is spliced. BAT001 / BAT002 / BAT004 / BAT005 / BAT006 drop the
 // whole site, so no id is injected and `batch()` throws `batch-missing-id` before any network work:
-// LevelError. BAT003 / BAT007 / BAT008 / BAT009 DO inject an id and the batch then fails against the
-// server (BAT008 and BAT009 ship a call whose every request comes back a 404 `batch-unknown-id`):
-// LevelRuntimeError.
+// LevelError. BAT003 / BAT007 / BAT009 DO inject an id and the batch then fails against the
+// server (BAT009 ships a call whose every request comes back a 404 `batch-unknown-id`):
+// LevelRuntimeError. BAT008 is retired.
 const (
 	// CodeBatchElementNotReadable: an element of the routes argument is not a route call the build
 	// can trace to the client routes proxy. Args: [0] the reason.
@@ -34,10 +34,6 @@ const (
 	// produced no pure function for, so the server has no body to register. Reported at the batch
 	// call. Args: [0] the mapper id.
 	CodeBatchMapperMissing = "BAT007"
-	// CodeBatchOwnBatchIgnored: the build names a separate client project (`clientTsconfig`), so the
-	// table comes from THAT program and this program's `batch()` calls never reach it. Reported at
-	// each such call. Args: [0] the client tsconfig.
-	CodeBatchOwnBatchIgnored = "BAT008"
 	// CodeBatchNoRouterInit: batches exist and this program names `@mionjs/router`, but no module
 	// calls `createMionRouter` directly (it sits behind a wrapper the build cannot see through), so
 	// the table was written and nothing imports it. Args: [0] the table module's path.
@@ -53,7 +49,6 @@ func init() {
 		{Code: CodeBatchDuplicateRoute, Family: FamilyMarker, Level: LevelError, Scope: ScopeNotSource, Title: "The same route is listed twice in one `batch()`"},
 		{Code: CodeBatchMappingParamOutOfRange, Family: FamilyMarker, Level: LevelError, Scope: ScopeNotSource, Title: "`inputFrom()` sits at an argument position the target route does not declare"},
 		{Code: CodeBatchMapperMissing, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Raised: RaisedWholeProgram, Title: "A batch names an inline `inputFrom()` mapper the build produced no pure function for"},
-		{Code: CodeBatchOwnBatchIgnored, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Raised: RaisedWholeProgram, Title: "A `batch()` in the server program is ignored because the batch table comes from the client project named by `clientTsconfig`"},
 		{Code: CodeBatchNoRouterInit, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Raised: RaisedWholeProgram, Title: "The batch table was written but no module calls `createMionRouter` directly, so nothing imports it"},
 	} {
 		register(definition)

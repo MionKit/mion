@@ -1,7 +1,6 @@
 package resolver_test
 
 import (
-	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -62,23 +61,25 @@ func transformedVersion(t *testing.T, session *resolver.Session, file string) st
 	return match[1]
 }
 
-// TestApiVersion_ServerAndClientOfOneApiAgree: the client reads the API through api.tsConfig, which makes its
-// ids the server's. The edit at the end is the kind of change api-check exists to catch, so it must move the version.
+// TestApiVersion_ServerAndClientOfOneApiAgree: a program holding both ends injects one version into both
+// calls. The edit at the end is the kind of change api-check exists to catch, so it must move the version.
 func TestApiVersion_ServerAndClientOfOneApiAgree(t *testing.T) {
-	serverTsconfig := writeApiServerProject(t, filepath.Join(t.TempDir(), "server"), 1)
-	server := setupApi(t, map[string]string{"router.d.ts": versionRouterDTS, "routes.ts": apiServerRoutesTS(1, false)}, t.TempDir(), "", "")
-	serverVersion := transformedVersion(t, server, "routes.ts")
+	sources := map[string]string{
+		"router.d.ts": versionRouterDTS,
+		"client.d.ts": versionClientDTS,
+		"routes.ts":   apiServerRoutesTS(1, false),
+		"client.ts":   versionClientTS,
+	}
+	build := setupApi(t, sources, t.TempDir(), constants.ClientRoutesBundle)
+	serverVersion := transformedVersion(t, build, "routes.ts")
 	if serverVersion == "" {
 		t.Fatal("the server's initRoutes call got no version")
 	}
-
-	client := setupApi(t, map[string]string{"client.d.ts": versionClientDTS, "client.ts": versionClientTS}, t.TempDir(), constants.BundleApiBundled, serverTsconfig)
-	clientVersion := transformedVersion(t, client, "client.ts")
-	if clientVersion != serverVersion {
+	if clientVersion := transformedVersion(t, build, "client.ts"); clientVersion != serverVersion {
 		t.Fatalf("the two ends of one API disagree: server %q, client %q", serverVersion, clientVersion)
 	}
 
-	edited := setupApi(t, map[string]string{"router.d.ts": versionRouterDTS, "routes.ts": apiServerRoutesTS(1, true)}, t.TempDir(), "", "")
+	edited := setupApi(t, map[string]string{"router.d.ts": versionRouterDTS, "routes.ts": apiServerRoutesTS(1, true)}, t.TempDir(), "")
 	if editedVersion := transformedVersion(t, edited, "routes.ts"); editedVersion == serverVersion {
 		t.Fatalf("an added route parameter must move the version, still %q", editedVersion)
 	}
@@ -87,8 +88,8 @@ func TestApiVersion_ServerAndClientOfOneApiAgree(t *testing.T) {
 // TestApiVersion_DerivedFromTheTypesAlone: nothing about the build (a temp dir, a clock, a counter) may reach the value.
 func TestApiVersion_DerivedFromTheTypesAlone(t *testing.T) {
 	sources := map[string]string{"router.d.ts": versionRouterDTS, "routes.ts": apiServerRoutesTS(1, false)}
-	first := transformedVersion(t, setupApi(t, sources, t.TempDir(), "", ""), "routes.ts")
-	second := transformedVersion(t, setupApi(t, sources, t.TempDir(), "", ""), "routes.ts")
+	first := transformedVersion(t, setupApi(t, sources, t.TempDir(), ""), "routes.ts")
+	second := transformedVersion(t, setupApi(t, sources, t.TempDir(), ""), "routes.ts")
 	if first == "" || first != second {
 		t.Fatalf("two builds of one API must agree: %q then %q", first, second)
 	}
@@ -104,16 +105,16 @@ func TestApiVersion_RouterPackageOwnFilesAreTrusted(t *testing.T) {
 		"package.json":   `{"name": "@mionjs/router"}`,
 		"src/router.ts":  routerSource,
 		"test/routes.ts": routes,
-	}, t.TempDir(), "", "")
+	}, t.TempDir(), "")
 	if version := transformedVersion(t, server, "test/routes.ts"); version == "" {
 		t.Fatal("the router package's own routes got no version")
 	}
 }
 
-// TestApiVersion_UntrustedClientGetsNone: a client reading the API neither through api.tsConfig nor through the
-// router resolved those types under its own settings, so its ids may differ with nothing wrong; it injects nothing.
+// TestApiVersion_UntrustedClientGetsNone: a client whose program does not hold the router resolved the API's
+// types under its own settings, so its ids may differ with nothing wrong; it injects nothing.
 func TestApiVersion_UntrustedClientGetsNone(t *testing.T) {
-	client := setupApi(t, map[string]string{"client.d.ts": versionClientDTS, "client.ts": versionClientTS}, t.TempDir(), constants.BundleApiBundled, "")
+	client := setupApi(t, map[string]string{"client.d.ts": versionClientDTS, "client.ts": versionClientTS}, t.TempDir(), constants.ClientRoutesBundle)
 	if version := transformedVersion(t, client, "client.ts"); version != "" {
 		t.Fatalf("an untrusted client claimed version %q", version)
 	}
@@ -122,7 +123,7 @@ func TestApiVersion_UntrustedClientGetsNone(t *testing.T) {
 // TestApiVersion_FilledSlotIsLeftAlone: a value already in the slot is the author's, never overwritten.
 func TestApiVersion_FilledSlotIsLeftAlone(t *testing.T) {
 	source := strings.Replace(apiServerRoutesTS(1, false), "}});\n", "}}, 'mine');\n", 1)
-	server := setupApi(t, map[string]string{"router.d.ts": versionRouterDTS, "routes.ts": source}, t.TempDir(), "", "")
+	server := setupApi(t, map[string]string{"router.d.ts": versionRouterDTS, "routes.ts": source}, t.TempDir(), "")
 	if version := transformedVersion(t, server, "routes.ts"); version != "mine" {
 		t.Fatalf("the author's value must survive, got %q", version)
 	}
@@ -131,7 +132,7 @@ func TestApiVersion_FilledSlotIsLeftAlone(t *testing.T) {
 // TestApiVersion_ManifestCarriesTheSameValue: api-check must be able to name the value the server answers with.
 func TestApiVersion_ManifestCarriesTheSameValue(t *testing.T) {
 	genDir := t.TempDir()
-	server := setupApi(t, map[string]string{"router.d.ts": versionRouterDTS, "routes.ts": apiServerRoutesTS(1, false)}, genDir, "", "")
+	server := setupApi(t, map[string]string{"router.d.ts": versionRouterDTS, "routes.ts": apiServerRoutesTS(1, false)}, genDir, "")
 	if gen := server.Dispatch(protocol.Request{Op: protocol.OpGenerate}); gen.Error != "" {
 		t.Fatalf("generate: %s", gen.Error)
 	}
@@ -150,7 +151,7 @@ func TestApiVersion_OneProgramTwoEndsMustAgree(t *testing.T) {
 		"routes.ts":   apiServerRoutesTS(1, true),
 		"client.ts":   versionClientTS,
 	}
-	session := setupApi(t, sources, t.TempDir(), constants.BundleApiBundled, "")
+	session := setupApi(t, sources, t.TempDir(), constants.ClientRoutesBundle)
 	generated := session.Dispatch(protocol.Request{Op: protocol.OpGenerate})
 	if generated.Error != "" {
 		t.Fatalf("generate: %s", generated.Error)
@@ -163,7 +164,7 @@ func TestApiVersion_OneProgramTwoEndsMustAgree(t *testing.T) {
 // TestApiVersion_ServerAloneIsNeverMismatched: the check needs both ends, so a server build reports nothing.
 func TestApiVersion_ServerAloneIsNeverMismatched(t *testing.T) {
 	sources := map[string]string{"router.d.ts": versionRouterDTS, "routes.ts": apiServerRoutesTS(1, false)}
-	generated := setupApi(t, sources, t.TempDir(), "", "").Dispatch(protocol.Request{Op: protocol.OpGenerate})
+	generated := setupApi(t, sources, t.TempDir(), "").Dispatch(protocol.Request{Op: protocol.OpGenerate})
 	if generated.Error != "" {
 		t.Fatalf("generate: %s", generated.Error)
 	}
@@ -202,7 +203,7 @@ func TestApiVersion_EveryClientIsCheckedAgainstTheServer(t *testing.T) {
 		"a-client.ts": badClient,
 		"b-client.ts": sumClientTS,
 	}
-	session := setupApi(t, sources, t.TempDir(), "", "")
+	session := setupApi(t, sources, t.TempDir(), "")
 	generated := session.Dispatch(protocol.Request{Op: protocol.OpGenerate})
 	if generated.Error != "" {
 		t.Fatalf("generate: %s", generated.Error)
@@ -224,7 +225,7 @@ func TestApiVersion_EveryClientIsCheckedAgainstTheServer(t *testing.T) {
 // TestApiGen_InitClientFilesFollowAnEdit: the initClient files are dropped with the Program, so a file that gains one gets the lane import.
 func TestApiGen_InitClientFilesFollowAnEdit(t *testing.T) {
 	sources := apiSources("export const nothing = 1;\n")
-	sess := setupApi(t, sources, t.TempDir(), constants.BundleApiBundled, "")
+	sess := setupApi(t, sources, t.TempDir(), constants.ClientRoutesBundle)
 	transform := func() string {
 		response := sess.Dispatch(protocol.Request{Op: protocol.OpTransform, Files: []string{"client.ts"}})
 		if response.Error != "" {

@@ -96,6 +96,11 @@ func New(opts Options) (*Program, error) {
 	if parsedConfig.ParsedConfig != nil {
 		parsedConfig.ParsedConfig.ProjectReferences = nil
 	}
+	// A solution-style tsconfig (`files: []` plus `references`) passes tsc yet leaves this program empty, so the
+	// scan would find nothing and say nothing. Client and server code must sit in this one program.
+	if len(parsedConfig.FileNames()) == 0 {
+		return nil, fmt.Errorf("tsconfig %s includes no source files (only project references?): mion reads your client and server code as one program, so point it at the tsconfig that includes both", configPath)
+	}
 
 	programOpts := compiler.ProgramOptions{
 		Config:         parsedConfig,

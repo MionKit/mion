@@ -81,10 +81,10 @@ func (sess *Session) apiVersions(files []string) (routes, client string, diags [
 	return routes, client, diags
 }
 
-// apiVersionTrusted reports whether ids match the server's: only with api.tsConfig, or when the program imports the router.
+// apiVersionTrusted reports whether ids match the server's: only when the program imports the router, so it holds the API.
 // Any other program resolves the API under its own lib and strictness, so it injects nothing rather than a wrong version.
 func (sess *Session) apiVersionTrusted() bool {
-	return sess.opts.ApiTsconfig != "" || sess.importsRouter()
+	return sess.importsRouter()
 }
 
 // apiVersionSitesIn walks one file's calls; versions memoises per API type because each walk assigns ids for every method.
@@ -137,7 +137,7 @@ func (sess *Session) apiVersionSiteOf(sourceFile *ast.SourceFile, call *ast.Node
 	}, true
 }
 
-// apiVersionOf hashes the API's rows, the apiTsconfig twin's when set: resolveApiBundle's source, so ids share one checker.
+// apiVersionOf hashes the API's rows, walked like resolveApiBundle's, so ids share one checker.
 func (sess *Session) apiVersionOf(apiType *checker.Type) string {
 	tree := sess.clientApiTree(sess.checker, apiType)
 	if tree == nil {

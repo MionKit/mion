@@ -59,23 +59,11 @@ type tsRuntypesPlugin struct {
 	// GenDir is the RunTypes output root; every location under it is
 	// convention (types/, enriched/{friendly,mock,i18n}) and NOT configurable.
 	GenDir string `json:"genDir"`
-	// ClientTsconfig names the tsconfig of a SEPARATE client project this
-	// server project generates the batch transport from (`<genDir>/rpc/`).
-	// Relative to this tsconfig's directory. Absent when client and server
-	// share one program.
-	ClientTsconfig string `json:"clientTsconfig"`
-	// ApiTsconfig names the tsconfig of the SEPARATE project that declares the
-	// mion API this client project calls. Under `bundleApi` the client build
-	// resolves every route's types in a program opened over it, so the client
-	// emits exactly the server's runtypes whatever this tsconfig's own `lib` or
-	// strictness. Relative to this tsconfig's directory. Absent when client and
-	// API share one program.
-	ApiTsconfig string `json:"apiTsconfig"`
-	// BundleApi: `true` (the default when absent) bundles every route this client calls, `false` fetches every route.
-	BundleApi  bundleApiKey `json:"bundleApi"`
-	ModuleMode string       `json:"moduleMode"`
-	EmitMode   string       `json:"emitMode"`
-	InlineMode string       `json:"inlineMode"`
+	// ClientRoutes: `bundle` (the default when absent) bundles every route this client calls, `fetch` fetches every route.
+	ClientRoutes string `json:"clientRoutes"`
+	ModuleMode   string `json:"moduleMode"`
+	EmitMode     string `json:"emitMode"`
+	InlineMode   string `json:"inlineMode"`
 
 	// I18n is the FriendlyText translation config. A pointer so an absent key
 	// (nil) keeps every i18n default dormant.
@@ -542,39 +530,17 @@ func isTrailingComma(input string, pos int) bool {
 	return false
 }
 
-// bundleApiKey reads the boolean tsconfig `bundleApi` key into its CLI mode name.
-type bundleApiKey string
-
-func (key *bundleApiKey) UnmarshalJSON(data []byte) error {
-	var value any
-	if err := json.Unmarshal(data, &value); err != nil {
-		return err
-	}
-	switch typed := value.(type) {
-	case bool:
-		*key = bundleApiKey(constants.BundleApiOff)
-		if typed {
-			*key = bundleApiKey(constants.BundleApiBundled)
-		}
-	case nil:
-		*key = ""
-	default:
-		return fmt.Errorf("bundleApi must be true or false (got %s)", strings.TrimSpace(string(data)))
-	}
-	return nil
-}
-
-// resolveBundleApi picks the flag, then the tsconfig key, then the default `bundled`; ok is false for an unknown mode.
-func resolveBundleApi(flag string, key bundleApiKey) (constants.BundleApiMode, bool) {
-	mode := constants.BundleApiMode(strings.TrimSpace(flag))
-	if mode == constants.BundleApiUnset {
-		mode = constants.BundleApiMode(key)
+// resolveClientRoutes picks the flag, then the tsconfig key, then the default `bundle`; ok is false for an unknown mode.
+func resolveClientRoutes(flag, key string) (constants.ClientRoutesMode, bool) {
+	mode := constants.ClientRoutesMode(strings.TrimSpace(flag))
+	if mode == constants.ClientRoutesUnset {
+		mode = constants.ClientRoutesMode(strings.TrimSpace(key))
 	}
 	if !mode.Valid() {
 		return mode, false
 	}
-	if mode == constants.BundleApiUnset {
-		mode = constants.BundleApiBundled
+	if mode == constants.ClientRoutesUnset {
+		mode = constants.ClientRoutesBundle
 	}
 	return mode, true
 }

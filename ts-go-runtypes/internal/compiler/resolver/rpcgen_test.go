@@ -175,16 +175,13 @@ func TestRpc_GenerateWritesTableAndMappers(t *testing.T) {
 	if code := transform(t, r, "a.ts"); !strings.Contains(code, "'"+mapperKey+"'") {
 		t.Errorf("client transform of a.ts does not carry %s:\n%s", mapperKey, code)
 	}
-	// echoes: the router-init module is named, joins SiteFiles, nothing to watch
+	// echoes: the router-init module is named and joins SiteFiles
 	serverAbs := tspath.ResolvePath(r.Program.TS.GetCurrentDirectory(), "server.ts")
 	if len(gen.RouterInitFiles) != 1 || gen.RouterInitFiles[0] != serverAbs {
 		t.Errorf("RouterInitFiles = %v, want [%s]", gen.RouterInitFiles, serverAbs)
 	}
 	if !containsString(gen.SiteFiles, serverAbs) {
 		t.Errorf("SiteFiles %v must include the router-init module %s", gen.SiteFiles, serverAbs)
-	}
-	if len(gen.BatchSourceFiles) != 0 {
-		t.Errorf("own-program batch source must echo no watch files, got %v", gen.BatchSourceFiles)
 	}
 }
 
@@ -425,132 +422,6 @@ func TestRpc_DeterministicAndWriteOnChange(t *testing.T) {
 	}
 }
 
-// TestRpc_ClientTsconfigSeparateProject: the server session reads the batch
-// source from a SEPARATE client project on disk, echoes that project's files
-// for the dev watcher, rebuilds it when one of them changes, and names a bad
-// tsconfig in its error.
-func TestRpc_ClientTsconfigSeparateProject(t *testing.T) {
-	clientDir := writeClientProject(t)
-	outDir := t.TempDir()
-	server := setupInlineWith(t, map[string]string{"router.d.ts": routerDTS, "server.ts": serverTS}, func(programOpts *program.Options, resolverOpts *resolver.Options) {
-		programOpts.SingleThreaded = true
-		resolverOpts.SingleThreaded = true
-		resolverOpts.GenDir = outDir
-		resolverOpts.TransformRelative = true
-		resolverOpts.ClientTsconfig = filepath.Join(clientDir, "tsconfig.json")
-	})
-	gen := generate(t, server)
-	if gen.BatchesModule == "" {
-		t.Fatalf("no batch module generated from the client project; diagnostics: %+v", gen.Diagnostics)
-	}
-	module := readRpcModule(t, outDir)
-	if ids := batchIdRE.FindAllString(module, -1); len(ids) != 1 {
-		t.Errorf("expected the client's one batch, got %v:\n%s", ids, module)
-	}
-	if !mapperImportRE.MatchString(module) {
-		t.Errorf("the client's inline mapper must be imported:\n%s", module)
-	}
-	if strings.Contains(module, clientDir) {
-		t.Errorf("the module leaks the client project path:\n%s", module)
-	}
-	clientA := filepath.Join(clientDir, "src", "a.ts")
-	// every source file of the client program is echoed for the watcher (a batch can appear
-	// in any of them), and its source root so a CREATED file is seen too
-	wantFiles := []string{clientA, filepath.Join(clientDir, "src", "decoys.ts"), filepath.Join(clientDir, "src", "routes.ts")}
-	if strings.Join(gen.BatchSourceFiles, ",") != strings.Join(wantFiles, ",") {
-		t.Errorf("BatchSourceFiles = %v, want %v", gen.BatchSourceFiles, wantFiles)
-	}
-	if len(gen.BatchSourceRoots) != 1 || gen.BatchSourceRoots[0] != filepath.Join(clientDir, "src") {
-		t.Errorf("BatchSourceRoots = %v, want [%s]", gen.BatchSourceRoots, filepath.Join(clientDir, "src"))
-	}
-	// the client's decoys (a reflection marker, a named pure fn, in the batch file and beside
-	// it) leave no trace in the server's gen dir: only the inline mapper is copied
-	if treeContains(t, filepath.Join(outDir, "types"), "clientOnlyField") {
-		t.Errorf("the server compiled the client's reflection marker into its types/")
-	}
-	if treeContains(t, filepath.Join(outDir, "rpc"), "clientOnlyHelper") || treeContains(t, filepath.Join(outDir, "rpc"), "inBatchFile") {
-		t.Errorf("the server copied a client pure fn no batch names into rpc/")
-	}
-	if _, statErr := os.Stat(filepath.Join(outDir, "rpc", "pf", "mionjs")); !os.IsNotExist(statErr) {
-		t.Errorf("rpc/pf/mionjs must not exist (stat err = %v)", statErr)
-	}
-	if mappers := readTree(t, filepath.Join(outDir, "rpc", "pf")); len(mappers) != 1 {
-		t.Errorf("expected exactly the one inline mapper under rpc/pf, got %v", mappers)
-	}
-	if code := transform(t, server, "server.ts"); !strings.Contains(code, "rpc/batches.generated.js';") {
-		t.Errorf("server transform lacks the table import:\n%s", code)
-	}
-
-	// a client edit is picked up by the next generate (the stamps changed)
-	time.Sleep(20 * time.Millisecond)
-	writeTestFile(t, clientA, batchSources["a.ts"]+"export const c = batch([routes.orders.list(1)]);\n")
-	gen = generate(t, server)
-	if ids := batchIdRE.FindAllString(readRpcModule(t, outDir), -1); len(ids) != 2 {
-		t.Errorf("expected two batches after the client edit, got %v", ids)
-	}
-	// a NEW client file with a batch is picked up too: the tsconfig now matches a file the
-	// session never saw, so the client program is rebuilt
-	writeTestFile(t, filepath.Join(clientDir, "src", "later.ts"), "import {batch} from '@mionjs/client';\nimport {routes} from './routes.ts';\nexport const d = batch([routes.users.getById(2), routes.orders.list(2)]);\n")
-	gen = generate(t, server)
-	if ids := batchIdRE.FindAllString(readRpcModule(t, outDir), -1); len(ids) != 3 {
-		t.Errorf("expected three batches after a new client file, got %v", ids)
-	}
-	if !containsString(gen.BatchSourceFiles, filepath.Join(clientDir, "src", "later.ts")) {
-		t.Errorf("the new client file must be echoed for the watcher, got %v", gen.BatchSourceFiles)
-	}
-
-	// a tsconfig that does not exist fails generate and names itself
-	broken := setupInlineWith(t, map[string]string{"router.d.ts": routerDTS, "server.ts": serverTS}, func(programOpts *program.Options, resolverOpts *resolver.Options) {
-		programOpts.SingleThreaded = true
-		resolverOpts.SingleThreaded = true
-		resolverOpts.GenDir = t.TempDir()
-		resolverOpts.ClientTsconfig = filepath.Join(clientDir, "missing.json")
-	})
-	if resp := broken.Dispatch(protocol.Request{Op: protocol.OpGenerate}); resp.Error == "" || !strings.Contains(resp.Error, "missing.json") {
-		t.Errorf("expected a generate error naming missing.json, got %q", resp.Error)
-	}
-}
-
-// writeClientProject writes a real client project to disk: a tsconfig over
-// src/, the batches fixtures, and the real marker package under node_modules
-// so the brands resolve exactly as they do in a consumer.
-func writeClientProject(t *testing.T) string {
-	t.Helper()
-	dir := t.TempDir()
-	writeTestFile(t, filepath.Join(dir, "tsconfig.json"), `{
-  "compilerOptions": {
-    "target": "ES2022", "module": "ESNext", "moduleResolution": "Bundler",
-    "rootDir": "src", "noEmit": true, "strict": true, "allowImportingTsExtensions": true
-  },
-  "include": ["src"]
-}
-`)
-	for rel, content := range realMarkerOverlay(t) {
-		writeTestFile(t, filepath.Join(dir, filepath.FromSlash(rel)), content)
-	}
-	writeTestFile(t, filepath.Join(dir, "src", "client.d.ts"), batchClientDTS)
-	writeTestFile(t, filepath.Join(dir, "src", "routes.ts"), batchRoutesTS)
-	// the batch file also carries a pure fn no batch names; decoys.ts a reflection
-	// marker and another one: the server pass must copy the inline mapper and nothing else
-	writeTestFile(t, filepath.Join(dir, "src", "a.ts"), batchSources["a.ts"]+"import {registerPureFn} from '@mionjs/run-types/runtime';\nexport const inBatchFile = registerPureFn((value: number) => value + 1);\n")
-	writeTestFile(t, filepath.Join(dir, "src", "decoys.ts"), `import {getRunTypeId} from '@mionjs/run-types'; import {registerPureFn} from '@mionjs/run-types/runtime';
-export const clientOnlyId = getRunTypeId<{clientOnlyField: string}>();
-export const clientOnlyHelper = registerPureFn((value: number) => value * 2);
-`)
-	return dir
-}
-
-// treeContains reports whether any file under dir holds needle; a missing dir holds nothing.
-func treeContains(t *testing.T, dir, needle string) bool {
-	t.Helper()
-	for _, content := range readTree(t, dir) {
-		if strings.Contains(content, needle) {
-			return true
-		}
-	}
-	return false
-}
-
 func writeTestFile(t *testing.T, path, content string) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
@@ -568,42 +439,6 @@ func containsString(values []string, want string) bool {
 		}
 	}
 	return false
-}
-
-// TestRpc_OwnBatchesWarnWhenClientPointerSet: with a client pointer the table
-// comes from the client project alone; a batch() in the server's own program
-// is reported (BAT008) instead of silently left out.
-func TestRpc_OwnBatchesWarnWhenClientPointerSet(t *testing.T) {
-	clientDir := writeClientProject(t)
-	outDir := t.TempDir()
-	sources := rpcSources() // the server program holds a.ts + b.ts batches of its own
-	server := setupInlineWith(t, sources, func(programOpts *program.Options, resolverOpts *resolver.Options) {
-		programOpts.SingleThreaded = true
-		resolverOpts.SingleThreaded = true
-		resolverOpts.GenDir = outDir
-		resolverOpts.TransformRelative = true
-		resolverOpts.ClientTsconfig = filepath.Join(clientDir, "tsconfig.json")
-	})
-	gen := generate(t, server)
-	if ids := batchIdRE.FindAllString(readRpcModule(t, outDir), -1); len(ids) != 1 {
-		t.Errorf("the table must hold the client's one batch only, got %v", ids)
-	}
-	var warned []string
-	for _, diag := range gen.Diagnostics {
-		if diag.Code == "BAT008" {
-			// The id IS injected, and no table row matches it, so every request
-			// naming it comes back a 404 `batch-unknown-id`. That is broken
-			// output, not a warning.
-			if diag.Level != diagnostics.LevelRuntimeError {
-				t.Errorf("BAT008 must be a RuntimeError, got level %v", diag.Level)
-			}
-			warned = append(warned, filepath.Base(diag.Site.FilePath))
-		}
-	}
-	sort.Strings(warned)
-	if strings.Join(warned, ",") != "a.ts,b.ts" {
-		t.Errorf("expected BAT008 on the server's a.ts and b.ts, got %v", warned)
-	}
 }
 
 // TestRpc_NoRouterInitButRouterImported: a server whose router is created
@@ -655,34 +490,9 @@ func TestRpc_ClientOnlyProgramNoWarning(t *testing.T) {
 		t.Errorf("a client-only program must write no rpc/, got %q", gen.BatchesModule)
 	}
 	for _, diag := range gen.Diagnostics {
-		if diag.Code == "BAT009" || diag.Code == "BAT008" {
+		if diag.Code == "BAT009" {
 			t.Errorf("unexpected %s on a client-only program: %v", diag.Code, diag.Args)
 		}
-	}
-}
-
-// TestRpc_ClientTsconfigUnresolvedPackagesFail: a client project whose
-// dependencies are not installed (no marker package, no client package) yields
-// no readable batch; generate fails naming the tsconfig and the module rather
-// than shipping a server without a table.
-func TestRpc_ClientTsconfigUnresolvedPackagesFail(t *testing.T) {
-	clientDir := t.TempDir()
-	writeTestFile(t, filepath.Join(clientDir, "tsconfig.json"), `{
-  "compilerOptions": {"target": "ES2022", "module": "ESNext", "moduleResolution": "Bundler", "rootDir": "src", "noEmit": true, "strict": true, "allowImportingTsExtensions": true},
-  "include": ["src"]
-}
-`)
-	writeTestFile(t, filepath.Join(clientDir, "src", "routes.ts"), batchRoutesTS)
-	writeTestFile(t, filepath.Join(clientDir, "src", "a.ts"), batchSources["a.ts"])
-	server := setupInlineWith(t, map[string]string{"router.d.ts": routerDTS, "server.ts": serverTS}, func(programOpts *program.Options, resolverOpts *resolver.Options) {
-		programOpts.SingleThreaded = true
-		resolverOpts.SingleThreaded = true
-		resolverOpts.GenDir = t.TempDir()
-		resolverOpts.ClientTsconfig = filepath.Join(clientDir, "tsconfig.json")
-	})
-	resp := server.Dispatch(protocol.Request{Op: protocol.OpGenerate})
-	if resp.Error == "" || !strings.Contains(resp.Error, "tsconfig.json") || !strings.Contains(resp.Error, "@mionjs/client") {
-		t.Errorf("expected a generate error naming the client tsconfig and '@mionjs/client', got %q", resp.Error)
 	}
 }
 
@@ -690,8 +500,8 @@ func TestRpc_ClientTsconfigUnresolvedPackagesFail(t *testing.T) {
 // lives OUTSIDE the session's working dir is requested as `../<dir>/server.ts`,
 // and the transform must still append the batch import to it.
 //
-// This is the shape a fullstack test project has: the client program is the
-// batch source AND pulls its API entry in from a sibling package, so the vite
+// This is the shape a fullstack test project has: the client program holds
+// the batches AND pulls its API entry in from a sibling package, so the vite
 // plugin hands the resolver a `..`-relative path. The path match used to be a
 // suffix test only, which no absolute path can ever satisfy against a spelling
 // starting with `..`, so every replacement carrying the program's own absolute

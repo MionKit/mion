@@ -154,15 +154,6 @@
       "example": null
     },
     {
-      "code": "BAT008",
-      "subsystem": "markers",
-      "level": "runtimeError",
-      "headline": "This `batch()` is ignored: the batch table is generated from the client project `{0}`, and batches written in the server program itself never reach it.",
-      "summary": "When `clientTsconfig` is set (`client.tsConfig` on the build plugin, `--client-tsconfig` on the command line), the server build reads batches only from that client project. A `batch()` call in the server's own code, such as a test or a script, is not registered, so the server answers it with an unknown batch id error. Move the batch into the client project, or remove the client setting when client and server are one project.",
-      "fix": null,
-      "example": null
-    },
-    {
       "code": "BAT009",
       "subsystem": "markers",
       "level": "runtimeError",
@@ -1239,8 +1230,8 @@
       "code": "MET001",
       "subsystem": "bundled-api",
       "level": "error",
-      "headline": "The API type at this dispatch site cannot be read as a mion PublicApi ({0}); bundleApi needs `PublicApi<typeof routes>`.",
-      "summary": "With `bundleApi` on, the build reads each called route's handler types, options and middlewares from the client's API type. Only `PublicApi<typeof routes>`, the type the router exports, has them; a loose `RemoteApi`, an `any`, or a member without its compiled types does not. Type the client with `PublicApi<typeof routes>`.",
+      "headline": "The API type at this dispatch site cannot be read as a mion PublicApi ({0}); bundling needs `PublicApi<typeof routes>`.",
+      "summary": "When routes are bundled (`client.routes: 'bundle'`, the default), the build reads each called route's handler types, options and middlewares from the client's API type. Only `PublicApi<typeof routes>`, the type the router exports, has them; a loose `RemoteApi`, an `any`, or a member without its compiled types does not. Type the client with `PublicApi<typeof routes>`.",
       "fix": "initClient<PublicApi<typeof routes>>({baseURL});",
       "example": null
     },
@@ -1249,7 +1240,7 @@
       "subsystem": "bundled-api",
       "level": "error",
       "headline": "This call names the route `{0}`, which the API type does not declare; nothing is bundled for it.",
-      "summary": "The API type has no route with this id, usually because of a stale declaration file or a route id written by hand. Rebuild the API's declarations, or set `api.tsConfig` (`apiTsconfig` in tsconfig) to the API project so the build reads the routes from their source.",
+      "summary": "The API type has no route with this id, usually because of a route id written by hand or a stale declaration file. Fix the route id, or rebuild the API's declarations.",
       "fix": null,
       "example": null
     },
@@ -1269,15 +1260,6 @@
       "headline": "The route id at this call is `string` (a generic helper erased it); the call fetches its metadata from the server instead of using the bundle.",
       "summary": "A helper typed with `RouteSubRequest<any>` widens the route id to `string`, so the build cannot bundle the call inside it. The call still works because the client sets up `useFetchMetadata`: it fetches the route's metadata on first use and builds its functions at runtime. To bundle it too, keep the route id through a generic helper.",
       "fix": "function run<S extends RouteSubRequest<any>>(sub: S) { return sub.call() }",
-      "example": null
-    },
-    {
-      "code": "MET005",
-      "subsystem": "bundled-api",
-      "level": "error",
-      "headline": "The API program {0} has {1} `initRoutes(...)` call(s) declaring the routes this client calls; bundleApi needs exactly one.",
-      "summary": "With `api.tsConfig` (`apiTsconfig`) set, the build reads route types from the API project, starting at the `mion.initRoutes(routes)` call that declares the routes this client calls. It found none, or more than one. Point it at a tsconfig whose program initializes the API once (a separate tsconfig for the server entry works), or remove it when the client and the API share one program.",
-      "fix": null,
       "example": null
     },
     {
@@ -1321,7 +1303,7 @@
       "subsystem": "bundled-api",
       "level": "runtimeError",
       "headline": "This client fetches route metadata, but the API it calls does not place `mionFetchMetadata`, so every fetch fails.",
-      "summary": "A call fetches its metadata when the build could not bundle it, or for every route when `bundleApi` is off. The server answers those fetches only through the `mionFetchMetadata` middleware from `@mionjs/router/middlewares`, and this API does not add it. Add it first in the server's routes and set up its client half with `useFetchMetadata`. Or, with bundling on, remove `useFetchMetadata` and keep every route id a literal so every call is bundled.",
+      "summary": "A call fetches its metadata when the build could not bundle it, or for every route when `client.routes` is `'fetch'`. The server answers those fetches only through the `mionFetchMetadata` middleware from `@mionjs/router/middlewares`, and this API does not add it. Add it first in the server's routes and set up its client half with `useFetchMetadata`. Or, with bundling on, remove `useFetchMetadata` and keep every route id a literal so every call is bundled.",
       "fix": "// server\nmion.initRoutes({mionFetchMetadata, ...routes});\n// client\nuseFetchMetadata(middlewares.mionFetchMetadata);",
       "example": null
     },
@@ -1329,8 +1311,8 @@
       "code": "MET011",
       "subsystem": "bundled-api",
       "level": "runtimeError",
-      "headline": "This client builds with `bundleApi: false`, so every call fetches its route's metadata, but it never sets up `useFetchMetadata`: every call fails.",
-      "summary": "With bundling off, each call asks the server how its route works on first use, through the client half of the metadata middleware. Nothing in this program sets that up. Set it up once next to `initClient`, or build with `bundleApi: true` (the default) so every call is bundled.",
+      "headline": "This client builds with `client.routes: 'fetch'`, so every call fetches its route's metadata, but it never sets up `useFetchMetadata`: every call fails.",
+      "summary": "With `client.routes: 'fetch'`, each call asks the server how its route works on first use, through the client half of the metadata middleware. Nothing in this program sets that up. Set it up once next to `initClient`, or build with `client.routes: 'bundle'` (the default) so every call is bundled.",
       "fix": "useFetchMetadata(middlewares.mionFetchMetadata);",
       "example": null
     },

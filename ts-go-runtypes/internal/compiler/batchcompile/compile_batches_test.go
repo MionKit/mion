@@ -1,10 +1,9 @@
 package batchcompile
 
-// The batch transport through the tsc-like lane: a SERVER project compiled
-// with ClientTsconfig ends up with `<genDir>/rpc/` and an emitted router-init
-// module that imports the table by a relative path; the CLIENT project's
-// emitted `.js` carries the batch id and the mapper hash. Both halves live in
-// separate on-disk projects, the way a real client + API pair does.
+// The batch transport through the tsc-like lane: a fullstack project holding
+// both halves ends up with `<genDir>/rpc/` and an emitted router-init module
+// that imports the table by a relative path, and its emitted client `.js`
+// carries the batch id and the mapper hash.
 
 import (
 	"os"
@@ -120,16 +119,13 @@ func readEmitted(t *testing.T, dir, name string) string {
 	return string(content)
 }
 
-// TestCompile_ServerGeneratesBatchTransportFromClientTsconfig: the server
-// compile writes rpc/ from the client project and appends the relativized
-// table import to the emitted router-init module.
-func TestCompile_ServerGeneratesBatchTransportFromClientTsconfig(t *testing.T) {
-	clientDir := writeProject(t, map[string]string{"client.d.ts": batchClientDTS, "routes.ts": clientRoutesTS, "a.ts": clientBatchTS})
-	serverDir := writeProject(t, map[string]string{"router.d.ts": routerDTS, "server.ts": serverTS})
+// TestCompile_FullstackGeneratesBatchTransport: the compile writes rpc/ from
+// the program's own batches and appends the relativized table import to the
+// emitted router-init module.
+func TestCompile_FullstackGeneratesBatchTransport(t *testing.T) {
+	serverDir := writeProject(t, map[string]string{"router.d.ts": routerDTS, "server.ts": serverTS, "client.d.ts": batchClientDTS, "routes.ts": clientRoutesTS, "a.ts": clientBatchTS})
 
-	compileProject(t, serverDir, func(opts *Options) {
-		opts.ResolverOpts.ClientTsconfig = filepath.Join(clientDir, "tsconfig.json")
-	})
+	compileProject(t, serverDir, nil)
 
 	module, err := os.ReadFile(filepath.Join(serverDir, ".mion", "rpc", "batches.generated.js"))
 	if err != nil {
@@ -138,8 +134,8 @@ func TestCompile_ServerGeneratesBatchTransportFromClientTsconfig(t *testing.T) {
 	if !strings.Contains(string(module), "replaceBatches({") || !strings.Contains(string(module), "from './pf/") {
 		t.Errorf("batch module lacks the table or the relative mapper import:\n%s", module)
 	}
-	if strings.Contains(string(module), clientDir) {
-		t.Errorf("batch module leaks the client path:\n%s", module)
+	if strings.Contains(string(module), serverDir) {
+		t.Errorf("batch module leaks an absolute path:\n%s", module)
 	}
 	// The mapper module is named after its id, which for a project with no
 	// package name is the body hash alone.
@@ -229,33 +225,5 @@ func TestCompile_NeverWritesOutsideOutDir(t *testing.T) {
 		if !strings.HasPrefix(emitted, filepath.Join(app, "dist")) {
 			t.Errorf("emitted file outside outDir: %s", emitted)
 		}
-	}
-}
-
-// TestCompile_ClientTsconfigUnresolvedPackagesFail: the same guard through the
-// CLI lane: a client project without its dependencies fails the server compile
-// with an error naming the client tsconfig and the module.
-func TestCompile_ClientTsconfigUnresolvedPackagesFail(t *testing.T) {
-	clientDir := t.TempDir()
-	writeFile(t, filepath.Join(clientDir, "tsconfig.json"), projectTsconfigJSON)
-	writeFile(t, filepath.Join(clientDir, "src", "routes.ts"), clientRoutesTS)
-	writeFile(t, filepath.Join(clientDir, "src", "a.ts"), clientBatchTS)
-	serverDir := writeProject(t, map[string]string{"router.d.ts": routerDTS, "server.ts": serverTS})
-	opts := Options{
-		Cwd:          serverDir,
-		TsconfigPath: "tsconfig.json",
-		GenDir:       filepath.Join(serverDir, ".mion"),
-		ResolverOpts: resolver.Options{
-			Cwd:            serverDir,
-			EmitMode:       constants.EmitCode,
-			ModuleMode:     constants.ModuleModeDefault,
-			InlineMode:     constants.InlineModeDefault,
-			CacheDir:       filepath.Join(serverDir, ".cache"),
-			ClientTsconfig: filepath.Join(clientDir, "tsconfig.json"),
-		},
-	}
-	_, err := Run(opts)
-	if err == nil || !strings.Contains(err.Error(), "tsconfig.json") || !strings.Contains(err.Error(), "@mionjs/client") {
-		t.Errorf("expected a compile error naming the client tsconfig and '@mionjs/client', got %v", err)
 	}
 }
