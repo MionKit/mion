@@ -137,10 +137,8 @@ describe('JSON Serialization E2E', () => {
 
         middlewares.auth.onRequest((auth) => auth(authHeaders));
 
-        // The mapper body is authored HERE, in client flow code. The packaged mion vite plugin
-        // extracts it at build time into the generated batch module, and the server executes it
-        // between the two calls — so this asserts the whole build-time transport survives packing.
-        // The param resolves server-side, hence the `!` (same convention as the docs examples).
+        // The packaged vite plugin extracts this client-written mapper into the batch module the server runs.
+        // So this asserts the build-time transport survives packing; the param resolves server-side, hence the `!`.
         const customer = routes.getCustomerById(7);
         const [[customerData, customerError], [prefs, prefsError]] = await batch([
             customer,
