@@ -134,6 +134,7 @@ export const REGISTRY = [
   {name: 'MION_BENCH_DOCDATA', scope: 'dev', task: '-', desc: 'Host dir to publish server-benchmark JSON into (default .docdata)'},
   {name: 'MION_BENCH_MOUNT_OPTS', scope: 'dev', task: '-', desc: 'Extra bind-mount opts, e.g. ":z" on SELinux'},
   {name: 'MION_BENCH_RUN_NETWORK', scope: 'dev', task: '-', desc: 'podman run network for the server benchmarks'},
+  {name: 'MION_PR_NUMBER', scope: 'internal', task: '-', desc: "Set by the ci-lanes action from the pull_request event: the PR whose live labels it reads (empty off a PR)"},
   {name: 'MION_BENCH_RESULTS_DIR', scope: 'internal', task: '-', desc: 'In-container results dir for the server benchmarks (passed via -e)'},
   {name: 'MION_BENCH_HOST_CPU', scope: 'internal', task: '-', desc: 'Host CPU model captured into the server-benchmark metadata (the container cannot read it; passed via -e)'},
   {name: 'MION_BENCH_WRK_JOB', scope: 'internal', task: '-', desc: 'Dir holding the request-body template wrk.lua stamps a fresh id into (set by the harness per run)'},

@@ -86,8 +86,8 @@ runs:
       shell: bash
       env:
         GH_TOKEN: ${{ github.token }}
-        PR_NUMBER: ${{ github.event.pull_request.number }}
+        MION_PR_NUMBER: ${{ github.event.pull_request.number }}
       run: |
-        if [ -z "$PR_NUMBER" ]; then echo 'labels=[]' >> "$GITHUB_OUTPUT"; exit 0; fi
-        labels=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name]')
+        if [ -z "$MION_PR_NUMBER" ]; then echo 'labels=[]' >> "$GITHUB_OUTPUT"; exit 0; fi
+        labels=$(gh pr view "$MION_PR_NUMBER" --json labels --jq '[.labels[].name]')
         echo "labels=$labels" >> "$GITHUB_OUTPUT"
