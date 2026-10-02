@@ -99,6 +99,7 @@ describe('middleware mode (in-process vite dev server)', () => {
   let http: Server | undefined;
   let baseUrl = '';
   let ready: {resolved: boolean; error?: Error};
+  let plugin: Plugin;
 
   beforeEach(() => {
     root = mkdtempSync(path.join(tmpdir(), 'mion-middleware-'));
@@ -120,6 +121,8 @@ describe('middleware mode (in-process vite dev server)', () => {
     basePath?: string;
     platformStub?: string;
     entry?: string;
+    /** Replaces the @mionjs/platform-node stub, the adapter an entry that starts none falls back to. */
+    nodePlatformStub?: string;
     server?: Partial<MionServerOptions>;
     /** The batch table module the resolver would have generated, as the preset echoes it. */
     batchesModule?: string;
@@ -132,7 +135,7 @@ describe('middleware mode (in-process vite dev server)', () => {
     writeFileSync(routerPath, ROUTER_STUB(opts.basePath ?? '/api'));
     writeFileSync(corePath, CORE_STUB);
     writeFileSync(platformPath, opts.platformStub ?? NODE_PLATFORM_STUB);
-    writeFileSync(nodePlatformPath, NODE_PLATFORM_STUB);
+    writeFileSync(nodePlatformPath, opts.nodePlatformStub ?? NODE_PLATFORM_STUB);
     writeFileSync(path.join(root, 'src', 'routes.ts'), ROUTES);
     writeFileSync(entryPath, opts.entry ?? ENTRY(platformPath));
 
@@ -145,11 +148,11 @@ describe('middleware mode (in-process vite dev server)', () => {
       server: {middlewareMode: true},
       resolve: {alias: {'@mionjs/router': routerPath, '@mionjs/core': corePath, '@mionjs/platform-node': nodePlatformPath}},
       plugins: [
-        mionMiddlewarePlugin(serverOptions, {
+        (plugin = mionMiddlewarePlugin(serverOptions, {
           onReady: () => (ready.resolved = true),
           onError: (err) => (ready.error = err),
           batchesModuleOf: () => opts.batchesModule ?? '',
-        }),
+        })),
       ],
     });
     const devServer = vite;
@@ -263,6 +266,48 @@ export function requestHandler() {
     await startDevServer({basePath: '/api', entry});
     const res = await fetch(`${baseUrl}/api/users.get`);
     expect(((await res.json()) as {served: string}).served).toBe('entry');
+  });
+
+  it("prefers the entry's own handler over the one a started adapter handed over", async () => {
+    const platformPath = path.join(root, 'platform-stub.js');
+    const entry = `
+import {startNodeServer} from ${JSON.stringify(platformPath)};
+globalThis.__mion.loads += 1;
+startNodeServer();
+export function requestHandler() {
+    return new Response(JSON.stringify({served: 'entry'}), {headers: {'content-type': 'application/json'}});
+}
+`;
+    await startDevServer({basePath: '/api', entry});
+    const res = await fetch(`${baseUrl}/api/users.get`);
+    expect(((await res.json()) as {served: string}).served).toBe('entry');
+    expect((globalThis as any).__mion.host.handler?.node).toBeTypeOf('function');
+  });
+
+  it('resolves a relative server.entry against the vite root, not the working directory', async () => {
+    expect(root).not.toBe(process.cwd());
+    await startDevServer({basePath: '/api', server: {entry: 'src/entry.ts'}});
+    const res = await fetch(`${baseUrl}/api/users.get`);
+    expect(((await res.json()) as {served: string}).served).toBe('node');
+  });
+
+  it('keeps why the node adapter failed to load as the cause of the no-handler error', async () => {
+    await startDevServer({
+      basePath: '/api',
+      entry: `import './routes.ts';\nglobalThis.__mion.loads += 1;\n`,
+      nodePlatformStub: `throw new Error('adapter is broken');\n`,
+    });
+    const res = await fetch(`${baseUrl}/api/users.get`);
+    expect(res.status).toBe(503);
+    expect(ready.error?.message).toMatch(/found no request handler/);
+    expect(String((ready.error?.cause as Error | undefined)?.message)).toContain('adapter is broken');
+  });
+
+  it('never sets the host flag once the server is closing, even for a load still in flight', async () => {
+    await startDevServer({basePath: '/api'});
+    (plugin.closeBundle as () => void).call(plugin);
+    await fetch(`${baseUrl}/api/users.get`);
+    expect((globalThis as any).__mion.host.owns).toBeUndefined();
   });
 
   it('serves an entry that only registers routes through the node adapter', async () => {
