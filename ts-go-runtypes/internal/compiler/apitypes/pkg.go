@@ -102,7 +102,8 @@ func BuildPackage(input PackageInput) (map[string]string, error) {
 		{"repository", server.Repository},
 		{"homepage", server.Homepage},
 		{"types", entry},
-		{"exports", map[string]any{".": map[string]string{"types": entry}}},
+		// "./*" lets a client that writes its own .d.ts name a type from any kept file (TS2883 otherwise).
+		{"exports", map[string]any{".": map[string]string{"types": entry}, "./*": map[string]string{"types": "./*.d.ts"}}},
 		{"files", published},
 		{"mion", map[string]string{"apiTypes": apitypesmeta.MarkerFileName()}},
 		{"peerDependencies", peers},
