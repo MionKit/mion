@@ -286,7 +286,7 @@ func (trimmer *trimmer) mark(entry *fileInfo, apiExports []string) {
 		changed = false
 		for _, file := range trimmer.sortedFiles() {
 			for _, always := range file.items {
-				if always.kind == itemAlways && !always.kept && (file.keptAny() || trimmer.augmentsKept(always)) {
+				if !always.kept && trimmer.augmentationNeeded(file, always) {
 					trimmer.keep(always, nil)
 					changed = true
 				}
@@ -294,6 +294,38 @@ func (trimmer *trimmer) mark(entry *fileInfo, apiExports []string) {
 		}
 		trimmer.drain()
 	}
+	// A kept `declare global` block ships only its members something reads.
+	for _, file := range trimmer.files {
+		for _, block := range file.items {
+			if !block.kept {
+				continue
+			}
+			for _, member := range block.members {
+				if !member.kept {
+					file.holes = append(file.holes, textRange{start: member.statement.Pos(), end: member.statement.End()})
+				}
+			}
+		}
+	}
+}
+
+// augmentationNeeded: a side-effect import of a kept file, a global member kept code reads, or a module
+// augmentation of a module kept code imports.
+func (trimmer *trimmer) augmentationNeeded(file *fileInfo, always *item) bool {
+	switch {
+	case always.kind == itemGlobal:
+		for _, name := range always.names {
+			if trimmer.unresolved[name] {
+				return true
+			}
+		}
+		return false
+	case always.kind != itemAlways || always.members != nil:
+		return false
+	case always.statement.Kind == ast.KindImportDeclaration:
+		return file.keptAny()
+	}
+	return trimmer.augmentsKept(always)
 }
 
 func (trimmer *trimmer) drain() {
@@ -304,28 +336,17 @@ func (trimmer *trimmer) drain() {
 	}
 }
 
-// augmentsKept: a `declare module 'x'` the kept code imports, or a `declare global` declaring a name it reads.
+// augmentsKept: a `declare module 'x'` whose package the kept code imports, or whose relative file it keeps.
 func (trimmer *trimmer) augmentsKept(always *item) bool {
 	statement := always.statement
 	if statement.Kind != ast.KindModuleDeclaration {
 		return false
 	}
-	if name := statement.Name(); name.Kind == ast.KindStringLiteral {
-		return trimmer.specifiers[name.Text()]
+	specifier := statement.Name().Text()
+	if target := trimmer.resolveModule(always.file, specifier); target != nil {
+		return target.keptAny()
 	}
-	found := false
-	statement.ForEachChild(func(child *ast.Node) bool {
-		if child.Kind != ast.KindModuleBlock {
-			return false
-		}
-		for _, declaration := range child.AsModuleBlock().Statements.Nodes {
-			if name := declaration.Name(); name != nil && ast.IsIdentifier(name) && trimmer.unresolved[name.Text()] {
-				found = true
-			}
-		}
-		return false
-	})
-	return found
+	return trimmer.specifiers[specifier]
 }
 
 // keep marks an item kept and records the kept item using it.
@@ -357,7 +378,7 @@ func (trimmer *trimmer) follow(current *item) {
 		if target := trimmer.resolveModule(file, current.specifier); target != nil {
 			target.imported = true
 			for _, always := range target.items {
-				if always.kind == itemAlways {
+				if always.kind == itemAlways || always.kind == itemGlobal {
 					trimmer.keep(always, current)
 				}
 			}
@@ -367,27 +388,48 @@ func (trimmer *trimmer) follow(current *item) {
 		return
 	}
 	switch current.kind {
-	case itemDeclaration, itemAlways:
-		for _, name := range current.refNames(file) {
-			if len(file.locals[name]) == 0 {
-				trimmer.unresolved[name] = true
+	case itemDeclaration, itemAlways, itemGlobal:
+		if current.members != nil {
+			return // a global block: its members are followed one by one
+		}
+		if current.block != nil {
+			trimmer.keep(current.block, current)
+		}
+		for _, read := range current.reads(file) {
+			if len(file.locals[read.name]) == 0 {
+				trimmer.unresolved[read.name] = true
 			}
-			for _, target := range file.locals[name] {
-				trimmer.keep(target, current)
+			for _, target := range file.locals[read.name] {
+				trimmer.use(target, current, read.member)
 			}
 		}
 		for _, imported := range current.importTypes(file) {
 			trimmer.followModule(current, file, imported.specifier, imported.node, imported.name)
 		}
 	case itemImport:
+		if current.importedName == "*" {
+			return // a namespace import: its users ask for the members they read
+		}
 		trimmer.followModule(current, file, current.specifier, current.statement.AsImportDeclaration().ModuleSpecifier, current.importedName)
 	case itemExportLocal:
 		for _, target := range file.locals[current.localName] {
-			trimmer.keep(target, current)
+			trimmer.use(target, current, "")
 		}
 	case itemReExport:
 		trimmer.followModule(current, file, current.specifier, current.statement.AsExportDeclaration().ModuleSpecifier, current.importedName)
 	}
+}
+
+// use keeps a local a kept item reads; a namespace import read as `ns.member` provides only that member.
+func (trimmer *trimmer) use(target, user *item, member string) {
+	trimmer.keep(target, user)
+	if target.kind != itemImport || target.importedName != "*" {
+		return
+	}
+	if member == "" {
+		member = "*"
+	}
+	trimmer.followModule(target, target.file, target.specifier, target.statement.AsImportDeclaration().ModuleSpecifier, member)
 }
 
 // followModule keeps what module specifier provides as name, or records an external package.
