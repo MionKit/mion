@@ -45,7 +45,9 @@ export function evalEntryModules(modules: Record<string, string>): Record<string
     const exported = factory(scope) as Record<string, EntryTuple>;
     for (const name of exportNames) {
       byBinding[name] = exported[name];
-      tuples[name.slice(BINDING_PREFIX.length)] = exported[name];
+      // Every per-file data module exports `__rt_runtypes`, so a repeated key falls back to its module path.
+      const key = name.slice(BINDING_PREFIX.length);
+      tuples[key in tuples ? `${basename}#${key}` : key] = exported[name];
     }
     if (exportNames.length === 1) tuples[basename] = exported[exportNames[0]];
   }
