@@ -98,8 +98,11 @@ test('@acme/api-types: types only, the marker, the manifest and the pure fns, an
     assert.ok(!dts.includes(serverOnly), `${serverOnly} is not published`);
   }
   assert.ok(dts.includes('class Product'), 'a type the API reaches stays');
+  const manifest = execFileSync('tar', ['-xzOf', TYPES_TARBALL, 'package/.mion/api/manifest.json'], {encoding: 'utf8'});
+  for (const serverOnly of ['serverRaw', 'serverAudit']) assert.ok(!manifest.includes(serverOnly), `${serverOnly} is not in the shipped manifest`);
   const pkg = JSON.parse(execFileSync('tar', ['-xzOf', TYPES_TARBALL, 'package/package.json'], {encoding: 'utf8'}));
   assert.equal(pkg.main, undefined);
+  assert.equal(pkg.peerDependencies['@types/node'], undefined, "the raw middleware's node:http import leaves no peer");
   assert.deepEqual(pkg.mion, {apiTypes: './mion-api.json'});
   for (const peer of ['@mionjs/core', '@mionjs/router', '@mionjs/run-types']) assert.ok(pkg.peerDependencies[peer], `${peer} is a peer`);
   const marker = JSON.parse(execFileSync('tar', ['-xzOf', TYPES_TARBALL, 'package/mion-api.json'], {encoding: 'utf8'}));
