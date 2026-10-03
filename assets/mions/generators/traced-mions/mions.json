@@ -201,7 +201,13 @@
    1263,
    551
   ],
-  "tones": 7
+  "parts": "hat_juggler",
+  "trace": false,
+  "shadow": [
+   114,
+   198,
+   40
+  ]
  },
  "fin-fish": {
   "crop": [
