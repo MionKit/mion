@@ -161,10 +161,16 @@ def tail():
 LEG_FADES = ''.join(f'<linearGradient id="hg2-leg-fade-g{i}" gradientUnits="userSpaceOnUse" x1="0" y1="{-l[3]}" x2="0" y2="{l[2] * 0.6:.1f}"><stop offset="0" stop-color="#333"/><stop offset="1" stop-color="#fff"/></linearGradient>'
                     f'<mask id="hg2-leg-fade-{i}" maskUnits="userSpaceOnUse" x="-40" y="-40" width="80" height="90"><rect x="-40" y="-40" width="80" height="90" fill="url(#hg2-leg-fade-g{i})"/></mask>'
                     for i, l in enumerate(LEGS) if not l[-1])
+def foot_shadow(x, y, length, a, b, lean, back):  # under the tip of the foot, wherever the leg's lean puts it
+    t = math.radians(lean); reach = length + b
+    fx, fy = x - reach * math.sin(t), y + reach * math.cos(t) - 2
+    return f'<ellipse cx="{fx:.1f}" cy="{fy:.1f}" rx="{b * 1.3:.1f}" ry="{b * 0.45:.1f}"/>'
 TONGUE = 'M-12 -8 C-13.5 10 -12.5 26 -9 33 C-5.5 40.5 5.5 40.5 9 33 C12.5 26 13.5 10 12 -8 Z'
 TONGUE_AT = 'translate(55 212) rotate(42)'
 svg = f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 274 334" width="274" height="334">
   <defs>
+    <filter id="hg2-shadow-blur" x="-20%" y="-80%" width="140%" height="260%"><feGaussianBlur stdDeviation="4"/></filter>
+    <filter id="hg2-feet-blur" x="-50%" y="-100%" width="200%" height="300%"><feGaussianBlur stdDeviation="0.9"/></filter>
     <clipPath id="hg2-head-clip">{head_el()}</clipPath>
     {horn_clips}
     <path id="hg2-silhouette" d="{SILHOUETTE}"/><clipPath id="hg2-silhouette-clip"><use href="#hg2-silhouette"/></clipPath>
@@ -174,6 +180,10 @@ svg = f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 274 334" width="2
     <clipPath id="hg2-tongue-clip"><path d="{TONGUE}"/></clipPath>
     <mask id="hg2-body-mask"><rect width="274" height="334" fill="#fff"/><path d="M90 18 H178 V108 H90 Z M36 82 H74 V124 H36 Z M26 190 L72 212 L72 266 L24 266 Z" fill="#000"/></mask>
   </defs>
+  <g id="shadow" fill="#000">
+    <ellipse id="shadow-body" cx="146" cy="311" rx="80" ry="12" opacity="0.32" filter="url(#hg2-shadow-blur)"/>
+    <g id="shadow-feet" opacity="0.45" filter="url(#hg2-feet-blur)">{''.join(foot_shadow(*l) for l in LEGS)}</g>
+  </g>
   <g id="legs-back">{''.join(leg(i, *l) for i, l in enumerate(LEGS) if l[-1])}
   </g>
   <g id="tail" transform="translate(-3 0) rotate(55 214 262)">{tail()}
