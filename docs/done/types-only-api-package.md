@@ -1,7 +1,7 @@
 ---
 type: feature
 spec: guidelines
-status: in-progress
+status: done
 created: 2026-10-03
 ---
 
@@ -142,3 +142,31 @@ Decisions taken with the user:
 
 Gate (`pnpm test`, Go tests, `pnpm run lint`, `pnpm run format`), spec reconciled and `git mv` to `docs/done/`, review-pr (automatic), simplification passes, PR labelled `website` + `pre-publish-e2e`, drive CI green.
 
+
+## What shipped (2026-10-03)
+
+Built on main after the shared type-row modules landed; the types package ships no gen dir, so that change only
+moved the call `renderApiBundle` makes. Where the build differs from the plan above:
+
+- **tsc already drops private and raw middlewares from the API type.** `initRoutes` returns `PublicApi<R>`, which
+  tsc writes out expanded, so those keys never reach the `api` export. They leak through OTHER exports (a
+  `routes` object, `startServer`) and the imports and files only those use, which reachability removes. The
+  removal pass still runs, for a kept type that names the route definitions (`PublicApi<typeof routes>`): every
+  property that fits the router's `PrivateDef` and fits no public method type is cut, in every declaration,
+  unconditionally, since `PublicApi` of the cut object equals `PublicApi` of the full one. The second check
+  matters: a public middleware typed with a no-params, void handler fits `PrivateDef` too.
+- **The cascade is mark-from-roots, guarded by use counts.** A declaration stays while at least one kept
+  declaration uses it; this also drops an unused cycle, which a pure decrement-to-zero count would keep. Every
+  item carries the count of kept users, and the trim fails (internal error) if a kept non-root has none or a
+  dropped item has one. `Output.Uses` exposes the counts; the reused-type tests read them.
+- **Version guard**: the CLI checks that the build version the trimmed entry carries equals the manifest's,
+  instead of recomputing it through a session method. The leaf-paths cross-check against the manifest was dropped.
+- **`exports` also opens `"./*": {"types": "./*.d.ts"}`**: with only `"."`, a client that writes its own `.d.ts`
+  could not name a type from another kept file (TS2883).
+- **Pure fns through a renamed package**: `purefnindex` accepts an index whose `package` is the server the
+  marker names (`PackageIndex.Owner`), and remembers which types-only root serves that server, so a demanded id
+  resolves when the server package is not installed (an installed server still wins).
+- **MET015** (runtime error) and **MET016** (warning). MET012, MET013 and MKR016 tied to a refused package are
+  dropped from whole-program ops (dump, generate); a per-file dev scan still shows them. PFE9016 stays.
+- `--entry` takes the source file; by default the server package.json `types` entry picks the declaration.
+- `mion api-types --out` refuses a non-empty directory it did not write.
