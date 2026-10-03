@@ -70,11 +70,12 @@ import type {SharedNote} from './shared.ts';
 export const noteId = getRunTypeId<{note: SharedNote}>();
 export const auditIds = [auditNoteId];
 `;
-const SHARED = `export type SharedNote = {sharedNoteText: string};
+// Big enough for a shared module of its own; a tiny type is copied into each file instead.
+const SHARED = `export type SharedNote = {sharedNoteText: string; sharedNoteAuthor: string; sharedNoteTags: string[]; sharedNoteDone: boolean};
 `;
 const AUDIT = `import {getRunTypeId} from '@mionjs/run-types';
 import type {SharedNote} from './shared.ts';
-const entry: {auditNote: SharedNote} = {auditNote: {sharedNoteText: ''}};
+const entry: {auditNote: SharedNote} = {auditNote: {sharedNoteText: '', sharedNoteAuthor: '', sharedNoteTags: [], sharedNoteDone: false}};
 export const auditNoteId = getRunTypeId(entry);
 `;
 // The browser half, a plain module with its own marker site.
