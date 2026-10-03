@@ -30,7 +30,9 @@ compares the restated spelling against the shipped type by structural id, so
 drift fails loudly. The full list today: `FUZZ_FORMAT_SCRATCH_PREAMBLE`
 (typeGen.ts, pinned by `enrich/scratchFormatPreamble.test.ts`) and
 `i18nModel.ts`'s inline spellings (pinned by
-`enrich/i18nInlineSpelling.test.ts`). The marker module itself needs no
+`enrich/i18nInlineSpelling.test.ts`), and the `apiids/` lane's `@mionjs/router` and
+`@mionjs/client` stubs (pinned against their sources by `apiids/routerStubPin.test.ts`,
+since a run-types test cannot import the packages that depend on it). The marker module itself needs no
 stand-in at all: `MARKER_PACKAGE_OVERLAY` (@mionjs/devtools helpers)
 serves the REAL package's package.json + built dist .d.ts tree as virtual
 node_modules, so `@mionjs/run-types` resolves the way a consumer install
