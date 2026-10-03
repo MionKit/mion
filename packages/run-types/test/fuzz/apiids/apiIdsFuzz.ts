@@ -111,7 +111,7 @@ const CLIENT_DTS = `declare module '@mionjs/client' {
       ? (...params: Parameters<H>) => RouteSubRequest<H, \`\${Prefix}\${K & string}\`, Root>
       : ClientRoutes<RA[K], \`\${Prefix}\${K & string}/\`, Root>;
   };
-  export function initClient<RA>(o?: unknown, mode?: InjectApiMetadata<RA>): {routes: ClientRoutes<RA>};
+  export function initClient<RA>(o?: unknown): {routes: ClientRoutes<RA>};
 }
 `;
 
@@ -158,7 +158,7 @@ function tsconfig(extra: Record<string, unknown>): string {
  *  an older lib, so the two programs would not agree on every type on their
  *  own. **/
 export const SERVER_TSCONFIG = tsconfig({});
-export const CLIENT_TSCONFIG = tsconfig({strictNullChecks: false, lib: ['es2020']});
+export const CLIENT_TSCONFIG = tsconfig({strictNullChecks: false, lib: ['es2020', 'dom']});
 
 /** Renders the generated type as the shared `types.ts` of both projects. **/
 export function renderTypesModule(gen: GeneratedType): string {

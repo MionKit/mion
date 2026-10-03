@@ -139,6 +139,7 @@ const viteMain = (titleId: string): string =>
 const compileMain = (titleId: string): string =>
   consumerBody(titleId) +
   `import {getRunTypeId} from '@mionjs/run-types';
+declare const process: {stdout: {write(text: string): void}};
 type Tag = {label: string; day: string};
 const staticId = getRunTypeId<Tag>();
 const sample: Tag = {label: 'x', day: 'y'};
