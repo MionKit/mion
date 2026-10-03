@@ -254,10 +254,15 @@ func typeDiagnostics(tsProgram *compiler.Program, cwd string) ([]string, int) {
 
 // emitSkipped names why tsgo skipped an emit, or nil when it did not.
 func emitSkipped(stage string, result *compiler.EmitResult, cwd string) error {
+	return emitSkippedAt(stage, result, cwd, nil)
+}
+
+// emitSkippedAt is emitSkipped with locate moving each position from an overlay back to the source as written.
+func emitSkippedAt(stage string, result *compiler.EmitResult, cwd string, locate diagnosticLocator) error {
 	if result == nil || !result.EmitSkipped {
 		return nil
 	}
-	lines, _ := renderDiagnostics(result.Diagnostics, cwd)
+	lines, _ := renderDiagnosticsAt(result.Diagnostics, cwd, locate)
 	if len(lines) == 0 {
 		return fmt.Errorf("compile: tsgo %s was skipped", stage)
 	}
@@ -266,6 +271,13 @@ func emitSkipped(stage string, result *compiler.EmitResult, cwd string) error {
 
 // renderDiagnostics formats diagnostics as tsc prints them without --pretty.
 func renderDiagnostics(found []*ast.Diagnostic, cwd string) ([]string, int) {
+	return renderDiagnosticsAt(found, cwd, nil)
+}
+
+// diagnosticLocator moves a position in an overlaid file to the file and position the user wrote.
+type diagnosticLocator func(file *ast.SourceFile, pos int) (*ast.SourceFile, int)
+
+func renderDiagnosticsAt(found []*ast.Diagnostic, cwd string, locate diagnosticLocator) ([]string, int) {
 	found = compiler.SortAndDeduplicateDiagnostics(found)
 	lines := make([]string, 0, len(found))
 	errorCount := 0
@@ -276,7 +288,11 @@ func renderDiagnostics(found []*ast.Diagnostic, cwd string) ([]string, int) {
 		}
 		var builder strings.Builder
 		if file := diagnostic.File(); file != nil {
-			line, character := scanner.GetECMALineAndUTF16CharacterOfPosition(file, diagnostic.Pos())
+			pos := diagnostic.Pos()
+			if locate != nil {
+				file, pos = locate(file, pos)
+			}
+			line, character := scanner.GetECMALineAndUTF16CharacterOfPosition(file, pos)
 			fileName := file.FileName()
 			if rel, err := filepath.Rel(cwd, fileName); err == nil && !strings.HasPrefix(rel, "..") {
 				fileName = filepath.ToSlash(rel)
