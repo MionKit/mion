@@ -64,6 +64,18 @@ globalThis.__serverRan = isAccount({id: 1, label: 'a'});
 export const auditId = getRunTypeId<{serverOnlyAuditTrail: string}>();
 const review: {serverOnlyReviewNote: string} = {serverOnlyReviewNote: ''};
 export const reviewId = getRunTypeId(review);
+// A second server file reflects a type that nests the same shared type as this one.
+import {auditNoteId} from './audit.ts';
+import type {SharedNote} from './shared.ts';
+export const noteId = getRunTypeId<{note: SharedNote}>();
+export const auditIds = [auditNoteId];
+`;
+const SHARED = `export type SharedNote = {sharedNoteText: string};
+`;
+const AUDIT = `import {getRunTypeId} from '@mionjs/run-types';
+import type {SharedNote} from './shared.ts';
+const entry: {auditNote: SharedNote} = {auditNote: {sharedNoteText: ''}};
+export const auditNoteId = getRunTypeId(entry);
 `;
 // The browser half, a plain module with its own marker site.
 const CLIENT = `import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
@@ -99,6 +111,8 @@ register('one config, two bundles', () => {
     writeFileSync(path.join(root, 'src', 'router.d.ts'), ROUTER_DTS);
     writeFileSync(path.join(root, 'src', 'main.ts'), CLIENT);
     writeFileSync(path.join(root, 'src', 'server.ts'), SERVER);
+    writeFileSync(path.join(root, 'src', 'shared.ts'), SHARED);
+    writeFileSync(path.join(root, 'src', 'audit.ts'), AUDIT);
     writeFileSync(path.join(root, 'router-stub.js'), ROUTER_STUB);
     writeFileSync(path.join(root, 'marker-stub.js'), MARKER_STUB);
   });
@@ -187,6 +201,15 @@ register('one config, two bundles', () => {
     expect(client).not.toContain('serverOnlyReviewNote');
     expect(server).toMatch(/["']serverOnlyReviewNote["']/);
     expect(server).not.toContain('clientOnlyCartNote');
+  });
+
+  it('writes a type two server files reach once in the server bundle', async () => {
+    const {binary} = countingBinary();
+    await buildApp(binary);
+    const server = readFileSync(serverBundleIn(path.join(root, 'dist-server')), 'utf8');
+    // Quoted, the name is a reflected row; the audit file's object literal writes it unquoted.
+    expect(server.match(/["'`]sharedNoteText["'`]/g)).toHaveLength(1);
+    expect(server).toMatch(/["'`]auditNote["'`]/);
   });
 
   it('runs: the server bundle boots and carries its compiled type id', async () => {

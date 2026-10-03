@@ -1,12 +1,13 @@
-// With one runtype data module per source file, a type two files reach ships in both modules.
+// Runtype data modules: a row reached by several files sits in a shared module they import, and a row two
+// modules both carry (an older copy after a reload, a second build) still registers once.
 
 import {describe, expect, it} from 'vitest';
 import {initFromTuple, type EntryTuple} from '../../src/runtypes/entryTuple.ts';
 import {getRTUtils} from '../../src/runtypes/rtUtils.ts';
 
 // Data module tuple (kind 4): [entryKind, deps, ini, key, rows, rels]; a rels row's slot 0 is `child`, by row index.
-function dataModule(key: string, rows: unknown[][], rels: (unknown[] | undefined)[]): EntryTuple {
-  return [4, undefined, undefined, key, rows, rels] as unknown as EntryTuple;
+function dataModule(key: string, rows: unknown[][], rels: (unknown[] | undefined)[], deps?: () => EntryTuple[]): EntryTuple {
+  return [4, deps, undefined, key, rows, rels] as unknown as EntryTuple;
 }
 
 // Slot 21 of a headless row is jsonMaxBytes.
@@ -47,6 +48,15 @@ describe('entryTuple / per-file data modules', () => {
     expect(utils.getRunType('mod-shared')).toBe(shared);
     expect(shared?.child).toBe(a);
     expect(utils.getRunType('mod-b')?.child).toBe(shared);
+  });
+
+  it('wires a relation to a row of an imported shared module, named by id', () => {
+    const utils = getRTUtils();
+    const shared = dataModule('rts_sharedModule', [['mod-shared-leaf', 0]], []);
+    initFromTuple(dataModule('rts_fileModule', [['mod-file-root', 0]], [['mod-shared-leaf']], () => [shared]));
+    const leaf = utils.getRunType('mod-shared-leaf');
+    expect(leaf).toBeDefined();
+    expect(utils.getRunType('mod-file-root')?.child).toBe(leaf);
   });
 
   it('takes a root size limit from a later module when the first registered the row without one', () => {
