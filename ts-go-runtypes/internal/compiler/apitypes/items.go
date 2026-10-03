@@ -37,9 +37,7 @@ type item struct {
 	importedName string
 	localName    string // the local an `export {a as b}` points at
 	kept         bool
-	// members are a `declare global` block's statements; block is the block a member belongs to.
-	members []*item
-	block   *item
+	block        *item // the `declare global` block a global member belongs to
 	// users are the kept items that use this one.
 	users []*item
 }
@@ -122,35 +120,34 @@ func (file *fileInfo) addStatement(statement *ast.Node) {
 
 // addGlobal adds a `declare global` block and one item per statement in it; global names stay out of file.locals.
 func (file *fileInfo) addGlobal(statement *ast.Node) {
-	block := &item{kind: itemAlways, statement: statement, members: []*item{}}
+	block := &item{kind: itemAlways, statement: statement}
 	file.add(block)
 	body := statement.AsModuleDeclaration().Body
 	if body == nil || body.Kind != ast.KindModuleBlock {
 		return
 	}
 	for _, inner := range body.AsModuleBlock().Statements.Nodes {
-		member := &item{kind: itemGlobal, statement: inner, block: block, file: file}
-		if inner.Kind == ast.KindVariableStatement {
-			for _, variable := range inner.AsVariableStatement().DeclarationList.AsVariableDeclarationList().Declarations.Nodes {
-				member.names = append(member.names, bindingNames(variable.Name())...)
-			}
-		} else if name := inner.Name(); name != nil && ast.IsIdentifier(name) {
-			member.names = []string{name.Text()}
-		}
-		block.members = append(block.members, member)
-		file.items = append(file.items, member)
+		file.items = append(file.items, &item{kind: itemGlobal, statement: inner, block: block, file: file, names: statementNames(inner)})
 	}
 }
 
-func (file *fileInfo) addDeclaration(statement *ast.Node) {
-	declaration := &item{kind: itemDeclaration, statement: statement}
-	if statement.Kind == ast.KindVariableStatement {
-		for _, variable := range statement.AsVariableStatement().DeclarationList.AsVariableDeclarationList().Declarations.Nodes {
-			declaration.names = append(declaration.names, bindingNames(variable.Name())...)
+// statementNames lists the names a declaration statement declares.
+func statementNames(statement *ast.Node) []string {
+	if statement.Kind != ast.KindVariableStatement {
+		if name := statement.Name(); name != nil && ast.IsIdentifier(name) {
+			return []string{name.Text()}
 		}
-	} else if name := statement.Name(); name != nil && ast.IsIdentifier(name) {
-		declaration.names = []string{name.Text()}
+		return nil
 	}
+	var names []string
+	for _, variable := range statement.AsVariableStatement().DeclarationList.AsVariableDeclarationList().Declarations.Nodes {
+		names = append(names, bindingNames(variable.Name())...)
+	}
+	return names
+}
+
+func (file *fileInfo) addDeclaration(statement *ast.Node) {
+	declaration := &item{kind: itemDeclaration, statement: statement, names: statementNames(statement)}
 	flags := ast.GetCombinedModifierFlags(statement)
 	if flags&ast.ModifierFlagsExport != 0 && len(declaration.names) > 0 {
 		if flags&ast.ModifierFlagsDefault != 0 {
@@ -304,12 +301,8 @@ func (current *item) reads(file *fileInfo) []localRead {
 	return out
 }
 
-// eachRef calls visit for every identifier node reads outside the file's holes.
-func (file *fileInfo) eachRef(node *ast.Node, visit func(identifier *ast.Node)) {
-	file.eachRead(node, func(identifier *ast.Node, _ string) { visit(identifier) })
-}
-
-// eachRead is eachRef plus the first member a qualified name reads off the identifier.
+// eachRead calls visit for every identifier node reads outside the file's holes, with the first member a qualified
+// name reads off it.
 func (file *fileInfo) eachRead(node *ast.Node, visit func(identifier *ast.Node, member string)) {
 	if node == nil || file.inHole(node) {
 		return

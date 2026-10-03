@@ -46,7 +46,7 @@ func TestFuzz_ApiTypesTrim(t *testing.T) {
 // runApiTypesCase trims one generated graph and returns every oracle that failed.
 func runApiTypesCase(t *testing.T, graph *apiGraph, caseSeed int64) []string {
 	t.Helper()
-	output, input, err := tryTrimIn(t, graph.files, graph.entry, heavyProject)
+	output, input, err := tryTrim(t, graph.files, graph.entry)
 	if err != nil {
 		return []string{"trim failed: " + err.Error()}
 	}
@@ -63,7 +63,7 @@ func runApiTypesCase(t *testing.T, graph *apiGraph, caseSeed int64) []string {
 		failures = append(failures, oracleSameFiles("idempotent: trimming the output again", output.Files, again.Files)...)
 	}
 	twin := generateApiGraph(rand.New(rand.NewSource(caseSeed)))
-	twinOutput, _, err := tryTrimIn(t, twin.files, twin.entry, heavyProject)
+	twinOutput, _, err := tryTrim(t, twin.files, twin.entry)
 	if err != nil {
 		failures = append(failures, "deterministic: the same seed failed to trim: "+err.Error())
 	} else {
@@ -244,7 +244,7 @@ func TestFuzz_ApiTypesGeneratorCoversEveryPosition(t *testing.T) {
 // TestFuzz_ApiTypesOraclesFire is the negative control: each oracle fails on a deliberately broken output.
 func TestFuzz_ApiTypesOraclesFire(t *testing.T) {
 	graph := generateApiGraph(rand.New(rand.NewSource(7)))
-	output, input, err := tryTrimIn(t, graph.files, graph.entry, heavyProject)
+	output, input, err := tryTrim(t, graph.files, graph.entry)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -108,7 +108,7 @@ func (trimmer *trimmer) checkContainersUnshared(containers []routesContainer) er
 func (current *item) readsOutsidePublicApi(name string) bool {
 	file := current.file
 	found := false
-	file.eachRef(current.statement, func(identifier *ast.Node) {
+	file.eachRead(current.statement, func(identifier *ast.Node, _ string) {
 		if identifier.Text() != name {
 			return
 		}
