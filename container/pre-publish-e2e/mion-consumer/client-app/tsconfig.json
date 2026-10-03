@@ -9,6 +9,9 @@
       "ES2023",
       "DOM"
     ],
+    "types": [
+      "node"
+    ],
     "isolatedModules": true,
     "skipLibCheck": true,
     "allowImportingTsExtensions": true,
