@@ -57,7 +57,8 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
 - The lane generates graphs using every position listed above, and each oracle has been shown to fire on a
   deliberately broken trimmer.
 - The quick tier runs in CI with the other fuzz lanes; the soak tier runs in the release fuzz workflow.
-- The drizzle example app passes oracles 1 and 2.
+- The drizzle example app's slim routes pass oracles 1 and 2; the whole app passes oracle 2 (its plain drizzle
+  routes genuinely reach `drizzle-orm`, which the self-contained package todo removes).
 - Every finding is fixed with its own regression test.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source file,
   each committed on its own.
@@ -78,21 +79,28 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
 ## What shipped
 
 - **Fuzz lane `apitypes`** in `ts-go-runtypes/internal/compiler/apitypes/fuzz_trim_test.go`: random labelled graphs
-  over every listed position except `implements` on a generic or merged interface (a class implements only an
-  interface it can restate). Oracle 2 compares each API member's structural type id (`typeid.Compute`) between the
-  full and the trimmed program instead of printed text: mion ids sort object members, so key order is not a loss.
-  A coverage test fails when the generator stops writing a position; each oracle has a negative control.
+  over every listed position. `implements` is written only against a plain interface with no type references (a
+  class must restate what it implements). Augmentations are generated both ways: a poisoned package augmentation
+  that must go, and relative augmentations of reached and unreached interfaces. Oracle 2 compares each API member's
+  structural type id (`typeid.Compute`) between the full and the trimmed program instead of printed text: mion ids
+  sort object members, so key order is not a loss. A coverage test fails when the generator stops writing a
+  position, and each oracle (the stand-alone check included) has a negative control.
 - **Findings, each fixed with a regression test** (`server_only_test.go`):
   - `import * as M` kept every export of its file; now `M.X` provides only `X` (a bare `M` still keeps all).
-  - A kept file's `declare global` and `declare module 'x'` blocks shipped whole; now a global block keeps only the
-    members kept code reads, and a module augmentation ships only when kept code imports that module (or keeps the
-    relative file it augments).
-- **Fixed "must not ship" tests**: private and raw middlewares, non-API exports, a barrel beside tables, unread
-  augmentations, all with a heavy package that must never ship or become a peer.
-- **Drizzle example app** (`drizzle_app_test.go`): its slim routes ship no `drizzle-orm` at all, and the whole app
-  type-checks with the server manifest's build version. Its plain drizzle routes return types of real drizzle tables,
-  so `drizzle-orm` is genuinely reached there; shipping those without the peer is the self-contained package todo.
-- **apiids lane** also runs `mion api-types` and builds a client from the package alone (A4), with its own negative
-  control. Its router stub became an installed package carrying the build version, and its generated types are
-  exported so the declaration build can name them.
-- Registered at the quick tier (ci.yml's Go suite step, `MION_FUZZ_ITER: '30'`) and the soak tier (1000 iterations).
+  - A kept file's `declare global` and `declare module` blocks shipped whole. Now a global member ships when kept
+    code reads its name (`globalThis.x` counts) or, from a kept file, when it merges into a library global
+    (`SymbolConstructor`, read through `Symbol`). A relative `declare module './x'` member ships with the declaration
+    it augments. A package augmentation ships when kept code imports that package directly or through any package it
+    imports. A side-effect import still ships its file's augmentations whole.
+- **Fixed "must not ship" tests** (`server_only_test.go`): private and raw middlewares, non-API exports, a barrel
+  beside tables, unread augmentations, all with a heavy package that must never ship or become a peer.
+- **Drizzle example app** (`drizzle_test.go`, sharing one workspace setup with the existing drizzle test): its slim
+  routes ship no `drizzle-orm` at all, and the whole app type-checks with the server manifest's build version. Its
+  plain drizzle routes return types of real drizzle tables, so `drizzle-orm` is genuinely reached there; shipping
+  those without the peer is the self-contained package todo.
+- **apiids lane** also runs `mion api-types` and builds a client from the package alone (A4), with a negative control
+  where only the stale package can fail the client. Its router stub became an installed package carrying the build
+  version, pinned with the client stub against the shipped sources, and its generated types are exported so the
+  declaration build can name them.
+- Registered at the quick tier (ci.yml's Go suite step, `MION_FUZZ_ITER: '30'`) and the soak tier (1000 iterations,
+  40 minute timeout). The Go lane now hashes the example app, router and core sources the drizzle tests compile.
