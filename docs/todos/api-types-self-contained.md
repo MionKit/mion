@@ -99,3 +99,105 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
 - Every shape in the Tests list is covered and passes, the drizzle app ships no `drizzle-orm` import or peer.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source file,
   each committed on its own.
+
+## Plan (approved 2026-10-03)
+
+### Context
+
+`mion api-types` keeps every outside type the API reaches as an import, so its package becomes a peer of the
+published types package and the client must install it only to read types. Settled with the maintainer: print every
+reached outside type into the types package; only tsconfig libraries (lib / types) and the mion packages stay peers;
+extend the `mion convert` printer; ids must equal the server's; no runtime code for printed classes / enums; third
+party pure functions ship inside. What the printer drops (method type parameters, overloads, statics) is dropped from
+the id too, because both come from the same view of the type, so ids still match; the client only gets looser typing
+on those parts. A printed id that does not match is a printer bug: the build fails with an internal error.
+
+### Changes
+
+#### 1. Printer declarations (`ts-go-runtypes/internal/convert`)
+- New `declprint.go`: `DeclPrinter{Resolve, Table, Origins}` with `PrintAlias`, `PrintClass`, `PrintEnum`,
+  `PrintUniqueSymbol`, each building a `printContext` (print.go:30) in type target.
+- Classes: members, methods with exact parameter names, accessors (`get`/`set`), function fields as properties,
+  `#private;` for `FlagPrivateFields`, `private x;` for typeless private members, `/** @nonEnumerable */` (replaces
+  the refusal at print.go:835), `extends Base` with the base printed as its own class (lib bases stay by name).
+- Enums: `declare enum` from the enum values; `Name.Member` references (replaces print.go:735).
+- Unique symbols: `declare const <name>: unique symbol` + `[name]` keys, name taken from the checker (replaces
+  print.go:831); well-known symbols print as `[Symbol.x]`.
+- Recursive types: `anonymousCycleDiag` (print.go:74) becomes a hook that invents a named alias.
+- Generic instantiations print as named aliases (`Name$n`).
+
+#### 2. Trimmer: replace outside uses (`internal/compiler/apitypes`)
+- `textRange` (items.go:75) gains replacement text; `slice` (items.go:480) writes it. Replacements sit in `holes`,
+  so reads inside them stop on their own.
+- A kept type node is *outside* when it resolves to a declaration in an outside package that is neither platform
+  nor mion, or is a `typeof x…` whose root is a project value typed by one. The outermost one is replaced:
+  - `Address` → `import("./_outside/geo.js").Address`; the unread import binding drops via `rebuildList`.
+  - `PgTableWithColumns<{…}>` → a printed instantiation alias.
+  - `typeof usersDb.$inferSelect` → a printed alias of the resolved row type; `usersDb` then drops.
+- Printed declarations go to `_outside/<pkg>.d.ts` (one file per outside package). Plain types keep their names;
+  classes / enums / unique symbols that collide are wrapped in a namespace so the name (part of the id) stays.
+- New `origins.go`: a checker walk that finds the classes, enums and unique symbols a use reaches, so they print
+  named and project ones point back at their kept file.
+- Platform types (lib, tsconfig `types`, ambient `declare module` in a loaded `@types` package, e.g. `node:http`'s
+  `IncomingMessage`) are never printed: their import stays and the `@types` package stays a peer.
+- `followModule` (trim.go:489) no longer adds printed packages to `Externals`; any other surviving outside import is
+  an internal error naming the file.
+- `Trim` (trim.go:61) loops mark → print → keep what printing referenced → drain until stable.
+- `Check` (trim.go:112) recomputes every printed and API member id on the check program; a mismatch fails with
+  "printing `<pkg>`'s `<Name>` changed its id", an internal error.
+
+#### 3. Ambient
+- The entry gets `/// <reference types="…" />` for each tsconfig `types` entry and `/// <reference lib="…" />` for
+  each `lib` entry (or the target's default), so the client classifies platform types like the server.
+- A `declare global` block a printed type needs is copied into its `_outside` file.
+- A server `declare module '<printed pkg>'` augmentation is already merged into the printed type, so it is not kept.
+
+#### 4. Pure functions
+- batchcompile (DeclarationsOnly) returns foreign pure fn modules (`renderPureFnArtifact`, resolver/render.go:300).
+- `reachedArtifact` (pkg.go:134) vendors a non-mion owner's closure into `.mion/vendor/<owner>/mion-pure-fns/`
+  instead of making it a peer; `ParseArtifactIndex`'s own-rows rule stays.
+- `apitypesmeta.Marker` gains `Vendored`; `purefnindex.ownerOf` (purefnindex.go:223) serves vendored owners; a real
+  install still wins in `ResolvePackage`.
+- Runtime: `addPureFn` (packages/run-types/src/runtypes/rtUtils.ts:104) warns when the same id arrives with a
+  different body; same body stays silent.
+
+### Tests
+- `apitypes/outside_test.go`: one subtest per shape (interface, alias, generic, recursive, class plain / `private` /
+  `#private` / accessor / inherited / Error base, enum, unique symbol brand, interface + namespace merge, `export *`,
+  `export =`, `exports` subpath, package → package, `declare global`, `declare module` augmentation,
+  `@nonEnumerable`, package in tsconfig `types`, `node:` platform and data). Each asserts no peer beyond mion +
+  tsconfig `@types`, `Check` passes, and id parity.
+- New `apitypes/parity_test.go` `assertIDParity`: writes the package into a fresh client project with only the types
+  package and mion stubs, computes ids and data / not-data per API member, compares with the server; includes server
+  `types:["node"]` vs client `[]`.
+- `convert/roundtrip_test.go` + `fuzz_atoms_test.go`: printed class / enum / unique symbol / recursive alias keeps
+  the original id.
+- `fuzz_trim_test.go`: reached outside packages on some seeds, no peer, parity; negative control.
+- `drizzle_test.go`: zero `drizzle-orm` imports or peers, parity.
+- `pkg_test.go` + purefnindex tests: foreign pure fn vendored, resolves, real install wins.
+- JS: rtUtils duplicate-body warning; class registry finds a printed class by exact id and by name.
+- `packages/devtools/test/compile-cli-mion.test.ts`: outside lib with a class → `_outside/`, no peer.
+- e2e `container/pre-publish-e2e/mion-api-types`: add an outside lib (class + enum), assert no peer, flip the
+  `@types/node` assertion (test/api-types.test.mjs:106), client builds with `types: []`. PR label `pre-publish-e2e`.
+- Fuzzing: extends the two existing fuzz lanes above (id oracle); no new suite.
+
+### Docs
+New page `container/website/content/01.rpc/07.devtools/05.api-types.md` ("API Types Package"), since the feature
+now has several sections of its own:
+- moved from `04.cli.md`: "Publishing a Types-Only Package", "Building a Client From Published API Types",
+  "Types-Only Package Compared With OpenAPI" (cli.md keeps a one-line link in their place);
+- new sections: "What the Package Contains" (files, `_outside/`), "Dependencies the Client Installs" (tsconfig
+  libraries + mion packages, the reference lines), "Classes and Enums From Other Libraries" (printed, client still
+  registers its classes), "When the Client Also Installs the Library" (the "not assignable" limit);
+- every in-site link to the moved anchors updated (`pnpm exec vitest run website-links` checks it).
+
+### Finish
+Gate (Go tests, `pnpm test`, lint, format), review-pr (automatic), docs-simplifier and comments-simplifier passes
+each committed on their own, `git mv` the spec into `docs/done/` reconciled with what shipped, open the PR with the
+`pre-publish-e2e` label, drive CI green.
+
+### Done when (from the spec)
+- A client installs only the types package (+ tsconfig libraries + mion peers), type-checks and computes the
+  server's ids.
+- Every shape above is covered; the drizzle app ships no `drizzle-orm` import or peer.
+- Both simplification passes ran and are committed on their own.
