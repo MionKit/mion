@@ -1,9 +1,7 @@
-# Composes the horned ghost v2: hand-built head, horn, eyes, tongue, legs and tail over the traced neck.
-import json, re, math, sys
+# Composes the horned ghost v2: head, horn, eyes, tongue, body, legs and tail, over the traced body outline.
+import json, math, sys
 eyes = json.load(open('eyes.json'))
 SILHOUETTE = json.load(open('body-outline.json'))['silhouette']
-traced = open('ghost-neck.svg').read()
-body_paths = '\n    '.join(re.findall(r'<path [^>]+/>', traced))
 
 HEAD = dict(cx=97.7, cy=166.2, rx=64, ry=67.2, rot=154)
 head_el = lambda extra='': f'<ellipse cx="{HEAD["cx"]}" cy="{HEAD["cy"]}" rx="{HEAD["rx"]}" ry="{HEAD["ry"]}" transform="rotate({HEAD["rot"]} {HEAD["cx"]} {HEAD["cy"]}){extra}"/>'
@@ -83,8 +81,12 @@ leg_rand = random.Random(53)   # own stream: odd leg shapes never move anything 
 LEG_SHAPES = [dict(bulge=(leg_rand.uniform(-1.5, 3), leg_rand.uniform(-1.5, 3)), flare=leg_rand.uniform(-1, 3.5), bend=leg_rand.uniform(-5, 5),
                    waves=[(k, leg_rand.uniform(0.3, 1.1), leg_rand.uniform(0, 6.28)) for k in (2, 3)]) for _ in range(4)]
 del LEG_SHAPES[1]   # that leg was dropped; the others keep their shapes
+LEG_ODDNESS = 0.5   # how much of each leg's random bulge, flare, bend and wobble to use
 def leg_d(length, a, b, shape=None, n=10):
     shape = shape or dict(bulge=(0, 0), flare=0, bend=0, waves=[])
+    k = LEG_ODDNESS
+    shape = dict(bulge=(shape['bulge'][0] * k, shape['bulge'][1] * k), flare=shape['flare'] * k, bend=shape['bend'] * k,
+                 waves=[(f, amp * k, ph) for f, amp, ph in shape['waves']])
     pts_left, pts_right = [], []
     for j in range(n + 1):  # walk down the leg: a bending center line, each side with its own bulge, and a flaring foot
         s = j / n
@@ -160,16 +162,12 @@ LEG_FADES = ''.join(f'<linearGradient id="hg2-leg-fade-g{i}" gradientUnits="user
                     f'<mask id="hg2-leg-fade-{i}" maskUnits="userSpaceOnUse" x="-40" y="-40" width="80" height="90"><rect x="-40" y="-40" width="80" height="90" fill="url(#hg2-leg-fade-g{i})"/></mask>'
                     for i, l in enumerate(LEGS) if not l[-1])
 TONGUE = 'M-12 -8 C-13.5 10 -12.5 26 -9 33 C-5.5 40.5 5.5 40.5 9 33 C12.5 26 13.5 10 12 -8 Z'
-TONGUE_AT = 'translate(55 212) rotate(14)'
+TONGUE_AT = 'translate(55 212) rotate(42)'
 svg = f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 274 334" width="274" height="334">
   <defs>
     <clipPath id="hg2-head-clip">{head_el()}</clipPath>
     {horn_clips}
     <path id="hg2-silhouette" d="{SILHOUETTE}"/><clipPath id="hg2-silhouette-clip"><use href="#hg2-silhouette"/></clipPath>
-    <linearGradient id="hg2-neck-fade" gradientUnits="userSpaceOnUse" x1="0" y1="192" x2="0" y2="222"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#000"/></linearGradient>
-    <mask id="hg2-neck-tail-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="274" height="334">
-      <path d="M108 90 H206 V226 H108 Z" fill="url(#hg2-neck-fade)"/>
-    </mask>
     {''.join(f'<path id="hg2-leg-shape-{i}" d="{leg_d(*l[2:5], LEG_SHAPES[i])}"/><clipPath id="hg2-leg-{i}"><use href="#hg2-leg-shape-{i}"/></clipPath>' for i, l in enumerate(LEGS))}
     {''.join(f'<path id="hg2-tail-shape-{j}" d="{trap_d(TAIL_SHAPES[j], *t)}"/><clipPath id="hg2-tail-{j}"><use href="#hg2-tail-shape-{j}"/></clipPath>' for j, t in enumerate(TAIL))}
 {LEG_FADES}
@@ -186,9 +184,14 @@ svg = f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 274 334" width="2
         <use href="#hg2-silhouette" fill="#8f91a4"/>
         <use href="#hg2-silhouette" fill="#a4a6b5" transform="translate(-2 -7)"/>
         <path id="body-light" d="M74 262 C70 248 82 238 96 233 C120 222 150 202 172 191 C184 185 192 197 190 211 C186 238 178 250 160 256 C130 266 96 272 80 268 C76 267 75 265 74 262 Z" fill="#c5c6d0"/>
-      </g>
-      <g id="neck-tail" mask="url(#hg2-neck-tail-mask)">
-    {body_paths}
+        <g id="body-spots">
+          <ellipse cx="112" cy="262" rx="5.5" ry="4" fill="#e3c5b0" opacity="0.8"/>
+          <circle cx="150" cy="250" r="2.4" fill="#e9dc9a"/>
+          <circle cx="176" cy="232" r="2" fill="#ffffff"/>
+          <circle cx="99" cy="286" r="2.2" fill="#e9a3a8"/>
+          <ellipse cx="165" cy="273" rx="7" ry="4.5" fill="#b3b5c2" opacity="0.7"/>
+          <circle cx="191" cy="258" r="1.8" fill="#ffffff" opacity="0.8"/>
+        </g>
       </g>
     </g>
   </g>
