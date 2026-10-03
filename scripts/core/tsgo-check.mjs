@@ -16,6 +16,13 @@ export function tsErrors(output) {
   return output.split('\n').filter((line) => /error TS\d+:/.test(line));
 }
 
+// Examples raise RunType diagnostics on purpose, so a non-zero exit is a crash only when none is printed.
+export function failureLines(status, output) {
+  const errors = tsErrors(output);
+  if (errors.length > 0) return errors;
+  return status !== 0 && !/: error [A-Z]+\d+:/.test(output) ? [output] : [];
+}
+
 export function projects(repoRoot = REPO_ROOT) {
   const rootScripts = JSON.parse(readFileSync(join(repoRoot, 'package.json'), 'utf8')).scripts ?? {};
   return readPackages(repoRoot)
@@ -33,11 +40,8 @@ export function main() {
       const cwd = join(REPO_ROOT, 'packages', dir);
       const result = capture(MION, ['compile', '--cwd', cwd, '--tsconfig', config, '--gen-dir', genDir, '--no-emit']);
       if (result.error) die(`tsgo-check: cannot run ${MION} (${result.error.message}); build it with \`pnpm run check:builds\``);
-      const output = `${result.stdout}\n${result.stderr}`;
-      const errors = tsErrors(output);
-      // Examples raise RunType diagnostics on purpose, so a non-zero exit is a crash only when none is printed.
-      const crashed = result.status !== 0 && !/: error [A-Z]+\d+:/.test(output);
-      if (errors.length > 0 || crashed) failed.push({dir, config, lines: errors.length > 0 ? errors : [output]});
+      const lines = failureLines(result.status, `${result.stdout}\n${result.stderr}`);
+      if (lines.length > 0) failed.push({dir, config, lines});
     }
   } finally {
     rmSync(genDir, {recursive: true, force: true});

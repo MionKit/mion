@@ -61,7 +61,7 @@ Delegated session with no one to answer, so the plan ran in automatic mode.
   - `private-test-server/tsconfig.build.json` and the examples' `tsconfig.runtypes.json` fail under both checkers
     without built dists, so they are not tsgo-only.
 - CI: `scripts/core/tsgo-check.mjs` (`pnpm run check:tsgo`, `pnpm miondevx core tsgo-check`) runs `mion compile --no-emit`
-  over every project the typecheck scripts name and fails on any `error TS` line. The root `typecheck` runs it last,
+  over every project a package or root script names with `-p` (minus `TSC_ONLY`) and fails on any `error TS` line. The root `typecheck` runs it last,
   so CI's lint job runs it. About 20 s for 26 projects.
 - Tests: `repo-contracts.test.ts` pins the root wiring, the tsc-only list and the error-line parser. The check itself
   fails on the old `dispatchError.ts`.
