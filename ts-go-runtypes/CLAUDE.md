@@ -89,6 +89,17 @@ Three things that trip people up:
 
 `Completeness` is deliberately NOT a level: the unfilled-scaffold codes are warnings (a mirror with blank labels still runs), and that bit is what `enrich --require-complete` and the bundler's production enrichment gate promote. A gate keying on the level instead silently stops working.
 
+## A type from an installed package is always rebuilt from its `.d.ts`
+
+A consumer that names a package's type (`createValidate<LibUser>()`) builds its own ids and code from the `.d.ts`, under its own tsconfig. Never make the compiler reuse ids or generated code a package ships instead:
+
+- A package only generated the families its own call sites asked for; any other family would be rebuilt anyway.
+- A package type nested in the consumer's own type, or a generic the consumer instantiates (`Page<LibUser>`), has no id in the package.
+- The consumer's checker decides what the type is for the consumer's code; code built under the package's tsconfig would check a different type.
+- A package that wants its own build used exports the function (`export const validateUser = createValidate<User>()`), and a regular import runs it unchanged.
+
+Two builds that must agree over a wire (a mion client and server) compare ids instead (`ApiBuildVersion`, `MET012`). Pure fns are the one shipped artifact (`mion-pure-fns/`): their bodies are not derived from a type, so a `.d.ts` cannot rebuild them.
+
 ## Readonly is part of the type id, though no type function reads it
 
 `readonly` on a property, an index signature, a tuple or an array changes no generated code, yet it is in the structural id (`readonlyBit` in [typeid.go](internal/cachegen/runtype/typeid/typeid.go)) and in reflection. Equal ids share ONE node, so a flag left out of the id would make reflection, the `jsonSchema` doc's `tsReadonly` and `mion convert` report whichever twin was projected first. A new readonly position goes in the projection and the id together, through one shared predicate (`typeid.IsReadonlyCollection`).
