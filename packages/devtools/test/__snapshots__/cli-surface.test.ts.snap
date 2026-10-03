@@ -10,8 +10,11 @@ Transforms every marker file, emits .js via tsgo with source maps composed back
 to the ORIGINAL source, and writes the generated cache modules to disk. Emits to
 the tsconfig outDir; requires a tsconfig; no stdio protocol.
 
---no-emit runs the scan + RunType-family diagnostics only and writes nothing
-(tsc --noEmit-style).
+Reports TypeScript's own errors like tsc and exits 1 on any; noEmitOnError in
+the tsconfig then writes nothing.
+
+--no-emit runs the type check, the scan and the RunType-family diagnostics
+only and writes nothing (tsc --noEmit-style).
 
 Flags:
   --api-tsconfig PATH
