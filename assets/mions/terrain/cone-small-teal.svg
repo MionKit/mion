@@ -1,8 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 170 170" width="170" height="170">
-  <defs><clipPath id="cone-small-teal-top-clip"><path d="M87 78Q96 74 101 78L135 102Q140 106 131 110L72 138Q63 142 58 138L24 114Q19 110 28 106Z"/></clipPath></defs>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 170 183" width="170" height="183">
+  <defs>
+    <path id="cone-small-teal-outline" d="M87 78Q96 74 101 78L135 102Q140 106 140 107L140 115Q140 116 131 120L72 148Q63 152 58 148L24 124Q19 120 19 119L19 111Q19 110 28 106Z"/>
+    <clipPath id="cone-small-teal-top-clip"><path d="M87 78Q96 74 101 78L135 102Q140 106 131 110L72 138Q63 142 58 138L24 114Q19 110 28 106Z"/></clipPath>
+    <filter id="cone-small-teal-shadow-blur" x="-20%" y="-40%" width="140%" height="180%"><feGaussianBlur stdDeviation="5"/></filter>
+  </defs>
   <g id="cone-small-teal">
+  <use id="cone-small-teal-shadow" href="#cone-small-teal-outline" fill="#000" opacity="0.75" transform="translate(0 16)" filter="url(#cone-small-teal-shadow-blur)"/>
   <g id="cone-small-teal-tile">
-    <path fill="#25384c" d="M87 78Q96 74 101 78L135 102Q140 106 140 107L140 115Q140 116 131 120L72 148Q63 152 58 148L24 124Q19 120 19 119L19 111Q19 110 28 106Z"/>
+    <use href="#cone-small-teal-outline" fill="#25384c"/>
     <path fill="#366781" d="M63 143Q63 142 72 138L131 110Q140 106 140 107L140 115Q140 116 131 120L72 148Q63 152 63 151Z"/>
     <path fill="#8ba293" d="M87 78Q96 74 101 78L135 102Q140 106 131 110L72 138Q63 142 58 138L24 114Q19 110 28 106Z"/>
     <path fill="#98ad9f" d="M81 82Q92 77 98 81L123 100Q130 104 119 109L74 130Q63 135 57 131L32 112Q25 108 36 103Z" clip-path="url(#cone-small-teal-top-clip)"/>

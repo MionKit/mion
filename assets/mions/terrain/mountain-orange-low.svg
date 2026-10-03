@@ -1,8 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 365 320" width="365" height="320">
-  <defs><clipPath id="mountain-orange-low-top-clip"><path d="M159 74Q178 64 198 75L324 142Q344 153 325 163L206 226Q187 236 167 225L41 158Q22 148 40 138Z"/></clipPath></defs>
+  <defs>
+    <path id="mountain-orange-low-outline" d="M159 74Q178 64 198 75L324 142Q344 153 344 154L344 160Q344 161 325 171L206 234Q187 244 167 233L41 166Q22 156 22 155L22 148Q22 148 40 138Z"/>
+    <clipPath id="mountain-orange-low-top-clip"><path d="M159 74Q178 64 198 75L324 142Q344 153 325 163L206 226Q187 236 167 225L41 158Q22 148 40 138Z"/></clipPath>
+    <filter id="mountain-orange-low-shadow-blur" x="-20%" y="-40%" width="140%" height="180%"><feGaussianBlur stdDeviation="12"/></filter>
+  </defs>
   <g id="mountain-orange-low">
+  <use id="mountain-orange-low-shadow" href="#mountain-orange-low-outline" fill="#000" opacity="0.75" transform="translate(0 39)" filter="url(#mountain-orange-low-shadow-blur)"/>
   <g id="mountain-orange-low-tile">
-    <path fill="#a04b25" d="M159 74Q178 64 198 75L324 142Q344 153 344 154L344 160Q344 161 325 171L206 234Q187 244 167 233L41 166Q22 156 22 155L22 148Q22 148 40 138Z"/>
+    <use href="#mountain-orange-low-outline" fill="#a04b25"/>
     <path fill="#9d5c49" d="M187 237Q187 236 206 226L325 163Q344 153 344 154L344 160Q344 161 325 171L206 234Q187 244 187 243Z"/>
     <path fill="#9d5249" d="M159 74Q178 64 198 75L324 142Q344 153 325 163L206 226Q187 236 167 225L41 158Q22 148 40 138Z"/>
     <path fill="#a8665e" d="M155 86Q177 75 199 87L296 138Q319 151 297 162L206 211Q184 222 162 210L65 158Q42 146 64 134Z" clip-path="url(#mountain-orange-low-top-clip)"/>

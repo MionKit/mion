@@ -1,8 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 175 150" width="175" height="150">
-  <defs><clipPath id="mound-orange-top-clip"><path d="M84 59Q93 55 100 59L146 83Q154 87 145 91L90 116Q82 120 74 116L28 92Q21 88 30 84Z"/></clipPath></defs>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 175 159" width="175" height="159">
+  <defs>
+    <path id="mound-orange-outline" d="M84 59Q93 55 100 59L146 83Q154 87 154 88L154 94Q154 95 145 99L90 124Q82 128 74 124L28 100Q21 96 21 95L21 89Q21 88 30 84Z"/>
+    <clipPath id="mound-orange-top-clip"><path d="M84 59Q93 55 100 59L146 83Q154 87 145 91L90 116Q82 120 74 116L28 92Q21 88 30 84Z"/></clipPath>
+    <filter id="mound-orange-shadow-blur" x="-20%" y="-40%" width="140%" height="180%"><feGaussianBlur stdDeviation="5"/></filter>
+  </defs>
   <g id="mound-orange">
+  <use id="mound-orange-shadow" href="#mound-orange-outline" fill="#000" opacity="0.75" transform="translate(0 16)" filter="url(#mound-orange-shadow-blur)"/>
   <g id="mound-orange-tile">
-    <path fill="#aa4647" d="M84 59Q93 55 100 59L146 83Q154 87 154 88L154 94Q154 95 145 99L90 124Q82 128 74 124L28 100Q21 96 21 95L21 89Q21 88 30 84Z"/>
+    <use href="#mound-orange-outline" fill="#aa4647"/>
     <path fill="#b1574e" d="M82 121Q82 120 90 116L145 91Q154 87 154 88L154 94Q154 95 145 99L90 124Q82 128 82 127Z"/>
     <path fill="#db6c4d" d="M84 59Q93 55 100 59L146 83Q154 87 145 91L90 116Q82 120 74 116L28 92Q21 88 30 84Z"/>
     <path fill="#df7d62" d="M80 62Q90 58 99 62L134 81Q142 85 132 90L90 109Q80 113 72 109L37 90Q28 86 38 81Z" clip-path="url(#mound-orange-top-clip)"/>

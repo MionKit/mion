@@ -1,8 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 190" width="220" height="190">
-  <defs><clipPath id="cone-yellow-teal-top-clip"><path d="M101 91Q112 86 120 91L178 126Q186 131 176 136L113 168Q102 172 94 167L36 133Q28 128 38 123Z"/></clipPath></defs>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 217" width="220" height="217">
+  <defs>
+    <path id="cone-yellow-teal-outline" d="M101 91Q112 86 120 91L178 126Q186 131 186 132L186 138Q186 139 176 144L113 176Q102 180 94 175L36 141Q28 136 28 135L28 128Q28 128 38 123Z"/>
+    <clipPath id="cone-yellow-teal-top-clip"><path d="M101 91Q112 86 120 91L178 126Q186 131 176 136L113 168Q102 172 94 167L36 133Q28 128 38 123Z"/></clipPath>
+    <filter id="cone-yellow-teal-shadow-blur" x="-20%" y="-40%" width="140%" height="180%"><feGaussianBlur stdDeviation="6"/></filter>
+  </defs>
   <g id="cone-yellow-teal">
+  <use id="cone-yellow-teal-shadow" href="#cone-yellow-teal-outline" fill="#000" opacity="0.75" transform="translate(0 19)" filter="url(#cone-yellow-teal-shadow-blur)"/>
   <g id="cone-yellow-teal-tile">
-    <path fill="#708e8f" d="M101 91Q112 86 120 91L178 126Q186 131 186 132L186 138Q186 139 176 144L113 176Q102 180 94 175L36 141Q28 136 28 135L28 128Q28 128 38 123Z"/>
+    <use href="#cone-yellow-teal-outline" fill="#708e8f"/>
     <path fill="#648586" d="M102 173Q102 172 113 168L176 136Q186 131 186 132L186 138Q186 139 176 144L113 176Q102 180 102 180Z"/>
     <path fill="#61796e" d="M101 91Q112 86 120 91L178 126Q186 131 176 136L113 168Q102 172 94 167L36 133Q28 128 38 123Z"/>
     <path fill="#73897f" d="M97 96Q109 90 119 96L163 123Q173 129 162 134L113 159Q101 164 91 158L47 132Q37 126 48 120Z" clip-path="url(#cone-yellow-teal-top-clip)"/>
