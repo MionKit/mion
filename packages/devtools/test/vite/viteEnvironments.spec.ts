@@ -62,6 +62,8 @@ export const isAccount = createValidateFn<Account>();
 globalThis.__serverRan = isAccount({id: 1, label: 'a'});
 // A reflected type only the server uses: its field name must never reach the client bundle.
 export const auditId = getRunTypeId<{serverOnlyAuditTrail: string}>();
+const review: {serverOnlyReviewNote: string} = {serverOnlyReviewNote: ''};
+export const reviewId = getRunTypeId(review);
 `;
 // The browser half, a plain module with its own marker site.
 const CLIENT = `import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
@@ -69,6 +71,8 @@ export type Session = {token: string};
 const isSession = createValidateFn<Session>();
 export const ok = isSession({token: 'x'});
 globalThis.__clientForm = getRunTypeId<{clientOnlyDraftField: string}>();
+const cart: {clientOnlyCartNote: string} = {clientOnlyCartNote: ''};
+globalThis.__clientCart = getRunTypeId(cart);
 `;
 const INDEX_HTML = `<!doctype html><html><body><script type="module" src="/src/main.ts"></script></body></html>`;
 
@@ -161,6 +165,19 @@ register('one config, two bundles', () => {
     expect(client).not.toContain('serverOnlyAuditTrail');
     expect(server).toContain('serverOnlyAuditTrail');
     expect(server).not.toContain('clientOnlyDraftField');
+  });
+
+  it('keeps the types reflected from a value on each side out of the other bundle', async () => {
+    const {binary} = countingBinary();
+    await buildApp(binary);
+    const clientChunk = readdirSync(path.join(root, 'dist', 'assets')).find((name) => name.endsWith('.js'))!;
+    const client = readFileSync(path.join(root, 'dist', 'assets', clientChunk), 'utf8');
+    const server = readFileSync(serverBundleIn(path.join(root, 'dist-server')), 'utf8');
+    // Quoted, the name is a reflected row; the object literal itself writes it unquoted.
+    expect(client).toMatch(/["']clientOnlyCartNote["']/);
+    expect(client).not.toContain('serverOnlyReviewNote');
+    expect(server).toMatch(/["']serverOnlyReviewNote["']/);
+    expect(server).not.toContain('clientOnlyCartNote');
   });
 
   it('runs: the server bundle boots and carries its compiled type id', async () => {
