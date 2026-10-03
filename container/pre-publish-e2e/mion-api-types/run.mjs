@@ -12,6 +12,7 @@ const OUT = path.join(HERE, 'out');
 const TARBALLS = path.join(OUT, 'tarballs');
 const API = path.join(HERE, 'libs/api');
 const CLIENT = path.join(HERE, 'client');
+const CLIENT_FETCH = path.join(HERE, 'client-fetch');
 const PORT = 8247;
 
 const REGISTRY = process.env.MION_E2E_REGISTRY;
@@ -71,9 +72,11 @@ function buildApi() {
 }
 
 // A copy of the client source, so each variant installs its own tarball and keeps its own outputs.
-function clientCopy(name, tsconfigEdit) {
+// overlay is a directory whose files replace the client's own (the fetching main.ts).
+function clientCopy(name, tsconfigEdit, overlay) {
   const dir = path.join(OUT, name);
   cpSync(CLIENT, dir, {recursive: true, filter: (from) => !/[/\\](dist-vite|dist-cli|node_modules|\.mion|\.mion-cli)$/.test(from)});
+  if (overlay) cpSync(overlay, dir, {recursive: true});
   if (tsconfigEdit) {
     const file = path.join(dir, 'tsconfig.json');
     const tsconfig = JSON.parse(readFileSync(file, 'utf8'));
@@ -83,11 +86,11 @@ function clientCopy(name, tsconfigEdit) {
   return dir;
 }
 
-function buildClient(name, dir, tarball) {
+function buildClient(name, dir, tarball, routes = 'bundle') {
   npmInstall(dir, [tarball]);
-  const vite = capture(process.execPath, [path.join(HERE, 'vite-build.mjs'), dir], HERE);
+  const vite = capture(process.execPath, [path.join(HERE, 'vite-build.mjs'), dir, routes], HERE);
   writeFileSync(path.join(OUT, `${name}-vite.json`), JSON.stringify(vite, null, 2));
-  const cli = capture(MION, ['compile', '--cwd', dir, '--tsconfig', 'tsconfig.json', '--gen-dir', '.mion-cli'], dir);
+  const cli = capture(MION, ['compile', '--cwd', dir, '--tsconfig', 'tsconfig.json', '--gen-dir', '.mion-cli', '--client-routes', routes], dir);
   writeFileSync(path.join(OUT, `${name}-cli.json`), JSON.stringify(cli, null, 2));
   return {vite, cli};
 }
@@ -140,6 +143,17 @@ async function main() {
     cli: runClient(path.join(CLIENT, 'dist-cli/main.js'), CLIENT),
   }));
   writeFileSync(path.join(OUT, 'reports.json'), JSON.stringify(reports, null, 2));
+
+  log('client-fetch: a client built apart from its API that fetches each route from the server');
+  const fetchDir = clientCopy('client-fetch', undefined, CLIENT_FETCH);
+  const fetching = buildClient('client-fetch', fetchDir, tarballOf('0.0.0'), 'fetch');
+  if (fetching.vite.status !== 0) throw new Error(`mion-api-types: the fetching client's Vite build failed:\n${fetching.vite.output}`);
+  if (fetching.cli.status !== 0) throw new Error(`mion-api-types: the fetching client's mion compile failed:\n${fetching.cli.output}`);
+  const fetchReports = await withServer(fetchDir, async () => ({
+    vite: runClient(path.join(fetchDir, 'dist-vite/main.js'), fetchDir),
+    cli: runClient(path.join(fetchDir, 'dist-cli/main.js'), fetchDir),
+  }));
+  writeFileSync(path.join(OUT, 'fetch-reports.json'), JSON.stringify(fetchReports, null, 2));
 
   log('client-plain: the same client against the plain tsc tarball; both builds pass with a warning');
   buildClient('client-plain', clientCopy('client-plain'), tarballOf('0.0.1-plain'));
