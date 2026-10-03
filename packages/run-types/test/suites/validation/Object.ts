@@ -2543,6 +2543,51 @@ export const OBJECT = {
     ],
   },
 
+  readonly_index_signature: {
+    title: 'Readonly index signature',
+    description: 'A `readonly` index signature, whose readonly bit is TS-only, so the validator is identical to the mutable one.',
+    validateNotes: 'The `readonly` modifier has NO runtime impact. Every own key must hold a number.',
+    validate: () => createValidateFn<{readonly [key: string]: number}>(),
+    standardSchema: () => createStandardSchema<{readonly [key: string]: number}>(),
+    validateDataOnly: () => createValidateFn<DataOnly<{readonly [key: string]: number}>>(),
+    validateSchema: () => createValidateFn(RT.readonly(RT.record(TF.number()))),
+    deserializeValidate: () => deserializeValidate<{readonly [key: string]: number}>(),
+    validateReflect: () => {
+      const v: {readonly [key: string]: number} = {};
+      return createValidateFn(v);
+    },
+    deserializeValidateReflect: () => {
+      const v: {readonly [key: string]: number} = {};
+      return deserializeValidate(v);
+    },
+    getValidationErrors: () => createGetValidationErrorsFn<{readonly [key: string]: number}>(),
+    getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<{readonly [key: string]: number}>>(),
+    getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.readonly(RT.record(TF.number()))),
+    deserializeGetValidationErrors: () => deserializeGetValidationErrors<{readonly [key: string]: number}>(),
+    getValidationErrorsReflect: () => {
+      const v: {readonly [key: string]: number} = {};
+      return createGetValidationErrorsFn(v);
+    },
+    deserializeGetValidationErrorsReflect: () => {
+      const v: {readonly [key: string]: number} = {};
+      return deserializeGetValidationErrors(v);
+    },
+    mockType: () => createMockDataFn<{readonly [key: string]: number}>(),
+    mockTypeReflect: () => {
+      const v: {readonly [key: string]: number} = {};
+      return createMockDataFn(v);
+    },
+    getSamples: () => ({
+      valid: [{}, {a: 1}, {a: 1, b: 2}],
+      invalid: [{a: 'x'}, 'not object', null],
+    }),
+    getExpectedErrors: () => [
+      [{path: ['a'], expected: 'number'}],
+      [{path: [], expected: 'objectLiteral'}],
+      [{path: [], expected: 'objectLiteral'}],
+    ],
+  },
+
   object_with_union_prop: {
     title: 'Union property',
     description:
