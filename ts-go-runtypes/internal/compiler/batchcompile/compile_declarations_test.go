@@ -51,3 +51,13 @@ func TestCompile_DeclarationsKeepRouteTypesAndCarryTheVersion(t *testing.T) {
 		t.Errorf("the declaration must carry the injected version %s:\n%s", match[1], dts)
 	}
 }
+
+// TestCompile_SkippedDeclarationEmitNamesTheCause: a .d.ts tsgo refuses to write fails with its own diagnostic, not a bare line.
+func TestCompile_SkippedDeclarationEmitNamesTheCause(t *testing.T) {
+	dir := writeProject(t, map[string]string{"a.ts": "export const next = (n: number) => n + 1;\n"})
+	writeFile(t, filepath.Join(dir, "tsconfig.json"), strings.Replace(projectTsconfigJSON, `"strict": true,`, `"strict": true, "declaration": true, "isolatedDeclarations": true,`, 1))
+	_, err := Run(Options{Cwd: dir, TsconfigPath: "tsconfig.json", GenDir: filepath.Join(dir, ".mion")})
+	if err == nil || !strings.Contains(err.Error(), "src/a.ts(1,") || !strings.Contains(err.Error(), "error TS") {
+		t.Fatalf("the failure must name the file and the TS code, got %v", err)
+	}
+}
