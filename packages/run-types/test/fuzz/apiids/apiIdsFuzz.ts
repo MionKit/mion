@@ -1,7 +1,7 @@
 // The bundled-API id lane: per generated type, the real `mion` binary builds the server alone, then the whole program.
 // A1: every server manifest row's ids equal a reflection-marker probe's (both getRunTypeId call shapes). A2: the
 // client build reports no MET diagnostic and bundles exactly the routes it calls. A3: `mion api-check` passes.
-// A4: a client built against the `mion api-types` package of the server passes A2 and A3 too.
+// A4: a client built against the server's `mion api-types` package passes A2 and A3 too.
 // The negative control lives in the integration test.
 
 import fs from 'node:fs';
@@ -41,8 +41,7 @@ const ROUTE_HANDLERS = {
   r1: '(a: Root, b?: Root[]) => {items: Root[]; count: number}',
 } as const;
 
-/** Installed as a package, so the published types package resolves it like a client does. The build version rides
- *  the API type the way the real router carries it. **/
+/** A package, so the types package resolves it as a client does; its build version mirrors the real router's. **/
 export const ROUTER_DTS = `import type {InjectBuildVersion} from '@mionjs/run-types';
 type Handler = (...args: any[]) => any;
 type Opts = {alwaysRun: false; description: undefined; parser: {params: 'clone'; return: 'clone'}; isMutation: undefined; sanitizeParams: undefined};
@@ -132,8 +131,7 @@ const TYPES_CLIENT_TSCONFIG = 'tsconfig.types-client.json';
 /** `mion api-types` names the package after the server's: `@acme/api` plus `-types`. **/
 const TYPES_PACKAGE = '@acme/api-types';
 
-/** Renders the generated type as the project's `types.ts`, every declaration exported: the declaration build behind
- *  `mion api-types` must name each type the API reaches. **/
+/** Every declaration exported: the declaration build behind `mion api-types` must name each type the API reaches. **/
 export function renderTypesModule(gen: GeneratedType): string {
   const {decls, rootExpr} = renderGenerated(gen, FUZZ_FORMAT_PREAMBLE_PACKAGE);
   const exported = decls.replace(/^(?=(?:interface|type|class|abstract class|enum|const enum|declare) )/gm, 'export ');
@@ -201,8 +199,7 @@ function runMion(args: string[], cwd: string): CliResult {
   return {status: result.status ?? -1, stdout: result.stdout ?? '', stderr: result.stderr ?? ''};
 }
 
-/** The server alone into serverGen, the whole program into clientGen, or the types-package client into
- *  typesClientGen, routes bundled. **/
+/** The server alone, the whole program, or the types-package client, each into its own gen dir, routes bundled. **/
 export function compile(project: ApiProject, side: 'server' | 'client' | 'types-client'): CliResult {
   const [tsconfigFile, genDir] = {
     server: [SERVER_TSCONFIG, project.serverGen],
@@ -302,8 +299,7 @@ export function checkClientBundle(project: ApiProject, build: CliResult, clientG
     throw new Error(`A2: bundled ${bundled.join(',')}, expected ${CALLED_ROUTE_IDS.join(',')}`);
 }
 
-/** A3: api-check passes: the client's ids, families, options and chains are
- *  the server's. **/
+/** A3: api-check passes: the client's ids, families, options and chains are the server's. **/
 export function checkApiCheckPasses(project: ApiProject, clientGen = project.clientGen): void {
   const check = apiCheck(project, project.serverGen, clientGen);
   if (check.status !== 0)

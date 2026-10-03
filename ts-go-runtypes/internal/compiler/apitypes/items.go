@@ -300,8 +300,10 @@ func (current *item) reads(file *fileInfo) []localRead {
 		return nil
 	}
 	if current.localName != "" && current.kind == itemDeclaration {
+		// A sibling export of a multi-name variable statement: the first name's item walks the statement.
 		return []localRead{{name: current.localName}}
 	}
+	// Over-reading only keeps an extra declaration.
 	seen := map[localRead]bool{}
 	var out []localRead
 	file.eachRead(current.statement, func(identifier *ast.Node, member string) {
@@ -314,8 +316,7 @@ func (current *item) reads(file *fileInfo) []localRead {
 	return out
 }
 
-// eachRead calls visit for every identifier node reads outside the file's holes, with the first member a qualified
-// name reads off it.
+// eachRead visits each identifier node reads outside the file's holes, with the first member read off it.
 func (file *fileInfo) eachRead(node *ast.Node, visit func(identifier *ast.Node, member string)) {
 	if node == nil || file.inHole(node) {
 		return

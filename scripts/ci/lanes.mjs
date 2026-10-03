@@ -73,11 +73,8 @@ const PACKED = ['packages/', 'scripts/', 'version.json', ...WORKSPACE];
 // answer to different inputs, and neither may claim the other's marker.
 export const LANES = {
   // ci.yml
-  // The packages are a Go input in the other direction: the suites mount the REAL
-  // marker and drizzle packages as virtual node_modules (internal/testfixtures/
-  // realmarker.go and realdrizzle.go), so editing their sources changes what the
-  // Go tests compile against. The api-types tests also compile the drizzle example app's server against the real
-  // router and core sources.
+  // The Go suites mount the real marker and drizzle packages (internal/testfixtures/realmarker.go, realdrizzle.go).
+  // The api-types tests compile the drizzle example app's server against the real router and core sources.
   go: {
     job: 'go tests + fuzz · the Go suite',
     paths: ['packages/run-types/', 'packages/drizzle-orm', 'packages/private-drizzle-example-app/', 'packages/rpc-router/', 'packages/core/', ...GO_TREE],

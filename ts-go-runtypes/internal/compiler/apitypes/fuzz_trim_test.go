@@ -18,8 +18,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/testfixtures"
 )
 
-// The api-types fuzz lane: random declaration graphs, every type labelled at generation as reached from the API
-// (KEEP_n_, must ship) or not (POISON_n_, must not, often importing heavy-pkg). Replay a seed with MION_FUZZ_SEED.
+// TestFuzz_ApiTypesTrim: KEEP_n_ types are reached by the API and must ship, POISON_n_ must not.
 func TestFuzz_ApiTypesTrim(t *testing.T) {
 	if testing.Short() {
 		t.Skip("randomized sweep skipped under -short")
@@ -93,8 +92,7 @@ func oracleNoLeak(output *Output) []string {
 	return failures
 }
 
-// oracleNoLoss: the output type-checks alone with the same build version, every reached type ships, and the API
-// type reads the same as before the trim.
+// oracleNoLoss: the output checks alone, ships every reached type, keeps the build version and the API's type ids.
 func oracleNoLoss(t *testing.T, graph *apiGraph, input Input, output *Output) []string {
 	t.Helper()
 	problems, version, err := Check(input, output.Files, output.Entry)
@@ -155,8 +153,7 @@ func fullProgramProblems(input Input, entry string) []string {
 	return problems
 }
 
-// TestFuzz_ApiTypesGeneratorCoversEveryPosition: across a few hundred graphs the generator writes every place a
-// type can be named, so a generator change cannot silently narrow the lane.
+// TestFuzz_ApiTypesGeneratorCoversEveryPosition: so a generator change cannot silently narrow the lane.
 func TestFuzz_ApiTypesGeneratorCoversEveryPosition(t *testing.T) {
 	positions := map[string]string{
 		"property": "_0: ", "index signature": "[key: string]: ", "array": "[];", "generic argument": "Array<",
@@ -423,8 +420,7 @@ func addBinding(list *[]string, binding string) {
 	}
 }
 
-// typeRef renders how a declaration in file names unit; inExtends rules out `import()` types, which a heritage
-// clause cannot hold.
+// typeRef renders how file names unit; inExtends rules out `import()` types, which a heritage clause cannot hold.
 func (graph *apiGraph) typeRef(rng *rand.Rand, file int, unit *apiUnit, imports *fileImports, inExtends bool) string {
 	entity := unit.name
 	switch {
@@ -581,8 +577,7 @@ func (imports *fileImports) render() string {
 	return builder.String()
 }
 
-// members renders a unit's refs as properties, plus a heavy-pkg member on a heavy poison unit; a merge's second
-// statement (merged) carries its own refs only.
+// members renders a unit's refs as properties; a merge's second statement (merged) carries its own refs only.
 func (graph *apiGraph) members(rng *rand.Rand, unit *apiUnit, refs []*apiUnit, imports *fileImports, merged bool) string {
 	prefix, fallback := "p", fmt.Sprintf("id%d: string", unit.index)
 	if merged {

@@ -89,15 +89,13 @@ import {routes} from './app.ts';
 export const api = mion.initRoutes(routes);
 `
 
-// TestTrim_DrizzleExampleAppSlimRoutesShipNoDrizzle: routes built on the slim packages ship no drizzle-orm at all,
-// though the same files hold the drizzle tables and db clients that serve them.
+// TestTrim_DrizzleExampleAppSlimRoutesShipNoDrizzle: though the same files hold the drizzle tables and db clients.
 func TestTrim_DrizzleExampleAppSlimRoutesShipNoDrizzle(t *testing.T) {
 	output := trimDrizzleExampleApp(t, slimApiTS)
 	assertNeverShips(t, output, "drizzle-orm", "usersDb", "declare const db")
 }
 
-// TestTrim_DrizzleExampleAppReachesDrizzleOnlyThroughItsPlainDrizzleRoutes: the whole app trims, type-checks and keeps
-// its build version; drizzle-orm is reached only by the routes that return types of plain drizzle tables.
+// TestTrim_DrizzleExampleAppReachesDrizzleOnlyThroughItsPlainDrizzleRoutes: the whole app as one API.
 func TestTrim_DrizzleExampleAppReachesDrizzleOnlyThroughItsPlainDrizzleRoutes(t *testing.T) {
 	output := trimDrizzleExampleApp(t, fullApiTS)
 	var importing []string
@@ -113,8 +111,7 @@ func TestTrim_DrizzleExampleAppReachesDrizzleOnlyThroughItsPlainDrizzleRoutes(t 
 	assertLacks(t, strings.Join(mapValues(output.Files), "\n"), "drizzle-orm/mysql-proxy", "drizzle-orm/pg-proxy", "drizzle-orm/sqlite-proxy", "Relations<")
 }
 
-// trimDrizzleExampleApp copies the reference app's server, adds apiText as the API entry, then compiles and trims it,
-// checking the result type-checks alone, carries the server manifest's build version and ships no server startup.
+// trimDrizzleExampleApp trims the reference app's server with apiText as its API entry.
 func trimDrizzleExampleApp(t *testing.T, apiText string) *Output {
 	t.Helper()
 	dir, repo := drizzleWorkspace(t)
@@ -155,8 +152,7 @@ func trimDrizzleExampleApp(t *testing.T, apiText string) *Output {
 	return output
 }
 
-// drizzleWorkspace is a temp project linking the workspace's real drizzle and mion packages; it skips when they are
-// not installed.
+// drizzleWorkspace is a temp project linking the workspace's real drizzle and mion packages.
 func drizzleWorkspace(t *testing.T) (dir, repo string) {
 	t.Helper()
 	_, self, _, _ := runtime.Caller(0)
@@ -184,8 +180,7 @@ func drizzleWorkspace(t *testing.T) (dir, repo string) {
 	return dir, repo
 }
 
-// compileAndTrim emits the project's declarations as `mion api-types` does and trims them; entry is relative to the
-// declaration dir, "" to find it.
+// compileAndTrim emits and trims as `mion api-types` does; entry is under the declaration dir, "" to find it.
 func compileAndTrim(t *testing.T, dir, entry string) (*Output, Input, *batchcompile.Result) {
 	t.Helper()
 	declarationDir := filepath.Join(dir, ".mion-api-types")
