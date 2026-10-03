@@ -18,9 +18,9 @@ const register = hasBinary() ? it : it.skip;
 const CLIENT_DTS = `declare module '@mionjs/client' {
   import type {PureFunction, InjectPureFnId, InjectBatchId} from '@mionjs/run-types';
   export interface RouteSubRequest<PH> { id: string }
-  export type ClientRoutes<RA> = { [K in keyof RA]: RA[K] extends (...a: infer P) => infer R ? (...p: P) => RouteSubRequest<RA[K]> : ClientRoutes<RA[K]> };
+  export type ClientRoutes<RA> = { [K in keyof RA]: RA[K] extends (...a: infer P) => infer R ? (...p: {[I in keyof P]: P[I] | InputFromRef<any>}) => RouteSubRequest<RA[K]> : ClientRoutes<RA[K]> };
   export function initClient<RA>(o?: unknown): {client: unknown; routes: ClientRoutes<RA>};
-  export interface InputFromRef<F> { asArg(): ReturnType<F> }
+  export interface InputFromRef<F extends (...args: any) => any> { asArg(): ReturnType<F> }
   export function inputFrom<S extends RouteSubRequest<any>, M = any>(source: S, mapper: PureFunction<(v: any) => M>, pureFnId?: InjectPureFnId<(v: any) => M>): InputFromRef<(v: any) => M>;
   export function batch<R extends RouteSubRequest<any>[]>(routes: [...R], batchId?: InjectBatchId<R>): unknown;
 }
@@ -207,9 +207,10 @@ export const trim = registerPureFn((s) => s.trim());
 `;
 const PURE_MAIN_TS = `import {registerPureFnFactory, getRTUtils} from '@mionjs/run-types/runtime';
 import {trim} from './fns.js';
+declare const process: {stdout: {write(text: string): void}};
 
 const trimTwice = registerPureFnFactory((utl) => {
-  const once = utl.getPureFn(trim);
+  const once = utl.getPureFn(trim)!;
   return (value) => once(once(value));
 });
 
@@ -218,8 +219,8 @@ process.stdout.write(
     JSON.stringify({
       trimId: trim,
       twiceId: trimTwice,
-      deps: getRTUtils().getCompiledPureFnByKey(trimTwice).pureFnDependencies,
-      result: getRTUtils().getPureFnByKey(trimTwice)('  hi  '),
+      deps: getRTUtils().getCompiledPureFnByKey(trimTwice)!.pureFnDependencies,
+      result: getRTUtils().getPureFnByKey(trimTwice)!('  hi  '),
     }) +
     '<<RT>>'
 );
