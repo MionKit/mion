@@ -210,6 +210,7 @@ Commands:
     convert     rewrite type declarations between the three authoring forms
     drizzle-migrate  move a drizzle schema onto the slim @mionjs/drizzle-orm-* packages
     api-check   compare a client build's bundled API manifest against the server build's (a prerelease gate)
+    api-types   build a types-only package for an API's clients: trimmed .d.ts, manifest, marker, package.json
 
 Run  mion <command> -h  for a command's own options.
 
