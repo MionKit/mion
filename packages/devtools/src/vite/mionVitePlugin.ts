@@ -195,23 +195,27 @@ function findRtPlugin(created: unknown): Plugin | undefined {
 function serverBundlePlugin(server: MionServerOptions, build: MionServerBuildOptions): Plugin {
   return {
     name: 'mion-server-bundle',
-    config(userConfig) {
-      // vite resolves only its own defaults against root, rollupOptions.input is taken as written.
-      const root = path.resolve(userConfig.root ?? process.cwd());
-      return {
-        builder: {sharedConfigBuild: true, sharedPlugins: true},
-        environments: {
-          ssr: {
-            // One @mionjs instance across both bundles: two copies mean two route registries.
-            resolve: {noExternal: [/@mionjs\//]},
-            build: {
-              outDir: build.outDir ?? 'dist-server',
-              emptyOutDir: true,
-              rollupOptions: {input: path.resolve(root, server.entry)},
+    // Late, so a root another plugin's config hook sets is already in userConfig.
+    config: {
+      order: 'post',
+      handler(userConfig) {
+        // vite resolves only its own defaults against root, rollupOptions.input is taken as written.
+        const root = path.resolve(userConfig.root ?? process.cwd());
+        return {
+          builder: {sharedConfigBuild: true, sharedPlugins: true},
+          environments: {
+            ssr: {
+              // One @mionjs instance across both bundles: two copies mean two route registries.
+              resolve: {noExternal: [/@mionjs\//]},
+              build: {
+                outDir: build.outDir ?? 'dist-server',
+                emptyOutDir: true,
+                rollupOptions: {input: path.resolve(root, server.entry)},
+              },
             },
           },
-        },
-      };
+        };
+      },
     },
   } satisfies Plugin;
 }
