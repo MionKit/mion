@@ -36,8 +36,8 @@ type item struct {
 	importedName string
 	localName    string // the local an `export {a as b}` points at
 	kept         bool
-	pending      bool
-	uses         int
+	// users are the kept items that use this one.
+	users []*item
 }
 
 func (current *item) label() string {
@@ -64,6 +64,10 @@ type fileInfo struct {
 	// holes are cut ranges inside kept statements: private and raw middleware members.
 	holes     []textRange
 	cutLabels []string
+	// publicApiArgs are the type arguments of `PublicApi<…>` references, where a routes object may be named.
+	publicApiArgs []textRange
+	// imported: a kept side-effect import names this file, so it ships even with nothing else kept.
+	imported bool
 }
 
 type textRange struct{ start, end int }
@@ -218,6 +222,17 @@ func moduleText(node *ast.Node) string {
 	return ""
 }
 
+// anyKept: some item of the file is kept, an augmentation included.
+func (file *fileInfo) anyKept() bool {
+	for _, current := range file.items {
+		if current.kept {
+			return true
+		}
+	}
+	return false
+}
+
+// keptAny: some item of the file other than an augmentation or `export {}` is kept.
 func (file *fileInfo) keptAny() bool {
 	for _, current := range file.items {
 		if current.kept && current.kind != itemAlways && current.kind != itemExportEmpty {
@@ -248,40 +263,43 @@ func (current *item) refNames(file *fileInfo) []string {
 	}
 	seen := map[string]bool{}
 	var out []string
-	var walk func(node *ast.Node)
-	walk = func(node *ast.Node) {
-		if node == nil || file.inHole(node) {
-			return
+	file.eachRef(current.statement, func(identifier *ast.Node) {
+		if text := identifier.Text(); !seen[text] {
+			seen[text] = true
+			out = append(out, text)
 		}
-		switch node.Kind {
-		case ast.KindIdentifier:
-			if text := node.Text(); !seen[text] {
-				seen[text] = true
-				out = append(out, text)
-			}
-			return
-		case ast.KindQualifiedName:
-			walk(node.AsQualifiedName().Left)
-			return
-		case ast.KindPropertyAccessExpression:
-			walk(node.Expression())
-			return
-		case ast.KindImportType:
-			for _, argument := range node.TypeArguments() {
-				walk(argument)
-			}
-			return
-		}
-		skip := declaredName(node)
-		node.ForEachChild(func(child *ast.Node) bool {
-			if child != skip {
-				walk(child)
-			}
-			return false
-		})
-	}
-	walk(current.statement)
+	})
 	return out
+}
+
+// eachRef calls visit for every identifier node reads outside the file's holes.
+func (file *fileInfo) eachRef(node *ast.Node, visit func(identifier *ast.Node)) {
+	if node == nil || file.inHole(node) {
+		return
+	}
+	switch node.Kind {
+	case ast.KindIdentifier:
+		visit(node)
+		return
+	case ast.KindQualifiedName:
+		file.eachRef(node.AsQualifiedName().Left, visit)
+		return
+	case ast.KindPropertyAccessExpression:
+		file.eachRef(node.Expression(), visit)
+		return
+	case ast.KindImportType:
+		for _, argument := range node.TypeArguments() {
+			file.eachRef(argument, visit)
+		}
+		return
+	}
+	skip := declaredName(node)
+	node.ForEachChild(func(child *ast.Node) bool {
+		if child != skip {
+			file.eachRef(child, visit)
+		}
+		return false
+	})
 }
 
 // declaredName is the name child a walk skips: a name a node declares, never one it reads.
@@ -304,7 +322,10 @@ func declaredName(node *ast.Node) *ast.Node {
 	return nil
 }
 
-type importTypeRef struct{ specifier, name string }
+type importTypeRef struct {
+	specifier, name string
+	node            *ast.Node // the specifier literal, for module resolution
+}
 
 // importTypes lists the `import("x").Y` types a kept statement reads, with Y's first segment.
 func (current *item) importTypes(file *fileInfo) []importTypeRef {
@@ -320,8 +341,10 @@ func (current *item) importTypes(file *fileInfo) []importTypeRef {
 		if node.Kind == ast.KindImportType {
 			importType := node.AsImportTypeNode()
 			specifier := ""
+			var literalNode *ast.Node
 			if literal := importType.Argument; literal != nil && literal.Kind == ast.KindLiteralType {
-				specifier = moduleText(literal.AsLiteralTypeNode().Literal)
+				literalNode = literal.AsLiteralTypeNode().Literal
+				specifier = moduleText(literalNode)
 			}
 			name := "*"
 			if qualifier := importType.Qualifier; qualifier != nil {
@@ -331,7 +354,7 @@ func (current *item) importTypes(file *fileInfo) []importTypeRef {
 				name = qualifier.Text()
 			}
 			if specifier != "" {
-				out = append(out, importTypeRef{specifier: specifier, name: name})
+				out = append(out, importTypeRef{specifier: specifier, name: name, node: literalNode})
 			}
 		}
 		node.ForEachChild(walk)
@@ -343,7 +366,7 @@ func (current *item) importTypes(file *fileInfo) []importTypeRef {
 
 // render writes the kept statements as written, cut members left out; false when nothing was kept.
 func (file *fileInfo) render() (string, bool) {
-	if !file.keptAny() {
+	if !file.anyKept() && !file.imported {
 		return "", false
 	}
 	statements := file.source.Statements.Nodes
@@ -388,7 +411,7 @@ func (file *fileInfo) renderStatement(statement *ast.Node, first bool) string {
 	}
 	switch {
 	case len(all) > 0 && all[0].kind == itemExportEmpty:
-		if !file.keptAny() {
+		if !file.anyKept() && !file.imported {
 			return ""
 		}
 		return file.text[start:statement.End()]

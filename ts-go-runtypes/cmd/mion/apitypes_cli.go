@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/apimeta"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/apitypes"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/batchcompile"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
@@ -88,21 +89,23 @@ func buildApiTypes(cwd, tsconfigPath, declarationDir string, compileResult *batc
 	if err != nil {
 		return err
 	}
-	if problems, err := apitypes.Check(input, trimmed.Files); err != nil {
+	problems, trimmedVersion, err := apitypes.Check(input, trimmed.Files, trimmed.Entry)
+	if err != nil {
 		return err
 	} else if len(problems) > 0 {
 		return fmt.Errorf("the trimmed declarations do not type-check on their own:\n%s", strings.Join(problems, "\n"))
 	}
-	manifest, err := os.ReadFile(filepath.Join(compileResult.GenDir, constants.ApiModuleDir, constants.ApiManifestFile))
+	serverManifest, err := apimeta.ReadManifest(filepath.Join(compileResult.GenDir, constants.ApiModuleDir, constants.ApiManifestFile))
+	if err == nil && serverManifest.Kind != apimeta.ManifestKindServer {
+		err = fmt.Errorf("it is a %s manifest", serverManifest.Kind)
+	}
 	if err != nil {
 		return fmt.Errorf("the build wrote no API manifest: does the program call initRoutes from @mionjs/router? (%v)", err)
 	}
-	var manifestHead struct {
-		BuildVersion string `json:"buildVersion"`
+	if serverManifest.BuildVersion != trimmedVersion {
+		return fmt.Errorf("the trimmed API type carries build version %q but the manifest %q: export the value initRoutes returns, unannotated", trimmedVersion, serverManifest.BuildVersion)
 	}
-	if json.Unmarshal(manifest, &manifestHead) != nil || manifestHead.BuildVersion != trimmed.BuildVersion {
-		return fmt.Errorf("the API type carries build version %q but the manifest %q: export the value initRoutes returns, unannotated", trimmed.BuildVersion, manifestHead.BuildVersion)
-	}
+	manifest := serverManifest.Render()
 	files, err := apitypes.BuildPackage(apitypes.PackageInput{
 		ServerRoot: serverRoot, Name: name, Version: version, Trimmed: trimmed,
 		PureFnArtifact: compileResult.PureFnArtifact, Manifest: string(manifest), Compiler: constants.Version,

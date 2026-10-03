@@ -1,12 +1,13 @@
 // Package apitypes trims the declarations `mion compile` writes down to what a client of the API needs: the API
 // exports (the ones carrying a server build version) and everything they reach, statement by statement. Private
-// and raw middleware definitions are cut out even when a kept type reaches them, so their handler types and
+// and raw middleware definitions are cut out of the routes a `PublicApi<…>` names, so their handler types and
 // imports drop with them.
 package apitypes
 
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"sort"
@@ -15,6 +16,7 @@ import (
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
 	"github.com/microsoft/typescript-go/shim/compiler"
+	"github.com/microsoft/typescript-go/shim/core"
 	"github.com/microsoft/typescript-go/shim/tspath"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/apimeta"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
@@ -41,13 +43,10 @@ type Output struct {
 	BuildVersion string
 	// Externals are the packages the kept declarations import, sorted (`@types/node` for a node builtin).
 	Externals []string
-	// Uses counts, per kept declaration (`file#name`), the kept declarations using it: the guard that a type a
-	// cut middleware shared with a public route stays.
-	Uses map[string]int
-	// Removed lists each dropped declaration (`file#name`), sorted.
-	Removed []string
-	// CutMembers lists each private or raw middleware member cut from a kept type (`file#path`), sorted.
-	CutMembers []string
+	// uses counts each kept declaration's kept users (`file#name`); removed and cutMembers name what went. Tests read them.
+	uses       map[string]int
+	removed    []string
+	cutMembers []string
 }
 
 // probeFile asks the checker for the router's private-definition and public-method types.
@@ -60,39 +59,28 @@ export declare const publicMethod: PublicRoute<any, any, any> | PublicMiddleware
 
 // Trim keeps the API exports' closure and drops every other declaration, import and file.
 func Trim(input Input) (*Output, error) {
-	declarationDir := filepath.Clean(input.DeclarationDir)
-	prog, err := newDeclarationProgram(input, declarationDir, false)
+	trimmer, release, err := newTrimmer(input, input.Declarations)
 	if err != nil {
 		return nil, err
 	}
-	typeChecker, release := prog.TS.GetTypeChecker(context.Background())
 	defer release()
-
-	files := map[string]*fileInfo{}
-	for abs := range input.Declarations {
-		sourceFile := prog.SourceFile(abs)
-		if sourceFile == nil {
-			return nil, fmt.Errorf("api types: %s is not in the declaration program", abs)
-		}
-		files[filepath.Clean(abs)] = newFileInfo(filepath.Clean(abs), sourceFile)
-	}
-	trimmer := &trimmer{files: files, checker: typeChecker, declarationDir: declarationDir, externals: map[string]bool{}}
-
 	entry, apiExports, version, err := trimmer.findEntry(input.Entry)
 	if err != nil {
 		return nil, err
 	}
-	trimmer.cutPrivateMembers(prog)
+	containers := trimmer.cutPrivateMembers()
 	trimmer.mark(entry, apiExports)
-	if err := trimmer.checkUses(); err != nil {
+	if len(trimmer.errs) > 0 {
+		return nil, errors.Join(trimmer.errs...)
+	}
+	if err := trimmer.checkContainersUnshared(containers); err != nil {
 		return nil, err
 	}
 
-	output := &Output{Files: map[string]string{}, ApiExports: apiExports, BuildVersion: version, Uses: map[string]int{}}
+	output := &Output{Files: map[string]string{}, ApiExports: apiExports, BuildVersion: version, uses: map[string]int{}}
 	output.Entry = trimmer.relative(entry.path)
 	for _, file := range trimmer.sortedFiles() {
-		text, kept := file.render()
-		if kept {
+		if text, kept := file.render(); kept {
 			output.Files[trimmer.relative(file.path)] = text
 		}
 		for _, declaration := range file.items {
@@ -101,97 +89,109 @@ func Trim(input Input) (*Output, error) {
 			}
 			key := trimmer.relative(file.path) + "#" + declaration.label()
 			if declaration.kept {
-				output.Uses[key] = declaration.uses
+				output.uses[key] = len(declaration.users)
 			} else {
-				output.Removed = append(output.Removed, key)
+				output.removed = append(output.removed, key)
 			}
 		}
 		for _, cut := range file.cutLabels {
-			output.CutMembers = append(output.CutMembers, trimmer.relative(file.path)+"#"+cut)
+			output.cutMembers = append(output.cutMembers, trimmer.relative(file.path)+"#"+cut)
 		}
 	}
 	for name := range trimmer.externals {
 		output.Externals = append(output.Externals, name)
 	}
 	sort.Strings(output.Externals)
-	sort.Strings(output.Removed)
-	sort.Strings(output.CutMembers)
+	sort.Strings(output.removed)
+	sort.Strings(output.cutMembers)
 	return output, nil
 }
 
-// Check type-checks the trimmed files on their own, libs included, and returns tsc-style error lines.
-func Check(input Input, files map[string]string) ([]string, error) {
-	declarationDir := filepath.Clean(input.DeclarationDir)
+// Check type-checks the trimmed files on their own, libs included, and reads the build version back from the
+// trimmed entry, so a trim that changed the API's ids cannot pass unseen.
+func Check(input Input, files map[string]string, entry string) ([]string, string, error) {
 	declarations := make(map[string]string, len(files))
 	for rel, text := range files {
-		declarations[filepath.Join(declarationDir, filepath.FromSlash(rel))] = text
+		declarations[filepath.Join(filepath.Clean(input.DeclarationDir), filepath.FromSlash(rel))] = text
 	}
-	prog, err := newDeclarationProgram(Input{Cwd: input.Cwd, TsconfigPath: input.TsconfigPath, Declarations: declarations}, declarationDir, true)
+	trimmer, release, err := newTrimmer(input, declarations)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
+	defer release()
 	var lines []string
-	for abs := range declarations {
-		sourceFile := prog.SourceFile(abs)
-		if sourceFile == nil {
-			continue
-		}
-		found := prog.TS.GetSemanticDiagnostics(context.Background(), sourceFile)
-		found = append(found, prog.TS.GetSyntacticDiagnostics(context.Background(), sourceFile)...)
+	for _, file := range trimmer.sortedFiles() {
+		found := trimmer.program.TS.GetSemanticDiagnostics(context.Background(), file.source)
+		found = append(found, trimmer.program.TS.GetSyntacticDiagnostics(context.Background(), file.source)...)
 		for _, diagnostic := range compiler.SortAndDeduplicateDiagnostics(found) {
-			if diagnostic.Category().Name() != "error" {
-				continue
+			if diagnostic.Category().Name() == "error" {
+				lines = append(lines, fmt.Sprintf("%s: error TS%d: %s", trimmer.relative(file.path), diagnostic.Code(), diagnostic.String()))
 			}
-			rel, _ := filepath.Rel(declarationDir, abs)
-			lines = append(lines, fmt.Sprintf("%s: error TS%d: %s", filepath.ToSlash(rel), diagnostic.Code(), diagnostic.String()))
 		}
 	}
-	sort.Strings(lines)
-	return lines, nil
+	if len(lines) > 0 {
+		return lines, "", nil
+	}
+	_, _, version, err := trimmer.findEntry(filepath.Join(trimmer.declarationDir, filepath.FromSlash(entry)))
+	return nil, version, err
 }
 
-// newDeclarationProgram builds a program over the declarations alone, with a tsconfig that extends the project's.
-func newDeclarationProgram(input Input, declarationDir string, libCheck bool) (*program.Program, error) {
-	overlay := make(map[string]string, len(input.Declarations)+2)
-	for abs, text := range input.Declarations {
+// newTrimmer builds a program over the declarations alone, with a tsconfig that extends the project's.
+func newTrimmer(input Input, declarations map[string]string) (*trimmer, func(), error) {
+	declarationDir := filepath.Clean(input.DeclarationDir)
+	overlay := make(map[string]string, len(declarations)+2)
+	for abs, text := range declarations {
 		overlay[filepath.Clean(abs)] = text
 	}
-	projectConfig := tspath.ResolvePath(input.Cwd, input.TsconfigPath)
-	extends, err := filepath.Rel(declarationDir, projectConfig)
+	extends, err := filepath.Rel(declarationDir, tspath.ResolvePath(input.Cwd, input.TsconfigPath))
 	if err != nil {
-		return nil, fmt.Errorf("api types: tsconfig path: %w", err)
+		return nil, nil, fmt.Errorf("api types: tsconfig path: %w", err)
 	}
-	config := map[string]any{
+	// An empty `files` keeps a project tsconfig's own `files` list from being inherited through `extends`.
+	configText, _ := json.Marshal(map[string]any{
 		"extends": filepath.ToSlash(extends),
 		"compilerOptions": map[string]any{
 			"noEmit": true, "declaration": false, "composite": false, "incremental": false,
-			"rootDir": ".", "skipLibCheck": !libCheck, "allowImportingTsExtensions": true,
+			"rootDir": ".", "skipLibCheck": false, "allowImportingTsExtensions": true,
 		},
 		"include": []string{"**/*.d.ts"},
 		"files":   []string{},
-	}
-	if !libCheck {
-		overlay[filepath.Join(declarationDir, probeFile)] = probeText
-	}
-	configText, _ := json.Marshal(config)
+	})
 	configPath := filepath.Join(declarationDir, "tsconfig.json")
 	overlay[configPath] = string(configText)
-	// `files: []` beside `include` would read as an empty list; drop it so only `include` counts.
-	overlay[configPath] = strings.Replace(overlay[configPath], `,"files":[]`, "", 1)
+	overlay[filepath.Join(declarationDir, probeFile)] = probeText
 	prog, err := program.New(program.Options{Cwd: input.Cwd, TsconfigPath: configPath, Overlay: overlay})
 	if err != nil {
-		return nil, fmt.Errorf("api types: declaration program: %w", err)
+		return nil, nil, fmt.Errorf("api types: declaration program: %w", err)
 	}
-	return prog, nil
+	typeChecker, release := prog.TS.GetTypeChecker(context.Background())
+	trimmer := &trimmer{
+		program: prog, checker: typeChecker, cwd: filepath.Clean(input.Cwd), declarationDir: declarationDir,
+		files: map[string]*fileInfo{}, externals: map[string]bool{}, specifiers: map[string]bool{}, unresolved: map[string]bool{},
+	}
+	for abs := range declarations {
+		sourceFile := prog.SourceFile(abs)
+		if sourceFile == nil {
+			release()
+			return nil, nil, fmt.Errorf("api types: %s is not in the declaration program", abs)
+		}
+		trimmer.files[filepath.Clean(abs)] = newFileInfo(filepath.Clean(abs), sourceFile)
+	}
+	return trimmer, release, nil
 }
 
 type trimmer struct {
-	files          map[string]*fileInfo
+	program        *program.Program
 	checker        *checker.Checker
+	cwd            string
 	declarationDir string
+	files          map[string]*fileInfo
 	externals      map[string]bool
-	queue          []*item
-	roots          map[*item]bool
+	// specifiers are the bare specifiers kept code imports; unresolved the names it reads that no file declares.
+	specifiers map[string]bool
+	unresolved map[string]bool
+	queue      []*item
+	errs       []error
 }
 
 func (trimmer *trimmer) relative(abs string) string {
@@ -274,43 +274,67 @@ func (trimmer *trimmer) exportType(exported *ast.Symbol) *checker.Type {
 	return nil
 }
 
-// mark keeps the API exports and, through their references, everything they use. A declaration stays while at
-// least one kept declaration uses it, so a type a cut member shared with a public route is never lost.
+// mark keeps the API exports and, through their references, everything they use: a declaration stays while one
+// kept declaration still uses it, so a type a cut member shared with a public route stays.
 func (trimmer *trimmer) mark(entry *fileInfo, apiExports []string) {
-	trimmer.roots = map[*item]bool{}
 	for _, name := range apiExports {
 		for _, root := range trimmer.provide(entry, name, map[string]bool{}) {
-			trimmer.roots[root] = true
 			trimmer.keep(root, nil)
 		}
 	}
-	for _, file := range trimmer.files {
-		for _, always := range file.items {
-			if always.kind == itemAlways {
-				always.pending = true
+	trimmer.drain()
+	// An augmentation changes types the kept code reads without being named: kept with its file, or when it
+	// augments a module the kept code imports or declares a global name it reads.
+	for changed := true; changed; {
+		changed = false
+		for _, file := range trimmer.sortedFiles() {
+			for _, always := range file.items {
+				if always.kind == itemAlways && !always.kept && (file.keptAny() || trimmer.augmentsKept(always)) {
+					trimmer.keep(always, nil)
+					changed = true
+				}
 			}
 		}
+		trimmer.drain()
 	}
+}
+
+func (trimmer *trimmer) drain() {
 	for len(trimmer.queue) > 0 {
 		next := trimmer.queue[0]
 		trimmer.queue = trimmer.queue[1:]
 		trimmer.follow(next)
-		// An augmentation changes the types its file's kept code reads, so it rides with the first kept item.
-		if next.file.keptAny() {
-			for _, always := range next.file.items {
-				if always.kind == itemAlways && always.pending {
-					always.pending = false
-					trimmer.keep(always, nil)
-				}
-			}
-		}
 	}
 }
 
-// keep marks an item kept and counts the use when a kept item uses it.
+// augmentsKept: a `declare module 'x'` the kept code imports, or a `declare global` declaring a name it reads.
+func (trimmer *trimmer) augmentsKept(always *item) bool {
+	statement := always.statement
+	if statement.Kind != ast.KindModuleDeclaration {
+		return false
+	}
+	if name := statement.Name(); name.Kind == ast.KindStringLiteral {
+		return trimmer.specifiers[name.Text()]
+	}
+	found := false
+	statement.ForEachChild(func(child *ast.Node) bool {
+		if child.Kind != ast.KindModuleBlock {
+			return false
+		}
+		for _, declaration := range child.AsModuleBlock().Statements.Nodes {
+			if name := declaration.Name(); name != nil && ast.IsIdentifier(name) && trimmer.unresolved[name.Text()] {
+				found = true
+			}
+		}
+		return false
+	})
+	return found
+}
+
+// keep marks an item kept and records the kept item using it.
 func (trimmer *trimmer) keep(target, user *item) {
-	if user != nil && user != target {
-		target.uses++
+	if user != nil && user != target && !containsItem(target.users, user) {
+		target.users = append(target.users, user)
 	}
 	if target.kept {
 		return
@@ -319,34 +343,66 @@ func (trimmer *trimmer) keep(target, user *item) {
 	trimmer.queue = append(trimmer.queue, target)
 }
 
+func containsItem(items []*item, wanted *item) bool {
+	for _, current := range items {
+		if current == wanted {
+			return true
+		}
+	}
+	return false
+}
+
 // follow keeps what one kept item references.
 func (trimmer *trimmer) follow(current *item) {
 	file := current.file
+	if current.kind == itemAlways && current.statement.Kind == ast.KindImportDeclaration {
+		// A side-effect import: its file ships, with the augmentations that are its only effect.
+		if target := trimmer.resolveModule(file, current.specifier); target != nil {
+			target.imported = true
+			for _, always := range target.items {
+				if always.kind == itemAlways {
+					trimmer.keep(always, current)
+				}
+			}
+		} else {
+			trimmer.followModule(current, file, current.specifier, current.statement.AsImportDeclaration().ModuleSpecifier, "")
+		}
+		return
+	}
 	switch current.kind {
 	case itemDeclaration, itemAlways:
 		for _, name := range current.refNames(file) {
+			if len(file.locals[name]) == 0 {
+				trimmer.unresolved[name] = true
+			}
 			for _, target := range file.locals[name] {
 				trimmer.keep(target, current)
 			}
 		}
 		for _, imported := range current.importTypes(file) {
-			trimmer.followModule(current, file, imported.specifier, imported.name)
+			trimmer.followModule(current, file, imported.specifier, imported.node, imported.name)
 		}
 	case itemImport:
-		trimmer.followModule(current, file, current.specifier, current.importedName)
+		trimmer.followModule(current, file, current.specifier, current.statement.AsImportDeclaration().ModuleSpecifier, current.importedName)
 	case itemExportLocal:
 		for _, target := range file.locals[current.localName] {
 			trimmer.keep(target, current)
 		}
 	case itemReExport:
-		trimmer.followModule(current, file, current.specifier, current.importedName)
+		trimmer.followModule(current, file, current.specifier, current.statement.AsExportDeclaration().ModuleSpecifier, current.importedName)
 	}
 }
 
 // followModule keeps what module specifier provides as name, or records an external package.
-func (trimmer *trimmer) followModule(user *item, file *fileInfo, specifier, name string) {
+func (trimmer *trimmer) followModule(user *item, file *fileInfo, specifier string, specifierNode *ast.Node, name string) {
 	target := trimmer.resolveModule(file, specifier)
 	if target == nil {
+		trimmer.specifiers[specifier] = true
+		// A published package cannot resolve the project's own aliases, and the file they name would be dropped.
+		if strings.HasPrefix(specifier, "#") || trimmer.resolvesIntoProject(specifierNode) {
+			trimmer.errs = append(trimmer.errs, fmt.Errorf("api types: %s imports %q, which resolves into this project (a tsconfig `paths` alias or a `#` import): a published package cannot resolve it, so import it by a relative path", trimmer.relative(file.path), specifier))
+			return
+		}
 		if external := externalPackage(specifier); external != "" {
 			trimmer.externals[external] = true
 		}
@@ -365,19 +421,38 @@ func (trimmer *trimmer) followModule(user *item, file *fileInfo, specifier, name
 	}
 }
 
+// resolvesIntoProject reports a bare specifier the checker resolves to an emitted file or to a project source
+// outside node_modules.
+func (trimmer *trimmer) resolvesIntoProject(specifierNode *ast.Node) bool {
+	if specifierNode == nil {
+		return false
+	}
+	symbol := trimmer.checker.GetSymbolAtLocation(specifierNode)
+	if symbol == nil {
+		return false
+	}
+	for _, declaration := range symbol.Declarations {
+		if declaration.Kind != ast.KindSourceFile {
+			continue
+		}
+		path := filepath.Clean(declaration.AsSourceFile().FileName())
+		if trimmer.files[path] != nil {
+			return true
+		}
+		if rel, err := filepath.Rel(trimmer.cwd, path); err == nil && !strings.HasPrefix(rel, "..") && !strings.Contains(filepath.ToSlash(path), "/node_modules/") {
+			return true
+		}
+	}
+	return false
+}
+
 // resolveModule returns the emitted file a relative specifier names, nil for a package.
 func (trimmer *trimmer) resolveModule(file *fileInfo, specifier string) *fileInfo {
 	if !strings.HasPrefix(specifier, ".") {
 		return nil
 	}
 	base := filepath.Join(filepath.Dir(file.path), filepath.FromSlash(specifier))
-	stem := base
-	for _, extension := range []string{".js", ".ts", ".mjs", ".mts", ".cjs", ".cts", ".jsx", ".tsx"} {
-		if strings.HasSuffix(base, extension) {
-			stem = strings.TrimSuffix(base, extension)
-			break
-		}
-	}
+	stem := tspath.RemoveFileExtension(base)
 	for _, candidate := range []string{stem + ".d.ts", stem + ".d.mts", stem + ".d.cts", base, filepath.Join(base, "index.d.ts")} {
 		if found := trimmer.files[filepath.Clean(candidate)]; found != nil {
 			return found
@@ -418,28 +493,12 @@ func (trimmer *trimmer) provide(file *fileInfo, name string, seen map[string]boo
 	return out
 }
 
-// checkUses is the guard on the cascade: every kept item but a root or an augmentation has a kept user, and no
-// dropped item has one.
-func (trimmer *trimmer) checkUses() error {
-	for _, file := range trimmer.sortedFiles() {
-		for _, current := range file.items {
-			switch {
-			case current.kept && current.uses == 0 && !trimmer.roots[current] && current.kind != itemAlways:
-				return fmt.Errorf("api types: internal error: %s#%s is kept with no kept user", trimmer.relative(file.path), current.label())
-			case !current.kept && current.uses > 0:
-				return fmt.Errorf("api types: internal error: %s#%s is dropped while %d kept declaration(s) use it", trimmer.relative(file.path), current.label(), current.uses)
-			}
-		}
-	}
-	return nil
-}
-
 // externalPackage maps a bare specifier to the package to depend on.
 func externalPackage(specifier string) string {
 	if specifier == "" || strings.HasPrefix(specifier, ".") || strings.HasPrefix(specifier, "/") {
 		return ""
 	}
-	if strings.HasPrefix(specifier, "node:") || nodeBuiltins[strings.SplitN(specifier, "/", 2)[0]] {
+	if strings.HasPrefix(specifier, "node:") || core.UnprefixedNodeCoreModules[strings.SplitN(specifier, "/", 2)[0]] {
 		return "@types/node"
 	}
 	parts := strings.Split(specifier, "/")
@@ -447,12 +506,4 @@ func externalPackage(specifier string) string {
 		return parts[0] + "/" + parts[1]
 	}
 	return parts[0]
-}
-
-var nodeBuiltins = map[string]bool{
-	"assert": true, "async_hooks": true, "buffer": true, "child_process": true, "cluster": true, "console": true,
-	"crypto": true, "dgram": true, "dns": true, "events": true, "fs": true, "http": true, "http2": true, "https": true,
-	"inspector": true, "module": true, "net": true, "os": true, "path": true, "perf_hooks": true, "process": true,
-	"querystring": true, "readline": true, "repl": true, "stream": true, "string_decoder": true, "timers": true,
-	"tls": true, "tty": true, "url": true, "util": true, "v8": true, "vm": true, "worker_threads": true, "zlib": true,
 }
