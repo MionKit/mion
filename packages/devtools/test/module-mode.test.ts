@@ -300,3 +300,32 @@ export const reflectedId = getRunTypeId(u);
     });
   });
 });
+
+describe('default moduleMode: shared runtype modules', () => {
+  // Big enough for a shared module of its own; a tiny type is copied into each file instead.
+  const shared = `export type Address = {street: string; zip: number; city: string; region: string; country: 'es' | 'fr'; verified: boolean};
+`;
+  const orders = `import {getRunTypeId} from '@mionjs/run-types';
+import type {Address} from './address.ts';
+export const orderId = getRunTypeId<{orderShipTo: Address}>();
+`;
+  const users = `import {getRunTypeId} from '@mionjs/run-types';
+import type {Address} from './address.ts';
+const user: {orderShipTo: Address} = {orderShipTo: {street: '', zip: 0, city: '', region: '', country: 'es', verified: false}};
+export const userId = getRunTypeId(user);
+`;
+
+  register('a one-file scan returns the same rt/ modules as the whole-program dump, the shared one included', async () => {
+    const sources = {'address.ts': shared, 'orders.ts': orders, 'users.ts': users};
+    await withModeClient(MODULE_MODE_DEFAULT, sources, async (client) => {
+      const scan = await client.scanFiles(['orders.ts'], {includeEntryModules: true});
+      const dump = await client.dump();
+      const scanned = Object.entries(scan.entryModules ?? {}).filter(([name]) => name.startsWith('rt/'));
+      expect(scanned.some(([name]) => name.startsWith('rt/shared/'))).toBe(true);
+      for (const [name, source] of scanned) expect(source, name).toBe(dump.entryModules?.[name]);
+      // Both getRunTypeId shapes reflect the same type, so they share one id.
+      const ids = (dump.sites ?? []).filter((site) => !site.fnId).map((site) => site.id);
+      expect(new Set(ids).size).toBe(1);
+    });
+  });
+});

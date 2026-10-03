@@ -68,7 +68,9 @@ export const reviewId = getRunTypeId(review);
 import {auditNoteId} from './audit.ts';
 import type {SharedNote} from './shared.ts';
 export const noteId = getRunTypeId<{note: SharedNote}>();
-export const auditIds = [auditNoteId];
+// The static shape of the type audit.ts reflects by value: both must name one type id (facade slot 3).
+const auditNoteStaticId = getRunTypeId<{auditNote: SharedNote}>();
+globalThis.__sameNoteId = auditNoteStaticId[3] === auditNoteId[3];
 `;
 // Big enough for a shared module of its own; a tiny type is copied into each file instead.
 const SHARED = `export type SharedNote = {sharedNoteText: string; sharedNoteAuthor: string; sharedNoteTags: string[]; sharedNoteDone: boolean};
@@ -216,11 +218,13 @@ register('one config, two bundles', () => {
   it('runs: the server bundle boots and carries its compiled type id', async () => {
     const {binary} = countingBinary();
     await buildApp(binary);
-    const globals = globalThis as {__serverRan?: boolean};
+    const globals = globalThis as {__serverRan?: boolean; __sameNoteId?: boolean};
     delete globals.__serverRan;
+    delete globals.__sameNoteId;
     await import(serverBundleIn(path.join(root, 'dist-server')));
     // The compiled validator ran: a bundle that reached the stub would have thrown on import.
     expect(globals.__serverRan).toBe(true);
+    expect(globals.__sameNoteId).toBe(true);
   });
 
   it('spawns ONE resolver for both bundles, not one per environment', async () => {
