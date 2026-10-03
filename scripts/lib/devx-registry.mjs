@@ -128,7 +128,7 @@ export const AREAS = {
       },
       {
         name: 'tsgo-check',
-        summary: 'gate: mion compile --no-emit (tsgo) reports no TypeScript error in any typecheck:test project',
+        summary: 'gate: mion compile --no-emit (tsgo) reports no TypeScript error in any project a package or root script names with -p',
       },
       {
         name: 'fuzz',

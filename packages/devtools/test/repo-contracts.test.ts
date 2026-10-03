@@ -2034,13 +2034,27 @@ describe('mion compile (tsgo) checks the same projects tsc does', () => {
     expect(scripts['check:tsgo']).toBe('node scripts/miondevx.mjs core tsgo-check');
   });
 
-  it('every tsc-only project still exists and is still skipped', () => {
+  it('every tsc-only project is still named by a script, and skipped', () => {
+    const root = JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'utf8')).scripts;
+    const named = coverage
+      .readPackages(REPO_ROOT)
+      .flatMap(({dir, scripts}: {dir: string; scripts: Record<string, string>}) =>
+        coverage.projectsOf(dir, scripts, root).map((config: string) => `${dir}/${config}`)
+      );
     const listed = tsgoCheck.projects(REPO_ROOT).map(({dir, config}: {dir: string; config: string}) => `${dir}/${config}`);
     expect(listed).toContain('rpc-router/tsconfig.json');
     for (const project of Object.keys(tsgoCheck.TSC_ONLY)) {
-      expect(existsSync(join(REPO_ROOT, 'packages', project)), project).toBe(true);
+      expect(named, project).toContain(project);
       expect(listed).not.toContain(project);
     }
+  });
+
+  it('fails on a TypeScript error or a crash, not on RunType diagnostics alone', () => {
+    const tsLine = 'a.ts(1,1): error TS2542: Index signature only permits reading.';
+    expect(tsgoCheck.failureLines(0, tsLine)).toEqual([tsLine]);
+    expect(tsgoCheck.failureLines(1, 'b.ts(10,23): error CTA003: forbidden construct.')).toEqual([]);
+    expect(tsgoCheck.failureLines(1, 'panic: nil map')).toEqual(['panic: nil map']);
+    expect(tsgoCheck.failureLines(0, 'mion: checked 2 file(s)')).toEqual([]);
   });
 
   it('counts TypeScript errors only, not RunType diagnostics or warnings', () => {
