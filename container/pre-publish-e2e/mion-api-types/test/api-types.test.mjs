@@ -62,7 +62,8 @@ test('client: api-check passes between the shipped server manifest and the clien
 });
 
 test('client: bundles only the route it calls', () => {
-  assert.deepEqual(Object.keys(readJson(path.join(CLIENT, '.mion-cli/api/client-manifest.json')).methods), ['products/getBySku']);
+  // mionFetchMetadata runs on every route (alwaysRun), so it is part of the called route's chain.
+  assert.deepEqual(Object.keys(readJson(path.join(CLIENT, '.mion-cli/api/client-manifest.json')).methods), ['mionFetchMetadata', 'products/getBySku']);
   const bundle = readFileSync(path.join(CLIENT, 'dist-vite/main.js'), 'utf8');
   assert.ok(!bundle.includes('products/remove'), 'the uncalled route stays out');
   assert.ok(!bundle.includes('code.length'), 'no handler body reaches the client');
