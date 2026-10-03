@@ -34,7 +34,7 @@ export interface MionRunTypesOptions {
    *  serializing compiled fns to the browser as strings, so an entry with no body cannot cross the wire.
    *  Guaranteeing `code` is what lets `MionTypeFn` type it as required (packages/core/src/types/general.types.ts). */
   emitMode?: 'code' | 'both';
-  /** Cache-module grouping, see the runtypes core docs. 'default' | 'allModules'; 'allSingle' throws (one module would carry both sides). */
+  /** Cache-module grouping, see the runtypes core docs; 'allSingle' throws: one module would carry both sides. */
   moduleMode?: Exclude<TsRuntypesPluginOptions['moduleMode'], typeof MODULE_MODE_ALL_SINGLE>;
   inlineMode?: TsRuntypesPluginOptions['inlineMode'];
   transformMode?: TsRuntypesPluginOptions['transformMode'];

@@ -198,7 +198,7 @@ export async function startBroker(root: string, options: NextOptions = {}): Prom
         continue; // this half has not been generated
       }
       for (const name of names) {
-        // Recursive readdir joins with the OS separator; the prefix test and the stamp want one spelling.
+        // Recursive readdir joins with the OS separator; the prefix test and the stamp want '/'.
         const entry = `${half}/${name.split(path.sep).join('/')}`;
         listing.push(entry.startsWith(FILE_MODULE_PREFIX) && entry.endsWith('.js') ? `${entry}#${contentHash(entry)}` : entry);
       }
