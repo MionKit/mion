@@ -1,10 +1,12 @@
 package apitypes
 
 import (
-	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
+
+	"github.com/microsoft/typescript-go/shim/checker"
 )
 
 // routerStubDTS stands in for @mionjs/router: the definition and public types the trimmer asks the checker about.
@@ -39,16 +41,14 @@ func trimProject(t *testing.T, files map[string]string, entry string) (*Output, 
 
 func tryTrim(t *testing.T, files map[string]string, entry string) (*Output, Input, error) {
 	t.Helper()
+	return tryTrimIn(t, files, entry, nil)
+}
+
+// tryTrimIn also writes project files beside the declarations, a tsconfig.json among them to replace the default.
+func tryTrimIn(t *testing.T, files map[string]string, entry string, project map[string]string) (*Output, Input, error) {
+	t.Helper()
 	dir := t.TempDir()
-	write := func(rel, text string) {
-		target := filepath.Join(dir, filepath.FromSlash(rel))
-		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(target, []byte(text), 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
+	write := func(rel, text string) { writeFile(t, filepath.Join(dir, filepath.FromSlash(rel)), text) }
 	write("tsconfig.json", `{"compilerOptions": {"target": "ES2022", "module": "ESNext", "moduleResolution": "bundler", "strict": true, "types": ["node"]}, "include": ["src"]}`)
 	write("src/placeholder.ts", "export {};\n")
 	write("node_modules/@mionjs/router/package.json", `{"name": "@mionjs/router", "types": "index.d.ts"}`)
@@ -56,7 +56,10 @@ func tryTrim(t *testing.T, files map[string]string, entry string) (*Output, Inpu
 	write("node_modules/@types/node/package.json", `{"name": "@types/node", "types": "index.d.ts"}`)
 	write("node_modules/@types/node/index.d.ts", nodeStubDTS)
 	write("node_modules/ext-pkg/package.json", `{"name": "ext-pkg", "types": "index.d.ts"}`)
-	write("node_modules/ext-pkg/index.d.ts", "export type Ext = {e: boolean};\nexport type OnlyServer = {s: boolean};\n")
+	write("node_modules/ext-pkg/index.d.ts", "export type Ext = {e: boolean};\nexport type OnlyServer = {s: boolean};\nexport interface Box {a: boolean}\n")
+	for rel, text := range project {
+		write(rel, text)
+	}
 	declarationDir := filepath.Join(dir, "decl")
 	declarations := map[string]string{}
 	for rel, text := range files {
@@ -72,12 +75,15 @@ func tryTrim(t *testing.T, files map[string]string, entry string) (*Output, Inpu
 
 func assertChecks(t *testing.T, input Input, output *Output) {
 	t.Helper()
-	problems, err := Check(input, output.Files)
+	problems, version, err := Check(input, output.Files, output.Entry)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(problems) > 0 {
 		t.Fatalf("the trimmed declarations must type-check on their own:\n%s\nfiles: %v", strings.Join(problems, "\n"), output.Files)
+	}
+	if version != output.BuildVersion {
+		t.Fatalf("the trimmed entry must carry the build version %q, got %q", output.BuildVersion, version)
 	}
 }
 
@@ -143,8 +149,8 @@ export declare const routes: { raw: (s: Shared, o: OnlyDropped) => void };
 	index := output.Files["index.d.ts"]
 	assertContains(t, index, "type Shared")
 	assertLacks(t, index, "OnlyDropped", "routes")
-	if output.Uses["index.d.ts#Shared"] != 1 {
-		t.Errorf("Shared must have one kept user (api), got %v", output.Uses)
+	if output.uses["index.d.ts#Shared"] != 1 {
+		t.Errorf("Shared must have one kept user (api), got %v", output.uses)
 	}
 	assertRemoved(t, output, "index.d.ts#OnlyDropped", "index.d.ts#routes")
 	assertChecks(t, input, output)
@@ -162,8 +168,8 @@ export declare const routes: { raw: (s: Shared, o: OnlyRaw) => void };
 	assertLacks(t, output.Files["index.d.ts"], "OnlyRaw")
 	assertContains(t, output.Files["shared.d.ts"], "export type Shared")
 	assertLacks(t, output.Files["shared.d.ts"], "OnlyRaw")
-	if output.Uses["shared.d.ts#Shared"] != 1 {
-		t.Errorf("Shared must have one kept user (the import binding), got %v", output.Uses)
+	if output.uses["shared.d.ts#Shared"] != 1 {
+		t.Errorf("Shared must have one kept user (the import binding), got %v", output.uses)
 	}
 	assertChecks(t, input, output)
 }
@@ -196,8 +202,8 @@ export declare const routes: { raw: (h: DeadHead) => void };
 	index := output.Files["index.d.ts"]
 	assertContains(t, index, "type Leaf", "type Head")
 	assertLacks(t, index, "DeadLeaf", "DeadHead")
-	if output.Uses["index.d.ts#Leaf"] != 1 || output.Uses["index.d.ts#Head"] != 1 {
-		t.Errorf("Head (api) and Leaf (Head) each need one kept user, got %v", output.Uses)
+	if output.uses["index.d.ts#Leaf"] != 1 || output.uses["index.d.ts#Head"] != 1 {
+		t.Errorf("Head (api) and Leaf (Head) each need one kept user, got %v", output.uses)
 	}
 	assertChecks(t, input, output)
 }
@@ -288,8 +294,11 @@ export declare const api: PublicApi<typeof routes> & ApiBuildVersion<"v1">;
 	if _, kept := output.Files["db.d.ts"]; kept {
 		t.Errorf("db.d.ts served only a private middleware")
 	}
-	if strings.Join(output.CutMembers, ",") != "index.d.ts#routes.log,index.d.ts#routes.nested.priv,index.d.ts#routes.raw" {
-		t.Errorf("cut members %v", output.CutMembers)
+	if strings.Join(output.cutMembers, ",") != "index.d.ts#routes.log,index.d.ts#routes.nested.priv,index.d.ts#routes.raw" {
+		t.Errorf("cut members %v", output.cutMembers)
+	}
+	if strings.Join(output.Externals, ",") != "@mionjs/router" {
+		t.Errorf("a cut raw middleware's node:http import must leave no peer, got %v", output.Externals)
 	}
 	assertChecks(t, input, output)
 }
@@ -301,18 +310,240 @@ func TestTrim_KeepsAPublicMiddlewareWithNoParams(t *testing.T) {
 ` + apiOf(`mw: typeof holder.mw;`),
 	}, "")
 	assertContains(t, output.Files["index.d.ts"], "mw: import(\"@mionjs/router\").PublicMiddleware")
-	if len(output.CutMembers) != 0 {
-		t.Errorf("nothing public may be cut: %v", output.CutMembers)
+	if len(output.cutMembers) != 0 {
+		t.Errorf("nothing public may be cut: %v", output.cutMembers)
 	}
 	assertChecks(t, input, output)
 }
 
 func assertRemoved(t *testing.T, output *Output, keys ...string) {
 	t.Helper()
-	removed := strings.Join(output.Removed, "\n")
+	removed := strings.Join(output.removed, "\n")
 	for _, key := range keys {
 		if !strings.Contains("\n"+removed+"\n", "\n"+key+"\n") {
-			t.Errorf("%s must be removed, removed: %v", key, output.Removed)
+			t.Errorf("%s must be removed, removed: %v", key, output.removed)
 		}
 	}
+}
+
+// TestTrim_RefusesAProjectAlias: a `paths` alias or a `#` import into the project cannot resolve once published.
+func TestTrim_RefusesAProjectAlias(t *testing.T) {
+	project := map[string]string{
+		"tsconfig.json": `{"compilerOptions": {"target": "ES2022", "module": "ESNext", "moduleResolution": "bundler", "strict": true, "types": ["node"], "baseUrl": ".", "paths": {"@app/*": ["./src/*"]}}, "include": ["src"]}`,
+		"src/models.ts": "export interface Model { id: string }\n",
+	}
+	files := map[string]string{"index.d.ts": `import type { Model } from '@app/models';
+` + apiOf(`get: import("@mionjs/router").PublicRoute<(m: Model) => Promise<void>>;`)}
+	if _, _, err := tryTrimIn(t, files, "", project); err == nil || !strings.Contains(err.Error(), `"@app/models"`) {
+		t.Fatalf("a paths alias must fail naming it, got %v", err)
+	}
+	subpath := map[string]string{"index.d.ts": `import type { Model } from '#models';
+` + apiOf(`get: import("@mionjs/router").PublicRoute<(m: Model) => Promise<void>>;`)}
+	if _, _, err := tryTrim(t, subpath, ""); err == nil || !strings.Contains(err.Error(), `"#models"`) {
+		t.Fatalf("a # import must fail naming it, got %v", err)
+	}
+}
+
+// TestTrim_KeepsOverloadsMergesAndNamespacesWhole: every statement declaring a reached name stays.
+func TestTrim_KeepsOverloadsMergesAndNamespacesWhole(t *testing.T) {
+	output, input := trimProject(t, map[string]string{
+		"index.d.ts": `export interface Shape { kind: string }
+export declare namespace Shape {
+    interface Extra { size: number }
+}
+export declare function make(kind: "a"): Shape;
+export declare function make(kind: "b"): Shape.Extra;
+export declare namespace Tools {
+    type Id = string;
+}
+` + apiOf(`make: import("@mionjs/router").PublicRoute<typeof make>; id: import("@mionjs/router").PublicRoute<(id: Tools.Id) => Promise<void>>;`),
+	}, "")
+	assertContains(t, output.Files["index.d.ts"], "interface Shape", "namespace Shape", `make(kind: "a")`, `make(kind: "b")`, "namespace Tools")
+	assertChecks(t, input, output)
+}
+
+// TestTrim_KeepsAFileAModule: a kept file left with no import or export statement still reads as a module.
+func TestTrim_KeepsAFileAModule(t *testing.T) {
+	output, input := trimProject(t, map[string]string{
+		"index.d.ts":   "import type { Model } from './model.ts';\n" + apiOf(`get: import("@mionjs/router").PublicRoute<(m: Model) => Promise<void>>;`),
+		"model.d.ts":   "import type { Dropped } from './dropped.ts';\ntype Local = { id: string };\nexport type Model = Local;\nexport declare const unused: Dropped;\n",
+		"dropped.d.ts": "export type Dropped = number;\n",
+	}, "")
+	assertContains(t, output.Files["model.d.ts"], "type Local", "export type Model")
+	assertLacks(t, output.Files["model.d.ts"], "Dropped", "unused")
+	assertChecks(t, input, output)
+
+	only, onlyInput := trimProject(t, map[string]string{
+		"index.d.ts":   "import './globals.ts';\ntype Local = { id: string };\nexport declare const api: { get: import(\"@mionjs/router\").PublicRoute<(l: Local) => Promise<void>> } & import(\"@mionjs/router\").ApiBuildVersion<\"v1\">;\n",
+		"globals.d.ts": "export {};\n",
+	}, "")
+	assertChecks(t, onlyInput, only)
+}
+
+// TestTrim_KeepsAugmentationsFromOtherFiles: an augmentation in a file nothing names stays when it augments a
+// module the kept code imports or declares a global it reads, and goes otherwise.
+func TestTrim_KeepsAugmentationsFromOtherFiles(t *testing.T) {
+	output, input := trimProject(t, map[string]string{
+		"index.d.ts":     "import type { Box } from 'ext-pkg';\n" + apiOf(`get: import("@mionjs/router").PublicRoute<(e: Box, b: Branded) => Promise<void>>;`),
+		"augment.d.ts":   "declare module 'ext-pkg' {\n    interface Box { extra: string }\n}\nexport {};\n",
+		"global.d.ts":    "declare global {\n    interface Branded { tag: string }\n}\nexport {};\n",
+		"unrelated.d.ts": "declare module 'other-pkg' {\n    interface Other { x: string }\n}\ndeclare global {\n    interface NotRead { y: string }\n}\nexport {};\n",
+	}, "")
+	assertContains(t, output.Files["augment.d.ts"], "interface Box { extra: string }", "export {}")
+	assertContains(t, output.Files["global.d.ts"], "interface Branded")
+	if _, kept := output.Files["unrelated.d.ts"]; kept {
+		t.Errorf("an augmentation nothing kept reads must go")
+	}
+	assertChecks(t, input, output)
+}
+
+// apiTypeText prints the API export's resolved type in a program over files: equal text, equal ids.
+func apiTypeText(t *testing.T, input Input, files map[string]string, entry string) string {
+	t.Helper()
+	trimmer, release, err := newTrimmer(input, files)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer release()
+	moduleSymbol := trimmer.checker.GetSymbolAtLocation(trimmer.files[entry].source.AsNode())
+	for _, exported := range trimmer.checker.GetExportsOfModule(moduleSymbol) {
+		if exported.Name != "api" {
+			continue
+		}
+		return membersText(trimmer, trimmer.exportType(exported))
+	}
+	t.Fatalf("no api export in %s", entry)
+	return ""
+}
+
+// membersText prints a type's members, nested route groups expanded, the version key named without its position.
+func membersText(trimmer *trimmer, apiType *checker.Type) string {
+	var members []string
+	for _, property := range trimmer.checker.GetPropertiesOfType(apiType) {
+		name := property.Name
+		if strings.Contains(name, "apiBuildVersion") {
+			name = "apiBuildVersion"
+		}
+		propertyType := trimmer.checker.GetTypeOfSymbol(property)
+		text := trimmer.checker.TypeToString(propertyType)
+		if strings.HasPrefix(text, "PublicApi<") {
+			text = "{" + membersText(trimmer, propertyType) + "}"
+		}
+		members = append(members, name+": "+text)
+	}
+	sort.Strings(members)
+	return strings.Join(members, "; ")
+}
+
+// routesDTS is a routes object the API names through PublicApi<typeof routes>; middlewareOnly and shared plug in
+// the types the raw middleware alone uses and the ones it shares with a public route.
+const routesHeader = `import type { MiddlewareDef, RawMiddlewareDef, RouteDef, PublicApi, ApiBuildVersion } from '@mionjs/router';
+import type { IncomingMessage } from 'node:http';
+import type { Shared, OnlyRaw } from './shared.ts';
+import type { Ext, OnlyServer } from 'ext-pkg';
+type Ctx = { path: string };
+`
+
+// TestTrim_CutKeepsTypesTheRawMiddlewareSharesThroughImports: a type the cut raw middleware shares with a public
+// route stays, from the same module, another emitted file or an external package; the rest of its imports go.
+func TestTrim_CutKeepsTypesTheRawMiddlewareSharesThroughImports(t *testing.T) {
+	files := map[string]string{
+		"index.d.ts": routesHeader + `type LocalShared = { n: number };
+type LocalOnlyRaw = { x: string };
+export declare const routes: {
+    raw: RawMiddlewareDef<(ctx: Ctx, req: IncomingMessage, s: Shared, o: OnlyRaw, e: Ext, x: OnlyServer, l: LocalShared, r: LocalOnlyRaw) => void>;
+    get: RouteDef<(ctx: Ctx, s: Shared, e: Ext, l: LocalShared) => Shared>;
+};
+export declare const api: PublicApi<typeof routes> & ApiBuildVersion<"v1">;
+`,
+		"shared.d.ts": "export type Shared = { n: number };\nexport type OnlyRaw = { x: string };\n",
+	}
+	output, input := trimProject(t, files, "")
+	index := output.Files["index.d.ts"]
+	assertContains(t, index, "import type { Shared } from './shared.ts';", "import type { Ext } from 'ext-pkg';", "type LocalShared", "get: RouteDef")
+	assertLacks(t, index, "OnlyRaw", "OnlyServer", "IncomingMessage", "LocalOnlyRaw", "raw:", "RawMiddlewareDef")
+	assertContains(t, output.Files["shared.d.ts"], "export type Shared")
+	assertLacks(t, output.Files["shared.d.ts"], "OnlyRaw")
+	if strings.Join(output.Externals, ",") != "@mionjs/router,ext-pkg" {
+		t.Errorf("only the shared external stays a peer, got %v", output.Externals)
+	}
+	if output.uses["index.d.ts#LocalShared"] != 1 || output.uses["shared.d.ts#Shared"] != 1 {
+		t.Errorf("each shared type keeps the one kept user it has left, got %v", output.uses)
+	}
+	assertChecks(t, input, output)
+	if full, trimmed := apiTypeText(t, input, input.Declarations, filepath.Join(input.DeclarationDir, "index.d.ts")), apiTypeTextOf(t, input, output); full != trimmed {
+		t.Errorf("the cut must leave the API type unchanged:\nfull:    %s\ntrimmed: %s", full, trimmed)
+	}
+}
+
+func apiTypeTextOf(t *testing.T, input Input, output *Output) string {
+	t.Helper()
+	files := map[string]string{}
+	for rel, text := range output.Files {
+		files[filepath.Join(input.DeclarationDir, filepath.FromSlash(rel))] = text
+	}
+	return apiTypeText(t, input, files, filepath.Join(input.DeclarationDir, filepath.FromSlash(output.Entry)))
+}
+
+// TestTrim_CutsThroughANamedAlias: PublicApi<Routes> over a type alias cuts the alias's members the same way.
+func TestTrim_CutsThroughANamedAlias(t *testing.T) {
+	output, input := trimProject(t, map[string]string{
+		"index.d.ts": routesHeader + `type Routes = {
+    raw: RawMiddlewareDef<(ctx: Ctx, req: IncomingMessage) => void>;
+    group: { priv: MiddlewareDef<(ctx?: { o: OnlyRaw }) => undefined>; get: RouteDef<(ctx: Ctx, s: Shared) => Shared> };
+};
+export declare const api: PublicApi<Routes> & ApiBuildVersion<"v1">;
+`,
+		"shared.d.ts": "export type Shared = { n: number };\nexport type OnlyRaw = { x: string };\n",
+	}, "")
+	assertLacks(t, output.Files["index.d.ts"], "raw:", "priv:", "IncomingMessage", "OnlyRaw")
+	if strings.Join(output.cutMembers, ",") != "index.d.ts#Routes.group.priv,index.d.ts#Routes.raw" {
+		t.Errorf("cut members %v", output.cutMembers)
+	}
+	assertChecks(t, input, output)
+	if full, trimmed := apiTypeText(t, input, input.Declarations, filepath.Join(input.DeclarationDir, "index.d.ts")), apiTypeTextOf(t, input, output); full != trimmed {
+		t.Errorf("the cut must leave the API type unchanged:\nfull:    %s\ntrimmed: %s", full, trimmed)
+	}
+}
+
+// TestTrim_RefusesARoutesObjectUsedOutsidePublicApi: cutting it would change the other type, so the build stops.
+func TestTrim_RefusesARoutesObjectUsedOutsidePublicApi(t *testing.T) {
+	_, _, err := tryTrim(t, map[string]string{
+		"index.d.ts": routesHeader + `export declare const routes: {
+    raw: RawMiddlewareDef<(ctx: Ctx, req: IncomingMessage) => void>;
+    get: RouteDef<(ctx: Ctx, section: keyof typeof routes) => void>;
+};
+export declare const api: PublicApi<typeof routes> & ApiBuildVersion<"v1">;
+`,
+		"shared.d.ts": "export type Shared = { n: number };\nexport type OnlyRaw = { x: string };\n",
+	}, "")
+	if err == nil || !strings.Contains(err.Error(), "routes is used outside PublicApi") {
+		t.Fatalf("want routes reading itself refused, got %v", err)
+	}
+	_, _, err = tryTrim(t, map[string]string{
+		"index.d.ts": routesHeader + `type Section = keyof typeof routes;
+export declare const routes: {
+    raw: RawMiddlewareDef<(ctx: Ctx, req: IncomingMessage) => void>;
+    get: RouteDef<(ctx: Ctx, section: Section) => void>;
+};
+export declare const api: PublicApi<typeof routes> & ApiBuildVersion<"v1">;
+`,
+		"shared.d.ts": "export type Shared = { n: number };\nexport type OnlyRaw = { x: string };\n",
+	}, "")
+	if err == nil || !strings.Contains(err.Error(), "routes is used outside PublicApi") {
+		t.Fatalf("want routes another kept type reads refused, got %v", err)
+	}
+}
+
+// TestTrim_LeavesOtherTypesAlone: a member that fits a raw middleware's shape outside any routes is kept.
+func TestTrim_LeavesOtherTypesAlone(t *testing.T) {
+	output, input := trimProject(t, map[string]string{
+		"index.d.ts": `export interface Job { step: { type: 4; handler: (e: string) => void } }
+` + apiOf(`run: import("@mionjs/router").PublicRoute<(job: Job) => Promise<void>>;`),
+	}, "")
+	assertContains(t, output.Files["index.d.ts"], "step: { type: 4;")
+	if len(output.cutMembers) != 0 {
+		t.Errorf("nothing outside a PublicApi routes object may be cut, got %v", output.cutMembers)
+	}
+	assertChecks(t, input, output)
 }

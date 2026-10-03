@@ -11,7 +11,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/apitypes/apitypesmeta"
 )
 
-func writeJSON(t *testing.T, path, text string) {
+func writeFile(t *testing.T, path, text string) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatal(err)
@@ -24,10 +24,10 @@ func writeJSON(t *testing.T, path, text string) {
 // TestBuildPackage_ManifestMarkerAndPeers: no JS entry, the marker field, and every peer with the server's range.
 func TestBuildPackage_ManifestMarkerAndPeers(t *testing.T) {
 	root := t.TempDir()
-	writeJSON(t, filepath.Join(root, "package.json"), `{"name": "@acme/api", "version": "1.2.3", "license": "MIT",
+	writeFile(t, filepath.Join(root, "package.json"), `{"name": "@acme/api", "version": "1.2.3", "license": "MIT",
   "dependencies": {"@mionjs/router": "workspace:*", "ext-pkg": "^2.0.0"},
   "peerDependencies": {"@mionjs/core": "^0.12.0"}}`)
-	writeJSON(t, filepath.Join(root, "node_modules/@mionjs/router/package.json"), `{"name": "@mionjs/router", "version": "0.12.5"}`)
+	writeFile(t, filepath.Join(root, "node_modules/@mionjs/router/package.json"), `{"name": "@mionjs/router", "version": "0.12.5"}`)
 	files, err := BuildPackage(PackageInput{
 		ServerRoot: root,
 		Trimmed:    &Output{Files: map[string]string{"index.d.ts": "export {};\n"}, Entry: "index.d.ts", BuildVersion: "v1", Externals: []string{"@mionjs/router", "ext-pkg", "@types/node"}},
@@ -70,8 +70,8 @@ func TestBuildPackage_ManifestMarkerAndPeers(t *testing.T) {
 	if files[".mion/api/manifest.json"] != "{}\n" {
 		t.Errorf("the manifest must ship for api-check")
 	}
-	writeJSON(t, filepath.Join(root, "out", "package.json"), files["package.json"])
-	writeJSON(t, filepath.Join(root, "out", "mion-api.json"), files["mion-api.json"])
+	writeFile(t, filepath.Join(root, "out", "package.json"), files["package.json"])
+	writeFile(t, filepath.Join(root, "out", "mion-api.json"), files["mion-api.json"])
 	if info := apitypesmeta.ReadPackage(filepath.Join(root, "out"), osvfs.FS()); !info.TypesOnly || info.Marker == nil || info.Marker.Package != "@acme/api" {
 		t.Errorf("a client must read the package as types-only with a marker: %+v", info)
 	}
@@ -80,7 +80,7 @@ func TestBuildPackage_ManifestMarkerAndPeers(t *testing.T) {
 // TestBuildPackage_NeedsAServerName: pure fn ids and the marker carry the server name.
 func TestBuildPackage_NeedsAServerName(t *testing.T) {
 	root := t.TempDir()
-	writeJSON(t, filepath.Join(root, "package.json"), `{"version": "1.0.0"}`)
+	writeFile(t, filepath.Join(root, "package.json"), `{"version": "1.0.0"}`)
 	if _, err := BuildPackage(PackageInput{ServerRoot: root, Trimmed: &Output{Entry: "index.d.ts"}}); err == nil || !strings.Contains(err.Error(), "no name") {
 		t.Fatalf("got %v", err)
 	}
@@ -89,15 +89,15 @@ func TestBuildPackage_NeedsAServerName(t *testing.T) {
 // TestWritePackage_RefusesAForeignDirectory: a wrong --out never wipes a project.
 func TestWritePackage_RefusesAForeignDirectory(t *testing.T) {
 	out := t.TempDir()
-	writeJSON(t, filepath.Join(out, "package.json"), `{"name": "my-app"}`)
+	writeFile(t, filepath.Join(out, "package.json"), `{"name": "my-app"}`)
 	if err := WritePackage(out, map[string]string{"index.d.ts": "x"}); err == nil || !strings.Contains(err.Error(), "not written by") {
 		t.Fatalf("got %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(out, "package.json")); err != nil {
 		t.Fatal("the foreign package.json must survive")
 	}
-	writeJSON(t, filepath.Join(out, "package.json"), `{"name": "x-types", "mion": {"apiTypes": "./mion-api.json"}}`)
-	writeJSON(t, filepath.Join(out, "stale.d.ts"), "old")
+	writeFile(t, filepath.Join(out, "package.json"), `{"name": "x-types", "mion": {"apiTypes": "./mion-api.json"}}`)
+	writeFile(t, filepath.Join(out, "stale.d.ts"), "old")
 	if err := WritePackage(out, map[string]string{"index.d.ts": "new"}); err != nil {
 		t.Fatal(err)
 	}

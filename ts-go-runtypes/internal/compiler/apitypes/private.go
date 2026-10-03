@@ -1,43 +1,159 @@
 package apitypes
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/apimeta"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
 )
 
-// cutPrivateMembers cuts every property whose type is a private or raw middleware definition out of the
-// declarations. `PublicApi` already maps those keys away, so the API type is unchanged; what goes is their spelled
-// out definition in a routes object a kept type names (`PublicApi<typeof routes>`), and with it what only they use.
-func (trimmer *trimmer) cutPrivateMembers(prog *program.Program) {
-	privateDef, publicMethod := trimmer.probeTypes(prog)
+// routesContainer is a declaration a `PublicApi<typeof X>` or `PublicApi<X>` names, whose members may be cut.
+type routesContainer struct {
+	declaration *item
+	name        string
+}
+
+// cutPrivateMembers cuts every private or raw middleware definition out of the routes a `PublicApi<…>` names.
+// `PublicApi` maps those keys away, so the API type is unchanged; what goes is their spelled out definition and,
+// with it, what only they use. Members anywhere else are left alone, so no other kept type can change.
+func (trimmer *trimmer) cutPrivateMembers() []routesContainer {
+	privateDef, publicMethod := trimmer.probeTypes()
 	if privateDef == nil || publicMethod == nil {
-		return // no router to ask: a program without @mionjs/router declares no middleware
+		return nil // no router to ask: a program without @mionjs/router declares no middleware
 	}
+	var containers []routesContainer
+	cut := map[*ast.Node]bool{}
 	for _, file := range trimmer.sortedFiles() {
-		var walk func(node *ast.Node, path []string) bool
-		walk = func(node *ast.Node, path []string) bool {
-			if node.Kind == ast.KindPropertySignature || node.Kind == ast.KindPropertyDeclaration {
-				name := propertyName(node)
-				if trimmer.isPrivateDefinition(node, privateDef, publicMethod) {
-					file.holes = append(file.holes, textRange{start: node.Pos(), end: memberEnd(file, node)})
-					file.cutLabels = append(file.cutLabels, strings.Join(append(path, name), "."))
-					return false
-				}
-				path = append(path, name)
-			} else if name := node.Name(); name != nil && ast.IsIdentifier(name) && node.Parent != nil && node.Parent.Kind == ast.KindSourceFile {
-				path = []string{name.Text()}
-			} else if node.Kind == ast.KindVariableDeclaration && ast.IsIdentifier(node.Name()) {
-				path = []string{node.Name().Text()}
+		var walk func(node *ast.Node) bool
+		walk = func(node *ast.Node) bool {
+			if !trimmer.isPublicApiReference(node) {
+				node.ForEachChild(walk)
+				return false
 			}
-			node.ForEachChild(func(child *ast.Node) bool { return walk(child, path) })
+			for _, argument := range node.TypeArguments() {
+				file.publicApiArgs = append(file.publicApiArgs, textRange{start: argument.Pos(), end: argument.End()})
+				trimmer.cutIn(file, argument, nil, privateDef, publicMethod, cut)
+				name := containerName(argument)
+				for _, declaration := range file.locals[name] {
+					if declaration.kind == itemDeclaration {
+						containers = append(containers, routesContainer{declaration: declaration, name: name})
+						trimmer.cutIn(file, declaration.statement, []string{name}, privateDef, publicMethod, cut)
+					}
+				}
+			}
 			return false
 		}
-		file.source.AsNode().ForEachChild(func(child *ast.Node) bool { return walk(child, nil) })
+		file.source.AsNode().ForEachChild(walk)
 	}
+	return containers
+}
+
+// containerName is X in `typeof X` or a plain `X` type argument, "" otherwise.
+func containerName(argument *ast.Node) string {
+	var entity *ast.Node
+	switch argument.Kind {
+	case ast.KindTypeQuery:
+		entity = argument.AsTypeQueryNode().ExprName
+	case ast.KindTypeReference:
+		entity = argument.AsTypeReferenceNode().TypeName
+	}
+	if entity != nil && ast.IsIdentifier(entity) {
+		return entity.Text()
+	}
+	return ""
+}
+
+// cutIn cuts the private and raw middleware members under node, nested groups included.
+func (trimmer *trimmer) cutIn(file *fileInfo, node *ast.Node, path []string, privateDef, publicMethod *checker.Type, cut map[*ast.Node]bool) {
+	if node.Kind == ast.KindPropertySignature || node.Kind == ast.KindPropertyDeclaration {
+		name := propertyName(node)
+		if trimmer.isPrivateDefinition(node, privateDef, publicMethod) {
+			if !cut[node] {
+				cut[node] = true
+				file.holes = append(file.holes, textRange{start: node.Pos(), end: memberEnd(file, node)})
+				file.cutLabels = append(file.cutLabels, strings.Join(append(append([]string(nil), path...), name), "."))
+			}
+			return
+		}
+		path = append(append([]string(nil), path...), name)
+	}
+	node.ForEachChild(func(child *ast.Node) bool {
+		trimmer.cutIn(file, child, path, privateDef, publicMethod, cut)
+		return false
+	})
+}
+
+// checkContainersUnshared refuses a cut routes declaration that a kept declaration also reads outside a
+// `PublicApi<…>`: there the cut would change a type the client compiles, and so its ids.
+func (trimmer *trimmer) checkContainersUnshared(containers []routesContainer) error {
+	for _, container := range containers {
+		declaration := container.declaration
+		if !declaration.kept || !declaration.file.hasHoleIn(declaration.statement) {
+			continue
+		}
+		// The declaration reading itself (`keyof typeof routes` in a route) counts too.
+		for _, user := range append([]*item{declaration}, declaration.users...) {
+			if user.file != declaration.file || user.readsOutsidePublicApi(container.name) {
+				return fmt.Errorf("api types: %s is used outside PublicApi<…> in %s, so cutting its private and raw middlewares would change that type: keep the routes object out of other exported types", container.name, trimmer.relative(user.file.path))
+			}
+		}
+	}
+	return nil
+}
+
+// readsOutsidePublicApi: the item's statement reads name somewhere other than a `PublicApi<…>` type argument.
+func (current *item) readsOutsidePublicApi(name string) bool {
+	file := current.file
+	found := false
+	file.eachRef(current.statement, func(identifier *ast.Node) {
+		if identifier.Text() != name {
+			return
+		}
+		for _, argument := range file.publicApiArgs {
+			if identifier.Pos() >= argument.start && identifier.End() <= argument.end {
+				return
+			}
+		}
+		found = true
+	})
+	return found
+}
+
+func (file *fileInfo) hasHoleIn(node *ast.Node) bool {
+	for _, hole := range file.holes {
+		if hole.start >= node.Pos() && hole.end <= node.End() {
+			return true
+		}
+	}
+	return false
+}
+
+// isPublicApiReference: a `PublicApi<…>` type, as the router declares it, written plain or as an `import()` type.
+func (trimmer *trimmer) isPublicApiReference(node *ast.Node) bool {
+	var name *ast.Node
+	switch node.Kind {
+	case ast.KindTypeReference:
+		name = node.AsTypeReferenceNode().TypeName
+	case ast.KindImportType:
+		name = node.AsImportTypeNode().Qualifier
+	default:
+		return false
+	}
+	for name != nil && name.Kind == ast.KindQualifiedName {
+		name = name.AsQualifiedName().Right
+	}
+	if name == nil || !ast.IsIdentifier(name) || name.Text() != "PublicApi" || len(node.TypeArguments()) == 0 {
+		return false
+	}
+	symbol := trimmer.checker.GetSymbolAtLocation(name)
+	if symbol != nil && symbol.Flags&ast.SymbolFlagsAlias != 0 {
+		symbol = trimmer.checker.GetAliasedSymbol(symbol)
+	}
+	return symbol != nil && len(symbol.Declarations) > 0 && marker.DeclaringModuleOfNode(symbol.Declarations[0], nil) == apimeta.RouterModule
 }
 
 // isPrivateDefinition: the property fits PrivateDef and fits no public method; a public middleware typed with a
@@ -55,8 +171,8 @@ func (trimmer *trimmer) isPrivateDefinition(property *ast.Node, privateDef, publ
 }
 
 // probeTypes reads the probe file's two declared types; nil when the router does not resolve.
-func (trimmer *trimmer) probeTypes(prog *program.Program) (privateDef, publicMethod *checker.Type) {
-	probe := prog.SourceFile(filepath.Join(trimmer.declarationDir, probeFile))
+func (trimmer *trimmer) probeTypes() (privateDef, publicMethod *checker.Type) {
+	probe := trimmer.program.SourceFile(filepath.Join(trimmer.declarationDir, probeFile))
 	if probe == nil {
 		return nil, nil
 	}
