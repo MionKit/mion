@@ -61,3 +61,16 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
 - Every finding is fixed with its own regression test.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source file,
   each committed on its own.
+
+## Plan — implement-todo (approved 2026-10-03)
+
+- **Fixed "must not ship" tests** in `apitypes/trim_test.go` / `drizzle_test.go`: a heavy package type used only by a
+  private or raw middleware, a non-API export, a handler-only helper, a barrel beside drizzle tables, and an
+  augmentation in an unreached file; none may ship or become a peer.
+- **Real app**: a Go test trims `packages/private-drizzle-example-app` at `AppApi` (no `drizzle-orm`, `Check` clean,
+  build version equal to the manifest's).
+- **Fuzz lane `apitypes`** (Go, `apitypes/fuzz_trim_test.go`): random labelled `.d.ts` graphs over every listed
+  position, unreached types poisoned and importing a fake heavy package; the four oracles, each with a negative control.
+- **apiids lane** also runs the real `mion api-types` and builds a client against the trimmed package.
+- **Registration**: FUZZ table, help text, env note, `fuzz-soak.yml` options, lane contract test, fuzz README.
+- Out of this PR: putting outside types the API reaches inside the package; filed as its own todo.
