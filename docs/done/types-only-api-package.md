@@ -11,7 +11,7 @@ created: 2026-10-03
 
 A mion API built with `mion compile` already writes a `.d.ts` whose API type names the server build version
 (`ApiBuildVersion<"…">`), and a client built from it checks its own ids against that version (MET012, MET013).
-Today a client gets those types by installing the WHOLE server package, source and handlers included.
+Before this change a client got those types by installing the WHOLE server package, source and handlers included.
 
 An API should be able to publish a separate, types-only package for its clients: everything a client build needs,
 and nothing of the server's code. It plays the role an OpenAPI spec plays for other stacks, for TypeScript clients
@@ -25,12 +25,12 @@ built with mion.
 | Version | A hash of the route ids, set by the build | Written by hand |
 
 The closer twin of SERVING a spec is the fetch road (`client: {routes: 'fetch'}`), where the server sends its own
-route metadata at runtime and no package is needed. This todo is about the build-time road.
+route metadata at runtime and no package is needed. This spec was about the build-time road.
 
 ## Direction
 
 What the package must carry for a client to build and run against it, as found while building the
-`container/pre-publish-e2e/mion-api-types/` lane (which installs the full package today):
+`container/pre-publish-e2e/mion-api-types/` lane (which installed only the full package then):
 
 - **The API's `.d.ts`**, as `mion compile` writes it: the routes, the middlewares and the build version.
 - **The `mion-pure-fns/` artifact**, whenever the API registers overrides or pure fns its route types use.
@@ -40,7 +40,7 @@ What the package must carry for a client to build and run against it, as found w
   the routes name: the `.d.ts` refers to their types (`import("@mionjs/router").PublicRoute<…>`).
 - **No server JavaScript.** A client only does `import type {api} from '…'`.
 
-**Built-by-mion marker.** The package carries a marker file written by `mion compile` (with the compiler version
+**Built-by-mion marker.** The package carries a marker file written by `mion api-types` (with the compiler version
 and the build version). A client refuses a types-only package without it, with one clear error naming the package,
 instead of a scatter of MKR016 / MET012 / PFE9016 findings from a `.d.ts` some other tool wrote. Plain server and
 fullstack builds are unaffected: only the types-only road needs the marker.
@@ -59,9 +59,8 @@ Constraints already known, which the implementer must plan around:
 - Generated code can change without its id changing (the text in `Symbol('x')`, a lost `@nonEnumerable`
   tag); the version check cannot see it. The open todo about using published artifacts as they are covers it.
 
-Open questions for the implementer: whether this is a `mion compile` flag or its own command, how the package's
-`package.json` is produced, and how a monorepo keeps the server and its types package on one version. The
-implementer plans the details.
+The open questions (a flag or a command, how `package.json` is produced, how a monorepo keeps both on one version)
+were settled in the plan below: its own command, a generated `package.json`, and the server's version copied.
 
 ## Docs
 
@@ -97,7 +96,7 @@ Decisions taken with the user:
 0. Spec bookkeeping: `git mv docs/maybe/types-only-api-package.md docs/todos/`, append `## Plan (approved 2026-10-03)`.
 
 1. **Declarations-only compile** (`internal/compiler/batchcompile/compile.go`, `declarations.go`)
-   - `Options.DeclarationsOnly` + virtual `DeclarationOutDir`; `Result.Declarations`, `Result.PureFnArtifact`, `Result.GenDir`.
+   - `Options.DeclarationsOnly` + virtual `DeclarationDir`; `Result.Declarations`, `Result.PureFnArtifact`, `Result.GenDir`.
    - Use `program.Options.Overrides` (`program/program.go:38`): `declaration`, `emitDeclarationOnly`, outDir/declarationDir = virtual dir, no declaration maps. `emitDeclarationFiles` merges its `IsolatedDeclarations:false` into these instead of replacing them.
    - Run pass 1 + dump + generate (gen dir = temp dir from the CLI), skip transform / pass 2 / JS emit, capture the `.d.ts` in memory. Value splices and private→protected still apply. The user's tsconfig is never touched.
 
@@ -146,27 +145,47 @@ Gate (`pnpm test`, Go tests, `pnpm run lint`, `pnpm run format`), spec reconcile
 ## What shipped (2026-10-03)
 
 Built on main after the shared type-row modules landed; the types package ships no gen dir, so that change only
-moved the call `renderApiBundle` makes. Where the build differs from the plan above:
+moved the call `renderApiBundle` makes. Then a review round (66 findings) reshaped several parts. Where the build
+differs from the plan above:
 
 - **tsc already drops private and raw middlewares from the API type.** `initRoutes` returns `PublicApi<R>`, which
-  tsc writes out expanded, so those keys never reach the `api` export. They leak through OTHER exports (a
-  `routes` object, `startServer`) and the imports and files only those use, which reachability removes. The
-  removal pass still runs, for a kept type that names the route definitions (`PublicApi<typeof routes>`): every
-  property that fits the router's `PrivateDef` and fits no public method type is cut, in every declaration,
-  unconditionally, since `PublicApi` of the cut object equals `PublicApi` of the full one. The second check
-  matters: a public middleware typed with a no-params, void handler fits `PrivateDef` too.
-- **The cascade is mark-from-roots, guarded by use counts.** A declaration stays while at least one kept
-  declaration uses it; this also drops an unused cycle, which a pure decrement-to-zero count would keep. Every
-  item carries the count of kept users, and the trim fails (internal error) if a kept non-root has none or a
-  dropped item has one. `Output.Uses` exposes the counts; the reused-type tests read them.
-- **Version guard**: the CLI checks that the build version the trimmed entry carries equals the manifest's,
-  instead of recomputing it through a session method. The leaf-paths cross-check against the manifest was dropped.
+  tsc writes out expanded, so those keys never reach the `api` export. They leak through other exports (a
+  `routes` object, `startServer`) and the imports and files only those use, which reachability removes.
+- **The cut runs only inside routes a `PublicApi<…>` names**: its type arguments, and a declaration named there
+  (`PublicApi<typeof routes>`, `PublicApi<Routes>`). A property there that fits the router's `PrivateDef` and no
+  public method type is cut (a public middleware typed with a no-params, void handler fits `PrivateDef` too).
+  Members anywhere else are left alone. A routes declaration a kept type also reads outside `PublicApi<…>`
+  (itself included, `keyof typeof routes`) fails the command, as planned. A test against the real router package
+  pins it, and tests compare the API type before and after the cut.
+- **The cascade is mark-from-roots.** A declaration stays while one kept declaration uses it, which also drops an
+  unused cycle that a decrement-to-zero count would keep. Each item records its kept users (the tests read the
+  counts); the planned count cross-check was dropped because, fed by the same marking pass, it could never fail.
+  The independent guards are the standalone type check of the output and the build version read back from it.
+- **Version guard**: `Check` builds a program over the trimmed files and reads the build version from the trimmed
+  entry; the CLI compares it with the manifest's. The leaf-paths cross-check was dropped: `PublicApi` keeps every
+  public leaf by construction, and any change to the API's ids changes the version this guard compares.
+- **A bare import that resolves into the project** (a tsconfig `paths` alias, a `#` import) fails the command
+  naming it: a published package cannot resolve it.
+- **Augmentations**: a `declare global` or `declare module` block stays with its kept file, or when it augments a
+  module the kept code imports or declares a global name the kept code reads. A file a kept side-effect import
+  names ships too.
 - **`exports` also opens `"./*": {"types": "./*.d.ts"}`**: with only `"."`, a client that writes its own `.d.ts`
   could not name a type from another kept file (TS2883).
-- **Pure fns through a renamed package**: `purefnindex` accepts an index whose `package` is the server the
-  marker names (`PackageIndex.Owner`), and remembers which types-only root serves that server, so a demanded id
-  resolves when the server package is not installed (an installed server still wins).
-- **MET015** (runtime error) and **MET016** (warning). MET012, MET013 and MKR016 tied to a refused package are
-  dropped from whole-program ops (dump, generate); a per-file dev scan still shows them. PFE9016 stays.
-- `--entry` takes the source file; by default the server package.json `types` entry picks the declaration.
+- **Pure fns**: the package ships every override row and every pure fn whose id a kept declaration names, with
+  their dependency closure; a pure fn only server code uses stays home, and so does a peer only it needed. An
+  override ships even for a type the API does not reach: its row is keyed by a structural key the trimmed types
+  cannot be matched against. `purefnindex` accepts an index whose `package` is the server the marker names
+  (`PackageIndex.Owner`), reads each root's owner without walking it, and serves the types-only root nearest the
+  importing package when the server is not installed (an installed server still wins).
+- **Types-only** means a package.json with types and no JavaScript entry: no `main`, `module`, `browser`, no
+  `exports` target outside a `types` condition, and no root `index.js` when there is neither `main` nor `exports`.
+- **MET015** (runtime error) and **MET016** (warning). MET015 rides the dump and the generate, so `--no-emit`
+  reports it. MET012, MET013 and MKR016 tied to a refused package are dropped from those whole-program ops; a
+  per-file dev scan still shows them. PFE9016 stays. MET015 stays a runtime error, not a warning: "Done when"
+  asks the client build to fail on a types-only package without a marker.
+- **Peer ranges** come from the server's dependencies, peer, optional and dev dependencies. A range only a
+  workspace understands (`workspace:`, `catalog:`, `link:`, `file:`) becomes a caret on the installed version, or
+  `*`; a package the server does not declare gets `*`.
+- `--entry` takes the source file; by default the server package.json `types` (or `exports["."].types`) entry
+  picks the declaration, and the command falls back to detection when that file exports no API.
 - `mion api-types --out` refuses a non-empty directory it did not write.
