@@ -113,8 +113,7 @@ func (ctx *printContext) typeExpr(node *reflection.RunType) (string, *Diagnostic
 	return strings.Join(parts, " & "), nil
 }
 
-// typeSuffixNeedsParens marks spellings binding looser than a postfix `[]` / `?`: unions, metadata
-// intersections, arrow types and the `readonly` operator.
+// typeSuffixNeedsParens marks spellings binding looser than a postfix `[]` / `?`.
 func typeSuffixNeedsParens(node *reflection.RunType) bool {
 	if node == nil {
 		return false
@@ -611,8 +610,7 @@ func (ctx *printContext) objectLiteralText(members []*objectMember, indexes []in
 	return "{" + strings.Join(parts, "; ") + "}", nil
 }
 
-// plainStringIndex reports the shape the value-first `record(...)` can say directly: exactly one
-// string-keyed, mutable index signature with no named members beside it (`Record<>` cannot say `readonly`).
+// plainStringIndex reports the shape value-first `record(...)` says directly; `Record<>` cannot say `readonly`.
 func plainStringIndex(members []*objectMember, indexes []indexSignature) bool {
 	return len(indexes) == 1 && len(members) == 0 && indexes[0].key.Kind == reflection.KindString && !indexes[0].readonly
 }
@@ -635,7 +633,6 @@ func (ctx *printContext) collectionSpelling(node *reflection.RunType, baseText, 
 	return fmt.Sprintf("%s.%s<%s, {%s}>", ctx.names.TF, wrapper, baseText, strings.Join(parts, ", ")), nil
 }
 
-// readonlyPrefix spells a readonly tuple or array (`readonly [..]`, `readonly T[]`).
 func readonlyPrefix(readonly bool) string {
 	if readonly {
 		return "readonly "

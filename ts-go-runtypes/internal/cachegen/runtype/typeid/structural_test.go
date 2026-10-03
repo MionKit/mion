@@ -279,7 +279,7 @@ getRunTypeId<`+typeText+`>();
 	}
 }
 
-// Readonly is in the id: a readonly collection never shares a node, and so a reflected flag, with its mutable twin.
+// A shared id would hand the mutable twin the readonly node and its flag.
 func TestStructural_ReadonlySplitsFromMutableTwin(t *testing.T) {
 	for _, testCase := range []struct{ readonlyType, mutableType string }{
 		{"readonly [number, string]", "[number, string]"},

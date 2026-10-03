@@ -870,8 +870,7 @@ func TupleElementLabel(info checker.TupleElementInfo) string {
 	return nameNode.Text()
 }
 
-// IsReadonlyCollection reports a `readonly` tuple or a `ReadonlyArray` reference (`readonly T[]`). Shared by the
-// projection and the id so a readonly collection never shares a node with its mutable twin.
+// IsReadonlyCollection is shared by the projection and the id, so readonly never shares a node with its mutable twin.
 func IsReadonlyCollection(typeChecker *checker.Checker, tsType *checker.Type) bool {
 	if tsType == nil || tsType.ObjectFlags()&checker.ObjectFlagsReference == 0 {
 		return false
@@ -883,8 +882,7 @@ func IsReadonlyCollection(typeChecker *checker.Checker, tsType *checker.Type) bo
 	return typeChecker.IsArrayType(tsType) && tsType.Target().Symbol().Name == "ReadonlyArray"
 }
 
-// AllReadonlyCollections reports a tuple intersection whose every member is readonly: one mutable member makes the
-// merge mutable, as in TypeScript.
+// AllReadonlyCollections reports a tuple merge readonly only when every member is, as in TypeScript.
 func AllReadonlyCollections(typeChecker *checker.Checker, members []*checker.Type) bool {
 	for _, member := range members {
 		if !IsReadonlyCollection(typeChecker, member) {
