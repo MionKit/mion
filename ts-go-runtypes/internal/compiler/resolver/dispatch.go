@@ -736,6 +736,8 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		// consumes this response.
 		response.Diagnostics = append(response.Diagnostics, sess.programWideDiagnostics()...)
 		response.Diagnostics = append(response.Diagnostics, pureFnsDiagnostics...)
+		// MET015 rides the dump too: `--no-emit` stops here, and settling drops what MET015 explains.
+		response.Diagnostics = append(response.Diagnostics, sess.apiTypesPackages().diags...)
 		dumpBatchSites, dumpBatchDiagnostics := sess.collectProgramBatches()
 		response.Diagnostics = append(response.Diagnostics, dumpBatchDiagnostics...)
 		response.BatchSites = sess.batchReportForSites(dumpBatchSites)

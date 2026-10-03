@@ -81,9 +81,12 @@ func builtTextLib(artifact map[string]string) map[string]string {
 	return files
 }
 
-func scanLibConsumer(t *testing.T, files map[string]string) protocol.Response {
+func scanLibConsumer(t *testing.T, files map[string]string, consumer ...string) protocol.Response {
 	t.Helper()
 	files["a.ts"] = consumerTS
+	if len(consumer) > 0 {
+		files["a.ts"] = consumer[0]
+	}
 	r := setupInline(t, files)
 	resp := r.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"a.ts"}, IncludeEntryModules: true})
 	if resp.Error != "" {
@@ -280,5 +283,34 @@ getRunTypeId(value);
 	b := resolveFile(t, r, "reflect.ts")
 	if a.ID == "" || a.ID != b.ID {
 		t.Errorf("getRunTypeId<T>() and getRunTypeId(value) must agree: %q vs %q", a.ID, b.ID)
+	}
+}
+
+// TestPackagePureFns_ServedThroughATypesOnlyPackage: `mion api-types` ships the server's artifact under another
+// package name; its marker names the server, so the server's ids are served though the server is not installed.
+func TestPackagePureFns_ServedThroughATypesOnlyPackage(t *testing.T) {
+	typesDir := "node_modules/@acme/text-types"
+	files := map[string]string{
+		typesDir + "/package.json":  `{"name":"@acme/text-types","types":"./index.d.ts","mion":{"apiTypes":"./mion-api.json"}}`,
+		typesDir + "/index.d.ts":    libDts,
+		typesDir + "/mion-api.json": `{"format":1,"package":"@acme/text","compiler":"` + constants.Version + `","buildVersion":"v1"}`,
+	}
+	for path, content := range libArtifact(typesDir+"/"+constants.PureFnArtifactDir, constants.EmitCode, libSlugEntry, libTitleEntry) {
+		files[path] = content
+	}
+	resp := scanLibConsumer(t, files, strings.Replace(consumerTS, "'@acme/text'", "'@acme/text-types'", 1))
+	if len(resp.Diagnostics) != 0 {
+		t.Fatalf("expected no diagnostics, got %+v", resp.Diagnostics)
+	}
+	for _, mod := range []string{libTitleMod, libSlugMod} {
+		if _, ok := resp.EntryModules[mod]; !ok {
+			t.Errorf("module %s was not served through the types package\nmodules: %v", mod, keys(resp.EntryModules))
+		}
+	}
+
+	delete(files, typesDir+"/mion-api.json")
+	unvouched := scanLibConsumer(t, files, strings.Replace(consumerTS, "'@acme/text'", "'@acme/text-types'", 1))
+	if _, ok := unvouched.EntryModules[libTitleMod]; ok {
+		t.Errorf("without its marker the types package serves another package's artifact")
 	}
 }

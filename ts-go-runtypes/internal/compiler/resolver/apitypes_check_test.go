@@ -43,12 +43,25 @@ export const valueId = getRunTypeId(secret);
 // typesOnlyClient builds a client from @acme/api-types and returns the MET and MKR016 findings of a dump plus a generate.
 func typesOnlyClient(t *testing.T, packageJSON, marker, version string, mode constants.ClientRoutesMode) []diagnostics.Diagnostic {
 	t.Helper()
+	extra := map[string]string{}
+	if marker != "" {
+		extra[typesPkgDir+"/mion-api.json"] = marker
+	}
+	return typesOnlyClientWith(t, packageJSON, version, mode, extra, nil, []string{protocol.OpDump, protocol.OpGenerate})
+}
+
+// typesOnlyClientWith adds overlay-only files (never program roots) and extra sources, and runs the given ops.
+func typesOnlyClientWith(t *testing.T, packageJSON, version string, mode constants.ClientRoutesMode, extra, extraSources map[string]string, ops []string) []diagnostics.Diagnostic {
+	t.Helper()
 	sources := map[string]string{
 		"router.d.ts":                 versionRouterDTS,
 		"client.d.ts":                 versionClientDTS,
 		typesPkgDir + "/package.json": packageJSON,
 		typesPkgDir + "/index.d.ts":   typesOnlyApiDTS(version),
 		"client.ts":                   typesOnlyClientTS,
+	}
+	for rel, text := range extraSources {
+		sources[rel] = text
 	}
 	genDir := t.TempDir()
 	session := setupInlineWith(t, sources, func(programOpts *program.Options, resolverOpts *resolver.Options) {
@@ -57,12 +70,12 @@ func typesOnlyClient(t *testing.T, packageJSON, marker, version string, mode con
 		resolverOpts.GenDir = genDir
 		resolverOpts.TransformRelative = true
 		resolverOpts.ClientRoutes = mode
-		if marker != "" {
-			programOpts.Overlay[tspath.ResolvePath(programOpts.Cwd, typesPkgDir+"/mion-api.json")] = marker
+		for rel, text := range extra {
+			programOpts.Overlay[tspath.ResolvePath(programOpts.Cwd, rel)] = text
 		}
 	})
 	var found []diagnostics.Diagnostic
-	for _, op := range []string{protocol.OpDump, protocol.OpGenerate} {
+	for _, op := range ops {
 		response := session.Dispatch(protocol.Request{Op: op})
 		if response.Error != "" {
 			t.Fatalf("%s: %s", op, response.Error)
@@ -137,5 +150,46 @@ func TestApiTypes_ValidMarkerReportsNothingOfItsOwn(t *testing.T) {
 		if diag.Code == diagnostics.CodeApiMetaTypesNotBuiltByMion || diag.Code == diagnostics.CodeApiMetaTypesOtherCompiler {
 			t.Fatalf("a valid marker raises nothing, got %+v", diags)
 		}
+	}
+}
+
+// TestApiTypes_DumpAloneReportsTheError: `mion compile --no-emit` stops after the dump, so MET015 must come with it.
+func TestApiTypes_DumpAloneReportsTheError(t *testing.T) {
+	diags := typesOnlyClientWith(t, typesOnlyPackageJSON, "'notTheServer'", constants.ClientRoutesBundle, nil, nil, []string{protocol.OpDump})
+	if apiTypesCodes(diags) != diagnostics.CodeApiMetaTypesNotBuiltByMion {
+		t.Fatalf("a dump alone must report MET015 and drop the MKR016 it explains, got %+v", diags)
+	}
+}
+
+// TestApiTypes_RootIndexMeansJavaScript: with no `main` and no `exports`, a root index.js is what Node loads.
+func TestApiTypes_RootIndexMeansJavaScript(t *testing.T) {
+	diags := typesOnlyClientWith(t, `{"name": "@acme/api", "types": "./index.d.ts"}`, "'notTheServer'", constants.ClientRoutesBundle,
+		map[string]string{typesPkgDir + "/index.js": "export const api = {};\n"}, nil, []string{protocol.OpDump, protocol.OpGenerate})
+	if codes := apiTypesCodes(diags); strings.Contains(codes, diagnostics.CodeApiMetaTypesNotBuiltByMion) || !strings.Contains(codes, diagnostics.CodeApiMetaServerVersionMismatch) {
+		t.Fatalf("a package with a root index.js keeps today's findings, got %+v", diags)
+	}
+}
+
+// TestApiTypes_OnlyTheRefusedPackageIsSilenced: another package's typeless private member still fails the build.
+func TestApiTypes_OnlyTheRefusedPackageIsSilenced(t *testing.T) {
+	other := map[string]string{
+		"node_modules/@acme/ledger/package.json": `{"name": "@acme/ledger", "types": "./index.d.ts", "main": "./index.js"}`,
+		"node_modules/@acme/ledger/index.d.ts":   "export declare class Account {\n    id: string;\n    private balance;\n}\n",
+		"ledger.ts":                              "import {getRunTypeId} from '@mionjs/run-types';\nimport type {Account} from '@acme/ledger';\nexport const accountId = getRunTypeId<Account>();\ndeclare const account: Account;\nexport const accountValueId = getRunTypeId(account);\n",
+	}
+	diags := typesOnlyClientWith(t, typesOnlyPackageJSON, "'notTheServer'", constants.ClientRoutesBundle, nil, other, []string{protocol.OpDump, protocol.OpGenerate})
+	var met015, ledger, refused int
+	for _, diag := range diags {
+		switch {
+		case diag.Code == diagnostics.CodeApiMetaTypesNotBuiltByMion:
+			met015++
+		case diag.Code == diagnostics.CodeMarkerTypelessPrivateMember && strings.Contains(strings.Join(diag.Args, ","), "Account"):
+			ledger++
+		case diag.Code == diagnostics.CodeMarkerTypelessPrivateMember:
+			refused++
+		}
+	}
+	if met015 != 1 || ledger == 0 || refused != 0 {
+		t.Fatalf("want one MET015, the ledger's MKR016 kept and the refused package's dropped; got %+v", diags)
 	}
 }
