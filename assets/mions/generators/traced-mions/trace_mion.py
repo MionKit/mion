@@ -1,5 +1,5 @@
 # Builds a mion from its crop: traced flat body tones and line work, eyes rebuilt as clean shapes, a gloss streak and a ground shadow.
-# Run from this folder: python3 trace_mion.py <name>, with the settings for <name> in mions.json.
+# Run from this folder: python3 trace_mion.py <name>, with the settings for <name> in mions.json ('back' and 'extra' hold hand-drawn parts behind and in front).
 import sys, json, cv2, numpy as np
 from common import *
 
@@ -22,7 +22,8 @@ top, bottom = ys.min(), ys.max()
 # ground shadow under the lowest part of the body: one soft patch, so the scene can keep it still while the mion bobs
 foot = xs[ys > bottom - (bottom - top) * 0.12]
 sx, sw = (foot.min() + foot.max()) / 2 / UP, (foot.max() - foot.min()) / UP
-shadow = f'<ellipse cx="{sx:.0f}" cy="{bottom / UP - 3:.0f}" rx="{sw * 0.62:.0f}" ry="{max(4, sw * 0.12):.0f}" fill="#000" opacity="0.32" filter="url(#{name}-blur)"/>'
+ground = cfg.get('ground', bottom / UP - 3)   # set it for mions on legs, whose feet the tracer cannot see
+shadow = f'<ellipse cx="{sx:.0f}" cy="{ground:.0f}" rx="{sw * 0.62:.0f}" ry="{max(4, sw * 0.12):.0f}" fill="#000" opacity="0.32" filter="url(#{name}-blur)"/>'
 
 # gloss: a light streak just inside the lit left edge of the upper body
 rows = np.arange(int(top + (bottom - top) * cfg.get('gloss_from', 0.12)), int(top + (bottom - top) * cfg.get('gloss_to', 0.45)), 4 * UP)
@@ -43,11 +44,11 @@ for i, (white, pupil) in enumerate(eyes):
       <g><path fill="{hexc(sample(img, pupil) * 0.8)}" d="{region_path(pupil, 2, 10, 8)}"/><circle cx="{shine_x:.1f}" cy="{shine_y:.1f}" r="{max(1.2, pr * 0.28):.1f}" fill="#fff"/></g>
     </g>'''
 
-pad = 14
+pad = max(14, int(ground - h // UP) + 14)
 ink_svg = f'<path id="lines" fill="{hexc(sample(img, ink) * 0.85)}" d="{region_path(ink, 1.5, 10, 12)}"/>' if ink.any() else ''
 svg = f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w // UP} {h // UP + pad}" width="{w // UP}" height="{h // UP + pad}">
   <defs><filter id="{name}-blur" x="-30%" y="-100%" width="160%" height="300%"><feGaussianBlur stdDeviation="3.5"/></filter></defs>
-  <g id="shadow">{shadow}</g>
+  <g id="shadow">{shadow}</g>{cfg.get('back', '')}
   <g id="body">''' + ''.join(f'\n    <path fill="{c}" d="{d}"/>' for c, d in layers if d) + f'''
   </g>
   {ink_svg}
