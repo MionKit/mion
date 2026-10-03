@@ -20,6 +20,7 @@ const (
 	itemReExport    // one specifier of `export {a as b} from './x'`
 	itemExportStar  // `export * from './x'`
 	itemExportEmpty // `export {}`: keeps a file a module
+	itemGlobal      // one statement of a `declare global` block, kept only when kept code reads a name it declares
 )
 
 // item is the unit kept or dropped.
@@ -36,6 +37,9 @@ type item struct {
 	importedName string
 	localName    string // the local an `export {a as b}` points at
 	kept         bool
+	// members are a `declare global` block's statements; block is the block a member belongs to.
+	members []*item
+	block   *item
 	// users are the kept items that use this one.
 	users []*item
 }
@@ -102,13 +106,39 @@ func (file *fileInfo) addStatement(statement *ast.Node) {
 		}
 		file.add(&item{kind: itemDeclaration, statement: statement, exportedName: exported})
 	case ast.KindModuleDeclaration:
-		if ast.IsGlobalScopeAugmentation(statement) || statement.Name().Kind == ast.KindStringLiteral {
+		if ast.IsGlobalScopeAugmentation(statement) {
+			file.addGlobal(statement)
+			return
+		}
+		if statement.Name().Kind == ast.KindStringLiteral {
 			file.add(&item{kind: itemAlways, statement: statement})
 			return
 		}
 		file.addDeclaration(statement)
 	default:
 		file.addDeclaration(statement)
+	}
+}
+
+// addGlobal adds a `declare global` block and one item per statement in it; global names stay out of file.locals.
+func (file *fileInfo) addGlobal(statement *ast.Node) {
+	block := &item{kind: itemAlways, statement: statement, members: []*item{}}
+	file.add(block)
+	body := statement.AsModuleDeclaration().Body
+	if body == nil || body.Kind != ast.KindModuleBlock {
+		return
+	}
+	for _, inner := range body.AsModuleBlock().Statements.Nodes {
+		member := &item{kind: itemGlobal, statement: inner, block: block, file: file}
+		if inner.Kind == ast.KindVariableStatement {
+			for _, variable := range inner.AsVariableStatement().DeclarationList.AsVariableDeclarationList().Declarations.Nodes {
+				member.names = append(member.names, bindingNames(variable.Name())...)
+			}
+		} else if name := inner.Name(); name != nil && ast.IsIdentifier(name) {
+			member.names = []string{name.Text()}
+		}
+		block.members = append(block.members, member)
+		file.items = append(file.items, member)
 	}
 }
 
@@ -232,10 +262,10 @@ func (file *fileInfo) anyKept() bool {
 	return false
 }
 
-// keptAny: some item of the file other than an augmentation or `export {}` is kept.
+// keptAny: some item of the file other than an augmentation, a global or `export {}` is kept.
 func (file *fileInfo) keptAny() bool {
 	for _, current := range file.items {
-		if current.kept && current.kind != itemAlways && current.kind != itemExportEmpty {
+		if current.kept && current.kind != itemAlways && current.kind != itemGlobal && current.kind != itemExportEmpty {
 			return true
 		}
 	}
@@ -251,21 +281,24 @@ func (file *fileInfo) inHole(node *ast.Node) bool {
 	return false
 }
 
-// refNames lists the identifiers a kept statement reads outside its holes; over-reading only keeps an extra declaration.
-func (current *item) refNames(file *fileInfo) []string {
+// localRead is a local name a statement reads, with the member read off it (`ns.member`), "" when read bare.
+type localRead struct{ name, member string }
+
+// reads lists the locals a kept statement reads outside its holes, each with the member read off it.
+func (current *item) reads(file *fileInfo) []localRead {
 	if current.statement == nil || current.kind == itemExportEmpty {
 		return nil
 	}
 	if current.localName != "" && current.kind == itemDeclaration {
-		// A sibling export of a multi-name variable statement: the first name's item walks the statement.
-		return []string{current.localName}
+		return []localRead{{name: current.localName}}
 	}
-	seen := map[string]bool{}
-	var out []string
-	file.eachRef(current.statement, func(identifier *ast.Node) {
-		if text := identifier.Text(); !seen[text] {
-			seen[text] = true
-			out = append(out, text)
+	seen := map[localRead]bool{}
+	var out []localRead
+	file.eachRead(current.statement, func(identifier *ast.Node, member string) {
+		read := localRead{name: identifier.Text(), member: member}
+		if !seen[read] {
+			seen[read] = true
+			out = append(out, read)
 		}
 	})
 	return out
@@ -273,29 +306,42 @@ func (current *item) refNames(file *fileInfo) []string {
 
 // eachRef calls visit for every identifier node reads outside the file's holes.
 func (file *fileInfo) eachRef(node *ast.Node, visit func(identifier *ast.Node)) {
+	file.eachRead(node, func(identifier *ast.Node, _ string) { visit(identifier) })
+}
+
+// eachRead is eachRef plus the first member a qualified name reads off the identifier.
+func (file *fileInfo) eachRead(node *ast.Node, visit func(identifier *ast.Node, member string)) {
 	if node == nil || file.inHole(node) {
 		return
 	}
 	switch node.Kind {
 	case ast.KindIdentifier:
-		visit(node)
+		visit(node, "")
 		return
 	case ast.KindQualifiedName:
-		file.eachRef(node.AsQualifiedName().Left, visit)
+		if left := node.AsQualifiedName().Left; ast.IsIdentifier(left) {
+			visit(left, node.AsQualifiedName().Right.Text())
+		} else {
+			file.eachRead(left, visit)
+		}
 		return
 	case ast.KindPropertyAccessExpression:
-		file.eachRef(node.Expression(), visit)
+		if expression := node.Expression(); ast.IsIdentifier(expression) {
+			visit(expression, node.Name().Text())
+		} else {
+			file.eachRead(expression, visit)
+		}
 		return
 	case ast.KindImportType:
 		for _, argument := range node.TypeArguments() {
-			file.eachRef(argument, visit)
+			file.eachRead(argument, visit)
 		}
 		return
 	}
 	skip := declaredName(node)
 	node.ForEachChild(func(child *ast.Node) bool {
 		if child != skip {
-			file.eachRef(child, visit)
+			file.eachRead(child, visit)
 		}
 		return false
 	})

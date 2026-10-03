@@ -103,3 +103,46 @@ func TestTrim_ServerOnlyAugmentationsShipNothing(t *testing.T) {
 	}
 	assertChecks(t, input, output)
 }
+
+// TestTrim_NamespaceImportShipsOnlyTheMembersRead: `M.User` through `import * as M` keeps User, not the whole file;
+// a bare read of M still keeps every export.
+func TestTrim_NamespaceImportShipsOnlyTheMembersRead(t *testing.T) {
+	models := "import type { HeavyDb } from 'heavy-pkg';\nexport interface User { id: string }\nexport declare const roles: readonly [\"admin\"];\nexport declare class ServerOnly { db: HeavyDb }\n"
+	output, input := trimServerOnly(t, map[string]string{
+		"index.d.ts":  "import type * as M from './models.ts';\n" + apiOf(`user: import("@mionjs/router").PublicRoute<(role: typeof M.roles) => Promise<M.User>>;`),
+		"models.d.ts": models,
+	}, "")
+	assertContains(t, output.Files["models.d.ts"], "interface User", "roles")
+	assertNothingHeavy(t, output, "ServerOnly")
+	assertChecks(t, input, output)
+
+	whole, wholeInput := trimServerOnly(t, map[string]string{
+		"index.d.ts":  "import type * as M from './models.ts';\n" + apiOf(`all: import("@mionjs/router").PublicRoute<() => Promise<keyof typeof M>>;`),
+		"models.d.ts": models,
+	}, "")
+	assertContains(t, whole.Files["models.d.ts"], "interface User", "roles", "ServerOnly")
+	assertChecks(t, wholeInput, whole)
+}
+
+// TestTrim_AugmentationsShipOnlyWhatIsRead: a kept file's `declare global` keeps only the members kept code reads,
+// and its augmentation of a package nothing kept imports goes.
+func TestTrim_AugmentationsShipOnlyWhatIsRead(t *testing.T) {
+	output, input := trimServerOnly(t, map[string]string{
+		"index.d.ts": "import type { Model } from './model.ts';\n" + apiOf(`get: import("@mionjs/router").PublicRoute<(m: Model, b: Branded) => Promise<void>>;`),
+		"model.d.ts": `import type { HeavyDb } from 'heavy-pkg';
+export interface Model { id: string }
+declare global {
+    interface Branded { tag: Tag }
+    type Tag = string;
+    interface NotRead { db: HeavyDb }
+    var serverDb: HeavyDb;
+}
+declare module 'heavy-pkg' {
+    interface HeavyClient { extra: Model }
+}
+`,
+	}, "")
+	assertContains(t, output.Files["model.d.ts"], "interface Model", "declare global", "interface Branded", "type Tag")
+	assertNothingHeavy(t, output, "NotRead", "serverDb", "declare module")
+	assertChecks(t, input, output)
+}
