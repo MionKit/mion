@@ -402,7 +402,8 @@ const (
 // ModuleMode selects how cache entries are grouped into virtual modules. Mirrored to TS so the plugin option
 // validates against the same set.
 const (
-	// ModuleModeDefault — one runtype data module per source file (`rt/<hash>`, facades as named exports), all else per-entry.
+	// ModuleModeDefault — one runtype data module per source file (`rt/<hash>`, facades as named exports), rows several
+	// files reach in a shared module (`rt/shared/<hash>`), all else per-entry.
 	ModuleModeDefault = "default"
 	// ModuleModeAllSingle — bundle EVERYTHING: one bundle module per family tag (`fns/<tag>`), one `pf` bundle
 	// for pure fns, and the reflection facades folded into the runtypes bundle as named exports. Fewest modules;

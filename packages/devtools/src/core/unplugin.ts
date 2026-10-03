@@ -120,8 +120,9 @@ export interface PluginOptions {
   //                  `type InjectRunTypeId<T> = …` drives rewrites too.
   markers?: {packages?: string[]; checkPackage?: boolean};
   // How cache entries group into modules:
-  //   'default'    — runtype nodes ride one data module per source file (`rt/<hash>`); every fn-family /
-  //                  composite / pure-fn entry is its own module. Best chunk-splitting granularity.
+  //   'default'    — runtype nodes ride one data module per source file (`rt/<hash>`), rows several files reach
+  //                  one shared module (`rt/shared/<hash>`); every fn-family / composite / pure-fn entry is its
+  //                  own module. Best chunk-splitting granularity.
   //   'allSingle'  — one module per fn family (`fns/<tag>`), one `pf` pure-fn bundle, one runtypes module for
   //                  the whole program. Fewest requests; family bundles re-fetch wholesale on type edits.
   //   'allModules' — per-entry fn modules AND per-node runtype modules. Escape hatch; measurably slower
