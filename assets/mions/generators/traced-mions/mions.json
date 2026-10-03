@@ -192,6 +192,12 @@
    2000,
    593
   ],
-  "tones": 7
+  "parts": "fin_fish",
+  "trace": false,
+  "shadow": [
+   136,
+   292,
+   48
+  ]
  }
 }
