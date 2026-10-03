@@ -59,8 +59,10 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
 ## What shipped
 
 As planned. Turning the check on surfaced real type errors in two run-types test fixtures that `mion compile`
-had been hiding: the API ids fuzz client stub (a one-argument `InjectApiMetadata` on an `initClient`
+had been hiding, in run-types: the API ids fuzz client stub (a one-argument `InjectApiMetadata` on an `initClient`
 parameter the real client does not have, and a client `lib` with no `URL`), and the cross-package pure fns
-e2e (`process` used with `types: []`). Both fixtures were fixed in the same PR. The second runtypes page that
+e2e (`process` used with `types: []`). And in devtools' `compile-cli-mion.test.ts`: a client stub whose
+routes did not accept an `inputFrom` ref, and a pure fn program with unchecked `undefined` lookups and no
+`process` type. All were fixed in the same PR, and the `compile --help` snapshot follows the new text. The second runtypes page that
 said `mion compile` reports no type errors (`02.runtypes/01.introduction/02.built-on-typescript-go.md`) was
 corrected too.
