@@ -11,6 +11,8 @@ const deg = (d) => (d * Math.PI) / 180;
 const ROUND = 0.16; // corner radius, as a fraction of the tile side
 const D = 50; // cliff height
 const BG = '#1a2439'; // background colour the cliff bottom fades into
+const SHADOW_DROP = 14; // how far below the cliff bottom the floating island's shadow falls
+const SHADOW_SPREAD = 1.12; // and how much wider than the island it spreads
 const GRASS = ['#6d9638', '#7fa843', '#5e8a32', '#93b852'];
 
 // the tile is a unit square (a, b) seen isometrically: a runs top→right corner, b runs top→left corner
@@ -317,7 +319,7 @@ for (const {corner, angle, side} of EDGE_CORNERS) {
 // back to front, so a tall clump never covers one standing in front of it
 const tufts = tuftList.sort((a, b) => a.y - b.y).map((t) => t.svg).join('');
 
-const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 380" width="600" height="380">
+const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 420" width="600" height="420">
   <defs>
     <radialGradient id="gi-top" cx="300" cy="170" r="260" gradientUnits="userSpaceOnUse" gradientTransform="translate(300 170) scale(1 0.5) translate(-300 -170)">
       <stop offset="0" stop-color="#a8844e"/>
@@ -337,7 +339,9 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 380" width
     <filter id="gi-soft" x="-5%" y="-20%" width="110%" height="140%"><feGaussianBlur stdDeviation="1.2"/></filter>
     <filter id="gi-blur-wide" x="-10%" y="-50%" width="120%" height="200%"><feGaussianBlur stdDeviation="9"/></filter>
     <filter id="gi-blur" x="-10%" y="-50%" width="120%" height="200%"><feGaussianBlur stdDeviation="7"/></filter>
+    <filter id="gi-shadow-blur" x="-15%" y="-40%" width="130%" height="180%"><feGaussianBlur stdDeviation="10"/></filter>
   </defs>
+  <path id="shadow" d="${pathOf(outline, true)}" fill="#000" opacity="0.6" transform="translate(0 ${D + SHADOW_DROP}) translate(300 170) scale(${SHADOW_SPREAD}) translate(-300 -170)" filter="url(#gi-shadow-blur)"/>
   ${cliff()}
   <g id="top">
     <path d="${pathOf(outline, true)}" fill="url(#gi-top)"/>
