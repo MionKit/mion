@@ -1,0 +1,304 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mions Play</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  body { background: radial-gradient(ellipse at 50% 45%, #22304a 0%, #161f33 55%, #0e1424 100%); }
+  canvas { display: block; }
+  #hint { position: fixed; left: 16px; bottom: 14px; font: 13px/1.3 system-ui, sans-serif; color: #8d9bb8; user-select: none; pointer-events: none; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/pixi.js@8.22.0/dist/pixi.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>
+</head>
+<body>
+<div id="hint">Click a mion to make it jump</div>
+<script type="module">
+// The mions hop between floating terrain pieces that circle the island, drawn on the graphics chip with PixiJS and moved with GSAP.
+// The svg files are only read: each one is cut into layers here (shadow, body, eye whites, pupils), so the assets stay as they are.
+
+const W0 = -150, H0 = 110, VIEW_W = 1360, VIEW_H = 900;   // the part of the scene (half-size reference pixels) that fits the window
+const rand = (a, b) => a + Math.random() * (b - a);
+const pick = list => list[Math.floor(Math.random() * list.length)];
+const lerp = (a, b, t) => a + (b - a) * t;
+const wait = s => new Promise(done => gsap.delayedCall(s, done));
+
+const app = new PIXI.Application();
+await app.init({ resizeTo: window, antialias: true, backgroundAlpha: 0, resolution: devicePixelRatio, autoDensity: true });
+document.body.appendChild(app.canvas);
+const sky = new PIXI.Container(), world = new PIXI.Container();
+world.sortableChildren = true;
+app.stage.addChild(sky, world);
+let view = 1;
+const fit = () => {
+  view = Math.min(innerWidth / VIEW_W, innerHeight / VIEW_H);
+  for (const layer of [sky, world]) { layer.scale.set(view); layer.position.set(-W0 * view + (innerWidth - VIEW_W * view) / 2, -H0 * view + (innerHeight - VIEW_H * view) / 2); }
+};
+fit(); addEventListener('resize', fit);
+
+// ---- cutting an svg file into layers --------------------------------------------------------------
+const host = Object.assign(document.createElement('div'), { style: 'position:absolute;left:-99999px;top:0;visibility:hidden' });
+document.body.appendChild(host);
+const texts = {}, cuts = {};
+const ser = new XMLSerializer();
+const texture = (svg, crop, R) => new Promise((done, fail) => {
+  svg.setAttribute('viewBox', `${crop.x} ${crop.y} ${crop.w} ${crop.h}`);
+  svg.setAttribute('width', Math.ceil(crop.w * R)); svg.setAttribute('height', Math.ceil(crop.h * R));
+  const img = new Image();
+  img.onload = () => done(PIXI.Texture.from(img)); img.onerror = fail;
+  img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(ser.serializeToString(svg));
+});
+
+async function cut(src, R, spotsEvery = 0) {
+  const key = `${src}@${R.toFixed(2)}`;
+  return cuts[key] ??= (async () => {
+    host.innerHTML = await (texts[src] ??= fetch(src).then(r => r.text()));
+    const svg = host.querySelector('svg');
+    const { x: vx, y: vy, width: vw, height: vh } = svg.viewBox.baseVal;
+    svg.setAttribute('width', vw); svg.setAttribute('height', vh);
+    const o = svg.getBoundingClientRect();
+    const box = (el, pad = 0) => { const r = el.getBoundingClientRect(); return { x: r.left - o.left + vx - pad, y: r.top - o.top + vy - pad, w: r.width + 2 * pad, h: r.height + 2 * pad }; };
+    const out = { R, full: { x: vx, y: vy, w: vw, h: vh }, eyes: [] };
+
+    const shadow = svg.querySelector('#shadow') || svg.querySelector('[id$="-shadow"]');
+    if (shadow) { shadow.dataset.cut = 's'; out.shadowBox = box(shadow, 16); const b = box(shadow); out.anchor = { x: b.x + b.w / 2, y: b.y + b.h / 2 }; }
+    else out.anchor = { x: vx + vw / 2, y: vy + vh };
+    svg.querySelectorAll('[id^="eye-"]').forEach((eye, i) => {
+      const kids = eye.children, pupil = kids[kids.length - 1], white = kids[kids.length - 2];
+      if (kids.length < 3 || pupil.tagName !== 'g' || eye.querySelector('[clip-path]')) return;
+      pupil.dataset.cut = 'p' + i; white.dataset.cut = 'w' + i;
+      const wb = box(white, 1);
+      out.eyes.push({ i, white: wb, pupil: box(pupil, 1), reach: Math.min(wb.w, wb.h) * 0.2 });
+    });
+    // where a mion can stand: a terrain tile's top face, or spots spread over the island's grass
+    const top = svg.querySelector('[id$="-top-clip"] path') || svg.querySelector('path[fill="url(#gi-top)"]');
+    if (top) {
+      const b = top.getBBox(); out.top = { x: b.x, y: b.y, w: b.width, h: b.height };
+      if (spotsEvery) {
+        out.spots = [];
+        const inside = (x, y) => top.isPointInFill(new DOMPoint(x, y));
+        for (let y = b.y; y < b.y + b.height; y += spotsEvery * 0.56) for (let x = b.x; x < b.x + b.width; x += spotsEvery)
+          if ([[0, 0], [-40, 0], [40, 0], [0, -22], [0, 22]].every(([dx, dy]) => inside(x + dx, y + dy))) out.spots.push({ x, y });
+      }
+    }
+    const layer = async (keep, crop) => {
+      const c = svg.cloneNode(true);
+      if (keep === 'body') c.querySelectorAll('[data-cut="s"], [data-cut^="p"]').forEach(el => el.remove());
+      else {
+        const t = c.querySelector(`[data-cut="${keep}"]`);
+        for (let el = t; el !== c; el = el.parentNode) for (const s of [...el.parentNode.children]) if (s !== el && s.tagName !== 'defs') s.remove();
+        if (keep[0] === 'w') for (const el of [t, ...t.querySelectorAll('*')]) { el.setAttribute('fill', '#fff'); el.removeAttribute('stroke'); }
+      }
+      return { tex: await texture(c, crop, R), crop };
+    };
+    out.body = await layer('body', out.full);
+    if (shadow) out.shadow = await layer('s', out.shadowBox);
+    for (const e of out.eyes) { e.mask = await layer('w' + e.i, e.white); e.dot = await layer('p' + e.i, e.pupil); }
+    host.innerHTML = '';
+    return out;
+  })();
+}
+
+// an actor is one svg as a root on the ground (its shadow) and a body above it that can bob and squash
+async function actor(src, unit, maxScale = 1, spotsEvery = 0) {
+  const L = await cut(src, Math.min(4, Math.max(1, unit * maxScale * view * devicePixelRatio * 1.2)), spotsEvery);
+  const sprite = ({ tex, crop }) => { const s = new PIXI.Sprite(tex); s.scale.set(1 / L.R); s.position.set(crop.x - L.anchor.x, crop.y - L.anchor.y); return s; };
+  const root = new PIXI.Container(), body = new PIXI.Container();
+  root.scale.set(unit);
+  if (L.shadow) { const sh = sprite(L.shadow); root.addChild(sh); root.shadow = sh; }
+  root.addChild(body); body.addChild(sprite(L.body));
+  const eyes = L.eyes.map(e => {
+    const mask = sprite(e.mask), dot = sprite(e.dot);
+    body.addChild(mask, dot); dot.mask = mask;
+    return { dot, home: { x: dot.x, y: dot.y }, centre: { x: e.white.x + e.white.w / 2 - L.anchor.x, y: e.white.y + e.white.h / 2 - L.anchor.y }, reach: e.reach, gx: 0, gy: 0 };
+  });
+  return { root, body, eyes, L, unit };
+}
+
+// ---- the sky -------------------------------------------------------------------------------------
+for (const src of ['sky/stars.svg', 'sky/pebbles.svg']) { const a = await actor(src, 1); a.root.position.set(500, 1000); sky.addChild(a.root); }
+const twinkles = [];
+for (let i = 0; i < 70; i++) {
+  const g = new PIXI.Graphics().star(0, 0, 4, rand(2, 4.5), 0.8).fill({ color: pick([0xffffff, 0xcfe3ff, 0xffe6c4]) });
+  g.position.set(rand(W0, W0 + VIEW_W), rand(H0, H0 + VIEW_H)); g.phase = rand(0, 6.28); g.speed = rand(0.6, 1.6);
+  sky.addChild(g); twinkles.push(g);
+}
+
+// ---- island, tree and the terrain carousel -------------------------------------------------------
+const place = (a, left, top, width) => a.root.position.set(left + (a.L.anchor.x - a.L.full.x) * width / a.L.full.w, top + (a.L.anchor.y - a.L.full.y) * width / a.L.full.w);
+const island = await actor('terrain/grass-island.svg', 946 / 600, 1, 34);
+place(island, 57, 307, 946); world.addChild(island.root);
+const toWorld = (a, p) => ({ x: a.root.x + (p.x - a.L.anchor.x) * a.root.scale.x, y: a.root.y + (p.y - a.L.anchor.y + a.body.y) * a.root.scale.y });
+island.root.zIndex = toWorld(island, island.L.top).y + 20;
+const tree = await actor('terrain/tree-mushroom.svg', 0.5);
+place(tree, 390, 220, 310); world.addChild(tree.root);
+tree.root.zIndex = tree.root.y - 20;
+const trunk = { x: tree.root.x - 10, y: tree.root.y - 25 };
+const islandSpots = island.L.spots.map(p => toWorld(island, p)).filter(p => ((p.x - trunk.x) / 120) ** 2 + ((p.y - trunk.y) / 70) ** 2 > 1);
+const centre = toWorld(island, { x: island.L.top.x + island.L.top.w / 2, y: island.L.top.y + island.L.top.h / 2 });
+
+const KINDS = ['mountain-orange', 'mountain-orange-low', 'cone-yellow-teal', 'cone-small-teal', 'mound-sand-cream', 'block-blue', 'block-slate',
+  'tile-teal-light', 'mound-sand-small', 'cone-cream', 'tile-teal', 'mound-orange'];
+// mountains stay near their own size, small tiles grow enough to hold a mion
+const sizeFor = kind => kind.startsWith('mountain') ? rand(0.75, 1.15) : /tile|block/.test(kind) ? rand(1.3, 2.3) : rand(1.1, 1.9);
+const rings = [{ count: 12, rx: 610, ry: 330, speed: 0.035 }, { count: 9, rx: 790, ry: 440, speed: 0.022 }];
+const pieces = [];
+for (const [r, ring] of rings.entries()) for (let i = 0; i < ring.count; i++) {
+  const kind = KINDS[(i * 5 + r * 7) % KINDS.length];
+  const size = sizeFor(kind);
+  const a = await actor(`terrain/${kind}.svg`, 0.5, 2.4);
+  a.root.scale.set(0.5 * size);
+  // tiles take a mion in the middle of their top, cones and mounds on the strip in front of the peak
+  const t = a.L.top, flat = /tile|block/.test(kind);
+  const spot = { x: t.x + t.w / 2, y: t.y + t.h * (flat ? 0.5 : 0.8) };
+  Object.assign(a, { kind, ring, angle: (i / ring.count) * Math.PI * 2 + r * 0.3 + rand(-0.12, 0.12), wobble: rand(0.92, 1.08), phase: rand(0, 6.28), spot, holder: null });
+  world.addChild(a.root); pieces.push(a);
+}
+const roomy = p => p.L.top.w * p.root.scale.x > 34;
+
+// every few seconds an empty piece pops to a new size
+(async () => { for (;;) {
+  await wait(rand(1.5, 3.5));
+  const p = pick(pieces.filter(p => !p.holder && !p.popping));
+  if (!p) continue;
+  p.popping = true;
+  const size = sizeFor(p.kind);
+  gsap.timeline({ onComplete: () => { p.popping = false; } })
+    .to(p.root.scale, { x: 0.5 * size * 0.8, y: 0.5 * size * 1.15, duration: 0.18, ease: 'power2.in' })
+    .to(p.root.scale, { x: 0.5 * size, y: 0.5 * size, duration: 0.9, ease: 'elastic.out(1, 0.35)' });
+} })();
+
+// ---- the mions -----------------------------------------------------------------------------------
+const MIONS = [
+  ['fin-fish', 839.5, 138.5, 160.5], ['visor', 647, 155.5, 108], ['hat-juggler', 514, 165, 117.5], ['rock-mion', 100, 165, 130],
+  ['horn-blob', 636, 293, 102.5], ['red-mushroom', 402.5, 245, 97.5], ['blue-helmet', 227.5, 332.5, 102.5], ['horned-ghost', 640, 360, 100],
+  ['plant-mion', 0, 400, 110], ['worm', 355, 455, 87.5], ['seal', 670, 445, 100], ['pig', 225, 495, 110], ['red-ball', 800, 515, 95],
+  ['horned-ghost-v2', 350, 530, 137], ['grub', 757, 572.5, 58], ['crawler', 615, 585, 135], ['teal-hood', 485, 650, 80], ['beanie', 429, 675.5, 58],
+];
+const cap = { x: 571, y: 264, holder: null };     // the top of the tree's cap: room for one
+const mions = [];
+const onIsland = [];
+const where = m => {   // a mion's ground spot right now, and its drawing depth
+  const at = m.at;
+  if (at.piece) { const p = toWorld(at.piece, at.piece.spot); return { ...p, z: at.piece.root.zIndex + 0.5 }; }
+  if (at.cap) return { x: cap.x, y: cap.y, z: tree.root.zIndex + 1 };
+  return { x: at.x, y: at.y, z: Math.max(at.y, island.root.zIndex + 1) };
+};
+const free = (x, y, self) => !onIsland.some(m => m !== self && Math.hypot(m.at.x - x, (m.at.y - y) * 1.8) < 70);
+
+for (const [name, left, top, width] of MIONS) {
+  const src = `creatures/${name}.svg`;
+  const viewWidth = +(await (texts[src] ??= fetch(src).then(r => r.text()))).match(/viewBox="\S+ \S+ (\S+)/)[1];
+  const m = await actor(src, width / viewWidth, 1.25);
+  place(m, left, top, width);
+  m.name = name; m.phase = rand(0, 6.28); m.period = rand(2.2, 3.4);
+  const foot = { x: m.root.x, y: m.root.y };
+  if (name === 'hat-juggler') { m.at = { cap: true }; cap.holder = m; }
+  else if (islandSpots.some(s => Math.hypot(s.x - foot.x, s.y - foot.y) < 40)) { m.at = foot; onIsland.push(m); }
+  else m.at = { pending: foot };
+  m.root.eventMode = 'static'; m.root.cursor = 'pointer';
+  m.root.on('pointertap', () => { m.urge = true; });
+  world.addChild(m.root); mions.push(m);
+}
+
+// ---- moving everything each frame ----------------------------------------------------------------
+let clock = 0;
+const pointer = { x: -1, y: -1, on: false };
+addEventListener('pointermove', e => Object.assign(pointer, { x: e.clientX, y: e.clientY, on: true }));
+document.addEventListener('pointerleave', () => { pointer.on = false; });
+const lay = () => {
+  for (const p of pieces) {
+    const a = p.angle + clock * p.ring.speed;
+    p.root.position.set(centre.x + Math.cos(a) * p.ring.rx * p.wobble, centre.y + Math.sin(a) * p.ring.ry * p.wobble);
+    p.root.zIndex = p.root.y;
+    p.body.y = Math.sin(clock * 1.05 + p.phase) * 6 / p.root.scale.y;
+  }
+};
+lay();
+for (const m of mions.filter(m => m.at.pending)) {   // floaters start on the nearest empty piece
+  const near = pieces.filter(p => !p.holder && roomy(p)).sort((a, b) => Math.hypot(a.root.x - m.at.pending.x, a.root.y - m.at.pending.y) - Math.hypot(b.root.x - m.at.pending.x, b.root.y - m.at.pending.y))[0];
+  m.at = { piece: near }; near.holder = m;
+}
+
+app.ticker.add(t => {
+  clock += t.deltaMS / 1000;
+  lay();
+  for (const g of twinkles) { const k = 0.5 + 0.5 * Math.sin(clock * g.speed * 2 + g.phase); g.alpha = 0.15 + 0.85 * k; g.scale.set(0.5 + 0.5 * k); }
+  sky.x = world.x + (pointer.on ? (pointer.x / innerWidth - 0.5) * -14 : 0);
+  for (const m of mions) {
+    if (!m.flying) {
+      const w = where(m), up = (1 - Math.cos((clock / m.period) * Math.PI * 2 + m.phase)) / 2;
+      m.root.position.set(w.x, w.y); m.root.zIndex = w.z;
+      m.body.y = -up * 4 / m.unit;
+      if (m.root.shadow) m.root.shadow.alpha = 1 - up * 0.3;
+    }
+    for (const e of m.eyes) {   // pupils lean toward the cursor, at most a fifth of the eye, easing so they never snap
+      let tx = 0, ty = 0;
+      if (pointer.on) {
+        const c = m.body.toGlobal(e.centre), dx = pointer.x - c.x, dy = pointer.y - c.y, d = Math.hypot(dx, dy) || 1;
+        const pull = e.reach * Math.min(1, d / 160);
+        tx = dx / d * pull; ty = dy / d * pull;
+      }
+      e.gx += (tx - e.gx) * 0.15; e.gy += (ty - e.gy) * 0.15;
+      e.dot.position.set(e.home.x + e.gx, e.home.y + e.gy);
+    }
+  }
+});
+
+// ---- jumping -------------------------------------------------------------------------------------
+const inView = p => p.x > W0 + 60 && p.x < W0 + VIEW_W - 60 && p.y > H0 + 60 && p.y < H0 + VIEW_H - 20;
+function target(m) {
+  const here = where(m), options = [];
+  for (const p of pieces) {
+    if (p.holder || !roomy(p) || p.popping) continue;
+    const s = toWorld(p, p.spot), d = Math.hypot(s.x - here.x, s.y - here.y);
+    if (d > 70 && d < 420 && inView(s)) options.push({ piece: p, d });
+  }
+  for (let i = 0; i < 6; i++) {
+    const s = pick(islandSpots), d = Math.hypot(s.x - here.x, s.y - here.y);
+    if (d > 60 && d < 380 && free(s.x, s.y, m)) options.push({ x: s.x, y: s.y, d });
+  }
+  if (!cap.holder && Math.hypot(cap.x - here.x, cap.y - here.y) < 380) options.push({ cap: true, d: 200 });
+  return options.length ? pick(options) : null;
+}
+
+async function jump(m, to) {
+  const from = m.at;
+  if (to.piece) to.piece.holder = m; else if (to.cap) cap.holder = m; else onIsland.push(m);
+  const a0 = where(m), b0 = where({ at: to });
+  const dist = Math.hypot(b0.x - a0.x, b0.y - a0.y), time = 0.55 + dist / 900, height = 45 + dist * 0.3;
+  const body = m.body.scale;
+  await gsap.to(body, { x: 1.14, y: 0.84, duration: 0.16, ease: 'power2.out' });
+  m.flying = true;
+  if (from.piece) from.piece.holder = null; else if (from.cap) cap.holder = null; else onIsland.splice(onIsland.indexOf(m), 1);
+  const s = { t: 0 };
+  gsap.to(body, { x: 0.88, y: 1.14, duration: time * 0.35, ease: 'power2.out' });
+  gsap.to(body, { x: 1, y: 1, duration: time * 0.4, delay: time * 0.5 });
+  await gsap.to(s, { t: 1, duration: time, ease: 'none', onUpdate: () => {
+    // both ends keep moving with their pieces, so the hop aims at where the target is now
+    const a = where({ at: from.piece || from.cap ? from : { x: a0.x, y: a0.y } }), b = where({ at: to }), t = s.t;
+    m.root.position.set(lerp(a.x, b.x, t), lerp(a.y, b.y, t));
+    m.root.zIndex = lerp(a.z, b.z, t) + 0.3;
+    m.body.y = -height * 4 * t * (1 - t) / m.unit;
+    if (m.root.shadow) { m.root.shadow.alpha = 1 - 0.6 * Math.sin(Math.PI * t); }
+  } });
+  m.at = to.piece ? { piece: to.piece } : to.cap ? { cap: true } : { x: to.x, y: to.y };
+  m.flying = false;
+  if (m.root.shadow) m.root.shadow.alpha = 1;
+  await gsap.timeline().to(body, { x: 1.22, y: 0.8, duration: 0.08, ease: 'power2.out' }).to(body, { x: 1, y: 1, duration: 0.6, ease: 'elastic.out(1, 0.4)' });
+}
+
+for (const m of mions) (async () => {
+  await wait(rand(0.5, 6));
+  for (;;) {
+    for (let waited = 0, goal = rand(2.5, 8); waited < goal && !m.urge; waited += 0.1) await wait(0.1);
+    m.urge = false;
+    const to = target(m);
+    if (to) await jump(m, to);
+  }
+})();
+</script>
+</body>
+</html>
