@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 136 104" width="136" height="104">
+  <defs><clipPath id="tile-teal-light-top-clip"><path d="M65 26Q71 23 76 26L108 44Q114 46 108 50L70 70Q64 74 59 71L27 53Q22 50 28 47Z"/></clipPath></defs>
+  <g id="tile-teal-light">
+  <g id="tile-teal-light-tile">
+    <path fill="#638897" d="M65 26Q71 23 76 26L108 44Q114 46 114 47L114 54Q114 54 108 58L70 78Q64 82 59 79L27 61Q22 58 22 57L22 51Q22 50 28 47Z"/>
+    <path fill="#7193a1" d="M64 74Q64 74 70 70L108 50Q114 46 114 47L114 54Q114 54 108 58L70 78Q64 82 64 81Z"/>
+    <path fill="#c4ddde" d="M65 26Q71 23 76 26L108 44Q114 46 108 50L70 70Q64 74 59 71L27 53Q22 50 28 47Z"/>
+    <path fill="#cbe1e1" d="M62 28Q69 25 74 28L99 42Q105 45 98 48L70 64Q63 68 57 65L32 51Q26 48 33 44Z" clip-path="url(#tile-teal-light-top-clip)"/>
+  </g>
+  </g>
+</svg>
