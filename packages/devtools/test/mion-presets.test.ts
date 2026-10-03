@@ -94,17 +94,32 @@ describe('client.routes — how the client gets each route', () => {
   });
 
   it('refuses moduleMode allSingle, whose shared modules would carry server types into the client', () => {
-    expect(() => toRunTypesOptions({runTypes: {moduleMode: 'allSingle'}})).toThrow(/moduleMode: 'allSingle' is not supported/);
-    expect(() => mionVitePlugin({runTypes: {moduleMode: 'allSingle'}})).toThrow(/allSingle/);
+    expect(() => toRunTypesOptions({runTypes: {moduleMode: 'allSingle' as never}})).toThrow(
+      /moduleMode: 'allSingle' is not supported/
+    );
+    expect(() => mionVitePlugin({runTypes: {moduleMode: 'allSingle' as never}})).toThrow(/allSingle/);
+  });
+
+  it('refuses a server entry that names no file', () => {
+    expect(() => mionVitePlugin({server: {entry: ''}})).toThrow(/server.entry must name the server entry file/);
+    expect(() => mionVitePlugin({server: {entry: 42 as never}})).toThrow(/server.entry must name the server entry file/);
+  });
+
+  it('has no server block on Next: the API is a route handler there', async () => {
+    await expect(withMion({}, {server: {entry: 'src/server.ts'}, cwd: '/tmp'} as never)).rejects.toThrow(
+      /there is no `server` option/
+    );
   });
 
   it('rejects an unknown mode', () => {
-    expect(() => toRunTypesOptions({client: {routes: 'all' as never}})).toThrow(/client routes must be 'bundle' or 'fetch'/);
+    expect(() => toRunTypesOptions({client: {routes: 'all' as never}})).toThrow(
+      /unknown client routes "all", expected 'bundle' \| 'fetch'/
+    );
   });
 
   it('is refused by the plain adapters too, before any resolver starts', async () => {
     const plugin = runtypesVite({clientRoutes: 'all' as never}) as unknown as {buildStart: () => Promise<void>};
-    await expect(plugin.buildStart()).rejects.toThrow(/client routes must be 'bundle' or 'fetch' \(got "all"\)/);
+    await expect(plugin.buildStart()).rejects.toThrow(/unknown client routes "all", expected 'bundle' \| 'fetch'/);
   });
 
   it('is reached through BOTH presets', async () => {

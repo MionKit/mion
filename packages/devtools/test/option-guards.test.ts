@@ -1,6 +1,6 @@
-// The `moduleMode` option guard; the wiring each mode produces is module-mode.test.ts.
+// The option guards for moduleMode and client routes; the wiring each mode produces is module-mode.test.ts.
 import {describe, expect, it} from 'vitest';
-import {MODULE_MODES, assertValidModuleMode} from '../src/core/module-mode.ts';
+import {MODULE_MODES, assertValidModuleMode} from '../src/core/option-guards.ts';
 import {
   MODULE_MODE_ALL_MODULES,
   MODULE_MODE_ALL_SINGLE,
@@ -8,7 +8,7 @@ import {
   type ModuleMode,
 } from '../src/core/go-generated/runtypes-constants.generated.ts';
 
-describe('@mionjs/devtools / assertValidModuleMode', () => {
+describe('@mionjs/devtools / option guards', () => {
   it('accepts every mode the generated constants declare', () => {
     for (const mode of MODULE_MODES) expect(() => assertValidModuleMode(mode)).not.toThrow();
   });
