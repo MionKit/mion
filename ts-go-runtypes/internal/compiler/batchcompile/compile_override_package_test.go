@@ -32,6 +32,10 @@ export const centsIdByValue = getRunTypeId(value);
 export const isCents = createValidateFn<Cents>();
 export const skuId = getRunTypeId<Sku>();
 export const priceId = getRunTypeId<Price>();
+declare const sku: Sku;
+export const skuIdByValue = getRunTypeId(sku);
+declare const price: Price;
+export const priceIdByValue = getRunTypeId(price);
 `
 
 var runTypeIdBindingRE = regexp.MustCompile(`export const (\w+) = getRunTypeId\((?:\w+|undefined), (__rt_[A-Za-z0-9_$]+)\)`)
@@ -113,6 +117,9 @@ func TestCompile_DeclarationIDsAgreeWithSource(t *testing.T) {
 		if consumerIDs[probe] != libraryIDs[probe] {
 			t.Errorf("%s: the package's build gave %s, the consumer reading its .d.ts %s", probe, libraryIDs[probe], consumerIDs[probe])
 		}
+		if byValue := consumerIDs[probe+"ByValue"]; byValue != consumerIDs[probe] {
+			t.Errorf("%sByValue: the value call shape got %s, the static one %s", probe, byValue, consumerIDs[probe])
+		}
 	}
 }
 
@@ -125,8 +132,12 @@ func TestCompile_PackageWithoutOverrideArtifactKeepsPlainIDs(t *testing.T) {
 		t.Fatal(err)
 	}
 	compileProject(t, consumer, nil)
-	if id := emittedRunTypeIds(t, readEmitted(t, consumer, "main.js"))["centsId"]; id == "" || id == libraryID {
+	consumerIDs := emittedRunTypeIds(t, readEmitted(t, consumer, "main.js"))
+	if id := consumerIDs["centsId"]; id == "" || id == libraryID {
 		t.Fatalf("without the artifact the consumer cannot know the override, so its id must be the plain one, got %q", id)
+	}
+	if consumerIDs["centsIdByValue"] != consumerIDs["centsId"] {
+		t.Fatalf("both call shapes must get the same plain id, got %v", consumerIDs)
 	}
 }
 
