@@ -876,10 +876,41 @@ func TestTypesOnly_ServesTheServerIdsItsMarkerNames(t *testing.T) {
 // TestTypesOnly_WithoutMarkerServesNothing: an index naming another package is a vendored copy unless a marker vouches for it.
 func TestTypesOnly_WithoutMarkerServesNothing(t *testing.T) {
 	store := storeOver(typesPackage(""))
-	if idx := store.Package(typesPkg); idx.Built() && len(idx.IDs()) > 0 && idx.Owner != "@acme/text-types" {
-		t.Fatalf("without a marker the artifact must be skipped: owner=%q ids=%v", idx.Owner, idx.IDs())
+	if ids := store.Package(typesPkg).IDs(); len(ids) > 0 {
+		t.Fatalf("without a marker the artifact must be skipped, got ids %v", ids)
 	}
 	if _, ok := store.BindingID(typesPkg+"/index.d.ts", "slugify"); ok {
 		t.Errorf("no marker, no binding")
+	}
+}
+
+// TestTypesOnly_SamePackageDepStaysInTheTypesPackage: a dep of the server's own ids is served from the types package
+// that served its dependent, never from another copy of the server nested beside it.
+func TestTypesOnly_SamePackageDepStaysInTheTypesPackage(t *testing.T) {
+	nestedServer := typesPkg + "/node_modules/@acme/text"
+	otherSlug := slugifyEntry
+	otherSlug.Code = "return (s) => 'other';"
+	store := storeOver(merge(typesPackage(`{"format":1,"package":"@acme/text","compiler":"dev","buildVersion":"v1"}`),
+		map[string]string{nestedServer + "/package.json": `{"name":"@acme/text"}`},
+		artifactDir(nestedServer+"/dist/"+constants.PureFnArtifactDir, "@acme/text", constants.EmitCode, otherSlug)))
+	store.Package(typesPkg)
+	result := store.Closure([]Demand{{ID: titleID, FromDir: "/virtual/app"}})
+	if got := codes(result.Entries); len(got) != 2 || got[0] != slugifyID+"="+slugCode {
+		t.Fatalf("slugify must come from the types package, got %v (missing %+v)", got, result.Missing)
+	}
+}
+
+// TestTypesOnly_ResolvedThroughTheProgramBeforeAnyTouch: a server name resolves to a types package the program
+// holds even when nothing read that package yet.
+func TestTypesOnly_ResolvedThroughTheProgramBeforeAnyTouch(t *testing.T) {
+	fs := program.NewOverlayFS(osvfs.FS(), typesPackage(`{"format":1,"package":"@acme/text","compiler":"dev","buildVersion":"v1"}`))
+	prog, err := program.NewInferred(program.Options{Cwd: "/virtual/app", FS: fs}, []string{typesPkg + "/index.d.ts"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := NewStore(fs)
+	store.Bind(fs, Host{Program: prog})
+	if root, ok := store.ResolvePackage("@acme/text", "/virtual/app"); !ok || root != typesPkg {
+		t.Fatalf("ResolvePackage = %q, %v; want the types package", root, ok)
 	}
 }
