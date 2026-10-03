@@ -307,6 +307,19 @@ export function requestHandler() {
     expect((globalThis as any).__mion.host.owns).toBeUndefined();
   });
 
+  it('keeps the host flag until a loading entry finished, so its adapter never listens', async () => {
+    const entry = `import './routes.ts';
+await new Promise((resolve) => setTimeout(resolve, 200));
+globalThis.__mion.ownedAtStart = globalThis.__mion.host.owns;
+`;
+    await startDevServer({basePath: '/api', entry});
+    void fetch(`${baseUrl}/api/users.get`).catch(() => undefined);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    await (plugin.closeBundle as () => Promise<void>).call(plugin);
+    expect((globalThis as any).__mion.ownedAtStart).toBe(true);
+    expect((globalThis as any).__mion.host.owns).toBeUndefined();
+  });
+
   it('serves an entry that only registers routes through the node adapter', async () => {
     await startDevServer({basePath: '/api', entry: `import './routes.ts';\nglobalThis.__mion.loads += 1;\n`});
     const res = await fetch(`${baseUrl}/api/users.get`);

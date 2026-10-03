@@ -64,6 +64,13 @@ export function mionMiddlewarePlugin(options: MionServerOptions, signals: Middle
   let staleSince: number | undefined;
   let routerModule: Record<string, any> | undefined;
   let closed = false;
+  let inFlight: Promise<unknown> = Promise.resolve();
+
+  /** Remembers the latest load, so closing waits for an entry that may still start an adapter. */
+  function track(loading: Promise<void>): Promise<void> {
+    inFlight = loading.catch(() => undefined);
+    return loading;
+  }
 
   /** Loads the entry through vite's SSR pipeline and resolves its handler + mount path. */
   async function load(server: ViteDevServer): Promise<void> {
@@ -85,7 +92,7 @@ export function mionMiddlewarePlugin(options: MionServerOptions, signals: Middle
 
   /** Single init chain — every request awaits this one before matching. */
   function init(server: ViteDevServer): Promise<void> {
-    initPromise ??= load(server).then(
+    initPromise ??= track(load(server)).then(
       () => signals.onReady(),
       (err) => {
         initError = err instanceof Error ? err : new Error(String(err));
@@ -107,7 +114,7 @@ export function mionMiddlewarePlugin(options: MionServerOptions, signals: Middle
     if (entryModule) invalidateOwnModules(server, graph, entryModule);
     const router = await server.ssrLoadModule('@mionjs/router');
     router.resetRouter?.();
-    await load(server);
+    await track(load(server));
   }
 
   return {
@@ -118,8 +125,10 @@ export function mionMiddlewarePlugin(options: MionServerOptions, signals: Middle
     },
 
     // The flag is process-wide, so a later server started in the same process (a test runner) listens again.
-    closeBundle() {
+    // Cleared only once a loading entry finished: its adapter would otherwise see no host and listen.
+    async closeBundle() {
       closed = true;
+      await inFlight;
       routerModule?.setHostOwnsSocket(false);
     },
 
@@ -215,8 +224,7 @@ async function pickHandler(
 ): Promise<RequestHandlers> {
   const fromEntry = handlerExportOf(entry);
   if (fromEntry) return fromEntry;
-  if (hostHandler?.node) return {node: hostHandler.node};
-  if (hostHandler?.fetch) return {fetch: hostHandler.fetch};
+  if (hostHandler?.node || hostHandler?.fetch) return hostHandler;
   let loadError: unknown;
   const nodeAdapter = await server.ssrLoadModule(DEFAULT_PLATFORM).catch((error: unknown) => void (loadError = error));
   const fromAdapter = nodeAdapter && handlerExportOf(nodeAdapter);
