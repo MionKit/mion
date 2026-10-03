@@ -1,4 +1,4 @@
-# Shared tracing steps for creatures and the tree: cut out, flatten to a few tones, find dark lines and eyes, and write short smooth paths.
+# Shared tracing steps for creatures and the tree: cut out, flatten tones, find lines and eyes, write short smooth paths.
 import cv2, numpy as np
 from sklearn.cluster import KMeans
 

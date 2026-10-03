@@ -28,7 +28,7 @@
 <body>
 <div class="scene" id="scene"></div>
 <script>
-  // [file, left, top, width] in half-size reference pixels: the crop boxes the pieces were traced from, halved, the ones under the island's front nudged down out of its shadow
+  // [file, left, top, width]: the traced crop boxes, halved; those under the island's front nudged down out of its shadow
   const pieces = [
     ['terrain/mountain-orange.svg', 235, 100, 200],
     ['terrain/mountain-orange-low.svg', 34.5, 270.5, 182.5],
@@ -60,7 +60,7 @@
   const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
   const scene = document.getElementById('scene');
   const NS = 'http://www.w3.org/2000/svg';
-  // pupils look toward the cursor: further the further away it is, up to a fifth of the eye, and back to the middle when it leaves
+  // pupils follow the cursor, up to a fifth of the eye, and go back to the middle when it leaves
   const eyes = [];
   let pointer = null;
   addEventListener('pointermove', (e) => { pointer = [e.clientX, e.clientY]; });

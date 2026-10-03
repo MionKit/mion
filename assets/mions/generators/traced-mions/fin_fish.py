@@ -1,4 +1,4 @@
-# The fin-fish mion, built by hand: a white hood sweeping up to a point over a grey face with one big eye, a pale nub, three lavender legs, a ringed red antenna and a fan of red fins behind.
+# The fin-fish mion, built by hand: a pointed white hood over a one-eyed grey face, a nub, three legs, a ringed antenna, red fins.
 import random, re
 import numpy as np
 from common import stack, cone, wobbly, through, shade
@@ -57,7 +57,7 @@ def flat(name, parts, base, light, crease, own, vary=0, first=(0, 2.5)):
     return out + '\n  </g>'
 
 def rings(name, centers, rx, ry, base, light, crease, own, vary=0.05):
-    # one ring shape reused for every ring of a ribbed stalk, each a little wider or narrower, with a dark fold under it and a light band on top
+    # one ring shape reused for every ring, each a little resized, a dark fold under it and a light band on top
     d = wobbly(0, 0, rx, ry, 0, [(k, own.uniform(0.02, 0.05) / k ** 0.5, own.uniform(0, 6.28)) for k in (2, 3)], 12, 2.8)
     out = f'\n  <g id="{name}"><defs><path id="{name}-ring" d="{d}"/></defs>'
     for x, y, tilt in centers:
@@ -96,7 +96,7 @@ def back():
     return block + tall + low + antenna + leaves + mid + legs
 
 def eye(i, x, y, rx, ry, tilt, rim, white, pupil):
-    # the rim is the white's own shape pushed down-right, so it shows as a crescent there and the upper left has no border
+    # the rim is the white pushed down-right, so it shows only as a lower-right crescent
     b = bumps(0.04)
     px, py, prx, pry = pupil
     return f'''

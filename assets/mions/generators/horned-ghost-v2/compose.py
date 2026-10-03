@@ -75,7 +75,7 @@ def eye(name, e):
       <path fill="#2d3344" d="{e["pupil"]}"/>
     </g>'''
 
-# stubby legs drawn over the body, starting inside it and poking a little past the bottom: hip x, y, length, hip and foot half widths, lean, is back
+# legs start inside the body and poke past its bottom: hip x, y, length, hip and foot half widths, lean, is back
 LEGS = [(204, 274, 18, 9.5, 8, -22, True), (81, 281, 20, 11, 9.5, 20, False), (131, 293, 17, 12.5, 11, -3, False)]
 leg_rand = random.Random(53)   # own stream: odd leg shapes never move anything else
 LEG_SHAPES = [dict(bulge=(leg_rand.uniform(-1.5, 3), leg_rand.uniform(-1.5, 3)), flare=leg_rand.uniform(-1, 3.5), bend=leg_rand.uniform(-5, 5),

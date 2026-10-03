@@ -29,12 +29,12 @@ const rightArc = arc(CORNERS.right, -45, 0, 6);
 const bottomArc = arc(CORNERS.bottom, 0, 90, 12);
 const leftArc = arc(CORNERS.left, 90, 135, 6);
 const frontEven = [...rightArc, ...line(rightArc.at(-1), bottomArc[0], 34), ...bottomArc, ...line(bottomArc.at(-1), leftArc[0], 34), ...leftArc];
-// the back edge closes the outline of the top
+// the back edge, closing the top's outline
 const backRight = arc(CORNERS.left, 135, 180, 6);
 const topArc = arc(CORNERS.top, 180, 270, 12);
 const rightTop = arc(CORNERS.right, -90, -45, 6);
 const back = [...backRight, ...line(backRight.at(-1), topArc[0], 34), ...topArc, ...line(topArc.at(-1), rightTop[0], 34), ...rightTop];
-// wobble the whole edge with looping waves so the grass meets the soil in an uneven line
+// looping waves, so the grass meets the soil in an uneven line
 const waves = [[5, 3, r(0, 7)], [11, 2, r(0, 7)], [23, 1.2, r(0, 7)]];
 const outline = [...frontEven, ...back].map(([x, y], i, all) => {
   const t = (i / all.length) * Math.PI * 2;
@@ -43,7 +43,7 @@ const outline = [...frontEven, ...back].map(([x, y], i, all) => {
 const front = outline.slice(0, frontEven.length);
 const pathOf = (pts, close) => 'M' + pts.map((p) => `${f(p[0])} ${f(p[1])}`).join(' L') + (close ? ' Z' : '');
 
-// smooth closed blob through jittered points around an ellipse (the side stones)
+// smooth blob around an ellipse, for the side stones
 function blob(cx, cy, rx, ry, jitter = 0.18, n = 7) {
   const pts = [];
   const start = r(0, Math.PI);
@@ -88,7 +88,7 @@ const tone = (hex, dl) => {
   return toHex([h, s, clamp(l + dl)]);
 };
 
-// stone outlines: each kind sets the height/width ratio, corner count, roughness, corner style and how far it may tilt
+// per kind: height/width ratio, corner count, roughness, corner style and max tilt
 const KINDS = {
   round: {ratio: [0.8, 1], n: [7, 9], jitter: 0.1, sharp: false, tilt: 15},
   flat: {ratio: [0.4, 0.6], n: [7, 9], jitter: 0.15, sharp: false, tilt: 20},
@@ -112,7 +112,7 @@ function stoneShape(size, kind = pick(Object.keys(KINDS))) {
   const w = Math.max(...pts.map((p) => Math.abs(p[0]))), h = Math.max(...pts.map((p) => Math.abs(p[1])));
   return {pts, sharp: spec.sharp, w, h};
 }
-// the outline placed at (cx, cy) and scaled; sharp kinds keep straight sides with small rounded corners
+// sharp kinds keep straight sides with small rounded corners
 function stonePath({pts, sharp}, cx, cy, scale = 1, scaleY = scale) {
   const P = pts.map(([x, y]) => [cx + x * scale, cy + y * scaleY]);
   const along = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
@@ -139,7 +139,7 @@ function shine({pts, sharp, w, h}, cx, cy, width, opacity) {
   return `<path d="M${f(cx - w * 0.55)} ${f(cy - h * 0.3)} Q${f(cx - w * 0.1)} ${f(cy - h * 0.8)} ${f(cx + w * 0.4)} ${f(cy - h * 0.5)}" stroke="#fff" stroke-width="${f(width)}" stroke-linecap="round" fill="none" opacity="${opacity}"/>`;
 }
 
-// soil and stones for one side, drawn flat (u across, v down) and sheared into place by `matrix`
+// one side drawn flat (u across, v down), then sheared into place by `matrix`
 function soil(matrix) {
   const placed = [];
   let stones = '';
@@ -197,7 +197,7 @@ function cliff() {
   </g>`;
 }
 
-// one clump in its own group, rooted at (x, y) so it can sway; every blade its own height (4 to 40 px, mostly short)
+// own group with its origin at the root, so it can sway; blades 4 to 40 px, mostly short
 function grassCluster(x, y) {
   const blades = 5 + Math.floor(rnd() ** 2 * 10), vigor = r(0.4, 1);
   const spread = 2.5 + blades * 0.45 + r(0, 2);
@@ -220,8 +220,8 @@ const insideOutline = ([x, y]) => {
   return inside;
 };
 
-// random point on the wavy top, at least `margin` (tile fraction) in from the edge;
-// it must sit `lift` px or more above the front edge (an area nudged towards the back), `backBias` (0..1) favours the far corner, `maxDepth` (0..2) caps a + b
+// `margin` is a tile fraction; the point must also sit `lift` px or more above the front edge
+// `backBias` (0..1) favours the far corner, `maxDepth` (0..2) caps a + b
 function randomInside(margin, {lift = 0, backBias = 0, maxDepth = 2} = {}) {
   for (;;) {
     const a = r(margin, 1 - margin), b = r(margin, 1 - margin);
@@ -233,7 +233,7 @@ function randomInside(margin, {lift = 0, backBias = 0, maxDepth = 2} = {}) {
   }
 }
 
-// raised stones on the top, mostly low and wide: ground shadow, darker body, lit cap, shine; each its own kind, height and colour
+// raised stones on the top: ground shadow, darker body, lit cap, shine
 const PEBBLE_KINDS = {
   flat: {weight: 40, lift: [0.1, 0.2], cap: [0.88, 0.96], outline: ['flat', 'round', 'lumpy']},
   pebble: {weight: 30, lift: [0.2, 0.32], cap: [0.85, 0.95], outline: ['flat', 'round', 'lumpy']},
@@ -268,7 +268,7 @@ const pebbles = pebbleList.sort((a, b) => a.y - b.y).map((p) => p.svg).join('');
 let grit = '';
 for (let i = 0; i < 180; i++) {
   const [x, y] = randomInside(0.03);
-  // transparency from a hash of the index, not rnd(), so adding it moved nothing else on the island
+  // opacity hashed from the index, not rnd(), so adding it moved nothing else
   const fade = 0.2 + 0.75 * ((((Math.sin(i * 12.9898) * 43758.5453) % 1) + 1) % 1);
   grit += `<circle cx="${f(x)}" cy="${f(y)}" r="${f(r(0.6, 1.6))}" fill="${pick(['#6e5530', '#d9bf72', '#6f8a34', '#9a7a3d'])}" opacity="${f(fade)}"/>`;
 }
@@ -281,7 +281,7 @@ for (let i = 0; i < 60; i++) {
   if (i % 4 !== 3) tuftList.push({y, svg});
 }
 
-// edge clump: longer blades that curve outwards past the outline; `side` is -1 (lean left), 1 (lean right) or 0 (either way)
+// longer blades curving out past the outline; `side` -1 leans left, 1 right, 0 either way
 function edgeCluster(x, y, side) {
   const blades = 5 + Math.floor(rnd() * 5), vigor = r(0.6, 1), spread = r(3, 6);
   let out = `<g class="tuft edge" transform-origin="${f(x)} ${f(y)}"><ellipse cx="${f(x)}" cy="${f(y)}" rx="${f(spread + 3)}" ry="${f((spread + 3) * 0.45)}" fill="#4c6b2a" opacity="0.35"/>`;
@@ -298,7 +298,7 @@ function edgeCluster(x, y, side) {
   return out + '</g>';
 }
 
-// 4 edge clumps near each background corner and the front corner, rooted a few px inside the edge; 'split' leans each clump away from the corner
+// 4 clumps per corner, a few px inside the edge; 'split' leans each away from the corner
 const EDGE_CORNERS = [
   {corner: CORNERS.left, angle: 135, side: -1},
   {corner: CORNERS.top, angle: 225, side: 0},

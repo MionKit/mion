@@ -1,6 +1,6 @@
-# Builds a mion from its crop: traced flat body tones and line work, eyes rebuilt as clean shapes, a gloss streak and a ground shadow.
-# Run from this folder: python3 trace_mion.py <name>, with the settings for <name> in mions.json ('back' and 'extra' hold hand-drawn parts behind and in front,
-# 'parts' names a module whose back() and extra() build them in code; 'trace': false skips the tracing for a mion built fully by hand).
+# Builds a mion from its crop: traced tones and line work, rebuilt eyes, a gloss streak and a ground shadow.
+# Run here: python3 trace_mion.py <name>; mions.json holds its settings ('back'/'extra': hand-drawn parts behind/in front,
+# 'parts': a module whose back() and extra() build them, 'trace': false for a mion built fully by hand).
 import sys, json, importlib, re, cv2, numpy as np
 from common import *
 
@@ -28,7 +28,7 @@ else:
     ys, xs = np.where(body)
     top, bottom = ys.min(), ys.max()
 
-    # ground shadow under the lowest part of the body: one soft patch, so the scene can keep it still while the mion bobs
+    # one soft patch under the lowest part of the body, so the scene can keep it still while the mion bobs
     foot = xs[ys > bottom - (bottom - top) * 0.12]
     sx, sw = (foot.min() + foot.max()) / 2 / UP, (foot.max() - foot.min()) / UP
     ground = cfg.get('ground', bottom / UP - 3)   # set it for mions on legs, whose feet the tracer cannot see

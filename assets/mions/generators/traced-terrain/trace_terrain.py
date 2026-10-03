@@ -1,4 +1,4 @@
-# Builds a terrain piece from the reference: a clean hand-drawn tile measured from the cutout, the traced cone on it, its ink lines and a gloss streak.
+# Builds a terrain piece from the reference: a hand-drawn tile measured from the cutout, the traced cone, ink lines, a gloss.
 import sys, math, cv2, numpy as np
 from sklearn.cluster import KMeans
 src, out, name, K = sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4])   # K: cone tones, 0 for a bare tile, -1 for a hand-drawn mound, -2 for a raised slab
