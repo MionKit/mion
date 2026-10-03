@@ -444,6 +444,13 @@ func MergeTupleIntersection(
 			// other union's.
 			if winner.stripped == nil || contribution.stripped == nil ||
 				(winner.stripped != contribution.stripped && !equalTypes(winner.stripped, contribution.stripped)) {
+				// `readonly T[] & T[]` is the mutable twin (it has push), so the twins agree on the mutable one.
+				if mutable, twins := readonlyTwin(typeChecker, winner.stripped, contribution.stripped, equalTypes); twins {
+					if mutable == contribution.stripped {
+						winner = contribution
+					}
+					continue
+				}
 				contended = true
 			}
 		}
@@ -592,4 +599,38 @@ func readTupleShape(typeChecker *checker.Checker, tupleType *checker.Type) (tupl
 
 func isUnknownOrAny(tsType *checker.Type) bool {
 	return tsType != nil && tsType.Flags()&(checker.TypeFlagsUnknown|checker.TypeFlagsAny) != 0
+}
+
+// readonlyTwin reports two arrays or tuples that differ only in readonly, and returns the mutable one.
+func readonlyTwin(typeChecker *checker.Checker, left, right *checker.Type, equalTypes func(a, b *checker.Type) bool) (*checker.Type, bool) {
+	if left == nil || right == nil || IsReadonlyCollection(typeChecker, left) == IsReadonlyCollection(typeChecker, right) {
+		return nil, false
+	}
+	if checker.IsTupleType(left) != checker.IsTupleType(right) || !typeChecker.IsArrayLikeType(left) || !typeChecker.IsArrayLikeType(right) {
+		return nil, false
+	}
+	leftArguments, rightArguments := typeChecker.GetTypeArguments(left), typeChecker.GetTypeArguments(right)
+	if len(leftArguments) != len(rightArguments) {
+		return nil, false
+	}
+	if checker.IsTupleType(left) {
+		leftInfos, rightInfos := left.TargetTupleType().ElementInfos(), right.TargetTupleType().ElementInfos()
+		if len(leftInfos) != len(rightInfos) {
+			return nil, false
+		}
+		for i := range leftInfos {
+			if leftInfos[i].TupleElementFlags() != rightInfos[i].TupleElementFlags() || TupleElementLabel(leftInfos[i]) != TupleElementLabel(rightInfos[i]) {
+				return nil, false
+			}
+		}
+	}
+	for i := range leftArguments {
+		if leftArguments[i] != rightArguments[i] && !equalTypes(leftArguments[i], rightArguments[i]) {
+			return nil, false
+		}
+	}
+	if IsReadonlyCollection(typeChecker, left) {
+		return right, true
+	}
+	return left, true
 }
