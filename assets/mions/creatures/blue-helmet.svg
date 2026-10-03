@@ -1,46 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 205 314" width="205" height="314">
   <defs><filter id="blue-helmet-blur" x="-30%" y="-100%" width="160%" height="300%"><feGaussianBlur stdDeviation="3.5"/></filter></defs>
   <g id="shadow"><ellipse cx="104" cy="300" rx="64" ry="13" fill="#000" opacity="0.32" filter="url(#blue-helmet-blur)"/></g>
-  <g id="leaf">
-    <g id="leaf-0">
-      <defs><path id="leaf-0-shape" d="M54.9 76.3c0.2 1.3-0.5 2.8-1.4 4.3-1 1.5-2.3 3-4.2 4.5-1.9 1.5-4.4 3.1-7.2 4.3-2.7 1.1-6.3 2.2-9.3 2.7-2.9 0.5-6.1 0.5-8.5 0.3-2.4-0.2-4.4-0.9-5.9-1.7-1.5-0.8-2.7-1.8-3.2-3-0.4-1.2-0.5-2.8 0.4-4.2 0.8-1.5 2.6-3.3 4.7-4.7 2.1-1.4 5-2.8 7.8-3.9 2.8-1.1 6-2 9-2.6 2.9-0.6 6.2-1 8.7-0.9 2.6 0.1 5.2 0.6 6.7 1.4 1.5 0.9 2.2 2.2 2.4 3.5z"/><clipPath id="leaf-0-clip"><use href="#leaf-0-shape"/></clipPath></defs>
-      <use href="#leaf-0-shape" fill="#7e7199" transform="translate(1.0 2.5)"/>
-      <use href="#leaf-0-shape" fill="#aea0c6"/>
-      <g clip-path="url(#leaf-0-clip)"><use href="#leaf-0-shape" fill="#cbc1de" transform="translate(32.5 80.7) scale(0.78) translate(-35 -82)"/><ellipse cx="26.4" cy="77.8" rx="5.9" ry="1.4" fill="#efeaf7" transform="rotate(-41 26.4 77.8)"/></g>
-    </g>
-    <g id="leaf-1">
-      <defs><path id="leaf-1-shape" d="M29.6 74.7c0.3 0.9 0.1 2-0.3 3-0.4 1-1.3 2.1-2.3 3.1-1 0.9-2.3 1.9-3.6 2.6-1.4 0.7-3 1.4-4.5 1.8-1.5 0.5-3.1 0.7-4.5 0.7-1.3 0-2.7-0.3-3.7-0.7-0.9-0.5-1.7-1.2-2.1-2-0.4-0.8-0.4-1.9 0-2.9 0.3-1 1.2-2.1 2.2-3.1 1-0.9 2.5-1.9 3.9-2.6 1.3-0.7 2.9-1.3 4.4-1.7 1.5-0.4 3.1-0.7 4.4-0.7 1.4-0.1 2.9 0.1 3.9 0.5 1 0.4 1.9 1.2 2.2 2z"/><clipPath id="leaf-1-clip"><use href="#leaf-1-shape"/></clipPath></defs>
-      <use href="#leaf-1-shape" fill="#7e7199" transform="translate(2.5 0.5)"/>
-      <use href="#leaf-1-shape" fill="#b5a7ce"/>
-      <g clip-path="url(#leaf-1-clip)"><use href="#leaf-1-shape" fill="#d2c9e6" transform="translate(17.7 78.1) scale(0.78) translate(-19 -79)"/><ellipse cx="16.1" cy="76.2" rx="3.1" ry="1.0" fill="#efeaf7" transform="rotate(-47 16.1 76.2)"/></g>
-    </g>
-  </g>
-  <g id="antenna-blue">
-    <g id="antenna-blue-0">
-      <defs><path id="antenna-blue-0-shape" d="M75.8 109.7c0.1 2.9 0.2 6.5 0 8.7-0.2 2.2-0.5 3.6-1.2 4.7-0.7 1.1-1.6 1.7-3.1 1.9-1.4 0.2-4.4-0.2-5.8-0.6-1.5-0.5-2-1.2-2.8-2.2-0.8-0.9-1.5-1.4-2-3.4-0.5-2-1.1-5.6-1.2-8.5-0.2-2.9 0-6.8 0.3-8.9 0.4-2.1 1-2.8 1.8-3.8 0.8-0.9 1.4-1.5 2.8-1.9 1.5-0.5 4.4-0.8 5.8-0.6 1.5 0.2 2.3 0.8 3.1 1.8 0.7 1.1 1.1 2.3 1.5 4.4 0.4 2.1 0.6 5.6 0.8 8.4z"/><clipPath id="antenna-blue-0-clip"><use href="#antenna-blue-0-shape"/></clipPath></defs>
-      <use href="#antenna-blue-0-shape" fill="#2c6683" transform="translate(1.0 2.5)"/>
-      <use href="#antenna-blue-0-shape" fill="#5aa5c6"/>
-      <g clip-path="url(#antenna-blue-0-clip)"><use href="#antenna-blue-0-shape" fill="#8acce4" transform="translate(67.0 107.8) scale(0.78) translate(-68 -110)"/><ellipse cx="65.0" cy="105.4" rx="2.2" ry="2.4" fill="#c7eef7" transform="rotate(-27 65.0 105.4)"/></g>
-    </g>
-    <g id="antenna-blue-1">
-      <defs><path id="antenna-blue-1-shape" d="M72.2 92.3c0.4 2.2 0.7 5.2 0.6 6.9 0 1.8-0.5 2.5-1.1 3.4-0.6 0.9-1 1.7-2.4 2.3-1.4 0.6-4.2 1.3-5.7 1.3-1.5 0.1-2.3-0.5-3.1-1.2-0.9-0.7-1.5-1.4-2.2-3-0.7-1.6-1.5-4.1-2.1-6.3-0.6-2.3-1.2-5.3-1.3-7.1-0.1-1.8 0.3-2.9 0.9-3.8 0.6-0.9 1.5-1.2 2.9-1.6 1.5-0.4 4.2-0.6 5.7-0.6 1.5 0 2.1 0.1 3.1 0.6 0.9 0.5 1.7 0.8 2.5 2.3 0.8 1.5 1.7 4.5 2.2 6.8z"/><clipPath id="antenna-blue-1-clip"><use href="#antenna-blue-1-shape"/></clipPath></defs>
-      <use href="#antenna-blue-1-shape" fill="#2c6683" transform="translate(0.6 2.4)"/>
-      <use href="#antenna-blue-1-shape" fill="#4b96b7"/>
-      <g clip-path="url(#antenna-blue-1-clip)"><use href="#antenna-blue-1-shape" fill="#7cbed6" transform="translate(63.0 92.2) scale(0.78) translate(-64 -94)"/></g>
-    </g>
-    <g id="antenna-blue-2">
-      <defs><path id="antenna-blue-2-shape" d="M67 74.6c0.5 1.4 0.8 3.2 0.7 4.4 0 1.2-0.3 1.9-0.9 2.8-0.7 1-1.1 1.8-2.8 2.8-1.7 1.1-5.6 2.9-7.5 3.5-1.9 0.7-3 0.7-4.2 0.6-1.1-0.2-1.9-0.5-2.8-1.4-0.9-0.8-1.8-2.5-2.4-3.9-0.7-1.4-1.3-3.2-1.3-4.4 0-1.2 0.5-2 1.2-2.9 0.8-0.9 1.5-1.6 3.2-2.5 1.8-1 5.4-2.7 7.3-3.5 1.9-0.7 3-0.9 4.2-0.9 1.2 0 2.2 0.3 3.1 1.2 0.8 0.8 1.7 2.7 2.2 4.2z"/><clipPath id="antenna-blue-2-clip"><use href="#antenna-blue-2-shape"/></clipPath></defs>
-      <use href="#antenna-blue-2-shape" fill="#2c6683" transform="translate(1.1 2.3)"/>
-      <use href="#antenna-blue-2-shape" fill="#4b97b8"/>
-      <g clip-path="url(#antenna-blue-2-clip)"><use href="#antenna-blue-2-shape" fill="#7cbfd7" transform="translate(55.7 77.8) scale(0.78) translate(-57 -79)"/><ellipse cx="54.2" cy="75.2" rx="3.1" ry="1.3" fill="#c7eef7" transform="rotate(-49 54.2 75.2)"/></g>
-    </g>
-    <g id="antenna-blue-3">
-      <defs><path id="antenna-blue-3-shape" d="M59.3 48.4c1.8 2.3 3.5 5.3 4.1 8.2 0.7 2.8 0.5 6.2-0.3 8.7-0.8 2.5-2.7 4.6-4.6 6.3-1.8 1.6-4 2.6-6.3 3.4-2.2 0.8-4.7 1.5-7.2 1.4-2.6-0.1-5.7-0.5-8.2-1.9-2.5-1.4-5.1-3.9-6.7-6.5-1.6-2.5-2.4-5.8-2.8-8.6-0.3-2.8 0-5.7 0.7-8.2 0.6-2.6 1.7-5.1 3.2-7 1.6-1.9 3.7-3.6 6-4.5 2.3-0.8 5.3-0.9 7.8-0.4 2.6 0.4 5.3 1.7 7.7 3.2 2.4 1.5 4.8 3.5 6.6 5.9z"/><clipPath id="antenna-blue-3-clip"><use href="#antenna-blue-3-shape"/></clipPath></defs>
-      <use href="#antenna-blue-3-shape" fill="#2c6683" transform="translate(1.2 2.2)"/>
-      <use href="#antenna-blue-3-shape" fill="#56a3c4"/>
-      <g clip-path="url(#antenna-blue-3-clip)"><use href="#antenna-blue-3-shape" fill="#88cbe3" transform="translate(43.0 55.0) scale(0.78) translate(-45 -58)"/><ellipse cx="38.2" cy="49.7" rx="4.8" ry="3.2" fill="#c7eef7" transform="rotate(-59 38.2 49.7)"/></g>
-    </g>
-  </g>
   <g id="antenna-white">
     <g id="antenna-white-0">
       <defs><path id="antenna-white-0-shape" d="M122.3 103.7c-0.3 4.1-1.1 9.2-1.8 12-0.8 2.8-1.6 3.6-2.7 4.9-1.1 1.2-1.8 2-3.7 2.5-1.8 0.5-5.4 0.9-7.3 0.6-1.8-0.4-2.9-1.1-3.7-2.6-0.9-1.5-1.3-3.4-1.4-6.5-0.2-3.2 0.2-8.3 0.6-12.3 0.3-4 0.9-8.7 1.5-11.6 0.6-3 1.1-4.6 2.1-6.1 1-1.5 2-2.5 3.8-2.8 1.9-0.3 5.6 0.3 7.4 1 1.8 0.7 2.4 1.7 3.3 3.2 0.9 1.4 1.6 2.5 1.9 5.5 0.3 3 0.3 8.2 0 12.2z"/><clipPath id="antenna-white-0-clip"><use href="#antenna-white-0-shape"/></clipPath></defs>
@@ -63,22 +23,22 @@
   </g>
   <g id="antenna-red">
     <g id="antenna-red-0">
-      <defs><path id="antenna-red-0-shape" d="M171.1 115.7c0.8 1.8 1.7 4.2 1.6 5.7 0 1.6-0.7 2.6-1.8 3.7-1.1 1.1-2.3 1.9-4.6 3-2.3 1-6.9 2.8-9.3 3.5-2.5 0.8-3.7 1-5.2 0.9-1.5 0-2.8 0-4-1.1-1.2-1-2.4-3.2-3.1-5-0.7-1.8-1.1-4.3-1-5.8 0.1-1.6 0.8-2.5 1.8-3.6 1-1.1 1.8-2 4.1-3.2 2.2-1.1 7-3.1 9.5-3.8 2.4-0.8 3.7-0.7 5.1-0.5 1.5 0.1 2.5 0.4 3.6 1.5 1.1 1 2.5 3 3.3 4.7z"/><clipPath id="antenna-red-0-clip"><use href="#antenna-red-0-shape"/></clipPath></defs>
+      <defs><path id="antenna-red-0-shape" d="M163.1 109.7c0.8 1.8 1.7 4.2 1.6 5.7 0 1.6-0.7 2.6-1.8 3.7-1.1 1.1-2.3 1.9-4.6 3-2.3 1-6.9 2.8-9.3 3.5-2.5 0.8-3.7 1-5.2 0.9-1.5 0-2.8 0-4-1.1-1.2-1-2.4-3.2-3.1-5-0.7-1.8-1.1-4.3-1-5.8 0.1-1.6 0.8-2.5 1.8-3.6 1-1.1 1.8-2 4.1-3.2 2.2-1.1 7-3.1 9.5-3.8 2.4-0.8 3.7-0.7 5.1-0.5 1.5 0.1 2.5 0.4 3.6 1.5 1.1 1 2.5 3 3.3 4.7z"/><clipPath id="antenna-red-0-clip"><use href="#antenna-red-0-shape"/></clipPath></defs>
       <use href="#antenna-red-0-shape" fill="#8f343c" transform="translate(1.0 2.5)"/>
       <use href="#antenna-red-0-shape" fill="#cc5b5a"/>
-      <g clip-path="url(#antenna-red-0-clip)"><use href="#antenna-red-0-shape" fill="#e8847e" transform="translate(156.3 119.5) scale(0.78) translate(-158 -121)"/><ellipse cx="152.8" cy="117.4" rx="3.9" ry="1.6" fill="#ffd2cc" transform="rotate(-47 152.8 117.4)"/></g>
+      <g clip-path="url(#antenna-red-0-clip)"><use href="#antenna-red-0-shape" fill="#e8847e" transform="translate(148.3 113.5) scale(0.78) translate(-150 -115)"/><ellipse cx="144.8" cy="111.4" rx="3.9" ry="1.6" fill="#ffd2cc" transform="rotate(-47 144.8 111.4)"/></g>
     </g>
     <g id="antenna-red-1">
-      <defs><path id="antenna-red-1-shape" d="M185.3 94.7c1.6 1.9 3 4.6 3.6 6.5 0.6 1.9 0.3 3.1-0.2 4.7-0.4 1.7-0.8 3-2.7 5.2-2 2.2-6.7 6.4-9.1 8-2.5 1.7-4.1 1.9-5.8 2-1.7 0.1-2.8-0.4-4.5-1.4-1.6-1-3.7-3-5.4-4.8-1.7-1.8-3.8-4.2-4.6-6-0.8-1.8-0.8-3.2-0.2-4.9 0.6-1.7 1.6-3 3.7-5.1 2.2-2 6.8-5.6 9.3-7.2 2.4-1.6 3.7-2.1 5.4-2.5 1.8-0.3 3.2-0.6 4.9 0.3 1.8 0.9 4.1 3.2 5.6 5.2z"/><clipPath id="antenna-red-1-clip"><use href="#antenna-red-1-shape"/></clipPath></defs>
+      <defs><path id="antenna-red-1-shape" d="M177.3 88.7c1.6 1.9 3 4.6 3.6 6.5 0.6 1.9 0.3 3.1-0.2 4.7-0.4 1.7-0.8 3-2.7 5.2-2 2.2-6.7 6.4-9.1 8-2.5 1.7-4.1 1.9-5.8 2-1.7 0.1-2.8-0.4-4.5-1.4-1.6-1-3.7-3-5.4-4.8-1.7-1.8-3.8-4.2-4.6-6-0.8-1.8-0.8-3.2-0.2-4.9 0.6-1.7 1.6-3 3.7-5.1 2.2-2 6.8-5.6 9.3-7.2 2.4-1.6 3.7-2.1 5.4-2.5 1.8-0.3 3.2-0.6 4.9 0.3 1.8 0.9 4.1 3.2 5.6 5.2z"/><clipPath id="antenna-red-1-clip"><use href="#antenna-red-1-shape"/></clipPath></defs>
       <use href="#antenna-red-1-shape" fill="#8f343c" transform="translate(-1.7 1.8)"/>
       <use href="#antenna-red-1-shape" fill="#d26261"/>
-      <g clip-path="url(#antenna-red-1-clip)"><use href="#antenna-red-1-shape" fill="#ee8b85" transform="translate(171.1 103.0) scale(0.78) translate(-173 -105)"/></g>
+      <g clip-path="url(#antenna-red-1-clip)"><use href="#antenna-red-1-shape" fill="#ee8b85" transform="translate(163.1 97.0) scale(0.78) translate(-165 -99)"/></g>
     </g>
     <g id="antenna-red-2">
-      <defs><path id="antenna-red-2-shape" d="M193.9 68.2c1.9 1.3 3.6 3.1 4.9 5.1 1.2 2 2.3 4.6 2.6 7.2 0.2 2.6-0.2 5.8-1.2 8.4-1.1 2.6-3.2 5.2-5.2 7-2 1.8-4.6 3-6.9 3.9-2.3 0.9-4.8 1.5-7.1 1.6-2.4 0.1-5.1 0-7.2-1-2.1-1-4.3-2.9-5.5-5-1.2-2.2-1.6-5.2-1.5-7.9 0-2.7 1-5.6 2.1-8.1 1-2.5 2.5-5 4.3-7 1.8-2 4.1-4 6.5-5.1 2.3-1.1 5.1-1.7 7.5-1.5 2.4 0.1 4.7 1.2 6.7 2.4z"/><clipPath id="antenna-red-2-clip"><use href="#antenna-red-2-shape"/></clipPath></defs>
+      <defs><path id="antenna-red-2-shape" d="M185.9 62.2c1.9 1.3 3.6 3.1 4.9 5.1 1.2 2 2.3 4.6 2.6 7.2 0.2 2.6-0.2 5.8-1.2 8.4-1.1 2.6-3.2 5.2-5.2 7-2 1.8-4.6 3-6.9 3.9-2.3 0.9-4.8 1.5-7.1 1.6-2.4 0.1-5.1 0-7.2-1-2.1-1-4.3-2.9-5.5-5-1.2-2.2-1.6-5.2-1.5-7.9 0-2.7 1-5.6 2.1-8.1 1-2.5 2.5-5 4.3-7 1.8-2 4.1-4 6.5-5.1 2.3-1.1 5.1-1.7 7.5-1.5 2.4 0.1 4.7 1.2 6.7 2.4z"/><clipPath id="antenna-red-2-clip"><use href="#antenna-red-2-shape"/></clipPath></defs>
       <use href="#antenna-red-2-shape" fill="#8f343c" transform="translate(-1.2 2.2)"/>
       <use href="#antenna-red-2-shape" fill="#d46766"/>
-      <g clip-path="url(#antenna-red-2-clip)"><use href="#antenna-red-2-shape" fill="#ef8e89" transform="translate(181.7 81.6) scale(0.78) translate(-184 -84)"/><ellipse cx="177.4" cy="78.0" rx="5.3" ry="2.6" fill="#ffd2cc" transform="rotate(-83 177.4 78.0)"/></g>
+      <g clip-path="url(#antenna-red-2-clip)"><use href="#antenna-red-2-shape" fill="#ef8e89" transform="translate(173.7 75.6) scale(0.78) translate(-176 -78)"/><ellipse cx="169.4" cy="72.0" rx="5.3" ry="2.6" fill="#ffd2cc" transform="rotate(-83 169.4 72.0)"/></g>
     </g>
   </g>
   <g id="leg-left">
@@ -136,6 +96,46 @@
       <use href="#leg-middle-2-shape" fill="#2b2e4a" transform="translate(0.1 -2.5)"/>
       <use href="#leg-middle-2-shape" fill="#484d74"/>
       <g clip-path="url(#leg-middle-2-clip)"><use href="#leg-middle-2-shape" fill="#686d9b" transform="translate(102.3 292.6) scale(0.78) translate(-103.6 -294)"/><ellipse cx="99.3" cy="290.7" rx="3.1" ry="1.4" fill="#a3a7cf" transform="rotate(-25 99.3 290.7)"/></g>
+    </g>
+  </g>
+  <g id="leaf">
+    <g id="leaf-0">
+      <defs><path id="leaf-0-shape" d="M62.9 76.3c0.2 1.3-0.5 2.8-1.4 4.3-1 1.5-2.3 3-4.2 4.5-1.9 1.5-4.4 3.1-7.2 4.3-2.7 1.1-6.3 2.2-9.3 2.7-2.9 0.5-6.1 0.5-8.5 0.3-2.4-0.2-4.4-0.9-5.9-1.7-1.5-0.8-2.7-1.8-3.2-3-0.4-1.2-0.5-2.8 0.4-4.2 0.8-1.5 2.6-3.3 4.7-4.7 2.1-1.4 5-2.8 7.8-3.9 2.8-1.1 6-2 9-2.6 2.9-0.6 6.2-1 8.7-0.9 2.6 0.1 5.2 0.6 6.7 1.4 1.5 0.9 2.2 2.2 2.4 3.5z"/><clipPath id="leaf-0-clip"><use href="#leaf-0-shape"/></clipPath></defs>
+      <use href="#leaf-0-shape" fill="#7e7199" transform="translate(1.0 2.5)"/>
+      <use href="#leaf-0-shape" fill="#aea0c6"/>
+      <g clip-path="url(#leaf-0-clip)"><use href="#leaf-0-shape" fill="#cbc1de" transform="translate(40.5 80.7) scale(0.78) translate(-43 -82)"/><ellipse cx="34.4" cy="77.8" rx="5.9" ry="1.4" fill="#efeaf7" transform="rotate(-41 34.4 77.8)"/></g>
+    </g>
+    <g id="leaf-1">
+      <defs><path id="leaf-1-shape" d="M37.6 74.7c0.3 0.9 0.1 2-0.3 3-0.4 1-1.3 2.1-2.3 3.1-1 0.9-2.3 1.9-3.6 2.6-1.4 0.7-3 1.4-4.5 1.8-1.5 0.5-3.1 0.7-4.5 0.7-1.3 0-2.7-0.3-3.7-0.7-0.9-0.5-1.7-1.2-2.1-2-0.4-0.8-0.4-1.9 0-2.9 0.3-1 1.2-2.1 2.2-3.1 1-0.9 2.5-1.9 3.9-2.6 1.3-0.7 2.9-1.3 4.4-1.7 1.5-0.4 3.1-0.7 4.4-0.7 1.4-0.1 2.9 0.1 3.9 0.5 1 0.4 1.9 1.2 2.2 2z"/><clipPath id="leaf-1-clip"><use href="#leaf-1-shape"/></clipPath></defs>
+      <use href="#leaf-1-shape" fill="#7e7199" transform="translate(2.5 0.5)"/>
+      <use href="#leaf-1-shape" fill="#b5a7ce"/>
+      <g clip-path="url(#leaf-1-clip)"><use href="#leaf-1-shape" fill="#d2c9e6" transform="translate(25.7 78.1) scale(0.78) translate(-27 -79)"/><ellipse cx="24.1" cy="76.2" rx="3.1" ry="1.0" fill="#efeaf7" transform="rotate(-47 24.1 76.2)"/></g>
+    </g>
+  </g>
+  <g id="antenna-blue">
+    <g id="antenna-blue-0">
+      <defs><path id="antenna-blue-0-shape" d="M63 109c-1-3 0-6 3-7 2-1 3-2 5-3 3-1 5 0 8 3 2 2 4 4 5 6 3 3 2 5-3 7-3 1-6 3-9 4-5 2-8 1-8-3 0-2-1-4-1-7z"/><clipPath id="antenna-blue-0-clip"><use href="#antenna-blue-0-shape"/></clipPath></defs>
+      <use href="#antenna-blue-0-shape" fill="#2c6683" transform="translate(1.0 2.5)"/>
+      <use href="#antenna-blue-0-shape" fill="#53a1c3"/>
+      <g clip-path="url(#antenna-blue-0-clip)"><use href="#antenna-blue-0-shape" fill="#86cae3" transform="translate(70.8 107.7) scale(0.78) translate(-72 -109)"/></g>
+    </g>
+    <g id="antenna-blue-1">
+      <defs><path id="antenna-blue-1-shape" d="M73.6 91.8c0.5 2.3 1 4.9 1.1 6.6 0.1 1.7 0 2.6-0.4 3.7-0.4 1-0.8 1.9-2.2 2.6-1.3 0.7-4.2 1.4-5.7 1.5-1.5 0.1-2.2-0.3-3.2-0.9-0.9-0.6-1.7-1-2.5-2.5-0.9-1.5-2-4.3-2.7-6.5-0.6-2.2-1.2-5.2-1.2-6.9 0-1.7 0.6-2.3 1.1-3.2 0.6-0.9 1.1-1.4 2.3-2.2 1.3-0.7 3.9-1.8 5.4-2.2 1.4-0.3 2.4-0.4 3.4 0.2 1 0.5 1.7 1.3 2.5 3 0.8 1.6 1.5 4.6 2.1 6.8z"/><clipPath id="antenna-blue-1-clip"><use href="#antenna-blue-1-shape"/></clipPath></defs>
+      <use href="#antenna-blue-1-shape" fill="#2c6683" transform="translate(0.9 2.3)"/>
+      <use href="#antenna-blue-1-shape" fill="#4c9abc"/>
+      <g clip-path="url(#antenna-blue-1-clip)"><use href="#antenna-blue-1-shape" fill="#7fc3db" transform="translate(65.0 92.2) scale(0.78) translate(-66 -94)"/><ellipse cx="63.5" cy="89.2" rx="2.2" ry="1.9" fill="#c7eef7" transform="rotate(-41 63.5 89.2)"/></g>
+    </g>
+    <g id="antenna-blue-2">
+      <defs><path id="antenna-blue-2-shape" d="M70.4 74.4c0.7 1.3 1.5 3 1.7 4.2 0.2 1.2 0 2.1-0.7 3-0.6 1-1.3 1.8-3.1 2.8-1.8 1.1-5.6 2.8-7.5 3.5-1.9 0.7-2.9 0.8-4 0.7-1.2 0-2.1-0.2-3-1-0.9-0.8-1.9-2.5-2.6-3.8-0.6-1.4-1.1-3.2-1.1-4.4 0-1.2 0.3-2 0.9-2.9 0.6-1 1-1.8 2.7-2.9 1.7-1.2 5.6-3.2 7.5-3.9 1.9-0.7 3-0.7 4.1-0.5 1.2 0.1 1.8 0.6 2.7 1.5 0.8 0.8 1.7 2.4 2.4 3.7z"/><clipPath id="antenna-blue-2-clip"><use href="#antenna-blue-2-shape"/></clipPath></defs>
+      <use href="#antenna-blue-2-shape" fill="#2c6683" transform="translate(0.8 2.4)"/>
+      <use href="#antenna-blue-2-shape" fill="#5ba6c6"/>
+      <g clip-path="url(#antenna-blue-2-clip)"><use href="#antenna-blue-2-shape" fill="#8bcde4" transform="translate(59.7 77.8) scale(0.78) translate(-61 -79)"/><ellipse cx="57.0" cy="75.5" rx="3.1" ry="1.3" fill="#c7eef7" transform="rotate(-51 57.0 75.5)"/></g>
+    </g>
+    <g id="antenna-blue-3">
+      <defs><path id="antenna-blue-3-shape" d="M67.3 48.3c1.7 2.4 3 5.5 3.6 8.3 0.5 2.8 0.3 5.9-0.3 8.4-0.7 2.6-2 5.1-3.6 7-1.7 1.9-3.9 3.5-6.2 4.3-2.3 0.9-5.3 1.1-7.8 0.6-2.6-0.4-5.4-1.7-7.7-3.4-2.3-1.6-4.5-3.8-6.1-6.2-1.7-2.3-3.1-5.2-3.8-7.9-0.7-2.8-1-6-0.5-8.6 0.6-2.7 2-5.4 3.7-7.2 1.8-1.8 4.3-3 6.7-3.6 2.4-0.7 5.2-0.7 7.7-0.3 2.6 0.4 5.4 1.3 7.7 2.8 2.4 1.4 4.9 3.5 6.6 5.8z"/><clipPath id="antenna-blue-3-clip"><use href="#antenna-blue-3-shape"/></clipPath></defs>
+      <use href="#antenna-blue-3-shape" fill="#2c6683" transform="translate(0.9 2.3)"/>
+      <use href="#antenna-blue-3-shape" fill="#5aa5c6"/>
+      <g clip-path="url(#antenna-blue-3-clip)"><use href="#antenna-blue-3-shape" fill="#8bcce4" transform="translate(51.0 55.0) scale(0.78) translate(-53 -58)"/><ellipse cx="46.2" cy="51.5" rx="4.8" ry="3.2" fill="#c7eef7" transform="rotate(-59 46.2 51.5)"/></g>
     </g>
   </g>
   <g id="eyes">
