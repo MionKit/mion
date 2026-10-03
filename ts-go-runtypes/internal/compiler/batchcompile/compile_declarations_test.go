@@ -61,3 +61,23 @@ func TestCompile_SkippedDeclarationEmitNamesTheCause(t *testing.T) {
 		t.Fatalf("the failure must name the file and the TS code, got %v", err)
 	}
 }
+
+// TestCompile_DeclarationsCarryPureFnIds: a registered pure fn's id is a literal in its .d.ts, so a consumer reads it from the type.
+func TestCompile_DeclarationsCarryPureFnIds(t *testing.T) {
+	dir := writeProject(t, map[string]string{"index.ts": `import {registerPureFn} from '@mionjs/run-types/runtime';
+export const shout = registerPureFn(function (text: string): string {
+  return text.toUpperCase();
+});
+`})
+	writeFile(t, filepath.Join(dir, "package.json"), `{"name": "@acme/shout", "type": "module", "peerDependencies": {"@mionjs/run-types": "*"}}`)
+	writeFile(t, filepath.Join(dir, "tsconfig.json"), strings.Replace(projectTsconfigJSON, `"strict": true,`, `"strict": true, "declaration": true,`, 1))
+	compileProject(t, dir, nil)
+	js := readEmitted(t, dir, "index.js")
+	id := regexp.MustCompile(`'(@acme/shout#[^']+)'`).FindStringSubmatch(js)
+	if id == nil {
+		t.Fatalf("the registration got no id:\n%s", js)
+	}
+	if dts := readEmitted(t, dir, "index.d.ts"); !strings.Contains(dts, id[1]) {
+		t.Fatalf("the declaration must carry the id %s:\n%s", id[1], dts)
+	}
+}

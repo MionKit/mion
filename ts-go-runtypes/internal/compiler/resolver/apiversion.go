@@ -39,9 +39,18 @@ func (sess *Session) apiVersionReplacements(files []string) []protocol.Replaceme
 	return out
 }
 
-// ApiVersionReplacements is every build-version splice in the program, the only rewrite a declaration emit keeps.
-func (sess *Session) ApiVersionReplacements() []protocol.Replacement {
-	return sess.apiVersionReplacements(sess.programSourceFiles())
+// DeclarationReplacements is every splice a declaration emit keeps: a quoted value that imports nothing, the
+// build version or a pure fn's id. Marker arguments import untyped modules, which would widen inferred types.
+func (sess *Session) DeclarationReplacements() []protocol.Replacement {
+	files := sess.programSourceFiles()
+	out := sess.apiVersionReplacements(files)
+	_, _, pureFns, _ := sess.extractPureFnsForScan(files)
+	for _, replacement := range pureFns {
+		if replacement.Start == replacement.End && replacement.ImportFrom == "" {
+			out = append(out, replacement)
+		}
+	}
+	return out
 }
 
 // apiVersionSites walks files for marked calls, or answers nothing when apiVersionOn is false.
