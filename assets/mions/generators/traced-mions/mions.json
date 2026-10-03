@@ -171,7 +171,13 @@
    974,
    1525
   ],
-  "tones": 7
+  "parts": "beanie",
+  "trace": false,
+  "shadow": [
+   57,
+   137,
+   36
+  ]
  },
  "visor": {
   "crop": [
