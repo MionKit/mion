@@ -28,6 +28,11 @@ shadow = f'<ellipse cx="{sx:.0f}" cy="{ground:.0f}" rx="{sw * 0.62:.0f}" ry="{ma
 # gloss: a light streak just inside the lit left edge of the upper body
 rows = np.arange(int(top + (bottom - top) * cfg.get('gloss_from', 0.12)), int(top + (bottom - top) * cfg.get('gloss_to', 0.45)), 4 * UP)
 edge = [(xs[ys == r].min() + 5 * UP, r) for r in rows if (ys == r).any()]
+runs, run = [], []
+for p in edge:  # the edge jumps where an ear or horn takes over as leftmost; keep the longest unbroken stretch
+    if run and abs(p[0] - run[-1][0]) > 7 * UP: runs.append(run); run = []
+    run.append(p)
+edge = max(runs + [run], key=len)
 gloss = f'<path id="gloss" d="M{" ".join(f"{x / UP:.0f} {y / UP:.0f}" for x, y in edge)}" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" opacity="0.45"/>' if len(edge) >= 3 else ''
 
 # eyes: dark rim, white, and a pupil group (pupil plus shine) last, so the scene can move it and clip it to the white
