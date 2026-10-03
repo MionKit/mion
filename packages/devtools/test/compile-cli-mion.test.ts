@@ -366,7 +366,11 @@ describe('mion compile + api-check — a client built from the published API typ
       });
       const apiPackage = path.join(client, 'node_modules', '@acme', 'api');
       fs.mkdirSync(apiPackage, {recursive: true});
-      fs.writeFileSync(path.join(apiPackage, 'package.json'), JSON.stringify({name: '@acme/api', types: 'index.d.ts'}));
+      // a `main` makes it the full server package: a types-only one must come from `mion api-types` (MET015)
+      fs.writeFileSync(
+        path.join(apiPackage, 'package.json'),
+        JSON.stringify({name: '@acme/api', types: 'index.d.ts', main: 'index.js'})
+      );
       const publish = (dts: string) => fs.writeFileSync(path.join(apiPackage, 'index.d.ts'), dts);
       const clientGen = path.join(client, '.mion');
       const compileClient = () =>
@@ -393,6 +397,125 @@ describe('mion compile + api-check — a client built from the published API typ
       const drifted = compileClient();
       expect(drifted.status).not.toBe(0);
       expect(drifted.stdout + drifted.stderr).toContain('MET012');
+    } finally {
+      fs.rmSync(base, {recursive: true, force: true});
+    }
+  });
+});
+
+// `mion api-types` builds the package a client installs instead of the whole server: the router stub is a real
+// installed package here, since the trimmed types must resolve without the server's own files.
+const INSTALLED_ROUTER_DTS = API_ROUTER_DTS.replace("declare module '@mionjs/router' {", '')
+  .replace('export function createMionRouter', 'export declare function createMionRouter')
+  .replace('const apiBuildVersion', 'declare const apiBuildVersion')
+  .replace(/}\s*$/, '');
+const TYPES_SERVER_TS = `import {createMionRouter} from '@mionjs/router';
+import {Db} from './db.ts';
+export interface User {id: number; name: string}
+const db = new Db();
+export const mion = createMionRouter();
+export const api = mion.initRoutes({users: {getById: {type: 1 as const, handler: (id: number, verbose: boolean): User => ({id, name: db.name(verbose)})}}});
+export function startServer(port: number): Db { void port; return db; }
+`;
+const TYPES_DB_TS = `export class Db {
+  private conn = 1;
+  name(verbose: boolean): string { return verbose ? String(this.conn) : ''; }
+}
+`;
+const TYPES_CLIENT_TS = `import {initClient} from '@mionjs/client';
+import {getRunTypeId} from '@mionjs/run-types';
+import type {api, User} from '@acme/server-app-types';
+export const {routes} = initClient<typeof api>({baseURL: 'http://x'});
+export const a = routes.users.getById(1, true).call();
+export const staticId = getRunTypeId<User>();
+declare const user: User;
+export const valueId = getRunTypeId(user);
+`;
+
+function installRouter(project: string): void {
+  const router = path.join(project, 'node_modules', '@mionjs', 'router');
+  fs.mkdirSync(router, {recursive: true});
+  fs.writeFileSync(
+    path.join(router, 'package.json'),
+    JSON.stringify({name: '@mionjs/router', version: '0.0.1', types: 'index.d.ts'})
+  );
+  fs.writeFileSync(path.join(router, 'index.d.ts'), INSTALLED_ROUTER_DTS);
+}
+
+function listFiles(dir: string, prefix = ''): string[] {
+  return fs.readdirSync(dir, {withFileTypes: true}).flatMap((entry) => {
+    const rel = prefix + entry.name;
+    return entry.isDirectory() ? listFiles(path.join(dir, entry.name), rel + '/') : [rel];
+  });
+}
+
+describe('mion api-types — a types-only package for an API client', () => {
+  register('builds the trimmed package, a client builds against it, and refuses it without the marker', () => {
+    const base = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-api-types-'));
+    try {
+      const server = writeProject(base, 'server', {'server.ts': TYPES_SERVER_TS, 'db.ts': TYPES_DB_TS});
+      installRouter(server);
+      const serverPkg = JSON.parse(fs.readFileSync(path.join(server, 'package.json'), 'utf8'));
+      serverPkg.version = '1.4.0';
+      serverPkg.dependencies = {'@mionjs/router': '^0.0.1'};
+      fs.writeFileSync(path.join(server, 'package.json'), JSON.stringify(serverPkg));
+      const out = path.join(base, 'api-types');
+      const built = runCli(['api-types', '--cwd', server, '--tsconfig', 'tsconfig.json', '--out', out], {label: 'api-types'});
+      expect(built.status, built.report).toBe(0);
+
+      expect(listFiles(out).sort()).toEqual(['.mion/api/manifest.json', 'mion-api.json', 'package.json', 'server.d.ts']);
+      const dts = fs.readFileSync(path.join(out, 'server.d.ts'), 'utf8');
+      expect(dts).toContain('export interface User');
+      expect(dts).toMatch(/ApiBuildVersion<"[A-Za-z0-9]{12}">/);
+      for (const serverOnly of ['Db', 'startServer', 'db.ts', 'conn']) expect(dts).not.toContain(serverOnly);
+      const pkg = JSON.parse(fs.readFileSync(path.join(out, 'package.json'), 'utf8'));
+      expect(pkg).toMatchObject({
+        name: '@acme/server-app-types',
+        version: '1.4.0',
+        types: './server.d.ts',
+        mion: {apiTypes: './mion-api.json'},
+      });
+      expect(pkg.main).toBeUndefined();
+      expect(pkg.peerDependencies).toMatchObject({
+        '@mionjs/router': '^0.0.1',
+        '@mionjs/core': '*',
+        '@mionjs/run-types': expect.any(String),
+      });
+      const marker = JSON.parse(fs.readFileSync(path.join(out, 'mion-api.json'), 'utf8'));
+      expect(marker).toMatchObject({format: 1, package: '@acme/server-app'});
+      const serverVersion = dts.match(/ApiBuildVersion<"([A-Za-z0-9]{12})">/)![1];
+      expect(marker.buildVersion).toBe(serverVersion);
+
+      const client = writeProject(base, 'client', {'client.d.ts': API_CLIENT_DTS, 'a.ts': TYPES_CLIENT_TS});
+      installRouter(client);
+      const installed = path.join(client, 'node_modules', '@acme', 'server-app-types');
+      fs.cpSync(out, installed, {recursive: true});
+      const clientGen = path.join(client, '.mion');
+      const compileClient = () =>
+        runCli(['compile', '--cwd', client, '--tsconfig', 'tsconfig.json', '--gen-dir', clientGen], {label: 'api-types-client'});
+
+      const matching = compileClient();
+      expect(matching.status, matching.report).toBe(0);
+      expect(matching.stdout + matching.stderr).not.toMatch(/MET01[2356]/);
+      const clientJs = fs.readFileSync(path.join(client, 'dist', 'a.js'), 'utf8');
+      expect(injectedVersion(path.join(client, 'dist', 'a.js'))).toBe(serverVersion);
+      // both getRunTypeId shapes name the package's type and agree on its id
+      const ids = [...clientJs.matchAll(/getRunTypeId\((?:undefined|user), (__rt_[A-Za-z0-9_$]+)\)/g)].map((match) => match[1]);
+      expect(ids).toHaveLength(2);
+      expect(ids[0]).toBe(ids[1]);
+      const check = runCli(['api-check', '--server-gen-dir', path.join(installed, '.mion'), '--client-gen-dir', clientGen], {
+        label: 'api-types-check',
+      });
+      expect(check.status, check.report).toBe(0);
+
+      // a .d.ts any tool wrote, published types-only without the marker: one error naming the package
+      fs.rmSync(path.join(installed, 'mion-api.json'));
+      const refused = compileClient();
+      expect(refused.status).not.toBe(0);
+      const output = refused.stdout + refused.stderr;
+      expect(output.match(/MET015/g)).toHaveLength(1);
+      expect(output).toContain('@acme/server-app-types');
+      expect(output).not.toMatch(/MET01[23]/);
     } finally {
       fs.rmSync(base, {recursive: true, force: true});
     }
