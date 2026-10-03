@@ -18,7 +18,9 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/compiler"
+	"github.com/microsoft/typescript-go/shim/scanner"
 	"github.com/microsoft/typescript-go/shim/tspath"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/resolver"
@@ -61,7 +63,10 @@ type Result struct {
 	EmittedFiles []string // absolute paths of the .js files written
 	Caches       []string // generated cache-module basenames
 	Diagnostics  []diagnostics.Diagnostic
-	CheckedFiles int // non-declaration source files the scan read
+	// TypeDiagnostics are TypeScript's own diagnostics, the ones `tsc` prints, already in its line shape.
+	TypeDiagnostics []string
+	TypeErrorCount  int
+	CheckedFiles    int // non-declaration source files the scan read
 }
 
 // Run executes the compile. See the package doc for the two-pass model.
@@ -109,8 +114,15 @@ func Run(opts Options) (*Result, error) {
 		}
 	}
 
+	// The ORIGINAL program, never the overlaid one: its rewritten imports point at rtmod: modules TypeScript cannot resolve.
+	result.TypeDiagnostics, result.TypeErrorCount = typeDiagnostics(p1.TS, cwd)
+
 	// The OpDump above already ran the full scan and its diagnostics in memory, so nothing more is needed.
 	if opts.NoEmit {
+		return result, nil
+	}
+	// Same as tsc: noEmitOnError writes nothing, caches included, while a type error stands.
+	if result.TypeErrorCount > 0 && p1.TS.Options().NoEmitOnError.IsTrue() {
 		return result, nil
 	}
 
@@ -220,6 +232,42 @@ func Run(opts Options) (*Result, error) {
 		}
 	}
 	return result, nil
+}
+
+// typeDiagnostics collects what `tsc` reports for the program and renders each the way tsc does without --pretty.
+func typeDiagnostics(tsProgram *compiler.Program, cwd string) ([]string, int) {
+	ctx := context.Background()
+	found := compiler.GetDiagnosticsOfAnyProgram(ctx, tsProgram, nil, false, tsProgram.GetBindDiagnostics, tsProgram.GetSemanticDiagnostics)
+	found = compiler.SortAndDeduplicateDiagnostics(found)
+	lines := make([]string, 0, len(found))
+	errorCount := 0
+	for _, diagnostic := range found {
+		category := diagnostic.Category().Name()
+		if category == "error" {
+			errorCount++
+		}
+		var builder strings.Builder
+		if file := diagnostic.File(); file != nil {
+			line, character := scanner.GetECMALineAndUTF16CharacterOfPosition(file, diagnostic.Pos())
+			fileName := file.FileName()
+			if rel, err := filepath.Rel(cwd, fileName); err == nil && !strings.HasPrefix(rel, "..") {
+				fileName = filepath.ToSlash(rel)
+			}
+			fmt.Fprintf(&builder, "%s(%d,%d): ", fileName, line+1, int(character)+1)
+		}
+		fmt.Fprintf(&builder, "%s TS%d: %s", category, diagnostic.Code(), diagnostic.String())
+		writeMessageChain(&builder, diagnostic.MessageChain(), 1)
+		lines = append(lines, builder.String())
+	}
+	return lines, errorCount
+}
+
+// writeMessageChain appends the nested "is not assignable" detail lines, two spaces per level as tsc indents them.
+func writeMessageChain(builder *strings.Builder, chain []*ast.Diagnostic, level int) {
+	for _, link := range chain {
+		builder.WriteString("\n" + strings.Repeat("  ", level) + link.String())
+		writeMessageChain(builder, link.MessageChain(), level+1)
+	}
 }
 
 // isWithinDir reports whether target sits under dir, or is dir itself, on cleaned absolute paths.

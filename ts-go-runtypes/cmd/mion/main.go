@@ -643,8 +643,11 @@ Transforms every marker file, emits .js via tsgo with source maps composed back
 to the ORIGINAL source, and writes the generated cache modules to disk. Emits to
 the tsconfig outDir; requires a tsconfig; no stdio protocol.
 
---no-emit runs the scan + RunType-family diagnostics only and writes nothing
-(tsc --noEmit-style).
+Reports TypeScript's own errors like tsc and exits 1 on any; noEmitOnError in
+the tsconfig then writes nothing.
+
+--no-emit runs the type check, the scan and the RunType-family diagnostics
+only and writes nothing (tsc --noEmit-style).
 `
 
 // runCompile is the tsc-like batch build: it drives the two-pass transform +
@@ -693,7 +696,11 @@ func runCompile(args []string) {
 	// `@mion-expect-error` unused check for itself, so one stale comment would
 	// otherwise be reported once per pass. Dedupe collapses the identical
 	// repeats (same code, args and site) the way it does within one op.
-	errorCount := 0
+	// TypeScript's own errors fail the build exactly as they fail tsc; downgradeErrors and levels are mion's knobs only.
+	for _, line := range compileResult.TypeDiagnostics {
+		fmt.Fprintln(os.Stderr, line)
+	}
+	errorCount := compileResult.TypeErrorCount
 	for _, d := range diagnostics.Dedupe(compileResult.Diagnostics) {
 		if !diagnostics.Shown(d, showInfo) {
 			continue
