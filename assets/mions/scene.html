@@ -46,7 +46,6 @@
     ['terrain/mountain-orange-low.svg', -70, 30, 170],
     ['terrain/mountain-orange.svg', 900, 270, 170],
     ['terrain/mountain-orange.svg', 790, 880, 170],
-    ['terrain/block-slate.svg', 100, 175, 75],
     ['terrain/mound-orange.svg', 395, 25, 60],
     ['terrain/tile-teal.svg', 550, 20, 60],
     ['terrain/block-blue.svg', 470, 70, 80],
@@ -106,7 +105,7 @@
     slot.style.setProperty('--k', motion.shrink);
     if (motion.eyes) {
       slot.style.setProperty('--e', motion.eyes);
-      for (const eye of svg.querySelectorAll('#eye-small, #eye-big')) {
+      for (const eye of svg.querySelectorAll('[id^="eye-"]')) {
         // the pupil is either clipped inside the eye white already, or the eye's last shape, which then gets clipped to the white
         let inner = eye.querySelector('g[clip-path]');
         const parts = inner ? [...inner.children] : [eye.lastElementChild];
@@ -140,8 +139,20 @@
   for (const [src, l, t, w] of pieces) place(src, l, t, w, { time: 6, height: 6, shrink: 0.97 });
   // the grass island laid over the reference island: its left corner at (120, 575), its diamond 820 wide
   place('terrain/grass-island.svg', 57, 307, 946);
-  place('creatures/horned-ghost-v2.svg', 350, 530, 137, { time: 2.4, height: 4, shrink: 0.9, eyes: 1.6 });
-  place('creatures/horned-ghost.svg', 645, 430, 110, { time: 2.4, height: 4, shrink: 0.9, eyes: 1.4 });
+  place('terrain/tree-mushroom.svg', 390, 220, 310);
+  // mions back where they stand in the reference (their crop boxes, halved), drawn back to front
+  const bob = { time: 2.4, height: 4, shrink: 0.9, eyes: 1.5 };
+  const hover = { time: 6, height: 6, shrink: 0.97, eyes: 1.5 };
+  place('creatures/rock-mion.svg', 100, 165, 130, hover);
+  place('creatures/plant-mion.svg', 0, 400, 110, hover);
+  place('creatures/red-mushroom.svg', 402.5, 245, 97.5, bob);
+  place('creatures/blue-helmet.svg', 227.5, 332.5, 102.5, bob);
+  place('creatures/worm.svg', 355, 455, 87.5, { ...bob, time: 3.2, height: 2 });
+  place('creatures/seal.svg', 670, 445, 100, bob);
+  place('creatures/horned-ghost.svg', 235, 470, 100, { ...bob, eyes: 1.4 });
+  place('creatures/red-ball.svg', 800, 515, 95, bob);
+  place('creatures/horned-ghost-v2.svg', 350, 530, 137, { ...bob, eyes: 1.6 });
+  place('creatures/teal-hood.svg', 485, 650, 80, bob);
   const fit = () => scene.style.setProperty('--s', Math.min(innerWidth, innerHeight) / 1000);
   fit(); addEventListener('resize', fit);
 </script>
