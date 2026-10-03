@@ -172,9 +172,17 @@ def cone(cx, cy, top, bottom, h, tilt=0, rand=None, round_by=0.3):
     return dict(d=compact(cuts[0][0], curves), cx=cx, cy=cy, rx=(top + bottom) / 4, ry=h / 2, tilt=tilt)
 
 
-def stack(name, parts, base, light, crease, shine, rand):
+def shade(color, f):
+    """A hex colour moved toward white (f > 0) or black (f < 0)."""
+    c = np.array([int(color[i:i + 2], 16) for i in (1, 3, 5)], float)
+    c = c + (255 - c) * f if f > 0 else c * (1 + f)
+    return '#' + ''.join(f'{int(round(v)):02x}' for v in np.clip(c, 0, 255))
+
+
+def stack(name, parts, base, light, crease, shine, rand, vary=0):
     """Uneven parts stacked from the first to the last, each with a crease where it sits on the one before, a lighter patch and maybe a shine.
-    parts: (cx, cy, rx, ry, tilt) in drawing order, with an optional sixth value to square a part off (see wobbly), or a shape from cone()."""
+    parts: (cx, cy, rx, ry, tilt) in drawing order, with an optional sixth value to square a part off (see wobbly), or a shape from cone().
+    vary gives each part its own slightly lighter or darker take on the colours."""
     out = f'\n  <g id="{name}">'
     centers = [(p['cx'], p['cy']) if isinstance(p, dict) else p[:2] for p in parts]
     for i, part in enumerate(parts):
@@ -189,13 +197,15 @@ def stack(name, parts, base, light, crease, shine, rand):
             dx, dy = (px - cx) / dist * 2.5, (py - cy) / dist * 2.5
         else:
             dx, dy = 1, 2.5
+        tint = rand.uniform(-vary, vary) if vary else 0
+        part_base, part_light = shade(base, tint), shade(light, tint)
         sx, sy = cx - rx * rand.uniform(0.25, 0.45), cy - ry * rand.uniform(0.3, 0.5)
         gleam = f'<ellipse cx="{sx:.1f}" cy="{sy:.1f}" rx="{rx * 0.28:.1f}" ry="{ry * 0.16:.1f}" fill="{shine}" transform="rotate({tilt - 25:.0f} {sx:.1f} {sy:.1f})"/>' if rand.random() < 0.75 else ''
         out += f'''
     <g id="{name}-{i}">
       <defs><path id="{name}-{i}-shape" d="{d}"/><clipPath id="{name}-{i}-clip"><use href="#{name}-{i}-shape"/></clipPath></defs>
       <use href="#{name}-{i}-shape" fill="{crease}" transform="translate({dx:.1f} {dy:.1f})"/>
-      <use href="#{name}-{i}-shape" fill="{base}"/>
-      <g clip-path="url(#{name}-{i}-clip)"><use href="#{name}-{i}-shape" fill="{light}" transform="translate({cx - rx * 0.12:.1f} {cy - ry * 0.15:.1f}) scale(0.78) translate({-cx} {-cy})"/>{gleam}</g>
+      <use href="#{name}-{i}-shape" fill="{part_base}"/>
+      <g clip-path="url(#{name}-{i}-clip)"><use href="#{name}-{i}-shape" fill="{part_light}" transform="translate({cx - rx * 0.12:.1f} {cy - ry * 0.15:.1f}) scale(0.78) translate({-cx} {-cy})"/>{gleam}</g>
     </g>'''
     return out + '\n  </g>'
