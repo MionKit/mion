@@ -1,4 +1,4 @@
-# The red ball mion, built by hand: a lumpy ball with a lip bulging out at the lower left, thin tapered legs, a mouth dot and one big lumpy eye.
+# The red ball mion, built by hand: a lumpy ball with a lip at its lower left, thin tapered legs, a mouth dot, one big eye.
 import random, re
 import cv2, numpy as np
 from common import wobbly, through
@@ -26,7 +26,7 @@ def merged(paths, n=26, sigma=3.5, up=4):
     return through(soft[np.linspace(0, len(soft), n, endpoint=False).astype(int)] / up, digits=1)
 
 def body():
-    # one silhouette, the ball and the lip bulging at its lower left, in the darkest tone; lighter tones nudged up-left and clipped to it
+    # ball and lip as one silhouette in the darkest tone; lighter tones nudged up-left and clipped to it
     own = random.Random(73)   # its own stream, so the silhouette never shifts when another part changes
     ball, lip = wobbly(103, 91.5, 71.5, 67.5, -12, bumps(0.03, own)), wobbly(85, 132, 58, 36, 4, bumps(0.03, own), box=2.2)
     return f'''
@@ -63,7 +63,7 @@ def back():  # both legs behind the ball, each ending in a small flat foot
   </g>'''
 
 def eye(i, x, y, rx, ry, tilt, rim, white, pupil):
-    # the rim is the white's own shape pushed down-right, so it shows as a crescent there and the upper left has no border
+    # the rim is the white pushed down-right, so it shows only as a lower-right crescent
     b = bumps(0.04)
     px, py, prx, pry, ptilt = pupil
     return f'''

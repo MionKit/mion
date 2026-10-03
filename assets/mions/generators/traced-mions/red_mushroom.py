@@ -1,4 +1,4 @@
-# The red mushroom mion, built by hand: a domed cap on a stem with a round foot, a pink bobble, a pale fin behind the stem, and one lumpy eye.
+# The red mushroom mion, built by hand: a domed cap on a stem and round foot, a pink bobble, a fin behind, one lumpy eye.
 import random, re
 from common import stack, cone, wobbly, through
 
@@ -29,7 +29,7 @@ def back():  # the bobble tucks under the cap's upper left; the fin peeks out le
     return bobble + stalk + fin
 
 def eye(i, x, y, rx, ry, px, py, prx, pry, rim, white):
-    # the rim is the white's own shape pushed down-right, so it shows as a crescent there and the upper left has no border
+    # the rim is the white pushed down-right, so it shows only as a lower-right crescent
     b = bumps(0.04)
     return f'''
     <g id="eye-{i}">

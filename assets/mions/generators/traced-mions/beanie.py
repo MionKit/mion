@@ -1,4 +1,4 @@
-# The beanie mion, built by hand: a purple egg body under a pink striped beanie with a pale top, a dark glinting eye, a half-closed eye with a brown lid, and a peach shell foot.
+# The beanie mion, built by hand: a purple egg under a striped pink beanie, one glinting eye, one lidded eye, a shell foot.
 import random, re
 import numpy as np
 from common import stack, wobbly, through
@@ -22,7 +22,7 @@ def part(d, cx, cy, rx, ry, tilt=0):  # a ready shape as a stack part
     return dict(d=d, cx=cx, cy=cy, rx=rx, ry=ry, tilt=tilt)
 
 def blob(name, d, base, line, push, tones, width=1.2):
-    # a flat shape over its dark copy (a thin outline, thicker toward `push`), with lighter tones clipped inside it; a tone is (colour, path) or ready markup
+    # the dark copy under the base shows as a thin outline, thicker toward `push`; a tone is (colour, path) or ready markup
     return f'''
   <g id="{name}">
     <defs><path id="{name}-shape" d="{d}"/><clipPath id="{name}-clip"><use href="#{name}-shape"/></clipPath></defs>
@@ -33,7 +33,7 @@ def blob(name, d, base, line, push, tones, width=1.2):
   </g>'''
 
 def eye(i, x, y, rx, ry, tilt, rim, hole, inner):
-    # a dark eye whose rim is its own shape pushed down-right, so it shows only as a crescent there; the moving glint group comes last
+    # the rim, pushed down-right, shows only as a crescent there; the moving glint group must come last
     b = bumps(0.05)
     return f'''
     <g id="eye-{i}">
@@ -60,7 +60,7 @@ def extra():
         ('#7f6e9a', lump(26, 88, 7, 16, 8, own, 0.06, 8)),
         ('#75679a', lump(92, 82, 5, 15, -8, random.Random(43), 0.05, 8)),
         '<ellipse cx="23.5" cy="88" rx="1.6" ry="6" fill="#a597bd" transform="rotate(6 23.5 88)"/>'])
-    # the beanie: brim, middle band, top roll and pale crown, each sitting in front of the one below so its crease shows as a dark line
+    # the beanie, brim to crown: each band sits in front of the one below so its crease shows as a dark line
     brim = stack('bn-brim', [part(outline([(23, 58), (31, 55), (42, 53), (54, 52.5), (66, 53), (77, 55), (83.5, 58), (85, 63), (82.5, 67.5), (76, 71.5),
                                             (66, 75), (54, 76.5), (42, 75.5), (32, 72.5), (25, 68.5), (21.5, 63)], own), 54, 65, 32, 11)],
                  '#a9505f', '#b85f6c', '#4a2236', '#c97781', own)

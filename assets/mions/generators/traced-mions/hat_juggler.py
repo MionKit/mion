@@ -1,5 +1,5 @@
-# The hat juggler mion, built by hand: a peach body with a brown beard under a striped hat (pink brim, two grey bands, a lavender crown),
-# two dark eyes, a small ear, a pale hand holding a magenta coil on the left, a pink hoop and a coiled tentacle on the right, standing on blue stones.
+# The hat juggler mion, built by hand: a peach body and brown beard under a striped hat, two eyes, an ear, a hand holding
+# a magenta coil on the left, a pink hoop and coiled tentacle on the right, and blue boots.
 import random, re
 import numpy as np
 from common import stack, wobbly, through, shade
@@ -23,7 +23,7 @@ def outline(points, own, j=0.6):  # a big shape through hand-measured points, a 
     return through([(x + own.uniform(-j, j), y + own.uniform(-j, j)) for x, y in points])
 
 def blob(name, d, base, line, push, tones, width=1.2):
-    # a flat shape over its dark copy (a thin outline, thicker toward `push`), with lighter tones clipped inside it; a tone is (colour, path) or ready markup
+    # the dark copy under the base shows as a thin outline, thicker toward `push`; a tone is (colour, path) or ready markup
     return f'''
   <g id="{name}">
     <defs><path id="{name}-shape" d="{d}"/><clipPath id="{name}-clip"><use href="#{name}-shape"/></clipPath></defs>
@@ -34,7 +34,7 @@ def blob(name, d, base, line, push, tones, width=1.2):
   </g>'''
 
 def eye(i, x, y, rx, ry, tilt, hole, inner):
-    # a dark eye whose rim is its own shape pushed down-right, so it shows only as a crescent there; the moving iris group comes last
+    # the rim, pushed down-right, shows only as a crescent there; the moving iris group must come last
     b = bumps(0.05)
     return f'''
     <g id="eye-{i}">
@@ -45,14 +45,14 @@ def eye(i, x, y, rx, ry, tilt, hole, inner):
 
 def back():
     own = random.Random(62)
-    # two blue boots tucked under the beard, the left one further back; they take their own stream, and the shared one skips the draws the old base used
+    # boots on their own stream, the left further back; `own` skips the draws the old base took, so later parts keep their shapes
     feet = stack('hj-feet', [(95, 181, 14, 9.5, 18, 3), (130, 187, 21, 11.5, -5, 3)], '#425f92', '#5b7fb4', '#1c2742', '#9cbce0', random.Random(64), 0.06)
     for _ in range(36): own.random()
     # the grey-blue fin poking out behind the beard on the right, its base tucked behind the beard's edge
     fin = blob('hj-fin', lump(166, 165, 14, 6, -22, own, 0.04), '#4b5d70', '#232c3a', (0.4, 1), [
         ('#6f8497', lump(164, 161, 13, 4.2, -22, own, 0.05)),
         '<ellipse cx="164" cy="160.5" rx="4" ry="1.1" fill="#a3b4c2" transform="rotate(-22 164 160.5)"/>'])
-    # the magenta coil held on the left: an outer ring, then its pale inner face poking out to the right toward the hand, with the hole
+    # the magenta coil on the left: an outer ring, then its pale inner face toward the hand, with the hole
     ring, ring_lit = lump(46.5, 103.5, 12, 15, -14, own, 0.04), lump(45, 99, 10, 11, -12, own, 0.05)
     face, face_lit, hole = small(56, 107, 9.4, 11, -14, own), small(54.5, 104, 6.4, 7.4, -14, own), small(58.5, 109, 4, 6.6, -14, own)
     coil = blob('hj-coil', ring, '#7a395a', '#45182f', (0.5, 1), [
@@ -78,7 +78,7 @@ def extra():
     ear = blob('hj-ear', small(165.5, 76.5, 4.6, 10.5, -25, own, 0.04), '#e48f8a', '#8e4a49', (-1.1, 0.6), [
         ('#f2aaa4', small(164.6, 74, 2.8, 7, -25, own))])
     tooth = f'\n  <path id="hj-tooth" fill="#e8a8b4" d="{through([(92.5, 146), (100.5, 145.5), (99.5, 151.5), (97.6, 157.5), (95.4, 152)], digits=1)}"/>'
-    # the hat: brim, lower grey band, upper grey band, lavender crown; each one's dark copy below it shows as the line between stripes
+    # the hat, brim to crown: each stripe's dark copy below it shows as the line between stripes
     brim = blob('hj-brim', outline([(79, 70), (90, 69), (105, 67), (118, 62), (130, 56), (139, 52), (146, 55), (150, 61), (147, 67), (139, 73.5), (127, 80.5),
                                     (114, 85.5), (100, 88.5), (88, 90), (80, 89), (77.5, 80)], own), '#e38385', '#6e2a2c', (0.4, 1.4), [
         ('#bb5450', outline([(70, 85), (86, 86.5), (100, 84.5), (113, 81.5), (126, 76.5), (138, 69.5), (146, 61), (160, 60), (160, 100), (70, 100)], own)),
@@ -109,7 +109,7 @@ def extra():
     reach = blob('hj-reach', through([(177.5, 141), (181, 138.6), (188, 135.4), (194, 130.6), (198.6, 127.8), (201.4, 130.6), (198.2, 134.2), (191, 139.6),
                                        (184, 143.8), (179, 146.6)], digits=1), '#c66f8e', '#4e1c32', (0.3, 0.8), [
         ('#e6a2be', through([(178, 140), (188, 134), (198, 126), (200, 129), (189, 137.4), (179, 143)], digits=1))], 0.8)
-    # the coil: one lobe shape drawn once and placed six times, bottom up, alternating its tilt so the loops read as one twisted spring
+    # the coil: one lobe placed six times bottom up, tilt alternating so the loops read as one twisted spring
     lobe, lit = small(0, 0, 7.4, 4, 0, own), small(-1.4, -1, 4.8, 2.2, 0, own)
     loops = f'''
   <g id="hj-loops">

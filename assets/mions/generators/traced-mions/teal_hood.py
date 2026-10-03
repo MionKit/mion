@@ -1,4 +1,4 @@
-# The teal hood mion, built by hand: a teal hood with a face plate over its lower body, a ringed socket round its big eye, a round snout, lavender legs and a small white fang.
+# The teal hood mion, built by hand: a teal hood with a face plate, a ringed socket round its big eye, a snout, legs, a fang.
 import random, re
 from common import cone, wobbly, through
 
@@ -57,7 +57,7 @@ def back():  # a dark wedge in the body's shadow, the thin far leg, the two near
   <path id="th-under" fill="#36262b" d="{under}"/>{far}{left}{right}{fang}'''
 
 def eye(i, x, y, rx, ry, tilt, rim, white, pupil, push=(1.3, 1.8), n=8):
-    # the rim is the white's own shape pushed down-right, so it shows as a crescent there and the upper left has no border
+    # the rim is the white pushed down-right, so it shows only as a lower-right crescent
     b = bumps(0.04)
     px, py, prx, pry, col = pupil
     shape = (lambda *a: whole(wobbly(*a))) if rx > 12 else wobbly   # a big white keeps its curve in whole pixels

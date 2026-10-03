@@ -1,4 +1,4 @@
-# The rock mion, built by hand: a stone dome with a pale top facet and two eye holes, a pink cap with a pale knob, sitting on a flat stone tile.
+# The rock mion, built by hand: a stone dome with a top facet and two eye holes, a pink cap and knob, on a flat stone tile.
 import random, re
 import numpy as np
 from common import stack, wobbly, through
@@ -30,7 +30,7 @@ def rounded(pts, k=0.12):  # a polygon with every corner cut back along both edg
     return d + 'Z'
 
 def blob(name, d, base, line, push, tones, width=2):
-    # a flat shape over its dark copy (a thin outline, thicker toward `push`), with lighter tones clipped inside it; a tone is (colour, path) or ready markup
+    # the dark copy under the base shows as a thin outline, thicker toward `push`; a tone is (colour, path) or ready markup
     return f'''
   <g id="{name}">
     <defs><path id="{name}-shape" d="{d}"/><clipPath id="{name}-clip"><use href="#{name}-shape"/></clipPath></defs>
@@ -70,7 +70,7 @@ def back():
   </g>'''
 
 def eye(i, x, y, rx, ry, tilt, rim, hole, inner):
-    # a dark hole whose rim is its own shape pushed down-right, so it shows only as a crescent there; the moving glint group comes last
+    # the rim, pushed down-right, shows only as a crescent there; the moving glint group must come last
     b = bumps(0.05)
     return f'''
     <g id="eye-{i}">

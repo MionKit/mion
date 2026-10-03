@@ -1,4 +1,4 @@
-# The seal mion, built by hand: a round white head on a lavender body, a ringed horn bending up to the right, a small ear, cone legs and two small eyes.
+# The seal mion, built by hand: a white head on a lavender body, a ringed horn bending right, an ear, cone legs, two eyes.
 import random, re
 from common import stack, cone, wobbly, through
 
@@ -33,7 +33,7 @@ def back():  # one dark shadow wedge behind both legs, then the left leg and the
     return far + near + ear
 
 def eye(i, x, y, rx, ry, pupil, pupil_col, rim, white):
-    # the rim is the white's own shape pushed down-right, so it shows as a crescent there and the upper left has no border
+    # the rim is the white pushed down-right, so it shows only as a lower-right crescent
     b = bumps(0.05)
     return f'''
     <g id="eye-{i}">
@@ -49,7 +49,7 @@ def extra():
     head_shape = outline([(20, 152), (26, 135), (40, 123), (60, 112), (80, 104), (100, 98), (120, 102), (133, 120),
                           (141, 142), (145, 166), (139, 185), (126, 195), (108, 201), (86, 204), (64, 200), (44, 191), (29, 178)], 84, 152, 63, 52)
     head = stack('seal-head', [head_shape], '#acaec0', '#e4e5ec', '#757790', '#ffffff', rand)
-    # the horn: tight rings narrowing to half the base width, one smooth cone that leans gently right, each hiding most of the one below, and a round cap
+    # the horn: rings narrowing to half the base width, leaning gently right, each hiding most of the one below, a round cap
     lean = (0.41, -0.91)   # the axis leans about 24 degrees right; rings step 15 px along it and bend a little more near the top
     rings = [(133 + lean[0] * 15 * i + 0.2 * i * i, 119 + lean[1] * 15 * i, rx, 16, 22 + i * 1.2, 2.4) for i, rx in enumerate((35, 31, 27, 23, 19))]
     rings.append((166, 49, 15, 14, 25))

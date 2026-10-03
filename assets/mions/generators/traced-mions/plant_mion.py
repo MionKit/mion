@@ -1,4 +1,4 @@
-# The plant mion, built by hand: a white fin-shaped body with a blue belly, palm fronds stacked from reused leaf pieces, a yellow fruit, a ringed orange antenna and one big eye.
+# The plant mion, built by hand: a white fin body, blue belly, fronds of one reused leaf, a fruit, a ringed antenna, one eye.
 import random, re
 import numpy as np
 from common import stack, cone, wobbly, through, shade
@@ -74,8 +74,7 @@ def back():
     fruit = stack('pm-fruit', [small(71, 136, 20, 27, -6, 2.1)], '#c4a663', '#dfbf79', '#4a4535', '#f3dca0', own)
     near = frond('pm-frond-a', (76, 166), (0, 123), 15, '#879d86', own=leaves)
     for _ in range(2): own.random()
-    # rings tight at the base, tilting more toward the bottom so the antenna bends left into the body; the long top piece leans a little left
-    # rings from the body up, each a little narrower than the one above, under a long top that leans a little left
+    # rings narrow and tilt more toward the base, so the antenna bends left into the body; the long top leans a little left
     antenna = stack('pm-antenna', [small(120, 119, 14, 9, -34, 2.6), small(125, 110, 15.5, 9, -24, 2.6), small(130, 101, 17, 9, -14, 2.6), small(133, 70, 18, 33, -8, 2.4)],
                     '#d56567', '#ec8a80', '#9a4450', '#ffcfc2', own, vary=0.05)
     antenna += f'\n  <g clip-path="url(#pm-antenna-3-clip)"><path d="{lump(136, 61, 13, 24, -8, own, 0.05, 10)}" fill="#fa9e92"/></g>'
@@ -96,7 +95,7 @@ def leg(name, x, y, top, bottom, h, tilt, base, light, line):  # one cone, splay
   </g>'''
 
 def eye(i, x, y, rx, ry, tilt, rim, white, pupil):
-    # the rim is the white's own shape pushed down-right, so it shows as a crescent there and the upper left has no border
+    # the rim is the white pushed down-right, so it shows only as a lower-right crescent
     b = bumps(0.04)
     px, py, pr = pupil
     return f'''

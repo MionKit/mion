@@ -1,4 +1,4 @@
-# The grub mion, built by hand: a pink body of segments curling down from a big round head to a grey tip, thin creases between them, spiral creases on the head and two small eyes.
+# The grub mion, built by hand: pink segments curling from a big round head to a grey tip, spiral head creases, two eyes.
 import random, re
 import numpy as np
 from common import wobbly, through
@@ -46,7 +46,7 @@ def piece(name, d, base, crease, push, tones):
 LINE = '#6b4658'   # creases and outline
 
 def eye(i, x, y, r, p):
-    # the rim is the white's own shape pushed down-right, so it shows as a crescent there and the upper left has no border
+    # the rim is the white pushed down-right, so it shows only as a lower-right crescent
     b = bumps(0.08)
     return f'''
     <g id="eye-{i}">
@@ -57,7 +57,7 @@ def eye(i, x, y, r, p):
 
 def extra():
     own = random.Random(411)   # the silhouette and segments take their own stream
-    # the whole grub as one outline, measured on the reference: head top, its round right side, the body curling down to the tip and back up the left
+    # the whole grub as one outline measured on the reference: head top, right side, down to the tip and back up the left
     body = uneven([(64, 28.5), (72, 27.8), (80, 29.5), (87, 32.5), (92, 37), (95.5, 43), (97, 50), (96, 56), (93.5, 61), (88, 66), (81, 70.5),
                    (74, 75), (68.5, 79), (65.5, 84), (63.3, 90), (62.3, 96), (63, 101.5), (65.5, 105.5), (67.3, 110), (66.5, 114), (63, 117.5),
                    (58, 119), (53.5, 117.5), (50, 113.5), (47.5, 108.5), (45, 102), (42.7, 95), (41.3, 87), (41.2, 78), (41.2, 68), (41.7, 60),

@@ -1,4 +1,4 @@
-# The blue helmet mion, built by hand: a lumpy round helmet, curved antennae stacked from uneven pieces, cone-section legs, and two lumpy eyes.
+# The blue helmet mion, built by hand: a lumpy helmet, curved antennae of uneven pieces, cone legs and two lumpy eyes.
 import random
 from common import stack, cone, wobbly
 
@@ -22,7 +22,7 @@ def back():  # antennae bend along a curve and their bases tuck under the helmet
     return white + red + leg('leg-left', 74, 16) + leg('leg-right', 136, -18)
 
 def eye(i, x, y, rx, ry, pupil, rim, white):
-    # the rim is the white's own shape pushed down-right, so it shows as a crescent there and the upper left has no border
+    # the rim is the white pushed down-right, so it shows only as a lower-right crescent
     b = bumps(0.05)
     return f'''
     <g id="eye-{i}">

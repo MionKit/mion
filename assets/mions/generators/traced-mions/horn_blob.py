@@ -1,4 +1,4 @@
-# The horn blob mion, built by hand: a pale rounded body wider at the bottom, a cone horn leaning left with a curved ridge, a pink ear flap with a pale tip, two dark eye holes and a swirl mark.
+# The horn blob mion, built by hand: a pale pear body, a ridged cone horn leaning left, a pink ear flap, two eye holes, a swirl.
 import random, re
 from common import stack, wobbly, through
 
@@ -12,7 +12,7 @@ def part(d, cx, cy, rx, ry, tilt=0):  # a ready shape as a stack part
     return dict(d=d, cx=cx, cy=cy, rx=rx, ry=ry, tilt=tilt)
 
 def blob(name, d, base, line, push, tones, width=2):
-    # a flat shape over its dark copy (a thin outline, thicker toward `push`), with lighter tones clipped inside it; a tone is (colour, path) or ready markup
+    # the dark copy under the base shows as a thin outline, thicker toward `push`; a tone is (colour, path) or ready markup
     return f'''
   <g id="{name}">
     <defs><path id="{name}-shape" d="{d}"/><clipPath id="{name}-clip"><use href="#{name}-shape"/></clipPath></defs>
@@ -30,7 +30,7 @@ def back():  # the pale tip pokes out from under the pink flap, and both tuck be
             + stack('hb-ear', [part(flap, 140, 106, 13, 22, -50)], '#b39ab3', '#dcc8d8', '#4a3c55', '#dcc8d8', own))
 
 def eye(i, x, y, rx, ry, tilt, rim, hole, inner):
-    # a dark hole whose rim is its own shape pushed down-right, so it shows only as a crescent there; the moving glint group comes last
+    # the rim, pushed down-right, shows only as a crescent there; the moving glint group must come last
     b = bumps(0.05)
     return f'''
     <g id="eye-{i}">

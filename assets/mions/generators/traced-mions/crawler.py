@@ -1,4 +1,4 @@
-# The crawler mion, built by hand: a round head and a long body as one soft silhouette, a pale face lobe between them, three cone legs and three eyes of different sizes.
+# The crawler mion, built by hand: head and long body as one silhouette, a pale face lobe, three cone legs, three eyes.
 import random, re
 import numpy as np
 from common import cone, wobbly, through
@@ -19,7 +19,7 @@ def uneven(points, own):  # a big shape through hand-measured points, a little u
     return through([(x + own.uniform(-1, 1), y + own.uniform(-1, 1)) for x, y in points])
 
 def blob(name, d, base, line, push, tones, shine='', width=2):
-    # a flat shape over its dark copy (a thin outline, thicker toward `push`), with lighter lumpy tones and a shine clipped inside it
+    # the dark copy under the base shows as a thin outline, thicker toward `push`
     return f'''
   <g id="{name}">
     <defs><path id="{name}-shape" d="{d}"/><clipPath id="{name}-clip"><use href="#{name}-shape"/></clipPath></defs>
@@ -45,7 +45,7 @@ def back():  # the far front leg hangs from under the head
     return leg('cr-leg-far', 66, 137, 15, 9, 34, 4, '#8c8fa8', '#a3a6bd', '#55566c')
 
 def eye(i, x, y, rx, ry, tilt, rim, white, pupil, iris):
-    # the rim is the white's own shape pushed down-right, so it shows as a crescent there and the upper left has no border
+    # the rim is the white pushed down-right, so it shows only as a lower-right crescent
     b = bumps(0.04)
     px, py, prx, pry, ptilt = pupil
     ix, iy = px + prx * 0.18, py + pry * 0.2
@@ -64,7 +64,7 @@ def ring(x, y, rx, ry, tilt):  # a grey band inside the big eye's lower right, k
 
 def extra():
     own = random.Random(171)   # the silhouette and its tones take their own stream, so they never shift when a small part changes
-    # head and body as one outline: the head's soft underside runs straight on into the body, only a small notch between their tops
+    # head and body as one outline: the head's underside runs on into the body, a small notch between their tops
     body_pts = [(48, 33), (63, 31), (79, 35), (93, 43), (101, 51), (106, 60), (113, 61), (122, 53), (136, 41), (156, 32), (180, 28), (205, 29), (226, 35),
                 (241, 46), (251, 62), (255, 82), (253, 100), (247, 113), (236, 123), (220, 132), (200, 141), (180, 146), (155, 147), (130, 146),
                 (105, 140), (82, 131), (62, 124), (45, 114), (32, 101), (25, 85), (23, 68), (27, 51), (35, 40)]

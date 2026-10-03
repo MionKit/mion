@@ -1,4 +1,4 @@
-# The worm mion, built by hand: one tapered tube along its curve with a lighter top, curved creases between segments, a shine and two eyes.
+# The worm mion, built by hand: one tapered tube along a curve, a lighter top, curved creases, a shine and two eyes.
 import math
 import random
 from common import through, wobbly
@@ -40,7 +40,7 @@ rand = random.Random(7)
 bumps = lambda size: [(k, rand.uniform(0.01, size) / k ** 0.5, rand.uniform(0, 6.28)) for k in (2, 3, 4)]
 
 def eye(i, x, y, r, p):
-    # the rim is the white's own shape pushed down-right, so it shows as a crescent there and the upper left has no border
+    # the rim is the white pushed down-right, so it shows only as a lower-right crescent
     b = bumps(0.08)
     return f'''
     <g id="eye-{i}">

@@ -1,4 +1,4 @@
-# The pig mion, built by hand: a round belly with a pale head over its right side, a two-piece teal ear, a jaw lobe, stubby cone legs, and a big ringed eye beside a small one.
+# The pig mion, built by hand: a round belly, a pale head on its right, a teal ear, a jaw lobe, cone legs, a big and a small eye.
 import random, re
 from common import stack, cone, wobbly, through
 
@@ -44,7 +44,7 @@ def back():  # the ear leans right behind the head, teal below and pink at its t
     return f'\n  <g id="pig-ear">{ear}{tip}\n  </g>{far}'
 
 def eye(i, x, y, rx, ry, tilt, rim, white, pupil, iris=''):
-    # the rim is the white's own shape pushed down-right, so it shows as a crescent there and the upper left has no border
+    # the rim is the white pushed down-right, so it shows only as a lower-right crescent
     b = bumps(0.04)
     px, py, prx, pry = pupil
     inner = f'<path fill="{iris}" d="{wobbly(px + 1.2, py + 1.2, prx * 0.6, pry * 0.6, tilt, bumps(0.04), n=8)}"/>' if iris else ''
