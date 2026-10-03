@@ -10,8 +10,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/batchcompile"
 )
 
-// drizzleSchemaTS keeps light and heavy side by side, as an app does: mion's slim tables and the models a route
-// returns, then toDrizzle, relations and a drizzle db, which only the server may use.
+// drizzleSchemaTS mixes the slim models with server-only drizzle values in one file, as an app does.
 const drizzleSchemaTS = `import * as DZ from '@mionjs/drizzle-orm-pg-core';
 import {toDrizzle} from '@mionjs/drizzle-orm-pg-core/drizzle';
 import {drizzle} from 'drizzle-orm/pg-proxy';
@@ -35,7 +34,6 @@ export const usersRelations = relations(usersDb, ({many}) => ({posts: many(posts
 export const db = drizzle(async () => ({rows: []}), {schema: {users: usersDb, posts: postsDb, usersRelations}});
 `
 
-// drizzleRoutesTS exports only the API, and its routes take and return only the slim models.
 const drizzleRoutesTS = `import {createMionRouter} from '@mionjs/router';
 import {db, type NewUser, type User} from './schema.ts';
 
@@ -50,8 +48,7 @@ export const api = mion.initRoutes({
 });
 `
 
-// TestTrim_ShipsSlimDrizzleTypesNeverDrizzle builds a real server with the real packages: the plain declaration
-// emit carries drizzle, and the types-only package keeps the slim models and nothing of drizzle.
+// TestTrim_ShipsSlimDrizzleTypesNeverDrizzle runs on the real workspace packages, not stubs like the other trim tests.
 func TestTrim_ShipsSlimDrizzleTypesNeverDrizzle(t *testing.T) {
 	_, self, _, _ := runtime.Caller(0)
 	repo := filepath.Join(filepath.Dir(self), "..", "..", "..", "..")
