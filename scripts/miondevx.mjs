@@ -76,9 +76,8 @@ const die = (msg, code = 1) => {
 // lanes (sequences / iterations) have fixed coverage — contention only costs
 // wall clock, so they may share a runner.
 //
-// ⚠ MION_FUZZ_ITER drives the two convert lanes (`convert` and `convertcli`),
-// `apiids` AND `apitypes`: exporting it in a shell widens them all at once. The
-// tier blocks set it per-lane, so `--quick` / `--soak` never collide.
+// ⚠ MION_FUZZ_ITER drives convert, convertcli, apiids and apitypes: exported in a shell it widens all four.
+// The tier blocks set it per lane, so `--quick` / `--soak` never collide.
 const FUZZ = {
   unit: {config: 'packages/run-types/test/fuzz/vitest.fuzz-unit.config.ts'},
   // Patterns are vitest positional filters: case-INSENSITIVE substring matches
@@ -126,22 +125,15 @@ const FUZZ = {
   // client project (different tsconfig) per generated type; the server manifest
   // must agree with the reflection marker, and `mion api-check` must pass.
   apiids: {patterns: ['apiids/apiIdsFuzz.integration'], quick: {MION_FUZZ_ITER: '10'}, soak: {MION_FUZZ_ITER: '40'}},
-  // The api-types trimmer (Go-side): random declaration graphs labelled at
-  // generation as reached by the API or not; nothing unreached ships, nothing
-  // reached is lost (type ids equal), re-trimming and the same seed are no-ops.
+  // The Go api-types trimmer: nothing unreached ships, nothing reached is lost, re-trims and reruns are no-ops.
   apitypes: {goTest: ['./internal/compiler/apitypes/', '-run', 'TestFuzz_', '-count=1', '-timeout', '40m'], quick: {MION_FUZZ_ITER: '30'}, soak: {MION_FUZZ_ITER: '1000'}},
   // Drizzle pure-types road: random table specs rendered as TYPE SOURCE,
   // scanned by the real resolver, tableFromType over the reflected graph must
   // equal a raw drizzle build (the wide in-process three-surface fuzz rides
   // the ordinary drizzle-pg vitest project). MION_FUZZ_SEED replays.
   drizzletypes: {patterns: ['drizzleTypeSource.integration'], quick: {MION_FUZZ_ITER: '10'}, soak: {MION_FUZZ_ITER: '40'}},
-  // Honest composite: EVERY lane at its default budget — the whole test/fuzz
-  // tree (all JS lanes + the unit files + the fuzz-adjacent regression tests),
-  // both sidecar lanes, the race test (via the env below), both Go sweeps
-  // under internal/convert (`-run TestFuzz_` also catches the lane-less
-  // schemadoc determinism sweep) and the api-types sweep. No tier blocks on
-  // purpose: a quick/soak round is per-lane so the time-boxed lanes never share
-  // CPU (rule above).
+  // Every lane at its default budget; `-run TestFuzz_` also catches the lane-less schemadoc determinism sweep.
+  // No tier blocks: a quick/soak round is per lane so the time-boxed lanes never share CPU (rule above).
   all: {patterns: ['test/fuzz', 'patternSidecarFuzz', 'patternGenFuzz'], env: {MION_FUZZ_RACE: '1'}, goTest: ['./internal/convert/', './internal/compiler/apitypes/', '-run', 'TestFuzz_', '-count=1']},
 };
 // Go→TS mirrors. miondevx runs each generator DIRECTLY — the whole point is that

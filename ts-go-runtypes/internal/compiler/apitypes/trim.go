@@ -308,9 +308,7 @@ func (trimmer *trimmer) mark(entry *fileInfo, apiExports []string) {
 	}
 }
 
-// augmentationNeeded: a side-effect import of a kept file, a relative augmentation of a kept declaration, a global
-// member kept code reads or that merges into a library global from a kept file, or an augmentation of a package kept
-// code reaches.
+// augmentationNeeded: side-effect imports ride a kept file; augmentations and globals ride what kept code reads or reaches.
 func (trimmer *trimmer) augmentationNeeded(file *fileInfo, always *item) bool {
 	switch {
 	case always.kind == itemMember && !ast.IsGlobalScopeAugmentation(always.block.statement):
@@ -338,8 +336,7 @@ func (trimmer *trimmer) augmentationNeeded(file *fileInfo, always *item) bool {
 	return trimmer.packageReached(always.statement.Name())
 }
 
-// mergesOutsideProject: a global member also declared by a library or a package, which the API may read without
-// naming it.
+// mergesOutsideProject: a library or package also declares the member, so the API may read it without naming it.
 func (trimmer *trimmer) mergesOutsideProject(member *item) bool {
 	name := member.statement.Name()
 	if name == nil {
@@ -357,8 +354,7 @@ func (trimmer *trimmer) mergesOutsideProject(member *item) bool {
 	return false
 }
 
-// packageReached: the module an augmentation names is a package kept code imports, or one such a package imports
-// at any depth, so its types reach the client.
+// packageReached: kept code imports the augmented package, at any depth, so its types reach the client.
 func (trimmer *trimmer) packageReached(moduleName *ast.Node) bool {
 	symbol := trimmer.checker.GetSymbolAtLocation(moduleName)
 	if symbol == nil {

@@ -32,8 +32,7 @@ const releaseGate = read('.github/workflows/release-gate.yml');
 const fuzzSoak = read('.github/workflows/fuzz-soak.yml');
 const ci = read('.github/workflows/ci.yml');
 
-// One registry entry per line (the registry comment pins that layout for this
-// parser's sake): name, then the tier blocks parsed out of the body.
+// The registry keeps one entry per line for this parser's sake.
 type Lane = {
   patterns: string[];
   hasGoTest: boolean;

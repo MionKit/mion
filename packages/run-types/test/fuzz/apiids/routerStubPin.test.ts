@@ -1,7 +1,5 @@
-// Pin for the apiids lane's router and client stubs (apiIdsFuzz.ts): a restatement, so every spelling the A4 path
-// reads (the build version on the API type, and the build version parameters) is checked against the shipped source.
-// A run-types test cannot import @mionjs/router or @mionjs/client (they depend on run-types), so the pin compares
-// the declarations' text, whitespace aside.
+// Pins the apiids lane's router and client stubs (apiIdsFuzz.ts) to the shipped build version declarations.
+// A run-types test cannot import @mionjs/router or @mionjs/client (they depend on run-types), so it compares text.
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';

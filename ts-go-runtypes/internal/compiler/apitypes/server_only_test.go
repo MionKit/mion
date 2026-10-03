@@ -41,8 +41,7 @@ export declare const api: PublicApi<typeof routes> & ApiBuildVersion<"v1">;
 	assertChecks(t, input, output)
 }
 
-// TestTrim_ServerOnlyExportsShipNothing: a db value, a service class and a handler helper beside the API all go,
-// whether they name the package by an import, an `import()` type or a namespace import.
+// TestTrim_ServerOnlyExportsShipNothing: whether they name the package by import, `import()` type or namespace import.
 func TestTrim_ServerOnlyExportsShipNothing(t *testing.T) {
 	output, input := trimProject(t, map[string]string{
 		"index.d.ts": `import type { HeavyDb } from 'heavy-pkg';
@@ -63,8 +62,7 @@ export interface User { id: string; name: string }
 	assertChecks(t, input, output)
 }
 
-// TestTrim_BarrelBesideServerOnlyTablesShipsOnlyTheRow: an `export *` barrel over a schema file keeps the row type
-// the API returns and drops the tables and db beside it.
+// TestTrim_BarrelBesideServerOnlyTablesShipsOnlyTheRow: an `export *` barrel drops the tables and db.
 func TestTrim_BarrelBesideServerOnlyTablesShipsOnlyTheRow(t *testing.T) {
 	output, input := trimProject(t, map[string]string{
 		"index.d.ts":  "export * from './schema.ts';\nexport * from './api.ts';\n",
@@ -76,8 +74,7 @@ func TestTrim_BarrelBesideServerOnlyTablesShipsOnlyTheRow(t *testing.T) {
 	assertChecks(t, input, output)
 }
 
-// TestTrim_ServerOnlyAugmentationsShipNothing: augmentations of the server-only package, or globals the API never
-// reads, in files nothing names, stay on the server.
+// TestTrim_ServerOnlyAugmentationsShipNothing: package augmentations and unread globals, in files nothing names.
 func TestTrim_ServerOnlyAugmentationsShipNothing(t *testing.T) {
 	output, input := trimProject(t, map[string]string{
 		"index.d.ts":   apiOf(`get: import("@mionjs/router").PublicRoute<(id: string) => Promise<void>>;`),
@@ -93,8 +90,7 @@ func TestTrim_ServerOnlyAugmentationsShipNothing(t *testing.T) {
 	assertChecks(t, input, output)
 }
 
-// TestTrim_NamespaceImportShipsOnlyTheMembersRead: `M.User` through `import * as M` keeps User, not the whole file;
-// a bare read of M still keeps every export.
+// TestTrim_NamespaceImportShipsOnlyTheMembersRead: `M.User` keeps only User; a bare read of M keeps every export.
 func TestTrim_NamespaceImportShipsOnlyTheMembersRead(t *testing.T) {
 	models := "import type { HeavyDb } from 'heavy-pkg';\nexport interface User { id: string }\nexport declare const roles: readonly [\"admin\"];\nexport declare class ServerOnly { db: HeavyDb }\n"
 	output, input := trimProject(t, map[string]string{
@@ -113,8 +109,7 @@ func TestTrim_NamespaceImportShipsOnlyTheMembersRead(t *testing.T) {
 	assertChecks(t, wholeInput, whole)
 }
 
-// TestTrim_AugmentationsShipOnlyWhatIsRead: a kept file's `declare global` keeps only the members kept code reads,
-// and its augmentation of a package nothing kept imports goes.
+// TestTrim_AugmentationsShipOnlyWhatIsRead: only read globals stay; augmenting a package no kept code imports goes.
 func TestTrim_AugmentationsShipOnlyWhatIsRead(t *testing.T) {
 	output, input := trimProject(t, map[string]string{
 		"index.d.ts": "import type { Model } from './model.ts';\n" + apiOf(`get: import("@mionjs/router").PublicRoute<(m: Model, b: Branded) => Promise<void>>;`),
@@ -136,8 +131,7 @@ declare module 'heavy-pkg' {
 	assertChecks(t, input, output)
 }
 
-// TestTrim_RelativeAugmentationShipsWithItsTarget: a `declare module './model.ts'` member ships with the declaration
-// it augments, and goes with it otherwise.
+// TestTrim_RelativeAugmentationShipsWithItsTarget: its members go when their target is dropped.
 func TestTrim_RelativeAugmentationShipsWithItsTarget(t *testing.T) {
 	files := func(api string) map[string]string {
 		return map[string]string{
@@ -169,8 +163,7 @@ func TestTrim_SideEffectImportKeepsItsGlobals(t *testing.T) {
 	assertChecks(t, input, output)
 }
 
-// TestTrim_KeepsGlobalsReadThroughAnotherName: `globalThis.counter` reads the global `counter`, and a member merged
-// into a library global (`SymbolConstructor`) is read through `Symbol`, so both stay.
+// TestTrim_KeepsGlobalsReadThroughAnotherName: `globalThis.counter`, and a SymbolConstructor merge read via `Symbol`.
 func TestTrim_KeepsGlobalsReadThroughAnotherName(t *testing.T) {
 	output, input := trimProject(t, map[string]string{
 		"index.d.ts": `export interface Model { id: string }
@@ -187,8 +180,7 @@ export type Branded = { [Symbol.brand]: string; count: typeof globalThis.counter
 	assertChecks(t, input, output)
 }
 
-// TestTrim_KeepsAnAugmentationOfAPackageReachedThroughAnother: ext-pkg's Box reads ext-dep's Inner, so augmenting
-// ext-dep changes a type the API reaches, though no kept code imports ext-dep.
+// TestTrim_KeepsAnAugmentationOfAPackageReachedThroughAnother: the API reaches ext-dep only through ext-wrap's Wrapped.
 func TestTrim_KeepsAnAugmentationOfAPackageReachedThroughAnother(t *testing.T) {
 	project := map[string]string{
 		"node_modules/ext-dep/package.json":  `{"name": "ext-dep", "types": "index.d.ts"}`,
