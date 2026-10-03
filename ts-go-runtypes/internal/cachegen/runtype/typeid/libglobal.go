@@ -73,7 +73,7 @@ func isPlatformDeclaration(declaration *ast.Node, environment Environment) bool 
 		return false
 	}
 	fileName := sourceFile.FileName()
-	if isDefaultLibFileName(fileName) && strings.HasPrefix(tspath.NormalizePath(fileName), bundledLibPrefix) {
+	if IsDefaultLibFileName(fileName) && strings.HasPrefix(tspath.NormalizePath(fileName), bundledLibPrefix) {
 		return true
 	}
 	if environment == nil || !sourceFile.IsDeclarationFile || !environment(sourceFile) {

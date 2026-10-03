@@ -949,7 +949,7 @@ func isDefaultLibGlobalMember(symbol *ast.Symbol) bool {
 			return false
 		}
 		sourceFile := ast.GetSourceFileOfNode(declaration)
-		if sourceFile == nil || !isDefaultLibFileName(sourceFile.FileName()) {
+		if sourceFile == nil || !IsDefaultLibFileName(sourceFile.FileName()) {
 			return false
 		}
 	}
@@ -983,9 +983,9 @@ func hasNonEnumerableTag(symbol *ast.Symbol) bool {
 	return false
 }
 
-// isDefaultLibFileName reports whether a file name is a TypeScript default lib
+// IsDefaultLibFileName reports whether a file name is a TypeScript default lib
 // (`lib.es5.d.ts`, `lib.es2022.error.d.ts`, …) by its basename shape.
-func isDefaultLibFileName(fileName string) bool {
+func IsDefaultLibFileName(fileName string) bool {
 	base := fileName
 	if i := strings.LastIndexAny(base, "/\\"); i >= 0 {
 		base = base[i+1:]
