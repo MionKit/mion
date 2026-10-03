@@ -406,6 +406,12 @@ func TestTrim_KeepsAugmentationsFromOtherFiles(t *testing.T) {
 // apiTypeText prints the API export's resolved type in a program over files: equal text, equal ids.
 func apiTypeText(t *testing.T, input Input, files map[string]string, entry string) string {
 	t.Helper()
+	return apiTypeTextBy(t, input, files, entry, func(trimmer *trimmer) func(*checker.Type) string { return trimmer.checker.TypeToString })
+}
+
+// apiTypeTextBy is apiTypeText with each member printed by the printer the program's trimmer gives.
+func apiTypeTextBy(t *testing.T, input Input, files map[string]string, entry string, printer func(*trimmer) func(*checker.Type) string) string {
+	t.Helper()
 	trimmer, release, err := newTrimmer(input, files)
 	if err != nil {
 		t.Fatal(err)
@@ -416,14 +422,14 @@ func apiTypeText(t *testing.T, input Input, files map[string]string, entry strin
 		if exported.Name != "api" {
 			continue
 		}
-		return membersText(trimmer, trimmer.exportType(exported))
+		return membersText(trimmer, trimmer.exportType(exported), printer(trimmer))
 	}
 	t.Fatalf("no api export in %s", entry)
 	return ""
 }
 
 // membersText prints a type's members, nested route groups expanded, the version key named without its position.
-func membersText(trimmer *trimmer, apiType *checker.Type) string {
+func membersText(trimmer *trimmer, apiType *checker.Type, print func(*checker.Type) string) string {
 	var members []string
 	for _, property := range trimmer.checker.GetPropertiesOfType(apiType) {
 		name := property.Name
@@ -431,9 +437,9 @@ func membersText(trimmer *trimmer, apiType *checker.Type) string {
 			name = "apiBuildVersion"
 		}
 		propertyType := trimmer.checker.GetTypeOfSymbol(property)
-		text := trimmer.checker.TypeToString(propertyType)
-		if strings.HasPrefix(text, "PublicApi<") {
-			text = "{" + membersText(trimmer, propertyType) + "}"
+		text := print(propertyType)
+		if strings.HasPrefix(trimmer.checker.TypeToString(propertyType), "PublicApi<") {
+			text = "{" + membersText(trimmer, propertyType, print) + "}"
 		}
 		members = append(members, name+": "+text)
 	}
@@ -484,11 +490,16 @@ export declare const api: PublicApi<typeof routes> & ApiBuildVersion<"v1">;
 
 func apiTypeTextOf(t *testing.T, input Input, output *Output) string {
 	t.Helper()
-	files := map[string]string{}
-	for rel, text := range output.Files {
-		files[filepath.Join(input.DeclarationDir, filepath.FromSlash(rel))] = text
+	return apiTypeText(t, input, absoluteFiles(input, output.Files), filepath.Join(input.DeclarationDir, filepath.FromSlash(output.Entry)))
+}
+
+// absoluteFiles keys output files by absolute path under the declaration dir, as Input.Declarations is.
+func absoluteFiles(input Input, files map[string]string) map[string]string {
+	out := make(map[string]string, len(files))
+	for rel, text := range files {
+		out[filepath.Join(input.DeclarationDir, filepath.FromSlash(rel))] = text
 	}
-	return apiTypeText(t, input, files, filepath.Join(input.DeclarationDir, filepath.FromSlash(output.Entry)))
+	return out
 }
 
 // TestTrim_CutsThroughANamedAlias: PublicApi<Routes> over a type alias cuts the alias's members the same way.
