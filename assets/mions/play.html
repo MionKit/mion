@@ -237,7 +237,7 @@ const lay = () => {
   for (const p of pieces) {
     if (p.fixed || p.falling) continue;
     const a = p.angle + clock * p.ring.speed;
-    p.root.position.set(centre.x + Math.cos(a) * p.ring.rx * p.wobble, centre.y + Math.sin(a) * p.ring.ry * p.wobble);
+    p.root.position.set(centre.x + Math.cos(a) * p.ring.rx * p.wobble, centre.y + 45 + Math.sin(a) * p.ring.ry * p.wobble);   // the rings sit a little below the island's middle
     p.root.zIndex = p.root.y;
     p.body.y = Math.sin(clock * 1.05 + p.phase) * 6 / p.root.scale.y;
   }
