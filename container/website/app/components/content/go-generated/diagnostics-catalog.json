@@ -1362,6 +1362,24 @@
       "example": null
     },
     {
+      "code": "MET015",
+      "subsystem": "bundled-api",
+      "level": "runtimeError",
+      "headline": "The API package {0} ships types only, but {1}: a client can only trust types-only packages that `mion api-types` built.",
+      "summary": "A package with types and no JavaScript entry is read as a types-only API package. `mion api-types` writes one with a `mion.apiTypes` field in its package.json and the `mion-api.json` marker it names. This package lacks them, so its `.d.ts` may come from another tool, and the client cannot trust its ids, its private fields or its pure functions. Rebuild the package with `mion api-types` and publish its output folder.",
+      "fix": "mion api-types --tsconfig tsconfig.json --out api-types",
+      "example": null
+    },
+    {
+      "code": "MET016",
+      "subsystem": "bundled-api",
+      "level": "warning",
+      "headline": "The API package {0} was built by mion {1}, this build runs {2}: the ids of both sides may differ.",
+      "summary": "Type ids include the mion version that computed them, so a client and a server built by different versions get different ids, and the server answers every call with a version mismatch. Build the client with the mion version the types package names, or rebuild the package with yours.",
+      "fix": "npm install -D @mionjs/bin-compiler@<the version in mion-api.json>",
+      "example": null
+    },
+    {
       "code": "SRV001",
       "subsystem": "client-imports",
       "level": "runtimeError",

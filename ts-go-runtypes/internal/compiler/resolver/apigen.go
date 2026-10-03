@@ -152,6 +152,7 @@ type apiFetchMemo struct {
 	factsDone bool
 	clients   []apimeta.ClientApi
 	setUps    []apimeta.FetchSetUp
+	apiTypes  *apiTypesCheck
 }
 
 type apiWalk struct {
@@ -341,6 +342,7 @@ func (sess *Session) generateApiBundle(outDir string, sites []apimeta.Site) ([]d
 	bundle, bundleDiags := sess.resolveApiBundle(sites)
 	diags = append(diags, bundleDiags...)
 	diags = append(diags, sess.fetchSetupDiags(sites)...)
+	diags = append(diags, sess.apiTypesPackages().diags...)
 	serverManifest := sess.serverApiManifest()
 	if bundle.empty() && serverManifest == nil {
 		if err := os.RemoveAll(apiDir); err != nil {

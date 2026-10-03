@@ -25,6 +25,9 @@ import (
 // directive exists is one substring scan per source file.
 func (sess *Session) settleDiagnostics(list []diagnostics.Diagnostic, request protocol.Request) []diagnostics.Diagnostic {
 	list = diagnostics.Dedupe(list)
+	if request.Op == protocol.OpGenerate || request.Op == protocol.OpDump {
+		list = sess.dropRefusedApiTypeDiags(list)
+	}
 	scope := sess.directiveScope(request)
 	if len(list) == 0 && !scope.Reports {
 		return list
