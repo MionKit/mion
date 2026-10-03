@@ -372,6 +372,11 @@ const (
 	// ApiClientManifestFile is the client's id manifest under ApiModuleDir, from the routes it bundled. A program
 	// holding both writes both, so `mion api-check` can compare a client build against any server build.
 	ApiClientManifestFile = "client-manifest.json"
+	// ApiTypesMarkerFile is the marker `mion api-types` writes at a types-only package's root; the package.json
+	// `mion.apiTypes` field names it, and a client refuses a types-only package without both (MET015).
+	ApiTypesMarkerFile = "mion-api.json"
+	// ApiTypesManifestDir is the gen dir copy inside a types-only package, so `mion api-check` reads its manifest.
+	ApiTypesManifestDir = ".mion"
 	// ApiLaneFile is the BASENAME of the module a CLIENT build writes under ApiModuleDir to call `setApiBundled`.
 	// Bundling is a build option, so every `initClient` file side-effect imports it, the way batches reach a server.
 	ApiLaneFile = "lane"
