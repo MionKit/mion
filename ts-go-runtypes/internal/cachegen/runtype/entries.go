@@ -1,6 +1,8 @@
 package runtype
 
 import (
+	"maps"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -24,24 +26,9 @@ const bundleKeyLength = 10
 func CollectEntries(dump protocol.Dump, jsonMaxBytes bool, moduleOf func(protocol.Site) string) entrymodules.Graph {
 	graph := entrymodules.Graph{}
 	nodes := indexNodes(dump.RunTypes)
-	// Circular createX types add no rows: their guard is a path skeleton baked into the armed factory.
-	for _, group := range reflectionGroups(dump.Sites, moduleOf) {
-		collectModule(graph, group, nodes, jsonMaxBytes)
-	}
-	return graph
-}
-
-// reflectionGroup is one module's reflection sites and their deduped, sorted roots.
-type reflectionGroup struct {
-	module string
-	sites  []protocol.Site
-	roots  []string
-}
-
-// reflectionGroups splits the reflection sites by module, sorted by module name so the graph is deterministic.
-func reflectionGroups(sites []protocol.Site, moduleOf func(protocol.Site) string) []reflectionGroup {
-	byModule := map[string]*reflectionGroup{}
-	for _, site := range sites {
+	sitesByModule := map[string][]protocol.Site{}
+	for _, site := range dump.Sites {
+		// Circular createX types add no rows: their guard is a path skeleton baked into the armed factory.
 		if site.ID == "" || site.FnId != "" {
 			continue
 		}
@@ -49,31 +36,25 @@ func reflectionGroups(sites []protocol.Site, moduleOf func(protocol.Site) string
 		if moduleOf != nil {
 			module = moduleOf(site)
 		}
-		group := byModule[module]
-		if group == nil {
-			group = &reflectionGroup{module: module}
-			byModule[module] = group
-		}
-		group.sites = append(group.sites, site)
+		sitesByModule[module] = append(sitesByModule[module], site)
 	}
-	out := make([]reflectionGroup, 0, len(byModule))
-	for _, group := range byModule {
-		group.roots = reflectionRoots(group.sites)
-		out = append(out, *group)
+	// Sorted, so the graph is deterministic.
+	for _, module := range slices.Sorted(maps.Keys(sitesByModule)) {
+		collectModule(graph, module, sitesByModule[module], nodes, jsonMaxBytes)
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].module < out[j].module })
-	return out
+	return graph
 }
 
 // collectModule adds one module's data entry and facades to graph.
-func collectModule(graph entrymodules.Graph, group reflectionGroup, nodes map[string]*reflection.RunType, jsonMaxBytes bool) {
-	rows := closureRows(group.roots, nodes)
+func collectModule(graph entrymodules.Graph, module string, sites []protocol.Site, nodes map[string]*reflection.RunType, jsonMaxBytes bool) {
+	roots := reflectionRoots(sites)
+	rows := closureRows(roots, nodes)
 	indexOf := make(map[string]int, len(rows))
 	for i, id := range rows {
 		indexOf[id] = i
 	}
-	rootJSONMax := rootJSONMaxBytes(group.roots, nodes, jsonMaxBytes)
-	dataKey := group.module + moduleKeySeparator + dataEntryName
+	rootJSONMax := rootJSONMaxBytes(roots, nodes, jsonMaxBytes)
+	dataKey := module + moduleKeySeparator + dataEntryName
 	// A root missing from the dump still gets a facade so the injected import resolves; the runtime sees a registry miss.
 	var facadeDeps []string
 	if len(rows) > 0 {
@@ -108,18 +89,18 @@ func collectModule(graph entrymodules.Graph, group reflectionGroup, nodes map[st
 		graph.Add(&entrymodules.Entry{
 			Key:      dataKey,
 			Kind:     entrymodules.KindRunTypeBundle,
-			Module:   group.module,
+			Module:   module,
 			ArgsText: quoteJS(tupleKey) + ",[" + rowsText.String() + "],[" + strings.Join(relRows[:relEnd], ",") + "]",
 			InitBody: footer.String(),
 		})
 		facadeDeps = []string{dataKey}
 	}
-	extraDeps := reflectionSiteDemandKeys(group.sites)
-	for _, root := range group.roots {
+	extraDeps := reflectionSiteDemandKeys(sites)
+	for _, root := range roots {
 		graph.Add(&entrymodules.Entry{
-			Key:      group.module + moduleKeySeparator + root,
+			Key:      module + moduleKeySeparator + root,
 			Kind:     entrymodules.KindRunTypeFacade,
-			Module:   group.module,
+			Module:   module,
 			Export:   root,
 			ArgsText: quoteJS(root),
 			Deps:     facadeDeps,
