@@ -53,6 +53,7 @@ Commands:
     convert     rewrite type declarations between the three authoring forms
     drizzle-migrate  move a drizzle schema onto the slim @mionjs/drizzle-orm-* packages
     api-check   compare a client build's bundled API manifest against the server build's (a prerelease gate)
+    api-types   build a types-only package for an API's clients: trimmed .d.ts, manifest, marker, package.json
 
 Run  mion <command> -h  for a command's own options.
 
@@ -96,6 +97,7 @@ var commands = map[string]func(args []string){
 	"convert":         runConvert,
 	"drizzle-migrate": runDrizzleMigrate,
 	"api-check":       runApiCheck,
+	"api-types":       runApiTypes,
 }
 
 func main() {
@@ -661,14 +663,29 @@ func runCompile(args []string) {
 	if compileErr != nil {
 		fatal("compile: %v", compileErr)
 	}
+	errorCount := printBuildDiagnostics("compile", cfg, compileResult)
+	if *noEmit {
+		fmt.Fprintf(os.Stderr, "mion: checked %d file(s), wrote nothing (--no-emit)\n", compileResult.CheckedFiles)
+	} else {
+		fmt.Fprintf(os.Stderr, "mion: compiled %d file(s), %d cache module(s)\n",
+			len(compileResult.EmittedFiles), len(compileResult.Caches))
+	}
+	if errorCount > 0 {
+		exitAfterProfiling(1)
+	}
+}
+
+// printBuildDiagnostics prints a compile run's TypeScript and mion diagnostics the way a bundler build does and
+// returns the error count; downgradeErrors and levels come from the same tsconfig keys.
+func printBuildDiagnostics(command string, cfg sessionConfig, compileResult *batchcompile.Result) int {
 	// Same tsconfig `downgradeErrors` as a bundler build, so the CLI grows no flag of its own.
 	downgrade, downgradeErr := diagnostics.ResolveDowngrade(cfg.opts.TsconfigDowngradeErrors)
 	if downgradeErr != nil {
-		fatal("compile: %v", downgradeErr)
+		fatal(command+": %v", downgradeErr)
 	}
 	showInfo, levelsErr := diagnostics.ResolveLevels(cfg.opts.TsconfigLevels)
 	if levelsErr != nil {
-		fatal("compile: %v", levelsErr)
+		fatal(command+": %v", levelsErr)
 	}
 	// TypeScript errors fail the build as in tsc; downgradeErrors and levels never apply to them.
 	for _, line := range compileResult.TypeDiagnostics {
@@ -691,15 +708,7 @@ func runCompile(args []string) {
 			errorCount++
 		}
 	}
-	if *noEmit {
-		fmt.Fprintf(os.Stderr, "mion: checked %d file(s), wrote nothing (--no-emit)\n", compileResult.CheckedFiles)
-	} else {
-		fmt.Fprintf(os.Stderr, "mion: compiled %d file(s), %d cache module(s)\n",
-			len(compileResult.EmittedFiles), len(compileResult.Caches))
-	}
-	if errorCount > 0 {
-		exitAfterProfiling(1)
-	}
+	return errorCount
 }
 
 // serveRequests drains the request stream, dispatching each and encoding the
