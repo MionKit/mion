@@ -61,11 +61,6 @@ func RenderArtifactIndex(packageName, packageRoot string, entries []purefunction
 		rows = append(rows, ArtifactIndexRow{ID: entry.ID, BindingName: entry.BindingName, File: RelativeToRoot(packageRoot, entry.FilePath)})
 	}
 	sort.Slice(rows, func(i, j int) bool { return rows[i].ID < rows[j].ID })
-	var payload bytes.Buffer
-	encoder := json.NewEncoder(&payload)
-	// Nothing serves this as HTML, and escaping `<` or `&` in a path or name would only make it unreadable.
-	encoder.SetEscapeHTML(false)
-	encoder.SetIndent("", "  ")
 	index := ArtifactIndex{Format: ArtifactFormat, Package: packageName, PureFns: rows}
 	if len(overrides) > 0 {
 		index.Compiler = constants.Version
@@ -75,6 +70,16 @@ func RenderArtifactIndex(packageName, packageRoot string, entries []purefunction
 			return left.BaseKey < right.BaseKey || (left.BaseKey == right.BaseKey && left.Family < right.Family)
 		})
 	}
+	return index.Render()
+}
+
+// Render encodes the index the one way every writer does, so the bytes are stable.
+func (index ArtifactIndex) Render() []byte {
+	var payload bytes.Buffer
+	encoder := json.NewEncoder(&payload)
+	// Nothing serves this as HTML, and escaping `<` or `&` in a path or name would only make it unreadable.
+	encoder.SetEscapeHTML(false)
+	encoder.SetIndent("", "  ")
 	if err := encoder.Encode(index); err != nil {
 		// Strings always marshal; this cannot happen.
 		panic(fmt.Sprintf("render %s: %v", constants.PureFnArtifactIndexFile, err))
