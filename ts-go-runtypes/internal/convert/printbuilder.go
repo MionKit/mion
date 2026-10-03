@@ -228,8 +228,7 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 				return "", keyDiag
 			}
 			if !keyed || indexes[0].readonly && bagText != "" {
-				// One `record` carries one value type and one readonly mark, and `Readonly<>` over a
-				// branded record is not the written shape, so these escape.
+				// One `record` holds one value type and readonly mark; `Readonly<>` over a branded record is not the written shape.
 				return ctx.builderEscape(node)
 			}
 			valueText, valueDiag := ctx.builderExpr(indexes[0].value)
@@ -446,7 +445,7 @@ func (ctx *printContext) collectionBuilder(node *reflection.RunType, builder, ar
 	return ctx.names.RT + "." + fmt.Sprintf("%s(%s, {%s})", builder, argsText, strings.Join(parts, ", ")), nil
 }
 
-// readonlyBuilder wraps a readonly tuple or array in `RT.readonly(...)`, whose `Readonly<[..]>` is `readonly [..]`.
+// readonlyBuilder wraps in `RT.readonly(...)`, whose `Readonly<>` spells the written `readonly`.
 func (ctx *printContext) readonlyBuilder(readonly bool, text string) string {
 	ctx.needs.useRT = true
 	if readonly {

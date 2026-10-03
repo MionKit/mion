@@ -444,7 +444,7 @@ func MergeTupleIntersection(
 			// other union's.
 			if winner.stripped == nil || contribution.stripped == nil ||
 				(winner.stripped != contribution.stripped && !equalTypes(winner.stripped, contribution.stripped)) {
-				// `readonly T[] & T[]` is the mutable twin (it has push), so the twins agree on the mutable one.
+				// `readonly T[] & T[]` has push, so readonly twins agree on the mutable one.
 				if mutable, twins := readonlyTwin(typeChecker, winner.stripped, contribution.stripped, equalTypes); twins {
 					if mutable == contribution.stripped {
 						winner = contribution
