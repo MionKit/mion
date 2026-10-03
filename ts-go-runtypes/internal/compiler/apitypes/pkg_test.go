@@ -51,7 +51,7 @@ func TestBuildPackage_ManifestMarkerAndPeers(t *testing.T) {
 	if pkg.Name != "@acme/api-types" || pkg.Version != "1.2.3" || pkg.Types != "./index.d.ts" || pkg.Main != "" || pkg.License != "MIT" {
 		t.Errorf("package.json: %s", files["package.json"])
 	}
-	if pkg.Exports["."]["types"] != "./index.d.ts" || len(pkg.Exports["."]) != 1 {
+	if pkg.Exports["."]["types"] != "./index.d.ts" || len(pkg.Exports["."]) != 1 || pkg.Exports["./*"]["types"] != "./*.d.ts" {
 		t.Errorf("exports must hold only types: %v", pkg.Exports)
 	}
 	if pkg.Mion.ApiTypes != "./mion-api.json" || strings.Join(pkg.Files, ",") != ".mion,index.d.ts,mion-api.json" {
