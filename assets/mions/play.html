@@ -155,20 +155,20 @@ for (const [r, ring] of rings.entries()) for (let i = 0; i < ring.count; i++) {
   Object.assign(a, { kind, ring, angle: (i / ring.count) * Math.PI * 2 + r * 0.3 + rand(-0.12, 0.12), wobble: rand(0.92, 1.08), phase: rand(0, 6.28), slots: [{ ...spot, holder: null }] });
   world.addChild(a.root); pieces.push(a);
 }
-// mushroom trees stand still around the island: two small ones behind it, a full-size one below it so the island floats over it
+// mushroom trees stand still around the island: two small ones behind it, a full-size one below its front, drawn over the island but under everything else
 const tb = island.L.top, nw = toWorld(island, tb), se = toWorld(island, { x: tb.x + tb.w, y: tb.y + tb.h });
 const corner = { left: { x: nw.x, y: (nw.y + se.y) / 2 }, back: { x: (nw.x + se.x) / 2, y: nw.y }, right: { x: se.x, y: (nw.y + se.y) / 2 }, front: { x: (nw.x + se.x) / 2, y: se.y } };
 const along = (a, b, t, dx, dy) => ({ x: lerp(a.x, b.x, t) + dx, y: lerp(a.y, b.y, t) + dy });
 const TREES = [
   { at: along(corner.left, corner.back, 0.42, -30, -40), size: 0.5 },
   { at: along(corner.back, corner.right, 0.62, 30, -45), size: 0.62 },
-  { at: along(corner.left, corner.front, 0.55, -20, 215), size: 0.9 },
+  { at: along(corner.left, corner.front, 0.55, -20, 215), size: 0.9, over: true },
 ];
 for (const t of TREES) {
   const a = await actor('terrain/tree-mushroom.svg', 0.5 * t.size);
   a.root.position.set(t.at.x, t.at.y);
   Object.assign(a, { kind: 'tree', fixed: true, slots: [] });
-  a.root.zIndex = island.root.zIndex - 1;
+  a.root.zIndex = island.root.zIndex + (t.over ? 0.5 : -1);
   world.addChild(a.root); pieces.push(a);
 }
 const roomy = p => p.L.top && p.L.top.w * p.root.scale.x > 34;
