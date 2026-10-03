@@ -66,7 +66,7 @@ def find_eyes(soft, inside, min_r=4):
     chroma = np.hypot(lab[..., 1] - 128, lab[..., 2] - 128)
     white = (lab[..., 0] > 200) & (chroma < 14) & inside
     white = cv2.morphologyEx(white.astype(np.uint8), cv2.MORPH_OPEN, np.ones((5, 5), np.uint8))
-    dark = (lab[..., 0] < 80) & inside
+    dark = (lab[..., 0] < 115) & inside   # pupils are soft dark greys, not black
     n, comp, stats, _ = cv2.connectedComponentsWithStats(white)
     eyes = []
     for i in range(1, n):
