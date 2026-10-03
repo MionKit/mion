@@ -359,3 +359,114 @@ export const sampleId = getRunTypeId(sample);
 		t.Fatalf("CheckedFiles = %d, want 2 (foo.ts, bar.ts; the .d.ts is not counted)", result.CheckedFiles)
 	}
 }
+
+// badTS fails plain tsc with TS2345 (a string is not a number) and holds no mion marker at all.
+const badTS = `export function double(value: number): number {
+  return value * 2;
+}
+export const twice = double('2');
+`
+
+func typeErrorOptions(tmp string, mutate func(*Options)) Options {
+	opts := Options{
+		Cwd:          tmp,
+		TsconfigPath: "tsconfig.json",
+		GenDir:       filepath.Join(tmp, ".mion"),
+		ResolverOpts: resolver.Options{
+			Cwd:        tmp,
+			EmitMode:   constants.EmitCode,
+			ModuleMode: constants.ModuleModeDefault,
+			InlineMode: constants.InlineModeDefault,
+			CacheDir:   filepath.Join(tmp, ".cache"),
+		},
+	}
+	if mutate != nil {
+		mutate(&opts)
+	}
+	return opts
+}
+
+func assertOneTS2345(t *testing.T, result *Result) {
+	t.Helper()
+	if result.TypeErrorCount != 1 || len(result.TypeDiagnostics) != 1 {
+		t.Fatalf("want one type error, got %d: %v", result.TypeErrorCount, result.TypeDiagnostics)
+	}
+	want := "src/bad.ts(4,29): error TS2345: Argument of type 'string' is not assignable to parameter of type 'number'."
+	if result.TypeDiagnostics[0] != want {
+		t.Fatalf("type diagnostic = %q, want %q", result.TypeDiagnostics[0], want)
+	}
+}
+
+// TestCompile_ReportsTypeErrorsAndStillEmits pins the tsc behaviour: a type error is reported, and without
+// noEmitOnError the .js is still written.
+func TestCompile_ReportsTypeErrorsAndStillEmits(t *testing.T) {
+	tmp := t.TempDir()
+	writeFile(t, filepath.Join(tmp, "tsconfig.json"), tsconfigJSON)
+	writeFile(t, filepath.Join(tmp, "src", "runtypes.d.ts"), runtypesDTS)
+	writeFile(t, filepath.Join(tmp, "src", "foo.ts"), fooTS)
+	writeFile(t, filepath.Join(tmp, "src", "bad.ts"), badTS)
+
+	result, err := Run(typeErrorOptions(tmp, nil))
+	if err != nil {
+		t.Fatalf("compile: %v", err)
+	}
+	assertOneTS2345(t, result)
+	if _, err := os.Stat(filepath.Join(tmp, "dist", "bad.js")); err != nil {
+		t.Errorf("bad.js must still be emitted without noEmitOnError: %v", err)
+	}
+}
+
+// TestCompile_NoEmitOnErrorWritesNothing: with noEmitOnError a type error stops every write, caches included.
+func TestCompile_NoEmitOnErrorWritesNothing(t *testing.T) {
+	tmp := t.TempDir()
+	writeFile(t, filepath.Join(tmp, "tsconfig.json"), strings.Replace(tsconfigJSON, `"strict": true`, `"strict": true, "noEmitOnError": true`, 1))
+	writeFile(t, filepath.Join(tmp, "src", "runtypes.d.ts"), runtypesDTS)
+	writeFile(t, filepath.Join(tmp, "src", "foo.ts"), fooTS)
+	writeFile(t, filepath.Join(tmp, "src", "bad.ts"), badTS)
+
+	result, err := Run(typeErrorOptions(tmp, nil))
+	if err != nil {
+		t.Fatalf("compile: %v", err)
+	}
+	assertOneTS2345(t, result)
+	for _, dir := range []string{"dist", ".mion"} {
+		if _, err := os.Stat(filepath.Join(tmp, dir)); !os.IsNotExist(err) {
+			t.Errorf("%s must not exist under noEmitOnError with a type error (stat err %v)", dir, err)
+		}
+	}
+}
+
+// TestCompile_NoEmitReportsTypeErrors: `--no-emit` checks types the way `tsc --noEmit` does.
+func TestCompile_NoEmitReportsTypeErrors(t *testing.T) {
+	tmp := t.TempDir()
+	writeFile(t, filepath.Join(tmp, "tsconfig.json"), tsconfigJSON)
+	writeFile(t, filepath.Join(tmp, "src", "bad.ts"), badTS)
+
+	result, err := Run(typeErrorOptions(tmp, func(opts *Options) { opts.NoEmit = true }))
+	if err != nil {
+		t.Fatalf("compile --no-emit: %v", err)
+	}
+	assertOneTS2345(t, result)
+}
+
+// TestCompile_TypeDiagnosticsKeepMessageChain: the nested detail lines tsc prints under a diagnostic survive.
+func TestCompile_TypeDiagnosticsKeepMessageChain(t *testing.T) {
+	tmp := t.TempDir()
+	writeFile(t, filepath.Join(tmp, "tsconfig.json"), tsconfigJSON)
+	writeFile(t, filepath.Join(tmp, "src", "chain.ts"), `type User = {id: number; name: string};
+export const user: User = {id: 1, name: 2};
+const users: {list: User[]} = {list: [{id: 1, name: 'a'}]};
+export const nested: {list: {id: string}[]} = users;
+`)
+
+	result, err := Run(typeErrorOptions(tmp, func(opts *Options) { opts.NoEmit = true }))
+	if err != nil {
+		t.Fatalf("compile --no-emit: %v", err)
+	}
+	if result.TypeErrorCount != 2 {
+		t.Fatalf("want two type errors, got %d: %v", result.TypeErrorCount, result.TypeDiagnostics)
+	}
+	if !strings.Contains(result.TypeDiagnostics[1], "\n  ") {
+		t.Errorf("want an indented chain line under the nested error, got %q", result.TypeDiagnostics[1])
+	}
+}
