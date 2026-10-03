@@ -472,7 +472,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   MKR016: {
     headline:
-      "Private member `{0}` of class `{1}` has no type in its declaration file, so the generated functions would accept any value for it. Build the class's package with `mion compile`, which keeps private member types.",
+      "Private member `{0}` of class `{1}` has no type in its declaration file, so the generated functions would accept any value for it. Build the class's package with `mion compile`, which keeps private member types, or read it from its TypeScript sources.",
     level: 'runtimeError',
     family: 'marker',
   },

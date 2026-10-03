@@ -179,14 +179,16 @@ func ledgerFromCompile(t *testing.T) map[string]string {
 
 func assertRoundTrip(t *testing.T, consumer string) {
 	t.Helper()
-	sourceID, _ := scanLedgerConsumer(t, ledgerFromSource(), consumer)
-	compiledID, codes := scanLedgerConsumer(t, ledgerFromCompile(t), consumer)
+	sourceID, sourceCodes := scanLedgerConsumer(t, ledgerFromSource(), consumer)
+	compiledID, compiledCodes := scanLedgerConsumer(t, ledgerFromCompile(t), consumer)
 	if sourceID != compiledID {
 		t.Errorf("the compiled .d.ts must give the source id: source %s, compiled %s", sourceID, compiledID)
 	}
-	for _, code := range codes {
-		if code == diagnostics.CodeMarkerTypelessPrivateMember {
-			t.Errorf("a mion-compiled .d.ts must not raise %s", code)
+	for road, codes := range map[string][]string{"a package read from its sources": sourceCodes, "a mion-compiled .d.ts": compiledCodes} {
+		for _, code := range codes {
+			if code == diagnostics.CodeMarkerTypelessPrivateMember {
+				t.Errorf("%s must not raise %s", road, code)
+			}
 		}
 	}
 }

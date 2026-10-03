@@ -71,7 +71,7 @@ var headlineByCode = map[string]string{
 	"MKR013":  "Marker type resolved to `any` that was never written: `{0}` failed to resolve (or its declaration references a name that does not), so the generated functions would silently accept anything.",
 	"MKR014":  "Two different types get the same id `{0}`: `{1}` from {4}, and `{2}` here. Raise the `hashLength` option to {3} so every type keeps its own id.",
 	"MKR015":  "`InjectTypeFnArgs` names `{0}`, which is not a function family{1}",
-	"MKR016":  "Private member `{0}` of class `{1}` has no type in its declaration file, so the generated functions would accept any value for it. Build the class's package with `mion compile`, which keeps private member types.",
+	"MKR016":  "Private member `{0}` of class `{1}` has no type in its declaration file, so the generated functions would accept any value for it. Build the class's package with `mion compile`, which keeps private member types, or read it from its TypeScript sources.",
 	"OVR001":  "Duplicate override for `{0}`: there can be exactly one override per (type, function).",
 	"OVR002":  "Override entry `{0}` references compiled function `{1}` which did not render: this would throw at runtime, so the build stops.",
 	"OVR010":  "Overriding `validate` for this type also changes how JSON decoders narrow unions containing it.",
