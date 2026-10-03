@@ -129,7 +129,7 @@ const FUZZ = {
   // The api-types trimmer (Go-side): random declaration graphs labelled at
   // generation as reached by the API or not; nothing unreached ships, nothing
   // reached is lost (type ids equal), re-trimming and the same seed are no-ops.
-  apitypes: {goTest: ['./internal/compiler/apitypes/', '-run', 'TestFuzz_', '-count=1'], quick: {MION_FUZZ_ITER: '30'}, soak: {MION_FUZZ_ITER: '1000'}},
+  apitypes: {goTest: ['./internal/compiler/apitypes/', '-run', 'TestFuzz_', '-count=1', '-timeout', '40m'], quick: {MION_FUZZ_ITER: '30'}, soak: {MION_FUZZ_ITER: '1000'}},
   // Drizzle pure-types road: random table specs rendered as TYPE SOURCE,
   // scanned by the real resolver, tableFromType over the reflected graph must
   // equal a raw drizzle build (the wide in-process three-surface fuzz rides

@@ -76,8 +76,12 @@ export const LANES = {
   // The packages are a Go input in the other direction: the suites mount the REAL
   // marker and drizzle packages as virtual node_modules (internal/testfixtures/
   // realmarker.go and realdrizzle.go), so editing their sources changes what the
-  // Go tests compile against.
-  go: {job: 'go tests + fuzz · the Go suite', paths: ['packages/run-types/', 'packages/drizzle-orm', ...GO_TREE]},
+  // Go tests compile against. The api-types tests also compile the drizzle example app's server against the real
+  // router and core sources.
+  go: {
+    job: 'go tests + fuzz · the Go suite',
+    paths: ['packages/run-types/', 'packages/drizzle-orm', 'packages/private-drizzle-example-app/', 'packages/rpc-router/', 'packages/core/', ...GO_TREE],
+  },
   'js-fuzz': {job: 'go tests + fuzz · the JS fuzz sweep', paths: JS},
   // JS checks that need Go (codegen and drizzle-manifest drift, build-gate tests), so js-lint never sets Go up.
   'go-tools': {job: 'go tests + fuzz · the Go-backed JS checks', paths: [...JS, 'ts-go-runtypes/']},
