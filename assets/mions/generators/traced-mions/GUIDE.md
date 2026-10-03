@@ -69,6 +69,7 @@ Stack parts are `(cx, cy, rx, ry, tilt)` with an optional sixth value for `box`,
 - Shapes written once and reused with `<use>` (the stack does this for its pieces).
 - Whole-number coordinates for big shapes, one decimal for small ones (`wobbly` does this): rounding small shapes to whole pixels makes their edges jagged.
 - 14 points per lumpy oval is enough.
+- `trace_mion.py` drops the indentation and shortens `-shape` / `-clip` to `-s` / `-c` when it writes the file, so a parts module can point at `#<name>-clip` and still work.
 
 ## Plan for the rest
 
