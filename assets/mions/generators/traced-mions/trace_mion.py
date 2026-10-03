@@ -1,10 +1,14 @@
 # Builds a mion from its crop: traced flat body tones and line work, eyes rebuilt as clean shapes, a gloss streak and a ground shadow.
-# Run from this folder: python3 trace_mion.py <name>, with the settings for <name> in mions.json ('back' and 'extra' hold hand-drawn parts behind and in front).
-import sys, json, cv2, numpy as np
+# Run from this folder: python3 trace_mion.py <name>, with the settings for <name> in mions.json ('back' and 'extra' hold hand-drawn parts behind and in front,
+# 'parts' names a module whose back() and extra() build them in code).
+import sys, json, importlib, cv2, numpy as np
 from common import *
 
 name = sys.argv[1]
 cfg = json.load(open('mions.json'))[name]
+parts = importlib.import_module(cfg['parts']) if cfg.get('parts') else None
+back = cfg.get('back', '') + (parts.back() if hasattr(parts, 'back') else '')
+extra = cfg.get('extra', '') + (parts.extra() if hasattr(parts, 'extra') else '')
 img, soft = load(f'{name}.png')
 h, w = img.shape[:2]
 
@@ -53,13 +57,13 @@ pad = max(14, int(ground - h // UP) + 14)
 ink_svg = f'<path id="lines" fill="{hexc(sample(img, ink) * 0.85)}" d="{region_path(ink, 1.5, 10, 12)}"/>' if ink.any() else ''
 svg = f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w // UP} {h // UP + pad}" width="{w // UP}" height="{h // UP + pad}">
   <defs><filter id="{name}-blur" x="-30%" y="-100%" width="160%" height="300%"><feGaussianBlur stdDeviation="3.5"/></filter></defs>
-  <g id="shadow">{shadow}</g>{cfg.get('back', '')}
+  <g id="shadow">{shadow}</g>{back}
   <g id="body">''' + ''.join(f'\n    <path fill="{c}" d="{d}"/>' for c, d in layers if d) + f'''
   </g>
   {ink_svg}
   {gloss}
   <g id="eyes">{eye_svg}
-  </g>{cfg.get('extra', '')}
+  </g>{extra}
 </svg>
 '''
 open(f'../../creatures/{name}.svg', 'w').write(svg)
