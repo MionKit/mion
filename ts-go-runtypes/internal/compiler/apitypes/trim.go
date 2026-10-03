@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -297,21 +298,31 @@ func (trimmer *trimmer) mark(entry *fileInfo, apiExports []string) {
 		}
 		trimmer.drain()
 	}
-	// A kept `declare global` block ships only its kept members.
+	// A kept member block ships only its kept members.
 	for _, file := range trimmer.files {
 		for _, member := range file.items {
-			if member.kind == itemGlobal && !member.kept && member.block.kept {
+			if member.kind == itemMember && !member.kept && member.block.kept {
 				file.holes = append(file.holes, textRange{start: member.statement.Pos(), end: member.statement.End()})
 			}
 		}
 	}
 }
 
-// augmentationNeeded: a side-effect import of a kept file, a global member kept code reads or that merges into a
-// library global from a kept file, or a module augmentation of a relative file kept or a package kept code reaches.
+// augmentationNeeded: a side-effect import of a kept file, a relative augmentation of a kept declaration, a global
+// member kept code reads or that merges into a library global from a kept file, or an augmentation of a package kept
+// code reaches.
 func (trimmer *trimmer) augmentationNeeded(file *fileInfo, always *item) bool {
 	switch {
-	case always.kind == itemGlobal:
+	case always.kind == itemMember && !ast.IsGlobalScopeAugmentation(always.block.statement):
+		// A relative module augmentation member ships with the declaration it augments.
+		target := trimmer.resolveModule(file, relativeAugmentation(always.block.statement))
+		for _, name := range always.names {
+			if target != nil && slices.ContainsFunc(target.locals[name], func(declared *item) bool { return declared.kept }) {
+				return true
+			}
+		}
+		return false
+	case always.kind == itemMember:
 		for _, name := range always.names {
 			if trimmer.unresolved[name] {
 				return true
@@ -319,14 +330,10 @@ func (trimmer *trimmer) augmentationNeeded(file *fileInfo, always *item) bool {
 		}
 		// `Symbol.brand` reads SymbolConstructor through another name, so a library merge rides with its file.
 		return file.keptAny() && trimmer.mergesOutsideProject(always)
-	case always.kind != itemAlways || ast.IsGlobalScopeAugmentation(always.statement):
+	case always.kind != itemAlways || isMemberBlock(always.statement):
 		return false
 	case always.statement.Kind == ast.KindImportDeclaration:
 		return file.keptAny()
-	}
-	specifier := always.statement.Name().Text()
-	if target := trimmer.resolveModule(file, specifier); target != nil {
-		return target.keptAny()
 	}
 	return trimmer.packageReached(always.statement.Name())
 }
@@ -425,7 +432,7 @@ func (trimmer *trimmer) follow(current *item) {
 		if target := trimmer.resolveModule(file, current.specifier); target != nil {
 			target.imported = true
 			for _, always := range target.items {
-				if always.kind == itemAlways || always.kind == itemGlobal {
+				if always.kind == itemAlways || always.kind == itemMember {
 					trimmer.keep(always, current)
 				}
 			}
@@ -435,9 +442,9 @@ func (trimmer *trimmer) follow(current *item) {
 		return
 	}
 	switch current.kind {
-	case itemDeclaration, itemAlways, itemGlobal:
-		if ast.IsGlobalScopeAugmentation(current.statement) {
-			return // a global block: its members are followed one by one
+	case itemDeclaration, itemAlways, itemMember:
+		if isMemberBlock(current.statement) {
+			return // its members are followed one by one
 		}
 		if current.block != nil {
 			trimmer.keep(current.block, current)
