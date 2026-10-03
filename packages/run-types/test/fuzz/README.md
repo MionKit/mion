@@ -60,7 +60,7 @@ test/fuzz/
 ├── cloning/                     # exact-shape clone vs a reference interpreter (O15–O17)
 ├── elision/                     # unused-builder elision: the two spellings stay equivalent (E0–E3)
 ├── security/                    # attack the DECODERS: hostile JSON trees, format pumps (SJ-*, SF-*, GC-*)
-├── apiids/                      # a bundled mion client ships the server's exact runtypes (A1–A3)
+├── apiids/                      # a bundled mion client ships the server's exact runtypes (A1–A4)
 └── enrich/                      # model-based (stateful sequence) fuzzers  (R*, T*, NL/RC/CB…)
 ```
 
@@ -474,10 +474,30 @@ and the client apart.
   routes it calls.
 - **A3** `mion api-check` over the server manifest of the server build and the
   client manifest of the client build exits 0.
+- **A4** `mion api-types` publishes the server as a types-only package, and a
+  client that reads the API from that package alone passes A2 and A3 too.
 
-The negative control is a fixed test beside the sweep: a client manifest from a build before a
-server-side type edit fails api-check on `paramsId`. Runner: `apiIdsFuzz.ts`; replay with
-`MION_FUZZ_SEED`, widen with `MION_FUZZ_ITER`.
+The negative controls are fixed tests beside the sweep: a client manifest, or a client of a types
+package, from before a server-side type edit fails api-check on `paramsId`. Runner:
+`apiIdsFuzz.ts`; replay with `MION_FUZZ_SEED`, widen with `MION_FUZZ_ITER`.
+
+### `apitypes` — the types-only package ships what the API reaches, nothing else
+
+A Go lane (`ts-go-runtypes/internal/compiler/apitypes/fuzz_trim_test.go`) over the trimmer behind
+`mion api-types`. Each iteration writes a random graph of `.d.ts` files whose types name each other
+in every position a type can take (members, generics and defaults, heritage, unions, conditional
+and mapped types, `typeof`, `keyof`, `import()` types, namespaces, overloads, merges, augmentations,
+barrels, aliased and namespace imports). Each type is labelled when generated: reached from the
+API (`KEEP_n_`) or not (`POISON_n_`, often importing a fake heavy package).
+
+- **no leak** no poison name, no heavy package import, and no peer but the router ships.
+- **no loss** the output type-checks on its own with the same build version, every reached type
+  ships, and every API member keeps its type id.
+- **idempotent** trimming the output again changes nothing.
+- **deterministic** the same seed gives byte-identical output.
+
+Each oracle has a negative control in the same file, and a coverage test fails when the generator
+stops writing one of the positions. Replay with `MION_FUZZ_SEED`, widen with `MION_FUZZ_ITER`.
 
 ### `enrich/` — model-based (stateful) fuzzers
 
@@ -518,7 +538,7 @@ The `miondevx` front door builds the binary first, then runs the suite:
 pnpm miondevx core fuzz <lane…> [--quick|--soak]
 #   lane ∈   unit | value | types | nondata | roundtrip | cloning |
 #            secjson | secformat | secgen |
-#            enrich | i18n | typemod | race | sidecar | patterngen | convert | convertcli | apiids | all
+#            enrich | i18n | typemod | race | sidecar | patterngen | convert | convertcli | apiids | apitypes | all
 #   --quick  the per-PR tier: ~2x the fixed batch (what ci.yml runs)
 #   --soak   the release tier: the long soak knobs (see the miondevx.mjs FUZZ table)
 ```

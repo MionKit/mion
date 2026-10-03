@@ -157,9 +157,10 @@ jobs:
       # is cache-warm from vet.
       - name: Build the resolver + dists (marker dist read by the Go suite; binary spawned by fuzz)
         run: pnpm run check:builds
-      # MION_FUZZ_ITER widens both Go fuzz sweeps under internal/convert to the
-      # `convert` lane's quick budget (mirrors the registry, pinned by
-      # fuzz-lane-contracts.test.ts). Local replay: `pnpm miondevx core fuzz convert --quick`.
+      # MION_FUZZ_ITER widens both Go fuzz sweeps under internal/convert and the
+      # api-types sweep to the `convert` and `apitypes` lanes' quick budget (mirrors
+      # the registry, pinned by fuzz-lane-contracts.test.ts). Local replay:
+      # `pnpm miondevx core fuzz convert --quick` (or apitypes).
       # ./cmd/... rides along: the `mion` CLI's own gates (the enrich check exit
       # codes among them) live there and once rotted unnoticed when only
       # ./internal/... ran.
