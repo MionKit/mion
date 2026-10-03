@@ -91,24 +91,27 @@ def flatten(soft, inside, K, paint_over=None, blur=13):
     return labels, cv2.cvtColor(km.cluster_centers_.astype(np.uint8)[None], cv2.COLOR_LAB2BGR)[0]
 
 
-def compact(start, curves):
-    """Whole numbers, relative moves, no spaces before minus signs: the shortest path text."""
-    at = np.round(start).astype(int); d = f'M{at[0]} {at[1]}c'
+def compact(start, curves, digits=0):
+    """Rounded numbers, relative moves, no spaces before minus signs: the shortest path text. Small shapes need digits=1 to stay smooth."""
+    q = 10 ** digits
+    snap = lambda v: np.round(np.asarray(v, float) * q).astype(int)
+    num = lambda v: str(v) if digits == 0 else (f'{v / q:.{digits}f}'.rstrip('0').rstrip('.') or '0')
+    at = snap(start); d = f'M{num(at[0])} {num(at[1])}c'
     for c1, c2, end in curves:
-        c1, c2, end = (np.round(v).astype(int) for v in (c1, c2, end))
-        d += ' '.join(str(v) for v in (*(c1 - at), *(c2 - at), *(end - at))) + ' '
+        c1, c2, end = (snap(v) for v in (c1, c2, end))
+        d += ' '.join(num(v) for v in (*(c1 - at), *(c2 - at), *(end - at))) + ' '
         at = end
     return d.rstrip().replace(' -', '-') + 'z'
 
 
-def through(points, closed=True):
+def through(points, closed=True, digits=0):
     """Catmull-Rom through points (1x units), as a compact path; keeps every bend round."""
     p = np.asarray(points, float); n = len(p)
     curves = []
     for i in range(n if closed else n - 1):
         p0, p1, p2, p3 = p[i - 1 if closed or i else 0], p[i], p[(i + 1) % n], p[(i + 2) % n if closed or i + 2 < n else n - 1]
         curves.append((p1 + (p2 - p0) / 6, p2 - (p3 - p1) / 6, p2))
-    d = compact(p[0], curves)
+    d = compact(p[0], curves, digits)
     return d if closed else d[:-1]
 
 
@@ -139,3 +142,60 @@ def stacked(labels, colors, K):
 
 def sample(soft, mask):
     return np.median(soft[mask], 0) if mask.any() else np.array([128, 128, 128])
+
+
+def wobbly(cx, cy, rx, ry, tilt=0, waves=(), n=14, box=2):
+    """An ellipse with a few slow bumps, as a compact path: the base shape of every stacked part.
+    box above 2 squares it off toward a rounded rectangle (3 is a gentle step)."""
+    t = np.radians(tilt); cs, sn = np.cos(t), np.sin(t); pts = []
+    for j in range(n):
+        a = 2 * np.pi * j / n
+        k = 1 + sum(amp * np.sin(f * a + ph) for f, amp, ph in waves)
+        c, s = np.cos(a), np.sin(a)
+        x, y = rx * k * np.sign(c) * abs(c) ** (2 / box), ry * k * np.sign(s) * abs(s) ** (2 / box)
+        pts.append((cx + x * cs - y * sn, cy + x * sn + y * cs))
+    return through(pts, digits=1)
+
+
+def cone(cx, cy, top, bottom, h, tilt=0, rand=None, round_by=0.3):
+    """A cone section: a trapezoid `top` wide narrowing to `bottom`, `h` tall, corners rounded and slightly uneven. Returns a stack part."""
+    j = (lambda: rand.uniform(-1.2, 1.2)) if rand else (lambda: 0)
+    local = [(-top / 2 + j(), -h / 2 + j()), (top / 2 + j(), -h / 2 + j()), (bottom / 2 + j(), h / 2 + j()), (-bottom / 2 + j(), h / 2 + j())]
+    t = np.radians(tilt); cs, sn = np.cos(t), np.sin(t)
+    pts = [np.array([cx + x * cs - y * sn, cy + x * sn + y * cs]) for x, y in local]
+    curves, n = [], len(pts)
+    cuts = [(p + (pts[i - 1] - p) * round_by, p, p + (pts[(i + 1) % n] - p) * round_by) for i, p in enumerate(pts)]
+    for i, (a, q, b) in enumerate(cuts):  # bend through each corner, then run straight to the next one
+        na = cuts[(i + 1) % n][0]
+        curves.append((a + (q - a) * 0.66, b + (q - b) * 0.66, b))
+        curves.append((b + (na - b) / 3, b + (na - b) * 2 / 3, na))
+    return dict(d=compact(cuts[0][0], curves), cx=cx, cy=cy, rx=(top + bottom) / 4, ry=h / 2, tilt=tilt)
+
+
+def stack(name, parts, base, light, crease, shine, rand):
+    """Uneven parts stacked from the first to the last, each with a crease where it sits on the one before, a lighter patch and maybe a shine.
+    parts: (cx, cy, rx, ry, tilt) in drawing order, with an optional sixth value to square a part off (see wobbly), or a shape from cone()."""
+    out = f'\n  <g id="{name}">'
+    centers = [(p['cx'], p['cy']) if isinstance(p, dict) else p[:2] for p in parts]
+    for i, part in enumerate(parts):
+        if isinstance(part, dict):
+            d, cx, cy, rx, ry, tilt = part['d'], part['cx'], part['cy'], part['rx'], part['ry'], part['tilt']
+        else:
+            cx, cy, rx, ry, tilt, *box = part
+            waves = [(k, rand.uniform(0.02, 0.06) / k ** 0.5, rand.uniform(0, 6.28)) for k in (2, 3)]
+            d = wobbly(cx, cy, rx, ry, tilt, waves, box=box[0] if box else 2)
+        if i:  # the crease falls toward the part below
+            px, py = centers[i - 1]; dist = np.hypot(px - cx, py - cy) or 1
+            dx, dy = (px - cx) / dist * 2.5, (py - cy) / dist * 2.5
+        else:
+            dx, dy = 1, 2.5
+        sx, sy = cx - rx * rand.uniform(0.25, 0.45), cy - ry * rand.uniform(0.3, 0.5)
+        gleam = f'<ellipse cx="{sx:.1f}" cy="{sy:.1f}" rx="{rx * 0.28:.1f}" ry="{ry * 0.16:.1f}" fill="{shine}" transform="rotate({tilt - 25:.0f} {sx:.1f} {sy:.1f})"/>' if rand.random() < 0.75 else ''
+        out += f'''
+    <g id="{name}-{i}">
+      <defs><path id="{name}-{i}-shape" d="{d}"/><clipPath id="{name}-{i}-clip"><use href="#{name}-{i}-shape"/></clipPath></defs>
+      <use href="#{name}-{i}-shape" fill="{crease}" transform="translate({dx:.1f} {dy:.1f})"/>
+      <use href="#{name}-{i}-shape" fill="{base}"/>
+      <g clip-path="url(#{name}-{i}-clip)"><use href="#{name}-{i}-shape" fill="{light}" transform="translate({cx - rx * 0.12:.1f} {cy - ry * 0.15:.1f}) scale(0.78) translate({-cx} {-cy})"/>{gleam}</g>
+    </g>'''
+    return out + '\n  </g>'
