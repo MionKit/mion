@@ -2,6 +2,7 @@ package resolver
 
 import (
 	"encoding/json"
+	"maps"
 	"sort"
 	"strings"
 
@@ -127,13 +128,21 @@ func (sess *Session) packageOverrideSeed() (map[string]map[string]string, []diag
 	}
 	_, ownRoot := sess.ownPackage()
 	seed := map[string]map[string]string{}
+	seededBy := map[string]string{} // "<baseKey>|<family>" → the package.json whose row won
 	var diags []diagnostics.Diagnostic
 	visited := map[string]bool{}
+	rootOfDir := map[string]string{}
 	for _, sourceFile := range sess.Program.TS.SourceFiles() {
 		if sourceFile == nil || !sourceFile.IsDeclarationFile {
 			continue
 		}
-		_, root := marker.PackageOfFile(sourceFile.FileName(), sess.Program.FS)
+		// One package.json read per directory: a package ships many declaration files side by side.
+		dir := tspath.GetDirectoryPath(sourceFile.FileName())
+		root, known := rootOfDir[dir]
+		if !known {
+			_, root = marker.PackageOfFile(sourceFile.FileName(), sess.Program.FS)
+			rootOfDir[dir] = root
+		}
 		if root == "" || root == ownRoot || visited[root] {
 			continue
 		}
@@ -141,17 +150,31 @@ func (sess *Session) packageOverrideSeed() (map[string]map[string]string, []diag
 		if !dependsOnMarkerPackage(sess.Program.FS, root) {
 			continue
 		}
-		rows, problems := sess.pureFnIndex.Overrides(root)
+		rows, problems, conflicts := sess.pureFnIndex.Overrides(root)
 		for _, problem := range problems {
 			diags = append(diags, diagnostics.New(diagnostics.CodePureFnArtifactUnreadable, diagnostics.Site{}, problem.File, problem.Reason))
 		}
+		for _, conflict := range conflicts {
+			diags = append(diags, diagnostics.New(diagnostics.CodePureFnArtifactConflict, diagnostics.Site{}, conflict.ID, conflict.Files[0], conflict.Files[1]))
+		}
+		manifest := tspath.CombinePaths(root, "package.json")
 		for _, row := range rows {
 			if seed[row.BaseKey] == nil {
 				seed[row.BaseKey] = map[string]string{}
 			}
-			if _, taken := seed[row.BaseKey][row.Family]; !taken {
-				seed[row.BaseKey][row.Family] = row.ID
+			key := row.BaseKey + "|" + row.Family
+			if winner, taken := seed[row.BaseKey][row.Family]; taken {
+				// Two packages overriding one type and family: the same OVR001 as two overrides in source.
+				if winner != row.ID {
+					diags = append(diags, diagnostics.NewWithRelated(
+						diagnostics.CodeDuplicateOverride, diagnostics.Site{FilePath: manifest}, []string{row.Family},
+						diagnostics.Related{Site: diagnostics.Site{FilePath: seededBy[key]}, Message: "First overridden by this package"},
+					))
+				}
+				continue
 			}
+			seed[row.BaseKey][row.Family] = row.ID
+			seededBy[key] = manifest
 		}
 	}
 	return seed, diags
@@ -179,11 +202,7 @@ func dependsOnMarkerPackage(fileSystem vfs.FS, root string) bool {
 func cloneOverrideMap(source map[string]map[string]string) map[string]map[string]string {
 	out := make(map[string]map[string]string, len(source))
 	for baseKey, families := range source {
-		copied := make(map[string]string, len(families))
-		for family, id := range families {
-			copied[family] = id
-		}
-		out[baseKey] = copied
+		out[baseKey] = maps.Clone(families)
 	}
 	return out
 }

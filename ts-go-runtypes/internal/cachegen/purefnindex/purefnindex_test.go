@@ -779,8 +779,8 @@ func TestStore_OverridesRoundTrip(t *testing.T) {
 		"/money/package.json":                  `{"name": "@acme/money"}`,
 		"/money/dist/mion-pure-fns/index.json": string(index),
 	})
-	got, problems := store.Overrides("/money")
-	if len(problems) != 0 || !reflect.DeepEqual(got, rows) {
+	got, problems, conflicts := store.Overrides("/money")
+	if len(problems) != 0 || len(conflicts) != 0 || !reflect.DeepEqual(got, rows) {
 		t.Fatalf("want %v, got %v (problems %v)", rows, got, problems)
 	}
 }
@@ -794,8 +794,50 @@ func TestStore_OverridesOfAnotherCompilerAreSkipped(t *testing.T) {
 		"/money/package.json":                  `{"name": "@acme/money"}`,
 		"/money/dist/mion-pure-fns/index.json": index,
 	})
-	got, problems := store.Overrides("/money")
+	got, problems, _ := store.Overrides("/money")
 	if len(got) != 0 || len(problems) != 1 || !strings.Contains(problems[0].Reason, "0.0.0-other") {
 		t.Fatalf("rows of another compiler must be skipped with a problem naming it, got %v %v", got, problems)
+	}
+}
+
+// TestStore_OverridesReportAnUnreadableIndex: a broken index is PFE9017, never a package that silently has no overrides.
+func TestStore_OverridesReportAnUnreadableIndex(t *testing.T) {
+	store := storeOver(map[string]string{
+		"/money/package.json":                  `{"name": "@acme/money"}`,
+		"/money/dist/mion-pure-fns/index.json": `{not json`,
+	})
+	got, problems, _ := store.Overrides("/money")
+	if len(got) != 0 || len(problems) != 1 || problems[0].File != "/money/dist/mion-pure-fns/index.json" {
+		t.Fatalf("want one problem naming the index, got rows %v problems %v", got, problems)
+	}
+}
+
+// TestStore_OverridesSkipAnotherPackagesIndex: a vendored copy of another package's artifact seeds nothing.
+func TestStore_OverridesSkipAnotherPackagesIndex(t *testing.T) {
+	rows := []ArtifactOverrideRow{{BaseKey: "{amount:number}", Family: "validate", ID: "@other/pkg#pf_abc"}}
+	index := RenderArtifactIndex("@other/pkg", "/money", []purefunctions.Entry{{ID: "@other/pkg#pf_abc"}}, rows)
+	store := storeOver(map[string]string{
+		"/money/package.json":                          `{"name": "@acme/money"}`,
+		"/money/vendor/other/mion-pure-fns/index.json": string(index),
+	})
+	if got, problems, _ := store.Overrides("/money"); len(got) != 0 || len(problems) != 0 {
+		t.Fatalf("another package's rows must not seed this one, got %v %v", got, problems)
+	}
+}
+
+// TestStore_OverridesConflictAcrossIndexes: an ESM and a CJS index giving one type different ids is PFE9018.
+func TestStore_OverridesConflictAcrossIndexes(t *testing.T) {
+	render := func(id string) string {
+		rows := []ArtifactOverrideRow{{BaseKey: "{amount:number}", Family: "validate", ID: id}}
+		return string(RenderArtifactIndex("@acme/money", "/money", []purefunctions.Entry{{ID: id}}, rows))
+	}
+	store := storeOver(map[string]string{
+		"/money/package.json":                      `{"name": "@acme/money"}`,
+		"/money/dist/cjs/mion-pure-fns/index.json": render("@acme/money#pf_abc"),
+		"/money/dist/esm/mion-pure-fns/index.json": render("@acme/money#pf_xyz"),
+	})
+	got, _, conflicts := store.Overrides("/money")
+	if len(got) != 1 || len(conflicts) != 1 {
+		t.Fatalf("want the first row kept and one conflict, got rows %v conflicts %v", got, conflicts)
 	}
 }

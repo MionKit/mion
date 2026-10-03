@@ -63,19 +63,25 @@ type Store struct {
 	host      Host
 	packages  map[string]*PackageIndex
 	resolved  map[string]string
-	overrides map[string]packageOverrides
+	artifacts map[string]*rootArtifacts
 }
 
-// packageOverrides is what Overrides read from one package root, memoised with the package indexes.
-type packageOverrides struct {
-	rows     []ArtifactOverrideRow
+// rootArtifacts is one package root's name and parsed index files, read once for both Package and Overrides.
+type rootArtifacts struct {
+	name     string
+	indexes  []parsedIndex
 	problems []ArtifactProblem
+}
+
+type parsedIndex struct {
+	dir, file string
+	index     ArtifactIndex
 }
 
 // NewStore binds a Store to the program FS. A nil fs reads nothing and answers
 // "not found" everywhere, which keeps a test with no program on today's path.
 func NewStore(fs vfspkg.FS) *Store {
-	return &Store{fs: fs, packages: map[string]*PackageIndex{}, resolved: map[string]string{}, overrides: map[string]packageOverrides{}}
+	return &Store{fs: fs, packages: map[string]*PackageIndex{}, resolved: map[string]string{}, artifacts: map[string]*rootArtifacts{}}
 }
 
 // Bind hands the store the session's program and resolver, for the packages
@@ -164,31 +170,11 @@ func (store *Store) Package(root string) *PackageIndex {
 	if store.fs == nil {
 		return idx
 	}
-	if content, ok := store.fs.ReadFile(tspath.CombinePaths(root, "package.json")); ok {
-		var manifest struct {
-			Name string `json:"name"`
-		}
-		if json.Unmarshal([]byte(content), &manifest) == nil {
-			idx.Name = manifest.Name
-		}
-	}
-	for _, dir := range store.artifactDirsUnder(root) {
-		file := tspath.CombinePaths(dir, constants.PureFnArtifactIndexFile)
-		content, ok := store.fs.ReadFile(file)
-		if !ok {
-			idx.Problems = append(idx.Problems, ArtifactProblem{Package: idx.Name, File: file, Reason: "missing"})
-			continue
-		}
-		index, err := ParseArtifactIndex([]byte(content))
-		if err != nil {
-			idx.Problems = append(idx.Problems, ArtifactProblem{Package: idx.Name, File: file, Reason: err.Error()})
-			continue
-		}
-		// A vendored copy of another package's artifact, or one under a nameless root, is not this package's.
-		if index.Package != idx.Name {
-			continue
-		}
-		idx.addIndex(dir, file, index)
+	artifacts := store.artifactsOf(root)
+	idx.Name = artifacts.name
+	idx.Problems = append(idx.Problems, artifacts.problems...)
+	for _, parsed := range artifacts.indexes {
+		idx.addIndex(parsed.dir, parsed.file, parsed.index)
 	}
 	if len(idx.listed) == 0 {
 		store.extractSource(idx)
@@ -196,42 +182,76 @@ func (store *Store) Package(root string) *PackageIndex {
 	return idx
 }
 
-// Overrides reads root's override rows from its index files only, never the sources, so asking costs a directory walk.
-// Rows keyed by another compiler version are skipped with a problem: a structural key only compares within one version.
-func (store *Store) Overrides(root string) ([]ArtifactOverrideRow, []ArtifactProblem) {
-	root = tspath.NormalizePath(root)
-	if cached, ok := store.overrides[root]; ok {
-		return cached.rows, cached.problems
+// artifactsOf reads root's package name and index files once. An index of another package (a vendored copy, or one
+// under a nameless root) is not this package's, and is left out.
+func (store *Store) artifactsOf(root string) *rootArtifacts {
+	if cached, ok := store.artifacts[root]; ok {
+		return cached
 	}
-	var read packageOverrides
-	defer func() { store.overrides[root] = read }()
-	if store.fs == nil {
-		return nil, nil
+	artifacts := &rootArtifacts{}
+	store.artifacts[root] = artifacts
+	if content, ok := store.fs.ReadFile(tspath.CombinePaths(root, "package.json")); ok {
+		var manifest struct {
+			Name string `json:"name"`
+		}
+		if json.Unmarshal([]byte(content), &manifest) == nil {
+			artifacts.name = manifest.Name
+		}
 	}
-	seen := map[string]bool{}
 	for _, dir := range store.artifactDirsUnder(root) {
 		file := tspath.CombinePaths(dir, constants.PureFnArtifactIndexFile)
 		content, ok := store.fs.ReadFile(file)
 		if !ok {
+			artifacts.problems = append(artifacts.problems, ArtifactProblem{Package: artifacts.name, File: file, Reason: "missing"})
 			continue
 		}
 		index, err := ParseArtifactIndex([]byte(content))
-		if err != nil || len(index.Overrides) == 0 {
+		if err != nil {
+			artifacts.problems = append(artifacts.problems, ArtifactProblem{Package: artifacts.name, File: file, Reason: err.Error()})
 			continue
 		}
-		if index.Compiler != constants.Version {
-			read.problems = append(read.problems, ArtifactProblem{Package: index.Package, File: file,
-				Reason: fmt.Sprintf("its overrides were keyed by compiler %s, this is %s; rebuild the package with it", index.Compiler, constants.Version)})
-			continue
-		}
-		for _, row := range index.Overrides {
-			if key := row.BaseKey + "\x00" + row.Family; !seen[key] {
-				seen[key] = true
-				read.rows = append(read.rows, row)
-			}
+		if index.Package == artifacts.name {
+			artifacts.indexes = append(artifacts.indexes, parsedIndex{dir: dir, file: file, index: index})
 		}
 	}
-	return read.rows, read.problems
+	return artifacts
+}
+
+// Overrides reads root's override rows from its index files only, never the sources, so asking costs a directory walk.
+// Rows keyed by another compiler version are skipped with a problem: a structural key only compares within one version.
+// Two index files giving one type and family different ids is a conflict, as for a pure fn.
+func (store *Store) Overrides(root string) ([]ArtifactOverrideRow, []ArtifactProblem, []ArtifactConflict) {
+	if store.fs == nil {
+		return nil, nil, nil
+	}
+	artifacts := store.artifactsOf(tspath.NormalizePath(root))
+	problems := append([]ArtifactProblem(nil), artifacts.problems...)
+	var rows []ArtifactOverrideRow
+	var conflicts []ArtifactConflict
+	firstFile := map[string]string{}
+	firstID := map[string]string{}
+	for _, parsed := range artifacts.indexes {
+		if len(parsed.index.Overrides) == 0 {
+			continue
+		}
+		if parsed.index.Compiler != constants.Version {
+			problems = append(problems, ArtifactProblem{Package: artifacts.name, File: parsed.file,
+				Reason: fmt.Sprintf("its overrides were keyed by compiler %s, this is %s; rebuild the package with it", parsed.index.Compiler, constants.Version)})
+			continue
+		}
+		for _, row := range parsed.index.Overrides {
+			key := row.BaseKey + "\x00" + row.Family
+			if id, seen := firstID[key]; seen {
+				if id != row.ID {
+					conflicts = append(conflicts, ArtifactConflict{Package: artifacts.name, ID: row.ID, Files: [2]string{firstFile[key], parsed.file}})
+				}
+				continue
+			}
+			firstID[key], firstFile[key] = row.ID, parsed.file
+			rows = append(rows, row)
+		}
+	}
+	return rows, problems, conflicts
 }
 
 // addIndex records one directory's index. A repeated id is a second build of the package (ESM and CJS both write
