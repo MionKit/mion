@@ -34,6 +34,8 @@ type Options struct {
 	// daemon / enrich Programs behave like the build lane. nil means no config anywhere, and the fixed
 	// inferred defaults (tsc's loose-file posture) apply. NewInferred only.
 	Config *InferredConfig
+	// Overrides are compiler options laid over the tsconfig's, the way tsc's command-line flags are. New only.
+	Overrides *core.CompilerOptions
 	// FS replaces the on-disk VFS plus Overlay: a side program built next to an existing one must see the
 	// same overlay, so it borrows that program's FS. NewInferred only.
 	FS vfs.FS
@@ -77,9 +79,11 @@ func New(opts Options) (*Program, error) {
 
 	host := compiler.NewCompilerHost(cwd, fileSystem, bundled.LibPath(), nil, nil)
 
-	parsedConfig, diagnostics := tsoptions.GetParsedCommandLineOfConfigFile(
-		configPath, &core.CompilerOptions{}, nil, host, nil,
-	)
+	overrides := opts.Overrides
+	if overrides == nil {
+		overrides = &core.CompilerOptions{}
+	}
+	parsedConfig, diagnostics := tsoptions.GetParsedCommandLineOfConfigFile(configPath, overrides, nil, host, nil)
 	if len(diagnostics) > 0 {
 		return nil, fmt.Errorf("tsconfig parse failed: %s", ast.Diagnostic_Localize(diagnostics[0], ast.DefaultLocale()))
 	}
