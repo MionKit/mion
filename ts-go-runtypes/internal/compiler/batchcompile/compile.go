@@ -19,6 +19,7 @@ import (
 
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/compiler"
+	"github.com/microsoft/typescript-go/shim/core"
 	"github.com/microsoft/typescript-go/shim/scanner"
 	"github.com/microsoft/typescript-go/shim/tspath"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
@@ -325,8 +326,18 @@ func emitSplicedDeclarations(cwd, tsconfigPath string, original *program.Program
 	// Nothing to splice: the first program is the source as written, and it is already checked.
 	declarations := original
 	if len(overlay) > 0 {
+		// isolatedDeclarations would refuse an inferred type on a member that is only `protected` because of the
+		// splice, so the source as written answers it and the spliced emit infers.
+		var overrides *core.CompilerOptions
+		if original.TS.Options().IsolatedDeclarations.IsTrue() {
+			if found := original.TS.GetDeclarationDiagnostics(context.Background(), nil); len(found) > 0 {
+				lines, _ := renderDiagnostics(found, cwd)
+				return nil, fmt.Errorf("compile: tsgo declaration emit was skipped:\n%s", strings.Join(lines, "\n"))
+			}
+			overrides = &core.CompilerOptions{IsolatedDeclarations: core.TSFalse}
+		}
 		var err error
-		if declarations, err = program.New(program.Options{Cwd: cwd, TsconfigPath: tsconfigPath, Overlay: overlay}); err != nil {
+		if declarations, err = program.New(program.Options{Cwd: cwd, TsconfigPath: tsconfigPath, Overlay: overlay, Overrides: overrides}); err != nil {
 			return nil, fmt.Errorf("compile: declaration program: %w", err)
 		}
 	}

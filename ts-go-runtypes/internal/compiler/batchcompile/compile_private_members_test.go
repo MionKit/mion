@@ -207,3 +207,39 @@ func TestCompile_PrivateMembersRoundTrip_FormEquivalence(t *testing.T) {
 		t.Errorf("both call shapes must share one id: static %s, value %s", staticID, valueID)
 	}
 }
+
+const isolatedTsconfigExtra = ` "isolatedDeclarations": true,`
+
+// isolatedDeclarations exempts a private member from a written type; the `protected` splice must not take that away.
+func TestCompile_IsolatedDeclarationsKeepInferredPrivateTypes(t *testing.T) {
+	dir := writeProject(t, map[string]string{"index.ts": `export class Cache {
+  private entries = new Map<string, number>();
+  private hits = 0;
+}
+`})
+	writeFile(t, filepath.Join(dir, "tsconfig.json"), declarationTsconfig(isolatedTsconfigExtra))
+	compileProject(t, dir, nil)
+	dts := readEmitted(t, dir, "index.d.ts")
+	for _, want := range []string{"protected entries: Map<string, number>;", "protected hits: number;"} {
+		if !strings.Contains(dts, want) {
+			t.Errorf("the declaration must contain %q:\n%s", want, dts)
+		}
+	}
+}
+
+// The user's own isolatedDeclarations error still fails the build, reported from the source as written.
+func TestCompile_IsolatedDeclarationsStillReportsTheSourceError(t *testing.T) {
+	dir := writeProject(t, map[string]string{"index.ts": `export class Cache {
+  private hits = 0;
+}
+export const next = (n: number) => n + 1;
+`})
+	writeFile(t, filepath.Join(dir, "tsconfig.json"), declarationTsconfig(isolatedTsconfigExtra))
+	_, err := Run(Options{Cwd: dir, TsconfigPath: "tsconfig.json", GenDir: filepath.Join(dir, ".mion")})
+	if err == nil || !strings.Contains(err.Error(), "src/index.ts(4,") || !strings.Contains(err.Error(), "error TS9013") {
+		t.Fatalf("the source's own isolatedDeclarations error must fail the build, got %v", err)
+	}
+	if strings.Contains(err.Error(), "TS9012") {
+		t.Errorf("the private member must not be reported, it broke no rule: %v", err)
+	}
+}
