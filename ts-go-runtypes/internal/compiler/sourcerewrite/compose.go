@@ -12,6 +12,20 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
+// OriginalPositions is OriginalLines with the column: each source-bearing segment's [line, column], in encounter order.
+// Introspection only, for tests that a composed map points at original columns on a line an edit lengthened.
+func OriginalPositions(mappings string) [][2]int {
+	var positions [][2]int
+	for _, row := range decodeMappings(mappings) {
+		for _, seg := range row {
+			if seg.fields >= 4 {
+				positions = append(positions, [2]int{seg.srcLine, seg.srcCol})
+			}
+		}
+	}
+	return positions
+}
+
 // segment is one decoded source-map segment in ABSOLUTE coordinates; the wire form is delta-encoded.
 // fields is how many of the five slots are present: 1 (generated column only, no origin), 4, or 5.
 type segment struct {
