@@ -181,8 +181,10 @@ func Run(opts Options) (*Result, error) {
 	if err := emitSkipped("emit", emitResult, cwd); err != nil {
 		return nil, err
 	}
+	declarationMapByAbs := map[string]*protocol.SourceMap{}
 	if emitDeclarations {
-		if err := emitSplicedDeclarations(cwd, opts.TsconfigPath, p1, r1.DeclarationReplacements(), writeFile); err != nil {
+		splices := append(r1.DeclarationReplacements(), privateToProtectedSplices(p1)...)
+		if declarationMapByAbs, err = emitSplicedDeclarations(cwd, opts.TsconfigPath, p1, splices, writeFile); err != nil {
 			return nil, err
 		}
 	}
@@ -193,6 +195,8 @@ func Run(opts Options) (*Result, error) {
 		switch {
 		case strings.HasSuffix(outPath, ".js.map"):
 			final[outPath] = composeEmittedMap(text, outPath, mapAByAbs)
+		case strings.HasSuffix(outPath, ".d.ts.map"):
+			final[outPath] = composeEmittedMap(text, outPath, declarationMapByAbs)
 		case strings.HasSuffix(outPath, ".js"):
 			// The rtmod: specifiers survived emit unresolved. Same-line string edits on the import block,
 			// which maps to nothing, so the composed map stays valid.
@@ -295,36 +299,39 @@ func writeMessageChain(builder *strings.Builder, chain []*ast.Diagnostic, level 
 	}
 }
 
-// emitSplicedDeclarations emits the .d.ts from source plus the splices that are plain quoted values (DeclarationReplacements).
-func emitSplicedDeclarations(cwd, tsconfigPath string, original *program.Program, splices []protocol.Replacement, writeFile compiler.WriteFile) error {
+// emitSplicedDeclarations emits the .d.ts from source plus the declaration-only splices: the plain quoted values
+// (DeclarationReplacements) and `private` turned `protected`. It returns each spliced file's map back to the original,
+// keyed by absolute path, so a .d.ts.map still points at the source as written.
+func emitSplicedDeclarations(cwd, tsconfigPath string, original *program.Program, splices []protocol.Replacement, writeFile compiler.WriteFile) (map[string]*protocol.SourceMap, error) {
+	// Keyed by absolute path: the two splice sources may spell one file differently, and each overlay entry replaces the file.
 	byFile := map[string][]protocol.Replacement{}
 	for _, splice := range splices {
-		byFile[splice.File] = append(byFile[splice.File], splice)
+		abs := absOf(cwd, splice.File)
+		byFile[abs] = append(byFile[abs], splice)
 	}
 	overlay := make(map[string]string, len(byFile))
-	for file, fileSplices := range byFile {
-		sourceFile := original.SourceFile(file)
+	mapByAbs := make(map[string]*protocol.SourceMap, len(byFile))
+	for abs, fileSplices := range byFile {
+		sourceFile := original.SourceFile(abs)
 		if sourceFile == nil {
 			continue
 		}
-		// Back to front, so an earlier offset still points into the original text.
-		sort.Slice(fileSplices, func(i, j int) bool { return fileSplices[i].Start > fileSplices[j].Start })
-		text := sourceFile.Text()
-		for _, splice := range fileSplices {
-			text = text[:splice.Start] + splice.Text + text[splice.End:]
+		text, sourceMap := sourcerewrite.Apply(abs, sourceFile.Text(), nil, fileSplices)
+		overlay[abs] = text
+		if sourceMap != nil {
+			mapByAbs[abs] = sourceMap
 		}
-		overlay[absOf(cwd, file)] = text
 	}
 	// Nothing to splice: the first program is the source as written, and it is already checked.
 	declarations := original
 	if len(overlay) > 0 {
 		var err error
 		if declarations, err = program.New(program.Options{Cwd: cwd, TsconfigPath: tsconfigPath, Overlay: overlay}); err != nil {
-			return fmt.Errorf("compile: declaration program: %w", err)
+			return nil, fmt.Errorf("compile: declaration program: %w", err)
 		}
 	}
 	result := declarations.TS.Emit(context.Background(), compiler.EmitOptions{EmitOnly: compiler.EmitOnlyDts, WriteFile: writeFile})
-	return emitSkipped("declaration emit", result, cwd)
+	return mapByAbs, emitSkipped("declaration emit", result, cwd)
 }
 
 // isWithinDir reports whether target sits under dir, or is dir itself, on cleaned absolute paths.
