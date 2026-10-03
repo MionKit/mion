@@ -40,6 +40,11 @@ What the package must carry for a client to build and run against it, as found w
   the routes name: the `.d.ts` refers to their types (`import("@mionjs/router").PublicRoute<…>`).
 - **No server JavaScript.** A client only does `import type {api} from '…'`.
 
+**Built-by-mion marker.** The package carries a marker file written by `mion compile` (with the compiler version
+and the build version). A client refuses a types-only package without it, with one clear error naming the package,
+instead of a scatter of MKR016 / MET012 / PFE9016 findings from a `.d.ts` some other tool wrote. Plain server and
+fullstack builds are unaffected: only the types-only road needs the marker.
+
 Trim the declarations: every type in the generated `.d.ts` that no public route or middleware reaches is removed.
 Server-only helpers, internal classes and anything a handler uses but does not take or return must not ship.
 What stays is the closure of the public API type (each route's params, return and headers, each middleware's), so
@@ -48,8 +53,9 @@ the trimmed file still type-checks on its own and gives the client the same ids.
 Constraints already known, which the implementer must plan around:
 
 - Both sides must run the same mion compiler version; override rows of another version are skipped (PFE9017).
-- A TS `private` class field loses its type in a `.d.ts`, so a route type holding such a class gets another id
-  (MET012). The open private-fields todo decides how runtypes treats them; this package inherits that rule.
+- Plain `tsc` writes a TS `private` member as `private name;` with its type erased, and a client reading such a class
+  fails its build (MKR016). `mion compile` writes those members as `protected` with their type, so a package it built
+  gives the client the server's ids.
 - Generated code can change without its id changing (the text in `Symbol('x')`, a lost `@nonEnumerable`
   tag); the version check cannot see it. The open todo about using published artifacts as they are covers it.
 
@@ -67,7 +73,8 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
 ## Done when
 
 - One command builds a types-only package from a mion API: the trimmed `.d.ts`, the pure-fn artifact when there
-  is one, the manifest, and a `package.json` with the peer dependencies.
+  is one, the manifest, the built-by-mion marker, and a `package.json` with the peer dependencies.
+- A client build fails with one error on a types-only package that has no marker, and a test pins it.
 - The trimmed `.d.ts` holds no type that no public route or middleware reaches, and a test pins that.
 - A pre-publish e2e lane packs it, builds a client against it with the Vite preset and with `mion compile`
   (bundling and fetching), and runs the client against the real server.

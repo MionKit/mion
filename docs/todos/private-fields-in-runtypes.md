@@ -44,12 +44,17 @@ the simplify-comments pass on every touched source file, each committed on its o
 ## Plan (approved 2026-10-03)
 
 Rule: the TypeScript `private` / `protected` modifier never changes the type id or the checks; the fields are
-validated like public ones. Only the type that a `.d.ts` erases is the problem, solved at both ends:
+validated and serialized like public ones. Dropping them (as `keyof` and `DataOnly<T>` do) was weighed and
+rejected: a registered class decoded to a real instance needs its private state. Only the type that a `.d.ts` erases is the problem, solved at both ends:
 
 - `mion compile` turns each class member's `private` into `protected` in the declaration-emit overlay
-  (`batchcompile`), so the emitted `.d.ts` keeps the type and the imports it uses. Constructors, private
-  parameter properties and `#name` fields are untouched; the JS emit is untouched. The declaration map is
-  mapped back to the original source columns for every overlay splice.
+  (`batchcompile`), so the emitted `.d.ts` keeps the type and the imports it uses. Private constructor
+  parameter properties are converted too (tsc erases their type the same way); a `private constructor` and
+  `#name` fields are untouched; the JS emit is untouched. The declaration map is mapped back to the original
+  source columns for every overlay splice, which also fixes the drift the build-version splices caused.
+- `isolatedDeclarations` exempts a private member from a written type, but not a protected one. So when it is on,
+  the source as written is checked for it (the user's own errors still fail), and the spliced declaration emit
+  runs with it off.
 - A class read from a `.d.ts` with a typeless `private` member (`private b;`, what plain `tsc` writes) fails
   the build with the new MKR016 (`LevelRuntimeError`, like the other silent-any codes). No fallback.
 
