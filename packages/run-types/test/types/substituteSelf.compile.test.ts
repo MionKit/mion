@@ -112,6 +112,20 @@ describe('SubstituteSelf / Recursive — recursive-schema correctness + budget',
     );
   });
 
+  it('recursion through a readonly array and a readonly tuple keeps readonly', () => {
+    check(
+      `
+      type Tree = Recursive<{children: readonly Self[]}>;
+      type _01 = Expect<Equal<Tree['children'], readonly Tree[]>>;
+      type Pair = Recursive<{next: readonly [number, Self?]}>;
+      type _02 = Expect<Equal<Pair['next'], readonly [number, Pair?]>>;
+      type Mutable = Recursive<{children: Self[]}>;
+      type _03 = Expect<Equal<Mutable['children'], Mutable[]>>;
+      `,
+      5420
+    );
+  });
+
   it('recursion through Map / Set values (gated branch)', () => {
     check(
       `

@@ -251,7 +251,7 @@ getRunTypeId(value);
 
   function assertReadonlyCollections(cache: Parameters<typeof getTypeFor>[0]) {
     const root = getTypeFor(cache, 'ro.ts');
-    const childOf = (name: string) => root.children?.find((m) => m.name === name)?.child as RunType;
+    const childOf = (name: string) => root.children?.find((member) => member.name === name)?.child as RunType;
     expect(childOf('pair').kind).toBe(ReflectionKind.tuple);
     expect(childOf('pair').readonly).toBe(true);
     expect(childOf('list').kind).toBe(ReflectionKind.array);
@@ -277,4 +277,45 @@ getRunTypeId(pair);
       expect(getTypeFor(cache, 'rw.ts').readonly).toBeUndefined();
     }
   );
+  // A merged tuple is readonly only when every intersected tuple is.
+  runTest(
+    'merged tuple intersection readonly static',
+    {
+      'all.ts': `import {getRunTypeId} from '@mionjs/run-types';
+getRunTypeId<readonly [string, ...unknown[]] & readonly [unknown?, number?, ...unknown[]]>();
+`,
+      'mixed.ts': `import {getRunTypeId} from '@mionjs/run-types';
+getRunTypeId<readonly [string, ...unknown[]] & [unknown?, number?, ...unknown[]]>();
+`,
+    },
+    async (sources) => {
+      const cache = await evalCacheFor(sources);
+      assertMergedReadonly(cache);
+    }
+  );
+
+  runTest(
+    'merged tuple intersection readonly reflect',
+    {
+      'all.ts': `import {getRunTypeId} from '@mionjs/run-types';
+declare const value: readonly [string, ...unknown[]] & readonly [unknown?, number?, ...unknown[]];
+getRunTypeId(value);
+`,
+      'mixed.ts': `import {getRunTypeId} from '@mionjs/run-types';
+declare const value: readonly [string, ...unknown[]] & [unknown?, number?, ...unknown[]];
+getRunTypeId(value);
+`,
+    },
+    async (sources) => {
+      const cache = await evalCacheFor(sources);
+      assertMergedReadonly(cache);
+    }
+  );
+
+  function assertMergedReadonly(cache: Parameters<typeof getTypeFor>[0]) {
+    expect(getTypeFor(cache, 'all.ts').kind).toBe(ReflectionKind.tuple);
+    expect(getTypeFor(cache, 'all.ts').readonly).toBe(true);
+    expect(getTypeFor(cache, 'mixed.ts').kind).toBe(ReflectionKind.tuple);
+    expect(getTypeFor(cache, 'mixed.ts').readonly).toBeUndefined();
+  }
 });
