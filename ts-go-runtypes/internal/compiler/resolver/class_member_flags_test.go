@@ -161,3 +161,61 @@ declare const box: Box;
 getRunTypeId(box);
 `)
 }
+
+// TS `private` / `protected` is only a compile-time word: the field is data, checked like a public one, with one id.
+var visibilityVariants = map[string]map[string]string{
+	"public":            {"box.ts": `export class Box { size = 1; }`},
+	"private":           {"box.ts": `export class Box { private size = 1; }`},
+	"protected":         {"box.ts": `export class Box { protected size = 1; }`},
+	"private param":     {"box.ts": `export class Box { constructor(private size: number) {} }`},
+	"typed private dts": {"box.d.ts": `export declare class Box { private size: number; }`},
+	"protected dts":     {"box.d.ts": `export declare class Box { protected size: number; }`},
+}
+
+func assertVisibilityKeepsOneID(t *testing.T, site string) {
+	t.Helper()
+	ids := map[string]string{}
+	for label, files := range visibilityVariants {
+		withSite := map[string]string{"site.ts": site}
+		for name, content := range files {
+			withSite[name] = content
+		}
+		resolver := setupInline(t, withSite)
+		root := resolveFile(t, resolver, "site.ts")
+		if member := findMember(dump(resolver), root, "size"); member == nil {
+			t.Errorf("%s: `size` must stay a checked member", label)
+		}
+		ids[label] = root.ID
+	}
+	for label, id := range ids {
+		if id != ids["public"] {
+			t.Errorf("%s: id %s, want the public id %s", label, id, ids["public"])
+		}
+	}
+}
+
+func TestClassMemberFlags_VisibilityKeepsOneID_Static(t *testing.T) {
+	assertVisibilityKeepsOneID(t, `import {getRunTypeId} from '@mionjs/run-types';
+import {Box} from './box';
+getRunTypeId<Box>();
+`)
+}
+
+func TestClassMemberFlags_VisibilityKeepsOneID_Value(t *testing.T) {
+	assertVisibilityKeepsOneID(t, `import {getRunTypeId} from '@mionjs/run-types';
+import {Box} from './box';
+declare const box: Box;
+getRunTypeId(box);
+`)
+}
+
+func TestClassMemberFlags_VisibilityFormEquivalence(t *testing.T) {
+	resolver := setupInline(t, map[string]string{
+		"box.ts":    `export class Box { private size = 1; }`,
+		"static.ts": "import {getRunTypeId} from '@mionjs/run-types';\nimport {Box} from './box';\ngetRunTypeId<Box>();\n",
+		"value.ts":  "import {getRunTypeId} from '@mionjs/run-types';\nimport {Box} from './box';\ndeclare const box: Box;\ngetRunTypeId(box);\n",
+	})
+	if static, value := resolveFile(t, resolver, "static.ts"), resolveFile(t, resolver, "value.ts"); static.ID != value.ID {
+		t.Fatalf("static and value forms must share one id, got %q vs %q", static.ID, value.ID)
+	}
+}

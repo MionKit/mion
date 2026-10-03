@@ -3,6 +3,7 @@
 
 import {describe, expect, test} from 'vitest';
 import {createJsonDecoderFn, createJsonEncoderFn, createValidateFn} from '@mionjs/run-types';
+import {registerClassSerializer} from '@mionjs/run-types/runtime';
 
 class Counter {
   #count = 0;
@@ -42,5 +43,47 @@ describe('class with a #private field', () => {
     expect((decode(json) as {counter: Counter}).counter.label).toBe('clicks');
     const holder = {counter};
     expect(JSON.parse(createJsonEncoderFn(holder)(holder) as string)).toEqual({counter: {label: 'clicks'}});
+  });
+});
+
+// TS `private` / `protected` is only a compile-time word: the fields are data, checked and sent like public ones.
+class Wallet {
+  owner = 'ann';
+  private balance = 10;
+  protected currency = 'EUR';
+  deposit(amount: number): number {
+    return (this.balance += amount);
+  }
+}
+
+registerClassSerializer(Wallet);
+
+const wallet = new Wallet();
+const brokeWallet = Object.assign(new Wallet(), {balance: 'ten'});
+const noCurrency = {owner: 'ann', balance: 10};
+
+describe('class with TS private and protected fields', () => {
+  test('validate checks them like public fields, type form', () => {
+    const isWallet = createValidateFn<Wallet>();
+    expect(isWallet(wallet)).toBe(true);
+    expect(isWallet(brokeWallet)).toBe(false);
+    expect(isWallet(noCurrency)).toBe(false);
+  });
+
+  test('validate checks them like public fields, value form', () => {
+    const isWallet = createValidateFn(wallet);
+    expect(isWallet(wallet)).toBe(true);
+    expect(isWallet(brokeWallet)).toBe(false);
+    expect(isWallet(noCurrency)).toBe(false);
+  });
+
+  test('a registered class gets its private state back, both forms', () => {
+    const json = createJsonEncoderFn<Wallet>()(wallet) as string;
+    expect(JSON.parse(json)).toEqual({owner: 'ann', balance: 10, currency: 'EUR'});
+    const decoded = createJsonDecoderFn<Wallet>()(json) as Wallet;
+    expect(decoded).toBeInstanceOf(Wallet);
+    expect(decoded.deposit(5)).toBe(15);
+    expect(JSON.parse(createJsonEncoderFn(wallet)(wallet) as string)).toEqual({owner: 'ann', balance: 10, currency: 'EUR'});
+    expect((createJsonDecoderFn(wallet)(json) as Wallet).deposit(1)).toBe(11);
   });
 });
