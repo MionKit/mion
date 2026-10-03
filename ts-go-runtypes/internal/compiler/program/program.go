@@ -79,11 +79,7 @@ func New(opts Options) (*Program, error) {
 
 	host := compiler.NewCompilerHost(cwd, fileSystem, bundled.LibPath(), nil, nil)
 
-	overrides := opts.Overrides
-	if overrides == nil {
-		overrides = &core.CompilerOptions{}
-	}
-	parsedConfig, diagnostics := tsoptions.GetParsedCommandLineOfConfigFile(configPath, overrides, nil, host, nil)
+	parsedConfig, diagnostics := tsoptions.GetParsedCommandLineOfConfigFile(configPath, opts.Overrides, nil, host, nil)
 	if len(diagnostics) > 0 {
 		return nil, fmt.Errorf("tsconfig parse failed: %s", ast.Diagnostic_Localize(diagnostics[0], ast.DefaultLocale()))
 	}

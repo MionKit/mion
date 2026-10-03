@@ -19,7 +19,6 @@ import (
 
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/compiler"
-	"github.com/microsoft/typescript-go/shim/core"
 	"github.com/microsoft/typescript-go/shim/scanner"
 	"github.com/microsoft/typescript-go/shim/tspath"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
@@ -184,8 +183,7 @@ func Run(opts Options) (*Result, error) {
 	}
 	declarationMapByAbs := map[string]*protocol.SourceMap{}
 	if emitDeclarations {
-		splices := append(r1.DeclarationReplacements(), privateToProtectedSplices(p1)...)
-		if declarationMapByAbs, err = emitSplicedDeclarations(cwd, opts.TsconfigPath, p1, splices, writeFile); err != nil {
+		if declarationMapByAbs, err = emitDeclarationFiles(cwd, opts.TsconfigPath, p1, r1.DeclarationReplacements(), writeFile); err != nil {
 			return nil, err
 		}
 	}
@@ -298,51 +296,6 @@ func writeMessageChain(builder *strings.Builder, chain []*ast.Diagnostic, level 
 		builder.WriteString("\n" + strings.Repeat("  ", level) + link.String())
 		writeMessageChain(builder, link.MessageChain(), level+1)
 	}
-}
-
-// emitSplicedDeclarations emits the .d.ts from source plus the declaration-only splices: the plain quoted values
-// (DeclarationReplacements) and `private` turned `protected`. It returns each spliced file's map back to the original,
-// keyed by absolute path, so a .d.ts.map still points at the source as written.
-func emitSplicedDeclarations(cwd, tsconfigPath string, original *program.Program, splices []protocol.Replacement, writeFile compiler.WriteFile) (map[string]*protocol.SourceMap, error) {
-	// Keyed by absolute path: the two splice sources may spell one file differently, and each overlay entry replaces the file.
-	byFile := map[string][]protocol.Replacement{}
-	for _, splice := range splices {
-		abs := absOf(cwd, splice.File)
-		byFile[abs] = append(byFile[abs], splice)
-	}
-	overlay := make(map[string]string, len(byFile))
-	mapByAbs := make(map[string]*protocol.SourceMap, len(byFile))
-	for abs, fileSplices := range byFile {
-		sourceFile := original.SourceFile(abs)
-		if sourceFile == nil {
-			continue
-		}
-		text, sourceMap := sourcerewrite.Apply(abs, sourceFile.Text(), nil, fileSplices)
-		overlay[abs] = text
-		if sourceMap != nil {
-			mapByAbs[abs] = sourceMap
-		}
-	}
-	// Nothing to splice: the first program is the source as written, and it is already checked.
-	declarations := original
-	if len(overlay) > 0 {
-		// isolatedDeclarations would refuse an inferred type on a member that is only `protected` because of the
-		// splice, so the source as written answers it and the spliced emit infers.
-		var overrides *core.CompilerOptions
-		if original.TS.Options().IsolatedDeclarations.IsTrue() {
-			if found := original.TS.GetDeclarationDiagnostics(context.Background(), nil); len(found) > 0 {
-				lines, _ := renderDiagnostics(found, cwd)
-				return nil, fmt.Errorf("compile: tsgo declaration emit was skipped:\n%s", strings.Join(lines, "\n"))
-			}
-			overrides = &core.CompilerOptions{IsolatedDeclarations: core.TSFalse}
-		}
-		var err error
-		if declarations, err = program.New(program.Options{Cwd: cwd, TsconfigPath: tsconfigPath, Overlay: overlay, Overrides: overrides}); err != nil {
-			return nil, fmt.Errorf("compile: declaration program: %w", err)
-		}
-	}
-	result := declarations.TS.Emit(context.Background(), compiler.EmitOptions{EmitOnly: compiler.EmitOnlyDts, WriteFile: writeFile})
-	return mapByAbs, emitSkipped("declaration emit", result, cwd)
 }
 
 // isWithinDir reports whether target sits under dir, or is dir itself, on cleaned absolute paths.
