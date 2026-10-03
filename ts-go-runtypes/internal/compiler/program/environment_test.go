@@ -39,6 +39,9 @@ func environmentProject(t *testing.T, types string, files map[string]string) map
 			environment[name] = prog.EnvironmentFile(file)
 		}
 	}
+	if len(environment) == 0 {
+		t.Fatalf("no node_modules file collected under %s", resolvedPrefix)
+	}
 	return environment
 }
 

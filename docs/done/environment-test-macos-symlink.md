@@ -36,4 +36,5 @@ Likely cause: `environmentProject` in `ts-go-runtypes/internal/compiler/program/
 - Cause confirmed: with `TMPDIR` set to the resolved path, every test passed unchanged.
 - `environmentProject` now writes the project into `<tmp>/real`, links `<tmp>/link` to it, passes the link as `Cwd`, and trims file names against the resolved real dir. Every OS (Linux CI too) now runs these tests under a symlinked project dir.
 - `program.EnvironmentFile` needed no change: it keys on `sourceFile.Path()` values that all come from the same program, and the three `TestEnvironment_*` tests passing through the link prove it.
+- The helper fails when it collects no `node_modules` file, so no test can pass on an empty map again (the third test did on macOS).
 - No docs: nothing user-visible changed.
