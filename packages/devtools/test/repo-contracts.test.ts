@@ -2027,7 +2027,7 @@ describe('every package under packages/ runs a type check over everything it shi
 });
 
 describe('mion compile (tsgo) checks the same projects tsc does', () => {
-  // tsgo can reject code tsc accepts (a write through `readonly || mutable`), and a consumer's `mion compile` hits it first.
+  // tsgo rejects some code tsc accepts (a write through `readonly || mutable`); consumers' `mion compile` hit it first.
   it('the root typecheck runs the tsgo gate', () => {
     const scripts = JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'utf8')).scripts;
     expect(scripts.typecheck).toContain('pnpm run check:tsgo');
