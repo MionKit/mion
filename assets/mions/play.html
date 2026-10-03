@@ -17,7 +17,7 @@
 </head>
 <body>
 <button id="sound" type="button">Sound off</button>
-<div id="hint">Click a mion to make it jump</div>
+<div id="hint">Click a mion to make it jump, or a floating piece to drop it</div>
 <script type="module">
 // The mions hop between floating terrain pieces that circle the island, drawn on the graphics chip with PixiJS and moved with GSAP.
 // The svg files are only read: each one is cut into layers here (shadow, body, eye whites, pupils), so the assets stay as they are.
@@ -153,6 +153,8 @@ for (const [r, ring] of rings.entries()) for (let i = 0; i < ring.count; i++) {
   const t = a.L.top, flat = /tile|block/.test(kind);
   const spot = { x: t.x + t.w / 2, y: t.y + t.h * (flat ? 0.5 : 0.8) };
   Object.assign(a, { kind, ring, angle: (i / ring.count) * Math.PI * 2 + r * 0.3 + rand(-0.12, 0.12), wobble: rand(0.92, 1.08), phase: rand(0, 6.28), slots: [{ ...spot, holder: null }] });
+  a.root.eventMode = 'static'; a.root.cursor = 'pointer';
+  a.root.on('pointertap', () => drop(a));
   world.addChild(a.root); pieces.push(a);
 }
 // mushroom trees stand still around the island: two small ones behind it, a full-size one below its front, drawn over the island but under everything else
@@ -177,7 +179,7 @@ const empty = p => p.slots.every(slot => !slot.holder);
 // every few seconds an empty piece pops to a new size
 (async () => { for (;;) {
   await wait(rand(1.5, 3.5));
-  const p = pick(pieces.filter(p => p.kind !== 'tree' && empty(p) && !p.popping));
+  const p = pick(pieces.filter(p => p.kind !== 'tree' && empty(p) && !p.popping && !p.falling));
   if (!p) continue;
   p.popping = true;
   const size = sizeFor(p.kind);
@@ -223,7 +225,7 @@ addEventListener('pointermove', e => Object.assign(pointer, { x: e.clientX, y: e
 document.addEventListener('pointerleave', () => { pointer.on = false; });
 const lay = () => {
   for (const p of pieces) {
-    if (p.fixed) continue;
+    if (p.fixed || p.falling) continue;
     const a = p.angle + clock * p.ring.speed;
     p.root.position.set(centre.x + Math.cos(a) * p.ring.rx * p.wobble, centre.y + Math.sin(a) * p.ring.ry * p.wobble);
     p.root.zIndex = p.root.y;
@@ -350,6 +352,17 @@ function landSound(m, surface) {
   if (surface === 'sand') { hiss(dest, 'lowpass', 1400, 0.5, t, 0.32, 0.12); tone(dest, 'sine', 110, 55, t, 0.14, 0.12 * big); }
   if (surface === 'rock') { tone(dest, 'sine', 95, 42, t, 0.32, 0.32 * big); hiss(dest, 'lowpass', 380, 0.9, t, 0.2, 0.12); }
 }
+function fallSound(p) {   // a whistle sliding down, with a soft rush of air under it
+  if (!sound.on) return;
+  const t = sound.ctx.currentTime, dest = out((p.root.x - centre.x) / 700, 1, 0.3);
+  tone(dest, 'sine', 880, 110, t + 0.25, 1.4, 0.07, 0.05);
+  hiss(dest, 'lowpass', 900, 0.6, t + 0.25, 1.3, 0.05);
+}
+function popSound(p) {
+  if (!sound.on) return;
+  const t = sound.ctx.currentTime, dest = out((p.root.x - centre.x) / 700, 1, 0.5);
+  tone(dest, 'sine', 320, 960, t, 0.16, 0.12); tone(dest, 'triangle', 1280, 1920, t + 0.05, 0.25, 0.03);
+}
 const soundButton = document.getElementById('sound');
 soundButton.addEventListener('click', async () => {
   if (!sound.ctx) startSound();
@@ -364,7 +377,7 @@ const inView = p => p.x > W0 + 60 && p.x < W0 + VIEW_W - 60 && p.y > H0 + 60 && 
 function target(m) {
   const here = where(m), options = [];
   for (const p of pieces) {
-    if (!roomy(p) || p.popping) continue;
+    if (!roomy(p) || p.popping || p.falling) continue;
     for (const slot of p.slots.filter(slot => !slot.holder)) {
       const s = toWorld(p, slot), d = Math.hypot(s.x - here.x, s.y - here.y);
       if (d > 70 && d < 420 && inView(s)) options.push({ piece: p, slot, d });
@@ -378,6 +391,7 @@ function target(m) {
 }
 
 async function jump(m, to) {
+  m.jumping = true;
   const from = m.at;
   if (to.piece) to.slot.holder = m; else onIsland.push(m);
   const a0 = where(m), b0 = where({ at: to });
@@ -403,6 +417,40 @@ async function jump(m, to) {
   landSound(m, surfaceOf(to));
   if (m.root.shadow) m.root.shadow.alpha = 1;
   await gsap.timeline().to(body, { x: 1.22, y: 0.8, duration: 0.08, ease: 'power2.out' }).to(body, { x: 1, y: 1, duration: 0.6, ease: 'elastic.out(1, 0.4)' });
+  m.jumping = false;
+}
+
+// ---- dropping a piece ----------------------------------------------------------------------------
+// a clicked piece shivers, stops floating and falls off the screen; a fresh one pops in at its place in the ring a moment later
+async function drop(p) {
+  if (p.falling || p.popping) return;
+  p.falling = true;
+  fallSound(p);
+  const tl = gsap.timeline();
+  tl.to(p.root, { rotation: 0.05, duration: 0.05, yoyo: true, repeat: 5, ease: 'sine.inOut' });
+  if (p.root.shadow) tl.to(p.root.shadow, { alpha: 0, duration: 0.25 }, 0);
+  tl.to(p.root, { y: H0 + VIEW_H + 500, rotation: rand(-0.6, 0.6), duration: 1.4, ease: 'power2.in' });
+  await tl;
+  // a mion that rode it down pops back in on the island; one already mid-jump got away
+  for (const slot of p.slots) {
+    const m = slot.holder;
+    if (!m) continue;
+    slot.holder = null;
+    if (m.jumping) continue;
+    const spot = pick(islandSpots.filter(s => free(s.x, s.y, m)));
+    m.at = { x: spot.x, y: spot.y }; onIsland.push(m);
+    m.body.scale.set(0);
+    gsap.to(m.body.scale, { x: 1, y: 1, duration: 0.8, delay: 0.3, ease: 'elastic.out(1, 0.4)' });
+  }
+  p.root.visible = false;
+  await wait(rand(1.2, 2.4));
+  p.root.rotation = 0; p.root.scale.set(0.001); p.root.visible = true;
+  if (p.root.shadow) p.root.shadow.alpha = 1;
+  p.falling = false; p.popping = true;
+  popSound(p);
+  const size = 0.5 * sizeFor(p.kind);
+  await gsap.to(p.root.scale, { x: size, y: size, duration: 0.9, ease: 'elastic.out(1, 0.4)' });
+  p.popping = false;
 }
 
 for (const m of mions) (async () => {
