@@ -72,7 +72,7 @@ function buildApi() {
 }
 
 // A copy of the client source, so each variant installs its own tarball and keeps its own outputs.
-// overlay is a directory whose files replace the client's own (the fetching main.ts).
+// overlay's files replace the client's own (the fetching main.ts).
 function clientCopy(name, tsconfigEdit, overlay) {
   const dir = path.join(OUT, name);
   cpSync(CLIENT, dir, {recursive: true, filter: (from) => !/[/\\](dist-vite|dist-cli|node_modules|\.mion|\.mion-cli)$/.test(from)});
