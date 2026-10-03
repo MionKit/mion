@@ -1,39 +1,43 @@
-# Hand-built parts of the blue helmet mion: antennae stacked from a few uneven shapes, the round helmet, and its lens and visor as eyes.
+# The blue helmet mion, built by hand: a lumpy round helmet, curved antennae stacked from uneven pieces, cone-section legs, and two lumpy eyes.
 import random
-from common import stack, cone
+from common import stack, cone, wobbly
 
 rand = random.Random(21)
+bumps = lambda size: [(k, rand.uniform(0.01, size) / k ** 0.5, rand.uniform(0, 6.28)) for k in (2, 3, 4)]
 
-def back():  # antennae, drawn behind the helmet so their bases tuck under it; lower pieces a little boxy, tops round
-    leaf = stack('leaf', [(38, 81, 21, 9, -12), (22, 77, 11, 6, -16)], '#b4a6cd', '#d2c8e6', '#7e7199', '#efeaf7', rand)
-    blue = stack('antenna-blue', [(63, 101, 8, 24, -4, 3), (61, 77, 11, 8, -6, 3), (57, 53, 17, 20, -8)], '#4f9fc2', '#83c9e2', '#2c6683', '#c7eef7', rand)
-    white = stack('antenna-white', [(112, 102, 10, 21, 8, 3), (108, 78, 14, 16, 4, 3), (109, 52, 18, 22, -6)], '#d6d3e0', '#f1f0f5', '#9895a9', '#ffffff', rand)
-    red = stack('antenna-red', [(152, 123, 14, 10, -30, 3), (168, 110, 16, 13, -30, 3), (187, 97, 19, 16, -30)], '#d15d5c', '#ee8781', '#8f343c', '#ffd2cc', rand)
-    # legs: two cone sections each, the top one wide under the body so the leg reads as one long taper; the middle one ends in a round foot
-    global leg
-    leg = lambda name, x, tilt, foot=False: stack(name, [cone(x, 252, 40, 21, 26, tilt, rand), cone(x - tilt * 0.4, 276, 20, 14, 24, tilt, rand)]
-                                                 + ([(x - tilt * 0.7, 294, 11, 9, 0)] if foot else []), '#4a4f78', '#6b70a0', '#2b2e4a', '#a3a7cf', rand)
-    legs = leg('leg-left', 74, 16) + leg('leg-right', 136, -18)
-    return leaf + blue + white + red + legs
+def leg(name, x, tilt, foot=False):  # two cone sections, the top one wide under the body; one leg ends in a round foot
+    return stack(name, [cone(x, 252, 40, 21, 26, tilt, rand), cone(x - tilt * 0.4, 276, 20, 14, 24, tilt, rand)]
+                 + ([(x - tilt * 0.7, 294, 11, 9, 0)] if foot else []), '#4a4f78', '#6b70a0', '#2b2e4a', '#a3a7cf', rand, vary=0.06)
+
+def back():  # antennae bend along a curve and their bases tuck under the helmet; lower pieces a little boxy, tops round
+    leaf = stack('leaf', [(35, 82, 21, 9, -16), (19, 79, 11, 6, -22)], '#b4a6cd', '#d2c8e6', '#7e7199', '#efeaf7', rand, vary=0.06)
+    blue = stack('antenna-blue', [(68, 110, 8, 15, -2, 3), (64, 94, 8, 12, -12, 3), (57, 79, 11, 8, -24, 3), (45, 58, 17, 20, -34)], '#4f9fc2', '#83c9e2', '#2c6683', '#c7eef7', rand, vary=0.08)
+    white = stack('antenna-white', [(112, 103, 10, 21, 4, 3), (111, 79, 14, 16, 12, 3), (117, 54, 18, 22, 22)], '#d6d3e0', '#f1f0f5', '#9895a9', '#ffffff', rand, vary=0.05)
+    red = stack('antenna-red', [(158, 121, 14, 10, -22, 3), (173, 105, 16, 13, -40, 3), (184, 84, 19, 16, -58)], '#d15d5c', '#ee8781', '#8f343c', '#ffd2cc', rand, vary=0.08)
+    return leaf + blue + white + red + leg('leg-left', 74, 16) + leg('leg-right', 136, -18)
 
 def eye(i, x, y, rx, ry, pupil, rim, white):
+    # the rim is the white's own shape pushed down-right, so it shows as a crescent there and the upper left has no border
+    b = bumps(0.05)
     return f'''
     <g id="eye-{i}">
-      <ellipse cx="{x}" cy="{y}" rx="{rx + 4.5}" ry="{ry + 4.5}" fill="{rim}"/>
-      <ellipse cx="{x}" cy="{y}" rx="{rx}" ry="{ry}" fill="{white}"/>
+      <path fill="{rim}" d="{wobbly(x + 2, y + 2.5, rx + 3, ry + 3, -10, b)}"/>
+      <path fill="{white}" d="{wobbly(x, y, rx, ry, -10, b)}"/>
       <g><circle cx="{x + 1}" cy="{y + 1}" r="{pupil}" fill="#1b2635"/><circle cx="{x - pupil * 0.3:.1f}" cy="{y - pupil * 0.35:.1f}" r="{pupil * 0.3:.1f}" fill="#fff"/></g>
     </g>'''
 
-def extra():  # the middle leg comes first here, over the helmet's lower edge, so it reads as the leg in front
-    front = leg('leg-middle', 105, 2, foot=True)
+def extra():
+    front = leg('leg-middle', 105, 2, foot=True)   # over the helmet's lower edge, so it reads as the leg in front
+    outline = bumps(0.035)
+    shell = lambda cx, cy, rx, ry: wobbly(cx, cy, rx, ry, -6, outline)
     return f'''
   <g id="helmet">
-    <clipPath id="bh-helmet-clip"><ellipse cx="104" cy="184" rx="71" ry="65"/></clipPath>
-    <ellipse cx="104" cy="184" rx="71" ry="65" fill="#22405a"/>
+    <clipPath id="bh-helmet-clip"><path d="{shell(104, 178, 73, 71)}"/></clipPath>
+    <path d="{shell(104, 178, 73, 71)}" fill="#22405a"/>
     <g clip-path="url(#bh-helmet-clip)">
-      <ellipse cx="98" cy="172" rx="66" ry="56" fill="#3b7fa3"/>
-      <ellipse cx="92" cy="160" rx="56" ry="42" fill="#5fb0cf"/>
-      <ellipse cx="80" cy="143" rx="22" ry="9" fill="#9ad6e8" transform="rotate(-18 80 143)"/>
+      <path d="{wobbly(98, 167, 68, 60, -8, bumps(0.04))}" fill="#3b7fa3"/>
+      <path d="{wobbly(91, 152, 57, 45, -10, bumps(0.05))}" fill="#5fb0cf"/>
+      <ellipse cx="79" cy="133" rx="22" ry="9" fill="#9ad6e8" transform="rotate(-18 79 133)"/>
     </g>
   </g>{front}
   <g id="eyes">{eye(0, 78, 192, 22.5, 21.5, 9.5, '#1f3a4e', '#eef4f6')}{eye(1, 147, 165, 20, 17, 7.5, '#2c6680', '#e2f2f6')}
