@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 170 131" width="170" height="131">
+  <defs><clipPath id="block-blue-top-clip"><path d="M82 31Q90 26 97 30L141 55Q148 58 140 63L87 93Q79 98 72 94L28 69Q20 65 29 60Z"/></clipPath></defs>
+  <g id="block-blue">
+  <g id="block-blue-tile">
+    <path fill="#4e6f91" d="M82 31Q90 26 97 30L141 55Q148 58 148 60L148 69Q148 70 140 75L87 105Q79 110 72 106L28 81Q20 77 20 75L20 66Q20 65 29 60Z"/>
+    <path fill="#557698" d="M79 99Q79 98 87 93L140 63Q148 58 148 60L148 69Q148 70 140 75L87 105Q79 110 79 108Z"/>
+    <path fill="#334c6c" d="M82 31Q90 26 97 30L141 55Q148 58 140 63L87 93Q79 98 72 94L28 69Q20 65 29 60Z"/>
+    <path fill="#4b617d" d="M78 34Q87 29 95 33L129 52Q138 57 128 62L87 85Q78 91 70 86L36 67Q27 63 37 57Z" clip-path="url(#block-blue-top-clip)"/>
+  </g>
+  <g id="block-blue-slab">
+    <path fill="#283c56" d="M50 59Q40 64 48 69L73 83Q81 87 90 82L119 65Q129 60 121 55L96 42Q88 38 79 43Z"/>
+    <path fill="#4b6787" d="M82 26Q88 22 94 25L121 40Q127 44 127 46L127 57Q127 60 120 63L87 82Q81 85 75 82L48 67Q42 64 42 62L42 50Q42 48 49 44Z"/>
+    <path fill="#4d6a8c" d="M81 72Q81 69 87 66L120 47Q127 44 127 46L127 57Q127 60 120 63L87 82Q81 85 81 83Z"/>
+    <path fill="#8fb2c8" d="M81 26Q88 22 94 25L121 40Q127 44 119 48L88 65Q81 69 75 66L48 51Q42 48 50 44Z"/>
+    <path fill="#9cbbce" d="M78 28Q86 24 92 27L111 38Q118 42 110 46L87 59Q79 64 73 60L54 49Q47 45 55 41Z"/>
+  </g>
+  </g>
+</svg>
