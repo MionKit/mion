@@ -1,7 +1,7 @@
 ---
 type: chore
 spec: guidelines
-status: ready
+status: done
 created: 2026-10-03
 ---
 
@@ -164,3 +164,11 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
   restated, and the re-measured numbers are recorded below.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source file,
   each committed on its own.
+
+## Plan (approved 2026-10-03)
+
+Group each runtype row by the exact set of files reaching it: one file keeps it, the same 2+ files share an
+`rt/shared/<hash>` module. Plan the homes over the whole program (a one-file scan included), keep type ids,
+the runtime and every other generated module as they are. Tests in Go (collector and resolver), the runtime and
+the Vite two-bundle build; the `moduleMode` row on the configuration page; re-measure and record the result here.
+The copy rule for tiny groups and the import-aware tuple key were added during the build (see What Shipped).
