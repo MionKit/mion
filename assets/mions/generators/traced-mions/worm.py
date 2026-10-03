@@ -1,6 +1,7 @@
 # The worm mion, built by hand: one tapered tube along its curve with a lighter top, curved creases between segments, a shine and two eyes.
 import math
-from common import through
+import random
+from common import through, wobbly
 
 OUT = '../../creatures/worm.svg'
 # the curve measured on the reference crop, head first: center and half thickness
@@ -35,11 +36,16 @@ for i in range(1, len(SPINE) - 1):   # between segments: an arc across the tube,
 
 shine = 'M' + ' '.join(f'{x - frame(i)[1][0] * r * 0.55:.0f} {y - frame(i)[1][1] * r * 0.55:.0f}' for i, (x, y, r) in enumerate(SPINE[:4]))
 
+rand = random.Random(7)
+bumps = lambda size: [(k, rand.uniform(0.01, size) / k ** 0.5, rand.uniform(0, 6.28)) for k in (2, 3, 4)]
+
 def eye(i, x, y, r, p):
+    # the rim is the white's own shape pushed down-right, so it shows as a crescent there and the upper left has no border
+    b = bumps(0.08)
     return f'''
     <g id="eye-{i}">
-      <circle cx="{x}" cy="{y}" r="{r + 1.4}" fill="#a64a55"/>
-      <circle cx="{x}" cy="{y}" r="{r}" fill="#f6f4f1"/>
+      <path fill="#a64a55" d="{wobbly(x + 0.7, y + 0.9, r + 1.1, r + 1.1, -10, b)}"/>
+      <path fill="#f6f4f1" d="{wobbly(x, y, r, r, -10, b)}"/>
       <g><circle cx="{x + 0.5}" cy="{y + 0.5}" r="{p}" fill="#1d1f2b"/><circle cx="{x - p * 0.3:.1f}" cy="{y - p * 0.35:.1f}" r="{max(1.1, p * 0.3):.1f}" fill="#fff"/></g>
     </g>'''
 
