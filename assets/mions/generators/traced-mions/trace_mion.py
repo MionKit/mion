@@ -1,7 +1,7 @@
 # Builds a mion from its crop: traced flat body tones and line work, eyes rebuilt as clean shapes, a gloss streak and a ground shadow.
 # Run from this folder: python3 trace_mion.py <name>, with the settings for <name> in mions.json ('back' and 'extra' hold hand-drawn parts behind and in front,
 # 'parts' names a module whose back() and extra() build them in code; 'trace': false skips the tracing for a mion built fully by hand).
-import sys, json, importlib, cv2, numpy as np
+import sys, json, importlib, re, cv2, numpy as np
 from common import *
 
 name = sys.argv[1]
@@ -71,5 +71,7 @@ svg = f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w // UP} {h // U
   </g>''' if eye_svg else '') + f'''{extra}
 </svg>
 '''
+# smaller file, same picture: no indentation, and short names for the shapes and clips every stacked part repeats
+svg = re.sub(r'-clip\b', '-c', re.sub(r'-shape\b', '-s', re.sub(r'\n\s+<', '\n<', svg)))
 open(f'../../creatures/{name}.svg', 'w').write(svg)
 print(name, f'{len(svg) / 1024:.1f} KB')

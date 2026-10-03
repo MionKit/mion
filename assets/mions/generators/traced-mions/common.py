@@ -206,6 +206,6 @@ def stack(name, parts, base, light, crease, shine, rand, vary=0):
       <defs><path id="{name}-{i}-shape" d="{d}"/><clipPath id="{name}-{i}-clip"><use href="#{name}-{i}-shape"/></clipPath></defs>
       <use href="#{name}-{i}-shape" fill="{crease}" transform="translate({dx:.1f} {dy:.1f})"/>
       <use href="#{name}-{i}-shape" fill="{part_base}"/>
-      <g clip-path="url(#{name}-{i}-clip)"><use href="#{name}-{i}-shape" fill="{part_light}" transform="translate({cx - rx * 0.12:.1f} {cy - ry * 0.15:.1f}) scale(0.78) translate({-cx} {-cy})"/>{gleam}</g>
+      <g clip-path="url(#{name}-{i}-clip)"><use href="#{name}-{i}-shape" fill="{part_light}" transform="matrix(.78 0 0 .78 {cx * 0.22 - rx * 0.12:.1f} {cy * 0.22 - ry * 0.15:.1f})"/>{gleam}</g>
     </g>'''
     return out + '\n  </g>'

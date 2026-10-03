@@ -1,71 +1,70 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 195 294" width="195" height="294">
-  <defs><filter id="red-mushroom-blur" x="-30%" y="-100%" width="160%" height="300%"><feGaussianBlur stdDeviation="3.5"/></filter></defs>
-  <g id="shadow"><ellipse cx="113" cy="275" rx="46" ry="9" fill="#000" opacity="0.32" filter="url(#red-mushroom-blur)"/></g>
-  <g id="rm-bobble">
-    <g id="rm-bobble-0">
-      <defs><path id="rm-bobble-0-shape" d="M47.6 45.6c0.8 2.8 1.3 6.4 0.5 9-0.8 2.5-3.3 5.1-5.5 6.6-2.3 1.5-5.4 2.5-8.1 2.4-2.6-0.2-5.9-1.6-7.9-3.5-2.1-1.8-3.7-4.9-4.4-7.7-0.7-2.7-0.7-6.1 0.2-8.7 0.9-2.7 2.8-5.4 5-7 2.1-1.6 5.4-3 8.1-2.7 2.6 0.2 5.6 2.2 7.7 4.2 2 1.9 3.6 4.7 4.4 7.4z"/><clipPath id="rm-bobble-0-clip"><use href="#rm-bobble-0-shape"/></clipPath></defs>
-      <use href="#rm-bobble-0-shape" fill="#93596a" transform="translate(1.0 2.5)"/>
-      <use href="#rm-bobble-0-shape" fill="#cf8a90"/>
-      <g clip-path="url(#rm-bobble-0-clip)"><use href="#rm-bobble-0-shape" fill="#eeb0b1" transform="translate(33.4 46.8) scale(0.78) translate(-35 -49)"/></g>
-    </g>
-  </g>
-  <ellipse cx="46" cy="54" rx="3.5" ry="4.5" fill="#e6e2ec"/>
-  <g id="rm-fin">
-    <g id="rm-fin-0">
-      <defs><path id="rm-fin-0-shape" d="M106 227c0 2-1 5-3 7-2 2-4 4-6 6-3 1-6 2-9 2-3 0-7-1-10-2-2-2-5-4-7-6-2-2-4-4-4-7-1-2-2-5-1-8 0-2 1-5 3-7 1-2 4-4 6-6 3-1 6-2 9-2 3 1 7 2 10 3 2 1 5 3 7 5 2 2 4 4 5 7 1 2 1 5 0 8z"/><clipPath id="rm-fin-0-clip"><use href="#rm-fin-0-shape"/></clipPath></defs>
-      <use href="#rm-fin-0-shape" fill="#55566c" transform="translate(1.0 2.5)"/>
-      <use href="#rm-fin-0-shape" fill="#87899d"/>
-      <g clip-path="url(#rm-fin-0-clip)"><use href="#rm-fin-0-shape" fill="#c8ccd5" transform="translate(83.5 220.3) scale(0.78) translate(-86 -223)"/><ellipse cx="78.2" cy="217.1" rx="5.9" ry="2.9" fill="#f4f6f9" transform="rotate(-15 78.2 217.1)"/></g>
-    </g>
-    <g id="rm-fin-1">
-      <defs><path id="rm-fin-1-shape" d="M85 167c4-14 8-20 9-20 1 0 3 0 4 1 1 0 3 7 5 21 1 10 2 19 3 29 2 14-2 20-10 19-5 0-11-1-16-2-9-1-10-8-5-21 3-9 6-18 10-27z"/><clipPath id="rm-fin-1-clip"><use href="#rm-fin-1-shape"/></clipPath></defs>
-      <use href="#rm-fin-1-shape" fill="#55566c" transform="translate(-0.4 2.5)"/>
-      <use href="#rm-fin-1-shape" fill="#9092a6"/>
-      <g clip-path="url(#rm-fin-1-clip)"><use href="#rm-fin-1-shape" fill="#d2d6de" transform="translate(90.5 176.9) scale(0.78) translate(-92 -182)"/></g>
-    </g>
-  </g>
-  <g id="rm-body">
-  <g id="rm-stem">
-    <g id="rm-stem-0">
-      <defs><path id="rm-stem-0-shape" d="M98 145c4-6 18-3 27-3 9 0 21-4 25 3 5 8 3 29 4 43 0 15 4 37 0 45-4 8-17 5-24 5-8-1-19-1-23-7-3-5 1-17 0-26-1-10-4-20-6-30-1-10-7-25-3-30z"/><clipPath id="rm-stem-0-clip"><use href="#rm-stem-0-shape"/></clipPath></defs>
-      <use href="#rm-stem-0-shape" fill="#4a1c25" transform="translate(1.0 2.5)"/>
-      <use href="#rm-stem-0-shape" fill="#6a2a33"/>
-      <g clip-path="url(#rm-stem-0-clip)"><use href="#rm-stem-0-shape" fill="#923238" transform="translate(123.1 183.1) scale(0.78) translate(-126 -190)"/><ellipse cx="116.7" cy="173.1" rx="6.7" ry="7.4" fill="#9b383b" transform="rotate(-25 116.7 173.1)"/></g>
-    </g>
-  </g>
-
-  <g id="rm-foot">
-    <g id="rm-foot-0">
-      <defs><path id="rm-foot-0-shape" d="M157 242c0 4-1 9-2 13-2 3-6 6-10 8-4 3-7 5-14 8-7 2-20 6-27 7-7 1-13 1-18 0-4-2-7-3-10-6-3-3-5-8-6-12-1-4-1-9 0-13 2-4 6-6 10-9 4-2 8-4 15-6 7-3 19-6 27-7 7-2 13-2 18-1 5 1 8 3 11 6 3 3 5 8 6 12z"/><clipPath id="rm-foot-0-clip"><use href="#rm-foot-0-shape"/></clipPath></defs>
-      <use href="#rm-foot-0-shape" fill="#5a1f27" transform="translate(1.0 2.5)"/>
-      <use href="#rm-foot-0-shape" fill="#a8403b"/>
-      <g clip-path="url(#rm-foot-0-clip)"><use href="#rm-foot-0-shape" fill="#c8524a" transform="translate(107.7 247.4) scale(0.78) translate(-113 -251)"/><ellipse cx="93.4" cy="243.7" rx="12.3" ry="3.8" fill="#f2c0b0" transform="rotate(-37 93.4 243.7)"/></g>
-    </g>
-  </g>
-  <g id="rm-cap">
-    <g id="rm-cap-0">
-      <defs><path id="rm-cap-0-shape" d="M106 19c9 0 19 4 27 8 7 3 13 8 19 14 6 6 11 14 15 20 5 7 10 13 12 20 2 7 3 16 3 23-1 7-2 14-5 20-3 6-9 11-15 15-6 4-12 7-21 10-10 3-24 6-36 7-11 0-23-3-32-6-10-3-17-6-24-11-7-4-13-10-16-16-3-6-3-13-3-20 0-8 2-16 4-23 2-7 4-12 9-19 4-7 10-17 16-23 6-6 13-9 20-13 8-3 18-6 27-6z"/><clipPath id="rm-cap-0-clip"><use href="#rm-cap-0-shape"/></clipPath></defs>
-      <use href="#rm-cap-0-shape" fill="#5e1f2a" transform="translate(1.0 2.5)"/>
-      <use href="#rm-cap-0-shape" fill="#bf5047"/>
-      <g clip-path="url(#rm-cap-0-clip)"><use href="#rm-cap-0-shape" fill="#dc6852" transform="translate(95.9 78.0) scale(0.78) translate(-105 -88)"/><ellipse cx="70.8" cy="65.7" rx="21.3" ry="10.7" fill="#ffd6c8" transform="rotate(-25 70.8 65.7)"/></g>
-    </g>
-  </g>
-  <g clip-path="url(#rm-cap-0-clip)">
-    <path d="M152 52c2 8-1 18-6 26-6 8-16 15-27 20-10 5-24 10-35 11-12 0-26-4-34-9-8-6-11-16-12-24-2-8-1-18 4-26 5-8 16-16 26-21 10-5 24-9 36-9 12 0 26 3 34 9 8 5 13 14 14 23z" fill="#f09883"/>
-    <ellipse cx="93" cy="29" rx="10" ry="3.5" fill="#fbbfad" transform="rotate(-10 93 29)"/>
-  </g>
-  </g>
-  <g id="rm-spots">
-    <ellipse cx="95" cy="55" rx="3.6" ry="3.2" fill="#fcdcd0"/>
-    <ellipse cx="152" cy="125" rx="3" ry="4" fill="#ece6ea"/>
-    <ellipse cx="44" cy="123" rx="3.4" ry="4" fill="#e3ab8c"/>
-    <ellipse cx="115" cy="145" rx="2.6" ry="2.2" fill="#d6b3aa"/>
-  </g>
-  <g id="rm-eyes">
-    <g id="eye-0">
-      <path fill="#6e3138" d="M146.2 91c0.8 5.1 0.1 11.1-1.7 15.9-1.8 4.8-5.1 9.7-9 13-3.9 3.2-9.2 5.6-14.2 6.5-5 0.9-10.8 0.6-15.7-1-4.8-1.6-10.2-4.8-13.6-8.7-3.3-4-5.7-9.9-6.4-15-0.7-5.2 0.4-11.1 2.3-15.9 1.8-4.8 4.9-9.6 8.7-12.9 3.8-3.4 9.1-6.1 14-7.1 5-1 11-0.5 15.8 1.2 4.9 1.7 10 5.1 13.3 9.1 3.3 4 5.7 9.8 6.5 14.9z"/>
-      <path fill="#f6f7f5" d="M142.2 89.4c0.7 4.7 0.1 10.2-1.6 14.6-1.6 4.5-4.6 9-8.2 12-3.5 3-8.4 5.1-13 6-4.6 0.8-9.9 0.5-14.4-0.9-4.5-1.5-9.4-4.4-12.5-8.1-3.1-3.6-5.3-9.1-5.9-13.8-0.6-4.7 0.4-10.1 2.1-14.5 1.6-4.4 4.5-8.9 8-11.9 3.5-3.1 8.3-5.6 12.9-6.5 4.5-0.9 10-0.5 14.5 1.1 4.4 1.5 9.1 4.7 12.1 8.4 3.1 3.6 5.3 8.9 6 13.6z"/>
-      <g><ellipse cx="125.5" cy="97" rx="9.5" ry="12" fill="#2b2d38" transform="rotate(-10 125.5 97)"/><circle cx="122.2" cy="92.2" r="3.0" fill="#fff"/></g>
-    </g>
-  </g>
+<defs><filter id="red-mushroom-blur" x="-30%" y="-100%" width="160%" height="300%"><feGaussianBlur stdDeviation="3.5"/></filter></defs>
+<g id="shadow"><ellipse cx="113" cy="275" rx="46" ry="9" fill="#000" opacity="0.32" filter="url(#red-mushroom-blur)"/></g>
+<g id="rm-bobble">
+<g id="rm-bobble-0">
+<defs><path id="rm-bobble-0-s" d="M47.6 45.6c0.8 2.8 1.3 6.4 0.5 9-0.8 2.5-3.3 5.1-5.5 6.6-2.3 1.5-5.4 2.5-8.1 2.4-2.6-0.2-5.9-1.6-7.9-3.5-2.1-1.8-3.7-4.9-4.4-7.7-0.7-2.7-0.7-6.1 0.2-8.7 0.9-2.7 2.8-5.4 5-7 2.1-1.6 5.4-3 8.1-2.7 2.6 0.2 5.6 2.2 7.7 4.2 2 1.9 3.6 4.7 4.4 7.4z"/><clipPath id="rm-bobble-0-c"><use href="#rm-bobble-0-s"/></clipPath></defs>
+<use href="#rm-bobble-0-s" fill="#93596a" transform="translate(1.0 2.5)"/>
+<use href="#rm-bobble-0-s" fill="#cf8a90"/>
+<g clip-path="url(#rm-bobble-0-c)"><use href="#rm-bobble-0-s" fill="#eeb0b1" transform="matrix(.78 0 0 .78 6.1 8.6)"/></g>
+</g>
+</g>
+<ellipse cx="46" cy="54" rx="3.5" ry="4.5" fill="#e6e2ec"/>
+<g id="rm-fin">
+<g id="rm-fin-0">
+<defs><path id="rm-fin-0-s" d="M106 227c0 2-1 5-3 7-2 2-4 4-6 6-3 1-6 2-9 2-3 0-7-1-10-2-2-2-5-4-7-6-2-2-4-4-4-7-1-2-2-5-1-8 0-2 1-5 3-7 1-2 4-4 6-6 3-1 6-2 9-2 3 1 7 2 10 3 2 1 5 3 7 5 2 2 4 4 5 7 1 2 1 5 0 8z"/><clipPath id="rm-fin-0-c"><use href="#rm-fin-0-s"/></clipPath></defs>
+<use href="#rm-fin-0-s" fill="#55566c" transform="translate(1.0 2.5)"/>
+<use href="#rm-fin-0-s" fill="#87899d"/>
+<g clip-path="url(#rm-fin-0-c)"><use href="#rm-fin-0-s" fill="#c8ccd5" transform="matrix(.78 0 0 .78 16.4 46.4)"/><ellipse cx="78.2" cy="217.1" rx="5.9" ry="2.9" fill="#f4f6f9" transform="rotate(-15 78.2 217.1)"/></g>
+</g>
+<g id="rm-fin-1">
+<defs><path id="rm-fin-1-s" d="M85 167c4-14 8-20 9-20 1 0 3 0 4 1 1 0 3 7 5 21 1 10 2 19 3 29 2 14-2 20-10 19-5 0-11-1-16-2-9-1-10-8-5-21 3-9 6-18 10-27z"/><clipPath id="rm-fin-1-c"><use href="#rm-fin-1-s"/></clipPath></defs>
+<use href="#rm-fin-1-s" fill="#55566c" transform="translate(-0.4 2.5)"/>
+<use href="#rm-fin-1-s" fill="#9092a6"/>
+<g clip-path="url(#rm-fin-1-c)"><use href="#rm-fin-1-s" fill="#d2d6de" transform="matrix(.78 0 0 .78 18.8 34.9)"/></g>
+</g>
+</g>
+<g id="rm-body">
+<g id="rm-stem">
+<g id="rm-stem-0">
+<defs><path id="rm-stem-0-s" d="M98 145c4-6 18-3 27-3 9 0 21-4 25 3 5 8 3 29 4 43 0 15 4 37 0 45-4 8-17 5-24 5-8-1-19-1-23-7-3-5 1-17 0-26-1-10-4-20-6-30-1-10-7-25-3-30z"/><clipPath id="rm-stem-0-c"><use href="#rm-stem-0-s"/></clipPath></defs>
+<use href="#rm-stem-0-s" fill="#4a1c25" transform="translate(1.0 2.5)"/>
+<use href="#rm-stem-0-s" fill="#6a2a33"/>
+<g clip-path="url(#rm-stem-0-c)"><use href="#rm-stem-0-s" fill="#923238" transform="matrix(.78 0 0 .78 24.8 34.9)"/><ellipse cx="116.7" cy="173.1" rx="6.7" ry="7.4" fill="#9b383b" transform="rotate(-25 116.7 173.1)"/></g>
+</g>
+</g>
+<g id="rm-foot">
+<g id="rm-foot-0">
+<defs><path id="rm-foot-0-s" d="M157 242c0 4-1 9-2 13-2 3-6 6-10 8-4 3-7 5-14 8-7 2-20 6-27 7-7 1-13 1-18 0-4-2-7-3-10-6-3-3-5-8-6-12-1-4-1-9 0-13 2-4 6-6 10-9 4-2 8-4 15-6 7-3 19-6 27-7 7-2 13-2 18-1 5 1 8 3 11 6 3 3 5 8 6 12z"/><clipPath id="rm-foot-0-c"><use href="#rm-foot-0-s"/></clipPath></defs>
+<use href="#rm-foot-0-s" fill="#5a1f27" transform="translate(1.0 2.5)"/>
+<use href="#rm-foot-0-s" fill="#a8403b"/>
+<g clip-path="url(#rm-foot-0-c)"><use href="#rm-foot-0-s" fill="#c8524a" transform="matrix(.78 0 0 .78 19.6 51.6)"/><ellipse cx="93.4" cy="243.7" rx="12.3" ry="3.8" fill="#f2c0b0" transform="rotate(-37 93.4 243.7)"/></g>
+</g>
+</g>
+<g id="rm-cap">
+<g id="rm-cap-0">
+<defs><path id="rm-cap-0-s" d="M106 19c9 0 19 4 27 8 7 3 13 8 19 14 6 6 11 14 15 20 5 7 10 13 12 20 2 7 3 16 3 23-1 7-2 14-5 20-3 6-9 11-15 15-6 4-12 7-21 10-10 3-24 6-36 7-11 0-23-3-32-6-10-3-17-6-24-11-7-4-13-10-16-16-3-6-3-13-3-20 0-8 2-16 4-23 2-7 4-12 9-19 4-7 10-17 16-23 6-6 13-9 20-13 8-3 18-6 27-6z"/><clipPath id="rm-cap-0-c"><use href="#rm-cap-0-s"/></clipPath></defs>
+<use href="#rm-cap-0-s" fill="#5e1f2a" transform="translate(1.0 2.5)"/>
+<use href="#rm-cap-0-s" fill="#bf5047"/>
+<g clip-path="url(#rm-cap-0-c)"><use href="#rm-cap-0-s" fill="#dc6852" transform="matrix(.78 0 0 .78 14.0 9.3)"/><ellipse cx="70.8" cy="65.7" rx="21.3" ry="10.7" fill="#ffd6c8" transform="rotate(-25 70.8 65.7)"/></g>
+</g>
+</g>
+<g clip-path="url(#rm-cap-0-c)">
+<path d="M152 52c2 8-1 18-6 26-6 8-16 15-27 20-10 5-24 10-35 11-12 0-26-4-34-9-8-6-11-16-12-24-2-8-1-18 4-26 5-8 16-16 26-21 10-5 24-9 36-9 12 0 26 3 34 9 8 5 13 14 14 23z" fill="#f09883"/>
+<ellipse cx="93" cy="29" rx="10" ry="3.5" fill="#fbbfad" transform="rotate(-10 93 29)"/>
+</g>
+</g>
+<g id="rm-spots">
+<ellipse cx="95" cy="55" rx="3.6" ry="3.2" fill="#fcdcd0"/>
+<ellipse cx="152" cy="125" rx="3" ry="4" fill="#ece6ea"/>
+<ellipse cx="44" cy="123" rx="3.4" ry="4" fill="#e3ab8c"/>
+<ellipse cx="115" cy="145" rx="2.6" ry="2.2" fill="#d6b3aa"/>
+</g>
+<g id="rm-eyes">
+<g id="eye-0">
+<path fill="#6e3138" d="M146.2 91c0.8 5.1 0.1 11.1-1.7 15.9-1.8 4.8-5.1 9.7-9 13-3.9 3.2-9.2 5.6-14.2 6.5-5 0.9-10.8 0.6-15.7-1-4.8-1.6-10.2-4.8-13.6-8.7-3.3-4-5.7-9.9-6.4-15-0.7-5.2 0.4-11.1 2.3-15.9 1.8-4.8 4.9-9.6 8.7-12.9 3.8-3.4 9.1-6.1 14-7.1 5-1 11-0.5 15.8 1.2 4.9 1.7 10 5.1 13.3 9.1 3.3 4 5.7 9.8 6.5 14.9z"/>
+<path fill="#f6f7f5" d="M142.2 89.4c0.7 4.7 0.1 10.2-1.6 14.6-1.6 4.5-4.6 9-8.2 12-3.5 3-8.4 5.1-13 6-4.6 0.8-9.9 0.5-14.4-0.9-4.5-1.5-9.4-4.4-12.5-8.1-3.1-3.6-5.3-9.1-5.9-13.8-0.6-4.7 0.4-10.1 2.1-14.5 1.6-4.4 4.5-8.9 8-11.9 3.5-3.1 8.3-5.6 12.9-6.5 4.5-0.9 10-0.5 14.5 1.1 4.4 1.5 9.1 4.7 12.1 8.4 3.1 3.6 5.3 8.9 6 13.6z"/>
+<g><ellipse cx="125.5" cy="97" rx="9.5" ry="12" fill="#2b2d38" transform="rotate(-10 125.5 97)"/><circle cx="122.2" cy="92.2" r="3.0" fill="#fff"/></g>
+</g>
+</g>
 </svg>
