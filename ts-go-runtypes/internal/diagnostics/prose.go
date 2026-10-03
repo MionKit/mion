@@ -358,7 +358,7 @@ export const id = getRunTypeId<{payload: Payload}>();`,
 
 	// ──────────────────── typeless private member (MKR016) ────────────────────
 	CodeMarkerTypelessPrivateMember: {
-		Summary: "A class read from a `.d.ts` file has a `private` member with no type. Plain `tsc` writes every private field and method this way, so RunTypes cannot check it and the build fails. Build the package with `mion compile`, which keeps the type by writing the member as `protected` (outside code still cannot read it), or point its `types` at its TypeScript sources.",
+		Summary: "A class read from a `.d.ts` file has a `private` member with no type. Plain `tsc` writes every private field and method this way, so RunTypes cannot check it and the build fails. Build the package with `mion compile`, which keeps the type by writing the member as `protected` (outside code still cannot read it), or point its `types` at its TypeScript sources. `mion compile` leaves a member `private` when its type comes from a package that is not in `dependencies` or `peerDependencies`, or cannot be named in a `.d.ts`: add that dependency, or give the member a type the package exports.",
 		Fix: `// package.json of the class's package
 {"scripts": {"build": "mion compile --tsconfig tsconfig.build.json"}}`,
 		Example: `import {getRunTypeId} from '@mionjs/run-types';

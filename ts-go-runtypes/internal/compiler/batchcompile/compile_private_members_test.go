@@ -6,16 +6,16 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/resolver"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/sourcerewrite"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/testfixtures"
 )
 
 // A plain tsc .d.ts erases every private member's type, which a consumer could only read as `any` (MKR016). These
-// tests pin that `mion compile` writes those members as `protected` with their type, and that a consumer of the
-// emitted .d.ts gets the same type id as from the source.
+// tests pin that `mion compile` writes those members as `protected` with their type, that a consumer of the emitted
+// .d.ts gets the same type id as from the source, and that a member whose `protected` form would break the emit or
+// need a new package stays `private`.
 
 const ledgerMoneyTS = "export type Money = {amount: number; currency: string};\n"
 
@@ -54,10 +54,19 @@ func compileLedger(t *testing.T, extra string) string {
 	return dir
 }
 
+func assertContains(t *testing.T, text string, wanted ...string) {
+	t.Helper()
+	for _, want := range wanted {
+		if !strings.Contains(text, want) {
+			t.Errorf("must contain %q:\n%s", want, text)
+		}
+	}
+}
+
 func TestCompile_DeclarationsKeepPrivateMemberTypes(t *testing.T) {
 	dir := compileLedger(t, "")
 	dts := readEmitted(t, dir, "index.d.ts")
-	for _, want := range []string{
+	assertContains(t, dts,
 		"protected balance: Money;",
 		"protected count: number;",
 		"protected note?: Note;",
@@ -70,11 +79,7 @@ func TestCompile_DeclarationsKeepPrivateMemberTypes(t *testing.T) {
 		"private constructor();",
 		"Money } from",
 		"type Note = {",
-	} {
-		if !strings.Contains(dts, want) {
-			t.Errorf("the declaration must contain %q:\n%s", want, dts)
-		}
-	}
+	)
 	for _, unwanted := range []string{"private balance", "private count", "private note", "private audit", "private get"} {
 		if strings.Contains(dts, unwanted) {
 			t.Errorf("the declaration must not keep %q:\n%s", unwanted, dts)
@@ -85,78 +90,87 @@ func TestCompile_DeclarationsKeepPrivateMemberTypes(t *testing.T) {
 	}
 }
 
-// The declaration map must point at the source as written, not at the overlay where `protected` is 2 characters longer.
-func TestCompile_DeclarationMapPointsAtOriginalColumns(t *testing.T) {
-	dir := compileLedger(t, ` "declarationMap": true,`)
-	raw := readEmitted(t, dir, "index.d.ts.map")
+// assertMapPointsAt checks that a .d.ts.map has a segment at the source token's original column, never at the shifted one.
+func assertMapPointsAt(t *testing.T, raw, source, lineMarker, token string, shift int) {
+	t.Helper()
 	var sourceMap protocol.SourceMap
 	if err := json.Unmarshal([]byte(raw), &sourceMap); err != nil {
 		t.Fatalf("parse map: %v\n%s", err, raw)
 	}
-	if len(sourceMap.Sources) != 1 || filepath.IsAbs(sourceMap.Sources[0]) || !strings.HasSuffix(sourceMap.Sources[0], "src/index.ts") {
+	if len(sourceMap.Sources) != 1 || filepath.IsAbs(sourceMap.Sources[0]) {
 		t.Errorf("the map must name the source relative to the map file, got %v", sourceMap.Sources)
 	}
-	lines := strings.Split(ledgerAccountTS, "\n")
-	balanceLine, balanceColumn := -1, -1
-	for index, line := range lines {
-		if strings.Contains(line, "private balance") {
-			balanceLine, balanceColumn = index, strings.Index(line, "balance")
+	line, column := -1, -1
+	for index, text := range strings.Split(source, "\n") {
+		if strings.Contains(text, lineMarker) {
+			line, column = index, strings.Index(text, token)
 		}
 	}
-	positions := sourcerewrite.OriginalPositions(sourceMap.Mappings)
 	found := false
-	for _, position := range positions {
-		if position[0] != balanceLine {
+	for _, position := range sourcerewrite.OriginalPositions(sourceMap.Mappings) {
+		if position[0] != line {
 			continue
 		}
-		if position[1] == balanceColumn {
-			found = true
-		}
-		if position[1] == balanceColumn+2 {
-			t.Errorf("a segment points at the overlay column %d, not the original %d", position[1], balanceColumn)
+		found = found || position[1] == column
+		if position[1] == column+shift {
+			t.Errorf("a segment points at the spliced column %d, not the original %d", position[1], column)
 		}
 	}
 	if !found {
-		t.Errorf("no segment points at `balance` (line %d, column %d): %v", balanceLine, balanceColumn, positions)
+		t.Errorf("no segment points at %q (line %d, column %d)", token, line, column)
 	}
 }
 
-const ledgerStaticConsumer = `import {getRunTypeId} from '@mionjs/run-types';
-import {Account} from '@acme/ledger';
-export const id = getRunTypeId<Account>();
-`
+// The declaration map points at the source as written, not at the overlay where `protected` is 2 characters longer.
+func TestCompile_DeclarationMapPointsAtOriginalColumns(t *testing.T) {
+	dir := compileLedger(t, ` "declarationMap": true,`)
+	assertMapPointsAt(t, readEmitted(t, dir, "index.d.ts.map"), ledgerAccountTS, "private balance", "balance", len("protected")-len("private"))
+}
 
-const ledgerValueConsumer = `import {getRunTypeId} from '@mionjs/run-types';
-import {Account} from '@acme/ledger';
-declare const account: Account;
-export const id = getRunTypeId(account);
-`
+// The build-version splice is an insertion in the middle of a line, so the map must undo it for what follows.
+func TestCompile_DeclarationMapUndoesTheBuildVersionSplice(t *testing.T) {
+	server := strings.Replace(versionedServerTS, "b: number): number => a + b)});", "b: number): number => a + b)}), revision = 1;", 1)
+	dir := writeProject(t, map[string]string{"router.d.ts": versionedRouterDTS, "server.ts": server})
+	writeFile(t, filepath.Join(dir, "tsconfig.json"), declarationTsconfig(` "declarationMap": true,`))
+	compileProject(t, dir, nil)
+	match := injectedVersionRE.FindStringSubmatch(readEmitted(t, dir, "server.js"))
+	if match == nil {
+		t.Fatalf("initRoutes got no build version")
+	}
+	assertMapPointsAt(t, readEmitted(t, dir, "server.d.ts.map"), server, "revision = 1", "revision", len(", '"+match[1]+"'"))
+}
 
-// scanConsumer installs @acme/ledger from the given files and returns the consumer's site id and diagnostic codes.
-func scanLedgerConsumer(t *testing.T, packageFiles map[string]string, consumer string) (string, []string) {
+// Both splice sources on one file land in one overlay: neither drops the other.
+func TestCompile_DeclarationsMergeBothSplicesInOneFile(t *testing.T) {
+	dir := writeProject(t, map[string]string{"index.ts": `import {registerPureFn} from '@mionjs/run-types/runtime';
+export const shout = registerPureFn(function (text: string): string {
+  return text.toUpperCase();
+});
+export class Counter { private hits: number = 0; }
+`})
+	writeFile(t, filepath.Join(dir, "package.json"), `{"name": "@acme/shout", "type": "module", "peerDependencies": {"@mionjs/run-types": "*"}}`)
+	writeFile(t, filepath.Join(dir, "tsconfig.json"), declarationTsconfig(""))
+	compileProject(t, dir, nil)
+	assertContains(t, readEmitted(t, dir, "index.d.ts"), "@acme/shout#", "protected hits: number;")
+}
+
+// installLedger compiles a consumer of @acme/ledger installed from the given files, returning its site id and codes.
+func installLedger(t *testing.T, packageFiles map[string]string, consumer string) (string, []string) {
 	t.Helper()
 	dir := writeProject(t, map[string]string{"consumer.ts": consumer})
 	for rel, content := range packageFiles {
 		writeFile(t, filepath.Join(dir, "node_modules", "@acme", "ledger", filepath.FromSlash(rel)), content)
 	}
-	prog, err := program.New(program.Options{Cwd: dir, TsconfigPath: "tsconfig.json"})
-	if err != nil {
-		t.Fatalf("program: %v", err)
+	result := compileProject(t, dir, nil)
+	id := emittedRunTypeIds(t, readEmitted(t, dir, "consumer.js"))["id"]
+	if id == "" {
+		t.Fatalf("the consumer got no id:\n%s", readEmitted(t, dir, "consumer.js"))
 	}
-	session, err := resolver.New(prog, resolver.Options{Cwd: dir, CacheDir: filepath.Join(dir, ".cache")})
-	if err != nil {
-		t.Fatalf("resolver: %v", err)
-	}
-	defer session.Close()
-	resp := session.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{filepath.Join(dir, "src", "consumer.ts")}})
-	if resp.Error != "" || len(resp.Sites) == 0 {
-		t.Fatalf("scan: error %q, %d sites", resp.Error, len(resp.Sites))
-	}
-	codes := make([]string, 0, len(resp.Diagnostics))
-	for _, diagnostic := range resp.Diagnostics {
+	codes := make([]string, 0, len(result.Diagnostics))
+	for _, diagnostic := range result.Diagnostics {
 		codes = append(codes, diagnostic.Code)
 	}
-	return resp.Sites[0].ID, codes
+	return id, codes
 }
 
 func ledgerFromSource() map[string]string {
@@ -171,7 +185,7 @@ func ledgerFromCompile(t *testing.T) map[string]string {
 	t.Helper()
 	dir := compileLedger(t, "")
 	return map[string]string{
-		"package.json":    `{"name": "@acme/ledger", "version": "1.0.0", "types": "./dist/index.d.ts"}`,
+		"package.json":    testfixtures.LedgerPackageJSON,
 		"dist/money.d.ts": readEmitted(t, dir, "money.d.ts"),
 		"dist/index.d.ts": readEmitted(t, dir, "index.d.ts"),
 	}
@@ -179,8 +193,8 @@ func ledgerFromCompile(t *testing.T) map[string]string {
 
 func assertRoundTrip(t *testing.T, consumer string) {
 	t.Helper()
-	sourceID, sourceCodes := scanLedgerConsumer(t, ledgerFromSource(), consumer)
-	compiledID, compiledCodes := scanLedgerConsumer(t, ledgerFromCompile(t), consumer)
+	sourceID, sourceCodes := installLedger(t, ledgerFromSource(), consumer)
+	compiledID, compiledCodes := installLedger(t, ledgerFromCompile(t), consumer)
 	if sourceID != compiledID {
 		t.Errorf("the compiled .d.ts must give the source id: source %s, compiled %s", sourceID, compiledID)
 	}
@@ -194,17 +208,17 @@ func assertRoundTrip(t *testing.T, consumer string) {
 }
 
 func TestCompile_PrivateMembersRoundTrip_Static(t *testing.T) {
-	assertRoundTrip(t, ledgerStaticConsumer)
+	assertRoundTrip(t, testfixtures.LedgerStaticSite)
 }
 
 func TestCompile_PrivateMembersRoundTrip_Value(t *testing.T) {
-	assertRoundTrip(t, ledgerValueConsumer)
+	assertRoundTrip(t, testfixtures.LedgerValueSite)
 }
 
 func TestCompile_PrivateMembersRoundTrip_FormEquivalence(t *testing.T) {
 	compiled := ledgerFromCompile(t)
-	staticID, _ := scanLedgerConsumer(t, compiled, ledgerStaticConsumer)
-	valueID, _ := scanLedgerConsumer(t, compiled, ledgerValueConsumer)
+	staticID, _ := installLedger(t, compiled, testfixtures.LedgerStaticSite)
+	valueID, _ := installLedger(t, compiled, testfixtures.LedgerValueSite)
 	if staticID != valueID {
 		t.Errorf("both call shapes must share one id: static %s, value %s", staticID, valueID)
 	}
@@ -221,12 +235,7 @@ func TestCompile_IsolatedDeclarationsKeepInferredPrivateTypes(t *testing.T) {
 `})
 	writeFile(t, filepath.Join(dir, "tsconfig.json"), declarationTsconfig(isolatedTsconfigExtra))
 	compileProject(t, dir, nil)
-	dts := readEmitted(t, dir, "index.d.ts")
-	for _, want := range []string{"protected entries: Map<string, number>;", "protected hits: number;"} {
-		if !strings.Contains(dts, want) {
-			t.Errorf("the declaration must contain %q:\n%s", want, dts)
-		}
-	}
+	assertContains(t, readEmitted(t, dir, "index.d.ts"), "protected entries: Map<string, number>;", "protected hits: number;")
 }
 
 // The user's own isolatedDeclarations error still fails the build, reported from the source as written.
@@ -244,4 +253,59 @@ export const next = (n: number) => n + 1;
 	if strings.Contains(err.Error(), "TS9012") {
 		t.Errorf("the private member must not be reported, it broke no rule: %v", err)
 	}
+}
+
+// pinoTypes stands in for a package only some consumers have.
+const pinoTypes = `export interface Logger { info(message: string): void }
+export declare function pino(): Logger;
+`
+
+func compileWithPino(t *testing.T, packageJSON string) string {
+	t.Helper()
+	dir := writeProject(t, map[string]string{"index.ts": `import type {Logger} from 'pino';
+export class Service {
+  private logger?: Logger;
+  private retries: number = 3;
+}
+`})
+	writeFile(t, filepath.Join(dir, "node_modules", "pino", "package.json"), `{"name": "pino", "types": "./index.d.ts"}`)
+	writeFile(t, filepath.Join(dir, "node_modules", "pino", "index.d.ts"), pinoTypes)
+	writeFile(t, filepath.Join(dir, "package.json"), packageJSON)
+	writeFile(t, filepath.Join(dir, "tsconfig.json"), declarationTsconfig(""))
+	compileProject(t, dir, nil)
+	return readEmitted(t, dir, "index.d.ts")
+}
+
+// A type from a devDependency would reach consumers that do not have it: that member stays `private`, the rest do not.
+func TestCompile_PrivateMemberTypedFromADevDependencyStaysPrivate(t *testing.T) {
+	dts := compileWithPino(t, `{"name": "@acme/service", "devDependencies": {"pino": "1.0.0"}}`)
+	assertContains(t, dts, "private logger?;", "protected retries: number;")
+	if strings.Contains(dts, "pino") {
+		t.Errorf("the declaration must not import a devDependency:\n%s", dts)
+	}
+}
+
+// A runtime dependency reaches every consumer, so its type is kept.
+func TestCompile_PrivateMemberTypedFromADependencyKeepsItsType(t *testing.T) {
+	assertContains(t, compileWithPino(t, `{"name": "@acme/service", "dependencies": {"pino": "1.0.0"}}`), "protected logger?: Logger;", "from 'pino'")
+}
+
+// tsc never names a private member's type, so a type only reachable through another package's own node_modules is
+// fine there; written as `protected` it cannot be named (TS2742). That member stays `private`, and the build passes.
+func TestCompile_PrivateMemberWithAnUnnameableTypeStaysPrivate(t *testing.T) {
+	dir := writeProject(t, map[string]string{"index.ts": `import {makeClient} from 'sdk';
+export class Service {
+  private client = makeClient();
+  private retries: number = 3;
+}
+`})
+	sdk := filepath.Join(dir, "node_modules", "sdk")
+	writeFile(t, filepath.Join(sdk, "package.json"), `{"name": "sdk", "types": "./index.d.ts"}`)
+	writeFile(t, filepath.Join(sdk, "index.d.ts"), "import type {Client} from 'transport';\nexport declare function makeClient(): Client;\n")
+	writeFile(t, filepath.Join(sdk, "node_modules", "transport", "package.json"), `{"name": "transport", "types": "./index.d.ts"}`)
+	writeFile(t, filepath.Join(sdk, "node_modules", "transport", "index.d.ts"), "export interface Client { send(): void }\n")
+	writeFile(t, filepath.Join(dir, "package.json"), `{"name": "@acme/service", "dependencies": {"sdk": "1.0.0"}}`)
+	writeFile(t, filepath.Join(dir, "tsconfig.json"), declarationTsconfig(""))
+	compileProject(t, dir, nil)
+	assertContains(t, readEmitted(t, dir, "index.d.ts"), "private client;", "protected retries: number;")
 }
