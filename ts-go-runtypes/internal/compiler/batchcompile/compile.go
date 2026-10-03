@@ -10,7 +10,6 @@ package batchcompile
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -179,8 +178,8 @@ func Run(opts Options) (*Result, error) {
 		emitOnly = compiler.EmitOnlyJs
 	}
 	emitResult := p2.TS.Emit(context.Background(), compiler.EmitOptions{EmitOnly: emitOnly, WriteFile: writeFile})
-	if emitResult != nil && emitResult.EmitSkipped {
-		return nil, errors.New("compile: tsgo emit was skipped")
+	if err := emitSkipped("emit", emitResult, cwd); err != nil {
+		return nil, err
 	}
 	if emitDeclarations {
 		if err := emitVersionedDeclarations(cwd, opts.TsconfigPath, p1, r1.ApiVersionReplacements(), writeFile); err != nil {
@@ -247,6 +246,23 @@ func Run(opts Options) (*Result, error) {
 func typeDiagnostics(tsProgram *compiler.Program, cwd string) ([]string, int) {
 	ctx := context.Background()
 	found := compiler.GetDiagnosticsOfAnyProgram(ctx, tsProgram, nil, false, tsProgram.GetBindDiagnostics, tsProgram.GetSemanticDiagnostics)
+	return renderDiagnostics(found, cwd)
+}
+
+// emitSkipped names why tsgo skipped an emit, with the diagnostics it gave, or nil when it did not.
+func emitSkipped(stage string, result *compiler.EmitResult, cwd string) error {
+	if result == nil || !result.EmitSkipped {
+		return nil
+	}
+	lines, _ := renderDiagnostics(result.Diagnostics, cwd)
+	if len(lines) == 0 {
+		return fmt.Errorf("compile: tsgo %s was skipped", stage)
+	}
+	return fmt.Errorf("compile: tsgo %s was skipped:\n%s", stage, strings.Join(lines, "\n"))
+}
+
+// renderDiagnostics prints diagnostics as tsc does without --pretty, returning them and the error count.
+func renderDiagnostics(found []*ast.Diagnostic, cwd string) ([]string, int) {
 	found = compiler.SortAndDeduplicateDiagnostics(found)
 	lines := make([]string, 0, len(found))
 	errorCount := 0
@@ -300,15 +316,16 @@ func emitVersionedDeclarations(cwd, tsconfigPath string, original *program.Progr
 		}
 		overlay[absOf(cwd, file)] = text
 	}
-	declarations, err := program.New(program.Options{Cwd: cwd, TsconfigPath: tsconfigPath, Overlay: overlay})
-	if err != nil {
-		return fmt.Errorf("compile: declaration program: %w", err)
+	// Nothing to splice: the first program is the source as written, and it is already checked.
+	declarations := original
+	if len(overlay) > 0 {
+		var err error
+		if declarations, err = program.New(program.Options{Cwd: cwd, TsconfigPath: tsconfigPath, Overlay: overlay}); err != nil {
+			return fmt.Errorf("compile: declaration program: %w", err)
+		}
 	}
 	result := declarations.TS.Emit(context.Background(), compiler.EmitOptions{EmitOnly: compiler.EmitOnlyDts, WriteFile: writeFile})
-	if result != nil && result.EmitSkipped {
-		return errors.New("compile: tsgo declaration emit was skipped")
-	}
-	return nil
+	return emitSkipped("declaration emit", result, cwd)
 }
 
 // isWithinDir reports whether target sits under dir, or is dir itself, on cleaned absolute paths.
