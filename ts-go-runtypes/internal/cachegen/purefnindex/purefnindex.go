@@ -219,8 +219,7 @@ func (store *Store) artifactsOf(root string) *rootArtifacts {
 	return artifacts
 }
 
-// ownerOf reads root's package.json and marker once: the owner is the name, or for a types-only package the
-// server its marker names, and such a root is listed in servedBy.
+// ownerOf memoizes root's owner; a types-only root is owned by the server its marker names and joins servedBy.
 func (store *Store) ownerOf(root string) packageOwner {
 	if row, ok := store.owners[root]; ok {
 		return row

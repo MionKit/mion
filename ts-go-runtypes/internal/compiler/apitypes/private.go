@@ -17,9 +17,8 @@ type routesContainer struct {
 	name        string
 }
 
-// cutPrivateMembers cuts every private or raw middleware definition out of the routes a `PublicApi<…>` names.
-// `PublicApi` maps those keys away, so the API type is unchanged; what goes is their spelled out definition and,
-// with it, what only they use. Members anywhere else are left alone, so no other kept type can change.
+// cutPrivateMembers cuts private and raw middlewares from the routes a `PublicApi<…>` names, which maps those keys
+// away, so the API type is unchanged. Members anywhere else stay, so no other kept type can change.
 func (trimmer *trimmer) cutPrivateMembers() []routesContainer {
 	privateDef, publicMethod := trimmer.probeTypes()
 	if privateDef == nil || publicMethod == nil {

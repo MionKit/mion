@@ -129,9 +129,8 @@ func BuildPackage(input PackageInput) (map[string]string, error) {
 	return files, nil
 }
 
-// reachedArtifact keeps the pure fns a client of the trimmed API can demand: every override (an override changes
-// the id of its type wherever the client meets it) and every id the kept declarations name, with the dependency
-// closure of both. It also returns the other packages those rows depend on, which become peers.
+// reachedArtifact keeps the ids the kept declarations name and every override (it changes its type's id wherever a
+// client meets it), plus their dependencies; other packages those depend on are returned as peers.
 func reachedArtifact(artifact, declarations map[string]string) (map[string]string, []string, error) {
 	indexText, ok := artifact[constants.PureFnArtifactIndexFile]
 	if !ok {
@@ -196,8 +195,7 @@ func reachedArtifact(artifact, declarations map[string]string) (map[string]strin
 	return kept, peers, nil
 }
 
-// rangeOf is the server's range for name. A range only the workspace understands (`workspace:`, `catalog:`,
-// `link:`, `file:`) becomes a caret on the installed version; none at all is "*".
+// rangeOf: a range only the workspace understands (`workspace:`, `catalog:`, `link:`, `file:`) becomes ^installed, else "*".
 func rangeOf(serverRoot, name string, server serverPackage) string {
 	for _, table := range []map[string]string{server.Dependencies, server.PeerDependencies, server.OptionalDependencies, server.DevDependencies} {
 		declared, ok := table[name]
@@ -232,8 +230,7 @@ func installedVersion(dir, name string) string {
 	}
 }
 
-// WritePackage replaces outDir with files. It refuses a non-empty directory it did not write before, so a wrong
-// --out never wipes a project.
+// WritePackage replaces outDir, refusing a non-empty one it did not write, so a wrong --out never wipes a project.
 func WritePackage(outDir string, files map[string]string) error {
 	if entries, err := os.ReadDir(outDir); err == nil && len(entries) > 0 {
 		if apitypesmeta.ReadPackage(outDir, osvfs.FS()).MarkerPath == "" {

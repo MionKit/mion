@@ -403,8 +403,7 @@ describe('mion compile + api-check — a client built from the published API typ
   });
 });
 
-// `mion api-types` builds the package a client installs instead of the whole server: the router stub is a real
-// installed package here, since the trimmed types must resolve without the server's own files.
+// The router stub is a real installed package here: the trimmed types must resolve without the server's own files.
 const INSTALLED_ROUTER_DTS = API_ROUTER_DTS.replace("declare module '@mionjs/router' {", '')
   .replace('export function createMionRouter', 'export declare function createMionRouter')
   .replace('const apiBuildVersion', 'declare const apiBuildVersion')

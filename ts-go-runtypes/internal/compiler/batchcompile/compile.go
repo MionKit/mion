@@ -56,8 +56,8 @@ type Options struct {
 	ResolverOpts resolver.Options
 	// NoEmit stops after the pass-1 scan and returns its diagnostics; nothing is written. Mirrors tsc --noEmit.
 	NoEmit bool
-	// DeclarationsOnly emits only the .d.ts, into Result.Declarations under DeclarationDir, and writes no output file.
-	// The gen dir still gets what generate writes, so a caller wanting no trace passes a temp GenDir.
+	// DeclarationsOnly returns the .d.ts in Result.Declarations and writes no output file.
+	// The gen dir is still written, so a caller wanting no trace passes a temp GenDir.
 	DeclarationsOnly bool
 	// DeclarationDir is where DeclarationsOnly lays the .d.ts out: absolute, required, never written.
 	DeclarationDir string
