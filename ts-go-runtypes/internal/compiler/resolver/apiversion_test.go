@@ -373,3 +373,42 @@ func TestApiVersion_AllSingleWarnsSharedModules(t *testing.T) {
 		t.Error("default mode splits the modules per file, so nothing is reported")
 	}
 }
+
+// TestApiVersion_AliasOfPublishedTypesWarns: a local alias over published types without a version still warns.
+func TestApiVersion_AliasOfPublishedTypesWarns(t *testing.T) {
+	sources := map[string]string{
+		"router.d.ts": versionRouterDTS,
+		"client.d.ts": versionClientDTS,
+		"acme.d.ts":   packageApiDTS("string"),
+		"client.ts": `import {initClient} from '@mionjs/client';
+type Api = typeof import('@acme/api').api;
+export const {routes} = initClient<Api>({baseURL: 'http://x'});
+`,
+	}
+	generated := setupApi(t, sources, t.TempDir(), constants.ClientRoutesBundle).Dispatch(protocol.Request{Op: protocol.OpGenerate})
+	if generated.Error != "" {
+		t.Fatalf("generate: %s", generated.Error)
+	}
+	if diags := metDiags(generated.Diagnostics); len(diags) != 1 || diags[0].Code != diagnostics.CodeApiMetaNoServerVersion {
+		t.Fatalf("expected one MET013, got %+v", diags)
+	}
+}
+
+// TestApiVersion_WrappedSourceTypesCompareNothing: a third-party helper type around a source-typed API is no published API.
+func TestApiVersion_WrappedSourceTypesCompareNothing(t *testing.T) {
+	sources := map[string]string{
+		"client.d.ts": versionClientDTS,
+		"fest.d.ts": `declare module 'type-fest' {
+  export type Simplify<T> = {[K in keyof T]: T[K]} & {};
+}
+`,
+		"client.ts": strings.Replace(versionClientTS, "initClient<Api>(", "initClient<Simplify<Api>>(", 1) + "import type {Simplify} from 'type-fest';\n",
+	}
+	generated := setupApi(t, sources, t.TempDir(), constants.ClientRoutesBundle).Dispatch(protocol.Request{Op: protocol.OpGenerate})
+	if generated.Error != "" {
+		t.Fatalf("generate: %s", generated.Error)
+	}
+	if diags := metDiags(generated.Diagnostics); len(diags) != 0 {
+		t.Fatalf("expected no MET diagnostics, got %+v", diags)
+	}
+}

@@ -7,6 +7,7 @@ import (
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefunctions"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/runtype/typeid"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/textpos"
@@ -125,63 +126,29 @@ func ApiTypeImports(typeChecker *checker.Checker, markerOpts marker.Options, sou
 	return found
 }
 
-// ApiTypeFromDeclarations reports whether a type argument names a third-party .d.ts declaration: a published API.
-func ApiTypeFromDeclarations(typeChecker *checker.Checker, call *ast.Node) bool {
-	found := false
-	var visit ast.Visitor
-	visit = func(node *ast.Node) bool {
-		if found || node == nil {
-			return found
-		}
-		var name *ast.Node
-		switch node.Kind {
-		case ast.KindTypeQuery:
-			name = node.AsTypeQueryNode().ExprName
-		case ast.KindTypeReference:
-			name = node.AsTypeReferenceNode().TypeName
-		}
-		if name != nil && declaredInPackageTypes(typeChecker, name) {
-			found = true
-			return true
-		}
-		return node.ForEachChild(visit)
-	}
-	for _, typeArgument := range call.TypeArguments() {
-		if visit(typeArgument) {
-			break
-		}
-	}
-	return found
-}
-
-// declaredInPackageTypes reports whether name is declared in a .d.ts outside the TypeScript libs and @mionjs packages.
-func declaredInPackageTypes(typeChecker *checker.Checker, name *ast.Node) bool {
-	if name.Kind == ast.KindQualifiedName {
-		name = name.AsQualifiedName().Right
-	}
-	symbol := typeChecker.GetSymbolAtLocation(name)
-	if symbol == nil {
+// ApiTypeFromDeclarations reports whether an API type's routes are declared in a third-party .d.ts: a published API.
+// Reading the routes, not the written type argument, sees through an alias, an `import()` type or a wrapper type.
+func ApiTypeFromDeclarations(typeChecker *checker.Checker, apiType *checker.Type) bool {
+	if apiType == nil {
 		return false
 	}
-	if resolved := checker.SkipAlias(symbol, typeChecker); resolved != nil {
-		symbol = resolved
-	}
-	for _, declaration := range symbol.Declarations {
-		sourceFile := ast.GetSourceFileOfNode(declaration)
-		if sourceFile == nil || !sourceFile.IsDeclarationFile || isLibFileName(sourceFile.FileName()) {
-			continue
-		}
-		if !strings.HasPrefix(marker.DeclaringModuleOfNode(declaration, nil), "@mionjs/") {
-			return true
+	for _, property := range typeChecker.GetPropertiesOfType(apiType) {
+		for _, declaration := range property.Declarations {
+			if declaredInPackageTypes(declaration) {
+				return true
+			}
 		}
 	}
 	return false
 }
 
-// isLibFileName reports a TypeScript default lib (`lib.es5.d.ts`, `lib.dom.d.ts`) by its basename.
-func isLibFileName(fileName string) bool {
-	base := fileName[strings.LastIndexAny(fileName, "/\\")+1:]
-	return strings.HasPrefix(base, "lib.") && strings.HasSuffix(base, ".d.ts")
+// declaredInPackageTypes reports a declaration in a .d.ts outside the TypeScript libs and @mionjs packages.
+func declaredInPackageTypes(declaration *ast.Node) bool {
+	sourceFile := ast.GetSourceFileOfNode(declaration)
+	if sourceFile == nil || !sourceFile.IsDeclarationFile || typeid.IsDefaultLibFileName(sourceFile.FileName()) {
+		return false
+	}
+	return !strings.HasPrefix(marker.DeclaringModuleOfNode(declaration, nil), "@mionjs/")
 }
 
 // valueImportOf returns name's import statement and specifier, or nil for a type-only or non-import binding.

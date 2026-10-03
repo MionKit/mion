@@ -155,7 +155,7 @@ func (sess *Session) apiVersionSiteOf(sourceFile *ast.SourceFile, call *ast.Node
 		callee:           marker.CalleeIdentifierName(callExpr),
 		version:          version,
 		serverVersion:    apimeta.ServerBuildVersion(sess.checker, apiType),
-		fromDeclarations: apimeta.ApiTypeFromDeclarations(sess.checker, call),
+		fromDeclarations: apimeta.ApiTypeFromDeclarations(sess.checker, apiType),
 		diagSite:         textpos.NodeSite(sourceFile.FileName(), sourceFile, call),
 		text:             text,
 	}, true
