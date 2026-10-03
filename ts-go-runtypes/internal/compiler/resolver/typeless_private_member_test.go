@@ -14,7 +14,7 @@ import (
 
 const ledgerPackageJSON = `{"name": "@acme/ledger", "version": "1.0.0", "types": "./dist/index.d.ts"}`
 
-// tscLedgerDts is what plain tsc emits for `class Account { id = ''; private balance = 0; private audit() {} }`.
+// tscLedgerDts is what plain tsc emits for `class Account { id = ”; private balance = 0; private audit() {} }`.
 const tscLedgerDts = `export declare class Account {
     id: string;
     private balance;
