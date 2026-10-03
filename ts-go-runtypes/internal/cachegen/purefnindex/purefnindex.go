@@ -15,7 +15,6 @@ package purefnindex
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"reflect"
 	"sort"
@@ -65,9 +64,13 @@ type Store struct {
 	packages  map[string]*PackageIndex
 	resolved  map[string]string
 	artifacts map[string]*rootArtifacts
-	// servedBy maps a server package to a types-only package root serving its ids, for a server not installed.
-	servedBy map[string]string
+	// owners memoizes each root's name and owner, read without walking the root for artifacts.
+	owners map[string]packageOwner
+	// servedBy lists, per server package, the types-only roots serving its ids, for a server not installed.
+	servedBy map[string][]string
 }
+
+type packageOwner struct{ name, owner string }
 
 // rootArtifacts is read once per root and shared by Package and Overrides.
 type rootArtifacts struct {
@@ -86,7 +89,7 @@ type parsedIndex struct {
 // NewStore binds a Store to the program FS. A nil fs reads nothing and answers
 // "not found" everywhere, which keeps a test with no program on today's path.
 func NewStore(fs vfspkg.FS) *Store {
-	return &Store{fs: fs, packages: map[string]*PackageIndex{}, resolved: map[string]string{}, artifacts: map[string]*rootArtifacts{}, servedBy: map[string]string{}}
+	return &Store{fs: fs, packages: map[string]*PackageIndex{}, resolved: map[string]string{}, artifacts: map[string]*rootArtifacts{}, owners: map[string]packageOwner{}, servedBy: map[string][]string{}}
 }
 
 // Bind hands the store the session's program and resolver, for the packages
@@ -195,21 +198,8 @@ func (store *Store) artifactsOf(root string) *rootArtifacts {
 	}
 	artifacts := &rootArtifacts{}
 	store.artifacts[root] = artifacts
-	if content, ok := store.fs.ReadFile(tspath.CombinePaths(root, "package.json")); ok {
-		var manifest struct {
-			Name string `json:"name"`
-		}
-		if json.Unmarshal([]byte(content), &manifest) == nil {
-			artifacts.name = manifest.Name
-		}
-	}
-	artifacts.owner = artifacts.name
-	if info := apitypesmeta.ReadPackage(root, store.fs); info.Marker != nil {
-		artifacts.owner = info.Marker.Package
-		if _, taken := store.servedBy[artifacts.owner]; !taken {
-			store.servedBy[artifacts.owner] = root
-		}
-	}
+	row := store.ownerOf(root)
+	artifacts.name, artifacts.owner = row.name, row.owner
 	for _, dir := range store.artifactDirsUnder(root) {
 		file := tspath.CombinePaths(dir, constants.PureFnArtifactIndexFile)
 		content, ok := store.fs.ReadFile(file)
@@ -227,6 +217,22 @@ func (store *Store) artifactsOf(root string) *rootArtifacts {
 		}
 	}
 	return artifacts
+}
+
+// ownerOf reads root's package.json and marker once: the owner is the name, or for a types-only package the
+// server its marker names, and such a root is listed in servedBy.
+func (store *Store) ownerOf(root string) packageOwner {
+	if row, ok := store.owners[root]; ok {
+		return row
+	}
+	info := apitypesmeta.ReadPackage(root, store.fs)
+	row := packageOwner{name: info.Name, owner: info.Name}
+	if info.Marker != nil {
+		row.owner = info.Marker.Package
+		store.servedBy[row.owner] = append(store.servedBy[row.owner], root)
+	}
+	store.owners[root] = row
+	return row
 }
 
 // Overrides reads root's override rows from its index files only, never the sources, so asking costs a directory walk.
@@ -563,20 +569,40 @@ func (store *Store) ResolvePackage(name, fromDir string) (string, bool) {
 		}
 		current = parent
 	}
-	if root == "" {
-		root = store.servedBy[name]
-	}
 	if root == "" && store.host.Program != nil {
 		for _, sourceFile := range store.host.Program.TS.SourceFiles() {
-			// A types-only package serves the ids of the server its marker names, which need not be installed.
-			if owner, ownerRoot := marker.PackageOfFile(sourceFile.FileName(), store.fs); ownerRoot != "" && (owner == name || store.artifactsOf(tspath.NormalizePath(ownerRoot)).owner == name) {
+			owner, ownerRoot := marker.PackageOfFile(sourceFile.FileName(), store.fs)
+			if ownerRoot == "" {
+				continue
+			}
+			if owner == name {
 				root = tspath.NormalizePath(ownerRoot)
 				break
 			}
+			store.ownerOf(tspath.NormalizePath(ownerRoot))
 		}
+	}
+	// A types-only package serves the ids of the server its marker names, which need not be installed.
+	if root == "" {
+		root = nearestRoot(store.servedBy[name], fromDir)
 	}
 	store.resolved[cacheKey] = root
 	return root, root != ""
+}
+
+// nearestRoot picks the root sharing the longest path with fromDir, so a nested install wins for its dependents.
+func nearestRoot(roots []string, fromDir string) string {
+	best, bestLength := "", -1
+	for _, root := range roots {
+		shared := 0
+		for shared < len(root) && shared < len(fromDir) && root[shared] == fromDir[shared] {
+			shared++
+		}
+		if shared > bestLength {
+			best, bestLength = root, shared
+		}
+	}
+	return best
 }
 
 // PackageOfID is the owner half of an id (`@acme/text#pf_9Zt1…` → `@acme/text`); empty when not an id or nameless.
