@@ -122,7 +122,8 @@ func TestCompile_EmitsJsWithComposedMap(t *testing.T) {
 		t.Errorf("map sources = %v, want [..foo.ts]", sm.Sources)
 	}
 	maxLine, sawCallLine := -1, false
-	for _, line := range sourcerewrite.OriginalLines(sm.Mappings) {
+	for _, position := range sourcerewrite.OriginalPositions(sm.Mappings) {
+		line := position[0]
 		if line > maxLine {
 			maxLine = line
 		}

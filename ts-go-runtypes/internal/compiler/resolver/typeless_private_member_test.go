@@ -238,3 +238,18 @@ declare const account: Account;
 export const id = getRunTypeId(account);
 `)
 }
+
+// A hand-written `any` member is legal, and the same `any` type as a typeless private member: it must not hide it.
+const ledgerWithWrittenAnyDts = "export declare class Account { data: any; private balance; }\n"
+
+func TestTypelessPrivateMember_NotHiddenByAWrittenAny_Static(t *testing.T) {
+	if fired := mkr016Diags(scanLedger(t, ledgerWithWrittenAnyDts, testfixtures.LedgerStaticSite)); len(fired) != 1 {
+		t.Errorf("want MKR016 for balance after a written any, got %d", len(fired))
+	}
+}
+
+func TestTypelessPrivateMember_NotHiddenByAWrittenAny_Value(t *testing.T) {
+	if fired := mkr016Diags(scanLedger(t, ledgerWithWrittenAnyDts, testfixtures.LedgerValueSite)); len(fired) != 1 {
+		t.Errorf("want MKR016 for balance after a written any, got %d", len(fired))
+	}
+}
