@@ -48,6 +48,12 @@ const (
 	CodeApiMetaNoServerVersion = "MET013"
 	// CodeApiMetaSharedModules: allSingle puts server types in a client sharing their program; reported at `initClient`.
 	CodeApiMetaSharedModules = "MET014"
+	// CodeApiMetaTypesNotBuiltByMion: the client's API comes from a types-only package without a usable
+	// `mion api-types` marker. Args: [0] the package, [1] what is wrong; reported once per package at `initClient`.
+	CodeApiMetaTypesNotBuiltByMion = "MET015"
+	// CodeApiMetaTypesOtherCompiler: the types-only package was built by another mion version.
+	// Args: [0] the package, [1] its compiler, [2] this one; reported once per package at `initClient`.
+	CodeApiMetaTypesOtherCompiler = "MET016"
 )
 
 func init() {
@@ -65,6 +71,8 @@ func init() {
 		{Code: CodeApiMetaServerVersionMismatch, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Raised: RaisedWholeProgram, Title: "A client's API ids differ from the server build whose types it reads"},
 		{Code: CodeApiMetaNoServerVersion, Family: FamilyMarker, Level: LevelWarning, Scope: ScopeNotSource, Raised: RaisedWholeProgram, Title: "A client reads API types that carry no server build version"},
 		{Code: CodeApiMetaSharedModules, Family: FamilyMarker, Level: LevelWarning, Scope: ScopeNotSource, Raised: RaisedWholeProgram, Title: "A client built with moduleMode allSingle carries the server's types"},
+		{Code: CodeApiMetaTypesNotBuiltByMion, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Raised: RaisedWholeProgram, Title: "A client reads a types-only API package that `mion api-types` did not build"},
+		{Code: CodeApiMetaTypesOtherCompiler, Family: FamilyMarker, Level: LevelWarning, Scope: ScopeNotSource, Raised: RaisedWholeProgram, Title: "A client reads a types-only API package built by another mion version"},
 	} {
 		register(definition)
 	}

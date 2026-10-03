@@ -400,6 +400,17 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     level: 'warning',
     family: 'marker',
   },
+  MET015: {
+    headline:
+      'The API package {0} ships types only, but {1}: a client can only trust types-only packages that `mion api-types` built.',
+    level: 'runtimeError',
+    family: 'marker',
+  },
+  MET016: {
+    headline: 'The API package {0} was built by mion {1}, this build runs {2}: the ids of both sides may differ.',
+    level: 'warning',
+    family: 'marker',
+  },
   MKR001: {
     headline:
       '`{0}()` is being called at runtime just so the marker can read its return type: side effects, throws, or async work run for nothing.',

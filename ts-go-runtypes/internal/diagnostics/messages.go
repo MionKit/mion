@@ -51,6 +51,8 @@ var headlineByCode = map[string]string{
 	"MET012":  "This client hashes its API ids to the build version {0}, but the API types it reads come from a server build with {1}: every call reports a version mismatch.",
 	"MET013":  "The API types this client reads carry no server build version, so a client and server built with different ids are only caught at runtime.",
 	"MET014":  "This program builds with moduleMode `allSingle`, one module per family for the whole program, so the client bundle carries every server type.",
+	"MET015":  "The API package {0} ships types only, but {1}: a client can only trust types-only packages that `mion api-types` built.",
+	"MET016":  "The API package {0} was built by mion {1}, this build runs {2}: the ids of both sides may differ.",
 	"MRT001":  "mion `{0}` handler has no return type annotation; write the type the handler answers with.",
 	"MRT002":  "mion `{1}` handler parameter `{0}` has no type annotation; every parameter after the call context travels on the wire and must declare its type.",
 	"MRT003":  "mion `{0}` handlers must return errors, not throw them; return an `RpcError` to let the chain continue, or a `FatalError` to stop the request.",

@@ -142,6 +142,21 @@ func ApiTypeFromDeclarations(typeChecker *checker.Checker, apiType *checker.Type
 	return false
 }
 
+// ApiDeclarationFile is the third-party .d.ts declaring the API's first route; "" when the API is not published.
+func ApiDeclarationFile(typeChecker *checker.Checker, apiType *checker.Type) string {
+	if apiType == nil {
+		return ""
+	}
+	for _, property := range typeChecker.GetPropertiesOfType(apiType) {
+		for _, declaration := range property.Declarations {
+			if declaredInPackageTypes(declaration) {
+				return ast.GetSourceFileOfNode(declaration).FileName()
+			}
+		}
+	}
+	return ""
+}
+
 // declaredInPackageTypes reports a declaration in a .d.ts outside the TypeScript libs and @mionjs packages.
 func declaredInPackageTypes(declaration *ast.Node) bool {
 	sourceFile := ast.GetSourceFileOfNode(declaration)

@@ -771,6 +771,15 @@ useFetchMetadata(middlewares.mionFetchMetadata);`,
 		Summary: "The API types this client reads come from a `.d.ts` without a server build version, for example one written by plain `tsc`. The client still builds, but if its ids differ from the server's, you only find out at runtime. Build the API package with `mion compile` so its types carry the version and the client build checks it.",
 		Fix:     "mion compile --tsconfig tsconfig.build.json",
 	},
+	// No Example: MET015 and MET016 need an installed types-only package, which the one-file example harness cannot stage.
+	CodeApiMetaTypesNotBuiltByMion: {
+		Summary: "A package with types and no JavaScript entry is read as a types-only API package. `mion api-types` writes one with a `mion.apiTypes` field in its package.json and the `mion-api.json` marker it names. This package lacks them, so its `.d.ts` may come from another tool, and the client cannot trust its ids, its private fields or its pure functions. Rebuild the package with `mion api-types` and publish its output folder.",
+		Fix:     "mion api-types --tsconfig tsconfig.json --out api-types",
+	},
+	CodeApiMetaTypesOtherCompiler: {
+		Summary: "Type ids include the mion version that computed them, so a client and a server built by different versions get different ids, and the server answers every call with a version mismatch. Build the client with the mion version the types package names, or rebuild the package with yours.",
+		Fix:     "npm install -D @mionjs/bin-compiler@<the version in mion-api.json>",
+	},
 	CodeApiMetaSharedModules: {
 		Summary: "In `default` mode each source file gets its own module of compiled types, so a client bundle only holds the types of the files it imports. `allSingle` puts every type of the program in one module per family, server types included, and the client bundle loads all of them. Use the `default` mode for an app with a client and a server.",
 		Fix:     "runTypes: {moduleMode: 'default'}",
