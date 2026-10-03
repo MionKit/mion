@@ -23,6 +23,7 @@ import (
 	"runtime"
 	"runtime/pprof"
 	"strings"
+	"sync"
 
 	"github.com/microsoft/typescript-go/shim/tspath"
 
@@ -189,6 +190,16 @@ func registerSharedFlags(fs *flag.FlagSet) *sharedFlags {
 	return s
 }
 
+// stopProfiling flushes the profiles startProfiling began. os.Exit skips deferred calls, so exitAfterProfiling
+// runs it first: a compile that reports errors still writes its profile.
+var stopProfiling = func() {}
+
+// exitAfterProfiling flushes any running profile, then exits with code.
+func exitAfterProfiling(code int) {
+	stopProfiling()
+	os.Exit(code)
+}
+
 // startProfiling honors --pprof-cpu / --pprof-heap and returns a stop function
 // the caller defers; a no-op when neither flag is set.
 func startProfiling(s *sharedFlags) func() {
@@ -218,11 +229,15 @@ func startProfiling(s *sharedFlags) func() {
 			}
 		})
 	}
-	return func() {
-		for i := len(stops) - 1; i >= 0; i-- {
-			stops[i]()
-		}
+	var once sync.Once
+	stopProfiling = func() {
+		once.Do(func() {
+			for i := len(stops) - 1; i >= 0; i-- {
+				stops[i]()
+			}
+		})
 	}
+	return stopProfiling
 }
 
 // sessionConfig is the resolved config + options a Program-building subcommand
@@ -683,7 +698,7 @@ func runCompile(args []string) {
 			len(compileResult.EmittedFiles), len(compileResult.Caches))
 	}
 	if errorCount > 0 {
-		os.Exit(1)
+		exitAfterProfiling(1)
 	}
 }
 
@@ -726,5 +741,5 @@ func writeFile(path string, fn func(io.Writer) error) error {
 
 func fatal(format string, args ...any) {
 	fmt.Fprintf(os.Stderr, format+"\n", args...)
-	os.Exit(1)
+	exitAfterProfiling(1)
 }
