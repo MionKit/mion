@@ -111,12 +111,7 @@ func emitFileModules(t *testing.T, siteFiles map[string]string, runTypes []*refl
 	for root, file := range siteFiles {
 		sites = append(sites, protocol.Site{ID: root, File: file})
 	}
-	graph := CollectEntries(protocol.Dump{RunTypes: runTypes, Sites: sites}, jsonMaxBytes, func(site protocol.Site) string { return "rt/" + site.File }, nil)
-	modules, err := entrymodules.RenderGrouped(graph, nil)
-	if err != nil {
-		t.Fatalf("render: %v", err)
-	}
-	return modules
+	return emitFileModulesSites(t, sites, runTypes, jsonMaxBytes)
 }
 
 // TestCollectEntries_PerFileGroups — each file's module holds only its own roots' closure, never another file's rows.
@@ -236,12 +231,17 @@ func TestCollectEntries_SharedModulesNest(t *testing.T) {
 	if !importedModules(modules, pairHome[0])[leafHome[0]] || importedModules(modules, leafHome[0])[pairHome[0]] {
 		t.Errorf("the {a,b} module imports the {a,b,c} one, never the reverse:\n%s\n%s", modules[pairHome[0]], modules[leafHome[0]])
 	}
+	// a reaches leaf only through pair, so it imports pair alone and loads leaf through it.
+	if strings.Contains(modules["rt/a"], "'rtmod:/"+leafHome[0]+".js'") {
+		t.Errorf("rt/a must import only the shared module its own rows point into:\n%s", modules["rt/a"])
+	}
 }
 
 // TestCollectEntries_SharedRootKeepsSizeLimit — a root another file reaches nested is written once, with its limit.
 func TestCollectEntries_SharedRootKeepsSizeLimit(t *testing.T) {
 	flagRow := func(jsonMaxBytes bool) (string, []string) {
-		modules := emitFileModules(t, map[string]string{"flag": "a", "holder": "b"}, []*reflection.RunType{
+		// The holder's file sorts first and writes the shared module, so the limit must come from the whole program.
+		modules := emitFileModules(t, map[string]string{"flag": "b", "holder": "a"}, []*reflection.RunType{
 			{ID: "flag", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{reflection.NewRef("flagProp")}},
 			{ID: "flagProp", Kind: reflection.KindProperty, Name: wide("on"), Child: reflection.NewRef("bool")},
 			{ID: "bool", Kind: reflection.KindBoolean},
@@ -274,7 +274,7 @@ func TestCollectEntries_KeyCoversImports(t *testing.T) {
 		{ID: "y1", Kind: reflection.KindProperty, Name: wide("y"), Child: reflection.NewRef("num")},
 		{ID: "str", Kind: reflection.KindString},
 		{ID: "num", Kind: reflection.KindNumber},
-	})
+	}, false)
 	keyOf := func(module string) string {
 		start := strings.Index(modules[module], "'rts_")
 		if start < 0 {
@@ -288,9 +288,9 @@ func TestCollectEntries_KeyCoversImports(t *testing.T) {
 }
 
 // emitFileModulesSites renders a dump from explicit sites, for a root several files reflect.
-func emitFileModulesSites(t *testing.T, sites []protocol.Site, runTypes []*reflection.RunType) map[string]string {
+func emitFileModulesSites(t *testing.T, sites []protocol.Site, runTypes []*reflection.RunType, jsonMaxBytes bool) map[string]string {
 	t.Helper()
-	graph := CollectEntries(protocol.Dump{RunTypes: runTypes, Sites: sites}, false, func(site protocol.Site) string { return "rt/" + site.File }, nil)
+	graph := CollectEntries(protocol.Dump{RunTypes: runTypes, Sites: sites}, jsonMaxBytes, func(site protocol.Site) string { return "rt/" + site.File }, nil)
 	modules, err := entrymodules.RenderGrouped(graph, nil)
 	if err != nil {
 		t.Fatalf("render: %v", err)
@@ -316,16 +316,37 @@ func TestCollectEntries_TinySharedGroupCopied(t *testing.T) {
 	}
 }
 
+// TestCollectEntries_CopiesReachEachOther — a copied row reached only through another copied row is copied too.
+func TestCollectEntries_CopiesReachEachOther(t *testing.T) {
+	modules := emitFileModules(t, map[string]string{"aRoot": "a", "bRoot": "b"}, []*reflection.RunType{
+		{ID: "aRoot", Kind: reflection.KindProperty, Name: "a", Child: reflection.NewRef("tiny")},
+		{ID: "bRoot", Kind: reflection.KindProperty, Name: "b", Child: reflection.NewRef("tiny")},
+		{ID: "tiny", Kind: reflection.KindProperty, Name: "t", Child: reflection.NewRef("str")},
+		{ID: "str", Kind: reflection.KindString},
+	}, false)
+	for _, id := range []string{"tiny", "str"} {
+		if got := rowModules(modules, id); len(got) != 2 || got[0] != "rt/a" || got[1] != "rt/b" {
+			t.Errorf("%s must be copied into both files, got %v", id, got)
+		}
+	}
+}
+
 // TestCollectEntries_Deterministic — the same dump renders the same modules, shared names included.
 func TestCollectEntries_Deterministic(t *testing.T) {
 	render := func() map[string]string {
-		return emitFileModules(t, map[string]string{"aRoot": "a", "bRoot": "b"}, []*reflection.RunType{
+		return emitFileModules(t, map[string]string{"aRoot": "a", "bRoot": "b", "cRoot": "c"}, []*reflection.RunType{
 			{ID: "aRoot", Kind: reflection.KindProperty, Name: "a", Child: reflection.NewRef("shared")},
 			{ID: "bRoot", Kind: reflection.KindProperty, Name: "b", Child: reflection.NewRef("shared")},
-			{ID: "shared", Kind: reflection.KindString},
+			{ID: "cRoot", Kind: reflection.KindProperty, Name: "c", Child: reflection.NewRef("other")},
+			{ID: "shared", Kind: reflection.KindProperty, Name: wide("shared"), Child: reflection.NewRef("str")},
+			{ID: "other", Kind: reflection.KindProperty, Name: wide("other"), Child: reflection.NewRef("str")},
+			{ID: "str", Kind: reflection.KindString},
 		}, false)
 	}
 	first, second := render(), render()
+	if len(rowModules(first, "shared")) != 1 || !strings.HasPrefix(rowModules(first, "shared")[0], "rt/shared/") {
+		t.Fatalf("the fixture must produce a shared module, got %v", keysOfModules(first))
+	}
 	if len(first) != len(second) {
 		t.Fatalf("module sets differ: %v vs %v", keysOfModules(first), keysOfModules(second))
 	}

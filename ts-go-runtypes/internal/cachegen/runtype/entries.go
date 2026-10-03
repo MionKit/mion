@@ -22,9 +22,10 @@ const bundleKeyLength = 10
 
 // RowHomes is where each runtype row is written: the one module reaching it, or the shared module of every row
 // reached by the same set of modules, so a row ships once and a module imports only rows it reaches itself. A
-// group too small to pay for a module is copied instead (copiedHome).
+// group too small to pay for a module is copied instead.
 type RowHomes struct {
 	home     map[string]string
+	copied   map[string]bool
 	roots    map[string]bool
 	closures map[string][]string
 }
@@ -34,7 +35,7 @@ type RowHomes struct {
 func PlanRowHomes(dump protocol.Dump, moduleOf func(protocol.Site) string) *RowHomes {
 	nodes := indexNodes(dump.RunTypes)
 	sitesByModule := groupReflectionSites(dump, moduleOf)
-	homes := &RowHomes{home: map[string]string{}, roots: map[string]bool{}, closures: map[string][]string{}}
+	homes := &RowHomes{home: map[string]string{}, copied: map[string]bool{}, roots: map[string]bool{}, closures: map[string][]string{}}
 	owners := map[string][]string{}
 	for _, module := range slices.Sorted(maps.Keys(sitesByModule)) {
 		roots := reflectionRoots(sitesByModule[module])
@@ -48,7 +49,6 @@ func PlanRowHomes(dump protocol.Dump, moduleOf func(protocol.Site) string) *RowH
 		}
 	}
 	rowsBySet := map[string][]string{}
-	ownerCount := map[string]int{}
 	for id, modules := range owners {
 		if len(modules) == 1 {
 			homes.home[id] = modules[0]
@@ -56,18 +56,17 @@ func PlanRowHomes(dump protocol.Dump, moduleOf func(protocol.Site) string) *RowH
 		}
 		set := strings.Join(modules, "\x00")
 		rowsBySet[set] = append(rowsBySet[set], id)
-		ownerCount[set] = len(modules)
 	}
-	for set, rows := range rowsBySet {
-		if rowBytes(rows, nodes)*(ownerCount[set]-1) < sharedModuleBytes+sharedImportBytes*ownerCount[set] {
+	for _, rows := range rowsBySet {
+		owned := len(owners[rows[0]])
+		if rowBytes(rows, nodes)*(owned-1) < sharedModuleBytes+sharedImportBytes*owned {
 			for _, id := range rows {
-				homes.home[id] = copiedHome
+				homes.copied[id] = true
 			}
 			continue
 		}
 		sort.Strings(rows)
-		shared := constants.RunTypesFileModuleDir + "/" + constants.RunTypesSharedModuleDir + "/" +
-			hashid.QuickHash(strings.Join(rows, ","), sharedModuleHashLength)
+		shared := sharedModuleDir + hashid.QuickHash(strings.Join(rows, ","), sharedModuleHashLength)
 		for _, id := range rows {
 			homes.home[id] = shared
 		}
@@ -75,13 +74,14 @@ func PlanRowHomes(dump protocol.Dump, moduleOf func(protocol.Site) string) *RowH
 	return homes
 }
 
-// sharedModuleHashLength sizes a shared module's name, a hash of its row ids.
-const sharedModuleHashLength = 10
-
-// copiedHome marks a row group too small for a module of its own: each module referencing it writes a copy, which
-// costs fewer bytes than the module wrapper plus one import line per owner (sharedModuleBytes, sharedImportBytes).
+// sharedModuleDir prefixes a shared module's name, a hash of its row ids sized by sharedModuleHashLength.
 const (
-	copiedHome        = "\x00copied"
+	sharedModuleDir        = constants.RunTypesFileModuleDir + "/shared/"
+	sharedModuleHashLength = 10
+)
+
+// A copied group costs its rows once per extra owner, a shared module its wrapper plus one import line per owner.
+const (
 	sharedModuleBytes = 48
 	sharedImportBytes = 64
 )
@@ -99,13 +99,13 @@ func rowBytes(rows []string, nodes map[string]*reflection.RunType) int {
 // module of its own; every one of them is in the closure of each module writing it, so a copy never leaks.
 func (homes *RowHomes) withCopies(rows, roots []string, nodes map[string]*reflection.RunType) []string {
 	seen := make(map[string]bool, len(rows))
-	out := append([]string(nil), rows...)
 	for _, id := range rows {
 		seen[id] = true
 	}
-	var queue []string
+	out := slices.Clone(rows)
+	queue := slices.Clone(rows)
 	visit := func(id string) {
-		if homes.home[id] == copiedHome && nodes[id] != nil && !seen[id] {
+		if homes.copied[id] && nodes[id] != nil && !seen[id] {
 			seen[id] = true
 			out = append(out, id)
 			queue = append(queue, id)
@@ -113,11 +113,6 @@ func (homes *RowHomes) withCopies(rows, roots []string, nodes map[string]*reflec
 	}
 	for _, root := range roots {
 		visit(root)
-	}
-	for _, id := range rows {
-		for _, child := range collectRefDeps(nodes[id]) {
-			visit(child)
-		}
 	}
 	for len(queue) > 0 {
 		id := queue[len(queue)-1]
@@ -130,23 +125,12 @@ func (homes *RowHomes) withCopies(rows, roots []string, nodes map[string]*reflec
 	return out
 }
 
-// foreignHomes is the sorted set of modules other than self that hold rows of closure.
-func (homes *RowHomes) foreignHomes(self string, closure []string) []string {
-	seen := map[string]bool{}
-	for _, id := range closure {
-		if home := homes.home[id]; home != "" && home != copiedHome && home != self {
-			seen[home] = true
-		}
-	}
-	return slices.Sorted(maps.Keys(seen))
-}
-
 // directImports is the sorted set of modules other than self holding the roots or a child of rows; the runtime
 // and the bundler follow each import's own imports for the rest.
 func (homes *RowHomes) directImports(self string, rows, roots []string, nodes map[string]*reflection.RunType) []string {
 	seen := map[string]bool{}
 	add := func(id string) {
-		if home := homes.home[id]; home != "" && home != copiedHome && home != self && nodes[id] != nil {
+		if home := homes.home[id]; home != "" && home != self && nodes[id] != nil {
 			seen[home] = true
 		}
 	}
@@ -203,17 +187,15 @@ func groupReflectionSites(dump protocol.Dump, moduleOf func(protocol.Site) strin
 func collectModule(graph entrymodules.Graph, module string, sites []protocol.Site, nodes map[string]*reflection.RunType,
 	rootJSONMax map[string]int, homes *RowHomes, emittedShared map[string]bool) {
 	roots := reflectionRoots(sites)
-	closure, planned := homes.closures[module]
-	if !planned {
-		closure = closureRows(roots, nodes)
-	}
+	closure := homes.closures[module]
 	rowsByHome := map[string][]string{}
 	for _, id := range closure {
 		rowsByHome[homes.home[id]] = append(rowsByHome[homes.home[id]], id)
 	}
 	// Every row of a shared module is in the closure of each module reaching it, so the slice is the whole module.
-	for _, shared := range homes.foreignHomes(module, closure) {
-		if emittedShared[shared] {
+	// Copied rows have no home ("") and ride withCopies instead.
+	for _, shared := range slices.Sorted(maps.Keys(rowsByHome)) {
+		if shared == "" || shared == module || emittedShared[shared] {
 			continue
 		}
 		emittedShared[shared] = true
@@ -284,8 +266,12 @@ func addDataEntry(graph entrymodules.Graph, module, export string, rows []string
 		deps[i] = imported + moduleKeySeparator + dataEntryName
 	}
 	// The imports join the key: the runtime skips a key it has seen, so two files owning no rows of their own
-	// must still differ by the shared modules they load.
-	tupleKey := "rts_" + hashid.QuickHash(strings.Join(keyParts, ",")+">"+strings.Join(imports, ","), bundleKeyLength)
+	// must still differ by the shared modules they load. A module importing nothing keeps its rows-only key.
+	keyText := strings.Join(keyParts, ",")
+	if len(imports) > 0 {
+		keyText += ">" + strings.Join(imports, ",")
+	}
+	tupleKey := "rts_" + hashid.QuickHash(keyText, bundleKeyLength)
 	graph.Add(&entrymodules.Entry{
 		Key:      module + moduleKeySeparator + dataEntryName,
 		Kind:     entrymodules.KindRunTypeBundle,

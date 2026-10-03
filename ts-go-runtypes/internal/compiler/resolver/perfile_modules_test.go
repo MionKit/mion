@@ -123,4 +123,19 @@ func TestPerFileModules_ScanMatchesGenerate(t *testing.T) {
 	if scanned, dumped := reflectionModule(scan, clientID), reflectionModule(dump, clientID); scanned == "" || scanned != dumped {
 		t.Errorf("the scanned module must equal the dumped one:\nscan:\n%s\ndump:\n%s", scanned, dumped)
 	}
+	shared := 0
+	for name, scanned := range scan.EntryModules {
+		if !strings.HasPrefix(name, "rt/") {
+			continue
+		}
+		if strings.HasPrefix(name, "rt/shared/") {
+			shared++
+		}
+		if scanned != dump.EntryModules[name] {
+			t.Errorf("%s differs between the scan and the dump:\nscan:\n%s\ndump:\n%s", name, scanned, dump.EntryModules[name])
+		}
+	}
+	if shared == 0 {
+		t.Errorf("the scan must return the shared module the client imports, got %d modules", len(scan.EntryModules))
+	}
 }
