@@ -182,7 +182,7 @@ func Run(opts Options) (*Result, error) {
 		return nil, err
 	}
 	if emitDeclarations {
-		if err := emitVersionedDeclarations(cwd, opts.TsconfigPath, p1, r1.ApiVersionReplacements(), writeFile); err != nil {
+		if err := emitSplicedDeclarations(cwd, opts.TsconfigPath, p1, r1.DeclarationReplacements(), writeFile); err != nil {
 			return nil, err
 		}
 	}
@@ -295,9 +295,8 @@ func writeMessageChain(builder *strings.Builder, chain []*ast.Diagnostic, level 
 	}
 }
 
-// emitVersionedDeclarations emits the .d.ts from source plus the version splices only, the literal a client checks.
-// The full rewrite's marker arguments import untyped modules, which would widen every route's inferred types.
-func emitVersionedDeclarations(cwd, tsconfigPath string, original *program.Program, splices []protocol.Replacement, writeFile compiler.WriteFile) error {
+// emitSplicedDeclarations emits the .d.ts from source plus the splices that are plain quoted values (DeclarationReplacements).
+func emitSplicedDeclarations(cwd, tsconfigPath string, original *program.Program, splices []protocol.Replacement, writeFile compiler.WriteFile) error {
 	byFile := map[string][]protocol.Replacement{}
 	for _, splice := range splices {
 		byFile[splice.File] = append(byFile[splice.File], splice)
