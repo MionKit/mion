@@ -301,8 +301,8 @@ Built as planned, with these additions and changes found along the way:
   returns `PublicApi<R> & ApiBuildVersion<V>`, `V` inferred from the version the build injects, so the
   `.d.ts` `mion compile` writes names the server's build version. A client hashes its own ids and fails with
   `MET012` when they differ; types without a version (plain `tsc`) build with the warning `MET013`. `mion
-  compile` writes declarations from the source plus the version splice alone: the full rewrite's injected
-  marker arguments widened every route's types in the `.d.ts`. A new pre-publish e2e lane
+  compile` writes declarations from the source plus the splices that are plain values (the build version,
+  pure fn ids): the full rewrite's injected marker arguments widened every route's types in the `.d.ts`. A new pre-publish e2e lane
   (`mion-api-types/`) packs a real API library, builds a client against the tarball with Vite and with
   `mion compile`, runs it against the installed server, and covers the plain-tsc and drifted cases.
 - **Same type id from a `.d.ts` and from source.** A package built with mion ships its override rows
