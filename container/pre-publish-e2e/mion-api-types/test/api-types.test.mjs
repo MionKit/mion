@@ -44,6 +44,18 @@ for (const kind of BUILDS) {
   });
 }
 
+for (const kind of BUILDS) {
+  test(`client-fetch (${kind}): built apart from its API, fetches its routes and calls the installed server`, () => {
+    const {status, output} = build(`client-fetch-${kind}`);
+    assert.equal(status, 0, output);
+    assert.doesNotMatch(output, /MET01[0-3]/);
+    const report = readJson(path.join(OUT, 'fetch-reports.json'))[kind];
+    assert.deepEqual(report.product, {sku: 'ABC-1234', label: null});
+    assert.equal(report.error, null);
+    assert.ok(report.invalid, 'a sku that breaks the published pattern is refused');
+  });
+}
+
 test('client: api-check passes between the shipped server manifest and the client build', () => {
   const {status, output} = build('api-check');
   assert.equal(status, 0, output);

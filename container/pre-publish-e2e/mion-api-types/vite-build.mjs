@@ -3,9 +3,9 @@ import path from 'node:path';
 import {build} from 'vite';
 import {mionVitePlugin} from '@mionjs/devtools/vite';
 
-const [dir] = process.argv.slice(2);
+const [dir, routes = 'bundle'] = process.argv.slice(2);
 if (!dir) {
-  console.error('usage: node vite-build.mjs <client dir>');
+  console.error('usage: node vite-build.mjs <client dir> [bundle|fetch]');
   process.exit(2);
 }
 const root = path.resolve(dir);
@@ -14,7 +14,7 @@ await build({
   root,
   configFile: false,
   logLevel: 'warn',
-  plugins: [mionVitePlugin({tsConfig: path.join(root, 'tsconfig.json')})],
+  plugins: [mionVitePlugin({tsConfig: path.join(root, 'tsconfig.json'), client: {routes}})],
   build: {
     outDir: path.join(root, 'dist-vite'),
     emptyOutDir: true,
