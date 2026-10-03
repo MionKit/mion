@@ -60,6 +60,27 @@
   let seed = 3;
   const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
   const scene = document.getElementById('scene');
+  const NS = 'http://www.w3.org/2000/svg';
+  // pupils look toward the cursor: further the further away it is, up to a fifth of the eye, and back to the middle when it leaves
+  const eyes = [];
+  let pointer = null;
+  addEventListener('pointermove', (e) => { pointer = [e.clientX, e.clientY]; });
+  document.addEventListener('pointerleave', () => { pointer = null; });
+  const follow = () => {
+    for (const p of eyes) {
+      let tx = 0, ty = 0;
+      if (pointer) {
+        const r = p.eye.getBoundingClientRect();
+        const dx = pointer[0] - (r.left + r.width / 2), dy = pointer[1] - (r.top + r.height / 2), dist = Math.hypot(dx, dy) || 1;
+        const pull = p.reach * Math.min(1, dist / 160);
+        tx = (dx / dist) * pull; ty = (dy / dist) * pull;
+      }
+      p.x += (tx - p.x) * 0.15; p.y += (ty - p.y) * 0.15;   // ease toward the target so the eyes never snap
+      p.gaze.setAttribute('transform', `translate(${p.x.toFixed(2)} ${p.y.toFixed(2)})`);
+    }
+    requestAnimationFrame(follow);
+  };
+  requestAnimationFrame(follow);
   const files = {};
   const load = src => files[src] ??= fetch(src + '?v=' + Date.now()).then(r => r.text());
   // svgs go in inline so the page can move a piece's parts: everything but its shadow rises and falls
@@ -86,13 +107,28 @@
     if (motion.eyes) {
       slot.style.setProperty('--e', motion.eyes);
       for (const eye of svg.querySelectorAll('#eye-small, #eye-big')) {
-        // the pupil is either clipped inside the eye white or the eye's last shape
-        const inner = eye.querySelector('g[clip-path]');
+        // the pupil is either clipped inside the eye white already, or the eye's last shape, which then gets clipped to the white
+        let inner = eye.querySelector('g[clip-path]');
         const parts = inner ? [...inner.children] : [eye.lastElementChild];
-        const look = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        if (!inner) {
+          const white = eye.children[eye.children.length - 2];
+          const clipId = `gaze-clip-${eyes.length}`;
+          white.id = `${clipId}-shape`;
+          const clip = document.createElementNS(NS, 'clipPath');
+          clip.id = clipId;
+          clip.innerHTML = `<use href="#${white.id}"/>`;
+          eye.appendChild(clip);
+          inner = document.createElementNS(NS, 'g');
+          inner.setAttribute('clip-path', `url(#${clipId})`);
+          eye.appendChild(inner);
+        }
+        const gaze = document.createElementNS(NS, 'g');
+        const look = document.createElementNS(NS, 'g');
         look.setAttribute('class', 'look');
-        (inner || eye).appendChild(look);
+        inner.appendChild(gaze); gaze.appendChild(look);
         for (const part of parts) look.appendChild(part);
+        const box = eye.getBBox();
+        eyes.push({ eye, gaze, reach: Math.min(box.width, box.height) * 0.2, x: 0, y: 0 });
       }
     }
     slot.style.setProperty('--d', (-rnd() * motion.time).toFixed(2) + 's');
