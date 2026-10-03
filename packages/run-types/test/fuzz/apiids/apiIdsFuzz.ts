@@ -1,6 +1,7 @@
 // The bundled-API id lane: per generated type, the real `mion` binary builds the server alone, then the whole program.
 // A1: every server manifest row's ids equal a reflection-marker probe's (both getRunTypeId call shapes). A2: the
 // client build reports no MET diagnostic and bundles exactly the routes it calls. A3: `mion api-check` passes.
+// A4: a client built against the `mion api-types` package of the server passes A2 and A3 too.
 // The negative control lives in the integration test.
 
 import fs from 'node:fs';
@@ -40,17 +41,22 @@ const ROUTE_HANDLERS = {
   r1: '(a: Root, b?: Root[]) => {items: Root[]; count: number}',
 } as const;
 
-const ROUTER_DTS = `declare module '@mionjs/router' {
-  type Handler = (...args: any[]) => any;
-  type Opts = {alwaysRun: false; description: undefined; parser: {params: 'clone'; return: 'clone'}; isMutation: undefined; sanitizeParams: undefined};
-  export type PublicApi<R> = {
-    [K in keyof R]: R[K] extends {type: infer T; handler: infer H extends Handler}
-      ? {type: T; handler: H; options: Opts; types?: {params: Parameters<H>; return: Awaited<ReturnType<H>>; headers: never; isAsync: false}}
-      : PublicApi<R[K]>;
-  };
-  export interface MionRouter { initRoutes<R>(routes: R): PublicApi<R> }
-  export function createMionRouter(): MionRouter;
+/** Installed as a package, so the published types package resolves it like a client does. The build version rides
+ *  the API type the way the real router carries it. **/
+const ROUTER_DTS = `import type {InjectBuildVersion} from '@mionjs/run-types';
+type Handler = (...args: any[]) => any;
+type Opts = {alwaysRun: false; description: undefined; parser: {params: 'clone'; return: 'clone'}; isMutation: undefined; sanitizeParams: undefined};
+declare const apiBuildVersion: unique symbol;
+export type ApiBuildVersion<Version extends string> = {readonly [apiBuildVersion]?: Version};
+export type PublicApi<R> = {
+  [K in keyof R]: R[K] extends {type: infer T; handler: infer H extends Handler}
+    ? {type: T; handler: H; options: Opts; types?: {params: Parameters<H>; return: Awaited<ReturnType<H>>; headers: never; isAsync: false}}
+    : PublicApi<R[K]>;
+};
+export interface MionRouter {
+  initRoutes<R, const Version extends string = string>(routes: R, buildVersion?: InjectBuildVersion<PublicApi<R>> & Version): PublicApi<R> & ApiBuildVersion<Version>;
 }
+export declare function createMionRouter(): MionRouter;
 `;
 
 const SERVER_TS = `import {createMionRouter} from '@mionjs/router';
@@ -78,7 +84,7 @@ export const r0ParamsByValue = getRunTypeId(r0ParamsValue);
 `;
 
 const CLIENT_DTS = `declare module '@mionjs/client' {
-  import type {InjectApiMetadata} from '@mionjs/run-types';
+  import type {InjectApiMetadata, InjectBuildVersion} from '@mionjs/run-types';
   export interface RouteSubRequest<PH, Id extends string = string, RA = any> {
     id: Id;
     call(setup?: unknown, apiMetadata?: InjectApiMetadata<RA, Id>): Promise<unknown>;
@@ -89,7 +95,7 @@ const CLIENT_DTS = `declare module '@mionjs/client' {
       ? (...params: Parameters<H>) => RouteSubRequest<H, \`\${Prefix}\${K & string}\`, Root>
       : ClientRoutes<RA[K], \`\${Prefix}\${K & string}/\`, Root>;
   };
-  export function initClient<RA>(o?: unknown): {routes: ClientRoutes<RA>};
+  export function initClient<RA>(o?: unknown, buildVersion?: InjectBuildVersion<RA>): {routes: ClientRoutes<RA>};
 }
 `;
 
@@ -102,30 +108,45 @@ export const a = routes.r0(rootValue).call();
 export const b = routes.users.r1(rootValue).call();
 `;
 
+/** The same client, reading the API from the published types package instead of the server sources. **/
+const TYPES_CLIENT_TS = `import {initClient} from '@mionjs/client';
+import type {api} from '@acme/api-types';
+declare const rootValue: Parameters<typeof api.r0.handler>[0];
+export const {routes} = initClient<typeof api>({baseURL: 'http://x'});
+export const a = routes.r0(rootValue).call();
+export const b = routes.users.r1(rootValue).call();
+`;
+
 /** The route ids the client calls, in manifest order. **/
 export const CALLED_ROUTE_IDS = ['r0', 'users/r1'] as const;
 
-function tsconfig(exclude: string[]): string {
+function tsconfig(exclude: string[], rootDir = 'src', outDir = 'dist'): string {
   const compilerOptions = {
     target: 'ES2022',
     module: 'ESNext',
     moduleResolution: 'Bundler',
-    rootDir: 'src',
-    outDir: 'dist',
+    rootDir,
+    outDir,
     strict: true,
     allowImportingTsExtensions: true,
     rewriteRelativeImportExtensions: true,
   };
-  return JSON.stringify({compilerOptions, include: ['src'], exclude}, null, 2) + '\n';
+  return JSON.stringify({compilerOptions, include: [rootDir], exclude}, null, 2) + '\n';
 }
 
 /** The server builds without the client's files, so it writes only the server manifest. **/
 const SERVER_TSCONFIG = 'tsconfig.server.json';
+/** The client of the published types package: its own sources only, never the server's. **/
+const TYPES_CLIENT_TSCONFIG = 'tsconfig.types-client.json';
+/** `mion api-types` names the package after the server's: `@acme/api` plus `-types`. **/
+const TYPES_PACKAGE = '@acme/api-types';
 
-/** Renders the generated type as the project's `types.ts`. **/
+/** Renders the generated type as the project's `types.ts`, every declaration exported: the declaration build behind
+ *  `mion api-types` must name each type the API reaches. **/
 export function renderTypesModule(gen: GeneratedType): string {
   const {decls, rootExpr} = renderGenerated(gen, FUZZ_FORMAT_PREAMBLE_PACKAGE);
-  return `${decls}${decls ? '\n' : ''}export type Root = ${rootExpr};\n`;
+  const exported = decls.replace(/^(?=(?:interface|type|class|abstract class|enum|const enum|declare) )/gm, 'export ');
+  return `${exported}${exported ? '\n' : ''}export type Root = ${rootExpr};\n`;
 }
 
 // --- the on-disk project -------------------------------------------------------
@@ -134,6 +155,7 @@ export interface ApiProject {
   dir: string;
   serverGen: string;
   clientGen: string;
+  typesClientGen: string;
 }
 
 /** One project per run, reused across iterations: the marker dist copy is the expensive part. **/
@@ -141,17 +163,30 @@ export function createApiProject(): ApiProject {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-apiids-fuzz-'));
   fs.mkdirSync(path.join(dir, 'src'), {recursive: true});
   writeMarkerPackage(dir);
+  fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify({name: '@acme/api', version: '1.0.0', type: 'module'}) + '\n');
   fs.writeFileSync(path.join(dir, 'tsconfig.json'), tsconfig([]));
   fs.writeFileSync(path.join(dir, SERVER_TSCONFIG), tsconfig(['src/app.ts', 'src/client.d.ts']));
+  fs.writeFileSync(path.join(dir, TYPES_CLIENT_TSCONFIG), tsconfig([], 'client', 'dist-client'));
   const files = {
-    'router.d.ts': ROUTER_DTS,
-    'server.ts': SERVER_TS,
-    'probes.ts': PROBES_TS,
-    'client.d.ts': CLIENT_DTS,
-    'app.ts': CLIENT_TS,
+    'node_modules/@mionjs/router/package.json': JSON.stringify({name: '@mionjs/router', version: '1.0.0', types: 'index.d.ts'}),
+    'node_modules/@mionjs/router/index.d.ts': ROUTER_DTS,
+    'src/server.ts': SERVER_TS,
+    'src/probes.ts': PROBES_TS,
+    'src/client.d.ts': CLIENT_DTS,
+    'src/app.ts': CLIENT_TS,
+    'client/client.d.ts': CLIENT_DTS,
+    'client/app.ts': TYPES_CLIENT_TS,
   };
-  for (const [rel, content] of Object.entries(files)) fs.writeFileSync(path.join(dir, 'src', rel), content);
-  return {dir, serverGen: path.join(dir, '.mion-server'), clientGen: path.join(dir, '.mion-client')};
+  for (const [rel, content] of Object.entries(files)) {
+    fs.mkdirSync(path.dirname(path.join(dir, rel)), {recursive: true});
+    fs.writeFileSync(path.join(dir, rel), content);
+  }
+  return {
+    dir,
+    serverGen: path.join(dir, '.mion-server'),
+    clientGen: path.join(dir, '.mion-client'),
+    typesClientGen: path.join(dir, '.mion-types-client'),
+  };
 }
 
 export function destroyApiProject(project: ApiProject): void {
@@ -175,13 +210,24 @@ function runMion(args: string[], cwd: string): CliResult {
   return {status: result.status ?? -1, stdout: result.stdout ?? '', stderr: result.stderr ?? ''};
 }
 
-/** The server alone into serverGen, or the whole program into clientGen with its routes bundled. **/
-export function compile(project: ApiProject, side: 'server' | 'client'): CliResult {
-  const [tsconfigFile, genDir] = side === 'server' ? [SERVER_TSCONFIG, project.serverGen] : ['tsconfig.json', project.clientGen];
+/** The server alone into serverGen, the whole program into clientGen, or the types-package client into
+ *  typesClientGen, routes bundled. **/
+export function compile(project: ApiProject, side: 'server' | 'client' | 'types-client'): CliResult {
+  const [tsconfigFile, genDir] = {
+    server: [SERVER_TSCONFIG, project.serverGen],
+    client: ['tsconfig.json', project.clientGen],
+    'types-client': [TYPES_CLIENT_TSCONFIG, project.typesClientGen],
+  }[side];
   return runMion(
     ['compile', '--cwd', project.dir, '--tsconfig', tsconfigFile, '--gen-dir', genDir, '--client-routes', 'bundle'],
     project.dir
   );
+}
+
+/** The types-only package of the server, written where the types client installs it. **/
+export function apiTypes(project: ApiProject): CliResult {
+  const out = path.join(project.dir, 'node_modules', ...TYPES_PACKAGE.split('/'));
+  return runMion(['api-types', '--cwd', project.dir, '--tsconfig', SERVER_TSCONFIG, '--out', out], project.dir);
 }
 
 /** api-check of a server manifest against a client manifest (a gen dir or the file itself). **/
@@ -254,11 +300,11 @@ export function checkServerManifestAgainstProbes(project: ApiProject): void {
 }
 
 /** A2: no MET diagnostic and exactly the called routes bundled. **/
-export function checkClientBundle(project: ApiProject, build: CliResult): void {
+export function checkClientBundle(project: ApiProject, build: CliResult, clientGen = project.clientGen): void {
   if (build.status !== 0) throw new Error(`client compile exited ${build.status}\n--- stderr ---\n${build.stderr}`);
   const met = build.stderr.split('\n').filter((line) => /\bMET\d{3}\b/.test(line));
   if (met.length) throw new Error(`A2: the client build reported bundled-API diagnostics:\n${met.join('\n')}`);
-  const manifest = readManifest(project.clientGen, 'client-manifest.json');
+  const manifest = readManifest(clientGen, 'client-manifest.json');
   if (manifest.kind !== 'client') throw new Error(`the client build wrote a ${manifest.kind} manifest`);
   const bundled = Object.keys(manifest.methods).sort();
   if (bundled.join(',') !== [...CALLED_ROUTE_IDS].sort().join(','))
@@ -267,8 +313,8 @@ export function checkClientBundle(project: ApiProject, build: CliResult): void {
 
 /** A3: api-check passes: the client's ids, families, options and chains are
  *  the server's. **/
-export function checkApiCheckPasses(project: ApiProject): void {
-  const check = apiCheck(project, project.serverGen, project.clientGen);
+export function checkApiCheckPasses(project: ApiProject, clientGen = project.clientGen): void {
+  const check = apiCheck(project, project.serverGen, clientGen);
   if (check.status !== 0)
     throw new Error(`A3: api-check exited ${check.status}\n--- stderr ---\n${check.stderr}\n--- stdout ---\n${check.stdout}`);
 }
@@ -297,6 +343,10 @@ export function runApiIdsIteration(project: ApiProject, gen: GeneratedType): voi
     checkServerManifestAgainstProbes(project);
     checkClientBundle(project, compile(project, 'client'));
     checkApiCheckPasses(project);
+    const published = apiTypes(project);
+    if (published.status !== 0) throw new Error(`A4: api-types exited ${published.status}\n--- stderr ---\n${published.stderr}`);
+    checkClientBundle(project, compile(project, 'types-client'), project.typesClientGen);
+    checkApiCheckPasses(project, project.typesClientGen);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     throw new Error(`${message}\n--- types.ts ---\n${typesSource}`);

@@ -4,7 +4,16 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {describe, expect, it} from 'vitest';
 import {entrySeed, parseSeed} from '../core/fuzzPolicy.ts';
-import {apiCheck, compile, createApiProject, destroyApiProject, hasBinary, runApiIdsFuzz, writeTypes} from './apiIdsFuzz.ts';
+import {
+  apiCheck,
+  apiTypes,
+  compile,
+  createApiProject,
+  destroyApiProject,
+  hasBinary,
+  runApiIdsFuzz,
+  writeTypes,
+} from './apiIdsFuzz.ts';
 
 const register = hasBinary() ? it : it.skip;
 
@@ -46,4 +55,35 @@ describe('bundled API ids fuzz (CLI end to end)', () => {
       destroyApiProject(project);
     }
   });
+
+  register(
+    'negative control: a client of a types package from before a server type edit fails api-check on it',
+    {timeout: 300_000},
+    () => {
+      const project = createApiProject();
+      try {
+        writeTypes(project, 'export type Root = {id: number; note: string | undefined};\n');
+        const published = apiTypes(project);
+        expect(published.status, published.stderr).toBe(0);
+        const stale = compile(project, 'types-client');
+        expect(stale.status, stale.stderr).toBe(0);
+
+        writeTypes(project, 'export type Root = {id: number; note: string | undefined; tags: string[]};\n');
+        const rebuilt = compile(project, 'server');
+        expect(rebuilt.status, rebuilt.stderr).toBe(0);
+        const failing = apiCheck(project, project.serverGen, project.typesClientGen);
+        expect(failing.status).toBe(1);
+        expect(failing.stderr).toContain('r0: paramsId differs');
+
+        const republished = apiTypes(project);
+        expect(republished.status, republished.stderr).toBe(0);
+        const current = compile(project, 'types-client');
+        expect(current.status, current.stderr).toBe(0);
+        const passing = apiCheck(project, project.serverGen, project.typesClientGen);
+        expect(passing.status, passing.stderr).toBe(0);
+      } finally {
+        destroyApiProject(project);
+      }
+    }
+  );
 });
