@@ -1,5 +1,8 @@
 # Traces a flat-colour PNG into stacked, smoothed SVG layers: a base silhouette, then each tone on top.
 import sys, cv2, numpy as np
+KEEP = None
+if '--keep' in sys.argv:  # only trace where this mask is white; colours and layer order still come from the whole image
+    at = sys.argv.index('--keep'); KEEP = cv2.imread(sys.argv[at + 1], 0) > 0; del sys.argv[at:at + 2]
 src, out, name = sys.argv[1], sys.argv[2], sys.argv[3]
 SMOOTH, MIN_AREA, SCALE = 3, 30, 0.5   # contour blur in px, drop patches smaller than this, output scale
 img = cv2.imread(src, cv2.IMREAD_UNCHANGED)
@@ -27,6 +30,7 @@ def smooth_path(cnt, SMOOTH=SMOOTH):
     return d + 'Z'
 
 def region_path(mask, smooth=SMOOTH):
+    if KEEP is not None: mask = mask & KEEP
     cnts, hier = cv2.findContours(mask.astype(np.uint8) * 255, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
     parts = [smooth_path(c, smooth) for c in cnts if cv2.contourArea(c) >= MIN_AREA]
     return ''.join(p for p in parts if p)
