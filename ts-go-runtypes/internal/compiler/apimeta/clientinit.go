@@ -126,8 +126,8 @@ func ApiTypeImports(typeChecker *checker.Checker, markerOpts marker.Options, sou
 	return found
 }
 
-// ApiTypeFromDeclarations reports whether an API type's routes are declared in a third-party .d.ts: a published API.
-// Reading the routes, not the written type argument, sees through an alias, an `import()` type or a wrapper type.
+// ApiTypeFromDeclarations reports an API whose routes are declared in a third-party .d.ts: a published API.
+// Reading the routes, not the type argument, sees through an alias, an `import()` type or a wrapper.
 func ApiTypeFromDeclarations(typeChecker *checker.Checker, apiType *checker.Type) bool {
 	if apiType == nil {
 		return false

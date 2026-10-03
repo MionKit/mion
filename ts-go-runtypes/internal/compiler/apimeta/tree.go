@@ -352,14 +352,13 @@ func (walker *treeWalker) routerDeclares(property *ast.Symbol, name string) bool
 	return marker.DeclaringModuleOfNode(declaration, nil) == RouterModule
 }
 
-// fetchMetadataHandlerName is the core type the metadata middleware's handler returns, the one trace of it a .d.ts keeps.
+// fetchMetadataHandlerName is the core handler type the metadata middleware's handler takes its return type from.
 const fetchMetadataHandlerName = "FetchMetadataHandler"
 
 // coreModule declares FetchMetadataHandler; its middlewares subpath counts too.
 const coreModule = "@mionjs/core"
 
-// publishedFetchMetadata reports a member of a published API's .d.ts whose type names @mionjs/core's
-// FetchMetadataHandler: the .d.ts inlines the middleware's type, so where its value came from is gone.
+// publishedFetchMetadata matches a .d.ts member whose type names FetchMetadataHandler, the one trace a .d.ts keeps.
 func (walker *treeWalker) publishedFetchMetadata(property *ast.Symbol) bool {
 	if property == nil || len(property.Declarations) == 0 {
 		return false

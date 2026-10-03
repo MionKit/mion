@@ -800,7 +800,7 @@ func TestStore_OverridesOfAnotherCompilerAreSkipped(t *testing.T) {
 	}
 }
 
-// TestStore_OverridesReportAnUnreadableIndex: a broken index is PFE9017, never a package that silently has no overrides.
+// TestStore_OverridesReportAnUnreadableIndex: a broken index is PFE9017, never silently no overrides.
 func TestStore_OverridesReportAnUnreadableIndex(t *testing.T) {
 	store := storeOver(map[string]string{
 		"/money/package.json":                  `{"name": "@acme/money"}`,

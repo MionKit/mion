@@ -64,13 +64,8 @@ var lateBoundNamePrefix = ast.InternalSymbolNamePrefix + "@"
 // name the exact scheme that stopped matching.
 func LateBoundNamePrefixForTest() string { return lateBoundNamePrefix }
 
-// isSentinelProp reports whether a property name is the sentinel `base`, spelled either as a `unique
-// symbol` key whose declaration is named `base` — what the SHIPPED types use, so the sentinels stay out of
-// a branded type's string keys (`Extract<keyof T, string>`, object spread, string-constrained mapped types
-// all come back clean) — or as a plain string property named `base`, which is what lets a hand-written
-// .d.ts fixture and the fuzz's INDEPENDENT type-first oracle spell the sentinel without importing the
-// symbol. Both spellings fold to the same id: the property name never reaches the hash (memberIDs skips
-// it, the annotation supplies the id).
+// isSentinelProp: shipped types key `base` by unique symbol, out of string keys; fixtures and the fuzz oracle use a string.
+// Both spellings fold to one id: memberIDs skips the name and the annotation supplies the id.
 func isSentinelProp(name, base string) bool {
 	return name == base || IsUniqueSymbolKey(name, base)
 }

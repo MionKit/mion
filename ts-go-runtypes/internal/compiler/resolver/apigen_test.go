@@ -1138,8 +1138,7 @@ func TestApiGen_DirectiveAboveALineOpeningCall(t *testing.T) {
 	}
 }
 
-// publishedMetadataDTS is a mion-built API package's .d.ts: the metadata middleware's type is inlined, and only its
-// handler still names the core FetchMetadataHandler.
+// publishedMetadataDTS is a built API's .d.ts: the middleware type is inlined, only its handler names FetchMetadataHandler.
 const publishedMetadataDTS = `declare module '@mionjs/core' {
   export type FetchMetadataHandler = (ids?: string[]) => Promise<void>;
 }
@@ -1170,7 +1169,7 @@ export const a = routes.ping().call();
 	}
 	var out []diagnostics.Diagnostic
 	for _, diag := range metDiags(gen.Diagnostics) {
-		// The fixture's API carries no build version, which is MET013's business, not this test's.
+		// The fixture has no build version; MET013 is not this test's business.
 		if diag.Code != diagnostics.CodeApiMetaNoServerVersion {
 			out = append(out, diag)
 		}
@@ -1178,8 +1177,7 @@ export const a = routes.ping().call();
 	return out
 }
 
-// TestApiGen_MetadataMiddlewareFromPublishedTypes: a .d.ts keeps no trace of where the value came from, so its
-// handler type is what tells mion's own middleware apart.
+// TestApiGen_MetadataMiddlewareFromPublishedTypes: a .d.ts loses the value's origin, so the handler type identifies it.
 func TestApiGen_MetadataMiddlewareFromPublishedTypes(t *testing.T) {
 	t.Run("bundled, never set up: nothing to report", func(t *testing.T) {
 		if diags := publishedMetadataDiags(t, constants.ClientRoutesBundle, false); len(diags) != 0 {
