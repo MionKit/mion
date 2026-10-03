@@ -179,7 +179,8 @@ export async function startBroker(root: string, options: NextOptions = {}): Prom
   // The mapper modules under `rpc/pf/` are content-addressed like `types/`, hence the recursive listing.
   function countGenerated(): number {
     try {
-      return fs.readdirSync(path.join(genDirAbs, 'types')).filter((name) => name.endsWith('.js')).length;
+      const names = fs.readdirSync(path.join(genDirAbs, 'types'), {recursive: true}) as string[];
+      return names.filter((name) => name.endsWith('.js')).length;
     } catch {
       return -1;
     }
@@ -197,19 +198,26 @@ export async function startBroker(root: string, options: NextOptions = {}): Prom
         continue; // this half has not been generated
       }
       for (const name of names) {
-        const entry = `${half}/${name}`;
+        // Recursive readdir joins with the OS separator; the prefix test and the stamp want one spelling.
+        const entry = `${half}/${name.split(path.sep).join('/')}`;
         listing.push(entry.startsWith(FILE_MODULE_PREFIX) && entry.endsWith('.js') ? `${entry}#${contentHash(entry)}` : entry);
       }
     }
     return listing.sort();
   }
 
+  // The stamp refreshes after every transform, so a module is re-read only once its stat moved.
+  const hashByEntry = new Map<string, {stat: string; hash: string}>();
   function contentHash(entry: string): string {
+    const file = path.join(genDirAbs, entry);
     try {
-      return createHash('sha256')
-        .update(fs.readFileSync(path.join(genDirAbs, entry)))
-        .digest('hex')
-        .slice(0, 16);
+      const {mtimeNs, size} = fs.statSync(file, {bigint: true});
+      const stat = `${mtimeNs}:${size}`;
+      const cached = hashByEntry.get(entry);
+      if (cached?.stat === stat) return cached.hash;
+      const hash = createHash('sha256').update(fs.readFileSync(file)).digest('hex').slice(0, 16);
+      hashByEntry.set(entry, {stat, hash});
+      return hash;
     } catch {
       return '';
     }
