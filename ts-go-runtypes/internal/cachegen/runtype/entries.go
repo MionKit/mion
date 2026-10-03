@@ -23,8 +23,9 @@ const bundleKeyLength = 10
 // RowHomes is where each runtype row is written: the one module reaching it, or the shared module of every row
 // reached by the same set of modules, so a row ships once and a module imports only rows it reaches itself.
 type RowHomes struct {
-	home  map[string]string
-	roots map[string]bool
+	home     map[string]string
+	roots    map[string]bool
+	closures map[string][]string
 }
 
 // PlanRowHomes plans the homes over a whole program; a planner fed one file would keep every row in that file.
@@ -32,14 +33,16 @@ type RowHomes struct {
 func PlanRowHomes(dump protocol.Dump, moduleOf func(protocol.Site) string) *RowHomes {
 	nodes := indexNodes(dump.RunTypes)
 	sitesByModule := groupReflectionSites(dump, moduleOf)
-	homes := &RowHomes{home: map[string]string{}, roots: map[string]bool{}}
+	homes := &RowHomes{home: map[string]string{}, roots: map[string]bool{}, closures: map[string][]string{}}
 	owners := map[string][]string{}
 	for _, module := range slices.Sorted(maps.Keys(sitesByModule)) {
 		roots := reflectionRoots(sitesByModule[module])
 		for _, root := range roots {
 			homes.roots[root] = true
 		}
-		for _, id := range closureRows(roots, nodes) {
+		// Kept for the collector: a module's closure is the same in a one-file dump, which holds that file's types.
+		homes.closures[module] = closureRows(roots, nodes)
+		for _, id := range homes.closures[module] {
 			owners[id] = append(owners[id], module)
 		}
 	}
@@ -72,6 +75,26 @@ func (homes *RowHomes) foreignHomes(self string, closure []string) []string {
 	for _, id := range closure {
 		if home := homes.home[id]; home != "" && home != self {
 			seen[home] = true
+		}
+	}
+	return slices.Sorted(maps.Keys(seen))
+}
+
+// directImports is the sorted set of modules other than self holding the roots or a child of rows; the runtime
+// and the bundler follow each import's own imports for the rest.
+func (homes *RowHomes) directImports(self string, rows, roots []string, nodes map[string]*reflection.RunType) []string {
+	seen := map[string]bool{}
+	add := func(id string) {
+		if home := homes.home[id]; home != "" && home != self && nodes[id] != nil {
+			seen[home] = true
+		}
+	}
+	for _, root := range roots {
+		add(root)
+	}
+	for _, id := range rows {
+		for _, child := range collectRefDeps(nodes[id]) {
+			add(child)
 		}
 	}
 	return slices.Sorted(maps.Keys(seen))
@@ -119,7 +142,10 @@ func groupReflectionSites(dump protocol.Dump, moduleOf func(protocol.Site) strin
 func collectModule(graph entrymodules.Graph, module string, sites []protocol.Site, nodes map[string]*reflection.RunType,
 	rootJSONMax map[string]int, homes *RowHomes, emittedShared map[string]bool) {
 	roots := reflectionRoots(sites)
-	closure := closureRows(roots, nodes)
+	closure, planned := homes.closures[module]
+	if !planned {
+		closure = closureRows(roots, nodes)
+	}
 	rowsByHome := map[string][]string{}
 	for _, id := range closure {
 		rowsByHome[homes.home[id]] = append(rowsByHome[homes.home[id]], id)
@@ -131,13 +157,13 @@ func collectModule(graph entrymodules.Graph, module string, sites []protocol.Sit
 		}
 		emittedShared[shared] = true
 		rows := rowsByHome[shared]
-		addDataEntry(graph, shared, "rts_"+path.Base(shared), rows, nodes, rootJSONMax, homes.foreignHomes(shared, closureRows(rows, nodes)))
+		addDataEntry(graph, shared, "rts_"+path.Base(shared), rows, nodes, rootJSONMax, homes.directImports(shared, rows, nil, nodes))
 	}
 	dataKey := module + moduleKeySeparator + dataEntryName
 	// A root missing from the dump still gets a facade so the injected import resolves; the runtime sees a registry miss.
 	var facadeDeps []string
 	if len(closure) > 0 {
-		addDataEntry(graph, module, "", rowsByHome[module], nodes, rootJSONMax, homes.foreignHomes(module, closure))
+		addDataEntry(graph, module, "", rowsByHome[module], nodes, rootJSONMax, homes.directImports(module, rowsByHome[module], roots, nodes))
 		facadeDeps = []string{dataKey}
 	}
 	extraDeps := reflectionSiteDemandKeys(sites)
