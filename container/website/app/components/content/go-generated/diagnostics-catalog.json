@@ -373,8 +373,8 @@
       "code": "MKR016",
       "subsystem": "markers",
       "level": "runtimeError",
-      "headline": "Private member `{0}` of class `{1}` has no type in its declaration file, so the generated functions would accept any value for it. Build the class's package with `mion compile`, which keeps private member types.",
-      "summary": "A class read from a `.d.ts` file has a `private` member with no type. Plain `tsc` writes every private field and method this way, so RunTypes cannot check it and the build fails. `mion compile` keeps the type: it writes the member as `protected`, which outside code still cannot read.",
+      "headline": "Private member `{0}` of class `{1}` has no type in its declaration file, so the generated functions would accept any value for it. Build the class's package with `mion compile`, which keeps private member types, or read it from its TypeScript sources.",
+      "summary": "A class read from a `.d.ts` file has a `private` member with no type. Plain `tsc` writes every private field and method this way, so RunTypes cannot check it and the build fails. Build the package with `mion compile`, which keeps the type by writing the member as `protected` (outside code still cannot read it), or point its `types` at its TypeScript sources.",
       "fix": "// package.json of the class's package\n{\"scripts\": {\"build\": \"mion compile --tsconfig tsconfig.build.json\"}}",
       "example": "import {getRunTypeId} from '@mionjs/run-types';\ndeclare class Account { id: string; private balance; }\nexport const id = getRunTypeId<Account>();"
     },
