@@ -186,7 +186,13 @@
    1510,
    514
   ],
-  "tones": 7
+  "parts": "visor",
+  "trace": false,
+  "shadow": [
+   118,
+   171,
+   62
+  ]
  },
  "hat-juggler": {
   "crop": [
