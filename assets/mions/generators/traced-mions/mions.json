@@ -156,7 +156,13 @@
    1630,
    1282
   ],
-  "tones": 7
+  "parts": "grub",
+  "trace": false,
+  "shadow": [
+   58,
+   119,
+   14
+  ]
  },
  "beanie": {
   "crop": [
