@@ -386,7 +386,8 @@ func (file *fileInfo) render() (string, bool) {
 		}
 		builder.WriteString(text)
 	}
-	out := strings.TrimRight(builder.String(), " \t\r\n") + "\n"
+	// A dropped first statement leaves the next one's leading newline at the top.
+	out := strings.TrimLeft(strings.TrimRight(builder.String(), " \t\r\n"), "\r\n") + "\n"
 	if !isModule && ast.IsExternalModule(file.source) {
 		out += "export {};\n"
 	}

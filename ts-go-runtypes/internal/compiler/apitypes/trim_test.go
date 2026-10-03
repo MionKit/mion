@@ -126,6 +126,9 @@ export declare function startServer(db: Db): void;
 	index := output.Files["index.d.ts"]
 	assertContains(t, index, "class Product", "export declare const api", "export type Api = typeof api;", `ApiBuildVersion<"v1">`)
 	assertLacks(t, index, "IncomingMessage", "Db", "routes", "startServer")
+	if strings.HasPrefix(index, "\n") {
+		t.Errorf("dropping the first statements must leave no blank line at the top:\n%s", index)
+	}
 	if _, kept := output.Files["db.d.ts"]; kept {
 		t.Errorf("db.d.ts only served a dropped export, it must go")
 	}
