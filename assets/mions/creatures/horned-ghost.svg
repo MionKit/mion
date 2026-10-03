@@ -54,6 +54,7 @@
       <g id="body-light" fill="#e9e9f0" transform="translate(-5 -7) translate(100 160) scale(0.93) translate(-100 -160)"><use href="#hg-belly-shape"/><use href="#hg-head-shape"/></g>
       <path id="body-highlight" d="M72 118 C70 110 76 103 84 102 C90 102 91 107 87 111 C83 115 76 122 72 118 Z M61 186 C61 178 66 173 72 172 C75 173 73 178 69 182 C66 186 62 190 61 186 Z" fill="#fff"/>
     </g>
+    <path id="head-rim" transform="translate(0 -3)" d="M93.6 181.3 L90.7 180.7 L87.8 179.9 L85.0 178.9 L82.3 177.8 L79.8 176.5 L77.4 174.9 L75.1 173.2 L72.9 171.4 L70.9 169.3 L69.0 167.1" stroke="#b9bbcb" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
     <path id="body-shine" d="M68 124 Q72 100 94 94" stroke="#fff" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.55"/>
     <g fill="#a9abbf" opacity="0.7">
       <circle cx="70" cy="180" r="2"/>
