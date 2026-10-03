@@ -10,7 +10,7 @@
 // Next nothing (the broker's typeDeps + stamp cover staleness, and Next runs its own dev server).
 
 import {type PluginOptions as TsRuntypesPluginOptions} from './core/unplugin.ts';
-import {assertValidClientRoutes} from './core/client-routes.ts';
+import {assertValidClientRoutes} from './core/option-guards.ts';
 import {MODULE_MODE_ALL_SINGLE} from './core/go-generated/runtypes-constants.generated.ts';
 
 /** Options for the mion powered type transformation. */
@@ -34,8 +34,8 @@ export interface MionRunTypesOptions {
    *  serializing compiled fns to the browser as strings, so an entry with no body cannot cross the wire.
    *  Guaranteeing `code` is what lets `MionTypeFn` type it as required (packages/core/src/types/general.types.ts). */
   emitMode?: 'code' | 'both';
-  /** Cache-module grouping, see the runtypes core docs. 'default' | 'allModules' | 'allSingle'. */
-  moduleMode?: TsRuntypesPluginOptions['moduleMode'];
+  /** Cache-module grouping, see the runtypes core docs. 'default' | 'allModules'; 'allSingle' throws (one module would carry both sides). */
+  moduleMode?: Exclude<TsRuntypesPluginOptions['moduleMode'], typeof MODULE_MODE_ALL_SINGLE>;
   inlineMode?: TsRuntypesPluginOptions['inlineMode'];
   transformMode?: TsRuntypesPluginOptions['transformMode'];
   /** Diagnostic codes to report as warnings instead of halting the build, or `'*'` for all of them. Strict by
@@ -107,7 +107,7 @@ export function toRunTypesOptions(options: MionPresetOptions = {}): TsRuntypesPl
         `Use 'code' (default) or 'both'.`
     );
   }
-  if (rt.moduleMode === MODULE_MODE_ALL_SINGLE) {
+  if ((rt.moduleMode as string) === MODULE_MODE_ALL_SINGLE) {
     throw new Error(
       `[mion] moduleMode: 'allSingle' is not supported. It puts every type of the program in one module per ` +
         `family, so the client bundle would carry the server's types. Use 'default' or 'allModules'.`
