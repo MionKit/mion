@@ -1,6 +1,7 @@
 package program
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -12,19 +13,29 @@ import (
 
 func environmentProject(t *testing.T, types string, files map[string]string) map[string]bool {
 	t.Helper()
-	cwd := tspath.NormalizePath(t.TempDir())
-	writeConfigFile(t, filepath.Join(cwd, "tsconfig.json"),
-		`{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","strict":true`+types+`},"include":["src"]}`)
-	for name, content := range files {
-		writeConfigFile(t, filepath.Join(cwd, name), content)
-	}
-	prog, err := New(Options{Cwd: cwd, TsconfigPath: "tsconfig.json", SingleThreaded: true})
+	// The project sits behind a symlinked dir on every OS (macOS's own temp dir is one), and tsgo reports resolved paths.
+	tempDir, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
+	realDir := filepath.Join(tempDir, "real")
+	linkDir := filepath.Join(tempDir, "link")
+	writeConfigFile(t, filepath.Join(realDir, "tsconfig.json"),
+		`{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","strict":true`+types+`},"include":["src"]}`)
+	for name, content := range files {
+		writeConfigFile(t, filepath.Join(realDir, name), content)
+	}
+	if err := os.Symlink(realDir, linkDir); err != nil {
+		t.Fatal(err)
+	}
+	prog, err := New(Options{Cwd: linkDir, TsconfigPath: "tsconfig.json", SingleThreaded: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	resolvedPrefix := tspath.NormalizePath(realDir) + "/"
 	environment := map[string]bool{}
 	for _, file := range prog.TS.SourceFiles() {
-		if name := strings.TrimPrefix(file.FileName(), cwd+"/"); strings.HasPrefix(name, "node_modules/") {
+		if name := strings.TrimPrefix(file.FileName(), resolvedPrefix); strings.HasPrefix(name, "node_modules/") {
 			environment[name] = prog.EnvironmentFile(file)
 		}
 	}
