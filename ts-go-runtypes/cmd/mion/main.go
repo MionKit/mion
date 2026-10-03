@@ -650,8 +650,7 @@ the tsconfig then writes nothing.
 only and writes nothing (tsc --noEmit-style).
 `
 
-// runCompile is the tsc-like batch build: it drives the two-pass transform +
-// tsgo emit + map composition itself and returns. Requires a tsconfig.
+// runCompile is the tsc-like batch build: it runs the two-pass transform, tsgo emit and map composition itself.
 func runCompile(args []string) {
 	fs := flag.NewFlagSet("compile", flag.ExitOnError)
 	s := registerSharedFlags(fs)
@@ -672,8 +671,7 @@ func runCompile(args []string) {
 	compileResult, compileErr := batchcompile.Run(batchcompile.Options{
 		Cwd:          cfg.absCwd,
 		TsconfigPath: cfg.tsconfigPath,
-		// cfg.genDir layers the flag over the tsconfig `genDir` entry over the
-		// <cwd>/.mion default.
+		// The flag wins over the tsconfig `genDir`, which wins over <cwd>/.mion.
 		GenDir:       cfg.genDir,
 		ResolverOpts: cfg.opts,
 		NoEmit:       *noEmit,
@@ -681,9 +679,7 @@ func runCompile(args []string) {
 	if compileErr != nil {
 		fatal("compile: %v", compileErr)
 	}
-	// The tsconfig `downgradeErrors` applies here exactly as it does in a bundler
-	// build: it is the project's answer to "what fails my build", and the CLI
-	// reads the same key rather than growing a flag of its own.
+	// Same tsconfig `downgradeErrors` as a bundler build, so the CLI grows no flag of its own.
 	downgrade, downgradeErr := diagnostics.ResolveDowngrade(cfg.opts.TsconfigDowngradeErrors)
 	if downgradeErr != nil {
 		fatal("compile: %v", downgradeErr)
@@ -692,24 +688,18 @@ func runCompile(args []string) {
 	if levelsErr != nil {
 		fatal("compile: %v", levelsErr)
 	}
-	// A compile drives several ops, and each whole-program one answers the
-	// `@mion-expect-error` unused check for itself, so one stale comment would
-	// otherwise be reported once per pass. Dedupe collapses the identical
-	// repeats (same code, args and site) the way it does within one op.
-	// TypeScript's own errors fail the build exactly as they fail tsc; downgradeErrors and levels are mion's knobs only.
+	// TypeScript errors fail the build as in tsc; downgradeErrors and levels never apply to them.
 	for _, line := range compileResult.TypeDiagnostics {
 		fmt.Fprintln(os.Stderr, line)
 	}
 	errorCount := compileResult.TypeErrorCount
+	// Each whole-program op runs the `@mion-expect-error` unused check, so without Dedupe it reports once per pass.
 	for _, d := range diagnostics.Dedupe(compileResult.Diagnostics) {
 		if !diagnostics.Shown(d, showInfo) {
 			continue
 		}
-		// A downgraded finding is still printed, and carries the same one-word
-		// note the bundler adds: without it a stood-down finding reads as an
-		// ordinary warning, which is the thing downgrading is meant not to be.
-		// Two ways in, one outcome: a `downgradeErrors` setting, or the
-		// `@mion-downgrade-error` comment the resolver already stamped on it.
+		// Printed with the bundler's one-word note, or a downgraded error reads as an ordinary warning.
+		// d.Downgraded is the resolver-stamped `@mion-downgrade-error` comment, downgrade the tsconfig setting.
 		if d.Downgraded || downgrade.Downgraded(d) {
 			fmt.Fprintln(os.Stderr, diagnostics.Format(d, true))
 			continue

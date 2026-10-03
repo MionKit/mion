@@ -360,7 +360,7 @@ export const sampleId = getRunTypeId(sample);
 	}
 }
 
-// badTS fails plain tsc with TS2345 (a string is not a number) and holds no mion marker at all.
+// badTS fails plain tsc with TS2345 and holds no mion marker.
 const badTS = `export function double(value: number): number {
   return value * 2;
 }
@@ -397,8 +397,7 @@ func assertOneTS2345(t *testing.T, result *Result) {
 	}
 }
 
-// TestCompile_ReportsTypeErrorsAndStillEmits pins the tsc behaviour: a type error is reported, and without
-// noEmitOnError the .js is still written.
+// TestCompile_ReportsTypeErrorsAndStillEmits: as in tsc, without noEmitOnError the .js is still written.
 func TestCompile_ReportsTypeErrorsAndStillEmits(t *testing.T) {
 	tmp := t.TempDir()
 	writeFile(t, filepath.Join(tmp, "tsconfig.json"), tsconfigJSON)
@@ -416,7 +415,7 @@ func TestCompile_ReportsTypeErrorsAndStillEmits(t *testing.T) {
 	}
 }
 
-// TestCompile_NoEmitOnErrorWritesNothing: with noEmitOnError a type error stops every write, caches included.
+// TestCompile_NoEmitOnErrorWritesNothing: a type error under noEmitOnError skips the caches too.
 func TestCompile_NoEmitOnErrorWritesNothing(t *testing.T) {
 	tmp := t.TempDir()
 	writeFile(t, filepath.Join(tmp, "tsconfig.json"), strings.Replace(tsconfigJSON, `"strict": true`, `"strict": true, "noEmitOnError": true`, 1))
