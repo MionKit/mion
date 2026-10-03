@@ -171,3 +171,33 @@ func generatedFiles(t *testing.T, dir string) []string {
 	})
 	return out
 }
+
+// TestCompile_TwoPackagesOverridingOneTypeIsADuplicate: two installed packages, one type and family, two bodies.
+func TestCompile_TwoPackagesOverridingOneTypeIsADuplicate(t *testing.T) {
+	dist, _ := buildOverrideLibrary(t)
+	other := writeProject(t, map[string]string{"index.ts": `import {overrideValidate} from '@mionjs/run-types';
+export type Money = {amount: number; currency: string};
+overrideValidate<Money>((value) => value !== null);
+`})
+	otherPackageJSON := strings.Replace(overridePackageJSON, "@acme/money", "@acme/ledger", 1)
+	writeFile(t, filepath.Join(other, "package.json"), otherPackageJSON)
+	writeFile(t, filepath.Join(other, "tsconfig.json"), strings.Replace(projectTsconfigJSON, `"strict": true,`, `"strict": true, "declaration": true,`, 1))
+	compileProject(t, other, nil)
+
+	consumer := writeProject(t, map[string]string{"main.ts": overrideConsumerTS + `import type {Money} from '@acme/ledger';
+export const moneyId = getRunTypeId<Money>();
+`})
+	installOverrideLibrary(t, consumer, dist)
+	ledger := filepath.Join(consumer, "node_modules", "@acme", "ledger")
+	writeFile(t, filepath.Join(ledger, "package.json"), otherPackageJSON)
+	if err := os.CopyFS(filepath.Join(ledger, "dist"), os.DirFS(filepath.Join(other, "dist"))); err != nil {
+		t.Fatalf("install: %v", err)
+	}
+	result := compileProject(t, consumer, nil)
+	for _, diag := range result.Diagnostics {
+		if diag.Code == "OVR001" {
+			return
+		}
+	}
+	t.Fatalf("expected OVR001 for two packages overriding one type, got %v", result.Diagnostics)
+}
