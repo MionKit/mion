@@ -129,7 +129,8 @@ func (walker *treeWalker) level(levelType *checker.Type, pointer []string, nestL
 			if problem != "" {
 				return problem
 			}
-			method.FetchMetadata = method.Type == TypeMiddleware && walker.routerDeclares(property, fetchMetadataName)
+			method.FetchMetadata = method.Type == TypeMiddleware &&
+				(walker.routerDeclares(property, fetchMetadataName) || walker.publishedFetchMetadata(property))
 			entries = append(entries, levelEntry{key: property.Name, method: method})
 			continue
 		}
@@ -349,6 +350,62 @@ func (walker *treeWalker) routerDeclares(property *ast.Symbol, name string) bool
 		return false
 	}
 	return marker.DeclaringModuleOfNode(declaration, nil) == RouterModule
+}
+
+// fetchMetadataHandlerName is the core type the metadata middleware's handler returns, the one trace of it a .d.ts keeps.
+const fetchMetadataHandlerName = "FetchMetadataHandler"
+
+// coreModule declares FetchMetadataHandler; its middlewares subpath counts too.
+const coreModule = "@mionjs/core"
+
+// publishedFetchMetadata reports a member of a published API's .d.ts whose type names @mionjs/core's
+// FetchMetadataHandler: the .d.ts inlines the middleware's type, so where its value came from is gone.
+func (walker *treeWalker) publishedFetchMetadata(property *ast.Symbol) bool {
+	if property == nil || len(property.Declarations) == 0 {
+		return false
+	}
+	declaration := property.Declarations[0]
+	sourceFile := ast.GetSourceFileOfNode(declaration)
+	if sourceFile == nil || !sourceFile.IsDeclarationFile || declaration.Type() == nil {
+		return false
+	}
+	found := false
+	var visit ast.Visitor
+	visit = func(node *ast.Node) bool {
+		var name *ast.Node
+		switch node.Kind {
+		case ast.KindImportType:
+			name = node.AsImportTypeNode().Qualifier
+		case ast.KindTypeReference:
+			name = node.AsTypeReferenceNode().TypeName
+		}
+		if name != nil && name.Kind == ast.KindQualifiedName {
+			name = name.AsQualifiedName().Right
+		}
+		if name != nil && name.Kind == ast.KindIdentifier && name.Text() == fetchMetadataHandlerName && walker.declaredInCore(name) {
+			found = true
+		}
+		return found || node.ForEachChild(visit)
+	}
+	visit(declaration.Type())
+	return found
+}
+
+// declaredInCore reports whether name resolves to a declaration in @mionjs/core.
+func (walker *treeWalker) declaredInCore(name *ast.Node) bool {
+	symbol := walker.typeChecker.GetSymbolAtLocation(name)
+	if symbol == nil {
+		return false
+	}
+	if resolved := checker.SkipAlias(symbol, walker.typeChecker); resolved != nil {
+		symbol = resolved
+	}
+	for _, declaration := range symbol.Declarations {
+		if strings.HasPrefix(marker.DeclaringModuleOfNode(declaration, nil), coreModule) {
+			return true
+		}
+	}
+	return false
 }
 
 // valueDeclaration follows a routes entry (`{name}` or `key: name`) through its import to where the value is declared.

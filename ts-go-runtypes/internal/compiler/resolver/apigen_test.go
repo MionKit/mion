@@ -1137,3 +1137,58 @@ func TestApiGen_DirectiveAboveALineOpeningCall(t *testing.T) {
 		t.Fatalf("the directive silences MET010 at the setup call, got %+v", diags)
 	}
 }
+
+// publishedMetadataDTS is a mion-built API package's .d.ts: the metadata middleware's type is inlined, and only its
+// handler still names the core FetchMetadataHandler.
+const publishedMetadataDTS = `declare module '@mionjs/core' {
+  export type FetchMetadataHandler = (ids?: string[]) => Promise<void>;
+}
+declare module '@acme/api' {
+  type Opts = {alwaysRun: true; description: undefined; parser: {params: 'clone'; return: 'clone'}; sanitizeParams: undefined};
+  type RouteOpts = {alwaysRun: false; description: undefined; parser: {params: 'clone'; return: 'clone'}; isMutation: undefined; sanitizeParams: undefined};
+  export const api: {
+    mionFetchMetadata: {type: 2; handler: (ids?: string[]) => ReturnType<import('@mionjs/core').FetchMetadataHandler>; options: Opts; types?: {params: [ids?: string[]]; return: void; headers: never; isAsync: false}};
+    ping: {type: 1; handler: () => Promise<string>; options: RouteOpts; types?: {params: []; return: string; headers: never; isAsync: false; sync: [[], string, 'json', 'json']}};
+  };
+}
+`
+
+func publishedMetadataDiags(t *testing.T, mode constants.ClientRoutesMode, setUp bool) []diagnostics.Diagnostic {
+	t.Helper()
+	client := `import {initClient, useFetchMetadata} from '@mionjs/client';
+import type {api} from '@acme/api';
+export const {routes, middlewares} = initClient<typeof api>({baseURL: 'http://x'});
+export const a = routes.ping().call();
+`
+	if setUp {
+		client += "useFetchMetadata(middlewares.mionFetchMetadata as any);\n"
+	}
+	sources := map[string]string{"client.d.ts": apiClientDTS, "router.d.ts": metadataRouterDTS, "published.d.ts": publishedMetadataDTS, "client.ts": client}
+	gen := setupApi(t, sources, t.TempDir(), mode).Dispatch(protocol.Request{Op: protocol.OpGenerate})
+	if gen.Error != "" {
+		t.Fatalf("generate: %s", gen.Error)
+	}
+	var out []diagnostics.Diagnostic
+	for _, diag := range metDiags(gen.Diagnostics) {
+		// The fixture's API carries no build version, which is MET013's business, not this test's.
+		if diag.Code != diagnostics.CodeApiMetaNoServerVersion {
+			out = append(out, diag)
+		}
+	}
+	return out
+}
+
+// TestApiGen_MetadataMiddlewareFromPublishedTypes: a .d.ts keeps no trace of where the value came from, so its
+// handler type is what tells mion's own middleware apart.
+func TestApiGen_MetadataMiddlewareFromPublishedTypes(t *testing.T) {
+	t.Run("bundled, never set up: nothing to report", func(t *testing.T) {
+		if diags := publishedMetadataDiags(t, constants.ClientRoutesBundle, false); len(diags) != 0 {
+			t.Fatalf("a bundled client never asks for metadata, got %+v", diags)
+		}
+	})
+	t.Run("fetching, set up: the API places the middleware", func(t *testing.T) {
+		if diags := publishedMetadataDiags(t, constants.ClientRoutesFetch, true); len(diags) != 0 {
+			t.Fatalf("expected no MET diagnostics, got %+v", diags)
+		}
+	})
+}
