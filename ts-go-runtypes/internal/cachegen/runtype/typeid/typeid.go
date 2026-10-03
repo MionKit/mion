@@ -464,7 +464,7 @@ func (computer *Computer) tupleID(tsType *checker.Type, labelOverride []string) 
 		}
 		ids = append(ids, child)
 	}
-	return collectionID(int(reflection.KindTuple), ids, true) + readonlyBit(IsReadonlyCollection(tsType))
+	return collectionID(int(reflection.KindTuple), ids, true) + readonlyBit(IsReadonlyCollection(computer.typeChecker, tsType))
 }
 
 func (computer *Computer) objectID(tsType *checker.Type) string {
@@ -479,7 +479,7 @@ func (computer *Computer) objectID(tsType *checker.Type) string {
 		typeArguments := computer.typeChecker.GetTypeArguments(tsType)
 		if len(typeArguments) > 0 {
 			child := computer.Compute(typeArguments[0])
-			return memberID(int(reflection.KindArray), "0", false, child) + readonlyBit(IsReadonlyCollection(tsType))
+			return memberID(int(reflection.KindArray), "0", false, child) + readonlyBit(IsReadonlyCollection(computer.typeChecker, tsType))
 		}
 	}
 
@@ -872,22 +872,22 @@ func TupleElementLabel(info checker.TupleElementInfo) string {
 
 // IsReadonlyCollection reports a `readonly` tuple or a `ReadonlyArray` reference (`readonly T[]`). Shared by the
 // projection and the id so a readonly collection never shares a node with its mutable twin.
-func IsReadonlyCollection(tsType *checker.Type) bool {
+func IsReadonlyCollection(typeChecker *checker.Checker, tsType *checker.Type) bool {
 	if tsType == nil || tsType.ObjectFlags()&checker.ObjectFlagsReference == 0 {
 		return false
 	}
 	if checker.IsTupleType(tsType) {
 		return tsType.TargetTupleType().IsReadonly()
 	}
-	target := tsType.Target()
-	return target != nil && target.Symbol() != nil && target.Symbol().Name == "ReadonlyArray"
+	// IsArrayType holds only for the global Array / ReadonlyArray, so a local `ReadonlyArray` interface is not one.
+	return typeChecker.IsArrayType(tsType) && tsType.Target().Symbol().Name == "ReadonlyArray"
 }
 
 // AllReadonlyCollections reports a tuple intersection whose every member is readonly: one mutable member makes the
 // merge mutable, as in TypeScript.
-func AllReadonlyCollections(members []*checker.Type) bool {
+func AllReadonlyCollections(typeChecker *checker.Checker, members []*checker.Type) bool {
 	for _, member := range members {
-		if !IsReadonlyCollection(member) {
+		if !IsReadonlyCollection(typeChecker, member) {
 			return false
 		}
 	}
