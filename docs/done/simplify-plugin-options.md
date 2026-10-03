@@ -19,12 +19,13 @@ mion supports two ways to build a client against its API:
 The separate-projects model is dropped. It came from the time Next.js could not be transformed, so the API
 was built by vite in its own process. That is no longer needed (`withMion` transforms Next.js). It is also
 unreliable: compiled run types depend on the whole project (installed packages, `lib`, which types are
-native and so not `DataOnly`), not only on a tsconfig, so a client recompiling the server's types can drift
-from what the server runs. There are no users yet, so nothing needs a migration.
+native and so not `DataOnly`), not only on a tsconfig, so a client recompiling the server's types from
+another project can drift from what the server runs. There are no users yet, so nothing needs a migration.
 
-A client that is NOT built with its API keeps one supported road: `client: {routes: 'fetch'}` plus the fetchMetadata
-middlewares. The server ships its own compiled functions at runtime, so they always match the server; the
-client's route types only drive editor hints.
+A client that is NOT built with its API has two roads. With `client: {routes: 'fetch'}` plus the
+fetchMetadata middlewares, the server ships its own compiled functions at runtime, so they always match the
+server. Or it bundles its routes from the API's published `.d.ts`: `mion compile` writes the server build
+version into that type, and a client whose own ids differ fails its build (`MET012`, see What Shipped).
 
 Batches become fullstack only. There is no id-less batch mode: only batches compiled into the server's
 build can run.
@@ -310,7 +311,8 @@ Built as planned, with these additions and changes found along the way:
   overridden type keeps its id across the package boundary. Overriding a package's type again is `OVR001`;
   rows from another compiler version are skipped with `PFE9017`. A format `pattern` the build cannot read
   (a plain `RegExp`, a widened `FormatPattern`) is now the RuntimeError `FMT009` instead of a check that
-  silently stopped. Private fields were split out into their own todo.
+  silently stopped. Private fields were split out into their own todo, and so was using a package's
+  published ids and generated code as they are, instead of recomputing them.
 - **One runtype data module per source file.** The single `types/runtypes.js` gave every bundle the
   reflection types of the whole program, so a client got every server route's types. Each source file
   with reflection sites now gets `types/rt/<hash of its path>.js`: its roots' closure rows plus one export
@@ -318,5 +320,6 @@ Built as planned, with these additions and changes found along the way:
   private-test-server: 1,632 rows written against 1,336 distinct, 83 KB over 7 modules), and the runtime
   wires only the rows each module adds. Sites with no file keep `types/runtypes.js`. The mion presets
   refuse `moduleMode: 'allSingle'`, which puts both sides back in one module, and a program holding both
-  client and server warns with `MET014` when the tsconfig sets it. The planned row-count build metrics
-  were not added: the measured repeat was small enough that shared modules are not needed.
+  client and server warns with `MET014` when the tsconfig sets it. `test-skip` no longer digests the
+  shared bundle by root: each file's own `rt/` module is keyed as a whole. No row-count build metric was
+  added: the measured repeat was small enough that shared modules are not needed.
