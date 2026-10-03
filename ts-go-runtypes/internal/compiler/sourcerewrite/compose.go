@@ -12,8 +12,8 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
-// OriginalPositions is OriginalLines with the column: each source-bearing segment's [line, column], in encounter order.
-// Introspection only, for tests that a composed map points at original columns on a line an edit lengthened.
+// OriginalPositions returns the original [line, column] of every source-bearing segment in a v3 `mappings` string, in
+// encounter order. Introspection only: tests assert with it that a composed map points at the source as written.
 func OriginalPositions(mappings string) [][2]int {
 	var positions [][2]int
 	for _, row := range decodeMappings(mappings) {
@@ -77,21 +77,6 @@ func ComposeMaps(rewriteMap, emitMap *protocol.SourceMap) *protocol.SourceMap {
 		Names:          emitMap.Names,
 		Mappings:       encodeMappings(outRows),
 	}
-}
-
-// OriginalLines returns the originalLine of every source-bearing segment in a v3 `mappings` string,
-// in encounter order. Introspection only: the compile CLI's tests assert with it that a composed map
-// points at original lines rather than the import-shifted rewritten ones.
-func OriginalLines(mappings string) []int {
-	var lines []int
-	for _, row := range decodeMappings(mappings) {
-		for _, seg := range row {
-			if seg.fields >= 4 {
-				lines = append(lines, seg.srcLine)
-			}
-		}
-	}
-	return lines
 }
 
 // lookupOriginal finds the original position map A assigns to a rewritten (line, col): the segment

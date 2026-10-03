@@ -269,3 +269,34 @@ export const id = getRunTypeId<Payload>();
 		}
 	})
 }
+
+// Every unresolved member gets its own MKR013, even when both name the same type: they share one `any`, which once
+// hid every member after the first.
+func assertEachMissingMemberFires(t *testing.T, source string) {
+	t.Helper()
+	fired := mkr013Diags(scanConsumer(t, source))
+	members := map[string]bool{}
+	for _, diagnostic := range fired {
+		for _, related := range diagnostic.Related {
+			members[related.Message] = true
+		}
+	}
+	if len(fired) != 2 || len(members) != 2 {
+		t.Errorf("want one MKR013 per member, got %d: %v", len(fired), members)
+	}
+}
+
+func TestUnresolvedName_EachMissingMemberFires_Static(t *testing.T) {
+	assertEachMissingMemberFires(t, `import {getRunTypeId} from '@mionjs/run-types';
+interface Payload { first: Missing; second: Missing }
+export const id = getRunTypeId<{payload: Payload}>();
+`)
+}
+
+func TestUnresolvedName_EachMissingMemberFires_Value(t *testing.T) {
+	assertEachMissingMemberFires(t, `import {getRunTypeId} from '@mionjs/run-types';
+interface Payload { first: Missing; second: Missing }
+declare const holder: {payload: Payload};
+export const id = getRunTypeId(holder);
+`)
+}
