@@ -26,6 +26,7 @@ import (
 	vfspkg "github.com/microsoft/typescript-go/shim/vfs"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefunctions"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/apitypes/apitypesmeta"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
@@ -64,11 +65,15 @@ type Store struct {
 	packages  map[string]*PackageIndex
 	resolved  map[string]string
 	artifacts map[string]*rootArtifacts
+	// servedBy maps a server package to a types-only package root serving its ids, for a server not installed.
+	servedBy map[string]string
 }
 
 // rootArtifacts is read once per root and shared by Package and Overrides.
 type rootArtifacts struct {
-	name     string
+	name string
+	// owner is the package whose ids the artifact carries: name, or for a types-only package the server its marker names.
+	owner    string
 	indexes  []parsedIndex
 	problems []ArtifactProblem
 }
@@ -81,7 +86,7 @@ type parsedIndex struct {
 // NewStore binds a Store to the program FS. A nil fs reads nothing and answers
 // "not found" everywhere, which keeps a test with no program on today's path.
 func NewStore(fs vfspkg.FS) *Store {
-	return &Store{fs: fs, packages: map[string]*PackageIndex{}, resolved: map[string]string{}, artifacts: map[string]*rootArtifacts{}}
+	return &Store{fs: fs, packages: map[string]*PackageIndex{}, resolved: map[string]string{}, artifacts: map[string]*rootArtifacts{}, servedBy: map[string]string{}}
 }
 
 // Bind hands the store the session's program and resolver, for the packages
@@ -111,9 +116,10 @@ type ArtifactConflict struct {
 // PackageIndex is what one installed package ships, from its artifact indexes (bodies read on demand) or from its sources.
 type PackageIndex struct {
 	Root string
-	// Name is the package.json name, the owner half of every id the package
-	// owns; empty for a nameless package.
+	// Name is the package.json name; empty for a nameless package.
 	Name string
+	// Owner is the package the ids belong to: Name, or for a types-only package the server its marker names.
+	Owner string
 	// FromSource: no artifact was found, so the rows came from the package's sources.
 	FromSource bool
 	// Err is why the sources could not be extracted: a listed file the install lacks, or the extractor rejecting
@@ -171,7 +177,7 @@ func (store *Store) Package(root string) *PackageIndex {
 		return idx
 	}
 	artifacts := store.artifactsOf(root)
-	idx.Name = artifacts.name
+	idx.Name, idx.Owner = artifacts.name, artifacts.owner
 	idx.Problems = append(idx.Problems, artifacts.problems...)
 	for _, parsed := range artifacts.indexes {
 		idx.addIndex(parsed.dir, parsed.file, parsed.index)
@@ -197,6 +203,13 @@ func (store *Store) artifactsOf(root string) *rootArtifacts {
 			artifacts.name = manifest.Name
 		}
 	}
+	artifacts.owner = artifacts.name
+	if info := apitypesmeta.ReadPackage(root, store.fs); info.Marker != nil {
+		artifacts.owner = info.Marker.Package
+		if _, taken := store.servedBy[artifacts.owner]; !taken {
+			store.servedBy[artifacts.owner] = root
+		}
+	}
 	for _, dir := range store.artifactDirsUnder(root) {
 		file := tspath.CombinePaths(dir, constants.PureFnArtifactIndexFile)
 		content, ok := store.fs.ReadFile(file)
@@ -209,7 +222,7 @@ func (store *Store) artifactsOf(root string) *rootArtifacts {
 			artifacts.problems = append(artifacts.problems, ArtifactProblem{Package: artifacts.name, File: file, Reason: err.Error()})
 			continue
 		}
-		if index.Package == artifacts.name {
+		if index.Package == artifacts.owner {
 			artifacts.indexes = append(artifacts.indexes, parsedIndex{dir: dir, file: file, index: index})
 		}
 	}
@@ -550,9 +563,13 @@ func (store *Store) ResolvePackage(name, fromDir string) (string, bool) {
 		}
 		current = parent
 	}
+	if root == "" {
+		root = store.servedBy[name]
+	}
 	if root == "" && store.host.Program != nil {
 		for _, sourceFile := range store.host.Program.TS.SourceFiles() {
-			if owner, ownerRoot := marker.PackageOfFile(sourceFile.FileName(), store.fs); owner == name && ownerRoot != "" {
+			// A types-only package serves the ids of the server its marker names, which need not be installed.
+			if owner, ownerRoot := marker.PackageOfFile(sourceFile.FileName(), store.fs); ownerRoot != "" && (owner == name || store.artifactsOf(tspath.NormalizePath(ownerRoot)).owner == name) {
 				root = tspath.NormalizePath(ownerRoot)
 				break
 			}
@@ -694,7 +711,7 @@ func (store *Store) Closure(demands []Demand) Result {
 		result.Entries = append(result.Entries, row)
 		for _, dep := range row.PureFnDependencies {
 			next := Demand{ID: dep, FromDir: root}
-			if idx.Name != "" && PackageOfID(dep) == idx.Name {
+			if idx.Owner != "" && PackageOfID(dep) == idx.Owner {
 				next.Root = root
 			}
 			queue = append(queue, next)

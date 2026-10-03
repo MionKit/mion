@@ -841,3 +841,45 @@ func TestStore_OverridesConflictAcrossIndexes(t *testing.T) {
 		t.Fatalf("want the first row kept and one conflict, got rows %v conflicts %v", got, conflicts)
 	}
 }
+
+// typesPkg is a types-only package serving @acme/text's ids under another name, as `mion api-types` writes it.
+const typesPkg = "/virtual/app/node_modules/@acme/text-types"
+
+func typesPackage(marker string) map[string]string {
+	files := map[string]string{
+		typesPkg + "/package.json": `{"name":"@acme/text-types","types":"./index.d.ts","mion":{"apiTypes":"./mion-api.json"}}`,
+		typesPkg + "/index.d.ts":   "import type {PureFnId} from '@mionjs/run-types/runtime';\nexport declare const slugify: PureFnId<string>;\nexport declare const title: PureFnId<string>;\n",
+	}
+	if marker != "" {
+		files[typesPkg+"/mion-api.json"] = marker
+	}
+	return merge(files, artifactDir(typesPkg+"/"+constants.PureFnArtifactDir, "@acme/text", constants.EmitCode, slugifyEntry, titleEntry))
+}
+
+// TestTypesOnly_ServesTheServerIdsItsMarkerNames: the binding maps, the server need not be installed, and a
+// same-package dep resolves inside the types package.
+func TestTypesOnly_ServesTheServerIdsItsMarkerNames(t *testing.T) {
+	store := storeOver(typesPackage(`{"format":1,"package":"@acme/text","compiler":"dev","buildVersion":"v1"}`))
+	idx := store.Package(typesPkg)
+	if !idx.Built() || idx.Name != "@acme/text-types" || idx.Owner != "@acme/text" {
+		t.Fatalf("built=%v name=%q owner=%q problems=%+v", idx.Built(), idx.Name, idx.Owner, idx.Problems)
+	}
+	if id, ok := store.BindingID(typesPkg+"/index.d.ts", "slugify"); !ok || id != slugifyID {
+		t.Errorf("BindingID = %q, %v", id, ok)
+	}
+	result := store.Closure([]Demand{{ID: titleID, FromDir: "/virtual/app"}})
+	if len(result.Missing) != 0 || len(result.Unresolved) != 0 || len(result.Entries) != 2 {
+		t.Fatalf("closure through the types package: entries=%v missing=%+v unresolved=%v", codes(result.Entries), result.Missing, result.Unresolved)
+	}
+}
+
+// TestTypesOnly_WithoutMarkerServesNothing: an index naming another package is a vendored copy unless a marker vouches for it.
+func TestTypesOnly_WithoutMarkerServesNothing(t *testing.T) {
+	store := storeOver(typesPackage(""))
+	if idx := store.Package(typesPkg); idx.Built() && len(idx.IDs()) > 0 && idx.Owner != "@acme/text-types" {
+		t.Fatalf("without a marker the artifact must be skipped: owner=%q ids=%v", idx.Owner, idx.IDs())
+	}
+	if _, ok := store.BindingID(typesPkg+"/index.d.ts", "slugify"); ok {
+		t.Errorf("no marker, no binding")
+	}
+}
