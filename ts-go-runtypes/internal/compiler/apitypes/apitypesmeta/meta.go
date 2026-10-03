@@ -9,7 +9,6 @@ import (
 
 	"github.com/microsoft/typescript-go/shim/tspath"
 	vfspkg "github.com/microsoft/typescript-go/shim/vfs"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 )
 
 // MarkerFormat is the marker's `format`; a higher one is a newer compiler's and is refused, never misread.
@@ -64,7 +63,8 @@ func ReadPackage(root string, fs vfspkg.FS) PackageInfo {
 		return PackageInfo{}
 	}
 	info := PackageInfo{Name: pkg.Name, MarkerPath: pkg.Mion.ApiTypes}
-	info.TypesOnly = pkg.Main == "" && pkg.Module == "" && len(pkg.Browser) == 0 && exportsTypesOnly(pkg.Exports)
+	info.TypesOnly = pkg.Main == "" && pkg.Module == "" && len(pkg.Browser) == 0 && exportsTypesOnly(pkg.Exports) &&
+		(len(pkg.Exports) > 0 || !hasRootIndex(root, fs))
 	if info.MarkerPath == "" {
 		info.Problem = "its package.json has no `mion.apiTypes` field"
 		return info
@@ -77,7 +77,7 @@ func ReadPackage(root string, fs vfspkg.FS) PackageInfo {
 	}
 	var marker Marker
 	switch {
-	case json.Unmarshal([]byte(markerText), &marker) != nil || marker.Package == "":
+	case json.Unmarshal([]byte(markerText), &marker) != nil || marker.Package == "" || marker.Format < 1 || marker.Compiler == "":
 		info.Problem = fmt.Sprintf("the marker %s is not a mion API marker", info.MarkerPath)
 	case marker.Format > MarkerFormat:
 		info.Problem = fmt.Sprintf("the marker %s has format %d, newer than this compiler reads (%d)", info.MarkerPath, marker.Format, MarkerFormat)
@@ -87,8 +87,15 @@ func ReadPackage(root string, fs vfspkg.FS) PackageInfo {
 	return info
 }
 
-// MarkerFileName is the default marker path written in package.json.
-func MarkerFileName() string { return "./" + constants.ApiTypesMarkerFile }
+// hasRootIndex: with no `main` and no `exports`, Node and bundlers load the root index, so the package has JS.
+func hasRootIndex(root string, fs vfspkg.FS) bool {
+	for _, name := range []string{"index.js", "index.mjs", "index.cjs"} {
+		if fs.FileExists(tspath.CombinePaths(root, name)) {
+			return true
+		}
+	}
+	return false
+}
 
 // exportsTypesOnly reports an `exports` map whose every target sits under a `types` condition or is a .d.ts; an
 // absent map counts as types-only, since `main` and `module` were checked already.

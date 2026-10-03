@@ -105,7 +105,7 @@ func BuildPackage(input PackageInput) (map[string]string, error) {
 		// "./*" lets a client that writes its own .d.ts name a type from any kept file (TS2883 otherwise).
 		{"exports", map[string]any{".": map[string]string{"types": entry}, "./*": map[string]string{"types": "./*.d.ts"}}},
 		{"files", published},
-		{"mion", map[string]string{"apiTypes": apitypesmeta.MarkerFileName()}},
+		{"mion", map[string]string{"apiTypes": "./" + constants.ApiTypesMarkerFile}},
 		{"peerDependencies", peers},
 	}
 	files["package.json"] = manifest.render()
