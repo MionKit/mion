@@ -470,6 +470,12 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     level: 'error',
     family: 'marker',
   },
+  MKR016: {
+    headline:
+      "Private member `{0}` of class `{1}` has no type in its declaration file, so the generated functions would accept any value for it. Build the class's package with `mion compile`, which keeps private member types.",
+    level: 'runtimeError',
+    family: 'marker',
+  },
   MRT001: {
     headline: 'mion `{0}` handler has no return type annotation; write the type the handler answers with.',
     level: 'runtimeError',

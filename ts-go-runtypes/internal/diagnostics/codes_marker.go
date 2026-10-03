@@ -53,6 +53,11 @@ const (
 	// call degrades to its no-plugin fallback: LevelError, no code was produced for what the marker
 	// asked for. Args: [0] the unknown token, [1] the closest real token ("" when nothing is close).
 	CodeMarkerUnresolvedFnName = "MKR015"
+	// CodeMarkerTypelessPrivateMember: a class read from a declaration file has a TS `private` member with no
+	// type, which is what plain tsc writes for every private field and method, so it checks as `any`.
+	// LevelRuntimeError like the rest of the silent-any family; `mion compile` keeps the type. Args: [0] the
+	// member name, [1] the class name.
+	CodeMarkerTypelessPrivateMember = "MKR016"
 	// CodeTypeIdCollision: two DIFFERENT types produced the same short type id at the configured
 	// `hashLength`. Every generated name, cache key and disk path is that id, so nothing downstream
 	// could tell them apart; the build stops instead and the fix is one option away. Args: [0] the
@@ -120,6 +125,7 @@ func init() {
 		{Code: CodeMarkerUnresolvedGenericType, Family: FamilyMarker, Level: LevelError, Scope: ScopeGraph, Title: "Generic type used without its required type arguments: a default-less parameter cannot be resolved"},
 		{Code: CodeMarkerUntrustedPackage, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "Marker-named type declared by an untrusted package: the type argument was dropped, so the call reflects `unknown`"},
 		{Code: CodeMarkerUnresolvedTypeName, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeGraph, Title: "Marker type resolved to `any` that was never written: a type name failed to resolve"},
+		{Code: CodeMarkerTypelessPrivateMember, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeGraph, Title: "Class from a declaration file has a `private` member with no type: build its package with `mion compile`"},
 		{Code: CodeMarkerUnresolvedFnName, Family: FamilyMarker, Level: LevelError, Scope: ScopeNotSource, Title: "`InjectTypeFnArgs` names a function family that does not exist"},
 		{Code: CodeTypeIdCollision, Family: FamilyMarker, Level: LevelError, Scope: ScopeNotSource, Title: "Two different types produced the same short type id: raise `hashLength`"},
 		{Code: CodeCompTimeArgsNonLiteral, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "CompTimeArgs<T> argument must be a literal at the call site or const-bound to a literal"},

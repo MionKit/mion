@@ -370,6 +370,15 @@
       "example": "import type {InjectTypeFnArgs} from '@mionjs/run-types';\ntype Handler = (ctx: unknown, ...rest: any[]) => unknown;\nfunction route<H extends Handler>(handler: H, fns?: InjectTypeFnArgs<Parameters<H>, 'verr'>) {\n  return {handler, fns};\n}\nexport const lenRoute = route((ctx: unknown, name: string) => name.length);"
     },
     {
+      "code": "MKR016",
+      "subsystem": "markers",
+      "level": "runtimeError",
+      "headline": "Private member `{0}` of class `{1}` has no type in its declaration file, so the generated functions would accept any value for it. Build the class's package with `mion compile`, which keeps private member types.",
+      "summary": "A class read from a `.d.ts` file has a `private` member with no type. Plain `tsc` writes every private field and method this way, so RunTypes cannot check it and the build fails. `mion compile` keeps the type: it writes the member as `protected`, which outside code still cannot read.",
+      "fix": "// package.json of the class's package\n{\"scripts\": {\"build\": \"mion compile --tsconfig tsconfig.build.json\"}}",
+      "example": "import {getRunTypeId} from '@mionjs/run-types';\ndeclare class Account { id: string; private balance; }\nexport const id = getRunTypeId<Account>();"
+    },
+    {
       "code": "PFN001",
       "subsystem": "markers",
       "level": "runtimeError",

@@ -40,3 +40,20 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
 A class with private fields gets one documented behaviour whether it is read from source or from a `.d.ts`,
 pinned by paired tests for both `getRunTypeId` call shapes. The simplify-docs pass ran on every touched page and
 the simplify-comments pass on every touched source file, each committed on its own.
+
+## Plan (approved 2026-10-03)
+
+Rule: the TypeScript `private` / `protected` modifier never changes the type id or the checks; the fields are
+validated like public ones. Only the type that a `.d.ts` erases is the problem, solved at both ends:
+
+- `mion compile` turns each class member's `private` into `protected` in the declaration-emit overlay
+  (`batchcompile`), so the emitted `.d.ts` keeps the type and the imports it uses. Constructors, private
+  parameter properties and `#name` fields are untouched; the JS emit is untouched. The declaration map is
+  mapped back to the original source columns for every overlay splice.
+- A class read from a `.d.ts` with a typeless `private` member (`private b;`, what plain `tsc` writes) fails
+  the build with the new MKR016 (`LevelRuntimeError`, like the other silent-any codes). No fallback.
+
+Tests: visibility parity (public / private / protected, source and `.d.ts`) for both `getRunTypeId` shapes;
+MKR016 fires / stays quiet cases with the corpus grid; `mion compile` declaration output and a
+compile-then-consume round trip; JS validation of TS private fields.
+Docs: one short addition to the Classes section of the JSON round-trip page.

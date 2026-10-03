@@ -356,6 +356,19 @@ interface Payload { id: string; user: Missing }
 export const id = getRunTypeId<{payload: Payload}>();`,
 	},
 
+	// ──────────────────── typeless private member (MKR016) ────────────────────
+	CodeMarkerTypelessPrivateMember: {
+		Summary: "A class read from a `.d.ts` file has a `private` member with no type. Plain `tsc` writes every private field and method this way, so RunTypes cannot check it and the build fails. `mion compile` keeps the type: it writes the member as `protected`, which outside code still cannot read.",
+		Fix: `// package.json of the class's package
+{"scripts": {"build": "mion compile --tsconfig tsconfig.build.json"}}`,
+		Example: `import {getRunTypeId} from '@mionjs/run-types';
+declare class Account { id: string; private balance; }
+export const id = getRunTypeId<Account>();`,
+		NestedExample: `import {getRunTypeId} from '@mionjs/run-types';
+declare class Account { id: string; private balance; }
+export const id = getRunTypeId<{account: Account}>();`,
+	},
+
 	CodeTypeIdCollision: {
 		// No Example: the trigger is two shapes hashing to the same seven characters, which no short
 		// snippet can arrange.
