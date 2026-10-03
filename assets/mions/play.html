@@ -162,7 +162,7 @@ const along = (a, b, t, dx, dy) => ({ x: lerp(a.x, b.x, t) + dx, y: lerp(a.y, b.
 const TREES = [
   { at: along(corner.left, corner.back, 0.42, -30, -40), size: 0.5 },
   { at: along(corner.back, corner.right, 0.62, 30, -45), size: 0.62 },
-  { at: along(corner.left, corner.front, 0.55, -20, 215), size: 0.9, over: true },
+  { at: along(corner.left, corner.front, 0.55, -88, 215), size: 0.9, over: true },
 ];
 for (const t of TREES) {
   const a = await actor('terrain/tree-mushroom.svg', 0.5 * t.size);
