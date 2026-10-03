@@ -63,7 +63,7 @@ type Result struct {
 	EmittedFiles []string // absolute paths of the .js files written
 	Caches       []string // generated cache-module basenames
 	Diagnostics  []diagnostics.Diagnostic
-	// TypeDiagnostics are TypeScript's own diagnostics, the ones `tsc` prints, already in its line shape.
+	// TypeDiagnostics are TypeScript's own diagnostics, already rendered as tsc prints them.
 	TypeDiagnostics []string
 	TypeErrorCount  int
 	CheckedFiles    int // non-declaration source files the scan read
@@ -121,7 +121,7 @@ func Run(opts Options) (*Result, error) {
 	if opts.NoEmit {
 		return result, nil
 	}
-	// Same as tsc: noEmitOnError writes nothing, caches included, while a type error stands.
+	// Same as tsc, and the cache modules are skipped too.
 	if result.TypeErrorCount > 0 && p1.TS.Options().NoEmitOnError.IsTrue() {
 		return result, nil
 	}
@@ -234,7 +234,7 @@ func Run(opts Options) (*Result, error) {
 	return result, nil
 }
 
-// typeDiagnostics collects what `tsc` reports for the program and renders each the way tsc does without --pretty.
+// typeDiagnostics renders each diagnostic tsc reports the way tsc prints it without --pretty.
 func typeDiagnostics(tsProgram *compiler.Program, cwd string) ([]string, int) {
 	ctx := context.Background()
 	found := compiler.GetDiagnosticsOfAnyProgram(ctx, tsProgram, nil, false, tsProgram.GetBindDiagnostics, tsProgram.GetSemanticDiagnostics)
@@ -262,7 +262,7 @@ func typeDiagnostics(tsProgram *compiler.Program, cwd string) ([]string, int) {
 	return lines, errorCount
 }
 
-// writeMessageChain appends the nested "is not assignable" detail lines, two spaces per level as tsc indents them.
+// writeMessageChain appends the nested detail lines, indented as tsc indents them.
 func writeMessageChain(builder *strings.Builder, chain []*ast.Diagnostic, level int) {
 	for _, link := range chain {
 		builder.WriteString("\n" + strings.Repeat("  ", level) + link.String())
