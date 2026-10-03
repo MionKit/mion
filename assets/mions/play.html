@@ -8,12 +8,15 @@
   html, body { margin: 0; height: 100%; overflow: hidden; }
   body { background: radial-gradient(ellipse at 50% 45%, #22304a 0%, #161f33 55%, #0e1424 100%); }
   canvas { display: block; }
+  #sound { position: fixed; right: 16px; top: 14px; font: 13px/1 system-ui, sans-serif; color: #c9d4ea; background: #26324ccc; border: 1px solid #3a4a6c; border-radius: 999px; padding: 8px 14px; cursor: pointer; }
+  #sound:hover { background: #31406199; }
   #hint { position: fixed; left: 16px; bottom: 14px; font: 13px/1.3 system-ui, sans-serif; color: #8d9bb8; user-select: none; pointer-events: none; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/pixi.js@8.22.0/dist/pixi.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>
 </head>
 <body>
+<button id="sound" type="button">Sound off</button>
 <div id="hint">Click a mion to make it jump</div>
 <script type="module">
 // The mions hop between floating terrain pieces that circle the island, drawn on the graphics chip with PixiJS and moved with GSAP.
@@ -249,6 +252,110 @@ app.ticker.add(t => {
   }
 });
 
+// ---- sound: all made with Web Audio, so there are no audio files -----------------------------------
+const sound = { ctx: null, on: false };
+const PENTA = [0, 2, 4, 7, 9];   // major pentatonic steps: any two notes sound fine together
+const hz = semis => 146.83 * 2 ** (semis / 12);   // semitones above D3
+const hash = text => [...text].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
+function startSound() {
+  const ctx = sound.ctx = new AudioContext();
+  sound.master = ctx.createGain(); sound.master.gain.value = 0.7; sound.master.connect(ctx.destination);
+  // a soft hall from a decaying noise burst, shared by the pad, the chimes and every landing
+  const len = ctx.sampleRate * 2.6, impulse = ctx.createBuffer(2, len, ctx.sampleRate);
+  for (let c = 0; c < 2; c++) { const d = impulse.getChannelData(c); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len) ** 3; }
+  sound.hall = ctx.createConvolver(); sound.hall.buffer = impulse;
+  const wet = ctx.createGain(); wet.gain.value = 0.32; sound.hall.connect(wet).connect(sound.master);
+  sound.noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+  const n = sound.noise.getChannelData(0); for (let i = 0; i < n.length; i++) n[i] = Math.random() * 2 - 1;
+  pad(); chimes();
+}
+const out = (pan = 0, dry = 1, wet = 0.5) => {   // a gain that goes to the speakers and, a little, to the hall
+  const { ctx } = sound, g = ctx.createGain(), p = ctx.createStereoPanner();
+  p.pan.value = Math.max(-0.8, Math.min(0.8, pan));
+  const d = ctx.createGain(), w = ctx.createGain(); d.gain.value = dry; w.gain.value = wet;
+  g.connect(p); p.connect(d).connect(sound.master); p.connect(w).connect(sound.hall);
+  return g;
+};
+const tone = (dest, type, f0, f1, t, len, peak, attack = 0.008) => {
+  const { ctx } = sound, o = ctx.createOscillator(), g = ctx.createGain();
+  o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + len * 0.7);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + attack); g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+  o.connect(g).connect(dest); o.start(t); o.stop(t + len + 0.05);
+  return o;
+};
+const hiss = (dest, type, freq, q, t, len, peak) => {
+  const { ctx } = sound, s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+  s.buffer = sound.noise; f.type = type; f.frequency.value = freq; f.Q.value = q;
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+  s.connect(f).connect(g).connect(dest); s.start(t, Math.random() * 0.5); s.stop(t + len + 0.05);
+};
+// the background: three soft voices that glide to a new chord every few seconds through a slowly breathing filter
+function pad() {
+  const { ctx } = sound, filter = ctx.createBiquadFilter(), level = ctx.createGain();
+  filter.type = 'lowpass'; filter.frequency.value = 700; filter.Q.value = 0.7;
+  level.gain.value = 0; level.gain.linearRampToValueAtTime(0.11, ctx.currentTime + 4);
+  const dest = out(0, 0.8, 0.9); filter.connect(level).connect(dest);
+  const lfo = ctx.createOscillator(), depth = ctx.createGain();
+  lfo.frequency.value = 0.07; depth.gain.value = 380; lfo.connect(depth).connect(filter.frequency); lfo.start();
+  const chords = [[-12, -5, 4], [-15, -8, 2], [-19, -12, -1], [-10, -3, 7]];
+  const voices = chords[0].map(st => [-6, 6].map(cents => {
+    const o = ctx.createOscillator(); o.type = 'triangle'; o.frequency.value = hz(st); o.detune.value = cents;
+    o.connect(filter); o.start(); return o;
+  }));
+  let k = 0;
+  setInterval(() => {
+    k = (k + 1) % chords.length;
+    chords[k].forEach((st, i) => voices[i].forEach(o => o.frequency.setTargetAtTime(hz(st), ctx.currentTime, 1.4)));
+  }, 7000);
+}
+function chimes() {   // now and then a glassy note high up, far away in the hall
+  const { ctx } = sound;
+  const ring = () => {
+    const t = ctx.currentTime, f = hz(24 + PENTA[Math.floor(Math.random() * 5)] + 12 * Math.floor(Math.random() * 2));
+    const dest = out(rand(-0.7, 0.7), 0.25, 1.2);
+    tone(dest, 'sine', f, f, t, 2.4, 0.05, 0.02); tone(dest, 'sine', f * 2.01, f * 2.01, t, 1.2, 0.015, 0.02);
+    setTimeout(ring, rand(2500, 7000));
+  };
+  setTimeout(ring, 2000);
+}
+// each mion's own boing: smaller mions sing higher, and the name picks the tone colour and how far the pitch springs
+const voiceOf = m => m.voice ??= (() => {
+  const h = hash(m.name), size = m.unit * m.L.full.w;
+  return { f: hz(PENTA[h % 5] + 12 * Math.max(0, Math.min(2, Math.round((150 - size) / 45)))), type: ['sine', 'triangle', 'square'][(h >>> 3) % 3], spring: 1.6 + ((h >>> 6) % 5) * 0.25, wobble: 5 + (h >>> 9) % 9 };
+})();
+const panOf = m => (m.root.x - centre.x) / 700;
+function jumpSound(m) {
+  if (!sound.on) return;
+  const v = voiceOf(m), t = sound.ctx.currentTime, dest = out(panOf(m), 1, 0.25);
+  const o = tone(dest, v.type, v.f, v.f * v.spring, t, 0.32, v.type === 'square' ? 0.05 : 0.12);
+  const lfo = sound.ctx.createOscillator(), depth = sound.ctx.createGain();   // a little vibrato makes it a boing
+  lfo.frequency.value = v.wobble; depth.gain.value = v.f * 0.06; lfo.connect(depth).connect(o.frequency); lfo.start(t); lfo.stop(t + 0.4);
+  tone(dest, 'sine', v.f * 2, v.f * 2 * v.spring, t, 0.18, 0.03);
+}
+const surfaceOf = to => !to.piece ? 'grass' : to.piece.kind === 'tree' ? 'tree' : /tile|block/.test(to.piece.kind) ? 'stone' : /sand/.test(to.piece.kind) ? 'sand' : 'rock';
+function landSound(m, surface) {
+  if (!sound.on) return;
+  const t = sound.ctx.currentTime, dest = out(panOf(m), 1, 0.4), big = Math.min(1.4, m.unit * m.L.full.w / 100);
+  if (surface === 'grass') { tone(dest, 'sine', 150, 60, t, 0.16, 0.22 * big); hiss(dest, 'bandpass', 3200, 0.8, t, 0.22, 0.05); }
+  if (surface === 'stone') { tone(dest, 'triangle', 820, 420, t, 0.09, 0.16); hiss(dest, 'highpass', 4000, 0.7, t, 0.04, 0.08); tone(dest, 'sine', 210, 120, t, 0.12, 0.12 * big); }
+  if (surface === 'sand') { hiss(dest, 'lowpass', 1400, 0.5, t, 0.32, 0.12); tone(dest, 'sine', 110, 55, t, 0.14, 0.12 * big); }
+  if (surface === 'rock') { tone(dest, 'sine', 95, 42, t, 0.32, 0.32 * big); hiss(dest, 'lowpass', 380, 0.9, t, 0.2, 0.12); }
+  if (surface === 'tree') {   // the mushroom cap gives under the mion and wobbles back
+    const o = tone(dest, 'sine', 230, 190, t, 0.55, 0.18);
+    const lfo = sound.ctx.createOscillator(), depth = sound.ctx.createGain();
+    lfo.frequency.value = 13; depth.gain.setValueAtTime(45, t); depth.gain.exponentialRampToValueAtTime(1, t + 0.5);
+    lfo.connect(depth).connect(o.frequency); lfo.start(t); lfo.stop(t + 0.6);
+  }
+}
+const soundButton = document.getElementById('sound');
+soundButton.addEventListener('click', async () => {
+  if (!sound.ctx) startSound();
+  sound.on = !sound.on;
+  await (sound.on ? sound.ctx.resume() : sound.ctx.suspend());
+  soundButton.textContent = sound.on ? 'Sound on' : 'Sound off';
+});
+document.addEventListener('visibilitychange', () => { if (sound.ctx && sound.on) document.hidden ? sound.ctx.suspend() : sound.ctx.resume(); });
+
 // ---- jumping -------------------------------------------------------------------------------------
 const inView = p => p.x > W0 + 60 && p.x < W0 + VIEW_W - 60 && p.y > H0 + 60 && p.y < H0 + VIEW_H - 20;
 function target(m) {
@@ -275,6 +382,7 @@ async function jump(m, to) {
   const body = m.body.scale;
   await gsap.to(body, { x: 1.14, y: 0.84, duration: 0.16, ease: 'power2.out' });
   m.flying = true;
+  jumpSound(m);
   if (from.piece) from.slot.holder = null; else onIsland.splice(onIsland.indexOf(m), 1);
   const s = { t: 0 };
   gsap.to(body, { x: 0.88, y: 1.14, duration: time * 0.35, ease: 'power2.out' });
@@ -289,6 +397,7 @@ async function jump(m, to) {
   } });
   m.at = to.piece ? { piece: to.piece, slot: to.slot } : { x: to.x, y: to.y };
   m.flying = false;
+  landSound(m, surfaceOf(to));
   if (m.root.shadow) m.root.shadow.alpha = 1;
   await gsap.timeline().to(body, { x: 1.22, y: 0.8, duration: 0.08, ease: 'power2.out' }).to(body, { x: 1, y: 1, duration: 0.6, ease: 'elastic.out(1, 0.4)' });
 }
