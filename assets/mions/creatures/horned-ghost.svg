@@ -1,0 +1,115 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 260" width="200" height="260">
+  <defs>
+    <path id="hg-horn-shape" d="M81 100 C90 70 102 40 114.5 18 A5 5 0 0 1 123.6 21 C127 45 131 72 133 100 Q134 107 127 109 C114 113 96 113 87 109 Q80 106 81 100 Z"/>
+    <clipPath id="hg-horn-clip"><use href="#hg-horn-shape"/></clipPath>
+    <path id="hg-leg-fl" d="M83.5 212.0 L83.7 214.8 L83.8 217.4 L83.8 219.9 L83.9 222.2 L83.8 224.5 L83.7 226.5 L83.6 228.5 L83.4 230.3 L83.2 232.0 L82.9 233.6 L82.6 235.1 L82.3 236.4 L81.9 237.7 L81.4 239.0 L80.9 240.1 L80.4 241.2 L79.8 242.2 L79.2 243.2 A4.0 4.0 0 0 0 84.8 248.8 L84.8 248.8 L86.1 247.7 L87.4 246.5 L88.6 245.2 L89.7 243.8 L90.7 242.2 L91.7 240.6 L92.7 238.8 L93.5 237.0 L94.3 235.0 L95.0 232.9 L95.7 230.7 L96.3 228.4 L96.8 226.0 L97.3 223.5 L97.7 220.8 L98.0 218.0 L98.3 215.1 L98.5 212.0 Z"/>
+    <path id="hg-leg-fr" d="M107.0 212.8 L107.6 215.8 L108.1 218.6 L108.7 221.3 L109.3 223.9 L109.9 226.4 L110.6 228.7 L111.2 230.9 L112.0 233.0 L112.7 234.9 L113.5 236.8 L114.3 238.5 L115.2 240.2 L116.1 241.7 L117.0 243.1 L118.0 244.4 L119.1 245.6 L120.2 246.7 L121.3 247.7 A3.8 3.8 0 0 0 126.7 242.3 L126.7 242.3 L126.2 241.5 L125.7 240.7 L125.3 239.7 L124.9 238.7 L124.5 237.5 L124.1 236.3 L123.7 234.9 L123.4 233.4 L123.0 231.8 L122.7 230.1 L122.4 228.2 L122.2 226.2 L121.9 224.1 L121.7 221.8 L121.5 219.4 L121.3 216.8 L121.1 214.1 L121.0 211.2 Z"/>
+    <path id="hg-arm-shape" d="M142 166 C156 162 168 168 168 179 A6 6 0 0 1 160 186 C152 185 146 181 140 178 Z"/>
+    <clipPath id="hg-legs-clip"><use href="#hg-leg-fl"/><use href="#hg-leg-fr"/></clipPath>
+    <clipPath id="hg-arm-clip"><use href="#hg-arm-shape"/></clipPath>
+    <!-- flat tones only: each part is its outline in a dark tone, then lighter copies shifted up-left on top -->
+    <path id="hg-belly-shape" d="M100 150 C130 150 149 172 148 196 C147 216 130 228 100 228 C70 228 53 216 52 196 C51 172 70 150 100 150 Z"/>
+    <path id="hg-head-shape" d="M102 90 C128 90 145 112 144 140 C143 166 126 182 102 182 C78 182 60 166 60 138 C60 110 77 90 102 90 Z"/>
+    <clipPath id="hg-body-clip"><use href="#hg-belly-shape"/><use href="#hg-head-shape"/></clipPath>
+    <clipPath id="hg-eye-small-clip"><path d="M86.6 135.2 Q83.8 138.3 79.8 139.4 Q75.7 140.4 72.6 137.9 Q69.5 135.3 68.1 131.6 Q66.7 127.8 69.3 124.6 Q71.9 121.4 76.0 120.9 Q80.1 120.4 83.8 122.2 Q87.5 124.1 88.5 128.1 Q89.4 132.2 86.6 135.2 Z"/></clipPath>
+    <clipPath id="hg-eye-big-clip"><path d="M129.6 154.0 Q130.0 160.9 123.7 164.8 Q117.5 168.7 110.1 168.7 Q102.7 168.6 98.8 162.8 Q94.9 157.0 94.8 150.2 Q94.7 143.4 100.4 138.7 Q106.0 133.9 113.3 135.3 Q120.6 136.7 124.9 141.8 Q129.2 147.0 129.6 154.0 Z"/></clipPath>
+    <path id="hg-leg-bl" d="M66.0 205.6 L66.0 208.3 L65.9 210.8 L65.6 213.2 L65.3 215.6 L64.9 217.8 L64.3 219.9 L63.7 221.9 L63.0 223.8 L62.2 225.7 L61.3 227.4 L60.4 229.0 L59.3 230.5 L58.2 232.0 L57.0 233.3 L55.8 234.6 L54.4 235.7 L53.0 236.8 L51.5 237.7 A3.6 3.6 0 0 0 54.5 244.3 L54.5 244.3 L56.6 243.4 L58.7 242.4 L60.7 241.3 L62.7 240.0 L64.6 238.5 L66.4 236.9 L68.1 235.1 L69.8 233.2 L71.3 231.1 L72.7 228.9 L74.1 226.5 L75.3 224.0 L76.4 221.4 L77.4 218.6 L78.2 215.8 L79.0 212.8 L79.5 209.6 L80.0 206.4 Z"/>
+    <path id="hg-leg-br" d="M126.4 204.1 L127.5 206.7 L128.7 209.3 L129.9 211.7 L131.1 214.0 L132.3 216.3 L133.5 218.4 L134.7 220.4 L136.0 222.3 L137.3 224.1 L138.6 225.9 L139.9 227.5 L141.3 229.0 L142.7 230.4 L144.1 231.7 L145.6 232.9 L147.1 234.0 L148.6 235.0 L150.2 235.9 A3.4 3.4 0 0 0 153.8 230.1 L153.8 230.1 L152.7 229.2 L151.7 228.3 L150.7 227.2 L149.8 226.1 L148.8 224.9 L147.9 223.6 L147.0 222.2 L146.1 220.7 L145.2 219.1 L144.4 217.4 L143.5 215.6 L142.6 213.7 L141.8 211.7 L141.0 209.5 L140.1 207.3 L139.3 204.9 L138.5 202.5 L137.6 199.9 Z"/>
+    <clipPath id="hg-legs-back-clip"><use href="#hg-leg-bl"/><use href="#hg-leg-br"/></clipPath>
+    <filter id="hg-shadow-blur" x="-30%" y="-150%" width="160%" height="400%"><feGaussianBlur stdDeviation="4"/></filter>
+    <filter id="hg-feet-blur" x="-50%" y="-150%" width="200%" height="400%"><feGaussianBlur stdDeviation="0.9"/></filter>
+  </defs>
+
+  <g id="shadow">
+    <ellipse id="shadow-body" cx="104" cy="242" rx="58" ry="11" fill="#000" opacity="0.32" filter="url(#hg-shadow-blur)"/>
+    <g id="shadow-feet" fill="#000" opacity="0.45" filter="url(#hg-feet-blur)">
+      <ellipse cx="56" cy="244" rx="6" ry="2.2"/>
+      <ellipse cx="155" cy="236" rx="5.5" ry="2"/>
+      <ellipse cx="86" cy="250" rx="6.5" ry="2.4"/>
+      <ellipse cx="128" cy="248" rx="6.5" ry="2.4"/>
+    </g>
+  </g>
+
+  <g id="legs-back">
+    <g fill="#86889e"><use href="#hg-leg-bl"/><use href="#hg-leg-br"/></g>
+    <g fill="#a8aabd" clip-path="url(#hg-legs-back-clip)" transform="translate(-2 -1)"><use href="#hg-leg-bl"/><use href="#hg-leg-br"/></g>
+    <g id="legs-back-shine" clip-path="url(#hg-legs-back-clip)" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.35"><path d="M65.6 225.4 L64.7 227.2 L63.7 228.8 L62.7 230.4 L61.6 231.8 L60.5 233.2 L59.3 234.5 L58.0 235.7 L56.7 236.8"/><path d="M138.4 221.2 L139.5 222.8 L140.5 224.3 L141.6 225.7 L142.7 227.1 L143.9 228.4 L145.0 229.5 L146.2 230.7 L147.4 231.7"/></g>
+  </g>
+
+  <g id="legs-front">
+    <g fill="#9a9db2"><use href="#hg-leg-fl"/><use href="#hg-leg-fr"/></g>
+    <g fill="#c6c8d5" clip-path="url(#hg-legs-clip)" transform="translate(-2 -1)"><use href="#hg-leg-fl"/><use href="#hg-leg-fr"/></g>
+    <g id="legs-front-shine" clip-path="url(#hg-legs-clip)" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.75"><path d="M86.6 231.2 L86.2 232.9 L85.9 234.4 L85.4 235.9 L85.0 237.3 L84.5 238.6 L83.9 239.8 L83.3 241.0 L82.7 242.1"/><path d="M115.0 232.4 L115.6 234.1 L116.2 235.8 L116.8 237.3 L117.5 238.8 L118.2 240.1 L118.9 241.4 L119.6 242.6 L120.4 243.7"/></g>
+  </g>
+
+  <g id="arm">
+    <use href="#hg-arm-shape" fill="#9a9db2"/>
+    <g clip-path="url(#hg-arm-clip)"><use href="#hg-arm-shape" fill="#c6c8d5" transform="translate(-2 -3)"/></g>
+    <g id="arm-shine" clip-path="url(#hg-arm-clip)" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.75"><path d="M155.2 168.4 L156.8 168.9 L158.2 169.6 L159.6 170.3 L160.9 171.1 L162.1 172.0 L163.2 173.0 L164.2 174.1 L165.1 175.3"/></g>
+  </g>
+
+  <g id="body">
+    <g id="body-base" fill="#b9bbcb"><use href="#hg-belly-shape"/><use href="#hg-head-shape"/></g>
+    <g clip-path="url(#hg-body-clip)">
+      <g id="body-light" fill="#e9e9f0" transform="translate(-5 -7) translate(100 160) scale(0.93) translate(-100 -160)"><use href="#hg-belly-shape"/><use href="#hg-head-shape"/></g>
+      <path id="body-highlight" d="M72 118 C70 110 76 103 84 102 C90 102 91 107 87 111 C83 115 76 122 72 118 Z M61 186 C61 178 66 173 72 172 C75 173 73 178 69 182 C66 186 62 190 61 186 Z" fill="#fff"/>
+    </g>
+    <path id="body-shine" d="M68 124 Q72 100 94 94" stroke="#fff" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.55"/>
+    <g fill="#a9abbf" opacity="0.7">
+      <circle cx="70" cy="180" r="2"/>
+      <circle cx="78" cy="196" r="1.5"/>
+      <circle cx="128" cy="190" r="2"/>
+      <circle cx="136" cy="174" r="1.4"/>
+      <circle cx="96" cy="206" r="1.6"/>
+      <circle cx="118" cy="204" r="1.2"/>
+    </g>
+    <g fill="#e8a9b5" opacity="0.8">
+      <circle cx="66" cy="200" r="1.6"/>
+      <circle cx="110" cy="214" r="1.4"/>
+      <circle cx="138" cy="200" r="1.3"/>
+    </g>
+    <ellipse cx="107" cy="110" rx="28" ry="7" fill="#9093a8" opacity="0.35"/>
+  </g>
+
+  <g id="eyes">
+    <g id="eye-small" transform="translate(-12 -8)">
+      <path d="M85.9 141.3 Q81.3 143.6 76.2 142.9 Q71.2 142.2 68.0 138.0 Q64.8 133.9 66.6 129.1 Q68.4 124.4 72.4 121.2 Q76.3 118.0 81.3 119.5 Q86.3 120.9 89.7 124.8 Q93.0 128.8 91.8 133.9 Q90.6 139.0 85.9 141.3 Z" fill="#a3a5b9"/>
+      <path d="M86.6 135.2 Q83.8 138.3 79.8 139.4 Q75.7 140.4 72.6 137.9 Q69.5 135.3 68.1 131.6 Q66.7 127.8 69.3 124.6 Q71.9 121.4 76.0 120.9 Q80.1 120.4 83.8 122.2 Q87.5 124.1 88.5 128.1 Q89.4 132.2 86.6 135.2 Z" fill="#fff"/>
+      <g clip-path="url(#hg-eye-small-clip)">
+        <path d="M84.1 135.3 Q82.1 137.1 79.6 136.1 Q77.1 135.2 75.9 133.0 Q74.7 130.7 76.2 128.6 Q77.7 126.6 80.2 125.9 Q82.7 125.3 84.8 127.0 Q86.9 128.6 86.4 131.1 Q86.0 133.6 84.1 135.3 Z" fill="#1b1d2a"/>
+        <path d="M84.3 129.7 Q83.3 130.0 82.4 129.7 Q81.4 129.4 81.6 128.6 Q81.7 127.8 82.4 127.2 Q83.2 126.7 84.1 127.2 Q85.0 127.6 85.1 128.5 Q85.2 129.4 84.3 129.7 Z" fill="#fff"/>
+      </g>
+    </g>
+    <g id="eye-big" transform="translate(-13 -9)">
+      <path d="M131.2 163.8 Q128.0 171.2 119.7 173.3 Q111.3 175.5 104.6 171.0 Q97.8 166.6 94.4 159.3 Q91.0 152.1 95.5 145.4 Q100.1 138.6 108.0 135.4 Q115.8 132.3 122.6 137.1 Q129.4 141.9 131.9 149.1 Q134.4 156.3 131.2 163.8 Z" fill="#a3a5b9"/>
+      <path d="M129.6 154.0 Q130.0 160.9 123.7 164.8 Q117.5 168.7 110.1 168.7 Q102.7 168.6 98.8 162.8 Q94.9 157.0 94.8 150.2 Q94.7 143.4 100.4 138.7 Q106.0 133.9 113.3 135.3 Q120.6 136.7 124.9 141.8 Q129.2 147.0 129.6 154.0 Z" fill="#fff"/>
+      <g clip-path="url(#hg-eye-big-clip)">
+        <path d="M124.9 157.4 Q123.3 161.8 118.5 162.5 Q113.6 163.1 109.6 160.5 Q105.6 157.8 106.1 153.3 Q106.7 148.7 110.1 145.5 Q113.5 142.4 118.4 143.3 Q123.3 144.2 124.9 148.6 Q126.5 153.0 124.9 157.4 Z" fill="#1b1d2a"/>
+        <path d="M122.0 150.6 Q120.3 151.2 118.5 150.6 Q116.8 150.1 117.0 148.6 Q117.2 147.1 118.7 146.1 Q120.1 145.1 121.7 145.9 Q123.2 146.8 123.5 148.4 Q123.8 150.0 122.0 150.6 Z" fill="#fff"/>
+      </g>
+    </g>
+  </g>
+
+  <g id="horn">
+    <use href="#hg-horn-shape" fill="#2c7389"/>
+    <g clip-path="url(#hg-horn-clip)">
+      <use href="#hg-horn-shape" fill="#4aa3b8" transform="translate(-4 0)"/>
+      <path d="M80 106 C90 72 103 42 116 16 C112 42 104 72 97 110 Z" fill="#7fcbd9"/>
+    </g>
+    <g clip-path="url(#hg-horn-clip)" fill="none" stroke-linecap="round">
+      <g stroke="#245f73" stroke-width="5">
+        <path d="M70 96 Q107 108 144 92"/>
+        <path d="M74 78 Q109 90 144 74"/>
+        <path d="M80 60 Q111 72 142 56"/>
+        <path d="M86 43 Q113 54 140 39"/>
+        <path d="M92 28 Q115 37 138 24"/>
+      </g>
+      <g stroke="#a6e2ec" stroke-width="1.5" opacity="0.8">
+        <path d="M70 90 Q100 100 120 96"/>
+        <path d="M74 72 Q100 82 120 79"/>
+        <path d="M80 54 Q102 64 120 61"/>
+        <path d="M86 37 Q104 46 120 44"/>
+      </g>
+    </g>
+  </g>
+</svg>
