@@ -218,7 +218,7 @@ func (ctx *printContext) typeExprCore(node *reflection.RunType) (string, *Diagno
 			return "", diag
 		}
 		childText = wrapForSuffix(childNode, childText)
-		arrayText := readonlyPrefix(node) + childText + "[]"
+		arrayText := readonlyPrefix(node.Readonly) + childText + "[]"
 		if hasStructuralPayload(node) {
 			if !structuralParamsPubliclySpellable(node.FormatAnnotation) {
 				return ctx.rawStructuralBrandType(node, arrayText)
@@ -392,7 +392,7 @@ func (ctx *printContext) typeExprCore(node *reflection.RunType) (string, *Diagno
 				return "", diag
 			}
 		}
-		return readonlyPrefix(node) + "[" + strings.Join(parts, ", ") + "]", nil
+		return readonlyPrefix(node.Readonly) + "[" + strings.Join(parts, ", ") + "]", nil
 	case reflection.KindFunction:
 		return ctx.functionTypeText(node)
 	case reflection.KindTemplateLiteral:
@@ -606,11 +606,7 @@ func (ctx *printContext) objectLiteralText(members []*objectMember, indexes []in
 			return "", valueDiag
 		}
 		// The parameter NAME is not part of the type's identity, so `key` keeps the output stable.
-		readonlyMark := ""
-		if index.readonly {
-			readonlyMark = "readonly "
-		}
-		parts = append(parts, fmt.Sprintf("%s[key: %s]: %s", readonlyMark, keyText, valueText))
+		parts = append(parts, fmt.Sprintf("%s[key: %s]: %s", readonlyPrefix(index.readonly), keyText, valueText))
 	}
 	return "{" + strings.Join(parts, "; ") + "}", nil
 }
@@ -640,8 +636,8 @@ func (ctx *printContext) collectionSpelling(node *reflection.RunType, baseText, 
 }
 
 // readonlyPrefix spells a readonly tuple or array (`readonly [..]`, `readonly T[]`).
-func readonlyPrefix(node *reflection.RunType) string {
-	if node.Readonly {
+func readonlyPrefix(readonly bool) string {
+	if readonly {
 		return "readonly "
 	}
 	return ""

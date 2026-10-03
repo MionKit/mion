@@ -120,7 +120,7 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 			}
 			return rt(fmt.Sprintf("array(%s, {%s})", childText, strings.Join(parts, ", ")))
 		}
-		return ctx.readonlyBuilder(node, ctx.names.RT+".array("+childText+")")
+		return ctx.readonlyBuilder(node.Readonly, ctx.names.RT+".array("+childText+")"), nil
 	case reflection.KindPromise:
 		childText, diag := ctx.builderExpr(node.Child)
 		if diag != nil {
@@ -227,12 +227,9 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 			if keyDiag != nil {
 				return "", keyDiag
 			}
-			if !keyed {
-				// One `record` carries one value type, so signatures whose VALUE types differ
-				// escape.
-				return ctx.builderEscape(node)
-			}
-			if indexes[0].readonly && bagText != "" {
+			if !keyed || indexes[0].readonly && bagText != "" {
+				// One `record` carries one value type and one readonly mark, and `Readonly<>` over a
+				// branded record is not the written shape, so these escape.
 				return ctx.builderEscape(node)
 			}
 			valueText, valueDiag := ctx.builderExpr(indexes[0].value)
@@ -247,9 +244,7 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 			default:
 				recordText = fmt.Sprintf("%s.record(%s, %s%s)", ctx.names.RT, keyText, valueText, bagText)
 			}
-			if indexes[0].readonly {
-				recordText = fmt.Sprintf("%s.readonly(%s)", ctx.names.RT, recordText)
-			}
+			recordText = ctx.readonlyBuilder(indexes[0].readonly, recordText)
 			if len(members) == 0 {
 				ctx.needs.useRT = true
 				return recordText, nil
@@ -337,7 +332,7 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 			}
 			groups = append(groups, "rest: "+restText)
 		}
-		return ctx.readonlyBuilder(node, fmt.Sprintf("%s.tuple({%s})", ctx.names.RT, strings.Join(groups, ", ")))
+		return ctx.readonlyBuilder(node.Readonly, fmt.Sprintf("%s.tuple({%s})", ctx.names.RT, strings.Join(groups, ", "))), nil
 	case reflection.KindFunction:
 		// All-required named parameters print the slot form, which converges with the written
 		// signature because parameter names fold into the id. An optional, rest or defaulted
@@ -452,10 +447,10 @@ func (ctx *printContext) collectionBuilder(node *reflection.RunType, builder, ar
 }
 
 // readonlyBuilder wraps a readonly tuple or array in `RT.readonly(...)`, whose `Readonly<[..]>` is `readonly [..]`.
-func (ctx *printContext) readonlyBuilder(node *reflection.RunType, text string) (string, *Diagnostic) {
+func (ctx *printContext) readonlyBuilder(readonly bool, text string) string {
 	ctx.needs.useRT = true
-	if node.Readonly {
-		return fmt.Sprintf("%s.readonly(%s)", ctx.names.RT, text), nil
+	if readonly {
+		return fmt.Sprintf("%s.readonly(%s)", ctx.names.RT, text)
 	}
-	return text, nil
+	return text
 }
