@@ -116,22 +116,31 @@ register('one config, two bundles', () => {
   }
 
   /** Runs the whole app build exactly as the `vite build` CLI does. */
-  async function buildApp(binary: string, serverOutDir?: string, entry = path.join(root, 'src', 'server.ts')): Promise<void> {
+  async function buildApp(
+    binary: string,
+    serverOutDir?: string,
+    entry = path.join(root, 'src', 'server.ts'),
+    rootFromPlugin = false
+  ): Promise<void> {
     const builder = await createBuilderLikeCli({
-      root,
+      root: rootFromPlugin ? undefined : root,
       configFile: false,
       logLevel: 'silent',
       resolve: {
         alias: {'@mionjs/router': path.join(root, 'router-stub.js'), '@mionjs/run-types': path.join(root, 'marker-stub.js')},
       },
-      plugins: mionVitePlugin({
-        tsConfig: path.join(root, 'tsconfig.json'),
-        runTypes: {binary, genDir: path.join(root, '.mion')},
-        server: {
-          entry,
-          build: serverOutDir ? {outDir: serverOutDir} : {},
-        },
-      }),
+      plugins: [
+        mionVitePlugin({
+          tsConfig: path.join(root, 'tsconfig.json'),
+          runTypes: {binary, genDir: path.join(root, '.mion')},
+          server: {
+            entry,
+            build: serverOutDir ? {outDir: serverOutDir} : {},
+          },
+        }),
+        // A framework plugin listed after mion that sets the root from its own config hook.
+        ...(rootFromPlugin ? [{name: 'late-root', config: () => ({root})}] : []),
+      ],
       build: {minify: false},
     });
     await builder.buildApp();
@@ -200,6 +209,12 @@ register('one config, two bundles', () => {
     expect(root).not.toBe(process.cwd());
     const {binary} = countingBinary();
     await buildApp(binary, undefined, 'src/server.ts');
+    expect(readFileSync(serverBundleIn(path.join(root, 'dist-server')), 'utf8')).toContain('__serverRan');
+  });
+
+  it('resolves a relative server.entry against a root that a later plugin sets', async () => {
+    const {binary} = countingBinary();
+    await buildApp(binary, undefined, 'src/server.ts', true);
     expect(readFileSync(serverBundleIn(path.join(root, 'dist-server')), 'utf8')).toContain('__serverRan');
   });
 
