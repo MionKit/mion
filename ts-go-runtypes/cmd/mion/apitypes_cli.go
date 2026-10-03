@@ -9,10 +9,13 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/microsoft/typescript-go/shim/tspath"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/apimeta"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/apitypes"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/batchcompile"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 )
 
 const apiTypesUsage = `mion api-types — build a types-only package for an API's clients
@@ -37,7 +40,7 @@ default the package.json "types" entry, then the one file exporting an API.
 
 func runApiTypes(args []string) {
 	fs := flag.NewFlagSet("api-types", flag.ExitOnError)
-	s := registerSharedFlags(fs)
+	shared := registerSharedFlags(fs)
 	outFlag := fs.String("out", "api-types", "the package directory to write (replaced on every run)")
 	nameFlag := fs.String("name", "", "the package name (default: the server package name plus -types)")
 	versionFlag := fs.String("version", "", "the package version (default: the server package version)")
@@ -45,17 +48,24 @@ func runApiTypes(args []string) {
 	fs.Usage = func() { printUsage(fs, apiTypesUsage) }
 	_ = fs.Parse(args)
 
-	defer startProfiling(s)()
+	defer startProfiling(shared)()
 
+	cfg := resolveSharedConfig(fs, shared, "", true)
+	if cfg.tsconfigPath == "" {
+		fatal("api-types: no tsconfig.json found searching upward from %s — pass --tsconfig", cfg.absCwd)
+	}
+	// Checked before the temp dir exists: printBuildDiagnostics exits on these, and an exit skips the cleanup.
+	if _, err := diagnostics.ResolveDowngrade(cfg.opts.TsconfigDowngradeErrors); err != nil {
+		fatal("api-types: %v", err)
+	}
+	if _, err := diagnostics.ResolveLevels(cfg.opts.TsconfigLevels); err != nil {
+		fatal("api-types: %v", err)
+	}
 	genDir, err := os.MkdirTemp("", "mion-api-types-")
 	if err != nil {
 		fatal("api-types: %v", err)
 	}
 	defer os.RemoveAll(genDir)
-	cfg := resolveSharedConfig(fs, s, genDir, true)
-	if cfg.tsconfigPath == "" {
-		fatal("api-types: no tsconfig.json found searching upward from %s — pass --tsconfig", cfg.absCwd)
-	}
 	declarationDir := filepath.Join(cfg.absCwd, ".mion-api-types")
 	compileResult, compileErr := batchcompile.Run(batchcompile.Options{
 		Cwd: cfg.absCwd, TsconfigPath: cfg.tsconfigPath, GenDir: genDir, ResolverOpts: cfg.opts,
@@ -76,7 +86,7 @@ func runApiTypes(args []string) {
 }
 
 func buildApiTypes(cwd, tsconfigPath, declarationDir string, compileResult *batchcompile.Result, outFlag, name, version, entryFlag string) error {
-	serverRoot := packageRootOf(cwd)
+	_, serverRoot := marker.PackageOfFile(filepath.Join(cwd, "package.json"), nil)
 	if serverRoot == "" {
 		return fmt.Errorf("no package.json found from %s upward: the types package takes its name and versions from it", cwd)
 	}
@@ -86,6 +96,11 @@ func buildApiTypes(cwd, tsconfigPath, declarationDir string, compileResult *batc
 	}
 	input := apitypes.Input{Cwd: cwd, TsconfigPath: tsconfigPath, DeclarationDir: declarationDir, Declarations: compileResult.Declarations, Entry: entry}
 	trimmed, err := apitypes.Trim(input)
+	if err != nil && entryFlag == "" && entry != "" {
+		// The package.json "types" entry is only a hint: fall back to the one file exporting an API.
+		input.Entry = ""
+		trimmed, err = apitypes.Trim(input)
+	}
 	if err != nil {
 		return err
 	}
@@ -121,7 +136,7 @@ func buildApiTypes(cwd, tsconfigPath, declarationDir string, compileResult *batc
 		return err
 	}
 	fmt.Fprintf(os.Stderr, "mion: wrote %s (%d declaration file(s), %s, build version %s)\n",
-		relativeOrAbs(cwd, outDir), len(trimmed.Files), strings.Join(trimmed.ApiExports, ", "), trimmed.BuildVersion)
+		relPath(outDir), len(trimmed.Files), strings.Join(trimmed.ApiExports, ", "), trimmed.BuildVersion)
 	return nil
 }
 
@@ -142,14 +157,14 @@ func entryDeclaration(cwd, serverRoot, declarationDir string, declarations map[s
 	if !filepath.IsAbs(abs) {
 		abs = filepath.Join(base, hint)
 	}
-	stem := filepath.ToSlash(declarationStem(abs))
+	stem := filepath.ToSlash(tspath.RemoveFileExtension(abs))
 	best, bestLength := "", -1
 	for declaration := range declarations {
 		rel, err := filepath.Rel(declarationDir, declaration)
 		if err != nil {
 			continue
 		}
-		candidate := filepath.ToSlash(declarationStem(rel))
+		candidate := filepath.ToSlash(tspath.RemoveFileExtension(rel))
 		if (stem == candidate || strings.HasSuffix(stem, "/"+candidate)) && len(candidate) > bestLength {
 			best, bestLength = declaration, len(candidate)
 		}
@@ -164,16 +179,6 @@ func entryDeclaration(cwd, serverRoot, declarationDir string, declarations map[s
 		return "", fmt.Errorf("--entry %s matches no emitted declaration (%s)", entryFlag, strings.Join(names, ", "))
 	}
 	return best, nil
-}
-
-// declarationStem strips a source or declaration extension: `src/index.ts` and `dist/index.d.ts` → `.../index`.
-func declarationStem(path string) string {
-	for _, extension := range []string{".d.ts", ".d.mts", ".d.cts", ".ts", ".mts", ".cts", ".tsx", ".js", ".mjs", ".cjs"} {
-		if strings.HasSuffix(path, extension) {
-			return strings.TrimSuffix(path, extension)
-		}
-	}
-	return path
 }
 
 // packageTypesEntry reads package.json `types`, `typings` or `exports["."].types`.
@@ -207,22 +212,4 @@ func packageTypesEntry(root string) string {
 		return dot.Types
 	}
 	return ""
-}
-
-func packageRootOf(dir string) string {
-	for current := dir; ; current = filepath.Dir(current) {
-		if _, err := os.Stat(filepath.Join(current, "package.json")); err == nil {
-			return current
-		}
-		if filepath.Dir(current) == current {
-			return ""
-		}
-	}
-}
-
-func relativeOrAbs(cwd, target string) string {
-	if rel, err := filepath.Rel(cwd, target); err == nil && !strings.HasPrefix(rel, "..") {
-		return rel
-	}
-	return target
 }
