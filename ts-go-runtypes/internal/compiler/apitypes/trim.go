@@ -166,7 +166,8 @@ func newTrimmer(input Input, declarations map[string]string) (*trimmer, func(), 
 	typeChecker, release := prog.TS.GetTypeChecker(context.Background())
 	trimmer := &trimmer{
 		program: prog, checker: typeChecker, cwd: filepath.Clean(input.Cwd), declarationDir: declarationDir,
-		files: map[string]*fileInfo{}, externals: map[string]bool{}, specifiers: map[string]bool{}, unresolved: map[string]bool{},
+		files: map[string]*fileInfo{}, externals: map[string]bool{}, unresolved: map[string]bool{},
+		reachedPackageFiles: map[*ast.SourceFile]bool{},
 	}
 	for abs := range declarations {
 		sourceFile := prog.SourceFile(abs)
@@ -186,11 +187,13 @@ type trimmer struct {
 	declarationDir string
 	files          map[string]*fileInfo
 	externals      map[string]bool
-	// specifiers are the bare specifiers kept code imports; unresolved the names it reads that no file declares.
-	specifiers map[string]bool
+	// unresolved are the names kept code reads that no file declares.
 	unresolved map[string]bool
-	queue      []*item
-	errs       []error
+	// packageRoots are the package specifiers kept code imports, not walked yet; reachedPackageFiles what they reach.
+	packageRoots        []*ast.Node
+	reachedPackageFiles map[*ast.SourceFile]bool
+	queue               []*item
+	errs                []error
 }
 
 func (trimmer *trimmer) relative(abs string) string {
@@ -294,23 +297,18 @@ func (trimmer *trimmer) mark(entry *fileInfo, apiExports []string) {
 		}
 		trimmer.drain()
 	}
-	// A kept `declare global` block ships only its members something reads.
+	// A kept `declare global` block ships only its kept members.
 	for _, file := range trimmer.files {
-		for _, block := range file.items {
-			if !block.kept {
-				continue
-			}
-			for _, member := range block.members {
-				if !member.kept {
-					file.holes = append(file.holes, textRange{start: member.statement.Pos(), end: member.statement.End()})
-				}
+		for _, member := range file.items {
+			if member.kind == itemGlobal && !member.kept && member.block.kept {
+				file.holes = append(file.holes, textRange{start: member.statement.Pos(), end: member.statement.End()})
 			}
 		}
 	}
 }
 
-// augmentationNeeded: a side-effect import of a kept file, a global member kept code reads, or a module
-// augmentation of a module kept code imports.
+// augmentationNeeded: a side-effect import of a kept file, a global member kept code reads or that merges into a
+// library global from a kept file, or a module augmentation of a relative file kept or a package kept code reaches.
 func (trimmer *trimmer) augmentationNeeded(file *fileInfo, always *item) bool {
 	switch {
 	case always.kind == itemGlobal:
@@ -319,13 +317,75 @@ func (trimmer *trimmer) augmentationNeeded(file *fileInfo, always *item) bool {
 				return true
 			}
 		}
-		return false
-	case always.kind != itemAlways || always.members != nil:
+		// `Symbol.brand` reads SymbolConstructor through another name, so a library merge rides with its file.
+		return file.keptAny() && trimmer.mergesOutsideProject(always)
+	case always.kind != itemAlways || ast.IsGlobalScopeAugmentation(always.statement):
 		return false
 	case always.statement.Kind == ast.KindImportDeclaration:
 		return file.keptAny()
 	}
-	return trimmer.augmentsKept(always)
+	specifier := always.statement.Name().Text()
+	if target := trimmer.resolveModule(file, specifier); target != nil {
+		return target.keptAny()
+	}
+	return trimmer.packageReached(always.statement.Name())
+}
+
+// mergesOutsideProject: a global member also declared by a library or a package, which the API may read without
+// naming it.
+func (trimmer *trimmer) mergesOutsideProject(member *item) bool {
+	name := member.statement.Name()
+	if name == nil {
+		return false
+	}
+	symbol := trimmer.checker.GetSymbolAtLocation(name)
+	if symbol == nil {
+		return false
+	}
+	for _, declaration := range symbol.Declarations {
+		if source := ast.GetSourceFileOfNode(declaration); source != nil && trimmer.files[filepath.Clean(source.FileName())] == nil {
+			return true
+		}
+	}
+	return false
+}
+
+// packageReached: the module an augmentation names is a package kept code imports, or one such a package imports
+// at any depth, so its types reach the client.
+func (trimmer *trimmer) packageReached(moduleName *ast.Node) bool {
+	symbol := trimmer.checker.GetSymbolAtLocation(moduleName)
+	if symbol == nil {
+		return false
+	}
+	trimmer.walkReachedPackages()
+	for _, declaration := range symbol.Declarations {
+		if declaration.Kind == ast.KindSourceFile && trimmer.reachedPackageFiles[declaration.AsSourceFile()] {
+			return true
+		}
+	}
+	return false
+}
+
+// walkReachedPackages extends reachedPackageFiles from the packages kept code imports through their own imports.
+func (trimmer *trimmer) walkReachedPackages() {
+	queue := trimmer.packageRoots
+	trimmer.packageRoots = nil
+	for len(queue) > 0 {
+		specifierNode := queue[0]
+		queue = queue[1:]
+		symbol := trimmer.checker.GetSymbolAtLocation(specifierNode)
+		if symbol == nil {
+			continue
+		}
+		for _, declaration := range symbol.Declarations {
+			if declaration.Kind != ast.KindSourceFile || trimmer.reachedPackageFiles[declaration.AsSourceFile()] {
+				continue
+			}
+			source := declaration.AsSourceFile()
+			trimmer.reachedPackageFiles[source] = true
+			queue = append(queue, source.Imports()...)
+		}
+	}
 }
 
 func (trimmer *trimmer) drain() {
@@ -334,19 +394,6 @@ func (trimmer *trimmer) drain() {
 		trimmer.queue = trimmer.queue[1:]
 		trimmer.follow(next)
 	}
-}
-
-// augmentsKept: a `declare module 'x'` whose package the kept code imports, or whose relative file it keeps.
-func (trimmer *trimmer) augmentsKept(always *item) bool {
-	statement := always.statement
-	if statement.Kind != ast.KindModuleDeclaration {
-		return false
-	}
-	specifier := statement.Name().Text()
-	if target := trimmer.resolveModule(always.file, specifier); target != nil {
-		return target.keptAny()
-	}
-	return trimmer.specifiers[specifier]
 }
 
 // keep marks an item kept and records the kept item using it.
@@ -389,7 +436,7 @@ func (trimmer *trimmer) follow(current *item) {
 	}
 	switch current.kind {
 	case itemDeclaration, itemAlways, itemGlobal:
-		if current.members != nil {
+		if ast.IsGlobalScopeAugmentation(current.statement) {
 			return // a global block: its members are followed one by one
 		}
 		if current.block != nil {
@@ -398,6 +445,9 @@ func (trimmer *trimmer) follow(current *item) {
 		for _, read := range current.reads(file) {
 			if len(file.locals[read.name]) == 0 {
 				trimmer.unresolved[read.name] = true
+			}
+			if read.name == "globalThis" && read.member != "" {
+				trimmer.unresolved[read.member] = true
 			}
 			for _, target := range file.locals[read.name] {
 				trimmer.use(target, current, read.member)
@@ -436,7 +486,6 @@ func (trimmer *trimmer) use(target, user *item, member string) {
 func (trimmer *trimmer) followModule(user *item, file *fileInfo, specifier string, specifierNode *ast.Node, name string) {
 	target := trimmer.resolveModule(file, specifier)
 	if target == nil {
-		trimmer.specifiers[specifier] = true
 		// A published package cannot resolve the project's own aliases, and the file they name would be dropped.
 		if strings.HasPrefix(specifier, "#") || trimmer.resolvesIntoProject(specifierNode) {
 			trimmer.errs = append(trimmer.errs, fmt.Errorf("api types: %s imports %q, which resolves into this project (a tsconfig `paths` alias or a `#` import): a published package cannot resolve it, so import it by a relative path", trimmer.relative(file.path), specifier))
@@ -444,6 +493,9 @@ func (trimmer *trimmer) followModule(user *item, file *fileInfo, specifier strin
 		}
 		if external := externalPackage(specifier); external != "" {
 			trimmer.externals[external] = true
+		}
+		if specifierNode != nil {
+			trimmer.packageRoots = append(trimmer.packageRoots, specifierNode)
 		}
 		return
 	}
