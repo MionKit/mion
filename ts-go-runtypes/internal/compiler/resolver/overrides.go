@@ -164,7 +164,7 @@ func (sess *Session) packageOverrideSeed() (map[string]map[string]string, []diag
 			}
 			key := row.BaseKey + "|" + row.Family
 			if winner, taken := seed[row.BaseKey][row.Family]; taken {
-				// Two packages overriding one type and family: the same OVR001 as two overrides in source.
+				// Two packages overriding one type and family: OVR001, as in source.
 				if winner != row.ID {
 					diags = append(diags, diagnostics.NewWithRelated(
 						diagnostics.CodeDuplicateOverride, diagnostics.Site{FilePath: manifest}, []string{row.Family},

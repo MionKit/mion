@@ -66,7 +66,7 @@ type Store struct {
 	artifacts map[string]*rootArtifacts
 }
 
-// rootArtifacts is one package root's name and parsed index files, read once for both Package and Overrides.
+// rootArtifacts is read once per root and shared by Package and Overrides.
 type rootArtifacts struct {
 	name     string
 	indexes  []parsedIndex
@@ -182,8 +182,7 @@ func (store *Store) Package(root string) *PackageIndex {
 	return idx
 }
 
-// artifactsOf reads root's package name and index files once. An index of another package (a vendored copy, or one
-// under a nameless root) is not this package's, and is left out.
+// artifactsOf skips an index naming another package: a vendored copy, or one under a nameless root.
 func (store *Store) artifactsOf(root string) *rootArtifacts {
 	if cached, ok := store.artifacts[root]; ok {
 		return cached
@@ -219,7 +218,7 @@ func (store *Store) artifactsOf(root string) *rootArtifacts {
 
 // Overrides reads root's override rows from its index files only, never the sources, so asking costs a directory walk.
 // Rows keyed by another compiler version are skipped with a problem: a structural key only compares within one version.
-// Two index files giving one type and family different ids is a conflict, as for a pure fn.
+// Two index files giving one type and family different ids is a conflict.
 func (store *Store) Overrides(root string) ([]ArtifactOverrideRow, []ArtifactProblem, []ArtifactConflict) {
 	if store.fs == nil {
 		return nil, nil, nil

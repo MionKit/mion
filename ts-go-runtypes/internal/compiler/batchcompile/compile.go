@@ -249,7 +249,7 @@ func typeDiagnostics(tsProgram *compiler.Program, cwd string) ([]string, int) {
 	return renderDiagnostics(found, cwd)
 }
 
-// emitSkipped names why tsgo skipped an emit, with the diagnostics it gave, or nil when it did not.
+// emitSkipped names why tsgo skipped an emit, or nil when it did not.
 func emitSkipped(stage string, result *compiler.EmitResult, cwd string) error {
 	if result == nil || !result.EmitSkipped {
 		return nil
@@ -261,7 +261,7 @@ func emitSkipped(stage string, result *compiler.EmitResult, cwd string) error {
 	return fmt.Errorf("compile: tsgo %s was skipped:\n%s", stage, strings.Join(lines, "\n"))
 }
 
-// renderDiagnostics prints diagnostics as tsc does without --pretty, returning them and the error count.
+// renderDiagnostics formats diagnostics as tsc prints them without --pretty.
 func renderDiagnostics(found []*ast.Diagnostic, cwd string) ([]string, int) {
 	found = compiler.SortAndDeduplicateDiagnostics(found)
 	lines := make([]string, 0, len(found))

@@ -122,7 +122,7 @@ func ServerBuildVersion(typeChecker *checker.Checker, apiType *checker.Type) str
 		return ""
 	}
 	for _, property := range typeChecker.GetPropertiesOfType(apiType) {
-		// `ApiBuildVersion`'s one member is keyed by the router's `apiBuildVersion` unique symbol.
+		// The key of `ApiBuildVersion`'s one member.
 		if !typeid.IsUniqueSymbolKey(property.Name, "apiBuildVersion") || len(property.Declarations) == 0 {
 			continue
 		}
