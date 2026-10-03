@@ -45,7 +45,7 @@ func emitModulesWith(t *testing.T, roots []string, runTypes []*reflection.RunTyp
 	for _, root := range roots {
 		sites = append(sites, protocol.Site{ID: root})
 	}
-	graph := CollectEntries(protocol.Dump{RunTypes: runTypes, Sites: sites}, jsonMaxBytes, nil)
+	graph := CollectEntries(protocol.Dump{RunTypes: runTypes, Sites: sites}, jsonMaxBytes, nil, nil)
 	modules, err := entrymodules.RenderGrouped(graph, nil)
 	if err != nil {
 		t.Fatalf("entrymodules.Render: %v", err)
@@ -111,7 +111,7 @@ func emitFileModules(t *testing.T, siteFiles map[string]string, runTypes []*refl
 	for root, file := range siteFiles {
 		sites = append(sites, protocol.Site{ID: root, File: file})
 	}
-	graph := CollectEntries(protocol.Dump{RunTypes: runTypes, Sites: sites}, jsonMaxBytes, func(site protocol.Site) string { return "rt/" + site.File })
+	graph := CollectEntries(protocol.Dump{RunTypes: runTypes, Sites: sites}, jsonMaxBytes, func(site protocol.Site) string { return "rt/" + site.File }, nil)
 	modules, err := entrymodules.RenderGrouped(graph, nil)
 	if err != nil {
 		t.Fatalf("render: %v", err)
@@ -136,16 +136,131 @@ func TestCollectEntries_PerFileGroups(t *testing.T) {
 	}
 }
 
-// TestCollectEntries_SharedRowInBothModules — a type two files reach ships in both modules, each one self-contained.
-func TestCollectEntries_SharedRowInBothModules(t *testing.T) {
+// rowModules lists the modules whose data rows carry the row id.
+func rowModules(modules map[string]string, id string) []string {
+	var out []string
+	for name, source := range modules {
+		if strings.Contains(source, "['"+id+"',") {
+			out = append(out, name)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+// importedModules follows a module's imports to every module it loads, itself included.
+func importedModules(modules map[string]string, start string) map[string]bool {
+	seen := map[string]bool{}
+	stack := []string{start}
+	for len(stack) > 0 {
+		name := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if seen[name] {
+			continue
+		}
+		seen[name] = true
+		for _, line := range strings.Split(modules[name], "\n") {
+			if from := strings.Index(line, "'rtmod:/"); strings.HasPrefix(line, "import ") && from >= 0 {
+				stack = append(stack, strings.TrimSuffix(line[from+len("'rtmod:/"):], ".js';"))
+			}
+		}
+	}
+	return seen
+}
+
+// TestCollectEntries_SharedRowWrittenOnce — a row two files reach is written once, in a shared module both import.
+func TestCollectEntries_SharedRowWrittenOnce(t *testing.T) {
 	modules := emitFileModules(t, map[string]string{"aRoot": "a", "bRoot": "b"}, []*reflection.RunType{
 		{ID: "aRoot", Kind: reflection.KindProperty, Name: "a", Child: reflection.NewRef("shared")},
 		{ID: "bRoot", Kind: reflection.KindProperty, Name: "b", Child: reflection.NewRef("shared")},
 		{ID: "shared", Kind: reflection.KindString},
 	}, false)
+	homes := rowModules(modules, "shared")
+	if len(homes) != 1 || !strings.HasPrefix(homes[0], "rt/shared/") {
+		t.Fatalf("the shared row must be written once, in rt/shared/, got %v", homes)
+	}
 	for _, module := range []string{"rt/a", "rt/b"} {
-		if !strings.Contains(modules[module], "['shared',5]") || strings.Contains(modules[module], "import ") {
-			t.Errorf("%s must carry the shared row and import nothing:\n%s", module, modules[module])
+		if !importedModules(modules, module)[homes[0]] {
+			t.Errorf("%s must import %s:\n%s", module, homes[0], modules[module])
+		}
+	}
+	if got := rowModules(modules, "aRoot"); len(got) != 1 || got[0] != "rt/a" {
+		t.Errorf("a row only one file reaches stays in that file, got %v", got)
+	}
+}
+
+// TestCollectEntries_NoRowLeaksAcrossFiles — a client loads only rows its own roots reach, through every import.
+func TestCollectEntries_NoRowLeaksAcrossFiles(t *testing.T) {
+	modules := emitFileModules(t, map[string]string{"clientRoot": "client", "serverRoot": "server"}, []*reflection.RunType{
+		{ID: "clientRoot", Kind: reflection.KindProperty, Name: "c", Child: reflection.NewRef("sharedObj")},
+		{ID: "serverRoot", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{reflection.NewRef("serverProp"), reflection.NewRef("serverObj")}},
+		{ID: "serverObj", Kind: reflection.KindProperty, Name: "o", Child: reflection.NewRef("sharedObj")},
+		{ID: "serverProp", Kind: reflection.KindProperty, Name: "serverSecret", Child: reflection.NewRef("str")},
+		{ID: "sharedObj", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{reflection.NewRef("sharedProp")}},
+		{ID: "sharedProp", Kind: reflection.KindProperty, Name: "both", Child: reflection.NewRef("str")},
+		{ID: "str", Kind: reflection.KindString},
+	}, false)
+	var loaded strings.Builder
+	for name := range importedModules(modules, "rt/client") {
+		loaded.WriteString(modules[name])
+	}
+	if strings.Contains(loaded.String(), "serverSecret") || strings.Contains(loaded.String(), "'serverObj'") {
+		t.Errorf("the client must load no server-only row, got:\n%s", loaded.String())
+	}
+	for _, id := range []string{"clientRoot", "serverRoot", "serverObj", "serverProp", "sharedObj", "sharedProp", "str"} {
+		if got := rowModules(modules, id); len(got) != 1 {
+			t.Errorf("row %s must be written exactly once, got %v", id, got)
+		}
+	}
+}
+
+// TestCollectEntries_SharedModulesNest — rows three files reach and rows two reach land in two modules, the smaller
+// set importing the larger, so shared modules never form a cycle.
+func TestCollectEntries_SharedModulesNest(t *testing.T) {
+	modules := emitFileModules(t, map[string]string{"aRoot": "a", "bRoot": "b", "cRoot": "c"}, []*reflection.RunType{
+		{ID: "aRoot", Kind: reflection.KindProperty, Name: "a", Child: reflection.NewRef("pair")},
+		{ID: "bRoot", Kind: reflection.KindProperty, Name: "b", Child: reflection.NewRef("pair")},
+		{ID: "cRoot", Kind: reflection.KindProperty, Name: "c", Child: reflection.NewRef("leaf")},
+		{ID: "pair", Kind: reflection.KindProperty, Name: "p", Child: reflection.NewRef("leaf")},
+		{ID: "leaf", Kind: reflection.KindString},
+	}, false)
+	pairHome, leafHome := rowModules(modules, "pair"), rowModules(modules, "leaf")
+	if len(pairHome) != 1 || len(leafHome) != 1 || pairHome[0] == leafHome[0] {
+		t.Fatalf("pair and leaf must each be written once, apart, got %v and %v", pairHome, leafHome)
+	}
+	if !importedModules(modules, pairHome[0])[leafHome[0]] || importedModules(modules, leafHome[0])[pairHome[0]] {
+		t.Errorf("the {a,b} module imports the {a,b,c} one, never the reverse:\n%s\n%s", modules[pairHome[0]], modules[leafHome[0]])
+	}
+}
+
+// TestCollectEntries_SharedRootKeepsSizeLimit — a root another file reaches nested is written once, with its limit.
+func TestCollectEntries_SharedRootKeepsSizeLimit(t *testing.T) {
+	modules := emitFileModules(t, map[string]string{"flag": "a", "holder": "b"}, []*reflection.RunType{
+		{ID: "flag", Kind: reflection.KindBoolean},
+		{ID: "holder", Kind: reflection.KindProperty, Name: "h", Child: reflection.NewRef("flag")},
+	}, true)
+	homes := rowModules(modules, "flag")
+	if len(homes) != 1 || !strings.Contains(modules[homes[0]], "['flag',7,,,,,,,,,,,,,,,,,,,,5]") {
+		t.Errorf("the shared root row keeps its size limit, got %v:\n%s", homes, modules[homes[0]])
+	}
+}
+
+// TestCollectEntries_Deterministic — the same dump renders the same modules, shared names included.
+func TestCollectEntries_Deterministic(t *testing.T) {
+	render := func() map[string]string {
+		return emitFileModules(t, map[string]string{"aRoot": "a", "bRoot": "b"}, []*reflection.RunType{
+			{ID: "aRoot", Kind: reflection.KindProperty, Name: "a", Child: reflection.NewRef("shared")},
+			{ID: "bRoot", Kind: reflection.KindProperty, Name: "b", Child: reflection.NewRef("shared")},
+			{ID: "shared", Kind: reflection.KindString},
+		}, false)
+	}
+	first, second := render(), render()
+	if len(first) != len(second) {
+		t.Fatalf("module sets differ: %v vs %v", keysOfModules(first), keysOfModules(second))
+	}
+	for name, source := range first {
+		if second[name] != source {
+			t.Errorf("%s differs between runs", name)
 		}
 	}
 }
@@ -155,7 +270,7 @@ func TestCollectEntries_SameRootInTwoFiles(t *testing.T) {
 	graph := CollectEntries(protocol.Dump{
 		RunTypes: []*reflection.RunType{{ID: "root1", Kind: reflection.KindString}},
 		Sites:    []protocol.Site{{ID: "root1", File: "a"}, {ID: "root1", File: "b"}},
-	}, false, func(site protocol.Site) string { return "rt/" + site.File })
+	}, false, func(site protocol.Site) string { return "rt/" + site.File }, nil)
 	modules, err := entrymodules.RenderGrouped(graph, nil)
 	if err != nil {
 		t.Fatalf("render: %v", err)
@@ -187,7 +302,7 @@ func TestCollectEntries_SoftDepsScopedToFile(t *testing.T) {
 			{ID: "root1", File: "mocks", Demand: []protocol.SiteDemand{{FnHash: "fmtx"}}},
 			{ID: "root1", File: "plain"},
 		},
-	}, false, func(site protocol.Site) string { return "rt/" + site.File })
+	}, false, func(site protocol.Site) string { return "rt/" + site.File }, nil)
 	if deps := graph["rt/mocks#root1"].SoftDeps; len(deps) != 1 {
 		t.Errorf("the mocking file's facade carries its demand, got %v", deps)
 	}
@@ -229,7 +344,7 @@ func TestNoReflectionRoots(t *testing.T) {
 	graph := CollectEntries(protocol.Dump{
 		RunTypes: []*reflection.RunType{{ID: "x1", Kind: reflection.KindString}},
 		Sites:    []protocol.Site{{ID: "x1", FnId: "Qm3p"}}, // createX site, not reflection
-	}, true, nil)
+	}, true, nil, nil)
 	if len(graph) != 0 {
 		t.Fatalf("expected empty graph for fn-only sites, got %d entries", len(graph))
 	}

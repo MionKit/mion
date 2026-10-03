@@ -76,13 +76,13 @@ func elapsedMs(start time.Time) float64 {
 }
 
 // collectEntryModules runs the full per-entry pipeline against dump and returns the modules keyed by module
-// BASENAME, plus the package's pure-fn artifact.
-func (sess *Session) collectEntryModules(dump protocol.Dump, rtOpts typefunctions.RenderOpts, pureFnGraph entrymodules.Graph, metrics *protocol.Metrics) (map[string]string, map[string]string, error) {
+// BASENAME, plus the package's pure-fn artifact. Nil homes plans the runtype rows' modules from dump itself.
+func (sess *Session) collectEntryModules(dump protocol.Dump, homes *runtype.RowHomes, rtOpts typefunctions.RenderOpts, pureFnGraph entrymodules.Graph, metrics *protocol.Metrics) (map[string]string, map[string]string, error) {
 	var graph entrymodules.Graph
 	if sess.opts.ModuleMode == constants.ModuleModeAllModules {
 		graph = runtype.CollectEntriesPerNode(dump, sess.opts.JSONMaxBytes)
 	} else {
-		graph = runtype.CollectEntries(dump, sess.opts.JSONMaxBytes, sess.reflectionModuleFor)
+		graph = runtype.CollectEntries(dump, sess.opts.JSONMaxBytes, sess.reflectionModuleFor, homes)
 	}
 
 	familyGraphs, err := sess.collectFamilies(dump, rtOpts, metrics)
@@ -684,7 +684,14 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 				// resolve their override dep modules. Kept out of the per-file pure-fn signals (replacements /
 				// addedPureFns), which track registerPureFnFactory rewrites, not overrides.
 				allPureFns := append(append([]purefunctions.Entry(nil), pureFnEntries...), sess.overrideEntries...)
-				modules, _, modulesErr := sess.collectEntryModules(scoped, rtOpts, purefunctions.CollectEntries(allPureFns, sess.opts.EmitMode), metrics)
+				// Emitted modules must match the whole-program ones, so their rows are homed over every file; a
+				// diagnostics-only pass keeps the local plan and never pays the whole-program scan.
+				var homes *runtype.RowHomes
+				if request.IncludeEntryModules {
+					sess.scanAllProgramFiles()
+					homes = runtype.PlanRowHomes(protocol.Dump{RunTypes: sess.cache.Dump(), Sites: sess.Sites()}, sess.reflectionModuleFor)
+				}
+				modules, _, modulesErr := sess.collectEntryModules(scoped, homes, rtOpts, purefunctions.CollectEntries(allPureFns, sess.opts.EmitMode), metrics)
 				if modulesErr != nil {
 					return protocol.Response{Error: modulesErr.Error()}
 				}
@@ -732,7 +739,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		dumpBatchSites, dumpBatchDiagnostics := sess.collectProgramBatches()
 		response.Diagnostics = append(response.Diagnostics, dumpBatchDiagnostics...)
 		response.BatchSites = sess.batchReportForSites(dumpBatchSites)
-		modules, _, modulesErr := sess.collectEntryModules(fullDump, rtOpts, pureFnGraph, metrics)
+		modules, _, modulesErr := sess.collectEntryModules(fullDump, nil, rtOpts, pureFnGraph, metrics)
 		if modulesErr != nil {
 			return protocol.Response{Error: modulesErr.Error()}
 		}
@@ -763,7 +770,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		genOpts := sess.rtRenderOpts(&genDiagnostics, genRooted, genReaching)
 		genOpts.PureFnDepSink = &genPureFnDeps
 		genPureFnGraph, genPureFnsDiagnostics := sess.collectProgramPureFns(metrics)
-		genModules, genArtifact, genModulesErr := sess.collectEntryModules(genDump, genOpts, genPureFnGraph, metrics)
+		genModules, genArtifact, genModulesErr := sess.collectEntryModules(genDump, nil, genOpts, genPureFnGraph, metrics)
 		if genModulesErr != nil {
 			return protocol.Response{Error: genModulesErr.Error()}
 		}

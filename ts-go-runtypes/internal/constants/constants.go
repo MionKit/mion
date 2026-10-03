@@ -391,6 +391,8 @@ const (
 	RunTypesBundleBasename = "runtypes"
 	// RunTypesFileModuleDir holds a module per source file (`rt/<path hash>`), so a bundle carries only imported files' types.
 	RunTypesFileModuleDir = "rt"
+	// RunTypesSharedModuleDir, under RunTypesFileModuleDir, holds a module per set of files reaching the same rows.
+	RunTypesSharedModuleDir = "shared"
 	// FnsBundleDir is the basename directory prefix for per-family fn-entry bundle modules in allSingle mode
 	// (`fns/<familyTag>`): every entry of a family rides the family's bundle as a NAMED export
 	// (`export const <BindingName(key)>=[…]`) instead of its own module.
