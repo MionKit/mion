@@ -143,15 +143,17 @@
   // mions back where they stand in the reference (their crop boxes, halved), drawn back to front
   const bob = { time: 2.4, height: 4, shrink: 0.9, eyes: 1.5 };
   const hover = { time: 6, height: 6, shrink: 0.97, eyes: 1.5 };
+  place('creatures/horned-ghost.svg', 640, 360, 100, { ...bob, eyes: 1.4 });
   place('creatures/rock-mion.svg', 100, 165, 130, hover);
   place('creatures/plant-mion.svg', 0, 400, 110, hover);
   place('creatures/red-mushroom.svg', 402.5, 245, 97.5, bob);
   place('creatures/blue-helmet.svg', 227.5, 332.5, 102.5, bob);
   place('creatures/worm.svg', 355, 455, 87.5, { ...bob, time: 3.2, height: 2 });
   place('creatures/seal.svg', 670, 445, 100, bob);
-  place('creatures/horned-ghost.svg', 235, 470, 100, { ...bob, eyes: 1.4 });
+  place('creatures/pig.svg', 225, 495, 110, { ...bob, time: 3.6, height: 2 });
   place('creatures/red-ball.svg', 800, 515, 95, bob);
   place('creatures/horned-ghost-v2.svg', 350, 530, 137, { ...bob, eyes: 1.6 });
+  place('creatures/crawler.svg', 615, 585, 135, bob);
   place('creatures/teal-hood.svg', 485, 650, 80, bob);
   const fit = () => scene.style.setProperty('--s', Math.min(innerWidth, innerHeight) / 1000);
   fit(); addEventListener('resize', fit);
