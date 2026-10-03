@@ -32,7 +32,7 @@ The implementer plans the details. What the maintainer has settled so far:
   Settle the general rule before building.
 - **Acceptance case on hand.** The drizzle reference app (`packages/private-drizzle-example-app`) has routes that
   return types of plain drizzle tables (`typeof usersDb.$inferSelect`), so trimming the whole app keeps
-  `drizzle-orm` imports today. `apitypes/drizzle_app_test.go` pins that those `*.drizzle.d.ts` files are the only
+  `drizzle-orm` imports today. `apitypes/drizzle_test.go` pins that those `*.drizzle.d.ts` files are the only
   ones; once this lands, no `drizzle-orm` import or peer may ship at all.
 - Pointers: externals are collected in `followModule` (`apitypes/trim.go`); peers are built in `BuildPackage`
   (`apitypes/pkg.go`). The api-types fuzz lane under `apitypes/` already checks that no unreached package becomes a
