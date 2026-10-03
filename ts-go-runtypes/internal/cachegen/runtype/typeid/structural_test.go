@@ -278,3 +278,57 @@ getRunTypeId<`+typeText+`>();
 		t.Errorf("type arguments are positional — swapping them must change the id")
 	}
 }
+
+// Readonly is in the id: a readonly collection never shares a node, and so a reflected flag, with its mutable twin.
+func TestStructural_ReadonlySplitsFromMutableTwin(t *testing.T) {
+	for _, testCase := range []struct{ readonlyType, mutableType string }{
+		{"readonly [number, string]", "[number, string]"},
+		{"readonly string[]", "string[]"},
+		{"ReadonlyArray<string>", "string[]"},
+		{"{readonly [k: string]: number}", "{[k: string]: number}"},
+		{"readonly [x: number, y?: string]", "[x: number, y?: string]"},
+	} {
+		_, readonlyNode := rootFor(t, "import {getRunTypeId} from '@mionjs/run-types';\ngetRunTypeId<"+testCase.readonlyType+">();\n")
+		_, mutableNode := rootFor(t, "import {getRunTypeId} from '@mionjs/run-types';\ngetRunTypeId<"+testCase.mutableType+">();\n")
+		if readonlyNode.ID == mutableNode.ID || mutableNode.Readonly {
+			t.Errorf("%s must not share an id or a readonly flag with %s: %q vs %q", testCase.readonlyType, testCase.mutableType, readonlyNode.ID, mutableNode.ID)
+		}
+	}
+}
+
+func TestStructural_ReadonlySplitsFromMutableTwinReflect(t *testing.T) {
+	for _, testCase := range []struct{ readonlyType, mutableType string }{
+		{"readonly [number, string]", "[number, string]"},
+		{"readonly string[]", "string[]"},
+		{"{readonly [k: string]: number}", "{[k: string]: number}"},
+		{"readonly [x: number, y?: string]", "[x: number, y?: string]"},
+	} {
+		_, readonlyNode := rootFor(t, "import {getRunTypeId} from '@mionjs/run-types';\ndeclare const value: "+testCase.readonlyType+";\ngetRunTypeId(value);\n")
+		_, mutableNode := rootFor(t, "import {getRunTypeId} from '@mionjs/run-types';\ndeclare const value: "+testCase.mutableType+";\ngetRunTypeId(value);\n")
+		if readonlyNode.ID == mutableNode.ID || mutableNode.Readonly {
+			t.Errorf("%s must not share an id or a readonly flag with %s: %q vs %q", testCase.readonlyType, testCase.mutableType, readonlyNode.ID, mutableNode.ID)
+		}
+	}
+}
+
+func TestStructural_ReadonlyFormEquivalence(t *testing.T) {
+	for _, typeText := range []string{"readonly [number, string]", "readonly string[]", "ReadonlyArray<string>"} {
+		_, static := rootFor(t, "import {getRunTypeId} from '@mionjs/run-types';\ngetRunTypeId<"+typeText+">();\n")
+		_, reflected := rootFor(t, "import {getRunTypeId} from '@mionjs/run-types';\ndeclare const value: "+typeText+";\ngetRunTypeId(value);\n")
+		if static.ID != reflected.ID || !static.Readonly || !reflected.Readonly {
+			t.Errorf("%s: getRunTypeId<T>() and getRunTypeId(value) must share one readonly entry: %q vs %q", typeText, static.ID, reflected.ID)
+		}
+	}
+}
+
+// IsArrayType holds only for the global Array / ReadonlyArray, so a local interface named ReadonlyArray is mutable.
+func TestStructural_LocalReadonlyArrayIsNotReadonly(t *testing.T) {
+	_, local := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
+interface ReadonlyArray<T> extends Array<T> {}
+getRunTypeId<ReadonlyArray<string>>();
+`)
+	_, global := rootFor(t, "import {getRunTypeId} from '@mionjs/run-types';\ngetRunTypeId<readonly string[]>();\n")
+	if local.Readonly || local.ID == global.ID {
+		t.Errorf("a local ReadonlyArray interface must not read as the global readonly array: %q vs %q", local.ID, global.ID)
+	}
+}

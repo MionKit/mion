@@ -238,7 +238,7 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *reflection.
 				return
 			}
 			cache.projectMergedTuple(picks, node)
-			node.Readonly = typeid.AllReadonlyCollections(restMembers)
+			node.Readonly = typeid.AllReadonlyCollections(cache.typeChecker, restMembers)
 			return
 		}
 		node.Kind = reflection.KindObjectLiteral

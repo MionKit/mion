@@ -797,7 +797,7 @@ func (cache *Cache) projectObjectType(tsType *checker.Type, node *reflection.Run
 		typeArguments := cache.typeChecker.GetTypeArguments(tsType)
 		if len(typeArguments) > 0 {
 			node.Kind = reflection.KindArray
-			node.Readonly = typeid.IsReadonlyCollection(tsType)
+			node.Readonly = typeid.IsReadonlyCollection(cache.typeChecker, tsType)
 			node.Child = cache.Serialize(typeArguments[0])
 			return
 		}
@@ -854,7 +854,7 @@ func (cache *Cache) projectObjectType(tsType *checker.Type, node *reflection.Run
 // byte-identical to the type-first labeled tuple sharing its structural id. Nil reads LabeledDeclaration labels.
 func (cache *Cache) projectTuple(tsType *checker.Type, node *reflection.RunType, labelOverride []string) {
 	node.Kind = reflection.KindTuple
-	node.Readonly = typeid.IsReadonlyCollection(tsType)
+	node.Readonly = typeid.IsReadonlyCollection(cache.typeChecker, tsType)
 	tupleType := tsType.TargetTupleType()
 	elementInfos := tupleType.ElementInfos()
 	typeArguments := cache.typeChecker.GetTypeArguments(tsType)
