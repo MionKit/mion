@@ -540,6 +540,14 @@ type Safe = String<{pattern: {source: '...'; unsafePattern: true}}>;`,
 type Sku = String<{pattern: typeof sku}>;
 // or
 type Sku = String<{pattern: {source: '^[A-Z]{3}-[0-9]{4}$'}}>;`,
+		Example: `import {createValidateFn} from '@mionjs/run-types';
+import * as TF from '@mionjs/run-types/formats';
+declare const sku: {readonly source: string};
+export const isSku = createValidateFn<TF.String<{pattern: typeof sku}>>();`,
+		NestedExample: `import {createValidateFn} from '@mionjs/run-types';
+import * as TF from '@mionjs/run-types/formats';
+declare const sku: {readonly source: string};
+export const isOrder = createValidateFn<{item: {sku: TF.String<{pattern: typeof sku}>}}>();`,
 	},
 
 	// ────────────────────── FriendlyText files (FT) ───────────────────────
