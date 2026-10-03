@@ -19,7 +19,8 @@ import (
 
 // emitDeclarationFiles emits the .d.ts with the value splices and every `private` turned `protected`.
 // It returns each spliced file's map by absolute path, so a .d.ts.map points at the source as written.
-func emitDeclarationFiles(cwd, tsconfigPath string, original *program.Program, valueSplices []protocol.Replacement, writeFile compiler.WriteFile) (map[string]*protocol.SourceMap, error) {
+// overrides are the ones the original program was built with, so both programs read the same options.
+func emitDeclarationFiles(cwd, tsconfigPath string, original *program.Program, overrides *core.CompilerOptions, valueSplices []protocol.Replacement, writeFile compiler.WriteFile) (map[string]*protocol.SourceMap, error) {
 	splices := append(append([]protocol.Replacement(nil), valueSplices...), privateToProtectedSplices(original)...)
 	// Keyed by absolute path: the splice sources may spell one file differently, and each overlay entry replaces the file.
 	byFile := map[string][]protocol.Replacement{}
@@ -44,12 +45,16 @@ func emitDeclarationFiles(cwd, tsconfigPath string, original *program.Program, v
 	declarations := original
 	if len(overlay) > 0 {
 		// isolatedDeclarations demands a written type on protected, not private: check the source, then emit without it.
-		var overrides *core.CompilerOptions
 		if original.TS.Options().IsolatedDeclarations.IsTrue() {
 			if found := original.TS.GetDeclarationDiagnostics(context.Background(), nil); len(found) > 0 {
 				return nil, emitSkipped("declaration emit", &compiler.EmitResult{EmitSkipped: true, Diagnostics: found}, cwd)
 			}
-			overrides = &core.CompilerOptions{IsolatedDeclarations: core.TSFalse}
+			if overrides == nil {
+				overrides = &core.CompilerOptions{}
+			} else {
+				overrides = overrides.Clone()
+			}
+			overrides.IsolatedDeclarations = core.TSFalse
 		}
 		var err error
 		if declarations, err = program.New(program.Options{Cwd: cwd, TsconfigPath: tsconfigPath, Overlay: overlay, Overrides: overrides}); err != nil {

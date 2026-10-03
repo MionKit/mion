@@ -19,6 +19,7 @@ import (
 
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/compiler"
+	"github.com/microsoft/typescript-go/shim/core"
 	"github.com/microsoft/typescript-go/shim/scanner"
 	"github.com/microsoft/typescript-go/shim/tspath"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
@@ -55,6 +56,11 @@ type Options struct {
 	ResolverOpts resolver.Options
 	// NoEmit stops after the pass-1 scan and returns its diagnostics; nothing is written. Mirrors tsc --noEmit.
 	NoEmit bool
+	// DeclarationsOnly emits only the .d.ts, into Result.Declarations under DeclarationDir, and writes no output file.
+	// The gen dir still gets what generate writes, so a caller wanting no trace passes a temp GenDir.
+	DeclarationsOnly bool
+	// DeclarationDir is where DeclarationsOnly lays the .d.ts out (absolute, never written); `<cwd>/.mion-dts` when empty.
+	DeclarationDir string
 }
 
 // Result reports what a compile run produced.
@@ -66,6 +72,12 @@ type Result struct {
 	TypeDiagnostics []string
 	TypeErrorCount  int
 	CheckedFiles    int // non-declaration source files the scan read
+	// Declarations (DeclarationsOnly) holds each emitted .d.ts by absolute path under DeclarationDir.
+	Declarations   map[string]string
+	DeclarationDir string
+	// PureFnArtifact is the package's `mion-pure-fns/` content, path inside the directory to text.
+	PureFnArtifact map[string]string
+	GenDir         string
 }
 
 // Run executes the compile. See the package doc for the two-pass model.
@@ -89,7 +101,19 @@ func Run(opts Options) (*Result, error) {
 	resolverOpts := opts.ResolverOpts
 	resolverOpts.GenDir = genDir
 
-	p1, err := program.New(program.Options{Cwd: cwd, TsconfigPath: opts.TsconfigPath})
+	var overrides *core.CompilerOptions
+	declarationDir := ""
+	if opts.DeclarationsOnly {
+		declarationDir = opts.DeclarationDir
+		if declarationDir == "" {
+			declarationDir = filepath.Join(cwd, ".mion-dts")
+		}
+		overrides = &core.CompilerOptions{
+			Declaration: core.TSTrue, EmitDeclarationOnly: core.TSTrue, DeclarationMap: core.TSFalse,
+			NoEmit: core.TSFalse, DeclarationDir: declarationDir,
+		}
+	}
+	p1, err := program.New(program.Options{Cwd: cwd, TsconfigPath: opts.TsconfigPath, Overrides: overrides})
 	if err != nil {
 		return nil, fmt.Errorf("compile: program: %w", err)
 	}
@@ -135,6 +159,10 @@ func Run(opts Options) (*Result, error) {
 	result.Diagnostics = append(result.Diagnostics, gen.Diagnostics...)
 	if gen.OutDir != "" {
 		genDir = gen.OutDir
+	}
+	result.GenDir, result.PureFnArtifact = genDir, gen.PureFnArtifact
+	if opts.DeclarationsOnly {
+		return declarationsOnly(result, cwd, opts.TsconfigPath, p1, overrides, r1.DeclarationReplacements(), declarationDir)
 	}
 
 	markerFiles := uniqueFiles(dump.Sites, dump.Replacements)
@@ -183,7 +211,7 @@ func Run(opts Options) (*Result, error) {
 	}
 	declarationMapByAbs := map[string]*protocol.SourceMap{}
 	if emitDeclarations {
-		if declarationMapByAbs, err = emitDeclarationFiles(cwd, opts.TsconfigPath, p1, r1.DeclarationReplacements(), writeFile); err != nil {
+		if declarationMapByAbs, err = emitDeclarationFiles(cwd, opts.TsconfigPath, p1, nil, r1.DeclarationReplacements(), writeFile); err != nil {
 			return nil, err
 		}
 	}
@@ -242,6 +270,22 @@ func Run(opts Options) (*Result, error) {
 			return nil, fmt.Errorf("compile: %w", err)
 		}
 	}
+	return result, nil
+}
+
+// declarationsOnly emits the .d.ts in memory, keeping the value splices and the private-to-protected pass.
+func declarationsOnly(result *Result, cwd, tsconfigPath string, original *program.Program, overrides *core.CompilerOptions, valueSplices []protocol.Replacement, declarationDir string) (*Result, error) {
+	capture := newEmitCapture()
+	writeFile := func(fileName, text string, _ *compiler.WriteFileData) error {
+		if strings.HasSuffix(fileName, ".d.ts") {
+			capture.add(filepath.Clean(fileName), text)
+		}
+		return nil
+	}
+	if _, err := emitDeclarationFiles(cwd, tsconfigPath, original, overrides, valueSplices, writeFile); err != nil {
+		return nil, err
+	}
+	result.Declarations, result.DeclarationDir = capture.files, declarationDir
 	return result, nil
 }
 

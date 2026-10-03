@@ -1,6 +1,7 @@
 package batchcompile
 
 import (
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -79,5 +80,34 @@ export const shout = registerPureFn(function (text: string): string {
 	}
 	if dts := readEmitted(t, dir, "index.d.ts"); !strings.Contains(dts, id[1]) {
 		t.Fatalf("the declaration must carry the id %s:\n%s", id[1], dts)
+	}
+}
+
+// TestCompile_DeclarationsOnlyWritesNoOutput: the .d.ts come back in memory even with `declaration` off, and no output file lands.
+func TestCompile_DeclarationsOnlyWritesNoOutput(t *testing.T) {
+	dir := writeProject(t, map[string]string{"router.d.ts": versionedRouterDTS, "server.ts": versionedServerTS})
+	result, err := Run(Options{Cwd: dir, TsconfigPath: "tsconfig.json", GenDir: filepath.Join(t.TempDir(), "gen"), DeclarationsOnly: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, statErr := os.Stat(filepath.Join(dir, "dist")); !os.IsNotExist(statErr) {
+		t.Fatalf("declarations-only must write no outDir, stat: %v", statErr)
+	}
+	dts := result.Declarations[filepath.Join(dir, ".mion-dts", "server.d.ts")]
+	if !strings.Contains(dts, `ApiBuildVersion<"`) {
+		t.Fatalf("the in-memory declaration must carry the version, got %v", result.Declarations)
+	}
+}
+
+// TestCompile_DeclarationsOnlyKeepsPrivateTypes: the private-to-protected pass runs in declarations-only mode too.
+func TestCompile_DeclarationsOnlyKeepsPrivateTypes(t *testing.T) {
+	dir := writeProject(t, map[string]string{"a.ts": "export class Secret {\n  private code: number = 1;\n}\n"})
+	writeFile(t, filepath.Join(dir, "tsconfig.json"), strings.Replace(projectTsconfigJSON, `"strict": true,`, `"strict": true, "isolatedDeclarations": true, "declaration": false,`, 1))
+	result, err := Run(Options{Cwd: dir, TsconfigPath: "tsconfig.json", GenDir: filepath.Join(t.TempDir(), "gen"), DeclarationsOnly: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dts := result.Declarations[filepath.Join(dir, ".mion-dts", "a.d.ts")]; !strings.Contains(dts, "protected code: number;") {
+		t.Fatalf("the private member must keep its type, got %v", result.Declarations)
 	}
 }
