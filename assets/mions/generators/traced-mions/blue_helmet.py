@@ -10,11 +10,16 @@ def leg(name, x, tilt, foot=False):  # two cone sections, the top one wide under
                  + ([(x - tilt * 0.7, 294, 11, 9, 0)] if foot else []), '#4a4f78', '#6b70a0', '#2b2e4a', '#a3a7cf', rand, vary=0.06)
 
 def back():  # antennae bend along a curve and their bases tuck under the helmet; lower pieces a little boxy, tops round
-    leaf = stack('leaf', [(35, 82, 21, 9, -16), (19, 79, 11, 6, -22)], '#b4a6cd', '#d2c8e6', '#7e7199', '#efeaf7', rand, vary=0.06)
-    blue = stack('antenna-blue', [(68, 110, 8, 15, -2, 3), (64, 94, 8, 12, -12, 3), (57, 79, 11, 8, -24, 3), (45, 58, 17, 20, -34)], '#4f9fc2', '#83c9e2', '#2c6683', '#c7eef7', rand, vary=0.08)
+    leaf = stack('leaf', [(43, 82, 21, 9, -16), (27, 79, 11, 6, -22)], '#b4a6cd', '#d2c8e6', '#7e7199', '#efeaf7', rand, vary=0.06)
+    # its cone base points straight out from the helmet's center, so the base's lower edge follows the curve there
+    own = random.Random(33)   # its own stream: its cone base takes other draws than an oval, and the parts after it must not shift
+    blue = stack('antenna-blue', [cone(72, 109, 14, 26, 18, -25, own), (66, 94, 8, 12, -16, 3), (61, 79, 11, 8, -26, 3), (53, 58, 17, 20, -34)], '#4f9fc2', '#83c9e2', '#2c6683', '#c7eef7', own, vary=0.08)
+    for _ in range(32): rand.random()   # the draws this antenna used to take, so the white and red ones and the legs keep their shapes
     white = stack('antenna-white', [(112, 103, 10, 21, 4, 3), (111, 79, 14, 16, 12, 3), (117, 54, 18, 22, 22)], '#d6d3e0', '#f1f0f5', '#9895a9', '#ffffff', rand, vary=0.05)
-    red = stack('antenna-red', [(158, 121, 14, 10, -22, 3), (173, 105, 16, 13, -40, 3), (184, 84, 19, 16, -58)], '#d15d5c', '#ee8781', '#8f343c', '#ffd2cc', rand, vary=0.08)
-    return leaf + blue + white + red + leg('leg-left', 74, 16) + leg('leg-right', 136, -18)
+    red = stack('antenna-red', [(150, 115, 14, 10, -22, 3), (165, 99, 16, 13, -40, 3), (176, 78, 19, 16, -58)], '#d15d5c', '#ee8781', '#8f343c', '#ffd2cc', rand, vary=0.08)
+    global front_antenna
+    front_antenna = leaf + blue   # built here so every shape stays the same, drawn in front of the helmet by extra()
+    return white + red + leg('leg-left', 74, 16) + leg('leg-right', 136, -18)
 
 def eye(i, x, y, rx, ry, pupil, rim, white):
     # the rim is the white's own shape pushed down-right, so it shows as a crescent there and the upper left has no border
@@ -39,7 +44,7 @@ def extra():
       <path d="{wobbly(91, 152, 57, 45, -10, bumps(0.05))}" fill="#5fb0cf"/>
       <ellipse cx="79" cy="133" rx="22" ry="9" fill="#9ad6e8" transform="rotate(-18 79 133)"/>
     </g>
-  </g>{front}
+  </g>{front}{front_antenna}
   <g id="eyes">{eye(0, 78, 192, 22.5, 21.5, 9.5, '#1f3a4e', '#eef4f6')}{eye(1, 147, 165, 20, 17, 7.5, '#2c6680', '#e2f2f6')}
   </g>
   <g id="glass" fill="#ffffff" opacity="0.55">
