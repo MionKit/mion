@@ -155,30 +155,23 @@ for (const [r, ring] of rings.entries()) for (let i = 0; i < ring.count; i++) {
   Object.assign(a, { kind, ring, angle: (i / ring.count) * Math.PI * 2 + r * 0.3 + rand(-0.12, 0.12), wobble: rand(0.92, 1.08), phase: rand(0, 6.28), slots: [{ ...spot, holder: null }] });
   world.addChild(a.root); pieces.push(a);
 }
-// mushroom trees stand still just off the island: two small ones behind it read as far away, a full-size one in front holds two mions on its cap
+// mushroom trees stand still around the island: two small ones behind it, a full-size one below it so the island floats over it
 const tb = island.L.top, nw = toWorld(island, tb), se = toWorld(island, { x: tb.x + tb.w, y: tb.y + tb.h });
 const corner = { left: { x: nw.x, y: (nw.y + se.y) / 2 }, back: { x: (nw.x + se.x) / 2, y: nw.y }, right: { x: se.x, y: (nw.y + se.y) / 2 }, front: { x: (nw.x + se.x) / 2, y: se.y } };
 const along = (a, b, t, dx, dy) => ({ x: lerp(a.x, b.x, t) + dx, y: lerp(a.y, b.y, t) + dy });
 const TREES = [
-  { at: along(corner.left, corner.back, 0.42, -30, -40), size: 0.5, far: true },
-  { at: along(corner.back, corner.right, 0.62, 30, -45), size: 0.62, far: true },
-  { at: along(corner.left, corner.front, 0.45, -120, 340), size: 0.9, far: false },
+  { at: along(corner.left, corner.back, 0.42, -30, -40), size: 0.5 },
+  { at: along(corner.back, corner.right, 0.62, 30, -45), size: 0.62 },
+  { at: along(corner.left, corner.front, 0.55, -20, 215), size: 0.9 },
 ];
-let tree;
 for (const t of TREES) {
   const a = await actor('terrain/tree-mushroom.svg', 0.5 * t.size);
   a.root.position.set(t.at.x, t.at.y);
-  if (!t.far) {
-    const shade = new PIXI.Graphics().ellipse(0, 0, 150, 34).fill({ color: 0x000000, alpha: 0.55 });
-    shade.filters = [new PIXI.BlurFilter({ strength: 8 })]; shade.y = 4;
-    a.root.addChildAt(shade, 0);
-  }
-  Object.assign(a, { kind: 'tree', fixed: true, slots: t.far ? [] : [{ x: 292, y: 112, holder: null }, { x: 352, y: 104, holder: null }] });
-  a.root.zIndex = t.far ? island.root.zIndex - 1 : a.root.y;
+  Object.assign(a, { kind: 'tree', fixed: true, slots: [] });
+  a.root.zIndex = island.root.zIndex - 1;
   world.addChild(a.root); pieces.push(a);
-  if (!t.far) tree = a;
 }
-const roomy = p => p.kind === 'tree' || p.L.top.w * p.root.scale.x > 34;
+const roomy = p => p.L.top && p.L.top.w * p.root.scale.x > 34;
 const empty = p => p.slots.every(slot => !slot.holder);
 
 // every few seconds an empty piece pops to a new size
@@ -216,8 +209,7 @@ for (const [name, left, top, width] of MIONS) {
   place(m, left, top, width);
   m.name = name; m.phase = rand(0, 6.28); m.period = rand(2.2, 3.4);
   const foot = { x: m.root.x, y: m.root.y };
-  if (name === 'hat-juggler') { m.at = { piece: tree, slot: tree.slots[1] }; tree.slots[1].holder = m; }
-  else if (islandSpots.some(s => Math.hypot(s.x - foot.x, s.y - foot.y) < 40)) { m.at = foot; onIsland.push(m); }
+  if (islandSpots.some(s => Math.hypot(s.x - foot.x, s.y - foot.y) < 40)) { m.at = foot; onIsland.push(m); }
   else m.at = { pending: foot };
   m.root.eventMode = 'static'; m.root.cursor = 'pointer';
   m.root.on('pointertap', () => { m.urge = true; });
@@ -349,7 +341,7 @@ function jumpSound(m) {
   lfo.frequency.value = v.wobble; depth.gain.value = v.f * 0.06; lfo.connect(depth).connect(o.frequency); lfo.start(t); lfo.stop(t + 0.4);
   tone(dest, 'sine', v.f * 2, v.f * 2 * v.spring, t, 0.18, 0.03);
 }
-const surfaceOf = to => !to.piece ? 'grass' : to.piece.kind === 'tree' ? 'tree' : /tile|block/.test(to.piece.kind) ? 'stone' : /sand/.test(to.piece.kind) ? 'sand' : 'rock';
+const surfaceOf = to => !to.piece ? 'grass' : /tile|block/.test(to.piece.kind) ? 'stone' : /sand/.test(to.piece.kind) ? 'sand' : 'rock';
 function landSound(m, surface) {
   if (!sound.on) return;
   const t = sound.ctx.currentTime, dest = out(panOf(m), 1, 0.4), big = Math.min(1.4, m.unit * m.L.full.w / 100);
@@ -357,12 +349,6 @@ function landSound(m, surface) {
   if (surface === 'stone') { tone(dest, 'triangle', 820, 420, t, 0.09, 0.16); hiss(dest, 'highpass', 4000, 0.7, t, 0.04, 0.08); tone(dest, 'sine', 210, 120, t, 0.12, 0.12 * big); }
   if (surface === 'sand') { hiss(dest, 'lowpass', 1400, 0.5, t, 0.32, 0.12); tone(dest, 'sine', 110, 55, t, 0.14, 0.12 * big); }
   if (surface === 'rock') { tone(dest, 'sine', 95, 42, t, 0.32, 0.32 * big); hiss(dest, 'lowpass', 380, 0.9, t, 0.2, 0.12); }
-  if (surface === 'tree') {   // the mushroom cap gives under the mion and wobbles back
-    const o = tone(dest, 'sine', 230, 190, t, 0.55, 0.18);
-    const lfo = sound.ctx.createOscillator(), depth = sound.ctx.createGain();
-    lfo.frequency.value = 13; depth.gain.setValueAtTime(45, t); depth.gain.exponentialRampToValueAtTime(1, t + 0.5);
-    lfo.connect(depth).connect(o.frequency); lfo.start(t); lfo.stop(t + 0.6);
-  }
 }
 const soundButton = document.getElementById('sound');
 soundButton.addEventListener('click', async () => {
