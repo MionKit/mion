@@ -8,8 +8,8 @@ import (
 	"testing"
 )
 
-// TestTrim_CutsWithTheRealRouter runs the cut against @mionjs/router's own definition and public types, read from
-// the workspace sources, so a change to PrivateDef or the public method types cannot slip past the stub.
+// TestTrim_CutsWithTheRealRouter reads @mionjs/router's workspace sources, so a PrivateDef or public method type
+// change cannot slip past the stub.
 func TestTrim_CutsWithTheRealRouter(t *testing.T) {
 	_, self, _, _ := runtime.Caller(0)
 	repo := filepath.Join(filepath.Dir(self), "..", "..", "..", "..")

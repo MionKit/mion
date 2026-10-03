@@ -97,8 +97,7 @@ func hasRootIndex(root string, fs vfspkg.FS) bool {
 	return false
 }
 
-// exportsTypesOnly reports an `exports` map whose every target sits under a `types` condition or is a .d.ts; an
-// absent map counts as types-only, since `main` and `module` were checked already.
+// exportsTypesOnly: every `exports` target is a .d.ts or under `types`; absent counts, main and module are checked apart.
 func exportsTypesOnly(raw json.RawMessage) bool {
 	if len(raw) == 0 {
 		return true

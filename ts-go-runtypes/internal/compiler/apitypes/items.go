@@ -251,8 +251,7 @@ func (file *fileInfo) inHole(node *ast.Node) bool {
 	return false
 }
 
-// refNames lists, once each, the identifiers a kept statement reads outside its holes, skipping member, parameter
-// and type parameter names. Reading too much only keeps a declaration that was not needed; never too little.
+// refNames lists the identifiers a kept statement reads outside its holes; over-reading only keeps an extra declaration.
 func (current *item) refNames(file *fileInfo) []string {
 	if current.statement == nil || current.kind == itemExportEmpty {
 		return nil

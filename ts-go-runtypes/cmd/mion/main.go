@@ -675,8 +675,7 @@ func runCompile(args []string) {
 	}
 }
 
-// printBuildDiagnostics prints a compile run's TypeScript and mion diagnostics the way a bundler build does and
-// returns the error count; downgradeErrors and levels come from the same tsconfig keys.
+// printBuildDiagnostics prints a compile run's diagnostics the way a bundler build does and returns the error count.
 func printBuildDiagnostics(command string, cfg sessionConfig, compileResult *batchcompile.Result) int {
 	// Same tsconfig `downgradeErrors` as a bundler build, so the CLI grows no flag of its own.
 	downgrade, downgradeErr := diagnostics.ResolveDowngrade(cfg.opts.TsconfigDowngradeErrors)

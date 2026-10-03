@@ -1,7 +1,6 @@
-// Package apitypes trims the declarations `mion compile` writes down to what a client of the API needs: the API
-// exports (the ones carrying a server build version) and everything they reach, statement by statement. Private
-// and raw middleware definitions are cut out of the routes a `PublicApi<…>` names, so their handler types and
-// imports drop with them.
+// Package apitypes trims the declarations `mion compile` writes to the exports carrying a server build version
+// and what they reach, statement by statement. Private and raw middlewares are cut from the routes a
+// `PublicApi<…>` names, so their handler types and imports drop with them.
 package apitypes
 
 import (
@@ -274,8 +273,7 @@ func (trimmer *trimmer) exportType(exported *ast.Symbol) *checker.Type {
 	return nil
 }
 
-// mark keeps the API exports and, through their references, everything they use: a declaration stays while one
-// kept declaration still uses it, so a type a cut member shared with a public route stays.
+// mark keeps the API exports and what they reach, so a type a cut member shared with a public route stays.
 func (trimmer *trimmer) mark(entry *fileInfo, apiExports []string) {
 	for _, name := range apiExports {
 		for _, root := range trimmer.provide(entry, name, map[string]bool{}) {
@@ -283,8 +281,7 @@ func (trimmer *trimmer) mark(entry *fileInfo, apiExports []string) {
 		}
 	}
 	trimmer.drain()
-	// An augmentation changes types the kept code reads without being named: kept with its file, or when it
-	// augments a module the kept code imports or declares a global name it reads.
+	// Nothing names an augmentation, yet it changes the types kept code reads.
 	for changed := true; changed; {
 		changed = false
 		for _, file := range trimmer.sortedFiles() {
@@ -421,8 +418,7 @@ func (trimmer *trimmer) followModule(user *item, file *fileInfo, specifier strin
 	}
 }
 
-// resolvesIntoProject reports a bare specifier the checker resolves to an emitted file or to a project source
-// outside node_modules.
+// resolvesIntoProject: the bare specifier resolves to an emitted file or a project source outside node_modules.
 func (trimmer *trimmer) resolvesIntoProject(specifierNode *ast.Node) bool {
 	if specifierNode == nil {
 		return false

@@ -1,6 +1,5 @@
-// Proves a client built from its server's published .d.ts checks the server build version, from the whole server
-// package and from the types-only one `mion api-types` writes. Runs from the mion consumer root (/e2e-mion in the
-// container), which holds the published @mionjs/* plus vite and typescript.
+// Proves a client built from the server's published .d.ts, whole or types-only, checks the server build version.
+// Runs from the mion consumer root (/e2e-mion), which holds the published @mionjs/* plus vite and typescript.
 import {execFileSync, spawn, spawnSync} from 'node:child_process';
 import {cpSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync} from 'node:fs';
 import path from 'node:path';
@@ -88,7 +87,7 @@ function buildApiTypes() {
 }
 
 // A copy of the client source, so each variant installs its own tarball and keeps its own outputs.
-// overlay's files replace the client's own (the fetching main.ts); typesOnly points the import at @acme/api-types.
+// overlay's files replace the client's own (the fetching main.ts).
 function clientCopy(name, tsconfigEdit, overlay, typesOnly = false) {
   const dir = path.join(OUT, name);
   cpSync(CLIENT, dir, {recursive: true, filter: (from) => !/[/\\](dist-vite|dist-cli|node_modules|\.mion|\.mion-cli)$/.test(from)});
